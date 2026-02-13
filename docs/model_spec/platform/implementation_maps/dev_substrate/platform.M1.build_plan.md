@@ -78,11 +78,47 @@ M1.A contract freeze record:
 5. Future split policy is pinned.
    - Multi-image decomposition is out-of-scope for M1 and requires explicit repin in authority docs.
 
+M1.A image content manifest (reopened and repinned):
+1. Required include set (exact paths only):
+   - `pyproject.toml`
+   - `src/fraud_detection/` (recursive)
+   - `config/platform/` (recursive)
+   - `docs/model_spec/platform/contracts/` (recursive)
+   - `docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml`
+   - `docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml`
+   - `docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml`
+   - `docs/model_spec/data-engine/interface_pack/contracts/engine_invocation.schema.yaml`
+   - `docs/model_spec/data-engine/interface_pack/contracts/engine_output_locator.schema.yaml`
+   - `docs/model_spec/data-engine/interface_pack/contracts/gate_receipt.schema.yaml`
+   - `docs/model_spec/data-engine/interface_pack/contracts/instance_proof_receipt.schema.yaml`
+   - `docs/model_spec/data-engine/interface_pack/contracts/run_receipt.schema.yaml`
+   - `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+   - `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml`
+2. Explicitly excluded from image context:
+   - `packages/engine/src/` (entire tree excluded from dev_min v0 platform image)
+   - `runs/`, `data/`, `reference/`, `artefacts/`
+   - `.git/`, `.venv/`, local caches (`__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`)
+   - operational/log scratch surfaces (`docs/logbook/`, `docs/tmp/`)
+   - local-only infra assets not required by runtime (`infra/local/`)
+   - secrets/env files (`.env`, `.env.*`)
+3. Build-context law:
+   - `COPY . .` is forbidden for M1 execution.
+   - Dockerfile COPY surfaces must map only to the required include set above.
+4. Verification gate before build:
+   - fail build-go if any required include path is missing.
+   - fail build-go if excluded paths are present in build context transfer.
+5. Rationale:
+   - prevents bloated image construction in a large workspace,
+   - enforces platform-only packaging boundary,
+   - keeps build deterministic and auditable.
+
 M1.A planning evidence:
 - Registry authority source reviewed:
   - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` (Section 6).
 - Runbook alignment source reviewed:
   - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P(-1) pinned decisions).
+- Runtime dependency reference scan reviewed:
+  - `config/platform/**` runtime refs into `docs/model_spec/...` contract surfaces.
 - This phase is contract-finalization only; build/push evidence is deferred to M1 execution build-go pass.
 
 ## M1.B Entrypoint Matrix Completion
@@ -327,9 +363,12 @@ M1.E required inputs (pinned):
    - `IMAGE_TAG_GIT_SHA_PATTERN`
    - `IMAGE_TAG_DEV_MIN_LATEST` (optional non-authoritative tag)
    - `IMAGE_REFERENCE_MODE`
-2. Source metadata:
+2. M1.A image content manifest:
+   - Docker build must satisfy the exact M1.A include/exclude contract.
+   - any command surface that violates M1.A manifest is invalid for M1 execution.
+3. Source metadata:
    - `git_sha` (used to materialize immutable tag per `IMAGE_TAG_GIT_SHA_PATTERN`).
-3. Execution identity:
+4. Execution identity:
    - build actor identity (`operator` or CI principal) must be captured in provenance evidence.
 
 M1.E failure/retry posture (fail-closed):
@@ -363,7 +402,36 @@ M1.E completion notes:
 2. Required handle/input set is explicit and tied to registry keys.
 3. Failure/retry posture is pinned fail-closed with bounded retry scope.
 
-## M1.F Exit Readiness Review
+## M1.F Build Driver Authority Pin
+Goal:
+- remove build-driver ambiguity before any build-go execution.
+
+Tasks:
+1. Select one authoritative build driver for M1 execution (`github_actions` or `local_cli`).
+2. Pin non-authoritative driver posture (what it may do and what it may not claim).
+3. Pin minimum evidence surfaces required from the authoritative driver.
+4. Block build-go execution unless this selection is explicitly closed.
+
+DoD:
+- [x] Authoritative build driver is explicitly pinned.
+- [x] Non-authoritative driver posture is explicitly pinned.
+- [x] Build-go execution block is explicit until this sub-phase is closed.
+
+M1.F driver authority decision (pinned):
+1. Authoritative driver for M1 execution:
+   - `github_actions`.
+2. Non-authoritative driver posture:
+   - `local_cli` is allowed for local preflight/debug only.
+   - `local_cli` outputs cannot be used as authoritative M1 closure proof.
+3. Required authoritative evidence surfaces:
+   - immutable tag + resolved digest emitted by CI run,
+   - CI run identifier and actor,
+   - build command-surface receipt artifact,
+   - packaging provenance artifact aligned to M1.C.
+4. Execution block:
+   - no M1 build-go execution may proceed on any driver unless this M1.F pin remains satisfied and unchanged.
+
+## M1.G Exit Readiness Review
 Goal:
 - confirm M1 is ready to execute and close when build-go is granted.
 
@@ -377,25 +445,26 @@ DoD:
 - [x] No unresolved contract ambiguity remains.
 - [x] Build-go handoff statement prepared.
 
-M1.F readiness review verdict:
+M1.G readiness review verdict:
 1. Deliverables completeness:
    - image contract: complete (M1.A),
    - entrypoint matrix: complete (M1.B),
    - provenance/evidence contract: complete (M1.C),
    - security/secret injection contract: complete (M1.D),
-   - build command-surface/reproducibility contract: complete (M1.E).
+   - build command-surface/reproducibility contract: complete (M1.E),
+   - build driver authority pin: complete (M1.F).
 2. Ambiguity review:
    - no unresolved contract ambiguity remains inside M1 planning scope.
    - remaining work is execution-only (build/push/check/evidence generation under explicit build-go).
 3. Phase status implication:
-   - M1.F closure completes planning/handoff readiness, not M1 runtime closure.
+   - M1.G closure completes planning/handoff readiness, not M1 runtime closure.
    - M1 overall remains open until execution evidence satisfies Section 8 exit criteria.
 
 M1 build-go handoff statement (execution pack):
 1. Build-go trigger:
    - explicit USER direction authorizing M1 execution run.
 2. Execution authority:
-   - run only the pinned contracts in this file (`M1.A..M1.E`) and main plan M1 section.
+   - run only the pinned contracts in this file (`M1.A..M1.F`) and main plan M1 section.
 3. Execution sequence:
    - execute canonical build command surface (M1.E),
    - validate entrypoint callability in image context (M1.B validation method),
@@ -423,6 +492,7 @@ M1 build-go handoff statement (execution pack):
 - [x] M1.D complete
 - [x] M1.E complete
 - [x] M1.F complete
+- [x] M1.G complete
 
 ## 7) Risks and Controls
 R1: image/entrypoint mismatch discovered late  

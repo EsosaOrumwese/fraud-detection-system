@@ -203,12 +203,13 @@ Active-phase execution posture:
 - Image build/push execution starts only on explicit USER build-go for M1 execution.
 - Detailed M1 execution authority is `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md` (contains pinned decisions required during build-go).
 - Sub-phase progress:
-  - [x] `M1.A` image contract freeze complete.
+  - [x] `M1.A` image contract freeze complete (reopened + reclosed with exact image content manifest).
   - [x] `M1.B` entrypoint matrix completion complete.
   - [x] `M1.C` provenance/evidence contract freeze complete.
   - [x] `M1.D` security/secret-injection contract freeze complete.
   - [x] `M1.E` build command surface/reproducibility contract freeze complete.
-  - [x] `M1.F` exit-readiness review and build-go handoff complete.
+  - [x] `M1.F` build driver authority pin complete (`github_actions` authoritative; `local_cli` preflight-only).
+  - [x] `M1.G` exit-readiness review and build-go handoff complete.
   - M1 planning pack is complete; M1 phase remains `ACTIVE` until build-go execution evidence is produced and validated.
 
 M1 DoD checklist:
@@ -382,6 +383,13 @@ Before marking any phase `DONE`:
 - Phase completion can be agent-driven once DoD is objectively satisfied.
 - Phase activation for the next implementation phase is user-governed.
 - No runtime/infra build execution starts for a phase unless that phase is explicitly activated by USER direction.
+
+## 10.2) Decision-Completeness Gate (Fail-Closed)
+- A USER "proceed" instruction is not, by itself, authorization to improvise missing decisions.
+- Before executing any phase/option/command, the AGENT MUST verify all required decisions/inputs for that scope are explicitly pinned.
+- If any required decision/input is missing, execution MUST stop and the AGENT MUST report unresolved items to the USER.
+- No defaulting, assumption-filling, or ad hoc expansion is allowed while unresolved items exist.
+- Execution can resume only after the unresolved set is explicitly closed by USER direction and recorded in implementation notes/logbook.
 
 ## 11) Risks and Controls (Pinned)
 R1: Semantic drift under delivery pressure  

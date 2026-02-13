@@ -79,6 +79,7 @@ These are the intended design flow of the platform as well as pinned decisions. 
 - **No silent drift acceptance:** any designed-flow vs runtime-posture mismatch is a blocker unless explicitly accepted by the user with a recorded rationale.
 - **Bias-to-warning rule:** if uncertain whether a mismatch is material, treat it as material and escalate.
 - **Rigorously inspect the full platform run:** Once the USER asks for a full live stream run, once done, we should evaluate every aspect of it to make sure there's no silent drift whatsoever
+- **Decision-completeness law (fail-closed):** when the USER says "proceed" to a phase/option/command, the AGENT MUST first verify that all required decisions/inputs for that scope are explicitly pinned. If any hole remains, the AGENT MUST stop execution and report the unresolved items to the USER (no defaults, no assumptions, no improvisation). The AGENT must keep doing this until the unresolved set is closed and only then proceed.
 ---
 
 ## Platform implementation maps (mandatory, detail-first)

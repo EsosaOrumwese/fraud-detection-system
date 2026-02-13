@@ -5569,3 +5569,188 @@ Documentation-control closure only; no runtime/infra execution changes.
 
 ### Drift sentinel assessment
 No semantic/runtime drift introduced. This closes planning readiness and cleanly separates planning completion from execution closure.
+
+## Entry: 2026-02-13 9:06AM - Pre-execution lock: run M1 build-go packaging execution (P(-1))
+
+### Trigger
+USER directed: proceed with the next step after M1.F, which is M1 build-go execution.
+
+### Objective
+Execute the pinned M1 build-go pack for P(-1): build/push image, resolve digest, run entrypoint smoke checks, run secret/leakage checks, and write execution evidence artifacts.
+
+### Execution context
+- context file: `runs/dev_substrate/m1_build_go/20260213T090637Z/context.json`
+- reserved run scope for packaging evidence: `platform_20260213T090637Z`
+- immutable image tag target: `git-8fbf64020567b166d8b288cae402f9f96dd9f17a`
+
+### Planned execution sequence
+1. Preflight resource checks (ECR repo presence, toolchain, AWS identity).
+2. Ensure ECR repo exists in pinned region (`eu-west-2`) for push target.
+3. Execute canonical local_cli command family (auth -> build -> push immutable -> resolve digest -> optional convenience tag).
+4. Execute entrypoint `--help` smoke checks in image context.
+5. Execute no-baked-secrets/leakage checks + required SSM path checks.
+6. Write local execution receipts and upload P(-1) evidence artifacts to `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T090637Z/P(-1)/`.
+7. Record pass/fail verdict; fail closed if any blocker occurs.
+
+### Fail-closed blockers
+- build/push failure,
+- unresolved or mismatched digest,
+- entrypoint smoke failure,
+- secret leakage finding,
+- missing required runtime secret handles.
+
+### Drift sentinel checkpoint
+If prerequisites are missing, execution is blocked and phase remains ACTIVE; no silent bypass.
+
+## Entry: 2026-02-13 9:10AM - Blocker detection during M1 build-go: missing IMAGE_DOCKERFILE_PATH artifact
+
+### Detection
+M1 build-go execution failed at `docker build` with:
+- `failed to read dockerfile: open Dockerfile: no such file or directory`.
+
+### Impact
+- P(-1) build command surface is currently non-executable.
+- M1 execution cannot progress to push/digest/provenance/entrypoint/security checks.
+
+### Drift classification
+Material execution blocker (contract implementation gap), not semantic runtime drift.
+
+### Decision
+Implement the missing packaging artifact now:
+1. add repository-root `Dockerfile` aligned with pinned `IMAGE_DOCKERFILE_PATH = "Dockerfile"`.
+2. add `.dockerignore` to prevent oversized/secrets-prone context and keep build deterministic.
+3. rerun canonical M1.E local_cli build/push flow after patch.
+
+### Design constraints for Dockerfile
+- must install runtime package + dependencies (`pip install .` from `pyproject.toml`),
+- must support module entrypoint execution across M1.B matrix,
+- must not bake runtime secrets,
+- must set deterministic runtime defaults (`PYTHONUNBUFFERED`, `PYTHONDONTWRITEBYTECODE`).
+
+### Validation plan
+- `docker build` succeeds with root Dockerfile.
+- image push + digest resolve succeeds.
+- follow-on entrypoint and security checks can execute.
+
+## Entry: 2026-02-13 9:52AM - Pre-change lock: reopen M1.A to pin exact image content manifest (no wildcard ambiguity)
+
+### Trigger
+USER directed reopening M1.A to explicitly specify what enters the platform image and to remove careless wildcard posture.
+
+### Objective
+Replace broad packaging language with an exact, auditable image content manifest for Spine Green v0 dev_min packaging.
+
+### Scope
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+   - add explicit M1.A image content manifest (exact include set + explicit exclusion set),
+   - record rationale and acceptance checks,
+   - keep M1.A closed only after explicit manifest pin.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - reflect M1.A repin/reclosure note in active-phase progress.
+
+### Dependency audit basis
+- runtime config paths under `config/platform/**`.
+- contract paths referenced by in-scope platform code and profiles:
+  - `docs/model_spec/platform/contracts/**`
+  - `docs/model_spec/data-engine/interface_pack/**`
+  - `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+  - `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml`
+
+### Key decisions (pre-patch)
+1. No engine source (`packages/engine/src/**`) in image context.
+2. No repo-wide copy posture (`COPY . .`) permitted by contract.
+3. Manifest must be path-explicit and fail-closed on missing required path.
+
+### Drift sentinel checkpoint
+This is a corrective packaging-contract hardening to prevent bloated/non-deterministic image builds.
+
+## Entry: 2026-02-13 9:55AM - Applied M1.A repin: exact image content manifest (no wildcard ambiguity)
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### What changed
+1. Reopened and hardened M1.A with explicit image manifest:
+- added exact include set (path-explicit),
+- added explicit exclusion set (engine source, datasets, logs, caches, env secrets),
+- added build-context law forbidding `COPY . .` for M1 execution,
+- added fail-closed verification gate for missing required paths or excluded-path leakage.
+
+2. M1.E dependency alignment:
+- updated required-input section to explicitly require compliance with the M1.A image manifest.
+
+3. Main plan progress note alignment:
+- M1 sub-phase progress now records that M1.A was reopened and reclosed with exact content manifest pinning.
+
+### Outcome
+M1.A now contains a deterministic, platform-only image content boundary suitable for large-workspace control and non-bloated build posture.
+
+### Drift sentinel assessment
+This corrective repin closes a material packaging ambiguity and prevents accidental repo-wide image context ingestion.
+
+## Entry: 2026-02-13 10:02AM - Applied M1.A manifest path refinement for data-engine interface_pack
+
+### Trigger
+USER directed: update required paths after discussion on whether all of `interface_pack` is needed.
+
+### Decision applied
+Refined M1.A include set from broad `docs/model_spec/data-engine/interface_pack/` recursive copy to exact runtime-required files only:
+- `engine_outputs.catalogue.yaml`
+- `engine_gates.map.yaml`
+- `contracts/canonical_event_envelope.schema.yaml`
+- `contracts/engine_invocation.schema.yaml`
+- `contracts/engine_output_locator.schema.yaml`
+- `contracts/gate_receipt.schema.yaml`
+- `contracts/instance_proof_receipt.schema.yaml`
+- `contracts/run_receipt.schema.yaml`
+
+### File updated
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+
+### Rationale
+This removes non-runtime interface-pack content (docs/examples/harvest) from the required image manifest and keeps packaging scope auditable and minimal.
+
+## Entry: 2026-02-13 10:11AM - Applied fail-closed decision-completeness law (user proceed semantics)
+
+### Trigger
+USER requested adding a law to prevent execution drift when they say "proceed" before all required decisions are pinned.
+
+### Decision applied
+Codified a binding fail-closed rule:
+- "Proceed" does not authorize assumption/default behavior when required decisions are missing.
+- Agent must verify decision/input completeness before executing a phase/option/command.
+- If holes remain, stop and surface unresolved items; keep at this until closure.
+
+### Files updated
+1. `AGENTS.md`
+   - added `Decision-completeness law (fail-closed)` under Drift Sentinel Law.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - added `10.2 Decision-Completeness Gate (Fail-Closed)` with execution-control wording.
+
+### Effect
+This creates a hard pre-execution gate against ad hoc defaults and aligns proceed semantics with explicit decision closure before execution.
+
+## Entry: 2026-02-13 10:16AM - Applied M1 sub-phase restructure: new M1.F driver authority pin, prior F shifted to G
+
+### Trigger
+USER requested restructuring:
+- add a new sub-phase for build driver authority as `M1.F`,
+- rename previous exit-readiness/handoff step from `M1.F` to `M1.G`.
+
+### Changes applied
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+- inserted new `M1.F Build Driver Authority Pin`.
+- pinned driver decision:
+  - authoritative: `github_actions`,
+  - non-authoritative: `local_cli` preflight/debug only.
+- shifted prior `M1.F Exit Readiness Review` to `M1.G` and aligned references.
+- updated completion checklist to include `M1.G complete`.
+
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- updated M1 sub-phase progress labels:
+  - `M1.F` now driver authority pin,
+  - `M1.G` now exit-readiness + handoff.
+
+### Outcome
+Build-driver selection is now an explicit gate before handoff completion, eliminating the prior implicit assumption.
