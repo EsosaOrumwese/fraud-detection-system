@@ -43,6 +43,10 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  TF_VAR_confluent_cloud_api_key: ${{ secrets.TF_VAR_CONFLUENT_CLOUD_API_KEY }}
+  TF_VAR_confluent_cloud_api_secret: ${{ secrets.TF_VAR_CONFLUENT_CLOUD_API_SECRET }}
+
 concurrency:
   group: dev-min-m1-packaging-${{ github.ref_name }}
   cancel-in-progress: false
