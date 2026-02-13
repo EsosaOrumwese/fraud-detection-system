@@ -311,6 +311,10 @@ Active-phase planning posture:
   - blocker posture: `M3A-B1` resolved (no open M3.A blocker),
   - evidence:
     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3a_20260213T213547Z/m3_a_handle_closure_snapshot.json`.
+- M3.B planning status:
+  - expanded to closure-grade planning (decision pins, command catalog, blocker taxonomy, evidence contract),
+  - pinned run-id format: `platform_<YYYYMMDDTHHMMSSZ>`,
+  - execution pending.
 - Sub-phase progress:
   - [x] `M3.A` authority + handle closure matrix for P1.
   - [ ] `M3.B` run identity generation contract (`platform_run_id` uniqueness).
@@ -502,5 +506,6 @@ Control: required P12 teardown proof and budget guardrails.
 M3 is active for deep planning and execution preparation.
 Next action:
 - execute `M3.B` run-identity generation contract with collision-safe evidence,
+- use deterministic collision policy (`_<nn>` suffix lane) and publish M3.B seed artifacts,
 - continue M3 deep-plan progression (`M3.C -> M3.G`) with explicit evidence artifacts,
 - maintain fail-closed posture: no M4 activation until M3 verdict is `ADVANCE_TO_M4` with durable handoff artifacts.

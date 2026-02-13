@@ -207,20 +207,78 @@ Goal:
 1. Generate collision-safe run identity and record run header skeleton.
 
 Tasks:
-1. Define canonical `platform_run_id` format for this track.
-2. Validate non-collision:
-   - if `evidence/runs/<platform_run_id>/` already exists, fail and regenerate.
-3. Record run header skeleton:
+1. Define canonical `platform_run_id` format for this track:
+   - `platform_<YYYYMMDDTHHMMSSZ>` (UTC, second precision).
+2. Generate candidate id from UTC clock and validate syntax against the pinned regex.
+3. Validate non-collision in run evidence root:
+   - query `evidence/runs/<platform_run_id>/` for object existence,
+   - if collision exists, regenerate using deterministic suffix policy (`_<nn>` with zero-padded increment).
+4. Record run header skeleton:
    - `platform_run_id`
    - `written_at_utc`
-   - `phase_id=P1`.
-4. Enforce fail-closed rule on unresolved scenario input:
-   - if `SCENARIO_EQUIVALENCE_KEY_INPUT` remains placeholder, open blocker and stop.
+   - `phase_id=P1`
+   - `scenario_equivalence_key_input` reference.
+5. Enforce fail-closed rule on unresolved scenario input:
+   - if scenario-equivalence input rule or canonical field contract is missing, open blocker and stop.
+6. Emit M3.B run-id generation evidence locally and durably.
 
 DoD:
 - [ ] `platform_run_id` format is pinned and deterministic.
 - [ ] Collision check is executed and evidenced.
 - [ ] Placeholder scenario-equivalence input cannot silently pass.
+- [ ] Run-id generation evidence is written locally and durably.
+
+### M3.B Decision Pins (Closed Before Execution)
+1. Format law:
+   - `platform_run_id` must use `platform_<YYYYMMDDTHHMMSSZ>`.
+2. Collision law:
+   - `evidence/runs/<platform_run_id>/` pre-existence is a hard collision signal.
+3. Regeneration law:
+   - collision resolution is deterministic and monotonic:
+     - `platform_<YYYYMMDDTHHMMSSZ>_01`, `_02`, ... up to configured cap.
+4. Retry cap law:
+   - if collision retries exceed cap, fail closed and open blocker.
+5. Scope law:
+   - once minted and accepted, `platform_run_id` is immutable for the run.
+6. Non-randomness law:
+   - no random UUID fallback in M3.B for this track; ID generation remains auditable and reproducible.
+
+### M3.B Verification Command Catalog (Pinned)
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3B_V1_ID_FORMAT` | validate candidate against regex `^platform_[0-9]{8}T[0-9]{6}Z(_[0-9]{2})?$` | enforces canonical id shape |
+| `M3B_V2_EVIDENCE_PREFIX_COLLISION` | `aws s3api list-objects-v2 --bucket <S3_EVIDENCE_BUCKET> --prefix evidence/runs/<platform_run_id>/ --max-keys 1` | detects run-id collision in durable evidence root |
+| `M3B_V3_SCENARIO_RULE_PRESENT` | `rg -n \"SCENARIO_EQUIVALENCE_KEY_INPUT|SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS|SCENARIO_EQUIVALENCE_KEY_CANONICALIZATION_MODE\" docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` | confirms scenario-equivalence rule contract exists |
+| `M3B_V4_SKELETON_WRITE_LOCAL` | write `m3_b_run_header_seed.json` under local run dir | proves run header skeleton generation |
+| `M3B_V5_SKELETON_WRITE_DURABLE` | `aws s3 cp <local_seed_file> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_min/run_control/<m3b_execution_id>/m3_b_run_header_seed.json` | proves durable publication lane for M3.B |
+
+### M3.B Blocker Taxonomy (Fail-Closed)
+1. `M3B-B1`: invalid `platform_run_id` format.
+2. `M3B-B2`: collision unresolved within retry cap.
+3. `M3B-B3`: scenario-equivalence rule contract missing/incomplete.
+4. `M3B-B4`: local seed evidence write failure.
+5. `M3B-B5`: durable seed evidence publish failure.
+
+### M3.B Evidence Contract (Execution)
+1. Local:
+   - `runs/dev_substrate/m3_b/<timestamp>/m3_b_run_id_generation_snapshot.json`
+   - `runs/dev_substrate/m3_b/<timestamp>/m3_b_run_header_seed.json`
+2. Durable:
+   - `evidence/dev_min/run_control/<m3b_execution_id>/m3_b_run_id_generation_snapshot.json`
+   - `evidence/dev_min/run_control/<m3b_execution_id>/m3_b_run_header_seed.json`
+3. Snapshot minimum fields:
+   - `candidate_platform_run_id`
+   - `final_platform_run_id`
+   - `collision_attempts`
+   - `collision_detected`
+   - `format_check_pass`
+   - `scenario_rule_contract_pass`
+   - `overall_pass`
+
+### M3.B Planning Status (Current)
+1. M3.B planning has been expanded to closure-grade detail.
+2. Execution has not started yet.
+3. No open M3.B blocker is currently registered at planning stage.
 
 ### M3.C Config Payload + Digest Contract
 Goal:
@@ -339,8 +397,11 @@ Minimum evidence payloads:
 2. `evidence/runs/<platform_run_id>/run_started.json`
 3. `evidence/dev_min/run_control/<m3_execution_id>/m3_run_pinning_snapshot.json`
 4. `evidence/dev_min/run_control/<m3_execution_id>/m4_handoff_pack.json`
-5. local mirrors under:
+5. `evidence/dev_min/run_control/<m3b_execution_id>/m3_b_run_id_generation_snapshot.json`
+6. `evidence/dev_min/run_control/<m3b_execution_id>/m3_b_run_header_seed.json`
+7. local mirrors under:
    - `runs/dev_substrate/m3/<timestamp>/...`
+   - `runs/dev_substrate/m3_b/<timestamp>/...`
 
 Notes:
 1. Evidence must be non-secret.

@@ -8011,3 +8011,31 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. `platform.build_plan.md`:
    - M3.A status updated to closed,
    - immediate next action advanced to M3.B.
+
+## Entry: 2026-02-13 9:45PM - M3.B planning expansion (run identity contract)
+
+### Trigger
+1. USER directed: plan and expand `M3.B`.
+
+### What was expanded
+1. Expanded `M3.B` in `platform.M3.build_plan.md` from brief bullets into closure-grade planning:
+   - `M3.B Decision Pins`,
+   - `M3.B Verification Command Catalog`,
+   - `M3.B Blocker Taxonomy`,
+   - `M3.B Evidence Contract`,
+   - `M3.B Planning Status`.
+2. Added explicit run-id policy:
+   - canonical format `platform_<YYYYMMDDTHHMMSSZ>`,
+   - deterministic collision handling via monotonic `_<nn>` suffix.
+3. Added M3.B artifacts to M3 evidence contract:
+   - `m3_b_run_id_generation_snapshot.json`,
+   - `m3_b_run_header_seed.json` (local + durable lanes).
+
+### Main-plan alignment
+1. Updated M3 section in `platform.build_plan.md` to reflect:
+   - M3.B planning expanded and pinned,
+   - immediate next action now explicitly includes deterministic collision-suffix lane and seed artifact publication.
+
+### Safety posture
+1. Planning-only update; no runtime execution command run for M3.B.
+2. M4 activation remains blocked until full M3 verdict closure.
