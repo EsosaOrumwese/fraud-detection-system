@@ -213,6 +213,9 @@ Active-phase execution posture:
   - [x] `M1.H` authoritative CI gate validation complete (`runs/dev_substrate/m1_h_validation/20260213T104213Z/ci_gate_validation_report.json`).
   - [x] `M1.I` exit-readiness review and build-go handoff complete.
   - M1 planning pack is closed; M1 execution remains user-governed by explicit build-go.
+  - Build-go execution evidence now exists:
+    - CI run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21985500168`
+    - evidence root: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T114002Z/P(-1)/`
 
 M1 DoD checklist:
 - [x] Packaging contract finalized in `platform.M1.build_plan.md` (image, entrypoints, provenance, security).

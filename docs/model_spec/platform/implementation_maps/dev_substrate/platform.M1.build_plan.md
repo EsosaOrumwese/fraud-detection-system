@@ -581,6 +581,21 @@ M1.I execution block:
 - [x] M1.H complete
 - [x] M1.I complete
 
+M1 execution snapshot (build-go pass):
+1. Authoritative CI success run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21985500168`
+2. Platform run id used for P(-1) evidence:
+   - `platform_20260213T114002Z`
+3. Immutable image identity:
+   - tag: `git-799d398a7daf34857cf363c9a1a629c40ec25d5e`
+   - digest: `sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56`
+4. Local evidence mirror:
+   - `runs/dev_substrate/m1_build_go/20260213T114002Z/`
+5. S3 evidence path:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T114002Z/P(-1)/`
+6. First-time operator explanatory narrative:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md` (Entry: `2026-02-13 12:02PM - First-time operator evidence narrative`)
+
 ## 7) Risks and Controls
 R1: image/entrypoint mismatch discovered late  
 Control: full matrix completion before build-go.
