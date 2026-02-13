@@ -2,6 +2,8 @@ resource "confluent_environment" "this" {
   display_name = var.confluent_env_name
 }
 
+data "confluent_organization" "this" {}
+
 resource "confluent_kafka_cluster" "this" {
   display_name = var.confluent_cluster_name
   availability = var.confluent_cluster_availability
@@ -25,6 +27,7 @@ resource "confluent_kafka_cluster" "this" {
 
 locals {
   supports_resource_roles = var.confluent_cluster_type != "Basic"
+  environment_crn         = "crn://confluent.cloud/organization=${data.confluent_organization.this.id}/environment=${confluent_environment.this.id}"
   high_volume_topics      = toset(var.high_volume_topic_names)
   topic_profile = {
     for topic_name in var.kafka_topics :
@@ -43,6 +46,14 @@ resource "confluent_role_binding" "topic_manager_cluster_admin" {
   principal   = "User:${confluent_service_account.topic_manager.id}"
   role_name   = "CloudClusterAdmin"
   crn_pattern = confluent_kafka_cluster.this.rbac_crn
+}
+
+resource "confluent_role_binding" "topic_manager_environment_admin" {
+  count = local.supports_resource_roles ? 0 : 1
+
+  principal   = "User:${confluent_service_account.topic_manager.id}"
+  role_name   = "EnvironmentAdmin"
+  crn_pattern = local.environment_crn
 }
 
 resource "confluent_api_key" "topic_manager_kafka_api_key" {
@@ -66,6 +77,7 @@ resource "confluent_api_key" "topic_manager_kafka_api_key" {
 
   depends_on = [
     confluent_role_binding.topic_manager_cluster_admin,
+    confluent_role_binding.topic_manager_environment_admin,
   ]
 }
 
@@ -111,6 +123,14 @@ resource "confluent_role_binding" "runtime_write_topic" {
   crn_pattern = "${confluent_kafka_cluster.this.rbac_crn}/kafka=${confluent_kafka_cluster.this.id}/topic=${each.value}"
 }
 
+resource "confluent_role_binding" "runtime_environment_admin" {
+  count = local.supports_resource_roles ? 0 : 1
+
+  principal   = "User:${confluent_service_account.runtime.id}"
+  role_name   = "EnvironmentAdmin"
+  crn_pattern = local.environment_crn
+}
+
 resource "confluent_api_key" "runtime_kafka_api_key" {
   display_name = "${var.runtime_service_account_name}-kafka-api-key"
   description  = "Kafka API key for runtime service account."
@@ -133,5 +153,6 @@ resource "confluent_api_key" "runtime_kafka_api_key" {
   depends_on = [
     confluent_role_binding.runtime_read_topic,
     confluent_role_binding.runtime_write_topic,
+    confluent_role_binding.runtime_environment_admin,
   ]
 }
