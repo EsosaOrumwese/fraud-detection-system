@@ -4121,3 +4121,43 @@ Execution decisions pinned before implementation:
 5) Storage posture:
    - keep only authority + accepted + repro run folders after closure attempt,
    - prune superseded integrated attempt runs.
+
+---
+
+### Entry: 2026-02-13 21:17
+
+Design element: P4 full execution (`P4.1` + `P4.2`) and fail-closed classification.
+Summary: Executed integrated `S2->S9` candidate under locked authority envelope, scored with new P4 integrated scorer, and reached `RED_REOPEN_REQUIRED` (no P4.3 retune allowed).
+
+Implemented artifacts and execution:
+1) New P4 scorer implementation:
+   - `tools/score_segment1b_p4_integrated.py`.
+   - Purpose: apply absolute B/B+ gates + structural/no-regression checks and emit status classifier.
+2) P4.1 authority envelope:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_authority_envelope.json`.
+   - Pins lock authorities: `P1=335c9a7eec04491a845abc2a049f959f`, `P2=47ad6781ab9d4d92b311b068f51141f6`, `P3=979129e39a89446b942df9a463f09508`.
+3) Integrated runtime candidate:
+   - run `625644d528a44f148bbf44339a41a044` with chain `S2->S3->S4->S5->S6->S7->S8->S9`.
+   - `S9` decision: `PASS`.
+4) Score artifacts:
+   - `segment1b_p2_candidate_625644d528a44f148bbf44339a41a044.json`
+   - `segment1b_p3_candidate_625644d528a44f148bbf44339a41a044.json`
+   - `segment1b_p4_integrated_625644d528a44f148bbf44339a41a044.json`
+
+P4 classifier result:
+- `status=RED_REOPEN_REQUIRED`.
+- Structural checks: PASS (`s6_mode_mixture_v2`, parity, bounds, collapse sentinel clear).
+- No-regression checks vs P3 lock: PASS.
+- B/B+ hard-gate failures are concentration/coverage axis:
+  - `country_gini=0.7528` (fails B/B+),
+  - `top10=0.5974`, `top5=0.3933`, `top1=0.1366` (fail B/B+),
+  - `eligible_country_nonzero_share=0.3092`, `southern_hemisphere_share=0.0600` (fail B/B+).
+- NN-tail contraction remains strong (`~63.35%` vs baseline), so failure is not on geometry tail.
+
+Fail-closed output:
+- Wrote explicit blocker artifact:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_red_reopen_625644d528a44f148bbf44339a41a044.json`.
+- Decision:
+  - block `P4.3` (bounded B+ recovery) because status is RED,
+  - explicit reopen approval required before any upstream edits,
+  - recommended reopen lanes: `P1/S2`, then `P2/S4`.

@@ -7863,3 +7863,38 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - transitioned M2 status `ACTIVE -> DONE`,
    - left M3 as `NOT_STARTED` pending explicit USER activation,
    - updated immediate next action to M3 activation gating via handoff artifact.
+
+## Entry: 2026-02-13 9:12PM - M3 planning activation and deep-plan creation
+
+### Trigger
+1. USER directed: proceed with M3 planning in the main platform plan and then the deep `platform.M3.build_plan.md`.
+
+### Planning decisions applied
+1. Activated M3 planning posture in the main tracker:
+   - `platform.build_plan.md` now sets M3 status to `ACTIVE`.
+2. Expanded main M3 section from gate-summary to execution-planning surface:
+   - objective/scope/failure posture,
+   - `M3.A -> M3.G` sub-phase progression checklist,
+   - explicit M3 DoD checklist.
+3. Registered deep-plan routing for M3 in Section 6.1:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`.
+4. Updated immediate-next-action block to focus on closing M3 decision pins and preparing M3 execution lane with fail-closed gating to M4.
+
+### Deep-plan file created
+1. Added `platform.M3.build_plan.md` with closure-grade structure:
+   - authority/scope/deliverables/execution gates,
+   - anti-cram coverage matrix for run identity, digest, evidence, and run-scope export,
+   - sub-phases:
+     - `M3.A` handle closure
+     - `M3.B` run-id generation/collision checks
+     - `M3.C` payload + digest determinism
+     - `M3.D` durable run evidence publication
+     - `M3.E` runtime scope export for M4
+     - `M3.F` verdict + blocker taxonomy
+     - `M3.G` M4 handoff artifact publication
+   - pinned M3 evidence contract and exit criteria.
+
+### Drift/safety posture
+1. Planning-only pass: no runtime infra mutation and no phase execution commands.
+2. Fail-closed decision noted in M3 plan:
+   - `SCENARIO_EQUIVALENCE_KEY_INPUT` must be explicitly pinned at M3 execution entry.

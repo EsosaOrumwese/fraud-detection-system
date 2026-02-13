@@ -456,12 +456,27 @@ P4 execution blocks:
   - mark phase complete and hand off to `P5`.
 
 Definition of done:
-- [ ] `P4.1` authority envelope is written and references exact lock inputs (`P1/P2/P3`) with no ambiguity.
-- [ ] `P4.2` integrated baseline scorecard is produced and classified (`GREEN_B`, `AMBER_NEAR_BPLUS`, or `RED_REOPEN_REQUIRED`).
+- [x] `P4.1` authority envelope is written and references exact lock inputs (`P1/P2/P3`) with no ambiguity.
+- [x] `P4.2` integrated baseline scorecard is produced and classified (`GREEN_B`, `AMBER_NEAR_BPLUS`, or `RED_REOPEN_REQUIRED`).
 - [ ] if `AMBER_NEAR_BPLUS`, `P4.3` executes bounded recovery with no B hard-gate regression.
 - [ ] accepted integrated candidate has reproducibility witness (`P4.4`) with matching score posture.
 - [ ] P4 lock record and pointer updates are written; superseded run-id folders are pruned and retained set is explicit.
-- [ ] if contradiction is detected, phase is fail-closed and explicit reopen approval is requested before any upstream edits.
+- [x] if contradiction is detected, phase is fail-closed and explicit reopen approval is requested before any upstream edits.
+
+P4 execution status (2026-02-13):
+- Status: `RED_REOPEN_REQUIRED` (fail-closed; no `P4.3` tuning permitted).
+- Authority envelope:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_authority_envelope.json`.
+- Integrated candidate:
+  - `run_id=625644d528a44f148bbf44339a41a044` (`S2->S9`, `S9 PASS`),
+  - score artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_625644d528a44f148bbf44339a41a044.json`.
+- Result summary:
+  - structural + no-regression checks pass,
+  - B/B+ hard gates fail on concentration and coverage axes under locked posture.
+- Explicit blocker artifact:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_red_reopen_625644d528a44f148bbf44339a41a044.json`.
+- Reopen requirement:
+  - explicit approval required before any upstream edits; recommended reopen lanes are `P1/S2` and `P2/S4`.
 
 ### P5 - Certification and freeze
 Focus:

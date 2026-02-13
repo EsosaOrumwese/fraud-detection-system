@@ -78,7 +78,7 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | M0 | pre-P(-1) | Mobilization + authority lock | DONE |
 | M1 | P(-1) | Packaging readiness (image + entrypoints + provenance) | DONE |
 | M2 | P0 | Substrate readiness (Terraform core+confluent+demo) | DONE |
-| M3 | P1 | Run pinning + run manifest evidence | NOT_STARTED |
+| M3 | P1 | Run pinning + run manifest evidence | ACTIVE |
 | M4 | P2 | Daemon bring-up on ECS with run-scope controls | NOT_STARTED |
 | M5 | P3 | Oracle lane (seed/sort/checker) | NOT_STARTED |
 | M6 | P4-P7 | Control+Ingress closure | NOT_STARTED |
@@ -104,7 +104,8 @@ Current deep-plan file state:
 - `M0`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md` (present)
 - `M1`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md` (present)
 - `M2`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md` (present)
-- `M3..M10`: deferred until phase activation is approved.
+- `M3`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md` (present)
+- `M4..M10`: deferred until phase activation is approved.
 
 ---
 
@@ -132,7 +133,7 @@ Current phase posture:
 - `M1` is closed,
 - `M0` is closed,
 - `M2` is `DONE`,
-- `M3` remains `NOT_STARTED` pending explicit USER activation.
+- `M3` is `ACTIVE` for deep planning and closure-hardening.
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -283,16 +284,46 @@ M2 DoD checklist:
 
 ---
 
-## 9) Remaining Phases (Gate-Level Only Until Activation)
-
 ## M3 - P1 Run pinning
-Status: `NOT_STARTED`
+Status: `ACTIVE`
+
 Entry gate:
 - M2 is `DONE`.
-DoD summary:
-- run manifest (`platform_run_id`, `scenario_run_id`, config digest, image provenance) written to evidence.
-- run-scope values prepared for downstream services.
-- run manifest is committed before daemon/job execution starts.
+
+Objective:
+- Create run identity/provenance exactly once, publish durable run manifest evidence, and produce M3->M4 handoff contract so daemons can enforce run-scope fail-closed.
+
+Scope:
+- `platform_run_id` generation and collision-safe uniqueness checks.
+- run config payload assembly + deterministic config digest.
+- run evidence publication (`run.json` + start marker) under run-scoped S3 root.
+- runtime scope export contract for M4 (`REQUIRED_PLATFORM_RUN_ID` wiring surface).
+- M3 blocker model and explicit `ADVANCE_TO_M4`/`HOLD_M3` verdict rule.
+
+Failure posture:
+- fail closed on unresolved run identity inputs, digest mismatch, incomplete run manifest, or non-durable evidence publication.
+
+Active-phase planning posture:
+- Detailed M3 authority file: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`.
+- Sub-phase progress:
+  - [ ] `M3.A` authority + handle closure matrix for P1.
+  - [ ] `M3.B` run identity generation contract (`platform_run_id` uniqueness).
+  - [ ] `M3.C` run config payload + deterministic digest contract.
+  - [ ] `M3.D` durable run evidence publication (`run.json` + start marker).
+  - [ ] `M3.E` runtime scope export handoff for M4.
+  - [ ] `M3.F` pass gates + blocker model closure.
+  - [ ] `M3.G` M4 handoff artifact publication + readiness verdict.
+
+M3 DoD checklist:
+- [ ] `platform_run_id` is generated and collision-checked.
+- [ ] run config payload is canonicalized and digest-complete.
+- [ ] `run.json` exists at run evidence root and is structurally complete.
+- [ ] runtime scope export (`REQUIRED_PLATFORM_RUN_ID`) is prepared for M4 consumers.
+- [ ] M3 closeout verdict + handoff artifact are published and non-secret.
+
+---
+
+## 9) Remaining Phases (Gate-Level Only Until Activation)
 
 ## M4 - P2 Daemon bring-up
 Status: `NOT_STARTED`
@@ -462,8 +493,8 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M2 closure is complete with a published M3 handoff pack.
+M3 is active for deep planning and execution preparation.
 Next action:
-- keep M3 sequencing strict (no M3 runtime execution until USER explicitly activates M3),
-- use `m3_handoff_pack.json` as the only authoritative M2->M3 substrate handoff surface,
-- maintain fail-closed posture: if any M2 evidence drift appears during M3 activation prep, reopen M2.J before proceeding.
+- complete M3 deep-plan closure in `platform.M3.build_plan.md` (`M3.A -> M3.G`) with explicit blockers and evidence contract,
+- close M3 entry decisions before runtime execution (especially `SCENARIO_EQUIVALENCE_KEY_INPUT` pin + collision-safe run-id generation),
+- maintain fail-closed posture: no M4 activation until M3 verdict is `ADVANCE_TO_M4` with durable handoff artifacts.
