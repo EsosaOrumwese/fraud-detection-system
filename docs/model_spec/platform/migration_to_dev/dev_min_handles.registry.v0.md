@@ -107,8 +107,15 @@ These are the canonical field names used in config and evidence payloads:
 
 * `CONFIG_DIGEST_ALGO = "sha256"`
 * `CONFIG_DIGEST_FIELD = "config_digest"`
-* `SCENARIO_EQUIVALENCE_KEY_INPUT = "<PIN_AT_P1_PHASE_ENTRY>"`
+* `SCENARIO_EQUIVALENCE_KEY_INPUT = "sha256(canonical_json_v1)"`
+* `SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS = "oracle_seed_manifest_uri,oracle_seed_manifest_sha256,oracle_required_output_ids,oracle_sort_key_by_output_id,config_digest"`
+* `SCENARIO_EQUIVALENCE_KEY_CANONICALIZATION_MODE = "json_sorted_keys_v1"`
 * `SCENARIO_RUN_ID_DERIVATION_MODE = "deterministic_hash_v1"`
+
+`SCENARIO_EQUIVALENCE_KEY_INPUT` is computed at P1 execution from the canonical
+field set above. It must not include run-unique fields (for example
+`platform_run_id` or timestamps) so equivalent reruns resolve to the same
+scenario identity surface.
 
 ### 1.7 Runtime scope enforcement (no drift)
 

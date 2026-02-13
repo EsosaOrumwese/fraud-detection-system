@@ -7979,3 +7979,35 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. No progression to M3.B execution while `M3A-B1` remains open.
 2. Required closure action is unchanged:
    - explicitly pin `SCENARIO_EQUIVALENCE_KEY_INPUT`, then rerun M3.A verification.
+
+## Entry: 2026-02-13 9:36PM - M3A-B1 closure by pinning scenario-equivalence input and rerun
+
+### Trigger
+1. USER approved recommended scenario-equivalence pin strategy.
+
+### Changes applied
+1. Updated handles registry at Section 1.6:
+   - `SCENARIO_EQUIVALENCE_KEY_INPUT = "sha256(canonical_json_v1)"`
+   - `SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS = "oracle_seed_manifest_uri,oracle_seed_manifest_sha256,oracle_required_output_ids,oracle_sort_key_by_output_id,config_digest"`
+   - `SCENARIO_EQUIVALENCE_KEY_CANONICALIZATION_MODE = "json_sorted_keys_v1"`
+2. Added explicit note preventing run-unique fields (`platform_run_id`, timestamps) from entering scenario-equivalence input.
+
+### Verification execution
+1. Reran full M3.A verification lane after pinning.
+2. Authoritative run:
+   - `m3a_20260213T213547Z`
+3. Result:
+   - `overall_pass=true`
+   - blockers: none.
+4. Evidence:
+   - local: `runs/dev_substrate/m3_a/20260213T213547Z/m3_a_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3a_20260213T213547Z/m3_a_handle_closure_snapshot.json`
+
+### Documentation state updates
+1. `platform.M3.build_plan.md`:
+   - M3.A execution result updated with latest passing run,
+   - M3.A marked complete in completion checklist,
+   - `M3A-B1` moved to resolved blockers.
+2. `platform.build_plan.md`:
+   - M3.A status updated to closed,
+   - immediate next action advanced to M3.B.

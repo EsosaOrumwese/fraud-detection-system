@@ -306,13 +306,13 @@ Failure posture:
 Active-phase planning posture:
 - Detailed M3 authority file: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`.
 - M3.A planning status:
-  - closure matrix + verification catalog drafted,
-  - authoritative run: `m3a_20260213T212724Z`,
-  - open blocker: `M3A-B1` (`SCENARIO_EQUIVALENCE_KEY_INPUT` still placeholder and must be pinned before execution),
+  - closure matrix + verification catalog executed,
+  - latest authoritative run: `m3a_20260213T213547Z`,
+  - blocker posture: `M3A-B1` resolved (no open M3.A blocker),
   - evidence:
-    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3a_20260213T212724Z/m3_a_handle_closure_snapshot.json`.
+    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3a_20260213T213547Z/m3_a_handle_closure_snapshot.json`.
 - Sub-phase progress:
-  - [ ] `M3.A` authority + handle closure matrix for P1.
+  - [x] `M3.A` authority + handle closure matrix for P1.
   - [ ] `M3.B` run identity generation contract (`platform_run_id` uniqueness).
   - [ ] `M3.C` run config payload + deterministic digest contract.
   - [ ] `M3.D` durable run evidence publication (`run.json` + start marker).
@@ -501,6 +501,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M3 is active for deep planning and execution preparation.
 Next action:
-- close `M3A-B1` by pinning `SCENARIO_EQUIVALENCE_KEY_INPUT` at M3 entry, then complete M3.A closure checks,
-- after M3.A blocker closure, continue M3 deep-plan progression (`M3.B -> M3.G`) with explicit evidence artifacts,
+- execute `M3.B` run-identity generation contract with collision-safe evidence,
+- continue M3 deep-plan progression (`M3.C -> M3.G`) with explicit evidence artifacts,
 - maintain fail-closed posture: no M4 activation until M3 verdict is `ADVANCE_TO_M4` with durable handoff artifacts.

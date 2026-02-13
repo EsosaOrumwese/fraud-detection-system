@@ -4209,3 +4209,28 @@ Execution implication:
    - run 1A guard first,
    - continue to 1B integrated run only if guard is `PASS`.
 2) This enforces USER constraint that 1A frozen grade cannot be spoiled while attempting 1B recovery.
+
+---
+
+### Entry: 2026-02-13 21:44
+
+Design element: Path-1 cycle #1 execution plan (guarded upstream re-anchor).
+Summary: Start first path-1 execution cycle by re-anchoring 1B run identity to accepted 1A authority run `416afa430db3f5bf87180f8514329fe8` (`manifest_fingerprint=12adbd...`, `parameter_hash=59ca67...`), then run integrated `S0->S9` and score against P4 gates.
+
+Pinned execution sequence:
+1) Confirm upstream guard status:
+   - require `segment1a_freeze_guard_416afa...` to be `PASS` before 1B run bootstrap.
+2) Bootstrap fresh 1B run-id:
+   - clone latest 1B receipt template,
+   - update `run_id`, `created_utc`, and upstream identity tokens (`manifest_fingerprint`, `parameter_hash`) to match the selected 1A authority.
+3) Stage required 1A upstream surfaces into the new 1B run root (copy-only, no mutation):
+   - `validation/manifest_fingerprint=12adbd...`,
+   - `outlet_catalogue/seed=42/manifest_fingerprint=12adbd...`,
+   - `s3_candidate_set/parameter_hash=59ca67...`.
+4) Execute integrated 1B chain on that run-id:
+   - `S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9`.
+5) Score and classify:
+   - `tools/score_segment1b_p4_integrated.py`,
+   - capture status and gate movement versus existing P4 RED authority.
+6) Storage hygiene:
+   - keep this candidate until decision; prune only superseded failed folders after scoring.

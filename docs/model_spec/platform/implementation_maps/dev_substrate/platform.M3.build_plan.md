@@ -157,7 +157,9 @@ DoD:
 | `FIELD_WRITTEN_AT_UTC` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `CONFIG_DIGEST_ALGO` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `CONFIG_DIGEST_FIELD` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
-| `SCENARIO_EQUIVALENCE_KEY_INPUT` | registry placeholder | handles registry (phase-entry pin pending) | `M3A_V6_PLACEHOLDER_GUARD` | `non_secret` | `BLOCKED` | `M3A-B1` |
+| `SCENARIO_EQUIVALENCE_KEY_INPUT` | registry formula | handles registry (`sha256(canonical_json_v1)`) | `M3A_V6_PLACEHOLDER_GUARD` | `non_secret` | `CLOSED_EXEC` | `none` |
+| `SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_EXEC` | `none` |
+| `SCENARIO_EQUIVALENCE_KEY_CANONICALIZATION_MODE` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_EXEC` | `none` |
 | `SCENARIO_RUN_ID_DERIVATION_MODE` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `S3_EVIDENCE_BUCKET` | M2 handoff output | `m3_handoff_pack.json` -> `core_outputs.s3_bucket_names.evidence` | `M3A_V2_M2_HANDOFF` + `M3A_V4_P1_EVIDENCE_ROOT` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `S3_EVIDENCE_RUN_ROOT_PATTERN` | registry literal | handles registry | `M3A_V1_HANDLE_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
@@ -173,32 +175,32 @@ DoD:
 
 ### M3.A Planning Status (Current)
 1. Required-handle coverage:
-   - 18 required rows tracked in closure matrix.
+   - 20 required rows tracked in closure matrix (including canonical scenario-equivalence field pins).
 2. Current blockers:
-   - `M3A-B1`: `SCENARIO_EQUIVALENCE_KEY_INPUT` remains placeholder (`<PIN_AT_P1_PHASE_ENTRY>`).
+   - None.
 3. M3.A execution posture:
-   - planning is in progress,
-   - runtime execution for M3 remains blocked until `M3A-B1` is closed.
+   - M3.A closure checks are complete,
+   - progression to M3.B is unblocked.
 
 Execution result (authoritative):
-1. `M3.A` execution id:
+1. Previous fail-closed run:
    - `m3a_20260213T212724Z`
-2. Result:
-   - `overall_pass=false` (fail-closed as designed)
-3. Open blockers:
-   - `M3A-B1` only.
-4. Verification summary:
+   - result: `overall_pass=false` (expected, placeholder guard fired).
+2. Latest closure run:
+   - `m3a_20260213T213547Z`
+   - result: `overall_pass=true`.
+3. Verification summary for latest run:
    - registry handle presence checks executed for all required keys,
    - M2 handoff artifact is present and readable,
    - ECR repository URI resolved (`fraud-platform-dev-min`),
    - evidence bucket reachability check passed,
    - immutable M1 provenance source exists under P(-1) evidence prefix,
-   - placeholder guard for `SCENARIO_EQUIVALENCE_KEY_INPUT` fired (expected blocker).
-5. Evidence:
+   - placeholder guard for `SCENARIO_EQUIVALENCE_KEY_INPUT` passes after pin.
+4. Evidence:
    - local:
-     - `runs/dev_substrate/m3_a/20260213T212724Z/m3_a_handle_closure_snapshot.json`
+     - `runs/dev_substrate/m3_a/20260213T213547Z/m3_a_handle_closure_snapshot.json`
    - durable:
-     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3a_20260213T212724Z/m3_a_handle_closure_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3a_20260213T213547Z/m3_a_handle_closure_snapshot.json`
 
 ### M3.B Run Identity Generation Contract
 Goal:
@@ -346,7 +348,7 @@ Notes:
 3. Scenario-equivalence input may be represented by stable hash/reference rather than raw secret value.
 
 ## 7) M3 Completion Checklist
-- [ ] M3.A complete
+- [x] M3.A complete
 - [ ] M3.B complete
 - [ ] M3.C complete
 - [ ] M3.D complete
@@ -369,22 +371,19 @@ Control: non-secret artifact policy + explicit blocker `M3-B6`.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M3 Execution)
 Current blockers:
-1. `M3A-B1` (open)
-   - impacted sub-phase:
-     - `M3.A`
-   - summary:
-     - `SCENARIO_EQUIVALENCE_KEY_INPUT` is still placeholder (`<PIN_AT_P1_PHASE_ENTRY>`) in handles registry.
-   - runtime impact:
-     - scenario-equivalence provenance cannot be pinned deterministically at P1, so run pinning cannot proceed fail-closed.
-   - closure criteria:
-     - pin explicit value/reference for `SCENARIO_EQUIVALENCE_KEY_INPUT` at M3 entry,
-     - rerun M3.A handle closure and confirm placeholder guard no longer matches.
-   - latest evidence:
-     - local: `runs/dev_substrate/m3_a/20260213T212724Z/m3_a_handle_closure_snapshot.json`
-     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3a_20260213T212724Z/m3_a_handle_closure_snapshot.json`
+1. None.
 
 Resolved blockers:
-1. None.
+1. `M3A-B1` (resolved)
+   - impacted sub-phase:
+     - `M3.A`
+   - resolution summary:
+     - pinned `SCENARIO_EQUIVALENCE_KEY_INPUT` to `sha256(canonical_json_v1)` in handles registry,
+     - added canonical-equivalence field pins and canonicalization mode,
+     - reran M3.A verification with placeholder guard passing.
+   - closure evidence:
+     - local: `runs/dev_substrate/m3_a/20260213T213547Z/m3_a_handle_closure_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3a_20260213T213547Z/m3_a_handle_closure_snapshot.json`
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.
