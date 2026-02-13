@@ -4796,3 +4796,106 @@ This is docs-alignment only; semantics are unchanged except making P3 local-sour
 
 ### Drift sentinel assessment
 Patch is documentation-alignment only and tightens migration safety posture by eliminating contradictory P3 bootstrap semantics and stale wording that could cause implementation drift.
+
+## Entry: 2026-02-13 4:49AM - Pre-change lock (captured for this pass): author fresh execution build plan for dev_substrate migration
+
+### Trigger
+USER requested a fresh execution build plan that is systematic, progressive, and avoids rushed migration decisions.
+
+### Problem statement
+`docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` was empty, leaving no active execution tracker for controlled phase-by-phase migration.
+
+### Decision
+Create a fresh plan anchored to migration authority docs with:
+- explicit scope lock,
+- phase roadmap mapped to canonical P(-1)/P0..P12 lifecycle,
+- one active phase at a time,
+- mandatory phase entry/exit gates and DoD checklists,
+- anti-rush controls (no phase advance without evidence + drift closure).
+
+### Planned file edit
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### Validation plan
+- Verify plan contains canonical roadmap, active phase declaration, transition checklist, and immediate next action.
+- Log both decision and action in implementation map + logbook.
+
+### Drift sentinel checkpoint
+Planning artifact only; no runtime/code changes. Purpose is to prevent implementation drift by enforcing progressive elaboration.
+
+## Entry: 2026-02-13 4:49AM - Applied fresh execution build plan baseline (dev_substrate)
+
+### File updated
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### What was added
+1. Program-level migration purpose, scope lock, authority precedence, and non-negotiable guardrails.
+2. Progressive elaboration method with single-active-phase rule and phase status model.
+3. Canonical roadmap M0..M10 mapped to migration phase IDs (`P(-1)`/`P0..P12`).
+4. Detailed ACTIVE phase (`M0`) with tasks, DoD checklist, rollback posture, evidence outputs, and exit criteria.
+5. Prepared next phase (`M1`) and gate-level DoD summaries for remaining phases without premature over-detail.
+6. Mandatory phase transition checklist + pinned risk/control section.
+7. Immediate next action to transition from M0 to M1 with explicit status move.
+
+### Validation
+- Structural markers present: roadmap table, `M0` active section, phase transition checklist, immediate next action.
+- Plan now encodes "no halfbaked phase progression" and evidence-first closure semantics.
+
+### Drift sentinel assessment
+This closes a control gap in execution governance and improves migration safety by forcing phase-discipline and auditable progression.
+
+## Entry: 2026-02-13 4:58AM - Pre-change lock: build-plan audit hardening against dev_min runbook gate fidelity
+
+### Trigger
+USER requested a pre-commit run-through to ensure the fresh build plan makes sense for dev expectations and captures migration runbook DoDs at high level.
+
+### Review outcome
+- Plan structure is sound (authority, roadmap, progressive elaboration, active-phase control).
+- Drift found: some grouped phase DoD summaries are too compressed versus runbook gate surfaces and could allow interpretation drift during implementation.
+
+### Targeted hardening scope
+1. Strengthen grouped phase DoD summaries:
+   - M6 (`P4..P7`) must explicitly include IG auth gate, READY publish proof, WSP stream proof, receipt/quarantine + offset evidence, and unresolved `PUBLISH_AMBIGUOUS` hard-fail.
+   - M7 (`P8..P10`) must explicitly include RTDL lag gate, archive durability evidence, decision/audit idempotency outcomes, and managed DB append-only case/label evidence.
+   - M9 (`P12`) must explicitly include demo credential/resource cleanup checks and teardown-proof evidence.
+   - M10 must include incident drill evidence and replay narrative in addition to 20/200 run closure.
+2. Add high-level evidence fidelity mapping section so each roadmap phase has visible proof expectations aligned with runbook families.
+
+### File to patch
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### Validation plan
+- grep for strengthened gate keywords (`READY`, `kafka_offsets_snapshot`, `RTDL_CAUGHT_UP_LAG_MAX`, `run_completed`, `teardown_proof`, `incident drill`).
+- verify roadmap + progressive-elaboration policy remains intact.
+
+### Drift sentinel checkpoint
+This is documentation hardening only; no runtime/code changes. Objective is to prevent phase gate under-specification.
+
+## Entry: 2026-02-13 5:00AM - Applied build-plan runbook-fidelity hardening (pre-commit review closure)
+
+### File updated
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### What was strengthened
+1. Program DoD now explicitly requires incident-drill evidence (fail-closed behavior proven).
+2. M2..M10 DoD summaries were tightened to reflect runbook gate intent:
+   - M2: SSM Confluent credential visibility, topic existence, no-NAT runtime posture.
+   - M3: run manifest must exist before daemon/job execution.
+   - M4: single-replica deterministic daemon posture + readiness snapshot evidence.
+   - M5: checker PASS/fail-closed requirement explicit.
+   - M6: explicit sub-gate coverage for P4/P5/P6/P7 and offsets evidence.
+   - M7: RTDL lag gate (`RTDL_CAUGHT_UP_LAG_MAX`), archive durability evidence, and managed DB posture for case/labels.
+   - M8: single-writer conflict fail-closed evidence explicit.
+   - M9: post-destroy resource and secret cleanup checks explicit.
+   - M10: incident drill + replay-anchor narrative evidence explicit.
+3. Added `9.1 High-Level Evidence Fidelity Map` mapping each plan phase to minimum evidence families, aligned to runbook artifact topology.
+
+### Validation
+- Marker scan confirms strengthened keywords and evidence families present (`PUBLISH_AMBIGUOUS`, `kafka_offsets_snapshot`, `RTDL_CAUGHT_UP_LAG_MAX`, `run_completed`, teardown proof).
+- Progressive-elaboration posture preserved (single active phase; future phases remain gate-level).
+
+### Assessment for USER ask
+The build plan now makes sense for dev expectations and captures migration-runbook DoDs at high level without over-prescribing implementation details too early.
+
+### Drift sentinel assessment
+This closes a docs-specification gap that could have allowed interpretation drift during migration execution.
