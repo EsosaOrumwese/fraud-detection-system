@@ -7179,3 +7179,77 @@ USER asked to return to settling `M2.F` and close ambiguity in the verification 
 1. Apply `infra/terraform/dev_min/confluent` with valid Confluent Cloud management credentials.
 2. Confirm updated runtime key/secret are written to pinned SSM paths.
 3. Rerun the canonical command lane and require `overall_pass=true` before marking `M2.F` complete.
+
+## Entry: 2026-02-13 4:07PM - Workflow secret-name mapping added (GitHub uppercase -> Terraform lowercase TF_VAR)
+
+### Trigger
+USER confirmed GitHub secrets were created in uppercase and requested the mapping to be implemented.
+
+### Decision
+1. Keep GitHub secret names as uppercase:
+   - `TF_VAR_CONFLUENT_CLOUD_API_KEY`
+   - `TF_VAR_CONFLUENT_CLOUD_API_SECRET`
+2. Map these at workflow runtime into Terraform-required lowercase env names:
+   - `TF_VAR_confluent_cloud_api_key`
+   - `TF_VAR_confluent_cloud_api_secret`
+
+### Implementation
+1. Updated `.github/workflows/dev_min_m1_packaging.yml`:
+   - added top-level `env` mapping block for the two Confluent TF vars.
+
+### Outcome
+1. Secret naming is now stable for GitHub UI conventions (uppercase) while preserving Terraform provider variable resolution requirements.
+2. No secret values were committed; only key-name mapping was introduced.
+
+## Entry: 2026-02-13 4:08PM - Pre-change lock: add CI-executable M2.F closure lane
+
+### Trigger
+USER directed immediate progression to close `M2.F` after workflow secret mapping.
+
+### Problem statement
+1. `M2.F` currently has deterministic local command tooling, but closure still depends on manual/local execution context.
+2. Target posture requires non-laptop execution and repeatable CI-grade closure for:
+   - Confluent runtime credential regeneration (`infra/terraform/dev_min/confluent`),
+   - topic readiness verification (`tools/dev_substrate/verify_m2f_topic_readiness.py`),
+   - durable evidence production.
+
+### Decision
+1. Add a dedicated GitHub Actions workflow for `M2.F` execution.
+2. Workflow must:
+   - use OIDC AWS auth (no static AWS keys),
+   - map uppercase GitHub Confluent secrets to lowercase Terraform `TF_VAR` names,
+   - run Terraform init/apply for Confluent stack,
+   - run the canonical M2.F verification script,
+   - persist CI artifacts and fail closed on non-pass.
+
+### Boundaries
+1. No secret values logged or committed.
+2. No change to phase status until PASS evidence is produced.
+3. Existing unrelated workspace changes remain untouched.
+
+## Entry: 2026-02-13 4:10PM - Post-change record: CI M2.F closure workflow added and pinned
+
+### Implementation delivered
+1. Added workflow:
+   - `.github/workflows/dev_min_m2f_topic_readiness.yml`
+2. Workflow behavior:
+   - enforces OIDC AWS credential posture,
+   - validates Confluent management secrets are present via mapped Terraform `TF_VAR` names,
+   - runs Terraform init/apply for `infra/terraform/dev_min/confluent`,
+   - runs canonical verifier `tools/dev_substrate/verify_m2f_topic_readiness.py`,
+   - uploads M2.F snapshot artifact.
+3. Secret mapping posture preserved:
+   - uppercase GitHub secrets are mapped to lowercase Terraform runtime names.
+
+### Documentation alignment updates
+1. Updated `platform.M2.build_plan.md`:
+   - pinned CI workflow as canonical M2.F execution lane.
+2. Updated `platform.build_plan.md`:
+   - immediate next action now includes CI dispatch path for M2.F closure.
+
+### Validation
+1. Parsed workflow YAML successfully (syntax check).
+2. No secret values were emitted to repo artifacts.
+
+### Current phase status
+1. `M2.F` remains open until a successful workflow/local execution produces `overall_pass=true`.

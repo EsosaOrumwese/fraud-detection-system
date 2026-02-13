@@ -1,0 +1,157 @@
+name: dev-min-m2f-topic-readiness
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region for Terraform and verification commands"
+        required: true
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      tf_state_bucket:
+        description: "Terraform backend bucket"
+        required: false
+        default: "fraud-platform-dev-min-tfstate"
+        type: string
+      tf_lock_table:
+        description: "Terraform backend lock table"
+        required: false
+        default: "fraud-platform-dev-min-tf-locks"
+        type: string
+      tf_state_key_confluent:
+        description: "Terraform state key for Confluent stack"
+        required: false
+        default: "dev_min/confluent/terraform.tfstate"
+        type: string
+      evidence_bucket:
+        description: "Evidence bucket used for durable M2.F snapshot upload"
+        required: false
+        default: "fraud-platform-dev-min-evidence"
+        type: string
+      m2_execution_id:
+        description: "Optional fixed execution id (default: m2_<timestamp>)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_VAR_confluent_cloud_api_key: ${{ secrets.TF_VAR_CONFLUENT_CLOUD_API_KEY }}
+  TF_VAR_confluent_cloud_api_secret: ${{ secrets.TF_VAR_CONFLUENT_CLOUD_API_SECRET }}
+  TF_IN_AUTOMATION: "true"
+
+concurrency:
+  group: dev-min-m2f-topic-readiness-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_m2f:
+    name: Apply Confluent stack and verify M2.F topic readiness
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Ensure Confluent management secrets are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${TF_VAR_confluent_cloud_api_key:-}" ]]; then
+            echo "Missing TF_VAR_confluent_cloud_api_key mapping from GitHub secret TF_VAR_CONFLUENT_CLOUD_API_KEY."
+            exit 1
+          fi
+          if [[ -z "${TF_VAR_confluent_cloud_api_secret:-}" ]]; then
+            echo "Missing TF_VAR_confluent_cloud_api_secret mapping from GitHub secret TF_VAR_CONFLUENT_CLOUD_API_SECRET."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install verifier dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install kafka-python confluent-kafka
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m2_execution_id }}" ]]; then
+            M2_EXECUTION_ID="${{ inputs.m2_execution_id }}"
+          else
+            M2_EXECUTION_ID="m2_${TS}"
+          fi
+          OUTPUT_PATH="runs/dev_substrate/m2_f/${TS}/topic_readiness_snapshot.json"
+          EVIDENCE_S3_URI="s3://${{ inputs.evidence_bucket }}/evidence/dev_min/substrate/${M2_EXECUTION_ID}/topic_readiness_snapshot.json"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m2_execution_id=${M2_EXECUTION_ID}" >> "$GITHUB_OUTPUT"
+          echo "output_path=${OUTPUT_PATH}" >> "$GITHUB_OUTPUT"
+          echo "evidence_s3_uri=${EVIDENCE_S3_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform init (Confluent stack)
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/terraform/dev_min/confluent init \
+            -reconfigure \
+            -backend-config="bucket=${{ inputs.tf_state_bucket }}" \
+            -backend-config="key=${{ inputs.tf_state_key_confluent }}" \
+            -backend-config="region=${{ inputs.aws_region }}" \
+            -backend-config="dynamodb_table=${{ inputs.tf_lock_table }}" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform apply (Confluent stack)
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/terraform/dev_min/confluent apply -input=false -auto-approve
+
+      - name: Run canonical M2.F verifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/dev_substrate/verify_m2f_topic_readiness.py \
+            --aws-region "${{ inputs.aws_region }}" \
+            --output "${{ steps.run_meta.outputs.output_path }}" \
+            --evidence-s3-uri "${{ steps.run_meta.outputs.evidence_s3_uri }}"
+
+      - name: Upload M2.F CI evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m2f-topic-readiness-${{ steps.run_meta.outputs.timestamp }}
+          path: ${{ steps.run_meta.outputs.output_path }}
+          if-no-files-found: warn

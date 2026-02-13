@@ -458,4 +458,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- execute new Confluent IaC lane (`infra/terraform/dev_min/confluent`) to materialize valid runtime Kafka credentials into pinned SSM paths, then rerun `M2.F` to full PASS evidence (`topic_readiness_snapshot.json` with `overall_pass=true`).
+- execute M2.F closure lane using either:
+  - local: apply Confluent IaC lane (`infra/terraform/dev_min/confluent`) then run `python tools/dev_substrate/verify_m2f_topic_readiness.py`, or
+  - CI: dispatch `.github/workflows/dev_min_m2f_topic_readiness.yml`,
+  and require full PASS evidence (`topic_readiness_snapshot.json` with `overall_pass=true`).

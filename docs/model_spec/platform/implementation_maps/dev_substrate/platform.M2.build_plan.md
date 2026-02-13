@@ -575,6 +575,9 @@ Tasks:
 6. If verification lane is not pinned, M2.F stays blocked.
 7. Canonical command (pinned):
    - `python tools/dev_substrate/verify_m2f_topic_readiness.py --evidence-s3-uri s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_<timestamp>/topic_readiness_snapshot.json`
+8. Canonical CI lane (pinned):
+   - GitHub Actions workflow: `.github/workflows/dev_min_m2f_topic_readiness.yml`
+   - posture: OIDC AWS auth + Confluent Terraform apply + canonical verifier script + artifact upload.
 
 DoD:
 - [ ] All required topic handles are resolvable and present.
@@ -591,6 +594,11 @@ DoD:
    - emit non-secret snapshot artifact (`topic_readiness_snapshot.json`) and upload to evidence bucket.
 4. Script location:
    - `tools/dev_substrate/verify_m2f_topic_readiness.py`
+5. CI execution surface:
+   - `.github/workflows/dev_min_m2f_topic_readiness.yml`
+   - maps uppercase GitHub secrets to Terraform lowercase runtime vars:
+     - `TF_VAR_confluent_cloud_api_key <- TF_VAR_CONFLUENT_CLOUD_API_KEY`
+     - `TF_VAR_confluent_cloud_api_secret <- TF_VAR_CONFLUENT_CLOUD_API_SECRET`
 
 ### M2.F Execution Summary (Current)
 1. Confluent CLI lane was exercised and rejected at runtime for Confluent Cloud URL usage.
@@ -758,7 +766,7 @@ Current blockers:
        - `TF_VAR_confluent_cloud_api_secret`
      - apply `infra/terraform/dev_min/confluent` with valid Confluent Cloud management credentials to regenerate runtime Kafka API key/secret,
      - confirm pinned SSM paths were updated from Confluent stack outputs,
-     - rerun M2.F command lane and produce `overall_pass=true` in `topic_readiness_snapshot.json`.
+     - rerun M2.F command lane (local or CI workflow) and produce `overall_pass=true` in `topic_readiness_snapshot.json`.
    - evidence:
      - local: `runs/dev_substrate/m2_f/20260213T154433Z/topic_readiness_snapshot.json`
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T154433Z/topic_readiness_snapshot.json`
