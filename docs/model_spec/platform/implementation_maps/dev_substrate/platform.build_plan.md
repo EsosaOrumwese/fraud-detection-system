@@ -458,6 +458,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- execute `M2.H` DB/migrations readiness lane with pinned handles and fail-closed evidence,
+- close `M2H-B1` by materializing `TD_DB_MIGRATIONS` as a concrete dev_min demo task-definition handle,
+- then execute `M2.H-A -> M2.H-F` DB/migrations readiness lane with pinned evidence artifacts,
 - keep `M2.I` sequencing strict after `M2.H` closure (budget/teardown guardrails before M2.J),
 - maintain fail-closed posture: no `M2.J` handoff until `M2.G` + `M2.H` + `M2.I` are all green.

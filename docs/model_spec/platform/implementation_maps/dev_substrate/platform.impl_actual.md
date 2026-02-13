@@ -7432,3 +7432,41 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
    - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
 2. Shifted immediate next action to `M2.H` DB/migrations readiness lane.
+
+## Entry: 2026-02-13 7:36PM - M2.H planning expansion and fail-closed blocker pin
+
+### Trigger
+1. USER directed start of `M2.H` planning.
+
+### Planning analysis
+1. Existing `M2.H` section was high-level and did not pin:
+   - concrete command lane for migration invocation,
+   - blocker taxonomy,
+   - evidence artifacts for DB readiness vs migration readiness vs migration run result.
+2. Current runtime truth inspection showed:
+   - registry pins `DB_MIGRATIONS_REQUIRED=true` and requires `TD_DB_MIGRATIONS`,
+   - demo Terraform outputs currently expose probe task definition but no dedicated migration task-definition output.
+
+### Decisions pinned in M2.H plan
+1. Expanded `M2.H` into `M2.H-A..M2.H-F`:
+   - A: handle resolution and preconditions,
+   - B: RDS control-plane readiness,
+   - C: DB secret/auth surface checks,
+   - D: migration task readiness contract,
+   - E: canonical command lane + evidence,
+   - F: rollback + blocker model.
+2. Added explicit M2.H blockers:
+   - `M2H-B1` missing/unresolved `TD_DB_MIGRATIONS`,
+   - `M2H-B2` RDS readiness failure,
+   - `M2H-B3` DB auth material failure,
+   - `M2H-B4` migration execution failure.
+3. Added M2 evidence contract extensions:
+   - `db_readiness_snapshot.json`
+   - `db_migration_readiness_snapshot.json`
+   - `db_migration_run_snapshot.json`
+
+### Fail-closed update
+1. Added `M2H-B1` to unresolved blocker register because `DB_MIGRATIONS_REQUIRED=true` is pinned but a concrete `TD_DB_MIGRATIONS` handle surface is not yet materialized in current demo outputs.
+2. Updated main platform build plan immediate next action:
+   - close `M2H-B1` first,
+   - then execute `M2.H-A -> M2.H-F`.
