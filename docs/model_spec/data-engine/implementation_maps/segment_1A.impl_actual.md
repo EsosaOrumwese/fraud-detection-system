@@ -5364,3 +5364,101 @@ Outcome:
 Decision:
 1) Keep (`29bd...`, `a175...`) as determinism proof pair.
 2) Use `416afa...` as normal-provenance operational authority for moving into P5.
+
+### Entry: 2026-02-13 10:06
+
+Design element: P5 certification execution plan (grade decision pass).
+Summary: Opened P5 implementation pass to produce a reproducible certification artifact with hard-gate decisions, B/B+ band coverage, determinism proof, workstream ablation evidence, and alternate-seed sensitivity evidence.
+
+Execution plan:
+1) Build a deterministic certification scorer/report generator to aggregate:
+- P1 lock scorecard (`p1_4_lock_scorecard.json`),
+- P2 baseline scorecard (`segment1a_p2_1_baseline_*`),
+- P3 baseline scorecard (`segment1a_p3_1_baseline_*`),
+- P4 artifact presence check on accepted authority run.
+2) Use accepted authority run lineage:
+- P1 lock authority from `p1_4_lock_scorecard` (seed 42 representative row),
+- P2 closure authority `9901b537de3a5a146f79365931bd514c`,
+- P3 lock authority `da3e57e73e733b990a5aa3a46705f987`,
+- P4 operational authority `416afa430db3f5bf87180f8514329fe8`.
+3) Run alternate-seed sensitivity as a full `segment1a-p4` execution by temporarily setting `config/layer1/1A/rng/run_seed.yaml` to `43`, then restoring it to `42` immediately after run completion.
+4) Re-score P2/P3 for the alternate-seed run and compare against seed-42 authority posture.
+5) Emit certification output under `runs/fix-data-engine/segment_1A/reports/` with:
+- hard-gate table,
+- band-coverage summary (`B`, `B+`),
+- pass/fail grade decision,
+- explicit veto notes if any gate fails,
+- ablation and sensitivity evidence refs.
+6) Update `segment_1A.build_plan.md` P5 DoD checkboxes and append closure evidence in logbook.
+
+Risk controls:
+1) Treat `run_seed.yaml` edit as transactional:
+- write `43` only for the alternate-seed run,
+- restore `42` in the same execution pass.
+2) Keep P4 determinism pair and operational run folders intact; prune only superseded intermediate runs after certification if requested.
+
+### Entry: 2026-02-13 10:32
+
+Design element: P5 scorer authority-run wiring correction.
+Summary: While executing P5, I found the new scorer was binding P3 authority metrics from `p4_authority_run` instead of `p3_authority_run`. This can silently misreport certification if the two runs diverge.
+
+Decision:
+1) Patch `tools/score_segment1a_p5_certification.py` so P3 report resolution uses `args.p3_authority_run`.
+2) Re-run compile guard and regenerate P5 certification output.
+3) Keep all authority run IDs unchanged from plan unless scorer output indicates an explicit gating issue.
+
+### Entry: 2026-02-13 10:35
+
+Design element: P5 scorer identity-semantics check compatibility.
+Summary: P3 baseline reports in use expose identity semantics via `metrics.global.checks.no_unexplained_duplicate_anomalies` and/or `metrics.identity_semantics_diagnostics.has_unexplained_duplicate_anomalies`. The scorer currently relied on older key paths and can emit a false negative.
+
+Decision:
+1) Normalize identity-semantics extraction order to:
+- `metrics.global.checks.no_unexplained_duplicate_anomalies` (primary),
+- `metrics.identity_semantics.checks.no_unexplained_duplicate_anomalies` (fallback),
+- `metrics.identity_semantics_diagnostics.has_unexplained_duplicate_anomalies` inverted (fallback),
+- legacy top-level `identity_semantics.has_unexplained_duplicate_anomalies` inverted (final fallback).
+2) Recompile and regenerate P5 certification artifact so grade evidence reflects actual report semantics.
+
+### Entry: 2026-02-13 10:36
+
+Design element: P5 execution closure (certification artifact + grade decision).
+Summary: Completed P5 execution end-to-end with alternate-seed sensitivity evidence and finalized grade decision artifact.
+
+Execution actions:
+1) Alternate-seed full-run evidence:
+- temporarily changed `config/layer1/1A/rng/run_seed.yaml` to `seed: 43`,
+- executed `make segment1a-p4 RUNS_ROOT=runs/fix-data-engine/segment_1A`,
+- run id: `651fa96a4dc46cbcf6e3cfee8434180f`,
+- restored `config/layer1/1A/rng/run_seed.yaml` to `seed: 42` immediately after run.
+2) Alternate-seed scorecards:
+- `segment1a_p2_1_baseline_651fa96a4dc46cbcf6e3cfee8434180f.json`,
+- `segment1a_p3_1_baseline_651fa96a4dc46cbcf6e3cfee8434180f.json`.
+3) P5 scorer implementation and corrections:
+- added `tools/score_segment1a_p5_certification.py`,
+- corrected P3 authority lookup to use `--p3-authority-run`,
+- normalized identity-semantics pass extraction for current/legacy P3 scorecard shapes.
+4) Final certification artifact emitted:
+- `runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json`.
+
+Certification result:
+1) hard gates pass: `4/4`.
+2) band coverage:
+- `B`: `13/14` (`0.9286`),
+- `B+`: `10/14` (`0.7143`).
+3) final grade decision:
+- `B` (`eligible_B=true`, `eligible_B_plus=false`).
+
+Evidence posture:
+1) determinism pair remains stable:
+- `29bdb537f5aac75aa48479272fc18161` vs `a1753dc8ed8fb1703b336bd4a869f361` (`p2_global_equal=true`, `p3_global_equal=true`).
+2) alternate-seed sensitivity run remains within B+ mismatch/gradient bands.
+3) B+ shortfall metrics are concentrated in:
+- `top10_outlet_share`,
+- `gini_outlets_per_merchant`,
+- `multi_country_legal_spread`,
+- `realization_ratio_median`.
+
+Decision:
+1) Mark P5 closed at grade `B` with reproducible evidence.
+2) Segment `1A` is certification-closed for `B` target and not yet at `B+`.

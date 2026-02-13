@@ -446,13 +446,33 @@ Tasks:
 4. Pin workflow permission posture (least privilege; no baked secrets).
 
 DoD:
-- [ ] Workflow exists and is path-pinned in repository.
-- [ ] Workflow outputs cover required M1.C/M1.E provenance fields.
-- [ ] Workflow permissions and secret posture are explicitly fail-closed.
+- [x] Workflow exists and is path-pinned in repository.
+- [x] Workflow outputs cover required M1.C/M1.E provenance fields.
+- [x] Workflow permissions and secret posture are explicitly fail-closed.
+
+M1.G realization record (pinned):
+1. Authoritative workflow path:
+   - `.github/workflows/dev_min_m1_packaging.yml`
+2. Trigger posture:
+   - `workflow_dispatch` only (manual operator-governed execution).
+3. Permission/auth posture:
+   - workflow permissions pinned to least privilege: `contents: read`, `id-token: write`.
+   - AWS access requires OIDC role assumption (`aws-actions/configure-aws-credentials@v4`).
+   - static AWS credential posture is explicitly rejected by workflow precheck.
+4. Command surface realization:
+   - executes canonical sequence: auth -> build immutable -> push immutable -> resolve digest -> optional convenience tag.
+5. Output/evidence posture:
+   - job outputs: `image_tag`, `image_digest`, `git_sha`, `ci_run_id`, `build_actor`.
+   - uploaded artifact pack: `evidence/runs/<platform_run_id>/P(-1)/` containing:
+     - `build_command_surface_receipt.json`,
+     - `packaging_provenance.json`,
+     - `ci_m1_outputs.json`.
+6. Fail-closed posture:
+   - missing Dockerfile, build/push failure, or unresolved ECR digest causes workflow failure.
 
 M1.G execution block:
-1. Until M1.G is complete, `github_actions` cannot be treated as executable build-go lane.
-2. No phase closure may rely on assumed CI behavior not represented in the pinned workflow file.
+1. `M1.G` closure condition is now satisfied by pinned workflow realization.
+2. Build-go remains blocked by `M1.H` and `M1.I` until CI validation and exit-readiness closure complete.
 
 ## M1.H Authoritative CI Gate Validation
 Goal:
@@ -529,7 +549,7 @@ M1 build-go handoff statement (execution pack, provisional until M1.I closes):
 - [x] M1.D complete
 - [x] M1.E complete
 - [x] M1.F complete
-- [ ] M1.G complete
+- [x] M1.G complete
 - [ ] M1.H complete
 - [ ] M1.I complete
 

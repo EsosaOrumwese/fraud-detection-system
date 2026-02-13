@@ -708,10 +708,44 @@ Lock update:
 - grade decision with veto notes for any hard-gate failure.
 
 ### 7.4 P5 definition of done
-- [ ] all hard gates pass.
-- [ ] `B` or `B+` band-coverage threshold is met.
-- [ ] determinism and ablation evidence are attached.
-- [ ] final Segment `1A` grade is recorded with reproducible evidence links.
+- [x] all hard gates pass.
+- [x] `B` or `B+` band-coverage threshold is met.
+- [x] determinism and ablation evidence are attached.
+- [x] final Segment `1A` grade is recorded with reproducible evidence links.
+
+### 7.5 P5 closure evidence
+Certification artifact:
+1. `runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json`.
+
+Authority run lineage:
+1. P1 lock scorecard:
+- `runs/fix-data-engine/segment_1A/reports/p1_4_lock_scorecard.json` (seed-42 representative row).
+2. P2 authority:
+- `run_id=9901b537de3a5a146f79365931bd514c`.
+3. P3 authority:
+- `run_id=da3e57e73e733b990a5aa3a46705f987`.
+4. P4 operational authority:
+- `run_id=416afa430db3f5bf87180f8514329fe8`.
+5. Determinism authority pair:
+- `run_id=29bdb537f5aac75aa48479272fc18161`,
+- `run_id=a1753dc8ed8fb1703b336bd4a869f361`.
+6. Alternate-seed sensitivity run:
+- `run_id=651fa96a4dc46cbcf6e3cfee8434180f` (`seed=43`, then seed restored to `42`).
+
+Grade decision summary:
+1. hard gates:
+- all pass (`4/4`).
+2. band coverage:
+- `B`: `13/14` checks (`0.9286`),
+- `B+`: `10/14` checks (`0.7143`).
+3. final grade:
+- `B` (eligible `B`, not eligible `B+`).
+
+B+ gap metrics:
+1. `top10_outlet_share`,
+2. `gini_outlets_per_merchant`,
+3. `multi_country_legal_spread`,
+4. `realization_ratio_median`.
 
 ## 8) Sequencing and stop rules
 

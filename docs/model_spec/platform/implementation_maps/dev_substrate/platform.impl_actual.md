@@ -5829,3 +5829,78 @@ During M1 packaging planning/execution, there was understandable confusion about
 
 ### Why this note exists
 This captures user/operator learning value so the same confusion does not recur and can be reflected later in `docs/references/challenge_story_bank.md` if desired.
+
+## Entry: 2026-02-13 10:35AM - Pre-change lock: M1.G authoritative CI workflow realization
+
+### Trigger
+USER directed: proceed with `M1.G`.
+
+### Objective
+Close `M1.G` by implementing the authoritative GitHub Actions workflow contract for P(-1) packaging so build-go no longer depends on assumed CI behavior.
+
+### Scope
+1. Create `.github/workflows/dev_min_m1_packaging.yml` as the authoritative CI build lane (`github_actions`).
+2. Ensure workflow emits required machine-readable outputs for M1.C/M1.E:
+- immutable image tag,
+- resolved image digest,
+- CI run id,
+- build actor.
+3. Record `M1.G` closure in:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+4. Append action record in `docs/logbook/02-2026/2026-02-13.md`.
+
+### Decision posture (before patch)
+1. Trigger posture:
+- workflow uses `workflow_dispatch` only for safe/manual execution control in dev_min.
+2. Auth posture:
+- use AWS OIDC role assumption (`id-token: write`), reject static AWS key usage in workflow contract.
+3. Output posture:
+- workflow job outputs and uploaded artifacts carry immutable tag + digest + actor + CI run id.
+4. Failure posture:
+- fail closed on missing required dispatch inputs, digest resolution failure, or build/push failure.
+
+### Drift sentinel checkpoint
+This change is contract realization for M1 only and does not execute build-go runtime phases.
+
+## Entry: 2026-02-13 10:37AM - Applied M1.G closure: authoritative CI workflow pinned and plans synced
+
+### Files updated
+1. `.github/workflows/dev_min_m1_packaging.yml` (new)
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### What was implemented
+1. Authoritative CI workflow realization:
+- added `dev-min-m1-packaging` GitHub Actions workflow as the M1 authoritative build lane.
+- workflow trigger posture is `workflow_dispatch` only (operator-controlled).
+- workflow auth posture is OIDC role assumption with least-privilege permissions (`contents: read`, `id-token: write`).
+2. Canonical command sequence realization:
+- auth -> immutable build -> immutable push -> digest resolution -> optional convenience tag push.
+3. Machine-readable outputs/evidence realization:
+- job outputs:
+  - `image_tag`
+  - `image_digest`
+  - `git_sha`
+  - `ci_run_id`
+  - `build_actor`
+- CI artifact pack emitted at:
+  - `evidence/runs/<platform_run_id>/P(-1)/build_command_surface_receipt.json`
+  - `evidence/runs/<platform_run_id>/P(-1)/packaging_provenance.json`
+  - `evidence/runs/<platform_run_id>/P(-1)/ci_m1_outputs.json`
+4. Fail-closed controls in workflow:
+- fail if pinned Dockerfile path is missing,
+- fail on build/push failure,
+- fail if immutable digest cannot be resolved from ECR.
+
+### Plan-state synchronization
+1. `platform.M1.build_plan.md`:
+- marked M1.G DoD checklist complete,
+- added pinned realization record (workflow path, permissions, outputs, fail-closed behavior),
+- marked M1 completion checklist item `M1.G` complete.
+2. `platform.build_plan.md`:
+- marked `M1.G` complete in active sub-phase progress with workflow path reference,
+- updated build-go block to require only `M1.H..M1.I` closure before execution.
+
+### Drift sentinel assessment
+No runtime semantic drift introduced. This is execution-control hardening that removes CI-lane ambiguity and makes build-go prerequisites auditable.
