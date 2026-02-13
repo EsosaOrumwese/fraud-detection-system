@@ -9,7 +9,8 @@ This stack is the canonical root pinned by:
 ## Capability lanes in this stack
 
 - Confluent runtime contract surfaces:
-  - canonical SSM paths for bootstrap/API key/API secret,
+  - consumes Confluent metadata/credentials from `dev_min/confluent` remote state by default,
+  - writes canonical SSM paths for bootstrap/API key/API secret,
   - topic catalog artifact for pinned topic map visibility.
 - ECS runtime scaffolding:
   - VPC/public subnets/security groups,
@@ -35,4 +36,5 @@ terraform -chdir=infra/terraform/dev_min/demo validate
 - Demo resources are destroy-by-default.
 - Backend config file is local/operator-managed.
 - Apply/destroy is phase-gated by platform M2/M9 process.
-- Replace placeholder secret values in `terraform.tfvars` before apply.
+- Recommended order: apply `core`, then `confluent`, then `demo`.
+- Manual Confluent values are fallback-only (`confluent_credentials_source = "manual"`).

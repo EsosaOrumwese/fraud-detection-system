@@ -3522,3 +3522,58 @@ Decision and rationale:
 
 Operational consequence:
 - We can now execute full fast-lane `S2->S9` for P1 lock validation without multi-hour S2 bottleneck from per-tile raster sampling.
+
+---
+
+### Entry: 2026-02-13 15:03
+
+Design element: P1 rerun correction under immutable partition law.
+Summary: Attempting to rerun `S2->S9` on an existing candidate run-id failed at `S5` with immutable-partition protection. We shifted to fresh run-id bootstrapping for every full-chain retry to preserve append-only run semantics.
+
+Decision and rationale:
+1) Do not rerun downstream states on a run-id that already contains published partitions when upstream inputs changed.
+2) For each full-chain P1 retry, create a fresh run-id under `runs/fix-data-engine/segment_1B/` with only required upstream surfaces copied:
+   - `1A/outlet_catalogue`,
+   - `1B/s0_gate_receipt`,
+   - `1B/sealed_inputs`,
+   - `1B/tile_index`,
+   - `1B/tile_bounds`,
+   - plus a cloned `run_receipt.json` with updated `run_id/created_utc`.
+3) Keep prune-before-run active before launching new full-chain attempts.
+
+Operational consequence:
+- Immutable collision at `S5` is avoided without violating run immutability or deleting valid published partitions.
+
+---
+
+### Entry: 2026-02-13 15:26
+
+Design element: P1 final closure, reproducibility proof, and lock promotion.
+Summary: Completed P1 closure using accepted candidate run `335c9a7eec04491a845abc2a049f959f`, verified all P1 checks pass, and validated two-run same-seed S2 reproducibility.
+
+Implementation actions completed:
+1) Full fast-lane chain success (`S2->S9`) on fresh run-id:
+   - `run_id=335c9a7eec04491a845abc2a049f959f`
+   - `S9` decision: `PASS`.
+2) P1 candidate scoring:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p1_candidate_335c9a7eec04491a845abc2a049f959f.json`
+   - `checks_all_pass=true`.
+3) Reproducibility run:
+   - second fresh run-id `8b25602ba5ab48cb9fe459ffece15858` executed for `S2`,
+   - compared `country_gini_proxy`, `country_share_topk`, `region_share_vector`, `blend_v2_diagnostics`,
+   - all fields equal between accepted run and repro run.
+4) Repro/lock artifacts written:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p1_repro_check_335c9a7eec04491a845abc2a049f959f_8b25602ba5ab48cb9fe459ffece15858.json`
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p1_lock_record.json`
+5) Pointer promotion:
+   - `runs/fix-data-engine/segment_1B/current_candidate/current_candidate_pointer.json`
+   - `runs/fix-data-engine/segment_1B/last_good/last_good_pointer.json`
+   - both now point to accepted run `335c9a7eec04491a845abc2a049f959f`.
+6) Storage discipline after lock:
+   - pruned superseded run-id folders:
+     - `a7d72773443c4206bb7ab44695274e92`,
+     - `8b25602ba5ab48cb9fe459ffece15858`.
+
+Lock statement:
+- P1 (`S2` macro-mass policy + diagnostics posture) is now locked.
+- Downstream phases (`P2+`) must treat P1 settings as frozen unless an explicit reopen decision is recorded.

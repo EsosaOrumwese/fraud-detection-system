@@ -21,7 +21,7 @@ Supporting:
 
 ## 2) Scope Boundary for M2
 In scope:
-1. Terraform core/demo state and apply/destroy reproducibility contract.
+1. Terraform core/confluent/demo state and apply/destroy reproducibility contract.
 2. Substrate handle closure across S3/SSM/Kafka/ECS/DB/IAM/Budgets.
 3. Confluent topic/credential readiness.
 4. Network posture checks (no NAT, no forbidden always-on dependency).
@@ -69,7 +69,7 @@ Execution block:
 | Capability lane | Primary sub-phase owner | Supporting sub-phases | Minimum PASS evidence |
 | --- | --- | --- | --- |
 | Authority + handles | M2.A | M2.C, M2.D | `handle_resolution_snapshot.json` complete, no unknown required keys |
-| Terraform state/backend/locking | M2.B | M2.C, M2.D | backend + lock checks in evidence; distinct core/demo state keys proven |
+| Terraform state/backend/locking | M2.B | M2.C, M2.D | backend + lock checks in evidence; distinct core/confluent/demo state keys proven |
 | Identity/IAM | M2.E | M2.C, M2.D, M2.F | principal access checks for SSM/ECR/ECS/DB/Kafka control plane |
 | Network posture (no NAT/no always-on LB) | M2.G | M2.D | `no_nat_check.json` plus forbidden-infra checks |
 | Data stores (S3 + runtime DB) | M2.C | M2.D, M2.H | bucket writable, DB reachable, migration surface pinned |
@@ -92,6 +92,7 @@ Tasks:
      - `TF_STATE_BUCKET`
      - `TF_STATE_BUCKET_REGION`
      - `TF_STATE_KEY_CORE`
+     - `TF_STATE_KEY_CONFLUENT`
      - `TF_STATE_KEY_DEMO`
      - `TF_LOCK_TABLE`
    - S3/evidence:
@@ -154,7 +155,7 @@ DoD:
 - [x] Secret surfaces are separated from non-secret evidence.
 
 ### M2.A Closure Summary (Execution Record)
-1. Required key count: `46`.
+1. Required key count: `47`.
 2. Registry presence check result: `ALL_PRESENT` for the minimum M2.A key set.
 3. Unknown required keys: `0`.
 4. M2.A status: `CLOSED_SPEC` (planning-level closure complete; runtime checks remain in M2.B+).
@@ -163,7 +164,7 @@ DoD:
 | Verify ID | Command template | Purpose |
 | --- | --- | --- |
 | `V1_REGISTRY_KEY` | `rg -n "\\b<HANDLE_KEY>\\b" docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` | confirms handle key exists in authoritative registry |
-| `V2_TERRAFORM_BACKEND` | `terraform -chdir=infra/terraform/dev_min/<stack> init -reconfigure "-backend-config=backend.hcl" && terraform -chdir=infra/terraform/dev_min/<stack> validate` | validates Terraform stack command surface for core/demo |
+| `V2_TERRAFORM_BACKEND` | `terraform -chdir=infra/terraform/dev_min/<stack> init -reconfigure "-backend-config=backend.hcl" && terraform -chdir=infra/terraform/dev_min/<stack> validate` | validates Terraform stack command surface for core/confluent/demo |
 | `V3_TF_STATE_S3` | `aws s3api get-bucket-versioning --bucket <TF_STATE_BUCKET>` | validates state bucket control surface |
 | `V4_TF_LOCK_DDB` | `aws dynamodb describe-table --table-name <TF_LOCK_TABLE>` | validates lock-table surface |
 | `V5_SSM_PATH` | `aws ssm get-parameter --name <SSM_PATH> --with-decryption` | validates secret locator handles/readability surface |
@@ -189,17 +190,18 @@ DoD:
 | `TF_STATE_BUCKET` | Terraform/backend | Terraform core | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V3_TF_STATE_S3` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `TF_STATE_BUCKET_REGION` | Terraform/backend | Terraform core | registry/stack pin | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `TF_STATE_KEY_CORE` | Terraform/backend | Terraform core | registry literal | `V1_REGISTRY_KEY` + `V2_TERRAFORM_BACKEND` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `TF_STATE_KEY_CONFLUENT` | Terraform/backend | Terraform confluent | registry literal | `V1_REGISTRY_KEY` + `V2_TERRAFORM_BACKEND` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `TF_STATE_KEY_DEMO` | Terraform/backend | Terraform demo | registry literal | `V1_REGISTRY_KEY` + `V2_TERRAFORM_BACKEND` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `TF_LOCK_TABLE` | Terraform/backend | Terraform core | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V4_TF_LOCK_DDB` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `S3_EVIDENCE_BUCKET` | S3/evidence | Terraform core | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V3_TF_STATE_S3` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `S3_EVIDENCE_ROOT_PREFIX` | S3/evidence | Registry authority | registry literal | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `RUN_REPORT_PATH_PATTERN` | S3/evidence | Registry authority | registry literal | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `RECEIPT_SUMMARY_PATH_PATTERN` | S3/evidence | Registry authority | registry literal | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
-| `CONFLUENT_ENV_NAME` | Confluent | Terraform demo | registry literal | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
-| `CONFLUENT_CLUSTER_NAME` | Confluent | Terraform demo | registry literal | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
-| `SSM_CONFLUENT_BOOTSTRAP_PATH` | Confluent/secrets | Terraform demo | registry literal path | `V1_REGISTRY_KEY` + `V5_SSM_PATH` | `secret_locator` | `CLOSED_SPEC` | `none` |
-| `SSM_CONFLUENT_API_KEY_PATH` | Confluent/secrets | Terraform demo | registry literal path | `V1_REGISTRY_KEY` + `V5_SSM_PATH` | `secret_locator` | `CLOSED_SPEC` | `none` |
-| `SSM_CONFLUENT_API_SECRET_PATH` | Confluent/secrets | Terraform demo | registry literal path | `V1_REGISTRY_KEY` + `V5_SSM_PATH` | `secret_locator` | `CLOSED_SPEC` | `none` |
+| `CONFLUENT_ENV_NAME` | Confluent | Terraform confluent | registry literal | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `CONFLUENT_CLUSTER_NAME` | Confluent | Terraform confluent | registry literal | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `SSM_CONFLUENT_BOOTSTRAP_PATH` | Confluent/secrets | Terraform confluent | registry literal path | `V1_REGISTRY_KEY` + `V5_SSM_PATH` | `secret_locator` | `CLOSED_SPEC` | `none` |
+| `SSM_CONFLUENT_API_KEY_PATH` | Confluent/secrets | Terraform confluent | registry literal path | `V1_REGISTRY_KEY` + `V5_SSM_PATH` | `secret_locator` | `CLOSED_SPEC` | `none` |
+| `SSM_CONFLUENT_API_SECRET_PATH` | Confluent/secrets | Terraform confluent | registry literal path | `V1_REGISTRY_KEY` + `V5_SSM_PATH` | `secret_locator` | `CLOSED_SPEC` | `none` |
 | `FP_BUS_CONTROL_V1` | Kafka topics | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V6_KAFKA_TOPIC` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `FP_BUS_TRAFFIC_FRAUD_V1` | Kafka topics | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V6_KAFKA_TOPIC` | `non_secret` | `CLOSED_SPEC` | `none` |
 | `FP_BUS_CONTEXT_ARRIVAL_EVENTS_V1` | Kafka topics | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V6_KAFKA_TOPIC` | `non_secret` | `CLOSED_SPEC` | `none` |
@@ -235,12 +237,13 @@ DoD:
 
 ## M2.B Terraform Backend/State Partition Readiness
 Goal:
-1. Ensure Terraform state is safe, split (core/demo), and lock-protected before apply operations.
+1. Ensure Terraform state is safe, split (core/confluent/demo), and lock-protected before apply operations.
 
 Tasks:
 1. Validate backend configuration for:
    - `TF_STATE_BUCKET`
    - `TF_STATE_KEY_CORE`
+   - `TF_STATE_KEY_CONFLUENT`
    - `TF_STATE_KEY_DEMO`
    - `TF_LOCK_TABLE`
 2. Verify state bucket security posture:
@@ -250,24 +253,28 @@ Tasks:
 3. Verify lock table behavior and contention handling posture.
 4. Pin canonical non-interactive command surface for backend/state checks (execution to occur only after M2.A/M2.B closure):
    - `terraform -chdir=infra/terraform/dev_min/core init -reconfigure "-backend-config=backend.hcl"`
+   - `terraform -chdir=infra/terraform/dev_min/confluent init -reconfigure "-backend-config=backend.hcl"`
    - `terraform -chdir=infra/terraform/dev_min/demo init -reconfigure "-backend-config=backend.hcl"`
    - `terraform -chdir=infra/terraform/dev_min/core validate`
+   - `terraform -chdir=infra/terraform/dev_min/confluent validate`
    - `terraform -chdir=infra/terraform/dev_min/demo validate`
    - `aws s3api get-bucket-versioning --bucket <TF_STATE_BUCKET>`
    - `aws s3api get-public-access-block --bucket <TF_STATE_BUCKET>`
    - `aws dynamodb describe-table --table-name <TF_LOCK_TABLE>`
 
 DoD:
-- [x] Core/demo state keys are distinct and validated.
+- [x] Core/confluent/demo state keys are distinct and validated.
 - [x] State bucket security controls are explicitly validated.
 - [x] Lock-table readiness is evidenced.
 
 ### M2.B Closure Summary (Execution Record)
 1. Canonical stack roots were materialized and validated:
    - `infra/terraform/dev_min/core`
+   - `infra/terraform/dev_min/confluent`
    - `infra/terraform/dev_min/demo`
 2. State key separation is explicit and validated from backend configs:
    - core key: `dev_min/core/terraform.tfstate`
+   - confluent key: `dev_min/confluent/terraform.tfstate`
    - demo key: `dev_min/demo/terraform.tfstate`
    - distinctness: `true`
 3. State bucket control checks (live AWS) for `fraud-platform-dev-min-tfstate`:
@@ -281,10 +288,13 @@ DoD:
 5. Static Terraform command-surface checks:
    - `terraform -chdir=infra/terraform/dev_min/core init -backend=false` -> `PASS`
    - `terraform -chdir=infra/terraform/dev_min/core validate` -> `PASS`
+   - `terraform -chdir=infra/terraform/dev_min/confluent init -backend=false` -> `PASS`
+   - `terraform -chdir=infra/terraform/dev_min/confluent validate` -> `PASS`
    - `terraform -chdir=infra/terraform/dev_min/demo init -backend=false` -> `PASS`
    - `terraform -chdir=infra/terraform/dev_min/demo validate` -> `PASS`
-   - backend reconfigure checks with `backend.hcl.example` for both stacks -> `PASS`
+   - backend reconfigure checks with `backend.hcl.example` for all three stacks -> `PASS`
 6. M2.B status: `CLOSED_EXEC`.
+7. Confluent stack lane was added after initial M2.B closure; static `init -backend=false` and `validate` checks were re-run in this pass and passed.
 
 ### M2.B Evidence
 1. Local snapshot:
@@ -391,12 +401,12 @@ Goal:
 1. Pin and verify demo apply sequence and acceptance outputs for Confluent/ECS/DB/SSM.
 
 Entry precondition:
-1. `M2C-B1` must be closed before first core/demo apply execution in this phase chain (satisfied; see resolved blocker record).
+1. `M2C-B1` must be closed before first core/confluent/demo apply execution in this phase chain (satisfied; see resolved blocker record).
 
 Tasks:
 1. Pin exact demo apply command surface.
 2. Define required demo resources and outputs:
-   - Confluent runtime contract surfaces (cluster/env/topic map + canonical secret paths)
+   - Confluent runtime contract consumption from dedicated Confluent stack (cluster/env/topic map + canonical secret paths)
    - SSM secret writes
    - ECS cluster/scaffolding
    - runtime DB
@@ -404,7 +414,7 @@ Tasks:
 4. Define fail-closed stop criteria for partial demo apply.
 5. Require demo apply evidence to include:
    - resolved topic map identity,
-   - SSM write confirmation for Confluent and DB secret paths,
+   - SSM write confirmation for Confluent and DB secret paths (with Confluent values sourced from Confluent stack output contract),
    - ECS + DB endpoint handles produced by Terraform outputs.
 
 DoD:
@@ -417,6 +427,7 @@ DoD:
    - `terraform -chdir=infra/terraform/dev_min/demo init -reconfigure "-backend-config=backend.hcl"`
    - `terraform -chdir=infra/terraform/dev_min/demo validate`
 2. Pre-apply plan:
+   - `aws s3api head-object --bucket <TF_STATE_BUCKET> --key <TF_STATE_KEY_CONFLUENT>` (required when `confluent_credentials_source=remote_state`)
    - `terraform -chdir=infra/terraform/dev_min/demo plan -input=false -detailed-exitcode -out <demo_plan_file>`
 3. Demo apply (gated; only when acceptance checks pass):
    - `terraform -chdir=infra/terraform/dev_min/demo apply -input=false <demo_plan_file>`
@@ -432,7 +443,7 @@ DoD:
 1. Command-surface acceptance:
    - init/validate/plan commands must succeed.
 2. Required demo categories must be present in plan/resources:
-   - Confluent runtime contract surfaces (cluster/env/topic map + canonical secret paths),
+   - Confluent runtime contract consumption via remote state outputs (cluster/env/topic map + canonical secret paths),
    - SSM secret writes for Confluent and DB credentials,
    - ECS cluster/scaffolding,
    - runtime DB.
@@ -481,7 +492,7 @@ DoD:
    - required demo capability categories are now explicit in plan/evidence,
    - M2.D is `CLOSED_EXEC` and unblocks `M2.E`.
 5. Confluent lane mode for this closure:
-   - `contract_materialized_in_demo_stack`,
+   - `contract_materialized_in_confluent_stack_consumed_by_demo`,
    - live topic existence/connectivity/ACL validation remains enforced in `M2.F`.
 
 ### M2.D Evidence
@@ -734,7 +745,8 @@ Current blockers:
      - M2.F Kafka admin verification failed at SASL auth handshake for bootstrap `pkc-41wq6.eu-west-2.aws.confluent.cloud:9092`,
      - SSM credential paths exist but current values are not valid for runtime Kafka authentication.
    - closure criteria:
-     - rotate/fix Confluent Kafka API key/secret at pinned SSM paths,
+     - apply `infra/terraform/dev_min/confluent` with valid Confluent Cloud management credentials to regenerate runtime Kafka API key/secret,
+     - confirm pinned SSM paths were updated from Confluent stack outputs,
      - rerun M2.F command lane and produce `overall_pass=true` in `topic_readiness_snapshot.json`.
    - evidence:
      - local: `runs/dev_substrate/m2_f/20260213T145630Z/topic_readiness_snapshot.json`

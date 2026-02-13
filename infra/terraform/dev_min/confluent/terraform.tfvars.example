@@ -1,0 +1,55 @@
+aws_region   = "eu-west-2"
+name_prefix  = "fraud-platform-dev-min"
+project      = "fraud-platform"
+environment  = "dev_min"
+owner        = "esosa"
+expires_at   = ""
+
+confluent_run_id = "manual"
+evidence_bucket_name = "fraud-platform-dev-min-evidence"
+
+# Operator/CI-managed Confluent Cloud management credentials.
+# Prefer environment variables in CI:
+#   TF_VAR_confluent_cloud_api_key
+#   TF_VAR_confluent_cloud_api_secret
+confluent_cloud_api_key    = "REPLACE_ME_CONFLUENT_CLOUD_API_KEY"
+confluent_cloud_api_secret = "REPLACE_ME_CONFLUENT_CLOUD_API_SECRET"
+
+confluent_env_name             = "dev_min"
+confluent_cluster_name         = "dev-min-kafka"
+confluent_cluster_type         = "Basic"
+confluent_cluster_availability = "SINGLE_ZONE"
+confluent_cluster_cloud        = "AWS"
+confluent_cluster_region       = "eu-west-2"
+
+kafka_topics = [
+  "fp.bus.control.v1",
+  "fp.bus.traffic.fraud.v1",
+  "fp.bus.context.arrival_events.v1",
+  "fp.bus.context.arrival_entities.v1",
+  "fp.bus.context.flow_anchor.fraud.v1",
+  "fp.bus.rtdl.v1",
+  "fp.bus.audit.v1",
+  "fp.bus.case.triggers.v1",
+  "fp.bus.labels.events.v1",
+]
+
+high_volume_topic_names = [
+  "fp.bus.traffic.fraud.v1",
+  "fp.bus.context.arrival_events.v1",
+  "fp.bus.context.arrival_entities.v1",
+  "fp.bus.context.flow_anchor.fraud.v1",
+  "fp.bus.rtdl.v1",
+]
+
+high_volume_partitions  = 3
+low_volume_partitions   = 1
+high_volume_retention_ms = 86400000
+low_volume_retention_ms  = 259200000
+
+topic_manager_service_account_name = "fp-dev-min-topic-manager"
+runtime_service_account_name       = "fp-dev-min-runtime"
+
+ssm_confluent_bootstrap_path  = "/fraud-platform/dev_min/confluent/bootstrap"
+ssm_confluent_api_key_path    = "/fraud-platform/dev_min/confluent/api_key"
+ssm_confluent_api_secret_path = "/fraud-platform/dev_min/confluent/api_secret"

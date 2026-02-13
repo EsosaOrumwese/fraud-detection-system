@@ -7039,3 +7039,96 @@ USER approved moving forward with `M2.F` implementation and accepted the recomme
 ### Drift sentinel checkpoint
 1. No platform semantic drift introduced.
 2. This is substrate truth exposure and blocker registration only.
+
+## Entry: 2026-02-13 3:25PM - Post-change record: Confluent provisioning lane added as first-class IaC substrate
+
+### Implementation delivered
+1. Added dedicated Confluent Terraform module and stack:
+   - module: `infra/terraform/modules/confluent/`
+   - root stack: `infra/terraform/dev_min/confluent/`
+2. New stack now provisions:
+   - Confluent environment + Kafka cluster,
+   - pinned topic map creation,
+   - runtime Kafka API key owned by runtime service account,
+   - SSM materialization for bootstrap/key/secret using pinned paths.
+3. Updated demo stack to consume Confluent outputs by remote state (default):
+   - `confluent_credentials_source = "remote_state"` now default in demo variables,
+   - demo reads `dev_min/confluent/terraform.tfstate` outputs for cluster metadata + runtime Kafka credentials,
+   - manual fallback remains available via `confluent_credentials_source = "manual"`.
+
+### Documentation and contract updates completed
+1. Handles registry updated for new stack/state keys:
+   - `TF_STATE_KEY_CONFLUENT`,
+   - `TF_STACK_CONFLUENT_DIR`,
+   - pinned Confluent Terraform input env vars for Cloud API credentials.
+2. P0 runbook updated to explicit three-stack order:
+   - apply `core`, then `confluent`, then `demo`.
+3. M2 plan/main build plan updated:
+   - M2 substrate definition now core+confluent+demo,
+   - M2F blocker closure path now points to applying Confluent stack and rerunning M2.F.
+
+### Validation evidence (static)
+1. `terraform fmt` completed for updated/new stack paths.
+2. `terraform validate` passed:
+   - `infra/terraform/dev_min/confluent`
+   - `infra/terraform/dev_min/demo`
+3. No apply executed in this pass; this is code+plan lane enablement and command-surface closure.
+
+### Operational command order pinned (for execution phase)
+1. `terraform -chdir=infra/terraform/dev_min/core init -reconfigure -backend-config=backend.hcl`
+2. `terraform -chdir=infra/terraform/dev_min/core apply -input=false`
+3. `terraform -chdir=infra/terraform/dev_min/confluent init -reconfigure -backend-config=backend.hcl`
+4. `terraform -chdir=infra/terraform/dev_min/confluent apply -input=false`
+5. `terraform -chdir=infra/terraform/dev_min/demo init -reconfigure -backend-config=backend.hcl`
+6. `terraform -chdir=infra/terraform/dev_min/demo apply -input=false`
+
+### Impact on active blocker
+1. `M2F-B1` is now structurally addressable via IaC (no UI-only remediation required).
+2. M2.F remains fail-closed until Confluent stack apply is run with valid Confluent Cloud management credentials and M2.F verification returns `overall_pass=true`.
+
+## Entry: 2026-02-13 3:15PM - Pre-change lock: add first-class Confluent provisioning lane (IaC) to remove manual key lifecycle
+
+### Trigger
+USER explicitly requested adding a Confluent provisioning lane because repeated manual cluster/key creation is not acceptable for IaC quality.
+
+### Problem statement
+1. Current `dev_min` Terraform topology has only `core` and `demo`.
+2. Confluent bootstrap/API key/API secret are currently injected into `demo` as external values, then written to SSM.
+3. If Confluent resources are torn down/recreated outside Terraform, runtime credentials drift and M2.F fails (observed as `M2F-B1`).
+
+### Decision
+1. Introduce a dedicated Terraform stack: `infra/terraform/dev_min/confluent`.
+2. Add a dedicated Terraform module: `infra/terraform/modules/confluent`.
+3. Move Confluent resource lifecycle into IaC:
+   - environment,
+   - Kafka cluster,
+   - runtime service account + Kafka API key,
+   - pinned topic map creation.
+4. Write runtime Kafka bootstrap/key/secret to pinned AWS SSM paths from this stack.
+5. Update demo module posture:
+   - demo no longer owns Confluent SSM parameter values,
+   - demo consumes pinned path handles and Confluent metadata only.
+
+### Why this path
+1. Removes manual cluster/key churn from normal bring-up/teardown cycle.
+2. Preserves deterministic handle surfaces already used across runbook and phase gates.
+3. Keeps `core` persistent and `demo` ephemeral while making Confluent lifecycle explicit and auditable.
+
+### Planned touchpoints
+1. Terraform:
+   - `infra/terraform/modules/confluent/*` (new),
+   - `infra/terraform/dev_min/confluent/*` (new),
+   - `infra/terraform/modules/demo/*` (remove Confluent secret value ownership),
+   - `infra/terraform/dev_min/demo/*` (consume Confluent metadata without manual secret injection).
+2. Docs:
+   - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`,
+   - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`,
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`,
+   - `infra/terraform/dev_min/*/README.md` and `infra/terraform/modules/README.md`.
+3. Execution posture:
+   - M2.F remains fail-closed until new lane is applied and auth/topic checks pass.
+
+### Boundaries
+1. No secret values committed to repo.
+2. No console-only patching accepted.
+3. Existing unrelated worktree changes remain untouched.

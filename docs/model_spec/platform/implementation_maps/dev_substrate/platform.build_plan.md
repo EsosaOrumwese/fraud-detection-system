@@ -77,7 +77,7 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | --- | --- | --- | --- |
 | M0 | pre-P(-1) | Mobilization + authority lock | DONE |
 | M1 | P(-1) | Packaging readiness (image + entrypoints + provenance) | DONE |
-| M2 | P0 | Substrate readiness (Terraform core+demo) | ACTIVE |
+| M2 | P0 | Substrate readiness (Terraform core+confluent+demo) | ACTIVE |
 | M3 | P1 | Run pinning + run manifest evidence | NOT_STARTED |
 | M4 | P2 | Daemon bring-up on ECS with run-scope controls | NOT_STARTED |
 | M5 | P3 | Oracle lane (seed/sort/checker) | NOT_STARTED |
@@ -238,10 +238,10 @@ Entry gate:
 - USER has explicitly activated M2 expansion/planning.
 
 Objective:
-- Prove the managed substrate is ready and reproducible (core+demo infra, handles, secrets, topics, DB, network, budget, teardown viability) before any P1/P2 runtime progression.
+- Prove the managed substrate is ready and reproducible (core+confluent+demo infra, handles, secrets, topics, DB, network, budget, teardown viability) before any P1/P2 runtime progression.
 
 Scope:
-- Terraform core/demo posture and state separation.
+- Terraform core/confluent/demo posture and state separation.
 - Handle-resolution completeness for all P0 dependencies.
 - Confluent/SSM/topic readiness.
 - ECS/network/no-NAT posture.
@@ -267,7 +267,7 @@ Active-phase execution posture:
   - [ ] `M2.J` exit-readiness and M3 handoff.
 
 M2 DoD checklist:
-- [ ] Terraform core/demo apply+destroy flow is pinned and reproducible.
+- [ ] Terraform core/confluent/demo apply+destroy flow is pinned and reproducible.
 - [ ] Required handles resolve to reachable substrate resources.
 - [ ] Confluent bootstrap/key/secret and required topics are validated.
 - [ ] No NAT and no forbidden always-on infra posture is proven.
@@ -457,4 +457,4 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- resolve `M2F-B1` (invalid Kafka auth at pinned bootstrap/SSM creds), then rerun `M2.F` to full PASS evidence (`topic_readiness_snapshot.json` with `overall_pass=true`).
+- execute new Confluent IaC lane (`infra/terraform/dev_min/confluent`) to materialize valid runtime Kafka credentials into pinned SSM paths, then rerun `M2.F` to full PASS evidence (`topic_readiness_snapshot.json` with `overall_pass=true`).

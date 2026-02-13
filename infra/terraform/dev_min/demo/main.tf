@@ -2,6 +2,17 @@ provider "aws" {
   region = var.aws_region
 }
 
+data "terraform_remote_state" "confluent" {
+  count   = var.confluent_credentials_source == "remote_state" ? 1 : 0
+  backend = "s3"
+
+  config = {
+    bucket = var.confluent_state_bucket
+    key    = var.confluent_state_key
+    region = var.confluent_state_region
+  }
+}
+
 locals {
   common_tags = {
     project    = var.project
@@ -9,6 +20,16 @@ locals {
     owner      = var.owner
     expires_at = var.expires_at
   }
+
+  confluent_env_name_resolved       = var.confluent_credentials_source == "remote_state" ? data.terraform_remote_state.confluent[0].outputs.confluent_environment_name : var.confluent_env_name
+  confluent_cluster_name_resolved   = var.confluent_credentials_source == "remote_state" ? data.terraform_remote_state.confluent[0].outputs.confluent_cluster_name : var.confluent_cluster_name
+  confluent_cluster_type_resolved   = var.confluent_credentials_source == "remote_state" ? data.terraform_remote_state.confluent[0].outputs.confluent_cluster_type : var.confluent_cluster_type
+  confluent_cluster_cloud_resolved  = var.confluent_credentials_source == "remote_state" ? data.terraform_remote_state.confluent[0].outputs.confluent_cluster_cloud : var.confluent_cluster_cloud
+  confluent_cluster_region_resolved = var.confluent_credentials_source == "remote_state" ? data.terraform_remote_state.confluent[0].outputs.confluent_cluster_region : var.confluent_cluster_region
+  kafka_topics_resolved             = var.confluent_credentials_source == "remote_state" ? data.terraform_remote_state.confluent[0].outputs.kafka_topics : var.kafka_topics
+  confluent_bootstrap_resolved      = var.confluent_credentials_source == "remote_state" ? data.terraform_remote_state.confluent[0].outputs.kafka_bootstrap_endpoint : var.confluent_bootstrap
+  confluent_api_key_resolved        = var.confluent_credentials_source == "remote_state" ? data.terraform_remote_state.confluent[0].outputs.runtime_kafka_api_key : var.confluent_api_key
+  confluent_api_secret_resolved     = var.confluent_credentials_source == "remote_state" ? data.terraform_remote_state.confluent[0].outputs.runtime_kafka_api_secret : var.confluent_api_secret
 }
 
 module "demo" {
@@ -25,15 +46,15 @@ module "demo" {
   public_subnet_cidrs           = var.public_subnet_cidrs
   ecs_cluster_name              = var.ecs_cluster_name
   ecs_probe_container_image     = var.ecs_probe_container_image
-  confluent_env_name            = var.confluent_env_name
-  confluent_cluster_name        = var.confluent_cluster_name
-  confluent_cluster_type        = var.confluent_cluster_type
-  confluent_cluster_cloud       = var.confluent_cluster_cloud
-  confluent_cluster_region      = var.confluent_cluster_region
-  kafka_topics                  = var.kafka_topics
-  confluent_bootstrap           = var.confluent_bootstrap
-  confluent_api_key             = var.confluent_api_key
-  confluent_api_secret          = var.confluent_api_secret
+  confluent_env_name            = local.confluent_env_name_resolved
+  confluent_cluster_name        = local.confluent_cluster_name_resolved
+  confluent_cluster_type        = local.confluent_cluster_type_resolved
+  confluent_cluster_cloud       = local.confluent_cluster_cloud_resolved
+  confluent_cluster_region      = local.confluent_cluster_region_resolved
+  kafka_topics                  = local.kafka_topics_resolved
+  confluent_bootstrap           = local.confluent_bootstrap_resolved
+  confluent_api_key             = local.confluent_api_key_resolved
+  confluent_api_secret          = local.confluent_api_secret_resolved
   ssm_confluent_bootstrap_path  = var.ssm_confluent_bootstrap_path
   ssm_confluent_api_key_path    = var.ssm_confluent_api_key_path
   ssm_confluent_api_secret_path = var.ssm_confluent_api_secret_path

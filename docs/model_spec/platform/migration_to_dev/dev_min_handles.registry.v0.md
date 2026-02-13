@@ -126,7 +126,7 @@ These handles pin how Terraform state is stored and locked for dev_min. This is 
 
 * `TF_STATE_BUCKET`
 
-  * S3 bucket name for all Terraform state (core + demo).
+  * S3 bucket name for all Terraform state (core + confluent + demo).
 
 * `TF_STATE_BUCKET_REGION`
 
@@ -138,9 +138,10 @@ These handles pin how Terraform state is stored and locked for dev_min. This is 
 
 * `TF_STATE_ENCRYPTION_ENABLED = true`
 
-### 2.2 State keys (separate core vs demo)
+### 2.2 State keys (separate core vs confluent vs demo)
 
 * `TF_STATE_KEY_CORE = "dev_min/core/terraform.tfstate"`
+* `TF_STATE_KEY_CONFLUENT = "dev_min/confluent/terraform.tfstate"`
 * `TF_STATE_KEY_DEMO = "dev_min/demo/terraform.tfstate"`
 
 ### 2.3 State lock (DynamoDB)
@@ -154,6 +155,7 @@ These handles pin how Terraform state is stored and locked for dev_min. This is 
 These are the pinned repo locations (used by operator scripts and Codex automation):
 
 * `TF_STACK_CORE_DIR = "infra/terraform/dev_min/core"`
+* `TF_STACK_CONFLUENT_DIR = "infra/terraform/dev_min/confluent"`
 * `TF_STACK_DEMO_DIR = "infra/terraform/dev_min/demo"`
 
 ### 2.5 Terraform apply identity (operator)
@@ -315,11 +317,18 @@ These handles pin the Confluent Cloud environment, cluster shape, and how runtim
 
 ### 4.2 Confluent bootstrap and API keys (stored in AWS SSM)
 
-These are SSM parameter paths (SecureString where applicable). Values are written by demo Terraform apply and removed by demo destroy.
+These are SSM parameter paths (SecureString where applicable). Values are written by the dedicated Confluent Terraform stack and are managed through that stack lifecycle.
 
 * `SSM_CONFLUENT_BOOTSTRAP_PATH = "/fraud-platform/dev_min/confluent/bootstrap"`
 * `SSM_CONFLUENT_API_KEY_PATH = "/fraud-platform/dev_min/confluent/api_key"`
 * `SSM_CONFLUENT_API_SECRET_PATH = "/fraud-platform/dev_min/confluent/api_secret"`
+
+### 4.2.1 Confluent Terraform management credential input (operator/CI)
+
+* `TF_VAR_CONFLUENT_CLOUD_API_KEY = "TF_VAR_confluent_cloud_api_key"`
+* `TF_VAR_CONFLUENT_CLOUD_API_SECRET = "TF_VAR_confluent_cloud_api_secret"`
+
+These are input variable names for the dedicated Confluent Terraform stack.
 
 ### 4.3 Confluent access model (pinned for v0)
 

@@ -219,12 +219,32 @@ P1 success posture:
 - no region-floor or deterministic replay regressions.
 
 Definition of done:
-- [ ] `blend_v2` policy path is active with legacy fallback retained.
-- [ ] S2 emits governed diagnostics needed for concentration and region-shape scoring.
-- [ ] at least one accepted P1 candidate shows concentration improvement versus P0 baseline on the authority metrics (`gini`, `top1`, `top5`, `top10`).
-- [ ] P1 candidate does not introduce new region-floor breaches in S2 diagnostics.
-- [ ] two consecutive same-seed fast-lane runs reproduce the same S2 score posture.
-- [ ] P1 lock record is written (policy bundle, commit refs, accepted metric snapshot).
+- [x] `blend_v2` policy path is active with legacy fallback retained.
+- [x] S2 emits governed diagnostics needed for concentration and region-shape scoring.
+- [x] at least one accepted P1 candidate shows concentration improvement versus P0 baseline on the authority metrics (`gini`, `top1`, `top5`, `top10`).
+- [x] P1 candidate does not introduce new region-floor breaches in S2 diagnostics.
+- [x] two consecutive same-seed fast-lane runs reproduce the same S2 score posture.
+- [x] P1 lock record is written (policy bundle, commit refs, accepted metric snapshot).
+
+P1 closure record:
+- Date/time: `2026-02-13 15:30` local.
+- Accepted run:
+  - `run_id=335c9a7eec04491a845abc2a049f959f`
+  - `seed=42`
+  - `manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`
+  - `parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`
+- Evidence artifacts:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p1_candidate_335c9a7eec04491a845abc2a049f959f.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p1_repro_check_335c9a7eec04491a845abc2a049f959f_8b25602ba5ab48cb9fe459ffece15858.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p1_lock_record.json`
+- Lock/pointer updates:
+  - `runs/fix-data-engine/segment_1B/current_candidate/current_candidate_pointer.json`
+  - `runs/fix-data-engine/segment_1B/last_good/last_good_pointer.json`
+- Storage discipline:
+  - superseded run-id folders pruned after lock (`a7d72773443c4206bb7ab44695274e92`, `8b25602ba5ab48cb9fe459ffece15858`);
+  - retained active run-id for P1 handoff: `335c9a7eec04491a845abc2a049f959f`.
+- Freeze statement:
+  - P1 (`S2`) is now locked; downstream phases (`P2+`) must treat this S2 policy/shape as immutable unless an explicit reopen decision is recorded.
 
 ### P2 - S4 anti-collapse integer allocation closure
 Focus:

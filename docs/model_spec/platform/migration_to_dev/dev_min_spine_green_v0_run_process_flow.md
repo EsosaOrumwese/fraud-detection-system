@@ -91,7 +91,7 @@ If any conflict appears, follow this precedence:
 * **MUST:** v0 dev_min remains **CLI-orchestrated** (no Step Functions).
 * Operator commands must exist (names flexible; semantics required):
 
-  * `dev-min-up` (bring up core+demo substrate, deploy services)
+  * `dev-min-up` (bring up core+confluent+demo substrate, deploy services)
   * `dev-min-run` (execute phases P1..P11)
   * `dev-min-down` (destroy demo infra; core remains)
 
@@ -520,10 +520,10 @@ P0 means:
 
 #### P0.2 Pinned decisions (non-negotiable)
 
-1. **Core vs demo split**
+1. **Core vs confluent vs demo split**
 
-* **MUST:** core and demo stacks are separate and have separate Terraform state keys.
-* **MUST:** demo can be destroyed without affecting core evidence. 
+* **MUST:** core, confluent, and demo stacks are separate and have separate Terraform state keys.
+* **MUST:** demo can be destroyed without affecting core evidence; confluent can be managed independently.
 
 2. **No laptop dependency posture**
 
@@ -550,8 +550,8 @@ P0 means:
 
 **Terraform**
 
-* `TF_STATE_BUCKET`, `TF_STATE_KEY_CORE`, `TF_STATE_KEY_DEMO`, `TF_LOCK_TABLE`
-* `TF_STACK_CORE_DIR`, `TF_STACK_DEMO_DIR`
+* `TF_STATE_BUCKET`, `TF_STATE_KEY_CORE`, `TF_STATE_KEY_CONFLUENT`, `TF_STATE_KEY_DEMO`, `TF_LOCK_TABLE`
+* `TF_STACK_CORE_DIR`, `TF_STACK_CONFLUENT_DIR`, `TF_STACK_DEMO_DIR`
 * `ROLE_TERRAFORM_APPLY`
 
 **S3 buckets/prefixes**
@@ -609,18 +609,25 @@ P0 is executed as infrastructure bring-up + handle validation.
   * budgets/alerts
   * IAM scaffolding
 
-2. **Apply demo**
+2. **Apply confluent**
+
+* `terraform apply` in `TF_STACK_CONFLUENT_DIR`
+* Confirm outputs/created resources include:
+
+  * Confluent environment + cluster
+  * pinned topic map created
+  * runtime Kafka bootstrap/key/secret written to SSM paths
+
+3. **Apply demo**
 
 * `terraform apply` in `TF_STACK_DEMO_DIR`
 * Confirm outputs/created resources include:
 
-  * Confluent cluster + topics
-  * Confluent creds written to SSM paths
   * ECS cluster/scaffolding (and any required service discovery)
   * runtime DB created
   * DB creds written to SSM paths
 
-3. **Preflight validation (operator checks)**
+4. **Preflight validation (operator checks)**
 
 * Read SSM:
 
@@ -697,7 +704,7 @@ For simplicity in v0:
 
 * If core apply fails: fix Terraform core and reapply.
 * If demo apply fails: fix Terraform demo and reapply.
-* If Confluent resources are misconfigured: destroy demo stack and reapply.
+* If Confluent resources are misconfigured: destroy/apply `TF_STACK_CONFLUENT_DIR` and then reapply demo stack.
 * If runtime DB is misconfigured: destroy demo DB (as part of demo destroy) and reapply.
 
 Never “patch” by manually creating resources in console unless you also encode them back into Terraform.
@@ -2893,8 +2900,8 @@ P12 is not “optional cleanup.” It is the formal close-out that prevents budg
 
 4. **Secrets hygiene**
 
-* **MUST:** demo-scoped SSM parameters (e.g., Confluent API key/secret) are removed during teardown.
-* **MUST NOT:** leave stale keys lying around for later accidental use.
+* **MUST:** if confluent stack is destroyed, Confluent SSM parameters are removed as part of that stack lifecycle.
+* **MUST NOT:** leave stale Confluent runtime keys lying around for later accidental use.
 
 ---
 
@@ -2904,6 +2911,7 @@ P12 is not “optional cleanup.” It is the formal close-out that prevents budg
 
 * `TF_STATE_BUCKET`
 * `TF_STATE_KEY_CORE`
+* `TF_STATE_KEY_CONFLUENT`
 * `TF_STATE_KEY_DEMO`
 * `TF_LOCK_TABLE`
 

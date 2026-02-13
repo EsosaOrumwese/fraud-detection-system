@@ -14,6 +14,11 @@ public_subnet_cidrs = ["10.42.0.0/24", "10.42.1.0/24"]
 ecs_cluster_name = "fraud-platform-dev-min"
 ecs_probe_container_image = "public.ecr.aws/docker/library/busybox:1.36"
 
+confluent_credentials_source = "remote_state"
+confluent_state_bucket = "fraud-platform-dev-min-tfstate"
+confluent_state_key = "dev_min/confluent/terraform.tfstate"
+confluent_state_region = "eu-west-2"
+
 confluent_env_name = "dev_min"
 confluent_cluster_name = "dev-min-kafka"
 confluent_cluster_type = "Basic"
@@ -32,6 +37,7 @@ kafka_topics = [
   "fp.bus.labels.events.v1",
 ]
 
+# Manual fallback values used only if confluent_credentials_source = "manual".
 confluent_bootstrap = "REPLACE_ME_BOOTSTRAP"
 confluent_api_key = "REPLACE_ME_API_KEY"
 confluent_api_secret = "REPLACE_ME_API_SECRET"

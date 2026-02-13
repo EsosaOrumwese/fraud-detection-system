@@ -68,6 +68,31 @@ variable "ecs_probe_container_image" {
   default = "public.ecr.aws/docker/library/busybox:1.36"
 }
 
+variable "confluent_credentials_source" {
+  type    = string
+  default = "remote_state"
+
+  validation {
+    condition     = contains(["remote_state", "manual"], var.confluent_credentials_source)
+    error_message = "confluent_credentials_source must be remote_state or manual."
+  }
+}
+
+variable "confluent_state_bucket" {
+  type    = string
+  default = "fraud-platform-dev-min-tfstate"
+}
+
+variable "confluent_state_key" {
+  type    = string
+  default = "dev_min/confluent/terraform.tfstate"
+}
+
+variable "confluent_state_region" {
+  type    = string
+  default = "eu-west-2"
+}
+
 variable "confluent_env_name" {
   type    = string
   default = "dev_min"
