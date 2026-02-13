@@ -3174,3 +3174,61 @@ Actions taken:
 
 Expected outcome:
 - Latest-run selection is stable and deterministic without changing explicit run_id behavior.
+
+---
+
+### Entry: 2026-02-13 12:26
+
+Design element: Segment 1B remediation build-plan authoring kickoff (data-first, phase-locked).
+Summary: User requested creating the Segment 1B remediation build plan document before implementation. Decision is to build a phased, DoD-driven plan that prioritizes statistical realism movement on data outputs while preserving the progressive state dependency law.
+
+Planning decisions (before authoring the build-plan doc):
+1) **Use report-driven remediation scope (`S2 + S4 + S6 + S9`) with strict progressive reruns.**
+   - Rationale: 1B remediation report identifies these as the causal loci for concentration, coverage, and local geometry realism.
+   - Constraint: reruns must follow state dependencies; no isolated downstream patching.
+
+2) **Adopt a two-lane run protocol for heavy compute.**
+   - Fast lane for single-seed tuning from changed state onward.
+   - Certification lane across required seed set only after fast-lane candidate is stable.
+   - Rationale: reduce iteration time while preserving promotion rigor.
+
+3) **Lock 1A as immutable upstream during 1B remediation.**
+   - Rationale: prevent attribution drift and avoid reopening already-frozen upstream behavior.
+
+4) **Center DoDs on data realism metrics, not PASS mechanics.**
+   - Concentration, coverage, and local geometry metrics are phase closure criteria.
+   - Structural/gate checks remain veto rails, not tuning targets.
+
+Planned file action:
+- Create `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md` with phased sections, state-owned tuning responsibilities, DoDs, and freeze rules.
+
+---
+
+### Entry: 2026-02-13 12:33
+
+Design element: Segment 1B remediation build plan published.
+Summary: Authored and published a new phased build plan for Segment 1B remediation, anchored to the 1B published/remediation reports and all 1B state-expanded contracts.
+
+Actions taken:
+1) Added `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md`.
+2) Encoded the remediation objective and closure logic for `B` minimum with `B+` target.
+3) Captured authority stack (reports + `S0..S9` expanded specs + 1B contracts).
+4) Declared active remediation scope and progressive rerun matrix:
+   - `S2` changes rerun `S2->S9`,
+   - `S4` changes rerun `S4->S9`,
+   - `S6` changes rerun `S6->S9`,
+   - `S9` gate-only changes rerun `S9`.
+5) Added heavy-compute iteration protocol:
+   - fast lane vs certification lane,
+   - run folder retention/pruning policy to avoid storage growth.
+6) Added phased plan with DoDs:
+   - `P0` baseline/harness lock,
+   - `P1` S2 macro-mass reshape,
+   - `P2` S4 anti-collapse closure,
+   - `P3` S6 geometry closure,
+   - `P4` integrated closure run,
+   - `P5` certification and freeze.
+7) Added state-first triage mapping and explicit phase freeze/reopen rule.
+
+Expected effect:
+- Remediation execution stays causally ordered, data-focused, and auditable while minimizing wasted compute in 1B’s long-run states.
