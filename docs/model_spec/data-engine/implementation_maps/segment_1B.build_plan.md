@@ -86,14 +86,86 @@ _As of 2026-02-13_
 ## 5) Phase plan (data-first with DoDs)
 
 ### P0 - Baseline authority and harness lock
-Focus:
-- pin and document baseline metrics/table for Segment 1B.
-- lock run/pruning workflow for fast iteration.
+Goal:
+- create a hard baseline and scoring harness so every later metric movement is attributable and reproducible.
+
+P0.1 Baseline authority pin:
+- Baseline run authority: `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`.
+- Pin immutable lineage tokens for baseline comparison:
+  - `run_id`,
+  - `manifest_fingerprint`,
+  - `parameter_hash`,
+  - `seed`.
+- Record frozen upstream statement: Segment `1A` is immutable for all 1B remediation runs.
+
+P0.2 Baseline realism scorecard materialization:
+- Build one baseline scorecard artifact with these core metrics:
+  - `country_gini`,
+  - `top1_share`,
+  - `top5_share`,
+  - `top10_share`,
+  - `eligible_country_nonzero_share`,
+  - `southern_hemisphere_share`,
+  - nearest-neighbor `p99/p50`.
+- Emit companion tables for reproducibility:
+  - country-share table (sorted descending),
+  - region-share table,
+  - nearest-neighbor quantile table.
+- Persist outputs under remediation run root (reports-only, no data mutation of baseline run).
+
+P0.3 State-level baseline checkpoints (pre-tuning diagnostics):
+- Capture S2 baseline diagnostics:
+  - `tile_weights` country/region mass profile,
+  - `s2_run_report` policy/diagnostic values.
+- Capture S4 baseline diagnostics:
+  - `s4_alloc_plan` post-integerization country/region share profile.
+- Capture S6/S8 baseline diagnostics:
+  - local geometry and nearest-neighbor tail profile from `site_locations`.
+- Purpose: establish where distortion appears before any knob movement.
+
+P0.4 Iteration harness and storage discipline lock:
+- Establish run folder discipline under `runs/fix-data-engine/segment_1B/`:
+  - `baseline_authority`,
+  - `current_candidate`,
+  - `last_good`.
+- Wire mandatory pre-run prune step for superseded failed candidates.
+- Lock fast-lane posture:
+  - start from changed state using rerun matrix in Section 2.1,
+  - single-seed tuning until promotion candidate is selected.
+- Lock certification posture:
+  - required seed set `{42, 7, 101, 202}`,
+  - full chain as required by certification rules.
+
+P0.5 Baseline approval gate:
+- No `P1` work starts until baseline scorecard is signed as authority.
+- No policy/code tuning starts until pruning and run-retention protocol is active.
 
 Definition of done:
-- [ ] baseline metric table is materialized and pinned to one authority run.
-- [ ] 1A frozen-input contract for 1B runs is recorded.
-- [ ] run-pruning workflow is wired and used before every new candidate.
+- [x] baseline authority run and lineage tokens are pinned in the plan/work log.
+- [x] baseline scorecard artifact and companion tables are generated and stored.
+- [x] S2/S4/S6/S8 baseline checkpoint summaries are captured.
+- [x] fast-lane and certification-lane run protocol is documented and ready.
+- [x] prune-before-run workflow is active for `runs/fix-data-engine/segment_1B/`.
+- [x] explicit go/no-go note recorded to enter `P1`.
+
+P0 closure record:
+- Date/time: `2026-02-13 12:52` local.
+- Baseline authority run:
+  - `run_id=c25a2675fbfbacd952b13bb594880e92`
+  - `seed=42`
+  - `manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`
+  - `parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`
+- Baseline artifacts:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_baseline_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_baseline_c25a2675fbfbacd952b13bb594880e92_country_share.csv`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_baseline_c25a2675fbfbacd952b13bb594880e92_region_share.csv`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_baseline_c25a2675fbfbacd952b13bb594880e92_nn_quantiles.csv`
+- Harness/protocol artifacts:
+  - `runs/fix-data-engine/segment_1B/iteration_protocol.json`
+  - `runs/fix-data-engine/segment_1B/baseline_authority/baseline_pointer.json`
+  - `runs/fix-data-engine/segment_1B/last_good/last_good_pointer.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_prune_check.txt`
+- Go/no-go decision to enter `P1`: `GO`.
 
 ### P1 - S2 macro-mass reshape (country and region balance priors)
 Focus:

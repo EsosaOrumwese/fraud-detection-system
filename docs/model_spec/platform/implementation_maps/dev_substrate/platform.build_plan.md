@@ -255,7 +255,7 @@ Active-phase execution posture:
 - M2 is in expansion/planning-hardening mode before execution.
 - Detailed M2 authority file: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`.
 - Sub-phase progress:
-  - [ ] `M2.A` substrate authority and handle-closure matrix.
+  - [x] `M2.A` substrate authority and handle-closure matrix.
   - [ ] `M2.B` Terraform backend/state partition readiness.
   - [ ] `M2.C` core apply closure contract and evidence.
   - [ ] `M2.D` demo apply closure contract and evidence.
@@ -457,4 +457,4 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- close `M2.A` and `M2.B` in `platform.M2.build_plan.md` before any substrate mutation commands.
+- close `M2.B` in `platform.M2.build_plan.md` before any substrate mutation commands.

@@ -3232,3 +3232,130 @@ Actions taken:
 
 Expected effect:
 - Remediation execution stays causally ordered, data-focused, and auditable while minimizing wasted compute in 1B’s long-run states.
+
+---
+
+### Entry: 2026-02-13 12:32
+
+Design element: P0 expansion plan before edit (baseline/harness detail uplift).
+Summary: User requested expanding `P0` in the new Segment 1B build plan. The current `P0` is too terse for execution and needs concrete sub-phases, artifacts, and state/data checks.
+
+Decision (before editing build-plan doc):
+1) Expand `P0` into explicit sub-phases (`P0.1..P0.5`) rather than adding narrative prose.
+2) Keep `P0` data-centric:
+   - baseline realism authority capture,
+   - metric harness and scorer outputs,
+   - run-id retention/pruning protocol,
+   - fast-lane profile lock for heavy compute.
+3) Keep remediation states unchanged (`S2/S4/S6/S9`) and avoid leaking tuning logic into `P0`.
+4) Add binary DoDs per sub-phase so `P0` can be closed unambiguously before `P1`.
+
+Planned file change:
+- Update `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md` under `P0` only, with no scope drift into later phases.
+
+---
+
+### Entry: 2026-02-13 12:32
+
+Design element: P0 expansion applied in build plan (execution-ready detail).
+Summary: Expanded `P0` into concrete baseline/harness work packages with explicit artifacts, state-level checkpoints, and closure gates.
+
+Applied updates:
+1) Added `P0.1` baseline authority pin with required lineage tokens and upstream-freeze statement.
+2) Added `P0.2` baseline scorecard materialization with core realism metrics plus companion country/region/NN tables.
+3) Added `P0.3` state-level baseline checkpoints for `S2`, `S4`, and `S6/S8`.
+4) Added `P0.4` run harness and storage discipline lock (retained folders + prune-before-run + fast/cert lane lock).
+5) Added `P0.5` approval gate requiring explicit go/no-go before entering `P1`.
+6) Replaced the old minimal DoD with a phase-exit checklist that is binary and auditable.
+
+Expected outcome:
+- `P0` is now operationally actionable and can be closed deterministically before any remediation tuning begins in `P1`.
+
+---
+
+### Entry: 2026-02-13 12:46
+
+Design element: P0 execution implementation plan (baseline artifact generation + harness activation).
+Summary: Moving from plan authoring to P0 execution. We will generate baseline score artifacts from authority run `c25...`, create retained-folder harness structure for 1B remediation, run prune-before-run flow, and then close P0 DoD checkboxes.
+
+Decisions before implementation:
+1) **Add a dedicated baseline scorer tool for Segment 1B P0.**
+   - New file: `tools/score_segment1b_p0_baseline.py`.
+   - Inputs: baseline run root (`runs/local_full_run-5/c25...`) and state reports (`S2/S4/S6/S8`).
+   - Outputs:
+     - baseline scorecard JSON,
+     - country-share CSV,
+     - region-share CSV,
+     - NN quantile CSV.
+   - Rationale: reproducible evidence artifact instead of ad-hoc notebook-style outputs.
+
+2) **Use published-report-compatible concentration math from `site_locations`.**
+   - Country concentration computed over active countries (nonzero site counts), matching published-report posture.
+   - This reproduces baseline `Gini/top-k` values used as remediation anchor.
+
+3) **Use ISO canonical region lookup from local reference when available.**
+   - Primary lookup: `_untracked/reference/layer1/iso_canonical/.../iso_canonical.csv` (has `region` and `subregion`).
+   - Fallback: tracked ISO parquet with `Unknown` region values.
+   - Rationale: produce a deterministic region-share table without introducing external dependencies.
+
+4) **Activate harness folders without copying heavy baseline data.**
+   - Create:
+     - `runs/fix-data-engine/segment_1B/baseline_authority/`,
+     - `runs/fix-data-engine/segment_1B/current_candidate/`,
+     - `runs/fix-data-engine/segment_1B/last_good/`.
+   - Store pointer metadata to baseline run rather than duplicating datasets.
+
+5) **Prune workflow activation for 1B root.**
+   - Execute `tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_1B`.
+   - Record output in P0 work logs and mark prune-before-run as active.
+
+Execution order:
+1) add scorer tool,
+2) run scorer against baseline run,
+3) create harness/pointer files and iteration protocol metadata,
+4) run prune script for 1B root,
+5) mark P0 DoD closure in build plan + logbook.
+
+---
+
+### Entry: 2026-02-13 12:52
+
+Design element: P0 execution completed (baseline artifacts + harness + closure gate).
+Summary: Completed the full P0 checklist and recorded an explicit GO into `P1`.
+
+Implementation actions completed:
+1) Added baseline scorer tool:
+   - `tools/score_segment1b_p0_baseline.py`.
+   - Computes concentration/coverage/NN metrics, emits companion tables, and captures `S2/S4/S6/S8` checkpoint summaries.
+
+2) Materialized baseline authority artifacts from run `c25a2675fbfbacd952b13bb594880e92`:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_baseline_c25a2675fbfbacd952b13bb594880e92.json`
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_baseline_c25a2675fbfbacd952b13bb594880e92_country_share.csv`
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_baseline_c25a2675fbfbacd952b13bb594880e92_region_share.csv`
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_baseline_c25a2675fbfbacd952b13bb594880e92_nn_quantiles.csv`
+
+3) Baseline metrics captured (authority):
+   - `country_gini=0.7528246140`
+   - `top1_share=0.1365774067`
+   - `top5_share=0.3932559107`
+   - `top10_share=0.5974021819`
+   - `eligible_country_nonzero_share=0.3092369478`
+   - `southern_hemisphere_share=0.0585788783`
+   - `nn_p99_p50_ratio=11.7929786966`
+   - These values align with published-report concentration posture for the same run.
+
+4) Activated run harness folders and pointers:
+   - `runs/fix-data-engine/segment_1B/baseline_authority/baseline_pointer.json`
+   - `runs/fix-data-engine/segment_1B/current_candidate/README.txt`
+   - `runs/fix-data-engine/segment_1B/last_good/last_good_pointer.json`
+   - `runs/fix-data-engine/segment_1B/iteration_protocol.json`
+   - No heavy data copy was performed; pointers reference authoritative run paths.
+
+5) Activated prune-before-run workflow for 1B root:
+   - Command executed: `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_1B`
+   - Evidence file:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p0_prune_check.txt`
+
+6) Closed P0 checklist in build plan and recorded phase closure/go decision:
+   - `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md`
+   - Decision: `GO` into `P1`.

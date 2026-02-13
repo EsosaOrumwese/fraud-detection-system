@@ -6299,3 +6299,94 @@ before any Terraform mutation command.
 ### Drift sentinel checkpoint
 No designed runtime flow was altered and no substrate mutation occurred.
 This change improves process-governance fidelity and reduces planning ambiguity before M2 execution begins.
+
+## Entry: 2026-02-13 12:36PM - Pre-change lock: execute M2.A handle-closure matrix and status sync
+
+### Trigger
+USER directed progression into `M2.A` execution work.
+
+### Objective
+1. Convert M2.A from intent-only text into an explicit closure matrix with per-handle ownership/source/verification posture.
+2. Confirm M2.A required key set is fully present in handles registry.
+3. Record secret vs non-secret evidence boundary explicitly.
+4. If M2.A DoD is satisfied at planning level, mark `M2.A` complete in deep and main plan status surfaces.
+
+### Preflight result
+Automated key-presence check for the M2.A minimum key set returned:
+1. `TOTAL_KEYS=46`
+2. `ALL_PRESENT`
+
+### Boundaries
+1. No Terraform/apply/mutation commands in this pass.
+2. This is M2.A planning closure only; runtime resource validation remains in M2.B+.
+
+## Entry: 2026-02-13 12:41PM - Post-change record: M2.A closure matrix completed and status synced
+
+### Delivered for M2.A
+1. Added explicit M2.A closure summary with quantitative result:
+- required key count `46`,
+- unknown required keys `0`,
+- registry presence check `ALL_PRESENT`.
+2. Added pinned verification command catalog (`V1..V11`) covering:
+- registry key presence,
+- Terraform backend/validate surface,
+- S3 state checks,
+- lock-table checks,
+- SSM path checks,
+- Kafka topic checks,
+- ECS/network checks,
+- DB checks,
+- IAM checks,
+- budget checks.
+3. Added per-key M2.A handle closure matrix (all 46 keys) with:
+- family,
+- owner of resolution,
+- source of value,
+- verification mapping,
+- secret classification (`non_secret` vs `secret_locator`),
+- status and blocker field.
+4. Added explicit secret-surface separation rule to keep M2 evidence non-secret.
+
+### Status synchronization
+1. `platform.M2.build_plan.md`:
+- M2.A DoD checklist set to complete,
+- M2 completion checklist marks `M2.A` complete.
+2. `platform.build_plan.md`:
+- M2 sub-phase tracker marks `M2.A` complete,
+- immediate next action narrowed to `M2.B` closure before any mutation command.
+
+### Drift sentinel checkpoint
+1. No Terraform apply/destroy or runtime infra mutation occurred.
+2. This closes M2.A as planning-authority closure only; runtime substrate validation remains explicitly blocked behind M2.B+.
+
+## Entry: 2026-02-13 12:44PM - Pre-change lock: add anti-cram law to repository AGENTS policy
+
+### Trigger
+USER requested that the anti-cram planning law be pinned in `AGENTS.md` as well (not only in build-plan docs).
+
+### Objective
+1. Add a binding policy statement to repository-level agent instructions that prevents fixed-phase-count cramming.
+2. Ensure proceed semantics remain fail-closed when capability lanes are missing or implicit.
+3. Keep policy wording aligned with existing `Decision-completeness law` and phase-coverage law in platform build planning docs.
+
+### Scope
+1. Policy doc update only (`AGENTS.md`).
+2. No runtime/substrate/code behavior change.
+
+## Entry: 2026-02-13 12:45PM - Post-change record: anti-cram law pinned in AGENTS.md
+
+### What changed
+1. Added a new binding policy bullet under `2.5 Drift Sentinel Law` in `AGENTS.md`:
+- `Phase-coverage law (anti-cram, fail-closed)`.
+2. The new policy explicitly requires:
+- full capability-lane exposure before phase execution,
+- dynamic expansion of sub-phases (no fixed-count cramming),
+- fail-closed pause + unresolved-item escalation whenever a missing lane is discovered.
+
+### Why this was needed
+1. USER requested repository-level policy protection against under-planning recurrence seen in M1.
+2. Build-plan-only law was not sufficient for global agent behavior; `AGENTS.md` is the repo-wide execution contract.
+
+### Drift sentinel checkpoint
+1. Documentation/policy change only.
+2. No platform runtime behavior or substrate mutation occurred.

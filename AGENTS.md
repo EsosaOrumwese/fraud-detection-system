@@ -80,6 +80,7 @@ These are the intended design flow of the platform as well as pinned decisions. 
 - **Bias-to-warning rule:** if uncertain whether a mismatch is material, treat it as material and escalate.
 - **Rigorously inspect the full platform run:** Once the USER asks for a full live stream run, once done, we should evaluate every aspect of it to make sure there's no silent drift whatsoever
 - **Decision-completeness law (fail-closed):** when the USER says "proceed" to a phase/option/command, the AGENT MUST first verify that all required decisions/inputs for that scope are explicitly pinned. If any hole remains, the AGENT MUST stop execution and report the unresolved items to the USER (no defaults, no assumptions, no improvisation). The AGENT must keep doing this until the unresolved set is closed and only then proceed.
+- **Phase-coverage law (anti-cram, fail-closed):** before execution starts for any phase, the AGENT MUST explicitly expose all required capability lanes for that phase (authority/handles, identity/IAM, network, data stores, messaging, secrets, observability/evidence, rollback/rerun, teardown, budget as applicable). The AGENT MUST NOT force work into an assumed fixed number of sections/sub-phases; the plan must expand until closure-grade coverage is achieved. If any missing lane/hole is discovered at any point, execution MUST pause and the AGENT must report unresolved items to the USER and continue only after explicit closure.
 ---
 
 ## Platform implementation maps (mandatory, detail-first)

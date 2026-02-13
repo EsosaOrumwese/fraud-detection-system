@@ -149,9 +149,89 @@ Tasks:
 3. Fail any unresolved handle with explicit blocker status.
 
 DoD:
-- [ ] Handle closure matrix exists with zero unknown keys required for P0.
-- [ ] Verification command exists for every required P0 handle family.
-- [ ] Secret surfaces are separated from non-secret evidence.
+- [x] Handle closure matrix exists with zero unknown keys required for P0.
+- [x] Verification command exists for every required P0 handle family.
+- [x] Secret surfaces are separated from non-secret evidence.
+
+### M2.A Closure Summary (Execution Record)
+1. Required key count: `46`.
+2. Registry presence check result: `ALL_PRESENT` for the minimum M2.A key set.
+3. Unknown required keys: `0`.
+4. M2.A status: `CLOSED_SPEC` (planning-level closure complete; runtime checks remain in M2.B+).
+
+### M2.A Verification Command Catalog (Pinned)
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `V1_REGISTRY_KEY` | `rg -n "\\b<HANDLE_KEY>\\b" docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` | confirms handle key exists in authoritative registry |
+| `V2_TERRAFORM_BACKEND` | `terraform -chdir=infra/terraform/dev_min/<stack> init -reconfigure && terraform -chdir=infra/terraform/dev_min/<stack> validate` | validates Terraform stack command surface for core/demo |
+| `V3_TF_STATE_S3` | `aws s3api get-bucket-versioning --bucket <TF_STATE_BUCKET>` | validates state bucket control surface |
+| `V4_TF_LOCK_DDB` | `aws dynamodb describe-table --table-name <TF_LOCK_TABLE>` | validates lock-table surface |
+| `V5_SSM_PATH` | `aws ssm get-parameter --name <SSM_PATH> --with-decryption` | validates secret locator handles/readability surface |
+| `V6_KAFKA_TOPIC` | `confluent kafka topic describe <TOPIC_NAME>` | validates topic-handle runtime surface |
+| `V7_ECS_CLUSTER` | `aws ecs describe-clusters --clusters <ECS_CLUSTER_NAME>` | validates ECS cluster handle runtime surface |
+| `V8_NETWORK` | `aws ec2 describe-vpcs --vpc-ids <VPC_ID>` + `aws ec2 describe-subnets --subnet-ids <SUBNET_IDS_PUBLIC>` + `aws ec2 describe-security-groups --group-ids <SECURITY_GROUP_ID_APP>` | validates network handle runtime surface |
+| `V9_DB_RDS` | `aws rds describe-db-instances --db-instance-identifier <RDS_INSTANCE_ID>` | validates DB handle runtime surface |
+| `V10_IAM_ROLE` | `aws iam get-role --role-name <ROLE_NAME>` | validates IAM role handle runtime surface |
+| `V11_BUDGET` | `aws budgets describe-budget --account-id <AWS_ACCOUNT_ID> --budget-name <AWS_BUDGET_NAME>` | validates budget handle runtime surface |
+
+### M2.A Secret-Surface Separation Rule (Pinned)
+1. `secret_locator`: handles that identify where secret values are stored (for example SSM path keys).
+2. `non_secret`: handles that are identifiers, names, paths, or numeric thresholds.
+3. M2.A evidence is allowed to contain only:
+   - handle keys,
+   - non-secret literal values already pinned in registry,
+   - verification command templates.
+4. M2.A evidence must not contain decrypted secret values.
+
+### M2.A Handle Closure Matrix (Per-Key)
+| Handle key | Family | Owner (resolution) | Source of value | Verification | Secret class | Status | Blocker |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `TF_STATE_BUCKET` | Terraform/backend | Terraform core | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V3_TF_STATE_S3` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `TF_STATE_BUCKET_REGION` | Terraform/backend | Terraform core | registry/stack pin | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `TF_STATE_KEY_CORE` | Terraform/backend | Terraform core | registry literal | `V1_REGISTRY_KEY` + `V2_TERRAFORM_BACKEND` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `TF_STATE_KEY_DEMO` | Terraform/backend | Terraform demo | registry literal | `V1_REGISTRY_KEY` + `V2_TERRAFORM_BACKEND` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `TF_LOCK_TABLE` | Terraform/backend | Terraform core | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V4_TF_LOCK_DDB` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `S3_EVIDENCE_BUCKET` | S3/evidence | Terraform core | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V3_TF_STATE_S3` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `S3_EVIDENCE_ROOT_PREFIX` | S3/evidence | Registry authority | registry literal | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `RUN_REPORT_PATH_PATTERN` | S3/evidence | Registry authority | registry literal | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `RECEIPT_SUMMARY_PATH_PATTERN` | S3/evidence | Registry authority | registry literal | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `CONFLUENT_ENV_NAME` | Confluent | Terraform demo | registry literal | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `CONFLUENT_CLUSTER_NAME` | Confluent | Terraform demo | registry literal | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `SSM_CONFLUENT_BOOTSTRAP_PATH` | Confluent/secrets | Terraform demo | registry literal path | `V1_REGISTRY_KEY` + `V5_SSM_PATH` | `secret_locator` | `CLOSED_SPEC` | `none` |
+| `SSM_CONFLUENT_API_KEY_PATH` | Confluent/secrets | Terraform demo | registry literal path | `V1_REGISTRY_KEY` + `V5_SSM_PATH` | `secret_locator` | `CLOSED_SPEC` | `none` |
+| `SSM_CONFLUENT_API_SECRET_PATH` | Confluent/secrets | Terraform demo | registry literal path | `V1_REGISTRY_KEY` + `V5_SSM_PATH` | `secret_locator` | `CLOSED_SPEC` | `none` |
+| `FP_BUS_CONTROL_V1` | Kafka topics | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V6_KAFKA_TOPIC` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `FP_BUS_TRAFFIC_FRAUD_V1` | Kafka topics | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V6_KAFKA_TOPIC` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `FP_BUS_CONTEXT_ARRIVAL_EVENTS_V1` | Kafka topics | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V6_KAFKA_TOPIC` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `FP_BUS_CONTEXT_ARRIVAL_ENTITIES_V1` | Kafka topics | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V6_KAFKA_TOPIC` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `FP_BUS_CONTEXT_FLOW_ANCHOR_FRAUD_V1` | Kafka topics | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V6_KAFKA_TOPIC` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `FP_BUS_RTDL_V1` | Kafka topics | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V6_KAFKA_TOPIC` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `FP_BUS_AUDIT_V1` | Kafka topics | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V6_KAFKA_TOPIC` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `FP_BUS_CASE_TRIGGERS_V1` | Kafka topics | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V6_KAFKA_TOPIC` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `ECS_CLUSTER_NAME` | ECS/network | Terraform demo | registry literal (resolved by Terraform resources) | `V1_REGISTRY_KEY` + `V7_ECS_CLUSTER` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `VPC_ID` | ECS/network | Terraform demo/core | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V8_NETWORK` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `SUBNET_IDS_PUBLIC` | ECS/network | Terraform demo/core | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V8_NETWORK` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `SECURITY_GROUP_ID_APP` | ECS/network | Terraform demo/core | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V8_NETWORK` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `DB_BACKEND_MODE` | Runtime DB | Registry authority | registry literal | `V1_REGISTRY_KEY` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `RDS_INSTANCE_ID` | Runtime DB | Terraform demo | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V9_DB_RDS` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `RDS_ENDPOINT` | Runtime DB | Terraform demo | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V9_DB_RDS` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `SSM_DB_USER_PATH` | Runtime DB/secrets | Terraform demo | registry literal path | `V1_REGISTRY_KEY` + `V5_SSM_PATH` | `secret_locator` | `CLOSED_SPEC` | `none` |
+| `SSM_DB_PASSWORD_PATH` | Runtime DB/secrets | Terraform demo | registry literal path | `V1_REGISTRY_KEY` + `V5_SSM_PATH` | `secret_locator` | `CLOSED_SPEC` | `none` |
+| `ROLE_TERRAFORM_APPLY` | IAM | Terraform core | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V10_IAM_ROLE` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `ROLE_ECS_TASK_EXECUTION` | IAM | Terraform core/demo | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V10_IAM_ROLE` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `ROLE_IG_SERVICE` | IAM | Terraform demo | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V10_IAM_ROLE` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `ROLE_WSP_TASK` | IAM | Terraform demo | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V10_IAM_ROLE` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `ROLE_SR_TASK` | IAM | Terraform demo | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V10_IAM_ROLE` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `ROLE_RTDL_CORE` | IAM | Terraform demo | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V10_IAM_ROLE` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `ROLE_DECISION_LANE` | IAM | Terraform demo | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V10_IAM_ROLE` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `ROLE_CASE_LABELS` | IAM | Terraform demo | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V10_IAM_ROLE` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `ROLE_REPORTER_SINGLE_WRITER` | IAM | Terraform demo | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V10_IAM_ROLE` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `ROLE_DB_MIGRATIONS` | IAM | Terraform demo | Terraform output at apply-time | `V1_REGISTRY_KEY` + `V10_IAM_ROLE` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `AWS_BUDGET_NAME` | Budget | Terraform core | registry literal/terraform-managed | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `AWS_BUDGET_LIMIT_GBP` | Budget | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `AWS_BUDGET_ALERT_1_GBP` | Budget | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `AWS_BUDGET_ALERT_2_GBP` | Budget | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
+| `AWS_BUDGET_ALERT_3_GBP` | Budget | Registry authority | registry literal | `V1_REGISTRY_KEY` + `V11_BUDGET` | `non_secret` | `CLOSED_SPEC` | `none` |
 
 ## M2.B Terraform Backend/State Partition Readiness
 Goal:
@@ -359,7 +439,7 @@ Notes:
 2. Any command output containing credentials must be redacted before persistence.
 
 ## 7) M2 Completion Checklist
-- [ ] M2.A complete
+- [x] M2.A complete
 - [ ] M2.B complete
 - [ ] M2.C complete
 - [ ] M2.D complete
