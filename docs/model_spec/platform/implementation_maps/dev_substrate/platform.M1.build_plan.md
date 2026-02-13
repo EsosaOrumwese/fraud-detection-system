@@ -103,9 +103,47 @@ Tasks:
 3. Define entrypoint validation method for build-go pass.
 
 DoD:
-- [ ] Full entrypoint matrix exists with zero missing in-scope components.
-- [ ] Every entrypoint has a deterministic invocation contract.
-- [ ] Validation method is pinned (what proves entrypoint exists and is callable).
+- [x] Full entrypoint matrix exists with zero missing in-scope components.
+- [x] Every entrypoint has a deterministic invocation contract.
+- [x] Validation method is pinned (what proves entrypoint exists and is callable).
+
+M1.B entrypoint matrix (frozen):
+
+| Handle key | Runtime mode(s) | Deterministic invocation contract (single image) | Required args contract |
+| --- | --- | --- | --- |
+| `ENTRYPOINT_ORACLE_SEED` | Oracle pack/seal job | `python -m fraud_detection.oracle_store.pack_cli` | `--profile <path> --engine-run-root <s3://...> --scenario-id <id> --engine-release <release>` |
+| `ENTRYPOINT_ORACLE_STREAM_SORT` | Oracle stream-sort job | `python -m fraud_detection.oracle_store.stream_sort_cli` | `--profile <path> --engine-run-root <s3://...> --scenario-id <id>` |
+| `ENTRYPOINT_ORACLE_CHECKER` | Oracle checker job | `python -m fraud_detection.oracle_store.cli` | `--profile <path> --engine-run-root <s3://...>` (`--scenario-id`/`--output-ids`/`--strict-seal` optional by phase posture) |
+| `ENTRYPOINT_SR` | Scenario runner control task | `python -m fraud_detection.scenario_runner.cli run` | `--wiring <path> --policy <path> --run-equivalence-key <key> --manifest-fingerprint <fp> --parameter-hash <hash> --seed <int> --window-start <iso> --window-end <iso>` |
+| `ENTRYPOINT_WSP` | World streamer producer task | `python -m fraud_detection.world_streamer_producer.cli` | `--profile <path>` (`--engine-run-root`, `--scenario-id`, `--output-ids`, `--max-events` optional overrides) |
+| `ENTRYPOINT_IG_SERVICE` | IG daemon/service | `python -m fraud_detection.ingestion_gate.service` | `--profile <path>` (`--host`/`--port` pinned in task args; `IG_LISTEN_ADDR` + `IG_PORT` handles) |
+| `ENTRYPOINT_RTDL_CORE_WORKER` | ArchiveWriter | `python -m fraud_detection.archive_writer.worker` | `--profile <path>` (`--once` optional for one-shot verification) |
+| `ENTRYPOINT_RTDL_CORE_WORKER` | IEG service | `python -m fraud_detection.identity_entity_graph.service` | `--profile <path>` (`--host`/`--port` optional overrides) |
+| `ENTRYPOINT_RTDL_CORE_WORKER` | OFP projector | `python -m fraud_detection.online_feature_plane.projector` | `--profile <path>` (`--once` optional) |
+| `ENTRYPOINT_RTDL_CORE_WORKER` | CSFB intake | `python -m fraud_detection.context_store_flow_binding.intake` | `--policy <path>` (`--once`/`--replay-manifest` optional) |
+| `ENTRYPOINT_DECISION_LANE_WORKER` | DL worker | `python -m fraud_detection.degrade_ladder.worker` | `--profile <path>` (`--once` optional) |
+| `ENTRYPOINT_DECISION_LANE_WORKER` | DF worker | `python -m fraud_detection.decision_fabric.worker` | `--profile <path>` (`--once` optional) |
+| `ENTRYPOINT_DECISION_LANE_WORKER` | AL worker | `python -m fraud_detection.action_layer.worker` | `--profile <path>` (`--once` optional) |
+| `ENTRYPOINT_DECISION_LANE_WORKER` | DLA worker | `python -m fraud_detection.decision_log_audit.worker` | `--profile <path>` (`--once` optional) |
+| `ENTRYPOINT_DECISION_LANE_WORKER` | CaseTrigger worker | `python -m fraud_detection.case_trigger.worker` | `--profile <path>` (`--once` optional) |
+| `ENTRYPOINT_CM_SERVICE` | CM worker (service slot) | `python -m fraud_detection.case_mgmt.worker` | `--profile <path>` (`--once` optional) |
+| `ENTRYPOINT_LS_SERVICE` | LS worker (service slot) | `python -m fraud_detection.label_store.worker` | `--profile <path>` (`--once` optional) |
+| `ENTRYPOINT_REPORTER` | Obs/Gov reporter task | `python -m fraud_detection.platform_reporter.cli` | `--profile <path>` (`--platform-run-id` optional; defaults to active run) |
+
+M1.B validation method (pinned for build-go pass):
+1. For each matrix row, run the module import/argparse smoke command in image context:
+   - `python -m <module> --help` for non-subcommand CLIs.
+   - `python -m fraud_detection.scenario_runner.cli run --help` for SR run mode.
+2. For each row, run one dry invocation contract check with required args only:
+   - use a minimal dev profile/wiring/policy fixture bundle,
+   - run daemon-capable workers with `--once` where available,
+   - require process startup + argument parse success (`exit 0`) as pass criterion.
+3. `ENTRYPOINT_ORACLE_CHECKER` specifically must use `fraud_detection.oracle_store.cli`; no fallback to non-existent checker module path is allowed.
+
+M1.B completion notes:
+1. All v0 registry handle keys in Section 6.5 now map to concrete module contracts.
+2. Grouped handles (`ENTRYPOINT_RTDL_CORE_WORKER`, `ENTRYPOINT_DECISION_LANE_WORKER`) are explicitly expanded to their service/worker modes to prevent hidden launch ambiguity.
+3. `platform_conformance.cli` remains an Obs/Gov support CLI but is not part of the registry entrypoint-handle closure set for M1.B.
 
 ## M1.C Provenance and Evidence Contract
 Goal:
@@ -170,7 +208,7 @@ DoD:
 
 ## 6) M1 Completion Checklist
 - [x] M1.A complete
-- [ ] M1.B complete
+- [x] M1.B complete
 - [ ] M1.C complete
 - [ ] M1.D complete
 - [ ] M1.E complete

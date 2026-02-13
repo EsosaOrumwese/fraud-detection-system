@@ -2496,6 +2496,10 @@ policy:
 
       emit_site_sequence: {type: boolean}
 
+      consume_integerised_counts_in_s8: {type: boolean}
+
+      consume_site_sequence_in_s8: {type: boolean}
+
 
 
   crossborder_hyperparams:

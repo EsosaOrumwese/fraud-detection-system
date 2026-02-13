@@ -692,6 +692,7 @@ def _build_output_paths(
         crossborder_features_root=dataset_path("crossborder_features"),
         crossborder_flags_root=dataset_path("crossborder_eligibility_flags"),
         hurdle_pi_probs_root=dataset_path("hurdle_pi_probs"),
+        merchant_abort_log_root=dataset_path("merchant_abort_log").parent,
         validation_bundle_root=dataset_path("validation_bundle_1A"),
         segment_state_runs_path=(
             _segment_state_runs_path(run_paths, dictionary, utc_day)
@@ -1188,6 +1189,29 @@ def run_s0(
             anchor_event=anchor_event,
             audit_entry=audit_entry,
         )
+
+        abort_df = pl.DataFrame(
+            schema={
+                "merchant_id": pl.UInt64,
+                "state": pl.Utf8,
+                "module": pl.Utf8,
+                "reason": pl.Utf8,
+                "ts_utc": pl.Utf8,
+            }
+        )
+        prep_schema = _schema_section(_schema_1a, "prep")
+        validate_dataframe(
+            abort_df.iter_rows(named=True),
+            prep_schema,
+            "merchant_abort_log",
+        )
+        _write_parquet_partition(
+            abort_df,
+            outputs.merchant_abort_log_root,
+            run_paths.tmp_root,
+            "merchant_abort_log",
+        )
+        timer.info("S0.4: merchant_abort_log emitted (rows=0)")
 
         coeff_meta, beta = _load_hurdle_coefficients(
             param_path_map["hurdle_coefficients.yaml"]

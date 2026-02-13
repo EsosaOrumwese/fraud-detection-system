@@ -5236,3 +5236,71 @@ This is contract-freeze planning work only and remains within M1 scope.
 
 ### Drift sentinel assessment
 M1 remains active and incomplete overall. This pass only closed M1.A contract planning and did not execute image build/push.
+
+## Entry: 2026-02-13 8:20AM - Pre-change lock: implement M1.B entrypoint matrix completion
+
+### Trigger
+USER directed: move to `M1.B`.
+
+### Objective
+Close M1.B by pinning a complete logical-entrypoint to module-command matrix for Spine Green v0 packaging readiness.
+
+### Scope
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+   - complete M1.B DoD,
+   - add frozen matrix for all Section 6.5 entrypoint handles,
+   - pin validation method for build-go pass.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - update active-phase sub-progress to reflect M1.B closure.
+
+### Key decisions (before patch)
+1. Use registry handle keys as canonical matrix keys; do not invent new logical handles.
+2. Expand grouped handles (`ENTRYPOINT_RTDL_CORE_WORKER`, `ENTRYPOINT_DECISION_LANE_WORKER`) into explicit runtime modes to avoid launch ambiguity.
+3. Pin Oracle checker contract to the real module path `fraud_detection.oracle_store.cli` (not `checker.py` module).
+4. Keep this pass planning-only; no image build/push/runtime execution.
+
+### Validation plan
+- Confirm M1.B DoD checkboxes all `[x]`.
+- Confirm M1 checklist marks `M1.B complete`.
+- Confirm main plan sub-phase progress marks M1.B complete and M1 remains ACTIVE.
+
+### Drift sentinel checkpoint
+Documentation-contract closure only; no runtime semantic or ownership-boundary changes.
+
+## Entry: 2026-02-13 8:21AM - Applied M1.B entrypoint matrix completion
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### What was implemented
+1. Completed M1.B DoD in deep plan:
+- Added full frozen entrypoint matrix mapping registry handles to concrete `python -m fraud_detection...` module contracts.
+- Included required-argument contracts for each row.
+- Expanded grouped handles into explicit runtime modes:
+  - RTDL core: ArchiveWriter, IEG, OFP, CSFB.
+  - Decision lane: DL, DF, AL, DLA, CaseTrigger.
+- Clarified case/label service slots:
+  - `ENTRYPOINT_CM_SERVICE` -> `case_mgmt.worker`
+  - `ENTRYPOINT_LS_SERVICE` -> `label_store.worker`
+- Pinned Oracle checker to `fraud_detection.oracle_store.cli`.
+
+2. Pinned M1.B validation method:
+- `python -m <module> --help` import/argparse smoke for each row (SR uses `run --help`).
+- required-args dry invocation contract check in build-go pass.
+- explicit no-fallback rule for Oracle checker module path.
+
+3. Checklist progress updates:
+- Marked `M1.B complete` in M1 deep-plan completion checklist.
+- Updated main-plan active-phase progress to:
+  - `M1.A` complete,
+  - `M1.B` complete,
+  - `M1.C..M1.F` pending.
+
+### Validation
+- M1.B DoD checkboxes are all checked.
+- Section 6 checklist now has `M1.A` and `M1.B` complete.
+- Main plan still shows M1 as ACTIVE with remaining sub-phases pending.
+
+### Drift sentinel assessment
+No drift against migration authority or local-parity semantics. This closes a packaging-contract ambiguity surface only.

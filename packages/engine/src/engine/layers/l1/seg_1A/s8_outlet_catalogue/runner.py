@@ -86,6 +86,8 @@ class S3IntegerisationPolicy:
     version: str
     emit_integerised_counts: bool
     emit_site_sequence: bool
+    consume_integerised_counts_in_s8: bool
+    consume_site_sequence_in_s8: bool
 
 
 class _StepTimer:
@@ -315,6 +317,12 @@ def _load_s3_integerisation_policy(
         version=str(payload.get("version")),
         emit_integerised_counts=bool(payload.get("emit_integerised_counts")),
         emit_site_sequence=bool(payload.get("emit_site_sequence")),
+        consume_integerised_counts_in_s8=bool(
+            payload.get("consume_integerised_counts_in_s8", False)
+        ),
+        consume_site_sequence_in_s8=bool(
+            payload.get("consume_site_sequence_in_s8", False)
+        ),
     )
 
 
@@ -1285,17 +1293,48 @@ def run_s8(
         )
         emit_s3_counts = s3_integerisation_policy.emit_integerised_counts
         emit_s3_site_sequence = s3_integerisation_policy.emit_site_sequence
-        if emit_s3_site_sequence and not emit_s3_counts:
+        consume_s3_counts = (
+            emit_s3_counts and s3_integerisation_policy.consume_integerised_counts_in_s8
+        )
+        consume_s3_site_sequence = (
+            emit_s3_site_sequence
+            and s3_integerisation_policy.consume_site_sequence_in_s8
+        )
+        if (
+            s3_integerisation_policy.consume_integerised_counts_in_s8
+            and not emit_s3_counts
+        ):
             raise EngineFailure(
                 "F4",
                 "E_SCHEMA_INVALID",
                 "S8",
                 MODULE_NAME,
-                {"detail": "site_sequence requires integerised_counts"},
+                {"detail": "consume_counts_in_s8 requires emit_integerised_counts"},
+            )
+        if (
+            s3_integerisation_policy.consume_site_sequence_in_s8
+            and not emit_s3_site_sequence
+        ):
+            raise EngineFailure(
+                "F4",
+                "E_SCHEMA_INVALID",
+                "S8",
+                MODULE_NAME,
+                {"detail": "consume_site_sequence_in_s8 requires emit_site_sequence"},
+            )
+        if consume_s3_site_sequence and not consume_s3_counts:
+            raise EngineFailure(
+                "F4",
+                "E_SCHEMA_INVALID",
+                "S8",
+                MODULE_NAME,
+                {"detail": "consuming site_sequence requires consuming integerised_counts"},
             )
         timer.info(
             f"S8: integerisation_policy emit_counts={emit_s3_counts} "
-            f"emit_site_sequence={emit_s3_site_sequence}"
+            f"emit_site_sequence={emit_s3_site_sequence} "
+            f"consume_counts={consume_s3_counts} "
+            f"consume_site_sequence={consume_s3_site_sequence}"
         )
 
         candidate_entry = find_dataset_entry(dictionary, DATASET_CANDIDATE_SET).entry
@@ -1462,7 +1501,7 @@ def run_s8(
 
         counts_map: dict[int, dict[str, dict]] = {}
         counts_source = "s7_counts_handoff"
-        if emit_s3_counts:
+        if consume_s3_counts:
             counts_entry = find_dataset_entry(dictionary, DATASET_COUNTS).entry
             counts_root = _resolve_run_path(
                 run_paths, counts_entry["path"], {"parameter_hash": parameter_hash}
@@ -1556,7 +1595,7 @@ def run_s8(
                 )
 
         site_sequence_map: dict[int, dict[str, set[int]]] | None = None
-        if emit_s3_site_sequence:
+        if consume_s3_site_sequence:
             site_sequence_entry = find_dataset_entry(
                 dictionary, DATASET_SITE_SEQUENCE
             ).entry

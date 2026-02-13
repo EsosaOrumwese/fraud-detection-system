@@ -1,5 +1,7 @@
 semver: "1.0.0"
 version: "2026-01-12"
 
-emit_integerised_counts: false
-emit_site_sequence: false
+emit_integerised_counts: true
+emit_site_sequence: true
+consume_integerised_counts_in_s8: false
+consume_site_sequence_in_s8: false

@@ -53,6 +53,7 @@ SEG1A_S1_RUN_ID ?= $(RUN_ID)
 SEG1A_S2_RUN_ID ?= $(RUN_ID)
 SEG1A_S3_RUN_ID ?= $(RUN_ID)
 SEG1A_S4_RUN_ID ?= $(RUN_ID)
+SEG1A_S5_EMIT_SPARSE_FLAG ?= 1
 SEG1A_S9_RUN_ID ?= $(RUN_ID)
 SEG1B_S0_RUN_ID ?= $(RUN_ID)
 SEG1B_S1_RUN_ID ?= $(RUN_ID)
@@ -2215,6 +2216,32 @@ segment1a-p3-check:
 	@$(PY_SCRIPT) tools/verify_segment1a_p3_outputs.py --runs-root "$(RUNS_ROOT)" $(if $(strip $(RUN_ID)),--run-id "$(RUN_ID)",)
 
 engine-seg1a-p3: segment1a-p3
+
+.PHONY: segment1a-p4 segment1a-p4-check engine-seg1a-p4
+segment1a-p4: segment1a-preclean-failed-runs
+	@echo "Running Segment 1A P4 loop (S0->S9 with required artifact closure)"
+	@$(SEG1A_S0_CMD)
+	@run_id="$$( $(PY_SCRIPT) -c "import pathlib; root=pathlib.Path('$(RUNS_ROOT)'); receipts=sorted(root.glob('*/run_receipt.json'), key=lambda p: p.stat().st_mtime); print(receipts[-1].parent.name if receipts else '')" )"; \
+	if [ -z "$$run_id" ]; then \
+		echo "No run_receipt.json found under $(RUNS_ROOT) after S0." >&2; \
+		exit 1; \
+	fi; \
+	echo "Segment 1A P4 run_id=$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s1 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S1_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s2 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S2_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s3 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S3_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s4 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S4_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s5 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S5_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s6 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S6_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s7 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S7_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s8 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S8_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-s9 RUNS_ROOT="$(RUNS_ROOT)" SEG1A_S9_RUN_ID="$$run_id"; \
+	$(MAKE) --no-print-directory segment1a-p4-check RUNS_ROOT="$(RUNS_ROOT)" RUN_ID="$$run_id"
+
+segment1a-p4-check:
+	@$(PY_SCRIPT) tools/verify_segment1a_p4_outputs.py --runs-root "$(RUNS_ROOT)" $(if $(strip $(RUN_ID)),--run-id "$(RUN_ID)",)
+
+engine-seg1a-p4: segment1a-p4
 
 segment1a-s3:
 	@echo "Running Segment 1A S3 cross-border candidate set"

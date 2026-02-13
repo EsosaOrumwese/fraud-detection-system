@@ -5180,3 +5180,40 @@ Documentation changes:
 Execution status:
 1) Planning-only update completed.
 2) No runtime/state code changed in this step.
+
+### Entry: 2026-02-13 08:23
+
+Design element: P4 one-pass implementation plan (execution start).
+Summary: Opened implementation pass to close all five missing P4 artifacts in one run while preserving locked P1/P2/P3 statistical posture.
+
+Pinned implementation strategy before edits:
+1) Keep S8 count authority on the locked `s7_counts_handoff` path.
+2) Enable S3 artifact emission (`s3_integerised_counts`, `s3_site_sequence`) for audit completeness without forcing S8 to consume them.
+3) Enable S5 `sparse_flag` emission in standard segment run profile.
+4) Emit `merchant_abort_log` as schema-valid zero-row artifact from S0 when no soft abort events exist.
+5) Emit `hurdle_stationarity_tests` from S9 as deterministic diagnostics derived from active hurdle/NB coefficient bundles.
+6) Extend S9 to fail-closed on missing required P4 artifacts (presence + schema validity), then run full `segment1a-p4`.
+
+Reasoning:
+1) This closes artifact completeness and auditability with minimal blast radius.
+2) It avoids hidden behavioral reopen of already-accepted P1/P2/P3 realism posture.
+3) It keeps deterministic replay posture testable under one command profile for P4 closure.
+
+### Entry: 2026-02-13 08:38
+
+Design element: P4 execution non-regression corrective micro-step.
+Summary: First P4 full run closed artifact completeness but produced a slight P3 mismatch regression just below B+ (`0.11985` vs B+ lower bound `0.12`) under the new sealed hash surface. Opened one minimal S7 retune step to restore B+ before finalizing P4 closure evidence.
+
+Observed on run `19e251361b0b1bfb185f315e91ee07fa`:
+1) P4 artifact check: pass (`all 5 required artifacts present`).
+2) P2 global checks: pass.
+3) P3:
+- `home_legal_mismatch_rate = 0.119848` (B pass, B+ miss by ~0.000152),
+- `size_gradient_pp = +12.320` (B/B+ pass),
+- identity anomalies = `0`.
+
+Corrective decision:
+1) Keep P4 artifact wiring untouched.
+2) Apply smallest possible S7 home-bias adjustment on largest tier only:
+- `home_share_min: 0.610 -> 0.609`.
+3) Re-run `segment1a-p4` once and re-check P2/P3 scorecards.
