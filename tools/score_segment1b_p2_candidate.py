@@ -95,6 +95,17 @@ def _resolve_site_locations(ctx: RunContext) -> Path:
     return next(root.glob("*.parquet"))
 
 
+def _resolve_tile_weights_dir(ctx: RunContext) -> Path:
+    return (
+        ctx.run_root
+        / "data"
+        / "layer1"
+        / "1B"
+        / "tile_weights"
+        / f"parameter_hash={ctx.parameter_hash}"
+    )
+
+
 def _gini(values: list[float]) -> float:
     if not values:
         return 0.0
@@ -154,7 +165,26 @@ def _quantile(values: np.ndarray, q: float) -> float:
     return float(np.quantile(values, q))
 
 
-def _s4_pair_metrics(s4_alloc_path: Path) -> dict[str, Any]:
+def _country_tile_capacity_map(
+    tile_weights_dir: Path,
+    countries: list[str],
+) -> dict[str, int]:
+    capacities: dict[str, int] = {}
+    for country_iso in countries:
+        path = tile_weights_dir / f"part-{country_iso}.parquet"
+        if not path.exists():
+            capacities[country_iso] = 0
+            continue
+        cap = (
+            pl.read_parquet(path)
+            .select(pl.col("tile_id").n_unique().alias("tile_capacity"))
+            .item()
+        )
+        capacities[country_iso] = int(cap)
+    return capacities
+
+
+def _s4_pair_metrics(ctx: RunContext, s4_alloc_path: Path) -> dict[str, Any]:
     s4 = pl.read_parquet(s4_alloc_path).select(
         ["merchant_id", "legal_country_iso", "tile_id", "n_sites_tile"]
     )
@@ -165,7 +195,17 @@ def _s4_pair_metrics(s4_alloc_path: Path) -> dict[str, Any]:
             "pair_top1_share": {"p50": 0.0, "p90": 0.0, "p99": 0.0, "mean": 0.0},
             "pair_hhi": {"p50": 0.0, "p90": 0.0, "p99": 0.0, "mean": 0.0},
             "pair_active_tiles": {"p50": 0.0, "p90": 0.0, "p99": 0.0, "mean": 0.0},
+            "theoretical_floor": {"pair_top1_share_mean": 0.0, "pair_hhi_mean": 0.0},
+            "theoretical_headroom": {
+                "pair_top1_share_mean": 0.0,
+                "pair_hhi_mean": 0.0,
+                "pairs_with_top1_headroom": 0,
+                "pairs_with_hhi_headroom": 0,
+            },
         }
+
+    countries = sorted(set(s4["legal_country_iso"].to_list()))
+    tile_capacity = _country_tile_capacity_map(_resolve_tile_weights_dir(ctx), countries)
 
     pair = s4.group_by(["merchant_id", "legal_country_iso"]).agg(
         [
@@ -175,23 +215,66 @@ def _s4_pair_metrics(s4_alloc_path: Path) -> dict[str, Any]:
             (pl.col("n_sites_tile") * pl.col("n_sites_tile")).sum().alias("sum_sq"),
         ]
     )
-    pair = pair.with_columns(
-        [
-            (pl.col("pair_max") / pl.col("pair_total")).alias("top1_share"),
-            (
-                pl.col("sum_sq") / (pl.col("pair_total") * pl.col("pair_total"))
-            ).alias("hhi"),
-        ]
-    )
-    top1 = pair["top1_share"].to_numpy().astype(np.float64)
-    hhi = pair["hhi"].to_numpy().astype(np.float64)
-    active = pair["active_tiles"].to_numpy().astype(np.float64)
+
+    pair_rows = pair.to_dicts()
+    top1_values: list[float] = []
+    hhi_values: list[float] = []
+    active_values: list[float] = []
+    top1_floor_values: list[float] = []
+    hhi_floor_values: list[float] = []
+    top1_headroom_values: list[float] = []
+    hhi_headroom_values: list[float] = []
+
+    for row in pair_rows:
+        n = int(row["pair_total"])
+        cmax = int(row["pair_max"])
+        sum_sq = int(row["sum_sq"])
+        active = int(row["active_tiles"])
+        country_iso = str(row["legal_country_iso"])
+        m = max(1, int(tile_capacity.get(country_iso, 0)))
+
+        top1_obs = float(cmax / n) if n > 0 else 0.0
+        hhi_obs = float(sum_sq / (n * n)) if n > 0 else 0.0
+
+        q, rem = divmod(n, m)
+        top1_floor = float((q + 1) / n) if rem > 0 and n > 0 else float(q / n) if n > 0 else 0.0
+        hhi_floor = (
+            float((rem * (q + 1) * (q + 1) + (m - rem) * q * q) / (n * n))
+            if n > 0
+            else 0.0
+        )
+
+        top1_values.append(top1_obs)
+        hhi_values.append(hhi_obs)
+        active_values.append(float(active))
+        top1_floor_values.append(top1_floor)
+        hhi_floor_values.append(hhi_floor)
+        top1_headroom_values.append(top1_obs - top1_floor)
+        hhi_headroom_values.append(hhi_obs - hhi_floor)
+
+    top1 = np.asarray(top1_values, dtype=np.float64)
+    hhi = np.asarray(hhi_values, dtype=np.float64)
+    active = np.asarray(active_values, dtype=np.float64)
+    top1_floor = np.asarray(top1_floor_values, dtype=np.float64)
+    hhi_floor = np.asarray(hhi_floor_values, dtype=np.float64)
+    top1_headroom = np.asarray(top1_headroom_values, dtype=np.float64)
+    hhi_headroom = np.asarray(hhi_headroom_values, dtype=np.float64)
     return {
         "pairs_total": int(pair.height),
         "rows_total": int(s4.height),
         "pair_top1_share": _summary(top1),
         "pair_hhi": _summary(hhi),
         "pair_active_tiles": _summary(active),
+        "theoretical_floor": {
+            "pair_top1_share_mean": float(top1_floor.mean()),
+            "pair_hhi_mean": float(hhi_floor.mean()),
+        },
+        "theoretical_headroom": {
+            "pair_top1_share_mean": float(top1_headroom.mean()),
+            "pair_hhi_mean": float(hhi_headroom.mean()),
+            "pairs_with_top1_headroom": int(np.sum(top1_headroom > 1.0e-12)),
+            "pairs_with_hhi_headroom": int(np.sum(hhi_headroom > 1.0e-12)),
+        },
     }
 
 
@@ -224,7 +307,7 @@ def _snapshot(ctx: RunContext) -> dict[str, Any]:
     s8_report_path = _resolve_report(ctx, "S8", "s8_run_summary.json")
     s4_report = json.loads(s4_report_path.read_text(encoding="utf-8"))
     s8_report = json.loads(s8_report_path.read_text(encoding="utf-8"))
-    s4_pair = _s4_pair_metrics(_resolve_s4_alloc_plan(ctx))
+    s4_pair = _s4_pair_metrics(ctx, _resolve_s4_alloc_plan(ctx))
     s8_metrics = _s8_metrics(ctx)
     return {
         "run": {
@@ -262,6 +345,19 @@ def score_p2(
     candidate_s4 = candidate["s4_pair_metrics"]
     baseline_s8 = baseline["s8_metrics"]
     candidate_s8 = candidate["s8_metrics"]
+    baseline_top1_headroom = float(
+        baseline_s4["theoretical_headroom"]["pair_top1_share_mean"]
+    )
+    baseline_hhi_headroom = float(baseline_s4["theoretical_headroom"]["pair_hhi_mean"])
+    candidate_top1_headroom = float(
+        candidate_s4["theoretical_headroom"]["pair_top1_share_mean"]
+    )
+    candidate_hhi_headroom = float(
+        candidate_s4["theoretical_headroom"]["pair_hhi_mean"]
+    )
+    eps = 1.0e-12
+    top1_improvement_feasible = baseline_top1_headroom > eps
+    hhi_improvement_feasible = baseline_hhi_headroom > eps
 
     candidate_s4_report = candidate["s4_report"]
     candidate_s8_report = candidate["s8_report"]
@@ -273,10 +369,26 @@ def score_p2(
         "s4_alloc_sum_equals_requirements": bool(
             candidate_s4_report.get("alloc_sum_equals_requirements", False)
         ),
-        "s4_pair_top1_mean_improved": float(candidate_s4["pair_top1_share"]["mean"])
-        < float(baseline_s4["pair_top1_share"]["mean"]),
-        "s4_pair_hhi_mean_improved": float(candidate_s4["pair_hhi"]["mean"])
-        < float(baseline_s4["pair_hhi"]["mean"]),
+        "s4_pair_top1_mean_improved": (
+            float(candidate_s4["pair_top1_share"]["mean"])
+            < float(baseline_s4["pair_top1_share"]["mean"]) - eps
+            if top1_improvement_feasible
+            else (
+                float(candidate_s4["pair_top1_share"]["mean"])
+                <= float(baseline_s4["pair_top1_share"]["mean"]) + eps
+                and candidate_top1_headroom <= eps
+            )
+        ),
+        "s4_pair_hhi_mean_improved": (
+            float(candidate_s4["pair_hhi"]["mean"])
+            < float(baseline_s4["pair_hhi"]["mean"]) - eps
+            if hhi_improvement_feasible
+            else (
+                float(candidate_s4["pair_hhi"]["mean"])
+                <= float(baseline_s4["pair_hhi"]["mean"]) + eps
+                and candidate_hhi_headroom <= eps
+            )
+        ),
         "s4_pair_active_tiles_mean_not_worse": float(candidate_s4["pair_active_tiles"]["mean"])
         >= float(baseline_s4["pair_active_tiles"]["mean"]) - 1.0e-12,
         "s8_concentration_not_worse_than_baseline": (
@@ -317,6 +429,14 @@ def score_p2(
             - float(baseline_s8["top1_share"]),
             "s8_nn_p99_p50_ratio": float(candidate_s8["nn_p99_p50_ratio"])
             - float(baseline_s8["nn_p99_p50_ratio"]),
+        },
+        "feasibility": {
+            "s4_pair_top1_mean_headroom_baseline": baseline_top1_headroom,
+            "s4_pair_top1_mean_headroom_candidate": candidate_top1_headroom,
+            "s4_pair_hhi_mean_headroom_baseline": baseline_hhi_headroom,
+            "s4_pair_hhi_mean_headroom_candidate": candidate_hhi_headroom,
+            "s4_pair_top1_improvement_feasible": top1_improvement_feasible,
+            "s4_pair_hhi_improvement_feasible": hhi_improvement_feasible,
         },
         "checks": checks,
         "checks_all_pass": all(checks.values()),

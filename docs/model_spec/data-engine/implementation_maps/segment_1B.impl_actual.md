@@ -3651,3 +3651,48 @@ Execution order:
 4) tune S4 policy if needed with bounded cycles,
 5) run same-seed reproducibility check on second fresh run-id,
 6) write P2 lock artifact, update pointers, prune superseded runs, and close P2 DoD/logbook.
+
+---
+
+### Entry: 2026-02-13 17:46
+
+Design element: P2 continuation under branch drift recovery (S4 policy retune wave-1).
+Summary: Recovered from cross-branch drift and confirmed the P2 surfaces are present on `migrate-dev` (`2f8ef956`, `5c253035`, `624bedfd`). Scored current P2 candidate `923332139abd4f588a7770513f6f40a0` against locked P1 baseline `335c9a7eec04491a845abc2a049f959f`; result shows zero S4/S8 movement and `checks_all_pass=false` because S4 anti-collapse controls were never triggered (`pairs_guard_touched=0`, moves=0).
+
+Decision and rationale before editing:
+1) Keep P2 scope strictly on S4 policy knobs (P1 S2 freeze remains binding).
+2) Execute a policy-only retune first (no S4 code change) because current no-movement is caused by lenient thresholds relative to observed pair-level top1/hhi posture, not by missing controls.
+3) Retune strategy for wave-1:
+   - decrease `country_share_soft_guard` to force donor detection on medium-size pairs,
+   - keep `country_share_hard_guard` above soft guard to avoid infeasible receiver caps,
+   - increase residual activation floor modestly so breadth expansion can trigger where pair active-tile counts are too concentrated,
+   - keep deterministic namespace and reroute mode unchanged.
+4) Run fresh candidate from locked P1 run with immutable-run discipline (`S4->S9`, new run-id) and score using `tools/score_segment1b_p2_candidate.py`.
+5) Acceptance criteria for this wave:
+   - S4 diagnostics must show non-zero guard movement,
+   - S4 pair-level `top1`/`HHI` means must improve vs baseline,
+   - S8 must not regress concentration and parity rails.
+6) If wave-1 still no-move, proceed to wave-2 with stronger soft/hard caps; if improvement appears, run same-seed reproducibility on second fresh run-id before P2 lock promotion.
+
+---
+
+### Entry: 2026-02-13 18:19
+
+Design element: P2 feasibility check correction (S4 bound-aware closure logic).
+Summary: Wave-1 retuned candidate (`47ad6781ab9d4d92b311b068f51141f6`) still produced zero movement even though the updated S4 policy was loaded. Deep diagnostics show this is a feasibility boundary, not a missed knob:
+- only `3/2597` pairs have any tile with count `>1`,
+- those 3 pairs are all `BM` with `pair_total in {101,119,129}` and `active_tiles=90`,
+- BM tile universe is exactly `90` tiles (`part-BM.parquet`),
+- observed counts already match the minimum-imbalance occupancy (`1/2` distribution) for those totals.
+
+Decision and rationale before code edits:
+1) Keep `P1` freeze intact; no upstream reopen during this P2 pass.
+2) Treat strict `candidate < baseline` checks in `tools/score_segment1b_p2_candidate.py` as over-constrained when baseline is already at theoretical floor.
+3) Update the P2 scorer to compute per-pair lower bounds for `top1` and `HHI` from `(pair_total, country_tile_capacity)` and aggregate mean floor headroom.
+4) Convert P2 acceptance rule to:
+   - require strict improvement when baseline headroom exists,
+   - allow floor-hold pass when baseline headroom is zero (or epsilon-close) and candidate is non-regressive.
+5) Persist explicit floor diagnostics in the scorer output so acceptance is auditable and not threshold-forged.
+
+Expected result:
+- P2 closure remains data-truthful: we do not claim fake movement where math disallows it, and we still veto any regression.
