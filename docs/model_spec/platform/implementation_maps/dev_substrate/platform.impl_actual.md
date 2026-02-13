@@ -6764,3 +6764,59 @@ Current `infra/terraform/dev_min/demo` plan exposes only log-group + manifest + 
 ### Drift sentinel checkpoint
 1. No `terraform apply`/`destroy` executed in this pass.
 2. No console mutation executed.
+
+## Entry: 2026-02-13 1:55PM - Pre-change lock: execute M2.E secret materialization and access checks
+
+### Trigger
+USER directed progression to M2.E implementation.
+
+### Objective
+1. Validate required SSM path materialization/readability for Confluent, DB, and IG secret locators.
+2. Validate runtime IAM boundary for secret reads (execution role vs app/runtime role).
+3. Produce non-secret evidence artifact `secret_surface_check.json` and sync phase status.
+
+### Planned checks
+1. `aws ssm get-parameter --name <path> --with-decryption --query Parameter.Name --output text` for all required paths.
+2. `aws iam get-role` for runtime roles used in demo stack.
+3. `aws iam simulate-principal-policy` for SSM read actions against pinned secret parameter ARNs.
+4. Redaction policy: evidence stores names/booleans/results only; never secret values.
+
+### Boundaries
+1. No `terraform apply`/`destroy` in this pass.
+2. No console mutation.
+
+## Entry: 2026-02-13 1:58PM - Post-change record: M2.E executed fail-closed; blockers surfaced
+
+### What was implemented
+1. Executed M2.E live secret-surface checks for required SSM paths (Confluent/DB/IG).
+2. Executed runtime role existence checks for:
+- `fraud-platform-dev-min-ecs-task-execution`
+- `fraud-platform-dev-min-ecs-task-app`
+3. Added IAM least-privilege hardening in Terraform demo module:
+- `module.demo.aws_iam_role_policy.ecs_task_app_secret_read` now pins app-role SSM read to required secret paths.
+4. Produced non-secret M2.E evidence artifact.
+
+### Evidence
+1. Local:
+- `runs/dev_substrate/m2_e/20260213T135629Z/secret_surface_check.json`
+2. Durable:
+- `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T135629Z/secret_surface_check.json`
+
+### Material findings
+1. Confluent secret paths exist/readable by operator.
+2. DB secret paths (`/fraud-platform/dev_min/db/user`, `/fraud-platform/dev_min/db/password`) are missing.
+3. IG secret path (`/fraud-platform/dev_min/ig/api_key`) is missing.
+4. Runtime roles required for IAM-boundary validation are missing in live account.
+5. Result: `overall_pass=false` for M2.E snapshot.
+
+### Blockers registered
+1. `M2E-B1`: missing required SSM paths.
+2. `M2E-B2`: missing runtime roles; least-privilege boundary not yet verifiable live.
+
+### Status sync
+1. `platform.M2.build_plan.md` updated with M2.E command surface, closure summary, evidence, and current blockers.
+2. `platform.build_plan.md` immediate next action moved to resolve `M2E-B1..M2E-B2` before rerunning M2.E.
+
+### Drift sentinel checkpoint
+1. No `terraform apply`/`destroy` executed.
+2. No console mutation executed.

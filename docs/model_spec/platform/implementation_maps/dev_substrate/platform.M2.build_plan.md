@@ -512,6 +512,40 @@ DoD:
 - [ ] Least-privilege access is validated for runtime identities.
 - [ ] No secret material is emitted in evidence payloads.
 
+### M2.E Canonical Command Surface (Pinned)
+1. Operator readability checks (non-secret output only):
+   - `aws ssm get-parameter --name /fraud-platform/dev_min/confluent/bootstrap --with-decryption --query Parameter.Name --output text`
+   - `aws ssm get-parameter --name /fraud-platform/dev_min/confluent/api_key --with-decryption --query Parameter.Name --output text`
+   - `aws ssm get-parameter --name /fraud-platform/dev_min/confluent/api_secret --with-decryption --query Parameter.Name --output text`
+   - `aws ssm get-parameter --name /fraud-platform/dev_min/db/user --with-decryption --query Parameter.Name --output text`
+   - `aws ssm get-parameter --name /fraud-platform/dev_min/db/password --with-decryption --query Parameter.Name --output text`
+   - `aws ssm get-parameter --name /fraud-platform/dev_min/ig/api_key --with-decryption --query Parameter.Name --output text`
+2. Runtime role existence checks:
+   - `aws iam get-role --role-name fraud-platform-dev-min-ecs-task-execution --query Role.Arn --output text`
+   - `aws iam get-role --role-name fraud-platform-dev-min-ecs-task-app --query Role.Arn --output text`
+3. Policy-surface check (Terraform contract hardening):
+   - demo plan must include `module.demo.aws_iam_role_policy.ecs_task_app_secret_read`.
+
+### M2.E Closure Summary (Execution Record)
+1. Executed M2.E command-lane checks against live account and demo plan.
+2. Observed required-path status:
+   - Confluent SSM paths: `PRESENT`,
+   - DB SSM paths (`/db/user`, `/db/password`): `MISSING`,
+   - IG SSM path (`/ig/api_key`): `MISSING`.
+3. Observed runtime role status:
+   - `fraud-platform-dev-min-ecs-task-execution`: `MISSING`,
+   - `fraud-platform-dev-min-ecs-task-app`: `MISSING`.
+4. Policy hardening status:
+   - app runtime secret-read policy is now codified in Terraform plan (`module.demo.aws_iam_role_policy.ecs_task_app_secret_read`).
+5. M2.E status:
+   - `OPEN` (fail-closed), blocked by missing live secret paths and missing runtime roles.
+
+### M2.E Evidence
+1. Local:
+   - `runs/dev_substrate/m2_e/20260213T135629Z/secret_surface_check.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T135629Z/secret_surface_check.json`
+
 ## M2.F Kafka/Confluent Topic Readiness
 Goal:
 1. Validate topic map existence/access posture and producer/consumer readiness for Spine Green v0.
@@ -658,7 +692,14 @@ Control: explicit command-lane pinning in M2.B/M2.E/M2.F before execution.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M2 Execution)
 Current blockers:
-1. None.
+1. `M2E-B1` (severity: high)
+   - summary: required SSM paths are missing (`/fraud-platform/dev_min/db/user`, `/fraud-platform/dev_min/db/password`, `/fraud-platform/dev_min/ig/api_key`).
+   - impact: M2.E cannot prove required secret materialization/readability.
+   - closure criteria: materialize missing required paths via demo apply and rerun M2.E checks.
+2. `M2E-B2` (severity: high)
+   - summary: runtime roles do not exist yet (`fraud-platform-dev-min-ecs-task-execution`, `fraud-platform-dev-min-ecs-task-app`).
+   - impact: least-privilege runtime secret-read boundary cannot be validated live.
+   - closure criteria: apply demo stack to materialize runtime roles and rerun M2.E IAM boundary checks.
 
 Resolved blockers:
 1. `M2C-B1` (closed)

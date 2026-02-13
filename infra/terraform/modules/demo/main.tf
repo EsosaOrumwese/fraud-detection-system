@@ -14,6 +14,10 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+data "aws_partition" "current" {}
+
+data "aws_caller_identity" "current" {}
+
 resource "aws_vpc" "demo" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
@@ -147,6 +151,25 @@ data "aws_iam_policy_document" "ecs_task_assume_role" {
   }
 }
 
+data "aws_iam_policy_document" "ecs_task_app_secret_read" {
+  statement {
+    sid = "ReadPinnedSecretParameters"
+    actions = [
+      "ssm:GetParameter",
+      "ssm:GetParameters",
+      "ssm:GetParametersByPath",
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_confluent_bootstrap_path}",
+      "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_confluent_api_key_path}",
+      "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_confluent_api_secret_path}",
+      "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_db_user_path}",
+      "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_db_password_path}",
+      "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_ig_api_key_path}",
+    ]
+  }
+}
+
 resource "aws_iam_role" "ecs_task_execution" {
   name               = "${var.name_prefix}-ecs-task-execution"
   assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
@@ -162,6 +185,12 @@ resource "aws_iam_role" "ecs_task_app" {
   name               = "${var.name_prefix}-ecs-task-app"
   assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
   tags               = merge(local.tags_demo, { fp_resource = "demo_ecs_task_app_role" })
+}
+
+resource "aws_iam_role_policy" "ecs_task_app_secret_read" {
+  name   = "${var.name_prefix}-ecs-task-app-secret-read"
+  role   = aws_iam_role.ecs_task_app.id
+  policy = data.aws_iam_policy_document.ecs_task_app_secret_read.json
 }
 
 resource "aws_ecs_task_definition" "runtime_probe" {

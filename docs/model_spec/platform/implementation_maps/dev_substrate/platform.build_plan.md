@@ -457,4 +457,4 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M2 is active for deep planning and closure-hardening.
 Next action:
-- execute `M2.E` secret materialization/access checks and produce `secret_surface_check.json` evidence.
+- resolve `M2E-B1..M2E-B2` (missing SSM paths + missing runtime roles), then rerun M2.E checks to close the phase.
