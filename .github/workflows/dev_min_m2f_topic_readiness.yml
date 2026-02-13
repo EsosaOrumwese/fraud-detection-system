@@ -157,9 +157,13 @@ jobs:
           )
 
           for topic in "${TOPICS[@]}"; do
-            terraform -chdir="$TF_DIR" import \
+            if terraform -chdir="$TF_DIR" import \
               "module.confluent.confluent_kafka_topic.topics[\"${topic}\"]" \
-              "${CLUSTER_ID}/${topic}" >/dev/null 2>&1 || true
+              "${CLUSTER_ID}/${topic}"; then
+              echo "Imported topic into state: ${topic}"
+            else
+              echo "Import skipped/failed for topic: ${topic}"
+            fi
           done
 
       - name: Terraform apply (Confluent stack)
