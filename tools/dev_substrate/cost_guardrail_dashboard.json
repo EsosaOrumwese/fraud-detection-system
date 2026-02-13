@@ -1,0 +1,98 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Estimated Charges (USD) - Total",
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "period": 21600,
+        "stat": "Maximum",
+        "metrics": [
+          [
+            "AWS/Billing",
+            "EstimatedCharges",
+            "Currency",
+            "USD"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Estimated Charges (USD) - Service Lens",
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "period": 21600,
+        "stat": "Maximum",
+        "metrics": [
+          [
+            "AWS/Billing",
+            "EstimatedCharges",
+            "ServiceName",
+            "Amazon Relational Database Service",
+            "Currency",
+            "USD",
+            {
+              "label": "RDS"
+            }
+          ],
+          [
+            ".",
+            "EstimatedCharges",
+            "ServiceName",
+            "Amazon Simple Storage Service",
+            "Currency",
+            "USD",
+            {
+              "label": "S3"
+            }
+          ],
+          [
+            ".",
+            "EstimatedCharges",
+            "ServiceName",
+            "AWS Key Management Service",
+            "Currency",
+            "USD",
+            {
+              "label": "KMS"
+            }
+          ],
+          [
+            ".",
+            "EstimatedCharges",
+            "ServiceName",
+            "EC2 - Other",
+            "Currency",
+            "USD",
+            {
+              "label": "EC2-Other"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": 6,
+      "width": 24,
+      "height": 4,
+      "properties": {
+        "markdown": "# Dev-Min Cost Guardrail\\n- Review this dashboard daily during active implementation.\\n- Run `python tools/dev_substrate/cost_guardrail_snapshot.py` for live posture + CE/budget snapshot.\\n- If trend breaches planned envelope, stop phase progression and decide on teardown/hold."
+      }
+    }
+  ]
+}

@@ -616,11 +616,19 @@ Tasks:
 4. Pin teardown-proof artifact contract.
 5. Include pre-approved emergency control:
    - if budget threshold breach warning is detected, stop progression to M3+ and initiate early teardown decision.
+6. Provision and validate cost-monitoring surfaces:
+   - CloudWatch dashboard: `fraud-platform-dev-min-cost-guardrail`,
+   - CLI snapshot lane: `python tools/dev_substrate/cost_guardrail_snapshot.py`.
+7. Pin live cost-risk command lane (complements delayed Cost Explorer):
+   - `aws rds describe-db-instances --db-instance-identifier <RDS_INSTANCE_ID>`,
+   - `aws ecs describe-services --cluster <ECS_CLUSTER_NAME> --services <service_name>`,
+   - `aws ec2 describe-nat-gateways --filter Name=vpc-id,Values=<VPC_ID>`.
 
 DoD:
 - [ ] Budget and alert handles are validated.
 - [ ] Demo resource cost-tag posture is explicit.
 - [ ] Teardown viability is evidenced and fail-closed.
+- [ ] Cost dashboard/snapshot surfaces are operational and documented.
 
 ## M2.J Exit Readiness Review and M3 Handoff
 Goal:

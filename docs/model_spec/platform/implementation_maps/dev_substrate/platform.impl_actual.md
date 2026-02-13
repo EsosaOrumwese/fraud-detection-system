@@ -6882,3 +6882,90 @@ USER directed blocker resolution for `M2E-B1` and `M2E-B2`.
 ### Drift sentinel checkpoint
 1. Terraform mutation executed intentionally in this pass (`apply`) to resolve live materialization blockers.
 2. No console mutation executed.
+
+## Entry: 2026-02-13 2:19PM - Pre-change lock: codify cost-accrual learning and add guardrail monitoring surfaces
+
+### Trigger
+USER requested a detailed implementation-note record of cost-accrual learning and practical anti-surprise monitoring setup.
+
+### Objective
+1. Capture the real cost challenge experienced during live dev-substrate implementation.
+2. Pin where cost-guardrail is owned in M2 (`M2.I`) and extend it with executable monitoring controls.
+3. Add a monitoring surface (`dashboard or equivalent`) that can be used daily during implementation.
+
+### Planned changes
+1. Add a detailed learning entry framing:
+- why free-tier overages in S3 requests are usually small,
+- why managed runtime resources (especially RDS) dominate risk,
+- why AWS billing lag can hide same-day accrual,
+- why Confluent spend must be tracked outside AWS Cost Explorer.
+2. Add tools under `tools/dev_substrate`:
+- cost dashboard template,
+- cost snapshot command utility.
+3. Register the monitoring commands and artifact expectations in `M2.I` section of deep plan.
+
+### Boundaries
+1. Read-only cost queries and dashboard provisioning only.
+2. No destructive infrastructure operations.
+3. No secret values are written into any monitoring artifact.
+
+## Entry: 2026-02-13 2:23PM - Post-change record: cost-accrual challenge framing + monitoring setup for anti-surprise operations
+
+### Experience framing (challenge now visible during implementation)
+1. Core lesson from this phase: moving from laptop to managed substrate changes the risk profile from "compute bottlenecks" to "always-on cost drift".
+2. Free-tier overage signals can be misleading if interpreted alone:
+- S3 request overages often appear first and are usually low monetary impact,
+- but managed runtime resources (especially always-on DBs) dominate monthly risk.
+3. Billing visibility is delayed:
+- Cost Explorer is authoritative but lagged/estimated, so same-day accrual from newly-created resources may not appear immediately.
+4. Multi-platform cost truth is split:
+- AWS Cost Explorer does not include Confluent Cloud billing, so AWS-only monitoring is incomplete.
+
+### Concrete findings captured during this run
+1. Live demo substrate now includes active RDS instance (`db.t4g.micro`, 20 GB gp2) and this is the primary immediate AWS accrual lane.
+2. ECS probe service is desired/running `0` and NAT gateways are absent (no hidden NAT burn).
+3. Cost Explorer month-to-date currently shows low S3-led spend; this does not yet fully reflect newly materialized runtime resources due data lag.
+
+### Cost management posture pinned from this experience
+1. Treat M2.I as the authoritative cost-guardrail phase for closure (`Budget Guardrails and Teardown Viability`).
+2. Run dual-lens monitoring during active implementation:
+- lagged finance lens: Cost Explorer + Budgets,
+- live posture lens: RDS/ECS/NAT resource state checks.
+3. Fail-closed rule:
+- if cost trend exceeds planned envelope or unplanned always-on resources appear, pause phase progression and execute teardown/hold decision.
+
+### Implemented monitoring surfaces
+1. Added CloudWatch dashboard template:
+- `tools/dev_substrate/cost_guardrail_dashboard.json`
+- dashboard name: `fraud-platform-dev-min-cost-guardrail`
+2. Added cost snapshot utility:
+- `tools/dev_substrate/cost_guardrail_snapshot.py`
+- emits non-secret snapshot with CE, budgets, and live resource posture.
+3. Extended `M2.I` tasks in deep plan to include dashboard + snapshot command lane and live risk checks.
+
+### Why this prevents surprise bills
+1. Dashboard provides continuous trend visibility.
+2. Snapshot utility gives actionable "what is currently running" evidence, not just delayed billing numbers.
+3. Combined with teardown discipline, this keeps spend within an intentional envelope instead of accidental accumulation.
+
+## Entry: 2026-02-13 2:33PM - Post-change execution proof: dashboard activated and first snapshot captured
+
+### Trigger
+Close the loop on cost-guardrail hardening by converting tooling from "defined" to "operational."
+
+### Actions executed
+1. Provisioned CloudWatch dashboard from template:
+- command: `aws cloudwatch put-dashboard --dashboard-name fraud-platform-dev-min-cost-guardrail --dashboard-body file://tools/dev_substrate/cost_guardrail_dashboard.json`
+- result: `DashboardValidationMessages=[]` (accepted without validation errors).
+2. Executed first cost snapshot:
+- command: `python tools/dev_substrate/cost_guardrail_snapshot.py`
+- output artifact: `runs/dev_substrate/cost_guardrail/20260213T143327Z/cost_guardrail_snapshot.json`
+
+### Outcome
+1. Cost-monitoring surface is now live (dashboard present in account).
+2. Snapshot lane is executable and producing non-secret evidence artifacts.
+3. M2.I monitoring controls are now both documented and operationalized.
+
+### Drift sentinel checkpoint
+1. No platform flow or truth-owner semantics changed.
+2. This is observability/governance hardening for cost control only.
