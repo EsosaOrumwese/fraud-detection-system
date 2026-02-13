@@ -5050,3 +5050,67 @@ This improves planning depth while preventing control fragmentation by centraliz
 
 ### Drift sentinel assessment
 This improves planning depth while preserving deterministic control flow by preventing status fragmentation across docs.
+
+## Entry: 2026-02-13 5:22AM - Pre-change lock: close M0 end-to-end (careful governance implementation)
+
+### Trigger
+USER requested careful and thorough implementation of M0 as a whole.
+
+### Implementation intent
+Close M0 completely as a governance phase by:
+1. adding any missing M0 governance artifact (phase evidence template + transition authority clause),
+2. marking M0 DoD and M0 deep-plan checklists complete with explicit evidence references,
+3. updating main roadmap status to reflect M0 closure,
+4. leaving M1 unactivated until explicit USER go (aligned to user instruction not to build without direct approval).
+
+### Files to update
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`
+
+### Validation plan
+- M0 status row reflects closure.
+- M0 checklists are fully marked complete in both files.
+- New phase-evidence template and transition-authority rule are present.
+- main plan explicitly states M1 remains pending explicit user activation.
+
+### Drift sentinel checkpoint
+Planning/governance only; no runtime/infra implementation in this pass.
+
+## Entry: 2026-02-13 5:22AM - Applied M0 full closure (governance phase complete)
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`
+
+### What was implemented
+1. Main roadmap/status closure
+- Marked `M0` as `DONE` in roadmap.
+- Kept `M1` as `NOT_STARTED` (pending explicit USER activation).
+- Added current-phase posture note: no active phase until user starts M1.
+
+2. Missing M0 governance artifact added
+- Added `6.2 Phase Evidence Template (Pinned at M0)` to main plan.
+- Template now defines required evidence shape for each phase closure.
+
+3. Transition authority hardened to match user control posture
+- Updated phase transition checklist to require explicit USER go for next-phase activation.
+- Added `10.1 Transition Authority Rule (User-governed activation)`.
+- Updated "Immediate Next Action" to start M1 only on explicit USER approval.
+
+4. M0 DoD closure
+- Marked all M0 checklist items complete in main plan.
+- Updated M0 phase exit text to reflect actual closure and hold on M1.
+
+5. Deep M0 plan closure
+- Marked all sub-DoD checkboxes complete (`M0.A`..`M0.E`).
+- Marked full M0 completion checklist complete.
+- Added `M0 Closure Snapshot` with evidence references and handoff posture.
+
+### Validation
+- M0 row status is `DONE`; M1 remains `NOT_STARTED`.
+- No unchecked boxes remain in `platform.M0.build_plan.md`.
+- Main plan contains evidence template and transition authority rule.
+- Main plan + M0 deep plan are consistent about user-gated activation of M1.
+
+### Drift sentinel assessment
+M0 is now fully implemented as a governance phase. No runtime/infra build execution was performed; execution remains blocked until explicit USER activation of M1.

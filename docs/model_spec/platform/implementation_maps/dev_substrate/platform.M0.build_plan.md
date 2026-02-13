@@ -51,9 +51,9 @@ Tasks:
 3. Verify scope lock is explicit (Spine Green v0 only).
 
 DoD:
-- [ ] Authority precedence section is present and complete.
-- [ ] Drift-stop protocol is present.
-- [ ] Scope lock matches migration baseline.
+- [x] Authority precedence section is present and complete.
+- [x] Drift-stop protocol is present.
+- [x] Scope lock matches migration baseline.
 
 ## M0.B Planning Topology Lock
 Goal:
@@ -65,9 +65,9 @@ Tasks:
 3. Pin creation policy for future phase docs (only on phase activation approval).
 
 DoD:
-- [ ] Main plan contains deep-plan routing section.
-- [ ] Main plan states status ownership rule explicitly.
-- [ ] Future phase doc policy is present.
+- [x] Main plan contains deep-plan routing section.
+- [x] Main plan states status ownership rule explicitly.
+- [x] Future phase doc policy is present.
 
 ## M0.C Evidence Strategy Framing
 Goal:
@@ -79,9 +79,9 @@ Tasks:
 3. Confirm semantic + scale certification rule is present in M10 framing.
 
 DoD:
-- [ ] Evidence fidelity map exists in main plan.
-- [ ] Transition checklist includes evidence verification.
-- [ ] M10 includes Semantic Green + Scale Green requirements.
+- [x] Evidence fidelity map exists in main plan.
+- [x] Transition checklist includes evidence verification.
+- [x] M10 includes Semantic Green + Scale Green requirements.
 
 ## M0.D Logging and Decision Discipline
 Goal:
@@ -93,9 +93,9 @@ Tasks:
 3. Cross-reference M0 deep plan adoption in both logs.
 
 DoD:
-- [ ] Pre/post entries recorded in `platform.impl_actual.md`.
-- [ ] Corresponding entries recorded in `docs/logbook/02-2026/2026-02-13.md`.
-- [ ] Entries mention M0 deep-plan structure adoption.
+- [x] Pre/post entries recorded in `platform.impl_actual.md`.
+- [x] Corresponding entries recorded in `docs/logbook/02-2026/2026-02-13.md`.
+- [x] Entries mention M0 deep-plan structure adoption.
 
 ## M0.E Exit Readiness Review
 Goal:
@@ -107,9 +107,9 @@ Tasks:
 3. Prepare explicit handoff statement for M1 activation (without activating automatically).
 
 DoD:
-- [ ] M0 deliverables checklist complete.
-- [ ] No unresolved governance ambiguity remains.
-- [ ] Handoff statement drafted in main plan "Immediate Next Action" context.
+- [x] M0 deliverables checklist complete.
+- [x] No unresolved governance ambiguity remains.
+- [x] Handoff statement drafted in main plan "Immediate Next Action" context.
 
 ## 5) Risks and Controls
 R1: Fragmented status tracking between docs  
@@ -122,17 +122,34 @@ R3: Under-specified proof expectations
 Control: evidence fidelity map + mandatory transition checklist.
 
 ## 6) M0 Completion Checklist
-- [ ] M0.A complete
-- [ ] M0.B complete
-- [ ] M0.C complete
-- [ ] M0.D complete
-- [ ] M0.E complete
+- [x] M0.A complete
+- [x] M0.B complete
+- [x] M0.C complete
+- [x] M0.D complete
+- [x] M0.E complete
 
 ## 7) Exit Criteria
 M0 is eligible for closure when:
 1. all checklist items in Section 6 are complete,
 2. main plan M0 DoD is complete,
 3. user confirms progression to M1 activation planning.
+
+## 8) M0 Closure Snapshot
+Closure verdict:
+- `M0 = DONE` in `platform.build_plan.md` roadmap and section status.
+
+Evidence references:
+- Main control plan:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- M0 deep plan:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`
+- Decision trail:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+- Action log trail:
+  - `docs/logbook/02-2026/2026-02-13.md`
+
+Handoff posture:
+- M1 remains `NOT_STARTED` until explicit USER activation.
 
 Note:
 - This file does not change phase status.

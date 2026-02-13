@@ -75,7 +75,7 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 
 | Plan Phase | Canonical phase_id | Name | Status |
 | --- | --- | --- | --- |
-| M0 | pre-P(-1) | Mobilization + authority lock | ACTIVE |
+| M0 | pre-P(-1) | Mobilization + authority lock | DONE |
 | M1 | P(-1) | Packaging readiness (image + entrypoints + provenance) | NOT_STARTED |
 | M2 | P0 | Substrate readiness (Terraform core+demo) | NOT_STARTED |
 | M3 | P1 | Run pinning + run manifest evidence | NOT_STARTED |
@@ -106,10 +106,33 @@ Current deep-plan file state:
 
 ---
 
-## 7) Active Phase Detail
+## 6.2) Phase Evidence Template (Pinned at M0)
+Each phase (M1..M10) must produce an evidence snapshot aligned to this template:
+- `phase_id` and plan phase (`M#`)
+- `platform_run_id` (or `N/A` when run not created yet)
+- authority refs used (runbook + handles sections)
+- entry gate check results
+- DoD check results
+- commit evidence object list (paths/keys)
+- failure/rollback note (if any)
+- final phase verdict (`PASS`/`FAIL`)
+- operator and timestamp (UTC)
+
+Template usage:
+- record deep details in the corresponding `platform.M*.build_plan.md`,
+- summarize closure in `platform.impl_actual.md`,
+- log execution action in daily logbook.
+
+---
+
+## 7) Phase Detail (Current State)
+Current phase posture:
+- no phase is `ACTIVE` at this moment,
+- `M0` is closed,
+- `M1` is pending explicit USER activation.
 
 ## M0 - Mobilization + Authority Lock
-Status: `ACTIVE`
+Status: `DONE`
 
 Objective:
 - Establish a clean, deterministic migration starting point so implementation cannot drift into legacy paths or implicit assumptions.
@@ -130,12 +153,12 @@ Implementation tasks:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`.
 
 DoD checklist:
-- [ ] Build plan exists with canonical roadmap and progressive-elaboration rules.
-- [ ] Active phase is explicitly declared.
-- [ ] No legacy migration path is treated as executable authority.
-- [ ] Phase transition and evidence policy are pinned in this file.
-- [ ] Deep-phase routing/status-ownership rule is pinned.
-- [ ] M0 deep plan exists and is aligned to this section.
+- [x] Build plan exists with canonical roadmap and progressive-elaboration rules.
+- [x] Active phase is explicitly declared.
+- [x] No legacy migration path is treated as executable authority.
+- [x] Phase transition and evidence policy are pinned in this file.
+- [x] Deep-phase routing/status-ownership rule is pinned.
+- [x] M0 deep plan exists and is aligned to this section.
 
 Rollback posture:
 - Documentation-only rollback is allowed before M1 begins.
@@ -144,9 +167,11 @@ Evidence outputs:
 - This file committed/updated with active status and gates.
 - Matching implementation-map/logbook entries.
 - M0 deep plan document committed and cross-linked.
+- Phase evidence template (Section 6.2) pinned for M1..M10 execution closure.
 
 Phase exit:
-- Move M0 -> `DONE`, set M1 -> `ACTIVE`.
+- M0 is closed as `DONE`.
+- M1 remains `NOT_STARTED` until explicit USER activation to proceed.
 
 ---
 
@@ -329,7 +354,13 @@ Before marking any phase `DONE`:
 4. Append decision/action notes:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
    - `docs/logbook/<month>/<day>.md`
-5. Explicitly set next phase to `ACTIVE`.
+5. If USER has given explicit go-ahead, set next phase to `ACTIVE`.
+6. If USER has not given explicit go-ahead, leave next phase `NOT_STARTED` and record hold reason.
+
+## 10.1) Transition Authority Rule (User-governed activation)
+- Phase completion can be agent-driven once DoD is objectively satisfied.
+- Phase activation for the next implementation phase is user-governed.
+- No runtime/infra build execution starts for a phase unless that phase is explicitly activated by USER direction.
 
 ## 11) Risks and Controls (Pinned)
 R1: Semantic drift under delivery pressure  
@@ -345,7 +376,7 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-On approval, advance:
-- set M0 -> `DONE`
+On explicit USER approval to start M1:
 - set M1 -> `ACTIVE`
-- expand M1 section into execution-level tasks (task-by-task run sequence and validation commands).
+- create `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+- expand M1 into execution-level tasks (task-by-task run sequence and validation commands).
