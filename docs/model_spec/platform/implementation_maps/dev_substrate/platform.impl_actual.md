@@ -8433,3 +8433,46 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Outcome
 1. M4 planning is now closure-grade for all A->J lanes in one pass.
 2. Next execution step remains unchanged: start runtime work at `M4.A` and proceed fail-closed through `M4.J`.
+## Entry: 2026-02-14 12:10PM - M4.A executed: authority + handle closure PASS
+
+### Trigger
+1. USER directed execution of `M4.A` after finalizing deterministic `obs_gov` service mapping (`SVC_ENV_CONFORMANCE` required in P2).
+
+### Execution scope
+1. Validated M3 preconditions from:
+   - `runs/dev_substrate/m3/20260213T221631Z/m3_f_verdict_snapshot.json`
+   - `runs/dev_substrate/m3/20260213T221631Z/m4_handoff_pack.json`
+   - `runs/dev_substrate/m3/20260213T221631Z/m3_g_handoff_snapshot.json`
+2. Resolved full M4.A required handle set (run-scope, ECS/network/logging, service IDs, substrate dependencies, Kafka topic handles, DB endpoint/name) with explicit source and materialization origin.
+3. Enforced M4.A fail-closed checks:
+   - no wildcard handle references,
+   - unresolved handle count must be zero,
+   - m3 verdict must be `ADVANCE_TO_M4`,
+   - handoff payload must be non-secret.
+4. Published canonical M4.A closure snapshot locally and durably.
+
+### Result
+1. `M4.A` PASS.
+2. `unresolved_handle_count = 0`.
+3. Active blockers: none (`M4A-B1..B4` not triggered).
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/m4/20260214T121004Z/m4_a_handle_closure_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T121004Z/m4_a_handle_closure_snapshot.json`
+
+### Notes on service-handle resolution
+1. Current service-handle values (`SVC_*`) were resolved from prior M4 closure artifact:
+   - `runs/dev_substrate/m4/20260213T225528Z/m4_a_handle_closure_matrix.json`
+2. This is treated as the current naming contract source for M4 bring-up until Terraform-managed runtime service handles are materialized in later lanes.
+
+### Plan state updates
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+   - M4.A DoD checklist marked complete.
+   - M4 completion checklist now marks `M4.A` complete.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - M4 sub-phase progress now marks `M4.A` complete.
+
+### Next step
+1. Enter `M4.B` (service/pack map + singleton contract) using M4.A closure snapshot as authority input.

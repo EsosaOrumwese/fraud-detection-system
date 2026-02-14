@@ -583,6 +583,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M4 is active for execution planning and bring-up preparation.
 Next action:
-- execute `M4.A` authority + handle closure against M3 handoff bundle `m3_20260213T221631Z`,
-- then progress sequentially through `M4.B -> M4.J` under fail-closed blocker discipline,
+- execute `M4.B` service/pack map + singleton replica contract using M4.A closure snapshot `m4_20260214T121004Z`,
+- then progress sequentially through `M4.C -> M4.J` under fail-closed blocker discipline,
 - maintain run-scope contract from M3 artifacts for all daemon bring-up operations.
