@@ -9653,6 +9653,25 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. Registry now has explicit values for all previously-open M5.A closure handles.
 2. No runtime infra/job execution in this step (documentation + decision closure only).
 
+## Entry: 2026-02-14 06:25PM - Corrective pin: remove legacy seed prefix style
+
+### Trigger
+1. USER flagged that `ORACLE_SEED_SOURCE_PREFIX_PATTERN` was pinned to a legacy-style path (`dev_min/...`) instead of canonical `oracle/...` naming style.
+
+### Correction applied
+1. Updated `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`:
+   - from: `dev_min/oracle/c25a2675fbfbacd952b13bb594880e92/`
+   - to: `oracle/platform_20260213T214223Z/inputs/`.
+2. Updated the current-cycle note to explicitly pin canonical style and reject legacy prefix posture for seed source handles.
+
+### Rationale
+1. Existing canonical object-store naming in this migration track is `oracle/<...>/...`.
+2. The previous `dev_min/...` value existed as historical source data location but is not the desired handle style for forward migration truth.
+
+### Outcome
+1. Seed-source handle now follows existing canonical path style.
+2. No runtime copy/mutation executed in this corrective step.
+
 ## Entry: 2026-02-14 06:03PM - P3 input staging via S3->S3 copy (option 1, non-destructive)
 
 ### Trigger

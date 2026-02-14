@@ -750,3 +750,134 @@ This incident demonstrates the exact behavior recruiters look for:
 3. **Executable proof of closure** (fail snapshot -> materialization artifacts -> pass rerun), not narrative-only claims.
 
 In plain terms: I prevented a cloud migration false-positive by enforcing identity realism before runtime launch, then proved the fix with replayable evidence.
+
+## Recruiter Pin Patch (Round 1 Closure)
+
+### 1) Authority stack file pins (exact filenames)
+
+1. Core platform law:
+   - `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+   - `docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md`
+2. Dev-min migration authority:
+   - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+   - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+3. Local-parity semantic source truth:
+   - `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt`
+   - `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`
+   - `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+
+### 2) M0-M3 closeout roots (exact paths)
+
+1. M0 closure is governance/doc-first (no runtime `runs/dev_substrate/m0/...` root was produced):
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+2. M1 closeout root:
+   - `runs/dev_substrate/m1_build_go/20260213T114002Z/`
+3. M2 closeout root:
+   - `runs/dev_substrate/m2_j/20260213T205715Z/`
+4. M3 closeout root:
+   - `runs/dev_substrate/m3/20260213T221631Z/`
+
+### 3) M1 packaging evidence (full paths)
+
+1. `runs/dev_substrate/m1_build_go/20260213T114002Z/packaging_provenance.json`
+2. `runs/dev_substrate/m1_build_go/20260213T114002Z/build_command_surface_receipt.json`
+3. `runs/dev_substrate/m1_build_go/20260213T114002Z/security_secret_injection_checks.json`
+4. `runs/dev_substrate/m1_build_go/20260213T114002Z/ci_m1_outputs.json`
+
+### 4) Terraform stacks and evidence-script roots (repo paths)
+
+1. `infra/terraform/dev_min/core`
+2. `infra/terraform/dev_min/confluent`
+3. `infra/terraform/dev_min/demo`
+4. `tools/dev_substrate`
+
+### 5) Secret/IAM simulation evidence roots (exact paths)
+
+1. M2 secret surface + IAM simulation:
+   - `runs/dev_substrate/m2_e/20260213T141419Z/secret_surface_check.json`
+   - key pass counters in-file:
+     - `checks.iam_simulation.app_role_allowed_count = 6`
+     - `checks.iam_simulation.execution_role_allowed_count = 0`
+2. M1 anti-leak + secret-injection packaging checks:
+   - `runs/dev_substrate/m1_build_go/20260213T114002Z/security_secret_injection_checks.json`
+   - key pass field:
+     - `verdict = "PASS"`
+
+### 6) M4.C pass snapshot closure keys (exact path + fields)
+
+1. Pass snapshot:
+   - `runs/dev_substrate/m4/20260214T134520Z/m4_c_iam_binding_snapshot.json`
+2. Closure keys:
+   - `overall_pass = true`
+   - `blockers = []`
+3. Durable mirror:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T134520Z/m4_c_iam_binding_snapshot.json`
+
+## Embedded Evidence Index (Answer-Doc Native)
+
+This section embeds the key evidence anchors directly in this answer doc so review does not depend on a separate file.
+
+### Authority files
+
+1. `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+2. `docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md`
+3. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+4. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+5. `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt`
+6. `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`
+7. `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+
+### M0-M3 evidence roots
+
+1. M0 governance closure (doc-first):
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+2. M1:
+   - `runs/dev_substrate/m1_build_go/20260213T114002Z/`
+3. M2:
+   - `runs/dev_substrate/m2_j/20260213T205715Z/`
+4. M3:
+   - `runs/dev_substrate/m3/20260213T221631Z/`
+
+### M1 packaging evidence
+
+1. `runs/dev_substrate/m1_build_go/20260213T114002Z/packaging_provenance.json`
+2. `runs/dev_substrate/m1_build_go/20260213T114002Z/build_command_surface_receipt.json`
+3. `runs/dev_substrate/m1_build_go/20260213T114002Z/security_secret_injection_checks.json`
+4. `runs/dev_substrate/m1_build_go/20260213T114002Z/ci_m1_outputs.json`
+
+### Terraform and script roots
+
+1. `infra/terraform/dev_min/core`
+2. `infra/terraform/dev_min/confluent`
+3. `infra/terraform/dev_min/demo`
+4. `tools/dev_substrate`
+
+### Secret and IAM evidence
+
+1. `runs/dev_substrate/m2_e/20260213T141419Z/secret_surface_check.json`
+2. `runs/dev_substrate/m1_build_go/20260213T114002Z/security_secret_injection_checks.json`
+3. Key fields:
+   - `checks.iam_simulation.app_role_allowed_count = 6`
+   - `checks.iam_simulation.execution_role_allowed_count = 0`
+   - `overall_pass = true`
+   - `verdict = "PASS"`
+
+### M4.C incident closure chain
+
+1. Fail:
+   - `runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json`
+2. Materialization:
+   - `runs/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.plan.txt`
+   - `runs/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.apply.txt`
+   - `runs/dev_substrate/m4/20260214T133434Z/m4_c_demo_outputs_after_apply.json`
+   - `runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json`
+3. Pass:
+   - `runs/dev_substrate/m4/20260214T134520Z/m4_c_iam_binding_snapshot.json`
+   - `overall_pass = true`
+   - `blockers = []`
+4. Durable pass mirror:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T134520Z/m4_c_iam_binding_snapshot.json`
