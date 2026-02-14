@@ -420,7 +420,7 @@ Active-phase planning posture:
   - [x] `M4.G` duplicate-consumer guard and singleton enforcement.
   - [x] `M4.H` daemon readiness evidence publication.
   - [x] `M4.I` pass gates + blocker model + verdict.
-  - [ ] `M4.J` M5 handoff artifact publication.
+  - [x] `M4.J` M5 handoff artifact publication.
 
 M4 DoD checklist:
 - [x] required services/tasks run on ECS only.
@@ -428,7 +428,7 @@ M4 DoD checklist:
 - [x] service replica posture is deterministic for v0 (single replica per daemon/service).
 - [x] no duplicate-consumer conflict exists for in-scope lanes.
 - [x] daemon readiness snapshot evidence is written and durable.
-- [ ] M4 verdict and M5 handoff package are published and non-secret.
+- [x] M4 verdict and M5 handoff package are published and non-secret.
 
 ## M5 - P3 Oracle lane
 Status: `NOT_STARTED`
@@ -588,8 +588,8 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M4 is active for final closure after verdict publication.
+M4 is fully executed and awaiting USER confirmation for phase status transition.
 Next action:
-- execute `M4.J` M5 handoff artifact publication using `M4.I` verdict anchor (`ADVANCE_TO_M5` required),
-- publish local + durable `m5_handoff_pack.json` with required URIs and non-secret policy pass,
-- mark M4 `DONE` only after `M4.J` blockers are empty and USER confirms progression to M5.
+- review M4 closure evidence (`M4.A..M4.J`) and confirm phase-status transition to `DONE`,
+- upon USER confirmation, move to `M5` activation using `m5_handoff_pack.json` as entry anchor,
+- keep fail-closed posture if any post-check drift appears before M5 start.

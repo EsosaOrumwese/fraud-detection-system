@@ -790,10 +790,10 @@ Tasks:
 4. Record publication summary in M4.J execution snapshot/logbook and keep M4 phase status unchanged until USER confirms progression.
 
 DoD:
-- [ ] `m5_handoff_pack.json` is complete and non-secret.
-- [ ] Durable handoff publication passes.
-- [ ] URI references are captured for M5 entry.
-- [ ] Handoff run-id consistency and URI-readability checks are explicit and PASS.
+- [x] `m5_handoff_pack.json` is complete and non-secret.
+- [x] Durable handoff publication passes.
+- [x] URI references are captured for M5 entry.
+- [x] Handoff run-id consistency and URI-readability checks are explicit and PASS.
 
 Blockers:
 1. `M4J-B1`: M4 verdict is not `ADVANCE_TO_M5`.
@@ -842,7 +842,7 @@ Notes:
 - [x] M4.G complete
 - [x] M4.H complete
 - [x] M4.I complete
-- [ ] M4.J complete
+- [x] M4.J complete
 
 ## 8) Risks and Controls
 R1: Services start with wrong run scope.  
@@ -964,6 +964,19 @@ Resolved blockers:
      - `predicate_results.*=true`
      - `blocker_rollup=[]`
      - `verdict=ADVANCE_TO_M5`
+     - `overall_pass=true`.
+15. `M4J-B1/B2/B3/B4/B5/B6`:
+   - resolved by M4.J handoff publication pass with strict M4.I verdict gate, run-id consistency checks, referenced-URI readability checks, and durable publication.
+   - closure evidence:
+     - `runs/dev_substrate/m4/20260214T170953Z/m5_handoff_pack.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T170953Z/m5_handoff_pack.json`
+   - result:
+     - `m4_verdict=ADVANCE_TO_M5`
+     - `m5_entry_gate=OPEN`
+     - `invariant_checks.required_fields_present=true`
+     - `invariant_checks.run_id_consistent=true`
+     - `invariant_checks.all_referenced_uris_readable=true`
+     - `invariant_checks.non_secret_policy_pass=true`
      - `overall_pass=true`.
 
 Rule:

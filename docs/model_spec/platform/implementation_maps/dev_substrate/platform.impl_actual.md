@@ -9349,3 +9349,57 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Planning outcome
 1. `M4.J` is now execution-ready at plan level.
 2. No runtime execution performed in this planning step.
+
+## Entry: 2026-02-14 05:16PM - M4.J pre-execution lock (M5 handoff publication)
+
+### Execution authorization check
+1. USER instructed execution of `M4.J`.
+2. M4.J entry gates are closed:
+   - latest `M4.I` is PASS with `verdict=ADVANCE_TO_M5`, `blocker_rollup=[]`, `publication.durable_upload_ok=true`.
+   - latest `M4.H` is PASS and durable.
+   - `platform_run_id` consistency verified across `M3` handoff + `M4.H` + `M4.I`.
+
+### Planned execution actions
+1. Build canonical `m5_handoff_pack.json` with required fields and source anchors (`M3` + `M4.B/H/I` + execution IDs).
+2. Validate fail-closed invariants:
+   - required fields/URIs present,
+   - referenced durable URIs readable,
+   - run-id consistency,
+   - non-secret payload.
+3. Publish handoff artifact:
+   - local: `runs/dev_substrate/m4/<timestamp>/m5_handoff_pack.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m4_execution_id>/m5_handoff_pack.json`.
+4. If PASS: mark `M4.J` complete in plans and set next action to USER confirmation for `M4 -> DONE` transition / M5 entry.
+
+## Entry: 2026-02-14 05:18PM - M4.J executed and closed PASS (M5 handoff publication)
+
+### Execution actions
+1. Loaded and validated M4.J source gates:
+   - `runs/dev_substrate/m4/20260214T170155Z/m4_i_verdict_snapshot.json`
+   - `runs/dev_substrate/m4/20260214T164229Z/m4_h_readiness_publication_snapshot.json`
+   - `runs/dev_substrate/m4/20260214T121004Z/m4_b_service_map_snapshot.json`
+   - `runs/dev_substrate/m3/20260213T221631Z/m4_handoff_pack.json`.
+2. Enforced entry gate:
+   - `M4.I.verdict=ADVANCE_TO_M5`
+   - `M4.I.blocker_rollup=[]`
+   - `M4.I.publication.durable_upload_ok=true`.
+3. Built canonical handoff artifact:
+   - `runs/dev_substrate/m4/20260214T170953Z/m5_handoff_pack.json`.
+4. Verified handoff invariants:
+   - required fields present,
+   - run-id consistency (`platform_20260213T214223Z`) across `M3` and `M4` anchors,
+   - referenced durable URIs readable,
+   - non-secret policy pass.
+5. Published durable handoff artifact:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T170953Z/m5_handoff_pack.json`.
+
+### Outcome
+1. `M4.J` PASS:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `m5_entry_gate=OPEN`
+   - durable upload confirmed.
+2. Plan-state updates applied:
+   - `platform.M4.build_plan.md`: M4.J DoD + completion checklist marked complete; resolved blocker entry added (`M4J-B1..B6`).
+   - `platform.build_plan.md`: M4.J sub-phase + final M4 DoD item marked complete.
+   - immediate next action changed to USER confirmation for `M4 -> DONE` transition before M5 activation.
