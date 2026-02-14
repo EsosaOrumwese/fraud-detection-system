@@ -27,15 +27,28 @@ Certification artifact (Segment 1A, final decision + lineage):
 - contains decision: hard gates 4/4 pass; B 13/14; B+ 10/14; grade=B (eligible_B=true, eligible_B_plus=false)
 - includes authority run lineage: p2, p3, p4
 
+Key certification snapshot (fast reread; “open JSON not required”):
+- grade=B; eligible_B=true; eligible_B_plus=false
+- hard_pass=4/4; B_pass=13/14; B+_pass=10/14
+
 Freeze guard enforcement tool + example output:
 - tools/score_segment1a_freeze_guard.py
 - example guard output artifact:
   runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_416afa430db3f5bf87180f8514329fe8.json
 
+Freeze-guard snapshot (fast reread; “open JSON not required”):
+- guard output file exists and is pinned to the certified posture fingerprint: 416afa430db3f5bf87180f8514329fe8
+- TODO: pin 1–2 literal fields from the guard JSON that represent PASS/FAIL verdict and the protected check set
+
 Forced-manifest determinism pair (same seed + parameter_hash, different manifest_fingerprint):
 - 29bdb537f5aac75aa48479272fc18161
 - a1753dc8ed8fb1703b336bd4a869f361
 - evidence pointers are referenced in segment1a_p5_certification.json
+
+Determinism proof meaning (make “equality posture” explicit):
+- Equality is not assumed; it is asserted by the determinism check recorded in segment1a_p5_certification.json for the forced-manifest pair.
+- The equality witness is defined as “same seed + same parameter_hash ⇒ identical certified surfaces” (scorecard equivalence and/or output-digest equivalence as recorded in the certification JSON’s determinism section).
+- TODO: pin the exact JSON field(s) used as the equality witness (e.g., scorecard_digest, outputs_digest, or equivalent), copied from segment1a_p5_certification.json.
 
 Certification seed roster (anti single-seed luck):
 - {42, 43, 44}
@@ -116,6 +129,22 @@ Interpretation: strong realism posture with tighter distribution shape; blocks m
 - B+: 10/14 (71.43%) FAIL (below 80% threshold)
 - final: B (eligible_B=true, eligible_B_plus=false)
 
+Top B+ misses (max credibility for the non-claim):
+- TODO: list the top failing B+ checks (3–5 items) by name, exactly as recorded in the certification JSON / scorecards.
+
+5.5 Gate/check names (make counts non-opaque)
+Purpose: prevent “4/4” and “13/14” from becoming magic numbers.
+Source of truth: runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json (and linked scorecards for p2/p3/p4).
+- Hard gates (4): (TODO — list the 4 hard-gate names exactly as recorded in the certification JSON)
+  - <HARD_GATE_1>
+  - <HARD_GATE_2>
+  - <HARD_GATE_3>
+  - <HARD_GATE_4>
+- B-band checks (14): (TODO — list check names or categories as recorded)
+  - <B_CHECK_1> … <B_CHECK_14>
+- B+ band checks (14): (TODO — list check names or categories as recorded)
+  - <BPLUS_CHECK_1> … <BPLUS_CHECK_14>
+
 6) Decision + Tradeoffs — The wave program (causality, not vibes)
 6.1 Why wave-based remediation (P1→P4) instead of broad tuning
 Tradeoff:
@@ -185,6 +214,10 @@ Representative certified values (from scoring artifacts):
 - phi P95/P05 1.5804
 - required outputs present true
 
+Score source pin (defensibility):
+- Authoritative decision + summary math: runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json
+- The metric values above are derived from the locked score surfaces referenced by the certification lineage (p2/p3/p4) and the lock scorecard artifact (p1_4_lock_scorecard.json) referenced in §9.1.
+
 8.2 Causality proof example (P1 dispersion remediation)
 Baseline:
 - phi CV ~0.00053
@@ -206,6 +239,20 @@ Determinism was not assumed; it was tested via:
 Outcome: equality posture held under the determinism authority pair, proving replay stability is robust to commit-level manifest drift.
 
 9) Evidence Index (auditor trail)
+9.0 Truth surfaces: authoritative vs derived (anti-drift)
+Authoritative (what decides the grade; do not override these with prose summaries):
+- runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json (grade, eligibility flags, gate/check outcomes, lineage)
+- lock scorecards / referenced score surfaces for p2/p3/p4 (sources of metric values used in certification)
+- freeze guard output JSON (reopen-veto evidence)
+- determinism pair proof entries (forced-manifest equality witness recorded in certification JSON)
+
+Supporting (useful context, not decision authority):
+- remediation reports/build plans (explain intent and execution plan; do not by themselves certify)
+- narrative notes/logbook context (diagnostic color)
+
+Derived (human-facing summaries computed from authoritative artifacts):
+- §8.1 “Representative certified values” list (must remain consistent with scorecards)
+
 9.1 Certification and lineage
 - runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json
   - decision math + eligible_B flags + authority run lineage (p2/p3/p4)
@@ -229,6 +276,10 @@ Outcome: equality posture held under the determinism authority pair, proving rep
 10.2 Freeze-guard scorer (automatic veto on regressions)
 - reopened candidates fail closed if they regress certified B posture
 - guard is executable (not an informal “don’t touch” instruction)
+
+Concrete mechanism (make it executable, not vibes):
+- Any attempt to modify frozen posture must run tools/score_segment1a_freeze_guard.py against the proposed artifacts.
+- If certified-B protected checks regress beyond thresholds, the guard verdict blocks reopen and Segment 1A remains locked at the last certified posture.
 
 10.3 Certification law prevents overclaim
 - hard gates veto catastrophic defects
