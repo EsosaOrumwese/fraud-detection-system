@@ -417,8 +417,9 @@ Active-phase planning posture:
 - M5 expansion state:
   - `M5.A -> M5.I` are now expanded to execution-grade in the deep plan with entry criteria, required inputs, deterministic tasks, DoD, and blockers.
   - `M5.A` now explicitly pins M4->M5 entry invariants, always-required P3 handles, and local+durable `m5_a_handle_closure_snapshot.json` publication contract.
+  - `M5.B` now explicitly pins M5.A carry-forward invariants, inlet-policy exact-match validation, seed-lane drift-scan guards, and local+durable `m5_b_inlet_policy_snapshot.json` publication contract.
 - Sub-phase progress:
-  - [ ] `M5.A` authority + handle closure for P3.
+  - [x] `M5.A` authority + handle closure for P3.
   - [ ] `M5.B` oracle inlet policy closure.
   - [ ] `M5.C` oracle input presence assertion.
   - [ ] `M5.D` stream-sort launch contract.

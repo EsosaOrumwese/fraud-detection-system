@@ -9789,3 +9789,135 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - Oracle data inlet is outside platform runtime scope,
    - platform P3 starts at input assertion then stream-sort/checker.
 2. This removes the major ambiguity that previously implied platform-owned ingest bootstrap in dev.
+
+## Entry: 2026-02-14 07:04PM - M5.A executed: handle-closure PASS with durable evidence
+
+### Execution scope
+1. Executed `M5.A` per `platform.M5.build_plan.md` against the updated external-inlet P3 posture.
+2. Scope covered:
+   - M4->M5 entry invariant checks,
+   - required handle closure set (19 keys),
+   - fail-closed checks for placeholders/wildcards/disallowed seed handles,
+   - local + durable publication.
+
+### Input artifacts used
+1. `runs/dev_substrate/m4/20260214T170953Z/m5_handoff_pack.json`
+2. `runs/dev_substrate/m4/20260214T170155Z/m4_i_verdict_snapshot.json`
+3. `runs/dev_substrate/m3/20260213T221631Z/run.json`
+4. `runs/dev_substrate/m2_g/20260213T190819Z/network_posture_snapshot.json`
+
+### Output artifacts
+1. Local snapshot:
+   - `runs/dev_substrate/m5/20260214T190332Z/m5_a_handle_closure_snapshot.json`
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T190332Z/m5_a_handle_closure_snapshot.json`
+
+### Result
+1. `overall_pass=true`
+2. `blockers=[]`
+3. Entry invariants:
+   - `m5_entry_gate_open=true`
+   - `zero_inbound_blockers=true`
+   - `run_id_consistent=true`
+4. Handle closure:
+   - `resolved_handle_count_always=19`
+   - `unresolved_handle_count_always=0`
+   - `placeholder_handle_keys=[]`
+   - `wildcard_key_present=false`
+   - `disallowed_seed_handles_present=[]`
+
+### Plan state updates applied
+1. Marked `M5.A` checklist items complete in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+2. Marked M5 sub-phase progress for `M5.A` complete in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### Notes
+1. No runtime compute phase (stream-sort/checker) executed in this step.
+2. No branch/history operations executed.
+
+## Entry: 2026-02-14 07:07PM - Pre-change planning lock: expand M5.B to execution-grade policy closure
+
+### Trigger
+1. USER requested: proceed to planning `M5.B`.
+2. Current `M5.B` section is directionally correct but still concise; it needs explicit execution mechanics to reduce interpretation drift during implementation.
+
+### Planning objective
+1. Expand `M5.B` only (no execution) into closure-grade detail:
+   - entry invariants tied to `M5.A` artifact,
+   - explicit authority + input artifacts,
+   - deterministic validation tasks,
+   - fail-closed drift scan rules,
+   - snapshot schema and publish contract,
+   - complete DoD + blocker mapping.
+
+### Scope
+1. Primary file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+2. Optional companion touch if needed for cross-reference:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (only if summary routing needs refresh).
+
+### Non-goals
+1. No M5.B execution in this step.
+2. No runtime/S3/Terraform operations.
+3. No branch/history operations.
+
+### Acceptance for this planning pass
+1. M5.B can be executed by following the doc without hidden assumptions.
+2. Blockers and evidence expectations are explicit and aligned to migration authority (`P3.5` + inlet handles).
+
+## Entry: 2026-02-14 07:10PM - Applied M5.B planning expansion to execution-grade
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### M5.B planning upgrades applied
+1. Added explicit entry invariants tied to `M5.A` snapshot readability and pass posture.
+2. Added required-input inventory:
+   - authority files,
+   - source artifacts (`M5.A`, M4 handoff, M3 run header),
+   - drift-scan scope.
+3. Expanded deterministic tasks:
+   - carry-forward invariant checks,
+   - exact-value inlet-handle validation,
+   - runbook `P3.5` boundary consistency check,
+   - fail-closed seed-lane drift scan,
+   - snapshot schema + publish contract + stop rule.
+4. Expanded DoD to include invariant recording, exact-match policy closure, and disallowed-symbol scan pass.
+5. Expanded blockers from 3 to 4 with explicit mapping:
+   - invariant failure,
+   - policy-handle mismatch,
+   - disallowed symbol detection,
+   - snapshot publication failure.
+6. Updated main plan summary to reflect the new M5.B execution-grade closure model and evidence artifact.
+
+### Outcome
+1. `M5.B` is now implementation-ready without hidden assumptions.
+2. No runtime execution occurred in this step.
+3. Next action remains: execute `M5.B` using the new snapshot contract.
+
+## Entry: 2026-02-14 07:12PM - Pre-change execution lock: run M5.B inlet policy closure
+
+### Trigger
+1. USER directed execution of `M5.B`.
+
+### Execution intent
+1. Execute `M5.B` exactly per deep plan:
+   - validate M5.A carry-forward invariants,
+   - validate inlet-policy handles exact values,
+   - validate P3.5 boundary consistency,
+   - run fail-closed seed-lane drift scans,
+   - emit/publish `m5_b_inlet_policy_snapshot.json`.
+2. If `overall_pass=true`, mark `M5.B` complete in active plans.
+
+### Inputs pinned for execution
+1. `runs/dev_substrate/m5/20260214T190332Z/m5_a_handle_closure_snapshot.json`
+2. `runs/dev_substrate/m4/20260214T170953Z/m5_handoff_pack.json`
+3. `runs/dev_substrate/m3/20260213T221631Z/run.json`
+4. Migration authority docs and active M5 plan docs for drift scan scope.
+
+### Fail-closed rules
+1. Any mismatch in inlet-policy handle values => `M5B-B2`.
+2. Any disallowed seed-lane symbol detected in active mode => `M5B-B3`.
+3. Snapshot write/upload failure => `M5B-B4`.

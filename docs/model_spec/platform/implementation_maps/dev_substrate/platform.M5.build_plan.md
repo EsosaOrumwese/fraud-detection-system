@@ -174,11 +174,11 @@ Tasks:
 6. Stop phase progression if `overall_pass=false`.
 
 DoD:
-- [ ] M4->M5 entry gate invariants verified and recorded.
-- [ ] Always-required P3 handle set is explicit, concrete, and fully resolved.
-- [ ] Placeholder and wildcard handle usage are absent from closure evidence.
-- [ ] Inlet policy handles are explicit and disallowed seed handles are absent.
-- [ ] M5.A snapshot exists locally and durably.
+- [x] M4->M5 entry gate invariants verified and recorded.
+- [x] Always-required P3 handle set is explicit, concrete, and fully resolved.
+- [x] Placeholder and wildcard handle usage are absent from closure evidence.
+- [x] Inlet policy handles are explicit and disallowed seed handles are absent.
+- [x] M5.A snapshot exists locally and durably.
 
 Blockers:
 1. `M5A-B1`: M4->M5 handoff precondition invalid or unreadable.
@@ -187,30 +187,81 @@ Blockers:
 4. `M5A-B4`: required output-id or sort-key decision remains unpinned.
 5. `M5A-B5`: M5.A snapshot write/upload failure.
 
+Execution result (2026-02-14):
+1. `M5.A` executed PASS with zero blockers.
+2. Local snapshot:
+   - `runs/dev_substrate/m5/20260214T190332Z/m5_a_handle_closure_snapshot.json`
+3. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T190332Z/m5_a_handle_closure_snapshot.json`
+
 ### M5.B Oracle Inlet Policy Closure
 Goal:
 1. Pin external-inlet ownership and fail-closed policy (no platform seed/sync lane).
 
 Entry conditions:
 1. `M5.A` is PASS.
+2. `M5.A` snapshot is readable:
+   - local: `runs/dev_substrate/m5/<timestamp>/m5_a_handle_closure_snapshot.json`
+   - durable: `s3://<S3_EVIDENCE_BUCKET>/evidence/dev_min/run_control/<m5_execution_id>/m5_a_handle_closure_snapshot.json`
+
+Required inputs:
+1. Authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P3.5`)
+   - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` (inlet policy handles).
+2. Source artifacts:
+   - latest `M5.A` snapshot (local + durable URI),
+   - `runs/dev_substrate/m4/20260214T170953Z/m5_handoff_pack.json`,
+   - `runs/dev_substrate/m3/20260213T221631Z/run.json`.
+3. Scan scope (drift guard):
+   - migration authority docs in `docs/model_spec/platform/migration_to_dev/`,
+   - active M5 planning docs under `docs/model_spec/platform/implementation_maps/dev_substrate/`.
 
 Tasks:
-1. Validate `ORACLE_INLET_MODE = external_pre_staged`.
-2. Validate `ORACLE_INLET_PLATFORM_OWNERSHIP = outside_platform_runtime_scope`.
-3. Validate `ORACLE_INLET_ASSERTION_REQUIRED = true`.
-4. Enforce fail-closed drift guard:
-   - reject any active seed/sync task or handle (`ORACLE_SEED_*`, `TD_ORACLE_SEED`) in M5 scope.
-5. Emit `m5_b_inlet_policy_snapshot.json` with policy closure proof.
+1. Validate `M5.A` carry-forward invariants:
+   - `overall_pass=true`,
+   - `blockers=[]`,
+   - `platform_run_id` matches M4 handoff and M3 run header.
+2. Resolve and validate inlet policy handles from registry (exact-value match):
+   - `ORACLE_INLET_MODE = external_pre_staged`,
+   - `ORACLE_INLET_PLATFORM_OWNERSHIP = outside_platform_runtime_scope`,
+   - `ORACLE_INLET_ASSERTION_REQUIRED = true`.
+3. Validate P3 boundary consistency against runbook `P3.5`:
+   - inlet is external to platform runtime,
+   - platform runtime must not perform sync/copy/seed,
+   - no local/minio/filesystem source path allowance in dev runtime.
+4. Enforce fail-closed drift guard with symbol scans:
+   - disallow active handle/task references:
+     - `ORACLE_SEED_*`, `TD_ORACLE_SEED`, `ENTRYPOINT_ORACLE_SEED`,
+   - disallow active execution-mode language implying platform seed lane:
+     - `SEED_REQUIRED` (for P3 runtime),
+     - `oracle/seed_snapshot.json` in active M5 surfaces.
+5. Emit `m5_b_inlet_policy_snapshot.json` with minimum fields:
+   - `m5_execution_id`, `platform_run_id`,
+   - `source_m5a_snapshot_local`, `source_m5a_snapshot_uri`,
+   - `inlet_policy_expected`, `inlet_policy_observed`,
+   - `policy_value_match`,
+   - `boundary_consistency_checks`,
+   - `disallowed_symbols_found`,
+   - `blockers`,
+   - `overall_pass`.
+6. Publish snapshot:
+   - local: `runs/dev_substrate/m5/<timestamp>/m5_b_inlet_policy_snapshot.json`
+   - durable: `s3://<S3_EVIDENCE_BUCKET>/evidence/dev_min/run_control/<m5_execution_id>/m5_b_inlet_policy_snapshot.json`.
+7. Stop progression if `overall_pass=false`.
 
 DoD:
-- [ ] Inlet policy is explicit and evidence-backed.
-- [ ] Seed/sync lane is explicitly blocked in platform runtime scope.
+- [ ] `M5.A` carry-forward invariants are verified and recorded.
+- [ ] Inlet policy handle values are exact-match and non-ambiguous.
+- [ ] Drift guard scan shows no disallowed seed-lane symbols in active docs/surfaces.
+- [ ] Inlet policy boundary statement is explicit and evidence-backed.
 - [ ] M5.B snapshot exists locally and durably.
 
 Blockers:
-1. `M5B-B1`: inlet policy handles missing/ambiguous.
-2. `M5B-B2`: disallowed seed/sync lane detected in M5 scope.
-3. `M5B-B3`: M5.B snapshot write/upload failure.
+1. `M5B-B1`: M5.A carry-forward invariants invalid or unreadable.
+2. `M5B-B2`: inlet policy handles missing/ambiguous/mismatched.
+3. `M5B-B3`: disallowed seed-lane symbol detected in active scope.
+4. `M5B-B4`: M5.B snapshot write/upload failure.
 
 ### M5.C Oracle Input Presence Assertion (No Seed Execution)
 Goal:
@@ -420,7 +471,7 @@ Notes:
 3. P3 semantics must preserve stream-view-first and per-output rerun law.
 
 ## 7) M5 Completion Checklist
-- [ ] M5.A complete
+- [x] M5.A complete
 - [ ] M5.B complete
 - [ ] M5.C complete
 - [ ] M5.D complete
