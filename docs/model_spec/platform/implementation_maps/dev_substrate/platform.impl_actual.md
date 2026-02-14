@@ -10242,3 +10242,64 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. `platform.build_plan.md`:
    - M5 expansion state updated with `M5D-B4` resolution evidence,
    - M5 sub-phase progress marked `M5.D` complete.
+
+## Entry: 2026-02-14 08:12PM - Pre-change planning lock: expand M5.E to execution-grade stream-sort closure
+
+### Trigger
+1. USER requested planning for `M5.E`.
+
+### Objective
+1. Expand `M5.E` from concise execution notes to closure-grade execution plan without running stream-sort in this step.
+2. Make M5.E deterministic and auditable across per-output execution and artifact checks.
+
+### Planned scope
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+   - add entry invariants pinned to `M5.D` PASS,
+   - add required input/handle matrix,
+   - add deterministic managed-job execution contract,
+   - add per-output artifact verification contract,
+   - add summary snapshot schema/publication and fail-closed stop rule,
+   - expand DoD and blocker taxonomy.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - add M5 expansion-state summary for M5.E execution-grade closure.
+
+### Non-goals
+1. No `M5.E` runtime execution in this step.
+2. No ECS run-task launches.
+3. No branch/history operations.
+
+### Fail-closed planning intent
+1. `M5.E` execution must hard-fail on any per-output launch failure, non-zero task exit, or missing manifest/receipt/shard evidence.
+
+## Entry: 2026-02-14 08:18PM - Applied M5.E planning expansion to execution-grade stream-sort closure
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### M5.E planning upgrades applied
+1. Added explicit entry invariants pinned to `M5.D` PASS artifact readability (local + durable).
+2. Added required input inventory:
+   - authority docs,
+   - source artifacts (`M5.D` + M3 run header),
+   - launch handles for stream-sort execution (`TD_ORACLE_STREAM_SORT`, cluster/network, S3 handles),
+   - explicit execution-matrix source law (`M5.D.per_output_launch_matrix` is authoritative).
+3. Expanded deterministic execution tasks:
+   - carry-forward gate validation,
+   - per-output ECS one-shot run-task contract,
+   - concurrency rule (serial default; constrained parallel only),
+   - task-runtime outcome capture,
+   - per-output durable artifact checks (shards + manifest + receipt),
+   - stream_sort_summary schema + publication + fail-closed stop rule.
+4. Expanded DoD from 2 checks to 5 closure-grade checks including `failed_output_ids=[]`.
+5. Expanded blockers from 3 to 5 with explicit mapping:
+   - carry-forward invariant failure,
+   - launch failure,
+   - task terminal failure,
+   - artifact-contract failure,
+   - summary publication failure.
+6. Updated main platform plan M5 expansion summary to include M5.E execution-grade closure posture and `oracle/stream_sort_summary.json` evidence contract.
+
+### Outcome
+1. `M5.E` is now execution-ready at planning level.
+2. No stream-sort runtime execution occurred in this step.

@@ -434,6 +434,11 @@ Active-phase planning posture:
   - `M5D-B4` is resolved by IaC materialization of oracle task definitions + rerun PASS:
     - local: `runs/dev_substrate/m5/20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
+  - `M5.E` is now explicitly expanded to execution-grade stream-sort closure:
+    - M5.D carry-forward invariant gate,
+    - deterministic per-output ECS one-shot execution contract,
+    - per-output shard/manifest/receipt durable evidence checks,
+    - local+durable `oracle/stream_sort_summary.json` publication contract.
 - Sub-phase progress:
   - [x] `M5.A` authority + handle closure for P3.
   - [x] `M5.B` oracle inlet policy closure.

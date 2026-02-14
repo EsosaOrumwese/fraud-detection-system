@@ -483,23 +483,83 @@ Goal:
 
 Entry conditions:
 1. `M5.D` PASS.
+2. `M5.D` snapshot is readable:
+   - local: `runs/dev_substrate/m5/<timestamp>/m5_d_stream_sort_launch_snapshot.json`
+   - durable: `s3://<S3_EVIDENCE_BUCKET>/evidence/dev_min/run_control/<m5_execution_id>/m5_d_stream_sort_launch_snapshot.json`
+
+Required inputs:
+1. Authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P3 stream-sort execution section)
+   - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`.
+2. Source artifacts:
+   - latest `M5.D` snapshot (local + durable URI),
+   - `runs/dev_substrate/m3/20260213T221631Z/run.json`.
+3. Required handles/launch surfaces:
+   - `TD_ORACLE_STREAM_SORT`,
+   - `ECS_CLUSTER_NAME`,
+   - `SUBNET_IDS_PUBLIC`,
+   - `SECURITY_GROUP_ID_APP`,
+   - `S3_ORACLE_BUCKET`,
+   - `S3_EVIDENCE_BUCKET`.
+4. Required execution matrix source:
+   - `per_output_launch_matrix` from `M5.D` snapshot (authoritative; no ad hoc recompute during M5.E execution).
 
 Tasks:
-1. Execute one managed stream-sort job per required output ID (parallel allowed only across disjoint output prefixes).
-2. For each output ID, verify durable existence of:
-   - stream_view shards,
-   - manifest,
-   - stream_sort receipt.
-3. Emit `oracle/stream_sort_summary.json` with per-output result set.
+1. Validate `M5.D` carry-forward invariants:
+   - `overall_pass=true`,
+   - `blockers=[]`,
+   - `launch_profile_valid=true`,
+   - no unresolved sort-key/path-contract output IDs.
+2. Build execution set from `M5.D.per_output_launch_matrix` only:
+   - output_id,
+   - sort_key,
+   - input_prefix,
+   - stream_view output prefix,
+   - manifest key,
+   - receipt key.
+3. Launch one managed ECS run-task per output ID using `TD_ORACLE_STREAM_SORT`:
+   - run-scope env (`REQUIRED_PLATFORM_RUN_ID`),
+   - per-output launch payload from matrix row,
+   - network config from pinned cluster/subnets/security-group handles.
+4. Execution concurrency rule:
+   - default serial launch for closure safety,
+   - parallel allowed only across disjoint output prefixes with explicit operator cap.
+5. Await task completion for each output and record runtime status:
+   - task ARN,
+   - last status,
+   - stopped reason,
+   - container exit code.
+6. For each output ID, verify durable artifact contract:
+   - stream_view output prefix has at least one shard/object,
+   - stream_view manifest key exists/readable,
+   - stream-sort receipt key exists/readable.
+7. Emit `oracle/stream_sort_summary.json` with minimum fields:
+   - `m5_execution_id`, `platform_run_id`,
+   - `source_m5d_snapshot_local`, `source_m5d_snapshot_uri`,
+   - `required_output_ids`,
+   - `per_output_results` (launch payload, task runtime result, artifact checks),
+   - `failed_output_ids`,
+   - `blockers`,
+   - `overall_pass`.
+8. Publish summary:
+   - local: `runs/dev_substrate/m5/<timestamp>/stream_sort_summary.json`
+   - durable: `s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<platform_run_id>/oracle/stream_sort_summary.json`.
+9. Stop progression if `overall_pass=false`.
 
 DoD:
-- [ ] All required output IDs have stream_view + manifest + receipt.
+- [ ] `M5.D` carry-forward invariants are verified and recorded.
+- [ ] Every required output ID has a completed managed stream-sort task result.
+- [ ] All required output IDs have stream_view shards + manifest + receipt durably present.
+- [ ] `failed_output_ids=[]` in summary.
 - [ ] Stream-sort summary exists locally and durably.
 
 Blockers:
-1. `M5E-B1`: one or more stream-sort jobs failed.
-2. `M5E-B2`: missing manifest/receipt/shards for one or more required output IDs.
-3. `M5E-B3`: stream-sort summary write/upload failure.
+1. `M5E-B1`: M5.D carry-forward invariants invalid/unreadable.
+2. `M5E-B2`: one or more managed stream-sort task launches fail.
+3. `M5E-B3`: one or more stream-sort tasks stop non-successfully (non-zero exit/terminal failure).
+4. `M5E-B4`: missing stream_view shards and/or manifest/receipt for one or more required output IDs.
+5. `M5E-B5`: stream-sort summary write/upload failure.
 
 ### M5.F Checker Execution + PASS Artifact
 Goal:
