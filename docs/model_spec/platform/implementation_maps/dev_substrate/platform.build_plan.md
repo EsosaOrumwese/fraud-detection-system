@@ -407,6 +407,7 @@ Active-phase planning posture:
   - `M4.E` planning is expanded to execution-grade with deterministic launch-profile matrix, run-scope injection invariants, role-binding drift checks, and immutable image-provenance requirements.
   - `M4.F` planning is expanded to execution-grade with pack-ordered bring-up choreography, explicit stabilization predicates, run-scope mismatch scans, and crashloop fail-closed checks.
   - `M4.G` planning is expanded to execution-grade with two-sample consumer-uniqueness checks, explicit ECS ownership predicates, and singleton drift fail-closed gates.
+  - `M4.H` planning is expanded to execution-grade with canonical readiness artifact schema, source-gate invariants (`M4.B/F/G`), and durable publication/non-secret fail-closed checks.
 - Sub-phase progress:
   - [x] `M4.A` authority + handle closure for P2.
   - [x] `M4.B` service/pack map + singleton replica contract.

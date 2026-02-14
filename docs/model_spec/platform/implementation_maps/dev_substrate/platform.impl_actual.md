@@ -9122,3 +9122,58 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - marked M4 sub-phase progress `M4.G` complete,
    - marked high-level M4 duplicate-consumer DoD as complete,
    - advanced immediate next action to `M4.H` readiness evidence publication.
+## Entry: 2026-02-14 04:18PM - M4.H planning expansion prep (execution-grade, planning-only)
+
+### Trigger
+1. USER instructed: proceed with planning M4.H.
+
+### Gap assessment
+1. Existing M4.H section is too shallow for fail-closed execution:
+   - missing entry-gate checks against latest M4.F/M4.G PASS artifacts,
+   - missing canonical artifact schema for `operate/daemons_ready.json`,
+   - missing deterministic source-of-truth mapping (M4.B/M4.F/M4.G),
+   - missing explicit non-secret policy checks and publication invariants.
+
+### Planning intent
+1. Expand M4.H to execution-grade so it can be run without ad-hoc interpretation.
+2. Keep this step planning-only (no M4.H runtime command execution).
+
+### Planned changes
+1. In `platform.M4.build_plan.md` M4.H section:
+   - add entry conditions,
+   - add required inputs,
+   - add explicit readiness artifact schema and source mapping,
+   - add local + durable publication sequence and verification,
+   - add stronger DoD + blocker taxonomy.
+2. In `platform.build_plan.md`:
+   - add M4.H execution-grade planning expansion note in active-phase status.
+## Entry: 2026-02-14 04:21PM - M4.H planning expanded to execution-grade (planning-only)
+
+### Changes applied
+1. Expanded `M4.H` in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md` from checklist-level to execution-grade with:
+   - entry conditions bound to latest `M4.F` and `M4.G` PASS snapshots,
+   - required input contract (`M4.B`/`M4.F`/`M4.G`, run identity, evidence roots),
+   - canonical `operate/daemons_ready.json` schema requirements,
+   - explicit pre-publish invariants (service coverage, singleton/duplicate posture, non-secret check),
+   - explicit local + durable publication sequence,
+   - strengthened DoD and fail-closed blocker taxonomy (`M4H-B1..B5`).
+2. Updated high-level M4 expansion note in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` to reflect M4.H execution-grade planning status.
+
+### Planning outcome
+1. M4.H is execution-ready at plan level with explicit acceptance predicates and no hand-wavy steps.
+2. No runtime execution performed in this step (planning-only by user instruction).
+## Entry: 2026-02-14 04:30PM - M4.H pre-execution lock (readiness evidence publication)
+
+### Execution authorization check
+1. USER instructed execution of `M4.H`.
+2. Required entry gates are explicitly closed:
+   - `M4.F` PASS: `runs/dev_substrate/m4/20260214T152757Z/m4_f_daemon_start_snapshot.json` (`overall_pass=true`, `blockers=[]`).
+   - `M4.G` PASS: `runs/dev_substrate/m4/20260214T155002Z/m4_g_consumer_uniqueness_snapshot.json` (`overall_pass=true`, `blockers=[]`).
+   - immutable mapped-service scope from `M4.B` (`13` services).
+
+### Planned execution actions
+1. Build canonical `operate/daemons_ready.json` payload from live ECS posture with source anchors to `M4.B/F/G`.
+2. Enforce readiness invariants before publish (coverage/singleton/duplicate/non-secret).
+3. Publish local mirror + durable run-scoped artifact.
+4. Emit `m4_h_readiness_publication_snapshot.json` with invariant results, URIs, blockers, and verdict.
+5. If PASS: update M4 plans/logbook/impl map to mark `M4.H` complete and advance immediate next action to `M4.I`.

@@ -193,3 +193,39 @@ The invariant set was:
 - **fail-closed on mismatch.**
 
 That is what made this a valid scale fix rather than an accuracy tradeoff.
+
+## Q6) What evidence proves improvement (runtime, memory peak, success rate, or “now completes under Gate-200 reliably”)?
+
+The strongest evidence is a **before/after completion-state change with preserved correctness artifacts**.
+
+### Before (failure state)
+
+- The full-range sort path for:
+  - `s2_flow_anchor_baseline_6B`
+  - `s3_flow_anchor_with_fraud_6B`
+  hit DuckDB OOM on a 16GB local parity machine.
+- Result: stream-view build for those targets was not operationally completable under the original strategy.
+
+### After (post-fix state)
+
+With chunked day-window execution enabled (`STREAM_SORT_CHUNK_DAYS`), the same class of outputs moved to successful completion posture:
+
+- stream views materialized under flat per-output roots (`.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`),
+- receipts/manifests present per output,
+- Oracle Store local-parity posture marked green with the expected stream-view artifact family present for verified outputs.
+
+### Why this is valid improvement evidence
+
+This is not a cosmetic signal.  
+For this incident, the blocker was “cannot complete under resource envelope.”  
+The improvement proof is therefore:
+
+- from deterministic OOM failure class  
+  to  
+- repeatable completion with contract artifacts and validation surfaces still intact.
+
+### What I did and did not claim
+
+- I **can claim** elimination of this specific OOM failure class for the targeted 6B sort path under chunked execution plus successful artifact closure.
+- I **do not claim** a fully instrumented memory-peak benchmark chart for this exact fix in these notes.
+- I **do not substitute** unrelated Gate-200 metrics here, because this incident’s acceptance surface is Oracle stream-view build completion + receipt integrity, not ingress bounded-run throughput.

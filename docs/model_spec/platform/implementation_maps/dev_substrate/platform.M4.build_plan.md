@@ -598,28 +598,61 @@ Blockers:
 
 ### M4.H Daemon Readiness Evidence Publication
 Goal:
-1. Publish canonical run-scoped P2 readiness evidence.
+1. Publish canonical run-scoped P2 readiness evidence using the already-validated M4.F/M4.G runtime posture.
+
+Entry conditions:
+1. Latest `M4.F` snapshot is PASS and durable (`overall_pass=true`, `blockers=[]`).
+2. Latest `M4.G` snapshot is PASS and durable (`overall_pass=true`, `blockers=[]`).
+3. `M4.B` mapped-service scope (`13` services) remains immutable and fully represented in readiness payload.
+
+Required inputs:
+1. Control artifacts:
+   - `m4_b_service_map_snapshot.json`
+   - latest `m4_f_daemon_start_snapshot.json`
+   - latest `m4_g_consumer_uniqueness_snapshot.json`.
+2. Runtime identity:
+   - `platform_run_id` (from M3/M4 artifacts)
+   - `REQUIRED_PLATFORM_RUN_ID_ENV_KEY` and enforced value.
+3. Evidence handles:
+   - run-scoped evidence root `evidence/runs/<platform_run_id>/`
+   - M4 control evidence root `evidence/dev_min/run_control/<m4_execution_id>/`.
 
 Tasks:
-1. Build readiness artifact:
-   - `evidence/runs/<platform_run_id>/operate/daemons_ready.json`
-   containing:
-   - pack IDs,
-   - service names/task ARNs,
-   - desired/running counts,
-   - run-scope key/value used,
-   - timestamp.
-2. Publish local mirror and durable run-scoped object.
+1. Build canonical readiness artifact payload:
+   - target path: `evidence/runs/<platform_run_id>/operate/daemons_ready.json`
+   - required fields:
+     - `platform_run_id`
+     - `captured_at_utc`
+     - `packs` with mapped service membership
+     - per-service `service_name`, `task_definition`, `task_arn(s)`, `desired_count`, `running_count`, `pending_count`, `status`
+     - run-scope key/value used
+     - source anchors: `m4_b`, `m4_f`, `m4_g` snapshot refs.
+2. Enforce readiness invariants before publish:
+   - all `13` mapped services represented exactly once,
+   - singleton counters consistent with latest M4.F pass posture,
+   - duplicate-consumer posture consistent with latest M4.G pass posture (`duplicate_conflicts=[]`, `singleton_drift=[]`).
+3. Apply non-secret artifact policy check:
+   - readiness artifact must not include secret values, credentials, or token-bearing payloads.
+4. Publish local + durable readiness artifact:
+   - local mirror under `runs/dev_substrate/m4/<timestamp>/operate/daemons_ready.json`
+   - durable object under `evidence/runs/<platform_run_id>/operate/daemons_ready.json`.
+5. Publish M4.H control snapshot `m4_h_readiness_publication_snapshot.json` with:
+   - publication URIs/paths,
+   - invariant check results,
+   - blocker list + verdict.
 
 DoD:
-- [ ] `operate/daemons_ready.json` exists and is complete.
-- [ ] Run-scoped durable evidence publication passes.
-- [ ] M4.H publication snapshot exists locally and durably.
+- [ ] `operate/daemons_ready.json` exists with full mapped-service coverage and required fields.
+- [ ] Invariant checks (service coverage, singleton posture, duplicate-consumer posture, non-secret policy) are explicit and PASS.
+- [ ] Run-scoped durable readiness publication passes.
+- [ ] `m4_h_readiness_publication_snapshot.json` exists locally and durably.
 
 Blockers:
-1. `M4H-B1`: readiness artifact missing required fields.
-2. `M4H-B2`: durable run-scoped publication failure.
-3. `M4H-B3`: publication snapshot write/upload failure.
+1. `M4H-B1`: readiness artifact missing required fields or mapped-service coverage mismatch.
+2. `M4H-B2`: durable run-scoped publication failure (`operate/daemons_ready.json`).
+3. `M4H-B3`: M4.H publication snapshot write/upload failure.
+4. `M4H-B4`: source-gate drift (`M4.F` or `M4.G` no longer PASS/readable).
+5. `M4H-B5`: non-secret policy violation in readiness artifact/snapshot.
 
 ### M4.I Pass Gates + Blocker Rollup + Verdict
 Goal:
