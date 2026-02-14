@@ -1,0 +1,237 @@
+EXPERIENCE LAKE ENTRY — CLUSTER 06
+Title: Scale + determinism under large data — DuckDB OOM in Oracle stream-sort, execution-plan redesign (chunked day windows), and receipt-proven equivalence
+As-of: 2026-02-14
+Status: ACHIEVED (local_parity Oracle stream-view build now completes for incident scope under bounded resource envelope). PROMOTING (same semantics preserved across substrates).
+
+1) Header Block — Identity + Claim
+1.1 One-sentence truth claim (defensible, not a vibe)
+I hit a hard resource ceiling (DuckDB OOM) while building chronologically sorted Oracle stream views for the largest 6B flow-anchor outputs, then redesigned the execution plan from monolithic full-range sort to chunked day-window sorting controlled by an explicit knob, preserving deterministic ordering and receipt-proven row-set equivalence (fail-closed on mismatch) while making the build reliably completable on practical local hardware.
+
+1.2 Scope (what this entry covers)
+IN-SCOPE:
+- Oracle Store stream-view build plane (local parity), specifically time-keyed outputs sorted into stream views
+- The incident: DuckDB OOM on monolithic sort for large 6B flow-anchor outputs on 16GB machine
+- The fix: STREAM_SORT_CHUNK_DAYS day-window chunking + bounded DuckDB tuning knobs
+- The invariants: conservation, deterministic order, receipt/manifest integrity, fail-closed on mismatch
+- The post-fix evidence: stream-view parts + receipts + manifests under oracle-store run root
+
+OUT-OF-SCOPE:
+- Ingress bounded acceptance (20/200) as a platform-wide protocol (Cluster 3)
+- IG admission and receipts (Cluster 2)
+- DB lifecycle stability after stream closure (Cluster 4)
+
+1.3 Incident scope (pinned outputs + audited scale)
+Outputs that triggered the OOM in monolithic full-range sort:
+- s2_flow_anchor_baseline_6B
+- s3_flow_anchor_with_fraud_6B
+
+Audited row counts (per published report):
+- s2_flow_anchor_baseline_6B = 124,724,153 rows
+- s3_flow_anchor_with_fraud_6B = 124,724,153 rows
+- combined = 249,448,306 rows
+
+Audited file counts (per published report):
+- s2_flow_anchor_baseline_6B = 591 files
+- s3_flow_anchor_with_fraud_6B = 591 files
+- combined = 1,182 source files
+
+Evidence source for audited row/file counts:
+- docs/reports/eda/segment_6B/segment_6B_published_report.md
+
+1.4 What I am explicitly NOT claiming (truth hygiene)
+- Not claiming a retained raw DuckDB OOM stacktrace artifact line in this repo snapshot.
+- Not claiming a measured before/after runtime speedup number; the core improvement claim is “OOM failure → repeatable completion at the same audited workload scope.”
+- Not claiming schema/content changes; this is an execution-plan fix with ordering/integrity preserved.
+
+2) Context — Why this mattered
+2.1 Why Oracle stream views are a critical path
+The SR → WSP → IG ingestion spine relies on Oracle stream-view materialization:
+- Oracle outputs must be sealed and sorted into stream views
+- WSP streams from these views under bounded acceptance
+If stream views can’t be built reliably at realistic scale, the platform can’t be validated end-to-end under real data pressure.
+
+2.2 Why this is “real scale engineering”
+This wasn’t “optimize a query.” It was:
+- maintain deterministic global ordering + validation
+- under a real resource envelope (16GB local)
+- at a workload scale of ~249M rows across 1,182 source files
+A naive approach (monolithic sort) is logically correct but operationally non-viable. The platform needs both.
+
+3) The Problem — The contradiction
+3.1 Failure mode
+- DuckDB OOM occurred during monolithic full-range sort of the two large flow-anchor outputs on a 16GB machine.
+- Result: stream-view generation could not complete under the original strategy, blocking parity progression.
+
+3.2 Root contradiction
+Correctness demands:
+- deterministic chronology (ts_utc) with stable tie-breakers
+- receipt-proven equivalence (no silent drops/adds)
+But monolithic sort demands a peak working set that exceeded local memory limits at this scale.
+
+So the contradiction was:
+- “strict correctness posture” vs “practical resource envelope”
+and the resolution could not be “cheat correctness.”
+
+4) Non-negotiables — Invariants and constraints
+4.1 Invariants I refused to break
+A) Conservation (row-set equivalence)
+- raw_stats.row_count == sorted_stats.row_count
+- raw_stats.hash_sum == sorted_stats.hash_sum
+- raw_stats.hash_sum2 == sorted_stats.hash_sum2
+- raw_stats.min_ts_utc == sorted_stats.min_ts_utc
+- raw_stats.max_ts_utc == sorted_stats.max_ts_utc
+If any mismatch: STREAM_SORT_VALIDATION_FAILED (fail-closed).
+
+B) Deterministic ordering
+- order by CAST(ts_utc AS TIMESTAMP), filename, file_row_number
+- stable tie-breakers to prevent nondeterminism when timestamps tie
+- chunking must preserve chronology, not re-order it
+
+C) Evidence/receipt integrity
+- stream view is only valid when _stream_sort_receipt.json and _stream_view_manifest.json are present and coherent
+- partial state / receipt conflicts are errors, not overwrite targets
+- stream_view_id and source locator digest bind evidence to exact input locator set
+
+D) Schema/content preservation
+- no schema mutation
+- no truncation to “reduce memory”
+- no relaxing of validation rules
+
+4.2 Constraints
+- local parity machine memory ceiling: 16GB
+- two large outputs must be built reliably without requiring “buy bigger hardware”
+
+5) Investigation + Reasoning — How I framed the root cause
+5.1 Why it OOM’d (mechanics)
+The monolithic plan amplified peak memory because:
+- global ordering on huge inputs requires large intermediate state
+- deterministic tie-break metadata (filename, file_row_number) increases working set
+- validation surfaces (hash/stats) increase resource pressure
+This is not “DuckDB bad”; it is “compute plan mismatched to scale.”
+
+6) Decision + Tradeoffs — What I chose and why
+6.1 Decision: execution-plan redesign (monolithic sort → chunked day windows)
+I rejected two extremes:
+- “just buy bigger hardware” (brittle, non-repeatable, weak engineering signal)
+- “relax ordering/validation” (destroys correctness and auditability)
+
+Chosen tradeoff:
+- accept more parts/files and orchestration overhead
+- in exchange for bounded peak memory and reliable completion
+- while keeping deterministic ordering and receipt integrity
+
+6.2 Why a knob mattered (explicit operational lever)
+I made the redesign controllable, not a forked code path:
+- STREAM_SORT_CHUNK_DAYS = 0 → legacy monolithic behavior
+- STREAM_SORT_CHUNK_DAYS > 0 → chunked day-window mode
+This prevents silent behavior drift and allows machine-specific tuning without semantic change.
+
+7) Implementation — What I actually changed
+7.1 Structural change: chunked day-window sort for time-key outputs
+New algorithmic posture:
+- compute min_ts_utc → max_ts_utc for output
+- split into non-overlapping day windows [start, end)
+- for each window:
+  - extract rows in that window
+  - order deterministically by (ts_utc, filename, file_row_number)
+  - write part-XXXXXX.parquet sequentially
+- emit parts in temporal order: part-000000, part-000001, ...
+
+7.2 Knobs and applied tuning set (concrete)
+Applied knobs for the hardening posture:
+- STREAM_SORT_CHUNK_DAYS=1
+- STREAM_SORT_THREADS=2
+- STREAM_SORT_MEMORY_LIMIT=16GB
+- STREAM_SORT_MAX_TEMP_SIZE=150GiB
+- STREAM_SORT_TEMP_DIR (pinned per run environment; spill path controlled)
+
+Truth note:
+- this is a tuning set used for completion reliability; I do not claim it is globally optimal.
+
+7.3 Implementation-map anchors (decision trail)
+Pinned decision/execution evidence:
+- docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md
+  - Entry: 2026-01-30 21:46:10 — “Chunked stream sort (day windows)”
+  - Entry: 2026-02-01 16:05:00 — “arrival_events_5B stream view built (memory tuning)”
+
+8) Validation + Results — What I proved, not what I felt
+8.1 Before: failure-to-completion under incident scope
+- monolithic full-range sort OOM’d for the two 6B flow-anchor outputs on 16GB
+- failure class recorded in oracle_store.impl_actual (raw stacktrace not retained in repo snapshot)
+
+8.2 After: repeatable completion with full evidence family at same workload scope
+Success anchor (concrete root + artifacts):
+- engine run root:
+  s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92
+- stream-view root:
+  s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc
+
+Example output evidence family (one output_id):
+- .../output_id=s2_flow_anchor_baseline_6B/part-*.parquet
+- .../output_id=s2_flow_anchor_baseline_6B/_stream_sort_receipt.json
+- .../output_id=s2_flow_anchor_baseline_6B/_stream_view_manifest.json
+
+Same artifact contract applies to:
+- output_id=s3_flow_anchor_with_fraud_6B
+
+Quantified closure language (no scope reduction):
+- incident scope maintained at 249,448,306 rows across 1,182 source files
+- closure achieved by execution-plan change (chunked windows), not by reducing workload scope
+
+8.3 Ordering correctness across chunks (how I know it preserved semantics)
+- chunks are non-overlapping [start, end) windows traversed forward
+- each chunk is ordered by (ts_utc, filename, file_row_number)
+- parts are emitted in the same temporal order
+- receipt validation requires raw_stats.* == sorted_stats.* and min/max anchors preserved
+
+9) Evidence Index (auditor trail)
+9.1 Audited scale source
+- docs/reports/eda/segment_6B/segment_6B_published_report.md
+  - row counts for s2_flow_anchor_baseline_6B and s3_flow_anchor_with_fraud_6B
+  - file counts (591 + 591)
+
+9.2 Decision trail and knob anchors
+- docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md
+  - 2026-01-30 21:46:10 — chunked sort decision
+  - 2026-02-01 16:05:00 — memory tuning entry
+- (optional future pin) where knobs are set for the run (profile/env/pack config surface)
+
+9.3 Post-fix artifact closure (oracle-store evidence root)
+- s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/output_id=s2_flow_anchor_baseline_6B/_stream_sort_receipt.json
+- s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/output_id=s2_flow_anchor_baseline_6B/_stream_view_manifest.json
+- s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/output_id=s2_flow_anchor_baseline_6B/part-*.parquet
+- corresponding paths for output_id=s3_flow_anchor_with_fraud_6B
+
+10) Guardrails / Non-regression Controls
+10.1 Fail-closed receipt validation prevents “best effort” corruption
+- if raw vs sorted stats mismatch: STREAM_SORT_VALIDATION_FAILED
+- if receipt/manifest conflict exists: no silent overwrite; corrective action required
+
+10.2 Explicit knob prevents silent semantic drift
+- STREAM_SORT_CHUNK_DAYS controls compute plan without changing ordering law
+- supporting knobs tune execution but do not alter correctness invariants
+
+10.3 Evidence-first posture (no “sorted files exist” claims)
+- completion is only claimable when receipts/manifests exist and validate
+- parts alone are not sufficient proof
+
+11) Residual risks + Next actions
+11.1 What remains open
+- Retain raw failure stacktrace artifacts going forward (small incident bundle) to make future OOM failures trivially auditable.
+- Optionally add a lightweight “before/after wall-clock” benchmark for the chunked path (not required for correctness, but useful for capacity planning narrative).
+
+11.2 Next actions
+- Carry chunked sort posture into dev_min promotion if the same scale appears in managed runs (or keep as local parity stress posture).
+- Ensure any managed-substrate version preserves receipt semantics and ordering invariants.
+
+12) Extraction notes (for later mining)
+12.1 30-second version (recruiter)
+“I hit a DuckDB OOM sorting the largest 6B stream-view outputs (~249M rows across 1,182 files). I redesigned the compute plan to chunk by day windows, kept deterministic ordering and receipt-proven equivalence, and proved completion with manifests/receipts—no correctness downgrade.”
+
+12.2 2-minute version (hiring manager)
+“My platform needs oracle stream views to validate ingestion end-to-end. A monolithic global sort was correct but not feasible on 16GB hardware at this scale. I introduced an explicit chunked day-window sort controlled by STREAM_SORT_CHUNK_DAYS, preserved ordering law and conservation via receipt stats, and validated success by the presence and coherence of stream manifests and sort receipts under the oracle-store evidence root.”
+
+12.3 USP mapping (problem solving signal)
+- Recognized the difference between “logically correct” and “operationally viable.”
+- Preserved invariants while changing execution strategy (tradeoff discipline).
+- Produced auditable evidence of correctness (receipt-proven equivalence) rather than relying on “it finished.”

@@ -1,0 +1,331 @@
+EXPERIENCE LAKE ENTRY — CLUSTER 09
+Title: Append-only truth for Decision/Audit, Case, and Label lanes — writer boundaries, idempotent convergence, as-of semantics, and audit-chain reconstructability
+As-of: 2026-02-14
+Status: ACHIEVED (local_parity truth model + closure bundles + real fail-closed incident). PROMOTING (dev_min will infrastructure-enforce writer boundaries; semantics must remain identical).
+
+1) Header Block — Identity + Claim
+1.1 One-sentence truth claim (defensible, not a vibe)
+I designed the platform’s “truth model” so decision/audit, case timelines, and labels are append-only and owner-scoped: writers never overwrite canonical truth, retries converge via deterministic IDs and hash laws, conflicts become explicit anomalies (not silent precedence), and closure is only claimable when reconciliation evidence proves causality chains are complete—demonstrated by a real incident where unresolved audit lineage blocked closure until replay semantics were corrected.
+
+1.2 Scope (what this entry covers)
+IN-SCOPE:
+- Truth model definition: truth vs derived surfaces; append-only correction posture
+- Lanes/stores and writer map (DLA, CaseMgmt, LabelStore; handshake emitters)
+- Idempotency + mismatch laws (same ID + same hash converge; same ID + different hash mismatch)
+- As-of label resolution semantics (observed-time eligibility + deterministic tie-break)
+- Closure evidence bundles (decision chain committed, cases committed, labels committed, audit closed)
+- Anchor run for evidence paths
+- One real “immutability/conflict” incident (unresolved lineage blocked closure; fixed via start-position semantics)
+
+OUT-OF-SCOPE:
+- Ingress admission truth (Cluster 2)
+- Streaming bounded acceptance details (Cluster 3)
+- DB lifecycle stability (Cluster 4)
+- Dev_min migration program details (Cluster 8) beyond invariants
+
+1.3 Anchor run (closure-grade run)
+- env: local_parity
+- platform_run_id: platform_20260212T085637Z
+- local run root: runs/fraud-platform/platform_20260212T085637Z/
+- object-store root: s3://fraud-platform/platform_20260212T085637Z/
+- closure context:
+  - runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json
+  - runs/fraud-platform/platform_20260212T085637Z/obs/environment_conformance.json
+
+1.4 Truth boundary note (important honesty)
+For the retained local_parity anchor run, canonical truth is DB-first with run-scoped closure artifacts:
+- DLA canonical truth: DB tables (dla_audit_index, dla_intake_*, dla_lineage_*), plus metrics/health/reconciliation artifacts
+- CaseMgmt canonical truth: DB tables (cm_cases, cm_case_timeline, cm_case_timeline_links, …)
+- LabelStore canonical truth: DB tables (ls_label_assertions, ls_label_timeline, ls_label_assertion_mismatches)
+Optional object export surfaces (audit record JSON objects, label assertion files, resolved-as-of slice exports) are contract-shaped but were not materialized in the retained local artifact tree for the anchor run.
+
+2) Context — Why this mattered
+2.1 The platform risk
+Fraud platforms live and die on auditability:
+- “Why did we decide that?”
+- “Why was this case opened?”
+- “Why was this label assigned?”
+If truth can be overwritten, or if retries fork histories, audit is theater.
+This entry is the answer: make truth append-only, make conflicts explicit, and require closure evidence bundles.
+
+2.2 Why this is MLOps/ML platform-relevant
+ML platforms require:
+- immutable evidence and lineage
+- leak-safe label timing (as-of)
+- deterministic reconstructability for training/monitoring
+This truth model is the foundation for trustworthy offline feature/label joins later.
+
+3) Truth Model (one paragraph, operational)
+Truth is owner-scoped and append-only:
+- CaseMgmt owns append-only case timeline truth.
+- LabelStore owns append-only label timeline truth.
+- DecisionLogAudit owns append-only audit truth (canonical records plus explicit quarantine for non-admissible lineage).
+Corrections append new events with explicit supersedes linkage; they do not overwrite prior truth.
+Derived surfaces (indexes, read models, search projections, export helpers) can be rebuilt, but rebuild produces a new digest/ref (no mutation of old digest-bound artifacts).
+For any claim, I can reconstruct a deterministic chain from immutable IDs + provenance (ContextPins, decision/action IDs, audit refs, case timeline events, label assertions with observed/effective times), with explicit conflict/quarantine outcomes rather than silent interpretation.
+
+4) Lanes and Stores (names + ownership)
+4.1 Decision/Audit lane (DL/DF/AL → DLA)
+- DL: posture lane (degrade decisions/posture)
+- DF: decision_response emission
+- AL: action_intent and action_outcome under idempotent execution rails
+- DLA: audit truth writer
+
+Canonical truth today (anchor run):
+- DB-backed:
+  - dla_audit_index (audit identity + digest + object_ref pointer)
+  - intake/lineage tables: dla_intake_candidates, dla_intake_quarantine, dla_intake_checkpoints, dla_intake_attempts, dla_lineage_chains, dla_lineage_intents, dla_lineage_outcomes
+- Run-scoped closure artifacts:
+  - decision_log_audit/{metrics,reconciliation,health}/...
+
+Optional contracted object export shape (when enabled):
+- runs/fraud-platform/<platform_run_id>/decision_log_audit/records/<audit_id>.json
+
+4.2 Case lane (CaseTrigger → CaseMgmt)
+- CaseTrigger: converts decision/audit/outcome evidence into case_trigger envelopes (replay-safe)
+- CaseMgmt: system-of-record for append-only case timeline truth
+
+Truth surfaces:
+- cm_cases (case identity and scope)
+- cm_case_timeline (append-only events)
+- cm_case_timeline_links (linkage to decision_id, audit_record_id, etc.)
+- mismatch/intake ledgers (explicit anomalies, no silent overwrite)
+
+4.3 Label lane (LabelStore)
+- LabelStore: only writer of label truth ledgers
+Truth surfaces:
+- ls_label_assertions (assertion ledger)
+- ls_label_timeline (append-only resolved timeline)
+- ls_label_assertion_mismatches (explicit anomaly lanes)
+
+Contracted export shapes (optional surfaces):
+- runs/fraud-platform/<platform_run_id>/label_store/assertions/<label_assertion_id>.json
+- runs/fraud-platform/<platform_run_id>/label_store/slices/resolved_as_of_<basis_digest16>_<slice_digest16>.json
+Truth note: not materialized in retained local artifacts for anchor run; closure proven via DB-backed artifacts + governance logs.
+
+4.4 Governance append lane (cross-cutting)
+- case_mgmt/governance/events.jsonl
+- label_store/governance/events.jsonl
+- reconciliation/health artifacts per component, aggregated by reporting
+
+5) Writer map + anti-multi-writer drift
+5.1 Decision/Audit writer map
+- DF/AL write lineage events to the bus (decision_response, action_intent, action_outcome)
+- DLA is the only canonical audit truth writer (DB-backed truth; optional object export)
+
+Drift prevention:
+- intake allowlists admissible families/versions
+- audit_id: same digest → DUPLICATE; different digest → HASH_MISMATCH
+- PK constraints prevent silent replacement
+
+5.2 Case writer map
+- CaseTrigger writes replay/publish/checkpoint ledgers
+- CaseMgmt intake writes truth tables (cm_cases, cm_case_timeline, links, stats)
+
+Drift prevention:
+- CM only accepts event_type=case_trigger at intake
+- deterministic IDs + contract validation pre-write
+- uniqueness on (case_id, timeline_event_type, source_ref_id)
+- payload drift increments mismatch counters; does not overwrite timeline truth
+
+5.3 Label writer map
+- LabelStore is only writer for label truth ledgers
+- CaseMgmt label handshake is the authorized emitter into LabelStore
+
+Drift prevention:
+- label emission policy allowlists
+- deterministic label_assertion_id + required pins + evidence refs enforced
+- same assertion_id + same payload hash → replay accept
+- mismatch → PAYLOAD_HASH_MISMATCH; incompatible subject tuple → DEDUPE_TUPLE_COLLISION
+- timeline insert idempotent (ON CONFLICT(label_assertion_id) DO NOTHING)
+
+5.4 Honesty point (local_parity vs dev_min)
+Local parity enforcement is primarily:
+- process boundaries + code contracts + DB constraints
+Dev_min promotion adds:
+- role-scoped runtime identities and infra-enforced writer boundaries
+Semantics remain identical.
+
+6) As-of view (LabelStore truth-time semantics)
+Definition:
+Resolve label truth for a subject using only assertions known by observed_as_of time.
+
+Index key:
+- platform_run_id, event_id (subject), label_type, as_of_observed_time
+
+Eligibility:
+- assertion.observed_time <= as_of_observed_time
+
+Deterministic winner:
+- max effective_time, then max observed_time, then label_assertion_id
+
+Outcomes:
+- RESOLVED (deterministic winner)
+- CONFLICT (top-tied disagree)
+- NOT_FOUND (no eligible assertions)
+
+Guarantees:
+- leakage-safe (future-known labels excluded)
+- deterministic winners for same timeline + as_of
+- explicit conflict honesty (no silent precedence)
+- run-scope isolation (bulk slice builder fails closed if mixed platform_run_id)
+
+7) Commit-evidence closure bundle (no “single green file”)
+7.1 Decision chain committed
+- obs/platform_run_report.json (rtdl.decision >0, rtdl.outcome >0, rtdl.audit_append >0)
+- decision_log_audit/metrics/last_metrics.json (append_success_total)
+- decision_log_audit/reconciliation/last_reconciliation.json (lineage.unresolved_total == 0)
+- decision_log_audit/health/last_health.json (GREEN)
+
+7.2 Cases committed
+- case_trigger/reconciliation/reconciliation.json (published>0, publish_ambiguous==0)
+- case_mgmt/metrics/last_metrics.json (cases_created>0, timeline_events_appended>0)
+- case_mgmt/reconciliation/last_reconciliation.json (anomalies_total==0)
+- case_mgmt/health/last_health.json (GREEN)
+
+7.3 Labels committed
+- label_store/metrics/last_metrics.json (accepted>0, timeline_rows>0)
+- label_store/reconciliation/last_reconciliation.json (anomalies_total==0 for clean closure)
+- label_store/health/last_health.json (GREEN)
+- note: assertion object files are optional exports; not required for closure in retained anchor run
+
+7.4 Audit closed (cross-lane)
+- obs/platform_run_report.json + conformance PASS + component closure artifacts + governance append logs
+Fail-closed: missing any required artifact or any open blocker → no audit-close claim.
+
+8) Anchor run evidence paths (exact)
+8.1 Decision/audit evidence (platform_20260212T085637Z)
+- runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json
+- runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/metrics/last_metrics.json
+- runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/reconciliation/last_reconciliation.json
+- runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/health/last_health.json
+
+8.2 Case evidence
+- runs/fraud-platform/platform_20260212T085637Z/case_trigger/reconciliation/reconciliation.json
+- runs/fraud-platform/platform_20260212T085637Z/case_mgmt/metrics/last_metrics.json
+- runs/fraud-platform/platform_20260212T085637Z/case_mgmt/reconciliation/last_reconciliation.json
+- runs/fraud-platform/platform_20260212T085637Z/case_mgmt/health/last_health.json
+- runs/fraud-platform/platform_20260212T085637Z/case_mgmt/governance/events.jsonl
+- runs/fraud-platform/platform_20260212T085637Z/case_labels/reconciliation/case_mgmt_reconciliation.json
+
+8.3 Label evidence
+- runs/fraud-platform/platform_20260212T085637Z/label_store/metrics/last_metrics.json
+- runs/fraud-platform/platform_20260212T085637Z/label_store/reconciliation/last_reconciliation.json
+- runs/fraud-platform/platform_20260212T085637Z/label_store/health/last_health.json
+- runs/fraud-platform/platform_20260212T085637Z/label_store/governance/events.jsonl
+- runs/fraud-platform/platform_20260212T085637Z/case_labels/reconciliation/label_store_reconciliation.json
+
+8.4 Cross-lane closure context
+- runs/fraud-platform/platform_20260212T085637Z/obs/environment_conformance.json
+- runs/fraud-platform/platform_20260212T085637Z/case_labels/reconciliation/2026-02-12.json
+
+9) Real incident — Append-only integrity enforced via fail-closed lineage closure
+Incident summary:
+Two runs failed closure because DLA could not resolve one lineage chain; the platform refused to “heal by rewriting truth” and required replay-safe start semantics.
+
+Failing runs:
+- platform_20260212T075128Z (unresolved_total=1; health AMBER)
+- platform_20260212T084037Z (same class reappeared)
+
+Evidence pins (failing run example):
+- runs/fraud-platform/platform_20260212T075128Z/decision_log_audit/reconciliation/last_reconciliation.json (unresolved_total=1)
+- runs/fraud-platform/platform_20260212T075128Z/decision_log_audit/health/last_health.json (AMBER; UNRESOLVED_AMBER)
+
+Operator/system action:
+- did not certify audit closure for failing runs
+- treated unresolved lineage as a hard blocker
+- recovered with L2 fresh platform_run_id rather than mutating prior run truth
+
+Fix (root cause lane):
+- change first-read start semantics for run-pinned consumers when checkpoint absent:
+  - DLA intake: src/fraud_detection/decision_log_audit/intake.py (force trim_horizon)
+  - AL worker: src/fraud_detection/action_layer/worker.py (same rule)
+This prevents missing early chain links due to latest attach race.
+
+Proof after remediation (anchor run):
+- platform_20260212T085637Z:
+  - decision_log_audit/reconciliation/last_reconciliation.json (unresolved_total=0)
+  - decision_log_audit/health/last_health.json (GREEN)
+
+Interview-safe framing:
+The key point is not “we fixed a metric.”
+It is: the system refused to mutate truth to hide causality gaps; it blocked closure until replay semantics guaranteed audit-chain completeness.
+
+10) Rerun interaction rules (same run vs new run)
+10.1 Same platform_run_id rerun (when allowed)
+Allowed as replay/idempotency operation:
+- canonical truth rows remain stable (PK/unique constraints)
+- duplicates converge
+- replay counters/mismatch counters can change
+- derived observability snapshots refresh (metrics/health/reconciliation)
+
+10.2 Fresh platform_run_id (L2) triggers
+- closure blocker in current run (e.g., unresolved lineage)
+- run-defining pin/provenance change
+- acceptance rerun intended to produce certifiable green claim
+- restart/recovery where prior checkpoints could blur audit boundary
+
+10.3 Contamination prevention across runs
+- runtime run-scope gates reject out-of-scope envelopes when required_platform_run_id pinned
+- truth tables include run-scope identity axes
+- artifacts are run-rooted; closure evaluated per run root
+- bulk as-of exports fail closed if mixed platform_run_id target sets
+
+11) Audit story — Minimum causal chain to answer “why case?” / “why label?”
+11.1 Why did this case exist? (minimum chain)
+- cm_cases (case existence + scope)
+- cm_case_timeline (CASE_TRIGGERED event)
+- cm_case_timeline_links (decision_id, action_outcome_id, audit_record_id, event_id/case_trigger_id)
+- DLA lineage tables / query surface for decision_id and audit_record_id
+- closure context artifacts:
+  - DLA reconciliation
+  - case_trigger reconciliation
+  - obs/platform_run_report.json
+
+11.2 Why was this label assigned? (minimum chain)
+- cm_label_emissions (status + source_case_event_id + assertion_ref logical link)
+- ls_label_timeline + ls_label_assertions (canonical assertion payload + pins)
+- link back to cm_case_timeline event for LABEL_ACCEPTED (evidence refs)
+- follow decision_id/audit_record_id back through DLA lineage
+- closure context artifacts:
+  - label_store reconciliation
+  - case_mgmt reconciliation
+  - obs/platform_run_report.json (case_labels.summary)
+
+Rule:
+If any hop is missing/contradictory, I do not claim audit-closed.
+
+12) Migration invariants (dev_min)
+Non-negotiable invariants:
+- same append-only law (no overwrite; mismatch explicit)
+- same writer map (DLA/CM/LS are owners)
+- same canonical ID + run-scope semantics
+- same as-of resolution law
+- same fail-closed closure blockers
+
+Allowed changes:
+- storage substrate (local Postgres/MinIO → managed RDS/S3)
+- packaging/runtime (local daemons → ECS services/tasks)
+- broker substrate changes, security hardening (IAM roles enforce boundaries)
+- observability backend changes (as long as closure artifacts remain equivalent)
+
+13) Evidence Index (auditor trail)
+- Anchor run closure artifacts (paths listed in section 8)
+- Incident runs:
+  - platform_20260212T075128Z DLA reconciliation/health
+  - platform_20260212T084037Z DLA reconciliation (repeat class)
+- Fix code anchors:
+  - src/fraud_detection/decision_log_audit/intake.py (first-read trim_horizon rule)
+  - src/fraud_detection/action_layer/worker.py (same rule)
+
+14) Extraction notes (for later mining)
+14.1 30-second version (recruiter)
+“I made decision/audit, case timelines, and labels append-only and owner-scoped. Retries converge via deterministic IDs; mismatches and conflicts are explicit. A real run failed closure because audit lineage was incomplete; I blocked closure and fixed replay start semantics so chain completeness is guaranteed.”
+
+14.2 2-minute version (hiring manager)
+“I treat auditability as a first-class product. DLA/CaseMgmt/LabelStore are truth writers; they append, never overwrite. I use deterministic IDs, hash laws, and DB constraints so replays converge. Labels resolve as-of by observed-time eligibility with explicit conflict posture. When DLA couldn’t resolve a lineage chain (unresolved_total=1), I refused to patch over it and instead fixed start-position semantics for run-pinned consumers, then proved closure with reconciliation artifacts.”
+
+14.3 USP mapping (problem solving signal)
+- Designed truth semantics to survive retries, replays, and partial failures.
+- Enforced closure truth with reconciliation artifacts, not narratives.
+- Fixed the root mechanism that caused causality gaps rather than rewriting “truth” after the fact.

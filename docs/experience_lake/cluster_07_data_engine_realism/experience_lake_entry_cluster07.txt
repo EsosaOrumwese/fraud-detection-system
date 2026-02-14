@@ -1,0 +1,261 @@
+EXPERIENCE LAKE ENTRY — CLUSTER 07
+Title: Data Engine realism governance + remediation program — executable grading law, wave-based causality, freeze guards, and honest certification (Segment 1A)
+As-of: 2026-02-14
+Status: ACHIEVED for Segment 1A (certified B with pinned evidence + freeze guards). IN-PROGRESS for 1B+ and planned waves for 2A–6B. (Explicit achieved/current/target separation enforced.)
+
+1) Header Block — Identity + Claim
+1.1 One-sentence truth claim (defensible, not a vibe)
+I built and executed a measurement-driven “realism governance” program for the synthetic Data Engine: hard veto gates + banded scorecards (B/B+), wave-based remediation with causal isolation, freeze guards to prevent regression, and deterministic replay validation—demonstrated by Segment 1A moving from contradictory baseline to a certified B posture with auditable artifacts and explicit non-claim on B+.
+
+1.2 Scope (what this entry covers)
+IN-SCOPE:
+- Realism certification model (hard gates + soft bands, B vs B+ threshold law)
+- Segment 1A baseline diagnosis → remediation waves → certification decision
+- Measurement discipline (metrics tied to failure modes, causal isolation per wave)
+- Freeze discipline (scope locks, reopen veto guard scorer)
+- Determinism hardening evidence (forced manifest drift pair)
+- Honest stopping rule (refused B+ overclaim)
+
+OUT-OF-SCOPE:
+- Platform run lifecycle gating (Cluster 1)
+- Ingress rails / streaming / DB hardening (Clusters 2–4)
+- Implementation of future segment remediations (2A–6B) beyond planning reports
+
+1.3 Anchor artifacts (certification + guardrails + determinism)
+Certification artifact (Segment 1A, final decision + lineage):
+- runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json
+- contains decision: hard gates 4/4 pass; B 13/14; B+ 10/14; grade=B (eligible_B=true, eligible_B_plus=false)
+- includes authority run lineage: p2, p3, p4
+
+Freeze guard enforcement tool + example output:
+- tools/score_segment1a_freeze_guard.py
+- example guard output artifact:
+  runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_416afa430db3f5bf87180f8514329fe8.json
+
+Forced-manifest determinism pair (same seed + parameter_hash, different manifest_fingerprint):
+- 29bdb537f5aac75aa48479272fc18161
+- a1753dc8ed8fb1703b336bd4a869f361
+- evidence pointers are referenced in segment1a_p5_certification.json
+
+Certification seed roster (anti single-seed luck):
+- {42, 43, 44}
+- anchored to p1_4_lock_scorecard.json and alternate-seed evidence inside segment1a_p5_certification.json
+
+1.4 What I am explicitly NOT claiming (truth hygiene)
+- Not claiming Segment 1A is certified B+ (it is explicitly not).
+- Not claiming remediation for 1B–6B is completed; those are current/planned with pinned reports/build plans.
+- Not claiming “realism” as subjective; it is governed by executable gates and metrics with explicit bands.
+
+2) Context — Why this mattered
+2.1 The “toy synthetic data” trap
+Synthetic data is easy to generate and easy to overclaim. Real value for a platform requires:
+- statistical realism that can withstand scrutiny (not just “looks random”)
+- auditable evidence for realism claims
+- deterministic reproducibility (same inputs → same outputs)
+- non-regression discipline (improvements don’t silently erase earlier wins)
+
+This governance program is what separates “toy generator” from “platform-grade data engine.”
+
+2.2 How this ties directly to MLOps / ML Platform work
+This is not “tuning a model.” It is:
+- defining acceptance gates and measurement protocols
+- executing remediation waves under causal isolation
+- building audit artifacts and freeze guards
+- enforcing determinism and provenance
+That is the same engineering posture required in ML platforms: correct-by-construction pipelines with evidence and non-regression.
+
+3) The Problem — The baseline contradictions (Segment 1A)
+Segment 1A baseline failed not due to one bug, but due to contradictory realism surfaces:
+
+3.1 Population-shape failure: missing base merchant tier
+- single-site share effectively ~0 (min outlets per merchant = 2)
+- world biased toward chains from the root, polluting downstream topology
+
+3.2 Cross-border contradiction: near-global candidates, weak realization coupling
+- candidate breadth near-saturated (candidate median ~38 out of max 39)
+- weak coupling between candidates and realized membership:
+  - Spearman(C,R) ~0.1044
+  - realization ratio median ~0.0
+Meaning: “everyone can expand everywhere” while “almost nobody does” — not credible.
+
+3.3 Stochastic realism collapse: dispersion almost constant
+- phi CV ~0.00053; phi P95/P05 ~1.00004
+Meaning: variance structure is unnaturally uniform and unrealistic.
+
+4) Non-negotiables — Invariants and constraints
+4.1 Invariants I enforced
+- Hard gates are vetoes: catastrophic defects cannot be hidden by good averages.
+- Certification is evidence-backed: required artifacts must exist; realism claims must be auditable.
+- Non-regression: once a wave is accepted, it is frozen unless explicitly reopened.
+- Determinism: replay stability must be proven, not assumed.
+
+4.2 Constraints
+- Single engineer, long program timeline: must prevent “always tuning” without closure.
+- Realism improvements must not break determinism or artifact completeness.
+- Must avoid single-seed luck; certification must include multi-seed evidence.
+
+5) Investigation + Reasoning — The grading model (B vs B+)
+5.1 Two-layer certification system
+A) Hard gates (veto gates): all must pass, no compensation
+B) Soft gates (banded scorecard): pass-share thresholds for B/B+
+
+5.2 B definition
+- all hard gates PASS
+- ≥70% of B-band checks PASS
+Interpretation: baseline contradictions are materially closed and defensible for downstream use.
+
+5.3 B+ definition
+- all hard gates PASS
+- ≥80% of B+ band checks PASS
+- plus concentration protection (no major regression on critical concentration surfaces)
+Interpretation: strong realism posture with tighter distribution shape; blocks metric gaming.
+
+5.4 1A outcome under this law (explicit)
+- hard gates: 4/4 PASS
+- B: 13/14 (92.86%) PASS
+- B+: 10/14 (71.43%) FAIL (below 80% threshold)
+- final: B (eligible_B=true, eligible_B_plus=false)
+
+6) Decision + Tradeoffs — The wave program (causality, not vibes)
+6.1 Why wave-based remediation (P1→P4) instead of broad tuning
+Tradeoff:
+- slower, more disciplined program
+- in exchange for causal attribution and defensibility
+
+Goal:
+- each wave touches a constrained scope so metric movement can be attributed, not confounded.
+
+6.2 The hardest tradeoff: chasing B+ vs preserving stable certified B
+After reaching certified B, the remaining B+ misses were coupled:
+- improving gini toward B+ tended to push top10_outlet_share away from its B+ floor
+I refused to destabilize locked P2/P3 posture just to claim B+.
+
+Decision posture:
+- try bounded mini-pass sweeps (low blast radius)
+- accept only if joint improvement without regression
+- otherwise rollback and keep certified B
+
+This is deliberate “engineering truthfulness”: do not trade stable reality for a headline metric.
+
+7) Implementation — What I actually changed (Segment 1A waves)
+7.1 Wave P1: fix count-generating roots (S1/S2)
+Goal: restore merchant pyramid + dispersion heterogeneity with minimal confounds.
+
+Key movement:
+- single-site share → 0.414
+- median outlets → 9
+- phi CV → 0.1406
+- phi P95/P05 → 1.58
+
+7.2 Wave P2: candidate-realization coherence (S3/S4/S6)
+Goal: compress candidate breadth and strengthen causal coupling between C_m and R_m.
+
+Key movement:
+- candidate median → 8
+- Spearman(C,R) → 0.789
+- realization ratio median → 0.1176
+- pathology caps stayed clean
+
+7.3 Wave P3: legal realism + identity semantics
+Goal: realistic home/legal mismatch posture with size gradient + hardened identity semantics.
+
+Key movement:
+- mismatch rate → 0.1225
+- size gradient → +13.08pp
+- unexplained duplicate anomalies eliminated
+
+7.4 Wave P4: certifiability closure (artifact completeness + determinism hardening)
+- emitted missing required outputs to make realism claims auditable
+- determinism hardening: re-keyed stochastic master material derivation to parameter_hash (not manifest-dependent commit variation)
+- proven replay stability even under forced manifest drift
+
+8) Validation + Results — What I proved, not what I felt
+8.1 Final certified 1A snapshot (decision-grade)
+Representative certified values (from scoring artifacts):
+- single-site share 0.414
+- median outlets 9
+- top10 share 0.3797
+- gini 0.5971
+- candidate median 8
+- Spearman(C,R) 0.7891
+- realization ratio median 0.1176
+- mismatch rate 0.1225
+- size gradient +13.08pp
+- phi CV 0.1406
+- phi P95/P05 1.5804
+- required outputs present true
+
+8.2 Causality proof example (P1 dispersion remediation)
+Baseline:
+- phi CV ~0.00053
+- phi P95/P05 ~1.00004
+Intervention design:
+- isolated P1 to S0→S1→S2 (no downstream confounds)
+- fixed seed + repeated runs
+Post-fix:
+- phi CV 0.1406
+- phi P95/P05 1.5804
+This movement is structural (orders-of-magnitude), direction matches mechanism, and was required to be repeatable before lock.
+
+8.3 Determinism proof (forced manifest drift)
+Determinism was not assumed; it was tested via:
+- same seed + same parameter_hash
+- different manifest_fingerprint (forced drift)
+- evidence pair identifiers:
+  29bdb537f5aac75aa48479272fc18161 vs a1753dc8ed8fb1703b336bd4a869f361
+Outcome: equality posture held under the determinism authority pair, proving replay stability is robust to commit-level manifest drift.
+
+9) Evidence Index (auditor trail)
+9.1 Certification and lineage
+- runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json
+  - decision math + eligible_B flags + authority run lineage (p2/p3/p4)
+- p1_4_lock_scorecard.json (seed roster and lock scoring evidence)
+
+9.2 Freeze guard
+- tools/score_segment1a_freeze_guard.py
+- runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_416afa430db3f5bf87180f8514329fe8.json
+
+9.3 Determinism pair
+- 29bdb537f5aac75aa48479272fc18161
+- a1753dc8ed8fb1703b336bd4a869f361
+- pointers referenced in segment1a_p5_certification.json
+
+10) Guardrails / Non-regression Controls
+10.1 Wave scope freezes
+- after P1 closed: S1/S2 frozen unless explicit reopen approved
+- after P2 closed: cross-border knob set locked
+- after P3 closed: mismatch + identity posture locked
+
+10.2 Freeze-guard scorer (automatic veto on regressions)
+- reopened candidates fail closed if they regress certified B posture
+- guard is executable (not an informal “don’t touch” instruction)
+
+10.3 Certification law prevents overclaim
+- hard gates veto catastrophic defects
+- B/B+ thresholds prevent “metric gaming”
+- explicit eligible_B_plus=false prevents headline inflation
+
+11) Residual risks + Next actions
+11.1 What remains open
+- Segment 1B remediation still in progress; integrated scoring currently fail-closes under locked posture and requires explicit reopen to proceed (tracked in 1B build plan).
+- Remaining segments (2A–6B) have pinned remediation reports but are not yet implemented.
+
+11.2 Wave-0 blocker logic (6B precedence)
+For Segment 6B, Wave-0 must restore validity before optimization:
+- truth label non-degenerate (LEGIT non-zero; fraud prevalence bounded)
+- bank-view shows meaningful stratification (not near-constant)
+- case timeline is temporally valid (no negative gaps)
+- these checks must be fail-closed gates
+Without Wave-0, later “improvements” are not trustworthy.
+
+12) Extraction notes (for later mining)
+12.1 30-second version (recruiter)
+“I built a realism certification program for a synthetic data engine: veto gates + scorecards, wave-based remediation, freeze guards, and determinism proofs. Segment 1A moved from contradictory baseline to certified B with auditable artifacts, and I explicitly refused to overclaim B+.”
+
+12.2 2-minute version (hiring manager)
+“I treat data realism like an engineering acceptance program: measure, isolate, remediate, lock, and prove non-regression. For 1A I fixed root count mechanics, cross-border coupling, legal realism, and audit outputs in separate waves so I could attribute metric movement. I certified B with hard gates and score thresholds, added freeze guard scorers and determinism tests (even under forced manifest drift), and I refused to destabilize a certified posture just to claim a higher grade.”
+
+12.3 USP mapping (problem solving signal)
+- Converts “synthetic realism” from a slogan into an executable decision protocol with evidence.
+- Uses causal isolation, rollback rules, and freeze guards to prevent “always tuning / never shipping.”
+- Enforces honest claims (B vs B+) with pinned certification artifacts.

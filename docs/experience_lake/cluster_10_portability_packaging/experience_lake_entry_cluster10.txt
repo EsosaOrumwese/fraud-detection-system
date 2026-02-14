@@ -1,0 +1,184 @@
+EXPERIENCE LAKE ENTRY — CLUSTER 10
+Title: Portability + packaging reality — Windows-first operator lane, concurrency-safe local store semantics, explicit runtime contracts, and claim discipline
+As-of: 2026-02-14
+Status: ACHIEVED (incident-class portability closure + repeatable proof). PROMOTING (portability lessons converted into migration discipline).
+
+1) Header Block — Identity + Claim
+1.1 One-sentence truth claim (defensible, not a vibe)
+I treated portability as a platform contract problem (not “shell tricks”): I stabilized a Windows-first authoring/operator lane for local parity and hardened a real concurrency correctness failure (Windows atomic-replace read-lock race in Scenario Runner local object store) with bounded, fail-closed retry semantics and targeted repeatable tests, while converting portability lessons into explicit runtime/packaging contracts that promote cleanly into managed ECS execution.
+
+1.2 Scope (what this entry covers)
+IN-SCOPE:
+- Practical platform matrix: Windows-first authoring + local parity execution + managed Linux/ECS runtime for dev_min
+- One strongest portability incident (Windows atomic replace file-lock race) pinned to SR local store read path under concurrency
+- Layer-correct fix (bounded retry, fail-closed) + repeatability proof (targeted pytest gate)
+- Guardrails and “claim discipline” (separating incident closure from unrelated suite failures)
+- How this fed migration readiness (explicit runtime contracts; no laptop runtime compute)
+
+OUT-OF-SCOPE:
+- Full CI automation for every portability gate (explicitly not claimed here)
+- Non-Windows shell equivalence across every possible terminal environment (explicitly rejected)
+
+2) Context — Why this mattered
+2.1 The real platform matrix (truth, not marketing)
+My active matrix is:
+- Windows workstation: daily authoring + operator control for local parity runs
+- Bash/make lane: /usr/bin/bash via Git Bash used by make-driven orchestration targets
+- Python runtime pinned via explicit interpreter variable (RUN_OPERATE_PYTHON) to prevent PATH drift
+- Local parity substrate via containers (LocalStack/MinIO/Postgres) producing run-scoped artifacts under runs/fraud-platform/...
+- Dev_min runtime truth: managed Linux compute (ECS services/tasks) with immutable packaging provenance and “no laptop runtime compute” acceptance rule
+
+2.2 Why portability failures are “platform failures”
+If local parity semantics aren’t stable on the operator matrix:
+- evidence isn’t reproducible
+- concurrency/idempotency claims are not defensible
+- migration becomes harder (because implicit assumptions become hidden dependencies)
+Portability incidents are therefore treated as contract defects, not “developer annoyance.”
+
+3) The Problem — Strongest incident selected
+3.1 Incident choice
+Strongest portability incident: Windows atomic-replace file-lock race in Scenario Runner local object-store reads during concurrent leader/follower submission flow.
+
+Why this is strongest:
+- it hit a correctness-critical concurrency path (duplicate submission / idempotency semantics)
+- it exposed real OS-level behavior differences (atomic rename lock windows on Windows)
+- it required balancing integrity with resilience (preserve atomic write correctness while avoiding false failures from transient lock windows)
+- the fix had to be governed (bounded retry with fail-closed exhaustion), not a blanket “ignore errors” hack
+
+4) Pin — What broke, where, and how it showed up
+4.1 Component and stage
+- component: Scenario Runner (SR)
+- failing subsystem: local object-store status reads (run_status read path)
+- stage: runtime concurrency handling (duplicate submission/follower read during leader atomic replace write)
+- boundary: filesystem-backed LocalObjectStore semantics (not cloud object store behavior)
+
+4.2 Failure signature (symptom class)
+- transient PermissionError (Windows lock contention)
+- occasional FileNotFoundError (rename visibility timing)
+- manifested in follower read step during leader atomic replace windows
+- reproduced via SR concurrency test lane:
+  - tests/services/scenario_runner/test_scenario_runner_concurrency.py (concurrent duplicate submissions)
+
+5) Root cause (not “Windows is weird”)
+Mechanics:
+- SR write path correctly uses atomic replace: temp file + os.replace(...) for run_status integrity
+- follower reads can occur exactly during promotion window
+- Windows filesystem semantics can surface short transient PermissionError/FileNotFoundError in that window
+Pre-fix:
+- read path was single-attempt, so transient windows were treated as terminal failures
+Contradiction:
+- atomic write discipline was correct
+- atomic read tolerance discipline was missing for Windows lock semantics
+
+6) Decision + Tradeoffs — What I chose and why
+6.1 Chosen remediation
+Add bounded transient retry on read side for the specific transient errors, preserving:
+- atomic write integrity
+- fail-closed posture after retry budget exhaustion
+
+Rejected alternatives:
+- swallow exceptions broadly (would create false-green and hide persistent faults)
+- remove atomic replace (would weaken write integrity and risk corrupted status)
+- “it’s just Windows, ignore it” (breaks repeatability and damages migration readiness)
+
+7) Implementation — What I actually changed
+7.1 Code fix (layer-correct)
+- file: src/fraud_detection/scenario_runner/storage.py
+- change:
+  - introduced _read_text_with_retry
+  - routed read_json/read_text through retry helper
+
+Retry posture:
+- catches transient PermissionError and FileNotFoundError during atomic replace windows
+- retries: 5 attempts with ~50ms sleep
+- fail-closed after budget exhaustion (no infinite retry, no silent success)
+
+Write path preserved:
+- os.replace atomic promotion remained unchanged
+
+7.2 Packaging changes (none for this incident)
+- no image/entrypoint change required
+- defect was storage IO semantics; packaging would not fix root cause
+
+7.3 Runbook/operator posture (claim discipline)
+- documented the incident as a Windows portability class, not a random flake
+- acceptance requires the targeted concurrency gate green after fix
+- fail-closed posture remains: persistent unreadability still fails
+
+8) Validation + Results — What I proved, not what I felt
+8.1 Primary repeatability proof (incident-specific)
+Command:
+- python -m pytest tests/services/scenario_runner/test_scenario_runner_concurrency.py -q
+
+Current result (session evidence):
+- 1 passed in 4.86s
+
+Interpretation:
+- the exact concurrency lane that reproduced the bug is now repeatably passing under the operator matrix
+
+8.2 Honest broader suite context (no false-green storytelling)
+Broader SR suite command:
+- python -m pytest tests/services/scenario_runner -q
+
+Current result:
+- 3 failed, 60 passed, 6 skipped
+
+Failure class:
+- _commit_ready() call-site/signature expectations (missing required keyword-only argument: engine_run_root) in non-portability tests
+
+Honest separation:
+- these failures are distinct from the incident-class portability closure
+- I do not claim “everything is green,” I claim this specific regression class is closed and repeatable
+
+8.3 Historical continuity note (optional support)
+Earlier closure notes show SR suite had been green in the implementation window after landing the fix (35 passed, 3 skipped). Combined with current targeted pass, this supports durability of the incident closure.
+
+9) Guardrails / Non-regression Controls
+9.1 Code-level guardrail
+- bounded retry tolerance only for specific transient OS-window errors
+- still fail-closed after budget exhaustion
+- prevents both silent masking and flakiness regression
+
+9.2 Test gate guardrail
+- regression test: tests/services/scenario_runner/test_scenario_runner_concurrency.py
+- portability claim for this class is tied to this targeted proof, not broad “pass rate”
+
+9.3 Operational/review guardrail (claim discipline)
+- explicitly separate unrelated SR suite failures from this incident
+- prevents false-green narratives where broad suite success hides regression in the specific lane
+
+9.4 CI statement (honest scope)
+- no dedicated CI pipeline gate for this single portability test is claimed in this entry
+- guardrail remains valid via code semantics + explicit targeted acceptance check
+
+10) Non-support decisions (explicit boundaries)
+To protect correctness/repeatability, I explicitly do not support:
+- ambient system-Python execution for run/operate workers (interpreter drift risk)
+- “all shells are equivalent” claim (Windows bash quoting/path differences are real)
+- unbounded retry / blanket exception suppression for file-lock races (false-green risk)
+- laptop-runtime truth for dev_min acceptance (managed compute evidence required)
+
+11) Migration linkage — How this fed dev_min readiness
+Portability work reinforced migration discipline:
+- implicit host assumptions were converted into explicit runtime contracts
+- interpreter/entrypoint/IO semantics became pinned rather than ambient
+- bounded fail-closed controls in local parity mirror dev_min gates (no bypass under pressure)
+- “no laptop runtime compute” matured from a preference into a binding acceptance rule (managed ECS evidence required)
+
+12) Evidence Index (auditor trail)
+- Fix code anchor: src/fraud_detection/scenario_runner/storage.py (_read_text_with_retry, bounded retry)
+- Primary proof command: pytest tests/services/scenario_runner/test_scenario_runner_concurrency.py
+- Broader suite context command: pytest tests/services/scenario_runner (separated, not conflated)
+- Operator matrix contracts: RUN_OPERATE_PYTHON interpreter pin; make/bash lane used for orchestration targets
+
+13) Extraction notes (for later mining)
+13.1 30-second version (recruiter)
+“I fixed a real Windows concurrency bug in my run-control plane: atomic replace writes were correct, but concurrent reads sometimes failed due to Windows lock windows. I added bounded, fail-closed retry semantics and proved closure with a targeted concurrency test—then carried the ‘explicit runtime contracts’ lesson into my managed-substrate migration.”
+
+13.2 2-minute version (hiring manager)
+“I treat portability as correctness. A Scenario Runner concurrency path failed intermittently on Windows because atomic replace rename windows cause transient read failures; without handling, idempotency and evidence claims were flaky. I fixed it in the storage layer with bounded retries for specific transient errors while preserving atomic writes and fail-closed semantics, and validated it with repeatable targeted tests. I also keep strict claim discipline: I separate this closed incident from unrelated suite failures.”
+
+13.3 USP mapping (problem solving signal)
+- Found a real platform-semantics risk inside OS-specific behavior.
+- Fixed at the correct layer without weakening integrity.
+- Proved closure with repeatable evidence and disciplined claims.
