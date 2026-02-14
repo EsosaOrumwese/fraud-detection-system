@@ -177,10 +177,10 @@ Tasks:
 5. Enforce fail-closed: if unresolved handles exist, stop M4 progression at `M4.A`.
 
 DoD:
-- [ ] M3 handoff preconditions verified.
-- [ ] Required P2 handle set resolved with zero wildcard keys.
-- [ ] `unresolved_handle_count == 0` for execution progression.
-- [ ] M4.A closure snapshot exists locally and durably.
+- [x] M3 handoff preconditions verified.
+- [x] Required P2 handle set resolved with zero wildcard keys.
+- [x] `unresolved_handle_count == 0` for execution progression.
+- [x] M4.A closure snapshot exists locally and durably.
 
 Blockers:
 1. `M4A-B1`: M3 verdict/handoff precondition missing.
@@ -436,7 +436,7 @@ Notes:
 3. M4 readiness evidence must preserve P2 semantics from runbook (packs running, run-scope enforcement, no duplicate consumers).
 
 ## 7) M4 Completion Checklist
-- [ ] M4.A complete
+- [x] M4.A complete
 - [ ] M4.B complete
 - [ ] M4.C complete
 - [ ] M4.D complete

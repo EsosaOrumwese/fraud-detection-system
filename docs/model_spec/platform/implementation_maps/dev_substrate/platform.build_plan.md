@@ -404,7 +404,7 @@ Active-phase planning posture:
 - M4 expansion state:
   - `M4.A -> M4.J` are fully expanded in the deep plan with entry conditions, required inputs, execution sequence, evidence artifacts, blocker taxonomy, and handoff rules.
 - Sub-phase progress:
-  - [ ] `M4.A` authority + handle closure for P2.
+  - [x] `M4.A` authority + handle closure for P2.
   - [ ] `M4.B` service/pack map + singleton replica contract.
   - [ ] `M4.C` IAM role binding + execution identity validation.
   - [ ] `M4.D` network/dependency reachability validation.
