@@ -1,23 +1,23 @@
-policy_version: "2026-02-13-r4"
+policy_version: "2026-02-14-p4r4-a1"
 mode: "mixture_v2"
 deterministic_seed_namespace: "1B.S6.JITTER_V2"
-max_attempts: 64
-selection_blend: 0.50
+max_attempts: 96
+selection_blend: 0.70
 component_weights:
-  core_cluster: 0.10
-  secondary_cluster: 0.20
-  sparse_tail: 0.70
+  core_cluster: 0.02
+  secondary_cluster: 0.08
+  sparse_tail: 0.90
 components:
   core_cluster:
-    lat_shape_exp: 1.60
-    lon_shape_exp: 1.60
-    max_abs_offset_fraction: 0.80
+    lat_shape_exp: 1.80
+    lon_shape_exp: 1.80
+    max_abs_offset_fraction: 0.85
   secondary_cluster:
-    lat_shape_exp: 1.00
-    lon_shape_exp: 1.00
+    lat_shape_exp: 0.90
+    lon_shape_exp: 0.90
     max_abs_offset_fraction: 1.00
   sparse_tail:
-    lat_shape_exp: 0.55
-    lon_shape_exp: 0.55
+    lat_shape_exp: 0.30
+    lon_shape_exp: 0.30
     max_abs_offset_fraction: 1.00
-notes: "P3 reopen posture: restore governed mixture_v2 lane after S4 support-diversification authority; keep weights/exponents fixed for first contract-alignment pass."
+notes: "P4.R4 attempt A1: aggressive in-cell spread profile to test collapse-sentinel closure on tiny/high-density countries under fixed S4 support."

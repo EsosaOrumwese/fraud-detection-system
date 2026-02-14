@@ -4558,3 +4558,38 @@ Verification:
    - `all_candidates_have_artifacts=true`,
    - `non_competitive_filtered_before_expensive_runs=true`,
    - `shortlist_bounded=true`.
+
+---
+
+### Entry: 2026-02-14 11:49
+
+Design element: `P4.R4` execution plan (collapse/geometry closure lane from shortlisted run).
+Summary: Proceed with `P4.R4` using shortlisted run `e4d92c9cfbd3453fb6b9183ef6e3b6f6` as authority input. Focus remains strictly on `S6` jitter policy tuning with downstream rerun `S6->S9`; upstream `S0..S5` posture is preserved.
+
+Pinned baseline diagnosis:
+1) Shortlisted integrated status is `RED_REOPEN_REQUIRED` with structural checks:
+   - `coordinate_bounds_valid=true`,
+   - `s6_mode_mixture_v2=true`,
+   - `s8_parity_ok=true`,
+   - `top_country_no_collapse=false`.
+2) Collapse sentinel flags in top-10 countries are concentrated in:
+   - `MC` (`site_count=10088`, `lat_unique_ratio_4dp=0.0426`, `lon_unique_ratio_4dp=0.0654`),
+   - `BM` (`site_count=6705`, `lat_unique_ratio_4dp=0.1151`, `lon_unique_ratio_4dp=0.2161`).
+3) `S6` run report shows no broad attempt-exhaustion pathology:
+   - high tail attempts are near-zero,
+   - issue is concentration of repeated 4dp coordinates under high site density for specific countries.
+
+Execution strategy for this lane:
+1) Keep scope to `S6` policy only (no `S4`/`S5` count-surface edits in `P4.R4`).
+2) Run a bounded aggressive-spread S6 policy attempt to maximize within-country coordinate diversity while preserving contract checks:
+   - retune component weights/exponents and selection blend,
+   - retain deterministic namespace and `mixture_v2` mode.
+3) Use fresh run-id bootstrap (immutable-run discipline) and rerun:
+   - `S6 -> S7 -> S8 -> S9` only.
+4) Score with integrated authority scorer and collapse diagnostics.
+5) If collapse remains flagged with no viable movement, fail-closed `P4.R4` as S6-feasibility-limited and escalate reopen recommendation to `S4` support/count lane.
+
+Storage and safety posture:
+1) Run bootstrap will avoid full-folder duplication by reusing heavy upstream assets via directory junctions for immutable inputs.
+2) Pre-run prune discipline remains active before creating new candidate run-id.
+3) Any rejected candidate run-id will be explicitly marked as non-promoted for downstream.
