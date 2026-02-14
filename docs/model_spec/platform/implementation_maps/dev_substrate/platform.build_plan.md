@@ -586,6 +586,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M4 is active for execution planning and bring-up preparation.
 Next action:
-- execute `M4.F` daemon bring-up + stabilization using cleared `M4.E` launch-contract evidence (`m4_e_launch_contract_snapshot.json`) with pack-ordered rollout and run-scope/crashloop validation,
+- resolve active `M4F-B1/B2/B5/B6` by materializing all mapped ECS daemon services/task definitions and enabling runtime run-scope validation,
+- re-run `M4.F` and require singleton stabilization + run-scope checks PASS with `missing_mapped_services=[]`,
 - then progress sequentially through `M4.G -> M4.J` under fail-closed blocker discipline,
 - maintain run-scope contract from M3 artifacts for all daemon bring-up operations.

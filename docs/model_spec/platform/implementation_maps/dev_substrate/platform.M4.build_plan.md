@@ -686,7 +686,33 @@ Control: mandatory run-scoped `operate/daemons_ready.json` and control-plane sna
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M4 Execution)
 Current blockers:
-1. None.
+1. `M4F-B1`:
+   - all mapped daemon service updates failed because services are not present in ECS cluster.
+   - evidence:
+     - `runs/dev_substrate/m4/20260214T150452Z/m4_f_daemon_start_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T150452Z/m4_f_daemon_start_snapshot.json`
+   - closure criteria:
+     - materialize the `13` mapped daemon services on ECS (task definitions + services),
+     - rerun `M4.F` with no service update/start failures.
+2. `M4F-B2`:
+   - stabilization failed for all mapped services (`desired=1/running=1/pending=0` not met) because services are missing.
+   - evidence:
+     - `runs/dev_substrate/m4/20260214T150452Z/m4_f_daemon_start_snapshot.json`
+   - closure criteria:
+     - after service materialization, rerun `M4.F` and achieve singleton stabilization PASS per service.
+3. `M4F-B5`:
+   - run-scope validation could not be performed because no mapped services were running.
+   - evidence:
+     - `runs/dev_substrate/m4/20260214T150452Z/m4_f_daemon_start_snapshot.json`
+   - closure criteria:
+     - rerun `M4.F` with running services and explicit run-scope marker/log checks PASS.
+4. `M4F-B6`:
+   - launch-contract/service-set drift at runtime substrate level: mapped service set exists in contract but is not materialized as ECS services.
+   - evidence:
+     - `runs/dev_substrate/m4/20260214T150452Z/m4_f_daemon_start_snapshot.json`
+   - closure criteria:
+     - establish deterministic service materialization lane for all mapped service names (no missing services in cluster),
+     - rerun `M4.F` with `missing_mapped_services=[]`.
 
 Resolved blockers:
 1. `M4C-B4`:

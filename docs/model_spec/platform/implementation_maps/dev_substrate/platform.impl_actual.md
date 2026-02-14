@@ -8959,3 +8959,41 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Planning outcome
 1. `M4.F` is execution-ready at plan level with explicit fail-closed checks.
 2. No runtime execution performed in this step (planning-only).
+## Entry: 2026-02-14 03:05PM - M4.F executed (fail-closed HOLD on missing ECS daemon services)
+
+### Trigger
+1. USER instructed execution of `M4.F`.
+
+### Execution actions
+1. Loaded `M4.F` entry anchors:
+   - `M4.B` mapped-service contract,
+   - `M4.C` IAM bindings,
+   - `M4.D` dependency reachability PASS,
+   - `M4.E` launch-contract PASS.
+2. Executed pack-ordered bring-up attempts for all mapped daemon services (`13` total):
+   - attempted ECS service update/start (`desired_count=1`, force deployment) for each mapped service.
+3. Collected stabilization and runtime checks:
+   - desired/running/pending counts,
+   - per-service presence in cluster,
+   - run-scope check posture,
+   - crashloop signal heuristics.
+4. Published M4.F artifact:
+   - local: `runs/dev_substrate/m4/20260214T150452Z/m4_f_daemon_start_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T150452Z/m4_f_daemon_start_snapshot.json`
+
+### Outcome
+1. `M4.F` is HOLD:
+   - `overall_pass=false`
+   - `blockers=[\"M4F-B1\",\"M4F-B2\",\"M4F-B5\",\"M4F-B6\"]`.
+2. Root operational finding:
+   - mapped daemon service names are not materialized in ECS cluster (only `fraud-platform-dev-min-runtime-probe` exists),
+   - therefore update/start attempts failed for all `13` mapped services.
+3. Consequences:
+   - singleton stabilization impossible (`desired/running` predicates fail),
+   - run-scope validation cannot be proven because no mapped daemon tasks are running.
+
+### Plan-state updates
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+   - unresolved blocker register now includes active `M4F-B1/B2/B5/B6` with closure criteria.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - immediate next action now requires service/task-definition materialization for mapped daemons, then `M4.F` rerun.
