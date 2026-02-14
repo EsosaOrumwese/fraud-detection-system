@@ -81,16 +81,17 @@ So "Spine Green v0" is a defensible migration baseline: explicit scope, explicit
 
 ## Q2) What "20/200" means exactly
 
-`20/200` is our bounded acceptance protocol for live-stream validation.
+`20/200` means `WSP_MAX_EVENTS_PER_OUTPUT` is set to `20` (smoke) and then `200` (baseline closure) for bounded live-stream validation.
 
 - `20` is the smoke gate.
-  It proves the end-to-end path works under real run controls: READY handling, auth, dedupe, receipt commit, downstream consumption, and closeout checks.
+  It proves the end-to-end path works under real run controls: READY handling, envelope/handle validation, dedupe, receipt commit, downstream consumption, and closeout checks.
 - `200` is the baseline closure gate.
   It proves the same path stays correct under a larger bounded run before any green claim.
 
 What is capped:
 - The cap is events per required output stream in the active run.
 - It is not a time window or a batch scheduler unit.
+- PASS requires all required `output_id` streams for that run to hit the configured cap (or an explicitly intended zero-case); otherwise the gate fails.
 
 How pass/fail is judged:
 1. WSP starts and stops cleanly at the configured cap per required output.
@@ -100,7 +101,7 @@ How pass/fail is judged:
 5. Obs/Gov closes: run report generated, conformance passes, governance append closes cleanly.
 
 Why this matters:
-- It gives us deterministic, replayable readiness gates.
+- It gives us bounded, repeatable readiness gates.
 - It prevents fake success claims based only on “messages were emitted” while downstream integrity is still broken.
 
 ---
