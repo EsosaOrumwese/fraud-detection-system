@@ -10141,3 +10141,53 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Outcome
 1. `M5.D` is now execution-ready at planning level; no runtime stream-sort execution occurred in this step.
 2. Next executable step is `M5.D` implementation using the newly pinned launch snapshot contract.
+
+## Entry: 2026-02-14 07:56PM - M5.D executed (fail-closed HOLD on task-definition materialization)
+
+### Execution scope
+1. Executed `M5.D` launch-contract closure per deep-plan contract.
+2. Scope covered:
+   - M5.C carry-forward invariant checks,
+   - per-output launch matrix derivation,
+   - required-output sort-key closure,
+   - per-output path contract resolution,
+   - managed launch-profile materialization checks (cluster/task-definition/role/network),
+   - local + durable snapshot publication.
+
+### Input artifacts used
+1. `runs/dev_substrate/m5/20260214T193548Z/inlet_assertion_snapshot.json`
+2. `runs/dev_substrate/m5/20260214T190332Z/m5_a_handle_closure_snapshot.json`
+3. `runs/dev_substrate/m3/20260213T221631Z/run.json`
+4. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+
+### Results
+1. Carry-forward invariants PASS.
+2. Per-output sort-key closure PASS for required outputs.
+3. Per-output path-contract resolution PASS.
+4. Managed launch-profile check failed on task-definition materialization:
+   - `TD_ORACLE_STREAM_SORT = fraud-platform-dev-min-oracle-stream-sort` not describable in ECS at execution time.
+5. Blocker outcome:
+   - `M5D-B4` raised (task/profile launch contract unresolved).
+
+### Evidence artifacts
+1. Local snapshot:
+   - `runs/dev_substrate/m5/20260214T194850Z/m5_d_stream_sort_launch_snapshot.json`
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T194850Z/m5_d_stream_sort_launch_snapshot.json`
+3. Final posture:
+   - `overall_pass=false`
+   - `blockers=["M5D-B4"]`
+
+### Plan-state updates applied
+1. `platform.M5.build_plan.md`:
+   - added `M5.D` execution result block,
+   - updated unresolved blocker register with `M5D-B4` and closure criteria.
+2. `platform.build_plan.md`:
+   - added M5 expansion-state execution evidence + active blocker note for `M5.D`.
+
+### Closure criteria pinned for M5D-B4
+1. Materialize ECS task definition family `fraud-platform-dev-min-oracle-stream-sort` (IaC-backed preferred).
+2. Re-run `M5.D` and require:
+   - `task_definition_materialized=true`,
+   - `overall_pass=true`,
+   - `blockers=[]`.

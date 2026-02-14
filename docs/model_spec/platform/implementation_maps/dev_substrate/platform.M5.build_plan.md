@@ -451,6 +451,21 @@ Blockers:
 4. `M5D-B4`: task/profile/network launch contract unresolved.
 5. `M5D-B5`: M5.D snapshot write/upload failure.
 
+Execution result (2026-02-14):
+1. `M5.D` execution produced a fail-closed HOLD with blocker `M5D-B4`.
+2. Carry-forward and path/sort contract checks passed:
+   - `M5.C` invariants PASS,
+   - required-output sort-key closure PASS,
+   - per-output launch path contract resolution PASS.
+3. Launch-profile check failed on task-definition materialization:
+   - `TD_ORACLE_STREAM_SORT = "fraud-platform-dev-min-oracle-stream-sort"` could not be described in ECS at execution time.
+4. Snapshot publication:
+   - local: `runs/dev_substrate/m5/20260214T194850Z/m5_d_stream_sort_launch_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T194850Z/m5_d_stream_sort_launch_snapshot.json`
+5. Final state:
+   - `overall_pass=false`
+   - `blockers=["M5D-B4"]`
+
 ### M5.E Stream-Sort Execution + Receipts/Manifests
 Goal:
 1. Produce stream_view artifacts and receipts/manifests for each required output ID.
@@ -635,7 +650,12 @@ Control: `ADVANCE_TO_M6` requires checker PASS artifact and zero blockers.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M5 Execution)
 Current blockers:
-1. None.
+1. `M5D-B4` (from `M5.D` execution `m5_20260214T194850Z`)
+   - condition: `TD_ORACLE_STREAM_SORT` handle is pinned but ECS task definition family is not materialized.
+   - closure criteria:
+     - materialize `fraud-platform-dev-min-oracle-stream-sort` task definition in ECS (IaC-backed preferred),
+     - rerun `M5.D` and require `task_definition_materialized=true`,
+     - require `overall_pass=true` with `blockers=[]`.
 
 Resolved blockers:
 1. None yet.
