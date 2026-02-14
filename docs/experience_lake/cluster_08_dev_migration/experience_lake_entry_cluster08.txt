@@ -35,6 +35,14 @@ dev_min Spine Green v0 = run the same proven local_parity spine lifecycle (P0..P
 - same explicit degrade posture (no silent guessing)
 - same replay basis and closure rigor (no unresolved ambiguity at green close; single-writer governance closeout)
 
+Allowed to change (explicit; “change substrate, not semantics”):
+- broker implementation (LocalStack Kinesis → managed Kafka/Kinesis)
+- object store (MinIO → AWS S3)
+- relational store (local Postgres → managed RDS)
+- runtime packaging/execution (docker compose → ECS tasks/services)
+- auth hardening (API keys → service tokens/mTLS), provided semantics and evidence contracts remain identical
+- perf/partitioning knobs, provided they do not change correctness invariants or truth models
+
 2) Context — Why this mattered
 2.1 The “cloud theatre” trap
 A lot of migrations are “we ran it once in the cloud.” That proves almost nothing.
@@ -56,6 +64,10 @@ These are hard laws; if violated, migration is invalid:
 - escalation thresholds pinned (example ladder: £10 / £20 / £28)
 - fail condition: cannot show controlled budget posture → phase cannot close green
 
+Budget evidence hook (PENDING PIN if not yet produced):
+- budget posture must be backed by a published artifact (e.g., cost snapshot/export) under runs/dev_substrate/<phase>/...
+- example target name: budget_posture_snapshot.json (source: AWS billing/Cost Explorer export or equivalent)
+
 3.2 Demo→destroy default posture
 - expensive runtime resources are ephemeral (demo window only)
 - persistence reserved for evidence/core control surfaces
@@ -76,8 +88,16 @@ These are hard laws; if violated, migration is invalid:
 - runtime compute must execute on managed ephemeral infra (ECS tasks/services)
 - fail condition: any required lane depends on laptop execution → migration closure blocked
 
+Boundary clarification (operational):
+- Allowed on laptop: orchestration, inspection, evidence publication, and dry-run verification commands
+- Forbidden for a dev_min “green” claim: any required lane’s compute path executing on the laptop (even if “just for now”)
+
 4) Authority Stack — What wins when docs conflict (pinned filenames)
 When conflict exists: higher authority wins; if unresolved, STOP/log/repin.
+
+Enforcement locus (executable governance, not vibes):
+- phase verdict snapshots and blocker lists are the progression gate; overall_pass=false or blockers non-empty blocks advancing to the next phase
+- conflicts or ambiguity trigger STOP/log/repin and require an explicit repin decision recorded in platform.impl_actual + logbook before proceeding
 
 4.1 Core platform law
 - docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md
@@ -107,6 +127,9 @@ Definition: DONE = DoD closed, blockers empty, evidence artifacts published, nex
   - docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md
   - docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md
 
+Clarification:
+- M0 closure is intentionally doc-only: authority lock + governance + evidence template finalization. No runtime roots are expected for M0.
+
 5.2 M1 — Packaging Readiness (DONE)
 Closeout root:
 - runs/dev_substrate/m1_build_go/20260213T114002Z/
@@ -120,6 +143,10 @@ Packaging evidence artifacts:
 Immutable image identity (authoritative example):
 - tag: git-799d398a7daf34857cf363c9a1a629c40ec25d5e
 - digest: sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56
+
+Key snapshot (M1; “open JSON not required”):
+- image_tag=git-799d398a7daf34857cf363c9a1a629c40ec25d5e
+- image_digest=sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56
 
 5.3 M2 — Substrate Readiness (DONE)
 Closeout root:
@@ -140,6 +167,10 @@ Secret/IAM simulation evidence (M2.E):
   - checks.iam_simulation.app_role_allowed_count = 6
   - checks.iam_simulation.execution_role_allowed_count = 0 (implicitDeny)
 
+Key snapshot (M2.E; “open JSON not required”):
+- iam_simulation.app_role_allowed_count=6
+- iam_simulation.execution_role_allowed_count=0 (implicitDeny)
+
 5.4 M3 — Run Pinning (DONE)
 Closeout root:
 - runs/dev_substrate/m3/20260213T221631Z/
@@ -150,6 +181,10 @@ Pinned run artifacts:
 - m4_runtime_scope_bundle.json
 - m3_run_pinning_snapshot.json
 - m4_handoff_pack.json
+
+Key snapshot (M3; “open JSON not required”):
+- pinned_platform_run_id=platform_20260213T214223Z
+- verdict=ADVANCE_TO_M4
 
 6) Packaging posture — Why it is credible (not “docker build succeeded”)
 6.1 Single-image strategy (deliberate)
@@ -265,10 +300,35 @@ Pass snapshot:
   - overall_pass=true
   - blockers=[]
 
+Key snapshot (M4.C; “open JSON not required”):
+- FAIL: overall_pass=false; blockers include M4C-B4 (unmaterialized ROLE_* handles) plus app-role binding blockers
+- PASS: overall_pass=true; blockers=[]
+
 Durable mirror:
 - s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T134520Z/m4_c_iam_binding_snapshot.json
 
+Evidence strength label (truth hygiene):
+- Failure evidence: strong (snapshot exists with overall_pass=false + named blockers)
+- Fix evidence: strong (plan/apply outputs + outputs-after-apply + policy surface artifacts)
+- Pass evidence: strong (snapshot overall_pass=true with blockers=[] + durable S3 mirror)
+
 10) Evidence Index (auditor trail)
+10.0 Truth surfaces: authoritative vs derived (anti-drift)
+Authoritative (what actually proves phase closure / guardrail compliance):
+- phase verdict snapshots and blocker lists (e.g., M3 verdict snapshot; M4.C iam_binding_snapshot PASS/FAIL)
+- handles registry resolution + runtime scope bundles (run pinning + wiring truth)
+- Terraform plan/apply outputs + outputs-after-apply JSON (materialization truth)
+- IAM simulation snapshots (least privilege proof)
+- immutable image identity evidence (tag→digest mapping + packaging provenance JSON)
+- evidence-bucket mirrors of the same artifacts (durable audit copy)
+
+Supporting (useful context, not decision authority):
+- build plans + impl_actual notes (decision trail, rationale, operator narrative)
+- logbook entries (diagnostic color; not a substitute for verdict artifacts)
+
+Derived (human-facing summaries that must be backed by authoritative artifacts):
+- prose statements such as “M0–M3 DONE”, “semantics preserved”, “program is evidence-first”
+
 10.1 Authority files
 - docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md
 - docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md
