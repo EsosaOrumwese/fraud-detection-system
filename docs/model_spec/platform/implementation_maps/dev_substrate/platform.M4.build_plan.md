@@ -464,26 +464,71 @@ Blockers:
 Goal:
 1. Start mapped ECS services and validate stable running posture.
 
+Entry conditions:
+1. Latest `M4.E` snapshot is PASS and durable:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `unresolved_launch_profiles=[]`.
+2. `M4.B` mapped-service scope (`13` services) is immutable for bring-up.
+3. `M4.C` role-binding validity and `M4.D` dependency reachability are still PASS anchors.
+
+Required inputs:
+1. Control artifacts:
+   - `m4_b_service_map_snapshot.json`
+   - `m4_c_iam_binding_snapshot.json`
+   - `m4_d_dependency_snapshot.json`
+   - `m4_e_launch_contract_snapshot.json`
+2. Runtime handles:
+   - `ECS_CLUSTER_NAME`
+   - `ECS_SERVICE_DESIRED_COUNT_DEFAULT` (v0 expected `1`)
+   - `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`
+3. Service-map + launch-contract tuples per service:
+   - `service_name`
+   - `app_role_binding`
+   - `launch_profile`
+   - `run_scope` payload.
+
 Tasks:
-1. Execute service start/update choreography by pack order:
-   - ingress first, then rtdl core/decision lanes, then case/labels, then obs_gov environment conformance daemon.
-2. Wait for service stabilization and collect:
-   - desired/running counts,
-   - task ARNs,
-   - health endpoint/log status.
-3. Validate no crashloops and run-scope mismatch logs.
-4. Publish daemon-start snapshot.
+1. Pre-start guard checks:
+   - validate launch-contract service set equals mapped-service set (`13` exact),
+   - validate desired count target is deterministic (`1`) for all services,
+   - validate no forbidden runtime role drift vs `M4.C`.
+2. Execute service start/update choreography by pack order:
+   - `control_ingress` -> `rtdl_core` -> `rtdl_decision_lane` -> `case_labels` -> `obs_gov`,
+   - for each service: apply/update launch config from `M4.E`, set desired count `1`, and force rollout as needed.
+3. Stabilization checks (per service):
+   - `desiredCount == 1`,
+   - `runningCount == 1`,
+   - `pendingCount == 0`,
+   - service deployment state is stable/steady.
+4. Runtime correctness checks (per service):
+   - capture task ARNs + task-definition revision used,
+   - inspect recent logs for run-scope mismatch signatures,
+   - validate run-scope marker includes expected `platform_run_id`.
+5. Crashloop and unhealthy-state checks:
+   - detect repeated task restarts / stopped-task churn during stabilization window,
+   - treat non-zero exit / repeated replacement as fail-closed.
+6. Publish `m4_f_daemon_start_snapshot.json` locally and durably with:
+   - per-service launch action/result,
+   - stabilization counters and task ARNs,
+   - run-scope validation findings,
+   - crashloop analysis,
+   - blocker list + overall verdict.
 
 DoD:
 - [ ] All mapped services reach expected singleton running posture.
 - [ ] Crashloop-free stabilization checks pass.
-- [ ] M4.F daemon-start snapshot exists locally and durably.
+- [ ] Run-scope mismatch scan is explicit and PASS for all services.
+- [ ] Launch-contract/service-map parity checks are explicit and PASS.
+- [ ] `m4_f_daemon_start_snapshot.json` exists locally and durably.
 
 Blockers:
 1. `M4F-B1`: service start/update failure.
 2. `M4F-B2`: service fails stabilization (desired/running mismatch).
 3. `M4F-B3`: crashloop or unhealthy state detected.
 4. `M4F-B4`: daemon-start snapshot write/upload failure.
+5. `M4F-B5`: run-scope mismatch evidence detected in daemon logs/status.
+6. `M4F-B6`: launch-contract drift or service-set mismatch at start time.
 
 ### M4.G Duplicate-Consumer Guard + Singleton Enforcement
 Goal:

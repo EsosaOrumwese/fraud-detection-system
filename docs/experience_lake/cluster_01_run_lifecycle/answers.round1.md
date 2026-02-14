@@ -509,6 +509,12 @@ What proves closure:
     - `local_parity_rtdl_decision_lane_v0`
     - `local_parity_case_labels_v0`
     - `local_parity_obs_gov_v0`
+  - Concrete status paths used:
+    - `runs/fraud-platform/operate/local_parity_control_ingress_v0/status/last_status.json`
+    - `runs/fraud-platform/operate/local_parity_rtdl_core_v0/status/last_status.json`
+    - `runs/fraud-platform/operate/local_parity_rtdl_decision_lane_v0/status/last_status.json`
+    - `runs/fraud-platform/operate/local_parity_case_labels_v0/status/last_status.json`
+    - `runs/fraud-platform/operate/local_parity_obs_gov_v0/status/last_status.json`
 - Obs/Gov proof:
   - `runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json` present with closure-consistent metrics:
     - `ingress.publish_ambiguous=0`

@@ -8933,3 +8933,29 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
    - M4 sub-phase progress marks `M4.E` complete,
    - immediate next action now points to `M4.F`.
+## Entry: 2026-02-14 02:59PM - M4.F planning expansion (execution-grade, planning-only)
+
+### Trigger
+1. USER instructed: proceed with planning for `M4.F`.
+
+### Planning actions
+1. Expanded `M4.F` in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+2. Added execution-grade planning structure:
+   - explicit entry conditions tied to clean `M4.E` PASS and immutable `M4.B` service scope,
+   - required inputs across `M4.B/C/D/E` artifacts + runtime handles,
+   - pack-ordered rollout choreography (`control_ingress -> rtdl_core -> rtdl_decision_lane -> case_labels -> obs_gov`),
+   - explicit stabilization predicates (`desired=1`, `running=1`, `pending=0`),
+   - explicit run-scope mismatch detection from runtime logs/status,
+   - explicit crashloop/unhealthy detection rules,
+   - deterministic `m4_f_daemon_start_snapshot.json` artifact contract.
+3. Expanded blocker taxonomy:
+   - added `M4F-B5` (run-scope mismatch evidence),
+   - added `M4F-B6` (launch-contract/service-set drift at bring-up time).
+4. Updated high-level active plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - now reflects `M4.F` execution-grade planning and pack-ordered rollout + run-scope/crashloop validation in immediate next action.
+
+### Planning outcome
+1. `M4.F` is execution-ready at plan level with explicit fail-closed checks.
+2. No runtime execution performed in this step (planning-only).
