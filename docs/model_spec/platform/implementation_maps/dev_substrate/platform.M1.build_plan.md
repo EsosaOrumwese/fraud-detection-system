@@ -127,7 +127,7 @@ Goal:
 
 Tasks:
 1. Enumerate all required logical entrypoints:
-   - oracle seed/sort/checker,
+   - oracle stream-sort/checker,
    - SR,
    - WSP,
    - IG service,
@@ -147,7 +147,6 @@ M1.B entrypoint matrix (frozen):
 
 | Handle key | Runtime mode(s) | Deterministic invocation contract (single image) | Required args contract |
 | --- | --- | --- | --- |
-| `ENTRYPOINT_ORACLE_SEED` | Oracle pack/seal job | `python -m fraud_detection.oracle_store.pack_cli` | `--profile <path> --engine-run-root <s3://...> --scenario-id <id> --engine-release <release>` |
 | `ENTRYPOINT_ORACLE_STREAM_SORT` | Oracle stream-sort job | `python -m fraud_detection.oracle_store.stream_sort_cli` | `--profile <path> --engine-run-root <s3://...> --scenario-id <id>` |
 | `ENTRYPOINT_ORACLE_CHECKER` | Oracle checker job | `python -m fraud_detection.oracle_store.cli` | `--profile <path> --engine-run-root <s3://...>` (`--scenario-id`/`--output-ids`/`--strict-seal` optional by phase posture) |
 | `ENTRYPOINT_SR` | Scenario runner control task | `python -m fraud_detection.scenario_runner.cli run` | `--wiring <path> --policy <path> --run-equivalence-key <key> --manifest-fingerprint <fp> --parameter-hash <hash> --seed <int> --window-start <iso> --window-end <iso>` |

@@ -264,7 +264,7 @@ Before `dev-min-run`, operator MUST be able to confirm:
   * bootstrap + api key/secret exist in SSM paths
 * **S3**:
 
-  * oracle bucket/prefix exists (seeded or will be seeded in P3 lane)
+  * oracle bucket/prefix exists with required run inputs already pre-staged by the external producer
   * evidence bucket writable
 * **Runtime DB** (for “no laptop dependency”):
 
@@ -298,7 +298,7 @@ This table is the **one-screen backbone** of Spine Green v0 on `dev_min`: what e
 | P0    | SUBSTRATE_READY          | **Operator**: `terraform apply core` then `terraform apply demo`                                   | S3 + Dynamo lock + Budgets + SSM + Confluent Kafka + runtime DB + ECS cluster scaffolding | Operator                 | All handles resolvable; SSM secrets present; topics exist; buckets writable                 | `terraform destroy demo` (keep core); if core wrong, destroy core intentionally                                                        |
 | P1    | RUN_PINNED               | **Operator CLI** (or one-shot ECS task if you prefer): create `platform_run_id`, pin config digest | S3 evidence prefix                                                                        | Operator                 | `evidence/runs/<platform_run_id>/run.json` (or equivalent run header) exists                | Delete `evidence/runs/<platform_run_id>/` prefix; re-run P1                                                                            |
 | P2    | DAEMONS_READY            | **ECS services** up (IG, RTDL workers, CM/LS APIs as in-scope)                                     | ECS + runtime DB                                                                          | Operator (health checks) | Service health endpoints OK; CloudWatch logs show “started”; no crashloops                  | Scale services to 0 / redeploy; destroy demo if drifted                                                                                |
-| P3    | ORACLE_READY             | **One-shot job(s)** on managed compute: seed/sync → stream-sort → checker                          | S3 oracle inputs → S3 `stream_view` outputs                                               | Oracle lane              | Stream-view receipt/manifest exists; checker PASS artifact exists                           | Delete `oracle/<run>/stream_view/...` prefix + receipts; rerun P3 (per-output allowed)                                                 |
+| P3    | ORACLE_READY             | **Inlet assertion + one-shot job(s)** on managed compute: stream-sort → checker                     | S3 oracle inputs (externally staged) → S3 `stream_view` outputs                           | Oracle lane              | Stream-view receipt/manifest exists; checker PASS artifact exists                           | Delete `oracle/<run>/stream_view/...` prefix + receipts; rerun P3 (per-output allowed)                                                 |
 | P4    | INGEST_READY             | **IG ECS service** reachable + topic readiness                                                     | IG endpoint + Kafka topics                                                                | Operator + IG            | IG health “ready”; topics exist; auth boundary active                                       | Roll IG deployment; clear only IG runtime state (not evidence)                                                                         |
 | P5    | READY_PUBLISHED          | **SR one-shot ECS task** emits READY                                                               | S3 SR artifacts + Kafka control topic                                                     | SR                       | READY published + SR artifacts written for this run                                         | Clear SR lease (if needed) + rerun P5 (lease rules apply)                                                                              |
 | P6    | STREAMING_ACTIVE         | **WSP one-shot ECS task** reads `stream_view`, POSTs to IG                                         | S3 stream_view → IG ingest                                                                | WSP                      | WSP logs show stream start/stop; IG receives requests                                       | Stop WSP task; rerun P6 (idempotent event_id; IG dedupe absorbs replays)                                                               |
@@ -388,7 +388,7 @@ The single v0 image MUST be able to execute, at minimum, the following “job ca
 
 **Oracle lane**
 
-* Oracle seed/sync job (if used in dev_min)
+* Oracle inlet-assertion step (control-plane; no data copy/sync)
 * Oracle stream-sort job
 * Oracle checker job
 
@@ -1097,9 +1097,9 @@ Local parity writes pack state/status files; dev_min must produce a durable equi
 
 ---
 
-### P3 ORACLE_READY (Oracle seed + stream-sort + checker)
+### P3 ORACLE_READY (Oracle inlet assertion + stream-sort + checker)
 
-**Intent:** Ensure the run’s Oracle inputs are present in **S3**, and materialize a deterministic **`stream_view`** for the in-scope datasets (traffic + required context) using managed compute (no laptop), then validate it. This phase exists because **WSP MUST consume `stream_view`, not raw oracle outputs**, and because local sort is memory/time prohibitive.
+**Intent:** Ensure the run’s Oracle inputs are present in **S3** via external producer ownership, and materialize a deterministic **`stream_view`** for the in-scope datasets (traffic + required context) using managed compute (no laptop), then validate it. This phase exists because **WSP MUST consume `stream_view`, not raw oracle outputs**, and because local sort is memory/time prohibitive.
 
 > **Operator reality:** P3 is the first “heavy compute” phase. In dev_min, it must run as managed one-shot jobs that read/write S3 and emit receipts/manifest artifacts.
 
@@ -1109,10 +1109,11 @@ Local parity writes pack state/status files; dev_min must produce a durable equi
 
 P3 consists of three sub-steps that must succeed in order:
 
-1. **Oracle seed/sync (if needed)**
+1. **Oracle inlet assertion**
 
-* Ensure the oracle inputs required for this run exist in S3 under the pinned oracle prefix layout.
-* Oracle seed/sync sources MUST be managed object-store locations only; copying from laptop-local paths, MinIO, or local filesystems is forbidden.
+* Assert the oracle inputs required for this run already exist in S3 under the pinned oracle prefix layout.
+* Producer ownership is external to platform runtime (for now: operator-prestaged bridge; target: engine-in-dev writes directly).
+* Platform P3 must not perform dataset copy/sync/seed.
 
 2. **Stream-sort**
 
@@ -1172,14 +1173,13 @@ P3 consists of three sub-steps that must succeed in order:
 
 * `S3_ORACLE_BUCKET`
 * `S3_ORACLE_RUN_PREFIX_PATTERN` (includes `<platform_run_id>`)
+* `S3_ORACLE_INPUT_PREFIX_PATTERN`
 * `S3_STREAM_VIEW_PREFIX_PATTERN`
 * `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN`
 * `S3_STREAM_SORT_RECEIPT_KEY_PATTERN`
-* `ORACLE_SEED_SOURCE_MODE`
-* `ORACLE_SEED_SOURCE_BUCKET`
-* `ORACLE_SEED_SOURCE_PREFIX_PATTERN`
-* `ORACLE_SEED_SOURCE_PLATFORM_RUN_ID`
-* `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED`
+* `ORACLE_INLET_MODE`
+* `ORACLE_INLET_PLATFORM_OWNERSHIP`
+* `ORACLE_INLET_ASSERTION_REQUIRED`
 
 **Datasets / output IDs**
 
@@ -1188,7 +1188,6 @@ P3 consists of three sub-steps that must succeed in order:
 
 **Compute**
 
-* `TD_ORACLE_SEED` (if seed runs as task)
 * `TD_ORACLE_STREAM_SORT`
 * `TD_ORACLE_CHECKER`
 * (If Batch is used) `BATCH_JOB_QUEUE`, `BATCH_JOB_DEFINITION`
@@ -1205,9 +1204,9 @@ P3 is executed as **one-shot jobs**.
 
 **Pinned v0 recommendation: ECS run-task**
 
-* One ECS task per sub-step:
+* One control-plane assertion + ECS tasks:
 
-  * `oracle_seed` (optional)
+  * `oracle_inlet_assertion` (control-plane check; no data movement)
   * `oracle_stream_sort` (repeatable per output_id)
   * `oracle_checker`
 * Rationale: aligns with “no laptop dependency” without introducing Batch complexity.
@@ -1220,20 +1219,20 @@ P3 is executed as **one-shot jobs**.
 
 ---
 
-#### P3.5 Oracle seed/sync sub-step (P3.A)
+#### P3.5 Oracle inlet assertion sub-step (P3.A)
 
-**Purpose:** ensure oracle inputs exist in S3.
+**Purpose:** ensure required oracle inputs already exist in S3 under platform-readable prefixes.
 
-* **MUST:** seed/sync from managed object-store sources only (for example, source S3 prefixes in the same or peered account).
-* **MUST NOT:** seed/sync from laptop-local paths, MinIO, or any local filesystem source.
-* **MUST NOT:** bootstrap P3 from local-parity artifacts, even as a temporary operator pre-step.
+* **MUST:** treat inlet as external to platform runtime (engine-owned target posture; temporary operator-prestaged bridge allowed outside run execution).
+* **MUST NOT:** execute sync/copy/seed inside platform run flow.
+* **MUST NOT:** source from laptop-local paths, MinIO, or any local filesystem in dev runtime path.
 * **MUST:** preserve the canonical oracle layout (do not invent new structure).
-* **MUST:** seeding must be resumable and incremental (copy deltas), because oracle size is large.
 
-**PASS proof for seed:**
+**PASS proof for inlet assertion:**
 
 * required oracle input prefixes exist for `platform_run_id`
-* object count/size checks recorded into evidence snapshot
+* required manifest/seal objects are present and readable
+* assertion snapshot recorded in run evidence
 
 ---
 
@@ -1298,7 +1297,7 @@ Checker MUST produce:
 
 P3 is PASS only if all are true:
 
-1. **Oracle inputs present in S3** for this run (seeded or already written)
+1. **Oracle inputs present in S3** for this run (externally pre-staged / engine-written)
 2. **For every required output_id**:
 
    * stream_view shards exist
@@ -1321,7 +1320,7 @@ P3 must write **both** oracle-lane artifacts and run evidence artifacts:
 
 **Run evidence (in S3 evidence prefix)**
 
-* `oracle/seed_snapshot.json` (if seed performed)
+* `oracle/inlet_assertion_snapshot.json`
 * `oracle/stream_sort_summary.json` (per-output summary)
 * `oracle/checker_pass.json` (checker result)
 
@@ -1332,7 +1331,7 @@ P3 must write **both** oracle-lane artifacts and run evidence artifacts:
 #### P3.10 Rollback / rerun rules (safe)
 
 * **Per-output rerun:** delete only the failed output_id’s stream_view prefix + receipt/manifest, then rerun stream-sort for that output_id.
-* **Never delete raw oracle inputs** as part of rerun (unless you are re-seeding intentionally).
+* **Never delete raw oracle inputs** as part of rerun.
 * If checker fails due to missing artifacts:
 
   * rerun only the missing producer step(s)
@@ -1743,7 +1742,7 @@ P5 MUST write:
 * If SR artifacts are partial:
 
   * delete only derived SR artifacts under the run evidence prefix and rerun P5
-  * never delete oracle truth inputs as part of SR rerun unless reseeding intentionally
+  * never delete oracle truth inputs as part of SR rerun
 
 ---
 
@@ -3091,7 +3090,7 @@ These are the **mandatory** artifacts for a dev_min run to be considered “Spin
 
 #### 6.3.3 Oracle lane evidence (P3)
 
-* `oracle/seed_snapshot.json` (only if seed executed)
+* `oracle/inlet_assertion_snapshot.json`
 * `oracle/stream_sort_summary.json`
 
   * per required `output_id`: PASS/FAIL + counts + receipt pointers
@@ -3452,7 +3451,7 @@ This appendix summarizes **who can do what** in dev_min. It is a **high-level bo
 
 ##### ROLE_ORACLE_JOB (P3 sub-steps)
 
-**Purpose:** Oracle seed/sync (optional), stream-sort, checker.
+**Purpose:** Oracle inlet assertion, stream-sort, checker.
 
 **Must be able to:**
 

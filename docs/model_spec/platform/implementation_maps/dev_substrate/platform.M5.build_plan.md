@@ -25,7 +25,7 @@ In scope:
 1. P3 oracle inlet closure:
    - explicit inlet path for how oracle inputs arrive into run-scoped S3.
 2. P3 oracle input presence closure:
-   - verify run-scoped S3 input prefixes exist or execute managed seed/sync.
+   - verify run-scoped S3 input prefixes exist (no platform seed/sync execution).
 3. P3 stream-sort execution:
    - one-shot managed compute jobs only,
    - deterministic per-output sorting,
@@ -44,8 +44,8 @@ Out of scope:
 
 ## 3) M5 Deliverables
 1. `M5.A` P3 handle closure snapshot.
-2. `M5.B` seed source-policy decision snapshot.
-3. `M5.C` seed snapshot (if seed executed) or explicit seed-skip proof.
+2. `M5.B` inlet policy decision snapshot.
+3. `M5.C` inlet assertion snapshot (input-presence proof).
 4. `M5.D` stream-sort launch contract snapshot.
 5. `M5.E` stream-sort summary with per-output receipt/manifest references.
 6. `M5.F` checker pass snapshot.
@@ -60,12 +60,12 @@ Current posture:
 Execution block:
 1. No M6 execution is allowed before M5 verdict is `ADVANCE_TO_M6`.
 2. No stream-sort/checker execution is allowed until required output IDs and sort-key mapping are explicitly pinned.
-3. No local/laptop/minio seed path is allowed at any step.
+3. No platform seed/sync execution lane is allowed at any step.
 
 ## 4.1) Anti-Cram Law (Binding for M5)
 1. M5 is not execution-ready unless these lanes are explicit:
    - authority/handles
-   - seed source policy
+   - inlet ownership/policy
    - managed compute contract
    - S3 artifact contract
    - checker fail-closed contract
@@ -78,8 +78,8 @@ Execution block:
 | Capability lane | Primary sub-phase owner | Supporting sub-phases | Minimum PASS evidence |
 | --- | --- | --- | --- |
 | Authority + P3 handles closure | M5.A | M5.H | zero unresolved required P3 handles |
-| Seed source-policy closure | M5.B | M5.C | managed object-store-only source proof |
-| Seed/input presence closure | M5.C | M5.H | input prefixes present for run |
+| Inlet policy closure | M5.B | M5.C | external-inlet ownership + no-platform-seed proof |
+| Input presence assertion | M5.C | M5.H | input prefixes present for run |
 | Stream-sort launch contract | M5.D | M5.E | per-output launch plan + task definition mapping |
 | Stream-sort execution + artifacts | M5.E | M5.F | per-output manifest + receipt durable |
 | Checker fail-closed gate | M5.F | M5.H | checker pass artifact with all required output IDs |
@@ -90,7 +90,7 @@ Execution block:
 
 ## M5 Decision Pins (Closed Before Execution)
 1. Managed-compute law:
-   - seed/sort/checker run on managed compute one-shot jobs only.
+   - stream-sort/checker run on managed compute one-shot jobs only.
 2. S3 law:
    - oracle inputs and stream_view outputs are S3-resident under run-scoped prefixes.
 3. Stream-view-first law:
@@ -103,7 +103,8 @@ Execution block:
    - per-output rerun only; no destructive raw-input deletion in normal reruns.
 7. Inlet posture law (current cycle):
    - inlet remains an explicit contract in M5,
-   - current run may treat inlet execution as pre-satisfied when staged inputs already exist in the run-scoped prefix with evidence.
+   - current run requires externally pre-staged oracle inputs under run-scoped prefix with evidence,
+   - platform runtime must not execute seed/sync/copy.
 
 ### M5.A Authority + Handle Closure (P3)
 Goal:
@@ -143,8 +144,9 @@ Tasks:
    - `S3_STREAM_SORT_RECEIPT_KEY_PATTERN`
    - `ORACLE_REQUIRED_OUTPUT_IDS`
    - `ORACLE_SORT_KEY_BY_OUTPUT_ID`
-   - `ORACLE_SEED_SOURCE_MODE`
-   - `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED`
+   - `ORACLE_INLET_MODE`
+   - `ORACLE_INLET_PLATFORM_OWNERSHIP`
+   - `ORACLE_INLET_ASSERTION_REQUIRED`
    - `TD_ORACLE_STREAM_SORT`
    - `TD_ORACLE_CHECKER`
    - `ROLE_ORACLE_JOB`
@@ -152,34 +154,30 @@ Tasks:
    - `SUBNET_IDS_PUBLIC`
    - `SECURITY_GROUP_ID_APP`
    - `S3_EVIDENCE_BUCKET`.
-3. Resolve conditional seed handles and mark them `conditional_if_seed_required`:
-   - `ORACLE_SEED_SOURCE_BUCKET`
-   - `ORACLE_SEED_SOURCE_PREFIX_PATTERN`
-   - `ORACLE_SEED_SOURCE_PLATFORM_RUN_ID`
-   - `TD_ORACLE_SEED`.
-4. Enforce fail-closed closure rules:
+3. Enforce fail-closed closure rules:
    - reject placeholders (including `<PIN_AT_P3_PHASE_ENTRY>`),
    - reject wildcard/umbrella key references as closure proof,
-   - reject ambiguous source-of-truth (more than one conflicting origin).
-5. Emit `m5_a_handle_closure_snapshot.json` with minimum fields:
+   - reject ambiguous source-of-truth (more than one conflicting origin),
+   - reject any `ORACLE_SEED_*` or `TD_ORACLE_SEED` usage.
+4. Emit `m5_a_handle_closure_snapshot.json` with minimum fields:
    - `m5_execution_id`, `platform_run_id`
-   - `required_handle_keys_always`, `required_handle_keys_conditional_seed`
+   - `required_handle_keys_always`
    - `resolved_handle_count_always`, `unresolved_handle_count_always`
    - `unresolved_handle_keys_always`
    - `placeholder_handle_keys`
    - `wildcard_key_present`
-   - `conditional_seed_handles_resolved`
+   - `disallowed_seed_handles_present`
    - `overall_pass`.
-6. Publish snapshot:
+5. Publish snapshot:
    - local: `runs/dev_substrate/m5/<timestamp>/m5_a_handle_closure_snapshot.json`
    - durable: `s3://<S3_EVIDENCE_BUCKET>/evidence/dev_min/run_control/<m5_execution_id>/m5_a_handle_closure_snapshot.json`.
-7. Stop phase progression if `overall_pass=false`.
+6. Stop phase progression if `overall_pass=false`.
 
 DoD:
 - [ ] M4->M5 entry gate invariants verified and recorded.
 - [ ] Always-required P3 handle set is explicit, concrete, and fully resolved.
 - [ ] Placeholder and wildcard handle usage are absent from closure evidence.
-- [ ] Conditional seed handle contract is explicit for `M5.B` (`INLET_PRESTAGED` vs `SEED_REQUIRED` follow-through).
+- [ ] Inlet policy handles are explicit and disallowed seed handles are absent.
 - [ ] M5.A snapshot exists locally and durably.
 
 Blockers:
@@ -189,34 +187,32 @@ Blockers:
 4. `M5A-B4`: required output-id or sort-key decision remains unpinned.
 5. `M5A-B5`: M5.A snapshot write/upload failure.
 
-### M5.B Oracle Inlet Decision + Source-Policy Closure
+### M5.B Oracle Inlet Policy Closure
 Goal:
-1. Pin whether inlet is pre-satisfied or requires seed/sync, and enforce object-store-only source policy.
+1. Pin external-inlet ownership and fail-closed policy (no platform seed/sync lane).
 
 Entry conditions:
 1. `M5.A` is PASS.
 
 Tasks:
-1. Evaluate run-scoped oracle input presence against `S3_ORACLE_INPUT_PREFIX_PATTERN`.
-2. Decide inlet mode:
-   - `INLET_PRESTAGED` if required inputs already exist in run-scoped prefix,
-   - `SEED_REQUIRED` if required inputs are absent and managed seed must run.
-3. Validate source policy:
-   - allow only managed object-store source (`S3`),
-   - reject local/laptop/minio/filesystem source paths.
-4. Emit `m5_b_seed_policy_snapshot.json` with decision + source proof.
+1. Validate `ORACLE_INLET_MODE = external_pre_staged`.
+2. Validate `ORACLE_INLET_PLATFORM_OWNERSHIP = outside_platform_runtime_scope`.
+3. Validate `ORACLE_INLET_ASSERTION_REQUIRED = true`.
+4. Enforce fail-closed drift guard:
+   - reject any active seed/sync task or handle (`ORACLE_SEED_*`, `TD_ORACLE_SEED`) in M5 scope.
+5. Emit `m5_b_inlet_policy_snapshot.json` with policy closure proof.
 
 DoD:
-- [ ] Inlet decision is explicit and evidence-backed.
-- [ ] Source policy is object-store-only and fail-closed.
+- [ ] Inlet policy is explicit and evidence-backed.
+- [ ] Seed/sync lane is explicitly blocked in platform runtime scope.
 - [ ] M5.B snapshot exists locally and durably.
 
 Blockers:
-1. `M5B-B1`: inlet/seed decision ambiguous.
-2. `M5B-B2`: seed source violates managed object-store-only policy.
+1. `M5B-B1`: inlet policy handles missing/ambiguous.
+2. `M5B-B2`: disallowed seed/sync lane detected in M5 scope.
 3. `M5B-B3`: M5.B snapshot write/upload failure.
 
-### M5.C Seed/Sync Execution (Conditional)
+### M5.C Oracle Input Presence Assertion (No Seed Execution)
 Goal:
 1. Ensure required oracle inputs exist in run-scoped S3 prefix.
 
@@ -224,22 +220,18 @@ Entry conditions:
 1. `M5.B` PASS.
 
 Tasks:
-1. If seed required:
-   - run managed one-shot seed task with `ROLE_ORACLE_JOB`,
-   - sync source S3 prefix to run-scoped oracle input prefix,
-   - collect object count/size deltas.
-2. If seed skipped:
-   - verify required input prefixes already exist and are readable.
-3. Emit `oracle/seed_snapshot.json` under run evidence root.
+1. Verify required input prefixes already exist and are readable.
+2. Verify required oracle manifest/seal artifacts exist for the run-scoped input root.
+3. Emit `oracle/inlet_assertion_snapshot.json` under run evidence root.
 
 DoD:
 - [ ] Required oracle input prefixes are present for run.
-- [ ] Seed snapshot (or explicit seed-skip proof) exists durably.
+- [ ] Inlet assertion snapshot exists durably.
 
 Blockers:
-1. `M5C-B1`: seed job failed.
-2. `M5C-B2`: required input prefixes absent after seed/verify.
-3. `M5C-B3`: seed snapshot write/upload failure.
+1. `M5C-B1`: required input prefixes absent/unreadable.
+2. `M5C-B2`: required oracle manifest/seal artifacts missing.
+3. `M5C-B3`: inlet assertion snapshot write/upload failure.
 
 ### M5.D Stream-Sort Launch Contract
 Goal:
@@ -349,7 +341,7 @@ Entry conditions:
 Tasks:
 1. Evaluate predicates:
    - `p3_handles_closed`
-   - `p3_seed_policy_closed`
+   - `p3_inlet_policy_closed`
    - `p3_inputs_present`
    - `p3_stream_sort_complete`
    - `p3_checker_pass`
@@ -410,11 +402,11 @@ Evidence roots:
    - `m5_<YYYYMMDDTHHmmssZ>`
 
 Minimum M5 evidence payloads:
-1. `evidence/runs/<platform_run_id>/oracle/seed_snapshot.json` (if seed executed)
+1. `evidence/runs/<platform_run_id>/oracle/inlet_assertion_snapshot.json`
 2. `evidence/runs/<platform_run_id>/oracle/stream_sort_summary.json`
 3. `evidence/runs/<platform_run_id>/oracle/checker_pass.json`
 4. `evidence/dev_min/run_control/<m5_execution_id>/m5_a_handle_closure_snapshot.json`
-5. `evidence/dev_min/run_control/<m5_execution_id>/m5_b_seed_policy_snapshot.json`
+5. `evidence/dev_min/run_control/<m5_execution_id>/m5_b_inlet_policy_snapshot.json`
 6. `evidence/dev_min/run_control/<m5_execution_id>/m5_d_stream_sort_launch_snapshot.json`
 7. `evidence/dev_min/run_control/<m5_execution_id>/m5_g_rerun_probe_snapshot.json`
 8. `evidence/dev_min/run_control/<m5_execution_id>/m5_h_verdict_snapshot.json`
@@ -439,8 +431,8 @@ Notes:
 - [ ] M5.I complete
 
 ## 8) Risks and Controls
-R1: Hidden local seed path reintroduced.  
-Control: explicit source-policy gate in M5.B + fail-closed blocker.
+R1: Hidden inlet bootstrap/seed lane reintroduced.  
+Control: explicit inlet-policy gate in M5.B + fail-closed blocker.
 
 R2: Stream-sort produces partial/undocumented outputs.  
 Control: per-output artifact checks + checker gate + verdict blocker rollup.

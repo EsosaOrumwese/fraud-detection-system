@@ -9719,3 +9719,73 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. Copy status: `SUCCESS`.
 2. P3 input staging is now aligned with no-laptop and S3->S3 policy.
 3. Source prefix intentionally retained pending M5 closure; delete decision deferred until post-M5 verification.
+
+## Entry: 2026-02-14 06:44PM - Pre-change lock: remove dev migration seed-lane assumptions (external Oracle inlet boundary)
+
+### Trigger
+1. USER clarified the intended dev boundary: Oracle data arrival into S3 is owned outside the platform (engine/external producer), so platform runtime must not model seed/sync as part of P3.
+2. USER requested a reference-doc and build-plan sweep to root out seed-source assumptions and align all active docs/plans.
+
+### Drift detected
+1. `dev_min` runbook (`dev_min_spine_green_v0_run_process_flow.md`) still models P3 as `seed/sync -> stream-sort -> checker` and still requires `ORACLE_SEED_*` + `TD_ORACLE_SEED` handles.
+2. Handles registry (`dev_min_handles.registry.v0.md`) still pins seed-source handles and seed task/entrypoint.
+3. Active execution plans (`platform.build_plan.md`, `platform.M5.build_plan.md`, and M1 entrypoint matrix) still carry conditional seed execution/snapshots.
+
+### Decision (pinned for this cycle)
+1. Dev-min platform runtime has **no seed/sync lane**.
+2. P3 input contract is **external inlet pre-staged** under canonical Oracle S3 run prefixes.
+3. Platform P3 responsibilities are:
+   - inlet assertion (presence/readability/manifests),
+   - stream-sort,
+   - checker.
+4. `ORACLE_SEED_*`, `ENTRYPOINT_ORACLE_SEED`, and `TD_ORACLE_SEED` are removed from active migration authority/plans.
+
+### Planned patch scope
+1. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+
+### Validation plan
+1. Run symbol sweep for `ORACLE_SEED_`, `TD_ORACLE_SEED`, `ENTRYPOINT_ORACLE_SEED`, `seed/sync`, and `SEED_REQUIRED` across migration-to-dev + active dev_substrate plan docs.
+2. Confirm remaining `seed` occurrences are unrelated (for example SR deterministic seed argument), not oracle inlet policy.
+
+## Entry: 2026-02-14 06:49PM - Applied drift closure: dev migration docs/plans now enforce external Oracle inlet (no platform seed lane)
+
+### Files updated
+1. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+
+### What was changed
+1. Reframed P3 from `seed/sync -> stream-sort -> checker` to:
+   - inlet assertion (external/pre-staged ownership),
+   - stream-sort,
+   - checker.
+2. Removed active seed-lane handles from migration authority:
+   - removed `ORACLE_SEED_*`, `TD_ORACLE_SEED`, `ENTRYPOINT_ORACLE_SEED`.
+3. Added explicit inlet policy handles:
+   - `ORACLE_INLET_MODE = external_pre_staged`
+   - `ORACLE_INLET_PLATFORM_OWNERSHIP = outside_platform_runtime_scope`
+   - `ORACLE_INLET_ASSERTION_REQUIRED = true`
+4. Updated P3 evidence contract:
+   - replaced `oracle/seed_snapshot.json` with `oracle/inlet_assertion_snapshot.json`.
+5. Updated M5 deep plan sub-phases and predicates:
+   - `M5.B` now closes inlet policy (no seed lane),
+   - `M5.C` now performs input-presence assertion only,
+   - predicate renamed to `p3_inlet_policy_closed`.
+6. Updated M1 entrypoint matrix to remove oracle-seed entrypoint.
+
+### Verification performed
+1. Symbol sweep across migration authority + active build plans confirms no active seed lane references remain.
+2. Remaining seed/sync mentions are only explicit prohibitions (anti-regression guards), not executable flow steps.
+3. No runtime jobs, Terraform applies, or data movement executed in this step.
+
+### Outcome
+1. Migration authority and active plans now match USER-pinned boundary:
+   - Oracle data inlet is outside platform runtime scope,
+   - platform P3 starts at input assertion then stream-sort/checker.
+2. This removes the major ambiguity that previously implied platform-owned ingest bootstrap in dev.

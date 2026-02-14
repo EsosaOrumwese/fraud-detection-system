@@ -108,7 +108,7 @@ These are the canonical field names used in config and evidence payloads:
 * `CONFIG_DIGEST_ALGO = "sha256"`
 * `CONFIG_DIGEST_FIELD = "config_digest"`
 * `SCENARIO_EQUIVALENCE_KEY_INPUT = "sha256(canonical_json_v1)"`
-* `SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS = "oracle_seed_manifest_uri,oracle_seed_manifest_sha256,oracle_required_output_ids,oracle_sort_key_by_output_id,config_digest"`
+* `SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS = "oracle_input_manifest_uri,oracle_input_manifest_sha256,oracle_required_output_ids,oracle_sort_key_by_output_id,config_digest"`
 * `SCENARIO_EQUIVALENCE_KEY_CANONICALIZATION_MODE = "json_sorted_keys_v1"`
 * `SCENARIO_RUN_ID_DERIVATION_MODE = "deterministic_hash_v1"`
 
@@ -207,7 +207,6 @@ These handles pin **where data lives** in dev_min. Buckets are provisioned by Te
 These are the only allowed template tokens inside prefix patterns:
 
 * `{platform_run_id}`
-* `{source_platform_run_id}` *(optional for seed-source selectors)*
 * `{scenario_run_id}` *(optional where relevant)*
 * `{output_id}`
 * `{phase_id}` *(P0..P12)*
@@ -291,22 +290,16 @@ Convenience patterns (must align with Section 6 evidence contract):
 * `S3_ARCHIVE_RETENTION_DAYS = 60`
 * `S3_EVIDENCE_RETENTION_DAYS = null` *(no automatic expiry by default)*
 
-### 3.8 Oracle seed source handles (P3 policy lock)
+### 3.8 Oracle inlet policy handles (P3 boundary lock)
 
-* `ORACLE_SEED_SOURCE_MODE = "s3_to_s3_only"`
-* `ORACLE_SEED_SOURCE_BUCKET = "fraud-platform-dev-min-object-store"`
-* `ORACLE_SEED_SOURCE_PREFIX_PATTERN = "oracle/{source_platform_run_id}/inputs/"`
-* `ORACLE_SEED_SOURCE_PLATFORM_RUN_ID = "platform_20260213T214223Z"`
-* `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED = false`
+* `ORACLE_INLET_MODE = "external_pre_staged"`
+* `ORACLE_INLET_PLATFORM_OWNERSHIP = "outside_platform_runtime_scope"`
+* `ORACLE_INLET_ASSERTION_REQUIRED = true`
 
-`ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED` remains explicit so automation cannot
-quietly reintroduce local bootstrap behavior. Dev_min v0 policy is managed
-object-store-only for P3 seed/sync.
-
-Current-cycle note:
-* Seed source uses canonical `oracle/...` style with explicit source-run selector (not legacy `dev_min/...`).
-* The active run remains pre-staged under `oracle/{platform_run_id}/inputs/`; the source selector above stays as
-  deterministic fallback if `SEED_REQUIRED` is entered.
+Policy note:
+* Dev_min P3 does not include a platform seed/sync task.
+* Oracle inputs are expected under the canonical run-scoped input prefix before P3 stream-sort/checker.
+* Temporary operator upload/copy bridges are outside platform runtime scope and must not be modeled as platform jobs.
 
 ---
 
@@ -491,7 +484,6 @@ Pick at least one (implementer chooses exact mechanics, but the interface is pin
 
 The image must support these logical entrypoint modes (exact commands pinned later by Codex in task defs):
 
-* `ENTRYPOINT_ORACLE_SEED`
 * `ENTRYPOINT_ORACLE_STREAM_SORT`
 * `ENTRYPOINT_ORACLE_CHECKER`
 * `ENTRYPOINT_SR`
@@ -551,7 +543,6 @@ Optional (only if you introduce an internal LB — not recommended by default):
 
 These are logical identifiers; the real AWS ARNs/names are bound by Terraform outputs.
 
-* `TD_ORACLE_SEED = "fraud-platform-dev-min-oracle-seed"`
 * `TD_ORACLE_STREAM_SORT = "fraud-platform-dev-min-oracle-stream-sort"`
 * `TD_ORACLE_CHECKER = "fraud-platform-dev-min-oracle-checker"`
 * `TD_SR`
@@ -728,7 +719,7 @@ Optional:
 
 ## 9. AWS Batch Handles (ONLY if used for P3)
 
-Dev_min v0 prefers ECS run-tasks for P3 (oracle jobs). If (and only if) you choose AWS Batch for stream-sort/seed/checker, pin the required handles here. If not used, leave these unset and do not reference them elsewhere.
+Dev_min v0 prefers ECS run-tasks for P3 (oracle jobs). If (and only if) you choose AWS Batch for stream-sort/checker, pin the required handles here. If not used, leave these unset and do not reference them elsewhere.
 
 ### 9.1 Batch usage flag
 
@@ -773,7 +764,7 @@ These handles pin the IAM roles used by Terraform and every ECS task/service. Th
 
 * `ROLE_ORACLE_JOB = "fraud-platform-dev-min-rtdl-core"`
 
-  * for `TD_ORACLE_SEED`, `TD_ORACLE_STREAM_SORT`, `TD_ORACLE_CHECKER`
+  * for `TD_ORACLE_STREAM_SORT`, `TD_ORACLE_CHECKER`
   * v0 posture: reuse existing materialized lane role for M5 bring-up; split to a dedicated oracle role if/when least-privilege policy divergence is required.
 
 * `ROLE_SR_TASK`

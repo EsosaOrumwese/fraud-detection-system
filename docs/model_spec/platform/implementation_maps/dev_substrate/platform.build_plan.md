@@ -46,7 +46,7 @@ Migration program is complete only when all are true:
 
 ## 4) Non-Negotiable Guardrails
 - No laptop compute for runtime jobs/services.
-- P3 seed/sync is S3->S3 only (no local bootstrap path).
+- P3 inlet is external/pre-staged (no platform seed/sync lane).
 - IG writer-boundary auth remains enforced and fail-closed.
 - `PUBLISH_AMBIGUOUS` blocks green closure until reconciled.
 - Single-writer enforcement for P11 reporter/governance append.
@@ -80,7 +80,7 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | M2 | P0 | Substrate readiness (Terraform core+confluent+demo) | DONE |
 | M3 | P1 | Run pinning + run manifest evidence | DONE |
 | M4 | P2 | Daemon bring-up on ECS with run-scope controls | DONE |
-| M5 | P3 | Oracle lane (seed/sort/checker) | ACTIVE |
+| M5 | P3 | Oracle lane (inlet assertion/sort/checker) | ACTIVE |
 | M6 | P4-P7 | Control+Ingress closure | NOT_STARTED |
 | M7 | P8-P10 | RTDL + Case/Labels closure | NOT_STARTED |
 | M8 | P11 | Obs/Gov closure | NOT_STARTED |
@@ -386,18 +386,18 @@ Objective:
 Scope:
 - P3 oracle-lane flow:
   - inlet contract is explicit (how oracle inputs arrive into run-scoped S3),
-  - seed/sync from managed object-store sources only (if required),
+  - external inlet assertion only (no platform sync/copy/seed job),
   - stream-sort per required output_id with deterministic sort keys,
   - checker fail-closed validation across all required output_ids.
 - Commit run-scoped durable evidence:
   - stream_view manifests + sort receipts under oracle prefix,
-  - `oracle/seed_snapshot.json` (if seed executed),
+  - `oracle/inlet_assertion_snapshot.json`,
   - `oracle/stream_sort_summary.json`,
   - `oracle/checker_pass.json`.
-- Preserve no-laptop and S3->S3 laws with per-output rerun semantics.
+- Preserve no-laptop and external-inlet laws with per-output rerun semantics.
 
 Failure posture:
-- fail closed on unresolved P3 handles, non-S3 seed source, missing manifest/receipt, checker failure, or missing durable evidence.
+- fail closed on unresolved P3 handles, inlet-policy drift, missing manifest/receipt, checker failure, or missing durable evidence.
 
 Active-phase planning posture:
 - Detailed M5 authority file:
@@ -406,8 +406,8 @@ Active-phase planning posture:
   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T170953Z/m5_handoff_pack.json`.
 - M5 sub-phase progression model:
   - `M5.A` authority + handle closure for P3.
-  - `M5.B` oracle inlet decision + source-policy closure.
-  - `M5.C` seed/sync execution (conditional, fail-closed when required).
+  - `M5.B` oracle inlet policy closure (external ownership boundary).
+  - `M5.C` oracle input presence assertion (no platform seed execution).
   - `M5.D` stream-sort launch contract and per-output task plan.
   - `M5.E` stream-sort execution + receipt/manifest publication.
   - `M5.F` checker execution + pass artifact publication.
@@ -416,11 +416,11 @@ Active-phase planning posture:
   - `M5.I` M6 handoff artifact publication.
 - M5 expansion state:
   - `M5.A -> M5.I` are now expanded to execution-grade in the deep plan with entry criteria, required inputs, deterministic tasks, DoD, and blockers.
-  - `M5.A` now explicitly pins M4->M5 entry invariants, always-required vs conditional-seed handle closure, and local+durable `m5_a_handle_closure_snapshot.json` publication contract.
+  - `M5.A` now explicitly pins M4->M5 entry invariants, always-required P3 handles, and local+durable `m5_a_handle_closure_snapshot.json` publication contract.
 - Sub-phase progress:
   - [ ] `M5.A` authority + handle closure for P3.
-  - [ ] `M5.B` oracle inlet decision + source-policy closure.
-  - [ ] `M5.C` seed/sync execution (conditional).
+  - [ ] `M5.B` oracle inlet policy closure.
+  - [ ] `M5.C` oracle input presence assertion.
   - [ ] `M5.D` stream-sort launch contract.
   - [ ] `M5.E` stream-sort execution + receipts/manifests.
   - [ ] `M5.F` checker execution + checker pass artifact.
@@ -429,7 +429,7 @@ Active-phase planning posture:
   - [ ] `M5.I` M6 handoff publication.
 
 M5 DoD checklist:
-- [ ] P3 inputs for this run exist in S3 (seeded or already present).
+- [ ] P3 inputs for this run exist in S3 under canonical run-scoped input prefix (external-prestaged / engine-written).
 - [ ] For each required output_id, stream_view shards + manifest + stream_sort receipt exist.
 - [ ] `oracle/checker_pass.json` exists and confirms full PASS for required output_ids.
 - [ ] P3 rerun posture is fail-closed and per-output (no forced full rerun for single-output failure).
@@ -574,7 +574,7 @@ R1: Semantic drift under delivery pressure
 Control: fail-closed drift sentinel + no phase advance without evidence.
 
 R2: Hidden local dependency reintroduced  
-Control: explicit no-local-compute and S3->S3 P3 policy.
+Control: explicit no-local-compute and external-prestaged P3 inlet policy.
 
 R3: Incomplete closure accepted as green  
 Control: phase DoD + evidence checks + no halfbaked transitions.
@@ -586,5 +586,5 @@ Control: required P12 teardown proof and budget guardrails.
 M5 is active for deep-plan closure and execution sequencing.
 Next action:
 - start with `M5.A` authority + handle closure for P3 using the M4 handoff anchor,
-- confirm P3 decision set is explicitly pinned (required output_ids, sort-key map, seed-source policy, task-definition handles) before execution,
+- confirm P3 decision set is explicitly pinned (required output_ids, sort-key map, inlet policy, task-definition handles) before execution,
 - proceed to `M5.B` only after `M5.A` blockers are empty.
