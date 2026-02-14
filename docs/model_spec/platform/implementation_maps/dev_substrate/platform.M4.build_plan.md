@@ -126,6 +126,7 @@ Tasks:
      - `VPC_ID`
      - `SUBNET_IDS_PUBLIC`
      - `SECURITY_GROUP_ID_APP`
+     - `SECURITY_GROUP_ID_DB`
      - `CLOUDWATCH_LOG_GROUP_PREFIX`
    - in-scope daemon service identities:
      - `SVC_IG`
@@ -365,12 +366,12 @@ Tasks:
    - blocker list + overall verdict.
 
 DoD:
-- [ ] Dependency matrix covers all `M4.B` mapped services with explicit dependency classes.
-- [ ] Managed-compute probe evidence exists (no laptop-only reachability evidence).
-- [ ] Probe task launch anchor (`ecs_probe_task_definition_arn`) and probe exit status are captured in snapshot evidence.
-- [ ] Kafka/S3/DB/CloudWatch/SSM checks pass or are blocker-marked fail-closed.
-- [ ] Route/security-group posture aligns with demo networking assumptions.
-- [ ] `m4_d_dependency_snapshot.json` exists locally and durably.
+- [x] Dependency matrix covers all `M4.B` mapped services with explicit dependency classes.
+- [x] Managed-compute probe evidence exists (no laptop-only reachability evidence).
+- [x] Probe task launch anchor (`ecs_probe_task_definition_arn`) and probe exit status are captured in snapshot evidence.
+- [x] Kafka/S3/DB/CloudWatch/SSM checks pass or are blocker-marked fail-closed.
+- [x] Route/security-group posture aligns with demo networking assumptions.
+- [x] `m4_d_dependency_snapshot.json` exists locally and durably.
 
 Blockers:
 1. `M4D-B1`: dependency reachability failure.
@@ -561,7 +562,7 @@ Notes:
 - [x] M4.A complete
 - [x] M4.B complete
 - [x] M4.C complete
-- [ ] M4.D complete
+- [x] M4.D complete
 - [ ] M4.E complete
 - [ ] M4.F complete
 - [ ] M4.G complete
@@ -584,15 +585,7 @@ Control: mandatory run-scoped `operate/daemons_ready.json` and control-plane sna
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M4 Execution)
 Current blockers:
-1. `M4D-B5`:
-   - `SECURITY_GROUP_ID_DB` is missing from canonical `M4.A` handle-closure artifact surface.
-   - `M4.D` execution used Terraform fallback (`security_group_id_db`) for live validation, but closure remains fail-closed until handle closure is canonicalized.
-   - active evidence:
-     - `runs/dev_substrate/m4/20260214T141438Z/m4_d_dependency_snapshot.json`
-     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T141438Z/m4_d_dependency_snapshot.json`
-   - closure criteria:
-     - refresh `M4.A` handle closure to include `SECURITY_GROUP_ID_DB`,
-     - re-run `M4.D` with `missing_handles_in_m4a_closure=[]` and `overall_pass=true`.
+1. None.
 
 Resolved blockers:
 1. `M4C-B4`:
@@ -617,6 +610,14 @@ Resolved blockers:
    - dependency/network probes executed and passed on managed-compute probe lane; `M4.D` remained blocked only by handle-closure gap (`M4D-B5`).
    - evidence:
      - `runs/dev_substrate/m4/20260214T141438Z/m4_d_dependency_snapshot.json`
+5. `M4D-B5`:
+   - resolved by refreshing canonical `M4.A` handle closure to include `SECURITY_GROUP_ID_DB`.
+   - refreshed `M4.A` closure evidence:
+     - `runs/dev_substrate/m4/20260214T142309Z/m4_a_handle_closure_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T142309Z/m4_a_handle_closure_snapshot.json`
+   - `M4.D` rerun closure evidence (`missing_handles_in_m4a_closure=[]`, `overall_pass=true`):
+     - `runs/dev_substrate/m4/20260214T142421Z/m4_d_dependency_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T142421Z/m4_d_dependency_snapshot.json`
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

@@ -8795,3 +8795,39 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - unresolved blocker register now includes active `M4D-B5` with closure criteria.
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
    - immediate next action updated to resolve `M4D-B5` then re-run `M4.D`.
+## Entry: 2026-02-14 02:25PM - Closed M4.D by canonical M4.A refresh + pass re-run
+
+### Trigger
+1. USER directed execution of next steps to close `M4.D`.
+
+### Closure actions
+1. Refreshed canonical `M4.A` closure artifact to include missing handle:
+   - added `SECURITY_GROUP_ID_DB` to `required_handle_keys`,
+   - added handle record with value from `M2.G` network posture source.
+2. Published refreshed `M4.A` artifact:
+   - local: `runs/dev_substrate/m4/20260214T142309Z/m4_a_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T142309Z/m4_a_handle_closure_snapshot.json`
+   - result: `overall_pass=true`, `unresolved_handle_count=0`.
+3. Re-ran `M4.D` against refreshed `M4.A` closure:
+   - local: `runs/dev_substrate/m4/20260214T142421Z/m4_d_dependency_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T142421Z/m4_d_dependency_snapshot.json`
+4. Managed probe lane remained green:
+   - one-shot ECS probe task launched and exited `0`,
+   - endpoint checks all PASS (`KAFKA_BOOTSTRAP`, `DB_ENDPOINT`, `S3_*`, `CLOUDWATCH_LOGS`, `SSM_ENDPOINT`).
+
+### Outcome
+1. `M4.D` is now closed:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `missing_handles_in_m4a_closure=[]`
+2. `M4D-B5` resolved.
+
+### Plan-state updates
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+   - `M4.A` required-handle set now explicitly includes `SECURITY_GROUP_ID_DB`,
+   - `M4.D` DoD checklist marked complete,
+   - unresolved blocker register cleared,
+   - `M4D-B5` moved to resolved with closure evidence.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - M4 sub-phase progress marks `M4.D` complete,
+   - immediate next action now points to `M4.E`.
