@@ -28,6 +28,9 @@ My active matrix is:
 - Local parity substrate via containers (LocalStack/MinIO/Postgres) producing run-scoped artifacts under runs/fraud-platform/...
 - Dev_min runtime truth: managed Linux compute (ECS services/tasks) with immutable packaging provenance and “no laptop runtime compute” acceptance rule
 
+Cross-platform note:
+- This incident class is Windows-first (rename/lock window semantics). On Linux/ECS, the retry helper is typically a no-op in steady state and only adds bounded overhead in worst-case transient windows.
+
 2.2 Why portability failures are “platform failures”
 If local parity semantics aren’t stable on the operator matrix:
 - evidence isn’t reproducible
@@ -37,7 +40,7 @@ Portability incidents are therefore treated as contract defects, not “develope
 
 3) The Problem — Strongest incident selected
 3.1 Incident choice
-Strongest portability incident: Windows atomic-replace file-lock race in Scenario Runner local object-store reads during concurrent leader/follower submission flow.
+Strongest portability incident: SR LocalObjectStore atomic-replace read-lock race (Windows) during concurrent leader/follower submission flow.
 
 Why this is strongest:
 - it hit a correctness-critical concurrency path (duplicate submission / idempotency semantics)
@@ -58,6 +61,10 @@ Why this is strongest:
 - manifested in follower read step during leader atomic replace windows
 - reproduced via SR concurrency test lane:
   - tests/services/scenario_runner/test_scenario_runner_concurrency.py (concurrent duplicate submissions)
+
+Evidence strength label (truth hygiene):
+- Failure evidence: medium unless a retained “pre-fix failing run/test output” artifact is pinned; symptom class and reproduction lane are well-defined.
+- Fix evidence: strong (targeted concurrency gate now repeatably passes on the operator matrix).
 
 5) Root cause (not “Windows is weird”)
 Mechanics:
@@ -90,8 +97,13 @@ Rejected alternatives:
 
 Retry posture:
 - catches transient PermissionError and FileNotFoundError during atomic replace windows
-- retries: 5 attempts with ~50ms sleep
+- retries: 5 attempts with sleep_ms=50 (as implemented in _read_text_with_retry)
 - fail-closed after budget exhaustion (no infinite retry, no silent success)
+Fail-closed semantics (explicit):
+- after retry budget exhaustion, the read raises the underlying error (no fallback to stale data; no silent default).
+
+Locator note (avoid brittle line numbers):
+- constants are pinned in src/fraud_detection/scenario_runner/storage.py within _read_text_with_retry (attempt budget + sleep duration).
 
 Write path preserved:
 - os.replace atomic promotion remained unchanged
@@ -113,6 +125,10 @@ Command:
 Current result (session evidence):
 - 1 passed in 4.86s
 
+Key proof snapshots (fast reread; “open logs not required”):
+- targeted gate: test_scenario_runner_concurrency.py → 1 passed
+- retry posture: attempts=5; sleep_ms≈50; transient errors={PermissionError, FileNotFoundError}
+
 Interpretation:
 - the exact concurrency lane that reproduced the bug is now repeatably passing under the operator matrix
 
@@ -125,6 +141,10 @@ Current result:
 
 Failure class:
 - _commit_ready() call-site/signature expectations (missing required keyword-only argument: engine_run_root) in non-portability tests
+
+Key context snapshot (honest separation):
+- broader suite: 3 failed / 60 passed / 6 skipped (not part of portability claim)
+- failure headline: missing required kw-only arg engine_run_root (non-portability scope)
 
 Honest separation:
 - these failures are distinct from the incident-class portability closure
@@ -165,7 +185,23 @@ Portability work reinforced migration discipline:
 - bounded fail-closed controls in local parity mirror dev_min gates (no bypass under pressure)
 - “no laptop runtime compute” matured from a preference into a binding acceptance rule (managed ECS evidence required)
 
+Runtime contract pins (PENDING PIN if not yet linked here):
+- interpreter pinning (RUN_OPERATE_PYTHON) and operator lane requirements are pinned in run/operate documentation/build plans for local_parity and dev_min migration.
+- add exact doc paths here once selected as the canonical authority anchors.
+
 12) Evidence Index (auditor trail)
+12.0 Truth surfaces: authoritative vs derived (anti-drift)
+Authoritative (what proves the portability claim):
+- code fix in src/fraud_detection/scenario_runner/storage.py (_read_text_with_retry behavior)
+- targeted concurrency proof gate: pytest tests/services/scenario_runner/test_scenario_runner_concurrency.py (must be passing to claim closure)
+
+Supporting (useful context, not the portability proof itself):
+- broader SR suite output (context only; not used to certify the portability incident)
+- historical notes about prior green windows (optional support)
+
+Derived (human-facing summaries that must be backed by authoritative artifacts):
+- prose claims such as “repeatable proof”, “portability closure”, “promoting into migration discipline”
+
 - Fix code anchor: src/fraud_detection/scenario_runner/storage.py (_read_text_with_retry, bounded retry)
 - Primary proof command: pytest tests/services/scenario_runner/test_scenario_runner_concurrency.py
 - Broader suite context command: pytest tests/services/scenario_runner (separated, not conflated)
