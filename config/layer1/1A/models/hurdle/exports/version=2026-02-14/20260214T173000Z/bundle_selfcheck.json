@@ -1,0 +1,10 @@
+{
+  "hurdle_coefficients.yaml": {
+    "bytes": 19081,
+    "sha256": "93d67adb53e52d98a84ab2607fa0f9c34d2c85d25cdab66835377d530f6275f4"
+  },
+  "nb_dispersion_coefficients.yaml": {
+    "bytes": 12177,
+    "sha256": "dc97e722c3c8f7bd57b74bc6a93e6601b6ebdbf626d49758f2b56c2307b884c4"
+  }
+}
