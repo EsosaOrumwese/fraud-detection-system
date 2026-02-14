@@ -247,24 +247,67 @@ Blockers:
 Goal:
 1. Validate role/task/service execution identities required to start daemons.
 
+Entry conditions:
+1. `M4.B` snapshot exists and is PASS:
+   - `runs/dev_substrate/m4/20260214T121004Z/m4_b_service_map_snapshot.json`
+   - `overall_pass=true`, `checks.missing_service_handles=[]`, `checks.forbidden_inclusions=[]`.
+2. `M4.B` mapped service set (`13` services) is the immutable binding scope for M4.C.
+
+Required inputs:
+1. `M4.B` service-map snapshot (`mapped_services`, `pack_service_contract`).
+2. Handles registry IAM map (Section 10):
+   - `ROLE_TERRAFORM_APPLY`
+   - `ROLE_ECS_TASK_EXECUTION`
+   - `ROLE_IG_SERVICE`
+   - `ROLE_RTDL_CORE`
+   - `ROLE_DECISION_LANE`
+   - `ROLE_CASE_LABELS`
+   - `ROLE_ENV_CONFORMANCE`
+3. Runtime substrate handles used in access checks:
+   - `SSM_CONFLUENT_BOOTSTRAP_PATH`, `SSM_CONFLUENT_API_KEY_PATH`, `SSM_CONFLUENT_API_SECRET_PATH`
+   - `S3_ORACLE_BUCKET`, `S3_ARCHIVE_BUCKET`, `S3_QUARANTINE_BUCKET`, `S3_EVIDENCE_BUCKET`
+   - `RDS_ENDPOINT`, `DB_NAME`
+
 Tasks:
-1. Verify ECS task execution/app roles exist and are attachable for mapped services.
-2. Validate minimum access posture for dependencies:
-   - SSM read for runtime secrets,
-   - Kafka credentials retrieval path,
-   - S3 read/write to required prefixes,
-   - DB connectivity for DB-requiring services.
-3. Publish IAM binding snapshot.
+1. Build canonical service-to-role binding matrix for all mapped services:
+   - `SVC_IG` -> `ROLE_IG_SERVICE`
+   - `SVC_RTDL_CORE_*` -> `ROLE_RTDL_CORE`
+   - `SVC_DECISION_LANE_*` -> `ROLE_DECISION_LANE`
+   - `SVC_CASE_TRIGGER`, `SVC_CM`, `SVC_LS` -> `ROLE_CASE_LABELS`
+   - `SVC_ENV_CONFORMANCE` -> `ROLE_ENV_CONFORMANCE`
+2. Validate role existence and attachability:
+   - each bound role exists in account/region scope,
+   - role is usable as ECS task role surface,
+   - role names/arns are deterministic inputs (not ad-hoc values).
+3. Validate boundary rules:
+   - no mapped service uses `ROLE_TERRAFORM_APPLY`,
+   - no mapped service uses `ROLE_ECS_TASK_EXECUTION` as its application role,
+   - one mapped service has exactly one application role binding.
+4. Validate minimum dependency access posture (policy-surface validation):
+   - SSM read for required runtime secret paths,
+   - S3 read/write to required prefixes for each role lane,
+   - DB connect posture for DB-requiring lanes,
+   - Kafka credential retrieval/publish-consume surfaces align to lane intent.
+5. Publish `m4_c_iam_binding_snapshot.json` locally and durably with:
+   - service-role binding matrix,
+   - role existence/attachability checks,
+   - boundary-rule checks,
+   - dependency access posture checks,
+   - unresolved binding gaps (if any).
 
 DoD:
-- [ ] IAM execution identities for all mapped services are validated.
-- [ ] Missing/invalid role bindings are blocker-marked.
-- [ ] M4.C IAM snapshot exists locally and durably.
+- [ ] Service-role matrix covers all `M4.B` mapped services with no unbound services.
+- [ ] Role existence/attachability checks pass for all bindings.
+- [ ] Boundary rules pass (no Terraform role misuse, no execution-role-as-app-role, one app role per service).
+- [ ] Dependency access posture checks are explicit and pass or blocker-marked.
+- [ ] `m4_c_iam_binding_snapshot.json` exists locally and durably.
 
 Blockers:
-1. `M4C-B1`: required role binding missing/invalid.
-2. `M4C-B2`: dependency access policy gap identified.
+1. `M4C-B1`: required role binding missing/invalid for any mapped service.
+2. `M4C-B2`: dependency access policy gap identified for required lane capabilities.
 3. `M4C-B3`: IAM snapshot write/upload failure.
+4. `M4C-B4`: unmapped service role handle in registry/binding matrix (for example `ROLE_ENV_CONFORMANCE` missing for `SVC_ENV_CONFORMANCE`).
+5. `M4C-B5`: boundary-rule violation (Terraform role misuse, execution-role misuse, or multi-role ambiguity per service).
 
 ### M4.D Network + Dependency Reachability Validation
 Goal:
@@ -493,7 +536,31 @@ Control: mandatory run-scoped `operate/daemons_ready.json` and control-plane sna
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M4 Execution)
 Current blockers:
-1. None.
+1. `M4C-B4` (active):
+   - reason: service role handles are pinned but not concretely materialized:
+     - `ROLE_IG_SERVICE`
+     - `ROLE_RTDL_CORE`
+     - `ROLE_DECISION_LANE`
+     - `ROLE_CASE_LABELS`
+     - `ROLE_ENV_CONFORMANCE`
+   - evidence:
+     - `runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T121004Z/m4_c_iam_binding_snapshot.json`
+   - closure criteria:
+     - each listed role handle resolves to a concrete IAM role name/arn,
+     - role exists and is ECS-task attachable.
+2. `M4C-B1` (active):
+   - reason: mapped daemon services have invalid/unresolved app-role bindings.
+   - evidence:
+     - `m4_c_iam_binding_snapshot.json` (`service_role_bindings[*].role_binding_valid=false` for all mapped services).
+   - closure criteria:
+     - all mapped services (`13`) have valid role bindings (`role_binding_valid=true`).
+3. `M4C-B2` (active):
+   - reason: dependency access policy posture cannot be verified while lane roles are unmaterialized.
+   - evidence:
+     - `m4_c_iam_binding_snapshot.json` (`dependency_access_posture.status=UNVERIFIED_FAIL_CLOSED`).
+   - closure criteria:
+     - lane roles materialized and dependency policy-surface checks pass for SSM/S3/DB/Kafka requirements.
 
 Resolved blockers:
 1. None yet.

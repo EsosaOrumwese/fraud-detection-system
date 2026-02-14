@@ -583,6 +583,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M4 is active for execution planning and bring-up preparation.
 Next action:
-- execute `M4.C` IAM role binding + execution identity validation using M4.B service map snapshot `m4_b_service_map_snapshot.json`,
+- resolve active `M4.C` blockers (`M4C-B1`, `M4C-B2`, `M4C-B4`) from `m4_c_iam_binding_snapshot.json`,
+- re-run `M4.C` IAM role binding validation until PASS,
 - then progress sequentially through `M4.D -> M4.J` under fail-closed blocker discipline,
 - maintain run-scope contract from M3 artifacts for all daemon bring-up operations.

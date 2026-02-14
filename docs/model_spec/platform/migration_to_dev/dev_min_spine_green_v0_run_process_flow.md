@@ -3581,6 +3581,24 @@ This appendix summarizes **who can do what** in dev_min. It is a **high-level bo
 
 ---
 
+##### ROLE_ENV_CONFORMANCE (P2)
+
+**Purpose:** Obs/Gov environment conformance daemon (`SVC_ENV_CONFORMANCE`).
+
+**Must be able to:**
+
+* Read run-scoped evidence summaries needed for conformance checks
+* Read runtime config markers required to evaluate conformance posture
+* Write environment conformance artifact to S3 evidence (`ENV_CONFORMANCE_PATH_PATTERN`)
+* Write logs
+
+**Must not:**
+
+* Publish to traffic/context topics
+* Mutate receipts, decision truth, or label/case stores
+
+---
+
 ##### ROLE_REPORTER_SINGLE_WRITER (P11)
 
 **Purpose:** Run closure + reconciliation + replay anchors.

@@ -8540,3 +8540,92 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
    - M4 sub-phase progress marks `M4.B` complete.
    - Immediate next action now points to `M4.C`.
+## Entry: 2026-02-14 01:09PM - M4.C planning expansion (execution-grade, planning-only)
+
+### Trigger
+1. USER directed progression to planning `M4.C` after `M4.B` PASS.
+
+### Planning objective
+1. Make IAM validation fail-closed and execution-ready by pinning explicit entry conditions, service-role matrix scope, and blocker taxonomy before runtime bring-up.
+
+### Changes made
+1. Expanded `M4.C` in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+2. Added execution-grade structure:
+   - `Entry conditions` anchored to `M4.B` pass artifact (`m4_b_service_map_snapshot.json`),
+   - `Required inputs` including IAM role-handle family from registry Section 10 and runtime dependency handles,
+   - explicit `service -> role` binding matrix requirements,
+   - boundary-rule checks (no Terraform role for runtime, no execution-role-as-app-role, one app role per service),
+   - explicit dependency access posture checks for SSM/S3/DB/Kafka surfaces,
+   - deterministic artifact requirement `m4_c_iam_binding_snapshot.json`.
+3. Added blocker refinements:
+   - `M4C-B4` for unmapped service-role handle gaps (notably protects `SVC_ENV_CONFORMANCE` from implicit/default role drift),
+   - `M4C-B5` for IAM boundary-rule violations.
+
+### Execution posture after planning
+1. This is a planning-only pass; no IAM mutation or ECS runtime actions were executed.
+2. `M4.C` execution can now proceed with explicit fail-closed criteria.
+## Entry: 2026-02-14 01:12PM - Pinned `SVC_ENV_CONFORMANCE` runtime role handle for M4.C closure
+
+### Trigger
+1. USER requested explicit pinning of `SVC_ENV_CONFORMANCE` before `M4.C` execution.
+
+### Decision
+1. Introduce explicit role handle:
+   - `ROLE_ENV_CONFORMANCE`
+2. Bind mapping explicitly:
+   - `SVC_ENV_CONFORMANCE -> ROLE_ENV_CONFORMANCE`
+3. Keep reporter isolation unchanged:
+   - `TD_REPORTER -> ROLE_REPORTER_SINGLE_WRITER` (P11 single-writer remains separate).
+
+### Files aligned
+1. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+   - Added `ROLE_ENV_CONFORMANCE` under IAM role map (Section 10.3) for `SVC_ENV_CONFORMANCE`.
+2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+   - Added IAM appendix subsection `ROLE_ENV_CONFORMANCE (P2)` with permission shape + prohibitions.
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+   - M4.C required-input role set now includes `ROLE_ENV_CONFORMANCE`.
+   - Service-role matrix now pins `SVC_ENV_CONFORMANCE -> ROLE_ENV_CONFORMANCE`.
+   - Blocker text `M4C-B4` now references missing `ROLE_ENV_CONFORMANCE` explicitly.
+
+### Outcome
+1. `M4C-B4` ambiguity surface for env-conformance role mapping is closed at doc-authority level.
+2. `M4.C` execution can now validate role existence/attachability against an explicit pinned handle instead of a generic placeholder.
+## Entry: 2026-02-14 01:20PM - M4.C executed (fail-closed HOLD) with active IAM materialization blockers
+
+### Trigger
+1. USER directed execution of `M4.C` after role-handle pinning for `SVC_ENV_CONFORMANCE`.
+
+### Execution summary
+1. Executed `M4.C` identity/IAM validation against:
+   - `runs/dev_substrate/m4/20260214T121004Z/m4_b_service_map_snapshot.json`.
+2. Published IAM binding snapshot locally and durably:
+   - local: `runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T121004Z/m4_c_iam_binding_snapshot.json`
+3. Runtime observation from AWS IAM:
+   - present roles under prefix `fraud-platform-dev-min*` are only:
+     - `fraud-platform-dev-min-ecs-task-execution`
+     - `fraud-platform-dev-min-ecs-task-app`
+   - lane-specific role handles remain unmaterialized.
+
+### Verdict
+1. `M4.C` FAIL-CLOSED (`overall_pass=false`).
+2. Active blockers:
+   - `M4C-B4`: unmaterialized service role handles (`ROLE_IG_SERVICE`, `ROLE_RTDL_CORE`, `ROLE_DECISION_LANE`, `ROLE_CASE_LABELS`, `ROLE_ENV_CONFORMANCE`).
+   - `M4C-B1`: mapped services have unresolved/invalid app-role bindings.
+   - `M4C-B2`: dependency access policy posture cannot be verified while lane roles are unmaterialized.
+
+### Plan-state updates
+1. Updated unresolved blocker register in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+   with active `M4C-B1/B2/B4` entries, evidence anchors, and closure criteria.
+2. Updated immediate-next-action in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   to resolve and re-run `M4.C` before any `M4.D` progression.
+
+### Closure requirements (before M4 can advance)
+1. Materialize concrete IAM role values for lane handles:
+   - `ROLE_IG_SERVICE`, `ROLE_RTDL_CORE`, `ROLE_DECISION_LANE`, `ROLE_CASE_LABELS`, `ROLE_ENV_CONFORMANCE`.
+2. Re-execute `M4.C` and require:
+   - all mapped services have valid role bindings,
+   - dependency access posture checks pass for SSM/S3/DB/Kafka surfaces.

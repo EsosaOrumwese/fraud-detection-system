@@ -781,6 +781,10 @@ These handles pin the IAM roles used by Terraform and every ECS task/service. Th
 
   * for `SVC_CASE_TRIGGER`, `SVC_CM`, `SVC_LS`
 
+* `ROLE_ENV_CONFORMANCE`
+
+  * for `SVC_ENV_CONFORMANCE`
+
 * `ROLE_REPORTER_SINGLE_WRITER`
 
   * for `TD_REPORTER`
