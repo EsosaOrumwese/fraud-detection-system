@@ -315,12 +315,17 @@ What proved it passed next time:
   - `runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/health/last_health.json`
   - `runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/reconciliation/last_reconciliation.json`
 - Same bounded-cap condition was preserved across fail and recovery runs:
-  - both runs show WSP stream-stop markers with `emitted=200` per required output in run `platform.log`.
+  - both runs show WSP stream-stop markers with `emitted=200` per required output in:
+    - `runs/fraud-platform/platform_20260212T075128Z/platform.log`
+    - `runs/fraud-platform/platform_20260212T085637Z/platform.log`
   - this reduces “got lucky on smaller load” ambiguity.
 - Verifiable policy change applied:
   - knob/behavior: `start_position` on Kinesis intake.
   - applied at: DLA bus consumer and AL worker consumer.
   - rule: first read with `checkpoint == None` and `required_platform_run_id != None` forces `start_position=trim_horizon`.
+  - code pointers:
+    - `src/fraud_detection/decision_log_audit/intake.py:535` and `src/fraud_detection/decision_log_audit/intake.py:536`
+    - `src/fraud_detection/action_layer/worker.py:348` and `src/fraud_detection/action_layer/worker.py:349`
   - observable effect in next run: DLA closes `lineage_unresolved_total=0` under the same bounded `200` gate where prior run stayed AMBER.
 
 So this was not a cosmetic warning. It was a true closure blocker, treated fail-closed, remediated at runtime mechanics level, and then revalidated with a clean run.
@@ -329,50 +334,48 @@ So this was not a cosmetic warning. It was a true closure blocker, treated fail-
 
 ## Q7) Drift-sentinel incident: Case/Label not daemonized before full-platform proof
 
-This was one of the most important integrity checks in the project.
+This incident was about preventing a false system claim, not fixing a syntax bug.
 
-What made it a material coverage gap:
-- The requested claim was: "full-platform live stream, all components green, under run/operate + obs/gov."
-- At that point, orchestration covered:
-  - `control_ingress`
-  - `rtdl_core`
-  - `rtdl_decision_lane`
-- But `CaseTrigger`, `CaseMgmt`, and `LabelStore` were not yet operating as always-on daemonized services under run/operate.
-- So if we had run `20/200` immediately and called it full-platform green, that statement would have been untrue by scope.
+What was the contradiction:
+- Claim requested: "full-platform bounded acceptance is green."
+- Runtime reality at that moment: the live operate surface did not yet include daemonized Case/Label execution.
+- Meaning: some lanes were implemented in code but not live in run/operate. I call that `matrix-only` (implemented on paper, not running as active processes in the current run scope).
 
-Where it was noticed:
-- During pre-run drift review of the actual execution surface:
-  - pack composition,
-  - aggregate operate targets,
-  - full-platform run readiness assumptions.
-- In plain terms: the runtime graph and the readiness claim did not match.
+Why that was blocker-grade:
+- If Case/Label is matrix-only, a "full-platform green" claim is overstated.
+- That is exactly the kind of scope drift that creates false confidence before migration.
 
-What we changed:
-1. We paused execution under fail-closed drift protocol.
-2. We onboarded a dedicated `case_labels` run/operate pack with live workers:
-- `case_trigger.worker`
-- `case_mgmt.worker`
-- `label_store.worker`
-3. We ensured obs/gov coverage included these services in the same full-platform closure model.
-4. Only then did we execute the full-platform bounded validation sequence (`20` then `200`).
+What I did:
+1. Stopped progression under fail-closed drift posture.
+2. Added and enforced a dedicated `case_labels` operate pack with three live workers:
+- `case_trigger_worker`
+- `case_mgmt_worker`
+- `label_store_worker`
+3. Re-ran bounded acceptance and only accepted closure when Case/Label had both process liveness and lane activity evidence.
 
-What proved closure before continuation:
-- The active orchestration scope now explicitly included five packs:
-  - `control_ingress`
-  - `rtdl_core`
-  - `rtdl_decision_lane`
-  - `case_labels`
-  - `obs_gov`
-- After onboarding, the bounded validation produced full-platform snapshots showing case/label lane activity and green closure on the accepted run.
+What proves this was actually closed (anchor run `platform_20260212T085637Z`):
+1. Run/operate liveness proof:
+- `runs/fraud-platform/operate/local_parity_case_labels_v0/status/last_status.json` shows:
+  - `active_platform_run_id=platform_20260212T085637Z`
+  - all three workers `running=true` and `readiness.ready=true`.
+2. Lane health proof:
+- `runs/fraud-platform/platform_20260212T085637Z/case_trigger/health/last_health.json` => `health_state=GREEN`, `triggers_seen=192`, `published=192`, `publish_ambiguous=0`.
+- `runs/fraud-platform/platform_20260212T085637Z/case_mgmt/health/last_health.json` => `health_state=GREEN`, `cases_created=181`, `labels_accepted=181`.
+- `runs/fraud-platform/platform_20260212T085637Z/label_store/health/last_health.json` => `health_state=GREEN`, `accepted=181`, `rejected=0`.
+3. Cross-lane report proof:
+- `runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json` includes:
+  - `case_labels.health_states` all `GREEN`
+  - `case_labels.summary.cases_created=181`
+  - `case_labels.summary.labels_accepted=181`.
 
-Why this matters in interview terms:
-- This is not "I found a bug." This is "I prevented a false readiness claim by enforcing graph-truth before execution." That is senior platform judgment.
+Why this is senior evidence:
+- I blocked a premature success narrative, forced graph-accurate runtime coverage, and only then accepted platform closure.
 
 ---
 
 ## Q8) Authority hierarchy and top 3 winning authorities on conflict
 
-The hierarchy is explicit because this project has both broad narrative docs and strict gate docs.
+The hierarchy is explicit because this project has broad narratives and hard executable gates. My rule is: the narrower executable authority wins when it conflicts with broader intent text.
 
 Top 3 winners when conflict appears:
 
@@ -388,10 +391,11 @@ Top 3 winners when conflict appears:
 - Component-specific design authority for the lane being touched (for example control/ingress, WSP, obs/gov semantics).
 - This resolves implementation mechanics when a lane-level detail is ambiguous.
 
-How I apply this practically:
-- If a full-parity narrative says one thing and a Spine Green gate says another, I do not average them. I use the Spine Green acceptance authority for baseline gate claims.
-- If lane mechanics conflict with acceptance wording, I reconcile back to core rails and ownership law before changing runtime behavior.
-- If still unclear, I stop and escalate instead of improvising a “best guess.”
+How I apply this practically (real example):
+- Conflict seen: a full-parity status command required learning-lane DSNs during a Spine baseline gate.
+- Decision: for baseline readiness truth, I followed Spine acceptance authority and treated learning-lane requirement as scope overreach, not as baseline blocker.
+- Action: kept full-parity command labeled full-parity; used Spine-safe gate surface for baseline closure.
+- If ambiguity remains after hierarchy application, execution is put on HOLD and escalated. No averaging, no improvised middle path.
 
 Why this matters:
 - Without hierarchy, teams can always cherry-pick the easiest doc and manufacture false-green outcomes. With hierarchy, claims are constrained by the strictest relevant authority.
@@ -435,6 +439,18 @@ What “repin” means in practice:
 - We update the authoritative scope/gate statement before resuming execution.
 - Then we rerun the required validation sequence under the new pinned truth.
 
+Concrete examples from this project:
+1. `P9` lineage incident (`platform_20260212T075128Z`):
+- Trigger: DLA `lineage_unresolved_total=1` (gate contradiction).
+- Stop: no strict green claim.
+- Repin/remediate: intake start-position + run-scope behavior hardened.
+- Resume proof: fresh run `platform_20260212T085637Z` with DLA unresolved `0`.
+2. Case/Label drift incident:
+- Trigger: full-platform claim while Case/Label was not daemonized in run/operate.
+- Stop: blocked promotion claim.
+- Repin/remediate: onboarded `local_parity_case_labels_v0` pack.
+- Resume proof: case/label workers running + case/label health GREEN with non-zero committed activity.
+
 Why this is important:
 - It prevents schedule pressure from silently turning into false-green technical debt.
 - It keeps every major claim replayable and auditable after the fact.
@@ -453,16 +469,25 @@ In this platform, meta-layer closure means two things are simultaneously true:
 2. Obs/Gov closure:
 - Run report is produced for the active run.
 - Environment conformance evaluates and passes for the declared posture.
-- Governance append closes without concurrent-writer conflict.
+- Governance evidence pipeline is producing closure-grade outputs for the active run.
 
 What proves closure:
 - Run/Operate proof:
-  - pack state/status surfaces show active processes in each in-scope pack,
-  - run-scoped process logs/events exist for those packs through the run window.
+  - pack status surfaces show active processes in each in-scope pack and correct run binding.
+  - For anchor run `platform_20260212T085637Z`, status files show `active_platform_run_id` matches and process readiness is true for:
+    - `local_parity_control_ingress_v0`
+    - `local_parity_rtdl_core_v0`
+    - `local_parity_rtdl_decision_lane_v0`
+    - `local_parity_case_labels_v0`
+    - `local_parity_obs_gov_v0`
 - Obs/Gov proof:
-  - run report artifact present,
-  - conformance artifact present with pass status,
-  - governance append artifact present and conflict-free.
+  - `runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json` present with closure-consistent metrics:
+    - `ingress.publish_ambiguous=0`
+    - case-label summary populated (`cases_created=181`, `labels_accepted=181`)
+    - decision lane completed (`rtdl.decision=195`, DLA unresolved `0` via DLA health artifact).
+  - `runs/fraud-platform/platform_20260212T085637Z/obs/environment_conformance.json` present with `status=PASS` and all declared checks in PASS state.
+  - Obs/Gov worker status is live for reporter and conformance workers in `local_parity_obs_gov_v0`.
+  - Closure criterion is final artifact truth (`run_report` + conformance `PASS` + lane health), not zero transient log noise during long-running worker ticks.
 
 Why this was blocker-grade before downstream progression:
 - Without meta-layer closure, a team can ship component logic while operational truth is still partial.
