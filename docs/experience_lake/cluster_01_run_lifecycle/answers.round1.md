@@ -18,7 +18,7 @@ It means the local-parity state machine closes `P0 -> P11` for in-scope lanes on
 - `IEG`: Identity Entity Graph projector.
 - `OFP`: Online Feature Plane projector.
 - `CSFB`: Context Store Flow Binding component.
-- `DL`: Decision Layer.
+- `DL`: Degrade Ladder.
 - `DF`: Decision Fabric (creates decision response/action intent).
 - `AL`: Action Layer (executes intent and emits outcomes).
 - `DLA`: Decision Log Audit (append-only decision chain + audit records).
@@ -31,9 +31,10 @@ In-scope lanes are:
 
 Out-of-scope for this baseline:
 `Learning/Registry` lifecycle closure (`OFS/MF/MPR`).
+Full parity superset adds `learning_jobs` (`OFS` + `MF` workers); Spine Green v0 baseline excludes that lane.
 
 Evidence roots for this definition:
-`runs/fraud-platform/<platform_run_id>/...` is the local-parity run root, while `s3://fraud-platform/<platform_run_id>/...` is the durable S3-compatible object-store evidence root.
+`runs/fraud-platform/<platform_run_id>/...` is the local-parity run root, while `s3://fraud-platform/<platform_run_id>/...` is the object-store evidence root (S3-compatible MinIO in local parity; AWS S3 in dev_min).
 
 ### Pass criteria (must all be true)
 
