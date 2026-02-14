@@ -555,6 +555,52 @@ P4.R1 closure update (2026-02-14):
   - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX=48`
   - `ENGINE_1B_S4_CACHE_MAX_BYTES=2500000000`
 
+#### P4.R1B - S4 compute-runtime closure (no-RAM-spike lane, active)
+Goal:
+- cut `S4` hour-scale runtime without increasing memory pressure while preserving deterministic/statistical semantics.
+
+Authority runtime bottleneck evidence:
+- run `49dcd3c9aa4e441781292d54dc0fa491` `S4` report:
+  - `wall_clock_seconds_total=4338.64` (`~72m`), `cpu_seconds_total=4232.17`, effective `~3.02` pairs/sec.
+  - cache churn remains high under constrained memory posture: `misses=1647`, `evictions=1599`, `unique_countries=185`.
+  - residue diversification touched `90.50%` of pairs while guard moves were zero (`moves_soft_total=0`, `moves_residual_total=0`), indicating heavy ranking work with low move yield.
+
+User runtime constraint (binding):
+- no RAM-risk lane while concurrent agent workloads are active; avoid cache expansion and avoid large persistent in-memory structures.
+
+Solution lane (sequential, all three required):
+1. exact top-k residue ranking (replace full-array global lexsort):
+   - compute only the required prefix (`k=shortfall`) with deterministic tie-break (`tile_id`) and exact equivalence to ranking semantics.
+2. exact top-window diversification ranking:
+   - for diversification mode, compute only required window prefix (`k=window`) using deterministic top-k/window extraction instead of full-array ranking.
+3. bounded rank-prefix reuse for repeated `(country_iso, n_sites, k)`:
+   - add strict memory-bounded LRU cache for computed rank prefixes,
+   - cache only small/approved prefixes; skip oversize entries fail-closed to avoid memory spikes.
+
+DoD:
+- [x] option-1 implemented and equivalence-checked against legacy ranking semantics.
+- [x] option-2 implemented and equivalence-checked for diversification selection semantics.
+- [x] option-3 implemented with explicit bounded cache knobs and no default RAM expansion.
+- [x] `python -m py_compile` passes for `S4`.
+- [ ] one authority-envelope rerun records wall-clock improvement and deterministic parity.
+
+P4.R1B execution status (2026-02-14):
+- status: `IN_PROGRESS` (implementation/equivalence complete; authority-envelope timing run pending).
+- implemented in:
+  - `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+- completed changes:
+  - exact prefix ranking helper for deterministic top-k/window extraction (`_topk_rank_prefix_exact`),
+  - `S4` shortfall/diversification selection now consumes exact prefix ranking (no full-array `lexsort` requirement),
+  - bounded rank-prefix LRU reuse keyed by `(country_iso, n_sites, k)` with strict runtime caps:
+    - `ENGINE_1B_S4_RANK_CACHE_ENTRIES_MAX` (default `128`),
+    - `ENGINE_1B_S4_RANK_CACHE_BYTES_MAX` (default `67108864`),
+    - `ENGINE_1B_S4_RANK_CACHE_K_MAX` (default `200000`).
+- validation artifacts:
+  - randomized legacy-vs-new ranking equivalence harness passed (`top-k` and full selector parity),
+  - `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` passed.
+- next gate:
+  - run one authority-envelope `S4` pass and publish before/after wall-clock + determinism parity evidence.
+
 #### P4.R2 - Guarded upstream candidate lane (1A reopen, fail-closed)
 Goal:
 - allow upstream movement that can unblock 1B realism while preserving frozen 1A quality floor.

@@ -4817,3 +4817,60 @@ Impact:
 1) No policy/config changes.
 2) No cache-limit/RAM increase required for this mode.
 3) Intended to reduce `S4` wall-clock by removing redundant high-cost compute while keeping statistical semantics unchanged.
+
+---
+
+### Entry: 2026-02-14 19:26
+
+Design element: `S4` long-runtime closure plan (`Fast-Compute-Safe v2`, no-RAM-spike).
+Summary: Captured the next runtime-closure lane before coding: move from global full-array ranking to exact prefix ranking and add bounded reuse for repeated pair shapes.
+
+Problem statement (authority evidence):
+1) Even after safe arithmetic/no-op gating, `S4` remains hour-scale under full envelope (`~4338.64s`, `~3.02 pairs/s`) with CPU-dominant profile.
+2) Residue/diversification path is still the dominant hotspot because ranking work is performed against large country tile universes.
+3) User constraint is binding: no memory-risk approach (no cache-size expansion and no unbounded large structures).
+
+Chosen implementation lane (ordered):
+1) Option-1: exact deterministic top-k residue selection for non-diversified shortfall (`k=shortfall`) to replace full-array `lexsort`.
+2) Option-2: exact deterministic top-window extraction for diversification (`k=window`) so only the required ranked prefix is produced.
+3) Option-3: bounded LRU reuse keyed by `(country_iso, n_sites, k)` with strict size/entry caps; oversize prefixes must bypass cache (fail-closed to memory safety).
+
+Validation plan:
+1) Run randomized equivalence harness comparing legacy vs new bump-index selection (set/order parity under deterministic tie-break).
+2) Keep `python -m py_compile` green for patched `S4`.
+3) Capture runtime effect on next authority-envelope `S4` run and record deterministic parity receipt.
+
+---
+
+### Entry: 2026-02-14 19:28
+
+Design element: `S4` `Fast-Compute-Safe v2` execution (three-option rollout).
+Summary: Implemented all three planned ranking optimizations for `S4` while holding memory posture bounded and deterministic.
+
+Implemented options:
+1) Option-1 (exact top-k residue ranking):
+   - added `_topk_rank_prefix_exact(tile_ids, residues_i64, k)` to compute exact deterministic rank prefixes without global full-array sort.
+   - tie-breaking remains deterministic (`tile_id` ascending on equal residue).
+2) Option-2 (exact top-window diversification ranking):
+   - `_select_shortfall_bump_indices` now resolves only required rank prefix (`k=shortfall` or `k=window`) and no longer requires a full `base_order` sort.
+3) Option-3 (bounded rank-prefix reuse):
+   - added strict LRU cache for rank prefixes keyed by `(country_iso, n_sites, k)`,
+   - runtime caps with fail-closed skip behavior:
+     - `ENGINE_1B_S4_RANK_CACHE_ENTRIES_MAX` (default `128`),
+     - `ENGINE_1B_S4_RANK_CACHE_BYTES_MAX` (default `64 MiB`),
+     - `ENGINE_1B_S4_RANK_CACHE_K_MAX` (default `200000`),
+   - oversize/large-k prefixes bypass cache to avoid RAM spikes.
+
+Observability additions:
+1) logged runtime rank-cache settings at `S4` start.
+2) logged end-of-run rank-cache summary:
+   - hits, misses, evictions, skipped-large-k, skipped-oversize, peak-bytes, retained-entries.
+
+Validation completed:
+1) `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` passed.
+2) Randomized equivalence harness passed:
+   - exact top-k prefix parity vs legacy `lexsort` prefix,
+   - full `_select_shortfall_bump_indices` parity vs legacy selector across randomized policy/mode combinations.
+
+Open item:
+1) Authority-envelope runtime measurement still pending to quantify wall-clock gain and determinism parity on full `S4` run.

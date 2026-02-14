@@ -44,6 +44,9 @@ BATCH_SIZE = 1_000_000
 CACHE_COUNTRIES_MAX = 8
 CACHE_MAX_BYTES = 0
 _INT64_MAX = int(np.iinfo(np.int64).max)
+RANK_CACHE_ENTRIES_MAX = 128
+RANK_CACHE_BYTES_MAX = 64 * 1024 * 1024
+RANK_CACHE_K_MAX = 200_000
 
 
 @dataclass(frozen=True)
@@ -511,26 +514,32 @@ def _select_shortfall_bump_indices(
     merchant_id: int,
     legal_country_iso: str,
     policy: S4AllocPolicy,
+    rank_prefix_resolver: Optional[Callable[[int], np.ndarray]] = None,
 ) -> tuple[np.ndarray, bool]:
-    base_order = np.lexsort((tile_ids, -residues_i64))
     if shortfall <= 0:
-        return base_order[:0], False
+        return np.empty(0, dtype=np.int64), False
+
+    def _resolve_rank_prefix(k: int) -> np.ndarray:
+        if rank_prefix_resolver is not None:
+            return rank_prefix_resolver(int(k))
+        return _topk_rank_prefix_exact(tile_ids=tile_ids, residues_i64=residues_i64, k=int(k))
+
     if (
         not policy.enabled
         or not policy.diversify_enabled
         or policy.diversify_apply_n_sites_max <= 0
         or n_sites > policy.diversify_apply_n_sites_max
     ):
-        return base_order[:shortfall], False
+        return _resolve_rank_prefix(int(shortfall)), False
 
     window_min = max(shortfall, policy.diversify_candidate_window_min)
-    window_frac = int(np.ceil(policy.diversify_candidate_window_fraction * float(base_order.size)))
+    window_frac = int(np.ceil(policy.diversify_candidate_window_fraction * float(tile_ids.size)))
     window = max(window_min, window_frac)
-    window = min(window, int(base_order.size))
+    window = min(window, int(tile_ids.size))
     if window <= shortfall:
-        return base_order[:shortfall], False
+        return _resolve_rank_prefix(int(shortfall)), False
 
-    candidates = base_order[:window]
+    candidates = _resolve_rank_prefix(int(window))
     offset = _rotation_offset(
         policy.deterministic_seed_namespace,
         merchant_id,
@@ -541,6 +550,45 @@ def _select_shortfall_bump_indices(
         return candidates[:shortfall], True
     rotated = np.concatenate((candidates[offset:], candidates[:offset]))
     return rotated[:shortfall], True
+
+
+def _topk_rank_prefix_exact(
+    *,
+    tile_ids: np.ndarray,
+    residues_i64: np.ndarray,
+    k: int,
+) -> np.ndarray:
+    n = int(residues_i64.size)
+    if k <= 0 or n <= 0:
+        return np.empty(0, dtype=np.int64)
+    if k >= n:
+        return np.lexsort((tile_ids, -residues_i64))
+
+    kth_pos = n - int(k)
+    kth_value = int(np.partition(residues_i64, kth_pos)[kth_pos])
+    mandatory = np.flatnonzero(residues_i64 > kth_value)
+    need = int(k) - int(mandatory.size)
+    if need < 0:
+        need = 0
+    if need == 0:
+        selected = mandatory
+    else:
+        ties = np.flatnonzero(residues_i64 == kth_value)
+        if need >= ties.size:
+            selected = np.concatenate((mandatory, ties))
+        else:
+            tie_tiles = tile_ids[ties]
+            tie_pick_local = np.argpartition(tie_tiles, need - 1)[:need]
+            selected = np.concatenate((mandatory, ties[tie_pick_local]))
+
+    if selected.size == 0:
+        return selected.astype(np.int64, copy=False)
+
+    order = np.lexsort((tile_ids[selected], -residues_i64[selected]))
+    ranked = selected[order]
+    if ranked.size > int(k):
+        ranked = ranked[: int(k)]
+    return ranked.astype(np.int64, copy=False)
 
 
 def _emit_failure_event(
@@ -788,10 +836,23 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         "ENGINE_1B_S4_CACHE_COUNTRIES_MAX", CACHE_COUNTRIES_MAX, minimum=0
     )
     cache_max_bytes = _env_int("ENGINE_1B_S4_CACHE_MAX_BYTES", CACHE_MAX_BYTES, minimum=0)
+    rank_cache_entries_max = _env_int(
+        "ENGINE_1B_S4_RANK_CACHE_ENTRIES_MAX", RANK_CACHE_ENTRIES_MAX, minimum=0
+    )
+    rank_cache_bytes_max = _env_int(
+        "ENGINE_1B_S4_RANK_CACHE_BYTES_MAX", RANK_CACHE_BYTES_MAX, minimum=0
+    )
+    rank_cache_k_max = _env_int("ENGINE_1B_S4_RANK_CACHE_K_MAX", RANK_CACHE_K_MAX, minimum=0)
     logger.info(
         "S4: runtime cache settings countries_max=%d cache_max_bytes=%d",
         cache_countries_max,
         cache_max_bytes,
+    )
+    logger.info(
+        "S4: runtime rank cache settings entries_max=%d bytes_max=%d k_max=%d",
+        rank_cache_entries_max,
+        rank_cache_bytes_max,
+        rank_cache_k_max,
     )
 
     receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
@@ -1052,6 +1113,14 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     cache_skipped_oversize = 0
     cache_bytes_current = 0
     cache_bytes_peak = 0
+    rank_prefix_cache: OrderedDict[tuple[str, int, int], np.ndarray] = OrderedDict()
+    rank_cache_hits = 0
+    rank_cache_misses = 0
+    rank_cache_evictions = 0
+    rank_cache_skipped_large_k = 0
+    rank_cache_skipped_oversize = 0
+    rank_cache_bytes_current = 0
+    rank_cache_bytes_peak = 0
     heartbeat_last = time.monotonic()
     heartbeat_check_step = max(500, int((total_pairs or 5000) / 10))
     heartbeat_interval = 3.0
@@ -1303,6 +1372,61 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         batch_index += 1
         batch_rows = []
 
+    def _resolve_rank_prefix_cached(
+        legal_country_iso: str,
+        n_sites: int,
+        k: int,
+        tile_ids: np.ndarray,
+        residues_i64: np.ndarray,
+    ) -> np.ndarray:
+        nonlocal rank_cache_hits
+        nonlocal rank_cache_misses
+        nonlocal rank_cache_evictions
+        nonlocal rank_cache_skipped_large_k
+        nonlocal rank_cache_skipped_oversize
+        nonlocal rank_cache_bytes_current
+        nonlocal rank_cache_bytes_peak
+
+        k_i = int(k)
+        if k_i <= 0:
+            return np.empty(0, dtype=np.int64)
+        if rank_cache_entries_max <= 0:
+            return _topk_rank_prefix_exact(tile_ids=tile_ids, residues_i64=residues_i64, k=k_i)
+        if rank_cache_k_max > 0 and k_i > rank_cache_k_max:
+            rank_cache_skipped_large_k += 1
+            return _topk_rank_prefix_exact(tile_ids=tile_ids, residues_i64=residues_i64, k=k_i)
+
+        key = (str(legal_country_iso), int(n_sites), k_i)
+        cached = rank_prefix_cache.get(key)
+        if cached is not None:
+            rank_cache_hits += 1
+            rank_prefix_cache.move_to_end(key)
+            return cached
+
+        rank_cache_misses += 1
+        ranked = _topk_rank_prefix_exact(tile_ids=tile_ids, residues_i64=residues_i64, k=k_i)
+        payload_bytes = int(ranked.nbytes)
+        if rank_cache_bytes_max > 0 and payload_bytes > rank_cache_bytes_max:
+            rank_cache_skipped_oversize += 1
+            return ranked
+
+        while rank_prefix_cache:
+            over_entries = len(rank_prefix_cache) >= rank_cache_entries_max
+            over_bytes = rank_cache_bytes_max > 0 and (
+                rank_cache_bytes_current + payload_bytes > rank_cache_bytes_max
+            )
+            if not over_entries and not over_bytes:
+                break
+            _, evicted = rank_prefix_cache.popitem(last=False)
+            rank_cache_bytes_current = max(rank_cache_bytes_current - int(evicted.nbytes), 0)
+            rank_cache_evictions += 1
+
+        rank_prefix_cache[key] = ranked
+        rank_prefix_cache.move_to_end(key)
+        rank_cache_bytes_current += payload_bytes
+        rank_cache_bytes_peak = max(rank_cache_bytes_peak, rank_cache_bytes_current)
+        return ranked
+
     def _emit_rows(
         merchant_id: int,
         legal_country_iso: str,
@@ -1366,6 +1490,13 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 merchant_id=int(merchant_id),
                 legal_country_iso=str(legal_country_iso),
                 policy=s4_policy,
+                rank_prefix_resolver=lambda k: _resolve_rank_prefix_cached(
+                    legal_country_iso=str(legal_country_iso),
+                    n_sites=int(n_sites),
+                    k=int(k),
+                    tile_ids=tile_ids,
+                    residues_i64=residues_i64,
+                ),
             )
             n_sites_tile_i64 = z_i64.copy()
             n_sites_tile_i64[bump_idx] += 1
@@ -1697,6 +1828,16 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         cache_skipped_oversize,
         cache_bytes_peak,
         len(seen_countries),
+    )
+    logger.info(
+        "S4: rank cache summary hits=%d misses=%d evictions=%d skipped_large_k=%d skipped_oversize=%d bytes_peak=%d entries=%d",
+        rank_cache_hits,
+        rank_cache_misses,
+        rank_cache_evictions,
+        rank_cache_skipped_large_k,
+        rank_cache_skipped_oversize,
+        rank_cache_bytes_peak,
+        len(rank_prefix_cache),
     )
 
     determinism_hash, determinism_bytes = _hash_partition(alloc_plan_tmp)

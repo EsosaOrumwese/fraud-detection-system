@@ -9954,3 +9954,85 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Notes
 1. No runtime stream-sort/checker compute was executed in `M5.B`; this step is policy closure/evidence only.
 2. No branch/history operations executed.
+
+## Entry: 2026-02-14 07:27PM - Pre-change planning lock: expand M5.C to execution-grade input assertion
+
+### Trigger
+1. USER requested planning for `M5.C`.
+
+### Objective
+1. Expand `M5.C` from concise gate wording to execution-grade detail while preserving the external-inlet boundary.
+2. Make assertion mechanics deterministic and operator-executable without hidden assumptions.
+
+### Planned additions
+1. Entry invariants tied to `M5.B` pass artifact.
+2. Required input artifact set and handle set for assertion.
+3. Deterministic checks for:
+   - required run-scoped input prefix readability,
+   - required output-id input surface presence,
+   - required manifest/seal object presence/readability.
+4. Explicit snapshot schema and local/durable publication contract for `oracle/inlet_assertion_snapshot.json`.
+5. Expanded DoD and blocker map including publication failure and evidence-shape mismatch.
+
+### Non-goals
+1. No M5.C execution in this step.
+2. No runtime compute/S3 mutation/Terraform operations.
+
+## Entry: 2026-02-14 07:28PM - Applied M5.C planning expansion to execution-grade assertion lane
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### M5.C planning upgrades applied
+1. Added explicit entry invariants tied to latest `M5.B` pass artifact (local + durable readability).
+2. Added required-input contract:
+   - authority sources,
+   - source artifacts (`M5.B`, M3 run header),
+   - required handles (`S3_ORACLE_BUCKET`, `S3_ORACLE_INPUT_PREFIX_PATTERN`, `S3_EVIDENCE_BUCKET`, `ORACLE_REQUIRED_OUTPUT_IDS`),
+   - required manifest/seal keys (`_oracle_pack_manifest.json`, `_SEALED.json`).
+3. Expanded deterministic task flow:
+   - carry-forward invariant checks,
+   - run-scoped input prefix resolution,
+   - prefix readability assertion,
+   - manifest/seal readability assertion,
+   - manifest-based required output-id coverage assertion,
+   - fail-closed behavior on parse/coverage failure,
+   - explicit snapshot schema and publication paths.
+4. Expanded DoD from 2 checks to 5 closure-grade checks.
+5. Expanded blockers from 3 to 5 with explicit mapping:
+   - carry-forward invariant failure,
+   - input prefix failure,
+   - manifest/seal failure,
+   - output-id coverage failure,
+   - snapshot publication failure.
+6. Updated main platform plan M5 expansion summary to reference M5.C execution-grade closure and `oracle/inlet_assertion_snapshot.json` contract.
+
+### Outcome
+1. `M5.C` is now execution-ready with deterministic, fail-closed assertion mechanics.
+2. No M5.C runtime execution performed in this step.
+
+## Entry: 2026-02-14 07:31PM - Pre-change execution lock: run M5.C oracle input presence assertion
+
+### Trigger
+1. USER directed execution of `M5.C`.
+
+### Execution intent
+1. Execute `M5.C` per deep plan:
+   - verify M5.B carry-forward invariants,
+   - resolve run-scoped oracle input prefix,
+   - assert prefix/object readability,
+   - assert `_oracle_pack_manifest.json` and `_SEALED.json` presence/readability,
+   - validate required output-id coverage from manifest,
+   - publish `oracle/inlet_assertion_snapshot.json` local + durable.
+
+### Inputs pinned
+1. `runs/dev_substrate/m5/20260214T191428Z/m5_b_inlet_policy_snapshot.json`
+2. `runs/dev_substrate/m3/20260213T221631Z/run.json`
+3. Handles registry + migration P3 authority docs.
+
+### Fail-closed rules
+1. Prefix/object unreadable => `M5C-B2`.
+2. Manifest/seal missing or unreadable => `M5C-B3`.
+3. Required output-id coverage gap => `M5C-B4`.
+4. Snapshot publication failure => `M5C-B5`.

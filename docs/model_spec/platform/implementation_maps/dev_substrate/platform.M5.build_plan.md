@@ -282,20 +282,72 @@ Goal:
 
 Entry conditions:
 1. `M5.B` PASS.
+2. `M5.B` snapshot is readable:
+   - local: `runs/dev_substrate/m5/<timestamp>/m5_b_inlet_policy_snapshot.json`
+   - durable: `s3://<S3_EVIDENCE_BUCKET>/evidence/dev_min/run_control/<m5_execution_id>/m5_b_inlet_policy_snapshot.json`
+
+Required inputs:
+1. Authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P3.5`, `P3.8`)
+   - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`.
+2. Source artifacts:
+   - latest `M5.B` snapshot (local + durable URI),
+   - `runs/dev_substrate/m3/20260213T221631Z/run.json`.
+3. Required handles:
+   - `S3_ORACLE_BUCKET`,
+   - `S3_ORACLE_INPUT_PREFIX_PATTERN`,
+   - `S3_EVIDENCE_BUCKET`,
+   - `ORACLE_REQUIRED_OUTPUT_IDS`.
+4. Required object keys under run-scoped oracle input root:
+   - `_oracle_pack_manifest.json`,
+   - `_SEALED.json`.
 
 Tasks:
-1. Verify required input prefixes already exist and are readable.
-2. Verify required oracle manifest/seal artifacts exist for the run-scoped input root.
-3. Emit `oracle/inlet_assertion_snapshot.json` under run evidence root.
+1. Validate `M5.B` carry-forward invariants:
+   - `overall_pass=true`,
+   - `blockers=[]`,
+   - `platform_run_id` matches M3 run header.
+2. Resolve run-scoped input root using:
+   - `S3_ORACLE_INPUT_PREFIX_PATTERN` + `platform_run_id`.
+3. Assert oracle input prefix presence/readability:
+   - prefix exists,
+   - at least one object present under run-scoped input root.
+4. Assert required manifest/seal object presence/readability:
+   - `_oracle_pack_manifest.json`,
+   - `_SEALED.json`.
+5. Parse `_oracle_pack_manifest.json` and assert required output-id coverage:
+   - every `output_id` in `ORACLE_REQUIRED_OUTPUT_IDS` is represented in manifest-declared surfaces,
+   - if manifest parse fails or required output IDs are missing, fail closed.
+6. Emit `oracle/inlet_assertion_snapshot.json` with minimum fields:
+   - `m5_execution_id`, `platform_run_id`,
+   - `source_m5b_snapshot_local`, `source_m5b_snapshot_uri`,
+   - `oracle_bucket`, `oracle_input_prefix`,
+   - `required_output_ids`, `missing_output_ids`,
+   - `manifest_key`, `sealed_key`,
+   - `input_prefix_readable`,
+   - `manifest_readable`, `seal_readable`,
+   - `manifest_output_coverage_pass`,
+   - `blockers`,
+   - `overall_pass`.
+7. Publish snapshot:
+   - local: `runs/dev_substrate/m5/<timestamp>/inlet_assertion_snapshot.json`
+   - durable: `s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<platform_run_id>/oracle/inlet_assertion_snapshot.json`.
+8. Stop progression if `overall_pass=false`.
 
 DoD:
-- [ ] Required oracle input prefixes are present for run.
-- [ ] Inlet assertion snapshot exists durably.
+- [ ] `M5.B` carry-forward invariants are verified and recorded.
+- [ ] Run-scoped oracle input prefix is present and readable.
+- [ ] Required manifest/seal objects are present and readable.
+- [ ] Required output IDs are fully covered by manifest-declared input surfaces.
+- [ ] Inlet assertion snapshot exists locally and durably.
 
 Blockers:
-1. `M5C-B1`: required input prefixes absent/unreadable.
-2. `M5C-B2`: required oracle manifest/seal artifacts missing.
-3. `M5C-B3`: inlet assertion snapshot write/upload failure.
+1. `M5C-B1`: M5.B carry-forward invariants invalid or unreadable.
+2. `M5C-B2`: required input prefix absent/unreadable.
+3. `M5C-B3`: required oracle manifest/seal artifacts missing/unreadable.
+4. `M5C-B4`: required output IDs missing from manifest-declared surfaces.
+5. `M5C-B5`: inlet assertion snapshot write/upload failure.
 
 ### M5.D Stream-Sort Launch Contract
 Goal:
