@@ -416,6 +416,7 @@ Active-phase planning posture:
   - `M5.I` M6 handoff artifact publication.
 - M5 expansion state:
   - `M5.A -> M5.I` are now expanded to execution-grade in the deep plan with entry criteria, required inputs, deterministic tasks, DoD, and blockers.
+  - `M5.A` now explicitly pins M4->M5 entry invariants, always-required vs conditional-seed handle closure, and local+durable `m5_a_handle_closure_snapshot.json` publication contract.
 - Sub-phase progress:
   - [ ] `M5.A` authority + handle closure for P3.
   - [ ] `M5.B` oracle inlet decision + source-policy closure.

@@ -109,8 +109,31 @@ Execution block:
 Goal:
 1. Close required P3 handles and eliminate placeholder decisions before any P3 execution.
 
+Entry conditions:
+1. `M4.J` handoff is PASS and open for M5:
+   - `m5_handoff_pack.json` has `overall_pass=true`, `blockers=[]`, `m5_entry_gate=OPEN`.
+2. `platform_run_id` is inherited from M4 handoff (no re-mint at M5.A).
+3. `M5` blocker register is empty at entry.
+
+Required inputs:
+1. Authority sources:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+   - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`.
+2. Source artifacts:
+   - `runs/dev_substrate/m4/20260214T170953Z/m5_handoff_pack.json`
+   - `runs/dev_substrate/m4/20260214T170155Z/m4_i_verdict_snapshot.json`
+   - `runs/dev_substrate/m3/20260213T221631Z/run.json`.
+3. Handle materialization sources:
+   - Terraform outputs and/or SSM parameters pinned by exact handle key.
+   - wildcard/umbrella keys are not acceptable closure evidence.
+
 Tasks:
-1. Resolve required handles:
+1. Validate M4->M5 handoff invariants:
+   - `m5_entry_gate=OPEN`
+   - zero inbound blockers
+   - run-id consistency across `m4_handoff_pack` and `m4_i_verdict`.
+2. Resolve always-required handles for M5.A closure:
    - `S3_ORACLE_BUCKET`
    - `S3_ORACLE_RUN_PREFIX_PATTERN`
    - `S3_ORACLE_INPUT_PREFIX_PATTERN`
@@ -121,28 +144,49 @@ Tasks:
    - `ORACLE_REQUIRED_OUTPUT_IDS`
    - `ORACLE_SORT_KEY_BY_OUTPUT_ID`
    - `ORACLE_SEED_SOURCE_MODE`
-   - `ORACLE_SEED_SOURCE_BUCKET`
-   - `ORACLE_SEED_SOURCE_PREFIX_PATTERN`
    - `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED`
-   - `TD_ORACLE_SEED` (if used)
    - `TD_ORACLE_STREAM_SORT`
    - `TD_ORACLE_CHECKER`
    - `ROLE_ORACLE_JOB`
    - `ECS_CLUSTER_NAME`
    - `SUBNET_IDS_PUBLIC`
-   - `SECURITY_GROUP_ID_APP`.
-2. Fail closed if any required value is unresolved or placeholder (`<PIN_AT_P3_PHASE_ENTRY>`).
-3. Emit `m5_a_handle_closure_snapshot.json`.
+   - `SECURITY_GROUP_ID_APP`
+   - `S3_EVIDENCE_BUCKET`.
+3. Resolve conditional seed handles and mark them `conditional_if_seed_required`:
+   - `ORACLE_SEED_SOURCE_BUCKET`
+   - `ORACLE_SEED_SOURCE_PREFIX_PATTERN`
+   - `TD_ORACLE_SEED`.
+4. Enforce fail-closed closure rules:
+   - reject placeholders (including `<PIN_AT_P3_PHASE_ENTRY>`),
+   - reject wildcard/umbrella key references as closure proof,
+   - reject ambiguous source-of-truth (more than one conflicting origin).
+5. Emit `m5_a_handle_closure_snapshot.json` with minimum fields:
+   - `m5_execution_id`, `platform_run_id`
+   - `required_handle_keys_always`, `required_handle_keys_conditional_seed`
+   - `resolved_handle_count_always`, `unresolved_handle_count_always`
+   - `unresolved_handle_keys_always`
+   - `placeholder_handle_keys`
+   - `wildcard_key_present`
+   - `conditional_seed_handles_resolved`
+   - `overall_pass`.
+6. Publish snapshot:
+   - local: `runs/dev_substrate/m5/<timestamp>/m5_a_handle_closure_snapshot.json`
+   - durable: `s3://<S3_EVIDENCE_BUCKET>/evidence/dev_min/run_control/<m5_execution_id>/m5_a_handle_closure_snapshot.json`.
+7. Stop phase progression if `overall_pass=false`.
 
 DoD:
-- [ ] Required P3 handle set is explicit and complete.
-- [ ] Placeholder handles are fully pinned for execution.
+- [ ] M4->M5 entry gate invariants verified and recorded.
+- [ ] Always-required P3 handle set is explicit, concrete, and fully resolved.
+- [ ] Placeholder and wildcard handle usage are absent from closure evidence.
+- [ ] Conditional seed handle contract is explicit for `M5.B` (`INLET_PRESTAGED` vs `SEED_REQUIRED` follow-through).
 - [ ] M5.A snapshot exists locally and durably.
 
 Blockers:
-1. `M5A-B1`: required P3 handle missing/unresolved.
-2. `M5A-B2`: placeholder decision remains for required output IDs or sort keys.
-3. `M5A-B3`: M5.A snapshot write/upload failure.
+1. `M5A-B1`: M4->M5 handoff precondition invalid or unreadable.
+2. `M5A-B2`: always-required P3 handle missing/unresolved.
+3. `M5A-B3`: placeholder/wildcard/ambiguous key detected in closure set.
+4. `M5A-B4`: required output-id or sort-key decision remains unpinned.
+5. `M5A-B5`: M5.A snapshot write/upload failure.
 
 ### M5.B Oracle Inlet Decision + Source-Policy Closure
 Goal:

@@ -9471,6 +9471,55 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. No hidden “magic” path remains undocumented: inlet is explicit.
 2. Current run can proceed with pre-staged S3 inputs without forcing unnecessary reseed.
 
+## Entry: 2026-02-14 05:54PM - M5.A planning lock (authority + handle closure hardening)
+
+### Trigger
+1. USER directed: begin planning `M5.A`.
+
+### Current-gap assessment (before edits)
+1. `M5.A` existed but was under-specified for execution:
+   - no explicit entry gate tied to `M4.J` handoff openness,
+   - no required-input contract (authorities + source artifacts),
+   - no explicit closure schema for unresolved/placeholder/wildcard detection,
+   - no deterministic publication contract (local + durable paths),
+   - blocker taxonomy did not separate authority mismatch, placeholder drift, and evidence publication failure.
+2. P3 seed handles needed explicit classification to prevent premature pin pressure while still preserving fail-closed posture:
+   - always-required at `M5.A` for P3 closure,
+   - conditional handles that become mandatory only when `M5.B` resolves `SEED_REQUIRED`.
+
+### Decision (planning approach)
+1. Upgrade `M5.A` in deep plan to execution-grade with:
+   - entry conditions,
+   - required inputs,
+   - explicit required-handle sets (`always_required`, `conditional_if_seed_required`),
+   - fail-closed closure snapshot schema and invariants,
+   - refined DoD and blocker set.
+2. Keep phase status unchanged (`M5` remains active, `M5.A` not executed in this step).
+3. Reflect the expansion in the main platform build plan so the high-level authority references the new M5.A depth.
+
+### Planned file changes
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+3. `docs/logbook/02-2026/2026-02-14.md`
+
+## Entry: 2026-02-14 05:55PM - M5.A planning expansion applied (execution-grade)
+
+### Changes applied
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md` (`M5.A`) to add:
+   - explicit entry conditions tied to `M4.J` handoff openness and run-id inheritance,
+   - required-input contract (authorities, source artifacts, materialization sources),
+   - explicit handle closure model split into:
+     - `always_required` for M5.A progression,
+     - `conditional_if_seed_required` for M5.B follow-through,
+   - fail-closed rules for placeholders, wildcard keys, and ambiguous origin conflicts,
+   - canonical snapshot schema and local+durable publication path contract,
+   - refined DoD and blocker taxonomy (`M5A-B1..B5`).
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` M5 expansion note to reflect the hardened M5.A closure model.
+
+### Outcome
+1. M5.A is now planning-complete at execution-grade depth.
+2. No runtime execution was performed; `M5.A` remains not-started from execution perspective.
+
 ## Entry: 2026-02-14 06:03PM - P3 input staging via S3->S3 copy (option 1, non-destructive)
 
 ### Trigger
