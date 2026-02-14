@@ -9312,3 +9312,40 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - `platform.M4.build_plan.md`: M4.I DoD + completion checklist marked complete.
    - `platform.build_plan.md`: M4.I sub-phase marked complete.
    - immediate next action advanced to `M4.J`.
+
+## Entry: 2026-02-14 05:10PM - M4.J planning expansion lock (planning-only)
+
+### Trigger
+1. USER instructed: plan `M4.J`.
+
+### Gap assessment
+1. Existing M4.J coverage was minimal and not execution-grade:
+   - no explicit `M4.I` verdict gate semantics,
+   - no canonical handoff payload schema,
+   - no run-id drift/URI readability invariants,
+   - limited blocker taxonomy for handoff-quality failures.
+
+### Planning intent
+1. Expand M4.J to fail-closed execution-grade planning.
+2. Keep this step planning-only (no artifact publication or runtime mutation).
+
+### Planned doc updates
+1. In `platform.M4.build_plan.md`:
+   - add entry conditions, required inputs, canonical payload requirements, invariant checks, DoD, and blockers.
+2. In `platform.build_plan.md`:
+   - record that M4.J planning is execution-grade.
+
+## Entry: 2026-02-14 05:12PM - M4.J planning expanded to execution-grade (planning-only)
+
+### Changes applied
+1. Expanded `M4.J` section in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md` with:
+   - strict entry gate (`M4.I` must be `ADVANCE_TO_M5` with empty blocker rollup and durable verdict upload),
+   - required input contract across `M3` handoff + `M4.B/H/I`,
+   - canonical `m5_handoff_pack.json` schema and `m5_entry_gate` semantics,
+   - fail-closed invariants (required fields, URI readability, run-id consistency, non-secret policy),
+   - strengthened DoD and extended blocker taxonomy (`M4J-B1..B6`).
+2. Updated high-level M4 expansion note in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` to reflect M4.J execution-grade planning status.
+
+### Planning outcome
+1. `M4.J` is now execution-ready at plan level.
+2. No runtime execution performed in this planning step.

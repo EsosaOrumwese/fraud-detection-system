@@ -742,26 +742,66 @@ Blockers:
 Goal:
 1. Publish canonical handoff surface for M5 entry.
 
+Entry conditions:
+1. Latest `M4.I` snapshot is PASS with:
+   - `verdict=ADVANCE_TO_M5`
+   - `overall_pass=true`
+   - `blocker_rollup=[]`
+   - `publication.durable_upload_ok=true`.
+2. `M4.H` readiness publication is PASS and durable.
+3. `platform_run_id` is consistent across `M3` handoff + `M4.H` + `M4.I` sources.
+
+Required inputs:
+1. Control artifacts:
+   - latest `m4_i_verdict_snapshot.json`
+   - latest `m4_h_readiness_publication_snapshot.json`
+   - latest `m4_b_service_map_snapshot.json`
+   - `runs/dev_substrate/m3/<timestamp>/m4_handoff_pack.json` (latest M3->M4 handoff anchor).
+2. Required evidence references:
+   - run-scoped readiness evidence URI:
+     - `evidence/runs/<platform_run_id>/operate/daemons_ready.json`
+   - M4 control verdict URI:
+     - `evidence/dev_min/run_control/<m4_execution_id>/m4_i_verdict_snapshot.json`.
+3. Publication target:
+   - `evidence/dev_min/run_control/<m4_execution_id>/m5_handoff_pack.json`.
+
 Tasks:
-1. Build `m5_handoff_pack.json` with:
+1. Build canonical `m5_handoff_pack.json` payload with required fields:
+   - `phase` (`M4.J`)
+   - `captured_at_utc`
+   - `m4_execution_id`
    - `platform_run_id`
-   - M4 verdict
-   - readiness evidence URI
-   - runtime service map snapshot URI
-   - source execution IDs (`m3*`, `m4*`)
-2. Ensure non-secret payload.
-3. Publish local + durable handoff artifact.
+   - `m4_verdict` (`ADVANCE_TO_M5`)
+   - `m4_verdict_snapshot_uri`
+   - `run_scoped_readiness_evidence_uri`
+   - `m4_h_readiness_snapshot_uri`
+   - `runtime_service_map_snapshot_uri`
+   - `m3_handoff_pack_uri`
+   - `source_execution_ids` (`m3*`, `m4_a..m4_i`)
+   - `m5_entry_gate` (`OPEN` only when `m4_verdict=ADVANCE_TO_M5` and blockers empty).
+2. Validate handoff invariants fail-closed before publish:
+   - all required fields and URIs are present/non-empty,
+   - all referenced URIs are well-formed and durable objects are readable,
+   - run-id is consistent across all source anchors,
+   - no secret-bearing values are present.
+3. Publish local + durable handoff artifact:
+   - local: `runs/dev_substrate/m4/<timestamp>/m5_handoff_pack.json`
+   - durable: `evidence/dev_min/run_control/<m4_execution_id>/m5_handoff_pack.json`.
+4. Record publication summary in M4.J execution snapshot/logbook and keep M4 phase status unchanged until USER confirms progression.
 
 DoD:
 - [ ] `m5_handoff_pack.json` is complete and non-secret.
 - [ ] Durable handoff publication passes.
 - [ ] URI references are captured for M5 entry.
+- [ ] Handoff run-id consistency and URI-readability checks are explicit and PASS.
 
 Blockers:
 1. `M4J-B1`: M4 verdict is not `ADVANCE_TO_M5`.
 2. `M4J-B2`: handoff pack missing required fields/URIs.
 3. `M4J-B3`: non-secret policy violation in handoff artifact.
 4. `M4J-B4`: handoff artifact write/upload failure.
+5. `M4J-B5`: run-id drift across M3/M4 source anchors.
+6. `M4J-B6`: one or more referenced evidence URIs are unreadable/missing.
 
 ## 6) M4 Evidence Contract (Pinned for Execution)
 Evidence roots:

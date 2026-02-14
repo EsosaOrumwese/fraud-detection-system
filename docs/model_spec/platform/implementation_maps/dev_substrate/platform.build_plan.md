@@ -409,6 +409,7 @@ Active-phase planning posture:
   - `M4.G` planning is expanded to execution-grade with two-sample consumer-uniqueness checks, explicit ECS ownership predicates, and singleton drift fail-closed gates.
   - `M4.H` planning is expanded to execution-grade with canonical readiness artifact schema, source-gate invariants (`M4.B/F/G`), and durable publication/non-secret fail-closed checks.
   - `M4.I` planning is expanded to execution-grade with deterministic predicate derivation from `M4.A..M4.H`, explicit blocker-rollup algorithm, verdict semantics (`ADVANCE_TO_M5`/`HOLD_M4`), and local+durable `m4_i_verdict_snapshot.json` publication contract.
+  - `M4.J` planning is expanded to execution-grade with strict `M4.I=ADVANCE_TO_M5` entry gate, canonical `m5_handoff_pack.json` schema, run-id/URI readability invariants, and durable handoff publication contract.
 - Sub-phase progress:
   - [x] `M4.A` authority + handle closure for P2.
   - [x] `M4.B` service/pack map + singleton replica contract.

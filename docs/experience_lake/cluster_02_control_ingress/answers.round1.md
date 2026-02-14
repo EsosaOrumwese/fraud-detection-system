@@ -564,9 +564,11 @@ The failure was visible as provenance split:
 Concrete run evidence used during remediation:
 - observed in parity window around `platform_20260206T052035Z` where receipt metadata carried `pins_json.platform_run_id=platform_20260206T052035Z` while stored `receipt_ref` used older prefix `s3://fraud-platform/platform_20260206T042550Z/...`.
 - this is the exact contradiction class documented in IG implementation notes for the fix.
+- mismatch was recorded at implementation time in the IG decision log (2026-02-06, receipt-ref run-scope mismatch entry), not reconstructed later.
 
 Concrete bad receipt path form from the incident window:
 - `s3://fraud-platform/platform_20260206T042550Z/ig/receipts/<receipt_id>.json` (wrong run scope prefix)
+- exact stale-run receipt filename was not retained in current local artifacts; only the wrong-prefix class/pattern is retained.
 
 Where the conflicting run id was read:
 - ops-index `receipts.pins_json` (JSON column), field path `pins_json.platform_run_id`
@@ -595,7 +597,9 @@ On anchor run `platform_20260212T085637Z`:
    - non-zero admits,
    - `publish_ambiguous = 0`,
    - `quarantine = 0`.
-3. The boundary now has one run truth for both metadata and artifact location.
+3. Regression guard now exists in test coverage:
+   - `tests/services/ingestion_gate/test_admission.py::test_receipt_ref_scoped_to_envelope_run_id`
+4. The boundary now has one run truth for both metadata and artifact location.
 
 So this was not a cosmetic cleanup. It removed a replay/audit integrity defect at the exact control-ingress boundary.
 
