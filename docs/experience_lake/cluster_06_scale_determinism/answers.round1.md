@@ -49,6 +49,9 @@ Failure anchor (truthful boundary):
 
 - The incident is pinned in timestamped implementation/logbook records in the `2026-01-30` window, before chunked-sort rollout.
 - The repo retains the failure-class record (`DuckDB OOM` for these outputs on 16GB) but not the original failing DuckDB stacktrace artifact line.
+- Primary implementation-map authority for this incident:
+  - `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md`
+  - entry marker: `## Entry: 2026-01-30 21:46:10 — Chunked stream sort (day windows)`
 
 Operationally this meant:
 
@@ -113,6 +116,10 @@ This gave us an explicit operational lever: same contract semantics, different e
 Concrete applied value in the hardening posture:
 
 - `STREAM_SORT_CHUNK_DAYS=1` (day-window mode for large time-key outputs).
+- Config/evidence surfaces for this setting:
+  - applied run-note: `docs/logbook/02-2026/2026-02-01.md` (`04:07PM` entry includes `chunk_days=1`),
+  - operator/runbook surface: `docs/runbooks/platform_parity_walkthrough_v0.md` (`$env:STREAM_SORT_CHUNK_DAYS="1"`),
+  - runtime consumption point: `src/fraud_detection/oracle_store/stream_sorter.py` (`os.getenv("STREAM_SORT_CHUNK_DAYS", "0")`).
 
 ### 3) Supporting runtime controls (kept active)
 
