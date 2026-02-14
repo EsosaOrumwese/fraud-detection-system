@@ -4874,3 +4874,42 @@ Validation completed:
 
 Open item:
 1) Authority-envelope runtime measurement still pending to quantify wall-clock gain and determinism parity on full `S4` run.
+
+---
+
+### Entry: 2026-02-14 20:13
+
+Design element: `S4` authority-envelope rerun for `Fast-Compute-Safe v2` closure.
+Summary: Executed full `1B/S4` rerun on the same authority run-id envelope and recorded material runtime reduction with deterministic/statistical parity preserved.
+
+Execution details:
+1) Run target:
+   - run-id `49dcd3c9aa4e441781292d54dc0fa491`
+   - command lane: `make --no-print-directory segment1b-s4 RUNS_ROOT=runs/fix-data-engine/segment_1B SEG1B_S4_RUN_ID=49dcd3c9aa4e441781292d54dc0fa491`
+2) Runtime knobs (explicit):
+   - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX=48`
+   - `ENGINE_1B_S4_CACHE_MAX_BYTES=2500000000`
+   - `ENGINE_1B_S4_RANK_CACHE_ENTRIES_MAX=128`
+   - `ENGINE_1B_S4_RANK_CACHE_BYTES_MAX=67108864`
+   - `ENGINE_1B_S4_RANK_CACHE_K_MAX=200000`
+
+Benchmark evidence:
+1) Baseline snapshot:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1b_baseline_precompute_49dcd3c9aa4e441781292d54dc0fa491.json`
+2) Comparison artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1b_benchmark_49dcd3c9aa4e441781292d54dc0fa491.json`
+3) Measured effect:
+   - wall-clock `4338.64s -> 2467.67s` (`-43.12%`, `-1870.97s`)
+   - CPU `4232.17s -> 2372.05s` (`-43.95%`, `-1860.13s`)
+4) Rerun command stopwatch:
+   - `ELAPSED_SECONDS=2469.955` (consistent with report wall-clock).
+
+Parity and safety checks:
+1) Determinism hash unchanged (`s4_alloc_plan` byte identity preserved).
+2) `rows_emitted`, `pairs_total`, `alloc_sum_equals_requirements` unchanged.
+3) Anti-collapse aggregate means unchanged.
+4) Rank-cache runtime summary confirms bounded behavior:
+   - hits `2979`, misses `4438`, evictions `4310`, skipped_large_k `5670`, skipped_oversize `0`, bytes_peak `37854048` (well below cap).
+
+Decision:
+1) `P4.R1B` closure criteria met; lane is now closed with measured authority-envelope gain and no semantic drift.

@@ -582,10 +582,10 @@ DoD:
 - [x] option-2 implemented and equivalence-checked for diversification selection semantics.
 - [x] option-3 implemented with explicit bounded cache knobs and no default RAM expansion.
 - [x] `python -m py_compile` passes for `S4`.
-- [ ] one authority-envelope rerun records wall-clock improvement and deterministic parity.
+- [x] one authority-envelope rerun records wall-clock improvement and deterministic parity.
 
 P4.R1B execution status (2026-02-14):
-- status: `IN_PROGRESS` (implementation/equivalence complete; authority-envelope timing run pending).
+- status: `CLOSED` (all DoD checks complete).
 - implemented in:
   - `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
 - completed changes:
@@ -598,8 +598,18 @@ P4.R1B execution status (2026-02-14):
 - validation artifacts:
   - randomized legacy-vs-new ranking equivalence harness passed (`top-k` and full selector parity),
   - `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` passed.
-- next gate:
-  - run one authority-envelope `S4` pass and publish before/after wall-clock + determinism parity evidence.
+- authority-envelope rerun evidence:
+  - rerun target: `segment1b-s4` on run-id `49dcd3c9aa4e441781292d54dc0fa491`,
+  - baseline snapshot: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1b_baseline_precompute_49dcd3c9aa4e441781292d54dc0fa491.json`,
+  - benchmark artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1b_benchmark_49dcd3c9aa4e441781292d54dc0fa491.json`.
+- measured effect:
+  - wall-clock: `4338.64s -> 2467.67s` (`-43.12%`, delta `1870.97s`),
+  - CPU: `4232.17s -> 2372.05s` (`-43.95%`).
+- parity:
+  - determinism hash unchanged,
+  - rows/pairs unchanged,
+  - anti-collapse summary means unchanged,
+  - result classifier in benchmark artifact: `PASS`.
 
 #### P4.R2 - Guarded upstream candidate lane (1A reopen, fail-closed)
 Goal:

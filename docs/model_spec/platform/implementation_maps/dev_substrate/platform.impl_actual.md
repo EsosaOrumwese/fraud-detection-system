@@ -10303,3 +10303,27 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Outcome
 1. `M5.E` is now execution-ready at planning level.
 2. No stream-sort runtime execution occurred in this step.
+
+## Entry: 2026-02-14 08:24PM - Pre-change execution lock: run M5.E stream-sort execution and artifact closure
+
+### Trigger
+1. USER directed execution of `M5.E`.
+
+### Execution intent
+1. Execute `M5.E` per deep-plan contract:
+   - validate M5.D carry-forward invariants,
+   - launch managed one-shot stream-sort ECS tasks per required output ID,
+   - capture task runtime outcomes,
+   - verify durable per-output artifacts (shards + manifest + receipt),
+   - publish `oracle/stream_sort_summary.json` local + durable.
+
+### Inputs pinned
+1. `runs/dev_substrate/m5/20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
+2. `runs/dev_substrate/m3/20260213T221631Z/run.json`
+3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+
+### Fail-closed rules
+1. Any launch failure => `M5E-B2`.
+2. Any terminal task failure / non-zero exit => `M5E-B3`.
+3. Any missing shard/manifest/receipt contract => `M5E-B4`.
+4. Summary publication failure => `M5E-B5`.
