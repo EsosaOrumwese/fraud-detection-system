@@ -13,6 +13,7 @@ import time
 import uuid
 from collections import OrderedDict
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable, Iterator, Optional
 
@@ -127,15 +128,26 @@ class _ProgressTracker:
         rate = self._processed / elapsed if elapsed > 0 else 0.0
         if self._total and self._total > 0:
             remaining = max(self._total - self._processed, 0)
-            eta = remaining / rate if rate > 0 else 0.0
+            if rate > 0:
+                eta_seconds = remaining / rate
+                eta_hms = _format_hms(eta_seconds)
+                eta_complete_utc = (
+                    datetime.now(timezone.utc) + timedelta(seconds=eta_seconds)
+                ).strftime("%Y-%m-%dT%H:%M:%SZ")
+            else:
+                eta_seconds = float("inf")
+                eta_hms = "unknown"
+                eta_complete_utc = "unknown"
             self._logger.info(
-                "%s %s/%s (elapsed=%.2fs, rate=%.2f/s, eta=%.2fs)",
+                "%s %s/%s (elapsed=%.2fs, rate=%.2f/s, eta_seconds=%.2f, eta_hms=%s, eta_complete_utc=%s)",
                 self._label,
                 self._processed,
                 self._total,
                 elapsed,
                 rate,
-                eta,
+                eta_seconds,
+                eta_hms,
+                eta_complete_utc,
             )
         else:
             self._logger.info(
@@ -145,6 +157,15 @@ class _ProgressTracker:
                 elapsed,
                 rate,
             )
+
+
+def _format_hms(seconds: float) -> str:
+    if not np.isfinite(seconds):
+        return "unknown"
+    total_seconds = max(int(seconds), 0)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
 def _close_parquet_reader(pfile) -> None:

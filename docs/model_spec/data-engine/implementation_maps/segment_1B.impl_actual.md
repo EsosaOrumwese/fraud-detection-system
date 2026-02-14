@@ -4698,3 +4698,74 @@ Impact:
 1) No runtime policy/config semantics changed.
 2) No statistical surfaces changed.
 3) Improves operational visibility and run-time decision speed during heavy `1B` iteration.
+
+---
+
+### Entry: 2026-02-14 16:02
+
+Design element: `S5/S6` ETA parity with `S4` for long-run progress telemetry.
+Summary: Extended the ETA pattern introduced in `S4` to `1B/S5` and `1B/S6` progress trackers so all heavy `1B` stages provide consistent completion-time visibility.
+
+Decision and reasoning trail:
+1) `S5` and `S6` already emitted progress with numeric ETA only (`eta=...s`), but lacked human-readable time and expected completion timestamp.
+2) Applied the same runtime-observability contract as `S4`:
+   - `eta_seconds`
+   - `eta_hms`
+   - `eta_complete_utc`
+3) Added shared helper in each runner for deterministic `HH:MM:SS` formatting and explicit unknown fallback when effective rate is non-positive.
+4) Kept scope strictly observational: no policy/config/model/statistical behavior changed.
+
+Touched files:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s5_site_tile_assignment/runner.py`
+2) `packages/engine/src/engine/layers/l1/seg_1B/s6_site_jitter/runner.py`
+
+Validation:
+1) `python -m py_compile` passed for:
+   - `s4_alloc_plan/runner.py`
+   - `s5_site_tile_assignment/runner.py`
+   - `s6_site_jitter/runner.py`
+
+---
+
+### Entry: 2026-02-14 16:09
+
+Design element: remaining `1B` ETA telemetry closure (`S7/S8/S9`).
+Summary: Before additional code edits, verified that `S7`, `S8`, and `S9` each still use legacy progress logging (`eta=...s` only). Planned a parity closeout so all heavy `1B` states expose the same ETA contract.
+
+Problem framing:
+1) `S4/S5/S6` now emit rich ETA fields, but `S7/S8/S9` still emit only numeric ETA seconds.
+2) Mixed telemetry shape across contiguous long stages slows operator triage and makes run-time expectation handling inconsistent.
+
+Alternatives considered:
+1) Leave `S7/S8/S9` unchanged and rely on existing numeric ETA.
+   - Rejected: keeps inconsistent logs and repeats the manual conversion burden.
+2) Centralize tracker utility in shared module.
+   - Deferred: larger blast radius than needed for current closure; not required to meet immediate observability goal.
+3) Mirror the existing in-file pattern used in `S4/S5/S6`.
+   - Chosen: minimal-risk parity change with deterministic behavior and no policy/statistical surface impact.
+
+Execution plan:
+1) Patch each runner tracker (`S7`, `S8`, `S9`) to emit:
+   - `eta_seconds`
+   - `eta_hms`
+   - `eta_complete_utc`
+2) Add explicit unknown fallback for non-positive effective rate.
+3) Run `python -m py_compile` on all touched runners plus `S4/S5/S6` regression sanity.
+
+Outcome:
+1) Implemented ETA parity in:
+   - `packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/runner.py`
+   - `packages/engine/src/engine/layers/l1/seg_1B/s8_site_locations/runner.py`
+   - `packages/engine/src/engine/layers/l1/seg_1B/s9_validation_bundle/runner.py`
+2) All three trackers now emit:
+   - `eta_seconds`
+   - `eta_hms`
+   - `eta_complete_utc`
+3) Unknown-rate posture is explicit (`eta_seconds=inf`, `eta_hms=unknown`, `eta_complete_utc=unknown`), aligned with `S4/S5/S6`.
+4) Validation completed successfully:
+   - `python -m py_compile` passed for `S4`, `S5`, `S6`, `S7`, `S8`, `S9`.
+
+Impact:
+1) No policy/config/model behavior changed.
+2) No statistical output surfaces changed.
+3) `1B` long-stage observability is now log-contract-consistent end-to-end (`S4->S9`).
