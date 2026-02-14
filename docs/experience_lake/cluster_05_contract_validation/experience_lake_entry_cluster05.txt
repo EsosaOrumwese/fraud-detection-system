@@ -1,0 +1,315 @@
+EXPERIENCE LAKE ENTRY — CLUSTER 05
+Title: Contract-first validation + schema resolution hardening — Draft 2020-12, multi-file refs, fragment $ref wrappers, and anti-drift policy coherence
+As-of: 2026-02-14
+Status: ACHIEVED (IG admission validator hardened + contract gates pinned). PROMOTING (same resolver semantics must hold in dev_min; only substrate changes).
+
+1) Header Block — Identity + Claim
+1.1 One-sentence truth claim (defensible, not a vibe)
+I hardened the platform’s contract validation so the same payload yields the same IG admission verdict across environments *given the same policy digest (schema_policy + class_map + partition profiles), the same Draft 2020-12 dialect, the same resolver retrieval rules (URI anchoring + supported ref styles), and the same profile wiring* by fixing a real IG schema-resolution failure (fragment context loss / $id anchoring / mixed ref styles), upgrading to Draft 2020-12 with a registry-based resolver, validating fragments via $ref into a URI-anchored schema graph, normalizing nullable semantics, and enforcing anti-drift coherence checks at IG startup with digest-bound policy provenance recorded in receipts/quarantine.
+
+1.2 Scope (what this entry covers)
+IN-SCOPE:
+- Multi-boundary validation posture (producer → IG authority → consumer → domain transitions)
+- The incident class: IG payload validation false FAIL due to resolver model weaker than real contract topology
+- The resolver hardening: referencing.Registry + URI anchoring + fragment wrapper validation + mixed ref style handling
+- Determinism guarantee + fail-closed posture (no permissive fallback)
+- Anti-drift rule: class_map + schema_policy + pins + partition profile must be coherent; policy changes are digest-bound and auditable
+
+OUT-OF-SCOPE:
+- Ingress idempotency laws (Cluster 2)
+- Streaming correctness (Cluster 3)
+- Datastore lifecycle (Cluster 4)
+- Engine realism remediation (Cluster 7)
+
+1.3 Anchor incident slice (where the failure was exposed)
+Event family that exposed the bug:
+- event_type: arrival_events_5B
+- event_class: context_arrival
+
+Policy entry involved:
+- config/platform/ig/schema_policy_v0.yaml (entry for event_type=arrival_events_5B)
+
+Concrete fragment ref that failed under fragment-only loading:
+- docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml#/egress/s4_arrival_events_5B/items
+
+Run-anchored receipt proof of the false-fail class (IG quarantine on schema failure):
+- platform_run_id: platform_20260207T221155Z
+- receipt:    s3://fraud-platform/platform_20260207T221155Z/ig/receipts/0a7e36376ffc8fb37e9d2fca7b4a02c3.json
+- quarantine: s3://fraud-platform/platform_20260207T221155Z/ig/quarantine/0a7e36376ffc8fb37e9d2fca7b4a02c3.json
+- observed reason path: reason_codes=["SCHEMA_FAIL"]
+
+Post-fix admission anchor (PENDING PIN — required to close “symptom → fix → restored admit” loop):
+- platform_run_id: <POST_FIX_PLATFORM_RUN_ID>
+- admitted receipt (same family: arrival_events_5B / context_arrival):
+  s3://fraud-platform/<POST_FIX_PLATFORM_RUN_ID>/ig/receipts/<POST_FIX_ADMIT_RECEIPT_ID>.json
+- expected: decision=ADMITTED; no SCHEMA_FAIL quarantine for this family in the post-fix run scope
+
+1.4 What I am explicitly NOT claiming (truth hygiene)
+- Not claiming I relaxed validation to “make it pass.” The system stayed fail-closed; the cost was false rejection until resolver correctness was fixed.
+- Not claiming a single global validator is sufficient; boundaries validate repeatedly by ownership.
+- Not claiming that schema correctness = business correctness; domain invariants are still enforced in component lanes.
+
+2) Context — Why this mattered
+2.1 Platform reality
+In a multi-producer streaming system:
+- contracts are multi-file graphs
+- refs are authored in different styles (interface-pack relative, docs/… repo-root, bare filenames)
+- working-directory drift and OS path differences can break naive resolvers
+If IG (the admission authority) rejects valid payloads because the resolver is weaker than the contract topology, the entire platform becomes:
+- brittle (runs fail for non-business reasons)
+- non-deterministic across environments (same inputs, different outcomes)
+- hard to debug (resolver mechanics pollute signal quality)
+
+2.2 Why IG schema resolution is a “platform-level” problem
+IG is the hard gateway. If its contract verdict drifts:
+- admission truth is corrupted (either false admits or false quarantines)
+- downstream planes never see stable truth
+- migration (dev_min) becomes unsafe because “same contract” may behave differently under different runtime contexts
+
+3) The Problem — The contradiction
+3.1 What failed
+IG policy pointed to row-level schema fragments for per-event validation, but the resolver treated those fragments as standalone schemas. This dropped root graph context ($id/$schema/$defs), causing internal refs to fail.
+
+The contradiction:
+- strict Draft 2020-12 validation was required
+- but the resolution model did not preserve the authored schema graph topology
+
+3.2 How it manifested
+Primary break class:
+- false FAIL at ingress (valid events quarantined with SCHEMA_FAIL / INTERNAL_ERROR)
+
+Secondary risk:
+- inconsistent behavior across contexts due to mixed reference styles and path assumptions
+(same contract + same payload must not depend on where the process was launched from)
+
+4) Non-negotiables — Invariants and constraints
+4.1 Invariants preserved
+- Fail-closed posture: unresolved refs → reject/quarantine (no permissive fallback)
+- Determinism law: same payload + same schema bundle + same policy map + same dialect = same verdict
+- No “schema forks” to make validation pass (no copying fragments into ad hoc local files)
+- Policy changes must be auditable (digest-bound), not silent drift
+
+4.2 Constraints
+- Contracts are authored as multi-file graphs with anchors/defs
+- Resolver must be robust to Windows path normalization and mixed reference styles
+- IG must remain strict and predictable; it cannot “guess” on missing context
+
+5) Investigation + Reasoning — How I diagnosed the failure
+5.1 Root mechanics identified
+Three linked causes:
+1) fragment context loss: validating #/…/items detached from root $defs
+2) relative/missing $id: no stable base URI for relative refs
+3) mixed ref styles: interface-pack relative + docs/… + filename refs under one naive root fails
+
+5.2 Why this is false FAIL (not invalid payload)
+The payload could be meaningful/valid, but validation failed due to resolver context deficiencies, not necessarily business contract violation.
+
+6) Decision + Tradeoffs — What I chose and why
+6.1 Decision: make the resolver match the real contract topology
+I chose to upgrade the resolution model rather than weaken validation.
+
+Tradeoffs accepted:
+- more sophisticated loader/registry logic
+- explicit URI anchoring and retrieval rules
+- strictness maintained, so broken refs still fail closed
+
+Tradeoffs rejected:
+- turning off strict validation (would create false PASS risk)
+- “just use one reference style everywhere” as a short-term hack (not realistic; topology already exists)
+- ad hoc schema duplication (creates drift and future bugs)
+
+7) Implementation — What I actually changed
+7.1 Registry + Draft 2020-12 wiring (deterministic resolution model)
+Code anchors:
+- src/fraud_detection/ingestion_gate/schema.py
+- src/fraud_detection/ingestion_gate/schemas.py
+
+Implementation posture:
+- moved to referencing.Registry / Resource
+- pinned Draft 2020-12 validator flow
+- introduced deterministic file-URI retrieval logic (Windows path normalization included)
+
+7.2 Fragment validation via $ref wrapper into the anchored graph
+Problem: fragment-only loading loses root context
+Fix:
+- in src/fraud_detection/ingestion_gate/schema.py -> _load_schema_ref(...):
+  schema_for_validation = {"$ref": f"{base_uri}#{fragment}"}
+This validates item-level fragments without detaching from root $defs/$schema/$id.
+
+7.3 Mixed ref style resolution (contract topology support)
+Filename fallback + repo-root docs path handling:
+- src/fraud_detection/ingestion_gate/schemas.py -> SchemaRegistry._uri_to_path(...)
+- src/fraud_detection/ingestion_gate/schema.py -> _load_schema_ref(...) handles docs/ and absolute paths
+
+Resolution order:
+- interface-pack-relative refs
+- repo-root docs/... refs
+- controlled shared filename fallback
+
+7.4 Nullable normalization (dialect compatibility)
+After resolver hardening, another false-fail class remained:
+- OpenAPI-style nullable:true not native in Draft 2020-12
+Fix:
+- src/fraud_detection/ingestion_gate/schema.py -> _normalize_nullable(...)
+- normalize nullable fields into explicit null unions in-memory before validation
+
+7.5 Canonical serialization/hashing for hash-sensitive contract decisions
+Not the root fix, but a determinism stabilizer:
+- canonical JSON serialization (sorted keys, fixed separators, UTF-8)
+- used for payload_hash and policy digest computations (prevents “same content, different hash” drift)
+
+8) Validation + Results — What I proved, not what I felt
+8.1 Incident anchored by real quarantine evidence (pre-fix symptom)
+- platform_20260207T221155Z shows IG quarantine with reason_codes=["SCHEMA_FAIL"] for the affected family.
+
+Key proof snapshots (pre-fix; “open JSON not required”):
+- quarantine record: s3://fraud-platform/platform_20260207T221155Z/ig/quarantine/0a7e36376ffc8fb37e9d2fca7b4a02c3.json
+  → reason_codes=["SCHEMA_FAIL"]
+- receipt record: s3://fraud-platform/platform_20260207T221155Z/ig/receipts/0a7e36376ffc8fb37e9d2fca7b4a02c3.json
+  → event_type=arrival_events_5B; event_class=context_arrival
+- provenance presence (not value): policy_rev.content_digest present in receipt/quarantine (digest-bound policy identity)
+
+8.2 Post-fix restoration proof (PENDING PIN)
+To fully certify this entry beyond “resolver fixed,” I pin a post-fix run showing the same event family now admits under the hardened resolver:
+- platform_run_id: <POST_FIX_PLATFORM_RUN_ID>
+- admitted receipt: s3://fraud-platform/<POST_FIX_PLATFORM_RUN_ID>/ig/receipts/<POST_FIX_ADMIT_RECEIPT_ID>.json
+
+8.3 Deterministic resolver gate (proof artifact)
+Repeatable contract-compatibility gate:
+- command:
+  python -m pytest -q tests/services/scenario_runner/test_contract_compatibility.py::test_interface_pack_refs_resolve -q
+- observed result on current repo state: 1 passed
+
+Why this matters:
+- exercises mixed ref styles and resolver traversal
+- fails loudly on broken ref paths
+- provides reviewer-executable proof that the schema graph is resolvable under hardened rules
+
+8.4 Determinism posture (what now holds)
+Bounded determinism law (explicit preconditions):
+- same payload
+- same policy digest (schema_policy + class_map + partition profiles)
+- same Draft 2020-12 dialect
+- same resolver retrieval rules (URI anchoring + supported ref styles)
+- same profile wiring inputs
+⇒ same IG verdict
+
+Additional posture:
+- no working-directory drift (provided wiring/profile inputs are identical)
+- unresolved refs remain fail-closed (reject/quarantine)
+
+9) Evidence Index (auditor trail)
+9.0 Truth surfaces: authoritative vs derived (anti-drift)
+Authoritative (direct evidence of admission/validation truth at the boundary):
+- IG receipt/quarantine artifacts (decision + reason codes + provenance fields)
+- Contract authority files + policy maps (schema_policy + class_map + partition profiles)
+- Policy digest computation + recorded provenance (policy_rev.content_digest in receipts/quarantine)
+
+Supporting (useful corroboration, but not sufficient alone):
+- Contract-compatibility gate (pytest) proving resolver can traverse the schema graph
+
+Derived (summaries/views computed from authoritative surfaces; must not override them):
+- platform run reports / aggregate counters (if referenced)
+
+9.1 Contract authority files pinned at boundaries
+SR run setup:
+- docs/model_spec/platform/contracts/scenario_runner/run_request.schema.yaml
+- docs/model_spec/platform/contracts/scenario_runner/reemit_request.schema.yaml
+- docs/model_spec/platform/contracts/scenario_runner/run_ready_signal.schema.yaml
+- docs/model_spec/platform/contracts/scenario_runner/run_facts_view.schema.yaml
+
+Canonical envelope:
+- docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml
+
+IG admission evidence:
+- docs/model_spec/platform/contracts/ingestion_gate/ingestion_receipt.schema.yaml
+- docs/model_spec/platform/contracts/ingestion_gate/quarantine_record.schema.yaml
+
+Domain examples:
+- docs/model_spec/platform/contracts/real_time_decision_loop/decision_payload.schema.yaml
+- docs/model_spec/platform/contracts/real_time_decision_loop/action_intent.schema.yaml
+- docs/model_spec/platform/contracts/case_and_labels/case_trigger.schema.yaml
+
+9.2 Policy and fragment pins
+- config/platform/ig/schema_policy_v0.yaml (arrival_events_5B mapping)
+- config/platform/ig/class_map_v0.yaml (event_type → event_class)
+- fragment ref:
+  docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml#/egress/s4_arrival_events_5B/items
+
+9.3 Incident evidence
+- s3://fraud-platform/platform_20260207T221155Z/ig/receipts/0a7e36376ffc8fb37e9d2fca7b4a02c3.json
+- s3://fraud-platform/platform_20260207T221155Z/ig/quarantine/0a7e36376ffc8fb37e9d2fca7b4a02c3.json
+
+9.4 Code anchors
+- src/fraud_detection/ingestion_gate/schema.py
+  - _load_schema_ref(...) (base_uri anchoring + fragment $ref wrapper)
+  - _normalize_nullable(...)
+- src/fraud_detection/ingestion_gate/schemas.py
+  - SchemaRegistry._uri_to_path(...) (mixed ref resolution rules)
+- src/fraud_detection/ingestion_gate/admission.py
+  - _validate_rtdl_policy_alignment(...) (startup coherence check)
+- src/fraud_detection/ingestion_gate/policy_digest.py
+  - compute_policy_digest(...)
+
+9.5 Test evidence
+- tests/services/scenario_runner/test_contract_compatibility.py::test_interface_pack_refs_resolve
+
+9.6 Runtime dependency pins (PENDING FILL — prevents “dependency drift” during dev_min promotion)
+Record the validator stack versions for the environment/commit that certified this posture:
+- jsonschema==<FILL_FROM_LOCK_OR_ENV>
+- referencing==<FILL_FROM_LOCK_OR_ENV>
+
+Convenience command (records versions without guessing):
+python -c "import importlib.metadata as m; print('jsonschema', m.version('jsonschema')); print('referencing', m.version('referencing'))"
+
+10) Guardrails / Non-regression Controls
+10.1 Runtime coherence law (“no coherent map, no runtime”)
+A new event family is only onboarded if four surfaces are coherent:
+1) class_map (event_type → class)
+2) schema policy (version + payload schema ref)
+3) required pins for the class
+4) partitioning profile / stream mapping
+If any drift: hard failure (not warning).
+
+Startup enforcement pin:
+- src/fraud_detection/ingestion_gate/admission.py -> _validate_rtdl_policy_alignment(...)
+- hard-fail signal: RuntimeError("IG_RTDL_POLICY_ALIGNMENT_FAILED:...") before live admission starts
+
+Enforcement incident status (truth hygiene):
+- No retained “coherence-fail in the wild” incident bundle is pinned yet for this specific gate.
+- Enforcement still exists as executable code (startup hard-fail) and can be re-verified by running IG startup with the configured policy surfaces; any misalignment halts before live admission begins.
+
+10.2 Digest-bound policy identity (anti-silent drift)
+- policy digest computed at startup from:
+  schema_policy_ref, class_map_ref, partitioning_profiles_ref
+- recorded in receipts/quarantine provenance:
+  policy_rev.content_digest (plus run_config_digest)
+Pins:
+- compute: src/fraud_detection/ingestion_gate/policy_digest.py -> compute_policy_digest(...)
+- record: src/fraud_detection/ingestion_gate/admission.py
+
+10.3 Resolver-authority rule (no schema forks)
+- refs remain anchored to contract-authority files
+- resolver is hardened in loader/retriever behavior
+- unresolved refs remain fail-closed
+
+11) Residual risks + Next actions
+11.1 What remains open
+- Expand contract gates to include an explicit “fragment pointer traversal” test (optional).
+- Stamp immutable build identity (image digest/git SHA) into receipts as a later provenance hardening (optional, not required for correctness).
+
+11.2 Migration considerations (dev_min)
+- Dev_min must preserve the same resolver semantics (same dialect + same retrieval rules).
+- Path handling must remain deterministic under containerized runtime (file-URI anchoring stays valid; wiring must be pinned).
+
+12) Extraction notes (for later mining)
+12.1 30-second version (recruiter)
+“I hardened schema validation so IG’s admission verdict is deterministic across environments. A real bug: validating schema fragments like #/items detached them from root $defs and broke refs, causing false quarantines. I fixed it with Draft 2020-12 registry-based resolution, URI anchoring, fragment $ref wrappers, nullable normalization, and startup coherence gates with digest-bound policy provenance.”
+
+12.2 2-minute version (hiring manager)
+“I treat contracts as a platform boundary, not an end-of-pipeline check. When IG started rejecting valid events due to resolver context loss, I didn’t weaken validation; I made the resolver match the real multi-file contract topology. I anchored schemas to file URIs, validated fragments via $ref into the root graph, hardened mixed ref style resolution, and added anti-drift startup checks so class map + schema policy + pins + partition profiles can’t silently diverge. The result is deterministic admission behavior and auditable policy provenance.”
+
+12.3 USP mapping (problem solving signal)
+- Diagnosed that the bug was in the resolution model, not “bad data.”
+- Fixed the right layer (resolver + loader + dialect compatibility) while preserving fail-closed posture.
+- Added governance gates (coherence checks + digest-bound policy identity) to prevent recurrence.
