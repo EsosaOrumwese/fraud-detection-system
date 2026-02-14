@@ -47,6 +47,12 @@
    - `overall_pass = true`
    - `verdict = "PASS"`
 
+## Budget and Teardown Evidence
+
+1. `runs/dev_substrate/m2_i/20260213T201427Z/budget_guardrail_snapshot.json`
+2. `runs/dev_substrate/m2_i/20260213T201427Z/teardown_viability_snapshot.json`
+3. `runs/dev_substrate/cost_guardrail/20260213T201456Z/cost_guardrail_snapshot.json`
+
 ## M4.C Incident Closure
 
 1. Fail:

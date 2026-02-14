@@ -366,6 +366,12 @@ Anchor run:
   - `ingress.quarantine = 0`,
   - `ingress.publish_ambiguous = 0`.
 
+Counter-semantics clarification (why `admit` can exceed `sent`):
+- `WSP emitted=200` is producer-side bounded sends per required `output_id` lane.
+- `ingress.sent` is the WSP bounded-output total for the gate window (`4 * 200 = 800` in this run).
+- `ingress.admit` is IG-wide admit volume for the run scope across event families/producers, so it is not constrained to the bounded WSP producer count and can be higher.
+- Clean ingress posture for this run is still validated by `ingress.duplicate=0`, `ingress.quarantine=0`, and `ingress.publish_ambiguous=0`.
+
 JSON paths used:
 - `ingress.sent`
 - `ingress.admit`

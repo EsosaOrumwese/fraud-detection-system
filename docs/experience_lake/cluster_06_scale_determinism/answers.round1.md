@@ -35,8 +35,15 @@ For the exact incident scope (the two 6B flow-anchor outputs), what I can defend
 - `s2_flow_anchor_baseline_6B` = **124,724,153** rows,
 - `s3_flow_anchor_with_fraud_6B` = **124,724,153** rows,
 - combined workload for this OOM job scope = **249,448,306** rows.
+- source file-volume context (same audited report):
+  - `s2_flow_anchor_baseline_6B` = **591 parquet source files**
+  - `s3_flow_anchor_with_fraud_6B` = **591 parquet source files**
+  - combined source-file surface handled in this incident scope = **1,182 files**
 
 Truth note: an earlier working note referenced `~374M` during stream-sort stress. That was a broader mixed-workload estimate during redesign, not the final audited count for this two-output OOM incident. For recruiter-facing claims, I use the audited per-output counts above.
+
+Evidence source for these audited counts:
+- `docs/reports/eda/segment_6B/segment_6B_published_report.md` (dataset table listing rows/files per output_id).
 
 ### C) What failed and how it manifested
 
@@ -119,7 +126,13 @@ Concrete applied value in the hardening posture:
 - Config/evidence surfaces for this setting:
   - applied run-note: `docs/logbook/02-2026/2026-02-01.md` (`04:07PM` entry includes `chunk_days=1`),
   - operator/runbook surface: `docs/runbooks/platform_parity_walkthrough_v0.md` (`$env:STREAM_SORT_CHUNK_DAYS="1"`),
-  - runtime consumption point: `src/fraud_detection/oracle_store/stream_sorter.py` (`os.getenv("STREAM_SORT_CHUNK_DAYS", "0")`).
+  - runtime consumption point: `src/fraud_detection/oracle_store/stream_sorter.py` (`os.getenv("STREAM_SORT_CHUNK_DAYS", "0")`),
+  - implementation-map pin for the OOM remediation decision:
+    `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md`
+    (`Entry: 2026-01-30 21:46:10 — Chunked stream sort (day windows)`),
+  - implementation-map pin for the explicit successful memory-safe knob-set:
+    `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md`
+    (`Entry: 2026-02-01 16:05:00 — arrival_events_5B stream view built (memory tuning)`).
 
 ### 3) Supporting runtime controls (kept active)
 
@@ -129,6 +142,12 @@ I kept and used the existing DuckDB execution knobs so chunking and spill behavi
 - `STREAM_SORT_TEMP_DIR`
 - `STREAM_SORT_MAX_TEMP_SIZE`
 - (plus thread/progress controls where needed)
+
+One explicit applied tuning set captured in implementation notes:
+- `STREAM_SORT_THREADS=2`
+- `STREAM_SORT_MEMORY_LIMIT=16GB`
+- `STREAM_SORT_MAX_TEMP_SIZE=150GiB`
+- `STREAM_SORT_CHUNK_DAYS=1`
 
 These are supporting controls; chunking was the primary structural remediation.
 
@@ -251,6 +270,11 @@ With chunked day-window execution enabled (`STREAM_SORT_CHUNK_DAYS`), the same c
 - receipts/manifests present per output,
 - Oracle Store local-parity posture marked green with the expected stream-view artifact family present for verified outputs.
 
+Quantified scope preserved through this closure:
+- combined incident workload remained `249,448,306` rows (the same two large outputs),
+- source-volume complexity remained high (`1,182` source parquet files total across both outputs),
+- closure was achieved by execution-plan change (chunked day windows), not by reducing dataset scope.
+
 Success anchor (concrete root + artifacts):
 
 - engine run root: `s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`
@@ -276,5 +300,6 @@ The improvement proof is therefore:
 
 - I **can claim** elimination of this specific OOM failure class for the targeted 6B sort path under chunked execution plus successful artifact closure.
 - I **do not claim** a fully instrumented memory-peak benchmark chart for this exact fix in these notes.
+- I **do not claim** a hard before/after runtime speedup number here; I only claim a failure-to-completion reliability improvement at the same audited workload scope.
 - I **do not substitute** unrelated Gate-200 metrics here, because this incident’s acceptance surface is Oracle stream-view build completion + receipt integrity, not ingress bounded-run throughput.
 - I **do not claim** retained raw failing stacktrace logs for the pre-fix attempt; that part is represented by timestamped implementation/logbook records and post-fix artifact closure.

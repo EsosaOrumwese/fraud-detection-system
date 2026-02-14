@@ -815,6 +815,15 @@ In plain terms: I prevented a cloud migration false-positive by enforcing identi
 3. Durable mirror:
    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T134520Z/m4_c_iam_binding_snapshot.json`
 
+### 7) Budget and teardown snapshot pins (exact filenames)
+
+1. M2.I budget guardrail snapshot:
+   - `runs/dev_substrate/m2_i/20260213T201427Z/budget_guardrail_snapshot.json`
+2. M2.I teardown viability snapshot:
+   - `runs/dev_substrate/m2_i/20260213T201427Z/teardown_viability_snapshot.json`
+3. Cost guardrail snapshot family (supporting budget evidence):
+   - `runs/dev_substrate/cost_guardrail/20260213T201456Z/cost_guardrail_snapshot.json`
+
 ## Embedded Evidence Index (Answer-Doc Native)
 
 This section embeds the key evidence anchors directly in this answer doc so review does not depend on a separate file.
@@ -881,3 +890,9 @@ This section embeds the key evidence anchors directly in this answer doc so revi
    - `blockers = []`
 4. Durable pass mirror:
    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T134520Z/m4_c_iam_binding_snapshot.json`
+
+### Budget and teardown evidence
+
+1. `runs/dev_substrate/m2_i/20260213T201427Z/budget_guardrail_snapshot.json`
+2. `runs/dev_substrate/m2_i/20260213T201427Z/teardown_viability_snapshot.json`
+3. `runs/dev_substrate/cost_guardrail/20260213T201456Z/cost_guardrail_snapshot.json`
