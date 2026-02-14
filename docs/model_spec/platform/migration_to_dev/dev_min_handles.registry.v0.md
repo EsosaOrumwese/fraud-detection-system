@@ -749,7 +749,7 @@ These handles pin the IAM roles used by Terraform and every ECS task/service. Th
 
 ### 10.2 ECS execution role (pull images + logs only)
 
-* `ROLE_ECS_TASK_EXECUTION`
+* `ROLE_ECS_TASK_EXECUTION = "fraud-platform-dev-min-ecs-task-execution"`
 
 ### 10.3 Task/service roles (application data access)
 
@@ -765,23 +765,23 @@ These handles pin the IAM roles used by Terraform and every ECS task/service. Th
 
   * for `TD_WSP`
 
-* `ROLE_IG_SERVICE`
+* `ROLE_IG_SERVICE = "fraud-platform-dev-min-ig-service"`
 
   * for `SVC_IG`
 
-* `ROLE_RTDL_CORE`
+* `ROLE_RTDL_CORE = "fraud-platform-dev-min-rtdl-core"`
 
   * for all `SVC_RTDL_CORE_*`
 
-* `ROLE_DECISION_LANE`
+* `ROLE_DECISION_LANE = "fraud-platform-dev-min-decision-lane"`
 
   * for all `SVC_DECISION_LANE_*`
 
-* `ROLE_CASE_LABELS`
+* `ROLE_CASE_LABELS = "fraud-platform-dev-min-case-labels"`
 
   * for `SVC_CASE_TRIGGER`, `SVC_CM`, `SVC_LS`
 
-* `ROLE_ENV_CONFORMANCE`
+* `ROLE_ENV_CONFORMANCE = "fraud-platform-dev-min-env-conformance"`
 
   * for `SVC_ENV_CONFORMANCE`
 

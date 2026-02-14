@@ -8,6 +8,13 @@ locals {
   topic_catalog_key = "dev_min/infra/demo/${var.demo_run_id}/confluent/topic_catalog.json"
   heartbeat_param   = "/fraud-platform/dev_min/demo/${var.demo_run_id}/heartbeat"
   db_password_value = trimspace(var.db_password) != "" ? var.db_password : random_password.db_password.result
+  lane_role_names = {
+    ig_service      = "${var.name_prefix}-ig-service"
+    rtdl_core       = "${var.name_prefix}-rtdl-core"
+    decision_lane   = "${var.name_prefix}-decision-lane"
+    case_labels     = "${var.name_prefix}-case-labels"
+    env_conformance = "${var.name_prefix}-env-conformance"
+  }
 }
 
 data "aws_availability_zones" "available" {
@@ -190,6 +197,25 @@ resource "aws_iam_role" "ecs_task_app" {
 resource "aws_iam_role_policy" "ecs_task_app_secret_read" {
   name   = "${var.name_prefix}-ecs-task-app-secret-read"
   role   = aws_iam_role.ecs_task_app.id
+  policy = data.aws_iam_policy_document.ecs_task_app_secret_read.json
+}
+
+resource "aws_iam_role" "lane_app_roles" {
+  for_each = local.lane_role_names
+
+  name               = each.value
+  assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
+  tags = merge(local.tags_demo, {
+    fp_resource = "demo_lane_app_role"
+    fp_lane     = each.key
+  })
+}
+
+resource "aws_iam_role_policy" "lane_app_secret_read" {
+  for_each = aws_iam_role.lane_app_roles
+
+  name   = "${var.name_prefix}-${each.key}-secret-read"
+  role   = each.value.id
   policy = data.aws_iam_policy_document.ecs_task_app_secret_read.json
 }
 

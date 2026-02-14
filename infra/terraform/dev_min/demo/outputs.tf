@@ -38,6 +38,26 @@ output "ecs_task_role_name" {
   value = module.demo.ecs_task_role_name
 }
 
+output "role_ig_service_name" {
+  value = module.demo.role_ig_service_name
+}
+
+output "role_rtdl_core_name" {
+  value = module.demo.role_rtdl_core_name
+}
+
+output "role_decision_lane_name" {
+  value = module.demo.role_decision_lane_name
+}
+
+output "role_case_labels_name" {
+  value = module.demo.role_case_labels_name
+}
+
+output "role_env_conformance_name" {
+  value = module.demo.role_env_conformance_name
+}
+
 output "ecs_probe_task_definition_arn" {
   value = module.demo.ecs_probe_task_definition_arn
 }

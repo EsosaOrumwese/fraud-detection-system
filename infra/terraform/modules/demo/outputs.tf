@@ -38,6 +38,26 @@ output "ecs_task_role_name" {
   value = aws_iam_role.ecs_task_app.name
 }
 
+output "role_ig_service_name" {
+  value = aws_iam_role.lane_app_roles["ig_service"].name
+}
+
+output "role_rtdl_core_name" {
+  value = aws_iam_role.lane_app_roles["rtdl_core"].name
+}
+
+output "role_decision_lane_name" {
+  value = aws_iam_role.lane_app_roles["decision_lane"].name
+}
+
+output "role_case_labels_name" {
+  value = aws_iam_role.lane_app_roles["case_labels"].name
+}
+
+output "role_env_conformance_name" {
+  value = aws_iam_role.lane_app_roles["env_conformance"].name
+}
+
 output "ecs_probe_task_definition_arn" {
   value = aws_ecs_task_definition.runtime_probe.arn
 }

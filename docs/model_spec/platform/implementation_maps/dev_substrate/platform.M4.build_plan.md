@@ -296,11 +296,11 @@ Tasks:
    - unresolved binding gaps (if any).
 
 DoD:
-- [ ] Service-role matrix covers all `M4.B` mapped services with no unbound services.
-- [ ] Role existence/attachability checks pass for all bindings.
-- [ ] Boundary rules pass (no Terraform role misuse, no execution-role-as-app-role, one app role per service).
-- [ ] Dependency access posture checks are explicit and pass or blocker-marked.
-- [ ] `m4_c_iam_binding_snapshot.json` exists locally and durably.
+- [x] Service-role matrix covers all `M4.B` mapped services with no unbound services.
+- [x] Role existence/attachability checks pass for all bindings.
+- [x] Boundary rules pass (no Terraform role misuse, no execution-role-as-app-role, one app role per service).
+- [x] Dependency access posture checks are explicit and pass or blocker-marked.
+- [x] `m4_c_iam_binding_snapshot.json` exists locally and durably.
 
 Blockers:
 1. `M4C-B1`: required role binding missing/invalid for any mapped service.
@@ -512,7 +512,7 @@ Notes:
 ## 7) M4 Completion Checklist
 - [x] M4.A complete
 - [x] M4.B complete
-- [ ] M4.C complete
+- [x] M4.C complete
 - [ ] M4.D complete
 - [ ] M4.E complete
 - [ ] M4.F complete
@@ -536,34 +536,27 @@ Control: mandatory run-scoped `operate/daemons_ready.json` and control-plane sna
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M4 Execution)
 Current blockers:
-1. `M4C-B4` (active):
-   - reason: service role handles are pinned but not concretely materialized:
-     - `ROLE_IG_SERVICE`
-     - `ROLE_RTDL_CORE`
-     - `ROLE_DECISION_LANE`
-     - `ROLE_CASE_LABELS`
-     - `ROLE_ENV_CONFORMANCE`
-   - evidence:
-     - `runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json`
-     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T121004Z/m4_c_iam_binding_snapshot.json`
-   - closure criteria:
-     - each listed role handle resolves to a concrete IAM role name/arn,
-     - role exists and is ECS-task attachable.
-2. `M4C-B1` (active):
-   - reason: mapped daemon services have invalid/unresolved app-role bindings.
-   - evidence:
-     - `m4_c_iam_binding_snapshot.json` (`service_role_bindings[*].role_binding_valid=false` for all mapped services).
-   - closure criteria:
-     - all mapped services (`13`) have valid role bindings (`role_binding_valid=true`).
-3. `M4C-B2` (active):
-   - reason: dependency access policy posture cannot be verified while lane roles are unmaterialized.
-   - evidence:
-     - `m4_c_iam_binding_snapshot.json` (`dependency_access_posture.status=UNVERIFIED_FAIL_CLOSED`).
-   - closure criteria:
-     - lane roles materialized and dependency policy-surface checks pass for SSM/S3/DB/Kafka requirements.
+1. None.
 
 Resolved blockers:
-1. None yet.
+1. `M4C-B4`:
+   - resolved by materializing lane role handles:
+     - `ROLE_IG_SERVICE = fraud-platform-dev-min-ig-service`
+     - `ROLE_RTDL_CORE = fraud-platform-dev-min-rtdl-core`
+     - `ROLE_DECISION_LANE = fraud-platform-dev-min-decision-lane`
+     - `ROLE_CASE_LABELS = fraud-platform-dev-min-case-labels`
+     - `ROLE_ENV_CONFORMANCE = fraud-platform-dev-min-env-conformance`
+   - closure evidence:
+     - `runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T121004Z/m4_c_iam_binding_snapshot.json`
+2. `M4C-B1`:
+   - resolved by valid role bindings for all mapped services (`role_binding_valid=true`).
+   - closure evidence:
+     - `runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json`
+3. `M4C-B2`:
+   - resolved by verified baseline IAM policy surface for all lane roles.
+   - closure evidence:
+     - `runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json`
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

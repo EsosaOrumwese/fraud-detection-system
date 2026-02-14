@@ -8629,3 +8629,96 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. Re-execute `M4.C` and require:
    - all mapped services have valid role bindings,
    - dependency access posture checks pass for SSM/S3/DB/Kafka surfaces.
+## Entry: 2026-02-14 01:40PM - Materialized lane IAM roles and re-ran M4.C to PASS
+
+### Trigger
+1. USER directed closure of active M4.C blockers by materializing concrete IAM role values for lane role handles and re-running M4.C.
+
+### Implementation actions
+1. Terraform module expansion (demo stack) to materialize lane roles:
+   - infra/terraform/modules/demo/main.tf
+     - added deterministic lane role map:
+       - raud-platform-dev-min-ig-service
+       - raud-platform-dev-min-rtdl-core
+       - raud-platform-dev-min-decision-lane
+       - raud-platform-dev-min-case-labels
+       - raud-platform-dev-min-env-conformance
+     - added role resources (ws_iam_role.lane_app_roles) with ECS task trust policy.
+     - added per-lane secret-read inline policies (ws_iam_role_policy.lane_app_secret_read).
+2. Exposed materialized role outputs:
+   - infra/terraform/modules/demo/outputs.tf
+   - infra/terraform/dev_min/demo/outputs.tf
+3. Pinned concrete role values in migration authority registry:
+   - docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md
+     - ROLE_IG_SERVICE
+     - ROLE_RTDL_CORE
+     - ROLE_DECISION_LANE
+     - ROLE_CASE_LABELS
+     - ROLE_ENV_CONFORMANCE
+     - (also concretized ROLE_ECS_TASK_EXECUTION).
+
+### Materialization evidence
+1. Terraform materialization run artifacts:
+   - uns/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.plan.txt
+   - uns/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.plan.json
+   - uns/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.apply.txt
+   - uns/dev_substrate/m4/20260214T133434Z/m4_c_demo_outputs_after_apply.json
+   - uns/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
+2. AWS role presence verified post-apply:
+   - raud-platform-dev-min-ig-service
+   - raud-platform-dev-min-rtdl-core
+   - raud-platform-dev-min-decision-lane
+   - raud-platform-dev-min-case-labels
+   - raud-platform-dev-min-env-conformance
+
+### M4.C re-run outcome
+1. Re-ran M4.C with role materialization sourced from live Terraform outputs.
+2. Updated canonical M4.C snapshot to PASS:
+   - local: uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
+   - durable: s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T121004Z/m4_c_iam_binding_snapshot.json
+3. Result:
+   - overall_pass=true
+   - blockers empty (M4C-B1/B2/B4 cleared)
+   - service-role bindings valid for all mapped services
+   - baseline IAM policy-surface checks pass for lane roles.
+
+### Plan-state updates
+1. docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md:
+   - M4.C DoD marked complete.
+   - M4 completion checklist marks M4.C complete.
+   - unresolved blocker register cleared (Current blockers: None) and moved M4C-B1/B2/B4 to resolved with closure evidence.
+2. docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md:
+   - M4 sub-phase progress marks M4.C complete.
+   - immediate next action now points to M4.D.
+## Entry: 2026-02-14 01:46PM - M4.C verification re-run (fresh evidence PASS)
+
+### Trigger
+1. USER requested the next steps explicitly:
+   - materialize concrete IAM role values for lane role handles,
+   - re-run M4.C and require service binding + IAM posture checks to pass.
+
+### Verification actions
+1. Confirmed concrete lane role outputs are still materialized in live Terraform state:
+   - `terraform -chdir=infra/terraform/dev_min/demo output -json`
+   - `role_ig_service_name`, `role_rtdl_core_name`, `role_decision_lane_name`, `role_case_labels_name`, `role_env_conformance_name`.
+2. Re-validated all five lane roles in AWS IAM:
+   - `fraud-platform-dev-min-ig-service`
+   - `fraud-platform-dev-min-rtdl-core`
+   - `fraud-platform-dev-min-decision-lane`
+   - `fraud-platform-dev-min-case-labels`
+   - `fraud-platform-dev-min-env-conformance`
+3. Executed a fresh M4.C snapshot build from live Terraform outputs + AWS IAM role state and uploaded durable evidence.
+
+### Fresh M4.C evidence
+1. local:
+   - `runs/dev_substrate/m4/20260214T134520Z/m4_c_iam_binding_snapshot.json`
+2. durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T134520Z/m4_c_iam_binding_snapshot.json`
+
+### Result
+1. M4.C PASS maintained on fresh re-run:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - service-role bindings valid across all `13` mapped services,
+   - boundary rule checks pass,
+   - dependency posture status remains `VERIFIED_OR_READY_FOR_VERIFY`.

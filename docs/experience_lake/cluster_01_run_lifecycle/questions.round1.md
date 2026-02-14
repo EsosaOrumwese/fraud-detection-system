@@ -1,4 +1,4 @@
-Ready. Switching into **technical recruiter / verifier** mode for Cluster 1.
+## Cluster 1 — Verification Questions (Round 1)
 
 ### What Cluster 1 is claiming (in plain English)
 
@@ -11,10 +11,6 @@ You didn’t just “run some services.” You designed and enforced a **phase-g
 Now I’m going to **certify** this cluster so it becomes a “lake entry” we can defend.
 
 To certify it, I need **one concrete, replayable example run** + **one concrete drift incident** + **proof of enforcement** (not just docs existing).
-
----
-
-## Cluster 1 — Verification Questions (Round 1)
 
 ### 1) Definitions that must be exact
 
@@ -85,7 +81,3 @@ To certify it, I need **one concrete, replayable example run** + **one concrete 
 * what would have gone wrong if you didn’t block it
 
 ---
-
-Reply however you want, but the fastest is to answer **1→10 in order**.
-
-Once I have your answers, I’ll tell you whether Cluster 1 is **certified**, **partially certified**, or **needs proof downgrade**, and then I’ll write the **first huge Experience Lake entry** from it.
