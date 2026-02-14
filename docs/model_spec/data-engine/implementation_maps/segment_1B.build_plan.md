@@ -600,9 +600,24 @@ Plan:
 - keep only top-ranked proxy candidates (`max 2`) for full downstream closure attempt.
 
 DoD:
-- [ ] proxy scorer artifacts are emitted for every candidate.
-- [ ] non-competitive candidates are filtered before expensive integrated runs.
-- [ ] shortlist is bounded and justified by proxy metrics.
+- [x] proxy scorer artifacts are emitted for every candidate.
+- [x] non-competitive candidates are filtered before expensive integrated runs.
+- [x] shortlist is bounded and justified by proxy metrics.
+
+P4.R3 execution status (2026-02-14):
+- execution mode:
+  - consumed `P4.R2` promoted list and scored proxy metrics from `S4` snapshots (no new full-chain run).
+- proxy scorer lane:
+  - tool: `tools/score_segment1b_p4r3_proxy.py`
+  - command lane: `make segment1b-p4r3-proxy RUNS_ROOT=runs/fix-data-engine/segment_1B`
+  - reference run-id: `625644d528a44f148bbf44339a41a044`
+  - wave summary artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_wave_1.json`
+- candidate artifacts:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_416afa430db3f5bf87180f8514329fe8.json`
+- shortlist decision:
+  - promoted candidate `416afa430db3f5bf87180f8514329fe8` is `proxy_competitive=true`,
+  - matched 1B run for downstream lane: `e4d92c9cfbd3453fb6b9183ef6e3b6f6`,
+  - shortlist is bounded (`1 <= max 2`), with zero dropped in wave-1.
 
 #### P4.R4 - Collapse and geometry closure lane (S6)
 Goal:

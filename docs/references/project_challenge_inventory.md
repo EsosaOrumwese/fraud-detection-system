@@ -2,6 +2,46 @@
 
 Purpose: capture the non-clonable challenge journey across this repo, phase by phase, with evidence references.
 
+<!-- SCAN_WATERMARKS_START -->
+## Source Scan Watermarks (Implementation Notes)
+_Last refreshed: 2026-02-14 11:37AM (local)_
+
+This section records the source-watermark for each implementation note referenced by this inventory so future deltas are easy to detect.
+
+| Source doc | Latest entry observed in source doc | Last scanned for inventory |
+|---|---|---|
+| `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md` | `2026-02-14 11:15` | `2026-02-14 11:37AM` |
+| `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md` | `2026-02-14 11:37` | `2026-02-14 11:37AM` |
+| `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_map.md` | `No explicit Entry marker found` | `2026-02-14 11:37AM` |
+| `docs/model_spec/data-engine/implementation_maps/segment_2A.impl_actual.md` | `2026-01-23 12:57` | `2026-02-14 11:37AM` |
+| `docs/model_spec/data-engine/implementation_maps/segment_2B.impl_actual.md` | `2026-01-23 12:57` | `2026-02-14 11:37AM` |
+| `docs/model_spec/data-engine/implementation_maps/segment_3B.impl_actual.md` | `2026-01-23 12:57` | `2026-02-14 11:37AM` |
+| `docs/model_spec/data-engine/implementation_maps/segment_5A.impl_actual.md` | `2026-01-23 12:57` | `2026-02-14 11:37AM` |
+| `docs/model_spec/data-engine/implementation_maps/segment_5B.impl_actual.md` | `2026-01-23 14:31` | `2026-02-14 11:37AM` |
+| `docs/model_spec/data-engine/implementation_maps/segment_6A.impl_actual.md` | `2026-01-23 12:57` | `2026-02-14 11:37AM` |
+| `docs/model_spec/data-engine/implementation_maps/segment_6B.impl_actual.md` | `2026-01-23 12:57` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md` | `2026-02-13 10:38PM - M4 deep-plan expansion pass (A->J planned at once, sequentially)` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/action_layer.impl_actual.md` | `2026-02-08 10:35PM - AL daemon onboarding evidence` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/archive_writer.impl_actual.md` | `2026-02-10 10:54AM - Phase 6.0 verification rerun and operational evidence capture` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/case_mgmt.impl_actual.md` | `2026-02-09 08:07PM - Pre-change lock: CaseMgmt live worker onboarding (meta-layer closure)` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/case_trigger.impl_actual.md` | `2026-02-09 08:07PM - Pre-change lock: CaseTrigger live worker onboarding (meta-layer closure)` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/context_store_flow_binding.impl_actual.md` | `2026-02-08 15:30:54 - Implemented reserved-identifier fix and validated join-plane evidence` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/decision_fabric.impl_actual.md` | `2026-02-09 12:46PM - DF local-parity compatibility alignment + pre-registry context posture fallback` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/decision_log_audit.impl_actual.md` | `2026-02-09 12:46PM - DLA lane isolation (local parity) from mixed traffic stream` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/degrade_ladder.impl_actual.md` | `2026-02-09 07:50PM - DL run-scoped observability closure implemented (`4.6L-02`)` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md` | `2026-02-02 23:28:00 - EB publish diagnostics logged (Kinesis + file bus)` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/identity_entity_graph.impl_actual.md` | `2026-02-09 22:10:00 - Pre-change lock: add IEG Kinesis start-position control for bounded parity runs` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/ingestion_gate.impl_actual.md` | `2026-02-09 12:46PM - RTDL stream topology separation for decision lane` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/label_store.impl_actual.md` | `2026-02-09 08:07PM - Pre-change lock: LabelStore live reporter worker onboarding (meta-layer closure)` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/model_factory.impl_actual.md` | `2026-02-10 4:15PM - Component freeze note under platform-level transition` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/offline_feature_plane.impl_actual.md` | `2026-02-10 1:10PM - Applied OFS Phase 10 integration closure gate` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/online_feature_plane.impl_actual.md` | `2026-02-09 11:44PM - OFP local-parity health posture closure across repeated 200 replays` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md` | `2026-02-02 09:07:18 - Stream-sort alignment for context topics (fraud default)` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md` | `2026-02-12 10:37AM - Local parity closure note for IG ops-health unauthorized status path` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/scenario_runner.impl_actual.md` | `2026-02-05 16:07:10 - Phase 5 validation (READY idempotency + run-id pins)` | `2026-02-14 11:37AM` |
+| `docs/model_spec/platform/implementation_maps/local_parity/world_streamer_producer.impl_actual.md` | `2026-02-09 12:46PM - WSP READY dependency gate + orchestration run-scope hardening` | `2026-02-14 11:37AM` |
+<!-- SCAN_WATERMARKS_END -->
+
 ## Phase 1 - Deprecated Data-Gen Challenges
 
 1. Monolithic and rigid architecture made safe iteration difficult.
@@ -1315,3 +1355,4 @@ Purpose: capture the non-clonable challenge journey across this repo, phase by p
     - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6678`
     - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6687`
     - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6692`
+

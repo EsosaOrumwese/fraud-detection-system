@@ -65,6 +65,9 @@ SEG1B_S6_RUN_ID ?= $(RUN_ID)
 SEG1B_S7_RUN_ID ?= $(RUN_ID)
 SEG1B_S8_RUN_ID ?= $(RUN_ID)
 SEG1B_S9_RUN_ID ?= $(RUN_ID)
+SEG1B_P4R3_R2_SUMMARY ?= runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave1_guard_summary.json
+SEG1B_P4R3_REFERENCE_RUN_ID ?= 625644d528a44f148bbf44339a41a044
+SEG1B_P4R3_MAX_SHORTLIST ?= 2
 SEG2A_S0_RUN_ID ?= $(RUN_ID)
 SEG2A_S1_RUN_ID ?= $(RUN_ID)
 SEG2A_S2_RUN_ID ?= $(RUN_ID)
@@ -2248,6 +2251,16 @@ engine-seg1a-p4: segment1a-p4
 .PHONY: segment1a-freeze-guard
 segment1a-freeze-guard:
 	@$(PY_SCRIPT) tools/score_segment1a_freeze_guard.py --runs-root "$(RUNS_ROOT)" $(if $(strip $(RUN_ID)),--run-id "$(RUN_ID)",)
+
+.PHONY: segment1b-p4r3-proxy
+segment1b-p4r3-proxy:
+	@$(PY_SCRIPT) tools/score_segment1b_p4r3_proxy.py \
+		--runs-root-1a "runs/fix-data-engine/segment_1A" \
+		--runs-root-1b "$(RUNS_ROOT)" \
+		--r2-summary-json "$(SEG1B_P4R3_R2_SUMMARY)" \
+		--reference-run-id "$(SEG1B_P4R3_REFERENCE_RUN_ID)" \
+		--max-shortlist "$(SEG1B_P4R3_MAX_SHORTLIST)" \
+		--output-dir "$(RUNS_ROOT)/reports"
 
 segment1a-s3:
 	@echo "Running Segment 1A S3 cross-border candidate set"

@@ -4460,3 +4460,101 @@ Decision:
 1) `P4.R2` wave-1 DoD is satisfied for guarded promotion discipline.
 2) Rejected candidate is blocked from all 1B runs.
 3) Next phase input to `P4.R3` is the bounded promoted list from wave-1.
+
+---
+
+### Entry: 2026-02-14 11:31
+
+Design element: `P4.R3` proxy-lane implementation plan (S4 macro fast-screen, no heavy rerun).
+Summary: Execute `P4.R3` by scoring promoted upstream candidates on S4 concentration/coverage movement before any `S6->S9` closure attempt. To avoid unnecessary compute churn, this wave will first reuse existing 1B runs that match promoted 1A lineage.
+
+Pinned decisions before implementation:
+1) Candidate source is `P4.R2` promoted list from:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave1_guard_summary.json`.
+2) Proxy metrics are computed from `s4_alloc_plan` only:
+   - `country_gini_s4`, `top1/top5/top10_share_s4`, `nonzero_country_count_s4`.
+3) Reference posture for movement direction is the prior RED authority run:
+   - `625644d528a44f148bbf44339a41a044`.
+4) Fail-fast competitiveness gate for proxy lane:
+   - concentration non-regression vs reference (`gini`, `top1`, `top5`, `top10` not worse),
+   - coverage non-regression (`nonzero_country_count_s4` not lower).
+5) Shortlist remains bounded at `max 2` and will carry forward only proxy-competitive candidates.
+
+Implementation surfaces:
+1) New scorer tool:
+   - `tools/score_segment1b_p4r3_proxy.py`.
+2) New invocation lane:
+   - `makefile` target `segment1b-p4r3-proxy`.
+
+Execution plan:
+1) build scorer with deterministic JSON artifacts per candidate + wave summary,
+2) compile guard,
+3) execute scorer on wave-1 promoted list,
+4) record shortlist for `P4.R4` input.
+
+---
+
+### Entry: 2026-02-14 11:37
+
+Design element: `P4.R3` execution closure (proxy artifacts + bounded shortlist).
+Summary: Implemented and executed the proxy scorer lane. Wave-1 produced complete candidate artifacts, filtered via fail-fast gates, and yielded a bounded shortlist for `P4.R4` without launching new heavy state-chain runs.
+
+Changes applied:
+1) Added tool:
+   - `tools/score_segment1b_p4r3_proxy.py`.
+   - behavior:
+     - reads `P4.R2` promoted list,
+     - maps each promoted 1A run to latest matching 1B run by `{seed, parameter_hash, manifest_fingerprint}` with available `s4_alloc_plan`,
+     - computes S4 proxy metrics + deltas vs reference RED run,
+     - emits per-candidate proxy artifact and wave summary,
+     - ranks candidates and returns bounded shortlist (`max 2`).
+2) Added make target:
+   - `segment1b-p4r3-proxy` in `makefile`.
+
+Verification:
+1) `python -m py_compile tools/score_segment1b_p4r3_proxy.py` passed.
+2) executed:
+   - `make segment1b-p4r3-proxy RUNS_ROOT=runs/fix-data-engine/segment_1B`.
+
+Wave-1 outputs:
+1) summary:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_wave_1.json`.
+2) candidate artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_416afa430db3f5bf87180f8514329fe8.json`.
+
+Proxy decision outcome:
+1) candidate `416afa430db3f5bf87180f8514329fe8` mapped to 1B run `e4d92c9cfbd3453fb6b9183ef6e3b6f6`.
+2) proxy checks:
+   - `concentration_direction_non_regression=true`,
+   - `coverage_direction_non_regression=true`,
+   - `proxy_competitive=true`.
+3) shortlist:
+   - shortlisted 1A candidate(s): `[416afa430db3f5bf87180f8514329fe8]`,
+   - shortlisted 1B run(s): `[e4d92c9cfbd3453fb6b9183ef6e3b6f6]`,
+   - dropped candidates: none,
+   - shortlist boundedness: satisfied (`1 <= 2`).
+
+Decision:
+1) `P4.R3` DoD is satisfied.
+2) Input to `P4.R4` is the single shortlisted 1B run `e4d92c9cfbd3453fb6b9183ef6e3b6f6`.
+
+---
+
+### Entry: 2026-02-14 11:41
+
+Design element: `P4.R3` summary-check correctness hardening.
+Summary: Tightened the proxy summary check semantics so `non_competitive_filtered_before_expensive_runs` is computed from candidate-level gate outcomes instead of a trivial always-true condition.
+
+Change:
+1) Updated `tools/score_segment1b_p4r3_proxy.py`:
+   - derive `non_competitive_ids` from candidates with `proxy_competitive=false`,
+   - derive `dropped_ids` from wave dropped list,
+   - set summary check to `non_competitive_ids ⊆ dropped_ids`.
+2) Re-ran scorer to regenerate wave artifacts with corrected summary-check semantics.
+
+Verification:
+1) `python -m py_compile tools/score_segment1b_p4r3_proxy.py` passed.
+2) `segment1b_p4r3_proxy_wave_1.json` reports:
+   - `all_candidates_have_artifacts=true`,
+   - `non_competitive_filtered_before_expensive_runs=true`,
+   - `shortlist_bounded=true`.
