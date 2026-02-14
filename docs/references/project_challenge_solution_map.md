@@ -2406,4 +2406,306 @@ Evidence:
 
 ---
 
-End of current mapped ID range: `1-248`.
+---
+
+## Batch 29 - Data Engine Post-2026-02-11 Remediation Addendum (IDs 46-AA-46-AQ)
+
+### ID 46-AA - P1 metric authority mismatch (single-site realism read from wrong surface)
+Solution adopted: corrected P1 metric authority mapping to contract-aligned `S1+S2` surfaces, then proceeded with scoped P1 runs/verification under that corrected measurement law.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3639`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3645`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3650`
+
+### ID 46-AB - S2 PTRS Poisson tail pathology produced impossible counts
+Solution adopted: fail-closed the unsafe PTRS lane for this remediation window, switched to inversion-only Poisson sampling, and recalibrated concentration under the corrected sampler.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3868`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3874`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3882`
+
+### ID 46-AC - P2 rho closure blocked by S3/S5 domain intersection emptiness
+Solution adopted: removed S6 candidate-cap truncation and explicitly reclassified closure dependency as upstream candidate-shaping/support alignment work instead of further isolated S6 tuning.
+Status: `Partial`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4358`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4365`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4426`
+
+### ID 46-AD - Residual rho blocker was structural S5 support sparsity
+Solution adopted: extended remediation scope to include S5 support broadening and policy override surfaces rather than continuing S3/S4/S6-only local tuning.
+Status: `Partial`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4493`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4498`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4516`
+
+### ID 46-AE - Global median(rho) blocked by structural C=0 denominator mass
+Solution adopted: codified this as an explicit governance decision boundary (`rho|C>0` acceptance vs upstream reopen), preventing silent metric reinterpretation.
+Status: `Open`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4610`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4612`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4617`
+
+### ID 46-AF - S7 dirichlet diagnostic lane blocked P3.1 and alpha-floor hotfix stalled runtime
+Solution adopted: replaced alpha-floor behavior with skip-on-nonpositive-share dirichlet payload gating while preserving deterministic integerisation and fail-closed checks for invalid true negatives.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4796`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4839`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4846`
+
+### ID 46-AG - S7 home-bias rollout hit floating residual edge failures
+Solution adopted: hardened residual quantization against binary64 edge artifacts with bounded clamping while preserving hard-fail behavior for genuine out-of-domain residuals.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4940`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4961`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4964`
+
+### ID 46-AH - Same-seed replay drift due RNG material keyed to manifest fingerprint
+Solution adopted: re-keyed stochastic master material to `parameter_hash` (commit-insensitive) and validated deterministic equality under forced manifest drift.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5269`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5273`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5280`
+
+### ID 46-AI - P5 certification scorer had authority-binding and identity-path drift risks
+Solution adopted: corrected scorer authority-run binding and normalized identity-semantics key-path resolution before final certification emission.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5403`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5413`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5417`
+
+### ID 46-AJ - Local B+ recovery proved infeasible in tested coefficient neighborhood
+Solution adopted: executed constrained recovery sweep, accepted infeasibility evidence, rolled back experimental bundle changes, and preserved certified B posture to avoid broad regression risk.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5498`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5512`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5516`
+
+### ID 46-AK - 1B path-1 upstream reopen required 1A freeze-protection contract
+Solution adopted: introduced executable 1A freeze-veto guard tooling/contract so any reopen candidate is machine-checked against frozen certification no-regression constraints.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5522`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5527`
+- `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5533`
+
+### ID 46-AL - 1B S2 population blend caused full-raster timeouts
+Solution adopted: staged population influence to `0.0` for fast-lane closure while keeping the implementation path intact for later re-enable under larger compute budget.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3511`
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3514`
+
+### ID 46-AM - Retry cycles collided with immutable partition law
+Solution adopted: enforced fresh run-id bootstrapping for each integrated retry and prohibited rerunning changed upstream surfaces on already-published partitions.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3528`
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3531`
+
+### ID 46-AN - P2 anti-collapse looked no-op at theoretical floor
+Solution adopted: upgraded scorer acceptance semantics to feasibility-aware floor/headroom logic (strict improvement when headroom exists; floor-hold pass when mathematically saturated and non-regressive).
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3682`
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3690`
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3694`
+
+### ID 46-AO - P3 geometry closure hit feasibility ceiling; out-of-pixel lane failed contract checks
+Solution adopted: executed the out-of-pixel experiment, accepted fail-closed `E707_POINT_OUTSIDE_PIXEL` verdict, rolled back to in-contract lane, and treated remaining geometry closure as constrained by upstream support posture.
+Status: `Partial`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3821`
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3832`
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3885`
+
+### ID 46-AP - Integrated 1B closure remained RED after bounded improvements
+Solution adopted: implemented explicit integrated classifier + blocker artifact and enforced fail-closed `RED_REOPEN_REQUIRED` gating (no bounded local retune bypass; upstream reopen required).
+Status: `Open`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4130`
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4152`
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4243`
+
+### ID 46-AQ - S4 runtime bottleneck throttled remediation iteration speed
+Solution adopted: implemented performance-only S4 cache rails with explicit runtime knobs/telemetry and benchmarked deterministic speedup, then pinned bounded sweep follow-up for remaining target gap.
+Status: `Partial`.
+Evidence:
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4274`
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4335`
+- `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4385`
+
+---
+
+## Batch 30 - Spine Green v0 Post-Closure Addendum (IDs 228-AA-228-AD)
+
+### ID 228-AA - First post-closure 200-event run exposed residual closure defects
+Solution adopted: treated the run as a closure-audit pass, converted each residual into explicit remediation tasks, and reran on a fresh bounded run to confirm green spine posture.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10674`
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10689`
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10691`
+
+### ID 228-AB - Parity status command was too learning-coupled for Spine-only baseline
+Solution adopted: hardened parity status semantics to tolerate Learning-plane omission for Spine Green v0 baseline checks (including DSN fallback posture).
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10690`
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10695`
+
+### ID 228-AC - DLA unresolved lineage AMBER traced to startup replay-window intake gaps
+Solution adopted: hardened AL/DLA startup intake behavior for run-scoped replay windows and validated closure with unresolved lineage count returning to zero.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10689`
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10707`
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10715`
+
+### ID 228-AD - IG ops-health unauthorized path returned 500 instead of auth-semantic 401
+Solution adopted: corrected IG route error mapping so unauthenticated health calls fail-closed with `401 UNAUTHORIZED` while authenticated path remains healthy.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10722`
+- `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10730`
+
+---
+
+## Batch 31 - Dev-Substrate Post-2026-02-11 Migration Execution Addendum (IDs 248-AA-248-AP)
+
+### ID 248-AA - Migration planning needed local-to-managed compute playbook reframing
+Solution adopted: codified a binding local-to-managed compute migration playbook and anchored it to an explicit local run process inventory matrix for executable phase control.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:1971`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:2019`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:2156`
+
+### ID 248-AB - Build-go packaging failed on OIDC/ECR trust wiring
+Solution adopted: fixed cloud identity trust path (GitHub OIDC provider + least-privilege ECR permissions), then closed build-go with successful CI packaging evidence.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6219`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6223`
+
+### ID 248-AC - M1 build-go blocked by missing `IMAGE_DOCKERFILE_PATH` artifact
+Solution adopted: implemented the missing packaging artifact contract (root Dockerfile + deterministic context controls) and unblocked subsequent M1 execution surfaces.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5605`
+
+### ID 248-AD - Core Terraform apply blocked by empty state vs existing resources mismatch
+Solution adopted: fail-closed direct apply and switched to controlled state import/migration posture before progression.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6519`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6524`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6553`
+
+### ID 248-AE - Accidental shell expansion removed core stack files
+Solution adopted: restored canonical stack files to pinned content and revalidated Terraform contract surfaces before continuing.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6536`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6542`
+
+### ID 248-AF - M2.D demo apply readiness surfaced capability-gap blockers
+Solution adopted: preserved fail-closed classification, expanded capability lanes explicitly, and used blocker-led closure sequencing instead of optimistic phase advancement.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6631`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6694`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6728`
+
+### ID 248-AG - Secret-materialization/access checks failed in M2.E
+Solution adopted: executed live secret/role readiness checks, hardened IAM secret-read policy scope, and required materialized substrate evidence before closure.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6788`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6824`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6839`
+
+### ID 248-AH - Cost accrual became an operational migration blocker
+Solution adopted: formalized cost-learning into M2 guardrails and added executable monitoring surfaces (dashboard/snapshot lane) for anti-surprise operations.
+Status: `Partial`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6886`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6912`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6951`
+
+### ID 248-AI - Kafka readiness repeatedly failed across local/CI auth + secret lanes
+Solution adopted: hardened topic-readiness execution across local+CI, fixed IAM/secret-name mapping and import behavior, and closed M2.F on green CI execution.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7006`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7043`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7257`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7306`
+
+### ID 248-AJ - M3 execution blocked by unresolved scenario-equivalence inputs
+Solution adopted: treated missing equivalence inputs as fail-closed blockers, pinned unresolved set explicitly, and enforced rerun-before-progression.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7939`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7983`
+
+### ID 248-AK - Scenario identity remained provisional due unresolved Oracle placeholders
+Solution adopted: preserved explicit provisional status in M3.C payload/evidence instead of pretending closure, with placeholder resolution pinned as forward dependency.
+Status: `Partial`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8158`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8177`
+
+### ID 248-AL - M3 D->G surfaced false conflict and env-map completeness blocker classes
+Solution adopted: corrected both blocker classes in-lane (durable existence check semantics + deterministic env-map completeness predicate) and reran to closure.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8282`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8288`
+
+### ID 248-AM - M4 readiness required lane-complete deep planning before safe execution
+Solution adopted: promoted M4 to active-phase planning with closure-grade deep plan structure before runtime start, preventing under-specified execution drift.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8342`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8375`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8409`
+
+### ID 248-AN - Build-driver authority ambiguity (`github_actions` vs `local_cli`)
+Solution adopted: pinned build-driver authority hierarchy and explicit pre-build-go CI gate requirements so closure evidence cannot be claimed from non-authoritative lanes.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5808`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5814`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5821`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5828`
+
+### ID 248-AO - Exit/handoff ordering ambiguity after CI realization/gate validation
+Solution adopted: pinned sequencing law that exit-readiness/handoff closes only after CI realization and CI gate-validation phases are complete.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5821`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5822`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5828`
+
+### ID 248-AP - Migration posture started with implicit UI/manual-first assumption
+Solution adopted: shifted migration control posture to IaC-first execution and treated non-IaC-required capabilities as explicit blockers rather than hidden manual steps.
+Status: `Resolved`.
+Evidence:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6672`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6678`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6687`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6692`
+
+---
+
+End of current mapped ID range: `1-248`, plus addendum IDs `46-AA..46-AQ`, `228-AA..228-AD`, `248-AA..248-AP`.
