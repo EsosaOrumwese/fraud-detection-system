@@ -17,11 +17,15 @@ At this layer, I use four explicit lanes with hard ownership boundaries.
 
 Primary decision/audit stores:
 
-1. DLA canonical object truth: `decision_log_audit/records/<audit_id>.json` under run-scoped roots.
-2. DLA derived index/store surfaces:
+1. DLA canonical truth store (today, local_parity anchor run) is DB-backed:
+   - `dla_audit_index` (audit identity + digest + object_ref pointer),
+   - lineage/intake tables (`dla_intake_candidates`, `dla_intake_quarantine`, `dla_intake_checkpoints`, `dla_intake_attempts`, `dla_lineage_chains`, `dla_lineage_intents`, `dla_lineage_outcomes`).
+2. Optional DLA object export surface (contracted path shape, not required for closure on this retained run):
+   - `decision_log_audit/records/<audit_id>.json`.
+3. DLA derived/query surfaces:
    - `dla_audit_index` (query/index surface),
-   - intake and replay-control tables such as `dla_intake_candidates`, `dla_intake_quarantine`, `dla_intake_checkpoints`, `dla_intake_attempts`, `dla_lineage_chains`, `dla_lineage_intents`, `dla_lineage_outcomes`.
-3. AL local ledgers:
+   - run-level observability artifacts (`metrics`, `reconciliation`, `health`) used for closure evidence.
+4. AL local ledgers:
    - `al_intent_ledger`, `al_semantic_ledger`, `al_outcomes_append`, `al_outcome_publish`.
 
 This lane answers: what was decided, what was attempted, what outcome happened, and what immutable audit record proves it.
@@ -65,8 +69,12 @@ Primary label stores:
 
 Primary label artifacts:
 
-1. assertion artifacts under `label_store/assertions/<label_assertion_id>.json`,
-2. bulk slice artifacts under `label_store/slices/...` for OFS-scale reads.
+1. `assertion_ref` path shape is deterministic:
+   - `runs/fraud-platform/<platform_run_id>/label_store/assertions/<label_assertion_id>.json`
+   - this is a logical reference contract in the writer boundary.
+2. Bulk slice artifacts are optional exports for OFS/MF joins:
+   - `runs/fraud-platform/<platform_run_id>/label_store/slices/resolved_as_of_<basis_digest16>_<slice_digest16>.json`
+3. Truth boundary for the anchor run: retained closure evidence in this run is DB-backed metrics/reconciliation/health plus governance append logs; assertion/slice object exports were not materialized in the retained local artifact tree.
 
 This lane answers: what label truth exists for a subject at a specific as-of boundary, and what assertion chain created it.
 
@@ -88,14 +96,14 @@ I enforce writer ownership by **component boundary + contract validation + idemp
 
 1. **DF/AL write decision lineage events to traffic bus** (`decision_response`, `action_intent`, `action_outcome`).
 2. **DLA is the only writer of audit truth artifacts**:
-   - canonical audit objects under `decision_log_audit/records/<audit_id>.json`,
-   - DLA index/intake tables (`dla_audit_index`, `dla_intake_*`, `dla_lineage_*`).
+   - canonical DB truth (`dla_audit_index`, `dla_intake_*`, `dla_lineage_*`),
+   - optional object export path shape under `decision_log_audit/records/<audit_id>.json` when export surface is enabled/materialized.
 
 Drift prevention:
 
 1. DLA intake policy allowlists admissible event families and schema versions (non-allowlisted traffic is not canonicalized into audit truth).
-2. Object writer is append-only by digest: existing path with same digest => `DUPLICATE`, different digest => `HASH_MISMATCH` (no overwrite).
-3. Index writer repeats the same law on `audit_id`: existing same digest => `DUPLICATE`, mismatch => `HASH_MISMATCH`.
+2. DB/index writer is append-only by digest: existing `audit_id` with same digest => `DUPLICATE`, different digest => `HASH_MISMATCH`.
+3. When object export is enabled, object writer applies same law on path+digest (no overwrite).
 4. `audit_id` is primary-key constrained in index storage.
 
 Result: no second writer can silently replace an existing audit record for the same identity.
@@ -282,7 +290,8 @@ Required evidence set:
 3. `runs/fraud-platform/<platform_run_id>/label_store/health/last_health.json`
    - `health_state = GREEN` for closure acceptance.
 4. Assertion-level evidence refs
-   - label timeline/assertion references point to immutable assertion artifacts under `label_store/assertions/<label_assertion_id>.json`.
+   - label timeline rows carry deterministic `assertion_ref` values in truth rows;
+   - in the anchor run retained locally, assertion object files were not materialized under `runs/fraud-platform/platform_20260212T085637Z/label_store/assertions/`.
 
 Fail-closed interpretation:
 
@@ -583,6 +592,49 @@ I do not answer from a final label value alone. I prove assertion causality:
 3. It proves both local causality (case/label rows) and system closure (run artifacts).
 
 If any hop in this chain is missing or contradictory, I do not call the claim audit-closed.
+
+## Recruiter Hardening Pins (Cluster 9)
+
+### 1) Canonical truth location today (DLA / CaseMgmt / LabelStore)
+
+For the certified local-parity anchor run, canonical truth is DB-first with run-scoped closure artifacts:
+
+1. DLA canonical truth: DB tables (`dla_audit_index`, `dla_intake_*`, `dla_lineage_*`) plus run-scoped observability artifacts.
+2. CaseMgmt canonical truth: DB tables (`cm_cases`, `cm_case_timeline`, `cm_case_timeline_stats`, `cm_case_timeline_links`, mismatch/intake ledgers).
+3. LabelStore canonical truth: DB tables (`ls_label_assertions`, `ls_label_timeline`, `ls_label_assertion_mismatches`).
+4. Run-root artifact set (`metrics`, `reconciliation`, `health`, `governance/events.jsonl`) is closure/audit evidence, not the primary mutable truth store.
+
+### 2) Concrete pin for canonical audit object truth (or DB-only status)
+
+Truth status for this retained anchor run is DB-backed + closure artifacts; canonical per-audit object files were not materialized in the retained local run tree.
+
+Concrete closure anchors for audit truth on the anchor run:
+
+1. `runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/reconciliation/last_reconciliation.json`
+2. `runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/metrics/last_metrics.json`
+3. `runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/health/last_health.json`
+
+Contracted object path shape (when export is enabled/materialized):
+
+1. `runs/fraud-platform/<platform_run_id>/decision_log_audit/records/<audit_id>.json`
+
+### 3) Concrete pin for label assertion/slice artifacts (or truthful downgrade)
+
+Truth status for this retained anchor run is DB-backed + closure artifacts; there are no materialized files under:
+
+1. `runs/fraud-platform/platform_20260212T085637Z/label_store/assertions/`
+2. `runs/fraud-platform/platform_20260212T085637Z/label_store/slices/`
+
+Concrete label closure anchors for the anchor run:
+
+1. `runs/fraud-platform/platform_20260212T085637Z/label_store/metrics/last_metrics.json`
+2. `runs/fraud-platform/platform_20260212T085637Z/label_store/reconciliation/last_reconciliation.json`
+3. `runs/fraud-platform/platform_20260212T085637Z/label_store/health/last_health.json`
+
+Contracted export path shapes (optional surfaces):
+
+1. `runs/fraud-platform/<platform_run_id>/label_store/assertions/<label_assertion_id>.json`
+2. `runs/fraud-platform/<platform_run_id>/label_store/slices/resolved_as_of_<basis_digest16>_<slice_digest16>.json`
 
 ## Q10) Migration angle: what must remain identical in `dev_min`, and what can change without breaking append-only truth
 
