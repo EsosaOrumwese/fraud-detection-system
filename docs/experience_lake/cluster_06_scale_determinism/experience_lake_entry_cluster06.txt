@@ -83,9 +83,11 @@ A) Conservation (row-set equivalence)
 If any mismatch: STREAM_SORT_VALIDATION_FAILED (fail-closed).
 
 B) Deterministic ordering
-- order by CAST(ts_utc AS TIMESTAMP), filename, file_row_number
-- stable tie-breakers to prevent nondeterminism when timestamps tie
+- order by ts_utc plus stable source/tie-break columns (as implemented) to prevent nondeterminism when timestamps tie
 - chunking must preserve chronology, not re-order it
+
+Tie-breaker verification pin:
+- exact ORDER BY columns are pinned by code + receipt/manifest schema for the stream-view builder (oracle store plane); this entry must match the implementation truth when audited.
 
 C) Evidence/receipt integrity
 - stream view is only valid when _stream_sort_receipt.json and _stream_view_manifest.json are present and coherent
@@ -130,7 +132,7 @@ This prevents silent behavior drift and allows machine-specific tuning without s
 7.1 Structural change: chunked day-window sort for time-key outputs
 New algorithmic posture:
 - compute min_ts_utc → max_ts_utc for output
-- split into non-overlapping day windows [start, end)
+- split into non-overlapping day windows [start, end) on ts_utc (start inclusive, end exclusive)
 - for each window:
   - extract rows in that window
   - order deterministically by (ts_utc, filename, file_row_number)
@@ -158,6 +160,9 @@ Pinned decision/execution evidence:
 8.1 Before: failure-to-completion under incident scope
 - monolithic full-range sort OOM’d for the two 6B flow-anchor outputs on 16GB
 - failure class recorded in oracle_store.impl_actual (raw stacktrace not retained in repo snapshot)
+Evidence strength label:
+- Failure evidence: medium (impl_actual decision trail; raw OOM trace not retained as standalone artifact)
+- Recovery evidence: strong (receipt + manifest + parts family under oracle-store evidence root)
 
 8.2 After: repeatable completion with full evidence family at same workload scope
 Success anchor (concrete root + artifacts):
@@ -174,9 +179,21 @@ Example output evidence family (one output_id):
 Same artifact contract applies to:
 - output_id=s3_flow_anchor_with_fraud_6B
 
+Achievement scope (explicit):
+- This certifies reliable completion for the incident scope outputs (s2_flow_anchor_baseline_6B, s3_flow_anchor_with_fraud_6B) at audited scale under the stated local resource envelope; other outputs inherit the same mechanism when configured, but are not implicitly claimed by this entry.
+
 Quantified closure language (no scope reduction):
 - incident scope maintained at 249,448,306 rows across 1,182 source files
 - closure achieved by execution-plan change (chunked windows), not by reducing workload scope
+
+Key proof snapshots (post-fix; “open JSON not required”):
+- _stream_sort_receipt.json (per output_id):
+  - raw_stats.row_count == sorted_stats.row_count
+  - raw_stats.hash_sum == sorted_stats.hash_sum
+  - raw_stats.hash_sum2 == sorted_stats.hash_sum2
+  - raw_stats.min_ts_utc == sorted_stats.min_ts_utc
+  - raw_stats.max_ts_utc == sorted_stats.max_ts_utc
+  - validation outcome indicates PASS (field name as recorded in receipt)
 
 8.3 Ordering correctness across chunks (how I know it preserved semantics)
 - chunks are non-overlapping [start, end) windows traversed forward
@@ -185,6 +202,19 @@ Quantified closure language (no scope reduction):
 - receipt validation requires raw_stats.* == sorted_stats.* and min/max anchors preserved
 
 9) Evidence Index (auditor trail)
+9.0 Truth surfaces: authoritative vs derived (anti-drift)
+Authoritative (proof the stream-view build completed *correctly* for the incident scope):
+- _stream_sort_receipt.json (raw_stats vs sorted_stats equivalence + validation outcome)
+- _stream_view_manifest.json (stream_view_id, locator digests, part inventory)
+- part-*.parquet parts listed/consistent with manifest (presence alone is insufficient without receipt/manifest)
+
+Supporting (decision trail / diagnosis aids, but not correctness proof alone):
+- oracle_store.impl_actual.md entries (decision + tuning trail)
+- logs/notes referencing the OOM failure class (if retained)
+
+Derived (context/scale reports; not proof of successful build by themselves):
+- segment_6B_published_report.md row/file counts (audited workload scale)
+
 9.1 Audited scale source
 - docs/reports/eda/segment_6B/segment_6B_published_report.md
   - row counts for s2_flow_anchor_baseline_6B and s3_flow_anchor_with_fraud_6B
@@ -194,7 +224,8 @@ Quantified closure language (no scope reduction):
 - docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md
   - 2026-01-30 21:46:10 — chunked sort decision
   - 2026-02-01 16:05:00 — memory tuning entry
-- (optional future pin) where knobs are set for the run (profile/env/pack config surface)
+Knob provenance (must be auditable for certified runs):
+- record where STREAM_SORT_* knobs are set (profile/env/pack config surface) and/or confirm they are echoed into _stream_sort_receipt.json as part of the run’s evidence bundle.
 
 9.3 Post-fix artifact closure (oracle-store evidence root)
 - s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/output_id=s2_flow_anchor_baseline_6B/_stream_sort_receipt.json
