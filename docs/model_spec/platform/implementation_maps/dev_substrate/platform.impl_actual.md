@@ -9624,6 +9624,35 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. M5 planning/execution scope remains unchanged and deterministic.
 3. No runtime jobs/tasks executed.
 
+## Entry: 2026-02-14 06:20PM - M5.A unresolved-handle closure applied
+
+### Trigger
+1. USER directed: close remaining M5.A handle gaps.
+
+### Changes applied
+1. Pinned seed-source handles in `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`:
+   - `ORACLE_SEED_SOURCE_BUCKET = "fraud-platform-dev-min-object-store"`
+   - `ORACLE_SEED_SOURCE_PREFIX_PATTERN = "dev_min/oracle/c25a2675fbfbacd952b13bb594880e92/"`
+2. Pinned Oracle one-shot task-definition handles:
+   - `TD_ORACLE_SEED = "fraud-platform-dev-min-oracle-seed"`
+   - `TD_ORACLE_STREAM_SORT = "fraud-platform-dev-min-oracle-stream-sort"`
+   - `TD_ORACLE_CHECKER = "fraud-platform-dev-min-oracle-checker"`
+3. Pinned Oracle job role handle:
+   - `ROLE_ORACLE_JOB = "fraud-platform-dev-min-rtdl-core"`
+   - with explicit v0 note: reuse existing materialized lane role for bring-up; split later if least-privilege divergence is needed.
+4. Added registry note clarifying active-cycle inlet posture:
+   - run is currently pre-staged under `oracle/{platform_run_id}/inputs/`,
+   - pinned seed source remains the deterministic fallback if `SEED_REQUIRED` is entered.
+
+### Rationale
+1. These were the unresolved M5.A closure handles surfaced in readiness review.
+2. Names were pinned to the existing `name_prefix` contract and materialized lane-role surface from demo Terraform artifacts.
+3. This closes decision ambiguity before M5.A execution (fail-closed law).
+
+### Outcome
+1. Registry now has explicit values for all previously-open M5.A closure handles.
+2. No runtime infra/job execution in this step (documentation + decision closure only).
+
 ## Entry: 2026-02-14 06:03PM - P3 input staging via S3->S3 copy (option 1, non-destructive)
 
 ### Trigger

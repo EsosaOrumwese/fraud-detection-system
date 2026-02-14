@@ -293,13 +293,17 @@ Convenience patterns (must align with Section 6 evidence contract):
 ### 3.8 Oracle seed source handles (P3 policy lock)
 
 * `ORACLE_SEED_SOURCE_MODE = "s3_to_s3_only"`
-* `ORACLE_SEED_SOURCE_BUCKET`
-* `ORACLE_SEED_SOURCE_PREFIX_PATTERN`
+* `ORACLE_SEED_SOURCE_BUCKET = "fraud-platform-dev-min-object-store"`
+* `ORACLE_SEED_SOURCE_PREFIX_PATTERN = "dev_min/oracle/c25a2675fbfbacd952b13bb594880e92/"`
 * `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED = false`
 
 `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED` remains explicit so automation cannot
 quietly reintroduce local bootstrap behavior. Dev_min v0 policy is managed
 object-store-only for P3 seed/sync.
+
+Current-cycle note:
+* The active run is pre-staged under `oracle/{platform_run_id}/inputs/`; the source prefix above remains pinned so
+  `SEED_REQUIRED` can execute deterministically if pre-staged inputs are not present.
 
 ---
 
@@ -544,9 +548,9 @@ Optional (only if you introduce an internal LB — not recommended by default):
 
 These are logical identifiers; the real AWS ARNs/names are bound by Terraform outputs.
 
-* `TD_ORACLE_SEED`
-* `TD_ORACLE_STREAM_SORT`
-* `TD_ORACLE_CHECKER`
+* `TD_ORACLE_SEED = "fraud-platform-dev-min-oracle-seed"`
+* `TD_ORACLE_STREAM_SORT = "fraud-platform-dev-min-oracle-stream-sort"`
+* `TD_ORACLE_CHECKER = "fraud-platform-dev-min-oracle-checker"`
 * `TD_SR`
 * `TD_WSP`
 * `TD_DB_MIGRATIONS` *(if needed)*
@@ -764,9 +768,10 @@ These handles pin the IAM roles used by Terraform and every ECS task/service. Th
 
 ### 10.3 Task/service roles (application data access)
 
-* `ROLE_ORACLE_JOB`
+* `ROLE_ORACLE_JOB = "fraud-platform-dev-min-rtdl-core"`
 
   * for `TD_ORACLE_SEED`, `TD_ORACLE_STREAM_SORT`, `TD_ORACLE_CHECKER`
+  * v0 posture: reuse existing materialized lane role for M5 bring-up; split to a dedicated oracle role if/when least-privilege policy divergence is required.
 
 * `ROLE_SR_TASK`
 
