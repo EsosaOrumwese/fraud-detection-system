@@ -32,6 +32,11 @@ These hold component state that must be queryable and durable across process res
 
 This is the plane I treat as **business-operational state**.
 
+Concrete profile pin used in local parity:
+- `config/platform/profiles/local_parity.yaml`
+  - `admission_db_path: ${IG_ADMISSION_DSN}`
+  - `checkpoints.dsn: ${WSP_CHECKPOINT_DSN}`
+
 #### B) Receipt and evidence store (object store, not relational DB)
 
 Ingress receipts and quarantine records are persisted as objects under run-scoped prefixes (for example `.../ig/receipts/*.json`, `.../ig/quarantine/*.json`), and run/obs/governance artifacts are also stored there.
@@ -162,6 +167,16 @@ At code-callsite level, failure signatures were observed in adapters such as:
 
 That pin is why I classified this as a datastore-hardening incident, not a feature bug: the common break surface was database connection lifecycle under orchestration pressure.
 
+### Evidence anchors for this failure window
+
+- **Failing run root:** `runs/fraud-platform/platform_20260210T083021Z/`
+- **Cross-lane logs used to observe the shared failure signature:**
+  - `runs/fraud-platform/operate/local_parity_rtdl_core_v0/logs/ieg_projector.log`
+  - `runs/fraud-platform/operate/local_parity_rtdl_decision_lane_v0/logs/dla_worker.log`
+  - `runs/fraud-platform/operate/local_parity_case_labels_v0/logs/label_store_worker.log`
+- **Exact recorded failure signature line (verbatim class/signature form):**
+  - `psycopg.OperationalError ... localhost:5434 ... Address already in use (0x00002740/10048)`
+
 ## Q4) What was the root cause (not the symptom)?
 
 The root cause was a **database lifecycle design mismatch** between how the workers were written and how long-running orchestrated runtime behaves.
@@ -230,6 +245,14 @@ Then I migrated live-pack adapters from per-call connect style to this shared co
 
 This directly removed the repeated connect/disconnect churn pattern that was killing daemons.
 
+Concrete code anchors:
+- shared connector implementation:
+  - `src/fraud_detection/postgres_runtime.py`
+  - function: `postgres_threadlocal_connection(...)`
+- one explicit migrated adapter example:
+  - `src/fraud_detection/identity_entity_graph/store.py`
+  - change: hot-path `psycopg.connect(...)` calls were replaced with connector-backed `_connect()` context usage.
+
 ### 2) Retry discipline change
 
 In the connector itself, I added bounded connect retry for transient establishment faults:
@@ -249,6 +272,9 @@ So I corrected context-manager exit semantics to mirror safe psycopg behavior:
 - if commit/rollback fails: drop cached connection.
 
 That closed the lock-retention side effect without reverting the connector architecture.
+
+Concrete side-effect evidence pin:
+- First rollout produced `idle in transaction` sessions and lock waits (including `ALTER TABLE admissions ...` blocked) while `ig_service` kept oscillating non-ready; this was the trigger for the second corrective pass in `postgres_runtime.py`.
 
 ### 4) What I did **not** change (important for defensibility)
 
@@ -286,10 +312,22 @@ Outcome:
 - focused suite set passed (`30 passed`),
 - proving no immediate functional regression in the updated DB lifecycle surface.
 
+Focused suite targets used for that `30 passed` result:
+- `tests/services/decision_fabric/test_phase7_checkpoints.py`
+- `tests/services/decision_fabric/test_phase7_replay.py`
+- `tests/services/case_trigger/test_phase5_checkpoints.py`
+- `tests/services/action_layer/test_phase1_storage.py`
+- `tests/services/decision_log_audit/test_dla_phase3_intake.py`
+- `tests/services/context_store_flow_binding/test_phase3_intake.py`
+
+Reproduction command for the same target set:
+- `python -m pytest tests/services/decision_fabric/test_phase7_checkpoints.py tests/services/decision_fabric/test_phase7_replay.py tests/services/case_trigger/test_phase5_checkpoints.py tests/services/action_layer/test_phase1_storage.py tests/services/decision_log_audit/test_dla_phase3_intake.py tests/services/context_store_flow_binding/test_phase3_intake.py -q`
+
 ### 2) Full runtime repeat-run under strict bounded gates
 
 I created a fresh run scope and re-executed the full acceptance sequence, not a partial smoke:
 - run id: `platform_20260210T091951Z`
+- run root: `runs/fraud-platform/platform_20260210T091951Z/`
 - gate order:
   - Gate-20 (`WSP_MAX_EVENTS_PER_OUTPUT=20`)
   - Gate-200 (`WSP_MAX_EVENTS_PER_OUTPUT=200`)
@@ -317,6 +355,17 @@ Required condition:
 Observed:
 - all packs stayed `running ready` in both checks.
 
+Concrete liveness status artifacts + fields checked:
+- `runs/fraud-platform/operate/local_parity_control_ingress_v0/status/last_status.json`
+- `runs/fraud-platform/operate/local_parity_rtdl_core_v0/status/last_status.json`
+- `runs/fraud-platform/operate/local_parity_rtdl_decision_lane_v0/status/last_status.json`
+- `runs/fraud-platform/operate/local_parity_case_labels_v0/status/last_status.json`
+- `runs/fraud-platform/operate/local_parity_obs_gov_v0/status/last_status.json`
+- pass fields in each file:
+  - `active_platform_run_id == <active run id for the verification window>`
+  - every process entry has `running == true`
+  - every process entry has `readiness.ready == true`
+
 ### 4) No-regression signature check + conformance evidence
 
 I ran a recurrence-signature check for the exact historical collapse markers:
@@ -326,6 +375,10 @@ I ran a recurrence-signature check for the exact historical collapse markers:
 I also required run-scoped closure artifacts to be green:
 - platform run report generated for the run,
 - environment conformance status `PASS`.
+
+Concrete artifact paths for rerun closure:
+- `runs/fraud-platform/platform_20260210T091951Z/obs/platform_run_report.json`
+- `runs/fraud-platform/platform_20260210T091951Z/obs/environment_conformance.json`
 
 ### Why this verification is strong
 
@@ -372,6 +425,14 @@ I changed closure posture so we do not certify health from stream completion alo
   - environment conformance and run report must both close green for the active run.
 
 This guardrail is crucial because the original incident happened after the stream gate had already looked good.
+
+Where these guardrails are pinned as executable operating posture:
+- phase-gate acceptance lane:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.build_plan.md` (Phase 5.10)
+  - explicit requirement: post-stream idle-hold all packs remain green before closure.
+- operator execution lane:
+  - `docs/runbooks/platform_parity_walkthrough_v0.md`
+  - command gate used: `make platform-operate-parity-status` (immediate and idle-hold checks).
 
 ### 3) Why this is a real anti-recurrence control
 
