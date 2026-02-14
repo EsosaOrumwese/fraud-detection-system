@@ -438,11 +438,11 @@ Tasks:
 8. Stop progression if `overall_pass=false`.
 
 DoD:
-- [ ] `M5.C` carry-forward invariants are verified and recorded.
-- [ ] Per-output launch matrix is complete and deterministic.
-- [ ] Sort-key closure is complete for all required output IDs.
-- [ ] Managed launch profile contract is fully resolvable.
-- [ ] M5.D snapshot exists locally and durably.
+- [x] `M5.C` carry-forward invariants are verified and recorded.
+- [x] Per-output launch matrix is complete and deterministic.
+- [x] Sort-key closure is complete for all required output IDs.
+- [x] Managed launch profile contract is fully resolvable.
+- [x] M5.D snapshot exists locally and durably.
 
 Blockers:
 1. `M5D-B1`: M5.C carry-forward invariants invalid or unreadable.
@@ -465,6 +465,17 @@ Execution result (2026-02-14):
 5. Final state:
    - `overall_pass=false`
    - `blockers=["M5D-B4"]`
+6. Blocker resolution + rerun closure:
+   - materialized missing oracle task-definition families through demo Terraform apply:
+     - `fraud-platform-dev-min-oracle-stream-sort`
+     - `fraud-platform-dev-min-oracle-checker`
+   - reran `M5.D`; final PASS artifact:
+     - local: `runs/dev_substrate/m5/20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
+   - final PASS state:
+     - `overall_pass=true`
+     - `blockers=[]`
+     - `task_definition_materialized=true`
 
 ### M5.E Stream-Sort Execution + Receipts/Manifests
 Goal:
@@ -628,7 +639,7 @@ Notes:
 - [x] M5.A complete
 - [x] M5.B complete
 - [x] M5.C complete
-- [ ] M5.D complete
+- [x] M5.D complete
 - [ ] M5.E complete
 - [ ] M5.F complete
 - [ ] M5.G complete
@@ -650,15 +661,16 @@ Control: `ADVANCE_TO_M6` requires checker PASS artifact and zero blockers.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M5 Execution)
 Current blockers:
-1. `M5D-B4` (from `M5.D` execution `m5_20260214T194850Z`)
-   - condition: `TD_ORACLE_STREAM_SORT` handle is pinned but ECS task definition family is not materialized.
-   - closure criteria:
-     - materialize `fraud-platform-dev-min-oracle-stream-sort` task definition in ECS (IaC-backed preferred),
-     - rerun `M5.D` and require `task_definition_materialized=true`,
-     - require `overall_pass=true` with `blockers=[]`.
+1. None.
 
 Resolved blockers:
-1. None yet.
+1. `M5D-B4` resolved by IaC materialization + rerun PASS.
+   - failing artifact:
+     - local: `runs/dev_substrate/m5/20260214T194850Z/m5_d_stream_sort_launch_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T194850Z/m5_d_stream_sort_launch_snapshot.json`
+   - closure artifact:
+     - local: `runs/dev_substrate/m5/20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

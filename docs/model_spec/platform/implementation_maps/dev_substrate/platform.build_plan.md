@@ -431,11 +431,14 @@ Active-phase planning posture:
     - local: `runs/dev_substrate/m5/20260214T194850Z/m5_d_stream_sort_launch_snapshot.json`
     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T194850Z/m5_d_stream_sort_launch_snapshot.json`
     - blocker: `M5D-B4` (`TD_ORACLE_STREAM_SORT` not materialized in ECS)
+  - `M5D-B4` is resolved by IaC materialization of oracle task definitions + rerun PASS:
+    - local: `runs/dev_substrate/m5/20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
+    - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
 - Sub-phase progress:
   - [x] `M5.A` authority + handle closure for P3.
   - [x] `M5.B` oracle inlet policy closure.
   - [x] `M5.C` oracle input presence assertion.
-  - [ ] `M5.D` stream-sort launch contract.
+  - [x] `M5.D` stream-sort launch contract.
   - [ ] `M5.E` stream-sort execution + receipts/manifests.
   - [ ] `M5.F` checker execution + checker pass artifact.
   - [ ] `M5.G` per-output rerun safety proof.

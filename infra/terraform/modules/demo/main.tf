@@ -111,6 +111,27 @@ locals {
       component_mode = "env_conformance"
     }
   }
+
+  oracle_job_specs = {
+    "oracle-stream-sort" = {
+      family_name    = "${var.name_prefix}-oracle-stream-sort"
+      component_mode = "oracle_stream_sort"
+      command = [
+        "sh",
+        "-c",
+        "echo oracle_stream_sort_task_definition_materialized && exit 0",
+      ]
+    }
+    "oracle-checker" = {
+      family_name    = "${var.name_prefix}-oracle-checker"
+      component_mode = "oracle_checker"
+      command = [
+        "sh",
+        "-c",
+        "echo oracle_checker_task_definition_materialized && exit 0",
+      ]
+    }
+  }
 }
 
 data "aws_availability_zones" "available" {
@@ -448,6 +469,59 @@ resource "aws_ecs_task_definition" "daemon" {
     fp_resource = "demo_ecs_task_definition_daemon"
     fp_pack     = each.value.pack_id
     fp_service  = each.value.service_name
+  })
+}
+
+resource "aws_ecs_task_definition" "oracle_job" {
+  for_each = local.oracle_job_specs
+
+  family                   = each.value.family_name
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.ecs_daemon_task_cpu
+  memory                   = var.ecs_daemon_task_memory
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.lane_app_roles["rtdl_core"].arn
+
+  container_definitions = jsonencode([
+    {
+      name      = each.key
+      image     = local.daemon_container_image_resolved
+      essential = true
+      command   = each.value.command
+      environment = [
+        {
+          name  = var.required_platform_run_id_env_key
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "FP_PACK_ID"
+          value = "oracle_p3"
+        },
+        {
+          name  = "FP_RUNTIME_MODE"
+          value = "job"
+        },
+        {
+          name  = "FP_COMPONENT_MODE"
+          value = each.value.component_mode
+        },
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.demo.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs/${each.key}"
+        }
+      }
+    }
+  ])
+
+  tags = merge(local.tags_demo, {
+    fp_resource = "demo_ecs_task_definition_oracle_job"
+    fp_pack     = "oracle_p3"
+    fp_service  = each.value.family_name
   })
 }
 

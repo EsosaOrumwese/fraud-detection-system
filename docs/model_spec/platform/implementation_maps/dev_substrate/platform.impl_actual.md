@@ -10191,3 +10191,54 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - `task_definition_materialized=true`,
    - `overall_pass=true`,
    - `blockers=[]`.
+
+## Entry: 2026-02-14 08:03PM - Resolved M5D-B4 via IaC task-definition materialization and closed M5.D
+
+### Trigger
+1. USER directed: proceed with the next step after `M5.D` fail-closed hold on `M5D-B4`.
+
+### Root cause confirmed
+1. `TD_ORACLE_STREAM_SORT` was pinned in handles/docs but no corresponding ECS task-definition family existed in demo substrate.
+2. `M5.D` failed correctly with `M5D-B4` because launch-profile materialization checks require the task definition to be describable.
+
+### IaC changes applied
+1. Terraform module updates:
+   - `infra/terraform/modules/demo/main.tf`
+     - added `oracle_job_specs` for:
+       - `${name_prefix}-oracle-stream-sort`
+       - `${name_prefix}-oracle-checker`
+     - added `aws_ecs_task_definition.oracle_job` (Fargate one-shot job lane, rtdl-core app role, run-scope env).
+   - `infra/terraform/modules/demo/outputs.tf`
+     - added oracle task-definition outputs (ARN/family surfaces).
+2. Root demo stack outputs updated:
+   - `infra/terraform/dev_min/demo/outputs.tf`
+     - exposed `td_oracle_stream_sort`, `td_oracle_checker`, and ARNs.
+
+### Terraform execution
+1. validated demo stack after patch (`terraform validate` PASS).
+2. planned with run-safe vars (kept daemon image pinned to current immutable digest):
+   - plan contained only 2 creates (oracle stream-sort/checker task definitions), 0 change, 0 destroy.
+3. applied plan:
+   - created:
+     - `fraud-platform-dev-min-oracle-stream-sort`
+     - `fraud-platform-dev-min-oracle-checker`
+   - no drift to existing daemon/services.
+
+### M5.D rerun evidence
+1. rerun snapshot local:
+   - `runs/dev_substrate/m5/20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
+2. rerun snapshot durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
+3. final state:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - launch profile check now confirms `task_definition_materialized=true`.
+
+### Plan-state updates
+1. `platform.M5.build_plan.md`:
+   - M5.D DoD checked complete,
+   - execution-result section extended with fail->fix->pass closure,
+   - blocker register cleared (`Current blockers: None`) and `M5D-B4` moved to resolved with evidence.
+2. `platform.build_plan.md`:
+   - M5 expansion state updated with `M5D-B4` resolution evidence,
+   - M5 sub-phase progress marked `M5.D` complete.

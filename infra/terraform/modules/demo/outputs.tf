@@ -82,6 +82,26 @@ output "ecs_daemon_task_definition_arns" {
   value = { for key, td in aws_ecs_task_definition.daemon : key => td.arn }
 }
 
+output "ecs_oracle_task_definition_arns" {
+  value = { for key, td in aws_ecs_task_definition.oracle_job : key => td.arn }
+}
+
+output "ecs_oracle_stream_sort_task_definition_arn" {
+  value = aws_ecs_task_definition.oracle_job["oracle-stream-sort"].arn
+}
+
+output "ecs_oracle_stream_sort_task_definition_family" {
+  value = aws_ecs_task_definition.oracle_job["oracle-stream-sort"].family
+}
+
+output "ecs_oracle_checker_task_definition_arn" {
+  value = aws_ecs_task_definition.oracle_job["oracle-checker"].arn
+}
+
+output "ecs_oracle_checker_task_definition_family" {
+  value = aws_ecs_task_definition.oracle_job["oracle-checker"].family
+}
+
 output "vpc_id" {
   value = aws_vpc.demo.id
 }
