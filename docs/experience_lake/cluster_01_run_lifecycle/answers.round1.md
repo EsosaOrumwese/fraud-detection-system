@@ -4,13 +4,36 @@
 
 `Spine Green v0` is a phase-closure claim, not a vibe claim.
 
-It means the local-parity state machine closes `P0 -> P11` for in-scope lanes only, with gate evidence present at each critical commit point, and no fail-closed blockers open.
+It means the local-parity state machine closes `P0 -> P11` for in-scope lanes only, with gate evidence present at each critical commit point, and no fail-closed blockers open (especially no unresolved `PUBLISH_AMBIGUOUS`, and `P11` conformance/governance closeout satisfied).
+
+### Term legend (reader-safe)
+
+- `P0..P11`: Ordered run-lifecycle phases in the platform state machine (from substrate bring-up to run closeout).
+- `platform_run_id`: Canonical run identity for one platform execution; all run evidence is scoped to this ID.
+- `IG`: Ingestion Gate service; validates incoming envelopes, decides admit/quarantine, and writes ingest receipts.
+- `WSP`: World Streamer Producer; consumes READY and streams bounded event payloads into IG.
+- `EB`: Event Bus backend (Kinesis in local parity).
+- `PUBLISH_AMBIGUOUS`: IG publish outcome is not provably committed (unknown/ambiguous bus write), so closure is blocked fail-closed until reconciled.
+- `RTDL`: Real-Time Decision Loop plane.
+- `IEG`: Identity Entity Graph projector.
+- `OFP`: Online Feature Plane projector.
+- `CSFB`: Context Store Flow Binding component.
+- `DL`: Decision Layer.
+- `DF`: Decision Fabric (creates decision response/action intent).
+- `AL`: Action Layer (executes intent and emits outcomes).
+- `DLA`: Decision Log Audit (append-only decision chain + audit records).
+- `CM`: Case Management.
+- `LS`: Label Store.
+- `Obs/Gov`: Observability and Governance closeout surface (run report, conformance, governance append).
 
 In-scope lanes are:
-`Control+Ingress`, `RTDL`, `Case+Labels`, `Run/Operate+Obs/Gov`.
+`Control+Ingress`, `RTDL Core`, `Decision Lane (DL/DF/AL/DLA)`, `Case+Labels`, `Run/Operate+Obs/Gov`.
 
 Out-of-scope for this baseline:
 `Learning/Registry` lifecycle closure (`OFS/MF/MPR`).
+
+Evidence roots for this definition:
+`runs/fraud-platform/<platform_run_id>/...` is the local-parity run root, while `s3://fraud-platform/<platform_run_id>/...` is the durable S3-compatible object-store evidence root.
 
 ### Pass criteria (must all be true)
 
@@ -23,7 +46,9 @@ Condition: IG admission commit is durable (receipt + `eb_ref`), `admitted_count 
 Evidence hook: `s3://fraud-platform/<platform_run_id>/ig/receipts/<receipt_id>.json`, IG admission index state, and run report ingress signal (`obs/platform_run_report.json` -> `ingress.admit > 0`).
 
 3. WSP bounded-stream gate closure:
-Condition: READY consumer processes in-scope outputs for active run and reaches bounded cap per output for the selected gate (`20` or `200`).
+Condition: READY consumer processes in-scope outputs for active run and reaches bounded cap per output for the selected gate:
+- `WSP_MAX_EVENTS_PER_OUTPUT=20` = smoke gate
+- `WSP_MAX_EVENTS_PER_OUTPUT=200` = baseline bounded-closure gate
 Evidence hook: `runs/fraud-platform/<platform_run_id>/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log` with stop markers (`emitted=<cap>` per required output).
 Expected count source: Oracle stream-view output set and SR READY/run-facts references (`.../_stream_view_manifest.json`, `sr/run_facts_view/<run_id>.json`).
 
