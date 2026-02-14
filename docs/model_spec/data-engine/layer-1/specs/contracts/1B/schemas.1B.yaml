@@ -222,6 +222,26 @@ policy:
         type: string
         description: "Optional free text."
 
+  s3_requirements_policy:
+    type: object
+    description: "Governed S3 policy for excluding known non-representative countries from requirements emission."
+    required: [policy_version, enabled, denylist_country_iso]
+    additionalProperties: false
+    properties:
+      policy_version:
+        type: string
+        description: "Human-readable or semver; emitted in S3 run report."
+      enabled:
+        type: boolean
+      denylist_country_iso:
+        type: array
+        uniqueItems: true
+        items:
+          $ref: '#/$defs/iso2'
+      notes:
+        type: string
+        description: "Optional free text."
+
   s4_alloc_plan_policy:
     type: object
     description: "Governed S4 anti-collapse policy (deterministic integer allocation guards)."

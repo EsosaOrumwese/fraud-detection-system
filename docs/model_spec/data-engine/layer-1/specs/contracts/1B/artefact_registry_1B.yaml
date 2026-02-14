@@ -177,6 +177,25 @@ subsegments:
     cross_layer: false
     notes:
 
+  - name: policy.s3.requirements.yaml
+    path: config/layer1/1B/policy/policy.s3.requirements.yaml
+    type: policy
+    category: policy
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.policy.s3.requirements
+    license: Proprietary-Internal
+    role: Governed S3 policy for excluding non-representative country codes from requirements emission.
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema: schemas.1B.yaml#/policy/s3_requirements_policy
+    cross_layer: false
+    notes:
+
 
   # External reference inputs mirrored for license/provenance and single-pane visibility
   - name: iso3166_canonical_2024

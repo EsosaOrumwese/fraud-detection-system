@@ -1,0 +1,6 @@
+policy_version: "2026-02-14.mc-bm-exclusion.v1"
+enabled: true
+denylist_country_iso:
+  - MC
+  - BM
+notes: "Exclude micro-jurisdictions that repeatedly trigger unrealistic collapse sentinels in Segment 1B."

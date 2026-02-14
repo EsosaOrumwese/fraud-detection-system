@@ -12,11 +12,13 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+import yaml
 from scipy.spatial import cKDTree
 
 
 EARTH_RADIUS_M = 6_371_008.8
 TOP_FRACTIONS = {"top1": 0.01, "top5": 0.05, "top10": 0.10}
+DEFAULT_S3_POLICY_PATH = Path("config/layer1/1B/policy/policy.s3.requirements.yaml")
 
 
 @dataclass(frozen=True)
@@ -44,6 +46,30 @@ def _load_run_context(runs_root: Path, run_id: str) -> RunContext:
         manifest_fingerprint=str(receipt["manifest_fingerprint"]),
         parameter_hash=str(receipt["parameter_hash"]),
     )
+
+
+def _load_s3_country_policy(policy_path: Path) -> tuple[dict[str, Any], set[str]]:
+    if not policy_path.exists():
+        raise FileNotFoundError(f"S3 policy file not found: {policy_path}")
+    payload = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"S3 policy payload must be an object: {policy_path}")
+    enabled = bool(payload.get("enabled", False))
+    raw = payload.get("denylist_country_iso") or []
+    if not isinstance(raw, list):
+        raise ValueError("s3_requirements_policy.denylist_country_iso must be a list.")
+    denylist = sorted({str(item).strip().upper() for item in raw if str(item).strip()})
+    if enabled:
+        excluded = set(denylist)
+    else:
+        excluded = set()
+    meta = {
+        "policy_path": str(policy_path.resolve()),
+        "policy_version": str(payload.get("policy_version") or "unknown"),
+        "enabled": enabled,
+        "denylist_country_iso": denylist,
+    }
+    return meta, excluded
 
 
 def _resolve_report(ctx: RunContext, state: str, filename: str) -> Path:
@@ -198,8 +224,17 @@ def _country_collapse_sentinel(
     }
 
 
-def _site_metrics(site_path: Path, eligible_country_total: int) -> dict[str, Any]:
-    site_df = pl.read_parquet(site_path).select(["legal_country_iso", "lat_deg", "lon_deg"])
+def _site_metrics(
+    site_path: Path,
+    eligible_country_total: int,
+    excluded_countries: set[str],
+) -> dict[str, Any]:
+    site_df_raw = pl.read_parquet(site_path).select(["legal_country_iso", "lat_deg", "lon_deg"])
+    excluded_sorted = sorted(excluded_countries)
+    if excluded_sorted:
+        site_df = site_df_raw.filter(~pl.col("legal_country_iso").is_in(excluded_sorted))
+    else:
+        site_df = site_df_raw
     counts_df = (
         site_df.group_by("legal_country_iso")
         .len()
@@ -228,6 +263,8 @@ def _site_metrics(site_path: Path, eligible_country_total: int) -> dict[str, Any
         "nn_q99_m": q99,
         "site_count_total": float(site_count_total),
         "active_country_count": float(active_country_count),
+        "excluded_country_iso": excluded_sorted,
+        "excluded_rows_total": float(site_df_raw.height - site_df.height),
         "eligible_country_nonzero_share": (
             float(active_country_count / eligible_country_total) if eligible_country_total > 0 else 0.0
         ),
@@ -244,13 +281,17 @@ def _site_metrics(site_path: Path, eligible_country_total: int) -> dict[str, Any
     }
 
 
-def _snapshot(ctx: RunContext, eligible_country_total: int) -> dict[str, Any]:
+def _snapshot(
+    ctx: RunContext,
+    eligible_country_total: int,
+    excluded_countries: set[str],
+) -> dict[str, Any]:
     s6_report_path = _resolve_report(ctx, "S6", "s6_run_report.json")
     s8_report_path = _resolve_report(ctx, "S8", "s8_run_summary.json")
     s6_report = json.loads(s6_report_path.read_text(encoding="utf-8"))
     s8_report = json.loads(s8_report_path.read_text(encoding="utf-8"))
     site_path = _resolve_site_locations(ctx)
-    metrics = _site_metrics(site_path, eligible_country_total)
+    metrics = _site_metrics(site_path, eligible_country_total, excluded_countries)
     return {
         "run": {
             "run_id": ctx.run_id,
@@ -276,16 +317,23 @@ def score_p3(
     no_regression_run_id: str,
     candidate_run_id: str,
     output_dir: Path,
+    s3_policy_path: Path = DEFAULT_S3_POLICY_PATH,
 ) -> dict[str, Any]:
     baseline_payload = json.loads(baseline_json.read_text(encoding="utf-8"))
     baseline_metrics = baseline_payload["metrics"]
-    eligible_country_total = int(baseline_metrics["eligible_country_total"])
+    policy_meta, excluded_countries = _load_s3_country_policy(s3_policy_path)
+    eligible_country_total_baseline = int(baseline_metrics["eligible_country_total"])
+    eligible_country_total = (
+        max(eligible_country_total_baseline - len(excluded_countries), 0)
+        if policy_meta["enabled"]
+        else eligible_country_total_baseline
+    )
     baseline_nn_ratio = float(baseline_metrics["nn_p99_p50_ratio"])
 
     no_reg_ctx = _load_run_context(runs_root, no_regression_run_id)
     candidate_ctx = _load_run_context(runs_root, candidate_run_id)
-    no_reg = _snapshot(no_reg_ctx, eligible_country_total)
-    candidate = _snapshot(candidate_ctx, eligible_country_total)
+    no_reg = _snapshot(no_reg_ctx, eligible_country_total, excluded_countries)
+    candidate = _snapshot(candidate_ctx, eligible_country_total, excluded_countries)
 
     cand = candidate["metrics"]
     p2 = no_reg["metrics"]
@@ -324,6 +372,11 @@ def score_p3(
         "generated_utc": _now_utc(),
         "phase": "P3",
         "segment": "1B",
+        "country_filter_policy": {
+            **policy_meta,
+            "eligible_country_total_baseline": eligible_country_total_baseline,
+            "eligible_country_total_scored": eligible_country_total,
+        },
         "baseline": {
             "baseline_json": str(baseline_json.resolve()),
             "metrics": baseline_metrics,
@@ -383,6 +436,11 @@ def main() -> None:
         default="runs/fix-data-engine/segment_1B/reports",
         help="Output directory for P3 score artifacts.",
     )
+    parser.add_argument(
+        "--s3-policy-path",
+        default=str(DEFAULT_S3_POLICY_PATH),
+        help="Governed S3 requirements policy path for country exclusion handling.",
+    )
     args = parser.parse_args()
     result = score_p3(
         runs_root=Path(args.runs_root),
@@ -390,6 +448,7 @@ def main() -> None:
         no_regression_run_id=args.no_regression_run_id,
         candidate_run_id=args.candidate_run_id,
         output_dir=Path(args.output_dir),
+        s3_policy_path=Path(args.s3_policy_path),
     )
     print(str(result["candidate_path"]))
 

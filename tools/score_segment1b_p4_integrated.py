@@ -53,16 +53,23 @@ def score_p4(
     no_regression_run_id: str,
     candidate_run_id: str,
     output_dir: Path,
+    s3_policy_path: Path = p3_score.DEFAULT_S3_POLICY_PATH,
 ) -> dict[str, Any]:
     baseline_payload = json.loads(baseline_json.read_text(encoding="utf-8"))
     baseline_metrics = baseline_payload["metrics"]
-    eligible_country_total = int(baseline_metrics["eligible_country_total"])
+    policy_meta, excluded_countries = p3_score._load_s3_country_policy(s3_policy_path)
+    eligible_country_total_baseline = int(baseline_metrics["eligible_country_total"])
+    eligible_country_total = (
+        max(eligible_country_total_baseline - len(excluded_countries), 0)
+        if policy_meta["enabled"]
+        else eligible_country_total_baseline
+    )
     baseline_nn_ratio = float(baseline_metrics["nn_p99_p50_ratio"])
 
     no_reg_ctx = p3_score._load_run_context(runs_root, no_regression_run_id)
     candidate_ctx = p3_score._load_run_context(runs_root, candidate_run_id)
-    no_reg = p3_score._snapshot(no_reg_ctx, eligible_country_total)
-    candidate = p3_score._snapshot(candidate_ctx, eligible_country_total)
+    no_reg = p3_score._snapshot(no_reg_ctx, eligible_country_total, excluded_countries)
+    candidate = p3_score._snapshot(candidate_ctx, eligible_country_total, excluded_countries)
 
     cand = candidate["metrics"]
     p3_lock = no_reg["metrics"]
@@ -118,6 +125,11 @@ def score_p4(
         "status": status,
         "p4_3_required": bool(status == "AMBER_NEAR_BPLUS"),
         "reopen_required": bool(status == "RED_REOPEN_REQUIRED"),
+        "country_filter_policy": {
+            **policy_meta,
+            "eligible_country_total_baseline": eligible_country_total_baseline,
+            "eligible_country_total_scored": eligible_country_total,
+        },
         "baseline": {
             "baseline_json": str(baseline_json.resolve()),
             "metrics": baseline_metrics,
@@ -192,6 +204,11 @@ def main() -> None:
         default="runs/fix-data-engine/segment_1B/reports",
         help="Output directory for P4 score artifacts.",
     )
+    parser.add_argument(
+        "--s3-policy-path",
+        default=str(p3_score.DEFAULT_S3_POLICY_PATH),
+        help="Governed S3 requirements policy path for country exclusion handling.",
+    )
     args = parser.parse_args()
     result = score_p4(
         runs_root=Path(args.runs_root),
@@ -199,10 +216,10 @@ def main() -> None:
         no_regression_run_id=args.no_regression_run_id,
         candidate_run_id=args.candidate_run_id,
         output_dir=Path(args.output_dir),
+        s3_policy_path=Path(args.s3_policy_path),
     )
     print(str(result["candidate_path"]))
 
 
 if __name__ == "__main__":
     main()
-

@@ -4943,3 +4943,86 @@ Outcome and interpretation:
    - `top_country_no_collapse=false` (`MC`, `BM` still flagged),
    - NN tail contraction failed (candidate `nn_p99/p50` materially above baseline).
 3) Decision: keep `P4.R1B` runtime lane as stable acceleration rail, but treat realism blocker as still upstream/structural rather than runtime throughput.
+
+---
+
+### Entry: 2026-02-14 20:54
+
+Design element: explicit `MC/BM` exclusion policy for `1B/S3` plus scorer denominator parity.
+Summary: Before touching code, pinned a governed-policy implementation lane to remove `MC` and `BM` from `S3` requirements emission and keep scoring fair by excluding those countries from collapse and coverage denominators.
+
+Problem framing:
+1) Latest integrated `P4` authority failed structural gate `top_country_no_collapse` with flagged countries `MC`, `BM`.
+2) User direction is explicit: do not hardcode removal; treat this as data-engine/policy remediation and document the decision trail.
+3) Existing `S3` runner has no country exclusion policy surface; scorers currently include all countries in denominator/collapse checks.
+
+Alternatives considered:
+1) Hardcode `MC/BM` skip in `S3`.
+   - Rejected: not governed, no contract anchor, weak auditability.
+2) Exclude only in scorers and leave engine outputs unchanged.
+   - Rejected: keeps malformed engine output path and hides rather than remediates.
+3) Add governed `S3` policy surface and apply exclusion upstream in `S3`, then align scorers to same governed policy.
+   - Chosen: explicit, auditable, reproducible, and aligned with remediation intent.
+
+Execution plan:
+1) Add `s3_requirements_policy` contract anchor:
+   - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml`
+   - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`
+2) Materialize governed policy file:
+   - `config/layer1/1B/policy/policy.s3.requirements.yaml` with denylist `[MC, BM]`.
+3) Patch `S3` runner:
+   - load+validate policy via dictionary/schema,
+   - fail closed on policy ISOs not in canonical set,
+   - exclude denied countries before FK/coverage checks and emit explicit drop counters in `s3_run_report`.
+4) Patch scoring tools (`P3` and `P4 integrated`):
+   - load same policy,
+   - exclude denied countries from collapse sentinel and coverage denominator calculations,
+   - include policy metadata in score outputs for audit.
+5) Validate with fast checks:
+   - `python -m py_compile` on touched modules.
+   - no full envelope rerun in this step; rerun/scoring execution follows after patch acceptance.
+
+---
+
+### Entry: 2026-02-14 20:58
+
+Design element: execution of governed `MC/BM` exclusion lane (`S3 + P3/P4 scorers`).
+Summary: Implemented the approved governed policy path end-to-end: contract anchors, policy artifact, `S3` enforcement, and scoring denominator/collapse alignment.
+
+Implemented changes:
+1) Contract/policy surfaces:
+   - added dictionary anchor `s3_requirements_policy`:
+     - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml`
+   - added schema anchor `#/policy/s3_requirements_policy`:
+     - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/schemas.1B.yaml`
+   - added artefact registry entry `policy.s3.requirements.yaml`:
+     - `docs/model_spec/data-engine/layer-1/specs/contracts/1B/artefact_registry_1B.yaml`
+   - added governed policy artifact:
+     - `config/layer1/1B/policy/policy.s3.requirements.yaml`
+     - payload sets `enabled: true` and denylist `[MC, BM]`.
+2) Engine enforcement (`1B/S3`):
+   - file: `packages/engine/src/engine/layers/l1/seg_1B/s3_requirements/runner.py`
+   - added YAML policy load + schema validation via dictionary-resolved path,
+   - added fail-closed validation (`E315_POLICY_ISO_UNKNOWN`) when policy denylist includes codes outside canonical ISO set,
+   - added denylist application at group finalization to exclude those countries from emitted `s3_requirements`,
+   - preserved source-order integrity checks and zero-site guards,
+   - added run-report audit fields:
+     - `country_filter_policy`,
+     - `rows_dropped_by_policy`,
+     - `sites_dropped_by_policy`,
+     - `countries_dropped_by_policy_total`,
+     - `countries_dropped_by_policy`.
+3) Scoring parity updates:
+   - `tools/score_segment1b_p3_candidate.py`
+   - `tools/score_segment1b_p4_integrated.py`
+   - both tools now load the same governed `S3` policy and:
+     - exclude denylisted countries from collapse sentinel and concentration/coverage metric frame,
+     - adjust eligible-country denominator used in coverage share (`baseline_total - |denylist|` when policy enabled),
+     - emit policy metadata in output payloads,
+     - expose `--s3-policy-path` override for audit/what-if runs.
+
+Validation:
+1) `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s3_requirements/runner.py tools/score_segment1b_p3_candidate.py tools/score_segment1b_p4_integrated.py` passed.
+
+Operational note:
+1) This step is code/policy closure only; rerun + integrated re-score is still required to confirm grade movement under the new governed exclusion lane.

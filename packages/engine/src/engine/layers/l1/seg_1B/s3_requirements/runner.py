@@ -13,6 +13,7 @@ from typing import Callable, Iterable, Optional
 import numpy as np
 import polars as pl
 import psutil
+import yaml
 from jsonschema import Draft202012Validator
 
 try:  # Optional fast row-group scanning.
@@ -46,6 +47,13 @@ class S3Result:
     manifest_fingerprint: str
     requirements_path: Path
     run_report_path: Path
+
+
+@dataclass(frozen=True)
+class S3RequirementsPolicy:
+    policy_version: str
+    enabled: bool
+    denylist_country_iso: tuple[str, ...]
 
 
 class _StepTimer:
@@ -102,6 +110,15 @@ def _load_json(path: Path) -> dict:
     if not path.exists():
         raise InputResolutionError(f"Missing JSON file: {path}")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_yaml(path: Path) -> dict:
+    if not path.exists():
+        raise InputResolutionError(f"Missing YAML file: {path}")
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise InputResolutionError(f"YAML payload must be an object: {path}")
+    return payload
 
 
 def _write_json(path: Path, payload: dict) -> None:
@@ -305,6 +322,25 @@ def _entry_version(entry: dict) -> Optional[str]:
     return version
 
 
+def _parse_s3_policy(policy_payload: dict) -> S3RequirementsPolicy:
+    denylist_raw = policy_payload.get("denylist_country_iso") or []
+    if not isinstance(denylist_raw, list):
+        raise InputResolutionError("s3_requirements_policy.denylist_country_iso must be a list.")
+    normalized: list[str] = []
+    for iso in denylist_raw:
+        if not isinstance(iso, str):
+            raise InputResolutionError("s3_requirements_policy.denylist_country_iso must contain strings.")
+        value = iso.strip().upper()
+        if not value:
+            raise InputResolutionError("s3_requirements_policy.denylist_country_iso cannot contain blank values.")
+        normalized.append(value)
+    return S3RequirementsPolicy(
+        policy_version=str(policy_payload.get("policy_version") or "unknown"),
+        enabled=bool(policy_payload.get("enabled", False)),
+        denylist_country_iso=tuple(sorted(set(normalized))),
+    )
+
+
 def _list_parquet_files(root: Path) -> list[Path]:
     if root.is_file():
         return [root]
@@ -401,6 +437,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     receipt_entry = find_dataset_entry(dictionary, "s0_gate_receipt_1B").entry
     outlet_entry = find_dataset_entry(dictionary, "outlet_catalogue").entry
     tile_weights_entry = find_dataset_entry(dictionary, "tile_weights").entry
+    s3_policy_entry = find_dataset_entry(dictionary, "s3_requirements_policy").entry
     iso_entry = find_dataset_entry(dictionary, "iso3166_canonical_2024").entry
     requirements_entry = find_dataset_entry(dictionary, "s3_requirements").entry
     run_report_entry = find_dataset_entry(dictionary, "s3_run_report").entry
@@ -490,9 +527,22 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         external_roots,
         {"parameter_hash": str(parameter_hash)},
     )
+    s3_policy_path = _resolve_dataset_path(s3_policy_entry, run_paths, external_roots, {})
     iso_path = _resolve_dataset_path(iso_entry, run_paths, external_roots, {})
     requirements_root = _resolve_dataset_path(requirements_entry, run_paths, external_roots, tokens)
     run_report_path = _resolve_dataset_path(run_report_entry, run_paths, external_roots, tokens)
+
+    s3_policy_payload = _load_yaml(s3_policy_path)
+    _validate_payload(schema_1b, "#/policy/s3_requirements_policy", s3_policy_payload)
+    s3_policy = _parse_s3_policy(s3_policy_payload)
+    country_denylist_set = set(s3_policy.denylist_country_iso) if s3_policy.enabled else set()
+    logger.info(
+        "S3: loaded requirements policy enabled=%s denylist_count=%d version=%s path=%s",
+        s3_policy.enabled,
+        len(country_denylist_set),
+        s3_policy.policy_version,
+        s3_policy_path,
+    )
 
     if not outlet_root.exists():
         _emit_failure_event(
@@ -513,7 +563,27 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
     iso_df = pl.read_parquet(iso_path, columns=["country_iso"])
     iso_set = set(iso_df.get_column("country_iso").to_list())
-    ingress_versions = {"iso3166": _entry_version(iso_entry) or ""}
+    unknown_policy_isos = sorted(country_denylist_set - iso_set)
+    if unknown_policy_isos:
+        _emit_failure_event(
+            logger,
+            "E315_POLICY_ISO_UNKNOWN",
+            seed,
+            manifest_fingerprint,
+            str(parameter_hash),
+            {"detail": "denylist_iso_not_in_iso3166", "policy_unknown_iso": unknown_policy_isos},
+        )
+        raise EngineFailure(
+            "F4",
+            "E315_POLICY_ISO_UNKNOWN",
+            "S3",
+            MODULE_NAME,
+            {"detail": "denylist_iso_not_in_iso3166", "policy_unknown_iso": unknown_policy_isos},
+        )
+    ingress_versions = {
+        "iso3166": _entry_version(iso_entry) or "",
+        "s3_requirements_policy": s3_policy.policy_version,
+    }
 
     tile_weight_files = _list_parquet_files(tile_weights_root)
     bytes_read_tile_weights_total = sum(path.stat().st_size for path in tile_weight_files)
@@ -575,7 +645,10 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     last_merchant_id: Optional[int] = None
     merchants_total = 0
     countries_set: set[str] = set()
+    dropped_countries_set: set[str] = set()
     rows_emitted = 0
+    rows_dropped_policy = 0
+    sites_dropped_policy = 0
     source_rows_total = 0
 
     open_mid: Optional[int] = None
@@ -584,7 +657,46 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     open_expected = 1
 
     def _finalize_group(mid: int, iso: str, count: int) -> None:
-        nonlocal last_key, last_merchant_id, merchants_total, rows_emitted
+        nonlocal last_key, last_merchant_id, merchants_total, rows_emitted, rows_dropped_policy, sites_dropped_policy
+        key = (mid, iso)
+        if last_key is not None and key < last_key:
+            _emit_failure_event(
+                logger,
+                "E310_UNSORTED",
+                seed,
+                manifest_fingerprint,
+                str(parameter_hash),
+                {"detail": "writer_sort_violation", "merchant_id": mid, "legal_country_iso": iso},
+            )
+            raise EngineFailure(
+                "F4",
+                "E310_UNSORTED",
+                "S3",
+                MODULE_NAME,
+                {"merchant_id": mid, "legal_country_iso": iso},
+            )
+        last_key = key
+        if count <= 0:
+            _emit_failure_event(
+                logger,
+                "E304_ZERO_SITES_ROW",
+                seed,
+                manifest_fingerprint,
+                str(parameter_hash),
+                {"merchant_id": mid, "legal_country_iso": iso},
+            )
+            raise EngineFailure(
+                "F4",
+                "E304_ZERO_SITES_ROW",
+                "S3",
+                MODULE_NAME,
+                {"merchant_id": mid, "legal_country_iso": iso},
+            )
+        if country_denylist_set and iso in country_denylist_set:
+            dropped_countries_set.add(iso)
+            rows_dropped_policy += 1
+            sites_dropped_policy += int(count)
+            return
         if iso not in iso_set:
             _emit_failure_event(
                 logger,
@@ -617,44 +729,10 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 MODULE_NAME,
                 {"legal_country_iso": iso},
             )
-        key = (mid, iso)
-        if last_key is not None and key < last_key:
-            _emit_failure_event(
-                logger,
-                "E310_UNSORTED",
-                seed,
-                manifest_fingerprint,
-                str(parameter_hash),
-                {"detail": "writer_sort_violation", "merchant_id": mid, "legal_country_iso": iso},
-            )
-            raise EngineFailure(
-                "F4",
-                "E310_UNSORTED",
-                "S3",
-                MODULE_NAME,
-                {"merchant_id": mid, "legal_country_iso": iso},
-            )
-        last_key = key
         if last_merchant_id is None or mid != last_merchant_id:
             merchants_total += 1
             last_merchant_id = mid
         countries_set.add(iso)
-        if count <= 0:
-            _emit_failure_event(
-                logger,
-                "E304_ZERO_SITES_ROW",
-                seed,
-                manifest_fingerprint,
-                str(parameter_hash),
-                {"merchant_id": mid, "legal_country_iso": iso},
-            )
-            raise EngineFailure(
-                "F4",
-                "E304_ZERO_SITES_ROW",
-                "S3",
-                MODULE_NAME,
-                {"merchant_id": mid, "legal_country_iso": iso},
-            )
         batch_rows.append((mid, iso, count))
         rows_emitted += 1
 
@@ -928,7 +1006,17 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         "seed": seed,
         "manifest_fingerprint": manifest_fingerprint,
         "parameter_hash": parameter_hash,
+        "country_filter_policy": {
+            "policy_path": str(s3_policy_path),
+            "policy_version": s3_policy.policy_version,
+            "enabled": s3_policy.enabled,
+            "denylist_country_iso": sorted(s3_policy.denylist_country_iso),
+        },
         "rows_emitted": rows_emitted,
+        "rows_dropped_by_policy": rows_dropped_policy,
+        "sites_dropped_by_policy": sites_dropped_policy,
+        "countries_dropped_by_policy_total": len(dropped_countries_set),
+        "countries_dropped_by_policy": sorted(dropped_countries_set),
         "merchants_total": merchants_total,
         "countries_total": len(countries_set),
         "source_rows_total": source_rows_total,
