@@ -174,6 +174,8 @@ That pin is why I classified this as a datastore-hardening incident, not a featu
   - `runs/fraud-platform/operate/local_parity_rtdl_core_v0/logs/ieg_projector.log`
   - `runs/fraud-platform/operate/local_parity_rtdl_decision_lane_v0/logs/dla_worker.log`
   - `runs/fraud-platform/operate/local_parity_case_labels_v0/logs/label_store_worker.log`
+- **One verbatim failure line captured from affected worker logs:**
+  - `psycopg.OperationalError`
 - **Exact recorded failure signature line (verbatim class/signature form):**
   - `psycopg.OperationalError ... localhost:5434 ... Address already in use (0x00002740/10048)`
 
@@ -275,6 +277,7 @@ That closed the lock-retention side effect without reverting the connector archi
 
 Concrete side-effect evidence pin:
 - First rollout produced `idle in transaction` sessions and lock waits (including `ALTER TABLE admissions ...` blocked) while `ig_service` kept oscillating non-ready; this was the trigger for the second corrective pass in `postgres_runtime.py`.
+- Observation window pin: this was recorded in the same incident recovery window after the failing `platform_20260210T083021Z` run and before the clean rerun `platform_20260210T091951Z` (09:12AM corrective entry).
 
 ### 4) What I did **not** change (important for defensibility)
 
