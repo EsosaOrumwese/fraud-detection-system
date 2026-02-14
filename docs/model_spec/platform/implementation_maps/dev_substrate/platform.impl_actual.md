@@ -9403,3 +9403,53 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - `platform.M4.build_plan.md`: M4.J DoD + completion checklist marked complete; resolved blocker entry added (`M4J-B1..B6`).
    - `platform.build_plan.md`: M4.J sub-phase + final M4 DoD item marked complete.
    - immediate next action changed to USER confirmation for `M4 -> DONE` transition before M5 activation.
+
+## Entry: 2026-02-14 05:24PM - M4 status transition + M5 planning activation lock
+
+### Trigger
+1. USER approved: mark `M4` done and move into planning for `M5` in both main and deep plans.
+
+### Decision scope
+1. Perform documentation transition only:
+   - set `M4` to `DONE`,
+   - set `M5` to `ACTIVE` (planning state),
+   - create missing deep plan file `platform.M5.build_plan.md`,
+   - expand M5 planning in `platform.build_plan.md` with execution-grade structure.
+2. No runtime/infra execution in this step.
+
+### Planning constraints pinned
+1. Preserve runbook P3 law:
+   - S3->S3 source policy only,
+   - no laptop/local/minio seed path,
+   - stream_view-first outputs with manifest/receipt/checker proof.
+2. Preserve fail-closed progression:
+   - `M5` remains planning-active until explicit USER execution direction for M5 sub-phases.
+
+## Entry: 2026-02-14 05:33PM - M4 DONE transition + M5 deep planning baseline established
+
+### Changes applied
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - status table transition:
+     - `M4` -> `DONE`
+     - `M5` -> `ACTIVE`
+   - deep-plan routing state updated:
+     - `platform.M5.build_plan.md` marked present
+     - deferred range now `M6..M10`
+   - current phase posture updated to reflect `M4 DONE`, `M5 ACTIVE`
+   - replaced active-phase section with:
+     - M4 closure summary + durable evidence anchors
+     - M5 active-phase model with `M5.A..M5.I` progression and M5 DoD checklist
+   - immediate next action moved to `M5.A` entry.
+2. Created new deep plan file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+   - includes execution-grade coverage:
+     - scope/authority/capability matrix,
+     - decision pins for P3,
+     - detailed sub-phases `M5.A..M5.I`,
+     - P3 evidence contract,
+     - completion checklist, risk controls, blocker register, exit criteria.
+
+### Planning outcome
+1. M4 is now recorded as closed in the main status authority.
+2. M5 planning is now explicitly execution-grade across both main and deep plan docs.
+3. No runtime execution was performed in this step; this is a planning/status transition update only.

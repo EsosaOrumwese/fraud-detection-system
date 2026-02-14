@@ -43,7 +43,8 @@ I use three independent evidence surfaces:
 - Same anchor run session shows `stream_complete` with `emitted=800`, matching `4 * 200`.
 
 3. Checkpoint stop reason
-- Session events include checkpoint writes with `reason=max_events`, proving lane termination was from cap boundary, not crash or external interruption.
+- In `runs/fraud-platform/platform_20260212T085637Z/session.jsonl`, the checkpoint event is `event_kind=checkpoint_saved` and cap-stop is recorded at `details.reason=max_events`.
+- That proves termination happened at bounded cap, not from crash or manual kill.
 
 ### Gate-20 and Gate-200 certification examples
 
@@ -55,77 +56,67 @@ So bounded acceptance is deterministic in this system: cap configured, cap enfor
 
 ## Q2) What are your stream start-position policies (`trim_horizon` vs `latest`) and when do you use each?
 
-I do not treat start position as a fixed global setting. I treat it as a correctness policy chosen per consumer role and per run objective.
+I treat start position as a per-consumer correctness control, not one global default.
 
-### Policy 1: Control-bus READY intake (WSP) starts from `trim_horizon`, but with iterator progress memory
+### Current local_parity map (what is actually configured)
 
-For the WSP READY control-bus reader, first read is from `TRIM_HORIZON` and then per-shard `NextShardIterator` is persisted in-memory for subsequent polls.
+| Consumer lane | Default start position | Where configured | First-read safety override |
+|---|---|---|---|
+| WSP READY control-bus reader | `trim_horizon` on initial shard iterator, then `NextShardIterator` carry-forward | hardcoded in `src/fraud_detection/world_streamer_producer/control_bus.py` (`KinesisControlBusReader`) | Not needed; progression is maintained by persisted in-memory shard iterators during process lifetime |
+| IEG projector | `latest` | `config/platform/profiles/local_parity.yaml` -> `ieg.wiring.event_bus.start_position` | No |
+| OFP projector | `latest` | `config/platform/profiles/local_parity.yaml` -> `ofp.wiring.event_bus.start_position` | No |
+| CSFB intake | `latest` | `config/platform/profiles/local_parity.yaml` -> `context_store_flow_binding.wiring.event_bus.start_position` | No |
+| DF worker | `latest` | `config/platform/profiles/local_parity.yaml` -> `df.wiring.event_bus_start_position` | No |
+| AL worker | `latest` | `config/platform/profiles/local_parity.yaml` -> `al.wiring.event_bus_start_position` | Yes: if checkpoint is missing and `required_platform_run_id` is set, AL forces `trim_horizon` for first read |
+| DLA intake | `latest` | `config/platform/profiles/local_parity.yaml` -> `dla.wiring.event_bus_start_position` | Yes: if checkpoint is missing and `required_platform_run_id` is set, DLA forces `trim_horizon` for first read |
+| Case Trigger | `latest` | `config/platform/profiles/local_parity.yaml` -> `case_trigger.wiring.event_bus_start_position` | No |
+| Case Mgmt | `latest` | `config/platform/profiles/local_parity.yaml` -> `case_mgmt.wiring.event_bus_start_position` | No |
+| Archive Writer | `latest` | `config/platform/profiles/local_parity.yaml` -> `archive_writer.wiring.event_bus_start_position` | No |
 
-Why:
-- `trim_horizon` on first attach prevents missing READY records that were published before consumer start/restart.
-- iterator carry-forward prevents head-page replay starvation (the old failure mode where new READY never got reached).
+### Why the policy is mixed
 
-So this policy is: **completeness first, then forward progress**.
+- Active-window acceptance gates (`20/200`) are time-bounded; if live workers start before READY, `latest` prevents historical backlog from starving the current window.
+- For run-pinned lanes where missing first in-run records is unacceptable (AL and DLA), missing-checkpoint first-read override to `trim_horizon` protects completeness.
+- Control-plane READY has its own safety pattern: first attach from `trim_horizon`, then iterator carry-forward so it does not re-read head forever.
 
-### Policy 2: Live daemonized event consumers in bounded parity runs use `latest` by default
+### Historical evidence behind this policy
 
-In local parity bounded acceptance runs, most long-running workers are started before SR publishes READY. For that posture, profile defaults are `event_bus_start_position: latest`.
-
-Why:
-- bounded 20/200 gates are intended to validate the active run window,
-- replaying deep historical backlog (`trim_horizon`) can starve current-run flow and create false negatives inside the gate window.
-
-This is why core live workers are wired to `latest` in local parity profile for acceptance-gate execution.
-
-### Policy 3: Run-pinned consumers with no checkpoint get first-read safety override to `trim_horizon`
-
-For decision-lane consumers where missing early records is unacceptable, there is an explicit first-read safeguard:
-- if checkpoint is absent **and** `required_platform_run_id` is set,
-- force first read to `trim_horizon`,
-- then continue from checkpoint offsets.
-
-This exists to prevent the startup race where `latest` can skip earliest records before first checkpoint is written.
-
-### Policy 4: Repair/reconciliation runs use `trim_horizon` intentionally
-
-When I am reconciling undercount or proving completeness, I use `trim_horizon` plus run-scope filtering and dedupe/checkpoint rails, so replay is deterministic and safe.
-
-### Decision rule (what I actually follow)
-
-I choose by objective:
-- **Active-window bounded acceptance (20/200):** `latest` for pre-started live workers.
-- **Completeness/recovery or no-checkpoint run-pinned intake:** `trim_horizon` on first read, then checkpoint progression.
-
-### Evidence this policy came from real failures, not theory
-
-- We observed `trim_horizon` backlog starvation in live parity gates, causing current-run decision flow to stall despite ingest movement. Moving live parity workers to `latest` restored bounded-run timeliness.
-- We also observed start-position races where early records could be missed; for run-pinned consumers, first-read `trim_horizon` guard was added when checkpoint is absent.
-
-So the policy is deliberately mixed because the failure modes are different: one side loses timeliness, the other loses completeness. The final posture protects both.
+- `platform_20260210T042533Z`: ingress moved, decision lane stayed flat; root cause was backlog starvation under replay-heavy posture.
+- After policy hardening + iterator fix, Gate-20 and Gate-200 closures were restored (`platform_20260210T082746Z`, `platform_20260210T083021Z`).
 
 ## Q3) Describe the consumer identity model: how do you ensure you don’t accidentally fork consumer groups or re-consume from the wrong position?
 
-My model is explicit: **consumer identity is not “process name”; it is a persisted cursor namespace plus run scope.**
+My model is explicit: **consumer identity is a persisted checkpoint namespace plus run scope, not a process name.**
 
-### The identity tuple
+### Identity tuple and persisted checkpoint key
 
-For each streaming worker, identity is effectively:
-- `stream_id` (component stream namespace),
+For kinesis consumers, the checkpoint identity is:
+- `stream_id` (lane namespace),
 - `topic`,
-- `partition_id`,
-- plus run scope guard (`required_platform_run_id`).
+- `partition_id`.
 
-Checkpoint rows are keyed by `(stream_id, topic, partition_id)`.  
-So if identity is stable, the reader resumes exactly from the last committed offset/sequence; if identity changes, it intentionally creates a new cursor namespace.
+The persisted cursor is stored as `next_offset` + `offset_kind`.
+That means re-read position is deterministic and auditable.
 
-### How I prevent accidental identity forks
+Concrete example from the anchor run checkpoint database:
+- DB: `runs/fraud-platform/platform_20260212T085637Z/decision_fabric/consumer_checkpoints.sqlite`
+- Table: `df_worker_consumer_checkpoints`
+- Key columns: `stream_id, topic, partition_id`
+- Cursor columns: `next_offset, offset_kind`
+- Stored row example: `stream_id=df.v0::platform_20260212T085637Z`, `topic=fp.bus.traffic.fraud.v1`, `offset_kind=kinesis_sequence`
 
-I enforce deterministic stream naming:
-- workers derive `stream_id` from profile defaults (for example `df.v0`, `al.v0`, `case_trigger.v0`, `case_mgmt.v0`, `dla.intake.v0`),
-- then append run scope as `::<platform_run_id>` when active run id is present.
+### How stream_id is minted (not conceptual, literal)
 
-That means one acceptance run has one stream namespace per worker lane.  
-I am not relying on ad-hoc operator-entered consumer-group strings.
+Run-scoped suffixing is literal code, not documentation intent:
+- `stream_id = _with_scope(base_stream, platform_run_id)`
+- Result shape: `<base_stream>::<platform_run_id>`
+- Implemented in workers like:
+  - `src/fraud_detection/decision_fabric/worker.py`
+  - `src/fraud_detection/action_layer/worker.py`
+  - `src/fraud_detection/case_trigger/worker.py`
+  - `src/fraud_detection/case_mgmt/worker.py`
+
+So consumer-group fork risk is reduced by construction: one run => one scoped stream namespace per lane.
 
 ### How I prevent wrong-position re-consume
 
@@ -146,12 +137,12 @@ If later records carry another scenario id, they are not processed as in-scope f
 
 This prevents accidental mixing of two scenarios into one reconciliation/health narrative.
 
-### WSP READY consumer identity guard (control-plane side)
+### WSP control-plane identity and duplicate guard
 
 Control-plane has a separate anti-fork guard:
 - READY message must have matching `platform_run_id` and `scenario_run_id` against run facts,
 - READY is compared to active platform run id; out-of-scope READY becomes `SKIPPED_OUT_OF_SCOPE` (`PLATFORM_RUN_SCOPE_MISMATCH`),
-- dedupe record per message id is persisted in `wsp/ready_runs/...` so historical control-bus replay does not retrigger streaming for already-terminal messages.
+- dedupe record per message id is persisted under `.../wsp/ready_runs/<message_id>.jsonl` so historical control-bus replay does not retrigger already-terminal READY messages.
 
 ### Practical failure mode this model fixed
 
@@ -188,9 +179,9 @@ With historical control messages larger than one page, the consumer kept replayi
 ### How I detected and proved it
 
 I did not trust process liveness alone. I checked three layers:
-- flow metrics: run report showed flat zero movement across lanes,
-- runtime behavior: READY consumer kept cycling old records and logging stale-reference misses (`NoSuchKey` pattern),
-- code path: iterator logic in control-bus reader confirmed one-page replay behavior with no durable per-shard progress between polls.
+- flow metrics: historical run report path for that run was `runs/fraud-platform/platform_20260210T042030Z/obs/platform_run_report.json` (all critical counters flat),
+- runtime behavior: READY consumer loop evidence from `runs/fraud-platform/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log`,
+- code path: `src/fraud_detection/world_streamer_producer/control_bus.py` confirmed shard iterators were re-created from `TRIM_HORIZON` and only one page was read per poll.
 
 That combination proved this was not “slow stream”; it was starvation caused by iterator semantics.
 
@@ -209,6 +200,10 @@ Recovery proof came from bounded gates after the fix chain:
 - `platform_20260210T082746Z` passed Gate-20 with total emitted `80` (4 outputs x 20),
 - `platform_20260210T083021Z` passed Gate-200 with total emitted `800` (4 outputs x 200),
 - run status returned running/ready across packs with conformance PASS on the 200 gate run.
+
+Concrete recovery log surfaces:
+- `runs/fraud-platform/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log` (contains 20/200 stop markers with `reason=max_events`)
+- `runs/fraud-platform/platform_20260212T085637Z/platform.log` (anchor bounded-stop evidence surface with the same stop semantics)
 
 The key signal is that READY now activated the intended current run, bounded streaming executed, and end-to-end flow closure resumed under strict gates.
 
@@ -274,10 +269,10 @@ Our posture handles that:
 
 ### Validation coverage that backs this
 
-- WSP retry test proves `429` retries to success within bounds.
-- WSP retry test proves non-retryable `400` fails immediately (no repeated push).
-- IG duplicate test proves second admission does not republish to bus.
-- IG ambiguity test proves publish failure is recorded as `PUBLISH_AMBIGUOUS` and quarantined with anomaly evidence.
+- WSP retryable success path: `tests/services/ingestion_gate/test_phase5_retries.py::test_with_retry_succeeds_after_failures`
+- WSP non-retryable 4xx fail-fast: `tests/services/world_streamer_producer/test_push_retry.py::test_push_rejects_non_retryable_4xx`
+- IG duplicate no-republish: `tests/services/ingestion_gate/test_admission.py::test_duplicate_does_not_republish`
+- IG publish ambiguity quarantine: `tests/services/ingestion_gate/test_admission.py::test_publish_ambiguous_quarantines_and_marks_state`
 
 ## Q6) What is your “stream health vs flow health” lesson: what looked healthy but wasn’t, and how did you prove the truth?
 
@@ -294,6 +289,9 @@ But business flow was effectively dead:
 - bounded run never actually advanced for the active run.
 
 So we had a classic false-green: processes alive, value path stalled.
+
+Historical artifact note:
+- The run-specific report file for that run is not retained in the current workspace, but the original path and conclusion were recorded during implementation: `runs/fraud-platform/platform_20260210T042030Z/obs/platform_run_report.json`.
 
 ### How I proved the real state
 
@@ -317,7 +315,7 @@ The contradiction across those planes exposed truth:
 
 ### The second reinforcement of the same lesson
 
-Even after control-bus starvation was fixed, we saw another false confidence pattern:
+Even after control-bus starvation was fixed, we saw another false confidence pattern in `platform_20260210T042533Z`:
 - IG showed activity,
 - but decision lane stayed empty in gate window because consumers were replaying historical backlog.
 
@@ -362,15 +360,27 @@ Anchor run:
 1. Run report ingress summary
 - `runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json`
 - confirms:
-  - `ingress.sent = 800` (matches bounded WSP total),
-  - `publish_ambiguous = 0`,
-  - `duplicate = 0` for ingress summary.
+  - `ingress.sent = 800` (bounded WSP output total),
+  - `ingress.admit = 1577`,
+  - `ingress.duplicate = 0`,
+  - `ingress.quarantine = 0`,
+  - `ingress.publish_ambiguous = 0`.
+
+JSON paths used:
+- `ingress.sent`
+- `ingress.admit`
+- `ingress.duplicate`
+- `ingress.quarantine`
+- `ingress.publish_ambiguous`
 
 2. Receipt refs proving IG commit path to EB
 - same run report includes `receipt_refs_sample` under:
   - `s3://fraud-platform/platform_20260212T085637Z/ig/receipts/...`
 - sample from that list:
   - `s3://fraud-platform/platform_20260212T085637Z/ig/receipts/00965821d94105a3d88ad6085b3c5b37.json`
+
+JSON path used:
+- `evidence_refs.receipt_refs_sample`
 
 3. Offset truth ownership note
 - IG persists admission state with EB coordinates (`topic/partition/offset`) as part of admitted state and receipt model.

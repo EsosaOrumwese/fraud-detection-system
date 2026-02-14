@@ -79,8 +79,8 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | M1 | P(-1) | Packaging readiness (image + entrypoints + provenance) | DONE |
 | M2 | P0 | Substrate readiness (Terraform core+confluent+demo) | DONE |
 | M3 | P1 | Run pinning + run manifest evidence | DONE |
-| M4 | P2 | Daemon bring-up on ECS with run-scope controls | ACTIVE |
-| M5 | P3 | Oracle lane (seed/sort/checker) | NOT_STARTED |
+| M4 | P2 | Daemon bring-up on ECS with run-scope controls | DONE |
+| M5 | P3 | Oracle lane (seed/sort/checker) | ACTIVE |
 | M6 | P4-P7 | Control+Ingress closure | NOT_STARTED |
 | M7 | P8-P10 | RTDL + Case/Labels closure | NOT_STARTED |
 | M8 | P11 | Obs/Gov closure | NOT_STARTED |
@@ -106,7 +106,8 @@ Current deep-plan file state:
 - `M2`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md` (present)
 - `M3`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md` (present)
 - `M4`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md` (present)
-- `M5..M10`: deferred until phase activation is approved.
+- `M5`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md` (present)
+- `M6..M10`: deferred until phase activation is approved.
 
 ---
 
@@ -135,7 +136,8 @@ Current phase posture:
 - `M0` is closed,
 - `M2` is `DONE`,
 - `M3` is `DONE`,
-- `M4` is `ACTIVE` for execution planning/bring-up preparation.
+- `M4` is `DONE`,
+- `M5` is `ACTIVE` for deep planning before execution.
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -358,87 +360,78 @@ M3 DoD checklist:
 
 ---
 
-## 9) M4 Active Phase + Remaining Phases
+## 9) M5 Active Phase + Remaining Phases
 
 ## M4 - P2 Daemon bring-up
-Status: `ACTIVE`
-Entry gate:
-- M3 is `DONE`.
-
-Objective:
-- Bring up Spine Green v0 daemon packs on ECS with strict run-scope enforcement and deterministic singleton replica posture, then publish durable readiness evidence for M5.
-
-Scope:
-- P2 pack bring-up for in-scope v0 packs:
-  - `control_ingress`
-  - `rtdl_core`
-  - `rtdl_decision_lane`
-  - `case_labels`
-  - `obs_gov` (daemonized parts only; P11 single-writer reporter rule remains).
-- ECS service/task health stabilization and crashloop detection.
-- Run-scope env enforcement (`REQUIRED_PLATFORM_RUN_ID`) across all started daemons.
-- Duplicate-consumer guard (no parallel once-off/manual consumers with daemon lanes).
-- Durable readiness evidence publication:
-  - run-scoped `operate/daemons_ready.json`,
-  - M4 control-plane snapshots and M5 handoff package.
-
-Failure posture:
-- fail closed on unresolved service handles, IAM/network/dependency failures, run-scope mismatch, duplicate-consumer risk, or missing readiness evidence.
-
-Active-phase planning posture:
-- Detailed M4 authority file:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`.
-- M4 entry handoff anchor:
-  - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3_20260213T221631Z/m4_handoff_pack.json`.
-- M4 sub-phase progression model:
-  - `M4.A` authority + handle closure for P2.
-  - `M4.B` service/pack map + singleton replica contract.
-  - `M4.C` IAM role binding + execution identity validation.
-  - `M4.D` network/dependency reachability validation.
-  - `M4.E` launch contract + run-scope injection surface.
-  - `M4.F` daemon bring-up choreography + stabilization checks.
-  - `M4.G` duplicate-consumer guard and singleton enforcement.
-  - `M4.H` daemon readiness evidence publication.
-  - `M4.I` pass gates + blocker model + verdict.
-  - `M4.J` M5 handoff artifact publication.
-- M4 expansion state:
-  - `M4.A -> M4.J` are fully expanded in the deep plan with entry conditions, required inputs, execution sequence, evidence artifacts, blocker taxonomy, and handoff rules.
-  - `M4.D` planning is expanded to execution-grade and now explicitly requires runtime-equivalent managed-compute probing (no laptop-only dependency proof).
-  - `M4.E` planning is expanded to execution-grade with deterministic launch-profile matrix, run-scope injection invariants, role-binding drift checks, and immutable image-provenance requirements.
-  - `M4.F` planning is expanded to execution-grade with pack-ordered bring-up choreography, explicit stabilization predicates, run-scope mismatch scans, and crashloop fail-closed checks.
-  - `M4.G` planning is expanded to execution-grade with two-sample consumer-uniqueness checks, explicit ECS ownership predicates, and singleton drift fail-closed gates.
-  - `M4.H` planning is expanded to execution-grade with canonical readiness artifact schema, source-gate invariants (`M4.B/F/G`), and durable publication/non-secret fail-closed checks.
-  - `M4.I` planning is expanded to execution-grade with deterministic predicate derivation from `M4.A..M4.H`, explicit blocker-rollup algorithm, verdict semantics (`ADVANCE_TO_M5`/`HOLD_M4`), and local+durable `m4_i_verdict_snapshot.json` publication contract.
-  - `M4.J` planning is expanded to execution-grade with strict `M4.I=ADVANCE_TO_M5` entry gate, canonical `m5_handoff_pack.json` schema, run-id/URI readability invariants, and durable handoff publication contract.
-- Sub-phase progress:
-  - [x] `M4.A` authority + handle closure for P2.
-  - [x] `M4.B` service/pack map + singleton replica contract.
-  - [x] `M4.C` IAM role binding + execution identity validation.
-  - [x] `M4.D` network/dependency reachability validation.
-  - [x] `M4.E` launch contract + run-scope injection surface.
-  - [x] `M4.F` daemon bring-up choreography + stabilization checks.
-  - [x] `M4.G` duplicate-consumer guard and singleton enforcement.
-  - [x] `M4.H` daemon readiness evidence publication.
-  - [x] `M4.I` pass gates + blocker model + verdict.
-  - [x] `M4.J` M5 handoff artifact publication.
-
-M4 DoD checklist:
-- [x] required services/tasks run on ECS only.
-- [x] run-scope enforcement active (`REQUIRED_PLATFORM_RUN_ID` semantics).
-- [x] service replica posture is deterministic for v0 (single replica per daemon/service).
-- [x] no duplicate-consumer conflict exists for in-scope lanes.
-- [x] daemon readiness snapshot evidence is written and durable.
-- [x] M4 verdict and M5 handoff package are published and non-secret.
+Status: `DONE`
+Closure summary:
+- M4 executed end-to-end and closed with `M4.J` handoff publication PASS.
+- Closure evidence anchors:
+  - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/operate/daemons_ready.json`
+  - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T170155Z/m4_i_verdict_snapshot.json`
+  - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T170953Z/m5_handoff_pack.json`
+- M4 deep authority/closure ledger:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
 
 ## M5 - P3 Oracle lane
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 Entry gate:
 - M4 is `DONE`.
-DoD summary:
-- seed/sort/checker complete via managed compute.
-- stream_view manifests + sort receipts present.
-- strict S3->S3 source policy enforced.
-- checker PASS evidence is present and fail-closed on partial/invalid outputs.
+- M4 handoff artifact is present:
+  - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T170953Z/m5_handoff_pack.json`.
+
+Objective:
+- Materialize deterministic P3 oracle readiness for WSP by producing run-scoped `stream_view` outputs and checker PASS evidence on managed compute only.
+
+Scope:
+- P3 oracle-lane flow:
+  - seed/sync from managed object-store sources only (if required),
+  - stream-sort per required output_id with deterministic sort keys,
+  - checker fail-closed validation across all required output_ids.
+- Commit run-scoped durable evidence:
+  - stream_view manifests + sort receipts under oracle prefix,
+  - `oracle/seed_snapshot.json` (if seed executed),
+  - `oracle/stream_sort_summary.json`,
+  - `oracle/checker_pass.json`.
+- Preserve no-laptop and S3->S3 laws with per-output rerun semantics.
+
+Failure posture:
+- fail closed on unresolved P3 handles, non-S3 seed source, missing manifest/receipt, checker failure, or missing durable evidence.
+
+Active-phase planning posture:
+- Detailed M5 authority file:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`.
+- M5 entry handoff anchor:
+  - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T170953Z/m5_handoff_pack.json`.
+- M5 sub-phase progression model:
+  - `M5.A` authority + handle closure for P3.
+  - `M5.B` seed/sync decision + source-policy closure.
+  - `M5.C` seed/sync execution (conditional, fail-closed when required).
+  - `M5.D` stream-sort launch contract and per-output task plan.
+  - `M5.E` stream-sort execution + receipt/manifest publication.
+  - `M5.F` checker execution + pass artifact publication.
+  - `M5.G` per-output rerun safety proof (targeted failure/recovery drill or equivalent evidence).
+  - `M5.H` P3 gate evaluation + blocker rollup + verdict.
+  - `M5.I` M6 handoff artifact publication.
+- M5 expansion state:
+  - `M5.A -> M5.I` are now expanded to execution-grade in the deep plan with entry criteria, required inputs, deterministic tasks, DoD, and blockers.
+- Sub-phase progress:
+  - [ ] `M5.A` authority + handle closure for P3.
+  - [ ] `M5.B` seed/sync decision + source-policy closure.
+  - [ ] `M5.C` seed/sync execution (conditional).
+  - [ ] `M5.D` stream-sort launch contract.
+  - [ ] `M5.E` stream-sort execution + receipts/manifests.
+  - [ ] `M5.F` checker execution + checker pass artifact.
+  - [ ] `M5.G` per-output rerun safety proof.
+  - [ ] `M5.H` P3 verdict + blocker rollup.
+  - [ ] `M5.I` M6 handoff publication.
+
+M5 DoD checklist:
+- [ ] P3 inputs for this run exist in S3 (seeded or already present).
+- [ ] For each required output_id, stream_view shards + manifest + stream_sort receipt exist.
+- [ ] `oracle/checker_pass.json` exists and confirms full PASS for required output_ids.
+- [ ] P3 rerun posture is fail-closed and per-output (no forced full rerun for single-output failure).
+- [ ] M5 verdict and M6 handoff package are published and non-secret.
 
 ## M6 - P4-P7 Control + Ingress closure
 Status: `NOT_STARTED`
@@ -588,8 +581,8 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M4 is fully executed and awaiting USER confirmation for phase status transition.
+M5 is active for deep-plan closure and execution sequencing.
 Next action:
-- review M4 closure evidence (`M4.A..M4.J`) and confirm phase-status transition to `DONE`,
-- upon USER confirmation, move to `M5` activation using `m5_handoff_pack.json` as entry anchor,
-- keep fail-closed posture if any post-check drift appears before M5 start.
+- start with `M5.A` authority + handle closure for P3 using the M4 handoff anchor,
+- confirm P3 decision set is explicitly pinned (required output_ids, sort-key map, seed-source policy, task-definition handles) before execution,
+- proceed to `M5.B` only after `M5.A` blockers are empty.
