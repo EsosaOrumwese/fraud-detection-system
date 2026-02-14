@@ -337,9 +337,12 @@ So this was not a cosmetic warning. It was a true closure blocker, treated fail-
 This incident was about preventing a false system claim, not fixing a syntax bug.
 
 What was the contradiction:
-- Claim requested: "full-platform bounded acceptance is green."
+- Claim requested: "Spine Green baseline under bounded 20/200 acceptance is green."
 - Runtime reality at that moment: the live operate surface did not yet include daemonized Case/Label execution.
 - Meaning: some lanes were implemented in code but not live in run/operate. I call that `matrix-only` (implemented on paper, not running as active processes in the current run scope).
+
+How the drift was detected:
+- During preflight, I compared Spine baseline required scope (including `P10 CASE_LABELS_COMMITTED`) against active operate packs and found `case_labels` was not present as a daemonized pack in the live run surface.
 
 Why that was blocker-grade:
 - If Case/Label is matrix-only, a "full-platform green" claim is overstated.
@@ -382,14 +385,25 @@ Top 3 winners when conflict appears:
 1. Cluster-specific acceptance authority (highest for this question):
 - Spine Green lifecycle and gate definitions for local parity.
 - This is where run-lifecycle truth is adjudicated for green/non-green claims.
+- Pinned artifacts:
+  - `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt`
+  - `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`
+  - `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
 
 2. Core platform-wide design authority:
 - Platform blueprint and deployment/tooling core notes.
 - These decide platform semantics: ownership boundaries, rails, and environment posture.
+- Pinned artifacts:
+  - `docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md`
+  - `docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md`
+  - Runtime decision ledger used for executed truth: `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md`
 
 3. Component design authority:
 - Component-specific design authority for the lane being touched (for example control/ingress, WSP, obs/gov semantics).
 - This resolves implementation mechanics when a lane-level detail is ambiguous.
+- Pinned artifact pattern:
+  - `docs/model_spec/platform/component-specific/<component>.design-authority.md`
+  - Example used in this cluster: `docs/model_spec/platform/component-specific/world_streamer_producer.design-authority.md`
 
 How I apply this practically (real example):
 - Conflict seen: a full-parity status command required learning-lane DSNs during a Spine baseline gate.
@@ -406,11 +420,10 @@ Why this matters:
 
 Yes. We run a strict stop/log/repin protocol.
 
-Trigger conditions (any one is enough):
-1. A material designed-flow vs runtime mismatch is detected.
-2. A required gate artifact is missing, contradictory, or ambiguous.
-3. A scope claim would be stronger than the evidence actually supports.
-4. Authority documents conflict in a way that affects runtime behavior or closure truth.
+Trigger conditions (examples from this project):
+1. Gate contradiction: DLA unresolved lineage (`lineage_unresolved_total > 0`) at `P9`.
+2. Coverage drift: a required Spine baseline lane (`P10` Case/Labels) is not daemonized in active run/operate packs.
+3. Authority conflict affecting closure truth: full-parity status command introduces learning-lane requirements into Spine baseline gating.
 
 What happens immediately:
 1. Stop execution of the affected claim path (or stop progression to next phase).
@@ -419,12 +432,13 @@ What happens immediately:
 - impacted lanes/components,
 - runtime consequence if ignored.
 3. Do not continue until resolution path is explicitly chosen.
+4. Freeze readiness statement at non-green/HOLD until rerun evidence closes the gap.
 
 Who can override:
 - Only explicit user direction can authorize a repin or a scope change.
 - There is no silent self-override by the implementer.
 
-Where it is recorded (audit trail):
+Where it is recorded (audit trail, exact files):
 1. Pre-change lock entry:
 - problem framing,
 - options considered,
@@ -434,10 +448,20 @@ Where it is recorded (audit trail):
 - validation outcomes,
 - drift-sentinel assessment.
 3. Day logbook entry with timestamp.
+- Files:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md` (when on dev track)
+  - `docs/logbook/<MM-YYYY>/<YYYY-MM-DD>.md`
+  - Evidence artifacts under `runs/fraud-platform/<platform_run_id>/...`
 
 What “repin” means in practice:
 - We update the authoritative scope/gate statement before resuming execution.
 - Then we rerun the required validation sequence under the new pinned truth.
+- In concrete terms, repin can update:
+  - accepted scope labels (baseline vs full parity),
+  - required run/operate pack set,
+  - gate pass criteria and blocker semantics,
+  - command surface allowed for that claim stage.
 
 Concrete examples from this project:
 1. `P9` lineage incident (`platform_20260212T075128Z`):
@@ -454,6 +478,11 @@ Concrete examples from this project:
 Why this is important:
 - It prevents schedule pressure from silently turning into false-green technical debt.
 - It keeps every major claim replayable and auditable after the fact.
+
+Incident closed criteria:
+1. The triggering contradiction is resolved in implementation/config/runtime posture.
+2. A fresh run closes required gates with artifact evidence.
+3. The closure decision and evidence pointers are logged in implementation map + day logbook.
 
 ---
 
