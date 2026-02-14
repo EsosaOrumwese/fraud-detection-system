@@ -53,6 +53,35 @@ variable "ecs_probe_container_image" {
   default = "public.ecr.aws/docker/library/busybox:1.36"
 }
 
+variable "ecs_daemon_container_image" {
+  type    = string
+  default = ""
+}
+
+variable "ecs_daemon_task_cpu" {
+  type    = string
+  default = "256"
+}
+
+variable "ecs_daemon_task_memory" {
+  type    = string
+  default = "512"
+}
+
+variable "required_platform_run_id_env_key" {
+  type    = string
+  default = "REQUIRED_PLATFORM_RUN_ID"
+}
+
+variable "required_platform_run_id" {
+  type = string
+
+  validation {
+    condition     = trimspace(var.required_platform_run_id) != ""
+    error_message = "required_platform_run_id must be non-empty for daemon service materialization."
+  }
+}
+
 variable "confluent_env_name" {
   type    = string
   default = "dev_min"

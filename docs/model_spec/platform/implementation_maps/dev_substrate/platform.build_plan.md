@@ -1,6 +1,6 @@
 # Dev Substrate Migration Build Plan (Fresh Start)
 _Track: local_parity -> dev_min managed substrate (Spine Green v0)_
-_Last updated: 2026-02-13_
+_Last updated: 2026-02-14_
 
 ## 0) Purpose
 This is the active execution plan for migrating the already-canonical local-parity Spine Green v0 flow into `dev_min` with:
@@ -406,13 +406,14 @@ Active-phase planning posture:
   - `M4.D` planning is expanded to execution-grade and now explicitly requires runtime-equivalent managed-compute probing (no laptop-only dependency proof).
   - `M4.E` planning is expanded to execution-grade with deterministic launch-profile matrix, run-scope injection invariants, role-binding drift checks, and immutable image-provenance requirements.
   - `M4.F` planning is expanded to execution-grade with pack-ordered bring-up choreography, explicit stabilization predicates, run-scope mismatch scans, and crashloop fail-closed checks.
+  - `M4.G` planning is expanded to execution-grade with two-sample consumer-uniqueness checks, explicit ECS ownership predicates, and singleton drift fail-closed gates.
 - Sub-phase progress:
   - [x] `M4.A` authority + handle closure for P2.
   - [x] `M4.B` service/pack map + singleton replica contract.
   - [x] `M4.C` IAM role binding + execution identity validation.
   - [x] `M4.D` network/dependency reachability validation.
   - [x] `M4.E` launch contract + run-scope injection surface.
-  - [ ] `M4.F` daemon bring-up choreography + stabilization checks.
+  - [x] `M4.F` daemon bring-up choreography + stabilization checks.
   - [ ] `M4.G` duplicate-consumer guard and singleton enforcement.
   - [ ] `M4.H` daemon readiness evidence publication.
   - [ ] `M4.I` pass gates + blocker model + verdict.
@@ -584,9 +585,8 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M4 is active for execution planning and bring-up preparation.
+M4 is active for sequential closure after daemon bring-up.
 Next action:
-- resolve active `M4F-B1/B2/B5/B6` by materializing all mapped ECS daemon services/task definitions and enabling runtime run-scope validation,
-- re-run `M4.F` and require singleton stabilization + run-scope checks PASS with `missing_mapped_services=[]`,
-- then progress sequentially through `M4.G -> M4.J` under fail-closed blocker discipline,
-- maintain run-scope contract from M3 artifacts for all daemon bring-up operations.
+- execute `M4.G` duplicate-consumer guard and singleton-posture drift checks against live daemon services,
+- publish `m4_g_consumer_uniqueness_snapshot.json` locally + durably and fail closed on any duplicate/manual consumer conflict,
+- proceed to `M4.H -> M4.J` only if `M4.G` blockers are empty.

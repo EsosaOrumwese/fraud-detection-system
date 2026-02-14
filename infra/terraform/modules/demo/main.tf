@@ -15,6 +15,102 @@ locals {
     case_labels     = "${var.name_prefix}-case-labels"
     env_conformance = "${var.name_prefix}-env-conformance"
   }
+
+  daemon_container_image_resolved = trimspace(var.ecs_daemon_container_image) != "" ? var.ecs_daemon_container_image : var.ecs_probe_container_image
+
+  daemon_service_specs = {
+    "ig" = {
+      service_name   = "${var.name_prefix}-ig"
+      lane_role_key  = "ig_service"
+      pack_id        = "control_ingress"
+      runtime_mode   = "service"
+      component_mode = "ig"
+    }
+    "rtdl-core-archive-writer" = {
+      service_name   = "${var.name_prefix}-rtdl-core-archive-writer"
+      lane_role_key  = "rtdl_core"
+      pack_id        = "rtdl_core"
+      runtime_mode   = "worker"
+      component_mode = "archive_writer"
+    }
+    "rtdl-core-ieg" = {
+      service_name   = "${var.name_prefix}-rtdl-core-ieg"
+      lane_role_key  = "rtdl_core"
+      pack_id        = "rtdl_core"
+      runtime_mode   = "worker"
+      component_mode = "ieg"
+    }
+    "rtdl-core-ofp" = {
+      service_name   = "${var.name_prefix}-rtdl-core-ofp"
+      lane_role_key  = "rtdl_core"
+      pack_id        = "rtdl_core"
+      runtime_mode   = "worker"
+      component_mode = "ofp"
+    }
+    "rtdl-core-csfb" = {
+      service_name   = "${var.name_prefix}-rtdl-core-csfb"
+      lane_role_key  = "rtdl_core"
+      pack_id        = "rtdl_core"
+      runtime_mode   = "worker"
+      component_mode = "csfb"
+    }
+    "decision-lane-dl" = {
+      service_name   = "${var.name_prefix}-decision-lane-dl"
+      lane_role_key  = "decision_lane"
+      pack_id        = "rtdl_decision_lane"
+      runtime_mode   = "worker"
+      component_mode = "dl"
+    }
+    "decision-lane-df" = {
+      service_name   = "${var.name_prefix}-decision-lane-df"
+      lane_role_key  = "decision_lane"
+      pack_id        = "rtdl_decision_lane"
+      runtime_mode   = "worker"
+      component_mode = "df"
+    }
+    "decision-lane-al" = {
+      service_name   = "${var.name_prefix}-decision-lane-al"
+      lane_role_key  = "decision_lane"
+      pack_id        = "rtdl_decision_lane"
+      runtime_mode   = "worker"
+      component_mode = "al"
+    }
+    "decision-lane-dla" = {
+      service_name   = "${var.name_prefix}-decision-lane-dla"
+      lane_role_key  = "decision_lane"
+      pack_id        = "rtdl_decision_lane"
+      runtime_mode   = "worker"
+      component_mode = "dla"
+    }
+    "case-trigger" = {
+      service_name   = "${var.name_prefix}-case-trigger"
+      lane_role_key  = "case_labels"
+      pack_id        = "case_labels"
+      runtime_mode   = "worker"
+      component_mode = "case_trigger"
+    }
+    "case-mgmt" = {
+      service_name   = "${var.name_prefix}-case-mgmt"
+      lane_role_key  = "case_labels"
+      pack_id        = "case_labels"
+      runtime_mode   = "service"
+      component_mode = "cm"
+    }
+    "label-store" = {
+      service_name   = "${var.name_prefix}-label-store"
+      lane_role_key  = "case_labels"
+      pack_id        = "case_labels"
+      runtime_mode   = "service"
+      component_mode = "ls"
+    }
+    "env-conformance" = {
+      service_name   = "${var.name_prefix}-env-conformance"
+      lane_role_key  = "env_conformance"
+      pack_id        = "obs_gov"
+      runtime_mode   = "worker"
+      component_mode = "env_conformance"
+    }
+  }
 }
 
 data "aws_availability_zones" "available" {
@@ -298,6 +394,89 @@ resource "aws_ecs_service" "runtime_probe" {
   depends_on = [aws_iam_role_policy_attachment.ecs_task_execution]
 }
 
+resource "aws_ecs_task_definition" "daemon" {
+  for_each = local.daemon_service_specs
+
+  family                   = each.value.service_name
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.ecs_daemon_task_cpu
+  memory                   = var.ecs_daemon_task_memory
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.lane_app_roles[each.value.lane_role_key].arn
+
+  container_definitions = jsonencode([
+    {
+      name      = each.key
+      image     = local.daemon_container_image_resolved
+      essential = true
+      command = [
+        "sh",
+        "-c",
+        "echo daemon_started service=${each.value.service_name} pack=${each.value.pack_id} mode=${each.value.component_mode} run_scope_env=${var.required_platform_run_id_env_key} run_scope_value=${var.required_platform_run_id}; trap 'exit 0' TERM INT; while true; do sleep 300; done",
+      ]
+      environment = [
+        {
+          name  = var.required_platform_run_id_env_key
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "FP_PACK_ID"
+          value = each.value.pack_id
+        },
+        {
+          name  = "FP_RUNTIME_MODE"
+          value = each.value.runtime_mode
+        },
+        {
+          name  = "FP_COMPONENT_MODE"
+          value = each.value.component_mode
+        },
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.demo.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs/${each.key}"
+        }
+      }
+    }
+  ])
+
+  tags = merge(local.tags_demo, {
+    fp_resource = "demo_ecs_task_definition_daemon"
+    fp_pack     = each.value.pack_id
+    fp_service  = each.value.service_name
+  })
+}
+
+resource "aws_ecs_service" "daemon" {
+  for_each = local.daemon_service_specs
+
+  name            = each.value.service_name
+  cluster         = aws_ecs_cluster.demo.id
+  task_definition = aws_ecs_task_definition.daemon[each.key].arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  deployment_maximum_percent         = 100
+  deployment_minimum_healthy_percent = 0
+
+  network_configuration {
+    assign_public_ip = true
+    subnets          = [for subnet in aws_subnet.public : subnet.id]
+    security_groups  = [aws_security_group.app.id]
+  }
+
+  tags = merge(local.tags_demo, {
+    fp_resource = "demo_ecs_service_daemon"
+    fp_pack     = each.value.pack_id
+  })
+
+  depends_on = [aws_iam_role_policy_attachment.ecs_task_execution]
+}
+
 resource "aws_db_subnet_group" "demo" {
   name       = "${var.name_prefix}-db-subnet-group"
   subnet_ids = [for subnet in aws_subnet.public : subnet.id]
@@ -356,6 +535,8 @@ resource "aws_s3_object" "manifest" {
     rds_instance_id       = aws_db_instance.runtime.identifier
     rds_endpoint          = aws_db_instance.runtime.address
     td_db_migrations      = aws_ecs_task_definition.db_migrations.arn
+    daemon_services       = { for key, svc in aws_ecs_service.daemon : key => svc.name }
+    daemon_task_defs      = { for key, td in aws_ecs_task_definition.daemon : key => td.arn }
     ssm_paths = {
       confluent_bootstrap  = aws_ssm_parameter.confluent_bootstrap.name
       confluent_api_key    = aws_ssm_parameter.confluent_api_key.name

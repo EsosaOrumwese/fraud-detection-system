@@ -14,7 +14,8 @@ This stack is the canonical root pinned by:
   - topic catalog artifact for pinned topic map visibility.
 - ECS runtime scaffolding:
   - VPC/public subnets/security groups,
-  - ECS cluster + minimal task definition + desired-count-zero service.
+  - ECS cluster + probe/migration definitions,
+  - mapped Spine Green v0 daemon task definitions/services (`13`) with singleton desired count.
 - Runtime DB:
   - demo-scoped Postgres RDS instance + subnet group + DB security group,
   - canonical SSM paths for DB user/password (and optional DSN).
@@ -38,3 +39,4 @@ terraform -chdir=infra/terraform/dev_min/demo validate
 - Apply/destroy is phase-gated by platform M2/M9 process.
 - Recommended order: apply `core`, then `confluent`, then `demo`.
 - Manual Confluent values are fallback-only (`confluent_credentials_source = "manual"`).
+- `required_platform_run_id` is mandatory and injected into every mapped daemon using `required_platform_run_id_env_key` (default `REQUIRED_PLATFORM_RUN_ID`).

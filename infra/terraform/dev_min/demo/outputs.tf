@@ -78,6 +78,14 @@ output "ecs_probe_service_name" {
   value = module.demo.ecs_probe_service_name
 }
 
+output "ecs_daemon_service_names" {
+  value = module.demo.ecs_daemon_service_names
+}
+
+output "ecs_daemon_task_definition_arns" {
+  value = module.demo.ecs_daemon_task_definition_arns
+}
+
 output "vpc_id" {
   value = module.demo.vpc_id
 }

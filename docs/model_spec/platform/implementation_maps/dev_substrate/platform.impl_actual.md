@@ -8997,3 +8997,86 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - unresolved blocker register now includes active `M4F-B1/B2/B5/B6` with closure criteria.
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
    - immediate next action now requires service/task-definition materialization for mapped daemons, then `M4.F` rerun.
+## Entry: 2026-02-14 03:34PM - M4.F closure after ECS daemon materialization + rerun PASS
+
+### Trigger
+1. USER instructed: materialize the `13` ECS daemon services/task definitions and rerun `M4.F`.
+
+### Execution actions
+1. Expanded dev_min demo Terraform to materialize mapped daemon runtime surfaces:
+   - module changes in `infra/terraform/modules/demo` to create `aws_ecs_task_definition.daemon[*]` and `aws_ecs_service.daemon[*]` for all `13` mapped services.
+   - run-scope injection pinned in every daemon task definition using `required_platform_run_id_env_key` + `required_platform_run_id`.
+2. Applied demo Terraform with active run identity and immutable image reference:
+   - `required_platform_run_id=platform_20260213T214223Z`
+   - `ecs_daemon_container_image=230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-min@sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56`
+   - plan/apply evidence:
+     - `runs/dev_substrate/m4/20260214T152041Z/m4_f_service_materialization.plan.txt`
+     - `runs/dev_substrate/m4/20260214T152041Z/m4_f_service_materialization.apply.txt`
+3. Reran `M4.F` bring-up choreography (pack-order rollout + forced deployments + stabilization + run-scope checks).
+4. First rerun (`20260214T152324Z`) raised `M4F-B3` due overly broad crashloop heuristic matching normal rollout stop events.
+5. Tightened crashloop detection to failure-signature-only matching, then reran `M4.F`.
+
+### Outcome
+1. `M4.F` PASS closure achieved on rerun:
+   - local: `runs/dev_substrate/m4/20260214T152757Z/m4_f_daemon_start_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T152757Z/m4_f_daemon_start_snapshot.json`
+2. Pass summary:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `missing_mapped_services=[]`
+   - singleton stabilization pass across all `13` mapped daemon services.
+   - run-scope checks pass for all mapped services (`task_definition_env_contains_expected_run_scope`).
+
+### Plan-state updates
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+   - marked `M4.F` complete,
+   - cleared unresolved blocker register,
+   - moved `M4F-B1/B2/B5/B6` to resolved with closure evidence anchors.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - marked `M4.F` complete in M4 sub-phase progress,
+   - advanced immediate next action to `M4.G` duplicate-consumer/singleton guard lane.
+## Entry: 2026-02-14 03:46PM - M4.G planning expansion (execution-grade, planning-only)
+
+### Trigger
+1. USER instructed: proceed with M4.G planning.
+
+### Problem framing
+1. M4.F is now PASS, but M4 cannot advance unless duplicate-consumer risk is explicitly guarded and evidenced.
+2. Existing M4.G text is minimal and does not yet define:
+   - concrete runtime evidence sources,
+   - deterministic conflict predicates,
+   - stabilization-window recheck semantics,
+   - fail-closed blocker mapping beyond high-level labels.
+
+### Options considered
+1. Minimal checklist-only M4.G (status snapshot + subjective review).
+   - Rejected: not reproducible and can miss transient duplicate/manual task interference.
+2. Deterministic two-sample guard with explicit ECS task/service ownership rules.
+   - Selected: reproducible, objective, and aligned with P2 runbook non-duplication semantics.
+
+### Selected planning posture
+1. Define M4.G as an execution-grade lane with:
+   - strict entry gate from latest M4.F PASS snapshot,
+   - immutable mapped-service scope from M4.B (`13` services),
+   - runtime inventory evidence from ECS service/task APIs,
+   - explicit ownership model (`service:<mapped_service_name>` is canonical daemon ownership),
+   - duplicate conflict predicates for non-owned/extra running consumers,
+   - stabilization drift recheck over a bounded window,
+   - deterministic snapshot artifact `m4_g_consumer_uniqueness_snapshot.json`.
+2. Keep this step planning-only; no M4.G runtime execution in this entry.
+
+### Planned doc updates
+1. Expand M4.G section in `platform.M4.build_plan.md` with:
+   - entry conditions,
+   - required inputs,
+   - execution tasks,
+   - DoD checkboxes,
+   - blocker taxonomy with fail-closed semantics.
+2. Update high-level `platform.build_plan.md` to state M4.G is execution-grade planned and remains immediate next action.
+
+### Expected closure signal (for later execution)
+1. `m4_g_consumer_uniqueness_snapshot.json` shows:
+   - `duplicate_conflicts=[]`,
+   - `singleton_drift=[]`,
+   - `overall_pass=true`.
+2. Durable evidence URI under M4 control path exists and is non-secret.

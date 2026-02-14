@@ -1,7 +1,7 @@
 # Dev Substrate Deep Plan - M4 (P2 Daemons Ready)
 _Status source of truth: `platform.build_plan.md`_
 _This document provides deep planning detail for M4._
-_Last updated: 2026-02-13_
+_Last updated: 2026-02-14_
 
 ## 0) Purpose
 M4 activates the Spine Green v0 daemon packs on managed compute (ECS), enforces run-scope discipline from M3, validates health/stability and dependency reachability, and publishes durable readiness evidence used to enter M5.
@@ -516,11 +516,11 @@ Tasks:
    - blocker list + overall verdict.
 
 DoD:
-- [ ] All mapped services reach expected singleton running posture.
-- [ ] Crashloop-free stabilization checks pass.
-- [ ] Run-scope mismatch scan is explicit and PASS for all services.
-- [ ] Launch-contract/service-map parity checks are explicit and PASS.
-- [ ] `m4_f_daemon_start_snapshot.json` exists locally and durably.
+ - [x] All mapped services reach expected singleton running posture.
+ - [x] Crashloop-free stabilization checks pass.
+ - [x] Run-scope mismatch scan is explicit and PASS for all services.
+ - [x] Launch-contract/service-map parity checks are explicit and PASS.
+ - [x] `m4_f_daemon_start_snapshot.json` exists locally and durably.
 
 Blockers:
 1. `M4F-B1`: service start/update failure.
@@ -532,22 +532,69 @@ Blockers:
 
 ### M4.G Duplicate-Consumer Guard + Singleton Enforcement
 Goal:
-1. Ensure consumer uniqueness and no conflicting lane consumers.
+1. Prove duplicate-consumer safety after M4.F and preserve singleton posture over a bounded observation window.
+
+Entry conditions:
+1. Latest `M4.F` snapshot is PASS and durable:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `missing_mapped_services=[]`.
+2. `M4.B` mapped-service set (`13` services) remains immutable.
+3. `M4.E` launch contract remains authoritative for mapped service names and run-scope bindings.
+
+Required inputs:
+1. Control artifacts:
+   - `m4_b_service_map_snapshot.json`
+   - `m4_e_launch_contract_snapshot.json`
+   - latest `m4_f_daemon_start_snapshot.json`.
+2. Runtime handles:
+   - `ECS_CLUSTER_NAME`
+   - `ECS_SERVICE_DESIRED_COUNT_DEFAULT` (v0 expected `1`).
+3. Ownership rules (pinned for M4.G evidence):
+   - canonical daemon ownership identity for each mapped service is `service:<service_name>`,
+   - non-mapped daemon-like running consumers in mapped lanes are treated as conflict risk.
 
 Tasks:
-1. Check for duplicate/manual once-off consumer interference in mapped lanes.
-2. Validate singleton running posture is preserved after stabilization interval.
-3. Publish consumer-uniqueness snapshot.
+1. Build canonical uniqueness matrix from M4.B/M4.E:
+   - `service_name`
+   - expected ECS ownership group (`service:<service_name>`)
+   - expected singleton posture (`desired=1`, `running=1`, `pending=0`).
+2. Capture runtime inventory snapshot (sample-1):
+   - ECS service posture for all mapped services,
+   - running task inventory in cluster with:
+     - `taskArn`,
+     - `group`,
+     - `taskDefinitionArn`,
+     - `startedBy`.
+3. Evaluate duplicate-consumer conflict predicates:
+   - any non-owned running task overlapping mapped daemon families/groups -> conflict,
+   - any non-mapped running ECS service that materially overlaps mapped daemon lanes -> conflict.
+4. Evaluate singleton posture predicates (sample-1):
+   - mapped service singleton counters match expected deterministic posture.
+5. Stabilization drift recheck (sample-2):
+   - wait bounded interval,
+   - recapture service/task posture,
+   - detect drift:
+     - singleton count drift,
+     - newly introduced duplicate/non-owned consumers.
+6. Publish `m4_g_consumer_uniqueness_snapshot.json` locally and durably with:
+   - uniqueness matrix,
+   - sample-1 and sample-2 inventories,
+   - duplicate conflict findings,
+   - singleton drift findings,
+   - blocker list + verdict.
 
 DoD:
-- [ ] No duplicate consumer conflict exists for in-scope lanes.
-- [ ] Singleton posture remains stable.
-- [ ] M4.G uniqueness snapshot exists locally and durably.
+- [ ] Duplicate-consumer conflict predicates are explicit and PASS (`duplicate_conflicts=[]`).
+- [ ] Singleton posture remains stable across both samples (`singleton_drift=[]`).
+- [ ] Ownership matrix covers all `13` mapped services with no unmapped lane ambiguity.
+- [ ] `m4_g_consumer_uniqueness_snapshot.json` exists locally and durably.
 
 Blockers:
 1. `M4G-B1`: duplicate consumer conflict detected.
 2. `M4G-B2`: singleton posture drift after stabilization.
 3. `M4G-B3`: uniqueness snapshot write/upload failure.
+4. `M4G-B4`: runtime inventory evidence incomplete/unreadable for mapped lanes.
 
 ### M4.H Daemon Readiness Evidence Publication
 Goal:
@@ -665,7 +712,7 @@ Notes:
 - [x] M4.C complete
 - [x] M4.D complete
 - [x] M4.E complete
-- [ ] M4.F complete
+- [x] M4.F complete
 - [ ] M4.G complete
 - [ ] M4.H complete
 - [ ] M4.I complete
@@ -686,36 +733,28 @@ Control: mandatory run-scoped `operate/daemons_ready.json` and control-plane sna
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M4 Execution)
 Current blockers:
-1. `M4F-B1`:
-   - all mapped daemon service updates failed because services are not present in ECS cluster.
-   - evidence:
-     - `runs/dev_substrate/m4/20260214T150452Z/m4_f_daemon_start_snapshot.json`
-     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T150452Z/m4_f_daemon_start_snapshot.json`
-   - closure criteria:
-     - materialize the `13` mapped daemon services on ECS (task definitions + services),
-     - rerun `M4.F` with no service update/start failures.
-2. `M4F-B2`:
-   - stabilization failed for all mapped services (`desired=1/running=1/pending=0` not met) because services are missing.
-   - evidence:
-     - `runs/dev_substrate/m4/20260214T150452Z/m4_f_daemon_start_snapshot.json`
-   - closure criteria:
-     - after service materialization, rerun `M4.F` and achieve singleton stabilization PASS per service.
-3. `M4F-B5`:
-   - run-scope validation could not be performed because no mapped services were running.
-   - evidence:
-     - `runs/dev_substrate/m4/20260214T150452Z/m4_f_daemon_start_snapshot.json`
-   - closure criteria:
-     - rerun `M4.F` with running services and explicit run-scope marker/log checks PASS.
-4. `M4F-B6`:
-   - launch-contract/service-set drift at runtime substrate level: mapped service set exists in contract but is not materialized as ECS services.
-   - evidence:
-     - `runs/dev_substrate/m4/20260214T150452Z/m4_f_daemon_start_snapshot.json`
-   - closure criteria:
-     - establish deterministic service materialization lane for all mapped service names (no missing services in cluster),
-     - rerun `M4.F` with `missing_mapped_services=[]`.
+1. None.
 
 Resolved blockers:
-1. `M4C-B4`:
+1. `M4F-B1`:
+   - resolved by materializing mapped daemon task definitions/services via dev_min demo Terraform apply.
+   - closure evidence:
+     - `runs/dev_substrate/m4/20260214T152041Z/m4_f_service_materialization.apply.txt`
+     - `runs/dev_substrate/m4/20260214T152757Z/m4_f_daemon_start_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T152757Z/m4_f_daemon_start_snapshot.json`
+2. `M4F-B2`:
+   - resolved by singleton stabilization pass for all mapped services (`desired=1/running=1/pending=0`).
+   - closure evidence:
+     - `runs/dev_substrate/m4/20260214T152757Z/m4_f_daemon_start_snapshot.json`
+3. `M4F-B5`:
+   - resolved by explicit run-scope checks pass (`task_definition_env_contains_expected_run_scope`) for all mapped services.
+   - closure evidence:
+     - `runs/dev_substrate/m4/20260214T152757Z/m4_f_daemon_start_snapshot.json`
+4. `M4F-B6`:
+   - resolved by mapped-service set parity and no missing mapped services (`missing_mapped_services=[]`).
+   - closure evidence:
+     - `runs/dev_substrate/m4/20260214T152757Z/m4_f_daemon_start_snapshot.json`
+5. `M4C-B4`:
    - resolved by materializing lane role handles:
      - `ROLE_IG_SERVICE = fraud-platform-dev-min-ig-service`
      - `ROLE_RTDL_CORE = fraud-platform-dev-min-rtdl-core`
@@ -725,19 +764,19 @@ Resolved blockers:
    - closure evidence:
      - `runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json`
      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T121004Z/m4_c_iam_binding_snapshot.json`
-2. `M4C-B1`:
+6. `M4C-B1`:
    - resolved by valid role bindings for all mapped services (`role_binding_valid=true`).
    - closure evidence:
      - `runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json`
-3. `M4C-B2`:
+7. `M4C-B2`:
    - resolved by verified baseline IAM policy surface for all lane roles.
    - closure evidence:
      - `runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json`
-4. `M4D-B1`:
+8. `M4D-B1`:
    - dependency/network probes executed and passed on managed-compute probe lane; `M4.D` remained blocked only by handle-closure gap (`M4D-B5`).
    - evidence:
      - `runs/dev_substrate/m4/20260214T141438Z/m4_d_dependency_snapshot.json`
-5. `M4D-B5`:
+9. `M4D-B5`:
    - resolved by refreshing canonical `M4.A` handle closure to include `SECURITY_GROUP_ID_DB`.
    - refreshed `M4.A` closure evidence:
      - `runs/dev_substrate/m4/20260214T142309Z/m4_a_handle_closure_snapshot.json`
@@ -745,7 +784,7 @@ Resolved blockers:
    - `M4.D` rerun closure evidence (`missing_handles_in_m4a_closure=[]`, `overall_pass=true`):
      - `runs/dev_substrate/m4/20260214T142421Z/m4_d_dependency_snapshot.json`
      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T142421Z/m4_d_dependency_snapshot.json`
-6. `M4E-B3`:
+10. `M4E-B3`:
    - initial M4.E run raised a false-positive non-secret detector hit caused by handle-name string matching (`...API_SECRET_PATH`) rather than secret-value leakage.
    - closure action:
      - reran M4.E with stricter value-level secret detection.
@@ -754,7 +793,7 @@ Resolved blockers:
    - result:
      - `invariant_checks.non_secret_artifact=true`
      - no secret leakage blocker active.
-7. `M4E-B5`:
+11. `M4E-B5`:
    - resolved by pinning deterministic entrypoint handles in registry:
      - `ENTRYPOINT_CASE_TRIGGER_WORKER`
      - `ENTRYPOINT_ENV_CONFORMANCE_WORKER`

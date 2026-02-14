@@ -13,6 +13,11 @@ vpc_cidr = "10.42.0.0/16"
 public_subnet_cidrs = ["10.42.0.0/24", "10.42.1.0/24"]
 ecs_cluster_name = "fraud-platform-dev-min"
 ecs_probe_container_image = "public.ecr.aws/docker/library/busybox:1.36"
+ecs_daemon_container_image = ""
+ecs_daemon_task_cpu = "256"
+ecs_daemon_task_memory = "512"
+required_platform_run_id_env_key = "REQUIRED_PLATFORM_RUN_ID"
+required_platform_run_id = "platform_YYYYMMDDTHHMMSSZ"
 
 confluent_credentials_source = "remote_state"
 confluent_state_bucket = "fraud-platform-dev-min-tfstate"
