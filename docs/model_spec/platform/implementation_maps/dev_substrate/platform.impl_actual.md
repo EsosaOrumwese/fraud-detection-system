@@ -8501,3 +8501,42 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Execution posture after planning
 1. This pass is planning-only; no M4.B runtime/service operations were executed.
 2. Next action remains M4.B execution against the expanded criteria.
+## Entry: 2026-02-14 12:40PM - M4.B executed: service/pack map + singleton contract PASS
+
+### Trigger
+1. USER directed execution of `M4.B` after M4.B planning expansion and M4.A PASS.
+
+### Execution scope
+1. Loaded and validated M4.A entry conditions from:
+   - `runs/dev_substrate/m4/20260214T121004Z/m4_a_handle_closure_snapshot.json`
+2. Built canonical P2 in-scope pack map (`5` packs only):
+   - `control_ingress`, `rtdl_core`, `rtdl_decision_lane`, `case_labels`, `obs_gov`.
+3. Bound required service handles to concrete names with source provenance and materialization origin.
+4. Pinned singleton policy for all mapped services:
+   - `desired_count=1`, `replica_policy=v0_singleton_deterministic`.
+5. Enforced exclusions:
+   - no `TD_*` handles in daemon service map,
+   - no reporter inclusion in P2 map (`TD_REPORTER` remains P11 surface).
+6. Published `m4_b_service_map_snapshot.json` locally and durably.
+
+### Result
+1. `M4.B` PASS.
+2. Blockers: none (`M4B-B1..B5` not triggered).
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/m4/20260214T121004Z/m4_b_service_map_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T121004Z/m4_b_service_map_snapshot.json`
+
+### Notes
+1. Current concrete `SVC_*` names remain sourced from the M4.A resolved naming-contract artifact (`m4_a_handle_closure_snapshot.json`), which in turn references the prior closure matrix source.
+2. M4.C should now validate IAM role/task attachability against this exact service map.
+
+### Plan state updates
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+   - M4.B DoD checklist marked complete.
+   - M4 completion checklist marks `M4.B` complete.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - M4 sub-phase progress marks `M4.B` complete.
+   - Immediate next action now points to `M4.C`.

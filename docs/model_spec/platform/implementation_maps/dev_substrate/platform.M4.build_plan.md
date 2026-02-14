@@ -230,11 +230,11 @@ Tasks:
 5. Emit `m4_b_service_map_snapshot.json` locally and durably.
 
 DoD:
-- [ ] M4 pack/service map contains exactly five in-scope packs and no out-of-scope packs.
-- [ ] All required service handles have concrete service-name bindings and source provenance.
-- [ ] Singleton desired_count policy (`1`) is pinned for each mapped service.
-- [ ] Exclusions (`TD_*`, reporter in P2) are explicit in artifact.
-- [ ] `m4_b_service_map_snapshot.json` exists locally and durably.
+- [x] M4 pack/service map contains exactly five in-scope packs and no out-of-scope packs.
+- [x] All required service handles have concrete service-name bindings and source provenance.
+- [x] Singleton desired_count policy (`1`) is pinned for each mapped service.
+- [x] Exclusions (`TD_*`, reporter in P2) are explicit in artifact.
+- [x] `m4_b_service_map_snapshot.json` exists locally and durably.
 
 Blockers:
 1. `M4B-B1`: service map incomplete or contains pack/service drift vs P2 in-scope contract.
@@ -468,7 +468,7 @@ Notes:
 
 ## 7) M4 Completion Checklist
 - [x] M4.A complete
-- [ ] M4.B complete
+- [x] M4.B complete
 - [ ] M4.C complete
 - [ ] M4.D complete
 - [ ] M4.E complete

@@ -405,7 +405,7 @@ Active-phase planning posture:
   - `M4.A -> M4.J` are fully expanded in the deep plan with entry conditions, required inputs, execution sequence, evidence artifacts, blocker taxonomy, and handoff rules.
 - Sub-phase progress:
   - [x] `M4.A` authority + handle closure for P2.
-  - [ ] `M4.B` service/pack map + singleton replica contract.
+  - [x] `M4.B` service/pack map + singleton replica contract.
   - [ ] `M4.C` IAM role binding + execution identity validation.
   - [ ] `M4.D` network/dependency reachability validation.
   - [ ] `M4.E` launch contract + run-scope injection surface.
@@ -583,6 +583,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M4 is active for execution planning and bring-up preparation.
 Next action:
-- execute `M4.B` service/pack map + singleton replica contract using M4.A closure snapshot `m4_20260214T121004Z`,
-- then progress sequentially through `M4.C -> M4.J` under fail-closed blocker discipline,
+- execute `M4.C` IAM role binding + execution identity validation using M4.B service map snapshot `m4_b_service_map_snapshot.json`,
+- then progress sequentially through `M4.D -> M4.J` under fail-closed blocker discipline,
 - maintain run-scope contract from M3 artifacts for all daemon bring-up operations.
