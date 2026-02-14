@@ -185,9 +185,19 @@ Portability work reinforced migration discipline:
 - bounded fail-closed controls in local parity mirror dev_min gates (no bypass under pressure)
 - “no laptop runtime compute” matured from a preference into a binding acceptance rule (managed ECS evidence required)
 
-Runtime contract pins (PENDING PIN if not yet linked here):
-- interpreter pinning (RUN_OPERATE_PYTHON) and operator lane requirements are pinned in run/operate documentation/build plans for local_parity and dev_min migration.
-- add exact doc paths here once selected as the canonical authority anchors.
+Runtime contract pins (concrete):
+- interpreter pin in pack configs:
+  - config/platform/run_operate/packs/local_parity_control_ingress.v0.yaml
+  - config/platform/run_operate/packs/local_parity_rtdl_core.v0.yaml
+  - config/platform/run_operate/packs/local_parity_rtdl_decision_lane.v0.yaml
+  - config/platform/run_operate/packs/local_parity_case_labels.v0.yaml
+  - config/platform/run_operate/packs/local_parity_obs_gov.v0.yaml
+  (each defines `RUN_OPERATE_PYTHON: ${RUN_OPERATE_PYTHON:-.venv/Scripts/python.exe}`)
+- local-parity operator lane authority:
+  - docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt
+  - docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt
+- dev_min runtime contract authority:
+  - docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md
 
 12) Evidence Index (auditor trail)
 12.0 Truth surfaces: authoritative vs derived (anti-drift)

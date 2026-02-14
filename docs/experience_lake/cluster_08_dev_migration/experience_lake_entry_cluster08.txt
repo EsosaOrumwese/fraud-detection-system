@@ -64,9 +64,13 @@ These are hard laws; if violated, migration is invalid:
 - escalation thresholds pinned (example ladder: £10 / £20 / £28)
 - fail condition: cannot show controlled budget posture → phase cannot close green
 
-Budget evidence hook (PENDING PIN if not yet produced):
-- budget posture must be backed by a published artifact (e.g., cost snapshot/export) under runs/dev_substrate/<phase>/...
-- example target name: budget_posture_snapshot.json (source: AWS billing/Cost Explorer export or equivalent)
+Budget evidence hook (pinned):
+- primary artifact: runs/dev_substrate/m2_i/20260213T201427Z/budget_guardrail_snapshot.json
+- helper cost snapshot: runs/dev_substrate/cost_guardrail/20260213T201456Z/cost_guardrail_snapshot.json
+- pinned fields:
+  - budget.limit_expected.amount=30.0, budget.limit_expected.unit=USD, budget.thresholds_observed=[10.0,20.0,28.0]
+  - emergency_stop.threshold=28.0, emergency_stop.triggered=false
+  - checks.m2i_a_pass=true, checks.m2i_b_pass=true, checks.m2i_c_pass=true, checks.m2i_e_pass=true, overall_pass=true
 
 3.2 Demo→destroy default posture
 - expensive runtime resources are ephemeral (demo window only)

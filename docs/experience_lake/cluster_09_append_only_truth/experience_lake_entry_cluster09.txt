@@ -174,8 +174,10 @@ Eligibility:
 Deterministic winner:
 - winner is determined by (effective_time, observed_time, label_assertion_id) as implemented (tie-break order is deterministic and pinned in LabelStore resolution logic)
 
-Field name pin (TODO; avoid guessing):
-- pin the exact field names used (e.g., effective_time_utc / observed_time_utc) from LabelStore schema/contracts or table definitions.
+Field name pin (implemented, no guesswork):
+- assertion contract fields: `effective_time`, `observed_time` (from `label_assertion.schema.yaml` and `src/fraud_detection/label_store/contracts.py`)
+- as-of input field: `as_of_observed_time` (from `src/fraud_detection/label_store/writer_boundary.py`)
+- timeline ordering columns: `observed_time`, `effective_time`, `label_assertion_id` (from `ls_label_timeline` queries in `src/fraud_detection/label_store/writer_boundary.py`)
 
 Outcomes:
 - RESOLVED (deterministic winner)

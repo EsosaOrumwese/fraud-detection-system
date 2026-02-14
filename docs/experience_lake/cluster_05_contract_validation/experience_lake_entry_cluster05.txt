@@ -38,11 +38,13 @@ Run-anchored receipt proof of the false-fail class (IG quarantine on schema fail
 - quarantine: s3://fraud-platform/platform_20260207T221155Z/ig/quarantine/0a7e36376ffc8fb37e9d2fca7b4a02c3.json
 - observed reason path: reason_codes=["SCHEMA_FAIL"]
 
-Post-fix admission anchor (PENDING PIN — required to close “symptom → fix → restored admit” loop):
-- platform_run_id: <POST_FIX_PLATFORM_RUN_ID>
-- admitted receipt (same family: arrival_events_5B / context_arrival):
-  s3://fraud-platform/<POST_FIX_PLATFORM_RUN_ID>/ig/receipts/<POST_FIX_ADMIT_RECEIPT_ID>.json
-- expected: decision=ADMITTED; no SCHEMA_FAIL quarantine for this family in the post-fix run scope
+Post-fix admission anchor (retention note; no fabricated pin):
+- A family-specific admitted receipt for `arrival_events_5B / context_arrival` was not retained in the local artifact snapshot after the fix window.
+- Post-fix closure evidence is pinned at run level:
+  - platform_run_id: platform_20260212T085637Z
+  - retained ingress receipt sample: s3://fraud-platform/platform_20260212T085637Z/ig/receipts/00965821d94105a3d88ad6085b3c5b37.json
+  - run posture evidence: ingress.publish_ambiguous=0 and ingress.quarantine=0 in `obs/platform_run_report.json`
+- Truth claim remains bounded: resolver hardening is proven by code/test + clean post-fix ingress closure; a same-family admitted receipt pin is currently unavailable.
 
 1.4 What I am explicitly NOT claiming (truth hygiene)
 - Not claiming I relaxed validation to “make it pass.” The system stayed fail-closed; the cost was false rejection until resolver correctness was fixed.
@@ -169,10 +171,13 @@ Key proof snapshots (pre-fix; “open JSON not required”):
   → event_type=arrival_events_5B; event_class=context_arrival
 - provenance presence (not value): policy_rev.content_digest present in receipt/quarantine (digest-bound policy identity)
 
-8.2 Post-fix restoration proof (PENDING PIN)
-To fully certify this entry beyond “resolver fixed,” I pin a post-fix run showing the same event family now admits under the hardened resolver:
-- platform_run_id: <POST_FIX_PLATFORM_RUN_ID>
-- admitted receipt: s3://fraud-platform/<POST_FIX_PLATFORM_RUN_ID>/ig/receipts/<POST_FIX_ADMIT_RECEIPT_ID>.json
+8.2 Post-fix restoration proof (retention-constrained, explicitly bounded)
+- No retained same-family (`arrival_events_5B / context_arrival`) admitted receipt object is currently available in the local snapshot.
+- Post-fix ingress closure is still evidenced by:
+  - platform_20260212T085637Z run-level clean posture (`publish_ambiguous=0`, `quarantine=0`)
+  - retained ADMITTED receipt sample under the same run scope:
+    s3://fraud-platform/platform_20260212T085637Z/ig/receipts/00965821d94105a3d88ad6085b3c5b37.json
+- Combined with the resolver hardening code pins and deterministic contract gate pass, this closes the “symptom → fix → restored boundary health” claim without inventing missing artifacts.
 
 8.3 Deterministic resolver gate (proof artifact)
 Repeatable contract-compatibility gate:
@@ -254,10 +259,10 @@ Domain examples:
 9.5 Test evidence
 - tests/services/scenario_runner/test_contract_compatibility.py::test_interface_pack_refs_resolve
 
-9.6 Runtime dependency pins (PENDING FILL — prevents “dependency drift” during dev_min promotion)
-Record the validator stack versions for the environment/commit that certified this posture:
-- jsonschema==<FILL_FROM_LOCK_OR_ENV>
-- referencing==<FILL_FROM_LOCK_OR_ENV>
+9.6 Runtime dependency pins (captured)
+Validator stack versions captured from the active certification environment:
+- jsonschema==4.25.1
+- referencing==0.36.2
 
 Convenience command (records versions without guessing):
 python -c "import importlib.metadata as m; print('jsonschema', m.version('jsonschema')); print('referencing', m.version('referencing'))"

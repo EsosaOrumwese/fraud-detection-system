@@ -38,7 +38,9 @@ Freeze guard enforcement tool + example output:
 
 Freeze-guard snapshot (fast reread; “open JSON not required”):
 - guard output file exists and is pinned to the certified posture fingerprint: 416afa430db3f5bf87180f8514329fe8
-- TODO: pin 1–2 literal fields from the guard JSON that represent PASS/FAIL verdict and the protected check set
+- literal verdict fields:
+  - status=PASS
+  - guard_checks: grade_not_below_B=true, hard_gates_not_regressed=true, B_pass_count_not_below_authority=true, authority_B_pass_metrics_not_regressed=true, concentration_not_materially_worse_than_authority=true
 
 Forced-manifest determinism pair (same seed + parameter_hash, different manifest_fingerprint):
 - 29bdb537f5aac75aa48479272fc18161
@@ -48,7 +50,9 @@ Forced-manifest determinism pair (same seed + parameter_hash, different manifest
 Determinism proof meaning (make “equality posture” explicit):
 - Equality is not assumed; it is asserted by the determinism check recorded in segment1a_p5_certification.json for the forced-manifest pair.
 - The equality witness is defined as “same seed + same parameter_hash ⇒ identical certified surfaces” (scorecard equivalence and/or output-digest equivalence as recorded in the certification JSON’s determinism section).
-- TODO: pin the exact JSON field(s) used as the equality witness (e.g., scorecard_digest, outputs_digest, or equivalent), copied from segment1a_p5_certification.json.
+- pinned equality witness fields from segment1a_p5_certification.json:
+  - evidence.determinism.p2_global_equal=true
+  - evidence.determinism.p3_global_equal=true
 
 Certification seed roster (anti single-seed luck):
 - {42, 43, 44}
@@ -130,20 +134,49 @@ Interpretation: strong realism posture with tighter distribution shape; blocks m
 - final: B (eligible_B=true, eligible_B_plus=false)
 
 Top B+ misses (max credibility for the non-claim):
-- TODO: list the top failing B+ checks (3–5 items) by name, exactly as recorded in the certification JSON / scorecards.
+- top10_outlet_share
+- gini_outlets_per_merchant
+- multi_country_legal_spread
+- realization_ratio_median
 
 5.5 Gate/check names (make counts non-opaque)
 Purpose: prevent “4/4” and “13/14” from becoming magic numbers.
 Source of truth: runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json (and linked scorecards for p2/p3/p4).
-- Hard gates (4): (TODO — list the 4 hard-gate names exactly as recorded in the certification JSON)
-  - <HARD_GATE_1>
-  - <HARD_GATE_2>
-  - <HARD_GATE_3>
-  - <HARD_GATE_4>
-- B-band checks (14): (TODO — list check names or categories as recorded)
-  - <B_CHECK_1> … <B_CHECK_14>
-- B+ band checks (14): (TODO — list check names or categories as recorded)
-  - <BPLUS_CHECK_1> … <BPLUS_CHECK_14>
+- Hard gates (4; exact names from certification JSON):
+  - single_site_tier_exists_materially
+  - candidate_not_near_global_by_default
+  - dispersion_heterogeneity_restored
+  - required_outputs_emitted
+- B-band checks (14; metric names from `target_band_checks`):
+  - single_site_share
+  - median_outlets_per_merchant
+  - top10_outlet_share
+  - gini_outlets_per_merchant
+  - home_legal_mismatch_rate
+  - size_gradient_pp_top_minus_bottom
+  - multi_country_legal_spread
+  - candidate_count_median
+  - candidate_membership_correlation
+  - realization_ratio_median
+  - phi_cv
+  - phi_p95_p05_ratio
+  - identity_semantics_no_unexplained_duplicate_anomalies
+  - required_outputs_present
+- B+ band checks (14; same metric set, tighter thresholds):
+  - single_site_share
+  - median_outlets_per_merchant
+  - top10_outlet_share
+  - gini_outlets_per_merchant
+  - home_legal_mismatch_rate
+  - size_gradient_pp_top_minus_bottom
+  - multi_country_legal_spread
+  - candidate_count_median
+  - candidate_membership_correlation
+  - realization_ratio_median
+  - phi_cv
+  - phi_p95_p05_ratio
+  - identity_semantics_no_unexplained_duplicate_anomalies
+  - required_outputs_present
 
 6) Decision + Tradeoffs — The wave program (causality, not vibes)
 6.1 Why wave-based remediation (P1→P4) instead of broad tuning

@@ -224,8 +224,30 @@ Derived (context/scale reports; not proof of successful build by themselves):
 - docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md
   - 2026-01-30 21:46:10 — chunked sort decision
   - 2026-02-01 16:05:00 — memory tuning entry
-Knob provenance (must be auditable for certified runs):
-- record where STREAM_SORT_* knobs are set (profile/env/pack config surface) and/or confirm they are echoed into _stream_sort_receipt.json as part of the run’s evidence bundle.
+Knob provenance (concrete pinned surfaces):
+- operator env surface (explicit exports before sort):
+  - docs/runbooks/platform_parity_walkthrough_v0.md
+    - `$env:STREAM_SORT_THREADS`
+    - `$env:STREAM_SORT_MEMORY_LIMIT`
+    - `$env:STREAM_SORT_MAX_TEMP_SIZE`
+    - `$env:STREAM_SORT_TEMP_DIR`
+    - `$env:STREAM_SORT_CHUNK_DAYS`
+- invocation surface:
+  - makefile target `platform-oracle-stream-sort` invokes `fraud_detection.oracle_store.stream_sort_cli` and consumes caller environment for `STREAM_SORT_*` values.
+- runtime consumption surface:
+  - src/fraud_detection/oracle_store/stream_sorter.py
+    - `chunk_days = int(os.getenv("STREAM_SORT_CHUNK_DAYS", "0"))`
+    - PRAGMA bindings for `STREAM_SORT_MEMORY_LIMIT`, `STREAM_SORT_TEMP_DIR`, `STREAM_SORT_MAX_TEMP_SIZE`, `STREAM_SORT_THREADS`
+    - runtime config log line (`Oracle stream view duckdb_config ...`) emits effective values when logs are retained.
+- decision/evidence pin for the applied hardened set:
+  - docs/model_spec/platform/implementation_maps/local_parity/oracle_store.impl_actual.md
+    - Entry `2026-02-01 16:05:00` records:
+      - `STREAM_SORT_THREADS=2`
+      - `STREAM_SORT_MEMORY_LIMIT=16GB`
+      - `STREAM_SORT_MAX_TEMP_SIZE=150GiB`
+      - `STREAM_SORT_CHUNK_DAYS=1`
+- receipt truth note:
+  - `_stream_sort_receipt.json` currently proves conservation/order closure but does not encode `STREAM_SORT_*` knob values directly.
 
 9.3 Post-fix artifact closure (oracle-store evidence root)
 - s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/output_id=s2_flow_anchor_baseline_6B/_stream_sort_receipt.json
