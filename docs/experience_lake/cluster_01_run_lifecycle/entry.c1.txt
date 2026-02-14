@@ -1,0 +1,363 @@
+EXPERIENCE LAKE ENTRY — CLUSTER 01
+Title: Evidence-gated run lifecycle + anti-drift governance for a multi-service fraud platform
+As-of: 2026-02-14
+Status: ACHIEVED (local_parity baseline). PROMOTING (dev_min preserves semantics, Cluster 08).
+
+1) Header Block — Identity + Claim
+1.1 One-sentence truth claim (defensible, not a vibe)
+I designed and operated a phase-gated run lifecycle (“Spine Green v0”) where “green” is only claimable when P0→P11 close with commit evidence, no fail-closed blockers remain (especially publish ambiguity / unresolved lineage), and meta-layer closeout (run/operate + obs/gov) proves the run is auditable and replay-defensible.
+
+1.2 Scope (what this entry covers)
+IN-SCOPE lanes for “Spine Green v0 baseline”:
+- Control + Ingress (SR → WSP → IG → EB)
+- RTDL Core (ArchiveWriter, IEG, OFP, CSFB)
+- Decision Lane (DL, DF, AL, DLA)
+- Case + Labels (CaseTrigger, CaseMgmt, LabelStore)
+- Run/Operate + Obs/Gov closeout (report + conformance + governance append)
+
+OUT-OF-SCOPE for this baseline:
+- Learning/Registry lifecycle closure (OFS/MF/MPR). (Full parity superset exists, but not required to claim Spine Green baseline.)
+
+1.3 Anchor run (closure-grade run used as primary evidence)
+- env: local_parity
+- platform_run_id: platform_20260212T085637Z
+- local evidence root: runs/fraud-platform/platform_20260212T085637Z/
+- object-store evidence root (MinIO S3-compatible in local_parity): s3://fraud-platform/platform_20260212T085637Z/
+- primary anchors:
+  - runs/fraud-platform/ACTIVE_RUN_ID
+  - runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json
+  - runs/fraud-platform/platform_20260212T085637Z/obs/environment_conformance.json
+  - s3://fraud-platform/platform_20260212T085637Z/ig/receipts/
+  - s3://fraud-platform/platform_20260212T085637Z/ig/receipts/00965821d94105a3d88ad6085b3c5b37.json
+  - s3://fraud-platform/platform_20260212T085637Z/obs/governance/events.jsonl
+
+1.4 What I am explicitly NOT claiming here (truth hygiene)
+- Not claiming production deployment. This is local_parity closure with promotion path to dev_min.
+- Not claiming full parity learning-plane closure under this baseline.
+- Not claiming “green” is inferred from logs alone; green is derived from phase gates + commit evidence + closure bundles.
+
+2) Context — Why this mattered
+2.1 Platform reality that created the problem
+I’m building a multi-service fraud platform where many components can be “running” while the value path is stalled or incomplete. In that world:
+- “services up” ≠ “run correct”
+- “events emitted” ≠ “admission committed”
+- “some lanes implemented in code” ≠ “lanes operating in the run claim”
+Without an evidence-gated lifecycle, the project would drift into false-green: feeling productive while shipping technical debt that’s invisible until late.
+
+2.2 What the lifecycle is used for
+- Creates a provable baseline for migration (dev_min) where semantics must remain identical while substrate changes.
+- Prevents design/implementation drift across a rapidly evolving, single-engineer platform.
+- Produces durable evidence bundles (run report + conformance + governance append) that make the platform auditable and replay-defensible.
+
+3) The Problem — The contradictions I had to resolve
+This cluster is built around three recurring contradictions:
+
+3.1 “Process health” vs “Flow closure”
+It is easy for services to be “running/ready” while:
+- ingress isn’t admitting
+- decision chain is incomplete
+- case/label lane didn’t participate
+So any lifecycle that treats “daemon up” as success will generate false confidence.
+
+3.2 “Documented flow” vs “Executed flow” (drift)
+A design doc can say “P10 Case/Labels must commit,” but if run/operate doesn’t daemonize those workers yet, the platform claim is overstated. This drift is subtle and high-risk.
+
+3.3 “At-least-once delivery” vs “Truth” (ambiguity)
+Streaming and publish systems can create ambiguity (e.g., “did the bus write commit?”). A platform that “keeps moving” by guessing will corrupt auditability. The lifecycle must fail-closed on ambiguity.
+
+4) Non-negotiables — Constraints, invariants, and what I refused to “cheat”
+4.1 Invariants I preserved
+- Evidence-gated truth: phase closure requires commit evidence artifacts; no “green by narrative.”
+- Fail-closed on ambiguity: publish ambiguity blocks closure; unresolved lineage blocks closure.
+- Append-only evidence: receipts/governance are not overwritten to “make it pass.”
+- Run identity discipline: platform_run_id is the namespace for all evidence.
+- Baseline scope integrity: don’t block migration by accidentally requiring out-of-scope learning-plane closure.
+
+4.2 Operating constraints
+- Single-engineer system: must be runnable and defensible without a team interpreting tribal knowledge.
+- Local parity substrate: must still be “production-shaped” (durable evidence, replay posture, idempotency, and strict gates).
+- Bounded acceptance: must validate end-to-end without needing infinite streams (20/200 gates).
+
+5) Investigation + Reasoning — How I turned “complex system” into “provable system”
+5.1 I defined “green” as a phase-closure claim
+Green is not a mood. It is: the local_parity state machine closes P0→P11 for in-scope lanes, with gate evidence at critical commits, and no fail-closed blockers open.
+
+Key meaning:
+- P0..P11 is the ordered run lifecycle (substrate bring-up → closeout).
+- The truth of each phase is not a single mutable status file; it is derived from distributed, run-scoped artifacts.
+
+5.2 I operationalized bounded acceptance (20/200)
+20/200 is a protocol for live-stream validation:
+- WSP_MAX_EVENTS_PER_OUTPUT=20 (smoke gate)
+- WSP_MAX_EVENTS_PER_OUTPUT=200 (baseline bounded closure gate)
+Cap is per output_id (not time window), and PASS requires:
+- WSP start→stop markers at cap for required outputs
+- IG receipts present with no unresolved publish ambiguity
+- downstream lanes show non-zero committed activity
+- obs/gov closeout passes (report + conformance + governance append)
+
+6) Decision + Tradeoffs — What I chose and why
+6.1 The core decision: distributed truth over a single mutable status flag
+I intentionally avoided a single “all green” status file because:
+- it can be edited or drifted accidentally
+- it hides partial lane participation
+- it encourages “papering over” failures
+Instead, truth is derived from append-only commit evidence across lanes.
+
+Tradeoff accepted:
+- more artifacts to manage and verify
+- in exchange for auditable, replay-defensible closure
+
+6.2 The core drift decision: baseline scope must be explicitly protected
+I chose to separate “Spine Green baseline” from “full parity superset”:
+- baseline closes in-scope lanes only
+- full parity can be run, but is not required to claim baseline green
+This prevents accidental scope creep from blocking migration and truth claims.
+
+7) Implementation — What I actually built/changed
+7.1 I built a phase machine + gates + operator law (Spine Green v0)
+Green lifecycle definition is pinned to:
+- docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt
+- docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt
+- docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt
+
+7.2 I implemented “commit evidence” artifacts as phase truth
+For anchor run platform_20260212T085637Z, the lifecycle produces/uses:
+
+P1 RUN_PINNED (identity + READY commit)
+- runs/fraud-platform/ACTIVE_RUN_ID
+- scenario_run_id for anchor run: fd17b1049bbce9df478c22ba1740e9ea
+- s3://fraud-platform/platform_20260212T085637Z/sr/run_plan/fd17b1049bbce9df478c22ba1740e9ea.json
+- s3://fraud-platform/platform_20260212T085637Z/sr/run_record/fd17b1049bbce9df478c22ba1740e9ea.jsonl
+- s3://fraud-platform/platform_20260212T085637Z/sr/run_status/fd17b1049bbce9df478c22ba1740e9ea.json
+- s3://fraud-platform/platform_20260212T085637Z/sr/run_facts_view/fd17b1049bbce9df478c22ba1740e9ea.json
+- s3://fraud-platform/platform_20260212T085637Z/sr/ready_signal/fd17b1049bbce9df478c22ba1740e9ea.json
+(clarification: these SR paths are keyed by SR/scenario run_id, not platform_run_id)
+
+P2 DAEMONS_READY (run/operate packs)
+- runs/fraud-platform/operate/local_parity_control_ingress_v0/state.json
+- runs/fraud-platform/operate/local_parity_control_ingress_v0/status/last_status.json
+- runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/logs/ig_service.log
+- runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+- runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/events.jsonl
+
+P5 READY_PUBLISHED / P6 STREAMING_ACTIVE (explicit proof)
+- READY consumption evidence:
+  - runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+- bounded start→stop at cap:
+  - runs/fraud-platform/platform_20260212T085637Z/platform.log (WSP stream start/stop markers; emitted=200 reason=max_events)
+
+P3 ORACLE_READY (sealed + sorted stream views)
+- Oracle seal artifact: _SEALED.json at oracle pack root
+- For each required output_id:
+  - _stream_view_manifest.json
+  - _stream_sort_receipt.json
+  - part-*.parquet
+
+P7 INGEST_COMMITTED (IG receipt truth)
+- s3://fraud-platform/platform_20260212T085637Z/ig/receipts/<receipt_id>.json
+- eb_ref present (sequence-based commit ref)
+- ambiguity/quarantine checked to ensure no unresolved PUBLISH_AMBIGUOUS before closure
+
+P8 RTDL_CAUGHT_UP (core projectors + archive durability)
+- runs/fraud-platform/platform_20260212T085637Z/archive_writer/health/last_health.json
+- runs/fraud-platform/platform_20260212T085637Z/identity_entity_graph/health/last_health.json
+- runs/fraud-platform/platform_20260212T085637Z/online_feature_plane/health/last_health.json
+- runs/fraud-platform/platform_20260212T085637Z/context_store_flow_binding/health/last_health.json
+- s3://fraud-platform/platform_20260212T085637Z/archive/events/...
+
+P9 DECISION_CHAIN_COMMITTED (audit integrity)
+- runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/health/last_health.json
+- runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/reconciliation/last_reconciliation.json
+
+P10 CASE_LABELS_COMMITTED (lane participation)
+- runs/fraud-platform/platform_20260212T085637Z/case_trigger/health/last_health.json
+- runs/fraud-platform/platform_20260212T085637Z/case_mgmt/health/last_health.json
+- runs/fraud-platform/platform_20260212T085637Z/label_store/health/last_health.json
+- metrics prove activity: triggers_seen=192, cases_created=181, accepted=181
+
+P11 OBS_GOV_CLOSED (meta-layer proof)
+- runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json
+- runs/fraud-platform/platform_20260212T085637Z/obs/environment_conformance.json
+- s3://fraud-platform/platform_20260212T085637Z/obs/governance/events.jsonl
+
+7.3 I implemented meta-layer closure as a hard blocker (run/operate + obs/gov)
+Run/operate closure is proven by pack status files showing correct run binding and readiness:
+- runs/fraud-platform/operate/local_parity_control_ingress_v0/status/last_status.json
+- runs/fraud-platform/operate/local_parity_rtdl_core_v0/status/last_status.json
+- runs/fraud-platform/operate/local_parity_rtdl_decision_lane_v0/status/last_status.json
+- runs/fraud-platform/operate/local_parity_case_labels_v0/status/last_status.json
+- runs/fraud-platform/operate/local_parity_obs_gov_v0/status/last_status.json
+
+8) Validation + Results — What I proved, not what I felt
+8.1 Closure-grade result (anchor run)
+Anchor run platform_20260212T085637Z closed in-scope lanes with:
+- bounded Gate-200 stream stop markers present (no “infinite stream” ambiguity)
+- IG receipt truth present with no unresolved publish ambiguity
+- DLA lineage closure: unresolved_total=0 and health_state=GREEN
+- Case/Label lane live and active (cases_created=181, labels_accepted=181)
+- environment conformance PASS
+- governance append exists (single-writer closure)
+
+8.2 Failed-gate incident (proof that gates are enforced)
+Incident: P9 DECISION_CHAIN_COMMITTED failed (fail-closed), then fixed and revalidated.
+
+Failing run:
+- platform_run_id: platform_20260212T075128Z
+- roots:
+  - runs/fraud-platform/platform_20260212T075128Z/
+  - s3://fraud-platform/platform_20260212T075128Z/
+
+Failure evidence:
+- runs/fraud-platform/platform_20260212T075128Z/decision_log_audit/health/last_health.json
+  - health_state=AMBER
+  - lineage_unresolved_total=1
+- runs/fraud-platform/platform_20260212T075128Z/decision_log_audit/reconciliation/last_reconciliation.json
+
+Enforcement action:
+- strict green claim STOPPED immediately (no “ship anyway” narrative)
+- recovery used L2 (fresh platform_run_id), preserving failing run artifacts as immutable evidence
+
+Fix (root cause lane):
+- changed first-read start_position semantics for run-pinned consumers with no checkpoint:
+  - DLA intake: if checkpoint==None and required_platform_run_id pinned → start_position=trim_horizon
+    - src/fraud_detection/decision_log_audit/intake.py:535–536
+  - AL worker consumer: same first-read rule
+    - src/fraud_detection/action_layer/worker.py:348–349
+- also hardened run-scope mismatch handling to checkpoint-skip (no misleading noise writes)
+
+Proof after fix:
+- recovery run platform_20260212T085637Z:
+  - runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/health/last_health.json (GREEN)
+  - runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/reconciliation/last_reconciliation.json (unresolved_total=0)
+- bounded-cap condition preserved across fail and recovery runs:
+  - WSP stream-stop markers with emitted=200 per output present in:
+    - runs/fraud-platform/platform_20260212T075128Z/platform.log
+    - runs/fraud-platform/platform_20260212T085637Z/platform.log
+
+Interpretation:
+This incident proves gates are real: a single unresolved lineage chain blocked closure until replay safety semantics were corrected and revalidated.
+
+8.3 Drift-sentinel incident (proof that scope is enforced, not assumed)
+Incident: Case/Label lane was “matrix-only” (implemented but not daemonized), which would make baseline green claim overstated.
+
+Detection mechanism:
+- Preflight compared baseline required scope (P10 Case/Labels) against active run/operate packs; case_labels pack missing.
+
+Remediation:
+- STOP progression (fail-closed drift posture)
+- onboarded dedicated case_labels operate pack with live workers:
+  - case_trigger_worker
+  - case_mgmt_worker
+  - label_store_worker
+
+Proof of closure (anchor run platform_20260212T085637Z):
+- liveness:
+  - runs/fraud-platform/operate/local_parity_case_labels_v0/status/last_status.json
+    - active_platform_run_id matches
+    - all workers running=true, readiness.ready=true
+- lane participation:
+  - runs/fraud-platform/platform_20260212T085637Z/case_trigger/health/last_health.json
+    - health_state=GREEN; triggers_seen=192; published=192; publish_ambiguous=0
+  - runs/fraud-platform/platform_20260212T085637Z/case_mgmt/health/last_health.json
+    - health_state=GREEN; cases_created=181; labels_accepted=181
+  - runs/fraud-platform/platform_20260212T085637Z/label_store/health/last_health.json
+    - health_state=GREEN; accepted=181; rejected=0
+- cross-lane confirmation:
+  - runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json
+    - case_labels.health_states all GREEN
+    - case_labels.summary.cases_created=181
+    - case_labels.summary.labels_accepted=181
+
+Interpretation:
+This incident proves anti-drift governance: I blocked a premature claim until runtime coverage matched the stated baseline scope.
+
+9) Evidence Index (auditor trail)
+9.1 Phase truth artifacts (anchor run)
+- runs/fraud-platform/ACTIVE_RUN_ID
+- s3://fraud-platform/platform_20260212T085637Z/sr/* (run_plan, run_record, run_status, run_facts_view, ready_signal)
+- runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+- runs/fraud-platform/platform_20260212T085637Z/platform.log
+- s3://fraud-platform/platform_20260212T085637Z/ig/receipts/00965821d94105a3d88ad6085b3c5b37.json
+- runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/reconciliation/last_reconciliation.json
+- runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json
+- runs/fraud-platform/platform_20260212T085637Z/obs/environment_conformance.json
+- s3://fraud-platform/platform_20260212T085637Z/obs/governance/events.jsonl
+- runs/fraud-platform/operate/*/status/last_status.json (packs listed in Q10)
+
+9.2 Incident evidence (failed gate)
+- runs/fraud-platform/platform_20260212T075128Z/decision_log_audit/health/last_health.json
+- runs/fraud-platform/platform_20260212T075128Z/decision_log_audit/reconciliation/last_reconciliation.json
+- runs/fraud-platform/platform_20260212T075128Z/platform.log (bounded stop markers)
+
+9.3 Code anchors (where the fix lives)
+- src/fraud_detection/decision_log_audit/intake.py:535–536 (first-read trim_horizon rule)
+- src/fraud_detection/action_layer/worker.py:348–349 (first-read trim_horizon rule)
+
+9.4 Authority / governance documents (anti-drift)
+Cluster-specific acceptance authority (wins for baseline green):
+- docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt
+- docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt
+- docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt
+
+Core platform-wide design authority:
+- docs/model_spec/platform/platform-wide/platform_blueprint_notes_v0.md
+- docs/model_spec/platform/platform-wide/deployment_tooling_notes_v0.md
+- runtime decision ledger: docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md
+
+Component design authority (pattern + example):
+- docs/model_spec/platform/component-specific/<component>.design-authority.md
+- docs/model_spec/platform/component-specific/world_streamer_producer.design-authority.md
+
+Stop/log/repin audit trail locations:
+- docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md
+- docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md (when on dev track)
+- docs/logbook/<MM-YYYY>/<YYYY-MM-DD>.md
+- run evidence under runs/fraud-platform/<platform_run_id>/...
+
+10) Guardrails / Non-regression Controls (how I made it hard to drift)
+10.1 Authority hierarchy rule
+When conflict exists, narrower executable authority wins:
+- phase machine + checklist + run flow define green truth
+- core platform law defines semantics
+- component design authority resolves mechanics
+If still ambiguous: STOP, log, repin.
+
+10.2 Stop/log/repin protocol (executable governance)
+Trigger examples:
+- gate contradiction (e.g., DLA unresolved lineage > 0)
+- coverage drift (required lane not daemonized)
+- authority conflict affecting closure truth (baseline vs full parity mismatch)
+
+Immediate action:
+- freeze readiness at HOLD/non-green
+- escalate with severity + impacted lanes + consequence
+- choose explicit resolution path (fix, repin, or scope downgrade)
+- require a fresh run closure with evidence before resuming “green claim”
+
+10.3 Meta-layer closure blocker
+Run/operate + obs/gov must both close. If not, green is blocked even if “some lanes ran.”
+
+11) Residual risks + Next actions
+11.1 What is still open / not claimed
+- dev_min promotion of the same lifecycle under managed substrate is in progress (Cluster 08).
+- production deployment is not claimed in this entry.
+
+11.2 Next actions that naturally follow from this entry
+- Preserve semantics (phase meaning, receipts truth, fail-closed blockers) during dev_min migration.
+- Keep the baseline scope lock (avoid accidental expansion to learning plane).
+- Continue adding small “heft multipliers” only where they improve auditability (e.g., explicit counter semantics if a report field can be misread).
+
+12) Extraction notes (for later mining into outward assets)
+12.1 30-second version (recruiter)
+“I built a phase-gated run lifecycle for a multi-service fraud platform where ‘green’ is only claimable with commit evidence and fail-closed blockers resolved. I caught and fixed false-green drift (missing daemonized case/label lane) and enforced audit integrity (DLA unresolved lineage blocked closure until replay semantics were corrected), all proven with run-scoped artifacts.”
+
+12.2 2-minute version (hiring manager)
+“I don’t treat runs as ‘it seemed to work.’ I pinned a phase machine (P0–P11) with explicit commit evidence at each critical point, used bounded 20/200 acceptance to validate live streaming safely, and enforced meta-layer closure (run/operate + obs/gov) so every claim is auditable. Two real incidents prove it: DLA lineage stayed unresolved under a bounded run, so I fail-closed and fixed first-read start semantics; and I blocked a green claim when case/label wasn’t daemonized, then proved closure with liveness + lane activity evidence.”
+
+12.3 What this entry proves (USP mapping)
+Analytical thinking / problem solving shown via:
+- turning ambiguous multi-service behavior into an executable truth protocol (phase gates + evidence)
+- diagnosing false-green states (process health ≠ flow closure; matrix-only ≠ operational)
+- making tradeoffs that preserve invariants (fail-closed, append-only, replay safety)
+- implementing guardrails (stop/log/repin, authority hierarchy) to prevent recurrence
