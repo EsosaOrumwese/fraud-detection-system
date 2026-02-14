@@ -5026,3 +5026,93 @@ Validation:
 
 Operational note:
 1) This step is code/policy closure only; rerun + integrated re-score is still required to confirm grade movement under the new governed exclusion lane.
+
+---
+
+### Entry: 2026-02-14 22:10
+
+Design element: governed-policy parity propagation fix in `S7` after `S3` exclusion enablement.
+Summary: During the first full rerun with governed `S3` denylist active, `S7` failed contract coverage (`E708_1A_COVERAGE_FAIL`) because `S5/S6` consumed filtered requirements while `S7` still compared against unfiltered `outlet_catalogue` country totals. We applied policy propagation in `S7` so all downstream parity checks evaluate the same governed country frame.
+
+Failure evidence:
+1) Run-id `761c3c826a7b4f6d911b5cfe500d99b7` failed at `S7` with mismatch: filtered `S5/S6` counts vs full `outlet_catalogue` denominator.
+2) Root cause: `S3` now drops denylisted countries (`MC`, `BM`), but `S7` coverage checks were still unconstrained by `s3_requirements_policy`.
+
+Chosen fix (implemented):
+1) Patched `packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/runner.py` to load and validate governed `s3_requirements_policy`.
+2) Applied denylist to outlet-coverage and parity counters in `S7` so checks are computed over effective scored countries only.
+3) Added explicit policy metadata emission in `s7_run_summary`:
+   - `ingress_versions.s3_requirements_policy`,
+   - `country_filter_policy` block with enabled/version/denylist fields.
+4) Preserved fail-closed behavior for malformed policy payloads.
+
+Validation:
+1) `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s7_site_synthesis/runner.py` passed.
+2) Re-ran `S7 -> S8 -> S9` on run `761c3c826a7b4f6d911b5cfe500d99b7`; all passed.
+3) Effective parity in `S7` now aligns (`s5=102623`, `s6=102623`, `outlet_catalogue_effective=102623`), with `MC/BM` excluded from by-country parity frame.
+
+---
+
+### Entry: 2026-02-14 22:22
+
+Design element: integrated re-score outcome after governed exclusion + S7 propagation.
+Summary: Scored the fresh full-chain candidate (`run_id=761c3c826a7b4f6d911b5cfe500d99b7`) using `tools/score_segment1b_p4_integrated.py`. Classifier remained `RED_REOPEN_REQUIRED`; structural collapse is cleared for denylisted countries, but B hard gates are still not met on concentration/coverage/NN contraction.
+
+Score artifact:
+1) `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_761c3c826a7b4f6d911b5cfe500d99b7.json`
+
+B-gate snapshot (candidate vs threshold):
+1) `country_gini=0.694975` (fails `<=0.68`).
+2) `eligible_country_nonzero_share=0.740891` (fails `>=0.85`).
+3) `southern_hemisphere_share=0.080538` (fails `>=0.12`).
+4) `top1_share=0.094072` (passes `<=0.10`).
+5) `top5_share=0.349990` (fails `<=0.33`).
+6) `top10_share=0.536303` (fails `<=0.50`).
+7) `nn_improvement=-1.142108` (fails `>=0.20`; candidate ratio still above baseline).
+
+Movement vs prior integrated authority (`49dcd3c9aa4e441781292d54dc0fa491`):
+1) improved concentration metrics (`gini`, `top1`, `top5`, `top10`) and NN ratio.
+2) slight coverage regression (`eligible_country_nonzero_share`) remains.
+3) overall posture still below B, therefore promotion remains blocked.
+
+Decision:
+1) Close this lane as partial movement only (not promotable).
+2) Next remediation lane is upstream support/count reshape (reopen path), not additional 1B-only downstream tweaks.
+
+---
+
+### Entry: 2026-02-14 23:24
+
+Design element: upstream reopen wave-4 execution (`1A` alternate hurdle bundle -> `1B` proxy lane).
+Summary: Executed one bounded upstream candidate cycle to test whether a different `1A` hurdle bundle can improve 1B macro realism without violating freeze guard. The candidate passed freeze-veto but failed 1B proxy competitiveness on coverage direction, so it was rejected and pruned.
+
+Execution steps:
+1) Produced new `1A` candidate with alternate export run:
+   - env: `HURDLE_EXPORT_VERSION=2026-02-14`, `HURDLE_EXPORT_RUN=20260214T171500Z`, `SEED=42`,
+   - run command: `make segment1a RUNS_ROOT=runs/fix-data-engine/segment_1A`,
+   - candidate run-id: `f50074ae643103bf0bae832555a4605a` (`S9 PASS`).
+2) Ran freeze-veto:
+   - `tools/score_segment1a_freeze_guard.py --runs-root runs/fix-data-engine/segment_1A --run-id f50074ae643103bf0bae832555a4605a`,
+   - result artifact: `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_f50074ae643103bf0bae832555a4605a.json`,
+   - verdict: `PASS` (all guard checks true).
+3) Ran 1B proxy prerequisite chain on the promoted lineage:
+   - staged `1A` outputs into `runs/fix-data-engine/segment_1B/f50074ae643103bf0bae832555a4605a`,
+   - executed `S0 -> S1 -> S2 -> S3 -> S4` (all pass),
+   - `S4` ran on closed fast-compute-safe lane (`cache 48/2.5GB`, bounded rank cache), wall-clock `~2469.7s`.
+4) Scored proxy:
+   - wave summary: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave4_guard_summary.json`,
+   - candidate proxy: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_f50074ae643103bf0bae832555a4605a.json`,
+   - wave artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_wave_4.json`.
+
+Proxy result:
+1) matched 1B run-id: `f50074ae643103bf0bae832555a4605a`.
+2) concentration direction improved vs reference (`49dcd...`), but coverage direction failed:
+   - nonzero countries `185 -> 183` (regression),
+   - `proxy_competitive=false` (dropped).
+3) Decision: reject wave-4 candidate; do not advance to `S5->S9`.
+
+Storage discipline:
+1) Pruned superseded run folders after proxy rejection:
+   - `runs/fix-data-engine/segment_1A/f50074ae643103bf0bae832555a4605a`,
+   - `runs/fix-data-engine/segment_1B/f50074ae643103bf0bae832555a4605a`.
+2) Retained authority artifacts in `runs/fix-data-engine/segment_1B/reports/` for audit trail.

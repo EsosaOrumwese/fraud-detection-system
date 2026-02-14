@@ -14,6 +14,7 @@ from typing import Iterable, Iterator, Optional
 import numpy as np
 import polars as pl
 import psutil
+import yaml
 from jsonschema import Draft202012Validator
 
 try:  # Optional fast parquet scanning.
@@ -52,6 +53,13 @@ class S7Result:
     manifest_fingerprint: str
     synthesis_root: Path
     run_summary_path: Path
+
+
+@dataclass(frozen=True)
+class S3RequirementsPolicy:
+    policy_version: str
+    enabled: bool
+    denylist_country_iso: tuple[str, ...]
 
 
 class _StepTimer:
@@ -135,6 +143,15 @@ def _load_json(path: Path) -> dict:
     if not path.exists():
         raise InputResolutionError(f"Missing JSON file: {path}")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_yaml(path: Path) -> dict:
+    if not path.exists():
+        raise InputResolutionError(f"Missing YAML file: {path}")
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise InputResolutionError(f"YAML payload must be an object: {path}")
+    return payload
 
 
 def _write_json(path: Path, payload: dict) -> None:
@@ -405,6 +422,35 @@ def _count_parquet_rows(paths: Iterable[Path]) -> Optional[int]:
     return total
 
 
+def _parse_s3_policy(policy_payload: dict) -> S3RequirementsPolicy:
+    denylist_raw = policy_payload.get("denylist_country_iso") or []
+    if not isinstance(denylist_raw, list):
+        raise InputResolutionError("s3_requirements_policy.denylist_country_iso must be a list.")
+    normalized: list[str] = []
+    for iso in denylist_raw:
+        if not isinstance(iso, str):
+            raise InputResolutionError("s3_requirements_policy.denylist_country_iso must contain strings.")
+        value = iso.strip().upper()
+        if not value:
+            raise InputResolutionError("s3_requirements_policy.denylist_country_iso cannot contain blank values.")
+        normalized.append(value)
+    return S3RequirementsPolicy(
+        policy_version=str(policy_payload.get("policy_version") or "unknown"),
+        enabled=bool(policy_payload.get("enabled", False)),
+        denylist_country_iso=tuple(sorted(set(normalized))),
+    )
+
+
+def _count_outlet_rows_excluding(paths: Iterable[Path], excluded_country_iso: set[str]) -> int:
+    if not excluded_country_iso:
+        rows = _count_parquet_rows(paths)
+        return int(rows or 0)
+    excluded = sorted(excluded_country_iso)
+    frame = pl.scan_parquet([str(path) for path in paths]).select(["legal_country_iso"])
+    kept = frame.filter(~pl.col("legal_country_iso").is_in(excluded)).collect()
+    return int(kept.height)
+
+
 def _iter_parquet_batches(paths: Iterable[Path], columns: list[str]) -> Iterator[object]:
     if _HAVE_PYARROW:
         for path in paths:
@@ -572,6 +618,7 @@ def _iter_s6_rows(paths: list[Path]) -> Iterator[tuple[tuple[int, str, int], int
 def _iter_outlet_rows(
     paths: list[Path],
     include_global_seed: bool,
+    excluded_country_iso: set[str],
 ) -> Iterator[tuple[tuple[int, str, int], str, Optional[int]]]:
     columns = ["merchant_id", "legal_country_iso", "site_order", "manifest_fingerprint"]
     if include_global_seed:
@@ -597,7 +644,10 @@ def _iter_outlet_rows(
             global_seed = batch.get_column("global_seed").to_numpy() if include_global_seed else None
             rows_total = batch.height
         for idx in range(rows_total):
-            key = (int(merchant_ids[idx]), str(country_isos[idx]), int(site_orders[idx]))
+            country_iso = str(country_isos[idx])
+            if excluded_country_iso and country_iso in excluded_country_iso:
+                continue
+            key = (int(merchant_ids[idx]), country_iso, int(site_orders[idx]))
             if last_key is not None and key < last_key:
                 raise EngineFailure(
                     "F4",
@@ -700,6 +750,7 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
     s6_entry = find_dataset_entry(dictionary, "s6_site_jitter").entry
     tile_bounds_entry = find_dataset_entry(dictionary, "tile_bounds").entry
     outlet_entry = find_dataset_entry(dictionary, "outlet_catalogue").entry
+    s3_policy_entry = find_dataset_entry(dictionary, "s3_requirements_policy").entry
     synthesis_entry = find_dataset_entry(dictionary, "s7_site_synthesis").entry
     summary_entry = find_dataset_entry(dictionary, "s7_run_summary").entry
 
@@ -710,6 +761,7 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
         ("s6_site_jitter", s6_entry),
         ("tile_bounds", tile_bounds_entry),
         ("outlet_catalogue", outlet_entry),
+        ("s3_requirements_policy", s3_policy_entry),
         ("s7_site_synthesis", synthesis_entry),
         ("s7_run_summary", summary_entry),
     ):
@@ -783,6 +835,7 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
         tile_bounds_entry, run_paths, external_roots, {"parameter_hash": str(parameter_hash)}
     )
     outlet_root = _resolve_dataset_path(outlet_entry, run_paths, external_roots, tokens)
+    s3_policy_path = _resolve_dataset_path(s3_policy_entry, run_paths, external_roots, {})
     synthesis_root = _resolve_dataset_path(synthesis_entry, run_paths, external_roots, tokens)
     summary_path = _resolve_dataset_path(summary_entry, run_paths, external_roots, tokens)
 
@@ -792,14 +845,25 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
     s5_files = _list_parquet_files(s5_root)
     s6_files = _list_parquet_files(s6_root)
     outlet_files = _list_parquet_files(outlet_root)
+    s3_policy_payload = _load_yaml(s3_policy_path)
+    _validate_payload(schema_1b, "#/policy/s3_requirements_policy", s3_policy_payload)
+    s3_policy = _parse_s3_policy(s3_policy_payload)
+    country_denylist_set = set(s3_policy.denylist_country_iso) if s3_policy.enabled else set()
+    logger.info(
+        "S7: loaded requirements policy enabled=%s denylist_count=%d version=%s path=%s",
+        s3_policy.enabled,
+        len(country_denylist_set),
+        s3_policy.policy_version,
+        s3_policy_path,
+    )
 
     logger.info("S7: synthesis inputs resolved (S5 assignments + S6 jitter + 1A outlet_catalogue)")
 
     s5_rows_total = _count_parquet_rows(s5_files)
     s6_rows_total = _count_parquet_rows(s6_files)
-    outlet_rows_total = _count_parquet_rows(outlet_files)
+    outlet_rows_total = _count_outlet_rows_excluding(outlet_files, country_denylist_set)
     logger.info(
-        "S7: input row counts s5=%s s6=%s outlet_catalogue=%s (site-level parity check)",
+        "S7: input row counts s5=%s s6=%s outlet_catalogue_effective=%s (site-level parity check)",
         s5_rows_total if s5_rows_total is not None else "unknown",
         s6_rows_total if s6_rows_total is not None else "unknown",
         outlet_rows_total if outlet_rows_total is not None else "unknown",
@@ -841,7 +905,10 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
     batch_index = 0
 
     s6_stream = _RowStream(_iter_s6_rows(s6_files), "s6_site_jitter")
-    outlet_stream = _RowStream(_iter_outlet_rows(outlet_files, include_global_seed), "outlet_catalogue")
+    outlet_stream = _RowStream(
+        _iter_outlet_rows(outlet_files, include_global_seed, country_denylist_set),
+        "outlet_catalogue",
+    )
 
     counts = {
         "sites_total_s5": 0,
@@ -1295,6 +1362,13 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
             "s6_site_jitter": s6_entry.get("version"),
             "tile_bounds": tile_bounds_entry.get("version"),
             "outlet_catalogue": outlet_entry.get("version"),
+            "s3_requirements_policy": s3_policy.policy_version,
+        },
+        "country_filter_policy": {
+            "policy_path": str(s3_policy_path),
+            "policy_version": s3_policy.policy_version,
+            "enabled": s3_policy.enabled,
+            "denylist_country_iso": sorted(s3_policy.denylist_country_iso),
         },
     }
     _validate_payload(schema_1b, "#/control/s7_run_summary", run_summary)

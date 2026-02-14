@@ -648,6 +648,12 @@ P4.R2 wave-3 update (2026-02-14):
 - wave summary artifact:
   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave3_guard_summary.json`
 
+P4.R2 wave-4 update (2026-02-14):
+- upstream reopen candidate (1A):
+  - `f50074ae643103bf0bae832555a4605a` -> freeze guard `PASS`.
+- wave summary artifact:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave4_guard_summary.json`
+
 #### P4.R3 - Fast-screen lane for 1B macro realism (proxy-first)
 Goal:
 - filter weak candidates cheaply before full `S5->S9` and integrated scoring.
@@ -690,6 +696,22 @@ P4.R3 wave-3 update (2026-02-14):
 - result:
   - `proxy_competitive=true`,
   - shortlisted 1B run-id: `49dcd3c9aa4e441781292d54dc0fa491`.
+
+P4.R3 wave-4 update (2026-02-14):
+- input summary:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave4_guard_summary.json`
+- execution note:
+  - no existing 1B S4 snapshot matched this new 1A lineage initially, so a bounded prerequisite chain `S0->S4` was executed on run-id `f50074ae643103bf0bae832555a4605a` under the closed fast-compute-safe lane.
+- proxy artifacts:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_f50074ae643103bf0bae832555a4605a.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_wave_4.json`
+- result:
+  - concentration direction improved, but coverage direction failed (`nonzero_country_count_s4: 185 -> 183`),
+  - `proxy_competitive=false` -> candidate dropped (no shortlist entry).
+- storage closure:
+  - superseded run folders pruned after drop:
+    - `runs/fix-data-engine/segment_1A/f50074ae643103bf0bae832555a4605a`,
+    - `runs/fix-data-engine/segment_1B/f50074ae643103bf0bae832555a4605a`.
 
 #### P4.R4 - Collapse and geometry closure lane (S6)
 Goal:
@@ -788,6 +810,21 @@ P4.R5 execution status (2026-02-14):
 - blocker pattern persisted:
   - structural collapse sentinel still flagged for `MC`, `BM`,
   - NN tail contraction gate failed (candidate `nn_p99/p50` remained materially above baseline).
+
+P4.R5 exclusion-policy rerun update (2026-02-14):
+- governed `S3` denylist policy (`MC`, `BM`) was enabled and propagated downstream.
+- fresh full-chain candidate executed:
+  - run-id `761c3c826a7b4f6d911b5cfe500d99b7`,
+  - states `S3->S9` completed (`S9 PASS`), with `S7` parity fix to evaluate filtered `outlet_catalogue` frame.
+- integrated scorer artifact:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_761c3c826a7b4f6d911b5cfe500d99b7.json`
+- classifier outcome:
+  - `RED_REOPEN_REQUIRED` (still blocked).
+- movement summary vs prior `P4.R5` authority:
+  - improved concentration (`gini/top1/top5/top10`) and NN ratio,
+  - but B hard gates still fail on coverage and concentration envelope (`eligible_country_nonzero_share`, `southern_hemisphere_share`, `gini/top5/top10`) and NN contraction target.
+- decision:
+  - no promotion; advance to upstream support/count reshape lane under reopen contract (rather than additional 1B downstream-only tuning).
 
 #### P4.R6 - Storage and run-retention hard cap
 Goal:
