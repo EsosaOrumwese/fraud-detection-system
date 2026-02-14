@@ -8659,11 +8659,16 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 
 ### Materialization evidence
 1. Terraform materialization run artifacts:
-   - uns/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.plan.txt
-   - uns/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.plan.json
-   - uns/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.apply.txt
-   - uns/dev_substrate/m4/20260214T133434Z/m4_c_demo_outputs_after_apply.json
-   - uns/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
+   - 
+uns/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.plan.txt
+   - 
+uns/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.plan.json
+   - 
+uns/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.apply.txt
+   - 
+uns/dev_substrate/m4/20260214T133434Z/m4_c_demo_outputs_after_apply.json
+   - 
+uns/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 2. AWS role presence verified post-apply:
    - raud-platform-dev-min-ig-service
    - raud-platform-dev-min-rtdl-core
@@ -8674,7 +8679,8 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### M4.C re-run outcome
 1. Re-ran M4.C with role materialization sourced from live Terraform outputs.
 2. Updated canonical M4.C snapshot to PASS:
-   - local: uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
+   - local: 
+uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
    - durable: s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T121004Z/m4_c_iam_binding_snapshot.json
 3. Result:
    - overall_pass=true
@@ -10330,7 +10336,42 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 
 ## Entry: 2026-02-14 08:21PM - M5.E blocker triage (oracle role S3 access missing)
 1. During M5.E managed stream-sort execution, all four ECS tasks exited non-zero.
-2. CloudWatch task logs confirmed root cause: AccessDenied on s3:GetObject for s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/inputs/run_receipt.json under assumed role raud-platform-dev-min-rtdl-core.
+2. CloudWatch task logs confirmed root cause: `s3:GetObject AccessDenied` for `s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/inputs/run_receipt.json` under role `fraud-platform-dev-min-rtdl-core`.
 3. This is a substrate IAM gap, not a stream-sort logic gap; M5.E cannot be declared green until lane role S3 read/write posture is materialized.
 4. Chosen closure path: patch demo Terraform module to grant explicit object-store data plane permissions for the RTDL core lane role (read inputs + write stream_view artifacts), apply, then rerun M5.E from the same M5.D matrix.
-5. Fail-closed stance retained: no phase progression to M5.F until M5.E summary reports overall_pass=true and no blockers.
+5. Fail-closed stance retained: no phase progression to M5.F until M5.E summary reports `overall_pass=true` and no blockers.
+
+## Entry: 2026-02-14 11:40PM - M5.E runtime challenge proof + two-lane decision lock
+
+### Trigger
+1. USER requested explicit documentation of the runtime challenge/proof and a locked decision path.
+
+### Runtime challenge observed
+1. M5.E full-matrix stream-sort on dev substrate did not close within migration-grade expectations under default posture.
+2. Initial run failed fail-closed with role access gap (`s3:GetObject` denied on oracle input `run_receipt.json`) for role `fraud-platform-dev-min-rtdl-core`.
+3. After IAM correction, full-scale matrix still failed with task exits (`137`/non-zero) and missing shard closure for multiple outputs.
+4. Single-output heavy probe (`arrival_events_5B`) showed true workload scale (`124724153` rows) and completed only with high-resource profile (`8 vCPU`, `32GB`, chunked mode), taking roughly `~77 minutes` for one output.
+
+### Proof surfaces recorded
+1. Full-matrix failure summary:
+   - local: `runs/dev_substrate/m5/20260214T202411Z/stream_sort_summary.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/stream_sort_summary.json`
+2. Heavy single-output completion proof (`arrival_events_5B`):
+   - `s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/stream_view/output_id=arrival_events_5B/_stream_sort_receipt.json`
+   - `s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/stream_view/output_id=arrival_events_5B/_stream_view_manifest.json`
+
+### Decision locked
+1. M5 is now explicitly the functional migration closure lane (`lane_mode=functional_green`) and must use a pinned workload profile.
+2. Full-scale throughput/performance validation is explicitly routed to M10 scale lane and cannot silently mutate M5 gate semantics.
+3. Any M5.E run without pinned `lane_mode` + `workload_profile_id` is a blocker.
+
+### Docs updated to lock this decision
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+   - added two-lane laws, lane-aware M5.E tasks/DoD/blockers, and execution observation lock.
+   - updated blocker register with active M5E blockers and closure criteria.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - added phase-level decision lock and challenge-proof references under M5.
+
+### Outcome
+1. Migration path is now explicitly protected from throughput-benchmark drift.
+2. M5 remains fail-closed and blocked until functional lane closure artifacts are green.

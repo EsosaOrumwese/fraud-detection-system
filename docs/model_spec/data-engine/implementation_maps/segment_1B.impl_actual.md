@@ -5116,3 +5116,29 @@ Storage discipline:
    - `runs/fix-data-engine/segment_1A/f50074ae643103bf0bae832555a4605a`,
    - `runs/fix-data-engine/segment_1B/f50074ae643103bf0bae832555a4605a`.
 2) Retained authority artifacts in `runs/fix-data-engine/segment_1B/reports/` for audit trail.
+
+---
+
+### Entry: 2026-02-14 23:40
+
+Design element: high-blast upstream support/count-shape lane kickoff (`1B/S2 blend_v2` retune).
+Summary: We are entering the remaining non-exhausted lane: retuning `S2` macro mass-shape policy directly (not just downstream jitter/exclusions or alternate 1A hurdle bundle) to target simultaneous concentration relaxation and coverage breadth recovery.
+
+Problem framing:
+1) Current best integrated status remains `RED_REOPEN_REQUIRED` under policy-governed lane.
+2) Prior wave-4 showed concentration improvements but dropped on proxy coverage gate; this indicates unresolved support/count shape rather than purely geometric closure.
+3) The remediation authority identifies `S2` constrained blend/cap/floor controls as the primary macro lever for B/B+ movement.
+
+Chosen execution lane (this cycle):
+1) Modify `config/layer1/1B/policy/policy.s2.tile_weights.yaml` only (governed policy lane, no runner code change in this pass).
+2) Increase breadth pressure and cap concentration through `blend_v2` knobs:
+   - basis mix shift away from pure area dominance,
+   - stronger under-represented region floors,
+   - tighter country/top-k concentration caps,
+   - higher concentration-penalty strength.
+3) Run fresh `1B` candidate chain `S0->S4` on locked `1A` authority lineage (freeze-guard already satisfied), then score `P4.R3` proxy against a policy-aligned reference.
+4) Promote to `S5->S9` only if proxy competitiveness passes; otherwise reject + prune per storage protocol.
+
+Risk/controls:
+1) Over-aggressive rebalance can distort pair-level feasibility or trigger new concentration oscillations; we keep one bounded candidate and evaluate proxy before full-chain spend.
+2) If this pass fails proxy, next escalation should combine `1A/S2` ingress count-shape with this `1B/S2` lane (joint reopen), still under freeze-veto.

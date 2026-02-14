@@ -105,6 +105,14 @@ Execution block:
    - inlet remains an explicit contract in M5,
    - current run requires externally pre-staged oracle inputs under run-scoped prefix with evidence,
    - platform runtime must not execute seed/sync/copy.
+8. Two-lane execution law (locked):
+   - `M5` is the migration functional-closure lane (deterministic correctness + contracts),
+   - full-scale throughput/perf proof is a separate lane and is not allowed to silently redefine M5 closure semantics.
+9. M5.E gating law:
+   - only `lane_mode=functional_green` may gate progression to `M5.F`,
+   - `lane_mode=full_scale_probe` publishes performance/challenge evidence only and cannot by itself open M5->M6.
+10. Capacity-proof law:
+   - if full-scale probe is run during M5, runtime/capacity evidence must be recorded explicitly (row counts, task resources, runtime, blocker codes).
 
 ### M5.A Authority + Handle Closure (P3)
 Goal:
@@ -506,48 +514,58 @@ Required inputs:
    - `per_output_launch_matrix` from `M5.D` snapshot (authoritative; no ad hoc recompute during M5.E execution).
 
 Tasks:
-1. Validate `M5.D` carry-forward invariants:
+1. Pin execution lane + workload profile before launching any task:
+   - `lane_mode` must be one of:
+     - `functional_green` (migration-gating),
+     - `full_scale_probe` (non-gating capacity evidence lane).
+   - bind and record a concrete workload profile for the run (`workload_profile_id`) with explicit source artifact.
+2. Validate `M5.D` carry-forward invariants:
    - `overall_pass=true`,
    - `blockers=[]`,
    - `launch_profile_valid=true`,
    - no unresolved sort-key/path-contract output IDs.
-2. Build execution set from `M5.D.per_output_launch_matrix` only:
+3. Build execution set from `M5.D.per_output_launch_matrix` only:
    - output_id,
    - sort_key,
    - input_prefix,
    - stream_view output prefix,
    - manifest key,
    - receipt key.
-3. Launch one managed ECS run-task per output ID using `TD_ORACLE_STREAM_SORT`:
+4. Launch one managed ECS run-task per output ID using `TD_ORACLE_STREAM_SORT`:
    - run-scope env (`REQUIRED_PLATFORM_RUN_ID`),
    - per-output launch payload from matrix row,
    - network config from pinned cluster/subnets/security-group handles.
-4. Execution concurrency rule:
+5. Execution concurrency rule:
    - default serial launch for closure safety,
    - parallel allowed only across disjoint output prefixes with explicit operator cap.
-5. Await task completion for each output and record runtime status:
+6. Await task completion for each output and record runtime status:
    - task ARN,
    - last status,
    - stopped reason,
    - container exit code.
-6. For each output ID, verify durable artifact contract:
+7. For each output ID, verify durable artifact contract:
    - stream_view output prefix has at least one shard/object,
    - stream_view manifest key exists/readable,
    - stream-sort receipt key exists/readable.
-7. Emit `oracle/stream_sort_summary.json` with minimum fields:
+8. Emit `oracle/stream_sort_summary.json` with minimum fields:
    - `m5_execution_id`, `platform_run_id`,
    - `source_m5d_snapshot_local`, `source_m5d_snapshot_uri`,
+   - `lane_mode`, `workload_profile_id`,
+   - `compute_profile` (task resource/override contract used),
    - `required_output_ids`,
    - `per_output_results` (launch payload, task runtime result, artifact checks),
    - `failed_output_ids`,
    - `blockers`,
    - `overall_pass`.
-8. Publish summary:
+9. Publish summary:
    - local: `runs/dev_substrate/m5/<timestamp>/stream_sort_summary.json`
    - durable: `s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<platform_run_id>/oracle/stream_sort_summary.json`.
-9. Stop progression if `overall_pass=false`.
+10. Lane-specific progression rule:
+   - if `lane_mode=functional_green`, stop progression when `overall_pass=false`,
+   - if `lane_mode=full_scale_probe`, always keep M5 in HOLD and route closure decision to M10 scale lane evidence.
 
 DoD:
+- [ ] `lane_mode` + `workload_profile_id` are explicitly pinned in summary.
 - [ ] `M5.D` carry-forward invariants are verified and recorded.
 - [ ] Every required output ID has a completed managed stream-sort task result.
 - [ ] All required output IDs have stream_view shards + manifest + receipt durably present.
@@ -560,6 +578,28 @@ Blockers:
 3. `M5E-B3`: one or more stream-sort tasks stop non-successfully (non-zero exit/terminal failure).
 4. `M5E-B4`: missing stream_view shards and/or manifest/receipt for one or more required output IDs.
 5. `M5E-B5`: stream-sort summary write/upload failure.
+6. `M5E-B6`: lane/workload profile not pinned (`lane_mode` and/or `workload_profile_id` missing).
+7. `M5E-B7`: full-scale probe attempted to advance M5 gating directly.
+
+Execution observations + decision lock (2026-02-14):
+1. First full-matrix M5.E run failed fail-closed with:
+   - `M5E-B3` + `M5E-B4` on all required outputs.
+2. Root cause cycle 1:
+   - oracle task-role lacked object-store data-plane access; logs showed `s3:GetObject AccessDenied` for `.../inputs/run_receipt.json`.
+   - fixed via demo Terraform IAM patch on `fraud-platform-dev-min-rtdl-core`.
+3. Root cause cycle 2 (post-IAM):
+   - full-scale stream-sort remained runtime-heavy; task exits observed `137` and DuckDB temp/offload exhaustion in logs.
+   - summary evidence:
+     - local: `runs/dev_substrate/m5/20260214T202411Z/stream_sort_summary.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/stream_sort_summary.json`
+4. Capacity proof:
+   - single-output probe `arrival_events_5B` processed `124724153` rows and completed only under high resource profile (`8 vCPU`, `32GB`, chunked sort), with runtime around `~77 min`.
+   - proof artifacts:
+     - `s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/stream_view/output_id=arrival_events_5B/_stream_sort_receipt.json`
+     - `s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/stream_view/output_id=arrival_events_5B/_stream_view_manifest.json`
+5. Locked resolution:
+   - M5 continues as migration functional-closure lane (`functional_green` workload profile),
+   - full-scale throughput/perf closure is explicitly moved to M10 scale lane (no semantic drift, no silent gate mutation).
 
 ### M5.F Checker Execution + PASS Artifact
 Goal:
@@ -719,9 +759,23 @@ Control: one-shot ephemeral tasks + per-output rerun instead of full rerun.
 R4: Checker bypass pressure.  
 Control: `ADVANCE_TO_M6` requires checker PASS artifact and zero blockers.
 
-## 8.1) Unresolved Blocker Register (Must Be Empty Before M5 Execution)
+## 8.1) Unresolved Blocker Register (Must Be Empty Before M5 Closure)
 Current blockers:
-1. None.
+1. `M5E-B3` full-scale stream-sort task non-success under default/medium compute profile.
+   - evidence:
+     - local: `runs/dev_substrate/m5/20260214T202411Z/stream_sort_summary.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/stream_sort_summary.json`
+   - closure criteria:
+     - execute `lane_mode=functional_green` workload with pinned bounded profile and achieve `overall_pass=true`.
+2. `M5E-B4` missing shard closure for failed full-scale matrix run outputs.
+   - evidence:
+     - local: `runs/dev_substrate/m5/20260214T202411Z/stream_sort_summary.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/stream_sort_summary.json`
+   - closure criteria:
+     - produce shard + manifest + receipt closure for all required output_ids in pinned functional workload profile.
+3. `M5E-B6` lane/workload profile was not pinned before earlier full-scale attempts.
+   - closure criteria:
+     - explicitly pin `lane_mode` and `workload_profile_id` in next M5.E execution artifact before launch.
 
 Resolved blockers:
 1. `M5D-B4` resolved by IaC materialization + rerun PASS.
@@ -731,6 +785,8 @@ Resolved blockers:
    - closure artifact:
      - local: `runs/dev_substrate/m5/20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
+2. Initial M5.E IAM blocker (role could not read oracle run receipt) resolved by Terraform IAM patch on RTDL core lane role.
+   - root-cause evidence: CloudWatch log stream for task `5f3fa831393d4a6682ffb132490785cc` (`s3:GetObject AccessDenied` on oracle input run_receipt).
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

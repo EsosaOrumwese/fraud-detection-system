@@ -382,6 +382,7 @@ Entry gate:
 
 Objective:
 - Materialize deterministic P3 oracle readiness for WSP by producing run-scoped `stream_view` outputs and checker PASS evidence on managed compute only.
+- Keep migration functional closure and scale/perf closure as explicit separate lanes (no silent gate mutation).
 
 Scope:
 - P3 oracle-lane flow:
@@ -409,7 +410,7 @@ Active-phase planning posture:
   - `M5.B` oracle inlet policy closure (external ownership boundary).
   - `M5.C` oracle input presence assertion (no platform seed execution).
   - `M5.D` stream-sort launch contract and per-output task plan.
-  - `M5.E` stream-sort execution + receipt/manifest publication.
+  - `M5.E` stream-sort execution + receipt/manifest publication (`lane_mode` pinned per run).
   - `M5.F` checker execution + pass artifact publication.
   - `M5.G` per-output rerun safety proof (targeted failure/recovery drill or equivalent evidence).
   - `M5.H` P3 gate evaluation + blocker rollup + verdict.
@@ -439,6 +440,14 @@ Active-phase planning posture:
     - deterministic per-output ECS one-shot execution contract,
     - per-output shard/manifest/receipt durable evidence checks,
     - local+durable `oracle/stream_sort_summary.json` publication contract.
+  - `M5.E` execution challenge proof is now explicit and fail-closed:
+    - first full-matrix execution failed due IAM and compute pressure with non-zero exits/missing shard closure.
+    - local evidence: `runs/dev_substrate/m5/20260214T202411Z/stream_sort_summary.json`
+    - durable evidence: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/stream_sort_summary.json`
+    - heavy single-output proof (`arrival_events_5B`, `124724153` rows) completed only under high-resource profile with long runtime.
+  - decision lock:
+    - `M5` gates migration using `lane_mode=functional_green` workload profile only.
+    - full-scale throughput/perf closure is routed to `M10` (Scale Green), not used to mutate M5 gate semantics.
 - Sub-phase progress:
   - [x] `M5.A` authority + handle closure for P3.
   - [x] `M5.B` oracle inlet policy closure.
@@ -452,7 +461,7 @@ Active-phase planning posture:
 
 M5 DoD checklist:
 - [x] P3 inputs for this run exist in S3 under canonical run-scoped input prefix (external-prestaged / engine-written).
-- [ ] For each required output_id, stream_view shards + manifest + stream_sort receipt exist.
+- [ ] For each required output_id in the pinned `functional_green` workload profile, stream_view shards + manifest + stream_sort receipt exist.
 - [ ] `oracle/checker_pass.json` exists and confirms full PASS for required output_ids.
 - [ ] P3 rerun posture is fail-closed and per-output (no forced full rerun for single-output failure).
 - [ ] M5 verdict and M6 handoff package are published and non-secret.
