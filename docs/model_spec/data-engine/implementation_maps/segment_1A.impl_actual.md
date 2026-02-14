@@ -5559,3 +5559,27 @@ Verification:
    - `python tools/score_segment1a_freeze_guard.py --runs-root runs/fix-data-engine/segment_1A --run-id 416afa430db3f5bf87180f8514329fe8`
    - output: `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_416afa430db3f5bf87180f8514329fe8.json`
    - result: `status=PASS`.
+
+### Entry: 2026-02-14 11:15
+
+Design element: Freeze-guard scorer fail-artifact hardening for downstream path-1 gating.
+Summary: During 1B `P4.R2` wave execution, an incomplete 1A candidate (`59cc...`) caused `score_segment1a_freeze_guard.py` to exit before writing a guard artifact. Hardened the scorer to always emit an explicit `FAIL` artifact on scoring exceptions.
+
+Change applied:
+1) File updated: `tools/score_segment1a_freeze_guard.py`.
+2) Main execution path now wraps scoring in fail-closed exception handling and writes:
+   - `status=FAIL`,
+   - candidate run-id,
+   - error type/message,
+   - guard checks set false.
+3) Process still exits non-zero after artifact emission to preserve automation failure semantics.
+
+Verification:
+1) `python -m py_compile tools/score_segment1a_freeze_guard.py` passed.
+2) Rerun on incomplete candidate emitted:
+   - `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_59cc9b7ed3a1ef84f3ce69a3511389ee.json`
+   with explicit `FAIL` and source error details.
+
+Decision:
+1) Freeze-veto now has machine artifacts for both pass and reject outcomes.
+2) This closes the evidence gap for guarded upstream candidate rejection in downstream `1B` path-1 flow.

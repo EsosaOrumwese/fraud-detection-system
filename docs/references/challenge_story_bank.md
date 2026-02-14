@@ -11669,3 +11669,1738 @@ This standard is binding for every new ID entry in this file.
 - Why this proves MLOps/Data Eng strength (explicit hiring signal):
   This demonstrates strong validation-surface engineering: you corrected a gate-to-intent mismatch, preserved strict fail-closed posture, and delivered a phase-appropriate readiness check that is technically coherent and operationally actionable.
 
+## ID 46-AA - P1 metric-authority mismatch (single-site realism read from wrong surface)
+
+- Context (what was at stake):
+  This happened in the Segment 1A remediation loop, at the point where we were trying to close P1 realism gates and decide whether further tuning was needed. The stakes were high because P1 was an authority phase: if we misread metrics here, we would either spend cycles solving a fake problem or make a bad design decision that could ripple into P2/P3 and eventually corrupt the remediation narrative. In practical terms, this was a governance risk, not just an analytics bug.
+
+- Problem (specific contradiction/failure):
+  We were evaluating single-site realism using a surface that did not match the contractual scope of the states we were scoring. Specifically, single-site share was being inferred from `outlet_catalogue`, while `S3/S8` are multi-site scoped by contract. That created a contradiction: we were mixing global-population interpretation with multi-site-scoped state outputs. The result was a false failure interpretation in P1. We initially thought realism was off, but the problem was metric authority mapping, not underlying behavior.
+
+- Options considered (2-3):
+  1. Keep the current metric extraction and continue tuning coefficients until metrics "look right."
+     Rejected because it would optimize against a mis-scoped signal and could introduce real regression while chasing fake failure.
+  2. Patch S8 semantics so `outlet_catalogue` directly supports global single-site interpretation.
+     Rejected for this phase because it changes state semantics and expands blast radius while the immediate issue was measurement authority, not generation logic.
+  3. Re-anchor P1 scoring to contract-aligned surfaces (`S1+S2` for global single/multi interpretation) and freeze that as the evaluation law before more code changes.
+     Selected because it resolves the contradiction at the source and keeps downstream remediation decisions trustworthy.
+
+- Decision (what you chose and why):
+  We chose option 3: fix measurement authority first, then continue remediation. The reason was straightforward: if the scoring surface is wrong, every subsequent "improvement" is statistically and operationally untrustworthy. We explicitly decided to treat `S1+S2` as the authority for single-site/pyramid interpretation, keep dispersion checks on S2 coefficient-implied diagnostics, and defer any semantic S8 changes until deterministic replay and artifactized extraction were stable.
+
+- Implementation (what you changed):
+  We introduced a metric-authority correction step before further structural edits:
+  1. Audited run `bb268f24c8eb5af10da973d5c0d54181` against state contracts.
+  2. Re-mapped P1 metric extraction:
+     - single-site and pyramid interpretation from `S1+S2` composite,
+     - dispersion from S2 diagnostics,
+     - candidate breadth/realization kept in P2 scope.
+  3. Added explicit next actions to enforce this as executable posture:
+     - rerun same-seed determinism,
+     - compare critical surfaces (`S1/S2/S3/S8` hashes + gate metrics),
+     - write run-scoped P1 metric and determinism evidence artifacts.
+
+- Result (observable outcome/evidence):
+  The false P1 failure interpretation was removed, and remediation proceeded with a contract-valid metric law rather than mixed-scope inference. This prevented unnecessary semantic churn in S8 and preserved decision quality for subsequent phases.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3639`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3645`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3650`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3640`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3646`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3654`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3658`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is a strong hiring signal because it shows measurement-governance discipline under pressure: you detected a scope/authority contradiction, refused to tune blindly, corrected the evaluation contract first, and only then resumed optimization. That is exactly the kind of reasoning needed in real MLOps/Data Engineering systems, where bad metric semantics can silently drive expensive wrong decisions.
+
+## ID 46-AB - S2 PTRS Poisson tail pathology produced impossible counts
+
+- Context (what was at stake):
+  This challenge surfaced in Segment 1A P1.3, where concentration realism (`top10`, `gini`) was a gating surface for progressing the remediation program. At this point, we were making coefficient decisions that would lock or reopen upstream behavior. If the sampling layer itself was wrong, every calibration conclusion would be contaminated. So the stake was not “one bad run”; it was whether the P1.3 scoring surface could be trusted at all.
+
+- Problem (specific contradiction/failure):
+  We observed statistically impossible Poisson outcomes in S2: example `lambda≈11.383` producing `k=12808`. That directly contradicted the expected distributional behavior and inflated outlet concentration in a way that looked like coefficient failure. The contradiction was: calibration logic assumed algorithmic correctness, but the algorithm (PTRS path quick-accept behavior) was emitting pathological tails. This made top-decile and gini movement non-interpretable.
+
+- Options considered (2-3):
+  1. Continue coefficient retuning and treat outliers as “hard but valid” tail behavior.
+     Rejected because it would optimize around algorithmic defect noise and could lock incorrect coefficients.
+  2. Keep PTRS and add clipping/post-filtering on extreme `k` values.
+     Rejected because it hides root-cause math instability and creates non-physical patch behavior in a core stochastic path.
+  3. Fail-closed the PTRS lane for remediation and switch to inversion-only Poisson sampling for all lambdas, then rerun P1.3 with unchanged coefficients to isolate algorithm vs calibration.
+     Selected because it isolates causality cleanly and restores trustworthy calibration signals.
+
+- Decision (what you chose and why):
+  We chose option 3. The reason was causality control: before touching model coefficients, we needed to remove algorithmic corruption from the generator. Inversion sampling was slower in theory but numerically stable, deterministic enough for this loop, and appropriate for observed lambda ranges. That let us test “what concentration looks like when sampler pathology is removed,” which is the only valid basis for further tuning decisions.
+
+- Implementation (what you changed):
+  1. Promoted the PTRS tail issue to a blocker-level root-cause entry in P1.3.
+  2. Replaced the S2 Poisson path with inversion-only sampling for the active remediation window.
+  3. Re-ran P1 with unchanged coefficients to separate algorithmic defect from parameter effects.
+  4. After confirming pathology removal, recalibrated responsibly:
+     - rolled back over-compressed NB-mean bundle that had been masking true concentration behavior,
+     - reran seeds `42/43/44`,
+     - executed controlled `beta_mu` uplift iterations until B-band closure was recovered under the fixed sampler.
+
+- Result (observable outcome/evidence):
+  The impossible-tail failure mode was removed, and concentration metrics became interpretable again. Specifically, max-outlet explosion collapsed (from >10k behavior to normal ranges), allowing genuine calibration work to proceed. Under the corrected sampler plus controlled coefficient iteration, P1.3 B-band closure was achieved across three seeds.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3868`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3874`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3882`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3898`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3904`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3911`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3953`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3981`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates high-value MLOps/Data Engineering judgment: you distinguished model-calibration error from stochastic-engine error, applied fail-closed control at the algorithm layer, and restored a valid experimentation surface before tuning. That is exactly what strong production engineers do under pressure: protect measurement integrity first, then optimize.
+
+## ID 46-AC - P2 rho closure blocked by S3/S5 domain intersection emptiness
+
+- Context (what was at stake):
+  This challenge happened in P2, where the core goal was to close realization-ratio realism (`rho`) without breaking already-healthy rails (candidate band, coupling, pathology guards). At this point, we had already made progress on rank-coupling and candidate controls, so the next decision would determine whether we could finish P2 with bounded tuning or needed to reopen scope. Getting this wrong would waste cycles and risk destabilizing earlier gains.
+
+- Problem (specific contradiction/failure):
+  After removing S6 max-candidate truncation, expected truncation metrics improved, but the actual closure target (`median(rho_m)`) stayed pinned at `0.0`. Diagnostics showed the dominant failure mode was still `ZERO_WEIGHT_DOMAIN` (S3/S5 intersection emptiness), not S4 intensity generation. In short: we improved a downstream control (`CAPPED_BY_MAX_CANDIDATES: 1885 -> 0`), but the main blocker remained upstream domain overlap (`ZERO_WEIGHT_DOMAIN` still ~2.1k), so `rho` did not move.
+
+- Options considered (2-3):
+  1. Keep tuning S4/S6-only levers (for example more theta/cap changes) and hope `rho` rises.
+     Rejected because diagnostics showed the bottleneck was not target intensity but admissible-domain/support overlap.
+  2. Declare P2 “good enough” because Spearman and some health rails improved.
+     Rejected because the primary gate (`median(rho_m)`) was still unclosed and fail-closed posture required explicit blocker handling.
+  3. Treat this as a scoped dependency issue and shift next action to S3 candidate shaping first, then reassess whether S5 support broadening is required.
+     Selected because it follows the measured blocker hierarchy and preserves deterministic, evidence-led progression.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision was to keep the beneficial cap-relaxation patch, but formally classify P2.3 as partially advanced and blocked on upstream P2.2/S3 shaping (and potentially S5 support broadening). The reasoning was direct: when `ZERO_WEIGHT_DOMAIN` dominates, no amount of downstream selection-intensity tuning can reliably close `rho` because merchants still lack realizable foreign support domains.
+
+- Implementation (what you changed):
+  1. Applied and retained the S6 cap-relaxation patch (`max_candidates_cap` to `0`) because it improved coupling without introducing pathology regressions.
+  2. Ran the updated P2 loop and captured scorecards + S6 diagnostics to prove blocker class, not guess it.
+  3. Reframed the next remediation lane to S3 rule-ladder candidate shaping:
+     - replaced broad near-global defaults with size-tiered allow rules,
+     - kept deny rails intact,
+     - constrained predicates to avoid union explosion.
+  4. Continued with bridge-set passes and evidence-driven qualification of residual irreducible blocks.
+
+- Result (observable outcome/evidence):
+  The team avoided a false tuning direction and preserved rigor in the remediation program. We proved that cap removal alone could not close `rho`, identified the true blocker class (`S3/S5 domain emptiness`), and moved to the correct upstream lane. This produced meaningful structural movement later (for example empties and zero-domain counts reduced), even though full `rho` closure still required broader support work.
+  Truth posture: `Partial`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4358`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4365`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4426`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4369`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4382`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4437`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4498`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4502`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong diagnosis-first engineering: you did not confuse “some metric improved” with “gate closed,” isolated the true blocker layer using state diagnostics, and redirected work upstream with controlled scope. That is a high-quality MLOps/Data Engineering signal because production systems fail when teams tune the wrong layer; here, you prevented that drift with evidence-led decision control.
+
+## ID 46-AD - Residual rho blocker was structural S5 support sparsity
+
+- Context (what was at stake):
+  This came immediately after we had already recovered a large part of the S3-side overlap loss. At that point, the question was whether we should keep pushing bounded S3/S4/S6 tuning or formally widen remediation scope. The stake was phase integrity: if we kept treating a structural feasibility limit as a local tuning problem, we would burn time, create noisy diffs, and still miss the gate.
+
+- Problem (specific contradiction/failure):
+  Even after bridge-set improvements, diagnostics showed a hard feasibility ceiling: many merchants were still foreign-impossible under current S5 currency support. Concretely, in S3 scope only `3434/5826` merchants had any foreign support, with `1521` foreign-impossible merchants inside the eligible subset. That means `rho` closure was blocked by support topology, not by selection-intensity tuning. The contradiction was clear: downstream selection logic was being asked to realize foreign membership where upstream support mass did not exist.
+
+- Options considered (2-3):
+  1. Keep iterating only S3/S4/S6 to squeeze incremental gains.
+     Rejected because diagnostics showed those levers could improve counts but could not guarantee `median(rho_m)` closure under home-only S5 support ceilings.
+  2. Reopen S1/S2 population design immediately.
+     Rejected at this point because it was a larger blast-radius move and not the next minimal causal lever.
+  3. Extend P2 scope to include constrained S5 support broadening (policy overrides + minimal runner support-union change), with strict guardrails.
+     Selected because it directly targeted the proven blocker while preserving deterministic, bounded change control.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision was to explicitly treat residual `rho` failure as an upstream support-feasibility issue and move to controlled S5 broadening. This was the smallest truthful scope extension that matched the evidence. It allowed us to keep P2 causal discipline: change only what the blocker requires, keep the rest frozen, and verify that candidate/pathology rails stay stable.
+
+- Implementation (what you changed):
+  1. Closed the S3 bridge step as “recoverable overlap mostly captured” and recorded the remaining structural blocker.
+  2. Introduced a constrained S5 extension plan:
+     - runner support-union expansion to include policy override ISO keys (`alpha_iso`/`min_share_iso`),
+     - policy-level `overrides.min_share_iso` for singleton/home-only currencies using tiny foreign bridge mass.
+  3. Applied explicit guardrails:
+     - small added mass (`sum min_share_iso << 1.0` per currency),
+     - no ungated S6 behavior change,
+     - no random fallback behavior.
+  4. Continued iterative passes (tail-currency support, bridge-cardinality control, eligibility tuning) with scorecard-driven rechecks.
+
+- Result (observable outcome/evidence):
+  The scope correction was validated: once S5 support broadening entered the loop, empties and `ZERO_WEIGHT_DOMAIN` dropped materially and `rho` moved off strict zero. Full global gate closure still remained partial in this phase, but the blocker was no longer misclassified and the program shifted onto the right causal lane.
+  Truth posture: `Partial`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4493`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4498`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4516`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4502`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4508`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4512`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4582`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4601`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is a strong systems-thinking signal: you recognized when a metric failure was structurally infeasible under current upstream support constraints, prevented endless local retuning, and executed a bounded scope expansion with hard guardrails. That is exactly the behavior expected of a senior MLOps/Data Engineering operator working on realistic, multi-stage data generation pipelines.
+
+## ID 46-AE - Global `median(rho_m)` blocked by structural `C=0` denominator mass
+
+- Context (what was at stake):
+  By this point, P2 had already gone through heavy remediation and many mechanics were working: empties were down, coupling improved, and realized selection volume increased materially. The remaining blocker was no longer “can we move anything?” but “what exactly are we measuring as success?” This became a governance-critical moment because the answer would determine whether we closed P2 honestly or distorted metrics to force closure.
+
+- Problem (specific contradiction/failure):
+  The contradiction was between two truths:
+  1. On the meaningful cohort (`C_m > 0`), realization performance had reached target territory (`median(rho | C>0)=0.1053`).
+  2. On the global metric (`median(rho_m)` across all merchants), the gate remained below threshold because a large structural `C=0` population from upstream scope dominated the denominator.
+  So the system was simultaneously “functionally improved where realization is defined” and “globally failing by denominator definition.” Continuing local P2 tuning alone risked false optimization and realism drift.
+
+- Options considered (2-3):
+  1. Keep tuning P2 aggressively until global `median(rho_m)` crosses threshold.
+     Rejected because evidence showed diminishing returns and increasing risk of drift while upstream structural mass remained unchanged.
+  2. Silently reinterpret the gate as `rho|C>0` and mark closure without explicit decision.
+     Rejected because that would be metric-governance drift and weak audit posture.
+  3. Explicitly codify this as a governance decision boundary: either accept cohort-meaningful evaluation (`C>0`) or reopen upstream scope (`P1/S1-S2`) to reduce structural `C=0` mass.
+     Selected as the only truth-preserving option.
+
+- Decision (what you chose and why):
+  We chose option 3: formalize the boundary instead of hiding it. The reason was audit integrity. We did not want a quiet metric definition change nor endless local tuning that ignores structural limits. We recorded that P2 mechanics were materially remediated, but global closure required an explicit product/governance call on metric semantics versus upstream reopen cost.
+
+- Implementation (what you changed):
+  1. Documented the dual-metric reality explicitly in the implementation notes:
+     - global `median(rho_m)` still short,
+     - cohort `median(rho | C>0)` meeting B threshold.
+  2. Captured that this was now the singular blocker after P2 mechanical recovery.
+  3. Pinned the decision fork as an explicit next-step contract:
+     - accept cohort-based realization metric for closure semantics, or
+     - reopen upstream scope to shrink structural `C=0` mass.
+  4. Continued follow-up passes with denominator-aware diagnostics, not blind local retune assumptions.
+
+- Result (observable outcome/evidence):
+  We preserved truth in the remediation program: no fake closure, no silent metric redefinition, and no unbounded tuning loop pretending the blocker was purely local. The challenge remained open by design, with the tradeoff exposed in a decision-ready form.
+  Truth posture: `Open`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4610`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4612`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4617`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4608`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4615`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4619`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4628`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4631`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is a strong senior-level signal because it shows metric-governance maturity: you identified when a failing KPI was driven by denominator definition rather than local algorithmic weakness, refused silent metric manipulation, and converted ambiguity into an explicit decision contract. That is exactly the type of judgment recruiters look for in engineers who can lead production ML systems responsibly.
+
+## ID 46-AF - S7 dirichlet diagnostic lane blocked P3.1 and alpha-floor hotfix stalled runtime
+
+- Context (what was at stake):
+  This challenge occurred at the start of P3.1, where we needed the first valid baseline scorecard for home-legal mismatch and size-gradient realism checks. Without a successful S7->S8 pass, P3 could not even enter meaningful measurement. The stakes were therefore execution continuity and phase progression, not just code cleanliness.
+
+- Problem (specific contradiction/failure):
+  The run failed with `E_DIRICHLET_NONPOS` because S7 dirichlet diagnostic payload generation treated zero-share entries as hard-fail (`alpha_i <= 0`). But in this flow, zero-share cases can be valid for deterministic integerisation. So a diagnostic lane was blocking core publication. Then the first attempted fix (tiny alpha floor) removed the immediate failure but introduced pathological Gamma sampling runtime stalls, creating a second contradiction: “fixed error code, broken runtime viability.”
+
+- Options considered (2-3):
+  1. Keep strict hard-fail on `alpha_i <= 0` and require upstream shares never hit zero.
+     Rejected because this over-constrained a diagnostic lane and blocked valid deterministic paths.
+  2. Keep the alpha-floor workaround (`1e-12`) permanently.
+     Rejected because it created pathological runtime behavior and was not operationally safe.
+  3. Make dirichlet payload emission conditional: if any share is nonpositive, skip dirichlet diagnostics for that merchant but continue deterministic integerisation/residual-rank flow, while preserving fail-closed checks for truly invalid numeric states.
+     Selected because it isolates diagnostic optionality from core publish correctness.
+
+- Decision (what you chose and why):
+  We chose option 3. The reasoning was that dirichlet output in this lane is diagnostic, not a hard precondition for S7/S8 deterministic publication. We needed to preserve strictness where it matters (non-finite/invalid numerics) while preventing optional diagnostics from halting the entire phase. The skip-on-nonpositive-share strategy gave that balance.
+
+- Implementation (what you changed):
+  1. First pass:
+     - introduced `_DIRICHLET_ALPHA_FLOOR = 1e-12`,
+     - floored `alpha_i <= 0` in `_expected_dirichlet_payload(...)`.
+  2. After runtime-stall evidence:
+     - removed alpha-floor behavior,
+     - restored strict alpha validity checks,
+     - added merchant-local gating: when any `share <= 0`, do not construct/write dirichlet payload for that merchant,
+     - kept deterministic integerisation and residual-rank events active,
+     - updated replay/write handling so dirichlet payload is optional per merchant under this gate.
+  3. Operationally recovered from stuck run by terminating stalled process chain, then reran `segment1a-p3`.
+
+- Result (observable outcome/evidence):
+  The blocker was resolved with a stable runtime posture: after the corrective strategy, `segment1a-p3` completed end-to-end and produced the first P3.1 baseline scorecard (`run_id=d94f908cd5715404af1bfb9792735147`). This restored phase momentum without loosening core deterministic constraints.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4796`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4839`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4846`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4812`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4827`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4851`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4859`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4865`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong production debugging and control thinking: you handled a two-stage failure chain (hard-fail bug, then runtime-stall hotfix), preserved fail-closed discipline where required, and delivered a surgical fix that unblocked execution without corrupting core deterministic behavior.
+
+## ID 46-AG - S7 home-bias rollout hit floating residual edge failures
+
+- Context (what was at stake):
+  This occurred during P3.3, when we were implementing a targeted home-bias correction to improve home-legal mismatch and size-gradient realism while keeping upstream P2 surfaces frozen. The rollout was a high-leverage step: if it worked, we could close P3 realism targets without reopening earlier phases; if it destabilized integerisation, we could lose both correctness and momentum.
+
+- Problem (specific contradiction/failure):
+  The first run after enabling `home_bias_lane` failed with `E_RESIDUAL_QUANTISATION` (`residual_out_of_range`). The contradiction was subtle: the algorithmic design was valid, but floating-point edge behavior around near-1.0 residual values caused false out-of-range failures in quantization. So a correctness guard intended to catch real invalid states was now tripping on binary64 artifacts, blocking otherwise valid deterministic execution.
+
+- Options considered (2-3):
+  1. Relax/disable residual fail-closed checks broadly to get runs through.
+     Rejected because it would hide real numeric-contract violations and weaken guard integrity.
+  2. Roll back home-bias feature entirely and abandon P3.3 improvement lane.
+     Rejected because the feature was causally aligned with the realism objective and failure looked numeric-edge, not conceptual.
+  3. Harden `_quantize_residual` narrowly for floating-point edge artifacts only, while preserving hard-fail behavior for genuine out-of-domain residuals.
+     Selected because it fixes the operational defect without weakening core numeric safety law.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision was to clamp only the known binary64 edge cases:
+  - near-zero negative artifacts to `0.0`,
+  - near-one artifacts to `0.99999999` at `dp=8`,
+  while keeping fail-closed for true invalid residuals. This preserved deterministic semantics and prevented a false choice between “ship broken checks” and “drop the feature.”
+
+- Implementation (what you changed):
+  1. Implemented `home_bias_lane` in S7 with schema/parser support and tiered `n_outlets` home-share floors.
+  2. Ran P3 and captured failure evidence (`run_id=66b5e575c89a1767eef8c5d600620ad4`, `E_RESIDUAL_QUANTISATION`).
+  3. Applied targeted quantization hardening in `_quantize_residual` for binary64 boundary artifacts only.
+  4. Retained strict failure behavior for genuine out-of-range values (no broad tolerance widening).
+  5. Re-ran P3 on frozen upstream and validated both P3 target closure and P2 veto stability.
+
+- Result (observable outcome/evidence):
+  After hardening, the next run completed successfully (`run_id=4ebfb92774e2db438989863f8f641162`) and closed P3.3 targets:
+  - `home_legal_mismatch_rate` passed B,
+  - `size_gradient_pp` passed B/B+,
+  - identity anomaly checks remained clean,
+  - P2 locked gates remained non-regressive.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4940`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4961`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4964`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4952`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4972`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4981`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4988`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong numerical-reliability engineering: you distinguished floating-point artifact failure from true contract violation, fixed it surgically, preserved fail-closed safety, and still delivered metric closure under frozen upstream constraints. That is exactly the balance strong MLOps/Data Engineering candidates must demonstrate in production-quality pipelines.
+
+## ID 46-AH - Same-seed replay drift due RNG material keyed to `manifest_fingerprint`
+
+- Context (what was at stake):
+  This came right after P4 closure, when we needed replay confidence before final certification. At that stage, “grade-stable” was not enough; we needed deterministic reproducibility guarantees for same seed + same parameter hash. Without that, certification evidence could look valid while still being non-replayable across commits, which is unacceptable for governed ML data pipelines.
+
+- Problem (specific contradiction/failure):
+  We found same-seed replay drift even though `seed` and `parameter_hash` were identical. Root-cause evidence showed RNG master material was derived from `manifest_fingerprint`, which changes with commit metadata. That broke the expected replay law. In practice, runs with equal seed/params but different commit fingerprints produced thousands of flipped stochastic outcomes starting at S1, propagating downstream.
+
+- Options considered (2-3):
+  1. Accept grade-level stability and leave row-level drift as “good enough.”
+     Rejected because this weakens replay law and undermines audit-grade reproducibility.
+  2. Freeze `manifest_fingerprint` semantics to force stability.
+     Rejected because fingerprint should remain provenance-rich and commit-sensitive for audit traceability.
+  3. Re-key stochastic master material to `parameter_hash` (commit-insensitive) while retaining `manifest_fingerprint` as provenance-only metadata.
+     Selected because it restores determinism without sacrificing audit provenance.
+
+- Decision (what you chose and why):
+  We chose option 3. The reason was boundary clarity: RNG identity must be tied to semantic inputs (`seed + parameter_hash`), while provenance identity (`manifest_fingerprint`) should remain observable but non-causal for stochastic draws. This preserves both reproducibility and audit traceability.
+
+- Implementation (what you changed):
+  1. Generalized RNG seed-material interface in S1 RNG utilities.
+  2. Switched all Segment 1A stochastic call-sites to use `bytes.fromhex(parameter_hash)` for Philox master-material derivation across S1/S2/S4/S6/S7/S8 and validators.
+  3. Kept `manifest_fingerprint` emission/logging unchanged in envelopes for provenance.
+  4. Ran forced-manifest drift validation:
+     - executed two runs with synthetic different `ENGINE_GIT_COMMIT` values,
+     - verified P2/P3/P4 checks still pass,
+     - compared key output surfaces and scorecards for exact equality.
+
+- Result (observable outcome/evidence):
+  Replay drift was closed at data-surface level under forced manifest divergence. Key outputs, row counts, and P2/P3 scorecards were identical across runs; S1 merchant outcome flips dropped to zero. Determinism objective was accepted and hardened authority pair promoted for onward P5 certification.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5269`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5273`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5280`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5291`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5297`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5313`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5323`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5333`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is a strong reproducibility-governance signal: you separated provenance identity from stochastic identity, implemented deterministic re-keying across multiple states, and proved closure with adversarial replay tests. That is exactly the level of rigor expected for production MLOps systems that must support audit, replay, and certification confidence.
+
+## ID 46-AI - P5 certification scorer had authority-binding and identity-path drift risks
+
+- Context (what was at stake):
+  This challenge appeared at final certification time (P5), where we were producing the grade artifact used to declare Segment 1A closure posture. At this stage, the scorer is the decision surface. If it reads the wrong authority run or wrong key path, you can “prove” the wrong grade while thinking the process is clean. The stake was certification trustworthiness.
+
+- Problem (specific contradiction/failure):
+  Two high-risk scorer drifts were detected:
+  1. P3 authority metrics were being resolved from `p4_authority_run` instead of `p3_authority_run`.
+  2. Identity-semantics checks were tied to older key paths and could emit false negatives against current report shapes.
+  This created a contradiction where technical runs could be correct but certification output could still be wrong due to scorer wiring.
+
+- Options considered (2-3):
+  1. Keep scorer logic unchanged and manually interpret discrepancies case-by-case.
+     Rejected because it undermines reproducible certification and opens room for hidden grading errors.
+  2. Hard-code for only the newest report schema and ignore legacy/fallback structures.
+     Rejected because existing authority artifacts used mixed key-path variants and this would create brittle scoring.
+  3. Correct authority-run binding and implement normalized identity-semantics extraction order across current and legacy paths, then regenerate certification.
+     Selected because it restores machine-correct grading without sacrificing compatibility.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision was to treat scorer correctness as a blocker-level requirement, not a convenience fix. Certification had to be machine-reliable against the pinned authority runs and robust to known report-shape variants. Anything weaker would make the final grade non-defensible.
+
+- Implementation (what you changed):
+  1. Patched `tools/score_segment1a_p5_certification.py` so P3 metrics resolve via `--p3-authority-run` (not `p4_authority_run`).
+  2. Normalized identity-semantics extraction order:
+     - `metrics.global.checks.no_unexplained_duplicate_anomalies` (primary),
+     - `metrics.identity_semantics.checks.no_unexplained_duplicate_anomalies`,
+     - `metrics.identity_semantics_diagnostics.has_unexplained_duplicate_anomalies` (inverted),
+     - legacy top-level `identity_semantics.has_unexplained_duplicate_anomalies` (inverted).
+  3. Recompiled and regenerated the P5 certification artifact.
+  4. Kept authority run IDs unchanged unless scoring itself revealed a real gate issue.
+
+- Result (observable outcome/evidence):
+  Certification integrity was restored: scorer logic matched authority semantics, final artifact was regenerated, and grade decision remained auditable (`B`, with hard gates passing and explicit band coverage). This removed silent false-verdict risk from the closure decision surface.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5403`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5413`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5417`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5406`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5420`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5439`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5442`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5450`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is a strong reliability-governance signal: you treated the certification scorer as production logic, detected silent authority/path drift, and corrected it before final grade declaration. Recruiters looking for senior MLOps/Data Engineering talent care about exactly this trait: protecting decision integrity, not just getting pipelines to run.
+
+## ID 46-AJ - Local B+ recovery proved infeasible in tested coefficient neighborhood
+
+- Context (what was at stake):
+  This challenge happened after P5 certification logic was stabilized, when we tested whether Segment 1A could be lifted from certified `B` to `B+` on concentration criteria. The stake was strategic: a B+ upgrade would strengthen the closure profile, but a careless attempt could destabilize already-closed realism rails and force broader retuning across downstream states.
+
+- Problem (specific contradiction/failure):
+  The target required achieving both `top10>=0.38` and `gini<=0.58` together. In controlled sweeps, the local coefficient neighborhood showed a trade-off wall: improving `gini` consistently pushed `top10` down, and attempts to recover `top10` worsened concentration elsewhere. So the contradiction was not “insufficient effort”; it was an observed infeasibility surface under current deterministic posture.
+
+- Options considered (2-3):
+  1. Keep pushing local coefficient sweeps until B+ appears.
+     Rejected because evidence showed diminishing returns and repeated trade-off inversion.
+  2. Escalate immediately to broader S4/S6/S7 tuning to force B+.
+     Rejected because that increases blast radius and could regress already-closed P3 realism bands.
+  3. Accept local infeasibility in the tested neighborhood, roll back exploratory edits, and preserve certified `B` closure while preventing unnecessary churn.
+     Selected because it was the most truth-preserving and risk-aware decision.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision was to treat the sweep as an empirical feasibility test, not a commitment to force an upgrade at any cost. Once the joint criterion proved unattainable in the bounded search space, we stopped, rolled back, and retained the certified `B` posture. This protected stability and avoided misleading “progress” claims.
+
+- Implementation (what you changed):
+  1. Ran constrained P1 concentration sweeps on `beta_mu` non-intercept scale and intercept adjustments under deterministic conditions.
+  2. Measured each candidate against the joint B+ criterion.
+  3. Recorded explicit infeasibility conclusion for the tested neighborhood.
+  4. Executed rollback:
+     - reverted experimental hurdle bundle edits,
+     - pruned exploratory run folders,
+     - retained existing P5 authority artifact and certified `B` closure.
+
+- Result (observable outcome/evidence):
+  The upgrade attempt ended with a defensible no-go decision instead of uncontrolled retuning. Segment 1A remained stably certified at `B`, and unnecessary blast-radius expansion was avoided.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5498`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5512`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5516`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5502`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5508`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5513`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5518`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows senior decision discipline: you can run a rigorous optimization attempt, recognize a true feasibility boundary, and stop without overfitting or destabilizing the system. Recruiters value this because production ML systems fail when engineers cannot say “not feasible here” with evidence.
+
+## ID 46-AK - 1B path-1 upstream reopen required 1A freeze-protection contract
+
+- Context (what was at stake):
+  This challenge emerged when Segment 1B recovery required upstream reopen pressure, but Segment 1A had already reached a certified frozen `B` posture. The stake was multi-segment governance: if we reopened upstream without protection, we could accidentally improve one corridor while silently regressing a previously certified one.
+
+- Problem (specific contradiction/failure):
+  The contradiction was operationally sharp: 1B path-1 needed upstream movement, but the user constraint was explicit that 1A frozen grade must not be spoiled. Without a hard gate, reopen decisions would rely on manual interpretation, which is error-prone under iterative runs. In short, we had a valid need to change and a valid requirement not to change critical certified behavior.
+
+- Options considered (2-3):
+  1. Use manual analyst review per candidate run to decide if 1A remained safe.
+     Rejected because it is not deterministic, not scalable, and weak for audit.
+  2. Block all upstream reopen attempts entirely.
+     Rejected because it would freeze 1B recovery even when safe, preventing legitimate progress.
+  3. Introduce an executable freeze-veto contract that machine-scores each candidate run and hard-fails any 1A regression against frozen authority surfaces.
+     Selected because it enables controlled progress with explicit no-regression law.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision was to convert the freeze constraint into tooling, not policy text. Any reopen candidate would be accepted only if it preserved frozen 1A certification semantics (`eligible_B`, hard gates, pass-count, and bounded concentration drift). This made the reopen lane safe-by-construction instead of trust-by-memory.
+
+- Implementation (what you changed):
+  1. Defined and pinned a freeze-guard contract:
+     - candidate must remain `eligible_B=true`,
+     - no regression on authority hard gates or B-pass metrics,
+     - concentration guardrail (`top10`, `gini`) must not worsen beyond bounded tolerance.
+  2. Implemented scorer tooling:
+     - `tools/score_segment1a_freeze_guard.py`.
+  3. Added invocation surface:
+     - `Makefile` target `segment1a-freeze-guard`.
+  4. Pinned the contract in build authority docs and produced machine artifacts (`segment1a_freeze_guard_<run_id>.json`) as acceptance evidence.
+  5. Validated on known authority run to confirm operational PASS behavior.
+
+- Result (observable outcome/evidence):
+  The reopen tension was resolved with an executable governance rail: 1B path-1 could proceed only through a deterministic 1A veto gate. This removed ambiguity and made cross-segment risk control auditable.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5522`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5527`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5533`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5539`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5550`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5554`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5559`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5561`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong platform-governance engineering: you translated a cross-component quality constraint into an enforceable automated contract, enabling safe iterative recovery without sacrificing certified baseline integrity. That is exactly the kind of systems-level control recruiters expect from senior MLOps/Data Engineering candidates.
+
+## ID 46-AL - 1B S2 population blend caused full-raster timeouts
+
+- Context (what was at stake):
+  This challenge surfaced in Segment 1B P1, where we needed fast, repeatable `S2->S9` execution to validate mechanics, score candidates, and close P1 under deterministic conditions. The phase goal was not yet to maximize final realism everywhere; it was to establish a stable closure lane for P1 with auditable diagnostics. Runtime viability was therefore a hard dependency.
+
+- Problem (specific contradiction/failure):
+  The first P1 candidate timed out in S2 because `blend_v2.population` forced expensive full-raster sampling across all tiles/countries. That created a contradiction: the policy was realism-rich, but operationally too heavy for the iteration loop needed to actually close P1. Without intervention, the team would be stuck in multi-hour attempts with poor feedback velocity.
+
+- Options considered (2-3):
+  1. Keep full population blend and accept very long runs.
+     Rejected because it breaks iterative remediation cadence and makes P1 closure practically non-executable.
+  2. Remove `blend_v2` entirely.
+     Rejected because this would throw away implemented realism structure and over-simplify the lane.
+  3. Stage population influence to `0.0` temporarily, keep `blend_v2` framework active, and reallocate weight to cheaper bases (`uniform/area_m2`) for P1 closure; re-enable population later when runtime budget allows.
+     Selected as the best balance between execution feasibility and design continuity.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision separated “phase closure needs” from “ultimate model richness.” For P1, we needed a runnable fast lane with deterministic diagnostics. Staging population influence out of the hot path solved runtime blockage without deleting the capability from the system.
+
+- Implementation (what you changed):
+  1. Set `blend_v2.basis_mix.population` to `0.0`.
+  2. Reallocated mixture share to `uniform/area_m2` while keeping `blend_v2` enabled.
+  3. Kept all other P1 controls active (floors, caps, top-k targets, concentration penalty, deterministic rebalance diagnostics).
+  4. Explicitly documented this as a compute-lane staging choice, not permanent realism rollback.
+  5. Continued P1 chain execution with this runtime posture and moved toward closure on fresh run IDs.
+
+- Result (observable outcome/evidence):
+  The `S2->S9` fast lane became operationally viable for P1 closure work, removing the multi-hour S2 bottleneck and enabling subsequent candidate scoring/repro checks to complete. The solution was intentionally scoped and reversible.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3511`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3514`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3517`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3521`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3524`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3551`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong practical systems judgment: you recognized when a realism lever was blocking execution, introduced a controlled staging strategy instead of brute-forcing runtime, and preserved architectural intent for later re-enable. That balance of delivery velocity and design integrity is a core senior MLOps/Data Engineering trait.
+
+## ID 46-AM - Retry cycles collided with immutable partition law
+
+- Context (what was at stake):
+  This happened during Segment 1B P1 retry cycles, where we needed repeated full-chain runs (`S2->S9`) to validate candidate changes quickly. At this phase, iterative reruns were normal, but the platform still had to preserve append-only truth semantics.
+
+- Problem (specific contradiction/failure):
+  A rerun attempt reused an existing candidate run-id and failed at S5 due immutable-partition protection. The contradiction was between “we need rapid retries” and “published partitions are write-once.” Reusing run IDs after upstream changes violated immutability law and blocked execution.
+
+- Options considered (2-3):
+  1. Force overwrite existing partitions for speed.
+     Rejected because it violates append-only truth and destroys auditability.
+  2. Manually delete prior partitions before rerun.
+     Rejected because it is destructive and breaks governance guarantees.
+  3. Standardize fresh run-id bootstrapping for every full-chain retry, copying only required upstream surfaces.
+     Selected because it preserves immutability while keeping retry velocity.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision was to make immutability non-negotiable and shift retries to new run identities every time upstream state changed. This kept the remediation loop fast enough while staying fully compliant with run-truth ownership rules.
+
+- Implementation (what you changed):
+  1. Declared a no-rerun-on-published-partition rule for changed upstream inputs.
+  2. For each retry, created a fresh run-id under `runs/fix-data-engine/segment_1B/`.
+  3. Copied only required upstream artifacts (`1A/outlet_catalogue`, `1B/s0_gate_receipt`, `1B/sealed_inputs`, `1B/tile_index`, `1B/tile_bounds`) plus cloned `run_receipt.json` with new `run_id/created_utc`.
+  4. Kept prune-before-run active to control storage churn without violating write-once history.
+
+- Result (observable outcome/evidence):
+  Retry execution resumed without S5 immutable-collision failures, and the team maintained append-only run semantics during rapid iteration. This converted a blocker into a repeatable operational pattern.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3528`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3531`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3534`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3535`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3541`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3545`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong production data-governance discipline: you preserved immutable lineage guarantees while designing a practical retry pattern for iterative experimentation. That ability to balance speed with truth-integrity is a core senior MLOps/Data Engineering signal.
+
+## ID 46-AN - P2 anti-collapse looked no-op at theoretical floor
+
+- Context (what was at stake):
+  This surfaced during Segment 1B P2, where anti-collapse improvements were expected to show measurable movement in concentration diagnostics (`top1`, `HHI`) before lock promotion. The phase needed honest pass/fail logic because P2 results were feeding downstream P3/P4 decisions.
+
+- Problem (specific contradiction/failure):
+  A retuned candidate showed effectively zero movement, which initially looked like “policy not applied” or “no-op tuning.” Deep diagnostics showed the opposite: the observed allocation was already at a mathematical floor for most pairs. Only `3/2597` pairs had any count `>1`, and those pairs matched minimum-imbalance occupancy given pair totals and tile capacity. The contradiction was that strict “candidate must be better than baseline” rules were classifying a feasibility boundary as failure.
+
+- Options considered (2-3):
+  1. Keep strict-improvement gating and reject the candidate as non-improved.
+     Rejected because it would punish mathematically saturated baselines and force fake optimization pressure.
+  2. Loosen gates broadly and accept any non-failure posture.
+     Rejected because that weakens anti-regression safety and could hide real deterioration.
+  3. Redesign acceptance logic to be feasibility-aware:
+     - require strict improvement when baseline headroom exists,
+     - allow floor-hold pass when headroom is zero and candidate is non-regressive.
+     Selected because it preserves rigor while respecting mathematical limits.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision reframed P2 closure from naive strict-improvement to truth-based feasibility gating. This avoided claiming fake gains while still enforcing no-regression discipline.
+
+- Implementation (what you changed):
+  1. Updated `tools/score_segment1b_p2_candidate.py`:
+     - computed per-pair theoretical lower bounds (`top1`, `HHI`) from `(pair_total, tile_capacity)`,
+     - added aggregate floor/headroom metrics,
+     - added explicit feasibility block in scorer output.
+  2. Changed gate semantics:
+     - strict improvement only when headroom exists,
+     - floor-hold + non-regression pass when headroom is effectively zero.
+  3. Ran candidate and fresh repro runs and generated score artifacts to validate both closure and reproducibility under new logic.
+
+- Result (observable outcome/evidence):
+  P2 closure became mathematically truthful and auditable: the scorer now distinguishes genuine no-headroom saturation from missed optimization. Candidate and repro both passed with non-regressive floor-hold evidence, enabling safe lock handoff without fabricated improvement claims.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3682`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3690`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3694`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3691`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3695`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3709`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3715`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3724`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows strong evaluation-engineering maturity: you identified when acceptance logic itself was wrong for the underlying math, corrected it without weakening safety, and preserved auditable non-regression law. That is a key senior signal for MLOps/Data Engineering roles where metric semantics and gate design matter as much as model code.
+
+## ID 46-AO - P3 geometry closure hit feasibility ceiling; out-of-pixel lane failed contract checks
+
+- Context (what was at stake):
+  This challenge occurred in Segment 1B P3, where geometry realism gates (`nn_tail_contraction`, collapse sentinels) had to close under frozen P1/P2 authority. The phase needed improvement without reopening upstream assumptions, so the room for maneuver was narrow and had to remain contract-compliant.
+
+- Problem (specific contradiction/failure):
+  Candidate scoring kept failing geometry gates even with `mixture_v2` enabled. Diagnostics showed key top-country supports were effectively lat-collapsed at tile-centroid level, meaning in-pixel jitter lacked enough geometric headroom to clear collapse signals. We tested an out-of-pixel neighborhood displacement approach, but it failed fail-closed at S7 with `E707_POINT_OUTSIDE_PIXEL`. So the contradiction became: in-contract lane lacked enough geometry freedom, but out-of-contract expansion violated current contract law.
+
+- Options considered (2-3):
+  1. Keep tuning only in-pixel parameters and hope gates close.
+     Rejected as primary strategy because diagnostics showed a feasibility ceiling under current support topology.
+  2. Promote out-of-pixel displacement despite contract mismatch.
+     Rejected because it breaks fail-closed contract semantics and would create non-authoritative closure.
+  3. Execute the out-of-pixel experiment as a diagnostic probe, accept fail-closed verdict if contract rejects it, roll back to in-contract lane, and classify remaining blocker as constrained by upstream support posture.
+     Selected because it preserves scientific testing and governance integrity simultaneously.
+
+- Decision (what you chose and why):
+  We chose option 3. The goal was to test whether geometry headroom truly required broader displacement while still honoring contract law. Once `E707_POINT_OUTSIDE_PIXEL` fired, we treated that as authoritative boundary evidence, not something to bypass. This protected trust in the pipeline while clarifying that remaining closure pressure was structural, not just missed tuning.
+
+- Implementation (what you changed):
+  1. Diagnosed feasibility ceiling with explicit evidence (lat-collapsed supports, persistent gate failures).
+  2. Implemented deterministic neighborhood-displacement variant in S6 `mixture_v2` as an experiment.
+  3. Ran the experiment and captured fail-closed contract rejection (`E707_POINT_OUTSIDE_PIXEL`).
+  4. Reverted S6 to in-contract mixture behavior and kept P1/P2 frozen.
+  5. Continued calibration attempts in-contract and documented that hard geometry gates remained unresolved under current posture.
+
+- Result (observable outcome/evidence):
+  The experiment produced a decisive boundary result: out-of-pixel geometry expansion was invalid under current S7 contract, so it could not be used for official closure. The team retained contract integrity and clearly documented that P3 geometry closure remained partially blocked by upstream constraints.
+  Truth posture: `Partial`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3821`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3832`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3885`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3836`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3866`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3893`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3901`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3907`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows disciplined experimental engineering under strict governance: you tested a plausible advanced fix, accepted fail-closed contract evidence when it failed, rolled back safely, and updated the problem framing with factual boundaries instead of forcing a narrative. That combination of rigor, honesty, and control is a strong senior MLOps/Data Engineering signal.
+
+## ID 46-AP - Integrated 1B closure remained RED after bounded improvements
+
+- Context (what was at stake):
+  This challenge surfaced at Segment 1B P4, where the goal was integrated closure under frozen `P1/P2/P3` authority. At this point, the platform needed a truthful final classifier for whether local bounded tuning could still rescue B/B+ posture or whether further work required reopening upstream assumptions.
+
+- Problem (specific contradiction/failure):
+  The integrated run was structurally healthy (`S9=PASS`, no-regression checks PASS), but the B/B+ concentration and coverage hard gates failed. After executing a guarded upstream path-1 cycle, scores improved materially, yet status remained `RED_REOPEN_REQUIRED` and top-country collapse sentinel still flagged. The contradiction was clear: bounded improvements existed, but they were not enough to cross closure gates, so continuing as if near-green would misclassify risk.
+
+- Options considered (2-3):
+  1. Continue bounded local retune (`P4.3`) anyway and hope iterative drift reaches B.
+     Rejected because status semantics explicitly defined RED as a blocker, not a "try harder" hint.
+  2. Relax B/B+ hard gates for this phase and declare provisional closure.
+     Rejected because it would break authority semantics and weaken truthfulness of certification.
+  3. Enforce fail-closed RED handling with explicit blocker artifact, block `P4.3`, and require upstream reopen decisions through governed lanes.
+     Selected because it preserves audit truth and prevents silent gate bypass.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision was to operationalize integrated status as a control surface, not a reporting label. If the classifier says `RED_REOPEN_REQUIRED`, local bounded retune is not allowed. This prevented optimistic drift and forced the next actions into explicit upstream governance with recorded rationale.
+
+- Implementation (what you changed):
+  1. Implemented integrated scorer + classifier:
+     - `tools/score_segment1b_p4_integrated.py`.
+  2. Materialized pinned authority envelope for integrated scoring:
+     - `segment1b_p4_authority_envelope.json` with locked `P1/P2/P3` anchors.
+  3. Ran integrated candidate (`S2->S9`) and emitted P4 artifact showing RED.
+  4. Wrote explicit blocker evidence artifact:
+     - `segment1b_p4_red_reopen_625644d528a44f148bbf44339a41a044.json`.
+  5. Enforced fail-closed flow:
+     - block `P4.3` under RED,
+     - require explicit upstream reopen approval.
+  6. Executed path-1 guarded rerun (`S0->S9`) with 1A freeze-veto PASS and rescored to validate whether RED cleared.
+
+- Result (observable outcome/evidence):
+  The control system behaved correctly: even after measurable improvement (`gini 0.7528 -> 0.7182`, `top10 0.5974 -> 0.5656`, `eligible_nonzero_share 0.3092 -> 0.7550`), integrated status remained `RED_REOPEN_REQUIRED`, with collapse sentinel still triggered (`MC`, `BM`). So the project did not fake closure; it produced explicit, machine-auditable evidence that upstream reopening remained required.
+  Truth posture: `Open`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4130`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4152`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4243`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4158`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4161`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4261`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4265`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4270`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates production-grade gate governance: you built a deterministic integrated classifier, treated RED as enforceable control logic, and preserved truth even when metrics improved but remained below contract thresholds. That is a strong senior signal for MLOps/Data Engineering roles that require hard decision systems, not narrative-driven pass/fail calls.
+
+## ID 46-AQ - S4 runtime bottleneck throttled remediation iteration speed
+
+- Context (what was at stake):
+  This challenge emerged immediately after integrated `1B` remained RED. The team needed multiple additional recovery cycles, but each full-chain candidate depended on `S4`, and `S4` execution time was dominating iteration cost. At stake was remediation velocity itself: if each retry stayed expensive, recovery would become operationally impractical even before statistical decisions could be tested.
+
+- Problem (specific contradiction/failure):
+  Runtime diagnostics showed heavy cache churn in `S4` (`cache_miss` and eviction counts nearly mirrored each other with a tiny fixed cache), indicating the pipeline was spending significant wall-clock time reloading country assets instead of advancing scoring cycles. The contradiction was that governance required fail-closed, full-fidelity gates, but the runtime path was too slow for disciplined bounded experimentation.
+
+- Options considered (2-3):
+  1. Keep current `S4` behavior and accept slower cycles.
+     Rejected because it would throttle recovery cadence and increase operational drag for every candidate.
+  2. Simplify statistical logic to speed up execution.
+     Rejected because it risks semantic drift and invalidates comparability of prior gate evidence.
+  3. Add performance-only runtime rails in `S4` (configurable cache entry cap + byte budget), wire observability, and benchmark on identical run envelope before proceeding.
+     Selected because it attacks the bottleneck directly while preserving statistical semantics.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision separated compute mechanics from statistical policy: improve runtime plumbing without changing allocation math, tie-breaking, anti-collapse behavior, or output semantics. This maintained trust in gate outcomes while improving execution throughput.
+
+- Implementation (what you changed):
+  1. Diagnosed and pinned bottleneck source from integrated run telemetry (`S4` dominant, high miss/eviction churn).
+  2. Implemented `P4.R1` runtime rail in:
+     - `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`.
+  3. Added environment knobs:
+     - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX`,
+     - `ENGINE_1B_S4_CACHE_MAX_BYTES`.
+  4. Replaced fixed-count cache behavior with bounded cache control (entry cap + byte budget) and added runtime-cache telemetry into `s4_run_report`.
+  5. Wired make execution path to forward the new knobs (`makefile`, `segment1b-s4`).
+  6. Benchmarked before/after on the same run envelope and preserved deterministic parity checks.
+  7. Because first pass was below target, pinned a bounded follow-up sweep (`(32,1.5B)`, `(48,2.5B)`, `(64,3.5B)`) with early-stop at `>=30%`.
+
+- Result (observable outcome/evidence):
+  The rail delivered measurable deterministic acceleration (`6386.64s -> 4804.72s`, about `24.77%` faster) with unchanged determinism hash and output row count, proving the optimization was compute-only. However, strict target (`>=30%`) was not yet reached in that pass, so a bounded sweep was explicitly staged before moving deeper into recovery lanes.
+  Truth posture: `Partial`.
+  Evidence anchors:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4274`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4335`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4385`
+  Additional challenge context:
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4276`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4346`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4368`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4372`
+  - `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4378`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is strong MLOps/Data Engineering execution under pressure: you identified a systems bottleneck from live telemetry, introduced tunable performance rails without semantic drift, proved deterministic parity with benchmark artifacts, and converted a runtime blocker into an auditable optimization program with explicit next-step gates.
+
+## ID 228-AA - First post-closure 200-event run exposed residual closure defects
+
+- Context (what was at stake):
+  This challenge occurred right after Spine Green v0 was considered operationally closed for local parity. The next step was a bounded migration-baseline verification run (`WSP_MAX_EVENTS_PER_OUTPUT=200`) to confirm the platform was truly stable enough to serve as the launch point for dev-substrate promotion.
+
+- Problem (specific contradiction/failure):
+  The run completed core flow and produced expected artifacts, but closure was not actually clean. Residual defects surfaced in health and operability: DLA still showed unresolved lineage AMBER posture, parity status behavior was too tightly coupled to Learning-plane env presence for a Spine-only baseline check, and unauthenticated IG ops-health behavior returned incorrect server-error semantics. The contradiction was: pipeline looked functionally complete, yet operational closure signals still had governance gaps.
+
+- Options considered (2-3):
+  1. Treat the run as "good enough" and proceed to migration anyway.
+     Rejected because unresolved closure defects would be carried forward and become harder to isolate later.
+  2. Re-open broad redesign work before identifying exact defect surfaces.
+     Rejected because the issue was not missing architecture; it was residual closure quality in specific runtime/ops paths.
+  3. Treat this run as a closure-audit pass, convert each residual into explicit remediation items, fix in bounded scope, and verify on a fresh bounded rerun.
+     Selected because it preserves momentum while raising baseline integrity before migration.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision was to promote audit-driven closure discipline: no assumption that "first green-like run" equals true readiness. Instead, every residual had to become a named remediation track with verifiable closure evidence before advancing.
+
+- Implementation (what you changed):
+  1. Ran the 200-event migration-baseline check and recorded runtime posture under runbook control.
+  2. Cataloged concrete residuals from the run:
+     - DLA unresolved lineage remained AMBER,
+     - parity status command behavior conflicted with Spine-only baseline (Learning coupling),
+     - IG unauthenticated ops-health path had incorrect error semantics.
+  3. Converted these into targeted closure tasks (later tracked as follow-on IDs `228-AB`, `228-AC`, `228-AD`) rather than leaving them as generic notes.
+  4. Executed a bounded rerun after fixes to confirm the baseline moved from partial to clean green posture on required surfaces.
+
+- Result (observable outcome/evidence):
+  The first post-closure run did exactly what it needed to do: it exposed hidden residuals early and prevented false confidence. Those residuals were then remediated and validated on a fresh bounded run, giving a defensible migration baseline instead of a narrative-only "looks good" claim.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10674`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10689`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10691`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10698`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10707`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10714`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10715`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10722`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows production-grade release rigor: you used bounded live execution as a quality gate, detected non-obvious operational defects after apparent closure, decomposed them into actionable remediation streams, and validated fixes with a fresh run before promotion. That is exactly the kind of evidence-driven reliability mindset hiring managers want in senior MLOps/Data Engineering candidates.
+
+## ID 228-AB - Parity status command was too learning-coupled for Spine-only baseline
+
+- Context (what was at stake):
+  This challenge appeared during Spine Green v0 migration-baseline verification, where the objective was to validate the Spine path under a bounded run while Learning remained intentionally out of scope. The `platform-operate-parity-status` surface was supposed to provide quick run readiness/health confirmation for that scope.
+
+- Problem (specific contradiction/failure):
+  The command hard-failed when Learning-specific env vars (notably `PARITY_OFS_RUN_LEDGER_DSN`) were unset, even though the active migration check was Spine-only. This created a contradiction: the operability tool that should confirm baseline readiness was enforcing dependencies from a plane that was intentionally excluded.
+
+- Options considered (2-3):
+  1. Keep strict Learning env requirements and force operators to set placeholder DSNs for every Spine check.
+     Rejected because it introduces fake configuration and makes baseline checks misleading.
+  2. Create a separate Spine-only status command.
+     Rejected because it fragments operational tooling and creates two overlapping truth surfaces.
+  3. Make existing parity status subset-safe by tolerating Learning omission for Spine Green v0 posture and using controlled DSN fallback behavior where appropriate.
+     Selected because it preserves one command surface while matching real scope boundaries.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision was to keep a unified status command but align its contract to scope-aware operation: if Learning is out of scope for the baseline, status should not fail due to absent Learning-only variables. This keeps the operator signal truthful and usable.
+
+- Implementation (what you changed):
+  1. Recorded the failure explicitly in local parity notes as a blocker for migration-baseline checks.
+  2. Pinned remediation requirement that parity status must tolerate Learning-plane omission for Spine Green v0 runs.
+  3. Hardened local parity env expansion so Learning jobs-pack DSNs default-fall back to parity admission DSN when explicit OFS/MF ledger DSNs are absent.
+  4. Re-ran bounded validation on a fresh run to confirm command behavior was now clean and non-blocking.
+
+- Result (observable outcome/evidence):
+  `platform-operate-parity-status` moved from false-negative failure to clean operation under Spine-only baseline scope. This removed tooling-induced noise from migration readiness checks and restored operator trust in status output.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10690`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10695`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10706`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10714`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10719`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong platform-operability engineering: you identified a scope-contract mismatch in control tooling, fixed it without splitting operational truth surfaces, and verified behavior on a fresh bounded run. That is a core senior MLOps/Data Engineering signal because migration success depends as much on correct operational contracts as on pipeline logic.
+
+## ID 228-AC - DLA unresolved lineage AMBER traced to startup replay-window intake gaps
+
+- Context (what was at stake):
+  This challenge sat on the critical path of migration readiness after the first Spine Green v0 bounded run. Even though core flow was running, DLA health still reported unresolved lineage, which directly weakened trust in governance/audit truth for the baseline that dev migration would inherit.
+
+- Problem (specific contradiction/failure):
+  `decision_log_audit` stayed AMBER with `UNRESOLVED_AMBER` and non-zero unresolved lineage. Root cause analysis pointed to startup replay-window intake gaps, especially first-window behavior across AL/DLA: if startup intake missed or delayed initial linkage surfaces, DLA could persist `MISSING_OUTCOME_LINK` style unresolved states even when runtime flow looked otherwise healthy. The contradiction was that pipeline execution was "green-ish," but lineage truth was not closed.
+
+- Options considered (2-3):
+  1. Accept AMBER as normal for bounded runs and proceed.
+     Rejected because migration baseline cannot normalize unresolved audit lineage.
+  2. Relax DLA health criteria to mask unresolved lineage in this phase.
+     Rejected because it hides a real integrity problem instead of fixing intake behavior.
+  3. Harden startup intake behavior for run-scoped replay windows in both DLA and AL so first-window linkage is captured reliably, then verify on a fresh bounded run.
+     Selected because it addresses root mechanics while preserving strict audit semantics.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision preserved fail-closed lineage truth: rather than weaken health gates, fix ingestion timing/coverage so audit status reflects real closure. This protected the baseline from carrying silent governance debt into dev migration.
+
+- Implementation (what you changed):
+  1. Recorded unresolved lineage AMBER as a concrete closure blocker from the first bounded run.
+  2. Hardened DLA startup intake behavior for run-scoped Kinesis replay window handling.
+  3. Hardened AL startup intake similarly to prevent first-window intent loss that can cascade into missing outcome links in DLA reconciliation.
+  4. Re-executed bounded run verification (`WSP_MAX_EVENTS_PER_OUTPUT=200`) and checked health/audit surfaces for closure.
+
+- Result (observable outcome/evidence):
+  On the fresh run, DLA health moved to `GREEN` with `lineage_unresolved_total=0`, while related DF/AL/Obs surfaces remained healthy. This converted a governance-integrity blocker into verified closure, giving a much stronger baseline for subsequent migration work.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10689`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10707`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10715`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10703`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10708`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10716`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates mature data-governance engineering: you traced a subtle audit-lineage defect to startup replay behavior, fixed it at the ingestion boundary instead of weakening gates, and validated closure with run-scoped evidence. That is a high-value senior MLOps/Data Engineering signal because production systems fail most often at these temporal/operational edges.
+
+## ID 228-AD - IG ops-health unauthorized path returned 500 instead of auth-semantic 401
+
+- Context (what was at stake):
+  This challenge appeared in the same post-closure Spine Green v0 baseline audit. The IG ops-health endpoint is a core operational control surface, and its auth behavior needed to be contract-correct before using local parity posture as migration baseline.
+
+- Problem (specific contradiction/failure):
+  Unauthenticated `IG /v1/ops/health` calls returned `500`, while authenticated calls returned healthy payloads. That created a contract contradiction: an expected auth failure path was being reported as an internal server error, which distorts monitoring, misclassifies client behavior, and weakens fail-closed semantics.
+
+- Options considered (2-3):
+  1. Leave behavior as-is and rely on operators to interpret `500` as auth-related in this specific path.
+     Rejected because it encodes ambiguity into an operationally critical endpoint.
+  2. Hide auth failure on health route by always returning `200`.
+     Rejected because it breaks security semantics and masks unauthorized access posture.
+  3. Correct IG route error mapping so unauthenticated calls return explicit `401 UNAUTHORIZED`, while authenticated calls keep normal `200` health payload behavior.
+     Selected because it restores protocol correctness and fail-closed clarity.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision was to treat auth semantics as part of platform reliability, not a cosmetic API detail. Health endpoints must be both observable and policy-correct; returning `401` on unauthorized access is required for accurate ops signals and secure contract behavior.
+
+- Implementation (what you changed):
+  1. Captured the issue from the first bounded run audit (`500` on unauthenticated ops-health path).
+  2. Applied IG service route error-mapping fix for the unauthorized health path.
+  3. Restarted the relevant pack/runtime path.
+  4. Re-tested both auth states:
+     - unauthenticated `/v1/ops/health`,
+     - authenticated `/v1/ops/health`.
+
+- Result (observable outcome/evidence):
+  Endpoint behavior became contract-aligned: unauthenticated calls now return `401 UNAUTHORIZED`, and authenticated calls return `200` with health payload. This closed the residual ops-surface defect and removed misleading error semantics from the migration baseline.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10722`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10730`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10691`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10696`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10731`
+  - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10734`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong production API-governance discipline: you fixed an auth/error-contract mismatch on a critical operational endpoint, validated both unauthorized and authorized paths, and ensured monitoring surfaces report the right failure class. That is a meaningful senior MLOps/Data Engineering signal because reliable operations depend on precise protocol semantics.
+
+## ID 248-AA - Migration planning needed local-to-managed compute playbook reframing
+
+- Context (what was at stake):
+  This challenge emerged at the start of dev-substrate promotion after local parity had been stabilized. The team needed to migrate from "works on local compute" to "runs on managed substrate" without breaking platform rails, but the existing plan posture was still too abstract for first-time operator execution.
+
+- Problem (specific contradiction/failure):
+  The roadmap had strong principles and gates, but it did not yet force explicit process-level portability proof. That created a contradiction: phases could look green on paper while hidden local assumptions (runtime coupling, state coupling, missing managed execution handles) remained unresolved. In practical terms, "proceed" decisions lacked executable closure criteria for compute migration.
+
+- Options considered (2-3):
+  1. Keep migration guidance implicit inside existing phase text.
+     Rejected because critical portability checks would remain easy to miss and hard to audit.
+  2. Create a separate planning document for compute migration.
+     Rejected at that moment because it would fragment operator context and reduce day-to-day enforcement.
+  3. Add a binding cross-phase local-to-managed compute playbook in the active build plan, then force concrete local process decomposition artifact(s) as mandatory progression gates.
+     Selected because it turned abstract intent into operational law.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision was to make compute portability a first-class acceptance surface, not an inferred assumption. This allowed every corridor phase to be evaluated against explicit migration mechanics before acceptance-valid progression.
+
+- Implementation (what you changed):
+  1. Captured the migration challenge explicitly in the implementation map and pinned it as a blocker class.
+  2. Added `Local-to-Managed Compute Migration Playbook (binding across phases)` into:
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+  3. Defined concrete playbook work sections:
+     - compute/state coupling inventory,
+     - managed execution package contract,
+     - managed-lane preflight gate,
+     - cutover/rollback contract,
+     - portability acceptance proof.
+  4. Coupled Phase `3.C` progression to this playbook so component acceptance cannot bypass portability checks.
+  5. Extended the playbook with mandatory `Local run process decomposition baseline` and required a concrete matrix artifact.
+  6. Created the first concrete baseline matrix artifact and linked it back into the playbook for enforcement.
+
+- Result (observable outcome/evidence):
+  Migration planning moved from narrative-level guidance to executable, auditable control structure. The project now had a binding playbook plus concrete local process inventory baseline, which removed major ambiguity from local-to-managed promotion decisions.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:1971`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:2019`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:2156`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:1981`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:2035`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:2062`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:2090`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:2179`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates high-leverage migration leadership: you converted vague platform promotion risk into enforceable planning law, anchored it to process-level inventory evidence, and prevented false phase closure. Recruiters read this as strong MLOps/Data Engineering systems thinking because you solved not only technical build tasks, but the execution-governance mechanics that determine whether migration actually succeeds.
+
+## ID 248-AB - Build-go packaging failed on OIDC/ECR trust wiring
+
+- Context (what was at stake):
+  This challenge occurred during `M1` build-go execution for dev-substrate migration. The goal was to prove that the packaging lane could produce and publish immutable runtime images with auditable evidence, which is a prerequisite for managed deployment readiness.
+
+- Problem (specific contradiction/failure):
+  Packaging did not fail because of app code; it failed on cloud trust wiring. Early CI attempts failed first due to missing GitHub OIDC provider and then due to missing ECR auth permissions. The contradiction was operationally important: code path could be correct, but migration still blocked because identity/control-plane contracts were incomplete.
+
+- Options considered (2-3):
+  1. Bypass trust hardening with static long-lived cloud credentials in CI.
+     Rejected because it violates security posture and weakens auditability.
+  2. Keep retrying build pipeline without changing IAM/OIDC setup.
+     Rejected because failures were deterministic control-plane denials, not transient CI noise.
+  3. Fix federated trust properly: create OIDC provider for GitHub issuer and attach least-privilege ECR push/read permissions to the CI role.
+     Selected because it resolves root cause while preserving secure, least-privilege automation.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision treated identity wiring as a first-class build dependency, not an afterthought. A successful migration packaging lane must be secure-by-default and reproducible under federated identity, not dependent on manual secrets.
+
+- Implementation (what you changed):
+  1. Captured fail-closed evidence from failed CI runs:
+     - run `21985402789`: OIDC provider missing,
+     - run `21985472266`: ECR auth permission missing.
+  2. Created IAM OIDC provider for GitHub token issuer.
+  3. Attached least-privilege ECR push/read policy to role:
+     - `GitHubAction-AssumeRoleWithAction`.
+  4. Re-ran packaging through GitHub Actions and validated successful build/push.
+  5. Preserved immutable image identity and evidence surfaces:
+     - image tag/digest in ECR,
+     - CI artifact pack,
+     - run-scoped evidence mirrors (local + S3).
+
+- Result (observable outcome/evidence):
+  Build-go packaging closed successfully after trust remediation, with explicit proof trail from failure to fix to success. This unblocked M1 progression and validated that packaging compute could run on remote CI with secure federated auth and durable evidence.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6219`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6223`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6198`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6201`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6203`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6217`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6224`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is a strong MLOps execution signal: you diagnosed and fixed CI/CD identity-plane failures across OIDC federation and registry authorization, kept least-privilege posture, and produced immutable artifact evidence. Recruiters read this as real platform delivery capability, not just model/code implementation.
+
+## ID 248-AC - M1 build-go blocked by missing `IMAGE_DOCKERFILE_PATH` artifact
+
+- Context (what was at stake):
+  This challenge surfaced during M1 build-go execution for dev-substrate packaging. At this stage, planning gates were closed and execution was expected to produce immutable image/evidence artifacts for phase progression.
+
+- Problem (specific contradiction/failure):
+  Execution failed immediately at `docker build` with `failed to read dockerfile: open Dockerfile: no such file or directory`, while the build contract pinned `IMAGE_DOCKERFILE_PATH = "Dockerfile"`. The contradiction was a decision-completeness breach: plan assumed a required artifact that did not exist in the repo surface, so build-go could not even start.
+
+- Options considered (2-3):
+  1. Change the build command to point to an ad-hoc path and continue.
+     Rejected because it breaks the pinned contract and introduces non-deterministic operator behavior.
+  2. Defer fix and continue with other migration phases.
+     Rejected because M1 packaging execution was blocked and downstream evidence could not be produced.
+  3. Implement the missing packaging artifact contract explicitly:
+     - add root `Dockerfile` at the pinned path,
+     - add `.dockerignore` with deterministic boundary controls,
+     - rerun canonical build-go flow.
+     Selected because it restores contract integrity and execution readiness.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision preserved fail-closed execution law: do not bypass a missing required artifact, fix the contract implementation at source and keep command surfaces deterministic.
+
+- Implementation (what you changed):
+  1. Captured blocker as material execution gap in implementation map.
+  2. Pinned corrective requirements:
+     - root `Dockerfile` must satisfy runtime packaging constraints,
+     - `.dockerignore` must prevent bloated/secrets-prone context and enforce deterministic scope.
+  3. Re-aligned M1 packaging contract around explicit image-manifest boundaries (no repo-wide `COPY . .` posture).
+  4. Added the missing artifacts locally:
+     - `Dockerfile`,
+     - `.dockerignore`.
+  5. Resumed authoritative CI build-go lane after artifact restoration.
+
+- Result (observable outcome/evidence):
+  The hard blocker was removed: pinned Dockerfile path became real, packaging lane became executable again, and subsequent authoritative build-go progression could continue to identity/auth remediations and successful artifact production.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5605`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5609`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5620`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5621`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6103`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6132`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong execution-discipline under real delivery pressure: you detected a planning-to-implementation contract gap, enforced fail-closed behavior instead of improvising, and restored deterministic packaging inputs so CI/CD migration work could proceed safely. That is a core senior MLOps/Data Engineering signal.
+
+## ID 248-AD - Core Terraform apply blocked by empty state vs existing resources mismatch
+
+- Context (what was at stake):
+  This challenge arose during M2.C core substrate apply-readiness work in dev migration. The team needed to move from planning to Terraform execution safely, and core substrate state integrity was a hard prerequisite for any reliable apply progression.
+
+- Problem (specific contradiction/failure):
+  The backend key for core state was empty while core resources already existed in AWS. Plan showed create-set pressure (`exit 2`) that would likely collide with already-existing resources on direct apply. The contradiction was severe: execution contract looked "ready," but state reality meant first apply could be destructive/conflict-heavy and non-repeatable.
+
+- Options considered (2-3):
+  1. Run direct `terraform apply` and resolve collisions afterward.
+     Rejected because it violates fail-closed posture and risks unsafe mutation under state ambiguity.
+  2. Tear down existing resources and rebuild from empty state.
+     Rejected because it is high-blast-radius and unnecessary when import/migration can preserve existing substrate.
+  3. Block direct apply, perform controlled state import/migration, and re-plan until create-set conflicts are removed.
+     Selected because it preserves existing infrastructure while restoring deterministic state management.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision treated state truth as non-negotiable: no apply execution while state and environment diverged. Import-first migration gave a controlled path to convergence without violating fail-closed infrastructure governance.
+
+- Implementation (what you changed):
+  1. Classified blocker `M2C-B1` and pinned it in unresolved blocker register.
+  2. Enforced closure rule:
+     - no direct apply,
+     - controlled import/migration plus iterative re-plan required.
+  3. Diagnosed import friction in module internals and applied import-safety fixes:
+     - switched dependent `for_each` loops to static key space (`local.bucket_names`),
+     - hardened outputs for partial-import safety (`try(...)` key-driven mapping).
+  4. Executed controlled import of all core resources into state (24 total), then re-ran plan.
+  5. Verified post-import convergence:
+     - `CREATE_COUNT=0`,
+     - state inventory count aligned to imported resources.
+
+- Result (observable outcome/evidence):
+  The state mismatch blocker was resolved without unsafe apply shortcuts. Core state became aligned with existing resources, and plan surface moved to non-conflict posture, enabling safer progression for subsequent substrate phases.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6519`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6524`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6553`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6529`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6562`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6570`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6577`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6584`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is strong infrastructure-migration judgment: you prevented unsafe apply under state ambiguity, engineered import-safe Terraform semantics, and converged state/environment with auditable evidence. Recruiters see this as senior Data Eng/MLOps capability because real platform migrations fail at state-control edges, not just code deployment.
+
+## ID 248-AE - Accidental shell expansion removed core stack files
+
+- Context (what was at stake):
+  This challenge occurred during active M2.C remediation work, when core Terraform stack integrity was already on the critical path. At that moment, any additional instability in stack files could have derailed state-reconciliation progress and introduced avoidable migration risk.
+
+- Problem (specific contradiction/failure):
+  While removing an accidental artifact file (`$plan`), shell expansion behavior unexpectedly removed files under `infra/terraform/dev_min/core`. The contradiction was direct: a cleanup step meant to reduce noise instead damaged canonical infrastructure source files, threatening execution continuity and trust in the working tree.
+
+- Options considered (2-3):
+  1. Continue with current flow and hope missing files are non-critical.
+     Rejected because Terraform contract surfaces are strict; partial file loss is a hard-risk condition.
+  2. Reconstruct files ad hoc from memory and proceed quickly.
+     Rejected because ad hoc reconstruction risks subtle drift from pinned canonical content.
+  3. Restore canonical core stack files to pinned content immediately, re-run Terraform validation, and only then resume migration work.
+     Selected because it restores deterministic source integrity and minimizes hidden drift risk.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision prioritized source-of-truth recovery over speed: restore exactly, validate immediately, and do not proceed under uncertain stack integrity.
+
+- Implementation (what you changed):
+  1. Recorded the incident explicitly as a corrective operational event in the implementation map.
+  2. Restored canonical core files:
+     - `versions.tf`, `variables.tf`, `main.tf`, `outputs.tf`,
+     - `backend.hcl.example`, `terraform.tfvars.example`, `README.md`.
+  3. Re-ran non-mutating Terraform checks:
+     - `terraform init -backend=false`,
+     - `terraform validate`.
+  4. Confirmed no `apply`/`destroy` mutations occurred from the incident.
+
+- Result (observable outcome/evidence):
+  Core stack validity was recovered quickly with deterministic checks, and migration work continued without hidden file-drift residue. The incident was contained to source restoration and did not mutate live substrate state.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6536`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6542`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6539`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6546`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6551`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong operational safety discipline: you treated an accidental local tooling incident as a controlled recovery exercise, restored canonical IaC surfaces precisely, and verified integrity before continuing. Recruiters see this as mature MLOps/Data Engineering behavior because production migration success depends on reliable incident containment and recovery, not just feature delivery.
+
+## ID 248-AF - M2.D demo apply readiness surfaced capability-gap blockers
+
+- Context (what was at stake):
+  This challenge appeared when progressing from M2.C into M2.D demo apply-readiness. The goal was to prove that the demo Terraform stack represented all required substrate capability lanes before any mutation step, so downstream phases would not inherit hidden infrastructure gaps.
+
+- Problem (specific contradiction/failure):
+  Initial M2.D contract execution passed command mechanics (`init/validate/plan`) but failed capability completeness: the demo plan only contained a minimal set (log group, manifest object, heartbeat SSM) and missed required lanes for Confluent, ECS, runtime DB, and required Confluent/DB secret paths. The contradiction was that Terraform commands were green, but migration readiness was not.
+
+- Options considered (2-3):
+  1. Treat current minimal demo plan as sufficient and progress anyway.
+     Rejected because it would create false phase closure and push missing capabilities downstream.
+  2. Fill missing pieces manually via console and keep Terraform minimal.
+     Rejected because it violates IaC-first migration posture and increases drift risk.
+  3. Keep fail-closed status, register explicit blockers, then expand demo Terraform module/root until all required capability categories are materially represented and verified.
+     Selected because it preserves governance rigor and produces repeatable substrate shape.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision emphasized blocker-led closure sequencing: do not progress on optimistic interpretation of plan success; only progress once capability-lane coverage is explicit, validated, and evidenced.
+
+- Implementation (what you changed):
+  1. Executed M2.D demo contract checks and produced snapshot evidence.
+  2. Registered explicit blockers:
+     - `M2D-B1` Confluent resources missing,
+     - `M2D-B2` ECS scaffolding missing,
+     - `M2D-B3` runtime DB missing,
+     - `M2D-B4` required Confluent/DB SSM writes missing.
+  3. Captured migration learning posture (IaC-first over UI-first) to prevent manual-gap normalization.
+  4. Expanded Terraform demo module/root to materialize missing lanes:
+     - network scaffold,
+     - ECS scaffolding (desired-count-zero service posture),
+     - runtime Postgres RDS lane,
+     - canonical SSM parameter surfaces for Confluent/DB/IG,
+     - Confluent topic-catalog contract artifact and handle outputs.
+  5. Re-ran `fmt/init/validate/plan/show-json`, regenerated M2.D evidence, and synchronized blocker/status registers.
+
+- Result (observable outcome/evidence):
+  M2.D moved from fail-closed blocker state to capability-complete readiness with `required_demo_categories` all true and `overall_pass=true`. Blockers `M2D-B1..M2D-B4` were closed explicitly, and next-phase progression was resumed on evidence, not assumption.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6631`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6694`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6728`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6648`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6655`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6707`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6752`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6755`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong platform migration governance: you separated command success from capability completeness, enforced fail-closed blocker accounting, and closed gaps through IaC expansion with auditable evidence. That is a high-signal MLOps/Data Engineering competency because real migrations fail when teams confuse "plan ran" with "platform ready."
+
+## ID 248-AG - Secret-materialization/access checks failed in M2.E
+
+- Context (what was at stake):
+  This challenge surfaced immediately after M2.D closure while validating M2.E secret and access readiness. The migration needed live proof that runtime secret surfaces were both materialized and policy-readable before proceeding, because downstream runtime behavior depends on these paths and IAM boundaries.
+
+- Problem (specific contradiction/failure):
+  Initial M2.E checks were fail-closed: some required secret paths were missing, runtime roles needed for boundary validation were missing, and overall secret-surface verification returned `overall_pass=false`. The contradiction was that handle contracts existed in plan/config, but live substrate materialization was incomplete.
+
+- Options considered (2-3):
+  1. Assume missing secret paths/roles will exist later and proceed.
+     Rejected because secret readiness is a hard runtime dependency and cannot be deferred implicitly.
+  2. Patch missing values manually in console for quick green status.
+     Rejected because it weakens reproducibility and drifts from IaC-governed migration posture.
+  3. Keep fail-closed blockers, materialize missing resources through full demo-stack apply with safe input controls, then rerun M2.E checks and require `overall_pass=true`.
+     Selected because it preserves deterministic substrate truth and auditable closure.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision enforced the rule that secret handle presence on paper is insufficient; only live, validated substrate materialization counts for phase closure.
+
+- Implementation (what you changed):
+  1. Executed live M2.E checks across required SSM paths, runtime roles, and IAM boundary simulation.
+  2. Recorded blockers:
+     - `M2E-B1` missing required SSM paths,
+     - `M2E-B2` missing runtime roles / unverifiable least-privilege boundary.
+  3. Hardened demo module IAM posture:
+     - app-role secret-read policy scoped to required secret paths.
+  4. Applied full demo stack to materialize missing live secret/role surfaces, with safeguards to preserve existing Confluent credentials.
+  5. During resolution, corrected DB engine default drift (`16.3` unavailable -> `16.12`) and reran apply.
+  6. Re-ran M2.E checks and regenerated non-secret evidence artifacts.
+
+- Result (observable outcome/evidence):
+  M2.E moved from fail-closed blocker state to closed readiness: required secret paths and runtime roles were materialized, IAM secret-read boundary was validated, and verification passed. This converted an implicit runtime risk into explicit, evidenced closure.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6788`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6824`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6839`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6807`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6810`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6813`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6843`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6849`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong production secret-governance execution: you validated live secret surfaces, enforced least-privilege policy scope, handled real-world cloud drift during materialization, and required evidence-backed closure before progression. That is a strong senior MLOps/Data Engineering signal because operational reliability depends on these exact security/runtime edges.
+
+## ID 248-AH - Cost accrual became an operational migration blocker
+
+- Context (what was at stake):
+  This challenge surfaced after live dev-substrate materialization made cost exposure real. The migration had moved beyond planning into always-on resource territory, and unmanaged spend drift could silently undermine execution runway even if technical gates were passing.
+
+- Problem (specific contradiction/failure):
+  The team discovered a practical contradiction: technical progress can look healthy while cost visibility lags and risk accumulates. S3 overage signals appeared early but were not the main risk; always-on managed resources (especially RDS) dominated accrual potential, and AWS billing lag plus external Confluent billing split made AWS-only monitoring incomplete.
+
+- Options considered (2-3):
+  1. Keep cost awareness informal and rely on occasional console checks.
+     Rejected because delayed/fragmented billing views can hide actionable spend drift.
+  2. Pause migration until full finance certainty is available.
+     Rejected because it stalls delivery without adding practical daily controls.
+  3. Formalize cost learning into M2 guardrails and implement executable monitoring surfaces (dashboard + snapshot lane) with fail-closed progression rule on unplanned trend/resource posture.
+     Selected because it enables controlled forward movement with operational visibility.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision reframed cost as a first-class migration gate: not a postmortem concern, but an active control lane tied to phase progression and teardown decisions.
+
+- Implementation (what you changed):
+  1. Pinned cost-accrual challenge framing in implementation map, including delayed CE visibility and multi-platform billing split.
+  2. Extended M2.I guardrail ownership with explicit dual-lens monitoring posture:
+     - lagged finance lens (Cost Explorer + Budgets),
+     - live posture lens (RDS/ECS/NAT runtime state checks).
+  3. Added executable monitoring artifacts:
+     - `tools/dev_substrate/cost_guardrail_dashboard.json`,
+     - `tools/dev_substrate/cost_guardrail_snapshot.py`.
+  4. Activated monitoring in account:
+     - provisioned dashboard `fraud-platform-dev-min-cost-guardrail`,
+     - captured first non-secret snapshot artifact.
+  5. Pinned fail-closed rule: pause progression if trend breaches planned envelope or unplanned always-on resources appear.
+
+- Result (observable outcome/evidence):
+  Cost monitoring shifted from conceptual advice to operational controls: dashboard lane is live and snapshot lane is producing evidence. This reduced "surprise bill" risk materially. However, posture is intentionally `Partial` because cost control is ongoing runtime governance, not a one-time closed fix.
+  Truth posture: `Partial`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6886`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6912`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6951`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6920`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6922`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6925`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6935`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6965`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates senior operational maturity: you converted cost pain into codified guardrails, built executable monitoring surfaces, and tied spend signals to fail-closed phase governance. Recruiters value this because production MLOps/Data Engineering is as much about sustainable operations as it is about shipping infrastructure.
+
+## ID 248-AI - Kafka readiness repeatedly failed across local/CI auth + secret lanes
+
+- Context (what was at stake):
+  This challenge sat on the M2.F critical path, where Kafka topic readiness had to be proven before advancing dev migration. Without reliable topic auth/connectivity and topic-presence checks, the runtime ingress-to-decision flow could not be trusted in managed substrate.
+
+- Problem (specific contradiction/failure):
+  Readiness failed repeatedly across different lanes:
+  - local verification failed at SASL handshake (`overall_pass=false`),
+  - command-lane mismatch appeared between Confluent CLI behavior and required Confluent Cloud checks,
+  - CI runs exposed trust/ref constraints, missing stack visibility on trusted branch, backend IAM permission gaps, and import-adoption defects causing `Topic already exists` apply failures.
+  The contradiction was that command execution existed, but credential, trust, and state-adoption contracts were not yet closure-grade.
+
+- Options considered (2-3):
+  1. Keep manual/local checks and treat CI failures as temporary noise.
+     Rejected because phase closure required deterministic, non-laptop evidence.
+  2. Bypass adoption issues with manual topic deletion/recreation.
+     Rejected because it undermines IaC lifecycle ownership and reproducibility.
+  3. Harden the full lane end-to-end:
+     - make Confluent first-class IaC substrate,
+     - harden CI secret-name mapping and trusted-dispatch posture,
+     - fix backend IAM permissions,
+     - repair import-adoption behavior and fail-closed guards,
+     - close only on green CI evidence.
+     Selected because it addresses root causes across auth, IAM, secrets, and state adoption.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision treated Kafka readiness as a systems-integration contract, not a single command check. Closure required local+CI lane hardening and deterministic IaC adoption, not one-off credential tweaks.
+
+- Implementation (what you changed):
+  1. Executed initial M2.F and preserved fail-closed blocker `M2F-B1` on auth/connectivity failure.
+  2. Added dedicated Confluent IaC lane (`modules/confluent` + `dev_min/confluent`) so cluster/topic/key lifecycle is Terraform-owned.
+  3. Added deterministic verifier tooling and then CI workflow lane for M2.F execution.
+  4. Hardened secret mapping: uppercase GitHub secrets mapped to lowercase Terraform `TF_VAR` runtime names.
+  5. Addressed CI trust/ref and runtime-lane issues:
+     - trusted dispatch from `main` with `checkout_ref` support,
+     - inline verifier path to avoid branch-local tooling dependency.
+  6. Exposed and fixed second blocker `M2F-B2`:
+     - IAM policy lacked backend/SSM/evidence permissions for Confluent lane.
+  7. Hardened import-adoption logic:
+     - resolve cluster/endpoint from Terraform outputs (not brittle parsing),
+     - provide import-time Kafka credentials with fail-closed guard,
+     - classify import outcomes and fail on non-recoverable errors.
+  8. Re-ran CI until end-to-end success and `overall_pass=true` evidence.
+
+- Result (observable outcome/evidence):
+  M2.F closed green in CI after multi-step hardening. The final run succeeded with topic adoption + Terraform apply + readiness verification pass, and durable evidence was produced. Repeated failures were converted into explicit blockers and resolved systematically instead of being bypassed.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7006`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7043`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7257`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7306`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7018`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7026`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7075`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7277`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7325`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This is strong senior MLOps/Data Engineering execution: you stabilized a flaky cross-plane readiness gate across auth, IAM, secrets, CI trust, and Terraform adoption semantics, then closed on deterministic CI evidence. Recruiters read this as real platform hardening ability under production-like failure conditions.
+
+## ID 248-AJ - M3 execution blocked by unresolved scenario-equivalence inputs
+
+- Context (what was at stake):
+  This challenge emerged at M3.A run-control entry, where handle closure had to be proven before moving into deeper M3 execution. At stake was scenario identity integrity: if scenario-equivalence inputs were not pinned, downstream replay/comparison semantics could drift and make run evidence ambiguous.
+
+- Problem (specific contradiction/failure):
+  The first full M3.A execution run verified nearly all required surfaces but failed overall due to one unresolved blocker: `SCENARIO_EQUIVALENCE_KEY_INPUT` remained a placeholder. The contradiction was that execution infrastructure looked ready, but a core identity input was undefined, so progression would have produced fragile/non-authoritative equivalence behavior.
+
+- Options considered (2-3):
+  1. Proceed to M3.B anyway and defer equivalence-input definition.
+     Rejected because it violates fail-closed run-control law and risks irreversible ambiguity in scenario identity.
+  2. Set a quick ad hoc value and continue.
+     Rejected because ad hoc pinning could include run-unique fields and break replay-stable semantics.
+  3. Treat placeholder as hard blocker, pin canonical equivalence-input contract explicitly, rerun full M3.A verification, and progress only on `overall_pass=true`.
+     Selected because it preserves deterministic identity semantics and auditable progression.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision enforced strict run-control discipline: no progression while a foundational identity key remains placeholder-grade. Equivalence-input semantics had to be explicit, canonicalized, and replay-safe before advancing.
+
+- Implementation (what you changed):
+  1. Executed full M3.A verification catalog and recorded fail-closed verdict with blocker `M3A-B1`.
+  2. Produced run-scoped evidence snapshot for the failed pass and documented that all other handle surfaces were verified.
+  3. Pinned scenario-equivalence contract in handles registry:
+     - `SCENARIO_EQUIVALENCE_KEY_INPUT = "sha256(canonical_json_v1)"`,
+     - explicit canonical fields list,
+     - canonicalization mode pin.
+  4. Added explicit guard excluding run-unique values (`platform_run_id`, timestamps) from equivalence input.
+  5. Reran full M3.A verification after pinning and required green result before progression.
+
+- Result (observable outcome/evidence):
+  The unresolved-equivalence blocker was eliminated: rerun passed with `overall_pass=true`, M3A blocker register cleared, and M3.A was formally closed before advancing. This converted a latent identity ambiguity into deterministic run-control law.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7939`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7983`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7960`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7962`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7990`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7993`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8000`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong governance-oriented engineering: you recognized that missing identity semantics can invalidate downstream evidence, blocked progression despite momentum, pinned a canonical equivalence contract, and closed only after rerun proof. Recruiters see this as senior MLOps/Data Engineering rigor in run reproducibility and audit integrity.
+
+## ID 248-AK - Scenario identity remained provisional due unresolved Oracle placeholders
+
+- Context (what was at stake):
+  This challenge appeared right after successful M3.C digest/payload execution. The team had achieved canonicalization and reproducibility checks, and it was tempting to treat scenario identity as fully finalized. But M3 posture still depended on Oracle-linked inputs carried from earlier phase boundaries.
+
+- Problem (specific contradiction/failure):
+  Even with `overall_pass=true` in M3.C, `ORACLE_REQUIRED_OUTPUT_IDS` and `ORACLE_SORT_KEY_BY_OUTPUT_ID` remained placeholder values (`<PIN_AT_P3_PHASE_ENTRY>`). That created a contradiction: execution quality checks passed, but scenario-equivalence identity could only be considered provisional because key Oracle constraints were not yet concretely pinned.
+
+- Options considered (2-3):
+  1. Treat M3.C green result as full scenario-identity closure and proceed without caveat.
+     Rejected because it would over-claim finality and hide unresolved dependencies.
+  2. Block all M3 progress until Oracle placeholders are resolved.
+     Rejected because M3.C-specific closure work was genuinely complete and useful, and total halt would discard valid progress.
+  3. Preserve explicit provisional status in payload + plan records, pin Oracle placeholder resolution as forward dependency, and keep narrative truth aligned with artifact reality.
+     Selected because it balances honest governance with continued controlled progress.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision separated "M3.C digest correctness" from "final scenario identity completeness." This prevented false closure claims while preserving valid work already completed.
+
+- Implementation (what you changed):
+  1. Kept M3.C artifacts intact with successful reproducibility and non-secret policy results.
+  2. Explicitly annotated provisional scenario status in `m3_c_config_payload.json` under `scenario.status`.
+  3. Recorded runtime note in implementation map that Oracle-required output IDs and sort-key mapping remain placeholders.
+  4. Updated main build plan M3.C status text to mirror this provisional posture and avoid semantic drift between deep/main plan narratives.
+  5. Pinned placeholder resolution as dependency on later P5/SR confirmation path.
+
+- Result (observable outcome/evidence):
+  The project preserved truthfulness: M3.C execution remained valid, but scenario identity was clearly marked provisional until Oracle placeholder inputs are finalized. This avoided both overstatement and unnecessary rollback.
+  Truth posture: `Partial`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8158`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8177`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8140`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8143`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8159`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8183`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This shows senior governance maturity: you resisted the common failure mode of declaring full closure from partial prerequisites, preserved artifact-level correctness, and surfaced dependency truth explicitly. Recruiters recognize this as strong MLOps/Data Engineering judgment in audit-grade environments.
+
+## ID 248-AL - M3 D->G surfaced false conflict and env-map completeness blocker classes
+
+- Context (what was at stake):
+  This challenge occurred during sequential execution of `M3.D -> M3.G`, the lane that publishes run-control artifacts, exports runtime scope, computes binary verdict, and issues M4 handoff. At stake was transition integrity: if these steps were not reliable, M3 could not safely close.
+
+- Problem (specific contradiction/failure):
+  Two blocker classes surfaced mid-lane:
+  1. `M3D-B4`: false-positive durable conflict in D-lane from existence-check helper behavior, incorrectly flagging publication conflict risk.
+  2. `M3E-B3/M3E-B6`: runtime-scope completeness predicate mismatch tied to ordered env-map shape, which blocked durable scope publication despite otherwise valid data.
+  The contradiction was that fail-closed checks were correctly strict, but specific predicate implementations were misclassifying valid state as blocked.
+
+- Options considered (2-3):
+  1. Override blockers manually and force progression.
+     Rejected because it would undermine fail-closed control semantics.
+  2. Relax checks broadly to avoid further false blocks.
+     Rejected because broad relaxation could hide real publication/scope defects.
+  3. Correct each blocker class in-lane with deterministic semantics, rerun sequentially, and require full pass before M4 handoff.
+     Selected because it preserves safety while fixing root check behavior.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision kept the guardrails intact but repaired the predicates:
+  - durable existence truth from CLI exit codes (not ambiguous helper behavior),
+  - scope completeness from deterministic env-map count predicate.
+  This retained strictness without false blocking.
+
+- Implementation (what you changed):
+  1. Executed D->E->F->G in strict order under single execution ID with fail-closed step boundaries.
+  2. Resolved `M3D-B4`:
+     - switched durable existence checks to AWS CLI exit-code truth,
+     - rerun accepted compatible existing `run.json` under immutability law (`reused_existing_compatible_run_json`).
+  3. Resolved `M3E-B3/M3E-B6`:
+     - replaced ordered-shape completeness predicate with deterministic env-map count check,
+     - rerun enabled durable runtime-scope publication.
+  4. Re-published full M3 control evidence set and synchronized deep/main plan blocker/status records.
+
+- Result (observable outcome/evidence):
+  Final run `m3_20260213T221631Z` closed all sub-phases:
+  - `M3.D overall_pass=true`,
+  - `M3.E overall_pass=true`,
+  - `M3.F overall_pass=true` with verdict `ADVANCE_TO_M4`,
+  - `M3.G overall_pass=true`.
+  Blockers were resolved explicitly (`M3D-B4`, `M3E-B3/B6`) and M3->M4 transition remained user-governed but technically closure-ready.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8282`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8288`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8272`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8279`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8285`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8293`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8311`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates advanced control-plane debugging and governance: you distinguished real blockers from predicate defects, corrected both without weakening safety laws, and delivered deterministic rerun closure across a multi-step transition lane. Recruiters read this as strong senior MLOps/Data Engineering capability in orchestration hardening.
+
+## ID 248-AM - M4 readiness required lane-complete deep planning before safe execution
+
+- Context (what was at stake):
+  This challenge surfaced immediately after M3 closure when M4 became active. M4 is the bring-up/readiness phase before deeper runtime execution, so under-specifying it would repeat earlier execution drift patterns and risk brittle progression.
+
+- Problem (specific contradiction/failure):
+  M4 in the main plan was still too high-level for safe start. The contradiction was that phase status had advanced to `ACTIVE`, but execution guidance was not yet lane-complete for operator-safe, fail-closed runtime start. Without deep planning, blockers would be discovered too late during live operations.
+
+- Options considered (2-3):
+  1. Start M4 runtime execution from the coarse summary and refine on the fly.
+     Rejected because it reintroduces under-specified execution risk and weak blocker isolation.
+  2. Keep M4 paused indefinitely while planning remains fragmented.
+     Rejected because it stalls progression without creating an actionable execution model.
+  3. Promote M4 to closure-grade planning before runtime start:
+     - expand main plan M4 surface,
+     - author deep `platform.M4.build_plan.md`,
+     - enforce full A->J sub-phase lane coverage and fail-closed sequencing.
+     Selected because it creates deterministic execution control before mutation begins.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision treated planning completeness as an execution prerequisite, not documentation polish. M4 needed full capability-lane representation and sequential sub-phase templates before any runtime start.
+
+- Implementation (what you changed):
+  1. Expanded M4 in main plan from gate summary to active execution-planning surface.
+  2. Authored deep M4 plan file:
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`.
+  3. Added lane-complete planning coverage (authority, IAM, network/dependencies, service-map, env injection, bring-up choreography, singleton/duplicate guards, evidence, rollback/retry, cost/teardown).
+  4. Planned sequential closure chain `M4.A -> M4.J` with consistent per-subphase execution template:
+     - entry conditions,
+     - required inputs,
+     - execution sequence,
+     - evidence artifacts,
+     - blocker taxonomy,
+     - handoff rule.
+  5. Synced main plan to reflect deep-plan completeness and kept runtime next-step pinned to `M4.A` start under fail-closed progression.
+
+- Result (observable outcome/evidence):
+  M4 moved to closure-grade readiness planning with full A->J structure in place before runtime execution. This prevented under-specified phase start and established blocker-isolating, auditable progression controls from the outset.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8342`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8375`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8409`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8349`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8358`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8392`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8401`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8434`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates senior delivery governance: you prevented runtime risk by requiring lane-complete phase planning before execution, turning a potentially ambiguous activation into a deterministic control system. Recruiters value this because high-quality MLOps/Data Engineering is as much about execution architecture as code.
+
+## ID 248-AN - Build-driver authority ambiguity (`github_actions` vs `local_cli`)
+
+- Context (what was at stake):
+  This challenge surfaced during M1 packaging planning/execution for dev migration. The team had two usable build lanes (`github_actions` and `local_cli`), but closure evidence needed one authoritative source to avoid contradictory pass claims.
+
+- Problem (specific contradiction/failure):
+  Both lanes could run Docker commands, but authority hierarchy was not initially explicit. That created a contradiction: operators could complete local preflight steps and mistakenly treat them as closure evidence, while the migration doctrine required non-laptop authoritative proof.
+
+- Options considered (2-3):
+  1. Allow either lane (`github_actions` or `local_cli`) to claim build-go closure.
+     Rejected because evidence provenance would be inconsistent and audit posture weak.
+  2. Force local-only lane for speed and defer CI authority.
+     Rejected because it conflicts with target non-laptop operational posture.
+  3. Pin explicit authority hierarchy:
+     - `github_actions` authoritative for M1 closure evidence,
+     - `local_cli` limited to preflight/debug support,
+     - block build-go until explicit CI realization and CI gate-validation phases close.
+     Selected because it preserves deterministic closure semantics.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision made build-driver authority explicit and coupled it to pre-build-go CI gates (`M1.G`, `M1.H`) with exit/handoff only after those gates (`M1.I`). This eliminated ambiguous closure claims.
+
+- Implementation (what you changed):
+  1. Captured learning and pinned role separation between `github_actions` and `local_cli`.
+  2. Added preventive controls:
+     - decision-completeness fail-closed law in `AGENTS.md`,
+     - decision-completeness execution gate in main build plan,
+     - explicit M1 sequencing that blocks build-go until CI realization + CI gate validation are complete.
+  3. Updated M1 planning structure to reflect this authority model and closure ordering.
+
+- Result (observable outcome/evidence):
+  Build-go governance moved from ambiguous lane usage to explicit authority semantics. Closure evidence could no longer be claimed from non-authoritative lanes, and M1 sequencing became deterministic and audit-safe.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5808`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5814`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5821`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5828`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5799`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5801`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5816`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5817`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong execution-governance design: you resolved driver-authority ambiguity before it could corrupt evidence quality, and converted build closure into a deterministic, CI-backed contract. Recruiters view this as senior MLOps/Data Engineering maturity in delivery controls and auditability.
+
+## ID 248-AO - Exit/handoff ordering ambiguity after CI realization/gate validation
+
+- Context (what was at stake):
+  This challenge emerged while structuring M1 closure sequencing. The team had already identified CI realization and CI gate-validation needs, but exit-readiness/handoff ordering was still vulnerable to interpretation during fast execution.
+
+- Problem (specific contradiction/failure):
+  Without explicit ordering law, `M1.I` handoff could be treated as parallel or prematurely closable relative to `M1.G`/`M1.H`. That created a contradiction: handoff might be marked complete before authoritative CI behavior and evidence plumbing were actually validated, which would invalidate closure semantics.
+
+- Options considered (2-3):
+  1. Allow flexible ordering and let operators decide sequencing during execution.
+     Rejected because it reintroduces ambiguity and inconsistent closure evidence.
+  2. Collapse CI realization/validation into handoff as implicit checklist items.
+     Rejected because implicit grouping hides gate boundaries and weakens fail-closed behavior.
+  3. Pin explicit sequencing law:
+     - `M1.G` CI realization first,
+     - `M1.H` CI gate validation second,
+     - `M1.I` exit/handoff only after both are closed.
+     Selected because it enforces deterministic phase progression.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision isolated readiness gates in strict order so exit/handoff could not be claimed ahead of authoritative CI closure evidence.
+
+- Implementation (what you changed):
+  1. Pinned lesson and sequencing semantics in implementation map:
+     - CI realization + CI gate validation are explicit pre-build-go phases.
+  2. Defined `M1.I` as post-gate exit/handoff closure step.
+  3. Updated preventive control narrative to include blocked build-go until sequencing gates are complete.
+  4. Reflected this ordering in active plan structures so progression logic is machine-checkable and reviewable.
+
+- Result (observable outcome/evidence):
+  Handoff ordering ambiguity was removed. Phase progression now requires CI realization and validation closure before exit/handoff, preventing premature closure claims and improving audit consistency.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5821`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5822`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5828`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5814`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5817`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5820`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates strong delivery-governance precision: you converted a subtle sequencing ambiguity into a strict, auditable phase-order law that protects closure integrity. Recruiters read this as senior MLOps/Data Engineering discipline in execution control design.
+
+## ID 248-AP - Migration posture started with implicit UI/manual-first assumption
+
+- Context (what was at stake):
+  This challenge surfaced during early dev-substrate execution learning, when practical migration posture was still being formed. The team needed a repeatable, teardown-safe, auditable execution model that could survive multiple bring-up cycles without hidden operator memory.
+
+- Problem (specific contradiction/failure):
+  Initial thinking implicitly leaned toward UI/manual-first setup for platform services. That created a contradiction with migration goals: manual-first paths reduce repeatability, weaken teardown discipline, increase console-only drift, and make evidence trails incomplete.
+
+- Options considered (2-3):
+  1. Keep UI/manual-first setup as the default and document steps informally.
+     Rejected because it cannot guarantee deterministic reruns or clean teardown.
+  2. Mix manual and IaC steps without explicit blocker handling for non-IaC gaps.
+     Rejected because hidden manual dependencies would still bypass fail-closed governance.
+  3. Shift posture to IaC-first execution:
+     - create/teardown via command lanes,
+     - UI only for validation or provider limitations,
+     - treat any non-IaC-required capability as explicit blocker/decision.
+     Selected because it aligns with durable migration control.
+
+- Decision (what you chose and why):
+  We chose option 3. The decision made reproducibility and drift control non-negotiable. Instead of tolerating implicit manual work, every non-IaC dependency had to be surfaced and governed as an explicit blocker.
+
+- Implementation (what you changed):
+  1. Captured migration-learning note explicitly in implementation map.
+  2. Pinned posture update:
+     - IaC-first command lanes for provisioning/teardown,
+     - UI reserved for validation/platform limits only.
+  3. Documented why this matters operationally:
+     - repeatability,
+     - teardown discipline,
+     - drift reduction,
+     - auditability via plan/apply/evidence artifacts.
+  4. Added fail-closed implication:
+     - required capabilities not representable in IaC must be treated as surfaced blocker decisions, not hidden manual steps.
+
+- Result (observable outcome/evidence):
+  Migration control posture was corrected from implicit manual bias to explicit IaC-first governance. This gave the project a stronger execution contract for repeated bring-up/teardown cycles and cleaner audit trails.
+  Truth posture: `Resolved`.
+  Evidence anchors:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6672`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6678`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6687`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6692`
+  Additional challenge context:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6683`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6685`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6689`
+
+- Why this proves MLOps/Data Eng strength (explicit hiring signal):
+  This demonstrates foundational migration leadership: you corrected a subtle but dangerous operational assumption early, anchored execution to IaC-first controls, and converted manual exceptions into explicit governance decisions. Recruiters see this as senior MLOps/Data Engineering maturity because it directly improves reliability, repeatability, and audit quality.

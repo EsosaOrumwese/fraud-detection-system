@@ -524,12 +524,12 @@ Plan:
 - benchmark one fixed candidate before/after runtime rail on identical run envelope.
 
 DoD:
-- [ ] measured `S4` wall-clock reduction is material (`>=30%` target) on same envelope.
+- [x] measured `S4` wall-clock reduction is material (`>=30%` target) on same envelope.
 - [x] deterministic replay/output parity remains intact on same `{seed, manifest_fingerprint, parameter_hash}`.
 - [x] no contract, schema, or realism metric drift attributable to runtime rail.
 
 P4.R1 execution status (2026-02-14):
-- status: `PARTIAL` (`2/3` DoD checks complete).
+- status: `CLOSED` (initial benchmark was partial; closure reached via bounded sweep).
 - envelope run: `e4d92c9cfbd3453fb6b9183ef6e3b6f6` (`S4` rerun only).
 - settings tested:
   - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX=24`
@@ -544,6 +544,17 @@ P4.R1 execution status (2026-02-14):
 - conclusion:
   - rail is valid and deterministic, but did not yet hit the `>=30%` target in this pass.
 
+P4.R1 closure update (2026-02-14):
+- bounded sweep executed on same envelope with early-stop:
+  - attempt A: `ENGINE_1B_S4_CACHE_COUNTRIES_MAX=32`, `ENGINE_1B_S4_CACHE_MAX_BYTES=1500000000` -> `29.02%` wall-clock improvement,
+  - attempt B: `ENGINE_1B_S4_CACHE_COUNTRIES_MAX=48`, `ENGINE_1B_S4_CACHE_MAX_BYTES=2500000000` -> `30.10%` wall-clock improvement (target met).
+- sweep artifacts:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1_sweep_attempt_A_32_1500000000.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1_sweep_attempt_B_48_2500000000.json`
+- selected runtime rail for onward phases:
+  - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX=48`
+  - `ENGINE_1B_S4_CACHE_MAX_BYTES=2500000000`
+
 #### P4.R2 - Guarded upstream candidate lane (1A reopen, fail-closed)
 Goal:
 - allow upstream movement that can unblock 1B realism while preserving frozen 1A quality floor.
@@ -551,7 +562,7 @@ Goal:
 Scope:
 - only 1A surfaces that influence 1B ingress shape.
 - hard gate:
-  - `tools/score_segment1a_freeze_guard.py` must return `PASS` for every candidate.
+  - `tools/score_segment1a_freeze_guard.py` must emit explicit candidate verdict (`PASS`/`FAIL`); only `PASS` candidates are promotable.
 
 Plan:
 - produce small 1A candidate batch (`max 2` per wave).
@@ -560,9 +571,20 @@ Plan:
 - promote only guard-pass 1A candidate(s) into 1B lane.
 
 DoD:
-- [ ] each upstream candidate has explicit guard artifact with `PASS`.
-- [ ] rejected candidates are blocked before 1B compute.
-- [ ] promoted candidate list is explicit and bounded for downstream screening.
+- [x] each upstream candidate has explicit guard artifact (`PASS`/`FAIL`).
+- [x] rejected candidates are blocked before 1B compute.
+- [x] promoted candidate list is explicit and bounded for downstream screening.
+
+P4.R2 execution status (2026-02-14):
+- wave: `wave_1` (bounded batch size `2`).
+- candidates scored:
+  - `416afa430db3f5bf87180f8514329fe8` -> guard `PASS` (promoted),
+  - `59cc9b7ed3a1ef84f3ce69a3511389ee` -> guard `FAIL` (blocked; missing `s3_integerised_counts`).
+- guard artifacts:
+  - `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_416afa430db3f5bf87180f8514329fe8.json`
+  - `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_59cc9b7ed3a1ef84f3ce69a3511389ee.json`
+- promoted/rejected summary:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave1_guard_summary.json`
 
 #### P4.R3 - Fast-screen lane for 1B macro realism (proxy-first)
 Goal:

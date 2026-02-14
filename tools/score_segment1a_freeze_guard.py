@@ -456,28 +456,73 @@ def main() -> None:
         if args.out
         else (runs_root / "reports" / f"segment1a_freeze_guard_{run_id}.json")
     )
-    payload = score_freeze_guard(
-        runs_root=runs_root,
-        run_id=run_id,
-        authority_cert_json=Path(args.authority_cert_json).resolve(),
-        out_path=out_path,
-        bootstrap_seed=int(args.bootstrap_seed),
-        bootstrap_samples=int(args.bootstrap_samples),
-        tolerance_abs=float(args.tolerance_abs),
-        concentration_max_regression=float(args.concentration_max_regression),
-    )
-    print(str(out_path))
-    print(
-        json.dumps(
-            {
-                "status": payload["status"],
-                "run_id": payload["candidate"]["run"]["run_id"],
-                "guard_checks": payload["guard_checks"],
-                "regressed_B_metrics": payload["regressed_B_metrics"],
-            },
-            indent=2,
+    try:
+        payload = score_freeze_guard(
+            runs_root=runs_root,
+            run_id=run_id,
+            authority_cert_json=Path(args.authority_cert_json).resolve(),
+            out_path=out_path,
+            bootstrap_seed=int(args.bootstrap_seed),
+            bootstrap_samples=int(args.bootstrap_samples),
+            tolerance_abs=float(args.tolerance_abs),
+            concentration_max_regression=float(args.concentration_max_regression),
         )
-    )
+        print(str(out_path))
+        print(
+            json.dumps(
+                {
+                    "status": payload["status"],
+                    "run_id": payload["candidate"]["run"]["run_id"],
+                    "guard_checks": payload["guard_checks"],
+                    "regressed_B_metrics": payload["regressed_B_metrics"],
+                },
+                indent=2,
+            )
+        )
+    except Exception as exc:
+        # Fail-closed artifact emission for invalid/incomplete candidate runs.
+        failure_payload = {
+            "generated_utc": _now_utc(),
+            "phase": "freeze_guard",
+            "segment": "1A",
+            "status": "FAIL",
+            "description": "Candidate rejected before downstream promotion due to freeze-guard scoring error.",
+            "candidate": {
+                "run": {
+                    "run_id": run_id,
+                }
+            },
+            "error": {
+                "type": type(exc).__name__,
+                "message": str(exc),
+            },
+            "guard_checks": {
+                "grade_not_below_B": False,
+                "hard_gates_not_regressed": False,
+                "authority_B_pass_metrics_not_regressed": False,
+                "B_pass_count_not_below_authority": False,
+                "concentration_not_materially_worse_than_authority": False,
+            },
+            "regressed_B_metrics": [],
+        }
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(
+            json.dumps(failure_payload, ensure_ascii=True, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        print(str(out_path))
+        print(
+            json.dumps(
+                {
+                    "status": "FAIL",
+                    "run_id": run_id,
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                },
+                indent=2,
+            )
+        )
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

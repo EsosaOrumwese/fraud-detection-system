@@ -4400,3 +4400,63 @@ Sweep constraints:
 5) Safety:
    - no semantics or policy changes;
    - copy each resulting `s4_run_report` into `runs/fix-data-engine/segment_1B/reports/` with per-attempt name.
+
+---
+
+### Entry: 2026-02-14 11:09
+
+Design element: `P4.R1` bounded sweep closure and runtime rail selection.
+Summary: Executed the bounded `S4` cache sweep and crossed the strict `>=30%` wall-clock improvement target while preserving deterministic parity.
+
+Sweep execution outcome:
+1) Attempt A (`countries_max=32`, `cache_max_bytes=1500000000`):
+   - wall-clock improvement: `29.02%` (below target).
+   - artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1_sweep_attempt_A_32_1500000000.json`.
+2) Attempt B (`countries_max=48`, `cache_max_bytes=2500000000`):
+   - wall-clock improvement: `30.10%` (target met, early stop).
+   - artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1_sweep_attempt_B_48_2500000000.json`.
+3) Determinism/parity posture remained intact:
+   - output hash unchanged,
+   - row count unchanged.
+
+Decision:
+1) Close `P4.R1` with selected runtime rail:
+   - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX=48`
+   - `ENGINE_1B_S4_CACHE_MAX_BYTES=2500000000`
+2) Proceed to `P4.R2` guarded upstream lane.
+
+---
+
+### Entry: 2026-02-14 11:16
+
+Design element: `P4.R2` wave-1 guarded upstream lane execution (`max 2` candidates).
+Summary: Ran the first bounded upstream candidate wave using 1A run-ids, enforced freeze-veto gating, and emitted an explicit promoted/rejected list before any downstream 1B compute.
+
+Pre-execution decision:
+1) Use an existing-run wave first to avoid unnecessary heavy 1A recompute while validating guard operations:
+   - candidate A: `416afa430db3f5bf87180f8514329fe8` (authority-anchored posture),
+   - candidate B: `59cc9b7ed3a1ef84f3ce69a3511389ee` (older posture).
+2) Require machine artifact per candidate and fail-closed blocking for any non-pass.
+
+Implementation hardening required during wave:
+1) Guard tool originally aborted on incomplete candidates without writing a verdict artifact.
+2) Updated `tools/score_segment1a_freeze_guard.py` so scoring exceptions now emit explicit `FAIL` artifact with error payload, then exit non-zero.
+3) Compile guard passed:
+   - `python -m py_compile tools/score_segment1a_freeze_guard.py`.
+
+Wave-1 results:
+1) `416afa430db3f5bf87180f8514329fe8`:
+   - guard: `PASS`.
+   - artifact: `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_416afa430db3f5bf87180f8514329fe8.json`.
+2) `59cc9b7ed3a1ef84f3ce69a3511389ee`:
+   - guard: `FAIL` (missing `s3_integerised_counts`; fail-closed).
+   - artifact: `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_59cc9b7ed3a1ef84f3ce69a3511389ee.json`.
+3) Wave summary/promotions:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave1_guard_summary.json`.
+   - promoted list: `[416afa430db3f5bf87180f8514329fe8]`.
+   - rejected list: `[59cc9b7ed3a1ef84f3ce69a3511389ee]`.
+
+Decision:
+1) `P4.R2` wave-1 DoD is satisfied for guarded promotion discipline.
+2) Rejected candidate is blocked from all 1B runs.
+3) Next phase input to `P4.R3` is the bounded promoted list from wave-1.
