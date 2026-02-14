@@ -642,10 +642,10 @@ Tasks:
    - blocker list + verdict.
 
 DoD:
-- [ ] `operate/daemons_ready.json` exists with full mapped-service coverage and required fields.
-- [ ] Invariant checks (service coverage, singleton posture, duplicate-consumer posture, non-secret policy) are explicit and PASS.
-- [ ] Run-scoped durable readiness publication passes.
-- [ ] `m4_h_readiness_publication_snapshot.json` exists locally and durably.
+- [x] `operate/daemons_ready.json` exists with full mapped-service coverage and required fields.
+- [x] Invariant checks (service coverage, singleton posture, duplicate-consumer posture, non-secret policy) are explicit and PASS.
+- [x] Run-scoped durable readiness publication passes.
+- [x] `m4_h_readiness_publication_snapshot.json` exists locally and durably.
 
 Blockers:
 1. `M4H-B1`: readiness artifact missing required fields or mapped-service coverage mismatch.
@@ -747,7 +747,7 @@ Notes:
 - [x] M4.E complete
 - [x] M4.F complete
 - [x] M4.G complete
-- [ ] M4.H complete
+- [x] M4.H complete
 - [ ] M4.I complete
 - [ ] M4.J complete
 
@@ -848,6 +848,19 @@ Resolved blockers:
      - `singleton_drift=[]`
      - `sample_1.inventory_complete=true`
      - `sample_2.inventory_complete=true`
+     - `overall_pass=true`.
+13. `M4H-B1/B2/B3/B4/B5`:
+   - resolved by M4.H execution pass from live ECS posture with source-gate anchors to `M4.B/F/G`, invariant enforcement, and durable publication.
+   - closure evidence:
+     - `runs/dev_substrate/m4/20260214T164229Z/operate/daemons_ready.json`
+     - `runs/dev_substrate/m4/20260214T164229Z/m4_h_readiness_publication_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/operate/daemons_ready.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T164229Z/m4_h_readiness_publication_snapshot.json`
+   - result:
+     - `invariant_checks.mapped_service_exactly_once=true`
+     - `invariant_checks.singleton_consistent_with_m4f=true`
+     - `invariant_checks.duplicate_consumer_posture_clean=true`
+     - `invariant_checks.non_secret_policy_pass=true`
      - `overall_pass=true`.
 
 Rule:

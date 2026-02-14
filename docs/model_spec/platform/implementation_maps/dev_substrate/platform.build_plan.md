@@ -416,7 +416,7 @@ Active-phase planning posture:
   - [x] `M4.E` launch contract + run-scope injection surface.
   - [x] `M4.F` daemon bring-up choreography + stabilization checks.
   - [x] `M4.G` duplicate-consumer guard and singleton enforcement.
-  - [ ] `M4.H` daemon readiness evidence publication.
+  - [x] `M4.H` daemon readiness evidence publication.
   - [ ] `M4.I` pass gates + blocker model + verdict.
   - [ ] `M4.J` M5 handoff artifact publication.
 
@@ -425,7 +425,7 @@ M4 DoD checklist:
 - [x] run-scope enforcement active (`REQUIRED_PLATFORM_RUN_ID` semantics).
 - [x] service replica posture is deterministic for v0 (single replica per daemon/service).
 - [x] no duplicate-consumer conflict exists for in-scope lanes.
-- [ ] daemon readiness snapshot evidence is written and durable.
+- [x] daemon readiness snapshot evidence is written and durable.
 - [ ] M4 verdict and M5 handoff package are published and non-secret.
 
 ## M5 - P3 Oracle lane
@@ -586,8 +586,8 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M4 is active for sequential closure after daemon bring-up.
+M4 is active for sequential closure after readiness evidence publication.
 Next action:
-- execute `M4.H` daemon readiness evidence publication (`operate/daemons_ready.json`) from live service posture and M4.F/M4.G anchors,
-- require local + durable publication of `m4_h_readiness_publication_snapshot.json` and fail closed on any missing required fields,
-- proceed to `M4.I -> M4.J` only if `M4.H` blockers are empty.
+- execute `M4.I` deterministic gate evaluation and blocker rollup from `M4.A..M4.H` snapshots,
+- publish local + durable `m4_i_verdict_snapshot.json` with explicit predicates and verdict (`ADVANCE_TO_M5` or `HOLD_M4`),
+- proceed to `M4.J` only if `M4.I` blockers are empty and verdict is `ADVANCE_TO_M5`.

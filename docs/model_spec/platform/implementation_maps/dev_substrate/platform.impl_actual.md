@@ -9177,3 +9177,40 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 3. Publish local mirror + durable run-scoped artifact.
 4. Emit `m4_h_readiness_publication_snapshot.json` with invariant results, URIs, blockers, and verdict.
 5. If PASS: update M4 plans/logbook/impl map to mark `M4.H` complete and advance immediate next action to `M4.I`.
+
+## Entry: 2026-02-14 04:43PM - M4.H executed and closed PASS (daemon readiness evidence publication)
+
+### Trigger
+1. USER instructed execution of `M4.H`.
+
+### Execution path
+1. Loaded required source-gate artifacts:
+   - `runs/dev_substrate/m4/20260214T121004Z/m4_b_service_map_snapshot.json`
+   - `runs/dev_substrate/m4/20260214T152757Z/m4_f_daemon_start_snapshot.json`
+   - `runs/dev_substrate/m4/20260214T155002Z/m4_g_consumer_uniqueness_snapshot.json`
+   - `runs/dev_substrate/m4/20260214T144419Z/m4_e_launch_contract_snapshot.json` (run-scope key/value source).
+2. Reconstructed live ECS posture for mapped scope (`13` services) and built readiness payload:
+   - `runs/dev_substrate/m4/20260214T164229Z/operate/daemons_ready.json`.
+3. Enforced M4.H invariants before durable publish:
+   - mapped-service coverage exactly once (`13/13`),
+   - singleton counters consistent with latest M4.F pass posture,
+   - duplicate-consumer posture consistent with latest M4.G pass posture,
+   - non-secret artifact policy pass.
+4. Published durable run-scoped readiness artifact:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/operate/daemons_ready.json`.
+5. Published M4.H control snapshot:
+   - local: `runs/dev_substrate/m4/20260214T164229Z/m4_h_readiness_publication_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T164229Z/m4_h_readiness_publication_snapshot.json`.
+
+### Notable detail
+1. ECS `describe-services` accepts at most `10` service names per call; execution used chunked describe calls (`10 + 3`) to keep full mapped-scope validation fail-closed.
+
+### Outcome
+1. `M4.H` PASS:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - readiness artifact + publication snapshot exist locally and durably.
+2. Plan-state updates applied:
+   - `platform.M4.build_plan.md`: M4.H DoD + completion checklist marked complete.
+   - `platform.build_plan.md`: M4.H sub-phase + high-level readiness DoD marked complete.
+   - immediate next action advanced to `M4.I`.
