@@ -414,16 +414,16 @@ Active-phase planning posture:
   - [x] `M4.D` network/dependency reachability validation.
   - [x] `M4.E` launch contract + run-scope injection surface.
   - [x] `M4.F` daemon bring-up choreography + stabilization checks.
-  - [ ] `M4.G` duplicate-consumer guard and singleton enforcement.
+  - [x] `M4.G` duplicate-consumer guard and singleton enforcement.
   - [ ] `M4.H` daemon readiness evidence publication.
   - [ ] `M4.I` pass gates + blocker model + verdict.
   - [ ] `M4.J` M5 handoff artifact publication.
 
 M4 DoD checklist:
-- [ ] required services/tasks run on ECS only.
-- [ ] run-scope enforcement active (`REQUIRED_PLATFORM_RUN_ID` semantics).
-- [ ] service replica posture is deterministic for v0 (single replica per daemon/service).
-- [ ] no duplicate-consumer conflict exists for in-scope lanes.
+- [x] required services/tasks run on ECS only.
+- [x] run-scope enforcement active (`REQUIRED_PLATFORM_RUN_ID` semantics).
+- [x] service replica posture is deterministic for v0 (single replica per daemon/service).
+- [x] no duplicate-consumer conflict exists for in-scope lanes.
 - [ ] daemon readiness snapshot evidence is written and durable.
 - [ ] M4 verdict and M5 handoff package are published and non-secret.
 
@@ -587,6 +587,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M4 is active for sequential closure after daemon bring-up.
 Next action:
-- execute `M4.G` duplicate-consumer guard and singleton-posture drift checks against live daemon services,
-- publish `m4_g_consumer_uniqueness_snapshot.json` locally + durably and fail closed on any duplicate/manual consumer conflict,
-- proceed to `M4.H -> M4.J` only if `M4.G` blockers are empty.
+- execute `M4.H` daemon readiness evidence publication (`operate/daemons_ready.json`) from live service posture and M4.F/M4.G anchors,
+- require local + durable publication of `m4_h_readiness_publication_snapshot.json` and fail closed on any missing required fields,
+- proceed to `M4.I -> M4.J` only if `M4.H` blockers are empty.

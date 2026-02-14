@@ -74,6 +74,14 @@ output "ecs_probe_service_name" {
   value = aws_ecs_service.runtime_probe.name
 }
 
+output "ecs_daemon_service_names" {
+  value = { for key, svc in aws_ecs_service.daemon : key => svc.name }
+}
+
+output "ecs_daemon_task_definition_arns" {
+  value = { for key, td in aws_ecs_task_definition.daemon : key => td.arn }
+}
+
 output "vpc_id" {
   value = aws_vpc.demo.id
 }

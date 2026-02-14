@@ -9080,3 +9080,45 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - `singleton_drift=[]`,
    - `overall_pass=true`.
 2. Durable evidence URI under M4 control path exists and is non-secret.
+## Entry: 2026-02-14 04:02PM - M4.G executed and closed PASS (duplicate-consumer guard)
+
+### Trigger
+1. USER instructed execution of `M4.G`.
+
+### Execution actions
+1. Loaded M4.G authority anchors:
+   - `runs/dev_substrate/m4/20260214T121004Z/m4_b_service_map_snapshot.json`
+   - `runs/dev_substrate/m4/20260214T144419Z/m4_e_launch_contract_snapshot.json`
+   - `runs/dev_substrate/m4/20260214T152757Z/m4_f_daemon_start_snapshot.json`.
+2. Built canonical uniqueness matrix for mapped service scope (`13` services) with ownership identity `service:<service_name>`.
+3. Executed two-sample runtime inventory checks against ECS cluster `fraud-platform-dev-min`:
+   - sample-1 capture (service posture + running tasks + groups + task-definition families),
+   - bounded recheck window pinned to `120s`,
+   - sample-2 recapture with same predicates.
+4. Evaluated fail-closed predicates:
+   - duplicate conflicts (`M4G-B1`),
+   - singleton drift (`M4G-B2`),
+   - inventory completeness (`M4G-B4`),
+   - snapshot durability (`M4G-B3`).
+5. Published M4.G artifact:
+   - local: `runs/dev_substrate/m4/20260214T155002Z/m4_g_consumer_uniqueness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T155002Z/m4_g_consumer_uniqueness_snapshot.json`.
+
+### Outcome
+1. `M4.G` PASS:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `duplicate_conflicts=[]`
+   - `singleton_drift=[]`
+   - `sample_1.inventory_complete=true`
+   - `sample_2.inventory_complete=true`.
+2. Duplicate/manual consumer interference was not observed under mapped daemon lanes at execution time.
+
+### Plan-state updates
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+   - marked M4.G DoD checklist complete,
+   - marked M4 completion checklist `M4.G complete`.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - marked M4 sub-phase progress `M4.G` complete,
+   - marked high-level M4 duplicate-consumer DoD as complete,
+   - advanced immediate next action to `M4.H` readiness evidence publication.

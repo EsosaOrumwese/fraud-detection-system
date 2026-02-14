@@ -585,10 +585,10 @@ Tasks:
    - blocker list + verdict.
 
 DoD:
-- [ ] Duplicate-consumer conflict predicates are explicit and PASS (`duplicate_conflicts=[]`).
-- [ ] Singleton posture remains stable across both samples (`singleton_drift=[]`).
-- [ ] Ownership matrix covers all `13` mapped services with no unmapped lane ambiguity.
-- [ ] `m4_g_consumer_uniqueness_snapshot.json` exists locally and durably.
+- [x] Duplicate-consumer conflict predicates are explicit and PASS (`duplicate_conflicts=[]`).
+- [x] Singleton posture remains stable across both samples (`singleton_drift=[]`).
+- [x] Ownership matrix covers all `13` mapped services with no unmapped lane ambiguity.
+- [x] `m4_g_consumer_uniqueness_snapshot.json` exists locally and durably.
 
 Blockers:
 1. `M4G-B1`: duplicate consumer conflict detected.
@@ -713,7 +713,7 @@ Notes:
 - [x] M4.D complete
 - [x] M4.E complete
 - [x] M4.F complete
-- [ ] M4.G complete
+- [x] M4.G complete
 - [ ] M4.H complete
 - [ ] M4.I complete
 - [ ] M4.J complete
@@ -804,6 +804,17 @@ Resolved blockers:
      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T144419Z/m4_e_launch_contract_snapshot.json`
    - result:
      - `unresolved_launch_profiles=[]`
+     - `overall_pass=true`.
+12. `M4G-B1/B2/B3/B4`:
+   - resolved by M4.G execution pass with two-sample uniqueness/stability checks and durable publication.
+   - closure evidence:
+     - `runs/dev_substrate/m4/20260214T155002Z/m4_g_consumer_uniqueness_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T155002Z/m4_g_consumer_uniqueness_snapshot.json`
+   - result:
+     - `duplicate_conflicts=[]`
+     - `singleton_drift=[]`
+     - `sample_1.inventory_complete=true`
+     - `sample_2.inventory_complete=true`
      - `overall_pass=true`.
 
 Rule:
