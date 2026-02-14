@@ -422,6 +422,11 @@ Active-phase planning posture:
   - `M5.C` execution closed PASS after one fail-closed correction cycle (`M5C-B2/M5C-B4` -> fixed -> PASS); final evidence:
     - local: `runs/dev_substrate/m5/20260214T193548Z/inlet_assertion_snapshot.json`
     - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/inlet_assertion_snapshot.json`
+  - `M5.D` is now explicitly expanded to launch-contract closure grade:
+    - M5.C carry-forward invariants,
+    - deterministic per-output launch matrix + sort-key closure,
+    - managed ECS one-shot task profile closure,
+    - local+durable `m5_d_stream_sort_launch_snapshot.json` publication contract.
 - Sub-phase progress:
   - [x] `M5.A` authority + handle closure for P3.
   - [x] `M5.B` oracle inlet policy closure.

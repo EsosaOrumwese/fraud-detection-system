@@ -371,27 +371,85 @@ Goal:
 
 Entry conditions:
 1. `M5.C` PASS.
+2. `M5.C` snapshot is readable:
+   - local: `runs/dev_substrate/m5/<timestamp>/inlet_assertion_snapshot.json`
+   - durable: `s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<platform_run_id>/oracle/inlet_assertion_snapshot.json`
+
+Required inputs:
+1. Authority:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P3.9`, `P3.10`)
+   - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`.
+2. Source artifacts:
+   - latest `M5.C` snapshot (local + durable URI),
+   - `runs/dev_substrate/m3/20260213T221631Z/run.json`.
+3. Required handles:
+   - `S3_ORACLE_BUCKET`,
+   - `S3_ORACLE_INPUT_PREFIX_PATTERN`,
+   - `S3_STREAM_VIEW_PREFIX_PATTERN`,
+   - `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN`,
+   - `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN`,
+   - `S3_STREAM_SORT_RECEIPT_KEY_PATTERN`,
+   - `ORACLE_REQUIRED_OUTPUT_IDS`,
+   - `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
+   - `TD_ORACLE_STREAM_SORT`,
+   - `ROLE_ORACLE_JOB`,
+   - `ECS_CLUSTER_NAME`,
+   - `SUBNET_IDS_PUBLIC`,
+   - `SECURITY_GROUP_ID_APP`,
+   - `S3_EVIDENCE_BUCKET`.
 
 Tasks:
-1. Build per-output launch matrix from pinned `ORACLE_REQUIRED_OUTPUT_IDS` and `ORACLE_SORT_KEY_BY_OUTPUT_ID`.
-2. Validate each output ID resolves to:
+1. Validate `M5.C` carry-forward invariants:
+   - `overall_pass=true`,
+   - `blockers=[]`,
+   - `platform_run_id` matches M3 run header.
+2. Build deterministic per-output launch matrix from:
+   - `ORACLE_REQUIRED_OUTPUT_IDS`,
+   - `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
+   - run-scoped prefix patterns (`S3_ORACLE_INPUT_PREFIX_PATTERN`, `S3_STREAM_VIEW_*`).
+3. Validate sort-key closure for each required output:
+   - every required output_id has exactly one mapped sort key,
+   - no missing or blank sort-key entries,
+   - no unsupported multi-output ambiguity for required output set.
+4. Validate per-output artifact path contract resolves for launch:
    - input prefix,
-   - output stream_view prefix,
-   - manifest key pattern,
-   - receipt key pattern.
-3. Validate task definition/role launch contract:
-   - `TD_ORACLE_STREAM_SORT`, `ROLE_ORACLE_JOB`.
-4. Emit `m5_d_stream_sort_launch_snapshot.json`.
+   - stream_view output prefix,
+   - stream_view manifest key,
+   - stream-sort receipt key.
+5. Validate managed launch profile contract:
+   - `TD_ORACLE_STREAM_SORT`, `ROLE_ORACLE_JOB`,
+   - `ECS_CLUSTER_NAME`, `SUBNET_IDS_PUBLIC`, `SECURITY_GROUP_ID_APP`,
+   - execution mode remains managed one-shot (no local/laptop fallback).
+6. Emit `m5_d_stream_sort_launch_snapshot.json` with minimum fields:
+   - `m5_execution_id`, `platform_run_id`,
+   - `source_m5c_snapshot_local`, `source_m5c_snapshot_uri`,
+   - `required_output_ids`,
+   - `per_output_launch_matrix` (output_id, sort_key, input_prefix, stream_view_output_prefix, manifest_key, receipt_key),
+   - `task_profile` (`task_definition`, `role`, `cluster`, `subnets`, `security_group`),
+   - `unresolved_sort_key_output_ids`,
+   - `unresolved_path_contract_output_ids`,
+   - `launch_profile_valid`,
+   - `blockers`,
+   - `overall_pass`.
+7. Publish snapshot:
+   - local: `runs/dev_substrate/m5/<timestamp>/m5_d_stream_sort_launch_snapshot.json`
+   - durable: `s3://<S3_EVIDENCE_BUCKET>/evidence/dev_min/run_control/<m5_execution_id>/m5_d_stream_sort_launch_snapshot.json`.
+8. Stop progression if `overall_pass=false`.
 
 DoD:
+- [ ] `M5.C` carry-forward invariants are verified and recorded.
 - [ ] Per-output launch matrix is complete and deterministic.
-- [ ] Sort task launch contract is fully resolvable.
+- [ ] Sort-key closure is complete for all required output IDs.
+- [ ] Managed launch profile contract is fully resolvable.
 - [ ] M5.D snapshot exists locally and durably.
 
 Blockers:
-1. `M5D-B1`: missing per-output launch mapping.
-2. `M5D-B2`: task definition or role contract unresolved.
-3. `M5D-B3`: M5.D snapshot write/upload failure.
+1. `M5D-B1`: M5.C carry-forward invariants invalid or unreadable.
+2. `M5D-B2`: missing/ambiguous sort-key mapping for one or more required outputs.
+3. `M5D-B3`: per-output input/output/manifest/receipt path contract unresolved.
+4. `M5D-B4`: task/profile/network launch contract unresolved.
+5. `M5D-B5`: M5.D snapshot write/upload failure.
 
 ### M5.E Stream-Sort Execution + Receipts/Manifests
 Goal:

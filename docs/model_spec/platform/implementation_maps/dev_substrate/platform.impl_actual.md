@@ -10085,3 +10085,59 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - M5 sub-phase progress marked `M5.C` complete,
    - M5 expansion state notes include M5.C PASS evidence,
    - M5 DoD first item marked complete (P3 inputs present under canonical run-scoped prefix).
+
+## Entry: 2026-02-14 07:44PM - Pre-change planning lock: expand M5.D to execution-grade launch-contract closure
+
+### Trigger
+1. USER requested planning for `M5.D`.
+
+### Objective
+1. Expand `M5.D` from concise launch notes into execution-grade contract planning without executing stream-sort.
+2. Make M5.D fully deterministic for M5.E handoff: per-output launch matrix, sort-key closure, path/pattern closure, and managed-compute launch profile closure.
+
+### Planned scope
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+   - add entry invariants, required inputs/handles, deterministic task list, snapshot schema, DoD, blocker taxonomy.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - add M5 expansion summary line confirming M5.D is execution-grade planned.
+
+### Non-goals
+1. No M5.D execution.
+2. No ECS run-task launch.
+3. No stream-sort/checker runtime compute.
+4. No branch/history operations.
+
+### Fail-closed intent for planning
+1. M5.D execution (next step) must block on unresolved sort-key map entries, unresolved per-output path contracts, or unresolved managed launch handles.
+
+## Entry: 2026-02-14 07:47PM - Applied M5.D planning expansion to execution-grade launch-contract closure
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### M5.D planning upgrades applied
+1. Added explicit entry invariants pinned to `M5.C` PASS artifact readability (local + durable).
+2. Added required input inventory:
+   - authority docs,
+   - source artifacts (`M5.C` + M3 run header),
+   - required launch/contract handles (S3 prefixes/patterns, output-id/sort-key pins, task/role/network handles, evidence bucket).
+3. Expanded deterministic tasks:
+   - M5.C carry-forward invariant validation,
+   - per-output launch matrix derivation,
+   - sort-key closure checks for all required output IDs,
+   - per-output path-contract closure (input/output/manifest/receipt),
+   - managed ECS one-shot launch-profile closure,
+   - explicit snapshot schema + publish contract + stop rule.
+4. Expanded DoD from 3 checks to 5 checks including carry-forward invariants and sort-key closure coverage.
+5. Expanded blocker taxonomy from 3 to 5 with explicit mapping:
+   - M5.C carry-forward failure,
+   - sort-key mapping ambiguity/missing,
+   - per-output path-contract resolution failure,
+   - managed launch-profile contract failure,
+   - snapshot publication failure.
+6. Updated main platform plan M5 expansion summary to explicitly include M5.D launch-contract closure posture.
+
+### Outcome
+1. `M5.D` is now execution-ready at planning level; no runtime stream-sort execution occurred in this step.
+2. Next executable step is `M5.D` implementation using the newly pinned launch snapshot contract.
