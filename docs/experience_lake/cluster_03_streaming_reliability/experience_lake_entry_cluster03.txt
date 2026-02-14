@@ -1,0 +1,359 @@
+EXPERIENCE LAKE ENTRY — CLUSTER 03
+Title: Streaming consumer reliability + bounded acceptance semantics (20/200), start-position policy, anti-starvation fixes, and replay-safe progression
+As-of: 2026-02-14
+Status: ACHIEVED (local_parity bounded acceptance). PROMOTING (dev_min must preserve semantics; broker/substrate changes allowed).
+
+1) Header Block — Identity + Claim
+1.1 One-sentence truth claim (defensible, not a vibe)
+I designed a bounded streaming acceptance protocol (Gate-20 then Gate-200 events per output_id) and resolved a real control-plane READY starvation incident; I also hardened start-position and consumer identity rules (explicit, run-scoped, checkpointed, fail-closed) so replay/backlog and first-attach miss risks are controlled—meaning “stream health” cannot be mistaken for “flow closure.”
+
+1.2 Scope (what this entry covers)
+IN-SCOPE:
+- Bounded streaming protocol: Gate-20 and Gate-200 via WSP_MAX_EVENTS_PER_OUTPUT
+- Control-plane READY consumption (Kinesis iterator semantics) and anti-starvation fix
+- Start-position policy (trim_horizon vs latest) chosen per lane objective
+- Consumer identity model: stream_id + checkpoint namespace + run-scope guard
+- Retry discipline (WSP→IG) coupled with IG idempotency (no duplicate side effects)
+- “Flow closure” vs “process health” acceptance discipline
+
+OUT-OF-SCOPE:
+- Ingress idempotency/admission truth rails (Cluster 2)
+- Post-stream datastore stability (Cluster 4)
+- Append-only case/label/audit truth semantics (Cluster 9)
+
+1.3 Anchor run (closure-grade bounded Gate-200 run)
+- env: local_parity
+- platform_run_id: platform_20260212T085637Z
+- run root: runs/fraud-platform/platform_20260212T085637Z/
+- object-store root: s3://fraud-platform/platform_20260212T085637Z/
+
+Key evidence anchors:
+- bounded start/stop markers: runs/fraud-platform/platform_20260212T085637Z/platform.log
+- session totals + checkpoint reason: runs/fraud-platform/platform_20260212T085637Z/session.jsonl
+  - checkpoint event: event_kind=checkpoint_saved with details.reason=max_events
+- WSP READY consumer log: runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+- run-level ingress summary: runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json
+  - ingress.sent=800 (sum of WSP emitted totals)
+  - ingress.duplicate=0, ingress.quarantine=0, ingress.publish_ambiguous=0
+  - note: ingress.admit is IG-wide across the run and can exceed ingress.sent
+
+1.4 What I am explicitly NOT claiming (truth hygiene)
+- Not claiming a general “LeetCode streaming expert” identity; this is a platform-operator reliability story with evidence.
+- Not claiming all historic run artifacts are retained (some early run report artifacts are referenced by path in notes but not retained in current workspace snapshot).
+- Not claiming that a single global start-position setting works for all consumers; I explicitly reject that as false.
+
+2) Context — Why this mattered
+2.1 The platform problem
+Streaming platforms fail in ways that are easy to misread:
+- services are “running”
+- consumers are polling
+- but the active run never progresses (starvation)
+or:
+- ingress moves
+- but decision lane is empty because consumers are replaying backlog inside a bounded acceptance window
+If these failure modes aren’t controlled, you ship false-green: “it ran” but it didn’t prove anything.
+
+2.2 Why bounded acceptance exists (20/200)
+I needed an acceptance protocol that:
+- validates end-to-end flow under run scope without infinite streams
+- is repeatable, deterministic in termination, and evidence-backed
+- allows escalation of load without losing auditability
+
+3) The Problem — Contradictions this entry resolves
+3.1 “I started from trim_horizon to be safe” vs “trim_horizon can starve the active run”
+- Starting from earliest can replay huge backlog and prevent reaching newly published READY or current-run events.
+
+3.2 “Use latest to avoid backlog” vs “latest can miss early records on first attach”
+- If checkpoint is absent and the consumer attaches at latest, it can skip the first in-run records before a checkpoint is written.
+
+3.3 “Consumers are healthy” vs “flow is dead”
+- A process can be alive while consuming the wrong window, or stuck replaying head-page records forever.
+
+4) Non-negotiables — Invariants and constraints
+4.1 Invariants I preserved
+- Bounded acceptance must be enforced in code (not by operator “stop it now” convention).
+- Termination must be provable by multiple evidence surfaces (stop markers, totals, checkpoint reason).
+- Start-position must be an explicit correctness control chosen per lane objective.
+- Replay safety must be achieved without generating duplicate side effects (IG dedupe + publish ambiguity posture remains intact).
+- No “papering over” starvation by loosening dedupe or ignoring run scope.
+
+4.2 Constraints
+- Local parity uses Kinesis semantics; iterator behavior matters.
+- Multiple lanes start before READY; acceptance is event-bounded (20/200 caps) and executed within an operator time window.
+- Single engineer: rules must be explicit and evidence-driven.
+
+5) Investigation + Reasoning — How I made streaming behavior provable
+5.1 Bounded acceptance semantics (20/200)
+Definition:
+- Gate-20: WSP_MAX_EVENTS_PER_OUTPUT=20
+- Gate-200: WSP_MAX_EVENTS_PER_OUTPUT=200
+Cap is per output_id lane. In local parity with 4 streamed lanes:
+- Gate-20 expected emitted total = 4*20 = 80
+- Gate-200 expected emitted total = 4*200 = 800
+
+Enforcement chain:
+1) operator/run target sets WSP_MAX_EVENTS_PER_OUTPUT
+2) run/operate pack passes --max-events-per-output to WSP READY consumer
+3) WSP runner increments emitted only after successful WSP→IG push
+4) on cap hit, WSP persists checkpoint with reason=max_events and stops that lane
+
+Proof the system really stopped (anchor run):
+- platform.log stop markers show for each required output_id: emitted=200 reason=max_events
+- session.jsonl contains stream_complete with emitted=800
+- session.jsonl has checkpoint_saved events with details.reason=max_events
+
+5.2 Start-position policy is chosen per consumer role (not global)
+I rejected “one start position for all.” I built a mixed policy map.
+
+Current local_parity map (configured posture):
+| Consumer lane | Default start | Where configured | First-read safety override |
+| WSP READY control-bus reader | trim_horizon on first attach, then NextShardIterator carry-forward | src/fraud_detection/world_streamer_producer/control_bus.py (KinesisControlBusReader) | Not needed (in-memory shard iterator progress maintained) |
+| IEG projector | latest | config/platform/profiles/local_parity.yaml -> ieg.wiring.event_bus.start_position | No |
+| OFP projector | latest | local_parity.yaml -> ofp.wiring.event_bus.start_position | No |
+| CSFB intake | latest | local_parity.yaml -> context_store_flow_binding.wiring.event_bus.start_position | No |
+| DF worker | latest | local_parity.yaml -> df.wiring.event_bus_start_position | No |
+| AL worker | latest | local_parity.yaml -> al.wiring.event_bus_start_position | Yes: if checkpoint missing + required_platform_run_id set → first read forces trim_horizon |
+| DLA intake | latest | local_parity.yaml -> dla.wiring.event_bus_start_position | Yes: if checkpoint missing + required_platform_run_id set → first read forces trim_horizon |
+| Case Trigger | latest | local_parity.yaml -> case_trigger.wiring.event_bus_start_position | No |
+| Case Mgmt | latest | local_parity.yaml -> case_mgmt.wiring.event_bus_start_position | No |
+| Archive Writer | latest | local_parity.yaml -> archive_writer.wiring.event_bus_start_position | No |
+
+Decision rule:
+- Active-window bounded acceptance (20/200): latest for pre-started live workers to avoid backlog starvation
+- Completeness/recovery or run-pinned, checkpoint-absent consumers: trim_horizon on first read, then checkpoint progression
+
+5.3 Consumer identity model prevents accidental fork / wrong-position reconsume
+Core idea:
+Consumer identity is a persisted checkpoint namespace + run scope, not just “process name.”
+
+Checkpoint backends (local_parity):
+- WSP checkpoints are Postgres-backed for resumability.
+- Worker consumer checkpoints are persisted in per-run sqlite for deterministic replay tracking (this backend may change in dev_min).
+
+Pinned example from anchor run:
+- DB: runs/fraud-platform/platform_20260212T085637Z/decision_fabric/consumer_checkpoints.sqlite
+- Table: df_worker_consumer_checkpoints
+- Key cols: stream_id, topic, partition_id
+- Cursor cols: next_offset, offset_kind
+- Stored row example shape:
+  - stream_id = df.v0::platform_20260212T085637Z
+  - topic = fp.bus.traffic.fraud.v1
+  - offset_kind = kinesis_sequence
+
+How stream_id is minted (literal, not conceptual):
+- stream_id = _with_scope(base_stream, platform_run_id)
+- shape: <base_stream>::<platform_run_id>
+- implemented in worker modules:
+  - src/fraud_detection/decision_fabric/worker.py
+  - src/fraud_detection/action_layer/worker.py
+  - src/fraud_detection/case_trigger/worker.py
+  - src/fraud_detection/case_mgmt/worker.py
+
+Wrong-position prevention:
+- if checkpoint exists: resume from checkpoint next_offset
+- if checkpoint absent AND required_platform_run_id set (protected lanes): first read trim_horizon
+- run-scope filter rejects out-of-scope envelopes even if backlog is replayed
+- scenario-level lock: once scenario_run_id accepted, lock to it to prevent mix
+
+Control-plane side:
+- READY message must match platform_run_id and scenario_run_id against run facts
+- out-of-scope READY becomes SKIPPED_OUT_OF_SCOPE
+- dedupe record per message_id persists terminal statuses under wsp/ready_runs/<message_id>.jsonl
+
+6) Decision + Tradeoffs — What I chose and why
+6.1 Mixed start-position policy (timeliness vs completeness)
+Tradeoff accepted:
+- latest improves timeliness for bounded gates
+- but risks early-record miss if checkpoint absent
+Resolution:
+- protect critical run-pinned consumers with first-read trim_horizon override when checkpoint absent
+
+6.2 Iterator carry-forward for READY (completeness without starvation)
+Tradeoff accepted:
+- trim_horizon ensures completeness
+- but if you reacquire trim_horizon iterator every poll and read one page only, you can starve new messages
+Resolution:
+- retain NextShardIterator per shard across polls and drain pages to catch-up
+
+7) Implementation — What I actually built/changed
+7.1 Control-bus starvation fix (Kinesis READY reader)
+Incident run (starvation):
+- platform_run_id: platform_20260210T042030Z
+Symptoms:
+- services running/ready, but ingress and downstream counters stayed flat; bounded run never activated
+Root cause:
+- READY reader reacquired TRIM_HORIZON iterator each poll and read only one page
+- with historical control messages larger than one page, consumer replayed head forever, never reached new READY
+
+Evidence surfaces used:
+- (historical) run report path used in notes: runs/fraud-platform/platform_20260210T042030Z/obs/platform_run_report.json (critical counters flat)
+- READY consumer loop evidence:
+  runs/fraud-platform/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+- code path pin:
+  src/fraud_detection/world_streamer_producer/control_bus.py (KinesisControlBusReader)
+Evidence strength label:
+- Failing run evidence: medium (notes + READY consumer log; run report artifact path referenced but not retained in current snapshot)
+- Post-fix closure evidence: strong (Gate-20/Gate-200 recovery runs with retained bounded-stop + conformance artifacts)
+
+Fix:
+- keep per-shard NextShardIterator in memory across polls
+- drain pages until catch-up / empty page (not single-page only)
+- preserve existing READY dedupe semantics (no loosening)
+
+Recovery proof:
+- platform_20260210T082746Z passed Gate-20 (emitted total 80)
+- platform_20260210T083021Z passed Gate-200 (emitted total 800)
+- conformance PASS on Gate-200 recovery run
+- recovery log surfaces:
+  runs/fraud-platform/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log (stop markers)
+  runs/fraud-platform/platform_20260212T085637Z/platform.log (anchor stop markers)
+
+7.2 Retry rules (WSP→IG) without duplicate side effects
+WSP retry policy:
+- bounded exponential backoff with jitter
+- knobs: ig_retry_max_attempts, ig_retry_base_delay_ms, ig_retry_max_delay_ms
+- retryable: timeouts, transport exceptions, HTTP 408/429/5xx
+- non-retryable: other 4xx → fail fast (IG_PUSH_REJECTED)
+- exhaustion: IG_PUSH_RETRY_EXHAUSTED → stop stream path fail-closed
+
+Duplicate publish prevention (law, not hope):
+- event_id deterministic at WSP
+- IG dedupe law collapses repeats (platform_run_id, event_class, event_id)
+- IG publish ambiguity is fail-closed (no blind republish)
+
+Validation coverage pins:
+- tests/services/ingestion_gate/test_phase5_retries.py::test_with_retry_succeeds_after_failures
+- tests/services/world_streamer_producer/test_push_retry.py::test_push_rejects_non_retryable_4xx
+- tests/services/ingestion_gate/test_admission.py::test_duplicate_does_not_republish
+- tests/services/ingestion_gate/test_admission.py::test_publish_ambiguous_quarantines_and_marks_state
+
+8) Validation + Results — What I proved, not what I felt
+8.1 Anchor bounded Gate-200 closure (platform_20260212T085637Z)
+Bounded stop evidence:
+- runs/fraud-platform/platform_20260212T085637Z/platform.log
+  - stop markers emitted=200 reason=max_events for:
+    arrival_events_5B
+    s3_event_stream_with_fraud_6B
+    s1_arrival_entities_6B
+    s3_flow_anchor_with_fraud_6B
+- runs/fraud-platform/platform_20260212T085637Z/session.jsonl
+  - stream_complete emitted=800
+  - checkpoint_saved details.reason=max_events
+
+IG/EB acceptance context (boundary tie-in):
+- runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json
+  - ingress.sent=800 (sum of WSP emitted totals for streamed READY)
+  - ingress.publish_ambiguous=0
+  - ingress.quarantine=0
+  - ingress.duplicate=0
+  - ingress.admit=1577 (IG-wide ADMIT decisions across all producers/event families for this run scope; can exceed ingress.sent)
+
+Key proof snapshots (anchor run; “open JSON not required”):
+- session.jsonl -> stream_complete emitted=800
+- session.jsonl -> checkpoint_saved details.reason=max_events
+- platform.log -> emitted=200 reason=max_events for each required output_id
+- run report -> ingress.sent=800; ingress.publish_ambiguous=0; ingress.quarantine=0; ingress.duplicate=0; ingress.admit=1577
+
+Counter semantics (explicit to prevent misread):
+- WSP emitted=200 counts successful WSP→IG pushes per output_id
+- ingress.sent is derived from WSP ready_runs emitted totals (producer-origin measure)
+- ingress.admit is IG-wide admit decisions for platform_run_id across all producers (system-wide measure)
+
+8.2 “Health vs Flow” lesson institutionalized
+Failure pattern 1:
+- platform_20260210T042030Z: process matrix looked healthy; flow was dead due to READY starvation
+Fix: iterator carry-forward + multi-page draining
+
+Failure pattern 2:
+- platform_20260210T042533Z: ingress moved, decision lane stayed flat due to backlog replay within gate window
+Fix: start-position posture hardened (latest for bounded acceptance; trim_horizon override only for checkpoint-absent run-pinned lanes)
+
+Operational change:
+I no longer accept “process matrix green.” I accept “flow-closure green” only when:
+- bounded stop markers exist
+- IG receipts/admission posture matches expectation for the bounded window
+- downstream lanes show in-scope movement
+- no unresolved ambiguity/blocker states remain
+
+9) Evidence Index (auditor trail)
+9.0 Truth surfaces: authoritative vs derived (anti-drift)
+Authoritative for bounded acceptance (“the run really stopped because the system enforced it”):
+- session.jsonl stream_complete + checkpoint_saved(details.reason=max_events)
+
+Supporting (useful corroboration, but not sufficient alone):
+- platform.log stop markers (per output_id emitted=cap reason=max_events)
+- wsp_ready_consumer.log (control-plane READY attach/consume traces)
+
+Derived summary (computed view; should not override authoritative surfaces):
+- obs/platform_run_report.json ingress counters and lane summaries
+
+9.1 Anchor run artifacts
+- runs/fraud-platform/platform_20260212T085637Z/platform.log (stop markers)
+- runs/fraud-platform/platform_20260212T085637Z/session.jsonl (stream_complete + checkpoint_saved.reason)
+- runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json (ingress counters)
+- runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+
+9.2 Incident run artifacts (starvation)
+- runs/fraud-platform/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log (loop evidence)
+- (historical path referenced in notes) runs/fraud-platform/platform_20260210T042030Z/obs/platform_run_report.json (flat counters)
+- evidence note: failing run report artifact not retained; recovery runs provide retained proof of closure after fix
+
+9.3 Config/code pins
+- WSP READY control-bus reader:
+  - src/fraud_detection/world_streamer_producer/control_bus.py
+- Start-position policy config:
+  - config/platform/profiles/local_parity.yaml (lane start positions)
+- Consumer identity scope code:
+  - src/fraud_detection/decision_fabric/worker.py
+  - src/fraud_detection/action_layer/worker.py
+  - src/fraud_detection/case_trigger/worker.py
+  - src/fraud_detection/case_mgmt/worker.py
+- Checkpoint DB example:
+  - runs/fraud-platform/platform_20260212T085637Z/decision_fabric/consumer_checkpoints.sqlite
+
+9.4 Tests
+- tests/services/ingestion_gate/test_phase5_retries.py::test_with_retry_succeeds_after_failures
+- tests/services/world_streamer_producer/test_push_retry.py::test_push_rejects_non_retryable_4xx
+- tests/services/ingestion_gate/test_admission.py::test_duplicate_does_not_republish
+- tests/services/ingestion_gate/test_admission.py::test_publish_ambiguous_quarantines_and_marks_state
+
+10) Guardrails / Non-regression Controls
+10.1 Bounded acceptance is a first-class acceptance protocol
+- Gate-20 and Gate-200 are required before broader claims
+- cap is enforced in code and proven by stop markers + checkpoint reasons
+Fail-closed blockers (Gate-20/Gate-200 cannot PASS if any are true):
+- Missing bounded stop markers for any required output_id (platform.log)
+- Missing session.jsonl termination evidence (stream_complete) or emitted-total mismatch vs expected (80 for Gate-20; 800 for Gate-200 in the 4-lane posture)
+- Missing checkpoint_saved with details.reason=max_events for any capped lane
+- Any ingress.publish_ambiguous > 0 or ingress.quarantine > 0 for the run scope (boundary tie-in to Cluster 2)
+- Any required downstream lane shows zero in-scope movement when movement is expected under the bounded window (checked via run report lane summaries/health)
+
+10.2 Start-position is treated as a correctness control
+- mixed policy map pinned in profile and code
+- protected lanes get first-read safety override when checkpoint absent + run pin required
+- control-plane iterator carry-forward prevents starvation regressions
+
+10.3 Flow-closure truth beats liveness signals
+- green requires end-to-end movement under run scope
+- “services running” cannot be used as success criterion
+
+11) Residual risks + Next actions
+11.1 Open items / promotion considerations
+- In dev_min, consumer identity and start-position semantics must remain invariant while broker changes (Kafka/managed) and runtime is ECS.
+- Control-plane iteration and dedupe posture must be revalidated under managed broker semantics.
+
+11.2 Heft multipliers (optional)
+- Add explicit per-producer split counters in run report (WSP-origin vs system-wide) to prevent future interpretation mistakes.
+- Retain a minimal “incident bundle” (fail log lines) for early runs in addition to implementation-map notes.
+
+12) Extraction notes (for later mining)
+12.1 30-second version (recruiter)
+“I built bounded 20/200 streaming acceptance and fixed real streaming failure modes—Kinesis READY starvation and backlog replay starvation—by making start-position and consumer identity explicit, run-scoped, and checkpointed. I validate flow closure with evidence (stop markers, checkpoint reasons, receipts), not just ‘services running.’”
+
+12.2 2-minute version (hiring manager)
+“I treat streaming reliability as correctness: 20/200 gates cap events per output_id and must stop provably. I fixed a control-bus bug where the READY consumer re-read TRIM_HORIZON head forever; the platform looked healthy but flow was dead. I implemented per-shard iterator carry-forward and multi-page draining, and then hardened start-position policies to avoid replay starvation while still protecting run-pinned completeness. The result is repeatable bounded closures with evidence, not vibes.”
+
+12.3 USP mapping (problem solving signal)
+- Found failure modes that are invisible to naive monitoring (liveness green, flow dead).
+- Diagnosed root causes in the right layer (iterator semantics, start-position posture, checkpoint identity).
+- Implemented conservative fixes that preserve invariants (idempotency, fail-closed ambiguity, run-scope isolation).
