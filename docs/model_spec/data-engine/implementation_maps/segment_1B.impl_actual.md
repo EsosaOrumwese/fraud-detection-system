@@ -4277,3 +4277,102 @@ Runtime diagnosis captured for next iteration policy:
 3) Decision trail consequence:
    - do not brute-force repeated full reruns without a performance rail;
    - next technical lever for iteration speed is an explicit S4 cache/runtime rail (performance-only, no semantics change), while keeping realism gates fail-closed.
+
+---
+
+### Entry: 2026-02-14 06:20
+
+Design element: Post-RED detailed recovery planning update in build authority.
+Summary: Added an execution-grade `P4.R` program to the Segment `1B` build plan so recovery proceeds with bounded compute cost, guarded upstream reopen control, and explicit fail-closed gates.
+
+Why this planning expansion was required:
+1) Current integrated status is still `RED_REOPEN_REQUIRED` after a full chain run.
+2) Runtime churn (especially `S4`) makes blind full reruns non-viable for iterative remediation.
+3) We need deterministic, auditable flow from idea -> cheap rejection -> expensive promotion run.
+
+Plan structure pinned in build plan:
+1) `P4.R1` runtime rail stabilization for `S4` (performance-only, no semantic drift).
+2) `P4.R2` guarded upstream reopen lane (`1A` candidates must pass freeze guard before 1B compute).
+3) `P4.R3` proxy-first fast-screen lane for macro realism from `S2/S4`.
+4) `P4.R4` collapse/geometry closure lane in `S6` with strict vetoes.
+5) `P4.R5` integrated promotion run with explicit classifier decision path.
+6) `P4.R6` storage/run-retention hard cap with prune-before-new-full-run.
+
+Execution implication:
+1) We no longer iterate by default via full `S0->S9` runs per idea.
+2) Long full-chain runs are reserved for shortlisted candidates that clear proxy and structural veto gates.
+3) Upstream reopen remains allowed only under the existing `1A` freeze-veto contract.
+
+---
+
+### Entry: 2026-02-14 06:24
+
+Design element: `P4.R1` execution plan (S4 runtime rail implementation).
+Summary: Implement a performance-only runtime rail in `S4` by replacing fixed-count country cache behavior with bounded configurable caching (`entry cap` + `byte budget`) while preserving allocation semantics.
+
+Pre-implementation decisions:
+1) No statistical semantics change:
+   - allocation math, tie-breaking, anti-collapse logic, and output ordering remain unchanged.
+2) Runtime knobs (compute-only):
+   - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX` (entry bound),
+   - `ENGINE_1B_S4_CACHE_MAX_BYTES` (approximate in-memory cache byte budget).
+3) Safe defaults:
+   - preserve current behavior compatibility when env knobs are unset.
+4) Observability:
+   - emit effective runtime-cache settings and live cache bytes in `S4` run report/heartbeat context.
+5) Benchmark method:
+   - compare `S4` before/after on the same run envelope (`run_id=e4d92c9cfbd3453fb6b9183ef6e3b6f6`) using `s4_run_report` wall-clock and cache miss/eviction counters.
+
+Planned file surfaces:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+2) optional make wiring for explicit env forwarding if needed (`makefile`) without changing statistical policy surfaces.
+
+---
+
+### Entry: 2026-02-14 07:47
+
+Design element: `P4.R1` execution result (S4 runtime rail + benchmark evidence).
+Summary: Implemented runtime-cache controls for `S4`, wired them through `make`, and benchmarked on the same envelope run-id. The rail is deterministic and materially faster, but this first pass did not yet reach the `>=30%` speed target.
+
+Implemented changes:
+1) `S4` runtime rail in runner:
+   - file: `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`.
+   - added env-driven cache knobs:
+     - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX`,
+     - `ENGINE_1B_S4_CACHE_MAX_BYTES`.
+   - replaced fixed-count cache behavior with bounded cache eviction using:
+     - entry cap,
+     - byte-budget cap.
+   - added runtime-cache telemetry into `s4_run_report.pat.runtime_cache`.
+2) make wiring:
+   - file: `makefile`.
+   - `segment1b-s4` now forwards:
+     - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX`,
+     - `ENGINE_1B_S4_CACHE_MAX_BYTES`.
+
+Benchmark execution:
+1) Baseline snapshot preserved:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1_s4_before_e4d92c9cfbd3453fb6b9183ef6e3b6f6.json`
+2) Benchmark run:
+   - command equivalent:
+     - `make segment1b-s4 ... ENGINE_1B_S4_CACHE_COUNTRIES_MAX=24 ENGINE_1B_S4_CACHE_MAX_BYTES=1000000000`
+   - envelope run-id: `e4d92c9cfbd3453fb6b9183ef6e3b6f6`.
+3) Result artifacts:
+   - after snapshot:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1_s4_after_e4d92c9cfbd3453fb6b9183ef6e3b6f6.json`
+   - benchmark summary:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1_benchmark_e4d92c9cfbd3453fb6b9183ef6e3b6f6.json`
+
+Measured outcome:
+1) Wall-clock:
+   - `6386.64s -> 4804.72s` (improvement `1581.92s`, `24.77%` faster).
+2) CPU:
+   - `6478.19s -> 4767.66s`.
+3) Determinism/output parity:
+   - determinism hash unchanged (`sha256` identical),
+   - `rows_emitted` unchanged (`141377`),
+   - `s4_alloc_plan` partition detected as byte-identical.
+
+Decision:
+1) `P4.R1` is valid (performance-only + deterministic), but target threshold is not yet fully met in this pass.
+2) Keep this rail; if we require strict `>=30%`, run one bounded parameter sweep (`cache entries` and `byte budget`) before closing `P4.R1`.

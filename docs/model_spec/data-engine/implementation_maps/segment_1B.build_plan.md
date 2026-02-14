@@ -1,5 +1,5 @@
 # Segment 1B Remediation Build Plan (B/B+ Execution Plan)
-_As of 2026-02-13_
+_As of 2026-02-14_
 
 ## 0) Objective and closure rule
 - Objective: remediate Segment `1B` to certified realism `B` minimum, with `B+` as the active target.
@@ -497,6 +497,147 @@ Path-1 activation note (2026-02-13):
   1) run/select 1A candidate,
   2) run `score_segment1a_freeze_guard.py` and require `PASS`,
   3) only then run 1B integrated chain and score P4/P5 gates.
+
+### P4.R - Post-RED guarded reopen program (runtime-aware, active)
+Focus:
+- recover from `RED_REOPEN_REQUIRED` without brute-force full-pass reruns for every idea.
+- combine guarded upstream reopen (`1A`) with fast downstream screening (`1B`) before expensive integrated passes.
+
+Entry condition:
+- active P4 status is `RED_REOPEN_REQUIRED` under locked posture.
+- latest evidence:
+  - `segment1b_p4_integrated_625644d528a44f148bbf44339a41a044.json`
+  - `segment1b_p4_integrated_e4d92c9cfbd3453fb6b9183ef6e3b6f6.json`
+
+#### P4.R1 - Runtime rail stabilization (S4 compute choke)
+Goal:
+- reduce tuning loop wall-clock so candidate throughput is practical.
+
+Scope:
+- performance-only surfaces in `S4`; no statistical semantics change allowed.
+- primary file surface:
+  - `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+
+Plan:
+- expose governed runtime knobs for cache/loader behavior (for example country-asset cache depth) under deterministic posture.
+- keep output semantics invariant; only compute strategy is tunable.
+- benchmark one fixed candidate before/after runtime rail on identical run envelope.
+
+DoD:
+- [ ] measured `S4` wall-clock reduction is material (`>=30%` target) on same envelope.
+- [x] deterministic replay/output parity remains intact on same `{seed, manifest_fingerprint, parameter_hash}`.
+- [x] no contract, schema, or realism metric drift attributable to runtime rail.
+
+P4.R1 execution status (2026-02-14):
+- status: `PARTIAL` (`2/3` DoD checks complete).
+- envelope run: `e4d92c9cfbd3453fb6b9183ef6e3b6f6` (`S4` rerun only).
+- settings tested:
+  - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX=24`
+  - `ENGINE_1B_S4_CACHE_MAX_BYTES=1000000000`
+- benchmark artifact:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r1_benchmark_e4d92c9cfbd3453fb6b9183ef6e3b6f6.json`
+- measured effect:
+  - wall-clock `6386.64s -> 4804.72s` (`-24.77%`, improvement `1581.92s`),
+  - CPU `6478.19s -> 4767.66s`,
+  - determinism hash unchanged (`sha256` identical),
+  - rows emitted unchanged (`141377`).
+- conclusion:
+  - rail is valid and deterministic, but did not yet hit the `>=30%` target in this pass.
+
+#### P4.R2 - Guarded upstream candidate lane (1A reopen, fail-closed)
+Goal:
+- allow upstream movement that can unblock 1B realism while preserving frozen 1A quality floor.
+
+Scope:
+- only 1A surfaces that influence 1B ingress shape.
+- hard gate:
+  - `tools/score_segment1a_freeze_guard.py` must return `PASS` for every candidate.
+
+Plan:
+- produce small 1A candidate batch (`max 2` per wave).
+- run freeze guard after each candidate.
+- reject immediately on guard `FAIL`; no 1B run permitted for rejected candidates.
+- promote only guard-pass 1A candidate(s) into 1B lane.
+
+DoD:
+- [ ] each upstream candidate has explicit guard artifact with `PASS`.
+- [ ] rejected candidates are blocked before 1B compute.
+- [ ] promoted candidate list is explicit and bounded for downstream screening.
+
+#### P4.R3 - Fast-screen lane for 1B macro realism (proxy-first)
+Goal:
+- filter weak candidates cheaply before full `S5->S9` and integrated scoring.
+
+Scope:
+- macro behavior from `S2/S4` first; run minimal downstream chain only for proxy-pass candidates.
+
+Plan:
+- run from change-impact state using Section `2.1` rerun matrix.
+- compute quick proxy metrics from `s4_alloc_plan` (concentration and coverage movement direction).
+- apply fail-fast proxy gates; drop candidates that clearly cannot reach B path.
+- keep only top-ranked proxy candidates (`max 2`) for full downstream closure attempt.
+
+DoD:
+- [ ] proxy scorer artifacts are emitted for every candidate.
+- [ ] non-competitive candidates are filtered before expensive integrated runs.
+- [ ] shortlist is bounded and justified by proxy metrics.
+
+#### P4.R4 - Collapse and geometry closure lane (S6)
+Goal:
+- close top-country collapse sentinel while preserving concentration/coverage gains.
+
+Scope:
+- `S6 -> S9` on shortlisted candidates.
+- primary blocker to clear:
+  - `top_country_no_collapse=true` (no flagged top-country collapse sentinel).
+
+Plan:
+- tune only governed `S6` jitter policy knobs in bounded steps.
+- enforce hard vetoes:
+  - no regression on concentration/coverage versus incoming shortlist baseline,
+  - no coordinate validity/parity regressions.
+- require same-seed reproducibility witness before promotion to integrated lane.
+
+DoD:
+- [ ] collapse sentinel clears on shortlisted candidate (`flagged_count=0` for active sentinel cohort).
+- [ ] geometry/validity/parity checks remain green.
+- [ ] reproducibility witness confirms same-seed stability.
+
+#### P4.R5 - Integrated promotion run and decision
+Goal:
+- run one full integrated candidate and make an explicit go/no-go decision.
+
+Plan:
+- execute full required chain for promoted candidate.
+- score with integrated authority scorer:
+  - `tools/score_segment1b_p4_integrated.py`.
+- classify outcome:
+  - `GREEN_B` -> handoff to `P5`,
+  - `AMBER_NEAR_BPLUS` -> bounded mini-loop for B+ only,
+  - `RED_REOPEN_REQUIRED` -> fail-closed, reopen next lane explicitly.
+
+DoD:
+- [ ] one promoted integrated candidate has complete score artifact and classifier output.
+- [ ] decision path is explicit (`GREEN_B` / `AMBER_NEAR_BPLUS` / `RED_REOPEN_REQUIRED`).
+- [ ] run retention/pruning is applied per storage protocol after decision.
+
+#### P4.R6 - Storage and run-retention hard cap
+Goal:
+- prevent storage blow-up during heavy remediation cycles.
+
+Plan:
+- keep only:
+  - baseline authorities,
+  - current promoted candidate,
+  - last-good lock candidates,
+  - required reproducibility witness run-ids.
+- prune superseded/rejected run-id folders at every cycle boundary.
+- enforce prune-before-new-full-run.
+
+DoD:
+- [ ] retained run-id set is explicit after each cycle.
+- [ ] superseded run-id folders are pruned before next expensive run.
+- [ ] no unbounded growth in `runs/fix-data-engine/segment_1B/`.
 
 ### P5 - Certification and freeze
 Focus:

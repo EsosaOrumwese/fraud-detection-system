@@ -595,6 +595,8 @@ ifneq ($(strip $(SEG1B_S4_RUN_ID)),)
 SEG1B_S4_ARGS += --run-id $(SEG1B_S4_RUN_ID)
 endif
 SEG1B_S4_CMD = $(PY_ENGINE) -m engine.cli.s4_alloc_plan $(SEG1B_S4_ARGS)
+ENGINE_1B_S4_CACHE_COUNTRIES_MAX ?=
+ENGINE_1B_S4_CACHE_MAX_BYTES ?=
 
 SEG1B_S5_ARGS = --contracts-layout $(ENGINE_CONTRACTS_LAYOUT)
 ifneq ($(strip $(ENGINE_CONTRACTS_ROOT)),)
@@ -2313,7 +2315,9 @@ segment1b-s3:
 
 segment1b-s4:
 	@echo "Running Segment 1B S4 allocation plan"
-	@$(SEG1B_S4_CMD)
+	@ENGINE_1B_S4_CACHE_COUNTRIES_MAX="$(ENGINE_1B_S4_CACHE_COUNTRIES_MAX)" \
+	ENGINE_1B_S4_CACHE_MAX_BYTES="$(ENGINE_1B_S4_CACHE_MAX_BYTES)" \
+	$(SEG1B_S4_CMD)
 
 segment1b-s5:
 	@echo "Running Segment 1B S5 site tile assignment"

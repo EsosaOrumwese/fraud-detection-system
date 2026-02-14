@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 import uuid
 from collections import OrderedDict
@@ -40,6 +41,7 @@ from engine.core.run_receipt import pick_latest_run_receipt
 MODULE_NAME = "1B.s4_alloc_plan"
 BATCH_SIZE = 1_000_000
 CACHE_COUNTRIES_MAX = 8
+CACHE_MAX_BYTES = 0
 
 
 @dataclass(frozen=True)
@@ -311,6 +313,19 @@ def _summary_stats(values: list[float]) -> dict[str, float]:
         "p99": float(np.quantile(arr, 0.99)),
         "mean": float(arr.mean()),
     }
+
+
+def _env_int(name: str, default: int, minimum: int = 0) -> int:
+    raw = os.getenv(name)
+    if raw is None or not str(raw).strip():
+        return int(default)
+    try:
+        value = int(str(raw).strip())
+    except ValueError:
+        return int(default)
+    if value < minimum:
+        return int(default)
+    return int(value)
 
 
 def _hhi_from_counts(counts: np.ndarray) -> float:
@@ -739,6 +754,15 @@ def _write_batch(
 def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     logger = get_logger("engine.layers.l1.seg_1B.s4_alloc_plan.l2.runner")
     timer = _StepTimer(logger)
+    cache_countries_max = _env_int(
+        "ENGINE_1B_S4_CACHE_COUNTRIES_MAX", CACHE_COUNTRIES_MAX, minimum=0
+    )
+    cache_max_bytes = _env_int("ENGINE_1B_S4_CACHE_MAX_BYTES", CACHE_MAX_BYTES, minimum=0)
+    logger.info(
+        "S4: runtime cache settings countries_max=%d cache_max_bytes=%d",
+        cache_countries_max,
+        cache_max_bytes,
+    )
 
     receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
     run_id = receipt.get("run_id")
@@ -995,6 +1019,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     cache_hits = 0
     cache_misses = 0
     cache_evictions = 0
+    cache_skipped_oversize = 0
+    cache_bytes_current = 0
+    cache_bytes_peak = 0
     heartbeat_last = time.monotonic()
     heartbeat_check_step = max(500, int((total_pairs or 5000) / 10))
     heartbeat_interval = 3.0
@@ -1008,6 +1035,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         nonlocal cache_hits
         nonlocal cache_misses
         nonlocal cache_evictions
+        nonlocal cache_skipped_oversize
+        nonlocal cache_bytes_current
+        nonlocal cache_bytes_peak
         if country_iso in cache:
             cache_hits += 1
             cache.move_to_end(country_iso)
@@ -1213,11 +1243,25 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             "weight_fp": weight_fp_sorted,
             "dp": int(dp_value),
         }
+        payload_bytes = int(weight_tile_sorted.nbytes + weight_fp_sorted.nbytes)
+        payload["__bytes"] = payload_bytes
+        if cache_countries_max <= 0:
+            return payload
+        if cache_max_bytes > 0 and payload_bytes > cache_max_bytes:
+            cache_skipped_oversize += 1
+            return payload
+        while cache:
+            over_entries = len(cache) >= cache_countries_max
+            over_bytes = cache_max_bytes > 0 and (cache_bytes_current + payload_bytes > cache_max_bytes)
+            if not over_entries and not over_bytes:
+                break
+            _, evicted = cache.popitem(last=False)
+            cache_bytes_current = max(0, cache_bytes_current - int(evicted.get("__bytes", 0)))
+            cache_evictions += 1
         cache[country_iso] = payload
         cache.move_to_end(country_iso)
-        if len(cache) > CACHE_COUNTRIES_MAX:
-            cache.popitem(last=False)
-            cache_evictions += 1
+        cache_bytes_current += payload_bytes
+        cache_bytes_peak = max(cache_bytes_peak, cache_bytes_current)
         return payload
 
     def _flush_batch() -> None:
@@ -1542,10 +1586,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         rows_emitted,
     )
     logger.info(
-        "S4: cache summary hits=%d misses=%d evictions=%d unique_countries=%d",
+        "S4: cache summary hits=%d misses=%d evictions=%d skipped_oversize=%d bytes_peak=%d unique_countries=%d",
         cache_hits,
         cache_misses,
         cache_evictions,
+        cache_skipped_oversize,
+        cache_bytes_peak,
         len(seen_countries),
     )
 
@@ -1633,6 +1679,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             "max_worker_rss_bytes": max_rss,
             "open_files_peak": open_files_peak,
             "open_files_metric": open_files_metric,
+            "runtime_cache": {
+                "countries_max": cache_countries_max,
+                "cache_max_bytes": cache_max_bytes,
+                "hits": cache_hits,
+                "misses": cache_misses,
+                "evictions": cache_evictions,
+                "skipped_oversize": cache_skipped_oversize,
+                "bytes_peak": cache_bytes_peak,
+            },
         },
     }
     _validate_payload(schema_1b, "#/control/s4_run_report", run_report)
