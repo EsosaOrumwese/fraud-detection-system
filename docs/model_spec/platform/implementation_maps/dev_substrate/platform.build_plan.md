@@ -408,6 +408,7 @@ Active-phase planning posture:
   - `M4.F` planning is expanded to execution-grade with pack-ordered bring-up choreography, explicit stabilization predicates, run-scope mismatch scans, and crashloop fail-closed checks.
   - `M4.G` planning is expanded to execution-grade with two-sample consumer-uniqueness checks, explicit ECS ownership predicates, and singleton drift fail-closed gates.
   - `M4.H` planning is expanded to execution-grade with canonical readiness artifact schema, source-gate invariants (`M4.B/F/G`), and durable publication/non-secret fail-closed checks.
+  - `M4.I` planning is expanded to execution-grade with deterministic predicate derivation from `M4.A..M4.H`, explicit blocker-rollup algorithm, verdict semantics (`ADVANCE_TO_M5`/`HOLD_M4`), and local+durable `m4_i_verdict_snapshot.json` publication contract.
 - Sub-phase progress:
   - [x] `M4.A` authority + handle closure for P2.
   - [x] `M4.B` service/pack map + singleton replica contract.
@@ -417,7 +418,7 @@ Active-phase planning posture:
   - [x] `M4.F` daemon bring-up choreography + stabilization checks.
   - [x] `M4.G` duplicate-consumer guard and singleton enforcement.
   - [x] `M4.H` daemon readiness evidence publication.
-  - [ ] `M4.I` pass gates + blocker model + verdict.
+  - [x] `M4.I` pass gates + blocker model + verdict.
   - [ ] `M4.J` M5 handoff artifact publication.
 
 M4 DoD checklist:
@@ -586,8 +587,8 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M4 is active for sequential closure after readiness evidence publication.
+M4 is active for final closure after verdict publication.
 Next action:
-- execute `M4.I` deterministic gate evaluation and blocker rollup from `M4.A..M4.H` snapshots,
-- publish local + durable `m4_i_verdict_snapshot.json` with explicit predicates and verdict (`ADVANCE_TO_M5` or `HOLD_M4`),
-- proceed to `M4.J` only if `M4.I` blockers are empty and verdict is `ADVANCE_TO_M5`.
+- execute `M4.J` M5 handoff artifact publication using `M4.I` verdict anchor (`ADVANCE_TO_M5` required),
+- publish local + durable `m5_handoff_pack.json` with required URIs and non-secret policy pass,
+- mark M4 `DONE` only after `M4.J` blockers are empty and USER confirms progression to M5.

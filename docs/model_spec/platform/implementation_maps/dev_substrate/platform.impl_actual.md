@@ -9214,3 +9214,101 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - `platform.M4.build_plan.md`: M4.H DoD + completion checklist marked complete.
    - `platform.build_plan.md`: M4.H sub-phase + high-level readiness DoD marked complete.
    - immediate next action advanced to `M4.I`.
+
+## Entry: 2026-02-14 04:50PM - M4.I planning expansion lock (planning-only)
+
+### Trigger
+1. USER instructed: proceed with `M4.I` planning.
+
+### Gap assessment
+1. Current `M4.I` section is directionally correct but still too compact for deterministic execution:
+   - predicate names exist but source-to-predicate mapping is not pinned field-by-field,
+   - blocker rollup precedence and verdict computation order are not explicit,
+   - publication contract for `m4_i_verdict_snapshot.json` is not fully specified,
+   - non-secret and run-id consistency checks are implicit rather than explicit.
+
+### Planning intent
+1. Harden `M4.I` to execution-grade, without runtime execution.
+2. Pin deterministic inputs, predicate derivation rules, blocker taxonomy, and snapshot schema so execution is fail-closed.
+
+### Planned updates
+1. Expand `M4.I` in `platform.M4.build_plan.md` with:
+   - entry conditions and required inputs from `M4.A..M4.H`,
+   - explicit predicate derivation table/rules,
+   - blocker rollup and verdict algorithm,
+   - explicit local + durable publication and verification sequence,
+   - strengthened DoD and blocker taxonomy.
+2. Update `platform.build_plan.md` active-phase expansion notes to state `M4.I` is execution-grade planned.
+
+### Scope boundary
+1. Planning-only; no ECS/Terraform/AWS runtime mutation for this step.
+
+## Entry: 2026-02-14 04:55PM - M4.I planning expanded to execution-grade (planning-only)
+
+### Changes applied
+1. Expanded `M4.I` section in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md` with:
+   - explicit entry conditions tied to `M4.H` PASS + readable `M4.A..M4.H` snapshots,
+   - required input contract including run-scoped readiness evidence and control evidence root,
+   - deterministic predicate derivation rules for all M4 verdict predicates (`handles_closed` through `readiness_evidence_durable`),
+   - fail-closed blocker-rollup model and deterministic verdict algorithm,
+   - explicit local + durable `m4_i_verdict_snapshot.json` publication contract,
+   - additional DoD coverage for non-secret/run-id consistency,
+   - expanded blocker taxonomy (`M4I-B1..B6`).
+2. Updated high-level M4 expansion note in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` to reflect M4.I execution-grade planning status.
+
+### Planning outcome
+1. `M4.I` is now execution-ready at plan level with no hand-wavy predicate or verdict logic.
+2. This step remained planning-only; no runtime execution was performed.
+
+## Entry: 2026-02-14 05:01PM - M4.I pre-execution lock (deterministic verdict + blocker rollup)
+
+### Execution authorization check
+1. USER instructed execution of `M4.I`.
+2. Entry gates are closed and readable:
+   - `M4.A..M4.H` snapshots are present and pass (`overall_pass=true`, `blockers=[]`).
+   - `platform_run_id` is consistent across `M4.A..M4.H`: `platform_20260213T214223Z`.
+   - run-scoped readiness evidence exists durably:
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/operate/daemons_ready.json`.
+
+### Planned execution actions
+1. Evaluate all M4 predicates from pinned source fields in `M4.A..M4.H`.
+2. Roll up blockers fail-closed from all prior lanes and local M4.I checks.
+3. Compute deterministic verdict:
+   - all predicates true + empty blockers => `ADVANCE_TO_M5`,
+   - else => `HOLD_M4`.
+4. Publish `m4_i_verdict_snapshot.json`:
+   - local: `runs/dev_substrate/m4/<timestamp>/m4_i_verdict_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m4_execution_id>/m4_i_verdict_snapshot.json`.
+5. If PASS: update M4 plans/logbook/impl map to mark `M4.I` complete and advance immediate next action to `M4.J`.
+
+## Entry: 2026-02-14 05:02PM - M4.I executed and closed PASS (deterministic M4 verdict)
+
+### Execution actions
+1. Loaded latest M4 source snapshots (`M4.A..M4.H`) and validated readability.
+2. Verified cross-lane run identity consistency:
+   - `platform_run_id=platform_20260213T214223Z` across all source snapshots.
+3. Evaluated all pinned M4.I predicates from source fields:
+   - `handles_closed=true`
+   - `service_map_complete=true`
+   - `iam_binding_valid=true`
+   - `dependencies_reachable=true`
+   - `run_scope_enforced=true`
+   - `services_stable=true`
+   - `no_duplicate_consumers=true`
+   - `readiness_evidence_durable=true`.
+4. Verified run-scoped readiness object exists durably:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/operate/daemons_ready.json`.
+5. Computed verdict and published snapshot:
+   - local: `runs/dev_substrate/m4/20260214T170155Z/m4_i_verdict_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T170155Z/m4_i_verdict_snapshot.json`.
+
+### Outcome
+1. `M4.I` PASS:
+   - `verdict=ADVANCE_TO_M5`
+   - `overall_pass=true`
+   - `blocker_rollup=[]`
+   - `publication.durable_upload_ok=true`.
+2. Plan-state updates applied:
+   - `platform.M4.build_plan.md`: M4.I DoD + completion checklist marked complete.
+   - `platform.build_plan.md`: M4.I sub-phase marked complete.
+   - immediate next action advanced to `M4.J`.

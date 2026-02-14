@@ -658,32 +658,85 @@ Blockers:
 Goal:
 1. Compute deterministic M4 verdict from explicit gate predicates.
 
+Entry conditions:
+1. Latest `M4.H` snapshot is PASS and durable (`overall_pass=true`, `blockers=[]`).
+2. Latest snapshots from `M4.A..M4.H` are readable (local mirrors required; durable URIs required).
+3. Single `platform_run_id` is consistent across `M4.A..M4.H` sources.
+
+Required inputs:
+1. Source snapshots:
+   - `m4_a_handle_closure_snapshot.json`
+   - `m4_b_service_map_snapshot.json`
+   - `m4_c_iam_binding_snapshot.json`
+   - `m4_d_dependency_snapshot.json`
+   - `m4_e_launch_contract_snapshot.json`
+   - `m4_f_daemon_start_snapshot.json`
+   - `m4_g_consumer_uniqueness_snapshot.json`
+   - `m4_h_readiness_publication_snapshot.json`.
+2. Run-scoped readiness evidence:
+   - `evidence/runs/<platform_run_id>/operate/daemons_ready.json`.
+3. M4 control evidence root:
+   - `evidence/dev_min/run_control/<m4_execution_id>/`.
+
 Tasks:
-1. Evaluate predicates:
-   - `handles_closed`
-   - `service_map_complete`
-   - `iam_binding_valid`
-   - `dependencies_reachable`
-   - `run_scope_enforced`
-   - `services_stable`
-   - `no_duplicate_consumers`
-   - `readiness_evidence_durable`
-2. Roll up blockers from M4.A..M4.H.
+1. Evaluate explicit predicates from source fields:
+   - `handles_closed`:
+     - `M4.A.overall_pass=true`
+     - `M4.A.unresolved_handle_count=0`
+     - `M4.A.wildcard_key_present=false`.
+   - `service_map_complete`:
+     - `M4.B.overall_pass=true`
+     - mapped service count `=13`
+     - `M4.B.checks.missing_service_handles=[]`
+     - `M4.B.checks.forbidden_inclusions=[]`.
+   - `iam_binding_valid`:
+     - `M4.C.overall_pass=true`
+     - all `M4.C.service_role_bindings[*].role_binding_valid=true`
+     - boundary rules pass (`no_terraform_role_for_runtime`, `no_execution_role_as_app_role`, `one_app_role_per_service`).
+   - `dependencies_reachable`:
+     - `M4.D.overall_pass=true`
+     - `M4.D.control_plane_dependency_checks.*=true`
+     - managed probe launched and exits `0`.
+   - `run_scope_enforced`:
+     - `M4.F.overall_pass=true`
+     - every `M4.F.run_scope_checks[*].pass=true`.
+   - `services_stable`:
+     - `M4.F.overall_pass=true`
+     - every `M4.F.stabilization_checks[*].stable_singleton=true`
+     - `M4.F.crashloop_services=[]`.
+   - `no_duplicate_consumers`:
+     - `M4.G.overall_pass=true`
+     - `M4.G.duplicate_conflicts=[]`
+     - `M4.G.singleton_drift=[]`.
+   - `readiness_evidence_durable`:
+     - `M4.H.overall_pass=true`
+     - `M4.H.publication.readiness_durable_upload_ok=true`
+     - `M4.H.publication.snapshot_durable_upload_ok=true`.
+2. Roll up blockers fail-closed from all inputs:
+   - include every blocker from `M4.A..M4.H`,
+   - append M4.I-local blockers for missing/unreadable inputs, run-id mismatch, false predicates, or publication failure.
 3. Compute verdict:
-   - all predicates true and blockers empty => `ADVANCE_TO_M5`
+   - all predicates true and blocker rollup empty => `ADVANCE_TO_M5`
    - otherwise => `HOLD_M4`.
-4. Publish verdict snapshot.
+4. Publish `m4_i_verdict_snapshot.json`:
+   - local: `runs/dev_substrate/m4/<timestamp>/m4_i_verdict_snapshot.json`
+   - durable: `evidence/dev_min/run_control/<m4_execution_id>/m4_i_verdict_snapshot.json`
+   - include: `platform_run_id`, predicate map, blocker rollup, verdict, and source snapshot refs.
+5. Enforce non-secret policy on verdict artifact before durable publish.
 
 DoD:
-- [ ] M4 gate predicates are explicit and reproducible.
-- [ ] Blocker rollup is complete and fail-closed.
-- [ ] Verdict snapshot exists locally and durably.
+- [x] M4 gate predicates are explicit and reproducible.
+- [x] Blocker rollup is complete and fail-closed.
+- [x] Verdict snapshot exists locally and durably.
+- [x] Verdict artifact is non-secret and run-id consistent across all source anchors.
 
 Blockers:
 1. `M4I-B1`: missing/unreadable prerequisite snapshot from A-H lanes.
 2. `M4I-B2`: predicate evaluation incomplete/invalid.
 3. `M4I-B3`: blocker rollup non-empty.
 4. `M4I-B4`: verdict snapshot write/upload failure.
+5. `M4I-B5`: platform-run-id drift across source snapshots/evidence.
+6. `M4I-B6`: non-secret policy violation in verdict snapshot.
 
 ### M4.J M5 Handoff Artifact Publication
 Goal:
@@ -748,7 +801,7 @@ Notes:
 - [x] M4.F complete
 - [x] M4.G complete
 - [x] M4.H complete
-- [ ] M4.I complete
+- [x] M4.I complete
 - [ ] M4.J complete
 
 ## 8) Risks and Controls
@@ -861,6 +914,16 @@ Resolved blockers:
      - `invariant_checks.singleton_consistent_with_m4f=true`
      - `invariant_checks.duplicate_consumer_posture_clean=true`
      - `invariant_checks.non_secret_policy_pass=true`
+     - `overall_pass=true`.
+14. `M4I-B1/B2/B3/B4/B5/B6`:
+   - resolved by deterministic M4.I verdict evaluation from `M4.A..M4.H` with explicit predicate pass, blocker rollup closure, and durable verdict publication.
+   - closure evidence:
+     - `runs/dev_substrate/m4/20260214T170155Z/m4_i_verdict_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T170155Z/m4_i_verdict_snapshot.json`
+   - result:
+     - `predicate_results.*=true`
+     - `blocker_rollup=[]`
+     - `verdict=ADVANCE_TO_M5`
      - `overall_pass=true`.
 
 Rule:
