@@ -9,6 +9,7 @@ import time
 import uuid
 from collections import OrderedDict
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
@@ -127,6 +128,15 @@ class _ProgressTracker:
                 elapsed,
                 rate,
             )
+
+
+def _format_hms(seconds: float) -> str:
+    if not np.isfinite(seconds):
+        return "unknown"
+    total_seconds = max(int(seconds), 0)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
 def _close_parquet_reader(pfile) -> None:
@@ -1519,8 +1529,20 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 elapsed = now - wall_start
                 rate = pairs_total / elapsed if elapsed > 0 else 0.0
                 if total_pairs:
+                    remaining_pairs = max(total_pairs - pairs_total, 0)
+                    if rate > 0:
+                        eta_seconds = remaining_pairs / rate
+                        eta_hms = _format_hms(eta_seconds)
+                        eta_complete_utc = (
+                            datetime.now(timezone.utc) + timedelta(seconds=eta_seconds)
+                        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+                    else:
+                        eta_seconds = float("inf")
+                        eta_hms = "unknown"
+                        eta_complete_utc = "unknown"
                     logger.info(
-                        "S4 heartbeat pairs_processed=%d/%d merchants=%d rows_emitted=%d cache_hit=%d cache_miss=%d evictions=%d (elapsed=%.2fs, rate=%.2f/s)",
+                        "S4 heartbeat pairs_processed=%d/%d merchants=%d rows_emitted=%d cache_hit=%d cache_miss=%d evictions=%d "
+                        "(elapsed=%.2fs, rate=%.2f/s, remaining_pairs=%d, eta_seconds=%.2f, eta_hms=%s, eta_complete_utc=%s)",
                         pairs_total,
                         total_pairs,
                         merchants_total,
@@ -1530,6 +1552,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         cache_evictions,
                         elapsed,
                         rate,
+                        remaining_pairs,
+                        eta_seconds,
+                        eta_hms,
+                        eta_complete_utc,
                     )
                 else:
                     logger.info(

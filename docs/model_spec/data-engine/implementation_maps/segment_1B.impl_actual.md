@@ -4675,3 +4675,26 @@ Why this is binding:
 1) It prevents repeating the failed pattern of local S6-only tuning against support ceilings.
 2) It keeps compute bounded and causal attribution clean.
 3) It aligns with the progressive engine model (upstream surfaces first, downstream closure second).
+
+---
+
+### Entry: 2026-02-14 15:58
+
+Design element: `S4` heartbeat observability hardening (ETA visibility for long runs).
+Summary: Added ETA fields to the `1B/S4` heartbeat log line so long-running passes expose completion expectations instead of only elapsed/rate.
+
+Decision and reasoning trail:
+1) Problem observed: heartbeat emitted `elapsed` and `rate` only, which forces manual ETA calculation and makes runtime triage slow when `S4` spans hours.
+2) Chosen implementation lane: patch heartbeat in `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` where pair-count denominator (`total_pairs`) already exists.
+3) Added deterministic ETA payload for bounded runs (`total_pairs` known):
+   - `remaining_pairs`
+   - `eta_seconds`
+   - `eta_hms`
+   - `eta_complete_utc`
+4) Unknown-rate fallback: when `rate <= 0`, emit explicit unknown ETA fields (`eta_seconds=inf`, `eta_hms=unknown`, `eta_complete_utc=unknown`) instead of silent omission.
+5) Validation: local syntax check passed via `python -m py_compile` on the patched runner.
+
+Impact:
+1) No runtime policy/config semantics changed.
+2) No statistical surfaces changed.
+3) Improves operational visibility and run-time decision speed during heavy `1B` iteration.
