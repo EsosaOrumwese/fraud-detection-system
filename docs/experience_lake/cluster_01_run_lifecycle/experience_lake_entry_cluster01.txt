@@ -86,11 +86,12 @@ Key meaning:
 - P0..P11 is the ordered run lifecycle (substrate bring-up → closeout).
 - The truth of each phase is not a single mutable status file; it is derived from distributed, run-scoped artifacts.
 
-5.2 I operationalized bounded acceptance (20/200)
-20/200 is a protocol for live-stream validation:
-- WSP_MAX_EVENTS_PER_OUTPUT=20 (smoke gate)
-- WSP_MAX_EVENTS_PER_OUTPUT=200 (baseline bounded closure gate)
-Cap is per output_id (not time window), and PASS requires:
+5.2 I operationalized bounded acceptance (Gate-20 / Gate-200)
+“20/200” is my bounded-run protocol for live-stream validation:
+- Gate-20: WSP_MAX_EVENTS_PER_OUTPUT=20 (smoke / wiring sanity)
+- Gate-200: WSP_MAX_EVENTS_PER_OUTPUT=200 (baseline bounded closure gate)
+Caps are per output_id (not time window). After Gate-200 passes, higher-cap runs can be executed, but they are not required to claim Spine Green baseline.
+PASS requires:
 - WSP start→stop markers at cap for required outputs
 - IG receipts present with no unresolved publish ambiguity
 - downstream lanes show non-zero committed activity
@@ -120,6 +121,8 @@ Green lifecycle definition is pinned to:
 - docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt
 - docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt
 - docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt
+
+Enforcement is operational + executable: the operator checklist gates command progression, and any non-green artifact is treated as a hard blocker that triggers STOP/log/repin and requires a fresh closure run before resuming a “green” claim.
 
 7.2 I implemented “commit evidence” artifacts as phase truth
 For anchor run platform_20260212T085637Z, the lifecycle produces/uses:
@@ -199,6 +202,13 @@ Anchor run platform_20260212T085637Z closed in-scope lanes with:
 - environment conformance PASS
 - governance append exists (single-writer closure)
 
+Key proof snapshots (anchor run; “open JSON not required”):
+- DLA health: runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/health/last_health.json -> health_state=GREEN; lineage_unresolved_total=0
+- DLA reconciliation: runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/reconciliation/last_reconciliation.json -> unresolved_total=0
+- CaseMgmt health: runs/fraud-platform/platform_20260212T085637Z/case_mgmt/health/last_health.json -> cases_created=181; labels_accepted=181
+- Conformance: runs/fraud-platform/platform_20260212T085637Z/obs/environment_conformance.json -> PASS
+- Bounded stop: runs/fraud-platform/platform_20260212T085637Z/platform.log -> emitted=200; reason=max_events (per required output_id)
+
 8.2 Failed-gate incident (proof that gates are enforced)
 Incident: P9 DECISION_CHAIN_COMMITTED failed (fail-closed), then fixed and revalidated.
 
@@ -273,6 +283,18 @@ Interpretation:
 This incident proves anti-drift governance: I blocked a premature claim until runtime coverage matched the stated baseline scope.
 
 9) Evidence Index (auditor trail)
+9.0 Truth surfaces: authoritative vs derived (anti-drift)
+Authoritative (commit-evidence sources of truth; green may not be claimed if these disagree or are missing):
+- IG receipts + ambiguity/quarantine posture (s3://fraud-platform/<platform_run_id>/ig/receipts/...)
+- DLA health + reconciliation (runs/.../decision_log_audit/health/..., runs/.../decision_log_audit/reconciliation/...)
+- Lane health snapshots for required workers (runs/.../<lane>/health/last_health.json)
+- Environment conformance + governance append (runs/.../obs/environment_conformance.json, s3://.../obs/governance/events.jsonl)
+
+Derived (human-facing summaries/views computed from authoritative artifacts; useful but not sufficient on their own):
+- Platform run report (runs/.../obs/platform_run_report.json)
+- Operate pack status views (runs/.../operate/*/status/last_status.json)
+- Platform.log stop markers (runs/.../platform.log) as supporting evidence of bounded acceptance
+
 9.1 Phase truth artifacts (anchor run)
 - runs/fraud-platform/ACTIVE_RUN_ID
 - s3://fraud-platform/platform_20260212T085637Z/sr/* (run_plan, run_record, run_status, run_facts_view, ready_signal)
