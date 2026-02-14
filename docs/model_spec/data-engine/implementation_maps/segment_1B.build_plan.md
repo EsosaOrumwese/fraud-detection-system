@@ -660,6 +660,34 @@ P4.R4 execution status (2026-02-14):
   - keep lock S6 policy posture unchanged for promotion lane,
   - reopen recommendation: upstream `P2/S4` support-count lane (fail-closed before `P4.R5`).
 
+P4.R4 contradiction refinement (2026-02-14):
+- additional authority diagnostic was run against upstream `1A` authority run `416afa430db3f5bf87180f8514329fe8` to test whether collapse countries (`MC`, `BM`) are cross-border driven.
+- finding:
+  - both `MC` and `BM` rows in `outlet_catalogue` are entirely home-country rows (`home_country_iso == legal_country_iso`), with foreign-row count `0`.
+- implication:
+  - the active collapse blocker is upstream home-support/count shape, not foreign-membership realization.
+  - reopen scope must prioritize `1A` home-count ingress (`P1/S2`) before downstream `1B S4/S6` retuning.
+
+#### P4.R4A - Upstream reopen sequence lock (active)
+Goal:
+- enforce a fixed execution order so upstream causal fixes are applied before expensive downstream retries.
+
+Execution sequence (authoritative):
+1. `1A P1/S2` home-support/count candidate:
+   - tune NB mean/dispersion bundle only (no `S3/S6/S8` policy edits in this step).
+2. `1A` freeze-veto:
+   - run full `1A` candidate and require `segment1a_freeze_guard=PASS`.
+3. `1B` proxy pass:
+   - run `S0->S4`/proxy scorer and require directional improvement on collapse-sensitive countries (`MC`, `BM`) before `S6->S9`.
+4. `1B` closure + integrated scoring:
+   - run `S6->S9`, then integrated scorer classification.
+
+DoD:
+- [ ] one upstream `1A` candidate is produced with explicit bundle lineage and run-id.
+- [ ] freeze-veto artifact is `PASS` for that candidate.
+- [ ] `1B` proxy artifact shows movement on collapse-sensitive support metrics.
+- [ ] only then proceed to `P4.R5` integrated promotion decision.
+
 #### P4.R5 - Integrated promotion run and decision
 Goal:
 - run one full integrated candidate and make an explicit go/no-go decision.

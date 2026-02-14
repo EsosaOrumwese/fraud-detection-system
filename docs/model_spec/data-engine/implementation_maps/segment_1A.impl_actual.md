@@ -5583,3 +5583,36 @@ Verification:
 Decision:
 1) Freeze-veto now has machine artifacts for both pass and reject outcomes.
 2) This closes the evidence gap for guarded upstream candidate rejection in downstream `1B` path-1 flow.
+
+### Entry: 2026-02-14 12:50
+
+Design element: Upstream reopen candidate plan for `1B P4.R4A` (`1A P1/S2` home-support lane).
+Summary: Start the first bounded upstream reopen attempt by creating a controlled coefficient bundle variation on `beta_mu` (S2 mean block) while keeping hurdle and dispersion posture stable.
+
+Problem framing:
+1) `1B` collapse flags (`MC`, `BM`) were shown to be home-only ingress effects, so the first reopen must target upstream home-count shape entering `1B`.
+2) `1A` freeze constraints remain binding; candidate must preserve `B` posture under freeze guard before any downstream promotion.
+
+Alternatives considered:
+1) Direct `1B S4/S6` retune first:
+   - rejected because `P4.R4` feasibility evidence already showed support ceilings under fixed ingress.
+2) Broad multi-knob `1A` policy edits (`S3/S6/S8`) in first pass:
+   - rejected due high blast radius and weak attribution.
+3) Narrow `S2` coefficient lane (`beta_mu` non-intercept scale):
+   - selected as lowest-blast, highest-causality first pass for home-count concentration movement.
+
+Pinned implementation steps:
+1) Clone frozen authority coefficient pair from:
+   - `config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z/`.
+2) Create a new candidate export timestamp under a newer version folder so resolver picks it deterministically.
+3) Apply bounded `beta_mu` non-intercept downscale only (intercept unchanged on first pass) and annotate remediation metadata.
+4) Keep `nb_dispersion_coefficients.yaml` unchanged except lineage metadata carry-forward.
+5) Run bounded upstream execution:
+   - full `1A` run required for freeze-veto coverage,
+   - run `tools/score_segment1a_freeze_guard.py`,
+   - proceed to `1B` proxy only if guard is `PASS`.
+
+Invariants:
+1) No code-path changes in `1A` states for this pass; config-only coefficient experiment.
+2) `hurdle beta` and `beta_phi` remain unchanged to isolate `S2` mean-shape movement.
+3) All candidate artifacts must be run-id addressed and auditable.

@@ -1,0 +1,16 @@
+{
+  "beta_mu_len": 293,
+  "candidate_bundle": "config/layer1/1A/models/hurdle/exports/version=2026-02-14/20260214T125000Z",
+  "change_set": {
+    "beta_mu_intercept_delta": 0.0,
+    "beta_mu_non_intercept_scale": 0.95,
+    "beta_phi": "carry_forward",
+    "hurdle_beta": "carry_forward",
+    "wave": "P4.R4A"
+  },
+  "created_utc": "2026-02-14T12:47:30Z",
+  "dispersion_sha256": "dc97e722c3c8f7bd57b74bc6a93e6601b6ebdbf626d49758f2b56c2307b884c4",
+  "hurdle_sha256": "515d1f44e7adebb49b14d5a542d02179da934b31873f03bf698f00cbe6e98fca",
+  "source_bundle": "config/layer1/1A/models/hurdle/exports/version=2026-02-12/20260212T200823Z",
+  "status": "PASS"
+}

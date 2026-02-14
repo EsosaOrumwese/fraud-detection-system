@@ -4649,3 +4649,29 @@ Decision and rollback:
    - `policy_version=2026-02-13-r4` (and original weights/blend/exponents).
 3) Mark `P4.R4` fail-closed with recommended reopen lane:
    - upstream `P2/S4` support-count reshaping under existing guard contracts.
+
+---
+
+### Entry: 2026-02-14 12:46
+
+Design element: `P4.R4` contradiction refinement and fixed reopen sequence lock.
+Summary: Before starting any further run churn, pinned the causal sequence for reopen after confirming the collapse blocker is upstream home-support shape, not downstream S6 jitter.
+
+Additional contradiction diagnostic:
+1) Checked `1A` authority run `416afa430db3f5bf87180f8514329fe8` for collapse countries (`MC`, `BM`) using `outlet_catalogue` lineage fields.
+2) For both countries, rows were entirely home-country (`home_country_iso == legal_country_iso`) with zero foreign rows.
+3) This means the active `1B` collapse (`MC`, `BM`) is driven by home-support ingress/count shape entering `1B`, not by foreign-membership composition.
+
+Decision update:
+1) Reopen priority is corrected to upstream `1A P1/S2` home-count shaping first.
+2) `1B S4/S6` tuning remains downstream and conditional, not first-line.
+3) Pinned execution sequence for all next attempts:
+   - produce `1A P1/S2` candidate,
+   - require `1A` freeze-veto `PASS`,
+   - run `1B` proxy screen (`S4`) for collapse-direction movement,
+   - only then run `1B S6->S9` + integrated scorer.
+
+Why this is binding:
+1) It prevents repeating the failed pattern of local S6-only tuning against support ceilings.
+2) It keeps compute bounded and causal attribution clean.
+3) It aligns with the progressive engine model (upstream surfaces first, downstream closure second).
