@@ -1,0 +1,354 @@
+EXPERIENCE LAKE ENTRY — CLUSTER 02
+Title: Control & Ingress correctness rails — run identity, READY semantics, idempotent admission, publish ambiguity, receipts, and provenance
+As-of: 2026-02-14
+Status: ACHIEVED (local_parity). PROMOTING (dev_min must preserve semantics; substrate/ops may change).
+
+1) Header Block — Identity + Claim
+1.1 One-sentence truth claim (defensible, not a vibe)
+I built a strict ingress boundary where “admitted” is a commit-level truth (not “request succeeded”), enforced by run-scoped identity, deterministic idempotency keys, payload-hash collision detection, a publish-state machine that fails closed on ambiguity, and receipt artifacts that make admission auditable and replay-safe under at-least-once delivery.
+
+1.2 Scope (what this entry covers)
+IN-SCOPE:
+- Control-plane handoff: SR → READY → WSP
+- Producer emission: WSP → IG push
+- Admission authority: IG validation + dedupe + publish-state machine
+- Durable transport: EB (Kinesis in local_parity) as commit-ref provider (not a semantic decision-maker)
+- Receipt truth: IG receipts/quarantine artifacts + run-level aggregate truth
+
+OUT-OF-SCOPE:
+- Downstream consumption correctness beyond the boundary (covered by Cluster 3/4/9)
+- Model/learning planes (out-of-scope for baseline Spine Green v0)
+
+1.3 Anchor run (closure-grade run used for evidence)
+- env: local_parity
+- platform_run_id: platform_20260212T085637Z
+- local run root: runs/fraud-platform/platform_20260212T085637Z/
+- object-store evidence root: s3://fraud-platform/platform_20260212T085637Z/
+- primary admission evidence:
+  - receipts prefix: s3://fraud-platform/platform_20260212T085637Z/ig/receipts/
+  - sample receipt: s3://fraud-platform/platform_20260212T085637Z/ig/receipts/00965821d94105a3d88ad6085b3c5b37.json
+- run-level ingress truth (aggregation surface):
+  - runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json
+  - note: run report includes basis locator for IG admission index at JSON path: basis.ig_admission_locator (DSN details treated as secrets; only used for operator/debug).
+
+1.4 What I am explicitly NOT claiming (truth hygiene)
+- Not claiming production deployment.
+- Not claiming that git SHA / immutable image digest is stamped into every ingress receipt today as a mandatory contract field.
+  (Current posture uses service_release_id + environment + config_revision/run_config_digest as release/config provenance; image-digest stamping is a later hardening target.)
+- Not claiming “ingress.sent” equals “IG admit” (they measure different things; see C3 counter semantics note).
+
+2) Context — Why this boundary mattered
+2.1 Platform reality that forced correctness rails
+A fraud platform under streaming conditions is exposed to:
+- at-least-once delivery (duplicates are normal)
+- transient transport failures (ack uncertainty is normal)
+- replays/restarts (checkpoint gaps are normal)
+- multi-producer reality (not only WSP-originated events exist in a run)
+
+Without an explicit ingress boundary, a “works once” system quietly becomes:
+- double-commit bugs
+- cross-run contamination (mixing evidence between runs)
+- audit gaps (can’t prove what was admitted)
+- false-green (flow happened but truth is undefendable)
+
+2.2 What “Ingress” means operationally
+Ingress is the boundary where “platform truth” starts:
+- SR defines run eligibility (READY)
+- WSP produces candidate traffic envelopes
+- IG decides what becomes admitted truth
+- EB provides commit coordinates as provenance, not policy
+Everything downstream is only as reliable as this boundary.
+
+3) The Problem — Contradictions this entry resolves
+3.1 “Request succeeded” vs “Commit truth exists”
+A request/HTTP call can succeed while EB commit truth is unknown or ambiguous. If you treat “call returned” as admission, you will corrupt the audit record.
+
+3.2 “Duplicates are normal” vs “Duplicates must not create new side effects”
+At-least-once means duplicates arrive; the system must converge duplicates safely without re-publishing side effects.
+
+3.3 “Same identity” vs “Different payload”
+If the same idempotency identity shows different payload content, that is not a “duplicate”—it’s a contradiction. It must fail closed.
+
+3.4 “Run-scoped evidence” vs “stale prefix drift”
+A subtle integrity killer: receipt payload says platform_run_id=A, but the receipt object path is written under platform_run_id=B. That breaks auditability even if admission was correct.
+
+4) Non-negotiables — Invariants and constraints
+4.1 Invariants I preserved
+- Admission truth is commit-evidence-backed (receipt + eb_ref), not a log claim.
+- Dedupe identity is semantic and run-scoped: (platform_run_id, event_class, event_id).
+- Same identity + same payload hash → converge (DUPLICATE) without republish.
+- Same identity + different payload hash → QUARANTINE (PAYLOAD_HASH_MISMATCH).
+- Publish truth uncertainty → fail closed (PUBLISH_AMBIGUOUS blocks closure).
+- Receipt/quarantine artifacts are run-scoped and append-only (no silent overwrite).
+
+4.2 Constraints I operated under
+- Local parity substrate uses Kinesis semantics; eb_ref must normalize “offset” into a Kinesis-sequence kind without lying.
+- Multiple producers can generate admitted events; run-level admit counters can exceed WSP’s bounded emission totals.
+- Evidence must remain navigable and defensible without screenshots.
+
+5) Investigation + Reasoning — How I made the boundary defensible
+5.1 Boundary ownership (the 4-component contract)
+SR (Scenario Runner): run authority
+- mints scenario execution identity (scenario_run_id = run_id in baseline)
+- commits run facts then publishes READY
+- does NOT decide admission for traffic
+
+WSP (World Streamer Producer): controlled emission
+- consumes READY, resolves world pins, emits canonical event envelopes
+- stamps run pins, pushes to IG
+- does NOT decide admission truth
+
+IG (Ingestion Gate): admission authority
+- validates envelope + payload + required pins
+- computes event_class from policy (does not trust producer “declared class”)
+- applies idempotency law + publish-state machine
+- writes receipt truth for every decision
+
+EB (Event Bus): durable transport substrate
+- provides commit reference coordinates (topic/partition/offset_kind)
+- is NOT a semantic decision-maker (IG is)
+
+5.2 Canonical ID model (separation of concerns)
+- platform_run_id: global run scope namespace (prevents cross-run contamination)
+- scenario_run_id: SR scenario execution identity (alias = SR run_id in baseline)
+- READY message_id: deterministic idempotency key for READY consumption
+- event_id: deterministic semantic identity minted by WSP for each emitted envelope
+  - derivation used: sha256("|".join([output_id] + primary_key_values + [manifest_fingerprint, parameter_hash, seed, scenario_id]))
+- event_class: authoritative class computed by IG from event_type via policy mapping:
+  - config/platform/ig/class_map_v0.yaml
+
+6) Decision + Tradeoffs — What I chose and why
+6.1 Why IG computes event_class (instead of trusting producers)
+Tradeoff:
+- More policy wiring complexity in IG
+- In exchange for preventing silent class drift that would corrupt dedupe identity and routing semantics
+
+6.2 Why publish ambiguity is sticky fail-closed
+Tradeoff:
+- The system halts closure and requires explicit reconciliation
+- In exchange for preventing the worst real-world failure: “producer didn’t get ack but bus may have committed; blind republish creates duplicates.”
+
+6.3 Why admission truth is receipts + eb_ref, not “logs say published”
+Tradeoff:
+- More artifacts and index maintenance
+- In exchange for audit-grade truth and replay safety
+
+7) Implementation — What I actually built/changed
+7.1 Dedupe law (semantic identity + payload-hash safety)
+- dedupe tuple: (platform_run_id, event_class, event_id) → dedupe_key
+- payload hash:
+  - canonical JSON: sort_keys=true, fixed separators, UTF-8 bytes
+  - sha256 over (event_type, schema_version, payload)
+
+Decision rules:
+- ADMITTED exists + same payload_hash → DUPLICATE receipt, no republish
+- same dedupe identity + different payload_hash → QUARANTINE (PAYLOAD_HASH_MISMATCH)
+- existing state PUBLISH_IN_FLIGHT or PUBLISH_AMBIGUOUS → QUARANTINE (avoid double-commit risk)
+
+7.2 Publish/admission state machine (IG)
+- New identity: insert admission row as PUBLISH_IN_FLIGHT
+- Publish success: PUBLISH_IN_FLIGHT → ADMITTED (store eb_ref, payload_hash, admitted_at)
+- Publish exception/unknown commit outcome: PUBLISH_IN_FLIGHT → PUBLISH_AMBIGUOUS
+  - return QUARANTINE with reason=PUBLISH_AMBIGUOUS
+  - record ambiguity in:
+    1) admissions.state = PUBLISH_AMBIGUOUS
+    2) receipt/quarantine artifacts (reason code)
+    3) run-level counter ingress.publish_ambiguous
+
+Resolution posture:
+- no automatic AMBIGUOUS→ADMITTED inside the lane
+- reconciliation happens operationally; closure requires publish_ambiguous==0
+
+Enforcement note (not just “documented”): IG enforces fail-closed behavior in code by emitting QUARANTINE decisions and persisting PUBLISH_AMBIGUOUS state/receipts; run lifecycle closure refuses a “green” claim while publish_ambiguous/quarantine contradictions remain non-zero.
+
+7.3 Receipt truth model (per-event + run-level aggregate)
+Per-event receipt (authoritative for single event):
+- stored under: s3://fraud-platform/<platform_run_id>/ig/receipts/<receipt_id>.json
+- ADMIT / DUPLICATE require eb_ref (commit reference)
+- QUARANTINE requires evidence_refs + reason_codes
+
+Literal top-level key surface for current ADMIT receipts includes:
+- receipt_id, decision, event_id, event_type, event_class, ts_utc
+- manifest_fingerprint, platform_run_id, scenario_run_id, run_config_digest
+- policy_rev, dedupe_key, pins, payload_hash, admitted_at_utc
+- partitioning_profile_id, partition_key, eb_ref
+- service_release_id, environment, provenance
+
+eb_ref normalized shape:
+- topic, partition, offset, offset_kind, published_at_utc
+(where offset_kind captures kinesis_sequence semantics)
+
+Schema authority:
+- docs/model_spec/platform/contracts/ingestion_gate/ingestion_receipt.schema.yaml
+
+Run-level aggregate truth (boundary behavior summary):
+- derived from admissions/receipt evidence, surfaced in:
+  - runs/fraud-platform/<platform_run_id>/obs/platform_run_report.json
+
+7.4 Checkpointing and replay safety (boundary level)
+WSP checkpointing is Postgres-backed in local_parity:
+- config/platform/profiles/local_parity.yaml
+  - wsp_checkpoint.backend=postgres
+- logical model: wsp_checkpoint cursor per (pack_key, output_id)
+- run-scoped checkpoint_pack_key = sha256(pack_key|platform_run_id|scenario_run_id)
+
+Truth hierarchy when checkpoint and receipts disagree:
+- receipts/admission truth wins for “what was admitted”
+- checkpoint is progress state, not admission truth
+- closure is blocked if admission shows ambiguity/quarantine contradictions
+
+READY dedupe records are persisted per message_id:
+- <platform_run_prefix>/wsp/ready_runs/<message_id>.jsonl
+- terminal statuses skip duplicates; retryable statuses can reprocess
+
+7.5 Backpressure / bounded safety knobs at ingress
+Safety-critical knobs:
+- WSP_MAX_EVENTS_PER_OUTPUT (bounded gate)
+- WSP_READY_MAX_MESSAGES (control-plane load admitted per cycle)
+- WSP→IG retry budget: ig_retry_max_attempts, ig_retry_base_delay_ms, ig_retry_max_delay_ms
+- checkpoint_every (defines replay-loss window)
+
+Perf knobs:
+- poll intervals, batch size, concurrency controls
+
+Where recorded:
+- operate pack env + session/platform logs + run report counters
+
+8) Validation + Results — What I proved, not what I felt
+8.1 Anchor run demonstrates clean boundary closure
+For platform_20260212T085637Z:
+- IG receipts exist under run-scoped prefix
+- sample receipt exists and includes eb_ref
+- run-level ingress posture is closure-safe (publish_ambiguous=0, quarantine=0)
+
+Key proof snapshots (anchor run; “open JSON not required”):
+- Sample receipt: s3://fraud-platform/platform_20260212T085637Z/ig/receipts/00965821d94105a3d88ad6085b3c5b37.json
+  -> decision=ADMITTED; platform_run_id=platform_20260212T085637Z; eb_ref.offset_kind present
+- Run posture summary: runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json
+  -> ingress.publish_ambiguous=0; ingress.quarantine_total=0
+
+Truth note about counters:
+- WSP bounded emission totals are WSP-origin metrics
+- IG admit is IG-wide across all event families/producers for the run scope
+- therefore IG admit can exceed WSP-origin sent totals without contradiction
+
+8.2 Correctness-saved incident (audit integrity defect): receipt provenance drift across run scopes
+Incident class:
+- receipt payload pins said platform_run_id=A
+- but receipt_ref/artifact path was written under platform_run_id=B (stale prefix)
+This is severe because audit truth becomes non-single-run consistent.
+
+Pinned window:
+- around platform_20260206T052035Z, observed mismatch where:
+  - pins_json.platform_run_id = platform_20260206T052035Z
+  - stored receipt_ref used stale prefix: s3://fraud-platform/platform_20260206T042550Z/ig/receipts/<receipt_id>.json
+Truth boundary:
+- exact stale receipt filename suffix was not retained in this repo snapshot; only the wrong-prefix class/pattern is retained.
+- mismatch was recorded at implementation time in IG decision log entry (2026-02-06).
+
+Detection surface:
+- ops-index receipts.pins_json (JSON column) vs stored receipt_ref prefix
+- receipt payload paths contain pins.platform_run_id (and top-level platform_run_id)
+
+Fix (layer-correct, not “operator convention”):
+- derived receipt/quarantine artifact prefix from envelope.platform_run_id per call (envelope scope wins)
+- applied across ADMIT, DUPLICATE, QUARANTINE decision paths
+- store-aware prefix normalization:
+  - S3 style: <platform_run_id>/ig/...
+  - local object root normalization (no stale env-derived prefix)
+
+Regression guard:
+- tests/services/ingestion_gate/test_admission.py::test_receipt_ref_scoped_to_envelope_run_id
+
+Post-fix proof:
+- anchor run receipts live under:
+  s3://fraud-platform/platform_20260212T085637Z/ig/receipts/...
+- run-level ingress closure consistent with same run scope (publish_ambiguous=0, quarantine=0)
+
+9) Evidence Index (auditor trail)
+9.0 Truth surfaces: authoritative vs derived (anti-drift)
+Authoritative (commit-evidence sources of truth; boundary correctness cannot be claimed if these disagree or are missing):
+- IG receipts/quarantine artifacts (s3://fraud-platform/<platform_run_id>/ig/receipts/...)
+- IG admissions index (operator/debug locator referenced by run report; DSN treated as secret)
+- Publish-state machine outcomes (admissions.state + receipt decision/reason codes)
+
+Derived (summaries/views computed from authoritative surfaces; useful but not sufficient on their own):
+- Platform run report (runs/.../obs/platform_run_report.json)
+- WSP READY consumer logs / platform.log stop markers (supporting evidence only)
+
+9.1 Anchor run artifacts
+- s3://fraud-platform/platform_20260212T085637Z/ig/receipts/00965821d94105a3d88ad6085b3c5b37.json
+- runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json
+  - basis.ig_admission_locator (locator only; secrets not exposed)
+- runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log
+- runs/fraud-platform/platform_20260212T085637Z/platform.log (bounded stop markers; see Cluster 3)
+
+9.2 Contracts / policy anchors
+- config/platform/ig/class_map_v0.yaml (event_type→event_class authority)
+- config/platform/ig/schema_policy_v0.yaml (schema policy mapping; resolution hardening covered in Cluster 5)
+- docs/model_spec/platform/contracts/ingestion_gate/ingestion_receipt.schema.yaml (receipt truth contract)
+- docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml (envelope contract used by producers/IG/consumers)
+
+9.3 Tests (proof levers)
+- tests/services/ingestion_gate/test_admission.py::test_receipt_ref_scoped_to_envelope_run_id
+- tests/services/ingestion_gate/test_admission.py::test_duplicate_does_not_republish
+- tests/services/ingestion_gate/test_admission.py::test_publish_ambiguous_quarantines_and_marks_state
+- tests/services/world_streamer_producer/test_push_retry.py::test_push_rejects_non_retryable_4xx
+- tests/services/ingestion_gate/test_phase5_retries.py::test_with_retry_succeeds_after_failures
+
+9.4 Incident retention boundary pins
+- Wrong-prefix class retained: s3://fraud-platform/platform_20260206T042550Z/ig/receipts/<receipt_id>.json
+- Implementation-time record: IG decision log entry (2026-02-06) documenting receipt-ref run-scope mismatch class
+
+10) Guardrails / Non-regression Controls
+10.1 “Change substrate, not semantics” migration law for this boundary
+Non-negotiable invariants to preserve in dev_min:
+- dedupe tuple semantics (platform_run_id, event_class, event_id)
+- deterministic event_id derivation (same run pins/inputs => same event_id across substrates)
+- payload_hash mismatch quarantine posture
+- publish-state machine (PUBLISH_IN_FLIGHT → ADMITTED | PUBLISH_AMBIGUOUS)
+- ambiguity is fail-closed (no silent auto-admit)
+- receipt truth remains commit evidence (not log-only)
+- READY message_id dedupe remains status-aware (terminal skip, retryable retry)
+
+Allowed to change:
+- transport substrate (LocalStack Kinesis → managed Kafka/Kinesis)
+- object store (MinIO → AWS S3)
+- relational store (local Postgres → managed RDS)
+- security/auth hardening (API key → service tokens/mTLS)
+- perf knobs and partitioning (as long as semantics remain)
+
+10.2 Writer/ownership map (hard boundary)
+- SR writes: run_plan/run_record/run_status/run_facts_view/ready_signal
+- WSP writes: envelopes to IG + WSP checkpoints + ready_run records
+- IG writes: admissions index + receipts/quarantine artifacts
+- EB writes: offsets/sequences (transport truth only)
+
+10.3 Fail-closed posture (what blocks green)
+- publish_ambiguous > 0 blocks closure
+- payload_hash mismatch blocks admission (quarantine)
+- dedupe identity collisions block admission
+- schema/policy resolution failure blocks admission (quarantine; Cluster 5 details)
+
+11) Residual risks + Next actions
+11.1 What remains open / future hardening
+- Add immutable build identity (image digest / git sha) as first-class provenance in ingress receipts (optional hardening).
+- Add per-producer split counters in run report (e.g., WSP-origin sent/admit) to prevent future counter misreads.
+- Preserve this boundary’s semantics in dev_min and validate parity with replay tests (same inputs → same dedupe/ambiguity outcomes).
+
+11.2 What this entry enables immediately
+- Defensible explanation of at-least-once safety at the admission boundary
+- Concrete incident demonstrating audit integrity thinking (receipt prefix drift)
+- Clear separation of “progress state” (checkpoints) vs “truth state” (receipts/admissions)
+
+12) Extraction notes (for later mining)
+12.1 30-second version (recruiter)
+“I built the control/ingress boundary so ‘admitted’ means schema-valid, run-scoped, idempotent, and commit-referenced with receipts—plus fail-closed ambiguity handling. I also fixed a serious audit-integrity defect where receipts were written under the wrong run prefix, and added regression tests to prevent it.”
+
+12.2 2-minute version (hiring manager)
+“I separated run authority (READY) from admission authority (IG). WSP emits deterministic event IDs, IG computes event class, enforces dedupe on (run_id, class, event_id), and writes receipts with eb_ref commit references. If publish truth is ambiguous, we quarantine and block closure—no blind republish. A key incident: receipt metadata and receipt path disagreed on platform_run_id; I fixed it by deriving artifact prefix from envelope run scope and added regression tests.”
+
+12.3 USP mapping (problem solving signal)
+- Identified subtle integrity contradiction (metadata vs artifact path) that would destroy auditability later.
+- Fixed it at the correct layer (writer boundary), not by “being careful as an operator.”
+- Preserved strict fail-closed semantics even when it slowed progress, because correctness/auditability is the product.
