@@ -500,8 +500,14 @@ The image must support these logical entrypoint modes (exact commands pinned lat
 
 ### 6.6 Oracle lane contract knobs (phase-entry pinning)
 
-* `ORACLE_REQUIRED_OUTPUT_IDS = "<PIN_AT_P3_PHASE_ENTRY>"`
-* `ORACLE_SORT_KEY_BY_OUTPUT_ID = "<PIN_AT_P3_PHASE_ENTRY>"`
+* `ORACLE_REQUIRED_OUTPUT_IDS = ["s3_event_stream_with_fraud_6B","arrival_events_5B","s1_arrival_entities_6B","s3_flow_anchor_with_fraud_6B"]`
+* `ORACLE_SORT_KEY_BY_OUTPUT_ID = {"s3_event_stream_with_fraud_6B":"ts_utc","arrival_events_5B":"ts_utc","s1_arrival_entities_6B":"ts_utc","s3_flow_anchor_with_fraud_6B":"ts_utc"}`
+
+Pin rationale (Spine Green v0 fraud-mode):
+
+* Required output surfaces: traffic.fraud + context arrival/events/entities + flow_anchor.fraud.
+* Primary sort key per output is `ts_utc`; deterministic tie-breakers remain sorter-defined
+  (`filename`, `file_row_number`).
 
 ---
 

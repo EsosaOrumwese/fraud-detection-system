@@ -327,7 +327,7 @@ Phase closure posture:
   - input anchor pinned to accepted M3.B run-id source,
   - authoritative execution run: `m3c_20260213T215336Z`,
   - result: `overall_pass=true`,
-  - note: `ORACLE_REQUIRED_OUTPUT_IDS` and `ORACLE_SORT_KEY_BY_OUTPUT_ID` remain pinned placeholders for P3 entry, so scenario surface is explicitly marked provisional until P5/SR confirmation in the payload,
+  - note: `ORACLE_REQUIRED_OUTPUT_IDS` and `ORACLE_SORT_KEY_BY_OUTPUT_ID` are now pinned in the handles registry; historical M3.C evidence remains provisional because it was produced before this pin and should be refreshed when M3.C is next re-executed,
   - evidence:
     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3c_20260213T215336Z/m3_c_digest_snapshot.json`.
 - M3.D->M3.G planning status:

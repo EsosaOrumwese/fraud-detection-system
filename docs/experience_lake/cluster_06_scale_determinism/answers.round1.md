@@ -30,12 +30,13 @@ These are large 6B flow-anchor outputs that must be sorted into stream views for
 
 ### B) Approximate row-count scale (what I can defend)
 
-What I can defend from implementation records is:
+For the exact incident scope (the two 6B flow-anchor outputs), what I can defend is:
 
-- the stream-view workload was explicitly called out as **multi-hundred-million rows**,
-- with a concrete run note around **~374M rows** during this stream-view phase.
+- `s2_flow_anchor_baseline_6B` = **124,724,153** rows,
+- `s3_flow_anchor_with_fraud_6B` = **124,724,153** rows,
+- combined workload for this OOM job scope = **249,448,306** rows.
 
-I am not claiming exact per-output row counts here because the documented scale anchor in this incident log is the total workload pressure, not a per-table audited count snapshot.
+Truth note: an earlier working note referenced `~374M` during stream-sort stress. That was a broader mixed-workload estimate during redesign, not the final audited count for this two-output OOM incident. For recruiter-facing claims, I use the audited per-output counts above.
 
 ### C) What failed and how it manifested
 
@@ -43,6 +44,11 @@ Failure manifestation was explicit:
 
 - **DuckDB OOM** during full-range sort of those two 6B outputs on a **16GB machine**.
 - Build path attempted full ordered materialization and exceeded practical memory limits.
+
+Failure anchor (truthful boundary):
+
+- The incident is pinned in timestamped implementation/logbook records in the `2026-01-30` window, before chunked-sort rollout.
+- The repo retains the failure-class record (`DuckDB OOM` for these outputs on 16GB) but not the original failing DuckDB stacktrace artifact line.
 
 Operationally this meant:
 
@@ -104,6 +110,10 @@ The core shift was from one monolithic sort to bounded ordered windows.
 
 This gave us an explicit operational lever: same contract semantics, different execution envelope.
 
+Concrete applied value in the hardening posture:
+
+- `STREAM_SORT_CHUNK_DAYS=1` (day-window mode for large time-key outputs).
+
 ### 3) Supporting runtime controls (kept active)
 
 I kept and used the existing DuckDB execution knobs so chunking and spill behavior stay tunable per machine:
@@ -150,6 +160,14 @@ I enforced this with receipt stats comparison between raw and sorted surfaces:
 - independent aggregate checks must match (`hash_sum`, `hash_sum2`),
 - range anchors (`min_ts_utc`, `max_ts_utc`) must match for time-key outputs.
 
+Concrete receipt field checks:
+
+- `raw_stats.row_count == sorted_stats.row_count`
+- `raw_stats.hash_sum == sorted_stats.hash_sum`
+- `raw_stats.hash_sum2 == sorted_stats.hash_sum2`
+- `raw_stats.min_ts_utc == sorted_stats.min_ts_utc`
+- `raw_stats.max_ts_utc == sorted_stats.max_ts_utc`
+
 If these do not match, the run fails closed (`STREAM_SORT_VALIDATION_FAILED`) instead of writing a “best effort” success.
 
 ### 2) Deterministic ordering invariant
@@ -159,6 +177,12 @@ Ordering semantics had to stay deterministic across reruns:
 - primary key ordering on resolved sort key (time-key lane here),
 - deterministic tie-breakers (`filename`, `file_row_number`),
 - chunked mode preserves chronology by emitting chunks in sequence with deterministic part numbering.
+
+Concrete cross-chunk ordering check/mechanism:
+
+- each chunk query orders by `CAST(ts_utc AS TIMESTAMP), filename, file_row_number`,
+- chunk windows are non-overlapping `[start, end)` intervals traversed forward in time,
+- output parts are emitted as `part-000000`, `part-000001`, ... in that same temporal sequence.
 
 So chunking changed memory behavior, not ordering law.
 
@@ -206,6 +230,12 @@ The strongest evidence is a **before/after completion-state change with preserve
   hit DuckDB OOM on a 16GB local parity machine.
 - Result: stream-view build for those targets was not operationally completable under the original strategy.
 
+Failure anchor:
+
+- Incident window documented before the `2026-01-30 21:46:10` chunked-sort entry in `oracle_store.impl_actual`.
+- Failure class explicitly recorded there: DuckDB OOM on full-range sort for these two outputs.
+- Raw failing stacktrace artifact was not retained in the repository.
+
 ### After (post-fix state)
 
 With chunked day-window execution enabled (`STREAM_SORT_CHUNK_DAYS`), the same class of outputs moved to successful completion posture:
@@ -213,6 +243,17 @@ With chunked day-window execution enabled (`STREAM_SORT_CHUNK_DAYS`), the same c
 - stream views materialized under flat per-output roots (`.../stream_view/ts_utc/output_id=<output_id>/part-*.parquet`),
 - receipts/manifests present per output,
 - Oracle Store local-parity posture marked green with the expected stream-view artifact family present for verified outputs.
+
+Success anchor (concrete root + artifacts):
+
+- engine run root: `s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`
+- stream-view root: `s3://oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc`
+- example output artifact family:
+  - `.../output_id=s2_flow_anchor_baseline_6B/part-*.parquet`
+  - `.../output_id=s2_flow_anchor_baseline_6B/_stream_sort_receipt.json`
+  - `.../output_id=s2_flow_anchor_baseline_6B/_stream_view_manifest.json`
+- same artifact contract applies to:
+  - `output_id=s3_flow_anchor_with_fraud_6B`
 
 ### Why this is valid improvement evidence
 
@@ -229,3 +270,4 @@ The improvement proof is therefore:
 - I **can claim** elimination of this specific OOM failure class for the targeted 6B sort path under chunked execution plus successful artifact closure.
 - I **do not claim** a fully instrumented memory-peak benchmark chart for this exact fix in these notes.
 - I **do not substitute** unrelated Gate-200 metrics here, because this incident’s acceptance surface is Oracle stream-view build completion + receipt integrity, not ingress bounded-run throughput.
+- I **do not claim** retained raw failing stacktrace logs for the pre-fix attempt; that part is represented by timestamped implementation/logbook records and post-fix artifact closure.

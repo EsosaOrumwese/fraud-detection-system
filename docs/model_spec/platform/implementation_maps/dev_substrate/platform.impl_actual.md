@@ -9520,6 +9520,62 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. M5.A is now planning-complete at execution-grade depth.
 2. No runtime execution was performed; `M5.A` remains not-started from execution perspective.
 
+## Entry: 2026-02-14 06:03PM - Pin decision lock for P3 output set + sort-key map
+
+### Trigger
+1. USER directed: pin `ORACLE_REQUIRED_OUTPUT_IDS` and `ORACLE_SORT_KEY_BY_OUTPUT_ID`.
+
+### Authority check
+1. Local-parity gate/checklist source confirms required fraud-mode logical surfaces for P3:
+   - traffic.fraud
+   - context.arrival_events
+   - context.arrival_entities
+   - context.flow_anchor.fraud
+2. Local-parity checklist provides current dataset output-id examples aligned to those surfaces:
+   - `s3_event_stream_with_fraud_6B`
+   - `arrival_events_5B`
+   - `s1_arrival_entities_6B`
+   - `s3_flow_anchor_with_fraud_6B`
+3. Stream-sort implementation confirms primary sort-key behavior:
+   - default primary key resolves to `ts_utc` when present,
+   - deterministic tie-breakers are appended by sorter (`filename`, `file_row_number`).
+
+### Decision
+1. Pin `ORACLE_REQUIRED_OUTPUT_IDS` to the four-output fraud-mode Spine Green v0 set above.
+2. Pin `ORACLE_SORT_KEY_BY_OUTPUT_ID` to `ts_utc` for each pinned output-id.
+3. Update dev build-plan note that still claims these handles are placeholders so planning truth stays non-contradictory.
+
+### Planned file changes
+1. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+3. `docs/logbook/02-2026/2026-02-14.md`
+
+## Entry: 2026-02-14 06:01PM - P3 output/sort handles pinned in registry
+
+### Changes applied
+1. Updated `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` Section 6.6:
+   - `ORACLE_REQUIRED_OUTPUT_IDS` pinned to:
+     - `s3_event_stream_with_fraud_6B`
+     - `arrival_events_5B`
+     - `s1_arrival_entities_6B`
+     - `s3_flow_anchor_with_fraud_6B`
+   - `ORACLE_SORT_KEY_BY_OUTPUT_ID` pinned to `ts_utc` for each output-id.
+2. Added rationale text in registry clarifying:
+   - this is Spine Green v0 fraud-mode scope,
+   - deterministic tie-breakers remain `filename` + `file_row_number`.
+3. Updated stale planning note in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - replaced “still placeholders” statement with “now pinned; historical M3.C evidence is provisional until re-executed”.
+
+### Verification performed
+1. Local-parity gate checklist alignment:
+   - required fraud-mode outputs confirmed in `docs/design/platform/local-parity/addendum_1_operator_gate_checklist.txt`.
+2. Sorter behavior alignment:
+   - primary sort key default for these outputs confirmed from `src/fraud_detection/oracle_store/stream_sorter.py`.
+
+### Outcome
+1. M5.A blocker class `M5A-B4` is materially unblocked at planning-authority level (output-id/sort-key decisions are now pinned).
+2. No runtime execution occurred in this step.
+
 ## Entry: 2026-02-14 06:03PM - P3 input staging via S3->S3 copy (option 1, non-destructive)
 
 ### Trigger
