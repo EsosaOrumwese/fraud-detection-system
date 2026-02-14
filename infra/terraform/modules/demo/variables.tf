@@ -18,6 +18,10 @@ variable "evidence_bucket" {
   type = string
 }
 
+variable "object_store_bucket" {
+  type = string
+}
+
 variable "cloudwatch_retention" {
   type    = number
   default = 7

@@ -4913,3 +4913,33 @@ Parity and safety checks:
 
 Decision:
 1) `P4.R1B` closure criteria met; lane is now closed with measured authority-envelope gain and no semantic drift.
+
+---
+
+### Entry: 2026-02-14 20:46
+
+Design element: `P4.R2 -> P4.R5` continuation using closed `P4.R1B` runtime lane.
+Summary: Advanced directly from runtime closure into the next remediation step on the same reopened lineage (`1A candidate 7282...` -> `1B run 49d...`) and executed closure chain through integrated scoring.
+
+Execution sequence completed:
+1) `P4.R2 wave_3` guard formalization:
+   - confirmed `1A` freeze guard `PASS` for `7282f808e14e89e7bb37732181e46dbc`,
+   - wrote wave artifact:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave3_guard_summary.json`.
+2) `P4.R3 wave_3` proxy screen:
+   - ran `tools/score_segment1b_p4r3_proxy.py` with wave-3 summary and reference run `625644d528a44f148bbf44339a41a044`,
+   - artifacts:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_7282f808e14e89e7bb37732181e46dbc.json`
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_wave_3.json`,
+   - gate result: `proxy_competitive=true`; matched shortlisted `1B` run `49dcd3c9aa4e441781292d54dc0fa491`.
+3) `P4.R5` integrated closure chain:
+   - executed sequential `S5 -> S9` on run `49dcd3c9aa4e441781292d54dc0fa491` (`S9 PASS`),
+   - scored integrated authority:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_49dcd3c9aa4e441781292d54dc0fa491.json`.
+
+Outcome and interpretation:
+1) Integrated classifier remained `RED_REOPEN_REQUIRED`.
+2) No-regression checks held (`concentration` and `coverage` not worse than lock), but hard/structural gates failed:
+   - `top_country_no_collapse=false` (`MC`, `BM` still flagged),
+   - NN tail contraction failed (candidate `nn_p99/p50` materially above baseline).
+3) Decision: keep `P4.R1B` runtime lane as stable acceleration rail, but treat realism blocker as still upstream/structural rather than runtime throughput.

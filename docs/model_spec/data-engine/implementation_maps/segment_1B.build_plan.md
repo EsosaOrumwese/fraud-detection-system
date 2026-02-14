@@ -642,6 +642,12 @@ P4.R2 execution status (2026-02-14):
 - promoted/rejected summary:
   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave1_guard_summary.json`
 
+P4.R2 wave-3 update (2026-02-14):
+- upstream reopen candidate (1A):
+  - `7282f808e14e89e7bb37732181e46dbc` -> freeze guard `PASS`.
+- wave summary artifact:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave3_guard_summary.json`
+
 #### P4.R3 - Fast-screen lane for 1B macro realism (proxy-first)
 Goal:
 - filter weak candidates cheaply before full `S5->S9` and integrated scoring.
@@ -674,6 +680,16 @@ P4.R3 execution status (2026-02-14):
   - promoted candidate `416afa430db3f5bf87180f8514329fe8` is `proxy_competitive=true`,
   - matched 1B run for downstream lane: `e4d92c9cfbd3453fb6b9183ef6e3b6f6`,
   - shortlist is bounded (`1 <= max 2`), with zero dropped in wave-1.
+
+P4.R3 wave-3 update (2026-02-14):
+- input summary:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r2_wave3_guard_summary.json`
+- proxy artifacts:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_7282f808e14e89e7bb37732181e46dbc.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r3_proxy_wave_3.json`
+- result:
+  - `proxy_competitive=true`,
+  - shortlisted 1B run-id: `49dcd3c9aa4e441781292d54dc0fa491`.
 
 #### P4.R4 - Collapse and geometry closure lane (S6)
 Goal:
@@ -739,10 +755,10 @@ Execution sequence (authoritative):
    - run `S6->S9`, then integrated scorer classification.
 
 DoD:
-- [ ] one upstream `1A` candidate is produced with explicit bundle lineage and run-id.
-- [ ] freeze-veto artifact is `PASS` for that candidate.
-- [ ] `1B` proxy artifact shows movement on collapse-sensitive support metrics.
-- [ ] only then proceed to `P4.R5` integrated promotion decision.
+- [x] one upstream `1A` candidate is produced with explicit bundle lineage and run-id.
+- [x] freeze-veto artifact is `PASS` for that candidate.
+- [x] `1B` proxy artifact shows movement on collapse-sensitive support metrics.
+- [x] only then proceed to `P4.R5` integrated promotion decision.
 
 #### P4.R5 - Integrated promotion run and decision
 Goal:
@@ -758,9 +774,20 @@ Plan:
   - `RED_REOPEN_REQUIRED` -> fail-closed, reopen next lane explicitly.
 
 DoD:
-- [ ] one promoted integrated candidate has complete score artifact and classifier output.
-- [ ] decision path is explicit (`GREEN_B` / `AMBER_NEAR_BPLUS` / `RED_REOPEN_REQUIRED`).
+- [x] one promoted integrated candidate has complete score artifact and classifier output.
+- [x] decision path is explicit (`GREEN_B` / `AMBER_NEAR_BPLUS` / `RED_REOPEN_REQUIRED`).
 - [ ] run retention/pruning is applied per storage protocol after decision.
+
+P4.R5 execution status (2026-02-14):
+- integrated closure run executed on shortlisted run-id:
+  - `49dcd3c9aa4e441781292d54dc0fa491` (`S5->S9` completed, `S9 PASS`).
+- integrated scorer artifact:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_49dcd3c9aa4e441781292d54dc0fa491.json`
+- classifier outcome:
+  - `RED_REOPEN_REQUIRED`.
+- blocker pattern persisted:
+  - structural collapse sentinel still flagged for `MC`, `BM`,
+  - NN tail contraction gate failed (candidate `nn_p99/p50` remained materially above baseline).
 
 #### P4.R6 - Storage and run-retention hard cap
 Goal:

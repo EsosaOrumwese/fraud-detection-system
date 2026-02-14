@@ -38,6 +38,11 @@ variable "evidence_bucket_name" {
   default = "fraud-platform-dev-min-evidence"
 }
 
+variable "object_store_bucket_name" {
+  type    = string
+  default = "fraud-platform-dev-min-object-store"
+}
+
 variable "demo_log_retention_days" {
   type    = number
   default = 7

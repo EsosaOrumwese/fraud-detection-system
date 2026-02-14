@@ -10327,3 +10327,10 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. Any terminal task failure / non-zero exit => `M5E-B3`.
 3. Any missing shard/manifest/receipt contract => `M5E-B4`.
 4. Summary publication failure => `M5E-B5`.
+
+## Entry: 2026-02-14 08:21PM - M5.E blocker triage (oracle role S3 access missing)
+1. During M5.E managed stream-sort execution, all four ECS tasks exited non-zero.
+2. CloudWatch task logs confirmed root cause: AccessDenied on s3:GetObject for s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/inputs/run_receipt.json under assumed role raud-platform-dev-min-rtdl-core.
+3. This is a substrate IAM gap, not a stream-sort logic gap; M5.E cannot be declared green until lane role S3 read/write posture is materialized.
+4. Chosen closure path: patch demo Terraform module to grant explicit object-store data plane permissions for the RTDL core lane role (read inputs + write stream_view artifacts), apply, then rerun M5.E from the same M5.D matrix.
+5. Fail-closed stance retained: no phase progression to M5.F until M5.E summary reports overall_pass=true and no blockers.

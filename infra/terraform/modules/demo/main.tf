@@ -294,6 +294,38 @@ data "aws_iam_policy_document" "ecs_task_app_secret_read" {
   }
 }
 
+data "aws_iam_policy_document" "lane_app_object_store_data_plane" {
+  statement {
+    sid = "ListOraclePrefix"
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:s3:::${var.object_store_bucket}",
+    ]
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values = [
+        "oracle/*",
+      ]
+    }
+  }
+
+  statement {
+    sid = "OracleObjectReadWrite"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:s3:::${var.object_store_bucket}/oracle/*",
+    ]
+  }
+}
+
 resource "aws_iam_role" "ecs_task_execution" {
   name               = "${var.name_prefix}-ecs-task-execution"
   assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
@@ -334,6 +366,17 @@ resource "aws_iam_role_policy" "lane_app_secret_read" {
   name   = "${var.name_prefix}-${each.key}-secret-read"
   role   = each.value.id
   policy = data.aws_iam_policy_document.ecs_task_app_secret_read.json
+}
+
+resource "aws_iam_role_policy" "lane_app_object_store_data_plane" {
+  for_each = {
+    for key, role in aws_iam_role.lane_app_roles : key => role
+    if key == "rtdl_core"
+  }
+
+  name   = "${var.name_prefix}-${each.key}-object-store-data-plane"
+  role   = each.value.id
+  policy = data.aws_iam_policy_document.lane_app_object_store_data_plane.json
 }
 
 resource "aws_ecs_task_definition" "runtime_probe" {
