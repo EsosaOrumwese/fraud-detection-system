@@ -336,11 +336,11 @@ Tasks:
 8. Stop progression if `overall_pass=false`.
 
 DoD:
-- [ ] `M5.B` carry-forward invariants are verified and recorded.
-- [ ] Run-scoped oracle input prefix is present and readable.
-- [ ] Required manifest/seal objects are present and readable.
-- [ ] Required output IDs are fully covered by manifest-declared input surfaces.
-- [ ] Inlet assertion snapshot exists locally and durably.
+- [x] `M5.B` carry-forward invariants are verified and recorded.
+- [x] Run-scoped oracle input prefix is present and readable.
+- [x] Required manifest/seal objects are present and readable.
+- [x] Required output IDs are fully covered by manifest-declared input surfaces.
+- [x] Inlet assertion snapshot exists locally and durably.
 
 Blockers:
 1. `M5C-B1`: M5.B carry-forward invariants invalid or unreadable.
@@ -348,6 +348,22 @@ Blockers:
 3. `M5C-B3`: required oracle manifest/seal artifacts missing/unreadable.
 4. `M5C-B4`: required output IDs missing from manifest-declared surfaces.
 5. `M5C-B5`: inlet assertion snapshot write/upload failure.
+
+Execution result (2026-02-14):
+1. First pass attempt produced blockers `M5C-B2` and `M5C-B4` from assertion implementation defects:
+   - `list-objects-v2 --max-items` undercounted prefix presence in this flow,
+   - one manifest `path_template` string retained leading quote noise during prefix derivation.
+2. Assertion logic was corrected to:
+   - use API-level `--max-keys 1` prefix existence checks,
+   - normalize/trim quoted template values before static-prefix checks.
+3. Final rerun closed PASS with durable publication:
+   - local: `runs/dev_substrate/m5/20260214T193548Z/inlet_assertion_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/inlet_assertion_snapshot.json`
+4. Final state:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `missing_output_ids=[]`
+   - `manifest_output_coverage_pass=true`
 
 ### M5.D Stream-Sort Launch Contract
 Goal:
@@ -538,7 +554,7 @@ Notes:
 ## 7) M5 Completion Checklist
 - [x] M5.A complete
 - [x] M5.B complete
-- [ ] M5.C complete
+- [x] M5.C complete
 - [ ] M5.D complete
 - [ ] M5.E complete
 - [ ] M5.F complete

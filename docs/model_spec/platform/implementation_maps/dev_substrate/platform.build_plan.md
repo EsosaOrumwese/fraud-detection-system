@@ -419,10 +419,13 @@ Active-phase planning posture:
   - `M5.A` now explicitly pins M4->M5 entry invariants, always-required P3 handles, and local+durable `m5_a_handle_closure_snapshot.json` publication contract.
   - `M5.B` now explicitly pins M5.A carry-forward invariants, inlet-policy exact-match validation, seed-lane drift-scan guards, and local+durable `m5_b_inlet_policy_snapshot.json` publication contract.
   - `M5.C` now explicitly pins M5.B carry-forward invariants, run-scoped input prefix + manifest/seal readability assertions, manifest output-id coverage checks, and local+durable `oracle/inlet_assertion_snapshot.json` publication contract.
+  - `M5.C` execution closed PASS after one fail-closed correction cycle (`M5C-B2/M5C-B4` -> fixed -> PASS); final evidence:
+    - local: `runs/dev_substrate/m5/20260214T193548Z/inlet_assertion_snapshot.json`
+    - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/inlet_assertion_snapshot.json`
 - Sub-phase progress:
   - [x] `M5.A` authority + handle closure for P3.
   - [x] `M5.B` oracle inlet policy closure.
-  - [ ] `M5.C` oracle input presence assertion.
+  - [x] `M5.C` oracle input presence assertion.
   - [ ] `M5.D` stream-sort launch contract.
   - [ ] `M5.E` stream-sort execution + receipts/manifests.
   - [ ] `M5.F` checker execution + checker pass artifact.
@@ -431,7 +434,7 @@ Active-phase planning posture:
   - [ ] `M5.I` M6 handoff publication.
 
 M5 DoD checklist:
-- [ ] P3 inputs for this run exist in S3 under canonical run-scoped input prefix (external-prestaged / engine-written).
+- [x] P3 inputs for this run exist in S3 under canonical run-scoped input prefix (external-prestaged / engine-written).
 - [ ] For each required output_id, stream_view shards + manifest + stream_sort receipt exist.
 - [ ] `oracle/checker_pass.json` exists and confirms full PASS for required output_ids.
 - [ ] P3 rerun posture is fail-closed and per-output (no forced full rerun for single-output failure).

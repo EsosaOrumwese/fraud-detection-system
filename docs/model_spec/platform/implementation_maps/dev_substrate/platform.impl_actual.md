@@ -10036,3 +10036,52 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. Manifest/seal missing or unreadable => `M5C-B3`.
 3. Required output-id coverage gap => `M5C-B4`.
 4. Snapshot publication failure => `M5C-B5`.
+
+## Entry: 2026-02-14 07:36PM - M5.C executed to PASS (oracle input presence assertion)
+
+### Execution scope
+1. Executed `M5.C` per `platform.M5.build_plan.md` to close P3 input-presence proof under external-inlet law.
+2. Scope covered:
+   - M5.B carry-forward invariant checks,
+   - run-scoped Oracle input prefix readability checks,
+   - required artifact readability (`_oracle_pack_manifest.json`, `_SEALED.json`),
+   - required output-id coverage check from manifest-declared surfaces,
+   - local + durable publication of `oracle/inlet_assertion_snapshot.json`.
+
+### Input artifacts used
+1. `runs/dev_substrate/m5/20260214T191428Z/m5_b_inlet_policy_snapshot.json`
+2. `runs/dev_substrate/m3/20260213T221631Z/run.json`
+3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+
+### Fail-closed cycle and correction
+1. First attempt closed `overall_pass=false` with blockers `M5C-B2` and `M5C-B4`:
+   - prefix-existence probe used `list-objects-v2 --max-items` and undercounted in this path,
+   - one manifest `path_template` value retained leading quote noise, causing false missing-surface detection.
+2. Corrective changes in assertion logic:
+   - switched prefix checks to API-level `--max-keys 1`,
+   - normalized/trimmed quoted template values before static-prefix derivation.
+3. Rerun closed PASS with blockers empty.
+
+### Evidence artifacts
+1. Failed first-attempt artifact (retained for traceability):
+   - local: `runs/dev_substrate/m5/20260214T193432Z/inlet_assertion_snapshot.json`
+2. Final PASS artifacts:
+   - local: `runs/dev_substrate/m5/20260214T193548Z/inlet_assertion_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/inlet_assertion_snapshot.json`
+
+### Final pass posture
+1. `overall_pass=true`
+2. `blockers=[]`
+3. `missing_output_ids=[]`
+4. `manifest_output_coverage_pass=true`
+5. `input_prefix_readable=true`, `manifest_readable=true`, `seal_readable=true`
+
+### Plan-state updates
+1. `platform.M5.build_plan.md` updated:
+   - M5.C DoD checklist checked complete,
+   - M5 completion checklist marked `M5.C complete`,
+   - execution-result block added (fail->fix->pass chain + evidence).
+2. `platform.build_plan.md` updated:
+   - M5 sub-phase progress marked `M5.C` complete,
+   - M5 expansion state notes include M5.C PASS evidence,
+   - M5 DoD first item marked complete (P3 inputs present under canonical run-scoped prefix).
