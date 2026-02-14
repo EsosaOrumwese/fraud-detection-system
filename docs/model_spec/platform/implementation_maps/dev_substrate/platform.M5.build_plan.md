@@ -155,6 +155,7 @@ Tasks:
 3. Resolve conditional seed handles and mark them `conditional_if_seed_required`:
    - `ORACLE_SEED_SOURCE_BUCKET`
    - `ORACLE_SEED_SOURCE_PREFIX_PATTERN`
+   - `ORACLE_SEED_SOURCE_PLATFORM_RUN_ID`
    - `TD_ORACLE_SEED`.
 4. Enforce fail-closed closure rules:
    - reject placeholders (including `<PIN_AT_P3_PHASE_ENTRY>`),

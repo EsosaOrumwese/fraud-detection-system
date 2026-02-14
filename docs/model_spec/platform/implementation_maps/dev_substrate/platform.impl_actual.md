@@ -9672,6 +9672,33 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. Seed-source handle now follows existing canonical path style.
 2. No runtime copy/mutation executed in this corrective step.
 
+## Entry: 2026-02-14 06:27PM - Corrective pin: remove fixed source-run from seed pattern
+
+### Trigger
+1. USER questioned why a concrete `platform_run_id` was embedded directly in `ORACLE_SEED_SOURCE_PREFIX_PATTERN`.
+
+### Correction applied
+1. Updated `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`:
+   - `ORACLE_SEED_SOURCE_PREFIX_PATTERN` changed to tokenized form:
+     - `oracle/{source_platform_run_id}/inputs/`
+   - added explicit selector handle:
+     - `ORACLE_SEED_SOURCE_PLATFORM_RUN_ID = "platform_20260213T214223Z"`.
+2. Extended allowed prefix tokens in registry to include:
+   - `{source_platform_run_id}` (seed-source selector use).
+3. Updated execution docs so this handle is part of required seed-source closure:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md` (M5.A conditional seed handles),
+   - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P3 required handles list).
+
+### Rationale
+1. Pattern and selector should be separated:
+   - pattern is stable contract,
+   - selected source run is cycle-specific and easy to rotate.
+2. This preserves canonical naming style while avoiding hard-coded run IDs inside the pattern body.
+
+### Outcome
+1. Seed-source contract is now both canonical and updateable without pattern rewrites.
+2. No runtime object movement or compute execution in this correction.
+
 ## Entry: 2026-02-14 06:03PM - P3 input staging via S3->S3 copy (option 1, non-destructive)
 
 ### Trigger

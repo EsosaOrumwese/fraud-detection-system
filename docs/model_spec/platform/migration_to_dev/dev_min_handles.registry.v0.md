@@ -207,6 +207,7 @@ These handles pin **where data lives** in dev_min. Buckets are provisioned by Te
 These are the only allowed template tokens inside prefix patterns:
 
 * `{platform_run_id}`
+* `{source_platform_run_id}` *(optional for seed-source selectors)*
 * `{scenario_run_id}` *(optional where relevant)*
 * `{output_id}`
 * `{phase_id}` *(P0..P12)*
@@ -294,7 +295,8 @@ Convenience patterns (must align with Section 6 evidence contract):
 
 * `ORACLE_SEED_SOURCE_MODE = "s3_to_s3_only"`
 * `ORACLE_SEED_SOURCE_BUCKET = "fraud-platform-dev-min-object-store"`
-* `ORACLE_SEED_SOURCE_PREFIX_PATTERN = "oracle/platform_20260213T214223Z/inputs/"`
+* `ORACLE_SEED_SOURCE_PREFIX_PATTERN = "oracle/{source_platform_run_id}/inputs/"`
+* `ORACLE_SEED_SOURCE_PLATFORM_RUN_ID = "platform_20260213T214223Z"`
 * `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED = false`
 
 `ORACLE_SEED_OPERATOR_PRESTEP_REQUIRED` remains explicit so automation cannot
@@ -302,8 +304,8 @@ quietly reintroduce local bootstrap behavior. Dev_min v0 policy is managed
 object-store-only for P3 seed/sync.
 
 Current-cycle note:
-* Seed source is pinned to an existing canonical `oracle/...` path (not legacy `dev_min/...`).
-* The active run remains pre-staged under `oracle/{platform_run_id}/inputs/`; the source prefix above stays as
+* Seed source uses canonical `oracle/...` style with explicit source-run selector (not legacy `dev_min/...`).
+* The active run remains pre-staged under `oracle/{platform_run_id}/inputs/`; the source selector above stays as
   deterministic fallback if `SEED_REQUIRED` is entered.
 
 ---
