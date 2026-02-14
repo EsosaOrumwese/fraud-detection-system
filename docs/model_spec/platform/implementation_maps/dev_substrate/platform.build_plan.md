@@ -385,6 +385,7 @@ Objective:
 
 Scope:
 - P3 oracle-lane flow:
+  - inlet contract is explicit (how oracle inputs arrive into run-scoped S3),
   - seed/sync from managed object-store sources only (if required),
   - stream-sort per required output_id with deterministic sort keys,
   - checker fail-closed validation across all required output_ids.
@@ -405,7 +406,7 @@ Active-phase planning posture:
   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T170953Z/m5_handoff_pack.json`.
 - M5 sub-phase progression model:
   - `M5.A` authority + handle closure for P3.
-  - `M5.B` seed/sync decision + source-policy closure.
+  - `M5.B` oracle inlet decision + source-policy closure.
   - `M5.C` seed/sync execution (conditional, fail-closed when required).
   - `M5.D` stream-sort launch contract and per-output task plan.
   - `M5.E` stream-sort execution + receipt/manifest publication.
@@ -417,7 +418,7 @@ Active-phase planning posture:
   - `M5.A -> M5.I` are now expanded to execution-grade in the deep plan with entry criteria, required inputs, deterministic tasks, DoD, and blockers.
 - Sub-phase progress:
   - [ ] `M5.A` authority + handle closure for P3.
-  - [ ] `M5.B` seed/sync decision + source-policy closure.
+  - [ ] `M5.B` oracle inlet decision + source-policy closure.
   - [ ] `M5.C` seed/sync execution (conditional).
   - [ ] `M5.D` stream-sort launch contract.
   - [ ] `M5.E` stream-sort execution + receipts/manifests.

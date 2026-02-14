@@ -4,7 +4,7 @@ _This document provides deep planning detail for M5._
 _Last updated: 2026-02-14_
 
 ## 0) Purpose
-M5 establishes P3 oracle readiness on managed substrate by producing deterministic `stream_view` artifacts for required output IDs and validating them with fail-closed checker evidence before P4-P7 activation.
+M5 establishes P3 oracle readiness on managed substrate by keeping the oracle inlet contract explicit, producing deterministic `stream_view` artifacts for required output IDs, and validating them with fail-closed checker evidence before P4-P7 activation.
 
 ## 1) Authority Inputs
 Primary:
@@ -22,17 +22,19 @@ Supporting:
 
 ## 2) Scope Boundary for M5
 In scope:
-1. P3 oracle input presence closure:
+1. P3 oracle inlet closure:
+   - explicit inlet path for how oracle inputs arrive into run-scoped S3.
+2. P3 oracle input presence closure:
    - verify run-scoped S3 input prefixes exist or execute managed seed/sync.
-2. P3 stream-sort execution:
+3. P3 stream-sort execution:
    - one-shot managed compute jobs only,
    - deterministic per-output sorting,
    - stream_view shard + manifest + receipt publication.
-3. P3 checker execution:
+4. P3 checker execution:
    - fail-closed validation for each required output ID.
-4. P3 rerun safety proof:
+5. P3 rerun safety proof:
    - per-output rerun contract and evidence.
-5. M5 verdict and M6 handoff publication.
+6. M5 verdict and M6 handoff publication.
 
 Out of scope:
 1. WSP streaming execution (`M6` / P6).
@@ -99,6 +101,9 @@ Execution block:
    - missing manifest/receipt/checker evidence blocks M5 closure.
 6. Rerun law:
    - per-output rerun only; no destructive raw-input deletion in normal reruns.
+7. Inlet posture law (current cycle):
+   - inlet remains an explicit contract in M5,
+   - current run may treat inlet execution as pre-satisfied when staged inputs already exist in the run-scoped prefix with evidence.
 
 ### M5.A Authority + Handle Closure (P3)
 Goal:
@@ -139,30 +144,30 @@ Blockers:
 2. `M5A-B2`: placeholder decision remains for required output IDs or sort keys.
 3. `M5A-B3`: M5.A snapshot write/upload failure.
 
-### M5.B Seed Source-Policy Closure
+### M5.B Oracle Inlet Decision + Source-Policy Closure
 Goal:
-1. Pin whether seed is required and enforce object-store-only source policy.
+1. Pin whether inlet is pre-satisfied or requires seed/sync, and enforce object-store-only source policy.
 
 Entry conditions:
 1. `M5.A` is PASS.
 
 Tasks:
 1. Evaluate run-scoped oracle input presence against `S3_ORACLE_INPUT_PREFIX_PATTERN`.
-2. Decide seed mode:
-   - `SEED_REQUIRED` if required inputs absent,
-   - `SEED_SKIPPED_INPUTS_ALREADY_PRESENT` if inputs already present.
+2. Decide inlet mode:
+   - `INLET_PRESTAGED` if required inputs already exist in run-scoped prefix,
+   - `SEED_REQUIRED` if required inputs are absent and managed seed must run.
 3. Validate source policy:
    - allow only managed object-store source (`S3`),
    - reject local/laptop/minio/filesystem source paths.
 4. Emit `m5_b_seed_policy_snapshot.json` with decision + source proof.
 
 DoD:
-- [ ] Seed decision is explicit and evidence-backed.
+- [ ] Inlet decision is explicit and evidence-backed.
 - [ ] Source policy is object-store-only and fail-closed.
 - [ ] M5.B snapshot exists locally and durably.
 
 Blockers:
-1. `M5B-B1`: seed decision ambiguous.
+1. `M5B-B1`: inlet/seed decision ambiguous.
 2. `M5B-B2`: seed source violates managed object-store-only policy.
 3. `M5B-B3`: M5.B snapshot write/upload failure.
 

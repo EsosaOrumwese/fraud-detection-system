@@ -14,6 +14,11 @@ I do not rely on one global validator at the end. I validate at each ownership h
   - oracle/run-facts manifest contract.
 - **Why here:** This is where run identity, run intent, and stream shape are fixed. If this boundary is loose, every downstream contract is operating on unstable assumptions.
 - **Fail posture:** reject run setup (no stream start).
+- **Authority files (pinned):**
+  - `docs/model_spec/platform/contracts/scenario_runner/run_request.schema.yaml`
+  - `docs/model_spec/platform/contracts/scenario_runner/reemit_request.schema.yaml`
+  - `docs/model_spec/platform/contracts/scenario_runner/run_ready_signal.schema.yaml`
+  - `docs/model_spec/platform/contracts/scenario_runner/run_facts_view.schema.yaml`
 
 ### Boundary 2: Producer publish boundary (DF/AL/CaseTrigger -> IG)
 
@@ -23,6 +28,11 @@ I do not rely on one global validator at the end. I validate at each ownership h
   - required ContextPins/provenance fields needed by IG and downstream consumers.
 - **Why here:** Prevents malformed events from entering ingress path and gives immediate component-local failure signal.
 - **Fail posture:** do not publish event.
+- **Authority files (pinned):**
+  - `docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml`
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/decision_payload.schema.yaml`
+  - `docs/model_spec/platform/contracts/real_time_decision_loop/action_intent.schema.yaml`
+  - `docs/model_spec/platform/contracts/case_and_labels/case_trigger.schema.yaml`
 
 ### Boundary 3: Ingress admission boundary (IG as hard gateway)
 
@@ -36,6 +46,10 @@ I do not rely on one global validator at the end. I validate at each ownership h
   - quarantine record contract.
 - **Why here:** IG is the admission authority. Admission must be schema-valid, policy-valid, and evidence-valid before it is treated as platform truth.
 - **Fail posture:** fail-closed quarantine/no admission.
+- **Authority files (pinned):**
+  - `docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml`
+  - `docs/model_spec/platform/contracts/ingestion_gate/ingestion_receipt.schema.yaml`
+  - `docs/model_spec/platform/contracts/ingestion_gate/quarantine_record.schema.yaml`
 
 ### Boundary 4: Event bus consumption boundary (EB -> RTDL services)
 
@@ -44,6 +58,8 @@ I do not rely on one global validator at the end. I validate at each ownership h
   - canonical event envelope contract again at consumer ingress.
 - **Why here:** Defends against upstream drift, replay irregularities, and mixed-producer reality. Consumers do not trust that “someone else already validated.”
 - **Fail posture:** reject/quarantine/skip with logged reason (no silent parse).
+- **Authority files (pinned):**
+  - `docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml`
 
 ### Boundary 5: Component domain-contract boundary (inside each service lane)
 
@@ -104,6 +120,12 @@ The failure had three linked mechanics:
 So the “key failure” was not just a bad schema file.  
 It was that our validator was strict, but its **resolution model** was weaker than the real multi-file contract topology.
 
+Concrete incident pin (the failure slice):
+- **Event family that exposed it:** `arrival_events_5B` (`event_class=context_arrival`) at IG payload validation.
+- **Policy entry involved:** `config/platform/ig/schema_policy_v0.yaml` for `event_type: arrival_events_5B`.
+- **Fragment ref that failed in practice:** `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml#/egress/s4_arrival_events_5B/items`.
+- **Why this fragment mattered:** once IG moved to item-level validation, fragment-only loading dropped root `$defs/$id/$schema` and triggered resolver failures on internal refs.
+
 ## Q3) What exactly broke (false PASS vs false FAIL vs inconsistent behavior across machines)?
 
 It was primarily a **false FAIL** problem, with a secondary **environment-consistency risk**.
@@ -121,6 +143,17 @@ Valid events were being rejected by IG even when producer payload intent was cor
   - not because the business contract itself was necessarily violated.
 
 Operationally, this appeared as deterministic quarantine/admission failure on classes that should have been admissible under the intended contract mapping.
+
+Concrete failure anchors:
+- **Signature 1 (schema mismatch stage):**
+  - platform log pattern during the Jan-29 SR->WSP->IG chain run: `IG quarantine ... reason=SCHEMA_FAIL` for `event_type=arrival_events_5B`.
+- **Signature 2 (resolver stage after item-fragment switch):**
+  - IG emitted `INTERNAL_ERROR` when resolving refs like `#/$defs/...` from a fragment-loaded schema context.
+- **Run-anchored receipt proof for the same false-fail class (schema enforcement at IG):**
+  - `platform_run_id=platform_20260207T221155Z`
+  - `s3://fraud-platform/platform_20260207T221155Z/ig/receipts/0a7e36376ffc8fb37e9d2fca7b4a02c3.json`
+  - `s3://fraud-platform/platform_20260207T221155Z/ig/quarantine/0a7e36376ffc8fb37e9d2fca7b4a02c3.json`
+  - observed reason path: `reason_codes=["SCHEMA_FAIL"]`.
 
 ### 2) Secondary break: inconsistent behavior across execution contexts
 
@@ -192,6 +225,18 @@ Separately, I hardened canonical serialization surfaces so contract decisions re
 - policy-digest computation also uses canonical JSON content normalization.
 
 This was important for drift prevention and repeatability, but it was not the primary root-cause fix for the resolver collapse.
+
+Concrete code anchors for the resolver hardening:
+- **Registry + Draft 2020-12 wiring:**
+  - `src/fraud_detection/ingestion_gate/schema.py`
+  - `src/fraud_detection/ingestion_gate/schemas.py`
+- **Fragment validated via wrapper `$ref` anchored to base URI:**
+  - `src/fraud_detection/ingestion_gate/schema.py` -> `_load_schema_ref(...)` (`schema_for_validation = {"$ref": f"{base_uri}#{fragment}"}`)
+- **`nullable: true` normalization:**
+  - `src/fraud_detection/ingestion_gate/schema.py` -> `_normalize_nullable(...)`
+- **Filename fallback + repo-root/docs path resolution for mixed ref styles:**
+  - `src/fraud_detection/ingestion_gate/schemas.py` -> `SchemaRegistry._uri_to_path(...)`
+  - `src/fraud_detection/ingestion_gate/schema.py` -> `_load_schema_ref(...)` (`docs/` and absolute path handling)
 
 ## Q5) How do you ensure determinism:
 
@@ -302,6 +347,10 @@ At IG startup, policy/class coherence checks run before live admission:
 
 This prevents silent misclassification drift from entering runtime.
 
+Enforcement pin:
+- Implemented in `src/fraud_detection/ingestion_gate/admission.py` via `_validate_rtdl_policy_alignment(...)`.
+- Hard-fail signal: raises `RuntimeError("IG_RTLD_POLICY_ALIGNMENT_FAILED:...")` before live admission starts.
+
 ### 2) Change-control rule (digest-bound policy identity)
 
 Policy surfaces are digest-bound through canonical hashing:
@@ -312,6 +361,17 @@ Policy surfaces are digest-bound through canonical hashing:
 
 That digest is carried as policy revision identity in receipts/quarantine provenance.  
 So “policy changed but nobody noticed” becomes auditable drift, not invisible drift.
+
+Digest + recording pins:
+- Digest computation: `src/fraud_detection/ingestion_gate/policy_digest.py` -> `compute_policy_digest(...)`.
+- Digest source set at startup in `IngestionGate.build(...)` from:
+  - `schema_policy_ref`
+  - `class_map_ref`
+  - `partitioning_profiles_ref`
+- Recorded in admission evidence payloads:
+  - receipt: `policy_rev.content_digest` and `run_config_digest`
+  - quarantine: `policy_rev.content_digest` and `run_config_digest`
+  (implemented in `src/fraud_detection/ingestion_gate/admission.py`).
 
 ### 3) Resolver-authority rule (no ad-hoc schema forks)
 

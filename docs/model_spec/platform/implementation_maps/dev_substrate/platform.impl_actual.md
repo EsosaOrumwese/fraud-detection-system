@@ -9453,3 +9453,41 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. M4 is now recorded as closed in the main status authority.
 2. M5 planning is now explicitly execution-grade across both main and deep plan docs.
 3. No runtime execution was performed in this step; this is a planning/status transition update only.
+
+## Entry: 2026-02-14 06:12PM - M5 inlet contract clarification (pre-staged input posture)
+
+### Trigger
+1. USER requested that we keep oracle data arrival explicit in plan, while treating already-present data as pre-staged for this run.
+
+### Changes applied
+1. Updated `platform.build_plan.md` M5 section to explicitly include oracle inlet in scope and sub-phase wording.
+2. Updated `platform.M5.build_plan.md` to:
+   - include inlet contract in phase purpose/scope,
+   - rename `M5.B` to inlet decision + source-policy closure,
+   - pin `INLET_PRESTAGED` vs `SEED_REQUIRED` decision logic,
+   - keep managed object-store-only source policy and fail-closed posture.
+
+### Outcome
+1. No hidden “magic” path remains undocumented: inlet is explicit.
+2. Current run can proceed with pre-staged S3 inputs without forcing unnecessary reseed.
+
+## Entry: 2026-02-14 06:03PM - P3 input staging via S3->S3 copy (option 1, non-destructive)
+
+### Trigger
+1. USER chose option 1 for oracle transfer strategy: copy existing S3 oracle data into canonical run-scoped P3 input prefix, then keep source until post-M5 verification.
+
+### Execution actions
+1. Identified legacy oracle source prefix in managed object store:
+   - `s3://fraud-platform-dev-min-object-store/dev_min/oracle/c25a2675fbfbacd952b13bb594880e92/`.
+2. Identified canonical destination prefix for active run:
+   - `s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/inputs/`.
+3. Executed non-destructive S3->S3 copy:
+   - `aws s3 cp <src> <dst> --recursive --only-show-errors`.
+4. Verified destination has expected artifacts and source remains intact:
+   - destination probe includes `_SEALED.json`, `_oracle_pack_manifest.json`, and dataset parquet/validation paths under `oracle/platform_20260213T214223Z/inputs/...`,
+   - source probe confirms original `dev_min/oracle/c25...` objects still present.
+
+### Outcome
+1. Copy status: `SUCCESS`.
+2. P3 input staging is now aligned with no-laptop and S3->S3 policy.
+3. Source prefix intentionally retained pending M5 closure; delete decision deferred until post-M5 verification.
