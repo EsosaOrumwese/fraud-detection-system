@@ -27,7 +27,7 @@ In scope:
    - `rtdl_core`
    - `rtdl_decision_lane`
    - `case_labels`
-   - `obs_gov` (daemonized parts only)
+   - `obs_gov` (environment conformance daemon only; reporter remains P11 task)
 2. Run-scope enforcement (`REQUIRED_PLATFORM_RUN_ID`) for all in-scope daemons.
 3. Deterministic singleton policy (1 replica per daemon/service for v0).
 4. Dependency readiness checks (Kafka/S3/DB/logging reachability) and crashloop detection.
@@ -117,22 +117,76 @@ Tasks:
 1. Validate M3 verdict and handoff preconditions:
    - `m3_f_verdict_snapshot.json` must be `ADVANCE_TO_M4`.
    - `m4_handoff_pack.json` must exist and be non-secret.
-2. Resolve required handle families:
-   - run-scope: `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`, `ACTIVE_RUN_ID_SOURCE`
-   - ECS identity surfaces: `ECS_CLUSTER_NAME`, `SVC_*`, `TD_*`
-   - dependency handles: S3 buckets, Kafka topic handles, DB identifiers
-   - network/logging handles: subnets/SG/log-group prefix.
-3. Emit closure snapshot.
+2. Resolve required run-scope and runtime handles (no wildcards allowed in closure result):
+   - run-scope:
+     - `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`
+     - `ACTIVE_RUN_ID_SOURCE`
+   - ECS/network/logging:
+     - `ECS_CLUSTER_NAME`
+     - `VPC_ID`
+     - `SUBNET_IDS_PUBLIC`
+     - `SECURITY_GROUP_ID_APP`
+     - `CLOUDWATCH_LOG_GROUP_PREFIX`
+   - in-scope daemon service identities:
+     - `SVC_IG`
+     - `SVC_RTDL_CORE_ARCHIVE_WRITER`
+     - `SVC_RTDL_CORE_IEG`
+     - `SVC_RTDL_CORE_OFP`
+     - `SVC_RTDL_CORE_CSFB`
+     - `SVC_DECISION_LANE_DL`
+     - `SVC_DECISION_LANE_DF`
+     - `SVC_DECISION_LANE_AL`
+     - `SVC_DECISION_LANE_DLA`
+     - `SVC_CASE_TRIGGER`
+     - `SVC_CM`
+     - `SVC_LS`
+     - `SVC_ENV_CONFORMANCE`
+   - substrate dependency handles:
+     - `S3_ORACLE_BUCKET`
+     - `S3_ARCHIVE_BUCKET`
+     - `S3_QUARANTINE_BUCKET`
+     - `S3_EVIDENCE_BUCKET`
+     - `SSM_CONFLUENT_BOOTSTRAP_PATH`
+     - `SSM_CONFLUENT_API_KEY_PATH`
+     - `SSM_CONFLUENT_API_SECRET_PATH`
+     - `FP_BUS_CONTROL_V1`
+     - `FP_BUS_TRAFFIC_FRAUD_V1`
+     - `FP_BUS_CONTEXT_ARRIVAL_EVENTS_V1`
+     - `FP_BUS_CONTEXT_ARRIVAL_ENTITIES_V1`
+     - `FP_BUS_CONTEXT_FLOW_ANCHOR_FRAUD_V1`
+     - `FP_BUS_RTDL_V1`
+     - `FP_BUS_AUDIT_V1`
+     - `FP_BUS_CASE_TRIGGERS_V1`
+     - `FP_BUS_LABELS_EVENTS_V1`
+     - `RDS_ENDPOINT`
+     - `DB_NAME`
+3. Verify each required handle resolves to a concrete value with a single source-of-truth origin:
+   - handles registry key
+   - materialization origin (`terraform_output` or `ssm_parameter`)
+   - secret classification (`secret` or `non_secret`)
+4. Emit closure snapshot with unresolved handle list (must be empty before M4.B):
+   - `m4_execution_id`
+   - `platform_run_id`
+   - `required_handle_keys`
+   - `resolved_handle_count`
+   - `unresolved_handle_count`
+   - `unresolved_handle_keys`
+   - `wildcard_key_present` (must be `false`)
+   - `m3_verdict`
+   - `m3_handoff_uri`
+5. Enforce fail-closed: if unresolved handles exist, stop M4 progression at `M4.A`.
 
 DoD:
 - [ ] M3 handoff preconditions verified.
-- [ ] Required P2 handle set resolved or explicitly blocker-marked.
+- [ ] Required P2 handle set resolved with zero wildcard keys.
+- [ ] `unresolved_handle_count == 0` for execution progression.
 - [ ] M4.A closure snapshot exists locally and durably.
 
 Blockers:
 1. `M4A-B1`: M3 verdict/handoff precondition missing.
 2. `M4A-B2`: required P2 handles unresolved for execution.
 3. `M4A-B3`: M4.A closure snapshot write/upload failure.
+4. `M4A-B4`: wildcard/ambiguous handle references detected in closure set.
 
 ### M4.B Service/Pack Map + Singleton Contract
 Goal:
@@ -141,10 +195,10 @@ Goal:
 Tasks:
 1. Build M4 service map for in-scope packs:
    - `control_ingress`: `SVC_IG`
-   - `rtdl_core`: `SVC_RTDL_CORE_ARCHIVE_WRITER`, `SVC_RTDL_CORE_IEG`, `SVC_RTDL_CORE_OFP`, `SVC_RTDL_CORE_CSFB` (if separate)
+   - `rtdl_core`: `SVC_RTDL_CORE_ARCHIVE_WRITER`, `SVC_RTDL_CORE_IEG`, `SVC_RTDL_CORE_OFP`, `SVC_RTDL_CORE_CSFB`
    - `rtdl_decision_lane`: `SVC_DECISION_LANE_DL`, `SVC_DECISION_LANE_DF`, `SVC_DECISION_LANE_AL`, `SVC_DECISION_LANE_DLA`
    - `case_labels`: `SVC_CASE_TRIGGER`, `SVC_CM`, `SVC_LS`
-   - `obs_gov`: `SVC_ENV_CONFORMANCE` (if daemonized for this run)
+   - `obs_gov`: `SVC_ENV_CONFORMANCE`
 2. Pin desired_count policy for each mapped service (`1`).
 3. Publish pack/service map artifact.
 
@@ -233,7 +287,7 @@ Goal:
 
 Tasks:
 1. Execute service start/update choreography by pack order:
-   - ingress first, then rtdl core/decision lanes, then case/labels, then obs_gov daemonized parts.
+   - ingress first, then rtdl core/decision lanes, then case/labels, then obs_gov environment conformance daemon.
 2. Wait for service stabilization and collect:
    - desired/running counts,
    - task ARNs,

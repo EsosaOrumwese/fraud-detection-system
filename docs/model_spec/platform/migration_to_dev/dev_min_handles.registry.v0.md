@@ -567,7 +567,7 @@ Case/Labels pack:
 
 Obs/Gov pack (daemonized parts):
 
-* `SVC_ENV_CONFORMANCE` *(optional if run as daemon; reporter still P11 task)*
+* `SVC_ENV_CONFORMANCE` *(required daemon in P2; reporter remains the P11 task)*
 
 ### 7.5 Runtime service discovery handles
 
