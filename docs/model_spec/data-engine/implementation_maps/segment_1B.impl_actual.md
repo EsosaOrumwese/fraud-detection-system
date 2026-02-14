@@ -4376,3 +4376,27 @@ Measured outcome:
 Decision:
 1) `P4.R1` is valid (performance-only + deterministic), but target threshold is not yet fully met in this pass.
 2) Keep this rail; if we require strict `>=30%`, run one bounded parameter sweep (`cache entries` and `byte budget`) before closing `P4.R1`.
+
+---
+
+### Entry: 2026-02-14 07:55
+
+Design element: `P4.R1` bounded knob sweep execution plan.
+Summary: Execute a bounded `S4` runtime-cache sweep to attempt crossing the `>=30%` wall-clock improvement target before entering `P4.R2`.
+
+Sweep constraints:
+1) Same envelope and deterministic identity:
+   - `run_id=e4d92c9cfbd3453fb6b9183ef6e3b6f6`,
+   - identical `seed/manifest_fingerprint/parameter_hash`.
+2) Performance-only knobs:
+   - `ENGINE_1B_S4_CACHE_COUNTRIES_MAX`,
+   - `ENGINE_1B_S4_CACHE_MAX_BYTES`.
+3) Early-stop rule:
+   - stop sweep immediately when wall-clock improvement reaches `>=30%` versus baseline (`6386.64s`).
+4) Bounded attempt set:
+   - attempt A: `(32, 1500000000)`,
+   - attempt B: `(48, 2500000000)`,
+   - attempt C: `(64, 3500000000)`.
+5) Safety:
+   - no semantics or policy changes;
+   - copy each resulting `s4_run_report` into `runs/fix-data-engine/segment_1B/reports/` with per-attempt name.

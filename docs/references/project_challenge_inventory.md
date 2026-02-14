@@ -259,6 +259,91 @@ Purpose: capture the non-clonable challenge journey across this repo, phase by p
     - Evidence: `docs/reports/eda/engine_realism_step7_wave2_execution_runbook.md:179`
     - Evidence: local path check result `MISSING: docs/reports/eda/engine_realism_wave_evidence`
 
+### H) Post-2026-02-11 remediation execution and certification challenges
+
+46-AA. P1 initially used the wrong authority surface for single-site realism (reading global single-site share from `outlet_catalogue` while S3/S8 remained multi-site scoped), creating false failure interpretation until metrics were remapped to S1/S2 surfaces.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3639`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3645`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3650`
+
+46-AB. S2 Poisson PTRS path emitted statistically impossible extreme counts (`lambda~11` but `k=12808`), contaminating concentration metrics and blocking trustworthy calibration.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3868`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3874`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:3882`
+
+46-AC. P2 `rho` closure was blocked by S3/S5 domain intersection emptiness (`ZERO_WEIGHT_DOMAIN` dominance), proving S6 tuning alone could not close realization-ratio gates.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4358`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4365`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4426`
+
+46-AD. Remaining `rho` blocker was structural S5 support sparsity (many foreign-impossible merchants), forcing scope extension to S5 support broadening rather than further S3/S4/S6-only tuning.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4493`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4498`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4516`
+
+46-AE. Global `median(rho_m)` stayed blocked by denominator definition (`C=0` structural mass), creating a governance-level decision boundary between cohort-meaningful scoring and upstream population-scope reopen.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4610`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4612`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4617`
+
+46-AF. P3.1 was blocked by S7 dirichlet diagnostic emission (`E_DIRICHLET_NONPOS`), and the first alpha-floor hotfix introduced pathological gamma runtime stalls; a second corrective strategy was required (skip dirichlet payload when share<=0 while preserving deterministic integerisation).
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4796`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4839`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4846`
+
+46-AG. S7 home-bias rollout surfaced floating-point residual edge failures (`residual_out_of_range`) that required quantization hardening without loosening real out-of-domain failure checks.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4940`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4961`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:4964`
+
+46-AH. Same-seed replay drift persisted after P4 because RNG master material was tied to `manifest_fingerprint` (commit-sensitive) rather than `parameter_hash`, violating expected reproducibility law.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5269`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5273`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5280`
+
+46-AI. P5 certification tooling had authority-mapping and schema-path drift risks (P3 authority run binding and identity-semantics key-path variants), which could have produced false certification verdicts.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5403`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5413`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5417`
+
+46-AJ. B+ recovery in 1A proved locally infeasible in the tested coefficient neighborhood (top10 vs gini trade-off wall), forcing explicit rollback and acceptance of certified B to prevent wider-regression risk.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5498`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5512`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5516`
+
+46-AK. 1B path-1 upstream reopen introduced a hard governance tension: improve 1B while guaranteeing 1A frozen grade cannot be spoiled, requiring executable freeze-veto guard contracts.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5522`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5527`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md:5533`
+
+46-AL. In 1B P1 execution, S2 `blend_v2.population` caused full-raster sampling timeouts, making end-to-end tuning loops operationally non-viable until staged influence reduction was applied.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3511`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3514`
+
+46-AM. Reusing run IDs for retry cycles collided with immutable partition rules in S5, forcing strict fresh-run bootstrapping discipline for each integrated retry.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3528`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3531`
+
+46-AN. P2 anti-collapse tuning appeared no-op because the observed allocation was already at a theoretical floor; acceptance logic had to be reworked to feasibility-aware floor-hold semantics instead of naive strict-improvement rules.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3682`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3690`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3694`
+
+46-AO. P3 geometry closure under frozen P1/P2 support hit a feasibility ceiling; out-of-pixel displacement experiments then failed fail-closed at S7 contract checks (`E707_POINT_OUTSIDE_PIXEL`).
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3821`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3832`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:3885`
+
+46-AP. 1B integrated closure remained RED even after improvements, with concentration/coverage hard gates and collapse sentinels still failing, requiring guarded upstream reopen path instead of bounded local retune.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4130`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4152`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4243`
+
+46-AQ. S4 became a dominant runtime bottleneck during path-1 cycles (high cache miss/eviction churn), requiring performance-only cache rails and bounded sweeps before further recovery loops.
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4274`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4335`
+    - Evidence: `docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md:4385`
+
 ## Phase 3 - Local Parity Platform Challenges
 
 ### A) Control and Ingress foundation challenges (SR/WSP/IG/EB/Oracle)
@@ -1031,6 +1116,26 @@ Purpose: capture the non-clonable challenge journey across this repo, phase by p
     - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/archive_writer.impl_actual.md:60`
     - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/archive_writer.impl_actual.md:61`
 
+### F) Spine Green v0 post-closure validation and remediation notes
+
+228-AA. First post-closure 200-event Spine Green run surfaced residual platform-wide closure defects (DLA unresolved lineage amber, parity-status learning-plane strictness, and IG unauthorized health-path error semantics).
+    - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10674`
+    - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10689`
+    - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10691`
+
+228-AB. `platform-operate-parity-status` was too tightly coupled to Learning-plane env vars for a Spine-only migration baseline, making subset-scope validation fail when Learning was intentionally out of scope.
+    - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10690`
+    - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10695`
+
+228-AC. DLA unresolved lineage amber traced to startup replay-window intake gaps (AL/DLA first-window behavior), requiring startup hardening to prevent missing outcome-link cascades.
+    - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10689`
+    - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10707`
+    - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10715`
+
+228-AD. IG ops-health unauthorized path returned `500` instead of contract-aligned auth semantics, requiring route error-mapping hardening to fail closed with `401`.
+    - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10722`
+    - Evidence: `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md:10730`
+
 ## Phase 4 - Dev Substrate Migration Challenges (local_parity -> dev)
 
 229. The core migration challenge started as a framing trap: building platform semantics and production substrate simultaneously was effectively two jobs.
@@ -1132,3 +1237,81 @@ Purpose: capture the non-clonable challenge journey across this repo, phase by p
     - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:1843`
     - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:1846`
     - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:1851`
+
+### Addendum: Post-2026-02-11 migration execution challenges
+
+248-AA. Migration planning had to be reframed from abstract intent into an explicit local-to-managed compute playbook with full local process decomposition, otherwise "proceed" decisions lacked executable closure criteria.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:1971`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:2019`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:2156`
+
+248-AB. Build-go packaging lane initially failed on cloud identity and registry permissions (GitHub OIDC + ECR auth), exposing that migration execution depended on control-plane trust wiring, not just application code.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6219`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6223`
+
+248-AC. M1 build-go surfaced a decision-completeness gap (`IMAGE_DOCKERFILE_PATH` missing), blocking packaging execution despite prior planning closure.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5605`
+
+248-AD. Core Terraform apply readiness was blocked by state reality mismatch (empty backend state with already-existing resources), forcing controlled import/migration instead of unsafe first apply.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6519`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6524`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6553`
+
+248-AE. During M2.C pass, accidental shell expansion removed canonical core stack files, creating an operational fragility incident that required controlled restoration and revalidation.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6536`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6542`
+
+248-AF. Demo apply readiness exposed capability-gap blockers and required explicit capability expansion before fail-closed closure.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6631`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6694`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6728`
+
+248-AG. Secret-materialization and access checks failed initially (`M2.E` blockers), proving handle presence alone was insufficient without live substrate materialization.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6788`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6824`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6839`
+
+248-AH. Cost accrual risk became a practical migration blocker, requiring explicit monitoring and dashboard instrumentation to avoid silent spend drift during iterative bring-up.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6886`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6912`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6951`
+
+248-AI. Kafka readiness closure repeatedly failed on auth and secret-lane mismatch across local and CI execution, forcing first-class Confluent IaC provisioning, CI secret-name mapping hardening, and import-adoption corrections before green closure.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7006`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7043`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7257`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7306`
+
+248-AJ. M3 execution was blocked by unresolved scenario-equivalence inputs, requiring explicit pinning and rerun before progression.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7939`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:7983`
+
+248-AK. Even after M3.C closure, scenario identity remained provisional because Oracle-required output placeholders were still unresolved, creating controlled partiality that had to be explicitly pinned.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8158`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8177`
+
+248-AL. Sequential M3 D->G closure exposed control-plane blocker classes (false-positive immutable run publication conflict, env-map completeness predicate mismatch) that had to be corrected mid-lane to preserve fail-closed progression.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8282`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8288`
+
+248-AM. M4 execution readiness itself became a planning challenge: phase needed lane-complete A->J deep planning before safe runtime start to avoid repeating under-specified execution drift.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8342`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8375`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:8409`
+
+248-AN. Packaging execution governance was initially ambiguous because `github_actions` and `local_cli` were both treated as build lanes without pinned authority hierarchy, creating false-closure risk until authoritative driver semantics and pre-build-go CI gates were explicitly locked.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5808`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5814`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5821`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5828`
+
+248-AO. Build-go sequencing initially lacked explicit exit/handoff ordering after CI realization/gate validation, causing progression-logic ambiguity until handoff was pinned as a post-gate closure requirement.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5821`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5822`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:5828`
+
+248-AP. Migration setup posture began with an implicit UI/manual-first assumption that threatened repeatability, teardown discipline, and drift control; this had to be corrected to IaC-first execution with non-IaC gaps treated as explicit blockers.
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6672`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6678`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6687`
+    - Evidence: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md:6692`
