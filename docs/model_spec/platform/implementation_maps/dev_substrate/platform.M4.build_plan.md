@@ -313,24 +313,72 @@ Blockers:
 Goal:
 1. Validate daemon runtime can reach required substrates before bring-up.
 
+Entry conditions:
+1. Latest `M4.C` snapshot is PASS and durable:
+   - `overall_pass=true`
+   - `blockers=[]`
+2. `M4.B` mapped service set (`13` services) remains immutable for dependency checks.
+3. `M3` run-scope context is available for artifact correlation:
+   - `platform_run_id`
+   - `REQUIRED_PLATFORM_RUN_ID`
+
+Required inputs:
+1. M4 control artifacts:
+   - `m4_b_service_map_snapshot.json`
+   - `m4_c_iam_binding_snapshot.json`
+   - Terraform demo output anchor for managed probe launch:
+     - `ecs_probe_task_definition_arn`
+2. Registry handles (network/runtime dependencies):
+   - `ECS_CLUSTER_NAME`
+   - `VPC_ID`, `SUBNET_IDS_PUBLIC`
+   - `SECURITY_GROUP_ID_APP`, `SECURITY_GROUP_ID_DB`
+   - `SSM_CONFLUENT_BOOTSTRAP_PATH`, `SSM_CONFLUENT_API_KEY_PATH`, `SSM_CONFLUENT_API_SECRET_PATH`
+   - `S3_ORACLE_BUCKET`, `S3_ARCHIVE_BUCKET`, `S3_QUARANTINE_BUCKET`, `S3_EVIDENCE_BUCKET`
+   - `RDS_ENDPOINT`, `DB_NAME`, `DB_PORT`, `SSM_DB_USER_PATH`, `SSM_DB_PASSWORD_PATH`
+   - `CLOUDWATCH_LOG_GROUP_PREFIX`
+3. No-laptop runtime policy authority:
+   - dependency proof must originate from managed runtime-equivalent compute context (ECS), not laptop-local reachability as primary evidence.
+
 Tasks:
-1. Check runtime network posture aligns with demo constraints (no NAT expectations preserved).
-2. Validate reachability surface for:
-   - Kafka bootstrap endpoint,
-   - S3 buckets/prefixes,
-   - runtime DB endpoint,
-   - CloudWatch log-group write surface.
-3. Publish dependency snapshot.
+1. Build canonical dependency matrix from `M4.B` service map:
+   - service handle -> dependency class (`kafka`, `s3`, `db`, `logs`, `ssm`),
+   - required vs optional dependency edges per lane.
+2. Validate control-plane network prerequisites:
+   - VPC/subnets/security groups exist,
+   - app SG egress posture covers required outbound surfaces,
+   - DB SG ingress allows app SG on `DB_PORT`,
+   - route posture aligns with demo assumption (no NAT dependency required).
+3. Execute managed-compute dependency probe in runtime-equivalent ECS context:
+   - launch one-shot task from `ecs_probe_task_definition_arn` on `ECS_CLUSTER_NAME`,
+   - use runtime-equivalent network config (`SUBNET_IDS_PUBLIC`, `SECURITY_GROUP_ID_APP`),
+   - resolve/read required SSM paths,
+   - test Kafka bootstrap reachability (DNS + TCP/TLS handshake intent),
+   - test S3 read/write/delete cycle under run-scoped evidence prefix,
+   - test DB connect posture against `RDS_ENDPOINT:DB_PORT`,
+   - test CloudWatch log stream write posture under `CLOUDWATCH_LOG_GROUP_PREFIX`.
+4. Evaluate per-dependency verdicts with explicit fail-closed blocker mapping.
+5. Publish `m4_d_dependency_snapshot.json` locally and durably with:
+   - input artifact anchors (`M4.B`, `M4.C`),
+   - dependency matrix,
+   - probe context identity (managed compute),
+   - per-target check results,
+   - blocker list + overall verdict.
 
 DoD:
-- [ ] Dependency reachability checks pass for mapped services.
-- [ ] Any unreachable dependency is blocker-marked.
-- [ ] M4.D dependency snapshot exists locally and durably.
+- [ ] Dependency matrix covers all `M4.B` mapped services with explicit dependency classes.
+- [ ] Managed-compute probe evidence exists (no laptop-only reachability evidence).
+- [ ] Probe task launch anchor (`ecs_probe_task_definition_arn`) and probe exit status are captured in snapshot evidence.
+- [ ] Kafka/S3/DB/CloudWatch/SSM checks pass or are blocker-marked fail-closed.
+- [ ] Route/security-group posture aligns with demo networking assumptions.
+- [ ] `m4_d_dependency_snapshot.json` exists locally and durably.
 
 Blockers:
 1. `M4D-B1`: dependency reachability failure.
 2. `M4D-B2`: network posture mismatch vs expected runtime lane.
 3. `M4D-B3`: dependency snapshot write/upload failure.
+4. `M4D-B4`: probe evidence not produced from runtime-equivalent managed compute context.
+5. `M4D-B5`: required dependency handle unresolved/unreadable at execution time.
+6. `M4D-B6`: managed probe task definition missing/unresolvable (`ecs_probe_task_definition_arn`).
 
 ### M4.E Launch Contract + Run-Scope Injection
 Goal:
@@ -536,7 +584,15 @@ Control: mandatory run-scoped `operate/daemons_ready.json` and control-plane sna
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M4 Execution)
 Current blockers:
-1. None.
+1. `M4D-B5`:
+   - `SECURITY_GROUP_ID_DB` is missing from canonical `M4.A` handle-closure artifact surface.
+   - `M4.D` execution used Terraform fallback (`security_group_id_db`) for live validation, but closure remains fail-closed until handle closure is canonicalized.
+   - active evidence:
+     - `runs/dev_substrate/m4/20260214T141438Z/m4_d_dependency_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T141438Z/m4_d_dependency_snapshot.json`
+   - closure criteria:
+     - refresh `M4.A` handle closure to include `SECURITY_GROUP_ID_DB`,
+     - re-run `M4.D` with `missing_handles_in_m4a_closure=[]` and `overall_pass=true`.
 
 Resolved blockers:
 1. `M4C-B4`:
@@ -557,6 +613,10 @@ Resolved blockers:
    - resolved by verified baseline IAM policy surface for all lane roles.
    - closure evidence:
      - `runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json`
+4. `M4D-B1`:
+   - dependency/network probes executed and passed on managed-compute probe lane; `M4.D` remained blocked only by handle-closure gap (`M4D-B5`).
+   - evidence:
+     - `runs/dev_substrate/m4/20260214T141438Z/m4_d_dependency_snapshot.json`
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

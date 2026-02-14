@@ -403,6 +403,7 @@ Active-phase planning posture:
   - `M4.J` M5 handoff artifact publication.
 - M4 expansion state:
   - `M4.A -> M4.J` are fully expanded in the deep plan with entry conditions, required inputs, execution sequence, evidence artifacts, blocker taxonomy, and handoff rules.
+  - `M4.D` planning is expanded to execution-grade and now explicitly requires runtime-equivalent managed-compute probing (no laptop-only dependency proof).
 - Sub-phase progress:
   - [x] `M4.A` authority + handle closure for P2.
   - [x] `M4.B` service/pack map + singleton replica contract.
@@ -583,6 +584,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M4 is active for execution planning and bring-up preparation.
 Next action:
-- execute `M4.D` network/dependency reachability validation using cleared `M4.C` binding evidence (`m4_c_iam_binding_snapshot.json`),
+- resolve active `M4D-B5` by refreshing `M4.A` handle closure to include `SECURITY_GROUP_ID_DB`,
+- re-run `M4.D` and require `missing_handles_in_m4a_closure=[]` with `overall_pass=true`,
 - then progress sequentially through `M4.E -> M4.J` under fail-closed blocker discipline,
 - maintain run-scope contract from M3 artifacts for all daemon bring-up operations.

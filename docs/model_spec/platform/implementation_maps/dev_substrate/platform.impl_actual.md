@@ -8722,3 +8722,76 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - service-role bindings valid across all `13` mapped services,
    - boundary rule checks pass,
    - dependency posture status remains `VERIFIED_OR_READY_FOR_VERIFY`.
+## Entry: 2026-02-14 02:03PM - M4.D planning expansion (execution-grade, planning-only)
+
+### Trigger
+1. USER instructed: proceed to `M4.D` planning.
+
+### Planning actions
+1. Expanded `M4.D` in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+2. Added closure-grade planning structure for `M4.D`:
+   - explicit entry conditions (`M4.C` PASS + immutable `M4.B` mapped-service scope + `M3` run-scope context),
+   - explicit required input handles (ECS/VPC/subnets/SG, SSM, S3, RDS, CloudWatch),
+   - deterministic task sequence (dependency matrix, control-plane network checks, managed-compute probe checks, fail-closed blocker mapping, artifact publication),
+   - expanded DoD and blocker taxonomy (`M4D-B1..B5`).
+3. Updated high-level active-plan narrative:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - pinned that `M4.D` execution must include runtime-equivalent managed-compute probe evidence (no laptop-only dependency proof).
+
+### Planning outcome
+1. `M4.D` is now execution-ready at plan level with no hand-wavy dependency checks.
+2. Phase status remains unchanged (`M4.D` still not executed), consistent with planning-only instruction.
+## Entry: 2026-02-14 02:04PM - M4.D probe-lane tightening (anti-cram closure)
+
+### Trigger
+1. While finalizing `M4.D` planning, probe execution surface was still implicit.
+
+### Decision
+1. Pin the managed probe launch anchor as explicit required input for `M4.D`:
+   - `ecs_probe_task_definition_arn` (Terraform demo output).
+2. Add explicit fail-closed blocker:
+   - `M4D-B6` when probe task definition is missing/unresolvable.
+
+### Applied plan update
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+   - required inputs include `ecs_probe_task_definition_arn`,
+   - task sequence now explicitly launches one-shot ECS probe task using runtime-equivalent network config,
+   - DoD requires probe launch anchor + probe exit status evidence,
+   - blockers expanded with `M4D-B6`.
+## Entry: 2026-02-14 02:16PM - M4.D executed (fail-closed HOLD on handle-closure gap)
+
+### Trigger
+1. USER instructed execution of `M4.D`.
+
+### Execution actions
+1. Loaded M4 prerequisites and enforced entry gate:
+   - `M4.C` latest PASS snapshot (`overall_pass=true`, `blockers=[]`).
+2. Executed control-plane dependency checks:
+   - VPC/subnet/SG posture,
+   - SSM path readability (`bootstrap`, `api_key`, `api_secret`),
+   - S3 bucket head checks + explicit S3 evidence put/get/delete cycle,
+   - DB endpoint DNS resolution,
+   - CloudWatch log-group existence.
+3. Executed managed-compute probe lane:
+   - launched one-shot ECS task from `ecs_probe_task_definition_arn`,
+   - used runtime-equivalent network configuration (`SUBNET_IDS_PUBLIC`, `SECURITY_GROUP_ID_APP`),
+   - validated TCP reachability for Kafka, RDS, S3 bucket endpoints, CloudWatch Logs endpoint, and SSM endpoint.
+4. Published `M4.D` snapshot:
+   - local: `runs/dev_substrate/m4/20260214T141438Z/m4_d_dependency_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T141438Z/m4_d_dependency_snapshot.json`
+
+### Outcome
+1. Live dependency checks passed (control-plane + managed probe).
+2. `M4.D` remained fail-closed with blocker `M4D-B5` only:
+   - `SECURITY_GROUP_ID_DB` missing from canonical `M4.A` handle-closure artifact surface.
+   - Runtime fallback existed from Terraform output (`security_group_id_db`), but canonical handle closure remained incomplete.
+3. `M4.D` verdict:
+   - `overall_pass=false`
+   - `blockers=[\"M4D-B5\"]`
+
+### Plan-state updates
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+   - unresolved blocker register now includes active `M4D-B5` with closure criteria.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - immediate next action updated to resolve `M4D-B5` then re-run `M4.D`.
