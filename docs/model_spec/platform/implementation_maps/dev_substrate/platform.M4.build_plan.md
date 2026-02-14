@@ -443,13 +443,13 @@ Tasks:
    - invariant-check verdict + blockers.
 
 DoD:
-- [ ] Launch contract includes run-scope env mapping for all mapped services.
-- [ ] Run-scope value equals M3 `platform_run_id` for all services.
-- [ ] Launch-profile map is complete for every mapped service (no implicit runtime mode).
-- [ ] Role bindings in launch contract match `M4.C` bindings exactly.
-- [ ] Image provenance is pinned and immutable-capable (digest present).
-- [ ] Launch-contract artifact passes non-secret validation.
-- [ ] `m4_e_launch_contract_snapshot.json` exists locally and durably.
+- [x] Launch contract includes run-scope env mapping for all mapped services.
+- [x] Run-scope value equals M3 `platform_run_id` for all services.
+- [x] Launch-profile map is complete for every mapped service (no implicit runtime mode).
+- [x] Role bindings in launch contract match `M4.C` bindings exactly.
+- [x] Image provenance is pinned and immutable-capable (digest present).
+- [x] Launch-contract artifact passes non-secret validation.
+- [x] `m4_e_launch_contract_snapshot.json` exists locally and durably.
 
 Blockers:
 1. `M4E-B1`: run-scope env key/value missing or mismatched.
@@ -619,7 +619,7 @@ Notes:
 - [x] M4.B complete
 - [x] M4.C complete
 - [x] M4.D complete
-- [ ] M4.E complete
+- [x] M4.E complete
 - [ ] M4.F complete
 - [ ] M4.G complete
 - [ ] M4.H complete
@@ -674,6 +674,27 @@ Resolved blockers:
    - `M4.D` rerun closure evidence (`missing_handles_in_m4a_closure=[]`, `overall_pass=true`):
      - `runs/dev_substrate/m4/20260214T142421Z/m4_d_dependency_snapshot.json`
      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T142421Z/m4_d_dependency_snapshot.json`
+6. `M4E-B3`:
+   - initial M4.E run raised a false-positive non-secret detector hit caused by handle-name string matching (`...API_SECRET_PATH`) rather than secret-value leakage.
+   - closure action:
+     - reran M4.E with stricter value-level secret detection.
+   - closure evidence:
+     - `runs/dev_substrate/m4/20260214T144014Z/m4_e_launch_contract_snapshot.json`
+   - result:
+     - `invariant_checks.non_secret_artifact=true`
+     - no secret leakage blocker active.
+7. `M4E-B5`:
+   - resolved by pinning deterministic entrypoint handles in registry:
+     - `ENTRYPOINT_CASE_TRIGGER_WORKER`
+     - `ENTRYPOINT_ENV_CONFORMANCE_WORKER`
+   - authority update:
+     - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+   - rerun closure evidence:
+     - `runs/dev_substrate/m4/20260214T144419Z/m4_e_launch_contract_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T144419Z/m4_e_launch_contract_snapshot.json`
+   - result:
+     - `unresolved_launch_profiles=[]`
+     - `overall_pass=true`.
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

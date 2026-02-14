@@ -8858,3 +8858,78 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Planning outcome
 1. `M4.E` is execution-ready at plan level with explicit fail-closed acceptance criteria.
 2. No runtime execution performed in this step (planning-only).
+## Entry: 2026-02-14 02:40PM - M4.E executed (fail-closed HOLD on unresolved launch profiles)
+
+### Trigger
+1. USER instructed execution of `M4.E`.
+
+### Execution actions
+1. Executed launch-contract build against:
+   - `M3` run manifest (`run.json`) image-provenance anchors,
+   - latest `M4.A/B/C/D` pass artifacts.
+2. Produced deterministic launch-contract snapshot containing:
+   - one record per mapped service (`13` total),
+   - run-scope injection payload (`REQUIRED_PLATFORM_RUN_ID` + `platform_run_id`),
+   - image references (immutable digest-backed),
+   - role-binding copy-check against `M4.C`,
+   - dependency refs by handle.
+3. Performed non-secret validation and role/image/run-scope invariants.
+4. Published `M4.E` evidence:
+   - local: `runs/dev_substrate/m4/20260214T144014Z/m4_e_launch_contract_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T144014Z/m4_e_launch_contract_snapshot.json`
+
+### Outcome
+1. `M4.E` is currently HOLD:
+   - `overall_pass=false`
+   - `blockers=[\"M4E-B5\"]`
+2. Active blocker details:
+   - unresolved launch profiles for:
+     - `SVC_CASE_TRIGGER`
+     - `SVC_ENV_CONFORMANCE`
+   - root cause: no pinned entrypoint handles/profiles for those two services in current registry/authority surface.
+3. Other invariants passed:
+   - run-scope uniformity PASS,
+   - role binding drift check PASS,
+   - image provenance immutable check PASS,
+   - non-secret artifact PASS.
+
+### Plan-state updates
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+   - unresolved blocker register now contains active `M4E-B5` with closure criteria.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - immediate next action now requires closing `M4E-B5` then rerunning `M4.E`.
+## Entry: 2026-02-14 02:45PM - Closed M4.E by entrypoint pinning + pass rerun
+
+### Trigger
+1. USER approved closure action: pin missing entrypoint handles and rerun `M4.E`.
+
+### Closure actions
+1. Pinned missing entrypoint handles in registry authority:
+   - `ENTRYPOINT_CASE_TRIGGER_WORKER`
+   - `ENTRYPOINT_ENV_CONFORMANCE_WORKER`
+   - file: `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+2. Re-executed `M4.E` launch-contract validation with the pinned handles applied.
+3. Published closure evidence:
+   - local: `runs/dev_substrate/m4/20260214T144419Z/m4_e_launch_contract_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T144419Z/m4_e_launch_contract_snapshot.json`
+
+### Outcome
+1. `M4.E` PASS:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `unresolved_launch_profiles=[]`
+2. Invariant posture remained green:
+   - run-scope uniformity PASS,
+   - role-binding match vs `M4.C` PASS,
+   - immutable image provenance PASS,
+   - non-secret artifact PASS.
+
+### Plan-state updates
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+   - `M4.E` DoD marked complete,
+   - M4 completion checklist marks `M4.E` complete,
+   - unresolved blockers cleared (`Current blockers: None`),
+   - `M4E-B5` moved to resolved with authority/evidence anchors.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - M4 sub-phase progress marks `M4.E` complete,
+   - immediate next action now points to `M4.F`.

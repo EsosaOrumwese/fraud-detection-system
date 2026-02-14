@@ -410,7 +410,7 @@ Active-phase planning posture:
   - [x] `M4.B` service/pack map + singleton replica contract.
   - [x] `M4.C` IAM role binding + execution identity validation.
   - [x] `M4.D` network/dependency reachability validation.
-  - [ ] `M4.E` launch contract + run-scope injection surface.
+  - [x] `M4.E` launch contract + run-scope injection surface.
   - [ ] `M4.F` daemon bring-up choreography + stabilization checks.
   - [ ] `M4.G` duplicate-consumer guard and singleton enforcement.
   - [ ] `M4.H` daemon readiness evidence publication.
@@ -585,6 +585,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M4 is active for execution planning and bring-up preparation.
 Next action:
-- execute `M4.E` launch-contract + run-scope injection validation using cleared `M4.D` evidence (`m4_d_dependency_snapshot.json`) and `M3` image-provenance anchors,
-- then progress sequentially through `M4.F -> M4.J` under fail-closed blocker discipline,
+- execute `M4.F` daemon bring-up + stabilization using cleared `M4.E` launch-contract evidence (`m4_e_launch_contract_snapshot.json`),
+- then progress sequentially through `M4.G -> M4.J` under fail-closed blocker discipline,
 - maintain run-scope contract from M3 artifacts for all daemon bring-up operations.

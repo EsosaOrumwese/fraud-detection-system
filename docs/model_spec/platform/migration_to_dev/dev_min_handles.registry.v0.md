@@ -492,8 +492,10 @@ The image must support these logical entrypoint modes (exact commands pinned lat
 * `ENTRYPOINT_IG_SERVICE`
 * `ENTRYPOINT_RTDL_CORE_WORKER`
 * `ENTRYPOINT_DECISION_LANE_WORKER`
+* `ENTRYPOINT_CASE_TRIGGER_WORKER`
 * `ENTRYPOINT_CM_SERVICE`
 * `ENTRYPOINT_LS_SERVICE`
+* `ENTRYPOINT_ENV_CONFORMANCE_WORKER`
 * `ENTRYPOINT_REPORTER`
 
 ### 6.6 Oracle lane contract knobs (phase-entry pinning)

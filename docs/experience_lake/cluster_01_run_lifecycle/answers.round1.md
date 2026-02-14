@@ -233,6 +233,7 @@ Q5 upgrade patch (concrete enforcement anchors):
   - receipts exist under active run `ig/receipts/`,
   - receipts carry bus commit refs (`eb_ref`),
   - no unresolved `PUBLISH_AMBIGUOUS` ambiguity in closure set.
+  - explicit ambiguity field check: `obs/platform_run_report.json` -> `ingress.publish_ambiguous == 0` for active run (with `ingress.quarantine == 0` as companion signal).
 - Enforcement outcome:
   - if any check fails, I do not advance to `P8`; `P7` remains failed.
 
@@ -258,9 +259,12 @@ Q5 upgrade patch (concrete enforcement anchors):
 - Command:
   - `make platform-operate-parity-status`
 - Real blocker behavior:
-  - when it failed on missing learning DSN env vars in the Spine Green wave, it returned an error and we did not declare green; we opened remediation and reran after fixes.
+  - in the Spine Green wave, this command failed on missing learning DSN env vars and returned an error; we did not declare green, opened remediation, and reran after fixes.
+- Scope clarification (important):
+  - this was a full-parity status command and represented a scope overreach for Spine Green baseline at that moment.
+  - we later corrected posture by using Spine-safe status commands for baseline gating, while keeping `platform-operate-parity-status` explicitly labeled as learning-inclusive/full-parity.
 - Why this counts:
-  - it is not informational only; failure blocks readiness declaration for that stage.
+  - it was an actual non-zero stop signal in execution, and the mismatch itself became a documented drift/overreach incident rather than being silently ignored.
 
 5) Deliberate distributed-truth design sentence
 - We intentionally avoid a single mutable “all green” status file; run truth is derived from append-only commit evidence across lanes so false-green cannot be asserted by editing one file.
@@ -273,23 +277,33 @@ Yes. A concrete example was a failed `P9 DECISION_CHAIN_COMMITTED` gate during a
 
 Which phase failed:
 - `P9` failed on run `platform_20260212T075128Z`.
+- Failing run roots:
+  - `runs/fraud-platform/platform_20260212T075128Z/`
+  - `s3://fraud-platform/platform_20260212T075128Z/`
 
 What evidence was missing/invalid:
 - Decision Log Audit (DLA) did not close cleanly:
   - `health_state=AMBER`
   - `lineage_unresolved_total=1`
+- Failure artifacts (exact):
+  - `runs/fraud-platform/platform_20260212T075128Z/decision_log_audit/health/last_health.json`
+  - `runs/fraud-platform/platform_20260212T075128Z/decision_log_audit/reconciliation/last_reconciliation.json`
 - That means decision-chain integrity was incomplete for closure, so we could not claim strict all-green.
 
 What we did next:
 - We stopped strict green declaration immediately and treated it as a material gate mismatch.
 - We opened a remediation pass instead of moving forward with migration claims.
+- Recovery level used: `L2` (fresh `platform_run_id` rerun).
+  - We did not delete the failing run artifacts.
+  - We preserved failure evidence as immutable history and reran in a new run scope.
 
 What changed:
 1. DLA intake hardening:
-- run-scope mismatch handling changed to checkpoint-skip path (instead of creating misleading closure noise).
-- first Kinesis read with required run pin and no checkpoint was forced to `trim_horizon` to avoid startup intake gaps.
-2. Action Layer (AL) intake received the same first-read `trim_horizon` hardening because it shared the same startup-gap failure mode.
-3. We reran targeted tests and then reran bounded `200` validation on a fresh run.
+- run-scope mismatch handling changed to checkpoint-skip (no quarantine write) for non-target run traffic.
+- first Kinesis read was forced to `trim_horizon` when both conditions are true: no checkpoint exists and `required_platform_run_id` is pinned.
+2. Action Layer (AL) intake received the same first-read behavior:
+- if no checkpoint exists and `required_platform_run_id` is pinned, AL forces `start_position=trim_horizon` for first read.
+3. We reran bounded `200` validation on a fresh run scope (`L2`) and required the same closure gates.
 
 What proved it passed next time:
 - Fresh run `platform_20260212T085637Z` closed with:
@@ -297,6 +311,17 @@ What proved it passed next time:
   - `lineage_unresolved_total=0`
   - downstream lane health green
   - conformance `PASS`
+- Success artifacts (exact):
+  - `runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/health/last_health.json`
+  - `runs/fraud-platform/platform_20260212T085637Z/decision_log_audit/reconciliation/last_reconciliation.json`
+- Same bounded-cap condition was preserved across fail and recovery runs:
+  - both runs show WSP stream-stop markers with `emitted=200` per required output in run `platform.log`.
+  - this reduces “got lucky on smaller load” ambiguity.
+- Verifiable policy change applied:
+  - knob/behavior: `start_position` on Kinesis intake.
+  - applied at: DLA bus consumer and AL worker consumer.
+  - rule: first read with `checkpoint == None` and `required_platform_run_id != None` forces `start_position=trim_horizon`.
+  - observable effect in next run: DLA closes `lineage_unresolved_total=0` under the same bounded `200` gate where prior run stayed AMBER.
 
 So this was not a cosmetic warning. It was a true closure blocker, treated fail-closed, remediated at runtime mechanics level, and then revalidated with a clean run.
 
