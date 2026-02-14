@@ -501,13 +501,16 @@ The image must support these logical entrypoint modes (exact commands pinned lat
 ### 6.6 Oracle lane contract knobs (phase-entry pinning)
 
 * `ORACLE_REQUIRED_OUTPUT_IDS = ["s3_event_stream_with_fraud_6B","arrival_events_5B","s1_arrival_entities_6B","s3_flow_anchor_with_fraud_6B"]`
-* `ORACLE_SORT_KEY_BY_OUTPUT_ID = {"s3_event_stream_with_fraud_6B":"ts_utc","arrival_events_5B":"ts_utc","s1_arrival_entities_6B":"ts_utc","s3_flow_anchor_with_fraud_6B":"ts_utc"}`
+* `ORACLE_SORT_KEY_BY_OUTPUT_ID = {"s3_event_stream_with_fraud_6B":"ts_utc","arrival_events_5B":"ts_utc","s1_arrival_entities_6B":"ts_utc","s3_flow_anchor_with_fraud_6B":"ts_utc","s1_session_index_6B":"session_start_utc","s4_event_labels_6B":"flow_id,event_seq","s4_flow_truth_labels_6B":"flow_id","s4_flow_bank_view_6B":"flow_id"}`
+* `ORACLE_SORT_KEY_ACTIVE_SCOPE = "use entries where output_id is in ORACLE_REQUIRED_OUTPUT_IDS for the current run"`
 
 Pin rationale (Spine Green v0 fraud-mode):
 
 * Required output surfaces: traffic.fraud + context arrival/events/entities + flow_anchor.fraud.
 * Primary sort key per output is `ts_utc`; deterministic tie-breakers remain sorter-defined
   (`filename`, `file_row_number`).
+* Non-`ts_utc` overrides are pinned from local-parity oracle-store implementation and are retained in
+  this registry to prevent drift when future runs expand the required output set.
 
 ---
 

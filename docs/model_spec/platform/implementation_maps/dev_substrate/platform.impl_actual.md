@@ -9576,6 +9576,54 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. M5.A blocker class `M5A-B4` is materially unblocked at planning-authority level (output-id/sort-key decisions are now pinned).
 2. No runtime execution occurred in this step.
 
+## Entry: 2026-02-14 06:13PM - Sort-key pin extension lock (ts_utc + non-ts_utc catalog)
+
+### Trigger
+1. USER requested that non-`ts_utc` sort keys be pinned alongside the current `ts_utc` keys so the mapping remains visible and updateable.
+
+### Gap assessment
+1. Registry already pins the active M5 fraud-mode set and all four are `ts_utc`.
+2. The local-parity oracle-store implementation history and stream-sorter code also pin explicit non-`ts_utc` overrides for additional outputs.
+3. Without including those in registry, future updates risk losing the override truth and rediscovering it late.
+
+### Decision
+1. Keep `ORACLE_REQUIRED_OUTPUT_IDS` unchanged (M5 scope remains the same).
+2. Extend `ORACLE_SORT_KEY_BY_OUTPUT_ID` to include:
+   - active M5 `ts_utc` entries, and
+   - known non-`ts_utc` overrides from local-parity implementation/code.
+3. Add a scope note in the registry clarifying that execution consumes the map through `ORACLE_REQUIRED_OUTPUT_IDS` for the active run.
+
+### Planned file changes
+1. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+3. `docs/logbook/02-2026/2026-02-14.md`
+
+## Entry: 2026-02-14 06:13PM - Sort-key pin extension applied
+
+### Changes applied
+1. Updated `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` Section 6.6:
+   - extended `ORACLE_SORT_KEY_BY_OUTPUT_ID` to include non-`ts_utc` overrides:
+     - `s1_session_index_6B -> session_start_utc`
+     - `s4_event_labels_6B -> flow_id,event_seq`
+     - `s4_flow_truth_labels_6B -> flow_id`
+     - `s4_flow_bank_view_6B -> flow_id`
+   - added `ORACLE_SORT_KEY_ACTIVE_SCOPE` rule so execution uses map entries only for
+     `ORACLE_REQUIRED_OUTPUT_IDS` in the active run.
+2. Preserved current M5 scope pins:
+   - `ORACLE_REQUIRED_OUTPUT_IDS` unchanged (four-output fraud-mode Spine Green set),
+   - existing `ts_utc` mappings for that active set unchanged.
+
+### Authority alignment used
+1. Local-parity oracle-store implementation notes:
+   - non-`ts_utc` override decisions explicitly recorded.
+2. Stream-sort implementation:
+   - override map present in `src/fraud_detection/oracle_store/stream_sorter.py`.
+
+### Outcome
+1. Registry now captures both active `ts_utc` keys and known non-`ts_utc` overrides in one maintained surface.
+2. M5 planning/execution scope remains unchanged and deterministic.
+3. No runtime jobs/tasks executed.
+
 ## Entry: 2026-02-14 06:03PM - P3 input staging via S3->S3 copy (option 1, non-destructive)
 
 ### Trigger

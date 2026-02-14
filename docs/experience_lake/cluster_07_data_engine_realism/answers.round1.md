@@ -583,3 +583,45 @@ Blocker is cleared only when all are true:
 
 For 6B, **Wave-0 is a validity restoration wave, not an optimization wave**.  
 If Wave-0 is not closed first, all subsequent "improvements" are at high risk of being non-causal or non-credible.
+
+## Recruiter hardening pins (for lake-entry conversion)
+
+1. **Final 1A certification artifact + run identity anchor**
+   - Certification authority file: `runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json`
+   - Artifact stamp: `generated_utc=2026-02-13T10:34:00Z`, `wave=P5`
+   - Decision encoded in artifact:
+     - hard gates `4/4` pass,
+     - `B` coverage `13/14`,
+     - `B+` coverage `10/14`,
+     - final grade `B` (`eligible_B=true`, `eligible_B_plus=false`)
+   - Authority run lineage pinned in same artifact:
+     - `p2_authority_run=9901b537de3a5a146f79365931bd514c`
+     - `p3_authority_run=da3e57e73e733b990a5aa3a46705f987`
+     - `p4_authority_run=416afa430db3f5bf87180f8514329fe8`
+
+2. **Freeze-guard scorer path + guard artifact**
+   - Freeze scorer executable: `tools/score_segment1a_freeze_guard.py`
+   - Candidate guard artifact example:
+     - `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_416afa430db3f5bf87180f8514329fe8.json`
+   - This guard is the fail-closed reopen control (candidate rejected if hard gates or B-posture regress).
+
+3. **Forced-manifest drift replay pair (determinism proof)**
+   - `run_a=29bdb537f5aac75aa48479272fc18161`
+   - `run_b=a1753dc8ed8fb1703b336bd4a869f361`
+   - Shared control identity:
+     - `seed=42` for both
+     - `parameter_hash=59ca6719a623f6f024806b79344926c5941841789f2f92264bccad187f710f72` for both
+   - Drifted manifest identity (intentional):
+     - `manifest_fingerprint` run A: `f5f04c50d1682d9b00a572172fd3a090ff2420a641cb4f9e2dfa0177a612822e`
+     - `manifest_fingerprint` run B: `c1230ffabe39afdce8d2300fd1b77aad3e5f2d9a49383fc09fa0b3dfacf3fa09`
+   - Evidence artifacts:
+     - `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_29bdb537f5aac75aa48479272fc18161.json`
+     - `runs/fix-data-engine/segment_1A/reports/segment1a_p2_1_baseline_a1753dc8ed8fb1703b336bd4a869f361.json`
+     - `segment1a_p5_certification.json` reports determinism verdict `p2_global_equal=true` and `p3_global_equal=true`.
+
+4. **Seed roster used for 1A certification**
+   - Certification roster: `{42, 43, 44}`
+   - Where used:
+     - `p1_4_lock_scorecard.json` includes two-pass replay across seeds `42/43/44`
+     - forced-manifest determinism pair uses seed `42`
+     - alternate-seed sensitivity evidence uses seed `43` (`alternate_seed_run=651fa96a4dc46cbcf6e3cfee8434180f`)
