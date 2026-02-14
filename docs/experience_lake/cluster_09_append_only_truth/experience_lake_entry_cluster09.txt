@@ -32,6 +32,12 @@ OUT-OF-SCOPE:
   - runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json
   - runs/fraud-platform/platform_20260212T085637Z/obs/environment_conformance.json
 
+Key proof snapshots (anchor run; “open JSON not required”):
+- DLA: decision_log_audit/health/last_health.json → health_state=GREEN; decision_log_audit/reconciliation/last_reconciliation.json → unresolved_total=0
+- Case: case_mgmt/health/last_health.json → health_state=GREEN; case_mgmt/reconciliation/last_reconciliation.json → anomalies_total=0
+- Labels: label_store/health/last_health.json → health_state=GREEN; label_store/reconciliation/last_reconciliation.json → anomalies_total=0
+- Conformance: obs/environment_conformance.json → PASS
+
 1.4 Truth boundary note (important honesty)
 For the retained local_parity anchor run, canonical truth is DB-first with run-scoped closure artifacts:
 - DLA canonical truth: DB tables (dla_audit_index, dla_intake_*, dla_lineage_*), plus metrics/health/reconciliation artifacts
@@ -118,6 +124,9 @@ Drift prevention:
 - audit_id: same digest → DUPLICATE; different digest → HASH_MISMATCH
 - PK constraints prevent silent replacement
 
+ID/hashing posture (as implemented; lane-scoped):
+- DLA: audit identity uses audit_id + digest laws (same audit_id + same digest converges; same audit_id + different digest becomes HASH_MISMATCH/quarantine), never overwrite.
+
 5.2 Case writer map
 - CaseTrigger writes replay/publish/checkpoint ledgers
 - CaseMgmt intake writes truth tables (cm_cases, cm_case_timeline, links, stats)
@@ -127,6 +136,9 @@ Drift prevention:
 - deterministic IDs + contract validation pre-write
 - uniqueness on (case_id, timeline_event_type, source_ref_id)
 - payload drift increments mismatch counters; does not overwrite timeline truth
+
+ID/hashing posture (as implemented; lane-scoped):
+- Case: timeline truth is append-only; uniqueness tuples prevent duplicate inserts; payload drift becomes an explicit anomaly/mismatch record rather than overwriting an existing timeline event.
 
 5.3 Label writer map
 - LabelStore is only writer for label truth ledgers
@@ -138,6 +150,9 @@ Drift prevention:
 - same assertion_id + same payload hash → replay accept
 - mismatch → PAYLOAD_HASH_MISMATCH; incompatible subject tuple → DEDUPE_TUPLE_COLLISION
 - timeline insert idempotent (ON CONFLICT(label_assertion_id) DO NOTHING)
+
+ID/hashing posture (as implemented; lane-scoped):
+- Labels: label_assertion_id is deterministic; same id + same payload hash converges; mismatches produce PAYLOAD_HASH_MISMATCH / DEDUPE_TUPLE_COLLISION anomalies, never overwrite.
 
 5.4 Honesty point (local_parity vs dev_min)
 Local parity enforcement is primarily:
@@ -157,7 +172,10 @@ Eligibility:
 - assertion.observed_time <= as_of_observed_time
 
 Deterministic winner:
-- max effective_time, then max observed_time, then label_assertion_id
+- winner is determined by (effective_time, observed_time, label_assertion_id) as implemented (tie-break order is deterministic and pinned in LabelStore resolution logic)
+
+Field name pin (TODO; avoid guessing):
+- pin the exact field names used (e.g., effective_time_utc / observed_time_utc) from LabelStore schema/contracts or table definitions.
 
 Outcomes:
 - RESOLVED (deterministic winner)
@@ -178,7 +196,7 @@ Guarantees:
 - decision_log_audit/health/last_health.json (GREEN)
 
 7.2 Cases committed
-- case_trigger/reconciliation/reconciliation.json (published>0, publish_ambiguous==0)
+- case_trigger/reconciliation/reconciliation.json (note: CaseTrigger currently uses reconciliation.json rather than last_reconciliation.json)
 - case_mgmt/metrics/last_metrics.json (cases_created>0, timeline_events_appended>0)
 - case_mgmt/reconciliation/last_reconciliation.json (anomalies_total==0)
 - case_mgmt/health/last_health.json (GREEN)
@@ -192,6 +210,13 @@ Guarantees:
 7.4 Audit closed (cross-lane)
 - obs/platform_run_report.json + conformance PASS + component closure artifacts + governance append logs
 Fail-closed: missing any required artifact or any open blocker → no audit-close claim.
+
+Fail-closed blockers (mechanical; blocks “audit closed” claim):
+- DLA lineage unresolved_total > 0 (decision_log_audit/reconciliation)
+- Any required lane health_state != GREEN (decision_log_audit / case_mgmt / label_store / case_trigger as applicable)
+- Any required lane anomalies_total > 0 (case_mgmt and label_store reconciliation), unless explicitly allowlisted for that run profile
+- Any publish_ambiguous > 0 on case_trigger reconciliation (or equivalent publisher ambiguity surface)
+- Missing required reconciliation/health artifacts for any in-scope lane
 
 8) Anchor run evidence paths (exact)
 8.1 Decision/audit evidence (platform_20260212T085637Z)
@@ -247,6 +272,11 @@ Proof after remediation (anchor run):
   - decision_log_audit/reconciliation/last_reconciliation.json (unresolved_total=0)
   - decision_log_audit/health/last_health.json (GREEN)
 
+Evidence strength label (truth hygiene):
+- Failure evidence: strong (retained run artifacts show unresolved_total=1 and AMBER health)
+- Fix evidence: strong (code pins + rerun with fresh platform_run_id)
+- Recovery evidence: strong (anchor run shows unresolved_total=0 and GREEN health)
+
 Interview-safe framing:
 The key point is not “we fixed a metric.”
 It is: the system refused to mutate truth to hide causality gaps; it blocked closure until replay semantics guaranteed audit-chain completeness.
@@ -283,7 +313,7 @@ Allowed as replay/idempotency operation:
   - obs/platform_run_report.json
 
 11.2 Why was this label assigned? (minimum chain)
-- cm_label_emissions (status + source_case_event_id + assertion_ref logical link)
+- cm_label_emissions (logical surface; if table name differs, map to the implemented CaseMgmt emission ledger/table/view)
 - ls_label_timeline + ls_label_assertions (canonical assertion payload + pins)
 - link back to cm_case_timeline event for LABEL_ACCEPTED (evidence refs)
 - follow decision_id/audit_record_id back through DLA lineage
@@ -309,7 +339,23 @@ Allowed changes:
 - broker substrate changes, security hardening (IAM roles enforce boundaries)
 - observability backend changes (as long as closure artifacts remain equivalent)
 
+Boundary rule:
+- Allowed changes are only storage/runtime/auth implementations; truth semantics and closure blockers must remain identical in dev_min.
+
 13) Evidence Index (auditor trail)
+13.0 Truth surfaces: authoritative vs derived (anti-drift)
+Authoritative (canonical truth):
+- DB truth tables owned by each lane (DLA / CaseMgmt / LabelStore)
+- lane reconciliation + health artifacts that certify closure (unresolved/anomaly counters, GREEN health)
+
+Supporting (useful corroboration, not canonical truth):
+- governance append logs (events.jsonl) per lane
+- lane metrics snapshots (activity counters)
+
+Derived (summaries/exports computed from authoritative truth):
+- obs/platform_run_report.json summaries
+- optional object exports (audit record JSONs, label assertion files, resolved-as-of slices) when enabled
+
 - Anchor run closure artifacts (paths listed in section 8)
 - Incident runs:
   - platform_20260212T075128Z DLA reconciliation/health
