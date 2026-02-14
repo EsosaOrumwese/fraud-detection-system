@@ -385,24 +385,80 @@ Blockers:
 Goal:
 1. Produce deterministic launch contract enforcing run-scope for all services.
 
+Entry conditions:
+1. Latest `M4.D` snapshot is PASS and durable:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `missing_handles_in_m4a_closure=[]`.
+2. `M4.B` mapped service set (`13` services) is immutable launch-contract scope.
+3. `M3` run manifest is available and complete:
+   - `platform_run_id`
+   - `image_provenance` (`ecr_repo_uri`, `image_tag`, `image_digest`, `git_sha`).
+
+Required inputs:
+1. M4 control artifacts:
+   - `m4_a_handle_closure_snapshot.json`
+   - `m4_b_service_map_snapshot.json`
+   - `m4_c_iam_binding_snapshot.json`
+   - `m4_d_dependency_snapshot.json`
+2. M3 authority artifacts:
+   - `run.json` (P1 run manifest)
+   - `m4_handoff_pack.json` anchor for run continuity.
+3. Registry/handle surfaces:
+   - run-scope: `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`, `ACTIVE_RUN_ID_SOURCE`
+   - runtime: `ECS_CLUSTER_NAME`, `ECS_SERVICE_DESIRED_COUNT_DEFAULT`
+   - dependencies: `SSM_CONFLUENT_*`, `S3_*`, `RDS_ENDPOINT`, `DB_NAME`, `FP_BUS_*`
+4. Role binding surface from `M4.C`:
+   - one app-role binding per mapped service
+   - no execution-role-as-app-role
+   - no terraform-role runtime usage.
+
 Tasks:
-1. Build launch contract for each mapped service with:
-   - `REQUIRED_PLATFORM_RUN_ID_ENV_KEY` and value from M3,
-   - dependency env/secret references by handle,
-   - image provenance references from M3/M1 anchors.
-2. Validate that launch contract is non-secret.
-3. Publish launch-contract snapshot.
+1. Build canonical launch-contract matrix (one record per mapped service) with:
+   - `pack_id`, `service_handle`, `service_name`
+   - `cluster_name` (`ECS_CLUSTER_NAME`)
+   - `desired_count` (`ECS_SERVICE_DESIRED_COUNT_DEFAULT`, pinned to `1` for v0)
+   - app-role binding copied from `M4.C`
+   - run-scope injection payload:
+     - env key = `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`
+     - env value = `platform_run_id` from `M3`.
+2. Build runtime launch profile per service (deterministic, no implicit defaults):
+   - image reference from `M3` provenance (`repo + immutable digest` preferred),
+   - runtime mode/entrypoint selector,
+   - worker mode selector where applicable (for split worker families).
+3. Build dependency reference payload per service:
+   - non-secret env refs (topics, bucket names, endpoint handles),
+   - secret refs as SSM *paths only* (no secret values in artifact).
+4. Validate launch-contract invariants:
+   - all `13` mapped services represented exactly once,
+   - run-scope key/value identical across services,
+   - role bindings match `M4.C` exactly (no drift),
+   - image provenance is immutable-capable (`image_digest` present),
+   - artifact is non-secret.
+5. Publish `m4_e_launch_contract_snapshot.json` locally and durably with:
+   - input anchors (`M3`, `M4.A/B/C/D`),
+   - service launch matrix,
+   - launch-profile matrix,
+   - dependency reference map,
+   - invariant-check verdict + blockers.
 
 DoD:
 - [ ] Launch contract includes run-scope env mapping for all mapped services.
 - [ ] Run-scope value equals M3 `platform_run_id` for all services.
-- [ ] M4.E launch-contract snapshot exists locally and durably.
+- [ ] Launch-profile map is complete for every mapped service (no implicit runtime mode).
+- [ ] Role bindings in launch contract match `M4.C` bindings exactly.
+- [ ] Image provenance is pinned and immutable-capable (digest present).
+- [ ] Launch-contract artifact passes non-secret validation.
+- [ ] `m4_e_launch_contract_snapshot.json` exists locally and durably.
 
 Blockers:
 1. `M4E-B1`: run-scope env key/value missing or mismatched.
 2. `M4E-B2`: launch contract missing required service entries.
 3. `M4E-B3`: secret leakage detected in launch-contract artifacts.
 4. `M4E-B4`: launch-contract snapshot write/upload failure.
+5. `M4E-B5`: service launch profile unresolved for one or more mapped services.
+6. `M4E-B6`: image provenance contract incomplete/non-immutable.
+7. `M4E-B7`: role-binding drift vs `M4.C` snapshot.
 
 ### M4.F Daemon Bring-up + Stabilization
 Goal:

@@ -110,10 +110,20 @@ Why this matters:
 
 My anchor run is:
 - `platform_run_id`: `platform_20260212T085637Z`
+- `env`: `local_parity`
 
 Root evidence paths for that run:
 - Local run root: `runs/fraud-platform/platform_20260212T085637Z/`
-- Durable evidence root: `s3://fraud-platform/platform_20260212T085637Z/`
+- Object-store evidence root: `s3://fraud-platform/platform_20260212T085637Z/`
+
+anchors = [
+  "runs/fraud-platform/ACTIVE_RUN_ID",
+  "runs/fraud-platform/platform_20260212T085637Z/obs/platform_run_report.json",
+  "runs/fraud-platform/platform_20260212T085637Z/obs/environment_conformance.json",
+  "s3://fraud-platform/platform_20260212T085637Z/ig/receipts/",
+  "s3://fraud-platform/platform_20260212T085637Z/ig/receipts/00965821d94105a3d88ad6085b3c5b37.json",
+  "s3://fraud-platform/platform_20260212T085637Z/obs/governance/events.jsonl"
+]
 
 Why this is my gold run:
 - It is the post-remediation bounded `200` run used for Spine Green v0 closure.
@@ -127,17 +137,27 @@ For `platform_20260212T085637Z`, these are the main lifecycle artifacts I produc
 
 1. Run pin artifacts (identity + READY commit):
 - `runs/fraud-platform/ACTIVE_RUN_ID`
-- `s3://fraud-platform/platform_20260212T085637Z/sr/run_plan/<run_id>.json`
-- `s3://fraud-platform/platform_20260212T085637Z/sr/run_record/<run_id>.jsonl`
-- `s3://fraud-platform/platform_20260212T085637Z/sr/run_status/<run_id>.json`
-- `s3://fraud-platform/platform_20260212T085637Z/sr/run_facts_view/<run_id>.json`
-- `s3://fraud-platform/platform_20260212T085637Z/sr/ready_signal/<run_id>.json`
+- `scenario_run_id` for this anchor run: `fd17b1049bbce9df478c22ba1740e9ea`
+- `s3://fraud-platform/platform_20260212T085637Z/sr/run_plan/fd17b1049bbce9df478c22ba1740e9ea.json`
+- `s3://fraud-platform/platform_20260212T085637Z/sr/run_record/fd17b1049bbce9df478c22ba1740e9ea.jsonl`
+- `s3://fraud-platform/platform_20260212T085637Z/sr/run_status/fd17b1049bbce9df478c22ba1740e9ea.json`
+- `s3://fraud-platform/platform_20260212T085637Z/sr/run_facts_view/fd17b1049bbce9df478c22ba1740e9ea.json`
+- `s3://fraud-platform/platform_20260212T085637Z/sr/ready_signal/fd17b1049bbce9df478c22ba1740e9ea.json`
+- Clarification: in these SR paths, `<run_id>` means SR/scenario run ID, not `platform_run_id`.
 
 2. Daemons-ready artifacts (run/operate control + process evidence):
-- `runs/fraud-platform/operate/<pack_id>/state.json`
-- `runs/fraud-platform/operate/<pack_id>/status/last_status.json`
-- `runs/fraud-platform/platform_20260212T085637Z/operate/<pack_id>/logs/<process>.log`
-- `runs/fraud-platform/platform_20260212T085637Z/operate/<pack_id>/events.jsonl`
+- Concrete `pack_id` example: `local_parity_control_ingress_v0`
+- `runs/fraud-platform/operate/local_parity_control_ingress_v0/state.json`
+- `runs/fraud-platform/operate/local_parity_control_ingress_v0/status/last_status.json`
+- `runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/logs/ig_service.log`
+- `runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log`
+- `runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/events.jsonl`
+
+2.1 P5/P6 explicit READY + bounded-stop proof:
+- READY consumption evidence:
+  - `runs/fraud-platform/platform_20260212T085637Z/operate/local_parity_control_ingress_v0/logs/wsp_ready_consumer.log` (`WSP READY poll processed=...`, duplicate/skip records).
+- Bounded stream start->stop at cap evidence:
+  - `runs/fraud-platform/platform_20260212T085637Z/platform.log` (contains `WSP stream start` and `WSP stream stop ... emitted=200 reason=max_events` markers).
 
 3. Oracle-ready artifacts (sealed + sorted world surfaces):
 - Oracle seal artifact (`_SEALED.json`) at the active Oracle pack root.
@@ -201,6 +221,49 @@ To your direct sub-questions:
 - Is there a script that exits non-zero? Yes, test/validation commands and service commands fail hard on real errors, and we treat those as gate blockers.
 - Does checklist block next command? Yes, operationally. We only advance when gate PASS conditions are satisfied.
 - Is there one status file for all gates? No. This is intentional. Truth is distributed across run artifacts (run pin, receipts, health, reconciliation, report, conformance, governance append), which makes the claim auditable and replay-safe.
+
+Q5 upgrade patch (concrete enforcement anchors):
+
+1) Procedural enforcement anchor (example: `P7 INGEST_COMMITTED`)
+- Procedure I run:
+  - inspect receipts prefix for active run,
+  - sample receipts and verify `eb_ref`,
+  - check ambiguity evidence is zero.
+- Concrete checks:
+  - receipts exist under active run `ig/receipts/`,
+  - receipts carry bus commit refs (`eb_ref`),
+  - no unresolved `PUBLISH_AMBIGUOUS` ambiguity in closure set.
+- Enforcement outcome:
+  - if any check fails, I do not advance to `P8`; `P7` remains failed.
+
+2) System fail-closed behavior #1 (ingest ambiguity)
+- What fails:
+  - phase closure at ingest commit.
+- Trigger condition:
+  - any unresolved `PUBLISH_AMBIGUOUS` state/evidence for active-run closure set.
+- What it prevents:
+  - prevents declaring committed admission when bus publish truth is ambiguous.
+  - blocks downstream green closure until reconciled.
+
+3) System fail-closed behavior #2 (oracle stream-sort conflict)
+- What fails:
+  - oracle stream-view sort/commit for an `output_id`.
+- Trigger condition:
+  - receipt/manifest conflict (invalid existing receipt or mismatch against expected sort output).
+- What it prevents:
+  - prevents silent overwrite or mixed-version stream surfaces.
+  - forces explicit corrective action (for example, targeted output-id cleanup/new pack root) before proceeding.
+
+4) One non-zero gate command actually used as blocker
+- Command:
+  - `make platform-operate-parity-status`
+- Real blocker behavior:
+  - when it failed on missing learning DSN env vars in the Spine Green wave, it returned an error and we did not declare green; we opened remediation and reran after fixes.
+- Why this counts:
+  - it is not informational only; failure blocks readiness declaration for that stage.
+
+5) Deliberate distributed-truth design sentence
+- We intentionally avoid a single mutable “all green” status file; run truth is derived from append-only commit evidence across lanes so false-green cannot be asserted by editing one file.
 
 ---
 

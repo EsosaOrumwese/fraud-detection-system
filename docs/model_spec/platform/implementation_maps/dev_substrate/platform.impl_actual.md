@@ -8831,3 +8831,30 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
    - M4 sub-phase progress marks `M4.D` complete,
    - immediate next action now points to `M4.E`.
+## Entry: 2026-02-14 02:36PM - M4.E planning expansion (execution-grade, planning-only)
+
+### Trigger
+1. USER instructed: proceed with planning `M4.E`.
+
+### Planning actions
+1. Expanded `M4.E` in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+2. Added execution-grade planning structure for launch-contract phase:
+   - entry conditions bound to `M4.D` PASS + immutable `M4.B` service scope + `M3` image-provenance anchors,
+   - required input surfaces (`M3`, `M4.A/B/C/D`, run-scope handles, dependency handles),
+   - deterministic launch-contract matrix requirements (one record per mapped service),
+   - launch-profile completeness requirement (no implicit runtime-mode defaults),
+   - role-binding drift checks against `M4.C`,
+   - immutable image-provenance checks (digest presence),
+   - explicit non-secret artifact validation rules.
+3. Expanded blocker taxonomy for `M4.E`:
+   - added `M4E-B5` (launch-profile unresolved),
+   - added `M4E-B6` (image provenance incomplete/non-immutable),
+   - added `M4E-B7` (role-binding drift vs `M4.C`).
+4. Updated high-level active plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - now states `M4.E` is execution-grade and ties next action to both `M4.D` evidence and `M3` image anchors.
+
+### Planning outcome
+1. `M4.E` is execution-ready at plan level with explicit fail-closed acceptance criteria.
+2. No runtime execution performed in this step (planning-only).

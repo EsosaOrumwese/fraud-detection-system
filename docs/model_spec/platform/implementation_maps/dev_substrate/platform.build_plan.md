@@ -404,6 +404,7 @@ Active-phase planning posture:
 - M4 expansion state:
   - `M4.A -> M4.J` are fully expanded in the deep plan with entry conditions, required inputs, execution sequence, evidence artifacts, blocker taxonomy, and handoff rules.
   - `M4.D` planning is expanded to execution-grade and now explicitly requires runtime-equivalent managed-compute probing (no laptop-only dependency proof).
+  - `M4.E` planning is expanded to execution-grade with deterministic launch-profile matrix, run-scope injection invariants, role-binding drift checks, and immutable image-provenance requirements.
 - Sub-phase progress:
   - [x] `M4.A` authority + handle closure for P2.
   - [x] `M4.B` service/pack map + singleton replica contract.
@@ -584,6 +585,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M4 is active for execution planning and bring-up preparation.
 Next action:
-- execute `M4.E` launch-contract + run-scope injection validation using cleared `M4.D` evidence (`m4_d_dependency_snapshot.json`),
+- execute `M4.E` launch-contract + run-scope injection validation using cleared `M4.D` evidence (`m4_d_dependency_snapshot.json`) and `M3` image-provenance anchors,
 - then progress sequentially through `M4.F -> M4.J` under fail-closed blocker discipline,
 - maintain run-scope contract from M3 artifacts for all daemon bring-up operations.
