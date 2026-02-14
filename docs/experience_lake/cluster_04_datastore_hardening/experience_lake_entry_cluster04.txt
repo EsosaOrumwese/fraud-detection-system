@@ -1,0 +1,314 @@
+EXPERIENCE LAKE ENTRY — CLUSTER 04
+Title: Datastore hardening across services — Postgres connection/transaction lifecycle under multi-pack runtime load
+As-of: 2026-02-14
+Status: ACHIEVED (local_parity stability under bounded acceptance + post-stream soak). PROMOTING (dev_min preserves semantics; substrate swaps to managed RDS/S3/Kafka).
+
+1) Header Block — Identity + Claim
+1.1 One-sentence truth claim (defensible, not a vibe)
+I diagnosed and fixed a platform-wide datastore lifecycle failure where a Gate-200 run could pass streaming yet daemons collapsed afterward due to per-call Postgres connect churn and brittle transaction handling; I implemented a shared connector with bounded transient retry and deterministic commit/rollback semantics, then revalidated stability via repeat runs plus post-stream idle-hold liveness gates and conformance artifacts.
+
+1.2 Scope (what this entry covers)
+IN-SCOPE:
+- Local parity datastore topology (state vs evidence vs checkpoints) and the “DB lifecycle contract” shared across services
+- The incident: Postgres connection lifecycle collapse after a bounded Gate-200 run
+- The remediation: shared connector + bounded retry + transaction lifecycle parity
+- The verification: rerun under Gate-20/Gate-200 + post-stream soak + recurrence signature scan + conformance PASS
+- Guardrails: post-stream liveness + idle-hold recheck becomes required closure evidence
+
+OUT-OF-SCOPE:
+- Ingress idempotency and publish ambiguity semantics (Cluster 2)
+- Control-bus iterator starvation and start-position policy (Cluster 3)
+- Engine realism remediation (Cluster 7)
+- Dev_min substrate promotion mechanics (Cluster 8)
+
+1.3 Anchor runs (failure + recovery)
+Failing run (incident window):
+- platform_run_id: platform_20260210T083021Z
+- failing run root: runs/fraud-platform/platform_20260210T083021Z/
+- failure signature observed across multiple lanes after Gate-200 completion:
+  - psycopg.OperationalError … localhost:5434 … Address already in use (0x00002740/10048)
+- cross-lane log surfaces used:
+  - runs/fraud-platform/operate/local_parity_rtdl_core_v0/logs/ieg_projector.log
+  - runs/fraud-platform/operate/local_parity_rtdl_decision_lane_v0/logs/dla_worker.log
+  - runs/fraud-platform/operate/local_parity_case_labels_v0/logs/label_store_worker.log
+Truth boundary note:
+- raw worker-tail lines from the exact failure moment are not retained as standalone artifacts in the repo snapshot.
+- the error signature + lane-by-lane evidence is pinned in:
+  docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md
+  Entry: 2026-02-10 08:53AM, section “Evidence (component-by-component)”.
+
+Recovery / verification run (post-fix):
+- platform_run_id: platform_20260210T091951Z
+- run root: runs/fraud-platform/platform_20260210T091951Z/
+- closure artifacts:
+  - runs/fraud-platform/platform_20260210T091951Z/obs/platform_run_report.json
+  - runs/fraud-platform/platform_20260210T091951Z/obs/environment_conformance.json (PASS)
+
+1.4 What I am explicitly NOT claiming (truth hygiene)
+- Not claiming production deployment.
+- Not claiming a measured before/after throughput chart; the core improvement claim is “failure → repeatable completion + post-stream stability under the same acceptance protocol.”
+- Not claiming that the original raw OSError line is preserved as a standalone file; it is preserved via implementation-map evidence pins.
+
+2) Context — Why this mattered
+2.1 The “toy project” trap this incident exposes
+A toy system is happy if it runs once.
+A platform is only credible if:
+- it can run under bounded acceptance,
+- and then stay alive long enough to prove closure, produce evidence, and be replay/audit defensible.
+
+This incident happened in the worst place: after streaming gate success.
+That means it challenged operational truth:
+- “the run passed” was not safe to claim if daemons died right after.
+
+2.2 Why datastore lifecycle is a platform-wide concern
+In this architecture, multiple packs hit Postgres DSNs continuously:
+- RTDL projectors
+- decision lane writers and auditors
+- case/label writers
+If each one implements its own connection/transaction policy, the platform becomes fragile.
+This incident forced the creation of a shared “DB lifecycle contract.”
+
+3) The Problem — The contradiction
+3.1 What failed (in plain terms)
+The platform passed bounded streaming metrics (Gate-200), then multiple packs collapsed due to Postgres connection failures.
+Obs/gov stayed up; other lanes fell to stopped.
+
+This is a true “false-green” class:
+- “streaming succeeded” but “platform could not sustain closure.”
+
+3.2 Failure signature (what made it clearly DB-lifecycle and not a feature bug)
+Common signature across unrelated components:
+- psycopg.OperationalError targeting localhost:5434 with Address already in use (0x00002740/10048)
+Common code smell across failing callsites:
+- fresh psycopg.connect(...) inside hot loops (with self._connect() as conn) repeated at high frequency
+
+Most consistent hypothesis (bounded, not overclaimed):
+- Under multi-pack concurrency on Windows, per-call connect churn likely created socket/ephemeral-port pressure (TIME_WAIT pileup / transient bind failures), producing the recurring WSAEADDRINUSE signature across lanes.
+- I did not rely on this as a “story”; I relied on the cross-lane error signature + the shared hot-loop connect pattern, and then validated causality by eliminating churn (connection reuse) and observing disappearance of the failure class under the same acceptance protocol.
+
+That shared denominator ruled out:
+- a single schema typo
+- a single SQL query bug
+- an ingestion logic bug
+and pointed to lifecycle policy.
+
+4) Non-negotiables — Invariants and constraints
+4.1 Invariants preserved
+- No “hide the problem” by weakening gates: I kept post-stream stability as required proof.
+- No schema redesign as a primary fix: the root cause was lifecycle, not schema.
+- Fail-closed posture: if DB lifecycle breaks, closure is blocked; no narrative override.
+
+4.2 Constraints
+- local_parity on a Windows-first workstation, running platform packs concurrently
+- multiple services simultaneously acquiring DB connections
+- platform must remain repeatable and evidence-first (run report + conformance + pack status)
+
+5) Investigation + Reasoning — How I framed the failure
+5.1 Classification decision
+I classified it as a platform P0 because:
+- multiple packs failed with the same failure class
+- it occurred after a gate that would normally trigger confidence
+- it threatened replay/audit defensibility of the entire run lifecycle
+
+5.2 Root cause reasoning chain
+Primary:
+- per-call connection churn in daemon loops creates unstable connect behavior under multi-pack concurrency
+Secondary amplifier:
+- worker loop error posture treated transient connect faults as fatal → pack collapse
+Therefore:
+- the fix must be a shared connector strategy + transient containment, not a per-service patch.
+
+6) Decision + Tradeoffs — What I chose and why
+6.1 Decision: shared connector + bounded retries + deterministic transaction semantics
+Chosen because it solves the shared surface once across all components.
+
+Tradeoffs accepted:
+- introducing a shared runtime utility that many services depend on
+- careful handling of connection eviction and transaction closure rules
+
+Tradeoffs rejected:
+- “buy bigger / change environment” (brittle, not repeatable)
+- “just catch exceptions” (masks faults and corrupts closure truth)
+- “rewrite schemas/migrations” (wrong layer)
+
+7) Implementation — What I actually changed
+7.1 Incident A (connect churn collapse): what was wrong at the layer
+Multiple services used fresh psycopg.connect(...) inside daemon hot loops, creating per-call connect churn under multi-pack concurrency.
+
+7.2 Remediation A (shared connector + bounded transient retry)
+Introduced shared connector:
+- src/fraud_detection/postgres_runtime.py
+- function: postgres_threadlocal_connection(...)
+
+Behavior:
+- thread-local connection reuse keyed by DSN + connect kwargs
+- avoids fresh psycopg.connect per unit-of-work
+- drops cached connection when closed/broken
+
+Bounded transient connect retry (resilience without masking):
+- retry class: psycopg.OperationalError
+- attempts: 3
+- backoff: short exponential (base 0.05s)
+Bounded by design:
+- prevents “infinite retry theatre”
+- absorbs brief turbulence but still fails closed if persistent
+
+Example migrated adapter (layer-correct remediation):
+- src/fraud_detection/identity_entity_graph/store.py
+- replaced per-call psycopg.connect style with connector-backed _connect() context usage
+
+7.3 Incident B (transaction lifecycle/locks): what appeared after first rollout
+After reducing connect churn, a secondary lifecycle issue surfaced:
+- idle-in-transaction sessions / lock waits
+- ALTER TABLE admissions … blocked
+Pinned evidence:
+- docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md
+  Entry: 2026-02-10 09:12AM — “Corrective fix: transaction lifecycle parity with psycopg context semantics”
+
+7.4 Remediation B (transaction lifecycle parity with deterministic commit/rollback)
+Fix posture:
+- on successful scope exit (non-autocommit): commit()
+- on exception: rollback()
+- if commit/rollback fails: drop cached connection (evict poisoned handle)
+
+8) Validation + Results — What I proved, not what I felt
+8.1 Targeted regression tests (no immediate functional regressions)
+Focused suite targets (30 passed):
+- tests/services/decision_fabric/test_phase7_checkpoints.py
+- tests/services/decision_fabric/test_phase7_replay.py
+- tests/services/case_trigger/test_phase5_checkpoints.py
+- tests/services/action_layer/test_phase1_storage.py
+- tests/services/decision_log_audit/test_dla_phase3_intake.py
+- tests/services/context_store_flow_binding/test_phase3_intake.py
+
+Reproduction command:
+python -m pytest \
+  tests/services/decision_fabric/test_phase7_checkpoints.py \
+  tests/services/decision_fabric/test_phase7_replay.py \
+  tests/services/case_trigger/test_phase5_checkpoints.py \
+  tests/services/action_layer/test_phase1_storage.py \
+  tests/services/decision_log_audit/test_dla_phase3_intake.py \
+  tests/services/context_store_flow_binding/test_phase3_intake.py -q
+
+8.2 End-to-end rerun under acceptance gates (proves real runtime stability)
+Recovery run:
+- platform_run_id: platform_20260210T091951Z
+- Gate-20 expected 80 (4*20) → observed 80
+- Gate-200 expected 800 (4*200) → observed 800
+Per-output stop markers matched bounded behavior for both gates.
+
+8.3 Post-stream soak and idle-hold recheck (the real acceptance proof)
+Because the original incident manifested AFTER stream completion, I required:
+
+- immediate post-stream liveness: all packs running/ready
+- idle-hold recheck: packs still running/ready after a hold window (hold window duration is recorded in the operator logbook/run notes for that run)
+
+PASS criteria (idle-hold recheck):
+- active_platform_run_id matches the expected platform_run_id
+- all processes report running=true and readiness.ready=true
+- no pack reports a fatal exit / stop during the hold window
+
+Concrete liveness status artifacts (fields checked: active_platform_run_id matches; all processes running=true; readiness.ready=true):
+- runs/fraud-platform/operate/local_parity_control_ingress_v0/status/last_status.json
+- runs/fraud-platform/operate/local_parity_rtdl_core_v0/status/last_status.json
+- runs/fraud-platform/operate/local_parity_rtdl_decision_lane_v0/status/last_status.json
+- runs/fraud-platform/operate/local_parity_case_labels_v0/status/last_status.json
+- runs/fraud-platform/operate/local_parity_obs_gov_v0/status/last_status.json
+
+8.4 Closure-grade artifacts (no false-green)
+For the recovery run:
+- runs/fraud-platform/platform_20260210T091951Z/obs/platform_run_report.json produced
+- runs/fraud-platform/platform_20260210T091951Z/obs/environment_conformance.json status=PASS
+
+Key proof snapshots (recovery run; “open JSON not required”):
+- conformance: PASS
+- bounded gates: Gate-20 observed=80; Gate-200 observed=800 (4 lanes posture)
+- post-stream stability: all 5 packs remained running=true and readiness.ready=true at immediate check and idle-hold recheck (per status/last_status.json)
+
+8.5 Recurrence signature scan (explicit “did we reintroduce the same class?”)
+Required absence:
+- no recurrence of psycopg.OperationalError with Address already in use signature
+- no repeat of post-stream daemon collapse pattern
+
+9) Evidence Index (auditor trail)
+9.0 Truth surfaces: authoritative vs derived (anti-drift)
+Authoritative (direct proof that packs stayed alive and closure remained claimable):
+- operate/*/status/last_status.json for each required pack (immediate + idle-hold recheck)
+
+Supporting (useful for diagnosis and recurrence scanning, but not sufficient alone):
+- cross-lane worker logs showing the OperationalError signature class
+- implementation-map pins that record the lane-by-lane evidence when raw tails are not retained
+
+Derived (summaries/views computed from authoritative surfaces; must not override them):
+- obs/platform_run_report.json
+- obs/environment_conformance.json
+
+9.1 Failing run + failure-class provenance
+- runs/fraud-platform/platform_20260210T083021Z/
+- cross-lane logs:
+  - runs/fraud-platform/operate/local_parity_rtdl_core_v0/logs/ieg_projector.log
+  - runs/fraud-platform/operate/local_parity_rtdl_decision_lane_v0/logs/dla_worker.log
+  - runs/fraud-platform/operate/local_parity_case_labels_v0/logs/label_store_worker.log
+- canonical evidence pin for signature (retention truth):
+  - docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md
+    Entry: 2026-02-10 08:53AM “Evidence (component-by-component)”
+
+9.2 Fix code anchors
+- src/fraud_detection/postgres_runtime.py (postgres_threadlocal_connection)
+- src/fraud_detection/identity_entity_graph/store.py (migrated adapter example)
+- docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md
+  Entry: 2026-02-10 09:12AM (transaction lifecycle parity + lock symptom pin)
+Locator note (avoid brittle line numbers):
+- Pin exact locations by symbol search / git blame:
+  - postgres_threadlocal_connection (retry loop + eviction rules)
+  - transaction lifecycle commit/rollback parity block (commit-on-success, rollback-on-exception, evict-on-failure)
+
+9.3 Verification artifacts
+- recovery run root: runs/fraud-platform/platform_20260210T091951Z/
+- closure:
+  - runs/fraud-platform/platform_20260210T091951Z/obs/platform_run_report.json
+  - runs/fraud-platform/platform_20260210T091951Z/obs/environment_conformance.json
+- liveness status surfaces:
+  - runs/fraud-platform/operate/local_parity_*_v0/status/last_status.json (5 packs)
+
+10) Guardrails / Non-regression Controls
+10.1 Runtime guardrails (code-level)
+- shared connector eliminates hot-loop fresh-connect pattern by default
+- bounded transient retry prevents brief turbulence from collapsing packs
+- deterministic commit/rollback prevents idle-in-transaction lock retention
+- broken-connection eviction prevents poisoned-handle reuse
+Optional hard guardrail (prevents recurrence by construction):
+- Add a CI/static check that fails if psycopg.connect( is introduced outside src/fraud_detection/postgres_runtime.py (allow-list the connector module), so hot-loop fresh-connect cannot silently creep back in.
+
+10.2 Acceptance/governance guardrails (operational)
+- post-stream liveness gate is mandatory (stream success alone is not closure)
+- idle-hold recheck is mandatory
+- recurrence signature scan is required
+- conformance + run report required for closure
+
+Pinned as executable operating posture:
+- docs/model_spec/platform/implementation_maps/local_parity/platform.build_plan.md (Phase 5.10 requirement)
+- docs/runbooks/platform_parity_walkthrough_v0.md (operator posture; immediate + idle-hold status checks)
+- command surface used operationally: make platform-operate-parity-status (immediate and idle-hold checks)
+
+11) Residual risks + Next actions
+11.1 What remains open
+- dev_min promotion must preserve DB lifecycle semantics while swapping substrate to managed RDS.
+- cloud IAM can enforce writer boundaries more strictly than local process boundaries; that hardening is a migration gain, not a semantic change.
+
+11.2 Next actions
+- carry shared connector posture into dev_min runtime images
+- ensure M4 bring-up validates DB readiness before starting daemons
+- keep post-stream soak and idle-hold recheck as a non-negotiable closure gate in dev_min as well
+
+12) Extraction notes (for later mining)
+12.1 30-second version (recruiter)
+“A Gate-200 run looked successful, then multiple daemons collapsed from Postgres connection churn. I diagnosed it as a shared lifecycle bug, implemented a shared connector with bounded retries and correct commit/rollback semantics, and revalidated with full reruns plus post-stream soak gates and conformance PASS.”
+
+12.2 2-minute version (hiring manager)
+“I don’t declare green at stream stop. After a bounded run, my platform must stay alive long enough to close and publish evidence. When services collapsed with psycopg OperationalError ‘Address already in use,’ I recognized it as connection lifecycle churn across many packs. I replaced per-call connects with a shared thread-local connector, added bounded retries for transient failures, fixed transaction closure to prevent idle-in-transaction locks, and then proved stability with reruns and idle-hold liveness checks under the same acceptance gates.”
+
+12.3 USP mapping (problem solving signal)
+- Identified cross-service shared denominator and classified it as a platform P0.
+- Fixed at the correct layer (shared connector + transaction semantics), not via scattered per-service patches.
+- Verified using the same acceptance protocol plus new post-stream durability guardrails.
