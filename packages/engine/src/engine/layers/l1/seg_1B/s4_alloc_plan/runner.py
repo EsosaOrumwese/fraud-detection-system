@@ -43,6 +43,7 @@ MODULE_NAME = "1B.s4_alloc_plan"
 BATCH_SIZE = 1_000_000
 CACHE_COUNTRIES_MAX = 8
 CACHE_MAX_BYTES = 0
+_INT64_MAX = int(np.iinfo(np.int64).max)
 
 
 @dataclass(frozen=True)
@@ -353,6 +354,19 @@ def _top1_share_from_counts(counts: np.ndarray) -> float:
     return float(np.max(counts) / float(total))
 
 
+def _anti_diag_from_counts(counts: np.ndarray) -> dict[str, Any]:
+    return {
+        "pair_top1_pre": float(_top1_share_from_counts(counts)),
+        "pair_top1_post": float(_top1_share_from_counts(counts)),
+        "pair_hhi_pre": float(_hhi_from_counts(counts)),
+        "pair_hhi_post": float(_hhi_from_counts(counts)),
+        "pair_active_tiles_pre": int(np.count_nonzero(counts)),
+        "pair_active_tiles_post": int(np.count_nonzero(counts)),
+        "moves_soft": 0,
+        "moves_residual": 0,
+    }
+
+
 def _apply_anticollapse_controls(
     counts_in: np.ndarray,
     weight_fp: np.ndarray,
@@ -378,39 +392,39 @@ def _apply_anticollapse_controls(
     ):
         max_soft = max(1, int(np.ceil(policy.country_share_soft_guard * pair_total)))
         max_hard = max(max_soft, int(np.ceil(policy.country_share_hard_guard * pair_total)))
-        weight_i64 = weight_fp.astype(np.int64, copy=False)
-        rank = np.lexsort((tile_ids, -weight_i64))
-        rank_pos = np.empty(rank.size, dtype=np.int64)
-        rank_pos[rank] = np.arange(rank.size, dtype=np.int64)
+        donors = np.flatnonzero(counts > max_soft)
+        if donors.size > 0:
+            weight_i64 = weight_fp.astype(np.int64, copy=False)
+            rank = np.lexsort((tile_ids, -weight_i64))
+            rank_pos = np.empty(rank.size, dtype=np.int64)
+            rank_pos[rank] = np.arange(rank.size, dtype=np.int64)
 
-        while moves_soft < policy.max_moves_per_pair:
-            donors = np.flatnonzero(counts > max_soft)
-            if donors.size == 0:
-                break
-            donor = donors[
-                np.lexsort(
-                    (
-                        tile_ids[donors],
-                        -weight_i64[donors],
-                        -counts[donors],
-                    )
-                )[0]
-            ]
-            donor_rank = int(rank_pos[donor])
-            moved = False
-            for step in range(1, rank.size + 1):
-                receiver = int(rank[(donor_rank + step) % rank.size])
-                if receiver == donor:
-                    continue
-                if counts[receiver] + 1 > max_hard:
-                    continue
-                counts[donor] -= 1
-                counts[receiver] += 1
-                moves_soft += 1
-                moved = True
-                break
-            if not moved:
-                break
+            while moves_soft < policy.max_moves_per_pair and donors.size > 0:
+                donor = donors[
+                    np.lexsort(
+                        (
+                            tile_ids[donors],
+                            -weight_i64[donors],
+                            -counts[donors],
+                        )
+                    )[0]
+                ]
+                donor_rank = int(rank_pos[donor])
+                moved = False
+                for step in range(1, rank.size + 1):
+                    receiver = int(rank[(donor_rank + step) % rank.size])
+                    if receiver == donor:
+                        continue
+                    if counts[receiver] + 1 > max_hard:
+                        continue
+                    counts[donor] -= 1
+                    counts[receiver] += 1
+                    moves_soft += 1
+                    moved = True
+                    break
+                if not moved:
+                    break
+                donors = np.flatnonzero(counts > max_soft)
 
     if (
         policy.enabled
@@ -431,32 +445,38 @@ def _apply_anticollapse_controls(
             )
         )
         max_hard = max(1, int(np.ceil(policy.country_share_hard_guard * pair_total)))
-        weight_i64 = weight_fp.astype(np.int64, copy=False)
-        for _ in range(policy.max_steps_per_pair):
-            active_now = int(np.count_nonzero(counts))
-            if active_now >= target_active:
-                break
-            donor_candidates = np.flatnonzero(counts > 1)
-            receiver_candidates = np.flatnonzero(counts == 0)
-            if donor_candidates.size == 0 or receiver_candidates.size == 0:
-                break
-            donor = donor_candidates[
-                np.lexsort(
-                    (
-                        tile_ids[donor_candidates],
-                        -weight_i64[donor_candidates],
-                        -counts[donor_candidates],
-                    )
-                )[0]
-            ]
-            receiver = receiver_candidates[
-                np.lexsort((tile_ids[receiver_candidates], -weight_i64[receiver_candidates]))[0]
-            ]
-            if counts[receiver] + 1 > max_hard:
-                break
-            counts[donor] -= 1
-            counts[receiver] += 1
-            moves_residual += 1
+        active_now = int(np.count_nonzero(counts))
+        donor_candidates = np.flatnonzero(counts > 1) if active_now < target_active else np.array([])
+        receiver_candidates = (
+            np.flatnonzero(counts == 0) if active_now < target_active else np.array([])
+        )
+        if donor_candidates.size > 0 and receiver_candidates.size > 0:
+            weight_i64 = weight_fp.astype(np.int64, copy=False)
+            for _ in range(policy.max_steps_per_pair):
+                active_now = int(np.count_nonzero(counts))
+                if active_now >= target_active:
+                    break
+                donor_candidates = np.flatnonzero(counts > 1)
+                receiver_candidates = np.flatnonzero(counts == 0)
+                if donor_candidates.size == 0 or receiver_candidates.size == 0:
+                    break
+                donor = donor_candidates[
+                    np.lexsort(
+                        (
+                            tile_ids[donor_candidates],
+                            -weight_i64[donor_candidates],
+                            -counts[donor_candidates],
+                        )
+                    )[0]
+                ]
+                receiver = receiver_candidates[
+                    np.lexsort((tile_ids[receiver_candidates], -weight_i64[receiver_candidates]))[0]
+                ]
+                if counts[receiver] + 1 > max_hard:
+                    break
+                counts[donor] -= 1
+                counts[receiver] += 1
+                moves_residual += 1
 
     post_top1 = _top1_share_from_counts(counts)
     post_hhi = _hhi_from_counts(counts)
@@ -1252,6 +1272,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             "tile_ids": weight_tile_sorted,
             "weight_fp": weight_fp_sorted,
             "dp": int(dp_value),
+            "max_weight_fp": int(np.max(weight_fp_sorted)) if weight_fp_sorted.size else 0,
         }
         payload_bytes = int(weight_tile_sorted.nbytes + weight_fp_sorted.nbytes)
         payload["__bytes"] = payload_bytes
@@ -1288,6 +1309,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         tile_ids: np.ndarray,
         weight_fp: np.ndarray,
         dp_value: int,
+        max_weight_fp: int,
         n_sites: int,
     ) -> None:
         nonlocal batch_rows, rows_emitted, ties_broken_total, alloc_sum_equals_requirements, last_key
@@ -1296,13 +1318,27 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         nonlocal pre_top1_values, post_top1_values, pre_hhi_values, post_hhi_values
         nonlocal pre_active_tile_values, post_active_tile_values
 
+        n_sites_i64 = int(n_sites)
         K = 10 ** int(dp_value)
-        weight_fp_obj = weight_fp.astype(object)
-        prod = weight_fp_obj * int(n_sites)
-        z = prod // K
-        rnum = prod % K
+        use_i64 = (
+            n_sites_i64 >= 0
+            and int(max_weight_fp) >= 0
+            and (n_sites_i64 == 0 or int(max_weight_fp) <= (_INT64_MAX // n_sites_i64))
+        )
+        if use_i64:
+            weight_fp_i64 = weight_fp.astype(np.int64, copy=False)
+            prod_i64 = weight_fp_i64 * n_sites_i64
+            z_i64 = prod_i64 // K
+            residues_i64 = prod_i64 % K
+            base_sum = int(np.sum(z_i64, dtype=np.int64))
+        else:
+            weight_fp_obj = weight_fp.astype(object)
+            prod_obj = weight_fp_obj * n_sites_i64
+            z_obj = prod_obj // K
+            residues_i64 = np.array(prod_obj % K, dtype=np.int64)
+            z_i64 = np.array(z_obj, dtype=np.int64)
+            base_sum = int(sum(int(v) for v in z_obj))
 
-        base_sum = int(np.sum(z))
         shortfall = int(n_sites) - base_sum
         if shortfall < 0:
             _emit_failure_event(
@@ -1322,35 +1358,69 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             )
 
         if shortfall > 0:
-            rnum_int = np.array(rnum, dtype=np.int64)
             bump_idx, diversified = _select_shortfall_bump_indices(
                 tile_ids=tile_ids,
-                residues_i64=rnum_int,
+                residues_i64=residues_i64,
                 shortfall=int(shortfall),
                 n_sites=int(n_sites),
                 merchant_id=int(merchant_id),
                 legal_country_iso=str(legal_country_iso),
                 policy=s4_policy,
             )
-            bump = np.zeros(tile_ids.size, dtype=object)
-            bump[bump_idx] = 1
-            n_sites_tile = z + bump
+            n_sites_tile_i64 = z_i64.copy()
+            n_sites_tile_i64[bump_idx] += 1
             ties_broken_total += int(shortfall)
             if diversified:
                 diversify_pairs_touched += 1
                 diversify_bumps_total += int(shortfall)
         else:
-            n_sites_tile = z
+            n_sites_tile_i64 = z_i64
 
-        n_sites_tile_i64 = np.array(n_sites_tile, dtype=np.int64)
-        adjusted_i64, anti_diag = _apply_anticollapse_controls(
-            counts_in=n_sites_tile_i64,
-            weight_fp=weight_fp,
-            tile_ids=tile_ids,
-            n_sites=int(n_sites),
-            policy=s4_policy,
-        )
-        n_sites_tile = adjusted_i64.astype(object)
+        run_guard = False
+        if (
+            s4_policy.enabled
+            and int(n_sites) > 1
+            and n_sites_tile_i64.size > 1
+            and s4_policy.reroute_enabled
+            and s4_policy.max_moves_per_pair > 0
+            and s4_policy.country_share_soft_guard < 1.0
+        ):
+            max_soft = max(1, int(np.ceil(s4_policy.country_share_soft_guard * int(n_sites))))
+            run_guard = int(np.max(n_sites_tile_i64)) > max_soft
+
+        run_residual = False
+        if (
+            s4_policy.enabled
+            and int(n_sites) > 1
+            and n_sites_tile_i64.size > 1
+            and s4_policy.residual_enabled
+            and s4_policy.min_active_tile_fraction > 0.0
+            and s4_policy.max_steps_per_pair > 0
+        ):
+            max_active_possible = int(min(int(n_sites), n_sites_tile_i64.size))
+            target_active = int(
+                min(
+                    max_active_possible,
+                    max(1, np.ceil(s4_policy.min_active_tile_fraction * max_active_possible)),
+                )
+            )
+            active_now = int(np.count_nonzero(n_sites_tile_i64))
+            if active_now < target_active:
+                run_residual = bool(
+                    np.any(n_sites_tile_i64 > 1) and np.any(n_sites_tile_i64 == 0)
+                )
+
+        if run_guard or run_residual:
+            adjusted_i64, anti_diag = _apply_anticollapse_controls(
+                counts_in=n_sites_tile_i64,
+                weight_fp=weight_fp,
+                tile_ids=tile_ids,
+                n_sites=int(n_sites),
+                policy=s4_policy,
+            )
+        else:
+            adjusted_i64 = n_sites_tile_i64
+            anti_diag = _anti_diag_from_counts(adjusted_i64)
         pre_top1_values.append(float(anti_diag["pair_top1_pre"]))
         post_top1_values.append(float(anti_diag["pair_top1_post"]))
         pre_hhi_values.append(float(anti_diag["pair_hhi_pre"]))
@@ -1362,7 +1432,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         if int(anti_diag["moves_soft"]) > 0 or int(anti_diag["moves_residual"]) > 0:
             pairs_guard_touched += 1
 
-        total_alloc = int(np.sum(n_sites_tile))
+        total_alloc = int(np.sum(adjusted_i64, dtype=np.int64))
         if total_alloc != int(n_sites):
             alloc_sum_equals_requirements = False
             _emit_failure_event(
@@ -1381,7 +1451,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
             )
 
-        mask = np.array(n_sites_tile, dtype=object) > 0
+        mask = adjusted_i64 > 0
         if not np.any(mask):
             _emit_failure_event(
                 logger,
@@ -1400,8 +1470,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             )
 
         tile_ids_out = tile_ids[mask]
-        n_sites_out = np.array(n_sites_tile[mask], dtype=object)
-        if np.any(np.array(n_sites_out, dtype=object) <= 0):
+        n_sites_out = adjusted_i64[mask]
+        if np.any(n_sites_out <= 0):
             _emit_failure_event(
                 logger,
                 "E412_ZERO_ROW_EMITTED",
@@ -1521,7 +1591,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         last_pair = (mid, iso)
 
         assets = _load_country_assets(iso)
-        _emit_rows(mid, iso, assets["tile_ids"], assets["weight_fp"], assets["dp"], n_sites)
+        _emit_rows(
+            mid,
+            iso,
+            assets["tile_ids"],
+            assets["weight_fp"],
+            assets["dp"],
+            assets.get("max_weight_fp", 0),
+            n_sites,
+        )
 
         if pairs_total % heartbeat_check_step == 0:
             now = time.monotonic()

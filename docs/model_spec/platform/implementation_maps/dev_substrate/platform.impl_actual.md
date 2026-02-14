@@ -9921,3 +9921,36 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. Any mismatch in inlet-policy handle values => `M5B-B2`.
 2. Any disallowed seed-lane symbol detected in active mode => `M5B-B3`.
 3. Snapshot write/upload failure => `M5B-B4`.
+
+## Entry: 2026-02-14 07:15PM - M5.B executed to PASS (inlet policy closure)
+
+### Execution summary
+1. Executed `M5.B` against the expanded execution contract.
+2. Initial attempt produced blocker `M5B-B3` from drift-scan false positives where guardrail declaration lines were treated as violations.
+3. Resolved by tightening scanner classification to use near-line context so explicit disallow-list declarations are allowlisted.
+4. Re-ran `M5.B`; final result is PASS.
+
+### Evidence artifacts
+1. Initial failed attempt (retained for traceability):
+   - local: `runs/dev_substrate/m5/20260214T191326Z/m5_b_inlet_policy_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T191326Z/m5_b_inlet_policy_snapshot.json`
+2. Final pass artifact:
+   - local: `runs/dev_substrate/m5/20260214T191428Z/m5_b_inlet_policy_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T191428Z/m5_b_inlet_policy_snapshot.json`
+
+### Final pass posture
+1. `overall_pass=true`
+2. `blockers=[]`
+3. `policy_value_match.overall=true`
+4. `boundary_consistency_checks.overall=true`
+5. `disallowed_symbols_found.violation_count=0`
+
+### Plan updates applied
+1. Marked `M5.B` DoD checklist complete and added execution result note in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+2. Marked M5 sub-phase progress for `M5.B` complete in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### Notes
+1. No runtime stream-sort/checker compute was executed in `M5.B`; this step is policy closure/evidence only.
+2. No branch/history operations executed.

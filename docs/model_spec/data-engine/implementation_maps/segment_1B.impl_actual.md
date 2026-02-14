@@ -4769,3 +4769,51 @@ Impact:
 1) No policy/config/model behavior changed.
 2) No statistical output surfaces changed.
 3) `1B` long-stage observability is now log-contract-consistent end-to-end (`S4->S9`).
+
+---
+
+### Entry: 2026-02-14 19:14
+
+Design element: `S4` `Fast-Compute-Safe` runtime acceleration (no cache/RAM expansion).
+Summary: Implemented CPU-path acceleration in `1B/S4` without widening runtime cache knobs, focused on preserving output behavior while removing avoidable high-cost operations.
+
+Decision and reasoning trail:
+1) Runtime evidence showed `S4` dominated by allocation-loop compute and repeated per-pair heavy paths; user explicitly rejected memory-risk options due concurrent workloads.
+2) Chosen lane was `Fast-Compute-Safe` only:
+   - keep cache posture unchanged (no higher RAM commitment),
+   - improve arithmetic and control flow where behavior can be held equivalent.
+3) Applied deterministic `int64` arithmetic path in `_emit_rows` for product/divmod allocation math, with conservative overflow fallback to prior `object` path when required.
+4) Added anti-collapse no-op gating before invoking `_apply_anticollapse_controls`:
+   - when no soft-guard or residual moves are possible, skip expensive control routine and emit equivalent no-move diagnostics.
+5) Hardened `_apply_anticollapse_controls` itself with early donor precheck before constructing global rank arrays, avoiding sort work when no donors exist.
+6) Added `max_weight_fp` to cached country payload so overflow safety decision can be made without additional per-pair scans.
+
+Current bottlenecks (still open after this patch):
+1) `S4` remains single-worker and CPU-bound in full runs.
+   - Authority sample: run `49dcd3c9aa4e441781292d54dc0fa491` emitted `pairs_total=13087` in `wall_clock_seconds_total=4338.64` (`~3.02 pairs/s`) with `cpu_seconds_total=4232.17`.
+   - Implication: runtime is dominated by per-pair compute, not publish/write steps.
+2) Country-asset reload churn is still high under constrained cache posture.
+   - `cache_hits=11440`, `cache_misses=1647`, `evictions=1599`, `unique_countries=185`.
+   - Misses greatly exceed unique-country cardinality, so countries are repeatedly reloaded/revalidated due LRU churn.
+3) Tile-asset read volume remains large.
+   - `bytes_read_index_total=4,858,468,372` and `bytes_read_weights_total=2,316,385,355` (about `7.17 GB` aggregate reads).
+   - Repeated country revisits amplify I/O on large-country tilesets.
+4) Residue diversification still executes for most pairs.
+   - `pairs_diversified_touched=11844` (`diversified_touched_share=0.9050`) with `moves_soft_total=0` and `moves_residual_total=0`.
+   - Practical meaning: anti-collapse guard moves were mostly no-op in this authority run, but diversification selection remained a dominant path.
+5) Full-array ranking cost remains extreme for large tile universes.
+   - Example from same run log: countries like `RU` carry `tiles=42,177,482`; full lexsort/rank selection over such arrays is inherently expensive even when `n_sites` for the pair is small.
+   - This is the primary algorithmic reason `S4` still trends to hour-scale without a higher-blast-radius approximation lane.
+
+Touched file:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+
+Validation:
+1) `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` passed.
+2) Executed old-vs-new equivalence harness for anti-collapse routine over randomized cases; outputs/diagnostics matched.
+3) Executed arithmetic equivalence harness (`object` vs `int64` path within expected range); allocations/residues matched.
+
+Impact:
+1) No policy/config changes.
+2) No cache-limit/RAM increase required for this mode.
+3) Intended to reduce `S4` wall-clock by removing redundant high-cost compute while keeping statistical semantics unchanged.

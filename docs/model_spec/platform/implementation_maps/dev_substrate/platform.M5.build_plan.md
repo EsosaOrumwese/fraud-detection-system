@@ -251,17 +251,30 @@ Tasks:
 7. Stop progression if `overall_pass=false`.
 
 DoD:
-- [ ] `M5.A` carry-forward invariants are verified and recorded.
-- [ ] Inlet policy handle values are exact-match and non-ambiguous.
-- [ ] Drift guard scan shows no disallowed seed-lane symbols in active docs/surfaces.
-- [ ] Inlet policy boundary statement is explicit and evidence-backed.
-- [ ] M5.B snapshot exists locally and durably.
+- [x] `M5.A` carry-forward invariants are verified and recorded.
+- [x] Inlet policy handle values are exact-match and non-ambiguous.
+- [x] Drift guard scan shows no disallowed seed-lane symbols in active docs/surfaces.
+- [x] Inlet policy boundary statement is explicit and evidence-backed.
+- [x] M5.B snapshot exists locally and durably.
 
 Blockers:
 1. `M5B-B1`: M5.A carry-forward invariants invalid or unreadable.
 2. `M5B-B2`: inlet policy handles missing/ambiguous/mismatched.
 3. `M5B-B3`: disallowed seed-lane symbol detected in active scope.
 4. `M5B-B4`: M5.B snapshot write/upload failure.
+
+Execution result (2026-02-14):
+1. First pass attempt produced `M5B-B3` due drift-scanner false positives on guardrail-list lines.
+2. Scanner context classification was tightened (guardrail declaration context is allowlisted); rerun closed PASS.
+3. Final PASS snapshot:
+   - local: `runs/dev_substrate/m5/20260214T191428Z/m5_b_inlet_policy_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T191428Z/m5_b_inlet_policy_snapshot.json`
+4. Final state:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `policy_value_match.overall=true`
+   - `boundary_consistency_checks.overall=true`
+   - `disallowed_symbols_found.violation_count=0`
 
 ### M5.C Oracle Input Presence Assertion (No Seed Execution)
 Goal:
@@ -472,7 +485,7 @@ Notes:
 
 ## 7) M5 Completion Checklist
 - [x] M5.A complete
-- [ ] M5.B complete
+- [x] M5.B complete
 - [ ] M5.C complete
 - [ ] M5.D complete
 - [ ] M5.E complete

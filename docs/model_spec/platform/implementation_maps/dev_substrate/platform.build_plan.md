@@ -420,7 +420,7 @@ Active-phase planning posture:
   - `M5.B` now explicitly pins M5.A carry-forward invariants, inlet-policy exact-match validation, seed-lane drift-scan guards, and local+durable `m5_b_inlet_policy_snapshot.json` publication contract.
 - Sub-phase progress:
   - [x] `M5.A` authority + handle closure for P3.
-  - [ ] `M5.B` oracle inlet policy closure.
+  - [x] `M5.B` oracle inlet policy closure.
   - [ ] `M5.C` oracle input presence assertion.
   - [ ] `M5.D` stream-sort launch contract.
   - [ ] `M5.E` stream-sort execution + receipts/manifests.
