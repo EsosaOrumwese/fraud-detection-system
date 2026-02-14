@@ -35,6 +35,8 @@ The ingress boundary is a four-component contract, each with a strict ownership 
 5. IG durable admission state was recorded as `ADMITTED`.
 6. IG wrote an admission receipt (`decision=ADMIT`) carrying run pins, dedupe key, and bus commit reference.
 
+Durable admission state today is persisted in IG admission index storage (`admissions` table) and surfaced in run evidence via `basis.ig_admission_locator` in the run report (anchor run points to Postgres DSN).
+
 If any of those fail, the event is not treated as admitted:
 - semantic duplicate returns `DUPLICATE` with receipt truth,
 - ambiguous/invalid/conflicting input returns `QUARANTINE` (fail-closed),
@@ -83,11 +85,19 @@ At this boundary, these are the canonical identities that matter:
 - Why it matters:
   it binds event flow to a specific scenario execution, not just a platform shell.
 
+Anchor evidence pin (alias behavior):
+- anchor run `platform_20260212T085637Z` reports `scenario_run_ids=["fd17b1049bbce9df478c22ba1740e9ea"]`,
+- same run ID appears in SR run-submit/session and SR READY publish log line for that run.
+- READY object path pattern is run-scoped: `s3://fraud-platform/<platform_run_id>/sr/ready_signal/<run_id>.json` where `<run_id>` is the SR run ID (and equals `scenario_run_id` in this baseline).
+
 3. `event_id`
 - Meaning:
   semantic event identity for idempotency and replay safety.
 - Mint authority:
-  producer-side event construction (in this lane, WSP derives deterministic IDs from output identity + primary keys + world pins).
+  producer-side event construction (WSP stream runner).
+- Deterministic derivation used in code:
+  `sha256("|".join([output_id] + primary_key_values + [manifest_fingerprint, parameter_hash, seed, scenario_id]))`
+  (present pins are appended in that order).
 - Enforcement:
   IG uses `event_id` in dedupe identity and all decision receipts.
 - Why it matters:
@@ -98,6 +108,8 @@ At this boundary, these are the canonical identities that matter:
   policy class used by IG for routing/partitioning and class-specific pin rules.
 - Mint authority:
   IG derives it from `event_type` using IG class-map policy.
+- Mapping source used at runtime:
+  `config/platform/ig/class_map_v0.yaml` (loaded through IG wiring `class_map_ref`).
 - Important nuance:
   producer does not "declare" the final class as truth; IG computes it from authoritative mapping.
 - Enforcement:
@@ -184,6 +196,11 @@ When READY is accepted by consumer-side schema and cross-checks:
 5. Dependency guarantee:
    WSP can defer READY when required downstream packs are not yet ready, rather than streaming into partial topology.
 
+Authority order when READY and run-facts disagree:
+1. `platform_run_id` and `scenario_run_id` must match between READY and run-facts, else fail (`*_MISMATCH`).
+2. For world pins (`manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`), WSP uses run-facts pins as the execution source of truth after identity checks pass.
+3. `run_config_digest` is carried for provenance/control-plane traceability; it is not used to override run-facts world identity.
+
 ### Duplicate READY behavior (exact rules)
 
 Duplicate handling is status-aware, not naive “always drop.”
@@ -205,6 +222,10 @@ the READY is not permanently suppressed by duplicate logic; it can be processed 
 That rule is intentional:
 - terminal outcomes are idempotently closed,
 - recoverable/transient outcomes remain retryable.
+
+Where READY processing records are stored:
+- run-scoped object-store path: `<platform_run_prefix>/wsp/ready_runs/<message_id>.jsonl`
+- terminal statuses (`STREAMED`, `SKIPPED_OUT_OF_SCOPE`) are read from this record to enforce duplicate skip semantics.
 
 ### Why this READY design is strong
 
@@ -233,6 +254,8 @@ Before deciding, IG computes a canonical payload hash from:
 - `event_type`
 - `schema_version`
 - `payload`
+- Canonicalization and hash algorithm:
+  JSON canonical string with `sort_keys=true`, ASCII-safe compact separators, then `sha256`.
 
 Then it checks existing admission state for the same `dedupe_key`.
 
@@ -267,6 +290,10 @@ Then it checks existing admission state for the same `dedupe_key`.
 
 So IG never “best-effort accepts” identity contradictions. It either converges deterministically (`DUPLICATE`) or isolates (`QUARANTINE`).
 
+Where dedupe state lives:
+- IG admission index `admissions` storage (SQLite or Postgres backend).
+- In parity/dev posture this is typically Postgres; run evidence exposes locator via `basis.ig_admission_locator`.
+
 ---
 
 ## Q5) Publish/admission state machine: `PUBLISH_IN_FLIGHT` -> `ADMITTED` / `PUBLISH_AMBIGUOUS`
@@ -300,6 +327,11 @@ State key is the dedupe identity:
   - IG records ambiguous state in index,
   - IG returns fail-closed decision path (`QUARANTINE` with reason `PUBLISH_AMBIGUOUS`),
   - IG writes quarantine artifact + receipt evidence.
+
+Where `PUBLISH_AMBIGUOUS` is recorded:
+1. admission index row state (`admissions.state = PUBLISH_AMBIGUOUS`),
+2. per-event QUARANTINE receipt/quarantine artifacts (reason code includes `PUBLISH_AMBIGUOUS`),
+3. run-level aggregate counter (`ingress.publish_ambiguous`) in run report.
 
 ### Behavior on subsequent arrivals with existing state
 
@@ -386,6 +418,23 @@ Decision-specific required fields:
    - `evidence_refs` (including quarantine artifact reference),
    - reason codes for failure class.
 
+### B.1) Observed-now vs target clarification (anchor-run posture)
+
+Observed directly from anchor-run materialized artifacts:
+1. `decision_receipt_ref` pointers exist and are run-scoped under `s3://fraud-platform/platform_20260212T085637Z/ig/receipts/...` (via run report + DF reconciliation).
+2. Bus reference shape in live flow is visible as:
+   - `topic`
+   - `partition`
+   - `offset` (string)
+   - `offset_kind` = `kinesis_sequence`
+   - `published_at_utc`
+   (visible in decision-fabric reconciliation `source_eb_ref` for anchor run).
+
+What is enforced by IG contract/runtime (even when raw receipt blobs are not locally materialized):
+1. `ingestion_receipt.schema.yaml` requires core fields (`receipt_id`, `decision`, `event_id`, `event_type`, `event_class`, `ts_utc`, `manifest_fingerprint`, `platform_run_id`, `run_config_digest`, `policy_rev`).
+2. For `ADMIT`/`DUPLICATE`, schema requires `eb_ref`, `scenario_run_id`, `payload_hash`, `admitted_at_utc`.
+3. For `QUARANTINE`, schema requires `evidence_refs`.
+
 ### C) Where run IDs and hashes are carried
 
 Run IDs:
@@ -436,6 +485,8 @@ For this cluster, my anchor run is:
 
 3. IG receipts prefix (commit evidence surface)
 - `s3://fraud-platform/platform_20260212T085637Z/ig/receipts/`
+- sample receipt file:
+  `s3://fraud-platform/platform_20260212T085637Z/ig/receipts/00965821d94105a3d88ad6085b3c5b37.json`
 
 ### Why this is the right anchor for Cluster 2
 
@@ -471,6 +522,10 @@ The failure was visible as provenance split:
 1. receipt metadata (`pins.platform_run_id`) pointed to active run,
 2. receipt object path prefix pointed to stale/other run scope.
 
+Concrete run evidence used during remediation:
+- observed in parity window around `platform_20260206T052035Z` where receipt metadata carried `pins_json.platform_run_id=platform_20260206T052035Z` while stored `receipt_ref` used older prefix `s3://fraud-platform/platform_20260206T042550Z/...`.
+- this is the exact contradiction class documented in IG implementation notes for the fix.
+
 At run-operations level, this showed up as “everything looks admitted” but evidence lineage was not single-run consistent, which means replay/audit trust was compromised.
 
 ### What I changed
@@ -483,6 +538,7 @@ I fixed it at the write boundary, not by operator convention:
    - S3-style: `<platform_run_id>/ig/...`
    - local object root: `fraud-platform/<platform_run_id>/ig/...` (with root-aware normalization),
 5. added regression tests for mismatched env-vs-envelope scope; envelope scope must win.
+   - targeted in `tests/services/ingestion_gate/test_admission.py`.
 
 ### Proof it is fixed
 
@@ -562,6 +618,12 @@ For anchor run `platform_20260212T085637Z`, this report explicitly contains basi
 - `service_release_id = dev-local`
 - `environment = local_parity`
 - `config_revision = local-parity-v0`
+
+JSON paths in run report:
+- `basis.provenance.service_release_id`
+- `basis.provenance.environment`
+- `basis.provenance.config_revision`
+- `basis.run_prefix`
 
 ### About `image digest` and `git sha` specifically
 
@@ -673,3 +735,70 @@ Before calling Control/Ingress “dev-min equivalent,” I verify:
 
 If all six are true, migration changed infrastructure but preserved boundary semantics, which is the correct definition of parity for this cluster.
 
+---
+
+## Q11) Checkpointing + replay safety
+
+Checkpointing for this boundary is anchored in WSP, then protected by IG idempotency:
+
+1. WSP checkpoint store
+- backend: file or Postgres (profile-driven),
+- logical table/file model: `wsp_checkpoint` cursor per `(pack_key, output_id)`,
+- checkpoint scope key in stream-view mode is run-bound:
+  `checkpoint_pack_key = sha256(pack_key|platform_run_id|scenario_run_id)`.
+- this is what prevents a new run from silently resuming an old run’s offsets.
+
+2. What is truth if checkpoint and receipts disagree
+- receipt truth wins for admission semantics (IG is admission authority).
+- checkpoint is consumption progress state, not admission truth.
+- if checkpoint advances but IG shows ambiguity/quarantine contradictions, closure is blocked and replay is controlled.
+
+3. Real replay-safety example
+- Duplicate READY delivery occurs naturally in control-bus polling.
+- WSP first checks run-scoped READY record (`.../wsp/ready_runs/<message_id>.jsonl`):
+  - terminal status (`STREAMED`, `SKIPPED_OUT_OF_SCOPE`) => skip duplicate.
+- if a duplicate event still reaches IG, IG dedupe law converges it via `(platform_run_id,event_class,event_id)` + payload hash.
+- net effect: no double-commit side effect.
+
+---
+
+## Q12) Backpressure / bounded safety knobs at ingress
+
+Safety-critical knobs (change correctness envelope if misused):
+1. `WSP_MAX_EVENTS_PER_OUTPUT` (bounded gate cap: smoke/baseline acceptance).
+2. `WSP_READY_MAX_MESSAGES` and READY poll loop controls (how much control-plane work is admitted per cycle).
+3. WSP->IG retry budget:
+   - `ig_retry_max_attempts`
+   - `ig_retry_base_delay_ms`
+   - `ig_retry_max_delay_ms`
+4. WSP checkpoint flush cadence (`checkpoint_every`) because it defines replay-loss window on interruption.
+
+Performance-oriented knobs (tune throughput/latency, not semantics):
+1. poll intervals (`--poll-seconds`, component poll sleep),
+2. stream-view batch size (`WSP_STREAM_VIEW_BATCH_SIZE`),
+3. component concurrency/parallelism controls.
+
+Where knob values are captured for a run:
+1. operator command/runpack env (for example `local_parity_control_ingress` pack env and make target args),
+2. session/platform logs (`session.jsonl`, `platform.log`, `wsp_ready_consumer.log`),
+3. run report counters (to verify bounded outcomes actually happened).
+
+---
+
+## Q13) Writer/ownership enforcement (who is allowed to write what)
+
+Writer map (hard boundary ownership):
+1. SR writes: `run_plan`, `run_record`, `run_status`, `run_facts_view`, `ready_signal`.
+2. WSP writes: emitted envelopes to IG and WSP checkpoint/READY-run records.
+3. IG writes: admission/quarantine decisions + receipt/quarantine artifacts + admission index state.
+4. EB writes: transport offsets/sequences only.
+
+Concrete enforcement mechanisms:
+1. SR write-once guards:
+- `write_json_if_absent` + drift errors (`PLAN_DRIFT`, `FACTS_VIEW_DRIFT`, `READY_SIGNAL_DRIFT`).
+2. IG scope enforcement at writer:
+- receipt/quarantine prefix derived from `envelope.platform_run_id` per call (not stale service env).
+3. Contract enforcement:
+- IG validates receipt/quarantine payloads against schemas before write.
+4. Runtime authority split:
+- WSP cannot produce IG admission truth; only IG decides and writes `ADMIT`/`DUPLICATE`/`QUARANTINE`.
