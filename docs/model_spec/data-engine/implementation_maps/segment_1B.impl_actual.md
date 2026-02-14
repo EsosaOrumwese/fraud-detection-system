@@ -4234,3 +4234,46 @@ Pinned execution sequence:
    - capture status and gate movement versus existing P4 RED authority.
 6) Storage hygiene:
    - keep this candidate until decision; prune only superseded failed folders after scoring.
+
+---
+
+### Entry: 2026-02-13 23:57
+
+Design element: Path-1 cycle #1 full execution outcome + runtime diagnosis.
+Summary: Completed the guarded full 1B chain on run `e4d92c9cfbd3453fb6b9183ef6e3b6f6` and re-scored P4. Status remained `RED_REOPEN_REQUIRED`; concentration/coverage improved materially versus prior RED run but still below B thresholds, with top-country collapse sentinel triggered.
+
+Execution trail (completed):
+1) Run bootstrap + identity:
+   - run-id: `e4d92c9cfbd3453fb6b9183ef6e3b6f6`
+   - upstream identity pinned to accepted 1A authority:
+     - `manifest_fingerprint=12adbd0603b3259db571e3c576e6037f4aafe73314037908498f1696003162a9`
+     - `parameter_hash=59ca6719a623f6f024806b79344926c5941841789f2f92264bccad187f710f72`
+2) Full state chain executed successfully:
+   - `S0,S1,S2,S3,S4,S5,S6,S7,S8,S9` complete, with `S9 decision=PASS`.
+3) Integrated scoring artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_e4d92c9cfbd3453fb6b9183ef6e3b6f6.json`.
+4) 1A freeze-veto reconfirmed after 1B cycle:
+   - `runs/fix-data-engine/segment_1A/reports/segment1a_freeze_guard_416afa430db3f5bf87180f8514329fe8.json`
+   - `status=PASS`.
+
+Observed score movement vs prior RED candidate `625644d528a44f148bbf44339a41a044`:
+1) Improved:
+   - `country_gini`: `0.7528 -> 0.7182`
+   - `top1`: `0.1366 -> 0.1240`
+   - `top5`: `0.3933 -> 0.3879`
+   - `top10`: `0.5974 -> 0.5656`
+   - `eligible_country_nonzero_share`: `0.3092 -> 0.7550`
+   - `southern_hemisphere_share`: `0.0600 -> 0.0755`
+2) Still failing B/B+ hard gates:
+   - all concentration and coverage checks remain below B targets.
+3) Structural blocker:
+   - `top_country_no_collapse=false`
+   - collapse sentinel flagged `MC` and `BM` (flagged_count=`2`).
+
+Runtime diagnosis captured for next iteration policy:
+1) `S4` is dominant runtime bottleneck.
+2) Heartbeats show persistent country-asset cache churn:
+   - final heartbeat near completion: `pairs_processed=14420/14423`, `cache_miss=8693`, `evictions=8685`, cache size fixed at `9`.
+3) Decision trail consequence:
+   - do not brute-force repeated full reruns without a performance rail;
+   - next technical lever for iteration speed is an explicit S4 cache/runtime rail (performance-only, no semantics change), while keeping realism gates fail-closed.
