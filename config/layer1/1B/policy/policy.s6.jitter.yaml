@@ -1,12 +1,12 @@
-policy_version: "2026-02-14-p4r4-a2"
+policy_version: "2026-02-13-r4"
 mode: "mixture_v2"
 deterministic_seed_namespace: "1B.S6.JITTER_V2"
 max_attempts: 64
-selection_blend: 0.55
+selection_blend: 0.50
 component_weights:
-  core_cluster: 0.06
-  secondary_cluster: 0.16
-  sparse_tail: 0.78
+  core_cluster: 0.10
+  secondary_cluster: 0.20
+  sparse_tail: 0.70
 components:
   core_cluster:
     lat_shape_exp: 1.60
@@ -17,7 +17,7 @@ components:
     lon_shape_exp: 1.00
     max_abs_offset_fraction: 1.00
   sparse_tail:
-    lat_shape_exp: 0.45
-    lon_shape_exp: 0.45
+    lat_shape_exp: 0.55
+    lon_shape_exp: 0.55
     max_abs_offset_fraction: 1.00
-notes: "P4.R4 attempt A2: bounded spread increase versus lock profile; avoid resample-exhaustion while testing collapse movement under fixed S4 support."
+notes: "P3 reopen posture: restore governed mixture_v2 lane after S4 support-diversification authority; keep weights/exponents fixed for first contract-alignment pass."

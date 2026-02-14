@@ -640,6 +640,26 @@ DoD:
 - [ ] geometry/validity/parity checks remain green.
 - [ ] reproducibility witness confirms same-seed stability.
 
+P4.R4 execution status (2026-02-14):
+- status: `FAIL_CLOSED` (bounded S6-only lane exhausted; DoD remains open).
+- shortlisted input run from `P4.R3`:
+  - `e4d92c9cfbd3453fb6b9183ef6e3b6f6`.
+- bounded attempt executed:
+  - candidate run `c4c642c02c5b43ff97dff224bbad145b` (`S6->S9`, `S9 PASS`),
+  - integrated score artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_c4c642c02c5b43ff97dff224bbad145b.json`,
+  - lane summary artifact: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r4_attempt_c4c642c02c5b43ff97dff224bbad145b.json`.
+- observed outcome versus shortlisted baseline:
+  - collapse sentinel remains flagged (`MC`, `BM`; `flagged_count=2`),
+  - geometry/parity rails remain green,
+  - NN tail worsened (`p99/p50` increased).
+- feasibility evidence under fixed `S4/S5` support:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r4_support_ceiling_c4c642c02c5b43ff97dff224bbad145b.json`.
+  - key finding: for `MC`, max achievable `lat/lon` unique-ratio upper bounds from assigned support (`0.0496/0.0661`) are below collapse sentinel threshold (`0.15`), so S6-only tuning cannot clear this flag without upstream support/count reshaping.
+- decision:
+  - reject candidate `c4c642c02c5b43ff97dff224bbad145b`,
+  - keep lock S6 policy posture unchanged for promotion lane,
+  - reopen recommendation: upstream `P2/S4` support-count lane (fail-closed before `P4.R5`).
+
 #### P4.R5 - Integrated promotion run and decision
 Goal:
 - run one full integrated candidate and make an explicit go/no-go decision.

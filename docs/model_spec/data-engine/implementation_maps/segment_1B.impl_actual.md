@@ -4593,3 +4593,59 @@ Storage and safety posture:
 1) Run bootstrap will avoid full-folder duplication by reusing heavy upstream assets via directory junctions for immutable inputs.
 2) Pre-run prune discipline remains active before creating new candidate run-id.
 3) Any rejected candidate run-id will be explicitly marked as non-promoted for downstream.
+
+---
+
+### Entry: 2026-02-14 12:18
+
+Design element: `P4.R4` bounded execution outcome (`S6` lane) and fail-closed decision.
+Summary: Executed bounded `S6` tuning on the `P4.R3` shortlist path. One aggressive profile failed contract runtime (`E613_RESAMPLE_EXHAUSTED`), a bounded profile completed `S6->S9` with `S9 PASS`, but collapse sentinel remained uncleared (`MC`, `BM`) and NN tail worsened. Lane is closed fail-closed with explicit feasibility evidence; recommended reopen shifts upstream to `P2/S4` support-count surface.
+
+Execution trail:
+1) Baseline pin before tuning:
+   - shortlisted run: `e4d92c9cfbd3453fb6b9183ef6e3b6f6`.
+   - integrated structural status: all green except `top_country_no_collapse=false`.
+   - flagged countries: `MC`, `BM`.
+2) Storage-safe candidate bootstrap:
+   - candidate run-id: `c4c642c02c5b43ff97dff224bbad145b`.
+   - copied minimal upstream surfaces (`1A`, `S0/S3/S4/S5` data),
+   - linked heavy immutable assets via junctions (`tile_bounds`, `tile_index`, `tile_weights`) to avoid large duplication.
+3) Attempt A1 policy (`2026-02-14-p4r4-a1`, aggressive spread):
+   - failed in `S6` with `F4:E613_RESAMPLE_EXHAUSTED` (observed country key `MV`),
+   - rejected as unsafe profile.
+4) Attempt A2 policy (`2026-02-14-p4r4-a2`, bounded spread):
+   - `S6`, `S7`, `S8` completed,
+   - first `S9` failed due missing `S5` RNG evidence in bootstrapped run,
+   - restored required S5 RNG evidence by importing `site_tile_assign` events and `1B.S5.assigner` trace rows with destination run-id normalization,
+   - archived failed validation bundle and reran `S9` -> `PASS`.
+5) Scoring and diagnostics:
+   - integrated score: `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_c4c642c02c5b43ff97dff224bbad145b.json`.
+   - P3 score: `runs/fix-data-engine/segment_1B/reports/segment1b_p3_candidate_c4c642c02c5b43ff97dff224bbad145b.json`.
+   - lane summary: `runs/fix-data-engine/segment_1B/reports/segment1b_p4r4_attempt_c4c642c02c5b43ff97dff224bbad145b.json`.
+
+Observed movement vs shortlisted baseline (`e4...`):
+1) Structural checks:
+   - `coordinate_bounds_valid=true`, `s8_parity_ok=true`, `s6_mode_mixture_v2=true` remain green.
+2) Collapse sentinel:
+   - still `flagged_count=2` (`MC`, `BM`) -> `top_country_no_collapse=false`.
+3) Macro concentration/coverage:
+   - effectively unchanged vs baseline (`country_gini`, `top1/top5/top10`, coverage shares).
+4) NN geometry tail:
+   - worsened (`p99/p50`: `38.6545 -> 43.0928`).
+
+Feasibility evidence (fixed `S4/S5` support):
+1) Artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4r4_support_ceiling_c4c642c02c5b43ff97dff224bbad145b.json`.
+2) Key bound:
+   - sentinel unique-ratio threshold is `0.15`.
+   - for `MC` (`site_count=10088`), support-constrained 4dp upper bounds are:
+     - `lat_unique_ratio_upper <= 0.0496`,
+     - `lon_unique_ratio_upper <= 0.0661`.
+   - therefore `MC` cannot clear unique-ratio sentinel in S6-only lane under current support/count surfaces.
+
+Decision and rollback:
+1) Reject candidate `c4c642c02c5b43ff97dff224bbad145b` for promotion.
+2) Reverted `config/layer1/1B/policy/policy.s6.jitter.yaml` to locked posture:
+   - `policy_version=2026-02-13-r4` (and original weights/blend/exponents).
+3) Mark `P4.R4` fail-closed with recommended reopen lane:
+   - upstream `P2/S4` support-count reshaping under existing guard contracts.

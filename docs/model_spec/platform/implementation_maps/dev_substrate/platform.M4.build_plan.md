@@ -192,25 +192,56 @@ Blockers:
 Goal:
 1. Pin executable service/pack map and singleton policy for bring-up.
 
+Entry conditions:
+1. `M4.A` snapshot exists and is PASS:
+   - `runs/dev_substrate/m4/20260214T121004Z/m4_a_handle_closure_snapshot.json`
+   - `overall_pass=true`, `unresolved_handle_count=0`, `wildcard_key_present=false`.
+2. `platform_run_id` for mapping scope is inherited from `M4.A` (no reminting at M4.B).
+
+Required inputs:
+1. `M4.A` closure snapshot (handle/value/source map).
+2. P2 in-scope pack contract from runbook and main plan:
+   - `control_ingress`, `rtdl_core`, `rtdl_decision_lane`, `case_labels`, `obs_gov`.
+3. Handles registry service-key set:
+   - `SVC_IG`
+   - `SVC_RTDL_CORE_ARCHIVE_WRITER`, `SVC_RTDL_CORE_IEG`, `SVC_RTDL_CORE_OFP`, `SVC_RTDL_CORE_CSFB`
+   - `SVC_DECISION_LANE_DL`, `SVC_DECISION_LANE_DF`, `SVC_DECISION_LANE_AL`, `SVC_DECISION_LANE_DLA`
+   - `SVC_CASE_TRIGGER`, `SVC_CM`, `SVC_LS`
+   - `SVC_ENV_CONFORMANCE`
+
 Tasks:
-1. Build M4 service map for in-scope packs:
+1. Build canonical `pack -> service-handle -> concrete service-name` mapping for exactly five in-scope packs:
    - `control_ingress`: `SVC_IG`
    - `rtdl_core`: `SVC_RTDL_CORE_ARCHIVE_WRITER`, `SVC_RTDL_CORE_IEG`, `SVC_RTDL_CORE_OFP`, `SVC_RTDL_CORE_CSFB`
    - `rtdl_decision_lane`: `SVC_DECISION_LANE_DL`, `SVC_DECISION_LANE_DF`, `SVC_DECISION_LANE_AL`, `SVC_DECISION_LANE_DLA`
    - `case_labels`: `SVC_CASE_TRIGGER`, `SVC_CM`, `SVC_LS`
    - `obs_gov`: `SVC_ENV_CONFORMANCE`
-2. Pin desired_count policy for each mapped service (`1`).
-3. Publish pack/service map artifact.
+2. Record concrete-name authority for each mapped service:
+   - `service_handle`
+   - `service_name`
+   - `source` (artifact/registry reference)
+   - `materialization_origin`
+3. Pin singleton contract for every mapped service:
+   - `desired_count=1`
+   - `replica_policy=v0_singleton_deterministic`
+4. Pin M4.B exclusions explicitly:
+   - exclude one-shot task handles (`TD_*`) from daemon service map,
+   - exclude reporter daemonization for P2 (`TD_REPORTER` remains P11 one-shot path).
+5. Emit `m4_b_service_map_snapshot.json` locally and durably.
 
 DoD:
-- [ ] M4 pack/service map is explicit and complete for in-scope packs.
-- [ ] Singleton desired_count policy is pinned for each started service.
-- [ ] M4.B service-map artifact exists locally and durably.
+- [ ] M4 pack/service map contains exactly five in-scope packs and no out-of-scope packs.
+- [ ] All required service handles have concrete service-name bindings and source provenance.
+- [ ] Singleton desired_count policy (`1`) is pinned for each mapped service.
+- [ ] Exclusions (`TD_*`, reporter in P2) are explicit in artifact.
+- [ ] `m4_b_service_map_snapshot.json` exists locally and durably.
 
 Blockers:
-1. `M4B-B1`: service map incomplete for in-scope packs.
-2. `M4B-B2`: singleton policy unresolved.
+1. `M4B-B1`: service map incomplete or contains pack/service drift vs P2 in-scope contract.
+2. `M4B-B2`: singleton policy unresolved for any mapped service.
 3. `M4B-B3`: service-map artifact write/upload failure.
+4. `M4B-B4`: service-handle source ambiguity (multiple concrete names for one handle without pinned precedence).
+5. `M4B-B5`: forbidden inclusion detected (`TD_*` daemonization or reporter included in P2 map).
 
 ### M4.C Identity/IAM Binding Validation
 Goal:

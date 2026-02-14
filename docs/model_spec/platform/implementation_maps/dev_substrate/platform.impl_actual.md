@@ -8476,3 +8476,28 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 
 ### Next step
 1. Enter `M4.B` (service/pack map + singleton contract) using M4.A closure snapshot as authority input.
+## Entry: 2026-02-14 12:17PM - M4.B planning expansion (execution-grade, planning-only)
+
+### Trigger
+1. USER directed progression to `M4.B` planning after `M4.A` PASS.
+
+### Planning objective
+1. Prevent M4.B execution ambiguity by pinning:
+   - entry conditions from actual `M4.A` pass artifact,
+   - exact pack/service contract for P2,
+   - singleton and exclusion semantics,
+   - blocker taxonomy for mapping drift.
+
+### Changes made
+1. Expanded `M4.B` section in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+2. Added execution-grade structure:
+   - `Entry conditions` anchored to `m4_20260214T121004Z` (`overall_pass=true`, `unresolved_handle_count=0`, `wildcard_key_present=false`),
+   - `Required inputs` list (M4.A snapshot + P2 pack contract + required `SVC_*` handles),
+   - explicit `Tasks` for canonical pack/service mapping, source provenance, singleton policy, and exclusions,
+   - strengthened `DoD` to require exact in-scope pack closure + concrete service bindings,
+   - added blockers `M4B-B4` (source ambiguity) and `M4B-B5` (forbidden inclusion drift).
+
+### Execution posture after planning
+1. This pass is planning-only; no M4.B runtime/service operations were executed.
+2. Next action remains M4.B execution against the expanded criteria.
