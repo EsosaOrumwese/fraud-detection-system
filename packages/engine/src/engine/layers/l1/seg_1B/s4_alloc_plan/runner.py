@@ -47,6 +47,8 @@ _INT64_MAX = int(np.iinfo(np.int64).max)
 RANK_CACHE_ENTRIES_MAX = 128
 RANK_CACHE_BYTES_MAX = 64 * 1024 * 1024
 RANK_CACHE_K_MAX = 200_000
+ALLOC_PLAN_CACHE_ENTRIES_MAX = 256
+ALLOC_PLAN_CACHE_BYTES_MAX = 256 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -75,6 +77,30 @@ class S4AllocPolicy:
     diversify_candidate_window_fraction: float
     diversify_candidate_window_min: int
     deterministic_seed_namespace: str
+
+
+@dataclass(frozen=True)
+class _AllocPlan:
+    """Exact per-(country,n_sites) plan reused across merchants.
+
+    - base allocation is deterministic and depends only on (weights, n_sites, dp/K).
+    - bump candidates depend on residues and window and thus are also deterministic for the key.
+    - merchant-specific rotation is applied at use-time via merchant_id.
+    """
+
+    n_sites: int
+    dp_value: int
+    K: int
+    shortfall: int
+    window: int
+    diversify_active: bool
+    base_idx: np.ndarray  # indices into tile arrays (uint32 when possible)
+    base_counts: np.ndarray  # counts aligned to base_idx
+    candidates: np.ndarray  # indices into tile arrays (uint32 when possible), length=window (or 0 if shortfall==0)
+
+    @property
+    def payload_bytes(self) -> int:
+        return int(self.base_idx.nbytes + self.base_counts.nbytes + self.candidates.nbytes)
 
 
 class _StepTimer:
@@ -611,6 +637,159 @@ def _topk_rank_prefix_exact(
     return ranked.astype(np.int64, copy=False)
 
 
+def _anti_diag_from_sparse_counts(counts: Iterable[int], n_sites: int) -> dict[str, Any]:
+    """Compute anticollapse diagnostics without allocating a dense tile vector."""
+
+    total = int(n_sites)
+    if total <= 0:
+        return {
+            "pair_top1_pre": 0.0,
+            "pair_top1_post": 0.0,
+            "pair_hhi_pre": 0.0,
+            "pair_hhi_post": 0.0,
+            "pair_active_tiles_pre": 0,
+            "pair_active_tiles_post": 0,
+            "moves_soft": 0,
+            "moves_residual": 0,
+        }
+    counts_list = [int(v) for v in counts if int(v) > 0]
+    if not counts_list:
+        return {
+            "pair_top1_pre": 0.0,
+            "pair_top1_post": 0.0,
+            "pair_hhi_pre": 0.0,
+            "pair_hhi_post": 0.0,
+            "pair_active_tiles_pre": 0,
+            "pair_active_tiles_post": 0,
+            "moves_soft": 0,
+            "moves_residual": 0,
+        }
+    max_c = max(counts_list)
+    denom = float(total)
+    hhi = float(sum((c / denom) ** 2 for c in counts_list))
+    top1 = float(max_c / denom)
+    active = int(len(counts_list))
+    return {
+        "pair_top1_pre": top1,
+        "pair_top1_post": top1,
+        "pair_hhi_pre": hhi,
+        "pair_hhi_post": hhi,
+        "pair_active_tiles_pre": active,
+        "pair_active_tiles_post": active,
+        "moves_soft": 0,
+        "moves_residual": 0,
+    }
+
+
+def _build_alloc_plan(
+    *,
+    tile_ids: np.ndarray,
+    weight_fp: np.ndarray,
+    dp_value: int,
+    n_sites: int,
+    policy: S4AllocPolicy,
+    diversify_window_max: int = 0,
+) -> _AllocPlan:
+    """Build exact base+residue plan for one (country,n_sites) key.
+
+    This intentionally avoids dense z/residue recomputation per merchant/pair.
+    """
+
+    n_sites_i = int(n_sites)
+    dp_i = int(dp_value)
+    K = 10 ** dp_i
+    if n_sites_i <= 0:
+        return _AllocPlan(
+            n_sites=n_sites_i,
+            dp_value=dp_i,
+            K=K,
+            shortfall=0,
+            window=0,
+            diversify_active=False,
+            base_idx=np.empty(0, dtype=np.int64),
+            base_counts=np.empty(0, dtype=np.int64),
+            candidates=np.empty(0, dtype=np.int64),
+        )
+
+    # For the common case in 1B, n_sites is small (<=24) and dp is 6, so int32 math is safe.
+    # We still guard against overflow explicitly.
+    max_w = int(np.max(weight_fp)) if weight_fp.size else 0
+    use_i32 = (
+        weight_fp.size > 0
+        and max_w >= 0
+        and n_sites_i >= 0
+        and max_w <= int(np.iinfo(np.int32).max)
+        and max_w * n_sites_i <= int(np.iinfo(np.int32).max)
+    )
+    if use_i32:
+        w = weight_fp.astype(np.int32, copy=False)
+        prod = (w * np.int32(n_sites_i)).astype(np.int32, copy=False)
+    else:
+        w = weight_fp.astype(np.int64, copy=False)
+        prod = (w * np.int64(n_sites_i)).astype(np.int64, copy=False)
+
+    base_idx_i64 = np.flatnonzero(prod >= K).astype(np.int64, copy=False)
+    if int(tile_ids.size) <= int(np.iinfo(np.uint32).max):
+        base_idx_compact = base_idx_i64.astype(np.uint32, copy=False)
+    else:
+        base_idx_compact = base_idx_i64.astype(np.int64, copy=False)
+    if base_idx_i64.size:
+        base_counts = (prod[base_idx_i64] // K).astype(np.int64, copy=False)
+        base_sum = int(np.sum(base_counts, dtype=np.int64))
+    else:
+        base_counts = np.empty(0, dtype=np.int64)
+        base_sum = 0
+
+    shortfall = n_sites_i - int(base_sum)
+    if shortfall <= 0:
+        return _AllocPlan(
+            n_sites=n_sites_i,
+            dp_value=dp_i,
+            K=K,
+            shortfall=0,
+            window=0,
+            diversify_active=False,
+            base_idx=base_idx_compact,
+            base_counts=base_counts,
+            candidates=np.empty(0, dtype=np.int64),
+        )
+
+    diversify_active = (
+        bool(policy.enabled)
+        and bool(policy.diversify_enabled)
+        and int(policy.diversify_apply_n_sites_max) > 0
+        and n_sites_i <= int(policy.diversify_apply_n_sites_max)
+    )
+    if diversify_active:
+        window_min = max(int(shortfall), int(policy.diversify_candidate_window_min))
+        window_frac = int(np.ceil(policy.diversify_candidate_window_fraction * float(tile_ids.size)))
+        window = max(window_min, window_frac)
+        window = min(window, int(tile_ids.size))
+        if diversify_window_max and int(diversify_window_max) > 0:
+            window = min(window, int(diversify_window_max))
+        diversify_active = window > shortfall
+    else:
+        window = int(shortfall)
+
+    residues = prod % K
+    candidates = _topk_rank_prefix_exact(tile_ids=tile_ids, residues_i64=residues, k=int(window))
+    if int(tile_ids.size) <= int(np.iinfo(np.uint32).max):
+        candidates = candidates.astype(np.uint32, copy=False)
+    else:
+        candidates = candidates.astype(np.int64, copy=False)
+    return _AllocPlan(
+        n_sites=n_sites_i,
+        dp_value=dp_i,
+        K=K,
+        shortfall=int(shortfall),
+        window=int(window),
+        diversify_active=bool(diversify_active),
+        base_idx=base_idx_compact,
+        base_counts=base_counts,
+        candidates=candidates,
+    )
+
+
 def _emit_failure_event(
     logger,
     code: str,
@@ -874,6 +1053,21 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         "ENGINE_1B_S4_RANK_CACHE_BYTES_MAX", RANK_CACHE_BYTES_MAX, minimum=0
     )
     rank_cache_k_max = _env_int("ENGINE_1B_S4_RANK_CACHE_K_MAX", RANK_CACHE_K_MAX, minimum=0)
+    alloc_plan_cache_entries_max = _env_int(
+        "ENGINE_1B_S4_ALLOC_PLAN_CACHE_ENTRIES_MAX",
+        ALLOC_PLAN_CACHE_ENTRIES_MAX,
+        minimum=0,
+    )
+    alloc_plan_cache_bytes_max = _env_int(
+        "ENGINE_1B_S4_ALLOC_PLAN_CACHE_BYTES_MAX",
+        ALLOC_PLAN_CACHE_BYTES_MAX,
+        minimum=0,
+    )
+    diversify_window_max = _env_int(
+        "ENGINE_1B_S4_DIVERSIFY_WINDOW_MAX",
+        0,
+        minimum=0,
+    )
     progress_interval_seconds = _env_float(
         "ENGINE_1B_S4_PROGRESS_INTERVAL_SECONDS",
         3.0,
@@ -883,6 +1077,11 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         "ENGINE_1B_S4_HEARTBEAT_INTERVAL_SECONDS",
         10.0,
         minimum=1.0,
+    )
+    pat_sample_every_pairs = _env_int(
+        "ENGINE_1B_S4_PAT_SAMPLE_EVERY_PAIRS",
+        256,
+        minimum=1,
     )
     logger.info(
         "S4: runtime cache settings countries_max=%d cache_max_bytes=%d",
@@ -896,10 +1095,17 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         rank_cache_k_max,
     )
     logger.info(
+        "S4: runtime alloc-plan cache settings entries_max=%d bytes_max=%d",
+        alloc_plan_cache_entries_max,
+        alloc_plan_cache_bytes_max,
+    )
+    logger.info("S4: diversify window cap max=%d (0=disabled)", diversify_window_max)
+    logger.info(
         "S4: runtime logging cadence progress_interval=%.2fs heartbeat_interval=%.2fs",
         progress_interval_seconds,
         heartbeat_interval_seconds,
     )
+    logger.info("S4: PAT sampling cadence sample_every_pairs=%d", pat_sample_every_pairs)
 
     receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
     run_id = receipt.get("run_id")
@@ -1222,9 +1428,17 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     rank_cache_skipped_oversize = 0
     rank_cache_bytes_current = 0
     rank_cache_bytes_peak = 0
+
+    alloc_plan_cache: OrderedDict[tuple[str, int], _AllocPlan] = OrderedDict()
+    alloc_plan_cache_hits = 0
+    alloc_plan_cache_misses = 0
+    alloc_plan_cache_evictions = 0
+    alloc_plan_cache_bytes_current = 0
+    alloc_plan_cache_bytes_peak = 0
     heartbeat_last = time.monotonic()
     heartbeat_check_step = max(500, int((total_pairs or 5000) / 10))
     heartbeat_interval = heartbeat_interval_seconds
+    pat_sample_step = int(max(1, pat_sample_every_pairs))
 
     def _load_country_assets(country_iso: str) -> dict:
         nonlocal bytes_read_weights_total
@@ -1441,9 +1655,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 len(cache) + 1,
             )
             seen_countries.add(country_iso)
-        rss_now = proc.memory_info().rss
-        max_rss = max(max_rss, rss_now)
-        open_files_peak = max(open_files_peak, open_files_counter())
+        if pairs_total % pat_sample_step == 0 or (total_pairs and pairs_total >= total_pairs):
+            rss_now = proc.memory_info().rss
+            max_rss = max(max_rss, rss_now)
+            open_files_peak = max(open_files_peak, open_files_counter())
 
         payload = {
             "tile_ids": weight_tile_sorted,
@@ -1591,120 +1806,236 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         nonlocal pre_top1_values, post_top1_values, pre_hhi_values, post_hhi_values
         nonlocal pre_active_tile_values, post_active_tile_values
         nonlocal substage_allocation_kernel_seconds, substage_allocation_kernel_calls
+        nonlocal substage_rank_prefix_seconds, substage_rank_prefix_calls
+        nonlocal alloc_plan_cache_hits, alloc_plan_cache_misses, alloc_plan_cache_evictions
+        nonlocal alloc_plan_cache_bytes_current, alloc_plan_cache_bytes_peak
 
         kernel_started = time.monotonic()
         substage_allocation_kernel_calls += 1
 
-        n_sites_i64 = int(n_sites)
-        K = 10 ** int(dp_value)
-        use_i64 = (
-            n_sites_i64 >= 0
-            and int(max_weight_fp) >= 0
-            and (n_sites_i64 == 0 or int(max_weight_fp) <= (_INT64_MAX // n_sites_i64))
+        # Allocation strategy:
+        # - Diversification (n_sites <= apply_n_sites_max): expensive window selection, so cache per (country,n_sites).
+        # - Otherwise: compute per-pair sparse base+shortfall without caching (key cardinality is high; caching is wasteful).
+        n_sites_i = int(n_sites)
+        diversify_eligible = (
+            bool(s4_policy.enabled)
+            and bool(s4_policy.diversify_enabled)
+            and int(s4_policy.diversify_apply_n_sites_max) > 0
+            and n_sites_i <= int(s4_policy.diversify_apply_n_sites_max)
         )
-        if use_i64:
-            weight_fp_i64 = weight_fp.astype(np.int64, copy=False)
-            prod_i64 = weight_fp_i64 * n_sites_i64
-            z_i64 = prod_i64 // K
-            residues_i64 = prod_i64 % K
-            base_sum = int(np.sum(z_i64, dtype=np.int64))
-        else:
-            weight_fp_obj = weight_fp.astype(object)
-            prod_obj = weight_fp_obj * n_sites_i64
-            z_obj = prod_obj // K
-            residues_i64 = np.array(prod_obj % K, dtype=np.int64)
-            z_i64 = np.array(z_obj, dtype=np.int64)
-            base_sum = int(sum(int(v) for v in z_obj))
 
-        shortfall = int(n_sites) - base_sum
-        if shortfall < 0:
-            _emit_failure_event(
-                logger,
-                "E404_ALLOCATION_MISMATCH",
-                seed,
-                manifest_fingerprint,
-                str(parameter_hash),
-                {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
-            )
-            raise EngineFailure(
-                "F4",
-                "E404_ALLOCATION_MISMATCH",
-                "S4",
-                MODULE_NAME,
-                {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
-            )
+        # Sparse counts keyed by tile index (not tile_id) to keep the anticollapse dense path cheap when needed.
+        counts_sparse: dict[int, int] = {}
+        diversified = False
 
-        if shortfall > 0:
-            bump_idx, diversified = _select_shortfall_bump_indices(
-                tile_ids=tile_ids,
-                residues_i64=residues_i64,
-                shortfall=int(shortfall),
-                n_sites=int(n_sites),
-                merchant_id=int(merchant_id),
-                legal_country_iso=str(legal_country_iso),
-                policy=s4_policy,
-                rank_prefix_resolver=lambda k: _resolve_rank_prefix_cached(
-                    legal_country_iso=str(legal_country_iso),
-                    n_sites=int(n_sites),
-                    k=int(k),
+        if diversify_eligible:
+            plan_key = (str(legal_country_iso), n_sites_i)
+            plan = alloc_plan_cache.get(plan_key)
+            if plan is not None:
+                alloc_plan_cache_hits += 1
+                alloc_plan_cache.move_to_end(plan_key)
+            else:
+                alloc_plan_cache_misses += 1
+                build_started = time.monotonic()
+                plan = _build_alloc_plan(
                     tile_ids=tile_ids,
-                    residues_i64=residues_i64,
-                ),
-            )
-            n_sites_tile_i64 = z_i64.copy()
-            n_sites_tile_i64[bump_idx] += 1
-            ties_broken_total += int(shortfall)
-            if diversified:
-                diversify_pairs_touched += 1
-                diversify_bumps_total += int(shortfall)
-        else:
-            n_sites_tile_i64 = z_i64
+                    weight_fp=weight_fp,
+                    dp_value=int(dp_value),
+                    n_sites=n_sites_i,
+                    policy=s4_policy,
+                    diversify_window_max=int(diversify_window_max),
+                )
+                substage_allocation_kernel_seconds += time.monotonic() - build_started
 
+                payload_bytes = int(plan.payload_bytes)
+                if alloc_plan_cache_entries_max > 0 and not (
+                    alloc_plan_cache_bytes_max > 0 and payload_bytes > alloc_plan_cache_bytes_max
+                ):
+                    while alloc_plan_cache:
+                        over_entries = len(alloc_plan_cache) >= alloc_plan_cache_entries_max
+                        over_bytes = alloc_plan_cache_bytes_max > 0 and (
+                            alloc_plan_cache_bytes_current + payload_bytes > alloc_plan_cache_bytes_max
+                        )
+                        if not over_entries and not over_bytes:
+                            break
+                        _, evicted = alloc_plan_cache.popitem(last=False)
+                        alloc_plan_cache_bytes_current = max(
+                            0, alloc_plan_cache_bytes_current - int(evicted.payload_bytes)
+                        )
+                        alloc_plan_cache_evictions += 1
+                    alloc_plan_cache[plan_key] = plan
+                    alloc_plan_cache.move_to_end(plan_key)
+                    alloc_plan_cache_bytes_current += payload_bytes
+                    alloc_plan_cache_bytes_peak = max(
+                        alloc_plan_cache_bytes_peak, alloc_plan_cache_bytes_current
+                    )
+
+            shortfall = int(plan.shortfall)
+            if shortfall < 0:
+                _emit_failure_event(
+                    logger,
+                    "E404_ALLOCATION_MISMATCH",
+                    seed,
+                    manifest_fingerprint,
+                    str(parameter_hash),
+                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                )
+                raise EngineFailure(
+                    "F4",
+                    "E404_ALLOCATION_MISMATCH",
+                    "S4",
+                    MODULE_NAME,
+                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                )
+
+            if plan.base_idx.size:
+                for idx_val, c_val in zip(plan.base_idx, plan.base_counts):
+                    c_i = int(c_val)
+                    if c_i > 0:
+                        counts_sparse[int(idx_val)] = c_i
+
+            if shortfall > 0:
+                rank_started = time.monotonic()
+                substage_rank_prefix_calls += 1
+                if plan.diversify_active and plan.window > shortfall:
+                    diversified = True
+                    offset = _rotation_offset(
+                        s4_policy.deterministic_seed_namespace,
+                        int(merchant_id),
+                        str(legal_country_iso),
+                        int(plan.window),
+                    )
+                    window_i = int(plan.window)
+                    for j in range(shortfall):
+                        idx_i = int(plan.candidates[(offset + j) % window_i])
+                        counts_sparse[idx_i] = counts_sparse.get(idx_i, 0) + 1
+                else:
+                    for idx_val in plan.candidates[:shortfall]:
+                        idx_i = int(idx_val)
+                        counts_sparse[idx_i] = counts_sparse.get(idx_i, 0) + 1
+                substage_rank_prefix_seconds += time.monotonic() - rank_started
+
+                ties_broken_total += int(shortfall)
+                if diversified:
+                    diversify_pairs_touched += 1
+                    diversify_bumps_total += int(shortfall)
+        else:
+            # Non-diversify path: exact sparse apportionment for this pair only.
+            build_started = time.monotonic()
+            K = 10 ** int(dp_value)
+            max_w = int(max_weight_fp) if int(max_weight_fp) >= 0 else 0
+            use_i32 = (
+                weight_fp.size > 0
+                and max_w >= 0
+                and n_sites_i >= 0
+                and max_w <= int(np.iinfo(np.int32).max)
+                and max_w * n_sites_i <= int(np.iinfo(np.int32).max)
+            )
+            if use_i32:
+                w = weight_fp.astype(np.int32, copy=False)
+                prod = (w * np.int32(n_sites_i)).astype(np.int32, copy=False)
+            else:
+                w = weight_fp.astype(np.int64, copy=False)
+                prod = (w * np.int64(n_sites_i)).astype(np.int64, copy=False)
+
+            base_idx = np.flatnonzero(prod >= K).astype(np.int64, copy=False)
+            if base_idx.size:
+                base_counts = (prod[base_idx] // K).astype(np.int64, copy=False)
+                for idx_val, c_val in zip(base_idx, base_counts):
+                    c_i = int(c_val)
+                    if c_i > 0:
+                        counts_sparse[int(idx_val)] = c_i
+                base_sum = int(np.sum(base_counts, dtype=np.int64))
+            else:
+                base_sum = 0
+
+            shortfall = n_sites_i - int(base_sum)
+            if shortfall < 0:
+                _emit_failure_event(
+                    logger,
+                    "E404_ALLOCATION_MISMATCH",
+                    seed,
+                    manifest_fingerprint,
+                    str(parameter_hash),
+                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                )
+                raise EngineFailure(
+                    "F4",
+                    "E404_ALLOCATION_MISMATCH",
+                    "S4",
+                    MODULE_NAME,
+                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                )
+
+            if shortfall > 0:
+                rank_started = time.monotonic()
+                substage_rank_prefix_calls += 1
+                residues = prod % K
+                bump_idx = _topk_rank_prefix_exact(
+                    tile_ids=tile_ids,
+                    residues_i64=residues,
+                    k=int(shortfall),
+                )
+                for idx_val in bump_idx:
+                    idx_i = int(idx_val)
+                    counts_sparse[idx_i] = counts_sparse.get(idx_i, 0) + 1
+                substage_rank_prefix_seconds += time.monotonic() - rank_started
+                ties_broken_total += int(shortfall)
+
+            substage_allocation_kernel_seconds += time.monotonic() - build_started
+
+        # Guard/residual triggers are derived from the sparse view.
+        max_count_sparse = max(counts_sparse.values()) if counts_sparse else 0
         run_guard = False
         if (
             s4_policy.enabled
             and int(n_sites) > 1
-            and n_sites_tile_i64.size > 1
+            and tile_ids.size > 1
             and s4_policy.reroute_enabled
             and s4_policy.max_moves_per_pair > 0
             and s4_policy.country_share_soft_guard < 1.0
         ):
             max_soft = max(1, int(np.ceil(s4_policy.country_share_soft_guard * int(n_sites))))
-            run_guard = int(np.max(n_sites_tile_i64)) > max_soft
+            run_guard = int(max_count_sparse) > max_soft
 
         run_residual = False
         if (
             s4_policy.enabled
             and int(n_sites) > 1
-            and n_sites_tile_i64.size > 1
+            and tile_ids.size > 1
             and s4_policy.residual_enabled
             and s4_policy.min_active_tile_fraction > 0.0
             and s4_policy.max_steps_per_pair > 0
         ):
-            max_active_possible = int(min(int(n_sites), n_sites_tile_i64.size))
+            max_active_possible = int(min(int(n_sites), int(tile_ids.size)))
             target_active = int(
                 min(
                     max_active_possible,
                     max(1, np.ceil(s4_policy.min_active_tile_fraction * max_active_possible)),
                 )
             )
-            active_now = int(np.count_nonzero(n_sites_tile_i64))
+            active_now = int(len(counts_sparse))
             if active_now < target_active:
                 run_residual = bool(
-                    np.any(n_sites_tile_i64 > 1) and np.any(n_sites_tile_i64 == 0)
+                    any(v > 1 for v in counts_sparse.values()) and int(tile_ids.size) > active_now
                 )
 
+        adjusted_i64: Optional[np.ndarray]
         if run_guard or run_residual:
+            dense = np.zeros(tile_ids.size, dtype=np.int64)
+            for idx_i, c_i in counts_sparse.items():
+                dense[int(idx_i)] = int(c_i)
             adjusted_i64, anti_diag = _apply_anticollapse_controls(
-                counts_in=n_sites_tile_i64,
+                counts_in=dense,
                 weight_fp=weight_fp,
                 tile_ids=tile_ids,
                 n_sites=int(n_sites),
                 policy=s4_policy,
             )
         else:
-            adjusted_i64 = n_sites_tile_i64
-            anti_diag = _anti_diag_from_counts(adjusted_i64)
+            adjusted_i64 = None
+            anti_diag = _anti_diag_from_sparse_counts(counts_sparse.values(), int(n_sites))
+
         pre_top1_values.append(float(anti_diag["pair_top1_pre"]))
         post_top1_values.append(float(anti_diag["pair_top1_post"]))
         pre_hhi_values.append(float(anti_diag["pair_hhi_pre"]))
@@ -1716,68 +2047,13 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         if int(anti_diag["moves_soft"]) > 0 or int(anti_diag["moves_residual"]) > 0:
             pairs_guard_touched += 1
 
-        total_alloc = int(np.sum(adjusted_i64, dtype=np.int64))
-        if total_alloc != int(n_sites):
-            alloc_sum_equals_requirements = False
-            _emit_failure_event(
-                logger,
-                "E404_ALLOCATION_MISMATCH",
-                seed,
-                manifest_fingerprint,
-                str(parameter_hash),
-                {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
-            )
-            raise EngineFailure(
-                "F4",
-                "E404_ALLOCATION_MISMATCH",
-                "S4",
-                MODULE_NAME,
-                {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
-            )
-
-        mask = adjusted_i64 > 0
-        if not np.any(mask):
-            _emit_failure_event(
-                logger,
-                "E412_ZERO_ROW_EMITTED",
-                seed,
-                manifest_fingerprint,
-                str(parameter_hash),
-                {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
-            )
-            raise EngineFailure(
-                "F4",
-                "E412_ZERO_ROW_EMITTED",
-                "S4",
-                MODULE_NAME,
-                {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
-            )
-
-        tile_ids_out = tile_ids[mask]
-        n_sites_out = adjusted_i64[mask]
-        if np.any(n_sites_out <= 0):
-            _emit_failure_event(
-                logger,
-                "E412_ZERO_ROW_EMITTED",
-                seed,
-                manifest_fingerprint,
-                str(parameter_hash),
-                {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
-            )
-            raise EngineFailure(
-                "F4",
-                "E412_ZERO_ROW_EMITTED",
-                "S4",
-                MODULE_NAME,
-                {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
-            )
-
-        for tile_id, count in zip(tile_ids_out, n_sites_out):
-            key = (merchant_id, legal_country_iso, int(tile_id))
-            if last_key is not None and key < last_key:
+        if adjusted_i64 is not None:
+            total_alloc = int(np.sum(adjusted_i64, dtype=np.int64))
+            if total_alloc != int(n_sites):
+                alloc_sum_equals_requirements = False
                 _emit_failure_event(
                     logger,
-                    "E408_UNSORTED",
+                    "E404_ALLOCATION_MISMATCH",
                     seed,
                     manifest_fingerprint,
                     str(parameter_hash),
@@ -1785,16 +2061,137 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 )
                 raise EngineFailure(
                     "F4",
-                    "E408_UNSORTED",
+                    "E404_ALLOCATION_MISMATCH",
                     "S4",
                     MODULE_NAME,
                     {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
                 )
-            last_key = key
-            batch_rows.append((merchant_id, legal_country_iso, int(tile_id), int(count)))
-            rows_emitted += 1
-            if len(batch_rows) >= BATCH_SIZE:
-                _flush_batch()
+            mask = adjusted_i64 > 0
+            if not np.any(mask):
+                _emit_failure_event(
+                    logger,
+                    "E412_ZERO_ROW_EMITTED",
+                    seed,
+                    manifest_fingerprint,
+                    str(parameter_hash),
+                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                )
+                raise EngineFailure(
+                    "F4",
+                    "E412_ZERO_ROW_EMITTED",
+                    "S4",
+                    MODULE_NAME,
+                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                )
+            tile_ids_out = tile_ids[mask]
+            n_sites_out = adjusted_i64[mask]
+            if np.any(n_sites_out <= 0):
+                _emit_failure_event(
+                    logger,
+                    "E412_ZERO_ROW_EMITTED",
+                    seed,
+                    manifest_fingerprint,
+                    str(parameter_hash),
+                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                )
+                raise EngineFailure(
+                    "F4",
+                    "E412_ZERO_ROW_EMITTED",
+                    "S4",
+                    MODULE_NAME,
+                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                )
+            for tile_id, count in zip(tile_ids_out, n_sites_out):
+                key = (merchant_id, legal_country_iso, int(tile_id))
+                if last_key is not None and key < last_key:
+                    _emit_failure_event(
+                        logger,
+                        "E408_UNSORTED",
+                        seed,
+                        manifest_fingerprint,
+                        str(parameter_hash),
+                        {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                    )
+                    raise EngineFailure(
+                        "F4",
+                        "E408_UNSORTED",
+                        "S4",
+                        MODULE_NAME,
+                        {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                    )
+                last_key = key
+                batch_rows.append((merchant_id, legal_country_iso, int(tile_id), int(count)))
+                rows_emitted += 1
+                if len(batch_rows) >= BATCH_SIZE:
+                    _flush_batch()
+        else:
+            total_alloc = int(sum(int(v) for v in counts_sparse.values()))
+            if total_alloc != int(n_sites):
+                alloc_sum_equals_requirements = False
+                _emit_failure_event(
+                    logger,
+                    "E404_ALLOCATION_MISMATCH",
+                    seed,
+                    manifest_fingerprint,
+                    str(parameter_hash),
+                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                )
+                raise EngineFailure(
+                    "F4",
+                    "E404_ALLOCATION_MISMATCH",
+                    "S4",
+                    MODULE_NAME,
+                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                )
+            if not counts_sparse:
+                _emit_failure_event(
+                    logger,
+                    "E412_ZERO_ROW_EMITTED",
+                    seed,
+                    manifest_fingerprint,
+                    str(parameter_hash),
+                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                )
+                raise EngineFailure(
+                    "F4",
+                    "E412_ZERO_ROW_EMITTED",
+                    "S4",
+                    MODULE_NAME,
+                    {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                )
+
+            rows_list = [
+                (int(tile_ids[int(idx_i)]), int(c_i))
+                for idx_i, c_i in counts_sparse.items()
+                if int(c_i) > 0
+            ]
+            rows_list.sort(key=lambda item: item[0])
+            for tile_id_val, count_val in rows_list:
+                key = (merchant_id, legal_country_iso, int(tile_id_val))
+                if last_key is not None and key < last_key:
+                    _emit_failure_event(
+                        logger,
+                        "E408_UNSORTED",
+                        seed,
+                        manifest_fingerprint,
+                        str(parameter_hash),
+                        {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                    )
+                    raise EngineFailure(
+                        "F4",
+                        "E408_UNSORTED",
+                        "S4",
+                        MODULE_NAME,
+                        {"merchant_id": merchant_id, "legal_country_iso": legal_country_iso},
+                    )
+                last_key = key
+                batch_rows.append(
+                    (merchant_id, legal_country_iso, int(tile_id_val), int(count_val))
+                )
+                rows_emitted += 1
+                if len(batch_rows) >= BATCH_SIZE:
+                    _flush_batch()
+
         substage_allocation_kernel_seconds += time.monotonic() - kernel_started
 
     last_req_key: Optional[tuple[int, str]] = None
@@ -2107,6 +2504,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 "skipped_oversize": rank_cache_skipped_oversize,
                 "bytes_peak": rank_cache_bytes_peak,
                 "entries": len(rank_prefix_cache),
+            },
+            "runtime_alloc_plan_cache": {
+                "entries_max": alloc_plan_cache_entries_max,
+                "bytes_max": alloc_plan_cache_bytes_max,
+                "hits": alloc_plan_cache_hits,
+                "misses": alloc_plan_cache_misses,
+                "evictions": alloc_plan_cache_evictions,
+                "bytes_peak": alloc_plan_cache_bytes_peak,
+                "entries": len(alloc_plan_cache),
             },
             "runtime_logging": {
                 "progress_interval_seconds": progress_interval_seconds,

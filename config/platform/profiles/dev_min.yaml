@@ -4,7 +4,7 @@ policy:
   partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
   partitioning_profile_id: ig.partitioning.v0.traffic
   require_gate_pass: true
-  stream_speedup: 1.0
+  stream_speedup: 1
   traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
   context_output_ids_ref: config/platform/wsp/context_fraud_outputs_v0.yaml
   context_output_ids_baseline_ref: config/platform/wsp/context_baseline_outputs_v0.yaml

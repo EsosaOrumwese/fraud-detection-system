@@ -347,7 +347,7 @@ data "aws_iam_policy_document" "lane_app_object_store_data_plane" {
       test     = "StringLike"
       variable = "s3:prefix"
       values = [
-        "oracle/*",
+        "oracle-store/*",
       ]
     }
   }
@@ -360,7 +360,7 @@ data "aws_iam_policy_document" "lane_app_object_store_data_plane" {
       "s3:DeleteObject",
     ]
     resources = [
-      "arn:${data.aws_partition.current.partition}:s3:::${var.object_store_bucket}/oracle/*",
+      "arn:${data.aws_partition.current.partition}:s3:::${var.object_store_bucket}/oracle-store/*",
     ]
   }
 

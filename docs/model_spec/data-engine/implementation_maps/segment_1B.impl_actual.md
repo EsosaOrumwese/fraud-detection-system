@@ -5567,3 +5567,36 @@ Expected next execution:
 1) `python tools/stage_segment1b_candidate_lane.py --src-run-id 9ebdd751ab7b4f9da246cc840ddff306`
 2) `python -m engine.cli.s4_alloc_plan --runs-root runs/fix-data-engine/segment_1B --run-id <new_run_id>`
 3) If needed: `S5->S9` smoke on the same `<new_run_id>` without any manual copying.
+
+### Entry: 2026-02-15 17:16
+
+Design element: `POPT.1.R1/R2` S4 algorithmic rewrite (key idea: reuse per-(country,n_sites) allocation plans; eliminate per-pair full-tile scans).
+Summary: The witness shows `allocation_kernel` dominates (`~43%` wall) and `rank_prefix` is second (`~16%` wall). The current implementation recomputes full-tile vector math (`prod/z/residues`) for every (merchant,country) pair, even though `n_sites` is small (`<=24`) for most pairs and thus repeats heavily. This is an algorithmic mismatch: we can precompute the exact per-(country,n_sites) apportionment plan once (including the diversification candidate prefix) and reuse it across merchants, while still applying the merchant-specific rotation offset deterministically.
+
+Key evidence driving this decision:
+1) From witness `segment1b_popt1_s4_witness_b_*`:
+   - `pairs_total=12204`, `rows_emitted=102340` (only `~8.39` rows per pair).
+   - top substages: `allocation_kernel=870.0s (0.428 share)`, `rank_prefix=325.9s (0.160 share)`.
+   - diversification is active for most pairs (`pairs_diversified_touched=11120`, `share~0.911`) and configured with:
+     - `apply_n_sites_max=24`, `candidate_window_fraction=0.35`, `candidate_window_min=24`.
+2) The diversify window formula can require very large `k` even when `shortfall` is small, so per-pair recomputation is especially wasteful.
+
+Proposed mechanics (implementation intent before coding):
+1) Introduce an exact `alloc_plan` cache keyed by `(legal_country_iso, n_sites)`:
+   - plan contains:
+     - `shortfall` and `window` (policy-derived),
+     - `candidates` = `_topk_rank_prefix_exact(..., k=window)` (indices into tile arrays),
+     - `base_idx/base_counts` for `floor(weight_fp*n_sites/K)` nonzeros (sparse; avoids dense `z`),
+     - `dp_value` and `K=10**dp_value`.
+2) For each pair:
+   - build sparse counts map on indices (from `base_idx/base_counts` + `shortfall` bumps),
+   - apply deterministic merchant rotation without materializing a full rotated candidate vector (no `np.concatenate`),
+   - only build dense arrays and run anticollapse controls if the guard/residual triggers (witness shows this is near-zero).
+3) Preserve output determinism and ordering:
+   - requirements are still processed in sorted order,
+   - per-pair emission remains sorted by `tile_id`,
+   - failure events and invariants remain fail-closed (`alloc_sum_equals_requirements`, `E408_UNSORTED`, etc).
+
+Expected impact:
+1) Replace per-pair O(tile_count) math with per-key O(tile_count) plan build + per-pair O(shortfall + rows) updates.
+2) Material reductions in `allocation_kernel` wall time (primary win) and `rank_prefix` (secondary win), without changing semantics.

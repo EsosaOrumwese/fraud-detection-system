@@ -1164,6 +1164,88 @@ POPT.1 phase decision gate (binding):
 - else if `S4 <= 15m`: classify `AMBER` and proceed to `POPT.2` with recorded rationale.
 - else: classify `RED` and remain in `POPT.1` recovery lanes unless USER explicitly waives.
 
+#### POPT.1 status update (2026-02-15)
+Current best observed S4 witness (candidate lane; fixed identity; deterministic replay confirmed):
+- candidate run: `f51458509dce4e15a52616a4559b2203`
+- S4 elapsed: `1243s` (`00:20:43`) with:
+  - `ENGINE_1B_S4_DIVERSIFY_WINDOW_MAX=200000`
+  - `ENGINE_1B_S4_ALLOC_PLAN_CACHE_ENTRIES_MAX=2048`
+  - `ENGINE_1B_S4_ALLOC_PLAN_CACHE_BYTES_MAX=536870912`
+  - `ENGINE_1B_S4_PAT_SAMPLE_EVERY_PAIRS=256` (psutil sampling cadence gating)
+- deterministic witness: rerun on same identity produced byte-identical partition (log confirms identical-bytes reuse).
+
+Classification:
+- still `RED` vs stretch budget (`<= 900s / 15m`), so `POPT.1` remains open and blocks `POPT.2` unless USER explicitly waives.
+
+POPT.1 “plan forward” (execute in order; prune run-id folders between cycles to keep storage bounded):
+
+POPT.1.R3 - Low-risk overhead squeeze (no semantic change)
+Goal:
+- shave remaining wall time by reducing avoidable monitoring/log overhead before touching allocation semantics.
+
+Work:
+- increase PAT sampling cadence to reduce expensive process introspection calls in the hot loop:
+  - sweep `ENGINE_1B_S4_PAT_SAMPLE_EVERY_PAIRS` through `{512, 1024, 2048}`.
+- keep all other knobs constant for attribution.
+
+DoD:
+- measurable S4 wall reduction with no change to output bytes for the same `{seed, parameter_hash, manifest_fingerprint}`.
+
+POPT.1.R4 - Persistent rank-prefix cache (algorithmic, deterministic; semantics-preserving)
+Goal:
+- avoid recomputing expensive per-country rank prefix work across repeated S4 iterations when upstream `tile_weights/tile_index` are unchanged.
+
+Work:
+- add an on-disk cache under `runs/fix-data-engine/segment_1B/_cache/` keyed by:
+  - `manifest_fingerprint`, `tile_weights` content hash, `tile_index` content hash, and the effective `diversify_window_max`.
+- cache payload: per-country `topk` indices (and any derived sparse plan scaffolding needed to build per-pair allocations).
+- strict correctness rule: cache is only used when the key matches exactly; otherwise compute and populate.
+
+DoD:
+- second S4 run on the same upstream inputs shows material reduction in `rank_prefix` seconds and total wall.
+- outputs remain deterministic and contract-consistent.
+
+POPT.1.R5 - Diversify window cap calibration (controlled semantic change; realism-aware)
+Goal:
+- reduce the per-country top-k footprint for very large tile universes while keeping diversification intent.
+
+Work:
+- sweep `ENGINE_1B_S4_DIVERSIFY_WINDOW_MAX` through `{150000, 100000, 50000}` and measure:
+  - S4 elapsed and rank-prefix time,
+  - alloc-plan cache hit rate and bytes peak.
+- if a window cap changes allocation outcomes (expected), treat it as a governed knob:
+  - run the integrated scorer once before accepting a new default for the remediation lane.
+
+DoD:
+- either:
+  - reach `S4 <= 15m` with an accepted window cap that does not materially regress the realism surface, or
+  - document that window cap cannot be tightened without unacceptable realism regression.
+
+POPT.1.R6 - Allocation-kernel last-mile (semantics-preserving)
+Goal:
+- reduce remaining per-pair overhead in emission and shortfall bump logic after caching/ranking wins are captured.
+
+Work:
+- remove avoidable temporary arrays and dtype upcasts in the per-pair path (keep sparse maps and emit sorted rows without dense vector materialization).
+
+DoD:
+- `allocation_kernel` substage seconds drop materially vs the best prior witness, without changing emitted rows under the same identity.
+
+POPT.1.R7 - Closure and unlock decision
+Goal:
+- produce closure-grade evidence and explicitly decide to unlock `POPT.2` or hold.
+
+Work:
+- run two S4 witnesses on a fresh candidate run-id staged via:
+  - `tools/stage_segment1b_candidate_lane.py` (junction mode),
+- generate/update closure artifacts:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_closure_<run_id>.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_closure_<run_id>.md`
+- prune superseded candidate run-id folders before proceeding to S5 work.
+
+DoD:
+- classification set to `GREEN/AMBER/RED` with evidence and an explicit go/no-go for `POPT.2`.
+
 ### POPT.2 - S5 assignment-path optimization (secondary bottleneck)
 Goal:
 - reduce `S5` runtime after `S4` is brought into target band.
