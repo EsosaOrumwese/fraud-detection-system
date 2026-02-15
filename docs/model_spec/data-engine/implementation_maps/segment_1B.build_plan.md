@@ -3,6 +3,7 @@ _As of 2026-02-15_
 
 ## 0) Objective and closure rule
 - Objective: remediate Segment `1B` to certified realism `B` minimum, with `B+` as the active target.
+- Co-objective (binding on reopen): close runtime bottlenecks to minute-scale execution with deterministic outputs, before further realism tuning.
 - Realism surface of record: `site_locations`.
 - Closure rule:
   - all hard `B` gates pass on all required seeds, and
@@ -897,3 +898,106 @@ Deferred open items (if 1B is reopened later):
 - Once a phase meets DoD and is declared locked, downstream phases must treat it as immutable.
 - Reopening a locked phase requires explicit contradiction evidence and user approval.
 - This prevents circular retuning and preserves causal attribution of realism movement.
+
+## 8) Performance Optimization Set (reopen lane, code-first)
+Purpose:
+- make 1B remediation iteration viable by reducing dominant state runtimes via algorithmic and data-structure improvements, not by waiting out slow runs.
+- enforce performance-first law without sacrificing determinism, contracts, or realism validity.
+
+Baseline runtime authority (from `run_id=9ebdd751ab7b4f9da246cc840ddff306`, seed `42`):
+- `S4 ~= 38m 00s` (dominant bottleneck).
+- `S5 ~= 14m 09s` (secondary bottleneck).
+- `S9 ~= 4m 15s`.
+- all other states are minor relative to these three.
+
+Runtime budgets for this optimization set (single-process baseline, no required parallelism):
+- `S4` budget target: `<= 12m` stretch `<= 15m`.
+- `S5` budget target: `<= 6m` stretch `<= 8m`.
+- `S9` budget target: `<= 2m 30s` stretch `<= 3m 30s`.
+- promotion to next optimization phase is blocked unless measured elapsed shows improvement vs baseline and movement toward budget.
+
+Performance-gate rules (fail-closed):
+- no new statistical/shape tuning while active bottleneck state exceeds stretch budget unless user explicitly waives.
+- every optimization candidate must provide elapsed evidence and deterministic replay witness.
+- any runtime regression >10% on unchanged input lane is rejected unless justified and user-approved.
+
+### POPT.0 - Baseline + hotspot contract lock
+Goal:
+- freeze a performance baseline and isolate exact hot sections in `S4`, `S5`, `S9`.
+
+Work:
+- record authoritative timing snapshot from baseline run/logs.
+- map hot paths per state (algorithm, data structure, join/search pattern, IO pattern, write path).
+- pin input lane to avoid confounding comparisons (same run lineage and seed for fast lane checks).
+
+DoD:
+- [ ] baseline runtime table is written in report artifact.
+- [ ] per-state hotspot map exists with ranked cost contributors.
+- [ ] optimization acceptance gate thresholds are materialized and referenced in notes.
+
+### POPT.1 - S4 algorithm/data-structure rewrite (primary bottleneck)
+Goal:
+- reduce `S4` wall clock by replacing high-cost search/allocation patterns and IO amplification.
+
+Scope:
+- `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/*`
+- governed policy/config touched only if needed for equivalent semantics under faster mechanics.
+
+Work:
+- code-first redesign of allocation/search kernel (indexing, precomputed lookup structures, reduced repeated scans).
+- eliminate avoidable full-frame recomputation in iterative loops.
+- enforce bounded-memory streaming/chunk write path with deterministic ordering.
+- reduce logging overhead to checkpoint cadence only (no high-cardinality spam in default lane).
+
+DoD:
+- [ ] `S4` elapsed improves materially vs baseline and reaches target or stretch band.
+- [ ] deterministic outputs remain stable for fixed `{seed, parameter_hash, manifest_fingerprint}`.
+- [ ] no contract/schema drift introduced.
+
+### POPT.2 - S5 assignment-path optimization (secondary bottleneck)
+Goal:
+- reduce `S5` runtime after `S4` is brought into target band.
+
+Scope:
+- `packages/engine/src/engine/layers/l1/seg_1B/s5_site_tile_assignment/*`
+
+Work:
+- optimize assignment join/search mechanics and deduplicate repeated lookups.
+- minimize read amplification by tightening column/project scope and batch flow.
+- preserve assignment semantics and deterministic ordering.
+
+DoD:
+- [ ] `S5` elapsed meets target or stretch budget.
+- [ ] parity surfaces and downstream compatibility with `S6/S7/S8/S9` remain valid.
+- [ ] no realism-surface regression attributable to S5 mechanics.
+
+### POPT.3 - S9 validation-path optimization (closure bottleneck)
+Goal:
+- shorten validation overhead without weakening required checks.
+
+Scope:
+- `packages/engine/src/engine/layers/l1/seg_1B/s9_validation_bundle/*`
+
+Work:
+- optimize expensive audit/checksum scans (single-pass, reduced duplicate reads).
+- keep required validations; demote optional/high-volume diagnostics to opt-in mode.
+- preserve pass/fail semantics and evidence artifacts.
+
+DoD:
+- [ ] `S9` elapsed meets target or stretch budget.
+- [ ] validation decision equivalence is preserved vs baseline lane.
+- [ ] evidence artifacts remain contract-consistent.
+
+### POPT.4 - Integrated fast-lane recertification handoff
+Goal:
+- validate that optimized mechanics improve iteration speed end-to-end and keep realism lane trustworthy.
+
+Work:
+- run `S4->S9` on fixed lane and compare runtime vs baseline.
+- run integrated scorer and check no unacceptable realism regressions.
+- if green, set optimized lane as default for next 1B realism remediation cycle.
+
+DoD:
+- [ ] end-to-end `S4->S9` runtime materially reduced vs baseline.
+- [ ] realism score posture is non-regressive on hard gates or explicitly accepted by user.
+- [ ] lock record written for optimized baseline (runtime + determinism + realism evidence).

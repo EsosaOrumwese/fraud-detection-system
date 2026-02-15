@@ -5266,3 +5266,71 @@ What was finalized:
 Decision:
 1) Segment 1B is frozen for current program wave.
 2) Move forward to Segment 2A with 1A frozen-certified authority and 1B frozen-best-effort authority.
+
+---
+
+### Entry: 2026-02-15 13:13
+
+Design element: Segment 1B reopening posture shifted to performance-first optimization set before additional realism tuning.
+Summary: Updated the 1B build plan with a new `Performance Optimization Set (POPT.0 -> POPT.4)` that makes runtime closure a hard gate and sequences optimization by bottleneck dominance (`S4 -> S5 -> S9`).
+
+Rationale and decisions:
+1) Recent authoritative run timing shows runtime concentration is primarily in `S4`, then `S5`, then `S9`; continuing realism-only knob churn without runtime closure would waste cycle time and hide algorithmic defects.
+2) Adopted code-first method with targeted measurement:
+   - code audit and hotspot mapping first,
+   - minimal reruns only for changed state verification,
+   - algorithm/data-structure rewrites before any new realism retune wave.
+3) Added explicit minute-scale budgets and stretch bands:
+   - `S4 <= 12m` (stretch `<=15m`),
+   - `S5 <= 6m` (stretch `<=8m`),
+   - `S9 <= 2m30s` (stretch `<=3m30s`).
+4) Added fail-closed progression gates:
+   - no phase promotion without measured improvement against baseline,
+   - no new statistical tuning while bottleneck state exceeds stretch budget (unless user waiver),
+   - deterministic/contract surfaces must remain unchanged under optimization.
+
+Files updated:
+1) `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md`
+
+Expected execution order on reopen:
+1) `POPT.0` baseline/hotspot lock,
+2) `POPT.1` S4 optimization,
+3) `POPT.2` S5 optimization,
+4) `POPT.3` S9 optimization,
+5) `POPT.4` integrated fast-lane recertification handoff.
+
+---
+
+### Entry: 2026-02-15 13:32
+
+Design element: POPT.0 execution method for Segment 1B (baseline runtime + hotspot contract lock).
+Summary: Preparing a reproducible baseline/hotspot artifact for run `9ebdd751ab7b4f9da246cc840ddff306` by combining (a) state-level elapsed extraction from run log, (b) PAT counters from `S4/S5` run reports, and (c) code-path hotspot mapping from `S4/S5/S9` runners.
+
+Problem framing:
+1) `POPT.0` DoD requires explicit runtime table and ranked hotspot contributors; previous notes contain partial timings but not a consolidated, machine-readable lock artifact.
+2) We need a stable baseline artifact to gate `POPT.1+` progression and prevent subjective speed claims.
+
+Alternatives considered:
+1) Manual markdown-only write-up from log snippets.
+   - Rejected as primary path: harder to reproduce, error-prone for elapsed math, weak for later automated comparisons.
+2) One-off shell/Python ad-hoc command output stored in logbook only.
+   - Rejected as primary path: not durable enough for repeated gate checks.
+3) Reproducible scorer artifact (selected).
+   - Selected: emit a versioned JSON + markdown summary under `runs/fix-data-engine/segment_1B/reports/` with exact lineage and hotspot ranking.
+
+Chosen mechanics:
+1) Parse state start/complete timestamps from `run_log_9eb...` to compute elapsed per state.
+2) Ingest `s4_run_report.json` and `s5_run_report.json` PAT fields for IO/CPU/cache pressure indicators.
+3) Use `S9` timed log deltas (`parity`, `trace/audit scan`, `events scan`, `egress checksum`) for substage attribution.
+4) Attach code evidence references for hotspot claims:
+   - S4 country asset reload/cache thrash path,
+   - S5 tile-index reload + per-pair/per-site loop + RNG trace/event writes,
+   - S9 jsonl full scans and checksum `read_bytes` pass.
+5) Rank contributors by wall-time share and by structural pressure indicators to define `POPT.1->POPT.3` execution order.
+
+Expected outputs:
+1) `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_baseline_9ebdd751ab7b4f9da246cc840ddff306.json`
+2) `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_hotspot_map_9ebdd751ab7b4f9da246cc840ddff306.md`
+
+Gate usage:
+1) These artifacts become the authoritative baseline for runtime-improvement checks in `POPT.1`, `POPT.2`, and `POPT.3`.
