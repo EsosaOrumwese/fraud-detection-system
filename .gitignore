@@ -128,6 +128,8 @@ dmypy.json
 *.tfstate*
 .terraform/
 /infra/terraform/terraform.tfvars
+infra/terraform/**/terraform.tfvars
+infra/terraform/**/backend.hcl
 infra/terraform/lambda/*.zip
 
 ## mlflow and output data

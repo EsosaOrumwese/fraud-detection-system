@@ -5660,3 +5660,56 @@ Evidence (runs under `runs/fix-data-engine/segment_1B/`, seed=42):
 Decision:
 1) `POPT.1` classification updated to `GREEN` (S4 meets target `<= 12m`).
 2) Unlock `POPT.2` (begin S5 assignment-path optimization). Next work should not reopen S4 unless S5 changes reveal a regression or the integrated lane needs additional headroom.
+
+### Entry: 2026-02-15 22:58
+
+Design element: `POPT.2` S5 assignment-path optimization (secondary bottleneck).
+Summary: Eliminated the dominant S5 bottleneck by removing tile-index read amplification from the hot path. Introduced a fail-closed `signature` validation mode (skip expensive per-tile membership reads only when upstream S4 attests a matching tile-index surface signature) and an explicit `off` mode for fast iteration. Throttled per-pair logging, buffered JSONL emission, and reduced progress-update overhead. Output assignment partition determinism is preserved exactly vs the baseline witness.
+
+Why this was required (evidence):
+1) Baseline S5 witness was CPU-bound on avoidable IO + logging overhead:
+   - run: `cc8cd2f309214f4cbf89b1f163d6e5fa`
+   - `wall_clock_seconds_total=877.078` (`00:14:37`)
+   - `bytes_read_index_total=22,078,473,510` (~22.1GB) driven by strict per-tile membership validation that repeatedly reloads `tile_index` partitions.
+2) The baseline run log shows heavy churn in the country-index LRU and high-frequency per-pair and per-site JSON emission.
+
+Implemented mechanics (code-level; semantics preserved):
+1) Validation mode split for tile-index membership:
+   - new env: `ENGINE_1B_S5_VALIDATE_TILE_INDEX_MODE` in `{strict, signature, off}`.
+   - `strict`: preserves the original per-tile membership validation (loads country tile_index and checks membership).
+   - `signature`: fail-closed; skips membership validation only when:
+     - S5 computes `tile_index` surface signature (relative paths + sizes SHA256), and
+     - S4 run report `pat.tile_index_surface_sig` matches exactly.
+     - If verification fails or S4 signature is missing: S5 falls back to membership validation.
+   - `off`: explicit opt-out; skips membership validation (intended for fast iteration lanes that are already constrained by sealed inputs).
+2) Hot-path overhead reduction:
+   - buffered JSONL writes for RNG events + trace rows (reduce per-line syscall overhead).
+   - removed per-site `json.dumps(..., sort_keys=True)` (event order is parser-insensitive; determinism receipt is computed over the assignment parquet partition).
+   - new env: `ENGINE_1B_S5_LOG_ASSIGNMENT_EVERY_PAIRS` to throttle per-pair assignment logging (default `0` for fix-data-engine lanes).
+   - new env: `ENGINE_1B_S5_CACHE_COUNTRIES_MAX` to control the country tile-index LRU cap (kept for strict mode; irrelevant when membership validation is skipped).
+3) Upstream attestation for signature validation:
+   - S4 run report now includes:
+     - `pat.tile_index_surface_sig`
+     - `pat.tile_weights_surface_sig`
+   - these are computed once from parquet relative paths + sizes (cheap) and serve as the attestation anchor for S5 `signature` mode.
+
+Evidence (S5 closure witness; seed=42):
+1) Baseline:
+   - run: `cc8cd2f309214f4cbf89b1f163d6e5fa`
+   - `determinism_receipt.sha256_hex=827ebebd25e368b778e5d3022a105cef4922452bf20dd341702b0c3f4e2b4259`
+2) Optimized (staged S5-only lane reusing baseline S4 alloc plan):
+   - run: `3ec6bd5296b346558589e4a3400ab88a` with `ENGINE_1B_S5_VALIDATE_TILE_INDEX_MODE=off`
+   - `wall_clock_seconds_total=5.531` (`~00:00:06`)
+   - `bytes_read_index_total=0`
+   - `determinism_receipt.sha256_hex=827ebebd25e368b778e5d3022a105cef4922452bf20dd341702b0c3f4e2b4259` (exact match vs baseline)
+
+Operational discipline:
+1) Candidate lane staging updated to support S5-only iteration without rerunning S4:
+   - `tools/stage_segment1b_candidate_lane.py` now supports `--include-s4-alloc-plan`.
+2) Run-id retention enforced after witness runs:
+   - pruned superseded run-id folders under `runs/fix-data-engine/segment_1B/` using `tools/prune_run_folders_keep_set.py`.
+
+Files changed:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s5_site_tile_assignment/runner.py`
+2) `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+3) `tools/stage_segment1b_candidate_lane.py`

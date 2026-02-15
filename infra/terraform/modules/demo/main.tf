@@ -150,7 +150,81 @@ locals {
       command = [
         "sh",
         "-c",
-        "echo wsp_task_definition_materialized && exit 0",
+        <<-EOT
+set -e
+
+missing=""
+for k in PLATFORM_RUN_ID PLATFORM_STORE_ROOT OBJECT_STORE_REGION CONTROL_BUS_STREAM CONTROL_BUS_REGION IG_INGEST_URL ORACLE_ROOT ORACLE_ENGINE_RUN_ROOT ORACLE_SCENARIO_ID ORACLE_STREAM_VIEW_ROOT; do
+  v="$(eval "printf '%s' \"\\$$k\"")"
+  if [ -z "$v" ]; then
+    missing="$missing$k "
+  fi
+done
+if [ -n "$missing" ]; then
+  echo "Missing required env(s): $missing"
+  exit 1
+fi
+
+python - <<'PY'
+from __future__ import annotations
+
+from pathlib import Path
+import os
+import yaml
+
+base = Path("config/platform/profiles/dev_min.yaml")
+data = yaml.safe_load(base.read_text(encoding="utf-8")) or {}
+
+policy = data.setdefault("policy", {})
+policy["stream_speedup"] = float(os.getenv("WSP_STREAM_SPEEDUP", "600.0"))
+
+wiring = data.setdefault("wiring", {})
+control_bus = wiring.setdefault("control_bus", {})
+control_bus["kind"] = "kinesis"
+control_bus["root"] = "runs/fraud-platform/control_bus"
+control_bus["topic"] = "fp.bus.control.v1"
+control_bus["stream"] = os.getenv("CONTROL_BUS_STREAM", "")
+control_bus["region"] = os.getenv("CONTROL_BUS_REGION", "")
+control_bus.pop("endpoint_url", None)
+
+# In AWS, boto3 clients should use the default AWS endpoints. An empty endpoint string
+# (from an unresolved OBJECT_STORE_ENDPOINT env-var) will crash client construction.
+obj = wiring.get("object_store")
+if isinstance(obj, dict):
+    obj["region"] = os.getenv("OBJECT_STORE_REGION", obj.get("region", ""))
+    endpoint_env = (os.getenv("OBJECT_STORE_ENDPOINT", "") or "").strip()
+    if not endpoint_env:
+        # Default AWS endpoint. Leaving an unresolved placeholder results in an empty string
+        # after profile env-interpolation, which crashes boto3 client creation.
+        obj.pop("endpoint", None)
+        obj.pop("endpoint_url", None)
+    else:
+        # Allow explicit non-AWS endpoints (e.g. localstack/minio) when operator provides one.
+        obj["endpoint"] = endpoint_env
+    for k in ("endpoint", "endpoint_url"):
+        v = obj.get(k)
+        if isinstance(v, str) and not v.strip():
+            obj.pop(k, None)
+
+wiring["ig_ingest_url"] = os.getenv("IG_INGEST_URL", "")
+
+security = wiring.setdefault("security", {})
+security["api_key_header"] = "X-IG-Api-Key"
+security["wsp_auth_token"] = os.getenv("IG_API_KEY", "")
+
+# Fail-closed if secret injection is missing (auth boundary must be enforced).
+if not security["wsp_auth_token"].strip():
+    raise SystemExit("IG_API_KEY missing (SSM secret injection) - fail closed")
+
+out = Path("/tmp/dev_min_wsp.yaml")
+out.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+print(str(out))
+PY
+
+MAX="$WSP_MAX_EVENTS_PER_OUTPUT"
+if [ -z "$MAX" ]; then MAX="200"; fi
+python -m fraud_detection.world_streamer_producer.ready_consumer --profile /tmp/dev_min_wsp.yaml --once --max-events-per-output "$MAX"
+EOT
       ]
     }
   }
@@ -398,7 +472,10 @@ data "aws_iam_policy_document" "lane_app_kinesis_publish" {
   statement {
     sid = "KinesisPublish"
     actions = [
+      "kinesis:DescribeStream",
       "kinesis:DescribeStreamSummary",
+      "kinesis:GetRecords",
+      "kinesis:GetShardIterator",
       "kinesis:ListShards",
       "kinesis:PutRecord",
       "kinesis:PutRecords",
@@ -418,6 +495,12 @@ resource "aws_iam_role" "ecs_task_execution" {
 resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
   role       = aws_iam_role.ecs_task_execution.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_iam_role_policy" "ecs_task_execution_secret_read" {
+  name   = "${var.name_prefix}-ecs-task-execution-secret-read"
+  role   = aws_iam_role.ecs_task_execution.id
+  policy = data.aws_iam_policy_document.ecs_task_app_secret_read.json
 }
 
 resource "aws_iam_role" "ecs_task_app" {
@@ -701,6 +784,26 @@ resource "aws_ecs_task_definition" "control_job" {
       command   = each.value.command
       environment = [
         {
+          name  = "PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "PLATFORM_STORE_ROOT"
+          value = "s3://${var.evidence_bucket}/evidence/runs"
+        },
+        {
+          name  = "OBJECT_STORE_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "CONTROL_BUS_STREAM"
+          value = local.ig_event_bus_stream_name
+        },
+        {
+          name  = "CONTROL_BUS_REGION"
+          value = var.aws_region
+        },
+        {
           name  = var.required_platform_run_id_env_key
           value = var.required_platform_run_id
         },
@@ -715,6 +818,12 @@ resource "aws_ecs_task_definition" "control_job" {
         {
           name  = "FP_COMPONENT_MODE"
           value = each.value.component_mode
+        },
+      ]
+      secrets = [
+        {
+          name      = "IG_API_KEY"
+          valueFrom = aws_ssm_parameter.ig_api_key.arn
         },
       ]
       logConfiguration = {

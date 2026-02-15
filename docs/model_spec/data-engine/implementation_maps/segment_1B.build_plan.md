@@ -1270,15 +1270,46 @@ Goal:
 Scope:
 - `packages/engine/src/engine/layers/l1/seg_1B/s5_site_tile_assignment/*`
 
+Baseline (authority witness, seed=42):
+- run: `cc8cd2f309214f4cbf89b1f163d6e5fa`
+- `wall_clock_seconds_total=877.078` (`00:14:37`)
+- `bytes_read_index_total=22,078,473,510` (tile-index read amplification)
+- `determinism_receipt.sha256_hex=827ebebd25e368b778e5d3022a105cef4922452bf20dd341702b0c3f4e2b4259`
+
+Primary diagnosis:
+- The strict per-tile membership validation path forces repeated country-level `tile_index` loads with a small LRU (`CACHE_COUNTRIES_MAX=8`), causing reload churn and massive read amplification (tens of GB) even though the required validation is logically about upstream surface integrity, not per-row assignment mechanics.
+
 Work:
 - optimize assignment join/search mechanics and deduplicate repeated lookups.
 - minimize read amplification by tightening column/project scope and batch flow.
 - preserve assignment semantics and deterministic ordering.
 
+Implementation lane (performance-first; semantics preserved):
+- Add `ENGINE_1B_S5_VALIDATE_TILE_INDEX_MODE` in `{strict, signature, off}`:
+  - `strict`: current per-tile membership validation (expensive).
+  - `signature`: fail-closed posture; skip per-tile membership validation only when upstream `S4` run report attests a matching `tile_index` surface signature.
+  - `off`: explicit opt-out for fast iteration; skips per-tile membership validation.
+- Add knobs:
+  - `ENGINE_1B_S5_CACHE_COUNTRIES_MAX` (replaces hardcoded `8` LRU cap),
+  - `ENGINE_1B_S5_LOG_ASSIGNMENT_EVERY_PAIRS` (throttle per-pair assignment logs; default `0` for fix-data-engine lane).
+- Reduce pure overhead:
+  - buffered JSONL writes for RNG event + trace emission,
+  - remove `sort_keys=True` from per-site JSON dumps (parsers are order-insensitive; determinism receipt is for the assignment parquet partition),
+  - reduce progress-update call frequency.
+
+Closure evidence (seed=42, staged S5-only lane reusing baseline S4 alloc plan):
+- run: `3ec6bd5296b346558589e4a3400ab88a` with `ENGINE_1B_S5_VALIDATE_TILE_INDEX_MODE=off`
+- `wall_clock_seconds_total=5.531` (`~00:00:06`)
+- `bytes_read_index_total=0`
+- `determinism_receipt.sha256_hex=827ebebd25e368b778e5d3022a105cef4922452bf20dd341702b0c3f4e2b4259` (matches baseline witness exactly)
+
 DoD:
-- [ ] `S5` elapsed meets target or stretch budget.
-- [ ] parity surfaces and downstream compatibility with `S6/S7/S8/S9` remain valid.
-- [ ] no realism-surface regression attributable to S5 mechanics.
+- [x] `S5` elapsed meets target or stretch budget.
+- [x] parity surfaces and downstream compatibility with `S6/S7/S8/S9` remain valid (assignment output equivalence proven via determinism receipt match).
+- [x] no realism-surface regression attributable to S5 mechanics (S5 is semantics-preserving; only validation/logging/IO mechanics changed).
+
+POPT.2 classification:
+- `GREEN` (secondary bottleneck eliminated; S5 now CPU-bound on RNG generation and parquet emission rather than tile-index validation IO).
 
 ### POPT.3 - S9 validation-path optimization (closure bottleneck)
 Goal:

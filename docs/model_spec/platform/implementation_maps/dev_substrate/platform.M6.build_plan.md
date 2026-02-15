@@ -543,8 +543,9 @@ Entry conditions:
 3. `TD_WSP` is not a placeholder task definition.
    - Fail-closed if `aws ecs describe-task-definition ...` shows command `echo wsp_task_definition_materialized && exit 0`.
 4. WSP can reach IG ingress from inside the ECS network:
-   - `IG_INGEST_URL` MUST be resolvable/reachable from the WSP task.
-   - Note: `IG_BASE_URL = "http://fraud-platform-dev-min-ig:8080"` is only valid if a concrete service discovery lane exists (ECS Service Connect, Cloud Map, or LB DNS).
+    - `IG_INGEST_URL` MUST be resolvable/reachable from the WSP task.
+    - `IG_INGEST_URL` MUST be the base URL (`http(s)://<host>:<port>`). WSP appends `/v1/ingest/push` internally.
+    - Note: `IG_BASE_URL = "http://fraud-platform-dev-min-ig:8080"` is only valid if a concrete service discovery lane exists (ECS Service Connect, Cloud Map, or LB DNS).
 5. WSP run scope is pinned (deterministic READY selection):
    - `PLATFORM_RUN_ID` MUST be set to `platform_20260213T214223Z` for the task.
    - Rationale: the Kinesis control-bus reader starts from `TRIM_HORIZON`; without run scope pinning, stale READY messages can be consumed first.
@@ -555,17 +556,17 @@ Tasks:
    - assert the READY payload references the canonical Oracle Store stream_view roots (4-output surface),
    - assert IG is reachable from the VPC lane selected for `IG_INGEST_URL` (service discovery/LB decision must be implemented before execution).
 2. M6.E.2 WSP launch contract closure (fail-closed):
-   - `TD_WSP` must run the WSP READY consumer (not a placeholder):
-     - required command shape (canonical):
-       - `python -m fraud_detection.world_streamer_producer.ready_consumer --profile <WSP_PROFILE> --once --max-messages 200`
-   - required env for deterministic behavior (minimum):
-     - `PLATFORM_RUN_ID=platform_20260213T214223Z` (deterministic READY scope filter),
-     - `IG_INGEST_URL=<reachable ingress URL>` (WSP → IG boundary),
-     - `IG_SERVICE_TOKEN` or equivalent secret env referenced by the chosen profile (MUST be injected from SSM; never hardcoded),
-     - `CONTROL_BUS_STREAM=<control bus stream name>` and `CONTROL_BUS_REGION=eu-west-2`,
-     - `ORACLE_ROOT`, `ORACLE_ENGINE_RUN_ROOT`, `ORACLE_SCENARIO_ID`, `ORACLE_STREAM_VIEW_ROOT`,
-     - `OBJECT_STORE_REGION=eu-west-2`,
-     - `WSP_CHECKPOINT_DSN` (recommended: Postgres; file backend is acceptable only for smoke, not for deterministic dev_min reruns).
+    - `TD_WSP` must run the WSP READY consumer (not a placeholder):
+      - required command shape (canonical):
+        - `python -m fraud_detection.world_streamer_producer.ready_consumer --profile <WSP_PROFILE> --once --max-messages 200`
+    - required env for deterministic behavior (minimum):
+      - `PLATFORM_RUN_ID=platform_20260213T214223Z` (deterministic READY scope filter),
+      - `IG_INGEST_URL=<reachable base URL (scheme://host:port)>` (WSP → IG boundary; WSP appends `/v1/ingest/push`),
+      - `IG_SERVICE_TOKEN` or equivalent secret env referenced by the chosen profile (MUST be injected from SSM; never hardcoded),
+      - `CONTROL_BUS_STREAM=<control bus stream name>` and `CONTROL_BUS_REGION=eu-west-2`,
+      - `ORACLE_ROOT`, `ORACLE_ENGINE_RUN_ROOT`, `ORACLE_SCENARIO_ID`, `ORACLE_STREAM_VIEW_ROOT`,
+      - `OBJECT_STORE_REGION=eu-west-2`,
+      - `WSP_CHECKPOINT_DSN` (recommended: Postgres; file backend is acceptable only for smoke, not for deterministic dev_min reruns).
    - required WSP knobs pinned for v0 validation:
      - `WSP_MAX_EVENTS_PER_OUTPUT=200` (bounded validation; note this is per-output and yields up to 800 total across 4 outputs),
      - `WSP_READY_REQUIRED_PACKS=""` (must be empty in ECS; avoids Run/Operate local FS dependency),
@@ -593,6 +594,22 @@ DoD:
 - [ ] WSP launch contract is complete, deterministic, and run-scoped (`PLATFORM_RUN_ID` pinned).
 - [ ] WSP READY-consumption proof exists durably for the authoritative READY (`run_id=17dac...`).
 - [ ] M6.E snapshot published locally and durably with `overall_pass=true`.
+
+Execution status (2026-02-15):
+1. Corrected WSP → IG base URL contract and executed one-shot WSP successfully.
+2. WSP task:
+   - `TD_WSP=fraud-platform-dev-min-wsp:6`
+   - task ARN: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/76b6851b47694328a5c6f69c64783820`
+   - exit code: `0`
+   - `IG_INGEST_URL=http://10.42.0.159:8080` (private IP base URL; WSP appends `/v1/ingest/push`)
+3. READY-consumption proof (run-scoped, durable):
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/wsp/ready_runs/5273f3c8bcbbcea65875d31ccfe726759456ec45b87e484576a489fbf2fa83ee.jsonl`
+   - terminal record: `status=STREAMED`, `emitted=800`, `run_id=17dacbdc997e6765bcd242f7cb3b6c37`
+4. Snapshot published:
+   - local: `runs/dev_substrate/m6/20260215T230419Z/m6_e_wsp_launch_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T230419Z/m6_e_wsp_launch_snapshot.json`
+5. Historical note:
+   - earlier attempt used `IG_INGEST_URL` including `/v1/ingest/push`, causing `POST /v1/ingest/push/v1/ingest/push` and `404` (captured in IG logs as `IG_PUSH_REJECTED`); corrected by using base URL only.
 
 Blockers:
 1. `M6E-B1`: WSP launch contract unresolved (task definition still placeholder, missing env/secret pins, or IG endpoint unreachable).

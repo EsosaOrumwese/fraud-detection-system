@@ -118,6 +118,45 @@ This is a documentation+contract closure pass only. No runtime semantic law chan
 
 ## Entry: 2026-02-10 9:39PM - Routing correction for earlier pre-change lock entry
 
+## Entry: 2026-02-15 11:04PM - M6.E WSP READY Consumption Executed (ECS Only)
+
+### Goal
+Execute `M6.E` (P6) on managed substrate: WSP consumes SR READY from the control bus and attempts bounded streaming (200 events per output) into IG, producing run-scoped, durable READY-consumption evidence.
+
+### Issues Encountered (Fail-Closed)
+1. WSP `ValueError: Invalid endpoint:` during boto3 client construction.
+   - Root cause: `config/platform/profiles/dev_min.yaml` pins `wiring.object_store.endpoint: ${OBJECT_STORE_ENDPOINT}` and the profile env-interpolation layer resolves missing env vars to empty strings. boto3 rejects `endpoint_url=""`.
+2. WSP `IG_PUSH_REJECTED` with `404` responses.
+   - Root cause: `IG_INGEST_URL` was supplied with `/v1/ingest/push`, but WSP appends `/v1/ingest/push` internally, producing `POST /v1/ingest/push/v1/ingest/push`.
+
+### Decisions / Laws Pinned (Runtime Truth)
+1. **`IG_INGEST_URL` contract**: WSP expects a base URL (`http(s)://<host>:<port>`). WSP appends `/v1/ingest/push` internally.
+2. **AWS object-store endpoint contract**:
+   - In AWS, `OBJECT_STORE_ENDPOINT` MUST be absent/empty for default endpoints.
+   - WSP task-profile generator must drop `wiring.object_store.endpoint` / `endpoint_url` when `OBJECT_STORE_ENDPOINT` is unset to avoid empty endpoint propagation.
+
+### Implementation (Dev Substrate)
+1. Patched WSP ECS control job command (Terraform module) to:
+   - remove `object_store.endpoint`/`endpoint_url` when `OBJECT_STORE_ENDPOINT` env var is absent,
+   - keep region pinned via `OBJECT_STORE_REGION`,
+   - retain fail-closed secret injection for `IG_API_KEY`.
+   - File: `infra/terraform/modules/demo/main.tf`
+2. Added repo guardrail to prevent accidental commits of operator-managed Terraform backend config:
+   - File: `.gitignore` (`infra/terraform/**/backend.hcl`, `infra/terraform/**/terraform.tfvars`).
+
+### Evidence (Authoritative)
+1. Durable READY-consumption records (append-only JSONL):
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/wsp/ready_runs/550b89cd28aa5a336dc00117b01ac9f3ecae5ec68282cc739e23a46a52dd0e6a.jsonl` (terminal: `status=STREAMED`, `emitted=800`)
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/wsp/ready_runs/5273f3c8bcbbcea65875d31ccfe726759456ec45b87e484576a489fbf2fa83ee.jsonl` (terminal: `status=STREAMED`, `emitted=800`)
+2. M6.E snapshot (local + durable):
+   - local: `runs/dev_substrate/m6/20260215T230419Z/m6_e_wsp_launch_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T230419Z/m6_e_wsp_launch_snapshot.json`
+
+### Drift Sentinel Check
+1. No laptop compute was used for WSP execution (ECS one-shot task only).
+2. WSP streamed all 4 stream-view outputs as a bounded validation (`4 * 200 = 800` events).
+3. Next closure step remains `M6.F` (WSP execution summary) followed by `M6.G` ingest commit verification.
+
 ### Context
 An earlier pre-change lock for the dev-min authority closure pass was accidentally written to legacy path `docs/model_spec/platform/implementation_maps/platform.impl_actual.md` during track split transition.
 
@@ -11393,3 +11432,20 @@ Digest is `sha256(json_canonical({output_id, stream_view_id, source_locator_dige
 - `src/fraud_detection/scenario_runner/runner.py`
   - added `_compute_output_digest_fast(...)` for dev-min managed
   - wired it into `_collect_evidence(...)` so byte-hash is only the fallback path
+
+## Entry: 2026-02-15 23:04:00 +00:00 - WSP READY Consumption + IG Push (M6.E) PASS
+
+### What was proven
+1. WSP can execute as an ECS one-shot task (no laptop compute), consume SR READY from the managed control-bus, and stream bounded events from the Oracle `stream_view` into IG.
+2. Run-scoped, durable READY-consumption evidence is written append-only under `wsp/ready_runs/`.
+
+### Critical contract pin clarified
+`IG_INGEST_URL` is the base URL only (`http(s)://<host>:<port>`). WSP appends `/v1/ingest/push` internally. Supplying the full path causes `POST /v1/ingest/push/v1/ingest/push` and `404` rejection.
+
+### Authoritative evidence
+1. M6.E snapshot (local + durable):
+   - local: `runs/dev_substrate/m6/20260215T230419Z/m6_e_wsp_launch_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T230419Z/m6_e_wsp_launch_snapshot.json`
+2. READY-consumption records (terminal `STREAMED`, `emitted=800`):
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/wsp/ready_runs/550b89cd28aa5a336dc00117b01ac9f3ecae5ec68282cc739e23a46a52dd0e6a.jsonl`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/wsp/ready_runs/5273f3c8bcbbcea65875d31ccfe726759456ec45b87e484576a489fbf2fa83ee.jsonl`
