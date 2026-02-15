@@ -1,0 +1,199 @@
+flowchart LR
+%% Data Engine flow map: layers > segments > states
+
+  subgraph LAYER1["Layer 1 - World and Merchant Realism"]
+    subgraph SEG_1A["1A: Merchants to Physical Sites"]
+      n_1A_S0["1A.S0 Universe, Symbols, Authority<br/>Deterministic"]
+      n_1A_S1["1A.S1 Inputs, Preconditions, and Write Targets<br/>RNG-driven"]
+      n_1A_S2["1A.S2 Scope, Preconditions, and Inputs (implementation-ready)<br/>RNG-driven"]
+      n_1A_S3["1A.S3 Cross-border candidate universe and ordering<br/>Deterministic + RNG"]
+      n_1A_S4["1A.S4 Foreign-country count target (ZTP)<br/>RNG-driven"]
+      n_1A_S5["1A.S5 Currency→Country Weight Expansion<br/>Deterministic"]
+      n_1A_S6["1A.S6 Foreign Set Selection<br/>RNG-driven"]
+      n_1A_S7["1A.S7 Integer Allocation Across Legal Country Set<br/>RNG-driven"]
+      n_1A_S8["1A.S8 Materialise outlet stubs & sequences<br/>RNG-driven"]
+      n_1A_S9["1A.S9 Replay Validation & Publish Gate<br/>Deterministic"]
+    end
+    subgraph SEG_1B["1B: Site Geolocation"]
+      n_1B_S0["1B.S0 Gate-in and foundations<br/>Deterministic"]
+      n_1B_S1["1B.S1 Tile Index<br/>Deterministic"]
+      n_1B_S2["1B.S2 Tile Weights<br/>Deterministic"]
+      n_1B_S3["1B.S3 Country Requirements Frame (Nᵢ)<br/>Deterministic"]
+      n_1B_S4["1B.S4 Tile Allocation Plan (integerising per-tile counts)<br/>Deterministic"]
+      n_1B_S5["1B.S5 Site → Tile Assignment (RNG)<br/>RNG-driven"]
+      n_1B_S6["1B.S6 In-pixel Uniform Jitter with Point-in-Country (RNG)<br/>RNG-driven"]
+      n_1B_S7["1B.S7 Site synthesis & conformance (deterministic)<br/>Deterministic"]
+      n_1B_S8["1B.S8 Egress site_locations (deterministic publish)<br/>Deterministic"]
+      n_1B_S9["1B.S9 Validation bundle & PASS gate<br/>Deterministic"]
+    end
+    subgraph SEG_2A["2A: Civil Time"]
+      n_2A_S0["2A.S0 Gate, Manifest & Sealed Inputs<br/>Deterministic"]
+      n_2A_S1["2A.S1 Provisional time-zone lookup<br/>Deterministic"]
+      n_2A_S2["2A.S2 Overrides & finalisation<br/>Deterministic"]
+      n_2A_S3["2A.S3 Time-table / cache build<br/>Deterministic"]
+      n_2A_S4["2A.S4 Legality (DST gaps & folds)<br/>Deterministic"]
+      n_2A_S5["2A.S5 Validation bundle & PASS flag<br/>Deterministic"]
+    end
+    subgraph SEG_2B["2B: Routing: traffic to sites and edges"]
+      n_2B_S0["2B.S0 Gate & Environment Seal<br/>Deterministic"]
+      n_2B_S1["2B.S1 Per-merchant weight freezing<br/>Deterministic"]
+      n_2B_S2["2B.S2 Alias tables (O(1) sampler build)<br/>Deterministic"]
+      n_2B_S3["2B.S3 Corporate-day modulation (γ draws)<br/>RNG-driven"]
+      n_2B_S4["2B.S4 Zone-group renormalisation<br/>Deterministic"]
+      n_2B_S5["2B.S5 Router core (two-stage O(1): group → site)<br/>RNG-driven"]
+      n_2B_S6["2B.S6 Virtual-merchant edge routing<br/>RNG-driven"]
+      n_2B_S7["2B.S7 Audits & CI gate<br/>Deterministic"]
+      n_2B_S8["2B.S8 Validation bundle & _passed.flag<br/>Deterministic"]
+    end
+    subgraph SEG_3A["3A: Zone Allocation"]
+      n_3A_S0["3A.S0 Gate & Sealed Inputs for Zone Allocation<br/>Deterministic"]
+      n_3A_S1["3A.S1 Mixture Policy & Escalation Queue<br/>Deterministic"]
+      n_3A_S2["3A.S2 Country→Zone Priors & Floors<br/>Deterministic"]
+      n_3A_S3["3A.S3 Zone Share Sampling (Dirichlet draws)<br/>RNG-driven"]
+      n_3A_S4["3A.S4 Integer Zone Allocation (Counts per Merchant×Country×Zone)<br/>Deterministic"]
+      n_3A_S5["3A.S5 Zone Allocation Egress & Routing Universe Hash<br/>Deterministic"]
+      n_3A_S6["3A.S6 Structural Validation & Segment Audit<br/>Deterministic"]
+      n_3A_S7["3A.S7 Segment Validation Bundle & PASS Flag<br/>Deterministic"]
+    end
+    subgraph SEG_3B["3B: Virtual merchants & CDN surfaces"]
+      n_3B_S0["3B.S0 Gate & environment seal<br/>Deterministic"]
+      n_3B_S1["3B.S1 Virtual classification & settlement node construction<br/>Deterministic"]
+      n_3B_S2["3B.S2 CDN edge catalogue construction<br/>RNG-driven"]
+      n_3B_S3["3B.S3 Edge alias tables & virtual edge universe hash<br/>Deterministic"]
+      n_3B_S4["3B.S4 Virtual routing semantics & validation contracts<br/>Deterministic"]
+      n_3B_S5["3B.S5 Segment validation bundle & _passed.flag<br/>Deterministic"]
+    end
+  end
+
+  subgraph LAYER2["Layer 2 - Temporal Arrival Surfaces"]
+    subgraph SEG_5A["5A: Intensity Surfaces"]
+      n_5A_S0["5A.S0 Gate & sealed inputs<br/>Deterministic"]
+      n_5A_S1["5A.S1 Merchant & Zone Demand Classification<br/>Deterministic"]
+      n_5A_S2["5A.S2 Weekly Shape Library<br/>Deterministic"]
+      n_5A_S3["5A.S3 Baseline Merchant×Zone Weekly Intensities<br/>Deterministic"]
+      n_5A_S4["5A.S4 Calendar & Scenario Overlays<br/>Deterministic"]
+      n_5A_S5["5A.S5 Segment Validation & HashGate<br/>Deterministic"]
+    end
+    subgraph SEG_5B["5B: Arrival Realisation"]
+      n_5B_S0["5B.S0 Gate & sealed inputs<br/>Deterministic"]
+      n_5B_S1["5B.S1 Time grid & grouping plan<br/>Deterministic"]
+      n_5B_S2["5B.S2 Latent intensity fields<br/>RNG-driven"]
+      n_5B_S3["5B.S3 Bucket-level arrival counts<br/>RNG-driven"]
+      n_5B_S4["5B.S4 Micro-time & routing to sites/edges<br/>RNG-driven"]
+      n_5B_S5["5B.S5 Validation bundle & HashGate<br/>Deterministic"]
+    end
+  end
+
+  subgraph LAYER3["Layer 3 - Behavior, Fraud, and Labels"]
+    subgraph SEG_6A["6A: Entity & Product World"]
+      n_6A_S0["6A.S0 Gate & sealed inputs for the entity & product world<br/>Deterministic"]
+      n_6A_S1["6A.S1 Customer & party base population<br/>RNG-driven"]
+      n_6A_S2["6A.S2 Accounts & product holdings<br/>RNG-driven"]
+      n_6A_S3["6A.S3 Instruments & payment credentials<br/>RNG-driven"]
+      n_6A_S4["6A.S4 Devices, IPs & network graph<br/>RNG-driven"]
+      n_6A_S5["6A.S5 Static fraud posture & 6A HashGate<br/>RNG-driven"]
+    end
+    subgraph SEG_6B["6B: Behaviour, Fraud Overlay & Labelling"]
+      n_6B_S0["6B.S0 Behavioural universe gate & sealed inputs<br/>Deterministic"]
+      n_6B_S1["6B.S1 Arrival-to-entity attachment & sessionisation<br/>RNG-driven"]
+      n_6B_S2["6B.S2 Baseline transactional flow synthesis<br/>RNG-driven"]
+      n_6B_S3["6B.S3 Fraud & abuse campaigns overlay<br/>RNG-driven"]
+      n_6B_S4["6B.S4 Truth & bank-view labelling<br/>RNG-driven"]
+      n_6B_S5["6B.S5 Segment validation & HashGate<br/>Deterministic"]
+    end
+  end
+
+  %% sequential flows
+  n_1A_S0 --> n_1A_S1
+  n_1A_S1 --> n_1A_S2
+  n_1A_S2 --> n_1A_S3
+  n_1A_S3 --> n_1A_S4
+  n_1A_S4 --> n_1A_S5
+  n_1A_S5 --> n_1A_S6
+  n_1A_S6 --> n_1A_S7
+  n_1A_S7 --> n_1A_S8
+  n_1A_S8 --> n_1A_S9
+  n_1B_S0 --> n_1B_S1
+  n_1B_S1 --> n_1B_S2
+  n_1B_S2 --> n_1B_S3
+  n_1B_S3 --> n_1B_S4
+  n_1B_S4 --> n_1B_S5
+  n_1B_S5 --> n_1B_S6
+  n_1B_S6 --> n_1B_S7
+  n_1B_S7 --> n_1B_S8
+  n_1B_S8 --> n_1B_S9
+  n_2A_S0 --> n_2A_S1
+  n_2A_S1 --> n_2A_S2
+  n_2A_S2 --> n_2A_S3
+  n_2A_S3 --> n_2A_S4
+  n_2A_S4 --> n_2A_S5
+  n_2B_S0 --> n_2B_S1
+  n_2B_S1 --> n_2B_S2
+  n_2B_S2 --> n_2B_S3
+  n_2B_S3 --> n_2B_S4
+  n_2B_S4 --> n_2B_S5
+  n_2B_S5 --> n_2B_S6
+  n_2B_S6 --> n_2B_S7
+  n_2B_S7 --> n_2B_S8
+  n_3A_S0 --> n_3A_S1
+  n_3A_S1 --> n_3A_S2
+  n_3A_S2 --> n_3A_S3
+  n_3A_S3 --> n_3A_S4
+  n_3A_S4 --> n_3A_S5
+  n_3A_S5 --> n_3A_S6
+  n_3A_S6 --> n_3A_S7
+  n_3B_S0 --> n_3B_S1
+  n_3B_S1 --> n_3B_S2
+  n_3B_S2 --> n_3B_S3
+  n_3B_S3 --> n_3B_S4
+  n_3B_S4 --> n_3B_S5
+  n_5A_S0 --> n_5A_S1
+  n_5A_S1 --> n_5A_S2
+  n_5A_S2 --> n_5A_S3
+  n_5A_S3 --> n_5A_S4
+  n_5A_S4 --> n_5A_S5
+  n_5B_S0 --> n_5B_S1
+  n_5B_S1 --> n_5B_S2
+  n_5B_S2 --> n_5B_S3
+  n_5B_S3 --> n_5B_S4
+  n_5B_S4 --> n_5B_S5
+  n_6A_S0 --> n_6A_S1
+  n_6A_S1 --> n_6A_S2
+  n_6A_S2 --> n_6A_S3
+  n_6A_S3 --> n_6A_S4
+  n_6A_S4 --> n_6A_S5
+  n_6B_S0 --> n_6B_S1
+  n_6B_S1 --> n_6B_S2
+  n_6B_S2 --> n_6B_S3
+  n_6B_S3 --> n_6B_S4
+  n_6B_S4 --> n_6B_S5
+
+  %% gate flows
+  n_1A_S5 -. "Receipt gate" .-> n_1A_S6
+  n_1A_S5 -. "Receipt gate" .-> n_1A_S7
+  n_1A_S9 == "PASS bundle" ==> n_1B_S0
+  n_1B_S0 -. "Gate-in receipt" .-> n_1B_S3
+  n_1B_S9 == "PASS bundle" ==> n_2A_S0
+  n_2A_S0 -. "Gate-in receipt" .-> n_2A_S1
+  n_1B_S9 == "PASS bundle" ==> n_2B_S0
+  n_2B_S0 -. "Gate-in receipt" .-> n_2B_S1
+  n_1A_S9 == "PASS bundle" ==> n_3A_S0
+  n_1B_S9 == "PASS bundle" ==> n_3A_S0
+  n_2A_S5 == "PASS bundle" ==> n_3A_S0
+  n_3A_S0 -. "Gate-in receipt" .-> n_3A_S1
+  n_3A_S6 -. "Validation receipt" .-> n_3A_S7
+  n_1A_S9 == "PASS bundle" ==> n_3B_S0
+  n_1B_S9 == "PASS bundle" ==> n_3B_S0
+  n_2A_S5 == "PASS bundle" ==> n_3B_S0
+  n_3A_S7 == "PASS bundle" ==> n_3B_S0
+  n_3B_S0 -. "Gate-in receipt" .-> n_3B_S1
+  n_1A_S9 == "PASS bundle" ==> n_5A_S0
+  n_1B_S9 == "PASS bundle" ==> n_5A_S0
+  n_2A_S5 == "PASS bundle" ==> n_5A_S0
+  n_2B_S8 == "PASS bundle" ==> n_5A_S0
+  n_3A_S7 == "PASS bundle" ==> n_5A_S0
+  n_3B_S5 == "PASS bundle" ==> n_5A_S0
+  n_5A_S0 -. "Gate-in receipt" .-> n_5A_S1
+  n_5B_S0 -. "Gate-in receipt" .-> n_5B_S1
+  n_6A_S0 -. "Gate-in receipt" .-> n_6A_S1
+  n_6B_S0 -. "Gate-in receipt" .-> n_6B_S1

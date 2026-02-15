@@ -1,0 +1,242 @@
+digraph EngineStateNetwork {
+  graph [rankdir=LR, fontsize=10, fontname="Helvetica", labelloc=t,
+         label="Data Engine Flow Map: layers > segments > states"];
+  node  [shape=box, style="rounded,filled", fillcolor=white, color="#4b5563", fontname="Helvetica", fontsize=9];
+  edge  [color="#6b7280", fontname="Helvetica", fontsize=8];
+
+  subgraph cluster_layer1 {
+    label="Layer 1 - World and Merchant Realism";
+    style="rounded,filled";
+    color="#e8f0fe";
+    subgraph cluster_1A {
+      label="1A | Merchants to Physical Sites";
+      style="rounded";
+      color="#94a3b8";
+      n_1A_S0 [label="1A.S0 Universe, Symbols, Authority\\nDeterministic"];
+      n_1A_S1 [label="1A.S1 Inputs, Preconditions, and Write Targets\\nRNG-driven"];
+      n_1A_S2 [label="1A.S2 Scope, Preconditions, and Inputs (implementation-ready)\\nRNG-driven"];
+      n_1A_S3 [label="1A.S3 Cross-border candidate universe and ordering\\nDeterministic + RNG"];
+      n_1A_S4 [label="1A.S4 Foreign-country count target (ZTP)\\nRNG-driven"];
+      n_1A_S5 [label="1A.S5 Currency→Country Weight Expansion\\nDeterministic"];
+      n_1A_S6 [label="1A.S6 Foreign Set Selection\\nRNG-driven"];
+      n_1A_S7 [label="1A.S7 Integer Allocation Across Legal Country Set\\nRNG-driven"];
+      n_1A_S8 [label="1A.S8 Materialise outlet stubs & sequences\\nRNG-driven"];
+      n_1A_S9 [label="1A.S9 Replay Validation & Publish Gate\\nDeterministic"];
+    }
+    subgraph cluster_1B {
+      label="1B | Site Geolocation";
+      style="rounded";
+      color="#94a3b8";
+      n_1B_S0 [label="1B.S0 Gate-in and foundations\\nDeterministic"];
+      n_1B_S1 [label="1B.S1 Tile Index\\nDeterministic"];
+      n_1B_S2 [label="1B.S2 Tile Weights\\nDeterministic"];
+      n_1B_S3 [label="1B.S3 Country Requirements Frame (Nᵢ)\\nDeterministic"];
+      n_1B_S4 [label="1B.S4 Tile Allocation Plan (integerising per-tile counts)\\nDeterministic"];
+      n_1B_S5 [label="1B.S5 Site → Tile Assignment (RNG)\\nRNG-driven"];
+      n_1B_S6 [label="1B.S6 In-pixel Uniform Jitter with Point-in-Country (RNG)\\nRNG-driven"];
+      n_1B_S7 [label="1B.S7 Site synthesis & conformance (deterministic)\\nDeterministic"];
+      n_1B_S8 [label="1B.S8 Egress site_locations (deterministic publish)\\nDeterministic"];
+      n_1B_S9 [label="1B.S9 Validation bundle & PASS gate\\nDeterministic"];
+    }
+    subgraph cluster_2A {
+      label="2A | Civil Time";
+      style="rounded";
+      color="#94a3b8";
+      n_2A_S0 [label="2A.S0 Gate, Manifest & Sealed Inputs\\nDeterministic"];
+      n_2A_S1 [label="2A.S1 Provisional time-zone lookup\\nDeterministic"];
+      n_2A_S2 [label="2A.S2 Overrides & finalisation\\nDeterministic"];
+      n_2A_S3 [label="2A.S3 Time-table / cache build\\nDeterministic"];
+      n_2A_S4 [label="2A.S4 Legality (DST gaps & folds)\\nDeterministic"];
+      n_2A_S5 [label="2A.S5 Validation bundle & PASS flag\\nDeterministic"];
+    }
+    subgraph cluster_2B {
+      label="2B | Routing: traffic to sites and edges";
+      style="rounded";
+      color="#94a3b8";
+      n_2B_S0 [label="2B.S0 Gate & Environment Seal\\nDeterministic"];
+      n_2B_S1 [label="2B.S1 Per-merchant weight freezing\\nDeterministic"];
+      n_2B_S2 [label="2B.S2 Alias tables (O(1) sampler build)\\nDeterministic"];
+      n_2B_S3 [label="2B.S3 Corporate-day modulation (γ draws)\\nRNG-driven"];
+      n_2B_S4 [label="2B.S4 Zone-group renormalisation\\nDeterministic"];
+      n_2B_S5 [label="2B.S5 Router core (two-stage O(1): group → site)\\nRNG-driven"];
+      n_2B_S6 [label="2B.S6 Virtual-merchant edge routing\\nRNG-driven"];
+      n_2B_S7 [label="2B.S7 Audits & CI gate\\nDeterministic"];
+      n_2B_S8 [label="2B.S8 Validation bundle & _passed.flag\\nDeterministic"];
+    }
+    subgraph cluster_3A {
+      label="3A | Zone Allocation";
+      style="rounded";
+      color="#94a3b8";
+      n_3A_S0 [label="3A.S0 Gate & Sealed Inputs for Zone Allocation\\nDeterministic"];
+      n_3A_S1 [label="3A.S1 Mixture Policy & Escalation Queue\\nDeterministic"];
+      n_3A_S2 [label="3A.S2 Country→Zone Priors & Floors\\nDeterministic"];
+      n_3A_S3 [label="3A.S3 Zone Share Sampling (Dirichlet draws)\\nRNG-driven"];
+      n_3A_S4 [label="3A.S4 Integer Zone Allocation (Counts per Merchant×Country×Zone)\\nDeterministic"];
+      n_3A_S5 [label="3A.S5 Zone Allocation Egress & Routing Universe Hash\\nDeterministic"];
+      n_3A_S6 [label="3A.S6 Structural Validation & Segment Audit\\nDeterministic"];
+      n_3A_S7 [label="3A.S7 Segment Validation Bundle & PASS Flag\\nDeterministic"];
+    }
+    subgraph cluster_3B {
+      label="3B | Virtual merchants & CDN surfaces";
+      style="rounded";
+      color="#94a3b8";
+      n_3B_S0 [label="3B.S0 Gate & environment seal\\nDeterministic"];
+      n_3B_S1 [label="3B.S1 Virtual classification & settlement node construction\\nDeterministic"];
+      n_3B_S2 [label="3B.S2 CDN edge catalogue construction\\nRNG-driven"];
+      n_3B_S3 [label="3B.S3 Edge alias tables & virtual edge universe hash\\nDeterministic"];
+      n_3B_S4 [label="3B.S4 Virtual routing semantics & validation contracts\\nDeterministic"];
+      n_3B_S5 [label="3B.S5 Segment validation bundle & _passed.flag\\nDeterministic"];
+    }
+  }
+
+  subgraph cluster_layer2 {
+    label="Layer 2 - Temporal Arrival Surfaces";
+    style="rounded,filled";
+    color="#e6fffa";
+    subgraph cluster_5A {
+      label="5A | Intensity Surfaces";
+      style="rounded";
+      color="#94a3b8";
+      n_5A_S0 [label="5A.S0 Gate & sealed inputs\\nDeterministic"];
+      n_5A_S1 [label="5A.S1 Merchant & Zone Demand Classification\\nDeterministic"];
+      n_5A_S2 [label="5A.S2 Weekly Shape Library\\nDeterministic"];
+      n_5A_S3 [label="5A.S3 Baseline Merchant×Zone Weekly Intensities\\nDeterministic"];
+      n_5A_S4 [label="5A.S4 Calendar & Scenario Overlays\\nDeterministic"];
+      n_5A_S5 [label="5A.S5 Segment Validation & HashGate\\nDeterministic"];
+    }
+    subgraph cluster_5B {
+      label="5B | Arrival Realisation";
+      style="rounded";
+      color="#94a3b8";
+      n_5B_S0 [label="5B.S0 Gate & sealed inputs\\nDeterministic"];
+      n_5B_S1 [label="5B.S1 Time grid & grouping plan\\nDeterministic"];
+      n_5B_S2 [label="5B.S2 Latent intensity fields\\nRNG-driven"];
+      n_5B_S3 [label="5B.S3 Bucket-level arrival counts\\nRNG-driven"];
+      n_5B_S4 [label="5B.S4 Micro-time & routing to sites/edges\\nRNG-driven"];
+      n_5B_S5 [label="5B.S5 Validation bundle & HashGate\\nDeterministic"];
+    }
+  }
+
+  subgraph cluster_layer3 {
+    label="Layer 3 - Behavior, Fraud, and Labels";
+    style="rounded,filled";
+    color="#fff7ed";
+    subgraph cluster_6A {
+      label="6A | Entity & Product World";
+      style="rounded";
+      color="#94a3b8";
+      n_6A_S0 [label="6A.S0 Gate & sealed inputs for the entity & product world\\nDeterministic"];
+      n_6A_S1 [label="6A.S1 Customer & party base population\\nRNG-driven"];
+      n_6A_S2 [label="6A.S2 Accounts & product holdings\\nRNG-driven"];
+      n_6A_S3 [label="6A.S3 Instruments & payment credentials\\nRNG-driven"];
+      n_6A_S4 [label="6A.S4 Devices, IPs & network graph\\nRNG-driven"];
+      n_6A_S5 [label="6A.S5 Static fraud posture & 6A HashGate\\nRNG-driven"];
+    }
+    subgraph cluster_6B {
+      label="6B | Behaviour, Fraud Overlay & Labelling";
+      style="rounded";
+      color="#94a3b8";
+      n_6B_S0 [label="6B.S0 Behavioural universe gate & sealed inputs\\nDeterministic"];
+      n_6B_S1 [label="6B.S1 Arrival-to-entity attachment & sessionisation\\nRNG-driven"];
+      n_6B_S2 [label="6B.S2 Baseline transactional flow synthesis\\nRNG-driven"];
+      n_6B_S3 [label="6B.S3 Fraud & abuse campaigns overlay\\nRNG-driven"];
+      n_6B_S4 [label="6B.S4 Truth & bank-view labelling\\nRNG-driven"];
+      n_6B_S5 [label="6B.S5 Segment validation & HashGate\\nDeterministic"];
+    }
+  }
+
+  // sequential flows
+  n_1A_S0 -> n_1A_S1 [color="#64748b", penwidth=1.3];
+  n_1A_S1 -> n_1A_S2 [color="#64748b", penwidth=1.3];
+  n_1A_S2 -> n_1A_S3 [color="#64748b", penwidth=1.3];
+  n_1A_S3 -> n_1A_S4 [color="#64748b", penwidth=1.3];
+  n_1A_S4 -> n_1A_S5 [color="#64748b", penwidth=1.3];
+  n_1A_S5 -> n_1A_S6 [color="#64748b", penwidth=1.3];
+  n_1A_S6 -> n_1A_S7 [color="#64748b", penwidth=1.3];
+  n_1A_S7 -> n_1A_S8 [color="#64748b", penwidth=1.3];
+  n_1A_S8 -> n_1A_S9 [color="#64748b", penwidth=1.3];
+  n_1B_S0 -> n_1B_S1 [color="#64748b", penwidth=1.3];
+  n_1B_S1 -> n_1B_S2 [color="#64748b", penwidth=1.3];
+  n_1B_S2 -> n_1B_S3 [color="#64748b", penwidth=1.3];
+  n_1B_S3 -> n_1B_S4 [color="#64748b", penwidth=1.3];
+  n_1B_S4 -> n_1B_S5 [color="#64748b", penwidth=1.3];
+  n_1B_S5 -> n_1B_S6 [color="#64748b", penwidth=1.3];
+  n_1B_S6 -> n_1B_S7 [color="#64748b", penwidth=1.3];
+  n_1B_S7 -> n_1B_S8 [color="#64748b", penwidth=1.3];
+  n_1B_S8 -> n_1B_S9 [color="#64748b", penwidth=1.3];
+  n_2A_S0 -> n_2A_S1 [color="#64748b", penwidth=1.3];
+  n_2A_S1 -> n_2A_S2 [color="#64748b", penwidth=1.3];
+  n_2A_S2 -> n_2A_S3 [color="#64748b", penwidth=1.3];
+  n_2A_S3 -> n_2A_S4 [color="#64748b", penwidth=1.3];
+  n_2A_S4 -> n_2A_S5 [color="#64748b", penwidth=1.3];
+  n_2B_S0 -> n_2B_S1 [color="#64748b", penwidth=1.3];
+  n_2B_S1 -> n_2B_S2 [color="#64748b", penwidth=1.3];
+  n_2B_S2 -> n_2B_S3 [color="#64748b", penwidth=1.3];
+  n_2B_S3 -> n_2B_S4 [color="#64748b", penwidth=1.3];
+  n_2B_S4 -> n_2B_S5 [color="#64748b", penwidth=1.3];
+  n_2B_S5 -> n_2B_S6 [color="#64748b", penwidth=1.3];
+  n_2B_S6 -> n_2B_S7 [color="#64748b", penwidth=1.3];
+  n_2B_S7 -> n_2B_S8 [color="#64748b", penwidth=1.3];
+  n_3A_S0 -> n_3A_S1 [color="#64748b", penwidth=1.3];
+  n_3A_S1 -> n_3A_S2 [color="#64748b", penwidth=1.3];
+  n_3A_S2 -> n_3A_S3 [color="#64748b", penwidth=1.3];
+  n_3A_S3 -> n_3A_S4 [color="#64748b", penwidth=1.3];
+  n_3A_S4 -> n_3A_S5 [color="#64748b", penwidth=1.3];
+  n_3A_S5 -> n_3A_S6 [color="#64748b", penwidth=1.3];
+  n_3A_S6 -> n_3A_S7 [color="#64748b", penwidth=1.3];
+  n_3B_S0 -> n_3B_S1 [color="#64748b", penwidth=1.3];
+  n_3B_S1 -> n_3B_S2 [color="#64748b", penwidth=1.3];
+  n_3B_S2 -> n_3B_S3 [color="#64748b", penwidth=1.3];
+  n_3B_S3 -> n_3B_S4 [color="#64748b", penwidth=1.3];
+  n_3B_S4 -> n_3B_S5 [color="#64748b", penwidth=1.3];
+  n_5A_S0 -> n_5A_S1 [color="#64748b", penwidth=1.3];
+  n_5A_S1 -> n_5A_S2 [color="#64748b", penwidth=1.3];
+  n_5A_S2 -> n_5A_S3 [color="#64748b", penwidth=1.3];
+  n_5A_S3 -> n_5A_S4 [color="#64748b", penwidth=1.3];
+  n_5A_S4 -> n_5A_S5 [color="#64748b", penwidth=1.3];
+  n_5B_S0 -> n_5B_S1 [color="#64748b", penwidth=1.3];
+  n_5B_S1 -> n_5B_S2 [color="#64748b", penwidth=1.3];
+  n_5B_S2 -> n_5B_S3 [color="#64748b", penwidth=1.3];
+  n_5B_S3 -> n_5B_S4 [color="#64748b", penwidth=1.3];
+  n_5B_S4 -> n_5B_S5 [color="#64748b", penwidth=1.3];
+  n_6A_S0 -> n_6A_S1 [color="#64748b", penwidth=1.3];
+  n_6A_S1 -> n_6A_S2 [color="#64748b", penwidth=1.3];
+  n_6A_S2 -> n_6A_S3 [color="#64748b", penwidth=1.3];
+  n_6A_S3 -> n_6A_S4 [color="#64748b", penwidth=1.3];
+  n_6A_S4 -> n_6A_S5 [color="#64748b", penwidth=1.3];
+  n_6B_S0 -> n_6B_S1 [color="#64748b", penwidth=1.3];
+  n_6B_S1 -> n_6B_S2 [color="#64748b", penwidth=1.3];
+  n_6B_S2 -> n_6B_S3 [color="#64748b", penwidth=1.3];
+  n_6B_S3 -> n_6B_S4 [color="#64748b", penwidth=1.3];
+  n_6B_S4 -> n_6B_S5 [color="#64748b", penwidth=1.3];
+
+  // gate flows (internal and cross-segment)
+  n_1A_S5 -> n_1A_S6 [label="Receipt gate", style=dashed, color="#2563eb", penwidth=1.2];
+  n_1A_S5 -> n_1A_S7 [label="Receipt gate", style=dashed, color="#2563eb", penwidth=1.2];
+  n_1A_S9 -> n_1B_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_1B_S0 -> n_1B_S3 [label="Gate-in receipt", style=dashed, color="#2563eb", penwidth=1.2];
+  n_1B_S9 -> n_2A_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_2A_S0 -> n_2A_S1 [label="Gate-in receipt", style=dashed, color="#2563eb", penwidth=1.2];
+  n_1B_S9 -> n_2B_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_2B_S0 -> n_2B_S1 [label="Gate-in receipt", style=dashed, color="#2563eb", penwidth=1.2];
+  n_1A_S9 -> n_3A_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_1B_S9 -> n_3A_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_2A_S5 -> n_3A_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_3A_S0 -> n_3A_S1 [label="Gate-in receipt", style=dashed, color="#2563eb", penwidth=1.2];
+  n_3A_S6 -> n_3A_S7 [label="Validation receipt", style=dashed, color="#2563eb", penwidth=1.2];
+  n_1A_S9 -> n_3B_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_1B_S9 -> n_3B_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_2A_S5 -> n_3B_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_3A_S7 -> n_3B_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_3B_S0 -> n_3B_S1 [label="Gate-in receipt", style=dashed, color="#2563eb", penwidth=1.2];
+  n_1A_S9 -> n_5A_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_1B_S9 -> n_5A_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_2A_S5 -> n_5A_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_2B_S8 -> n_5A_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_3A_S7 -> n_5A_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_3B_S5 -> n_5A_S0 [label="PASS bundle", style=bold, color="#dc2626", penwidth=1.8];
+  n_5A_S0 -> n_5A_S1 [label="Gate-in receipt", style=dashed, color="#2563eb", penwidth=1.2];
+  n_5B_S0 -> n_5B_S1 [label="Gate-in receipt", style=dashed, color="#2563eb", penwidth=1.2];
+  n_6A_S0 -> n_6A_S1 [label="Gate-in receipt", style=dashed, color="#2563eb", penwidth=1.2];
+  n_6B_S0 -> n_6B_S1 [label="Gate-in receipt", style=dashed, color="#2563eb", penwidth=1.2];
+}

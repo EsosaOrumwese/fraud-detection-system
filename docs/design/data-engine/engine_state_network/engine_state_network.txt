@@ -1,0 +1,99 @@
+DATA ENGINE NETWORK (layers > segments > states)
+Source basis: state expanded docs + segment_*.impl_map.yaml
+Reader mode: human-readable names for LinkedIn-safe storytelling
+================================================================================================
+
+Layer 1 - World and Merchant Realism
+------------------------------------
+  1A  Merchants to Physical Sites
+    flow: S0(Universe, Symbols, Authority; Deterministic) -> S1(Inputs, Preconditions, and Write Targets; RNG-driven) -> S2(Scope, Preconditions, and Inputs (implementation-ready); RNG-driven) -> S3(Cross-border candidate universe and ordering; Deterministic + RNG) -> S4(Foreign-country count target (ZTP); RNG-driven) -> S5(Currency→Country Weight Expansion; Deterministic) -> S6(Foreign Set Selection; RNG-driven) -> S7(Integer Allocation Across Legal Country Set; RNG-driven) -> S8(Materialise outlet stubs & sequences; RNG-driven) -> S9(Replay Validation & Publish Gate; Deterministic)
+    impl_map:   docs/model_spec/data-engine/implementation_maps/segment_1A.impl_map.yaml
+    impl_actual:docs/model_spec/data-engine/implementation_maps/segment_1A.impl_actual.md
+
+  1B  Site Geolocation
+    flow: S0(Gate-in and foundations; Deterministic) -> S1(Tile Index; Deterministic) -> S2(Tile Weights; Deterministic) -> S3(Country Requirements Frame (Nᵢ); Deterministic) -> S4(Tile Allocation Plan (integerising per-tile counts); Deterministic) -> S5(Site → Tile Assignment (RNG); RNG-driven) -> S6(In-pixel Uniform Jitter with Point-in-Country (RNG); RNG-driven) -> S7(Site synthesis & conformance (deterministic); Deterministic) -> S8(Egress site_locations (deterministic publish); Deterministic) -> S9(Validation bundle & PASS gate; Deterministic)
+    impl_map:   docs/model_spec/data-engine/implementation_maps/segment_1B.impl_map.yaml
+    impl_actual:docs/model_spec/data-engine/implementation_maps/segment_1B.impl_actual.md
+
+  2A  Civil Time
+    flow: S0(Gate, Manifest & Sealed Inputs; Deterministic) -> S1(Provisional time-zone lookup; Deterministic) -> S2(Overrides & finalisation; Deterministic) -> S3(Time-table / cache build; Deterministic) -> S4(Legality (DST gaps & folds); Deterministic) -> S5(Validation bundle & PASS flag; Deterministic)
+    impl_map:   docs/model_spec/data-engine/implementation_maps/segment_2A.impl_map.yaml
+    impl_actual:docs/model_spec/data-engine/implementation_maps/segment_2A.impl_actual.md
+
+  2B  Routing: traffic to sites and edges
+    flow: S0(Gate & Environment Seal; Deterministic) -> S1(Per-merchant weight freezing; Deterministic) -> S2(Alias tables (O(1) sampler build); Deterministic) -> S3(Corporate-day modulation (γ draws); RNG-driven) -> S4(Zone-group renormalisation; Deterministic) -> S5(Router core (two-stage O(1): group → site); RNG-driven) -> S6(Virtual-merchant edge routing; RNG-driven) -> S7(Audits & CI gate; Deterministic) -> S8(Validation bundle & _passed.flag; Deterministic)
+    impl_map:   docs/model_spec/data-engine/implementation_maps/segment_2B.impl_map.yaml
+    impl_actual:docs/model_spec/data-engine/implementation_maps/segment_2B.impl_actual.md
+
+  3A  Zone Allocation
+    flow: S0(Gate & Sealed Inputs for Zone Allocation; Deterministic) -> S1(Mixture Policy & Escalation Queue; Deterministic) -> S2(Country→Zone Priors & Floors; Deterministic) -> S3(Zone Share Sampling (Dirichlet draws); RNG-driven) -> S4(Integer Zone Allocation (Counts per Merchant×Country×Zone); Deterministic) -> S5(Zone Allocation Egress & Routing Universe Hash; Deterministic) -> S6(Structural Validation & Segment Audit; Deterministic) -> S7(Segment Validation Bundle & PASS Flag; Deterministic)
+    impl_map:   docs/model_spec/data-engine/implementation_maps/segment_3A.impl_map.yaml
+    impl_actual:docs/model_spec/data-engine/implementation_maps/segment_3A.impl_actual.md
+
+  3B  Virtual merchants & CDN surfaces
+    flow: S0(Gate & environment seal; Deterministic) -> S1(Virtual classification & settlement node construction; Deterministic) -> S2(CDN edge catalogue construction; RNG-driven) -> S3(Edge alias tables & virtual edge universe hash; Deterministic) -> S4(Virtual routing semantics & validation contracts; Deterministic) -> S5(Segment validation bundle & _passed.flag; Deterministic)
+    impl_map:   docs/model_spec/data-engine/implementation_maps/segment_3B.impl_map.yaml
+    impl_actual:docs/model_spec/data-engine/implementation_maps/segment_3B.impl_actual.md
+
+Layer 2 - Temporal Arrival Surfaces
+-----------------------------------
+  5A  Intensity Surfaces
+    flow: S0(Gate & sealed inputs; Deterministic) -> S1(Merchant & Zone Demand Classification; Deterministic) -> S2(Weekly Shape Library; Deterministic) -> S3(Baseline Merchant×Zone Weekly Intensities; Deterministic) -> S4(Calendar & Scenario Overlays; Deterministic) -> S5(Segment Validation & HashGate; Deterministic)
+    impl_map:   docs/model_spec/data-engine/implementation_maps/segment_5A.impl_map.yaml
+    impl_actual:docs/model_spec/data-engine/implementation_maps/segment_5A.impl_actual.md
+
+  5B  Arrival Realisation
+    flow: S0(Gate & sealed inputs; Deterministic) -> S1(Time grid & grouping plan; Deterministic) -> S2(Latent intensity fields; RNG-driven) -> S3(Bucket-level arrival counts; RNG-driven) -> S4(Micro-time & routing to sites/edges; RNG-driven) -> S5(Validation bundle & HashGate; Deterministic)
+    impl_map:   docs/model_spec/data-engine/implementation_maps/segment_5B.impl_map.yaml
+    impl_actual:docs/model_spec/data-engine/implementation_maps/segment_5B.impl_actual.md
+
+Layer 3 - Behavior, Fraud, and Labels
+-------------------------------------
+  6A  Entity & Product World
+    flow: S0(Gate & sealed inputs for the entity & product world; Deterministic) -> S1(Customer & party base population; RNG-driven) -> S2(Accounts & product holdings; RNG-driven) -> S3(Instruments & payment credentials; RNG-driven) -> S4(Devices, IPs & network graph; RNG-driven) -> S5(Static fraud posture & 6A HashGate; RNG-driven)
+    impl_map:   docs/model_spec/data-engine/implementation_maps/segment_6A.impl_map.yaml
+    impl_actual:docs/model_spec/data-engine/implementation_maps/segment_6A.impl_actual.md
+
+  6B  Behaviour, Fraud Overlay & Labelling
+    flow: S0(Behavioural universe gate & sealed inputs; Deterministic) -> S1(Arrival-to-entity attachment & sessionisation; RNG-driven) -> S2(Baseline transactional flow synthesis; RNG-driven) -> S3(Fraud & abuse campaigns overlay; RNG-driven) -> S4(Truth & bank-view labelling; RNG-driven) -> S5(Segment validation & HashGate; Deterministic)
+    impl_map:   docs/model_spec/data-engine/implementation_maps/segment_6B.impl_map.yaml
+    impl_actual:docs/model_spec/data-engine/implementation_maps/segment_6B.impl_actual.md
+
+INTERNAL GATE FLOWS
+--------------------
+  1A.S5 --(Receipt gate)--> 1A.S6
+  1A.S5 --(Receipt gate)--> 1A.S7
+  1B.S0 --(Gate-in receipt)--> 1B.S3
+  2A.S0 --(Gate-in receipt)--> 2A.S1
+  2B.S0 --(Gate-in receipt)--> 2B.S1
+  3A.S0 --(Gate-in receipt)--> 3A.S1
+  3A.S6 --(Validation receipt)--> 3A.S7
+  3B.S0 --(Gate-in receipt)--> 3B.S1
+  5A.S0 --(Gate-in receipt)--> 5A.S1
+  5B.S0 --(Gate-in receipt)--> 5B.S1
+  6A.S0 --(Gate-in receipt)--> 6A.S1
+  6B.S0 --(Gate-in receipt)--> 6B.S1
+
+CROSS-SEGMENT GATE FLOWS
+------------------------
+  1A.S9 ==(PASS bundle)==> 1B.S0
+  1A.S9 ==(PASS bundle)==> 3A.S0
+  1A.S9 ==(PASS bundle)==> 3B.S0
+  1A.S9 ==(PASS bundle)==> 5A.S0
+  1B.S9 ==(PASS bundle)==> 2A.S0
+  1B.S9 ==(PASS bundle)==> 2B.S0
+  1B.S9 ==(PASS bundle)==> 3A.S0
+  1B.S9 ==(PASS bundle)==> 3B.S0
+  1B.S9 ==(PASS bundle)==> 5A.S0
+  2A.S5 ==(PASS bundle)==> 3A.S0
+  2A.S5 ==(PASS bundle)==> 3B.S0
+  2A.S5 ==(PASS bundle)==> 5A.S0
+  2B.S8 ==(PASS bundle)==> 5A.S0
+  3A.S7 ==(PASS bundle)==> 3B.S0
+  3A.S7 ==(PASS bundle)==> 5A.S0
+  3B.S5 ==(PASS bundle)==> 5A.S0
+
+Legend:
+  ->           = sequential state flow within segment
+  --(gate)-->  = internal gate dependency
+  ==(gate)==>  = cross-segment gate dependency
