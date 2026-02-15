@@ -15,6 +15,11 @@ wiring:
     region: ${OBJECT_STORE_REGION}
     path_style: false
   health_bus_probe_mode: none
+  # Oracle Store is engine-run-scoped and must not be coupled to platform_run_id.
+  oracle_root: ${ORACLE_ROOT}
+  oracle_engine_run_root: ${ORACLE_ENGINE_RUN_ROOT}
+  oracle_scenario_id: ${ORACLE_SCENARIO_ID}
+  oracle_stream_view_root: ${ORACLE_STREAM_VIEW_ROOT}
   admission_db_path: ${IG_ADMISSION_DSN}
   event_bus_kind: file
   event_bus:

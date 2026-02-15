@@ -11236,6 +11236,9 @@ Material drift confirmed (doc/runtime oracle root coupling to platform_run_id). 
 ### Drift sentinel outcome
 Oracle root alignment drift is corrected at data-layout and migration-authority-doc levels. Legacy prefixes remain temporarily for non-destructive continuity and can be cleaned in a dedicated teardown pass.
 
+Follow-up (2026-02-15): teardown executed to prevent drift reintroduction. Legacy S3 prefixes were deleted, and the canonical Oracle Store root going forward is:
+- s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/
+
 ## Entry: 2026-02-15 16:27PM - Post-copy blocker: stream-view metadata still bound to legacy functional roots
 
 ### Blocker discovered

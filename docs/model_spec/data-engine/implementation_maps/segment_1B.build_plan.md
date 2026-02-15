@@ -1093,6 +1093,77 @@ POPT.1 closure record:
 - Open contradiction to carry forward:
   - rank-cache miss/eviction pressure did not materially drop in this pass; next S4 iteration should target key cardinality pressure (`k_max` skip lane and per-country/n_sites cache residency strategy) before phase unlock.
 
+POPT.1 forward plan (recovery lanes; keep `POPT.1` open until stretch is met or explicitly waived):
+
+POPT.1.R0 - Candidate Run-Lane Hardening (no-manual-copy posture)
+Goal:
+- eliminate repeated bootstrap/staging failures during S4 iterations by making candidate run-id creation reproducible and self-contained.
+
+Environment context (authoritative for the commands in this POPT lane):
+- `cwd`: `c:\Users\LEGION\Documents\Data Science\Python & R Scripts\fraud-detection-system`
+- `shell`: `powershell`
+- canonical lane root: `runs/fix-data-engine/segment_1B/`
+
+Work:
+- add a small run-lane prep utility that creates a fresh `runs/fix-data-engine/segment_1B/<run_id>/` by staging the minimum upstream surfaces required to start from `S4`:
+  - 1B gate surfaces: `s0_gate_receipt`, `sealed_inputs`,
+  - 1B prerequisites: `tile_index`, `tile_bounds`, `tile_weights`, `s3_requirements`,
+  - 1A dependency needed by `S7`: `outlet_catalogue` (staged into the candidate run lane so downstream smoke does not fail).
+- the utility must preserve fixed identity tokens (`seed`, `parameter_hash`, `manifest_fingerprint`) and only change `run_id`.
+
+DoD:
+- [ ] fresh candidate run-id can execute `S4` immediately (no `S0` required for the lane).
+- [ ] downstream smoke `S5->S9` runs without manual file copying.
+
+POPT.1.R1 - Rank-Path De-Churn (target `rank_prefix` hotspot + cache pressure)
+Goal:
+- materially reduce `rank_prefix` substage time and miss/eviction/skip pressure while preserving exact allocation semantics.
+
+Work:
+- replace expensive large-`k` bypass behavior with an adaptive exact-selection kernel:
+  - small-shortfall path uses partial selection (`argpartition`-style) + deterministic tie-break,
+  - large-shortfall path avoids full-array ranking unless unavoidable.
+- reduce key cardinality pressure in rank cache so cache entries are reusable and not thrashed by high variation in `(country,n_sites,k)` requests.
+
+DoD:
+- [ ] `rank_prefix` seconds and share-of-wall drop materially vs current witness.
+- [ ] rank-cache miss/eviction/skip pressure improves vs current witness (directionally and materially).
+- [ ] output equivalence preserved (determinism witness still produces identical bytes).
+
+POPT.1.R2 - Allocation-Kernel Cost Reduction (target `allocation_kernel` hotspot)
+Goal:
+- materially reduce `allocation_kernel` seconds without altering tie-break/guard semantics.
+
+Work:
+- reduce Python overhead and intermediate arrays in `_emit_rows` hot path:
+  - push invariants out of inner loops,
+  - avoid repeated dtype conversions,
+  - keep emission path vectorized where possible.
+
+DoD:
+- [ ] `allocation_kernel` seconds and share-of-wall drop materially vs current witness.
+- [ ] `alloc_sum_equals_requirements=true` remains invariant.
+
+POPT.1.R3 - Closure Gate and Reclassification
+Goal:
+- rerun witnesses and reclassify `POPT.1` with explicit go/no-go.
+
+Work:
+- execute two same-input witnesses on the candidate lane and require:
+  - stable top-2 substage ordering,
+  - identical output partition bytes,
+  - downstream smoke `S5->S9` remains green.
+- rerun closure scorer and write updated delta artifacts.
+
+DoD:
+- [ ] new `segment1b_popt1_closure_<run_id>.json` and `.md` written for the promoted candidate.
+- [ ] classification updated to `GREEN/AMBER/RED` with explicit progression decision.
+
+POPT.1 phase decision gate (binding):
+- if `S4 <= 12m`: classify `GREEN` and proceed to `POPT.2`.
+- else if `S4 <= 15m`: classify `AMBER` and proceed to `POPT.2` with recorded rationale.
+- else: classify `RED` and remain in `POPT.1` recovery lanes unless USER explicitly waives.
+
 ### POPT.2 - S5 assignment-path optimization (secondary bottleneck)
 Goal:
 - reduce `S5` runtime after `S4` is brought into target band.

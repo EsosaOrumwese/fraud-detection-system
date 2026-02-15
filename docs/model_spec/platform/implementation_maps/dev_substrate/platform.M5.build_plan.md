@@ -143,13 +143,12 @@ Tasks:
    - zero inbound blockers
    - run-id consistency across `m4_handoff_pack` and `m4_i_verdict`.
 2. Resolve always-required handles for M5.A closure:
-   - `S3_ORACLE_BUCKET`
-   - `S3_ORACLE_RUN_PREFIX_PATTERN`
-   - `S3_ORACLE_INPUT_PREFIX_PATTERN`
-   - `S3_STREAM_VIEW_PREFIX_PATTERN`
-   - `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN`
-   - `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN`
-   - `S3_STREAM_SORT_RECEIPT_KEY_PATTERN`
+    - `S3_ORACLE_BUCKET`
+    - `S3_ORACLE_RUN_PREFIX_PATTERN`
+    - `S3_STREAM_VIEW_PREFIX_PATTERN`
+    - `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN`
+    - `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN`
+    - `S3_STREAM_SORT_RECEIPT_KEY_PATTERN`
    - `ORACLE_REQUIRED_OUTPUT_IDS`
    - `ORACLE_SORT_KEY_BY_OUTPUT_ID`
    - `ORACLE_INLET_MODE`
@@ -286,7 +285,7 @@ Execution result (2026-02-14):
 
 ### M5.C Oracle Input Presence Assertion (No Seed Execution)
 Goal:
-1. Ensure required oracle inputs exist in run-scoped S3 prefix.
+1. Ensure required oracle inputs exist in the engine-run-scoped Oracle Store S3 prefix (no `platform_run_id` coupling).
 
 Entry conditions:
 1. `M5.B` PASS.
@@ -303,13 +302,13 @@ Required inputs:
    - latest `M5.B` snapshot (local + durable URI),
    - `runs/dev_substrate/m3/20260213T221631Z/run.json`.
 3. Required handles:
-   - `S3_ORACLE_BUCKET`,
-   - `S3_ORACLE_INPUT_PREFIX_PATTERN`,
-   - `S3_EVIDENCE_BUCKET`,
-   - `ORACLE_REQUIRED_OUTPUT_IDS`.
-4. Required object keys under run-scoped oracle input root:
-   - `_oracle_pack_manifest.json`,
-   - `_SEALED.json`.
+    - `S3_ORACLE_BUCKET`,
+    - `S3_ORACLE_RUN_PREFIX_PATTERN`,
+    - `S3_EVIDENCE_BUCKET`,
+    - `ORACLE_REQUIRED_OUTPUT_IDS`.
+4. Required object keys under engine-run oracle input root:
+    - `_oracle_pack_manifest.json`,
+    - `_SEALED.json`.
 
 Tasks:
 1. Validate `M5.B` carry-forward invariants:
@@ -317,7 +316,7 @@ Tasks:
    - `blockers=[]`,
    - `platform_run_id` matches M3 run header.
 2. Resolve run-scoped input root using:
-   - `S3_ORACLE_INPUT_PREFIX_PATTERN` + `platform_run_id`.
+    - `S3_ORACLE_RUN_PREFIX_PATTERN` expanded from pinned `ORACLE_SOURCE_NAMESPACE` + `ORACLE_ENGINE_RUN_ID` (no `platform_run_id` token).
 3. Assert oracle input prefix presence/readability:
    - prefix exists,
    - at least one object present under run-scoped input root.
@@ -345,7 +344,7 @@ Tasks:
 
 DoD:
 - [x] `M5.B` carry-forward invariants are verified and recorded.
-- [x] Run-scoped oracle input prefix is present and readable.
+- [x] Engine-run oracle input prefix is present and readable.
 - [x] Required manifest/seal objects are present and readable.
 - [x] Required output IDs are fully covered by manifest-declared input surfaces.
 - [x] Inlet assertion snapshot exists locally and durably.
@@ -392,12 +391,12 @@ Required inputs:
    - latest `M5.C` snapshot (local + durable URI),
    - `runs/dev_substrate/m3/20260213T221631Z/run.json`.
 3. Required handles:
-   - `S3_ORACLE_BUCKET`,
-   - `S3_ORACLE_INPUT_PREFIX_PATTERN`,
-   - `S3_STREAM_VIEW_PREFIX_PATTERN`,
-   - `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN`,
-   - `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN`,
-   - `S3_STREAM_SORT_RECEIPT_KEY_PATTERN`,
+    - `S3_ORACLE_BUCKET`,
+    - `S3_ORACLE_RUN_PREFIX_PATTERN`,
+    - `S3_STREAM_VIEW_PREFIX_PATTERN`,
+    - `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN`,
+    - `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN`,
+    - `S3_STREAM_SORT_RECEIPT_KEY_PATTERN`,
    - `ORACLE_REQUIRED_OUTPUT_IDS`,
    - `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
    - `TD_ORACLE_STREAM_SORT`,
@@ -413,9 +412,9 @@ Tasks:
    - `blockers=[]`,
    - `platform_run_id` matches M3 run header.
 2. Build deterministic per-output launch matrix from:
-   - `ORACLE_REQUIRED_OUTPUT_IDS`,
-   - `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
-   - run-scoped prefix patterns (`S3_ORACLE_INPUT_PREFIX_PATTERN`, `S3_STREAM_VIEW_*`).
+    - `ORACLE_REQUIRED_OUTPUT_IDS`,
+    - `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
+    - engine-run-scoped prefix patterns (`S3_ORACLE_RUN_PREFIX_PATTERN`, `S3_STREAM_VIEW_*`).
 3. Validate sort-key closure for each required output:
    - every required output_id has exactly one mapped sort key,
    - no missing or blank sort-key entries,
@@ -594,10 +593,10 @@ Execution observations + decision lock (2026-02-14):
      - local: `runs/dev_substrate/m5/20260214T202411Z/stream_sort_summary.json`
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/stream_sort_summary.json`
 4. Capacity proof:
-   - single-output probe `arrival_events_5B` processed `124724153` rows and completed only under high resource profile (`8 vCPU`, `32GB`, chunked sort), with runtime around `~77 min`.
-   - proof artifacts:
-     - `s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/stream_view/output_id=arrival_events_5B/_stream_sort_receipt.json`
-     - `s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/stream_view/output_id=arrival_events_5B/_stream_view_manifest.json`
+    - single-output probe `arrival_events_5B` processed `124724153` rows and completed only under high resource profile (`8 vCPU`, `32GB`, chunked sort), with runtime around `~77 min`.
+    - proof artifacts:
+      - `s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/output_id=arrival_events_5B/_stream_sort_receipt.json`
+      - `s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/output_id=arrival_events_5B/_stream_view_manifest.json`
 5. Locked resolution:
    - M5 continues as migration functional-closure lane (`functional_green` workload profile),
    - full-scale throughput/perf closure is explicitly moved to M10 scale lane (no semantic drift, no silent gate mutation).

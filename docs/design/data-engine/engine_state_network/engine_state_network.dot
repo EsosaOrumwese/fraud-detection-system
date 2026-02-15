@@ -8,28 +8,28 @@ digraph EngineStateGateLite {
     label="Layer 1 - World and Merchant Realism";
     style="rounded,filled";
     color="#e8f0fe";
-    seg_1A [label="1A\\nMerchants to Physical Sites\\n10 states"];
-    seg_1B [label="1B\\nSite Geolocation\\n10 states"];
-    seg_2A [label="2A\\nCivil Time\\n6 states"];
-    seg_2B [label="2B\\nRouting: traffic to sites and edges\\n9 states"];
-    seg_3A [label="3A\\nZone Allocation\\n8 states"];
-    seg_3B [label="3B\\nVirtual merchants & CDN surfaces\\n6 states"];
+    seg_1A [label="1A\nMerchants to Physical Sites\n10 states"];
+    seg_1B [label="1B\nSite Geolocation\n10 states"];
+    seg_2A [label="2A\nCivil Time\n6 states"];
+    seg_2B [label="2B\nRouting: traffic to sites and edges\n9 states"];
+    seg_3A [label="3A\nZone Allocation\n8 states"];
+    seg_3B [label="3B\nVirtual merchants & CDN surfaces\n6 states"];
   }
 
   subgraph cluster_layer2 {
     label="Layer 2 - Temporal Arrival Surfaces";
     style="rounded,filled";
     color="#e6fffa";
-    seg_5A [label="5A\\nIntensity Surfaces\\n6 states"];
-    seg_5B [label="5B\\nArrival Realisation\\n6 states"];
+    seg_5A [label="5A\nIntensity Surfaces\n6 states"];
+    seg_5B [label="5B\nArrival Realisation\n6 states"];
   }
 
   subgraph cluster_layer3 {
     label="Layer 3 - Behavior, Fraud, and Labels";
     style="rounded,filled";
     color="#fff7ed";
-    seg_6A [label="6A\\nEntity & Product World\\n6 states"];
-    seg_6B [label="6B\\nBehaviour, Fraud Overlay & Labelling\\n6 states"];
+    seg_6A [label="6A\nEntity & Product World\n6 states"];
+    seg_6B [label="6B\nBehaviour, Fraud Overlay & Labelling\n6 states"];
   }
 
   // canonical segment progression

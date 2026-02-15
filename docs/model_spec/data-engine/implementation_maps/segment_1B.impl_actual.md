@@ -5532,3 +5532,38 @@ Artifacts produced:
 
 Next mandatory focus (per fail-closed classification):
 1) continue S4-only optimization before entering `POPT.2`, with emphasis on rank-cache cardinality/skip pressure and allocation-kernel cost concentration.
+
+### Entry: 2026-02-15 17:11
+
+Design element: `POPT.1.R0` candidate run-lane hardening (no-manual-copy posture).
+Summary: Added a small staging utility to create fresh candidate run-ids under `runs/fix-data-engine/segment_1B/` by reusing upstream prerequisite surfaces via junctions (default). This eliminates the repeated manual copying of `s0_gate_receipt/sealed_inputs/tile_*` and the `1A/outlet_catalogue` dependency required for downstream smoke.
+
+Environment authority (recorded explicitly for reproducible commands):
+1) `cwd`: `c:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system`
+2) `shell`: `powershell`
+
+Rationale:
+1) Prior `POPT.1` execution required ad-hoc staging fixes:
+   - direct `S0` bootstrap failed (`E_BUNDLE_MISSING`) when using synthetic run-ids without resolved bundle lineage,
+   - downstream smoke initially failed at `S7` due missing staged `data/layer1/1A/outlet_catalogue`.
+2) Repeating these manual steps wastes iteration time and risks storage blow from accidental full copies.
+3) Junction-based staging (read-only inputs) keeps storage stable while allowing `S4+` outputs to be written into the new run-id folder.
+
+Mechanics implemented:
+1) New tool: `tools/stage_segment1b_candidate_lane.py`
+2) Inputs:
+   - `--runs-root` (default `runs/fix-data-engine/segment_1B`),
+   - `--src-run-id` (authority donor run-id, e.g. `9ebdd...`),
+   - `--dst-run-id` (optional; otherwise generated),
+   - `--mode junction|copy` (default `junction`).
+3) Staged surfaces (linked/copied into the candidate lane):
+   - `data/layer1/1B/{s0_gate_receipt,sealed_inputs,tile_index,tile_bounds,tile_weights,s3_requirements}`,
+   - `data/layer1/1A/outlet_catalogue` (downstream `S7` dependency).
+4) Run identity:
+   - copies `parameter_hash/manifest_fingerprint/seed` from source `run_receipt.json`,
+   - writes a new `run_receipt.json` with only `run_id/created_utc` changed (plus non-binding provenance keys for humans/tools).
+
+Expected next execution:
+1) `python tools/stage_segment1b_candidate_lane.py --src-run-id 9ebdd751ab7b4f9da246cc840ddff306`
+2) `python -m engine.cli.s4_alloc_plan --runs-root runs/fix-data-engine/segment_1B --run-id <new_run_id>`
+3) If needed: `S5->S9` smoke on the same `<new_run_id>` without any manual copying.

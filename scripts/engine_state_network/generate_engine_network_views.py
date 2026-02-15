@@ -399,7 +399,9 @@ def format_dataset_label(dataset_ids: Set[str], max_items: int = 3) -> str:
 
 
 def dot_escape(text: str) -> str:
-    return text.replace("\\", "\\\\").replace('"', '\\"')
+    # Graphviz interprets backslash escapes (e.g. \n) inside labels.
+    # Do not double-escape backslashes here, otherwise \n renders literally.
+    return text.replace('"', '\\"')
 
 
 def mmd_escape(text: str) -> str:

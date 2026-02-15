@@ -9,28 +9,28 @@ digraph EngineCodeIOLite {
     label="Layer 1 - World and Merchant Realism";
     style="rounded,filled";
     color="#e8f0fe";
-    seg_1A [label="1A\\nMerchants to Physical Sites\\nowner: engine.layers.l1.seg_1A.*\\nIO contract: R=44 W=32"];
-    seg_1B [label="1B\\nSite Geolocation\\nowner: engine.layers.l1.seg_1B.*\\nIO contract: R=25 W=26"];
-    seg_2A [label="2A\\nCivil Time\\nowner: engine.layers.l1.seg_2A.*\\nIO contract: R=15 W=9"];
-    seg_2B [label="2B\\nRouting: traffic to sites and edges\\nowner: engine.layers.l1.seg_2B.*\\nIO contract: R=24 W=18"];
-    seg_3A [label="3A\\nZone Allocation\\nowner: engine.layers.l1.seg_3A.*\\nIO contract: R=30 W=24"];
-    seg_3B [label="3B\\nVirtual merchants & CDN surfaces\\nowner: engine.layers.l1.seg_3B.*\\nIO contract: R=45 W=26"];
+    seg_1A [label="1A\nMerchants to Physical Sites\nowner: engine.layers.l1.seg_1A.*\nIO contract: R=44 W=32"];
+    seg_1B [label="1B\nSite Geolocation\nowner: engine.layers.l1.seg_1B.*\nIO contract: R=25 W=26"];
+    seg_2A [label="2A\nCivil Time\nowner: engine.layers.l1.seg_2A.*\nIO contract: R=15 W=9"];
+    seg_2B [label="2B\nRouting: traffic to sites and edges\nowner: engine.layers.l1.seg_2B.*\nIO contract: R=24 W=18"];
+    seg_3A [label="3A\nZone Allocation\nowner: engine.layers.l1.seg_3A.*\nIO contract: R=30 W=24"];
+    seg_3B [label="3B\nVirtual merchants & CDN surfaces\nowner: engine.layers.l1.seg_3B.*\nIO contract: R=45 W=26"];
   }
 
   subgraph cluster_layer2 {
     label="Layer 2 - Temporal Arrival Surfaces";
     style="rounded,filled";
     color="#e6fffa";
-    seg_5A [label="5A\\nIntensity Surfaces\\nowner: engine.layers.l2.seg_5A.*\\nIO contract: R=40 W=25"];
-    seg_5B [label="5B\\nArrival Realisation\\nowner: engine.layers.l2.seg_5B.*\\nIO contract: R=65 W=23"];
+    seg_5A [label="5A\nIntensity Surfaces\nowner: engine.layers.l2.seg_5A.*\nIO contract: R=40 W=25"];
+    seg_5B [label="5B\nArrival Realisation\nowner: engine.layers.l2.seg_5B.*\nIO contract: R=65 W=23"];
   }
 
   subgraph cluster_layer3 {
     label="Layer 3 - Behavior, Fraud, and Labels";
     style="rounded,filled";
     color="#fff7ed";
-    seg_6A [label="6A\\nEntity & Product World\\nowner: engine.layers.l3.seg_6A.*\\nIO contract: R=65 W=49"];
-    seg_6B [label="6B\\nBehaviour, Fraud Overlay & Labelling\\nowner: engine.layers.l3.seg_6B.*\\nIO contract: R=71 W=26"];
+    seg_6A [label="6A\nEntity & Product World\nowner: engine.layers.l3.seg_6A.*\nIO contract: R=65 W=49"];
+    seg_6B [label="6B\nBehaviour, Fraud Overlay & Labelling\nowner: engine.layers.l3.seg_6B.*\nIO contract: R=71 W=26"];
   }
 
   // canonical segment progression
