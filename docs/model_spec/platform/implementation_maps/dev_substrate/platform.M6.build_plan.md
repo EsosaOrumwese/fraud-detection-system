@@ -470,10 +470,35 @@ Execution status (2026-02-15):
    - READY receipt exists at `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/78d859d39f4232fc510463fb868bc6e1.json`,
    - control-bus READY publication is verified on stream `fraud-platform-dev-min-ig-bus-v0` with sequence `49671822697342044645261017794300307957859908788827455490`.
 4. Execution note (explicit, non-hidden):
-   - closure run used one requested output id (`s3_event_stream_with_fraud_6B`) because only that stream-view output is currently materialized under the active oracle stream-view root.
-   - closure run includes temporary task-scoped execution shims:
+   - This closure run is historically valid, but its output-set narrowness is now **superseded** (see follow-up closure below).
+   - This closure run used temporary task-scoped execution shims:
      - interface-pack layer-1 schema reference stub materialization,
      - lease keepalive loop for long evidence-reuse windows.
+
+Follow-up closure (authoritative for 4-output Oracle Store posture; 2026-02-15):
+1. Purpose: confirm SR (M6.D) is not implicitly narrowed to `s3_event_stream_with_fraud_6B`, and prove READY can be published
+   with the full 4-output Oracle `stream_view` surface now present under canonical Oracle Store root.
+2. Canonical Oracle Store root (engine-run-scoped; no coupling to platform_run_id):
+   - `s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/`
+   - `stream_view_root`: `.../stream_view/ts_utc/`
+3. Remediation required for deterministic re-run (fail-closed):
+   - purged stale SR instance receipts that pinned legacy `oracle/platform_...` locator paths:
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/instance_receipts/`
+   - kept SR lease alive during long S3 scans (task-scoped keepalive shim) to avoid `LEASE_LOST`.
+   - materialized minimal missing interface-pack schema ref (`layer-1` `schemas.layer1.yaml`) as task-scoped shim.
+4. Result (PASS):
+   - SR run `READY`: `run_id=17dacbdc997e6765bcd242f7cb3b6c37`
+   - READY signal (durable):
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/17dacbdc997e6765bcd242f7cb3b6c37.json`
+   - `oracle_pack_ref.stream_view_output_refs` includes all 4:
+     - `arrival_events_5B`
+     - `s1_arrival_entities_6B`
+     - `s3_event_stream_with_fraud_6B`
+     - `s3_flow_anchor_with_fraud_6B`
+   - SR facts view (durable):
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/run_facts_view/17dacbdc997e6765bcd242f7cb3b6c37.json`
+   - SR instance receipts re-materialized under canonical locator paths (durable):
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/instance_receipts/`
 
 ### M6.E P6 WSP Launch Contract + READY Consumption
 Goal:
@@ -691,7 +716,9 @@ Current blockers:
    - control-bus sequence proof:
      - `49671822697342044645261017794300307957859908788827455490` on stream `fraud-platform-dev-min-ig-bus-v0`.
    - closure run caveat:
-     - requested output set was narrowed to currently materialized stream-view output (`s3_event_stream_with_fraud_6B`) and used task-scoped execution shims (schema-ref stub + lease keepalive).
+     - requested output set was narrowed to `s3_event_stream_with_fraud_6B` and used task-scoped execution shims (schema-ref stub + lease keepalive).
+     - follow-up closure confirms full 4-output Oracle Store posture:
+       - READY receipt: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/17dacbdc997e6765bcd242f7cb3b6c37.json`
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

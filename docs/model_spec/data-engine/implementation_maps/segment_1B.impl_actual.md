@@ -5600,3 +5600,41 @@ Proposed mechanics (implementation intent before coding):
 Expected impact:
 1) Replace per-pair O(tile_count) math with per-key O(tile_count) plan build + per-pair O(shortfall + rows) updates.
 2) Material reductions in `allocation_kernel` wall time (primary win) and `rank_prefix` (secondary win), without changing semantics.
+
+### Entry: 2026-02-15 20:34
+
+Design element: `POPT.1.R4/R6` S4 persistent alloc-plan disk cache + hot-loop PAT sampling fix + plan payload shrink.
+Summary: Implemented the missing `POPT.1.R4` persistent cache (across run-ids) for exact per-(country,n_sites,dp) alloc plans, and tightened a remaining hot-loop `psutil` sampling bug that was still running per pair. Also reduced alloc-plan payload size by storing base counts as `uint16`.
+
+Why this was required (evidence):
+1) Even after in-run alloc-plan LRU caching, S4 still spends large wall time on the first-time construction of ~O(1000+) unique `(country,n_sites)` plans per run-id (cache misses). Across iterations this repeats per new run-id and makes knob sweeps expensive.
+2) The runner still performed `proc.memory_info()` + open-files sampling per pair in `_handle_requirement` (in addition to the gated sampling), which is avoidable overhead on 12k+ pairs.
+
+Implemented mechanics (code-level; semantics preserved):
+1) Persistent alloc-plan disk cache (exact, deterministic):
+   - location: `runs_root/_cache/s4_alloc_plan/group=<hash16>/plan_<ISO>_n<N>_dp<DP>.npz`
+   - strict group key prefix includes:
+     - `manifest_fingerprint`, `parameter_hash`,
+     - parquet-surface fingerprints for `tile_index` and `tile_weights` (relative path + file size SHA256),
+     - effective S4 policy knobs that affect plan shape and diversify behavior,
+     - `diversify_window_max`.
+   - behavior:
+     - on alloc-plan cache miss: attempt disk load; on disk miss build and then save.
+     - disk cache uses mtime-touch on read, and periodic prune (`max_entries`, `max_bytes`) to control storage.
+   - telemetry:
+     - added `pat.runtime_alloc_plan_disk_cache` fields: `{enabled, group, hits, misses, saves, bytes_read, bytes_written, prune_calls, ...}`.
+
+2) PAT sampling cadence enforcement:
+   - `_handle_requirement` no longer samples RSS/open-files unconditionally; it now respects `ENGINE_1B_S4_PAT_SAMPLE_EVERY_PAIRS`.
+   - this reduces inner-loop overhead without changing any allocation semantics or output ordering.
+
+3) Alloc-plan payload shrink (memory and disk footprint):
+   - in `_build_alloc_plan`, `base_counts` is now stored as `uint16` (counts are bounded by `n_sites`, which is small in 1B).
+
+Files changed / added:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
+2) `tools/prune_run_folders_keep_set.py` (for storage control of run-id folders; separate from engine runtime)
+
+Operational notes:
+1) Disk cache is enabled by default only for `runs_root` paths containing `runs/fix-data-engine` (can be overridden via env).
+2) The disk cache is designed for the optimization lane: it trades small on-disk artifacts for much faster reruns across fresh run-ids while keeping determinism strict via keying.

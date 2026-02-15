@@ -11335,3 +11335,39 @@ Delete legacy oracle prefixes and clear bucket clutter to prevent future drift/t
 ### Post-check
 - object-store root now contains only `oracle-store/`.
 - archive/quarantine buckets are empty.
+
+## Entry: 2026-02-15 20:46:00 +00:00 - SR READY revalidation (M6.D) on canonical Oracle Store (4 outputs)
+
+### Problem
+- Earlier `M6.D` SR READY closure evidence was narrowed to a single stream-view output (`s3_event_stream_with_fraud_6B`) due to partial/legacy oracle root alignment and incomplete stream-view materialization under the active selector.
+- After Oracle Store root alignment to the canonical `oracle-store/` posture, SR needed a re-run to prove it can publish READY with the full 4-output stream-view surface and that no implicit narrowing existed.
+
+### Canonical Oracle Store posture (engine-run-scoped; not platform-run-scoped)
+- `oracle_engine_run_root`:
+  - `s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`
+- `oracle_stream_view_root`:
+  - `s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc`
+- Required output set (4):
+  - `arrival_events_5B`
+  - `s1_arrival_entities_6B`
+  - `s3_event_stream_with_fraud_6B`
+  - `s3_flow_anchor_with_fraud_6B`
+
+### Remediation performed (fail-closed correctness)
+1. Purged stale SR instance receipts that pinned legacy `oracle/platform_...` locator paths (these caused `INSTANCE_RECEIPT_DRIFT` when oracle root moved):
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/instance_receipts/`
+2. Task-scoped shims used for this rerun (documented as non-hidden):
+   - Minimal interface-pack `layer-1` schema stub materialization (to satisfy `$ref` from interface_pack contracts).
+   - Lease keepalive shim during long S3 scans (to avoid `LEASE_LOST` in dev_min managed authority store).
+
+### PASS evidence (durable)
+- READY signal:
+  - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/17dacbdc997e6765bcd242f7cb3b6c37.json`
+- SR facts view:
+  - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/run_facts_view/17dacbdc997e6765bcd242f7cb3b6c37.json`
+- SR instance receipts (re-materialized with canonical oracle-store locator paths):
+  - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/instance_receipts/`
+
+### Closure statement
+- SR is not realigned/hardcoded to `s3_event_stream_with_fraud_6B`; the earlier narrowness was an invocation/selector reality.
+- Current authoritative SR READY publication proof includes `oracle_pack_ref.stream_view_output_refs` for all 4 outputs under canonical `oracle-store/`.
