@@ -730,6 +730,17 @@ Snapshot contract (`m6_f_wsp_summary_snapshot.json`):
    - `non_retryable_reasons` (deduped list; if any).
 6. `blockers`, `overall_pass` (fail-closed).
 
+Execution status (2026-02-15):
+1. M6.F PASS (composite summary closure).
+2. Snapshot:
+   - local: `runs/dev_substrate/m6/20260215T232205Z/m6_f_wsp_summary_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T232205Z/m6_f_wsp_summary_snapshot.json`
+3. Observed closure facts (from snapshot):
+   - WSP task: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/76b6851b47694328a5c6f69c64783820` (`fraud-platform-dev-min-wsp:6`, exit `0`)
+   - Outputs complete (4): `arrival_events_5B`, `s1_arrival_entities_6B`, `s3_event_stream_with_fraud_6B`, `s3_flow_anchor_with_fraud_6B`
+   - Emitted: `200` each (total `800`)
+   - Boundary posture: `ig_non_retryable_count=0` (retries observed; retry count captured in snapshot)
+
 ### M6.G P7 Ingest Commit Verification
 Goal:
 1. Verify IG committed ingest outcomes with coherent evidence.

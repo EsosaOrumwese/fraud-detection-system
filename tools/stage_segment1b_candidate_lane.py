@@ -78,14 +78,18 @@ def _copytree(dst: Path, src: Path) -> None:
 
 
 def _iter_link_specs(
-    runs_root: Path,
+    src_runs_root: Path,
+    dst_runs_root: Path,
     src_run_id: str,
     dst_run_id: str,
     *,
     include_s4_alloc_plan: bool,
+    include_s7_site_synthesis: bool,
+    include_site_locations: bool,
+    include_rng_logs: bool,
 ) -> Iterable[_LinkSpec]:
-    src_root = runs_root / src_run_id
-    dst_root = runs_root / dst_run_id
+    src_root = src_runs_root / src_run_id
+    dst_root = dst_runs_root / dst_run_id
     src_l1_1b = src_root / "data" / "layer1" / "1B"
     dst_l1_1b = dst_root / "data" / "layer1" / "1B"
     src_l1_1a = src_root / "data" / "layer1" / "1A"
@@ -101,11 +105,22 @@ def _iter_link_specs(
     ]
     if include_s4_alloc_plan:
         required_1b.append("s4_alloc_plan")
+    if include_s7_site_synthesis:
+        required_1b.append("s7_site_synthesis")
+    if include_site_locations:
+        required_1b.append("site_locations")
     for name in required_1b:
         yield _LinkSpec(
             src=src_l1_1b / name,
             dst=dst_l1_1b / name,
             label=f"1B/{name}",
+        )
+
+    if include_rng_logs:
+        yield _LinkSpec(
+            src=src_root / "logs" / "layer1" / "1B" / "rng",
+            dst=dst_root / "logs" / "layer1" / "1B" / "rng",
+            label="logs/layer1/1B/rng",
         )
 
     # Downstream smoke for 1B uses the 1A outlet catalogue (S7 reads it).
@@ -118,7 +133,16 @@ def _iter_link_specs(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--runs-root", default="runs/fix-data-engine/segment_1B")
+    parser.add_argument(
+        "--runs-root",
+        default="runs/fix-data-engine/segment_1B",
+        help="Destination runs-root (default: runs/fix-data-engine/segment_1B).",
+    )
+    parser.add_argument(
+        "--src-runs-root",
+        default=None,
+        help="Optional source runs-root. If omitted, uses --runs-root.",
+    )
     parser.add_argument("--src-run-id", required=True, help="Run-id to source prerequisite surfaces from.")
     parser.add_argument(
         "--dst-run-id",
@@ -141,15 +165,40 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Also stage `data/layer1/1B/s4_alloc_plan` (needed to run S5 without rerunning S4).",
     )
+    parser.add_argument(
+        "--include-for-s9",
+        action="store_true",
+        help="Stage the additional surfaces needed to run S9 only (S7 + site_locations + rng logs).",
+    )
+    parser.add_argument(
+        "--include-s7-site-synthesis",
+        action="store_true",
+        help="Stage `data/layer1/1B/s7_site_synthesis`.",
+    )
+    parser.add_argument(
+        "--include-site-locations",
+        action="store_true",
+        help="Stage `data/layer1/1B/site_locations`.",
+    )
+    parser.add_argument(
+        "--include-rng-logs",
+        action="store_true",
+        help="Stage `logs/layer1/1B/rng` (events + trace + audit).",
+    )
     args = parser.parse_args(argv)
 
-    runs_root = Path(args.runs_root).resolve()
+    dst_runs_root = Path(args.runs_root).resolve()
+    src_runs_root = (
+        Path(args.src_runs_root).resolve()
+        if args.src_runs_root
+        else dst_runs_root
+    )
     src_run_id = str(args.src_run_id).strip()
     dst_run_id = str(args.dst_run_id).strip() if args.dst_run_id else uuid.uuid4().hex
     mode = str(args.mode)
 
-    src_root = runs_root / src_run_id
-    dst_root = runs_root / dst_run_id
+    src_root = src_runs_root / src_run_id
+    dst_root = dst_runs_root / dst_run_id
     _ensure_exists(src_root / "run_receipt.json", label="run_receipt.json")
     if dst_root.exists():
         raise SystemExit(f"[stage_1b_lane] destination run-id already exists: {dst_root}")
@@ -164,6 +213,7 @@ def main(argv: list[str] | None = None) -> int:
     dst_receipt["staged_from_run_id"] = src_run_id
     dst_receipt["staged_mode"] = mode
     dst_receipt["staged_utc"] = dst_receipt["created_utc"]
+    dst_receipt["staged_from_runs_root"] = str(src_runs_root.as_posix())
 
     dst_root.mkdir(parents=True, exist_ok=False)
     (dst_root / "data").mkdir(parents=True, exist_ok=True)
@@ -172,12 +222,25 @@ def main(argv: list[str] | None = None) -> int:
     (dst_root / "tmp").mkdir(parents=True, exist_ok=True)
     _write_json(dst_root / "run_receipt.json", dst_receipt)
 
+    include_s4_alloc_plan = bool(args.include_s4_alloc_plan)
+    include_s7_site_synthesis = bool(args.include_s7_site_synthesis)
+    include_site_locations = bool(args.include_site_locations)
+    include_rng_logs = bool(args.include_rng_logs)
+    if args.include_for_s9:
+        include_s7_site_synthesis = True
+        include_site_locations = True
+        include_rng_logs = True
+
     specs = list(
         _iter_link_specs(
-            runs_root,
+            src_runs_root,
+            dst_runs_root,
             src_run_id,
             dst_run_id,
-            include_s4_alloc_plan=bool(args.include_s4_alloc_plan),
+            include_s4_alloc_plan=include_s4_alloc_plan,
+            include_s7_site_synthesis=include_s7_site_synthesis,
+            include_site_locations=include_site_locations,
+            include_rng_logs=include_rng_logs,
         )
     )
     for spec in specs:
@@ -187,17 +250,24 @@ def main(argv: list[str] | None = None) -> int:
         else:
             _copytree(spec.dst, spec.src)
 
+    next_cmds = [
+        f"python -m engine.cli.s4_alloc_plan --runs-root {args.runs_root} --run-id {dst_run_id}",
+        f"python -m engine.cli.s5_site_tile_assignment --runs-root {args.runs_root} --run-id {dst_run_id}",
+    ]
+    if include_s7_site_synthesis or include_site_locations or include_rng_logs:
+        next_cmds.append(
+            f"python -m engine.cli.s9_validation_bundle --runs-root {args.runs_root} --run-id {dst_run_id}"
+        )
+
     payload = {
-        "runs_root": str(Path(args.runs_root)),
+        "dst_runs_root": str(Path(args.runs_root)),
+        "src_runs_root": str(src_runs_root),
         "src_run_id": src_run_id,
         "dst_run_id": dst_run_id,
         "mode": mode,
         "staged_at_utc": dst_receipt["created_utc"],
         "linked_surfaces": [{"label": s.label, "dst": str(s.dst), "src": str(s.src)} for s in specs],
-        "next_commands_powershell": [
-            f"python -m engine.cli.s4_alloc_plan --runs-root {args.runs_root} --run-id {dst_run_id}",
-            f"python -m engine.cli.s5_site_tile_assignment --runs-root {args.runs_root} --run-id {dst_run_id}",
-        ],
+        "next_commands_powershell": next_cmds,
     }
 
     if args.emit_json:

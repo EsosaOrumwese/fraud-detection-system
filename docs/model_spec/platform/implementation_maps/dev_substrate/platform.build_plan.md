@@ -592,7 +592,7 @@ Active-phase planning posture:
   - [x] `M6.C` P4 Kafka/S3 smoke and `ig_ready.json`.
   - [x] `M6.D` P5 SR PASS + READY publication.
   - [x] `M6.E` P6 WSP launch contract + READY consumption proof.
-  - [ ] `M6.F` P6 WSP execution summary.
+  - [x] `M6.F` P6 WSP execution summary.
   - [ ] `M6.G` P7 ingest commit evidence closure.
   - [ ] `M6.H` P4..P7 verdict + blocker rollup.
   - [ ] `M6.I` M7 handoff publication.
@@ -745,6 +745,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M6 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M6.F` P6 WSP execution summary,
-- require `M6.F` snapshot `overall_pass=true`,
-- then proceed to `M6.G`.
+- execute `M6.G` P7 ingest commit evidence closure,
+- require `M6.G` snapshot `overall_pass=true`,
+- then proceed to `M6.H`.

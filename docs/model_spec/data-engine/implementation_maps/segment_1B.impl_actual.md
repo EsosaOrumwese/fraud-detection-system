@@ -5713,3 +5713,30 @@ Files changed:
 1) `packages/engine/src/engine/layers/l1/seg_1B/s5_site_tile_assignment/runner.py`
 2) `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`
 3) `tools/stage_segment1b_candidate_lane.py`
+
+### Entry: 2026-02-15 23:45
+
+Design element: `POPT.3` enabling work (S9 iteration lane) + S9 baseline validation witness.
+Summary: Extended the Segment 1B staging tool so we can stage a run-id under `runs/fix-data-engine/segment_1B/` from an external source runs-root (e.g. `runs/local_full_run-5`) via junctions. This makes it feasible to iterate on downstream states (notably `S9`) without rerunning the entire segment. Also validated the correct pattern for S9-only iteration: you cannot reuse upstream RNG logs across run-ids because they are partitioned by `run_id`, so S5/S6 must be executed (now fast) to generate the expected RNG logs for the staged run-id before running S9.
+
+Evidence (seed=42; staged from full run `c25a2675...` into fix-data-engine lane):
+1) Failed attempt (reusing RNG logs from source run-id):
+   - run: `e30607bd022c4afd9efd41c89387546e` (pruned)
+   - S9 `FAIL` with `E907_RNG_BUDGET_OR_COUNTERS` because RNG audit/events/trace are partitioned by `run_id` and therefore missing under the staged destination run-id.
+2) Correct iteration lane (stage S4 alloc plan + egress, then run S5 + S6 to mint RNG logs for the staged run-id, then run S9):
+   - run: `fdf38bdb13b54069bfe67ca3210692b7`
+   - `S5 wall=~2.6s` (31257 sites) with `ENGINE_1B_S5_VALIDATE_TILE_INDEX_MODE=off`
+   - `S6 wall=~38.4s` (includes world geometry load; then steady-state ~900 sites/s)
+   - `S9 --validate-only` `PASS` with wall `~96s` (dominant cost: RNG event scan + checksum step)
+
+Tooling changes (staging):
+1) `tools/stage_segment1b_candidate_lane.py` now supports:
+   - `--src-runs-root` (source and destination runs roots can differ),
+   - `--include-for-s9` (stage `S7`, `site_locations`, and RNG logs when appropriate),
+   - granular staging flags:
+     - `--include-s7-site-synthesis`
+     - `--include-site-locations`
+     - `--include-rng-logs`
+
+Operational note (fail-closed):
+- For S9 validation, do not link RNG logs from a different `run_id` unless also arranging a run-id-specific junction at the exact partition path expected by the destination run-id. Default posture: rerun S5/S6 (fast after POPT.2) so the RNG logs are correctly minted for the destination run-id.

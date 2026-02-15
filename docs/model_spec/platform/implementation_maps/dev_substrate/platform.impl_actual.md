@@ -11449,3 +11449,26 @@ Digest is `sha256(json_canonical({output_id, stream_view_id, source_locator_dige
 2. READY-consumption records (terminal `STREAMED`, `emitted=800`):
    - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/wsp/ready_runs/550b89cd28aa5a336dc00117b01ac9f3ecae5ec68282cc739e23a46a52dd0e6a.jsonl`
    - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/wsp/ready_runs/5273f3c8bcbbcea65875d31ccfe726759456ec45b87e484576a489fbf2fa83ee.jsonl`
+
+## Entry: 2026-02-15 23:22:00 +00:00 - WSP Execution Summary Closure (M6.F) PASS
+
+### Goal
+Close `M6.F` by producing a closure-grade WSP execution summary on managed substrate, proving:
+- 4-output completeness (no silent narrowing),
+- emitted counts match the v0 bounded cap (200 per output; total 800),
+- WSP→IG boundary had zero non-retryable failures for the closure task.
+
+### Summary evidence definition (runtime truth)
+WSP does not currently emit a single canonical `wsp_summary.json`. Therefore M6.F uses composite evidence anchored to the M6.E snapshot:
+1. Run-scoped READY-consumption record (`wsp/ready_runs/*.jsonl`) terminal line.
+2. CloudWatch log stream for the closure WSP task (per-output start/stop lines + retry/non-retryable scan).
+3. The durable `M6.E` snapshot as the binding anchor for task ARN + log stream + ready record URI.
+
+### Evidence (authoritative)
+1. M6.F snapshot:
+   - local: `runs/dev_substrate/m6/20260215T232205Z/m6_f_wsp_summary_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T232205Z/m6_f_wsp_summary_snapshot.json`
+2. Closure facts (from snapshot):
+   - outputs complete: `arrival_events_5B`, `s1_arrival_entities_6B`, `s3_event_stream_with_fraud_6B`, `s3_flow_anchor_with_fraud_6B`
+   - emitted: `200` each (total `800`)
+   - boundary posture: `ig_non_retryable_count=0` (retries observed and counted; no hard rejects).
