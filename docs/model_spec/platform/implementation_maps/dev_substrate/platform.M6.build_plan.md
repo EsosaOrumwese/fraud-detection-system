@@ -600,9 +600,15 @@ Current blockers:
 2. M6.C blocker chain (`M6C-B4` -> `M6C-B1` -> `M6C-B5`) is closed by snapshot:
    - `runs/dev_substrate/m6/20260215T083126Z/m6_c_ingest_ready_snapshot.json`
    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T083126Z/m6_c_ingest_ready_snapshot.json`
+   - post-convergence rerun:
+     - `runs/dev_substrate/m6/20260215T124328Z/m6_c_ingest_ready_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T124328Z/m6_c_ingest_ready_snapshot.json`
 3. Control note:
-   - runtime rematerialization used an immediate live hotfix path;
-   - IaC file updates are present in `infra/terraform/modules/demo/main.tf` and must be converged with a successful managed Terraform apply before later phase closure.
+   - runtime rematerialization used an immediate live hotfix path and was then converged into Terraform state:
+     - imported `module.demo.aws_kinesis_stream.ig_event_bus`,
+     - applied `infra/terraform/dev_min/demo` with pinned vars (`required_platform_run_id`, `ecs_daemon_container_image`, `ig_api_key`),
+     - final `terraform plan -detailed-exitcode` returned `0` (no drift).
+   - authoritative IG runtime now serves from task definition `arn:aws:ecs:eu-west-2:230372904534:task-definition/fraud-platform-dev-min-ig:8`.
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

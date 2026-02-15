@@ -11008,3 +11008,45 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
 ### Notes / controls
 1. M6.C is now closed from runtime-evidence perspective.
 2. Because rematerialization used live hotfix operations, Terraform state convergence must be completed in a later controlled apply step before phase-end governance closure.
+
+## Entry: 2026-02-15 12:43PM - Closed Terraform convergence for IG rematerialization and revalidated M6.C
+
+### Trigger
+1. USER instructed: "Alright, you do that" to complete the pending managed Terraform convergence caveat.
+
+### Decision and execution path
+1. Enforced non-destructive convergence strategy:
+   - inspected live-vs-state drift in `infra/terraform/dev_min/demo`,
+   - imported existing managed stream into state:
+     - `module.demo.aws_kinesis_stream.ig_event_bus` -> `fraud-platform-dev-min-ig-bus-v0`,
+   - ran managed apply with explicit pinned vars:
+     - `required_platform_run_id=platform_20260213T214223Z`,
+     - `ecs_daemon_container_image=<current immutable digest>`,
+     - `ig_api_key=<current SSM value>`.
+2. Apply outcome:
+   - IG task definition advanced to `:8`,
+   - managed Kinesis policy materialized in Terraform (`fraud-platform-dev-min-ig_service-kinesis-publish`),
+   - stream tags/manifest updated,
+   - final post-apply `terraform plan -detailed-exitcode` returned `0` (state fully converged).
+3. Post-apply runtime check:
+   - IG service reached steady state on task def `:8`,
+   - M6.C smoke rerun executed with schema-valid `ig.audit.verify` envelope contract,
+   - Kafka sequence readback and S3 receipt existence both passed.
+
+### Authoritative evidence produced
+1. Local:
+   - `runs/dev_substrate/m6/20260215T124328Z/m6_c_ingest_ready_snapshot.json`
+   - `runs/dev_substrate/m6/20260215T124328Z/ig_ready.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T124328Z/m6_c_ingest_ready_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/ig_ready.json`
+3. Result:
+   - `overall_pass=true`,
+   - blocker set empty.
+
+### Drift sentinel assessment
+1. No ownership-boundary drift detected:
+   - IG remains admission owner,
+   - managed bus posture is explicit (`kinesis_sequence` eb_ref),
+   - durable receipt evidence remains under run-scoped S3 prefix.
+2. Previous convergence caveat is now closed.

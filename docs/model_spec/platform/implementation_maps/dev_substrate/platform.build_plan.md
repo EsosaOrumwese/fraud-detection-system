@@ -568,6 +568,15 @@ Active-phase planning posture:
     - run-scoped readiness artifact: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/ig_ready.json`
     - result: `overall_pass=true`, blocker rollup empty for M6.C.
     - publish/read proof captured via active managed stream adapter evidence (`eb_ref.offset_kind=kinesis_sequence`).
+  - Terraform state convergence is now complete for the IG rematerialization lane:
+    - imported stream resource `module.demo.aws_kinesis_stream.ig_event_bus`,
+    - applied `infra/terraform/dev_min/demo` with pinned runtime vars,
+    - final post-apply `terraform plan -detailed-exitcode` returned `0`.
+  - Post-convergence M6.C rerun also passes on IG task definition `:8`:
+    - local snapshot: `runs/dev_substrate/m6/20260215T124328Z/m6_c_ingest_ready_snapshot.json`
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T124328Z/m6_c_ingest_ready_snapshot.json`
+    - run-scoped readiness artifact (refreshed): `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/ig_ready.json`
+    - result: `overall_pass=true`, blocker rollup empty.
 
 - Sub-phase progress:
   - [x] `M6.A` authority + handle closure for `P4..P7`.
