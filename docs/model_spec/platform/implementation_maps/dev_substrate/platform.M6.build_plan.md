@@ -635,29 +635,100 @@ Snapshot contract (`m6_e_wsp_launch_snapshot.json`):
 
 ### M6.F P6 WSP Execution Summary
 Goal:
-1. Verify WSP completed streaming and wrote summary evidence.
+1. Verify WSP completed streaming and emitted a closure-grade execution summary (without relying on ad-hoc interpretation).
+2. Prove WSP streamed the full 4-output `stream_view` surface (bounded by v0 caps) and did not silently narrow to a single output.
+3. Prove the WSP→IG boundary had no non-retryable push failures for the closure execution (retries allowed; non-retryable is not).
 
 Entry conditions:
 1. `M6.E` PASS.
 
+Reality note (runtime truth):
+1. WSP does not currently write a single canonical `wsp_summary.json` object as a first-class artifact.
+2. Therefore, M6.F “summary evidence” is defined as a *composite* of:
+   - the run-scoped append-only READY-consumption record(s) under `wsp/ready_runs/`,
+   - the WSP CloudWatch log stream for the closure task (per-output start/complete and retry lines),
+   - the `M6.E` snapshot as the anchor linking those surfaces to a specific ECS task ARN.
+
 Tasks:
-1. Validate WSP execution completion:
-   - task exit code,
-   - send/retry counters,
-   - non-retryable count.
-2. Verify run-scoped WSP summary artifact(s) exist.
-3. Emit `m6_f_wsp_summary_snapshot.json`.
+1. M6.F.1 Anchor selection (fail-closed):
+   - read the durable `M6.E` snapshot and extract:
+     - `wsp_task.task_arn`
+     - `wsp_task.task_definition`
+     - `ready_consumption_evidence.matched_ready_record_uri`
+     - `ready_consumption_evidence.cloudwatch_log_group`
+     - `ready_consumption_evidence.cloudwatch_log_stream`
+   - fail-closed if the snapshot cannot be read or is not `overall_pass=true`.
+2. M6.F.2 Terminal task validation (fail-closed):
+   - `aws ecs describe-tasks` on the anchored `task_arn` and require:
+     - `lastStatus=STOPPED`
+     - container `exitCode=0`
+     - stop reason present.
+3. M6.F.3 READY-consumption closure (fail-closed):
+   - fetch the append-only JSONL at `matched_ready_record_uri` and require:
+     - last record is terminal: `status=STREAMED`
+     - `run_id` equals the authoritative READY run (currently `17dac...` for closure set)
+     - `emitted` is non-zero.
+4. M6.F.4 Per-output completeness proof (CloudWatch is canonical here):
+   - fetch the WSP CloudWatch log stream for the anchored task and derive:
+     - `output_ids_seen_start`: from lines `WSP stream start ... output_id=<...>`
+     - `output_ids_seen_complete`: from lines `WSP stream complete ... output_id=<...> emitted=<n>`
+     - `emitted_by_output_id`: parsed emitted counts from the `complete` lines
+   - require:
+     - all 4 expected outputs appear in `start` and `complete`:
+       - `arrival_events_5B`
+       - `s1_arrival_entities_6B`
+       - `s3_event_stream_with_fraud_6B`
+       - `s3_flow_anchor_with_fraud_6B`
+     - for v0 bounded validation: `emitted_by_output_id[output_id] == 200` for all 4 outputs
+       - (and therefore total `800`).
+   - fail-closed if any output is missing (prevents “silent narrowing” drift).
+5. M6.F.5 Retry + non-retryable posture (fail-closed):
+   - derive `ig_retry_count` from occurrences of:
+     - `WSP IG push retry attempt=...`
+   - derive `ig_non_retryable_count` from occurrences of any of:
+     - `IG_PUSH_REJECTED`
+     - `PRODUCER_NOT_ALLOWED`
+     - `PRODUCER_ID_MISSING`
+     - `PRODUCER_ALLOWLIST_*`
+   - require: `ig_non_retryable_count == 0` for the closure task log stream.
+6. M6.F.6 Emit snapshot:
+   - emit local snapshot `m6_f_wsp_summary_snapshot.json`,
+   - upload durable snapshot under:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m6_execution_id>/m6_f_wsp_summary_snapshot.json`.
 
 DoD:
 - [ ] WSP task completed successfully.
-- [ ] WSP summary evidence exists locally and durably.
-- [ ] Non-retryable errors are zero for pass closure set.
+- [ ] WSP summary evidence exists locally and durably (composite: READY record + CloudWatch per-output completeness proof).
+- [ ] Non-retryable WSP→IG push errors are zero for the closure task.
+- [ ] Full 4-output surface is proven (`200` each, total `800`).
 
 Blockers:
 1. `M6F-B1`: WSP task terminal failure.
-2. `M6F-B2`: missing/invalid WSP summary evidence.
-3. `M6F-B3`: non-retryable failure occurred.
-4. `M6F-B4`: M6.F snapshot write/upload failure.
+2. `M6F-B2`: missing/invalid WSP summary evidence (READY record or CloudWatch log stream).
+3. `M6F-B3`: per-output completeness failed (missing output(s) or emitted counts mismatch).
+4. `M6F-B4`: non-retryable WSP→IG boundary failure occurred (e.g. `IG_PUSH_REJECTED`).
+5. `M6F-B5`: M6.F snapshot write/upload failure.
+
+Snapshot contract (`m6_f_wsp_summary_snapshot.json`):
+1. `phase`, `captured_at_utc`, `m6_execution_id`, `platform_run_id`.
+2. `anchor`:
+   - `m6_e_snapshot_uri`
+   - `task_arn`, `task_definition`, `log_group`, `log_stream`
+   - `ready_record_uri`.
+3. `ready_record_terminal`:
+   - `status`, `run_id`, `scenario_id`, `emitted`, `engine_run_root`.
+4. `per_output`:
+   - `expected_output_ids` (4)
+   - `seen_start_output_ids` (set)
+   - `seen_complete_output_ids` (set)
+   - `emitted_by_output_id` (map)
+   - `total_emitted_expected` (`800`)
+   - `total_emitted_observed`.
+5. `boundary_posture`:
+   - `ig_retry_count`
+   - `ig_non_retryable_count`
+   - `non_retryable_reasons` (deduped list; if any).
+6. `blockers`, `overall_pass` (fail-closed).
 
 ### M6.G P7 Ingest Commit Verification
 Goal:

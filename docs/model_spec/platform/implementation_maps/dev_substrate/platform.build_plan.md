@@ -600,7 +600,7 @@ Active-phase planning posture:
 M6 DoD checklist:
 - [x] IG service readiness + auth boundary checks pass and `ingest/ig_ready.json` is durable.
 - [x] SR task PASS evidence exists and READY publication receipt is durable.
-- [ ] WSP executes from P3 `stream_view` only and writes `wsp_summary` evidence.
+- [ ] WSP executes from P3 `stream_view` only and emits closure-grade summary evidence (READY record + per-output CloudWatch proof) with durable `M6.F` snapshot.
 - [ ] Ingest receipt/offset/quarantine summaries exist and are coherent.
 - [ ] `PUBLISH_AMBIGUOUS` unresolved count is zero for closure set.
 - [ ] M6 verdict is `ADVANCE_TO_M7` with empty blocker rollup.
