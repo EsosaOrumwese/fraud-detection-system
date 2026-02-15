@@ -470,10 +470,10 @@ Execution status (2026-02-15):
    - READY receipt exists at `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/78d859d39f4232fc510463fb868bc6e1.json`,
    - control-bus READY publication is verified on stream `fraud-platform-dev-min-ig-bus-v0` with sequence `49671822697342044645261017794300307957859908788827455490`.
 4. Execution note (explicit, non-hidden):
-   - This closure run is historically valid, but its output-set narrowness is now **superseded** (see follow-up closure below).
-   - This closure run used temporary task-scoped execution shims:
-     - interface-pack layer-1 schema reference stub materialization,
-     - lease keepalive loop for long evidence-reuse windows.
+    - This closure run is historically valid, but its output-set narrowness is now **superseded** (see follow-up closure below).
+    - This closure run used temporary task-scoped execution shims:
+      - interface-pack layer-1 schema reference stub materialization,
+      - lease keepalive loop for long evidence-reuse windows.
 
 Follow-up closure (authoritative for 4-output Oracle Store posture; 2026-02-15):
 1. Purpose: confirm SR (M6.D) is not implicitly narrowed to `s3_event_stream_with_fraud_6B`, and prove READY can be published
@@ -486,8 +486,8 @@ Follow-up closure (authoritative for 4-output Oracle Store posture; 2026-02-15):
      - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/instance_receipts/`
    - kept SR lease alive during long S3 scans (task-scoped keepalive shim) to avoid `LEASE_LOST`.
    - materialized minimal missing interface-pack schema ref (`layer-1` `schemas.layer1.yaml`) as task-scoped shim.
-4. Result (PASS):
-   - SR run `READY`: `run_id=17dacbdc997e6765bcd242f7cb3b6c37`
+  4. Result (PASS):
+    - SR run `READY`: `run_id=17dacbdc997e6765bcd242f7cb3b6c37`
    - READY signal (durable):
      - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/17dacbdc997e6765bcd242f7cb3b6c37.json`
    - `oracle_pack_ref.stream_view_output_refs` includes all 4:
@@ -497,34 +497,124 @@ Follow-up closure (authoritative for 4-output Oracle Store posture; 2026-02-15):
      - `s3_flow_anchor_with_fraud_6B`
    - SR facts view (durable):
      - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/run_facts_view/17dacbdc997e6765bcd242f7cb3b6c37.json`
-   - SR instance receipts re-materialized under canonical locator paths (durable):
-     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/instance_receipts/`
+    - SR instance receipts re-materialized under canonical locator paths (durable):
+      - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/instance_receipts/`
+
+Proper closure (published image; no task-scoped shims; 2026-02-15):
+1. Purpose: close M6.D under the same posture we will use going forward in dev_min:
+   - immutable image published via authoritative CI lane,
+   - ECS task definitions updated to reference immutable digest,
+   - SR rerun proves READY with the full 4-output Oracle Store posture without any task-scoped shims.
+2. Authoritative packaging proof:
+   - workflow: `dev-min-m1-packaging` (`.github/workflows/dev_min_m1_packaging.yml`)
+   - ref: `migrate-dev`
+   - git sha: `0f75e2f28913eb26db2d0079f9a692c127f9d5e8`
+   - published digest: `sha256:5550d39731e762bd4211fcae0d55edb72059bef5d3a1c7a3bdbab599064b89c3`
+3. Task-definition roll-forward proof (Terraform apply; targeted to SR/WSP only):
+   - `TD_SR` revision advanced to `fraud-platform-dev-min-sr:2` using the published digest above.
+   - `TD_WSP` revision advanced to `fraud-platform-dev-min-wsp:2` using the published digest above.
+4. SR rerun proof (ECS one-shot task):
+   - task arn: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/bbda2a70bab94568ba8338f607c18f3a`
+   - task definition: `arn:aws:ecs:eu-west-2:230372904534:task-definition/fraud-platform-dev-min-sr:2`
+   - exit code: `0`
+   - runtime (observed): ~23 seconds (fast digest path avoids hashing every parquet object over S3)
+5. READY truth (unchanged and still authoritative):
+   - READY signal:
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/17dacbdc997e6765bcd242f7cb3b6c37.json`
+   - `oracle_pack_ref.stream_view_output_refs` contains the full 4-output surface under canonical Oracle Store root:
+     - `arrival_events_5B`
+     - `s1_arrival_entities_6B`
+     - `s3_event_stream_with_fraud_6B`
+     - `s3_flow_anchor_with_fraud_6B`
+6. Operator re-run command surface (deterministic):
+   - run SR task: `aws ecs run-task ... --task-definition fraud-platform-dev-min-sr:2 ...`
+   - wait: `aws ecs wait tasks-stopped ...`
+   - verify READY: list latest under `evidence/runs/<platform_run_id>/sr/ready_signal/` and assert the 4 output refs map is complete.
 
 ### M6.E P6 WSP Launch Contract + READY Consumption
 Goal:
-1. Validate WSP launch inputs and prove READY is consumed before streaming.
+1. Validate WSP launch inputs and prove READY is consumed for the active run scope.
+2. Ensure WSP cannot accidentally stream an out-of-scope/stale READY message (control-bus replay hazard).
 
 Entry conditions:
 1. `M6.D` PASS.
+2. Authoritative READY signal exists (run-scoped durable):
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/17dacbdc997e6765bcd242f7cb3b6c37.json`
+3. `TD_WSP` is not a placeholder task definition.
+   - Fail-closed if `aws ecs describe-task-definition ...` shows command `echo wsp_task_definition_materialized && exit 0`.
+4. WSP can reach IG ingress from inside the ECS network:
+   - `IG_INGEST_URL` MUST be resolvable/reachable from the WSP task.
+   - Note: `IG_BASE_URL = "http://fraud-platform-dev-min-ig:8080"` is only valid if a concrete service discovery lane exists (ECS Service Connect, Cloud Map, or LB DNS).
+5. WSP run scope is pinned (deterministic READY selection):
+   - `PLATFORM_RUN_ID` MUST be set to `platform_20260213T214223Z` for the task.
+   - Rationale: the Kinesis control-bus reader starts from `TRIM_HORIZON`; without run scope pinning, stale READY messages can be consumed first.
 
 Tasks:
-1. Validate WSP launch contract:
-   - stream-view root from M5 handoff,
-   - IG endpoint/auth handles,
-   - WSP knob closure.
-2. Run one-shot `TD_WSP`.
-3. Capture READY-consumption proof from logs/receipts.
-4. Emit `m6_e_wsp_launch_snapshot.json`.
+1. M6.E.1 Preflight (fail-closed):
+   - assert the authoritative READY signal exists and is readable,
+   - assert the READY payload references the canonical Oracle Store stream_view roots (4-output surface),
+   - assert IG is reachable from the VPC lane selected for `IG_INGEST_URL` (service discovery/LB decision must be implemented before execution).
+2. M6.E.2 WSP launch contract closure (fail-closed):
+   - `TD_WSP` must run the WSP READY consumer (not a placeholder):
+     - required command shape (canonical):
+       - `python -m fraud_detection.world_streamer_producer.ready_consumer --profile <WSP_PROFILE> --once --max-messages 200`
+   - required env for deterministic behavior (minimum):
+     - `PLATFORM_RUN_ID=platform_20260213T214223Z` (deterministic READY scope filter),
+     - `IG_INGEST_URL=<reachable ingress URL>` (WSP → IG boundary),
+     - `IG_SERVICE_TOKEN` or equivalent secret env referenced by the chosen profile (MUST be injected from SSM; never hardcoded),
+     - `CONTROL_BUS_STREAM=<control bus stream name>` and `CONTROL_BUS_REGION=eu-west-2`,
+     - `ORACLE_ROOT`, `ORACLE_ENGINE_RUN_ROOT`, `ORACLE_SCENARIO_ID`, `ORACLE_STREAM_VIEW_ROOT`,
+     - `OBJECT_STORE_REGION=eu-west-2`,
+     - `WSP_CHECKPOINT_DSN` (recommended: Postgres; file backend is acceptable only for smoke, not for deterministic dev_min reruns).
+   - required WSP knobs pinned for v0 validation:
+     - `WSP_MAX_EVENTS_PER_OUTPUT=200` (bounded validation; note this is per-output and yields up to 800 total across 4 outputs),
+     - `WSP_READY_REQUIRED_PACKS=""` (must be empty in ECS; avoids Run/Operate local FS dependency),
+     - `WSP_STOP_ON_NONRETRYABLE=true` (already pinned as a critical policy pin in M6.A).
+3. M6.E.3 Execute WSP one-shot task:
+   - run one-shot `TD_WSP` in `ECS_CLUSTER_NAME` with the pinned env/secret posture above,
+   - capture task ARN, launch timestamp, and task-definition revision.
+4. M6.E.4 Terminal gate:
+   - wait for terminal task state,
+   - assert container exit code `0`,
+   - capture stop reason and completion timestamp.
+5. M6.E.5 READY-consumption proof gate (run-scoped, durable):
+   - verify at least one WSP ready-record exists under:
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/wsp/ready_runs/*.jsonl`
+   - verify the record contains a terminal status for the active run:
+     - `status in {"STREAMED", "SKIPPED_DUPLICATE"}` and `run_id == "17dacbdc997e6765bcd242f7cb3b6c37"`
+   - (optional, but recommended): CloudWatch log snippet contains:
+     - `WSP READY poll processed=...` and `WSP stream start run_id=17dac...`
+6. M6.E.6 Emit snapshot:
+   - emit local snapshot `m6_e_wsp_launch_snapshot.json`,
+   - upload durable snapshot under:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m6_execution_id>/m6_e_wsp_launch_snapshot.json`.
 
 DoD:
-- [ ] WSP launch contract is complete and run-scoped.
-- [ ] READY-consumption proof exists for active run.
-- [ ] M6.E snapshot published locally and durably.
+- [ ] WSP launch contract is complete, deterministic, and run-scoped (`PLATFORM_RUN_ID` pinned).
+- [ ] WSP READY-consumption proof exists durably for the authoritative READY (`run_id=17dac...`).
+- [ ] M6.E snapshot published locally and durably with `overall_pass=true`.
 
 Blockers:
-1. `M6E-B1`: WSP launch contract unresolved.
-2. `M6E-B2`: WSP did not consume READY for run scope.
+1. `M6E-B1`: WSP launch contract unresolved (task definition still placeholder, missing env/secret pins, or IG endpoint unreachable).
+2. `M6E-B2`: WSP did not consume READY for the active run scope (no `wsp/ready_runs/*.jsonl` record for `run_id=17dac...`).
 3. `M6E-B3`: M6.E snapshot write/upload failure.
+
+Snapshot contract (`m6_e_wsp_launch_snapshot.json`):
+1. `phase`, `captured_at_utc`, `m6_execution_id`, `platform_run_id`.
+2. `inputs`:
+   - `sr_ready_signal_uri` (must be the authoritative `17dac...` READY),
+   - `expected_sr_run_id` (must equal `17dacbdc997e6765bcd242f7cb3b6c37` for this closure set),
+   - `ig_ingest_url` (non-secret),
+   - `control_bus_stream`, `control_bus_topic`.
+3. `wsp_task`:
+   - `cluster`, `task_definition`, `task_arn`, `started_at_utc`, `stopped_at_utc`,
+   - `last_status`, `exit_code`, `stop_reason`.
+4. `ready_consumption_evidence`:
+   - `ready_runs_prefix_uri` (run-scoped S3 prefix),
+   - `matched_ready_record_uri` (the `.jsonl` path that contains `run_id=17dac...`),
+   - `matched_ready_record_status`,
+   - `cloudwatch_log_stream` (optional) and `log_snippet_anchor` (optional).
+5. `blockers` and `overall_pass` (fail-closed).
 
 ### M6.F P6 WSP Execution Summary
 Goal:

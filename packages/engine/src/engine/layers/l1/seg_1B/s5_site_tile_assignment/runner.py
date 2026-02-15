@@ -65,6 +65,44 @@ CACHE_COUNTRIES_MAX = 8
 EXTERNAL_SORT_THRESHOLD = 1_000_000
 SORT_CHUNK_SIZE = 200_000
 _RUN_RECORD = struct.Struct("<dQ")
+_JSON_SEPARATORS = (",", ":")
+
+
+def _env_int(name: str, default: int, minimum: int = 0) -> int:
+    raw = os.getenv(name)
+    if raw is None or not str(raw).strip():
+        return int(default)
+    try:
+        value = int(str(raw).strip())
+    except ValueError:
+        return int(default)
+    if value < minimum:
+        return int(default)
+    return int(value)
+
+
+def _env_str(name: str, default: str) -> str:
+    raw = os.getenv(name)
+    if raw is None:
+        return str(default)
+    value = str(raw).strip()
+    return value if value else str(default)
+
+
+def _sha256_paths_and_sizes(root: Path, pattern: str = "*.parquet") -> str:
+    files = sorted(
+        [p for p in root.rglob(pattern) if p.is_file()],
+        key=lambda p: p.relative_to(root).as_posix(),
+    )
+    h = hashlib.sha256()
+    for p in files:
+        rel = p.relative_to(root).as_posix().encode("utf-8")
+        size = str(int(p.stat().st_size)).encode("ascii")
+        h.update(rel)
+        h.update(b"\n")
+        h.update(size)
+        h.update(b"\n")
+    return h.hexdigest()
 
 
 @dataclass(frozen=True)
@@ -692,6 +730,33 @@ def _tile_multiset_iter(tile_ids: np.ndarray, counts: np.ndarray) -> Iterator[in
 def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     logger = get_logger("engine.layers.l1.seg_1B.s5_site_tile_assignment.l2.runner")
     timer = _StepTimer(logger)
+    runs_root_norm = str(config.runs_root).replace("\\", "/")
+    validate_index_mode_default = (
+        "signature" if "runs/fix-data-engine" in runs_root_norm else "strict"
+    )
+    validate_index_mode = _env_str(
+        "ENGINE_1B_S5_VALIDATE_TILE_INDEX_MODE",
+        validate_index_mode_default,
+    ).lower()
+    if validate_index_mode not in ("strict", "signature", "off"):
+        validate_index_mode = validate_index_mode_default
+    cache_countries_max = _env_int(
+        "ENGINE_1B_S5_CACHE_COUNTRIES_MAX",
+        CACHE_COUNTRIES_MAX,
+        minimum=0,
+    )
+    log_assign_every_pairs = _env_int(
+        "ENGINE_1B_S5_LOG_ASSIGNMENT_EVERY_PAIRS",
+        0 if "runs/fix-data-engine" in runs_root_norm else 1,
+        minimum=0,
+    )
+    do_tile_index_membership_check = validate_index_mode == "strict"
+    logger.info(
+        "S5: validate_tile_index_mode=%s cache_countries_max=%d log_assignment_every_pairs=%d",
+        validate_index_mode,
+        cache_countries_max,
+        log_assign_every_pairs,
+    )
 
     receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
     run_id = receipt.get("run_id")
@@ -732,6 +797,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
     receipt_entry = find_dataset_entry(dictionary, "s0_gate_receipt_1B").entry
     s4_entry = find_dataset_entry(dictionary, "s4_alloc_plan").entry
+    s4_report_entry = find_dataset_entry(dictionary, "s4_run_report").entry
     tile_index_entry = find_dataset_entry(dictionary, "tile_index").entry
     iso_entry = find_dataset_entry(dictionary, "iso3166_canonical_2024").entry
     assignment_entry = find_dataset_entry(dictionary, "s5_site_tile_assignment").entry
@@ -829,6 +895,12 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     )
 
     s4_root = _resolve_dataset_path(s4_entry, run_paths, external_roots, tokens)
+    s4_run_report_path = _resolve_dataset_path(
+        s4_report_entry,
+        run_paths,
+        external_roots,
+        tokens,
+    )
     tile_index_root = _resolve_dataset_path(
         tile_index_entry,
         run_paths,
@@ -861,6 +933,49 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         )
 
     logger.info("S5: assignment inputs resolved (s4_alloc_plan + tile_index)")
+
+    tile_index_surface_sig = ""
+    s4_tile_index_surface_sig = ""
+    s4_tile_weights_surface_sig = ""
+    tile_index_surface_verified = False
+    if validate_index_mode == "signature":
+        try:
+            tile_index_surface_sig = _sha256_paths_and_sizes(tile_index_root)
+        except Exception as exc:
+            logger.info("S5: tile_index surface signature unavailable: %s", exc)
+            tile_index_surface_sig = ""
+
+        try:
+            s4_payload = _load_json(s4_run_report_path)
+            pat = s4_payload.get("pat") or {}
+            s4_tile_index_surface_sig = str(pat.get("tile_index_surface_sig") or "")
+            s4_tile_weights_surface_sig = str(pat.get("tile_weights_surface_sig") or "")
+        except Exception as exc:
+            logger.info(
+                "S5: unable to load S4 run report for signature verification (path=%s): %s",
+                s4_run_report_path,
+                exc,
+            )
+
+        if s4_tile_index_surface_sig and tile_index_surface_sig:
+            tile_index_surface_verified = s4_tile_index_surface_sig == tile_index_surface_sig
+
+        # Fail-closed posture: only skip membership validation when the upstream
+        # surface signatures match.
+        do_tile_index_membership_check = not tile_index_surface_verified
+
+        logger.info(
+            "S5: tile_index signature verification verified=%s membership_check=%s tile_index_sig=%s s4_tile_index_sig=%s",
+            tile_index_surface_verified,
+            do_tile_index_membership_check,
+            tile_index_surface_sig[:12],
+            s4_tile_index_surface_sig[:12],
+        )
+    elif validate_index_mode == "off":
+        do_tile_index_membership_check = False
+        logger.info("S5: tile_index membership validation disabled (mode=off)")
+    else:
+        logger.info("S5: tile_index membership validation enabled (mode=strict)")
 
     iso_df = pl.read_parquet(iso_path, columns=["country_iso"])
     iso_set = set(iso_df.get_column("country_iso").to_list())
@@ -897,8 +1012,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     event_tmp_file = _event_file_from_root(event_tmp)
     trace_tmp = tmp_root / "rng_trace.jsonl"
 
-    event_handle = event_tmp_file.open("w", encoding="utf-8")
-    trace_handle = trace_tmp.open("w", encoding="utf-8")
+    # Large buffered writes to reduce per-line syscall overhead.
+    event_handle = event_tmp_file.open("w", encoding="utf-8", buffering=1024 * 1024)
+    trace_handle = trace_tmp.open("w", encoding="utf-8", buffering=1024 * 1024)
     trace_acc = RngTraceAccumulator()
 
     audit_entry_payload = {
@@ -947,6 +1063,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
     def _load_tile_index(country_iso: str) -> _TileIndexEntry:
         nonlocal cache_hits, cache_misses, cache_evictions, bytes_read_index_total
+        if cache_countries_max <= 0:
+            tile_ids, bytes_read = _load_tile_index_country(tile_index_root, country_iso)
+            bytes_read_index_total += bytes_read
+            return _TileIndexEntry(tile_ids_sorted=np.sort(tile_ids), bytes_read=bytes_read)
         if country_iso in cache:
             cache_hits += 1
             cache.move_to_end(country_iso)
@@ -957,7 +1077,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         tile_ids_sorted = np.sort(tile_ids)
         entry = _TileIndexEntry(tile_ids_sorted=tile_ids_sorted, bytes_read=bytes_read)
         cache[country_iso] = entry
-        if len(cache) > CACHE_COUNTRIES_MAX:
+        if len(cache) > int(cache_countries_max):
             cache.popitem(last=False)
             cache_evictions += 1
         return entry
@@ -1026,13 +1146,15 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         tile_ids_arr = tile_ids_arr[tile_order]
         counts_arr = counts_arr[tile_order]
 
-        logger.info(
-            "S5: assigning merchant_id=%s country=%s sites_total=%d tiles_distinct=%d",
-            merchant_id,
-            legal_country_iso,
-            n_sites_total,
-            tile_ids_arr.size,
-        )
+        if log_assign_every_pairs > 0 and (pairs_total % int(log_assign_every_pairs) == 0):
+            logger.info(
+                "S5: assigning merchant_id=%s country=%s sites_total=%d tiles_distinct=%d pairs_total=%d",
+                merchant_id,
+                legal_country_iso,
+                n_sites_total,
+                tile_ids_arr.size,
+                pairs_total,
+            )
 
         key, ctr_hi, ctr_lo = _derive_pair_substream(
             master_material, SUBSTREAM_LABEL, int(merchant_id), str(legal_country_iso)
@@ -1049,7 +1171,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         after_lo: Optional[np.ndarray] = None
         assigned_tile_ids: Optional[np.ndarray] = None
 
-        progress_step = 1
+        progress_step = 32
         if n_sites_total >= 100000:
             progress_step = max(1000, min(50_000, n_sites_total // 200))
 
@@ -1115,6 +1237,24 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 assigned_tile_ids = np.empty(n_sites_total, dtype=np.uint64)
                 assigned_tile_ids[site_orders[order] - 1] = tile_multiset
 
+            dumps = json.dumps
+            event_write = event_handle.write
+            trace_write = trace_handle.write
+            progress_accum = 0
+
+            event_base = {
+                "run_id": str(run_id),
+                "seed": int(seed),
+                "parameter_hash": str(parameter_hash),
+                "manifest_fingerprint": str(manifest_fingerprint),
+                "module": MODULE_NAME,
+                "substream_label": SUBSTREAM_LABEL,
+                "draws": "1",
+                "blocks": 1,
+                "merchant_id": int(merchant_id),
+                "legal_country_iso": str(legal_country_iso),
+            }
+
             for idx in range(n_sites_total):
                 site_order = idx + 1
                 tile_id = int(assigned_tile_ids[idx])
@@ -1155,44 +1295,31 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                             {"detail": "output_unsorted", "key": output_key},
                         )
                 last_output_key = output_key
-                event = {
-                    "ts_utc": utc_now_rfc3339_micro(),
-                    "run_id": str(run_id),
-                    "seed": int(seed),
-                    "parameter_hash": str(parameter_hash),
-                    "manifest_fingerprint": str(manifest_fingerprint),
-                    "module": MODULE_NAME,
-                    "substream_label": SUBSTREAM_LABEL,
-                    "rng_counter_before_lo": int(before_lo[idx]),
-                    "rng_counter_before_hi": int(before_hi[idx]),
-                    "rng_counter_after_lo": int(after_lo[idx]),
-                    "rng_counter_after_hi": int(after_hi[idx]),
-                    "draws": "1",
-                    "blocks": 1,
-                    "merchant_id": int(merchant_id),
-                    "legal_country_iso": str(legal_country_iso),
-                    "site_order": int(site_order),
-                    "tile_id": int(tile_id),
-                    "u": float(u_values[idx]),
-                }
+                event = dict(event_base)
+                event["ts_utc"] = utc_now_rfc3339_micro()
+                event["rng_counter_before_lo"] = int(before_lo[idx])
+                event["rng_counter_before_hi"] = int(before_hi[idx])
+                event["rng_counter_after_lo"] = int(after_lo[idx])
+                event["rng_counter_after_hi"] = int(after_hi[idx])
+                event["site_order"] = int(site_order)
+                event["tile_id"] = int(tile_id)
+                event["u"] = float(u_values[idx])
                 trace_row = trace_acc.append_event(event)
-                event_handle.write(json.dumps(event, ensure_ascii=True, sort_keys=True))
-                event_handle.write("\n")
-                trace_handle.write(json.dumps(trace_row, ensure_ascii=True, sort_keys=True))
-                trace_handle.write("\n")
+                event_write(dumps(event, ensure_ascii=True, separators=_JSON_SEPARATORS))
+                event_write("\n")
+                trace_write(dumps(trace_row, ensure_ascii=True, separators=_JSON_SEPARATORS))
+                trace_write("\n")
                 rng_events_emitted += 1
                 batch_rows.append((int(merchant_id), str(legal_country_iso), int(site_order), int(tile_id)))
                 rows_emitted += 1
-                if progress_step == 1:
-                    progress_sites.update(1)
-                else:
-                    count = idx + 1
-                    if count % progress_step == 0:
-                        progress_sites.update(progress_step)
-                    elif count == n_sites_total:
-                        progress_sites.update(count % progress_step)
+                progress_accum += 1
+                if progress_accum >= progress_step:
+                    progress_sites.update(progress_accum)
+                    progress_accum = 0
                 if len(batch_rows) >= BATCH_SIZE:
                     _flush_batch()
+            if progress_accum:
+                progress_sites.update(progress_accum)
         finally:
             if use_external and pair_tmp is not None:
                 for array in (u_values, before_hi, before_lo, after_hi, after_lo, assigned_tile_ids):
@@ -1261,41 +1388,46 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                         {"legal_country_iso": legal_country_iso},
                     )
 
-                tile_index_entry = _load_tile_index(legal_country_iso)
-                if tile_index_entry.tile_ids_sorted.size == 0:
-                    _emit_failure_event(
-                        logger,
-                        "E505_TILE_NOT_IN_INDEX",
-                        seed,
-                        manifest_fingerprint,
-                        str(parameter_hash),
-                        str(run_id),
-                        {"detail": "tile_index_missing", "legal_country_iso": legal_country_iso},
-                    )
-                    raise EngineFailure(
-                        "F4",
-                        "E505_TILE_NOT_IN_INDEX",
-                        "S5",
-                        MODULE_NAME,
-                        {"legal_country_iso": legal_country_iso},
-                    )
-                if not tile_index_entry.contains(tile_id):
-                    _emit_failure_event(
-                        logger,
-                        "E505_TILE_NOT_IN_INDEX",
-                        seed,
-                        manifest_fingerprint,
-                        str(parameter_hash),
-                        str(run_id),
-                        {"detail": "tile_id_not_in_index", "legal_country_iso": legal_country_iso, "tile_id": tile_id},
-                    )
-                    raise EngineFailure(
-                        "F4",
-                        "E505_TILE_NOT_IN_INDEX",
-                        "S5",
-                        MODULE_NAME,
-                        {"legal_country_iso": legal_country_iso, "tile_id": tile_id},
-                    )
+                if do_tile_index_membership_check:
+                    tile_index_entry = _load_tile_index(legal_country_iso)
+                    if tile_index_entry.tile_ids_sorted.size == 0:
+                        _emit_failure_event(
+                            logger,
+                            "E505_TILE_NOT_IN_INDEX",
+                            seed,
+                            manifest_fingerprint,
+                            str(parameter_hash),
+                            str(run_id),
+                            {"detail": "tile_index_missing", "legal_country_iso": legal_country_iso},
+                        )
+                        raise EngineFailure(
+                            "F4",
+                            "E505_TILE_NOT_IN_INDEX",
+                            "S5",
+                            MODULE_NAME,
+                            {"legal_country_iso": legal_country_iso},
+                        )
+                    if not tile_index_entry.contains(tile_id):
+                        _emit_failure_event(
+                            logger,
+                            "E505_TILE_NOT_IN_INDEX",
+                            seed,
+                            manifest_fingerprint,
+                            str(parameter_hash),
+                            str(run_id),
+                            {
+                                "detail": "tile_id_not_in_index",
+                                "legal_country_iso": legal_country_iso,
+                                "tile_id": tile_id,
+                            },
+                        )
+                        raise EngineFailure(
+                            "F4",
+                            "E505_TILE_NOT_IN_INDEX",
+                            "S5",
+                            MODULE_NAME,
+                            {"legal_country_iso": legal_country_iso, "tile_id": tile_id},
+                        )
 
                 if n_sites <= 0:
                     _emit_failure_event(

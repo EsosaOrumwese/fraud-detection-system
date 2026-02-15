@@ -1403,23 +1403,39 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
     logger.info("S4: allocation inputs resolved (s3_requirements + tile_weights + tile_index)")
 
+    # Cheap-but-strict fingerprint of tile surfaces to support:
+    # - disk cache keying (avoid mixing alloc plans across different upstream tiles)
+    # - downstream S5 signature validation (skip expensive per-tile membership reads safely)
+    tile_index_surface_sig = ""
+    tile_weights_surface_sig = ""
+    try:
+        tile_index_surface_sig = _sha256_paths_and_sizes(tile_index_root)
+        tile_weights_surface_sig = _sha256_paths_and_sizes(tile_weights_root)
+        logger.info(
+            "S4: tile surface signatures computed (tile_index_sig=%s tile_weights_sig=%s)",
+            tile_index_surface_sig[:12],
+            tile_weights_surface_sig[:12],
+        )
+    except Exception as exc:
+        logger.info("S4: tile surface signature unavailable: %s", exc)
+        tile_index_surface_sig = ""
+        tile_weights_surface_sig = ""
+
     # Disk cache keying must be strict enough to avoid mixing different upstream tile surfaces.
     # We fingerprint by parquet relative paths + sizes (cheap) instead of hashing file bytes (too expensive).
     alloc_plan_disk_cache_root: Optional[Path] = None
     alloc_plan_disk_group_dir: Optional[Path] = None
     alloc_plan_disk_key_prefix: Optional[str] = None
     alloc_plan_disk_group = ""
-    tile_index_sig = ""
-    tile_weights_sig = ""
     if alloc_plan_disk_cache_enabled:
         try:
-            tile_index_sig = _sha256_paths_and_sizes(tile_index_root)
-            tile_weights_sig = _sha256_paths_and_sizes(tile_weights_root)
+            if not tile_index_surface_sig or not tile_weights_surface_sig:
+                raise ValueError("missing tile surface signatures")
             key_material = {
                 "manifest_fingerprint": str(manifest_fingerprint),
                 "parameter_hash": str(parameter_hash),
-                "tile_index_sig": tile_index_sig,
-                "tile_weights_sig": tile_weights_sig,
+                "tile_index_sig": tile_index_surface_sig,
+                "tile_weights_sig": tile_weights_surface_sig,
                 "diversify_window_max": int(diversify_window_max),
                 "policy_version": str(s4_policy.policy_version),
                 "policy_enabled": bool(s4_policy.enabled),
@@ -1437,8 +1453,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             logger.info(
                 "S4: alloc-plan disk cache group prepared group=%s (tile_index_sig=%s tile_weights_sig=%s)",
                 group_hash,
-                tile_index_sig[:12],
-                tile_weights_sig[:12],
+                tile_index_surface_sig[:12],
+                tile_weights_surface_sig[:12],
             )
         except Exception as exc:
             alloc_plan_disk_cache_enabled = False
@@ -2717,6 +2733,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         "anti_collapse_diagnostics": anti_collapse_summary,
         "substage_timing": substage_timing,
         "pat": {
+            "tile_index_surface_sig": tile_index_surface_sig,
+            "tile_weights_surface_sig": tile_weights_surface_sig,
             "bytes_read_s3_total": bytes_read_s3_total,
             "bytes_read_weights_total": bytes_read_weights_total,
             "bytes_read_index_total": bytes_read_index_total,

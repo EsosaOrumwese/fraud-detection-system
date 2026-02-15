@@ -578,16 +578,13 @@ Active-phase planning posture:
     - run-scoped readiness artifact (refreshed): `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/ig_ready.json`
     - result: `overall_pass=true`, blocker rollup empty.
   - `M6.D` is now execution-closed with authoritative PASS evidence:
-    - local snapshot: `runs/dev_substrate/m6/20260215T144233Z/m6_d_sr_ready_snapshot.json`
-    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T144233Z/m6_d_sr_ready_snapshot.json`
-    - result: `overall_pass=true`, blocker rollup empty.
-    - READY publication proof:
-      - receipt: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/78d859d39f4232fc510463fb868bc6e1.json`
-      - control stream: `fraud-platform-dev-min-ig-bus-v0`
-      - sequence: `49671822697342044645261017794300307957859908788827455490`.
-    - closure caveat recorded in M6 deep plan:
-      - one requested output id used (`s3_event_stream_with_fraud_6B`) because only that stream-view output is currently materialized.
-      - temporary task-scoped execution shims were used (schema-ref stub + lease keepalive).
+    - authoritative READY signal (durable):
+      - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/17dacbdc997e6765bcd242f7cb3b6c37.json`
+    - 4-output Oracle Store posture is proven in READY payload (`oracle_pack_ref.stream_view_output_refs`):
+      - `arrival_events_5B`, `s1_arrival_entities_6B`, `s3_event_stream_with_fraud_6B`, `s3_flow_anchor_with_fraud_6B`.
+    - closure is now aligned to published runtime posture (no task-scoped shims):
+      - SR task definition revision: `fraud-platform-dev-min-sr:2`
+      - image digest: `sha256:5550d39731e762bd4211fcae0d55edb72059bef5d3a1c7a3bdbab599064b89c3`.
 
 - Sub-phase progress:
   - [x] `M6.A` authority + handle closure for `P4..P7`.

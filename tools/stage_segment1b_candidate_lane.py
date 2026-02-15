@@ -77,7 +77,13 @@ def _copytree(dst: Path, src: Path) -> None:
     shutil.copytree(src, dst)
 
 
-def _iter_link_specs(runs_root: Path, src_run_id: str, dst_run_id: str) -> Iterable[_LinkSpec]:
+def _iter_link_specs(
+    runs_root: Path,
+    src_run_id: str,
+    dst_run_id: str,
+    *,
+    include_s4_alloc_plan: bool,
+) -> Iterable[_LinkSpec]:
     src_root = runs_root / src_run_id
     dst_root = runs_root / dst_run_id
     src_l1_1b = src_root / "data" / "layer1" / "1B"
@@ -93,6 +99,8 @@ def _iter_link_specs(runs_root: Path, src_run_id: str, dst_run_id: str) -> Itera
         "tile_weights",
         "s3_requirements",
     ]
+    if include_s4_alloc_plan:
+        required_1b.append("s4_alloc_plan")
     for name in required_1b:
         yield _LinkSpec(
             src=src_l1_1b / name,
@@ -128,6 +136,11 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Optional path to write a small staging receipt JSON for tooling.",
     )
+    parser.add_argument(
+        "--include-s4-alloc-plan",
+        action="store_true",
+        help="Also stage `data/layer1/1B/s4_alloc_plan` (needed to run S5 without rerunning S4).",
+    )
     args = parser.parse_args(argv)
 
     runs_root = Path(args.runs_root).resolve()
@@ -159,7 +172,14 @@ def main(argv: list[str] | None = None) -> int:
     (dst_root / "tmp").mkdir(parents=True, exist_ok=True)
     _write_json(dst_root / "run_receipt.json", dst_receipt)
 
-    specs = list(_iter_link_specs(runs_root, src_run_id, dst_run_id))
+    specs = list(
+        _iter_link_specs(
+            runs_root,
+            src_run_id,
+            dst_run_id,
+            include_s4_alloc_plan=bool(args.include_s4_alloc_plan),
+        )
+    )
     for spec in specs:
         _ensure_exists(spec.src, label=spec.label)
         if mode == "junction":
