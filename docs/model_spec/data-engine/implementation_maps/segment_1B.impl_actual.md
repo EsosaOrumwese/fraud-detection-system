@@ -5220,3 +5220,49 @@ Decision:
 1) Candidate `9eb...` is rejected for promotion; do not treat as new lock.
 2) Runtime-safe `S2` profile is retained as an iteration-safe compute lane only (not a realism closure lane).
 3) Next causal lane remains upstream support/count reshape (reopen `1A/S2` ingress + connected `1B/S4` support distribution), not further downstream-only retuning.
+
+---
+
+### Entry: 2026-02-15 06:53
+
+Design element: best-effort Segment 1B freeze decision and transition to Segment 2A.
+Summary: We are closing active 1B remediation at a best-effort state and moving forward to 2A. 1B does not meet B/B+ certification gates, but it is materially improved versus baseline authority `c25a2675fbfbacd952b13bb594880e92` on the core concentration/coverage realism surface.
+
+Baseline-vs-current improvement confirmation:
+1) Concentration improved vs baseline:
+   - `country_gini`: `0.75282 -> 0.69498` (`-7.68%`),
+   - `top10_share`: `0.59740 -> 0.53630` (`-10.23%`),
+   - `top5_share`: `0.39326 -> 0.34999` (`-11.00%`),
+   - `top1_share`: `0.13658 -> 0.09407` (`-31.12%`).
+2) Coverage improved vs baseline:
+   - `eligible_country_nonzero_share`: `0.30924 -> 0.74089` (`+139.59%`),
+   - `southern_hemisphere_share`: `0.05858 -> 0.08053` (`+37.47%`),
+   - `active_country_count`: `77 -> 183`.
+3) Persistent blocker:
+   - NN tail realism worsened vs baseline (`nn_p99/p50`: `11.79 -> 25.24`), and hard B/B+ envelope still not met.
+
+Decision:
+1) Mark Segment 1B as `best-effort improved / below certification`, freeze for now, and proceed to Segment 2A work.
+2) Do not claim B or B+ for Segment 1B.
+3) Keep existing 1B artifacts as authoritative evidence of current best state; defer remaining certification/storage-closure tasks in the build plan until/if 1B is reopened.
+
+---
+
+### Entry: 2026-02-15 06:58
+
+Design element: Segment 1B cleanup pass and freeze finalization.
+Summary: Executed the requested cleanup pass on the 1B build plan and finalized freeze posture so transition to 2A is unambiguous.
+
+What was finalized:
+1) Build-plan checklist cleanup:
+   - converted remaining open checkboxes into explicit disposition outcomes (`not entered`, `fail-closed`, or `deferred-by-freeze`) so no ambiguous open execution scope remains in active cycle.
+2) Freeze status declaration:
+   - Segment status pinned as `FROZEN_BEST_EFFORT_BELOW_B`.
+   - Active best-effort authority artifact pinned:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_9ebdd751ab7b4f9da246cc840ddff306.json`.
+3) Reopen posture:
+   - any future 1B reopening must start with deferred-item closure and retention housekeeping before fresh remediation cycles.
+
+Decision:
+1) Segment 1B is frozen for current program wave.
+2) Move forward to Segment 2A with 1A frozen-certified authority and 1B frozen-best-effort authority.

@@ -1,5 +1,5 @@
 # Segment 1A Remediation Build Plan (B/B+ Execution Plan)
-_As of 2026-02-12_
+_As of 2026-02-15_
 
 ## 0) Objective and closure rule
 - Objective: remediate Segment `1A` so its certified realism posture is at least `B`, with `B+` as the execution target.
@@ -489,8 +489,8 @@ Home/legal mismatch and site identity ambiguity damage interpretability downstre
   - `S3` candidate/legal breadth posture,
   - broader policy/config surfaces only if prior steps fail.
 - Reopen DoD:
-  - [ ] target movement achieved with smallest approved blast radius.
-  - [ ] P1/P2 realism posture remains non-regressed.
+  - [x] not entered in active cycle (segment remained frozen after P5 certification).
+  - [x] not applicable in active cycle; P1/P2 locked posture preserved under freeze.
 
 ## 6) Workstream D: artifact completeness and state auditability (Phase P4)
 
@@ -756,6 +756,16 @@ B+ gap metrics:
   - `eligible_B=true`,
   - no regression of authority hard-gates,
   - no regression of authority B-pass metrics.
+
+### 7.7 Freeze declaration (2026-02-15)
+- Segment status: `FROZEN_CERTIFIED_B`.
+- Certification authority remains:
+  - `runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json`.
+- Operational authority run remains:
+  - `run_id=416afa430db3f5bf87180f8514329fe8`.
+- Freeze contract for downstream segments:
+  - no `1A` reopen unless explicit contradiction evidence is recorded and approved,
+  - any approved reopen remains fail-closed on `tools/score_segment1a_freeze_guard.py`.
 
 ## 8) Sequencing and stop rules
 

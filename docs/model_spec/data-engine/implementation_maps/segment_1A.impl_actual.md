@@ -5616,3 +5616,21 @@ Invariants:
 1) No code-path changes in `1A` states for this pass; config-only coefficient experiment.
 2) `hurdle beta` and `beta_phi` remain unchanged to isolate `S2` mean-shape movement.
 3) All candidate artifacts must be run-id addressed and auditable.
+
+### Entry: 2026-02-15 06:58
+
+Design element: Segment 1A freeze reaffirmation for 2A transition.
+Summary: Per transition decision, Segment 1A is explicitly re-frozen as certified authority while 2A work begins. No additional 1A remediation work is active.
+
+Freeze posture:
+1) Segment status: `FROZEN_CERTIFIED_B`.
+2) Certification authority artifact:
+   - `runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json`.
+3) Operational authority run-id remains:
+   - `416afa430db3f5bf87180f8514329fe8`.
+4) Reopen remains fail-closed and must pass:
+   - `tools/score_segment1a_freeze_guard.py`.
+
+Plan cleanup action:
+1) Conditional reopen checklist items in `segment_1A.build_plan.md` were converted to explicit `not entered / not applicable` dispositions for this frozen cycle.
+2) Added explicit freeze declaration section in the build plan so downstream segments can consume 1A as immutable authority.

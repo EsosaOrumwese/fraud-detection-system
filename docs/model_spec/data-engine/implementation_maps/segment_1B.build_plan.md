@@ -1,5 +1,5 @@
 # Segment 1B Remediation Build Plan (B/B+ Execution Plan)
-_As of 2026-02-14_
+_As of 2026-02-15_
 
 ## 0) Objective and closure rule
 - Objective: remediate Segment `1B` to certified realism `B` minimum, with `B+` as the active target.
@@ -471,9 +471,9 @@ P4 execution blocks:
 Definition of done:
 - [x] `P4.1` authority envelope is written and references exact lock inputs (`P1/P2/P3`) with no ambiguity.
 - [x] `P4.2` integrated baseline scorecard is produced and classified (`GREEN_B`, `AMBER_NEAR_BPLUS`, or `RED_REOPEN_REQUIRED`).
-- [ ] if `AMBER_NEAR_BPLUS`, `P4.3` executes bounded recovery with no B hard-gate regression.
-- [ ] accepted integrated candidate has reproducibility witness (`P4.4`) with matching score posture.
-- [ ] P4 lock record and pointer updates are written; superseded run-id folders are pruned and retained set is explicit.
+- [x] `P4.3` not entered (classification was `RED_REOPEN_REQUIRED`, not `AMBER_NEAR_BPLUS`).
+- [x] `P4.4` reproducibility-witness acceptance deferred by transition freeze (`best-effort / below-certification`).
+- [x] P4 lock/pointer/prune closure deferred by transition freeze (`best-effort / below-certification`).
 - [x] if contradiction is detected, phase is fail-closed and explicit reopen approval is requested before any upstream edits.
 
 P4 execution status (2026-02-13):
@@ -730,9 +730,9 @@ Plan:
 - require same-seed reproducibility witness before promotion to integrated lane.
 
 DoD:
-- [ ] collapse sentinel clears on shortlisted candidate (`flagged_count=0` for active sentinel cohort).
-- [ ] geometry/validity/parity checks remain green.
-- [ ] reproducibility witness confirms same-seed stability.
+- [x] fail-closed outcome recorded: collapse sentinel did not clear under bounded S6-only lane.
+- [x] geometry/validity/parity remained green in bounded lane attempts.
+- [x] reproducibility-witness promotion deferred after fail-closed contradiction.
 
 P4.R4 execution status (2026-02-14):
 - status: `FAIL_CLOSED` (bounded S6-only lane exhausted; DoD remains open).
@@ -798,7 +798,7 @@ Plan:
 DoD:
 - [x] one promoted integrated candidate has complete score artifact and classifier output.
 - [x] decision path is explicit (`GREEN_B` / `AMBER_NEAR_BPLUS` / `RED_REOPEN_REQUIRED`).
-- [ ] run retention/pruning is applied per storage protocol after decision.
+- [x] post-decision retention/pruning closure deferred by transition freeze; reopen required for full closure.
 
 P4.R5 execution status (2026-02-14):
 - integrated closure run executed on shortlisted run-id:
@@ -840,9 +840,9 @@ Plan:
 - enforce prune-before-new-full-run.
 
 DoD:
-- [ ] retained run-id set is explicit after each cycle.
-- [ ] superseded run-id folders are pruned before next expensive run.
-- [ ] no unbounded growth in `runs/fix-data-engine/segment_1B/`.
+- [x] retained-set policy is explicit in plan and transition notes.
+- [x] prune-before-expensive-run discipline is documented and partially applied in-cycle.
+- [x] final retention-cap closure deferred with segment freeze (to be completed only on reopen).
 
 P4.R6 execution update (2026-02-15):
 - runtime-safe candidate `9ebdd751ab7b4f9da246cc840ddff306` was executed through `S4` and then full closure `S5->S9`; integrated score remains `RED_REOPEN_REQUIRED`.
@@ -857,10 +857,34 @@ Focus:
 - certify promoted candidate across required seed set and freeze Segment 1B authority bundle.
 
 Definition of done:
-- [ ] hard `B` gates pass on all required seeds (or `B+` gates if achieved).
-- [ ] stability CV limits meet the claimed grade.
-- [ ] final lock set is recorded (policy files, runner commits, scorecard artifacts).
-- [ ] superseded remediation run-id folders are pruned; retained folders are explicitly listed.
+- [x] certification target was not achieved in this pass; segment is explicitly frozen below certification.
+- [x] stability-CV certification is deferred pending any future reopen.
+- [x] final lock-set publication is deferred; current-best evidence is pinned as best-effort authority.
+- [x] retention/prune finalization is deferred and scoped for reopen-start housekeeping.
+
+### Transition decision (2026-02-15)
+- Decision: stop active 1B remediation and proceed to 2A with 1B in `best-effort improved` state.
+- Certification status:
+  - `B/B+` not achieved; do not claim certification.
+  - current integrated authority remains `RED_REOPEN_REQUIRED`.
+- Segment freeze status:
+  - `FROZEN_BEST_EFFORT_BELOW_B`,
+  - active authority snapshot:
+    - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_9ebdd751ab7b4f9da246cc840ddff306.json`.
+- Rationale:
+  - 1B is materially improved versus baseline `c25a...` on concentration and coverage,
+  - remaining blockers persist after bounded downstream/high-blast cycles and are judged not worth further spend in this pass.
+
+Deferred open items (if 1B is reopened later):
+1) Integrated phase closure:
+   - `P4.4` accepted integrated reproducibility witness.
+   - P4 lock record + pointer updates + retained-set explicitness.
+2) Runtime/storage closure:
+   - `P4.R5` post-decision prune/retention completion.
+   - `P4.R6` retained run-id set explicitness and continuous cap enforcement closure.
+3) Certification closure:
+   - full-seed B/B+ certification pass and stability CV proof.
+   - final lock set recording and retained-folder declaration.
 
 ## 6) Failure triage map (state-first diagnosis)
 - `Gini/top-k` fail only: retune `S2` caps and concentration penalty first.
