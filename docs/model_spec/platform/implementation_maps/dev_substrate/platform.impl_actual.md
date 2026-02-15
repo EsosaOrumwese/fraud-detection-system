@@ -11282,3 +11282,53 @@ No parquet parts were recomputed or resorted.
   - `runs/dev_substrate/m6/20260215T162025Z/oracle_root_alignment_metadata_rebind_snapshot.json`
 - durable:
   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/oracle_root_alignment_metadata_rebind_snapshot.json`
+
+## Entry: 2026-02-15 16:53:58 +00:00 - S3 cleanup (delete legacy prefixes; remove clutter)
+
+### User directive
+Delete legacy oracle prefixes and clear bucket clutter to prevent future drift/temptation.
+
+### Deleted (dev-min object-store bucket)
+- s3://fraud-platform-dev-min-object-store/oracle/ (legacy platform-run coupled oracle prefixes)
+- s3://fraud-platform-dev-min-object-store/dev_min/ (legacy duplicate oracle root)
+
+### Retained (canonical oracle root)
+- s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/
+  - stream-view remains intact and complete for 4 required outputs.
+
+### Deleted (dev-min evidence bucket clutter)
+- s3://fraud-platform-dev-min-evidence/evidence/dev_min/ (substrate/run_control helper artifacts)
+- s3://fraud-platform-dev-min-evidence/evidence/runs/fraud-platform/ (legacy namespace)
+- s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T114002Z/ (packaging-only run)
+
+### Retained (active run evidence)
+- s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/
+
+### Post-check
+- object-store root now contains only oracle-store/.
+- archive/quarantine buckets are empty.
+
+## Entry: 2026-02-15 16:54:11 +00:00 - S3 cleanup (delete legacy prefixes; remove clutter)
+
+### User directive
+Delete legacy oracle prefixes and clear bucket clutter to prevent future drift/temptation.
+
+### Deleted (dev-min object-store bucket)
+- `s3://fraud-platform-dev-min-object-store/oracle/` (legacy platform-run coupled oracle prefixes)
+- `s3://fraud-platform-dev-min-object-store/dev_min/` (legacy duplicate oracle root)
+
+### Retained (canonical oracle root)
+- `s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/`
+  - stream-view remains intact and complete for 4 required outputs.
+
+### Deleted (dev-min evidence bucket clutter)
+- `s3://fraud-platform-dev-min-evidence/evidence/dev_min/` (substrate/run_control helper artifacts)
+- `s3://fraud-platform-dev-min-evidence/evidence/runs/fraud-platform/` (legacy namespace)
+- `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T114002Z/` (packaging-only run)
+
+### Retained (active run evidence)
+- `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/`
+
+### Post-check
+- object-store root now contains only `oracle-store/`.
+- archive/quarantine buckets are empty.

@@ -1,0 +1,81 @@
+digraph EngineCodeIOLite {
+  graph [rankdir=LR, fontsize=10, fontname="Helvetica", labelloc=t,
+         label="Data Engine Code-Level IO Ownership Flow (simplified)"];
+  node  [shape=box, style="rounded,filled", fillcolor=white, color="#4b5563", fontname="Helvetica", fontsize=9];
+  edge  [color="#6b7280", fontname="Helvetica", fontsize=8];
+  external_refs [shape=folder, fillcolor="#FEF3C7", label="External refs / authorities"];
+
+  subgraph cluster_layer1 {
+    label="Layer 1 - World and Merchant Realism";
+    style="rounded,filled";
+    color="#e8f0fe";
+    seg_1A [label="1A\\nMerchants to Physical Sites\\nowner: engine.layers.l1.seg_1A.*\\nIO contract: R=44 W=32"];
+    seg_1B [label="1B\\nSite Geolocation\\nowner: engine.layers.l1.seg_1B.*\\nIO contract: R=25 W=26"];
+    seg_2A [label="2A\\nCivil Time\\nowner: engine.layers.l1.seg_2A.*\\nIO contract: R=15 W=9"];
+    seg_2B [label="2B\\nRouting: traffic to sites and edges\\nowner: engine.layers.l1.seg_2B.*\\nIO contract: R=24 W=18"];
+    seg_3A [label="3A\\nZone Allocation\\nowner: engine.layers.l1.seg_3A.*\\nIO contract: R=30 W=24"];
+    seg_3B [label="3B\\nVirtual merchants & CDN surfaces\\nowner: engine.layers.l1.seg_3B.*\\nIO contract: R=45 W=26"];
+  }
+
+  subgraph cluster_layer2 {
+    label="Layer 2 - Temporal Arrival Surfaces";
+    style="rounded,filled";
+    color="#e6fffa";
+    seg_5A [label="5A\\nIntensity Surfaces\\nowner: engine.layers.l2.seg_5A.*\\nIO contract: R=40 W=25"];
+    seg_5B [label="5B\\nArrival Realisation\\nowner: engine.layers.l2.seg_5B.*\\nIO contract: R=65 W=23"];
+  }
+
+  subgraph cluster_layer3 {
+    label="Layer 3 - Behavior, Fraud, and Labels";
+    style="rounded,filled";
+    color="#fff7ed";
+    seg_6A [label="6A\\nEntity & Product World\\nowner: engine.layers.l3.seg_6A.*\\nIO contract: R=65 W=49"];
+    seg_6B [label="6B\\nBehaviour, Fraud Overlay & Labelling\\nowner: engine.layers.l3.seg_6B.*\\nIO contract: R=71 W=26"];
+  }
+
+  // canonical segment progression
+  seg_1A -> seg_1B [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_1B -> seg_2A [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_2A -> seg_2B [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_2B -> seg_3A [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_3A -> seg_3B [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_3B -> seg_5A [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_5A -> seg_5B [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_5B -> seg_6A [color="#334155", penwidth=1.8, label="phase progression"];
+  seg_6A -> seg_6B [color="#334155", penwidth=1.8, label="phase progression"];
+
+  // strongest code-derived dataset flows (collapsed to segment level)
+  seg_1A -> seg_1B [label="outlet_catalogue, rng_trace_log (+3)", style=dashed, color="#2563EB", penwidth=1.2];
+  seg_1A -> seg_3A [label="outlet_catalogue, rng_trace_log (+2)", style=bold, color="#DC2626", penwidth=1.4];
+  seg_1B -> seg_2A [label="site_locations, validation_bundle_1B (+1)", style=dashed, color="#2563EB", penwidth=1.2];
+  seg_1B -> seg_2B [label="rng_audit_log, rng_trace_log (+3)", style=bold, color="#DC2626", penwidth=1.4];
+  seg_1B -> seg_3B [label="rng_audit_log, rng_trace_log (+3)", style=bold, color="#DC2626", penwidth=1.4];
+  seg_2A -> seg_2B [label="site_timezones, tz_timetable_cache", style=dashed, color="#2563EB", penwidth=1.2];
+  seg_2A -> seg_3A [label="s4_legality_report, site_timezones (+3)", style=bold, color="#DC2626", penwidth=1.4];
+  seg_2A -> seg_3B [label="site_timezones, tz_timetable_cache (+2)", style=bold, color="#DC2626", penwidth=1.4];
+  seg_2B -> seg_3A [label="rng_audit_log, rng_trace_log", style=dashed, color="#2563EB", penwidth=1.2];
+  seg_2B -> seg_5B [label="rng_audit_log, rng_trace_log (+7)", style=bold, color="#DC2626", penwidth=1.4];
+  seg_2B -> seg_6A [label="rng_audit_log, rng_trace_log (+2)", style=bold, color="#DC2626", penwidth=1.4];
+  seg_3A -> seg_3B [label="rng_audit_log, rng_trace_log (+4)", style=dashed, color="#2563EB", penwidth=1.2];
+  seg_3A -> seg_5B [label="rng_audit_log, rng_trace_log (+4)", style=bold, color="#DC2626", penwidth=1.4];
+  seg_3B -> seg_5A [label="validation_bundle_3B, validation_passed_flag_3B (+3)", style=dashed, color="#2563EB", penwidth=1.2];
+  seg_3B -> seg_5B [label="edge_alias_blob_3B, edge_alias_index_3B (+11)", style=bold, color="#DC2626", penwidth=1.4];
+  seg_3B -> seg_6A [label="edge_universe_hash_3B, rng_audit_log (+6)", style=bold, color="#DC2626", penwidth=1.4];
+  seg_5A -> seg_5B [label="class_zone_shape_5A, merchant_zone_overlay_factors_5A (+7)", style=dashed, color="#2563EB", penwidth=1.2];
+  seg_5A -> seg_6A [label="merchant_zone_profile_5A, validation_bundle_5A (+1)", style=bold, color="#DC2626", penwidth=1.4];
+  seg_5B -> seg_6A [label="arrival_events_5B, rng_audit_log (+3)", style=dashed, color="#2563EB", penwidth=1.2];
+  seg_5B -> seg_6B [label="arrival_events_5B, rng_audit_log (+3)", style=bold, color="#DC2626", penwidth=1.4];
+  seg_6A -> seg_6B [label="rng_audit_log, rng_trace_log (+14)", style=dashed, color="#2563EB", penwidth=1.2];
+
+  // unresolved external reads
+  external_refs -> seg_1A [label="ccy_country_shares_2024Q4, ccy_smoothing_params (+18)", style=dotted, color="#D97706", penwidth=1.1];
+  external_refs -> seg_1B [label="iso3166_canonical_2024, math_profile_manifest (+4)", style=dotted, color="#D97706", penwidth=1.1];
+  external_refs -> seg_2A [label="iso3166_canonical_2024, merchant_mcc_map (+5)", style=dotted, color="#D97706", penwidth=1.1];
+  external_refs -> seg_2B [label="alias_layout_policy_v1, day_effect_policy_v1 (+2)", style=dotted, color="#D97706", penwidth=1.1];
+  external_refs -> seg_3A [label="country_zone_alphas, day_effect_policy_v1 (+4)", style=dotted, color="#D97706", penwidth=1.1];
+  external_refs -> seg_3B [label="alias_layout_policy_v1, cdn_country_weights (+12)", style=dotted, color="#D97706", penwidth=1.1];
+  external_refs -> seg_5A [label="baseline_intensity_policy_5A, demand_scale_policy_5A (+12)", style=dotted, color="#D97706", penwidth=1.1];
+  external_refs -> seg_5B [label="alias_layout_policy_v1, arrival_count_config_5B (+9)", style=dotted, color="#D97706", penwidth=1.1];
+  external_refs -> seg_6A [label="device_linkage_rules_6A, graph_linkage_rules_6A (+23)", style=dotted, color="#D97706", penwidth=1.1];
+  external_refs -> seg_6B [label="amount_model_6B, attachment_policy_6B (+17)", style=dotted, color="#D97706", penwidth=1.1];
+}

@@ -1,0 +1,63 @@
+flowchart LR
+%% Data Engine code-level IO ownership flow (simplified)
+  EXTERNAL[[External refs / authorities]]
+
+  subgraph LAYER1["Layer 1 - World and Merchant Realism"]
+    seg_1A["1A - Merchants to Physical Sites<br/>owner: engine.layers.l1.seg_1A.*<br/>IO: R=44 W=32"]
+    seg_1B["1B - Site Geolocation<br/>owner: engine.layers.l1.seg_1B.*<br/>IO: R=25 W=26"]
+    seg_2A["2A - Civil Time<br/>owner: engine.layers.l1.seg_2A.*<br/>IO: R=15 W=9"]
+    seg_2B["2B - Routing: traffic to sites and edges<br/>owner: engine.layers.l1.seg_2B.*<br/>IO: R=24 W=18"]
+    seg_3A["3A - Zone Allocation<br/>owner: engine.layers.l1.seg_3A.*<br/>IO: R=30 W=24"]
+    seg_3B["3B - Virtual merchants & CDN surfaces<br/>owner: engine.layers.l1.seg_3B.*<br/>IO: R=45 W=26"]
+  end
+
+  subgraph LAYER2["Layer 2 - Temporal Arrival Surfaces"]
+    seg_5A["5A - Intensity Surfaces<br/>owner: engine.layers.l2.seg_5A.*<br/>IO: R=40 W=25"]
+    seg_5B["5B - Arrival Realisation<br/>owner: engine.layers.l2.seg_5B.*<br/>IO: R=65 W=23"]
+  end
+
+  subgraph LAYER3["Layer 3 - Behavior, Fraud, and Labels"]
+    seg_6A["6A - Entity & Product World<br/>owner: engine.layers.l3.seg_6A.*<br/>IO: R=65 W=49"]
+    seg_6B["6B - Behaviour, Fraud Overlay & Labelling<br/>owner: engine.layers.l3.seg_6B.*<br/>IO: R=71 W=26"]
+  end
+
+  seg_1A -->|phase progression| seg_1B
+  seg_1B -->|phase progression| seg_2A
+  seg_2A -->|phase progression| seg_2B
+  seg_2B -->|phase progression| seg_3A
+  seg_3A -->|phase progression| seg_3B
+  seg_3B -->|phase progression| seg_5A
+  seg_5A -->|phase progression| seg_5B
+  seg_5B -->|phase progression| seg_6A
+  seg_6A -->|phase progression| seg_6B
+  seg_1A -. "outlet_catalogue, rng_trace_log (+3)" .-> seg_1B
+  seg_1A == "outlet_catalogue, rng_trace_log (+2)" ==> seg_3A
+  seg_1B -. "site_locations, validation_bundle_1B (+1)" .-> seg_2A
+  seg_1B == "rng_audit_log, rng_trace_log (+3)" ==> seg_2B
+  seg_1B == "rng_audit_log, rng_trace_log (+3)" ==> seg_3B
+  seg_2A -. "site_timezones, tz_timetable_cache" .-> seg_2B
+  seg_2A == "s4_legality_report, site_timezones (+3)" ==> seg_3A
+  seg_2A == "site_timezones, tz_timetable_cache (+2)" ==> seg_3B
+  seg_2B -. "rng_audit_log, rng_trace_log" .-> seg_3A
+  seg_2B == "rng_audit_log, rng_trace_log (+7)" ==> seg_5B
+  seg_2B == "rng_audit_log, rng_trace_log (+2)" ==> seg_6A
+  seg_3A -. "rng_audit_log, rng_trace_log (+4)" .-> seg_3B
+  seg_3A == "rng_audit_log, rng_trace_log (+4)" ==> seg_5B
+  seg_3B -. "validation_bundle_3B, validation_passed_flag_3B (+3)" .-> seg_5A
+  seg_3B == "edge_alias_blob_3B, edge_alias_index_3B (+11)" ==> seg_5B
+  seg_3B == "edge_universe_hash_3B, rng_audit_log (+6)" ==> seg_6A
+  seg_5A -. "class_zone_shape_5A, merchant_zone_overlay_factors_5A (+7)" .-> seg_5B
+  seg_5A == "merchant_zone_profile_5A, validation_bundle_5A (+1)" ==> seg_6A
+  seg_5B -. "arrival_events_5B, rng_audit_log (+3)" .-> seg_6A
+  seg_5B == "arrival_events_5B, rng_audit_log (+3)" ==> seg_6B
+  seg_6A -. "rng_audit_log, rng_trace_log (+14)" .-> seg_6B
+  EXTERNAL -. "ccy_country_shares_2024Q4, ccy_smoothing_params (+18)" .-> seg_1A
+  EXTERNAL -. "iso3166_canonical_2024, math_profile_manifest (+4)" .-> seg_1B
+  EXTERNAL -. "iso3166_canonical_2024, merchant_mcc_map (+5)" .-> seg_2A
+  EXTERNAL -. "alias_layout_policy_v1, day_effect_policy_v1 (+2)" .-> seg_2B
+  EXTERNAL -. "country_zone_alphas, day_effect_policy_v1 (+4)" .-> seg_3A
+  EXTERNAL -. "alias_layout_policy_v1, cdn_country_weights (+12)" .-> seg_3B
+  EXTERNAL -. "baseline_intensity_policy_5A, demand_scale_policy_5A (+12)" .-> seg_5A
+  EXTERNAL -. "alias_layout_policy_v1, arrival_count_config_5B (+9)" .-> seg_5B
+  EXTERNAL -. "device_linkage_rules_6A, graph_linkage_rules_6A (+23)" .-> seg_6A
+  EXTERNAL -. "amount_model_6B, attachment_policy_6B (+17)" .-> seg_6B
