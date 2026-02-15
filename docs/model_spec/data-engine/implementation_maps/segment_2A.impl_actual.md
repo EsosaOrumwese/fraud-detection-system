@@ -3152,3 +3152,32 @@ Actions taken:
 Expected outcome:
 - Latest receipt selection is stable by created_utc.
 - CRS/tzid parsing issues are visible without changing failure semantics.
+
+---
+
+### Entry: 2026-02-15 07:08
+
+Design element: Segment 2A remediation build-plan drafting kickoff under frozen upstream constraints.
+Summary: Began formal remediation planning for 2A after freezing 1A and 1B. The plan is explicitly constrained by upstream posture (`1A` frozen-certified, `1B` frozen-best-effort-below-B) and focuses on causal 2A governance/scoring improvements without synthetic post-assignment redistribution.
+
+Context absorbed before planning:
+1) Published 2A posture is structurally correct but realism-poor (country-level timezone collapse), graded below B.
+2) Remediation authority identifies upstream spatial representativeness as the primary driver, with 2A governance hardening as secondary but required.
+3) Current program decision is to proceed to 2A without reopening 1A/1B in this cycle.
+
+Planning decisions captured:
+1) Create a dedicated build plan doc:
+   - `docs/model_spec/data-engine/implementation_maps/segment_2A.build_plan.md`.
+2) Use a phased plan with DoDs and explicit fail-closed certification gates:
+   - `P0` baseline/harness lock,
+   - `P1` S1/S2 fallback/override governance hardening,
+   - `P2` cohort-aware realism scoring and gate enforcement,
+   - `P3` bounded targeted correction lane (non-synthetic),
+   - `P4` multi-seed certification or constrained freeze decision.
+3) Lock cycle constraints in plan:
+   - no upstream reopen in active pass,
+   - no synthetic redistribution primary lane,
+   - explicit `FAIL_REALISM` path if B cannot be achieved under frozen upstream ceiling.
+
+Immediate next action:
+1) execute `P0` baseline authority materialization under `runs/fix-data-engine/segment_2A/` and establish scoring artifacts for the hard-gate matrix.
