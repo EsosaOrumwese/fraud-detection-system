@@ -844,6 +844,14 @@ DoD:
 - [ ] superseded run-id folders are pruned before next expensive run.
 - [ ] no unbounded growth in `runs/fix-data-engine/segment_1B/`.
 
+P4.R6 execution update (2026-02-15):
+- runtime-safe candidate `9ebdd751ab7b4f9da246cc840ddff306` was executed through `S4` and then full closure `S5->S9`; integrated score remains `RED_REOPEN_REQUIRED`.
+- attempted `P4.R3` proxy for this cycle exposed lineage fragility: `R2` summary referenced pruned upstream `1A` run `f50074ae643103bf0bae832555a4605a`, causing candidate drop by missing `run_receipt.json`.
+- practical implication:
+  - pruning must preserve any run-id still referenced by active wave summary artifacts (or summaries must be regenerated before prune).
+- realism implication:
+  - this lane did not improve class beyond current `RED`; reopen remains upstream support/count shape (`1A/S2` ingress + `1B/S4` support distribution), not downstream-only tuning.
+
 ### P5 - Certification and freeze
 Focus:
 - certify promoted candidate across required seed set and freeze Segment 1B authority bundle.

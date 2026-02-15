@@ -538,6 +538,15 @@ Active-phase planning posture:
     - deterministic handle-closure matrix contract,
     - materialization probe requirements,
     - fail-closed blocker taxonomy and snapshot schema.
+  - `M6.A` has been executed once (fail-closed) with authoritative snapshot:
+    - local: `runs/dev_substrate/m6/20260215T022859Z/m6_a_handle_closure_snapshot.json`
+    - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T022859Z/m6_a_handle_closure_snapshot.json`
+    - result: `overall_pass=false` due to unresolved handles (`M6A-B2`):
+      - `IG_BASE_URL`
+      - `TD_SR`
+      - `TD_WSP`
+      - `ROLE_SR_TASK`
+      - `ROLE_WSP_TASK`
 
 - Sub-phase progress:
   - [ ] `M6.A` authority + handle closure for `P4..P7`.

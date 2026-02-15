@@ -233,6 +233,26 @@ Blockers:
 5. `M6A-B5`: critical policy pin mismatch (`IG_AUTH_MODE` / `WSP_STOP_ON_NONRETRYABLE`).
 6. `M6A-B6`: M6.A snapshot write/upload failure.
 
+Execution status (2026-02-15):
+1. Executed fail-closed using M5 handoff anchor and published durable evidence:
+   - local: `runs/dev_substrate/m6/20260215T022859Z/m6_a_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T022859Z/m6_a_handle_closure_snapshot.json`
+2. Result:
+   - `overall_pass=false`
+   - blocker set: `M6A-B2` only
+   - `resolved_handle_count=30/35`
+3. Unresolved required handles (closure blockers):
+   - `IG_BASE_URL`
+   - `TD_SR`
+   - `TD_WSP`
+   - `ROLE_SR_TASK`
+   - `ROLE_WSP_TASK`
+4. Policy pins validated in this execution:
+   - `IG_AUTH_MODE=api_key`
+   - `WSP_STOP_ON_NONRETRYABLE=true`
+5. Note:
+   - initial run `m6_20260215T022734Z` was superseded by this corrected snapshot after fixing a registry parsing defect in the probe command surface.
+
 ### M6.B P4 IG Readiness + Auth Boundary
 Goal:
 1. Prove IG service is healthy and writer boundary auth is enforced.
@@ -502,7 +522,17 @@ Control: hard fail on unresolved `PUBLISH_AMBIGUOUS` in `M6.G`.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M6 Closure)
 Current blockers:
-1. None.
+1. `M6A-B2` - required `P4..P7` handles unresolved in latest M6.A run (`m6_20260215T022859Z`):
+   - `IG_BASE_URL`
+   - `TD_SR`
+   - `TD_WSP`
+   - `ROLE_SR_TASK`
+   - `ROLE_WSP_TASK`
+2. Closure criteria for this blocker:
+   - pin/materialize `IG_BASE_URL` for runtime service discovery in dev_min,
+   - materialize `TD_SR` and `TD_WSP` task-definition handles in ECS,
+   - pin/materialize `ROLE_SR_TASK` and `ROLE_WSP_TASK` and verify IAM role existence,
+   - rerun `M6.A` and require `unresolved_handle_count=0` with `overall_pass=true`.
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

@@ -10630,3 +10630,76 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
 ### Outcome
 1. `M6.A` is now planning-complete for execution gating.
 2. Next actionable step remains `M6.A` execution (handle closure run + snapshot publication), not `M6.B`.
+
+## Entry: 2026-02-15 02:21AM - Pre-change execution lock: run M6.A handle closure and publish snapshot
+
+### Trigger
+1. USER instructed: execute `M6.A`.
+
+### Execution intent
+1. Execute `M6.A` per deep plan contract:
+   - validate M5->M6 handoff invariants,
+   - build deterministic required-handle closure matrix for `P4..P7`,
+   - run non-secret materialization probes by handle class (ECS/SSM/topic/pattern),
+   - enforce fail-closed pin checks (`IG_AUTH_MODE`, `WSP_STOP_ON_NONRETRYABLE`),
+   - publish `m6_a_handle_closure_snapshot.json` local + durable.
+
+### Inputs pinned
+1. `runs/dev_substrate/m5/20260215T002310Z/m6_handoff_pack.json`
+2. `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m6_handoff_pack.json`
+3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+4. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P4..P7`)
+
+### Fail-closed rules
+1. Any handoff invariant failure => `M6A-B1`.
+2. Any unresolved required handle => `M6A-B2`.
+3. Any placeholder/wildcard handle in required set => `M6A-B3`.
+4. Any required materialization probe failure => `M6A-B4`.
+5. Any critical policy pin mismatch => `M6A-B5`.
+6. Snapshot publication failure => `M6A-B6`.
+
+## Entry: 2026-02-15 02:30AM - Executed M6.A handle-closure probe (fail-closed) and published authoritative snapshot
+
+### Trigger
+1. USER instructed: `execute m6.a`.
+
+### Execution summary
+1. Ran M6.A closure probe against the active M5 handoff anchor:
+   - local handoff: `runs/dev_substrate/m5/20260215T002310Z/m6_handoff_pack.json`
+   - durable handoff: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m6_handoff_pack.json`
+2. Published authoritative M6.A snapshot:
+   - local: `runs/dev_substrate/m6/20260215T022859Z/m6_a_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T022859Z/m6_a_handle_closure_snapshot.json`
+3. Result posture:
+   - `overall_pass=false` (fail-closed)
+   - blocker: `M6A-B2` (required handles unresolved)
+   - closure score: `30/35` handles resolved.
+
+### Resolved vs unresolved highlights
+1. Resolved and materialization-proven:
+   - IG service handle, IG auth/path constants, Confluent SSM path handles, topic handles, runtime knobs, and evidence/quarantine patterns.
+2. Unresolved blocker handles:
+   - `IG_BASE_URL`
+   - `TD_SR`
+   - `TD_WSP`
+   - `ROLE_SR_TASK`
+   - `ROLE_WSP_TASK`
+
+### Policy-pin check results
+1. `IG_AUTH_MODE=api_key`: PASS.
+2. `WSP_STOP_ON_NONRETRYABLE=true`: PASS.
+
+### Corrective execution note
+1. Initial probe run (`m6_20260215T022734Z`) was superseded after fixing a parser defect in the command surface that mis-read backtick-wrapped `KEY = value` lines in the handles registry.
+2. Authoritative snapshot for M6.A is the corrected run: `m6_20260215T022859Z`.
+
+### Phase-control updates applied
+1. Updated `platform.M6.build_plan.md` with M6.A execution result and blocker-closure criteria.
+2. Updated `platform.build_plan.md` M6 expansion state with latest M6.A snapshot reference and blocker list.
+
+### Next required closure action (fail-closed)
+1. Materialize/pin `IG_BASE_URL`, `TD_SR`, `TD_WSP`, `ROLE_SR_TASK`, `ROLE_WSP_TASK`.
+2. Rerun M6.A and require:
+   - `unresolved_handle_count=0`
+   - `overall_pass=true`
+   before entering `M6.B`.

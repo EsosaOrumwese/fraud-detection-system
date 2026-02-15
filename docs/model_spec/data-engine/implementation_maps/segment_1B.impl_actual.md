@@ -5185,3 +5185,38 @@ Decision:
 1) Keep high-blast remediation in policy space, but disable `population` contribution for runtime safety (`population=0.0`).
 2) Continue with moderate concentration/cap/floor pressure using only `uniform + area_m2` and bounded convergence settings.
 3) Re-run on fresh run-id and only proceed to full chain if proxy passes.
+
+---
+
+### Entry: 2026-02-15 02:30
+
+Design element: runtime-safe high-blast candidate closure (`S2 p4r6c`) with full-chain evidence.
+Summary: Executed the runtime-safe profile candidate `9ebdd751ab7b4f9da246cc840ddff306` through `S4` and full closure `S5->S9`, then integrated scoring. The candidate remains `RED_REOPEN_REQUIRED` and does not clear B/B+ hard gates.
+
+Execution evidence:
+1) `S4` completed with safe cache lane:
+   - `countries_max=48`, `cache_max_bytes=2_500_000_000`,
+   - `rank_cache_entries=128`, `rank_cache_bytes=67_108_864`, `rank_cache_k_max=200000`,
+   - runtime `~2280s`, `rows_emitted=102340`, `unique_countries=183`, no structural failure.
+2) Proxy scorer invocation failed as an authority-lineage issue, not a data-quality issue:
+   - `segment1b_p4r3_proxy_wave_4.json` dropped candidate because the referenced upstream `1A` run (`f50074ae643103bf0bae832555a4605a`) had already been pruned,
+   - concrete error: missing `runs/fix-data-engine/segment_1A/f50074ae643103bf0bae832555a4605a/run_receipt.json`.
+3) Full chain executed anyway (`S5->S9`) and `S9` completed; integrated artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_9ebdd751ab7b4f9da246cc840ddff306.json`.
+
+Integrated result:
+1) Status: `RED_REOPEN_REQUIRED` (`B_all=false`, `B_plus_all=false`).
+2) Passes:
+   - structural checks `PASS`,
+   - no-regression vs lock authority `PASS`.
+3) Hard B/B+ blockers persisted:
+   - concentration: `country_gini=0.69498`, `top10=0.53630`, `top5=0.34999` (all above B maxima),
+   - coverage: `eligible_country_nonzero_share=0.74089`, `southern_hemisphere_share=0.08053` (below B minima),
+   - NN contraction: `improvement_fraction=-1.1404` (failed).
+4) Comparative note:
+   - concentration/coverage envelope remained effectively the same as prior authority run `761c3c826a7b4f6d911b5cfe500d99b7`; only minor NN ratio movement was observed, not enough to change class.
+
+Decision:
+1) Candidate `9eb...` is rejected for promotion; do not treat as new lock.
+2) Runtime-safe `S2` profile is retained as an iteration-safe compute lane only (not a realism closure lane).
+3) Next causal lane remains upstream support/count reshape (reopen `1A/S2` ingress + connected `1B/S4` support distribution), not further downstream-only retuning.
