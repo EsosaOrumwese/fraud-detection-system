@@ -539,17 +539,15 @@ Active-phase planning posture:
     - materialization probe requirements,
     - fail-closed blocker taxonomy and snapshot schema.
   - `M6.A` has been executed once (fail-closed) with authoritative snapshot:
-    - local: `runs/dev_substrate/m6/20260215T022859Z/m6_a_handle_closure_snapshot.json`
-    - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T022859Z/m6_a_handle_closure_snapshot.json`
-    - result: `overall_pass=false` due to unresolved handles (`M6A-B2`):
-      - `IG_BASE_URL`
-      - `TD_SR`
-      - `TD_WSP`
-      - `ROLE_SR_TASK`
-      - `ROLE_WSP_TASK`
+    - local: `runs/dev_substrate/m6/20260215T032545Z/m6_a_handle_closure_snapshot.json`
+    - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T032545Z/m6_a_handle_closure_snapshot.json`
+    - result: `overall_pass=true`, blocker rollup empty.
+    - closure path completed:
+      - pinned handles (`IG_BASE_URL`, `TD_SR`, `TD_WSP`, `ROLE_SR_TASK`, `ROLE_WSP_TASK`)
+      - materialized `TD_SR` and `TD_WSP` task definitions in ECS.
 
 - Sub-phase progress:
-  - [ ] `M6.A` authority + handle closure for `P4..P7`.
+  - [x] `M6.A` authority + handle closure for `P4..P7`.
   - [ ] `M6.B` P4 IG deploy/health/auth readiness.
   - [ ] `M6.C` P4 Kafka/S3 smoke and `ig_ready.json`.
   - [ ] `M6.D` P5 SR PASS + READY publication.
@@ -707,6 +705,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M6 is active for deep-plan closure and execution sequencing.
 Next action:
-- start with `M6.A` authority + handle closure for `P4..P7` using the M5 handoff anchor,
-- confirm M6 decision set is explicitly pinned (IG/SR/WSP handles, READY/control topic posture, ingest evidence paths, ambiguity gate rule) before execution,
-- proceed to `M6.B` only after `M6.A` blockers are empty.
+- execute `M6.B` P4 IG readiness + auth-boundary verification using the closed `M6.A` snapshot,
+- publish `m6_b_ig_readiness_snapshot.json` local + durable,
+- proceed to `M6.C` only after `M6.B` blockers are empty.

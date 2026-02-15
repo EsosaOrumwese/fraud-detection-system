@@ -90,6 +90,10 @@ output "ecs_oracle_task_definition_arns" {
   value = module.demo.ecs_oracle_task_definition_arns
 }
 
+output "ecs_control_task_definition_arns" {
+  value = module.demo.ecs_control_task_definition_arns
+}
+
 output "ecs_oracle_stream_sort_task_definition_arn" {
   value = module.demo.ecs_oracle_stream_sort_task_definition_arn
 }
@@ -104,6 +108,22 @@ output "ecs_oracle_checker_task_definition_arn" {
 
 output "td_oracle_checker" {
   value = module.demo.ecs_oracle_checker_task_definition_family
+}
+
+output "ecs_sr_task_definition_arn" {
+  value = module.demo.ecs_sr_task_definition_arn
+}
+
+output "td_sr" {
+  value = module.demo.ecs_sr_task_definition_family
+}
+
+output "ecs_wsp_task_definition_arn" {
+  value = module.demo.ecs_wsp_task_definition_arn
+}
+
+output "td_wsp" {
+  value = module.demo.ecs_wsp_task_definition_family
 }
 
 output "vpc_id" {

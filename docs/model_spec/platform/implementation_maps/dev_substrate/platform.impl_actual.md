@@ -10703,3 +10703,92 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
    - `unresolved_handle_count=0`
    - `overall_pass=true`
    before entering `M6.B`.
+
+## Entry: 2026-02-15 02:35AM - Pre-change lock: pin M6.A unresolved handles in handles registry
+
+### Trigger
+1. USER instructed: `Alright, pin those handles`.
+
+### Problem statement
+1. Latest M6.A snapshot (`m6_20260215T022859Z`) failed with `M6A-B2` due unresolved required handles:
+   - `IG_BASE_URL`, `TD_SR`, `TD_WSP`, `ROLE_SR_TASK`, `ROLE_WSP_TASK`.
+
+### Decision intent (pinning only)
+1. Pin all five handles in `dev_min_handles.registry.v0.md` so they are no longer undefined contract surfaces.
+2. Use existing naming contract for task families and service endpoint base URL:
+   - `TD_SR = fraud-platform-dev-min-sr`
+   - `TD_WSP = fraud-platform-dev-min-wsp`
+   - `IG_BASE_URL = http://fraud-platform-dev-min-ig:8080`
+3. Reuse existing materialized lane role for SR/WSP in v0 to avoid introducing a new IAM role surface mid-phase:
+   - `ROLE_SR_TASK = fraud-platform-dev-min-rtdl-core`
+   - `ROLE_WSP_TASK = fraud-platform-dev-min-rtdl-core`
+
+### Expected effect
+1. `M6A-B2` unresolved-handle blocker should clear.
+2. If SR/WSP task definitions are not yet materialized in ECS, blocker is expected to move to `M6A-B4` (probe failure), which is the correct next closure surface.
+
+## Entry: 2026-02-15 03:13AM - Pinned M6 handles and reran M6.A (blocker migrated from B2 to B4)
+
+### Changes applied
+1. Updated `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` to pin previously unresolved handles:
+   - `IG_BASE_URL = "http://fraud-platform-dev-min-ig:8080"`
+   - `TD_SR = "fraud-platform-dev-min-sr"`
+   - `TD_WSP = "fraud-platform-dev-min-wsp"`
+   - `ROLE_SR_TASK = "fraud-platform-dev-min-rtdl-core"`
+   - `ROLE_WSP_TASK = "fraud-platform-dev-min-rtdl-core"`
+2. Added explicit v0 rationale notes that SR/WSP currently reuse the materialized RTDL core lane role pending a dedicated-role split decision.
+
+### Verification run
+1. Reran M6.A after pinning:
+   - local: `runs/dev_substrate/m6/20260215T031058Z/m6_a_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T031058Z/m6_a_handle_closure_snapshot.json`
+2. Result:
+   - `resolved_handle_count=35/35`
+   - `unresolved_handle_count=0`
+   - `overall_pass=false` due to `M6A-B4` only.
+3. Probe failures:
+   - `TD_SR`
+   - `TD_WSP`
+
+### Interpretation
+1. Handle-pin drift is closed.
+2. Remaining closure work is now purely materialization: SR/WSP task-definition families are pinned but not yet present in ECS.
+3. Correct next step is to materialize `TD_SR` and `TD_WSP` in demo Terraform/runtime surface, then rerun `M6.A`.
+
+## Entry: 2026-02-15 03:28AM - Materialized TD_SR/TD_WSP and closed M6.A
+
+### Trigger
+1. USER instructed: `Alright, materialize them` (referring to `TD_SR` and `TD_WSP`).
+
+### Infrastructure changes
+1. Added ECS one-shot control job task definitions in demo module:
+   - `aws_ecs_task_definition.control_job["sr"]` -> family `fraud-platform-dev-min-sr`
+   - `aws_ecs_task_definition.control_job["wsp"]` -> family `fraud-platform-dev-min-wsp`
+2. Added Terraform outputs for SR/WSP task definitions:
+   - module outputs: `ecs_sr_task_definition_arn/family`, `ecs_wsp_task_definition_arn/family`, `ecs_control_task_definition_arns`
+   - stack outputs: `ecs_sr_task_definition_arn`, `td_sr`, `ecs_wsp_task_definition_arn`, `td_wsp`, `ecs_control_task_definition_arns`
+3. Manifest payload now includes `td_sr`, `td_wsp`, and `control_job_task_defs` for runtime visibility.
+
+### Apply posture and command surface
+1. Ran targeted apply to avoid unrelated drift while closing the exact M6.A blocker lane.
+2. Command lane:
+   - `terraform -chdir=infra/terraform/dev_min/demo init -reconfigure -input=false "-backend-config=backend.hcl.example"`
+   - `terraform -chdir=infra/terraform/dev_min/demo apply -input=false -auto-approve -no-color -var "required_platform_run_id=platform_20260213T214223Z" -var "ecs_daemon_container_image=230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-min@sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56" -target='module.demo.aws_ecs_task_definition.control_job["sr"]' -target='module.demo.aws_ecs_task_definition.control_job["wsp"]'`
+3. Apply result:
+   - resources added: `2`
+   - created families: `fraud-platform-dev-min-sr`, `fraud-platform-dev-min-wsp`.
+
+### M6.A verification rerun
+1. Reran M6.A handle closure probe after materialization.
+2. Authoritative PASS evidence:
+   - local: `runs/dev_substrate/m6/20260215T032545Z/m6_a_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T032545Z/m6_a_handle_closure_snapshot.json`
+3. Result:
+   - `resolved_handle_count=35/35`
+   - `unresolved_handle_count=0`
+   - `probe_failures=[]`
+   - `overall_pass=true`
+
+### Phase-state updates
+1. `M6.A` is now closed.
+2. `M6` immediate next executable lane is `M6.B`.

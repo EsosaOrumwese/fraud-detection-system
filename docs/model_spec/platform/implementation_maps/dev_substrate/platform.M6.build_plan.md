@@ -235,23 +235,21 @@ Blockers:
 
 Execution status (2026-02-15):
 1. Executed fail-closed using M5 handoff anchor and published durable evidence:
-   - local: `runs/dev_substrate/m6/20260215T022859Z/m6_a_handle_closure_snapshot.json`
-   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T022859Z/m6_a_handle_closure_snapshot.json`
+   - local: `runs/dev_substrate/m6/20260215T032545Z/m6_a_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T032545Z/m6_a_handle_closure_snapshot.json`
 2. Result:
-   - `overall_pass=false`
-   - blocker set: `M6A-B2` only
-   - `resolved_handle_count=30/35`
-3. Unresolved required handles (closure blockers):
-   - `IG_BASE_URL`
-   - `TD_SR`
-   - `TD_WSP`
-   - `ROLE_SR_TASK`
-   - `ROLE_WSP_TASK`
+   - `overall_pass=true`
+   - blocker set: empty
+   - `resolved_handle_count=35/35`
+3. Materialization outcome:
+   - `TD_SR` and `TD_WSP` task definitions now materialized and probe PASS.
 4. Policy pins validated in this execution:
    - `IG_AUTH_MODE=api_key`
    - `WSP_STOP_ON_NONRETRYABLE=true`
-5. Note:
-   - initial run `m6_20260215T022734Z` was superseded by this corrected snapshot after fixing a registry parsing defect in the probe command surface.
+5. Historical note:
+   - initial run `m6_20260215T022734Z` was superseded by corrected parsing in `m6_20260215T022859Z`,
+   - then superseded by handle-pin rerun `m6_20260215T031058Z`,
+   - final authoritative PASS snapshot is `m6_20260215T032545Z`.
 
 ### M6.B P4 IG Readiness + Auth Boundary
 Goal:
@@ -497,7 +495,7 @@ Notes:
 3. If any required evidence object is missing, M6 verdict must remain `HOLD_M6`.
 
 ## 7) M6 Completion Checklist
-- [ ] M6.A complete
+- [x] M6.A complete
 - [ ] M6.B complete
 - [ ] M6.C complete
 - [ ] M6.D complete
@@ -522,17 +520,7 @@ Control: hard fail on unresolved `PUBLISH_AMBIGUOUS` in `M6.G`.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M6 Closure)
 Current blockers:
-1. `M6A-B2` - required `P4..P7` handles unresolved in latest M6.A run (`m6_20260215T022859Z`):
-   - `IG_BASE_URL`
-   - `TD_SR`
-   - `TD_WSP`
-   - `ROLE_SR_TASK`
-   - `ROLE_WSP_TASK`
-2. Closure criteria for this blocker:
-   - pin/materialize `IG_BASE_URL` for runtime service discovery in dev_min,
-   - materialize `TD_SR` and `TD_WSP` task-definition handles in ECS,
-   - pin/materialize `ROLE_SR_TASK` and `ROLE_WSP_TASK` and verify IAM role existence,
-   - rerun `M6.A` and require `unresolved_handle_count=0` with `overall_pass=true`.
+1. None.
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

@@ -545,8 +545,8 @@ These are logical identifiers; the real AWS ARNs/names are bound by Terraform ou
 
 * `TD_ORACLE_STREAM_SORT = "fraud-platform-dev-min-oracle-stream-sort"`
 * `TD_ORACLE_CHECKER = "fraud-platform-dev-min-oracle-checker"`
-* `TD_SR`
-* `TD_WSP`
+* `TD_SR = "fraud-platform-dev-min-sr"`
+* `TD_WSP = "fraud-platform-dev-min-wsp"`
 * `TD_DB_MIGRATIONS` *(if needed)*
 * `TD_REPORTER`
 
@@ -582,7 +582,7 @@ Obs/Gov pack (daemonized parts):
 
 These are how tasks/services locate each other.
 
-* `IG_BASE_URL`
+* `IG_BASE_URL = "http://fraud-platform-dev-min-ig:8080"`
 
   * Reachable URL for WSP → IG calls (e.g., internal DNS, service discovery, or LB DNS if used).
 
@@ -767,13 +767,15 @@ These handles pin the IAM roles used by Terraform and every ECS task/service. Th
   * for `TD_ORACLE_STREAM_SORT`, `TD_ORACLE_CHECKER`
   * v0 posture: reuse existing materialized lane role for M5 bring-up; split to a dedicated oracle role if/when least-privilege policy divergence is required.
 
-* `ROLE_SR_TASK`
+* `ROLE_SR_TASK = "fraud-platform-dev-min-rtdl-core"`
 
   * for `TD_SR`
+  * v0 posture: SR reuses existing materialized RTDL core lane role; split to a dedicated SR role only when policy divergence is pinned.
 
-* `ROLE_WSP_TASK`
+* `ROLE_WSP_TASK = "fraud-platform-dev-min-rtdl-core"`
 
   * for `TD_WSP`
+  * v0 posture: WSP reuses existing materialized RTDL core lane role; split to a dedicated WSP role only when policy divergence is pinned.
 
 * `ROLE_IG_SERVICE = "fraud-platform-dev-min-ig-service"`
 

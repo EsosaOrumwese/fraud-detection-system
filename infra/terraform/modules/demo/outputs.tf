@@ -86,6 +86,10 @@ output "ecs_oracle_task_definition_arns" {
   value = { for key, td in aws_ecs_task_definition.oracle_job : key => td.arn }
 }
 
+output "ecs_control_task_definition_arns" {
+  value = { for key, td in aws_ecs_task_definition.control_job : key => td.arn }
+}
+
 output "ecs_oracle_stream_sort_task_definition_arn" {
   value = aws_ecs_task_definition.oracle_job["oracle-stream-sort"].arn
 }
@@ -100,6 +104,22 @@ output "ecs_oracle_checker_task_definition_arn" {
 
 output "ecs_oracle_checker_task_definition_family" {
   value = aws_ecs_task_definition.oracle_job["oracle-checker"].family
+}
+
+output "ecs_sr_task_definition_arn" {
+  value = aws_ecs_task_definition.control_job["sr"].arn
+}
+
+output "ecs_sr_task_definition_family" {
+  value = aws_ecs_task_definition.control_job["sr"].family
+}
+
+output "ecs_wsp_task_definition_arn" {
+  value = aws_ecs_task_definition.control_job["wsp"].arn
+}
+
+output "ecs_wsp_task_definition_family" {
+  value = aws_ecs_task_definition.control_job["wsp"].family
 }
 
 output "vpc_id" {

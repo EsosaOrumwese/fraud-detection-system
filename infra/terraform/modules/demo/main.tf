@@ -132,6 +132,27 @@ locals {
       ]
     }
   }
+
+  control_job_specs = {
+    "sr" = {
+      family_name    = "${var.name_prefix}-sr"
+      component_mode = "stream_ready"
+      command = [
+        "sh",
+        "-c",
+        "echo sr_task_definition_materialized && exit 0",
+      ]
+    }
+    "wsp" = {
+      family_name    = "${var.name_prefix}-wsp"
+      component_mode = "world_stream_producer"
+      command = [
+        "sh",
+        "-c",
+        "echo wsp_task_definition_materialized && exit 0",
+      ]
+    }
+  }
 }
 
 data "aws_availability_zones" "available" {
@@ -597,6 +618,59 @@ resource "aws_ecs_task_definition" "oracle_job" {
   })
 }
 
+resource "aws_ecs_task_definition" "control_job" {
+  for_each = local.control_job_specs
+
+  family                   = each.value.family_name
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.ecs_daemon_task_cpu
+  memory                   = var.ecs_daemon_task_memory
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.lane_app_roles["rtdl_core"].arn
+
+  container_definitions = jsonencode([
+    {
+      name      = each.key
+      image     = local.daemon_container_image_resolved
+      essential = true
+      command   = each.value.command
+      environment = [
+        {
+          name  = var.required_platform_run_id_env_key
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "FP_PACK_ID"
+          value = "control_ingress"
+        },
+        {
+          name  = "FP_RUNTIME_MODE"
+          value = "job"
+        },
+        {
+          name  = "FP_COMPONENT_MODE"
+          value = each.value.component_mode
+        },
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.demo.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs/control/${each.key}"
+        }
+      }
+    }
+  ])
+
+  tags = merge(local.tags_demo, {
+    fp_resource = "demo_ecs_task_definition_control_job"
+    fp_pack     = "control_ingress"
+    fp_service  = each.value.family_name
+  })
+}
+
 resource "aws_ecs_service" "daemon" {
   for_each = local.daemon_service_specs
 
@@ -681,8 +755,11 @@ resource "aws_s3_object" "manifest" {
     rds_instance_id       = aws_db_instance.runtime.identifier
     rds_endpoint          = aws_db_instance.runtime.address
     td_db_migrations      = aws_ecs_task_definition.db_migrations.arn
+    td_sr                 = aws_ecs_task_definition.control_job["sr"].arn
+    td_wsp                = aws_ecs_task_definition.control_job["wsp"].arn
     daemon_services       = { for key, svc in aws_ecs_service.daemon : key => svc.name }
     daemon_task_defs      = { for key, td in aws_ecs_task_definition.daemon : key => td.arn }
+    control_job_task_defs = { for key, td in aws_ecs_task_definition.control_job : key => td.arn }
     ssm_paths = {
       confluent_bootstrap  = aws_ssm_parameter.confluent_bootstrap.name
       confluent_api_key    = aws_ssm_parameter.confluent_api_key.name
