@@ -237,8 +237,13 @@ def render_docs_lite_dot(segments: List[SegmentNode], gate_refs: Dict[Tuple[str,
         lines.append('    style="rounded,filled";')
         lines.append(f'    color="{layer_colors.get(layer, "#f3f4f6")}";')
         for seg in sorted(by_layer[layer], key=lambda s: seg_sort_key(s.seg_id)):
-            label = f"{seg.seg_id}\\n{seg.title}\\n{len(seg.states)} states"
-            lines.append(f'    {segment_node_id(seg.seg_id)} [label="{dot_escape(label)}"];')
+            # Use HTML-like labels so line breaks render reliably in SVG viewers.
+            label = (
+                f"<{dot_html_escape(seg.seg_id)}<BR/>"
+                f"{dot_html_escape(seg.title)}<BR/>"
+                f"{len(seg.states)} states>"
+            )
+            lines.append(f"    {segment_node_id(seg.seg_id)} [label={label}];")
         lines.append("  }")
         lines.append("")
 
@@ -402,6 +407,11 @@ def dot_escape(text: str) -> str:
     # Graphviz interprets backslash escapes (e.g. \n) inside labels.
     # Do not double-escape backslashes here, otherwise \n renders literally.
     return text.replace('"', '\\"')
+
+def dot_html_escape(text: str) -> str:
+    # Minimal escaping for Graphviz HTML-like labels.
+    # Using HTML labels avoids reliance on SVG text newline handling in viewers.
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def mmd_escape(text: str) -> str:
@@ -691,11 +701,12 @@ def render_code_io_lite_dot(segments: List[SegmentNode], seg_edges, unresolved_s
             reads = len({ds for st in seg.states.values() for ds in st.reads})
             writes = len({ds for st in seg.states.values() for ds in st.writes})
             label = (
-                f"{seg.seg_id}\\n{seg.title}\\n"
-                f"owner: {segment_owner_hint(seg)}\\n"
-                f"IO contract: R={reads} W={writes}"
+                f"<{dot_html_escape(seg.seg_id)}<BR/>"
+                f"{dot_html_escape(seg.title)}<BR/>"
+                f"{dot_html_escape('owner: ' + segment_owner_hint(seg))}<BR/>"
+                f"{dot_html_escape(f'IO contract: R={reads} W={writes}')}>"
             )
-            lines.append(f'    {segment_node_id(seg.seg_id)} [label="{dot_escape(label)}"];')
+            lines.append(f"    {segment_node_id(seg.seg_id)} [label={label}];")
         lines.append("  }")
         lines.append("")
 
