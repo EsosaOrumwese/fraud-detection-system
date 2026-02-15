@@ -10512,3 +10512,121 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
 2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
    - `M5` status set to `DONE`,
    - M5 sub-phase progress and DoD checklist set complete with closure evidence references.
+
+## Entry: 2026-02-15 02:01AM - Pre-change planning lock: M6 expansion in platform and deep plan docs
+
+### Trigger
+1. USER instructed: proceed with M6 planning in `platform.build_plan.md` and `platform.M6.build_plan.md`.
+
+### Objective
+1. Activate M6 planning from the now-complete M5 handoff and make M6 execution-ready at planning level.
+2. Expand M6 in both docs with closure-grade coverage for canonical phases `P4..P7`:
+   - `P4 INGEST_READY`,
+   - `P5 READY_PUBLISHED`,
+   - `P6 STREAMING_ACTIVE`,
+   - `P7 INGEST_COMMITTED`.
+
+### Authority inputs
+1. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P4..P7` sections).
+2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` (service/task/auth/topic/knob handles).
+3. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`.
+4. M5 closure artifacts, especially:
+   - `runs/dev_substrate/m5/20260215T002310Z/m6_handoff_pack.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m6_handoff_pack.json`.
+
+### Planned scope
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - set roadmap status to reflect M5 closure and M6 activation,
+   - replace M6 gate-only summary with expanded active-phase planning posture and DoD/checklist,
+   - route to deep plan file and pin M6 immediate next action.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md` (new)
+   - deep plan purpose, scope, capability-lane matrix, evidence contract,
+   - sub-phase breakdown (`M6.A..M6.I`) with entry conditions, tasks, DoD, blockers.
+
+### Non-goals
+1. No M6 runtime execution in this step (planning-only).
+2. No branch/history operations.
+
+## Entry: 2026-02-15 02:04AM - Applied M6 planning expansion in main and deep build plans
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md` (new)
+
+### Main-plan updates applied
+1. Updated phase roadmap/status posture:
+   - `M5` marked `DONE`,
+   - `M6` marked `ACTIVE`.
+2. Updated deep-plan routing state:
+   - added explicit `M6` deep-plan file presence.
+3. Updated phase-current posture:
+   - `M6` is now the active planning phase after M5 closure.
+4. Replaced M6 gate-only summary with expanded active-phase planning posture:
+   - objective, scope, failure posture,
+   - `M6.A..M6.I` sub-phase model,
+   - M6 DoD checklist,
+   - M6 immediate-next-action directives.
+
+### New deep-plan file (`platform.M6.build_plan.md`)
+1. Added M6 deep authority scaffold:
+   - purpose, authority inputs, scope boundaries, deliverables.
+2. Added execution governance sections:
+   - execution gate,
+   - anti-cram law,
+   - capability-lane coverage matrix.
+3. Added closure-grade work breakdown for `M6.A..M6.I`:
+   - each sub-phase has goal, entry conditions, tasks, DoD, blockers.
+4. Added M6 evidence contract with pinned minimal artifacts and control-plane/run roots.
+5. Added completion checklist, risk/control register, blocker register, and M6 exit criteria.
+
+### Outcome
+1. M6 is now planning-complete at execution-readiness level (no runtime actions executed yet).
+2. Next executable step is `M6.A` handle/authority closure against M5 handoff.
+
+## Entry: 2026-02-15 02:06AM - Pre-change planning lock: expand M6.A to execution-grade closure plan
+
+### Trigger
+1. USER instructed to begin planning `M6.A`.
+
+### Objective
+1. Expand `M6.A` from a concise checklist into an execution-grade sub-phase plan with:
+   - explicit entry invariants,
+   - concrete required inputs,
+   - deterministic handle-closure matrix and validation probes,
+   - snapshot schema and fail-closed blocker mapping.
+
+### Planned scope
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md`
+   - replace `M6.A` section with expanded structure and stronger closure criteria.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - add M6 expansion-state note that `M6.A` is now execution-grade and is the immediate execution gate.
+
+### Non-goals
+1. No M6 runtime execution in this step.
+2. No branch/history operations.
+
+## Entry: 2026-02-15 02:08AM - Applied M6.A planning expansion to execution-grade closure
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### M6.A planning upgrades applied
+1. Reworked `M6.A` from compact checklist to execution-grade sub-phase with:
+   - expanded entry invariants (M5 handoff + closure artifact readability),
+   - explicit required input set grouped by lane/concern,
+   - deterministic required-handle closure matrix contract,
+   - non-secret materialization probe requirements by handle class,
+   - critical policy pin checks (`IG_AUTH_MODE`, `WSP_STOP_ON_NONRETRYABLE`),
+   - expanded snapshot schema and publication contract.
+2. Strengthened fail-closed blocker model for `M6.A`:
+   - unresolved handles,
+   - placeholder/wildcard drift,
+   - probe failures,
+   - policy pin mismatches,
+   - snapshot publication failure.
+3. Added M6 expansion-state note in main build plan so `M6.A` execution readiness is visible without opening deep plan.
+
+### Outcome
+1. `M6.A` is now planning-complete for execution gating.
+2. Next actionable step remains `M6.A` execution (handle closure run + snapshot publication), not `M6.B`.

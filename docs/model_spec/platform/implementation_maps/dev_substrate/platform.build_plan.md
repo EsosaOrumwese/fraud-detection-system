@@ -1,6 +1,6 @@
 # Dev Substrate Migration Build Plan (Fresh Start)
 _Track: local_parity -> dev_min managed substrate (Spine Green v0)_
-_Last updated: 2026-02-14_
+_Last updated: 2026-02-15_
 
 ## 0) Purpose
 This is the active execution plan for migrating the already-canonical local-parity Spine Green v0 flow into `dev_min` with:
@@ -80,8 +80,8 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | M2 | P0 | Substrate readiness (Terraform core+confluent+demo) | DONE |
 | M3 | P1 | Run pinning + run manifest evidence | DONE |
 | M4 | P2 | Daemon bring-up on ECS with run-scope controls | DONE |
-| M5 | P3 | Oracle lane (inlet assertion/sort/checker) | ACTIVE |
-| M6 | P4-P7 | Control+Ingress closure | NOT_STARTED |
+| M5 | P3 | Oracle lane (inlet assertion/sort/checker) | DONE |
+| M6 | P4-P7 | Control+Ingress closure | ACTIVE |
 | M7 | P8-P10 | RTDL + Case/Labels closure | NOT_STARTED |
 | M8 | P11 | Obs/Gov closure | NOT_STARTED |
 | M9 | P12 | Teardown proof + cost guardrails | NOT_STARTED |
@@ -107,7 +107,8 @@ Current deep-plan file state:
 - `M3`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md` (present)
 - `M4`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md` (present)
 - `M5`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md` (present)
-- `M6..M10`: deferred until phase activation is approved.
+- `M6`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md` (present)
+- `M7..M10`: deferred until phase activation is approved.
 
 ---
 
@@ -137,7 +138,8 @@ Current phase posture:
 - `M2` is `DONE`,
 - `M3` is `DONE`,
 - `M4` is `DONE`,
-- `M5` is `ACTIVE` for deep planning before execution.
+- `M5` is `DONE`,
+- `M6` is `ACTIVE` for deep planning before execution.
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -360,7 +362,7 @@ M3 DoD checklist:
 
 ---
 
-## 9) M5 Active Phase + Remaining Phases
+## 9) M6 Active Phase + Remaining Phases
 
 ## M4 - P2 Daemon bring-up
 Status: `DONE`
@@ -475,15 +477,87 @@ M5 DoD checklist:
 - [x] M5 verdict and M6 handoff package are published and non-secret.
 
 ## M6 - P4-P7 Control + Ingress closure
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 Entry gate:
 - M5 is `DONE`.
-DoD summary:
-- P4: IG auth + health contract passes (`/v1/ops/health` and ingest auth fail-closed behavior).
-- P5: SR gate/lease passes and READY publish evidence exists.
-- P6: WSP streams from P3 `stream_view` only, with deterministic identity/retry posture.
-- P7: IG commit evidence includes receipt/quarantine summaries and Kafka offsets snapshot.
-- no unresolved `PUBLISH_AMBIGUOUS` for closure set.
+- M5 handoff artifact is present:
+  - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m6_handoff_pack.json`.
+
+Objective:
+- Close `P4..P7` end-to-end on managed substrate:
+  - `P4` IG readiness + writer-boundary auth,
+  - `P5` SR gate execution + READY publication,
+  - `P6` WSP stream activation from P3 `stream_view`,
+  - `P7` ingest commit verification (receipts, quarantine, offsets, ambiguity gate).
+- Preserve no-laptop runtime law and fail-closed progression to M7.
+
+Scope:
+- `P4 INGEST_READY`:
+  - `SVC_IG` health and auth boundary checks,
+  - Kafka publish smoke and S3 receipt/quarantine write smoke,
+  - run-scoped `ingest/ig_ready.json` evidence.
+- `P5 READY_PUBLISHED`:
+  - one-shot `TD_SR` run under run scope,
+  - SR gate PASS + READY message publication receipt,
+  - run-scoped SR evidence artifacts.
+- `P6 STREAMING_ACTIVE`:
+  - one-shot `TD_WSP` run with READY precondition,
+  - stream-view-first reads from M5 outputs only,
+  - deterministic send/retry posture + WSP summary artifacts.
+- `P7 INGEST_COMMITTED`:
+  - IG outcome verification (ADMIT/DUPLICATE/QUARANTINE/ANOMALY),
+  - receipt and offset snapshot closure,
+  - hard fail on unresolved `PUBLISH_AMBIGUOUS`.
+
+Failure posture:
+- fail closed on any of:
+  - IG auth/health boundary failure,
+  - SR failure or missing READY publication,
+  - WSP non-retryable/terminal failure,
+  - missing ingest commit evidence,
+  - unresolved `PUBLISH_AMBIGUOUS`.
+
+Active-phase planning posture:
+- Detailed M6 authority file:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md`.
+- M6 entry handoff anchor:
+  - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m6_handoff_pack.json`.
+- M6 sub-phase progression model:
+  - `M6.A` authority + handle closure for `P4..P7`,
+  - `M6.B` P4 IG deploy/health/auth readiness checks,
+  - `M6.C` P4 Kafka/S3 smoke + `ig_ready.json` publication,
+  - `M6.D` P5 SR task run + READY publication proof,
+  - `M6.E` P6 WSP launch contract + READY consumption proof,
+  - `M6.F` P6 WSP execution summary + IG boundary transfer proof,
+  - `M6.G` P7 ingest commit verification (receipts/quarantine/offsets),
+  - `M6.H` P4..P7 gate rollup + verdict,
+  - `M6.I` M7 handoff artifact publication.
+- M6 expansion state:
+  - `M6.A` is now execution-grade in deep plan with:
+    - explicit required input set,
+    - deterministic handle-closure matrix contract,
+    - materialization probe requirements,
+    - fail-closed blocker taxonomy and snapshot schema.
+
+- Sub-phase progress:
+  - [ ] `M6.A` authority + handle closure for `P4..P7`.
+  - [ ] `M6.B` P4 IG deploy/health/auth readiness.
+  - [ ] `M6.C` P4 Kafka/S3 smoke and `ig_ready.json`.
+  - [ ] `M6.D` P5 SR PASS + READY publication.
+  - [ ] `M6.E` P6 WSP launch contract + READY consumption proof.
+  - [ ] `M6.F` P6 WSP execution summary.
+  - [ ] `M6.G` P7 ingest commit evidence closure.
+  - [ ] `M6.H` P4..P7 verdict + blocker rollup.
+  - [ ] `M6.I` M7 handoff publication.
+
+M6 DoD checklist:
+- [ ] IG service readiness + auth boundary checks pass and `ingest/ig_ready.json` is durable.
+- [ ] SR task PASS evidence exists and READY publication receipt is durable.
+- [ ] WSP executes from P3 `stream_view` only and writes `wsp_summary` evidence.
+- [ ] Ingest receipt/offset/quarantine summaries exist and are coherent.
+- [ ] `PUBLISH_AMBIGUOUS` unresolved count is zero for closure set.
+- [ ] M6 verdict is `ADVANCE_TO_M7` with empty blocker rollup.
+- [ ] M7 handoff pack is published and non-secret.
 
 ## M7 - P8-P10 RTDL + Case/Labels closure
 Status: `NOT_STARTED`
@@ -622,8 +696,8 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M5 is active for deep-plan closure and execution sequencing.
+M6 is active for deep-plan closure and execution sequencing.
 Next action:
-- start with `M5.A` authority + handle closure for P3 using the M4 handoff anchor,
-- confirm P3 decision set is explicitly pinned (required output_ids, sort-key map, inlet policy, task-definition handles) before execution,
-- proceed to `M5.B` only after `M5.A` blockers are empty.
+- start with `M6.A` authority + handle closure for `P4..P7` using the M5 handoff anchor,
+- confirm M6 decision set is explicitly pinned (IG/SR/WSP handles, READY/control topic posture, ingest evidence paths, ambiguity gate rule) before execution,
+- proceed to `M6.B` only after `M6.A` blockers are empty.
