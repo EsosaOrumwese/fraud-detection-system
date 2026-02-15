@@ -338,13 +338,44 @@ Blockers:
 4. `M6C-B4`: runtime posture drift (`file` bus and/or local storage shim) blocks managed Kafka/S3 proof.
 5. `M6C-B5`: topic-offset verification surface unavailable or non-deterministic for selected smoke topic.
 
-Execution hold (as-of 2026-02-15):
-1. `M6C-B4` is currently open based on latest M6.B PASS snapshot (`m6_20260215T040527Z`):
+Initial execution hold (historical, now closed):
+1. `M6C-B4` was opened based on latest M6.B PASS snapshot (`m6_20260215T040527Z`):
    - active IG command still uses planning shim that mutates runtime profile to `event_bus_kind=file` and local `runs` object-store root.
 2. Closure requirement before M6.C execution:
    - rematerialize IG runtime command/profile to managed bus + durable object-store posture for dev substrate,
    - rerun M6.B-style runtime-surface confirmation,
    - then execute M6.C smoke/commit lane.
+
+Execution status (2026-02-15):
+1. Executed fail-closed M6.C preflight snapshot (no false smoke claim while `M6C-B4` is open):
+   - local: `runs/dev_substrate/m6/20260215T071807Z/m6_c_ingest_ready_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T071807Z/m6_c_ingest_ready_snapshot.json`
+2. Result:
+   - `overall_pass=false`
+   - blocker set: `M6C-B4`
+3. Runtime preflight findings in authoritative snapshot:
+   - `uses_local_parity_profile=true`
+   - `forces_file_bus=true`
+   - `forces_local_runs_store=true`
+4. Because runtime posture is not yet managed-bus/durable-store conformant, M6.C smoke steps were intentionally not executed:
+   - no Kafka publish smoke,
+   - no topic offset verification,
+   - no `ingest/ig_ready.json` publication claim.
+5. Rematerialization and closure reruns:
+   - IG runtime rematerialized from temporary local file-bus shim to managed-bus + durable-store posture.
+   - Intermediate fail-closed retries (kept as history):
+     - `runs/dev_substrate/m6/20260215T082355Z/m6_c_ingest_ready_snapshot.json` (`M6C-B1`, service transition window)
+     - `runs/dev_substrate/m6/20260215T082520Z/m6_c_ingest_ready_snapshot.json` (`M6C-B1`, envelope invalid)
+     - `runs/dev_substrate/m6/20260215T083016Z/m6_c_ingest_ready_snapshot.json` (`M6C-B5`, readback method)
+6. Authoritative closure snapshot:
+   - local: `runs/dev_substrate/m6/20260215T083126Z/m6_c_ingest_ready_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T083126Z/m6_c_ingest_ready_snapshot.json`
+   - run-scoped readiness artifact:
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/ig_ready.json`
+   - result: `overall_pass=true`, blocker set empty.
+7. Implementation note for this closure run:
+   - publish/read smoke is proven on the active managed stream adapter (`kinesis_sequence` evidence in `eb_ref`),
+   - no local file-bus or local-runs object-store shim remains in active IG runtime command.
 
 ### M6.D P5 SR Task + READY Publication
 Goal:
@@ -542,7 +573,7 @@ Notes:
 ## 7) M6 Completion Checklist
 - [x] M6.A complete
 - [x] M6.B complete
-- [ ] M6.C complete
+- [x] M6.C complete
 - [ ] M6.D complete
 - [ ] M6.E complete
 - [ ] M6.F complete
@@ -565,13 +596,13 @@ Control: hard fail on unresolved `PUBLISH_AMBIGUOUS` in `M6.G`.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M6 Closure)
 Current blockers:
-1. `M6C-B4` - M6.C pre-execution runtime posture drift:
-   - active IG runtime still includes `file` bus + local `runs` object-store shim from M6.B closure path,
-   - this cannot satisfy M6.C managed Kafka/S3 smoke evidence objective.
-2. Closure criteria:
-   - IG runtime rematerialized to managed bus + durable object-store configuration,
-   - runtime-surface proof captured in new snapshot,
-   - M6.C execution then proceeds and passes with durable `ig_ready.json` evidence.
+1. none.
+2. M6.C blocker chain (`M6C-B4` -> `M6C-B1` -> `M6C-B5`) is closed by snapshot:
+   - `runs/dev_substrate/m6/20260215T083126Z/m6_c_ingest_ready_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T083126Z/m6_c_ingest_ready_snapshot.json`
+3. Control note:
+   - runtime rematerialization used an immediate live hotfix path;
+   - IaC file updates are present in `infra/terraform/modules/demo/main.tf` and must be converged with a successful managed Terraform apply before later phase closure.
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

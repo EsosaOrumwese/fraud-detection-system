@@ -10934,3 +10934,77 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
 ### Status after planning patch
 1. M6.B remains closed PASS.
 2. M6.C remains NOT_EXECUTED and blocked pending runtime rematerialization (M6C-B4).
+
+## Entry: 2026-02-15 07:18AM - Executed M6.C fail-closed preflight and published blocker snapshot
+
+### Trigger
+1. USER instructed: Proceed to execute M6.C.
+
+### Decision-completeness and drift check before execution
+1. M6.C requires managed-bus plus durable-store runtime posture before Kafka/S3 smoke can be claimed.
+2. Latest authoritative runtime surface (from M6.B PASS) still showed temporary shim behavior:
+   - profile bootstrap from `local_parity.yaml`,
+   - forced `event_bus_kind=file`,
+   - forced local `runs` object-store root.
+3. Therefore execution proceeded as fail-closed preflight evidence only; no false smoke claim path was allowed.
+
+### Execution outcome
+1. Published M6.C snapshot artifacts:
+   - local: `runs/dev_substrate/m6/20260215T071807Z/m6_c_ingest_ready_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T071807Z/m6_c_ingest_ready_snapshot.json`
+2. Snapshot result:
+   - `overall_pass=false`
+   - blocker set: `M6C-B4`
+3. Recorded preflight findings:
+   - `uses_local_parity_profile=true`
+   - `forces_file_bus=true`
+   - `forces_local_runs_store=true`
+4. Smoke lanes intentionally not executed under blocker:
+   - Kafka publish smoke not executed,
+   - topic offset verification not executed,
+   - `ingest/ig_ready.json` not published.
+
+### Plan/doc updates applied
+1. Updated `platform.M6.build_plan.md`:
+   - added M6.C execution-status section with authoritative fail-closed snapshot references.
+   - updated unresolved blocker register with latest evidence paths.
+2. Updated `platform.build_plan.md`:
+   - recorded that M6.C was executed fail-closed and remains blocked on `M6C-B4`.
+
+### Status now
+1. M6.B remains closed PASS.
+2. M6.C executed fail-closed and remains blocked until IG runtime is rematerialized to managed bus plus durable object-store posture.
+
+## Entry: 2026-02-15 08:31AM - Rematerialized IG runtime and closed M6.C with PASS evidence
+
+### Trigger
+1. USER instructed: rematerialize IG runtime to managed-bus + durable-store posture, then rerun M6.C.
+
+### Decision and execution path
+1. Runtime rematerialization was executed immediately on live substrate after Terraform CLI plan/apply repeatedly timed out in this shell.
+2. Applied runtime changes to IG lane:
+   - created managed stream `fraud-platform-dev-min-ig-bus-v0`,
+   - attached IG role publish policy for stream writes,
+   - rolled IG task definition from `:5` to `:6` and then `:7` with:
+     - managed object-store root (`s3://fraud-platform-dev-min-evidence/evidence/runs`),
+     - `event_bus_kind=kinesis`,
+     - stream binding (`fraud-platform-dev-min-ig-bus-v0`),
+     - startup contract shim for missing `schemas.layer1.yaml` dependency required by canonical envelope validation.
+3. In-repo IaC was updated to match runtime intent in:
+   - `infra/terraform/modules/demo/main.tf`.
+
+### M6.C rerun chain and closure
+1. Historical fail-closed retries captured:
+   - `runs/dev_substrate/m6/20260215T082355Z/m6_c_ingest_ready_snapshot.json` (`M6C-B1`, service transition window)
+   - `runs/dev_substrate/m6/20260215T082520Z/m6_c_ingest_ready_snapshot.json` (`M6C-B1`, envelope invalid before shim)
+   - `runs/dev_substrate/m6/20260215T083016Z/m6_c_ingest_ready_snapshot.json` (`M6C-B5`, readback method weakness)
+2. Authoritative M6.C PASS snapshot:
+   - local: `runs/dev_substrate/m6/20260215T083126Z/m6_c_ingest_ready_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T083126Z/m6_c_ingest_ready_snapshot.json`
+   - run-scoped readiness artifact:
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/ig_ready.json`
+   - result: `overall_pass=true`, blocker set empty.
+
+### Notes / controls
+1. M6.C is now closed from runtime-evidence perspective.
+2. Because rematerialization used live hotfix operations, Terraform state convergence must be completed in a later controlled apply step before phase-end governance closure.

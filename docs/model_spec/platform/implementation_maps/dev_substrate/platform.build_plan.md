@@ -554,14 +554,25 @@ Active-phase planning posture:
       - app SG ingress rule exists for probe path,
       - IG API key in SSM is non-placeholder,
       - health/auth probes satisfy M6.B gate contract.
-  - `M6.C` is now planning-expanded and execution-gated:
+  - `M6.C` was planning-expanded and execution-gated:
     - explicit runtime-preflight, Kafka offset-smoke, and durable `ig_ready.json` publication lanes are defined in deep plan,
-    - pre-execution blocker `M6C-B4` is open: active IG runtime still uses temporary `file`-bus/local-store shim from M6.B closure.
+    - initial pre-execution blocker `M6C-B4` was opened on temporary `file`-bus/local-store shim from M6.B closure.
+  - Initial `M6.C` fail-closed execution history:
+    - local snapshot: `runs/dev_substrate/m6/20260215T071807Z/m6_c_ingest_ready_snapshot.json`
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T071807Z/m6_c_ingest_ready_snapshot.json`
+    - result: `overall_pass=false` with blocker `M6C-B4`;
+    - no Kafka smoke / `ig_ready.json` claim was made while runtime posture is non-conformant.
+  - `M6.C` closure rerun now passes with durable evidence:
+    - local snapshot: `runs/dev_substrate/m6/20260215T083126Z/m6_c_ingest_ready_snapshot.json`
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T083126Z/m6_c_ingest_ready_snapshot.json`
+    - run-scoped readiness artifact: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/ig_ready.json`
+    - result: `overall_pass=true`, blocker rollup empty for M6.C.
+    - publish/read proof captured via active managed stream adapter evidence (`eb_ref.offset_kind=kinesis_sequence`).
 
 - Sub-phase progress:
   - [x] `M6.A` authority + handle closure for `P4..P7`.
   - [x] `M6.B` P4 IG deploy/health/auth readiness.
-  - [ ] `M6.C` P4 Kafka/S3 smoke and `ig_ready.json`.
+  - [x] `M6.C` P4 Kafka/S3 smoke and `ig_ready.json`.
   - [ ] `M6.D` P5 SR PASS + READY publication.
   - [ ] `M6.E` P6 WSP launch contract + READY consumption proof.
   - [ ] `M6.F` P6 WSP execution summary.
@@ -570,7 +581,7 @@ Active-phase planning posture:
   - [ ] `M6.I` M7 handoff publication.
 
 M6 DoD checklist:
-- [ ] IG service readiness + auth boundary checks pass and `ingest/ig_ready.json` is durable.
+- [x] IG service readiness + auth boundary checks pass and `ingest/ig_ready.json` is durable.
 - [ ] SR task PASS evidence exists and READY publication receipt is durable.
 - [ ] WSP executes from P3 `stream_view` only and writes `wsp_summary` evidence.
 - [ ] Ingest receipt/offset/quarantine summaries exist and are coherent.
@@ -717,6 +728,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M6 is active for deep-plan closure and execution sequencing.
 Next action:
-- close `M6C-B4` by rematerializing IG runtime from temporary `file` shim to managed bus + durable object-store posture,
-- execute `M6.C` P4 Kafka/S3 smoke and publish `ingest/ig_ready.json`,
-- require `M6.C` snapshot `overall_pass=true`, then proceed to `M6.D`.
+- execute `M6.D` P5 SR task + READY publication verification,
+- require `M6.D` snapshot `overall_pass=true`,
+- then proceed to `M6.E`.

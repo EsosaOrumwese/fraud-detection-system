@@ -4,10 +4,11 @@ locals {
     fp_tier  = "demo"
   })
 
-  manifest_key      = "dev_min/infra/demo/${var.demo_run_id}/manifest.json"
-  topic_catalog_key = "dev_min/infra/demo/${var.demo_run_id}/confluent/topic_catalog.json"
-  heartbeat_param   = "/fraud-platform/dev_min/demo/${var.demo_run_id}/heartbeat"
-  db_password_value = trimspace(var.db_password) != "" ? var.db_password : random_password.db_password.result
+  manifest_key             = "dev_min/infra/demo/${var.demo_run_id}/manifest.json"
+  topic_catalog_key        = "dev_min/infra/demo/${var.demo_run_id}/confluent/topic_catalog.json"
+  heartbeat_param          = "/fraud-platform/dev_min/demo/${var.demo_run_id}/heartbeat"
+  ig_event_bus_stream_name = "${var.name_prefix}-ig-bus-v0"
+  db_password_value        = trimspace(var.db_password) != "" ? var.db_password : random_password.db_password.result
   lane_role_names = {
     ig_service      = "${var.name_prefix}-ig-service"
     rtdl_core       = "${var.name_prefix}-rtdl-core"
@@ -292,6 +293,16 @@ resource "aws_ecs_cluster" "demo" {
   tags = merge(local.tags_demo, { fp_resource = "demo_ecs_cluster" })
 }
 
+resource "aws_kinesis_stream" "ig_event_bus" {
+  name             = local.ig_event_bus_stream_name
+  shard_count      = 1
+  retention_period = 24
+
+  tags = merge(local.tags_demo, {
+    fp_resource = "demo_ig_event_bus_stream"
+  })
+}
+
 data "aws_iam_policy_document" "ecs_task_assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -383,6 +394,21 @@ data "aws_iam_policy_document" "lane_app_object_store_data_plane" {
   }
 }
 
+data "aws_iam_policy_document" "lane_app_kinesis_publish" {
+  statement {
+    sid = "KinesisPublish"
+    actions = [
+      "kinesis:DescribeStreamSummary",
+      "kinesis:ListShards",
+      "kinesis:PutRecord",
+      "kinesis:PutRecords",
+    ]
+    resources = [
+      aws_kinesis_stream.ig_event_bus.arn,
+    ]
+  }
+}
+
 resource "aws_iam_role" "ecs_task_execution" {
   name               = "${var.name_prefix}-ecs-task-execution"
   assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
@@ -434,6 +460,17 @@ resource "aws_iam_role_policy" "lane_app_object_store_data_plane" {
   name   = "${var.name_prefix}-${each.key}-object-store-data-plane"
   role   = each.value.id
   policy = data.aws_iam_policy_document.lane_app_object_store_data_plane.json
+}
+
+resource "aws_iam_role_policy" "lane_app_kinesis_publish" {
+  for_each = {
+    for key, role in aws_iam_role.lane_app_roles : key => role
+    if contains(["ig_service"], key)
+  }
+
+  name   = "${var.name_prefix}-${each.key}-kinesis-publish"
+  role   = each.value.id
+  policy = data.aws_iam_policy_document.lane_app_kinesis_publish.json
 }
 
 resource "aws_ecs_task_definition" "runtime_probe" {
@@ -534,7 +571,7 @@ resource "aws_ecs_task_definition" "daemon" {
       command = each.key == "ig" ? [
         "sh",
         "-c",
-        "set -e; cp config/platform/profiles/local_parity.yaml /tmp/dev_min_ig_m6b.yaml; python - <<'PY'\nfrom pathlib import Path\nimport yaml\nprofile_path = Path('/tmp/dev_min_ig_m6b.yaml')\ndata = yaml.safe_load(profile_path.read_text(encoding='utf-8'))\nwiring = data.setdefault('wiring', {})\nobj = wiring.setdefault('object_store', {})\nobj['root'] = 'runs'\nwiring['health_bus_probe_mode'] = 'none'\nwiring['event_bus_kind'] = 'file'\nevent_bus = wiring.setdefault('event_bus', {})\nevent_bus['root'] = 'runs/fraud-platform/eb'\nfor key in ('stream', 'region', 'endpoint_url'):\n    event_bus.pop(key, None)\nprofile_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding='utf-8')\nPY\npython -m fraud_detection.ingestion_gate.service --profile /tmp/dev_min_ig_m6b.yaml --host 0.0.0.0 --port 8080",
+        "set -e; cp config/platform/profiles/local_parity.yaml /tmp/dev_min_ig_m6c.yaml; python - <<'PY'\nfrom pathlib import Path\nimport yaml\nlayer1_path = Path('/app/docs/model_spec/data-engine/interface_pack/layer-1/specs/contracts/1A/schemas.layer1.yaml')\nif not layer1_path.exists():\n    layer1_path.parent.mkdir(parents=True, exist_ok=True)\n    layer1_stub = {\n        'version': '0.1.0',\n        '$defs': {\n            'hex64': {'type': 'string', 'pattern': '^[0-9a-f]{64}$'},\n            'hex32': {'type': 'string', 'pattern': '^[0-9a-f]{32}$'},\n            'uint64': {'type': 'integer', 'minimum': 0, 'maximum': 18446744073709551615},\n            'rfc3339_micros': {'type': 'string', 'pattern': '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\\\.[0-9]{6}Z$'},\n        },\n    }\n    layer1_path.write_text(yaml.safe_dump(layer1_stub, sort_keys=False), encoding='utf-8')\nprofile_path = Path('/tmp/dev_min_ig_m6c.yaml')\ndata = yaml.safe_load(profile_path.read_text(encoding='utf-8'))\nwiring = data.setdefault('wiring', {})\nobj = wiring.setdefault('object_store', {})\nobj['root'] = 's3://${var.evidence_bucket}/evidence/runs'\nobj['region'] = '${var.aws_region}'\nobj['path_style'] = False\nobj.pop('endpoint', None)\nwiring['health_bus_probe_mode'] = 'none'\nwiring['event_bus_kind'] = 'kinesis'\nevent_bus = wiring.setdefault('event_bus', {})\nevent_bus.pop('root', None)\nevent_bus['stream'] = '${local.ig_event_bus_stream_name}'\nevent_bus['region'] = '${var.aws_region}'\nevent_bus.pop('endpoint_url', None)\nprofile_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding='utf-8')\nPY\npython -m fraud_detection.ingestion_gate.service --profile /tmp/dev_min_ig_m6c.yaml --host 0.0.0.0 --port 8080",
         ] : [
         "sh",
         "-c",
