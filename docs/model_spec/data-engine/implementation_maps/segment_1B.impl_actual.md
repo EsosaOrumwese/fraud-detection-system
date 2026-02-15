@@ -5142,3 +5142,46 @@ Chosen execution lane (this cycle):
 Risk/controls:
 1) Over-aggressive rebalance can distort pair-level feasibility or trigger new concentration oscillations; we keep one bounded candidate and evaluate proxy before full-chain spend.
 2) If this pass fails proxy, next escalation should combine `1A/S2` ingress count-shape with this `1B/S2` lane (joint reopen), still under freeze-veto.
+
+---
+
+### Entry: 2026-02-15 00:18
+
+Design element: first high-blast `S2` retune attempt aborted on runtime blow-up; bounded profile required.
+Summary: Executed fresh candidate run `48ff3a82b73542c881b50bb02547a41d` with aggressive `S2 blend_v2` settings. `S0/S1` completed, but `S2` became runtime-intractable (orders of magnitude slower than the closed lane), so the job was terminated and the profile is being downshifted before retry.
+
+Observed behavior:
+1) Run reached:
+   - `S0 PASS`, `S1 PASS`,
+   - `S2` started and consumed new policy (`uniform=0.45, area=0.35, population=0.20`, tighter caps, stronger floors, penalty `0.28`, iterations `36`).
+2) Runtime evidence from `run_log_48ff...`:
+   - at country `37/249`, elapsed already `~1383s` with emitted rows only `~30.6M`,
+   - ETA drifted to multi-hour (`>2h`) and trending worse.
+3) Background `make/python` processes for this run were explicitly terminated to stop runaway compute.
+
+Interpretation:
+1) The first aggressive profile over-stressed S2 rebalance work and is not acceptable for iterative remediation throughput.
+2) We need a bounded profile that preserves directional breadth pressure but keeps S2 runtime within the closed-lane envelope.
+
+Next correction:
+1) Reduce policy aggression (mix/floors/caps/penalty) and return `max_rebalance_iterations` to bounded range.
+2) Re-run on a fresh run-id and re-evaluate `P4.R3` proxy before any full-chain spend.
+
+---
+
+### Entry: 2026-02-15 01:20
+
+Design element: bounded profile retry also fails runtime envelope; root-cause isolated to `population` basis lane.
+Summary: Second retry on run `34b923498fe24eabb01fef574a393853` still produced multi-hour `S2` runtime with ETA runaway. We halted the run and isolated the throughput killer: enabling nonzero `population` mix in `S2`.
+
+Evidence:
+1) `S2` logged `blend_v2 mix uniform=0.40 area_m2=0.50 population=0.10`.
+2) Runtime trajectory:
+   - at `countries_processed=62/249`, elapsed already `~3335s`,
+   - ETA drifted to `~10060s` remaining (>2.7 hours) before `S3/S4`.
+3) Compared to closed lane (population disabled), this is not operationally viable for iterative remediation.
+
+Decision:
+1) Keep high-blast remediation in policy space, but disable `population` contribution for runtime safety (`population=0.0`).
+2) Continue with moderate concentration/cap/floor pressure using only `uniform + area_m2` and bounded convergence settings.
+3) Re-run on fresh run-id and only proceed to full chain if proxy passes.

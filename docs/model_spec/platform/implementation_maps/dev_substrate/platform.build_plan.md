@@ -374,7 +374,7 @@ Closure summary:
   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
 
 ## M5 - P3 Oracle lane
-Status: `ACTIVE`
+Status: `DONE`
 Entry gate:
 - M4 is `DONE`.
 - M4 handoff artifact is present:
@@ -448,23 +448,31 @@ Active-phase planning posture:
   - decision lock:
     - `M5` gates migration using `lane_mode=functional_green` workload profile only.
     - full-scale throughput/perf closure is routed to `M10` (Scale Green), not used to mutate M5 gate semantics.
+    - functional-gating M5.E runs must publish `functional_workload_profile.json` as pre-launch evidence.
 - Sub-phase progress:
   - [x] `M5.A` authority + handle closure for P3.
   - [x] `M5.B` oracle inlet policy closure.
   - [x] `M5.C` oracle input presence assertion.
   - [x] `M5.D` stream-sort launch contract.
-  - [ ] `M5.E` stream-sort execution + receipts/manifests.
-  - [ ] `M5.F` checker execution + checker pass artifact.
-  - [ ] `M5.G` per-output rerun safety proof.
-  - [ ] `M5.H` P3 verdict + blocker rollup.
-  - [ ] `M5.I` M6 handoff publication.
+  - [x] `M5.E` stream-sort execution + receipts/manifests.
+  - [x] `M5.F` checker execution + checker pass artifact.
+  - [x] `M5.G` per-output rerun safety proof.
+  - [x] `M5.H` P3 verdict + blocker rollup.
+  - [x] `M5.I` M6 handoff publication.
+  - closure evidence:
+    - `runs/dev_substrate/m5/20260214T235117Z/stream_sort_summary.json`
+    - `runs/dev_substrate/m5/20260215T002040Z/checker_pass.json`
+    - `runs/dev_substrate/m5/20260215T002310Z/m5_g_rerun_probe_snapshot.json`
+    - `runs/dev_substrate/m5/20260215T002310Z/m5_h_verdict_snapshot.json`
+    - `runs/dev_substrate/m5/20260215T002310Z/m6_handoff_pack.json`
 
 M5 DoD checklist:
 - [x] P3 inputs for this run exist in S3 under canonical run-scoped input prefix (external-prestaged / engine-written).
-- [ ] For each required output_id in the pinned `functional_green` workload profile, stream_view shards + manifest + stream_sort receipt exist.
-- [ ] `oracle/checker_pass.json` exists and confirms full PASS for required output_ids.
-- [ ] P3 rerun posture is fail-closed and per-output (no forced full rerun for single-output failure).
-- [ ] M5 verdict and M6 handoff package are published and non-secret.
+- [x] `functional_workload_profile.json` is published for the active `functional_green` M5.E run.
+- [x] For each required output_id in the pinned `functional_green` workload profile, stream_view shards + manifest + stream_sort receipt exist.
+- [x] `oracle/checker_pass.json` exists and confirms full PASS for required output_ids.
+- [x] P3 rerun posture is fail-closed and per-output (no forced full rerun for single-output failure).
+- [x] M5 verdict and M6 handoff package are published and non-secret.
 
 ## M6 - P4-P7 Control + Ingress closure
 Status: `NOT_STARTED`

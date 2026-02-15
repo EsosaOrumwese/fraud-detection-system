@@ -324,6 +324,35 @@ data "aws_iam_policy_document" "lane_app_object_store_data_plane" {
       "arn:${data.aws_partition.current.partition}:s3:::${var.object_store_bucket}/oracle/*",
     ]
   }
+
+  statement {
+    sid = "ListEvidencePrefix"
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:s3:::${var.evidence_bucket}",
+    ]
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values = [
+        "evidence/runs/*",
+      ]
+    }
+  }
+
+  statement {
+    sid = "EvidenceObjectReadWrite"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:s3:::${var.evidence_bucket}/evidence/runs/*",
+    ]
+  }
 }
 
 resource "aws_iam_role" "ecs_task_execution" {

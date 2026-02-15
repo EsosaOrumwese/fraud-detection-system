@@ -10375,3 +10375,140 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
 ### Outcome
 1. Migration path is now explicitly protected from throughput-benchmark drift.
 2. M5 remains fail-closed and blocked until functional lane closure artifacts are green.
+
+## Entry: 2026-02-14 11:58PM - Final lock: functional workload profile artifact is mandatory for M5 gate run
+1. Added an explicit pre-launch requirement in M5 docs that `lane_mode=functional_green` executions must publish `functional_workload_profile.json`.
+2. Added blocker `M5E-B8` to prevent silent gating without a pinned functional profile artifact.
+3. Updated main M5 DoD checklist to require `functional_workload_profile.json` before stream-sort closure is accepted.
+4. This lock resolves ambiguity between migration functional closure and scale/perf experimentation by requiring an explicit workload contract for gate runs.
+
+## Entry: 2026-02-14 11:50PM - Pre-change execution lock: functional-green M5.E bounded workload setup
+1. USER approved proceeding with recommended two-lane approach.
+2. Pinned execution decisions for immediate action:
+   - lane_mode=functional_green for M5 gating,
+   - bounded pre-staged oracle input prefix (not full-scale prefix),
+   - single stable compute profile for functional gate run.
+3. Planned execution steps:
+   - create bounded S3 input prefix under current platform run,
+   - publish unctional_workload_profile.json (local + durable),
+   - build fresh M5.D snapshot tied to bounded profile,
+   - execute M5.E against bounded profile and publish summary.
+4. Fail-closed rule: if bounded profile artifact, launch matrix, or per-output shard/manifest/receipt closure fails, keep M5 in HOLD.
+
+## Entry: 2026-02-15 12:12AM - Pre-change execution lock: M5.F managed checker closure
+
+### Trigger
+1. USER directed continuation after successful `M5.E` functional-green closure.
+
+### Problem statement
+1. `M5.F` requires a fail-closed checker PASS artifact (`oracle/checker_pass.json`) before `M5.G..M5.I`.
+2. Current `TD_ORACLE_CHECKER` family is materialized but default command is placeholder-only (`echo ... && exit 0`), which is insufficient as checker evidence by itself.
+
+### Decision
+1. Execute `M5.F` on managed compute by launching `TD_ORACLE_CHECKER` with a run-task command override that performs real per-output checks against pinned M5.E surfaces.
+2. Keep fail-closed posture:
+   - if checker task fails or any required output fails checks, set `overall_pass=false` and block progression.
+3. Publish canonical checker evidence to:
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/<platform_run_id>/oracle/checker_pass.json`
+   - local mirror: `runs/dev_substrate/m5/<timestamp>/checker_pass.json`
+
+### Checks to enforce in override checker
+1. For each required output_id from `M5.E` summary:
+   - input prefix presence under pinned oracle input root,
+   - stream_view parquet presence,
+   - manifest key presence,
+   - receipt key presence.
+2. Mark output PASS only when all four checks pass.
+3. Set checker `overall_pass=true` only when every required output is PASS.
+
+### Planned artifacts
+1. `runs/dev_substrate/m5/<timestamp>/checker_pass.json`
+2. `runs/dev_substrate/m5/<timestamp>/m5_f_checker_execution_snapshot.json`
+3. durable `oracle/checker_pass.json` under run evidence prefix
+
+### Non-goals
+1. No local/laptop stream-sort compute.
+2. No branch/history operations.
+
+## Entry: 2026-02-15 12:26AM - M5.F->M5.I closure, blocker/fix trail, and M5 completion
+
+### M5.F first execution outcome (fail-closed)
+1. First managed checker attempt failed with artifact publication error:
+   - task: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/df0e91eac3f144789fa5897876edf745`
+   - CloudWatch error: `s3:PutObject AccessDenied` on `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/checker_pass.json`
+2. Failure classified as `M5F-B3` (checker pass artifact write failure).
+
+### Fix path A (IAM policy expansion for checker evidence writes)
+1. Patched Terraform IAM policy source:
+   - `infra/terraform/modules/demo/main.tf`
+   - added evidence prefix permissions for RTDL core lane role:
+     - `s3:ListBucket` on evidence bucket (`evidence/runs/*` prefix),
+     - `s3:GetObject` + `s3:PutObject` on `evidence/runs/*`.
+2. Applied demo Terraform with pinned run-id variable:
+   - `terraform -chdir=infra/terraform/dev_min/demo apply -auto-approve -var "required_platform_run_id=platform_20260213T214223Z"`
+
+### Drift incident observed during fix path A
+1. The first apply above materialized task definitions with default `busybox` image because `ecs_daemon_container_image` was not provided in the apply invocation.
+2. Impact:
+   - checker override command failed (`python` missing in container),
+   - this was a substrate image-identity drift from previously pinned ECR digest posture.
+3. Corrective action:
+   - re-applied demo stack with pinned daemon image digest:
+   - `terraform -chdir=infra/terraform/dev_min/demo apply -auto-approve -var "required_platform_run_id=platform_20260213T214223Z" -var "ecs_daemon_container_image=230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-min@sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56"`
+4. Post-fix verification:
+   - `fraud-platform-dev-min-oracle-checker:3` image resolved back to pinned ECR digest (python-capable runtime).
+
+### M5.F final closure result
+1. Managed checker rerun closed PASS:
+   - task: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/824426be72784c83b1deff0174b41bf7`
+   - exit code: `0`
+2. Artifacts:
+   - local:
+     - `runs/dev_substrate/m5/20260215T002040Z/checker_pass.json`
+     - `runs/dev_substrate/m5/20260215T002040Z/m5_f_checker_execution_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/checker_pass.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m5_f_checker_execution_snapshot.json`
+
+### M5.G rerun safety proof result
+1. Executed controlled rerun on target output `s3_event_stream_with_fraud_6B`.
+2. Managed rerun task PASS:
+   - task: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/5fd0bfed46a54bc7bc88bd3f5a111f51`
+   - exit code: `0`
+3. Invariants PASS:
+   - input oracle prefix unchanged (`true`),
+   - non-target stream_view prefixes unchanged (`true`),
+   - target manifest/receipt present (`true`).
+4. Artifact:
+   - local: `runs/dev_substrate/m5/20260215T002310Z/m5_g_rerun_probe_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m5_g_rerun_probe_snapshot.json`
+
+### M5.H verdict result
+1. Evaluated all six P3 predicates from M5.A..M5.G snapshots.
+2. Predicate rollup state:
+   - all predicates `true`,
+   - blocker rollup empty.
+3. Verdict:
+   - `ADVANCE_TO_M6`
+4. Artifact:
+   - local: `runs/dev_substrate/m5/20260215T002310Z/m5_h_verdict_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m5_h_verdict_snapshot.json`
+
+### M5.I handoff result
+1. Published canonical `m6_handoff_pack.json` with non-secret references:
+   - checker pass URI,
+   - stream-sort summary URI,
+   - stream_view root URI,
+   - source execution IDs (`m5_a..m5_h`).
+2. Artifact:
+   - local: `runs/dev_substrate/m5/20260215T002310Z/m6_handoff_pack.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m6_handoff_pack.json`
+
+### Documentation/state updates completed
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`:
+   - marked `M5.E..M5.I` DoD/checklists complete,
+   - recorded execution results and closure evidence for `M5.E..M5.I`,
+   - cleared unresolved blocker register (`none`) and moved closures to resolved list.
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - `M5` status set to `DONE`,
+   - M5 sub-phase progress and DoD checklist set complete with closure evidence references.

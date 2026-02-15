@@ -565,12 +565,12 @@ Tasks:
    - if `lane_mode=full_scale_probe`, always keep M5 in HOLD and route closure decision to M10 scale lane evidence.
 
 DoD:
-- [ ] `lane_mode` + `workload_profile_id` are explicitly pinned in summary.
-- [ ] `M5.D` carry-forward invariants are verified and recorded.
-- [ ] Every required output ID has a completed managed stream-sort task result.
-- [ ] All required output IDs have stream_view shards + manifest + receipt durably present.
-- [ ] `failed_output_ids=[]` in summary.
-- [ ] Stream-sort summary exists locally and durably.
+- [x] `lane_mode` + `workload_profile_id` are explicitly pinned in summary.
+- [x] `M5.D` carry-forward invariants are verified and recorded.
+- [x] Every required output ID has a completed managed stream-sort task result.
+- [x] All required output IDs have stream_view shards + manifest + receipt durably present.
+- [x] `failed_output_ids=[]` in summary.
+- [x] Stream-sort summary exists locally and durably.
 
 Blockers:
 1. `M5E-B1`: M5.D carry-forward invariants invalid/unreadable.
@@ -580,6 +580,7 @@ Blockers:
 5. `M5E-B5`: stream-sort summary write/upload failure.
 6. `M5E-B6`: lane/workload profile not pinned (`lane_mode` and/or `workload_profile_id` missing).
 7. `M5E-B7`: full-scale probe attempted to advance M5 gating directly.
+8. `M5E-B8`: `functional_workload_profile.json` missing for a `lane_mode=functional_green` execution.
 
 Execution observations + decision lock (2026-02-14):
 1. First full-matrix M5.E run failed fail-closed with:
@@ -600,6 +601,26 @@ Execution observations + decision lock (2026-02-14):
 5. Locked resolution:
    - M5 continues as migration functional-closure lane (`functional_green` workload profile),
    - full-scale throughput/perf closure is explicitly moved to M10 scale lane (no semantic drift, no silent gate mutation).
+6. Immediate closure requirement lock:
+   - next functional-gating M5.E execution must publish `functional_workload_profile.json` before task launch.
+
+Execution result (2026-02-15):
+1. Functional-green rerun closed PASS with pinned bounded workload profile.
+2. Published artifacts:
+   - local:
+     - `runs/dev_substrate/m5/20260214T235117Z/functional_workload_profile.json`
+     - `runs/dev_substrate/m5/20260214T235117Z/m5_d_stream_sort_launch_snapshot.json`
+     - `runs/dev_substrate/m5/20260214T235117Z/stream_sort_summary.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/functional_workload_profile.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m5_d_stream_sort_launch_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/stream_sort_summary.json`
+3. Final state:
+   - `lane_mode=functional_green`
+   - `workload_profile_id=fg_small_v1_n20`
+   - `failed_output_ids=[]`
+   - `blockers=[]`
+   - `overall_pass=true`
 
 ### M5.F Checker Execution + PASS Artifact
 Goal:
@@ -614,13 +635,26 @@ Tasks:
 3. Publish `oracle/checker_pass.json`.
 
 DoD:
-- [ ] Checker exits success and validates all required outputs.
-- [ ] `oracle/checker_pass.json` exists locally and durably.
+- [x] Checker exits success and validates all required outputs.
+- [x] `oracle/checker_pass.json` exists locally and durably.
 
 Blockers:
 1. `M5F-B1`: checker job failed.
 2. `M5F-B2`: checker reported partial/missing output PASS set.
 3. `M5F-B3`: checker pass artifact write/upload failure.
+
+Execution result (2026-02-15):
+1. `M5.F` closed PASS with managed checker run-task.
+2. Artifacts:
+   - local:
+     - `runs/dev_substrate/m5/20260215T002040Z/checker_pass.json`
+     - `runs/dev_substrate/m5/20260215T002040Z/m5_f_checker_execution_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/checker_pass.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m5_f_checker_execution_snapshot.json`
+3. Managed execution proof:
+   - task ARN: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/824426be72784c83b1deff0174b41bf7`
+   - exit code: `0`
 
 ### M5.G Per-Output Rerun Safety Proof
 Goal:
@@ -638,14 +672,27 @@ Tasks:
 3. Emit `m5_g_rerun_probe_snapshot.json`.
 
 DoD:
-- [ ] Per-output rerun proof is explicit and passes.
-- [ ] Rerun did not require destructive raw-input deletion.
-- [ ] M5.G snapshot exists locally and durably.
+- [x] Per-output rerun proof is explicit and passes.
+- [x] Rerun did not require destructive raw-input deletion.
+- [x] M5.G snapshot exists locally and durably.
 
 Blockers:
 1. `M5G-B1`: rerun affected unintended output prefixes.
 2. `M5G-B2`: rerun procedure required raw-input destructive mutation.
 3. `M5G-B3`: M5.G snapshot write/upload failure.
+
+Execution result (2026-02-15):
+1. `M5.G` closed PASS via targeted rerun on `s3_event_stream_with_fraud_6B`.
+2. Managed rerun task:
+   - task ARN: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/5fd0bfed46a54bc7bc88bd3f5a111f51`
+   - exit code: `0`
+3. Invariants:
+   - input prefix unchanged: `true`
+   - non-target output prefixes unchanged: `true`
+   - target manifest + receipt present: `true`
+4. Snapshot:
+   - local: `runs/dev_substrate/m5/20260215T002310Z/m5_g_rerun_probe_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m5_g_rerun_probe_snapshot.json`
 
 ### M5.H P3 Gates + Blocker Rollup + Verdict
 Goal:
@@ -669,15 +716,28 @@ Tasks:
 4. Publish `m5_h_verdict_snapshot.json`.
 
 DoD:
-- [ ] Predicate set is explicit and reproducible.
-- [ ] Blocker rollup is complete and fail-closed.
-- [ ] Verdict snapshot exists locally and durably.
+- [x] Predicate set is explicit and reproducible.
+- [x] Blocker rollup is complete and fail-closed.
+- [x] Verdict snapshot exists locally and durably.
 
 Blockers:
 1. `M5H-B1`: missing/unreadable prerequisite snapshots.
 2. `M5H-B2`: predicate evaluation incomplete/invalid.
 3. `M5H-B3`: blocker rollup non-empty.
 4. `M5H-B4`: verdict snapshot write/upload failure.
+
+Execution result (2026-02-15):
+1. `M5.H` closed PASS with deterministic verdict `ADVANCE_TO_M6`.
+2. Predicate set:
+   - `p3_handles_closed=true`
+   - `p3_inlet_policy_closed=true`
+   - `p3_inputs_present=true`
+   - `p3_stream_sort_complete=true`
+   - `p3_checker_pass=true`
+   - `p3_rerun_safety_proven=true`
+3. Artifacts:
+   - local: `runs/dev_substrate/m5/20260215T002310Z/m5_h_verdict_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m5_h_verdict_snapshot.json`
 
 ### M5.I M6 Handoff Artifact Publication
 Goal:
@@ -698,15 +758,23 @@ Tasks:
 3. Publish local + durable handoff artifact.
 
 DoD:
-- [ ] `m6_handoff_pack.json` is complete and non-secret.
-- [ ] Durable handoff publication passes.
-- [ ] URI references are captured for M6 entry.
+- [x] `m6_handoff_pack.json` is complete and non-secret.
+- [x] Durable handoff publication passes.
+- [x] URI references are captured for M6 entry.
 
 Blockers:
 1. `M5I-B1`: M5 verdict is not `ADVANCE_TO_M6`.
 2. `M5I-B2`: handoff pack missing required fields/URIs.
 3. `M5I-B3`: non-secret policy violation in handoff artifact.
 4. `M5I-B4`: handoff artifact write/upload failure.
+
+Execution result (2026-02-15):
+1. `M5.I` closed PASS and published canonical M6 handoff pack.
+2. Artifacts:
+   - local: `runs/dev_substrate/m5/20260215T002310Z/m6_handoff_pack.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m6_handoff_pack.json`
+3. Handoff verdict field:
+   - `m5_verdict=ADVANCE_TO_M6`
 
 ## 6) M5 Evidence Contract (Pinned for Execution)
 Evidence roots:
@@ -740,11 +808,11 @@ Notes:
 - [x] M5.B complete
 - [x] M5.C complete
 - [x] M5.D complete
-- [ ] M5.E complete
-- [ ] M5.F complete
-- [ ] M5.G complete
-- [ ] M5.H complete
-- [ ] M5.I complete
+- [x] M5.E complete
+- [x] M5.F complete
+- [x] M5.G complete
+- [x] M5.H complete
+- [x] M5.I complete
 
 ## 8) Risks and Controls
 R1: Hidden inlet bootstrap/seed lane reintroduced.  
@@ -761,21 +829,7 @@ Control: `ADVANCE_TO_M6` requires checker PASS artifact and zero blockers.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M5 Closure)
 Current blockers:
-1. `M5E-B3` full-scale stream-sort task non-success under default/medium compute profile.
-   - evidence:
-     - local: `runs/dev_substrate/m5/20260214T202411Z/stream_sort_summary.json`
-     - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/stream_sort_summary.json`
-   - closure criteria:
-     - execute `lane_mode=functional_green` workload with pinned bounded profile and achieve `overall_pass=true`.
-2. `M5E-B4` missing shard closure for failed full-scale matrix run outputs.
-   - evidence:
-     - local: `runs/dev_substrate/m5/20260214T202411Z/stream_sort_summary.json`
-     - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/stream_sort_summary.json`
-   - closure criteria:
-     - produce shard + manifest + receipt closure for all required output_ids in pinned functional workload profile.
-3. `M5E-B6` lane/workload profile was not pinned before earlier full-scale attempts.
-   - closure criteria:
-     - explicitly pin `lane_mode` and `workload_profile_id` in next M5.E execution artifact before launch.
+1. None.
 
 Resolved blockers:
 1. `M5D-B4` resolved by IaC materialization + rerun PASS.
@@ -787,6 +841,12 @@ Resolved blockers:
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T195741Z/m5_d_stream_sort_launch_snapshot.json`
 2. Initial M5.E IAM blocker (role could not read oracle run receipt) resolved by Terraform IAM patch on RTDL core lane role.
    - root-cause evidence: CloudWatch log stream for task `5f3fa831393d4a6682ffb132490785cc` (`s3:GetObject AccessDenied` on oracle input run_receipt).
+3. `M5E-B3`, `M5E-B4`, `M5E-B6`, and `M5E-B8` resolved by functional-green closure run:
+   - local: `runs/dev_substrate/m5/20260214T235117Z/stream_sort_summary.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/stream_sort_summary.json`
+4. `M5F-B3` resolved by IAM expansion on RTDL core role to include evidence run-prefix write/read:
+   - policy source: `infra/terraform/modules/demo/main.tf`
+   - closure proof: checker pass artifact published by managed checker task.
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.
