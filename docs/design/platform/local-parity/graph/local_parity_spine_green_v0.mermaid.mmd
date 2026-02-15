@@ -1,0 +1,166 @@
+%% Local Parity Platform Graph (Spine Green v0, Implementation-True)
+flowchart LR
+
+  subgraph PHASE[Lifecycle Gates P0->P11]
+    P0[P0-P1<br/>Substrate Ready + Run Pinned] --> P2[P2<br/>Daemons Ready] --> P3[P3<br/>Oracle Ready] --> P4[P4-P5<br/>Ingest Ready + READY Published] --> P6[P6-P7<br/>Streaming Active + Ingest Committed] --> P8[P8<br/>RTDL Caught Up] --> P9[P9<br/>Decision Chain Committed] --> P10[P10<br/>Case + Labels Committed] --> P11[P11<br/>Obs/Gov Closed]
+  end
+
+  subgraph ID[Run Scope + Substrates]
+    ACTIVE[ACTIVE_RUN_ID<br/>runs/fraud-platform/ACTIVE_RUN_ID]
+    OBJ[(MinIO Object Store<br/>s3://fraud-platform)]
+    EB[(Kinesis Event Bus<br/>EVENT_BUS_STREAM=auto/topic)]
+    CTRL[(Control Bus<br/>stream=sr-control-bus)]
+    PG[(Postgres DSN Mesh)]
+  end
+
+  subgraph CI[Pack: local_parity_control_ingress_v0]
+    SR[Scenario Runner<br/>readiness authority]
+    ORACLE[[Oracle Stream View<br/>ORACLE_STREAM_VIEW_ROOT]]
+    WSP[wsp_ready_consumer<br/>fraud_detection.world_streamer_producer.ready_consumer]
+    IG[ig_service<br/>fraud_detection.ingestion_gate.service]
+    IGR[[IG Receipts + Quarantine<br/>.../ig/{receipts,quarantine}]]
+    IGX[[IG Admission Index<br/>PARITY_IG_ADMISSION_DSN]]
+  end
+
+  subgraph TOPICS[Event Bus Topic Lanes]
+    TTR[[fp.bus.traffic.{fraud|baseline}.v1]]
+    TCTX[[fp.bus.context.{arrival_events,arrival_entities,flow_anchor_*}.v1]]
+    TRTDL[[fp.bus.rtdl.v1]]
+    TCASE[[fp.bus.case.v1]]
+    TAUD[[fp.bus.audit.v1]]
+  end
+
+  subgraph CORE[Pack: local_parity_rtdl_core_v0]
+    IEG[ieg_projector]
+    OFP[ofp_projector]
+    CSFB[csfb_intake]
+    ARCH[archive_writer_worker]
+    IEGDB[[IEG Projection Store]]
+    OFPDB[[OFP Projection + Snapshot Index]]
+    CSFBDB[[CSFB Projection Store]]
+    ARCHOBJ[[Archive Evidence<br/>.../archive/events/...]]
+    ARCHLED[[Archive Ledger DSN]]
+  end
+
+  subgraph DEC[Pack: local_parity_rtdl_decision_lane_v0]
+    DL[dl_worker<br/>Degrade Ladder]
+    DF[df_worker<br/>Decision Fabric]
+    AL[al_worker<br/>Action Layer]
+    DLA[dla_worker<br/>Decision Log & Audit]
+    DLDB[[DL posture/outbox/ops DSNs]]
+    DFDB[[DF replay/checkpoint DSNs]]
+    ALDB[[AL ledger/outcomes/checkpoint DSNs]]
+    DLAIDX[[DLA index DSN]]
+    DLAREC[[DLA Records<br/>.../decision_log_audit/records/audit_id.json]]
+  end
+
+  subgraph CL[Pack: local_parity_case_labels_v0]
+    CT[case_trigger_worker]
+    CM[case_mgmt_worker]
+    LS[label_store_worker]
+    CTDB[[CaseTrigger replay/checkpoint/publish DSNs]]
+    CMDB[[CaseMgmt locator]]
+    LSDB[[LabelStore locator]]
+  end
+
+  subgraph OG[Pack: local_parity_obs_gov_v0]
+    REP[platform_run_reporter_worker]
+    CONF[platform_conformance_worker]
+    RPT[[platform_run_report.json]]
+    CONFF[[environment_conformance.json]]
+    GOV[[obs/governance/events.jsonl]]
+  end
+
+  SR -->|publish READY| CTRL
+  OBJ -->|read/write sr/*| SR
+  CTRL -->|consume READY| WSP
+  ORACLE -->|read stream_view| WSP
+  WSP -->|HTTP push traffic/context envelopes| IG
+  IG -->|append evidence| IGR
+  IG -->|upsert state| IGX
+
+  IG -->|publish ADMITTED traffic| TTR
+  IG -->|publish ADMITTED context| TCTX
+  DF -->|decision_response + action_intent via IG| IG
+  AL -->|action_outcome via IG| IG
+  CT -->|case_trigger via IG| IG
+
+  TTR --> IEG
+  TCTX --> IEG
+  TTR --> OFP
+  TCTX --> CSFB
+  TTR --> DF
+  TRTDL --> AL
+  TRTDL --> DLA
+  TRTDL --> CT
+  TCASE --> CM
+
+  IEG --> IEGDB
+  OFP --> OFPDB
+  CSFB --> CSFBDB
+  ARCH --> ARCHOBJ
+  ARCH --> ARCHLED
+
+  DL --> DLDB
+  DLDB --> DF
+  DF --> DFDB
+  AL --> ALDB
+  DLA --> DLAIDX
+  DLA --> DLAREC
+  DLA -. optional audit facts .-> TAUD
+
+  CT --> CTDB
+  CM --> CMDB
+  CM -->|LabelStore writer boundary| LS
+  LS --> LSDB
+
+  REP --> RPT
+  CONF --> CONFF
+  REP --> GOV
+
+  EB -. topic substrate .-> TTR
+  EB -. topic substrate .-> TCTX
+  EB -. topic substrate .-> TRTDL
+  EB -. topic substrate .-> TCASE
+  EB -. topic substrate .-> TAUD
+
+  OBJ -. storage substrate .-> IGR
+  OBJ -. storage substrate .-> ARCHOBJ
+  OBJ -. storage substrate .-> DLAREC
+  OBJ -. storage substrate .-> RPT
+  OBJ -. storage substrate .-> CONFF
+  OBJ -. storage substrate .-> GOV
+
+  PG -. DSN substrate .-> IGX
+  PG -. DSN substrate .-> IEGDB
+  PG -. DSN substrate .-> OFPDB
+  PG -. DSN substrate .-> CSFBDB
+  PG -. DSN substrate .-> ARCHLED
+  PG -. DSN substrate .-> DLDB
+  PG -. DSN substrate .-> DFDB
+  PG -. DSN substrate .-> ALDB
+  PG -. DSN substrate .-> DLAIDX
+  PG -. DSN substrate .-> CTDB
+  PG -. DSN substrate .-> CMDB
+  PG -. DSN substrate .-> LSDB
+
+  ACTIVE -. required_platform_run_id / active-run match .-> WSP
+  ACTIVE -. required_platform_run_id .-> IEG
+  ACTIVE -. required_platform_run_id .-> OFP
+  ACTIVE -. required_platform_run_id .-> CSFB
+  ACTIVE -. required_platform_run_id .-> ARCH
+  ACTIVE -. required_platform_run_id .-> DF
+  ACTIVE -. required_platform_run_id .-> AL
+  ACTIVE -. required_platform_run_id .-> DLA
+  ACTIVE -. required_platform_run_id .-> CT
+  ACTIVE -. required_platform_run_id .-> CM
+  ACTIVE -. required_platform_run_id .-> LS
+  ACTIVE -. required_platform_run_id .-> REP
+  ACTIVE -. required_platform_run_id .-> CONF
+
+  P4 -. P5 READY_PUBLISHED .-> SR
+  P6 -. P6-P7 ingress closure .-> IG
+  P8 -. P8 .-> IEG
+  P9 -. P9 .-> DF
+  P10 -. P10 .-> CM
+  P11 -. P11 .-> REP

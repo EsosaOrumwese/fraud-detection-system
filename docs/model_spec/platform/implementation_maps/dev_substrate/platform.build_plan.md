@@ -577,12 +577,23 @@ Active-phase planning posture:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T124328Z/m6_c_ingest_ready_snapshot.json`
     - run-scoped readiness artifact (refreshed): `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/ig_ready.json`
     - result: `overall_pass=true`, blocker rollup empty.
+  - `M6.D` is now execution-closed with authoritative PASS evidence:
+    - local snapshot: `runs/dev_substrate/m6/20260215T144233Z/m6_d_sr_ready_snapshot.json`
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T144233Z/m6_d_sr_ready_snapshot.json`
+    - result: `overall_pass=true`, blocker rollup empty.
+    - READY publication proof:
+      - receipt: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/78d859d39f4232fc510463fb868bc6e1.json`
+      - control stream: `fraud-platform-dev-min-ig-bus-v0`
+      - sequence: `49671822697342044645261017794300307957859908788827455490`.
+    - closure caveat recorded in M6 deep plan:
+      - one requested output id used (`s3_event_stream_with_fraud_6B`) because only that stream-view output is currently materialized.
+      - temporary task-scoped execution shims were used (schema-ref stub + lease keepalive).
 
 - Sub-phase progress:
   - [x] `M6.A` authority + handle closure for `P4..P7`.
   - [x] `M6.B` P4 IG deploy/health/auth readiness.
   - [x] `M6.C` P4 Kafka/S3 smoke and `ig_ready.json`.
-  - [ ] `M6.D` P5 SR PASS + READY publication.
+  - [x] `M6.D` P5 SR PASS + READY publication.
   - [ ] `M6.E` P6 WSP launch contract + READY consumption proof.
   - [ ] `M6.F` P6 WSP execution summary.
   - [ ] `M6.G` P7 ingest commit evidence closure.
@@ -591,7 +602,7 @@ Active-phase planning posture:
 
 M6 DoD checklist:
 - [x] IG service readiness + auth boundary checks pass and `ingest/ig_ready.json` is durable.
-- [ ] SR task PASS evidence exists and READY publication receipt is durable.
+- [x] SR task PASS evidence exists and READY publication receipt is durable.
 - [ ] WSP executes from P3 `stream_view` only and writes `wsp_summary` evidence.
 - [ ] Ingest receipt/offset/quarantine summaries exist and are coherent.
 - [ ] `PUBLISH_AMBIGUOUS` unresolved count is zero for closure set.
@@ -737,6 +748,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M6 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M6.D` P5 SR task + READY publication verification,
-- require `M6.D` snapshot `overall_pass=true`,
-- then proceed to `M6.E`.
+- execute `M6.E` P6 WSP launch contract + READY consumption verification,
+- require `M6.E` snapshot `overall_pass=true`,
+- then proceed to `M6.F`.

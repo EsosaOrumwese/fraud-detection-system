@@ -1,0 +1,240 @@
+digraph LocalParitySpineGreenV0 {
+  graph [
+    label="Local Parity Platform Graph (Spine Green v0, Implementation-True)",
+    labelloc=t,
+    fontsize=18,
+    fontname="Helvetica",
+    rankdir=LR,
+    splines=true,
+    pad=0.2,
+    nodesep=0.35,
+    ranksep=0.65
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    fillcolor="#F8FAFC",
+    color="#334155",
+    fontname="Helvetica",
+    fontsize=10,
+    margin="0.08,0.06"
+  ];
+
+  edge [
+    color="#334155",
+    fontname="Helvetica",
+    fontsize=9,
+    arrowsize=0.8
+  ];
+
+  subgraph cluster_phase {
+    label="Lifecycle Phase Gates (Spine Green v0)";
+    color="#CBD5E1";
+    style="rounded";
+
+    p0 [label="P0-P1\nSubstrate Ready + Run Pinned", fillcolor="#EEF2FF"];
+    p2 [label="P2\nDaemons Ready", fillcolor="#EEF2FF"];
+    p3 [label="P3\nOracle Ready", fillcolor="#EEF2FF"];
+    p4 [label="P4-P5\nIngest Ready + READY Published", fillcolor="#EEF2FF"];
+    p6 [label="P6-P7\nStreaming Active + Ingest Committed", fillcolor="#EEF2FF"];
+    p8 [label="P8\nRTDL Caught Up", fillcolor="#EEF2FF"];
+    p9 [label="P9\nDecision Chain Committed", fillcolor="#EEF2FF"];
+    p10 [label="P10\nCase + Labels Committed", fillcolor="#EEF2FF"];
+    p11 [label="P11\nObs/Gov Closed", fillcolor="#EEF2FF"];
+
+    p0 -> p2 -> p3 -> p4 -> p6 -> p8 -> p9 -> p10 -> p11;
+  }
+
+  subgraph cluster_identity {
+    label="Run Scope + Substrates";
+    color="#CBD5E1";
+    style="rounded";
+
+    active_run [label="ACTIVE_RUN_ID\nruns/fraud-platform/ACTIVE_RUN_ID", fillcolor="#F1F5F9"];
+    obj [label="Object Store (MinIO, S3-compatible)\nPLATFORM_STORE_ROOT=s3://fraud-platform", shape=cylinder, fillcolor="#ECFEFF"];
+    eb [label="Event Bus (Kinesis/LocalStack)\nEVENT_BUS_STREAM=auto/topic", shape=cylinder, fillcolor="#ECFEFF"];
+    ctrl [label="Control Bus (Kinesis)\nstream: sr-control-bus", shape=cylinder, fillcolor="#ECFEFF"];
+    pg [label="Postgres DSN Mesh\n(admission, checkpoints, projections, ledgers)", shape=cylinder, fillcolor="#ECFEFF"];
+  }
+
+  subgraph cluster_control_ingress {
+    label="Pack: local_parity_control_ingress_v0";
+    color="#BFDBFE";
+    style="rounded";
+
+    sr [label="Scenario Runner (SR)\nreadiness authority\n(sr/run_plan, run_record, ready_signal)", fillcolor="#EFF6FF"];
+    oracle [label="Oracle Stream View\nORACLE_STREAM_VIEW_ROOT\npart-*.parquet + _stream_* receipts", shape=folder, fillcolor="#EFF6FF"];
+    wsp [label="wsp_ready_consumer\nmodule: fraud_detection.world_streamer_producer.ready_consumer\nchecks required packs + run pin", fillcolor="#DBEAFE"];
+    ig [label="ig_service\nmodule: fraud_detection.ingestion_gate.service\nPOST /v1/ingest/push (X-IG-Api-Key)", fillcolor="#DBEAFE"];
+
+    ig_receipts [label="IG Receipts + Quarantine\ns3://fraud-platform/<platform_run_id>/ig/{receipts,quarantine}", shape=folder, fillcolor="#E0F2FE"];
+    ig_index [label="IG Admission Index\nPARITY_IG_ADMISSION_DSN\nstate: IN_FLIGHT|ADMITTED|PUBLISH_AMBIGUOUS", shape=folder, fillcolor="#E0F2FE"];
+  }
+
+  subgraph cluster_topics {
+    label="Event Bus Topic Lanes";
+    color="#BBF7D0";
+    style="rounded";
+
+    t_traffic [label="Traffic Topics\nfp.bus.traffic.{fraud|baseline}.v1", shape=component, fillcolor="#DCFCE7"];
+    t_context [label="Context Topics\narrival_events, arrival_entities, flow_anchor_{fraud|baseline}", shape=component, fillcolor="#DCFCE7"];
+    t_rtdl [label="RTDL Lane\nfp.bus.rtdl.v1", shape=component, fillcolor="#DCFCE7"];
+    t_case [label="Case Lane\nfp.bus.case.v1", shape=component, fillcolor="#DCFCE7"];
+    t_audit [label="Audit Lane\nfp.bus.audit.v1", shape=component, fillcolor="#DCFCE7"];
+  }
+
+  subgraph cluster_rtdl_core {
+    label="Pack: local_parity_rtdl_core_v0";
+    color="#FDE68A";
+    style="rounded";
+
+    ieg [label="ieg_projector\nIdentity Entity Graph\nmodule: fraud_detection.identity_entity_graph.projector", fillcolor="#FEF9C3"];
+    ofp [label="ofp_projector\nOnline Feature Plane\nmodule: fraud_detection.online_feature_plane.projector", fillcolor="#FEF9C3"];
+    csfb [label="csfb_intake\nContext Store Flow Binding\nmodule: fraud_detection.context_store_flow_binding.intake", fillcolor="#FEF9C3"];
+    arch [label="archive_writer_worker\nmodule: fraud_detection.archive_writer.worker", fillcolor="#FEF9C3"];
+
+    ieg_db [label="IEG Projection Store\nPARITY_IEG_PROJECTION_DSN", shape=folder, fillcolor="#FFFBEB"];
+    ofp_db [label="OFP Projection + Snapshot Index\nPARITY_OFP_PROJECTION_DSN\nPARITY_OFP_SNAPSHOT_INDEX_DSN", shape=folder, fillcolor="#FFFBEB"];
+    csfb_db [label="CSFB Projection Store\nPARITY_CSFB_PROJECTION_DSN", shape=folder, fillcolor="#FFFBEB"];
+    arch_store [label="Archive Evidence\ns3://fraud-platform/<platform_run_id>/archive/events/...", shape=folder, fillcolor="#FFFBEB"];
+    arch_ledger [label="Archive Ledger\nPARITY_ARCHIVE_WRITER_LEDGER_DSN", shape=folder, fillcolor="#FFFBEB"];
+  }
+
+  subgraph cluster_decision {
+    label="Pack: local_parity_rtdl_decision_lane_v0";
+    color="#FBCFE8";
+    style="rounded";
+
+    dl [label="dl_worker\nDegrade Ladder\nmodule: fraud_detection.degrade_ladder.worker", fillcolor="#FCE7F3"];
+    df [label="df_worker\nDecision Fabric\nmodule: fraud_detection.decision_fabric.worker", fillcolor="#FCE7F3"];
+    al [label="al_worker\nAction Layer\nmodule: fraud_detection.action_layer.worker", fillcolor="#FCE7F3"];
+    dla [label="dla_worker\nDecision Log & Audit\nmodule: fraud_detection.decision_log_audit.worker", fillcolor="#FCE7F3"];
+
+    dl_store [label="DL Stores\nPARITY_DL_{POSTURE,OUTBOX,OPS}_DSN", shape=folder, fillcolor="#FDF2F8"];
+    df_ckpt [label="DF Replay + Checkpoint\nPARITY_DF_{REPLAY,CHECKPOINT}_DSN", shape=folder, fillcolor="#FDF2F8"];
+    al_ckpt [label="AL Ledger/Outcomes/Replay/Checkpoint\nPARITY_AL_*_DSN", shape=folder, fillcolor="#FDF2F8"];
+    dla_idx [label="DLA Index\nPARITY_DLA_INDEX_DSN", shape=folder, fillcolor="#FDF2F8"];
+    dla_records [label="DLA Append-only Records\ns3://fraud-platform/<platform_run_id>/decision_log_audit/records/<audit_id>.json", shape=folder, fillcolor="#FDF2F8"];
+  }
+
+  subgraph cluster_case_labels {
+    label="Pack: local_parity_case_labels_v0";
+    color="#FDBA74";
+    style="rounded";
+
+    ct [label="case_trigger_worker\nmodule: fraud_detection.case_trigger.worker", fillcolor="#FFEDD5"];
+    cm [label="case_mgmt_worker\nmodule: fraud_detection.case_mgmt.worker", fillcolor="#FFEDD5"];
+    ls [label="label_store_worker\nmodule: fraud_detection.label_store.worker", fillcolor="#FFEDD5"];
+
+    ct_dsns [label="CaseTrigger Replay/Checkpoint/Publish Store\nPARITY_CASE_TRIGGER_*_DSN", shape=folder, fillcolor="#FFF7ED"];
+    cm_store [label="CaseMgmt Locator\nPARITY_CASE_MGMT_LOCATOR", shape=folder, fillcolor="#FFF7ED"];
+    ls_store [label="LabelStore Locator\nPARITY_LABEL_STORE_LOCATOR", shape=folder, fillcolor="#FFF7ED"];
+  }
+
+  subgraph cluster_obs {
+    label="Pack: local_parity_obs_gov_v0";
+    color="#A7F3D0";
+    style="rounded";
+
+    reporter [label="platform_run_reporter_worker\nmodule: fraud_detection.platform_reporter.worker", fillcolor="#ECFDF5"];
+    conform [label="platform_conformance_worker\nmodule: fraud_detection.platform_conformance.worker", fillcolor="#ECFDF5"];
+
+    run_report [label="Run Report\nruns/fraud-platform/<platform_run_id>/obs/platform_run_report.json", shape=folder, fillcolor="#F0FDF4"];
+    env_conf [label="Environment Conformance\nruns/fraud-platform/<platform_run_id>/obs/environment_conformance.json", shape=folder, fillcolor="#F0FDF4"];
+    gov_append [label="Governance Append (single writer)\ns3://fraud-platform/<platform_run_id>/obs/governance/events.jsonl", shape=folder, fillcolor="#F0FDF4"];
+  }
+
+  sr -> ctrl [label="publish READY (run-scoped)"];
+  obj -> sr [label="read oracle metadata + write sr/* artifacts"];
+  ctrl -> wsp [label="consume READY"];
+  oracle -> wsp [label="read stream_view by output_id"];
+  wsp -> ig [label="HTTP push envelopes\n(traffic + context)"];
+  ig -> ig_receipts [label="append receipts/quarantine", penwidth=1.4];
+  ig -> ig_index [label="upsert admission state", penwidth=1.4];
+
+  ig -> t_traffic [label="publish ADMITTED traffic"];
+  ig -> t_context [label="publish ADMITTED context"];
+  df -> ig [label="publish decision_response + action_intent\n(via IG boundary)"];
+  al -> ig [label="publish action_outcome\n(via IG boundary)"];
+  ct -> ig [label="publish case_trigger\n(via IG boundary)"];
+
+  t_traffic -> ieg [label="consume"];
+  t_context -> ieg [label="consume"];
+  t_traffic -> ofp [label="consume"];
+  t_context -> csfb [label="consume"];
+  t_traffic -> df [label="decision triggers"];
+  t_rtdl -> al [label="consume action_intent"];
+  t_rtdl -> dla [label="consume decision/intent/outcome"];
+  t_rtdl -> ct [label="consume decision + outcome evidence"];
+  t_case -> cm [label="consume case triggers"];
+
+  ieg -> ieg_db [label="project graph state"];
+  ofp -> ofp_db [label="project features + snapshots"];
+  csfb -> csfb_db [label="project context bindings"];
+  arch -> arch_store [label="write immutable archive evidence"];
+  arch -> arch_ledger [label="checkpoint + idempotency"];
+
+  dl -> dl_store [label="posture decision + outbox"];
+  dl_store -> df [label="read current degrade posture"];
+  df -> df_ckpt [label="replay + checkpoint gate"];
+  al -> al_ckpt [label="ledger/outcomes/checkpoints"];
+  dla -> dla_idx [label="lineage + reconciliation index"];
+  dla -> dla_records [label="append audit records", penwidth=1.4];
+  dla -> t_audit [label="optional audit facts stream", style=dashed];
+
+  ct -> ct_dsns [label="replay + publish store"];
+  cm -> cm_store [label="append case timeline"];
+  cm -> ls [label="LabelStore writer boundary"];
+  ls -> ls_store [label="append label assertions"];
+
+  reporter -> run_report [label="emit lane summaries"];
+  conform -> env_conf [label="emit parity checks"];
+  reporter -> gov_append [label="append governance events"];
+
+  obj -> ig_receipts [style=dashed, label="storage substrate"];
+  obj -> arch_store [style=dashed, label="storage substrate"];
+  obj -> dla_records [style=dashed, label="storage substrate"];
+  obj -> run_report [style=dashed, label="storage substrate"];
+  obj -> env_conf [style=dashed, label="storage substrate"];
+  obj -> gov_append [style=dashed, label="storage substrate"];
+  eb -> t_traffic [style=dashed, label="topic-backed stream"];
+  eb -> t_context [style=dashed];
+  eb -> t_rtdl [style=dashed];
+  eb -> t_case [style=dashed];
+  eb -> t_audit [style=dashed];
+
+  pg -> ig_index [style=dashed, label="Postgres DSN"];
+  pg -> ieg_db [style=dashed];
+  pg -> ofp_db [style=dashed];
+  pg -> csfb_db [style=dashed];
+  pg -> arch_ledger [style=dashed];
+  pg -> dl_store [style=dashed];
+  pg -> df_ckpt [style=dashed];
+  pg -> al_ckpt [style=dashed];
+  pg -> dla_idx [style=dashed];
+  pg -> ct_dsns [style=dashed];
+  pg -> cm_store [style=dashed];
+  pg -> ls_store [style=dashed];
+
+  active_run -> wsp [style=dashed, color="#0F766E", label="require active run match"];
+  active_run -> ieg [style=dashed, color="#0F766E", label="required_platform_run_id"];
+  active_run -> ofp [style=dashed, color="#0F766E"];
+  active_run -> csfb [style=dashed, color="#0F766E"];
+  active_run -> arch [style=dashed, color="#0F766E"];
+  active_run -> df [style=dashed, color="#0F766E"];
+  active_run -> al [style=dashed, color="#0F766E"];
+  active_run -> dla [style=dashed, color="#0F766E"];
+  active_run -> ct [style=dashed, color="#0F766E"];
+  active_run -> cm [style=dashed, color="#0F766E"];
+  active_run -> ls [style=dashed, color="#0F766E"];
+  active_run -> reporter [style=dashed, color="#0F766E"];
+  active_run -> conform [style=dashed, color="#0F766E"];
+
+  p4 -> sr [style=dotted, label="P5 READY_PUBLISHED"];
+  p6 -> ig [style=dotted, label="P6-P7 ingress closure"];
+  p8 -> ieg [style=dotted, label="P8"];
+  p9 -> df [style=dotted, label="P9"];
+  p10 -> cm [style=dotted, label="P10"];
+  p11 -> reporter [style=dotted, label="P11"];
+}

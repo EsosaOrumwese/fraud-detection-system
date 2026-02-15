@@ -5334,3 +5334,148 @@ Expected outputs:
 
 Gate usage:
 1) These artifacts become the authoritative baseline for runtime-improvement checks in `POPT.1`, `POPT.2`, and `POPT.3`.
+
+---
+
+### Entry: 2026-02-15 13:35
+
+Design element: POPT.0 execution closure with reproducible scorer artifacts.
+Summary: Implemented and executed `tools/score_segment1b_popt0_baseline.py` to lock runtime baseline + hotspot map for authority run `9ebdd751ab7b4f9da246cc840ddff306`.
+
+What was produced:
+1) JSON baseline artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_baseline_9ebdd751ab7b4f9da246cc840ddff306.json`
+2) Markdown hotspot artifact:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_hotspot_map_9ebdd751ab7b4f9da246cc840ddff306.md`
+3) Reusable tool:
+   - `tools/score_segment1b_popt0_baseline.py` (compiles cleanly and can be rerun for future candidate run-ids).
+
+Locked baseline outcomes:
+1) Segment elapsed: `01:10:26`.
+2) Ranked runtime concentration:
+   - `S4 = 53.97%` (`~38m00s`),
+   - `S5 = 20.08%` (`~14m09s`),
+   - `S9 = 6.04%` (`~4m15s`).
+3) Hotspot evidence highlights:
+   - S4: heavy repeated country-asset IO + rank-prefix cache churn (`cache misses 1550 / unique countries 183`, rank-cache misses `3834`, evictions `3706`).
+   - S5: extreme tile-index read amplification (`bytes_read_index_total ~22.08GB`) with small country cache (`CACHE_COUNTRIES_MAX=8`) and high per-pair/per-site overhead (including `12204` per-pair assignment info logs).
+   - S9: dominant substage is RNG event scan (`delta ~190.23s`), with additional trace/audit scan (`~54.14s`).
+
+Decision:
+1) `POPT.0` marked complete and phase gate to `POPT.1` is `GO`.
+2) Next implementation target is `S4` algorithm/data-structure rewrite under the locked baseline budgets.
+
+---
+
+### Entry: 2026-02-15 13:40
+
+Design element: expanded execution plan for `POPT.1` (S4 primary bottleneck).
+Summary: Replaced the compact `POPT.1` block in the 1B build plan with a phased optimization blueprint (`POPT.1.1 -> POPT.1.6`) so implementation proceeds under explicit hotspot hypotheses, measurable substage evidence, and fail-closed progression gates.
+
+Why expansion was necessary:
+1) The previous `POPT.1` text captured intent but was too broad for deterministic execution and closure-grade auditing.
+2) `POPT.0` surfaced concrete S4 bottleneck signatures (country asset reload churn, rank-cache churn, inner-loop overhead), and these required direct mapping to work lanes.
+
+What was added to plan:
+1) Baseline lock section with numerical S4 pressure indicators from authority run `9eb...`.
+2) Explicit hypotheses to test (reload churn, rank-prefix churn, per-pair overhead).
+3) Sub-phase breakdown:
+   - `POPT.1.1` substage timing instrumentation,
+   - `POPT.1.2` country asset locality rewrite,
+   - `POPT.1.3` rank-prefix + shortfall kernel optimization,
+   - `POPT.1.4` logging/heartbeat overhead budget,
+   - `POPT.1.5` determinism+contract gate,
+   - `POPT.1.6` closure classification (`GREEN/AMBER/RED`).
+4) Explicit closure rule that blocks transition to `POPT.2` if S4 stretch budget is still missed.
+
+Execution consequence:
+1) Next implementation step should start at `POPT.1.1` instrumentation lane, not direct blind rewrites.
+
+### Entry: 2026-02-15 13:46
+
+Design element: POPT.1 execution lock for S4 (instrumentation + locality + rank-kernel + determinism gate).
+Summary: Starting end-to-end implementation of `POPT.1` against S4. The runtime baseline shows reload churn and rank-prefix churn as primary/secondary drivers, so this pass will first add internal substage timing evidence, then apply code-path rewrites that preserve existing S4 semantics while reducing IO and repeated ranking work.
+
+Authority and constraints used:
+1) Baseline/runtime authority:
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_baseline_9ebdd751ab7b4f9da246cc840ddff306.json`
+   - `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_hotspot_map_9ebdd751ab7b4f9da246cc840ddff306.md`
+2) Active phase plan authority:
+   - `docs/model_spec/data-engine/implementation_maps/segment_1B.build_plan.md` (`POPT.1.1` -> `POPT.1.6`).
+3) Runtime constraints:
+   - single-process baseline only,
+   - deterministic output/contract equivalence required,
+   - no direct data mutation; only engine implementation and governed diagnostics surfaces.
+
+Alternatives considered and rejected:
+1) Knob-only retune (cache env values) without code changes.
+   - Rejected: does not satisfy POPT.1 code-first closure intent and leaves algorithmic churn unresolved.
+2) Full state-order rewrite by reordering S4 compute by country with external merge sort.
+   - Rejected for this phase: higher blast radius to ordering/audit rails than needed for first optimization closure.
+3) Narrow low-risk path (selected):
+   - add deterministic internal timing map,
+   - reduce country-asset load overhead and reuse burden,
+   - collapse rank-prefix cache churn by caching full deterministic rank vectors per `(country, n_sites)` key,
+   - reduce hot-loop logging overhead while preserving required heartbeat/audit signals.
+
+Implementation plan (concrete):
+1) `POPT.1.1` instrumentation:
+   - add S4 substage timers for asset load, rank-prefix, allocation kernel, and batch flush/write.
+   - publish timing map in `s4_run_report.json` as additive diagnostics.
+2) `POPT.1.2` locality lane:
+   - reduce tile-weight read overhead by removing avoidable country-column scans on country-partitioned inputs,
+   - keep validation semantics via path/partition authority checks,
+   - add precomputed country-demand frequency and cache pinning bias so high-reuse countries are not churned out prematurely.
+3) `POPT.1.3` rank-kernel lane:
+   - replace `(country, n_sites, k)` prefix cache with `(country, n_sites)` full deterministic rank vectors,
+   - resolve prefix requests by slicing, not recomputation.
+4) `POPT.1.4` logging budget:
+   - throttle heartbeat/progress cadence in hot loops while preserving required run visibility and ETA logs.
+5) `POPT.1.5`/`POPT.1.6` closure evidence:
+   - run S4 candidate lane on fresh run-id,
+   - run deterministic witness rerun on same lane,
+   - run downstream smoke (`S5->S9`),
+   - score deltas against POPT.0 authority and classify `GREEN/AMBER/RED`.
+
+Invariant checks to preserve:
+1) `alloc_sum_equals_requirements=true`.
+2) anti-collapse diagnostics and policy-governed behavior unchanged in meaning.
+3) writer-sort and path-embed equality invariants unchanged.
+4) no contract schema surface break.
+
+### Entry: 2026-02-15 13:50
+
+Design element: POPT.1 implementation applied in S4 runner (`POPT.1.1`->`POPT.1.4`).
+Summary: Implemented code changes in `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py` to close the first S4 optimization lanes while preserving S4 output semantics and contracts.
+
+Implemented mechanics:
+1) Substage timing instrumentation (`POPT.1.1`):
+   - added additive `substage_timing` block in `s4_run_report` with:
+     - `country_asset_load`,
+     - `rank_prefix`,
+     - `allocation_kernel`,
+     - `batch_write`;
+   - each includes `seconds`, `calls`, `share_of_wall` for direct hotspot attribution.
+2) Country-asset locality lane (`POPT.1.2`):
+   - preloads `s3_requirements` once into in-memory requirement tuples + per-country frequency map,
+   - introduced frequency-based cache pinning budget (`ENGINE_1B_S4_CACHE_PIN_COUNTRIES_MAX`) to reduce hot-country eviction churn,
+   - added pinned-fallback eviction counter for diagnosability,
+   - reduced tile-weight IO overhead by skipping `country_iso` scan when file path is country-partition authoritative (`country=XX` / `part-XX`).
+3) Rank-prefix kernel lane (`POPT.1.3`):
+   - rewired rank cache key from `(country, n_sites, k)` to `(country, n_sites)` full deterministic rank vectors,
+   - resolves prefix requests by slice instead of recomputation,
+   - retained budget controls (`entries_max`, `bytes_max`, `k_max`) and miss/eviction telemetry.
+4) Logging overhead lane (`POPT.1.4`):
+   - added governed cadence env knobs:
+     - `ENGINE_1B_S4_PROGRESS_INTERVAL_SECONDS`,
+     - `ENGINE_1B_S4_HEARTBEAT_INTERVAL_SECONDS`;
+   - raised default cadence to reduce high-frequency progress log pressure in hot loops.
+
+Validation performed immediately:
+1) compile check passed:
+   - `python -m py_compile packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/runner.py`.
+
+Next execution lane:
+1) run fresh S4 candidate and deterministic witness (`POPT.1.5`),
+2) downstream `S5->S9` smoke,
+3) produce baseline-vs-candidate runtime delta and classify `POPT.1.6`.

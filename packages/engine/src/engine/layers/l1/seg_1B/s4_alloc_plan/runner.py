@@ -7,7 +7,7 @@ import json
 import os
 import time
 import uuid
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -94,18 +94,25 @@ class _StepTimer:
 
 
 class _ProgressTracker:
-    def __init__(self, total: Optional[int], logger, label: str) -> None:
+    def __init__(
+        self,
+        total: Optional[int],
+        logger,
+        label: str,
+        min_interval_seconds: float = 2.0,
+    ) -> None:
         self._total = int(total) if total is not None else None
         self._logger = logger
         self._label = label
         self._start = time.monotonic()
         self._last_log = self._start
         self._processed = 0
+        self._min_interval_seconds = float(max(min_interval_seconds, 0.1))
 
     def update(self, count: int) -> None:
         self._processed += int(count)
         now = time.monotonic()
-        if now - self._last_log < 0.5 and not (
+        if now - self._last_log < self._min_interval_seconds and not (
             self._total is not None and self._processed >= self._total
         ):
             return
@@ -340,6 +347,19 @@ def _env_int(name: str, default: int, minimum: int = 0) -> int:
     if value < minimum:
         return int(default)
     return int(value)
+
+
+def _env_float(name: str, default: float, minimum: float = 0.0) -> float:
+    raw = os.getenv(name)
+    if raw is None or not str(raw).strip():
+        return float(default)
+    try:
+        value = float(str(raw).strip())
+    except ValueError:
+        return float(default)
+    if value < minimum:
+        return float(default)
+    return float(value)
 
 
 def _hhi_from_counts(counts: np.ndarray) -> float:
@@ -711,6 +731,11 @@ def _tile_weight_files(tile_weights_root: Path, country_iso: str) -> list[Path]:
     return sorted(matches)
 
 
+def _is_country_partitioned_weight_file(path: Path, country_iso: str) -> bool:
+    posix = path.as_posix()
+    return f"country={country_iso}" in posix or f"part-{country_iso}" in path.name
+
+
 def _load_tile_index_country(
     tile_index_root: Path,
     country_iso: str,
@@ -754,13 +779,19 @@ def _load_tile_weights_country(
     tile_ids = []
     weight_fp = []
     dp_values = []
+    require_country_scan = any(
+        not _is_country_partitioned_weight_file(path, country_iso) for path in files
+    )
+    read_columns = ["tile_id", "weight_fp", "dp"]
+    if require_country_scan:
+        read_columns = ["country_iso", *read_columns]
     if _HAVE_PYARROW:
         for path in files:
             pf = pq.ParquetFile(path)
             try:
                 for rg in range(pf.num_row_groups):
-                    table = pf.read_row_group(rg, columns=["country_iso", "tile_id", "weight_fp", "dp"])
-                    if "country_iso" in table.column_names:
+                    table = pf.read_row_group(rg, columns=read_columns)
+                    if require_country_scan and "country_iso" in table.column_names:
                         countries = table.column("country_iso")
                         bad_country = pc.any(
                             pc.or_(
@@ -779,8 +810,8 @@ def _load_tile_weights_country(
                 _close_parquet_reader(pf)
     else:
         for path in files:
-            df = pl.read_parquet(path, columns=["country_iso", "tile_id", "weight_fp", "dp"])
-            if "country_iso" in df.columns:
+            df = pl.read_parquet(path, columns=read_columns)
+            if require_country_scan and "country_iso" in df.columns:
                 mismatched = df.filter(pl.col("country_iso") != country_iso)
                 if mismatched.height > 0:
                     raise InputResolutionError(
@@ -843,6 +874,16 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         "ENGINE_1B_S4_RANK_CACHE_BYTES_MAX", RANK_CACHE_BYTES_MAX, minimum=0
     )
     rank_cache_k_max = _env_int("ENGINE_1B_S4_RANK_CACHE_K_MAX", RANK_CACHE_K_MAX, minimum=0)
+    progress_interval_seconds = _env_float(
+        "ENGINE_1B_S4_PROGRESS_INTERVAL_SECONDS",
+        3.0,
+        minimum=0.2,
+    )
+    heartbeat_interval_seconds = _env_float(
+        "ENGINE_1B_S4_HEARTBEAT_INTERVAL_SECONDS",
+        10.0,
+        minimum=1.0,
+    )
     logger.info(
         "S4: runtime cache settings countries_max=%d cache_max_bytes=%d",
         cache_countries_max,
@@ -853,6 +894,11 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         rank_cache_entries_max,
         rank_cache_bytes_max,
         rank_cache_k_max,
+    )
+    logger.info(
+        "S4: runtime logging cadence progress_interval=%.2fs heartbeat_interval=%.2fs",
+        progress_interval_seconds,
+        heartbeat_interval_seconds,
     )
 
     receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
@@ -1048,21 +1094,48 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     )
     logger.info("S4: read mode=%s", "pyarrow" if _HAVE_PYARROW else "polars")
 
-    total_pairs: Optional[int] = None
+    requirements_rows: list[tuple[int, str, int]] = []
+    country_pair_counts: Counter[str] = Counter()
+    total_pairs = 0
     if _HAVE_PYARROW:
-        total_pairs = 0
         for path in s3_files:
             pf = pq.ParquetFile(path)
             try:
-                total_pairs += pf.metadata.num_rows
+                for rg in range(pf.num_row_groups):
+                    table = pf.read_row_group(
+                        rg, columns=["merchant_id", "legal_country_iso", "n_sites"]
+                    )
+                    merchant_ids = table.column("merchant_id").to_numpy(zero_copy_only=False)
+                    countries = table.column("legal_country_iso").to_numpy(zero_copy_only=False)
+                    n_sites_arr = table.column("n_sites").to_numpy(zero_copy_only=False)
+                    total_pairs += int(table.num_rows)
+                    for mid, iso, n_sites in zip(merchant_ids, countries, n_sites_arr):
+                        iso_s = str(iso)
+                        requirements_rows.append((int(mid), iso_s, int(n_sites)))
+                        country_pair_counts[iso_s] += 1
             finally:
                 _close_parquet_reader(pf)
-        logger.info("S4: s3_requirements rows=%d (merchant-country pairs)", total_pairs)
+    else:
+        for path in s3_files:
+            df = pl.read_parquet(path, columns=["merchant_id", "legal_country_iso", "n_sites"])
+            total_pairs += int(df.height)
+            for row in df.iter_rows(named=True):
+                iso_s = str(row["legal_country_iso"])
+                requirements_rows.append(
+                    (int(row["merchant_id"]), iso_s, int(row["n_sites"]))
+                )
+                country_pair_counts[iso_s] += 1
+    logger.info(
+        "S4: requirements preloaded pairs=%d active_countries=%d",
+        total_pairs,
+        len(country_pair_counts),
+    )
 
     tracker = _ProgressTracker(
-        total_pairs,
+        total_pairs if total_pairs > 0 else None,
         logger,
         "S4 allocation progress pairs_processed (merchant-country requirements)",
+        min_interval_seconds=progress_interval_seconds,
     )
 
     run_paths.tmp_root.mkdir(parents=True, exist_ok=True)
@@ -1105,15 +1178,43 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
     dp_global: Optional[int] = None
 
+    substage_country_asset_load_seconds = 0.0
+    substage_country_asset_load_calls = 0
+    substage_rank_prefix_seconds = 0.0
+    substage_rank_prefix_calls = 0
+    substage_allocation_kernel_seconds = 0.0
+    substage_allocation_kernel_calls = 0
+    substage_batch_write_seconds = 0.0
+    substage_batch_write_calls = 0
+
     cache: OrderedDict[str, dict] = OrderedDict()
     seen_countries: set[str] = set()
     cache_hits = 0
     cache_misses = 0
     cache_evictions = 0
+    cache_evictions_pinned_fallback = 0
     cache_skipped_oversize = 0
     cache_bytes_current = 0
     cache_bytes_peak = 0
-    rank_prefix_cache: OrderedDict[tuple[str, int, int], np.ndarray] = OrderedDict()
+    pin_budget = _env_int(
+        "ENGINE_1B_S4_CACHE_PIN_COUNTRIES_MAX",
+        cache_countries_max if cache_countries_max > 0 else 0,
+        minimum=0,
+    )
+    pinned_countries = {
+        iso
+        for iso, _ in sorted(
+            country_pair_counts.items(),
+            key=lambda item: (-int(item[1]), str(item[0])),
+        )[:pin_budget]
+    }
+    logger.info(
+        "S4: cache pinning configured pin_budget=%d pinned_countries=%d",
+        pin_budget,
+        len(pinned_countries),
+    )
+
+    rank_prefix_cache: OrderedDict[tuple[str, int], np.ndarray] = OrderedDict()
     rank_cache_hits = 0
     rank_cache_misses = 0
     rank_cache_evictions = 0
@@ -1123,7 +1224,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     rank_cache_bytes_peak = 0
     heartbeat_last = time.monotonic()
     heartbeat_check_step = max(500, int((total_pairs or 5000) / 10))
-    heartbeat_interval = 3.0
+    heartbeat_interval = heartbeat_interval_seconds
 
     def _load_country_assets(country_iso: str) -> dict:
         nonlocal bytes_read_weights_total
@@ -1137,9 +1238,16 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         nonlocal cache_skipped_oversize
         nonlocal cache_bytes_current
         nonlocal cache_bytes_peak
+        nonlocal substage_country_asset_load_seconds
+        nonlocal substage_country_asset_load_calls
+        nonlocal cache_evictions_pinned_fallback
+
+        stage_started = time.monotonic()
+        substage_country_asset_load_calls += 1
         if country_iso in cache:
             cache_hits += 1
             cache.move_to_end(country_iso)
+            substage_country_asset_load_seconds += time.monotonic() - stage_started
             return cache[country_iso]
 
         cache_misses += 1
@@ -1346,29 +1454,55 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         payload_bytes = int(weight_tile_sorted.nbytes + weight_fp_sorted.nbytes)
         payload["__bytes"] = payload_bytes
         if cache_countries_max <= 0:
+            substage_country_asset_load_seconds += time.monotonic() - stage_started
             return payload
         if cache_max_bytes > 0 and payload_bytes > cache_max_bytes:
             cache_skipped_oversize += 1
+            substage_country_asset_load_seconds += time.monotonic() - stage_started
             return payload
+
+        def _evict_one_for_insert() -> bool:
+            nonlocal cache_bytes_current
+            nonlocal cache_evictions
+            nonlocal cache_evictions_pinned_fallback
+            if not cache:
+                return False
+            for evict_key in list(cache.keys()):
+                if evict_key in pinned_countries:
+                    continue
+                evicted = cache.pop(evict_key)
+                cache_bytes_current = max(0, cache_bytes_current - int(evicted.get("__bytes", 0)))
+                cache_evictions += 1
+                return True
+            _, evicted = cache.popitem(last=False)
+            cache_bytes_current = max(0, cache_bytes_current - int(evicted.get("__bytes", 0)))
+            cache_evictions += 1
+            cache_evictions_pinned_fallback += 1
+            return True
+
         while cache:
             over_entries = len(cache) >= cache_countries_max
             over_bytes = cache_max_bytes > 0 and (cache_bytes_current + payload_bytes > cache_max_bytes)
             if not over_entries and not over_bytes:
                 break
-            _, evicted = cache.popitem(last=False)
-            cache_bytes_current = max(0, cache_bytes_current - int(evicted.get("__bytes", 0)))
-            cache_evictions += 1
+            if not _evict_one_for_insert():
+                break
         cache[country_iso] = payload
         cache.move_to_end(country_iso)
         cache_bytes_current += payload_bytes
         cache_bytes_peak = max(cache_bytes_peak, cache_bytes_current)
+        substage_country_asset_load_seconds += time.monotonic() - stage_started
         return payload
 
     def _flush_batch() -> None:
         nonlocal batch_index, batch_rows
+        nonlocal substage_batch_write_seconds, substage_batch_write_calls
         if not batch_rows:
             return
+        write_started = time.monotonic()
         _write_batch(batch_rows, batch_index, alloc_plan_tmp, logger)
+        substage_batch_write_seconds += time.monotonic() - write_started
+        substage_batch_write_calls += 1
         batch_index += 1
         batch_rows = []
 
@@ -1386,29 +1520,42 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         nonlocal rank_cache_skipped_oversize
         nonlocal rank_cache_bytes_current
         nonlocal rank_cache_bytes_peak
+        nonlocal substage_rank_prefix_seconds
+        nonlocal substage_rank_prefix_calls
 
+        rank_started = time.monotonic()
+        substage_rank_prefix_calls += 1
         k_i = int(k)
         if k_i <= 0:
+            substage_rank_prefix_seconds += time.monotonic() - rank_started
             return np.empty(0, dtype=np.int64)
         if rank_cache_entries_max <= 0:
-            return _topk_rank_prefix_exact(tile_ids=tile_ids, residues_i64=residues_i64, k=k_i)
+            ranked = _topk_rank_prefix_exact(tile_ids=tile_ids, residues_i64=residues_i64, k=k_i)
+            substage_rank_prefix_seconds += time.monotonic() - rank_started
+            return ranked
         if rank_cache_k_max > 0 and k_i > rank_cache_k_max:
             rank_cache_skipped_large_k += 1
-            return _topk_rank_prefix_exact(tile_ids=tile_ids, residues_i64=residues_i64, k=k_i)
+            ranked = _topk_rank_prefix_exact(tile_ids=tile_ids, residues_i64=residues_i64, k=k_i)
+            substage_rank_prefix_seconds += time.monotonic() - rank_started
+            return ranked
 
-        key = (str(legal_country_iso), int(n_sites), k_i)
+        key = (str(legal_country_iso), int(n_sites))
         cached = rank_prefix_cache.get(key)
         if cached is not None:
             rank_cache_hits += 1
             rank_prefix_cache.move_to_end(key)
-            return cached
+            out = cached if k_i >= cached.size else cached[:k_i]
+            substage_rank_prefix_seconds += time.monotonic() - rank_started
+            return out
 
         rank_cache_misses += 1
-        ranked = _topk_rank_prefix_exact(tile_ids=tile_ids, residues_i64=residues_i64, k=k_i)
+        ranked = np.lexsort((tile_ids, -residues_i64)).astype(np.int64, copy=False)
         payload_bytes = int(ranked.nbytes)
         if rank_cache_bytes_max > 0 and payload_bytes > rank_cache_bytes_max:
             rank_cache_skipped_oversize += 1
-            return ranked
+            out = ranked if k_i >= ranked.size else ranked[:k_i]
+            substage_rank_prefix_seconds += time.monotonic() - rank_started
+            return out
 
         while rank_prefix_cache:
             over_entries = len(rank_prefix_cache) >= rank_cache_entries_max
@@ -1425,7 +1572,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         rank_prefix_cache.move_to_end(key)
         rank_cache_bytes_current += payload_bytes
         rank_cache_bytes_peak = max(rank_cache_bytes_peak, rank_cache_bytes_current)
-        return ranked
+        out = ranked if k_i >= ranked.size else ranked[:k_i]
+        substage_rank_prefix_seconds += time.monotonic() - rank_started
+        return out
 
     def _emit_rows(
         merchant_id: int,
@@ -1441,6 +1590,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         nonlocal diversify_pairs_touched, diversify_bumps_total
         nonlocal pre_top1_values, post_top1_values, pre_hhi_values, post_hhi_values
         nonlocal pre_active_tile_values, post_active_tile_values
+        nonlocal substage_allocation_kernel_seconds, substage_allocation_kernel_calls
+
+        kernel_started = time.monotonic()
+        substage_allocation_kernel_calls += 1
 
         n_sites_i64 = int(n_sites)
         K = 10 ** int(dp_value)
@@ -1642,6 +1795,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             rows_emitted += 1
             if len(batch_rows) >= BATCH_SIZE:
                 _flush_batch()
+        substage_allocation_kernel_seconds += time.monotonic() - kernel_started
 
     last_req_key: Optional[tuple[int, str]] = None
 
@@ -1784,34 +1938,16 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         max_rss = max(max_rss, rss_now)
         open_files_peak = max(open_files_peak, open_files_counter())
 
-    if _HAVE_PYARROW:
-        for path in s3_files:
-            pf = pq.ParquetFile(path)
-            try:
-                for rg in range(pf.num_row_groups):
-                    table = pf.read_row_group(
-                        rg, columns=["merchant_id", "legal_country_iso", "n_sites"]
-                    )
-                    merchant_ids = table.column("merchant_id").to_numpy(zero_copy_only=False)
-                    countries = table.column("legal_country_iso").to_numpy(zero_copy_only=False)
-                    n_sites_arr = table.column("n_sites").to_numpy(zero_copy_only=False)
-                    for mid, iso, n_sites in zip(merchant_ids, countries, n_sites_arr):
-                        _handle_requirement(int(mid), str(iso), int(n_sites))
-                    if tracker:
-                        tracker.update(table.num_rows)
-            finally:
-                _close_parquet_reader(pf)
-    else:
-        for path in s3_files:
-            df = pl.read_parquet(path, columns=["merchant_id", "legal_country_iso", "n_sites"])
-            for row in df.iter_rows(named=True):
-                _handle_requirement(
-                    int(row["merchant_id"]),
-                    str(row["legal_country_iso"]),
-                    int(row["n_sites"]),
-                )
-            if tracker:
-                tracker.update(df.height)
+    tracker_step = 256
+    tracker_accum = 0
+    for mid, iso, n_sites in requirements_rows:
+        _handle_requirement(mid, iso, n_sites)
+        tracker_accum += 1
+        if tracker and tracker_accum >= tracker_step:
+            tracker.update(tracker_accum)
+            tracker_accum = 0
+    if tracker and tracker_accum > 0:
+        tracker.update(tracker_accum)
 
     _flush_batch()
     timer.info(
@@ -1821,10 +1957,11 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         rows_emitted,
     )
     logger.info(
-        "S4: cache summary hits=%d misses=%d evictions=%d skipped_oversize=%d bytes_peak=%d unique_countries=%d",
+        "S4: cache summary hits=%d misses=%d evictions=%d evictions_pinned_fallback=%d skipped_oversize=%d bytes_peak=%d unique_countries=%d",
         cache_hits,
         cache_misses,
         cache_evictions,
+        cache_evictions_pinned_fallback,
         cache_skipped_oversize,
         cache_bytes_peak,
         len(seen_countries),
@@ -1876,6 +2013,29 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         "pair_active_tiles_pre": _summary_stats(pre_active_tile_values),
         "pair_active_tiles_post": _summary_stats(post_active_tile_values),
     }
+    wall_nonzero = wall_total if wall_total > 0 else 1.0
+    substage_timing = {
+        "country_asset_load": {
+            "seconds": float(substage_country_asset_load_seconds),
+            "calls": int(substage_country_asset_load_calls),
+            "share_of_wall": float(substage_country_asset_load_seconds / wall_nonzero),
+        },
+        "rank_prefix": {
+            "seconds": float(substage_rank_prefix_seconds),
+            "calls": int(substage_rank_prefix_calls),
+            "share_of_wall": float(substage_rank_prefix_seconds / wall_nonzero),
+        },
+        "allocation_kernel": {
+            "seconds": float(substage_allocation_kernel_seconds),
+            "calls": int(substage_allocation_kernel_calls),
+            "share_of_wall": float(substage_allocation_kernel_seconds / wall_nonzero),
+        },
+        "batch_write": {
+            "seconds": float(substage_batch_write_seconds),
+            "calls": int(substage_batch_write_calls),
+            "share_of_wall": float(substage_batch_write_seconds / wall_nonzero),
+        },
+    }
 
     run_report = {
         "seed": seed,
@@ -1911,6 +2071,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             "deterministic_seed_namespace": s4_policy.deterministic_seed_namespace,
         },
         "anti_collapse_diagnostics": anti_collapse_summary,
+        "substage_timing": substage_timing,
         "pat": {
             "bytes_read_s3_total": bytes_read_s3_total,
             "bytes_read_weights_total": bytes_read_weights_total,
@@ -1927,11 +2088,29 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             "runtime_cache": {
                 "countries_max": cache_countries_max,
                 "cache_max_bytes": cache_max_bytes,
+                "pinned_countries": len(pinned_countries),
                 "hits": cache_hits,
                 "misses": cache_misses,
                 "evictions": cache_evictions,
+                "evictions_pinned_fallback": cache_evictions_pinned_fallback,
                 "skipped_oversize": cache_skipped_oversize,
                 "bytes_peak": cache_bytes_peak,
+            },
+            "runtime_rank_cache": {
+                "entries_max": rank_cache_entries_max,
+                "bytes_max": rank_cache_bytes_max,
+                "k_max": rank_cache_k_max,
+                "hits": rank_cache_hits,
+                "misses": rank_cache_misses,
+                "evictions": rank_cache_evictions,
+                "skipped_large_k": rank_cache_skipped_large_k,
+                "skipped_oversize": rank_cache_skipped_oversize,
+                "bytes_peak": rank_cache_bytes_peak,
+                "entries": len(rank_prefix_cache),
+            },
+            "runtime_logging": {
+                "progress_interval_seconds": progress_interval_seconds,
+                "heartbeat_interval_seconds": heartbeat_interval_seconds,
             },
         },
     }

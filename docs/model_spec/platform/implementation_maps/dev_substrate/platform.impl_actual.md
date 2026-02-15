@@ -11050,3 +11050,99 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
    - managed bus posture is explicit (`kinesis_sequence` eb_ref),
    - durable receipt evidence remains under run-scoped S3 prefix.
 2. Previous convergence caveat is now closed.
+
+## Entry: 2026-02-15 01:34PM - Pre-change lock for M6.D planning expansion
+
+### Trigger
+1. USER instructed: Proceed with M6.D planning.
+
+### Planning objective
+1. Expand `M6.D` from concise checklist form into execution-grade lanes without performing runtime mutation.
+2. Ensure `P5 READY_PUBLISHED` posture is operationally deterministic before execution starts.
+
+### Gaps identified in current M6.D section
+1. Existing section states goals and blockers but does not pin a complete execution lane order (preflight -> launch -> pass proof -> READY proof -> snapshot contract).
+2. READY proof requirements are present conceptually but not yet explicit about acceptance fields and run-scope checks.
+3. Snapshot schema requirements are not explicit enough to make fail-closed reruns reproducible by another operator without interpretation.
+
+### Planned patch scope (docs-only)
+1. Update `platform.M6.build_plan.md`:
+   - expand M6.D tasks into explicit numbered lanes,
+   - pin required inputs and acceptance checks for SR pass + READY publication,
+   - add deterministic snapshot field contract and blocker taxonomy for each lane.
+2. Update `platform.build_plan.md`:
+   - record that M6.D is now planning-expanded/execution-ready and remains the immediate next action.
+3. Update `docs/logbook/02-2026/2026-02-15.md` with the planning action.
+
+### Safety/authority posture
+1. No runtime execution in this step.
+2. No branch operations.
+3. No credentials/artifacts with secret values will be written into docs.
+
+## Entry: 2026-02-15 01:38PM - M6.D planning expansion applied (docs-only)
+
+### Actions completed
+1. Expanded `M6.D` in `platform.M6.build_plan.md` to execution-grade form with:
+   - explicit entry prerequisites tied to latest `M6.C` closure evidence,
+   - deterministic lane sequence (`M6.D.1` through `M6.D.7`),
+   - fail-closed DoD and blocker taxonomy (`M6D-B1..M6D-B5`),
+   - pinned `m6_d_sr_ready_snapshot.json` schema contract.
+2. Updated `platform.build_plan.md` M6 status narrative to record that:
+   - M6.D planning is now execution-grade,
+   - runtime execution is still pending.
+
+### Outcome
+1. M6.D is ready for execution without additional planning drift.
+2. Immediate next action remains M6.D execution (not performed in this step).
+
+### Drift sentinel assessment
+1. No runtime semantic drift introduced.
+2. No ownership-boundary changes; this pass is documentation hardening only.
+
+## Entry: 2026-02-15 02:48PM - M6.D execution closure (P5 SR READY publication)
+
+### Trigger
+1. USER instructed: proceed with implementing `M6.D`.
+
+### Execution decisions and closure path
+1. Reused pinned `M6.C` authoritative precondition snapshot:
+   - `runs/dev_substrate/m6/20260215T124328Z/m6_c_ingest_ready_snapshot.json` (`overall_pass=true`).
+2. Corrected SR oracle root to managed object-store path with gate evidence:
+   - `s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/inputs`.
+3. Fixed evidence root scope for SR object-store writes:
+   - from `.../evidence` to `.../evidence/runs` to satisfy role policy boundary and run-scoped key shape.
+4. Closed interface-pack schema-reference runtime gap by task-scoped shim:
+   - materialized `docs/model_spec/data-engine/interface_pack/layer-1/specs/contracts/1A/schemas.layer1.yaml` in-container with required `$defs` used by interface-pack contract schemas.
+5. Closed long-run lease expiry (`LEASE_LOST`) during evidence reuse with task-scoped keepalive:
+   - periodic renewal of `sr_run_leases` rows for owner `sr-local` during the one-shot SR task.
+6. Closed stream-view parity mismatch by requesting only materialized stream-view output id for closure run:
+   - `s3_event_stream_with_fraud_6B`.
+
+### Evidence produced
+1. Authoritative M6.D PASS snapshot:
+   - local: `runs/dev_substrate/m6/20260215T144233Z/m6_d_sr_ready_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T144233Z/m6_d_sr_ready_snapshot.json`
+   - result: `overall_pass=true`, blockers empty.
+2. SR READY artifacts for run `78d859d39f4232fc510463fb868bc6e1`:
+   - run status: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/run_status/78d859d39f4232fc510463fb868bc6e1.json` (`state=READY`)
+   - ready signal: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/78d859d39f4232fc510463fb868bc6e1.json`.
+3. Control-bus publication proof:
+   - stream: `fraud-platform-dev-min-ig-bus-v0`
+   - topic: `fp.bus.control.v1`
+   - sequence: `49671822697342044645261017794300307957859908788827455490`
+   - message_id: `550b89cd28aa5a336dc00117b01ac9f3ecae5ec68282cc739e23a46a52dd0e6a`.
+
+### Historical fail-closed attempts retained
+1. `M6D-B2` and `M6D-B3/B4` attempt snapshots remain as audit history under `runs/dev_substrate/m6/20260215T134714Z` through `runs/dev_substrate/m6/20260215T140741Z`.
+2. Additional diagnostics discovered and resolved in-sequence:
+   - S3 policy root mismatch (`403 HeadObject`),
+   - missing interface-pack layer-1 schema reference file,
+   - lease expiry before READY commit,
+   - non-materialized stream-view output ids in requested set.
+
+### Drift sentinel assessment
+1. No ownership-boundary drift introduced:
+   - SR remained readiness owner; IG ownership was unchanged.
+2. Execution shims were explicit and task-scoped only; no repo runtime code path was silently altered in this lane.
+3. Residual follow-up for hardening:
+   - convert lease keepalive into a pinned runtime handle/code-level renewal policy before production-grade promotion.

@@ -465,7 +465,7 @@ resource "aws_iam_role_policy" "lane_app_object_store_data_plane" {
 resource "aws_iam_role_policy" "lane_app_kinesis_publish" {
   for_each = {
     for key, role in aws_iam_role.lane_app_roles : key => role
-    if contains(["ig_service"], key)
+    if contains(["ig_service", "rtdl_core"], key)
   }
 
   name   = "${var.name_prefix}-${each.key}-kinesis-publish"

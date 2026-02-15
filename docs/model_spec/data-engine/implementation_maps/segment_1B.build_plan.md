@@ -931,9 +931,25 @@ Work:
 - pin input lane to avoid confounding comparisons (same run lineage and seed for fast lane checks).
 
 DoD:
-- [ ] baseline runtime table is written in report artifact.
-- [ ] per-state hotspot map exists with ranked cost contributors.
-- [ ] optimization acceptance gate thresholds are materialized and referenced in notes.
+- [x] baseline runtime table is written in report artifact.
+- [x] per-state hotspot map exists with ranked cost contributors.
+- [x] optimization acceptance gate thresholds are materialized and referenced in notes.
+
+POPT.0 closure record:
+- Date/time: `2026-02-15 13:34` local.
+- Authority run:
+  - `run_id=9ebdd751ab7b4f9da246cc840ddff306`
+  - `seed=42`
+  - `manifest_fingerprint=242743ce57d1152e3ba402f26f62464948e9dda3456b0ec9893a2a2b2422f52e`
+  - `parameter_hash=eae2e39d5b1065f436adf8aaff77a54e212c03501d772afefe479645eebc80c5`
+- Baseline artifacts:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_baseline_9ebdd751ab7b4f9da246cc840ddff306.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_popt0_hotspot_map_9ebdd751ab7b4f9da246cc840ddff306.md`
+- Ranked bottlenecks (segment share):
+  - `S4: 53.97%` (`~38m00s`)
+  - `S5: 20.08%` (`~14m09s`)
+  - `S9: 6.04%` (`~4m15s`, dominated by RNG event scan delta `~190.23s`)
+- Gate status for progression to `POPT.1`: `GO` (baseline + hotspots + budgets locked).
 
 ### POPT.1 - S4 algorithm/data-structure rewrite (primary bottleneck)
 Goal:
@@ -943,16 +959,111 @@ Scope:
 - `packages/engine/src/engine/layers/l1/seg_1B/s4_alloc_plan/*`
 - governed policy/config touched only if needed for equivalent semantics under faster mechanics.
 
+POPT.1 baseline (from `POPT.0` authority):
+- `S4 elapsed ~= 2280.326s` (`~38m00s`).
+- dominant pressure indicators:
+  - `bytes_read_index_total=4,479,847,855`,
+  - `bytes_read_weights_total=2,148,765,517`,
+  - country cache misses `1550` / evictions `1502`,
+  - rank cache misses `3834`, evictions `3706`, skipped-large-k `5670`.
+
+POPT.1 runtime target:
+- target `<= 12m`, stretch `<= 15m` (single-process baseline; no required parallelism).
+
+POPT.1 hypotheses to prove/disprove:
+1. country-asset reload churn is a primary S4 cost driver.
+2. rank-prefix recomputation/cache churn in shortfall redistribution is a secondary high-cost driver.
+3. per-pair inner-loop recomputation and excessive heartbeat/log formatting adds avoidable overhead.
+
+#### POPT.1.1 - Substage timing and guard instrumentation lock
+Goal:
+- expose exact S4 internal cost centers before rewriting.
+
 Work:
-- code-first redesign of allocation/search kernel (indexing, precomputed lookup structures, reduced repeated scans).
-- eliminate avoidable full-frame recomputation in iterative loops.
-- enforce bounded-memory streaming/chunk write path with deterministic ordering.
-- reduce logging overhead to checkpoint cadence only (no high-cardinality spam in default lane).
+- add substage timers in S4 runner for:
+  - country asset load path (`tile_index` + `tile_weights`),
+  - rank-prefix/top-k path,
+  - per-pair allocation kernel,
+  - batch flush/write path.
+- write substage timing block into `s4_run_report.json`.
+- keep instrumentation low-overhead and deterministic.
 
 DoD:
-- [ ] `S4` elapsed improves materially vs baseline and reaches target or stretch band.
-- [ ] deterministic outputs remain stable for fixed `{seed, parameter_hash, manifest_fingerprint}`.
-- [ ] no contract/schema drift introduced.
+- [ ] `s4_run_report.json` contains substage timing map and totals.
+- [ ] two same-input runs show stable timing ordering (same top-2 hotspots).
+
+#### POPT.1.2 - Country asset locality rewrite (IO and cache lane)
+Goal:
+- reduce repeated country parquet reads and cache churn.
+
+Work:
+- redesign cache admission/eviction for country assets using bounded-byte policy with stronger locality retention.
+- pre-resolve active countries used by `S3` pairs and bias cache strategy toward working-set countries.
+- eliminate repeated asset normalization work that can be done once per country per run.
+
+DoD:
+- [ ] `bytes_read_index_total` and `bytes_read_weights_total` materially reduced vs baseline.
+- [ ] cache miss + eviction profile materially reduced vs baseline.
+- [ ] memory remains bounded and within safe local posture.
+
+#### POPT.1.3 - Rank-prefix and shortfall kernel optimization
+Goal:
+- reduce top-k/rank recomputation and inner-loop allocation overhead.
+
+Work:
+- optimize rank-prefix reuse for repeated `(country, n_sites, k)` access patterns.
+- reduce conversions/sorts/recomputations inside per-pair path.
+- maintain exact tie-break and anti-collapse semantics.
+
+DoD:
+- [ ] rank-cache miss/eviction pressure drops materially.
+- [ ] per-pair throughput improves (pairs/s) vs baseline.
+- [ ] `alloc_sum_equals_requirements=true` and anti-collapse diagnostics stay valid.
+
+#### POPT.1.4 - Logging and heartbeat overhead budget
+Goal:
+- keep required observability while removing avoidable runtime drag.
+
+Work:
+- retain heartbeat narrative logs but enforce practical cadence.
+- avoid high-frequency string-heavy logs in inner hot loops.
+- preserve failure diagnostics and required run-report counters.
+
+DoD:
+- [ ] no loss of required operational signals.
+- [ ] measurable runtime improvement attributable to reduced logging overhead.
+
+#### POPT.1.5 - Determinism, contract, and output-equivalence gate
+Goal:
+- ensure optimization does not alter required semantics.
+
+Work:
+- run same-input deterministic witness twice (`S4` on fixed run lane).
+- verify:
+  - deterministic receipt stability,
+  - schema/contract validity unchanged,
+  - no unexpected changes to required S4 structural surfaces.
+
+DoD:
+- [ ] deterministic witness is green for fixed `{seed, parameter_hash, manifest_fingerprint}`.
+- [ ] contract/schema surfaces unchanged.
+- [ ] no new structural failures in downstream `S5->S9` smoke path.
+
+#### POPT.1.6 - Phase closure and lock
+Goal:
+- close POPT.1 with explicit go/no-go decision.
+
+Work:
+- compare optimized S4 against POPT.0 baseline artifact.
+- classify outcome:
+  - `GREEN`: target met (`<=12m`),
+  - `AMBER`: stretch met (`<=15m`) with explicit rationale,
+  - `RED`: stretch missed; fail-closed and continue S4 optimization before moving to POPT.2.
+
+DoD:
+- [ ] S4 runtime classification (`GREEN/AMBER/RED`) recorded with evidence.
+- [ ] baseline-vs-candidate delta artifact written.
+- [ ] progression decision to POPT.2 explicitly recorded.
 
 ### POPT.2 - S5 assignment-path optimization (secondary bottleneck)
 Goal:

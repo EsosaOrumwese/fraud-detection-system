@@ -325,11 +325,11 @@ Tasks:
    - emit `m6_c_ingest_ready_snapshot.json` local + durable under run-control prefix.
 
 DoD:
-- [ ] Runtime posture preflight confirms managed bus + durable object-store mode (no local shim).
-- [ ] Kafka publish smoke evidence captured for IG path with offset advancement.
-- [ ] Durable receipt/quarantine write smoke evidence captured.
-- [ ] `ingest/ig_ready.json` exists locally and durably.
-- [ ] `m6_c_ingest_ready_snapshot.json` exists locally and durably with `overall_pass=true`.
+- [x] Runtime posture preflight confirms managed bus + durable object-store mode (no local shim).
+- [x] Kafka publish smoke evidence captured for IG path with offset advancement.
+- [x] Durable receipt/quarantine write smoke evidence captured.
+- [x] `ingest/ig_ready.json` exists locally and durably.
+- [x] `m6_c_ingest_ready_snapshot.json` exists locally and durably with `overall_pass=true`.
 
 Blockers:
 1. `M6C-B1`: Kafka smoke publish/read verification failed.
@@ -383,23 +383,97 @@ Goal:
 
 Entry conditions:
 1. `M6.C` PASS.
+2. Latest authoritative M6.C snapshot is readable:
+   - local: `runs/dev_substrate/m6/20260215T124328Z/m6_c_ingest_ready_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T124328Z/m6_c_ingest_ready_snapshot.json`
+3. Pinned handles from `M6.A` remain resolvable:
+   - `ECS_CLUSTER_NAME`,
+   - `TD_SR`,
+   - `ROLE_SR_TASK`,
+   - `PLATFORM_RUN_ID`,
+   - control-bus bootstrap/topic handles.
+4. Active IG readiness artifact is present:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/ig_ready.json`.
 
 Tasks:
-1. Run one-shot `TD_SR` for active run scope.
-2. Verify SR pass artifact and READY publication receipt:
-   - SR PASS evidence under `sr/`,
-   - READY topic offset receipt under run evidence.
-3. Emit `m6_d_sr_ready_snapshot.json`.
+1. M6.D.1 preflight snapshot:
+   - resolve all required handles,
+   - assert run scope identity (`platform_run_id`),
+   - assert `M6.C` source snapshot `overall_pass=true`.
+2. M6.D.2 SR launch:
+   - run one-shot `TD_SR` in `ECS_CLUSTER_NAME` with active run scope,
+   - capture task ARN, launch timestamp, and task-definition revision.
+3. M6.D.3 SR completion gate:
+   - wait for terminal task state,
+   - assert container exit code `0`,
+   - capture stop reason and completion timestamp.
+4. M6.D.4 SR PASS evidence gate:
+   - verify run-scoped SR pass artifact exists under `evidence/runs/<platform_run_id>/sr/`,
+   - verify payload indicates PASS semantics (not merely file presence).
+5. M6.D.5 READY publication gate:
+   - verify READY publication receipt exists and references active `platform_run_id`,
+   - verify control-bus topic/offset metadata exists and is non-empty.
+6. M6.D.6 snapshot publication:
+   - emit local snapshot `m6_d_sr_ready_snapshot.json`,
+   - upload durable snapshot under:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m6_execution_id>/m6_d_sr_ready_snapshot.json`.
+7. M6.D.7 fail-closed verdict:
+   - set `overall_pass=true` only when all gates above pass,
+   - otherwise publish blocker set and keep `overall_pass=false`.
 
 DoD:
-- [ ] SR task exits success.
-- [ ] READY publication receipt exists and references active run.
-- [ ] M6.D snapshot published locally and durably.
+- [x] Required handles are resolvable and run-scoped preflight passes.
+- [x] SR task exits success with captured run-scoped task evidence.
+- [x] SR PASS artifact exists and validates pass semantics.
+- [x] READY publication receipt exists and references active run.
+- [x] M6.D snapshot is published locally and durably with `overall_pass=true` for closure.
 
 Blockers:
-1. `M6D-B1`: SR task failed.
-2. `M6D-B2`: READY missing or mismatched run scope.
-3. `M6D-B3`: M6.D snapshot write/upload failure.
+1. `M6D-B1`: preflight/handle closure failure.
+2. `M6D-B2`: SR launch or terminal completion failure.
+3. `M6D-B3`: SR PASS artifact missing/invalid.
+4. `M6D-B4`: READY publication missing or run-scope mismatch.
+5. `M6D-B5`: M6.D snapshot write/upload failure.
+
+Snapshot contract (`m6_d_sr_ready_snapshot.json`):
+1. `phase`, `captured_at_utc`, `m6_execution_id`, `platform_run_id`.
+2. `input_m6c_snapshot` with source path/URI and source `overall_pass`.
+3. `sr_task` block:
+   - `cluster`, `task_definition`, `task_arn`, `started_at_utc`, `stopped_at_utc`,
+   - `last_status`, `exit_code`, `stop_reason`.
+4. `sr_pass_evidence` block:
+   - `artifact_uri`,
+   - `exists`,
+   - `pass_semantics_valid`.
+5. `ready_publication` block:
+   - `receipt_uri`,
+   - `exists`,
+   - `platform_run_id_match`,
+   - `topic`,
+   - `offset`.
+6. `blockers` and `overall_pass`.
+
+Execution status (2026-02-15):
+1. Initial execution attempts failed closed and were retained as evidence:
+   - `runs/dev_substrate/m6/20260215T134714Z/m6_d_sr_ready_snapshot.json` (`M6D-B2`)
+   - `runs/dev_substrate/m6/20260215T134946Z/m6_d_sr_ready_snapshot.json` (`M6D-B2`)
+   - `runs/dev_substrate/m6/20260215T135205Z/m6_d_sr_ready_snapshot.json` (`M6D-B2`)
+   - `runs/dev_substrate/m6/20260215T135601Z/m6_d_sr_ready_snapshot.json` (`M6D-B2`)
+   - `runs/dev_substrate/m6/20260215T140337Z/m6_d_sr_ready_snapshot.json` (`M6D-B3`)
+   - `runs/dev_substrate/m6/20260215T140741Z/m6_d_sr_ready_snapshot.json` (`M6D-B3`, `M6D-B4`)
+2. Closure run (authoritative):
+   - local: `runs/dev_substrate/m6/20260215T144233Z/m6_d_sr_ready_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T144233Z/m6_d_sr_ready_snapshot.json`
+   - result: `overall_pass=true`, blocker set empty.
+3. Proven closure facts:
+   - SR run status is `READY` for run `78d859d39f4232fc510463fb868bc6e1`,
+   - READY receipt exists at `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/78d859d39f4232fc510463fb868bc6e1.json`,
+   - control-bus READY publication is verified on stream `fraud-platform-dev-min-ig-bus-v0` with sequence `49671822697342044645261017794300307957859908788827455490`.
+4. Execution note (explicit, non-hidden):
+   - closure run used one requested output id (`s3_event_stream_with_fraud_6B`) because only that stream-view output is currently materialized under the active oracle stream-view root.
+   - closure run includes temporary task-scoped execution shims:
+     - interface-pack layer-1 schema reference stub materialization,
+     - lease keepalive loop for long evidence-reuse windows.
 
 ### M6.E P6 WSP Launch Contract + READY Consumption
 Goal:
@@ -574,7 +648,7 @@ Notes:
 - [x] M6.A complete
 - [x] M6.B complete
 - [x] M6.C complete
-- [ ] M6.D complete
+- [x] M6.D complete
 - [ ] M6.E complete
 - [ ] M6.F complete
 - [ ] M6.G complete
@@ -609,6 +683,15 @@ Current blockers:
      - applied `infra/terraform/dev_min/demo` with pinned vars (`required_platform_run_id`, `ecs_daemon_container_image`, `ig_api_key`),
      - final `terraform plan -detailed-exitcode` returned `0` (no drift).
    - authoritative IG runtime now serves from task definition `arn:aws:ecs:eu-west-2:230372904534:task-definition/fraud-platform-dev-min-ig:8`.
+4. M6.D blocker chain (`M6D-B2` -> `M6D-B3/B4`) is closed by snapshot:
+   - `runs/dev_substrate/m6/20260215T144233Z/m6_d_sr_ready_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T144233Z/m6_d_sr_ready_snapshot.json`
+   - READY receipt:
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/sr/ready_signal/78d859d39f4232fc510463fb868bc6e1.json`
+   - control-bus sequence proof:
+     - `49671822697342044645261017794300307957859908788827455490` on stream `fraud-platform-dev-min-ig-bus-v0`.
+   - closure run caveat:
+     - requested output set was narrowed to currently materialized stream-view output (`s3_event_stream_with_fraud_6B`) and used task-scoped execution shims (schema-ref stub + lease keepalive).
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.
