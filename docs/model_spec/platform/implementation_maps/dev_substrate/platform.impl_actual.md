@@ -10892,3 +10892,45 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
 ### Notes
 1. config/platform/profiles/dev_min.yaml was added to repo authority surface; current running image digest predates that file, so IG runtime command for M6.B generates a runtime profile from in-image local_parity.yaml to keep closure deterministic without rebuilding the image in this lane.
 2. M6.B gate closure is now complete; next executable lane is M6.C.
+
+## Entry: 2026-02-15 06:38AM - M6.C planning start (execution intentionally held)
+
+### Trigger
+1. USER requested: Let's begin planning for M6.C.
+
+### Planning-only posture
+1. No M6.C runtime execution in this step.
+2. Objective is to make M6.C execution-grade with explicit decision-completeness gates and blockers.
+
+### Key drift surfaced from current runtime truth
+1. Latest M6.B PASS used an IG runtime shim for auth closure:
+   - event bus forced to ile,
+   - object-store root forced to local uns.
+2. M6.C authority requires managed Kafka publish smoke and durable S3 evidence write smoke.
+3. Therefore M6.C execution must be blocked until IG runtime posture is rematerialized to managed Kafka + S3 roots.
+
+### Planning intent for patch
+1. Expand M6.C section into explicit lanes/checks/evidence schema.
+2. Add pre-execution blocker(s) and closure criteria to avoid accidental execution drift.
+3. Align main platform build plan next-action text with new M6.C pre-execution closure gate.
+
+### M6.C planning patch outcomes
+1. Expanded M6.C in platform.M6.build_plan.md into execution-grade lanes:
+   - runtime posture preflight,
+   - smoke envelope/topic pinning,
+   - ingestion execution,
+   - Kafka offset advancement verification,
+   - durable write verification + ig_ready.json,
+   - snapshot publication.
+2. Added explicit decision-completeness gate and new blocker taxonomy:
+   - M6C-B4 runtime posture drift,
+   - M6C-B5 offset verification surface unavailable/non-deterministic.
+3. Recorded current open blocker in unresolved register:
+   - M6.B closure runtime shim (ile bus + local uns root) is incompatible with M6.C managed Kafka/S3 proof objective.
+4. Updated main platform plan (platform.build_plan.md):
+   - M6.C marked planning-expanded/execution-gated,
+   - immediate next action now starts with closing M6C-B4 before attempting M6.C execution.
+
+### Status after planning patch
+1. M6.B remains closed PASS.
+2. M6.C remains NOT_EXECUTED and blocked pending runtime rematerialization (M6C-B4).

@@ -301,24 +301,50 @@ Goal:
 
 Entry conditions:
 1. `M6.B` PASS.
+2. Decision-completeness gate is closed:
+   - IG runtime is configured for managed bus + durable object-store posture for dev substrate.
+   - no `file` bus / local `runs` storage shim remains in the active IG runtime command/profile.
 
 Tasks:
-1. Trigger minimal admission smoke through IG.
-2. Verify Kafka publish smoke:
-   - topic/partition/offset evidence captured.
-3. Verify S3 receipt/quarantine smoke write.
-4. Publish run-scoped `ingest/ig_ready.json`.
-5. Emit `m6_c_ingest_ready_snapshot.json`.
+1. M6.C.1 runtime posture preflight:
+   - snapshot active IG task definition command/env and confirm no local shim mode (`event_bus_kind=file`, local `runs` object-store root).
+   - confirm required handles for this lane are resolved.
+2. M6.C.2 smoke envelope contract:
+   - pin one minimal authenticated ingest payload based on existing contract event type.
+   - pin one deterministic expected publish target topic for offset verification.
+3. M6.C.3 ingestion smoke execution:
+   - send authenticated smoke payload through IG writer boundary.
+   - capture response status/body + receipt reference.
+4. M6.C.4 Kafka publish verification:
+   - record topic/partition/offset before and after smoke event.
+   - assert offset advancement in run scope.
+5. M6.C.5 durable evidence verification:
+   - verify receipt/quarantine object write under run-scoped durable prefix.
+   - publish `evidence/runs/<platform_run_id>/ingest/ig_ready.json`.
+6. M6.C.6 snapshot publication:
+   - emit `m6_c_ingest_ready_snapshot.json` local + durable under run-control prefix.
 
 DoD:
-- [ ] Kafka publish smoke evidence captured for IG path.
-- [ ] S3 write smoke evidence captured.
+- [ ] Runtime posture preflight confirms managed bus + durable object-store mode (no local shim).
+- [ ] Kafka publish smoke evidence captured for IG path with offset advancement.
+- [ ] Durable receipt/quarantine write smoke evidence captured.
 - [ ] `ingest/ig_ready.json` exists locally and durably.
+- [ ] `m6_c_ingest_ready_snapshot.json` exists locally and durably with `overall_pass=true`.
 
 Blockers:
 1. `M6C-B1`: Kafka smoke publish/read verification failed.
 2. `M6C-B2`: S3 write smoke failed.
 3. `M6C-B3`: `ig_ready.json` write/upload failure.
+4. `M6C-B4`: runtime posture drift (`file` bus and/or local storage shim) blocks managed Kafka/S3 proof.
+5. `M6C-B5`: topic-offset verification surface unavailable or non-deterministic for selected smoke topic.
+
+Execution hold (as-of 2026-02-15):
+1. `M6C-B4` is currently open based on latest M6.B PASS snapshot (`m6_20260215T040527Z`):
+   - active IG command still uses planning shim that mutates runtime profile to `event_bus_kind=file` and local `runs` object-store root.
+2. Closure requirement before M6.C execution:
+   - rematerialize IG runtime command/profile to managed bus + durable object-store posture for dev substrate,
+   - rerun M6.B-style runtime-surface confirmation,
+   - then execute M6.C smoke/commit lane.
 
 ### M6.D P5 SR Task + READY Publication
 Goal:
@@ -539,7 +565,13 @@ Control: hard fail on unresolved `PUBLISH_AMBIGUOUS` in `M6.G`.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M6 Closure)
 Current blockers:
-1. None.
+1. `M6C-B4` - M6.C pre-execution runtime posture drift:
+   - active IG runtime still includes `file` bus + local `runs` object-store shim from M6.B closure path,
+   - this cannot satisfy M6.C managed Kafka/S3 smoke evidence objective.
+2. Closure criteria:
+   - IG runtime rematerialized to managed bus + durable object-store configuration,
+   - runtime-surface proof captured in new snapshot,
+   - M6.C execution then proceeds and passes with durable `ig_ready.json` evidence.
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

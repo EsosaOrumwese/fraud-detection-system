@@ -554,6 +554,9 @@ Active-phase planning posture:
       - app SG ingress rule exists for probe path,
       - IG API key in SSM is non-placeholder,
       - health/auth probes satisfy M6.B gate contract.
+  - `M6.C` is now planning-expanded and execution-gated:
+    - explicit runtime-preflight, Kafka offset-smoke, and durable `ig_ready.json` publication lanes are defined in deep plan,
+    - pre-execution blocker `M6C-B4` is open: active IG runtime still uses temporary `file`-bus/local-store shim from M6.B closure.
 
 - Sub-phase progress:
   - [x] `M6.A` authority + handle closure for `P4..P7`.
@@ -714,6 +717,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M6 is active for deep-plan closure and execution sequencing.
 Next action:
+- close `M6C-B4` by rematerializing IG runtime from temporary `file` shim to managed bus + durable object-store posture,
 - execute `M6.C` P4 Kafka/S3 smoke and publish `ingest/ig_ready.json`,
-- require `M6.C` snapshot `overall_pass=true`,
-- proceed to `M6.D` only after `M6.C` blockers are empty.
+- require `M6.C` snapshot `overall_pass=true`, then proceed to `M6.D`.
