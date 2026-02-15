@@ -11371,3 +11371,25 @@ Delete legacy oracle prefixes and clear bucket clutter to prevent future drift/t
 ### Closure statement
 - SR is not realigned/hardcoded to `s3_event_stream_with_fraud_6B`; the earlier narrowness was an invocation/selector reality.
 - Current authoritative SR READY publication proof includes `oracle_pack_ref.stream_view_output_refs` for all 4 outputs under canonical `oracle-store/`.
+
+## Entry: 2026-02-15 21:07:00 +00:00 - SR output digest optimization (avoid hashing every parquet object)
+
+### Problem
+SR evidence collection previously computed each output locator `content_digest` by reading and hashing the bytes of **every** matched parquet object under `part-*.parquet`. Over S3 this is slow and expensive (hundreds/thousands of GETs + large byte transfers) and is not necessary when the Oracle stream-sort lane already emits stable, content-derived receipts/manifests.
+
+### Decision
+For `acceptance_mode=dev_min_managed` only, SR now computes output digests from stream-view artifacts:
+- `oracle_stream_view_root/output_id=<output_id>/_stream_sort_receipt.json`
+- `oracle_stream_view_root/output_id=<output_id>/_stream_view_manifest.json`
+
+Digest is `sha256(json_canonical({output_id, stream_view_id, source_locator_digest, sorted_stats, sort_keys, world_key}))` with volatile timestamps (`created_utc`) excluded.
+
+### Why this is safe (v0 posture)
+1. Stream-view artifacts are already required by dev-min acceptance (`ORACLE_STREAM_VIEW_*` checks); this uses the same authoritative lane.
+2. `source_locator_digest` + `sorted_stats` + `world_key` changes when the underlying dataset selection changes; SR idempotency remains intact without re-downloading all parquet bytes.
+3. Change is acceptance-scoped: local-parity and non-dev-min modes preserve the existing byte-hash digest path.
+
+### Implementation
+- `src/fraud_detection/scenario_runner/runner.py`
+  - added `_compute_output_digest_fast(...)` for dev-min managed
+  - wired it into `_collect_evidence(...)` so byte-hash is only the fallback path

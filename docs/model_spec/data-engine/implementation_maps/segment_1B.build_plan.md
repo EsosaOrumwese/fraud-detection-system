@@ -1177,7 +1177,24 @@ Current best observed S4 witness (candidate lane; fixed identity; deterministic 
 Classification:
 - still `RED` vs stretch budget (`<= 900s / 15m`), so `POPT.1` remains open and blocks `POPT.2` unless USER explicitly waives.
 
-POPT.1 “plan forward” (execute in order; prune run-id folders between cycles to keep storage bounded):
+#### POPT.1 status update (2026-02-15, post R4/R6 implementation)
+New authority witnesses (same upstream lane; deterministic equivalence confirmed across run-ids):
+- disk-cache cold (build + save):
+  - run: `c98c62d86bc84e2ca6df88df1fe841c1`
+  - `S4 wall_clock_seconds_total=793.30s` (`00:13:13`) at `ENGINE_1B_S4_DIVERSIFY_WINDOW_MAX=200000`, `ENGINE_1B_S4_PAT_SAMPLE_EVERY_PAIRS=256`.
+  - disk cache: `misses=1516`, `saves=1516`, `bytes_written=474,116,260` (group `cc155167296ab5c5`).
+- disk-cache warm (hit-only) + R3 cadence sweep:
+  - run: `cc8cd2f309214f4cbf89b1f163d6e5fa`
+  - `S4 wall_clock_seconds_total=710.16s` (`00:11:50`) at `ENGINE_1B_S4_DIVERSIFY_WINDOW_MAX=200000`, `ENGINE_1B_S4_PAT_SAMPLE_EVERY_PAIRS=1024`.
+  - disk cache: `hits=1516`, `misses=0`, `bytes_read=474,116,260` (same group).
+- determinism witness:
+  - `determinism_receipt.sha256_hex` matched across the two runs (`dd284b2b9a92...`), confirming identical-bytes output under the same `{seed, parameter_hash, manifest_fingerprint}` despite cache/cadence changes.
+
+Classification and decision:
+- `POPT.1 = GREEN` (meets `S4 <= 12m` target).
+- unlock decision: `GO POPT.2` (begin `S5` assignment-path optimization).
+
+POPT.1 “plan forward” (now optional; only if S4 regresses above budget in later work):
 
 POPT.1.R3 - Low-risk overhead squeeze (no semantic change)
 Goal:

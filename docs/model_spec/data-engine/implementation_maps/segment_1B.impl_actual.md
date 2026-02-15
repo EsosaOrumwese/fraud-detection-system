@@ -5638,3 +5638,25 @@ Files changed / added:
 Operational notes:
 1) Disk cache is enabled by default only for `runs_root` paths containing `runs/fix-data-engine` (can be overridden via env).
 2) The disk cache is designed for the optimization lane: it trades small on-disk artifacts for much faster reruns across fresh run-ids while keeping determinism strict via keying.
+
+### Entry: 2026-02-15 21:17
+
+Design element: `POPT.1` closure update (S4 now meets target; unlock `POPT.2`).
+Summary: After landing `R4` (disk cache) and `R6` (remove per-pair psutil sampling), S4 moved from ~20m to ~13m cold, and ~11m50s warm. Determinism hash matches across run-ids, so we can classify `POPT.1` as `GREEN` and move on to `POPT.2` (S5).
+
+Evidence (runs under `runs/fix-data-engine/segment_1B/`, seed=42):
+1) Cold disk-cache build+save:
+   - run: `c98c62d86bc84e2ca6df88df1fe841c1`
+   - `wall_clock_seconds_total=793.30` (`00:13:13`)
+   - disk cache: group `cc155167296ab5c5`, `misses=1516`, `saves=1516`, `bytes_written=474,116,260`.
+2) Warm disk-cache hit-only + cadence sweep:
+   - run: `cc8cd2f309214f4cbf89b1f163d6e5fa`
+   - `wall_clock_seconds_total=710.16` (`00:11:50`) with `ENGINE_1B_S4_PAT_SAMPLE_EVERY_PAIRS=1024`
+   - disk cache: `hits=1516`, `misses=0`, `bytes_read=474,116,260`.
+3) Determinism:
+   - `determinism_receipt.sha256_hex` matched across both runs:
+     - `dd284b2b9a92cbe7f49cfd76621cca39ddf3b126e2b345196ca64b4d8adb83ff`
+
+Decision:
+1) `POPT.1` classification updated to `GREEN` (S4 meets target `<= 12m`).
+2) Unlock `POPT.2` (begin S5 assignment-path optimization). Next work should not reopen S4 unless S5 changes reveal a regression or the integrated lane needs additional headroom.

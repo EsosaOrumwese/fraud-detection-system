@@ -49,6 +49,10 @@ RANK_CACHE_BYTES_MAX = 64 * 1024 * 1024
 RANK_CACHE_K_MAX = 200_000
 ALLOC_PLAN_CACHE_ENTRIES_MAX = 256
 ALLOC_PLAN_CACHE_BYTES_MAX = 256 * 1024 * 1024
+ALLOC_PLAN_DISK_CACHE_ENABLED_DEFAULT = 0
+ALLOC_PLAN_DISK_CACHE_MAX_ENTRIES_DEFAULT = 4096
+ALLOC_PLAN_DISK_CACHE_MAX_BYTES_DEFAULT = 2 * 1024 * 1024 * 1024  # 2GiB
+ALLOC_PLAN_DISK_CACHE_PRUNE_EVERY_SAVES_DEFAULT = 64
 
 
 @dataclass(frozen=True)
@@ -101,6 +105,85 @@ class _AllocPlan:
     @property
     def payload_bytes(self) -> int:
         return int(self.base_idx.nbytes + self.base_counts.nbytes + self.candidates.nbytes)
+
+
+def _sha256_paths_and_sizes(root: Path, pattern: str = "*.parquet") -> str:
+    """Cheap content fingerprint for partitioned parquet surfaces.
+
+    This avoids hashing file bytes (too expensive for large tile universes) while still being
+    strict enough to invalidate caches when file names or sizes change.
+    """
+
+    files = sorted(
+        [p for p in root.rglob(pattern) if p.is_file()],
+        key=lambda p: p.relative_to(root).as_posix(),
+    )
+    h = hashlib.sha256()
+    for p in files:
+        rel = p.relative_to(root).as_posix().encode("utf-8")
+        size = str(int(p.stat().st_size)).encode("ascii")
+        h.update(rel)
+        h.update(b"\n")
+        h.update(size)
+        h.update(b"\n")
+    return h.hexdigest()
+
+
+def _atomic_replace_file(tmp_path: Path, final_path: Path) -> None:
+    final_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path.replace(final_path)
+
+
+def _prune_disk_cache(
+    *,
+    cache_dir: Path,
+    max_entries: int,
+    max_bytes: int,
+    logger,
+) -> None:
+    if max_entries <= 0 and max_bytes <= 0:
+        return
+    if not cache_dir.exists():
+        return
+    files = [p for p in cache_dir.rglob("*.npz") if p.is_file()]
+    if not files:
+        return
+    sizes = []
+    total_bytes = 0
+    for p in files:
+        try:
+            st = p.stat()
+        except OSError:
+            continue
+        total_bytes += int(st.st_size)
+        sizes.append((float(st.st_mtime), int(st.st_size), p))
+    sizes.sort(key=lambda t: t[0])  # oldest first by mtime
+    over_entries = max_entries > 0 and len(sizes) > max_entries
+    over_bytes = max_bytes > 0 and total_bytes > max_bytes
+    if not over_entries and not over_bytes:
+        return
+    removed = 0
+    removed_bytes = 0
+    while sizes:
+        if max_entries > 0 and (len(sizes) - removed) <= max_entries and not (
+            max_bytes > 0 and (total_bytes - removed_bytes) > max_bytes
+        ):
+            break
+        _, sz, p = sizes.pop(0)
+        try:
+            p.unlink(missing_ok=True)
+            removed += 1
+            removed_bytes += int(sz)
+        except Exception:
+            continue
+    if removed:
+        logger.info(
+            "S4: pruned alloc-plan disk cache removed=%d removed_bytes=%d (max_entries=%d max_bytes=%d)",
+            removed,
+            removed_bytes,
+            max_entries,
+            max_bytes,
+        )
 
 
 class _StepTimer:
@@ -734,10 +817,13 @@ def _build_alloc_plan(
     else:
         base_idx_compact = base_idx_i64.astype(np.int64, copy=False)
     if base_idx_i64.size:
-        base_counts = (prod[base_idx_i64] // K).astype(np.int64, copy=False)
-        base_sum = int(np.sum(base_counts, dtype=np.int64))
+        # Each count is in [1, n_sites] and n_sites is small in 1B; uint16 is sufficient and
+        # materially reduces plan payload size (both in-memory and on-disk).
+        base_counts_i64 = (prod[base_idx_i64] // K).astype(np.int64, copy=False)
+        base_sum = int(np.sum(base_counts_i64, dtype=np.int64))
+        base_counts = base_counts_i64.astype(np.uint16, copy=False)
     else:
-        base_counts = np.empty(0, dtype=np.int64)
+        base_counts = np.empty(0, dtype=np.uint16)
         base_sum = 0
 
     shortfall = n_sites_i - int(base_sum)
@@ -1042,6 +1128,8 @@ def _write_batch(
 def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     logger = get_logger("engine.layers.l1.seg_1B.s4_alloc_plan.l2.runner")
     timer = _StepTimer(logger)
+    runs_root_norm = str(config.runs_root).replace("\\", "/")
+    alloc_plan_disk_cache_enabled_default = 1 if "runs/fix-data-engine" in runs_root_norm else 0
     cache_countries_max = _env_int(
         "ENGINE_1B_S4_CACHE_COUNTRIES_MAX", CACHE_COUNTRIES_MAX, minimum=0
     )
@@ -1083,6 +1171,28 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         256,
         minimum=1,
     )
+    alloc_plan_disk_cache_enabled = bool(
+        _env_int(
+            "ENGINE_1B_S4_ALLOC_PLAN_DISK_CACHE_ENABLED",
+            alloc_plan_disk_cache_enabled_default,
+            minimum=0,
+        )
+    )
+    alloc_plan_disk_cache_max_entries = _env_int(
+        "ENGINE_1B_S4_ALLOC_PLAN_DISK_CACHE_MAX_ENTRIES",
+        ALLOC_PLAN_DISK_CACHE_MAX_ENTRIES_DEFAULT,
+        minimum=0,
+    )
+    alloc_plan_disk_cache_max_bytes = _env_int(
+        "ENGINE_1B_S4_ALLOC_PLAN_DISK_CACHE_MAX_BYTES",
+        ALLOC_PLAN_DISK_CACHE_MAX_BYTES_DEFAULT,
+        minimum=0,
+    )
+    alloc_plan_disk_cache_prune_every_saves = _env_int(
+        "ENGINE_1B_S4_ALLOC_PLAN_DISK_CACHE_PRUNE_EVERY_SAVES",
+        ALLOC_PLAN_DISK_CACHE_PRUNE_EVERY_SAVES_DEFAULT,
+        minimum=1,
+    )
     logger.info(
         "S4: runtime cache settings countries_max=%d cache_max_bytes=%d",
         cache_countries_max,
@@ -1106,6 +1216,13 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         heartbeat_interval_seconds,
     )
     logger.info("S4: PAT sampling cadence sample_every_pairs=%d", pat_sample_every_pairs)
+    logger.info(
+        "S4: alloc-plan disk cache enabled=%s max_entries=%d max_bytes=%d prune_every_saves=%d",
+        alloc_plan_disk_cache_enabled,
+        alloc_plan_disk_cache_max_entries,
+        alloc_plan_disk_cache_max_bytes,
+        alloc_plan_disk_cache_prune_every_saves,
+    )
 
     receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
     run_id = receipt.get("run_id")
@@ -1286,6 +1403,47 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
     logger.info("S4: allocation inputs resolved (s3_requirements + tile_weights + tile_index)")
 
+    # Disk cache keying must be strict enough to avoid mixing different upstream tile surfaces.
+    # We fingerprint by parquet relative paths + sizes (cheap) instead of hashing file bytes (too expensive).
+    alloc_plan_disk_cache_root: Optional[Path] = None
+    alloc_plan_disk_group_dir: Optional[Path] = None
+    alloc_plan_disk_key_prefix: Optional[str] = None
+    alloc_plan_disk_group = ""
+    tile_index_sig = ""
+    tile_weights_sig = ""
+    if alloc_plan_disk_cache_enabled:
+        try:
+            tile_index_sig = _sha256_paths_and_sizes(tile_index_root)
+            tile_weights_sig = _sha256_paths_and_sizes(tile_weights_root)
+            key_material = {
+                "manifest_fingerprint": str(manifest_fingerprint),
+                "parameter_hash": str(parameter_hash),
+                "tile_index_sig": tile_index_sig,
+                "tile_weights_sig": tile_weights_sig,
+                "diversify_window_max": int(diversify_window_max),
+                "policy_version": str(s4_policy.policy_version),
+                "policy_enabled": bool(s4_policy.enabled),
+                "diversify_enabled": bool(s4_policy.diversify_enabled),
+                "diversify_apply_n_sites_max": int(s4_policy.diversify_apply_n_sites_max),
+                "diversify_candidate_window_fraction": float(s4_policy.diversify_candidate_window_fraction),
+                "diversify_candidate_window_min": int(s4_policy.diversify_candidate_window_min),
+            }
+            alloc_plan_disk_key_prefix = json.dumps(key_material, ensure_ascii=True, sort_keys=True)
+            group_hash = hashlib.sha256(alloc_plan_disk_key_prefix.encode("utf-8")).hexdigest()[:16]
+            alloc_plan_disk_group = str(group_hash)
+            alloc_plan_disk_cache_root = config.runs_root / "_cache" / "s4_alloc_plan"
+            alloc_plan_disk_group_dir = alloc_plan_disk_cache_root / f"group={group_hash}"
+            alloc_plan_disk_group_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(
+                "S4: alloc-plan disk cache group prepared group=%s (tile_index_sig=%s tile_weights_sig=%s)",
+                group_hash,
+                tile_index_sig[:12],
+                tile_weights_sig[:12],
+            )
+        except Exception as exc:
+            alloc_plan_disk_cache_enabled = False
+            logger.info("S4: alloc-plan disk cache disabled (fingerprint failure): %s", exc)
+
     iso_df = pl.read_parquet(iso_path, columns=["country_iso"])
     iso_set = set(iso_df.get_column("country_iso").to_list())
     logger.info("S4: ISO domain loaded (count=%d) for country validation", len(iso_set))
@@ -1435,10 +1593,95 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     alloc_plan_cache_evictions = 0
     alloc_plan_cache_bytes_current = 0
     alloc_plan_cache_bytes_peak = 0
+    alloc_plan_disk_hits = 0
+    alloc_plan_disk_misses = 0
+    alloc_plan_disk_saves = 0
+    alloc_plan_disk_bytes_read = 0
+    alloc_plan_disk_bytes_written = 0
+    alloc_plan_disk_prune_calls = 0
+    _alloc_plan_disk_saves_since_prune = 0
     heartbeat_last = time.monotonic()
     heartbeat_check_step = max(500, int((total_pairs or 5000) / 10))
     heartbeat_interval = heartbeat_interval_seconds
     pat_sample_step = int(max(1, pat_sample_every_pairs))
+
+    def _alloc_plan_disk_path(country_iso: str, n_sites: int, dp_value: int) -> Optional[Path]:
+        if not alloc_plan_disk_cache_enabled or not alloc_plan_disk_group_dir:
+            return None
+        iso = str(country_iso).upper()
+        return alloc_plan_disk_group_dir / f"plan_{iso}_n{int(n_sites)}_dp{int(dp_value)}.npz"
+
+    def _load_alloc_plan_disk(country_iso: str, n_sites: int, dp_value: int) -> Optional[_AllocPlan]:
+        nonlocal alloc_plan_disk_hits, alloc_plan_disk_misses, alloc_plan_disk_bytes_read
+        path = _alloc_plan_disk_path(country_iso, n_sites, dp_value)
+        if path is None or not path.exists():
+            alloc_plan_disk_misses += 1
+            return None
+        try:
+            st = path.stat()
+            alloc_plan_disk_bytes_read += int(st.st_size)
+            with np.load(path, allow_pickle=False) as payload:
+                base_idx = payload["base_idx"]
+                base_counts = payload["base_counts"]
+                candidates = payload["candidates"]
+                shortfall = int(payload["shortfall"][0])
+                window = int(payload["window"][0])
+                K = int(payload["K"][0])
+                diversify_active = bool(int(payload["diversify_active"][0]))
+            # Touch mtime so prune-by-mtime approximates LRU.
+            try:
+                os.utime(path, None)
+            except Exception:
+                pass
+            alloc_plan_disk_hits += 1
+            return _AllocPlan(
+                n_sites=int(n_sites),
+                dp_value=int(dp_value),
+                K=int(K),
+                shortfall=int(shortfall),
+                window=int(window),
+                diversify_active=bool(diversify_active),
+                base_idx=base_idx,
+                base_counts=base_counts,
+                candidates=candidates,
+            )
+        except Exception:
+            alloc_plan_disk_misses += 1
+            return None
+
+    def _save_alloc_plan_disk(country_iso: str, plan: _AllocPlan) -> None:
+        nonlocal alloc_plan_disk_saves, alloc_plan_disk_bytes_written, alloc_plan_disk_prune_calls
+        nonlocal _alloc_plan_disk_saves_since_prune
+        path = _alloc_plan_disk_path(country_iso, plan.n_sites, plan.dp_value)
+        if path is None:
+            return
+        tmp = path.with_suffix(f".tmp.{uuid.uuid4().hex}.npz")
+        np.savez(
+            tmp,
+            base_idx=plan.base_idx,
+            base_counts=plan.base_counts,
+            candidates=plan.candidates,
+            shortfall=np.array([int(plan.shortfall)], dtype=np.int32),
+            window=np.array([int(plan.window)], dtype=np.int32),
+            K=np.array([int(plan.K)], dtype=np.int64),
+            diversify_active=np.array([1 if plan.diversify_active else 0], dtype=np.int8),
+        )
+        _atomic_replace_file(tmp, path)
+        try:
+            alloc_plan_disk_bytes_written += int(path.stat().st_size)
+        except OSError:
+            pass
+        alloc_plan_disk_saves += 1
+        _alloc_plan_disk_saves_since_prune += 1
+        if _alloc_plan_disk_saves_since_prune >= int(alloc_plan_disk_cache_prune_every_saves):
+            _alloc_plan_disk_saves_since_prune = 0
+            alloc_plan_disk_prune_calls += 1
+            _prune_disk_cache(
+                cache_dir=alloc_plan_disk_group_dir,
+                max_entries=int(alloc_plan_disk_cache_max_entries),
+                max_bytes=int(alloc_plan_disk_cache_max_bytes),
+                logger=logger,
+            )
 
     def _load_country_assets(country_iso: str) -> dict:
         nonlocal bytes_read_weights_total
@@ -1836,16 +2079,19 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 alloc_plan_cache.move_to_end(plan_key)
             else:
                 alloc_plan_cache_misses += 1
-                build_started = time.monotonic()
-                plan = _build_alloc_plan(
-                    tile_ids=tile_ids,
-                    weight_fp=weight_fp,
-                    dp_value=int(dp_value),
-                    n_sites=n_sites_i,
-                    policy=s4_policy,
-                    diversify_window_max=int(diversify_window_max),
-                )
-                substage_allocation_kernel_seconds += time.monotonic() - build_started
+                plan = _load_alloc_plan_disk(str(legal_country_iso), n_sites_i, int(dp_value))
+                if plan is None:
+                    build_started = time.monotonic()
+                    plan = _build_alloc_plan(
+                        tile_ids=tile_ids,
+                        weight_fp=weight_fp,
+                        dp_value=int(dp_value),
+                        n_sites=n_sites_i,
+                        policy=s4_policy,
+                        diversify_window_max=int(diversify_window_max),
+                    )
+                    substage_allocation_kernel_seconds += time.monotonic() - build_started
+                    _save_alloc_plan_disk(str(legal_country_iso), plan)
 
                 payload_bytes = int(plan.payload_bytes)
                 if alloc_plan_cache_entries_max > 0 and not (
@@ -2331,9 +2577,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     )
                 heartbeat_last = now
 
-        rss_now = proc.memory_info().rss
-        max_rss = max(max_rss, rss_now)
-        open_files_peak = max(open_files_peak, open_files_counter())
+        if pairs_total % pat_sample_step == 0 or (total_pairs and pairs_total >= total_pairs):
+            rss_now = proc.memory_info().rss
+            max_rss = max(max_rss, rss_now)
+            open_files_peak = max(open_files_peak, open_files_counter())
 
     tracker_step = 256
     tracker_accum = 0
@@ -2513,6 +2760,19 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 "evictions": alloc_plan_cache_evictions,
                 "bytes_peak": alloc_plan_cache_bytes_peak,
                 "entries": len(alloc_plan_cache),
+            },
+            "runtime_alloc_plan_disk_cache": {
+                "enabled": bool(alloc_plan_disk_cache_enabled),
+                "group": str(alloc_plan_disk_group),
+                "max_entries": int(alloc_plan_disk_cache_max_entries),
+                "max_bytes": int(alloc_plan_disk_cache_max_bytes),
+                "prune_every_saves": int(alloc_plan_disk_cache_prune_every_saves),
+                "hits": int(alloc_plan_disk_hits),
+                "misses": int(alloc_plan_disk_misses),
+                "saves": int(alloc_plan_disk_saves),
+                "bytes_read": int(alloc_plan_disk_bytes_read),
+                "bytes_written": int(alloc_plan_disk_bytes_written),
+                "prune_calls": int(alloc_plan_disk_prune_calls),
             },
             "runtime_logging": {
                 "progress_interval_seconds": progress_interval_seconds,
