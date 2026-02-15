@@ -10792,3 +10792,42 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
 ### Phase-state updates
 1. `M6.A` is now closed.
 2. `M6` immediate next executable lane is `M6.B`.
+
+## Entry: 2026-02-15 03:33AM - Executed M6.B IG readiness/auth boundary checks (fail-closed)
+
+### Trigger
+1. USER instructed: `execute M6.B`.
+
+### Execution scope
+1. Validate M6.B entry and runtime posture using closed M6.A snapshot (`m6_20260215T032545Z`).
+2. Verify IG service stability.
+3. Execute health probe and unauth/auth ingest probes.
+4. Publish `m6_b_ig_readiness_snapshot.json` local + durable.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/m6/20260215T033201Z/m6_b_ig_readiness_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T033201Z/m6_b_ig_readiness_snapshot.json`
+
+### Result
+1. `overall_pass=false`.
+2. Blocker classification: `M6B-B2`.
+3. Service/runtime facts:
+   - IG ECS service is stable (`desired=1`, `running=1`, `pending=0`).
+   - Task definition is placeholder daemon loop (not an HTTP server), with no port mappings.
+   - App security group has zero ingress rules.
+   - `SSM_IG_API_KEY_PATH` currently resolves to placeholder value (`REPLACE_ME_IG_API_KEY`).
+4. Probe outcomes:
+   - health probe timeout,
+   - unauth ingest probe timeout,
+   - auth ingest probe timeout,
+   - writer-boundary auth contract not provable.
+
+### Interpretation
+1. M6.B failed for the correct reasons under fail-closed posture.
+2. Next closure lane is to materialize real IG runtime/auth/network boundary before rerunning M6.B.
+
+### Plan-state updates
+1. Updated `platform.M6.build_plan.md` with M6.B execution status + blocker register update.
+2. Updated `platform.build_plan.md` M6 expansion state and immediate-next-action to focus on closing `M6B-B2`.

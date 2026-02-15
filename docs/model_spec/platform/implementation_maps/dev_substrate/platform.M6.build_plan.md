@@ -276,6 +276,25 @@ Blockers:
 2. `M6B-B2`: auth boundary behavior invalid.
 3. `M6B-B3`: M6.B snapshot write/upload failure.
 
+Execution status (2026-02-15):
+1. Executed fail-closed and published evidence:
+   - local: `runs/dev_substrate/m6/20260215T033201Z/m6_b_ig_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T033201Z/m6_b_ig_readiness_snapshot.json`
+2. Result:
+   - `overall_pass=false`
+   - blocker set: `M6B-B2`
+3. Observed runtime facts:
+   - IG ECS service is stable (`desired=1`, `running=1`, `pending=0`).
+   - Health and ingest probes timed out (no HTTP response).
+   - IG task definition is still placeholder daemon loop (no IG server process/port mapping).
+   - app SG (`sg-0a8542a5f310e1350`) has zero ingress rules.
+   - IG API key in SSM is placeholder (`REPLACE_ME_IG_API_KEY`).
+4. Closure requirement:
+   - materialize real IG service runtime (HTTP listener with health + ingest routes),
+   - materialize valid writer-boundary auth secret in SSM,
+   - update ingress/network posture so probes are executable per runbook contract,
+   - rerun `M6.B` and require `overall_pass=true`.
+
 ### M6.C P4 Kafka/S3 Smoke + `ig_ready.json`
 Goal:
 1. Prove IG can publish to Kafka and write durable ingest evidence.
@@ -520,7 +539,17 @@ Control: hard fail on unresolved `PUBLISH_AMBIGUOUS` in `M6.G`.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M6 Closure)
 Current blockers:
-1. None.
+1. `M6B-B2` - IG readiness/auth boundary invalid in latest M6.B run (`m6_20260215T033201Z`):
+   - health probe failed (timeout),
+   - unauth/auth ingest probes did not return expected HTTP statuses,
+   - IG task definition still runs placeholder daemon loop,
+   - app SG has no ingress rules,
+   - IG API key in SSM is placeholder.
+2. Closure criteria for this blocker:
+   - deploy real IG runtime surface for P4 (health + ingest endpoints),
+   - provision non-placeholder IG API key secret in `SSM_IG_API_KEY_PATH`,
+   - adjust network/binding posture so IG probes can execute deterministically,
+   - rerun `M6.B` and require pass before `M6.C`.
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.
