@@ -90,6 +90,22 @@ These are the intended design flow of the platform as well as pinned decisions. 
   - Default posture: stay on the active branch and avoid cross-branch operations unless the above protocol is completed.
 ---
 
+## 2.6) Performance-First Law (binding, platformwide)
+This is a hard law for all implementation work (platform services, pipelines, joins, batch states, and tooling).
+
+- **Pre-implementation performance design is mandatory:** before coding, the AGENT must document expected complexity, candidate data structures, search/join strategy, memory/IO model, and rejected alternatives with rationale.
+- **No "wait-it-out" execution posture:** long runtimes are implementation defects until proven otherwise. The AGENT must optimize code paths before accepting slow runs.
+- **Algorithmic efficiency before resource scaling:** prefer better data structures, search/index strategy, join strategy, vectorization, streaming/chunking, and I/O layout over throwing CPU/RAM at the problem.
+- **Single-process efficient baseline first:** design for fast deterministic execution without requiring parallelism. Parallelism is optional and secondary, never the default crutch.
+- **Runtime-budget gates are mandatory:** each phase/state must carry explicit runtime budgets and measured elapsed evidence. "Hours" for a single state/segment is unacceptable unless explicitly approved by the USER with rationale recorded.
+- **Performance gate blocks implementation/remediation:** do not proceed past design or tuning steps unless measured runtime evidence shows improvement over baseline and movement toward (or achievement of) the minute-scale budget.
+- **Logging is budgeted:** keep required auditability, but cap log frequency/volume to avoid material runtime drag. Use heartbeat/progress checkpoints with practical cadence and make high-cardinality/per-event logs opt-in.
+- **Determinism and quality are non-negotiable:** performance work must preserve deterministic artifacts and target statistical realism; optimization cannot degrade correctness or contract compliance.
+- **Fail-closed on unexplained regressions:** if runtime materially regresses or stalls, stop and perform bottleneck analysis (hot path, I/O wait, memory pressure, external tool latency) before proceeding.
+- **Definition of done includes speed:** a phase is not complete unless both quality targets and runtime targets are met (or explicit USER waiver is recorded).
+
+---
+
 ## Platform implementation maps (mandatory, detail-first)
 - For any platform component work, create/append a component implementation map at:
   `docs\model_spec\platform\implementation_maps\dev_substrate\{COMP}.impl_actual.md`.
@@ -124,6 +140,7 @@ These are the intended design flow of the platform as well as pinned decisions. 
 - **Fail closed when compatibility is unknown.** If schema version, bundle compatibility, or gate evidence is missing/invalid, reject/quarantine rather than guessing.
 - **Build for at‑least‑once reality.** All side effects and state transitions must be safe under duplicates and replay; idempotency keys and append‑only histories are required.
 - **Make provenance first‑class.** Every cross‑component output must carry the pins, policy/bundle version, and evidence refs needed for replay and audit.
+- **Engineer for throughput as a first-class property.** Every implementation must target minute-scale runtime under expected workload, with explicit profiling evidence and justified tradeoffs.
 
 _This router stays deliberately light on mechanics so it evolves slowly while the project grows._
 

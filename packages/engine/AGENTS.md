@@ -117,6 +117,8 @@ Read these in order before touching code so you align with the frozen specs. Not
 - Emit a short story header log per state (objective, gated inputs, outputs).
 - For long-running loops, include elapsed time, processed/total, rate, ETA using
   monotonic time and a predictable cadence.
+- Logging must obey a performance budget: required audit signals stay on, but
+  high-cardinality/per-record logs are opt-in and disabled by default.
 
 ## Implementation records + hygiene (engine)
 - Keep `pyproject.toml` aligned with new dependencies.
@@ -139,5 +141,16 @@ Read these in order before touching code so you align with the frozen specs. Not
 - **Narrative log context.** Any log line that reports counts/progress must explain what the count represents, the gating criteria that define the scope, and the stage/output being produced so operators can follow the state flow.
 - **Deterministic artefacts only.** All seeded outputs (parquet partitions, manifests, contract bundles) must hash identically across reruns. Any volatile metadata (timestamps, `run_id`, temp paths, live telemetry) should be isolated from validation surfaces or normalised by tooling.
 - **Lightweight RNG observability by default.** Per-event RNG logs are opt-in for dev runs (use `ENGINE_5B_S{2,3,4}_RNG_EVENTS=1` or future layer-3 equivalents when a deep audit is needed). Default posture is `rng_trace_log` + run reports + deterministic outputs. Apply this same mindset for 5B + layer-3 states unless explicitly overridden.
+
+## Remediation sequencing law (engine, binding)
+- **Pre-remediation performance design is mandatory:** before code changes, document baseline runtime, target runtime budget, expected complexity, chosen data structures/search/join strategy, IO plan, and rejected alternatives with rationale.
+- **Performance triage before quality tuning:** before remediating statistical behavior for any state/segment, first assess and optimize runtime path efficiency (algorithm/data-structure/index/join/IO strategy) to practical minute-scale execution.
+- **No wait-it-out remediation:** running known-slow code repeatedly to chase statistical score is prohibited when bottlenecks are unresolved.
+- **Single-process efficiency baseline first:** implementations must achieve strong performance without requiring parallel workers. Parallelism is optional and must remain memory-safe and user-approved.
+- **State runtime budgets are mandatory:** each remediation phase must define per-state budget, measure elapsed time, and record evidence in implementation notes/logbook.
+- **Performance gate blocks phase progression:** do not advance remediation phases unless measured elapsed evidence shows improvement against baseline and movement toward (or achievement of) the state runtime budget.
+- **Fail-closed on stalls/regressions:** if a state stalls or materially exceeds budget, stop feature/statistical tuning and do bottleneck closure first (external tool latency, hot loops, IO amplification, memory pressure, path resolution).
+- **Correctness + determinism remain mandatory:** optimization is valid only if contracts pass, outputs remain deterministic, and statistical realism does not regress.
+- **Definition of done requires both:** a remediation step is only done when it meets quality thresholds and runtime budget (or has explicit USER waiver recorded).
 
 _This router remains command-free by design. Execution strategy, test harness, and internal folder improvements stay up to you while respecting the governing specs._
