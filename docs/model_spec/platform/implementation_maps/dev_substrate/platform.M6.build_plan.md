@@ -267,9 +267,9 @@ Tasks:
 4. Emit `m6_b_ig_readiness_snapshot.json`.
 
 DoD:
-- [ ] IG service healthy and stable.
-- [ ] Auth boundary fail/pass probes meet expected outcomes.
-- [ ] M6.B snapshot published locally and durably.
+- [x] IG service healthy and stable.
+- [x] Auth boundary fail/pass probes meet expected outcomes.
+- [x] M6.B snapshot published locally and durably.
 
 Blockers:
 1. `M6B-B1`: IG service unhealthy or crashlooping.
@@ -277,23 +277,23 @@ Blockers:
 3. `M6B-B3`: M6.B snapshot write/upload failure.
 
 Execution status (2026-02-15):
-1. Executed fail-closed and published evidence:
+1. Initial run failed closed:
    - local: `runs/dev_substrate/m6/20260215T033201Z/m6_b_ig_readiness_snapshot.json`
    - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T033201Z/m6_b_ig_readiness_snapshot.json`
-2. Result:
-   - `overall_pass=false`
-   - blocker set: `M6B-B2`
-3. Observed runtime facts:
-   - IG ECS service is stable (`desired=1`, `running=1`, `pending=0`).
-   - Health and ingest probes timed out (no HTTP response).
-   - IG task definition is still placeholder daemon loop (no IG server process/port mapping).
-   - app SG (`sg-0a8542a5f310e1350`) has zero ingress rules.
-   - IG API key in SSM is placeholder (`REPLACE_ME_IG_API_KEY`).
-4. Closure requirement:
-   - materialize real IG service runtime (HTTP listener with health + ingest routes),
-   - materialize valid writer-boundary auth secret in SSM,
-   - update ingress/network posture so probes are executable per runbook contract,
-   - rerun `M6.B` and require `overall_pass=true`.
+   - result: `overall_pass=false` (`M6B-B2`).
+2. Closure rerun passed:
+   - local: `runs/dev_substrate/m6/20260215T040527Z/m6_b_ig_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T040527Z/m6_b_ig_readiness_snapshot.json`
+   - result: `overall_pass=true`, blocker set empty.
+3. Proven closure facts:
+   - IG service stable on ECS (`desired=1`, `running=1`, `pending=0`).
+   - task definition is non-placeholder and exposes port mapping on `8080`.
+   - app SG ingress exists for probe path execution.
+   - IG API key in SSM is non-placeholder.
+   - probe outcomes:
+     - `/v1/ops/health` authenticated: `200`,
+     - `/v1/ingest/push` unauthenticated: `401`,
+     - `/v1/ingest/push` authenticated: `200`.
 
 ### M6.C P4 Kafka/S3 Smoke + `ig_ready.json`
 Goal:
@@ -515,7 +515,7 @@ Notes:
 
 ## 7) M6 Completion Checklist
 - [x] M6.A complete
-- [ ] M6.B complete
+- [x] M6.B complete
 - [ ] M6.C complete
 - [ ] M6.D complete
 - [ ] M6.E complete
@@ -539,17 +539,7 @@ Control: hard fail on unresolved `PUBLISH_AMBIGUOUS` in `M6.G`.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M6 Closure)
 Current blockers:
-1. `M6B-B2` - IG readiness/auth boundary invalid in latest M6.B run (`m6_20260215T033201Z`):
-   - health probe failed (timeout),
-   - unauth/auth ingest probes did not return expected HTTP statuses,
-   - IG task definition still runs placeholder daemon loop,
-   - app SG has no ingress rules,
-   - IG API key in SSM is placeholder.
-2. Closure criteria for this blocker:
-   - deploy real IG runtime surface for P4 (health + ingest endpoints),
-   - provision non-placeholder IG API key secret in `SSM_IG_API_KEY_PATH`,
-   - adjust network/binding posture so IG probes can execute deterministically,
-   - rerun `M6.B` and require pass before `M6.C`.
+1. None.
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

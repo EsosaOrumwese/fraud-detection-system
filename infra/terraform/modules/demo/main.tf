@@ -230,6 +230,13 @@ resource "aws_security_group" "app" {
   description = "Application SG for demo ECS tasks/services"
   vpc_id      = aws_vpc.demo.id
 
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -421,7 +428,7 @@ resource "aws_iam_role_policy" "lane_app_secret_read" {
 resource "aws_iam_role_policy" "lane_app_object_store_data_plane" {
   for_each = {
     for key, role in aws_iam_role.lane_app_roles : key => role
-    if key == "rtdl_core"
+    if contains(["rtdl_core", "ig_service"], key)
   }
 
   name   = "${var.name_prefix}-${each.key}-object-store-data-plane"
@@ -524,12 +531,23 @@ resource "aws_ecs_task_definition" "daemon" {
       name      = each.key
       image     = local.daemon_container_image_resolved
       essential = true
-      command = [
+      command = each.key == "ig" ? [
+        "sh",
+        "-c",
+        "set -e; cp config/platform/profiles/local_parity.yaml /tmp/dev_min_ig_m6b.yaml; python - <<'PY'\nfrom pathlib import Path\nimport yaml\nprofile_path = Path('/tmp/dev_min_ig_m6b.yaml')\ndata = yaml.safe_load(profile_path.read_text(encoding='utf-8'))\nwiring = data.setdefault('wiring', {})\nobj = wiring.setdefault('object_store', {})\nobj['root'] = 'runs'\nwiring['health_bus_probe_mode'] = 'none'\nwiring['event_bus_kind'] = 'file'\nevent_bus = wiring.setdefault('event_bus', {})\nevent_bus['root'] = 'runs/fraud-platform/eb'\nfor key in ('stream', 'region', 'endpoint_url'):\n    event_bus.pop(key, None)\nprofile_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding='utf-8')\nPY\npython -m fraud_detection.ingestion_gate.service --profile /tmp/dev_min_ig_m6b.yaml --host 0.0.0.0 --port 8080",
+        ] : [
         "sh",
         "-c",
         "echo daemon_started service=${each.value.service_name} pack=${each.value.pack_id} mode=${each.value.component_mode} run_scope_env=${var.required_platform_run_id_env_key} run_scope_value=${var.required_platform_run_id}; trap 'exit 0' TERM INT; while true; do sleep 300; done",
       ]
-      environment = [
+      portMappings = each.key == "ig" ? [
+        {
+          containerPort = 8080
+          hostPort      = 8080
+          protocol      = "tcp"
+        }
+      ] : []
+      environment = concat([
         {
           name  = var.required_platform_run_id_env_key
           value = var.required_platform_run_id
@@ -546,7 +564,16 @@ resource "aws_ecs_task_definition" "daemon" {
           name  = "FP_COMPONENT_MODE"
           value = each.value.component_mode
         },
-      ]
+        ], each.key == "ig" ? [
+        {
+          name  = "PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "OBJECT_STORE_REGION"
+          value = var.aws_region
+        },
+      ] : [])
       logConfiguration = {
         logDriver = "awslogs"
         options = {

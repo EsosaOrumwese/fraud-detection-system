@@ -10831,3 +10831,64 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
 ### Plan-state updates
 1. Updated `platform.M6.build_plan.md` with M6.B execution status + blocker register update.
 2. Updated `platform.build_plan.md` M6 expansion state and immediate-next-action to focus on closing `M6B-B2`.
+
+## Entry: 2026-02-15 03:40AM - M6.B closure plan before implementation
+
+### Trigger
+1. USER instructed: Proceed with those and then rerun m6.B.
+
+### Decision completeness check (M6.B scope)
+1. Required closure items are explicit from latest blocker set (M6B-B2):
+   - replace IG placeholder daemon command with real service runtime,
+   - expose probeable network boundary on 8080,
+   - replace placeholder IG API key in SSM,
+   - rerun M6.B with new snapshot publication.
+2. No additional user pins are required to execute this closure lane.
+
+### Planned implementation
+1. Patch infra/terraform/modules/demo/main.tf to materialize IG runtime command + port mapping.
+2. Patch SG ingress to allow M6.B probe path execution.
+3. Extend lane object-store policy attachment to include ig_service (for IG health/receipt writes).
+4. Add config/platform/profiles/dev_min.yaml for IG service runtime contract used in M6.B (api-key auth, fail-closed compatible).
+5. Apply demo stack with non-placeholder ig_api_key and existing packaged image digest.
+6. Rerun M6.B checks and publish m6_b_ig_readiness_snapshot.json local + durable.
+
+### Risks noted before patch
+1. IG health can remain red if store/auth/runtime env is incomplete.
+2. If image reference drifts from packaged digest, IG container may fail at startup.
+3. If DB or S3 permissions are insufficient, authenticated ingest may quarantine/fail.
+
+## Entry: 2026-02-15 04:07AM - Closed M6.B with PASS snapshot after runtime/auth/network materialization
+
+### Trigger
+1. USER instructed: Proceed with those and then rerun m6.B.
+
+### Implementation executed
+1. Patched infra/terraform/modules/demo/main.tf:
+   - added app SG ingress for 	cp/8080,
+   - attached lane object-store policy to ig_service role,
+   - replaced IG placeholder command with real IG service launch contract and port mapping.
+2. Applied demo stack updates with:
+   - equired_platform_run_id=platform_20260213T214223Z,
+   - cs_daemon_container_image=<existing immutable digest>,
+   - ig_api_key=local-parity-wsp (non-placeholder).
+3. Verified IG service reached stable ECS state (desired=1, unning=1, pending=0).
+4. Reran M6.B probes and published authoritative evidence.
+
+### Authoritative M6.B evidence
+1. Local:
+   - uns/dev_substrate/m6/20260215T040527Z/m6_b_ig_readiness_snapshot.json
+2. Durable:
+   - s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T040527Z/m6_b_ig_readiness_snapshot.json
+3. Result:
+   - overall_pass=true
+   - blocker set empty.
+
+### Probe outcomes in PASS run
+1. GET /v1/ops/health (with X-IG-Api-Key) -> 200 (state=GREEN).
+2. POST /v1/ingest/push (without auth header) -> 401 fail-closed.
+3. POST /v1/ingest/push (with X-IG-Api-Key) -> 200 (accepted at writer boundary; payload quarantined due envelope invalid).
+
+### Notes
+1. config/platform/profiles/dev_min.yaml was added to repo authority surface; current running image digest predates that file, so IG runtime command for M6.B generates a runtime profile from in-image local_parity.yaml to keep closure deterministic without rebuilding the image in this lane.
+2. M6.B gate closure is now complete; next executable lane is M6.C.

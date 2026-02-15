@@ -545,18 +545,19 @@ Active-phase planning posture:
     - closure path completed:
       - pinned handles (`IG_BASE_URL`, `TD_SR`, `TD_WSP`, `ROLE_SR_TASK`, `ROLE_WSP_TASK`)
       - materialized `TD_SR` and `TD_WSP` task definitions in ECS.
-  - `M6.B` executed fail-closed with authoritative snapshot:
-    - local: `runs/dev_substrate/m6/20260215T033201Z/m6_b_ig_readiness_snapshot.json`
-    - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T033201Z/m6_b_ig_readiness_snapshot.json`
-    - result: `overall_pass=false` due to `M6B-B2`:
-      - health/ingest probes timed out,
-      - IG runtime is still placeholder daemon command,
-      - app SG has zero ingress rules,
-      - IG API key in SSM is placeholder.
+  - `M6.B` closed PASS with authoritative snapshot:
+    - local: `runs/dev_substrate/m6/20260215T040527Z/m6_b_ig_readiness_snapshot.json`
+    - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T040527Z/m6_b_ig_readiness_snapshot.json`
+    - result: `overall_pass=true`, blocker rollup empty.
+    - closure proof:
+      - IG runtime is no longer placeholder and exposes `8080`,
+      - app SG ingress rule exists for probe path,
+      - IG API key in SSM is non-placeholder,
+      - health/auth probes satisfy M6.B gate contract.
 
 - Sub-phase progress:
   - [x] `M6.A` authority + handle closure for `P4..P7`.
-  - [ ] `M6.B` P4 IG deploy/health/auth readiness.
+  - [x] `M6.B` P4 IG deploy/health/auth readiness.
   - [ ] `M6.C` P4 Kafka/S3 smoke and `ig_ready.json`.
   - [ ] `M6.D` P5 SR PASS + READY publication.
   - [ ] `M6.E` P6 WSP launch contract + READY consumption proof.
@@ -713,6 +714,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M6 is active for deep-plan closure and execution sequencing.
 Next action:
-- close `M6B-B2` by materializing real IG runtime/auth/network boundary for P4,
-- rerun `M6.B` and require `overall_pass=true`,
-- proceed to `M6.C` only after `M6.B` blockers are empty.
+- execute `M6.C` P4 Kafka/S3 smoke and publish `ingest/ig_ready.json`,
+- require `M6.C` snapshot `overall_pass=true`,
+- proceed to `M6.D` only after `M6.C` blockers are empty.

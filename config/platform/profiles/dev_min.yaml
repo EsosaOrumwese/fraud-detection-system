@@ -1,0 +1,30 @@
+profile_id: dev_min
+policy:
+  policy_rev: dev-min-v0
+  partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
+  partitioning_profile_id: ig.partitioning.v0.traffic
+  require_gate_pass: true
+  stream_speedup: 1.0
+  traffic_output_ids_ref: config/platform/wsp/traffic_outputs_v0.yaml
+  context_output_ids_ref: config/platform/wsp/context_fraud_outputs_v0.yaml
+  context_output_ids_baseline_ref: config/platform/wsp/context_baseline_outputs_v0.yaml
+wiring:
+  object_store:
+    root: s3://fraud-platform-dev-min-evidence/evidence/runs
+    endpoint: ${OBJECT_STORE_ENDPOINT}
+    region: ${OBJECT_STORE_REGION}
+    path_style: false
+  health_bus_probe_mode: none
+  admission_db_path: ${IG_ADMISSION_DSN}
+  event_bus_kind: file
+  event_bus:
+    root: runs/fraud-platform/eb
+    topic_traffic: fp.bus.traffic.v1
+    topic_control: fp.bus.control.v1
+    topic_audit: fp.bus.audit.v1
+  security:
+    auth_mode: api_key
+    api_key_header: X-IG-Api-Key
+    auth_allowlist_ref: config/platform/ig/ingest_api_keys_local_parity_v0.txt
+    push_rate_limit_per_minute: 0
+    store_read_failure_threshold: 3
