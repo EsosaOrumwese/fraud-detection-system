@@ -1737,7 +1737,7 @@ USER requested retry after network recovery.
 
 ### Planned execution
 1. AWS identity + bucket reachability checks.
-2. Oracle landing sync into pinned `DEV_MIN_ORACLE_ENGINE_RUN_ROOT`.
+2. Oracle landing sync into pinned `DEV_MIN_ORACLE_engine_run_root`.
 3. Stream-sort closure and strict Oracle validation.
 
 ### Cost posture declaration (pre-action)
@@ -2206,7 +2206,7 @@ Docs-only pass; no paid services touched.
 2. Synced engine outputs into MinIO (`platform-oracle-sync`), sealed Oracle pack, and passed strict oracle check.
 3. Built stream views for:
 - `s3_event_stream_with_fraud_6B`
-- `arrival_events_5B`
+- `aarrival_events_5B`
 - `s1_arrival_entities_6B`
 - `s3_flow_anchor_with_fraud_6B`
 4. Started run/operate packs for spine-only lanes:
@@ -4170,7 +4170,7 @@ USER supplied an external review with 13 remaining ambiguity/operationalization 
 
 ### Patch plan
 1. Update `addendum_4_io_ownership_matrix.txt` to pin:
-- SR read basis = `ORACLE_ENGINE_RUN_ROOT` (with optional manifest validation under same root),
+- SR read basis = `ORACLE_engine_run_root` (with optional manifest validation under same root),
 - SR write surface artifact families,
 - DF read posture coupling via DL store (`dl_store_dsn` + `dl_stream_id`),
 - DLA evidence object path family,
@@ -4213,7 +4213,7 @@ Docs-only correction pass; objective is to eliminate residual ambiguity without 
 - Preserved archive durable prefix check in P8 and clarified P7 fail condition if ambiguity evidence exists.
 
 3. IO ownership closure:
-- SR read basis pinned to `ORACLE_ENGINE_RUN_ROOT` with optional `_oracle_pack_manifest.json` validation under same root.
+- SR read basis pinned to `ORACLE_engine_run_root` with optional `_oracle_pack_manifest.json` validation under same root.
 - SR write surface expanded from wildcard to canonical artifact families.
 - DF read dependency now explicitly includes DL store posture coupling (`dl_store_dsn` + `dl_stream_id`), no posture topic.
 - DLA evidence path pinned to concrete local-parity family:
@@ -4243,7 +4243,7 @@ USER asked to proceed with final recommendation: add explicit publish-ambiguity 
 - Added PASS condition: no unresolved `PUBLISH_AMBIGUOUS` evidence/receipts for active-run closure set.
 2. Migration decision authority note:
 - Appended Local-Parity Canonical Alignment notes that intentionally preserve:
-  - SR read root pin to `ORACLE_ENGINE_RUN_ROOT` (+ optional manifest validation),
+  - SR read root pin to `ORACLE_engine_run_root` (+ optional manifest validation),
   - CaseTrigger direct ownership of case lane output in local parity (no IG corridor route).
 
 ### Drift sentinel assessment
@@ -8638,13 +8638,13 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. Terraform module expansion (demo stack) to materialize lane roles:
    - infra/terraform/modules/demo/main.tf
      - added deterministic lane role map:
-       - raud-platform-dev-min-ig-service
-       - raud-platform-dev-min-rtdl-core
-       - raud-platform-dev-min-decision-lane
-       - raud-platform-dev-min-case-labels
-       - raud-platform-dev-min-env-conformance
-     - added role resources (ws_iam_role.lane_app_roles) with ECS task trust policy.
-     - added per-lane secret-read inline policies (ws_iam_role_policy.lane_app_secret_read).
+       - raud-platform-dev-min-ig-service
+       - raud-platform-dev-min-rtdl-core
+       - raud-platform-dev-min-decision-lane
+       - raud-platform-dev-min-case-labels
+       - raud-platform-dev-min-env-conformance
+     - added role resources (ws_iam_role.lane_app_roles) with ECS task trust policy.
+     - added per-lane secret-read inline policies (ws_iam_role_policy.lane_app_secret_read).
 2. Exposed materialized role outputs:
    - infra/terraform/modules/demo/outputs.tf
    - infra/terraform/dev_min/demo/outputs.tf
@@ -8660,27 +8660,27 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ### Materialization evidence
 1. Terraform materialization run artifacts:
    - 
-uns/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.plan.txt
+runs/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.plan.txt
    - 
-uns/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.plan.json
+runs/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.plan.json
    - 
-uns/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.apply.txt
+runs/dev_substrate/m4/20260214T133434Z/m4_c_role_materialization.apply.txt
    - 
-uns/dev_substrate/m4/20260214T133434Z/m4_c_demo_outputs_after_apply.json
+runs/dev_substrate/m4/20260214T133434Z/m4_c_demo_outputs_after_apply.json
    - 
-uns/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
+runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 2. AWS role presence verified post-apply:
-   - raud-platform-dev-min-ig-service
-   - raud-platform-dev-min-rtdl-core
-   - raud-platform-dev-min-decision-lane
-   - raud-platform-dev-min-case-labels
-   - raud-platform-dev-min-env-conformance
+   - raud-platform-dev-min-ig-service
+   - raud-platform-dev-min-rtdl-core
+   - raud-platform-dev-min-decision-lane
+   - raud-platform-dev-min-case-labels
+   - raud-platform-dev-min-env-conformance
 
 ### M4.C re-run outcome
 1. Re-ran M4.C with role materialization sourced from live Terraform outputs.
 2. Updated canonical M4.C snapshot to PASS:
-   - local: 
-uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
+   - local:
+    - runs/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
    - durable: s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T121004Z/m4_c_iam_binding_snapshot.json
 3. Result:
    - overall_pass=true
@@ -9539,7 +9539,7 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
    - context.flow_anchor.fraud
 2. Local-parity checklist provides current dataset output-id examples aligned to those surfaces:
    - `s3_event_stream_with_fraud_6B`
-   - `arrival_events_5B`
+   - `aarrival_events_5B`
    - `s1_arrival_entities_6B`
    - `s3_flow_anchor_with_fraud_6B`
 3. Stream-sort implementation confirms primary sort-key behavior:
@@ -9562,7 +9562,7 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
 1. Updated `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` Section 6.6:
    - `ORACLE_REQUIRED_OUTPUT_IDS` pinned to:
      - `s3_event_stream_with_fraud_6B`
-     - `arrival_events_5B`
+     - `aarrival_events_5B`
      - `s1_arrival_entities_6B`
      - `s3_flow_anchor_with_fraud_6B`
    - `ORACLE_SORT_KEY_BY_OUTPUT_ID` pinned to `ts_utc` for each output-id.
@@ -10350,15 +10350,15 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
 1. M5.E full-matrix stream-sort on dev substrate did not close within migration-grade expectations under default posture.
 2. Initial run failed fail-closed with role access gap (`s3:GetObject` denied on oracle input `run_receipt.json`) for role `fraud-platform-dev-min-rtdl-core`.
 3. After IAM correction, full-scale matrix still failed with task exits (`137`/non-zero) and missing shard closure for multiple outputs.
-4. Single-output heavy probe (`arrival_events_5B`) showed true workload scale (`124724153` rows) and completed only with high-resource profile (`8 vCPU`, `32GB`, chunked mode), taking roughly `~77 minutes` for one output.
+4. Single-output heavy probe (`aarrival_events_5B`) showed true workload scale (`124724153` rows) and completed only with high-resource profile (`8 vCPU`, `32GB`, chunked mode), taking roughly `~77 minutes` for one output.
 
 ### Proof surfaces recorded
 1. Full-matrix failure summary:
    - local: `runs/dev_substrate/m5/20260214T202411Z/stream_sort_summary.json`
    - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/stream_sort_summary.json`
-2. Heavy single-output completion proof (`arrival_events_5B`):
-   - `s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/stream_view/output_id=arrival_events_5B/_stream_sort_receipt.json`
-   - `s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/stream_view/output_id=arrival_events_5B/_stream_view_manifest.json`
+2. Heavy single-output completion proof (`aarrival_events_5B`):
+   - `s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/stream_view/output_id=aarrival_events_5B/_stream_sort_receipt.json`
+   - `s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/stream_view/output_id=aarrival_events_5B/_stream_view_manifest.json`
 
 ### Decision locked
 1. M5 is now explicitly the functional migration closure lane (`lane_mode=functional_green`) and must use a pinned workload profile.
@@ -10390,7 +10390,7 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
    - single stable compute profile for functional gate run.
 3. Planned execution steps:
    - create bounded S3 input prefix under current platform run,
-   - publish unctional_workload_profile.json (local + durable),
+   - publish unctional_workload_profile.json (local + durable),
    - build fresh M5.D snapshot tied to bounded profile,
    - execute M5.E against bounded profile and publish summary.
 4. Fail-closed rule: if bounded profile artifact, launch matrix, or per-output shard/manifest/receipt closure fails, keep M5 in HOLD.
@@ -10869,15 +10869,18 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
    - attached lane object-store policy to ig_service role,
    - replaced IG placeholder command with real IG service launch contract and port mapping.
 2. Applied demo stack updates with:
-   - equired_platform_run_id=platform_20260213T214223Z,
-   - cs_daemon_container_image=<existing immutable digest>,
+   - 
+equired_platform_run_id=platform_20260213T214223Z,
+   - cs_daemon_container_image=<existing immutable digest>,
    - ig_api_key=local-parity-wsp (non-placeholder).
-3. Verified IG service reached stable ECS state (desired=1, unning=1, pending=0).
+3. Verified IG service reached stable ECS state (desired=1, 
+unning=1, pending=0).
 4. Reran M6.B probes and published authoritative evidence.
 
 ### Authoritative M6.B evidence
 1. Local:
-   - uns/dev_substrate/m6/20260215T040527Z/m6_b_ig_readiness_snapshot.json
+   - 
+runs/dev_substrate/m6/20260215T040527Z/m6_b_ig_readiness_snapshot.json
 2. Durable:
    - s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T040527Z/m6_b_ig_readiness_snapshot.json
 3. Result:
@@ -10904,8 +10907,9 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
 
 ### Key drift surfaced from current runtime truth
 1. Latest M6.B PASS used an IG runtime shim for auth closure:
-   - event bus forced to ile,
-   - object-store root forced to local uns.
+   - event bus forced to ile,
+   - object-store root forced to local 
+uns.
 2. M6.C authority requires managed Kafka publish smoke and durable S3 evidence write smoke.
 3. Therefore M6.C execution must be blocked until IG runtime posture is rematerialized to managed Kafka + S3 roots.
 
@@ -10926,7 +10930,8 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
    - M6C-B4 runtime posture drift,
    - M6C-B5 offset verification surface unavailable/non-deterministic.
 3. Recorded current open blocker in unresolved register:
-   - M6.B closure runtime shim (ile bus + local uns root) is incompatible with M6.C managed Kafka/S3 proof objective.
+   - M6.B closure runtime shim (ile bus + local 
+uns root) is incompatible with M6.C managed Kafka/S3 proof objective.
 4. Updated main platform plan (platform.build_plan.md):
    - M6.C marked planning-expanded/execution-gated,
    - immediate next action now starts with closing M6C-B4 before attempting M6.C execution.
@@ -11146,3 +11151,134 @@ uns/dev_substrate/m4/20260214T121004Z/m4_c_iam_binding_snapshot.json
 2. Execution shims were explicit and task-scoped only; no repo runtime code path was silently altered in this lane.
 3. Residual follow-up for hardening:
    - convert lease keepalive into a pinned runtime handle/code-level renewal policy before production-grade promotion.
+
+## Entry: 2026-02-15 16:12PM - Oracle root-alignment drift correction (platform-run-coupled oracle prefixes)
+
+### Problem observed
+During M6 verification, oracle artifacts were discovered under mixed prefixes:
+- oracle/platform_20260213T214223Z/inputs/ (raw copy)
+- oracle/platform_20260213T214223Z/stream_view/ (partial; one output only)
+- oracle/platform_20260213T214223Z/stream_view_functional_green_v1/ (complete 4-output set)
+- dev_min/oracle/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/ (partial; one output only)
+
+This violates local-parity oracle law where oracle roots are independent of platform_run_id and keyed by engine run root (for example .../local_full_run-5/c25...).
+
+### Evidence gathered (objective)
+S3 inventory (bucket fraud-platform-dev-min-object-store) shows:
+- Complete sorted set exists only at oracle/platform_20260213T214223Z/stream_view_functional_green_v1/.
+  - For each required output id (arrival_events_5B, s1_arrival_entities_6B, s3_event_stream_with_fraud_6B, s3_flow_anchor_with_fraud_6B):
+    - objects=92, parts=90, _stream_view_manifest.json present, _stream_sort_receipt.json present.
+- oracle/platform_20260213T214223Z/stream_view/ is incomplete (only arrival_events_5B).
+- oracle/platform_20260213T214223Z/inputs/stream_view/ts_utc/ and dev_min/oracle/c25.../stream_view/ts_utc/ each contain only s3_event_stream_with_fraud_6B.
+
+Local-parity references confirm oracle-root independence from platform run id:
+- docs/runbooks/platform_parity_walkthrough_v0.md (Section 4 env pins)
+- .env.platform.local (ORACLE_engine_run_root=s3://oracle-store/local_full_run-5/c25...; ORACLE_STREAM_VIEW_ROOT=.../stream_view/ts_utc).
+
+### Decision analysis
+Option A: Re-run stream-sort on managed compute into a fresh oracle root.
+- Rejected for this correction because user required no unnecessary re-sort/compute and we already have a complete sorted set.
+
+Option B: Normalize by copying verified-good sorted artifacts into canonical oracle-run root, then repoint docs/handles.
+- Accepted.
+- This preserves deterministic artifacts, avoids extra compute, and restores parity semantics.
+
+### Canonical target pin (this correction)
+- Oracle run root (dev object store):
+  - s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/
+- Stream-view root:
+  - s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/
+
+### Planned corrective actions
+1. Copy existing canonical raw run root from dev_min/oracle/c25.../ into the pinned oracle-store/local_full_run-5/c25.../ root.
+2. Copy complete verified sorted outputs from oracle/platform_20260213T214223Z/stream_view_functional_green_v1/ into
+   oracle-store/local_full_run-5/c25.../stream_view/ts_utc/.
+3. Verify all four required output ids in the target root each have parts + manifest + receipt.
+4. Patch migration handles/runbook wording so oracle paths are engine-run keyed, not platform_run_id keyed.
+5. Keep old prefixes for now (non-destructive) until explicit cleanup window; avoid destructive delete during active run continuity.
+
+### Drift sentinel result
+Material drift confirmed (doc/runtime oracle root coupling to platform_run_id). Corrective action opened and blocked on completion of the steps above.
+
+## Entry: 2026-02-15 16:22PM - Oracle root-alignment correction executed (no re-sort)
+
+### Actions executed
+1. Copied canonical oracle engine-run root from:
+   - s3://fraud-platform-dev-min-object-store/dev_min/oracle/c25a2675fbfbacd952b13bb594880e92/
+   to:
+   - s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/
+2. Overlaid verified complete sorted artifacts from:
+   - s3://fraud-platform-dev-min-object-store/oracle/platform_20260213T214223Z/stream_view_functional_green_v1/
+   to:
+   - s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/
+3. Verified target stream-view completeness for required output ids.
+
+### Verification results (target root)
+- arrival_events_5B: objects=92, parts=90, manifest=true, receipt=true
+- s1_arrival_entities_6B: objects=92, parts=90, manifest=true, receipt=true
+- s3_event_stream_with_fraud_6B: objects=92, parts=90, manifest=true, receipt=true
+- s3_flow_anchor_with_fraud_6B: objects=92, parts=90, manifest=true, receipt=true
+
+### Evidence published
+- Local snapshot:
+  - runs/dev_substrate/m6/20260215T162025Z/oracle_root_alignment_snapshot.json
+- Durable snapshot:
+  - s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/oracle_root_alignment_snapshot.json
+
+### Authority/doc corrections applied
+- Updated oracle prefix law to be engine-run scoped (platform-run agnostic) in:
+  - docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md
+- Updated dev-min run flow required-handle references for P3/P5/P6 to remove <platform_run_id> oracle coupling:
+  - docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md
+- Updated migration design authority wording for oracle load prereq:
+  - docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md
+
+### Drift sentinel outcome
+Oracle root alignment drift is corrected at data-layout and migration-authority-doc levels. Legacy prefixes remain temporarily for non-destructive continuity and can be cleaned in a dedicated teardown pass.
+
+## Entry: 2026-02-15 16:27PM - Post-copy blocker: stream-view metadata still bound to legacy functional roots
+
+### Blocker discovered
+After root normalization copy, _stream_view_manifest.json and _stream_sort_receipt.json under canonical path still carried:
+- engine_run_root = s3://.../oracle/platform_20260213T214223Z/inputs_functional_green_v1
+- stream_view_root = s3://.../oracle/platform_20260213T214223Z/stream_view_functional_green_v1/output_id=...
+
+This is material because WSP computes stream_view_id from engine_run_root; if runtime root is canonical oracle-store path, manifest IDs can mismatch (STREAM_VIEW_ID_MISMATCH).
+
+### Decision
+Use metadata-only rematerialization (no parquet re-sort):
+1. Recompute stream_view_id for canonical engine_run_root per output using existing sort-key law.
+2. Recompute source_locator_digest for canonical engine root + scenario + output.
+3. Rewrite manifest/receipt metadata fields to canonical roots and recomputed IDs/digest.
+4. Keep parquet shards unchanged.
+
+### Why this approach
+- Avoids heavy managed re-sort compute and extra wall-time.
+- Preserves deterministic data bytes while restoring metadata coherence required by WSP/SR runtime laws.
+- Closes immediate migration drift while respecting user directive to avoid unnecessary re-sort.
+
+## Entry: 2026-02-15 16:31PM - Metadata rebind completed for canonical oracle root
+
+### Execution
+Applied metadata-only rematerialization on canonical stream-view artifacts (4 required output_ids) under:
+- `s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/`
+
+Updated per-output `_stream_view_manifest.json` and `_stream_sort_receipt.json` fields:
+- `engine_run_root` => canonical oracle root
+- `stream_view_root` => canonical output root
+- `stream_view_id` => recomputed from canonical root + scenario + output + sort keys
+- `source_locator_digest` => recomputed for canonical raw-data locator set
+
+No parquet parts were recomputed or resorted.
+
+### Verification
+- `oracle_root_alignment_metadata_rebind_snapshot.json` confirms all 4 outputs:
+  - `stream_view_id_match=true`
+  - `receipt_status=OK`
+  - manifest/receipt engine roots both equal canonical root.
+
+### Evidence
+- local:
+  - `runs/dev_substrate/m6/20260215T162025Z/oracle_root_alignment_metadata_rebind_snapshot.json`
+- durable:
+  - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/oracle/oracle_root_alignment_metadata_rebind_snapshot.json`

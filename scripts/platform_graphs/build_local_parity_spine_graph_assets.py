@@ -286,13 +286,13 @@ def mermaid_graph() -> str:
             ORACLE[[Oracle Stream View<br/>ORACLE_STREAM_VIEW_ROOT]]
             WSP[wsp_ready_consumer<br/>fraud_detection.world_streamer_producer.ready_consumer]
             IG[ig_service<br/>fraud_detection.ingestion_gate.service]
-            IGR[[IG Receipts + Quarantine<br/>.../ig/{receipts,quarantine}]]
+            IGR[[IG Receipts + Quarantine<br/>.../ig/receipts + .../ig/quarantine]]
             IGX[[IG Admission Index<br/>PARITY_IG_ADMISSION_DSN]]
           end
 
           subgraph TOPICS[Event Bus Topic Lanes]
-            TTR[[fp.bus.traffic.{fraud|baseline}.v1]]
-            TCTX[[fp.bus.context.{arrival_events,arrival_entities,flow_anchor_*}.v1]]
+            TTR[[fp.bus.traffic.fraud.v1 + fp.bus.traffic.baseline.v1]]
+            TCTX[[fp.bus.context.arrival_events.v1 + arrival_entities.v1 + flow_anchor.*.v1]]
             TRTDL[[fp.bus.rtdl.v1]]
             TCASE[[fp.bus.case.v1]]
             TAUD[[fp.bus.audit.v1]]

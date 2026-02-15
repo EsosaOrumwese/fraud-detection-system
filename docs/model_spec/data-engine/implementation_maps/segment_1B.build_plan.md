@@ -989,8 +989,8 @@ Work:
 - keep instrumentation low-overhead and deterministic.
 
 DoD:
-- [ ] `s4_run_report.json` contains substage timing map and totals.
-- [ ] two same-input runs show stable timing ordering (same top-2 hotspots).
+- [x] `s4_run_report.json` contains substage timing map and totals.
+- [x] two same-input runs show stable timing ordering (same top-2 hotspots).
 
 #### POPT.1.2 - Country asset locality rewrite (IO and cache lane)
 Goal:
@@ -1002,9 +1002,9 @@ Work:
 - eliminate repeated asset normalization work that can be done once per country per run.
 
 DoD:
-- [ ] `bytes_read_index_total` and `bytes_read_weights_total` materially reduced vs baseline.
-- [ ] cache miss + eviction profile materially reduced vs baseline.
-- [ ] memory remains bounded and within safe local posture.
+- [x] `bytes_read_index_total` and `bytes_read_weights_total` materially reduced vs baseline.
+- [x] cache miss + eviction profile materially reduced vs baseline.
+- [x] memory remains bounded and within safe local posture.
 
 #### POPT.1.3 - Rank-prefix and shortfall kernel optimization
 Goal:
@@ -1017,8 +1017,8 @@ Work:
 
 DoD:
 - [ ] rank-cache miss/eviction pressure drops materially.
-- [ ] per-pair throughput improves (pairs/s) vs baseline.
-- [ ] `alloc_sum_equals_requirements=true` and anti-collapse diagnostics stay valid.
+- [x] per-pair throughput improves (pairs/s) vs baseline.
+- [x] `alloc_sum_equals_requirements=true` and anti-collapse diagnostics stay valid.
 
 #### POPT.1.4 - Logging and heartbeat overhead budget
 Goal:
@@ -1030,8 +1030,8 @@ Work:
 - preserve failure diagnostics and required run-report counters.
 
 DoD:
-- [ ] no loss of required operational signals.
-- [ ] measurable runtime improvement attributable to reduced logging overhead.
+- [x] no loss of required operational signals.
+- [x] measurable runtime improvement attributable to reduced logging overhead.
 
 #### POPT.1.5 - Determinism, contract, and output-equivalence gate
 Goal:
@@ -1045,9 +1045,9 @@ Work:
   - no unexpected changes to required S4 structural surfaces.
 
 DoD:
-- [ ] deterministic witness is green for fixed `{seed, parameter_hash, manifest_fingerprint}`.
-- [ ] contract/schema surfaces unchanged.
-- [ ] no new structural failures in downstream `S5->S9` smoke path.
+- [x] deterministic witness is green for fixed `{seed, parameter_hash, manifest_fingerprint}`.
+- [x] contract/schema surfaces unchanged.
+- [x] no new structural failures in downstream `S5->S9` smoke path.
 
 #### POPT.1.6 - Phase closure and lock
 Goal:
@@ -1061,9 +1061,37 @@ Work:
   - `RED`: stretch missed; fail-closed and continue S4 optimization before moving to POPT.2.
 
 DoD:
-- [ ] S4 runtime classification (`GREEN/AMBER/RED`) recorded with evidence.
-- [ ] baseline-vs-candidate delta artifact written.
-- [ ] progression decision to POPT.2 explicitly recorded.
+- [x] S4 runtime classification (`GREEN/AMBER/RED`) recorded with evidence.
+- [x] baseline-vs-candidate delta artifact written.
+- [x] progression decision to POPT.2 explicitly recorded.
+
+POPT.1 closure record:
+- Date/time: `2026-02-15 16:29` local.
+- Candidate run:
+  - `run_id=c6ddd66305124ec7bbf0c9fd13f9071e`
+  - fixed identity: `seed=42`, `manifest_fingerprint=242743ce57d1152e3ba402f26f62464948e9dda3456b0ec9893a2a2b2422f52e`, `parameter_hash=eae2e39d5b1065f436adf8aaff77a54e212c03501d772afefe479645eebc80c5`.
+- Evidence artifacts:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_closure_c6ddd66305124ec7bbf0c9fd13f9071e.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_closure_c6ddd66305124ec7bbf0c9fd13f9071e.md`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_s4_witness_a_c6ddd66305124ec7bbf0c9fd13f9071e.json`
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_s4_witness_b_c6ddd66305124ec7bbf0c9fd13f9071e.json`
+- Runtime movement vs baseline (`POPT.0`):
+  - baseline `S4=2280.326s` (`00:38:00`),
+  - best observed candidate `S4=1866.00s` (`00:31:06`, `+18.17%` faster),
+  - latest witness `S4=2030.89s` (`00:33:51`, `+10.94%` faster).
+- Locality/IO movement:
+  - baseline bytes: `index=4,479,847,855`, `weights=2,148,765,517`,
+  - candidate bytes: `index=915,963,412`, `weights=462,009,296`,
+  - cache profile: misses `1550 -> 411`, evictions `1502 -> 288`, `bytes_peak=2,499,988,256`.
+- Witness checks:
+  - deterministic identical-partition confirmations in log: `3`,
+  - top-2 substage ordering stable across witness A/B: `allocation_kernel`, `rank_prefix`,
+  - downstream smoke `S5->S9`: all complete, `S9 decision=PASS`.
+- Classification and decision:
+  - `classification_best=RED`, `classification_latest=RED` (still above stretch `<=900s`),
+  - progression decision: `HOLD_POPT1` (continue S4 optimization before `POPT.2`).
+- Open contradiction to carry forward:
+  - rank-cache miss/eviction pressure did not materially drop in this pass; next S4 iteration should target key cardinality pressure (`k_max` skip lane and per-country/n_sites cache residency strategy) before phase unlock.
 
 ### POPT.2 - S5 assignment-path optimization (secondary bottleneck)
 Goal:

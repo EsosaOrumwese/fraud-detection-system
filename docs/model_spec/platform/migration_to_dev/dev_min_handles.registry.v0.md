@@ -179,7 +179,7 @@ These are the pinned repo locations (used by operator scripts and Codex automati
 
 ## 3. AWS S3 Buckets + Prefix Contracts
 
-These handles pin **where data lives** in dev_min. Buckets are provisioned by Terraform **core** (persistent, low-cost). All prefixes are **run-scoped** unless explicitly marked otherwise.
+These handles pin **where data lives** in dev_min. Buckets are provisioned by Terraform **core** (persistent, low-cost). Evidence/archive/quarantine prefixes are platform-run scoped; oracle prefixes are engine-run scoped and intentionally platform-run agnostic.
 
 ### 3.1 Buckets (names)
 
@@ -210,28 +210,38 @@ These are the only allowed template tokens inside prefix patterns:
 * `{scenario_run_id}` *(optional where relevant)*
 * `{output_id}`
 * `{phase_id}` *(P0..P12)*
+* `{oracle_source_namespace}`
+* `{oracle_engine_run_id}`
 
 ### 3.3 Oracle store prefixes (dev_min)
 
-* `S3_ORACLE_RUN_PREFIX_PATTERN = "oracle/{platform_run_id}/"`
+* `ORACLE_SOURCE_NAMESPACE = "local_full_run-5"`
 
-  * Root prefix for all oracle artifacts for a run.
+  * Oracle lineage namespace emitted by the external data engine.
 
-* `S3_ORACLE_INPUT_PREFIX_PATTERN = "oracle/{platform_run_id}/inputs/"`
+* `ORACLE_ENGINE_RUN_ID = "c25a2675fbfbacd952b13bb594880e92"`
 
-  * Root prefix for sealed oracle inputs copied/written for this run.
+  * External engine run identifier (oracle root key).
 
-* `S3_STREAM_VIEW_PREFIX_PATTERN = "oracle/{platform_run_id}/stream_view/"`
+* `S3_ORACLE_RUN_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/"`
 
-  * Root prefix for all stream_view outputs for this run.
+  * Canonical oracle engine-run root consumed by the platform.
 
-* `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN = "oracle/{platform_run_id}/stream_view/output_id={output_id}/"`
+* `S3_ORACLE_INPUT_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/"`
+
+  * Raw/sealed oracle data root (`data/`, `logs/`, `reports/`, run receipts/manifests).
+
+* `S3_STREAM_VIEW_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/"`
+
+  * Canonical stream_view base consumed by WSP/SR checks.
+
+* `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/output_id={output_id}/"`
 
   * Output-specific stream_view prefix.
 
-* `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN = "oracle/{platform_run_id}/stream_view/output_id={output_id}/_stream_view_manifest.json"`
+* `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/output_id={output_id}/_stream_view_manifest.json"`
 
-* `S3_STREAM_SORT_RECEIPT_KEY_PATTERN = "oracle/{platform_run_id}/stream_view/output_id={output_id}/_stream_sort_receipt.json"`
+* `S3_STREAM_SORT_RECEIPT_KEY_PATTERN = "oracle-store/{oracle_source_namespace}/{oracle_engine_run_id}/stream_view/ts_utc/output_id={output_id}/_stream_sort_receipt.json"`
 
 ### 3.4 Archive prefixes (dev_min, bounded)
 
@@ -298,7 +308,7 @@ Convenience patterns (must align with Section 6 evidence contract):
 
 Policy note:
 * Dev_min P3 does not include a platform seed/sync task.
-* Oracle inputs are expected under the canonical run-scoped input prefix before P3 stream-sort/checker.
+* Oracle inputs are expected under the canonical engine-run root (`S3_ORACLE_RUN_PREFIX_PATTERN`) before P3 stream-sort/checker.
 * Temporary operator upload/copy bridges are outside platform runtime scope and must not be modeled as platform jobs.
 
 ---

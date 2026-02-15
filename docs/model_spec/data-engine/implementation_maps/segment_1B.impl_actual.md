@@ -5479,3 +5479,56 @@ Next execution lane:
 1) run fresh S4 candidate and deterministic witness (`POPT.1.5`),
 2) downstream `S5->S9` smoke,
 3) produce baseline-vs-candidate runtime delta and classify `POPT.1.6`.
+
+### Entry: 2026-02-15 16:30
+
+Design element: POPT.1 execution closure evidence (`S4` optimization lane complete, classification fail-closed RED).
+Summary: Executed full `POPT.1` run sequence with instrumentation + rewrite + witness + downstream smoke. The phase achieved material S4 runtime improvement vs baseline and preserved determinism/contracts, but still missed stretch budget (`<=15m`), so phase classification is `RED` with explicit hold.
+
+Execution trace and decisions:
+1) Candidate run-lane setup:
+   - fresh run-id created for optimization lane: `c6ddd66305124ec7bbf0c9fd13f9071e`.
+   - direct `S0` bootstrap on synthetic run-id failed (`E_BUNDLE_MISSING`) because upstream bundle resolution expected staged lineage.
+   - correction applied: cloned required staged upstream inputs from authority run `9eb...` for this lane (`s0_gate_receipt`, `sealed_inputs`, `tile_index`, `tile_bounds`, `tile_weights`, `s3_requirements`) and preserved run-receipt identity for candidate run-id.
+2) S4 optimization runs (same fixed identity):
+   - run 1 (`countries_max=48/pin=48`): `2114.23s`.
+   - run 2 (`countries_max=192/pin=183`): `1940.22s`.
+   - run 3 witness (`countries_max=192/pin=183`): `1866.00s`.
+   - run 4 witness (`countries_max=192/pin=183`): `2030.89s`.
+3) Determinism and equivalence:
+   - repeated S4 reruns logged `s4_alloc_plan partition already exists with identical bytes` (count `3`), confirming deterministic output equivalence on fixed identity.
+4) Downstream smoke (`POPT.1.5`) on same run-id:
+   - `S5` and `S6` completed green.
+   - initial `S7` attempt failed due missing staged `1A/outlet_catalogue` under candidate run root.
+   - correction: staged `data/layer1/1A/outlet_catalogue` from authority run.
+   - resumed `S7 -> S8 -> S9`; all completed and `S9 decision=PASS`.
+
+Measured movement vs baseline (`POPT.0` authority):
+1) Runtime:
+   - baseline `S4=2280.326s`.
+   - best candidate `S4=1866.00s` (`+18.17%` faster).
+   - latest witness `S4=2030.89s` (`+10.94%` faster).
+2) IO/cache pressure:
+   - baseline `bytes_read_index_total=4,479,847,855`, `bytes_read_weights_total=2,148,765,517`.
+   - candidate witness `bytes_read_index_total=915,963,412`, `bytes_read_weights_total=462,009,296`.
+   - cache misses/evictions reduced (`1550/1502` -> `411/288`) with bounded memory (`bytes_peak=2,499,988,256`).
+3) Substage hotspot stability across witnesses:
+   - top-2 remained stable: `allocation_kernel`, `rank_prefix`.
+
+Phase outcome:
+1) `POPT.1.1`: complete (timing map + stable top-2 witness).
+2) `POPT.1.2`: complete (material IO/cache reductions, bounded memory).
+3) `POPT.1.3`: partial (throughput improved; rank-cache miss/eviction pressure did not materially drop).
+4) `POPT.1.4`: complete (cadence controls active, no observability loss).
+5) `POPT.1.5`: complete (determinism + downstream smoke green).
+6) `POPT.1.6`: classified `RED`; hold progression.
+
+Artifacts produced:
+1) `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_s4_witness_a_c6ddd66305124ec7bbf0c9fd13f9071e.json`
+2) `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_s4_witness_b_c6ddd66305124ec7bbf0c9fd13f9071e.json`
+3) `tools/score_segment1b_popt1_closure.py`
+4) `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_closure_c6ddd66305124ec7bbf0c9fd13f9071e.json`
+5) `runs/fix-data-engine/segment_1B/reports/segment1b_popt1_closure_c6ddd66305124ec7bbf0c9fd13f9071e.md`
+
+Next mandatory focus (per fail-closed classification):
+1) continue S4-only optimization before entering `POPT.2`, with emphasis on rank-cache cardinality/skip pressure and allocation-kernel cost concentration.

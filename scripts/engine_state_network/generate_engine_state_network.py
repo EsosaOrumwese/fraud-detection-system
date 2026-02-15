@@ -438,7 +438,7 @@ def render_dot(segments: list[SegmentInfo], edges: list[Edge]) -> str:
     lines: list[str] = []
     lines.append("digraph EngineStateNetwork {")
     lines.append('  graph [rankdir=LR, fontsize=10, fontname="Helvetica", labelloc=t,')
-    lines.append('         label="Data Engine Flow Map: layers > segments > states"];')
+    lines.append('         label="Data Engine State/Gate View (docs-driven): layers > segments > states"];')
     lines.append('  node  [shape=box, style="rounded,filled", fillcolor=white, color="#4b5563", fontname="Helvetica", fontsize=9];')
     lines.append('  edge  [color="#6b7280", fontname="Helvetica", fontsize=8];')
     lines.append("")
@@ -507,7 +507,7 @@ def render_mermaid(segments: list[SegmentInfo], edges: list[Edge]) -> str:
 
     lines: list[str] = []
     lines.append("flowchart LR")
-    lines.append("%% Data Engine flow map: layers > segments > states")
+    lines.append("%% Data Engine state/gate view (docs-driven): layers > segments > states")
     lines.append("")
 
     for layer in layers:
@@ -560,7 +560,7 @@ def render_ascii(segments: list[SegmentInfo], edges: list[Edge]) -> str:
         by_layer[layer].sort(key=lambda s: seg_sort_key(s.segment_id))
 
     lines: list[str] = []
-    lines.append("DATA ENGINE NETWORK (layers > segments > states)")
+    lines.append("DATA ENGINE STATE/GATE VIEW (docs-driven)")
     lines.append("Source basis: state expanded docs + segment_*.impl_map.yaml")
     lines.append("Reader mode: human-readable names for LinkedIn-safe storytelling")
     lines.append("=" * 96)

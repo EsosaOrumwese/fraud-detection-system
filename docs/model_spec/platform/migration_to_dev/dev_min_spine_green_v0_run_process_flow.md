@@ -298,7 +298,7 @@ This table is the **one-screen backbone** of Spine Green v0 on `dev_min`: what e
 | P0    | SUBSTRATE_READY          | **Operator**: `terraform apply core` then `terraform apply demo`                                   | S3 + Dynamo lock + Budgets + SSM + Confluent Kafka + runtime DB + ECS cluster scaffolding | Operator                 | All handles resolvable; SSM secrets present; topics exist; buckets writable                 | `terraform destroy demo` (keep core); if core wrong, destroy core intentionally                                                        |
 | P1    | RUN_PINNED               | **Operator CLI** (or one-shot ECS task if you prefer): create `platform_run_id`, pin config digest | S3 evidence prefix                                                                        | Operator                 | `evidence/runs/<platform_run_id>/run.json` (or equivalent run header) exists                | Delete `evidence/runs/<platform_run_id>/` prefix; re-run P1                                                                            |
 | P2    | DAEMONS_READY            | **ECS services** up (IG, RTDL workers, CM/LS APIs as in-scope)                                     | ECS + runtime DB                                                                          | Operator (health checks) | Service health endpoints OK; CloudWatch logs show “started”; no crashloops                  | Scale services to 0 / redeploy; destroy demo if drifted                                                                                |
-| P3    | ORACLE_READY             | **Inlet assertion + one-shot job(s)** on managed compute: stream-sort → checker                     | S3 oracle inputs (externally staged) → S3 `stream_view` outputs                           | Oracle lane              | Stream-view receipt/manifest exists; checker PASS artifact exists                           | Delete `oracle/<run>/stream_view/...` prefix + receipts; rerun P3 (per-output allowed)                                                 |
+| P3    | ORACLE_READY             | **Inlet assertion + one-shot job(s)** on managed compute: stream-sort → checker                     | S3 oracle inputs (externally staged) → S3 `stream_view` outputs                           | Oracle lane              | Stream-view receipt/manifest exists; checker PASS artifact exists                           | Delete `S3_STREAM_VIEW_PREFIX_PATTERN` (or per-output subpaths) + receipts; rerun P3 (per-output allowed)                             |
 | P4    | INGEST_READY             | **IG ECS service** reachable + topic readiness                                                     | IG endpoint + Kafka topics                                                                | Operator + IG            | IG health “ready”; topics exist; auth boundary active                                       | Roll IG deployment; clear only IG runtime state (not evidence)                                                                         |
 | P5    | READY_PUBLISHED          | **SR one-shot ECS task** emits READY                                                               | S3 SR artifacts + Kafka control topic                                                     | SR                       | READY published + SR artifacts written for this run                                         | Clear SR lease (if needed) + rerun P5 (lease rules apply)                                                                              |
 | P6    | STREAMING_ACTIVE         | **WSP one-shot ECS task** reads `stream_view`, POSTs to IG                                         | S3 stream_view → IG ingest                                                                | WSP                      | WSP logs show stream start/stop; IG receives requests                                       | Stop WSP task; rerun P6 (idempotent event_id; IG dedupe absorbs replays)                                                               |
@@ -1121,7 +1121,7 @@ P3 consists of three sub-steps that must succeed in order:
 
   * read oracle dataset objects
   * sort into a deterministic stream_view ordering keyed by `ts_utc` and/or `flow_id` (per dataset rule)
-  * write stream_view shards + manifests/receipts to S3 under `oracle/<platform_run_id>/stream_view/...` (exact pattern pinned in handles registry later)
+  * write stream_view shards + manifests/receipts under the engine-run oracle root (`oracle-store/<oracle_source_namespace>/<oracle_engine_run_id>/stream_view/ts_utc/...`)
 * Sorting must be deterministic and restartable.
 
 3. **Oracle checker**
@@ -1172,9 +1172,11 @@ P3 consists of three sub-steps that must succeed in order:
 **Oracle S3**
 
 * `S3_ORACLE_BUCKET`
-* `S3_ORACLE_RUN_PREFIX_PATTERN` (includes `<platform_run_id>`)
+* `ORACLE_SOURCE_NAMESPACE`
+* `ORACLE_ENGINE_RUN_ID`
+* `S3_ORACLE_RUN_PREFIX_PATTERN` (engine-run scoped; no `<platform_run_id>` token)
 * `S3_ORACLE_INPUT_PREFIX_PATTERN`
-* `S3_STREAM_VIEW_PREFIX_PATTERN`
+* `S3_STREAM_VIEW_PREFIX_PATTERN` (`.../stream_view/ts_utc/`)
 * `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN`
 * `S3_STREAM_SORT_RECEIPT_KEY_PATTERN`
 * `ORACLE_INLET_MODE`
@@ -1230,7 +1232,7 @@ P3 is executed as **one-shot jobs**.
 
 **PASS proof for inlet assertion:**
 
-* required oracle input prefixes exist for `platform_run_id`
+* required oracle engine-run root/prefix exists (`S3_ORACLE_RUN_PREFIX_PATTERN`)
 * required manifest/seal objects are present and readable
 * assertion snapshot recorded in run evidence
 
@@ -1636,8 +1638,8 @@ SR must preserve the local parity semantics:
 **Oracle store**
 
 * `S3_ORACLE_BUCKET`
-* `S3_ORACLE_RUN_PREFIX_PATTERN` (includes `<platform_run_id>`)
-* `S3_STREAM_VIEW_PREFIX_PATTERN` (SR may validate presence of stream_view outputs)
+* `S3_ORACLE_RUN_PREFIX_PATTERN` (engine-run scoped; SR reads from external oracle root)
+* `S3_STREAM_VIEW_PREFIX_PATTERN` (SR may validate stream_view presence under engine-run root)
 
 **Kafka control**
 
@@ -1820,7 +1822,7 @@ P6 means:
 **S3 stream_view inputs**
 
 * `S3_ORACLE_BUCKET`
-* `S3_STREAM_VIEW_PREFIX_PATTERN` (includes `<platform_run_id>`)
+* `S3_STREAM_VIEW_PREFIX_PATTERN` (engine-run scoped; no `<platform_run_id>` token)
 * `ORACLE_REQUIRED_OUTPUT_IDS` (the set WSP must stream)
 
 **IG target**
@@ -3455,8 +3457,8 @@ This appendix summarizes **who can do what** in dev_min. It is a **high-level bo
 
 **Must be able to:**
 
-* Read from `S3_ORACLE_BUCKET` input prefixes for `platform_run_id`
-* Write to `S3_ORACLE_BUCKET` stream_view prefixes for `platform_run_id`
+* Read from `S3_ORACLE_BUCKET` engine-run oracle input root (`S3_ORACLE_RUN_PREFIX_PATTERN`)
+* Write to `S3_ORACLE_BUCKET` engine-run stream_view prefixes (`S3_STREAM_VIEW_PREFIX_PATTERN`)
 * Write oracle evidence summaries to `S3_EVIDENCE_BUCKET`
 * Write logs to CloudWatch
 
