@@ -816,7 +816,7 @@ def _bus_probe_streams(
     if wiring.event_bus_kind not in {"kinesis", "kafka"}:
         return []
     stream_name = wiring.event_bus_path
-    if isinstance(stream_name, str) and stream_name.lower() not in {"", "auto", "topic"}:
+    if wiring.event_bus_kind == "kinesis" and isinstance(stream_name, str) and stream_name.lower() not in {"", "auto", "topic"}:
         return [stream_name]
     class_names = set(class_map.event_classes.values())
     profile_ids = {_profile_id_for_class(name, wiring.partitioning_profile_id) for name in class_names}
