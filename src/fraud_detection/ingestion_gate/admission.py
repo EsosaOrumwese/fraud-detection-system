@@ -813,7 +813,7 @@ def _bus_probe_streams(
     partitioning: PartitioningProfiles,
     class_map: ClassMap,
 ) -> list[str]:
-    if wiring.event_bus_kind != "kinesis":
+    if wiring.event_bus_kind not in {"kinesis", "kafka"}:
         return []
     stream_name = wiring.event_bus_path
     if isinstance(stream_name, str) and stream_name.lower() not in {"", "auto", "topic"}:

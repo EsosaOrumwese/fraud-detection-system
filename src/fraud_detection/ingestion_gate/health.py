@@ -133,6 +133,13 @@ class HealthProbe:
                     producer = getattr(self.bus, "_producer", None)
                     if producer is None:
                         return "BUS_HEALTH_UNKNOWN"
+                    streams = list(self._bus_probe_streams)
+                    if streams:
+                        for stream_name in streams:
+                            partitions = producer.partitions_for(stream_name)
+                            if not partitions:
+                                return "BUS_UNHEALTHY"
+                        return None
                     return None if bool(producer.bootstrap_connected()) else "BUS_UNHEALTHY"
                 except Exception:
                     return "BUS_UNHEALTHY"
