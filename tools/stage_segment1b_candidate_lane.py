@@ -88,6 +88,7 @@ def _iter_link_specs(
     include_site_locations: bool,
     include_rng_logs: bool,
     stage_s3_requirements: bool,
+    stage_tile_weights: bool,
 ) -> Iterable[_LinkSpec]:
     src_root = src_runs_root / src_run_id
     dst_root = dst_runs_root / dst_run_id
@@ -101,8 +102,9 @@ def _iter_link_specs(
         "sealed_inputs",
         "tile_index",
         "tile_bounds",
-        "tile_weights",
     ]
+    if stage_tile_weights:
+        required_1b.append("tile_weights")
     if stage_s3_requirements:
         required_1b.append("s3_requirements")
     if include_s4_alloc_plan:
@@ -196,6 +198,14 @@ def main(argv: list[str] | None = None) -> int:
             "(e.g., country denylists) to keep downstream coverage consistent."
         ),
     )
+    parser.add_argument(
+        "--skip-tile-weights",
+        action="store_true",
+        help=(
+            "Do not stage `data/layer1/1B/tile_weights` from the source run. "
+            "Use this when S2 must be re-run in the destination run-id."
+        ),
+    )
     args = parser.parse_args(argv)
 
     dst_runs_root = Path(args.runs_root).resolve()
@@ -238,6 +248,7 @@ def main(argv: list[str] | None = None) -> int:
     include_site_locations = bool(args.include_site_locations)
     include_rng_logs = bool(args.include_rng_logs)
     stage_s3_requirements = not bool(args.skip_s3_requirements)
+    stage_tile_weights = not bool(args.skip_tile_weights)
     if args.include_for_s9:
         include_s7_site_synthesis = True
         include_site_locations = True
@@ -254,6 +265,7 @@ def main(argv: list[str] | None = None) -> int:
             include_site_locations=include_site_locations,
             include_rng_logs=include_rng_logs,
             stage_s3_requirements=stage_s3_requirements,
+            stage_tile_weights=stage_tile_weights,
         )
     )
     for spec in specs:
@@ -280,6 +292,7 @@ def main(argv: list[str] | None = None) -> int:
         "mode": mode,
         "staged_at_utc": dst_receipt["created_utc"],
         "staged_s3_requirements": stage_s3_requirements,
+        "staged_tile_weights": stage_tile_weights,
         "linked_surfaces": [{"label": s.label, "dst": str(s.dst), "src": str(s.src)} for s in specs],
         "next_commands_powershell": next_cmds,
     }

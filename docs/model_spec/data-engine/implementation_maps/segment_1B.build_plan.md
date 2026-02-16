@@ -1403,3 +1403,31 @@ DoD:
 - [ ] `S6` wall time <= 45s on seed=42 for the fixed authority lane (same `parameter_hash`/`manifest_fingerprint`).
 - [ ] deterministic outputs unchanged (hash/equivalence gate for `s6_site_jitter` output + RNG logs envelope checks still PASS).
 - [ ] no memory spike beyond Fast-Compute-Safe posture (explicit RAM telemetry in run report).
+
+### Bounded Realism Sweep Closure (2026-02-16)
+Objective:
+- run a hard-bounded `2`-candidate realism sweep and decide whether `1B` can close `B/B+` without reopening upstream.
+
+Candidates executed:
+- `R1` run-id `d0d35786b6c241738c392a7d0393d0fe`
+  - changes: stronger `S2` blend_v2 south-floor/concentration caps.
+  - chain: `S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9`.
+- `R2` run-id `f5df0b9e80cf4ce3b46f4609a2597c43`
+  - changes: stronger `S6` sparse-tail jitter mix.
+  - chain: `S5 -> S6 -> S7 -> S8 -> S9` (staged from `R1` with linked `S4` alloc plan).
+
+Observed outcome:
+- Both candidates remained `RED_REOPEN_REQUIRED`.
+- Hard-failing `B` metrics stayed unchanged vs lock:
+  - `country_gini=0.7576132697`
+  - `top10=0.6196659850`
+  - `top5=0.4189502386`
+  - `top1=0.1455010225`
+  - `eligible_country_nonzero_share=0.3036437247`
+  - `southern_hemisphere_share=0.0639059305`
+- Only NN-tail moved slightly (still passing contraction gate).
+
+Decision (phase closure):
+- bounded sweep exhausted (`2/2`) with no movement in failing distribution metrics.
+- conclude `1B`-local tuning lane is structurally saturated for `B/B+`.
+- promotion path requires upstream reopen (country-mass source in `1A` / `S3` ingress frame), not further `1B`-local knob churn.

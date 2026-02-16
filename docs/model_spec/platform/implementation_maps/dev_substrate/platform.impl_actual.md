@@ -11563,3 +11563,21 @@ Re-executed `M6.G` under corrected IG Kafka-health posture and re-emitted run-sc
    - sample read for each required topic succeeded with `platform_run_id` match.
 4. Ambiguity gate:
    - admissions index probe: `publish_ambiguous_count=0`, `publish_in_flight_count=0`.
+
+## Entry: 2026-02-16 17:39:50 +00:00 - M2.I / M9 teardown-lane alignment and managed Confluent destroy workflow
+
+### Decision
+- Pinned ownership split in planning docs:
+  - M2.I owns the reusable teardown control-plane capability.
+  - M9/P12 consumes that capability for final teardown proof.
+
+### Implementation
+- Updated:
+  - docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md
+  - docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md
+- Added managed workflow:
+  - .github/workflows/dev_min_confluent_destroy.yml
+
+### Why
+- Removes local secret dependency for Confluent destroy while preserving OIDC + remote-state lock posture.
+- Keeps M2 capability-hardening and M9 execution-proof responsibilities explicit.

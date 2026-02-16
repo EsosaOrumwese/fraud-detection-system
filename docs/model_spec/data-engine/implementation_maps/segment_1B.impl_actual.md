@@ -5838,3 +5838,50 @@ Decision:
 1) Performance for `1B` is now “good enough to iterate” for realism remediation.
 2) If performance is reopened, the only approved next target is `S6` (do not reopen `S4/S5/S9` unless regression is detected).
 3) Storage discipline is binding: prune superseded run-id folders under `runs/fix-data-engine/segment_1B` and keep only the minimal authority set needed for scoring and regression checks.
+
+---
+
+### Entry: 2026-02-16 05:46
+
+Design element: bounded `1B` realism recovery sweep (`2` candidates max) after `POPT.4` closure.
+Summary: Executed the agreed bounded sweep and closed it fail-closed. Both candidates preserved structural/no-regression posture but produced zero movement on the hard-failing `B/B+` distribution metrics, confirming `1B`-local knobs are not the controlling lane for those gates.
+
+Pre-sweep hypothesis:
+1) Test whether stronger `S2` global-south/concentration blend pressure and/or stronger `S6` sparse-tail jitter could move:
+   - `country_gini`, `top1/top5/top10`, `eligible_country_nonzero_share`, `southern_hemisphere_share`.
+2) Keep performance lane intact (no new `S4/S5/S9` algorithm rewrites).
+
+Supporting tool hardening:
+1) Added `--skip-tile-weights` to `tools/stage_segment1b_candidate_lane.py` so candidate lanes can rerun `S2` cleanly without staging `tile_weights` from source.
+2) Combined with prior `--skip-s3-requirements`, this gives policy-consistent reruns for `S2/S3` without manual junction surgery.
+
+Candidate execution:
+1) `R1` run-id `d0d35786b6c241738c392a7d0393d0fe`:
+   - policy change: aggressive `S2` blend_v2 south floors + stricter concentration caps.
+   - chain: `S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9`.
+   - score: `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_d0d35786b6c241738c392a7d0393d0fe.json`.
+2) `R2` run-id `f5df0b9e80cf4ce3b46f4609a2597c43`:
+   - policy change: stronger `S6` sparse-tail jitter weights.
+   - chain: `S5 -> S6 -> S7 -> S8 -> S9` (staged from `R1` with linked `S4` alloc plan).
+   - score: `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_f5df0b9e80cf4ce3b46f4609a2597c43.json`.
+
+Observed results:
+1) Both runs stayed `RED_REOPEN_REQUIRED`; `B` and `B+` hard gates remained failed.
+2) Failing distribution metrics were numerically unchanged in both runs:
+   - `country_gini=0.7576132697114292`
+   - `top10_share=0.6196659850034083`
+   - `top5_share=0.4189502385821404`
+   - `top1_share=0.14550102249488753`
+   - `eligible_country_nonzero_share=0.30364372469635625`
+   - `southern_hemisphere_share=0.06390593047034765`
+3) Only NN-tail moved (minor), confirming limited effect of these knobs on the targeted failing gates.
+
+Root-cause conclusion (design-level):
+1) The failing gates are controlled primarily by legal-country site mass (country counts).
+2) In current `1B` design, legal-country mass enters via `S3` requirements sourced from upstream `1A` outlet catalogue.
+3) `1B`-local tuning mostly changes intra-country geometry (tile/jitter), not cross-country mass distribution; therefore these gates cannot be closed meaningfully without upstream reopen.
+
+Post-sweep disposition:
+1) Restored `S2` and `S6` policies to pre-sweep authority content.
+2) Marked bounded sweep exhausted (`2/2`) and stopped further 1B-local churn.
+3) Recommended next corrective lane: upstream reopen (country-mass source) if `B/B+` remains mandatory.

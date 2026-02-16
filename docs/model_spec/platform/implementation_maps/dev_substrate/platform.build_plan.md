@@ -271,6 +271,7 @@ Phase closure snapshot:
   - [x] `M2.G` network/no-NAT/no-always-on-LB verification.
   - [x] `M2.H` runtime DB readiness + migrations posture.
   - [x] `M2.I` budget and teardown-viability proof.
+  - [x] `M2.I` control-plane teardown lane materialized in GitHub Actions (`.github/workflows/dev_min_confluent_destroy.yml`) to avoid local secret dependency.
   - [x] `M2.J` exit-readiness and M3 handoff.
   - authoritative closeout execution:
     - `m2_execution_id=m2_20260213T205715Z`
@@ -284,6 +285,7 @@ M2 DoD checklist:
 - [x] Required handles resolve to reachable substrate resources.
 - [x] Confluent bootstrap/key/secret and required topics are validated.
   - Canonical command lane: `python tools/dev_substrate/verify_m2f_topic_readiness.py`.
+- [x] Confluent destroy capability is available in GitHub Actions (`workflow_dispatch`) with OIDC and remote-state lock discipline.
 - [x] No NAT and no forbidden always-on infra posture is proven.
 - [x] runtime DB and migration readiness are validated.
 - [x] Budget alerts and teardown viability are evidenced.
@@ -642,6 +644,7 @@ Status: `NOT_STARTED`
 Entry gate:
 - M8 is `DONE`.
 DoD summary:
+- Canonical execution lane is GitHub Actions teardown workflows produced under `M2.I`; no local secret-bearing destroy path is required.
 - demo resources destroyed; core/evidence preserved.
 - no demo ECS services/tasks remain and no NAT/LB cost-footgun resources remain.
 - demo-scoped secrets/credentials are removed from SSM.
