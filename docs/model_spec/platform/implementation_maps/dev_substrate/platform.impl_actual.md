@@ -11504,3 +11504,62 @@ IG schema enforcement fails with an unresolvable engine-schema reference:
 - Ensure the runtime image include-surface contains `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.layer3.yaml` (and any transitive refs) so payload schema refs resolve.
 - Remove the IG `local_parity` profile shim and run IG under the `dev_min` profile so provenance pins are correct.
 - Wire IG publish lane to Confluent Kafka (dev_min authority). Current runtime is publishing to a non-Kafka bus, so Kafka offsets remain 0 even when IG returns ADMIT.
+
+## Entry: 2026-02-16 06:42:00 +00:00 - IG health probe drift remediation for dev_min Kafka
+
+### Problem
+After rematerializing IG onto Kafka runtime posture, `/v1/ops/health` remained `RED/BUS_UNHEALTHY` even though receipts and Kafka samples showed publish/read was working. This blocked `M6.G` closure because P7 preflight requires IG health `GREEN`.
+
+### Root causes found from live IG logs
+1. Kafka probe attempted a non-topic path (`runs/.../eb`) as a Kafka topic and threw topic-name errors.
+2. Probe then attempted metadata for out-of-scope stream `fp.bus.case.v1`, which does not exist in dev_min topic catalog (`fp.bus.case.triggers.v1` exists; `case.v1` does not).
+
+### Fixes implemented
+1. `src/fraud_detection/ingestion_gate/health.py`
+   - Kafka health probe now resolves topic partition metadata from probe streams instead of relying only on `bootstrap_connected()`.
+2. `src/fraud_detection/ingestion_gate/admission.py`
+   - `_bus_probe_streams(...)` supports Kafka explicitly.
+   - Kafka probe stream derivation ignores non-topic `event_bus_path` values.
+   - Kafka probe stream set is scoped to Spine Green ingress-required event classes (`traffic/context`) instead of broad class-map surfaces.
+
+### Runtime confirmation
+After image rebuild + ECS redeploy, IG health became:
+- `{"state":"GREEN","reasons":[]}`
+
+This unblocked `M6.G` preflight.
+
+## Entry: 2026-02-16 06:50:00 +00:00 - Ingest Commit Verification (M6.G) PASS (Run: platform_20260213T214223Z)
+
+### Scope
+Re-executed `M6.G` under corrected IG Kafka-health posture and re-emitted run-scoped + run-control P7 artifacts.
+
+### Authoritative evidence
+- local:
+  - `runs/dev_substrate/m6/20260216T064825Z/m6_g_ingest_commit_snapshot.json`
+  - `runs/dev_substrate/m6/20260216T064825Z/receipt_summary.json`
+  - `runs/dev_substrate/m6/20260216T064825Z/quarantine_summary.json`
+  - `runs/dev_substrate/m6/20260216T064825Z/kafka_offsets_snapshot.json`
+- durable:
+  - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/receipt_summary.json`
+  - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/quarantine_summary.json`
+  - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/kafka_offsets_snapshot.json`
+  - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/m6_g_ingest_commit_snapshot.json`
+  - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T064825Z/m6_g_ingest_commit_snapshot.json`
+  - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T064825Z/m6_g_admission_index_probe.json`
+
+### Verdict
+- `overall_pass=true`
+- blockers: none
+
+### Closure facts
+1. Preflight:
+   - IG health `GREEN`, reasons empty.
+   - receipts show `environment=dev_min`, `policy_rev=dev-min-v0`.
+   - ADMIT offset kind includes `kafka_offset`.
+2. Receipt/quarantine:
+   - decisions: `ADMIT=800`, `DUPLICATE=800`, `QUARANTINE=0`.
+3. Kafka commit proof:
+   - per-topic partition watermark and run-window offsets captured for all 4 required topics.
+   - sample read for each required topic succeeded with `platform_run_id` match.
+4. Ambiguity gate:
+   - admissions index probe: `publish_ambiguous_count=0`, `publish_in_flight_count=0`.

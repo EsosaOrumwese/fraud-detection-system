@@ -758,12 +758,20 @@ Current status (latest executed attempt):
    - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/quarantine_summary.json`
    - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/kafka_offsets_snapshot.json`
    - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/m6_g_ingest_commit_snapshot.json`
-2. Verdict is FAIL (fail-closed) with blockers:
-   - `M6G-B7:KAFKA_OFFSETS_ZERO` (Kafka reachable; offsets remain 0 because IG is not yet publishing to Kafka)
-   - `M6G-B6:RECEIPT_ENVIRONMENT_MISMATCH` (receipts show `environment=local_parity`, `policy_rev=local-parity-v0`)
-   - `M6G-B8:QUARANTINE_NONZERO` (802 quarantines; not green)
-3. Root cause for quarantines is schema-resolution failure inside IG:
-   - `Unresolvable: schemas.layer3.yaml#/$defs/hex64` (missing from runtime image include-surface).
+2. Authoritative closure rerun (`m6_execution_id=m6_20260216T064825Z`) is PASS (fail-closed):
+   - local snapshot: `runs/dev_substrate/m6/20260216T064825Z/m6_g_ingest_commit_snapshot.json`
+   - durable control snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T064825Z/m6_g_ingest_commit_snapshot.json`
+   - run-scoped snapshot: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/m6_g_ingest_commit_snapshot.json`
+3. Closure facts (from authoritative PASS snapshot):
+   - `overall_pass=true`, blockers empty.
+   - IG preflight: `state=GREEN`, `reasons=[]`, `policy_rev_seen=[dev-min-v0]`, `bus_offset_kind_seen=[kafka_offset]`.
+   - receipt counts: `ADMIT=800`, `DUPLICATE=800`, `QUARANTINE=0`.
+   - ambiguity gate: `publish_ambiguous_count=0`, `publish_in_flight_count=0`.
+   - required topic samples all pass with run-id match:
+     - `fp.bus.traffic.fraud.v1`
+     - `fp.bus.context.arrival_events.v1`
+     - `fp.bus.context.arrival_entities.v1`
+     - `fp.bus.context.flow_anchor.fraud.v1`
 
 Tasks:
 1. M6.G.1 Drift sentinel preflight (fail-closed):
@@ -811,10 +819,10 @@ Tasks:
      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m6_execution_id>/m6_g_ingest_commit_snapshot.json`.
 
 DoD:
-- [ ] Receipt/offset/quarantine evidence exists and is coherent.
-- [ ] Offset advancement for required topics is proven.
-- [ ] Unresolved `PUBLISH_AMBIGUOUS` count is zero.
-- [ ] M6.G snapshot published locally and durably.
+- [x] Receipt/offset/quarantine evidence exists and is coherent.
+- [x] Offset advancement for required topics is proven.
+- [x] Unresolved `PUBLISH_AMBIGUOUS` count is zero.
+- [x] M6.G snapshot published locally and durably.
 
 Blockers:
 1. `M6G-B0`: drift detected (IG not on dev_min policy/profile or bus substrate not Kafka as pinned).
@@ -935,9 +943,9 @@ Notes:
 - [x] M6.B complete
 - [x] M6.C complete
 - [x] M6.D complete
-- [ ] M6.E complete
-- [ ] M6.F complete
-- [ ] M6.G complete
+- [x] M6.E complete
+- [x] M6.F complete
+- [x] M6.G complete
 - [ ] M6.H complete
 - [ ] M6.I complete
 

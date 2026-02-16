@@ -585,6 +585,17 @@ Active-phase planning posture:
     - closure is now aligned to published runtime posture (no task-scoped shims):
       - SR task definition revision: `fraud-platform-dev-min-sr:2`
       - image digest: `sha256:5550d39731e762bd4211fcae0d55edb72059bef5d3a1c7a3bdbab599064b89c3`.
+  - `M6.G` is now execution-closed with authoritative PASS evidence (`m6_execution_id=m6_20260216T064825Z`):
+    - local snapshot:
+      - `runs/dev_substrate/m6/20260216T064825Z/m6_g_ingest_commit_snapshot.json`
+    - durable snapshots:
+      - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/m6_g_ingest_commit_snapshot.json`
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T064825Z/m6_g_ingest_commit_snapshot.json`
+    - closure facts:
+      - `overall_pass=true`, blockers empty.
+      - IG preflight `state=GREEN`.
+      - receipt counts: `ADMIT=800`, `DUPLICATE=800`, `QUARANTINE=0`.
+      - ambiguity gate: `publish_ambiguous_count=0`, `publish_in_flight_count=0`.
 
 - Sub-phase progress:
   - [x] `M6.A` authority + handle closure for `P4..P7`.
@@ -593,16 +604,16 @@ Active-phase planning posture:
   - [x] `M6.D` P5 SR PASS + READY publication.
   - [x] `M6.E` P6 WSP launch contract + READY consumption proof.
   - [x] `M6.F` P6 WSP execution summary.
-  - [ ] `M6.G` P7 ingest commit evidence closure.
+  - [x] `M6.G` P7 ingest commit evidence closure.
   - [ ] `M6.H` P4..P7 verdict + blocker rollup.
   - [ ] `M6.I` M7 handoff publication.
 
 M6 DoD checklist:
 - [x] IG service readiness + auth boundary checks pass and `ingest/ig_ready.json` is durable.
 - [x] SR task PASS evidence exists and READY publication receipt is durable.
-- [ ] WSP executes from P3 `stream_view` only and emits closure-grade summary evidence (READY record + per-output CloudWatch proof) with durable `M6.F` snapshot.
-- [ ] Ingest receipt/offset/quarantine summaries exist and are coherent.
-- [ ] `PUBLISH_AMBIGUOUS` unresolved count is zero for closure set.
+- [x] WSP executes from P3 `stream_view` only and emits closure-grade summary evidence (READY record + per-output CloudWatch proof) with durable `M6.F` snapshot.
+- [x] Ingest receipt/offset/quarantine summaries exist and are coherent.
+- [x] `PUBLISH_AMBIGUOUS` unresolved count is zero for closure set.
 - [ ] M6 verdict is `ADVANCE_TO_M7` with empty blocker rollup.
 - [ ] M7 handoff pack is published and non-secret.
 
