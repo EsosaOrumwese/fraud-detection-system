@@ -5773,3 +5773,47 @@ Evidence (seed=42, `--validate-only`):
 
 File changed:
 1) `packages/engine/src/engine/layers/l1/seg_1B/s9_validation_bundle/runner.py`
+
+---
+
+### Entry: 2026-02-16 00:33
+
+Design element: `POPT.4` integrated fast-lane recertification handoff (policy-consistent `S3->S9` chain).
+Summary: Closed `POPT.4` by running a fresh integrated candidate lane end-to-end and verifying that the optimized `S4/S5/S9` fast-compute-safe mechanics compose cleanly with the active requirements policy (denylist), without reintroducing the `S7` coverage failure.
+
+Trigger / prior failure mode:
+1) The earlier `POPT.4` attempt failed `S7` coverage parity (`E708_1A_COVERAGE_FAIL`) because the lane was staged by linking `s3_requirements` from an upstream authority run-id while the active repo policy `policy.s3.requirements.yaml` had since enabled an MC/BM denylist.
+2) Result: `S7` applied governed policy and reduced the effective outlet catalogue country frame, but upstream `S4->S6` had already emitted sites for the pre-denylist requirements set, creating a mismatch in the parity checks.
+
+Decision:
+1) Treat `S3` policy outputs as run-local when requirements policy changes (denylist, thresholds, etc.).
+2) For staged lanes, do not link/copy `s3_requirements` unless it is known to have been generated under the same policy version as the destination run.
+
+Implementation (staging tool hardening):
+1) Added `--skip-s3-requirements` to `tools/stage_segment1b_candidate_lane.py` so we can stage a fast lane using junctions while forcing `S3` to be re-run in the destination run-id.
+2) This avoids needing to delete junctions post-stage and makes the policy-propagation intent explicit and auditable in the staging receipt.
+
+POPT.4 integrated witness (seed=42):
+1) Staged and ran:
+   - baseline source: `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`
+   - candidate run-id: `a0ae54639efc4955bc41a2e266224e6e`
+   - staging flags: `--mode junction --skip-s3-requirements`
+   - sequential chain executed (progressive semantics preserved): `S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9`.
+2) Runtime evidence (fast lane knobs):
+   - `S4 ~164s`.
+   - `S5 ~2.4s` with `ENGINE_1B_S5_VALIDATE_TILE_INDEX_MODE=signature` (tile_index signature verified).
+   - `S9 ~5s` with `ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_MODE=sample` (full fail-closed correctness checks retained; schema validation sampled).
+3) Coverage parity evidence (the blocker closed):
+   - `S7` logged `s5=29340 s6=29340 outlet_catalogue_effective=29340` with requirements policy `version=2026-02-14.mc-bm-exclusion.v1`.
+   - `S9` decision: `PASS`.
+4) Integrated scoring evidence:
+   - report: `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_a0ae54639efc4955bc41a2e266224e6e.json`
+   - posture: `no_regression=true`; `B/B+` grade checks still fail (realism tuning remains separate from this POPT closure).
+
+Housekeeping:
+1) Pruned superseded failed run-id folder to protect disk:
+   - removed: `d7cdd70de7bc4328b7bef14e7a9e5308`
+   - tool: `tools/prune_run_folders_keep_set.py` with explicit keep set (dry-run then `--yes`).
+
+Files changed:
+1) `tools/stage_segment1b_candidate_lane.py`

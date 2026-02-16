@@ -87,6 +87,7 @@ def _iter_link_specs(
     include_s7_site_synthesis: bool,
     include_site_locations: bool,
     include_rng_logs: bool,
+    stage_s3_requirements: bool,
 ) -> Iterable[_LinkSpec]:
     src_root = src_runs_root / src_run_id
     dst_root = dst_runs_root / dst_run_id
@@ -101,8 +102,9 @@ def _iter_link_specs(
         "tile_index",
         "tile_bounds",
         "tile_weights",
-        "s3_requirements",
     ]
+    if stage_s3_requirements:
+        required_1b.append("s3_requirements")
     if include_s4_alloc_plan:
         required_1b.append("s4_alloc_plan")
     if include_s7_site_synthesis:
@@ -185,6 +187,15 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Stage `logs/layer1/1B/rng` (events + trace + audit).",
     )
+    parser.add_argument(
+        "--skip-s3-requirements",
+        action="store_true",
+        help=(
+            "Do not stage `data/layer1/1B/s3_requirements` from the source run. "
+            "Use this when policy/config changes mean S3 must be re-run in the destination run-id "
+            "(e.g., country denylists) to keep downstream coverage consistent."
+        ),
+    )
     args = parser.parse_args(argv)
 
     dst_runs_root = Path(args.runs_root).resolve()
@@ -226,6 +237,7 @@ def main(argv: list[str] | None = None) -> int:
     include_s7_site_synthesis = bool(args.include_s7_site_synthesis)
     include_site_locations = bool(args.include_site_locations)
     include_rng_logs = bool(args.include_rng_logs)
+    stage_s3_requirements = not bool(args.skip_s3_requirements)
     if args.include_for_s9:
         include_s7_site_synthesis = True
         include_site_locations = True
@@ -241,6 +253,7 @@ def main(argv: list[str] | None = None) -> int:
             include_s7_site_synthesis=include_s7_site_synthesis,
             include_site_locations=include_site_locations,
             include_rng_logs=include_rng_logs,
+            stage_s3_requirements=stage_s3_requirements,
         )
     )
     for spec in specs:
@@ -266,6 +279,7 @@ def main(argv: list[str] | None = None) -> int:
         "dst_run_id": dst_run_id,
         "mode": mode,
         "staged_at_utc": dst_receipt["created_utc"],
+        "staged_s3_requirements": stage_s3_requirements,
         "linked_surfaces": [{"label": s.label, "dst": str(s.dst), "src": str(s.src)} for s in specs],
         "next_commands_powershell": next_cmds,
     }

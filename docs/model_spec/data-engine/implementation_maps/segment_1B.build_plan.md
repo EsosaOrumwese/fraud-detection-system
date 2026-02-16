@@ -1356,6 +1356,20 @@ Work:
 - if green, set optimized lane as default for next 1B realism remediation cycle.
 
 DoD:
-- [ ] end-to-end `S4->S9` runtime materially reduced vs baseline.
-- [ ] realism score posture is non-regressive on hard gates or explicitly accepted by user.
-- [ ] lock record written for optimized baseline (runtime + determinism + realism evidence).
+- [x] end-to-end `S4->S9` runtime materially reduced vs baseline.
+- [x] realism score posture is non-regressive on hard gates (note: still below B/B+ thresholds; this is a performance handoff).
+- [x] lock record written for optimized baseline (runtime + determinism + realism evidence).
+
+POPT.4 closure record (2026-02-16):
+- integrated candidate run-id: `a0ae54639efc4955bc41a2e266224e6e` (staged from baseline `c25a2675fbfbacd952b13bb594880e92`).
+- staging posture:
+  - used junction lane (`--mode junction`) and explicitly skipped staging `S3` requirements so governed `S3` could be rerun under active denylist policy (`--skip-s3-requirements`).
+  - staging receipt: `runs/fix-data-engine/segment_1B/reports/popt4_stage_a0ae54639efc4955bc41a2e266224e6e.json`.
+- executed sequential chain: `S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9` (progressive engine build semantics preserved).
+- observed runtime (single seed=42, fast lane):
+  - `S4 ~164s` (baseline was ~38m for the same authority parameter set).
+  - `S5 ~2.4s` (signature-validated tile_index mode).
+  - `S9 ~5s` (`--validate-only`, schema validate sampling mode).
+- integrated scorer output:
+  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_a0ae54639efc4955bc41a2e266224e6e.json`.
+  - `no_regression=true` vs no-regression authority; hard `B/B+` grading still fails (realism tuning remains open work, separate from POPT closure).
