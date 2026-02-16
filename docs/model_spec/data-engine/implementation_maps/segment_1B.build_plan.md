@@ -1373,3 +1373,33 @@ POPT.4 closure record (2026-02-16):
 - integrated scorer output:
   - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_a0ae54639efc4955bc41a2e266224e6e.json`.
   - `no_regression=true` vs no-regression authority; hard `B/B+` grading still fails (realism tuning remains open work, separate from POPT closure).
+
+### Post-POPT (Performance) Plan of Record
+Position:
+- Segment `1B` is now in a minute-scale iteration posture for the `S3->S9` lane (single-seed), so realism remediation can resume without multi-hour churn.
+
+Performance status (authority witness):
+- Authority: `POPT.4` integrated run-id `a0ae54639efc4955bc41a2e266224e6e`.
+- Observed (seed=42, fast lane knobs):
+  - `S4 ~164s` (was ~38m baseline).
+  - `S5 ~2.4s` (was ~14m baseline).
+  - `S6 ~94s` (now the dominant remaining wall-time chunk in `S4->S9`).
+  - `S7+S8` a few seconds total.
+  - `S9 ~5–6s` in `--validate-only` with schema validation sampling.
+
+Next performance target (optional; only if iteration needs further compression):
+- `S6` jitter path (world geometry load + point-in-country checks + mixture sampling attempts).
+
+POPT.5 (Optional) - `S6` jitter/geometry optimization (fast-compute-safe; semantics-preserving)
+Goal:
+- reduce `S6` from ~90s to <= 30s (stretch <= 45s) without relaxing correctness invariants (point-in-country and envelope discipline remain fail-closed).
+
+Work (high-level, performance-first):
+- precompute and cache country geometry acceleration structures once per run (or per process) instead of per-row expensive operations.
+- reduce repeated shapely/geometry overhead by batching, prepared-geometry usage, and/or vectorized point-in-polygon where available.
+- keep determinism stable: same RNG stream, same acceptance logic; only accelerate the computations.
+
+DoD:
+- [ ] `S6` wall time <= 45s on seed=42 for the fixed authority lane (same `parameter_hash`/`manifest_fingerprint`).
+- [ ] deterministic outputs unchanged (hash/equivalence gate for `s6_site_jitter` output + RNG logs envelope checks still PASS).
+- [ ] no memory spike beyond Fast-Compute-Safe posture (explicit RAM telemetry in run report).

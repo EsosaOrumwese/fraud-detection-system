@@ -5817,3 +5817,24 @@ Housekeeping:
 
 Files changed:
 1) `tools/stage_segment1b_candidate_lane.py`
+
+---
+
+### Entry: 2026-02-16 00:36
+
+Design element: Post-`POPT.*` performance posture and storage discipline for Segment `1B`.
+Summary: With `POPT.4` closed, Segment `1B` is now in a minute-scale integrated iteration posture for `S3->S9` on the fix-data-engine lane. The dominant remaining wall-time chunk is `S6` (jitter + geometry checks). Next action is to prune superseded run-id folders to protect disk; any further performance work is scoped to `S6` only and is explicitly optional.
+
+Observed performance authority:
+1) Integrated authority run-id: `a0ae54639efc4955bc41a2e266224e6e`.
+2) Key timings (seed=42, fast lane):
+   - `S4 ~164s`
+   - `S5 ~2.4s`
+   - `S6 ~94s` (dominant)
+   - `S7+S8` seconds-scale
+   - `S9 ~5–6s` (`--validate-only`, schema-validation sampling).
+
+Decision:
+1) Performance for `1B` is now “good enough to iterate” for realism remediation.
+2) If performance is reopened, the only approved next target is `S6` (do not reopen `S4/S5/S9` unless regression is detected).
+3) Storage discipline is binding: prune superseded run-id folders under `runs/fix-data-engine/segment_1B` and keep only the minimal authority set needed for scoring and regression checks.
