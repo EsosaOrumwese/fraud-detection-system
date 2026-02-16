@@ -140,13 +140,28 @@ jobs:
           TF_DIR="infra/terraform/dev_min/confluent"
 
           tf_output_raw() {
-            terraform -chdir="$TF_DIR" output -raw "$1" 2>/dev/null || true
+            local key="$1"
+            local out
+            out="$(terraform -chdir="$TF_DIR" output -raw "$key" 2>/dev/null || true)"
+            # Guard against Terraform warning text being emitted on stdout when state has no outputs.
+            if printf '%s' "$out" | grep -qiE 'Warning:|No outputs found|state file either has no outputs'; then
+              echo ""
+            else
+              echo "$out"
+            fi
           }
 
           CLUSTER_ID="$(tf_output_raw confluent_cluster_id)"
           REST_ENDPOINT="$(tf_output_raw kafka_rest_endpoint)"
           IMPORT_API_KEY="$(tf_output_raw runtime_kafka_api_key)"
           IMPORT_API_SECRET="$(tf_output_raw runtime_kafka_api_secret)"
+
+          if [[ ! "$CLUSTER_ID" =~ ^lkc- ]]; then
+            CLUSTER_ID=""
+          fi
+          if [[ -n "$REST_ENDPOINT" && ! "$REST_ENDPOINT" =~ ^https:// ]]; then
+            REST_ENDPOINT=""
+          fi
 
           if [[ -z "$CLUSTER_ID" ]]; then
             echo "No existing cluster found in state; skipping topic import."
