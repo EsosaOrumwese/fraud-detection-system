@@ -167,7 +167,7 @@ output "ssm_db_password_path" {
 }
 
 output "ssm_db_dsn_path" {
-  value = try(aws_ssm_parameter.db_dsn[0].name, null)
+  value = try(aws_ssm_parameter.db_dsn.name, null)
 }
 
 output "ssm_ig_api_key_path" {

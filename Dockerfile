@@ -23,6 +23,7 @@ COPY docs/model_spec/data-engine/interface_pack/contracts/run_receipt.schema.yam
 COPY docs/model_spec/data-engine/interface_pack/layer-1/specs/contracts/1A/schemas.layer1.yaml /app/docs/model_spec/data-engine/interface_pack/layer-1/specs/contracts/1A/schemas.layer1.yaml
 COPY docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml /app/docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml
 COPY docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml /app/docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml
+COPY docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.layer3.yaml /app/docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.layer3.yaml
 
 RUN python -m pip install --upgrade pip && \
     python - <<'PY'
