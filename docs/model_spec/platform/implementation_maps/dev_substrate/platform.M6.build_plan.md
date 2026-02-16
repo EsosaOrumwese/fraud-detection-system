@@ -697,10 +697,10 @@ Tasks:
      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m6_execution_id>/m6_f_wsp_summary_snapshot.json`.
 
 DoD:
-- [ ] WSP task completed successfully.
-- [ ] WSP summary evidence exists locally and durably (composite: READY record + CloudWatch per-output completeness proof).
-- [ ] Non-retryable WSP→IG push errors are zero for the closure task.
-- [ ] Full 4-output surface is proven (`200` each, total `800`).
+- [x] WSP task completed successfully.
+- [x] WSP summary evidence exists locally and durably (composite: READY record + CloudWatch per-output completeness proof).
+- [x] Non-retryable WSP→IG push errors are zero for the closure task.
+- [x] Full 4-output surface is proven (`200` each, total `800`).
 
 Blockers:
 1. `M6F-B1`: WSP task terminal failure.
@@ -743,22 +743,59 @@ Execution status (2026-02-15):
 
 ### M6.G P7 Ingest Commit Verification
 Goal:
-1. Verify IG committed ingest outcomes with coherent evidence.
+1. Verify IG committed ingest outcomes with coherent, run-scoped, durable evidence under dev_min.
+2. Prove the ingest boundary is safe to treat as “official” for downstream RTDL consumption:
+   - ADMITs are actually published to the managed bus topics (not just HTTP-accepted),
+   - receipts/quarantine evidence exists and is coherent,
+   - no unresolved publish ambiguity (`PUBLISH_AMBIGUOUS`) remains.
 
 Entry conditions:
 1. `M6.F` PASS.
 
 Tasks:
-1. Verify run-scoped ingest evidence:
-   - `ingest/receipt_summary.json`,
-   - `ingest/kafka_offsets_snapshot.json`,
-   - `ingest/quarantine_summary.json` (if applicable).
-2. Validate outcome coherence:
-   - outcome totals reconcile with attempted sends,
-   - topic offsets advanced for run window.
-3. Enforce ambiguity gate:
-   - unresolved `PUBLISH_AMBIGUOUS == 0`.
-4. Emit `m6_g_ingest_commit_snapshot.json`.
+1. M6.G.1 Drift sentinel preflight (fail-closed):
+   - Confirm IG is running and healthy:
+     - `GET /v1/ops/health` returns `{"state":"GREEN"}` when called with required auth.
+   - Confirm the IG profile posture matches dev_min expectations (not local-parity):
+     - receipts written for this run MUST reflect `environment="dev_min"` and `policy_rev.revision` consistent with dev-min policy pin.
+   - Confirm the managed event-bus substrate matches the runbook authority:
+     - `dev_min_spine_green_v0_run_process_flow.md` P7 pins Kafka (Confluent Cloud).
+     - Therefore, any ADMIT receipt MUST carry `eb_ref.offset_kind="kafka_offset"` (or the pinned Kafka offset kind).
+     - If ADMIT receipts show `offset_kind="kinesis_sequence"` or no ADMIT receipts exist, treat as drift and block M6.G (requires IG bus adapter remediation + rerun P6).
+2. M6.G.2 Materialize ingest outcome summaries (durable, run-scoped; fail-closed on write failure):
+   - Source receipts (already produced by IG as append-only objects):
+     - `evidence/runs/<platform_run_id>/ig/receipts/*.json`
+   - Source quarantine records (already produced by IG as append-only objects):
+     - `evidence/runs/<platform_run_id>/ig/quarantine/*.json`
+   - Write the required run-scoped commit evidence (pinned by handles registry):
+     - `evidence/runs/<platform_run_id>/ingest/receipt_summary.json`
+     - `evidence/runs/<platform_run_id>/ingest/quarantine_summary.json` (if any quarantine occurred)
+   - Summary minimum fields:
+     - counts by `decision` (ADMIT/DUPLICATE/QUARANTINE),
+     - counts by `event_type` and `event_class`,
+     - counts by `reason_codes` (including explicit count of `INTERNAL_ERROR`),
+     - sanity: total_receipts == admit + duplicate + quarantine.
+3. M6.G.3 Publish-commit evidence (Kafka offsets snapshot; fail-closed):
+   - For each required topic:
+     - `FP_BUS_TRAFFIC_FRAUD_V1`
+     - `FP_BUS_CONTEXT_ARRIVAL_EVENTS_V1`
+     - `FP_BUS_CONTEXT_ARRIVAL_ENTITIES_V1`
+     - `FP_BUS_CONTEXT_FLOW_ANCHOR_FRAUD_V1`
+   - Produce `evidence/runs/<platform_run_id>/ingest/kafka_offsets_snapshot.json` with:
+     - timestamp,
+     - per-topic per-partition start/end offsets,
+     - verifier consumer group identity used (if applicable),
+     - proof messages are readable (sample N records and confirm `platform_run_id` matches).
+   - PASS requires:
+     - offsets advanced for each required topic during the run window, and
+     - at least one readable message per topic is attributable to this `platform_run_id`.
+4. M6.G.4 Ambiguity and publish failure gate (hard fail):
+   - Require `PUBLISH_AMBIGUOUS` count == 0 in receipts (and no rows in admission index remain in ambiguous/in-flight state).
+   - Require `receipt_summary.counts_by_decision.ADMIT > 0` (Spine Green v0 must exercise downstream planes; “all quarantine” is not green).
+5. M6.G.5 Emit snapshot:
+   - emit local snapshot `m6_g_ingest_commit_snapshot.json`,
+   - upload durable snapshot under:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m6_execution_id>/m6_g_ingest_commit_snapshot.json`.
 
 DoD:
 - [ ] Receipt/offset/quarantine evidence exists and is coherent.
@@ -767,10 +804,32 @@ DoD:
 - [ ] M6.G snapshot published locally and durably.
 
 Blockers:
-1. `M6G-B1`: missing/invalid ingest commit evidence.
-2. `M6G-B2`: offsets did not advance as required.
-3. `M6G-B3`: unresolved `PUBLISH_AMBIGUOUS` exists.
-4. `M6G-B4`: M6.G snapshot write/upload failure.
+1. `M6G-B0`: drift detected (IG not on dev_min policy/profile or bus substrate not Kafka as pinned).
+2. `M6G-B1`: missing/invalid ingest commit evidence (`receipt_summary.json` / `quarantine_summary.json`).
+3. `M6G-B2`: offsets did not advance as required or messages not readable for this run scope.
+4. `M6G-B3`: unresolved `PUBLISH_AMBIGUOUS` exists.
+5. `M6G-B4`: no admitted events for the run (all quarantine/duplicate) or topic coverage incomplete.
+6. `M6G-B5`: M6.G snapshot write/upload failure.
+
+Snapshot contract (`m6_g_ingest_commit_snapshot.json`):
+1. `phase`, `captured_at_utc`, `m6_execution_id`, `platform_run_id`.
+2. `preflight`:
+   - `ig_health_state`, `ig_health_reasons` (if captured),
+   - `profile_env_seen`, `policy_rev_seen`,
+   - `bus_offset_kind_seen`.
+3. `receipt_summary_ref`, `quarantine_summary_ref`, `kafka_offsets_snapshot_ref`.
+4. `counts`:
+   - `total_receipts`,
+   - `decisions` (map),
+   - `reason_codes` (map),
+   - `event_types` (map).
+5. `ambiguity`:
+   - `publish_ambiguous_count`,
+   - `publish_in_flight_count` (if available from admission index),
+   - `unresolved_ambiguity=false` required for PASS.
+6. `topics`:
+   - per required topic: `start_offset`, `end_offset`, `sample_ok` (bool), `sample_platform_run_id_match` (bool).
+7. `blockers`, `overall_pass`.
 
 ### M6.H P4..P7 Gate Rollup + Verdict
 Goal:

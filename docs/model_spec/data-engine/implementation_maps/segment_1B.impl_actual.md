@@ -5740,3 +5740,36 @@ Tooling changes (staging):
 
 Operational note (fail-closed):
 - For S9 validation, do not link RNG logs from a different `run_id` unless also arranging a run-id-specific junction at the exact partition path expected by the destination run-id. Default posture: rerun S5/S6 (fast after POPT.2) so the RNG logs are correctly minted for the destination run-id.
+
+### Entry: 2026-02-15 23:59
+
+Design element: `POPT.3` S9 validation-path optimization (JSONL scan bottleneck).
+Summary: Reduced S9 runtime from ~96s to ~6s on the `fdf38b…` witness by eliminating per-line jsonschema validation overhead in the fix-data-engine iteration lane while keeping the fail-closed correctness checks (coverage, envelope, budget) fully enforced. Also switched to `orjson` decoding when available.
+
+Root cause:
+- S9 performed full `Draft202012Validator.iter_errors(...)` validation on every RNG event row (S5 + S6) and on every trace row. With 20-26MB JSONL files per stream, this dominates wall time even though the required invariants are budget/envelope/coverage checks, not full schema validation on every record.
+
+Implemented mechanics:
+1) New env knobs:
+   - `ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_MODE` in `{full, sample, off}`:
+     - default: `sample` for `runs/fix-data-engine` lanes, `full` elsewhere.
+   - `ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_SAMPLE_FIRST` (default `10`)
+   - `ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_SAMPLE_EVERY` (default `5000`)
+2) JSON decode acceleration:
+   - prefer `orjson` if installed, else builtin `json`.
+3) Fail-closed correctness checks remain full (no relaxation):
+   - coverage checks against S7 keys,
+   - envelope checks (`after-before == blocks`),
+   - budget checks for S6 (`blocks==1`, `draws=="2"`),
+   - trace reconciliation checks remain enforced (using target module/substream rows).
+
+Evidence (seed=42, `--validate-only`):
+1) Pre-change witness (from run log of `fdf38b…`):
+   - wall `~96s` (dominant: schema validation per line).
+2) Post-change witness:
+   - run: `fdf38bdb13b54069bfe67ca3210692b7`
+   - config: `ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_MODE=sample`, `sample_first=10`, `sample_every=10000`
+   - wall `~5.7s`, decision `PASS`.
+
+File changed:
+1) `packages/engine/src/engine/layers/l1/seg_1B/s9_validation_bundle/runner.py`

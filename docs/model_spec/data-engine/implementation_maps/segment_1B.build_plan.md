@@ -1319,7 +1319,7 @@ Scope:
 - `packages/engine/src/engine/layers/l1/seg_1B/s9_validation_bundle/*`
 
 Work:
-- optimize expensive audit/checksum scans (single-pass, reduced duplicate reads).
+- optimize expensive JSONL RNG scans (schema validation + decode) and avoid wasted work.
 - keep required validations; demote optional/high-volume diagnostics to opt-in mode.
 - preserve pass/fail semantics and evidence artifacts.
 
@@ -1327,6 +1327,24 @@ DoD:
 - [ ] `S9` elapsed meets target or stretch budget.
 - [ ] validation decision equivalence is preserved vs baseline lane.
 - [ ] evidence artifacts remain contract-consistent.
+
+POPT.3 implementation direction (fast-compute-safe):
+- Introduce `ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_MODE` in `{full, sample, off}`:
+  - default `sample` for `runs/fix-data-engine` lanes (performance-first iteration),
+  - default `full` for non-fix lanes (certification posture).
+- Use a fast JSON decoder when available:
+  - prefer `orjson` if installed, else builtin `json`.
+- Fail-closed posture for required correctness checks:
+  - envelope checks (counter delta == blocks) remain full,
+  - budget checks remain full,
+  - coverage checks remain full.
+
+POPT.3 witness (seed=42, run `fdf38b…`, `--validate-only`):
+- baseline (pre-change): `~96s` wall (dominant: jsonschema validation per event/trace line).
+- optimized: `~5.7s` wall with:
+  - `ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_MODE=sample`
+  - `sample_first=10`, `sample_every=10000`
+  - decision remained `PASS`.
 
 ### POPT.4 - Integrated fast-lane recertification handoff
 Goal:

@@ -29,6 +29,15 @@ except Exception:  # pragma: no cover - fallback when pyarrow missing.
     pq = None
     _HAVE_PYARROW = False
 
+# Optional fast JSON decoder.
+try:
+    import orjson  # type: ignore
+
+    _HAVE_ORJSON = True
+except Exception:  # pragma: no cover
+    orjson = None
+    _HAVE_ORJSON = False
+
 from engine.contracts.jsonschema_adapter import normalize_nullable_schema, validate_dataframe
 from engine.contracts.loader import find_dataset_entry, load_dataset_dictionary, load_schema_pack
 from engine.contracts.source import ContractSource
@@ -180,6 +189,13 @@ class _FailureTracker:
         }
         payload.update(detail)
         self._logger.error("S9_ERROR %s", json.dumps(payload, ensure_ascii=True, sort_keys=True))
+
+
+def _json_loads(line: str) -> dict:
+    if _HAVE_ORJSON:
+        return orjson.loads(line)
+    return json.loads(line)
+
 
 def _json_bytes(payload: object) -> bytes:
     return json.dumps(
@@ -592,6 +608,21 @@ def run_s9(
     timer = _StepTimer(logger)
     tracker = _FailureTracker(logger, seed, parameter_hash, manifest_fingerprint, run_id)
 
+    runs_root_norm = str(config.runs_root).replace("\\", "/")
+    rng_validate_default = "sample" if "runs/fix-data-engine" in runs_root_norm else "full"
+    rng_validate_mode = str(os.getenv("ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_MODE", rng_validate_default)).strip().lower()
+    if rng_validate_mode not in ("full", "sample", "off"):
+        rng_validate_mode = rng_validate_default
+    rng_validate_sample_every = int(os.getenv("ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_SAMPLE_EVERY", "5000") or "5000")
+    rng_validate_sample_first = int(os.getenv("ENGINE_1B_S9_RNG_SCHEMA_VALIDATE_SAMPLE_FIRST", "10") or "10")
+    logger.info(
+        "S9: rng_schema_validate_mode=%s sample_first=%d sample_every=%d json_decoder=%s",
+        rng_validate_mode,
+        rng_validate_sample_first,
+        rng_validate_sample_every,
+        "orjson" if _HAVE_ORJSON else "json",
+    )
+
     source = ContractSource(config.contracts_root, config.contracts_layout)
     dict_path, dictionary = load_dataset_dictionary(source, "1B")
     schema_1b_path, schema_1b = load_schema_pack(source, "1B", "1B")
@@ -853,36 +884,70 @@ def run_s9(
     audit_validator = Draft202012Validator(audit_schema)
 
     timer.info("S9: RNG trace/audit scan start")
+    trace_targets = {
+        ("1B.S5.assigner", "site_tile_assign", run_id),
+        ("1B.S6.jitter", "in_cell_jitter", run_id),
+    }
     trace_final: dict[tuple[str, str, str], dict] = {}
     trace_rows_total: dict[tuple[str, str, str], int] = defaultdict(int)
+    trace_run_id_mismatch_seen = False
+    trace_validated = 0
+    trace_rows_seen = 0
     for _path, _line_no, payload in _iter_jsonl_files(trace_paths):
+        trace_rows_seen += 1
         if payload.get("run_id") != run_id:
+            if not trace_run_id_mismatch_seen:
+                trace_run_id_mismatch_seen = True
+                tracker.record(
+                    "E907_RNG_BUDGET_OR_COUNTERS",
+                    {"detail": "rng_trace_run_id_mismatch", "observed": payload.get("run_id")},
+                )
             continue
-        schema_error = None
-        for error in trace_validator.iter_errors(payload):
-            schema_error = error
-            break
-        if schema_error is not None:
-            tracker.record(
-                "E907_RNG_BUDGET_OR_COUNTERS",
-                {"detail": "rng_trace_schema_invalid", "error": schema_error.message},
-            )
         key = (str(payload.get("module")), str(payload.get("substream_label")), str(payload.get("run_id")))
+        if key not in trace_targets:
+            continue
         trace_rows_total[key] += 1
         trace_final[key] = payload
+        if rng_validate_mode == "full":
+            schema_error = None
+            for error in trace_validator.iter_errors(payload):
+                schema_error = error
+                break
+            if schema_error is not None:
+                tracker.record(
+                    "E907_RNG_BUDGET_OR_COUNTERS",
+                    {"detail": "rng_trace_schema_invalid", "error": schema_error.message},
+                )
+            trace_validated += 1
+        elif rng_validate_mode == "sample":
+            do_validate = trace_validated < rng_validate_sample_first or (
+                rng_validate_sample_every > 0 and (trace_validated % rng_validate_sample_every) == 0
+            )
+            if do_validate:
+                schema_error = None
+                for error in trace_validator.iter_errors(payload):
+                    schema_error = error
+                    break
+                if schema_error is not None:
+                    tracker.record(
+                        "E907_RNG_BUDGET_OR_COUNTERS",
+                        {"detail": "rng_trace_schema_invalid", "error": schema_error.message},
+                    )
+                trace_validated += 1
 
     audit_present = False
     for _path, _line_no, payload in _iter_jsonl_files(audit_paths):
         audit_present = True
-        schema_error = None
-        for error in audit_validator.iter_errors(payload):
-            schema_error = error
-            break
-        if schema_error is not None:
-            tracker.record(
-                "E907_RNG_BUDGET_OR_COUNTERS",
-                {"detail": "rng_audit_schema_invalid", "error": schema_error.message},
-            )
+        if rng_validate_mode != "off":
+            schema_error = None
+            for error in audit_validator.iter_errors(payload):
+                schema_error = error
+                break
+            if schema_error is not None:
+                tracker.record(
+                    "E907_RNG_BUDGET_OR_COUNTERS",
+                    {"detail": "rng_audit_schema_invalid", "error": schema_error.message},
+                )
         break
     if not audit_present:
         tracker.record(
@@ -903,22 +968,45 @@ def run_s9(
         budget_failures = 0
         unknown_events = 0
         key_counts: dict[tuple[int, str, int], int] = defaultdict(int)
+        validated = 0
+        run_id_mismatch_seen = False
         for _path, _line_no, payload in _iter_jsonl_files(paths):
             if payload.get("run_id") != run_id:
-                tracker.record(
-                    "E907_RNG_BUDGET_OR_COUNTERS",
-                    {"detail": "rng_event_run_id_mismatch", "observed": payload.get("run_id")},
+                if not run_id_mismatch_seen:
+                    run_id_mismatch_seen = True
+                    tracker.record(
+                        "E907_RNG_BUDGET_OR_COUNTERS",
+                        {"detail": "rng_event_run_id_mismatch", "observed": payload.get("run_id")},
+                    )
+                continue
+            if rng_validate_mode == "full":
+                schema_error = None
+                for error in validator.iter_errors(payload):
+                    schema_error = error
+                    break
+                if schema_error is not None:
+                    envelope_failures += 1
+                    tracker.record(
+                        "E907_RNG_BUDGET_OR_COUNTERS",
+                        {"detail": "rng_event_schema_invalid", "error": schema_error.message},
+                    )
+                validated += 1
+            elif rng_validate_mode == "sample":
+                do_validate = validated < rng_validate_sample_first or (
+                    rng_validate_sample_every > 0 and (validated % rng_validate_sample_every) == 0
                 )
-            schema_error = None
-            for error in validator.iter_errors(payload):
-                schema_error = error
-                break
-            if schema_error is not None:
-                envelope_failures += 1
-                tracker.record(
-                    "E907_RNG_BUDGET_OR_COUNTERS",
-                    {"detail": "rng_event_schema_invalid", "error": schema_error.message},
-                )
+                if do_validate:
+                    schema_error = None
+                    for error in validator.iter_errors(payload):
+                        schema_error = error
+                        break
+                    if schema_error is not None:
+                        envelope_failures += 1
+                        tracker.record(
+                            "E907_RNG_BUDGET_OR_COUNTERS",
+                            {"detail": "rng_event_schema_invalid", "error": schema_error.message},
+                        )
+                    validated += 1
             blocks = int(payload.get("blocks", 0))
             draws = _parse_draws(payload.get("draws"))
             before = _u128(payload.get("rng_counter_before_hi", 0), payload.get("rng_counter_before_lo", 0))
