@@ -818,7 +818,14 @@ def _bus_probe_streams(
     stream_name = wiring.event_bus_path
     if wiring.event_bus_kind == "kinesis" and isinstance(stream_name, str) and stream_name.lower() not in {"", "auto", "topic"}:
         return [stream_name]
-    class_names = set(class_map.event_classes.values())
+    if wiring.event_bus_kind == "kafka":
+        class_names = {
+            class_map.class_for(event_type)
+            for event_type in _RTDL_EXPECTED_CLASS_BY_EVENT
+            if class_map.class_for(event_type)
+        }
+    else:
+        class_names = set(class_map.event_classes.values())
     profile_ids = {_profile_id_for_class(name, wiring.partitioning_profile_id) for name in class_names}
     streams = {partitioning.get(profile_id).stream for profile_id in profile_ids if profile_id}
     return sorted(stream for stream in streams if stream)
