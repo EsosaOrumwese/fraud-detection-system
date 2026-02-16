@@ -14,7 +14,7 @@ wiring:
     endpoint: ${OBJECT_STORE_ENDPOINT}
     region: ${OBJECT_STORE_REGION}
     path_style: false
-  health_bus_probe_mode: none
+  health_bus_probe_mode: describe
   # Oracle Store is engine-run-scoped and must not be coupled to platform_run_id.
   oracle_root: ${ORACLE_ROOT}
   oracle_engine_run_root: ${ORACLE_ENGINE_RUN_ROOT}

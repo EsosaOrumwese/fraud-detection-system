@@ -119,9 +119,23 @@ class HealthProbe:
     def _bus_describe_ok(self) -> str | None:
         try:
             from fraud_detection.event_bus.kinesis import KinesisEventBusPublisher
+            is_kinesis = isinstance(self.bus, KinesisEventBusPublisher)
         except Exception:
-            return "BUS_HEALTH_UNKNOWN"
-        if not isinstance(self.bus, KinesisEventBusPublisher):
+            is_kinesis = False
+        try:
+            from fraud_detection.event_bus.kafka import KafkaEventBusPublisher
+            is_kafka = isinstance(self.bus, KafkaEventBusPublisher)
+        except Exception:
+            is_kafka = False
+        if not is_kinesis:
+            if is_kafka:
+                try:
+                    producer = getattr(self.bus, "_producer", None)
+                    if producer is None:
+                        return "BUS_HEALTH_UNKNOWN"
+                    return None if bool(producer.bootstrap_connected()) else "BUS_UNHEALTHY"
+                except Exception:
+                    return "BUS_UNHEALTHY"
             return "BUS_HEALTH_UNKNOWN"
         streams = list(self._bus_probe_streams)
         if not streams:
