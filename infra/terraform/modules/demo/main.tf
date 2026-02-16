@@ -466,6 +466,17 @@ data "aws_iam_policy_document" "lane_app_object_store_data_plane" {
       "arn:${data.aws_partition.current.partition}:s3:::${var.evidence_bucket}/evidence/runs/*",
     ]
   }
+
+  statement {
+    sid = "EvidenceDevMinRunControlReadWrite"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:s3:::${var.evidence_bucket}/evidence/dev_min/run_control/*",
+    ]
+  }
 }
 
 data "aws_iam_policy_document" "lane_app_kinesis_publish" {
@@ -654,7 +665,7 @@ resource "aws_ecs_task_definition" "daemon" {
       command = each.key == "ig" ? [
         "sh",
         "-c",
-        "set -e; cp config/platform/profiles/local_parity.yaml /tmp/dev_min_ig_m6c.yaml; python - <<'PY'\nfrom pathlib import Path\nimport yaml\nlayer1_path = Path('/app/docs/model_spec/data-engine/interface_pack/layer-1/specs/contracts/1A/schemas.layer1.yaml')\nif not layer1_path.exists():\n    layer1_path.parent.mkdir(parents=True, exist_ok=True)\n    layer1_stub = {\n        'version': '0.1.0',\n        '$defs': {\n            'hex64': {'type': 'string', 'pattern': '^[0-9a-f]{64}$'},\n            'hex32': {'type': 'string', 'pattern': '^[0-9a-f]{32}$'},\n            'uint64': {'type': 'integer', 'minimum': 0, 'maximum': 18446744073709551615},\n            'rfc3339_micros': {'type': 'string', 'pattern': '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\\\.[0-9]{6}Z$'},\n        },\n    }\n    layer1_path.write_text(yaml.safe_dump(layer1_stub, sort_keys=False), encoding='utf-8')\nprofile_path = Path('/tmp/dev_min_ig_m6c.yaml')\ndata = yaml.safe_load(profile_path.read_text(encoding='utf-8'))\nwiring = data.setdefault('wiring', {})\nobj = wiring.setdefault('object_store', {})\nobj['root'] = 's3://${var.evidence_bucket}/evidence/runs'\nobj['region'] = '${var.aws_region}'\nobj['path_style'] = False\nobj.pop('endpoint', None)\nwiring['health_bus_probe_mode'] = 'none'\nwiring['event_bus_kind'] = 'kinesis'\nevent_bus = wiring.setdefault('event_bus', {})\nevent_bus.pop('root', None)\nevent_bus['stream'] = '${local.ig_event_bus_stream_name}'\nevent_bus['region'] = '${var.aws_region}'\nevent_bus.pop('endpoint_url', None)\nprofile_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding='utf-8')\nPY\npython -m fraud_detection.ingestion_gate.service --profile /tmp/dev_min_ig_m6c.yaml --host 0.0.0.0 --port 8080",
+        "set -e; python -m fraud_detection.ingestion_gate.service --profile config/platform/profiles/dev_min.yaml --host 0.0.0.0 --port 8080",
         ] : [
         "sh",
         "-c",
@@ -690,10 +701,44 @@ resource "aws_ecs_task_definition" "daemon" {
           value = var.required_platform_run_id
         },
         {
+          name  = "PLATFORM_STORE_ROOT"
+          value = "s3://${var.evidence_bucket}/evidence/runs"
+        },
+        {
           name  = "OBJECT_STORE_REGION"
           value = var.aws_region
         },
+        {
+          name  = "KAFKA_SECURITY_PROTOCOL"
+          value = "SASL_SSL"
+        },
+        {
+          name  = "KAFKA_SASL_MECHANISM"
+          value = "PLAIN"
+        },
       ] : [])
+      secrets = each.key == "ig" ? [
+        {
+          name      = "IG_API_KEY"
+          valueFrom = aws_ssm_parameter.ig_api_key.arn
+        },
+        {
+          name      = "IG_ADMISSION_DSN"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        },
+        {
+          name      = "KAFKA_BOOTSTRAP_SERVERS"
+          valueFrom = aws_ssm_parameter.confluent_bootstrap.arn
+        },
+        {
+          name      = "KAFKA_SASL_USERNAME"
+          valueFrom = aws_ssm_parameter.confluent_api_key.arn
+        },
+        {
+          name      = "KAFKA_SASL_PASSWORD"
+          valueFrom = aws_ssm_parameter.confluent_api_secret.arn
+        }
+      ] : []
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -1024,7 +1069,6 @@ resource "aws_ssm_parameter" "db_password" {
 }
 
 resource "aws_ssm_parameter" "db_dsn" {
-  count     = var.write_db_dsn_parameter ? 1 : 0
   name      = var.ssm_db_dsn_path
   type      = "SecureString"
   overwrite = true

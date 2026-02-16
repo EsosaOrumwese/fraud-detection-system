@@ -591,9 +591,9 @@ Tasks:
      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m6_execution_id>/m6_e_wsp_launch_snapshot.json`.
 
 DoD:
-- [ ] WSP launch contract is complete, deterministic, and run-scoped (`PLATFORM_RUN_ID` pinned).
-- [ ] WSP READY-consumption proof exists durably for the authoritative READY (`run_id=17dac...`).
-- [ ] M6.E snapshot published locally and durably with `overall_pass=true`.
+- [x] WSP launch contract is complete, deterministic, and run-scoped (`PLATFORM_RUN_ID` pinned).
+- [x] WSP READY-consumption proof exists durably for the authoritative READY (`run_id=17dac...`).
+- [x] M6.E snapshot published locally and durably with `overall_pass=true`.
 
 Execution status (2026-02-15):
 1. Corrected WSP → IG base URL contract and executed one-shot WSP successfully.
@@ -752,11 +752,24 @@ Goal:
 Entry conditions:
 1. `M6.F` PASS.
 
+Current status (latest executed attempt):
+1. Executed `M6.G` for `platform_run_id=platform_20260213T214223Z` and produced the run-scoped evidence surfaces:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/receipt_summary.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/quarantine_summary.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/kafka_offsets_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/m6_g_ingest_commit_snapshot.json`
+2. Verdict is FAIL (fail-closed) with blockers:
+   - `M6G-B7:KAFKA_OFFSETS_ZERO` (Kafka reachable; offsets remain 0 because IG is not yet publishing to Kafka)
+   - `M6G-B6:RECEIPT_ENVIRONMENT_MISMATCH` (receipts show `environment=local_parity`, `policy_rev=local-parity-v0`)
+   - `M6G-B8:QUARANTINE_NONZERO` (802 quarantines; not green)
+3. Root cause for quarantines is schema-resolution failure inside IG:
+   - `Unresolvable: schemas.layer3.yaml#/$defs/hex64` (missing from runtime image include-surface).
+
 Tasks:
 1. M6.G.1 Drift sentinel preflight (fail-closed):
-   - Confirm IG is running and healthy:
-     - `GET /v1/ops/health` returns `{"state":"GREEN"}` when called with required auth.
-   - Confirm the IG profile posture matches dev_min expectations (not local-parity):
+  - Confirm IG is running and healthy:
+    - `GET /v1/ops/health` returns `{"state":"GREEN"}` when called with required auth.
+  - Confirm the IG profile posture matches dev_min expectations (not local-parity):
      - receipts written for this run MUST reflect `environment="dev_min"` and `policy_rev.revision` consistent with dev-min policy pin.
    - Confirm the managed event-bus substrate matches the runbook authority:
      - `dev_min_spine_green_v0_run_process_flow.md` P7 pins Kafka (Confluent Cloud).

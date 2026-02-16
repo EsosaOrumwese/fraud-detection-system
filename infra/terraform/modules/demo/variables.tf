@@ -237,7 +237,7 @@ variable "ssm_db_dsn_path" {
 
 variable "write_db_dsn_parameter" {
   type    = bool
-  default = false
+  default = true
 }
 
 variable "common_tags" {

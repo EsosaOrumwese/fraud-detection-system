@@ -11472,3 +11472,35 @@ WSP does not currently emit a single canonical `wsp_summary.json`. Therefore M6.
    - outputs complete: `arrival_events_5B`, `s1_arrival_entities_6B`, `s3_event_stream_with_fraud_6B`, `s3_flow_anchor_with_fraud_6B`
    - emitted: `200` each (total `800`)
    - boundary posture: `ig_non_retryable_count=0` (retries observed and counted; no hard rejects).
+
+## Entry: 2026-02-16 00:40:00 +00:00 - Ingest Commit Verification (M6.G) Executed, FAIL (Run: platform_20260213T214223Z)
+
+### Scope
+Close `P7 INGEST_COMMITTED` evidence surfaces (receipt/quarantine summaries + Kafka offsets snapshot) and assert PASS/FAIL fail-closed.
+
+### Authoritative evidence (S3; run-scoped)
+- Snapshot: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/m6_g_ingest_commit_snapshot.json`
+- Receipt summary: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/receipt_summary.json`
+- Quarantine summary: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/quarantine_summary.json`
+- Kafka offsets snapshot: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/kafka_offsets_snapshot.json`
+
+### Verdict
+FAIL (`overall_pass=false`), blockers:
+- `M6G-B7:KAFKA_OFFSETS_ZERO` (topics exist + readable; offsets remained 0)
+- `M6G-B6:RECEIPT_ENVIRONMENT_MISMATCH` (receipts show `environment=local_parity`, `policy_rev=local-parity-v0`)
+- `M6G-B8:QUARANTINE_NONZERO` (Spine Green v0 does not accept “all quarantine” as green)
+
+### Observed counts (from receipt summary)
+- receipts: `ADMIT=5`, `QUARANTINE=802` (total `807`)
+- reason codes: `INTERNAL_ERROR=800`, `ENVELOPE_INVALID=2`
+- provenance: `environment=local_parity` for all receipts
+
+### Root cause (runtime truth)
+IG schema enforcement fails with an unresolvable engine-schema reference:
+- `Unresolvable: schemas.layer3.yaml#/$defs/hex64`
+- This is referenced transitively from `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml`.
+
+### Required remediation before reattempting P7 PASS
+- Ensure the runtime image include-surface contains `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.layer3.yaml` (and any transitive refs) so payload schema refs resolve.
+- Remove the IG `local_parity` profile shim and run IG under the `dev_min` profile so provenance pins are correct.
+- Wire IG publish lane to Confluent Kafka (dev_min authority). Current runtime is publishing to a non-Kafka bus, so Kafka offsets remain 0 even when IG returns ADMIT.

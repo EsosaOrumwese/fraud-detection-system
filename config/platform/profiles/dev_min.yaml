@@ -21,15 +21,13 @@ wiring:
   oracle_scenario_id: ${ORACLE_SCENARIO_ID}
   oracle_stream_view_root: ${ORACLE_STREAM_VIEW_ROOT}
   admission_db_path: ${IG_ADMISSION_DSN}
-  event_bus_kind: file
-  event_bus:
-    root: runs/fraud-platform/eb
-    topic_traffic: fp.bus.traffic.v1
-    topic_control: fp.bus.control.v1
-    topic_audit: fp.bus.audit.v1
+  # dev_min authority: IG publish lane is Confluent Kafka (traffic + required context).
+  # Runtime supplies bootstrap + SASL credentials via env (`KAFKA_*`), materialized from SSM.
+  event_bus_kind: kafka
   security:
     auth_mode: api_key
     api_key_header: X-IG-Api-Key
-    auth_allowlist_ref: config/platform/ig/ingest_api_keys_local_parity_v0.txt
+    # dev_min run: distinct writer principals from local-parity.
+    auth_allowlist_ref: config/platform/ig/ingest_api_keys_dev_min_v0.txt
     push_rate_limit_per_minute: 0
     store_read_failure_threshold: 3

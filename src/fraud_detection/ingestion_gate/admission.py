@@ -717,6 +717,12 @@ def _build_bus(wiring: WiringProfile) -> EventBusPublisher:
     if wiring.event_bus_kind == "file":
         bus_path = wiring.event_bus_path or "runs/fraud-platform/eb"
         return FileEventBusPublisher(Path(bus_path))
+    if wiring.event_bus_kind == "kafka":
+        from fraud_detection.event_bus.kafka import build_kafka_publisher
+
+        # Auth + bootstrap are supplied via env vars (materialized from SSM by ECS secrets).
+        # This keeps the profile transport-agnostic while still being deterministic.
+        return build_kafka_publisher(client_id=f"ig-{wiring.profile_id}")
     if wiring.event_bus_kind == "kinesis":
         from fraud_detection.event_bus.kinesis import build_kinesis_publisher
 
