@@ -11581,3 +11581,32 @@ Re-executed `M6.G` under corrected IG Kafka-health posture and re-emitted run-sc
 ### Why
 - Removes local secret dependency for Confluent destroy while preserving OIDC + remote-state lock posture.
 - Keeps M2 capability-hardening and M9 execution-proof responsibilities explicit.
+
+## Entry: 2026-02-16 18:22:29 +00:00 - Confluent managed destroy execution closure (M2.I capability; M9 reuse-ready)
+
+### Workflow release and branch-safe propagation
+- Workflow commit released to main via narrow PR:
+  - PR: https://github.com/EsosaOrumwese/fraud-detection-system/pull/50
+  - merge commit on main: 3ed98162
+- Forward branch sync applied post-PR:
+  - main -> dev merge commit: 22d66ae
+  - dev -> migrate-dev merge commit: 115cc93a
+- Ancestry verification:
+  - origin/main is ancestor of origin/dev = 	rue
+  - origin/dev is ancestor of origin/migrate-dev = 	rue
+
+### Managed destroy execution
+- First run (expected fail-closed due IAM gap):
+  - https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22073439332
+  - blocker: OIDC role lacked s3:ListBucketVersions on evidence bucket during Terraform destroy cleanup.
+- IAM remediation applied on role GitHubAction-AssumeRoleWithAction, inline policy GitHubActionsTerraformConfluentStateDevMin:
+  - add bucket action: s3:ListBucketVersions on rn:aws:s3:::fraud-platform-dev-min-evidence
+  - add object actions: s3:GetObjectVersion, s3:DeleteObjectVersion on evidence prefixes.
+- Second run (authoritative PASS):
+  - https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22073499196
+  - artifact snapshot: uns/dev_substrate/m2_i/gh_run_22073499196/dev-min-confluent-destroy-20260216T181749Z/confluent_destroy_snapshot.json
+  - durable snapshot: s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2i_confluent_destroy_20260216T181749Z/confluent_destroy_snapshot.json
+  - verdict: overall_pass=true, destroy_outcome=success, post_destroy_state_resource_count=0.
+
+### Closure statement
+- Managed Confluent destroy lane is now executable in GitHub Actions (no local secret-bearing shell required), and can be reused as canonical teardown execution in M9/P12.
