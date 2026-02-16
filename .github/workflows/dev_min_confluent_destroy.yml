@@ -1,0 +1,220 @@
+name: dev-min-confluent-destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region for Terraform backend and evidence upload"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      tf_state_bucket:
+        description: "Terraform backend bucket"
+        required: true
+        default: "fraud-platform-dev-min-tfstate"
+        type: string
+      tf_lock_table:
+        description: "Terraform backend lock table"
+        required: true
+        default: "fraud-platform-dev-min-tf-locks"
+        type: string
+      tf_state_key_confluent:
+        description: "Terraform state key for Confluent stack"
+        required: true
+        default: "dev_min/confluent/terraform.tfstate"
+        type: string
+      evidence_bucket:
+        description: "Durable evidence bucket"
+        required: true
+        default: "fraud-platform-dev-min-evidence"
+        type: string
+      evidence_prefix:
+        description: "Evidence key prefix"
+        required: true
+        default: "evidence/dev_min/substrate"
+        type: string
+      upload_evidence_to_s3:
+        description: "Upload snapshot JSON to S3"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-min-confluent-destroy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TF_VAR_confluent_cloud_api_key: ${{ secrets.TF_VAR_CONFLUENT_CLOUD_API_KEY }}
+  TF_VAR_confluent_cloud_api_secret: ${{ secrets.TF_VAR_CONFLUENT_CLOUD_API_SECRET }}
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  destroy_confluent:
+    name: Destroy dev_min Confluent stack
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Ensure Confluent management secrets are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${TF_VAR_confluent_cloud_api_key:-}" ]]; then
+            echo "Missing TF_VAR_confluent_cloud_api_key mapping from GitHub secret TF_VAR_CONFLUENT_CLOUD_API_KEY."
+            exit 1
+          fi
+          if [[ -z "${TF_VAR_confluent_cloud_api_secret:-}" ]]; then
+            echo "Missing TF_VAR_confluent_cloud_api_secret mapping from GitHub secret TF_VAR_CONFLUENT_CLOUD_API_SECRET."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          EXECUTION_ID="m2i_confluent_destroy_${TS}"
+          OUTPUT_DIR="runs/dev_substrate/m2_i/${TS}"
+          OUTPUT_PATH="${OUTPUT_DIR}/confluent_destroy_snapshot.json"
+          S3_URI="s3://${{ inputs.evidence_bucket }}/${{ inputs.evidence_prefix }}/${EXECUTION_ID}/confluent_destroy_snapshot.json"
+          mkdir -p "${OUTPUT_DIR}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "execution_id=${EXECUTION_ID}" >> "$GITHUB_OUTPUT"
+          echo "output_path=${OUTPUT_PATH}" >> "$GITHUB_OUTPUT"
+          echo "evidence_s3_uri=${S3_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform init (Confluent stack)
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/terraform/dev_min/confluent init \
+            -reconfigure \
+            -backend-config="bucket=${{ inputs.tf_state_bucket }}" \
+            -backend-config="key=${{ inputs.tf_state_key_confluent }}" \
+            -backend-config="region=${{ inputs.aws_region }}" \
+            -backend-config="dynamodb_table=${{ inputs.tf_lock_table }}" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform destroy (Confluent stack)
+        id: destroy_step
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/terraform/dev_min/confluent destroy -auto-approve -input=false
+
+      - name: Capture post-destroy state count
+        id: state_post
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE_LIST="$(terraform -chdir=infra/terraform/dev_min/confluent state list 2>/dev/null || true)"
+          if [[ -z "${STATE_LIST}" ]]; then
+            STATE_COUNT=0
+          else
+            STATE_COUNT="$(printf '%s\n' "${STATE_LIST}" | sed '/^$/d' | wc -l | tr -d ' ')"
+          fi
+          echo "state_count=${STATE_COUNT}" >> "$GITHUB_OUTPUT"
+
+      - name: Build teardown snapshot
+        id: snapshot
+        shell: bash
+        env:
+          DESTROY_OUTCOME: ${{ steps.destroy_step.outcome }}
+          STATE_COUNT: ${{ steps.state_post.outputs.state_count }}
+          SNAPSHOT_PATH: ${{ steps.run_meta.outputs.output_path }}
+          EXECUTION_ID: ${{ steps.run_meta.outputs.execution_id }}
+          EVIDENCE_S3_URI: ${{ steps.run_meta.outputs.evidence_s3_uri }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+
+          destroy_outcome = os.environ.get("DESTROY_OUTCOME", "unknown")
+          state_count = int(os.environ.get("STATE_COUNT", "0"))
+          overall_pass = destroy_outcome == "success" and state_count == 0
+          snapshot = {
+              "phase_owner": "M2.I",
+              "intended_reuse_phase": "M9/P12",
+              "execution_id": os.environ.get("EXECUTION_ID"),
+              "workflow_name": "dev-min-confluent-destroy",
+              "workflow_run_id": os.environ.get("GITHUB_RUN_ID"),
+              "workflow_run_url": f"{os.environ.get('GITHUB_SERVER_URL')}/{os.environ.get('GITHUB_REPOSITORY')}/actions/runs/{os.environ.get('GITHUB_RUN_ID')}",
+              "git_ref": os.environ.get("GITHUB_REF"),
+              "git_sha": os.environ.get("GITHUB_SHA"),
+              "written_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "destroy_outcome": destroy_outcome,
+              "post_destroy_state_resource_count": state_count,
+              "overall_pass": overall_pass,
+              "evidence_s3_uri": os.environ.get("EVIDENCE_S3_URI"),
+              "blockers": [] if overall_pass else [
+                  "DESTROY_FAILED_OR_STATE_NOT_EMPTY"
+              ],
+          }
+          path = os.environ["SNAPSHOT_PATH"]
+          os.makedirs(os.path.dirname(path), exist_ok=True)
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(snapshot, f, indent=2)
+              f.write("\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"overall_pass={'true' if overall_pass else 'false'}\n")
+          PY
+
+      - name: Upload teardown snapshot to S3
+        if: ${{ inputs.upload_evidence_to_s3 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 cp \
+            "${{ steps.run_meta.outputs.output_path }}" \
+            "${{ steps.run_meta.outputs.evidence_s3_uri }}" \
+            --region "${{ inputs.aws_region }}"
+
+      - name: Upload workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-min-confluent-destroy-${{ steps.run_meta.outputs.timestamp }}
+          path: ${{ steps.run_meta.outputs.output_path }}
+          if-no-files-found: error
+
+      - name: Enforce fail-closed verdict
+        if: ${{ steps.snapshot.outputs.overall_pass != 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Confluent destroy did not close cleanly. See snapshot artifact."
+          exit 1
