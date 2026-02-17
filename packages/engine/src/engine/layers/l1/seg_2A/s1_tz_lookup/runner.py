@@ -425,13 +425,55 @@ def _override_active(expiry: Optional[str], cutoff: date) -> bool:
     return date.fromisoformat(expiry_str) >= cutoff
 
 
-def _tree_query_indices(tree: STRtree, geom_index: dict[int, int], point: Point) -> list[int]:
+def _tree_query_indices(
+    tree: STRtree,
+    geom_index: dict[int, int],
+    point: Point,
+) -> tuple[list[int], bool]:
     result = tree.query(point)
+    requires_covers = True
     if hasattr(result, "dtype") and np.issubdtype(result.dtype, np.integer):
-        return result.tolist()
+        return result.tolist(), requires_covers
     if result and isinstance(result[0], (int, np.integer)):
-        return list(result)
-    return [geom_index[id(geom)] for geom in result if id(geom) in geom_index]
+        return list(result), requires_covers
+    return [geom_index[id(geom)] for geom in result if id(geom) in geom_index], requires_covers
+
+
+def _resolve_candidate_tzid(
+    tree: STRtree,
+    geoms: list,
+    tzids: list[str],
+    geom_index: dict[int, int],
+    point: Point,
+) -> tuple[Optional[str], bool]:
+    indices, requires_covers = _tree_query_indices(tree, geom_index, point)
+    first: Optional[str] = None
+    for idx in indices:
+        if requires_covers and not geoms[idx].covers(point):
+            continue
+        tzid = tzids[idx]
+        if first is None:
+            first = tzid
+            continue
+        if tzid != first:
+            return None, True
+    return first, False
+
+
+def _candidate_tzids_full(
+    tree: STRtree,
+    geoms: list,
+    tzids: list[str],
+    geom_index: dict[int, int],
+    point: Point,
+) -> list[str]:
+    indices, requires_covers = _tree_query_indices(tree, geom_index, point)
+    matches: set[str] = set()
+    for idx in indices:
+        if requires_covers and not geoms[idx].covers(point):
+            continue
+        matches.add(tzids[idx])
+    return sorted(matches)
 
 
 def _candidate_tzids(
@@ -441,13 +483,15 @@ def _candidate_tzids(
     geom_index: dict[int, int],
     point: Point,
 ) -> set[str]:
-    indices = _tree_query_indices(tree, geom_index, point)
+    indices, requires_covers = _tree_query_indices(tree, geom_index, point)
     if not indices:
         return set()
     matches: set[str] = set()
     for idx in indices:
         geom = geoms[idx]
-        if geom.covers(point):
+        if requires_covers and not geom.covers(point):
+            continue
+        if not requires_covers or geom.covers(point):
             matches.add(tzids[idx])
     return matches
 
@@ -1012,8 +1056,8 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             )
             mcc_df = pl.read_parquet(mcc_map_path, columns=["merchant_id", "mcc"])
             mcc_lookup = {
-                int(row["merchant_id"]): f"{int(row['mcc']):04d}"
-                for row in mcc_df.iter_rows(named=True)
+                int(merchant_id): f"{int(mcc):04d}"
+                for merchant_id, mcc in mcc_df.iter_rows()
             }
             if not mcc_lookup:
                 _emit_failure_event(
@@ -1187,21 +1231,13 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         output_tmp.mkdir(parents=True, exist_ok=True)
 
         created_utc = str(receipt.get("created_utc", started_utc))
-        output_schema = [
-            ("seed", pl.UInt64),
-            ("manifest_fingerprint", pl.Utf8),
-            ("merchant_id", pl.UInt64),
-            ("legal_country_iso", pl.Utf8),
-            ("site_order", pl.Int32),
-            ("lat_deg", pl.Float64),
-            ("lon_deg", pl.Float64),
+        resolved_schema = [
             ("tzid_provisional", pl.Utf8),
             ("tzid_provisional_source", pl.Utf8),
             ("override_scope", pl.Utf8),
             ("override_applied", pl.Boolean),
             ("nudge_lat_deg", pl.Float64),
             ("nudge_lon_deg", pl.Float64),
-            ("created_utc", pl.Utf8),
         ]
 
         columns = ["merchant_id", "legal_country_iso", "site_order", "lat_deg", "lon_deg"]
@@ -1222,12 +1258,12 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             sites_total += batch.height
             counts["sites_total"] = sites_total
             output_rows: list[tuple] = []
-            for row in batch.iter_rows(named=True):
-                merchant_id = int(row["merchant_id"])
-                legal_country_iso = row["legal_country_iso"]
-                site_order = int(row["site_order"])
-                lat = float(row["lat_deg"])
-                lon = float(row["lon_deg"])
+            for merchant_id_raw, legal_country_iso_raw, site_order_raw, lat_raw, lon_raw in batch.iter_rows():
+                merchant_id = int(merchant_id_raw)
+                legal_country_iso = str(legal_country_iso_raw) if legal_country_iso_raw is not None else ""
+                site_order = int(site_order_raw)
+                lat = float(lat_raw)
+                lon = float(lon_raw)
                 key = (merchant_id, legal_country_iso, site_order)
                 if last_key is not None and key < last_key:
                     writer_order_violation = True
@@ -1238,24 +1274,21 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     pk_seen.add(key)
 
                 point = Point(lon, lat)
-                candidates = _candidate_tzids(tree, geoms, tzids, geom_index, point)
+                tzid, ambiguous = _resolve_candidate_tzid(tree, geoms, tzids, geom_index, point)
                 nudge_lat = None
                 nudge_lon = None
-                tzid = None
                 override_applied = False
                 override_scope = None
-                if len(candidates) == 1:
-                    tzid = next(iter(candidates))
-                else:
+                if tzid is None:
                     nudge_lat, nudge_lon = _apply_nudge(lat, lon, epsilon)
                     border_nudged += 1
                     counts["border_nudged"] = border_nudged
                     point = Point(nudge_lon, nudge_lat)
-                    candidates = _candidate_tzids(tree, geoms, tzids, geom_index, point)
-                    if len(candidates) == 1:
-                        tzid = next(iter(candidates))
-                    else:
-                        candidate_list = sorted(candidates)
+                    tzid, ambiguous = _resolve_candidate_tzid(tree, geoms, tzids, geom_index, point)
+                    if tzid is None:
+                        candidate_list = (
+                            _candidate_tzids_full(tree, geoms, tzids, geom_index, point) if ambiguous else []
+                        )
                         override_tzid = None
                         site_key = f"{merchant_id}|{legal_country_iso}|{site_order}"
                         if site_key in overrides_site:
@@ -1273,7 +1306,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                             override_scope = "country"
                             override_tzid = overrides_country[country_key]
                         if override_tzid is None:
-                            if not candidates:
+                            if not candidate_list:
                                 country_set = country_tzids.get(country_key) if country_key else None
                                 if country_set and len(country_set) == 1:
                                     tzid = next(iter(country_set))
@@ -1492,24 +1525,54 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
 
                 output_rows.append(
                     (
-                        seed,
-                        str(manifest_fingerprint),
-                        merchant_id,
-                        legal_country_iso,
-                        site_order,
-                        lat,
-                        lon,
                         tzid,
                         tzid_provisional_source,
                         override_scope,
                         override_applied,
                         nudge_lat,
                         nudge_lon,
-                        created_utc,
                     )
                 )
 
-            df = pl.DataFrame(output_rows, schema=output_schema, orient="row")
+            resolved_df = pl.DataFrame(output_rows, schema=resolved_schema, orient="row")
+            df = (
+                batch.with_columns(
+                    [
+                        pl.lit(seed, dtype=pl.UInt64).alias("seed"),
+                        pl.lit(str(manifest_fingerprint), dtype=pl.Utf8).alias("manifest_fingerprint"),
+                        pl.col("merchant_id").cast(pl.UInt64),
+                        pl.col("legal_country_iso").cast(pl.Utf8),
+                        pl.col("site_order").cast(pl.Int32),
+                        pl.col("lat_deg").cast(pl.Float64),
+                        pl.col("lon_deg").cast(pl.Float64),
+                        resolved_df["tzid_provisional"],
+                        resolved_df["tzid_provisional_source"],
+                        resolved_df["override_scope"],
+                        resolved_df["override_applied"],
+                        resolved_df["nudge_lat_deg"],
+                        resolved_df["nudge_lon_deg"],
+                        pl.lit(created_utc, dtype=pl.Utf8).alias("created_utc"),
+                    ]
+                )
+                .select(
+                    [
+                        "seed",
+                        "manifest_fingerprint",
+                        "merchant_id",
+                        "legal_country_iso",
+                        "site_order",
+                        "lat_deg",
+                        "lon_deg",
+                        "tzid_provisional",
+                        "tzid_provisional_source",
+                        "override_scope",
+                        "override_applied",
+                        "nudge_lat_deg",
+                        "nudge_lon_deg",
+                        "created_utc",
+                    ]
+                )
+            )
             try:
                 validate_dataframe(df.iter_rows(named=True), output_pack, output_table)
             except SchemaValidationError as exc:

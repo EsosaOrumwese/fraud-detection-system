@@ -3287,3 +3287,103 @@ Observed baseline outcome:
 Decision:
 1) `POPT.0` is closed.
 2) Next performance action is `POPT.1` on `S1` under semantics-preserving constraints.
+
+---
+
+### Entry: 2026-02-17 04:23
+
+Design element: `POPT.1` kickoff — S1 primary hotspot rewrite (semantics-preserving).
+Summary: Starting `POPT.1` on `2A.S1` after clean local authority run `dd4ba47ab7b942a4930cbeee85eda331` confirmed hotspot order `S1 > S3 > S2`. Goal is to reduce S1 wall time without changing assignment semantics or schema/contract behavior.
+
+Runtime baseline anchor (from clean local authority):
+1) `S1 wall_ms = 14766` (primary).
+2) `S3 wall_ms = 10141` (secondary).
+3) `S2 wall_ms = 7906` (closure).
+
+Authority reviewed before implementation:
+1) `docs/model_spec/data-engine/layer-1/specs/state-flow/2A/state.2A.s1.expanded.md`
+2) `docs/model_spec/data-engine/layer-1/specs/contracts/2A/schemas.2A.yaml`
+
+Observed S1 bottlenecks in current runner:
+1) Per-row polygon candidate resolution builds full tzid sets even for unambiguous rows.
+2) Python-level `geom.covers(point)` loop runs for every candidate index returned by STRtree query.
+3) Per-row named-row dict iteration (`iter_rows(named=True)`) adds avoidable Python overhead in the hot path.
+
+Planned optimization lane (same-output semantics):
+1) Introduce a fast candidate resolver that:
+   - performs early-exit unique/multi detection (no full set construction on common unambiguous rows),
+   - computes full candidate list only on ambiguity branch (diagnostics path).
+2) Use STRtree predicate query path (`predicate=intersects`) when available to reduce Python-level geometry predicate calls; retain fallback path preserving previous behavior when predicate query is unavailable.
+3) Switch hot-loop row iteration from named dict rows to tuple rows with fixed field order.
+
+Invariants that must remain true:
+1) Same schema and output columns for `s1_tz_lookup`.
+2) Same ambiguity/override/fallback decision ordering.
+3) Determinism + contract validation preserved.
+4) No changes to downstream state interfaces (`S2..S5`) or path/identity semantics.
+
+Execution plan:
+1) Patch `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py` with the above changes.
+2) Stage a fresh 2A candidate run-id from the clean authority lane.
+3) Run `S1 -> S2 -> S3 -> S4 -> S5` and compare state wall times against `dd4...`.
+4) Classify `POPT.1` as `GREEN/AMBER/RED` with measured evidence and next action.
+
+---
+
+### Entry: 2026-02-17 04:28
+
+Design element: `POPT.1` implementation pass 1 + rollback of regressing variant.
+Summary: Implemented the first S1 optimization pass, ran a full candidate chain, observed regression from the STRtree predicate path, and rolled that path back while preserving the safe hot-loop optimizations.
+
+Code changes applied in `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py`:
+1) Added early-exit candidate resolution helpers:
+   - `_resolve_candidate_tzid(...)` for unique/multi detection without building full candidate sets in the common path.
+   - `_candidate_tzids_full(...)` only for ambiguity diagnostics/fallback paths.
+2) Switched hot-loop row iteration to tuple rows (`batch.iter_rows()`).
+3) Switched MCC lookup comprehension to tuple rows (`mcc_df.iter_rows()`).
+4) Trialed STRtree `predicate=intersects` per-point query in `_tree_query_indices(...)` and measured it as slower in this workload.
+5) Rolled back predicate path to the prior `tree.query(point)` + `covers` filtering while keeping items (1)-(3).
+
+Execution evidence:
+1) Staged candidate run-id:
+   - `b65bfe6efaca42e2ac413c059fb88b64`.
+2) First candidate run (with predicate path):
+   - `S1 wall_ms=17281` (regression vs baseline `14766`).
+3) After rollback of predicate path:
+   - `S1 wall_ms` improved to `14062`.
+
+Decision:
+1) Keep early-exit + tuple-loop optimizations.
+2) Keep predicate-query optimization disabled for 2A S1 (data-dependent regression on this workload).
+3) Continue with one more low-risk optimization pass focused on row materialization overhead.
+
+---
+
+### Entry: 2026-02-17 04:31
+
+Design element: `POPT.1` implementation pass 2 (row-materialization overhead reduction).
+Summary: Optimized S1 output assembly by reducing per-row payload construction and using vectorized frame assembly from source batch columns; then reran the candidate chain to capture the best observed runtime in this cycle.
+
+Code changes applied:
+1) Replaced full-row tuple accumulation (14 fields per row) with reduced resolved-field tuples (6 fields):
+   - `tzid_provisional`, `tzid_provisional_source`, `override_scope`, `override_applied`, `nudge_lat_deg`, `nudge_lon_deg`.
+2) Built output dataframe by combining:
+   - source `batch` columns (`merchant_id`, `legal_country_iso`, `site_order`, `lat_deg`, `lon_deg`),
+   - vectorized constants (`seed`, `manifest_fingerprint`, `created_utc`),
+   - resolved columns from the compact `resolved_df`.
+3) Preserved output column order/type contract exactly before validation/publish.
+
+Execution evidence:
+1) Candidate run-id reused:
+   - `b65bfe6efaca42e2ac413c059fb88b64`.
+2) Full downstream smoke remained green:
+   - `S0 -> S1 -> S2 -> S3 -> S4 -> S5` all PASS.
+3) Best observed S1 runtime in this phase:
+   - `S1 wall_ms=13796`.
+4) Baseline comparison:
+   - baseline authority `dd4...` had `S1 wall_ms=14766`.
+   - improvement: `-970ms` (`~6.6%`).
+
+Current classification:
+1) `POPT.1` shows real improvement but remains above stretch budget (`12s`), so phase remains open.
+2) Deterministic/no-regression posture remains intact in candidate lane (identical-bytes reuse logged for unchanged partitions).

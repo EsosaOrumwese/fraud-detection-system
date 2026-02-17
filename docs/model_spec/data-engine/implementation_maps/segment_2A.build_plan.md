@@ -260,6 +260,26 @@ Definition of done:
 - [ ] downstream smoke (`next states -> S5`) stays green.
 - [ ] no memory-risk regression under Fast-Compute-Safe posture.
 
+POPT.1 status update (2026-02-17):
+- authority baseline run:
+  - `dd4ba47ab7b942a4930cbeee85eda331`
+  - `S1 wall_ms=14766` (`~14.77s`).
+- candidate lane:
+  - `b65bfe6efaca42e2ac413c059fb88b64` (full `S0->S5` green).
+- implemented S1 optimizations (semantics-preserving):
+  - early-exit candidate resolver to avoid full candidate-set construction for common unambiguous rows,
+  - tuple-row hot-loop iteration (`iter_rows()` instead of named dict rows),
+  - reduced per-row output payload + vectorized frame assembly from source batch columns.
+- rejected variant:
+  - STRtree `predicate=intersects` per-point query path regressed runtime and was rolled back.
+- measured outcome:
+  - best observed `S1 wall_ms=13796` (`~13.80s`) on candidate lane.
+  - improvement vs baseline: `-970ms` (`~6.6%`).
+  - `S1` remains above stretch budget (`12s`) -> phase remains open (`RED` vs stretch target).
+- safety posture:
+  - downstream `S2->S5` remained green on candidate lane.
+  - output partitions remained deterministic/identical for unchanged identity (publish path reported identical-bytes reuse).
+
 ### POPT.2 - Secondary hotspot rewrite
 Goal:
 - reduce the #2 ranked hotspot state while preserving `POPT.1` gains.
