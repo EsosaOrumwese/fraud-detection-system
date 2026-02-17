@@ -1,7 +1,7 @@
 # Dev Substrate Deep Plan - M6 (P4-P7 Control + Ingress)
 _Status source of truth: `platform.build_plan.md`_
 _This document provides deep planning detail for M6._
-_Last updated: 2026-02-15_
+_Last updated: 2026-02-16_
 
 ## 0) Purpose
 M6 closes the control+ingress chain on managed substrate by proving `P4..P7` in order: IG readiness and auth boundary, SR READY publication, WSP streaming activation, and IG ingest commit evidence with fail-closed ambiguity handling.
@@ -872,15 +872,26 @@ Tasks:
 4. Publish `m6_h_verdict_snapshot.json`.
 
 DoD:
-- [ ] Predicate set explicit and reproducible.
-- [ ] Blocker rollup complete and fail-closed.
-- [ ] Verdict snapshot published locally and durably.
+- [x] Predicate set explicit and reproducible.
+- [x] Blocker rollup complete and fail-closed.
+- [x] Verdict snapshot published locally and durably.
 
 Blockers:
 1. `M6H-B1`: prerequisite snapshot missing/unreadable.
 2. `M6H-B2`: predicate evaluation incomplete/invalid.
 3. `M6H-B3`: blocker rollup non-empty.
 4. `M6H-B4`: verdict snapshot write/upload failure.
+
+Execution status (2026-02-16):
+1. `M6.H` executed with deterministic rollup over `M6.A..M6.G`.
+2. Authoritative verdict snapshot:
+   - local: `runs/dev_substrate/m6/20260216T214025Z/m6_h_verdict_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m6_h_verdict_snapshot.json`
+3. Result:
+   - predicates: `p4=true`, `p5=true`, `p6=true`, `p7=true`
+   - blocker rollup: empty
+   - verdict: `ADVANCE_TO_M7`
+   - `overall_pass=true`.
 
 ### M6.I M7 Handoff Artifact Publication
 Goal:
@@ -902,15 +913,29 @@ Tasks:
 3. Publish local + durable handoff artifact.
 
 DoD:
-- [ ] `m7_handoff_pack.json` complete and non-secret.
-- [ ] Durable handoff publication passes.
-- [ ] URI references are valid for M7 entry.
+- [x] `m7_handoff_pack.json` complete and non-secret.
+- [x] Durable handoff publication passes.
+- [x] URI references are valid for M7 entry.
 
 Blockers:
 1. `M6I-B1`: M6 verdict is not `ADVANCE_TO_M7`.
 2. `M6I-B2`: handoff payload missing required fields/URIs.
 3. `M6I-B3`: non-secret policy violation.
 4. `M6I-B4`: handoff artifact write/upload failure.
+
+Execution status (2026-02-16):
+1. `M6.I` executed after `M6.H` verdict `ADVANCE_TO_M7`.
+2. Authoritative handoff artifact:
+   - local: `runs/dev_substrate/m6/20260216T214025Z/m7_handoff_pack.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m7_handoff_pack.json`
+3. Handoff content includes:
+   - `platform_run_id=platform_20260213T214223Z`
+   - source execution IDs (`m6_a..m6_h`)
+   - `ig_ready_uri`, `sr_ready_uri`, `wsp_summary_uri`
+   - ingest closure evidence (`receipt_summary`, `quarantine_summary`, `kafka_offsets`, `m6_g_ingest_commit_snapshot`)
+4. Result:
+   - blockers: empty
+   - `overall_pass=true`.
 
 ## 6) M6 Evidence Contract (Pinned for Execution)
 Evidence roots:
@@ -946,8 +971,8 @@ Notes:
 - [x] M6.E complete
 - [x] M6.F complete
 - [x] M6.G complete
-- [ ] M6.H complete
-- [ ] M6.I complete
+- [x] M6.H complete
+- [x] M6.I complete
 
 ## 8) Risks and Controls
 R1: IG auth bypass or degraded boundary behavior.  

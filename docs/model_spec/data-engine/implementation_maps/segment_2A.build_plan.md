@@ -225,10 +225,26 @@ Scope:
 - capture state wall times and hotspot evidence from run logs + state reports.
 
 Definition of done:
-- [ ] baseline runtime artifact emitted under `runs/fix-data-engine/segment_2A/reports/`.
-- [ ] ranked hotspot list published (primary, secondary, closure bottleneck).
-- [ ] minute-scale target budgets pinned per hotspot state.
-- [ ] progression gate for `POPT.1` recorded (`GO`/`HOLD`).
+- [x] baseline runtime artifact emitted under `runs/fix-data-engine/segment_2A/reports/`.
+- [x] ranked hotspot list published (primary, secondary, closure bottleneck).
+- [x] minute-scale target budgets pinned per hotspot state.
+- [x] progression gate for `POPT.1` recorded (`GO`/`HOLD`).
+
+POPT.0 closure record (2026-02-16):
+- authority run used:
+  - `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`
+  - reason: `runs/fix-data-engine/segment_2A/9ebdd751ab7b4f9da246cc840ddff306` is incomplete (`S3+` missing), so it is not baseline-safe.
+- generated artifacts:
+  - `runs/fix-data-engine/segment_2A/reports/segment2a_popt0_baseline_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_2A/reports/segment2a_popt0_hotspot_map_c25a2675fbfbacd952b13bb594880e92.md`
+- observed runtime baseline (`report wall_ms` sum):
+  - `S1=13.188s` (`41.64%`) -> primary hotspot (`RED` vs target/stretch `10s/12s`).
+  - `S3=9.360s` (`29.55%`) -> secondary hotspot (`AMBER` vs `8s/10s`).
+  - `S2=7.641s` (`24.12%`) -> closure hotspot (`AMBER` vs `7s/9s`).
+  - segment total (reports): `31.673s`; log-window elapsed: `35.347s`.
+- progression gate:
+  - decision: `GO POPT.1`.
+  - selected state for `POPT.1`: `S1`.
 
 ### POPT.1 - Primary hotspot rewrite
 Goal:

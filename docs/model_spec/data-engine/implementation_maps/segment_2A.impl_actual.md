@@ -3214,3 +3214,76 @@ Rationale:
 
 Immediate next action:
 1) execute `2A POPT.0` to build the authoritative runtime/hotspot baseline artifact, then choose the primary hotspot state for `POPT.1`.
+
+---
+
+### Entry: 2026-02-16 21:29
+
+Design element: Execute `2A POPT.0` runtime baseline/hotspot lock from completed authority witness.
+Summary: We need a machine-readable runtime baseline artifact for Segment 2A before any optimization rewrite. Current `runs/fix-data-engine/segment_2A` run (`9ebdd751ab7b4f9da246cc840ddff306`) is incomplete (`S3+` missing), so `POPT.0` authority will be the completed chain in `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`.
+
+Reasoning and decisions (pre-implementation):
+1) Authority run choice:
+   - Use `c25a2675fbfbacd952b13bb594880e92` because it contains complete `S0..S5` reports and a full run log.
+   - Do not use `9eb...` for baseline timing because it is incomplete and would bias hotspot ranking.
+2) Baseline generation mechanism:
+   - Add a dedicated tool `tools/score_segment2a_popt0_baseline.py` (mirrors 1B POPT.0 scorer posture).
+   - Tool outputs:
+     - JSON baseline contract in `runs/fix-data-engine/segment_2A/reports/`.
+     - Markdown hotspot map in the same report folder.
+3) Timing source:
+   - Primary: `durations.wall_ms` from `S0..S5` run reports (authoritative per-state wall).
+   - Supplemental evidence: selected counters from S1/S2/S3/S4/S5 run reports and run-log references.
+4) Hotspot ranking posture:
+   - Rank by observed state elapsed descending.
+   - Publish explicit primary/secondary/closure hotspot states and per-state target/stretch budgets.
+   - Emit progression gate for `POPT.1` as explicit `GO` or `HOLD`.
+5) Scope guard:
+   - `POPT.0` is evidence-only; no state runner logic changes in this step.
+
+Planned execution steps:
+1) Implement the 2A POPT.0 scorer script.
+2) Execute scorer against authority run `c25...` and emit artifacts under `runs/fix-data-engine/segment_2A/reports/`.
+3) Update `segment_2A.build_plan.md` with `POPT.0` DoD closure checkmarks + closure record.
+4) Append matching run/action entry in `docs/logbook/02-2026/2026-02-16.md`.
+
+---
+
+### Entry: 2026-02-16 21:30
+
+Design element: `POPT.0` execution complete for Segment 2A (baseline + hotspot contract lock).
+Summary: Implemented and ran the baseline scorer for 2A, published machine-readable artifacts under the fix-data-engine report root, and closed `POPT.0` DoD items in the build plan.
+
+Implementation actions:
+1) Added scorer tool:
+   - `tools/score_segment2a_popt0_baseline.py`
+   - behavior:
+     - reads complete `2A` state reports (`S0..S5`) and run log from an authority run-id,
+     - computes state elapsed table from `durations.wall_ms`,
+     - ranks hotspots (primary/secondary/closure),
+     - pins tight per-state target/stretch budgets,
+     - emits explicit `POPT.1` progression decision (`GO`/`HOLD`).
+2) Executed scorer against authority run:
+   - command:
+     - `python tools/score_segment2a_popt0_baseline.py --runs-root runs/local_full_run-5 --run-id c25a2675fbfbacd952b13bb594880e92 --out-root runs/fix-data-engine/segment_2A/reports`
+3) Published artifacts:
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_popt0_baseline_c25a2675fbfbacd952b13bb594880e92.json`
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_popt0_hotspot_map_c25a2675fbfbacd952b13bb594880e92.md`
+4) Updated build-plan closure in:
+   - `docs/model_spec/data-engine/implementation_maps/segment_2A.build_plan.md`
+
+Observed baseline outcome:
+1) Hotspot ranking:
+   - primary: `S1` (`13.188s`, `41.64%`, budget status `RED`),
+   - secondary: `S3` (`9.360s`, `29.55%`, `AMBER`),
+   - closure: `S2` (`7.641s`, `24.12%`, `AMBER`).
+2) Segment timing:
+   - report wall sum: `31.673s`,
+   - log-window elapsed: `35.347s`.
+3) Progression gate:
+   - `GO`,
+   - selected `POPT.1` target state: `S1`.
+
+Decision:
+1) `POPT.0` is closed.
+2) Next performance action is `POPT.1` on `S1` under semantics-preserving constraints.

@@ -1,6 +1,6 @@
 # Dev Substrate Migration Build Plan (Fresh Start)
 _Track: local_parity -> dev_min managed substrate (Spine Green v0)_
-_Last updated: 2026-02-15_
+_Last updated: 2026-02-16_
 
 ## 0) Purpose
 This is the active execution plan for migrating the already-canonical local-parity Spine Green v0 flow into `dev_min` with:
@@ -81,7 +81,7 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | M3 | P1 | Run pinning + run manifest evidence | DONE |
 | M4 | P2 | Daemon bring-up on ECS with run-scope controls | DONE |
 | M5 | P3 | Oracle lane (inlet assertion/sort/checker) | DONE |
-| M6 | P4-P7 | Control+Ingress closure | ACTIVE |
+| M6 | P4-P7 | Control+Ingress closure | DONE |
 | M7 | P8-P10 | RTDL + Case/Labels closure | NOT_STARTED |
 | M8 | P11 | Obs/Gov closure | NOT_STARTED |
 | M9 | P12 | Teardown proof + cost guardrails | NOT_STARTED |
@@ -139,7 +139,7 @@ Current phase posture:
 - `M3` is `DONE`,
 - `M4` is `DONE`,
 - `M5` is `DONE`,
-- `M6` is `ACTIVE` for deep planning before execution.
+- `M6` is `DONE`.
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -479,7 +479,7 @@ M5 DoD checklist:
 - [x] M5 verdict and M6 handoff package are published and non-secret.
 
 ## M6 - P4-P7 Control + Ingress closure
-Status: `ACTIVE`
+Status: `DONE`
 Entry gate:
 - M5 is `DONE`.
 - M5 handoff artifact is present:
@@ -598,6 +598,17 @@ Active-phase planning posture:
       - IG preflight `state=GREEN`.
       - receipt counts: `ADMIT=800`, `DUPLICATE=800`, `QUARANTINE=0`.
       - ambiguity gate: `publish_ambiguous_count=0`, `publish_in_flight_count=0`.
+  - `M6.H` + `M6.I` are now execution-closed with authoritative PASS evidence (`m6_execution_id=m6_20260216T214025Z`):
+    - local snapshots:
+      - `runs/dev_substrate/m6/20260216T214025Z/m6_h_verdict_snapshot.json`
+      - `runs/dev_substrate/m6/20260216T214025Z/m7_handoff_pack.json`
+    - durable snapshots:
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m6_h_verdict_snapshot.json`
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m7_handoff_pack.json`
+    - closure facts:
+      - verdict: `ADVANCE_TO_M7`
+      - blocker rollup: empty
+      - `overall_pass=true`.
 
 - Sub-phase progress:
   - [x] `M6.A` authority + handle closure for `P4..P7`.
@@ -607,8 +618,8 @@ Active-phase planning posture:
   - [x] `M6.E` P6 WSP launch contract + READY consumption proof.
   - [x] `M6.F` P6 WSP execution summary.
   - [x] `M6.G` P7 ingest commit evidence closure.
-  - [ ] `M6.H` P4..P7 verdict + blocker rollup.
-  - [ ] `M6.I` M7 handoff publication.
+  - [x] `M6.H` P4..P7 verdict + blocker rollup.
+  - [x] `M6.I` M7 handoff publication.
 
 M6 DoD checklist:
 - [x] IG service readiness + auth boundary checks pass and `ingest/ig_ready.json` is durable.
@@ -616,8 +627,8 @@ M6 DoD checklist:
 - [x] WSP executes from P3 `stream_view` only and emits closure-grade summary evidence (READY record + per-output CloudWatch proof) with durable `M6.F` snapshot.
 - [x] Ingest receipt/offset/quarantine summaries exist and are coherent.
 - [x] `PUBLISH_AMBIGUOUS` unresolved count is zero for closure set.
-- [ ] M6 verdict is `ADVANCE_TO_M7` with empty blocker rollup.
-- [ ] M7 handoff pack is published and non-secret.
+- [x] M6 verdict is `ADVANCE_TO_M7` with empty blocker rollup.
+- [x] M7 handoff pack is published and non-secret.
 
 ## M7 - P8-P10 RTDL + Case/Labels closure
 Status: `NOT_STARTED`
@@ -757,8 +768,7 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M6 is active for deep-plan closure and execution sequencing.
+M6 is closed with `ADVANCE_TO_M7` handoff published.
 Next action:
-- execute `M6.G` P7 ingest commit evidence closure,
-- require `M6.G` snapshot `overall_pass=true`,
-- then proceed to `M6.H`.
+- activate `M7` planning and expand `M7.A..M7.*` in deep plan before execution,
+- keep M6 evidence immutable and use `m7_handoff_pack.json` as the sole M7 entry anchor.

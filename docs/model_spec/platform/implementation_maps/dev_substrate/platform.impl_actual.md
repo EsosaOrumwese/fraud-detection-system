@@ -11610,3 +11610,53 @@ Re-executed `M6.G` under corrected IG Kafka-health posture and re-emitted run-sc
 
 ### Closure statement
 - Managed Confluent destroy lane is now executable in GitHub Actions (no local secret-bearing shell required), and can be reused as canonical teardown execution in M9/P12.
+
+## Entry: 2026-02-16 21:40:00 +00:00 - M6.H and M6.I closure after rematerialization
+
+### Scope
+Close `M6.H` (P4..P7 gate rollup + verdict) and `M6.I` (M7 handoff publication) after bringing dev_min runtime back up.
+
+### Runtime posture confirmation
+1. Confluent rematerialization lane was rerun and passed (`dev_min_m2f_topic_readiness` workflow).
+2. Demo Terraform stack was applied successfully (ECS services/task definitions rematerialized).
+3. ECS service posture at closure time:
+   - 13 daemon services `desired=1/running=1`
+   - `runtime-probe` service `desired=0`.
+
+### Evidence hygiene fixes before verdict
+1. Restored missing durable control snapshots for `M6.A..M6.D`:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T032545Z/m6_a_handle_closure_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T040527Z/m6_b_ig_readiness_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T124328Z/m6_c_ingest_ready_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260215T144233Z/m6_d_sr_ready_snapshot.json`
+2. Restored run-scoped ingest readiness artifact:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/ig_ready.json`.
+
+### M6.H execution
+1. Built deterministic rollup over authoritative `M6.A..M6.G` PASS snapshots.
+2. Predicate results:
+   - `p4_ingest_ready=true`
+   - `p5_ready_published=true`
+   - `p6_streaming_active=true`
+   - `p7_ingest_committed=true`.
+3. Blocker rollup: empty.
+4. Verdict: `ADVANCE_TO_M7`.
+5. Artifacts:
+   - local: `runs/dev_substrate/m6/20260216T214025Z/m6_h_verdict_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m6_h_verdict_snapshot.json`.
+
+### M6.I execution
+1. Built non-secret `m7_handoff_pack.json` from M6 closure set.
+2. Included canonical M7 entry URIs:
+   - `ig_ready_uri`
+   - `sr_ready_uri`
+   - `wsp_summary_uri`
+   - ingest summaries (`receipt_summary`, `quarantine_summary`, `kafka_offsets`, `m6_g_ingest_commit_snapshot`)
+   - `m6_h_verdict_snapshot_uri`.
+3. Artifacts:
+   - local: `runs/dev_substrate/m6/20260216T214025Z/m7_handoff_pack.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m7_handoff_pack.json`.
+
+### Outcome
+1. `M6.H` and `M6.I` are closed (`overall_pass=true`, blockers empty).
+2. M6 phase verdict is now formally captured as `ADVANCE_TO_M7`.
