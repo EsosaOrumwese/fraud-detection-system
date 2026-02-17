@@ -3824,3 +3824,41 @@ Decision:
 1) P2 execution is complete and fail-closed.
 2) Certification verdict is `FAIL_REALISM` with explicit seed-level and gate-level blockers.
 3) Natural next remediation lane is `P3` targeted correction under strict governance veto gates.
+
+---
+
+### Entry: 2026-02-17 17:10
+
+Design element: Remediation `P3` planning expansion (targeted correction lane).
+Summary: Expanded `P3` from a placeholder into explicit sub-phases (`P3.1..P3.5`) with bounded scope and hard DoDs tied directly to P2 failure evidence.
+
+Context and blocker anchor:
+1) P2 certification verdict is `FAIL_REALISM`.
+2) Two blocker classes must be handled in P3:
+   - hard governance failures at `S1` for seeds `101` and `202` (`2A-S1-091`, `2A-S1-090`),
+   - realism concentration failures on completed seeds (`42`, `7`) across `C_multi` and `C_large` metrics.
+3) Upstream freeze posture remains binding in this cycle:
+   - `1A` frozen certified,
+   - `1B` frozen best-effort below B,
+   - no upstream reopen inside P3.
+
+Decisions captured in the plan update:
+1) P3 must be governance-first, then realism-lift:
+   - `P3.1` failure-surface/watchlist lock,
+   - `P3.2` S1 governance rescue for hard-failing seeds,
+   - `P3.3` bounded realism lift on concentration/entropy axes,
+   - `P3.4` integrated seed-pack candidate + veto certification,
+   - `P3.5` explicit closure decision (`GO_P4` vs `FREEZE_PROPOSAL`).
+2) Non-negotiable constraints in P3:
+   - no cap relaxation,
+   - no synthetic post-assignment redistribution,
+   - no fallback/override inflation as score-forcing mechanism.
+3) P3 success criteria before P4 handoff:
+   - all required seeds clear hard governance/structural gates,
+   - aggregate verdict reaches at least `PASS_B`, or residual blockers are explicitly reduced and quantified.
+
+Artifacts updated:
+1) `docs/model_spec/data-engine/implementation_maps/segment_2A.build_plan.md`.
+
+Immediate next execution lane:
+1) Start with `P3.1` watchlist contract extraction from P2 diagnostics artifacts.

@@ -288,16 +288,100 @@ P2 closure record (2026-02-17):
 
 ### P3 - Targeted correction lane (bounded, non-synthetic)
 Goal:
-- improve failing country/timezone hotspots with narrow, auditable interventions while staying causal.
+- close P2 blockers under frozen upstream posture by correcting:
+  - S1 hard-gate failures on seeds `101` and `202`,
+  - `C_multi` concentration/entropy and `C_large` representativeness misses.
 
 Scope:
-- evidence-based, bounded watchlist corrections only.
-- no broad redistribution layer.
+- bounded, evidence-led interventions in `2A` only:
+  - S1 fallback path and policy hygiene,
+  - targeted country watchlist corrections,
+  - deterministic candidate ordering and provenance-safe overrides.
+- explicit non-scope:
+  - no cap relaxation,
+  - no synthetic post-assignment redistribution,
+  - no 1A/1B reopen in this phase.
 
 Definition of done:
-- [ ] at least one bounded candidate improves failing realism axes vs P0 baseline.
-- [ ] improvements are not achieved via override inflation or fallback inflation.
-- [ ] no structural, legality, or determinism regression.
+- [ ] seeds `101` and `202` clear S1 hard gates without threshold relaxation.
+- [ ] seed-pack realism metrics materially improve vs P2 closure baseline.
+- [ ] no structural, legality, determinism, or provenance regressions.
+
+### P3.1 - Failure surface lock and watchlist contract
+Goal:
+- convert P2 failures into a bounded correction contract before knob changes.
+
+Scope:
+- build a hotspot watchlist from P2 certification diagnostics:
+  - fallback-cap breach countries (`S1`),
+  - high top1-share / low entropy countries (`C_multi`),
+  - low representativeness countries (`C_large`).
+- pin per-country correction budgets and acceptance tests.
+
+Definition of done:
+- [ ] watchlist table is emitted with failure mechanism class per country.
+- [ ] correction budget is pinned per mechanism (`fallback`, `override`, `concentration`).
+- [ ] a ranked intervention order is recorded (governance blockers first).
+
+### P3.2 - Governance-first rescue for hard-failing seeds
+Goal:
+- eliminate fail-closed S1 governance breaches on seeds `101`/`202` without loosening gates.
+
+Scope:
+- tighten S1 ambiguity resolution and fallback usage for watchlist countries.
+- use only deterministic and auditable controls (policy + runner mechanics already in 2A scope).
+- keep S2 provenance and override-cap enforcement unchanged or stricter.
+
+Definition of done:
+- [ ] seeds `101` and `202` complete `S1->S5` without `2A-S1-090/091` breaches.
+- [ ] `fallback_country_violations == 0` on all required seeds.
+- [ ] `override_rate` remains within existing `P1` caps and provenance remains complete.
+
+### P3.3 - Realism lift on concentration and entropy axes
+Goal:
+- improve `C_multi` and `C_large` realism under bounded watchlist-only corrections.
+
+Scope:
+- apply targeted corrections to countries that dominate:
+  - `top1_share` collapse,
+  - `top1_top2_gap` inflation,
+  - near-zero normalized entropy.
+- enforce veto gates to prevent score-forcing via fallback/override inflation.
+
+Definition of done:
+- [ ] seed `42` and seed `7` both improve vs P2 on:
+  - `c_multi_median_top1_share` (down),
+  - `c_multi_median_top1_top2_gap` (down),
+  - `c_multi_median_entropy_norm` (up),
+  - `c_large_share_top1_lt_095` (up).
+- [ ] fallback and override rates do not increase beyond P1 caps.
+- [ ] no broad/global redistribution logic is introduced.
+
+### P3.4 - Integrated seed-pack candidate and veto cert
+Goal:
+- produce one P3 authority candidate ready for P4 final certification.
+
+Scope:
+- run required seed pack `{42, 7, 101, 202}` on the chosen P3 candidate.
+- score with the P2 certification harness and apply veto gates.
+
+Definition of done:
+- [ ] all required seeds pass hard governance/structural gates.
+- [ ] aggregate verdict reaches `PASS_B` or explicit blocker set is reduced with quantified deltas.
+- [ ] retained authority run-id set is pinned for P4 handoff.
+
+### P3.5 - Closure decision (GO P4 or constrained freeze proposal)
+Goal:
+- end P3 with an explicit, auditable decision gate.
+
+Scope:
+- if `PASS_B`/`PASS_BPLUS`: hand off to P4 certification closure.
+- if still `FAIL_REALISM`: record residual blockers and produce constrained freeze + reopen recommendation.
+
+Definition of done:
+- [ ] decision path is explicit (`GO_P4` or `FREEZE_PROPOSAL`).
+- [ ] residual blocker matrix (metric + owning state/knob) is attached when not green.
+- [ ] next action queue is recorded without ambiguity.
 
 ### P4 - Certification pass or constrained freeze
 Goal:
