@@ -180,9 +180,9 @@ Candidate surfaces:
 - scoring/report tooling under `tools/` for 2A certification.
 
 Definition of done:
-- [ ] scorer emits full hard-gate metrics and verdict per seed.
-- [ ] aggregate cross-seed verdict (`PASS_BPLUS`/`PASS_B`/`FAIL_REALISM`) is deterministic.
-- [ ] diagnostics CSV/JSON artifacts are emitted for hotspot tracing.
+- [x] scorer emits full hard-gate metrics and verdict per seed.
+- [x] aggregate cross-seed verdict (`PASS_BPLUS`/`PASS_B`/`FAIL_REALISM`) is deterministic.
+- [x] diagnostics CSV/JSON artifacts are emitted for hotspot tracing.
 
 ### P2.1 - Cohort contract lock (definitions + formulas)
 Goal:
@@ -200,9 +200,9 @@ Scope:
   - normalized entropy (`H / ln(tz_world_support_count)` for eligible support >= 2).
 
 Definition of done:
-- [ ] cohort and metric formulas are encoded in scorer source (not hand-computed).
-- [ ] cohort membership is reproducible from run artifacts alone.
-- [ ] formulas are documented in scorer output metadata.
+- [x] cohort and metric formulas are encoded in scorer source (not hand-computed).
+- [x] cohort membership is reproducible from run artifacts alone.
+- [x] formulas are documented in scorer output metadata.
 
 ### P2.2 - Per-seed scorer implementation
 Goal:
@@ -219,9 +219,9 @@ Scope:
   - country-level rows for `C_multi`/`C_large` with key metrics.
 
 Definition of done:
-- [ ] scorer runs on an authority run-id and emits deterministic JSON + CSV.
-- [ ] scorer includes explicit gate booleans and failing-gate list.
-- [ ] governance surfaces are read from S1/S2 run reports (no duplicate manual calculation path).
+- [x] scorer runs on an authority run-id and emits deterministic JSON + CSV.
+- [x] scorer includes explicit gate booleans and failing-gate list.
+- [x] governance surfaces are read from S1/S2 run reports (no duplicate manual calculation path).
 
 ### P2.3 - Certification reducer across required seed pack
 Goal:
@@ -236,9 +236,9 @@ Scope:
 - emit aggregate certification JSON with per-seed rollup.
 
 Definition of done:
-- [ ] required seed coverage is explicit and machine-validated.
-- [ ] aggregate verdict is deterministic and reproducible.
-- [ ] failing seeds/gates are explicitly listed when not green.
+- [x] required seed coverage is explicit and machine-validated.
+- [x] aggregate verdict is deterministic and reproducible.
+- [x] failing seeds/gates are explicitly listed when not green.
 
 ### P2.4 - Stability and distribution diagnostics
 Goal:
@@ -250,9 +250,9 @@ Scope:
 - include diagnostics even when verdict fails.
 
 Definition of done:
-- [ ] CV metrics are emitted and gated (`B<=0.30`, `B+<=0.20`).
-- [ ] diagnostics section is always present in certification output.
-- [ ] evidence is sufficient to explain verdict movement vs baseline.
+- [x] CV metrics are emitted and gated (`B<=0.30`, `B+<=0.20`).
+- [x] diagnostics section is always present in certification output.
+- [x] evidence is sufficient to explain verdict movement vs baseline.
 
 ### P2.5 - Execution protocol and artifact closure
 Goal:
@@ -264,9 +264,27 @@ Scope:
 - prune superseded failed run-id folders before expensive runs.
 
 Definition of done:
-- [ ] per-seed scorer artifacts exist for all required seeds.
-- [ ] aggregate certification artifact exists with final verdict.
-- [ ] retained run-id set and scoring artifact paths are pinned in plan + impl notes.
+- [x] per-seed scorer artifacts exist for all required seeds.
+- [x] aggregate certification artifact exists with final verdict.
+- [x] retained run-id set and scoring artifact paths are pinned in plan + impl notes.
+
+P2 closure record (2026-02-17):
+- scoring tool implemented:
+  - `tools/score_segment2a_p2_certification.py`
+- required-seed execution evidence:
+  - seed `42`: `b65bfe6efaca42e2ac413c059fb88b64` (`S0..S5` complete, scored).
+  - seed `7`: `07891eca4e6ea549a4d836db35e203aa` (`S0..S5` complete, scored).
+  - seed `101`: `513f4f2904d1ac97f2396c059a9573da` (`S1` fail-closed at `2A-S1-091`, scored as hard fail).
+  - seed `202`: `5a8836781dd7524da561ad5aa27f64d6` (`S1` fail-closed at `2A-S1-090`, scored as hard fail).
+- certification artifacts:
+  - `runs/fix-data-engine/segment_2A/reports/segment2a_p2_seed_metrics_42-b65bfe6e_7-07891eca_101-513f4f29_202-5a883678.json`
+  - `runs/fix-data-engine/segment_2A/reports/segment2a_p2_country_diagnostics_42-b65bfe6e_7-07891eca_101-513f4f29_202-5a883678.csv`
+  - `runs/fix-data-engine/segment_2A/reports/segment2a_p2_certification_42-b65bfe6e_7-07891eca_101-513f4f29_202-5a883678.json`
+- verdict:
+  - `FAIL_REALISM`.
+- primary blockers recorded by certification:
+  - all seeds miss B realism axes (`C_multi` concentration/entropy and `C_large` representativeness).
+  - seeds `101`/`202` additionally fail hard governance at `S1` (fallback caps), preventing complete `S2..S5` chain for those seeds.
 
 ### P3 - Targeted correction lane (bounded, non-synthetic)
 Goal:

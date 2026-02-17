@@ -113,6 +113,13 @@ def _find_report_path(run_root: Path, state: str, seed: int, manifest_fingerprin
     return base / f"manifest_fingerprint={manifest_fingerprint}" / f"{state_lower}_run_report.json"
 
 
+def _load_report_if_present(run_root: Path, state: str, seed: int, manifest_fingerprint: str) -> dict[str, Any] | None:
+    path = _find_report_path(run_root, state, seed, manifest_fingerprint)
+    if not path.exists():
+        return None
+    return _load_json(path)
+
+
 @dataclass(frozen=True)
 class RunContext:
     run_id: str
@@ -175,7 +182,7 @@ def _select_seed_run_map(
         explicit_run_id = explicit_seed_run_map.get(seed)
         if explicit_run_id:
             ctx = by_run_id.get(explicit_run_id)
-            if ctx is None or ctx.seed != seed or not _is_complete_2a_run(ctx):
+            if ctx is None or ctx.seed != seed:
                 missing.append(seed)
                 continue
             selected[seed] = ctx
@@ -185,9 +192,8 @@ def _select_seed_run_map(
         for ctx in contexts:
             if ctx.seed != seed:
                 continue
-            if _is_complete_2a_run(ctx):
-                candidate = ctx
-                break
+            candidate = ctx
+            break
         if candidate is None:
             missing.append(seed)
             continue
@@ -227,16 +233,45 @@ def _evaluate_seed(
     seed = ctx.seed
     manifest = ctx.manifest_fingerprint
 
-    s1 = _load_json(_find_report_path(run_root, "S1", seed, manifest))
-    s2 = _load_json(_find_report_path(run_root, "S2", seed, manifest))
-    s3 = _load_json(_find_report_path(run_root, "S3", seed, manifest))
-    s4 = _load_json(_find_report_path(run_root, "S4", seed, manifest))
-    s5 = _load_json(_find_report_path(run_root, "S5", seed, manifest))
+    s1 = _load_report_if_present(run_root, "S1", seed, manifest)
+    s2 = _load_report_if_present(run_root, "S2", seed, manifest)
+    s3 = _load_report_if_present(run_root, "S3", seed, manifest)
+    s4 = _load_report_if_present(run_root, "S4", seed, manifest)
+    s5 = _load_report_if_present(run_root, "S5", seed, manifest)
+
+    if s1 is None:
+        seed_payload = {
+            "seed": seed,
+            "run_id": ctx.run_id,
+            "manifest_fingerprint": manifest,
+            "cohorts": {
+                "definition": {
+                    "c_multi": {"tz_world_support_count_min": 2, "site_count_min": c_multi_min_sites},
+                    "c_large": {"site_count_min": c_large_min_sites},
+                },
+                "counts": {"country_total": 0, "c_multi": 0, "c_large": 0},
+            },
+            "metrics": {
+                "c_multi_share_distinct_ge2": None,
+                "c_multi_median_top1_share": None,
+                "c_multi_median_top1_top2_gap": None,
+                "c_multi_median_entropy_norm": None,
+                "c_large_share_top1_lt_095": None,
+                "fallback_rate": None,
+                "override_rate": None,
+                "fallback_country_violations": None,
+                "provenance_missing": None,
+            },
+            "checks": {"B": {"s1_report_present": False}, "BPLUS": {"s1_report_present": False}},
+            "failing_gates": {"B": ["s1_report_present"], "BPLUS": ["s1_report_present"]},
+            "verdict": "FAIL_REALISM",
+        }
+        return seed_payload, []
 
     s1_counts = s1.get("counts", {})
-    s2_counts = s2.get("counts", {})
+    s2_counts = (s2 or {}).get("counts", {})
     s1_checks = s1.get("checks", {})
-    s2_checks = s2.get("checks", {})
+    s2_checks = (s2 or {}).get("checks", {})
 
     site_timezones_root = (
         run_root
@@ -247,7 +282,10 @@ def _evaluate_seed(
         / f"seed={seed}"
         / f"manifest_fingerprint={manifest}"
     )
-    country_tz_counts = _build_country_counts(site_timezones_root)
+    metrics_available = bool(site_timezones_root.exists() and s2 is not None and s3 is not None and s4 is not None and s5 is not None)
+    country_tz_counts: dict[str, Counter[str]] = {}
+    if metrics_available:
+        country_tz_counts = _build_country_counts(site_timezones_root)
 
     country_rows: list[dict[str, Any]] = []
     c_multi_rows: list[dict[str, Any]] = []
@@ -305,7 +343,7 @@ def _evaluate_seed(
     )
 
     s1_gov = s1.get("governance", {})
-    s2_gov = s2.get("governance", {})
+    s2_gov = (s2 or {}).get("governance", {})
     fallback_rate = float(
         (s1_gov.get("rates") or {}).get(
             "fallback_rate",
@@ -316,33 +354,41 @@ def _evaluate_seed(
             ),
         )
     )
-    override_rate = float(
-        (s2_gov.get("rates") or {}).get(
-            "override_rate",
-            _safe_rate(
-                float(s2_counts.get("overridden_total", 0)),
-                float(s2_counts.get("sites_total", 0)),
-            ),
+    if s2 is None:
+        override_rate = 1.0
+    else:
+        override_rate = float(
+            (s2_gov.get("rates") or {}).get(
+                "override_rate",
+                _safe_rate(
+                    float(s2_counts.get("overridden_total", 0)),
+                    float(s2_counts.get("sites_total", 0)),
+                ),
+            )
         )
-    )
     fallback_country_violations = list(s1_gov.get("fallback_country_violations") or [])
     provenance_missing = int(s2_counts.get("provenance_missing", 0))
 
     structural_checks = {
+        "complete_2a_chain": bool(metrics_available),
         "s1_status_pass": str(s1.get("status", "")).lower() == "pass",
-        "s2_status_pass": str(s2.get("status", "")).lower() == "pass",
-        "s3_status_pass": str(s3.get("status", "")).lower() == "pass",
-        "s4_status_pass": str(s4.get("status", "")).lower() == "pass",
-        "s5_status_pass": str(s5.get("status", "")).lower() == "pass",
+        "s2_status_pass": bool(s2 is not None and str(s2.get("status", "")).lower() == "pass"),
+        "s3_status_pass": bool(s3 is not None and str(s3.get("status", "")).lower() == "pass"),
+        "s4_status_pass": bool(s4 is not None and str(s4.get("status", "")).lower() == "pass"),
+        "s5_status_pass": bool(s5 is not None and str(s5.get("status", "")).lower() == "pass"),
         "s1_pk_duplicates_zero": int(s1_checks.get("pk_duplicates", 1)) == 0,
         "s2_pk_duplicates_zero": int(s2_checks.get("pk_duplicates", 1)) == 0,
         "s1_row_parity": int(s1_counts.get("rows_emitted", -1)) == int(s1_counts.get("sites_total", -2)),
         "s2_row_parity": int(s2_counts.get("rows_emitted", -1)) == int(s2_counts.get("sites_total", -2)),
         "s1_s2_sites_total_match": int(s1_counts.get("sites_total", -1)) == int(s2_counts.get("sites_total", -2)),
-        "s4_missing_tzids_zero": int((s4.get("coverage") or {}).get("missing_tzids_count", 1)) == 0,
-        "s5_digest_matches_flag": bool((s5.get("digest") or {}).get("matches_flag", False)),
-        "s5_flag_format_exact": bool((s5.get("flag") or {}).get("format_exact", False)),
-        "s5_index_root_scoped": bool((s5.get("bundle") or {}).get("index_path_root_scoped", False)),
+        "s4_missing_tzids_zero": bool(
+            s4 is not None and int((s4.get("coverage") or {}).get("missing_tzids_count", 1)) == 0
+        ),
+        "s5_digest_matches_flag": bool(s5 is not None and bool((s5.get("digest") or {}).get("matches_flag", False))),
+        "s5_flag_format_exact": bool(s5 is not None and bool((s5.get("flag") or {}).get("format_exact", False))),
+        "s5_index_root_scoped": bool(
+            s5 is not None and bool((s5.get("bundle") or {}).get("index_path_root_scoped", False))
+        ),
     }
 
     governance_b_checks = {
@@ -359,6 +405,7 @@ def _evaluate_seed(
     }
 
     realism_b_checks = {
+        "cohort_metrics_available": bool(metrics_available),
         "c_multi_nonempty": c_multi_country_count > 0,
         "c_large_nonempty": c_large_country_count > 0,
         "c_multi_share_distinct_ge2_b": c_multi_share_distinct_ge2 >= B_THRESHOLDS["c_multi_share_distinct_ge2_min"],
@@ -370,6 +417,7 @@ def _evaluate_seed(
         "c_large_share_top1_lt_095_b": c_large_share_top1_lt_095 >= B_THRESHOLDS["c_large_share_top1_lt_095_min"],
     }
     realism_bplus_checks = {
+        "cohort_metrics_available": bool(metrics_available),
         "c_multi_nonempty": c_multi_country_count > 0,
         "c_large_nonempty": c_large_country_count > 0,
         "c_multi_share_distinct_ge2_bplus": c_multi_share_distinct_ge2

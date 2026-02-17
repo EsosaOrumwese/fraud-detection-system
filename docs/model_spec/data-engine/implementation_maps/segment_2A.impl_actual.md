@@ -3760,3 +3760,67 @@ Execution plan:
 3) Materialize missing required seeds and execute `1A -> 1B -> 2A` chains in `runs/fix-data-engine/segment_2A`.
 4) Run aggregate certification scorer across all required seeds.
 5) Record closure artifacts and verdict in build plan + logbook.
+
+---
+
+### Entry: 2026-02-17 05:45
+
+Design element: P2 scorer implementation (`tools/score_segment2a_p2_certification.py`).
+Summary: Implemented deterministic P2 scorer with per-seed and aggregate certification outputs. Initial run on existing artifacts verified scorer behavior and confirmed immediate fail posture due missing required seed coverage and realism misses on seed `42`.
+
+Implementation details:
+1) Added scorer tool:
+   - `tools/score_segment2a_p2_certification.py`.
+2) Encoded cohort contract:
+   - `C_multi`: `tz_world_support_count >= 2` and `site_count >= 100`.
+   - `C_large`: `site_count >= 500`.
+   - normalized entropy: `H / ln(tz_world_support_count)`.
+3) Encoded B/B+ hard gates:
+   - structural + governance + realism axes.
+4) Encoded cross-seed stability gates:
+   - CV thresholds (`B<=0.30`, `B+<=0.20`).
+5) Output artifacts:
+   - per-seed metrics JSON,
+   - country diagnostics CSV,
+   - aggregate certification JSON with explicit failing gates.
+
+Execution witness (pre-seed-pack materialization):
+1) compile:
+   - `python -m py_compile tools/score_segment2a_p2_certification.py` PASS.
+2) scorer run:
+   - `python tools/score_segment2a_p2_certification.py --runs-root runs/fix-data-engine/segment_2A --output-dir runs/fix-data-engine/segment_2A/reports`.
+3) initial result:
+   - `FAIL_REALISM` with missing required seeds (`7,101,202`) and B realism misses on seed `42`.
+
+---
+
+### Entry: 2026-02-17 07:57
+
+Design element: P2 required-seed execution + final certification.
+Summary: Executed required-seed materialization attempts under frozen code/policy posture and completed full P2 certification pass. Seed `7` completed full `S0..S5`; seeds `101` and `202` failed fail-closed at `S1` governance gates; aggregate verdict remains `FAIL_REALISM`.
+
+Execution sequence and outcomes:
+1) Seed materialization method correction:
+   - first attempt used `SEED` only and unintentionally stayed on seed `42`.
+   - corrected by using `SEG1A_S0_SEED=<seed>` at S0, then pinning `RUN_ID` through downstream states.
+2) Required seed runs:
+   - seed `7`:
+     - run-id `07891eca4e6ea549a4d836db35e203aa`.
+     - full `1A->1B->2A` completed (`S0..S5` PASS in 2A).
+   - seed `101`:
+     - run-id `513f4f2904d1ac97f2396c059a9573da`.
+     - 2A `S1` fail-closed at `2A-S1-091` (`fallback_country_cap_exceeded`, CN fallback concentration).
+   - seed `202`:
+     - run-id `5a8836781dd7524da561ad5aa27f64d6`.
+     - 2A `S1` fail-closed at `2A-S1-090` (`fallback_rate_cap_exceeded`).
+3) Scorer enhancement:
+   - updated `tools/score_segment2a_p2_certification.py` to score incomplete seed attempts as explicit hard failures rather than silent missing seeds.
+4) Final certification run:
+   - `python tools/score_segment2a_p2_certification.py --runs-root runs/fix-data-engine/segment_2A --output-dir runs/fix-data-engine/segment_2A/reports`.
+   - emitted aggregate artifact:
+     - `runs/fix-data-engine/segment_2A/reports/segment2a_p2_certification_42-b65bfe6e_7-07891eca_101-513f4f29_202-5a883678.json`.
+
+Decision:
+1) P2 execution is complete and fail-closed.
+2) Certification verdict is `FAIL_REALISM` with explicit seed-level and gate-level blockers.
+3) Natural next remediation lane is `P3` targeted correction under strict governance veto gates.
