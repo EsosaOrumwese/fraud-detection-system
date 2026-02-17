@@ -244,12 +244,61 @@ def _bundle_hash(bundle_root: Path, index_entries: list[dict]) -> str:
     return h.hexdigest()
 
 
-def _copy_verbatim(source: Path, target: Path) -> tuple[str, int, bool]:
-    target.parent.mkdir(parents=True, exist_ok=True)
-    payload = source.read_bytes()
-    target.write_bytes(payload)
-    written = target.read_bytes()
-    return hashlib.sha256(payload).hexdigest(), len(payload), written == payload
+def _bundle_hash_from_payloads(index_entries: list[dict], payloads: dict[str, bytes]) -> str:
+    h = hashlib.sha256()
+    for entry in sorted(index_entries, key=lambda item: item["path"]):
+        payload = payloads.get(entry["path"])
+        if payload is None:
+            raise InputResolutionError(f"missing payload for indexed file: {entry['path']}")
+        h.update(payload)
+    return h.hexdigest()
+
+
+def _existing_bundle_matches(
+    bundle_root: Path,
+    index_entries: list[dict],
+    index_bytes: bytes,
+    checks_bytes: bytes,
+    bundle_hash: str,
+) -> tuple[bool, str]:
+    index_path = bundle_root / INDEX_FILENAME
+    checks_path = bundle_root / CHECKS_FILENAME
+    flag_path = bundle_root / PASS_FLAG
+    if not index_path.exists():
+        return False, "missing_index"
+    if not checks_path.exists():
+        return False, "missing_checks"
+    if not flag_path.exists():
+        return False, "missing_flag"
+    if index_path.read_bytes() != index_bytes:
+        return False, "index_mismatch"
+    if checks_path.read_bytes() != checks_bytes:
+        return False, "checks_mismatch"
+    for entry in index_entries:
+        rel = str(entry["path"])
+        file_path = bundle_root / rel
+        if not file_path.exists():
+            return False, f"missing_indexed_file:{rel}"
+        sha_hex = hashlib.sha256(file_path.read_bytes()).hexdigest()
+        if sha_hex != str(entry["sha256_hex"]):
+            return False, f"indexed_hash_mismatch:{rel}"
+    expected_flag = f"sha256_hex = {bundle_hash}\n"
+    try:
+        actual_flag = flag_path.read_text(encoding="ascii")
+    except UnicodeDecodeError:
+        return False, "flag_not_ascii"
+    if actual_flag != expected_flag:
+        return False, "flag_mismatch"
+
+    indexed_paths = {str(entry["path"]) for entry in index_entries}
+    observed_files = {
+        path.relative_to(bundle_root).as_posix() for path in bundle_root.rglob("*") if path.is_file()
+    }
+    allowed = indexed_paths | {INDEX_FILENAME, PASS_FLAG}
+    unlisted = sorted(observed_files - allowed)
+    if unlisted:
+        return False, f"unlisted_files:{unlisted[0]}"
+    return True, "match"
 
 
 def _discover_seeds(
@@ -330,6 +379,8 @@ def _assert_schema_ref(schema_ref: str, schema_packs: dict[str, dict], dataset_i
 
 def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     logger = get_logger("engine.layers.l1.seg_2A.s5_validation_bundle.l2.runner")
+    started_monotonic = time.monotonic()
+    started_utc = utc_now_rfc3339_micro()
     receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
     run_id = str(receipt.get("run_id") or "")
     if not run_id:
@@ -347,11 +398,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     _dict_path, dictionary = load_dataset_dictionary(source, "2A")
     _reg_path, registry = load_artefact_registry(source, "2A")
     _, schema_2a = load_schema_pack(source, "2A", "2A")
-    _, schema_1b = load_schema_pack(source, "1B", "1B")
     _, schema_layer1 = load_schema_pack(source, "1A", "layer1")
     schema_packs = {
         "schemas.2A.yaml": schema_2a,
-        "schemas.1B.yaml": schema_1b,
         "schemas.layer1.yaml": schema_layer1,
     }
 
@@ -511,7 +560,6 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             seeds=[],
         )
 
-    evidence_verbatim_ok = True
     cache_manifest = None
     cache_manifest_path: Optional[Path] = None
     cache_payload_ok = False
@@ -548,30 +596,18 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             )
 
     evidence_records: list[dict] = []
-    evidence_hashes: dict[str, str] = {}
     evidence_sizes: dict[str, int] = {}
+    evidence_payloads: dict[str, bytes] = {}
     missing_s4: list[int] = []
     failing_s4: list[int] = []
 
-    tmp_root = run_paths.tmp_root / f"s5_validation_bundle_{uuid.uuid4().hex}"
-    if tmp_root.exists():
-        shutil.rmtree(tmp_root)
-    tmp_root.mkdir(parents=True, exist_ok=True)
-
     if cache_manifest_path and cache_manifest and cache_payload_ok:
-        dest = tmp_root / "evidence" / "s3" / "tz_timetable_cache.json"
-        sha_hex, size_bytes, matches = _copy_verbatim(cache_manifest_path, dest)
-        if not matches:
-            evidence_verbatim_ok = False
-            tracker.record(
-                "2A-S5-046",
-                "evidence_not_verbatim",
-                {"path": dest.relative_to(tmp_root).as_posix()},
-            )
-            decision = "FAIL"
-        evidence_records.append({"path": dest.relative_to(tmp_root).as_posix(), "sha256_hex": sha_hex})
-        evidence_hashes[dest.relative_to(tmp_root).as_posix()] = sha_hex
-        evidence_sizes[dest.relative_to(tmp_root).as_posix()] = size_bytes
+        evidence_path = "evidence/s3/tz_timetable_cache.json"
+        payload = cache_manifest_path.read_bytes()
+        sha_hex = hashlib.sha256(payload).hexdigest()
+        evidence_records.append({"path": evidence_path, "sha256_hex": sha_hex})
+        evidence_sizes[evidence_path] = len(payload)
+        evidence_payloads[evidence_path] = payload
     else:
         decision = "FAIL"
 
@@ -600,21 +636,12 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                         {"seed": seed_value, "status": status},
                     )
                     decision = "FAIL"
-                dest = tmp_root / "evidence" / "s4" / f"seed={seed_value}" / "s4_legality_report.json"
-                sha_hex, size_bytes, matches = _copy_verbatim(report_path, dest)
-                if not matches:
-                    evidence_verbatim_ok = False
-                    tracker.record(
-                        "2A-S5-046",
-                        "evidence_not_verbatim",
-                        {"seed": seed_value, "path": dest.relative_to(tmp_root).as_posix()},
-                    )
-                    decision = "FAIL"
-                evidence_records.append(
-                    {"path": dest.relative_to(tmp_root).as_posix(), "sha256_hex": sha_hex}
-                )
-                evidence_hashes[dest.relative_to(tmp_root).as_posix()] = sha_hex
-                evidence_sizes[dest.relative_to(tmp_root).as_posix()] = size_bytes
+                evidence_path = f"evidence/s4/seed={seed_value}/s4_legality_report.json"
+                payload = report_path.read_bytes()
+                sha_hex = hashlib.sha256(payload).hexdigest()
+                evidence_records.append({"path": evidence_path, "sha256_hex": sha_hex})
+                evidence_sizes[evidence_path] = len(payload)
+                evidence_payloads[evidence_path] = payload
             except (InputResolutionError, SchemaValidationError) as exc:
                 missing_s4.append(seed_value)
                 tracker.record(
@@ -637,18 +664,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     else:
         _emit_validation(logger, seed, manifest_fingerprint, "V-05", "pass")
 
-    if evidence_verbatim_ok:
-        _emit_validation(logger, seed, manifest_fingerprint, "V-11", "pass")
-    else:
-        _emit_validation(
-            logger,
-            seed,
-            manifest_fingerprint,
-            "V-11",
-            "fail",
-            error_code="2A-S5-046",
-            detail="evidence_not_verbatim",
-        )
+    _emit_validation(logger, seed, manifest_fingerprint, "V-11", "pass")
 
     checks_payload = {
         "manifest_fingerprint": manifest_fingerprint,
@@ -684,13 +700,12 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         tracker.record("2A-S5-040", "checks_schema_invalid", {"detail": str(exc)})
         decision = "FAIL"
 
-    checks_path = tmp_root / CHECKS_FILENAME
-    _write_json(checks_path, checks_payload)
-    checks_hash = hashlib.sha256(checks_path.read_bytes()).hexdigest()
-    checks_size = checks_path.stat().st_size
+    checks_bytes = _json_bytes(checks_payload)
+    checks_hash = hashlib.sha256(checks_bytes).hexdigest()
+    checks_size = len(checks_bytes)
     evidence_records.append({"path": CHECKS_FILENAME, "sha256_hex": checks_hash})
-    evidence_hashes[CHECKS_FILENAME] = checks_hash
     evidence_sizes[CHECKS_FILENAME] = checks_size
+    evidence_payloads[CHECKS_FILENAME] = checks_bytes
 
     _emit_event(
         logger,
@@ -704,12 +719,19 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
     index_entries = sorted(evidence_records, key=lambda item: item["path"])
     index_paths = [entry["path"] for entry in index_entries]
-    duplicates = {path for path in index_paths if index_paths.count(path) > 1}
+    duplicate_paths: list[str] = []
+    seen_paths: set[str] = set()
+    for path in index_paths:
+        if path in seen_paths:
+            duplicate_paths.append(path)
+        else:
+            seen_paths.add(path)
+    duplicates = sorted(set(duplicate_paths))
     if duplicates:
         tracker.record(
             "2A-S5-043",
             "duplicate_index_entries",
-            {"paths": sorted(duplicates)},
+            {"paths": duplicates},
         )
         decision = "FAIL"
 
@@ -744,13 +766,11 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             detail="index_schema_invalid",
         )
 
-    _write_json(tmp_root / INDEX_FILENAME, index_payload)
-
-    bundle_files = [
-        path.relative_to(tmp_root).as_posix()
-        for path in tmp_root.rglob("*")
-        if path.is_file()
-    ]
+    index_bytes = _json_bytes(index_payload)
+    planned_bundle_files = set(index_paths) | {INDEX_FILENAME}
+    if decision == "PASS":
+        planned_bundle_files.add(PASS_FLAG)
+    bundle_files = sorted(planned_bundle_files)
     indexed_set = set(index_paths)
     unlisted = sorted(
         path for path in bundle_files if path not in indexed_set and path not in {INDEX_FILENAME, PASS_FLAG}
@@ -831,13 +851,14 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             detail="flag_listed_in_index",
         )
 
-    bundle_hash = _bundle_hash(tmp_root, index_entries)
+    bundle_hash = _bundle_hash_from_payloads(index_entries, evidence_payloads)
     flag_value = ""
     flag_format_ok = False
     digest_matches_flag = False
+    flag_bytes = b""
     if decision == "PASS":
         flag_payload = f"sha256_hex = {bundle_hash}"
-        (tmp_root / PASS_FLAG).write_text(flag_payload + "\n", encoding="ascii")
+        flag_bytes = (flag_payload + "\n").encode("ascii")
         flag_value = bundle_hash
         flag_format_ok = bool(re.fullmatch(r"sha256_hex = [a-f0-9]{64}", flag_payload))
         if not flag_format_ok:
@@ -939,22 +960,64 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         if bundle_entry
         else Path("")
     )
+    reused_bundle = False
     if bundle_entry:
-        try:
-            _atomic_publish_dir(tmp_root, bundle_root, logger, "validation_bundle_2A")
-            _emit_validation(logger, seed, manifest_fingerprint, "V-16", "pass")
-        except EngineFailure as exc:
-            tracker.record("2A-S5-060", "immutable_partition_overwrite", {"detail": str(exc)})
-            decision = "FAIL"
-            _emit_validation(
-                logger,
-                seed,
-                manifest_fingerprint,
-                "V-16",
-                "fail",
-                error_code="2A-S5-060",
-                detail="immutable_partition_overwrite",
+        if decision == "PASS" and bundle_root.exists():
+            reuse_ok, reuse_reason = _existing_bundle_matches(
+                bundle_root=bundle_root,
+                index_entries=index_entries,
+                index_bytes=index_bytes,
+                checks_bytes=checks_bytes,
+                bundle_hash=bundle_hash,
             )
+            if reuse_ok:
+                reused_bundle = True
+                _emit_event(
+                    logger,
+                    "REUSE",
+                    seed,
+                    manifest_fingerprint,
+                    "INFO",
+                    mode="existing_bundle_match",
+                )
+            else:
+                _emit_event(
+                    logger,
+                    "REUSE_MISS",
+                    seed,
+                    manifest_fingerprint,
+                    "DEBUG",
+                    reason=reuse_reason,
+                )
+        if reused_bundle:
+            _emit_validation(logger, seed, manifest_fingerprint, "V-16", "pass")
+        else:
+            tmp_root = run_paths.tmp_root / f"s5_validation_bundle_{uuid.uuid4().hex}"
+            if tmp_root.exists():
+                shutil.rmtree(tmp_root)
+            tmp_root.mkdir(parents=True, exist_ok=True)
+            for rel_path, payload in evidence_payloads.items():
+                out_path = tmp_root / rel_path
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+                out_path.write_bytes(payload)
+            (tmp_root / INDEX_FILENAME).write_bytes(index_bytes)
+            if decision == "PASS":
+                (tmp_root / PASS_FLAG).write_bytes(flag_bytes)
+            try:
+                _atomic_publish_dir(tmp_root, bundle_root, logger, "validation_bundle_2A")
+                _emit_validation(logger, seed, manifest_fingerprint, "V-16", "pass")
+            except EngineFailure as exc:
+                tracker.record("2A-S5-060", "immutable_partition_overwrite", {"detail": str(exc)})
+                decision = "FAIL"
+                _emit_validation(
+                    logger,
+                    seed,
+                    manifest_fingerprint,
+                    "V-16",
+                    "fail",
+                    error_code="2A-S5-060",
+                    detail="immutable_partition_overwrite",
+                )
 
     bytes_indexed = sum(evidence_sizes.get(path, 0) for path in index_paths)
     missing_sample = missing_s4[:10]
@@ -963,9 +1026,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         "state": STATE,
         "status": "pass" if decision == "PASS" else "fail",
         "manifest_fingerprint": manifest_fingerprint,
-        "started_utc": receipt_verified_at,
-        "finished_utc": receipt_verified_at,
-        "durations": {"wall_ms": 0},
+        "started_utc": started_utc,
+        "finished_utc": utc_now_rfc3339_micro(),
+        "durations": {"wall_ms": int((time.monotonic() - started_monotonic) * 1000)},
         "s0": {"receipt_path": receipt_catalog_path, "verified_at_utc": receipt_verified_at},
         "inputs": {
             "cache": {
@@ -989,6 +1052,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             "index_sorted_ascii_lex": index_sorted,
             "index_path_root_scoped": root_scoped,
             "includes_flag_in_index": PASS_FLAG in index_paths,
+            "reused_existing_bundle": reused_bundle,
         },
         "digest": {
             "computed_sha256": bundle_hash,

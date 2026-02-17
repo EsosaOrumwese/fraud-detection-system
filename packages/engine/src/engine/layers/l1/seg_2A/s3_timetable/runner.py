@@ -76,6 +76,8 @@ _TZ_SOURCE_ALLOWLIST = {
     "solar88",
     "solar89",
 }
+_S3_INDEX_CACHE_SCHEMA = "s3_tz_index_v1"
+_PROGRESS_LOG_INTERVAL_SECONDS = 1.0
 
 
 @dataclass(frozen=True)
@@ -113,7 +115,7 @@ class _ProgressTracker:
     def update(self, count: int) -> None:
         self._processed += int(count)
         now = time.monotonic()
-        if now - self._last_log < 0.5 and not (
+        if now - self._last_log < _PROGRESS_LOG_INTERVAL_SECONDS and not (
             self._total is not None and self._processed >= self._total
         ):
             return
@@ -214,6 +216,112 @@ def _emit_failure_event(
 def _write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True), encoding="utf-8")
+
+
+def _s3_index_cache_root(runs_root: Path) -> Path:
+    return runs_root / "_shared_cache" / "segment_2A" / "s3_timetable"
+
+
+def _s3_index_cache_dir(runs_root: Path, archive_sha256: str) -> Path:
+    return _s3_index_cache_root(runs_root) / _S3_INDEX_CACHE_SCHEMA / archive_sha256.lower()
+
+
+def _try_load_s3_index_cache(
+    runs_root: Path,
+    archive_sha256: str,
+    logger,
+    manifest_fingerprint: str,
+) -> Optional[dict]:
+    cache_dir = _s3_index_cache_dir(runs_root, archive_sha256)
+    meta_path = cache_dir / "index_meta.json"
+    bytes_path = cache_dir / "index_bytes.bin"
+    if not meta_path.exists() or not bytes_path.exists():
+        return None
+    try:
+        meta = _load_json(meta_path)
+        if not isinstance(meta, dict):
+            raise ValueError("index_meta.json payload must be an object")
+        if meta.get("schema") != _S3_INDEX_CACHE_SCHEMA:
+            raise ValueError("schema mismatch")
+        if str(meta.get("tzdb_archive_sha256", "")).lower() != archive_sha256.lower():
+            raise ValueError("archive digest mismatch")
+        compiled_tzids = meta.get("compiled_tzids")
+        if not isinstance(compiled_tzids, list) or not compiled_tzids:
+            raise ValueError("compiled_tzids missing/empty")
+        cache_bytes = bytes_path.read_bytes()
+        if len(cache_bytes) != int(meta.get("rle_cache_bytes", -1)):
+            raise ValueError("cache bytes length mismatch")
+        digest = hashlib.sha256(cache_bytes).hexdigest()
+        if digest != str(meta.get("tz_index_digest", "")):
+            raise ValueError("cache digest mismatch")
+        return {
+            "tz_index_digest": digest,
+            "cache_bytes": cache_bytes,
+            "compiled_tzids": {str(tzid) for tzid in compiled_tzids},
+            "tzid_count": int(meta.get("tzid_count", 0)),
+            "transitions_total": int(meta.get("transitions_total", 0)),
+            "offset_minutes_min": int(meta.get("offset_minutes_min", 0)),
+            "offset_minutes_max": int(meta.get("offset_minutes_max", 0)),
+            "rle_cache_bytes": int(meta.get("rle_cache_bytes", 0)),
+            "adjustments_sample": meta.get("adjustments_sample", []),
+            "adjustments_count": int(meta.get("adjustments_count", 0)),
+        }
+    except Exception as exc:
+        _emit_event(
+            logger,
+            "CACHE_LOAD_WARN",
+            manifest_fingerprint,
+            "WARN",
+            cache_dir=str(cache_dir),
+            detail=str(exc),
+        )
+        return None
+
+
+def _write_s3_index_cache(
+    runs_root: Path,
+    archive_sha256: str,
+    cache_bytes: bytes,
+    *,
+    tz_index_digest: str,
+    compiled_tzids: set[str],
+    tzid_count: int,
+    transitions_total: int,
+    offset_minutes_min: int,
+    offset_minutes_max: int,
+    rle_cache_bytes: int,
+    adjustments: list[dict],
+) -> None:
+    cache_dir = _s3_index_cache_dir(runs_root, archive_sha256)
+    if cache_dir.exists():
+        return
+    cache_dir.parent.mkdir(parents=True, exist_ok=True)
+    tmp_root = cache_dir.parent / f".tmp_{cache_dir.name}_{uuid.uuid4().hex}"
+    tmp_root.mkdir(parents=True, exist_ok=True)
+    try:
+        (tmp_root / "index_bytes.bin").write_bytes(cache_bytes)
+        meta = {
+            "schema": _S3_INDEX_CACHE_SCHEMA,
+            "tzdb_archive_sha256": archive_sha256.lower(),
+            "tz_index_digest": tz_index_digest,
+            "tzid_count": int(tzid_count),
+            "transitions_total": int(transitions_total),
+            "offset_minutes_min": int(offset_minutes_min),
+            "offset_minutes_max": int(offset_minutes_max),
+            "rle_cache_bytes": int(rle_cache_bytes),
+            "compiled_tzids": sorted(str(tzid) for tzid in compiled_tzids),
+            "adjustments_count": len(adjustments),
+            "adjustments_sample": adjustments[:10],
+        }
+        _write_json(tmp_root / "index_meta.json", meta)
+        try:
+            tmp_root.replace(cache_dir)
+        except FileExistsError:
+            # Concurrent or prior writer won the cache key race; keep existing.
+            pass
+    finally:
+        if tmp_root.exists():
+            shutil.rmtree(tmp_root, ignore_errors=True)
 
 
 def _resolve_schema_ref(entry: dict, registry_entry: Optional[dict], dataset_id: str) -> str:
@@ -352,8 +460,8 @@ def _load_tzid_set(path: Path) -> set[str]:
         table = pq.read_table(path, columns=["tzid"])
         tzids = table.column("tzid").to_pylist()
         return {str(tzid) for tzid in tzids if tzid is not None}
-    df = pl.read_parquet(path, columns=["tzid"])
-    return {str(row["tzid"]) for row in df.iter_rows(named=True) if row.get("tzid") is not None}
+    tzids = pl.read_parquet(path, columns=["tzid"]).get_column("tzid").to_list()
+    return {str(tzid) for tzid in tzids if tzid is not None}
 
 
 def _detect_zic() -> tuple[list[str], bool] | tuple[None, None]:
@@ -628,6 +736,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     output_root: Optional[Path] = None
     run_report_path: Optional[Path] = None
     adjustments: list[dict] = []
+    adjustments_count = 0
 
     counts = {
         "tzid_count": 0,
@@ -1000,96 +1109,157 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             tz_world=tz_world_catalog_path,
         )
 
-        tzdb_tmp_root: Optional[Path] = None
-        compiled_entries: list[tuple[str, list[tuple[int, int]]]] = []
-        offset_min: Optional[int] = None
-        offset_max: Optional[int] = None
-        transitions_total = 0
-        try:
-            output_dir, tzdb_tmp_root = _compile_tzdb(
-                archive_path,
-                run_paths.tmp_root,
+        cache_hit = False
+        compiled_tzids: set[str] = set()
+        cache_bytes: bytes = b""
+        tz_index_digest = ""
+        cache_payload = _try_load_s3_index_cache(
+            run_paths.runs_root,
+            str(tzdb_archive_sha256),
+            logger,
+            str(manifest_fingerprint),
+        )
+        if cache_payload is not None:
+            cache_hit = True
+            cache_bytes = cache_payload["cache_bytes"]
+            tz_index_digest = cache_payload["tz_index_digest"]
+            compiled_tzids = cache_payload["compiled_tzids"]
+            counts["tzid_count"] = cache_payload["tzid_count"]
+            counts["transitions_total"] = cache_payload["transitions_total"]
+            counts["offset_minutes_min"] = cache_payload["offset_minutes_min"]
+            counts["offset_minutes_max"] = cache_payload["offset_minutes_max"]
+            counts["rle_cache_bytes"] = cache_payload["rle_cache_bytes"]
+            adjustments = list(cache_payload.get("adjustments_sample", []))
+            adjustments_count = int(cache_payload.get("adjustments_count", len(adjustments)))
+            _emit_event(
                 logger,
+                "CACHE_HIT",
                 str(manifest_fingerprint),
-                str(parameter_hash),
-                run_id,
+                "INFO",
+                cache_key=str(tzdb_archive_sha256).lower(),
+                tzid_count=counts["tzid_count"],
+                rle_cache_bytes=counts["rle_cache_bytes"],
             )
-            tzifs = _collect_tzif_paths(output_dir)
-            if not tzifs:
-                _emit_failure_event(
+            _emit_validation(logger, str(manifest_fingerprint), "V-04", "pass")
+        else:
+            tzdb_tmp_root: Optional[Path] = None
+            compiled_entries: list[tuple[str, list[tuple[int, int]]]] = []
+            offset_min: Optional[int] = None
+            offset_max: Optional[int] = None
+            transitions_total = 0
+            try:
+                output_dir, tzdb_tmp_root = _compile_tzdb(
+                    archive_path,
+                    run_paths.tmp_root,
                     logger,
-                    "2A-S3-021",
                     str(manifest_fingerprint),
                     str(parameter_hash),
                     run_id,
-                    {"detail": "compiled_index_empty"},
                 )
-                raise EngineFailure(
-                    "F4",
-                    "2A-S3-021",
-                    STATE,
-                    MODULE_NAME,
-                    {"detail": "compiled_index_empty"},
-                )
+                tzifs = _collect_tzif_paths(output_dir)
+                if not tzifs:
+                    _emit_failure_event(
+                        logger,
+                        "2A-S3-021",
+                        str(manifest_fingerprint),
+                        str(parameter_hash),
+                        run_id,
+                        {"detail": "compiled_index_empty"},
+                    )
+                    raise EngineFailure(
+                        "F4",
+                        "2A-S3-021",
+                        STATE,
+                        MODULE_NAME,
+                        {"detail": "compiled_index_empty"},
+                    )
 
+                _emit_event(
+                    logger,
+                    "TZDB_PARSE",
+                    str(manifest_fingerprint),
+                    "INFO",
+                    tzid_count=len(tzifs),
+                )
+                _emit_validation(logger, str(manifest_fingerprint), "V-04", "pass")
+
+                tzids_sorted = sorted(tzifs.keys())
+                progress = _ProgressTracker(len(tzids_sorted), logger, "S3 tzids")
+                for tzid in tzids_sorted:
+                    tzif_path = tzifs[tzid]
+                    transitions = _compile_tzid_index(tzid, tzif_path, adjustments)
+                    for instant, offset in transitions:
+                        if instant is None or offset is None:
+                            raise EngineFailure(
+                                "F4",
+                                "2A-S3-055",
+                                STATE,
+                                MODULE_NAME,
+                                {"detail": "nonfinite_value", "tzid": tzid},
+                            )
+                        is_sentinel = int(instant) == MIN_INSTANT
+                        if not is_sentinel and (offset < -900 or offset > 900):
+                            raise EngineFailure(
+                                "F4",
+                                "2A-S3-052",
+                                STATE,
+                                MODULE_NAME,
+                                {"detail": "offset_out_of_range", "tzid": tzid, "offset_minutes": offset},
+                            )
+                        offset_min = offset if offset_min is None else min(offset_min, offset)
+                        offset_max = offset if offset_max is None else max(offset_max, offset)
+                    transitions_total += max(len(transitions) - 1, 0)
+                    compiled_entries.append((tzid, transitions))
+                    progress.update(1)
+            finally:
+                if tzdb_tmp_root is not None:
+                    shutil.rmtree(tzdb_tmp_root, ignore_errors=True)
+
+            compiled_tzids = {tzid for tzid, _ in compiled_entries}
+            counts["tzid_count"] = len(compiled_entries)
+            counts["transitions_total"] = transitions_total
+            counts["offset_minutes_min"] = offset_min if offset_min is not None else 0
+            counts["offset_minutes_max"] = offset_max if offset_max is not None else 0
+            cache_bytes = _encode_index(compiled_entries)
+            tz_index_digest = hashlib.sha256(cache_bytes).hexdigest()
+            counts["rle_cache_bytes"] = len(cache_bytes)
+            adjustments_count = len(adjustments)
+            _write_s3_index_cache(
+                run_paths.runs_root,
+                str(tzdb_archive_sha256),
+                cache_bytes,
+                tz_index_digest=tz_index_digest,
+                compiled_tzids=compiled_tzids,
+                tzid_count=counts["tzid_count"],
+                transitions_total=counts["transitions_total"],
+                offset_minutes_min=counts["offset_minutes_min"],
+                offset_minutes_max=counts["offset_minutes_max"],
+                rle_cache_bytes=counts["rle_cache_bytes"],
+                adjustments=adjustments,
+            )
             _emit_event(
                 logger,
-                "TZDB_PARSE",
+                "CACHE_STORE",
                 str(manifest_fingerprint),
                 "INFO",
-                tzid_count=len(tzifs),
+                cache_key=str(tzdb_archive_sha256).lower(),
+                tzid_count=counts["tzid_count"],
+                rle_cache_bytes=counts["rle_cache_bytes"],
             )
-            _emit_validation(logger, str(manifest_fingerprint), "V-04", "pass")
 
-            tzids_sorted = sorted(tzifs.keys())
-            progress = _ProgressTracker(len(tzids_sorted), logger, "S3 tzids")
-            for tzid in tzids_sorted:
-                tzif_path = tzifs[tzid]
-                transitions = _compile_tzid_index(tzid, tzif_path, adjustments)
-                for instant, offset in transitions:
-                    if instant is None or offset is None:
-                        raise EngineFailure(
-                            "F4",
-                            "2A-S3-055",
-                            STATE,
-                            MODULE_NAME,
-                            {"detail": "nonfinite_value", "tzid": tzid},
-                        )
-                    is_sentinel = int(instant) == MIN_INSTANT
-                    if not is_sentinel and (offset < -900 or offset > 900):
-                        raise EngineFailure(
-                            "F4",
-                            "2A-S3-052",
-                            STATE,
-                            MODULE_NAME,
-                            {"detail": "offset_out_of_range", "tzid": tzid, "offset_minutes": offset},
-                        )
-                    offset_min = offset if offset_min is None else min(offset_min, offset)
-                    offset_max = offset if offset_max is None else max(offset_max, offset)
-                transitions_total += max(len(transitions) - 1, 0)
-                compiled_entries.append((tzid, transitions))
-                progress.update(1)
-        finally:
-            if tzdb_tmp_root is not None:
-                shutil.rmtree(tzdb_tmp_root, ignore_errors=True)
-
-        counts["tzid_count"] = len(compiled_entries)
-        counts["transitions_total"] = transitions_total
-        counts["offset_minutes_min"] = offset_min if offset_min is not None else 0
-        counts["offset_minutes_max"] = offset_max if offset_max is not None else 0
         _emit_event(
             logger,
             "COMPILE",
             str(manifest_fingerprint),
             "INFO",
             tzid_count=counts["tzid_count"],
-            transitions_total=transitions_total,
+            transitions_total=counts["transitions_total"],
             offset_minutes_min=counts["offset_minutes_min"],
             offset_minutes_max=counts["offset_minutes_max"],
+            cache_hit=cache_hit,
         )
         _emit_validation(logger, str(manifest_fingerprint), "V-05", "pass")
 
-        compiled_tzids = {tzid for tzid, _ in compiled_entries}
         missing = sorted(tzid_set - compiled_tzids)
         coverage["cache_tzids"] = len(compiled_tzids)
         coverage["missing_count"] = len(missing)
@@ -1120,10 +1290,6 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             missing_count=coverage["missing_count"],
         )
         _emit_validation(logger, str(manifest_fingerprint), "V-15", "pass")
-
-        cache_bytes = _encode_index(compiled_entries)
-        tz_index_digest = hashlib.sha256(cache_bytes).hexdigest()
-        counts["rle_cache_bytes"] = len(cache_bytes)
         _emit_event(
             logger,
             "CANONICALISE",
@@ -1307,9 +1473,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 "warnings": warnings,
                 "errors": errors,
             }
-            if adjustments:
+            if adjustments_count > 0:
                 run_report["adjustments"] = {
-                    "count": len(adjustments),
+                    "count": int(adjustments_count),
                     "sample": adjustments[:10],
                 }
             _write_json(run_report_path, run_report)

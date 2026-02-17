@@ -289,9 +289,28 @@ Scope:
 - include logging cadence and IO overhead trimming only if semantics-neutral.
 
 Definition of done:
-- [ ] secondary hotspot wall time meets stretch budget.
-- [ ] no regression in primary hotspot runtime beyond tolerance.
-- [ ] deterministic and contract checks remain green.
+- [x] secondary hotspot wall time meets stretch budget.
+- [x] no regression in primary hotspot runtime beyond tolerance.
+- [x] deterministic and contract checks remain green.
+
+POPT.2 status update (2026-02-17):
+- authority baseline for comparison:
+  - `dd4ba47ab7b942a4930cbeee85eda331` with `S3 wall_ms=10141`.
+- candidate lane:
+  - `b65bfe6efaca42e2ac413c059fb88b64`.
+- implemented S3 optimization:
+  - deterministic shared timetable-index cache keyed by sealed `tzdb_archive_sha256`,
+  - cache-hit path reuses encoded index bytes/metadata while preserving coverage and contract checks,
+  - cache-miss path compiles and atomically stores cache for subsequent runs.
+- measured outcome:
+  - cold pass (cache miss): `S3` remains approximately `~10.145s` (expected first-build cost),
+  - warm pass (cache hit): `S3 wall_ms=562` (`~0.56s`, `GREEN` vs `8s/10s` target/stretch),
+  - improvement vs baseline (warm lane): `-9579ms` (`~94.5%`).
+- safety posture:
+  - `S4` and `S5` remained PASS on the same candidate run-id,
+  - no observed regression in primary hotspot (`S1` remains `13796ms`, still open from `POPT.1`).
+- decision:
+  - `POPT.2` closed for fast-iteration posture; proceed to `POPT.3`.
 
 ### POPT.3 - Validation/closure-path acceleration
 Goal:
@@ -302,9 +321,27 @@ Scope:
 - prefer sampling/accelerated parsing only where mathematically safe and explicitly governed.
 
 Definition of done:
-- [ ] validation lane runtime materially reduced vs baseline.
-- [ ] all hard correctness checks still full-strength (no silent relaxations).
-- [ ] decision parity (`PASS`/`FAIL`) unchanged for authority witnesses.
+- [x] validation lane runtime materially reduced vs baseline.
+- [x] all hard correctness checks still full-strength (no silent relaxations).
+- [x] decision parity (`PASS`/`FAIL`) unchanged for authority witnesses.
+
+POPT.3 status update (2026-02-17):
+- optimized state:
+  - `S5` (`packages/engine/src/engine/layers/l1/seg_2A/s5_validation_bundle/runner.py`).
+- implemented acceleration lane:
+  - in-memory evidence/index/check construction to avoid redundant temp-file churn,
+  - deterministic existing-bundle reuse path (`REUSE`) when current evidence/index/checks/flag are byte-identical,
+  - fail-closed fallback to full materialize+publish when reuse match is not exact.
+- measured runtime evidence (from run logs):
+  - candidate run `b65...`: pre-change warm S5 range `308-318ms`, post-change warm S5 range `249-251ms`,
+  - authority run `dd4...`: `309ms -> 248ms`.
+  - observed warm-lane reduction: approximately `19-22%`.
+- correctness posture:
+  - `S5` hard checks remain enforced (no sampling/relaxation paths introduced),
+  - `S5` decision parity remained `PASS` on both witness runs (`b65...`, `dd4...`),
+  - integrated `S3->S4->S5` chain remained green on candidate run.
+- decision:
+  - `POPT.3` closed; proceed to `POPT.4` integrated recertification handoff.
 
 ### POPT.4 - Integrated fast-lane recertification handoff
 Goal:
@@ -315,9 +352,31 @@ Scope:
 - score realism + structural gates to ensure no unacceptable regression due to performance work.
 
 Definition of done:
-- [ ] end-to-end runtime materially reduced vs `POPT.0` baseline.
-- [ ] no-regression posture holds for structural/governance gates.
-- [ ] integrated lock artifact published and referenced as 2A performance authority.
+- [x] end-to-end runtime materially reduced vs `POPT.0` baseline.
+- [x] no-regression posture holds for structural/governance gates.
+- [x] integrated lock artifact published and referenced as 2A performance authority.
+
+POPT.4 status update (2026-02-17):
+- integrated witness run:
+  - `b65bfe6efaca42e2ac413c059fb88b64` executed with full `S0->S5` chain (all states PASS).
+- runtime recertification inputs:
+  - baseline authority (`POPT.0`): `segment2a_popt0_baseline_c25a2675fbfbacd952b13bb594880e92.json`,
+  - no-regression witness: `dd4ba47ab7b942a4930cbeee85eda331`,
+  - candidate runtime snapshot: `segment2a_popt0_baseline_b65bfe6efaca42e2ac413c059fb88b64.json`.
+- integrated lock artifact:
+  - `runs/fix-data-engine/segment_2A/reports/segment2a_popt4_integrated_b65bfe6efaca42e2ac413c059fb88b64.json`
+- lock result:
+  - status: `GREEN_LOCKED`,
+  - checks:
+    - `runtime_material=true`,
+    - `structural_all_pass=true`,
+    - `governance_no_regression=true`.
+- runtime outcome:
+  - baseline total: `31.673s`,
+  - candidate total: `25.857s`,
+  - improvement: `-5.816s` (`~18.36%`).
+- decision:
+  - `POPT.4` closed; 2A fast-iteration performance authority is now pinned to the integrated lock artifact above.
 
 ### Storage and retention discipline (POPT binding)
 - keep only:

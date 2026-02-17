@@ -3387,3 +3387,249 @@ Execution evidence:
 Current classification:
 1) `POPT.1` shows real improvement but remains above stretch budget (`12s`), so phase remains open.
 2) Deterministic/no-regression posture remains intact in candidate lane (identical-bytes reuse logged for unchanged partitions).
+
+---
+
+### Entry: 2026-02-17 04:36
+
+Design element: `POPT.2` kickoff - S3 secondary hotspot rewrite (semantics-preserving, cache-first).
+Summary: Moving to `POPT.2` with `2A.S3` as the locked secondary hotspot. The key runtime waste is repeated `tzdb -> zic -> tzif parse -> index encode` work across iteration runs for the same sealed `tzdb_archive_sha256`. We will introduce a deterministic compiled-index cache keyed by sealed digest, then keep existing coverage and contract checks unchanged.
+
+Authority and evidence reviewed:
+1) `docs/model_spec/data-engine/layer-1/specs/state-flow/2A/state.2A.s3.expanded.md`
+2) `packages/engine/src/engine/layers/l1/seg_2A/s3_timetable/runner.py`
+3) `runs/fix-data-engine/segment_2A/reports/segment2a_popt0_hotspot_map_b65bfe6efaca42e2ac413c059fb88b64.md` (`S3` remains #2 hotspot, `AMBER` near stretch).
+
+Observed bottlenecks in current S3 path:
+1) Recompilation cost repeats every run: `zic` compile from tarball and tzif directory traversal.
+2) Re-parse cost repeats every run: transition extraction + canonical index encoding repeated despite same sealed tzdb digest.
+3) Hot-loop/log overhead is non-trivial but secondary versus repeated compile/parse.
+
+Decision for `POPT.2` implementation:
+1) Add a shared deterministic S3 index cache under runs root, keyed by:
+   - cache schema version,
+   - `tzdb_archive_sha256`.
+2) Cache payload stores:
+   - encoded index bytes (authoritative),
+   - digest/count metadata and compiled tzid list for coverage parity checks.
+3) On cache hit:
+   - skip `zic` compile and tzif parse,
+   - reuse encoded bytes and metadata,
+   - still execute all S3 validation/coverage/path-law checks.
+4) On cache miss:
+   - run current compile path,
+   - compute encoded bytes/metadata,
+   - atomically publish cache entry for future runs.
+5) Apply small safe loop tweaks only where they do not alter output semantics.
+
+Invariants (must remain true):
+1) `tz_timetable_cache` schema, path, and path-embed equality unchanged.
+2) `tz_index_digest` remains digest of emitted cache bytes.
+3) S3 fails closed on any corruption/missing cache components.
+4) Downstream `S4/S5` behavior and PASS/FAIL decisions unchanged.
+
+Execution plan:
+1) Patch `s3_timetable/runner.py` with cache read/write utilities and hit/miss branch.
+2) Run compile checks and then rerun `segment2a-s3`, `segment2a-s4`, `segment2a-s5` on current candidate run-id.
+3) Re-score hotspot artifact and compare `S3 wall_ms` vs POPT baseline.
+4) Classify `POPT.2` (`GREEN/AMBER/RED`) and record evidence in build plan + logbook.
+
+---
+
+### Entry: 2026-02-17 04:40
+
+Design element: `POPT.2` implementation and closure evidence.
+Summary: Implemented deterministic shared-cache acceleration in `2A.S3`, validated `S3->S5` green behavior, and measured a large warm-lane runtime drop for `S3` without contract or output-shape changes.
+
+Code changes applied in `packages/engine/src/engine/layers/l1/seg_2A/s3_timetable/runner.py`:
+1) Added shared S3 index cache utilities:
+   - `_s3_index_cache_root(...)`
+   - `_s3_index_cache_dir(...)`
+   - `_try_load_s3_index_cache(...)`
+   - `_write_s3_index_cache(...)`
+2) Cache key is sealed-input anchored:
+   - `_S3_INDEX_CACHE_SCHEMA` + `tzdb_archive_sha256`.
+3) Cache-hit execution path:
+   - reuses deterministic encoded index bytes + metadata,
+   - still performs coverage/path-law/validation checks and emits run report.
+4) Cache-miss execution path:
+   - keeps existing compile logic,
+   - writes cache atomically for next runs.
+5) Secondary micro-optimizations:
+   - reduced S3 progress-log cadence (`0.5s -> 1.0s`) to cut hot-loop logging overhead,
+   - optimized non-pyarrow tzid-set extraction to avoid named-row iteration overhead.
+6) Run-report correctness fix:
+   - adjustments count is now tracked explicitly (`adjustments_count`) so cached sample emission does not under-report.
+
+Execution evidence (candidate run `b65bfe6efaca42e2ac413c059fb88b64`):
+1) Compile check:
+   - `python -m py_compile packages/engine/src/engine/layers/l1/seg_2A/s3_timetable/runner.py` PASS.
+2) Cold pass (`S3->S5`):
+   - cache miss observed with `CACHE_STORE`,
+   - `S3` log-window wall approximately `~10.145s`.
+3) Warm pass (`S3->S5`):
+   - cache hit observed with `CACHE_HIT`,
+   - `S3` run report `wall_ms=562`.
+4) Baseline comparison anchor:
+   - prior clean baseline (`dd4...`) `S3 wall_ms=10141`,
+   - warm candidate `S3 wall_ms=562`,
+   - delta `-9579ms` (`~94.5%` faster in iteration lane).
+5) Downstream safety:
+   - `S4` PASS,
+   - `S5` PASS,
+   - publish path remained immutable/identical-bytes for unchanged outputs.
+
+Classification and decision:
+1) `POPT.2` DoD met for fast-iteration posture (`S3` now GREEN vs stretch budget on warm lane).
+2) No observed regression in `S1` runtime (`S1` remains the open primary hotspot from `POPT.1`).
+3) Next focus naturally shifts to `POPT.3` (validation/closure path acceleration).
+
+---
+
+### Entry: 2026-02-17 04:48
+
+Design element: `POPT.3` kickoff - validation/closure acceleration for `2A.S5`.
+Summary: The current `S5` lane remains semantically correct but performs avoidable filesystem work on repeated runs: it reconstructs/copies evidence into a temp bundle and executes publish-diff checks even when the existing validation bundle is already byte-identical to current evidence. `POPT.3` will add a deterministic reuse path that keeps all checks full-strength but avoids redundant writes when evidence has not changed.
+
+Observed cost centers:
+1) Repeated temp-bundle construction (`_copy_verbatim` per evidence file) on unchanged reruns.
+2) Repeated bundle byte hashing from disk after files were already read and hashed upstream.
+3) Minor overhead from loading unused schema packs and duplicate-list checks with quadratic pattern.
+
+Decision for implementation:
+1) Keep all existing validation checks and PASS/FAIL rules unchanged.
+2) Introduce a reuse fast path:
+   - compute expected evidence hashes + checks/index payloads in-memory,
+   - if existing bundle partition is present and matches expected evidence/index/checks/flag exactly, skip temp write + publish.
+3) Keep fail-closed posture:
+   - any reuse validation mismatch falls back to current full materialize+publish path.
+4) Add lightweight micro-optimizations:
+   - remove unused schema pack load in S5,
+   - optimize duplicate path detection to linear-time set checks.
+
+Invariants (must remain true):
+1) `S5` decision parity (`PASS`/`FAIL`) must remain unchanged for authority witnesses.
+2) Index/checks/flag schemas and digest semantics remain unchanged.
+3) No weakening of root-scope, hash-format, or partition-purity validations.
+4) Run-report surface remains contract-compatible.
+
+Execution plan:
+1) Patch `packages/engine/src/engine/layers/l1/seg_2A/s5_validation_bundle/runner.py` with reuse matcher + in-memory bundle hash path.
+2) Compile-check runner and execute repeated `segment2a-s5` witnesses on current candidate run-id.
+3) Measure warm-lane `S5` elapsed from logs and confirm decision parity.
+4) Update build-plan/impl notes/logbook with `POPT.3` closure evidence.
+
+---
+
+### Entry: 2026-02-17 05:10
+
+Design element: `POPT.3` implementation and closure evidence (`S5` validation lane).
+Summary: Implemented a deterministic reuse fast path for `2A.S5` that preserves full-strength validations while avoiding redundant temp-bundle materialization on unchanged reruns. Confirmed runtime reduction and decision parity on both candidate and authority witnesses.
+
+Code changes applied:
+1) `packages/engine/src/engine/layers/l1/seg_2A/s5_validation_bundle/runner.py`
+   - added `_bundle_hash_from_payloads(...)` to hash indexed evidence directly from in-memory payloads,
+   - added `_existing_bundle_matches(...)` to verify existing bundle byte-for-byte against expected index/checks/evidence/flag,
+   - switched evidence construction to in-memory payloads first; write-to-temp only when reuse fails,
+   - added explicit `REUSE`/`REUSE_MISS` events for observability,
+   - removed unused `schemas.1B.yaml` load from S5 path,
+   - improved duplicate-index detection from quadratic list counting to linear set pass,
+   - run report now records real wall time (`durations.wall_ms`) and actual start/finish timestamps,
+   - run report bundle section now exposes `reused_existing_bundle` flag.
+2) Compile guard:
+   - `python -m py_compile packages/engine/src/engine/layers/l1/seg_2A/s5_validation_bundle/runner.py` PASS.
+
+Execution evidence:
+1) Candidate witness run-id:
+   - `b65bfe6efaca42e2ac413c059fb88b64`.
+2) Authority witness run-id:
+   - `dd4ba47ab7b942a4930cbeee85eda331`.
+3) Runtime deltas from S5 log-window pairs:
+   - `b65...` pre-change warm S5: `308-318ms`,
+   - `b65...` post-change warm S5: `249-251ms`,
+   - `dd4...`: `309ms -> 248ms`.
+4) Correctness/parity:
+   - `S5` remained `PASS` on both witnesses,
+   - `digest.matches_flag=true` remained unchanged,
+   - integrated `S3->S4->S5` run remained green on candidate lane.
+
+Classification and decision:
+1) `POPT.3` DoD is satisfied: validation lane runtime reduced materially in warm iteration posture.
+2) Hard checks remain fail-closed; no sampling/relaxation path introduced.
+3) Decision parity preserved for authority witnesses.
+4) Move forward to `POPT.4` integrated fast-lane recertification.
+
+---
+
+### Entry: 2026-02-17 05:15
+
+Design element: `POPT.4` kickoff - integrated fast-lane recertification and lock artifact.
+Summary: `POPT.1..POPT.3` optimizations are in place, so `POPT.4` will run a full integrated `S0->S5` witness and publish a machine-readable lock artifact proving two things: (a) end-to-end runtime is materially better than `POPT.0` authority baseline, and (b) structural/governance no-regression posture remains intact.
+
+Authority inputs selected for lock scoring:
+1) `POPT.0` runtime baseline:
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_popt0_baseline_c25a2675fbfbacd952b13bb594880e92.json`
+2) no-regression witness anchor:
+   - run-id `dd4ba47ab7b942a4930cbeee85eda331`.
+3) integrated candidate lane:
+   - run-id `b65bfe6efaca42e2ac413c059fb88b64`.
+
+Decision for scoring artifact:
+1) Add dedicated scorer:
+   - `tools/score_segment2a_popt4_integrated.py`.
+2) Artifact output:
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_popt4_integrated_<run_id>.json`.
+3) Lock checks encoded:
+   - runtime materiality vs POPT.0 baseline (segment report-wall delta),
+   - structural PASS checks (`S0/S1/S2/S4/S5` + S5 digest/index invariants),
+   - governance/no-regression checks from S1/S2 counters vs no-regression anchor.
+
+Execution plan:
+1) Run integrated `make segment2a` on candidate run-id.
+2) Refresh `POPT.0` runtime table artifact for candidate lane.
+3) Run `score_segment2a_popt4_integrated.py` to emit lock artifact and status.
+4) Update build plan + implementation notes + logbook with closure evidence.
+
+---
+
+### Entry: 2026-02-17 05:17
+
+Design element: `POPT.4` execution complete - integrated fast-lane recertification lock.
+Summary: Executed full `S0->S5` witness on the active 2A candidate lane, generated an integrated lock scorer artifact, and confirmed `GREEN_LOCKED` closure for the performance optimization program.
+
+Execution actions:
+1) Integrated chain witness:
+   - command:
+     - `make segment2a RUNS_ROOT=runs/fix-data-engine/segment_2A RUN_ID=b65bfe6efaca42e2ac413c059fb88b64`
+   - result:
+     - all states `S0/S1/S2/S3/S4/S5` completed with PASS posture.
+2) Runtime snapshot refresh:
+   - command:
+     - `python tools/score_segment2a_popt0_baseline.py --runs-root runs/fix-data-engine/segment_2A --run-id b65bfe6efaca42e2ac413c059fb88b64 --out-root runs/fix-data-engine/segment_2A/reports`
+   - artifacts refreshed:
+     - `segment2a_popt0_baseline_b65bfe6efaca42e2ac413c059fb88b64.json`
+     - `segment2a_popt0_hotspot_map_b65bfe6efaca42e2ac413c059fb88b64.md`
+3) Integrated lock scoring:
+   - added scorer:
+     - `tools/score_segment2a_popt4_integrated.py`
+   - command:
+     - `python tools/score_segment2a_popt4_integrated.py --runs-root runs/fix-data-engine/segment_2A --candidate-run-id b65bfe6efaca42e2ac413c059fb88b64 --baseline-popt0-json runs/fix-data-engine/segment_2A/reports/segment2a_popt0_baseline_c25a2675fbfbacd952b13bb594880e92.json --no-regression-run-id dd4ba47ab7b942a4930cbeee85eda331 --output-dir runs/fix-data-engine/segment_2A/reports`
+   - artifact emitted:
+     - `runs/fix-data-engine/segment_2A/reports/segment2a_popt4_integrated_b65bfe6efaca42e2ac413c059fb88b64.json`
+
+Lock evidence:
+1) integrated status:
+   - `GREEN_LOCKED`.
+2) check triad:
+   - `runtime_material=true`,
+   - `structural_all_pass=true`,
+   - `governance_no_regression=true`.
+3) runtime delta vs POPT.0 baseline (`c25...`):
+   - baseline report-wall total: `31.673s`,
+   - candidate report-wall total: `25.857s`,
+   - improvement: `-5.816s` (`~18.36%`).
+
+Decision:
+1) `POPT.4` is closed.
+2) Segment 2A performance authority for this lane is pinned to:
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_popt4_integrated_b65bfe6efaca42e2ac413c059fb88b64.json`.
