@@ -35,7 +35,12 @@ _As of 2026-02-15_
   - `runs/fix-data-engine/segment_1A/reports/segment1a_p5_certification.json`
   - operational authority run: `416afa430db3f5bf87180f8514329fe8`
 - `1B` best-effort authority:
-  - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_9ebdd751ab7b4f9da246cc840ddff306.json`
+  - integrated lock report:
+    - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_a0ae54639efc4955bc41a2e266224e6e.json`
+  - no-regression authority run:
+    - `979129e39a89446b942df9a463f09508`
+  - freeze posture:
+    - `FROZEN_BEST_EFFORT_BELOW_B` (bounded realism sweep exhausted; no further 1B-local tuning in this cycle).
 
 ## 2) Remediation posture and boundaries
 - Primary realism weakness acknowledged by authority docs:
@@ -201,3 +206,87 @@ Definition of done:
   - contradiction evidence,
   - precise state/knob scope,
   - explicit approval before execution.
+
+## 8) Performance Optimization Set (POPT.0 -> POPT.4)
+Objective:
+- make 2A iteration minute-scale before deeper realism loops, using the same hotspot-first method used in 1B.
+
+Execution posture:
+- performance-first, semantics-preserving by default.
+- no contract/schema/output-shape relaxations.
+- deterministic outputs and fail-closed gates remain mandatory.
+
+### POPT.0 - Baseline runtime and hotspot contract lock
+Goal:
+- freeze an auditable runtime baseline and rank bottlenecks before touching code.
+
+Scope:
+- produce a machine-readable baseline artifact for the current 2A authority run chain.
+- capture state wall times and hotspot evidence from run logs + state reports.
+
+Definition of done:
+- [ ] baseline runtime artifact emitted under `runs/fix-data-engine/segment_2A/reports/`.
+- [ ] ranked hotspot list published (primary, secondary, closure bottleneck).
+- [ ] minute-scale target budgets pinned per hotspot state.
+- [ ] progression gate for `POPT.1` recorded (`GO`/`HOLD`).
+
+### POPT.1 - Primary hotspot rewrite
+Goal:
+- reduce the #1 ranked hotspot state to its stretch runtime budget without changing semantics.
+
+Scope:
+- state selected from `POPT.0` ranking (expected likely `S1` or `S3` depending on current run profile).
+- algorithm/data-structure and IO/locality optimization first; knob-only tuning is secondary.
+
+Definition of done:
+- [ ] primary hotspot wall time reduced to budget (or explicit `AMBER` waiver).
+- [ ] deterministic equivalence checks pass.
+- [ ] downstream smoke (`next states -> S5`) stays green.
+- [ ] no memory-risk regression under Fast-Compute-Safe posture.
+
+### POPT.2 - Secondary hotspot rewrite
+Goal:
+- reduce the #2 ranked hotspot state while preserving `POPT.1` gains.
+
+Scope:
+- optimize the second bottleneck lane identified by `POPT.0`.
+- include logging cadence and IO overhead trimming only if semantics-neutral.
+
+Definition of done:
+- [ ] secondary hotspot wall time meets stretch budget.
+- [ ] no regression in primary hotspot runtime beyond tolerance.
+- [ ] deterministic and contract checks remain green.
+
+### POPT.3 - Validation/closure-path acceleration
+Goal:
+- speed up validation/certification-path runtime (typically `S5` checks and scorer scans) so candidate verdict loops are fast.
+
+Scope:
+- optimize expensive validation scans with fail-closed correctness retained.
+- prefer sampling/accelerated parsing only where mathematically safe and explicitly governed.
+
+Definition of done:
+- [ ] validation lane runtime materially reduced vs baseline.
+- [ ] all hard correctness checks still full-strength (no silent relaxations).
+- [ ] decision parity (`PASS`/`FAIL`) unchanged for authority witnesses.
+
+### POPT.4 - Integrated fast-lane recertification handoff
+Goal:
+- prove optimized mechanics compose end-to-end for 2A and are ready for ongoing remediation use.
+
+Scope:
+- run integrated candidate chain with optimized lanes.
+- score realism + structural gates to ensure no unacceptable regression due to performance work.
+
+Definition of done:
+- [ ] end-to-end runtime materially reduced vs `POPT.0` baseline.
+- [ ] no-regression posture holds for structural/governance gates.
+- [ ] integrated lock artifact published and referenced as 2A performance authority.
+
+### Storage and retention discipline (POPT binding)
+- keep only:
+  - baseline authority,
+  - current candidate,
+  - last-good candidate,
+  - current integrated witness.
+- prune superseded failed run-id folders before each new expensive candidate.

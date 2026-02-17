@@ -3181,3 +3181,36 @@ Planning decisions captured:
 
 Immediate next action:
 1) execute `P0` baseline authority materialization under `runs/fix-data-engine/segment_2A/` and establish scoring artifacts for the hard-gate matrix.
+
+---
+
+### Entry: 2026-02-16 05:58
+
+Design element: 2A performance-program planning kickoff (`POPT.0 -> POPT.4`) with 1B freeze lock.
+Summary: User requested freezing 1B and planning 2A performance optimization using the same method used in 1B. We translated that into a dedicated 2A `POPT` set that runs in parallel with realism phases, with hotspot-first sequencing and strict determinism/contract guards.
+
+Decisions taken:
+1) Freeze posture carried into 2A authority:
+   - 1B locked as `FROZEN_BEST_EFFORT_BELOW_B`.
+   - 1B integrated authority for this cycle set to:
+     - `runs/fix-data-engine/segment_1B/reports/segment1b_p4_integrated_a0ae54639efc4955bc41a2e266224e6e.json`
+     - no-regression anchor run-id `979129e39a89446b942df9a463f09508`.
+2) Added a full 2A performance set to the build plan:
+   - `POPT.0` baseline/hotspot lock.
+   - `POPT.1` primary hotspot rewrite.
+   - `POPT.2` secondary hotspot rewrite.
+   - `POPT.3` validation/closure-path acceleration.
+   - `POPT.4` integrated fast-lane recertification handoff.
+3) Locked phase posture to match 1B method:
+   - no semantic relaxations,
+   - deterministic equivalence required after each optimization lane,
+   - fail-closed no-regression gates before promotion,
+   - run-folder pruning discipline bound into POPT section.
+
+Rationale:
+1) 2A runtime is already known to be expensive in long candidate loops; without a POPT lane, realism tuning will stall on iteration latency.
+2) The 1B method proved effective: hotspot ranking first, then bounded lane-by-lane closure. Reusing that pattern reduces thrash and keeps decisions auditable.
+3) Freezing 1B before 2A POPT avoids causal confusion between upstream movement and local performance changes.
+
+Immediate next action:
+1) execute `2A POPT.0` to build the authoritative runtime/hotspot baseline artifact, then choose the primary hotspot state for `POPT.1`.
