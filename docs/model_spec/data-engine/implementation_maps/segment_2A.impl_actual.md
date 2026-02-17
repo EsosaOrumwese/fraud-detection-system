@@ -3725,3 +3725,38 @@ Execution evidence:
 Decision:
 1) `P1` DoD is satisfied and can be marked closed in build plan.
 2) Next remediation focus should move to `P2` (cohort-aware realism scoring and gates) on top of this governance baseline.
+
+---
+
+### Entry: 2026-02-17 05:42
+
+Design element: Remediation `P2` full-lane kickoff (cohort-aware scorer + seed-pack certification).
+Summary: Proceeding with `P2` as a full execution phase. Current 2A fix root contains only seed `42` run-ids, so P2 execution must include both (a) scorer/gate implementation and (b) required-seed materialization for `{42, 7, 101, 202}` under frozen 1A/1B code+policy posture.
+
+Authority and context re-check:
+1) `docs/reports/eda/segment_2A/segment_2A_remediation_report.md`.
+2) `docs/reports/eda/segment_2A/segment_2A_published_report.md`.
+3) `docs/model_spec/data-engine/implementation_maps/segment_2A.build_plan.md`.
+4) active run-root seed inventory:
+   - `runs/fix-data-engine/segment_2A`: only seed `42` is currently available.
+
+Decisions (P2 scope lock):
+1) Expand P2 into explicit sub-phases (`P2.1..P2.5`) in the build plan before implementation.
+2) Implement a dedicated 2A certification scorer tool that:
+   - computes cohort-aware realism metrics from `site_timezones`,
+   - consumes structural/governance surfaces from S1/S2/S3/S4/S5 run reports,
+   - emits per-seed artifacts + aggregate certification verdict (`PASS_BPLUS`/`PASS_B`/`FAIL_REALISM`).
+3) Lock deterministic cohort and formula posture:
+   - `C_multi`: `tz_world_support_count >= 2` and `site_count >= 100`.
+   - `C_large`: `site_count >= 500`.
+   - normalized entropy by `tz_world` support (`H / ln(support_count)` for eligible support >= 2).
+4) Required seed protocol:
+   - certify only on `{42,7,101,202}`.
+   - if missing seed run-ids exist, materialize with frozen upstream stack (run-only, no upstream code changes).
+
+Execution plan:
+1) Update build plan with expanded P2.1..P2.5 DoDs.
+2) Implement scorer in `tools/` and validate on existing seed `42`.
+3) Materialize missing required seeds and execute `1A -> 1B -> 2A` chains in `runs/fix-data-engine/segment_2A`.
+4) Run aggregate certification scorer across all required seeds.
+5) Record closure artifacts and verdict in build plan + logbook.

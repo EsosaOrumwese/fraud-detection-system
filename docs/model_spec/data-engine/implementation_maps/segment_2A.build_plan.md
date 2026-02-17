@@ -184,6 +184,90 @@ Definition of done:
 - [ ] aggregate cross-seed verdict (`PASS_BPLUS`/`PASS_B`/`FAIL_REALISM`) is deterministic.
 - [ ] diagnostics CSV/JSON artifacts are emitted for hotspot tracing.
 
+### P2.1 - Cohort contract lock (definitions + formulas)
+Goal:
+- lock deterministic cohort definitions and metric formulas before scorer implementation.
+
+Scope:
+- deterministic cohort definitions:
+  - `C_multi`: `tz_world_support_count >= 2` and `site_count >= 100`.
+  - `C_large`: `site_count >= 500`.
+  - `C_single`: all remaining countries (reported only; non-gating).
+- metric formulas:
+  - `distinct_tzid_count`,
+  - `top1_share`,
+  - `top1_top2_gap` (`1.0` when only one observed tzid),
+  - normalized entropy (`H / ln(tz_world_support_count)` for eligible support >= 2).
+
+Definition of done:
+- [ ] cohort and metric formulas are encoded in scorer source (not hand-computed).
+- [ ] cohort membership is reproducible from run artifacts alone.
+- [ ] formulas are documented in scorer output metadata.
+
+### P2.2 - Per-seed scorer implementation
+Goal:
+- produce machine-readable per-seed realism + governance gate evaluation.
+
+Scope:
+- emit per-seed JSON containing:
+  - structural checks,
+  - governance checks,
+  - `C_multi` realism metrics,
+  - `C_large` representativeness metric,
+  - seed-level `PASS_BPLUS`/`PASS_B`/`FAIL_REALISM`.
+- emit per-seed diagnostics CSV:
+  - country-level rows for `C_multi`/`C_large` with key metrics.
+
+Definition of done:
+- [ ] scorer runs on an authority run-id and emits deterministic JSON + CSV.
+- [ ] scorer includes explicit gate booleans and failing-gate list.
+- [ ] governance surfaces are read from S1/S2 run reports (no duplicate manual calculation path).
+
+### P2.3 - Certification reducer across required seed pack
+Goal:
+- aggregate required seeds `{42, 7, 101, 202}` into a fail-closed certification verdict.
+
+Scope:
+- discover/provide one authoritative run-id per required seed.
+- enforce:
+  - any hard gate fail on any required seed => `FAIL_REALISM`.
+  - all hard gates pass + all B+ bands pass => `PASS_BPLUS`.
+  - all hard gates pass + B bands pass => `PASS_B`.
+- emit aggregate certification JSON with per-seed rollup.
+
+Definition of done:
+- [ ] required seed coverage is explicit and machine-validated.
+- [ ] aggregate verdict is deterministic and reproducible.
+- [ ] failing seeds/gates are explicitly listed when not green.
+
+### P2.4 - Stability and distribution diagnostics
+Goal:
+- add cross-seed stability and movement diagnostics required by remediation authority.
+
+Scope:
+- cross-seed CV on key medians (`top1_share`, `top1_top2_gap`, entropy, coverage share).
+- optional statistical movement diagnostics (`KS`/`Wasserstein`, two-proportion test) as evidence blocks.
+- include diagnostics even when verdict fails.
+
+Definition of done:
+- [ ] CV metrics are emitted and gated (`B<=0.30`, `B+<=0.20`).
+- [ ] diagnostics section is always present in certification output.
+- [ ] evidence is sufficient to explain verdict movement vs baseline.
+
+### P2.5 - Execution protocol and artifact closure
+Goal:
+- execute P2 end-to-end and close with retained artifacts under active run root.
+
+Scope:
+- run scorer for available authority run(s) and required seed pack.
+- if missing required seed run-ids, generate them under frozen code/policy posture before final certification.
+- prune superseded failed run-id folders before expensive runs.
+
+Definition of done:
+- [ ] per-seed scorer artifacts exist for all required seeds.
+- [ ] aggregate certification artifact exists with final verdict.
+- [ ] retained run-id set and scoring artifact paths are pinned in plan + impl notes.
+
 ### P3 - Targeted correction lane (bounded, non-synthetic)
 Goal:
 - improve failing country/timezone hotspots with narrow, auditable interventions while staying causal.
