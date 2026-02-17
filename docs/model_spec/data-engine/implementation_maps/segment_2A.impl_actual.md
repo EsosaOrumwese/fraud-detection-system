@@ -3862,3 +3862,103 @@ Artifacts updated:
 
 Immediate next execution lane:
 1) Start with `P3.1` watchlist contract extraction from P2 diagnostics artifacts.
+
+---
+
+### Entry: 2026-02-17 17:27
+
+Design element: `P3.1` watchlist extraction and `P3.2` intervention selection.
+Summary: Extracted a P3 baseline watchlist from P2 diagnostics/S1 governance evidence and selected a bounded governance-first correction path for hard-failing seeds.
+
+Evidence extraction completed:
+1) Generated P3 watchlist artifacts:
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_p3_watchlist_baseline.csv`
+   - `runs/fix-data-engine/segment_2A/reports/segment2a_p3_watchlist_baseline.json`
+2) Key governance blockers from watchlist and S1 reports:
+   - seed `101`: `CN` fallback concentration (`fallback_rate=0.03296703`, `sites_total=273`) -> `2A-S1-091`.
+   - seed `202`: `GE` fallback concentration (`fallback_rate=0.05048077`, `sites_total=416`) and elevated global fallback (`fallback_rate=0.00055572`) -> `2A-S1-090/091`.
+   - cross-seed high fallback counts on `PS` (below country min-sites cap but contributes to global fallback volume).
+3) Realism hotspot surface remains broad under frozen upstream posture (`C_multi` and `C_large` concentration failures), consistent with 2A remediation authority constraints.
+
+Alternatives considered:
+1) Relax fallback caps (`fallback_rate_cap` / `fallback_country_rate_cap`).
+   - Rejected: violates fail-closed governance posture and P3 non-negotiable constraint (no cap relaxation).
+2) Broad synthetic redistribution in 2A assignment.
+   - Rejected: explicitly out-of-scope in remediation plan and would sever causal traceability.
+3) Bounded country-targeted override controls for hotspot countries only.
+   - Chosen: directly addresses S1 hard failures with minimal blast radius and preserved deterministic/auditable behavior.
+
+Chosen P3.2 intervention:
+1) Add targeted active country overrides in `tz_overrides` for:
+   - `CN -> Asia/Shanghai`
+   - `GE -> Asia/Tbilisi`
+   - `PS -> Asia/Hebron`
+2) Rationale:
+   - `CN` and `GE` are direct hard-fail countries in required seeds.
+   - `PS` has high fallback counts that inflate global fallback rate in seed `202` despite min-sites exemption.
+   - overrides remain bounded, provenance-visible, and within existing override-rate caps.
+3) Validation plan after patch:
+   - rerun 2A (`S0->S5`) for required seeds `{42,7,101,202}` using existing run-ids,
+   - rerun P2 certification scorer,
+   - evaluate P3.2 gate: seeds `101/202` must clear `2A-S1-090/091` without cap changes.
+
+Performance and safety posture:
+1) Reuse existing run-ids and rerun only segment `2A` to avoid upstream recompute.
+2) Keep deterministic ordering and schema/provenance invariants unchanged.
+3) If hard gates still fail, continue P3 with additional bounded watchlist corrections; no threshold edits.
+
+---
+
+### Entry: 2026-02-17 17:34
+
+Design element: `P3.2 -> P3.5` execution and closure decision.
+Summary: Executed full P3 on a clean 2A candidate lane, closed governance hard-fail blockers for seeds `101/202`, re-certified required seeds, and ended with `FREEZE_PROPOSAL` due persistent realism concentration blockers under frozen upstream posture.
+
+Execution chronology:
+1) Policy intervention applied (bounded watchlist scope):
+   - Updated `config/layer1/2A/timezone/tz_overrides.yaml` with active country overrides:
+     - `CN -> Asia/Shanghai`
+     - `GE -> Asia/Tbilisi`
+     - `PS -> Asia/Hebron`
+2) Initial rerun attempt on existing root (`runs/fix-data-engine/segment_2A`) failed at `S0` with `F4:2A-S0-062` due existing published 2A artefacts in retained run-id folders.
+3) Non-destructive rerun strategy chosen:
+   - created clean candidate root: `runs/fix-data-engine/segment_2A_p3`.
+   - copied only required upstream run surfaces (`run_receipt.json` + `data/layer1/1B`) for run-ids:
+     - `b65bfe6efaca42e2ac413c059fb88b64`
+     - `07891eca4e6ea549a4d836db35e203aa`
+     - `513f4f2904d1ac97f2396c059a9573da`
+     - `5a8836781dd7524da561ad5aa27f64d6`
+4) Ran full `2A S0->S5` for all required seeds in clean root:
+   - all four seeds completed PASS (`S0..S5`).
+5) Certification and diagnostics:
+   - scorer run:
+     - `python tools/score_segment2a_p2_certification.py --runs-root runs/fix-data-engine/segment_2A_p3 --output-dir runs/fix-data-engine/segment_2A_p3/reports`
+   - generated:
+     - `segment2a_p2_seed_metrics_...json`
+     - `segment2a_p2_country_diagnostics_...csv`
+     - `segment2a_p2_certification_...json`
+   - delta evidence:
+     - `runs/fix-data-engine/segment_2A_p3/reports/segment2a_p3_delta_summary.json`
+   - watchlist refresh:
+     - `runs/fix-data-engine/segment_2A_p3/reports/segment2a_p3_watchlist_candidate.csv`
+     - `runs/fix-data-engine/segment_2A_p3/reports/segment2a_p3_watchlist_candidate.json`
+
+Measured movement:
+1) Governance closure achieved:
+   - seeds `101/202` now complete `S0->S5` and no longer fail `2A-S1-090/091`.
+   - fallback-country violations: `1 -> 0` for seeds `101` and `202`.
+   - fallback rate improved materially:
+     - seed `101`: `0.00031126 -> 0.00002918`
+     - seed `202`: `0.00055572 -> 0.00002874`
+2) Realism concentration remained effectively unchanged on primary witness seeds `42/7`:
+   - seed `42`: no movement on `C_multi` or `C_large` axes.
+   - seed `7`: no movement on `C_multi` or `C_large` axes; only fallback/override composition shifted.
+3) P3 residual blocker remains upstream-coupled:
+   - all seeds still miss B realism bands for `C_multi` concentration/entropy and `C_large` representativeness.
+
+Decision (`P3.5`):
+1) `FREEZE_PROPOSAL` for 2A current pass (verdict remains `FAIL_REALISM`).
+2) Recommend upstream reopen at `1B` representativeness lane before further 2A-local realism tuning.
+3) P3 objective partially achieved:
+   - governance hard-fail closure: achieved.
+   - B/B+ realism closure under frozen upstream: not achievable with bounded 2A-only corrections.

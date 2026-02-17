@@ -23,3 +23,21 @@
   evidence_url: null
   expiry_yyyy_mm_dd: null
   notes: "S2 tz resolution fallback for SH when tz_world polygons miss jittered points."
+- scope: country
+  target: "CN"
+  tzid: "Asia/Shanghai"
+  evidence_url: null
+  expiry_yyyy_mm_dd: null
+  notes: "P3.2 bounded governance control: resolve repeated S1 fallback hotspots in CN via deterministic country policy."
+- scope: country
+  target: "GE"
+  tzid: "Asia/Tbilisi"
+  evidence_url: null
+  expiry_yyyy_mm_dd: null
+  notes: "P3.2 bounded governance control: resolve repeated S1 fallback hotspots in GE via deterministic country policy."
+- scope: country
+  target: "PS"
+  tzid: "Asia/Hebron"
+  evidence_url: null
+  expiry_yyyy_mm_dd: null
+  notes: "P3.2 bounded governance control: reduce high-volume S1 fallback usage in PS without threshold relaxation."
