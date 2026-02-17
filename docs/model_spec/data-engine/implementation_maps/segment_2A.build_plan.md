@@ -137,10 +137,33 @@ Candidate surfaces:
 - `config/layer1/2A/timezone/tz_nudge.yml`
 
 Definition of done:
-- [ ] fallback rate and override rate are emitted per run and by country.
-- [ ] hard cap breaches fail-closed with explicit reason codes.
-- [ ] override provenance fields are complete and schema-valid.
-- [ ] structural parity and legality remain non-regressed.
+- [x] fallback rate and override rate are emitted per run and by country.
+- [x] hard cap breaches fail-closed with explicit reason codes.
+- [x] override provenance fields are complete and schema-valid.
+- [x] structural parity and legality remain non-regressed.
+
+P1 closure record (2026-02-17):
+- code surfaces updated:
+  - `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py`
+  - `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py`
+- governance controls added:
+  - `S1` emits `fallback_rate` + `override_rate` plus country-level maps and enforces:
+    - `fallback_rate_cap=0.0005`,
+    - `fallback_country_rate_cap=0.02` with `fallback_country_min_sites=100`,
+    - `override_rate_cap=0.002`.
+  - `S2` emits `override_rate` plus country-level map and enforces:
+    - `override_rate_cap=0.002`,
+    - active override provenance completeness (`notes || evidence_url`) fail-closed.
+- fail-closed reason codes added:
+  - `S1`: `2A-S1-090` (global fallback cap), `2A-S1-091` (country fallback cap), `2A-S1-092` (global override cap).
+  - `S2`: `2A-S2-090` (global override cap), `2A-S2-091` (override provenance incomplete).
+- execution evidence (existing candidate run-id):
+  - command:
+    - `make segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 RUNS_ROOT='runs/fix-data-engine/segment_2A' RUN_ID='b65bfe6efaca42e2ac413c059fb88b64'`
+  - result: `S1..S5 PASS`.
+  - governance witness from run reports:
+    - `S1 fallback_rate=3.199e-05`, `S1 override_rate=9.598e-05`, `fallback_country_violations=0`.
+    - `S2 override_rate=9.598e-05`, `provenance_missing=0`.
 
 ### P2 - Cohort-aware realism scoring and gates
 Goal:

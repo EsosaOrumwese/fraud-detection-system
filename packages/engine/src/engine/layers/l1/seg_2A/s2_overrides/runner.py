@@ -54,6 +54,7 @@ MODULE_NAME = "2A.S2.overrides"
 SEGMENT = "2A"
 STATE = "S2"
 BATCH_SIZE = 200_000
+OVERRIDE_RATE_CAP = 0.0020
 
 
 @dataclass(frozen=True)
@@ -401,6 +402,19 @@ def _override_active(expiry: Optional[str], cutoff: date) -> bool:
     return date.fromisoformat(expiry_str) >= cutoff
 
 
+def _normalize_country(value: object) -> str:
+    if value is None:
+        return "UNK"
+    country = str(value).strip().upper()
+    return country if country else "UNK"
+
+
+def _safe_rate(numerator: int, denominator: int) -> float:
+    if denominator <= 0:
+        return 0.0
+    return float(numerator) / float(denominator)
+
+
 def _load_tzid_set(path: Path) -> set[str]:
     if not path.exists():
         raise InputResolutionError(f"tz_world not found: {path}")
@@ -442,6 +456,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         "overridden_total": 0,
         "overridden_by_scope": {"site": 0, "mcc": 0, "country": 0},
         "override_no_effect": 0,
+        "provenance_missing": 0,
         "expired_skipped": 0,
         "dup_scope_target": 0,
         "mcc_targets_missing": 0,
@@ -454,6 +469,10 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         "unknown_tzid": 0,
         "tzid_not_in_tz_world": 0,
     }
+    override_rate = 0.0
+    override_by_country: dict[str, dict[str, object]] = {}
+    country_site_totals: dict[str, int] = {}
+    country_override_totals: dict[str, int] = {}
 
     try:
         receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
@@ -799,6 +818,39 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             if not _override_active(entry.get("expiry_yyyy_mm_dd"), cutoff_date):
                 counts["expired_skipped"] += 1
                 continue
+            notes = str(entry.get("notes") or "").strip()
+            evidence_url = str(entry.get("evidence_url") or "").strip()
+            if not scope or not target or not tzid or (not notes and not evidence_url):
+                counts["provenance_missing"] += 1
+                _emit_failure_event(
+                    logger,
+                    "2A-S2-091",
+                    seed,
+                    str(manifest_fingerprint),
+                    str(parameter_hash),
+                    run_id,
+                    {
+                        "detail": "override_provenance_incomplete",
+                        "scope": scope,
+                        "target": target,
+                        "has_notes": bool(notes),
+                        "has_evidence_url": bool(evidence_url),
+                    },
+                )
+                raise EngineFailure(
+                    "F4",
+                    "2A-S2-091",
+                    STATE,
+                    MODULE_NAME,
+                    {
+                        "detail": "override_provenance_incomplete",
+                        "scope": scope,
+                        "target": target,
+                        "has_notes": bool(notes),
+                        "has_evidence_url": bool(evidence_url),
+                    },
+                    dataset_id="tz_overrides",
+                )
             key = (scope, target)
             if key in seen_scope_targets:
                 counts["dup_scope_target"] += 1
@@ -1059,6 +1111,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             for row in batch.iter_rows(named=True):
                 merchant_id = int(row["merchant_id"])
                 legal_country_iso = str(row["legal_country_iso"])
+                country_key = _normalize_country(legal_country_iso)
                 site_order = int(row["site_order"])
                 tzid_provisional = row["tzid_provisional"]
                 tzid_provisional_source = str(row["tzid_provisional_source"])
@@ -1066,6 +1119,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 s1_override_scope = row["override_scope"]
                 if s1_override_scope is not None:
                     s1_override_scope = str(s1_override_scope)
+                country_site_totals[country_key] = country_site_totals.get(country_key, 0) + 1
                 key = (merchant_id, legal_country_iso, site_order)
                 if key in seen_keys:
                     checks["pk_duplicates"] += 1
@@ -1318,6 +1372,9 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     tzid_final = override_tzid
                     counts["overridden_total"] += 1
                     counts["overridden_by_scope"][override_scope] += 1
+                    country_override_totals[country_key] = (
+                        country_override_totals.get(country_key, 0) + 1
+                    )
                 if not override_applied and tzid_source != "polygon":
                     counts["override_no_effect"] += 1
                     _emit_failure_event(
@@ -1601,6 +1658,46 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 partition_validated = True
 
         counts["distinct_tzids"] = len(tzids_seen)
+        override_rate = _safe_rate(counts["overridden_total"], counts["sites_total"])
+        override_by_country = {}
+        for country in sorted(country_site_totals.keys()):
+            total = int(country_site_totals.get(country, 0))
+            overridden_total = int(country_override_totals.get(country, 0))
+            override_by_country[country] = {
+                "sites_total": total,
+                "overridden_total": overridden_total,
+                "override_rate": round(_safe_rate(overridden_total, total), 8),
+            }
+
+        if override_rate > OVERRIDE_RATE_CAP:
+            _emit_failure_event(
+                logger,
+                "2A-S2-090",
+                seed,
+                str(manifest_fingerprint),
+                str(parameter_hash),
+                run_id,
+                {
+                    "detail": "override_rate_cap_exceeded",
+                    "override_rate": round(override_rate, 8),
+                    "override_rate_cap": OVERRIDE_RATE_CAP,
+                    "overridden_total": counts["overridden_total"],
+                    "sites_total": counts["sites_total"],
+                },
+            )
+            raise EngineFailure(
+                "F4",
+                "2A-S2-090",
+                STATE,
+                MODULE_NAME,
+                {
+                    "detail": "override_rate_cap_exceeded",
+                    "override_rate": round(override_rate, 8),
+                    "override_rate_cap": OVERRIDE_RATE_CAP,
+                    "overridden_total": counts["overridden_total"],
+                    "sites_total": counts["sites_total"],
+                },
+            )
 
         if counts["rows_emitted"] != counts["sites_total"]:
             checks["coverage_mismatch"] = abs(counts["sites_total"] - counts["rows_emitted"])
@@ -1645,6 +1742,18 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             warnings.append("2A-S2-070 WRITER_ORDER_NONCOMPLIANT")
         else:
             _emit_validation(logger, seed, str(manifest_fingerprint), "V-19", "pass")
+
+        _emit_event(
+            logger,
+            "GOVERNANCE",
+            seed,
+            str(manifest_fingerprint),
+            "INFO",
+            override_rate=round(override_rate, 8),
+            override_rate_cap=OVERRIDE_RATE_CAP,
+            overridden_total=counts["overridden_total"],
+            sites_total=counts["sites_total"],
+        )
 
         _atomic_publish_dir(output_tmp, output_root, logger, "site_timezones")
         _emit_validation(logger, seed, str(manifest_fingerprint), "V-10", "pass")
@@ -1700,6 +1809,15 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 "inputs": inputs_block,
                 "counts": counts,
                 "checks": checks,
+                "governance": {
+                    "caps": {
+                        "override_rate_cap": OVERRIDE_RATE_CAP,
+                    },
+                    "rates": {
+                        "override_rate": round(override_rate, 8),
+                    },
+                    "override_by_country": override_by_country,
+                },
                 "output": {"path": output_catalog_path, "format": "parquet"},
                 "warnings": warnings,
                 "errors": errors,

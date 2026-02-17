@@ -73,6 +73,10 @@ SEGMENT = "2A"
 STATE = "S1"
 BATCH_SIZE = 200_000
 AMBIGUITY_SAMPLE_LIMIT = 10
+FALLBACK_RATE_CAP = 0.0005
+FALLBACK_COUNTRY_RATE_CAP = 0.0200
+FALLBACK_COUNTRY_MIN_SITES = 100
+OVERRIDE_RATE_CAP = 0.0020
 
 
 @dataclass(frozen=True)
@@ -425,6 +429,19 @@ def _override_active(expiry: Optional[str], cutoff: date) -> bool:
     return date.fromisoformat(expiry_str) >= cutoff
 
 
+def _normalize_country(value: object) -> str:
+    if value is None:
+        return "UNK"
+    country = str(value).strip().upper()
+    return country if country else "UNK"
+
+
+def _safe_rate(numerator: int, denominator: int) -> float:
+    if denominator <= 0:
+        return 0.0
+    return float(numerator) / float(denominator)
+
+
 def _tree_query_indices(
     tree: STRtree,
     geom_index: dict[int, int],
@@ -667,6 +684,15 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
     ambiguity_total = 0
     ambiguity_samples: list[dict] = []
     fallback_samples: list[dict] = []
+    fallback_rate = 0.0
+    override_rate = 0.0
+    fallback_by_country: dict[str, dict[str, object]] = {}
+    override_by_country: dict[str, dict[str, object]] = {}
+    fallback_country_violations: list[dict[str, object]] = []
+    country_site_totals: dict[str, int] = {}
+    country_fallback_within: dict[str, int] = {}
+    country_fallback_outside: dict[str, int] = {}
+    country_override_totals: dict[str, int] = {}
 
     try:
         receipt_path, receipt = _resolve_run_receipt(config.runs_root, run_id)
@@ -1261,9 +1287,11 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             for merchant_id_raw, legal_country_iso_raw, site_order_raw, lat_raw, lon_raw in batch.iter_rows():
                 merchant_id = int(merchant_id_raw)
                 legal_country_iso = str(legal_country_iso_raw) if legal_country_iso_raw is not None else ""
+                country_key = _normalize_country(legal_country_iso_raw)
                 site_order = int(site_order_raw)
                 lat = float(lat_raw)
                 lon = float(lon_raw)
+                country_site_totals[country_key] = country_site_totals.get(country_key, 0) + 1
                 key = (merchant_id, legal_country_iso, site_order)
                 if last_key is not None and key < last_key:
                     writer_order_violation = True
@@ -1299,9 +1327,6 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                             if mcc_key and mcc_key in overrides_mcc:
                                 override_scope = "mcc"
                                 override_tzid = overrides_mcc[mcc_key]
-                        country_key = None
-                        if legal_country_iso is not None:
-                            country_key = str(legal_country_iso).strip().upper()
                         if override_tzid is None and country_key and country_key in overrides_country:
                             override_scope = "country"
                             override_tzid = overrides_country[country_key]
@@ -1332,6 +1357,9 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                                     tzid, distance_m = nearest
                                     if distance_m <= threshold_meters:
                                         counts["fallback_nearest_within_threshold"] += 1
+                                        country_fallback_within[country_key] = (
+                                            country_fallback_within.get(country_key, 0) + 1
+                                        )
                                         resolution_method = "nearest_within_threshold"
                                         logger.info(
                                             "S1: resolved border ambiguity via nearest polygon (method=within_threshold, country=%s, tzid=%s, distance_m=%.2f, threshold_m=%.2f, key=%s)",
@@ -1343,6 +1371,9 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                                         )
                                     else:
                                         counts["fallback_nearest_outside_threshold"] += 1
+                                        country_fallback_outside[country_key] = (
+                                            country_fallback_outside.get(country_key, 0) + 1
+                                        )
                                         resolution_method = "nearest_outside_threshold"
                                         logger.warning(
                                             "S1: resolved border ambiguity via nearest polygon (method=outside_threshold, country=%s, tzid=%s, distance_m=%.2f, threshold_m=%.2f, key=%s)",
@@ -1456,6 +1487,9 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                                 counts["overrides_mcc"] += 1
                             elif override_scope == "country":
                                 counts["overrides_country"] += 1
+                            country_override_totals[country_key] = (
+                                country_override_totals.get(country_key, 0) + 1
+                            )
                             logger.info(
                                 "S1: resolved border ambiguity via %s override (tzid=%s, key=%s)",
                                 override_scope,
@@ -1678,6 +1712,137 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             )
         _emit_validation(logger, seed, manifest_fingerprint, "V-12", "pass")
 
+        fallback_total = (
+            counts["fallback_nearest_within_threshold"] + counts["fallback_nearest_outside_threshold"]
+        )
+        fallback_rate = _safe_rate(fallback_total, sites_total)
+        override_rate = _safe_rate(counts["overrides_applied"], sites_total)
+        fallback_by_country = {}
+        override_by_country = {}
+        fallback_country_violations = []
+        for country in sorted(country_site_totals.keys()):
+            total = int(country_site_totals.get(country, 0))
+            fb_within = int(country_fallback_within.get(country, 0))
+            fb_outside = int(country_fallback_outside.get(country, 0))
+            fb_total = fb_within + fb_outside
+            ov_total = int(country_override_totals.get(country, 0))
+            fb_rate = _safe_rate(fb_total, total)
+            ov_rate = _safe_rate(ov_total, total)
+            fallback_by_country[country] = {
+                "sites_total": total,
+                "fallback_total": fb_total,
+                "fallback_within_threshold": fb_within,
+                "fallback_outside_threshold": fb_outside,
+                "fallback_rate": round(fb_rate, 8),
+            }
+            override_by_country[country] = {
+                "sites_total": total,
+                "overrides_total": ov_total,
+                "override_rate": round(ov_rate, 8),
+            }
+            if total >= FALLBACK_COUNTRY_MIN_SITES and fb_rate > FALLBACK_COUNTRY_RATE_CAP:
+                fallback_country_violations.append(
+                    {
+                        "country_iso": country,
+                        "sites_total": total,
+                        "fallback_total": fb_total,
+                        "fallback_rate": round(fb_rate, 8),
+                    }
+                )
+
+        if fallback_rate > FALLBACK_RATE_CAP:
+            _emit_failure_event(
+                logger,
+                "2A-S1-090",
+                seed,
+                manifest_fingerprint,
+                str(parameter_hash),
+                run_id,
+                {
+                    "detail": "fallback_rate_cap_exceeded",
+                    "fallback_rate": round(fallback_rate, 8),
+                    "fallback_rate_cap": FALLBACK_RATE_CAP,
+                    "fallback_total": fallback_total,
+                    "sites_total": sites_total,
+                },
+            )
+            raise EngineFailure(
+                "F4",
+                "2A-S1-090",
+                STATE,
+                MODULE_NAME,
+                {
+                    "detail": "fallback_rate_cap_exceeded",
+                    "fallback_rate": round(fallback_rate, 8),
+                    "fallback_rate_cap": FALLBACK_RATE_CAP,
+                    "fallback_total": fallback_total,
+                    "sites_total": sites_total,
+                },
+            )
+
+        if override_rate > OVERRIDE_RATE_CAP:
+            _emit_failure_event(
+                logger,
+                "2A-S1-092",
+                seed,
+                manifest_fingerprint,
+                str(parameter_hash),
+                run_id,
+                {
+                    "detail": "override_rate_cap_exceeded",
+                    "override_rate": round(override_rate, 8),
+                    "override_rate_cap": OVERRIDE_RATE_CAP,
+                    "overrides_applied": counts["overrides_applied"],
+                    "sites_total": sites_total,
+                },
+            )
+            raise EngineFailure(
+                "F4",
+                "2A-S1-092",
+                STATE,
+                MODULE_NAME,
+                {
+                    "detail": "override_rate_cap_exceeded",
+                    "override_rate": round(override_rate, 8),
+                    "override_rate_cap": OVERRIDE_RATE_CAP,
+                    "overrides_applied": counts["overrides_applied"],
+                    "sites_total": sites_total,
+                },
+            )
+
+        if fallback_country_violations:
+            violations = sorted(
+                fallback_country_violations,
+                key=lambda item: float(item["fallback_rate"]),
+                reverse=True,
+            )
+            _emit_failure_event(
+                logger,
+                "2A-S1-091",
+                seed,
+                manifest_fingerprint,
+                str(parameter_hash),
+                run_id,
+                {
+                    "detail": "fallback_country_cap_exceeded",
+                    "fallback_country_rate_cap": FALLBACK_COUNTRY_RATE_CAP,
+                    "fallback_country_min_sites": FALLBACK_COUNTRY_MIN_SITES,
+                    "violations": violations[:20],
+                },
+            )
+            raise EngineFailure(
+                "F4",
+                "2A-S1-091",
+                STATE,
+                MODULE_NAME,
+                {
+                    "detail": "fallback_country_cap_exceeded",
+                    "fallback_country_rate_cap": FALLBACK_COUNTRY_RATE_CAP,
+                    "fallback_country_min_sites": FALLBACK_COUNTRY_MIN_SITES,
+                    "violations": violations[:20],
+                },
+            )
+
         _emit_validation(logger, seed, manifest_fingerprint, "V-13", "pass")
         _emit_validation(logger, seed, manifest_fingerprint, "V-14", "pass")
 
@@ -1711,6 +1876,8 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             overrides_country=counts["overrides_country"],
             fallback_nearest_within_threshold=counts["fallback_nearest_within_threshold"],
             fallback_nearest_outside_threshold=counts["fallback_nearest_outside_threshold"],
+            fallback_rate=round(fallback_rate, 8),
+            override_rate=round(override_rate, 8),
         )
 
         _atomic_publish_dir(output_tmp, output_root, logger, "s1_tz_lookup")
@@ -1780,6 +1947,21 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 "inputs": inputs_block,
                 "counts": counts,
                 "checks": checks,
+                "governance": {
+                    "caps": {
+                        "fallback_rate_cap": FALLBACK_RATE_CAP,
+                        "fallback_country_rate_cap": FALLBACK_COUNTRY_RATE_CAP,
+                        "fallback_country_min_sites": FALLBACK_COUNTRY_MIN_SITES,
+                        "override_rate_cap": OVERRIDE_RATE_CAP,
+                    },
+                    "rates": {
+                        "fallback_rate": round(fallback_rate, 8),
+                        "override_rate": round(override_rate, 8),
+                    },
+                    "fallback_by_country": fallback_by_country,
+                    "override_by_country": override_by_country,
+                    "fallback_country_violations": fallback_country_violations,
+                },
                 "diagnostics": {
                     "border_ambiguity_unresolved": {
                         "total": ambiguity_total,

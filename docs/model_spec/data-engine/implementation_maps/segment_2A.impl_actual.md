@@ -3633,3 +3633,95 @@ Decision:
 1) `POPT.4` is closed.
 2) Segment 2A performance authority for this lane is pinned to:
    - `runs/fix-data-engine/segment_2A/reports/segment2a_popt4_integrated_b65bfe6efaca42e2ac413c059fb88b64.json`.
+
+---
+
+### Entry: 2026-02-17 05:22
+
+Design element: Remediation `P1` full execution lane (S1/S2 governance hardening).
+Summary: We are proceeding with `P1` as a complete phase closure pass. The active gap from the build plan is not structural correctness (already green), but governance observability and fail-closed budget enforcement. The implementation lane is restricted to S1/S2 and must preserve output contracts and downstream legality behavior.
+
+Authority and gap confirmation:
+1) `docs/reports/eda/segment_2A/segment_2A_remediation_report.md`.
+2) `docs/model_spec/data-engine/implementation_maps/segment_2A.build_plan.md` (`P1` DoD open).
+3) Current runner behavior review:
+   - `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py`.
+   - `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py`.
+4) Confirmed gaps:
+   - rates mostly emitted as aggregate counters/events but not normalized governance rate surfaces by country in run reports.
+   - no explicit fail-closed cap checks for fallback/override rates.
+   - schema-valid override payload exists, but provenance completeness for active override rows is not fail-closed.
+
+Decision and rationale:
+1) Implement caps in runner logic (not policy schema expansion) for this pass:
+   - avoids contract/schema blast radius while still meeting fail-closed behavior.
+2) Add country-level denominators in hot loops:
+   - compute rate maps from emitted rows to keep measurements exact and deterministic.
+3) Add explicit failure codes for governance caps/provenance:
+   - keeps triage auditable and machine-parseable in logs/reports.
+4) Keep all existing structural validations untouched:
+   - preserves determinism and downstream parity while adding governance gates.
+
+Planned implementation steps:
+1) S1:
+   - add global + country fallback rate calculations,
+   - add override rate calculation,
+   - enforce caps with explicit reason codes,
+   - emit governance section in run report.
+2) S2:
+   - enforce active override provenance completeness (`notes || evidence_url`),
+   - add global + country override rate calculations,
+   - enforce override cap with explicit reason code,
+   - emit governance section in run report.
+3) Validate:
+   - compile both runners,
+   - rerun `S1->S5` on existing candidate run-id,
+   - verify governance surfaces and no structural/legality regressions.
+
+---
+
+### Entry: 2026-02-17 05:26
+
+Design element: Remediation `P1` implementation complete and witness results.
+Summary: Implemented `P1` governance hardening in `S1/S2`, executed full downstream witness (`S1->S5`), and confirmed phase DoD closure without structural or legality regressions.
+
+Code changes applied:
+1) `packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py`
+   - added deterministic governance caps:
+     - `fallback_rate_cap=0.0005`,
+     - `fallback_country_rate_cap=0.02`,
+     - `fallback_country_min_sites=100`,
+     - `override_rate_cap=0.002`.
+   - added per-country counters and rate maps for fallback/override.
+   - added fail-closed governance errors:
+     - `2A-S1-090` fallback cap exceeded,
+     - `2A-S1-091` country fallback cap exceeded,
+     - `2A-S1-092` override cap exceeded.
+   - added `governance` block to S1 run report.
+2) `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py`
+   - added active override provenance completeness enforcement:
+     - require non-empty `notes` or `evidence_url` for active entries,
+     - fail-closed code `2A-S2-091` on violation.
+   - added override-rate governance cap:
+     - `override_rate_cap=0.002`,
+     - fail-closed code `2A-S2-090` on breach.
+   - added per-country override rate map and `governance` block to S2 run report.
+
+Execution evidence:
+1) Compile checks:
+   - `python -m py_compile packages/engine/src/engine/layers/l1/seg_2A/s1_tz_lookup/runner.py` PASS.
+   - `python -m py_compile packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py` PASS.
+2) Storage hygiene pre-run:
+   - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_2A` (no failed sentinels to remove).
+3) Witness command:
+   - `make segment2a-s1 segment2a-s2 segment2a-s3 segment2a-s4 segment2a-s5 RUNS_ROOT='runs/fix-data-engine/segment_2A' RUN_ID='b65bfe6efaca42e2ac413c059fb88b64'`.
+4) Outcome:
+   - `S1/S2/S3/S4/S5` all PASS.
+   - Governance metrics from run reports:
+     - `S1 fallback_rate=3.199e-05`, `S1 override_rate=9.598e-05`, `fallback_country_violations=0`.
+     - `S2 override_rate=9.598e-05`, `provenance_missing=0`.
+   - Structural checks remained zeroed in S1/S2 (`pk_duplicates`, `coverage_mismatch`, `null_tzid`, unknown checks).
+
+Decision:
+1) `P1` DoD is satisfied and can be marked closed in build plan.
+2) Next remediation focus should move to `P2` (cohort-aware realism scoring and gates) on top of this governance baseline.
