@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import math
 import platform
 import shutil
@@ -247,6 +248,8 @@ def _policy_weight_column(weight_source: dict) -> Optional[str]:
     mode = weight_source.get("mode")
     if mode == "uniform":
         return None
+    if mode == "profile_mixture_v2":
+        return None
     if mode == "column":
         return str(weight_source.get("column") or weight_source.get("id") or "")
     if "column" in weight_source:
@@ -254,6 +257,280 @@ def _policy_weight_column(weight_source: dict) -> Optional[str]:
     if "id" in weight_source and mode not in (None, "uniform"):
         return str(weight_source.get("id"))
     return ""
+
+
+def _stable_unit_interval(*parts: object) -> float:
+    digest = hashlib.sha256(
+        "|".join(str(part) for part in parts).encode("utf-8")
+    ).digest()
+    value = int.from_bytes(digest[:8], "big", signed=False)
+    return (float(value) + 0.5) / float(1 << 64)
+
+
+def _bucket_for_sites(sites: int, merchant_size_buckets: dict) -> str:
+    for bucket in ("small", "mid", "large"):
+        rule = merchant_size_buckets.get(bucket)
+        if not isinstance(rule, dict):
+            continue
+        min_sites = int(rule.get("min_sites", 0))
+        max_raw = rule.get("max_sites")
+        max_sites = int(max_raw) if max_raw is not None else None
+        if sites >= min_sites and (max_sites is None or sites <= max_sites):
+            return bucket
+    if sites <= 5:
+        return "small"
+    if sites <= 20:
+        return "mid"
+    return "large"
+
+
+def _resolve_bucket_scalar(value: object, bucket: str, default: float) -> float:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, dict):
+        bucket_value = value.get(bucket)
+        if isinstance(bucket_value, (int, float)):
+            return float(bucket_value)
+    return float(default)
+
+
+def _resolve_component_weights(mixture_weights: dict, bucket: str) -> dict[str, float]:
+    components = ("hub_spoke", "heavy_tail", "near_uniform")
+    direct = all(isinstance(mixture_weights.get(name), (int, float)) for name in components)
+    if direct:
+        source = mixture_weights
+    else:
+        candidate = mixture_weights.get(bucket)
+        if not isinstance(candidate, dict):
+            raise EngineFailure(
+                "F4",
+                "2B-S1-032",
+                STATE,
+                MODULE_NAME,
+                {"detail": "mixture_weights missing bucket", "bucket": bucket},
+            )
+        source = candidate
+    weights = {name: max(float(source.get(name, 0.0)), 0.0) for name in components}
+    total = sum(weights.values())
+    if total <= 0.0:
+        raise EngineFailure(
+            "F4",
+            "2B-S1-032",
+            STATE,
+            MODULE_NAME,
+            {"detail": "mixture_weights total is zero", "bucket": bucket},
+        )
+    return {name: value / total for name, value in weights.items()}
+
+
+def _resolve_alpha(alpha_cfg: object, bucket: str, component: str) -> float:
+    if isinstance(alpha_cfg, (int, float)):
+        alpha = float(alpha_cfg)
+    elif isinstance(alpha_cfg, dict):
+        bucket_value = alpha_cfg.get(bucket)
+        if isinstance(bucket_value, dict):
+            alpha = float(bucket_value.get(component, bucket_value.get("default", 0.0)))
+        elif isinstance(bucket_value, (int, float)):
+            alpha = float(bucket_value)
+        elif isinstance(alpha_cfg.get(component), (int, float)):
+            alpha = float(alpha_cfg.get(component))
+        else:
+            alpha = float(alpha_cfg.get("default", 0.0))
+    else:
+        alpha = 0.0
+    if not math.isfinite(alpha) or alpha <= 0.0:
+        raise EngineFailure(
+            "F4",
+            "2B-S1-032",
+            STATE,
+            MODULE_NAME,
+            {
+                "detail": "invalid concentration alpha",
+                "bucket": bucket,
+                "component": component,
+                "alpha": alpha,
+            },
+        )
+    return alpha
+
+
+def _select_component(weights: dict[str, float], merchant_id: int) -> tuple[str, float]:
+    u = _stable_unit_interval("2B.S1.profile_mixture_v2", merchant_id, "component")
+    running = 0.0
+    chosen = "near_uniform"
+    for component in ("hub_spoke", "heavy_tail", "near_uniform"):
+        running += float(weights.get(component, 0.0))
+        if u <= running + 1.0e-15:
+            chosen = component
+            break
+    return chosen, u
+
+
+def _build_profile_mixture_base(
+    *,
+    merchant_id: int,
+    site_orders: np.ndarray,
+    profile_cfg: dict,
+) -> tuple[np.ndarray, dict[str, object]]:
+    if str(profile_cfg.get("deterministic_seed_scope") or "") != "merchant_id":
+        raise EngineFailure(
+            "F4",
+            "2B-S1-032",
+            STATE,
+            MODULE_NAME,
+            {
+                "detail": "unsupported deterministic_seed_scope",
+                "deterministic_seed_scope": profile_cfg.get("deterministic_seed_scope"),
+            },
+        )
+    sites = int(site_orders.size)
+    if sites <= 0:
+        return np.array([], dtype=np.float64), {
+            "weight_profile": "profile_mixture_v2",
+            "mixture_component": "none",
+            "alpha_used": 0.0,
+            "size_bucket": "none",
+            "soft_cap_applied": False,
+            "secondary_floor_applied": False,
+            "top1_pre_cap": 0.0,
+            "top1_post_cap": 0.0,
+        }
+
+    merchant_size_buckets = profile_cfg.get("merchant_size_buckets")
+    mixture_weights_cfg = profile_cfg.get("mixture_weights")
+    alpha_cfg = profile_cfg.get("concentration_alpha_by_bucket")
+    if not isinstance(merchant_size_buckets, dict) or not isinstance(mixture_weights_cfg, dict):
+        raise EngineFailure(
+            "F4",
+            "2B-S1-032",
+            STATE,
+            MODULE_NAME,
+            {"detail": "profile_mixture_v2 missing required blocks"},
+        )
+
+    size_bucket = _bucket_for_sites(sites, merchant_size_buckets)
+    component_weights = _resolve_component_weights(mixture_weights_cfg, size_bucket)
+    mixture_component, selector_u = _select_component(component_weights, merchant_id)
+    alpha_used = _resolve_alpha(alpha_cfg, size_bucket, mixture_component)
+
+    score = np.array(
+        [
+            _stable_unit_interval("2B.S1.profile_mixture_v2", merchant_id, int(site_order), "site")
+            for site_order in site_orders.tolist()
+        ],
+        dtype=np.float64,
+    )
+    order = np.argsort(-score, kind="mergesort")
+    rank = np.empty(sites, dtype=np.int64)
+    rank[order] = np.arange(sites, dtype=np.int64)
+    rank1 = rank.astype(np.float64) + 1.0
+
+    if mixture_component == "hub_spoke":
+        raw = 1.0 / np.power(rank1, max(alpha_used, 1.0))
+        hub_boost = max(1.0, alpha_used * float(max(2, sites // 2)))
+        raw[order[0]] += hub_boost
+    elif mixture_component == "heavy_tail":
+        raw = 1.0 / np.power(rank1, max(alpha_used, 0.5))
+    elif mixture_component == "near_uniform":
+        raw = np.ones(sites, dtype=np.float64)
+        raw += (alpha_used / (rank1 + 1.0))
+    else:
+        raise EngineFailure(
+            "F4",
+            "2B-S1-032",
+            STATE,
+            MODULE_NAME,
+            {"detail": "unsupported mixture component", "mixture_component": mixture_component},
+        )
+    if not np.all(np.isfinite(raw)) or np.any(raw <= 0.0):
+        raise EngineFailure(
+            "F4",
+            "2B-S1-050",
+            STATE,
+            MODULE_NAME,
+            {"detail": "profile_mixture_v2 produced invalid raw values"},
+        )
+
+    p = raw / float(raw.sum())
+    top1_pre_cap = float(np.max(p)) if p.size else 0.0
+
+    soft_cap_applied = False
+    top1_cap = _resolve_bucket_scalar(profile_cfg.get("top1_soft_cap_by_bucket"), size_bucket, 1.0)
+    top1_cap = min(max(top1_cap, 0.0), 1.0)
+    if sites >= 2 and top1_cap < 1.0:
+        top_idx = int(np.argmax(p))
+        if p[top_idx] > top1_cap + 1.0e-15:
+            excess = float(p[top_idx] - top1_cap)
+            p[top_idx] = top1_cap
+            mask = np.ones(sites, dtype=bool)
+            mask[top_idx] = False
+            remainder = float(p[mask].sum())
+            if remainder <= 1.0e-15:
+                p[mask] = excess / float(sites - 1)
+            else:
+                p[mask] += p[mask] / remainder * excess
+            soft_cap_applied = True
+
+    secondary_floor_applied = False
+    min_secondary_mass = _resolve_bucket_scalar(profile_cfg.get("min_secondary_mass"), size_bucket, 0.0)
+    min_secondary_mass = min(max(min_secondary_mass, 0.0), 1.0)
+    if sites >= 2 and min_secondary_mass > 0.0:
+        order_desc = np.argsort(-p, kind="mergesort")
+        second_idx = int(order_desc[1])
+        if p[second_idx] + 1.0e-15 < min_secondary_mass:
+            need = float(min_secondary_mass - p[second_idx])
+            for donor_idx in order_desc.tolist():
+                if donor_idx == second_idx:
+                    continue
+                available = max(float(p[donor_idx]) - 1.0e-12, 0.0)
+                if available <= 0.0:
+                    continue
+                transfer = min(available, need)
+                p[donor_idx] -= transfer
+                p[second_idx] += transfer
+                need -= transfer
+                if need <= 1.0e-12:
+                    break
+            if need > 1.0e-9:
+                raise EngineFailure(
+                    "F4",
+                    "2B-S1-053",
+                    STATE,
+                    MODULE_NAME,
+                    {
+                        "detail": "min_secondary_mass infeasible",
+                        "merchant_id": merchant_id,
+                        "size_bucket": size_bucket,
+                        "min_secondary_mass": min_secondary_mass,
+                    },
+                )
+            secondary_floor_applied = True
+
+    p = np.clip(p, 0.0, None)
+    mass = float(p.sum())
+    if not math.isfinite(mass) or mass <= 0.0:
+        raise EngineFailure(
+            "F4",
+            "2B-S1-053",
+            STATE,
+            MODULE_NAME,
+            {"detail": "profile_mixture mass invalid after constraints", "merchant_id": merchant_id},
+        )
+    p = p / mass
+    top1_post_cap = float(np.max(p)) if p.size else 0.0
+
+    metadata = {
+        "weight_profile": "profile_mixture_v2",
+        "mixture_component": mixture_component,
+        "alpha_used": float(alpha_used),
+        "size_bucket": size_bucket,
+        "selector_u": float(selector_u),
+        "soft_cap_applied": bool(soft_cap_applied),
+        "secondary_floor_applied": bool(secondary_floor_applied),
+        "top1_pre_cap": top1_pre_cap,
+        "top1_post_cap": top1_post_cap,
+    }
+    return p.astype(np.float64, copy=False), metadata
 
 
 def _resolve_floor_value(values: np.ndarray, floor_spec: dict) -> Optional[float]:
@@ -413,8 +690,10 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
     registry_version = "unknown"
     policy_version_tag = ""
     policy_digest = ""
+    weight_source_mode = ""
     weight_source_label = ""
     weight_column: Optional[str] = None
+    profile_mixture_cfg: Optional[dict] = None
     normalisation_epsilon = 0.0
     quantisation_epsilon = 0.0
     tiny_negative_epsilon = 0.0
@@ -437,6 +716,11 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
     merchants_over_epsilon = 0
     max_abs_delta_per_row = 0.0
     merchants_mass_exact_after_quant = 0
+    profile_mixture_merchants = 0
+    profile_soft_cap_applied_merchants = 0
+    profile_secondary_floor_applied_merchants = 0
+    profile_component_counts: dict[str, int] = {}
+    profile_bucket_counts: dict[str, int] = {}
 
     resolve_ms = 0
     transform_ms = 0
@@ -449,6 +733,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
     top_extremes: list[dict] = []
     bottom_extremes: list[dict] = []
     quant_samples: list[dict] = []
+    profile_samples: list[dict] = []
     id_map: list[dict] = []
 
     validators = {f"V-{idx:02d}": {"id": f"V-{idx:02d}", "status": "PASS", "codes": []} for idx in range(1, 21)}
@@ -720,7 +1005,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 {"weight_source": weight_source},
             )
         weight_source_mode = str(weight_source.get("mode") or "")
-        if weight_source_mode and weight_source_mode not in ("uniform", "column"):
+        if weight_source_mode and weight_source_mode not in ("uniform", "column", "profile_mixture_v2"):
             _abort(
                 "2B-S1-032",
                 "V-04",
@@ -744,6 +1029,16 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 "weight_source_column_missing",
                 {"weight_source": weight_source},
             )
+        if weight_source_mode == "profile_mixture_v2":
+            profile_mixture_cfg_raw = policy_payload.get("profile_mixture_v2")
+            if not isinstance(profile_mixture_cfg_raw, dict):
+                _abort(
+                    "2B-S1-032",
+                    "V-04",
+                    "profile_mixture_v2_missing",
+                    {"weight_source": weight_source},
+                )
+            profile_mixture_cfg = profile_mixture_cfg_raw
 
         normalisation_epsilon = float(policy_payload.get("normalisation_epsilon") or 0.0)
         quantisation_epsilon = float(policy_payload.get("quantisation_epsilon") or 0.0)
@@ -863,7 +1158,65 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 continue
 
             stage_start = time.monotonic()
-            if weight_column is None:
+            merchant_weight_source = weight_source_label
+            merchant_profile = ""
+            merchant_component = ""
+            merchant_alpha_used = 0.0
+            merchant_bucket = ""
+            if weight_source_mode == "profile_mixture_v2":
+                if profile_mixture_cfg is None:
+                    _abort(
+                        "2B-S1-032",
+                        "V-04",
+                        "profile_mixture_cfg_missing",
+                        {"merchant_id": merchant_id},
+                    )
+                site_orders = group_df["site_order"].to_numpy()
+                try:
+                    base, profile_meta = _build_profile_mixture_base(
+                        merchant_id=merchant_id,
+                        site_orders=site_orders,
+                        profile_cfg=profile_mixture_cfg,
+                    )
+                except EngineFailure as exc:
+                    _abort(
+                        "2B-S1-032",
+                        "V-04",
+                        "profile_mixture_build_failed",
+                        {"merchant_id": merchant_id, "detail": exc.detail},
+                    )
+                merchant_profile = str(profile_meta.get("weight_profile") or "profile_mixture_v2")
+                merchant_component = str(profile_meta.get("mixture_component") or "unknown")
+                merchant_alpha_used = float(profile_meta.get("alpha_used") or 0.0)
+                merchant_bucket = str(profile_meta.get("size_bucket") or "unknown")
+                merchant_weight_source = f"{merchant_profile}:{merchant_component}"
+                profile_mixture_merchants += 1
+                profile_component_counts[merchant_component] = profile_component_counts.get(merchant_component, 0) + 1
+                profile_bucket_counts[merchant_bucket] = profile_bucket_counts.get(merchant_bucket, 0) + 1
+                if bool(profile_meta.get("soft_cap_applied", False)):
+                    profile_soft_cap_applied_merchants += 1
+                if bool(profile_meta.get("secondary_floor_applied", False)):
+                    profile_secondary_floor_applied_merchants += 1
+                _record_ranked(
+                    profile_samples,
+                    {
+                        "merchant_id": merchant_id,
+                        "sites": sites,
+                        "weight_profile": merchant_profile,
+                        "mixture_component": merchant_component,
+                        "alpha_used": merchant_alpha_used,
+                        "size_bucket": merchant_bucket,
+                        "top1_pre_cap": float(profile_meta.get("top1_pre_cap", 0.0)),
+                        "top1_post_cap": float(profile_meta.get("top1_post_cap", 0.0)),
+                        "selector_u": float(profile_meta.get("selector_u", 0.0)),
+                        "soft_cap_applied": bool(profile_meta.get("soft_cap_applied", False)),
+                        "secondary_floor_applied": bool(profile_meta.get("secondary_floor_applied", False)),
+                        "key_tuple": merchant_id,
+                    },
+                    50,
+                    lambda item: item["key_tuple"],
+                )
+            elif weight_column is None:
                 base = np.ones(sites, dtype=np.float64)
             else:
                 base = group_df[weight_column].to_numpy()
@@ -1075,7 +1428,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     "legal_country_iso": legal_country_iso,
                     "site_order": int(site_orders[idx]),
                     "p_weight": float(p[idx]),
-                    "weight_source": weight_source_label,
+                    "weight_source": merchant_weight_source,
                     "quantised_bits": quantised_bits,
                     "floor_applied": bool(floor_applied[idx]),
                     "created_utc": created_utc,
@@ -1253,6 +1606,8 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     "id": "alias_layout_policy_v1",
                     "version_tag": policy_version_tag,
                     "sha256_hex": policy_digest,
+                    "weight_source_mode": weight_source_mode,
+                    "weight_source_label": weight_source_label,
                     "quantised_bits": quantised_bits,
                     "normalisation_epsilon": normalisation_epsilon,
                     "quantisation_epsilon": quantisation_epsilon,
@@ -1267,6 +1622,17 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     "caps_applied_rows": caps_applied_rows,
                     "zero_mass_fallback_merchants": zero_mass_fallback_merchants,
                     "tiny_negative_clamps": tiny_negative_clamps,
+                    "profile_mixture_merchants": profile_mixture_merchants,
+                    "profile_soft_cap_applied_merchants": profile_soft_cap_applied_merchants,
+                    "profile_secondary_floor_applied_merchants": profile_secondary_floor_applied_merchants,
+                    "profile_component_counts": {
+                        key: profile_component_counts[key]
+                        for key in sorted(profile_component_counts.keys())
+                    },
+                    "profile_bucket_counts": {
+                        key: profile_bucket_counts[key]
+                        for key in sorted(profile_bucket_counts.keys())
+                    },
                 },
                 "normalisation": {
                     "max_abs_mass_error_pre_quant": max_abs_mass_error_pre_quant,
@@ -1299,6 +1665,22 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 "samples": {
                     "key_coverage": coverage_samples[:20],
                     "normalisation": normalisation_samples_sorted,
+                    "profile_mixture": [
+                        {
+                            "merchant_id": item["merchant_id"],
+                            "sites": item["sites"],
+                            "weight_profile": item["weight_profile"],
+                            "mixture_component": item["mixture_component"],
+                            "alpha_used": item["alpha_used"],
+                            "size_bucket": item["size_bucket"],
+                            "selector_u": item["selector_u"],
+                            "top1_pre_cap": item["top1_pre_cap"],
+                            "top1_post_cap": item["top1_post_cap"],
+                            "soft_cap_applied": item["soft_cap_applied"],
+                            "secondary_floor_applied": item["secondary_floor_applied"],
+                        }
+                        for item in sorted(profile_samples, key=lambda item: item["merchant_id"])[:20]
+                    ],
                     "extremes": {
                         "top": top_extremes_sorted[:10],
                         "bottom": bottom_extremes_sorted[:10],

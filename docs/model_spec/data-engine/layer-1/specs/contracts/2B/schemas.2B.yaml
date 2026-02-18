@@ -394,6 +394,9 @@ policy:
       weight_source:
         type: object
         additionalProperties: true
+      profile_mixture_v2:
+        type: object
+        additionalProperties: true
       floor_spec:
         type: object
         additionalProperties: true

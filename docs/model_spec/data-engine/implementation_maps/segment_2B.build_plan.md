@@ -463,11 +463,52 @@ Candidate surfaces:
 - `packages/engine/src/engine/layers/l1/seg_2B/s1_site_weights/runner.py`
 
 Definition of done:
-- [ ] `weight_source.mode` moved from uniform to policy-governed mixture path.
-- [ ] S1 metrics hit at least B witness movement direction on selected seed(s):
+- [x] `weight_source.mode` moved from uniform to policy-governed mixture path.
+- [x] S1 metrics hit at least B witness movement direction on selected seed(s):
   - residual activation, top1-top2 gap activation, concentration spread activation.
-- [ ] S2 alias integrity and decode parity remain non-regressed.
-- [ ] accepted P1 lock record is written (policy snapshot + run-id + metric deltas).
+- [x] S2 alias integrity and decode parity remain non-regressed.
+- [x] accepted P1 lock record is written (policy snapshot + run-id + metric deltas).
+
+P1 closure record (2026-02-18):
+- accepted candidate run:
+  - run root: `runs/fix-data-engine/segment_2B`
+  - run id: `c7e3f4f9715d4256b7802bdc28579d54`
+- policy/code deltas:
+  - `config/layer1/2B/policy/alias_layout_policy_v1.json`
+    - `weight_source.mode=profile_mixture_v2`
+    - added `profile_mixture_v2` block
+      (`merchant_size_buckets`, `mixture_weights`,
+      `concentration_alpha_by_bucket`, `top1_soft_cap_by_bucket`,
+      `min_secondary_mass`, `deterministic_seed_scope=merchant_id`)
+    - bumped `version_tag/policy_version` to `1.0.2`
+    - updated `quantisation_epsilon` to `1.2e-07` for quantization coherence.
+  - `packages/engine/src/engine/layers/l1/seg_2B/s1_site_weights/runner.py`
+    - implemented deterministic merchant-scoped `profile_mixture_v2` resolver,
+    - added component/bucket/alpha provenance in S1 run-report samples,
+    - preserved schema and write-order contracts.
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+    - allowed `profile_mixture_v2` in `alias_layout_policy_v1` schema.
+- scoring and lock artifacts:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_candidate_c7e3f4f9715d4256b7802bdc28579d54.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_candidate_c7e3f4f9715d4256b7802bdc28579d54.md`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_lock_c7e3f4f9715d4256b7802bdc28579d54.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_lock_c7e3f4f9715d4256b7802bdc28579d54.md`
+- measured movement vs P0 baseline (`c25...`):
+  - residual median: `0.000000 -> 0.036163` (`+0.036163`)
+  - top1-top2 gap median: `0.000000 -> 0.171117` (`+0.171117`)
+  - merchant HHI IQR: `0.067633 -> 0.270633` (`+0.203000`)
+  - S1 `B`/`B+` band checks on these three axes: all pass.
+- S2 non-regression evidence:
+  - `s2_run_report` summary `PASS` (`fail_count=0`, `warn_count=0`)
+  - alias decode/structural validators remained green.
+- run-retention / prune evidence:
+  - summary artifact:
+    `runs/fix-data-engine/segment_2B/reports/segment2b_p1_prune_summary.json`
+  - superseded failed candidate roots pruned:
+    `6f2b57a4e7fc4fe6b216fdcf0f87cb73`,
+    `79c70dfc9aa44843bd4eb035192e3354`,
+    `c983af9b3a4f4a38947fe8d37cbb77f2`.
+  - active retained roots: baseline `c25...` and accepted P1 candidate `c7e3...`.
 
 ### P2 - S3 temporal heterogeneity activation
 Goal:

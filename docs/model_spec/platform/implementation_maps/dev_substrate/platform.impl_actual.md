@@ -12102,3 +12102,88 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - RDS `available`,
    - log group exists,
    - IAM simulation + evidence write probes pass.
+
+## Entry: 2026-02-18 15:20:00 +00:00 - Pre-change execution plan for P8.B (`M7.C` offsets + caught-up closure)
+
+### User directive
+1. Proceed to `P8.B` of `M7.P8`.
+
+### Execution intent
+1. Execute `M7.C` against the active `M7.B` PASS context and emit required evidence:
+   - run-scoped `rtdl_core/offsets_snapshot.json`
+   - run-scoped `rtdl_core/caught_up.json`
+   - control-plane `m7_c_rtdl_caught_up_snapshot.json`.
+
+### Input and authority basis
+1. Active M7 context:
+   - `m7_execution_id = m7_20260218T141420Z`
+   - `platform_run_id = platform_20260213T214223Z`.
+2. Run-start/run-window basis:
+   - `evidence/runs/platform_20260213T214223Z/ingest/kafka_offsets_snapshot.json`.
+3. Required topic set:
+   - `fp.bus.traffic.fraud.v1`
+   - `fp.bus.context.arrival_events.v1`
+   - `fp.bus.context.arrival_entities.v1`
+   - `fp.bus.context.flow_anchor.fraud.v1`.
+4. Threshold and evidence handles:
+   - `RTDL_CAUGHT_UP_LAG_MAX = 10`
+   - `OFFSETS_SNAPSHOT_PATH_PATTERN`
+   - `RTDL_CORE_EVIDENCE_PATH_PATTERN`.
+
+### Probe and calculation plan
+1. Query live Kafka watermarks per topic/partition from Confluent.
+2. Join live watermark state with run-window start/end offsets from ingest evidence.
+3. For each partition, compute:
+   - progression validity (`run_end_offset >= run_start_offset`),
+   - post-run lag (`watermark_high - (run_end_offset + 1)`),
+   - caught-up predicate against lag threshold,
+   - offset regression signal if live end is behind run end.
+4. Enforce fail-closed blockers on:
+   - missing ingest basis,
+   - required topic/partition coverage gaps,
+   - threshold breaches,
+   - offset-regression inconsistencies,
+   - publish failures.
+
+### Closure and publication plan
+1. Publish run-scoped artifacts to:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/offsets_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/caught_up.json`.
+2. Publish control-plane snapshot to:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`.
+3. Only mark `M7.C` complete when:
+   - blocker set is empty,
+   - `overall_pass=true`,
+   - all required artifacts are durably published.
+
+## Entry: 2026-02-18 15:25:00 +00:00 - P8.B (`M7.C`) executed fail-closed; stale ingest-basis blocker opened
+
+### Execution outputs
+1. Run-scoped artifacts published:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/rtdl_core/offsets_snapshot.json`
+   - local: `runs/dev_substrate/m7/20260218T141420Z/rtdl_core/caught_up.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/offsets_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/caught_up.json`
+2. Control-plane snapshot published:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
+3. Closure result:
+   - `overall_pass=false`
+   - blocker set non-empty.
+
+### Runtime findings
+1. Active Kafka topic state on required P8 topics is empty:
+   - `watermark_low=0`, `watermark_high=0` on all required partitions.
+2. P7 ingest offset basis for this run still contains non-zero run-end offsets (`ingest/kafka_offsets_snapshot.json`).
+3. This yields deterministic offset regression against run basis and blocks caught-up closure.
+
+### Drift classification and blocker
+1. Opened M7 blocker:
+   - `M7C-B5` / `M7C-B7` semantic (stale run-window ingest basis versus active Kafka substrate epoch).
+2. This is not a transient probe error; it is substrate/run-window continuity drift.
+3. Fail-closed posture enforced:
+   - `M7.C` remains open and cannot be marked complete.
+
+### Closure path pinned
+1. Refresh P7 ingest basis on the active Kafka substrate (rerun upstream publish+ingest evidence path for the active run scope).
+2. Rerun `M7.C` with refreshed basis and require empty blocker rollup.

@@ -309,11 +309,21 @@ DoD:
 - [ ] Caught-up gate closes with lag threshold.
 - [ ] Control snapshot is published locally and durably.
 
+Execution notes:
+1. Initial `M7.C` execution published artifacts but failed closure:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/offsets_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/caught_up.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
+2. Result:
+   - `overall_pass=false`
+   - open execution blocker `M7C-B5` (stale run-window basis versus active Kafka state).
+
 Blockers:
 1. `M7C-B1`: offsets evidence missing/incomplete.
 2. `M7C-B2`: lag threshold not met.
 3. `M7C-B3`: run-scope mismatch in evidence.
 4. `M7C-B4`: snapshot write/upload failure.
+5. `M7C-B5`: run-window ingest basis is stale versus active Kafka topic state.
 
 ### M7.D P8 Archive Durability Proof
 Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` (`P8.C`).
@@ -600,6 +610,13 @@ Current blockers:
      - `LABEL_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
    - closure rule:
      - pin concrete non-placeholder subject-key fields before `M7.G` execution.
+2. `M7C-B5` (open, execution blocker for `M7.C`/`P8.B`)
+   - observed posture:
+     - active Kafka required topics are empty (`watermark_high=0`) on all required partitions,
+     - current run ingest basis remains non-zero from prior substrate epoch.
+   - closure rule:
+     - refresh P7 ingest offset basis on active Kafka substrate,
+     - rerun `M7.C` and require empty blocker rollup.
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

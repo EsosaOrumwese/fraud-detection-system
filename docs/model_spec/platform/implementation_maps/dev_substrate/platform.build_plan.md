@@ -704,6 +704,9 @@ Active-phase planning posture:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_a_handle_closure_snapshot.json`.
     - `M7.B` closed at `m7_20260218T141420Z`
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_b_rtdl_readiness_snapshot.json`.
+  - `M7.C` has one fail-closed execution attempt (not closed):
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
+    - open blocker: stale P7 ingest offset basis versus active Kafka topic state (`M7C-B5`).
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.
@@ -856,5 +859,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M7 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M7.C` offsets/caught-up closure using the `M7.B` PASS snapshot,
+- close `M7C-B5` by refreshing P7 ingest offset basis on active Kafka substrate, then rerun `M7.C`,
 - keep fail-closed progression: `M7G-B1` subject-key placeholders remain an open forward blocker for `P10` entry.
