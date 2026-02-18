@@ -39,52 +39,52 @@
   "sigma_gamma_policy_v2": {
     "enabled": true,
     "gamma_clip": {
-      "max": 1.642409,
-      "min": 0.56354
+      "max": 1.45,
+      "min": 0.65
     },
     "sigma_base_by_segment": {
-      "default": 0.12,
-      "large": 0.115,
-      "mid": 0.12,
-      "small": 0.125
+      "default": 0.09,
+      "large": 0.085,
+      "mid": 0.09,
+      "small": 0.095
     },
     "sigma_jitter_by_merchant": {
-      "amplitude": 0.16,
+      "amplitude": 0.08,
       "enabled": true,
       "seed_scope": "merchant_id"
     },
-    "sigma_max": 0.22,
-    "sigma_min": 0.07,
+    "sigma_max": 0.16,
+    "sigma_min": 0.06,
     "sigma_multiplier_by_tz_group": {
       "default": 1.0,
       "prefix_rules": [
         {
-          "multiplier": 1.05,
+          "multiplier": 1.02,
           "prefix": "Europe/"
         },
         {
-          "multiplier": 1.02,
+          "multiplier": 1.01,
           "prefix": "America/"
         },
         {
-          "multiplier": 0.98,
+          "multiplier": 0.99,
           "prefix": "Asia/"
         },
         {
-          "multiplier": 1.03,
+          "multiplier": 1.01,
           "prefix": "Africa/"
         },
         {
-          "multiplier": 0.97,
+          "multiplier": 0.99,
           "prefix": "Pacific/"
         }
       ]
     },
     "weekly_component_amp_by_segment": {
-      "default": 0.018,
-      "large": 0.014,
-      "mid": 0.018,
-      "small": 0.022
+      "default": 0.01,
+      "large": 0.008,
+      "mid": 0.01,
+      "small": 0.012
     }
   },
   "version_tag": "1.0.3"

@@ -5658,5 +5658,95 @@ What was executed:
      - baseline `c25a2675fbfbacd952b13bb594880e92`,
      - frozen P1 lock `c7e3f4f9715d4256b7802bdc28579d54`.
    - Phase decision:
-     - `NO_GO_P3` from this candidate because the S4 non-catastrophic gate is
-       red, despite S3/S1/S2 gates being green.
+   - `NO_GO_P3` from this candidate because the S4 non-catastrophic gate is
+     red, despite S3/S1/S2 gates being green.
+
+### Entry: 2026-02-18 16:31
+
+Pre-change plan for `P2.R1` bounded recovery execution (single attempt).
+
+Problem restatement:
+1) `P2` failed despite S3 and non-regression gates passing.
+2) Failing gate is isolated to `S4` non-catastrophic entropy floor in scorer:
+   - `s4_guard_non_catastrophic=False`,
+   - candidate `entropy_p50=0.1256728257` vs required floor `>=0.20`.
+3) `P1` remains frozen authority and must not be reopened.
+
+Accepted approach:
+1) perform one bounded, policy-only S3 softening pass to reduce downstream
+   collapse pressure into S4 while preserving S3 activation.
+2) do not change S3 runner code or any S1/S2/S4 implementation in this lane.
+3) execute exactly one new candidate run and decide pass/fail immediately.
+
+Bounded knob movement plan (`sigma_gamma_policy_v2`):
+1) reduce `sigma_base_by_segment` for all merchant-size buckets.
+2) compress `sigma_multiplier_by_tz_group` toward `1.0`.
+3) reduce `sigma_jitter_by_merchant.amplitude`.
+4) reduce `weekly_component_amp_by_segment`.
+5) tighten `gamma_clip` range moderately.
+
+Execution sequence:
+1) stage fresh run-id from frozen `P1` root (`c7...`) and remove copied 2B
+   outputs before rerun to preserve write-once behavior.
+2) run `S0 -> S8` once on staged root.
+3) score with `tools/score_segment2b_p2_candidate.py`.
+4) update lock/plan/logbook with:
+   - `GO_P3` only if all gates are green,
+   - otherwise keep `NO_GO_P3` and carry failure evidence.
+
+### Entry: 2026-02-18 16:52
+
+Execution record for `P2.R1` bounded recovery (single attempt).
+
+Execution details:
+1) policy-only bounded softening applied in:
+   - `config/layer1/2B/policy/day_effect_policy_v1.json`
+   - changed knobs:
+     - lowered `sigma_base_by_segment`,
+     - compressed `sigma_multiplier_by_tz_group` toward `1.0`,
+     - lowered `sigma_jitter_by_merchant.amplitude` (`0.16 -> 0.08`),
+     - lowered `weekly_component_amp_by_segment`,
+     - tightened `sigma_min/sigma_max` and `gamma_clip`.
+2) staged fresh candidate run-id from frozen `P1` authority:
+   - run id: `80c00bf4cb654500a1bc0fa25bf84c83`
+   - staging source: `c7e3f4f9715d4256b7802bdc28579d54`
+   - included upstream `1B/2A` prerequisite surfaces + run-scoped
+     `s5_arrival_roster`.
+3) first `S0` attempt failed with `2B-S0-030` due invalid
+   `run_receipt.created_utc` precision format in staged receipt.
+   - corrected to schema-valid microsecond RFC3339 and reran.
+4) single bounded run completed:
+   - `S0 -> S8` all PASS.
+
+Scoring and gates:
+1) candidate score artifacts:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_candidate_80c00bf4cb654500a1bc0fa25bf84c83.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_candidate_80c00bf4cb654500a1bc0fa25bf84c83.md`
+2) lock artifacts:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p2r1_lock_80c00bf4cb654500a1bc0fa25bf84c83.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p2r1_lock_80c00bf4cb654500a1bc0fa25bf84c83.md`
+3) gate results:
+   - pass: `s3_b_hard_gates`, `s3_stability_guard`, `provenance_present`,
+     `p1_s1_non_regression`, `s2_non_regression`.
+   - fail: `s4_guard_non_catastrophic`.
+4) key observed metrics:
+   - `S3 merchant_gamma_std_median=0.092551` (still comfortably above B floor),
+   - `S4 entropy_p50=0.126338` (still below `0.20` floor),
+   - `S4 max_p_group_median=0.972396`.
+5) verdict:
+   - `FAIL_P2`; bounded recovery did not clear the S4 guard.
+
+Retention/pruning:
+1) marked superseded candidate with `_FAILED.SENTINEL.json` and pruned via:
+   - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_2B`
+2) pruned root:
+   - `80c00bf4cb654500a1bc0fa25bf84c83`
+3) prune evidence:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p2r1_prune_summary.json`
+4) retained roots:
+   - `c25a2675fbfbacd952b13bb594880e92` (baseline),
+   - `c7e3f4f9715d4256b7802bdc28579d54` (P1 lock).
+
+Decision:
+1) `NO_GO_P3` remains for closure from `P2`/`P2.R1` lane.
+2) next remediation movement should transition to S4-focused work under `P3`.

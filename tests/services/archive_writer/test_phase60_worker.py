@@ -16,6 +16,70 @@ def test_archive_writer_worker_archives_file_bus_event(tmp_path, monkeypatch) ->
     if run_root.exists():
         shutil.rmtree(run_root)
 
+
+def test_archive_writer_worker_kafka_dispatch_does_not_fallback_to_file_reader(tmp_path, monkeypatch) -> None:
+    run_id = "platform_test_archive_writer_phase60_kafka"
+    run_root = RUNS_ROOT / run_id
+    if run_root.exists():
+        shutil.rmtree(run_root)
+
+    monkeypatch.setenv("ACTIVE_PLATFORM_RUN_ID", run_id)
+
+    class _FakeKafkaReader:
+        def list_partitions(self, topic: str) -> list[int]:
+            return [0]
+
+        def read(
+            self,
+            *,
+            topic: str,
+            partition: int,
+            from_offset: int | None,
+            limit: int,
+            start_position: str,
+        ) -> list[dict]:
+            return []
+
+    monkeypatch.setattr("fraud_detection.archive_writer.worker.build_kafka_reader", lambda client_id: _FakeKafkaReader())
+
+    topics_ref = tmp_path / "topics.yaml"
+    topics_ref.write_text("topics:\n  - fp.bus.traffic.fraud.v1\n", encoding="utf-8")
+
+    profile_path = tmp_path / "profile_kafka.yaml"
+    profile_payload = {
+        "profile_id": "dev_min_test",
+        "policy": {"policy_rev": "dev-min-test-v0"},
+        "wiring": {
+            "object_store": {
+                "root": str(tmp_path / "store"),
+                "path_style": True,
+            },
+            "event_bus_kind": "kafka",
+            "event_bus": {},
+        },
+        "archive_writer": {
+            "policy": {"policy_ref": "config/platform/archive_writer/policy_v0.yaml"},
+            "wiring": {
+                "stream_id": "archive_writer.v0",
+                "ledger_dsn": str(tmp_path / "archive_writer.sqlite"),
+                "event_bus_kind": "kafka",
+                "event_bus_start_position": "latest",
+                "topics_ref": str(topics_ref),
+                "poll_max_records": 20,
+                "poll_sleep_seconds": 0.1,
+            },
+        },
+    }
+    profile_path.write_text(yaml.safe_dump(profile_payload, sort_keys=False), encoding="utf-8")
+
+    config = load_worker_config(profile_path)
+    worker = ArchiveWriterWorker(config)
+    processed = worker.run_once()
+    assert processed == 0
+
+    if run_root.exists():
+        shutil.rmtree(run_root)
+
     monkeypatch.setenv("ACTIVE_PLATFORM_RUN_ID", run_id)
 
     eb_root = tmp_path / "eb"

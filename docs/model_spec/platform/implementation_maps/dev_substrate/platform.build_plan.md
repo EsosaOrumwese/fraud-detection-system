@@ -711,6 +711,7 @@ Active-phase planning posture:
   - `M7.D` rerun remains fail-closed (not closed):
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_d_archive_durability_snapshot.json`
     - open blocker: archive-writer runtime crash-loop under managed Kafka posture (`M7D-B4`).
+    - implementation patch is now in-repo for Kafka intake dispatch/read path across affected workers (`archive_writer`, `decision_fabric`, `action_layer`, `case_trigger`, `case_mgmt`); closure still requires image rebuild/publish + ECS rematerialization + rerun evidence.
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.
@@ -864,5 +865,6 @@ Control: required P12 teardown proof and budget guardrails.
 M7 is active for deep-plan closure and execution sequencing.
 Next action:
 - keep archive-writer rematerialized on real worker runtime command,
+- build/publish runtime image that includes Kafka intake fixes (worker dispatch + Kafka reader path),
 - resolve `M7D-B4` runtime crash-loop under managed Kafka posture, then rerun `M7.D`,
 - keep fail-closed progression: `M7G-B1` subject-key placeholders remain an open forward blocker for `P10` entry.

@@ -17,6 +17,7 @@ from typing import Any, Mapping
 import yaml
 
 from fraud_detection.event_bus import EventBusReader
+from fraud_detection.event_bus.kafka import build_kafka_reader
 from fraud_detection.event_bus.kinesis import KinesisEventBusReader
 from fraud_detection.platform_runtime import RUNS_ROOT, resolve_platform_run_id, resolve_run_scoped_path
 
@@ -132,6 +133,7 @@ class CaseMgmtWorker:
             if config.event_bus_kind == "kinesis"
             else None
         )
+        self._kafka_reader = build_kafka_reader(client_id=f"case-mgmt-worker-{config.stream_id}") if config.event_bus_kind == "kafka" else None
 
     def run_once(self) -> int:
         processed = 0
@@ -236,7 +238,11 @@ class CaseMgmtWorker:
     def _iter_records(self) -> list[dict[str, Any]]:
         if self.config.event_bus_kind == "kinesis":
             return self._read_kinesis()
-        return self._read_file()
+        if self.config.event_bus_kind == "kafka":
+            return self._read_kafka()
+        if self.config.event_bus_kind == "file":
+            return self._read_file()
+        raise RuntimeError(f"CASE_MGMT_EVENT_BUS_KIND_UNSUPPORTED:{self.config.event_bus_kind}")
 
     def _read_file(self) -> list[dict[str, Any]]:
         assert self._file_reader is not None
@@ -287,6 +293,42 @@ class CaseMgmtWorker:
                     )
         return rows
 
+    def _read_kafka(self) -> list[dict[str, Any]]:
+        assert self._kafka_reader is not None
+        rows: list[dict[str, Any]] = []
+        for topic in self.config.admitted_topics:
+            for partition in self._kafka_partitions(topic):
+                checkpoint = self.consumer_checkpoints.next_offset(topic=topic, partition=partition)
+                from_offset: int | None = None
+                if checkpoint and checkpoint[1] == "kafka_offset":
+                    try:
+                        from_offset = int(checkpoint[0])
+                    except ValueError:
+                        from_offset = None
+                start_position = "earliest"
+                if checkpoint is None and self.config.event_bus_start_position == "latest":
+                    start_position = "latest"
+                for record in self._kafka_reader.read(
+                    topic=topic,
+                    partition=partition,
+                    from_offset=from_offset,
+                    limit=self.config.poll_max_records,
+                    start_position=start_position,
+                ):
+                    payload = record.get("payload") if isinstance(record.get("payload"), Mapping) else {}
+                    if isinstance(payload.get("payload"), Mapping):
+                        payload = dict(payload.get("payload") or {})
+                    rows.append(
+                        {
+                            "topic": topic,
+                            "partition": int(partition),
+                            "offset": str(record.get("offset") or ""),
+                            "offset_kind": "kafka_offset",
+                            "payload": payload,
+                        }
+                    )
+        return rows
+
     def _file_partitions(self, topic: str) -> list[int]:
         root = Path(self.config.event_bus_root) / topic
         if not root.exists():
@@ -298,6 +340,11 @@ class CaseMgmtWorker:
             except ValueError:
                 continue
         return sorted(set(parts)) if parts else [0]
+
+    def _kafka_partitions(self, topic: str) -> list[int]:
+        assert self._kafka_reader is not None
+        partitions = self._kafka_reader.list_partitions(topic)
+        return partitions if partitions else [0]
 
     def _export(self) -> None:
         if not self.config.platform_run_id or not self._scenario_run_id:

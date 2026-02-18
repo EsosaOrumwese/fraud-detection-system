@@ -409,7 +409,7 @@ Current blockers:
      - archive durability closure cannot claim active-writer proof because worker runtime is not stable.
    - closure criteria:
      - keep archive-writer service on real worker runtime command (already rematerialized),
-     - fix archive-writer runtime crash under Kafka posture,
+     - fix archive-writer runtime crash under Kafka posture (implementation patch is now in repo; requires image rollout),
      - rerun `M7.D` and require `overall_pass=true` with empty blocker rollup.
 
 Rule:

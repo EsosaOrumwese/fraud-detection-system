@@ -642,6 +642,7 @@ Current blockers:
      - archive-writer ECS service is on real worker runtime command (task definition `:15`),
      - service is crash-looping (`desired=1`, `running=0`, repeated non-zero exits),
      - CloudWatch logs show runtime `AssertionError` in `archive_writer.worker` (`_file_reader is None`).
+     - implementation fix is landed in-repo (Kafka reader + explicit dispatch), pending runtime image rollout.
    - closure rule:
      - keep real worker runtime command materialized,
      - fix archive-writer runtime crash under managed Kafka posture,

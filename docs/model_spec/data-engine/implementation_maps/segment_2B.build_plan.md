@@ -657,6 +657,54 @@ P2 closure record (2026-02-18):
   - `NO_GO_P3` from this candidate.
   - next required lane is S4-focused recovery (P3) from P1-frozen authority root.
 
+P2.R1 - bounded recovery pass (single-attempt)
+Goal:
+- recover `P2` by reducing S3-driven collapse pressure into S4 while keeping S3 B gates green.
+
+Scope:
+- apply one bounded policy-only tuning pass in:
+  - `config/layer1/2B/policy/day_effect_policy_v1.json`
+- tune only these `sigma_gamma_policy_v2` knobs downward:
+  - `sigma_base_by_segment`,
+  - `sigma_multiplier_by_tz_group`,
+  - `sigma_jitter_by_merchant.amplitude`,
+  - `weekly_component_amp_by_segment`,
+  - `gamma_clip` tightening.
+- execute exactly one candidate lane (`S0 -> S8`) on a fresh run-id staged from frozen `P1` authority.
+- rescore using `tools/score_segment2b_p2_candidate.py`.
+
+Definition of done:
+- [x] exactly one bounded candidate run is executed and scored.
+- [x] `S3` hard/stability/provenance + `S1/S2` non-regression remain green.
+- [ ] if `S4` non-catastrophic guard turns green: close `P2` as recovered and record `GO_P3`.
+- [x] if `S4` guard remains red: close `P2.R1` as failed and carry forward `NO_GO_P3` with evidence.
+
+P2.R1 closure record (2026-02-18):
+- candidate run:
+  - run root: `runs/fix-data-engine/segment_2B`
+  - run id: `80c00bf4cb654500a1bc0fa25bf84c83` (superseded and pruned after evidence capture)
+- policy delta (bounded softening only):
+  - `config/layer1/2B/policy/day_effect_policy_v1.json`
+    - reduced `sigma_base_by_segment`,
+    - compressed `sigma_multiplier_by_tz_group`,
+    - reduced `sigma_jitter_by_merchant.amplitude`,
+    - reduced `weekly_component_amp_by_segment`,
+    - tightened `sigma_min/sigma_max` and `gamma_clip`.
+- scoring evidence:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_candidate_80c00bf4cb654500a1bc0fa25bf84c83.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_candidate_80c00bf4cb654500a1bc0fa25bf84c83.md`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p2r1_lock_80c00bf4cb654500a1bc0fa25bf84c83.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p2r1_lock_80c00bf4cb654500a1bc0fa25bf84c83.md`
+- gate outcome:
+  - `S3` hard/stability/provenance: pass.
+  - `P1 S1` non-regression + `S2` non-regression: pass.
+  - `S4` non-catastrophic guard: fail (`entropy_p50=0.126338`, `max_p_group_median=0.972396`).
+- decision:
+  - `NO_GO_P3` maintained from `P2` lane (bounded recovery did not clear S4 guard).
+- run-retention / prune evidence:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p2r1_prune_summary.json`
+  - pruned superseded root: `80c00bf4cb654500a1bc0fa25bf84c83`.
+
 ### P3 - S4 anti-dominance tuning (post S1/S3)
 Goal:
 - contract dominance tails and lift multi-group behavior without synthetic artifacts.

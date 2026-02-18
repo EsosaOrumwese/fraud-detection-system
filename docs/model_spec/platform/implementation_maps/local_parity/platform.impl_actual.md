@@ -10732,3 +10732,23 @@ After IG service route error-mapping fix and pack restart:
 
 ### Continuity
 This closes local parity note item #3 from the earlier Spine Green runtime observations.
+
+## Entry: 2026-02-18 4:54PM - Local-parity continuity note for Kafka intake hardening introduced on dev-substrate track
+
+### Context
+Dev-substrate M7 execution exposed a runtime bug in `archive_writer` under `event_bus_kind=kafka` (non-kinesis fallback path incorrectly used file reader). Implementation hardening was applied in active track code.
+
+### What changed in implementation (ladder-safety relevant)
+1. Kafka intake reader capability was added in:
+   - `src/fraud_detection/event_bus/kafka.py`.
+2. Explicit bus-kind dispatch plus Kafka read paths were added in:
+   - `src/fraud_detection/archive_writer/worker.py`
+   - `src/fraud_detection/decision_fabric/worker.py`
+   - `src/fraud_detection/action_layer/worker.py`
+   - `src/fraud_detection/case_trigger/worker.py`
+   - `src/fraud_detection/case_mgmt/worker.py`.
+
+### Local-parity impact statement
+1. Local parity remains Kinesis-based for these lanes and is unaffected semantically.
+2. This change is compatibility hardening for environment ladder continuity (`local_parity -> dev`) and removes an implicit fallback class that could hide drift.
+3. No local-parity runbook/gate semantics are altered by this entry.

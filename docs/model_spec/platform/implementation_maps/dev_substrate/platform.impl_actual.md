@@ -12290,3 +12290,39 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - keep real worker runtime command materialized,
    - fix archive-writer Kafka-runtime path to avoid `_file_reader` assertion crash,
    - rerun `M7.D` and require empty blocker rollup.
+
+## Entry: 2026-02-18 16:54:00 +00:00 - Kafka intake implementation fix landed for M7 workers (pre-rollout)
+
+### User directive
+1. Clear out the implementation issue and document the change in planning/notes.
+
+### Problem statement
+1. Runtime crash root cause was implementation-side:
+   - `archive_writer` worker routed non-`kinesis` intake to file reader, causing assertion failure under dev-min `event_bus_kind=kafka`.
+2. The same fallback shape existed in adjacent M7 workers and could create repeat drift during `M7.E..M7.H`.
+
+### Implementation change set
+1. Added Kafka reader support in event bus module:
+   - `src/fraud_detection/event_bus/kafka.py`
+   - new `KafkaEventBusReader` and `build_kafka_reader(...)` using `kafka-python` consumer posture and env-backed auth (`KAFKA_*`).
+2. Patched explicit intake dispatch + Kafka read path in:
+   - `src/fraud_detection/archive_writer/worker.py`
+   - `src/fraud_detection/decision_fabric/worker.py`
+   - `src/fraud_detection/action_layer/worker.py`
+   - `src/fraud_detection/case_trigger/worker.py`
+   - `src/fraud_detection/case_mgmt/worker.py`
+3. All patched workers now:
+   - dispatch explicitly by `event_bus_kind` (`kinesis`/`kafka`/`file`),
+   - use Kafka checkpoints with `offset_kind="kafka_offset"`,
+   - fail closed with explicit `*_EVENT_BUS_KIND_UNSUPPORTED` for unknown kinds (no implicit fallback).
+
+### Validation
+1. Syntax validation passed for all touched modules:
+   - `python -m compileall` on changed files completed without error.
+
+### Current closure status
+1. This is an implementation closure step, not runtime closure yet.
+2. `M7.D` remains open until runtime rollout completes:
+   - build/publish image with this code,
+   - rematerialize ECS services,
+   - rerun `M7.D` and require `overall_pass=true` with empty blockers.
