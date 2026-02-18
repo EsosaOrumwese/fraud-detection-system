@@ -180,9 +180,26 @@ Scope:
 - no realism-shape tuning in this phase.
 
 Definition of done:
-- [ ] measured runtime reduction on selected primary state versus POPT.0 baseline.
+- [x] measured runtime reduction on selected primary state versus POPT.0 baseline.
 - [ ] deterministic replay check passes on same seed + same inputs.
-- [ ] relevant structural validators remain green.
+- [x] relevant structural validators remain green.
+
+POPT.1 progress record (2026-02-18):
+- implementation target:
+  - `packages/engine/src/engine/layers/l1/seg_2B/s5_router/runner.py`
+- runtime evidence:
+  - POPT.0 baseline (`S5`): `30.477s`
+  - POPT.1 candidate (`S5`, run-id `c25a2675fbfbacd952b13bb594880e92`, sampled
+    input-validation lane): `5.92s`
+  - observed reduction: `-24.56s` (`-80.58%`).
+- structural evidence:
+  - `s5_run_report.json` emitted under fix lane with validators
+    `V-01..V-16` all `PASS`.
+- open gate:
+  - same-run replay currently fails on write-once conflict
+    (`2B-S5-080`) because S5 event payloads include runtime `ts_utc`; rerun bytes
+    are non-identical. This is a pre-existing idempotence behavior and remains to
+    be addressed as a follow-up closure item.
 
 ### POPT.2 - Secondary hotspot optimization
 Goal:

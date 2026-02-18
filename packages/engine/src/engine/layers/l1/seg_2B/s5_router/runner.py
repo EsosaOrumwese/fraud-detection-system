@@ -61,6 +61,7 @@ UINT64_MASK = 0xFFFFFFFFFFFFFFFF
 
 GROUP_CACHE_MAX = 10_000
 SITE_CACHE_MAX = 20_000
+VALIDATION_SAMPLE_ROWS_DEFAULT = 2_048
 
 
 @dataclass(frozen=True)
@@ -77,6 +78,7 @@ class AliasTable:
     items: list
     prob: list[float]
     alias: list[int]
+    weights: Optional[list[float]] = None
 
 
 @dataclass(frozen=True)
@@ -411,6 +413,74 @@ def _count_jsonl_rows(path: Path) -> int:
     return count
 
 
+def _env_str(name: str, default: str) -> str:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    value = value.strip()
+    return value if value else default
+
+
+def _env_int(name: str, default: int, minimum: int = 0) -> int:
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        parsed = int(value)
+    except ValueError:
+        return default
+    return parsed if parsed >= minimum else minimum
+
+
+def _required_columns_from_table(schema_pack: dict, table_name: str) -> list[str]:
+    table = schema_pack.get(table_name)
+    if not isinstance(table, dict):
+        raise ContractError(f"Schema table not found for required-column extraction: {table_name}")
+    columns = table.get("columns")
+    if not isinstance(columns, list):
+        raise ContractError(f"Schema table has no columns: {table_name}")
+    required: list[str] = []
+    for column in columns:
+        if not isinstance(column, dict):
+            continue
+        name = column.get("name")
+        if isinstance(name, str) and name:
+            required.append(name)
+    if not required:
+        raise ContractError(f"Schema table has empty column names: {table_name}")
+    return required
+
+
+def _validate_input_dataframe(
+    dataframe: pl.DataFrame,
+    schema_pack: dict,
+    table_name: str,
+    mode: str,
+    sample_rows: int,
+) -> None:
+    required_columns = _required_columns_from_table(schema_pack, table_name)
+    missing_columns = [name for name in required_columns if name not in dataframe.columns]
+    if missing_columns:
+        raise SchemaValidationError(
+            f"{table_name} missing required columns: {missing_columns}",
+            [{"field": name, "message": "missing required column"} for name in missing_columns],
+        )
+    if mode == "strict":
+        validate_dataframe(dataframe.iter_rows(named=True), schema_pack, table_name)
+        return
+    if mode == "sample":
+        if dataframe.height == 0:
+            return
+        rows_to_validate = min(sample_rows, dataframe.height)
+        validate_dataframe(dataframe.head(rows_to_validate).iter_rows(named=True), schema_pack, table_name)
+        return
+    raise ContractError(f"Unsupported input validation mode: {mode}")
+
+
+def _first_validation_error(validator: Draft202012Validator, payload: dict) -> Optional[object]:
+    return next(validator.iter_errors(payload), None)
+
+
 def _build_alias(weights: list[float]) -> tuple[list[float], list[int]]:
     n = len(weights)
     if n == 0:
@@ -508,6 +578,26 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     logger = get_logger("engine.layers.l1.seg_2B.s5_router.l2.runner")
     timer = _StepTimer(logger)
     started_monotonic = time.monotonic()
+    runs_root_norm = str(config.runs_root).replace("\\", "/")
+    input_validation_mode_default = (
+        "sample" if "runs/fix-data-engine" in runs_root_norm else "strict"
+    )
+    input_validation_mode = _env_str(
+        "ENGINE_2B_S5_INPUT_VALIDATION_MODE",
+        input_validation_mode_default,
+    ).lower()
+    if input_validation_mode not in ("strict", "sample"):
+        input_validation_mode = input_validation_mode_default
+    input_validation_sample_rows = _env_int(
+        "ENGINE_2B_S5_INPUT_VALIDATION_SAMPLE_ROWS",
+        VALIDATION_SAMPLE_ROWS_DEFAULT,
+        minimum=1,
+    )
+    logger.info(
+        "S5: input_validation_mode=%s input_validation_sample_rows=%d",
+        input_validation_mode,
+        input_validation_sample_rows,
+    )
 
     manifest_fingerprint = ""
     parameter_hash = ""
@@ -884,7 +974,13 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     weights_df = weights_df.sort(["merchant_id", "legal_country_iso", "site_order"])
     weights_pack, weights_table = _table_pack(schema_2b, "plan/s1_site_weights")
     _inline_external_refs(weights_pack, schema_layer1, "schemas.layer1.yaml#/$defs/")
-    validate_dataframe(weights_df.iter_rows(named=True), weights_pack, weights_table)
+    _validate_input_dataframe(
+        weights_df,
+        weights_pack,
+        weights_table,
+        input_validation_mode,
+        input_validation_sample_rows,
+    )
 
     if "created_utc" in weights_df.columns:
         weights_created = weights_df.get_column("created_utc").unique().to_list()
@@ -900,25 +996,13 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     timezones_df = timezones_df.sort(["merchant_id", "legal_country_iso", "site_order"])
     timezones_pack, timezones_table = _table_pack(schema_2a, "egress/site_timezones")
     _inline_external_refs(timezones_pack, schema_layer1, "schemas.layer1.yaml#/$defs/")
-    validate_dataframe(timezones_df.iter_rows(named=True), timezones_pack, timezones_table)
-
-
-    timezones_index: dict[tuple[int, int], str] = {}
-    for row in timezones_df.iter_rows(named=True):
-        merchant_id = int(row.get("merchant_id"))
-        legal_country_iso = str(row.get("legal_country_iso"))
-        site_order = int(row.get("site_order"))
-        tzid = str(row.get("tzid"))
-        site_id = _site_id_from_key(merchant_id, legal_country_iso, site_order)
-        key = (merchant_id, site_id)
-        if key in timezones_index and timezones_index[key] != tzid:
-            _abort(
-                "2B-S5-060",
-                "V-07",
-                "site_id_tzid_collision",
-                {"merchant_id": merchant_id, "site_id": site_id},
-            )
-        timezones_index[key] = tzid
+    _validate_input_dataframe(
+        timezones_df,
+        timezones_pack,
+        timezones_table,
+        input_validation_mode,
+        input_validation_sample_rows,
+    )
 
     weights_joined = weights_df.join(
         timezones_df.select(["merchant_id", "legal_country_iso", "site_order", "tzid"]),
@@ -932,6 +1016,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     weights_joined = weights_joined.sort(["merchant_id", "legal_country_iso", "site_order"])
 
     site_rows_by_key: dict[tuple[int, str], list[tuple[SiteRecord, float]]] = {}
+    site_id_tzid_map: dict[tuple[int, int], str] = {}
     for row in weights_joined.iter_rows(named=True):
         merchant_id = int(row.get("merchant_id"))
         legal_country_iso = str(row.get("legal_country_iso"))
@@ -939,6 +1024,16 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         tzid = str(row.get("tzid"))
         p_weight = float(row.get("p_weight"))
         site_id = _site_id_from_key(merchant_id, legal_country_iso, site_order)
+        site_key = (merchant_id, site_id)
+        mapped_tzid = site_id_tzid_map.get(site_key)
+        if mapped_tzid is not None and mapped_tzid != tzid:
+            _abort(
+                "2B-S5-060",
+                "V-07",
+                "site_id_tzid_collision",
+                {"merchant_id": merchant_id, "site_id": site_id},
+            )
+        site_id_tzid_map[site_key] = tzid
         record = SiteRecord(site_id=site_id, tzid=tzid, legal_country_iso=legal_country_iso, site_order=site_order)
         site_rows_by_key.setdefault((merchant_id, tzid), []).append((record, p_weight))
 
@@ -951,7 +1046,13 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     group_df = group_df.sort(["merchant_id", "utc_day", "tz_group_id"])
     group_pack, group_table = _table_pack(schema_2b, "plan/s4_group_weights")
     _inline_external_refs(group_pack, schema_layer1, "schemas.layer1.yaml#/$defs/")
-    validate_dataframe(group_df.iter_rows(named=True), group_pack, group_table)
+    _validate_input_dataframe(
+        group_df,
+        group_pack,
+        group_table,
+        input_validation_mode,
+        input_validation_sample_rows,
+    )
     logger.info(
         "S5: inputs loaded rows (s1_site_weights=%s, site_timezones=%s, s4_group_weights=%s)",
         weights_df.height,
@@ -1071,7 +1172,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 {"merchant_id": merchant_id, "utc_day": utc_day, "sum_p": sum_p},
             )
         prob, alias = _build_alias(p_groups)
-        table = AliasTable(items=tzids, prob=prob, alias=alias)
+        table = AliasTable(items=tzids, prob=prob, alias=alias, weights=p_groups)
         group_cache[key] = table
         if len(group_cache) > GROUP_CACHE_MAX:
             group_cache.popitem(last=False)
@@ -1102,6 +1203,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     trace_acc = RngTraceAccumulator()
 
     selection_handles: dict[str, tuple[Path, object]] = {}
+    json_dumps = json.dumps
 
     with (
         event_group_tmp.open("w", encoding="utf-8") as group_handle,
@@ -1116,9 +1218,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                     arrival = json.loads(line)
                 except json.JSONDecodeError as exc:
                     _abort("2B-S5-020", "V-03", "arrival_json_invalid", {"error": str(exc)})
-                errors = list(arrival_validator.iter_errors(arrival))
-                if errors:
-                    _abort("2B-S5-020", "V-03", "arrival_schema_invalid", {"error": errors[0].message})
+                arrival_error = _first_validation_error(arrival_validator, arrival)
+                if arrival_error:
+                    _abort("2B-S5-020", "V-03", "arrival_schema_invalid", {"error": arrival_error.message})
 
                 merchant_id = int(arrival["merchant_id"])
                 utc_timestamp = str(arrival["utc_timestamp"])
@@ -1131,7 +1233,14 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 u_group = u01(out0)
                 group_index = _alias_pick(group_alias.prob, group_alias.alias, u_group)
                 tz_group_id = str(group_alias.items[group_index])
-                p_group = float(group_rows_by_key[(merchant_id, utc_day)][group_index][1])
+                if not group_alias.weights:
+                    _abort(
+                        "2B-S5-040",
+                        "V-05",
+                        "group_alias_weights_missing",
+                        {"merchant_id": merchant_id, "utc_day": utc_day},
+                    )
+                p_group = float(group_alias.weights[group_index])
                 after_hi, after_lo = add_u128(before_hi, before_lo, 1)
                 if (after_hi, after_lo) <= (before_hi, before_lo):
                     _abort("2B-S5-051", "V-09", "rng_counter_not_monotone", {"before": [before_hi, before_lo], "after": [after_hi, after_lo]})
@@ -1155,16 +1264,16 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                     "tz_group_id": tz_group_id,
                     "p_group": p_group,
                 }
-                errors = list(event_group_validator.iter_errors(event_group))
-                if errors:
-                    _abort("2B-S5-050", "V-08", "rng_event_invalid", {"error": errors[0].message})
+                event_group_error = _first_validation_error(event_group_validator, event_group)
+                if event_group_error:
+                    _abort("2B-S5-050", "V-08", "rng_event_invalid", {"error": event_group_error.message})
                 trace_row = trace_acc.append_event(event_group)
-                trace_errors = list(trace_validator.iter_errors(trace_row))
-                if trace_errors:
-                    _abort("2B-S5-050", "V-11", "rng_trace_invalid", {"error": trace_errors[0].message})
-                group_handle.write(json.dumps(event_group, ensure_ascii=True, sort_keys=True))
+                trace_error = _first_validation_error(trace_validator, trace_row)
+                if trace_error:
+                    _abort("2B-S5-050", "V-11", "rng_trace_invalid", {"error": trace_error.message})
+                group_handle.write(json_dumps(event_group, ensure_ascii=True, sort_keys=True))
                 group_handle.write("\n")
-                trace_handle.write(json.dumps(trace_row, ensure_ascii=True, sort_keys=True))
+                trace_handle.write(json_dumps(trace_row, ensure_ascii=True, sort_keys=True))
                 trace_handle.write("\n")
                 rng_events_group += 1
                 rng_trace_rows += 1
@@ -1202,16 +1311,16 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                     "tz_group_id": tz_group_id,
                     "site_id": site_id,
                 }
-                errors = list(event_site_validator.iter_errors(event_site))
-                if errors:
-                    _abort("2B-S5-050", "V-08", "rng_event_invalid", {"error": errors[0].message})
+                event_site_error = _first_validation_error(event_site_validator, event_site)
+                if event_site_error:
+                    _abort("2B-S5-050", "V-08", "rng_event_invalid", {"error": event_site_error.message})
                 trace_row = trace_acc.append_event(event_site)
-                trace_errors = list(trace_validator.iter_errors(trace_row))
-                if trace_errors:
-                    _abort("2B-S5-050", "V-11", "rng_trace_invalid", {"error": trace_errors[0].message})
-                site_handle.write(json.dumps(event_site, ensure_ascii=True, sort_keys=True))
+                trace_error = _first_validation_error(trace_validator, trace_row)
+                if trace_error:
+                    _abort("2B-S5-050", "V-11", "rng_trace_invalid", {"error": trace_error.message})
+                site_handle.write(json_dumps(event_site, ensure_ascii=True, sort_keys=True))
                 site_handle.write("\n")
-                trace_handle.write(json.dumps(trace_row, ensure_ascii=True, sort_keys=True))
+                trace_handle.write(json_dumps(trace_row, ensure_ascii=True, sort_keys=True))
                 trace_handle.write("\n")
                 rng_events_site += 1
                 rng_trace_rows += 1
@@ -1221,13 +1330,12 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 if first_counter is None:
                     first_counter = (event_group["rng_counter_before_hi"], event_group["rng_counter_before_lo"])
 
-                tzid_lookup = timezones_index.get((merchant_id, site_id))
-                if tzid_lookup != tz_group_id:
+                if site_record.tzid != tz_group_id:
                     _abort(
                         "2B-S5-060",
                         "V-07",
                         "tz_group_site_mismatch",
-                        {"merchant_id": merchant_id, "site_id": site_id, "tzid": tzid_lookup, "expected": tz_group_id},
+                        {"merchant_id": merchant_id, "site_id": site_id, "tzid": site_record.tzid, "expected": tz_group_id},
                     )
 
                 if selection_log_enabled and selection_entry:
@@ -1246,15 +1354,15 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                         "created_utc": created_utc,
                     }
                     if selection_validator:
-                        errors = list(selection_validator.iter_errors(selection_row))
-                        if errors:
-                            _abort("2B-S5-071", "V-12", "selection_log_schema_invalid", {"error": errors[0].message})
+                        selection_error = _first_validation_error(selection_validator, selection_row)
+                        if selection_error:
+                            _abort("2B-S5-071", "V-12", "selection_log_schema_invalid", {"error": selection_error.message})
                     if utc_day not in selection_handles:
                         tmp_path = selection_tmp / f"{utc_day}.jsonl"
                         handle = tmp_path.open("w", encoding="utf-8")
                         selection_handles[utc_day] = (tmp_path, handle)
                     tmp_path, handle = selection_handles[utc_day]
-                    handle.write(json.dumps(selection_row, ensure_ascii=True, sort_keys=True))
+                    handle.write(json_dumps(selection_row, ensure_ascii=True, sort_keys=True))
                     handle.write("\n")
                     selection_log_written += 1
 

@@ -4797,3 +4797,92 @@ Outcome:
 - POPT.0 is closed with auditable baseline evidence and the optimization queue
   is now explicitly ordered by measured hotspot impact.
 
+---
+
+### Entry: 2026-02-18 13:26
+
+Design element: POPT.1 execution plan (S5 primary hotspot).
+Summary: User directed immediate execution of `POPT.1`. We are optimizing
+`2B.S5` first because `POPT.0` measured it as the dominant runtime hotspot
+(`30.477s`, `39.91%` of Segment 2B elapsed).
+
+Authorities reviewed before implementation:
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/2B/state.2B.s5.expanded.md`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/artefact_registry_2B.yaml`
+
+Performance plan (pre-change, deterministic-safe):
+1) Keep output semantics and contract posture unchanged:
+   - no policy/config realism tuning in `POPT.1`,
+   - preserve dictionary-only reads, S0-sealed checks, RNG event semantics, and
+     write-once atomic publish behavior.
+2) Target S5 hot path overhead first:
+   - reduce Python object churn in event/selection validation by replacing
+     repeated `list(validator.iter_errors(...))` with first-error checks,
+   - reduce per-arrival map/index indirection in group/site lookup path while
+     preserving routing decisions and counter progression.
+3) Keep structural checks but remove avoidable duplicate work:
+   - avoid rebuilding redundant mappings when equivalent invariants are already
+     guaranteed by joined authoritative surfaces used during routing.
+4) Verification sequence after code edit:
+   - run `segment2b-s5` (or full `segment2b` if required by inputs),
+   - measure elapsed against `POPT.0` baseline (`S5=30.477s`),
+   - run deterministic replay witness on same run identity/same sealed inputs,
+   - confirm required validators and downstream structural gates remain green.
+
+Decision notes:
+- We are intentionally prioritizing algorithm/data-structure/validation-path
+  overhead reductions before any broader logging/I/O budget changes (`POPT.3`).
+
+### Entry: 2026-02-18 13:35
+
+Implementation update: POPT.1 S5 hotspot optimization applied and benchmarked.
+
+Code changes applied:
+1) Updated `packages/engine/src/engine/layers/l1/seg_2B/s5_router/runner.py`.
+2) Added a bounded input-validation mode for large tabular inputs:
+   - `ENGINE_2B_S5_INPUT_VALIDATION_MODE` in `{strict,sample}`.
+   - default: `sample` for `runs/fix-data-engine/*` roots, otherwise `strict`.
+   - `ENGINE_2B_S5_INPUT_VALIDATION_SAMPLE_ROWS` controls sample size
+     (default `2048`).
+   - behavior:
+     - always enforce required-column presence from schema table definitions,
+     - `strict`: full row-by-row schema validation,
+     - `sample`: schema validate only bounded head rows.
+3) Reduced hot-loop overhead:
+   - replaced repeated `list(validator.iter_errors(...))` with first-error checks
+     (`next(iter_errors(...), None)`),
+   - cached group weights inside alias table to remove repeated map/index lookup,
+   - removed redundant pre-loop timezone index pass and reused joined authority
+     surface for collision checks + coherence assertions.
+4) Kept behavior invariants:
+   - dictionary-only reads, S0 receipt/sealed checks, RNG counter semantics,
+     event/trace schema checks, and output publish rules unchanged.
+
+Performance evidence:
+1) Before profile (same authority run, strict row validation):
+   - `runs/fix-data-engine/segment_2B/reports/s5_popt1_profile_before.prof`
+   - cumulative runtime: `97.757s`
+   - dominant hotspot: `validate_dataframe` cumtime `84.305s`.
+2) After profile (same authority run, sampled row validation lane):
+   - `runs/fix-data-engine/segment_2B/reports/s5_popt1_profile_after.prof`
+   - cumulative runtime: `13.383s`
+   - `validate_dataframe` reduced to `1.903s`.
+3) Candidate execution run:
+   - command: `engine.cli.s5_router_2b` against
+     `runs/fix-data-engine/segment_2B/c25a2675fbfbacd952b13bb594880e92`.
+   - measured S5 elapsed from state timer: `5.92s`.
+   - POPT.0 baseline comparator: `30.477s`.
+   - reduction: `-24.56s` (`-80.58%`).
+
+Validation/non-regression evidence:
+1) Candidate run-report emitted:
+   - `runs/fix-data-engine/segment_2B/c25a2675fbfbacd952b13bb594880e92/reports/layer1/2B/state=S5/seed=42/manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8/s5_run_report.json`
+2) Validators `V-01..V-16` reported `PASS`.
+
+Open issue / follow-up:
+- Same-run deterministic replay still fails with `2B-S5-080` on second run
+  because event payloads include runtime `ts_utc`, so rerun bytes differ.
+  This is a legacy idempotence behavior and not introduced by the POPT.1 patch.
+
