@@ -12533,3 +12533,28 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Plan sync
 1. Updated platform.M7.P9.build_plan.md blocker register with active M7F-B1/M7F-B2 and closure criteria.
 2. Updated platform.M7.build_plan.md and platform.build_plan.md to reflect M7.F executed fail-closed (not pending), with next action set to blocker remediation + rerun.
+
+## Entry: 2026-02-18 19:35:40 +00:00 - M7.F/P9.B remediation plan to restore non-zero run-scoped decision/audit production
+### Problem statement
+1. P9.B is fail-closed with M7F-B1 and M7F-B2 (decision/audit/action summaries are zero despite non-zero ingest basis).
+2. Runtime logs and topic probes show decision-lane data-plane drift rather than service-health drift.
+
+### Drift diagnosis
+1. decision-lane-df uses default trigger policy that includes p.bus.traffic.baseline.v1; that topic is absent in active Confluent substrate and causes repeated topic-not-found/reset churn.
+2. decision-lane-al defaults dmitted_topics to p.bus.traffic.fraud.v1 instead of p.bus.rtdl.v1, so it does not consume DF decision/action-intent lane.
+3. decision-lane-dla is forced to vent_bus_kind=kinesis in Terraform command shim, which mismatches the active Kafka bus posture.
+4. config/platform/dla/intake_policy_v0.yaml admits p.bus.traffic.fraud.v1; local-parity-aligned intake for decision/audit events is config/platform/dla/intake_policy_local_parity_v0.yaml (p.bus.rtdl.v1).
+
+### Decision and remediation path (fail-closed, no defaults)
+1. Patch infra/terraform/modules/demo/main.tf daemon command shims only (DF/AL/DLA):
+   - DF: generate runtime trigger-policy copy with dmitted_traffic_topics=[fp.bus.traffic.fraud.v1] and set df.policy.trigger_policy_ref to that copy.
+   - AL: generate runtime profile copy with l.wiring.admitted_topics=[fp.bus.rtdl.v1].
+   - DLA: generate runtime profile copy with dla.wiring.event_bus_kind=kafka, dla.wiring.admitted_topics=[fp.bus.rtdl.v1], and dla.policy.intake_policy_ref=config/platform/dla/intake_policy_local_parity_v0.yaml.
+2. Apply targeted Terraform rollout for only impacted ECS task definitions + services (decision-lane-df, decision-lane-al, decision-lane-dla).
+3. Re-seed fresh run-scoped ingress via one-shot WSP ECS task against active IG private endpoint with current run/oracle pins.
+4. Rerun P9.B deterministic evidence assembly and update blocker posture.
+
+### Invariants
+1. No branch operations.
+2. No local-compute substitute for managed runtime processing.
+3. P9.B remains fail-closed until non-zero run-scoped decision/audit/action evidence is published and idempotency remains provable.

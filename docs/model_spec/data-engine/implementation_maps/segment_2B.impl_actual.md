@@ -6209,3 +6209,58 @@ Recovery decision (still inside `P1.REOPEN.1B`):
 6) storage hygiene evidence:
    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_prune_summary.json`
    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_prune_summary.md`
+
+### Entry: 2026-02-18 19:36
+
+`P1.REOPEN.1B` final closure decision:
+1) lane closed as `NO_GO_P1_REOPEN_1B_ONLY`.
+2) lock artifacts:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_lock_c24d00ed24564bbe81666808a1d04a77.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_lock_c24d00ed24564bbe81666808a1d04a77.md`
+3) reason:
+   - all valid 1B reopen candidates failed runtime non-regression relative to
+     frozen authority `a0ae54639efc4955bc41a2e266224e6e`.
+4) operational consequence:
+   - no downstream `2A->2B` propagation from 1B reopen candidate lane.
+5) pinned next move:
+   - continue remediation via `2B`-local recovery lane with `1B` held frozen.
+
+### Entry: 2026-02-18 19:40
+
+Pre-execution plan for `P1.LOCAL.RECOVERY` (`2B` local lane, `1B` frozen).
+
+Problem restatement:
+1) upstream reopen lane `P1.REOPEN.1B` is closed `NO_GO` by performance guard.
+2) remediation must continue without reopening `1B`.
+
+Baseline decomposition executed:
+1) generated authority-floor breakdown from `80d9c9df1221400f82db77e27a0d63b2`:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_local_recovery_baseline_floor_breakdown_80d9c9df1221400f82db77e27a0d63b2.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_local_recovery_baseline_floor_breakdown_80d9c9df1221400f82db77e27a0d63b2.md`
+2) key finding:
+   - `tz_count=1` merchant-days carry a structural single-group/tail share of
+     `1.0`, matching the tail-floor blocker.
+
+Local-lane decision:
+1) run a bounded `S1 -> S3 -> S4` local recovery sequence with strict veto gates.
+2) preserve frozen upstream posture:
+   - `1B` authority remains `a0ae54639efc4955bc41a2e266224e6e`.
+3) decision target:
+   - `GO_P3_RETRY_FROM_2B_LOCAL` only on measurable floor reduction with no
+     non-tail regression; else `NO_GO_P1_LOCAL_RECOVERY`.
+
+Feasibility-gate finding (same pass):
+1) authority decomposition shows `tz_count=1` merchant-days contribute
+   deterministic single-group/tail mass (`single=1.0`, `tail=1.0` in that bucket).
+2) runner semantics confirm group cardinality source:
+   - `S3` builds groups from unique `site_timezones.tzid` per merchant and emits
+     `tz_group_id` from that set,
+   - `S4` consumes those `tz_group_id` groups and regularizer applies only when
+     `n_groups >= apply_when_groups_ge`.
+3) consequence:
+   - with upstream `site_timezones` frozen, local `S1/S3/S4` tuning cannot reduce
+     `share(n_groups==1)` unless synthetic pseudo-group generation is introduced.
+4) unresolved decision gate (must be explicit before next execution):
+   - `ALLOW_SYNTHETIC_LOCAL_GROUPS` (yes/no),
+   - if `no`, reopen upstream `2A` topology with broader scope than timezone
+     override micro-tuning.

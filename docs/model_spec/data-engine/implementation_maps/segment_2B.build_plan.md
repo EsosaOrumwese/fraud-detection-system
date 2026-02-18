@@ -1047,7 +1047,7 @@ Definition of done:
 - [ ] score artifacts are emitted:
   - `segment2b_p3_candidate_<run_id>.json`,
   - `segment2b_p1_reopen_floor_<run_id>.json`.
-- [ ] explicit decision is recorded:
+- [x] explicit decision is recorded:
   - `GO_P3_RETRY_FROM_1B` only if tail floor materially drops toward
     `B` gate (`share(max_p_group>=0.95) <= 0.35`) with runtime gate green,
   - otherwise `NO_GO_P1_REOPEN_1B_ONLY`.
@@ -1057,8 +1057,74 @@ Status update (2026-02-18):
   - `0ed63a7bff9d4c91855b516d41d0ec80` (R2),
   - `c24d00ed24564bbe81666808a1d04a77` (R3b, corrected candidate-local policy precedence).
 - runtime gate remains red on all valid candidates vs authority `a0ae...`.
-- lane is currently fail-closed pending user direction on whether to accept a
-  performance waiver and continue downstream evaluation with `c24...`.
+- lane closed fail-closed as `NO_GO_P1_REOPEN_1B_ONLY`.
+
+P1.REOPEN.1B closure record (2026-02-18):
+- lock artifact:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_lock_c24d00ed24564bbe81666808a1d04a77.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_lock_c24d00ed24564bbe81666808a1d04a77.md`
+- explicit decision:
+  - `NO_GO_P1_REOPEN_1B_ONLY` (performance-preserving guard not met).
+- downstream execution in this lane:
+  - skipped by gate (`2A S0->S5` + `2B S0->S8` were intentionally not run).
+- next lane:
+  - `2B` local recovery with `1B` frozen at authority
+    `a0ae54639efc4955bc41a2e266224e6e`.
+
+### P1.LOCAL.RECOVERY - 2B-local recovery with 1B frozen
+Goal:
+- pursue additional realism movement using only `2B` local surfaces while
+  preserving frozen upstream (`1B` authority unchanged).
+
+Scope:
+- freeze `1B` at `a0ae54639efc4955bc41a2e266224e6e` (no reopen).
+- tune only `2B` local surfaces (`S1/S3/S4`) with strict non-regression rails.
+- no broad runtime-risk rewrites; bounded policy-first then bounded code delta.
+
+Baseline insight anchor (authority `80d9...`):
+- `share(n_groups==1)=0.483037`, `share(max_p_group>=0.95)=0.483037`.
+- decomposition indicates floor is concentrated in `tz_count=1` merchant-days
+  (single-group/tail share = `1.0` for that bucket).
+- evidence:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_local_recovery_baseline_floor_breakdown_80d9c9df1221400f82db77e27a0d63b2.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_local_recovery_baseline_floor_breakdown_80d9c9df1221400f82db77e27a0d63b2.md`
+
+Phases:
+1) `P1L.0` - Feasibility gate (structural floor check)
+   - objective: prove whether `2B` local-only changes can reduce
+     `share(n_groups==1)` without upstream topology movement.
+2) `P1L.1` - S1 alias-layout bounded spread lane
+   - objective: reduce structural `tz_count=1` dominance without breaking S1 gates.
+3) `P1L.2` - S3 day-effects guard shaping
+   - objective: prevent concentration rebound while preserving entropy and median shape.
+4) `P1L.3` - S4 bounded anti-dominance closure
+   - objective: convert multigroup candidates into reduced tail share under veto gates.
+5) `P1L.4` - lock/prune or fail-closed handoff
+   - objective: freeze accepted lane or record `NO_GO_P1_LOCAL_RECOVERY`.
+
+Definition of done:
+- [x] feasibility gate executed with evidence-backed structural conclusion.
+- [ ] at least one 2B-local candidate completes `S0->S8` from frozen upstream.
+- [ ] emits score + floor artifacts with explicit gate booleans.
+- [ ] preserves current non-tail metrics (median/entropy/multigroup) within veto bounds.
+- [ ] records explicit decision:
+  - `GO_P3_RETRY_FROM_2B_LOCAL` if measurable floor reduction is achieved,
+  - else `NO_GO_P1_LOCAL_RECOVERY`.
+
+Feasibility gate result (2026-02-18):
+- baseline authority decomposition + runner semantics indicate structural floor:
+  - `tz_count=1` merchant-days map to `n_groups==1` and `tail==1.0`,
+  - `S3` group set is derived from unique `site_timezones.tzid` per merchant.
+- implication:
+  - local `S1/S3/S4` tuning cannot reduce `share(n_groups==1)` unless
+    synthetic pseudo-group generation is introduced (high realism risk), or
+    upstream `site_timezones` breadth changes.
+
+Decision gate (required before execution continues):
+- `ALLOW_SYNTHETIC_LOCAL_GROUPS`:
+  - `yes`: proceed with bounded synthetic-group lane in `2B` local states.
+  - `no`: reopen upstream `2A` topology with wider scope (not just tiny
+    timezone override deltas).
 
 ### P4 - Realism-grade roster and certification hardening
 Goal:

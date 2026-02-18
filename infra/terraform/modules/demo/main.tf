@@ -703,15 +703,15 @@ resource "aws_ecs_task_definition" "daemon" {
         ] : each.key == "decision-lane-df" ? [
         "sh",
         "-c",
-        "set -e; python -c \"import pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; d.setdefault('dl',{}).setdefault('policy',{})['profiles_ref']='config/platform/dl/policy_profiles_v0.yaml'; d['dl']['policy']['profile_id']='dev'; o=pathlib.Path('/tmp/dev_min_df.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.decision_fabric.worker --profile /tmp/dev_min_df.yaml",
+        "set -e; python -c \"import pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; d.setdefault('dl',{}).setdefault('policy',{})['profiles_ref']='config/platform/dl/policy_profiles_v0.yaml'; d['dl']['policy']['profile_id']='dev'; tp=pathlib.Path('config/platform/df/trigger_policy_v0.yaml'); t=yaml.safe_load(tp.read_text()) or {}; dt=t.setdefault('decision_trigger',{}); dt['admitted_traffic_topics']=['fp.bus.traffic.fraud.v1']; tp_out=pathlib.Path('/tmp/df_trigger_policy_dev_min.yaml'); tp_out.write_text(yaml.safe_dump(t, sort_keys=False), encoding='utf-8'); d.setdefault('df',{}).setdefault('policy',{})['trigger_policy_ref']=str(tp_out); d.setdefault('df',{}).setdefault('wiring',{})['event_bus_kind']='kafka'; o=pathlib.Path('/tmp/dev_min_df.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.decision_fabric.worker --profile /tmp/dev_min_df.yaml",
         ] : each.key == "decision-lane-al" ? [
         "sh",
         "-c",
-        "set -e; python -m fraud_detection.action_layer.worker --profile config/platform/profiles/dev_min.yaml",
+        "set -e; python -c \"import pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; al=d.setdefault('al',{}); wiring=al.setdefault('wiring',{}); wiring['event_bus_kind']='kafka'; wiring['admitted_topics']=['fp.bus.rtdl.v1']; o=pathlib.Path('/tmp/dev_min_al.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.action_layer.worker --profile /tmp/dev_min_al.yaml",
         ] : each.key == "decision-lane-dla" ? [
         "sh",
         "-c",
-        "set -e; python -c \"import pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; dla=d.setdefault('dla',{}); wiring=dla.setdefault('wiring',{}); wiring['event_bus_kind']='kinesis'; wiring['event_bus_stream']='${local.ig_event_bus_stream_name}'; wiring['event_bus_region']='${var.aws_region}'; o=pathlib.Path('/tmp/dev_min_dla.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.decision_log_audit.worker --profile /tmp/dev_min_dla.yaml",
+        "set -e; python -c \"import pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; dla=d.setdefault('dla',{}); wiring=dla.setdefault('wiring',{}); wiring['event_bus_kind']='kafka'; wiring['admitted_topics']=['fp.bus.rtdl.v1']; policy=dla.setdefault('policy',{}); policy['intake_policy_ref']='config/platform/dla/intake_policy_local_parity_v0.yaml'; o=pathlib.Path('/tmp/dev_min_dla.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.decision_log_audit.worker --profile /tmp/dev_min_dla.yaml",
         ] : [
         "sh",
         "-c",
@@ -830,7 +830,7 @@ resource "aws_ecs_task_definition" "daemon" {
         },
         {
           name  = "DLA_EVENT_BUS_KIND"
-          value = "kinesis"
+          value = "kafka"
         },
         {
           name  = "DLA_EVENT_BUS_STREAM"

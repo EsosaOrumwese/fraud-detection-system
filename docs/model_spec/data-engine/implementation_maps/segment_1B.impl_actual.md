@@ -6040,3 +6040,11 @@ Storage hygiene:
 Decision status:
 1) no downstream `2A->2B` propagation executed.
 2) lane remains fail-closed pending user direction because performance-preserving gate did not clear.
+
+### Entry: 2026-02-18 19:36
+
+Cross-segment closure note (`P1.REOPEN.1B` for 2B):
+1) reopen lane is now closed `NO_GO_P1_REOPEN_1B_ONLY`.
+2) frozen 1B authority remains:
+   - `a0ae54639efc4955bc41a2e266224e6e`
+3) no promotion of reopen candidates into downstream `2A/2B` lanes.
