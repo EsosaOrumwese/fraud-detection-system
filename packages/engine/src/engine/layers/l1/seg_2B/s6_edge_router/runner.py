@@ -12,6 +12,7 @@ import time
 import uuid
 from collections import OrderedDict, deque
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -29,7 +30,7 @@ from engine.core.errors import ContractError, EngineFailure, InputResolutionErro
 from engine.core.hashing import sha256_file
 from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths
-from engine.core.time import utc_now_rfc3339_micro
+from engine.core.time import parse_rfc3339, utc_now_rfc3339_micro
 from engine.layers.l1.seg_1A.s0_foundations.rng import RngTraceAccumulator
 from engine.layers.l1.seg_1A.s1_hurdle.rng import (
     add_u128,
@@ -444,6 +445,25 @@ def _count_jsonl_rows(path: Path) -> int:
         for _ in handle:
             count += 1
     return count
+
+
+def _format_rfc3339_micro(value: datetime) -> str:
+    value_utc = value.astimezone(timezone.utc)
+    return value_utc.isoformat(timespec="microseconds").replace("+00:00", "Z")
+
+
+class _DeterministicTimestampSequence:
+    def __init__(self, anchor_utc: str) -> None:
+        parsed = parse_rfc3339(anchor_utc)
+        if parsed is None:
+            raise InputResolutionError(f"Invalid created_utc timestamp: {anchor_utc!r}")
+        self._base = parsed.astimezone(timezone.utc)
+        self._offset_micro = 0
+
+    def next(self) -> str:
+        ts = self._base + timedelta(microseconds=self._offset_micro)
+        self._offset_micro += 1
+        return _format_rfc3339_micro(ts)
 
 
 def _build_alias(weights: list[float]) -> tuple[list[float], list[int]]:
@@ -1063,6 +1083,7 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
     trace_tmp_path = tmp_root / "rng_trace_log.jsonl"
 
     trace_acc = RngTraceAccumulator()
+    deterministic_ts = _DeterministicTimestampSequence(created_utc)
     edge_handles: dict[str, tuple[Path, object]] = {}
 
     with (
@@ -1121,7 +1142,7 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                     )
 
                 event_payload = {
-                    "ts_utc": utc_now_rfc3339_micro(),
+                    "ts_utc": deterministic_ts.next(),
                     "run_id": run_id_value,
                     "seed": seed,
                     "parameter_hash": parameter_hash,
@@ -1141,6 +1162,7 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                     _abort("2B-S6-050", "V-08", "rng_event_invalid", {"error": event_errors[0].message})
 
                 trace_row = trace_acc.append_event(event_payload)
+                trace_row["ts_utc"] = deterministic_ts.next()
                 trace_errors = list(trace_validator.iter_errors(trace_row))
                 if trace_errors:
                     _abort("2B-S6-050", "V-11", "rng_trace_invalid", {"error": trace_errors[0].message})

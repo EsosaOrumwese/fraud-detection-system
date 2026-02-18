@@ -345,9 +345,16 @@ POPT.4 closure record (2026-02-18):
 - closure artifact:
   - `runs/fix-data-engine/segment_2B/reports/segment2b_popt4_closure_summary_c25a2675fbfbacd952b13bb594880e92.json`
   - `runs/fix-data-engine/segment_2B/reports/segment2b_popt4_closure_summary_c25a2675fbfbacd952b13bb594880e92.md`
-- noted residual (non-blocking for POPT.4 closure):
-  - full-segment replay (`S0->S8`) still hits legacy `S6` idempotence code
-    `2B-S6-080`; tracked for explicit handling in `POPT.5` freeze handoff.
+- residual follow-up resolved (2026-02-18):
+  - applied deterministic timestamp sequencing in
+    `packages/engine/src/engine/layers/l1/seg_2B/s6_edge_router/runner.py`
+    for S6 event + trace rows (anchored to S0 `created_utc`).
+  - full-segment publish + replay witness (`S0->S8`) completed with no
+    `2B-S6-080/2B-S6-081` in replay logs:
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_s6fix_run1_stdout.log`
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_s6fix_run2_replay_stdout.log`
+  - witness summary:
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_s6_idempotence_fix_summary_c25a2675fbfbacd952b13bb594880e92.json`
 
 POPT.4 closure decision (2026-02-18):
 - decision: `CLOSED`

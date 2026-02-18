@@ -5161,3 +5161,97 @@ Residual explicitly recorded (for POPT.5 handling):
   `runs/fix-data-engine/segment_2B/reports/segment2b_popt4_replay_run2_postfix_stdout.log`.
 - This does not invalidate integrated runtime gain or accepted optimization
   replay scope (`S0->S5`), but must be tracked in freeze/handoff notes.
+
+### Entry: 2026-02-18 14:24
+
+Design follow-up: close residual legacy idempotence `2B-S6-080` after POPT.4.
+
+Trigger:
+- User approved immediate remediation of the residual replay failure recorded in
+  POPT.4 closure.
+- Observed failure remains on full same-run replay (`S0->S8`) at `S6`:
+  `EngineFailure F4:2B-S6-080` in `s6_edge_router._atomic_publish_file(...)`
+  for `rng_event_cdn_edge_pick`.
+
+Root-cause assessment (code-confirmed):
+1) `S6` currently stamps RNG event rows with runtime wallclock:
+   - `event_payload["ts_utc"] = utc_now_rfc3339_micro()`.
+2) `S6` trace rows are built via `RngTraceAccumulator.append_event(...)`, which
+   also stamps `ts_utc` using runtime wallclock.
+3) `S6` event publish path enforces strict byte equality on replay; therefore
+   runtime-varying timestamps produce non-identical bytes and trigger
+   `2B-S6-080`.
+4) Trace append path can similarly diverge on replay if S6-generated trace tail
+   differs (`2B-S6-081` risk), because append idempotence checks exact tail.
+
+Decision:
+- Apply deterministic timestamp sequencing in `S6`, same pattern as the
+  previously accepted `S5` idempotence hardening:
+  - anchor to S0 `created_utc` (`verified_at_utc`),
+  - assign deterministic microsecond increments for S6 event/trace rows,
+  - preserve strict publish checks (no relaxation) for S6 outputs.
+
+Planned code edits:
+1) `packages/engine/src/engine/layers/l1/seg_2B/s6_edge_router/runner.py`
+   - import RFC3339 parse helpers (`parse_rfc3339`) and datetime primitives.
+   - add `_format_rfc3339_micro(...)` and `_DeterministicTimestampSequence`.
+   - instantiate deterministic sequence after `created_utc` verification.
+   - replace event payload runtime `ts_utc` with deterministic sequence.
+   - override trace row `ts_utc` from accumulator with deterministic sequence
+     before schema validation/write.
+2) Keep audit payload handling unchanged (append-only dedupe by run identity).
+
+Verification plan:
+1) compile check on S6 runner.
+2) witness lane: `runs/fix-data-engine/segment_2B_popt4_20260218_1412`.
+3) run full `segment2b` once (publish lane) after rotating stale S6 event/trace
+   outputs in witness root.
+4) run full `segment2b` again same run-id; expect no `2B-S6-080` or
+   `2B-S6-081`.
+5) capture stdout logs and update build plan/logbook with closure outcome.
+
+### Entry: 2026-02-18 14:35
+
+Implementation update: residual `S6` idempotence (`2B-S6-080`) closed.
+
+Code changes applied:
+1) Updated `packages/engine/src/engine/layers/l1/seg_2B/s6_edge_router/runner.py`.
+2) Added deterministic timestamp sequencing utilities:
+   - `_format_rfc3339_micro(...)`
+   - `_DeterministicTimestampSequence` (anchored to S0 `created_utc`).
+3) Applied deterministic timestamps to persisted S6 RNG outputs:
+   - `event_payload["ts_utc"]` now uses deterministic sequence,
+   - `trace_row["ts_utc"]` now overridden with deterministic sequence after
+     `RngTraceAccumulator.append_event(...)`.
+4) Preserved strict fail-closed publish behavior:
+   - no relaxation of `_atomic_publish_file` / `_atomic_append_file` checks.
+
+Witness execution (full segment replay proof):
+- witness root:
+  `runs/fix-data-engine/segment_2B_popt4_20260218_1412`
+- run id:
+  `c25a2675fbfbacd952b13bb594880e92`
+- stale S6 event/trace outputs were rotated once in witness root before run1.
+- run1 (publish lane):
+  - log: `runs/fix-data-engine/segment_2B/reports/segment2b_s6fix_run1_stdout.log`
+  - elapsed: `21.017s`
+  - result: PASS through `S8` (`S6/S7/S8 complete`).
+- run2 (same run-id replay lane):
+  - log: `runs/fix-data-engine/segment_2B/reports/segment2b_s6fix_run2_replay_stdout.log`
+  - elapsed: `22.085s`
+  - result: PASS through `S8` with replay-idempotent evidence:
+    - `S6: rng_event_cdn_edge_pick already exists and is identical; skipping publish.`
+    - `S6: rng_trace_log already includes append; skipping.`
+    - no `2B-S6-080` and no `2B-S6-081`.
+
+Structural non-regression confirmation:
+- `S6` run-report summary `PASS`.
+- `S7` audit summary `PASS`.
+- `S8` `_passed.flag` present.
+
+Closure artifact:
+- `runs/fix-data-engine/segment_2B/reports/segment2b_s6_idempotence_fix_summary_c25a2675fbfbacd952b13bb594880e92.json`
+- `runs/fix-data-engine/segment_2B/reports/segment2b_s6_idempotence_fix_summary_c25a2675fbfbacd952b13bb594880e92.md`
+
+Outcome:
+- legacy residual idempotence `2B-S6-080` is resolved for full same-run replay.
