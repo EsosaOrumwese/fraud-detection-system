@@ -5255,3 +5255,34 @@ Closure artifact:
 
 Outcome:
 - legacy residual idempotence `2B-S6-080` is resolved for full same-run replay.
+
+### Entry: 2026-02-18 14:49
+
+Implementation update: executed and closed POPT.5 (optimization freeze handoff).
+
+Actions taken:
+1) Built compact evidence snapshot under retained reports root:
+   - copied accepted witness state reports (`S0..S6`), `S7` audit report,
+     and `S8` validation index/flag into
+     `runs/fix-data-engine/segment_2B/reports/segment2b_popt5_snapshot_*`.
+2) Wrote prune summary artifact:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_popt5_prune_summary.json`.
+3) Pruned superseded optimization run roots (storage control):
+   - `runs/fix-data-engine/segment_2B_popt1_replay_20260218_134345`
+   - `runs/fix-data-engine/segment_2B_popt2_20260218_134742`
+   - `runs/fix-data-engine/segment_2B_popt4_20260218_1412`
+   - reclaimed size: `39.904 GB`.
+4) Wrote POPT lock artifact:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_popt5_lock_c25a2675fbfbacd952b13bb594880e92.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_popt5_lock_c25a2675fbfbacd952b13bb594880e92.md`
+   - lock includes:
+     - accepted run-id + runtime lock metrics,
+     - replay lock status including full-segment replay pass after S6 fix,
+     - frozen code surfaces (S3/S4/S5/S6 runners),
+     - frozen policy digests,
+     - retained/pruned path declarations,
+     - explicit `GO_P0` decision.
+
+Closure:
+- `POPT.5` DoD complete.
+- Optimization posture frozen and handoff gate opened to remediation `P0`.

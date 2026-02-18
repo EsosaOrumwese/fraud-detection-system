@@ -45,7 +45,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Plane
 Current posture:
-1. Planning active only.
+1. Planning-expanded and execution-ready once Section 4.2 preflight passes.
 
 Execution block:
 1. No P8 runtime execution before `M7.A` handle closure pass.
@@ -62,6 +62,53 @@ Execution block:
 | Archive durability | P8.C | archive summary or explicit inactive-writer proof |
 | Plane closure | P8.D | `m7_p8_plane_snapshot.json` overall pass true |
 
+## 4.2) Pre-Execution Readiness Matrix (Must Pass Before P8.A Starts)
+1. `M7.A` carry-forward invariants:
+   - `m7_a_handle_closure_snapshot.json` exists and `overall_pass=true`.
+   - `platform_run_id` is present and non-empty.
+2. Substrate health/stability:
+   - ECS cluster `ACTIVE`.
+   - `SVC_RTDL_CORE_ARCHIVE_WRITER`, `SVC_RTDL_CORE_IEG`, `SVC_RTDL_CORE_OFP`, `SVC_RTDL_CORE_CSFB` each at `desired=running=1`.
+   - no active crashloop/restart storm in the latest service events.
+3. Kafka materialization posture:
+   - latest M2.F topic readiness snapshot is present and `overall_pass=true`.
+   - required P8 topics are present in that snapshot.
+4. Run-scope continuity:
+   - RTDL lane tasks expose `REQUIRED_PLATFORM_RUN_ID` equal to `platform_run_id`.
+   - no conflicting run-scope value observed across RTDL services.
+5. Access and write posture:
+   - RTDL role can read required SSM paths.
+   - RTDL role can write run-scoped evidence objects.
+   - archive bucket/prefix is writable if archive writer is active.
+6. DB dependency posture:
+   - runtime DB is reachable/available and endpoint matches active demo outputs.
+
+Fail-closed rule:
+1. Any unmet row above blocks P8 execution and must be logged as `M7B-B*` before continuing.
+
+## 4.3) Runtime Budget Gates (Performance Law, P8-Specific)
+1. `P8.A` budget: 10 minutes max wall clock.
+2. `P8.B` budget: 20 minutes max wall clock.
+3. `P8.C` budget: 10 minutes max wall clock.
+4. `P8.D` budget: 5 minutes max wall clock.
+5. Plane budget (`P8.A..P8.D`): 40 minutes max wall clock.
+
+Budget control:
+1. Each sub-phase snapshot must include `started_at_utc`, `completed_at_utc`, and `elapsed_seconds`.
+2. Any overrun requires explicit blocker + root-cause note; otherwise sub-phase is fail-closed.
+
+## 4.4) Rerun and Rollback Prep (Must Be Planned Before P8.A)
+1. Rerun trigger conditions:
+   - missing/invalid offsets evidence,
+   - lag threshold not met,
+   - archive coherence failure.
+2. Safe rollback boundaries:
+   - do not delete Kafka topics or committed evidence from prior phases,
+   - only clear rebuildable RTDL intermediate state if closure rules permit.
+3. Rerun contract:
+   - rerun must preserve `platform_run_id`,
+   - rerun writes a new control-plane snapshot id while keeping run-scoped evidence path stable.
+
 ## 5) Decision Pins (P8)
 1. RTDL runs on ECS-managed runtime only.
 2. Official P8 consumption begins only after M6/P7 pass.
@@ -69,12 +116,24 @@ Execution block:
 4. Caught-up threshold is governed by `RTDL_CAUGHT_UP_LAG_MAX`.
 5. Archive proof must be explicit: active writer summary or explicit inactive-writer declaration.
 6. Any missing required evidence is fail-closed.
+7. Consumer identity is stable:
+   - `RTDL_CORE_CONSUMER_GROUP_ID` must not change inside one M7 execution.
+8. Run-scope law:
+   - all P8 evidence must resolve under `platform_run_id` from M7 handoff.
+9. Topic ownership law:
+   - P8 consumes traffic/context and feeds downstream evidence; no ownership drift to other lanes.
+10. Performance law:
+   - P8 sub-phases must meet runtime budgets or produce explicit blocker-approved overrun rationale.
 
 ## 6) Plane Work Breakdown
 
 ### P8.A Readiness + Consumer Posture (`M7.B` depth)
 Goal:
 1. Prove RTDL services and dependencies are execution-ready.
+
+Entry conditions:
+1. Section 4.2 readiness matrix is fully satisfied.
+2. `M7.A` snapshot is readable locally and durably.
 
 Required inputs:
 1. `M7.A` pass snapshot.
@@ -87,15 +146,27 @@ Required inputs:
    - `RTDL_CORE_CONSUMER_GROUP_ID`
    - `RTDL_CORE_OFFSET_COMMIT_POLICY`.
 
-Tasks:
+Preparation checks:
+1. Confirm ECS service stability window with two consecutive checks (no restart churn).
+2. Confirm run-scope env consistency (`REQUIRED_PLATFORM_RUN_ID`).
+3. Confirm latest topic-readiness evidence exists and is `overall_pass=true`.
+
+Execution sequence:
 1. Verify services healthy (`desired=1`, `running=1`, no crashloop).
 2. Verify consumer-group identity and commit policy posture.
 3. Verify dependency reachability (Kafka/S3/DB/logging).
-4. Publish `m7_b_rtdl_readiness_snapshot.json`.
+4. Verify RTDL evidence-root write posture.
+5. Publish `m7_b_rtdl_readiness_snapshot.json` with:
+   - service health table,
+   - consumer posture values,
+   - run-scope checks,
+   - dependency probe results,
+   - elapsed timing.
 
 DoD:
 - [ ] RTDL readiness checks pass.
 - [ ] Consumer posture checks pass.
+- [ ] Run-scope and dependency checks pass.
 - [ ] Snapshot exists locally + durably.
 
 Blockers:
@@ -103,10 +174,17 @@ Blockers:
 2. `M7B-B2`: consumer posture mismatch.
 3. `M7B-B3`: dependency reachability failure.
 4. `M7B-B4`: snapshot publish failure.
+5. `M7B-B5`: run-scope mismatch across RTDL services.
+6. `M7B-B6`: evidence write-path access probe failure.
+7. `M7B-B7`: required topic-readiness evidence missing/stale.
 
 ### P8.B Offsets + Caught-Up Closure (`M7.C` depth)
 Goal:
 1. Close lag/offset gate with replay-grade evidence.
+
+Entry conditions:
+1. `M7.B` pass snapshot exists and is durable.
+2. Required topic set is confirmed materialized for the active run window.
 
 Required inputs:
 1. `M7.B` pass snapshot.
@@ -119,17 +197,30 @@ Required inputs:
    - `OFFSETS_SNAPSHOT_PATH_PATTERN`
    - `RTDL_CORE_EVIDENCE_PATH_PATTERN`.
 
-Tasks:
-1. Build run-window offsets for required topics/partitions.
-2. Verify lag <= `RTDL_CAUGHT_UP_LAG_MAX` (or end-offset reached where applicable).
-3. Publish run-scoped:
+Preparation checks:
+1. Load run-start context from P7 ingest evidence (`ingest/kafka_offsets_snapshot.json`) where available.
+2. Confirm partition coverage strategy for each required topic.
+3. Confirm caught-up threshold value is explicit (`RTDL_CAUGHT_UP_LAG_MAX`).
+
+Execution sequence:
+1. Build run-window offsets for required topics/partitions (start/end/current/lag).
+2. Validate offset progression (no backwards/invalid progression).
+3. Evaluate caught-up gate:
+   - lag <= `RTDL_CAUGHT_UP_LAG_MAX`,
+   - or end-offset reached for demo-bound window.
+4. Publish run-scoped:
    - `rtdl_core/offsets_snapshot.json`
    - `rtdl_core/caught_up.json`.
-4. Publish `m7_c_rtdl_caught_up_snapshot.json`.
+5. Publish `m7_c_rtdl_caught_up_snapshot.json` with:
+   - per-topic/partition lag table,
+   - threshold used,
+   - gate decision,
+   - elapsed timing.
 
 DoD:
 - [ ] Offsets snapshot complete.
 - [ ] Caught-up threshold satisfied.
+- [ ] Partition coverage is complete across required topics.
 - [ ] Snapshot exists locally + durably.
 
 Blockers:
@@ -137,10 +228,15 @@ Blockers:
 2. `M7C-B2`: lag threshold unmet.
 3. `M7C-B3`: run-scope mismatch.
 4. `M7C-B4`: snapshot publish failure.
+5. `M7C-B5`: partition coverage gap in required topics.
+6. `M7C-B6`: offset regression/inconsistent progression detected.
 
 ### P8.C Archive Durability Closure (`M7.D` depth)
 Goal:
 1. Prove archive durability surface for active writer posture.
+
+Entry conditions:
+1. `M7.C` pass snapshot exists and is durable.
 
 Required inputs:
 1. `M7.C` pass snapshot.
@@ -149,24 +245,34 @@ Required inputs:
    - `S3_ARCHIVE_RUN_PREFIX_PATTERN`
    - `S3_ARCHIVE_EVENTS_PREFIX_PATTERN`.
 
-Tasks:
+Preparation checks:
+1. Determine archive writer posture from service desired/running state.
+2. Resolve concrete archive run prefix for `platform_run_id`.
+
+Execution sequence:
 1. If archive writer is active:
    - verify archive prefix has run-scoped objects,
-   - verify archive progression coherence with offsets.
+   - verify object timestamps/count progression coherence with offsets evidence.
 2. If archive writer is inactive by design:
-   - emit explicit inactive-writer rationale in snapshot.
+   - emit explicit inactive-writer rationale and evidence pointer.
 3. Publish run-scoped `rtdl_core/archive_write_summary.json` when active.
-4. Publish `m7_d_archive_durability_snapshot.json`.
+4. Publish `m7_d_archive_durability_snapshot.json` with:
+   - active/inactive posture,
+   - archive prefix/object counters,
+   - coherence check result,
+   - elapsed timing.
 
 DoD:
 - [ ] Archive durability posture is explicit and evidenced.
 - [ ] Active-writer case includes archive summary.
+- [ ] Archive coherence against offsets evidence is verified.
 - [ ] Snapshot exists locally + durably.
 
 Blockers:
 1. `M7D-B1`: expected archive proof missing.
 2. `M7D-B2`: archive/offset coherence failure.
 3. `M7D-B3`: snapshot publish failure.
+4. `M7D-B4`: archive writer posture ambiguous (cannot determine active/inactive).
 
 ### P8.D Plane Closure Summary
 Goal:
@@ -182,18 +288,21 @@ Tasks:
    - source snapshot refs,
    - lag summary,
    - archive posture,
+   - runtime budget summary (`P8.A..P8.C`),
    - blocker rollup,
    - `overall_pass`.
 
 DoD:
 - [ ] Plane snapshot exists locally + durably.
 - [ ] Blocker rollup is explicit.
+- [ ] Runtime budget results are explicit for each sub-phase.
 - [ ] `overall_pass` is deterministic.
 
 Blockers:
 1. `M7P8-B1`: source snapshot missing/unreadable.
 2. `M7P8-B2`: blocker rollup non-empty.
 3. `M7P8-B3`: plane snapshot publish failure.
+4. `M7P8-B4`: unexplained runtime budget breach.
 
 ## 7) Evidence Contract (P8)
 Run-scoped:
@@ -207,11 +316,23 @@ Control-plane:
 3. `evidence/dev_min/run_control/<m7_execution_id>/m7_d_archive_durability_snapshot.json`
 4. `evidence/dev_min/run_control/<m7_execution_id>/m7_p8_plane_snapshot.json`
 
+Required metadata fields in each control-plane snapshot:
+1. `phase_id`
+2. `platform_run_id`
+3. `m7_execution_id`
+4. `started_at_utc`
+5. `completed_at_utc`
+6. `elapsed_seconds`
+7. `overall_pass`
+8. `blockers`
+
 ## 8) Completion Checklist (P8)
 - [ ] P8.A complete
 - [ ] P8.B complete
 - [ ] P8.C complete
 - [ ] P8.D complete
+- [ ] Runtime budget gates satisfied (or explicitly fail-closed with accepted blockers).
+- [ ] Rerun/rollback posture documented for any non-pass lane.
 
 ## 9) Exit Criteria (P8)
 P8 branch is closure-ready only when:
@@ -219,3 +340,14 @@ P8 branch is closure-ready only when:
 2. Required evidence artifacts exist and are durable.
 3. `m7_p8_plane_snapshot.json` has `overall_pass=true`.
 4. P8 closure is consumed by `platform.M7.build_plan.md` for M7 rollup.
+
+## 10) Unresolved Blocker Register (P8 Branch)
+Current blockers:
+1. none (planning stage).
+
+Rule:
+1. Any blocker discovered in `P8.A..P8.D` is appended here with:
+   - blocker id,
+   - impacted sub-phase,
+   - closure criteria.
+2. If this register is non-empty, P8 branch cannot be marked closure-ready.

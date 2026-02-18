@@ -370,9 +370,39 @@ Scope:
 - record freeze statement in plan + implementation notes.
 
 Definition of done:
-- [ ] POPT lock artifact is written and referenced by this plan.
-- [ ] superseded run-id folders are pruned per retention rule.
-- [ ] explicit GO decision recorded to enter remediation `P0`.
+- [x] POPT lock artifact is written and referenced by this plan.
+- [x] superseded run-id folders are pruned per retention rule.
+- [x] explicit GO decision recorded to enter remediation `P0`.
+
+POPT.5 closure record (2026-02-18):
+- lock artifact:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_popt5_lock_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_popt5_lock_c25a2675fbfbacd952b13bb594880e92.md`
+- lock content summary:
+  - status: `FROZEN_OPTIMIZATION_LOCKED`.
+  - accepted run-id: `c25a2675fbfbacd952b13bb594880e92`.
+  - runtime lock: `76.375s -> 15.642s` (`79.52%` improvement).
+  - replay lock: `S0->S5` pass and full-segment replay pass after S6 fix
+    (no `2B-S6-080/2B-S6-081`).
+  - code surfaces frozen:
+    - `packages/engine/src/engine/layers/l1/seg_2B/s3_day_effects/runner.py`
+    - `packages/engine/src/engine/layers/l1/seg_2B/s4_group_weights/runner.py`
+    - `packages/engine/src/engine/layers/l1/seg_2B/s5_router/runner.py`
+    - `packages/engine/src/engine/layers/l1/seg_2B/s6_edge_router/runner.py`
+- prune evidence:
+  - summary: `runs/fix-data-engine/segment_2B/reports/segment2b_popt5_prune_summary.json`
+  - pruned roots:
+    - `runs/fix-data-engine/segment_2B_popt1_replay_20260218_134345`
+    - `runs/fix-data-engine/segment_2B_popt2_20260218_134742`
+    - `runs/fix-data-engine/segment_2B_popt4_20260218_1412`
+  - storage reclaimed: `39.904 GB`.
+- retained root for next phase:
+  - `runs/fix-data-engine/segment_2B`.
+
+POPT.5 closure decision (2026-02-18):
+- decision: `CLOSED`
+- explicit GO: `GO_P0`
+- next phase: remediation `P0` (baseline authority and harness lock).
 
 ## 6) Remediation phase plan (data-first with DoDs)
 

@@ -11940,3 +11940,71 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - marked sub-phase `M7.A` complete,
    - updated M7 expansion state to runtime-started,
    - updated immediate next action to `M7.B`.
+
+## Entry: 2026-02-18 14:45:00 +00:00 - Pre-change design expansion plan for M7.P8 (`P8.A..P8.D`) before execution
+
+### User directive
+1. Plan out all phases in `M7.P8` (`P8.A` to `P8.D`) with every angle prepared before runtime execution.
+
+### Why expansion is required now
+1. Current `platform.M7.P8.build_plan.md` has baseline step coverage but is still compact around:
+   - pre-execution gate granularity,
+   - lane-specific blocker closure sequencing,
+   - rerun/rollback prep and restart safety,
+   - runtime-budget gates required by platform performance law.
+2. Running `M7.B` immediately without this expansion risks ad hoc checks and implicit assumptions.
+
+### Planned expansion scope (planning-only patch first)
+1. Strengthen P8 execution readiness section with explicit preflight lanes:
+   - authority + run-scope continuity (`M7.A` carry-forward),
+   - substrate health/stability and service convergence checks,
+   - Kafka consumer posture and topic materialization checks,
+   - IAM/secret/evidence-write access checks,
+   - rerun/rollback safety preconditions.
+2. Add runtime-budget gates for `P8.A..P8.D` with fail-closed treatment for unexplained overruns.
+3. Expand each phase block (`P8.A`, `P8.B`, `P8.C`, `P8.D`) with:
+   - entry criteria,
+   - preparation checks,
+   - deterministic execution sequence,
+   - DoD + blocker boundaries aligned to orchestrator (`M7.B..M7.D`).
+4. Preserve orchestration boundary:
+   - this file remains plane-deep authority only;
+   - final verdict/handoff remains in `platform.M7.build_plan.md`.
+
+### Drift and risk posture
+1. No runtime or infra mutation during this step; documentation-only expansion.
+2. No ownership-boundary change: P8 remains RTDL-core lane only.
+3. Fail-closed posture maintained: unclear lane assumptions become explicit blockers rather than implicit defaults.
+
+## Entry: 2026-02-18 14:46:00 +00:00 - M7.P8 (`P8.A..P8.D`) planning expansion completed for execution readiness
+
+### Scope completed
+1. Expanded `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` from baseline lane definitions into execution-grade prep coverage for `P8.A..P8.D`.
+
+### What was added
+1. Readiness and preflight coverage:
+   - new pre-execution readiness matrix (`Section 4.2`) with explicit fail-closed checks for:
+     - `M7.A` carry-forward invariants,
+     - substrate stability,
+     - topic materialization posture,
+     - run-scope continuity,
+     - IAM/secret/evidence-write posture,
+     - DB dependency posture.
+2. Performance gate coverage:
+   - new runtime-budget gates (`Section 4.3`) for each P8 sub-phase and total plane budget.
+3. Rerun/rollback prep coverage:
+   - new rerun/rollback prep section (`Section 4.4`) with safe rollback boundaries and rerun contract.
+4. Deeper per-phase execution planning:
+   - `P8.A`: explicit entry conditions, preparation checks, expanded sequence, additional blockers.
+   - `P8.B`: explicit run-window offset methodology, partition-coverage checks, lag-gate logic, additional blockers.
+   - `P8.C`: archive-writer posture resolution and coherence checks against offsets evidence.
+   - `P8.D`: runtime-budget rollup requirement and explicit budget-breach blocker.
+5. Evidence and closure hardening:
+   - control-plane snapshot metadata contract added in Section 7,
+   - completion checklist extended to include budget and rerun/rollback posture,
+   - added P8 branch unresolved blocker register (`Section 10`).
+
+### Execution readiness impact
+1. `M7.P8` now has closure-grade prep depth for execution.
+2. Next execution entry remains `P8.A` (`M7.B`) using this expanded plan.
+3. No runtime mutation was performed in this step.
