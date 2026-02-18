@@ -181,7 +181,7 @@ Scope:
 
 Definition of done:
 - [x] measured runtime reduction on selected primary state versus POPT.0 baseline.
-- [ ] deterministic replay check passes on same seed + same inputs.
+- [x] deterministic replay check passes on same seed + same inputs.
 - [x] relevant structural validators remain green.
 
 POPT.1 progress record (2026-02-18):
@@ -195,11 +195,20 @@ POPT.1 progress record (2026-02-18):
 - structural evidence:
   - `s5_run_report.json` emitted under fix lane with validators
     `V-01..V-16` all `PASS`.
-- open gate:
-  - same-run replay currently fails on write-once conflict
-    (`2B-S5-080`) because S5 event payloads include runtime `ts_utc`; rerun bytes
-    are non-identical. This is a pre-existing idempotence behavior and remains to
-    be addressed as a follow-up closure item.
+- replay evidence (closed):
+  - deterministic timestamp sequencing applied to persisted S5 RNG event/trace
+    rows (anchored to S0 `created_utc`).
+  - witness lane:
+    - runs root: `runs/fix-data-engine/segment_2B_popt1_replay_20260218_134345`
+    - run id: `c25a2675fbfbacd952b13bb594880e92`
+    - replay result: second run exited `0` with byte-identical skip logs:
+      - `rng_event_alias_pick_group already exists and is identical`
+      - `rng_event_alias_pick_site already exists and is identical`
+      - `rng_trace_log already exists and is identical`.
+
+POPT.1 closure decision (2026-02-18):
+- decision: `CLOSED`
+- next phase: `POPT.2` (secondary hotspot `S4` unless reranked).
 
 ### POPT.2 - Secondary hotspot optimization
 Goal:

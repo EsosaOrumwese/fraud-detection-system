@@ -4882,7 +4882,44 @@ Validation/non-regression evidence:
 2) Validators `V-01..V-16` reported `PASS`.
 
 Open issue / follow-up:
-- Same-run deterministic replay still fails with `2B-S5-080` on second run
-  because event payloads include runtime `ts_utc`, so rerun bytes differ.
-  This is a legacy idempotence behavior and not introduced by the POPT.1 patch.
+- Closed in follow-up entry below.
+
+### Entry: 2026-02-18 13:44
+
+Implementation update: closed S5 replay-idempotence gap and completed POPT.1.
+
+Issue addressed:
+- `S5` second same-run replay previously failed with `2B-S5-080` because
+  persisted RNG event/trace rows embedded runtime-varying `ts_utc`, producing
+  non-identical bytes across reruns.
+
+Code changes applied:
+1) Updated `packages/engine/src/engine/layers/l1/seg_2B/s5_router/runner.py`:
+   - added deterministic timestamp sequencer anchored to S0 `created_utc`,
+   - replaced runtime `utc_now` stamps for persisted S5 RNG event rows with
+     deterministic sequence values,
+   - overrode `rng_trace_log` row `ts_utc` with deterministic sequence values
+     before schema validation and write.
+2) Scope guard:
+   - no changes to RNG counters/draw semantics, selection logic, or policy
+     checks; only persisted timestamp source was changed for idempotence.
+
+Replay witness (same seed + same inputs):
+1) Created isolated replay lane:
+   - runs root: `runs/fix-data-engine/segment_2B_popt1_replay_20260218_134345`
+   - run id: `c25a2675fbfbacd952b13bb594880e92`
+2) First run:
+   - `engine.cli.s5_router_2b` completed, emitted validators `V-01..V-16 PASS`.
+3) Second run (same run-id, no cleanup):
+   - completed without `2B-S5-080`,
+   - logs confirm byte-identical idempotence skip on persisted RNG surfaces:
+     - `rng_event_alias_pick_group already exists and is identical`,
+     - `rng_event_alias_pick_site already exists and is identical`,
+     - `rng_trace_log already exists and is identical`.
+
+Closure:
+- `POPT.1` DoD now complete:
+  - runtime reduction achieved,
+  - deterministic replay witness passed,
+  - structural validators remain green.
 
