@@ -1040,8 +1040,8 @@ Scope:
   existing `P3`/floor analyzers.
 
 Definition of done:
-- [ ] one `1B` candidate completes `S2->S9` with runtime evidence captured.
-- [ ] runtime non-regression gate is evaluated against `1B` authority lane:
+- [x] one `1B` candidate completes `S2->S9` with runtime evidence captured.
+- [x] runtime non-regression gate is evaluated against `1B` authority lane:
   - no material regression on `S4/S5/S6/S9` wall-clock under same posture.
 - [ ] one downstream candidate completes `2A S0->S5` + `2B S0->S8`.
 - [ ] score artifacts are emitted:
@@ -1051,6 +1051,14 @@ Definition of done:
   - `GO_P3_RETRY_FROM_1B` only if tail floor materially drops toward
     `B` gate (`share(max_p_group>=0.95) <= 0.35`) with runtime gate green,
   - otherwise `NO_GO_P1_REOPEN_1B_ONLY`.
+
+Status update (2026-02-18):
+- completed candidates:
+  - `0ed63a7bff9d4c91855b516d41d0ec80` (R2),
+  - `c24d00ed24564bbe81666808a1d04a77` (R3b, corrected candidate-local policy precedence).
+- runtime gate remains red on all valid candidates vs authority `a0ae...`.
+- lane is currently fail-closed pending user direction on whether to accept a
+  performance waiver and continue downstream evaluation with `c24...`.
 
 ### P4 - Realism-grade roster and certification hardening
 Goal:

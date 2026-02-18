@@ -6193,3 +6193,19 @@ Performance guard (binding in this lane):
 Recovery decision (still inside `P1.REOPEN.1B`):
 1) attempt R3 with `S4`-only bounded topology movement designed to preserve cache-key compatibility and keep runtime posture.
 2) no downstream propagation until R3 runtime gate passes.
+
+### Entry: 2026-02-18 19:28
+
+`P1.REOPEN.1B` execution update (R3 + R3b):
+1) R3 (`641327198c4c40818a4ca6180f882f62`) completed `1B S4->S9` but was invalid for topology intent because policy resolved from repo root instead of candidate-local root.
+2) R3b (`c24d00ed24564bbe81666808a1d04a77`) re-executed `1B S4->S9` with explicit external-root precedence and confirmed candidate-local `S4` policy load.
+3) runtime gate evidence:
+   - `segment2b_p1_reopen_1b_runtime_641327198c4c40818a4ca6180f882f62.json`
+   - `segment2b_p1_reopen_1b_runtime_c24d00ed24564bbe81666808a1d04a77.json`
+4) R3b still failed runtime non-regression against authority (`a0ae...`):
+   - `S4: +11.66%`, `S5: +20.70%`, `S6: +17.11%`, `S9: +3.77%`.
+5) decision status:
+   - downstream `2A->2B` propagation remains blocked in this lane pending user go/no-go under performance waiver.
+6) storage hygiene evidence:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_prune_summary.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_prune_summary.md`

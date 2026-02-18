@@ -5998,3 +5998,45 @@ Bounded recovery lane (R3) decision:
    - move `country_share_soft_guard` / residual redistribution only,
    - keep `policy_version` and diversification-window fields identical to authority.
 3) preserve fast-lane env posture unchanged; re-run runtime gate before any downstream `2A/2B` handoff.
+
+### Entry: 2026-02-18 19:28
+
+Design element: `P1.REOPEN.1B` R3/R3b execution closure with strict runtime guard.
+Summary: executed two bounded follow-up attempts after R2 (`NO_GO`) to preserve the 1B performance lane while reopening topology. R3 was invalid as a topology attempt (policy root precedence bug). R3b corrected external-root ordering and applied candidate-local `S4` policy as designed, but runtime gate remained red.
+
+Attempt trace:
+1) R3 candidate run-id: `641327198c4c40818a4ca6180f882f62`
+   - rerun scope: `S4->S9` completed `PASS`.
+   - issue: policy resolved from repo root instead of candidate root (`path=.../config/layer1/1B/policy/policy.s4.alloc_plan.yaml`), so intended topology delta was not applied.
+   - gate evidence:
+     - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_runtime_641327198c4c40818a4ca6180f882f62.json`
+   - outcome: invalid as topology candidate + runtime gate red.
+
+2) R3b candidate run-id: `c24d00ed24564bbe81666808a1d04a77`
+   - correction: explicit external roots on every state run:
+     - `--external-root runs/fix-data-engine/segment_1B/c24d00ed24564bbe81666808a1d04a77`
+     - `--external-root .`
+   - confirmation: `S4` loaded candidate-local policy
+     - `soft_guard=0.1800`
+     - `path=runs/fix-data-engine/segment_1B/c24.../config/layer1/1B/policy/policy.s4.alloc_plan.yaml`
+   - gate evidence:
+     - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_runtime_c24d00ed24564bbe81666808a1d04a77.json`
+   - baseline (`a0ae...`) -> R3b candidate:
+     - `S4: 163.375 -> 182.422` (`1.117x`)
+     - `S5: 1.812 -> 2.187` (`1.207x`)
+     - `S6: 89.750 -> 105.110` (`1.171x`)
+     - `S9: 4.990 -> 5.178` (`1.038x`)
+   - gate result: `runtime_non_regression=false`.
+
+Storage hygiene:
+1) superseded run-ids marked and pruned:
+   - `d61f851d92004720ad587c41ead0d6fe`
+   - `0ed63a7bff9d4c91855b516d41d0ec80`
+   - `641327198c4c40818a4ca6180f882f62`
+2) retained run-ids:
+   - authority: `a0ae54639efc4955bc41a2e266224e6e`
+   - latest valid topology candidate: `c24d00ed24564bbe81666808a1d04a77`
+
+Decision status:
+1) no downstream `2A->2B` propagation executed.
+2) lane remains fail-closed pending user direction because performance-preserving gate did not clear.
