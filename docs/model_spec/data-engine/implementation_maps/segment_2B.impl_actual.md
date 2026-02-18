@@ -4724,3 +4724,76 @@ Outcome:
 - Segment 2B plan now enforces optimization-first execution before remediation
   work starts.
 
+---
+
+### Entry: 2026-02-18 13:02
+
+Design element: POPT.0 execution plan (runtime baseline + hotspot map).
+Summary: User requested executing `POPT.0`. We will materialize baseline runtime
+and bottleneck evidence for Segment 2B from the authority run chain before any
+optimization code changes.
+
+Execution plan (before code changes):
+1) Use authority run `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`
+   as the POPT.0 source run unless a newer complete 2B chain exists.
+2) Add a dedicated scorer tool:
+   - `tools/score_segment2b_popt0_baseline.py`
+   - responsibilities:
+     - parse 2B state start/complete markers from run log (`S0..S8`),
+     - compute per-state elapsed and segment-share runtime table,
+     - extract hotspot evidence from S0..S6 run reports and S7/S8 artifacts,
+     - emit machine-readable baseline JSON + hotspot markdown map under
+       `runs/fix-data-engine/segment_2B/reports/`.
+3) Create `runs/fix-data-engine/segment_2B/reports/` if absent and write:
+   - `segment2b_popt0_baseline_<run_id>.json`
+   - `segment2b_popt0_hotspot_map_<run_id>.md`
+4) Update build-plan closure for `POPT.0` with:
+   - authority run reference,
+   - emitted artifact paths,
+   - ranked bottlenecks and elapsed values,
+   - progression gate decision (`GO/HOLD`) for `POPT.1`.
+5) Keep scope pure POPT.0:
+   - no policy tuning,
+   - no state runtime modifications,
+   - no realism remediation edits.
+
+### Entry: 2026-02-18 13:05
+
+Implementation update: executed POPT.0 baseline extraction.
+
+Actions taken:
+1) Added scorer tool:
+   - `tools/score_segment2b_popt0_baseline.py`
+   - computes per-state elapsed from 2B log markers (`S0..S8`) and combines
+     run-report evidence for hotspot ranking.
+2) Used authority run:
+   - `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`.
+3) Emitted baseline artifacts:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_popt0_baseline_c25a2675fbfbacd952b13bb594880e92.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_popt0_hotspot_map_c25a2675fbfbacd952b13bb594880e92.md`
+4) Baseline outcome:
+   - segment elapsed `76.357s` (2B log window `79.994s`),
+   - hotspot rank:
+     - `#1 S5 = 30.477s` (`39.91%`, `RED`),
+     - `#2 S4 = 20.795s` (`27.23%`, `AMBER`),
+     - `#3 S3 = 19.763s` (`25.88%`, `AMBER`),
+   - progression gate: `GO`, next state `S5`.
+
+### Entry: 2026-02-18 13:07
+
+Implementation update: aligned build plan to executed POPT.0 evidence.
+
+Actions taken:
+1) Updated `docs/model_spec/data-engine/implementation_maps/segment_2B.build_plan.md`:
+   - checked off POPT.0 DoD items,
+   - added POPT.0 closure record with artifact paths and runtime numbers,
+   - adjusted `POPT.1` to primary-hotspot execution (`S5` per POPT.0),
+   - adjusted `POPT.2` to secondary-hotspot execution (`S4` unless reranked).
+2) Scope control preserved:
+   - no runtime policy changes,
+   - no state code optimization edits yet (POPT.1 not started).
+
+Outcome:
+- POPT.0 is closed with auditable baseline evidence and the optimization queue
+  is now explicitly ordered by measured hotspot impact.
+

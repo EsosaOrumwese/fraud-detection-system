@@ -151,34 +151,50 @@ Scope:
 - lock runtime budget targets for fast/witness/certification lanes.
 
 Definition of done:
-- [ ] baseline runtime table (`state_elapsed`, `total_elapsed`) is emitted.
-- [ ] top bottlenecks are ranked with evidence.
-- [ ] optimization budget targets are pinned for later POPT gates.
+- [x] baseline runtime table (`state_elapsed`, `total_elapsed`) is emitted.
+- [x] top bottlenecks are ranked with evidence.
+- [x] optimization budget targets are pinned for later POPT gates.
 
-### POPT.1 - S3/S4 core compute-path optimization
+POPT.0 closure record (2026-02-18):
+- authority run used:
+  - `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`
+- generated artifacts:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_popt0_baseline_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_popt0_hotspot_map_c25a2675fbfbacd952b13bb594880e92.md`
+- observed runtime baseline (log-derived, 2B window):
+  - segment total: `76.357s` (log window `79.994s`).
+  - primary hotspot: `S5=30.477s` (`39.91%`, `RED` vs `16s/22s` target/stretch).
+  - secondary hotspot: `S4=20.795s` (`27.23%`, `AMBER` vs `18s/24s`).
+  - closure hotspot: `S3=19.763s` (`25.88%`, `AMBER` vs `18s/24s`).
+- progression gate:
+  - decision: `GO POPT.1`
+  - selected state for `POPT.1`: `S5`.
+
+### POPT.1 - Primary hotspot optimization
 Goal:
-- reduce merchant-day-group hot-path cost in `S3` and `S4`.
+- reduce the #1 ranked hotspot state selected by `POPT.0`.
 
 Scope:
-- improve data structures and join/materialization strategy in S3/S4 loops.
-- eliminate redundant scans/recomputations while preserving output identity.
+- active state for this cycle: `S5`.
+- optimize data structures, lookup path, and loop mechanics while preserving output identity.
+- no realism-shape tuning in this phase.
 
 Definition of done:
-- [ ] measured runtime reduction on S3/S4 versus POPT.0 baseline.
+- [ ] measured runtime reduction on selected primary state versus POPT.0 baseline.
 - [ ] deterministic replay check passes on same seed + same inputs.
-- [ ] S3/S4 structural validators remain green.
+- [ ] relevant structural validators remain green.
 
-### POPT.2 - S5 assignment-path optimization
+### POPT.2 - Secondary hotspot optimization
 Goal:
-- reduce per-arrival routing cost and improve roster-processing throughput.
+- reduce the #2 ranked hotspot from `POPT.0` after `POPT.1` closure.
 
 Scope:
-- optimize arrival loop, pre-filtering/indexing, and lookup paths used by S5.
-- keep assignment semantics unchanged.
+- active state for this cycle: `S4` (unless re-ranked by accepted `POPT.1` candidate evidence).
+- optimize compute/materialization path while preserving assignment semantics and normalization invariants.
 
 Definition of done:
-- [ ] S5 elapsed time materially reduced versus POPT.0.
-- [ ] assignment parity checks remain non-regressed.
+- [ ] secondary hotspot elapsed time materially reduced versus POPT.0.
+- [ ] parity/invariant checks remain non-regressed.
 - [ ] run-report counters remain consistent with pre-optimization semantics.
 
 ### POPT.3 - I/O and logging budget optimization
