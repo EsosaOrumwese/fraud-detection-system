@@ -5489,3 +5489,174 @@ Retention/pruning:
    - accepted P1 candidate `c7e3f4f9715d4256b7802bdc28579d54`.
 3) Prune summary artifact:
    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_prune_summary.json`.
+
+### Entry: 2026-02-18 16:01
+
+Pre-change design plan for remediation `P2` (S3 temporal heterogeneity
+activation).
+
+Problem restatement from pinned baseline + P1 lock:
+1) `S1` is now activated and frozen under `P1` lock
+   (`run_id=c7e3f4f9715d4256b7802bdc28579d54`), so `P2` must not reopen S1.
+2) Remediation authority for 2B still requires replacing effective single-regime
+   `sigma_gamma` posture in `S3` with merchant/tz differentiated behavior.
+3) `P2` must move S3 realism without destabilizing aggregate gamma shape or
+   regressing deterministic/structural rails.
+
+Option analysis:
+1) Tune only scalar `sigma_gamma`:
+   - rejected.
+   - reason: this only rescales global volatility and does not introduce the
+     merchant/tz heterogeneity required by remediation gates.
+2) Implement remediation-spec `sigma_gamma_policy_v2` with per-row resolution:
+   - accepted.
+   - reason: directly aligns to remediation report Section 5.2.2/5.3.2 and
+     supports controlled heterogeneity with explicit bounds.
+
+Planned execution structure (expanded in build plan as `P2.1..P2.5`):
+1) `P2.1` baseline decomposition and tuning envelope lock.
+   - emit S3 baseline table and bounded tuning envelope before code edits.
+2) `P2.2` policy/contract delta.
+   - update `config/layer1/2B/policy/day_effect_policy_v1.json` to
+     `sigma_gamma_policy_v2`;
+   - extend `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+     only if needed for strict policy validation.
+3) `P2.3` S3 runner implementation.
+   - patch `packages/engine/src/engine/layers/l1/seg_2B/s3_day_effects/runner.py`
+     for per-row sigma resolution + bounded weekly component;
+   - emit provenance fields (`sigma_source`, `sigma_value`, `weekly_amp`).
+4) `P2.4` witness run + scoring.
+   - run from `S3 -> S8` on staged root (seed `42` fast lane, then add seed
+     `7` witness lane);
+   - certify S3 B gates and aggregate stability; confirm P1 non-regression.
+5) `P2.5` freeze handoff.
+   - emit P2 lock artifact, prune superseded failed roots, and record `GO_P3`
+     only on fully green gates.
+
+Performance and run-control posture for P2:
+1) keep POPT runtime gains; no broad strict-mode rollback in this phase.
+2) use sequential-state rerun law (`S3 -> ... -> S8`) for every S3 candidate.
+3) enforce prune-before-run retention discipline under
+   `runs/fix-data-engine/segment_2B/`.
+
+### Entry: 2026-02-18 16:08
+
+Pre-change execution plan for `P2` end-to-end (`P2.1 -> P2.5`).
+
+Execution intent:
+1) Execute full `P2` in one pass with strict sequencing:
+   - `P2.1` baseline decomposition + no-code-change S1 witness,
+   - `P2.2` policy/contract delta,
+   - `P2.3` S3 implementation delta,
+   - `P2.4` candidate run + gate scoring,
+   - `P2.5` lock + prune + handoff.
+
+Constraints and assumptions locked before edits:
+1) `P1` authority is frozen (`run_id=c7e3f4f9715d4256b7802bdc28579d54`);
+   no `S1` policy/code tuning is allowed in `P2`.
+2) `S3` enforces S0-sealed policy digest (`2B-S3-070`) and therefore any
+   `day_effect_policy_v1` byte change requires a fresh `S0` reseal on the
+   candidate run root.
+3) Current upstream retained roots in fix lane are seed-42 only; cross-seed
+   `P2` witness may be constrained by upstream freeze posture.
+
+Planned operational flow:
+1) Create a fresh witness run-id root cloned from P1 receipt identity and run
+   `S0 -> S1 -> S2` with no code changes, then score S1 equality versus P1 lock
+   to satisfy `P2.1` non-regression pre-check.
+2) Emit `P2.1` baseline table artifacts for S3 on retained authorities
+   (`c25...`, `c7e3...`) and pin a bounded tuning envelope
+   (`sigma_min/sigma_max`, jitter amplitude bounds, weekly amplitude bounds,
+   gamma clip bounds).
+3) Implement `sigma_gamma_policy_v2` in policy/schema and wire S3 runner to:
+   - resolve per-row sigma deterministically,
+   - apply bounded weekly component,
+   - emit provenance in sampled run-report rows
+     (`sigma_source`, `sigma_value`, `weekly_amp`),
+   - preserve deterministic counter law and publish idempotence.
+4) Execute a fresh candidate run-id with `S0 -> S8` (includes S3 onward target
+   and required reseal), then score `P2` gates.
+5) If candidate passes:
+   - emit `P2` candidate + lock artifacts,
+   - prune superseded failed witness/candidate run roots,
+   - update build plan + logbook + implementation notes with `GO_P3`.
+
+Performance posture:
+1) Keep POPT fast-lane toggles and avoid strict-mode rollback.
+2) Prefer one clean candidate lane plus one no-code witness lane; avoid extra
+   reruns unless a hard gate fails.
+
+### Entry: 2026-02-18 16:24
+
+Execution + closure record for remediation `P2` (`P2.1 -> P2.5`).
+
+What was executed:
+1) `P2.1` baseline decomposition and witness non-regression.
+   - Added scorer:
+     - `tools/score_segment2b_p2_baseline.py`
+   - Executed no-code witness run:
+     - run id: `e94506e84ab84dc0aaebf2bb770f816d`
+   - Emitted baseline artifacts:
+     - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_1_baseline_e94506e84ab84dc0aaebf2bb770f816d.json`
+     - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_1_baseline_e94506e84ab84dc0aaebf2bb770f816d.md`
+   - Result:
+     - verdict `PASS_P2_1`,
+     - `S1` deltas vs `P1` lock exactly zero,
+     - `S2` non-regression `PASS`.
+
+2) `P2.2` policy/contract delta.
+   - `config/layer1/2B/policy/day_effect_policy_v1.json`:
+     - bumped `version_tag/policy_version` to `1.0.3`,
+     - added `sigma_gamma_policy_v2` block
+       (`sigma_base_by_segment`, `sigma_multiplier_by_tz_group`,
+       `sigma_jitter_by_merchant`, `weekly_component_amp_by_segment`,
+       `sigma_min`, `sigma_max`, `gamma_clip`).
+   - `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`:
+     - added schema allowance for `sigma_gamma_policy_v2` under strict
+       `additionalProperties: false`.
+
+3) `P2.3` implementation delta and provenance.
+   - `packages/engine/src/engine/layers/l1/seg_2B/s3_day_effects/runner.py`:
+     - replaced scalar-global sigma use with deterministic per-row resolution
+       from `sigma_gamma_policy_v2`,
+     - added bounded weekly component and gamma clipping,
+     - emitted sample provenance (`sigma_source`, `sigma_value`, `weekly_amp`),
+     - emitted additional run-report counters for observed sigma/gamma bounds.
+
+4) `P2.4` candidate execution + scoring.
+   - Added scorer:
+     - `tools/score_segment2b_p2_candidate.py`
+   - Executed candidate run:
+     - run id: `3e6b5090ecde48f68b6fadc0bfad022f` (`S0 -> S8` completed).
+   - Emitted candidate artifacts:
+     - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_candidate_3e6b5090ecde48f68b6fadc0bfad022f.json`
+     - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_candidate_3e6b5090ecde48f68b6fadc0bfad022f.md`
+   - Gate outcome:
+     - pass: `s3_b_hard_gates`, `s3_stability_guard`, `provenance_present`,
+       `p1_s1_non_regression`, `s2_non_regression`.
+     - fail: `s4_guard_non_catastrophic`.
+   - Candidate verdict:
+     - `FAIL_P2` with S4 collapse signature
+       (`entropy_p50=0.1256728257`, `max_p_group_median=0.9726539867`).
+   - Seed witness posture:
+     - `seed=7` witness remains deferred in this lane because retained upstream
+       authority roots are seed-42 only.
+
+5) `P2.5` freeze/handoff closure.
+   - Emitted closure lock artifacts:
+     - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_lock_3e6b5090ecde48f68b6fadc0bfad022f.json`
+     - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_lock_3e6b5090ecde48f68b6fadc0bfad022f.md`
+   - Pruned superseded P2 roots using standard prune path:
+     - marked superseded roots with `_FAILED.SENTINEL.json`,
+     - executed `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_2B`,
+     - removed:
+       - `e94506e84ab84dc0aaebf2bb770f816d`
+       - `3e6b5090ecde48f68b6fadc0bfad022f`
+   - Emitted prune summary:
+     - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_prune_summary.json`
+   - Retained roots after prune:
+     - baseline `c25a2675fbfbacd952b13bb594880e92`,
+     - frozen P1 lock `c7e3f4f9715d4256b7802bdc28579d54`.
+   - Phase decision:
+     - `NO_GO_P3` from this candidate because the S4 non-catastrophic gate is
+       red, despite S3/S1/S2 gates being green.

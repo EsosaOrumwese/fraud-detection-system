@@ -17,6 +17,8 @@ locals {
     env_conformance = "${var.name_prefix}-env-conformance"
   }
 
+  archive_bucket_resolved = trimspace(var.archive_bucket) != "" ? var.archive_bucket : "${var.name_prefix}-archive"
+
   daemon_container_image_resolved = trimspace(var.ecs_daemon_container_image) != "" ? var.ecs_daemon_container_image : var.ecs_probe_container_image
 
   daemon_service_specs = {
@@ -478,6 +480,29 @@ data "aws_iam_policy_document" "lane_app_object_store_data_plane" {
       "arn:${data.aws_partition.current.partition}:s3:::${var.evidence_bucket}/evidence/dev_min/run_control/*",
     ]
   }
+
+  statement {
+    sid = "ArchiveBucketList"
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:s3:::${local.archive_bucket_resolved}",
+    ]
+  }
+
+  statement {
+    sid = "ArchiveObjectReadWrite"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:s3:::${local.archive_bucket_resolved}/*",
+    ]
+  }
 }
 
 data "aws_iam_policy_document" "lane_app_kinesis_publish" {
@@ -667,6 +692,10 @@ resource "aws_ecs_task_definition" "daemon" {
         "sh",
         "-c",
         "set -e; python -m fraud_detection.ingestion_gate.service --profile config/platform/profiles/dev_min.yaml --host 0.0.0.0 --port 8080",
+        ] : each.key == "rtdl-core-archive-writer" ? [
+        "sh",
+        "-c",
+        "set -e; python -m fraud_detection.archive_writer.worker --profile config/platform/profiles/dev_min.yaml",
         ] : [
         "sh",
         "-c",
@@ -726,8 +755,33 @@ resource "aws_ecs_task_definition" "daemon" {
           name  = "KAFKA_SASL_MECHANISM"
           value = "PLAIN"
         },
+        ] : [], each.key == "rtdl-core-archive-writer" ? [
+        {
+          name  = "PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "ARCHIVE_WRITER_REQUIRED_PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "PLATFORM_STORE_ROOT"
+          value = "s3://${local.archive_bucket_resolved}"
+        },
+        {
+          name  = "OBJECT_STORE_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "KAFKA_SECURITY_PROTOCOL"
+          value = "SASL_SSL"
+        },
+        {
+          name  = "KAFKA_SASL_MECHANISM"
+          value = "PLAIN"
+        },
       ] : [])
-      secrets = each.key == "ig" ? [
+      secrets = concat(each.key == "ig" ? [
         {
           name      = "IG_API_KEY"
           valueFrom = aws_ssm_parameter.ig_api_key.arn
@@ -735,7 +789,8 @@ resource "aws_ecs_task_definition" "daemon" {
         {
           name      = "IG_ADMISSION_DSN"
           valueFrom = aws_ssm_parameter.db_dsn.arn
-        },
+        }
+        ] : [], contains(["ig", "rtdl-core-archive-writer"], each.key) ? [
         {
           name      = "KAFKA_BOOTSTRAP_SERVERS"
           valueFrom = aws_ssm_parameter.confluent_bootstrap.arn
@@ -748,7 +803,7 @@ resource "aws_ecs_task_definition" "daemon" {
           name      = "KAFKA_SASL_PASSWORD"
           valueFrom = aws_ssm_parameter.confluent_api_secret.arn
         }
-      ] : []
+      ] : [])
       logConfiguration = {
         logDriver = "awslogs"
         options = {

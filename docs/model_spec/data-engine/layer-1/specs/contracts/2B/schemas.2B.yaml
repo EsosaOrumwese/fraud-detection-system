@@ -481,6 +481,66 @@ policy:
       rng_stream_id: { type: string, minLength: 1, pattern: '^2B\.[A-Za-z0-9_.-]+$' }
       draws_per_row: { const: 1 }
       sigma_gamma: { type: number, exclusiveMinimum: 0.0 }
+      sigma_gamma_policy_v2:
+        type: object
+        additionalProperties: false
+        required:
+          - enabled
+          - sigma_base_by_segment
+          - sigma_multiplier_by_tz_group
+          - sigma_jitter_by_merchant
+          - weekly_component_amp_by_segment
+          - sigma_min
+          - sigma_max
+          - gamma_clip
+        properties:
+          enabled: { type: boolean }
+          sigma_base_by_segment:
+            type: object
+            minProperties: 1
+            required: [default]
+            additionalProperties:
+              type: number
+              exclusiveMinimum: 0.0
+          sigma_multiplier_by_tz_group:
+            type: object
+            additionalProperties: false
+            required: [default]
+            properties:
+              default: { type: number, exclusiveMinimum: 0.0 }
+              prefix_rules:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [prefix, multiplier]
+                  properties:
+                    prefix: { type: string, minLength: 1 }
+                    multiplier: { type: number, exclusiveMinimum: 0.0 }
+          sigma_jitter_by_merchant:
+            type: object
+            additionalProperties: false
+            required: [enabled, amplitude, seed_scope]
+            properties:
+              enabled: { type: boolean }
+              amplitude: { type: number, minimum: 0.0, maximum: 1.0 }
+              seed_scope: { type: string, minLength: 1 }
+          weekly_component_amp_by_segment:
+            type: object
+            minProperties: 1
+            required: [default]
+            additionalProperties:
+              type: number
+              minimum: 0.0
+          sigma_min: { type: number, exclusiveMinimum: 0.0 }
+          sigma_max: { type: number, exclusiveMinimum: 0.0 }
+          gamma_clip:
+            type: object
+            additionalProperties: false
+            required: [min, max]
+            properties:
+              min: { type: number, exclusiveMinimum: 0.0 }
+              max: { type: number, exclusiveMinimum: 0.0 }
       day_range:
         type: object
         additionalProperties: false

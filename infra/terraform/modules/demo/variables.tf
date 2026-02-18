@@ -22,6 +22,11 @@ variable "object_store_bucket" {
   type = string
 }
 
+variable "archive_bucket" {
+  type    = string
+  default = ""
+}
+
 variable "cloudwatch_retention" {
   type    = number
   default = 7

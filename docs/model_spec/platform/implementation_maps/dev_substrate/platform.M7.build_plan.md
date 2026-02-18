@@ -372,14 +372,16 @@ Execution notes:
    - `overall_pass=false`
    - open blocker `M7D-B4`.
 3. Runtime finding behind blocker:
-   - archive-writer service is active (`desired=1`, `running=1`) but task definition command is placeholder sleep-loop and does not execute `fraud_detection.archive_writer.worker`.
-4. Current epoch offset basis is empty (`run_end=-1` on required partitions), so archive count coherence is neutral (`expected_archive_events_from_offsets=0`, `archive_object_count=0`); closure is still blocked by runtime-command drift.
+   - archive-writer service is on real worker runtime command (task definition `:15`),
+   - service is crash-looping (`desired=1`, `running=0`, repeated non-zero exits),
+   - CloudWatch logs show `AssertionError` in `archive_writer.worker` (`_file_reader is None`).
+4. Current epoch offset basis is empty (`run_end=-1` on required partitions), so archive count coherence is neutral (`expected_archive_events_from_offsets=0`, `archive_object_count=0`); closure is still blocked by runtime stability failure.
 
 Blockers:
 1. `M7D-B1`: archive prefix missing/empty when writer lane is expected active.
 2. `M7D-B2`: archive progression mismatch vs offsets evidence.
 3. `M7D-B3`: snapshot write/upload failure.
-4. `M7D-B4`: archive writer runtime command is placeholder and does not execute worker contract.
+4. `M7D-B4`: archive writer runtime command is materialized but worker crashes under active service posture.
 
 ### M7.E P9 Decision-Lane Readiness + Idempotency Posture
 Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` (`P9.A`).
@@ -637,9 +639,12 @@ Current blockers:
      - pin concrete non-placeholder subject-key fields before `M7.G` execution.
 2. `M7D-B4` (open, execution blocker for `M7.D`/`P8.C`)
    - observed posture:
-     - archive-writer ECS service is active, but task command is placeholder idle loop.
+     - archive-writer ECS service is on real worker runtime command (task definition `:15`),
+     - service is crash-looping (`desired=1`, `running=0`, repeated non-zero exits),
+     - CloudWatch logs show runtime `AssertionError` in `archive_writer.worker` (`_file_reader is None`).
    - closure rule:
-     - rematerialize archive-writer service to real worker runtime command,
+     - keep real worker runtime command materialized,
+     - fix archive-writer runtime crash under managed Kafka posture,
      - rerun `M7.D` and require `overall_pass=true` with empty blockers.
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

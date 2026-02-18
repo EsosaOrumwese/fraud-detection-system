@@ -317,17 +317,18 @@ Execution notes:
      - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_d_archive_durability_snapshot.json`
 2. Closure result: fail-closed (`overall_pass=false`), blocker set non-empty.
 3. Runtime posture observed:
-   - archive writer ECS service is active (`desired=1`, `running=1`),
-   - task definition command is placeholder sleep-loop and does not execute `fraud_detection.archive_writer.worker`,
+   - archive writer ECS service is configured on real worker runtime command (`task definition :15`),
+   - service is currently crash-looping (`desired=1`, `running=0`, repeated non-zero stops),
+   - CloudWatch logs show `AssertionError` in `archive_writer.worker` (`_file_reader is None`),
    - archive bucket run prefix is empty for this run (`archive_object_count=0`),
    - offsets coherence count is neutral for this epoch (`expected_archive_events_from_offsets=0` from refreshed P7 basis).
-4. Open blocker is runtime-command drift (`M7D-B4`), not archive count incoherence.
+4. Open blocker is runtime stability failure (`M7D-B4`) under managed Kafka posture, not archive count incoherence.
 
 Blockers:
 1. `M7D-B1`: expected archive proof missing.
 2. `M7D-B2`: archive/offset coherence failure.
 3. `M7D-B3`: snapshot publish failure.
-4. `M7D-B4`: archive writer posture ambiguous (cannot determine active/inactive).
+4. `M7D-B4`: archive writer runtime command is materialized but worker crashes under active service posture.
 
 ### P8.D Plane Closure Summary
 Goal:
@@ -400,14 +401,16 @@ P8 branch is closure-ready only when:
 Current blockers:
 1. `M7D-B4` (open, blocks `P8.C` closure)
    - observed posture:
-     - `fraud-platform-dev-min-rtdl-core-archive-writer` service is active,
-     - task definition command is placeholder (`echo ...; while true sleep`) and does not run `fraud_detection.archive_writer.worker`,
-     - `M7.D` snapshot is fail-closed with `overall_pass=false`.
+     - `fraud-platform-dev-min-rtdl-core-archive-writer` service is active (`desired=1`) on task definition `:15`,
+     - task definition command is now real worker runtime (`python -m fraud_detection.archive_writer.worker --profile config/platform/profiles/dev_min.yaml`),
+     - writer is crash-looping (`running=0`, repeated stopped tasks with `exitCode=1`),
+     - CloudWatch logs show runtime `AssertionError` in `archive_writer.worker` (`_file_reader is None`).
    - impact:
-     - archive durability closure cannot claim active-writer proof from real worker runtime.
+     - archive durability closure cannot claim active-writer proof because worker runtime is not stable.
    - closure criteria:
-     - rematerialize archive-writer runtime to real worker command (`python -m fraud_detection.archive_writer.worker --profile config/platform/profiles/dev_min.yaml` or equivalent pinned contract),
-     - rerun `M7.D` and require empty blocker rollup.
+     - keep archive-writer service on real worker runtime command (already rematerialized),
+     - fix archive-writer runtime crash under Kafka posture,
+     - rerun `M7.D` and require `overall_pass=true` with empty blocker rollup.
 
 Rule:
 1. Any blocker discovered in `P8.A..P8.D` is appended here with:

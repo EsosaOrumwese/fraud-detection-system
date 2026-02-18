@@ -708,9 +708,9 @@ Active-phase planning posture:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
     - closure result: `overall_pass=true`, blockers empty.
     - note: refreshed active-epoch P7 basis currently captures empty required Kafka topics (`run_end_offset=-1` on all required partitions).
-  - `M7.D` first execution is fail-closed (not closed):
+  - `M7.D` rerun remains fail-closed (not closed):
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_d_archive_durability_snapshot.json`
-    - open blocker: archive-writer runtime command drift (`M7D-B4`).
+    - open blocker: archive-writer runtime crash-loop under managed Kafka posture (`M7D-B4`).
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.
@@ -863,5 +863,6 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M7 is active for deep-plan closure and execution sequencing.
 Next action:
-- resolve `M7D-B4` by rematerializing archive-writer service to real worker runtime command, then rerun `M7.D`,
+- keep archive-writer rematerialized on real worker runtime command,
+- resolve `M7D-B4` runtime crash-loop under managed Kafka posture, then rerun `M7.D`,
 - keep fail-closed progression: `M7G-B1` subject-key placeholders remain an open forward blocker for `P10` entry.

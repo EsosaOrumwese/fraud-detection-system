@@ -41,6 +41,7 @@ module "demo" {
   demo_run_id                      = var.demo_run_id
   evidence_bucket                  = var.evidence_bucket_name
   object_store_bucket              = var.object_store_bucket_name
+  archive_bucket                   = var.archive_bucket_name
   cloudwatch_retention             = var.demo_log_retention_days
   log_group_prefix                 = var.cloudwatch_log_group_prefix
   vpc_cidr                         = var.vpc_cidr

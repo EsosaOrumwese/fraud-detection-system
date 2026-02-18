@@ -12259,3 +12259,34 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 2. Pinned closure path:
    - rematerialize archive-writer service with real worker runtime command,
    - rerun `M7.D` and require empty blocker rollup.
+
+## Entry: 2026-02-18 16:15:00 +00:00 - Archive-writer rematerialized to real runtime; `M7.D` rerun still fail-closed on crash-loop
+
+### User directive
+1. Rematerialize archive-writer service to real worker runtime command, then rerun `M7.D`.
+
+### Execution outputs
+1. Runtime command posture is now materialized on ECS task definition `:15`:
+   - `sh -c set -e; python -m fraud_detection.archive_writer.worker --profile config/platform/profiles/dev_min.yaml`.
+2. `M7.D` artifacts rerun/published in-place for active execution:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/rtdl_core/archive_write_summary.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/archive_write_summary.json`
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_d_archive_durability_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_d_archive_durability_snapshot.json`
+
+### Runtime findings
+1. Service remains unstable under real runtime:
+   - `desired=1`, `running=0`, repeated stopped tasks with `exitCode=1`.
+2. CloudWatch logs show runtime exception:
+   - `AssertionError` in `src/fraud_detection/archive_writer/worker.py` (`_file_reader is None` path).
+3. Archive surface remains empty in current epoch:
+   - `archive_object_count=0`, `expected_archive_events_from_offsets=0` (coherence neutral).
+
+### Verdict
+1. `M7.D` remains open:
+   - `overall_pass=false`,
+   - blocker `M7D-B4` remains open but is now runtime crash-loop (not command-drift).
+2. Closure path is now narrowed:
+   - keep real worker runtime command materialized,
+   - fix archive-writer Kafka-runtime path to avoid `_file_reader` assertion crash,
+   - rerun `M7.D` and require empty blocker rollup.

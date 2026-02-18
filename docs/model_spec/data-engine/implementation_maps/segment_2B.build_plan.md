@@ -522,12 +522,140 @@ Scope:
 Candidate surfaces:
 - `config/layer1/2B/policy/day_effect_policy_v1.json`
 - `packages/engine/src/engine/layers/l1/seg_2B/s3_day_effects/runner.py`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml` (if policy schema extension is required)
+
+Phase-entry locks (binding):
+- `P1` lock is frozen as authority (`run_id=c7e3f4f9715d4256b7802bdc28579d54`).
+- no `S1` policy/code edits are allowed inside `P2`.
+- candidate execution starts at `S3` and progresses sequentially through `S8`.
+
+P2.1 - S3 baseline decomposition and tuning envelope
+Goal:
+- pin the exact S3 baseline from the active `P1` authority root and lock the tuning envelope before code edits.
+
+Scope:
+- measure baseline S3 metrics on active retained roots (`c25...`, `c7e3...`) for:
+  - merchant gamma std-dev median and tail,
+  - tz-group differentiation signal,
+  - aggregate gamma stability guardrails (`nonpositive_gamma_rows`, clip pressure).
+- lock allowed tuning ranges for `sigma_base`, tz multipliers, merchant jitter, and weekly amplitude.
 
 Definition of done:
-- [ ] per-row sigma resolution replaces single global sigma path.
-- [ ] provenance fields emitted (`sigma_source`, `sigma_value`, `weekly_amp`).
-- [ ] S3 B gates pass on witness seeds without aggregate instability.
-- [ ] P1 S1 gains remain non-regressed under P2 candidate.
+- [x] baseline S3 metric table for `P2` is emitted and pinned to run-id lineage.
+- [x] tuning envelope is documented with explicit min/max bounds and anti-instability guards.
+- [x] no-code-change witness confirms S1 P1 metrics remain unchanged before P2 edits.
+
+P2.2 - Policy/contract delta for `sigma_gamma_policy_v2`
+Goal:
+- define a deterministic, schema-valid policy surface for per-row sigma resolution.
+
+Scope:
+- update `day_effect_policy_v1` from scalar `sigma_gamma` posture to structured `sigma_gamma_policy_v2`:
+  - `sigma_base_by_segment`,
+  - `sigma_multiplier_by_tz_group`,
+  - `sigma_jitter_by_merchant`,
+  - `weekly_component_amp_by_segment`,
+  - `sigma_min`, `sigma_max`, `gamma_clip`.
+- extend `schemas.2B.yaml` only where required to validate the new policy block under `additionalProperties: false`.
+
+Definition of done:
+- [x] policy JSON validates cleanly under contracts.
+- [x] schema updates (if any) are minimal and backward-safe for existing required fields.
+- [x] policy digest change is traceable in S0 sealed-input outputs on candidate root.
+
+P2.3 - S3 implementation delta and provenance
+Goal:
+- replace the global sigma path with deterministic per-row sigma resolution while preserving contract outputs.
+
+Scope:
+- implement per-row sigma resolver in `s3_day_effects/runner.py` using `sigma_gamma_policy_v2`.
+- add bounded weekly component application in the same deterministic seed envelope.
+- emit S3 provenance trail in run-report/sample surfaces:
+  - `sigma_source`,
+  - `sigma_value`,
+  - `weekly_amp`.
+- preserve existing output schema/order, publish idempotence, and replay determinism.
+
+Definition of done:
+- [x] per-row sigma path is active and scalar-global fallback is removed/disabled for 2B remediation lane.
+- [x] provenance fields are emitted and populated on sampled output evidence.
+- [x] strict structural validators remain green with no new schema violations.
+
+P2.4 - Witness execution and gate scoring
+Goal:
+- certify S3 movement to at least `B` gates without destabilizing aggregate behavior or regressing frozen P1 gains.
+
+Scope:
+- run fast candidate lane from `S3 -> S8` on staged root.
+- run witness lane on at least two seeds (`42` + `7`) before P2 closure.
+- score against P2 hard gates:
+  - merchant std-dev median `>= 0.03`,
+  - non-zero tz differentiation,
+  - aggregate stability (no clip saturation / nonpositive gamma rows).
+- run non-regression checks:
+  - P1 S1 locked metrics remain unchanged vs lock artifact,
+  - S4 is not allowed to regress into catastrophic collapse beyond baseline floor.
+
+Definition of done:
+- [ ] S3 `B` hard gates pass on required witness seeds for P2 closure.
+- [x] no aggregate gamma instability events are detected.
+- [x] non-regression report is emitted for P1 S1 lock and downstream safety rails.
+
+P2.5 - P2 freeze handoff to P3
+Goal:
+- freeze accepted P2 candidate and hand off a clean authority root for S4-focused tuning.
+
+Scope:
+- emit P2 candidate scorecard + lock artifact (run-id, policy digests, metric deltas).
+- prune superseded failed P2 candidate roots under retention rules.
+- update `build_plan`, `impl_actual`, and logbook with explicit P2 closure decision.
+
+Definition of done:
+- [x] `P2` lock artifact exists and is referenced by this plan.
+- [x] retained roots are reduced to baseline + accepted current + reports/cert evidence.
+- [x] explicit decision recorded: `GO_P3` only if P2 gates and non-regression checks are green; otherwise `NO_GO_P3`.
+
+P2 closure record (2026-02-18):
+- candidate run:
+  - run root: `runs/fix-data-engine/segment_2B`
+  - run id: `3e6b5090ecde48f68b6fadc0bfad022f` (superseded and pruned after evidence capture)
+- policy/code deltas:
+  - `config/layer1/2B/policy/day_effect_policy_v1.json`
+    - bumped `version_tag/policy_version` to `1.0.3`,
+    - added `sigma_gamma_policy_v2` block
+      (`sigma_base_by_segment`, `sigma_multiplier_by_tz_group`,
+      `sigma_jitter_by_merchant`, `weekly_component_amp_by_segment`,
+      `sigma_min`, `sigma_max`, `gamma_clip`).
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+    - added schema allowance for `sigma_gamma_policy_v2`.
+  - `packages/engine/src/engine/layers/l1/seg_2B/s3_day_effects/runner.py`
+    - activated deterministic per-row sigma resolution path,
+    - added bounded weekly component and bounded gamma clipping,
+    - added sampled provenance fields (`sigma_source`, `sigma_value`, `weekly_amp`),
+    - added run-report counters for sigma/gamma boundary evidence.
+- baseline + candidate evidence:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_1_baseline_e94506e84ab84dc0aaebf2bb770f816d.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_1_baseline_e94506e84ab84dc0aaebf2bb770f816d.md`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_candidate_3e6b5090ecde48f68b6fadc0bfad022f.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_candidate_3e6b5090ecde48f68b6fadc0bfad022f.md`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_lock_3e6b5090ecde48f68b6fadc0bfad022f.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_lock_3e6b5090ecde48f68b6fadc0bfad022f.md`
+- gate outcome:
+  - `S3` hard/stability gates: pass.
+  - `P1 S1` non-regression and `S2` non-regression: pass.
+  - `S4` non-catastrophic guard: fail
+    (`entropy_p50=0.125673`, `max_p_group_median=0.972654`).
+- cross-seed witness posture:
+  - seed `7` witness deferred in this lane (retained upstream authority roots are seed `42` only).
+- run-retention / prune evidence:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p2_prune_summary.json`
+  - pruned superseded roots:
+    `e94506e84ab84dc0aaebf2bb770f816d`,
+    `3e6b5090ecde48f68b6fadc0bfad022f`.
+  - retained active roots: baseline `c25...`, frozen P1 lock `c7e3...`.
+- explicit decision:
+  - `NO_GO_P3` from this candidate.
+  - next required lane is S4-focused recovery (P3) from P1-frozen authority root.
 
 ### P3 - S4 anti-dominance tuning (post S1/S3)
 Goal:

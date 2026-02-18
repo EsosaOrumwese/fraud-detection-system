@@ -43,6 +43,11 @@ variable "object_store_bucket_name" {
   default = "fraud-platform-dev-min-object-store"
 }
 
+variable "archive_bucket_name" {
+  type    = string
+  default = "fraud-platform-dev-min-archive"
+}
+
 variable "demo_log_retention_days" {
   type    = number
   default = 7
