@@ -1205,6 +1205,14 @@ Definition of done:
 - [ ] aggregate reducer emits deterministic `PASS_BPLUS`/`PASS_B`/`FAIL_REALISM`.
 - [ ] cross-seed CV and collapse checks are emitted and enforced.
 
+P4 disposition (2026-02-18):
+- waived for this cycle and closed fail-closed into `P5` because realism-grade
+  roster preconditions remain unmet and `P3` blocker stayed structural under
+  accepted constraints (`1A/1B` frozen, no synthetic local groups).
+- terminal realism posture remains `FAIL_P3` on frozen authority:
+  - `s4_b_band=false`,
+  - `s4_bplus_band=false`.
+
 ### P5 - Freeze, handoff, and closure
 Goal:
 - freeze accepted 2B authority candidate and close remediation cycle with retained evidence.
@@ -1215,6 +1223,21 @@ Scope:
 - record closure decision and residual risks.
 
 Definition of done:
-- [ ] freeze status recorded (`FROZEN_CERTIFIED_BPLUS` or `FROZEN_CERTIFIED_B` or `FROZEN_BEST_EFFORT_BELOW_B`).
-- [ ] retained evidence artifacts are complete and reproducible.
-- [ ] implementation notes and logbook carry full decision trail for all phases.
+- [x] freeze status recorded (`FROZEN_CERTIFIED_BPLUS` or `FROZEN_CERTIFIED_B` or `FROZEN_BEST_EFFORT_BELOW_B`).
+- [x] retained evidence artifacts are complete and reproducible.
+- [x] implementation notes and logbook carry full decision trail for all phases.
+
+P5 closure record (2026-02-18):
+- freeze status:
+  - `FROZEN_BEST_EFFORT_BELOW_B`.
+- frozen authority and lock artifacts:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_lock_80d9c9df1221400f82db77e27a0d63b2.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_freeze_lock_best_effort_80d9c9df1221400f82db77e27a0d63b2.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_freeze_lock_best_effort_80d9c9df1221400f82db77e27a0d63b2.md`
+- retained supporting locks:
+  - `segment2b_p1_lock_c7e3f4f9715d4256b7802bdc28579d54.json`
+  - `segment2b_popt5_lock_c25a2675fbfbacd952b13bb594880e92.json`
+  - `segment2b_p1_reopen_2a_final_lock_fd9b373e9a6a4ae0b2204f00677815f1.json`
+- handoff:
+  - remediation focus moves to segment `3A`; `2B` remains frozen unless an
+    explicit upstream-constraint reopen is approved.

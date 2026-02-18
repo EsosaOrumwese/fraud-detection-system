@@ -6349,3 +6349,35 @@ Closure decision:
 1) `NO_GO_P1_REOPEN_2A_R2`.
 2) reason: movement exists but is non-material relative to required B/B+ gap;
    floor remains structurally dominant.
+
+### Entry: 2026-02-18 20:55
+
+Segment freeze decision (`P5`) and handoff.
+
+Decision:
+1) freeze `2B` as `FROZEN_BEST_EFFORT_BELOW_B`.
+2) keep authority anchored at terminal `P3` lock run:
+   - `80d9c9df1221400f82db77e27a0d63b2`.
+3) proceed to segment `3A` planning/remediation with `2B` treated as frozen.
+
+Why this freeze is valid:
+1) retained improvements already locked:
+   - `P1` S1 realism closure (`segment2b_p1_lock_c7e3f4f9715d4256b7802bdc28579d54.json`),
+   - `POPT` performance/idempotence closure (`segment2b_popt5_lock_c25a2675fbfbacd952b13bb594880e92.json`).
+2) exhaustive reopen lanes were executed and evidence-backed:
+   - `2A` reopen lanes (`P1.REOPEN.2A`, `P1.REOPEN.2A.R2`, final Option-2),
+   - `1B` topology reopen lane (blocked by runtime non-regression gate),
+   - `2B` local feasibility lane (synthetic groups disallowed by decision).
+3) terminal realism blocker persisted:
+   - `s4_b_band=false`,
+   - `s4_bplus_band=false`,
+   - tail floor remained structurally constrained under accepted constraints.
+
+Freeze lock artifact emitted:
+1) `runs/fix-data-engine/segment_2B/reports/segment2b_freeze_lock_best_effort_80d9c9df1221400f82db77e27a0d63b2.json`
+2) `runs/fix-data-engine/segment_2B/reports/segment2b_freeze_lock_best_effort_80d9c9df1221400f82db77e27a0d63b2.md`
+
+Operational posture:
+1) no further `2B` remediation changes in this cycle.
+2) any future reopen requires explicit constraint change approval
+   (`1A/1B` reopen and/or synthetic-group policy decision with realism guardrails).
