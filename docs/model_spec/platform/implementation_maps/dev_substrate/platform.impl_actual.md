@@ -11660,3 +11660,107 @@ Close `M6.H` (P4..P7 gate rollup + verdict) and `M6.I` (M7 handoff publication) 
 ### Outcome
 1. `M6.H` and `M6.I` are closed (`overall_pass=true`, blockers empty).
 2. M6 phase verdict is now formally captured as `ADVANCE_TO_M7`.
+
+## Entry: 2026-02-18 12:40:00 +00:00 - Pre-change planning lock for M7 expansion (platform + deep plan)
+
+### User directive
+Expand migration/execution planning for `M7` in the main platform plan and create a detailed `platform.M7.build_plan.md`.
+
+### Authority set reviewed for this change
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (current phase map + M7 placeholder).
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md` (M6 closure handoff semantics + evidence anchors).
+3. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P8/P9/P10 execution and gate semantics).
+4. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` (RTDL/decision/case-label handles, evidence path patterns, runtime knobs, roles).
+5. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md` (managed substrate and append-only/no-laptop constraints).
+
+### Design intent checks (drift sentinel)
+1. M7 must preserve the canonical component chain:
+   - `P8` RTDL core catch-up and origin-offset proof,
+   - `P9` decision chain commit with append-only DLA truth,
+   - `P10` case/label append-only commit on managed DB.
+2. No local compute dependency can be introduced.
+3. M7 planning must remain fail-closed on:
+   - unresolved handles,
+   - placeholder identity pins (`CASE_SUBJECT_KEY_FIELDS`, `LABEL_SUBJECT_KEY_FIELDS`),
+   - missing durable evidence.
+
+### Planning decisions for this patch
+1. Promote `M7` to active planning state in `platform.build_plan.md`.
+2. Expand M7 section in main plan from a DoD summary to execution-grade structure:
+   - objective/scope/failure posture,
+   - sub-phase progression model (`M7.A..M7.J`),
+   - DoD checklist and immediate-next-action updates.
+3. Create `platform.M7.build_plan.md` modeled after prior deep plans (`M5`, `M6`) with:
+   - anti-cram + capability-lane matrix,
+   - explicit decision pins,
+   - execution-grade sub-phases with goals, entry conditions, required inputs, tasks, DoD, blockers.
+4. Carry forward M6 handoff anchors explicitly:
+   - `runs/dev_substrate/m6/20260216T214025Z/m7_handoff_pack.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m7_handoff_pack.json`.
+5. Keep this change planning-only (no runtime/infra execution in this patch).
+
+### Alternatives considered
+1. Minimal placeholder M7 deep plan:
+   - rejected; violates anti-cram and decision-completeness laws.
+2. Over-partitioned sub-phases for every daemon:
+   - rejected for now; adds complexity without improving immediate execution readiness.
+3. Balanced ten-step decomposition (`M7.A..M7.J`):
+   - selected; explicit lane coverage with clean verdict + handoff closure.
+
+### Execution risks anticipated
+1. Current substrate may be torn down and therefore not execution-ready despite planning readiness.
+2. P10 identity fields are placeholder-pinned in handles registry; must be fail-closed at P10 entry.
+3. Archive and offsets evidence surfaces must be checked for consistency during M7 execution.
+
+### Immediate plan
+1. Patch `platform.build_plan.md` to mark M7 planning active and expand M7 migration/execution lane.
+2. Add new `platform.M7.build_plan.md` with full deep-plan structure and blocker taxonomy.
+3. Append post-change implementation/logbook entries.
+
+## Entry: 2026-02-18 12:52:00 +00:00 - M7 planning expansion applied (main plan + deep plan)
+
+### Scope completed
+1. Expanded M7 in the main platform build plan from summary-only to execution-grade phase structure.
+2. Created detailed deep plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`.
+
+### Main plan changes
+File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. Updated phase roadmap status:
+   - `M7` set to `ACTIVE`.
+2. Updated deep-plan routing:
+   - `M7` file now listed as present; `M8..M10` remain deferred.
+3. Updated current phase posture:
+   - `M7` now active for deep planning before execution.
+4. Expanded M7 section with:
+   - objective, scope, failure posture,
+   - explicit sub-phase model `M7.A..M7.J`,
+   - M7 DoD checklist with fail-closed criteria.
+5. Updated immediate next action:
+   - execute `M7.A` handle closure first and fail closed on unresolved placeholders.
+
+### New deep plan structure (M7)
+File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+1. Added M7 anti-cram/capability-lane matrix for `P8..P10`.
+2. Added decision pins aligned to migration authority and append-only laws.
+3. Added execution-grade sub-phases:
+   - `M7.A` authority + handle closure
+   - `M7.B` RTDL readiness
+   - `M7.C` RTDL offsets/caught-up closure
+   - `M7.D` archive durability proof
+   - `M7.E` decision-lane readiness
+   - `M7.F` decision-chain commit evidence
+   - `M7.G` subject-key pin + DB readiness
+   - `M7.H` case/label commit evidence
+   - `M7.I` verdict rollup
+   - `M7.J` M8 handoff publication.
+4. Added M7 evidence contract, completion checklist, risk register, and exit criteria.
+5. Explicitly pinned P10 identity placeholder closure as fail-closed blocker (`M7G-B1`).
+
+### Drift sentinel outcome
+1. No design-intent drift introduced in this patch:
+   - ownership boundaries preserved (`RTDL -> decision lane -> case/labels`),
+   - append-only and idempotency constraints remain explicit,
+   - no local-compute fallback introduced.
+2. This step is planning-only:
+   - no runtime changes or infra operations were executed as part of this patch.

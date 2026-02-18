@@ -1,6 +1,6 @@
 # Dev Substrate Migration Build Plan (Fresh Start)
 _Track: local_parity -> dev_min managed substrate (Spine Green v0)_
-_Last updated: 2026-02-16_
+_Last updated: 2026-02-18_
 
 ## 0) Purpose
 This is the active execution plan for migrating the already-canonical local-parity Spine Green v0 flow into `dev_min` with:
@@ -82,7 +82,7 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | M4 | P2 | Daemon bring-up on ECS with run-scope controls | DONE |
 | M5 | P3 | Oracle lane (inlet assertion/sort/checker) | DONE |
 | M6 | P4-P7 | Control+Ingress closure | DONE |
-| M7 | P8-P10 | RTDL + Case/Labels closure | NOT_STARTED |
+| M7 | P8-P10 | RTDL + Case/Labels closure | ACTIVE |
 | M8 | P11 | Obs/Gov closure | NOT_STARTED |
 | M9 | P12 | Teardown proof + cost guardrails | NOT_STARTED |
 | M10 | certification | Semantic Green + Scale Green certification | NOT_STARTED |
@@ -108,7 +108,8 @@ Current deep-plan file state:
 - `M4`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md` (present)
 - `M5`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md` (present)
 - `M6`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md` (present)
-- `M7..M10`: deferred until phase activation is approved.
+- `M7`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md` (present)
+- `M8..M10`: deferred until phase activation is approved.
 
 ---
 
@@ -139,7 +140,8 @@ Current phase posture:
 - `M3` is `DONE`,
 - `M4` is `DONE`,
 - `M5` is `DONE`,
-- `M6` is `DONE`.
+- `M6` is `DONE`,
+- `M7` is `ACTIVE` for deep planning before execution.
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -631,14 +633,82 @@ M6 DoD checklist:
 - [x] M7 handoff pack is published and non-secret.
 
 ## M7 - P8-P10 RTDL + Case/Labels closure
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 Entry gate:
 - M6 is `DONE`.
-DoD summary:
-- P8: RTDL core catch-up evidence exists and lag <= `RTDL_CAUGHT_UP_LAG_MAX`.
-- P8: archive durability evidence is present (archive objects plus durable offset progress evidence).
-- P9: decision lane + DLA evidence exists with append-only/idempotent posture preserved.
-- P10: case + label evidence exists, append-only posture preserved, and managed DB runtime state is used.
+- M6 handoff artifact is present:
+  - local: `runs/dev_substrate/m6/20260216T214025Z/m7_handoff_pack.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m7_handoff_pack.json`.
+
+Objective:
+- Close `P8..P10` end-to-end on managed substrate:
+  - `P8` RTDL catch-up + origin-offset/archive evidence closure,
+  - `P9` decision-chain commit + append-only DLA evidence closure,
+  - `P10` case/label append-only commit closure on managed DB.
+- Preserve no-laptop runtime law and fail-closed progression to M8.
+
+Scope:
+- `P8 RTDL_CAUGHT_UP`:
+  - RTDL core daemon health + Kafka consumption progression,
+  - commit-after-durable-write discipline and lag gate closure,
+  - offsets/caught-up evidence and archive-write summary proof (if writer active).
+- `P9 DECISION_CHAIN_COMMITTED`:
+  - decision lane daemon health and processing closure (DL/DF/AL/DLA),
+  - idempotent action/outcome contract and append-only DLA truth,
+  - decision/action/audit evidence summaries under run scope.
+- `P10 CASE_LABELS_COMMITTED`:
+  - case/label services and managed DB readiness closure,
+  - append-only + idempotent case timeline/label assertion posture,
+  - case/label evidence summaries under run scope.
+
+Failure posture:
+- fail closed on any of:
+  - unresolved required handles or placeholders at execution entry,
+  - missing RTDL lag/offset/archive proof,
+  - missing decision/action/audit evidence or append-only drift,
+  - unresolved `CASE_SUBJECT_KEY_FIELDS` / `LABEL_SUBJECT_KEY_FIELDS`,
+  - missing case/label commit evidence.
+
+Active-phase planning posture:
+- Detailed M7 authority file:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`.
+- M7 entry handoff anchor:
+  - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m7_handoff_pack.json`.
+- M7 sub-phase progression model:
+  - `M7.A` authority + handle closure for `P8..P10`,
+  - `M7.B` P8 RTDL core readiness and consumer posture checks,
+  - `M7.C` P8 offsets/caught-up gate evidence publication,
+  - `M7.D` P8 archive durability proof closure (when archive writer lane is active),
+  - `M7.E` P9 decision-lane readiness and idempotency posture checks,
+  - `M7.F` P9 decision/action/audit commit evidence closure,
+  - `M7.G` P10 case/label identity key pin + managed DB readiness closure,
+  - `M7.H` P10 case/label commit evidence closure,
+  - `M7.I` P8..P10 gate rollup + verdict,
+  - `M7.J` M8 handoff artifact publication.
+- M7 expansion state:
+  - `M7.A..M7.J` are now planning-expanded in deep plan with fail-closed blockers and evidence contracts.
+  - no M7 runtime execution has started yet in this planning step.
+
+Sub-phase progress:
+  - [ ] `M7.A` authority + handle closure for `P8..P10`.
+  - [ ] `M7.B` P8 RTDL readiness + consumer posture.
+  - [ ] `M7.C` P8 offsets/caught-up evidence closure.
+  - [ ] `M7.D` P8 archive durability proof closure.
+  - [ ] `M7.E` P9 decision-lane readiness + idempotency posture.
+  - [ ] `M7.F` P9 decision/action/audit commit evidence closure.
+  - [ ] `M7.G` P10 identity-key pin + managed DB readiness.
+  - [ ] `M7.H` P10 case/label commit evidence closure.
+  - [ ] `M7.I` P8..P10 verdict + blocker rollup.
+  - [ ] `M7.J` M8 handoff publication.
+
+M7 DoD checklist:
+- [ ] RTDL caught-up evidence exists with lag <= `RTDL_CAUGHT_UP_LAG_MAX`.
+- [ ] RTDL offsets snapshot and caught-up artifact are durable and run-scoped.
+- [ ] Decision lane commit evidence exists (`decision_summary`, `action_summary`, `audit_summary`) and append-only posture holds.
+- [ ] P10 identity key fields are pinned for this run and no placeholders remain.
+- [ ] Case and label summaries are durable and consistent with append-only/idempotent writes.
+- [ ] M7 verdict is `ADVANCE_TO_M8` with empty blocker rollup.
+- [ ] M8 handoff pack is published and non-secret.
 
 ## M8 - P11 Obs/Gov closure
 Status: `NOT_STARTED`
@@ -768,7 +838,7 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M6 is closed with `ADVANCE_TO_M7` handoff published.
+M7 is active for deep-plan closure and execution sequencing.
 Next action:
-- activate `M7` planning and expand `M7.A..M7.*` in deep plan before execution,
-- keep M6 evidence immutable and use `m7_handoff_pack.json` as the sole M7 entry anchor.
+- execute `M7.A` handle/authority closure using the published M6 handoff anchor,
+- fail closed on unresolved placeholders (especially P10 identity keys) before allowing M7 runtime execution.
