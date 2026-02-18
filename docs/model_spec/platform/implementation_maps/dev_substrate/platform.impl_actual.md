@@ -11764,3 +11764,28 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - no local-compute fallback introduced.
 2. This step is planning-only:
    - no runtime changes or infra operations were executed as part of this patch.
+
+## Entry: 2026-02-18 12:58:00 +00:00 - Pre-change lock for M7 plane-branch planning docs (`M7.P8`, `M7.P9`, `M7.P10`)
+
+### User directive
+Branch M7 planning into dedicated per-plane deep plans:
+1. `platform.M7.P8.build_plan.md`
+2. `platform.M7.P9.build_plan.md`
+3. `platform.M7.P10.build_plan.md`
+
+### Why this change
+1. M7 depth is high and spans three distinct runtime planes with different risk profiles.
+2. A single monolithic M7 deep plan risks rushed execution and premature closure.
+3. Per-plane deep plans allow focused time allocation, blocker isolation, and explicit DoD at each plane boundary.
+
+### Planned design adjustment
+1. Keep `platform.M7.build_plan.md` as the M7 orchestrator:
+   - entry/exit rules,
+   - cross-plane dependencies,
+   - integrated verdict/handoff gates.
+2. Move plane-deep execution detail into branch docs:
+   - P8 branch: RTDL caught-up and archive durability lanes.
+   - P9 branch: decision lane commit and audit/idempotency lanes.
+   - P10 branch: case/label identity pinning, managed DB readiness, append-only commit lanes.
+3. Update `platform.build_plan.md` and `platform.M7.build_plan.md` to reference these branch docs explicitly.
+4. Keep this patch planning-only (no infra/runtime actions).

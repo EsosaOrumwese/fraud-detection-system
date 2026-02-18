@@ -109,6 +109,10 @@ Current deep-plan file state:
 - `M5`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md` (present)
 - `M6`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md` (present)
 - `M7`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md` (present)
+- `M7` branch deep plans:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` (present)
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` (present)
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (present)
 - `M8..M10`: deferred until phase activation is approved.
 
 ---
@@ -672,6 +676,10 @@ Failure posture:
 Active-phase planning posture:
 - Detailed M7 authority file:
   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`.
+- Detailed M7 branch authority files:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` (`P8` RTDL core).
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` (`P9` decision lane).
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (`P10` case/labels).
 - M7 entry handoff anchor:
   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m7_handoff_pack.json`.
 - M7 sub-phase progression model:
@@ -686,7 +694,11 @@ Active-phase planning posture:
   - `M7.I` P8..P10 gate rollup + verdict,
   - `M7.J` M8 handoff artifact publication.
 - M7 expansion state:
-  - `M7.A..M7.J` are now planning-expanded in deep plan with fail-closed blockers and evidence contracts.
+  - `M7.A..M7.J` are planning-expanded in the M7 orchestrator deep plan.
+  - Plane-depth execution detail is branched by phase:
+    - `P8` detail in `platform.M7.P8.build_plan.md`
+    - `P9` detail in `platform.M7.P9.build_plan.md`
+    - `P10` detail in `platform.M7.P10.build_plan.md`
   - no M7 runtime execution has started yet in this planning step.
 
 Sub-phase progress:

@@ -22,6 +22,21 @@ Supporting:
 3. `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m7_handoff_pack.json`
 4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
 
+## 1.1) Branch Deep Plans (Authoritative by Plane)
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md`
+   - deep execution plan for `P8 RTDL_CAUGHT_UP`.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md`
+   - deep execution plan for `P9 DECISION_CHAIN_COMMITTED`.
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`
+   - deep execution plan for `P10 CASE_LABELS_COMMITTED`.
+
+Control rule:
+1. This file (`platform.M7.build_plan.md`) is the M7 orchestrator authority:
+   - cross-plane sequencing,
+   - integrated blocker rollup,
+   - final M7 verdict/handoff.
+2. Branch files carry detailed lane execution/DoD per plane and must remain aligned to this orchestrator.
+
 ## 2) Scope Boundary for M7
 In scope:
 1. `P8` RTDL core daemon closure:
@@ -83,6 +98,11 @@ Execution block:
 | Verdict + M8 handoff | M7.I / M7.J | - | `ADVANCE_TO_M8` + durable `m8_handoff_pack.json` |
 
 ## 5) Work Breakdown (Deep)
+Execution detail split:
+1. `M7.B`/`M7.C`/`M7.D` procedural depth is anchored to `platform.M7.P8.build_plan.md`.
+2. `M7.E`/`M7.F` procedural depth is anchored to `platform.M7.P9.build_plan.md`.
+3. `M7.G`/`M7.H` procedural depth is anchored to `platform.M7.P10.build_plan.md`.
+4. `M7.A`, `M7.I`, and `M7.J` remain orchestrator-owned in this file.
 
 ## M7 Decision Pins (Closed Before Execution)
 1. Managed-runtime law:
