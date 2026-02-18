@@ -6,9 +6,10 @@ from dataclasses import dataclass
 import logging
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from fraud_detection.event_bus import EventBusReader
+from fraud_detection.event_bus.kafka import build_kafka_reader
 
 from .config import DecisionLogAuditIntakePolicy
 from .inlet import (
@@ -472,6 +473,7 @@ class DecisionLogAuditBusConsumer:
         )
         self._file_reader = None
         self._kinesis_reader = None
+        self._kafka_reader = None
         if self.runtime.event_bus_kind == "file":
             self._file_reader = EventBusReader(Path(self.runtime.event_bus_root))
         elif self.runtime.event_bus_kind == "kinesis":
@@ -482,12 +484,16 @@ class DecisionLogAuditBusConsumer:
                 region=self.runtime.event_bus_region,
                 endpoint_url=self.runtime.event_bus_endpoint_url,
             )
+        elif self.runtime.event_bus_kind == "kafka":
+            self._kafka_reader = build_kafka_reader(client_id="dla-intake-worker")
         else:
             raise DecisionLogAuditIndexStoreError("DLA_EVENT_BUS_KIND_UNSUPPORTED")
 
     def run_once(self) -> int:
         if self.runtime.event_bus_kind == "file":
             return self._run_file_once()
+        if self.runtime.event_bus_kind == "kafka":
+            return self._run_kafka_once()
         return self._run_kinesis_once()
 
     def run_forever(self) -> None:
@@ -555,6 +561,42 @@ class DecisionLogAuditBusConsumer:
                     processed += 1
         return processed
 
+    def _run_kafka_once(self) -> int:
+        assert self._kafka_reader is not None
+        processed = 0
+        for topic in self.policy.admitted_topics:
+            for partition in self._kafka_partitions(topic):
+                checkpoint = self.store.get_checkpoint(topic=topic, partition=partition)
+                from_offset: int | None = None
+                if checkpoint and checkpoint.offset_kind == "kafka_offset":
+                    try:
+                        from_offset = int(checkpoint.next_offset)
+                    except Exception:
+                        from_offset = None
+                start_position = self.runtime.event_bus_start_position
+                if checkpoint is None and self.policy.required_platform_run_id:
+                    start_position = "earliest"
+                records = self._kafka_reader.read(
+                    topic=topic,
+                    partition=partition,
+                    from_offset=from_offset,
+                    limit=self.runtime.poll_max_records,
+                    start_position=start_position,
+                )
+                for record in records:
+                    payload = record.get("payload") if isinstance(record.get("payload"), Mapping) else {}
+                    bus_input = DlaBusInput(
+                        topic=topic,
+                        partition=partition,
+                        offset=str(record.get("offset") or ""),
+                        offset_kind="kafka_offset",
+                        payload=payload if isinstance(payload, dict) else {},
+                        published_at_utc=str(record.get("published_at_utc") or "") or None,
+                    )
+                    self.processor.process_record(bus_input)
+                    processed += 1
+        return processed
+
     def _stream_name(self, topic: str) -> str:
         stream = self.runtime.event_bus_stream
         if stream and str(stream).lower() not in {"", "auto", "topic"}:
@@ -576,6 +618,11 @@ class DecisionLogAuditBusConsumer:
         if not partitions:
             return [0]
         return sorted(set(partitions))
+
+    def _kafka_partitions(self, topic: str) -> list[int]:
+        assert self._kafka_reader is not None
+        partitions = self._kafka_reader.list_partitions(topic)
+        return partitions if partitions else [0]
 
 
 def _partition_id_from_shard(shard_id: str) -> int:
