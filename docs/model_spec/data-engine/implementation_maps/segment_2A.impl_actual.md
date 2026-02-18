@@ -4118,3 +4118,118 @@ Outcome handoff:
 1) 2A-first policy-surface movement did not reduce 2B floor metrics.
 2) handoff decision remains `NO_GO_P1_REOPEN_2A_ONLY` for 2B lane.
 3) next upstream escalation for 2B is `1B` topology reopen.
+
+---
+
+### Entry: 2026-02-18 20:11
+
+Design element: Final bounded `2A` code+policy reopen plan (Option 2 terminal lane).
+Summary: user approved one final Option-2 effort before moving to `3A`; plan is
+to execute a bounded `S2` deterministic topology-rebalance lane with strict caps
+and fail-closed terminal gate.
+
+Decision contract pinned:
+1) immutable constraints:
+   - `1A` and `1B` remain frozen,
+   - no synthetic `2B` local groups.
+2) movement source:
+   - only real upstream `2A site_timezones` topology movement is allowed.
+3) execution budget:
+   - one candidate lane only, then terminal decision (`GO`/`NO_GO`).
+
+Implementation intent:
+1) add bounded rebalance controls (policy + schema, if required) for `S2`.
+2) implement deterministic reassignment only for eligible single-tz merchants:
+   - multi-tz country support,
+   - minimum site count,
+   - geometry signal,
+   - global/per-country/per-merchant caps.
+3) emit explicit `S2` governance counters and samples in run-report.
+4) run one integrated candidate (`2A S0->S5`, `2B S0->S8`) and score floor
+   movement with existing analyzers.
+
+Terminal gate pinned:
+1) material movement required:
+   - `delta share(n_groups==1) <= -0.02`,
+   - `delta share(max_p>=0.95) <= -0.02`.
+2) no governance regressions on protected rails.
+3) else close as `NO_GO_OPTION2_FINAL` and move to `3A`.
+
+---
+
+### Entry: 2026-02-18 20:21
+
+Design element: Option-2 execution and terminal closure for `2A` reopen support.
+Summary: implemented deterministic bounded topology rebalance in `2A S2`, ran two
+candidate attempts, achieved material floor movement on the stronger candidate,
+then executed immediate `2B P3` retry which still failed B/B+ bands; lane closed
+as terminal no-go for further `2A` reopen this cycle.
+
+Code/policy changes executed:
+1) `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py`
+   - added deterministic rebalance planner gated by override note token
+     (`[rebalance:auto]`), sourcing alternate tzids from real `tz_world`.
+   - enforced bounded caps (global/per-country/per-merchant) and eligibility
+     guards (country multi-tz, min-sites, lon-span signal).
+   - emitted explicit `topology_rebalance` diagnostics into `s2_run_report`.
+   - separated rebalance accounting from legacy override-cap accounting so
+     `override_rate` remains tied to explicit override rows.
+2) candidate-local policy lane:
+   - `runs/fix-data-engine/segment_2B/<run_id>/config/layer1/2A/timezone/tz_overrides.yaml`
+   - `runs/fix-data-engine/segment_2B/<run_id>/config/layer1/2A/timezone/tz_nudge.yml`
+   - opt-in countries marked with `[rebalance:auto]`.
+
+Execution evidence:
+1) candidate A (`27d6feeac34141f081c6379c8dc797a2`):
+   - `2A S2`: `planned_sites_final=21`, `rebalance_reassigned_total=21`,
+     `distinct_tzids=98`, `override_rate=0.00086381`.
+   - floor scorer:
+     - `delta share_n_groups_eq_1=-0.005654`,
+     - `delta share_max_p_ge_095=-0.005654`.
+   - decision: non-material movement.
+2) candidate B (`fd9b373e9a6a4ae0b2204f00677815f1`):
+   - `2A S2`: `planned_sites_final=424`, `rebalance_reassigned_total=424`,
+     `distinct_tzids=132`, `override_rate=0.00019196`, `overridden_total=6`.
+   - floor scorer:
+     - `delta share_n_groups_eq_1=-0.075121`,
+     - `delta share_max_p_ge_095=-0.075121`.
+   - movement gate and protected non-tail rails passed (`GO_P3_RETRY_FROM_2A_FINAL`).
+3) immediate `2B P3` retry on candidate B:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_fd9b373e9a6a4ae0b2204f00677815f1.json`
+   - result: `FAIL_P3` (`s4_b_band=false`, `s4_bplus_band=false`).
+
+Terminal disposition and lock:
+1) lane-level gate pass was achieved, but downstream realism target remained
+   unattained after retry.
+2) final closure set to `NO_GO_OPTION2_FINAL` (no further `2A` reopen in this cycle).
+3) lock artifacts:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_final_lock_fd9b373e9a6a4ae0b2204f00677815f1.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_final_lock_fd9b373e9a6a4ae0b2204f00677815f1.md`.
+
+---
+
+### Entry: 2026-02-18 20:30
+
+Design element: post-closure rollback to frozen `2A` authority posture.
+Summary: after terminal `NO_GO_OPTION2_FINAL`, the experimental `2A S2`
+topology-rebalance code path was intentionally removed from mainline while
+retaining full evidence artifacts and decision trail.
+
+Execution:
+1) reverted code file:
+   - `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py`
+   - action: restored to pre-Option-2 repository state.
+2) retained evidence artifacts:
+   - `segment2b_p3_candidate_fd9b373e9a6a4ae0b2204f00677815f1.{json,md}`
+   - `segment2b_p1_reopen_floor_fd9b373e9a6a4ae0b2204f00677815f1.{json,md}`
+   - `segment2b_p1_reopen_2a_final_lock_fd9b373e9a6a4ae0b2204f00677815f1.{json,md}`
+3) storage hygiene:
+   - pruned superseded run folder:
+     - `runs/fix-data-engine/segment_2B/27d6feeac34141f081c6379c8dc797a2`.
+
+Rationale:
+1) lane closure was terminal no-go for this cycle.
+2) keeping experimental logic in code without target closure adds maintenance and
+   regression risk.
+3) evidence remains available for future reopen consideration without carrying the
+   code path forward now.

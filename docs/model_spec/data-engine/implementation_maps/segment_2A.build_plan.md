@@ -752,3 +752,116 @@ POPT.4 status update (2026-02-17):
   - last-good candidate,
   - current integrated witness.
 - prune superseded failed run-id folders before each new expensive candidate.
+
+## 9) Final Effort Lane for 2B Support (Option 2, bounded)
+Goal:
+- run one final upstream `2A` code+policy reopen attempt to materially reduce the
+  `2B` single-group floor (`share(n_groups==1)` and `share(max_p>=0.95)`),
+  then close decisively (`GO` or `NO_GO`) before moving to `3A`.
+
+Binding constraints:
+- `1A` and `1B` remain frozen authorities.
+- no synthetic `2B` local groups (`ALLOW_SYNTHETIC_LOCAL_GROUPS = no`).
+- movement must come from real upstream `2A site_timezones` topology.
+- one bounded candidate lane only; fail-closed on non-material movement.
+
+Candidate surfaces:
+- `packages/engine/src/engine/layers/l1/seg_2A/s2_overrides/runner.py`
+- `config/layer1/2A/timezone/tz_overrides.yaml`
+- `config/layer1/2A/timezone/tz_nudge.yml`
+- optional new `2A` policy contract for bounded rebalance controls:
+  - `config/layer1/2A/timezone/topology_rebalance_policy_v1.json`
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/2A/schemas.2A.yaml`
+
+### P5.0 - Rebalance contract and guardrails lock
+Goal:
+- define deterministic, auditable rules for limited `S2` topology rebalance.
+
+Scope:
+- target only merchants that are currently single-tz after `S1` and satisfy all:
+  - country has more than one valid tzid in `tz_world`,
+  - merchant has enough sites (`min_sites_for_rebalance`),
+  - site geometry signal supports split (country-aware lon-span/proximity rule).
+- pin hard caps:
+  - global reassigned-site share cap,
+  - per-country reassigned-site cap,
+  - per-merchant reassigned-site cap.
+- pin deterministic selector:
+  - stable merchant/site ordering + hash-seeded tie-break.
+
+Definition of done:
+- [x] rebalance policy contract is explicit and schema-validated.
+- [x] caps + eligibility rules are pinned in policy and reportable.
+- [x] no schema/output-shape changes outside existing `site_timezones` contract.
+
+### P5.1 - S2 deterministic topology rebalance implementation
+Goal:
+- implement bounded reassignment in `S2` without breaking governance rails.
+
+Scope:
+- after standard override resolution, apply bounded reassignment only to eligible rows.
+- reassign to real alternate tzids from country-valid set (no pseudo labels).
+- preserve deterministic ordering and write-once behavior.
+- emit run-report counters:
+  - eligible merchants/sites,
+  - reassigned sites (global/per-country/per-merchant),
+  - cap-hit counts and sample rows.
+
+Definition of done:
+- [x] `S2` run reports expose rebalance counters and samples.
+- [x] all existing `S2` validators remain pass.
+- [x] deterministic replay witness is green on same inputs.
+
+### P5.2 - Single candidate execution protocol (`2A -> 2B`)
+Goal:
+- execute one clean candidate chain and measure floor movement.
+
+Scope:
+- stage clean run-id from current `2B` authority lineage.
+- run `2A S0->S5`, then `2B S0->S8` with external-root precedence pinned.
+- score using existing analyzers:
+  - `tools/score_segment2b_p3_candidate.py`
+  - `tools/analyze_segment2b_p1_reopen_floor.py`
+
+Definition of done:
+- [x] one full candidate chain completes.
+- [x] score + floor artifacts are emitted and retained.
+- [x] runtime and storage hygiene records are emitted.
+
+### P5.3 - Final decision gate (terminal for Option 2)
+Goal:
+- close with explicit terminal decision before `3A`.
+
+Gate criteria:
+- movement gate:
+  - require material floor drop (`delta share(n_groups==1) <= -0.02` and
+    `delta share(max_p>=0.95) <= -0.02`).
+- non-regression gate:
+  - no new governance failures and no red regression on protected non-tail rails.
+
+Definition of done:
+- [x] explicit verdict recorded:
+  - `GO_P3_RETRY_FROM_2A_FINAL` if movement + non-regression gates pass,
+  - else `NO_GO_OPTION2_FINAL` and move to `3A`.
+- [x] final lock artifact for this lane is emitted (json + md).
+
+P5 status update (2026-02-18):
+- implemented bounded deterministic topology rebalance in `2A S2` with note-token opt-in (`[rebalance:auto]`), strict global/country/merchant caps, and explicit run-report counters.
+- candidate `27d6feeac34141f081c6379c8dc797a2` (first cap posture):
+  - `planned_sites_final=21`, `rebalance_reassigned_total=21`, `distinct_tzids=98`,
+  - floor movement was non-material (`delta share_n_groups_eq_1=-0.005654`, `delta share_max_p_ge_095=-0.005654`).
+- candidate `fd9b373e9a6a4ae0b2204f00677815f1` (expanded cap posture):
+  - `planned_sites_final=424`, `rebalance_reassigned_total=424`, `distinct_tzids=132`,
+  - legacy override governance remained clean (`overridden_total=6`, `override_rate=0.00019196`),
+  - floor movement was material (`delta share_n_groups_eq_1=-0.075121`, `delta share_max_p_ge_095=-0.075121`).
+- gate decision:
+  - movement + protected non-tail non-regression gates passed (`GO_P3_RETRY_FROM_2A_FINAL`),
+  - immediate `P3` retry on the same candidate still returned `FAIL_P3` (`s4_b_band=false`, `s4_bplus_band=false`).
+- terminal closure:
+  - lane closed as `NO_GO_OPTION2_FINAL`; no further `2A` reopen is planned for this cycle,
+  - lock artifacts:
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_final_lock_fd9b373e9a6a4ae0b2204f00677815f1.json`
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_final_lock_fd9b373e9a6a4ae0b2204f00677815f1.md`.
+- post-closure code posture:
+  - experimental `S2` rebalance implementation was reverted from mainline to
+    preserve frozen `2A` authority behavior; evidence artifacts remain retained.
