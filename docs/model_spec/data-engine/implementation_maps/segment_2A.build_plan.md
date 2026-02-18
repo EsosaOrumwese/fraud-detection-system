@@ -424,19 +424,136 @@ P3 closure record (2026-02-17):
   - `FREEZE_PROPOSAL` for current 2A pass (`FAIL_REALISM` persists despite governance closure).
   - reopen recommendation: upstream `1B` representativeness lane before additional 2A-local realism tuning.
 
-### P4 - Certification pass or constrained freeze
+### P4 - Closure branch (freeze or upstream reopen)
 Goal:
-- run full seed-pack certification and make explicit final grade decision.
+- close Segment 2A with an explicit decision path after P3:
+  - freeze best-effort under frozen upstream posture, or
+  - execute upstream reopen lane (recommended) and re-certify.
 
 Scope:
-- required seeds: `{42, 7, 101, 202}`.
-- full `S0 -> S5` chain per seed with gate checks.
+- Branch A: constrained freeze (`2A` stays best-effort below B for this cycle).
+- Branch B: upstream reopen lane on `1B` representativeness, then `1B -> 2A` recertification.
+- required seeds remain `{42, 7, 101, 202}`.
 
 Definition of done:
-- [ ] all required-seed hard-gate results are published.
-- [ ] final verdict is explicit (`PASS_BPLUS`, `PASS_B`, or `FAIL_REALISM`).
-- [ ] if `FAIL_REALISM`, freeze as best-effort with explicit blocker set and reopen contract.
-- [ ] retained run-id set is explicit and storage-clean.
+- [x] branch choice is explicitly pinned (`FREEZE_NOW` or `REOPEN_1B`).
+- [x] branch-specific DoDs below are fully closed before P4 completion.
+- [x] final verdict is explicit (`PASS_BPLUS`, `PASS_B`, or `FAIL_REALISM`).
+- [x] retained run-id set and storage hygiene are explicit.
+
+### P4.A - Freeze-now closure (non-reopen branch)
+Goal:
+- close this cycle without upstream reopen.
+
+Scope:
+- lock P3 candidate lane as 2A best-effort authority.
+- publish residual blocker matrix and reopen contract.
+
+Definition of done:
+- [x] freeze authority run root is pinned (`runs/fix-data-engine/segment_2A_p3`).
+- [x] blocker matrix is attached (metric, gap-to-B, owning surface).
+- [x] reopen preconditions are documented with owner/phase mapping.
+
+### P4.B - Reopen-1B contract (recommended branch)
+Goal:
+- define the exact upstream reopen contract so recertification is causal, bounded, and auditable.
+
+Scope:
+- open only `1B` representativeness surfaces that causally drive 2A realism:
+  - country placement priors,
+  - intra-country spread/coverage policies,
+  - any deterministic tie-breaks that collapse multi-timezone countries.
+- keep `2A` governance caps and scorer thresholds unchanged.
+
+Definition of done:
+- [x] reopen surface list is pinned to exact files/states in 1B plan.
+- [x] non-negotiables are pinned:
+  - no 2A cap relaxation,
+  - no synthetic post-assignment redistribution,
+  - no threshold edits to B/B+ scorer.
+- [x] witness seed protocol and runtime budgets are pinned before execution.
+
+### P4.B1 - Upstream remediation run protocol and budgets
+Goal:
+- execute upstream reopen with runtime discipline and minimal blast radius.
+
+Scope:
+- run protocol:
+  - upstream witness set: seeds `{42, 7}` first,
+  - if witness movement is positive, expand to `{42, 7, 101, 202}`.
+- runtime budgets (Performance-First law):
+  - each witness cycle must show measurable runtime improvement or hold vs prior 1B authority lane,
+  - abort/reassess if runtime regresses materially without realism lift.
+
+Definition of done:
+- [x] witness seed runs complete with retained evidence artifacts.
+- [x] runtime evidence table is emitted (per state and chain total).
+- [x] movement gate is explicit (`GO_FULL_SEEDPACK` or `HOLD_REWORK`).
+
+### P4.B2 - Integrated 1B -> 2A recertification
+Goal:
+- verify whether upstream representativeness reopen unlocks 2A B/B+ realism.
+
+Scope:
+- execute full required seeds `{42, 7, 101, 202}` through reopened 1B and current 2A stack.
+- certify with existing 2A scorer (`tools/score_segment2a_p2_certification.py`).
+
+Definition of done:
+- [ ] all required seeds complete `2A S0->S5`.
+- [ ] hard governance/structural gates are green on all seeds.
+- [x] aggregate verdict is published with deltas vs P3 candidate lane.
+
+### P4.B3 - Final decision gate
+Goal:
+- end P4 with an unambiguous final disposition.
+
+Scope:
+- if `PASS_B`/`PASS_BPLUS`: lock and freeze as upgraded authority.
+- if still `FAIL_REALISM`: freeze with explicit upstream residual blockers and next reopen candidate.
+
+Definition of done:
+- [x] decision is explicit (`LOCK_UPGRADED_AUTHORITY` or `FREEZE_WITH_BLOCKERS`).
+- [x] final retained run-id set and report paths are pinned.
+- [x] next-step queue is recorded without ambiguity.
+
+P4 closure record (2026-02-17):
+- branch choice:
+  - `REOPEN_1B` executed (with `P4.A` baseline freeze snapshot retained as comparison authority).
+- execution lane:
+  - candidate root: `runs/fix-data-engine/segment_2A_p4b_r1`
+  - required run-ids:
+    - seed `42`: `b65bfe6efaca42e2ac413c059fb88b64`
+    - seed `7`: `07891eca4e6ea549a4d836db35e203aa`
+    - seed `101`: `513f4f2904d1ac97f2396c059a9573da`
+    - seed `202`: `5a8836781dd7524da561ad5aa27f64d6`
+- upstream reopen surfaces applied (`1B` only):
+  - `config/layer1/1B/policy/policy.s2.tile_weights.yaml`
+  - `config/layer1/1B/policy/policy.s4.alloc_plan.yaml`
+- witness (`P4.B1`) outcome:
+  - seeds `{42,7}` completed `1B S2->S9` and `2A S0->S5`.
+  - `HOLD_REWORK` signal:
+    - seed `42` improved on concentration metrics but remained below B.
+    - seed `7` regressed materially on concentration/entropy and `C_large` representativeness.
+  - runtime evidence artifacts:
+    - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p4b_runtime_by_seed.json`
+    - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p4b_runtime_by_seed.csv`
+    - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p4b_runtime_delta.json`
+    - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p4b_runtime_delta.csv`
+- integrated full-seed recertification (`P4.B2`) outcome:
+  - seed `101`: fail-closed at `2A-S1-091` (`fallback_country_cap_exceeded`, country `KZ`).
+  - seed `202`: fail-closed at `2A-S1-092` (`override_rate_cap_exceeded`).
+  - aggregate certification:
+    - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p2_certification_42-b65bfe6e_7-07891eca_101-513f4f29_202-5a883678.json`
+    - status: `FAIL_REALISM`.
+- final decision (`P4.B3`):
+  - `FREEZE_WITH_BLOCKERS`.
+  - freeze authorities remain:
+    - `1A`: unchanged frozen authority.
+    - `1B`: unchanged frozen best-effort authority.
+    - `2A`: `runs/fix-data-engine/segment_2A_p3` remains best-effort authority; `P4.B` candidate rejected.
+- retained/cleanup posture:
+  - retain `runs/fix-data-engine/segment_2A_p3` and `runs/fix-data-engine/segment_2A_p4b_r1` (evidence lane).
+  - prune superseded partial lane `runs/fix-data-engine/segment_2A_p4b`.
 
 ## 6) Failure triage map (state-first)
 - Structural parity fail:

@@ -5885,3 +5885,65 @@ Post-sweep disposition:
 1) Restored `S2` and `S6` policies to pre-sweep authority content.
 2) Marked bounded sweep exhausted (`2/2`) and stopped further 1B-local churn.
 3) Recommended next corrective lane: upstream reopen (country-mass source) if `B/B+` remains mandatory.
+
+---
+
+### Entry: 2026-02-17 21:47
+
+Design element: Path-2 upstream reopen for 2A P4 (`1B representativeness` witness-first lane).
+Summary: Executing upstream reopen in `1B` to unblock 2A realism after P3 governance closure. This pass uses bounded policy-only tuning in `S2/S4` with witness seeds before full seed-pack expansion.
+
+Context anchor:
+1) 2A P3 closed S1 governance hard failures but remained `FAIL_REALISM` on concentration/entropy/representativeness.
+2) 1B remediation authority identifies macro allocation and assignment spread (`S2/S4`) as primary causal surfaces.
+
+Execution scope lock:
+1) Change surfaces (this pass):
+   - `config/layer1/1B/policy/policy.s2.tile_weights.yaml`
+   - `config/layer1/1B/policy/policy.s4.alloc_plan.yaml`
+2) No-change surfaces (this pass):
+   - `config/layer1/1B/policy/policy.s6.jitter.yaml` (held constant for first witness isolation),
+   - no 2A cap/threshold changes.
+
+Lane and rerun protocol:
+1) Candidate run root: `runs/fix-data-engine/segment_2A_p4b`.
+2) Stage run-ids from existing authorities with preserved seed/parameter/manifest identity.
+3) Witness reruns: `1B S2->S9` then `2A S0->S5` for seeds `{42,7}`.
+4) Gate to expand: witness movement must be positive without governance regression.
+
+Risk controls:
+1) Avoid destructive edits to retained roots (`segment_1B`, `segment_2A_p3`).
+2) Keep deterministic seeded flow; only policy knobs move.
+3) If witness is non-improving, hold full-seedpack expansion and iterate knobs.
+
+---
+
+### Entry: 2026-02-17 23:18
+
+Design element: `1B` reopen witness for `2A P4` and post-run disposition.
+Summary: Executed reopened `1B` policy lane (`S2/S4` only) as upstream driver test for 2A P4. Witness and full-seed outcomes did not clear 2A realism/governance closure and also regressed 1B runtime on larger seeds, so this policy set is not accepted as authority.
+
+Execution scope:
+1) Reopened policy surfaces:
+   - `config/layer1/1B/policy/policy.s2.tile_weights.yaml` (v `2026-02-17-p4b1-r1` candidate tuning),
+   - `config/layer1/1B/policy/policy.s4.alloc_plan.yaml` (v `2026-02-17-p4b1-r1` candidate tuning).
+2) Rerun lane:
+   - `1B S2->S9` on seeds `{42,7,101,202}` in `runs/fix-data-engine/segment_2A_p4b_r1`.
+
+Observed outcomes:
+1) Witness movement mixed and non-lockable:
+   - seed `42` improved some concentration axes but remained below B.
+   - seed `7` regressed on concentration/entropy + representativeness.
+2) Integrated 2A closure failed:
+   - seed `101`: downstream 2A `S1` fail `2A-S1-091` (fallback-country cap, `KZ`).
+   - seed `202`: downstream 2A `S1` fail `2A-S1-092` (override-rate cap).
+3) Runtime effect:
+   - compared to prior 1B authority logs, reopened `S2->S9` runtime regressed on seeds `7/101/202` by roughly `+12%` to `+18%`.
+
+Decision:
+1) Do not promote this `1B` reopen policy candidate.
+2) Keep existing 1B frozen authority posture unchanged.
+3) Treat `segment_2A_p4b_r1` as evidence-only lane for `P4` closure traceability.
+4) Restored repository policy files to pre-reopen authority content after evidence capture:
+   - `config/layer1/1B/policy/policy.s2.tile_weights.yaml`
+   - `config/layer1/1B/policy/policy.s4.alloc_plan.yaml`.

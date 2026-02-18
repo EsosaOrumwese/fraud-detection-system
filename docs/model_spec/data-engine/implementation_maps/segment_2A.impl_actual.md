@@ -3962,3 +3962,114 @@ Decision (`P3.5`):
 3) P3 objective partially achieved:
    - governance hard-fail closure: achieved.
    - B/B+ realism closure under frozen upstream: not achievable with bounded 2A-only corrections.
+
+---
+
+### Entry: 2026-02-17 21:31
+
+Design element: P4 extension planning after P3 closure (`FAIL_REALISM` with governance fixed).
+Summary: Extended `P4` into an explicit branch structure to avoid ambiguous next steps: `FREEZE_NOW` vs `REOPEN_1B` (recommended), with closure-grade sub-phases and DoDs.
+
+Why this extension was required:
+1) P3 closed governance hard failures (`101/202` now complete and cap-clean), but realism still materially misses B bands.
+2) Residual blockers are upstream-coupled (1B representativeness), so a generic P4 certification placeholder was insufficient.
+3) Decision-completeness and phase-coverage require a pinned branch path before further execution.
+
+What was added to the build plan:
+1) Replaced generic P4 with explicit branch gate:
+   - `P4.A` freeze-now closure lane,
+   - `P4.B` upstream reopen lane (recommended).
+2) Added reopen sub-phases:
+   - `P4.B` reopen contract lock (scope + non-negotiables),
+   - `P4.B1` witness run protocol + runtime-budget gate,
+   - `P4.B2` integrated `1B -> 2A` full-seedpack recertification,
+   - `P4.B3` final decision gate (`LOCK_UPGRADED_AUTHORITY` vs `FREEZE_WITH_BLOCKERS`).
+3) Kept hard constraints explicit:
+   - no 2A cap relaxation,
+   - no synthetic redistribution,
+   - no B/B+ threshold edits.
+
+Execution implication:
+1) Next executable action should start at P4 branch choice pin.
+2) Recommended branch remains `REOPEN_1B` because 2A-local bounded controls already exhausted the governance lane.
+
+---
+
+### Entry: 2026-02-17 21:47
+
+Design element: P4 execution kickoff (`P4.A -> P4.B/B1/B2/B3`).
+Summary: User requested full P4 progression across freeze lane and reopen lane. Execution will close `P4.A` as baseline snapshot, then run `P4.B` upstream reopen with witness gate before full seed-pack recertification.
+
+Decision and execution contract:
+1) `P4.A` baseline freeze snapshot will be recorded first (non-terminal), using P3 authority evidence in `runs/fix-data-engine/segment_2A_p3`.
+2) `P4.B` will be executed as recommended branch:
+   - upstream reopen surface is limited to 1B representativeness policy knobs (`S2/S4`; no 2A threshold/cap edits),
+   - 2A governance caps remain fixed from P1/P3.
+3) `P4.B1` witness protocol:
+   - run seeds `{42,7}` first,
+   - require directional movement on concentration/entropy realism metrics without governance regression,
+   - only then promote to full seed-pack `{42,7,101,202}` in `P4.B2`.
+4) Runtime/efficiency posture:
+   - policy-only first (no algorithm rewrite) to keep loop bounded,
+   - rerun matrix: `1B S2->S9`, then `2A S0->S5` on candidate run-ids.
+5) Candidate lane root selected:
+   - `runs/fix-data-engine/segment_2A_p4b`.
+
+Planned interventions for first witness pass (`R1`):
+1) `1B S2` (`policy.s2.tile_weights.yaml`): tighten concentration controls and raise non-Europe region floor influence.
+2) `1B S4` (`policy.s4.alloc_plan.yaml`): increase deterministic support-diversification window to reduce tile-collapse per (merchant,country).
+3) Keep `S6` jitter policy unchanged for first witness pass to isolate macro-allocation + assignment effects.
+
+Success/fail gate for this pass:
+1) Success-to-expand (`GO_FULL_SEEDPACK`): witness seeds show non-regressive governance and positive 2A concentration/entropy movement.
+2) Hold-to-rework (`HOLD_REWORK`): no witness movement or regression; adjust knobs and rerun witness only.
+
+---
+
+### Entry: 2026-02-17 23:18
+
+Design element: `P4.B1` witness execution + `P4.B2/B3` integrated closure decision.
+Summary: Executed full reopen lane on `runs/fix-data-engine/segment_2A_p4b_r1`, scored witness seeds, then forced full-seed recertification per user direction. Candidate failed governance and realism gates; final disposition is `FREEZE_WITH_BLOCKERS` with `segment_2A_p3` retained as authority.
+
+Execution details:
+1) Candidate staging (clean lane):
+   - root: `runs/fix-data-engine/segment_2A_p4b_r1`.
+   - staged run-ids with `--skip-tile-weights --skip-s3-requirements` to force recompute under reopened `1B` policies:
+     - `b65bfe6efaca42e2ac413c059fb88b64` (seed 42),
+     - `07891eca4e6ea549a4d836db35e203aa` (seed 7),
+     - `513f4f2904d1ac97f2396c059a9573da` (seed 101),
+     - `5a8836781dd7524da561ad5aa27f64d6` (seed 202).
+2) Witness runs (`P4.B1`):
+   - completed `1B S2->S9` then `2A S0->S5` for seeds `{42,7}`.
+   - witness scorer artifact:
+     - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p2_certification_42-b65bfe6e_7-07891eca.json`
+3) Witness movement result:
+   - seed `42`: directional improvement but still fails all core realism gates.
+   - seed `7`: regression on concentration/entropy + representativeness.
+   - movement gate set to `HOLD_REWORK`.
+4) Full-seed execution (`P4.B2`) per user instruction:
+   - seed `101`:
+     - `1B S2->S9` PASS,
+     - `2A` fail-closed at `S1` with `2A-S1-091` (`fallback_country_cap_exceeded`, `KZ`).
+   - seed `202`:
+     - `1B S2->S9` PASS,
+     - `2A` fail-closed at `S1` with `2A-S1-092` (`override_rate_cap_exceeded`).
+5) Full-seed certification:
+   - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p2_certification_42-b65bfe6e_7-07891eca_101-513f4f29_202-5a883678.json`
+   - status: `FAIL_REALISM`.
+
+Performance evidence emitted:
+1) Runtime table and baseline delta artifacts:
+   - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p4b_runtime_by_seed.json`
+   - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p4b_runtime_by_seed.csv`
+   - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p4b_runtime_delta.json`
+   - `runs/fix-data-engine/segment_2A_p4b_r1/reports/segment2a_p4b_runtime_delta.csv`
+2) 1B runtime observation:
+   - candidate lane regressed vs prior authority on seeds `7/101/202` (about `+12%` to `+18%` on `S2->S9` chain).
+
+Decision:
+1) `P4.B3` final disposition: `FREEZE_WITH_BLOCKERS`.
+2) Rejected candidate:
+   - `runs/fix-data-engine/segment_2A_p4b_r1` is evidence-only and not promoted to authority.
+3) Retained authority:
+   - `runs/fix-data-engine/segment_2A_p3` remains active `2A` best-effort authority for this cycle.
