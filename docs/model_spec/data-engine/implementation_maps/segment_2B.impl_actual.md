@@ -4624,3 +4624,59 @@ Actions taken:
 Expected outcome:
 - Latest selection stable under mtime changes.
 
+---
+
+### Entry: 2026-02-18 12:48
+
+Design element: Segment 2B remediation build-plan drafting kickoff.
+Summary: User requested drafting the 2B remediation build plan before execution.
+We will create a phase-based, DoD-driven plan anchored to the published and
+remediation reports plus the state-expanded 2B specs.
+
+Decision trail (before editing build-plan doc):
+1) Keep the plan data-first and causal:
+   - sequence remediation as `S1 -> S3 -> S4 -> S5/gates` per remediation
+     authority, not S4-only cosmetic tuning.
+2) Keep structural states as non-regression rails:
+   - `S0/S2/S6/S7/S8` remain gate/integrity surfaces unless needed for
+     contract/policy sealing updates.
+3) Encode hard B/B+ thresholds directly in the plan:
+   - S1 residual/top-gap/HHI spread,
+   - S3 merchant volatility + tz differentiation + aggregate guardrail,
+   - S4 dominance/tail/multi-group/entropy + mass conservation,
+   - seed stability CV limits.
+4) Include realism-roster preconditions as fail-closed grading gates:
+   - no smoke-profile certification allowed.
+5) Include explicit runtime budgets and prune-before-run protocol:
+   - performance-first posture remains binding for this remediation cycle.
+6) Preserve sequential rerun law:
+   - if policy bytes change, rerun `S0` before downstream states so
+     `sealed_inputs_2B` stays digest-coherent.
+
+Planned doc action:
+- Create `docs/model_spec/data-engine/implementation_maps/segment_2B.build_plan.md`
+  with phase sections `P0..P5`, each with clear scope, candidate surfaces, and
+  DoD checklists.
+
+### Entry: 2026-02-18 12:49
+
+Implementation update: initial Segment 2B remediation build plan created.
+
+Actions taken:
+1) Added new plan file:
+   - `docs/model_spec/data-engine/implementation_maps/segment_2B.build_plan.md`
+2) Plan content locked with:
+   - objective/closure rule (`PASS_BPLUS`, `PASS_B`, `FAIL_REALISM`,
+     `INVALID_FOR_GRADING`),
+   - source-of-truth stack (published/remediation/state-expanded/contracts),
+   - remediation boundaries and causal order (`S1 -> S3 -> S4 -> S5/gates`),
+   - hard B/B+ thresholds and cross-seed stability gates,
+   - sequential rerun matrix with S0 policy-seal rule,
+   - runtime budgets + retention/prune discipline,
+   - phased execution map `P0..P5` with DoD checklists.
+3) No engine code, policy, or runtime artefacts were changed in this step.
+
+Outcome:
+- Segment 2B now has an execution-grade remediation build plan ready for phase
+  entry and implementation work.
+
