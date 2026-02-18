@@ -234,10 +234,10 @@ Execution sequence:
    - elapsed timing.
 
 DoD:
-- [ ] Offsets snapshot complete.
-- [ ] Caught-up threshold satisfied.
-- [ ] Partition coverage is complete across required topics.
-- [ ] Snapshot exists locally + durably.
+- [x] Offsets snapshot complete.
+- [x] Caught-up threshold satisfied.
+- [x] Partition coverage is complete across required topics.
+- [x] Snapshot exists locally + durably.
 
 Execution notes:
 1. First `P8.B` execution artifacts are published but not closure-valid:
@@ -245,6 +245,21 @@ Execution notes:
    - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/caught_up.json`
    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
 2. Result was fail-closed (`overall_pass=false`) due stale run-window basis versus active Kafka topic state (`M7C-B7`).
+3. Rerun after active-epoch P7 basis refresh closed PASS:
+   - refreshed basis:
+     - local: `runs/dev_substrate/m6/20260218T154307Z/kafka_offsets_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/kafka_offsets_snapshot.json`
+   - rerun outputs:
+     - local: `runs/dev_substrate/m7/20260218T141420Z/rtdl_core/offsets_snapshot.json`
+     - local: `runs/dev_substrate/m7/20260218T141420Z/rtdl_core/caught_up.json`
+     - local: `runs/dev_substrate/m7/20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/offsets_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/caught_up.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
+   - closure result:
+     - `overall_pass=true`
+     - blockers empty.
+4. Current active Kafka epoch for required topics is empty (`run_start_offset=run_end_offset=-1` on all required partitions) and is now explicitly represented in the refreshed P7 basis.
 
 Blockers:
 1. `M7C-B1`: offsets evidence missing/incomplete.
@@ -352,7 +367,7 @@ Required metadata fields in each control-plane snapshot:
 
 ## 8) Completion Checklist (P8)
 - [x] P8.A complete
-- [ ] P8.B complete
+- [x] P8.B complete
 - [ ] P8.C complete
 - [ ] P8.D complete
 - [ ] Runtime budget gates satisfied (or explicitly fail-closed with accepted blockers).
@@ -367,15 +382,7 @@ P8 branch is closure-ready only when:
 
 ## 10) Unresolved Blocker Register (P8 Branch)
 Current blockers:
-1. `M7C-B7` (open, blocks `P8.B` closure)
-   - observed posture:
-     - active Kafka required topics are materialized but empty (`watermark_high=0` on all required partitions),
-     - P7 ingest basis (`ingest/kafka_offsets_snapshot.json`) still records non-zero run-end offsets.
-   - impact:
-     - `M7.C` cannot assert deterministic run-window progression/caught-up against a stale basis.
-   - closure criteria:
-     - refresh run-window ingest basis on the active Kafka substrate (rerun upstream publish/ingest evidence path),
-     - rerun `M7.C` and require blocker rollup empty.
+1. None currently for `P8.B`. `P8.C`/`P8.D` are not yet executed.
 
 Rule:
 1. Any blocker discovered in `P8.A..P8.D` is appended here with:

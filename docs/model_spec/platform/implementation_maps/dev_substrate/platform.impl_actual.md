@@ -12187,3 +12187,33 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Closure path pinned
 1. Refresh P7 ingest basis on the active Kafka substrate (rerun upstream publish+ingest evidence path for the active run scope).
 2. Rerun `M7.C` with refreshed basis and require empty blocker rollup.
+
+## Entry: 2026-02-18 15:46:00 +00:00 - P7 ingest basis refreshed on active Kafka epoch; M7.C rerun PASS
+
+### User directive
+1. Proceed with refresh of `P7` ingest bases and rerun `M7.C`.
+
+### Execution decisions
+1. Refresh the authoritative run-scoped basis artifact at:
+   - `evidence/runs/platform_20260213T214223Z/ingest/kafka_offsets_snapshot.json`.
+2. Use active runtime credentials from SSM (`/fraud-platform/dev_min/confluent/*`) to avoid stale local `.env` Kafka credentials.
+3. Rerun `M7.C` against refreshed basis and publish run-scoped + control-plane artifacts in-place for active `m7_execution_id`.
+
+### Execution outputs
+1. Refreshed `P7` basis:
+   - local: `runs/dev_substrate/m6/20260218T154307Z/kafka_offsets_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/kafka_offsets_snapshot.json`
+2. `M7.C` rerun artifacts:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/rtdl_core/offsets_snapshot.json`
+   - local: `runs/dev_substrate/m7/20260218T141420Z/rtdl_core/caught_up.json`
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/offsets_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/caught_up.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
+
+### Verdict
+1. `M7.C` now closes PASS:
+   - `overall_pass=true`
+   - blockers empty.
+2. The refreshed active Kafka epoch is explicitly represented as empty for required topics:
+   - `run_start_offset=run_end_offset=-1` on all required partitions.

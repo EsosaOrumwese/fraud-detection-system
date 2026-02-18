@@ -66,7 +66,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Phase
 Current posture:
-1. M7 is active and execution has started (`M7.A` and `M7.B` closed, `M7.C` next).
+1. M7 is active and execution has started (`M7.A`, `M7.B`, and `M7.C` are closed; `M7.D` is next).
 
 Execution block:
 1. No M8 execution is allowed before M7 verdict is `ADVANCE_TO_M8`.
@@ -305,9 +305,9 @@ Tasks:
 5. Publish local + durable snapshot.
 
 DoD:
-- [ ] Offsets snapshot exists and is complete for required topics/partitions.
-- [ ] Caught-up gate closes with lag threshold.
-- [ ] Control snapshot is published locally and durably.
+- [x] Offsets snapshot exists and is complete for required topics/partitions.
+- [x] Caught-up gate closes with lag threshold.
+- [x] Control snapshot is published locally and durably.
 
 Execution notes:
 1. Initial `M7.C` execution published artifacts but failed closure:
@@ -317,6 +317,17 @@ Execution notes:
 2. Result:
    - `overall_pass=false`
    - open execution blocker `M7C-B5` (stale run-window basis versus active Kafka state).
+3. Rerun after P7 basis refresh closed PASS:
+   - refreshed ingest basis:
+     - local: `runs/dev_substrate/m6/20260218T154307Z/kafka_offsets_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/ingest/kafka_offsets_snapshot.json`
+   - rerun snapshot:
+     - local: `runs/dev_substrate/m7/20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
+   - closure result:
+     - `overall_pass=true`
+     - blocker rollup empty.
+4. The refreshed basis now explicitly captures the active Kafka epoch for required topics as empty (`run_end_offset=-1` on all partitions), removing stale-basis drift for this lane.
 
 Blockers:
 1. `M7C-B1`: offsets evidence missing/incomplete.
@@ -580,7 +591,7 @@ Notes:
 ## 7) M7 Completion Checklist
 - [x] M7.A complete
 - [x] M7.B complete
-- [ ] M7.C complete
+- [x] M7.C complete
 - [ ] M7.D complete
 - [ ] M7.E complete
 - [ ] M7.F complete
@@ -610,14 +621,6 @@ Current blockers:
      - `LABEL_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
    - closure rule:
      - pin concrete non-placeholder subject-key fields before `M7.G` execution.
-2. `M7C-B5` (open, execution blocker for `M7.C`/`P8.B`)
-   - observed posture:
-     - active Kafka required topics are empty (`watermark_high=0`) on all required partitions,
-     - current run ingest basis remains non-zero from prior substrate epoch.
-   - closure rule:
-     - refresh P7 ingest offset basis on active Kafka substrate,
-     - rerun `M7.C` and require empty blocker rollup.
-
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.
 2. If this register is non-empty, M7 execution remains blocked.

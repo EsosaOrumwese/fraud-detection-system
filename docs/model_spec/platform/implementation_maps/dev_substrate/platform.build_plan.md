@@ -704,14 +704,15 @@ Active-phase planning posture:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_a_handle_closure_snapshot.json`.
     - `M7.B` closed at `m7_20260218T141420Z`
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_b_rtdl_readiness_snapshot.json`.
-  - `M7.C` has one fail-closed execution attempt (not closed):
+  - `M7.C` rerun is now closed PASS:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
-    - open blocker: stale P7 ingest offset basis versus active Kafka topic state (`M7C-B5`).
+    - closure result: `overall_pass=true`, blockers empty.
+    - note: refreshed active-epoch P7 basis currently captures empty required Kafka topics (`run_end_offset=-1` on all required partitions).
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.
   - [x] `M7.B` P8 RTDL readiness + consumer posture.
-  - [ ] `M7.C` P8 offsets/caught-up evidence closure.
+  - [x] `M7.C` P8 offsets/caught-up evidence closure.
   - [ ] `M7.D` P8 archive durability proof closure.
   - [ ] `M7.E` P9 decision-lane readiness + idempotency posture.
   - [ ] `M7.F` P9 decision/action/audit commit evidence closure.
@@ -721,8 +722,8 @@ Sub-phase progress:
   - [ ] `M7.J` M8 handoff publication.
 
 M7 DoD checklist:
-- [ ] RTDL caught-up evidence exists with lag <= `RTDL_CAUGHT_UP_LAG_MAX`.
-- [ ] RTDL offsets snapshot and caught-up artifact are durable and run-scoped.
+- [x] RTDL caught-up evidence exists with lag <= `RTDL_CAUGHT_UP_LAG_MAX`.
+- [x] RTDL offsets snapshot and caught-up artifact are durable and run-scoped.
 - [ ] Decision lane commit evidence exists (`decision_summary`, `action_summary`, `audit_summary`) and append-only posture holds.
 - [ ] P10 identity key fields are pinned for this run and no placeholders remain.
 - [ ] Case and label summaries are durable and consistent with append-only/idempotent writes.
@@ -859,5 +860,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M7 is active for deep-plan closure and execution sequencing.
 Next action:
-- close `M7C-B5` by refreshing P7 ingest offset basis on active Kafka substrate, then rerun `M7.C`,
+- proceed to `M7.D` (`P8.C`) archive durability closure with fail-closed evidence publication,
 - keep fail-closed progression: `M7G-B1` subject-key placeholders remain an open forward blocker for `P10` entry.
