@@ -724,6 +724,21 @@ Active-phase planning posture:
     - closure notes:
       - first probe window failed fail-closed on rollout churn (`M7E-B1`);
       - rerun after service stabilization closed green on two-probe health + run-scope/idempotency/dependency checks.
+  - `M7.F` (`P9.B`) planning is now expanded to execution-grade:
+    - authoritative deep plan section: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md`
+    - planning closure includes:
+      - pre-execution readiness matrix for `P9.B`,
+      - deterministic verification algorithm,
+      - snapshot schema contract,
+      - fail-closed blocker taxonomy (`M7F-B1..M7F-B6`).
+    - runtime execution performed (`2026-02-18`) and closed fail-closed:
+      - run-scoped artifacts were published:
+        - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/decision_summary.json`
+        - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/action_summary.json`
+        - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/audit_summary.json`
+      - control snapshot published:
+        - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_f_decision_chain_snapshot.json`
+      - closure result: `overall_pass=false` with open blockers `M7F-B1` and `M7F-B2`.
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.
@@ -876,5 +891,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M7 is active for deep-plan closure and execution sequencing.
 Next action:
-- proceed to `M7.F` execution (P9 decision/action/audit commit evidence closure),
+- remediate `M7F-B1`/`M7F-B2` (restore non-zero run-scoped decision + audit + action-outcome evidence) and rerun `M7.F`,
 - keep fail-closed progression: `M7G-B1` subject-key placeholders remain an open forward blocker for `P10` entry.

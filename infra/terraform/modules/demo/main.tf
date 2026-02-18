@@ -585,7 +585,7 @@ resource "aws_iam_role_policy" "lane_app_object_store_data_plane" {
 resource "aws_iam_role_policy" "lane_app_kinesis_publish" {
   for_each = {
     for key, role in aws_iam_role.lane_app_roles : key => role
-    if contains(["ig_service", "rtdl_core"], key)
+    if contains(["ig_service", "rtdl_core", "decision_lane"], key)
   }
 
   name   = "${var.name_prefix}-${each.key}-kinesis-publish"
@@ -696,6 +696,22 @@ resource "aws_ecs_task_definition" "daemon" {
         "sh",
         "-c",
         "set -e; python -m fraud_detection.archive_writer.worker --profile config/platform/profiles/dev_min.yaml",
+        ] : each.key == "decision-lane-dl" ? [
+        "sh",
+        "-c",
+        "set -e; python -c \"import pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; d.setdefault('dl',{}).setdefault('policy',{})['profiles_ref']='config/platform/dl/policy_profiles_v0.yaml'; d['dl']['policy']['profile_id']='dev'; o=pathlib.Path('/tmp/dev_min_dl.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.degrade_ladder.worker --profile /tmp/dev_min_dl.yaml",
+        ] : each.key == "decision-lane-df" ? [
+        "sh",
+        "-c",
+        "set -e; python -c \"import pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; d.setdefault('dl',{}).setdefault('policy',{})['profiles_ref']='config/platform/dl/policy_profiles_v0.yaml'; d['dl']['policy']['profile_id']='dev'; o=pathlib.Path('/tmp/dev_min_df.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.decision_fabric.worker --profile /tmp/dev_min_df.yaml",
+        ] : each.key == "decision-lane-al" ? [
+        "sh",
+        "-c",
+        "set -e; python -m fraud_detection.action_layer.worker --profile config/platform/profiles/dev_min.yaml",
+        ] : each.key == "decision-lane-dla" ? [
+        "sh",
+        "-c",
+        "set -e; python -c \"import pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; dla=d.setdefault('dla',{}); wiring=dla.setdefault('wiring',{}); wiring['event_bus_kind']='kinesis'; wiring['event_bus_stream']='${local.ig_event_bus_stream_name}'; wiring['event_bus_region']='${var.aws_region}'; o=pathlib.Path('/tmp/dev_min_dla.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.decision_log_audit.worker --profile /tmp/dev_min_dla.yaml",
         ] : [
         "sh",
         "-c",
@@ -780,6 +796,50 @@ resource "aws_ecs_task_definition" "daemon" {
           name  = "KAFKA_SASL_MECHANISM"
           value = "PLAIN"
         },
+        ] : [], startswith(each.key, "decision-lane-") ? [
+        {
+          name  = "PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "KAFKA_SECURITY_PROTOCOL"
+          value = "SASL_SSL"
+        },
+        {
+          name  = "KAFKA_SASL_MECHANISM"
+          value = "PLAIN"
+        },
+        ] : [], each.key == "decision-lane-df" ? [
+        {
+          name  = "DF_REQUIRED_PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        ] : [], each.key == "decision-lane-al" ? [
+        {
+          name  = "AL_REQUIRED_PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        ] : [], each.key == "decision-lane-dla" ? [
+        {
+          name  = "DLA_REQUIRED_PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "DLA_STORAGE_PROFILE_ID"
+          value = "dev"
+        },
+        {
+          name  = "DLA_EVENT_BUS_KIND"
+          value = "kinesis"
+        },
+        {
+          name  = "DLA_EVENT_BUS_STREAM"
+          value = local.ig_event_bus_stream_name
+        },
+        {
+          name  = "DLA_EVENT_BUS_REGION"
+          value = var.aws_region
+        },
       ] : [])
       secrets = concat(each.key == "ig" ? [
         {
@@ -790,7 +850,7 @@ resource "aws_ecs_task_definition" "daemon" {
           name      = "IG_ADMISSION_DSN"
           valueFrom = aws_ssm_parameter.db_dsn.arn
         }
-        ] : [], contains(["ig", "rtdl-core-archive-writer"], each.key) ? [
+        ] : [], contains(["ig", "rtdl-core-archive-writer", "decision-lane-dl", "decision-lane-df", "decision-lane-al", "decision-lane-dla"], each.key) ? [
         {
           name      = "KAFKA_BOOTSTRAP_SERVERS"
           valueFrom = aws_ssm_parameter.confluent_bootstrap.arn
@@ -802,6 +862,20 @@ resource "aws_ecs_task_definition" "daemon" {
         {
           name      = "KAFKA_SASL_PASSWORD"
           valueFrom = aws_ssm_parameter.confluent_api_secret.arn
+        }
+        ] : [], each.key == "decision-lane-df" ? [
+        {
+          name      = "DF_IG_API_KEY"
+          valueFrom = aws_ssm_parameter.ig_api_key.arn
+        },
+        {
+          name      = "CSFB_PROJECTION_DSN"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        }
+        ] : [], each.key == "decision-lane-al" ? [
+        {
+          name      = "AL_IG_API_KEY"
+          valueFrom = aws_ssm_parameter.ig_api_key.arn
         }
       ] : [])
       logConfiguration = {

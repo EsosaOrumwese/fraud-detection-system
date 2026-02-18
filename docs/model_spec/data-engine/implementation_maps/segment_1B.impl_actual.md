@@ -5947,3 +5947,54 @@ Decision:
 4) Restored repository policy files to pre-reopen authority content after evidence capture:
    - `config/layer1/1B/policy/policy.s2.tile_weights.yaml`
    - `config/layer1/1B/policy/policy.s4.alloc_plan.yaml`.
+
+### Entry: 2026-02-18 18:49
+
+Design element: cross-segment 1B topology reopen support for 2B (`P1.REOPEN.1B`).
+Summary: opening one bounded policy-only 1B candidate lane to test whether
+1B topology movement can reduce 2B tail-floor dominance, while preserving the
+optimized 1B runtime posture from `POPT`.
+
+Execution contract:
+1) authority source run:
+   - `runs/fix-data-engine/segment_1B/a0ae54639efc4955bc41a2e266224e6e`
+   - same manifest/parameter lineage as active 2B baseline.
+2) rerun scope:
+   - `1B S2->S9` only (S0/S1 frozen), staged via candidate-lane tool.
+3) change surfaces (candidate-local only):
+   - `config/layer1/1B/policy/policy.s2.tile_weights.yaml` (if needed),
+   - `config/layer1/1B/policy/policy.s4.alloc_plan.yaml` (primary).
+4) runtime posture (non-negotiable):
+   - keep the fast-compute-safe env lane unchanged from optimized authority.
+   - record `S4/S5/S6/S9` timings and fail-closed on material regression.
+5) downstream handoff:
+   - publish candidate `1B` outputs into a staged 2B run-id,
+   - execute `2A->2B` scoring to determine `GO_P3_RETRY_FROM_1B` or `NO_GO`.
+
+### Entry: 2026-02-18 19:13
+
+Design element: `P1.REOPEN.1B` runtime gate closure for R2 and bounded R3 recovery.
+Summary: R2 candidate run (`0ed63a7bff9d4c91855b516d41d0ec80`) passed `S9` but failed the runtime non-regression guard against 1B authority (`a0ae54639efc4955bc41a2e266224e6e`), so it is held from downstream propagation. Next attempt is constrained to a cache-key-preserving `S4` topology nudge.
+
+Measured runtime gate (R2):
+1) evidence:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_runtime_0ed63a7bff9d4c91855b516d41d0ec80.json`
+2) baseline -> candidate seconds:
+   - `S4: 163.375 -> 211.469` (`ratio=1.294`)
+   - `S5: 1.812 -> 1.657` (`ratio=0.914`)
+   - `S6: 89.750 -> 113.594` (`ratio=1.266`)
+   - `S9: 4.990 -> 4.120` (`ratio=0.826`)
+3) gate result:
+   - `runtime_non_regression=false`.
+   - decision: `NO_GO` for R2 propagation.
+
+Root-cause note (performance):
+1) `S4` alloc-plan disk cache group changed in R2 due policy-keyed fields (`policy_version` + diversification-window knobs), forcing cold misses and write-heavy rebuild.
+2) this violates the user-pinned performance-preserving requirement for the reopen lane.
+
+Bounded recovery lane (R3) decision:
+1) keep rerun scope as `1B S4->S9` only (preserve `S2/S3` authority surfaces).
+2) apply candidate-local `S4` changes only on knobs outside the disk-cache key material:
+   - move `country_share_soft_guard` / residual redistribution only,
+   - keep `policy_version` and diversification-window fields identical to authority.
+3) preserve fast-lane env posture unchanged; re-run runtime gate before any downstream `2A/2B` handoff.

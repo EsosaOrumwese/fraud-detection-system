@@ -12455,3 +12455,81 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - `overall_pass=true`
    - blockers empty.
 2. M7/P9 next executable lane is `M7.F` (`P9.B` decision/action/audit evidence closure).
+
+## Entry: 2026-02-18 18:45:00 +00:00 - `M7.F` / `P9.B` planning expanded to execution-grade depth
+
+### User directive
+1. Plan out `P9.B`.
+
+### Planning objective
+1. Remove remaining ambiguity before `M7.F` execution.
+2. Make decision/action/audit closure deterministic and fail-closed (no interpretation drift at execution time).
+
+### Changes applied
+1. Expanded `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md`:
+   - added `P9.B` pre-execution readiness matrix (`Section 4.6`),
+   - added deterministic verification algorithm (`Section 4.7`),
+   - deepened `P9.B` entry conditions, required inputs, preparation checks, task list, snapshot schema, and blocker taxonomy (`M7F-B1..M7F-B6`),
+   - added explicit budget closure condition for `P9.B`.
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`:
+   - marked `M7.F` planning status as execution-grade and still execution-pending.
+3. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - recorded `M7.F` planning expansion and closure contents in M7 expansion state.
+
+### Decision-completeness posture for `M7.F` execution
+1. P9 evidence and policy handles used by `M7.F` are pinned in registry (`DECISION_LANE_EVIDENCE_PATH_PATTERN`, `DLA_EVIDENCE_PATH_PATTERN`, `ACTION_*` invariants, topic handles).
+2. No new cross-plane decision debt introduced; existing forward blocker remains `M7G-B1` for P10 entry only.
+3. `M7.F` is now planning-ready for runtime execution.
+
+## Entry: 2026-02-18 18:56:34 +00:00 - M7.F/P9.B blocker remediation plan (DF CSFB DSN + DLA bus-kind)
+### Context
+1. P9.B cannot close while decision-lane services are unstable (M7F-B4).
+2. Live ECS/log evidence shows:
+   - DF crash: CSFB projection_db_dsn is required.
+   - DLA crash: DLA_EVENT_BUS_KIND_UNSUPPORTED.
+### Alternatives considered
+1. Patch app code immediately for Kafka support in DLA.
+2. Materialize missing runtime env/secrets in Terraform first and re-test stability.
+### Decision
+1. Execute infrastructure-first remediation (Option 2) to close the immediate runtime posture with minimal code-surface change.
+2. Add CSFB_PROJECTION_DSN for DF from SSM DB DSN.
+3. Add explicit DLA bus runtime env (DLA_EVENT_BUS_KIND, DLA_EVENT_BUS_STREAM, DLA_EVENT_BUS_REGION) aligned to managed stream lane currently present in substrate.
+4. Re-apply targeted ECS task/service resources for decision-lane-df and decision-lane-dla only, then run two-probe stability checks.
+### Invariants
+1. Fail-closed: no P9.B evidence publishing until all four decision-lane services hold steady (desired=1,running=1,pending=0 on two probes).
+2. No branch operations.
+
+## Entry: 2026-02-18 19:15:16 +00:00 - M7.F / P9.B execution (fail-closed) + blocker materialization
+### Scope
+1. Execute P9.B with live managed substrate posture and publish required run-scoped artifacts.
+
+### Infrastructure/runtime remediations applied during execution
+1. infra/terraform/modules/demo/main.tf
+   - decision lane task command rematerialization retained for DL/DF/AL/DLA real workers.
+   - added DF secret: CSFB_PROJECTION_DSN (from /fraud-platform/dev_min/db/dsn).
+   - added DLA runtime shim profile command to force dla.wiring.event_bus_kind=kinesis + explicit stream/region.
+   - added DLA env handles (DLA_EVENT_BUS_KIND, DLA_EVENT_BUS_STREAM, DLA_EVENT_BUS_REGION, DLA_STORAGE_PROFILE_ID).
+   - expanded lane kinesis policy attachment scope to include decision_lane role.
+2. Targeted Terraform rollouts executed for affected resources (decision-lane-df, decision-lane-dla, and decision-lane kinesis policy), no branch operations.
+
+### P9.B artifacts published
+1. Run-scoped evidence:
+   - s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/decision_summary.json
+   - s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/action_summary.json
+   - s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/audit_summary.json
+2. Control snapshot:
+   - s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_f_decision_chain_snapshot.json
+3. Local mirrors:
+   - uns/dev_substrate/m7/20260218T141420Z/decision_lane/*.json
+   - uns/dev_substrate/m7/20260218T141420Z/m7_f_decision_chain_snapshot.json
+
+### Execution verdict
+1. overall_pass=false (fail-closed).
+2. Open blockers:
+   - M7F-B1: admitted traffic basis is non-zero (	raffic_fraud=400) but run-scoped records on FP_BUS_RTDL_V1 and FP_BUS_AUDIT_V1 are zero.
+   - M7F-B2: idempotent action-outcome posture not provable (ction outcomes = 0).
+3. Service probe posture during snapshot window was stable (DL/DF/AL/DLA each desired=1,running=1,pending=0), so the current blocker is data-plane emptiness, not daemon availability.
+
+### Plan sync
+1. Updated platform.M7.P9.build_plan.md blocker register with active M7F-B1/M7F-B2 and closure criteria.
+2. Updated platform.M7.build_plan.md and platform.build_plan.md to reflect M7.F executed fail-closed (not pending), with next action set to blocker remediation + rerun.

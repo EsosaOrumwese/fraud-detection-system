@@ -1006,6 +1006,13 @@ P1.REOPEN.2A closure record (2026-02-18):
   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_867bb5c1cdbb446a8d369b039a52be5a.md`
   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_lock_867bb5c1cdbb446a8d369b039a52be5a.json`
   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_lock_867bb5c1cdbb446a8d369b039a52be5a.md`
+- retention/prune:
+  - pruned failed staging attempts:
+    - `1517706f6c4243e285ed7f46ffe225ac`
+    - `9fd343e1a628427ebc78e3b725955c7c`
+  - prune summary:
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_prune_summary.json`
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_prune_summary.md`
 - quantified outcome:
   - `share(n_groups==1): 0.483037 -> 0.483845` (`+0.000808`)
   - `share(max_p_group>=0.95): 0.483037 -> 0.483845` (`+0.000808`)
@@ -1015,6 +1022,35 @@ P1.REOPEN.2A closure record (2026-02-18):
 - explicit decision:
   - `NO_GO_P1_REOPEN_2A_ONLY`.
   - required next move: escalate to `1B` topology reopen before any `P3` retry.
+
+### P1.REOPEN.1B - 1B topology reopen (performance-preserving lane)
+Goal:
+- test whether bounded `1B` topology movement can reduce `2B` tail-floor
+  dominance while preserving the optimized `1B` runtime lane.
+
+Scope:
+- keep `2B` `S1/S3/S4` policy/code frozen.
+- execute one run-local `1B` candidate from frozen `1B` authority lineage
+  (`a0ae54639efc4955bc41a2e266224e6e`) and rerun `S2->S9` only.
+- candidate changes are policy-only on `1B` topology surfaces (`S2`/`S4`);
+  no `1B` algorithm rewrites in this lane.
+- preserve fast-compute-safe posture by pinning the same runtime env knobs used
+  by the optimized lane.
+- propagate candidate outputs to `2A S0->S5` then `2B S0->S8`, and score with
+  existing `P3`/floor analyzers.
+
+Definition of done:
+- [ ] one `1B` candidate completes `S2->S9` with runtime evidence captured.
+- [ ] runtime non-regression gate is evaluated against `1B` authority lane:
+  - no material regression on `S4/S5/S6/S9` wall-clock under same posture.
+- [ ] one downstream candidate completes `2A S0->S5` + `2B S0->S8`.
+- [ ] score artifacts are emitted:
+  - `segment2b_p3_candidate_<run_id>.json`,
+  - `segment2b_p1_reopen_floor_<run_id>.json`.
+- [ ] explicit decision is recorded:
+  - `GO_P3_RETRY_FROM_1B` only if tail floor materially drops toward
+    `B` gate (`share(max_p_group>=0.95) <= 0.35`) with runtime gate green,
+  - otherwise `NO_GO_P1_REOPEN_1B_ONLY`.
 
 ### P4 - Realism-grade roster and certification hardening
 Goal:

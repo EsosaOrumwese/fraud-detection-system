@@ -97,6 +97,43 @@ Budget control:
    - preserve idempotency keys and write-policy posture,
    - publish fresh control-plane snapshots under the same `m7_execution_id`.
 
+## 4.6) P9.B Pre-Execution Readiness Matrix (Must Pass Before P9.B Starts)
+1. `P9.A` closure posture:
+   - `m7_e_decision_lane_readiness_snapshot.json` exists and `overall_pass=true`.
+2. Decision-lane runtime stability:
+   - `DL/DF/AL/DLA` remain `desired=1`, `running=1`, no active restart storm.
+3. Evidence handle closure:
+   - `DECISION_LANE_EVIDENCE_PATH_PATTERN` resolves non-placeholder.
+   - `DLA_EVIDENCE_PATH_PATTERN` resolves non-placeholder.
+   - `S3_EVIDENCE_BUCKET` and `S3_EVIDENCE_RUN_ROOT_PATTERN` resolve non-placeholder.
+4. Policy/invariant closure:
+   - `ACTION_IDEMPOTENCY_KEY_FIELDS` and `ACTION_OUTCOME_WRITE_POLICY` remain pinned and unchanged from `P9.A`.
+5. Input lane continuity:
+   - required decision-lane source topics (`FP_BUS_RTDL_V1`, `FP_BUS_AUDIT_V1`) remain reachable.
+6. Evidence write posture:
+   - run-scoped evidence prefix for `platform_run_id` is writable by decision-lane role.
+
+Fail-closed rule:
+1. Any unmet row above blocks `P9.B` execution and must be logged as `M7F-B*`.
+
+## 4.7) P9.B Deterministic Verification Algorithm (Pinned)
+1. Source checks:
+   - load `M7.E` pass snapshot.
+   - assert all required handles resolve to concrete values.
+2. Evidence presence checks:
+   - verify run-scoped objects exist:
+     - `decision_lane/decision_summary.json`
+     - `decision_lane/action_summary.json`
+     - `decision_lane/audit_summary.json`.
+3. Run-scope checks:
+   - each summary must declare `platform_run_id` matching active run.
+4. Append-only checks:
+   - audit summary indicates append-only posture (no overwrite/mutation signal).
+5. Idempotency checks:
+   - action summary indicates idempotent outcome posture and duplicate-safe behavior.
+6. Snapshot assembly:
+   - compute blocker rollup and publish `m7_f_decision_chain_snapshot.json` locally and durably.
+
 ## 4.5) Capability-Lane Matrix (P9)
 | Capability lane | Primary step | Minimum PASS evidence |
 | --- | --- | --- |
@@ -185,30 +222,79 @@ Execution notes:
 Goal:
 1. Publish closure-grade P9 evidence under run scope.
 
+Entry conditions:
+1. `M7.E` pass snapshot exists and `overall_pass=true`.
+2. Section 4.6 readiness matrix is fully satisfied.
+
 Required inputs:
 1. `M7.E` pass snapshot.
 2. Evidence handles:
    - `DECISION_LANE_EVIDENCE_PATH_PATTERN`
    - `DLA_EVIDENCE_PATH_PATTERN`.
+3. Evidence root handles:
+   - `S3_EVIDENCE_BUCKET`
+   - `S3_EVIDENCE_RUN_ROOT_PATTERN`.
+4. Topic handles:
+   - `FP_BUS_RTDL_V1`
+   - `FP_BUS_AUDIT_V1`.
+5. Invariant handles:
+   - `ACTION_IDEMPOTENCY_KEY_FIELDS`
+   - `ACTION_OUTCOME_WRITE_POLICY`.
+
+Preparation checks:
+1. Confirm `DL/DF/AL/DLA` remain healthy/stable at execution start.
+2. Confirm `M7.E` snapshot run-scope matches active run.
+3. Confirm required decision/audit evidence path handles resolve non-placeholder.
+4. Confirm evidence bucket run prefix is writable.
 
 Tasks:
-1. Build run-scoped:
+1. Materialize and verify run-scoped:
    - `decision_lane/decision_summary.json`
    - `decision_lane/action_summary.json`
    - `decision_lane/audit_summary.json`.
-2. Validate append-only audit posture.
-3. Validate idempotent action-outcome posture (duplicate-safe).
-4. Publish `m7_f_decision_chain_snapshot.json`.
+2. Validate run-scope coherence (`platform_run_id` consistency across all three summaries).
+3. Validate append-only audit posture.
+4. Validate idempotent action-outcome posture (duplicate-safe).
+5. Publish `m7_f_decision_chain_snapshot.json` with deterministic blocker rollup.
+6. Publish local + durable snapshot.
+
+Required snapshot fields:
+1. `phase_id`, `platform_run_id`, `m7_execution_id`.
+2. `started_at_utc`, `completed_at_utc`, `elapsed_seconds`.
+3. required evidence URIs and existence flags.
+4. run-scope coherence summary.
+5. append-only/idempotency validation summary.
+6. `overall_pass` and `blockers`.
 
 DoD:
 - [ ] Required P9 evidence artifacts exist and are run-scoped.
 - [ ] Append-only and idempotency checks pass.
 - [ ] Snapshot exists locally + durably.
+- [ ] Runtime budget gate (`P9.B <= 20 min`) is met or explicitly fail-closed.
 
 Blockers:
 1. `M7F-B1`: required evidence missing/incomplete.
 2. `M7F-B2`: append-only/idempotency violation detected.
 3. `M7F-B3`: snapshot publish failure.
+4. `M7F-B4`: decision-lane service unstable during P9.B execution window.
+5. `M7F-B5`: run-scope mismatch across decision/action/audit artifacts.
+6. `M7F-B6`: dependency reachability failure (Kafka/DB/SSM/S3 evidence write).
+
+Execution result (`2026-02-18`, fail-closed):
+1. Artifacts were materialized locally + durably:
+   - `runs/dev_substrate/m7/20260218T141420Z/decision_lane/decision_summary.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/decision_lane/action_summary.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/decision_lane/audit_summary.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_f_decision_chain_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/decision_summary.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/action_summary.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/audit_summary.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_f_decision_chain_snapshot.json`
+2. `overall_pass=false` with explicit blockers:
+   - `M7F-B1`: non-zero admitted traffic basis (`traffic_fraud=400`) but zero run-scoped records on `FP_BUS_RTDL_V1`.
+   - `M7F-B1`: non-zero admitted traffic basis (`traffic_fraud=400`) but zero run-scoped records on `FP_BUS_AUDIT_V1`.
+   - `M7F-B2`: idempotent action-outcome posture not provable (`action outcomes = 0`).
+3. Decision-lane service stability was re-probed during execution; services held `desired=1,running=1,pending=0`, but data-plane production remained empty for run scope.
 
 ### P9.C Plane Closure Summary
 Goal:
@@ -264,7 +350,17 @@ P9 branch is closure-ready only when:
 
 ## 10) Unresolved Blocker Register (P9 Branch)
 Current blockers:
-1. None (`P9.A` closed PASS; no open blocker carried into `P9.B`).
+1. `M7F-B1` (open, `P9.B`)
+   - impacted: decision + audit commit evidence closure
+   - closure criteria:
+     - non-zero run-scoped records materialized on `FP_BUS_RTDL_V1` and `FP_BUS_AUDIT_V1` for `platform_20260213T214223Z`,
+     - rerun `P9.B` and produce updated summaries with non-zero counts.
+2. `M7F-B2` (open, `P9.B`)
+   - impacted: idempotency/append-only proof
+   - closure criteria:
+     - action outcomes present in run scope,
+     - duplicate-safe/idempotency posture measurable from run-scoped evidence,
+     - rerun `P9.B` with `overall_pass=true`.
 
 Rule:
 1. Any blocker discovered in `P9.A..P9.C` is appended here with:

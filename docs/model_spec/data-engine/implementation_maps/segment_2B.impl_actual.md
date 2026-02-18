@@ -6126,3 +6126,70 @@ Measured outcome:
 Decision:
 1) `NO_GO_P1_REOPEN_2A_ONLY`.
 2) escalation required: reopen `1B` topology lane before any `P3` retry.
+
+Storage hygiene:
+1) marked failed staging attempts with `_FAILED.SENTINEL.json`:
+   - `1517706f6c4243e285ed7f46ffe225ac`
+   - `9fd343e1a628427ebc78e3b725955c7c`
+2) pruned with `tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_2B`:
+   - removed run folders: `2`
+   - reclaimed: `13.57 MB`
+3) prune evidence:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_prune_summary.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_prune_summary.md`
+
+### Entry: 2026-02-18 18:49
+
+Pre-execution plan for `P1.REOPEN.1B` (user-directed 1B topology reopen lane).
+
+Problem restatement:
+1) `P1.REOPEN.2A` closed `NO_GO`; tail-floor remained structurally bound.
+2) next upstream lane is `1B` topology reopen, but runtime posture from 1B
+   `POPT` must be preserved (no performance backslide).
+
+Option analysis:
+1) broad `1B` code rewrite:
+   - rejected for this lane.
+   - reason: user requested immediate reopen without losing current performance;
+     algorithm rewrites increase blast radius and runtime risk.
+2) policy-only `1B` reopen with run-local candidate config (accepted):
+   - stage from frozen 1B authority run-id
+     `a0ae54639efc4955bc41a2e266224e6e`,
+   - rerun `1B S2->S9` with candidate-only `S2/S4` topology knobs,
+   - preserve fast lane env posture from optimized 1B run.
+3) score-only without full downstream run:
+   - rejected.
+   - reason: closure requires measured movement on actual `2B` floor metrics.
+
+Execution sequence locked:
+1) stage 1B candidate run-id via `tools/stage_segment1b_candidate_lane.py`
+   with `--skip-tile-weights --skip-s3-requirements` so rerun starts at `S2`.
+2) apply candidate-local policy deltas under
+   `runs/fix-data-engine/segment_1B/<run_id>/config/layer1/1B/policy`.
+3) run `1B S2->S9` with external roots ordered:
+   - candidate run-root first,
+   - repo root second.
+4) stage downstream 2B candidate run-id carrying candidate `1B` outputs.
+5) run `2A S0->S5`, then `2B S0->S8`, then score + floor analysis.
+
+Performance guard (binding in this lane):
+1) keep `1B` runtime fast-lane knobs pinned to authority posture.
+2) capture candidate timings for `S4/S5/S6/S9` and compare against authority
+   run `a0ae...`.
+3) if material runtime regression appears without quality gain, close lane
+   fail-closed as `NO_GO_P1_REOPEN_1B_ONLY`.
+
+### Entry: 2026-02-18 19:13
+
+`P1.REOPEN.1B` runtime guard update:
+1) R2 candidate (`0ed63a7bff9d4c91855b516d41d0ec80`) completed `1B S4->S9` with `S9 PASS`.
+2) runtime evidence:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_1b_runtime_0ed63a7bff9d4c91855b516d41d0ec80.json`
+3) guard outcome:
+   - `S4` and `S6` regressed materially vs authority `a0ae...`,
+   - `runtime_non_regression=false`,
+   - R2 blocked from downstream `2A->2B` execution.
+
+Recovery decision (still inside `P1.REOPEN.1B`):
+1) attempt R3 with `S4`-only bounded topology movement designed to preserve cache-key compatibility and keep runtime posture.
+2) no downstream propagation until R3 runtime gate passes.

@@ -457,10 +457,20 @@ DoD:
 - [ ] Append-only + idempotency checks pass.
 - [ ] Snapshot published locally and durably.
 
+Planning status:
+1. `M7.F` deep planning is expanded to execution-grade in `platform.M7.P9.build_plan.md`:
+   - explicit `P9.B` pre-execution readiness matrix,
+   - deterministic verification algorithm,
+   - required snapshot field contract,
+   - expanded blocker taxonomy (`M7F-B1..M7F-B6`).
+2. Runtime execution was performed (`2026-02-18`) and closed fail-closed:
+   - decision-lane evidence summaries + control snapshot were published locally and durably,
+   - `m7_f_decision_chain_snapshot.json` reported `overall_pass=false`,
+   - blocker set is currently `M7F-B1` + `M7F-B2` (non-zero ingest basis but zero run-scoped decision/audit outputs; idempotency not provable).
+
 Blockers:
-1. `M7F-B1`: required P9 evidence missing/incomplete.
-2. `M7F-B2`: append-only/idempotency violation detected.
-3. `M7F-B3`: snapshot write/upload failure.
+1. `M7F-B1`: non-zero ingest basis but zero run-scoped decision/audit records on managed bus evidence.
+2. `M7F-B2`: append-only/idempotency posture not provable because action outcomes are zero.
 
 ### M7.G P10 Identity-Key Pin + Managed DB Readiness
 Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (`P10.A`).
@@ -643,7 +653,15 @@ Control: M7.B/E/G readiness gates before commit lanes.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M7 Closure)
 Current blockers:
-1. `M7G-B1` (open, forward blocker for `M7.G`/`P10` entry)
+1. `M7F-B1` (open, blocker for `M7.F` close)
+   - run-scoped summaries exist but show zero decision/audit records despite non-zero traffic admitted (`traffic_fraud=400`).
+   - closure rule:
+     - restore run-scoped decision + audit production and rerun `M7.F` to a PASS snapshot.
+2. `M7F-B2` (open, blocker for `M7.F` close)
+   - idempotent action-outcome posture not provable (`action outcomes = 0`).
+   - closure rule:
+     - produce non-zero action outcomes and rerun `M7.F` idempotency checks.
+3. `M7G-B1` (open, forward blocker for `M7.G`/`P10` entry)
    - subject-key handle placeholders unresolved in registry:
      - `CASE_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
      - `LABEL_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
