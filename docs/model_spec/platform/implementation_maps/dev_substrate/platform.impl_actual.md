@@ -12217,3 +12217,45 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - blockers empty.
 2. The refreshed active Kafka epoch is explicitly represented as empty for required topics:
    - `run_start_offset=run_end_offset=-1` on all required partitions.
+
+## Entry: 2026-02-18 15:56:00 +00:00 - P8.C (`M7.D`) executed fail-closed on archive-writer runtime drift
+
+### User directive
+1. Proceed with `P8.C`.
+
+### Entry checks and evidence basis
+1. `M7.C` PASS snapshot was already durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`.
+2. Archive handles resolved from pinned dev-min registry posture:
+   - bucket: `fraud-platform-dev-min-archive`,
+   - run prefix: `archive/platform_20260213T214223Z/`,
+   - events prefix: `archive/platform_20260213T214223Z/events/`.
+
+### Runtime findings
+1. Archive-writer ECS service posture:
+   - service `fraud-platform-dev-min-rtdl-core-archive-writer` is active (`desired=1`, `running=1`).
+2. Task runtime command is not the archive worker:
+   - command is placeholder loop (`echo daemon_started ...; while true; sleep 300; done`),
+   - does **not** execute `python -m fraud_detection.archive_writer.worker`.
+3. Archive run prefix object posture:
+   - object count `0` under `s3://fraud-platform-dev-min-archive/archive/platform_20260213T214223Z/`.
+4. Coherence with current offset epoch:
+   - refreshed `P7`/`P8` basis has `run_end=-1` on required partitions,
+   - expected archive events from offsets = `0`,
+   - archive count coherence is neutral, but runtime command drift remains a hard blocker.
+
+### Artifacts published
+1. Run-scoped summary:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/rtdl_core/archive_write_summary.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/archive_write_summary.json`
+2. Control-plane snapshot:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_d_archive_durability_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_d_archive_durability_snapshot.json`
+
+### Verdict
+1. `M7.D` remains open:
+   - `overall_pass=false`
+   - blocker: `M7D-B4` (archive-writer runtime command drift).
+2. Pinned closure path:
+   - rematerialize archive-writer service with real worker runtime command,
+   - rerun `M7.D` and require empty blocker rollup.

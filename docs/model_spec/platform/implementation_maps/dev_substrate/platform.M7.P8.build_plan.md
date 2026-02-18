@@ -307,6 +307,22 @@ DoD:
 - [ ] Archive coherence against offsets evidence is verified.
 - [ ] Snapshot exists locally + durably.
 
+Execution notes:
+1. Executed `M7.D` on active M7 context (`m7_execution_id=m7_20260218T141420Z`, `platform_run_id=platform_20260213T214223Z`) and published:
+   - run-scoped summary:
+     - local: `runs/dev_substrate/m7/20260218T141420Z/rtdl_core/archive_write_summary.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/archive_write_summary.json`
+   - control snapshot:
+     - local: `runs/dev_substrate/m7/20260218T141420Z/m7_d_archive_durability_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_d_archive_durability_snapshot.json`
+2. Closure result: fail-closed (`overall_pass=false`), blocker set non-empty.
+3. Runtime posture observed:
+   - archive writer ECS service is active (`desired=1`, `running=1`),
+   - task definition command is placeholder sleep-loop and does not execute `fraud_detection.archive_writer.worker`,
+   - archive bucket run prefix is empty for this run (`archive_object_count=0`),
+   - offsets coherence count is neutral for this epoch (`expected_archive_events_from_offsets=0` from refreshed P7 basis).
+4. Open blocker is runtime-command drift (`M7D-B4`), not archive count incoherence.
+
 Blockers:
 1. `M7D-B1`: expected archive proof missing.
 2. `M7D-B2`: archive/offset coherence failure.
@@ -382,7 +398,16 @@ P8 branch is closure-ready only when:
 
 ## 10) Unresolved Blocker Register (P8 Branch)
 Current blockers:
-1. None currently for `P8.B`. `P8.C`/`P8.D` are not yet executed.
+1. `M7D-B4` (open, blocks `P8.C` closure)
+   - observed posture:
+     - `fraud-platform-dev-min-rtdl-core-archive-writer` service is active,
+     - task definition command is placeholder (`echo ...; while true sleep`) and does not run `fraud_detection.archive_writer.worker`,
+     - `M7.D` snapshot is fail-closed with `overall_pass=false`.
+   - impact:
+     - archive durability closure cannot claim active-writer proof from real worker runtime.
+   - closure criteria:
+     - rematerialize archive-writer runtime to real worker command (`python -m fraud_detection.archive_writer.worker --profile config/platform/profiles/dev_min.yaml` or equivalent pinned contract),
+     - rerun `M7.D` and require empty blocker rollup.
 
 Rule:
 1. Any blocker discovered in `P8.A..P8.D` is appended here with:

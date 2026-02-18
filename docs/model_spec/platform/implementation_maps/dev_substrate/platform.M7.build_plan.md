@@ -316,7 +316,7 @@ Execution notes:
    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
 2. Result:
    - `overall_pass=false`
-   - open execution blocker `M7C-B5` (stale run-window basis versus active Kafka state).
+   - fail-closed stale-basis blocker opened during first attempt.
 3. Rerun after P7 basis refresh closed PASS:
    - refreshed ingest basis:
      - local: `runs/dev_substrate/m6/20260218T154307Z/kafka_offsets_snapshot.json`
@@ -362,10 +362,24 @@ DoD:
 - [ ] Archive progression is coherent with RTDL progression.
 - [ ] Snapshot published locally and durably.
 
+Execution notes:
+1. Executed `M7.D` and published:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/rtdl_core/archive_write_summary.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/archive_write_summary.json`
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_d_archive_durability_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_d_archive_durability_snapshot.json`
+2. Result:
+   - `overall_pass=false`
+   - open blocker `M7D-B4`.
+3. Runtime finding behind blocker:
+   - archive-writer service is active (`desired=1`, `running=1`) but task definition command is placeholder sleep-loop and does not execute `fraud_detection.archive_writer.worker`.
+4. Current epoch offset basis is empty (`run_end=-1` on required partitions), so archive count coherence is neutral (`expected_archive_events_from_offsets=0`, `archive_object_count=0`); closure is still blocked by runtime-command drift.
+
 Blockers:
 1. `M7D-B1`: archive prefix missing/empty when writer lane is expected active.
 2. `M7D-B2`: archive progression mismatch vs offsets evidence.
 3. `M7D-B3`: snapshot write/upload failure.
+4. `M7D-B4`: archive writer runtime command is placeholder and does not execute worker contract.
 
 ### M7.E P9 Decision-Lane Readiness + Idempotency Posture
 Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` (`P9.A`).
@@ -621,6 +635,12 @@ Current blockers:
      - `LABEL_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
    - closure rule:
      - pin concrete non-placeholder subject-key fields before `M7.G` execution.
+2. `M7D-B4` (open, execution blocker for `M7.D`/`P8.C`)
+   - observed posture:
+     - archive-writer ECS service is active, but task command is placeholder idle loop.
+   - closure rule:
+     - rematerialize archive-writer service to real worker runtime command,
+     - rerun `M7.D` and require `overall_pass=true` with empty blockers.
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.
 2. If this register is non-empty, M7 execution remains blocked.
