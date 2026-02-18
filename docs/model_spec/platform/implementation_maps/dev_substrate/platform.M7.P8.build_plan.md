@@ -45,7 +45,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Plane
 Current posture:
-1. Planning-expanded and execution-ready once Section 4.2 preflight passes.
+1. `P8.A` is execution-closed with PASS evidence; `P8.B` is next.
 
 Execution block:
 1. No P8 runtime execution before `M7.A` handle closure pass.
@@ -164,10 +164,26 @@ Execution sequence:
    - elapsed timing.
 
 DoD:
-- [ ] RTDL readiness checks pass.
-- [ ] Consumer posture checks pass.
-- [ ] Run-scope and dependency checks pass.
-- [ ] Snapshot exists locally + durably.
+- [x] RTDL readiness checks pass.
+- [x] Consumer posture checks pass.
+- [x] Run-scope and dependency checks pass.
+- [x] Snapshot exists locally + durably.
+
+Execution notes:
+1. `P8.A` execution context:
+   - `m7_execution_id = m7_20260218T141420Z`
+   - `platform_run_id = platform_20260213T214223Z`
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_b_rtdl_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_b_rtdl_readiness_snapshot.json`
+3. Closure result:
+   - `overall_pass=true`
+   - blocker rollup empty.
+4. Runtime alignment remediation applied before closure:
+   - RTDL daemon task definitions now carry pinned consumer posture env vars:
+     - `RTDL_CORE_CONSUMER_GROUP_ID=fraud-platform-dev-min-rtdl-core-v0`
+     - `RTDL_CORE_OFFSET_COMMIT_POLICY=commit_after_durable_write`
+   - topic-readiness probe aligns to `M2.F` evidence schema (`topics_present`).
 
 Blockers:
 1. `M7B-B1`: RTDL service unhealthy.
@@ -327,7 +343,7 @@ Required metadata fields in each control-plane snapshot:
 8. `blockers`
 
 ## 8) Completion Checklist (P8)
-- [ ] P8.A complete
+- [x] P8.A complete
 - [ ] P8.B complete
 - [ ] P8.C complete
 - [ ] P8.D complete
@@ -343,7 +359,7 @@ P8 branch is closure-ready only when:
 
 ## 10) Unresolved Blocker Register (P8 Branch)
 Current blockers:
-1. none (planning stage).
+1. none.
 
 Rule:
 1. Any blocker discovered in `P8.A..P8.D` is appended here with:

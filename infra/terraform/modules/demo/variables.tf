@@ -86,6 +86,24 @@ variable "required_platform_run_id" {
   }
 }
 
+variable "rtdl_core_consumer_group_id" {
+  type = string
+
+  validation {
+    condition     = trimspace(var.rtdl_core_consumer_group_id) != ""
+    error_message = "rtdl_core_consumer_group_id must be non-empty."
+  }
+}
+
+variable "rtdl_core_offset_commit_policy" {
+  type = string
+
+  validation {
+    condition     = trimspace(var.rtdl_core_offset_commit_policy) != ""
+    error_message = "rtdl_core_offset_commit_policy must be non-empty."
+  }
+}
+
 variable "confluent_env_name" {
   type    = string
   default = "dev_min"

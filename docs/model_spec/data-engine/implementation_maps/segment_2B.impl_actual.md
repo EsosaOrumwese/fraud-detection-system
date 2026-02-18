@@ -5286,3 +5286,74 @@ Actions taken:
 Closure:
 - `POPT.5` DoD complete.
 - Optimization posture frozen and handoff gate opened to remediation `P0`.
+
+### Entry: 2026-02-18 15:06
+
+Design + implementation update: executed and closed remediation `P0`
+(baseline authority + harness lock).
+
+Decision trail before execution:
+1) `P0` requires both realism hard-gate baseline metrics and runtime baseline
+   evidence. Existing `POPT.0` artifacts already covered runtime timing, but
+   remediation `P0` still needed a dedicated hard-gate baseline table across
+   `S1/S3/S4` and explicit roster posture.
+2) Selected authority run root for hard-gate baseline extraction:
+   - `runs/fix-data-engine/segment_2B/c25a2675fbfbacd952b13bb594880e92`
+   - reason: this is the retained remediation root after `POPT.5` pruning.
+3) Runtime baseline remained anchored to the published authority full-run
+   evidence (`runs/local_full_run-5/<run_id>`) so state elapsed timing is
+   complete and reproducible.
+
+Implementation actions:
+1) Added scorer tool:
+   - `tools/score_segment2b_p0_baseline.py`
+   - computes and emits:
+     - lineage pin (`run_id`, `seed`, `manifest_fingerprint`, `parameter_hash`),
+     - hard-gate axes for `S1/S3/S4` (B and B+ threshold booleans),
+     - roster posture preconditions from `s5_arrival_roster`,
+     - baseline verdict (`PASS_BPLUS`/`PASS_B`/`FAIL_REALISM`/`INVALID_FOR_GRADING`).
+2) Ran scorer:
+   - output JSON:
+     `runs/fix-data-engine/segment_2B/reports/segment2b_p0_baseline_metrics_c25a2675fbfbacd952b13bb594880e92.json`
+   - output markdown:
+     `runs/fix-data-engine/segment_2B/reports/segment2b_p0_baseline_metrics_c25a2675fbfbacd952b13bb594880e92.md`
+3) Emitted `P0` runtime baseline artifact pair (state elapsed + total elapsed)
+   using existing runtime parser:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p0_runtime_baseline_c25a2675fbfbacd952b13bb594880e92.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p0_runtime_baseline_c25a2675fbfbacd952b13bb594880e92.md`
+
+Metric method choices (explicit):
+1) `S1` heterogeneity:
+   - merchant-level median abs residual from uniform (`|p_weight - 1/n_sites|`),
+   - merchant-level median `top1-top2` share gap,
+   - merchant HHI IQR (`Q75-Q25`).
+2) `S3` temporal heterogeneity:
+   - median merchant gamma std-dev,
+   - non-zero tz-group differentiation via merchant-day std across tz groups,
+   - stability proxy via `nonpositive_gamma_rows == 0` with
+     `max_abs_log_gamma` recorded.
+3) `S4` routing realism:
+   - merchant-day `max_p_group` median,
+   - share merchant-days with `max_p_group >= 0.95`,
+   - share merchant-days with at least two groups where `p_group >= 0.05`,
+   - entropy p50,
+   - mass conservation check (`sum(p_group)` tolerance).
+4) Roster preconditions:
+   - computed directly from `arrival_roster.jsonl`:
+     horizon span, repeated merchant-day arrivals.
+   - class/channel retention is explicitly marked `not observable` in 2B roster
+     schema at this phase and remains a `P4` hardening item.
+
+Observed baseline outcome:
+1) `S1` fails key B/B+ activation axes (uniform-collapse signature remains):
+   - `residual_abs_uniform_median=0.0`,
+   - `top1_top2_gap_median=0.0`.
+2) `S3` is healthy against B/B+ activation checks in this authority run.
+3) `S4` fails B/B+ on dominance and entropy despite mass conservation pass.
+4) Roster preconditions fail (`horizon_span_days=1`, no repeated merchant-day
+   arrivals), so overall baseline verdict is `INVALID_FOR_GRADING`.
+
+Closure:
+- `P0` DoD complete and marked closed in build plan.
+- Next remediation focus remains causal order `P1 -> P2 -> P3`, with baseline
+  evidence now pinned for delta tracking.

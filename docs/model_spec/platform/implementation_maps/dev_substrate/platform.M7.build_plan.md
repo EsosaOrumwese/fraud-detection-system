@@ -66,7 +66,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Phase
 Current posture:
-1. M7 is active and execution has started (`M7.A` closed, `M7.B` next).
+1. M7 is active and execution has started (`M7.A` and `M7.B` closed, `M7.C` next).
 
 Execution block:
 1. No M8 execution is allowed before M7 verdict is `ADVANCE_TO_M8`.
@@ -253,10 +253,25 @@ Tasks:
 5. Publish local + durable snapshot.
 
 DoD:
-- [ ] RTDL core services healthy and stable.
-- [ ] Consumer group + commit policy posture verified.
-- [ ] Dependency reachability checks pass.
-- [ ] Snapshot published locally and durably.
+- [x] RTDL core services healthy and stable.
+- [x] Consumer group + commit policy posture verified.
+- [x] Dependency reachability checks pass.
+- [x] Snapshot published locally and durably.
+
+Execution notes:
+1. `M7.B` execution context:
+   - `m7_execution_id = m7_20260218T141420Z`
+   - `platform_run_id = platform_20260213T214223Z`
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_b_rtdl_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_b_rtdl_readiness_snapshot.json`
+3. Closure result:
+   - `overall_pass=true`
+   - blocker rollup empty.
+4. Closure remediation before final rerun:
+   - RTDL task definitions rematerialized with pinned consumer-posture env vars:
+     - `RTDL_CORE_CONSUMER_GROUP_ID=fraud-platform-dev-min-rtdl-core-v0`
+     - `RTDL_CORE_OFFSET_COMMIT_POLICY=commit_after_durable_write`.
 
 Blockers:
 1. `M7B-B1`: RTDL service unhealthy/crashlooping.
@@ -554,7 +569,7 @@ Notes:
 
 ## 7) M7 Completion Checklist
 - [x] M7.A complete
-- [ ] M7.B complete
+- [x] M7.B complete
 - [ ] M7.C complete
 - [ ] M7.D complete
 - [ ] M7.E complete

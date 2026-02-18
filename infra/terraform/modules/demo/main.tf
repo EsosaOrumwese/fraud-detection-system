@@ -696,7 +696,16 @@ resource "aws_ecs_task_definition" "daemon" {
           name  = "FP_COMPONENT_MODE"
           value = each.value.component_mode
         },
-        ], each.key == "ig" ? [
+        ], startswith(each.key, "rtdl-core-") ? [
+        {
+          name  = "RTDL_CORE_CONSUMER_GROUP_ID"
+          value = var.rtdl_core_consumer_group_id
+        },
+        {
+          name  = "RTDL_CORE_OFFSET_COMMIT_POLICY"
+          value = var.rtdl_core_offset_commit_policy
+        },
+        ] : [], each.key == "ig" ? [
         {
           name  = "PLATFORM_RUN_ID"
           value = var.required_platform_run_id

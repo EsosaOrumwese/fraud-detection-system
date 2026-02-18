@@ -416,10 +416,38 @@ Scope:
 - run-retention and prune flow activation under `runs/fix-data-engine/segment_2B/`.
 
 Definition of done:
-- [ ] baseline authority run-id and lineage tokens are pinned.
-- [ ] baseline metric table for all hard-gate axes is emitted.
-- [ ] runtime baseline table (state elapsed and total elapsed) is emitted.
-- [ ] prune-before-run workflow is active and evidenced.
+- [x] baseline authority run-id and lineage tokens are pinned.
+- [x] baseline metric table for all hard-gate axes is emitted.
+- [x] runtime baseline table (state elapsed and total elapsed) is emitted.
+- [x] prune-before-run workflow is active and evidenced.
+
+P0 closure record (2026-02-18):
+- authority baseline pinned:
+  - run root: `runs/fix-data-engine/segment_2B`
+  - run id: `c25a2675fbfbacd952b13bb594880e92`
+  - lineage tokens: `seed=42`,
+    `manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`,
+    `parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`.
+- emitted baseline hard-gate metric artifacts:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p0_baseline_metrics_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p0_baseline_metrics_c25a2675fbfbacd952b13bb594880e92.md`
+- emitted runtime baseline artifacts:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p0_runtime_baseline_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p0_runtime_baseline_c25a2675fbfbacd952b13bb594880e92.md`
+- key baseline findings (authority run):
+  - `S1` fails heterogeneity activation axes (`residual=0.000000`,
+    `top1-top2=0.000000`) while `HHI IQR=0.067633` passes B floor.
+  - `S3` activation is already non-collapsed (`merchant std median=0.120403`,
+    `tz differentiation share=1.000000`, `nonpositive_gamma_rows=0`).
+  - `S4` dominance remains above B (`max_p_group p50=0.928926`,
+    `share max>=0.95 = 49.13%`, `entropy p50=0.256493`);
+    multi-group share passes (`50.84%`) and mass conservation passes.
+  - roster posture is not realism-grade (`horizon_span_days=1`,
+    `merchant_day_repeat_ge2_share=0.000000`) and therefore verdict is
+    `INVALID_FOR_GRADING` until P4 roster hardening.
+- prune-before-run evidence remains active from optimization handoff:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_popt5_prune_summary.json`
+  - retained root policy unchanged: keep only authority/current/last-good/cert pack.
 
 ### P1 - S1 spatial heterogeneity activation
 Goal:

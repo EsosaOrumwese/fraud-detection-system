@@ -97,6 +97,16 @@ variable "required_platform_run_id" {
   type = string
 }
 
+variable "rtdl_core_consumer_group_id" {
+  type    = string
+  default = "fraud-platform-dev-min-rtdl-core-v0"
+}
+
+variable "rtdl_core_offset_commit_policy" {
+  type    = string
+  default = "commit_after_durable_write"
+}
+
 variable "confluent_credentials_source" {
   type    = string
   default = "remote_state"

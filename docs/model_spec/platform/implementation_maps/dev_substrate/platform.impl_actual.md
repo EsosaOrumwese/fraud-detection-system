@@ -12008,3 +12008,97 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. `M7.P8` now has closure-grade prep depth for execution.
 2. Next execution entry remains `P8.A` (`M7.B`) using this expanded plan.
 3. No runtime mutation was performed in this step.
+
+## Entry: 2026-02-18 14:50:00 +00:00 - Pre-change execution plan for P8.A (`M7.B` RTDL readiness + consumer posture)
+
+### User directive
+1. Proceed with `P8.A`.
+
+### Execution intent
+1. Execute `P8.A` strictly against expanded `M7.P8` readiness contract.
+2. Produce:
+   - local `m7_b_rtdl_readiness_snapshot.json`
+   - durable `m7_b_rtdl_readiness_snapshot.json` under M7 control-plane path.
+
+### Planned probe coverage
+1. Carry-forward:
+   - validate `M7.A` snapshot `overall_pass=true`, run id continuity.
+2. RTDL service posture:
+   - `SVC_RTDL_CORE_ARCHIVE_WRITER`, `SVC_RTDL_CORE_IEG`, `SVC_RTDL_CORE_OFP`, `SVC_RTDL_CORE_CSFB`
+   - check `desired=running=1`, no pending, no obvious restart storm.
+3. Consumer posture:
+   - confirm `RTDL_CORE_CONSUMER_GROUP_ID`, `RTDL_CORE_OFFSET_COMMIT_POLICY` are pinned and non-empty.
+   - verify no drift against current handle authority.
+4. Run-scope posture:
+   - confirm `REQUIRED_PLATFORM_RUN_ID` is consistent on RTDL task definitions.
+5. Dependency posture:
+   - topic readiness evidence exists and is passing (latest M2.F snapshot),
+   - RDS is available,
+   - S3 evidence write surface exists,
+   - CloudWatch log surface exists for RTDL services.
+6. Access posture:
+   - verify RTDL lane role exists and has expected data-plane policy surfaces for evidence/object-store access.
+
+### Fail-closed and blocker mapping
+1. Any failed readiness criterion maps to `M7B-B*` blocker ids.
+2. `P8.A` closes only with:
+   - empty blocker list,
+   - `overall_pass=true`,
+   - durable snapshot publication success.
+
+## Entry: 2026-02-18 15:09:00 +00:00 - First P8.A execution attempt (fail-closed) exposed probe drift + runtime drift
+
+### Execution result
+1. Executed `P8.A` probe lane and published first readiness snapshot:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_b_rtdl_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_b_rtdl_readiness_snapshot.json`
+2. Result was fail-closed (`overall_pass=false`) with blocker set:
+   - `M7B-B2`: consumer-posture mismatch.
+   - `M7B-B7`: topic-readiness evidence interpreted as missing required topics.
+
+### Root-cause split
+1. `M7B-B7` was probe logic drift, not substrate drift:
+   - `M2.F` snapshot schema uses `topics_present`,
+   - initial probe expected `topics_observed`.
+2. `M7B-B2` was real runtime drift:
+   - RTDL daemon task definitions did not include pinned env handles:
+     - `RTDL_CORE_CONSUMER_GROUP_ID`
+     - `RTDL_CORE_OFFSET_COMMIT_POLICY`.
+
+### Decision and remediation plan
+1. Keep fail-closed posture (do not mark `M7.B` complete on first snapshot).
+2. Resolve probe drift by aligning `P8.A` parser to `M2.F` schema (`topics_present`).
+3. Resolve runtime drift by materializing pinned consumer-posture env vars in demo Terraform task definitions for RTDL services, then reapply demo stack and rerun `P8.A`.
+
+## Entry: 2026-02-18 15:24:00 +00:00 - P8.A closure remediation applied and re-execution PASS
+
+### Runtime remediation applied
+1. Terraform wiring updated to materialize RTDL consumer-posture handles into RTDL daemon task definitions:
+   - `infra/terraform/modules/demo/variables.tf`
+   - `infra/terraform/modules/demo/main.tf`
+   - `infra/terraform/dev_min/demo/variables.tf`
+   - `infra/terraform/dev_min/demo/main.tf`
+2. Added/passed pins:
+   - `RTDL_CORE_CONSUMER_GROUP_ID = fraud-platform-dev-min-rtdl-core-v0`
+   - `RTDL_CORE_OFFSET_COMMIT_POLICY = commit_after_durable_write`.
+3. Applied `infra/terraform/dev_min/demo` with pinned run scope and existing image/api-key posture to avoid secret/runtime drift.
+
+### Re-execution and final closure
+1. Re-ran `P8.A` readiness probes with corrected topic-readiness parsing (`topics_present`).
+2. Final snapshot artifacts (authoritative for `M7.B`):
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_b_rtdl_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_b_rtdl_readiness_snapshot.json`
+3. Final result:
+   - `overall_pass=true`
+   - blocker rollup empty
+   - metadata contract satisfied (`phase_id`, run ids, timings, blockers, pass verdict).
+
+### Verification highlights
+1. RTDL services healthy and stable (`desired=running=1` across `archive_writer`, `ieg`, `ofp`, `csfb`).
+2. Run-scope env continuity is enforced (`REQUIRED_PLATFORM_RUN_ID=platform_20260213T214223Z` on all RTDL services).
+3. Consumer posture now pinned and visible in task definitions.
+4. Dependency checks pass:
+   - topic readiness evidence pass from `M2.F`,
+   - RDS `available`,
+   - log group exists,
+   - IAM simulation + evidence write probes pass.
