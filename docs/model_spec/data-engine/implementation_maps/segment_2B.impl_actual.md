@@ -6264,3 +6264,88 @@ Feasibility-gate finding (same pass):
    - `ALLOW_SYNTHETIC_LOCAL_GROUPS` (yes/no),
    - if `no`, reopen upstream `2A` topology with broader scope than timezone
      override micro-tuning.
+
+### Entry: 2026-02-18 19:53
+
+Decision closure + execution plan switch after local feasibility gate.
+
+User decision pinned:
+1) `ALLOW_SYNTHETIC_LOCAL_GROUPS = no`.
+2) do not execute synthetic pseudo-group generation in `2B` local states.
+
+Implications:
+1) `P1.LOCAL.RECOVERY` remains feasibility-only and closes without
+   `S1/S3/S4` synthetic-lane execution.
+2) next execution lane is upstream `P1.REOPEN.2A.R2` (broader `2A` reopen) with
+   `1B` frozen.
+
+Execution sequence locked for `P1.REOPEN.2A.R2`:
+1) create a clean candidate run root from authority lineage
+   (`80d9c9df1221400f82db77e27a0d63b2`) by copying only `run_receipt.json`
+   with a new run-id and schema-valid `created_utc` precision.
+2) stage candidate-local `2A` timezone policy pack under
+   `runs/fix-data-engine/segment_2B/<candidate>/config/layer1/2A/timezone/`.
+3) run progressive chain on same run-id:
+   - `2A S0->S5`,
+   - `2B S0->S8`.
+4) enforce external-root precedence:
+   - candidate run-root first, authority run-root second, repo root third.
+5) score + floor evidence using existing analyzers:
+   - `tools/score_segment2b_p3_candidate.py`,
+   - `tools/analyze_segment2b_p1_reopen_floor.py`.
+6) close lane explicitly as:
+   - `GO_P3_RETRY_FROM_2A_R2` only with material floor movement, else
+     `NO_GO_P1_REOPEN_2A_R2`.
+
+### Entry: 2026-02-18 20:02
+
+Execution + closure record for `P1.REOPEN.2A.R2` (broader 2A reopen, 1B frozen).
+
+Candidate staging:
+1) staged clean run-id from authority receipt:
+   - candidate: `6188e9c75f5a4c309b8a7900efd7e2d5`
+   - source lineage: `80d9c9df1221400f82db77e27a0d63b2`.
+2) staged run-local `2A` timezone policy pack under:
+   - `runs/fix-data-engine/segment_2B/6188e9c75f5a4c309b8a7900efd7e2d5/config/layer1/2A/timezone/tz_overrides.yaml`
+   - `runs/fix-data-engine/segment_2B/6188e9c75f5a4c309b8a7900efd7e2d5/config/layer1/2A/timezone/tz_nudge.yml`.
+
+Initial blocker + remediation:
+1) first `2A-S0` attempt failed with `2A-S0-003`:
+   - detail: missing `validation_bundle_1B` under candidate run root.
+2) remediation:
+   - copied upstream `1B` data subtree from authority into candidate root:
+     `data/layer1/1B/`.
+3) rerun then passed `2A S0->S5` and `2B S0->S8`.
+
+Observed execution behavior:
+1) `2A S1` loaded candidate-local policy files (external-root precedence
+   validated) and applied site overrides on all six known ambiguity keys:
+   - `overrides_applied=6`, `overrides_site=6`.
+2) `2A` distinct tzids moved from prior reopen lane posture (`90`) to `92`.
+3) full candidate chain completed successfully with deterministic artifacts.
+
+Evidence emitted:
+1) P3 scorer:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_6188e9c75f5a4c309b8a7900efd7e2d5.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_6188e9c75f5a4c309b8a7900efd7e2d5.md`
+2) floor analyzer:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_6188e9c75f5a4c309b8a7900efd7e2d5.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_6188e9c75f5a4c309b8a7900efd7e2d5.md`
+3) lane lock:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_r2_lock_6188e9c75f5a4c309b8a7900efd7e2d5.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_r2_lock_6188e9c75f5a4c309b8a7900efd7e2d5.md`
+
+Measured outcome:
+1) floor metrics vs authority baseline `80d9...`:
+   - `share_n_groups_eq_1: 0.4830371567 -> 0.4814216478` (`-0.0016155089`),
+   - `share_max_p_ge_095: 0.4830371567 -> 0.4814216478` (`-0.0016155089`),
+   - `share_max_p_ge_095_given_multigroup: 0.0 -> 0.0`.
+2) candidate `P3` gates remained red:
+   - `s4_b_band=false`,
+   - `s4_bplus_band=false`,
+   - verdict `FAIL_P3`.
+
+Closure decision:
+1) `NO_GO_P1_REOPEN_2A_R2`.
+2) reason: movement exists but is non-material relative to required B/B+ gap;
+   floor remains structurally dominant.

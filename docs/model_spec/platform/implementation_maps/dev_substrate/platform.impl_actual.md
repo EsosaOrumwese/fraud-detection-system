@@ -12558,3 +12558,21 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. No branch operations.
 2. No local-compute substitute for managed runtime processing.
 3. P9.B remains fail-closed until non-zero run-scoped decision/audit/action evidence is published and idempotency remains provable.
+
+## Entry: 2026-02-18 19:57:43 +00:00 - M7.F blocker root-cause escalation: DLA lacks Kafka bus consumer implementation
+### Context
+1. DF/AL were rematerialized with Kafka wiring and run-scope guards; WSP ingress auth was corrected to an allowlisted identity.
+2. decision-lane-dla still fails with DLA_EVENT_BUS_KIND_UNSUPPORTED when configured for Kafka.
+
+### Root cause
+1. src/fraud_detection/decision_log_audit/intake.py only implements ile and kinesis bus readers in DecisionLogAuditBusConsumer.
+2. dev_min substrate bus posture for in-scope lanes is Kafka, so DLA cannot consume run-scoped decision/action events without Kafka reader support.
+
+### Decision
+1. Implement Kafka reader parity in DLA intake consumer (list partitions, checkpoint offset, read loop, kafka_offset commits).
+2. Keep existing file/kinesis paths unchanged.
+3. Rebuild + publish image, rematerialize decision-lane-dla, then rerun run-scoped ingest and P9.B closure.
+
+### Invariants
+1. Fail-closed until DLA Kafka path is live and non-zero audit evidence is observed.
+2. No branch operations.

@@ -1126,6 +1126,65 @@ Decision gate (required before execution continues):
   - `no`: reopen upstream `2A` topology with wider scope (not just tiny
     timezone override deltas).
 
+Decision resolution (2026-02-18):
+- `ALLOW_SYNTHETIC_LOCAL_GROUPS = no` (user-directed).
+- `P1.LOCAL.RECOVERY` closes as feasibility-only; no synthetic local-group lane
+  will be executed.
+- next lane is `P1.REOPEN.2A.R2` (broader upstream `2A` reopen), with `1B`
+  frozen.
+
+### P1.REOPEN.2A.R2 - Broader 2A topology reopen (post-local feasibility)
+Goal:
+- test whether a broader `2A` topology reopen can reduce the structural
+  `2B` single-group/tail floor while keeping `1B` frozen.
+
+Scope:
+- freeze `1B` at authority `a0ae54639efc4955bc41a2e266224e6e`.
+- stage one clean candidate run-id from `2B` authority
+  `80d9c9df1221400f82db77e27a0d63b2` (no copied `2A/2B` outputs).
+- apply run-local `2A` timezone policy pack with broader deltas than the prior
+  micro-tuning lane.
+- run progressive order on same candidate run-id:
+  - `2A S0->S5`, then `2B S0->S8`.
+- emit score + floor evidence with existing analyzers.
+
+Runtime and safety gates:
+- preserve deterministic contracts and frozen downstream `2B` local policy/code.
+- keep external-root precedence explicit:
+  - candidate run-root first, authority run-root second, repo root third.
+- fail-closed if candidate cannot complete or if floor movement is non-material.
+
+Definition of done:
+- [x] one clean `P1.REOPEN.2A.R2` candidate completes `2A S0->S5` + `2B S0->S8`.
+- [x] emits:
+  - `segment2b_p3_candidate_<run_id>.json`,
+  - `segment2b_p1_reopen_floor_<run_id>.json`.
+- [x] explicit decision is recorded:
+  - `GO_P3_RETRY_FROM_2A_R2` only if floor metrics move materially toward `B`,
+  - otherwise `NO_GO_P1_REOPEN_2A_R2`.
+
+P1.REOPEN.2A.R2 closure record (2026-02-18):
+- candidate run-id:
+  - `6188e9c75f5a4c309b8a7900efd7e2d5`.
+- run-local `2A` evidence:
+  - `S1` applied `6` site overrides (`overrides_site=6`), `distinct_tzids` moved
+    `90 -> 92` versus prior reopen lane.
+- score/floor artifacts:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_6188e9c75f5a4c309b8a7900efd7e2d5.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_6188e9c75f5a4c309b8a7900efd7e2d5.md`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_6188e9c75f5a4c309b8a7900efd7e2d5.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_6188e9c75f5a4c309b8a7900efd7e2d5.md`
+  - lock artifact:
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_r2_lock_6188e9c75f5a4c309b8a7900efd7e2d5.json`
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_r2_lock_6188e9c75f5a4c309b8a7900efd7e2d5.md`
+- quantified floor movement:
+  - `share(n_groups==1): 0.483037 -> 0.481422` (`-0.001616`),
+  - `share(max_p_group>=0.95): 0.483037 -> 0.481422` (`-0.001616`),
+  - `share(max_p_group>=0.95 | n_groups>1): 0.0 -> 0.0`.
+- closure decision:
+  - `NO_GO_P1_REOPEN_2A_R2` (movement is measurable but non-material vs `B/B+`
+    gate distance; `P3` remains `FAIL_P3`).
+
 ### P4 - Realism-grade roster and certification hardening
 Goal:
 - make grade assignment fail-closed and evidence-backed using realism-grade workload.
