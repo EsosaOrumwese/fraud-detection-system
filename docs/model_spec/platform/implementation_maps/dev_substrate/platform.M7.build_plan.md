@@ -66,7 +66,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Phase
 Current posture:
-1. M7 is active and execution has started (`M7.A`..`M7.D` are closed; `M7.E` is next).
+1. M7 is active and execution has started (`M7.A`..`M7.E` are closed; `M7.F` is next).
 
 Execution block:
 1. No M8 execution is allowed before M7 verdict is `ADVANCE_TO_M8`.
@@ -413,9 +413,15 @@ Tasks:
 5. Publish local + durable snapshot.
 
 DoD:
-- [ ] DL/DF/AL/DLA services healthy and stable.
-- [ ] Idempotency + append-only posture validated.
-- [ ] Snapshot published locally and durably.
+- [x] DL/DF/AL/DLA services healthy and stable.
+- [x] Idempotency + append-only posture validated.
+- [x] Snapshot published locally and durably.
+
+Execution status:
+1. `M7.E` closed PASS under active run scope:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_e_decision_lane_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_e_decision_lane_readiness_snapshot.json`
+   - `overall_pass=true`, blockers empty.
 
 Blockers:
 1. `M7E-B1`: decision-lane service unhealthy/crashlooping.
@@ -615,7 +621,7 @@ Notes:
 - [x] M7.B complete
 - [x] M7.C complete
 - [x] M7.D complete
-- [ ] M7.E complete
+- [x] M7.E complete
 - [ ] M7.F complete
 - [ ] M7.G complete
 - [ ] M7.H complete

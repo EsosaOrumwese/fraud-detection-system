@@ -910,6 +910,112 @@ P3 closure record (2026-02-18):
   - required next move: upstream reopen of `P1/S1` topology to reduce
     single-group merchant-day share before retrying `P3` closure.
 
+### P1.REOPEN - Upstream reopen on S1 topology lane (post-P3 blocker)
+Goal:
+- execute one concrete upstream reopen attempt on `P1/S1` and verify whether
+  it can reduce the `S4` tail-floor blocker identified in `P3`.
+
+Scope:
+- reopen `S1` policy posture (no S3/S4 code changes in this lane),
+- run one staged candidate through `S0 -> S8`,
+- measure whether `share(n_groups==1)` and therefore
+  `share(max_p_group>=0.95)` floor moves.
+
+Definition of done:
+- [x] one S1-reopen candidate run is executed and scored.
+- [x] explicit floor analysis is emitted:
+  - `share(n_groups==1)`,
+  - `share(max_p_group>=0.95)`,
+  - `share(max_p_group>=0.95 | n_groups>1)`.
+- [x] explicit decision recorded:
+  - `GO_P3_RETRY` only if floor materially drops toward B threshold,
+  - otherwise `NO_GO_P1_REOPEN_S1_ONLY` with required upstream expansion.
+
+P1.REOPEN closure record (2026-02-18):
+- candidate run and scoring evidence:
+  - candidate run-id:
+    - `3f075a5bac634b0fbb3cb4491d9f9422`
+  - P3 scorecard:
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_3f075a5bac634b0fbb3cb4491d9f9422.json`
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_3f075a5bac634b0fbb3cb4491d9f9422.md`
+  - floor analysis:
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_3f075a5bac634b0fbb3cb4491d9f9422.json`
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_3f075a5bac634b0fbb3cb4491d9f9422.md`
+  - lock artifact:
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_lock_3f075a5bac634b0fbb3cb4491d9f9422.json`
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_lock_3f075a5bac634b0fbb3cb4491d9f9422.md`
+- quantified outcome:
+  - baseline and candidate both:
+    - `share(n_groups==1)=0.4830371567`,
+    - `share(max_p_group>=0.95)=0.4830371567`,
+    - `share(max_p_group>=0.95 | n_groups>1)=0.0000000000`.
+  - deltas:
+    - `delta_share_n_groups_eq_1=0.0`,
+    - `delta_share_max_p_ge_095=0.0`.
+- operational closure:
+  - reverted `config/layer1/2B/policy/alias_layout_policy_v1.json` to frozen
+    baseline posture (`version_tag=1.0.2`).
+  - pruned superseded reopen candidate run-id:
+    - `3f075a5bac634b0fbb3cb4491d9f9422`
+  - prune evidence:
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_prune_summary.json`
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_prune_summary.md`
+- explicit decision:
+  - `NO_GO_P1_REOPEN_S1_ONLY`.
+  - required next move: broader upstream reopen beyond `S1` (`2A` site-timezone
+    topology and possibly `1B` site layout) before any `P3` retry.
+
+### P1.REOPEN.2A - Broader upstream reopen (2A topology first)
+Goal:
+- execute a bounded `2A`-first upstream reopen lane and measure whether changing
+  `site_timezones` topology can move the `S4` tail-floor blocker in 2B.
+
+Scope:
+- keep 2B `S1/S3/S4` policy/code frozen in this lane.
+- stage a fresh candidate run-id from frozen 2B authority.
+- apply run-local (candidate-only) 2A timezone policy deltas, rerun `2A S0->S5`,
+  then rerun `2B S0->S8`.
+- score with existing `2B P3` scorecard and tail-floor analyzer.
+
+Definition of done:
+- [x] one 2A-first candidate run completes `2A S0->S5` + `2B S0->S8`.
+- [x] score artifacts are emitted:
+  - `segment2b_p3_candidate_<run_id>.json`,
+  - `segment2b_p1_reopen_floor_<run_id>.json`.
+- [x] explicit decision is recorded:
+  - `GO_P3_RETRY_FROM_2A` only if `share(n_groups==1)` and
+    `share(max_p_group>=0.95)` move materially toward `B` gate (`<=0.35`),
+  - otherwise `NO_GO_P1_REOPEN_2A_ONLY` and escalate to `1B` topology reopen.
+
+P1.REOPEN.2A closure record (2026-02-18):
+- execution attempts:
+  - `1517706f6c4243e285ed7f46ffe225ac`:
+    - failed at `2A-S2` (`F4:2A-S2-041`) due atomic publish collision from
+      staging a run root that already contained `2A` outputs.
+  - `9fd343e1a628427ebc78e3b725955c7c`:
+    - failed at `2A-S0` (`F4:2A-S0-052`) due `run_receipt.created_utc` schema
+      mismatch (7 fractional digits vs required 6).
+  - `867bb5c1cdbb446a8d369b039a52be5a`:
+    - completed `2A S0->S5` and `2B S0->S8` using run-local `2A` timezone
+      policy deltas (`tz_overrides` reduced `7 -> 2`; `tz_nudge` `semver=1.3.2`,
+      `epsilon_degrees=0.01`).
+- evidence:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_867bb5c1cdbb446a8d369b039a52be5a.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_867bb5c1cdbb446a8d369b039a52be5a.md`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_867bb5c1cdbb446a8d369b039a52be5a.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_867bb5c1cdbb446a8d369b039a52be5a.md`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_lock_867bb5c1cdbb446a8d369b039a52be5a.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_lock_867bb5c1cdbb446a8d369b039a52be5a.md`
+- quantified outcome:
+  - `share(n_groups==1): 0.483037 -> 0.483845` (`+0.000808`)
+  - `share(max_p_group>=0.95): 0.483037 -> 0.483845` (`+0.000808`)
+  - `share(max_p_group>=0.95 | n_groups>1): 0.0 -> 0.0`
+  - `P3` verdict on candidate remained `FAIL_P3` (`s4_b_band=false`,
+    `s4_bplus_band=false`).
+- explicit decision:
+  - `NO_GO_P1_REOPEN_2A_ONLY`.
+  - required next move: escalate to `1B` topology reopen before any `P3` retry.
+
 ### P4 - Realism-grade roster and certification hardening
 Goal:
 - make grade assignment fail-closed and evidence-backed using realism-grade workload.

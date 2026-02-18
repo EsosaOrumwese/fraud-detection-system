@@ -5969,3 +5969,160 @@ Retention/prune:
    - `c55ffaeb119245e385044f3e70680f03`
 2) prune evidence:
    - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_prune_summary.json`
+
+### Entry: 2026-02-18 17:46
+
+Pre-execution plan for upstream reopen of `P1/S1` after `P3` blocker closure.
+
+User-directed objective:
+1) proceed with upstream reopen at `P1/S1` rather than immediately reopening
+   other upstream segments.
+
+Locked execution design:
+1) run a concrete S1 reopen candidate (not analysis-only):
+   - retune `alias_layout_policy_v1` toward stronger cross-site spread
+     (`profile_mixture_v2` mix + caps/floors),
+   - rerun full `S0 -> S8` on a fresh staged root.
+2) score with existing `P3` scorer and emit additional tail-floor analysis to
+   test whether S1 reopen can move:
+   - `share(n_groups==1)`,
+   - `share(max_p_group>=0.95)`,
+   - `share(max_p_group>=0.95 | n_groups>1)`.
+3) phase decision logic:
+   - if floor moves materially toward B threshold, proceed with `P3` retry lane,
+   - if floor remains bound, close as `NO_GO_P1_REOPEN_S1_ONLY` and require
+     broader upstream reopen scope.
+
+Risk noted before execution:
+1) `n_groups` in S4 is a topology property of merchant site->tz mapping
+   (ingress), so S1 weight-shape retuning may not change the blocker floor.
+2) still executing one full S1 reopen lane to satisfy user-directed scope and
+   collect closure-grade evidence.
+
+### Entry: 2026-02-18 18:01
+
+Execution + closure record for user-directed upstream reopen lane `P1/S1`.
+
+Execution completed:
+1) S1 reopen candidate policy posture was applied in
+   `config/layer1/2B/policy/alias_layout_policy_v1.json` (`version_tag=1.0.3`)
+   and one full staged candidate chain was executed:
+   - run-id: `3f075a5bac634b0fbb3cb4491d9f9422`
+   - path: `S0 -> S8`
+2) candidate was scored with existing P3 scorer:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_3f075a5bac634b0fbb3cb4491d9f9422.json`
+3) dedicated floor analysis was emitted:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_3f075a5bac634b0fbb3cb4491d9f9422.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_3f075a5bac634b0fbb3cb4491d9f9422.md`
+
+Measured outcome:
+1) baseline (`80d9...`) vs candidate (`3f07...`) were identical on tail-floor
+   metrics:
+   - `share_n_groups_eq_1=0.48303715670436187`
+   - `share_max_p_ge_095=0.48303715670436187`
+   - `share_max_p_ge_095_given_multigroup=0.0`
+2) deltas were exactly zero:
+   - `delta_share_n_groups_eq_1=0.0`
+   - `delta_share_max_p_ge_095=0.0`
+3) lane decision:
+   - `NO_GO_P1_REOPEN_S1_ONLY`
+   - conclusion: S1-only reopen does not move the S4 tail floor.
+
+Operational closure actions:
+1) emitted lock artifact:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_lock_3f075a5bac634b0fbb3cb4491d9f9422.json`
+2) restored frozen S1 policy posture by reverting
+   `config/layer1/2B/policy/alias_layout_policy_v1.json` to baseline
+   (`version_tag=1.0.2`).
+3) pruned superseded reopen run-id folder (`3f07...`) using
+   `tools/prune_failed_runs.py` after sentinel mark; emitted prune evidence:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_prune_summary.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_prune_summary.md`
+
+Next required move:
+1) broader upstream reopen beyond S1 is required to reduce topology-bound
+   single-group share (`2A` site-timezone topology lane first; `1B` layout
+   reopening only if needed by evidence).
+
+### Entry: 2026-02-18 18:26
+
+Pre-execution plan for broader upstream reopen lane (`P1.REOPEN.2A`) after
+`NO_GO_P1_REOPEN_S1_ONLY`.
+
+Problem restatement:
+1) S1-only reopen was closed `NO_GO`; S4 tail floor remained unchanged.
+2) Next required move is upstream topology movement with `2A` first before any
+   `1B` reopen escalation.
+
+Option analysis:
+1) Direct `1B` reopen immediately:
+   - deferred.
+   - reason: user-approved sequence is `2A` first for bounded evidence before
+     higher-blast-radius upstream expansion.
+2) 2A code rewrite in this lane:
+   - deferred for first attempt.
+   - reason: first need bounded measurement of policy-surface leverage under
+     current 2A implementation posture.
+3) 2A policy-only candidate on run-local config (accepted):
+   - stage candidate run-id from frozen 2B authority,
+   - apply run-local 2A timezone policy deltas only,
+   - rerun `2A S0->S5`, then `2B S0->S8`,
+   - score with existing P3 + tail-floor tools.
+
+Execution constraints pinned:
+1) keep repo-level frozen policies unchanged where possible; policy deltas live
+   under staged run-local config for this candidate.
+2) maintain progressive engine order (`2A` before `2B`) on the same run-id.
+3) if lane fails to move floor materially, close as
+   `NO_GO_P1_REOPEN_2A_ONLY` and escalate to `1B` reopen.
+
+### Entry: 2026-02-18 18:33
+
+Execution + closure record for broader upstream reopen lane `P1.REOPEN.2A`.
+
+Execution chronology:
+1) first staged attempt:
+   - run-id: `1517706f6c4243e285ed7f46ffe225ac`
+   - result: failed at `2A-S2` (`F4:2A-S2-041`).
+   - cause: staged run root still contained prior `2A` outputs, so S2 atomic
+     publish failed write-once contract.
+2) second staged attempt:
+   - run-id: `9fd343e1a628427ebc78e3b725955c7c`
+   - result: failed at `2A-S0` (`F4:2A-S0-052`).
+   - cause: staged `run_receipt.created_utc` used 7 fractional digits; schema
+     requires exactly 6.
+3) successful bounded attempt:
+   - run-id: `867bb5c1cdbb446a8d369b039a52be5a`
+   - staged with frozen upstream `1B` only plus run-local `2A` policy deltas.
+   - executed `2A S0->S5` then `2B S0->S8`.
+   - `ENGINE_EXTERNAL_ROOTS` ordering set to
+     `run-root first, repo root second` so only `2A` timezone policy resolved
+     run-local while other references remained canonical.
+
+Run-local policy posture used on successful attempt:
+1) `tz_overrides` filtered from 7 entries to 2 entries (`TW`, `SH` only).
+2) `tz_nudge` set to `semver=1.3.2` and `epsilon_degrees=0.01`.
+
+Evidence produced:
+1) P3 scorecard:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_867bb5c1cdbb446a8d369b039a52be5a.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_867bb5c1cdbb446a8d369b039a52be5a.md`
+2) floor analysis:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_867bb5c1cdbb446a8d369b039a52be5a.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_867bb5c1cdbb446a8d369b039a52be5a.md`
+3) lane lock artifact:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_lock_867bb5c1cdbb446a8d369b039a52be5a.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_lock_867bb5c1cdbb446a8d369b039a52be5a.md`
+
+Measured outcome:
+1) baseline (`80d9...`) -> candidate (`867b...`):
+   - `share_n_groups_eq_1: 0.4830371567 -> 0.4838449111` (`+0.0008077544`)
+   - `share_max_p_ge_095: 0.4830371567 -> 0.4838449111` (`+0.0008077544`)
+   - `share_max_p_ge_095_given_multigroup: 0.0 -> 0.0`
+2) candidate still failed P3 closure gates:
+   - `s4_b_band=false`
+   - `s4_bplus_band=false`
+
+Decision:
+1) `NO_GO_P1_REOPEN_2A_ONLY`.
+2) escalation required: reopen `1B` topology lane before any `P3` retry.

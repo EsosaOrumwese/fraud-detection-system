@@ -4073,3 +4073,48 @@ Decision:
    - `runs/fix-data-engine/segment_2A_p4b_r1` is evidence-only and not promoted to authority.
 3) Retained authority:
    - `runs/fix-data-engine/segment_2A_p3` remains active `2A` best-effort authority for this cycle.
+
+---
+
+### Entry: 2026-02-18 18:26
+
+Design element: Cross-segment upstream reopen support lane for 2B (`P1.REOPEN.2A`).
+Summary: 2B tail-floor closure failed under S1-only reopen; next bounded upstream
+attempt is `2A` topology-first on the same run-id lineage before any `1B`
+reopen escalation.
+
+Execution intent (pre-change):
+1) use run-local (candidate-only) 2A timezone policy deltas so repo-level frozen
+   2A posture remains unchanged during the experiment.
+2) rerun `2A S0->S5` on staged candidate run-id rooted from 2B frozen authority.
+3) rerun `2B S0->S8` on the same run-id and score tail-floor movement.
+
+Bounded change posture:
+1) this first 2A reopen attempt is policy-surface only (`tz_overrides`,
+   `tz_nudge`) with no 2A code rewrite.
+2) if no material movement in `share(n_groups==1)` / `share(max_p_group>=0.95)`,
+   lane closes as `NO_GO_P1_REOPEN_2A_ONLY` and escalates to `1B` topology reopen.
+
+### Entry: 2026-02-18 18:33
+
+Design element: Cross-segment support execution closure for 2B `P1.REOPEN.2A`.
+Summary: Completed one bounded 2A-first reopen candidate for 2B using run-local
+2A timezone policy deltas; lane did not reduce the 2B topology floor and was
+closed as no-go.
+
+Execution notes:
+1) run-local policy isolation worked as intended when external roots were
+   ordered with run-root first:
+   - `S0` sealed `tz_overrides` count as `2` (from baseline `7`),
+   - `S1 INPUTS` resolved `tz_overrides`/`tz_nudge` from candidate run-root.
+2) successful candidate run-id:
+   - `runs/fix-data-engine/segment_2B/867bb5c1cdbb446a8d369b039a52be5a`
+   - `2A S0->S5` completed PASS before downstream `2B` execution.
+3) lane evidence artifacts:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_floor_867bb5c1cdbb446a8d369b039a52be5a.json`
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p1_reopen_2a_lock_867bb5c1cdbb446a8d369b039a52be5a.json`
+
+Outcome handoff:
+1) 2A-first policy-surface movement did not reduce 2B floor metrics.
+2) handoff decision remains `NO_GO_P1_REOPEN_2A_ONLY` for 2B lane.
+3) next upstream escalation for 2B is `1B` topology reopen.

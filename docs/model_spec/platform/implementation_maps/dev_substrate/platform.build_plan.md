@@ -718,13 +718,19 @@ Active-phase planning posture:
   - `P8.D` plane rollup is now closed PASS:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p8_plane_snapshot.json`
     - closure result: `overall_pass=true`, blocker rollup empty, runtime budgets within thresholds.
+  - `M7.E` (`P9.A`) is now closed PASS:
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_e_decision_lane_readiness_snapshot.json`
+    - closure result: `overall_pass=true`, blockers empty.
+    - closure notes:
+      - first probe window failed fail-closed on rollout churn (`M7E-B1`);
+      - rerun after service stabilization closed green on two-probe health + run-scope/idempotency/dependency checks.
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.
   - [x] `M7.B` P8 RTDL readiness + consumer posture.
   - [x] `M7.C` P8 offsets/caught-up evidence closure.
   - [x] `M7.D` P8 archive durability proof closure.
-  - [ ] `M7.E` P9 decision-lane readiness + idempotency posture.
+  - [x] `M7.E` P9 decision-lane readiness + idempotency posture.
   - [ ] `M7.F` P9 decision/action/audit commit evidence closure.
   - [ ] `M7.G` P10 identity-key pin + managed DB readiness.
   - [ ] `M7.H` P10 case/label commit evidence closure.
@@ -870,5 +876,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M7 is active for deep-plan closure and execution sequencing.
 Next action:
-- proceed to `M7.E` execution (P9 decision-lane readiness + idempotency posture),
+- proceed to `M7.F` execution (P9 decision/action/audit commit evidence closure),
 - keep fail-closed progression: `M7G-B1` subject-key placeholders remain an open forward blocker for `P10` entry.

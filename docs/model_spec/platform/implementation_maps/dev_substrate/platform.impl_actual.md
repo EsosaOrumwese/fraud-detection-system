@@ -12391,3 +12391,67 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - `overall_pass=true`
    - blocker rollup empty.
 2. `M7.P8` branch is now closure-ready.
+
+## Entry: 2026-02-18 17:54:00 +00:00 - P9.A planning expanded to execution-grade depth
+
+### User directive
+1. Plan out `P9.A` in `M7.P9`.
+
+### Planning objective
+1. Remove ambiguity before `M7.E` execution so no runtime improvisation is required.
+2. Align `P9.A` planning depth to the same closure-grade posture used for `P8`.
+
+### Changes applied
+1. Expanded `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` with:
+   - pre-execution readiness matrix (`P8 pass dependency`, service stability, policy handle closure, run-scope continuity, dependency reachability),
+   - runtime budgets (`P9.A`, `P9.B`, `P9.C`, and plane-total),
+   - rerun/rollback preparation contract,
+   - deeper `P9.A` entry conditions, preparation checks, required snapshot fields, and extended blocker taxonomy.
+2. Added `P9` unresolved blocker register scaffold (`Current blockers: None` at planning stage).
+
+### Decision-completeness posture for upcoming execution
+1. Required idempotency handles are already pinned in registry:
+   - `ACTION_IDEMPOTENCY_KEY_FIELDS`
+   - `ACTION_OUTCOME_WRITE_POLICY`
+2. P10-specific blocker (`M7G-B1`) remains forward-only and does not block `P9.A`.
+3. `P9.A` is now planning-ready for execution; no hidden lane is intentionally deferred.
+
+## Entry: 2026-02-18 18:31:00 +00:00 - `M7.E` / `P9.A` executed and closed PASS after fail-closed stability rerun
+
+### User directive
+1. Proceed with executing `P9.A`.
+
+### Execution scope
+1. Run `P9.A` fail-closed readiness and idempotency posture closure for decision lane (`DL/DF/AL/DLA`) under active run scope:
+   - `m7_execution_id = m7_20260218T141420Z`
+   - `platform_run_id = platform_20260213T214223Z`.
+2. Require:
+   - two-probe service stability checks,
+   - run-scope conformance (`REQUIRED_PLATFORM_RUN_ID`),
+   - idempotency/write-policy handle conformance,
+   - dependency reachability (`ECS/RDS/SSM/Kafka`),
+   - upstream pass-consumed assertions (`P8`/`M7.C`).
+
+### Runtime findings and closure path
+1. First attempt remained fail-closed with `M7E-B1` because probes landed during rollout churn (services transitioning from restart to steady state).
+2. Post-rollout verification showed all four services at task definition `:14` with pinned image digest:
+   - `sha256:956fbd1ca609fb6b996cb05f60078b1fb88e93520f73e69a5eb51241654a80ff`.
+3. Re-executed `P9.A` on stabilized services:
+   - `DL/DF/AL/DLA` each observed as `desired=1`, `running=1`, `pending=0` on two consecutive probes,
+   - run-scope env matched on all services,
+   - idempotency handles matched pinned registry values:
+     - `ACTION_IDEMPOTENCY_KEY_FIELDS=platform_run_id,event_id,action_type`
+     - `ACTION_OUTCOME_WRITE_POLICY=append_only`,
+   - dependency reachability and upstream pass-consumed checks were green.
+
+### Published artifacts
+1. Local control snapshot:
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_e_decision_lane_readiness_snapshot.json`.
+2. Durable control snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_e_decision_lane_readiness_snapshot.json`.
+
+### Verdict
+1. `M7.E` closes PASS:
+   - `overall_pass=true`
+   - blockers empty.
+2. M7/P9 next executable lane is `M7.F` (`P9.B` decision/action/audit evidence closure).
