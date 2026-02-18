@@ -12326,3 +12326,42 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - build/publish image with this code,
    - rematerialize ECS services,
    - rerun `M7.D` and require `overall_pass=true` with empty blockers.
+
+## Entry: 2026-02-18 17:27:00 +00:00 - `M7D-B4` closed after archive-writer image rollout + P8.C rerun PASS
+
+### User directive
+1. Close `M7D-B4` before proceeding.
+
+### Rollout strategy and fail-closed guard
+1. Live service triage confirmed blocker source was stale runtime image:
+   - archive-writer service still pointed at digest `sha256:ec6818...` (pre-fix image).
+2. Full demo apply was intentionally not used for this closure step because plan diff attempted unrelated sensitive parameter rewrites (notably IG API key default-drift risk).
+3. Applied targeted IaC rollout only for archive-writer resources:
+   - `module.demo.aws_ecs_task_definition.daemon[\"rtdl-core-archive-writer\"]`
+   - `module.demo.aws_ecs_service.daemon[\"rtdl-core-archive-writer\"]`
+   - with immutable image digest `sha256:956fbd1ca609fb6b996cb05f60078b1fb88e93520f73e69a5eb51241654a80ff`.
+
+### Runtime verification
+1. Archive-writer task definition advanced to `:16`.
+2. Service stabilized under managed Kafka posture:
+   - `desired=1`, `running=1`, no active-task exception evidence on the current stream.
+3. Prior `_file_reader is None` crash-loop evidence is no longer present on the active task after rollout.
+
+### P8.C rerun closure artifacts
+1. Republished run-scoped summary:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/rtdl_core/archive_write_summary.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/archive_write_summary.json`
+2. Republished control snapshot:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_d_archive_durability_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_d_archive_durability_snapshot.json`
+
+### Notes on evidence math correction
+1. `M7.D` verifier logic must treat offsets sentinel `-1` as zero run-window events.
+2. Closure rerun used sentinel-safe expected-event computation (`run_start_offset < 0 or run_end_offset < 0 => 0`).
+
+### Verdict
+1. `M7.D` now closes PASS:
+   - `overall_pass=true`
+   - blockers empty.
+2. `M7D-B4` is closed.
+3. M7 next executable lane is `M7.E` (P9 readiness).

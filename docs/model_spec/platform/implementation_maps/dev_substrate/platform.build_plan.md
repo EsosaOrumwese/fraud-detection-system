@@ -708,16 +708,19 @@ Active-phase planning posture:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
     - closure result: `overall_pass=true`, blockers empty.
     - note: refreshed active-epoch P7 basis currently captures empty required Kafka topics (`run_end_offset=-1` on all required partitions).
-  - `M7.D` rerun remains fail-closed (not closed):
+  - `M7.D` rerun is now closed PASS:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_d_archive_durability_snapshot.json`
-    - open blocker: archive-writer runtime crash-loop under managed Kafka posture (`M7D-B4`).
-    - implementation patch is now in-repo for Kafka intake dispatch/read path across affected workers (`archive_writer`, `decision_fabric`, `action_layer`, `case_trigger`, `case_mgmt`); closure still requires image rebuild/publish + ECS rematerialization + rerun evidence.
+    - closure result: `overall_pass=true`, blockers empty.
+    - closure path completed:
+      - runtime image rebuild/publish with Kafka intake fixes,
+      - archive-writer rematerialized to task definition `:16`,
+      - rerun evidence republished with stable writer posture.
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.
   - [x] `M7.B` P8 RTDL readiness + consumer posture.
   - [x] `M7.C` P8 offsets/caught-up evidence closure.
-  - [ ] `M7.D` P8 archive durability proof closure.
+  - [x] `M7.D` P8 archive durability proof closure.
   - [ ] `M7.E` P9 decision-lane readiness + idempotency posture.
   - [ ] `M7.F` P9 decision/action/audit commit evidence closure.
   - [ ] `M7.G` P10 identity-key pin + managed DB readiness.
@@ -864,7 +867,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M7 is active for deep-plan closure and execution sequencing.
 Next action:
-- keep archive-writer rematerialized on real worker runtime command,
-- build/publish runtime image that includes Kafka intake fixes (worker dispatch + Kafka reader path),
-- resolve `M7D-B4` runtime crash-loop under managed Kafka posture, then rerun `M7.D`,
+- proceed to `M7.E` execution (P9 decision-lane readiness + idempotency posture),
 - keep fail-closed progression: `M7G-B1` subject-key placeholders remain an open forward blocker for `P10` entry.

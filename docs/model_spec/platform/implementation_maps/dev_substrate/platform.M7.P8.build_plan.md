@@ -302,10 +302,10 @@ Execution sequence:
    - elapsed timing.
 
 DoD:
-- [ ] Archive durability posture is explicit and evidenced.
-- [ ] Active-writer case includes archive summary.
-- [ ] Archive coherence against offsets evidence is verified.
-- [ ] Snapshot exists locally + durably.
+- [x] Archive durability posture is explicit and evidenced.
+- [x] Active-writer case includes archive summary.
+- [x] Archive coherence against offsets evidence is verified.
+- [x] Snapshot exists locally + durably.
 
 Execution notes:
 1. Executed `M7.D` on active M7 context (`m7_execution_id=m7_20260218T141420Z`, `platform_run_id=platform_20260213T214223Z`) and published:
@@ -322,7 +322,19 @@ Execution notes:
    - CloudWatch logs show `AssertionError` in `archive_writer.worker` (`_file_reader is None`),
    - archive bucket run prefix is empty for this run (`archive_object_count=0`),
    - offsets coherence count is neutral for this epoch (`expected_archive_events_from_offsets=0` from refreshed P7 basis).
-4. Open blocker is runtime stability failure (`M7D-B4`) under managed Kafka posture, not archive count incoherence.
+4. Initial blocker was runtime stability failure (`M7D-B4`) under managed Kafka posture, not archive count incoherence.
+5. Rerun closure after image rollout/rematerialization:
+   - runtime rollout:
+     - archive-writer task definition advanced to `:16` on immutable image digest `sha256:956fbd1ca609fb6b996cb05f60078b1fb88e93520f73e69a5eb51241654a80ff`
+     - archive-writer service stabilized (`desired=1`, `running=1`) with no active-task crash evidence.
+   - closure artifacts (republished):
+     - local: `runs/dev_substrate/m7/20260218T141420Z/rtdl_core/archive_write_summary.json`
+     - local: `runs/dev_substrate/m7/20260218T141420Z/m7_d_archive_durability_snapshot.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/archive_write_summary.json`
+     - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_d_archive_durability_snapshot.json`
+   - closure result:
+     - `overall_pass=true`
+     - blocker rollup empty.
 
 Blockers:
 1. `M7D-B1`: expected archive proof missing.
@@ -385,7 +397,7 @@ Required metadata fields in each control-plane snapshot:
 ## 8) Completion Checklist (P8)
 - [x] P8.A complete
 - [x] P8.B complete
-- [ ] P8.C complete
+- [x] P8.C complete
 - [ ] P8.D complete
 - [ ] Runtime budget gates satisfied (or explicitly fail-closed with accepted blockers).
 - [ ] Rerun/rollback posture documented for any non-pass lane.
@@ -399,18 +411,8 @@ P8 branch is closure-ready only when:
 
 ## 10) Unresolved Blocker Register (P8 Branch)
 Current blockers:
-1. `M7D-B4` (open, blocks `P8.C` closure)
-   - observed posture:
-     - `fraud-platform-dev-min-rtdl-core-archive-writer` service is active (`desired=1`) on task definition `:15`,
-     - task definition command is now real worker runtime (`python -m fraud_detection.archive_writer.worker --profile config/platform/profiles/dev_min.yaml`),
-     - writer is crash-looping (`running=0`, repeated stopped tasks with `exitCode=1`),
-     - CloudWatch logs show runtime `AssertionError` in `archive_writer.worker` (`_file_reader is None`).
-   - impact:
-     - archive durability closure cannot claim active-writer proof because worker runtime is not stable.
-   - closure criteria:
-     - keep archive-writer service on real worker runtime command (already rematerialized),
-     - fix archive-writer runtime crash under Kafka posture (implementation patch is now in repo; requires image rollout),
-     - rerun `M7.D` and require `overall_pass=true` with empty blocker rollup.
+1. None.
+2. `M7D-B4` is closed by rollout + rerun evidence (`overall_pass=true`, blockers empty).
 
 Rule:
 1. Any blocker discovered in `P8.A..P8.D` is appended here with:

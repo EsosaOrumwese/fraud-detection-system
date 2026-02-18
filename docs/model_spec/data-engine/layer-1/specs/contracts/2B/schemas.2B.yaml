@@ -574,6 +574,38 @@ policy:
         type: object
         additionalProperties: true
       sha256_hex: { $ref: "#/$defs/hex64" }
+
+  group_mix_regularizer_v1:
+    type: object
+    additionalProperties: false
+    required:
+      - policy_id
+      - version_tag
+      - policy_version
+      - enabled
+      - apply_when_groups_ge
+      - max_p_group_soft_cap
+      - regularization_strength
+      - entropy_floor
+      - preserve_rank_order
+      - sum_to_one
+    properties:
+      policy_id: { const: group_mix_regularizer_v1 }
+      version_tag: { type: string, minLength: 1 }
+      policy_version: { type: string, minLength: 1, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
+      enabled: { type: boolean }
+      apply_when_groups_ge: { type: integer, minimum: 2 }
+      max_p_group_soft_cap: { type: number, exclusiveMinimum: 0.0, maximum: 1.0 }
+      regularization_strength: { type: number, minimum: 0.0, maximum: 1.0 }
+      entropy_floor: { type: number, minimum: 0.0 }
+      preserve_rank_order: { type: boolean }
+      sum_to_one: { type: boolean }
+      sha256_hex: { $ref: "#/$defs/hex64" }
+      notes: { type: string }
+      extensions:
+        type: object
+        additionalProperties: true
+
   virtual_edge_policy_v1:
     type: object
     additionalProperties: false

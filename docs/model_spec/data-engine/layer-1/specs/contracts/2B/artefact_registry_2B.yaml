@@ -29,6 +29,7 @@ subsegments:
           - route_rng_policy_v1
           - alias_layout_policy_v1
           - day_effect_policy_v1
+          - group_mix_regularizer_v1
           - virtual_edge_policy_v1
         cross_layer: false
         notes: null
@@ -56,6 +57,7 @@ subsegments:
           - route_rng_policy_v1
           - alias_layout_policy_v1
           - day_effect_policy_v1
+          - group_mix_regularizer_v1
           - virtual_edge_policy_v1
         cross_layer: false
         notes: null
@@ -217,6 +219,25 @@ subsegments:
         cross_layer: false
         notes: null
 
+      - name: group_mix_regularizer_v1
+        path: config/layer1/2B/policy/group_mix_regularizer_v1.json
+        type: policy
+        category: config
+        semver: '{semver}'
+        version: '{policy_version}'
+        digest: '{sha256}'
+        manifest_key: mlr.2B.policy.group_mix_regularizer_v1
+        license: Proprietary-Internal
+        role: "S4 anti-dominance regularizer knobs for bounded group-mix flattening."
+        dependencies: []
+        source: internal
+        owner: { owner_team: "l1-2b-governance" }
+        last_updated: '{iso8601_timestamp}'
+        environment: [runtime]
+        schema: schemas.2B.yaml#/policy/group_mix_regularizer_v1
+        cross_layer: false
+        notes: null
+
       # === 2B policies (token-less; S0-sealed) ===
       - name: virtual_edge_policy_v1
         path: config/layer1/2B/policy/virtual_edge_policy_v1.json
@@ -347,6 +368,7 @@ subsegments:
           - s1_site_weights
           - site_timezones
           - s3_day_effects
+          - group_mix_regularizer_v1
         cross_layer: false
         notes: "Writer order: [merchant_id, utc_day, tz_group_id]; write-once; atomic publish."
 

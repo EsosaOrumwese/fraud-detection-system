@@ -220,6 +220,24 @@ datasets:
     pii: false
     licence: Proprietary-Internal
 
+  - id: group_mix_regularizer_v1
+    status: approved
+    owner_subsegment: 2B
+    description: S4 anti-dominance regularizer knobs for bounded group-mix flattening.
+    version: '{policy_version}'
+    format: json
+    path: config/layer1/2B/policy/group_mix_regularizer_v1.json
+    partitioning: []
+    ordering: []
+    schema_ref: schemas.2B.yaml#/policy/group_mix_regularizer_v1
+    lineage:
+      produced_by: 2B.governance
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 1825
+    pii: false
+    licence: Proprietary-Internal
+
   # === 2B.S1 output ===
   - id: s1_site_weights
     status: approved

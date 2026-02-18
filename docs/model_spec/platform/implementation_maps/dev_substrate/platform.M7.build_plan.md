@@ -66,7 +66,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Phase
 Current posture:
-1. M7 is active and execution has started (`M7.A`, `M7.B`, and `M7.C` are closed; `M7.D` is next).
+1. M7 is active and execution has started (`M7.A`..`M7.D` are closed; `M7.E` is next).
 
 Execution block:
 1. No M8 execution is allowed before M7 verdict is `ADVANCE_TO_M8`.
@@ -358,9 +358,9 @@ Tasks:
 5. Publish local + durable snapshot.
 
 DoD:
-- [ ] Archive durability proof exists for active writer lane.
-- [ ] Archive progression is coherent with RTDL progression.
-- [ ] Snapshot published locally and durably.
+- [x] Archive durability proof exists for active writer lane.
+- [x] Archive progression is coherent with RTDL progression.
+- [x] Snapshot published locally and durably.
 
 Execution notes:
 1. Executed `M7.D` and published:
@@ -370,12 +370,18 @@ Execution notes:
    - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_d_archive_durability_snapshot.json`
 2. Result:
    - `overall_pass=false`
-   - open blocker `M7D-B4`.
+   - initial blocker `M7D-B4`.
 3. Runtime finding behind blocker:
    - archive-writer service is on real worker runtime command (task definition `:15`),
    - service is crash-looping (`desired=1`, `running=0`, repeated non-zero exits),
    - CloudWatch logs show `AssertionError` in `archive_writer.worker` (`_file_reader is None`).
 4. Current epoch offset basis is empty (`run_end=-1` on required partitions), so archive count coherence is neutral (`expected_archive_events_from_offsets=0`, `archive_object_count=0`); closure is still blocked by runtime stability failure.
+5. Rollout/rerun closure:
+   - archive-writer was rematerialized on task definition `:16` with immutable image digest `sha256:956fbd1ca609fb6b996cb05f60078b1fb88e93520f73e69a5eb51241654a80ff`.
+   - rerun artifacts were republished at the same local/durable paths.
+   - final closure result:
+     - `overall_pass=true`
+     - blockers empty (`M7D-B4` closed).
 
 Blockers:
 1. `M7D-B1`: archive prefix missing/empty when writer lane is expected active.
@@ -608,7 +614,7 @@ Notes:
 - [x] M7.A complete
 - [x] M7.B complete
 - [x] M7.C complete
-- [ ] M7.D complete
+- [x] M7.D complete
 - [ ] M7.E complete
 - [ ] M7.F complete
 - [ ] M7.G complete
@@ -637,16 +643,6 @@ Current blockers:
      - `LABEL_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
    - closure rule:
      - pin concrete non-placeholder subject-key fields before `M7.G` execution.
-2. `M7D-B4` (open, execution blocker for `M7.D`/`P8.C`)
-   - observed posture:
-     - archive-writer ECS service is on real worker runtime command (task definition `:15`),
-     - service is crash-looping (`desired=1`, `running=0`, repeated non-zero exits),
-     - CloudWatch logs show runtime `AssertionError` in `archive_writer.worker` (`_file_reader is None`).
-     - implementation fix is landed in-repo (Kafka reader + explicit dispatch), pending runtime image rollout.
-   - closure rule:
-     - keep real worker runtime command materialized,
-     - fix archive-writer runtime crash under managed Kafka posture,
-     - rerun `M7.D` and require `overall_pass=true` with empty blockers.
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.
 2. If this register is non-empty, M7 execution remains blocked.

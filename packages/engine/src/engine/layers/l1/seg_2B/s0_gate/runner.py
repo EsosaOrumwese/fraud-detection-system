@@ -53,6 +53,7 @@ _POLICY_IDS = {
     "route_rng_policy_v1",
     "alias_layout_policy_v1",
     "day_effect_policy_v1",
+    "group_mix_regularizer_v1",
     "virtual_edge_policy_v1",
 }
 
@@ -564,6 +565,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "route_rng_policy_v1",
         "alias_layout_policy_v1",
         "day_effect_policy_v1",
+        "group_mix_regularizer_v1",
         "virtual_edge_policy_v1",
     ]
     optional_ids = ["tz_timetable_cache", "s5_arrival_roster"]
@@ -876,6 +878,7 @@ def run_s0(config: EngineConfig, run_id: Optional[str] = None) -> S0GateResult:
         "route_rng_policy_v1",
         "alias_layout_policy_v1",
         "day_effect_policy_v1",
+        "group_mix_regularizer_v1",
         "virtual_edge_policy_v1",
     }
     for asset in sealed_assets:

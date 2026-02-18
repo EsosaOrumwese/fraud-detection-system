@@ -730,6 +730,142 @@ Definition of done:
 - [ ] no synthetic hard-truncation artifacts observed in distribution diagnostics.
 - [ ] P1/P2 gains remain non-regressed.
 
+Phase-entry locks (binding):
+- `P1` remains frozen (`run_id=c7e3f4f9715d4256b7802bdc28579d54`).
+- `P2/P2.R1` are closed as `NO_GO_P3` from S4 guard failures.
+- no additional `S1` or `S3` policy/code edits are allowed inside `P3`.
+- P3 work is constrained to `S4` policy + `S4` implementation + scoring/evidence.
+
+P3.1 - S4 policy and contract surface (`group_mix_regularizer_v1`)
+Goal:
+- create an explicit, deterministic S4 anti-collapse policy surface aligned to remediation authority.
+
+Scope:
+- add `group_mix_regularizer_v1` policy artefact under 2B policy pack.
+- include required fields from remediation:
+  - `enabled`,
+  - `apply_when_groups_ge`,
+  - `max_p_group_soft_cap`,
+  - `regularization_strength`,
+  - `entropy_floor`,
+  - `preserve_rank_order`,
+  - `sum_to_one`.
+- wire dictionary/registry/schema so S0 seals policy digest and S4 validates strict contract.
+
+Candidate surfaces:
+- `config/layer1/2B/policy/group_mix_regularizer_v1.json` (new or equivalent host file)
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/artefact_registry_2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+
+Definition of done:
+- [ ] policy artefact exists with remediation-required fields and bounded ranges.
+- [ ] contracts validate with `additionalProperties: false` posture retained.
+- [ ] S0 sealed-input digest includes S4 regularizer policy on candidate root.
+
+P3.2 - S4 implementation delta (deterministic anti-collapse regularizer)
+Goal:
+- apply bounded anti-dominance regularization in S4 while preserving deterministic replay and exact mass conservation.
+
+Scope:
+- implement policy-governed regularizer in:
+  - `packages/engine/src/engine/layers/l1/seg_2B/s4_group_weights/runner.py`
+- behavior requirements:
+  - apply only when `n_groups >= apply_when_groups_ge`,
+  - soft-cap top group (`max_p_group_soft_cap`) without hard truncation artifacts,
+  - redistribute softened mass to secondary groups with rank-order preservation when enabled,
+  - optional entropy-floor uplift bounded by `regularization_strength`,
+  - enforce exact `sum(p_group)=1` after transformation.
+- emit provenance in S4 run-report samples/counters:
+  - `regularizer_applied`,
+  - `regularizer_strength`,
+  - `regularizer_delta_mass` (or equivalent bounded delta evidence).
+
+Definition of done:
+- [ ] S4 regularizer path is deterministic and policy-governed.
+- [ ] rowwise mass-conservation checks remain exact (within numeric epsilon).
+- [ ] run-report provenance fields for regularizer decisions are emitted.
+- [ ] replay/idempotence and structural validators remain green.
+
+P3.3 - Baseline authority lane + P3 scorer
+Goal:
+- establish a fixed P3 baseline authority root and scoring harness for S4 B/B+ realism gates.
+
+Scope:
+- create one P3 authority candidate root with fixed upstream posture (`S0 -> S3` once).
+- add P3 scoring tool for S4 gates + non-regression rails.
+- evaluate against remediation thresholds:
+  - B:
+    - `max_p_group_median <= 0.85`,
+    - `share(max_p_group>=0.95) <= 0.35`,
+    - `share(groups>=2 where p>=0.05) >= 0.35`,
+    - `entropy_p50 >= 0.35`,
+    - mass conservation pass.
+  - B+:
+    - `max_p_group_median <= 0.78`,
+    - `share(max_p_group>=0.95) <= 0.20`,
+    - `share(groups>=2 where p>=0.05) >= 0.50`,
+    - `entropy_p50 >= 0.45`,
+    - mass conservation pass.
+
+Definition of done:
+- [ ] P3 scorer artifact pair exists (json+md) with explicit gate booleans.
+- [ ] baseline P3 metrics are pinned to authority run-id lineage.
+- [ ] non-regression rails (`S1`, `S2`, `S3`) are included in scorer output.
+
+P3.4 - B closure tuning (bounded sweep)
+Goal:
+- reach at least `B` on S4 realism gates with minimal synthetic artifact risk.
+
+Scope:
+- bounded sweep on S4 regularizer knobs only (no S1/S3 reopen):
+  - `max_p_group_soft_cap`,
+  - `regularization_strength`,
+  - `entropy_floor`.
+- run sequence discipline (progressive engine-safe):
+  - reseal with `S0` for each policy delta,
+  - execute `S4 -> S8` on staged candidate root with fixed upstream `S3`.
+- veto conditions:
+  - any structural/regression rail failure,
+  - synthetic artifact signatures (rank inversions / hard-cliff shapes).
+
+Definition of done:
+- [ ] at least one candidate reaches full `B` S4 gates with rails green, or
+- [ ] bounded sweep exhausts and P3 is closed as failed-with-evidence.
+- [ ] accepted/terminal candidate scorecard is emitted and referenced.
+
+P3.5 - B+ stretch lane (optional, bounded)
+Goal:
+- attempt `B+` S4 closure only after `B` is secured.
+
+Scope:
+- narrow tuning around accepted `B` candidate to improve:
+  - entropy center,
+  - dominance tail,
+  - effective multi-group share.
+- strict veto on regressions in `B`-passing rails.
+
+Definition of done:
+- [ ] either `B+` passes with evidence, or
+- [ ] lane is explicitly closed with retained `B` candidate.
+
+P3.6 - Lock, prune, and handoff decision
+Goal:
+- freeze P3 result and provide authority handoff to roster/certification phase.
+
+Scope:
+- emit P3 lock artifact:
+  - run-id, policy digests, scorer verdict, gate booleans.
+- prune superseded P3 candidate run-id roots.
+- update plan/impl/logbook with explicit handoff decision.
+
+Definition of done:
+- [ ] P3 lock artifact exists and is referenced by this plan.
+- [ ] run retention is reduced to baseline + accepted authority + reports.
+- [ ] explicit decision recorded:
+  - `GO_P4` if `B`/`B+` achieved with rails green,
+  - `NO_GO_P4` with blocker evidence otherwise.
+
 ### P4 - Realism-grade roster and certification hardening
 Goal:
 - make grade assignment fail-closed and evidence-backed using realism-grade workload.

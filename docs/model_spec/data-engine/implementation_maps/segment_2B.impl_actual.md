@@ -5816,3 +5816,96 @@ Conclusion:
    this implementation posture.
 2) Material recovery requires upstream/base-share shape change (`P1` knobs) or
    an explicit `S4` regularizer lane (`P3`) that can alter dominance directly.
+
+### Entry: 2026-02-18 17:12
+
+Pre-execution planning expansion for `P3` (S4 anti-dominance lane).
+
+Planning objective:
+1) convert high-level `P3` into executable sub-phases with bounded tuning and
+   explicit gates/DoDs before any code edits.
+
+Decision basis:
+1) remediation authority (`segment_2B_remediation_report`) prescribes S4
+   anti-collapse regularization as Wave-2 owner surface.
+2) completed `P2` sensitivity sweep shows S3 knobs are low-leverage for S4
+   entropy guard movement.
+3) therefore accepted path is direct `S4` policy+implementation tuning with
+   strict non-regression rails.
+
+Rejected alternatives:
+1) keep iterating S3 knobs in `P2`:
+   - rejected due measured effect size being far below required entropy lift.
+2) reopen `P1` immediately:
+   - deferred.
+   - reason: remediation sequence and current evidence favor exhausting the
+     S4 owner surface before upstream reopening.
+
+Accepted `P3` plan structure:
+1) `P3.1` - create `group_mix_regularizer_v1` policy + contract wiring.
+2) `P3.2` - implement deterministic S4 regularizer with rank-preservation,
+   soft-cap behavior, and exact sum-to-one enforcement.
+3) `P3.3` - pin P3 baseline authority root and add S4 B/B+ scorer lane.
+4) `P3.4` - bounded B closure sweep on S4 regularizer knobs only.
+5) `P3.5` - optional B+ stretch lane (bounded, veto-driven).
+6) `P3.6` - lock/prune/handoff with explicit `GO_P4` vs `NO_GO_P4`.
+
+Execution guardrails pinned:
+1) `P1` remains frozen.
+2) no S1/S3 policy or code edits inside `P3`.
+3) any S4 policy change triggers S0 reseal on candidate root.
+4) no phase advance without full DoD closure and evidence artifacts.
+
+### Entry: 2026-02-18 17:27
+
+Pre-change execution plan for full `P3` (`P3.1 -> P3.6`) with deterministic
+S4 regularizer path.
+
+Problem restatement:
+1) `P2/P2.R1` established that S3-side tuning is not sufficient to clear the
+   failing S4 dominance/entropy guard.
+2) `P3` must therefore introduce an explicit S4-owned anti-collapse surface
+   while keeping `P1` frozen and avoiding any new S1/S3 tuning.
+
+Option analysis for S4 anti-collapse implementation:
+1) hard clipping top-group probability and renormalizing:
+   - rejected.
+   - reason: introduces obvious hard-cliff artifacts and can violate desired
+     smoothness/realism posture from remediation authority.
+2) deterministic smooth blend toward uniform with optional entropy floor:
+   - accepted.
+   - reason: preserves determinism, keeps rank ordering stable, preserves exact
+     mass conservation, and gives bounded knobs (`cap/strength/floor`) for
+     controlled closure.
+
+Selected algorithmic posture (performance + determinism):
+1) base path remains unchanged: `p_raw = (base_share * gamma) / denom`.
+2) regularizer path (policy-governed):
+   - apply only when `n_groups >= apply_when_groups_ge`,
+   - smooth flattening via convex blend with uniform using
+     `regularization_strength`,
+   - optional additional blend to satisfy `max_p_group_soft_cap`,
+   - optional entropy-floor uplift via bounded binary search blend against
+     uniform,
+   - exact sum-to-one normalization at end (`sum_to_one=true`).
+3) complexity target:
+   - O(groups_per_merchant_day) per merchant-day row group,
+   - constant-memory operations per group,
+   - no sort-heavy or quadratic operations in hot loop.
+
+Planned file-touch set before execution:
+1) `config/layer1/2B/policy/group_mix_regularizer_v1.json` (new policy).
+2) `docs/model_spec/data-engine/layer-1/specs/contracts/2B/`
+   - `dataset_dictionary.layer1.2B.yaml`
+   - `artefact_registry_2B.yaml`
+   - `schemas.2B.yaml`
+3) `packages/engine/src/engine/layers/l1/seg_2B/`
+   - `s0_gate/runner.py` (seal + policy digest)
+   - `s4_group_weights/runner.py` (regularizer implementation + provenance)
+4) `tools/score_segment2b_p3_candidate.py` (P3 scorer with B/B+ gates).
+
+Execution sequence locked:
+1) implement `P3.1/P3.2` in one patch set, then create scorer (`P3.3`).
+2) stage fresh candidate root from frozen authority, run `S0 -> S8`.
+3) score candidate; if B not reached, run bounded S4-only policy sweep.
+4) close `P3.4/P3.5/P3.6` with lock artifact and prune superseded run roots.

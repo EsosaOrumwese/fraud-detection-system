@@ -26,6 +26,7 @@ from engine.contracts.loader import (
 from engine.contracts.source import ContractSource
 from engine.core.config import EngineConfig
 from engine.core.errors import ContractError, EngineFailure, InputResolutionError, SchemaValidationError
+from engine.core.hashing import sha256_file
 from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths
 from engine.core.time import utc_now_rfc3339_micro
@@ -69,6 +70,19 @@ class S4Result:
     manifest_fingerprint: str
     output_root: Path
     run_report_path: Path
+
+
+@dataclass(frozen=True)
+class GroupMixRegularizerPolicy:
+    enabled: bool
+    apply_when_groups_ge: int
+    max_p_group_soft_cap: float
+    regularization_strength: float
+    entropy_floor: float
+    preserve_rank_order: bool
+    sum_to_one: bool
+    version_tag: str
+    sha256_hex: str
 
 
 class _StepTimer:
@@ -124,6 +138,131 @@ class _ProgressTracker:
                 elapsed,
                 rate,
             )
+
+
+def _entropy(values: list[float]) -> float:
+    total = 0.0
+    for value in values:
+        if value > 0.0:
+            total -= value * math.log(value)
+    return total
+
+
+def _blend_with_uniform(values: list[float], blend: float) -> list[float]:
+    blend_clamped = max(0.0, min(float(blend), 1.0))
+    if blend_clamped <= 0.0:
+        return list(values)
+    n = len(values)
+    if n == 0:
+        return []
+    uniform = 1.0 / float(n)
+    scale = 1.0 - blend_clamped
+    offset = blend_clamped * uniform
+    return [(scale * value) + offset for value in values]
+
+
+def _solve_entropy_blend(values: list[float], target_entropy: float) -> float:
+    if not values:
+        return 0.0
+    n = len(values)
+    entropy_now = _entropy(values)
+    if target_entropy <= entropy_now + EPSILON:
+        return 0.0
+    entropy_uniform = math.log(float(n))
+    if target_entropy >= entropy_uniform - EPSILON:
+        return 1.0
+    lo = 0.0
+    hi = 1.0
+    for _ in range(36):
+        mid = (lo + hi) / 2.0
+        entropy_mid = _entropy(_blend_with_uniform(values, mid))
+        if entropy_mid + EPSILON < target_entropy:
+            lo = mid
+        else:
+            hi = mid
+    return hi
+
+
+def _apply_group_mix_regularizer(
+    p_values_raw: list[float],
+    policy: GroupMixRegularizerPolicy,
+) -> tuple[list[float], dict[str, float | bool]]:
+    if not p_values_raw:
+        return [], {"applied": False, "delta_mass": 0.0, "entropy_pre": 0.0, "entropy_post": 0.0}
+    if (not policy.enabled) or len(p_values_raw) < policy.apply_when_groups_ge:
+        entropy_value = _entropy(p_values_raw)
+        return (
+            list(p_values_raw),
+            {
+                "applied": False,
+                "delta_mass": 0.0,
+                "entropy_pre": entropy_value,
+                "entropy_post": entropy_value,
+                "lambda_strength": 0.0,
+                "lambda_cap": 0.0,
+                "lambda_entropy": 0.0,
+                "max_p_pre": max(p_values_raw),
+                "max_p_post": max(p_values_raw),
+            },
+        )
+
+    values = list(p_values_raw)
+    n = len(values)
+    uniform = 1.0 / float(n)
+    entropy_pre = _entropy(values)
+    max_p_pre = max(values)
+
+    lambda_strength = max(0.0, min(policy.regularization_strength, 1.0))
+    if lambda_strength > 0.0:
+        values = _blend_with_uniform(values, lambda_strength)
+
+    lambda_cap = 0.0
+    max_after_strength = max(values)
+    cap = max(0.0, min(policy.max_p_group_soft_cap, 1.0))
+    if cap < 1.0 and max_after_strength > cap + EPSILON and max_after_strength > uniform + EPSILON:
+        lambda_cap = (max_after_strength - cap) / (max_after_strength - uniform)
+        lambda_cap = max(0.0, min(lambda_cap, 1.0))
+        if policy.preserve_rank_order and lambda_cap >= 1.0:
+            lambda_cap = 1.0 - 1.0e-9
+        values = _blend_with_uniform(values, lambda_cap)
+
+    lambda_entropy = 0.0
+    if policy.entropy_floor > 0.0:
+        lambda_entropy = _solve_entropy_blend(values, policy.entropy_floor)
+        if policy.preserve_rank_order and lambda_entropy >= 1.0:
+            lambda_entropy = 1.0 - 1.0e-9
+        if lambda_entropy > 0.0:
+            values = _blend_with_uniform(values, lambda_entropy)
+
+    for value in values:
+        if value < -EPSILON:
+            raise ValueError(f"regularizer produced negative probability: {value}")
+    values = [0.0 if value < 0.0 else value for value in values]
+
+    total = sum(values)
+    if (not math.isfinite(total)) or total <= 0.0:
+        raise ValueError(f"regularizer produced non-positive mass: {total}")
+    if policy.sum_to_one or abs(total - 1.0) > EPSILON:
+        values = [value / total for value in values]
+
+    entropy_post = _entropy(values)
+    max_p_post = max(values)
+    delta_mass = 0.5 * sum(abs(new - old) for new, old in zip(values, p_values_raw))
+    applied = any(abs(new - old) > 1.0e-15 for new, old in zip(values, p_values_raw))
+    return (
+        values,
+        {
+            "applied": applied,
+            "delta_mass": delta_mass,
+            "entropy_pre": entropy_pre,
+            "entropy_post": entropy_post,
+            "lambda_strength": lambda_strength,
+            "lambda_cap": lambda_cap,
+            "lambda_entropy": lambda_entropy,
+            "max_p_pre": max_p_pre,
+            "max_p_post": max_p_post,
+        },
+    )
 
 
 def _emit_event(
@@ -243,6 +382,7 @@ def _resolve_entries(dictionary: dict) -> dict[str, dict]:
         "s1_site_weights",
         "site_timezones",
         "s3_day_effects",
+        "group_mix_regularizer_v1",
         "s4_group_weights",
     )
     entries: dict[str, dict] = {}
@@ -415,7 +555,21 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     weights_catalog_path = ""
     timezones_catalog_path = ""
     day_effects_catalog_path = ""
+    policy_catalog_path = ""
     output_catalog_path = ""
+    policy_version_tag = ""
+    policy_sha256 = ""
+    regularizer_policy = GroupMixRegularizerPolicy(
+        enabled=False,
+        apply_when_groups_ge=2,
+        max_p_group_soft_cap=1.0,
+        regularization_strength=0.0,
+        entropy_floor=0.0,
+        preserve_rank_order=True,
+        sum_to_one=True,
+        version_tag="",
+        sha256_hex="",
+    )
 
     merchants_total = 0
     tz_groups_total = 0
@@ -431,6 +585,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     merchants_over_base_share_epsilon = 0
     max_abs_mass_error_per_day = 0.0
     merchants_days_over_epsilon = 0
+    regularizer_rows_eligible = 0
+    regularizer_rows_applied = 0
+    regularizer_total_delta_mass = 0.0
+    regularizer_max_delta_mass = 0.0
+    regularizer_max_lambda_cap = 0.0
+    regularizer_max_lambda_entropy = 0.0
 
     publish_bytes_total = 0
     write_once_verified = False
@@ -544,7 +704,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     )
 
     logger.info(
-        "S4: objective=renormalise tz-group mix from S1 base shares + S3 day effects; gated inputs s0_receipt,sealed_inputs,s1_site_weights,site_timezones,s3_day_effects -> output s4_group_weights",
+        "S4: objective=renormalise tz-group mix from S1 base shares + S3 day effects with policy-governed anti-dominance regularizer; gated inputs s0_receipt,sealed_inputs,s1_site_weights,site_timezones,s3_day_effects,group_mix_regularizer_v1 -> output s4_group_weights",
     )
 
     receipt_entry = entries["s0_gate_receipt_2B"]
@@ -580,18 +740,24 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     if sealed_errors:
         _abort("2B-S4-020", "V-02", "sealed_inputs_invalid", {"error": str(sealed_errors[0])})
 
-    sealed_timezones = _find_sealed_asset(sealed_payload, "site_timezones")
+    sealed_by_id = {item.get("asset_id"): item for item in sealed_payload if isinstance(item, dict)}
+    sealed_timezones = sealed_by_id.get("site_timezones")
+    sealed_policy = sealed_by_id.get("group_mix_regularizer_v1")
     if not sealed_timezones:
         _abort("2B-S4-022", "V-18", "site_timezones_not_sealed", {"asset_id": "site_timezones"})
+    if not sealed_policy:
+        _abort("2B-S4-022", "V-18", "policy_not_sealed", {"asset_id": "group_mix_regularizer_v1"})
 
     weights_entry = entries["s1_site_weights"]
     timezones_entry = entries["site_timezones"]
     day_effects_entry = entries["s3_day_effects"]
+    policy_entry = entries["group_mix_regularizer_v1"]
     output_entry = entries["s4_group_weights"]
 
     weights_catalog_path = _render_catalog_path(weights_entry, tokens)
     timezones_catalog_path = _render_catalog_path(timezones_entry, tokens)
     day_effects_catalog_path = _render_catalog_path(day_effects_entry, tokens)
+    policy_catalog_path = _render_catalog_path(policy_entry, {})
     output_catalog_path = _render_catalog_path(output_entry, tokens)
 
     if sealed_timezones.get("path") and str(sealed_timezones.get("path")) != timezones_catalog_path:
@@ -613,9 +779,18 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             {"sealed": sealed_partition, "expected": tokens},
         )
 
+    if sealed_policy.get("path") and str(sealed_policy.get("path")) != policy_catalog_path:
+        _abort(
+            "2B-S4-070",
+            "V-03",
+            "policy_path_mismatch",
+            {"sealed": sealed_policy.get("path"), "dictionary": policy_catalog_path},
+        )
+
     weights_path = _resolve_input(weights_entry, tokens, "s1_site_weights")
     timezones_path = _resolve_input(timezones_entry, tokens, "site_timezones")
     day_effects_path = _resolve_input(day_effects_entry, tokens, "s3_day_effects")
+    policy_path = _resolve_input(policy_entry, {}, "group_mix_regularizer_v1")
 
     if not weights_path.exists():
         _abort("2B-S4-020", "V-02", "input_missing", {"id": "s1_site_weights", "path": str(weights_path)})
@@ -623,6 +798,43 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         _abort("2B-S4-020", "V-02", "input_missing", {"id": "site_timezones", "path": str(timezones_path)})
     if not day_effects_path.exists():
         _abort("2B-S4-020", "V-02", "input_missing", {"id": "s3_day_effects", "path": str(day_effects_path)})
+    if not policy_path.exists():
+        _abort(
+            "2B-S4-020",
+            "V-02",
+            "input_missing",
+            {"id": "group_mix_regularizer_v1", "path": str(policy_path)},
+        )
+
+    policy_digest = sha256_file(policy_path).sha256_hex
+    sealed_policy_digest = str(sealed_policy.get("sha256_hex") or "")
+    if sealed_policy_digest and sealed_policy_digest != policy_digest:
+        _abort(
+            "2B-S4-070",
+            "V-03",
+            "policy_digest_mismatch",
+            {"sealed": sealed_policy_digest, "computed": policy_digest},
+        )
+
+    policy_payload = _load_json(policy_path)
+    try:
+        _validate_payload(schema_2b, "policy/group_mix_regularizer_v1", policy_payload)
+    except SchemaValidationError as exc:
+        _abort("2B-S4-031", "V-18", "policy_schema_invalid", {"error": str(exc)})
+
+    policy_version_tag = str(policy_payload.get("version_tag") or "")
+    policy_sha256 = str(policy_payload.get("sha256_hex") or policy_digest)
+    regularizer_policy = GroupMixRegularizerPolicy(
+        enabled=bool(policy_payload.get("enabled", False)),
+        apply_when_groups_ge=max(2, int(policy_payload.get("apply_when_groups_ge") or 2)),
+        max_p_group_soft_cap=float(policy_payload.get("max_p_group_soft_cap") or 1.0),
+        regularization_strength=float(policy_payload.get("regularization_strength") or 0.0),
+        entropy_floor=float(policy_payload.get("entropy_floor") or 0.0),
+        preserve_rank_order=bool(policy_payload.get("preserve_rank_order", True)),
+        sum_to_one=bool(policy_payload.get("sum_to_one", True)),
+        version_tag=policy_version_tag,
+        sha256_hex=policy_sha256,
+    )
 
     for dataset_id, path in (
         ("s1_site_weights", weights_catalog_path),
@@ -811,11 +1023,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     output_tmp.mkdir(parents=True, exist_ok=True)
 
     logger.info(
-        "S4: renormalising day mixes (merchants=%s tz_groups=%s days=%s rows=%s)",
+        "S4: renormalising day mixes (merchants=%s tz_groups=%s days=%s rows=%s regularizer_enabled=%s cap=%.4f strength=%.4f entropy_floor=%.4f)",
         merchants_total,
         tz_groups_total,
         days_total,
         rows_expected,
+        regularizer_policy.enabled,
+        regularizer_policy.max_p_group_soft_cap,
+        regularizer_policy.regularization_strength,
+        regularizer_policy.entropy_floor,
     )
 
     def _normalisation_sort_key(item: dict) -> tuple:
@@ -855,6 +1071,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         nonlocal max_abs_mass_error_per_day
         nonlocal merchants_days_over_epsilon
         nonlocal part_index
+        nonlocal regularizer_rows_eligible
+        nonlocal regularizer_rows_applied
+        nonlocal regularizer_total_delta_mass
+        nonlocal regularizer_max_delta_mass
+        nonlocal regularizer_max_lambda_cap
+        nonlocal regularizer_max_lambda_entropy
 
         expected_tzids = merchant_tzids.get(merchant_id)
         if expected_tzids is None:
@@ -936,6 +1158,55 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 )
             p_values = [p / sum_clamped for p in clamped]
 
+        p_values_raw = list(p_values)
+        regularizer_meta: dict[str, float | bool] = {
+            "applied": False,
+            "delta_mass": 0.0,
+            "entropy_pre": _entropy(p_values_raw),
+            "entropy_post": _entropy(p_values_raw),
+            "lambda_strength": 0.0,
+            "lambda_cap": 0.0,
+            "lambda_entropy": 0.0,
+            "max_p_pre": max(p_values_raw),
+            "max_p_post": max(p_values_raw),
+        }
+        if regularizer_policy.enabled and len(p_values_raw) >= regularizer_policy.apply_when_groups_ge:
+            regularizer_rows_eligible += 1
+            try:
+                p_values, regularizer_meta = _apply_group_mix_regularizer(p_values_raw, regularizer_policy)
+            except ValueError as exc:
+                _abort(
+                    "2B-S4-096",
+                    "V-11",
+                    "regularizer_invalid",
+                    {"merchant_id": merchant_id, "utc_day": utc_day, "error": str(exc)},
+                )
+            if bool(regularizer_meta.get("applied", False)):
+                regularizer_rows_applied += 1
+                delta_mass = float(regularizer_meta.get("delta_mass", 0.0))
+                regularizer_total_delta_mass += delta_mass
+                regularizer_max_delta_mass = max(regularizer_max_delta_mass, delta_mass)
+                regularizer_max_lambda_cap = max(
+                    regularizer_max_lambda_cap,
+                    float(regularizer_meta.get("lambda_cap", 0.0)),
+                )
+                regularizer_max_lambda_entropy = max(
+                    regularizer_max_lambda_entropy,
+                    float(regularizer_meta.get("lambda_entropy", 0.0)),
+                )
+                if len(samples_gamma_echo) < 20:
+                    samples_gamma_echo.append(
+                        {
+                            "merchant_id": merchant_id,
+                            "utc_day": utc_day,
+                            "delta_mass": delta_mass,
+                            "entropy_pre": float(regularizer_meta.get("entropy_pre", 0.0)),
+                            "entropy_post": float(regularizer_meta.get("entropy_post", 0.0)),
+                            "max_p_pre": float(regularizer_meta.get("max_p_pre", 0.0)),
+                            "max_p_post": float(regularizer_meta.get("max_p_post", 0.0)),
+                        }
+                    )
+
         sum_p_group = sum(p_values)
         abs_error = abs(sum_p_group - 1.0)
         max_abs_mass_error_per_day = max(max_abs_mass_error_per_day, abs_error)
@@ -986,7 +1257,22 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     "p_group_out_of_range",
                     {"merchant_id": merchant_id, "utc_day": utc_day, "tz_group_id": tzid, "value": p_value},
                 )
-            if abs(p_value - (mass_raw / denom_raw)) > EPSILON:
+            expected_raw = mass_raw / denom_raw
+            if abs(p_values_raw[index] - expected_raw) > EPSILON:
+                _abort(
+                    "2B-S4-095",
+                    "V-19",
+                    "audit_p_group_raw_mismatch",
+                    {
+                        "merchant_id": merchant_id,
+                        "utc_day": utc_day,
+                        "tz_group_id": tzid,
+                        "expected": expected_raw,
+                        "observed": p_values_raw[index],
+                        "epsilon": EPSILON,
+                    },
+                )
+            if (not bool(regularizer_meta.get("applied", False))) and abs(p_value - expected_raw) > EPSILON:
                 _abort(
                     "2B-S4-095",
                     "V-19",
@@ -995,7 +1281,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         "merchant_id": merchant_id,
                         "utc_day": utc_day,
                         "tz_group_id": tzid,
-                        "expected": mass_raw / denom_raw,
+                        "expected": expected_raw,
                         "observed": p_value,
                         "epsilon": EPSILON,
                     },
@@ -1237,10 +1523,23 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             "dictionary_version": dictionary_version,
             "registry_version": registry_version,
         },
+        "policy": {
+            "id": "group_mix_regularizer_v1",
+            "version_tag": policy_version_tag,
+            "sha256_hex": policy_sha256,
+            "enabled": regularizer_policy.enabled,
+            "apply_when_groups_ge": regularizer_policy.apply_when_groups_ge,
+            "max_p_group_soft_cap": regularizer_policy.max_p_group_soft_cap,
+            "regularization_strength": regularizer_policy.regularization_strength,
+            "entropy_floor": regularizer_policy.entropy_floor,
+            "preserve_rank_order": regularizer_policy.preserve_rank_order,
+            "sum_to_one": regularizer_policy.sum_to_one,
+        },
         "inputs_summary": {
             "weights_path": weights_catalog_path,
             "timezones_path": timezones_catalog_path,
             "day_effects_path": day_effects_catalog_path,
+            "policy_path": policy_catalog_path,
             "merchants_total": merchants_total,
             "tz_groups_total": tz_groups_total,
             "days_total": days_total,
@@ -1252,6 +1551,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         "normalisation": {
             "max_abs_mass_error_per_day": max_abs_mass_error_per_day,
             "merchants_days_over_epsilon": merchants_days_over_epsilon,
+            "regularizer_rows_eligible": regularizer_rows_eligible,
+            "regularizer_rows_applied": regularizer_rows_applied,
+            "regularizer_total_delta_mass": regularizer_total_delta_mass,
+            "regularizer_max_delta_mass": regularizer_max_delta_mass,
+            "regularizer_max_lambda_cap": regularizer_max_lambda_cap,
+            "regularizer_max_lambda_entropy": regularizer_max_lambda_entropy,
         },
         "publish": {
             "target_path": output_catalog_path,
@@ -1276,7 +1581,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             "normalisation": samples_normalisation,
             "base_share": samples_base_share,
             "coverage": samples_coverage,
-            **({"gamma_echo": samples_gamma_echo} if samples_gamma_echo else {}),
+            **({"regularizer": samples_gamma_echo} if samples_gamma_echo else {}),
         },
         "counters": {
             "merchants_total": merchants_total,
@@ -1289,6 +1594,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             "multimap_keys": multimap_keys,
             "merchants_over_base_share_epsilon": merchants_over_base_share_epsilon,
             "merchants_days_over_norm_epsilon": merchants_days_over_epsilon,
+            "regularizer_rows_eligible": regularizer_rows_eligible,
+            "regularizer_rows_applied": regularizer_rows_applied,
             "publish_bytes_total": publish_bytes_total,
         },
         "durations_ms": {
@@ -1304,6 +1611,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             {"id": "s1_site_weights", "path": weights_catalog_path},
             {"id": "site_timezones", "path": timezones_catalog_path},
             {"id": "s3_day_effects", "path": day_effects_catalog_path},
+            {"id": "group_mix_regularizer_v1", "path": policy_catalog_path},
             {"id": "s4_group_weights", "path": output_catalog_path},
         ],
     }

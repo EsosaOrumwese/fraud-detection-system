@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "apply_when_groups_ge": 2,
+  "max_p_group_soft_cap": 0.84,
+  "regularization_strength": 0.26,
+  "entropy_floor": 0.4,
+  "policy_id": "group_mix_regularizer_v1",
+  "policy_version": "1.0.0",
+  "preserve_rank_order": true,
+  "sha256_hex": "6cf0dc7647d5dfd50cd036f2ba5f38f70f7780f6ef2796f0f6403028e85d61f3",
+  "sum_to_one": true,
+  "version_tag": "1.0.0",
+  "notes": "Deterministic S4 anti-collapse regularizer using smooth uniform blending and bounded entropy uplift."
+}
