@@ -5750,3 +5750,69 @@ Retention/pruning:
 Decision:
 1) `NO_GO_P3` remains for closure from `P2`/`P2.R1` lane.
 2) next remediation movement should transition to S4-focused work under `P3`.
+
+### Entry: 2026-02-18 17:04
+
+Statistical sensitivity analysis executed to isolate why `P2` fails and which
+knobs materially affect the failing `S4` guard.
+
+Diagnostic goal:
+1) quantify sensitivity of `S4 entropy_p50` and `S4 max_p_group_p50` to current
+   `P2` S3 knobs.
+2) determine whether the `P2` failure is actually recoverable via S3 tuning.
+
+Method:
+1) Added analysis tool:
+   - `tools/analyze_segment2b_p2_knob_sensitivity.py`
+2) Design:
+   - one-factor-at-a-time sweep around current `P2.R1` baseline for 5 knobs:
+     `sigma`, `jitter`, `weekly_amp`, `tz_spread`, `clip_width`.
+   - 11 total runs: baseline + low/high per factor.
+3) Execution:
+   - staged temporary run roots under
+     `runs/fix-data-engine/segment_2B_sensitivity/`,
+   - ran `S0 -> S4` only for each point,
+   - scored `S3` + `S4` metrics per run,
+   - marked all sweep runs with `_FAILED.SENTINEL.json` and pruned using
+     `tools/prune_failed_runs.py` after metrics export.
+
+Evidence artifacts:
+1) `runs/fix-data-engine/segment_2B/reports/segment2b_p2_knob_sensitivity.json`
+2) `runs/fix-data-engine/segment_2B/reports/segment2b_p2_knob_sensitivity.csv`
+3) `runs/fix-data-engine/segment_2B/reports/segment2b_p2_knob_sensitivity.md`
+
+Key findings:
+1) Baseline (current `P2.R1` posture):
+   - `S4 entropy_p50=0.126338` (target floor `>=0.20`),
+   - `S4 max_p_group_p50=0.972396` (target ceiling `<=0.97`),
+   - `S3 gamma_std_median=0.092551`.
+2) Largest observed entropy movement across full knob swing:
+   - `sigma` high-low delta: `-0.000790` (largest, but tiny),
+   - `jitter` high-low delta: `+0.000241`,
+   - `tz_spread` high-low delta: `+0.000075`,
+   - `weekly_amp`: effectively `0`,
+   - `clip_width`: effectively `0`.
+3) Gap magnitude:
+   - required entropy lift to clear guard: `+0.073662`,
+   - best observed knob movement range: `~0.000879` total across sweep.
+   - implication: current S3 knobs are ~2 orders of magnitude too weak to
+     recover the failing S4 guard.
+4) Structural attribution:
+   - `base_entropy_p50=0.125484` (from S4 `base_share` columns) is already
+     near failing `S4 entropy_p50`,
+   - this means the collapse signature is primarily inherited from
+     `S1->tz-group` base-share geometry, not caused by S3 volatility shaping.
+
+Mechanistic clarification:
+1) In `S4` the mapping is `p_group ∝ base_share * gamma` (no S4 policy
+   regularizer exists in this lane).
+2) In `S3`, `weekly_term` is merchant-day scalar (not tz-specific), so it acts
+   as a common multiplicative factor on all tz groups and cancels during S4
+   renormalization; this is why `weekly_amp` has near-zero measured effect.
+3) `gamma_clip` width is inert in this regime because clipping pressure is low.
+
+Conclusion:
+1) `P2` failure is not recoverable through additional S3 knob tweaking alone in
+   this implementation posture.
+2) Material recovery requires upstream/base-share shape change (`P1` knobs) or
+   an explicit `S4` regularizer lane (`P3`) that can alter dominance directly.
