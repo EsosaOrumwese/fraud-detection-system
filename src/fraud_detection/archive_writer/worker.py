@@ -293,7 +293,7 @@ class ArchiveWriterWorker:
                         {
                             "topic": topic,
                             "partition": int(partition),
-                            "offset": str(record.get("offset") or ""),
+                            "offset": str(record.get("offset")) if record.get("offset") is not None else "",
                             "offset_kind": "kafka_offset",
                             "payload": record.get("payload") if isinstance(record.get("payload"), Mapping) else {},
                         }

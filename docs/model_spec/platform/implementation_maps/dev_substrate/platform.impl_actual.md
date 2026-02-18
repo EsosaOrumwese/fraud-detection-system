@@ -12576,3 +12576,37 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Invariants
 1. Fail-closed until DLA Kafka path is live and non-zero audit evidence is observed.
 2. No branch operations.
+
+## Entry: 2026-02-18 20:26:00 +00:00 - M7.F/P9.B blocker root-cause closure plan: Kafka offset zero-normalization crash
+### Problem statement
+1. `P9.B` remained blocked with zero run-scoped decision/audit production even after IG auth + decision-lane wiring rematerialization.
+2. Live IG logs proved traffic ingestion/publish was non-zero on `fp.bus.traffic.fraud.v1`, but DF kept restarting and `fp.bus.rtdl.v1` stayed empty.
+
+### Root cause (runtime truth)
+1. DF crash trace on active stream (`ecs/decision-lane-df/.../70e23...`) showed:
+   - `ValueError: invalid literal for int() with base 10: ''` in `DecisionFabricWorker._ConsumerCheckpointStore.advance`.
+2. Crash was triggered by Kafka offset normalization bug in multiple workers:
+   - code used `str(record.get("offset") or "")`, which converts valid offset `0` into `""`,
+   - checkpoint advance then attempted `int("")` and failed.
+
+### Decision
+1. Patch offset normalization to preserve numeric zero in Kafka reader rows:
+   - `str(record.get("offset")) if record.get("offset") is not None else ""`.
+2. Apply this fix consistently to all affected workers to prevent repeated drift in adjacent phases:
+   - `decision_fabric`, `action_layer`, `decision_log_audit`, `archive_writer`, `case_trigger`, `case_mgmt`.
+
+### Files patched
+1. `src/fraud_detection/decision_fabric/worker.py`
+2. `src/fraud_detection/action_layer/worker.py`
+3. `src/fraud_detection/decision_log_audit/intake.py`
+4. `src/fraud_detection/archive_writer/worker.py`
+5. `src/fraud_detection/case_trigger/worker.py`
+6. `src/fraud_detection/case_mgmt/worker.py`
+
+### Verification pre-rollout
+1. `python -m py_compile` passed for all changed modules.
+2. Next closure steps (fail-closed):
+   - build/publish new image digest,
+   - rematerialize `decision-lane-df/al/dla` on new digest,
+   - re-seed run-scoped ingress,
+   - rerun `P9.B` evidence assembly and require non-zero run-scoped decision/audit/action.

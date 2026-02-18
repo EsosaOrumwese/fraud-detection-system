@@ -588,7 +588,7 @@ class DecisionLogAuditBusConsumer:
                     bus_input = DlaBusInput(
                         topic=topic,
                         partition=partition,
-                        offset=str(record.get("offset") or ""),
+                        offset=str(record.get("offset")) if record.get("offset") is not None else "",
                         offset_kind="kafka_offset",
                         payload=payload if isinstance(payload, dict) else {},
                         published_at_utc=str(record.get("published_at_utc") or "") or None,
