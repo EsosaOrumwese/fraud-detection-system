@@ -332,6 +332,15 @@ def _atomic_publish_file(tmp_path: Path, final_path: Path, logger, label: str) -
         tmp_hash = sha256_file(tmp_path).sha256_hex
         final_hash = sha256_file(final_path).sha256_hex
         if tmp_hash != final_hash:
+            # S6 appends additional trace rows to the shared rng_trace_log path.
+            # On replay, accept byte-prefix equality for the S5-produced prefix.
+            if label == "rng_trace_log" and _file_prefix_matches(tmp_path, final_path):
+                tmp_path.unlink(missing_ok=True)
+                logger.info(
+                    "S5: %s already exists with downstream append; replay prefix verified, skipping publish.",
+                    label,
+                )
+                return True
             raise EngineFailure(
                 "F4",
                 "2B-S5-080",
@@ -354,6 +363,25 @@ def _atomic_publish_file(tmp_path: Path, final_path: Path, logger, label: str) -
             {"detail": "atomic publish failed", "path": str(final_path), "error": str(exc)},
         ) from exc
     return False
+
+
+def _file_prefix_matches(prefix_path: Path, target_path: Path, chunk_size: int = 1 << 20) -> bool:
+    prefix_size = prefix_path.stat().st_size
+    target_size = target_path.stat().st_size
+    if target_size < prefix_size:
+        return False
+    with prefix_path.open("rb") as p_handle, target_path.open("rb") as t_handle:
+        remaining = prefix_size
+        while remaining > 0:
+            to_read = chunk_size if remaining > chunk_size else remaining
+            p_chunk = p_handle.read(to_read)
+            t_chunk = t_handle.read(to_read)
+            if p_chunk != t_chunk:
+                return False
+            remaining -= len(p_chunk)
+            if len(p_chunk) == 0:
+                return False
+    return True
 
 
 def _ensure_rng_audit(audit_path: Path, audit_entry: dict, logger, state_label: str) -> None:

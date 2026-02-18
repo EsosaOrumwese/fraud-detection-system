@@ -66,7 +66,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Phase
 Current posture:
-1. M7 is active for deep planning and sequential execution preparation.
+1. M7 is active and execution has started (`M7.A` closed, `M7.B` next).
 
 Execution block:
 1. No M8 execution is allowed before M7 verdict is `ADVANCE_TO_M8`.
@@ -200,10 +200,28 @@ Tasks:
 6. Publish local + durable snapshot.
 
 DoD:
-- [ ] M6->M7 carry-forward invariants verified.
-- [ ] Required P8/P9/P10 handles are explicit and probed.
-- [ ] Placeholder/wildcard required handles are absent (except tracked P10 subject-key debt).
-- [ ] `m7_a_handle_closure_snapshot.json` exists locally and durably.
+- [x] M6->M7 carry-forward invariants verified.
+- [x] Required P8/P9/P10 handles are explicit and probed.
+- [x] Placeholder/wildcard required handles are absent (except tracked P10 subject-key debt).
+- [x] `m7_a_handle_closure_snapshot.json` exists locally and durably.
+
+Execution notes:
+1. `M7.A` execution id:
+   - `m7_20260218T141420Z`
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_a_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_a_handle_closure_snapshot.json`
+3. Closure result:
+   - `overall_pass=true`,
+   - `resolved_handle_count=40`,
+   - `unresolved_handle_count=0`,
+   - probe failures: none.
+4. Topic/materialization probe basis:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260218T133848Z/topic_readiness_snapshot.json` (`overall_pass=true`).
+5. Forward debt (not an M7.A blocker, but blocks P10 execution entry):
+   - `M7G-B1` remains open because:
+     - `CASE_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
+     - `LABEL_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`.
 
 Blockers:
 1. `M7A-B1`: M6 handoff invalid/unreadable or run-id mismatch.
@@ -535,7 +553,7 @@ Notes:
 3. If any required evidence object is missing, M7 verdict must remain `HOLD_M7`.
 
 ## 7) M7 Completion Checklist
-- [ ] M7.A complete
+- [x] M7.A complete
 - [ ] M7.B complete
 - [ ] M7.C complete
 - [ ] M7.D complete
@@ -561,7 +579,12 @@ Control: M7.B/E/G readiness gates before commit lanes.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M7 Closure)
 Current blockers:
-1. none (planning stage).
+1. `M7G-B1` (open, forward blocker for `M7.G`/`P10` entry)
+   - subject-key handle placeholders unresolved in registry:
+     - `CASE_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
+     - `LABEL_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
+   - closure rule:
+     - pin concrete non-placeholder subject-key fields before `M7.G` execution.
 
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.

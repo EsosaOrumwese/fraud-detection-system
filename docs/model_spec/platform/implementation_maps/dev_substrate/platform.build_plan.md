@@ -699,10 +699,12 @@ Active-phase planning posture:
     - `P8` detail in `platform.M7.P8.build_plan.md`
     - `P9` detail in `platform.M7.P9.build_plan.md`
     - `P10` detail in `platform.M7.P10.build_plan.md`
-  - no M7 runtime execution has started yet in this planning step.
+  - runtime execution has started:
+    - `M7.A` closed at `m7_20260218T141420Z`
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_a_handle_closure_snapshot.json`.
 
 Sub-phase progress:
-  - [ ] `M7.A` authority + handle closure for `P8..P10`.
+  - [x] `M7.A` authority + handle closure for `P8..P10`.
   - [ ] `M7.B` P8 RTDL readiness + consumer posture.
   - [ ] `M7.C` P8 offsets/caught-up evidence closure.
   - [ ] `M7.D` P8 archive durability proof closure.
@@ -852,5 +854,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M7 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M7.A` handle/authority closure using the published M6 handoff anchor,
-- fail closed on unresolved placeholders (especially P10 identity keys) before allowing M7 runtime execution.
+- execute `M7.B` RTDL readiness + consumer posture checks using the `M7.A` closure snapshot,
+- keep fail-closed progression: `M7G-B1` subject-key placeholders remain an open forward blocker for `P10` entry.

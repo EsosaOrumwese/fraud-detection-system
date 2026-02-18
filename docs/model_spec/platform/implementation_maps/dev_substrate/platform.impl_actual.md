@@ -11883,3 +11883,60 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 2. Kept no-local-Confluent-secret posture:
    - Confluent apply lane ran in GitHub Actions using mapped GitHub secrets.
 3. Runtime is now ready for `M7.A` execution entry conditions.
+
+## Entry: 2026-02-18 14:16:00 +00:00 - M7.A authority + handle closure executed (PASS) with explicit P10 forward debt
+
+### User directive
+1. Execute `M7.A` now that substrate is rematerialized.
+
+### Authority and entry checks
+1. Verified local handoff:
+   - `runs/dev_substrate/m6/20260216T214025Z/m7_handoff_pack.json`
+2. Verified durable handoff:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m7_handoff_pack.json`
+3. Handoff invariants:
+   - `m6_verdict=ADVANCE_TO_M7`
+   - `platform_run_id=platform_20260213T214223Z`
+   - `blockers=[]`
+
+### M7.A execution result
+1. Execution id:
+   - `m7_20260218T141420Z`
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_a_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_a_handle_closure_snapshot.json`
+3. Closure metrics:
+   - `resolved_handle_count=40`
+   - `unresolved_handle_count=0`
+   - required probe failures: none
+   - `overall_pass=true`
+
+### Probe surfaces used
+1. ECS service and role probes from live rematerialized demo stack:
+   - `terraform -chdir=infra/terraform/dev_min/demo output -json`
+   - `aws ecs describe-services` (`desired=running=1` checks)
+   - `aws iam get-role`
+2. Topic/materialization probe basis:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260218T133848Z/topic_readiness_snapshot.json`
+   - source snapshot `overall_pass=true`, required topics present.
+3. DB and secret-path probes:
+   - `aws rds describe-db-instances` (`available`, endpoint match)
+   - `aws ssm get-parameter` for DB user/password path existence
+4. Evidence-bucket probe:
+   - `aws s3api head-bucket` for `fraud-platform-dev-min-evidence`.
+
+### Forward debt (fail-closed for P10 entry)
+1. `M7G-B1` remains open and is recorded in M7.A snapshot:
+   - `CASE_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
+   - `LABEL_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
+2. This is not an `M7.A` blocker, but it is a hard block for `M7.G`/`P10` execution entry until pinned.
+
+### Plan alignment updates applied
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+   - marked `M7.A` DoD checklist complete,
+   - added M7.A execution notes and evidence refs,
+   - updated unresolved blocker register with open `M7G-B1`.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - marked sub-phase `M7.A` complete,
+   - updated M7 expansion state to runtime-started,
+   - updated immediate next action to `M7.B`.

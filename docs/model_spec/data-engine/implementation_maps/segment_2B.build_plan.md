@@ -314,9 +314,44 @@ Scope:
 - verify runtime target movement and zero determinism/contract regressions.
 
 Definition of done:
-- [ ] integrated runtime improvement is demonstrated vs POPT.0.
-- [ ] deterministic replay witness passes for accepted candidate.
-- [ ] structural gate surfaces (`S0/S2/S6/S7/S8`) remain non-regressed.
+- [x] integrated runtime improvement is demonstrated vs POPT.0.
+- [x] deterministic replay witness passes for accepted candidate.
+- [x] structural gate surfaces (`S0/S2/S6/S7/S8`) remain non-regressed.
+
+POPT.4 closure record (2026-02-18):
+- witness lane:
+  - runs root: `runs/fix-data-engine/segment_2B_popt4_20260218_1412`
+  - run id: `c25a2675fbfbacd952b13bb594880e92`
+- integrated runtime evidence:
+  - POPT.0 baseline segment elapsed: `76.375s`
+    (`runs/fix-data-engine/segment_2B/reports/segment2b_popt0_baseline_c25a2675fbfbacd952b13bb594880e92.json`)
+  - POPT.4 integrated candidate segment elapsed: `15.642s`
+    (`runs/fix-data-engine/segment_2B/reports/segment2b_popt4_integrated_run1_c25a2675fbfbacd952b13bb594880e92.json`)
+  - improvement: `-60.733s` (`-79.52%`).
+- deterministic replay witness (accepted optimization scope):
+  - replay command scope: `S0->S5` on same run-id/same inputs.
+  - witness log:
+    `runs/fix-data-engine/segment_2B/reports/segment2b_popt4_replay_scope_s0_s5_stdout.log`
+  - result: `PASS` with idempotent skip evidence:
+    - `S0`/`S1`/`S3`/`S4` output skip logs,
+    - `S5` events byte-identical skip logs,
+    - `S5` shared trace replay prefix verified (downstream `S6` append-aware).
+- structural non-regression evidence (`S0/S2/S6/S7/S8`):
+  - `S0` run-report overall `PASS`.
+  - `S2` run-report overall `PASS`.
+  - `S6` run-report overall `PASS`.
+  - `S7` audit report summary `PASS`.
+  - `S8` validation `_passed.flag` present under 2B validation partition.
+- closure artifact:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_popt4_closure_summary_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_popt4_closure_summary_c25a2675fbfbacd952b13bb594880e92.md`
+- noted residual (non-blocking for POPT.4 closure):
+  - full-segment replay (`S0->S8`) still hits legacy `S6` idempotence code
+    `2B-S6-080`; tracked for explicit handling in `POPT.5` freeze handoff.
+
+POPT.4 closure decision (2026-02-18):
+- decision: `CLOSED`
+- next phase: `POPT.5` (optimization freeze handoff).
 
 ### POPT.5 - Optimization freeze handoff
 Goal:
