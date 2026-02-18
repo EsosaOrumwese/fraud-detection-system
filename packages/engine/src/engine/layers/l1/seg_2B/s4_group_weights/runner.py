@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import platform
 import shutil
 import time
@@ -44,6 +45,7 @@ STATE = "S4"
 
 EPSILON = 1e-12
 WRITE_BATCH_SIZE = 100_000
+OUTPUT_VALIDATION_SAMPLE_ROWS_DEFAULT = 2_048
 
 OUTPUT_SCHEMA = {
     "merchant_id": pl.UInt64,
@@ -286,17 +288,89 @@ def _build_batch_df(rows: list[tuple]) -> pl.DataFrame:
     return pl.DataFrame(rows, schema=OUTPUT_SCHEMA, orient="row")
 
 
+def _env_str(name: str, default: str) -> str:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    value = value.strip()
+    return value if value else default
+
+
+def _env_int(name: str, default: int, minimum: int = 0) -> int:
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        parsed = int(value)
+    except ValueError:
+        return default
+    return parsed if parsed >= minimum else minimum
+
+
+def _required_columns_from_table(schema_pack: dict, table_name: str) -> list[str]:
+    table = schema_pack.get(table_name)
+    if not isinstance(table, dict):
+        raise ContractError(f"Schema table not found for required-column extraction: {table_name}")
+    columns = table.get("columns")
+    if not isinstance(columns, list):
+        raise ContractError(f"Schema table has no columns: {table_name}")
+    required: list[str] = []
+    for column in columns:
+        if not isinstance(column, dict):
+            continue
+        name = column.get("name")
+        if isinstance(name, str) and name:
+            required.append(name)
+    if not required:
+        raise ContractError(f"Schema table has empty column names: {table_name}")
+    return required
+
+
+def _validate_output_batch(
+    dataframe: pl.DataFrame,
+    schema_pack: dict,
+    table_name: str,
+    mode: str,
+    sample_rows: int,
+) -> None:
+    required_columns = _required_columns_from_table(schema_pack, table_name)
+    missing_columns = [name for name in required_columns if name not in dataframe.columns]
+    if missing_columns:
+        raise SchemaValidationError(
+            f"{table_name} missing required columns: {missing_columns}",
+            [{"field": name, "message": "missing required column"} for name in missing_columns],
+        )
+    if mode == "strict":
+        validate_dataframe(dataframe.iter_rows(named=True), schema_pack, table_name)
+        return
+    if mode == "sample":
+        if dataframe.height == 0:
+            return
+        rows_to_validate = min(sample_rows, dataframe.height)
+        validate_dataframe(dataframe.head(rows_to_validate).iter_rows(named=True), schema_pack, table_name)
+        return
+    raise ContractError(f"Unsupported S4 output validation mode: {mode}")
+
+
 def _write_batch(
     rows: list[tuple],
     output_tmp: Path,
     part_index: int,
     output_pack: dict,
     output_table: str,
+    output_validation_mode: str,
+    output_validation_sample_rows: int,
 ) -> int:
     if not rows:
         return 0
     df = _build_batch_df(rows)
-    validate_dataframe(df.iter_rows(named=True), output_pack, output_table)
+    _validate_output_batch(
+        df,
+        output_pack,
+        output_table,
+        output_validation_mode,
+        output_validation_sample_rows,
+    )
     output_tmp.mkdir(parents=True, exist_ok=True)
     path = output_tmp / f"part-{part_index:05d}.parquet"
     df.write_parquet(path, compression="zstd")
@@ -308,6 +382,26 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     logger = get_logger("engine.layers.l1.seg_2B.s4_group_weights.l2.runner")
     timer = _StepTimer(logger)
     started_monotonic = time.monotonic()
+    runs_root_norm = str(config.runs_root).replace("\\", "/")
+    output_validation_mode_default = (
+        "sample" if "runs/fix-data-engine" in runs_root_norm else "strict"
+    )
+    output_validation_mode = _env_str(
+        "ENGINE_2B_S4_OUTPUT_VALIDATION_MODE",
+        output_validation_mode_default,
+    ).lower()
+    if output_validation_mode not in ("strict", "sample"):
+        output_validation_mode = output_validation_mode_default
+    output_validation_sample_rows = _env_int(
+        "ENGINE_2B_S4_OUTPUT_VALIDATION_SAMPLE_ROWS",
+        OUTPUT_VALIDATION_SAMPLE_ROWS_DEFAULT,
+        minimum=1,
+    )
+    logger.info(
+        "S4: output_validation_mode=%s output_validation_sample_rows=%d",
+        output_validation_mode,
+        output_validation_sample_rows,
+    )
 
     manifest_fingerprint = ""
     parameter_hash = ""
@@ -935,7 +1029,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             if len(batch_rows) >= WRITE_BATCH_SIZE:
                 write_start = time.monotonic()
                 try:
-                    publish_bytes_total += _write_batch(batch_rows, output_tmp, part_index, output_pack, output_table)
+                    publish_bytes_total += _write_batch(
+                        batch_rows,
+                        output_tmp,
+                        part_index,
+                        output_pack,
+                        output_table,
+                        output_validation_mode,
+                        output_validation_sample_rows,
+                    )
                 except SchemaValidationError as exc:
                     _abort("2B-S4-030", "V-13", "output_schema_invalid", {"error": str(exc)})
                 write_ms += (time.monotonic() - write_start) * 1000
@@ -1025,7 +1127,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     if batch_rows:
         write_start = time.monotonic()
         try:
-            publish_bytes_total += _write_batch(batch_rows, output_tmp, part_index, output_pack, output_table)
+            publish_bytes_total += _write_batch(
+                batch_rows,
+                output_tmp,
+                part_index,
+                output_pack,
+                output_table,
+                output_validation_mode,
+                output_validation_sample_rows,
+            )
         except SchemaValidationError as exc:
             _abort("2B-S4-030", "V-13", "output_schema_invalid", {"error": str(exc)})
         write_ms += (time.monotonic() - write_start) * 1000

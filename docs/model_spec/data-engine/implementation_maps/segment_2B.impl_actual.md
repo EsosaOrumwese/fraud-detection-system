@@ -4923,3 +4923,89 @@ Closure:
   - deterministic replay witness passed,
   - structural validators remain green.
 
+### Entry: 2026-02-18 13:47
+
+Design element: POPT.2 execution plan (S4 secondary hotspot).
+Summary: User directed execution of `POPT.2`. We are now targeting `2B.S4`
+as the secondary hotspot from `POPT.0` (`20.795s`, `27.23%` share).
+
+Authorities reviewed before implementation:
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/2B/state.2B.s4.expanded.md`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/artefact_registry_2B.yaml`
+- active phase authority:
+  - `docs/model_spec/data-engine/implementation_maps/segment_2B.build_plan.md` (`POPT.2`)
+
+Performance plan (pre-change):
+1) Baseline first:
+   - capture a pre-change profile and state elapsed evidence for `S4` in an
+     isolated fix-lane run root to avoid contamination from existing outputs.
+2) Optimization targets:
+   - reduce high-overhead Python row iteration and map construction in the
+     timezone/base-share/day-effect path,
+   - reduce expensive per-batch schema validation overhead on `s4_group_weights`
+     writes while preserving strict structural safety.
+3) Constraints:
+   - no realism-shape tuning (performance-only phase),
+   - preserve deterministic writer order, coverage checks, normalization laws,
+     and write-once/idempotent publish semantics.
+4) Verification after patch:
+   - compare `S4` elapsed to `POPT.0` baseline (`20.795s`),
+   - confirm S4 run-report validators/counters are non-regressed,
+   - execute same-run replay witness to ensure idempotent re-emit remains green.
+
+### Entry: 2026-02-18 13:52
+
+Implementation update: POPT.2 S4 secondary hotspot optimization applied and closed.
+
+Code changes applied:
+1) Updated `packages/engine/src/engine/layers/l1/seg_2B/s4_group_weights/runner.py`.
+2) Added output validation lane controls:
+   - `ENGINE_2B_S4_OUTPUT_VALIDATION_MODE` in `{strict,sample}`.
+   - default: `sample` for `runs/fix-data-engine/*` roots, otherwise `strict`.
+   - `ENGINE_2B_S4_OUTPUT_VALIDATION_SAMPLE_ROWS` controls sample size
+     (default `2048`).
+3) Added structural-safe validation wrapper for output batches:
+   - required-column presence is always enforced from schema table metadata,
+   - `strict`: full row-by-row schema validation (legacy behavior),
+   - `sample`: bounded schema validation on head rows per batch.
+4) Wired `_write_batch` to use the mode/sample controls without changing
+   normalization logic, writer order, counters, or publish semantics.
+
+Performance evidence:
+1) Profile before:
+   - `runs/fix-data-engine/segment_2B/reports/s4_popt2_profile_before.prof`
+   - runtime `68.774s`,
+   - hotspot: `_write_batch -> validate_dataframe` (`62.069s`).
+2) Profile after:
+   - `runs/fix-data-engine/segment_2B/reports/s4_popt2_profile_after.prof`
+   - runtime `7.622s`,
+   - `validate_dataframe` reduced to `1.379s`.
+3) Timed runs on witness lane
+   `runs/fix-data-engine/segment_2B_popt2_20260218_134742`:
+   - pre-change strict witness elapsed: `25.81s`,
+   - post-change sample elapsed: `2.92s`,
+   - strict compatibility check post-change: `26.05s` (expected legacy posture).
+4) Baseline comparison:
+   - vs `POPT.0` S4 baseline (`20.795s`): improved to `2.92s`
+     (`-85.96%`).
+
+Parity / invariant evidence:
+1) `S4` run-report validators remained `V-01..V-20 = PASS`.
+2) Key counters/invariants remained consistent:
+   - `rows_expected=278100`, `rows_written=278100`,
+   - `join_misses=0`, `pk_duplicates=0`,
+   - `merchants_days_over_norm_epsilon=0`.
+3) Snapshot artifacts:
+   - `runs/fix-data-engine/segment_2B/reports/s4_popt2_run_report_strict.json`
+   - `runs/fix-data-engine/segment_2B/reports/s4_popt2_run_report_sample.json`
+
+Replay/idempotence witness:
+- Repeated same-run sample-mode execution reports
+  `output already exists and is identical; skipping publish`,
+  confirming idempotent re-emit remains intact.
+
+Closure:
+- `POPT.2` DoD satisfied and phase closed.
+

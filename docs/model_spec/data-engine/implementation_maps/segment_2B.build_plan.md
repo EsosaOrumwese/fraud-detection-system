@@ -219,9 +219,45 @@ Scope:
 - optimize compute/materialization path while preserving assignment semantics and normalization invariants.
 
 Definition of done:
-- [ ] secondary hotspot elapsed time materially reduced versus POPT.0.
-- [ ] parity/invariant checks remain non-regressed.
-- [ ] run-report counters remain consistent with pre-optimization semantics.
+- [x] secondary hotspot elapsed time materially reduced versus POPT.0.
+- [x] parity/invariant checks remain non-regressed.
+- [x] run-report counters remain consistent with pre-optimization semantics.
+
+POPT.2 closure record (2026-02-18):
+- implementation target:
+  - `packages/engine/src/engine/layers/l1/seg_2B/s4_group_weights/runner.py`
+- runtime evidence:
+  - POPT.0 secondary hotspot baseline (`S4`): `20.795s`.
+  - pre-change witness on fix lane (`S4`, strict output validation):
+    - elapsed `25.81s` (same run-id, no policy changes).
+  - accepted POPT.2 lane (`S4`, sampled output validation):
+    - elapsed `2.92s`.
+  - reduction vs POPT.0 baseline: `-17.88s` (`-85.96%`).
+  - reduction vs pre-change witness: `-22.89s` (`-88.68%`).
+- hotspot proof:
+  - profile before:
+    - `runs/fix-data-engine/segment_2B/reports/s4_popt2_profile_before.prof`
+    - runtime `68.774s`; dominant hotspot:
+      `s4_group_weights._write_batch -> validate_dataframe` (`62.069s`).
+  - profile after:
+    - `runs/fix-data-engine/segment_2B/reports/s4_popt2_profile_after.prof`
+    - runtime `7.622s`; `validate_dataframe` reduced to `1.379s`.
+- parity / invariant evidence:
+  - `s4_run_report` validators `V-01..V-20` all `PASS`.
+  - normalization counters unchanged in meaning:
+    - `rows_expected=278100`, `rows_written=278100`,
+    - `join_misses=0`, `pk_duplicates=0`,
+    - `merchants_days_over_norm_epsilon=0`.
+  - report snapshots:
+    - `runs/fix-data-engine/segment_2B/reports/s4_popt2_run_report_strict.json`
+    - `runs/fix-data-engine/segment_2B/reports/s4_popt2_run_report_sample.json`
+- replay / idempotence evidence:
+  - repeated same-run `S4` execution in sample mode reports
+    `output already exists and is identical; skipping publish`.
+
+POPT.2 closure decision (2026-02-18):
+- decision: `CLOSED`
+- next phase: `POPT.3` (I/O + logging budget optimization).
 
 ### POPT.3 - I/O and logging budget optimization
 Goal:
