@@ -12610,3 +12610,30 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - rematerialize `decision-lane-df/al/dla` on new digest,
    - re-seed run-scoped ingress,
    - rerun `P9.B` evidence assembly and require non-zero run-scoped decision/audit/action.
+
+## Entry: 2026-02-18 20:55:01 +00:00 - M7.F/P9.B remediation: AL envelope retention bug (action outcomes suppressed)
+### Problem statement
+1. `P9.B` remained fail-closed with non-zero `rtdl` but no `audit` and no action-outcome proof.
+2. One-shot AL diagnostics under managed runtime showed `processed=400` but zero rows in:
+   - `al_intent_ledger`,
+   - `al_outcomes_append`,
+   - `al_outcome_publish`,
+   - `al_checkpoint_tokens`.
+
+### Root cause
+1. `ActionLayerWorker._read_file` and `_read_kafka` incorrectly stripped canonical envelopes by replacing message payload with nested `payload` map when present.
+2. `_process_record` expects canonical envelope fields (`event_type`, `event_id`, pins), so envelope stripping caused all rows to bypass `action_intent` handling while still incrementing processed counters.
+
+### Decision
+1. Preserve canonical envelope payloads in AL readers (file + kafka) and stop unwrapping nested payload at ingestion boundary.
+2. Rebuild/publish image and rematerialize AL runtime after patch before re-running `P9.B`.
+
+### File patch
+1. `src/fraud_detection/action_layer/worker.py`
+   - removed nested `payload` overwrite in `_read_file`.
+   - removed nested `payload` overwrite in `_read_kafka`.
+
+### Verification plan
+1. `python -m py_compile src/fraud_detection/action_layer/worker.py`.
+2. Publish image and roll AL.
+3. Re-run one-shot DF/AL/DLA with managed wiring and rerun `P9.B` summaries.

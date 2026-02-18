@@ -328,8 +328,6 @@ class ActionLayerWorker:
                 from_offset = int(checkpoint[0]) if checkpoint and checkpoint[1] == "file_line" else 0
                 for record in self._file_reader.read(topic, partition=partition, from_offset=from_offset, max_records=self.config.poll_max_records):
                     payload = record.record if isinstance(record.record, Mapping) else {}
-                    if isinstance(payload.get("payload"), Mapping):
-                        payload = dict(payload.get("payload") or {})
                     rows.append(
                         {
                             "topic": topic,
@@ -396,8 +394,6 @@ class ActionLayerWorker:
                     start_position=start_position,
                 ):
                     payload = record.get("payload") if isinstance(record.get("payload"), Mapping) else {}
-                    if isinstance(payload.get("payload"), Mapping):
-                        payload = dict(payload.get("payload") or {})
                     rows.append(
                         {
                             "topic": topic,
