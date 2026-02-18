@@ -213,6 +213,8 @@ Blockers:
 5. `M7A-B5`: snapshot write/upload failure.
 
 ### M7.B P8 RTDL Readiness + Consumer Posture
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` (`P8.A`).
+
 Goal:
 1. Prove RTDL core services are healthy and configured for commit-after-write consumption.
 
@@ -245,6 +247,8 @@ Blockers:
 4. `M7B-B4`: snapshot write/upload failure.
 
 ### M7.C P8 Offsets + Caught-Up Evidence Closure
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` (`P8.B`).
+
 Goal:
 1. Produce durable RTDL offsets/caught-up evidence and close the lag gate.
 
@@ -279,6 +283,8 @@ Blockers:
 4. `M7C-B4`: snapshot write/upload failure.
 
 ### M7.D P8 Archive Durability Proof
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` (`P8.C`).
+
 Goal:
 1. Prove archive durability surface is working for M7 run scope.
 
@@ -308,6 +314,8 @@ Blockers:
 3. `M7D-B3`: snapshot write/upload failure.
 
 ### M7.E P9 Decision-Lane Readiness + Idempotency Posture
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` (`P9.A`).
+
 Goal:
 1. Prove decision-lane services are healthy with pinned idempotency posture.
 
@@ -340,6 +348,8 @@ Blockers:
 4. `M7E-B4`: snapshot write/upload failure.
 
 ### M7.F P9 Decision-Chain Commit Evidence Closure
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` (`P9.B`).
+
 Goal:
 1. Produce durable decision/action/audit evidence for P9.
 
@@ -371,6 +381,8 @@ Blockers:
 3. `M7F-B3`: snapshot write/upload failure.
 
 ### M7.G P10 Identity-Key Pin + Managed DB Readiness
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (`P10.A`).
+
 Goal:
 1. Close P10 decision debt by pinning subject-key handles and proving DB readiness.
 
@@ -406,6 +418,8 @@ Blockers:
 3. `M7G-B3`: snapshot write/upload failure.
 
 ### M7.H P10 Case/Label Commit Evidence Closure
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (`P10.B`).
+
 Goal:
 1. Produce durable case/label evidence proving append-only/idempotent commits.
 

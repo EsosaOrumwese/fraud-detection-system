@@ -11789,3 +11789,47 @@ Branch M7 planning into dedicated per-plane deep plans:
    - P10 branch: case/label identity pinning, managed DB readiness, append-only commit lanes.
 3. Update `platform.build_plan.md` and `platform.M7.build_plan.md` to reference these branch docs explicitly.
 4. Keep this patch planning-only (no infra/runtime actions).
+
+## Entry: 2026-02-18 13:06:00 +00:00 - M7 branch-plan split applied (`M7.P8`, `M7.P9`, `M7.P10`)
+
+### Scope completed
+1. Added dedicated per-plane deep plans:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`.
+2. Updated M7 orchestrator and main platform plan to route authority to these branch docs.
+
+### Main-plan alignment updates
+File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. Added M7 branch deep-plan routing in Section 6.1.
+2. Added branch authority references in active M7 planning posture.
+3. Updated M7 expansion-state text to explicitly split plane-depth detail by:
+   - P8 (`platform.M7.P8.build_plan.md`)
+   - P9 (`platform.M7.P9.build_plan.md`)
+   - P10 (`platform.M7.P10.build_plan.md`).
+
+### M7 orchestrator alignment updates
+File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+1. Added `Branch Deep Plans` section (`1.1`) with control rule:
+   - orchestrator owns cross-plane sequencing + final rollup,
+   - branch docs own deep per-plane execution details.
+2. Added explicit authority pointers at:
+   - `M7.B/M7.C/M7.D` -> P8 branch
+   - `M7.E/M7.F` -> P9 branch
+   - `M7.G/M7.H` -> P10 branch.
+
+### Plane-doc design outcome
+1. Each branch doc now carries:
+   - purpose + authority
+   - scope boundary
+   - capability-lane matrix
+   - decision pins
+   - execution steps, DoD, blockers
+   - evidence contracts
+   - completion checklist + exit criteria.
+2. This creates explicit execution rails to allocate time/attention per plane and reduces risk of premature M7 closure.
+
+### Drift sentinel outcome
+1. No runtime-semantics drift introduced.
+2. Ownership boundaries remain explicit and unchanged.
+3. This was a planning-only patch; no runtime/infra execution occurred.
