@@ -268,9 +268,42 @@ Scope:
 - reduce unnecessary reads/writes and redundant serialization work.
 
 Definition of done:
-- [ ] log volume reduced with required evidence still present.
-- [ ] I/O-heavy states show measured elapsed improvement.
-- [ ] no missing mandatory audit fields in run reports.
+- [x] log volume reduced with required evidence still present.
+- [x] I/O-heavy states show measured elapsed improvement.
+- [x] no missing mandatory audit fields in run reports.
+
+POPT.3 closure record (2026-02-18):
+- implementation target:
+  - `packages/engine/src/engine/layers/l1/seg_2B/s3_day_effects/runner.py`
+- runtime evidence (`S3`):
+  - pre-change baseline witness:
+    - command: `make segment2b-s3`
+    - wall clock: `21.861s`
+    - state timer: `20.73s`.
+  - accepted POPT.3 lane (`S3`, sampled output validation):
+    - wall clock: `3.233s`
+    - state timer: `2.64s`
+    - reduction vs pre-change wall clock: `-18.628s` (`-85.22%`).
+  - strict compatibility witness post-change:
+    - wall clock: `21.287s`
+    - state timer: `20.72s` (legacy strict posture preserved).
+- logging budget evidence:
+  - `S3` INFO run-report line reduced from full JSON to summary.
+  - line-length witness from run log:
+    - pre-change full JSON line: `12613` chars,
+    - post-change summary line: `~201` chars.
+- run-report parity evidence:
+  - snapshots:
+    - `runs/fix-data-engine/segment_2B/reports/s3_popt3_run_report_strict.json`
+    - `runs/fix-data-engine/segment_2B/reports/s3_popt3_run_report_sample.json`
+  - strict/sample both retain mandatory audit fields and structural counters:
+    - `rows_expected=rows_written=278100`,
+    - `join_misses=0`, `pk_duplicates=0`,
+    - validators fail/warn = `0/0`.
+
+POPT.3 closure decision (2026-02-18):
+- decision: `CLOSED`
+- next phase: `POPT.4` (integrated fast-lane performance lock).
 
 ### POPT.4 - Integrated fast-lane performance lock
 Goal:

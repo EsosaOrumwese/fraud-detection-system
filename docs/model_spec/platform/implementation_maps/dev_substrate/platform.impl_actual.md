@@ -11833,3 +11833,53 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. No runtime-semantics drift introduced.
 2. Ownership boundaries remain explicit and unchanged.
 3. This was a planning-only patch; no runtime/infra execution occurred.
+
+## Entry: 2026-02-18 13:56:00 +00:00 - M7 pre-execution substrate rematerialization closure (Confluent + demo runtime)
+
+### User directive
+1. Proceed with rematerializing runtime substrate because it was down before M7 execution.
+
+### Execution summary
+1. Verified baseline-down posture:
+   - ECS cluster `fraud-platform-dev-min` was `INACTIVE`.
+   - Terraform state posture:
+     - `core`: non-empty (shared substrate retained),
+     - `confluent`: empty,
+     - `demo`: empty.
+2. Re-materialized Confluent on the managed CI lane (no local Confluent secrets):
+   - dispatched workflow `dev_min_m2f_topic_readiness.yml` on active branch `migrate-dev`,
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22142012409`,
+   - result: `success`,
+   - post-check: `confluent` Terraform state non-empty and required outputs present.
+3. Re-materialized demo runtime via Terraform apply:
+   - stack: `infra/terraform/dev_min/demo`,
+   - pinned run scope: `required_platform_run_id=platform_20260213T214223Z`,
+   - first apply recreated ECS/RDS/SSM surfaces.
+4. Detected and closed IG startup fault during convergence:
+   - symptom: IG task crash loop (`EssentialContainerExited`),
+   - log root cause: missing `config/platform/profiles/dev_min.yaml` in initial image digest,
+   - remediation: re-applied demo stack with newer immutable image digest
+     `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-min@sha256:ec6818d66ce3a7be38c22f4a1ddd6f88c3b7699356681deb07df5c3a32fa4531`,
+   - preserved current IG API key from SSM (no secret value exposure).
+
+### Closure evidence
+1. ECS convergence:
+   - all 13 daemon services reached `desired=1, running=1, pending=0`:
+     - `fraud-platform-dev-min-ig`
+     - `fraud-platform-dev-min-rtdl-core-{archive-writer,ieg,ofp,csfb}`
+     - `fraud-platform-dev-min-decision-lane-{dl,df,al,dla}`
+     - `fraud-platform-dev-min-case-{trigger,mgmt}`
+     - `fraud-platform-dev-min-label-store`
+     - `fraud-platform-dev-min-env-conformance`.
+2. DB posture:
+   - `fraud-platform-dev-min-db` status `available`.
+3. Confluent posture:
+   - workflow-run verifier passed and state/outputs rematerialized.
+
+### Decision trail and constraints
+1. Kept branch-governance law intact:
+   - no branch switching/creation/merge/rebase operations performed.
+   - workflow dispatch executed on active branch (`migrate-dev`).
+2. Kept no-local-Confluent-secret posture:
+   - Confluent apply lane ran in GitHub Actions using mapped GitHub secrets.
+3. Runtime is now ready for `M7.A` execution entry conditions.

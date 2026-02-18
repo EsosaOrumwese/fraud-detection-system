@@ -5009,3 +5009,101 @@ Replay/idempotence witness:
 Closure:
 - `POPT.2` DoD satisfied and phase closed.
 
+
+### Entry: 2026-02-18 13:59
+
+Design element: POPT.3 execution plan (S3 I/O + logging budget lane).
+Summary: User directed execution of `POPT.3`. We are implementing the
+I/O/logging budget pass on `2B.S3` first because it remains the largest
+post-POPT.2 closure hotspot and still emits expensive full-row output
+validation + verbose run-report/log cadence.
+
+Authorities reviewed before implementation:
+- `docs/model_spec/data-engine/layer-1/specs/state-flow/2B/state.2B.s3.expanded.md`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml`
+- `docs/model_spec/data-engine/layer-1/specs/contracts/2B/artefact_registry_2B.yaml`
+- active phase authority:
+  - `docs/model_spec/data-engine/implementation_maps/segment_2B.build_plan.md` (`POPT.3`)
+
+Baseline evidence captured pre-change:
+- command lane: `make segment2b-s3` on
+  `runs/fix-data-engine/segment_2B` run-id
+  `c25a2675fbfbacd952b13bb594880e92`.
+- wall clock (`Measure-Command`): `21.861s`.
+- state timer: `S3 completed (elapsed=20.73s)`.
+- observed overhead signatures:
+  - full-row `validate_dataframe(...)` in `_write_batch` on every batch,
+  - high-cardinality/large JSON run-report line at INFO,
+  - fixed 0.5s progress heartbeat cadence.
+
+Execution plan (pre-change):
+1) Add bounded output schema validation controls for `S3`:
+   - `ENGINE_2B_S3_OUTPUT_VALIDATION_MODE={strict,sample}`.
+   - `ENGINE_2B_S3_OUTPUT_VALIDATION_SAMPLE_ROWS`.
+   - default `sample` only in `runs/fix-data-engine/*`; default `strict`
+     elsewhere to preserve legacy posture.
+2) Add progress logging cadence control:
+   - `ENGINE_2B_S3_PROGRESS_LOG_INTERVAL_SECONDS` with safe floor.
+   - reduce fix-lane default cadence to lower log I/O pressure while
+     preserving progress/ETA visibility.
+3) Replace INFO-level full run-report JSON dump with summary line and
+   opt-in full JSON log via explicit env toggle.
+4) Verification:
+   - sample-lane runtime witness against baseline,
+   - strict-lane compatibility run,
+   - validator/counter non-regression and mandatory run-report fields intact.
+
+Scope locks:
+- performance-only (`POPT.3`), no realism policy/shape tuning.
+- preserve deterministic generation, counters, contracts, and publish law.
+
+### Entry: 2026-02-18 14:03
+
+Implementation update: executed and closed POPT.3 on S3 (I/O + logging budget).
+
+Code changes applied:
+1) Updated `packages/engine/src/engine/layers/l1/seg_2B/s3_day_effects/runner.py`.
+2) Added bounded output-validation controls:
+   - `ENGINE_2B_S3_OUTPUT_VALIDATION_MODE={strict,sample}`.
+   - `ENGINE_2B_S3_OUTPUT_VALIDATION_SAMPLE_ROWS` (default `2048`).
+   - fix-lane default: `sample` for `runs/fix-data-engine/*`, else `strict`.
+3) Added progress heartbeat cadence control:
+   - `ENGINE_2B_S3_PROGRESS_LOG_INTERVAL_SECONDS`.
+   - fix-lane default cadence moved from `0.5s` to `2.0s` (still final-row forced).
+4) Reduced INFO log payload size while preserving audit artifact:
+   - added `ENGINE_2B_S3_LOG_RUN_REPORT_JSON` (opt-in full JSON at INFO),
+   - default in fix lane now emits concise summary line;
+   - full run-report artifact file write remains unchanged.
+5) Kept required-column checks always-on for output schema validation and
+   retained strict mode compatibility.
+
+Performance / logging evidence:
+1) Pre-change baseline (same authority lane):
+   - command: `make segment2b-s3`
+   - wall clock: `21.861s`
+   - state timer: `20.73s`.
+2) Post-change accepted lane (sample mode):
+   - wall clock: `3.233s`
+   - state timer: `2.64s`
+   - reduction vs pre-change wall clock: `-18.628s` (`-85.22%`).
+3) Strict compatibility witness post-change:
+   - wall clock: `21.287s`
+   - state timer: `20.72s`
+   - confirms legacy strict posture retained.
+4) Log-volume evidence from run log:
+   - pre-change INFO run-report line length: `12613` chars,
+   - post-change summary line length: `~201` chars.
+
+Parity / invariant evidence:
+1) Sample report snapshot:
+   - `runs/fix-data-engine/segment_2B/reports/s3_popt3_run_report_sample.json`
+   - `rows_expected=rows_written=278100`, `join_misses=0`, `pk_duplicates=0`,
+     validators fail/warn = `0/0`.
+2) Strict report snapshot:
+   - `runs/fix-data-engine/segment_2B/reports/s3_popt3_run_report_strict.json`
+   - same structural counters and validator posture (`0` fail, `0` warn).
+
+Closure:
+- `POPT.3` DoD satisfied for the S3 I/O/logging lane with strict fallback.
+- No realism policy/config changes were made.

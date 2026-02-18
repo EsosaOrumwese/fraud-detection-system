@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import platform
 import shutil
 import time
@@ -55,6 +56,9 @@ UINT64_MASK = 0xFFFFFFFFFFFFFFFF
 TWO_NEG_64 = float.fromhex("0x1.0000000000000p-64")
 
 WRITE_BATCH_SIZE = 100_000
+OUTPUT_VALIDATION_SAMPLE_ROWS_DEFAULT = 2_048
+PROGRESS_LOG_INTERVAL_SECONDS_DEFAULT = 0.5
+FIXLANE_PROGRESS_LOG_INTERVAL_SECONDS_DEFAULT = 2.0
 
 OUTPUT_SCHEMA = {
     "merchant_id": pl.UInt64,
@@ -96,18 +100,27 @@ class _StepTimer:
 
 
 class _ProgressTracker:
-    def __init__(self, total: Optional[int], logger, label: str) -> None:
+    def __init__(
+        self,
+        total: Optional[int],
+        logger,
+        label: str,
+        min_interval_seconds: float = PROGRESS_LOG_INTERVAL_SECONDS_DEFAULT,
+    ) -> None:
         self._total = int(total) if total is not None else None
         self._logger = logger
         self._label = label
         self._start = time.monotonic()
         self._last_log = self._start
         self._processed = 0
+        self._min_interval_seconds = (
+            min_interval_seconds if min_interval_seconds > 0 else PROGRESS_LOG_INTERVAL_SECONDS_DEFAULT
+        )
 
     def update(self, count: int) -> None:
         self._processed += int(count)
         now = time.monotonic()
-        if now - self._last_log < 0.5 and not (
+        if now - self._last_log < self._min_interval_seconds and not (
             self._total is not None and self._processed >= self._total
         ):
             return
@@ -245,6 +258,111 @@ def _table_pack(schema_pack: dict, path: str) -> tuple[dict, str]:
     pack[table_name] = table_def
     return pack, table_name
 
+
+def _env_str(name: str, default: str) -> str:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    trimmed = value.strip()
+    return trimmed if trimmed else default
+
+
+def _env_int(name: str, default: int, minimum: int = 1) -> int:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        parsed = int(value)
+    except ValueError:
+        return default
+    return parsed if parsed >= minimum else minimum
+
+
+def _env_float(name: str, default: float, minimum: float = 0.1) -> float:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        parsed = float(value)
+    except ValueError:
+        return default
+    return parsed if parsed >= minimum else minimum
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _required_columns_from_table(schema_pack: dict, table_name: str) -> list[str]:
+    table = schema_pack.get(table_name)
+    if not isinstance(table, dict):
+        raise ContractError(f"Schema table not found for required-column extraction: {table_name}")
+    columns = table.get("columns")
+    if not isinstance(columns, list):
+        raise ContractError(f"Schema table has no columns: {table_name}")
+    required: list[str] = []
+    for column in columns:
+        if not isinstance(column, dict):
+            continue
+        name = column.get("name")
+        if isinstance(name, str) and name:
+            required.append(name)
+    if not required:
+        raise ContractError(f"Schema table has empty column names: {table_name}")
+    return required
+
+
+def _validate_output_batch(
+    dataframe: pl.DataFrame,
+    schema_pack: dict,
+    table_name: str,
+    mode: str,
+    sample_rows: int,
+) -> None:
+    required_columns = _required_columns_from_table(schema_pack, table_name)
+    missing_columns = [name for name in required_columns if name not in dataframe.columns]
+    if missing_columns:
+        raise SchemaValidationError(
+            f"{table_name} missing required columns: {missing_columns}",
+            [{"field": name, "message": "missing required column"} for name in missing_columns],
+        )
+    if mode == "strict":
+        validate_dataframe(dataframe.iter_rows(named=True), schema_pack, table_name)
+        return
+    if mode == "sample":
+        if dataframe.height == 0:
+            return
+        rows_to_validate = min(sample_rows, dataframe.height)
+        validate_dataframe(dataframe.head(rows_to_validate).iter_rows(named=True), schema_pack, table_name)
+        return
+    raise ContractError(f"Unsupported S3 output validation mode: {mode}")
+
+
+def _log_run_report(logger, run_report: dict, log_full_json: bool) -> None:
+    if log_full_json:
+        logger.info("S3 run-report %s", json.dumps(run_report, ensure_ascii=True, sort_keys=True))
+        return
+    summary = run_report.get("summary", {})
+    rng = run_report.get("rng_accounting", {})
+    publish = run_report.get("publish", {})
+    durations = run_report.get("durations_ms", {})
+    logger.info(
+        "S3 run-report summary status=%s warn=%s fail=%s rows=%s/%s bytes=%s draw_ms=%s write_ms=%s publish_ms=%s",
+        summary.get("overall_status", "UNKNOWN"),
+        summary.get("warn_count", 0),
+        summary.get("fail_count", 0),
+        rng.get("rows_written", 0),
+        rng.get("rows_expected", 0),
+        publish.get("bytes_written", 0),
+        durations.get("draw_ms", 0),
+        durations.get("write_ms", 0),
+        durations.get("publish_ms", 0),
+    )
+
+
 def _derive_rng_key_counter(
     manifest_fingerprint_hex: str,
     seed: int,
@@ -329,11 +447,19 @@ def _write_batch(
     part_index: int,
     output_pack: dict,
     output_table: str,
+    output_validation_mode: str,
+    output_validation_sample_rows: int,
 ) -> int:
     if not rows:
         return 0
     df = _build_batch_df(rows)
-    validate_dataframe(df.iter_rows(named=True), output_pack, output_table)
+    _validate_output_batch(
+        df,
+        output_pack,
+        output_table,
+        output_validation_mode,
+        output_validation_sample_rows,
+    )
     output_tmp.mkdir(parents=True, exist_ok=True)
     path = output_tmp / f"part-{part_index:05d}.parquet"
     df.write_parquet(path, compression="zstd")
@@ -381,6 +507,43 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     logger = get_logger("engine.layers.l1.seg_2B.s3_day_effects.l2.runner")
     timer = _StepTimer(logger)
     started_monotonic = time.monotonic()
+    runs_root_norm = str(config.runs_root).replace("\\", "/")
+    output_validation_mode_default = (
+        "sample" if "runs/fix-data-engine" in runs_root_norm else "strict"
+    )
+    output_validation_mode = _env_str(
+        "ENGINE_2B_S3_OUTPUT_VALIDATION_MODE",
+        output_validation_mode_default,
+    ).lower()
+    if output_validation_mode not in ("strict", "sample"):
+        output_validation_mode = output_validation_mode_default
+    output_validation_sample_rows = _env_int(
+        "ENGINE_2B_S3_OUTPUT_VALIDATION_SAMPLE_ROWS",
+        OUTPUT_VALIDATION_SAMPLE_ROWS_DEFAULT,
+        minimum=1,
+    )
+    progress_log_interval_default = (
+        FIXLANE_PROGRESS_LOG_INTERVAL_SECONDS_DEFAULT
+        if "runs/fix-data-engine" in runs_root_norm
+        else PROGRESS_LOG_INTERVAL_SECONDS_DEFAULT
+    )
+    progress_log_interval_seconds = _env_float(
+        "ENGINE_2B_S3_PROGRESS_LOG_INTERVAL_SECONDS",
+        progress_log_interval_default,
+        minimum=0.1,
+    )
+    log_run_report_json_default = "runs/fix-data-engine" not in runs_root_norm
+    log_run_report_json = _env_bool(
+        "ENGINE_2B_S3_LOG_RUN_REPORT_JSON",
+        default=log_run_report_json_default,
+    )
+    logger.info(
+        "S3: output_validation_mode=%s output_validation_sample_rows=%d progress_log_interval_seconds=%.2f log_run_report_json=%s",
+        output_validation_mode,
+        output_validation_sample_rows,
+        progress_log_interval_seconds,
+        str(log_run_report_json).lower(),
+    )
 
     manifest_fingerprint = ""
     parameter_hash = ""
@@ -777,7 +940,12 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         rows_expected,
     )
 
-    progress = _ProgressTracker(rows_expected, logger, "S3 day-effect rows")
+    progress = _ProgressTracker(
+        rows_expected,
+        logger,
+        "S3 day-effect rows",
+        min_interval_seconds=progress_log_interval_seconds,
+    )
     part_index = 0
     batch_rows: list[tuple] = []
     prev_key: Optional[tuple] = None
@@ -867,7 +1035,15 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 if len(batch_rows) >= WRITE_BATCH_SIZE:
                     write_start = time.monotonic()
                     try:
-                        publish_bytes_total += _write_batch(batch_rows, output_tmp, part_index, output_pack, output_table)
+                        publish_bytes_total += _write_batch(
+                            batch_rows,
+                            output_tmp,
+                            part_index,
+                            output_pack,
+                            output_table,
+                            output_validation_mode,
+                            output_validation_sample_rows,
+                        )
                     except SchemaValidationError as exc:
                         _abort("2B-S3-030", "V-16", "output_schema_invalid", {"error": str(exc)})
                     write_ms += (time.monotonic() - write_start) * 1000
@@ -879,7 +1055,15 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     if batch_rows:
         write_start = time.monotonic()
         try:
-            publish_bytes_total += _write_batch(batch_rows, output_tmp, part_index, output_pack, output_table)
+            publish_bytes_total += _write_batch(
+                batch_rows,
+                output_tmp,
+                part_index,
+                output_pack,
+                output_table,
+                output_validation_mode,
+                output_validation_sample_rows,
+            )
         except SchemaValidationError as exc:
             _abort("2B-S3-030", "V-16", "output_schema_invalid", {"error": str(exc)})
         write_ms += (time.monotonic() - write_start) * 1000
@@ -1055,7 +1239,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         },
     }
 
-    logger.info("S3 run-report %s", json.dumps(run_report, ensure_ascii=True, sort_keys=True))
+    _log_run_report(logger, run_report, log_run_report_json)
     if run_report_path is not None:
         _write_json(run_report_path, run_report)
     timer.info("S3: completed")
