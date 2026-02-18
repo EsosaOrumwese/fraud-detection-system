@@ -133,7 +133,95 @@ _As of 2026-02-18_
 - Certification lane (4 seeds sequential): target `<= 90 min`.
 - Any material runtime regression without explained bottleneck + mitigation blocks phase closure.
 
-## 5) Phase plan (data-first with DoDs)
+## 5) Performance optimization pre-lane (POPT, mandatory before remediation)
+- Objective: drive 2B iteration runtime to a minute-scale practical lane before realism tuning.
+- Guardrails:
+  - preserve determinism and contract compliance,
+  - no realism-shape tuning in POPT phases,
+  - single-process baseline first (no parallelism dependency),
+  - every POPT phase needs measured runtime evidence and non-regression checks.
+
+### POPT.0 - Runtime baseline and bottleneck map
+Goal:
+- produce a measured baseline per state and identify primary hot paths.
+
+Scope:
+- collect state-level wall-clock for `S0..S8` in current 2B lane.
+- extract dominant compute and I/O bottlenecks from logs/profiles.
+- lock runtime budget targets for fast/witness/certification lanes.
+
+Definition of done:
+- [ ] baseline runtime table (`state_elapsed`, `total_elapsed`) is emitted.
+- [ ] top bottlenecks are ranked with evidence.
+- [ ] optimization budget targets are pinned for later POPT gates.
+
+### POPT.1 - S3/S4 core compute-path optimization
+Goal:
+- reduce merchant-day-group hot-path cost in `S3` and `S4`.
+
+Scope:
+- improve data structures and join/materialization strategy in S3/S4 loops.
+- eliminate redundant scans/recomputations while preserving output identity.
+
+Definition of done:
+- [ ] measured runtime reduction on S3/S4 versus POPT.0 baseline.
+- [ ] deterministic replay check passes on same seed + same inputs.
+- [ ] S3/S4 structural validators remain green.
+
+### POPT.2 - S5 assignment-path optimization
+Goal:
+- reduce per-arrival routing cost and improve roster-processing throughput.
+
+Scope:
+- optimize arrival loop, pre-filtering/indexing, and lookup paths used by S5.
+- keep assignment semantics unchanged.
+
+Definition of done:
+- [ ] S5 elapsed time materially reduced versus POPT.0.
+- [ ] assignment parity checks remain non-regressed.
+- [ ] run-report counters remain consistent with pre-optimization semantics.
+
+### POPT.3 - I/O and logging budget optimization
+Goal:
+- lower I/O and log overhead without losing required audit evidence.
+
+Scope:
+- cap high-frequency logs to heartbeat/progress cadence.
+- reduce unnecessary reads/writes and redundant serialization work.
+
+Definition of done:
+- [ ] log volume reduced with required evidence still present.
+- [ ] I/O-heavy states show measured elapsed improvement.
+- [ ] no missing mandatory audit fields in run reports.
+
+### POPT.4 - Integrated fast-lane performance lock
+Goal:
+- validate combined optimization stack across full 2B state chain.
+
+Scope:
+- run one integrated candidate through required 2B chain.
+- verify runtime target movement and zero determinism/contract regressions.
+
+Definition of done:
+- [ ] integrated runtime improvement is demonstrated vs POPT.0.
+- [ ] deterministic replay witness passes for accepted candidate.
+- [ ] structural gate surfaces (`S0/S2/S6/S7/S8`) remain non-regressed.
+
+### POPT.5 - Optimization freeze handoff
+Goal:
+- freeze accepted optimization posture before entering remediation P0.
+
+Scope:
+- lock accepted run-id/policy/code references.
+- prune superseded optimization run folders and retain authority artifacts.
+- record freeze statement in plan + implementation notes.
+
+Definition of done:
+- [ ] POPT lock artifact is written and referenced by this plan.
+- [ ] superseded run-id folders are pruned per retention rule.
+- [ ] explicit GO decision recorded to enter remediation `P0`.
+
+## 6) Remediation phase plan (data-first with DoDs)
 
 ### P0 - Baseline authority and harness lock
 Goal:
@@ -247,4 +335,3 @@ Definition of done:
 - [ ] freeze status recorded (`FROZEN_CERTIFIED_BPLUS` or `FROZEN_CERTIFIED_B` or `FROZEN_BEST_EFFORT_BELOW_B`).
 - [ ] retained evidence artifacts are complete and reproducible.
 - [ ] implementation notes and logbook carry full decision trail for all phases.
-

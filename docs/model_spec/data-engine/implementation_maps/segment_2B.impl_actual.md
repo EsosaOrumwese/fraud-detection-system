@@ -4680,3 +4680,47 @@ Outcome:
 - Segment 2B now has an execution-grade remediation build plan ready for phase
   entry and implementation work.
 
+---
+
+### Entry: 2026-02-18 12:59
+
+Design element: add deep optimization lane before 2B remediation P0.
+Summary: User requested the same optimization-first treatment used in prior
+segments. We will insert a mandatory `POPT` pre-lane and only begin remediation
+`P0` after optimization freeze closure.
+
+Decision trail:
+1) Add explicit `POPT` phases ahead of remediation:
+   - `POPT.0` baseline + bottleneck map,
+   - `POPT.1` S3/S4 compute-path optimization,
+   - `POPT.2` S5 assignment-path optimization,
+   - `POPT.3` I/O + logging budget optimization,
+   - `POPT.4` integrated fast-lane lock run,
+   - `POPT.5` optimization freeze handoff.
+2) Keep optimization and realism scopes separated:
+   - POPT modifies performance characteristics only,
+   - realism-shape tuning starts in remediation `P0+`.
+3) Preserve deterministic/safety rails:
+   - each POPT phase requires runtime movement evidence plus deterministic and
+     structural non-regression checks.
+4) Keep storage discipline binding:
+   - prune superseded run-id folders during optimization sweeps.
+
+### Entry: 2026-02-18 13:00
+
+Implementation update: 2B build plan expanded with pre-remediation POPT lane.
+
+Actions taken:
+1) Updated:
+   - `docs/model_spec/data-engine/implementation_maps/segment_2B.build_plan.md`
+2) Added new section:
+   - `Performance optimization pre-lane (POPT, mandatory before remediation)`
+   - with `POPT.0..POPT.5` goals, scope, and DoD checklists.
+3) Renamed remediation section header to:
+   - `Remediation phase plan (data-first with DoDs)` (now after POPT).
+4) No code, policy, or runtime outputs changed in this step.
+
+Outcome:
+- Segment 2B plan now enforces optimization-first execution before remediation
+  work starts.
+
