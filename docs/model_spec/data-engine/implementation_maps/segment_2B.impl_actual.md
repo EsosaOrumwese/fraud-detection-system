@@ -5909,3 +5909,63 @@ Execution sequence locked:
 2) stage fresh candidate root from frozen authority, run `S0 -> S8`.
 3) score candidate; if B not reached, run bounded S4-only policy sweep.
 4) close `P3.4/P3.5/P3.6` with lock artifact and prune superseded run roots.
+
+### Entry: 2026-02-18 17:38
+
+Execution + closure record for full `P3` (`P3.1 -> P3.6`).
+
+Implemented surfaces:
+1) new S4 policy surface + contracts:
+   - `config/layer1/2B/policy/group_mix_regularizer_v1.json`
+   - `docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml`
+   - `docs/model_spec/data-engine/layer-1/specs/contracts/2B/artefact_registry_2B.yaml`
+   - `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+2) gate + state wiring:
+   - `packages/engine/src/engine/layers/l1/seg_2B/s0_gate/runner.py`
+     - policy sealing set expanded to include `group_mix_regularizer_v1`.
+   - `packages/engine/src/engine/layers/l1/seg_2B/s4_group_weights/runner.py`
+     - added sealed policy resolution/digest validation and strict schema checks,
+     - implemented deterministic smooth regularizer path
+       (uniform blend + soft-cap blend + entropy-floor blend),
+     - preserved exact rowwise mass-conservation checks and write-order law,
+     - emitted regularizer provenance counters/samples in run-report.
+3) scoring harness:
+   - `tools/score_segment2b_p3_candidate.py`
+     - added B/B+ S4 gates + S1/S2/S3/S7/S8 rails,
+     - fixed S7 source path to read canonical
+       `data/layer1/2B/s7_audit_report/.../s7_audit_report.json`.
+
+Execution evidence:
+1) baseline candidate run-id:
+   - `c55ffaeb119245e385044f3e70680f03`
+   - scorecard:
+     - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_c55ffaeb119245e385044f3e70680f03.json`
+2) bounded stronger sweep candidate run-id:
+   - `80d9c9df1221400f82db77e27a0d63b2`
+   - scorecard:
+     - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_80d9c9df1221400f82db77e27a0d63b2.json`
+3) tail-floor diagnostic:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_tail_floor_analysis.json`
+   - showed exact binding:
+     - `share(max_p_group>=0.95) == share(n_groups==1) == 0.483037`,
+     - `share(max_p_group>=0.95 | n_groups>1) == 0.0`.
+
+Result and decision:
+1) `P3` did not reach `B` or `B+` due structural S4-tail floor.
+2) terminal best-effort candidate (`80d9...`) improved center metrics:
+   - `max_p_group_median=0.780000` (B+ center pass),
+   - `entropy_p50=0.526908` (B+ entropy pass),
+   - `multigroup_share=0.516963` (B+ multi-group pass),
+   - but tail remained `0.483037` (fails B/B+ hard tail gate).
+3) emitted lock artifact:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_lock_80d9c9df1221400f82db77e27a0d63b2.json`
+4) phase decision:
+   - `NO_GO_P4` from current frozen-upstream posture.
+   - required next move: upstream reopen (`P1/S1` topology) to reduce
+     single-group merchant-day share before retrying P3 closure.
+
+Retention/prune:
+1) superseded candidate pruned:
+   - `c55ffaeb119245e385044f3e70680f03`
+2) prune evidence:
+   - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_prune_summary.json`

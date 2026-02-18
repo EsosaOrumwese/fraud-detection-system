@@ -724,11 +724,11 @@ Candidate surfaces:
   - `docs/model_spec/data-engine/layer-1/specs/contracts/2B/artefact_registry_2B.yaml`
 
 Definition of done:
-- [ ] regularizer path is policy-governed and deterministic.
+- [x] regularizer path is policy-governed and deterministic.
 - [ ] S4 B gates pass on witness seeds:
   - dominance center/tail, multi-group share, entropy, mass conservation.
-- [ ] no synthetic hard-truncation artifacts observed in distribution diagnostics.
-- [ ] P1/P2 gains remain non-regressed.
+- [x] no synthetic hard-truncation artifacts observed in distribution diagnostics.
+- [x] P1/P2 gains remain non-regressed.
 
 Phase-entry locks (binding):
 - `P1` remains frozen (`run_id=c7e3f4f9715d4256b7802bdc28579d54`).
@@ -759,9 +759,9 @@ Candidate surfaces:
 - `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
 
 Definition of done:
-- [ ] policy artefact exists with remediation-required fields and bounded ranges.
-- [ ] contracts validate with `additionalProperties: false` posture retained.
-- [ ] S0 sealed-input digest includes S4 regularizer policy on candidate root.
+- [x] policy artefact exists with remediation-required fields and bounded ranges.
+- [x] contracts validate with `additionalProperties: false` posture retained.
+- [x] S0 sealed-input digest includes S4 regularizer policy on candidate root.
 
 P3.2 - S4 implementation delta (deterministic anti-collapse regularizer)
 Goal:
@@ -782,10 +782,10 @@ Scope:
   - `regularizer_delta_mass` (or equivalent bounded delta evidence).
 
 Definition of done:
-- [ ] S4 regularizer path is deterministic and policy-governed.
-- [ ] rowwise mass-conservation checks remain exact (within numeric epsilon).
-- [ ] run-report provenance fields for regularizer decisions are emitted.
-- [ ] replay/idempotence and structural validators remain green.
+- [x] S4 regularizer path is deterministic and policy-governed.
+- [x] rowwise mass-conservation checks remain exact (within numeric epsilon).
+- [x] run-report provenance fields for regularizer decisions are emitted.
+- [x] replay/idempotence and structural validators remain green.
 
 P3.3 - Baseline authority lane + P3 scorer
 Goal:
@@ -809,9 +809,9 @@ Scope:
     - mass conservation pass.
 
 Definition of done:
-- [ ] P3 scorer artifact pair exists (json+md) with explicit gate booleans.
-- [ ] baseline P3 metrics are pinned to authority run-id lineage.
-- [ ] non-regression rails (`S1`, `S2`, `S3`) are included in scorer output.
+- [x] P3 scorer artifact pair exists (json+md) with explicit gate booleans.
+- [x] baseline P3 metrics are pinned to authority run-id lineage.
+- [x] non-regression rails (`S1`, `S2`, `S3`) are included in scorer output.
 
 P3.4 - B closure tuning (bounded sweep)
 Goal:
@@ -831,8 +831,8 @@ Scope:
 
 Definition of done:
 - [ ] at least one candidate reaches full `B` S4 gates with rails green, or
-- [ ] bounded sweep exhausts and P3 is closed as failed-with-evidence.
-- [ ] accepted/terminal candidate scorecard is emitted and referenced.
+- [x] bounded sweep exhausts and P3 is closed as failed-with-evidence.
+- [x] accepted/terminal candidate scorecard is emitted and referenced.
 
 P3.5 - B+ stretch lane (optional, bounded)
 Goal:
@@ -847,7 +847,7 @@ Scope:
 
 Definition of done:
 - [ ] either `B+` passes with evidence, or
-- [ ] lane is explicitly closed with retained `B` candidate.
+- [x] lane is explicitly closed with retained terminal best-effort candidate.
 
 P3.6 - Lock, prune, and handoff decision
 Goal:
@@ -860,11 +860,55 @@ Scope:
 - update plan/impl/logbook with explicit handoff decision.
 
 Definition of done:
-- [ ] P3 lock artifact exists and is referenced by this plan.
-- [ ] run retention is reduced to baseline + accepted authority + reports.
-- [ ] explicit decision recorded:
+- [x] P3 lock artifact exists and is referenced by this plan.
+- [x] run retention is reduced to baseline + accepted authority + reports.
+- [x] explicit decision recorded:
   - `GO_P4` if `B`/`B+` achieved with rails green,
   - `NO_GO_P4` with blocker evidence otherwise.
+
+P3 closure record (2026-02-18):
+- implemented policy/contract/code surfaces:
+  - `config/layer1/2B/policy/group_mix_regularizer_v1.json`
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/2B/dataset_dictionary.layer1.2B.yaml`
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/2B/artefact_registry_2B.yaml`
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/2B/schemas.2B.yaml`
+  - `packages/engine/src/engine/layers/l1/seg_2B/s0_gate/runner.py`
+  - `packages/engine/src/engine/layers/l1/seg_2B/s4_group_weights/runner.py`
+  - `tools/score_segment2b_p3_candidate.py`
+- candidate execution evidence:
+  - baseline candidate run-id:
+    - `c55ffaeb119245e385044f3e70680f03`
+  - bounded stronger sweep candidate run-id:
+    - `80d9c9df1221400f82db77e27a0d63b2`
+  - scorecards:
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_c55ffaeb119245e385044f3e70680f03.json`
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_c55ffaeb119245e385044f3e70680f03.md`
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_80d9c9df1221400f82db77e27a0d63b2.json`
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_candidate_80d9c9df1221400f82db77e27a0d63b2.md`
+  - terminal lock:
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_lock_80d9c9df1221400f82db77e27a0d63b2.json`
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_lock_80d9c9df1221400f82db77e27a0d63b2.md`
+- blocker analysis:
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_tail_floor_analysis.json`
+  - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_tail_floor_analysis.md`
+  - outcome:
+    - `share(max_p_group>=0.95)` is bound by `share(n_groups==1)=0.483037`,
+      exceeding both `B (<=0.35)` and `B+ (<=0.20)` tail thresholds.
+    - S4-only regularization cannot reduce this without upstream topology change.
+- selected terminal candidate metrics (`80d9...`):
+  - `max_p_group_median=0.780000` (B+ center pass),
+  - `entropy_p50=0.526908` (B+ entropy pass),
+  - `share(groups>=2 where p>=0.05)=0.516963` (B+ multigroup pass),
+  - `share(max_p_group>=0.95)=0.483037` (tail fail; structural floor).
+- run retention/prune evidence:
+  - pruned superseded candidate:
+    - `c55ffaeb119245e385044f3e70680f03`
+  - prune summary:
+    - `runs/fix-data-engine/segment_2B/reports/segment2b_p3_prune_summary.json`
+- explicit decision:
+  - `NO_GO_P4` from `P3`.
+  - required next move: upstream reopen of `P1/S1` topology to reduce
+    single-group merchant-day share before retrying `P3` closure.
 
 ### P4 - Realism-grade roster and certification hardening
 Goal:

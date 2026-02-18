@@ -12365,3 +12365,29 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - blockers empty.
 2. `M7D-B4` is closed.
 3. M7 next executable lane is `M7.E` (P9 readiness).
+
+## Entry: 2026-02-18 17:35:00 +00:00 - P8.D plane rollup closure published PASS
+
+### User directive
+1. Move to `P8.D` in `M7.P8`.
+
+### Execution
+1. Built P8 plane rollup from closure artifacts:
+   - `m7_b_rtdl_readiness_snapshot.json`
+   - `m7_c_rtdl_caught_up_snapshot.json`
+   - `m7_d_archive_durability_snapshot.json`
+2. Published plane snapshot:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_p8_plane_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p8_plane_snapshot.json`
+
+### Runtime budgets (P8 lane)
+1. `P8.A`: `31.525s` / `600s`.
+2. `P8.B`: `2.087s` / `1200s`.
+3. `P8.C`: `11.066s` / `600s`.
+4. `P8.total`: `44.678s` / `2400s`.
+
+### Verdict
+1. `P8.D` closes PASS:
+   - `overall_pass=true`
+   - blocker rollup empty.
+2. `M7.P8` branch is now closure-ready.

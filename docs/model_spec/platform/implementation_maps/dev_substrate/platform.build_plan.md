@@ -715,6 +715,9 @@ Active-phase planning posture:
       - runtime image rebuild/publish with Kafka intake fixes,
       - archive-writer rematerialized to task definition `:16`,
       - rerun evidence republished with stable writer posture.
+  - `P8.D` plane rollup is now closed PASS:
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p8_plane_snapshot.json`
+    - closure result: `overall_pass=true`, blocker rollup empty, runtime budgets within thresholds.
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.

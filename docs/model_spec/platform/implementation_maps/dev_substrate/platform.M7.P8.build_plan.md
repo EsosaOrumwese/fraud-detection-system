@@ -45,7 +45,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Plane
 Current posture:
-1. `P8.A` is execution-closed with PASS evidence; `P8.B` is next.
+1. `P8.A`..`P8.D` are execution-closed with PASS evidence.
 
 Execution block:
 1. No P8 runtime execution before `M7.A` handle closure pass.
@@ -361,10 +361,27 @@ Tasks:
    - `overall_pass`.
 
 DoD:
-- [ ] Plane snapshot exists locally + durably.
-- [ ] Blocker rollup is explicit.
-- [ ] Runtime budget results are explicit for each sub-phase.
-- [ ] `overall_pass` is deterministic.
+- [x] Plane snapshot exists locally + durably.
+- [x] Blocker rollup is explicit.
+- [x] Runtime budget results are explicit for each sub-phase.
+- [x] `overall_pass` is deterministic.
+
+Execution notes:
+1. Executed `P8.D` on active M7 context (`m7_execution_id=m7_20260218T141420Z`, `platform_run_id=platform_20260213T214223Z`) and published:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_p8_plane_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p8_plane_snapshot.json`
+2. Source rollup references:
+   - `m7_b_rtdl_readiness_snapshot.json`
+   - `m7_c_rtdl_caught_up_snapshot.json`
+   - `m7_d_archive_durability_snapshot.json`
+3. Runtime budget summary (all within budget):
+   - `P8.A`: `31.525s` / `600s`
+   - `P8.B`: `2.087s` / `1200s`
+   - `P8.C`: `11.066s` / `600s`
+   - `P8.total`: `44.678s` / `2400s`
+4. Closure result:
+   - `overall_pass=true`
+   - blocker rollup empty.
 
 Blockers:
 1. `M7P8-B1`: source snapshot missing/unreadable.
@@ -398,9 +415,9 @@ Required metadata fields in each control-plane snapshot:
 - [x] P8.A complete
 - [x] P8.B complete
 - [x] P8.C complete
-- [ ] P8.D complete
-- [ ] Runtime budget gates satisfied (or explicitly fail-closed with accepted blockers).
-- [ ] Rerun/rollback posture documented for any non-pass lane.
+- [x] P8.D complete
+- [x] Runtime budget gates satisfied (or explicitly fail-closed with accepted blockers).
+- [x] Rerun/rollback posture documented for any non-pass lane.
 
 ## 9) Exit Criteria (P8)
 P8 branch is closure-ready only when:
@@ -412,7 +429,6 @@ P8 branch is closure-ready only when:
 ## 10) Unresolved Blocker Register (P8 Branch)
 Current blockers:
 1. None.
-2. `M7D-B4` is closed by rollout + rerun evidence (`overall_pass=true`, blockers empty).
 
 Rule:
 1. Any blocker discovered in `P8.A..P8.D` is appended here with:
