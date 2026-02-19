@@ -717,29 +717,115 @@ Execution closure (`2026-02-19`):
 ### M7.J M8 Handoff Artifact Publication
 Goal:
 1. Publish canonical handoff package for M8 entry.
+2. Make M8 entry machine-checkable from durable artifacts only.
 
 Entry conditions:
 1. `M7.I` verdict is `ADVANCE_TO_M8`.
+2. `m7_i_verdict_snapshot.json` is readable locally or via durable fallback and has:
+   - `overall_pass=true`
+   - `verdict=ADVANCE_TO_M8`
+   - `blockers=[]`.
+3. Active run scope is fixed:
+   - `platform_run_id=platform_20260213T214223Z`
+   - `m7_execution_id=m7_20260218T141420Z`.
+
+Required inputs:
+1. Control-plane snapshots:
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_i_verdict_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_p8_plane_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_p9_plane_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_p10_plane_snapshot.json`.
+2. Durable fallback root:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/`.
+3. Run-scoped evidence roots:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/rtdl_core/`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/case_labels/`.
+
+Preparation checks:
+1. Verify `M7.I` verdict contract (`ADVANCE_TO_M8`, no blockers, scope conformance).
+2. Verify required M7 evidence URIs referenced in handoff are readable.
+3. Verify payload remains non-secret:
+   - no secrets/tokens/passwords/credential material,
+   - only handles, run IDs, verdicts, evidence URIs, and status metadata.
 
 Tasks:
-1. Build `m8_handoff_pack.json` with:
-   - `platform_run_id`
-   - `m7_verdict`
-   - `p8`/`p9`/`p10` evidence URIs
-   - source execution IDs (`m7_a..m7_i`).
-2. Enforce non-secret payload.
-3. Publish local + durable handoff artifact.
+1. Build deterministic `m8_handoff_pack.json` with at minimum:
+   - identity/scope:
+     - `phase=M7.J`
+     - `phase_id=P11_HANDOFF_PREP`
+     - `platform_run_id`
+     - `m7_execution_id`
+   - verdict posture:
+     - `m7_verdict=ADVANCE_TO_M8`
+     - `m7_overall_pass=true`
+   - source refs:
+     - `m7_i_verdict_snapshot` (local + durable URI)
+     - `m7_p8_plane_snapshot` (local + durable URI)
+     - `m7_p9_plane_snapshot` (local + durable URI)
+     - `m7_p10_plane_snapshot` (local + durable URI)
+   - M8 entry contract summary:
+     - `m8_entry_gate=READY`
+     - `required_evidence_uris` for `rtdl_core`, `decision_lane`, `case_labels`
+     - `blockers=[]`.
+2. Enforce non-secret payload and fail closed on any secret-bearing field.
+3. Publish `m8_handoff_pack.json` locally:
+   - `runs/dev_substrate/m7/20260218T141420Z/m8_handoff_pack.json`.
+4. Publish `m8_handoff_pack.json` durably:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m8_handoff_pack.json`.
+
+Required handoff fields (`m8_handoff_pack.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m7_execution_id`.
+2. `m7_verdict`, `m7_overall_pass`, `m7_blockers`.
+3. `source_snapshots` (`m7_i`, `m7_p8`, `m7_p9`, `m7_p10` local + durable refs).
+4. `required_evidence_uris` grouped by plane (`rtdl_core`, `decision_lane`, `case_labels`).
+5. `m8_entry_gate`, `non_secret_payload=true`, `overall_pass`.
+6. `started_at_utc`, `completed_at_utc`, `elapsed_seconds`.
+
+Runtime budget:
+1. `M7.J` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
 
 DoD:
-- [ ] `m8_handoff_pack.json` complete and non-secret.
-- [ ] Durable handoff publication passes.
-- [ ] URI references are valid for M8 entry.
+- [x] `m8_handoff_pack.json` complete and non-secret.
+- [x] Durable handoff publication passes.
+- [x] URI references are valid for M8 entry.
+- [x] Runtime budget target is met (or explicitly waived).
+
+Planning status:
+1. `M7.J` is now execution-grade (contract + checks + blockers pinned).
+2. Execution completed on `2026-02-19` with `m8_entry_gate=READY`.
 
 Blockers:
 1. `M7J-B1`: M7 verdict is not `ADVANCE_TO_M8`.
 2. `M7J-B2`: handoff payload missing required fields/URIs.
 3. `M7J-B3`: non-secret policy violation.
 4. `M7J-B4`: handoff artifact write/upload failure.
+5. `M7J-B5`: run-scope mismatch between handoff payload and `M7.I` verdict snapshot.
+6. `M7J-B6`: required evidence URI missing/unreadable.
+
+Execution closure (`2026-02-19`):
+1. Entry gate checks passed:
+   - `M7.I` verdict snapshot reports `ADVANCE_TO_M8`, `overall_pass=true`, blockers empty.
+   - run-scope conformance held (`platform_run_id=platform_20260213T214223Z`, `m7_execution_id=m7_20260218T141420Z`).
+2. Required source snapshots validated:
+   - `m7_i_verdict_snapshot.json`
+   - `m7_p8_plane_snapshot.json`
+   - `m7_p9_plane_snapshot.json`
+   - `m7_p10_plane_snapshot.json`.
+3. Required evidence URI readability checks passed for all pinned M7 run-scoped artifacts across:
+   - `rtdl_core`, `decision_lane`, `case_labels`.
+4. Deterministic handoff pack published:
+   - local:
+     - `runs/dev_substrate/m7/20260218T141420Z/m8_handoff_pack.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m8_handoff_pack.json`
+5. Payload posture:
+   - `m8_entry_gate=READY`
+   - `non_secret_payload=true`
+   - blockers empty
+   - `overall_pass=true`
+   - runtime budget within target.
 
 ## 6) M7 Evidence Contract (Pinned for Execution)
 Evidence roots:
@@ -778,7 +864,7 @@ Notes:
 - [x] M7.G complete
 - [x] M7.H complete
 - [x] M7.I complete
-- [ ] M7.J complete
+- [x] M7.J complete
 
 ## 8) Risks and Controls
 R1: RTDL declared caught-up without durable offset evidence.  

@@ -13591,3 +13591,74 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - M7.I progress + verdict closure captured,
    - M7 DoD verdict item marked complete,
    - next action moved to `M7.J`.
+
+## Entry: 2026-02-19 07:07:30 +00:00 - M7.J planning expansion (M8 handoff contract)
+### User directive
+1. Plan out `M7.J` as preparation for M8 entry.
+
+### Planning decision trail
+1. Treat M7.J as a strict contract publication lane, not a generic file write.
+2. Make `M7.I` verdict snapshot the hard authority input:
+   - if `ADVANCE_TO_M8` and `overall_pass=true` are absent, M7.J must fail closed.
+3. Require all M7 plane rollup snapshots (`m7_p8`, `m7_p9`, `m7_p10`) as explicit source references in handoff payload.
+4. Pin a non-secret enforcement gate in M7.J itself, instead of assuming upstream hygiene.
+5. Require URI readability checks for referenced evidence before handoff publication to avoid broken M8 entry packs.
+6. Keep runtime budget explicit to preserve performance-law posture.
+
+### Changes applied
+1. Expanded `M7.J` in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md` with:
+   - entry conditions and scope lock,
+   - required inputs and preparation checks,
+   - deterministic handoff build tasks,
+   - required `m8_handoff_pack.json` field contract,
+   - runtime budget gate,
+   - expanded blockers (`M7J-B1..M7J-B6`).
+2. Added main-plan alignment note in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+
+### Execution posture
+1. This step is planning-only.
+2. M7.J execution remains pending explicit USER go-ahead.
+
+## Entry: 2026-02-19 07:09:55 +00:00 - M7.J execution start lock (M8 handoff publication)
+### User directive
+1. Proceed with the full execution of M7.J.
+
+### Execution intent
+1. Enforce M7.J entry gate from `m7_i_verdict_snapshot.json` (`ADVANCE_TO_M8`, `overall_pass=true`, no blockers).
+2. Validate required source snapshots and run-scoped evidence URI readability.
+3. Build deterministic `m8_handoff_pack.json` with non-secret payload posture.
+4. Publish local + durable handoff artifact and only then mark M7.J complete.
+
+## Entry: 2026-02-19 07:12:47 +00:00 - M7.J execution closure (handoff READY for M8)
+### Actions executed
+1. Enforced M7.J entry gate from `m7_i_verdict_snapshot.json`:
+   - `verdict=ADVANCE_TO_M8`
+   - `overall_pass=true`
+   - blockers empty.
+2. Verified readability of required run-scoped evidence URIs for:
+   - `rtdl_core` (`offsets_snapshot`, `caught_up`, `archive_write_summary`)
+   - `decision_lane` (`decision_summary`, `action_summary`, `audit_summary`)
+   - `case_labels` (`case_summary`, `label_summary`).
+3. Built deterministic handoff payload and published:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m8_handoff_pack.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m8_handoff_pack.json`.
+4. Performed schema-quality normalization:
+   - `m7_blockers` normalized from `null` to `[]`,
+   - republished local + durable handoff artifact (no semantic verdict change).
+
+### Final result
+1. `m8_entry_gate=READY`.
+2. `non_secret_payload=true`.
+3. `overall_pass=true`, blockers empty.
+4. Runtime budget within target (`elapsed_seconds=10.324`).
+
+### Documentation closure
+1. `platform.M7.build_plan.md` updated:
+   - M7.J DoD marked complete,
+   - execution closure notes added,
+   - M7 completion checklist marks `M7.J` complete.
+2. `platform.build_plan.md` updated:
+   - M7.J execution closure added,
+   - M7 sub-phase + DoD checklists updated,
+   - next action moved to M8 go-ahead posture.
