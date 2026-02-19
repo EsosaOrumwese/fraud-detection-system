@@ -13662,3 +13662,125 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - M7.J execution closure added,
    - M7 sub-phase + DoD checklists updated,
    - next action moved to M8 go-ahead posture.
+
+## Entry: 2026-02-19 07:26:02 +00:00 - M8 planning pre-change lock (main + deep plan expansion)
+### User directive
+1. Proceed with planning of M8 in `platform.build_plan.md` and the detailed `.M8` build plan.
+
+### Problem framing
+1. `M8` is currently only gate-level in the main plan, while `M7` is closure-complete through `M7.J`.
+2. No `platform.M8.build_plan.md` exists yet, so P11 planning depth is missing.
+3. Without execution-grade M8 planning, phase-coverage law would be violated for Obs/Gov closure.
+
+### Alternatives considered
+1. Keep M8 as summary-only in main plan and defer deep plan until execution.
+   - Rejected: leaves capability lanes implicit and forces improvisation at execution time.
+2. Expand only deep M8 file and keep main plan unchanged.
+   - Rejected: causes status/routing drift between source-of-truth main plan and deep plan.
+3. Expand both in one change set with explicit status/routing alignment.
+   - Selected: preserves phase-governance consistency and creates execution-ready M8 contract.
+
+### Planned changes
+1. Main plan (`platform.build_plan.md`):
+   - transition status posture from M7 active to M7 done and M8 active (planning/execution phase),
+   - replace summary-only M8 block with execution-grade content (entry, scope, failure posture, sub-phase model, DoD),
+   - add M8 deep-plan routing note and immediate next action alignment.
+2. Deep plan (`platform.M8.build_plan.md`):
+   - create new execution-grade orchestrator plan for P11 Obs/Gov closure,
+   - pin sub-phases `M8.A..M8.I`, blockers, runtime budgets, evidence contract, and completion checklist.
+3. Record planning trail in logbook and implementation map before/after edits.
+
+## Entry: 2026-02-19 07:28:30 +00:00 - M8 planning expansion applied (main + deep plans aligned)
+### Changes executed
+1. Main plan updated: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+   - phase roadmap/status alignment:
+     - `M7` transitioned to `DONE`,
+     - `M8` transitioned to `ACTIVE`.
+   - deep-plan routing updated to include:
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+   - current phase posture updated to reflect M8 activation.
+   - M8 section replaced from summary-only to execution-grade planning:
+     - objective/scope/failure posture,
+     - sub-phase model `M8.A..M8.I`,
+     - M8 DoD checklist.
+   - immediate-next-action moved from M7 closeout to M8 execution entry (`M8.A`).
+   - evidence-fidelity map for M8 refined to explicit obs paths:
+     - `obs/run_report.json`, `obs/reconciliation.json`, `obs/replay_anchors.json`, `obs/environment_conformance.json`, `obs/anomaly_summary.json`, `run_completed.json`.
+2. Deep plan created: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+   - execution-grade orchestrator for `P11`:
+     - authority inputs and scope boundaries,
+     - capability-lane coverage matrix,
+     - detailed sub-phases `M8.A..M8.I`,
+     - fail-closed blocker taxonomy per sub-phase,
+     - runtime budget gates,
+     - pinned evidence contract (run-scoped + control-plane),
+     - completion checklist and exit criteria.
+
+### Planning outcome
+1. M8 is now planning-complete and execution-ready at documentation level.
+2. No runtime execution was started in this step.
+3. Next operational step is to execute `M8.A` under fail-closed gate checks.
+
+## Entry: 2026-02-19 07:29:20 +00:00 - M8 planning consistency cleanup (main plan header)
+### Adjustment
+1. Renamed legacy section header in `platform.build_plan.md`:
+   - from `M6 Active Phase + Remaining Phases`
+   - to `Remaining Phases (Current Program State)`.
+
+### Rationale
+1. Prevent stale phase-label drift now that active phase has moved to M8.
+
+## Entry: 2026-02-19 07:32:24 +00:00 - M8.A expansion pre-change lock (execution-grade)
+### User directive
+1. Proceed with expansion of the M8.A plan.
+
+### Problem framing
+1. `M8.A` currently defines goals/tasks/blockers but lacks execution-grade mechanics.
+2. Missing mechanics include explicit entry/preparation checks, deterministic verification algorithm, and output schema contract.
+3. Without these, `M8.A` execution would still require interpretation and risks drift.
+
+### Alternatives considered
+1. Keep existing M8.A and proceed directly to execution.
+   - Rejected: violates decision-completeness and phase-coverage laws.
+2. Expand only with extra checklist bullets.
+   - Rejected: improves readability but remains underspecified for deterministic execution.
+3. Expand M8.A to full execution-grade contract.
+   - Selected: aligns with prior expansion style (`M7.I`, `M7.J`) and removes ambiguity.
+
+### Planned expansion
+1. Add M8.A entry conditions and fixed run-scope assumptions.
+2. Add required inputs and preparation checks.
+3. Add deterministic verification algorithm and required output fields for `m8_a_handle_closure_snapshot.json`.
+4. Add lane-specific runtime budget gate and planning status note.
+5. Reflect M8.A expansion state in the main platform build plan.
+
+## Entry: 2026-02-19 07:33:33 +00:00 - M8.A expansion applied (execution-grade contract pinned)
+### Changes executed
+1. Expanded `M8.A` section in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+2. Added execution-grade mechanics:
+   - entry conditions with M7 handoff gate lock,
+   - required input set (handoff refs + full P11 handle closure list),
+   - preparation checks,
+   - deterministic verification algorithm,
+   - required snapshot schema for `m8_a_handle_closure_snapshot.json`,
+   - lane runtime budget gate,
+   - planning status note and extended blocker taxonomy (`M8A-B5`).
+3. Aligned main phase plan in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   by marking M8 expansion state with explicit `M8.A` execution-grade readiness.
+
+### Outcome
+1. `M8.A` can now be executed without interpretation drift.
+2. No runtime execution started in this step.
+3. Next operational step remains `M8.A` execution under fail-closed checks.
+
+## Entry: 2026-02-19 07:35:24 +00:00 - M8.A execution start lock (P11 handle closure)
+### User directive
+1. Proceed with full execution and documentation of M8.A.
+
+### Execution intent
+1. Enforce M7 handoff gate (`m8_entry_gate=READY`, `overall_pass=true`, blockers empty) before handle closure checks.
+2. Resolve and validate required P11 handle set from registry with placeholder/wildcard fail-closed checks.
+3. Emit and publish `m8_a_handle_closure_snapshot.json` (local + durable) with deterministic closure matrix.
+4. Mark M8.A complete only if blocker rollup is empty and snapshot publication succeeds.

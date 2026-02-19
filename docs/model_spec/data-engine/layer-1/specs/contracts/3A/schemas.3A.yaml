@@ -364,6 +364,26 @@ policy:
           merchant_jitter_clip: { type: number, minimum: 0.0, maximum: 0.50 }
           alpha_floor:         { type: number, exclusiveMinimum: 0.0, maximum: 0.01 }
           notes:               { type: string }
+      s1_smoothing:
+        type: object
+        additionalProperties: false
+        required:
+          - enabled
+          - zone_count_min
+          - zone_count_max
+          - zone_escalation_prob_min
+          - zone_escalation_prob_max
+          - site_count_slope
+          - site_count_cap
+        properties:
+          enabled:                  { type: boolean }
+          zone_count_min:           { type: integer, minimum: 2, maximum: 32 }
+          zone_count_max:           { type: integer, minimum: 3, maximum: 64 }
+          zone_escalation_prob_min: { type: number, minimum: 0.0, maximum: 1.0 }
+          zone_escalation_prob_max: { type: number, minimum: 0.0, maximum: 1.0 }
+          site_count_slope:         { type: number, minimum: 0.0, maximum: 1.0 }
+          site_count_cap:           { type: number, minimum: 0.0, maximum: 1.0 }
+          notes:                    { type: string }
       rules:
         type: array
         minItems: 1

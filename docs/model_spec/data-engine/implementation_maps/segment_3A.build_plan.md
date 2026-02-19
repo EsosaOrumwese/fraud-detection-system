@@ -712,9 +712,9 @@ Scope:
 - keep S1 as sole escalation authority and preserve domain completeness.
 
 Definition of done:
-- [ ] escalation curve monotonicity improves without domain regressions.
-- [ ] downstream S4/zone_alloc realism improves or remains non-regressed.
-- [ ] policy/version lineage is sealed and recorded.
+- [x] escalation curve monotonicity improves without domain regressions.
+- [x] downstream S4/zone_alloc realism improves or remains non-regressed.
+- [x] policy/version lineage is sealed and recorded.
 
 P4 authority baseline (post-P3 lock):
 - selected run-id: `3f2e94f2d1504c249e434949659a496f`.
@@ -752,9 +752,9 @@ Scope:
   - witness escalation rate in `[0.55, 0.70]`.
 
 Definition of done:
-- [ ] quantitative targets and rail thresholds are pinned.
-- [ ] non-regression rail set is explicit.
-- [ ] candidate budget and stop criteria are pinned.
+- [x] quantitative targets and rail thresholds are pinned.
+- [x] non-regression rail set is explicit.
+- [x] candidate budget and stop criteria are pinned.
 
 #### P4.2 - Policy-Only Knob Contract (Low-Blast Lane)
 Goal:
@@ -772,9 +772,9 @@ Scope:
 - keep rule semantics and policy schema compatible in this lane.
 
 Definition of done:
-- [ ] bounded knob families and ranges are listed.
-- [ ] candidate matrix cardinality is capped (`<= 6`).
-- [ ] veto rails are pinned before first candidate run.
+- [x] bounded knob families and ranges are listed.
+- [x] candidate matrix cardinality is capped (`<= 6`).
+- [x] veto rails are pinned before first candidate run.
 
 #### P4.3 - Policy-Only Sweep + Ranking
 Goal:
@@ -793,9 +793,9 @@ Scope:
   - any `P2/P3` non-regression breach.
 
 Definition of done:
-- [ ] ranked sweep table + veto reasons are emitted.
-- [ ] one candidate is promoted, or lane is explicitly marked insufficient.
-- [ ] explicit decision recorded: `P4_POLICY_LOCK` or `P4_NEEDS_CODE_SMOOTHING`.
+- [x] ranked sweep table + veto reasons are emitted.
+- [x] one candidate is promoted, or lane is explicitly marked insufficient.
+- [x] explicit decision recorded: `P4_POLICY_LOCK` or `P4_NEEDS_CODE_SMOOTHING`.
 
 #### P4.4 - Smooth-Band S1 Lane (Only If Needed)
 Goal:
@@ -809,9 +809,9 @@ Scope:
 - run bounded reruns (`<= 4`) and re-rank with `J4`.
 
 Definition of done:
-- [ ] additive smooth-band controls are schema-valid and deterministic.
-- [ ] bounded code-smoothing sweep artifacts are emitted.
-- [ ] one candidate is promoted or phase is marked reopen-required.
+- [x] additive smooth-band controls are schema-valid and deterministic.
+- [x] bounded code-smoothing sweep artifacts are emitted.
+- [x] one candidate is promoted or phase is marked reopen-required.
 
 #### P4.5 - Witness Lock + Smoke Stability
 Goal:
@@ -823,9 +823,9 @@ Scope:
 - enforce both S1-shape movement and `P2/P3` non-regression rails.
 
 Definition of done:
-- [ ] witness run confirms selected S1-shape movement.
-- [ ] smoke seeds preserve direction and keep hard rails PASS.
-- [ ] no new anomalies appear in `S6`.
+- [x] witness run confirms selected S1-shape movement.
+- [x] smoke seeds preserve direction and keep hard rails PASS.
+- [x] no new anomalies appear in `S6`.
 
 #### P4.6 - Closeout and Handoff
 Goal:
@@ -840,9 +840,41 @@ Scope:
   - or `HOLD_P4_REOPEN`.
 
 Definition of done:
-- [ ] closeout artifacts are emitted and referenced.
-- [ ] retained run set is applied; superseded runs pruned.
-- [ ] explicit handoff decision is recorded.
+- [x] closeout artifacts are emitted and referenced.
+- [x] retained run set is applied; superseded runs pruned.
+- [x] explicit handoff decision is recorded.
+
+P4 execution outcome:
+- `P4.3` policy-only lane decision:
+  - `P4_NEEDS_CODE_SMOOTHING`.
+- `P4.4` code-smoothing lane decision:
+  - `P4_NEEDS_CODE_SMOOTHING` (strict phase target still unmet under rails),
+  - selected rail-safe uplift candidate: `P4K2` / run
+    `58df4758c04040d796d38a08c481b555`.
+- selected witness/smoke authority set (`P4.5`):
+  - witness run (`seed=42`): `6977c4ef82cc4f01ae76549047c08f51`,
+  - smoke run (`seed=7`): `b57d89c4bc0741389d4980201eb51ffe`,
+  - smoke run (`seed=101`): `d2751ee567fa4935ba572c9644e9e901`.
+- measured movement vs anchor (`3f2e94f2d1504c249e434949659a496f`):
+  - `S1 major_dip_max_abs`: `0.501379 -> 0.336092` (improved),
+  - `S1 monotonic_violations`: `5 -> 5` (no movement),
+  - `S4 multi-zone` preserved above non-regression rail across seedpack.
+- explicit handoff decision:
+  - `UNLOCK_P5_BEST_EFFORT`.
+- retained run-id set after `P4.6` prune:
+  - `81599ab107ba4c8db7fc5850287360fe`,
+  - `3f2e94f2d1504c249e434949659a496f`,
+  - `58df4758c04040d796d38a08c481b555`,
+  - `6977c4ef82cc4f01ae76549047c08f51`,
+  - `b57d89c4bc0741389d4980201eb51ffe`,
+  - `d2751ee567fa4935ba572c9644e9e901`.
+- artifacts:
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p4_3_sweep_summary.json`,
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p4_4_matrix_runs.json`,
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p4_4_sweep_summary.json`,
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p4_5_runs.json`,
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p4_5_witness_summary.json`,
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p4_closeout_summary.json`.
 
 ### P5 - Integrated certification (`B`/`B+`) across seedpack
 Goal:

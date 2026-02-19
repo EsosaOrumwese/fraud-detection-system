@@ -8,6 +8,14 @@ s3_dispersion:
   merchant_jitter: 0.0
   merchant_jitter_clip: 0.0
   alpha_floor: 1.0e-06
+s1_smoothing:
+  enabled: true
+  zone_count_min: 5
+  zone_count_max: 16
+  zone_escalation_prob_min: 0.08
+  zone_escalation_prob_max: 0.5
+  site_count_slope: 0.2
+  site_count_cap: 0.22
 rules:
 - metric: site_count_lt
   threshold: 3

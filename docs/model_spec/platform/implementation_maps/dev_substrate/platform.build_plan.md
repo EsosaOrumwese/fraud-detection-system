@@ -1,6 +1,6 @@
 # Dev Substrate Migration Build Plan (Fresh Start)
 _Track: local_parity -> dev_min managed substrate (Spine Green v0)_
-_Last updated: 2026-02-18_
+_Last updated: 2026-02-19_
 
 ## 0) Purpose
 This is the active execution plan for migrating the already-canonical local-parity Spine Green v0 flow into `dev_min` with:
@@ -82,8 +82,8 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | M4 | P2 | Daemon bring-up on ECS with run-scope controls | DONE |
 | M5 | P3 | Oracle lane (inlet assertion/sort/checker) | DONE |
 | M6 | P4-P7 | Control+Ingress closure | DONE |
-| M7 | P8-P10 | RTDL + Case/Labels closure | ACTIVE |
-| M8 | P11 | Obs/Gov closure | NOT_STARTED |
+| M7 | P8-P10 | RTDL + Case/Labels closure | DONE |
+| M8 | P11 | Obs/Gov closure | ACTIVE |
 | M9 | P12 | Teardown proof + cost guardrails | NOT_STARTED |
 | M10 | certification | Semantic Green + Scale Green certification | NOT_STARTED |
 
@@ -113,7 +113,8 @@ Current deep-plan file state:
   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` (present)
   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` (present)
   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (present)
-- `M8..M10`: deferred until phase activation is approved.
+- `M8`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md` (present)
+- `M9..M10`: deferred until phase activation is approved.
 
 ---
 
@@ -145,7 +146,8 @@ Current phase posture:
 - `M4` is `DONE`,
 - `M5` is `DONE`,
 - `M6` is `DONE`,
-- `M7` is `ACTIVE` for deep planning before execution.
+- `M7` is `DONE`,
+- `M8` is `ACTIVE` for planning/execution.
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -370,7 +372,7 @@ M3 DoD checklist:
 
 ---
 
-## 9) M6 Active Phase + Remaining Phases
+## 9) Remaining Phases (Current Program State)
 
 ## M4 - P2 Daemon bring-up
 Status: `DONE`
@@ -637,7 +639,7 @@ M6 DoD checklist:
 - [x] M7 handoff pack is published and non-secret.
 
 ## M7 - P8-P10 RTDL + Case/Labels closure
-Status: `ACTIVE`
+Status: `DONE`
 Entry gate:
 - M6 is `DONE`.
 - M6 handoff artifact is present:
@@ -813,14 +815,78 @@ M7 DoD checklist:
 - [x] M8 handoff pack is published and non-secret.
 
 ## M8 - P11 Obs/Gov closure
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 Entry gate:
 - M7 is `DONE`.
-DoD summary:
-- single-writer reporter lock enforced.
-- run report, reconciliation, conformance, replay anchors produced.
-- run closure marker written.
-- concurrent reporter/manual closeout contention fails closed with explicit conflict evidence.
+- M7 handoff artifact is present:
+  - local: `runs/dev_substrate/m7/20260218T141420Z/m8_handoff_pack.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m8_handoff_pack.json`.
+
+Objective:
+- Close `P11 OBS_GOV_CLOSED` on managed substrate with single-writer discipline:
+  - reporter one-shot closeout lock succeeds,
+  - run closure evidence bundle is complete and durable,
+  - replay anchors and reconciliation are coherent and run-scoped,
+  - run completion marker is written.
+- Preserve no-laptop compute law and fail-closed governance posture.
+
+Scope:
+- reporter runtime readiness on ECS one-shot task (`TD_REPORTER`) with lock backend.
+- input evidence intake from prior phases (`M6`, `M7`) for closure aggregation.
+- closure bundle publication under run evidence prefix:
+  - `run_completed.json`
+  - `obs/run_report.json`
+  - `obs/reconciliation.json`
+  - `obs/replay_anchors.json`
+  - `obs/environment_conformance.json`
+  - `obs/anomaly_summary.json`.
+- reporter contention fail-closed proof and single-writer conformance.
+- P11 verdict rollup + M9 handoff publication.
+
+Failure posture:
+- fail closed on any of:
+  - reporter lock acquisition failure or concurrent-writer success,
+  - missing required closure artifacts or unreadable evidence URIs,
+  - replay anchors/reconciliation inconsistency against prior phase evidence,
+  - non-secret policy violation in control artifacts,
+  - missing run completion marker.
+
+Active-phase planning posture:
+- Detailed M8 authority file:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+- M8 sub-phase progression model:
+  - `M8.A` P11 authority + handles closure,
+  - `M8.B` reporter runtime + single-writer lock readiness,
+  - `M8.C` P11 input evidence readiness checks,
+  - `M8.D` reporter contention fail-closed probe,
+  - `M8.E` reporter one-shot execution,
+  - `M8.F` closure bundle completeness verification,
+  - `M8.G` replay anchors + reconciliation coherence verification,
+  - `M8.H` closure marker + env/anomaly outputs verification,
+  - `M8.I` P11 verdict rollup + M9 handoff publication.
+- M8 expansion state:
+  - planning is expanded to execution-grade in `platform.M8.build_plan.md`,
+  - `M8.A` is expanded to execution-grade with deterministic handle-closure algorithm and snapshot contract,
+  - runtime execution has not started yet.
+
+Sub-phase progress:
+  - [ ] `M8.A` P11 authority + handles closure.
+  - [ ] `M8.B` reporter runtime + lock readiness.
+  - [ ] `M8.C` closure input evidence readiness.
+  - [ ] `M8.D` single-writer contention fail-closed probe.
+  - [ ] `M8.E` reporter one-shot execution.
+  - [ ] `M8.F` closure evidence bundle completeness.
+  - [ ] `M8.G` replay anchor + reconciliation coherence.
+  - [ ] `M8.H` closure marker + env/anomaly outputs verification.
+  - [ ] `M8.I` P11 verdict + M9 handoff.
+
+M8 DoD checklist:
+- [ ] Single-writer reporter lock is enforced and evidenced.
+- [ ] Required Obs/Gov closure artifacts are durable and run-scoped.
+- [ ] Replay anchors and reconciliation are coherent with prior phase evidence.
+- [ ] `run_completed.json` exists and references correct `platform_run_id`.
+- [ ] M8 verdict is `ADVANCE_TO_M9` with empty blocker rollup.
+- [ ] M9 handoff pack is published and non-secret.
 
 ## M9 - P12 Teardown
 Status: `NOT_STARTED`
@@ -865,7 +931,7 @@ This map keeps high-level planning aligned to runbook evidence obligations.
 | M5 | P3 | stream-sort receipts/manifests + checker pass evidence |
 | M6 | P4-P7 | `ingest/ig_ready.json`, `ingest/receipt_summary.json`, `ingest/quarantine_summary.json` (if any), `ingest/kafka_offsets_snapshot.json` |
 | M7 | P8-P10 | `rtdl_core/*`, `decision_lane/*`, `case_labels/*` evidence summaries |
-| M8 | P11 | `obs/run_report.json`, `obs/reconciliation.json`, `obs/environment_conformance.json`, replay anchors, `run_completed.json` |
+| M8 | P11 | `obs/run_report.json`, `obs/reconciliation.json`, `obs/replay_anchors.json`, `obs/environment_conformance.json`, `obs/anomaly_summary.json`, `run_completed.json` |
 | M9 | P12 | teardown proof artifact + post-destroy resource check snapshot |
 | M10 | certification | semantic run bundles (20/200) + scale-run bundles (window/burst/soak/recovery) + drill refs |
 
@@ -940,7 +1006,9 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M7 is active for deep-plan closure and execution sequencing.
+M8 is active for deep-plan closure and execution sequencing.
 Next action:
-- M7 closure evidence is complete through `M7.J` with handoff artifact published,
-- proceed to M8 planning/execution gate only after USER go-ahead.
+- begin M8 execution lane at `M8.A` authority + handle closure,
+- require first durable control artifact:
+  - `evidence/dev_min/run_control/<m8_execution_id>/m8_a_handle_closure_snapshot.json`,
+- continue `M8.B..M8.I` only after `M8.A` passes fail-closed checks.

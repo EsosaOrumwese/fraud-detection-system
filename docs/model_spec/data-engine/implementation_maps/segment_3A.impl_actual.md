@@ -4168,3 +4168,255 @@ What was added:
 Planning outcome:
 1) `P4` is now implementation-ready with explicit bounded tuning lanes,
    objective ranking, strict veto rails, and auditable closure semantics.
+
+### Entry: 2026-02-19 07:08
+
+Design element: `P4 execution lock (full phase, policy-first lane)`.
+Summary: user requested full execution of `P4`. This entry pins execution
+sequence, candidate matrix, ranking objective, and stop criteria before edits.
+
+Execution sequence pinned:
+1) `P4.1` finalize target envelope + rails from current authority metrics.
+2) `P4.2` implement deterministic policy-render helper for S1 shape candidates
+   and snapshot baseline policy.
+3) `P4.3` execute bounded policy-only sweep (`<=6`) on seed `42` with full
+   `S0->S7` reruns and rank by `J4`.
+4) decision gate:
+   - if `P4.1` phase target is met by a policy-only candidate, skip code lane.
+   - else open `P4.4` code-smoothing lane.
+5) `P4.5` witness + smoke for selected posture.
+6) `P4.6` closeout + prune + explicit handoff decision.
+
+Policy-only candidate matrix (`P4.3`, seed `42`):
+1) `P4C0` control: `theta=0.35`, `site_lt=3`, `zone_ge=4`, `site_ge=35`.
+2) `P4C1`: `theta=0.35`, `site_lt=2`, `zone_ge=4`, `site_ge=35`.
+3) `P4C2`: `theta=0.35`, `site_lt=2`, `zone_ge=3`, `site_ge=35`.
+4) `P4C3`: `theta=0.35`, `site_lt=2`, `zone_ge=4`, `site_ge=25`.
+5) `P4C4`: `theta=0.20`, `site_lt=2`, `zone_ge=3`, `site_ge=25`.
+6) `P4C5`: `theta=0.50`, `site_lt=2`, `zone_ge=3`, `site_ge=25`.
+
+Ranking + veto:
+1) objective `J4 = 0.70*d_s1_dip_down + 0.30*d_s1_mono_viol_down`.
+2) phase-target gate (policy-only close condition):
+   - `major_dip_max_abs <= 0.20` and `monotonic_violations <= 2` on witness seed.
+3) hard veto:
+   - any `S6/S7` fail,
+   - any conservation/schema regression,
+   - `S3 std < 0.020`,
+   - `S4 multi-zone < 0.85` or `S4 top1 > 0.80` or `zone_alloc top1 > 0.80`.
+
+Smoke-lane note pinned:
+1) for non-42 seeds, if staged upstream lacks `1A/outlet_catalogue/seed=<seed>`
+   paths, apply run-root-only path aliasing from frozen `seed=42` payload (bytes
+   unchanged), as already used in `P2.4`.
+
+### Entry: 2026-02-19 07:17
+
+Design element: `P4.4 activation gate (policy-only lane failed; open bounded code smoothing)`.
+Summary: completed `P4.3` scoring and confirmed policy-only lane cannot close
+the S1 shape gap under non-regression rails. This entry pins the exact code
+lane design before any S1/schema edits.
+
+Decision evidence from `P4.3`:
+1) scorer decision: `P4_NEEDS_CODE_SMOOTHING` from
+   `runs/fix-data-engine/segment_3A/reports/segment3a_p4_3_sweep_summary.json`.
+2) best policy-only rail-safe candidate (`P4C0`) produced no S1 movement:
+   - `major_dip_max_abs=0.501379`,
+   - `monotonic_violations=5`.
+3) candidates that improved dip magnitude (`P4C1/P4C3`) breached locked
+   non-regression rail(s), so they are non-promotable.
+4) direct bucket forensics on S1 authority run showed the dominant incoherence
+   source is `below_min_sites` concentration at higher tz-count buckets:
+   - `z=5`: `100/140` rows `below_min_sites`,
+   - `z=9`: `86/116` rows `below_min_sites`,
+   driving large negative curve deltas while preserving lower buckets.
+
+P4.4 implementation decision:
+1) add an optional, policy-governed S1 smooth-band block applied only when
+   baseline rule evaluation yields `below_min_sites`.
+2) smoothing intent:
+   - monotonic tz-count lift (linear band from `zone_count_min` to
+     `zone_count_max`),
+   - bounded site-count additive lift (`site_count_slope` with
+     `site_count_cap`),
+   - deterministic conversion using hashed `u_det` variant (no RNG).
+3) keep blast radius bounded:
+   - no changes to rule ordering,
+   - no change to non-`below_min_sites` decision branches,
+   - conversion target reason remains existing allowed reason
+     `default_escalation` (no output reason enum expansion).
+4) schema posture:
+   - extend `schemas.3A.yaml#/policy/zone_mixture_policy_v1` with optional
+     `s1_smoothing` object and bounded numeric constraints.
+5) execution budget and sweep cap:
+   - bounded code+policy lane `<=4` candidates (seed `42`, full `S0->S7`),
+   - same `J4` ranking + existing hard veto rails,
+   - then witness/smoke closure and explicit handoff decision.
+
+Next action:
+1) implement S1 runner + policy schema updates for `s1_smoothing`.
+2) execute bounded `P4.4` candidate sweep and re-score.
+3) if target envelope still fails, close `P4` as best-effort reopen-required;
+   else lock and hand off to `P5`.
+
+### Entry: 2026-02-19 07:23
+
+Design element: `P4.4 code lane implemented (S1 deterministic smooth-band + schema/tool wiring)`.
+Summary: implemented the bounded P4.4 code lane exactly as planned, preserving
+determinism and fail-closed validation posture while constraining blast radius
+to the `below_min_sites` branch.
+
+Implemented changes:
+1) `S1` runner (`packages/engine/src/engine/layers/l1/seg_3A/s1_escalation/runner.py`):
+   - added `_S1SmoothingPolicy` and strict policy-validation for optional
+     `s1_smoothing` controls,
+   - added deterministic smooth-band hash stream
+     (`"3A.S1.smooth_band|..."`) independent of existing theta stream,
+   - applied smoothing only when baseline rule result is `below_min_sites`,
+     with conversion target reason fixed to existing `default_escalation`,
+   - added bounded probability construction:
+     monotonic zone-count band + bounded site-count additive term,
+   - added run-report trace fields for `s1_smoothing` and
+     `pairs_smooth_band_escalated`.
+2) policy schema authority
+   (`docs/model_spec/data-engine/layer-1/specs/contracts/3A/schemas.3A.yaml`):
+   - extended `policy/zone_mixture_policy_v1` with optional `s1_smoothing`
+     object and bounded numeric constraints.
+3) policy artifacts:
+   - set explicit neutral/disabled `s1_smoothing` blocks in:
+     - `config/layer1/3A/policy/zone_mixture_policy.yaml`,
+     - `scratch_files/segment3a_p4_baseline/zone_mixture_policy.yaml`.
+4) tooling:
+   - extended `tools/render_segment3a_p4_policy.py` to render full
+     `s1_smoothing` knobs with validation.
+
+Validation completed:
+1) `py_compile` passed for:
+   - `runner.py`,
+   - `render_segment3a_p4_policy.py`,
+   - `score_segment3a_p4_sweep.py`.
+
+Execution lane pinned (`P4.4`, seed `42`, full `S0->S7`, `<=4` candidates):
+1) hold core S1 base knobs fixed at authority control:
+   - `theta_mix=0.35`, `site_count_lt=3`, `zone_count_country_ge=4`,
+     `site_count_ge=35`.
+2) vary only `s1_smoothing`:
+   - `P4K1` conservative band,
+   - `P4K2` medium band,
+   - `P4K3` high-z focused band,
+   - `P4K4` aggressive high-z band.
+3) score all candidates with existing `J4` + hard veto rails and then route to:
+   - witness/smoke closure if promotable,
+   - or best-effort close decision if phase target remains unreachable.
+
+### Entry: 2026-02-19 07:24
+
+Design element: `P4.4 run-lane gate failure + bounded correction`.
+Summary: first code-lane execution attempt failed at `S0` due a policy-version
+semver contract breach introduced by candidate-tagged versions.
+
+Observed failure:
+1) initial lane invocation without explicit `RUNS_ROOT` staging attempted to
+   resolve run receipts under default `runs/local_full_run-5`, causing
+   `S0` precondition failure (`run_receipt.json` missing for candidate run-id).
+2) corrected by switching to explicit staging flow per candidate:
+   - `tools/stage_segment3a_run.py --runs-root runs/fix-data-engine/segment_3A`,
+   - then `make segment3a RUNS_ROOT=... RUN_ID=...`.
+3) once staging was corrected, first rerun hit policy semver gate.
+1) `S0` aborted with `E3A_S0_003_POLICY_SET_INCOMPLETE` while validating
+   `zone_mixture_policy` version against registry semver (`1.0.0`).
+4) cause: run-lane renderer wrote candidate-tagged versions
+   (e.g., `v1.0.0-p4k1`) which are not accepted by `S0` policy-set contract.
+
+Correction applied (fail-closed compliant):
+1) reset all candidate policy versions to canonical `v1.0.0`.
+2) reran the same bounded candidate matrix with no version-tag mutation.
+
+### Entry: 2026-02-19 07:28
+
+Design element: `P4.4 bounded code-smoothing sweep completed`.
+Summary: completed full `P4.4` matrix (`P4K1..P4K4`) with staged run receipts,
+full `S0->S7` reruns, and objective scoring under the same hard veto rails.
+
+Sweep registry and scoring artifacts:
+1) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_4_matrix_runs.json`.
+2) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_4_sweep_summary.json`.
+3) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_4_sweep_summary.md`.
+
+Key results:
+1) rail-safe selected candidate: `P4K2` / run
+   `58df4758c04040d796d38a08c481b555`.
+2) selected movement vs anchor:
+   - `major_dip_max_abs`: `0.501379 -> 0.336092`,
+   - `monotonic_violations`: `5 -> 5` (no change).
+3) aggressive candidates (`P4K3/P4K4`) achieved much stronger dip correction but
+   breached locked non-regression rail (`S4 multi-zone < 0.85`), so vetoed.
+4) phase decision remained `P4_NEEDS_CODE_SMOOTHING` under strict target
+   envelope.
+
+Interpretation:
+1) smooth-band lane is causally effective on dip magnitude.
+2) current rail budget does not allow crossing the strict P4 target without
+   destabilizing locked `P2/P3` surfaces.
+
+### Entry: 2026-02-19 07:32
+
+Design element: `P4.5/P4.6 closure (best-effort handoff)`.
+Summary: executed witness + smoke closure for selected rail-safe candidate and
+closed `P4` with explicit best-effort handoff decision.
+
+Witness/smoke execution:
+1) selected policy locked to `P4K2` knobs.
+2) witness run (`seed=42`): `6977c4ef82cc4f01ae76549047c08f51`.
+3) smoke runs:
+   - `seed=7`: `b57d89c4bc0741389d4980201eb51ffe`,
+   - `seed=101`: `d2751ee567fa4935ba572c9644e9e901`.
+4) smoke seed workaround reused from `P2.4`:
+   - run-root-local alias only for `1A/outlet_catalogue` path token
+     (`seed=42 -> seed=7/101`),
+   - payload bytes unchanged.
+
+Witness/smoke outcomes:
+1) all runs passed `S6/S7` and maintained non-regression rails:
+   - `S3 std >= 0.020`,
+   - `S4 multi-zone >= 0.85`,
+   - `S4/zone_alloc top1 <= 0.80`,
+   - conservation checks pass.
+2) directional movement preserved across seedpack:
+   - dip improved and stable at `0.336092`,
+   - monotonic violations stable at `5`.
+
+Close decision:
+1) strict `P4.1` phase target still unmet.
+2) best rail-safe candidate is stable and reproducible across witness/smoke.
+3) explicit handoff: `UNLOCK_P5_BEST_EFFORT`.
+
+Close artifacts:
+1) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_5_runs.json`.
+2) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_5_witness_summary.json`.
+3) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_5_witness_summary.md`.
+4) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_closeout_summary.json`.
+5) `runs/fix-data-engine/segment_3A/reports/segment3a_p4_closeout_summary.md`.
+
+### Entry: 2026-02-19 07:33
+
+Design element: `P4.6 storage hygiene closure`.
+Summary: applied superseded-run prune for Segment `3A` immediately after close
+decision to keep run-root storage bounded.
+
+Prune action:
+1) executed explicit keep-set pruning with
+   `tools/prune_run_folders_keep_set.py --yes`.
+2) retained run-id set:
+   - `81599ab107ba4c8db7fc5850287360fe` (pre-remediation baseline),
+   - `3f2e94f2d1504c249e434949659a496f` (P4 anchor),
+   - `58df4758c04040d796d38a08c481b555` (selected P4K2),
+   - `6977c4ef82cc4f01ae76549047c08f51` (witness),
+   - `b57d89c4bc0741389d4980201eb51ffe` (smoke seed 7),
+   - `d2751ee567fa4935ba572c9644e9e901` (smoke seed 101).
+3) removed all other superseded run-id folders under
+   `runs/fix-data-engine/segment_3A`.
+
+Outcome:
+1) `P4` close artifacts remain reproducible from retained authority set.
+2) run-folder count reduced to the explicit keep-set plus `reports`.
