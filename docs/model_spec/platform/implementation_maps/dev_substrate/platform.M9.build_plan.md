@@ -551,15 +551,15 @@ Runtime budget:
 2. Over-budget execution remains fail-closed unless explicit user waiver is recorded.
 
 DoD:
-- [ ] Demo stack teardown lane executes successfully.
-- [ ] Terraform/state summary confirms demo resource deletion intent/outcome.
-- [ ] Snapshot exists locally and durably.
+- [x] Demo stack teardown lane executes successfully.
+- [x] Terraform/state summary confirms demo resource deletion intent/outcome.
+- [x] Snapshot exists locally and durably.
 
 Planning status:
 1. `M9.D` is now execution-grade (entry/precheck/dispatch/poll/snapshot contract pinned).
-2. No teardown execution/destruction was run in this planning step.
+2. Historical preflight hold is retained below for decision traceability; execution is now complete.
 
-Execution preflight hold (2026-02-19):
+Execution preflight hold (historical, resolved 2026-02-19):
 1. Attempted `M9.D` execution preflight from local authority posture.
 2. Blocker observed:
    - `M9D-B1` (`unified teardown lane missing or not dispatchable for stack_target=demo`).
@@ -567,6 +567,27 @@ Execution preflight hold (2026-02-19):
    - remote `origin/migrate-dev` workflow file still lacks `stack_target` input.
 4. Resolution required before rerun:
    - materialize updated unified workflow to remote branch used for dispatch.
+
+Execution closure (2026-02-19):
+1. Execution id:
+   - `m9_20260219T150604Z`.
+2. Workflow run:
+   - id: `22187272766`
+   - url: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22187272766`
+   - conclusion: `success`.
+3. Source demo-destroy snapshot:
+   - durable uri: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/teardown_demo_20260219T150604Z/demo_destroy_snapshot.json`.
+4. M9.D snapshot artifact:
+   - local: `runs/dev_substrate/m9/m9_20260219T150604Z/m9_d_demo_destroy_snapshot.json`
+   - durable source carries `overall_pass=true`.
+5. Result:
+   - `destroy_outcome=success`,
+   - `post_destroy_state_resource_count=0`,
+   - `overall_pass=true`,
+   - blockers empty.
+6. Consequence:
+   - `M9.D` is closed.
+   - `M9.E` is unblocked.
 
 Blockers:
 1. `M9D-B1`: unified teardown lane missing or not dispatchable for `stack_target=demo`.
@@ -689,7 +710,7 @@ Budget rule:
 1. Over-budget lanes require explicit blocker notation and remediation/retry posture before progression.
 
 ## 7) Current Planning Status
-1. M9 is planning-open with `M9.A`, `M9.B`, and `M9.C` execution closed green.
-2. `M9.D` is now the next execution lane.
+1. M9 is planning-open with `M9.A`, `M9.B`, `M9.C`, and `M9.D` execution closed green.
+2. `M9.E` is now the next execution lane.
 3. Unified teardown workflow decision is pinned:
    - `dev_min_confluent_destroy.yml` is stack-aware (`stack_target=confluent|demo`).

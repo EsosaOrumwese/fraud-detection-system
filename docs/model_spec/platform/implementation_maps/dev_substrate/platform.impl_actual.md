@@ -15280,3 +15280,53 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - `stack_target=demo`,
    - same pinned OIDC/state/evidence inputs.
 
+## Entry: 2026-02-19 15:09:30 +00:00 - M9.D execution completed (demo teardown via unified workflow)
+### Problem framing
+1. `M9.D` had to close through the unified managed lane only (`.github/workflows/dev_min_confluent_destroy.yml`, `stack_target=demo`) with fail-closed semantics.
+2. Initial attempts failed in sequence due missing lane prerequisites:
+   - OIDC role lacked `dev_min/demo` tfstate object access.
+   - demo destroy workflow had no explicit `required_platform_run_id` input.
+   - demo destroy depended on Confluent remote-state outputs after Confluent teardown.
+   - OIDC role lacked IAM read/delete support needed to remove remaining IAM roles.
+
+### Decision trail and remediations
+1. Resolved backend access drift (workflow init 403):
+   - widened role policy `GitHubActionsTerraformConfluentStateDevMin` to include:
+     - `dev_min/demo/*` object scope and list prefix.
+2. Resolved destroy-time required variable failure:
+   - committed workflow patch `2ad902a1`:
+     - added workflow input `required_platform_run_id`,
+     - enforced non-empty value when `stack_target=demo`,
+     - passed `-var required_platform_run_id=...` to demo destroy.
+3. Resolved remote-state dependency drift for demo destroy:
+   - committed workflow patch `c7740da9`:
+     - added `-var confluent_credentials_source=manual` for demo destroy path so teardown does not depend on Confluent remote-state output shape.
+4. Resolved IAM teardown capability drift:
+   - added inline role policy `GitHubActionsTerraformDemoStackDevMin` with demo-stack Terraform destroy surface,
+   - then patched missing role-deletion actions observed in runtime:
+     - `iam:GetRolePolicy`,
+     - `iam:ListInstanceProfilesForRole`.
+5. Re-ran managed workflow after each blocker class until full pass criteria were met.
+
+### Runtime outcomes
+1. Final authoritative workflow run:
+   - run id: `22187272766`
+   - url: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22187272766`
+   - conclusion: `success`.
+2. Source demo teardown snapshot (workflow-produced):
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/teardown_demo_20260219T150604Z/demo_destroy_snapshot.json`
+   - semantic fields:
+     - `destroy_outcome=success`
+     - `post_destroy_state_resource_count=0`
+     - `overall_pass=true`.
+3. Canonical M9.D local evidence file written:
+   - `runs/dev_substrate/m9/m9_20260219T150604Z/m9_d_demo_destroy_snapshot.json`.
+
+### Phase posture updates
+1. `M9.D` is closed PASS.
+2. `M9.E` is now the next execution lane.
+3. Main/deep build plans were repinned to reflect:
+   - `M9.D` completion,
+   - removal of active preflight hold posture,
+   - next action shift to residual-resource verification (`M9.E`).
+

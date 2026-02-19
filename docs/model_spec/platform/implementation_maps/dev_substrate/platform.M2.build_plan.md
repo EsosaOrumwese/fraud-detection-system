@@ -1128,6 +1128,8 @@ Tasks:
 4. Run canonical destroy surface by stack target:
    - `stack_target=confluent` -> `infra/terraform/dev_min/confluent`
    - `stack_target=demo` -> `infra/terraform/dev_min/demo`
+   - demo dispatch must include `required_platform_run_id` (fail-closed if missing).
+   - demo destroy forces `confluent_credentials_source=manual` to avoid remote-state coupling during teardown.
 5. Emit non-secret execution evidence with:
    - workflow run id/url,
    - stack target,
