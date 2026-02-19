@@ -1149,8 +1149,8 @@ Sub-phase progress:
   - [x] `M9.D` demo stack teardown execution.
   - [x] `M9.E` post-destroy residual checks.
   - [x] `M9.F` demo-scoped secret cleanup verification.
-  - [ ] `M9.G` post-teardown cost-guardrail snapshot (cross-platform).
-  - [ ] `M9.H` teardown-proof artifact publication.
+  - [x] `M9.G` post-teardown cost-guardrail snapshot (cross-platform).
+  - [x] `M9.H` teardown-proof artifact publication.
   - [ ] `M9.I` M9 verdict + M10 handoff.
 
 M9.A execution closure (2026-02-19):
@@ -1301,13 +1301,58 @@ M9.G cross-platform rerun attempt (2026-02-19):
       - `evidence/dev_min/run_control/<m9_execution_id>/confluent_billing_snapshot.json`,
     - then rerun `M9.G` rollup using that managed snapshot.
 
+M9.G managed cross-platform closure (2026-02-19):
+  - workflow run:
+    - `dev-min-m9g-cost-guardrail` run id `22194086983`
+    - URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22194086983`
+    - result: `success`
+  - dispatched billing run:
+    - `dev-min-m9g-confluent-billing` run id `22194097718`
+    - URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22194097718`
+    - result: `success`
+  - authoritative execution id:
+    - `m9_20260219T181052Z`
+  - local snapshots:
+    - `runs/dev_substrate/m9/m9_20260219T181052Z/m9_g_cost_guardrail_snapshot.json`
+    - `runs/dev_substrate/m9/m9_20260219T181052Z/confluent_billing_snapshot.json`
+  - durable snapshots:
+    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T181052Z/m9_g_cost_guardrail_snapshot.json`
+    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T181052Z/confluent_billing_snapshot.json`
+  - result:
+    - `overall_pass=true`
+    - blockers empty
+  - consequence:
+    - `M9.G` is closed under cross-platform scope
+    - `M9.H` is unblocked.
+
+M9.H execution closure (2026-02-19):
+  - execution id:
+    - `m9_20260219T181800Z`
+  - local artifact:
+    - `runs/dev_substrate/m9/m9_20260219T181800Z/teardown_proof.json`
+  - durable canonical artifact:
+    - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/teardown/teardown_proof.json`
+  - result:
+    - `overall_pass=true`
+    - blockers empty
+  - semantic outcomes:
+    - teardown proof is run-scoped (`platform_run_id=platform_20260213T214223Z`)
+    - required P12.6 fields are present:
+      - teardown timestamp
+      - terraform destroy status (`confluent=success`, `demo=success`, `overall=success`)
+      - confirmed-absent categories (`ecs_services=false`, `db=false`, `nat_gateway=false`, `load_balancer=false`, `confluent_cluster=false`)
+    - source references for `M9.B..M9.G` local + durable artifacts are embedded.
+  - consequence:
+    - `M9.H` is closed
+    - `M9.I` is unblocked.
+
 M9 DoD checklist:
 - [x] Canonical execution lane is GitHub Actions teardown workflows produced under `M2.I`; no local secret-bearing destroy path is used.
 - [x] demo resources are destroyed while retained core/evidence surfaces remain as pinned.
 - [x] no demo ECS services/tasks remain and no NAT/LB cost-footgun resources remain.
 - [x] demo-scoped secrets/credentials are removed from SSM.
-- [ ] post-teardown cross-platform (`AWS + Confluent Cloud`) cost guardrail snapshot is captured and blocker-free.
-- [ ] teardown proof artifact exists locally and durably.
+- [x] post-teardown cross-platform (`AWS + Confluent Cloud`) cost guardrail snapshot is captured and blocker-free.
+- [x] teardown proof artifact exists locally and durably.
 - [ ] M9 verdict is `ADVANCE_TO_M10` with empty blocker rollup.
 
 ## M10 - Certification (Semantic + Scale)
@@ -1419,8 +1464,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M9 is active for deep-plan closure and execution sequencing.
 Next action:
-- run managed M9.G guardrail workflow (`.github/workflows/dev_min_m9g_cost_guardrail.yml`) for current `m9_execution_id`,
-- keep `dispatch_confluent_billing=true` so Confluent evidence is captured in the same lane before rollup,
+- execute `M9.I` verdict + `M10` handoff publication using blocker-free `M9.A..M9.H` sources,
 - preserve fail-closed posture:
-  - do not execute `M9.H` teardown-proof assembly until reopened `M9.G` cross-platform snapshot is captured and blocker-free.
+  - do not mark `M9` done until `M9.I` publishes local+durable verdict/handoff artifacts with empty blocker union.
 

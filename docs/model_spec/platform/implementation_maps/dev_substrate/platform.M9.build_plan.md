@@ -969,9 +969,9 @@ Runtime budget:
 DoD:
 - [x] AWS budget posture is readable and in-policy.
 - [x] Post-teardown AWS-resource cost-footgun indicators are clear.
-- [ ] Confluent Cloud MTD billing is captured in the lane.
-- [ ] Combined AWS+Confluent MTD posture is computed and in-policy.
-- [ ] Cross-platform snapshot exists locally and durably.
+- [x] Confluent Cloud MTD billing is captured in the lane.
+- [x] Combined AWS+Confluent MTD posture is computed and in-policy.
+- [x] Cross-platform snapshot exists locally and durably.
 - [x] Step-1 implementation lane exists (phase-aware ECS profile control + desired-count default-off).
 - [x] Step-2 implementation lane exists (idle auto-teardown guard).
 - [x] Step-3 implementation lane exists (p95 right-sizing recommendation lane).
@@ -1019,7 +1019,7 @@ Implementation status (2026-02-19):
    - Emits canonical `m9_g_cost_guardrail_snapshot.json`.
 5. Closure state:
    - implementation lanes are materialized;
-   - authoritative cross-platform rerun is still required to close `M9.G` blocker-free.
+   - authoritative cross-platform rerun is now executed blocker-free (see managed closure execution below).
 
 Planning status:
 1. `M9.G` is now execution-grade (entry/precheck/live-budget-live-cost/footgun-check/snapshot contract pinned).
@@ -1091,6 +1091,44 @@ Managed-lane implementation (2026-02-19):
 3. Implication:
    - `M9.G` rerun must now consume this managed snapshot path; local `confluent` CLI auth is not the closure path.
 
+Managed cross-platform closure execution (2026-02-19):
+1. Guardrail workflow run:
+   - workflow file: `.github/workflows/dev_min_m9g_cost_guardrail.yml`
+   - run id: `22194086983`
+   - URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22194086983`
+   - result: `success`.
+2. Managed billing workflow run (dispatched by guardrail lane):
+   - workflow file: `.github/workflows/dev_min_m9g_confluent_billing.yml`
+   - run id: `22194097718`
+   - URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22194097718`
+   - result: `success`.
+3. Authoritative cross-platform execution id:
+   - `m9_20260219T181052Z`.
+4. Snapshot artifacts:
+   - local:
+     - `runs/dev_substrate/m9/m9_20260219T181052Z/m9_g_cost_guardrail_snapshot.json`
+     - `runs/dev_substrate/m9/m9_20260219T181052Z/confluent_billing_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T181052Z/m9_g_cost_guardrail_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T181052Z/confluent_billing_snapshot.json`
+5. Result:
+   - `overall_pass=true`
+   - `blockers=[]`.
+6. Key posture values:
+   - `aws_mtd_cost_amount=17.8956072585`
+   - `confluent_mtd_cost_amount=-0.0003`
+   - `combined_mtd_cost_amount=17.8953072585`
+   - `combined_budget_utilization_pct=59.65102419500`
+   - post-teardown footguns:
+     - `nat_non_deleted_count=0`
+     - `lb_demo_scoped_residual_count=0`
+     - `ecs_desired_gt_zero_count=0`
+     - `runtime_db_state=not_found`
+     - `log_retention_drift_count=0`.
+7. Consequence:
+   - `M9.G` is closed under cross-platform scope.
+   - `M9.H` is unblocked.
+
 Blockers:
 1. `M9G-B1`: budget surface unreadable/misaligned.
 2. `M9G-B2`: budget notification threshold drift/missing alerts.
@@ -1112,12 +1150,34 @@ Tasks:
    - `evidence/runs/<platform_run_id>/teardown/teardown_proof.json` (durable canonical form).
 
 DoD:
-- [ ] Teardown-proof schema is complete and run-scoped.
-- [ ] Artifact exists locally and durably.
+- [x] Teardown-proof schema is complete and run-scoped.
+- [x] Artifact exists locally and durably.
 
 Blockers:
 1. `M9H-B1`: proof assembly missing required fields/refs.
 2. `M9H-B2`: durable publish failed.
+
+Execution closure (2026-02-19):
+1. Execution id:
+   - `m9_20260219T181800Z`.
+2. Artifact paths:
+   - local: `runs/dev_substrate/m9/m9_20260219T181800Z/teardown_proof.json`
+   - durable canonical: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/teardown/teardown_proof.json`.
+3. Result:
+   - `overall_pass=true`
+   - blockers empty.
+4. Schema/semantic outcomes:
+   - run-scoped proof carries `platform_run_id=platform_20260213T214223Z`,
+   - includes required P12.6 fields:
+     - teardown timestamp,
+     - terraform destroy status (`confluent=success`, `demo=success`, `overall=success`),
+     - confirmed-absent categories (`ecs_services=false`, `db=false`, `nat_gateway=false`, `load_balancer=false`, `confluent_cluster=false`),
+   - includes source references for `M9.B..M9.G` local + durable artifacts.
+5. Publish verification:
+   - durable object exists and is readable via `head-object`.
+6. Consequence:
+   - `M9.H` is closed.
+   - `M9.I` is unblocked.
 
 ### M9.I M9 Verdict + M10 Handoff
 Goal:
@@ -1158,10 +1218,12 @@ Budget rule:
 1. Over-budget lanes require explicit blocker notation and remediation/retry posture before progression.
 
 ## 7) Current Planning Status
-1. M9 is planning-open with `M9.A`, `M9.B`, `M9.C`, `M9.D`, `M9.E`, and `M9.F` execution closed green.
-2. `M9.G` is reopened under cross-platform cost scope (`aws_plus_confluent_cloud`).
-3. Latest rerun (`m9_20260219T162445Z`) is fail-closed on `M9G-B8` (Confluent billing unreadable).
-4. Managed billing lane is implemented at `.github/workflows/dev_min_m9g_confluent_billing.yml`.
-5. `M9.H` remains blocked until `M9.G` cross-platform rerun is blocker-free.
+1. M9 is planning-open with `M9.A` through `M9.H` execution closed green.
+2. `M9.G` cross-platform scope (`aws_plus_confluent_cloud`) is now closed by managed rerun `m9_20260219T181052Z`.
+3. Managed lanes are implemented and proven in Actions:
+   - `.github/workflows/dev_min_m9g_confluent_billing.yml`
+   - `.github/workflows/dev_min_m9g_cost_guardrail.yml`.
+4. `M9.H` is closed by execution id `m9_20260219T181800Z`.
+5. `M9.I` is now the next execution lane.
 6. Unified teardown workflow decision is pinned:
    - `dev_min_confluent_destroy.yml` is stack-aware (`stack_target=confluent|demo`).

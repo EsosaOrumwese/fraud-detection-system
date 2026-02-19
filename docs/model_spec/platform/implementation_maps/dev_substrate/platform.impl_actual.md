@@ -15739,3 +15739,152 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. Recommended optimization order is now implemented as managed operational lanes.
 2. `M9.G` remains open until the new managed guardrail workflow is executed blocker-free for current run scope.
 
+## Entry: 2026-02-19 18:09:10 +00:00 - Narrow workflow publication to default branch for managed M9.G execution
+### Problem framing
+1. Managed M9.G workflow dispatch failed with `404` because workflow files were not present on the default branch (`main`).
+2. We needed a minimal publication path that does not force a full branch payload merge.
+
+### Decision trail
+1. Used an isolated worktree-based narrow branch from `origin/main` to avoid touching the active `migrate-dev` working tree.
+2. Included only:
+   - `.github/workflows/dev_min_m9g_confluent_billing.yml`
+   - `.github/workflows/dev_min_m9g_cost_guardrail.yml`.
+3. Opened and merged PR:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/pull/51`
+   - merge time: `2026-02-19T18:08:45Z`.
+4. Synced branch ladder after merge:
+   - `main -> dev` (updated `origin/dev`)
+   - `dev -> migrate-dev` (updated `origin/migrate-dev` via merge branch refspec push).
+
+### Outcome
+1. Default branch now exposes the managed M9.G workflows for Actions dispatch.
+2. Forward branch posture is preserved for continued `migrate-dev -> dev -> main` progression.
+
+## Entry: 2026-02-19 18:12:20 +00:00 - M9.G managed cross-platform guardrail rerun executed and closed blocker-free
+### Problem framing
+1. Reopened `M9.G` required blocker-free cross-platform (`AWS + Confluent Cloud`) closure under managed lanes.
+2. Closure needed durable, run-scoped evidence and deterministic workflow-run references.
+
+### Decision trail and execution notes
+1. Dispatched managed guardrail workflow on `migrate-dev` with pinned OIDC role and scope inputs:
+   - workflow: `.github/workflows/dev_min_m9g_cost_guardrail.yml`
+   - run id: `22194086983`.
+2. Guardrail workflow dispatched managed billing lane for same `m9_execution_id`:
+   - workflow: `.github/workflows/dev_min_m9g_confluent_billing.yml`
+   - run id: `22194097718`.
+3. Pulled authoritative local copies of durable evidence for audit:
+   - `runs/dev_substrate/m9/m9_20260219T181052Z/m9_g_cost_guardrail_snapshot.json`
+   - `runs/dev_substrate/m9/m9_20260219T181052Z/confluent_billing_snapshot.json`.
+
+### Runtime outcomes
+1. Authoritative execution id:
+   - `m9_20260219T181052Z`.
+2. Durable evidence:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T181052Z/m9_g_cost_guardrail_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T181052Z/confluent_billing_snapshot.json`.
+3. Result:
+   - `overall_pass=true`
+   - `blockers=[]`.
+4. Cross-platform posture values:
+   - `aws_mtd_cost_amount=17.8956072585`
+   - `confluent_mtd_cost_amount=-0.0003`
+   - `combined_mtd_cost_amount=17.8953072585`
+   - `combined_budget_utilization_pct=59.65102419500`.
+5. Footgun checks:
+   - `nat_non_deleted_count=0`
+   - `lb_demo_scoped_residual_count=0`
+   - `ecs_desired_gt_zero_count=0`
+   - `runtime_db_state=not_found`
+   - `log_retention_drift_count=0`.
+
+### Outcome
+1. `M9.G` is closed under cross-platform scope.
+2. `M9.H` is unblocked as next lane.
+
+## Entry: 2026-02-19 18:17:13 +00:00 - M9.H teardown-proof assembly plan (pre-implementation, fail-closed)
+### Problem framing
+1. `M9.H` is the next unblocked lane and must publish canonical P12 teardown proof under `evidence/runs/<platform_run_id>/teardown/teardown_proof.json`.
+2. M9 lane snapshots exist but were produced across multiple execution ids, so proof assembly must be explicit about which source artifact is authoritative per lane.
+
+### Source selection decision trail
+1. Selected latest blocker-free PASS snapshot for each required lane:
+   - `M9.B`: `runs/dev_substrate/m9/m9_20260219T125838Z/m9_b_teardown_inventory_snapshot.json`
+   - `M9.C`: `runs/dev_substrate/m9/m9_20260219T131353Z/m9_c_confluent_destroy_snapshot.json`
+   - `M9.D`: `runs/dev_substrate/m9/m9_20260219T150604Z/m9_d_demo_destroy_snapshot.json`
+   - `M9.E`: `runs/dev_substrate/m9/m9_20260219T153208Z/m9_e_post_destroy_residual_snapshot.json`
+   - `M9.F`: `runs/dev_substrate/m9/m9_20260219T155120Z/m9_f_secret_cleanup_snapshot.json`
+   - `M9.G`: `runs/dev_substrate/m9/m9_20260219T181052Z/m9_g_cost_guardrail_snapshot.json`.
+2. Validation rule pinned before assembly:
+   - each selected lane must have `overall_pass=true`,
+   - each selected lane must have `blockers=[]`,
+   - run-scoped lanes must agree on `platform_run_id`.
+3. Current validation outcome:
+   - blocker-free PASS confirmed for selected source set,
+   - run-scoped `platform_run_id` converges on `platform_20260213T214223Z`.
+
+### Proof schema decision (closure-grade)
+1. Include mandatory P12.6 semantics:
+   - timestamp,
+   - terraform destroy status (`confluent`, `demo`, `overall`),
+   - confirmed-absent categories represented with false-valued existence flags:
+     - `ecs_services=false`
+     - `db=false`
+     - `nat_gateway=false`
+     - `load_balancer=false`
+     - `confluent_cluster=false`.
+2. Include run-scoped provenance and source references:
+   - `phase`, `phase_id`, `m9_execution_id`, `platform_run_id`,
+   - source local paths and durable URIs for `M9.B..M9.G`,
+   - operator identity (`aws sts get-caller-identity`) for audit trail.
+3. Fail-closed rule pinned:
+   - any failed source validation or publish failure raises blocker and prevents `M9.H` closure.
+
+### Implementation steps (next immediate)
+1. Assemble `teardown_proof.json` locally under `runs/dev_substrate/m9/<m9_execution_id>/`.
+2. Publish canonical durable artifact to:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/teardown/teardown_proof.json`.
+3. Update M9 plans + logbook with evidence URIs and closure verdict.
+
+## Entry: 2026-02-19 18:19:15 +00:00 - M9.H executed and closed with canonical teardown proof
+### Execution details
+1. Performed fail-closed source validation across selected closure artifacts:
+   - `M9.B`: `m9_20260219T125838Z`
+   - `M9.C`: `m9_20260219T131353Z`
+   - `M9.D`: `m9_20260219T150604Z`
+   - `M9.E`: `m9_20260219T153208Z`
+   - `M9.F`: `m9_20260219T155120Z`
+   - `M9.G`: `m9_20260219T181052Z`.
+2. Validation outcomes:
+   - all selected sources have `overall_pass=true`,
+   - all selected sources have empty blockers,
+   - run-scoped lanes converge on `platform_run_id=platform_20260213T214223Z`.
+
+### Proof assembly decisions
+1. Bound `M9.H` execution id to:
+   - `m9_20260219T181800Z`.
+2. P12.6 minimum schema was encoded directly into proof:
+   - teardown timestamp,
+   - terraform destroy status (`confluent`, `demo`, `overall`),
+   - confirmed-absent categories rendered as false-valued existence flags:
+     - `ecs_services=false`
+     - `db=false`
+     - `nat_gateway=false`
+     - `load_balancer=false`
+     - `confluent_cluster=false`.
+3. Added explicit source provenance references (`M9.B..M9.G`) including local and durable URIs.
+4. Captured operator identity using `aws sts get-caller-identity` for auditability.
+
+### Artifact publication and verification
+1. Local proof artifact:
+   - `runs/dev_substrate/m9/m9_20260219T181800Z/teardown_proof.json`.
+2. Durable canonical artifact:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/teardown/teardown_proof.json`.
+3. Publish verification:
+   - `aws s3api head-object` confirms object exists/readable with version id `N5Lrtpvl73q922Lxrj9ZDCa_WpGpvU1G`.
+
+### Outcome
+1. `M9.H` closed green:
+   - `overall_pass=true`
+   - blockers empty.
+2. `M9.I` is now unblocked and is the next execution lane.
+

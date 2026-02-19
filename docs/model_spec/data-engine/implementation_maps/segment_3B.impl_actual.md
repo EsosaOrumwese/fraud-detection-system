@@ -4074,3 +4074,52 @@ Action:
    - `3686a5ebc2ee42f4a84edea17f80376d`
    - `595a30d1278a4af39ea0fd1a78451571`
    - `c90f94802ae94ff6a932c84e1520a112`.
+
+### Entry: 2026-02-19 18:01
+
+Design element: `3B P1 planning expansion (S1 lineage realism closure plan)`.
+Summary: expanded `P1` from a single-line phase into execution-grade subphases focused on closing `3B-V08/V09/V10` without leaking P2/P3 concerns into the S1 lane.
+
+Why this planning expansion:
+1) P0 failure decomposition is explicit that S1 lineage is a separate closure lane (`rule_id/rule_version/cardinality`) and should be solved before S2 topology reopen.
+2) Current S1 implementation writes:
+   - `rule_id = null`,
+   - `rule_version = null`,
+   for all rows in `virtual_classification_3B`, which guarantees V08/V09 failure independent of S2.
+3) A concrete phase design is needed to avoid accidental "fix by side effect" in S2/S4.
+
+Pinned P1 baseline anchors (from P0 artifacts):
+1) `rule_id_non_null_rate = 0.0` (all required seeds).
+2) `rule_version_non_null_rate = 0.0` (all required seeds).
+3) `active_rule_id_count = 0` (all required seeds).
+4) guardrail anchors retained:
+   - `virtual_rate = 0.0309`,
+   - `settlement_tzid_top1_share = 0.055016...`,
+   - `3B-V11` alias-fidelity PASS.
+
+P1 execution design pinned:
+1) `P1.1` lineage contract lock:
+   - deterministic `rule_id` derivation law,
+   - deterministic `rule_version` law from sealed policy version,
+   - explicit fallback lineage for non-direct matches (non-null by design).
+2) `P1.2` S1 implementation:
+   - emit `rule_id`/`rule_version` from matched rule path,
+   - keep first-pass decision outcomes (`is_virtual`) unchanged.
+3) `P1.3` diversity closure:
+   - close `active_rule_id_count >= 3` without synthetic/random diversity.
+4) `P1.4` witness lock:
+   - rerun witness seeds, pin closure artifacts, and decide `UNLOCK_P2` or `HOLD_P1_REOPEN`.
+
+Guardrails and rerun law pinned for P1:
+1) rerun law:
+   - any `S1` code/policy change -> rerun `S1 -> S2 -> S3 -> S4 -> S5`.
+2) witness seeds:
+   - `{42, 101}`.
+3) non-regression guards:
+   - `virtual_rate` drift within `+/- 0.0020`,
+   - `3B-S10` remains pass band (`<=0.18`),
+   - `3B-V11` remains PASS.
+
+Decision:
+1) `P1` planning is now execution-grade in the build plan.
+2) next action is execution of `P1.1` (lineage contract lock) before code edits.
