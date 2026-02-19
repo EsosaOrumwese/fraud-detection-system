@@ -157,6 +157,99 @@ Goal:
 Scope:
 - optimize only hot states identified by `POPT.0` (`S6` primary; `S7/S5` secondary closure lane).
 - no realism-threshold tuning in this phase.
+- no policy/config changes in `S1/S2/S3/S4`; this is compute-path only.
+- keep `S6` and `S7` as strict veto rails: no schema drift, no gate relaxation, no digest-rule weakening.
+
+Execution posture:
+- candidate run root: `runs/fix-data-engine/segment_3A`.
+- baseline authority for deltas:
+  - run-id: `06b822558c294a0888e3f8f342e83947`
+  - artifact: `runs/fix-data-engine/segment_3A/reports/segment3a_popt0_baseline_06b822558c294a0888e3f8f342e83947.json`
+- rerun law for this phase:
+  - if `S6` code changes: rerun `S6 -> S7`.
+  - if `S7` code changes: rerun `S7`.
+  - if `S5` code changes: rerun `S5 -> S6 -> S7`.
+- prune superseded run-id folders before each expensive candidate pass.
+
+#### POPT.1.1 - Baseline guard + closure scorer lock
+Goal:
+- lock a deterministic runtime-delta scorer and veto-gate evaluator for `POPT.1`.
+
+Scope:
+- add closure scorer artifact contract for baseline-vs-candidate comparison.
+- capture current baseline timings for `S6/S7/S5` and invariant fields used for non-regression.
+
+Definition of done:
+- [ ] `segment3a_popt1_closure_<run_id>.json` schema is pinned.
+- [ ] baseline snapshot for `S6/S7/S5` is pinned as scorer input.
+- [ ] veto checks are encoded (status, issue counts, digest/index integrity).
+
+#### POPT.1.2 - S6 primary hotspot optimization
+Goal:
+- reduce `S6` elapsed time while preserving validation semantics and PASS posture.
+
+Scope:
+- target `S6` precondition-input load and structural-check execution path.
+- optimize data-structure/reuse and IO sequencing only; no rule changes.
+
+Definition of done:
+- [ ] `S6` elapsed improves vs baseline (`17.94s`) with measured evidence.
+- [ ] `S6` reaches at least `AMBER` budget (`<= 14.0s`) or shows >=15% reduction if still above.
+- [ ] `S6` run-report remains `overall_status=PASS`, `issues_error=0`, `issues_total` non-regressed.
+
+#### POPT.1.3 - S7 secondary hotspot optimization
+Goal:
+- reduce validation-bundle assembly runtime (`S7`) without changing bundle contract semantics.
+
+Scope:
+- optimize member hashing/index assembly path (IO/readback/layout efficiency).
+- keep index-only bundle posture and required member coverage unchanged.
+
+Definition of done:
+- [ ] `S7` elapsed improves vs baseline (`13.14s`) with measured evidence.
+- [ ] `S7` reaches at least `AMBER` budget (`<= 12.0s`) or shows >=10% reduction if still above.
+- [ ] `index.json` integrity and `_passed.flag` semantics remain unchanged.
+
+#### POPT.1.4 - S5 closure-lane trim (conditional)
+Goal:
+- reduce `S5` closure-lane drag if `S5` remains above closure budget after `S6/S7` work.
+
+Scope:
+- optimize `zone_alloc` write/digest path and invariant reuse.
+- no changes to allocation semantics or digest masking rules.
+
+Definition of done:
+- [ ] if executed, `S5` elapsed improves vs baseline (`12.50s`) with measured evidence.
+- [ ] `S5` reaches at least `AMBER` budget (`<= 12.0s`) or shows >=8% reduction if still above.
+- [ ] `pairs_count_conservation_violations=0` and `routing_universe_hash` contract remains valid.
+
+#### POPT.1.5 - Determinism + structural witness
+Goal:
+- prove that runtime gains do not compromise deterministic contracts or structural rails.
+
+Scope:
+- run witness candidate pass(es) on seed `42` and compare required invariants to baseline.
+- enforce fail-closed veto if any structural or digest contract drifts unexpectedly.
+
+Definition of done:
+- [ ] `S6` and `S7` statuses remain PASS across witness pass.
+- [ ] no schema/index/passed-flag regressions.
+- [ ] closure scorer reports runtime improvement with no veto violations.
+
+#### POPT.1.6 - Phase closure and lock
+Goal:
+- close `POPT.1` with explicit verdict and handoff target for next phase.
+
+Scope:
+- publish closure summary and lock candidate run-id.
+- update plan/notes/logbook with measured deltas and next-phase decision.
+
+Definition of done:
+- [ ] closure artifacts emitted:
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_popt1_closure_<run_id>.json`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_popt1_closure_<run_id>.md`
+- [ ] explicit decision recorded: `UNLOCK_P0` or `HOLD_POPT1_REOPEN`.
+- [ ] retention/prune set is applied to keep storage bounded.
 
 Definition of done:
 - [ ] hotspot runtime reduced with measured evidence.

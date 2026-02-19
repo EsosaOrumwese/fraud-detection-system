@@ -3193,3 +3193,39 @@ Implementation and execution trail:
 
 Outcome:
 - `POPT.0` is closed and `POPT.1` target lane is now explicitly `S6 -> S7/S5`.
+
+---
+
+### Entry: 2026-02-19 01:12
+
+Design element: `POPT.1` expansion plan (`3A`).
+Summary: expanded `POPT.1` from a single checklist row into execution-grade
+sub-phases with explicit hotspot order, rerun law, runtime gates, and closure
+artifacts.
+
+Why this expansion:
+1) `POPT.0` authority hotspot order is `S6 -> S7 -> S5`; prior `POPT.1` text
+   was too coarse for deterministic execution.
+2) runtime optimization needs strict separation from realism tuning; this phase
+   is compute-path only.
+3) storage and rerun discipline must be explicit for this lane because repeated
+   candidate runs are expensive.
+
+Plan structure added to build plan:
+1) `POPT.1.1` baseline guard + closure scorer lock.
+2) `POPT.1.2` primary `S6` optimization with hard runtime/veto gates.
+3) `POPT.1.3` secondary `S7` optimization with bundle-integrity veto gates.
+4) `POPT.1.4` conditional `S5` closure trim.
+5) `POPT.1.5` determinism + structural witness.
+6) `POPT.1.6` phase closure and lock artifacts.
+
+Key pinned gates:
+1) `S6` target: reach `<=14.0s` (`AMBER`) or show >=15% reduction vs baseline.
+2) `S7` target: reach `<=12.0s` (`AMBER`) or show >=10% reduction vs baseline.
+3) `S5` target (if executed): reach `<=12.0s` (`AMBER`) or show >=8% reduction.
+4) no rule changes, no schema/index/_passed.flag regressions, no validation
+   gate relaxation.
+
+Handoff impact:
+- `POPT.1` is now execution-ready; next action is to implement `POPT.1.1`
+  scorer/gates and then enter `POPT.1.2` (`S6`) as primary lane.
