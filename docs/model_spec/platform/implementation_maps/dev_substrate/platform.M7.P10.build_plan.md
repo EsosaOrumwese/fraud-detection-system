@@ -337,10 +337,10 @@ Runtime budget:
 2. If exceeded, lane remains fail-closed until explicit USER waiver.
 
 DoD:
-- [ ] Case summary and label summary exist and are run-scoped.
-- [ ] Append-only and idempotency checks pass.
-- [ ] Snapshot exists locally + durably.
-- [ ] Runtime budget target is met (or explicitly waived).
+- [x] Case summary and label summary exist and are run-scoped.
+- [x] Append-only and idempotency checks pass.
+- [x] Snapshot exists locally + durably.
+- [x] Runtime budget target is met (or explicitly waived).
 
 Blockers:
 1. `M7H-B1`: case/label evidence missing or incomplete.
@@ -349,6 +349,29 @@ Blockers:
 4. `M7H-B4`: missing/non-pass `M7.G` dependency.
 5. `M7H-B5`: case-label lane service readiness/runtime conformance failure.
 6. `M7H-B6`: case-to-label coherence failure for run scope.
+
+Execution closure (`2026-02-19`):
+1. Runtime blocker root cause was pinned and corrected:
+   - `case-mgmt` Kafka intake was stripping envelope fields in `_read_kafka`, preventing `event_type=case_trigger` recognition.
+   - fixed in `src/fraud_detection/case_mgmt/worker.py` and rematerialized to managed image digest `sha256:126d604ebc6a3e1ffe7bed9754a6c0ef718132559c3c277bce96c23685af3165`.
+2. Managed catch-up executed (no local compute):
+   - case lane one-shot processed `593` records to close durable commit surfaces.
+3. Closure evidence:
+   - local:
+     - `runs/dev_substrate/m7/20260218T141420Z/case_labels/case_summary.json`
+     - `runs/dev_substrate/m7/20260218T141420Z/case_labels/label_summary.json`
+     - `runs/dev_substrate/m7/20260218T141420Z/m7_h_case_label_commit_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/case_labels/case_summary.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/case_labels/label_summary.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_h_case_label_commit_snapshot.json`
+4. Snapshot verdict:
+   - `overall_pass=true`
+   - blockers empty
+   - run-scoped counts:
+     - `cm_cases=200`, `cm_case_trigger_intake=200`, `cm_case_timeline=600`
+     - `ls_label_assertions=200`, `ls_label_timeline=200`
+     - `ct_publish_admit_total=200`, `ct_publish_ambiguous_total=0`
 
 ### P10.C Plane Closure Summary
 Goal:
@@ -389,7 +412,7 @@ Control-plane:
 
 ## 8) Completion Checklist (P10)
 - [x] P10.A complete
-- [ ] P10.B complete
+- [x] P10.B complete
 - [ ] P10.C complete
 
 ## 9) Exit Criteria (P10)

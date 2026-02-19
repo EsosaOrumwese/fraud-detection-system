@@ -66,7 +66,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Phase
 Current posture:
-1. M7 is active and execution has started (`M7.A`..`M7.G` are closed; `M7.H` is next).
+1. M7 is active and execution has started (`M7.A`..`M7.H` are closed; `M7.I` is next).
 
 Execution block:
 1. No M8 execution is allowed before M7 verdict is `ADVANCE_TO_M8`.
@@ -565,10 +565,10 @@ Tasks:
 5. Publish local + durable snapshot.
 
 DoD:
-- [ ] Case summary and label summary are present and run-scoped.
-- [ ] Append-only + idempotency posture is validated for case/label writes.
-- [ ] Snapshot published locally and durably.
-- [ ] Runtime budget target is met (or explicitly waived).
+- [x] Case summary and label summary are present and run-scoped.
+- [x] Append-only + idempotency posture is validated for case/label writes.
+- [x] Snapshot published locally and durably.
+- [x] Runtime budget target is met (or explicitly waived).
 
 Planning status:
 1. `P10.B` depth is now execution-grade in `platform.M7.P10.build_plan.md` with:
@@ -584,6 +584,20 @@ Blockers:
 4. `M7H-B4`: missing/non-pass `M7.G` dependency.
 5. `M7H-B5`: case-label lane service readiness/runtime conformance failure.
 6. `M7H-B6`: case-to-label coherence failure for run scope.
+
+Closure notes (`2026-02-19`):
+1. Runtime correction:
+   - patched `src/fraud_detection/case_mgmt/worker.py` Kafka envelope handling and rematerialized `case-mgmt` to digest `sha256:126d604ebc6a3e1ffe7bed9754a6c0ef718132559c3c277bce96c23685af3165`.
+2. Managed closure evidence published:
+   - local:
+     - `runs/dev_substrate/m7/20260218T141420Z/case_labels/case_summary.json`
+     - `runs/dev_substrate/m7/20260218T141420Z/case_labels/label_summary.json`
+     - `runs/dev_substrate/m7/20260218T141420Z/m7_h_case_label_commit_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/case_labels/case_summary.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/case_labels/label_summary.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_h_case_label_commit_snapshot.json`
+3. Snapshot verdict: `overall_pass=true`, blockers empty.
 
 ### M7.I P8..P10 Gate Rollup + Verdict
 Goal:
@@ -676,7 +690,7 @@ Notes:
 - [x] M7.E complete
 - [x] M7.F complete
 - [x] M7.G complete
-- [ ] M7.H complete
+- [x] M7.H complete
 - [ ] M7.I complete
 - [ ] M7.J complete
 

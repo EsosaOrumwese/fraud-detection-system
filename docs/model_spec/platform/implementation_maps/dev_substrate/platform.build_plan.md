@@ -756,10 +756,19 @@ Active-phase planning posture:
       - CM/LS rematerialized to real worker runtime (`:14` task definitions),
       - DB migrations rematerialized to one-shot runtime proof (`:13`) and executed with `exit=0` and `db_migrations_ok tables=5`,
       - rerun snapshot verdict: `overall_pass=true`, blockers empty.
-  - `M7.H` (`P10.B`) planning expanded to execution-grade (`2026-02-19`):
-    - deterministic verification algorithm pinned in `platform.M7.P10.build_plan.md`,
-    - explicit snapshot schema + runtime budget gate added,
-    - fail-closed blocker taxonomy expanded to `M7H-B1..M7H-B6`.
+  - `M7.H` (`P10.B`) closure (`2026-02-19`):
+    - root-cause fix applied in `src/fraud_detection/case_mgmt/worker.py` for Kafka envelope handling,
+    - managed image refresh/rematerialization completed (`case-mgmt` on digest `sha256:126d604ebc6a3e1ffe7bed9754a6c0ef718132559c3c277bce96c23685af3165`),
+    - closure artifacts published:
+      - local:
+        - `runs/dev_substrate/m7/20260218T141420Z/case_labels/case_summary.json`
+        - `runs/dev_substrate/m7/20260218T141420Z/case_labels/label_summary.json`
+        - `runs/dev_substrate/m7/20260218T141420Z/m7_h_case_label_commit_snapshot.json`
+      - durable:
+        - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/case_labels/case_summary.json`
+        - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/case_labels/label_summary.json`
+        - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_h_case_label_commit_snapshot.json`
+    - closure result: `overall_pass=true`, blockers empty.
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.
@@ -769,7 +778,7 @@ Sub-phase progress:
   - [x] `M7.E` P9 decision-lane readiness + idempotency posture.
   - [x] `M7.F` P9 decision/action/audit commit evidence closure.
   - [x] `M7.G` P10 identity-key pin + managed DB readiness.
-  - [ ] `M7.H` P10 case/label commit evidence closure.
+  - [x] `M7.H` P10 case/label commit evidence closure.
   - [ ] `M7.I` P8..P10 verdict + blocker rollup.
   - [ ] `M7.J` M8 handoff publication.
 
@@ -778,7 +787,7 @@ M7 DoD checklist:
 - [x] RTDL offsets snapshot and caught-up artifact are durable and run-scoped.
 - [x] Decision lane commit evidence exists (`decision_summary`, `action_summary`, `audit_summary`) and append-only posture holds.
 - [x] P10 identity key fields are pinned for this run and no placeholders remain.
-- [ ] Case and label summaries are durable and consistent with append-only/idempotent writes.
+- [x] Case and label summaries are durable and consistent with append-only/idempotent writes.
 - [ ] M7 verdict is `ADVANCE_TO_M8` with empty blocker rollup.
 - [ ] M8 handoff pack is published and non-secret.
 
@@ -912,11 +921,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M7 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M7.H` (`P10.B`) case/label commit evidence closure on the now-green `M7.G` base,
-- require run-scoped durable artifacts:
-  - `evidence/runs/<platform_run_id>/case_labels/case_summary.json`
-  - `evidence/runs/<platform_run_id>/case_labels/label_summary.json`
-  - `evidence/dev_min/run_control/<m7_execution_id>/m7_h_case_label_commit_snapshot.json`.
-- detailed execution authority is pinned in:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`
-  - subsection `P10.B Case/Label Commit Closure (M7.H depth)`.
+- execute `M7.I` P8..P10 verdict rollup using now-green `M7.H` evidence base,
+- require durable verdict artifact:
+  - `evidence/dev_min/run_control/<m7_execution_id>/m7_i_verdict_snapshot.json`,
+- then proceed to `M7.J` handoff publication for M8 entry.
