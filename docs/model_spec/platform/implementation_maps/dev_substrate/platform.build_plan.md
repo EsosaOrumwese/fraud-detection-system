@@ -1123,11 +1123,12 @@ Active-phase planning posture:
   - `M9.B` is expanded to execution-grade with deterministic destroy/preserve inventory algorithm and overlap/scope guards.
   - `M9.B` execution is green with blockers empty; `M9.C` is unblocked.
   - `M9.C` is expanded to execution-grade with deterministic workflow-dispatch/poll/verification algorithm and snapshot contract.
+  - `M9.C` execution is green with blockers empty; `M9.D` is unblocked.
 
 Sub-phase progress:
   - [x] `M9.A` P12 authority + handoff closure.
   - [x] `M9.B` teardown inventory + preserve-set freeze.
-  - [ ] `M9.C` Confluent teardown execution (existing workflow lane).
+  - [x] `M9.C` Confluent teardown execution (existing workflow lane).
   - [ ] `M9.D` demo stack teardown execution.
   - [ ] `M9.E` post-destroy residual checks.
   - [ ] `M9.F` demo-scoped secret cleanup verification.
@@ -1165,6 +1166,25 @@ M9.B execution closure (2026-02-19):
   - consequence:
     - `M9.B` is closed
     - `M9.C` is unblocked.
+
+M9.C execution closure (2026-02-19):
+  - execution id: `m9_20260219T131353Z`
+  - workflow run id/url:
+    - `22183221157`
+    - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22183221157`
+  - source snapshot:
+    - local artifact: `runs/dev_substrate/m9/m9_20260219T131353Z/workflow_artifacts/dev-min-confluent-destroy-20260219T131335Z/confluent_destroy_snapshot.json`
+    - durable uri: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m2i_confluent_destroy_20260219T131335Z/confluent_destroy_snapshot.json`
+  - local snapshot: `runs/dev_substrate/m9/m9_20260219T131353Z/m9_c_confluent_destroy_snapshot.json`
+  - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T131353Z/m9_c_confluent_destroy_snapshot.json`
+  - result: `overall_pass=true`, blockers empty
+  - semantic outcomes:
+    - `destroy_outcome=success`
+    - `post_destroy_state_resource_count=0`
+    - source `overall_pass=true`
+  - consequence:
+    - `M9.C` is closed
+    - `M9.D` is unblocked.
 
 M9 DoD checklist:
 - [ ] Canonical execution lane is GitHub Actions teardown workflows produced under `M2.I`; no local secret-bearing destroy path is used.
@@ -1283,7 +1303,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M9 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M9.C` Confluent teardown via managed workflow,
+- expand/confirm `M9.D` execution lane and execute demo stack teardown via managed lane,
 - preserve fail-closed posture:
-  - do not execute demo-stack destructive lane (`M9.D`) until `M9.C` result is captured and `M9.B` preserve-set controls are still satisfied.
+  - do not execute `M9.E` residual checks until `M9.D` teardown snapshot is captured and blocker-free.
 

@@ -592,6 +592,62 @@ POPT.2 execution record (2026-02-19):
 - closure decision:
   - `HOLD_POPT2_REOPEN`.
 
+### POPT.2R - Bounded reopen after POPT.2 gate miss
+Goal:
+- attempt one low-risk and one high-impact recovery pass to clear the `POPT.2` runtime gate without touching contracts or widening blast radius.
+
+Scope:
+- keep lane isolated to `S5` on fixed authority run-id `724a63d3f8b242809b8ec3b746d0c776`.
+- preserve digest law, schema/path contracts, and fail-closed behavior.
+- avoid new run-id folder churn unless a broader rerun is explicitly required by changed-state law.
+
+Definition of done:
+- [ ] `POPT.2R.1` executed and scored.
+- [ ] `POPT.2R.2` executed and scored if `R1` misses gate.
+- [ ] explicit final decision recorded (`UNLOCK_POPT3` or retained `HOLD_POPT2_REOPEN` with waiver path).
+
+### POPT.2R.1 - Low-risk log-cadence trim
+Goal:
+- reduce avoidable logging drag in S5 hash lanes with no semantic changes.
+
+Scope:
+- increase S5 hot-lane progress logging interval (from current high-frequency cadence to bounded lower-frequency cadence).
+- rerun isolated `segment3b-s5` witness on authority run-id.
+- score with existing `POPT.2` closure scorer.
+
+Definition of done:
+- [ ] runtime movement measured vs baseline and last candidate.
+- [ ] digest parity/path stability remain PASS.
+- [ ] if runtime gate passes, close `POPT.2` and stop reopen lane.
+
+### POPT.2R.2 - High-impact hash-path acceleration
+Goal:
+- materially cut per-event hot-path overhead when `R1` is insufficient.
+
+Scope:
+- move S5 hash-lane JSON schema validation to compiled validator path while preserving:
+  - fail-closed malformed/invalid semantics,
+  - raw line-byte digest law,
+  - output schema/path contracts.
+- rerun isolated `segment3b-s5` witness and rescore.
+
+Definition of done:
+- [ ] runtime movement is measured and compared to baseline.
+- [ ] non-regression gates (digest/path/status) remain PASS.
+- [ ] runtime gate verdict is explicit.
+
+### POPT.2R.3 - Final decision gate
+Goal:
+- terminate reopen lane with explicit progression posture.
+
+Scope:
+- if runtime gate passes: mark `POPT.2` closed and unlock `POPT.3`.
+- if runtime gate still fails after `R2`: retain `HOLD_POPT2_REOPEN` and proceed only under explicit waiver with recorded rationale.
+
+Definition of done:
+- [ ] closure decision and rationale appended.
+- [ ] next phase pointer is explicit in current-phase status.
+
 ### POPT.3 - Logging and serialization budget optimization
 Goal:
 - remove avoidable runtime drag from heavy logs/serialization.
@@ -719,6 +775,7 @@ Definition of done:
 - `POPT.1`: in_progress (`HOLD_POPT1_REOPEN`)
 - `POPT.1R.NEXT`: in_progress (`OPEN_AFTER_ROLLBACK`)
 - `POPT.2`: in_progress (`HOLD_POPT2_REOPEN`)
+- `POPT.2R`: pending (`PLANNED_AFTER_POPT2_GATE_MISS`)
 - `POPT.3`: pending
 - `POPT.4`: pending
 - `P0`: pending

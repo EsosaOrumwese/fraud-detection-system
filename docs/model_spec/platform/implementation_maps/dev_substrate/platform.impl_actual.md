@@ -15130,3 +15130,54 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. This step is planning-only; no `M9.C` teardown execution was run.
 2. `M9.C` is now execution-ready.
 
+## Entry: 2026-02-19 13:13:53 +00:00 - M9.C execution started (managed workflow lane)
+### Execution intent
+1. Execute `M9.C` strictly through managed GitHub Actions workflow `.github/workflows/dev_min_confluent_destroy.yml`.
+2. Capture run metadata and source Confluent snapshot, then emit/publish M9.C run-control snapshot.
+3. Keep fail-closed semantics for dispatch, run conclusion, source snapshot presence, and source semantic checks.
+
+### Pre-execution decisions
+1. Dispatch inputs pinned explicitly:
+   - `aws_region=eu-west-2`,
+   - `aws_role_to_assume=arn:aws:iam::230372904534:role/GitHubAction-AssumeRoleWithAction`,
+   - `tf_state_bucket=fraud-platform-dev-min-tfstate`,
+   - `tf_lock_table=fraud-platform-dev-min-tf-locks`,
+   - `tf_state_key_confluent=dev_min/confluent/terraform.tfstate`,
+   - `evidence_bucket=fraud-platform-dev-min-evidence`,
+   - `evidence_prefix=evidence/dev_min/run_control`,
+   - `upload_evidence_to_s3=true`.
+2. Operational recovery decision:
+   - first long-running local command timed out before completion,
+   - instead of redispatching blindly, we discovered and reused the in-flight workflow run (`22183221157`) to avoid duplicate destroy attempts.
+3. Source semantics gate pinned at parse time:
+   - `destroy_outcome=success`,
+   - `post_destroy_state_resource_count=0`,
+   - `overall_pass=true`.
+
+## Entry: 2026-02-19 13:13:53 +00:00 - M9.C executed and closed PASS
+### Execution reasoning trail
+1. `M9.B` prerequisite checks were revalidated before workflow result acceptance.
+2. We enforced idempotent control behavior after local timeout by resuming the existing dispatched run rather than issuing a second dispatch.
+3. Workflow artifact was treated as authoritative source snapshot for semantics and provenance; M9.C pass was only accepted after source checks and durable publication succeeded.
+
+### Runtime outcomes
+1. Execution id:
+   - `m9_20260219T131353Z`.
+2. Workflow run:
+   - id: `22183221157`,
+   - url: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22183221157`,
+   - conclusion: `success`.
+3. Source Confluent snapshot:
+   - local artifact: `runs/dev_substrate/m9/m9_20260219T131353Z/workflow_artifacts/dev-min-confluent-destroy-20260219T131335Z/confluent_destroy_snapshot.json`,
+   - durable uri: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m2i_confluent_destroy_20260219T131335Z/confluent_destroy_snapshot.json`.
+4. M9.C snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T131353Z/m9_c_confluent_destroy_snapshot.json`,
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T131353Z/m9_c_confluent_destroy_snapshot.json`.
+5. Result:
+   - `overall_pass=true`,
+   - blockers empty.
+
+### Phase posture updates
+1. `M9.C` is complete.
+2. `M9.D` is unblocked for execution.
+

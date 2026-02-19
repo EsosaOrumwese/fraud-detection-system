@@ -424,13 +424,35 @@ Runtime budget:
 2. Over-budget execution remains fail-closed unless explicit user waiver is recorded.
 
 DoD:
-- [ ] Existing Confluent teardown workflow executed successfully.
-- [ ] Result evidence captures pass/fail + post-destroy state summary.
-- [ ] Snapshot exists locally and durably.
+- [x] Existing Confluent teardown workflow executed successfully.
+- [x] Result evidence captures pass/fail + post-destroy state summary.
+- [x] Snapshot exists locally and durably.
 
 Planning status:
 1. `M9.C` is now execution-grade (entry/precheck/dispatch/poll/snapshot contract pinned).
-2. No teardown execution/destruction was run in this planning step.
+2. No teardown execution/destruction was run during planning expansion.
+
+Execution closure (2026-02-19):
+1. Execution id:
+   - `m9_20260219T131353Z`.
+2. Workflow run:
+   - id: `22183221157`
+   - url: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22183221157`
+   - conclusion: `success`.
+3. Source Confluent snapshot:
+   - artifact: `runs/dev_substrate/m9/m9_20260219T131353Z/workflow_artifacts/dev-min-confluent-destroy-20260219T131335Z/confluent_destroy_snapshot.json`
+   - durable uri: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m2i_confluent_destroy_20260219T131335Z/confluent_destroy_snapshot.json`.
+4. M9.C snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T131353Z/m9_c_confluent_destroy_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T131353Z/m9_c_confluent_destroy_snapshot.json`.
+5. Result:
+   - `overall_pass=true`,
+   - blockers empty.
+6. Semantics validation outcome:
+   - `destroy_outcome=success`,
+   - `post_destroy_state_resource_count=0`,
+   - `overall_pass=true` in source Confluent snapshot.
+7. `M9.C` is closed and `M9.D` is unblocked.
 
 Blockers:
 1. `M9C-B1`: workflow dispatch failure.
@@ -571,7 +593,7 @@ Budget rule:
 1. Over-budget lanes require explicit blocker notation and remediation/retry posture before progression.
 
 ## 7) Current Planning Status
-1. M9 is planning-open with `M9.A` and `M9.B` execution closed green.
-2. `M9.C` is now the next execution lane.
+1. M9 is planning-open with `M9.A`, `M9.B`, and `M9.C` execution closed green.
+2. `M9.D` is now the next execution lane.
 3. Existing workflow reuse decision is pinned:
    - `dev_min_confluent_destroy.yml` is reused, not replaced.

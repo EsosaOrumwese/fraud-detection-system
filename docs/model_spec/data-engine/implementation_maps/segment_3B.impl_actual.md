@@ -3398,3 +3398,46 @@ Non-regression result:
 Decision:
 1) `POPT.2` stays open as `HOLD_POPT2_REOPEN`.
 2) no new run-id folders were created for this lane (isolated rerun on existing authority run-id), so prune action is a no-op for this execution.
+### Entry: 2026-02-19 13:13
+
+Design element: `3B POPT.2R planning lock after failed POPT.2 runtime gate`.
+Summary: after `POPT.2` non-regression pass but runtime-gate fail, lock a bounded reopen sequence that targets only the demonstrated S5 bottleneck under strict fail-closed rails.
+
+Why reopen is required:
+1) closure scorecard shows runtime gate fail (`241.844s` vs `240.468s` baseline).
+2) non-regression is already green (digest parity/path stability/S5 PASS), so next steps must remain narrowly performance-focused.
+
+Pinned reopen strategy to encode in build plan:
+1) `POPT.2R.1` (low-risk logging cadence trim):
+   - reduce S5 hot-lane progress log frequency only,
+   - rerun isolated `segment3b-s5` on authority run-id.
+2) `POPT.2R.2` (high-impact hash-path acceleration):
+   - if `R1` does not clear gate, switch hot JSON schema validation path to compiled validators while preserving fail-closed semantics and digest law.
+3) `POPT.2R.3` (decision gate):
+   - if runtime gate clears, close `POPT.2` and unlock `POPT.3`.
+   - if runtime still misses, retain `HOLD_POPT2_REOPEN` and continue by explicit waiver.
+
+Constraints:
+1) no new heavy run-id folders for this lane; use isolated S5 reruns on fixed authority run-id unless a contract change forces broader rerun.
+2) no schema/path contract changes allowed in this reopen lane.
+### Entry: 2026-02-19 13:15
+
+Design element: `3B build-plan update for POPT.2R bounded reopen`.
+Summary: documented the agreed post-POPT.2 recovery path directly in `segment_3B.build_plan.md`.
+
+Plan additions written:
+1) new section `POPT.2R - Bounded reopen after POPT.2 gate miss` with strict scope and DoD.
+2) `POPT.2R.1`:
+   - low-risk S5 log-cadence trim,
+   - isolated S5 witness and closure scoring.
+3) `POPT.2R.2`:
+   - compiled-validator acceleration on S5 hash path,
+   - strict digest/fail-closed/contract preservation.
+4) `POPT.2R.3`:
+   - final decision gate (`UNLOCK_POPT3` or retained hold with explicit waiver).
+5) current phase status updated to include:
+   - `POPT.2R: pending (PLANNED_AFTER_POPT2_GATE_MISS)`.
+
+Decision integrity:
+1) no implementation code changed in this step; this was planning/documentation only.
+2) reopen lane remains bounded to avoid run-folder churn and contract drift.
