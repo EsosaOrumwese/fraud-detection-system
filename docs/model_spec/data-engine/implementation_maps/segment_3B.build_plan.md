@@ -934,9 +934,9 @@ Scope:
   3) rerun integrated closure score and decide close/hold.
 
 Definition of done:
-- [ ] both blocker lanes have explicit artifacted outcomes.
-- [ ] integrated closure score is rerun after blocker lanes.
-- [ ] explicit decision recorded (`CLOSED` or retained `HOLD_POPT4_REOPEN`).
+- [x] both blocker lanes have explicit artifacted outcomes.
+- [x] integrated closure score is rerun after blocker lanes.
+- [x] explicit decision recorded (`CLOSED` or retained `HOLD_POPT4_REOPEN`).
 
 ### POPT.4R.S3 - S3 replay/idempotence and exception-path closure
 Goal:
@@ -983,9 +983,22 @@ Scope:
   - failed POPT.4 witness (`~1047s`).
 
 Definition of done:
-- [ ] `S2` runtime movement is positive and material vs failed witness.
-- [ ] no schema/path/RNG accounting regressions in `S2`.
-- [ ] downstream `S3/S4/S5` remain green on witness lane.
+- [x] `S2` runtime movement is positive and material vs failed witness.
+- [x] no schema/path/RNG accounting regressions in `S2`.
+- [x] downstream `S3/S4/S5` remain green on witness lane.
+
+POPT.4R.S2 execution record (2026-02-19):
+- code updates:
+  - `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`
+    - added deterministic digest-keyed tile-surface cache keyed by tile digests + edge scale + required country set.
+    - cache hit reuses `tile_allocations` and `tile_bounds_by_country` and skips repeated per-country parquet scans.
+- witness outcomes on authority run-id `724a63d3f8b242809b8ec3b746d0c776`:
+  - cache materialization run: `tile allocations prepared` remained heavy (`~920.50s`) and emitted cache artifact.
+  - cache-hit rerun: `tile allocations loaded from cache` and prep lane dropped to `~5.59s`.
+  - integrated witness rerun (`S2->S5`): `S2 wall=114.954s`, `S3 wall=3.327s`, `S4 wall=38.702s`, `S5 wall=43.344s`; all `PASS`.
+- evidence:
+  - cache artifact:
+    - `runs/fix-data-engine/segment_3B/724a63d3f8b242809b8ec3b746d0c776/reports/layer1/3B/state=S2/seed=42/manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8/tile_surface_cache_e479cdba4a5b9e8f3d5bc2e13ece8fda81b68288e3e947ce3c56ce748f286f1d.json`
 
 ### POPT.4R.CLOSE - Integrated rescore and freeze decision
 Goal:
@@ -997,9 +1010,23 @@ Scope:
 - if gates pass, mark `POPT` closed and handoff to `P0`; else retain hold with explicit blocker carry-forward.
 
 Definition of done:
-- [ ] integrated closure artifact refreshed post-reopen.
-- [ ] final `POPT` decision state updated in current phase status.
-- [ ] next-phase pointer (`P0` or hold lane) is explicit.
+- [x] integrated closure artifact refreshed post-reopen.
+- [x] final `POPT` decision state updated in current phase status.
+- [x] next-phase pointer (`P0` or hold lane) is explicit.
+
+POPT.4R.CLOSE execution record (2026-02-19):
+- integrated witness refresh:
+  - reran `S2->S5` on authority run-id `724a63d3f8b242809b8ec3b746d0c776` after blocker-lane fixes.
+- refreshed closure artifacts:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt4_closure_724a63d3f8b242809b8ec3b746d0c776.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt4_closure_724a63d3f8b242809b8ec3b746d0c776.md`
+- measured gates:
+  - runtime movement: PASS (`209.093s` vs baseline `697.64s`, `+70.03%`).
+  - determinism: PASS (digest parity + output-path parity true).
+  - structural: PASS (`S0 receipt=true`, `S1..S5 status=PASS`, `S5 bundle files present=true`).
+- decision:
+  - `CLOSED`.
+  - next pointer: `UNLOCK_P0`.
 
 ## 6) Remediation phases (data realism first)
 
@@ -1104,8 +1131,8 @@ Definition of done:
 - `POPT.2`: completed (`UNLOCK_POPT3_AFTER_POPT2R2`)
 - `POPT.2R`: completed (`UNLOCK_POPT3`)
 - `POPT.3`: completed (`UNLOCK_POPT4`)
-- `POPT.4`: in_progress (`HOLD_POPT4_REOPEN`)
-- `P0`: pending
+- `POPT.4`: completed (`CLOSED_UNLOCK_P0`)
+- `P0`: pending (`UNLOCKED_AFTER_POPT4`)
 - `P1`: pending
 - `P2`: pending
 - `P3`: pending

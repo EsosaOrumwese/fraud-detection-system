@@ -15483,3 +15483,51 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. Planning-only change; no `M9.G` runtime execution was run in this step.
 2. `M9.G` is now ready for deterministic execution with explicit closure criteria.
 
+## Entry: 2026-02-19 16:07:06 +00:00 - M9.G execution completed (post-teardown cost-guardrail snapshot)
+### Problem framing
+1. `M9.G` had to prove that teardown left budget/cost posture in-policy and free of cost-footgun residuals before `M9.H`.
+2. Closure needed both live budget/cost reads and live residual-surface checks with blocker-coded fail-closed behavior.
+
+### Decision trail and execution notes
+1. Entry gates were revalidated before live queries:
+   - `M9.F` PASS snapshot readable with empty blocker set,
+   - `M2.I` budget baseline snapshot readable,
+   - required handles resolved without wildcard/placeholder drift.
+2. First execution attempt (`m9_20260219T160439Z`) failed closed:
+   - `ce.get-cost-and-usage` returned `ValidationException` due unquoted composite `--time-period` argument (`Start time is invalid`),
+   - blocker mapped as `M9G-B1`,
+   - no green semantics accepted from this attempt.
+3. Remediation decision:
+   - quote the entire CE time-period composite as one argument:
+     - `--time-period "Start=<yyyy-mm-dd>,End=<yyyy-mm-dd>"`,
+   - rerun full lane (not partial replay) to preserve deterministic closure semantics.
+4. Second execution (`m9_20260219T160549Z`) passed with blocker-free outcomes.
+5. Durable evidence publication succeeded to run-control path.
+
+### Runtime outcomes
+1. Authoritative execution id:
+   - `m9_20260219T160549Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T160549Z/m9_g_cost_guardrail_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T160549Z/m9_g_cost_guardrail_snapshot.json`.
+3. Budget/cost posture:
+   - budget identity aligned (`fraud-platform-dev-min-budget`, `30 USD`),
+   - alert thresholds present (`10/20/28`), `threshold_match_pass=true`,
+   - `mtd_cost_amount=17.8956072585`,
+   - `budget_utilization_pct=59.6520`,
+   - critical threshold (`28 USD`) not breached.
+4. Post-teardown cost-footgun posture:
+   - `nat_non_deleted_count=0`,
+   - `lb_demo_scoped_residual_count=0`,
+   - `ecs_desired_gt_zero_count=0`,
+   - `runtime_db_state=not_found`,
+   - `log_retention_drift_count=0`.
+5. Verdict:
+   - `overall_pass=true`
+   - blockers empty.
+
+### Phase posture updates
+1. `M9.G` is closed PASS.
+2. `M9.H` is now the next execution lane.
+3. Main/deep build plans and logbook were repinned to reflect `M9.G` closure.
+

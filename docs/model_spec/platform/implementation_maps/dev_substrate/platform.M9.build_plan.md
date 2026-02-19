@@ -937,13 +937,46 @@ Runtime budget:
 2. Over-budget execution remains fail-closed unless explicit user waiver is recorded.
 
 DoD:
-- [ ] Budget posture is readable and in-policy.
-- [ ] Post-teardown cost-footgun indicators are clear.
-- [ ] Snapshot exists locally and durably.
+- [x] Budget posture is readable and in-policy.
+- [x] Post-teardown cost-footgun indicators are clear.
+- [x] Snapshot exists locally and durably.
 
 Planning status:
 1. `M9.G` is now execution-grade (entry/precheck/live-budget-live-cost/footgun-check/snapshot contract pinned).
-2. Historical summary-only state is superseded; execution not run in this planning step.
+2. Historical planning-only state is superseded by execution closure below.
+
+Execution closure (2026-02-19):
+1. Attempt-1 fail-closed:
+   - execution id: `m9_20260219T160439Z`
+   - result: `overall_pass=false`, blocker: `M9G-B1`
+   - blocker cause: CE `get-cost-and-usage` request used unquoted `--time-period` composite and returned `ValidationException` (`Start time is invalid`).
+2. Remediation:
+   - quoted the CE argument as one value:
+     - `--time-period "Start=<yyyy-mm-dd>,End=<yyyy-mm-dd>"`.
+   - reran full deterministic lane with the same entry gates and blocker model.
+3. Authoritative PASS run:
+   - execution id: `m9_20260219T160549Z`.
+4. Snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T160549Z/m9_g_cost_guardrail_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T160549Z/m9_g_cost_guardrail_snapshot.json`.
+5. Result:
+   - `overall_pass=true`,
+   - blockers empty.
+6. Cost posture outcomes:
+   - budget surface aligned to pinned handles (`fraud-platform-dev-min-budget`, `30 USD`),
+   - threshold set present (`10/20/28`), `threshold_match_pass=true`,
+   - MTD cost: `17.8956072585 USD`,
+   - budget utilization: `59.6520%`,
+   - critical threshold (`28 USD`) not breached.
+7. Post-teardown footgun outcomes:
+   - `nat_non_deleted_count=0`
+   - `lb_demo_scoped_residual_count=0`
+   - `ecs_desired_gt_zero_count=0`
+   - `runtime_db_state=not_found`
+   - `log_retention_drift_count=0`.
+8. Consequence:
+   - `M9.G` is closed.
+   - `M9.H` is unblocked.
 
 Blockers:
 1. `M9G-B1`: budget surface unreadable/misaligned.
@@ -1010,8 +1043,8 @@ Budget rule:
 1. Over-budget lanes require explicit blocker notation and remediation/retry posture before progression.
 
 ## 7) Current Planning Status
-1. M9 is planning-open with `M9.A`, `M9.B`, `M9.C`, `M9.D`, `M9.E`, and `M9.F` execution closed green.
-2. `M9.G` is now the next execution lane.
-3. `M9.G` is expanded to execution-grade and pending execution.
+1. M9 is planning-open with `M9.A`, `M9.B`, `M9.C`, `M9.D`, `M9.E`, `M9.F`, and `M9.G` execution closed green.
+2. `M9.H` is now the next execution lane.
+3. `M9.G` is execution-closed with blocker-free cost-guardrail evidence.
 4. Unified teardown workflow decision is pinned:
    - `dev_min_confluent_destroy.yml` is stack-aware (`stack_target=confluent|demo`).

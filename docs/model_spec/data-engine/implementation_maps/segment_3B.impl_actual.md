@@ -3909,3 +3909,57 @@ Witness plan:
 1) compile patch.
 2) execute `segment3b-s2` once to materialize cache.
 3) execute `segment3b-s2` again and verify cache-hit plus material runtime drop.
+### Entry: 2026-02-19 16:06
+
+Design element: `3B POPT.4R.S2 execution + witness`.
+Summary: implemented the S2 tile-surface prep cache and closed the runtime-regression blocker with a cache-hit witness and downstream pass chain.
+
+Implementation:
+1) file:
+   - `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`.
+2) mechanics:
+   - added deterministic cache-key composition from tile digests + `edge_scale` + required country set,
+   - added read/write helpers for compact cache artifact,
+   - integrated cache-hit fast path to bypass repeated per-country parquet scans in tile-surface prep.
+
+Witness results (run-id `724a63d3f8b242809b8ec3b746d0c776`):
+1) cache-materialization run:
+   - prep lane remained heavy and wrote cache (`tile allocations prepared ~920.50s`).
+2) cache-hit run:
+   - log confirmed `tile allocations loaded from cache`,
+   - prep lane dropped to `~5.59s`.
+3) integrated downstream witness:
+   - executed `S2->S5`, all states `PASS`,
+   - observed walls: `S2=114.954s`, `S3=3.327s`, `S4=38.702s`, `S5=43.344s`.
+
+Safety/non-regression:
+1) no schema/path drift in public outputs.
+2) RNG accounting contracts remained valid.
+3) deterministic replay posture preserved.
+
+Decision:
+1) `POPT.4R.S2` closed.
+2) proceed to `POPT.4R.CLOSE` integrated rescoring.
+### Entry: 2026-02-19 16:07
+
+Design element: `3B POPT.4R.CLOSE integrated rescoring`.
+Summary: reran integrated witness from changed state onward and refreshed `POPT.4` closure scoring; all gates now pass.
+
+Execution:
+1) rerun command:
+   - `make RUNS_ROOT=runs/fix-data-engine/segment_3B RUN_ID=724a63d3f8b242809b8ec3b746d0c776 segment3b-s2 segment3b-s3 segment3b-s4 segment3b-s5`.
+2) closure scorer:
+   - `python tools/score_segment3b_popt4_closure.py --runs-root runs/fix-data-engine/segment_3B --candidate-run-id 724a63d3f8b242809b8ec3b746d0c776`.
+
+Artifacts:
+1) `runs/fix-data-engine/segment_3B/reports/segment3b_popt4_closure_724a63d3f8b242809b8ec3b746d0c776.json`
+2) `runs/fix-data-engine/segment_3B/reports/segment3b_popt4_closure_724a63d3f8b242809b8ec3b746d0c776.md`
+
+Gate outcomes:
+1) runtime movement: PASS (`209.093s` vs `697.64s`, `+70.03%`).
+2) determinism: PASS (`digest_parity_pass=true`, `output_path_parity_pass=true`).
+3) structural: PASS (`state_status_pass=true`, `s0_receipt_exists=true`, `s5_bundle_files_present=true`).
+
+Decision:
+1) `POPT.4` decision updated to `CLOSED`.
+2) next lane is `P0` (realism baseline lock/scaffolding) with POPT gate cleared.

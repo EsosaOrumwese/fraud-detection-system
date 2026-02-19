@@ -1132,6 +1132,7 @@ Active-phase planning posture:
   - `M9.F` is expanded to execution-grade with deterministic metadata-only SSM cleanup verification and snapshot contract.
   - `M9.F` execution is green with blockers empty; `M9.G` is unblocked.
   - `M9.G` is expanded to execution-grade with deterministic live budget/cost posture validation and post-teardown footgun checks.
+  - `M9.G` execution is green with blockers empty; `M9.H` is unblocked.
 
 Sub-phase progress:
   - [x] `M9.A` P12 authority + handoff closure.
@@ -1140,7 +1141,7 @@ Sub-phase progress:
   - [x] `M9.D` demo stack teardown execution.
   - [x] `M9.E` post-destroy residual checks.
   - [x] `M9.F` demo-scoped secret cleanup verification.
-  - [ ] `M9.G` post-teardown cost-guardrail snapshot.
+  - [x] `M9.G` post-teardown cost-guardrail snapshot.
   - [ ] `M9.H` teardown-proof artifact publication.
   - [ ] `M9.I` M9 verdict + M10 handoff.
 
@@ -1242,11 +1243,38 @@ M9.F execution closure (2026-02-19):
     - `M9.F` is closed
     - `M9.G` is unblocked.
 
+M9.G execution closure (2026-02-19):
+  - attempt-1 fail-closed:
+    - execution id: `m9_20260219T160439Z`
+    - blocker: `M9G-B1` (`ce.get-cost-and-usage` time-period argument formatting error).
+  - remediation:
+    - reran lane with quoted CE time-period argument (`"Start=<date>,End=<date>"`) and preserved full fail-closed checks.
+  - authoritative PASS run:
+    - execution id: `m9_20260219T160549Z`
+  - local snapshot: `runs/dev_substrate/m9/m9_20260219T160549Z/m9_g_cost_guardrail_snapshot.json`
+  - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T160549Z/m9_g_cost_guardrail_snapshot.json`
+  - result: `overall_pass=true`, blockers empty
+  - cost posture outcomes:
+    - budget aligned (`fraud-platform-dev-min-budget`, `30 USD`)
+    - threshold set present (`10/20/28`)
+    - MTD cost `17.8956072585 USD` (`59.6520%` of budget)
+    - critical threshold (`28 USD`) not breached
+  - post-teardown footgun outcomes:
+    - NAT non-deleted: `0`
+    - demo-scoped load balancers: `0`
+    - ECS desired>0 services: `0`
+    - runtime DB state: `not_found`
+    - log-retention drift: `0`
+  - consequence:
+    - `M9.G` is closed
+    - `M9.H` is unblocked.
+
 M9 DoD checklist:
 - [x] Canonical execution lane is GitHub Actions teardown workflows produced under `M2.I`; no local secret-bearing destroy path is used.
 - [x] demo resources are destroyed while retained core/evidence surfaces remain as pinned.
 - [x] no demo ECS services/tasks remain and no NAT/LB cost-footgun resources remain.
 - [x] demo-scoped secrets/credentials are removed from SSM.
+- [x] post-teardown budget/cost guardrail snapshot is captured and blocker-free.
 - [ ] teardown proof artifact exists locally and durably.
 - [ ] M9 verdict is `ADVANCE_TO_M10` with empty blocker rollup.
 
@@ -1359,7 +1387,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M9 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M9.G` post-teardown cost-guardrail snapshot using `M9.F` closure evidence as authority,
+- execute `M9.H` teardown-proof artifact assembly/publication using `M9.G` closure evidence as authority,
 - preserve fail-closed posture:
-  - do not execute `M9.H` teardown-proof assembly until `M9.G` cost-guardrail snapshot is captured and blocker-free.
+  - do not execute `M9.I` verdict/handoff until `M9.H` teardown-proof artifact exists locally and durably.
 
