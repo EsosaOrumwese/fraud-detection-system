@@ -491,8 +491,8 @@ Scope:
 
 Definition of done:
 - [ ] secondary hotspot runtime materially reduced vs baseline.
-- [ ] parity/invariants remain non-regressed.
-- [ ] audit evidence completeness remains intact.
+- [x] parity/invariants remain non-regressed.
+- [x] audit evidence completeness remains intact.
 
 POPT.2 baseline anchors (authority):
 - hotspot authority artifact:
@@ -518,9 +518,9 @@ Scope:
 - pin throughput metrics (rows/s or lines/s) for each hash lane.
 
 Definition of done:
-- [ ] lane timing artifact exists for baseline authority run.
-- [ ] top-2 `S5` hotspot lanes are numerically pinned.
-- [ ] profiler overhead is zero/near-zero and auditable.
+- [x] lane timing artifact exists for baseline authority run.
+- [x] top-2 `S5` hotspot lanes are numerically pinned.
+- [x] profiler overhead is zero/near-zero and auditable.
 
 ### POPT.2.2 - Hash-lane algorithm optimization (primary)
 Goal:
@@ -533,8 +533,8 @@ Scope:
 
 Definition of done:
 - [ ] hash lane wall-time reduced materially vs baseline.
-- [ ] digest outputs remain byte-identical for unchanged inputs.
-- [ ] malformed/empty log failure behavior is non-regressed.
+- [x] digest outputs remain byte-identical for unchanged inputs.
+- [x] malformed/empty log failure behavior is non-regressed.
 
 ### POPT.2.3 - Validation/evidence assembly trim (secondary)
 Goal:
@@ -547,8 +547,8 @@ Scope:
 
 Definition of done:
 - [ ] non-hash `S5` lanes show measurable reduction.
-- [ ] validation result payload schema and semantics are unchanged.
-- [ ] no new warnings/errors introduced in green runs.
+- [x] validation result payload schema and semantics are unchanged.
+- [x] no new warnings/errors introduced in green runs.
 
 ### POPT.2.4 - Witness gate and closure
 Goal:
@@ -562,9 +562,35 @@ Scope:
   - no schema/path drift, no validator regressions.
 
 Definition of done:
-- [ ] closure artifact emitted (`POPT.2` gate scorecard).
-- [ ] explicit decision recorded (`UNLOCK_POPT3` or `HOLD_POPT2_REOPEN`).
-- [ ] superseded run-id folders pruned after evidence capture.
+- [x] closure artifact emitted (`POPT.2` gate scorecard).
+- [x] explicit decision recorded (`UNLOCK_POPT3` or `HOLD_POPT2_REOPEN`).
+- [x] superseded run-id folders pruned after evidence capture.
+
+POPT.2 execution record (2026-02-19):
+- baseline lane artifact (`POPT.2.1`):
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt2_s5_lane_timing_724a63d3f8b242809b8ec3b746d0c776.json`
+- implementation applied (`POPT.2.2` + `POPT.2.3`):
+  - `S5` hash path moved to single-pass mode (no `_count_lines` pre-pass),
+  - audit/trace evidence extraction fused into hash pass callbacks (removed redundant post-hash JSONL scans),
+  - digest law preserved (raw line-byte hashing unchanged).
+- witness lane (`POPT.2.4`):
+  - command: isolated `segment3b-s5` rerun on authority run-id
+    `724a63d3f8b242809b8ec3b746d0c776`.
+  - post-patch lane artifact:
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_popt2_s5_lane_timing_724a63d3f8b242809b8ec3b746d0c776_postpatch.json`
+  - closure scorecard:
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_popt2_closure_724a63d3f8b242809b8ec3b746d0c776_postpatch.json`
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_popt2_closure_724a63d3f8b242809b8ec3b746d0c776_postpatch.md`
+- measured result:
+  - baseline `S5 wall=240.468s`,
+  - candidate `S5 wall=241.844s`,
+  - runtime gate FAIL (`-0.57%` movement, below required `<=180s` or `>=25%` reduction).
+- non-regression:
+  - bundle digest parity PASS,
+  - output path stability PASS,
+  - `S5` status PASS.
+- closure decision:
+  - `HOLD_POPT2_REOPEN`.
 
 ### POPT.3 - Logging and serialization budget optimization
 Goal:
@@ -692,7 +718,7 @@ Definition of done:
 - `POPT.0`: completed
 - `POPT.1`: in_progress (`HOLD_POPT1_REOPEN`)
 - `POPT.1R.NEXT`: in_progress (`OPEN_AFTER_ROLLBACK`)
-- `POPT.2`: pending (`PLANNING_EXPANDED`)
+- `POPT.2`: in_progress (`HOLD_POPT2_REOPEN`)
 - `POPT.3`: pending
 - `POPT.4`: pending
 - `P0`: pending

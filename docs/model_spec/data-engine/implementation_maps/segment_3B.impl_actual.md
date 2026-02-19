@@ -3347,3 +3347,54 @@ Invariants that must not move:
 2) schema strength: every parsed event still validated against current schema anchors.
 3) failure semantics: malformed payloads and accounting mismatches must remain fail-closed.
 4) bundle/index paths and schema outputs must remain unchanged.
+### Entry: 2026-02-19 12:53
+
+Design element: `3B POPT.2.2/2.3 S5 patch application`.
+Summary: applied single-pass hash/evidence optimization in `S5` and added dedicated POPT.2 scorers.
+
+Code changes applied:
+1) `packages/engine/src/engine/layers/l1/seg_3B/s5_validation_bundle/runner.py`:
+   - `_hash_jsonl_with_validation` now runs without line-count pre-pass (`_ProgressTracker(None, ...)`).
+   - schema error probing switched to first-error extraction (no per-line error-list materialization).
+   - added `on_record` callback hook so required audit/trace evidence can be captured during hash pass.
+   - removed redundant audit/trace second-pass JSONL scans by collecting:
+     - `rng_audit_log` identity match,
+     - `rng_trace_log` best rows for `edge_jitter` and `edge_tile_assign`.
+2) new scorer tools:
+   - `tools/score_segment3b_popt2_s5_lane_timing.py` (`POPT.2.1` lane artifact),
+   - `tools/score_segment3b_popt2_closure.py` (`POPT.2.4` gate closure).
+
+Validation gates run before witness:
+1) syntax compile PASS for patched runner and both scorers.
+2) baseline lane artifact emitted on authority run-id before rerun:
+   - `segment3b_popt2_s5_lane_timing_724a63d3f8b242809b8ec3b746d0c776.json`.
+
+Rationale for this patch shape:
+1) keeps digest law and schema law intact.
+2) removes avoidable repeated file scans/materialization in hottest S5 lanes.
+3) keeps fail-closed accounting checks unchanged.
+### Entry: 2026-02-19 12:58
+
+Design element: `3B POPT.2.4 witness + closure decision`.
+Summary: executed isolated `S5` witness on authority run-id after patch and scored closure; runtime gate failed while non-regression gates passed.
+
+Execution:
+1) witness command:
+   - `make segment3b-s5 RUNS_ROOT=runs/fix-data-engine/segment_3B SEG3B_S5_RUN_ID=724a63d3f8b242809b8ec3b746d0c776`.
+2) post-patch artifacts:
+   - `segment3b_popt2_s5_lane_timing_724a63d3f8b242809b8ec3b746d0c776_postpatch.{json,md}`,
+   - `segment3b_popt2_closure_724a63d3f8b242809b8ec3b746d0c776_postpatch.{json,md}`.
+
+Measured result:
+1) baseline S5 wall (POPT.0 authority): `240.468s`.
+2) candidate S5 wall (post-patch witness): `241.844s`.
+3) runtime movement: `-0.57%` (regression vs baseline), so runtime gate failed.
+
+Non-regression result:
+1) bundle digest parity PASS.
+2) output path stability PASS.
+3) S5 status PASS, no schema/path validator regressions.
+
+Decision:
+1) `POPT.2` stays open as `HOLD_POPT2_REOPEN`.
+2) no new run-id folders were created for this lane (isolated rerun on existing authority run-id), so prune action is a no-op for this execution.

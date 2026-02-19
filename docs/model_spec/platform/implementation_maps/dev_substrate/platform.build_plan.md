@@ -1121,10 +1121,11 @@ Active-phase planning posture:
   - `M9.A` is expanded to execution-grade with deterministic handoff/handle-closure algorithm and snapshot contract.
   - `M9.A` execution is green with blockers empty; `M9.B` is unblocked.
   - `M9.B` is expanded to execution-grade with deterministic destroy/preserve inventory algorithm and overlap/scope guards.
+  - `M9.B` execution is green with blockers empty; `M9.C` is unblocked.
 
 Sub-phase progress:
   - [x] `M9.A` P12 authority + handoff closure.
-  - [ ] `M9.B` teardown inventory + preserve-set freeze.
+  - [x] `M9.B` teardown inventory + preserve-set freeze.
   - [ ] `M9.C` Confluent teardown execution (existing workflow lane).
   - [ ] `M9.D` demo stack teardown execution.
   - [ ] `M9.E` post-destroy residual checks.
@@ -1148,6 +1149,21 @@ M9.A execution closure (2026-02-19):
   - consequence:
     - `M9.A` is closed
     - `M9.B` is unblocked.
+
+M9.B execution closure (2026-02-19):
+  - execution id: `m9_20260219T125838Z`
+  - local snapshot: `runs/dev_substrate/m9/m9_20260219T125838Z/m9_b_teardown_inventory_snapshot.json`
+  - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T125838Z/m9_b_teardown_inventory_snapshot.json`
+  - result: `overall_pass=true`, blockers empty
+  - validation outcomes:
+    - destroy-set is explicit and demo/confluent scoped,
+    - preserve-set includes retained core buckets + state/budget surfaces,
+    - overlap targets: none,
+    - destroy-scope violations: none,
+    - preserve-missing targets: none.
+  - consequence:
+    - `M9.B` is closed
+    - `M9.C` is unblocked.
 
 M9 DoD checklist:
 - [ ] Canonical execution lane is GitHub Actions teardown workflows produced under `M2.I`; no local secret-bearing destroy path is used.
@@ -1266,7 +1282,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M9 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M9.B` teardown inventory + preserve-set freeze before running any destructive teardown workflow,
+- expand/confirm `M9.C` execution lane and execute Confluent teardown via managed workflow,
 - preserve fail-closed posture:
-  - do not execute destructive teardown lanes (`M9.C..M9.D`) until `M9.A` and `M9.B` are closed.
+  - do not execute demo-stack destructive lane (`M9.D`) until `M9.C` result is captured and `M9.B` preserve-set controls are still satisfied.
 

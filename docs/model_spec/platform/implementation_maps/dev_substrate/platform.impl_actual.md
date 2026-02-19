@@ -15056,3 +15056,46 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. This step is planning-only; no teardown runtime execution/destruction was performed.
 2. `M9.B` is now execution-ready.
 
+## Entry: 2026-02-19 12:59:37 +00:00 - M9.B execution started (teardown inventory freeze)
+### Execution intent
+1. Execute `M9.B` fail-closed before any destructive teardown lane.
+2. Materialize deterministic destroy-set and preserve-set from authoritative sources.
+3. Enforce overlap/scope/completeness guards and publish inventory snapshot locally + durably.
+
+### Pre-execution decisions
+1. Preserve-set completeness is mandatory and includes:
+   - retained core buckets (evidence/object-store/archive/quarantine),
+   - tfstate control surfaces (state bucket + core key + lock table),
+   - budget continuity object.
+2. Destroy-set includes only demo/confluent targets:
+   - demo + confluent tfstate keys,
+   - confluent identifiers,
+   - demo runtime service/task/db targets,
+   - demo-scoped secret path targets (names only).
+3. Secret values are never read or logged in this lane; only secret path names are allowed in evidence.
+
+## Entry: 2026-02-19 12:59:37 +00:00 - M9.B executed and closed PASS
+### Execution reasoning trail
+1. `M9.A` pass snapshot was treated as a strict prerequisite gate (`M9B-B5`) before inventory construction.
+2. Destroy/preserve inventories were generated from Terraform outputs and pinned registry keys only; no inferred resources were added.
+3. Overlap was checked on normalized target strings so tfstate bucket/key representation is consistent across both sets.
+4. Scope guard checked that protected core surfaces never appear in destroy targets.
+
+### Runtime outcomes
+1. Execution id:
+   - `m9_20260219T125838Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T125838Z/m9_b_teardown_inventory_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T125838Z/m9_b_teardown_inventory_snapshot.json`.
+3. Result:
+   - `overall_pass=true`,
+   - blockers empty.
+4. Validation results:
+   - overlap targets: none,
+   - destroy-scope violations: none,
+   - preserve-missing targets: none.
+
+### Phase posture updates
+1. `M9.B` is complete.
+2. `M9.C` is unblocked for execution.
+

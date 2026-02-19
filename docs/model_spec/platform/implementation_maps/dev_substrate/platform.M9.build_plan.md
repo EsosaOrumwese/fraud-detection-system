@@ -308,14 +308,31 @@ Runtime budget:
 2. Over-budget execution remains fail-closed unless explicit user waiver is recorded.
 
 DoD:
-- [ ] Destroy-set is explicit and demo-scoped.
-- [ ] Preserve-set is explicit and excludes evidence-loss paths.
-- [ ] Destroy-set and preserve-set overlap is empty.
-- [ ] Snapshot exists locally and durably.
+- [x] Destroy-set is explicit and demo-scoped.
+- [x] Preserve-set is explicit and excludes evidence-loss paths.
+- [x] Destroy-set and preserve-set overlap is empty.
+- [x] Snapshot exists locally and durably.
 
 Planning status:
 1. `M9.B` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
-2. No teardown execution/destruction was run in this planning step.
+2. No teardown execution/destruction was run during planning expansion.
+
+Execution closure (2026-02-19):
+1. Execution id:
+   - `m9_20260219T125838Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T125838Z/m9_b_teardown_inventory_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T125838Z/m9_b_teardown_inventory_snapshot.json`.
+3. Result:
+   - `overall_pass=true`,
+   - blockers empty.
+4. Inventory validation outcomes:
+   - destroy-set is explicit and demo/confluent scoped,
+   - preserve-set includes retained core buckets, tfstate-control surfaces, and budget target,
+   - overlap target set is empty,
+   - destroy-scope violations: none,
+   - preserve-missing targets: none.
+5. `M9.B` is closed and `M9.C` is unblocked.
 
 Blockers:
 1. `M9B-B1`: destroy-set contains non-demo/core-protected surfaces.
@@ -475,7 +492,7 @@ Budget rule:
 1. Over-budget lanes require explicit blocker notation and remediation/retry posture before progression.
 
 ## 7) Current Planning Status
-1. M9 is planning-open with `M9.A` execution closed green.
-2. `M9.B` is now the next execution lane; no destructive lane is allowed before `M9.A` and `M9.B` closure.
+1. M9 is planning-open with `M9.A` and `M9.B` execution closed green.
+2. `M9.C` is now the next execution lane.
 3. Existing workflow reuse decision is pinned:
    - `dev_min_confluent_destroy.yml` is reused, not replaced.
