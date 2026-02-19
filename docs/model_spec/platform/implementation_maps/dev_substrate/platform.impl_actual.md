@@ -14813,3 +14813,44 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Phase posture updates
 1. `M8.H` is complete.
 2. `M8.I` is unblocked for execution.
+
+## Entry: 2026-02-19 12:07:58 +00:00 - M8.I planning expanded to execution-grade
+### Problem framing
+1. `M8.I` still had summary-level intent only; it lacked executable closure mechanics for deterministic verdict and handoff publication.
+2. Without a pinned source-matrix and non-secret handoff policy, final M8 closure could drift or ship ambiguous payloads into M9.
+
+### Planning decisions
+1. Entry gate pinned strictly to `M8.H` pass (`m8_20260219T120213Z`) and fixed run scope (`platform_20260213T214223Z`).
+2. Source authority for verdict computation fixed to pass snapshots `M8.A..M8.H` in deterministic order:
+   - A `m8_20260219T075228Z`,
+   - B `m8_20260219T080757Z`,
+   - C `m8_20260219T082913Z`,
+   - D `m8_20260219T093130Z`,
+   - E `m8_20260219T111715Z`,
+   - F `m8_20260219T111902Z`,
+   - G `m8_20260219T114220Z`,
+   - H `m8_20260219T120213Z`.
+3. P11 predicate map pinned explicitly from source pass posture:
+   - handles closed,
+   - single-writer verified,
+   - closure bundle complete,
+   - replay/reconciliation coherent,
+   - closure marker valid,
+   - Obs outputs valid.
+4. Verdict rule pinned fail-closed:
+   - `ADVANCE_TO_M9` only if all predicates true and source blocker rollup empty,
+   - else `HOLD_M8`.
+5. Non-secret policy pinned as a hard gate for handoff payload (`M8I-B5`).
+6. Snapshot + handoff schemas pinned:
+   - `m8_i_verdict_snapshot.json`,
+   - `m9_handoff_pack.json`.
+
+### Plan outputs updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`:
+   - `M8.I` expanded to execution-grade (entry/precheck/algorithm/verdict rule/non-secret handoff/schema/runtime budget).
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - M8 expansion-state bullet updated to include `M8.I` execution-grade planning posture.
+
+### Phase posture
+1. `M8.I` is planning-complete and execution-ready.
+2. Runtime execution was not performed in this planning step.

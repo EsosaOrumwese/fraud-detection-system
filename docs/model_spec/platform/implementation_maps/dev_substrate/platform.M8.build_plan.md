@@ -1064,20 +1064,68 @@ Execution closure (2026-02-19):
 Goal:
 1. Compute deterministic M8 verdict and publish M9 handoff artifact.
 
+Entry conditions:
+1. `M8.H` is pass with blockers empty:
+   - local: `runs/dev_substrate/m8/m8_20260219T120213Z/m8_h_obs_gov_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T120213Z/m8_h_obs_gov_closure_snapshot.json`.
+2. Active run scope is pinned to:
+   - `platform_run_id=platform_20260213T214223Z`.
+3. No unresolved blockers remain from `M8.H`.
+
+Required inputs:
+1. Pass snapshots for `M8.A..M8.H` (local preferred, durable fallback):
+   - `M8.A`: `runs/dev_substrate/m8/m8_20260219T075228Z/m8_a_handle_closure_snapshot.json`
+   - `M8.B`: `runs/dev_substrate/m8/m8_20260219T080757Z/m8_b_reporter_readiness_snapshot.json`
+   - `M8.C`: `runs/dev_substrate/m8/m8_20260219T082913Z/m8_c_input_readiness_snapshot.json`
+   - `M8.D`: `runs/dev_substrate/m8/m8_20260219T093130Z/m8_d_single_writer_probe_snapshot.json`
+   - `M8.E`: `runs/dev_substrate/m8/m8_20260219T111715Z/m8_e_reporter_execution_snapshot.json`
+   - `M8.F`: `runs/dev_substrate/m8/m8_20260219T111902Z/m8_f_bundle_completeness_snapshot.json`
+   - `M8.G`: `runs/dev_substrate/m8/m8_20260219T114220Z/m8_g_replay_reconciliation_snapshot.json`
+   - `M8.H`: `runs/dev_substrate/m8/m8_20260219T120213Z/m8_h_obs_gov_closure_snapshot.json`.
+2. Durable run-control evidence root for `m8_i_verdict_snapshot.json` and `m9_handoff_pack.json`.
+3. M8 run-scoped closure root:
+   - `evidence/runs/<platform_run_id>/`.
+
+Preparation checks (fail-closed):
+1. Validate all source snapshots above are readable and parseable.
+2. Validate all source snapshots are run-scoped to active `platform_run_id`.
+3. Validate source snapshots include required fields:
+   - `phase`, `phase_id`, `platform_run_id`, `overall_pass`, `blockers`.
+4. Validate required durable evidence root values are concrete (no placeholder/wildcard).
+
+Deterministic verification algorithm (M8.I):
+1. Load `M8.A..M8.H` source snapshots; any missing/unreadable/parse failure -> `M8I-B1`.
+2. Enforce run-scope conformance across all source snapshots (`platform_run_id` equals active run scope); mismatch -> `M8I-B2`.
+3. Build deterministic source matrix in fixed phase order:
+   - `M8.A`, `M8.B`, `M8.C`, `M8.D`, `M8.E`, `M8.F`, `M8.G`, `M8.H`.
+4. Roll up blockers from all source snapshots:
+   - `source_blocker_rollup = union(source.blockers for all phases)`.
+5. Compute P11 predicate map from source pass posture:
+   - `p11_handles_closed = M8.A.overall_pass`,
+   - `single_writer_verified = M8.D.overall_pass AND M8.E.overall_pass`,
+   - `closure_bundle_complete = M8.F.overall_pass`,
+   - `replay_reconciliation_coherent = M8.G.overall_pass`,
+   - `closure_marker_valid = M8.H.overall_pass`,
+   - `obs_outputs_valid = M8.H.overall_pass`.
+6. Evaluate verdict:
+   - if every predicate above is true and `source_blocker_rollup` is empty -> `ADVANCE_TO_M9`,
+   - else -> `HOLD_M8`.
+7. Non-secret policy checks for handoff payload:
+   - payload contains refs/ids/verdict only (no secrets/tokens/credentials),
+   - fail on any key/value matching secret-bearing patterns (`secret`, `password`, `token`, `AKIA`, private key markers) -> `M8I-B5`.
+8. Emit `m8_i_verdict_snapshot.json` locally and publish durably.
+9. Emit `m9_handoff_pack.json` locally and publish durably.
+10. Return `overall_pass=true` only when:
+   - verdict is `ADVANCE_TO_M9`,
+   - blockers list is empty,
+   - both artifacts are written and durably published.
+
 Tasks:
-1. Roll up blockers from `M8.A..M8.H` with source provenance.
-2. Compute P11 predicates:
-   - single-writer verified,
-   - closure bundle complete,
-   - replay/reconciliation coherent,
-   - closure marker valid.
-3. Set verdict:
-   - predicates all true + blocker rollup empty => `ADVANCE_TO_M9`
-   - else => `HOLD_M8`.
-4. Publish:
-   - `m8_i_verdict_snapshot.json`
-   - `m9_handoff_pack.json`
-   locally and durably.
+1. Build source snapshot matrix from `M8.A..M8.H`.
+2. Compute deterministic predicate map + blocker rollup.
+3. Compute verdict and emit `m8_i_verdict_snapshot.json`.
+4. Build non-secret handoff payload and emit `m9_handoff_pack.json`.
+5. Publish both artifacts locally and durably.
 
 DoD:
 - [ ] M8 verdict snapshot is deterministic and reproducible.
@@ -1090,6 +1138,43 @@ Blocker Codes (Taxonomy):
 3. `M8I-B3`: blocker rollup non-empty.
 4. `M8I-B4`: verdict/handoff write or upload failure.
 5. `M8I-B5`: handoff payload non-secret policy violation.
+
+Required snapshot fields (`m8_i_verdict_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m8_execution_id`.
+2. `source_snapshot_refs` (map for `M8.A..M8.H` local + durable refs).
+3. `source_phase_matrix` (phase -> `overall_pass`, `blockers`, `phase_id`).
+4. `source_blocker_rollup`.
+5. `p11_predicates`.
+6. `verdict`.
+7. `blockers`, `overall_pass`, `elapsed_seconds`.
+
+Required handoff fields (`m9_handoff_pack.json`):
+1. `handoff_id`, `generated_at_utc`, `platform_run_id`.
+2. `m8_verdict`, `m8_overall_pass`, `m8_execution_id`.
+3. `source_verdict_snapshot_uri`.
+4. `phase_pass_matrix` (`M8.A..M8.H`).
+5. `required_evidence_refs`:
+   - run-scoped closure root,
+   - `run_completed`,
+   - `obs/run_report`,
+   - `obs/reconciliation`,
+   - `obs/replay_anchors`,
+   - `obs/environment_conformance`,
+   - `obs/anomaly_summary`.
+6. `m9_entry_gate`:
+   - `required_verdict=ADVANCE_TO_M9`,
+   - `required_overall_pass=true`.
+7. `non_secret_policy`:
+   - `pass=true|false`,
+   - `violations`.
+
+Runtime budget:
+1. `M8.I` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
+
+Planning status:
+1. `M8.I` is now execution-grade (entry/precheck/algorithm/snapshot + handoff contract pinned).
+2. Runtime execution is pending.
 
 ## 6) Runtime Budget Gates
 1. `M8.A`: <= 10 minutes

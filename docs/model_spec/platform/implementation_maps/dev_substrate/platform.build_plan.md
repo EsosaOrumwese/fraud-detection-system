@@ -883,6 +883,7 @@ Active-phase planning posture:
   - `M8.G` execution is green with blockers empty; `M8.H` is unblocked.
   - `M8.H` is expanded to execution-grade with deterministic closure-marker/Obs-Gov surface verification algorithm and snapshot contract.
   - `M8.H` execution is green with blockers empty; `M8.I` is unblocked.
+  - `M8.I` is expanded to execution-grade with deterministic verdict-rollup + M9 handoff contract.
 
 M8.A execution closure (2026-02-19):
   - execution id: `m8_20260219T073801Z`
