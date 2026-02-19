@@ -3441,3 +3441,79 @@ Plan additions written:
 Decision integrity:
 1) no implementation code changed in this step; this was planning/documentation only.
 2) reopen lane remains bounded to avoid run-folder churn and contract drift.
+### Entry: 2026-02-19 13:18
+
+Design element: `3B POPT.2R.1 pre-change lock (S5 log-cadence trim)`.
+Summary: start `POPT.2R.1` as a low-risk lane that only reduces S5 hot-hash progress log frequency; no changes to data semantics, digest law, or validation rules.
+
+Why this lane first:
+1) closure miss in `POPT.2` was narrow (`241.844s` vs `240.468s` baseline), so we test the lowest-blast-radius runtime drag first.
+2) previous logs show very high frequency hash progress logging in S5 hot lanes.
+
+Pinned implementation for `R1`:
+1) make progress interval configurable in `_ProgressTracker` (default unchanged for other callers).
+2) apply a larger interval only to S5 hash lanes in `_hash_jsonl_with_validation`.
+3) keep all counters/messages and fail-closed behavior intact.
+
+Pinned safety rails:
+1) no schema or contract path changes.
+2) no digest/identity/validation semantics changes.
+3) isolated witness rerun only:
+   - `segment3b-s5` on authority run-id `724a63d3f8b242809b8ec3b746d0c776`.
+
+Success criteria for this lane:
+1) runtime movement is measured with `POPT.2` scorers.
+2) non-regression gates stay green.
+3) if runtime gate still fails, explicitly open `POPT.2R.2`.
+### Entry: 2026-02-19 13:19
+
+Design element: `3B POPT.2R.1 S5 cadence patch applied`.
+Summary: implemented low-risk log-cadence trim for S5 hash lanes and held all semantics constant.
+
+Patch detail:
+1) in `s5_validation_bundle/runner.py`:
+   - added `S5_HASH_PROGRESS_LOG_INTERVAL_S = 5.0`.
+   - extended `_ProgressTracker` with `min_log_interval_s` parameter (default `0.5s` retained).
+   - wired `_hash_jsonl_with_validation` tracker to `min_log_interval_s=S5_HASH_PROGRESS_LOG_INTERVAL_S`.
+2) compile checks:
+   - patched runner and scorer tools compiled PASS.
+
+Expected impact:
+1) lower hot-lane log emission overhead only.
+2) no change to digest/schema/accounting behavior.
+### Entry: 2026-02-19 13:23
+
+Design element: `3B POPT.2R.1 witness + scoring`.
+Summary: executed isolated S5 witness for R1 and scored against baseline; runtime gate failed while non-regression remained green.
+
+Execution:
+1) witness command:
+   - `make segment3b-s5 RUNS_ROOT=runs/fix-data-engine/segment_3B SEG3B_S5_RUN_ID=724a63d3f8b242809b8ec3b746d0c776`.
+2) R1 artifacts emitted:
+   - `segment3b_popt2r1_s5_lane_timing_724a63d3f8b242809b8ec3b746d0c776.{json,md}`,
+   - `segment3b_popt2r1_closure_724a63d3f8b242809b8ec3b746d0c776.{json,md}`.
+
+Measured outcome:
+1) candidate S5 wall: `242.842s`.
+2) baseline S5 wall: `240.468s`.
+3) runtime movement: `-0.99%` (regression), runtime gate FAIL.
+
+Non-regression:
+1) digest parity PASS.
+2) output path stability PASS.
+3) S5 PASS; no schema/path regressions.
+
+Decision:
+1) `POPT.2R.1` closed as attempted-but-failed runtime recovery.
+2) next lane opened: `POPT.2R.2` (compiled-validator acceleration).
+### Entry: 2026-02-19 13:25
+
+Design element: `3B build-plan sync after POPT.2R.1`.
+Summary: synchronized `segment_3B.build_plan.md` with R1 evidence and progression decision.
+
+Plan sync written:
+1) `POPT.2R.1` DoD execution/score checks marked complete.
+2) execution record block added with command, artifacts, metrics, and gate verdict.
+3) current phase status updated:
+   - `POPT.2R: in_progress (R1_COMPLETE_OPEN_R2)`.
+4) explicit pointer added: proceed to `POPT.2R.2`.

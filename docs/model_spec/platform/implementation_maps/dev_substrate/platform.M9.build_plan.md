@@ -465,20 +465,99 @@ Blockers:
 Goal:
 1. Execute demo stack teardown in managed control plane.
 
+Entry conditions:
+1. `M9.C` is closed PASS:
+   - local: `runs/dev_substrate/m9/m9_20260219T131353Z/m9_c_confluent_destroy_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T131353Z/m9_c_confluent_destroy_snapshot.json`.
+2. `M9.C` workflow semantics are confirmed:
+   - `destroy_outcome=success`
+   - `post_destroy_state_resource_count=0`
+   - `overall_pass=true`.
+3. `M9.B` preserve controls remain valid at execution time.
+
+Required inputs:
+1. Handles/values for demo destroy dispatch:
+   - `AWS_REGION`
+   - `ROLE_TERRAFORM_APPLY`
+   - `TF_STATE_BUCKET`
+   - `TF_LOCK_TABLE`
+   - `TF_STATE_KEY_DEMO`
+   - `S3_EVIDENCE_BUCKET`.
+2. Managed lane contract (pinned for M9.D):
+   - expected workflow file: `.github/workflows/dev_min_demo_destroy.yml`
+   - expected behavior:
+     - terraform init (demo backend)
+     - terraform destroy demo stack
+     - post-destroy state count capture
+     - source snapshot publish (local artifact + durable S3)
+     - fail-closed exit on non-success or non-empty state.
+3. Source control snapshots:
+   - `M9.B` preserve-set inventory snapshot,
+   - `M9.C` Confluent teardown snapshot.
+
+Preparation checks:
+1. Validate `M9.C` snapshot is readable and pass.
+2. Validate required dispatch handles are resolved and non-placeholder.
+3. Validate managed demo-destroy workflow exists; if absent -> `M9D-B1`.
+4. Validate `M9.B` preserve controls still pass (no overlap/scope/missing findings).
+
+Deterministic execution algorithm (M9.D):
+1. Load `M9.C` pass snapshot and verify source semantics; mismatch -> `M9D-B5`.
+2. Re-load `M9.B` preserve snapshot and verify controls remain pass; mismatch -> `M9D-B6`.
+3. Confirm managed demo-destroy workflow exists; absent -> `M9D-B1`.
+4. Dispatch `.github/workflows/dev_min_demo_destroy.yml` with explicit inputs.
+   - dispatch failure -> `M9D-B1`.
+5. Poll/watch workflow run to terminal state.
+   - non-success completion -> `M9D-B2`.
+6. Read workflow-produced demo-destroy source snapshot.
+   - missing/ambiguous snapshot -> `M9D-B3`.
+7. Validate source teardown semantics:
+   - `destroy_outcome=success`
+   - `post_destroy_state_resource_count=0`
+   - `overall_pass=true`.
+   Any mismatch -> `M9D-B2`.
+8. Emit local `m9_d_demo_destroy_snapshot.json` with:
+   - dispatch inputs (non-secret),
+   - workflow run metadata (id/url),
+   - source demo snapshot ref + parsed outcome,
+   - blockers and `overall_pass`.
+9. Publish snapshot durably; publish failure -> `M9D-B4`.
+
 Tasks:
-1. Use pinned managed lane to run demo destroy for `infra/terraform/dev_min/demo`.
-2. Capture destroy summary and state-count result.
-3. Emit `m9_d_demo_destroy_snapshot.json`.
+1. Ensure managed demo-destroy lane is present and dispatchable.
+2. Execute demo destroy using the managed lane with explicit inputs.
+3. Capture workflow/source snapshot results and verify teardown semantics.
+4. Emit and publish `m9_d_demo_destroy_snapshot.json`.
+
+Required snapshot fields (`m9_d_demo_destroy_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m9_execution_id`.
+2. `source_m9c_snapshot_local`, `source_m9c_snapshot_uri`.
+3. `workflow_name`, `workflow_run_id`, `workflow_run_url`, `workflow_conclusion`.
+4. `dispatch_inputs` (non-secret only).
+5. `source_demo_destroy_snapshot_uri`, `source_demo_destroy_snapshot`.
+6. `destroy_outcome`, `post_destroy_state_resource_count`.
+7. `blockers`, `overall_pass`, `elapsed_seconds`.
+
+Runtime budget:
+1. `M9.D` target budget: <= 30 minutes wall clock.
+2. Over-budget execution remains fail-closed unless explicit user waiver is recorded.
 
 DoD:
 - [ ] Demo stack teardown lane executes successfully.
 - [ ] Terraform/state summary confirms demo resource deletion intent/outcome.
 - [ ] Snapshot exists locally and durably.
 
+Planning status:
+1. `M9.D` is now execution-grade (entry/precheck/dispatch/poll/snapshot contract pinned).
+2. No teardown execution/destruction was run in this planning step.
+
 Blockers:
 1. `M9D-B1`: managed demo-destroy lane missing.
 2. `M9D-B2`: destroy execution failed.
 3. `M9D-B3`: destroy summary missing/ambiguous.
+4. `M9D-B4`: snapshot publication failure.
+5. `M9D-B5`: prerequisite `M9.C` closure invalid/unreadable.
+6. `M9D-B6`: preserve-control drift from `M9.B` detected.
 
 ### M9.E Post-Destroy Residual Verification
 Goal:

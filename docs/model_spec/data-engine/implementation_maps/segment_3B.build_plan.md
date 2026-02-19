@@ -602,7 +602,7 @@ Scope:
 - avoid new run-id folder churn unless a broader rerun is explicitly required by changed-state law.
 
 Definition of done:
-- [ ] `POPT.2R.1` executed and scored.
+- [x] `POPT.2R.1` executed and scored.
 - [ ] `POPT.2R.2` executed and scored if `R1` misses gate.
 - [ ] explicit final decision recorded (`UNLOCK_POPT3` or retained `HOLD_POPT2_REOPEN` with waiver path).
 
@@ -616,9 +616,31 @@ Scope:
 - score with existing `POPT.2` closure scorer.
 
 Definition of done:
-- [ ] runtime movement measured vs baseline and last candidate.
-- [ ] digest parity/path stability remain PASS.
+- [x] runtime movement measured vs baseline and last candidate.
+- [x] digest parity/path stability remain PASS.
 - [ ] if runtime gate passes, close `POPT.2` and stop reopen lane.
+
+POPT.2R.1 execution record (2026-02-19):
+- patch scope:
+  - S5 hash progress log interval increased (`0.5s -> 5.0s`) via
+    `S5_HASH_PROGRESS_LOG_INTERVAL_S`.
+  - no digest/schema/path behavior changes.
+- witness execution:
+  - command: isolated `segment3b-s5` rerun on authority run-id
+    `724a63d3f8b242809b8ec3b746d0c776`.
+  - artifacts:
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_popt2r1_s5_lane_timing_724a63d3f8b242809b8ec3b746d0c776.json`
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_popt2r1_closure_724a63d3f8b242809b8ec3b746d0c776.json`
+- measured outcome:
+  - baseline `S5 wall=240.468s`,
+  - candidate `S5 wall=242.842s`,
+  - runtime movement `-0.99%` (gate fail).
+- non-regression:
+  - digest parity PASS,
+  - output path stability PASS,
+  - S5 status PASS.
+- decision:
+  - `R1` did not clear runtime gate; proceed to `POPT.2R.2`.
 
 ### POPT.2R.2 - High-impact hash-path acceleration
 Goal:
@@ -775,7 +797,7 @@ Definition of done:
 - `POPT.1`: in_progress (`HOLD_POPT1_REOPEN`)
 - `POPT.1R.NEXT`: in_progress (`OPEN_AFTER_ROLLBACK`)
 - `POPT.2`: in_progress (`HOLD_POPT2_REOPEN`)
-- `POPT.2R`: pending (`PLANNED_AFTER_POPT2_GATE_MISS`)
+- `POPT.2R`: in_progress (`R1_COMPLETE_OPEN_R2`)
 - `POPT.3`: pending
 - `POPT.4`: pending
 - `P0`: pending

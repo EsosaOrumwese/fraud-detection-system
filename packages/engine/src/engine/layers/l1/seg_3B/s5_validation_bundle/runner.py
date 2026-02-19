@@ -77,6 +77,9 @@ DATASET_S5_RNG = "s5_rng_summary_3B"
 DATASET_S5_DIGEST = "s5_digest_summary_3B"
 DATASET_S5_REPORT = "s5_run_report_3B"
 
+# POPT.2R.1: lower hash-lane log cadence to reduce avoidable log drag.
+S5_HASH_PROGRESS_LOG_INTERVAL_S = 5.0
+
 
 @dataclass(frozen=True)
 class S5Result:
@@ -104,10 +107,17 @@ class _StepTimer:
 
 
 class _ProgressTracker:
-    def __init__(self, total: Optional[int], logger, label: str) -> None:
+    def __init__(
+        self,
+        total: Optional[int],
+        logger,
+        label: str,
+        min_log_interval_s: float = 0.5,
+    ) -> None:
         self._total = int(total) if total is not None else None
         self._logger = logger
         self._label = label
+        self._min_log_interval_s = float(min_log_interval_s)
         self._start = time.monotonic()
         self._last_log = self._start
         self._processed = 0
@@ -115,7 +125,7 @@ class _ProgressTracker:
     def update(self, count: int) -> None:
         self._processed += int(count)
         now = time.monotonic()
-        if now - self._last_log < 0.5 and not (
+        if now - self._last_log < self._min_log_interval_s and not (
             self._total is not None and self._processed >= self._total
         ):
             return
@@ -269,7 +279,12 @@ def _hash_jsonl_with_validation(
     on_record: Optional[Callable[[dict], None]] = None,
 ) -> tuple[str, int, int]:
     validator = Draft202012Validator(schema)
-    tracker = _ProgressTracker(None, logger, label)
+    tracker = _ProgressTracker(
+        None,
+        logger,
+        label,
+        min_log_interval_s=S5_HASH_PROGRESS_LOG_INTERVAL_S,
+    )
     hasher = hashlib.sha256()
     total_bytes = 0
     total_events = 0

@@ -15181,3 +15181,32 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. `M9.C` is complete.
 2. `M9.D` is unblocked for execution.
 
+## Entry: 2026-02-19 13:24:46 +00:00 - M9.D planning expansion completed
+### Problem framing
+1. `M9.D` was still summary-level and lacked a deterministic managed-lane contract for demo stack destroy.
+2. Current workflow inventory has Confluent destroy lane only; demo destroy workflow is not yet present, so execution must fail closed on lane absence.
+
+### Planning decisions
+1. `M9.D` was expanded to execution-grade with:
+   - entry conditions pinned to `M9.C` pass snapshot and semantics,
+   - required input/handle set for demo destroy dispatch,
+   - explicit managed lane contract pinned to `.github/workflows/dev_min_demo_destroy.yml`,
+   - deterministic execution algorithm (dispatch -> poll -> source snapshot parse -> verify -> publish),
+   - preserve-control drift check against `M9.B` before execution.
+2. Fail-closed blocker model expanded from `B1..B3` to `B1..B6`:
+   - added `M9D-B4` (snapshot publication failure),
+   - added `M9D-B5` (invalid/unreadable M9.C prerequisite),
+   - added `M9D-B6` (preserve-control drift).
+3. Main platform plan now records `M9.D` as execution-grade and sets immediate next action to execute `M9.D` with lane-materialization prerequisite if missing.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
+   - `M9.D` expanded from summary to execution-grade contract.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - M9 expansion-state bullet added for `M9.D`.
+   - immediate next action updated for `M9.D` execution posture.
+
+### Phase posture
+1. This step is planning-only; no `M9.D` teardown execution was run.
+2. `M9.D` is now execution-ready, with explicit fail-closed block if managed demo-destroy workflow is missing.
+
