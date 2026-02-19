@@ -2874,3 +2874,200 @@ Run retention/prune discipline:
 Next required reopen lane:
 1) `S2` prep-lane redesign that avoids repeated global scans without bulk memory spikes,
    with strict gate target `S2 <=300s` or `>=25%` reduction vs baseline before `POPT.2` unlock.
+### Entry: 2026-02-19 10:34
+
+Design element: `3B S2 redesign planning lock (POPT.1R)`.
+Summary: user requested planning-first redesign of `S2` before any further code edits. Added explicit reopen phases and DoDs (`POPT.1R.1..POPT.1R.5`) to the build plan.
+
+Problem recap from executed evidence:
+1) baseline authority: `S2=406.375s` on `724a63d...`.
+2) passing candidate after prior optimization attempts regressed to `S2=633.094s` (`19334bf...`).
+3) failed reopen variants hit infra failures under `tile_surfaces` when memory or scan pattern became unstable.
+
+Alternatives considered for redesign planning:
+1) Continue ad-hoc tuning (country-file only / full materialization / batch tweaks) without a redesign contract.
+   - Rejected: produced oscillating regressions and failures; not auditable.
+2) Open `POPT.2` and return to `S2` later.
+   - Rejected: violates hotspot priority and performance-gate law.
+3) Lock a dedicated `S2` redesign lane with algorithm contract, profiler checkpoints, and closure gates.
+   - Selected.
+
+POPT.1R decisions pinned:
+1) redesign target is the prep lane (`tile allocations prepared`) while preserving S2 output semantics.
+2) architecture target is a bounded batch RAP kernel (`Read -> Align -> Project`) called out in build plan.
+3) runtime gate remains unchanged:
+   - `S2 <= 300s` OR `>=25%` reduction vs baseline.
+4) non-regression gates remain unchanged:
+   - downstream `S3/S4/S5 PASS`, RNG accounting coherent, no schema/path drift.
+5) no new implementation code in this step; planning-only closure.
+
+Files updated in this planning action:
+1) `docs/model_spec/data-engine/implementation_maps/segment_3B.build_plan.md`.
+
+Next action:
+1) execute `POPT.1R.1` equivalence lock and profiler harness planning details before coding.
+### Entry: 2026-02-19 10:45
+
+Design element: `3B POPT.1R.1 execution closure (equivalence-spec lock)`.
+Summary: executed `POPT.1R.1` by producing a formal equivalence contract artifact for S2 redesign and marking this sub-phase complete in the build plan.
+
+What was executed:
+1) created lock artifacts:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r1_equivalence_spec_20260219.json`
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r1_equivalence_spec_20260219.md`
+2) pinned baseline authority anchors from run `724a63d...` (`seed=42`, same manifest/parameter hash).
+3) encoded exact-equivalence surfaces and allowed-variance surfaces.
+4) explicitly rejected non-equivalence changes for this reopen.
+
+Equivalence lock content (high-level):
+1) exact schema/path law preservation for `edge_catalogue_3B` + `edge_catalogue_index_3B`.
+2) exact global digest/count anchors from index GLOBAL row.
+3) exact run-report count anchors for fixed policy+seed.
+4) canonical-hash equality checks for `edges_by_country`, `attempt_histogram`, `tz_sources`.
+5) preserved RNG coherence constraints and tile-surface validator semantics.
+6) allowed variance restricted to runtime, heartbeat cadence, and bounded memory behavior.
+
+DoD closure mapping:
+1) equivalence checklist written and accepted -> PASS.
+2) non-equivalence surfaces explicitly rejected -> PASS.
+3) build plan updated with `POPT.1R.1` closure record and progression `UNLOCK_POPT1R2`.
+
+Next action:
+1) execute `POPT.1R.2` profiler harness using this locked comparator contract.
+### Entry: 2026-02-19 10:50
+
+Design element: `3B POPT.1R.2 execution closure (read-only lane profiler harness)`.
+Summary: executed `POPT.1R.2` by implementing a no-behavior-change S2 lane profiler harness and emitting baseline machine-readable lane timing artifacts.
+
+Implementation details:
+1) added harness tool:
+   - `tools/score_segment3b_popt1r2_lane_timing.py`
+2) harness method:
+   - parse S2 markers from run log (`run initialized`, `verified sealed inputs`, `tile allocations prepared`, `loop start`, `final progress`, `run-report written`),
+   - combine with `S2` run-report wall time,
+   - emit lane table + shares + marker quality checks.
+3) emitted artifacts:
+   - baseline authority:
+     - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r2_lane_timing_724a63d3f8b242809b8ec3b746d0c776.json`
+     - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r2_lane_timing_724a63d3f8b242809b8ec3b746d0c776.md`
+   - comparison (best prior passing candidate):
+     - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r2_lane_timing_19334bfdbacb40dba38ad851c69dd0e6.json`
+     - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r2_lane_timing_19334bfdbacb40dba38ad851c69dd0e6.md`
+
+Baseline lane findings (authority `724a63d...`):
+1) `tile_read_map_alloc_project_total = 286.304s` (`70.45%` of S2 wall).
+2) `edge_jitter_tz_loop = 98.582s` (`24.26%`).
+3) remaining lanes combined = `21.491s` (`5.29%`).
+
+DoD closure evidence:
+1) lane timing artifact exists for candidate baseline -> PASS.
+2) instrumentation overhead bounded -> PASS (read-only harness, no runner edits, estimated overhead `0.0s`).
+3) build plan updated with closure record and progression `UNLOCK_POPT1R3`.
+
+Next action:
+1) execute `POPT.1R.3` CSK implementation using this lane authority.
+### Entry: 2026-02-19 10:58
+
+Design element: `3B POPT.1R.3 execution start (CSK implementation)`.
+Summary: implementing the `S2` prep-lane redesign kernel now, using the `POPT.1R.2` lane profiler authority to target the dominant lane (`tile_read_map_alloc_project_total`).
+
+Input authority and target:
+1) equivalence lock: `segment3b_popt1r1_equivalence_spec_20260219.json`.
+2) lane authority: `segment3b_popt1r2_lane_timing_724a63d3f8b242809b8ec3b746d0c776.json`.
+3) dominant lane target:
+   - tile prep `286.304s` (`70.45%` of S2 wall).
+
+Alternatives considered for implementation:
+1) full one-shot materialization of all tile surfaces.
+   - Rejected due prior instability and memory-pressure failure posture.
+2) per-country file-by-file scans.
+   - Rejected as stable but runtime-regressive (`~503s` prep in prior attempt).
+3) batch file-targeted CSK kernel (selected):
+   - map country->files for each tile surface,
+   - process deterministic country batches,
+   - read only batch files per dataset,
+   - build per-country maps in-memory once per batch,
+   - project allocations/needed bounds without extra scans.
+
+Implementation constraints pinned:
+1) preserve validator/error semantics and abort codes in tile-surface checks.
+2) preserve deterministic country order and allocation semantics.
+3) preserve RNG behavior (no RNG changes in prep lane).
+4) keep bounded single-process memory posture with fixed batch limits.
+
+Execution plan:
+1) patch `3B.S2` runner prep lane to CSK batched file-targeted read path + safe fallback.
+2) run syntax gate.
+3) stage fresh run-id and execute witness lane.
+4) score with existing lane harness + closure gate checks and update phase status.
+### Entry: 2026-02-19 11:02
+
+Design element: `3B POPT.1R.3 CSK implementation patch applied`.
+Summary: replaced the `S2` tile-surface prep hot lane with deterministic country-batched file-targeted reads (CSK path), preserving validator/error semantics and RNG boundaries.
+
+What changed in code:
+1) file: `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`.
+2) added deterministic helpers:
+   - `_infer_country_iso_from_parquet_path`,
+   - `_group_parquet_files_by_country`,
+   - `_iter_country_batches`,
+   - `_batch_files_for_countries`.
+3) added bounded batch constant:
+   - `TILE_SURFACE_COUNTRY_BATCH_SIZE=24`.
+4) rewired `tile_surfaces` prep to:
+   - pre-group parquet files by country token from path,
+   - read only files for the active country batch (plus unresolved fallback files),
+   - build per-country weight/index/bounds maps in one batch pass,
+   - preserve the existing abort codes/ordering:
+     - `tile_weights_missing`,
+     - `tile_weights_dp_mismatch`,
+     - `tile_weights_zero_sum`,
+     - `tile_index_missing`,
+     - `tile_id_not_in_index`,
+     - `tile_bounds_missing`,
+     - `tile_bounds_missing_ids`.
+5) kept RNG, edge-loop, output schemas/paths, and publish semantics unchanged.
+
+Guardrails and rationale:
+1) eliminated repeated global scan/filter/collect per country (primary prep-lane bottleneck from `POPT.1R.2`).
+2) retained bounded single-process memory posture via fixed country-batch execution.
+3) unresolved filename patterns fall back safely (included in batch reads) to avoid behavior break on nonstandard partitions.
+
+Immediate validation:
+1) syntax gate passed:
+   - `python -m py_compile packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`.
+
+Next steps (still in `POPT.1R.3`):
+1) stage fresh run-id under `runs/fix-data-engine/segment_3B` from authority lane.
+2) execute witness chain `S2 -> S3 -> S4 -> S5`.
+3) score lane timing vs `POPT.1R.2` baseline and record closure decision.
+### Entry: 2026-02-19 11:18
+
+Design element: `3B POPT.1R.3 memory-safety retune after first witness failure`.
+Summary: first witness run (`ef21b94d...`) failed in `tile_surfaces` with `E3B_S2_019_INFRASTRUCTURE_IO_ERROR` and empty detail after processing only batch `1/10`, indicating memory-pressure failure in the new CSK batch lane.
+
+Observed failure evidence:
+1) run-id: `ef21b94d9d8743b2bc264e2c3a791865`.
+2) `S2` report:
+   - `status=FAIL`,
+   - `phase=tile_surfaces`,
+   - `error_context.detail=""`,
+   - `wall_ms=661905`.
+3) log progression:
+   - reached `tile-surface prep batch 1/10`,
+   - no downstream batch completion markers before failure.
+
+Decision and rationale:
+1) reduce CSK country batch width from `24` to `8`.
+2) reason: preserve the same algorithmic path while lowering peak in-memory frame size for `weights/index/bounds` collections.
+3) preserves deterministic semantics and validator behavior; only runtime/memory posture is changed.
+
+Patch details:
+1) file: `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`.
+2) constant change:
+   - `TILE_SURFACE_COUNTRY_BATCH_SIZE: 24 -> 8`.
+3) syntax gate passed.
+
+Next action:
+1) rerun `segment3b-s2` on staged run-id `ef21b94d...`.
+2) if green, continue `S3->S5` and emit lane timing artifact for `POPT.1R.3` closure scoring.

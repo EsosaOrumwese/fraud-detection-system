@@ -982,6 +982,29 @@ M8.F execution closure (2026-02-19):
   - consequence:
     - `M8.F` remains open fail-closed
     - `M8.G..M8.I` remain blocked pending `M8F-B1` remediation + rerun.
+  - remediation closure:
+    - reporter task definition rematerialized to `fraud-platform-dev-min-reporter:4`
+    - image digest: `sha256:2072e48137013851c349e9de2e5e0b4a8a2ff522d0a0db1ef609970d9c080c54`
+    - `M8.E` rerun:
+      - execution id: `m8_20260219T111715Z`
+      - local snapshot: `runs/dev_substrate/m8/m8_20260219T111715Z/m8_e_reporter_execution_snapshot.json`
+      - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T111715Z/m8_e_reporter_execution_snapshot.json`
+      - result: `overall_pass=true`, blockers empty
+    - `M8.F` rerun:
+      - execution id: `m8_20260219T111902Z`
+      - local snapshot: `runs/dev_substrate/m8/m8_20260219T111902Z/m8_f_bundle_completeness_snapshot.json`
+      - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T111902Z/m8_f_bundle_completeness_snapshot.json`
+      - result: `overall_pass=true`, blockers empty
+    - required bundle targets now present + run-scoped:
+      - `run_completed.json`
+      - `obs/run_report.json`
+      - `obs/reconciliation.json`
+      - `obs/replay_anchors.json`
+      - `obs/environment_conformance.json`
+      - `obs/anomaly_summary.json`
+  - consequence (current):
+    - `M8.F` is closed
+    - `M8.G..M8.I` are unblocked for sequential execution.
 
 Sub-phase progress:
   - [x] `M8.A` P11 authority + handles closure.
@@ -989,16 +1012,16 @@ Sub-phase progress:
   - [x] `M8.C` closure input evidence readiness.
   - [x] `M8.D` single-writer contention fail-closed probe.
   - [x] `M8.E` reporter one-shot execution.
-  - [ ] `M8.F` closure evidence bundle completeness.
+  - [x] `M8.F` closure evidence bundle completeness.
   - [ ] `M8.G` replay anchor + reconciliation coherence.
   - [ ] `M8.H` closure marker + env/anomaly outputs verification.
   - [ ] `M8.I` P11 verdict + M9 handoff.
 
 M8 DoD checklist:
 - [x] Single-writer reporter lock is enforced and evidenced.
-- [ ] Required Obs/Gov closure artifacts are durable and run-scoped.
+- [x] Required Obs/Gov closure artifacts are durable and run-scoped.
 - [ ] Replay anchors and reconciliation are coherent with prior phase evidence.
-- [ ] `run_completed.json` exists and references correct `platform_run_id`.
+- [x] `run_completed.json` exists and references correct `platform_run_id`.
 - [ ] M8 verdict is `ADVANCE_TO_M9` with empty blocker rollup.
 - [ ] M9 handoff pack is published and non-secret.
 
@@ -1122,8 +1145,8 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M8 is active for deep-plan closure and execution sequencing.
 Next action:
-- remediate `M8F-B1` by materializing the required run-scoped closure bundle objects at pinned contract paths,
+- execute `M8.G` replay-anchor + reconciliation coherence lane,
 - require durable artifact:
-  - `evidence/dev_min/run_control/<m8_execution_id>/m8_f_bundle_completeness_snapshot.json`,
-- rerun `M8.F` and require `overall_pass=true` with blockers empty,
-- continue `M8.G..M8.I` only after `M8.F` passes.
+  - `evidence/dev_min/run_control/<m8_execution_id>/m8_g_replay_reconciliation_snapshot.json`,
+- keep fail-closed posture:
+  - no advance to `M8.H` unless `M8.G` is `overall_pass=true` with blockers empty.

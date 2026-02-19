@@ -752,9 +752,9 @@ Required snapshot fields (`m8_f_bundle_completeness_snapshot.json`):
 5. `blockers`, `overall_pass`, `elapsed_seconds`.
 
 DoD:
-- [ ] Required closure artifacts exist at pinned paths.
-- [ ] Artifact run-scope conformance checks pass.
-- [ ] Snapshot exists locally and durably.
+- [x] Required closure artifacts exist at pinned paths.
+- [x] Artifact run-scope conformance checks pass.
+- [x] Snapshot exists locally and durably.
 
 Blocker Codes (Taxonomy):
 1. `M8F-B1`: required closure artifact missing.
@@ -769,7 +769,7 @@ Runtime budget:
 
 Planning status:
 1. `M8.F` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
-2. Runtime execution completed fail-closed with canonical rerun evidence.
+2. Runtime execution completed with fail-first evidence plus remediation rerun pass closure.
 
 Execution closure (2026-02-19):
 1. Fail-first witness run:
@@ -791,6 +791,28 @@ Execution closure (2026-02-19):
 5. Phase posture:
    - `M8.F` remains open fail-closed,
    - `M8.G..M8.I` remain blocked pending `M8F-B1` remediation + rerun pass.
+6. Remediation closure reruns:
+   - reporter task definition rematerialized to `fraud-platform-dev-min-reporter:4` using image digest `sha256:2072e48137013851c349e9de2e5e0b4a8a2ff522d0a0db1ef609970d9c080c54`.
+   - `M8.E` rerun:
+     - execution id: `m8_20260219T111715Z`
+     - local snapshot: `runs/dev_substrate/m8/m8_20260219T111715Z/m8_e_reporter_execution_snapshot.json`
+     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T111715Z/m8_e_reporter_execution_snapshot.json`
+     - result: `overall_pass=true`, blockers empty.
+   - `M8.F` rerun:
+     - execution id: `m8_20260219T111902Z`
+     - local snapshot: `runs/dev_substrate/m8/m8_20260219T111902Z/m8_f_bundle_completeness_snapshot.json`
+     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T111902Z/m8_f_bundle_completeness_snapshot.json`
+     - result: `overall_pass=true`, blockers empty.
+   - verified bundle targets now present and run-scoped:
+     - `run_completed.json`
+     - `obs/run_report.json`
+     - `obs/reconciliation.json`
+     - `obs/replay_anchors.json`
+     - `obs/environment_conformance.json`
+     - `obs/anomaly_summary.json`.
+7. Current phase posture:
+   - `M8.F` is closed,
+   - `M8.G..M8.I` are unblocked for sequential execution.
 
 ### M8.G Replay Anchors + Reconciliation Coherence
 Goal:
@@ -918,7 +940,7 @@ Notes:
 - [x] M8.C complete
 - [x] M8.D complete
 - [x] M8.E complete
-- [ ] M8.F complete
+- [x] M8.F complete
 - [ ] M8.G complete
 - [ ] M8.H complete
 - [ ] M8.I complete

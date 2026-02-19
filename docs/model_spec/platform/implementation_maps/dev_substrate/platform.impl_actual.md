@@ -14626,3 +14626,37 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 2. Rematerialize reporter task definition to new image digest.
 3. Rerun `M8.E` to materialize closure bundle.
 4. Rerun `M8.F` and require blocker-empty pass.
+
+## Entry: 2026-02-19 11:20:03 +00:00 - M8F-B1 closure reruns executed and verified green
+### Execution reasoning trail
+1. First closure step was runtime alignment, not validation rerun. We rematerialized reporter task runtime to the newly published image digest so `M8.E` would execute the patched closure-bundle emitter:
+   - new digest: `sha256:2072e48137013851c349e9de2e5e0b4a8a2ff522d0a0db1ef609970d9c080c54`
+   - rematerialized task definition: `fraud-platform-dev-min-reporter:4`.
+2. We executed `M8.E` once and observed false-negative lock evidence due a log-stream resolution race (`container.logStreamName` absent in task response). Decision was to fail closed, then rerun with deterministic log-stream fallback:
+   - fallback contract: `awslogs-stream-prefix + /reporter/<task_id>`.
+3. We explicitly avoided weakening validation semantics. Pass required all three lock lifecycle signals (`attempt`, `acquired`, `released`) and task exit `0`.
+4. Only after `M8.E` pass on `:4` did we run `M8.F` against pinned six-artifact contract. No aliasing was allowed (`run_report.json` remained mandatory; `platform_run_report.json` is non-substitute).
+
+### Runtime outcomes
+1. `M8.E` remediation rerun:
+   - execution id: `m8_20260219T111715Z`
+   - local snapshot: `runs/dev_substrate/m8/m8_20260219T111715Z/m8_e_reporter_execution_snapshot.json`
+   - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T111715Z/m8_e_reporter_execution_snapshot.json`
+   - result: `overall_pass=true`, blockers empty.
+2. `M8.F` closure rerun:
+   - execution id: `m8_20260219T111902Z`
+   - local snapshot: `runs/dev_substrate/m8/m8_20260219T111902Z/m8_f_bundle_completeness_snapshot.json`
+   - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T111902Z/m8_f_bundle_completeness_snapshot.json`
+   - result: `overall_pass=true`, blockers empty.
+3. Required run-scoped bundle now exists and is run-scope conformant:
+   - `evidence/runs/platform_20260213T214223Z/run_completed.json`
+   - `evidence/runs/platform_20260213T214223Z/obs/run_report.json`
+   - `evidence/runs/platform_20260213T214223Z/obs/reconciliation.json`
+   - `evidence/runs/platform_20260213T214223Z/obs/replay_anchors.json`
+   - `evidence/runs/platform_20260213T214223Z/obs/environment_conformance.json`
+   - `evidence/runs/platform_20260213T214223Z/obs/anomaly_summary.json`.
+
+### Phase posture updates
+1. `M8F-B1` is closed.
+2. `M8.F` is complete.
+3. `M8.G..M8.I` are unblocked for sequential execution.

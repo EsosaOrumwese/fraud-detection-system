@@ -291,6 +291,132 @@ POPT.1 execution evidence and closure:
 - closure decision: `HOLD_POPT1_REOPEN`
 - reopen lane: redesign `S2` tile-allocation prep strategy under strict single-process memory budget and minute-scale runtime gate.
 
+### POPT.1R - S2 prep-lane redesign (planning-first reopen)
+Goal:
+- redesign `S2` tile-allocation prep so runtime moves toward minute-scale while preserving deterministic output and contract invariants.
+
+Binding redesign constraints (from `state.3B.s2.expanded.md` + contracts):
+- no schema/path drift on `edge_catalogue_3B` and `edge_catalogue_index_3B`.
+- no RNG semantic drift:
+  - no new RNG in budget/allocation decisions,
+  - same envelope/accounting behavior in edge placement lane.
+- preserve S2 validation failure semantics/codes for tile surfaces (`tile_weights_missing`, `dp_mismatch`, `tile_id_not_in_index`, `tile_bounds_missing_ids`, `tile_bounds_missing`).
+- maintain single-process memory-safe posture (Fast-Compute-Safe).
+
+Redesign architecture target (`Country Surface Kernel`, CSK):
+- replace repeated broad scans and high-overhead per-country file traversals with bounded, deterministic batch extraction.
+- kernel shape:
+  - `R`ead: batched predicate-pushdown scans for `tile_weights`, `tile_index`, `tile_bounds` over country batches.
+  - `A`lign: build compact per-country maps in memory for weights/index/bounds in one batch pass.
+  - `P`roject: allocate edges + extract only needed bounds for downstream jitter loop.
+- batch controller:
+  - adaptive country batch sizing (row-budgeted), with hard upper bound to prevent RSS spikes.
+  - deterministic batch order = `sorted(country_iso)` only.
+
+### POPT.1R.1 - Equivalence spec lock
+Goal:
+- define exactly what must remain equivalent before coding.
+
+Scope:
+- pin structural equivalence surfaces:
+  - `counts.edges_total`, `counts.rng_events_total`, `counts.rng_draws_total`, `counts.rng_blocks_total`,
+  - `edges_by_country` and `attempt_histogram` structure,
+  - output schema + partition path law.
+- pin allowable variance:
+  - runtime-only movement; no output semantic drift.
+
+Definition of done:
+- [x] equivalence checklist is written and accepted.
+- [x] non-equivalence surfaces are explicitly rejected for this reopen.
+
+POPT.1R.1 closure record:
+- lock artifacts:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r1_equivalence_spec_20260219.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r1_equivalence_spec_20260219.md`
+- baseline authority pinned in lock:
+  - run-id `724a63d3f8b242809b8ec3b746d0c776`,
+  - seed `42`,
+  - manifest_fingerprint `c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`.
+- result: `LOCK_EQUIVALENCE_CONTRACT`.
+- progression: `UNLOCK_POPT1R2`.
+
+### POPT.1R.2 - Prep-lane profiler harness (no behavior change)
+Goal:
+- get deterministic lane-level attribution for redesign iterations.
+
+Scope:
+- add/read lane timing checkpoints for:
+  - tile read,
+  - country-map construction,
+  - allocation+needed-bounds projection.
+- emit machine-readable lane timing artifact for each candidate run.
+
+Definition of done:
+- [x] lane timing artifact exists for candidate baseline.
+- [x] instrumentation overhead is bounded and not itself a hotspot.
+
+POPT.1R.2 closure record:
+- profiler harness tool:
+  - `tools/score_segment3b_popt1r2_lane_timing.py`
+- baseline authority lane artifact:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r2_lane_timing_724a63d3f8b242809b8ec3b746d0c776.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r2_lane_timing_724a63d3f8b242809b8ec3b746d0c776.md`
+- optional comparison lane artifact (best prior passing candidate):
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r2_lane_timing_19334bfdbacb40dba38ad851c69dd0e6.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r2_lane_timing_19334bfdbacb40dba38ad851c69dd0e6.md`
+- baseline lane shares (`S2 wall=406.375s`):
+  - `tile_read_map_alloc_project_total`: `286.304s` (`70.45%`)
+  - `edge_jitter_tz_loop`: `98.582s` (`24.26%`)
+  - remaining lanes (`input/pre-loop/publish`): `21.491s` (`5.29%`)
+- instrumentation overhead evidence:
+  - harness mode is read-only log/report parsing (`runtime_overhead_estimate_s=0.0`),
+  - no engine state code changes required for this profiler lane.
+- progression: `UNLOCK_POPT1R3`.
+
+### POPT.1R.3 - CSK implementation (bounded batch RAP kernel)
+Goal:
+- implement the redesign kernel with explicit memory and runtime controls.
+
+Scope:
+- implement batch extraction with predicate pushdown for the three tile datasets.
+- build per-country compact maps once per batch, then process countries from in-memory maps.
+- ensure allocations and bounds projection remain deterministic and validator-compatible.
+- enforce batch RSS safety by design (bounded batch size, no global full materialization).
+
+Definition of done:
+- [ ] S2 prep lane completes without infra/memory failures.
+- [ ] tile prep delta is materially below the failed reopen attempts.
+- [ ] all existing S2 validator behaviors remain intact.
+
+### POPT.1R.4 - Loop/log budget alignment (secondary reopen trim)
+Goal:
+- keep edge placement lane stable and avoid log-induced drag.
+
+Scope:
+- keep progress heartbeat practical and deterministic.
+- avoid per-iteration high-cardinality logging.
+- preserve audit-critical logs and failure visibility.
+
+Definition of done:
+- [ ] log cadence is budgeted and stable.
+- [ ] no loss of required observability signals.
+
+### POPT.1R.5 - Witness + closure decision
+Goal:
+- evaluate reopen candidate against runtime and non-regression gates.
+
+Scope:
+- run witness chain `S2 -> S3 -> S4 -> S5` on fresh run-id with frozen upstream.
+- score with closure artifact:
+  - runtime gate: `S2 <= 300s` OR `>=25%` reduction vs `406.375s`,
+  - downstream `S3/S4/S5 PASS`,
+  - RNG accounting coherent.
+
+Definition of done:
+- [ ] closure artifact emitted for reopen candidate.
+- [ ] explicit decision recorded: `UNLOCK_POPT2` or `HOLD_POPT1_REOPEN`.
+- [ ] superseded failed run folders are pruned after evidence capture.
+
 ### POPT.2 - Secondary hotspot optimization (expected S5 or S3)
 Goal:
 - reduce second-ranked bottleneck while preserving check semantics.
