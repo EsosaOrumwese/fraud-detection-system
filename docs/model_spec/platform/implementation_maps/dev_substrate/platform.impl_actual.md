@@ -15260,3 +15260,23 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. This step implemented workflow + doc repin only.
 2. No new teardown execution run was performed in this step.
 
+## Entry: 2026-02-19 13:35:02 +00:00 - M9.D execution preflight blocked on remote workflow drift
+### Actions performed
+1. Ran `M9.D` preflight checks:
+   - `M9.B` pass + preserve controls validated,
+   - `M9.C` pass semantics validated,
+   - branch/auth checks validated for managed dispatch.
+2. Verified remote workflow content on `origin/migrate-dev`:
+   - `.github/workflows/dev_min_confluent_destroy.yml` does not yet contain `stack_target`.
+
+### Blocker determination
+1. `M9D-B1` remains open:
+   - unified teardown lane is not dispatchable for `stack_target=demo` on the remote execution branch.
+2. This is a fail-closed hold; `M9.D` execution cannot proceed without remote workflow materialization.
+
+### Resolution required
+1. Push the unified workflow commit(s) to `origin/migrate-dev`.
+2. Re-run `M9.D` dispatch with:
+   - `stack_target=demo`,
+   - same pinned OIDC/state/evidence inputs.
+

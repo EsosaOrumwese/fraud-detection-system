@@ -3593,3 +3593,45 @@ Plan sync:
    - `POPT.2`: completed (`UNLOCK_POPT3_AFTER_POPT2R2`),
    - `POPT.2R`: completed (`UNLOCK_POPT3`),
    - `POPT.3`: pending (`UNLOCKED_AFTER_POPT2R3`).
+### Entry: 2026-02-19 13:58
+
+Design element: `3B POPT.3 planning lock`.
+Summary: starting expansion of `POPT.3` into execution-grade subphases after `POPT.2/POPT.2R` closure unlocked this lane.
+
+Planning inputs pinned:
+1) latest runtime authority:
+   - `S5 wall=42.641s` (`POPT.2R.2` witness) on fixed authority run-id.
+2) closure constraints:
+   - do not regress determinism/digest law,
+   - preserve required audit/error visibility,
+   - maintain minute-scale runtime posture.
+
+Expansion intent:
+1) convert generic `POPT.3` section into concrete subphases with DoDs.
+2) include explicit runtime + log-budget gates and a no-op closure path if baseline already satisfies budget.
+3) keep this step planning-only (no runtime/code changes).
+### Entry: 2026-02-19 14:00
+
+Design element: `3B POPT.3 planning expansion complete`.
+Summary: expanded `POPT.3` from generic placeholder into execution-grade subphases with explicit budget gates and closure artifacts.
+
+What was added to build plan:
+1) baseline anchors for `POPT.3` from post-`POPT.2R.2` runtime authority (`S5=42.641s`).
+2) subphases:
+   - `POPT.3.1` log-budget baseline inventory,
+   - `POPT.3.2` logging cadence policy hardening,
+   - `POPT.3.3` conditional serialization micro-trim,
+   - `POPT.3.4` witness gate + closure.
+3) explicit guards:
+   - runtime guard (`S5<=55s` and no material regression),
+   - log-budget guard (bounded progress logs + required narrative lines present),
+   - non-regression guard (digest/path/status).
+4) closure artifacts pinned:
+   - `segment3b_popt3_closure_<run_id>.json/.md`.
+5) phase status synced:
+   - `POPT.3: pending (PLANNING_EXPANDED)`.
+
+Design rationale:
+1) `POPT.3` is now a hardening lane, not a heavy rescue lane, because `POPT.2R.2` already achieved minute-scale runtime.
+2) plan includes no-op/skip path for micro-trim if baseline is already within budget to avoid unnecessary churn.
+3) deterministic and contract safety constraints were kept explicit across all subphases.

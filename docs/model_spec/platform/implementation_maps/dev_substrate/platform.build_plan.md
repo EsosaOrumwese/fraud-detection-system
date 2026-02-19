@@ -1126,6 +1126,7 @@ Active-phase planning posture:
   - `M9.C` is expanded to execution-grade with deterministic workflow-dispatch/poll/verification algorithm and snapshot contract.
   - `M9.C` execution is green with blockers empty; `M9.D` is unblocked.
   - `M9.D` is expanded to execution-grade with deterministic managed-lane dispatch/poll/verification algorithm and preserve-control drift gate.
+  - `M9.D` preflight hold is active on blocker `M9D-B1` (remote workflow dispatch surface not yet stack-aware for `stack_target=demo`).
 
 Sub-phase progress:
   - [x] `M9.A` P12 authority + handoff closure.
@@ -1305,7 +1306,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M9 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M9.D` demo stack teardown via unified managed workflow (`stack_target=demo`),
+- clear `M9D-B1` by materializing the unified teardown workflow to dispatch branch, then execute `M9.D` (`stack_target=demo`),
 - preserve fail-closed posture:
   - do not execute `M9.E` residual checks until `M9.D` teardown snapshot is captured and blocker-free.
 

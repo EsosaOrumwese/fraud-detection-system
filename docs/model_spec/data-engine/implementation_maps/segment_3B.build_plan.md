@@ -704,16 +704,88 @@ POPT.2R.3 closure decision (2026-02-19):
 
 ### POPT.3 - Logging and serialization budget optimization
 Goal:
-- remove avoidable runtime drag from heavy logs/serialization.
+- harden the post-`POPT.2R` fast lane by enforcing explicit log/serialization budgets without sacrificing auditability.
 
 Scope:
-- keep required audit logs, cap high-frequency progress logging cadence.
-- eliminate redundant reads/writes where equivalent digest-checked reuse is possible.
+- keep required audit/error logs, but bound high-frequency progress emission.
+- trim avoidable serialization overhead only where digest/contract behavior is unchanged.
+- allow no-op closure if current baseline already satisfies all `POPT.3` gates.
 
 Definition of done:
-- [ ] log volume reduced with required auditability preserved.
-- [ ] state elapsed improves on I/O-heavy lanes.
-- [ ] no required run-report fields are missing.
+- [ ] `POPT.3` closure artifact emitted with explicit gate verdict.
+- [ ] runtime/log-budget gates pass (or explicit no-op closure rationale is recorded).
+- [ ] no digest/schema/path/run-report regressions.
+
+POPT.3 baseline anchors (entry authority):
+- baseline run-id (post-`POPT.2R.2`): `724a63d3f8b242809b8ec3b746d0c776`.
+- baseline runtime: `S5 wall=42.641s`.
+- closure note:
+  - this is already below `POPT.2` runtime target, so `POPT.3` is guardrail hardening, not heavy runtime rescue.
+
+### POPT.3.1 - Log-budget baseline inventory
+Goal:
+- quantify current S5 log volume and pin mandatory audit log set before any optional trims.
+
+Scope:
+- emit baseline log-budget artifact from the latest authority run:
+  - line counts by category (`INFO/WARN/ERROR`, progress lines, validator backend lines, final status lines),
+  - approximate log bytes for S5 window,
+  - mandatory message presence checks.
+- freeze required message set:
+  - objective header,
+  - sealed input validation completion,
+  - bundle completion summary,
+  - run-report written line,
+  - warnings/errors (when present) preserved.
+
+Definition of done:
+- [ ] baseline log-budget artifact exists.
+- [ ] required message set is explicitly pinned.
+- [ ] baseline over-budget conditions (if any) are enumerated.
+
+### POPT.3.2 - Logging cadence policy hardening
+Goal:
+- bound high-volume progress logs while preserving operability and audit story.
+
+Scope:
+- normalize S5 progress logging policy into explicit bounded cadence controls.
+- keep debug/error signals unchanged.
+- preserve deterministic content for required summary/audit logs.
+
+Definition of done:
+- [ ] high-frequency progress line volume is reduced or bounded by policy.
+- [ ] required narrative/audit log lines remain present.
+- [ ] no change in validator failure visibility.
+
+### POPT.3.3 - Serialization micro-trim (conditional)
+Goal:
+- remove residual serialization overhead only if `POPT.3.1/3.2` shows measurable over-budget drag.
+
+Scope:
+- collapse redundant JSON serialization/writes where digest-checked reuse is equivalent.
+- do not alter output payload shapes, ordering, or digest surfaces.
+- skip this lane if baseline already satisfies runtime + log-budget gates.
+
+Definition of done:
+- [ ] conditional decision recorded (`EXECUTED` or `SKIPPED_NO_GAIN`).
+- [ ] if executed: measurable movement and no contract drift.
+- [ ] if skipped: rationale and evidence are recorded.
+
+### POPT.3.4 - Witness gate and closure
+Goal:
+- certify `POPT.3` posture and decide unlock to `POPT.4`.
+
+Scope:
+- run isolated S5 witness on authority run-id after `POPT.3` changes (or no-op lock).
+- score gates:
+  - runtime guard: `S5 <= 55s` and no material regression vs `42.641s`,
+  - log-budget guard: progress-line volume within pinned budget and required narrative logs present,
+  - non-regression guard: digest parity, output path stability, `S5 PASS`.
+
+Definition of done:
+- [ ] closure scorecard emitted (`segment3b_popt3_closure_<run_id>.json/.md`).
+- [ ] explicit decision recorded (`UNLOCK_POPT4` or `HOLD_POPT3_REOPEN`).
+- [ ] current phase status updated with next-lane pointer.
 
 ### POPT.4 - Fast-lane closure and freeze
 Goal:
@@ -830,7 +902,7 @@ Definition of done:
 - `POPT.1R.NEXT`: in_progress (`OPEN_AFTER_ROLLBACK`)
 - `POPT.2`: completed (`UNLOCK_POPT3_AFTER_POPT2R2`)
 - `POPT.2R`: completed (`UNLOCK_POPT3`)
-- `POPT.3`: pending (`UNLOCKED_AFTER_POPT2R3`)
+- `POPT.3`: pending (`PLANNING_EXPANDED`)
 - `POPT.4`: pending
 - `P0`: pending
 - `P1`: pending

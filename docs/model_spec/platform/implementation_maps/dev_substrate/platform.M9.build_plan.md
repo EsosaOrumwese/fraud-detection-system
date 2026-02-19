@@ -559,6 +559,15 @@ Planning status:
 1. `M9.D` is now execution-grade (entry/precheck/dispatch/poll/snapshot contract pinned).
 2. No teardown execution/destruction was run in this planning step.
 
+Execution preflight hold (2026-02-19):
+1. Attempted `M9.D` execution preflight from local authority posture.
+2. Blocker observed:
+   - `M9D-B1` (`unified teardown lane missing or not dispatchable for stack_target=demo`).
+3. Evidence of drift:
+   - remote `origin/migrate-dev` workflow file still lacks `stack_target` input.
+4. Resolution required before rerun:
+   - materialize updated unified workflow to remote branch used for dispatch.
+
 Blockers:
 1. `M9D-B1`: unified teardown lane missing or not dispatchable for `stack_target=demo`.
 2. `M9D-B2`: destroy execution failed.
