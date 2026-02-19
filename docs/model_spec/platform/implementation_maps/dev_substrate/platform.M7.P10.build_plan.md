@@ -159,7 +159,7 @@ DoD:
 - [x] Snapshot exists locally + durably.
 - [x] Runtime budget target is met (or explicitly waived).
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7G-B1`: subject-key placeholder unresolved.
 2. `M7G-B2`: DB readiness/migration failure.
 3. `M7G-B3`: snapshot publish failure.
@@ -342,7 +342,7 @@ DoD:
 - [x] Snapshot exists locally + durably.
 - [x] Runtime budget target is met (or explicitly waived).
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7H-B1`: case/label evidence missing or incomplete.
 2. `M7H-B2`: append-only/idempotency violation.
 3. `M7H-B3`: snapshot publish failure.
@@ -444,7 +444,7 @@ DoD:
 - [x] `overall_pass` is deterministic and predicate-driven.
 - [x] Runtime budget target is met (or explicitly waived).
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7P10-B1`: source snapshot missing/unreadable.
 2. `M7P10-B2`: required predicate false or invalid.
 3. `M7P10-B3`: blocker rollup non-empty.
@@ -497,3 +497,4 @@ P10 branch is closure-ready only when:
 2. Required evidence artifacts exist and are durable.
 3. `m7_p10_plane_snapshot.json` has `overall_pass=true`.
 4. P10 closure is consumed by `platform.M7.build_plan.md` for M7 rollup.
+

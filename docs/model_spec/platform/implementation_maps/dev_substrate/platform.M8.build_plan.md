@@ -215,7 +215,7 @@ Execution closure rerun (2026-02-19):
    - active reporter task definition now `fraud-platform-dev-min-reporter:2` on managed platform image digest (not busybox default).
 5. `M8.A` is now closed and `M8.B` is unblocked.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M8A-B1`: M7 handoff invalid or unreadable.
 2. `M8A-B2`: required handle unresolved.
 3. `M8A-B3`: placeholder/wildcard required handle detected.
@@ -334,7 +334,7 @@ Execution closure (2026-02-19):
    - lock contract valid (`db_advisory_lock`, `reporter:{platform_run_id}` renderable).
 5. `M8.B` is closed and `M8.C` is unblocked.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M8B-B1`: reporter task/runtime command invalid.
 2. `M8B-B2`: reporter role capability mismatch.
 3. `M8B-B3`: lock backend/key configuration invalid.
@@ -448,7 +448,7 @@ Execution closure (2026-02-19):
    - ingest + RTDL offset snapshots provide partition-range coverage.
 5. `M8.C` is closed; `M8.D` is unblocked.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M8C-B1`: required evidence URI missing/unreadable.
 2. `M8C-B2`: run-scope mismatch or unresolved ingest publish ambiguity in required evidence.
 3. `M8C-B3`: required offsets semantic checks failed.
@@ -470,7 +470,7 @@ DoD:
 - [ ] No conflicting closure writes occur under probe.
 - [ ] Snapshot exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M8D-B1`: lock does not enforce single-writer.
 2. `M8D-B2`: concurrent writer succeeds unexpectedly.
 3. `M8D-B3`: snapshot write/upload failure.
@@ -489,7 +489,7 @@ DoD:
 - [ ] Lock lifecycle is evidenced in runtime logs/snapshot.
 - [ ] Snapshot exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M8E-B1`: reporter task failed or timed out.
 2. `M8E-B2`: lock lifecycle evidence incomplete.
 3. `M8E-B3`: snapshot write/upload failure.
@@ -514,7 +514,7 @@ DoD:
 - [ ] Artifact run-scope conformance checks pass.
 - [ ] Snapshot exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M8F-B1`: required closure artifact missing.
 2. `M8F-B2`: closure artifact run-scope mismatch.
 3. `M8F-B3`: snapshot write/upload failure.
@@ -534,7 +534,7 @@ DoD:
 - [ ] Reconciliation results are coherent with upstream evidence.
 - [ ] Snapshot exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M8G-B1`: replay anchor fields missing/incoherent.
 2. `M8G-B2`: reconciliation mismatch beyond allowed rules.
 3. `M8G-B3`: snapshot write/upload failure.
@@ -554,7 +554,7 @@ DoD:
 - [ ] Environment-conformance and anomaly-summary outputs are present and valid.
 - [ ] Snapshot exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M8H-B1`: closure marker missing/invalid.
 2. `M8H-B2`: required Obs/Gov output missing/invalid.
 3. `M8H-B3`: snapshot write/upload failure.
@@ -583,7 +583,7 @@ DoD:
 - [ ] M9 handoff artifact is complete and non-secret.
 - [ ] Both artifacts exist locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M8I-B1`: source snapshot missing/unreadable.
 2. `M8I-B2`: predicate evaluation incomplete/invalid.
 3. `M8I-B3`: blocker rollup non-empty.
@@ -661,3 +661,4 @@ M8 can be marked `DONE` only when:
 Note:
 1. This file does not change phase status.
 2. Status transition is made only in `platform.build_plan.md`.
+

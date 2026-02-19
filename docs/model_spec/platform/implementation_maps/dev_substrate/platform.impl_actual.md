@@ -14113,3 +14113,36 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`
    - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
 2. Advanced immediate next action to `M8.D`.
+
+## Entry: 2026-02-19 08:33:00 +00:00 - Build-plan terminology normalization (blocker taxonomy clarity)
+### User directive
+1. Rename blocker headings across dev-substrate platform build plans to avoid confusion between blocker definitions and active blocker state.
+
+### Decision
+1. Rename all `Blockers:` section headers in dev-substrate `*.build_plan.md` files to `Blocker Codes (Taxonomy):`.
+2. Keep per-run active blocker truth exclusively in execution snapshots (`blockers` array + `overall_pass`) and phase closure records.
+
+### Execution
+1. Applied bulk heading normalization across:
+   - `platform.M4.build_plan.md`
+   - `platform.M5.build_plan.md`
+   - `platform.M6.build_plan.md`
+   - `platform.M7.build_plan.md`
+   - `platform.M7.P8.build_plan.md`
+   - `platform.M7.P9.build_plan.md`
+   - `platform.M7.P10.build_plan.md`
+   - `platform.M8.build_plan.md`.
+2. Verification:
+   - zero remaining `^Blockers:$` headings in dev-substrate build plans,
+   - blocker taxonomy headings now render as `Blocker Codes (Taxonomy):`.
+
+### Outcome
+1. Build plans now clearly separate:
+   - static blocker-code taxonomy (planning contract),
+   - dynamic blocker state (runtime evidence).
+
+## Entry: 2026-02-19 09:02:30 +00:00 - Timestamp correction note (build-plan taxonomy cleanup)
+### Correction
+1. Previous entry labels for blocker-taxonomy rename were stamped with `08:33:00 +00:00` in header text.
+2. Actual execution occurred around `09:01:55 +00:00`.
+3. This note corrects timeline interpretation without rewriting prior entries.

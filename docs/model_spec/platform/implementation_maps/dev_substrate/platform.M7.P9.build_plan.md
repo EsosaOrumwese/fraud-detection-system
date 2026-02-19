@@ -199,7 +199,7 @@ DoD:
 - [x] Idempotency/append-only posture checks pass.
 - [x] Snapshot exists locally + durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7E-B1`: decision-lane service unhealthy.
 2. `M7E-B2`: idempotency/write-policy mismatch.
 3. `M7E-B3`: no valid upstream input flow.
@@ -272,7 +272,7 @@ DoD:
 - [x] Snapshot exists locally + durably.
 - [x] Runtime budget gate (`P9.B <= 20 min`) is met or explicitly fail-closed.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7F-B1`: required evidence missing/incomplete.
 2. `M7F-B2`: append-only/idempotency violation detected.
 3. `M7F-B3`: snapshot publish failure.
@@ -352,7 +352,7 @@ DoD:
 - [x] Blocker rollup is explicit.
 - [x] `overall_pass` is deterministic.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7P9-B1`: source snapshot missing/unreadable.
 2. `M7P9-B2`: blocker rollup non-empty.
 3. `M7P9-B3`: plane snapshot publish failure.
@@ -410,3 +410,4 @@ Rule:
    - impacted sub-phase,
    - closure criteria.
 2. If this register is non-empty, P9 branch cannot be marked closure-ready.
+

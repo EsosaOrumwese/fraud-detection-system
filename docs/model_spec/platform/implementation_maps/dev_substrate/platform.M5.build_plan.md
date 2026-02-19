@@ -187,7 +187,7 @@ DoD:
 - [x] Inlet policy handles are explicit and disallowed seed handles are absent.
 - [x] M5.A snapshot exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M5A-B1`: M4->M5 handoff precondition invalid or unreadable.
 2. `M5A-B2`: always-required P3 handle missing/unresolved.
 3. `M5A-B3`: placeholder/wildcard/ambiguous key detected in closure set.
@@ -264,7 +264,7 @@ DoD:
 - [x] Inlet policy boundary statement is explicit and evidence-backed.
 - [x] M5.B snapshot exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M5B-B1`: M5.A carry-forward invariants invalid or unreadable.
 2. `M5B-B2`: inlet policy handles missing/ambiguous/mismatched.
 3. `M5B-B3`: disallowed seed-lane symbol detected in active scope.
@@ -349,7 +349,7 @@ DoD:
 - [x] Required output IDs are fully covered by manifest-declared input surfaces.
 - [x] Inlet assertion snapshot exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M5C-B1`: M5.B carry-forward invariants invalid or unreadable.
 2. `M5C-B2`: required input prefix absent/unreadable.
 3. `M5C-B3`: required oracle manifest/seal artifacts missing/unreadable.
@@ -451,7 +451,7 @@ DoD:
 - [x] Managed launch profile contract is fully resolvable.
 - [x] M5.D snapshot exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M5D-B1`: M5.C carry-forward invariants invalid or unreadable.
 2. `M5D-B2`: missing/ambiguous sort-key mapping for one or more required outputs.
 3. `M5D-B3`: per-output input/output/manifest/receipt path contract unresolved.
@@ -571,7 +571,7 @@ DoD:
 - [x] `failed_output_ids=[]` in summary.
 - [x] Stream-sort summary exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M5E-B1`: M5.D carry-forward invariants invalid/unreadable.
 2. `M5E-B2`: one or more managed stream-sort task launches fail.
 3. `M5E-B3`: one or more stream-sort tasks stop non-successfully (non-zero exit/terminal failure).
@@ -637,7 +637,7 @@ DoD:
 - [x] Checker exits success and validates all required outputs.
 - [x] `oracle/checker_pass.json` exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M5F-B1`: checker job failed.
 2. `M5F-B2`: checker reported partial/missing output PASS set.
 3. `M5F-B3`: checker pass artifact write/upload failure.
@@ -675,7 +675,7 @@ DoD:
 - [x] Rerun did not require destructive raw-input deletion.
 - [x] M5.G snapshot exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M5G-B1`: rerun affected unintended output prefixes.
 2. `M5G-B2`: rerun procedure required raw-input destructive mutation.
 3. `M5G-B3`: M5.G snapshot write/upload failure.
@@ -719,7 +719,7 @@ DoD:
 - [x] Blocker rollup is complete and fail-closed.
 - [x] Verdict snapshot exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M5H-B1`: missing/unreadable prerequisite snapshots.
 2. `M5H-B2`: predicate evaluation incomplete/invalid.
 3. `M5H-B3`: blocker rollup non-empty.
@@ -761,7 +761,7 @@ DoD:
 - [x] Durable handoff publication passes.
 - [x] URI references are captured for M6 entry.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M5I-B1`: M5 verdict is not `ADVANCE_TO_M6`.
 2. `M5I-B2`: handoff pack missing required fields/URIs.
 3. `M5I-B3`: non-secret policy violation in handoff artifact.
@@ -862,3 +862,4 @@ M5 can be marked `DONE` only when:
 Note:
 1. This file does not change phase status.
 2. Status transition is made only in `platform.build_plan.md`.
+

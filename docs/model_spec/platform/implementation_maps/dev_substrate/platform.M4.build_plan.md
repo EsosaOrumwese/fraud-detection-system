@@ -183,7 +183,7 @@ DoD:
 - [x] `unresolved_handle_count == 0` for execution progression.
 - [x] M4.A closure snapshot exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M4A-B1`: M3 verdict/handoff precondition missing.
 2. `M4A-B2`: required P2 handles unresolved for execution.
 3. `M4A-B3`: M4.A closure snapshot write/upload failure.
@@ -237,7 +237,7 @@ DoD:
 - [x] Exclusions (`TD_*`, reporter in P2) are explicit in artifact.
 - [x] `m4_b_service_map_snapshot.json` exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M4B-B1`: service map incomplete or contains pack/service drift vs P2 in-scope contract.
 2. `M4B-B2`: singleton policy unresolved for any mapped service.
 3. `M4B-B3`: service-map artifact write/upload failure.
@@ -303,7 +303,7 @@ DoD:
 - [x] Dependency access posture checks are explicit and pass or blocker-marked.
 - [x] `m4_c_iam_binding_snapshot.json` exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M4C-B1`: required role binding missing/invalid for any mapped service.
 2. `M4C-B2`: dependency access policy gap identified for required lane capabilities.
 3. `M4C-B3`: IAM snapshot write/upload failure.
@@ -373,7 +373,7 @@ DoD:
 - [x] Route/security-group posture aligns with demo networking assumptions.
 - [x] `m4_d_dependency_snapshot.json` exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M4D-B1`: dependency reachability failure.
 2. `M4D-B2`: network posture mismatch vs expected runtime lane.
 3. `M4D-B3`: dependency snapshot write/upload failure.
@@ -451,7 +451,7 @@ DoD:
 - [x] Launch-contract artifact passes non-secret validation.
 - [x] `m4_e_launch_contract_snapshot.json` exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M4E-B1`: run-scope env key/value missing or mismatched.
 2. `M4E-B2`: launch contract missing required service entries.
 3. `M4E-B3`: secret leakage detected in launch-contract artifacts.
@@ -522,7 +522,7 @@ DoD:
  - [x] Launch-contract/service-map parity checks are explicit and PASS.
  - [x] `m4_f_daemon_start_snapshot.json` exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M4F-B1`: service start/update failure.
 2. `M4F-B2`: service fails stabilization (desired/running mismatch).
 3. `M4F-B3`: crashloop or unhealthy state detected.
@@ -590,7 +590,7 @@ DoD:
 - [x] Ownership matrix covers all `13` mapped services with no unmapped lane ambiguity.
 - [x] `m4_g_consumer_uniqueness_snapshot.json` exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M4G-B1`: duplicate consumer conflict detected.
 2. `M4G-B2`: singleton posture drift after stabilization.
 3. `M4G-B3`: uniqueness snapshot write/upload failure.
@@ -647,7 +647,7 @@ DoD:
 - [x] Run-scoped durable readiness publication passes.
 - [x] `m4_h_readiness_publication_snapshot.json` exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M4H-B1`: readiness artifact missing required fields or mapped-service coverage mismatch.
 2. `M4H-B2`: durable run-scoped publication failure (`operate/daemons_ready.json`).
 3. `M4H-B3`: M4.H publication snapshot write/upload failure.
@@ -730,7 +730,7 @@ DoD:
 - [x] Verdict snapshot exists locally and durably.
 - [x] Verdict artifact is non-secret and run-id consistent across all source anchors.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M4I-B1`: missing/unreadable prerequisite snapshot from A-H lanes.
 2. `M4I-B2`: predicate evaluation incomplete/invalid.
 3. `M4I-B3`: blocker rollup non-empty.
@@ -795,7 +795,7 @@ DoD:
 - [x] URI references are captured for M5 entry.
 - [x] Handoff run-id consistency and URI-readability checks are explicit and PASS.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M4J-B1`: M4 verdict is not `ADVANCE_TO_M5`.
 2. `M4J-B2`: handoff pack missing required fields/URIs.
 3. `M4J-B3`: non-secret policy violation in handoff artifact.
@@ -994,3 +994,4 @@ M4 can be marked `DONE` only when:
 Note:
 1. This file does not change phase status.
 2. Status transition is made only in `platform.build_plan.md`.
+

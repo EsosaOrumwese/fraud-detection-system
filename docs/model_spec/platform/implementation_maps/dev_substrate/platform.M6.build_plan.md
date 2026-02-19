@@ -225,7 +225,7 @@ DoD:
 - [ ] Critical policy pins (`IG_AUTH_MODE`, `WSP_STOP_ON_NONRETRYABLE`) are validated.
 - [ ] `m6_a_handle_closure_snapshot.json` exists locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M6A-B1`: M5 handoff invalid/unreadable or run-id mismatch.
 2. `M6A-B2`: required `P4..P7` handles unresolved.
 3. `M6A-B3`: placeholder/wildcard handle detected in required closure set.
@@ -271,7 +271,7 @@ DoD:
 - [x] Auth boundary fail/pass probes meet expected outcomes.
 - [x] M6.B snapshot published locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M6B-B1`: IG service unhealthy or crashlooping.
 2. `M6B-B2`: auth boundary behavior invalid.
 3. `M6B-B3`: M6.B snapshot write/upload failure.
@@ -331,7 +331,7 @@ DoD:
 - [x] `ingest/ig_ready.json` exists locally and durably.
 - [x] `m6_c_ingest_ready_snapshot.json` exists locally and durably with `overall_pass=true`.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M6C-B1`: Kafka smoke publish/read verification failed.
 2. `M6C-B2`: S3 write smoke failed.
 3. `M6C-B3`: `ig_ready.json` write/upload failure.
@@ -428,7 +428,7 @@ DoD:
 - [x] READY publication receipt exists and references active run.
 - [x] M6.D snapshot is published locally and durably with `overall_pass=true` for closure.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M6D-B1`: preflight/handle closure failure.
 2. `M6D-B2`: SR launch or terminal completion failure.
 3. `M6D-B3`: SR PASS artifact missing/invalid.
@@ -611,7 +611,7 @@ Execution status (2026-02-15):
 5. Historical note:
    - earlier attempt used `IG_INGEST_URL` including `/v1/ingest/push`, causing `POST /v1/ingest/push/v1/ingest/push` and `404` (captured in IG logs as `IG_PUSH_REJECTED`); corrected by using base URL only.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M6E-B1`: WSP launch contract unresolved (task definition still placeholder, missing env/secret pins, or IG endpoint unreachable).
 2. `M6E-B2`: WSP did not consume READY for the active run scope (no `wsp/ready_runs/*.jsonl` record for `run_id=17dac...`).
 3. `M6E-B3`: M6.E snapshot write/upload failure.
@@ -702,7 +702,7 @@ DoD:
 - [x] Non-retryable WSP→IG push errors are zero for the closure task.
 - [x] Full 4-output surface is proven (`200` each, total `800`).
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M6F-B1`: WSP task terminal failure.
 2. `M6F-B2`: missing/invalid WSP summary evidence (READY record or CloudWatch log stream).
 3. `M6F-B3`: per-output completeness failed (missing output(s) or emitted counts mismatch).
@@ -824,7 +824,7 @@ DoD:
 - [x] Unresolved `PUBLISH_AMBIGUOUS` count is zero.
 - [x] M6.G snapshot published locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M6G-B0`: drift detected (IG not on dev_min policy/profile or bus substrate not Kafka as pinned).
 2. `M6G-B1`: missing/invalid ingest commit evidence (`receipt_summary.json` / `quarantine_summary.json`).
 3. `M6G-B2`: offsets did not advance as required or messages not readable for this run scope.
@@ -876,7 +876,7 @@ DoD:
 - [x] Blocker rollup complete and fail-closed.
 - [x] Verdict snapshot published locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M6H-B1`: prerequisite snapshot missing/unreadable.
 2. `M6H-B2`: predicate evaluation incomplete/invalid.
 3. `M6H-B3`: blocker rollup non-empty.
@@ -917,7 +917,7 @@ DoD:
 - [x] Durable handoff publication passes.
 - [x] URI references are valid for M7 entry.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M6I-B1`: M6 verdict is not `ADVANCE_TO_M7`.
 2. `M6I-B2`: handoff payload missing required fields/URIs.
 3. `M6I-B3`: non-secret policy violation.
@@ -1029,3 +1029,4 @@ M6 can be marked `DONE` only when:
 Note:
 1. This file does not change phase status.
 2. Status transition is made only in `platform.build_plan.md`.
+

@@ -225,7 +225,7 @@ Execution notes:
    - later closure (`2026-02-19`):
      - `M7G-B1` closed after concrete subject-key pin.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7A-B1`: M6 handoff invalid/unreadable or run-id mismatch.
 2. `M7A-B2`: required handles unresolved.
 3. `M7A-B3`: placeholder/wildcard detected in required closure set.
@@ -275,7 +275,7 @@ Execution notes:
      - `RTDL_CORE_CONSUMER_GROUP_ID=fraud-platform-dev-min-rtdl-core-v0`
      - `RTDL_CORE_OFFSET_COMMIT_POLICY=commit_after_durable_write`.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7B-B1`: RTDL service unhealthy/crashlooping.
 2. `M7B-B2`: consumer posture mismatch (group/policy not pinned).
 3. `M7B-B3`: dependency reachability failure (Kafka/DB/S3).
@@ -331,7 +331,7 @@ Execution notes:
      - blocker rollup empty.
 4. The refreshed basis now explicitly captures the active Kafka epoch for required topics as empty (`run_end_offset=-1` on all partitions), removing stale-basis drift for this lane.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7C-B1`: offsets evidence missing/incomplete.
 2. `M7C-B2`: lag threshold not met.
 3. `M7C-B3`: run-scope mismatch in evidence.
@@ -385,7 +385,7 @@ Execution notes:
      - `overall_pass=true`
      - blockers empty (`M7D-B4` closed).
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7D-B1`: archive prefix missing/empty when writer lane is expected active.
 2. `M7D-B2`: archive progression mismatch vs offsets evidence.
 3. `M7D-B3`: snapshot write/upload failure.
@@ -425,7 +425,7 @@ Execution status:
    - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_e_decision_lane_readiness_snapshot.json`
    - `overall_pass=true`, blockers empty.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7E-B1`: decision-lane service unhealthy/crashlooping.
 2. `M7E-B2`: idempotency/write-policy posture mismatch.
 3. `M7E-B3`: no valid RTDL input flow.
@@ -479,7 +479,7 @@ Planning status:
    - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p9_plane_snapshot.json`
    - result: `overall_pass=true`, blocker rollup empty.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. none (M7F blockers closed on rerun).
 
 ### M7.G P10 Identity-Key Pin + Managed DB Readiness
@@ -514,7 +514,7 @@ DoD:
 - [x] Managed DB readiness is proven for CM/LS runtime.
 - [x] Snapshot published locally and durably.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7G-B2`: DB readiness/migration failure.
 2. `M7G-B3`: snapshot write/upload failure.
 3. `M7G-B5`: CM/LS service runtime conformance failure for P10 entry.
@@ -577,7 +577,7 @@ Planning status:
    - explicit snapshot schema contract,
    - expanded fail-closed blockers (`M7H-B1..M7H-B6`).
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7H-B1`: case/label evidence missing or incomplete.
 2. `M7H-B2`: append-only/idempotency posture violation.
 3. `M7H-B3`: snapshot write/upload failure.
@@ -682,7 +682,7 @@ Planning status:
 1. `M7.I` is now execution-grade (algorithm + schema + blocker taxonomy pinned).
 2. Execution completed on `2026-02-19` with fail-closed rerun closure and final verdict `ADVANCE_TO_M8`.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7I-B1`: prerequisite snapshot missing/unreadable.
 2. `M7I-B2`: predicate evaluation incomplete/invalid.
 3. `M7I-B3`: blocker rollup non-empty.
@@ -796,7 +796,7 @@ Planning status:
 1. `M7.J` is now execution-grade (contract + checks + blockers pinned).
 2. Execution completed on `2026-02-19` with `m8_entry_gate=READY`.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7J-B1`: M7 verdict is not `ADVANCE_TO_M8`.
 2. `M7J-B2`: handoff payload missing required fields/URIs.
 3. `M7J-B3`: non-secret policy violation.
@@ -897,3 +897,4 @@ M7 can be marked `DONE` only when:
 Note:
 1. This file does not change phase status.
 2. Status transition is made only in `platform.build_plan.md`.
+

@@ -185,7 +185,7 @@ Execution notes:
      - `RTDL_CORE_OFFSET_COMMIT_POLICY=commit_after_durable_write`
    - topic-readiness probe aligns to `M2.F` evidence schema (`topics_present`).
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7B-B1`: RTDL service unhealthy.
 2. `M7B-B2`: consumer posture mismatch.
 3. `M7B-B3`: dependency reachability failure.
@@ -261,7 +261,7 @@ Execution notes:
      - blockers empty.
 4. Current active Kafka epoch for required topics is empty (`run_start_offset=run_end_offset=-1` on all required partitions) and is now explicitly represented in the refreshed P7 basis.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7C-B1`: offsets evidence missing/incomplete.
 2. `M7C-B2`: lag threshold unmet.
 3. `M7C-B3`: run-scope mismatch.
@@ -336,7 +336,7 @@ Execution notes:
      - `overall_pass=true`
      - blocker rollup empty.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7D-B1`: expected archive proof missing.
 2. `M7D-B2`: archive/offset coherence failure.
 3. `M7D-B3`: snapshot publish failure.
@@ -383,7 +383,7 @@ Execution notes:
    - `overall_pass=true`
    - blocker rollup empty.
 
-Blockers:
+Blocker Codes (Taxonomy):
 1. `M7P8-B1`: source snapshot missing/unreadable.
 2. `M7P8-B2`: blocker rollup non-empty.
 3. `M7P8-B3`: plane snapshot publish failure.
@@ -436,3 +436,4 @@ Rule:
    - impacted sub-phase,
    - closure criteria.
 2. If this register is non-empty, P8 branch cannot be marked closure-ready.
+
