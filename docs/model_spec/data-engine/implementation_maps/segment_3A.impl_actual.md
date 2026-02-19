@@ -3413,3 +3413,165 @@ Storage hygiene:
 - keep set now:
   - baseline: `06b822558c294a0888e3f8f342e83947`
   - latest closure candidate: `81599ab107ba4c8db7fc5850287360fe`
+
+### Entry: 2026-02-19 01:43
+
+Design element: `P0 execution (statistical baseline + candidate gate harness)`.
+Summary: after closing `POPT.1`, execute `P0` by locking a remediation-grade
+metric baseline for `3A` and implementing a deterministic candidate evaluator
+that compares against that baseline with pinned hard/stretch gates.
+
+Authority and constraints for this pass:
+1) authority run for `P0` baseline:
+   - `run_id=81599ab107ba4c8db7fc5850287360fe` (latest `POPT.1` closure run,
+     `UNLOCK_P0`).
+2) metric/gate authority:
+   - `docs/reports/eda/segment_3A/segment_3A_remediation_report.md`
+     Section 2 + Section 6 hard/stretch thresholds.
+3) scope law:
+   - no policy/code changes in `S1..S7` behavior for this step.
+   - this is scorer/harness + artifacts only.
+
+Execution decisions pinned before code edits:
+1) implement `tools/score_segment3a_p0_baseline.py`:
+   - compute and emit baseline metrics from `S1..S5` outputs, including:
+     - S2 multi-TZ prior concentration metrics,
+     - S3 merchant heterogeneity + effective-zone breadth,
+     - S4/zone_alloc top1 concentration + multi-zone realization,
+     - S1 escalation-shape diagnostics.
+   - evaluate `B` and `B+` hard/stretch gates from remediation thresholds.
+   - write:
+     - `segment3a_p0_baseline_metrics_<run_id>.json`
+     - `segment3a_p0_baseline_metrics_<run_id>.md`.
+2) implement `tools/score_segment3a_p0_candidate.py`:
+   - compute same metric surface on candidate run.
+   - compare candidate to pinned baseline JSON; emit deltas and gate deltas.
+   - write:
+     - `segment3a_p0_candidate_vs_baseline_<run_id>.json`
+     - `segment3a_p0_candidate_vs_baseline_<run_id>.md`.
+3) execute harness now:
+   - run baseline scorer on authority run-id,
+   - run candidate scorer on one run-id (`06b...`) to prove executable gate path.
+4) close P0 checklist in build plan and log results in daily logbook.
+
+Performance posture:
+- vectorized Polars aggregations only; no full-row Python loops over parquet rows.
+- fail-closed on missing datasets/columns and token mismatches.
+
+### Entry: 2026-02-19 01:49
+
+Design element: `P0 execution closure`.
+Summary: implemented and executed the full `3A` `P0` scoring lane: baseline
+metric pack + candidate-vs-baseline evaluator, then closed the `P0` DoD rows
+in build plan.
+
+Code delivered:
+1) baseline scorer:
+   - `tools/score_segment3a_p0_baseline.py`
+   - emits remediation baseline artifacts for one authority run-id.
+2) candidate evaluator:
+   - `tools/score_segment3a_p0_candidate.py`
+   - computes same metric surface on candidate run-id, compares to baseline,
+     emits metric deltas + gate drift + progression decision.
+
+Metric and gate contract encoded from remediation report:
+1) hard (`B`) gates:
+   - `3A-V01..3A-V07` thresholds from Section 6.3.
+2) stretch (`B+`) gates:
+   - `3A-S01..3A-S06` thresholds from Section 6.4,
+   - `3A-S07` (escalation major-dip guard) as monotonic-shape sentinel.
+3) conservation rails retained in scorer output:
+   - `S4` pair conservation,
+   - `zone_alloc` pair conservation.
+
+Execution evidence:
+1) baseline run:
+   - command: `python tools/score_segment3a_p0_baseline.py --runs-root runs/fix-data-engine/segment_3A --run-id 81599ab107ba4c8db7fc5850287360fe`
+   - artifacts:
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_baseline_metrics_81599ab107ba4c8db7fc5850287360fe.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_baseline_metrics_81599ab107ba4c8db7fc5850287360fe.md`
+2) candidate evaluator witness run:
+   - command: `python tools/score_segment3a_p0_candidate.py --runs-root runs/fix-data-engine/segment_3A --baseline-json runs/fix-data-engine/segment_3A/reports/segment3a_p0_baseline_metrics_81599ab107ba4c8db7fc5850287360fe.json --candidate-run-id 06b822558c294a0888e3f8f342e83947`
+   - artifacts:
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_candidate_vs_baseline_06b822558c294a0888e3f8f342e83947.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_candidate_vs_baseline_06b822558c294a0888e3f8f342e83947.md`
+
+Observed baseline posture (`run_id=81599...`):
+1) verdict: `FAIL_REALISM`.
+2) hard-gate misses (`3A-V01..3A-V07` all fail) with conservation PASS.
+3) key metric anchors:
+   - `S2` multi-TZ top1 median: `0.991523`.
+   - `S2` multi-TZ share(top1>=0.99): `0.525424`.
+   - `S3` merchant share-std median: `0.002972`.
+   - `S4` escalated multi-zone rate: `0.133251`.
+   - `S4` top1 median/p75: `1.000000 / 1.000000`.
+   - `zone_alloc` top1 median/p75: `1.000000 / 1.000000`.
+
+Candidate witness result (`06b...` vs baseline `815...`):
+1) verdict remains `FAIL_REALISM`.
+2) deltas for primary metrics are all `0.0` (post-POPT runtime changes did not
+   alter statistical posture, as intended).
+3) gate drift is `UNCHANGED` across all hard/stretch gates.
+
+Build-plan closure:
+- `segment_3A.build_plan.md` `P0` DoD rows marked complete with authority
+  artifact references and baseline verdict note.
+
+### Entry: 2026-02-19 01:56
+
+Design element: `P1 planning expansion (S2 prior geometry remediation, CF-3A-01)`.
+Summary: user requested planning-only expansion for `P1`; no engine code/policy
+execution in this step. This entry pins the design posture before editing the
+build plan.
+
+Planning posture pinned:
+1) data-first lane:
+   - `P1` focuses on statistical shape of `S2` priors and its downstream data
+     consequences (`S3`, `S4`, `zone_alloc`), not pass-flag mechanics.
+2) upstream freeze:
+   - keep `S0/S1` frozen in `P1`; no escalation-policy smoothing yet.
+3) causal order within `P1`:
+   - calibrate base prior geometry (`country_zone_alphas`) first,
+   - then calibrate floor/bump shaping (`zone_floor_policy`),
+   - then lock witness pass against `P0` baseline deltas.
+4) success movement for `P1`:
+   - primary movement is in `S2` concentration metrics:
+     - `top1_share_median_multi_tz` down,
+     - `share_top1_ge_099_multi_tz` down,
+   - with no conservation drift in `S4/zone_alloc`.
+5) rerun law for this phase:
+   - `S2` inputs changed -> rerun `S2 -> S3 -> S4 -> S5 -> S6 -> S7`.
+   - no full-segment rerun unless explicitly needed.
+
+Next action in this step:
+- expand `P1` section in `segment_3A.build_plan.md` into `P1.1..P1.x`
+  subsections with explicit metric envelopes, run sequence, and DoDs.
+
+### Entry: 2026-02-19 01:59
+
+Design element: `P1 plan expansion committed to build plan`.
+Summary: expanded `P1` from a single high-level row into phased `P1.1..P1.4`
+execution lanes with data-first objectives, quantitative movement targets,
+explicit rerun sequencing, and closure decisions.
+
+What was added to `segment_3A.build_plan.md`:
+1) authority baseline anchors under `P1`:
+   - pinned baseline run-id `81599...` and the exact `S2/S3/S4` anchor values
+     from `P0`.
+2) execution posture for `P1`:
+   - keep `S0/S1` frozen,
+   - rerun law fixed to `S2->S7` for any `S2` policy edits,
+   - scorer contract references pinned (`P0` baseline + candidate comparator).
+3) phased subsections:
+   - `P1.1` target envelope + knob map.
+   - `P1.2` alpha-geometry candidate sweep with explicit selection objective
+     `J = 0.45*d_top1 + 0.35*d_tail + 0.20*d_multi_zone` and conservation veto.
+   - `P1.3` floor/boost co-calibration with downstream non-regression checks.
+   - `P1.4` witness lock + explicit phase decision (`UNLOCK_P2` / `HOLD_P1_REOPEN`).
+4) DoD expansion:
+   - each `P1.x` lane now has concrete checklist items tied to statistical
+     movement and deterministic closure evidence.
+
+Planning result:
+- `P1` is now actionable as a data-remediation phase with measurable movement
+  targets and a bounded run strategy; ready for execution when directed.

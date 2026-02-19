@@ -272,9 +272,21 @@ Scope:
 - lock scorer script interfaces and artifact names.
 
 Definition of done:
-- [ ] baseline metrics JSON/MD emitted.
-- [ ] hard/stretch gate evaluator is executable on one candidate run.
-- [ ] baseline-vs-candidate delta report format is pinned.
+- [x] baseline metrics JSON/MD emitted.
+- [x] hard/stretch gate evaluator is executable on one candidate run.
+- [x] baseline-vs-candidate delta report format is pinned.
+
+P0 execution authority:
+- baseline run-id: `81599ab107ba4c8db7fc5850287360fe`
+- baseline artifacts:
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_baseline_metrics_81599ab107ba4c8db7fc5850287360fe.json`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_baseline_metrics_81599ab107ba4c8db7fc5850287360fe.md`
+- candidate evaluator witness:
+  - candidate run-id: `06b822558c294a0888e3f8f342e83947`
+  - delta artifacts:
+    - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_candidate_vs_baseline_06b822558c294a0888e3f8f342e83947.json`
+    - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_candidate_vs_baseline_06b822558c294a0888e3f8f342e83947.md`
+- baseline verdict: `FAIL_REALISM` (expected; this is the locked pre-remediation posture).
 
 ### P1 - S2 prior geometry remediation (CF-3A-01)
 Goal:
@@ -283,11 +295,103 @@ Goal:
 Scope:
 - tune `country_zone_alphas` and `zone_floor_policy` toward mixed-dominance priors.
 - keep deterministic, parameter-scoped S2 output contract unchanged.
+- keep `S0/S1` frozen in this phase; no escalation-policy edits in `P1`.
 
 Definition of done:
 - [ ] S2 hard gates move into or toward B bands on witness seed.
 - [ ] no S2 domain/integrity regressions.
 - [ ] policy digests + decision trail captured.
+
+P1 authority baseline (from P0):
+- run-id: `81599ab107ba4c8db7fc5850287360fe`
+- baseline anchors:
+  - `S2` multi-TZ top1 median: `0.991523`
+  - `S2` multi-TZ share(top1>=0.99): `0.525424`
+  - `S3` merchant share-std median: `0.002972`
+  - `S4` escalated multi-zone rate: `0.133251`
+  - `S4` top1 median/p75: `1.000000 / 1.000000`
+
+Execution posture:
+- rerun law for this phase:
+  - `country_zone_alphas` or `zone_floor_policy` change -> rerun `S2 -> S3 -> S4 -> S5 -> S6 -> S7`.
+- scorer contract:
+  - baseline authority:
+    - `segment3a_p0_baseline_metrics_81599ab107ba4c8db7fc5850287360fe.json`
+  - candidate comparator:
+    - `score_segment3a_p0_candidate.py`
+- optimize data shape first; structural rails (`S4/zone_alloc` conservation) remain veto gates.
+
+#### P1.1 - Target Envelope + Knob Map
+Goal:
+- lock quantitative movement targets and the exact knob families to explore for `S2`.
+
+Scope:
+- set interim `P1` movement envelope (not final certification):
+  - `S2` multi-TZ top1 median: reduce by at least `0.05` absolute from baseline.
+  - `S2` share(top1>=0.99, multi-TZ): reduce by at least `0.10` absolute.
+  - no increase in `S4`/`zone_alloc` top1 concentration.
+- pin candidate knobs:
+  - prior flattening strength (dominant-to-tail mass redistribution),
+  - floor/bump intensity and caps in `zone_floor_policy`.
+
+Definition of done:
+- [ ] movement envelope values are pinned in notes before first candidate run.
+- [ ] knob families and tested ranges are explicitly listed.
+- [ ] run-sequence and retention policy are pinned (`S2->S7`, prune superseded runs).
+
+#### P1.2 - Prior Geometry Candidate Sweep (`country_zone_alphas`)
+Goal:
+- identify one alpha-geometry family that reduces S2 degeneracy without breaking downstream structure.
+
+Scope:
+- execute bounded candidate sweep on `country_zone_alphas` geometry only.
+- score each candidate against the `P0` baseline with `segment3a_p0_candidate_vs_baseline_<run_id>`.
+- prioritize candidates with strongest reductions in:
+  - `S2` multi-TZ top1 median,
+  - `S2` share(top1>=0.99, multi-TZ).
+
+Selection method:
+- maximize objective:
+  - `J = 0.45 * d_top1 + 0.35 * d_tail + 0.20 * d_multi_zone`
+  - where:
+    - `d_top1 = baseline_s2_top1_median - candidate_s2_top1_median`
+    - `d_tail = baseline_s2_share_ge099 - candidate_s2_share_ge099`
+    - `d_multi_zone = candidate_s4_multi_zone_rate - baseline_s4_multi_zone_rate`
+- hard veto if conservation rails fail (`S4` or `zone_alloc`).
+
+Definition of done:
+- [ ] at least one alpha candidate produces positive `d_top1` and `d_tail`.
+- [ ] candidate ranking table is recorded in decision trail.
+- [ ] one alpha candidate is promoted to `P1.3` floor co-calibration lane.
+
+#### P1.3 - Floor/Boost Co-Calibration (`zone_floor_policy`)
+Goal:
+- use floor-policy tuning to preserve tail participation without flattening priors unrealistically.
+
+Scope:
+- keep promoted alpha geometry fixed.
+- test bounded floor-policy variants (floor intensity/cap) and rerun `S2->S7`.
+- reject variants that improve `S2` but regress downstream concentration in `S4/zone_alloc`.
+
+Definition of done:
+- [ ] selected floor-policy variant improves `S2` concentration metrics vs `P0` baseline.
+- [ ] `S3` merchant share-std and `S4` escalated multi-zone rate are non-regressed.
+- [ ] conservation rails remain PASS.
+
+#### P1.4 - Witness Lock + P1 Closeout
+Goal:
+- lock one `P1` authority candidate and hand off cleanly to `P2`.
+
+Scope:
+- rerun winning `P1` candidate once for witness reproducibility.
+- emit final `P1` candidate-vs-baseline artifacts and decision summary.
+- pin retained run-ids and prune superseded run folders.
+
+Definition of done:
+- [ ] witness rerun reproduces metrics within deterministic tolerance (exact for deterministic fields).
+- [ ] final `P1` artifact paths are pinned in build plan + notes.
+- [ ] explicit `P1` decision recorded:
+  - `UNLOCK_P2` or `HOLD_P1_REOPEN`.
 
 ### P2 - S3 merchant dispersion remediation (CF-3A-02)
 Goal:
