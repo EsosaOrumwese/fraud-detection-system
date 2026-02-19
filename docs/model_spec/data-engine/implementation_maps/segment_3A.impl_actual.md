@@ -3229,3 +3229,92 @@ Key pinned gates:
 Handoff impact:
 - `POPT.1` is now execution-ready; next action is to implement `POPT.1.1`
   scorer/gates and then enter `POPT.1.2` (`S6`) as primary lane.
+
+---
+
+### Entry: 2026-02-19 01:16
+
+Design element: `POPT.1` execution plan (pre-change lock).
+Summary: begin full `POPT.1` execution with staged order `POPT.1.1 -> 1.2 ->
+1.3 -> (1.4 conditional) -> 1.5 -> 1.6` on `segment_3A`.
+
+Execution decisions pinned before edits:
+1) scorer first (`POPT.1.1`):
+   - add `tools/score_segment3a_popt1_closure.py` for baseline-vs-candidate
+     runtime deltas and veto checks (`S6/S7/S5`, PASS/index/flag integrity).
+2) primary optimization target (`POPT.1.2`):
+   - optimize `S6` precondition path by removing duplicate log-file scans and
+     replacing redundant repeated row-schema checks with upstream-trust +
+     lightweight required-column guards.
+   - maintain fail-closed behavior for missing columns/null identity fields and
+     all structural check logic.
+3) secondary optimization target (`POPT.1.3`):
+   - optimize `S7` member build path by removing duplicate JSONL line-count
+     scans and avoiding redundant deep row-schema validation on heavy parquet
+     members already covered by upstream `S6 PASS` + deterministic digest gates.
+4) conditional closure target (`POPT.1.4`):
+   - only touch `S5` if `S5` remains above closure budget after `S6/S7` pass.
+5) veto gates for every candidate run:
+   - `S6`/`S7` status must remain PASS,
+   - no index/`_passed.flag` regressions,
+   - no `S5` conservation drift,
+   - no policy/config drift in `S1..S4`.
+6) run/storage protocol:
+   - stage clean run-id in `runs/fix-data-engine/segment_3A`,
+   - prune superseded run-id folders between iterations,
+   - retain baseline and last-good candidate evidence only.
+
+Immediate next actions:
+1) implement `POPT.1.1` scorer,
+2) patch `S6` + `S7` compute path,
+3) run candidate chain and evaluate closure gates.
+
+---
+
+### Entry: 2026-02-19 01:23
+
+Design element: `POPT.1.1 + POPT.1.2 + POPT.1.3` implementation pass.
+Summary: implemented closure scorer and patched `S6/S7` compute path to remove
+redundant scans/re-validation while keeping fail-closed structural guards.
+
+Code changes applied:
+1) new closure scorer (`POPT.1.1`):
+   - added `tools/score_segment3a_popt1_closure.py`.
+   - outputs:
+     - `segment3a_popt1_closure_<run_id>.json`
+     - `segment3a_popt1_closure_<run_id>.md`
+   - gate logic:
+     - runtime gates for `S6/S7` (+ optional `S5` requirement),
+     - veto checks for `S6/S7 PASS`, `_passed.flag`, `S5` conservation,
+       manifest/parameter identity consistency.
+
+2) `S6` optimization (`POPT.1.2`):
+   - file: `packages/engine/src/engine/layers/l1/seg_3A/s6_validation/runner.py`.
+   - removed duplicate JSONL line-count pre-scans for event/trace/audit logs.
+   - updated progress tracker to support unknown totals (single-pass logging).
+   - replaced redundant row-wise schema re-validation for upstream parquet
+     inputs (`S1/S2/S3/S4/zone_alloc/outlet`) with fail-closed required-column
+     guards (`_require_columns`) while keeping all downstream structural checks.
+   - removed now-unused helper/imports tied to the old path.
+
+3) `S7` optimization (`POPT.1.3`):
+   - file: `packages/engine/src/engine/layers/l1/seg_3A/s7_validation_bundle/runner.py`.
+   - removed duplicate JSONL line-count pre-scan in member hashing path.
+   - updated progress tracker to support unknown totals.
+   - introduced trusted heavy parquet member fast-path (`S1/S2/S3/S4/S5`):
+     - keep fail-closed required-column guards,
+     - skip redundant row-wise schema loops already covered by `S6 PASS` gate,
+     - preserve digest hashing over canonical member files.
+   - retained strict schema validation path for non-trusted parquet members.
+
+Verification:
+- `python -m py_compile` passed for:
+  - `seg_3A/s6_validation/runner.py`
+  - `seg_3A/s7_validation_bundle/runner.py`
+  - `tools/score_segment3a_popt1_closure.py`
+
+Next execution step:
+- stage fresh candidate run-id,
+- run `S0->S7`,
+- emit `segment3a_popt0_baseline_<run_id>.json` for candidate timing,
+- execute `segment3a_popt1_closure_<run_id>.json` scoring.

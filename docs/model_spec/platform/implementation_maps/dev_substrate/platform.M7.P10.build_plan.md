@@ -71,6 +71,10 @@ Execution block:
 Goal:
 1. Close identity-key and DB readiness prerequisites for P10 commit.
 
+Entry conditions:
+1. `P9.C` closure snapshot exists and reports `overall_pass=true`.
+2. Active run scope (`platform_run_id`, `m7_execution_id`) is fixed for this lane.
+
 Required inputs:
 1. P9 closure pass (via orchestrator gating).
 2. Identity handles:
@@ -83,6 +87,48 @@ Required inputs:
    - `SSM_DB_PASSWORD_PATH`
    - `DB_SECURITY_GROUP_ID`
    - `TD_DB_MIGRATIONS` (if required).
+4. Service/runtime handles:
+   - `SVC_CASE_TRIGGER`
+   - `SVC_CM`
+   - `SVC_LS`
+   - `ROLE_CASE_LABELS`.
+5. Runtime truth anchors for identity composition:
+   - `src/fraud_detection/case_mgmt/ids.py` + `config/platform/case_mgmt/taxonomy_v0.yaml`
+   - `src/fraud_detection/label_store/ids.py` + `config/platform/label_store/taxonomy_v0.yaml`.
+
+Preparation checks:
+1. Confirm `P9.C` source snapshot:
+   - `runs/dev_substrate/m7/<m7_execution_id>/m7_p9_plane_snapshot.json`
+   - `overall_pass=true`.
+2. Confirm identity handles resolve to concrete values (not `<PIN_AT_P10_PHASE_ENTRY>`).
+3. Confirm DB secret paths resolve and can be fetched by lane role at runtime.
+4. Confirm `CM`/`LS` service handles exist and task definitions resolve.
+5. Confirm DB migration lane readiness:
+   - if migrations required, `TD_DB_MIGRATIONS` is materialized and executable.
+
+Recommended subject-key pin values (runtime-aligned):
+1. `CASE_SUBJECT_KEY_FIELDS = "platform_run_id,event_class,event_id"`
+2. `LABEL_SUBJECT_KEY_FIELDS = "platform_run_id,event_id"`
+3. These values are recommendations for `M7G-B1` closure and must be explicitly pinned in the handle registry before execution.
+
+Deterministic verification algorithm (P10.A):
+1. Resolve `CASE_SUBJECT_KEY_FIELDS` and `LABEL_SUBJECT_KEY_FIELDS`.
+2. Fail closed with `M7G-B1` if either value is placeholder or blank.
+3. Validate identity composition against runtime truth anchors:
+   - case fields exactly match CM deterministic identity constant/taxonomy,
+   - label fields exactly match LS deterministic identity constant/taxonomy.
+   - any mismatch -> `M7G-B4`.
+4. Validate managed DB readiness from managed runtime network (ECS one-shot probe):
+   - DB connect success,
+   - required schema/table surfaces are present for CM/LS append lanes,
+   - migration posture confirmed (`applied` or `not required`).
+   - failure -> `M7G-B2`.
+5. Validate CM/LS service readiness for P10 entry (two probes):
+   - `desired=1`, `running=1`, `pending=0`,
+   - no startup crashloop signal in recent events.
+   - failure -> `M7G-B5`.
+6. Publish `m7_g_case_label_db_readiness_snapshot.json` locally + durably.
+7. Compute `overall_pass=true` only when all checks pass and blocker list is empty.
 
 Tasks:
 1. Verify subject-key fields are concrete and non-placeholder.
@@ -90,15 +136,35 @@ Tasks:
 3. If migrations required, verify migration completion.
 4. Publish `m7_g_case_label_db_readiness_snapshot.json`.
 
+Required snapshot fields:
+1. `phase`, `phase_id`, `platform_run_id`, `m7_execution_id`.
+2. `subject_key_resolution`:
+   - resolved handle values,
+   - runtime-truth comparison result.
+3. `db_readiness`:
+   - connectivity result,
+   - table/surface checks,
+   - migration status.
+4. `service_readiness`:
+   - CM/LS two-probe posture.
+5. `overall_pass`, `blockers`, `elapsed_seconds`.
+
+Runtime budget:
+1. `P10.A` target budget: <= 15 minutes wall clock.
+2. If exceeded, lane remains fail-closed until explicit USER waiver.
+
 DoD:
 - [ ] Subject-key identity handles are pinned and non-placeholder.
 - [ ] Managed DB readiness checks pass.
 - [ ] Snapshot exists locally + durably.
+- [ ] Runtime budget target is met (or explicitly waived).
 
 Blockers:
 1. `M7G-B1`: subject-key placeholder unresolved.
 2. `M7G-B2`: DB readiness/migration failure.
 3. `M7G-B3`: snapshot publish failure.
+4. `M7G-B4`: subject-key drift vs runtime truth anchors.
+5. `M7G-B5`: CM/LS service readiness failure for P10 entry.
 
 ### P10.B Case/Label Commit Closure (`M7.H` depth)
 Goal:

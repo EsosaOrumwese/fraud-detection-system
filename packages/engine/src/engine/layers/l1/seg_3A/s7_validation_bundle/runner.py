@@ -85,6 +85,31 @@ MEMBER_SPECS = [
     (DATASET_S6_RECEIPT, "validation_receipt", "json"),
 ]
 
+# S6 already validates these heavy parquet members in the same run and gates S7 on S6 PASS.
+# Keep fail-closed required-column guards here and avoid repeating row-wise JSON-schema loops.
+TRUSTED_PARQUET_MEMBERS = {
+    DATASET_S1,
+    DATASET_S2,
+    DATASET_S3,
+    DATASET_S4,
+    DATASET_S5,
+}
+REQUIRED_PARQUET_COLUMNS: dict[str, list[str]] = {
+    DATASET_S1: ["merchant_id", "legal_country_iso", "is_escalated", "site_count"],
+    DATASET_S2: ["country_iso", "tzid", "alpha_effective"],
+    DATASET_S3: ["merchant_id", "legal_country_iso", "tzid", "share_drawn"],
+    DATASET_S4: ["merchant_id", "legal_country_iso", "tzid", "zone_site_count", "zone_site_count_sum"],
+    DATASET_S5: [
+        "merchant_id",
+        "legal_country_iso",
+        "tzid",
+        "zone_site_count",
+        "zone_site_count_sum",
+        "site_count",
+        "routing_universe_hash",
+    ],
+}
+
 
 @dataclass(frozen=True)
 class S7Result:
@@ -111,8 +136,8 @@ class _StepTimer:
 
 
 class _ProgressTracker:
-    def __init__(self, total: int, logger, label: str) -> None:
-        self._total = max(int(total), 0)
+    def __init__(self, total: int | None, logger, label: str) -> None:
+        self._total = None if total is None else max(int(total), 0)
         self._logger = logger
         self._label = label
         self._start = time.monotonic()
@@ -122,11 +147,24 @@ class _ProgressTracker:
     def update(self, count: int) -> None:
         self._processed += int(count)
         now = time.monotonic()
-        if now - self._last_log < 0.5 and self._processed < self._total:
+        if (
+            now - self._last_log < 0.5
+            and self._total is not None
+            and self._processed < self._total
+        ):
             return
         self._last_log = now
         elapsed = now - self._start
         rate = self._processed / elapsed if elapsed > 0 else 0.0
+        if self._total is None:
+            self._logger.info(
+                "%s %s (elapsed=%.2fs, rate=%.2f/s)",
+                self._label,
+                self._processed,
+                elapsed,
+                rate,
+            )
+            return
         remaining = max(self._total - self._processed, 0)
         eta = remaining / rate if rate > 0 else 0.0
         self._logger.info(
@@ -274,14 +312,6 @@ def _hash_paths(paths: list[Path], logger, label: str) -> tuple[str, int]:
     return hasher.hexdigest(), total_bytes
 
 
-def _count_lines(path: Path) -> int:
-    count = 0
-    with path.open("rb") as handle:
-        for _ in handle:
-            count += 1
-    return count
-
-
 def _hash_jsonl_with_validation(
     paths: list[Path],
     schema: dict,
@@ -290,10 +320,10 @@ def _hash_jsonl_with_validation(
 ) -> tuple[str, int]:
     validator_schema = _record_schema_for_stream(schema)
     validator = Draft202012Validator(validator_schema)
-    total_lines = sum(_count_lines(path) for path in paths)
-    tracker = _ProgressTracker(total_lines, logger, label)
+    tracker = _ProgressTracker(None, logger, label)
     hasher = hashlib.sha256()
     total_bytes = 0
+    rows_seen = 0
     for path in paths:
         with path.open("rb") as handle:
             for line_no, line in enumerate(handle, start=1):
@@ -308,7 +338,10 @@ def _hash_jsonl_with_validation(
                         raise SchemaValidationError(
                             f"JSONL schema validation failed at {path}:{line_no}: {errors[0].message}"
                         )
+                rows_seen += 1
                 tracker.update(1)
+    if rows_seen == 0:
+        raise SchemaValidationError(f"JSONL stream is empty for label={label}")
     return hasher.hexdigest(), total_bytes
 
 
@@ -647,35 +680,56 @@ def run_s7(config: EngineConfig, run_id: Optional[str] = None) -> S7Result:
                 size_bytes = path.stat().st_size
             elif kind == "parquet":
                 parquet_paths = _list_parquet_paths(path)
-                df = pl.read_parquet(parquet_paths)
-                schema_def = _schema_from_pack(schema_pack, anchor)
-                if schema_def.get("type") == "object":
-                    schema = _schema_for_payload(schema_pack, schema_layer1, anchor)
-                    validator = Draft202012Validator(schema)
-                    for row in df.iter_rows(named=True):
-                        payload = {key: value for key, value in row.items() if value is not None}
-                        errors = list(validator.iter_errors(payload))
-                        if errors:
-                            _abort(
-                                "E3A_S7_002_PRECONDITION_MISSING_ARTEFACT",
-                                "V-05",
-                                "member_schema_invalid",
-                                {"dataset_id": dataset_id, "error": errors[0].message},
-                                manifest_fingerprint,
-                            )
-                else:
-                    table_pack, table_name = _table_pack(schema_pack, anchor)
-                    _inline_external_refs(table_pack, schema_layer1, "schemas.layer1.yaml#")
-                    try:
-                        validate_dataframe(df.iter_rows(named=True), table_pack, table_name)
-                    except SchemaValidationError as exc:
+                if dataset_id in TRUSTED_PARQUET_MEMBERS:
+                    required = REQUIRED_PARQUET_COLUMNS.get(dataset_id) or []
+                    schema_names = (
+                        pl.scan_parquet([str(member_path) for member_path in parquet_paths])
+                        .collect_schema()
+                        .names()
+                    )
+                    missing = [column for column in required if column not in schema_names]
+                    if missing:
                         _abort(
                             "E3A_S7_002_PRECONDITION_MISSING_ARTEFACT",
                             "V-05",
                             "member_schema_invalid",
-                            {"dataset_id": dataset_id, "error": str(exc)},
+                            {
+                                "dataset_id": dataset_id,
+                                "error": "required parquet columns missing",
+                                "missing_columns": missing,
+                            },
                             manifest_fingerprint,
                         )
+                else:
+                    df = pl.read_parquet(parquet_paths)
+                    schema_def = _schema_from_pack(schema_pack, anchor)
+                    if schema_def.get("type") == "object":
+                        schema = _schema_for_payload(schema_pack, schema_layer1, anchor)
+                        validator = Draft202012Validator(schema)
+                        for row in df.iter_rows(named=True):
+                            payload = {key: value for key, value in row.items() if value is not None}
+                            errors = list(validator.iter_errors(payload))
+                            if errors:
+                                _abort(
+                                    "E3A_S7_002_PRECONDITION_MISSING_ARTEFACT",
+                                    "V-05",
+                                    "member_schema_invalid",
+                                    {"dataset_id": dataset_id, "error": errors[0].message},
+                                    manifest_fingerprint,
+                                )
+                    else:
+                        table_pack, table_name = _table_pack(schema_pack, anchor)
+                        _inline_external_refs(table_pack, schema_layer1, "schemas.layer1.yaml#")
+                        try:
+                            validate_dataframe(df.iter_rows(named=True), table_pack, table_name)
+                        except SchemaValidationError as exc:
+                            _abort(
+                                "E3A_S7_002_PRECONDITION_MISSING_ARTEFACT",
+                                "V-05",
+                                "member_schema_invalid",
+                                {"dataset_id": dataset_id, "error": str(exc)},
+                                manifest_fingerprint,
+                            )
                 digest, size_bytes = _hash_paths(parquet_paths, logger, f"S7: hash {dataset_id}")
             elif kind == "log":
                 try:

@@ -647,8 +647,8 @@ These are how tasks/services locate each other.
 
 **Case/labels identity + decision idempotency**
 
-* `CASE_SUBJECT_KEY_FIELDS = "<PIN_AT_P10_PHASE_ENTRY>"`
-* `LABEL_SUBJECT_KEY_FIELDS = "<PIN_AT_P10_PHASE_ENTRY>"`
+* `CASE_SUBJECT_KEY_FIELDS = "platform_run_id,event_class,event_id"`
+* `LABEL_SUBJECT_KEY_FIELDS = "platform_run_id,event_id"`
 * `ACTION_IDEMPOTENCY_KEY_FIELDS = "platform_run_id,event_id,action_type"`
 * `ACTION_OUTCOME_WRITE_POLICY = "append_only"`
 

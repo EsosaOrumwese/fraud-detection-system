@@ -12796,3 +12796,92 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Forward posture
 1. `P9` branch is now closure-ready (`P9.A/B/C` complete).
 2. Next execution lane remains `M7.G` (`P10` entry), blocked only by `M7G-B1` subject-key pinning.
+
+## Entry: 2026-02-19 01:15:00 +00:00 - P10.A planning pre-change lock (M7.P10 depth expansion)
+### Scope
+1. USER requested: move to `M7.P10` and plan out `P10.A`.
+
+### Planning intent
+1. Expand `P10.A` from summary-level bullets to execution-grade plan:
+   - entry conditions and readiness matrix,
+   - concrete inputs/handles and closure checks,
+   - deterministic verification algorithm,
+   - runtime budget and fail-closed blocker mapping.
+2. Keep this step planning-only (no `M7.G` runtime execution yet).
+
+### Decision-completeness posture
+1. `P9` prerequisite is now closed (`P9.C` pass snapshot published).
+2. Known forward blocker remains `M7G-B1`:
+   - `CASE_SUBJECT_KEY_FIELDS`
+   - `LABEL_SUBJECT_KEY_FIELDS`
+   are still placeholders in handle registry.
+3. Plan must therefore pin explicit closure criteria for `M7G-B1` and block execution until resolved.
+
+### Authority alignment used for expansion
+1. `platform.M7.P10.build_plan.md` (`P10.A` anchor section).
+2. `platform.M7.build_plan.md` (`M7.G` gating semantics).
+3. `dev_min_spine_green_v0_run_process_flow.md` (`P10.3`..`P10.7` required handles/gates).
+4. `dev_min_handles.registry.v0.md` (placeholder state + DB handles).
+5. Runtime truth anchors in code/taxonomy:
+   - `src/fraud_detection/case_mgmt/ids.py` (`CASE_SUBJECT_KEY_FIELDS` constant),
+   - `src/fraud_detection/label_store/ids.py` (`LABEL_SUBJECT_KEY_FIELDS` constant),
+   - `config/platform/case_mgmt/taxonomy_v0.yaml`,
+   - `config/platform/label_store/taxonomy_v0.yaml`.
+
+## Entry: 2026-02-19 01:21:00 +00:00 - P10.A planning depth expansion applied (M7.P10)
+### What changed
+1. Expanded `P10.A Subject-Key Pin + Managed DB Readiness` in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` from summary bullets to execution-grade closure plan.
+2. Added explicit entry conditions tied to `P9.C` pass snapshot and fixed run scope.
+3. Added concrete required-input lanes (identity handles, DB handles, service/runtime handles, runtime truth anchors).
+4. Added deterministic verification algorithm with fail-closed blocker routing.
+5. Added required snapshot schema and runtime budget target (`<= 15 minutes`) as a DoD gate.
+6. Added new blockers:
+   - `M7G-B4` (subject-key drift vs runtime truth),
+   - `M7G-B5` (CM/LS service readiness failure).
+
+### Why this was required
+1. `P10.A` previously described intent but not closure mechanics.
+2. M7 execution requires deterministic, auditable, fail-closed checks before runtime execution.
+3. Subject-key placeholders are still unresolved in handle registry, so explicit blocker semantics were required before any `M7.G` execution.
+
+### Outcome
+1. `P10.A` is now planning-complete and execution-ready in structure.
+2. Runtime execution remains intentionally blocked until `M7G-B1` (subject-key pinning) is closed.
+
+## Entry: 2026-02-19 01:24:00 +00:00 - M7G-B1 closure pre-change lock (P10.A subject-key pin)
+### Scope
+1. USER approved resolving `M7G-B1` (subject-key placeholders) so `P10.A` can execute.
+
+### Runtime-truth verification performed
+1. `src/fraud_detection/case_mgmt/ids.py` pins:
+   - `CASE_SUBJECT_KEY_FIELDS = ("platform_run_id","event_class","event_id")`.
+2. `src/fraud_detection/label_store/ids.py` pins:
+   - `LABEL_SUBJECT_KEY_FIELDS = ("platform_run_id","event_id")`.
+
+### Planned change
+1. Update handle registry values in:
+   - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+2. Replace placeholders:
+   - `CASE_SUBJECT_KEY_FIELDS = "platform_run_id,event_class,event_id"`
+   - `LABEL_SUBJECT_KEY_FIELDS = "platform_run_id,event_id"`
+
+### Expected result
+1. `M7G-B1` closed.
+2. `P10.A` entry gate no longer blocked by placeholder identity handles.
+
+## Entry: 2026-02-19 01:26:00 +00:00 - M7G-B1 closed (P10.A subject-key handles pinned)
+### Change applied
+1. Updated `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`:
+   - `CASE_SUBJECT_KEY_FIELDS = "platform_run_id,event_class,event_id"`
+   - `LABEL_SUBJECT_KEY_FIELDS = "platform_run_id,event_id"`
+2. Removed placeholder posture for both handles in dev-min registry.
+
+### Validation
+1. Registry now resolves both handles to concrete values (no `<PIN_AT_P10_PHASE_ENTRY>` for these keys).
+2. Values are aligned with runtime truth in:
+   - `src/fraud_detection/case_mgmt/ids.py`
+   - `src/fraud_detection/label_store/ids.py`
+
+### Gate impact
+1. `M7G-B1` is closed.
+2. `P10.A` entry gate can proceed to runtime execution checks (`M7G-B2..B5`).

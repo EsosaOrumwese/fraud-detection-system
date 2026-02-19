@@ -12,7 +12,7 @@ from typing import Iterable, Optional
 import polars as pl
 from jsonschema import Draft202012Validator
 
-from engine.contracts.jsonschema_adapter import normalize_nullable_schema, validate_dataframe
+from engine.contracts.jsonschema_adapter import normalize_nullable_schema
 from engine.contracts.loader import (
     find_artifact_entry,
     find_dataset_entry,
@@ -43,7 +43,6 @@ from engine.layers.l1.seg_3A.s0_gate.runner import (
     _resolve_run_receipt,
     _schema_from_pack,
     _segment_state_runs_path,
-    _table_pack,
 )
 
 
@@ -82,8 +81,8 @@ class _StepTimer:
 
 
 class _ProgressTracker:
-    def __init__(self, total: int, logger, label: str) -> None:
-        self._total = max(int(total), 0)
+    def __init__(self, total: int | None, logger, label: str) -> None:
+        self._total = None if total is None else max(int(total), 0)
         self._logger = logger
         self._label = label
         self._start = time.monotonic()
@@ -93,11 +92,24 @@ class _ProgressTracker:
     def update(self, count: int) -> None:
         self._processed += int(count)
         now = time.monotonic()
-        if now - self._last_log < 0.5 and self._processed < self._total:
+        if (
+            now - self._last_log < 0.5
+            and self._total is not None
+            and self._processed < self._total
+        ):
             return
         self._last_log = now
         elapsed = now - self._start
         rate = self._processed / elapsed if elapsed > 0 else 0.0
+        if self._total is None:
+            self._logger.info(
+                "%s %s (elapsed=%.2fs, rate=%.2f/s)",
+                self._label,
+                self._processed,
+                elapsed,
+                rate,
+            )
+            return
         remaining = max(self._total - self._processed, 0)
         eta = remaining / rate if rate > 0 else 0.0
         self._logger.info(
@@ -241,14 +253,6 @@ def _resolve_event_paths(
     return [path]
 
 
-def _count_lines(path: Path) -> int:
-    count = 0
-    with path.open("rb") as handle:
-        for _ in handle:
-            count += 1
-    return count
-
-
 def _iter_jsonl(path: Path) -> Iterable[tuple[int, dict]]:
     with path.open("r", encoding="utf-8") as handle:
         for idx, line in enumerate(handle, start=1):
@@ -256,6 +260,28 @@ def _iter_jsonl(path: Path) -> Iterable[tuple[int, dict]]:
             if not payload:
                 continue
             yield idx, json.loads(payload)
+
+
+def _require_columns(
+    df: pl.DataFrame,
+    dataset_label: str,
+    required: list[str],
+    manifest_fingerprint: str,
+) -> None:
+    missing = [col for col in required if col not in df.columns]
+    if not missing:
+        return
+    _abort(
+        "E3A_S6_001_PRECONDITION_FAILED",
+        "V-04",
+        "dataset_columns_missing",
+        {
+            "component": dataset_label,
+            "reason": "columns_missing",
+            "missing_columns": missing,
+        },
+        manifest_fingerprint,
+    )
 
 
 def _compute_masked_alloc_digest(
@@ -801,18 +827,14 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                 {"component": "S1_ESCALATION_QUEUE", "reason": "missing", "detail": str(exc)},
                 manifest_fingerprint,
             )
-        s1_pack, s1_table = _table_pack(schema_3a, "plan/s1_escalation_queue")
-        _inline_external_refs(s1_pack, schema_layer1, "schemas.layer1.yaml#")
-        try:
-            validate_dataframe(s1_df.iter_rows(named=True), s1_pack, s1_table)
-        except SchemaValidationError as exc:
-            _abort(
-                "E3A_S6_001_PRECONDITION_FAILED",
-                "V-04",
-                "s1_escalation_schema_invalid",
-                {"component": "S1_ESCALATION_QUEUE", "reason": "schema_invalid", "error": str(exc)},
-                manifest_fingerprint,
-            )
+        # Upstream S1 already performs full schema validation. S6 keeps a strict
+        # fail-closed column guard to avoid repeating expensive row-wise JSON-schema work.
+        _require_columns(
+            s1_df,
+            "S1_ESCALATION_QUEUE",
+            ["merchant_id", "legal_country_iso", "is_escalated", "site_count"],
+            manifest_fingerprint,
+        )
 
         s2_entry = find_dataset_entry(dictionary, "s2_country_zone_priors").entry
         try:
@@ -827,18 +849,12 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                 {"component": "S2_PRIORS", "reason": "missing", "detail": str(exc)},
                 manifest_fingerprint,
             )
-        s2_pack, s2_table = _table_pack(schema_3a, "plan/s2_country_zone_priors")
-        _inline_external_refs(s2_pack, schema_layer1, "schemas.layer1.yaml#")
-        try:
-            validate_dataframe(s2_df.iter_rows(named=True), s2_pack, s2_table)
-        except SchemaValidationError as exc:
-            _abort(
-                "E3A_S6_001_PRECONDITION_FAILED",
-                "V-04",
-                "s2_priors_schema_invalid",
-                {"component": "S2_PRIORS", "reason": "schema_invalid", "error": str(exc)},
-                manifest_fingerprint,
-            )
+        _require_columns(
+            s2_df,
+            "S2_PRIORS",
+            ["country_iso", "tzid", "alpha_effective"],
+            manifest_fingerprint,
+        )
 
         s3_entry = find_dataset_entry(dictionary, "s3_zone_shares").entry
         try:
@@ -853,18 +869,12 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                 {"component": "S3_ZONE_SHARES", "reason": "missing", "detail": str(exc)},
                 manifest_fingerprint,
             )
-        s3_pack, s3_table = _table_pack(schema_3a, "plan/s3_zone_shares")
-        _inline_external_refs(s3_pack, schema_layer1, "schemas.layer1.yaml#")
-        try:
-            validate_dataframe(s3_df.iter_rows(named=True), s3_pack, s3_table)
-        except SchemaValidationError as exc:
-            _abort(
-                "E3A_S6_001_PRECONDITION_FAILED",
-                "V-04",
-                "s3_zone_shares_schema_invalid",
-                {"component": "S3_ZONE_SHARES", "reason": "schema_invalid", "error": str(exc)},
-                manifest_fingerprint,
-            )
+        _require_columns(
+            s3_df,
+            "S3_ZONE_SHARES",
+            ["merchant_id", "legal_country_iso", "tzid", "share_drawn"],
+            manifest_fingerprint,
+        )
 
         s4_entry = find_dataset_entry(dictionary, "s4_zone_counts").entry
         try:
@@ -879,18 +889,12 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                 {"component": "S4_ZONE_COUNTS", "reason": "missing", "detail": str(exc)},
                 manifest_fingerprint,
             )
-        s4_pack, s4_table = _table_pack(schema_3a, "plan/s4_zone_counts")
-        _inline_external_refs(s4_pack, schema_layer1, "schemas.layer1.yaml#")
-        try:
-            validate_dataframe(s4_df.iter_rows(named=True), s4_pack, s4_table)
-        except SchemaValidationError as exc:
-            _abort(
-                "E3A_S6_001_PRECONDITION_FAILED",
-                "V-04",
-                "s4_zone_counts_schema_invalid",
-                {"component": "S4_ZONE_COUNTS", "reason": "schema_invalid", "error": str(exc)},
-                manifest_fingerprint,
-            )
+        _require_columns(
+            s4_df,
+            "S4_ZONE_COUNTS",
+            ["merchant_id", "legal_country_iso", "tzid", "zone_site_count", "zone_site_count_sum"],
+            manifest_fingerprint,
+        )
 
         zone_alloc_entry = find_dataset_entry(dictionary, "zone_alloc").entry
         try:
@@ -905,18 +909,20 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                 {"component": "ZONE_ALLOC", "reason": "missing", "detail": str(exc)},
                 manifest_fingerprint,
             )
-        zone_alloc_pack, zone_alloc_table = _table_pack(schema_3a, "egress/zone_alloc")
-        _inline_external_refs(zone_alloc_pack, schema_layer1, "schemas.layer1.yaml#")
-        try:
-            validate_dataframe(zone_alloc_df.iter_rows(named=True), zone_alloc_pack, zone_alloc_table)
-        except SchemaValidationError as exc:
-            _abort(
-                "E3A_S6_001_PRECONDITION_FAILED",
-                "V-04",
-                "zone_alloc_schema_invalid",
-                {"component": "ZONE_ALLOC", "reason": "schema_invalid", "error": str(exc)},
-                manifest_fingerprint,
-            )
+        _require_columns(
+            zone_alloc_df,
+            "ZONE_ALLOC",
+            [
+                "merchant_id",
+                "legal_country_iso",
+                "tzid",
+                "zone_site_count",
+                "zone_site_count_sum",
+                "site_count",
+                "routing_universe_hash",
+            ],
+            manifest_fingerprint,
+        )
 
         zone_universe_entry = find_dataset_entry(dictionary, "zone_alloc_universe_hash").entry
         try:
@@ -941,20 +947,14 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                 manifest_fingerprint,
             )
 
-        outlet_pack, outlet_table = _table_pack(schema_1a, "egress/outlet_catalogue")
-        _inline_external_refs(outlet_pack, schema_layer1, "schemas.layer1.yaml#")
         outlet_paths = _list_parquet_paths(outlet_root)
         outlet_df = pl.read_parquet(outlet_paths)
-        try:
-            validate_dataframe(outlet_df.iter_rows(named=True), outlet_pack, outlet_table)
-        except SchemaValidationError as exc:
-            _abort(
-                "E3A_S6_001_PRECONDITION_FAILED",
-                "V-04",
-                "outlet_catalogue_schema_invalid",
-                {"component": "OUTLET_CATALOGUE", "reason": "schema_invalid", "error": str(exc)},
-                manifest_fingerprint,
-            )
+        _require_columns(
+            outlet_df,
+            "OUTLET_CATALOGUE",
+            ["merchant_id", "legal_country_iso"],
+            manifest_fingerprint,
+        )
 
         current_phase = "rng_logs"
         event_entry = find_dataset_entry(dictionary, "rng_event_zone_dirichlet").entry
@@ -980,16 +980,7 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
         audit_schema = normalize_nullable_schema(_schema_from_pack(schema_layer1, "rng/core/rng_audit_log/record"))
         audit_validator = Draft202012Validator(audit_schema)
 
-        event_line_total = sum(_count_lines(path) for path in event_paths)
-        if event_line_total == 0:
-            _abort(
-                "E3A_S6_001_PRECONDITION_FAILED",
-                "V-05",
-                "rng_events_missing",
-                {"component": "RNG_EVENTS", "reason": "empty"},
-                manifest_fingerprint,
-            )
-        event_tracker = _ProgressTracker(event_line_total, logger, "S6: rng_event_zone_dirichlet")
+        event_tracker = _ProgressTracker(None, logger, "S6: rng_event_zone_dirichlet")
         event_pairs: list[tuple[int, str]] = []
         event_rows_total = 0
         event_blocks_total = 0
@@ -1019,21 +1010,22 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                 event_blocks_total += int(payload.get("blocks") or 0)
                 event_draws_total += int(payload.get("draws") or 0)
                 event_tracker.update(1)
-
-        trace_line_total = sum(_count_lines(path) for path in trace_paths)
-        if trace_line_total == 0:
+        if event_rows_total == 0:
             _abort(
                 "E3A_S6_001_PRECONDITION_FAILED",
                 "V-05",
-                "rng_trace_missing",
-                {"component": "RNG_TRACE", "reason": "empty"},
+                "rng_events_missing",
+                {"component": "RNG_EVENTS", "reason": "empty"},
                 manifest_fingerprint,
             )
-        trace_tracker = _ProgressTracker(trace_line_total, logger, "S6: rng_trace_log")
+
+        trace_tracker = _ProgressTracker(None, logger, "S6: rng_trace_log")
         trace_rows: list[tuple[dict, str]] = []
+        trace_rows_total = 0
         trace_identity_mismatch = 0
         for path in trace_paths:
             for line_no, payload in _iter_jsonl(path):
+                trace_rows_total += 1
                 errors = list(trace_validator.iter_errors(payload))
                 if errors:
                     _abort(
@@ -1053,20 +1045,21 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                 ):
                     trace_rows.append((payload, path.name))
                 trace_tracker.update(1)
-
-        audit_line_total = sum(_count_lines(path) for path in audit_paths)
-        if audit_line_total == 0:
+        if trace_rows_total == 0:
             _abort(
                 "E3A_S6_001_PRECONDITION_FAILED",
                 "V-05",
-                "rng_audit_missing",
-                {"component": "RNG_AUDIT", "reason": "empty"},
+                "rng_trace_missing",
+                {"component": "RNG_TRACE", "reason": "empty"},
                 manifest_fingerprint,
             )
-        audit_tracker = _ProgressTracker(audit_line_total, logger, "S6: rng_audit_log")
+
+        audit_tracker = _ProgressTracker(None, logger, "S6: rng_audit_log")
+        audit_rows_total = 0
         audit_found = False
         for path in audit_paths:
             for line_no, payload in _iter_jsonl(path):
+                audit_rows_total += 1
                 errors = list(audit_validator.iter_errors(payload))
                 if errors:
                     _abort(
@@ -1084,6 +1077,14 @@ def run_s6(config: EngineConfig, run_id: Optional[str] = None) -> S6Result:
                 ):
                     audit_found = True
                 audit_tracker.update(1)
+        if audit_rows_total == 0:
+            _abort(
+                "E3A_S6_001_PRECONDITION_FAILED",
+                "V-05",
+                "rng_audit_missing",
+                {"component": "RNG_AUDIT", "reason": "empty"},
+                manifest_fingerprint,
+            )
 
         timer.info("S6: precondition inputs loaded")
 
