@@ -410,10 +410,10 @@ Required snapshot fields (`m8_c_input_readiness_snapshot.json`):
 5. `blockers`, `overall_pass`, `elapsed_seconds`.
 
 DoD:
-- [ ] Required input evidence URIs are readable.
-- [ ] Run-scope and ingest ambiguity posture checks pass.
-- [ ] Offsets semantic checks pass for ingest and RTDL snapshots.
-- [ ] Snapshot exists locally and durably.
+- [x] Required input evidence URIs are readable.
+- [x] Run-scope and ingest ambiguity posture checks pass.
+- [x] Offsets semantic checks pass for ingest and RTDL snapshots.
+- [x] Snapshot exists locally and durably.
 
 Runtime budget:
 1. `M8.C` target budget: <= 10 minutes wall clock.
@@ -421,7 +421,32 @@ Runtime budget:
 
 Planning status:
 1. `M8.C` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
-2. Runtime execution remains pending on explicit USER go-ahead.
+2. Runtime execution completed on `m8_execution_id=m8_20260219T082913Z` with pass verdict.
+
+Execution closure (2026-02-19):
+1. Fail-first attempt (trace retained):
+   - execution id: `m8_20260219T082518Z`
+   - local snapshot: `runs/dev_substrate/m8/m8_20260219T082518Z/m8_c_input_readiness_snapshot.json`
+   - result: `overall_pass=false`, blockers `M8C-B5`, `M8C-B3`
+   - cause: prerequisite local snapshot BOM decode + narrow offset-shape probe.
+2. Intermediate attempt (trace retained):
+   - execution id: `m8_20260219T082755Z`
+   - local snapshot: `runs/dev_substrate/m8/m8_20260219T082755Z/m8_c_input_readiness_snapshot.json`
+   - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T082755Z/m8_c_input_readiness_snapshot.json`
+   - result: `overall_pass=false`, blocker `M8C-B3`
+   - cause: offset semantic probe accepted only `start_offset/end_offset`; runtime artifacts use `run_start_offset/run_end_offset`.
+3. Closure pass run:
+   - execution id: `m8_20260219T082913Z`
+   - local snapshot: `runs/dev_substrate/m8/m8_20260219T082913Z/m8_c_input_readiness_snapshot.json`
+   - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T082913Z/m8_c_input_readiness_snapshot.json`
+   - result: `overall_pass=true`, blockers empty
+   - runtime: `elapsed_seconds=1.673` (within `M8.C` budget).
+4. Verified posture in pass run:
+   - required P7/P8/P9/P10 evidence objects are readable and non-empty,
+   - run-scope conformance holds across all required input surfaces,
+   - ingest ambiguity indicators resolved at zero,
+   - ingest + RTDL offset snapshots provide partition-range coverage.
+5. `M8.C` is closed; `M8.D` is unblocked.
 
 Blockers:
 1. `M8C-B1`: required evidence URI missing/unreadable.
@@ -617,7 +642,7 @@ Notes:
 ## 8) M8 Completion Checklist
 - [x] M8.A complete
 - [x] M8.B complete
-- [ ] M8.C complete
+- [x] M8.C complete
 - [ ] M8.D complete
 - [ ] M8.E complete
 - [ ] M8.F complete

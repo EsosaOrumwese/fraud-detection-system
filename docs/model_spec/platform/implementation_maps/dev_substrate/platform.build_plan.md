@@ -895,10 +895,25 @@ M8.B execution closure (2026-02-19):
   - result: `overall_pass=true`, blockers empty
   - posture: reporter runtime/role/lock readiness verified; `M8.C` unblocked.
 
+M8.C execution closure (2026-02-19):
+  - fail-first trace:
+    - `m8_20260219T082518Z` (local snapshot only), `overall_pass=false`, blockers `M8C-B5`, `M8C-B3`
+    - `m8_20260219T082755Z` (local + durable), `overall_pass=false`, blocker `M8C-B3`
+  - closure pass:
+    - execution id: `m8_20260219T082913Z`
+    - local snapshot: `runs/dev_substrate/m8/m8_20260219T082913Z/m8_c_input_readiness_snapshot.json`
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T082913Z/m8_c_input_readiness_snapshot.json`
+    - result: `overall_pass=true`, blockers empty
+    - elapsed: `1.673s`
+  - posture:
+    - required P7/P8/P9/P10 evidence objects readable and run-scoped,
+    - ingest ambiguity indicators resolved at zero,
+    - ingest and RTDL offsets semantic minimums pass.
+
 Sub-phase progress:
   - [x] `M8.A` P11 authority + handles closure.
   - [x] `M8.B` reporter runtime + lock readiness.
-  - [ ] `M8.C` closure input evidence readiness.
+  - [x] `M8.C` closure input evidence readiness.
   - [ ] `M8.D` single-writer contention fail-closed probe.
   - [ ] `M8.E` reporter one-shot execution.
   - [ ] `M8.F` closure evidence bundle completeness.
@@ -1034,7 +1049,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M8 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M8.C` closure input evidence readiness checks,
+- execute `M8.D` single-writer contention fail-closed probe,
 - require durable artifact:
-  - `evidence/dev_min/run_control/<m8_execution_id>/m8_c_input_readiness_snapshot.json`,
-- continue `M8.D..M8.I` only after `M8.C` passes fail-closed checks.
+  - `evidence/dev_min/run_control/<m8_execution_id>/m8_d_single_writer_probe_snapshot.json`,
+- continue `M8.E..M8.I` only after `M8.D` passes fail-closed checks.

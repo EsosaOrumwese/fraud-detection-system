@@ -137,9 +137,30 @@ Scope:
 - pin per-lane budgets for candidate/witness/certification.
 
 Definition of done:
-- [ ] baseline runtime table is emitted.
-- [ ] top bottlenecks are ranked with evidence.
-- [ ] budget targets are pinned and accepted.
+- [x] baseline runtime table is emitted.
+- [x] top bottlenecks are ranked with evidence.
+- [x] budget targets are pinned and accepted.
+
+POPT.0 closure record (2026-02-19):
+- baseline run:
+  - `runs/fix-data-engine/segment_3B/724a63d3f8b242809b8ec3b746d0c776`
+- closure artifacts:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt0_baseline_724a63d3f8b242809b8ec3b746d0c776.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt0_hotspot_map_724a63d3f8b242809b8ec3b746d0c776.md`
+- observed runtime:
+  - report elapsed sum: `697.64s` (`00:11:38`)
+  - log window: `702.666s` (`00:11:43`)
+- ranked bottlenecks:
+  - primary: `S2` (`406.375s`, `58.25%`)
+  - secondary: `S5` (`240.468s`, `34.47%`)
+  - closure: `S4` (`38.702s`, `5.55%`)
+- lane budgets:
+  - fast candidate lane (`<=900s`): `PASS`
+  - witness lane target (`<=1800s`): pinned
+  - certification lane target (`<=4500s`): pinned
+- progression gate:
+  - decision: `GO_POPT1`
+  - selected primary hotspot for optimization: `S2`
 
 ### POPT.1 - Primary hotspot optimization (expected S2)
 Goal:
@@ -290,7 +311,7 @@ Definition of done:
   - Any hard-gate fail keeps segment below `B`.
 
 ## 8) Current phase status
-- `POPT.0`: pending
+- `POPT.0`: completed
 - `POPT.1`: pending
 - `POPT.2`: pending
 - `POPT.3`: pending

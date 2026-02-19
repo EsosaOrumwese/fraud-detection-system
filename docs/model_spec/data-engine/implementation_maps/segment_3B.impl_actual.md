@@ -2576,3 +2576,89 @@ Key planning assertions encoded:
 Ready state:
 1) build plan exists and is implementation-ready.
 2) no remediation execution started in this step.
+
+### Entry: 2026-02-19 08:27
+
+Design element: `3B POPT.0 execution lane start (runtime baseline under frozen upstream)`.
+Summary: moving from planning to execution for `POPT.0` by running one clean `S0->S5` chain in `runs/fix-data-engine/segment_3B`, then emitting a machine-readable runtime baseline/hotspot artifact.
+
+Execution decisions pinned before run:
+1) run lane root:
+   - `runs/fix-data-engine/segment_3B`.
+2) baseline identity tokens:
+   - `seed=42`,
+   - `manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`,
+   - `parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7`.
+3) upstream-resolution posture for this baseline (frozen-first, fail-closed):
+   - `1A` authority run root: `runs/fix-data-engine/segment_1A/416afa430db3f5bf87180f8514329fe8`.
+   - `1B` authority run root: `runs/fix-data-engine/segment_1B/979129e39a89446b942df9a463f09508`.
+   - `2A` retained authority run root: `runs/fix-data-engine/segment_2A_p3/b65bfe6efaca42e2ac413c059fb88b64`.
+   - `3A` freeze authority run root: `runs/fix-data-engine/segment_3A/d516f89608ed43ad8ea1018fbb33d9d8`.
+   - fallback authority root for missing shared surfaces: `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`.
+   - repo root `.` retained in external roots for `artefacts/*` and `reference/*` resolution.
+4) DoD closure artifacts for `POPT.0`:
+   - runtime table (`S0..S5`) and hotspot ranking JSON/MD under `runs/fix-data-engine/segment_3B/reports/`.
+
+Planned steps:
+1) stage new 3B run-id + `run_receipt.json` in fix lane.
+2) execute `make segment3b` on that run-id with pinned external roots.
+3) emit `POPT.0` scorer artifact and update build-plan phase status from `pending` to `completed` if DoD is fully satisfied.
+
+### Entry: 2026-02-19 08:44
+
+Design element: `POPT.0 scorer implementation for Segment 3B (reproducible baseline artifact)`.
+Summary: baseline `S0->S5` run is complete on run-id `724a63d3f8b242809b8ec3b746d0c776`; next we need deterministic scorer output for `POPT.0` DoD closure.
+
+Reasoning:
+1) Manual extraction from logs is error-prone because this run-id contains early failed S0 attempts before the successful chain.
+2) Existing segment practice uses dedicated scorer artifacts for `POPT.0` closure; `3B` needs the same contract.
+3) `3B` runtime-budget law for `POPT.0` is lane-level (`fast/witness/certification`) rather than strict per-state targets; scorer should reflect this directly.
+
+Pinned implementation plan:
+1) add `tools/score_segment3b_popt0_baseline.py`.
+2) read run receipt + `S1..S5` run reports (`durations.wall_ms`) and parse final successful `S0` elapsed from run log.
+3) emit machine-readable runtime table (`S0..S5`) and ranked top-3 hotspots with state evidence + code refs.
+4) evaluate lane-level budgets from build plan:
+   - fast candidate lane `<=900s`, witness lane `<=1800s`, certification lane `<=4500s`.
+5) emit artifacts:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt0_baseline_<run_id>.json`
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt0_hotspot_map_<run_id>.md`.
+
+Post-scorer actions in this lane:
+1) append `POPT.0` closure/update entries to implementation notes + logbook,
+2) update `segment_3B.build_plan.md` phase status/checklist for `POPT.0` if DoD is satisfied.
+
+### Entry: 2026-02-19 08:46
+
+Design element: `3B POPT.0 execution complete (baseline established, bottlenecks ranked)`.
+Summary: completed `POPT.0` with a clean full-chain baseline and emitted deterministic runtime/hotspot artifacts.
+
+Execution trail and decisions:
+1) initial S0 attempts failed because `3B.S0` resolves `data/*` upstream inputs from run-local paths only.
+   - failures observed:
+     - missing `1A/sealed_inputs_1A` in run-local lane,
+     - missing `1B/tile_weights` in run-local lane.
+2) corrective staging decision:
+   - staged upstream `data/layer1/{1A,1B,2A,3A}` into the active run-id lane (`724a63d...`) from frozen authorities, with targeted fallback copies from `c25a...` for missing `1A` sealed/validation and `1B/tile_weights`.
+3) rerun outcome:
+   - full `make segment3b` chain passed (`S0..S5`).
+4) scorer implementation and closure artifacts:
+   - added `tools/score_segment3b_popt0_baseline.py`.
+   - emitted:
+     - `runs/fix-data-engine/segment_3B/reports/segment3b_popt0_baseline_724a63d3f8b242809b8ec3b746d0c776.json`
+     - `runs/fix-data-engine/segment_3B/reports/segment3b_popt0_hotspot_map_724a63d3f8b242809b8ec3b746d0c776.md`
+
+Measured baseline (authority for POPT lane):
+1) runtime:
+   - report elapsed sum: `697.64s` (`00:11:38`)
+   - log window: `702.666s` (`00:11:43`)
+2) hotspot ranking:
+   - `S2`: `406.375s` (`58.25%`) -> primary hotspot,
+   - `S5`: `240.468s` (`34.47%`) -> secondary hotspot,
+   - `S4`: `38.702s` (`5.55%`) -> closure hotspot.
+3) lane budgets:
+   - fast candidate lane (`<=900s`) = `PASS`.
+
+Closure decision:
+1) `POPT.0` is closed.
+2) `POPT.1` opens on `S2` as the primary optimization lane.

@@ -14017,3 +14017,99 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. `M8.C` is now planning-ready for fail-closed execution.
 2. No runtime execution occurred in this step.
 3. Immediate next action remains `M8.C` execution on explicit USER go-ahead.
+
+## Entry: 2026-02-19 08:25:19 +00:00 - M8.C execution start lock (closure input readiness)
+### User directive
+1. Proceed with full execution of `M8.C` and document thought process/decisions along the way.
+
+### Execution intent
+1. Enforce `M8.C` entry gate from `M8.B` pass artifact and fixed run scope.
+2. Resolve required evidence handles from registry (no assumptions/defaults).
+3. Render required upstream evidence URIs and run fail-closed checks:
+   - readability/non-zero payload,
+   - run-scope conformance,
+   - ingest ambiguity posture,
+   - offsets semantic minimums.
+4. Emit/publish `m8_c_input_readiness_snapshot.json` and close `M8.C` only on blocker-empty pass.
+
+## Entry: 2026-02-19 08:26:26 +00:00 - M8.C runtime decision: evidence bucket resolution source
+### Observation
+1. Registry declares `S3_EVIDENCE_BUCKET` as a required handle key but does not present an inline `KEY="value"` literal in the same section used for path patterns.
+2. `M8.B` pass snapshot contains authoritative durable URI rooted at the active evidence bucket.
+
+### Decision
+1. Resolve `S3_EVIDENCE_BUCKET` from `M8.B` pass artifact field `durable_snapshot_uri` (`s3://<bucket>/...`).
+2. Keep path-pattern handles sourced from registry literals (`RECEIPT_SUMMARY_PATH_PATTERN`, etc.).
+3. Fail closed if rendered URIs do not remain under rendered `S3_EVIDENCE_RUN_ROOT_PATTERN` for active run scope.
+
+### Rationale
+1. This preserves decision-completeness without ad hoc defaults.
+2. It keeps bucket resolution anchored to latest green prerequisite artifact (`M8.B`) and run scope.
+
+## Entry: 2026-02-19 08:27:55 +00:00 - M8.C in-flight fail-closed triage (prerequisite snapshot decode)
+### Observation
+1. Initial M8.C attempt (`m8_20260219T082518Z`) failed with blockers `M8C-B5` and `M8C-B3`.
+2. Root cause was not substrate drift: the source file
+   - `runs/dev_substrate/m8/m8_20260219T080757Z/m8_b_reporter_readiness_snapshot.json`
+   includes UTF-8 BOM; strict `utf-8` JSON load failed.
+
+### Decision
+1. Treat this as execution-tooling decode issue, not platform lane failure.
+2. Switch prerequisite/local JSON loading to BOM-tolerant decoding (`utf-8-sig`) for M8 control snapshots.
+3. Rerun M8.C under new execution id and preserve fail-first artifact for traceability.
+
+### Fail-first artifact
+1. Local: `runs/dev_substrate/m8/m8_20260219T082518Z/m8_c_input_readiness_snapshot.json`
+2. Result: `overall_pass=false`, blockers `[M8C-B5, M8C-B3]`.
+
+## Entry: 2026-02-19 08:29:13 +00:00 - M8.C in-flight decision: offset-range shape normalization
+### Observation
+1. Ingest and RTDL offset snapshots are present/readable/run-scoped.
+2. Offset rows use `run_start_offset`/`run_end_offset` fields, not `start_offset`/`end_offset`.
+3. Current checker counted only `start_offset`/`end_offset`, causing false `M8C-B3` failure.
+
+### Decision
+1. Normalize offset semantic-minimum detection to accept both field pairs:
+   - (`start_offset`, `end_offset`) OR
+   - (`run_start_offset`, `run_end_offset`).
+2. Keep semantic requirement unchanged: at least one topic/partition range must be present in ingest + RTDL offsets snapshots.
+3. Rerun `M8.C` with fresh execution id and preserve prior fail artifact for traceability.
+
+## Entry: 2026-02-19 08:30:57 +00:00 - M8.C execution closure (PASS after fail-closed reruns)
+### Reasoning and execution trail
+1. Held strict gate discipline on `M8.B` prerequisite (`overall_pass=true`) and fixed run scope (`platform_20260213T214223Z`) before any evidence checks.
+2. Resolved evidence bucket from prerequisite durable URI and kept path contracts from registry patterns; enforced run-root containment as a hard gate.
+3. First attempt (`m8_20260219T082518Z`) failed closed because prerequisite snapshot parsing used strict `utf-8` while source file contained BOM; this was an execution-tooling decode mismatch, not substrate drift.
+4. Second attempt (`m8_20260219T082755Z`) passed readability/run-scope/ambiguity but failed closed on offsets semantic probe due narrow field-shape acceptance (`start_offset/end_offset` only).
+5. Normalized offset semantic probe to accept both canonical shapes observed in live artifacts:
+   - `start_offset/end_offset`
+   - `run_start_offset/run_end_offset`
+   while preserving the original requirement (at least one topic/partition range in ingest + RTDL snapshots).
+6. Final rerun (`m8_20260219T082913Z`) passed with blockers empty and durable publication success.
+
+### Artifacts
+1. Fail-first trace:
+   - `runs/dev_substrate/m8/m8_20260219T082518Z/m8_c_input_readiness_snapshot.json`.
+2. Intermediate trace:
+   - local: `runs/dev_substrate/m8/m8_20260219T082755Z/m8_c_input_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T082755Z/m8_c_input_readiness_snapshot.json`.
+3. Closure pass:
+   - local: `runs/dev_substrate/m8/m8_20260219T082913Z/m8_c_input_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T082913Z/m8_c_input_readiness_snapshot.json`.
+
+### Final verdict
+1. `overall_pass=true`.
+2. Blockers empty.
+3. Readability checks pass for all required P7/P8/P9/P10 evidence artifacts.
+4. Run-scope conformance passes.
+5. Ingest ambiguity indicators resolved at zero.
+6. Offsets semantic minimums pass:
+   - ingest offset-range count `12`
+   - RTDL offset-range count `12`.
+7. Elapsed `1.673s` (within `M8.C` budget).
+
+### Phase state update
+1. Marked `M8.C` complete in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+2. Advanced immediate next action to `M8.D`.
