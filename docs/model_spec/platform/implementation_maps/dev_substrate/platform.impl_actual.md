@@ -15925,3 +15925,43 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. Copilot findings were resolved with fail-closed behavior preserved.
 2. The managed M9.G lanes are now more deterministic under malformed input/region edge cases.
 
+## Entry: 2026-02-19 18:56:22 +00:00 - M9.G post-hardening managed validation rerun (closure reconfirm)
+### Problem framing
+1. After hardening `.github/workflows/dev_min_m9g_cost_guardrail.yml` and `.github/workflows/dev_min_m9g_confluent_billing.yml`, we needed a live managed rerun to prove the lane still closes blocker-free.
+2. Closure target: reconfirm `M9.G` under cross-platform scope (`AWS + Confluent Cloud`) with durable evidence from patched workflows.
+
+### Execution
+1. Dispatched guardrail workflow on `migrate-dev` with `dispatch_confluent_billing=true`:
+   - `dev-min-m9g-cost-guardrail` run id `22195574172`
+   - URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22195574172`
+   - conclusion: `success`.
+2. Verified dispatched managed billing lane:
+   - `dev-min-m9g-confluent-billing` run id `22195586583`
+   - URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22195586583`
+   - conclusion: `success`.
+3. Pulled durable snapshots to local run evidence:
+   - `runs/dev_substrate/m9/m9_20260219T185355Z/m9_g_cost_guardrail_snapshot.json`
+   - `runs/dev_substrate/m9/m9_20260219T185355Z/confluent_billing_snapshot.json`.
+
+### Outcomes
+1. Execution id:
+   - `m9_20260219T185355Z`.
+2. Durable evidence:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T185355Z/m9_g_cost_guardrail_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T185355Z/confluent_billing_snapshot.json`.
+3. Result:
+   - `overall_pass=true`
+   - blockers empty.
+4. Cost posture:
+   - `aws_mtd_cost_amount=17.8956072585`
+   - `confluent_mtd_cost_amount=-0.0003`
+   - `combined_mtd_cost_amount=17.8953072585`
+   - `combined_budget_utilization_pct=59.65102419500`.
+5. Footgun posture:
+   - NAT/LB/ECS desired/runtime DB/log-retention drift checks remain clear (`0/0/0/not_found/0`).
+
+### Noted residual
+1. Snapshot `errors[]` contains:
+   - `elbv2.describe-load-balancers` AccessDenied for the OIDC role.
+2. Current lane behavior keeps this as non-blocking diagnostic (blockers remain empty). This does not block `M9.G` closure under current policy.
+

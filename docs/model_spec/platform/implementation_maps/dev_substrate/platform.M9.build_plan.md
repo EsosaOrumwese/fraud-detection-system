@@ -1129,6 +1129,32 @@ Managed cross-platform closure execution (2026-02-19):
    - `M9.G` is closed under cross-platform scope.
    - `M9.H` is unblocked.
 
+Post-hardening validation rerun (2026-02-19):
+1. Trigger reason:
+   - reconfirm closure after Copilot-driven hardening of the two managed workflow files.
+2. Guardrail workflow:
+   - run id `22195574172`
+   - URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22195574172`
+   - result: `success`.
+3. Dispatched billing workflow:
+   - run id `22195586583`
+   - URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22195586583`
+   - result: `success`.
+4. Authoritative execution id:
+   - `m9_20260219T185355Z`.
+5. Evidence artifacts:
+   - local:
+     - `runs/dev_substrate/m9/m9_20260219T185355Z/m9_g_cost_guardrail_snapshot.json`
+     - `runs/dev_substrate/m9/m9_20260219T185355Z/confluent_billing_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T185355Z/m9_g_cost_guardrail_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T185355Z/confluent_billing_snapshot.json`.
+6. Result:
+   - `overall_pass=true`
+   - blockers empty.
+7. Note:
+   - snapshot retains non-blocking diagnostic `errors[]` for ELB `DescribeLoadBalancers` AccessDenied on OIDC role; lane policy still treats this as non-blocking.
+
 Blockers:
 1. `M9G-B1`: budget surface unreadable/misaligned.
 2. `M9G-B2`: budget notification threshold drift/missing alerts.

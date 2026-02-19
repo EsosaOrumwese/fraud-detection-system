@@ -1325,6 +1325,31 @@ M9.G managed cross-platform closure (2026-02-19):
     - `M9.G` is closed under cross-platform scope
     - `M9.H` is unblocked.
 
+M9.G post-hardening validation rerun (2026-02-19):
+  - trigger:
+    - rerun after Copilot-driven workflow hardening patch to reconfirm managed closure behavior.
+  - guardrail workflow:
+    - run id: `22195574172`
+    - URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22195574172`
+    - result: `success`
+  - dispatched billing workflow:
+    - run id: `22195586583`
+    - URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22195586583`
+    - result: `success`
+  - authoritative execution id:
+    - `m9_20260219T185355Z`
+  - local snapshots:
+    - `runs/dev_substrate/m9/m9_20260219T185355Z/m9_g_cost_guardrail_snapshot.json`
+    - `runs/dev_substrate/m9/m9_20260219T185355Z/confluent_billing_snapshot.json`
+  - durable snapshots:
+    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T185355Z/m9_g_cost_guardrail_snapshot.json`
+    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T185355Z/confluent_billing_snapshot.json`
+  - result:
+    - `overall_pass=true`
+    - blockers empty
+  - note:
+    - snapshot `errors[]` includes non-blocking ELB `DescribeLoadBalancers` AccessDenied diagnostic under current lane policy.
+
 M9.H execution closure (2026-02-19):
   - execution id:
     - `m9_20260219T181800Z`
