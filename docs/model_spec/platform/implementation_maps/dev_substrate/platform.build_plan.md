@@ -867,7 +867,15 @@ Active-phase planning posture:
 - M8 expansion state:
   - planning is expanded to execution-grade in `platform.M8.build_plan.md`,
   - `M8.A` is expanded to execution-grade with deterministic handle-closure algorithm and snapshot contract,
-  - runtime execution has not started yet.
+  - runtime execution has started for `M8.A` and is currently blocked fail-closed by unresolved reporter handles.
+
+M8.A execution closure (2026-02-19):
+  - execution id: `m8_20260219T073801Z`
+  - local snapshot: `runs/dev_substrate/m8/20260219T073801Z/m8_a_handle_closure_snapshot.json`
+  - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T073801Z/m8_a_handle_closure_snapshot.json`
+  - result: `overall_pass=false` with blocker `M8A-B2`
+  - unresolved required handles: `ROLE_REPORTER_SINGLE_WRITER`, `TD_REPORTER`
+  - posture: fail-closed hold on `M8.A`; `M8.B..M8.I` remain blocked until rerun passes.
 
 Sub-phase progress:
   - [ ] `M8.A` P11 authority + handles closure.

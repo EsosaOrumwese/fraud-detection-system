@@ -180,7 +180,22 @@ DoD:
 
 Planning status:
 1. `M8.A` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
-2. Execution remains pending explicit USER go-ahead.
+2. Execution attempted on `2026-02-19` under `m8_execution_id=m8_20260219T073801Z`.
+3. Lane is currently blocked fail-closed on `M8A-B2` until reporter handles are concretely materialized.
+
+Execution closure (2026-02-19):
+1. Snapshot emitted locally:
+   - `runs/dev_substrate/m8/20260219T073801Z/m8_a_handle_closure_snapshot.json`.
+2. Snapshot published durably:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T073801Z/m8_a_handle_closure_snapshot.json`.
+3. Result:
+   - `overall_pass=false`,
+   - `resolved_handle_count=15`,
+   - `unresolved_handle_count=2`.
+4. Blocking unresolved required handles:
+   - `ROLE_REPORTER_SINGLE_WRITER`,
+   - `TD_REPORTER`.
+5. M8.A remains open until required reporter handles are bound to concrete values and rerun passes.
 
 Blockers:
 1. `M8A-B1`: M7 handoff invalid or unreadable.

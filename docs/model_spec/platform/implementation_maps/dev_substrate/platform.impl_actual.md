@@ -13784,3 +13784,32 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 2. Resolve and validate required P11 handle set from registry with placeholder/wildcard fail-closed checks.
 3. Emit and publish `m8_a_handle_closure_snapshot.json` (local + durable) with deterministic closure matrix.
 4. Mark M8.A complete only if blocker rollup is empty and snapshot publication succeeds.
+
+## Entry: 2026-02-19 07:38:08 +00:00 - M8.A execution closure (fail-closed on unresolved reporter handles)
+### Actions executed
+1. Ran the `M8.A` deterministic closure algorithm against the active run scope:
+   - `platform_run_id=platform_20260213T214223Z`.
+2. Enforced M7 handoff gate using:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m8_handoff_pack.json`,
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m8_handoff_pack.json`.
+3. Resolved required P11 handle set from registry + Terraform output where applicable.
+4. Executed placeholder/wildcard checks and lightweight materialization probes.
+5. Published M8.A snapshot:
+   - local: `runs/dev_substrate/m8/20260219T073801Z/m8_a_handle_closure_snapshot.json`,
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T073801Z/m8_a_handle_closure_snapshot.json`.
+
+### Result
+1. `m8_execution_id=m8_20260219T073801Z`.
+2. `overall_pass=false`.
+3. `resolved_handle_count=15`, `unresolved_handle_count=2`.
+4. Blocking unresolved required handles:
+   - `ROLE_REPORTER_SINGLE_WRITER`,
+   - `TD_REPORTER`.
+5. Blocker rollup:
+   - `M8A-B2` (`required handle unresolved: ROLE_REPORTER_SINGLE_WRITER, TD_REPORTER`).
+
+### Decision and phase posture
+1. Held fail-closed at `M8.A`; no progression to `M8.B..M8.I`.
+2. Kept M8 status `ACTIVE` in main plan with explicit blocked sub-phase note.
+3. Next required closure action:
+   - materialize concrete reporter role/task-definition handles and rerun `M8.A`.
