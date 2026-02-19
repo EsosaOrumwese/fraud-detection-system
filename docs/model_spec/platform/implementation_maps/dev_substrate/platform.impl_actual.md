@@ -16244,3 +16244,120 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. `M10.A` planning is now closure-grade and ready for execution.
 2. No runtime lane execution was performed in this step.
 
+## Entry: 2026-02-19 23:08:01 +00:00 - M10.A execution preflight and threshold pinning decisions
+### Preflight checks
+1. Loaded and validated M9 handoff artifacts:
+   - local `runs/dev_substrate/m9/m9_20260219T191706Z/m10_handoff_pack.json`,
+   - local `runs/dev_substrate/m9/m9_20260219T191706Z/m9_i_verdict_snapshot.json`.
+2. Verified entry-gate predicates:
+   - `m9_verdict=ADVANCE_TO_M10`,
+   - `m9_overall_pass=true`,
+   - `source_blocker_rollup=[]`.
+3. Verified run scope anchor:
+   - `platform_run_id=platform_20260213T214223Z`.
+
+### Threshold pinning rationale
+1. Semantic matrix remains explicitly mandatory at 20 and 200 events to preserve continuity with prior green law.
+2. Scale matrix is pinned to avoid toy certification while staying within dev_min budget posture:
+   - representative window pinned to a contiguous 30-minute slice with non-trivial admitted volume,
+   - burst pinned to a 3x multiplier for short pressure validation,
+   - soak pinned to sustained run with strict lag bound.
+3. Lag-stability bound is pinned to `10`, aligned to existing RTDL caught-up guard (`RTDL_CAUGHT_UP_LAG_MAX=10`) to avoid conflicting gate semantics.
+4. Incident drill profile is pinned to **duplicates drill** for first certification cycle because:
+   - it is explicitly mandated/accepted in authority docs,
+   - it directly proves dedupe + no-double-action invariants.
+5. Recovery profile pins explicit components and RTO to make `M10.H` pass/fail deterministic rather than interpretive.
+6. Lane execution matrix is frozen sequentially (`M10.B..M10.J`) for deterministic evidence chaining and simpler blocker attribution.
+
+### Execution intent
+1. Emit `m10_a_threshold_matrix_snapshot.json` under:
+   - local: `runs/dev_substrate/m10/<m10_execution_id>/`,
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m10_execution_id>/`.
+2. Fail closed if any threshold field is placeholder/wildcard or if dependency graph is incomplete.
+
+## Entry: 2026-02-19 23:10:26 +00:00 - M10.A executed and published (blocker-free)
+### Execution
+1. Ran deterministic M10.A snapshot builder with fail-closed checks:
+   - handoff/verdict gate validation,
+   - threshold matrix completeness + placeholder scan,
+   - lane dependency graph validation,
+   - local write + durable publish.
+2. Execution id:
+   - `m10_20260219T231017Z`.
+3. Artifacts:
+   - local:
+     - `runs/dev_substrate/m10/m10_20260219T231017Z/m10_a_threshold_matrix_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260219T231017Z/m10_a_threshold_matrix_snapshot.json`.
+
+### Problem-solving notes during execution
+1. Resolved potential threshold ambiguity by pinning to concrete numbers instead of percentile prose:
+   - representative window `30m` + `>=50000` admitted events,
+   - burst `3.0x` for `15m`,
+   - soak `90m` with lag bound `<=10` (aligned to existing RTDL guard),
+   - recovery RTO `<=300s` on pinned critical components.
+2. To avoid drill-design drift, selected duplicates drill as cycle-1 authority because it is explicitly mandated in the migration authority and directly tests dedupe/no-double-action laws.
+3. To avoid ambiguous sequencing, froze a strict lane dependency chain and required `M10.J` to depend on all prior certification lanes.
+
+### Outcomes
+1. Gate results:
+   - M9 handoff valid (`ADVANCE_TO_M10`, `overall_pass=true`, blocker rollup empty).
+2. Validation results:
+   - `missing_paths=[]`,
+   - `placeholder_paths=[]`,
+   - lane dependency graph valid.
+3. Verdict:
+   - `overall_pass=true`,
+   - blockers empty.
+4. Durable publish verification:
+   - `aws s3api head-object` succeeded for the M10.A snapshot object.
+
+### Consequence
+1. `M10.A` is closed green.
+2. `M10.B` semantic 20-event certification lane is unblocked.
+3. `platform.M10.build_plan.md` and `platform.build_plan.md` were updated to reflect closure.
+
+## Entry: 2026-02-19 23:18:42 +00:00 - M10.B planning expansion approach (before edits)
+### Problem framing
+1. `M10.B` is currently task-level only and lacks execution-grade mechanics (entry gates, deterministic checks, required evidence schema, and fail-closed blocker mapping).
+2. Without explicit closure logic, a 20-event run could be marked pass without proving all mandatory semantic surfaces from `P4..P11`.
+
+### Expansion intent
+1. Expand `M10.B` to execution-grade in `platform.M10.build_plan.md` with:
+   - entry conditions tied to closed `M10.A` snapshot,
+   - required inputs including semantic acceptance matrix from M10.A,
+   - fail-closed prechecks and deterministic verification algorithm,
+   - explicit snapshot schema for `m10_b_semantic_20_snapshot.json`,
+   - blocker taxonomy that distinguishes run failure vs evidence incompleteness.
+2. Sync `platform.build_plan.md` to record `M10.B` as planning-expanded and set immediate next action to execution closure.
+
+### Design decision
+1. Keep M10.B pass criteria strictly semantic and blocker-free:
+   - 20 admitted-event target,
+   - mandatory closure artifacts across `P4..P11`,
+   - unresolved `PUBLISH_AMBIGUOUS` forbidden,
+   - run-scope consistency enforced on evidence references.
+2. Keep execution lane managed-substrate only; no local runtime compute allowances.
+
+## Entry: 2026-02-19 23:19:51 +00:00 - M10.B planning expansion applied
+### Changes applied
+1. Expanded `M10.B` in `platform.M10.build_plan.md` from task-level to execution-grade:
+   - entry conditions tied to closed `M10.A` snapshot and semantic target fields,
+   - required inputs including pinned semantic evidence path surfaces,
+   - fail-closed preparation checks,
+   - deterministic verification algorithm for 20-event certification run,
+   - expanded DoD and blocker taxonomy (`M10B-B1..B5`),
+   - required snapshot schema for `m10_b_semantic_20_snapshot.json`.
+2. Synced `platform.build_plan.md`:
+   - recorded `M10.B` as execution-grade in M10 expansion state,
+   - changed immediate-next-action from \"plan and execute\" to direct `M10.B` execution with explicit evidence-coherence checks.
+
+### Key planning decisions
+1. M10.B pass is not just \"run succeeded\"; it requires closure evidence across semantic surfaces (`P4..P11`) and run-scope coherence.
+2. `PUBLISH_AMBIGUOUS` remains fail-closed for M10.B; unresolved ambiguity blocks certification progression.
+3. Lane dependency is explicit and single-parent (`M10.B <- M10.A`) to keep blocker attribution deterministic.
+
+### Outcome
+1. `M10.B` planning is now execution-ready.
+2. Runtime execution has not started in this step.
+

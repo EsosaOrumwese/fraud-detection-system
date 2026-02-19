@@ -4350,3 +4350,36 @@ Closure gates pinned for this execution pass:
 2) guardrails: `3B-V11` remains PASS; `S2->S5` structural chain remains PASS.
 3) shadow stability: run seeds `{7,202}` and ensure no hard re-fail on P2 surfaces.
 4) if witness remains below B hard gates, continue bounded calibration inside P2 (no phase hop).
+
+### Entry: 2026-02-19 23:18
+
+Design element: `3B P2.2 first execution failure and memory-safe redesign in S2 tile-surfaces lane`.
+Summary: first full candidate run failed in `S2/tile_surfaces` after the initial merchant-conditioned implementation because the precompute path materialized heavy country tile-weight maps across all countries, creating memory pressure and an infra-class failure.
+
+Failure evidence:
+1) candidate run-id: `11ed2ae6204946c6a1501f7ba4b0e008` (seed `42`).
+2) `S2` failed with:
+   - `error_code=E3B_S2_019_INFRASTRUCTURE_IO_ERROR`,
+   - `first_failure_phase=tile_surfaces`,
+   - empty `detail` string (consistent with memory-pressure style failure in this stack).
+3) elapsed before failure was high (~`292s`) with no edge-loop progress, isolating the hotspot to tile-surface precompute.
+
+Root-cause analysis:
+1) the first patch cached full `weights_map` structures for all required countries before edge placement.
+2) this effectively traded I/O for an unbounded memory footprint during precompute.
+3) that violates the Fast-Compute-Safe posture for this workstation lane.
+
+Corrective decision (implemented immediately):
+1) remove heavy all-country in-memory tile-weight caching.
+2) keep `tile_surfaces` stage as lightweight file-map preflight only (weights/index/bounds existence and partition integrity checks).
+3) move heavy loads to topology materialization with per-country lazy reads:
+   - for each country that is actually needed by merchant allocations, load weights/index/bounds once,
+   - compute allocation cache for required edge-count set only,
+   - materialize only needed tile bounds IDs,
+   - release country-local heavy tables after each country pass.
+4) keep validator taxonomy and fail-closed error semantics unchanged.
+
+Why this correction is preferred:
+1) preserves the P2 realism algorithm while restoring bounded memory behavior.
+2) keeps determinism and schema/path contracts intact.
+3) aligns with performance-first law: algorithmic/data-structure correction before retrying long runs.

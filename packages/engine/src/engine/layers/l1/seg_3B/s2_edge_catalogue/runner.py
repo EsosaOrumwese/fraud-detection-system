@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import platform
 import struct
@@ -232,7 +233,6 @@ def _tile_surface_cache_key(
     tile_weights_digest: str,
     tile_bounds_digest: str,
     countries_sorted: list[str],
-    edge_scale: int,
 ) -> str:
     h = hashlib.sha256()
     h.update(tile_index_digest.encode("ascii"))
@@ -240,8 +240,6 @@ def _tile_surface_cache_key(
     h.update(tile_weights_digest.encode("ascii"))
     h.update(b"|")
     h.update(tile_bounds_digest.encode("ascii"))
-    h.update(b"|")
-    h.update(str(edge_scale).encode("ascii"))
     h.update(b"|")
     for country_iso in countries_sorted:
         h.update(country_iso.encode("ascii"))
@@ -718,6 +716,69 @@ def _allocate_edges_int(weights: dict[int, int], total_edges: int) -> dict[int, 
         for idx in range(remaining):
             allocations[remainders[idx][1]] += 1
     return allocations
+
+
+def _stable_unit_interval(*parts: object) -> float:
+    payload = "|".join(str(part) for part in parts).encode("utf-8")
+    digest = hashlib.sha256(payload).digest()
+    value = int.from_bytes(digest[:8], "big", signed=False)
+    return (value + 0.5) / float(1 << 64)
+
+
+def _haversine_km_scalar(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = 6371.0088
+    lat1_r = math.radians(lat1)
+    lon1_r = math.radians(lon1)
+    lat2_r = math.radians(lat2)
+    lon2_r = math.radians(lon2)
+    dlat = lat2_r - lat1_r
+    dlon = lon2_r - lon1_r
+    a = (
+        math.sin(dlat / 2.0) ** 2
+        + math.cos(lat1_r) * math.cos(lat2_r) * math.sin(dlon / 2.0) ** 2
+    )
+    c = 2.0 * math.asin(math.sqrt(max(0.0, min(1.0, a))))
+    return r * c
+
+
+def _extract_settlement_bucket(notes: Optional[str]) -> str:
+    if notes is None:
+        return "UNK"
+    for token in str(notes).split(";"):
+        token = token.strip()
+        if token.startswith("bucket="):
+            value = token.split("=", 1)[1].strip().upper()
+            if value:
+                return value
+    return "UNK"
+
+
+def _country_centroid_from_geometry(country_geom: _CountryGeometry) -> tuple[float, float]:
+    if not country_geom.parts:
+        raise ValueError("country geometry has no parts")
+    lon_acc = 0.0
+    lat_acc = 0.0
+    weight_total = 0.0
+    for geom in country_geom.parts:
+        centroid = geom.centroid
+        weight = max(float(getattr(geom, "area", 0.0)), 1.0)
+        lon_acc += float(centroid.x) * weight
+        lat_acc += float(centroid.y) * weight
+        weight_total += weight
+    if weight_total <= 0.0:
+        raise ValueError("country centroid weight_total <= 0")
+    lon = _normalize_lon(lon_acc / weight_total)
+    lat = _clamp_lat(lat_acc / weight_total)
+    return lat, lon
+
+
+def _normalize_probs(values: dict[str, float], floor: float = 1.0e-12) -> dict[str, float]:
+    clipped = {k: max(float(v), floor) for k, v in values.items()}
+    total = sum(clipped.values())
+    if total <= 0.0:
+        n = max(len(clipped), 1)
+        return {k: 1.0 / n for k in clipped}
+    return {k: v / total for k, v in clipped.items()}
 
 
 def _edge_id_from_seq(merchant_id: int, edge_seq_index: int) -> str:
@@ -1286,16 +1347,16 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             )
         policy_digest = verified_assets["cdn_country_weights"][3]
 
-        edge_scale = int(policy_payload.get("edge_scale") or 0)
-        if edge_scale < 1:
+        edge_scale_base = int(policy_payload.get("edge_scale") or 0)
+        if edge_scale_base < 1:
             _abort(
                 "E3B_S2_BUDGET_COUNTRY_WEIGHTS_INVALID",
                 "V-07",
                 "edge_scale_invalid",
-                {"edge_scale": edge_scale},
+                {"edge_scale": edge_scale_base},
                 manifest_fingerprint,
             )
-        counts["edges_per_merchant"] = edge_scale
+        counts["edges_per_merchant"] = edge_scale_base
 
         getcontext().prec = 28
         country_weights: dict[str, Decimal] = {}
@@ -1346,17 +1407,8 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 )
             country_weights[country_iso] = weight_dec
 
-        edges_per_country = _allocate_edges_decimal(country_weights, edge_scale)
-        if sum(edges_per_country.values()) != edge_scale:
-            _abort(
-                "E3B_S2_BUDGET_COUNTRY_WEIGHTS_INVALID",
-                "V-07",
-                "edge_scale_mismatch",
-                {"edge_scale": edge_scale, "allocated": sum(edges_per_country.values())},
-                manifest_fingerprint,
-            )
-        countries_sorted = sorted(edges_per_country)
-        counts["edges_total"] = edge_scale * counts["virtual_merchants"]
+        countries_sorted = sorted(country_weights)
+        counts["edges_total"] = 0
 
         current_phase = "tile_surfaces"
         tile_index_root = verified_assets["tile_index"][1]
@@ -1423,245 +1475,42 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             precheck_payload["required_countries"],
         )
 
-        tile_allocations: dict[str, list[tuple[int, int]]] = {}
-        tile_bounds_by_country: dict[str, dict[int, tuple[float, float, float, float, float, float]]] = {}
-        cache_key = _tile_surface_cache_key(
-            verified_assets["tile_index"][3],
-            verified_assets["tile_weights"][3],
-            verified_assets["tile_bounds"][3],
-            countries_sorted,
-            edge_scale,
-        )
-        cache_path = precheck_root / f"tile_surface_cache_{cache_key}.json"
-        cache_hit = False
-
-        if cache_path.exists():
-            try:
-                cache_payload = _load_json(cache_path)
-                if (
-                    str(cache_payload.get("cache_key") or "") == cache_key
-                    and int(cache_payload.get("edge_scale") or -1) == edge_scale
-                    and list(cache_payload.get("countries_sorted") or []) == countries_sorted
-                    and str(cache_payload.get("tile_index_digest") or "") == verified_assets["tile_index"][3]
-                    and str(cache_payload.get("tile_weights_digest") or "") == verified_assets["tile_weights"][3]
-                    and str(cache_payload.get("tile_bounds_digest") or "") == verified_assets["tile_bounds"][3]
-                ):
-                    alloc_payload = cache_payload.get("tile_allocations") or {}
-                    bounds_payload = cache_payload.get("tile_bounds_by_country") or {}
-                    for country_iso in countries_sorted:
-                        alloc_rows = alloc_payload.get(country_iso) or []
-                        tile_allocations[country_iso] = [
-                            (int(row[0]), int(row[1]))
-                            for row in alloc_rows
-                            if isinstance(row, list) and len(row) == 2 and int(row[1]) > 0
-                        ]
-                        bounds_rows = bounds_payload.get(country_iso) or {}
-                        decoded_bounds: dict[int, tuple[float, float, float, float, float, float]] = {}
-                        for tile_id_text, values in bounds_rows.items():
-                            if not isinstance(values, list) or len(values) != 6:
-                                continue
-                            decoded_bounds[int(tile_id_text)] = (
-                                float(values[0]),
-                                float(values[1]),
-                                float(values[2]),
-                                float(values[3]),
-                                float(values[4]),
-                                float(values[5]),
-                            )
-                        tile_bounds_by_country[country_iso] = decoded_bounds
-                    cache_hit = True
-                    timer.info(
-                        f"S2: tile allocations loaded from cache (countries={len(countries_sorted)}, "
-                        f"edge_scale={edge_scale})"
-                    )
-                else:
-                    logger.info("S2: tile surface cache key mismatch; recomputing allocations")
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("S2: tile surface cache load failed; recomputing (%s)", exc)
-
-        if not cache_hit:
-            for country_iso in countries_sorted:
-                country_weight_files = tile_weights_by_country.get(country_iso, [])
-                country_index_files = tile_index_by_country.get(country_iso, [])
-                country_bounds_files = tile_bounds_by_country_files.get(country_iso, [])
-
-                if not country_weight_files:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_weights_missing",
-                        {"country_iso": country_iso, "path": str(tile_weights_root)},
-                        manifest_fingerprint,
-                    )
-                weights_df = (
-                    pl.scan_parquet(country_weight_files)
-                    .select(["tile_id", "weight_fp", "dp"])
-                    .collect()
+        country_surface_files: dict[str, dict[str, list[Path]]] = {}
+        for country_iso in countries_sorted:
+            country_weight_files = tile_weights_by_country.get(country_iso, [])
+            country_index_files = tile_index_by_country.get(country_iso, [])
+            country_bounds_files = tile_bounds_by_country_files.get(country_iso, [])
+            if not country_weight_files:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_weights_missing",
+                    {"country_iso": country_iso, "path": str(tile_weights_root)},
+                    manifest_fingerprint,
                 )
-                if weights_df.is_empty():
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_weights_missing",
-                        {"country_iso": country_iso, "path": str(tile_weights_root)},
-                        manifest_fingerprint,
-                    )
-                dp_values = weights_df.get_column("dp").unique()
-                if dp_values.len() != 1:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_weights_dp_mismatch",
-                        {"country_iso": country_iso, "dp_values": dp_values.to_list()},
-                        manifest_fingerprint,
-                    )
-                weights_map: dict[int, int] = {}
-                for tile_id, weight_fp in zip(
-                    weights_df.get_column("tile_id").to_list(),
-                    weights_df.get_column("weight_fp").to_list(),
-                ):
-                    weights_map[int(tile_id)] = int(weight_fp)
-                if sum(weights_map.values()) <= 0:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_weights_zero_sum",
-                        {"country_iso": country_iso},
-                        manifest_fingerprint,
-                    )
-
-                if not country_index_files:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_index_missing",
-                        {"country_iso": country_iso, "path": str(tile_index_root)},
-                        manifest_fingerprint,
-                    )
-                index_df = (
-                    pl.scan_parquet(country_index_files)
-                    .select(["tile_id"])
-                    .collect()
+            if not country_index_files:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_index_missing",
+                    {"country_iso": country_iso, "path": str(tile_index_root)},
+                    manifest_fingerprint,
                 )
-                if index_df.is_empty():
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_index_missing",
-                        {"country_iso": country_iso, "path": str(tile_index_root)},
-                        manifest_fingerprint,
-                    )
-                index_ids = set(int(value) for value in index_df.get_column("tile_id").to_list())
-                missing_index = [tile_id for tile_id in weights_map if tile_id not in index_ids]
-                if missing_index:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_id_not_in_index",
-                        {"country_iso": country_iso, "missing": missing_index[:10]},
-                        manifest_fingerprint,
-                    )
-
-                tile_alloc = _allocate_edges_int(weights_map, edges_per_country[country_iso])
-                allocations = [
-                    (tile_id, count)
-                    for tile_id, count in sorted(tile_alloc.items())
-                    if count > 0
-                ]
-                needed_bounds = {tile_id for tile_id, count in allocations if count > 0}
-
-                if not country_bounds_files:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_bounds_missing",
-                        {"country_iso": country_iso, "path": str(tile_bounds_root)},
-                        manifest_fingerprint,
-                    )
-                bounds_df = (
-                    pl.scan_parquet(country_bounds_files)
-                    .select(
-                        [
-                            "tile_id",
-                            "min_lon_deg",
-                            "max_lon_deg",
-                            "min_lat_deg",
-                            "max_lat_deg",
-                            "centroid_lon_deg",
-                            "centroid_lat_deg",
-                        ]
-                    )
-                    .collect()
+            if not country_bounds_files:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_bounds_missing",
+                    {"country_iso": country_iso, "path": str(tile_bounds_root)},
+                    manifest_fingerprint,
                 )
-                if bounds_df.is_empty():
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_bounds_missing",
-                        {"country_iso": country_iso, "path": str(tile_bounds_root)},
-                        manifest_fingerprint,
-                    )
-                bounds_all: dict[int, tuple[float, float, float, float, float, float]] = {}
-                for row in bounds_df.iter_rows(named=True):
-                    tile_id = int(row["tile_id"])
-                    bounds_all[tile_id] = (
-                        float(row["min_lon_deg"]),
-                        float(row["max_lon_deg"]),
-                        float(row["min_lat_deg"]),
-                        float(row["max_lat_deg"]),
-                        float(row["centroid_lon_deg"]),
-                        float(row["centroid_lat_deg"]),
-                    )
-                bounds_ids = set(bounds_all)
-                missing_bounds = [tile_id for tile_id in weights_map if tile_id not in bounds_ids]
-                if missing_bounds:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_bounds_missing_ids",
-                        {"country_iso": country_iso, "missing": missing_bounds[:10]},
-                        manifest_fingerprint,
-                    )
-                bounds_map: dict[int, tuple[float, float, float, float, float, float]] = {}
-                if needed_bounds:
-                    for tile_id in sorted(needed_bounds):
-                        bounds_map[tile_id] = bounds_all[tile_id]
-                tile_allocations[country_iso] = allocations
-                tile_bounds_by_country[country_iso] = bounds_map
-
-            cache_payload = {
-                "cache_key": cache_key,
-                "edge_scale": int(edge_scale),
-                "countries_sorted": countries_sorted,
-                "tile_index_digest": verified_assets["tile_index"][3],
-                "tile_weights_digest": verified_assets["tile_weights"][3],
-                "tile_bounds_digest": verified_assets["tile_bounds"][3],
-                "tile_allocations": {
-                    iso: [[int(tile_id), int(count)] for tile_id, count in tile_allocations.get(iso, [])]
-                    for iso in countries_sorted
-                },
-                "tile_bounds_by_country": {
-                    iso: {
-                        str(tile_id): [
-                            float(values[0]),
-                            float(values[1]),
-                            float(values[2]),
-                            float(values[3]),
-                            float(values[4]),
-                            float(values[5]),
-                        ]
-                        for tile_id, values in tile_bounds_by_country.get(iso, {}).items()
-                    }
-                    for iso in countries_sorted
-                },
+            country_surface_files[country_iso] = {
+                "weights": country_weight_files,
+                "index": country_index_files,
+                "bounds": country_bounds_files,
             }
-            _write_json_compact(cache_path, cache_payload)
-            logger.info("S2: tile surface cache written path=%s", cache_path)
 
-        timer.info(
-            f"S2: tile allocations prepared (countries={len(countries_sorted)}, "
-            f"edge_scale={edge_scale})"
-        )
+        timer.info(f"S2: tile surface file map prepared (countries={len(countries_sorted)})")
 
         current_phase = "world_geometry"
         world_path = verified_assets["world_countries"][1]
@@ -1675,6 +1524,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 manifest_fingerprint,
             )
         world_geometry = _load_world_countries(world_path)
+        country_centroid_by_iso: dict[str, tuple[float, float]] = {}
         for country_iso in countries_sorted:
             if country_iso not in world_geometry:
                 _abort(
@@ -1682,6 +1532,16 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     "V-08",
                     "world_country_missing",
                     {"country_iso": country_iso},
+                    manifest_fingerprint,
+                )
+            try:
+                country_centroid_by_iso[country_iso] = _country_centroid_from_geometry(world_geometry[country_iso])
+            except Exception as exc:  # noqa: BLE001
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "world_country_centroid_invalid",
+                    {"country_iso": country_iso, "detail": str(exc)},
                     manifest_fingerprint,
                 )
 
@@ -1833,6 +1693,309 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             rng_stream_id,
             RNG_DOMAIN_MASTER,
             RNG_DOMAIN_STREAM,
+        )
+
+        current_phase = "topology_model"
+        virtual_merchants = [int(value) for value in virtual_ids.get_column("merchant_id").to_list()]
+        settlement_rows = {
+            int(row["merchant_id"]): row
+            for row in settle_df.select(["merchant_id", "lat_deg", "lon_deg", "notes"]).iter_rows(named=True)
+        }
+        base_probs = _normalize_probs({iso: float(weight) for iso, weight in country_weights.items()})
+
+        # Merchant-profile knobs (code-first lane for P2 core closure).
+        profile_breakpoints = {
+            "OFFSHORE_HUB": 0.22,
+            "HYBRID_FOOTPRINT": 0.73,
+        }
+        profile_scale_mult = {
+            "OFFSHORE_HUB": 1.20,
+            "HYBRID_FOOTPRINT": 1.00,
+            "REGIONAL_COMPACT": 0.82,
+        }
+        profile_coupling = {
+            "OFFSHORE_HUB": 0.72,
+            "HYBRID_FOOTPRINT": 0.62,
+            "REGIONAL_COMPACT": 0.82,
+        }
+        profile_settlement_boost = {
+            "OFFSHORE_HUB": 1.85,
+            "HYBRID_FOOTPRINT": 1.55,
+            "REGIONAL_COMPACT": 2.10,
+        }
+        profile_exponent = {
+            "OFFSHORE_HUB": 1.22,
+            "HYBRID_FOOTPRINT": 1.00,
+            "REGIONAL_COMPACT": 0.92,
+        }
+        size_mult = {
+            "B1": 0.88,
+            "B2": 1.08,
+            "UNK": 1.00,
+        }
+
+        merchant_edge_scale: dict[int, int] = {}
+        merchant_edges_by_country: dict[int, dict[str, int]] = {}
+        merchant_country_probs: dict[int, dict[str, float]] = {}
+        needed_counts_by_country: dict[str, set[int]] = {iso: set() for iso in countries_sorted}
+        edge_scale_values: list[int] = []
+
+        for merchant_id in virtual_merchants:
+            row = settlement_rows.get(merchant_id)
+            if row is None:
+                _abort(
+                    "E3B_S2_007_S1_DOMAIN_MISMATCH",
+                    "V-06",
+                    "missing_settlement_row",
+                    {"merchant_id": merchant_id},
+                    manifest_fingerprint,
+                )
+            settlement_lat = float(row["lat_deg"])
+            settlement_lon = float(row["lon_deg"])
+            settlement_point = Point(settlement_lon, settlement_lat)
+
+            settlement_country = None
+            for country_iso in countries_sorted:
+                if _country_contains(world_geometry[country_iso], settlement_point):
+                    settlement_country = country_iso
+                    break
+            if settlement_country is None:
+                settlement_country = min(
+                    countries_sorted,
+                    key=lambda iso: _haversine_km_scalar(
+                        settlement_lat,
+                        settlement_lon,
+                        country_centroid_by_iso[iso][0],
+                        country_centroid_by_iso[iso][1],
+                    ),
+                )
+
+            profile_u = _stable_unit_interval("3B_P2_profile", seed, manifest_fingerprint, merchant_id)
+            if profile_u < profile_breakpoints["OFFSHORE_HUB"]:
+                profile = "OFFSHORE_HUB"
+            elif profile_u < profile_breakpoints["HYBRID_FOOTPRINT"]:
+                profile = "HYBRID_FOOTPRINT"
+            else:
+                profile = "REGIONAL_COMPACT"
+
+            bucket = _extract_settlement_bucket(row.get("notes"))
+            scale_u = _stable_unit_interval("3B_P2_scale", seed, manifest_fingerprint, merchant_id)
+            scale_factor = 0.52 + 1.08 * scale_u
+            edge_scale_m = int(
+                round(
+                    edge_scale_base
+                    * 0.045
+                    * profile_scale_mult[profile]
+                    * size_mult.get(bucket, size_mult["UNK"])
+                    * scale_factor
+                )
+            )
+            edge_scale_m = max(8, min(52, edge_scale_m))
+
+            locality_scores: dict[str, float] = {}
+            for country_iso in countries_sorted:
+                c_lat, c_lon = country_centroid_by_iso[country_iso]
+                d_km = _haversine_km_scalar(settlement_lat, settlement_lon, c_lat, c_lon)
+                locality_scores[country_iso] = math.exp(-d_km / 3600.0) + 1.0e-12
+            locality_probs = _normalize_probs(locality_scores)
+
+            coupling = profile_coupling[profile]
+            mixed_probs = {
+                country_iso: (1.0 - coupling) * base_probs[country_iso] + coupling * locality_probs[country_iso]
+                for country_iso in countries_sorted
+            }
+            mixed_probs[settlement_country] = mixed_probs[settlement_country] * profile_settlement_boost[profile]
+
+            exponent = profile_exponent[profile]
+            adjusted_probs = _normalize_probs(
+                {country_iso: mixed_probs[country_iso] ** exponent for country_iso in countries_sorted}
+            )
+
+            edges_per_country_m = _allocate_edges_decimal(
+                {country_iso: Decimal(str(prob)) for country_iso, prob in adjusted_probs.items()},
+                edge_scale_m,
+            )
+
+            merchant_edge_scale[merchant_id] = edge_scale_m
+            merchant_edges_by_country[merchant_id] = edges_per_country_m
+            merchant_country_probs[merchant_id] = adjusted_probs
+            edge_scale_values.append(edge_scale_m)
+
+            for country_iso, edge_count in edges_per_country_m.items():
+                if edge_count > 0:
+                    needed_counts_by_country[country_iso].add(int(edge_count))
+
+        tile_alloc_cache: dict[tuple[str, int], list[tuple[int, int]]] = {}
+        tile_bounds_by_country: dict[str, dict[int, tuple[float, float, float, float, float, float]]] = {}
+        for country_iso in countries_sorted:
+            needed_counts = sorted(needed_counts_by_country.get(country_iso) or [])
+            if not needed_counts:
+                tile_bounds_by_country[country_iso] = {}
+                continue
+
+            surface_files = country_surface_files.get(country_iso) or {}
+            country_weight_files = surface_files.get("weights") or []
+            country_index_files = surface_files.get("index") or []
+            country_bounds_files = surface_files.get("bounds") or []
+            if not country_weight_files:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_weights_missing",
+                    {"country_iso": country_iso, "path": str(tile_weights_root)},
+                    manifest_fingerprint,
+                )
+            if not country_index_files:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_index_missing",
+                    {"country_iso": country_iso, "path": str(tile_index_root)},
+                    manifest_fingerprint,
+                )
+            if not country_bounds_files:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_bounds_missing",
+                    {"country_iso": country_iso, "path": str(tile_bounds_root)},
+                    manifest_fingerprint,
+                )
+
+            weights_df = (
+                pl.scan_parquet(country_weight_files)
+                .select(["tile_id", "weight_fp", "dp"])
+                .collect()
+            )
+            if weights_df.is_empty():
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_weights_missing",
+                    {"country_iso": country_iso, "path": str(tile_weights_root)},
+                    manifest_fingerprint,
+                )
+            dp_values = weights_df.get_column("dp").unique()
+            if dp_values.len() != 1:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_weights_dp_mismatch",
+                    {"country_iso": country_iso, "dp_values": dp_values.to_list()},
+                    manifest_fingerprint,
+                )
+            weights_map: dict[int, int] = {}
+            for tile_id, weight_fp in zip(
+                weights_df.get_column("tile_id").to_list(),
+                weights_df.get_column("weight_fp").to_list(),
+            ):
+                weights_map[int(tile_id)] = int(weight_fp)
+            if sum(weights_map.values()) <= 0:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_weights_zero_sum",
+                    {"country_iso": country_iso},
+                    manifest_fingerprint,
+                )
+
+            index_df = (
+                pl.scan_parquet(country_index_files)
+                .select(["tile_id"])
+                .collect()
+            )
+            if index_df.is_empty():
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_index_missing",
+                    {"country_iso": country_iso, "path": str(tile_index_root)},
+                    manifest_fingerprint,
+                )
+            index_ids = set(int(value) for value in index_df.get_column("tile_id").to_list())
+            missing_index = [tile_id for tile_id in weights_map if tile_id not in index_ids]
+            if missing_index:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_id_not_in_index",
+                    {"country_iso": country_iso, "missing": missing_index[:10]},
+                    manifest_fingerprint,
+                )
+
+            needed_tile_ids: set[int] = set()
+            for edge_count in needed_counts:
+                allocations = [
+                    (tile_id, count)
+                    for tile_id, count in sorted(_allocate_edges_int(weights_map, edge_count).items())
+                    if count > 0
+                ]
+                tile_alloc_cache[(country_iso, edge_count)] = allocations
+                for tile_id, _ in allocations:
+                    needed_tile_ids.add(tile_id)
+
+            bounds_df = (
+                pl.scan_parquet(country_bounds_files)
+                .select(
+                    [
+                        "tile_id",
+                        "min_lon_deg",
+                        "max_lon_deg",
+                        "min_lat_deg",
+                        "max_lat_deg",
+                        "centroid_lon_deg",
+                        "centroid_lat_deg",
+                    ]
+                )
+                .collect()
+            )
+            if bounds_df.is_empty():
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_bounds_missing",
+                    {"country_iso": country_iso, "path": str(tile_bounds_root)},
+                    manifest_fingerprint,
+                )
+            bounds_all: dict[int, tuple[float, float, float, float, float, float]] = {}
+            for bounds_row in bounds_df.iter_rows(named=True):
+                tile_id = int(bounds_row["tile_id"])
+                bounds_all[tile_id] = (
+                    float(bounds_row["min_lon_deg"]),
+                    float(bounds_row["max_lon_deg"]),
+                    float(bounds_row["min_lat_deg"]),
+                    float(bounds_row["max_lat_deg"]),
+                    float(bounds_row["centroid_lon_deg"]),
+                    float(bounds_row["centroid_lat_deg"]),
+                )
+            missing_bounds = [tile_id for tile_id in weights_map if tile_id not in bounds_all]
+            if missing_bounds:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_bounds_missing_ids",
+                    {"country_iso": country_iso, "missing": missing_bounds[:10]},
+                    manifest_fingerprint,
+                )
+            country_bounds_map: dict[int, tuple[float, float, float, float, float, float]] = {}
+            for tile_id in sorted(needed_tile_ids):
+                country_bounds_map[tile_id] = bounds_all[tile_id]
+            tile_bounds_by_country[country_iso] = country_bounds_map
+
+        if edge_scale_values:
+            sorted_scales = sorted(edge_scale_values)
+            mid_idx = len(sorted_scales) // 2
+            if len(sorted_scales) % 2 == 1:
+                median_scale = sorted_scales[mid_idx]
+            else:
+                median_scale = int(round((sorted_scales[mid_idx - 1] + sorted_scales[mid_idx]) / 2.0))
+            counts["edges_per_merchant"] = int(median_scale)
+            counts["edges_per_merchant_min"] = int(sorted_scales[0])
+            counts["edges_per_merchant_max"] = int(sorted_scales[-1])
+
+        timer.info(
+            f"S2: merchant topology prepared (virtual_merchants={len(virtual_merchants)}, "
+            f"tile_alloc_cache_entries={len(tile_alloc_cache)})"
         )
 
         current_phase = "rng_logs"
@@ -2002,16 +2165,17 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             )
             raise RuntimeError("tz_resolution_failed")
 
-        virtual_merchants = [int(value) for value in virtual_ids.get_column("merchant_id").to_list()]
-        edges_total = edge_scale * len(virtual_merchants)
+        edges_total = int(sum(merchant_edge_scale.get(merchant_id, 0) for merchant_id in virtual_merchants))
         counts["edges_total"] = edges_total
 
         progress = _ProgressTracker(edges_total or None, logger, "S2: edge jitter/tz progress")
         logger.info(
-            "S2: starting edge placement loop (virtual_merchants=%d, edges_per_merchant=%d, edges_total=%d)",
+            "S2: starting edge placement loop (virtual_merchants=%d, edges_total=%d, edge_scale_median=%d, edge_scale_min=%d, edge_scale_max=%d)",
             len(virtual_merchants),
-            edge_scale,
             edges_total,
+            int(counts.get("edges_per_merchant") or 0),
+            int(counts.get("edges_per_merchant_min") or 0),
+            int(counts.get("edges_per_merchant_max") or 0),
         )
 
         edge_rows: list[dict] = []
@@ -2023,14 +2187,33 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         jitter_exhausted = 0
 
         for merchant_id in virtual_merchants:
+            expected_edge_count = int(merchant_edge_scale.get(merchant_id) or 0)
+            if expected_edge_count <= 0:
+                _abort(
+                    "E3B_S2_EDGE_CATALOGUE_SCHEMA_VIOLATION",
+                    "V-12",
+                    "merchant_edge_scale_invalid",
+                    {"merchant_id": merchant_id, "edge_scale_m": expected_edge_count},
+                    manifest_fingerprint,
+                )
+            merchant_edges_per_country = merchant_edges_by_country.get(merchant_id) or {}
+            merchant_probs = merchant_country_probs.get(merchant_id) or {}
             edges_for_merchant: list[dict] = []
             edge_seq_index = 0
             for country_iso in countries_sorted:
-                edges_country = edges_per_country[country_iso]
+                edges_country = int(merchant_edges_per_country.get(country_iso) or 0)
                 if edges_country <= 0:
                     continue
-                bounds_map = tile_bounds_by_country[country_iso]
-                allocations = tile_allocations[country_iso]
+                bounds_map = tile_bounds_by_country.get(country_iso) or {}
+                allocations = tile_alloc_cache.get((country_iso, edges_country))
+                if allocations is None:
+                    _abort(
+                        "E3B_S2_TILE_SURFACE_INVALID",
+                        "V-08",
+                        "tile_alloc_missing",
+                        {"country_iso": country_iso, "edge_count": edges_country},
+                        manifest_fingerprint,
+                    )
                 country_geom = world_geometry[country_iso]
                 edges_by_country[country_iso] = edges_by_country.get(country_iso, 0) + edges_country
                 for tile_id, tile_count in allocations:
@@ -2131,7 +2314,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                             )
                         tzid_operational, tz_source = _resolve_tz(point, country_iso)
                         tz_counts[tz_source] = tz_counts.get(tz_source, 0) + 1
-                        edge_weight = 1.0 / edge_scale if edge_scale > 0 else 0.0
+                        edge_weight = float(merchant_probs.get(country_iso) or 0.0) / float(edges_country)
                         edge_id = _edge_id_from_seq(merchant_id, edge_seq_index)
                         rng_event_ref = _rng_event_id(rng_stream_id, merchant_id, edge_seq_index)
                         edge_row = {
@@ -2160,12 +2343,12 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                         resamples_total += max(attempts - 1, 0)
                         attempts_hist[attempts] = attempts_hist.get(attempts, 0) + 1
                         progress.update(1)
-            if edge_seq_index != edge_scale:
+            if edge_seq_index != expected_edge_count:
                 _abort(
                     "E3B_S2_EDGE_CATALOGUE_SCHEMA_VIOLATION",
                     "V-12",
                     "edge_count_mismatch",
-                    {"merchant_id": merchant_id, "expected": edge_scale, "actual": edge_seq_index},
+                    {"merchant_id": merchant_id, "expected": expected_edge_count, "actual": edge_seq_index},
                     manifest_fingerprint,
                 )
             edges_for_merchant.sort(key=lambda row: row["edge_id"])

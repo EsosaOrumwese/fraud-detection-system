@@ -1502,10 +1502,16 @@ Phase closure posture:
     - deterministic threshold pinning algorithm,
     - explicit snapshot schema and blocker taxonomy,
     - lane-dependency matrix freeze contract for `M10.B..M10.J`,
+  - `M10.A` execution is closed green (`m10_20260219T231017Z`) with durable threshold snapshot and blocker-free gate checks,
+  - `M10.B` is now expanded to execution-grade with:
+    - entry dependency on closed `M10.A`,
+    - deterministic semantic verification algorithm for 20-event run,
+    - explicit semantic evidence surface contract and snapshot schema,
+    - fail-closed blocker taxonomy (`M10B-B1..B5`),
   - no runtime execution lane is marked complete yet.
 
 Sub-phase progress:
-  - [ ] `M10.A` authority + threshold pinning.
+  - [x] `M10.A` authority + threshold pinning.
   - [ ] `M10.B` semantic 20-event run.
   - [ ] `M10.C` semantic 200-event run.
   - [ ] `M10.D` incident drill execution.
@@ -1622,8 +1628,8 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M10 is active for planning expansion under the M9 handoff.
 Next action:
-- execute `M10.A` threshold matrix closure:
-  - pin certification thresholds and runtime budgets (no placeholders),
-  - freeze `M10.B..M10.J` lane execution matrix,
-  - emit `m10_a_threshold_matrix_snapshot.json` local + durable with blocker-free entry gate.
+- execute `M10.B` semantic 20-event certification run:
+  - use `M10.A` pinned threshold matrix as acceptance authority,
+  - enforce required semantic evidence surfaces and run-scope coherence,
+  - emit `m10_b_semantic_20_snapshot.json` local + durable with blocker-free semantic gates.
 

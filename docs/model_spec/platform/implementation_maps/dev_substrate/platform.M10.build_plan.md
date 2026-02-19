@@ -149,12 +149,12 @@ Tasks:
 5. Emit and publish `m10_a_threshold_matrix_snapshot.json`.
 
 DoD:
-- [ ] Entry-gate checks pass from M9 handoff.
-- [ ] Threshold matrix pinned (no placeholders/wildcards).
-- [ ] Runtime budget matrix pinned for all M10 lanes.
-- [ ] Incident drill profile pinned with expected fail-closed evidence.
-- [ ] Lane execution matrix (M10.B..M10.J) is frozen and dependency-complete.
-- [ ] Snapshot exists locally and durably.
+- [x] Entry-gate checks pass from M9 handoff.
+- [x] Threshold matrix pinned (no placeholders/wildcards).
+- [x] Runtime budget matrix pinned for all M10 lanes.
+- [x] Incident drill profile pinned with expected fail-closed evidence.
+- [x] Lane execution matrix (M10.B..M10.J) is frozen and dependency-complete.
+- [x] Snapshot exists locally and durably.
 
 Blockers:
 1. `M10A-B1`: threshold matrix incomplete.
@@ -174,24 +174,116 @@ Required snapshot fields (`m10_a_threshold_matrix_snapshot.json`):
 8. `lane_execution_matrix`.
 9. `blockers`, `overall_pass`, `elapsed_seconds`.
 
+Execution closure (2026-02-19):
+1. Execution id:
+   - `m10_20260219T231017Z`.
+2. Snapshot paths:
+   - local: `runs/dev_substrate/m10/m10_20260219T231017Z/m10_a_threshold_matrix_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260219T231017Z/m10_a_threshold_matrix_snapshot.json`.
+3. Result:
+   - `overall_pass=true`
+   - blockers empty.
+4. Entry-gate outcomes:
+   - M9 handoff readable and valid (`ADVANCE_TO_M10`, `m9_overall_pass=true`, source blocker rollup empty).
+5. Threshold outcomes (pinned concrete values):
+   - semantic:
+     - mandatory 20-event + 200-event certification runs,
+     - required closure across `P4..P11` with unresolved `PUBLISH_AMBIGUOUS` forbidden.
+   - incident drill:
+     - duplicates drill (`m10_cycle_1_duplicates`),
+     - duplicate count target `100`,
+     - required outcomes: duplicate receipts present, no double-actions, no duplicate case records, audit append-only preserved.
+   - scale:
+     - representative window: `30` minutes, minimum admitted events `50000`,
+     - burst: `3.0x` ingest multiplier for `15` minutes,
+     - soak: `90` minutes with lag-stability bound `max_lag_messages=10` over a `30`-minute stability window,
+     - recovery: targets `SVC_IG`, `SVC_RTDL_CORE_IEG`, `SVC_DECISION_LANE_DF`; `rto_seconds=300`.
+6. Dependency freeze outcome:
+   - sequential lane graph pinned `M10.B -> ... -> M10.J`,
+   - `M10.J` depends on all `M10.B..M10.I`.
+7. Publish verification:
+   - durable object verified via `aws s3api head-object`.
+8. Consequence:
+   - `M10.A` is closed.
+   - `M10.B` is unblocked.
+
 ### M10.B Semantic 20-event certification run
 Goal:
 1. Re-prove semantic green with lightweight deterministic run.
 
-Tasks:
-1. Execute managed run for 20 events.
-2. Validate P4..P11 closure artifacts and blocker-free posture.
-3. Emit `m10_b_semantic_20_snapshot.json` local + durable.
+Entry conditions:
+1. `M10.A` is closed pass:
+   - local: `runs/dev_substrate/m10/m10_20260219T231017Z/m10_a_threshold_matrix_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260219T231017Z/m10_a_threshold_matrix_snapshot.json`.
+2. `M10.A` snapshot has:
+   - `overall_pass=true`,
+   - empty blocker list,
+   - `semantic_matrix.run_20.required=true`,
+   - `semantic_matrix.run_20.admitted_event_target=20`.
+3. Lane dependency from `M10.A` to `M10.B` remains valid in `lane_execution_matrix`.
+
+Required inputs:
+1. `M10.A` threshold snapshot (local preferred, durable fallback).
+2. Managed run execution lane for 20-event certification run (no local runtime compute).
+3. Required semantic evidence path surfaces for run scope under test:
+   - `RECEIPT_SUMMARY_PATH_PATTERN`,
+   - `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`,
+   - `RTDL_CORE_EVIDENCE_PATH_PATTERN`,
+   - `DECISION_LANE_EVIDENCE_PATH_PATTERN`,
+   - `DLA_EVIDENCE_PATH_PATTERN`,
+   - `ENV_CONFORMANCE_PATH_PATTERN`,
+   - `REPLAY_ANCHORS_PATH_PATTERN`,
+   - `RUN_REPORT_PATH_PATTERN`,
+   - `EVIDENCE_RUN_COMPLETED_KEY`,
+   - `QUARANTINE_INDEX_PATH_PATTERN`.
+
+Preparation checks (fail-closed):
+1. Validate `M10.A` snapshot parseability and pass posture.
+2. Validate semantic target fields are concrete and non-placeholder:
+   - admitted event target,
+   - required phase IDs,
+   - `require_publish_ambiguous_absent=true`,
+   - `require_blocker_free_verdict=true`.
+3. Validate run-scope isolation posture:
+   - certification run must have a concrete `platform_run_id` distinct from placeholders/wildcards.
+4. Validate lane dependency contract:
+   - `M10.B.depends_on` contains exactly `M10.A`.
+
+Deterministic verification algorithm (M10.B):
+1. Load `M10.A` snapshot; parse failure or non-pass -> `M10B-B4`.
+2. Execute managed 20-event run and capture resulting `platform_run_id` under certification scope.
+3. Resolve required semantic evidence keys for that run scope using pinned path patterns.
+4. Verify required evidence objects exist/readable for each semantic surface.
+5. Validate semantic closure facts from evidence:
+   - no unresolved `PUBLISH_AMBIGUOUS`,
+   - ingest commit/receipt summary present,
+   - RTDL/decision/case-label downstream evidence present,
+   - Obs/Gov closure artifacts present (`run_report`, `replay_anchors`, `environment_conformance`, `run_completed`).
+6. Enforce run-scope consistency across all evidence refs (`platform_run_id` match).
+7. Emit `m10_b_semantic_20_snapshot.json` locally.
+8. Publish snapshot durably; publish failure -> `M10B-B5`.
 
 DoD:
-- [ ] 20-event run passes all semantic gates.
-- [ ] Blockers empty.
-- [ ] Snapshot exists locally and durably.
+- [ ] `M10.A` entry-gate dependencies validate.
+- [ ] Managed 20-event run completes with semantic gates closed.
+- [ ] Required semantic evidence surfaces exist and are run-scope coherent.
+- [ ] No unresolved `PUBLISH_AMBIGUOUS` state exists.
+- [ ] Snapshot exists locally and durably with blocker-free verdict.
 
 Blockers:
 1. `M10B-B1`: semantic gate failure.
 2. `M10B-B2`: missing required evidence object.
 3. `M10B-B3`: run-scope mismatch.
+4. `M10B-B4`: invalid/non-pass `M10.A` dependency or malformed semantic target matrix.
+5. `M10B-B5`: snapshot publication failure.
+
+Required snapshot fields (`m10_b_semantic_20_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m10_execution_id`.
+2. `source_threshold_snapshot_refs` (local + durable `M10.A` refs).
+3. `semantic_target` (`admitted_event_target`, `required_phase_ids`, semantic rules).
+4. `evidence_refs` (resolved run-scoped object refs for required semantic surfaces).
+5. `semantic_gate_checks` (per-gate pass/fail matrix).
+6. `blockers`, `overall_pass`, `elapsed_seconds`.
 
 ### M10.C Semantic 200-event certification run
 Goal:
@@ -379,5 +471,6 @@ M10 can be marked `DONE` only when all are true:
 
 ## 8) Current planning status
 1. M10 planning expansion is open.
-2. No runtime lane (`M10.B..M10.J`) has been executed yet.
-3. Next lane is `M10.A` threshold pinning and execution matrix freeze.
+2. `M10.A` is closed green by execution `m10_20260219T231017Z`.
+3. No runtime lane (`M10.B..M10.J`) has been executed yet.
+4. Next lane is `M10.B` semantic 20-event certification run.
