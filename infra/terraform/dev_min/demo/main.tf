@@ -53,6 +53,7 @@ module "demo" {
   ecs_daemon_task_memory           = var.ecs_daemon_task_memory
   required_platform_run_id_env_key = var.required_platform_run_id_env_key
   required_platform_run_id         = var.required_platform_run_id
+  ig_ingest_url                    = var.ig_ingest_url
   rtdl_core_consumer_group_id      = var.rtdl_core_consumer_group_id
   rtdl_core_offset_commit_policy   = var.rtdl_core_offset_commit_policy
   confluent_env_name               = local.confluent_env_name_resolved

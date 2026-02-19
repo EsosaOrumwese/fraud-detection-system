@@ -122,6 +122,11 @@ variable "confluent_credentials_source" {
   }
 }
 
+variable "ig_ingest_url" {
+  type    = string
+  default = ""
+}
+
 variable "confluent_state_bucket" {
   type    = string
   default = "fraud-platform-dev-min-tfstate"

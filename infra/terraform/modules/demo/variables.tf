@@ -91,6 +91,11 @@ variable "required_platform_run_id" {
   }
 }
 
+variable "ig_ingest_url" {
+  type    = string
+  default = ""
+}
+
 variable "rtdl_core_consumer_group_id" {
   type = string
 

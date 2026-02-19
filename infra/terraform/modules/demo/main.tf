@@ -574,7 +574,7 @@ resource "aws_iam_role_policy" "lane_app_secret_read" {
 resource "aws_iam_role_policy" "lane_app_object_store_data_plane" {
   for_each = {
     for key, role in aws_iam_role.lane_app_roles : key => role
-    if contains(["rtdl_core", "ig_service"], key)
+    if contains(["rtdl_core", "ig_service", "case_labels"], key)
   }
 
   name   = "${var.name_prefix}-${each.key}-object-store-data-plane"
@@ -822,6 +822,62 @@ resource "aws_ecs_task_definition" "daemon" {
         "sh",
         "-c",
         "set -e; python -c \"import pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; dla=d.setdefault('dla',{}); wiring=dla.setdefault('wiring',{}); wiring['event_bus_kind']='kafka'; wiring['admitted_topics']=['fp.bus.rtdl.v1']; policy=dla.setdefault('policy',{}); policy['intake_policy_ref']='config/platform/dla/intake_policy_local_parity_v0.yaml'; o=pathlib.Path('/tmp/dev_min_dla.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.decision_log_audit.worker --profile /tmp/dev_min_dla.yaml",
+        ] : each.key == "case-trigger" ? [
+        "sh",
+        "-c",
+        <<-EOT
+set -e
+
+missing=""
+for k in IG_INGEST_URL CASE_TRIGGER_IG_API_KEY CASE_TRIGGER_REPLAY_DSN CASE_TRIGGER_CHECKPOINT_DSN CASE_TRIGGER_PUBLISH_STORE_DSN; do
+  v="$(eval "printf '%s' \"\\$$k\"")"
+  if [ -z "$v" ]; then
+    missing="$missing$k "
+  fi
+done
+if [ -n "$missing" ]; then
+  echo "Missing required env(s): $missing"
+  exit 1
+fi
+
+python - <<'PY'
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+import yaml
+
+base = Path("config/platform/profiles/dev_min.yaml")
+data = yaml.safe_load(base.read_text(encoding="utf-8")) or {}
+
+ct = data.setdefault("case_trigger", {})
+ct_policy = ct.setdefault("policy", {})
+ct_policy["trigger_policy_ref"] = "config/platform/case_trigger/trigger_policy_v0.yaml"
+ct_wiring = ct.setdefault("wiring", {})
+ct_wiring["stream_id"] = "case_trigger.v0"
+ct_wiring["event_bus_kind"] = "kafka"
+ct_wiring["event_bus_start_position"] = "earliest"
+ct_wiring["admitted_topics"] = ["fp.bus.rtdl.v1"]
+ct_wiring["poll_max_records"] = 200
+ct_wiring["poll_sleep_seconds"] = 0.5
+ct_wiring["required_platform_run_id"] = os.getenv("CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID", "")
+ct_wiring["ig_ingest_url"] = os.getenv("IG_INGEST_URL", "")
+ct_wiring["ig_api_key"] = os.getenv("CASE_TRIGGER_IG_API_KEY", "")
+ct_wiring["ig_api_key_header"] = "X-IG-Api-Key"
+ct_wiring["replay_dsn"] = os.getenv("CASE_TRIGGER_REPLAY_DSN", "")
+ct_wiring["checkpoint_dsn"] = os.getenv("CASE_TRIGGER_CHECKPOINT_DSN", "")
+ct_wiring["publish_store_dsn"] = os.getenv("CASE_TRIGGER_PUBLISH_STORE_DSN", "")
+ct_wiring["platform_store_root"] = os.getenv("PLATFORM_STORE_ROOT", "")
+ct_wiring["object_store_region"] = os.getenv("OBJECT_STORE_REGION", "")
+
+out = Path("/tmp/dev_min_case_trigger.yaml")
+out.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+print(str(out))
+PY
+
+python -m fraud_detection.case_trigger.worker --profile /tmp/dev_min_case_trigger.yaml
+EOT
         ] : each.key == "case-mgmt" ? [
         "sh",
         "-c",
@@ -1024,6 +1080,35 @@ EOT
           name  = "DLA_EVENT_BUS_REGION"
           value = var.aws_region
         },
+        ] : [], each.key == "case-trigger" ? [
+        {
+          name  = "PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "CASE_TRIGGER_REQUIRED_PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "IG_INGEST_URL"
+          value = var.ig_ingest_url
+        },
+        {
+          name  = "PLATFORM_STORE_ROOT"
+          value = "s3://${var.evidence_bucket}/evidence/runs"
+        },
+        {
+          name  = "OBJECT_STORE_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "KAFKA_SECURITY_PROTOCOL"
+          value = "SASL_SSL"
+        },
+        {
+          name  = "KAFKA_SASL_MECHANISM"
+          value = "PLAIN"
+        },
         ] : [], each.key == "case-mgmt" ? [
         {
           name  = "PLATFORM_RUN_ID"
@@ -1064,7 +1149,7 @@ EOT
           name      = "IG_ADMISSION_DSN"
           valueFrom = aws_ssm_parameter.db_dsn.arn
         }
-        ] : [], contains(["ig", "rtdl-core-archive-writer", "decision-lane-dl", "decision-lane-df", "decision-lane-al", "decision-lane-dla", "case-mgmt"], each.key) ? [
+        ] : [], contains(["ig", "rtdl-core-archive-writer", "decision-lane-dl", "decision-lane-df", "decision-lane-al", "decision-lane-dla", "case-trigger", "case-mgmt"], each.key) ? [
         {
           name      = "KAFKA_BOOTSTRAP_SERVERS"
           valueFrom = aws_ssm_parameter.confluent_bootstrap.arn
@@ -1094,6 +1179,23 @@ EOT
         ] : [], each.key == "decision-lane-dla" ? [
         {
           name      = "DLA_INDEX_DSN"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        }
+        ] : [], each.key == "case-trigger" ? [
+        {
+          name      = "CASE_TRIGGER_IG_API_KEY"
+          valueFrom = aws_ssm_parameter.ig_api_key.arn
+        },
+        {
+          name      = "CASE_TRIGGER_REPLAY_DSN"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        },
+        {
+          name      = "CASE_TRIGGER_CHECKPOINT_DSN"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        },
+        {
+          name      = "CASE_TRIGGER_PUBLISH_STORE_DSN"
           valueFrom = aws_ssm_parameter.db_dsn.arn
         }
         ] : [], each.key == "case-mgmt" ? [

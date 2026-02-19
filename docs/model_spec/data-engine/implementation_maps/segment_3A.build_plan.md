@@ -422,9 +422,9 @@ Scope:
 - preserve RNG accounting and reconciliation invariants.
 
 Definition of done:
-- [ ] S3 dispersion hard gate (`median std >= 0.02`) passes on witness seed.
-- [ ] S3 RNG accounting checks remain PASS.
-- [ ] no downstream S4 conservation regressions introduced.
+- [x] S3 dispersion hard gate (`median std >= 0.02`) passes on witness seed.
+- [x] S3 RNG accounting checks remain PASS.
+- [x] no downstream S4 conservation regressions introduced.
 
 P2 authority baseline (post-P1 lock):
 - selected run-id: `3dd2a10fb61b4ab581f9e9251c8d72ab`.
@@ -464,9 +464,9 @@ Scope:
   - `alpha_floor` (strictly-positive concentration floor).
 
 Definition of done:
-- [ ] target envelope + guardrails are pinned in notes.
-- [ ] candidate knob ranges are explicitly listed.
-- [ ] run-sequence and prune posture are pinned for `S3->S7` iterations.
+- [x] target envelope + guardrails are pinned in notes.
+- [x] candidate knob ranges are explicitly listed.
+- [x] run-sequence and prune posture are pinned for `S3->S7` iterations.
 
 #### P2.2 - S3 Knob Surface Wiring (Deterministic + Sealed)
 Goal:
@@ -483,9 +483,9 @@ Scope:
   - no wall-clock or non-sealed randomness.
 
 Definition of done:
-- [ ] `S3` implements bounded dispersion transform with deterministic keying.
-- [ ] policy/knob read path is sealed-input compatible and fail-closed.
-- [ ] compile + static sanity pass is green before first candidate run.
+- [x] `S3` implements bounded dispersion transform with deterministic keying.
+- [x] policy/knob read path is sealed-input compatible and fail-closed.
+- [x] compile + static sanity pass is green before first candidate run.
 
 #### P2.3 - Bounded Candidate Sweep + Ranking
 Goal:
@@ -507,9 +507,9 @@ Scope:
   - any guardrail breach from `P2.1`.
 
 Definition of done:
-- [ ] at least one candidate reaches `S3 merchant_share_std_median >= 0.020`.
-- [ ] ranked sweep table + veto reasons are recorded.
-- [ ] one candidate is promoted to witness lane.
+- [x] at least one candidate reaches `S3 merchant_share_std_median >= 0.020`.
+- [x] ranked sweep table + veto reasons are recorded.
+- [x] one candidate is promoted to witness lane.
 
 #### P2.4 - Witness Lock + Stability Smoke
 Goal:
@@ -522,9 +522,9 @@ Scope:
 - keep structural rails (`S6/S7`) as strict vetoes.
 
 Definition of done:
-- [ ] witness rerun reproduces deterministic metrics exactly on seed `42`.
-- [ ] smoke seeds preserve `S3` uplift direction and keep hard rails PASS.
-- [ ] no new RNG-accounting anomalies are introduced.
+- [x] witness rerun reproduces deterministic metrics exactly on seed `42`.
+- [x] smoke seeds preserve `S3` uplift direction and keep hard rails PASS.
+- [x] no new RNG-accounting anomalies are introduced.
 
 #### P2.5 - P2 Closeout and Lock Decision
 Goal:
@@ -537,9 +537,27 @@ Scope:
   - `UNLOCK_P3` or `HOLD_P2_REOPEN`.
 
 Definition of done:
-- [ ] closure artifacts are emitted and referenced in build plan + notes.
-- [ ] retained run set is applied; superseded run folders pruned.
-- [ ] explicit close decision is recorded (`UNLOCK_P3` / `HOLD_P2_REOPEN`).
+- [x] closure artifacts are emitted and referenced in build plan + notes.
+- [x] retained run set is applied; superseded run folders pruned.
+- [x] explicit close decision is recorded (`UNLOCK_P3` / `HOLD_P2_REOPEN`).
+
+P2 execution outcome (2026-02-19):
+- rerun-lane note:
+  - initial `S3->S7` copy-lane attempt was vetoed by precondition coupling; execution pivoted to full `S0->S7` candidate reruns while varying only `s3_dispersion` knobs.
+- selected authority candidate:
+  - `C3` (`concentration_scale=0.65`, `alpha_temperature=1.00`, `merchant_jitter=0.00`, `merchant_jitter_clip=0.00`, `alpha_floor=1e-6`).
+  - promoted run-id: `3f2e94f2d1504c249e434949659a496f`.
+  - witness run-id: `6a3e291aae764c9bbf19b1c39443a68a` (exact metric replay: `PASS`).
+  - smoke run-ids: `682c20d2343e4ffaae4d4057d5b23b9e` (`seed=7`), `8d31ca8eaeda4e7d8e1c0c2443cc89c7` (`seed=101`), directional stability: `PASS`.
+- closure artifacts:
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_3_matrix_runs.json`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_3_sweep_summary.json`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_3_sweep_summary.md`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_4_runs.json`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_4_witness_summary.json`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_4_witness_summary.md`
+- explicit phase decision:
+  - `UNLOCK_P3`.
 
 ### P3 - S4 anti-collapse remediation (CF-3A-05)
 Goal:
@@ -553,6 +571,118 @@ Definition of done:
 - [ ] S4 multi-zone and top1-share B gates pass on witness seed.
 - [ ] conservation and schema checks remain PASS.
 - [ ] zone_alloc mirrors S4 with no drift.
+
+P3 authority baseline (post-P2 lock):
+- selected run-id: `3f2e94f2d1504c249e434949659a496f`.
+- witness run-id: `6a3e291aae764c9bbf19b1c39443a68a`.
+- smoke run-ids:
+  - `682c20d2343e4ffaae4d4057d5b23b9e` (`seed=7`),
+  - `8d31ca8eaeda4e7d8e1c0c2443cc89c7` (`seed=101`).
+- current anchors:
+  - `S4` escalated multi-zone rate: `0.922505`.
+  - `S4` top1 median: `0.750000`.
+  - `zone_alloc` top1 median: `0.750000`.
+
+Execution posture:
+- `P2`-locked `S2/S3` posture remains frozen; `P3` owns `S4` only.
+- precheck-first posture:
+  - if collapse-risk monitors are already green on witness+smoke, close `P3`
+    as no-op lock (`P3_NOOP_LOCK`) to avoid unnecessary blast radius.
+  - only open active tuning if monitors fail (`P3_ACTIVE_TUNE`).
+- rerun law:
+  - `P3.1` (precheck) is report-only (no rerun).
+  - if active tuning opens, use full `S0->S7` reruns per candidate (contract-safe
+    posture; avoids partial-lane precondition coupling observed in `P2`).
+
+#### P3.1 - Collapse-Risk Fingerprint + Decision Gate
+Goal:
+- prove whether `CF-3A-05` work is still required after `P2`.
+
+Scope:
+- compute witness+smoke collapse-risk panel from current authority run set:
+  - `S4 escalated_multi_zone_rate`,
+  - `S4 top1_share_median`,
+  - `S4 share_pairs_single_zone`,
+  - `zone_alloc top1_share_median`.
+- decision gate for active tuning:
+  - open active lane only if any of:
+    - `S4 escalated_multi_zone_rate < 0.90` on witness or `< 0.88` on smoke,
+    - `S4 top1_share_median > 0.80` on witness or `> 0.82` on smoke,
+    - `zone_alloc top1_share_median > 0.80` on witness or `> 0.82` on smoke,
+    - `S4 share_pairs_single_zone > 0.20` on witness or `> 0.22` on smoke.
+
+Definition of done:
+- [ ] collapse-risk panel is emitted for witness+smoke anchors.
+- [ ] explicit decision is recorded: `P3_NOOP_LOCK` or `P3_ACTIVE_TUNE`.
+- [ ] rerun scope for the chosen lane is pinned before execution.
+
+#### P3.2 - Safeguard Knob Contract (Only If Active)
+Goal:
+- define bounded S4 safeguard knobs before any tuning run.
+
+Scope:
+- pin deterministic safeguard families:
+  - minimum second-zone floor for escalated pairs above site-count threshold,
+  - bounded near-threshold stochastic rounding (seeded; no wall-clock entropy).
+- pin deterministic seed namespace and stable keying contract for S4 rounding.
+- pin bounded candidate ranges and fail-closed defaults.
+
+Definition of done:
+- [ ] knob families and ranges are documented.
+- [ ] deterministic seed/keying contract is explicit.
+- [ ] veto rails are pinned (`S6/S7`, conservation, `P2` non-regression).
+
+#### P3.3 - Bounded S4 Safeguard Sweep (Only If Active)
+Goal:
+- identify one S4 safeguard candidate that improves anti-collapse resilience
+  without degrading locked `P2` realism surfaces.
+
+Scope:
+- execute bounded candidate matrix (`<= 4` candidates) with full `S0->S7` reruns.
+- candidate scoring objective:
+  - `J3 = 0.50*d_s4_multi_zone + 0.25*d_s4_top1_down + 0.25*d_zone_top1_down`.
+- hard veto:
+  - any `S6/S7` FAIL,
+  - any conservation/schema regression,
+  - any guardrail breach (`S4 multi-zone < 0.85`, `S4 top1 > 0.80`, `zone_alloc top1 > 0.80`).
+
+Definition of done:
+- [ ] ranked sweep table + veto reasons are emitted.
+- [ ] one candidate is promoted (or lane is explicitly abandoned as unnecessary).
+- [ ] runtime evidence is recorded for each candidate run.
+
+#### P3.4 - Witness Lock + Smoke Stability
+Goal:
+- confirm selected `P3` posture is deterministic and stable.
+
+Scope:
+- witness replay on seed `42`.
+- smoke seeds `{7,101}` directional checks.
+- preserve `P2` locked surfaces:
+  - no material regression on `S3 std`,
+  - no degradation on S4/zone_alloc hard-gate posture.
+
+Definition of done:
+- [ ] witness replay confirms deterministic metric stability.
+- [ ] smoke seeds keep rails PASS and directionally stable.
+- [ ] no new RNG/accounting anomalies appear in `S6`.
+
+#### P3.5 - Closeout and Handoff
+Goal:
+- close `P3` with explicit authority posture and hand off cleanly.
+
+Scope:
+- publish `P3` summary artifacts (precheck, optional sweep, witness/smoke).
+- prune superseded run-ids and retain minimal authority lineage.
+- record explicit decision:
+  - `UNLOCK_P4`,
+  - `SKIP_P4_UNLOCK_P5` (if no escalation smoothing needed),
+  - or `HOLD_P3_REOPEN`.
+
+Definition of done:
+- [ ] closeout artifacts are emitted and referenced.
+- [ ] retained run set is applied; superseded runs pruned.
+- [ ] explicit handoff decision is recorded.
 
 ### P4 - S1 escalation-shape smoothing (CF-3A-04, conditional)
 Goal:

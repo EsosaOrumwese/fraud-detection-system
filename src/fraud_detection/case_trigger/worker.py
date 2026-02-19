@@ -301,8 +301,10 @@ class CaseTriggerWorker:
         payload: Mapping[str, Any],
         envelope: Mapping[str, Any],
     ) -> Any:
-        observed_time = str(envelope.get("ts_utc") or "").strip() or _utc_now()
+        # Use source contract timestamps to keep replay payload hashes stable.
+        fallback_observed_time = str(envelope.get("ts_utc") or "").strip() or _utc_now()
         if event_type == "decision_response":
+            observed_time = str(payload.get("decided_at_utc") or "").strip() or fallback_observed_time
             decision_id = str(payload.get("decision_id") or "").strip()
             source_event = payload.get("source_event") if isinstance(payload.get("source_event"), Mapping) else {}
             source_event_id = str((source_event or {}).get("event_id") or "").strip()
@@ -317,6 +319,7 @@ class CaseTriggerWorker:
                 audit_record_id=_audit_ref(payload=payload, event_type=event_type),
             )
 
+        observed_time = str(payload.get("completed_at_utc") or "").strip() or fallback_observed_time
         decision_id = str(payload.get("decision_id") or "").strip()
         source_event_id = self._decision_source_event_ids.get(decision_id)
         if not source_event_id:

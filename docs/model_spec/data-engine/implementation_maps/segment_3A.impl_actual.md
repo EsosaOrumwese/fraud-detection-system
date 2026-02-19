@@ -3752,3 +3752,304 @@ What was added:
 Planning outcome:
 1) `P2` is now implementation-ready with bounded knob families, measurable
    target movement, veto rails, and a deterministic witness path.
+
+### Entry: 2026-02-19 02:40
+
+Design element: `P2 execution lock (full phase execution)`.
+Summary: user directed full execution of `P2` with continuous decision trails.
+This entry pins the exact execution sequence before code/policy edits.
+
+Execution sequence pinned:
+1) `P2.1` lock the concrete knob ranges and guardrails from the current
+   `P1` authority (`3dd2...` / witness `fa52...`).
+2) `P2.2` implement deterministic `S3` dispersion knobs wired from sealed
+   `zone_mixture_policy` (schema + runner + policy defaults), then compile check.
+3) `P2.3` run bounded candidate sweep with fresh run-ids and rank by `J2`.
+4) `P2.4` run witness replay on seed `42` plus smoke seeds `{7, 101}` for
+   directional stability and rails checks.
+5) `P2.5` closeout decision, update plan/notes/logbook, prune superseded runs.
+
+Concrete knob ranges for this execution:
+1) `concentration_scale`: `[0.85, 0.75, 0.65]`
+2) `merchant_jitter`: `[0.00, 0.10]`
+3) `merchant_jitter_clip`: `[0.10, 0.15]` (paired with jittered runs)
+4) `alpha_temperature`: fixed `1.00` for this lane (separate lane if needed)
+5) `alpha_floor`: fixed `1e-6`
+
+Decision rationale:
+1) current `S3` gap is narrow (`0.017801 -> 0.020`), so first pass should
+   target concentration-level control before adding higher-order transforms.
+2) keeping `alpha_temperature` fixed in this lane isolates causal effect and
+   reduces search complexity/runtime.
+3) `S2` remains frozen by design; only `S3` stochastic dispersion mechanics and
+   policy knobs move in `P2`.
+
+Hard veto posture for all `P2` candidates:
+1) any `S6/S7` fail blocks promotion.
+2) any `S4/zone_alloc` conservation regression blocks promotion.
+3) guardrail breach (`S4 multi-zone < 0.85`, `S4 top1 > 0.80`,
+   `zone_alloc top1 > 0.80`) blocks promotion.
+
+### Entry: 2026-02-19 02:47
+
+Design element: `P2.2 implemented (deterministic S3 dispersion wiring)`.
+Summary: completed code/policy/schema wiring for `P2.2` so `S3` can consume
+sealed dispersion knobs from `zone_mixture_policy`.
+
+Implemented changes:
+1) `packages/engine/src/engine/layers/l1/seg_3A/s3_zone_shares/runner.py`
+   - added `_S3DispersionPolicy` contract + defaults.
+   - added policy loader/validator for `s3_dispersion` block with fail-closed
+     range checks.
+   - resolved and schema-validated `zone_mixture_policy` in `S3` using
+     catalogue pathing before sampling.
+   - added deterministic hash-keyed merchant jitter (`merchant_id`,
+     `country_iso`, `parameter_hash`) with bounded clipping.
+   - applied dispersion transform to alpha vectors before Dirichlet draws:
+     concentration scaling + optional temperature warp + strict alpha floors.
+   - kept RNG stream identity/accounting intact; only alpha inputs changed.
+   - added active dispersion settings into `s3_run_report_3A.policy`.
+2) `docs/model_spec/data-engine/layer-1/specs/contracts/3A/schemas.3A.yaml`
+   - extended `policy/zone_mixture_policy_v1` with optional
+     `s3_dispersion` object and explicit bounded fields.
+3) `config/layer1/3A/policy/zone_mixture_policy.yaml`
+   - added neutral `s3_dispersion` block (enabled with no-op values) so
+     behavior remains equivalent before sweep tuning.
+4) tooling:
+   - added `tools/render_segment3a_p2_policy.py` for deterministic bounded
+     rendering of `s3_dispersion` candidates.
+   - captured baseline source snapshot:
+     `scratch_files/segment3a_p2_baseline/zone_mixture_policy.yaml`.
+
+Validation done before runs:
+1) python compile check passed for patched runner + new render tool.
+2) YAML parse sanity passed for updated schema and policy files.
+
+Decision rationale:
+1) by loading knobs from sealed `zone_mixture_policy`, `P2` remains inside
+   existing governance/sealing boundaries (no new artefact family required).
+2) deterministic hash-keyed jitter introduces merchant heterogeneity without
+   adding non-sealed randomness or violating replay expectations.
+
+### Entry: 2026-02-19 03:01
+
+Design element: `P2.3 execution lane lock (S3->S7 bounded sweep with frozen upstream)`.
+Summary: proceeding with full `P2` execution by running the remaining bounded `S3` dispersion candidate matrix and ranking by `J2` under strict veto rails.
+
+Execution mechanics pinned for this step:
+1) keep `P1` upstream freeze posture explicit during `P2.3`:
+   - authority upstream source for frozen state payloads: run `3dd2a10fb61b4ab581f9e9251c8d72ab`.
+   - for each `P2.3` candidate run-id, stage a fresh run folder and copy only
+     `S0/S1/S2` data surfaces from the authority run into the candidate run root.
+2) rerun scope per candidate is strictly `S3 -> S4 -> S5 -> S6 -> S7`.
+3) bounded candidate matrix for this execution pass (seed `42`):
+   - control already executed: `C0` (`scale=1.00`, `jitter=0.00`, `clip=0.00`).
+   - remaining non-jittered: `scale in {0.85, 0.75, 0.65}`.
+   - remaining jittered lanes: `scale in {0.85, 0.75, 0.65}`,
+     `jitter=0.10`, `clip in {0.10, 0.15}`.
+   - fixed knobs in this pass: `alpha_temperature=1.00`, `alpha_floor=1e-6`.
+4) scoring/veto contract:
+   - emit baseline+candidate score artifacts for each run-id,
+   - compute ranking objective `J2` as pinned in build plan,
+   - hard veto on any `S6/S7` fail, conservation regression, or guardrail breach.
+5) closeout sequencing after sweep:
+   - promote one candidate to witness lane (`P2.4`),
+   - run witness replay (seed `42`) and smoke seeds `{7,101}`,
+   - then execute `P2.5` lock decision + prune.
+
+Rationale for this lane:
+1) preserves strict upstream freeze posture for `P2` while avoiding unnecessary
+   re-execution of frozen `S0/S1/S2`.
+2) keeps runtime bounded for the matrix while remaining contract-safe and
+   auditable.
+
+### Entry: 2026-02-19 03:04
+
+Design element: `P2.3 execution pivot (copy-lane abort -> full-chain candidate lane)`.
+Summary: aborted the initial `S3->S7` copy-lane attempt and pivoted to full
+`S0->S7` candidate reruns for `P2.3` due precondition/identity coupling.
+
+Observed blockers in copy-lane attempt:
+1) candidate run `f3d52357504e41e5983eb678b9ac1987` failed at `S3` precondition
+   resolution because copied `S2` payload lived under authority parameter-hash
+   path while staged candidate tokens expected a different parameter-hash path.
+2) candidate run `ad63bf0603c64df787be7f0ad573abbc` advanced through `S3` after
+   path rewrite but failed at `S4` (`E3A_S4_001_PRECONDITION_FAILED`) due
+   missing `s1_run_report_3A` dependency, confirming upstream-report coupling
+   beyond raw table payloads.
+
+Decision and rationale:
+1) pivot `P2.3` execution lane to full `S0->S7` per candidate.
+2) keep statistical ownership unchanged:
+   - only `s3_dispersion` knobs vary,
+   - no tuning changes to `S1/S2` policies.
+3) this keeps contract identity/precondition invariants natively satisfied while
+   staying runtime-feasible (`~40s` per full `3A` chain on current lane).
+
+Operational updates for remaining `P2.3` sweep:
+1) stage fresh run-id -> execute `make segment3a` for each candidate.
+2) emit per-run baseline/candidate score artifacts.
+3) include failed copy-lane run-ids in superseded set for prune at `P2.5`.
+
+### Entry: 2026-02-19 03:11
+
+Design element: `P2.3 result readout and witness promotion choice`.
+Summary: completed bounded `P2.3` matrix execution on seed `42` and selected a
+provisional witness candidate for `P2.4`.
+
+Observed sweep outcome (seed `42`):
+1) hard-gate (`S3 std >= 0.020`) crossing candidates:
+   - `C3` (`scale=0.65, jitter=0.00, clip=0.00`) run `3f2e94f2d1504c249e434949659a496f`,
+   - `C6` (`scale=0.75, jitter=0.10, clip=0.10`) run `c3cb371e25b64a84a1acdace06402742`,
+   - `C8` (`scale=0.65, jitter=0.10, clip=0.10`) run `51446f35ba3240a99258bceceb8566ad`,
+   - `C9` (`scale=0.65, jitter=0.10, clip=0.15`) run `727ebec19a9840a680c90952a41f2af8`.
+2) best `J2` objective under pinned weights was `C3`.
+3) all full-chain candidates completed `S6/S7` PASS and guardrails remained
+   inside bounds (`S4 multi-zone >=0.85`, `S4 top1 <=0.80`, `zone_alloc top1 <=0.80`).
+
+Promotion decision for `P2.4`:
+1) provisional authority candidate: `C3` / run `3f2e94f2d1504c249e434949659a496f`.
+2) execute witness replay on seed `42` with the same knob vector.
+3) execute smoke seeds `{7,101}` for directional stability and rail checks.
+
+Rationale:
+1) `C3` maximizes the phase objective while already clearing the open hard gate.
+2) choosing no-jitter candidate for witness minimizes unnecessary complexity
+   while preserving uplift magnitude.
+
+### Entry: 2026-02-19 03:12
+
+Design element: `P2.4 smoke-lane seed token workaround`.
+Summary: `P2.4` witness run on seed `42` completed; smoke seed execution
+encountered an `S0` sealed-input resolution blocker tied to staged upstream
+seed tokening.
+
+Observed blocker:
+1) smoke run `682c20d2343e4ffaae4d4057d5b23b9e` failed at `S0` with
+   `E3A_S0_005_SEALED_INPUT_RESOLUTION_FAILED` for
+   `1A/outlet_catalogue/seed=7/...`.
+2) root cause: staged upstream source (`c25...`) carries frozen outlet catalogue
+   under `seed=42` only; smoke seed tokens `7/101` do not exist by default.
+
+Bounded execution workaround (smoke-only):
+1) for each smoke run root, duplicate frozen upstream outlet-catalogue payload
+   from `seed=42` to the requested smoke seed token path (`seed=7` / `seed=101`).
+2) keep payload bytes identical (token-path alias only) and continue full
+   `S0->S7` smoke reruns.
+3) preserve witness authority lane unchanged (`seed=42` run `6a3e...`).
+
+Rationale:
+1) enables planned directional smoke checks without reopening upstream segment
+   policies or mutating source frozen runs.
+2) keeps this as a local run-root adaptation strictly for smoke verification.
+
+### Entry: 2026-02-19 03:16
+
+Design element: `P2 execution closed (P2.3 -> P2.5)`.
+Summary: completed full `P2` execution for Segment `3A`; `S3` hard gate is now
+closed and phase decision is `UNLOCK_P3`.
+
+Execution outcomes:
+1) `P2.3` bounded sweep complete (`C0..C9`) with objective ranking and veto
+   recording:
+   - sweep artifacts:
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_3_matrix_runs.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_3_sweep_summary.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_3_sweep_summary.md`
+   - selected candidate:
+     - variant `C3`, run `3f2e94f2d1504c249e434949659a496f`,
+       knobs `(scale=0.65, temp=1.0, jitter=0.0, clip=0.0, floor=1e-6)`.
+   - selected key metrics (seed `42`):
+     - `S3 std=0.021572` (crosses hard gate `>=0.020`),
+     - `S4 multi-zone=0.922505`,
+     - `S4 top1=0.750000`,
+     - `zone_alloc top1=0.750000`.
+2) `P2.4` witness + smoke complete:
+   - witness run: `6a3e291aae764c9bbf19b1c39443a68a` (`seed=42`) with exact replay.
+   - smoke runs:
+     - `682c20d2343e4ffaae4d4057d5b23b9e` (`seed=7`),
+     - `8d31ca8eaeda4e7d8e1c0c2443cc89c7` (`seed=101`).
+   - smoke posture:
+     - directional `S3` uplift preserved vs `P1` anchor,
+     - guardrails pass,
+     - `S6/S7` pass on both smoke seeds.
+   - witness artifacts:
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_4_runs.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_4_witness_summary.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_p2_4_witness_summary.md`
+3) smoke-lane note:
+   - to satisfy `S0` path-token resolution for seeds `7/101` under frozen
+     upstream staging source, outlet-catalogue path aliasing (`seed=42 -> 7/101`)
+     was applied inside each smoke run root only (payload bytes unchanged).
+
+Phase closure decision:
+1) `UNLOCK_P3`.
+2) selected candidate and witness verdict at `P2` close: `PASS_B`.
+
+Storage hygiene (`P2.5`):
+1) pruned superseded `P2` candidates and failed pre-pivot run folders.
+2) retained run-id set:
+   - `06b822558c294a0888e3f8f342e83947`
+   - `81599ab107ba4c8db7fc5850287360fe`
+   - `878cddcd58bf4a36bd88c56de0d18056`
+   - `3dd2a10fb61b4ab581f9e9251c8d72ab`
+   - `fa527d6a0a4c4eab97516d9e95be8420`
+   - `3f2e94f2d1504c249e434949659a496f`
+   - `6a3e291aae764c9bbf19b1c39443a68a`
+   - `682c20d2343e4ffaae4d4057d5b23b9e`
+   - `8d31ca8eaeda4e7d8e1c0c2443cc89c7`
+
+### Entry: 2026-02-19 03:18
+
+Design element: `P3 planning lock (CF-3A-05 anti-collapse, post-P2)`.
+Summary: user requested moving to P3 planning. Planning posture is set to
+conditional execution because post-P2 metrics already show strong anti-collapse
+behavior on witness/smoke lanes.
+
+Observed post-P2 anchor posture:
+1) selected authority run `3f2e94f2d1504c249e434949659a496f`:
+   - `S4 multi-zone=0.922505`,
+   - `S4 top1=0.750000`,
+   - `zone_alloc top1=0.750000`.
+2) witness/smoke (`42/7/101`) kept rails `PASS` and directional stability.
+3) primary open realism gap remains `S3` stretch (`B+`) rather than S4 collapse.
+
+Planning implication:
+1) `P3` should first verify whether integerization safeguards are still needed.
+2) if collapse-risk monitors are already green, close `P3` as a no-op lock to
+   avoid unnecessary blast radius.
+3) only if risk remains, run bounded S4 safeguard tuning with strict vetoes.
+
+Next planning action:
+1) expand `P3` in `segment_3A.build_plan.md` into explicit `P3.x` lanes:
+   - precheck + decision gate,
+   - optional safeguard wiring/tuning,
+   - witness/smoke confirmation,
+   - closeout + prune.
+
+### Entry: 2026-02-19 03:21
+
+Design element: `P3 build-plan expansion committed`.
+Summary: expanded `P3` in `segment_3A.build_plan.md` from a single row to
+execution-grade `P3.1..P3.5` lanes with explicit conditional/no-op posture.
+
+What was added:
+1) authority baseline anchors for `P3` from post-`P2` lock:
+   - selected + witness + smoke run-ids with pinned S4/zone_alloc metrics.
+2) explicit conditional execution posture:
+   - `P3_NOOP_LOCK` if collapse-risk monitors are already green,
+   - `P3_ACTIVE_TUNE` only on objective trigger.
+3) phased planning detail:
+   - `P3.1` collapse-risk fingerprint + decision gate,
+   - `P3.2` safeguard knob contract (only if active),
+   - `P3.3` bounded sweep + `J3` ranking + veto rails,
+   - `P3.4` witness/smoke lock,
+   - `P3.5` closeout/handoff decision.
+4) rerun posture clarification:
+   - precheck is report-only,
+   - active tuning lane uses full `S0->S7` reruns to remain contract-safe.
+
+Planning outcome:
+1) `P3` is now implementation-ready with an explicit low-blast-radius path
+   (no-op closure when justified) and a bounded active remediation path when
+   required by collapse-risk evidence.

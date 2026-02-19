@@ -346,6 +346,24 @@ policy:
       policy_id: { const: zone_mixture_policy_3A }
       version:   { type: string, minLength: 1 }
       theta_mix: { type: number, minimum: 0.0, maximum: 1.0 }
+      s3_dispersion:
+        type: object
+        additionalProperties: false
+        required:
+          - enabled
+          - concentration_scale
+          - alpha_temperature
+          - merchant_jitter
+          - merchant_jitter_clip
+          - alpha_floor
+        properties:
+          enabled:             { type: boolean }
+          concentration_scale: { type: number, minimum: 0.25, maximum: 1.50 }
+          alpha_temperature:   { type: number, minimum: 0.50, maximum: 1.50 }
+          merchant_jitter:     { type: number, minimum: 0.0, maximum: 0.50 }
+          merchant_jitter_clip: { type: number, minimum: 0.0, maximum: 0.50 }
+          alpha_floor:         { type: number, exclusiveMinimum: 0.0, maximum: 0.01 }
+          notes:               { type: string }
       rules:
         type: array
         minItems: 1
