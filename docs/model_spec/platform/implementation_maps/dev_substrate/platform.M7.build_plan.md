@@ -472,6 +472,10 @@ Planning status:
    - rerun summaries reported non-zero run-scope production:
      - decisions `200`, action outcomes `200`, audit records `600`,
    - `m7_f_decision_chain_snapshot.json` now reports `overall_pass=true` with empty blocker set.
+4. `P9.C` plane rollup closed PASS (`2026-02-19`):
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_p9_plane_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p9_plane_snapshot.json`
+   - result: `overall_pass=true`, blocker rollup empty.
 
 Blockers:
 1. none (M7F blockers closed on rerun).

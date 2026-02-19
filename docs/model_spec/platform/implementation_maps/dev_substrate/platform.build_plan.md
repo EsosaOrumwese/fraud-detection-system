@@ -743,6 +743,10 @@ Active-phase planning posture:
       - `decision-lane-dla` restored from probe image drift to platform image/task definition `:24`,
       - refreshed summaries are non-zero (`decisions=200`, `action_outcomes=200`, `audit_records=600`),
       - closure result: `overall_pass=true`, blocker rollup empty.
+    - `P9.C` rollup closure (`2026-02-19`):
+      - local snapshot: `runs/dev_substrate/m7/20260218T141420Z/m7_p9_plane_snapshot.json`
+      - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p9_plane_snapshot.json`
+      - closure result: `overall_pass=true`, blocker rollup empty.
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.

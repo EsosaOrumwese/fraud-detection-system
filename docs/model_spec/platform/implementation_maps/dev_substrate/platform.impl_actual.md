@@ -12721,3 +12721,78 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. For active execution lanes, append decisions continuously at each substantive step (diagnosis, branch of options, chosen action, verification result).
 2. Do not defer decision logging to end-of-lane summary.
 3. If a cadence miss occurs again, pause lane progression and backfill immediately before any further execution.
+
+## Entry: 2026-02-19 01:03:00 +00:00 - P9.C pre-change execution plan (deterministic plane rollup)
+### Scope
+1. USER asked to plan and execute `P9.C` after confirmed `P9.B` closure.
+
+### Entry-gate verification
+1. Local and durable `M7.E` snapshot exists with `overall_pass=true`.
+2. Local and durable `M7.F` snapshot exists with `overall_pass=true`.
+3. `P9.C` remains open in `platform.M7.P9.build_plan.md`.
+
+### Decision-completeness check
+1. Inputs required for `P9.C` are already pinned:
+   - source snapshots (`M7.E`, `M7.F`),
+   - control-plane destination key pattern (`evidence/dev_min/run_control/<m7_execution_id>/...`),
+   - deterministic rollup rule (`overall_pass = all source snapshots pass AND blocker rollup empty`).
+2. No new external handle decision is required to execute `P9.C`.
+
+### Execution design
+1. Expand `P9.C` plan block in `platform.M7.P9.build_plan.md` to explicit execution-grade structure:
+   - required inputs,
+   - preparation checks,
+   - deterministic rollup algorithm,
+   - expected snapshot fields,
+   - blocker mapping.
+2. Materialize `runs/dev_substrate/m7/20260218T141420Z/m7_p9_plane_snapshot.json` using local `M7.E` + `M7.F` snapshots.
+3. Publish durable artifact:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p9_plane_snapshot.json`.
+4. Verify existence/local-durable parity and then mark `P9.C` complete in plan docs.
+
+### Invariants
+1. No branch operations.
+2. No local substitute for managed runtime truth; `P9.C` rollup consumes managed-run snapshots only.
+3. Fail-closed: if either source snapshot is missing/non-pass, `P9.C` remains blocked.
+
+## Entry: 2026-02-19 01:08:00 +00:00 - P9.C executed and closed (plane rollup PASS)
+### Execution summary
+1. Expanded `P9.C` section in `platform.M7.P9.build_plan.md` to execution-grade detail:
+   - required inputs,
+   - preparation checks,
+   - deterministic rollup algorithm,
+   - explicit execution result block.
+2. Executed deterministic rollup from source snapshots:
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_e_decision_lane_readiness_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_f_decision_chain_snapshot.json`
+3. Published plane snapshot:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_p9_plane_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p9_plane_snapshot.json`
+
+### Deterministic result
+1. `M7.E` source: `overall_pass=true`, blockers empty.
+2. `M7.F` source: `overall_pass=true`, blockers empty.
+3. P9 blocker rollup: empty.
+4. `p9_overall_pass=true`.
+5. Runtime budget rollup:
+   - `p9_a_elapsed_seconds=80.31`
+   - `p9_b_elapsed_seconds=0.0`
+   - `p9_total_elapsed_seconds=80.31`
+
+### Count rollup captured
+1. decisions `200`
+2. action intents `200`
+3. action outcomes `200`
+4. audit records `600`
+
+### Plan synchronization
+1. `platform.M7.P9.build_plan.md`
+   - marked `P9.C` DoD + completion checklist items complete.
+2. `platform.M7.build_plan.md`
+   - added `P9.C` closure PASS status under `M7.F` progression notes.
+3. `platform.build_plan.md`
+   - added active-phase `P9.C` closure bullet with local/durable snapshot refs.
+
+### Forward posture
+1. `P9` branch is now closure-ready (`P9.A/B/C` complete).
+2. Next execution lane remains `M7.G` (`P10` entry), blocked only by `M7G-B1` subject-key pinning.

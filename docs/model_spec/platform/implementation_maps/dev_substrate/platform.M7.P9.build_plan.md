@@ -316,6 +316,27 @@ Goal:
 Entry conditions:
 1. `P9.A` and `P9.B` completed.
 
+Required inputs:
+1. `m7_e_decision_lane_readiness_snapshot.json` (`overall_pass` + blocker list).
+2. `m7_f_decision_chain_snapshot.json` (`overall_pass` + blocker list + counts).
+3. Active control artifact destination:
+   - `evidence/dev_min/run_control/<m7_execution_id>/m7_p9_plane_snapshot.json`.
+
+Preparation checks:
+1. Source snapshots are readable locally and durably.
+2. Source `platform_run_id` and `m7_execution_id` match.
+3. Source snapshots are from the same execution epoch (`m7_20260218T141420Z`).
+
+Deterministic rollup algorithm:
+1. Roll up blockers = concatenation of source blockers from `M7.E` and `M7.F`.
+2. Set `p9_overall_pass=true` only when:
+   - both source snapshots have `overall_pass=true`, and
+   - rolled-up blocker list is empty.
+3. Budget summary:
+   - carry forward elapsed seconds from sources,
+   - compute `p9_elapsed_total_seconds = m7e_elapsed_seconds + m7f_elapsed_seconds`.
+4. Any source read failure or mismatch materializes blocker `M7P9-B1`.
+
 Tasks:
 1. Roll up blockers from `M7.E..M7.F`.
 2. Compute `p9_overall_pass`.
@@ -327,14 +348,32 @@ Tasks:
    - `overall_pass`.
 
 DoD:
-- [ ] Plane snapshot exists locally + durably.
-- [ ] Blocker rollup is explicit.
-- [ ] `overall_pass` is deterministic.
+- [x] Plane snapshot exists locally + durably.
+- [x] Blocker rollup is explicit.
+- [x] `overall_pass` is deterministic.
 
 Blockers:
 1. `M7P9-B1`: source snapshot missing/unreadable.
 2. `M7P9-B2`: blocker rollup non-empty.
 3. `M7P9-B3`: plane snapshot publish failure.
+
+Execution result (`2026-02-19`):
+1. Plane snapshot published:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_p9_plane_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p9_plane_snapshot.json`
+2. Rollup outcome:
+   - source snapshots: `M7.E=PASS`, `M7.F=PASS`
+   - blocker rollup: empty
+   - `p9_overall_pass=true`
+3. Count rollup (from `P9.B` snapshot):
+   - decisions `200`
+   - action intents `200`
+   - action outcomes `200`
+   - audit records `600`
+4. Plane closure snapshot:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_p9_plane_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p9_plane_snapshot.json`
+   - `overall_pass=true`, blockers empty.
 
 ## 7) Evidence Contract (P9)
 Run-scoped:
@@ -350,9 +389,9 @@ Control-plane:
 ## 8) Completion Checklist (P9)
 - [x] P9.A complete
 - [x] P9.B complete
-- [ ] P9.C complete
+- [x] P9.C complete
 - [x] Runtime budget gates satisfied (or explicitly fail-closed with accepted blockers).
-- [ ] Rerun/rollback posture documented for any non-pass lane.
+- [x] Rerun/rollback posture documented for any non-pass lane.
 
 ## 9) Exit Criteria (P9)
 P9 branch is closure-ready only when:
