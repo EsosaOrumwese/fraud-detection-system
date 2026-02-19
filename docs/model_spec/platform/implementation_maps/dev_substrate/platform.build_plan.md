@@ -878,6 +878,8 @@ Active-phase planning posture:
   - `M8.D` remediation rerun is green with blockers empty; `M8.E` is unblocked.
   - `M8.E` execution is green with blockers empty; `M8.F` is unblocked.
   - `M8.F` executed fail-closed on canonical rerun with blocker `M8F-B1`; `M8.G..M8.I` blocked pending remediation.
+  - `M8.F` remediation reruns are green with blockers empty; `M8.G..M8.I` are unblocked.
+  - `M8.G` is expanded to execution-grade with deterministic replay-anchor/reconciliation verification algorithm and snapshot contract.
 
 M8.A execution closure (2026-02-19):
   - execution id: `m8_20260219T073801Z`

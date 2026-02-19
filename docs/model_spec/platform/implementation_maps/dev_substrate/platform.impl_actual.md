@@ -14660,3 +14660,47 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. `M8F-B1` is closed.
 2. `M8.F` is complete.
 3. `M8.G..M8.I` are unblocked for sequential execution.
+
+## Entry: 2026-02-19 11:39:16 +00:00 - M8.G planning expanded to execution-grade
+### Problem framing
+1. `M8.G` existed as a summary lane only and was not execution-safe (no pinned entry gate, no deterministic verification algorithm, and no snapshot schema contract).
+2. To prevent another hand-wavy execution loop, `M8.G` must be pinned against live artifact shapes emitted by current runtime, not assumed keys.
+
+### Runtime-shape grounding used for planning
+1. `run_report.json` keys validated live:
+   - `ingress`, `rtdl`, `archive`, `case_labels`, `evidence_refs`.
+2. `reconciliation.json` keys validated live:
+   - `status`, `checks`, `deltas`, `inputs`.
+3. `replay_anchors.json` keys validated live:
+   - `anchors`, `counts`, `source_refs`.
+4. Upstream offset snapshots validated live:
+   - ingest offsets: `ingest/kafka_offsets_snapshot.json`,
+   - RTDL offsets: `rtdl_core/offsets_snapshot.json`.
+
+### Planning decisions
+1. Entry gate for `M8.G` is now hard-pinned to `M8.F` pass snapshot:
+   - `m8_20260219T111902Z`.
+2. Replay-anchor checks are split into:
+   - structural checks (required keys + count parity),
+   - derived lower-bound checks from upstream offsets:
+     - expected anchors count is driven by partitions/rows that show actual progress (`run_end_offset >= 0` or `watermark_high > 0`),
+     - this avoids false failures when valid no-progress partitions produce zero anchors.
+3. Reconciliation coherence checks are now explicit:
+   - `status == PASS`,
+   - all `checks` booleans true,
+   - non-negative deltas,
+   - arithmetic identity parity against `run_report` counters.
+4. Blocker taxonomy extended to fail-closed prerequisites/handle resolution:
+   - `M8G-B4`, `M8G-B5`.
+5. Snapshot contract pinned for deterministic rerun comparison:
+   - `m8_g_replay_reconciliation_snapshot.json` with `artifact_refs`, anchor checks, reconciliation checks, blockers, verdict.
+
+### Plan outputs updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`:
+   - `M8.G` expanded to execution-grade (entry/precheck/algorithm/snapshot schema/runtime budget).
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - M8 expansion-state bullet updated to record `M8.G` execution-grade planning posture.
+
+### Phase posture
+1. `M8.G` is planning-complete and execution-ready.
+2. No runtime execution was performed in this planning step.

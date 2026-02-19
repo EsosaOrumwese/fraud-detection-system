@@ -818,10 +818,67 @@ Execution closure (2026-02-19):
 Goal:
 1. Verify replay anchors and reconciliation summaries are coherent.
 
+Entry conditions:
+1. `M8.F` is pass with blockers empty:
+   - local: `runs/dev_substrate/m8/m8_20260219T111902Z/m8_f_bundle_completeness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T111902Z/m8_f_bundle_completeness_snapshot.json`.
+2. Active run scope is pinned to:
+   - `platform_run_id=platform_20260213T214223Z`.
+3. No unresolved blockers remain from `M8.F`.
+
+Required inputs:
+1. `M8.F` pass snapshot (local preferred, durable fallback).
+2. Run-scoped P11 closure artifacts:
+   - `evidence/runs/<platform_run_id>/obs/run_report.json`
+   - `evidence/runs/<platform_run_id>/obs/reconciliation.json`
+   - `evidence/runs/<platform_run_id>/obs/replay_anchors.json`.
+3. Referenced upstream offset snapshots from replay-anchors source refs:
+   - `evidence/runs/<platform_run_id>/ingest/kafka_offsets_snapshot.json`
+   - `evidence/runs/<platform_run_id>/rtdl_core/offsets_snapshot.json`.
+4. M8 control-plane evidence root for `m8_g_replay_reconciliation_snapshot.json`.
+
+Preparation checks (fail-closed):
+1. Validate `M8.F` pass posture and run-scope match.
+2. Validate all required JSON objects above are readable and parseable.
+3. Validate replay-anchors source refs resolve to readable objects under the same run scope.
+4. Validate required handle values are concrete (no placeholder/wildcard) before evaluation.
+
+Deterministic verification algorithm (M8.G):
+1. Load `M8.F` pass snapshot; fail on missing/invalid/pass-mismatch -> `M8G-B4`.
+2. Load and parse:
+   - `run_report.json`,
+   - `reconciliation.json`,
+   - `replay_anchors.json`,
+   - offset snapshots referenced by replay-anchors source refs.
+3. Enforce run-scope conformance across all loaded payloads (`platform_run_id` equals active run scope).
+4. Replay-anchor structure checks:
+   - required keys exist: `anchors.ingest`, `anchors.rtdl_core`, `counts.ingest_anchors`, `counts.rtdl_anchors`, `source_refs.ingest_offsets_ref`, `source_refs.rtdl_offsets_ref`,
+   - counts match array lengths:
+     - `counts.ingest_anchors == len(anchors.ingest)`
+     - `counts.rtdl_anchors == len(anchors.rtdl_core)`,
+   - each anchor row (if present) includes topic/partition/offset fields with non-negative offsets.
+5. Expected-anchor lower-bound checks derived from upstream offsets:
+   - ingest expected lower-bound = count of ingest topic-partitions where `run_end_offset >= 0` or `watermark_high > 0`,
+   - rtdl expected lower-bound = count of rtdl rows where `run_end_offset >= 0` or `watermark_high > 0`,
+   - fail if actual anchor counts are below derived lower-bounds.
+6. Reconciliation coherence checks:
+   - `status == PASS`,
+   - all boolean checks in `checks` map are true,
+   - deltas are non-negative for:
+     - `sent_minus_received`,
+     - `received_minus_admit`,
+     - `decision_minus_outcome`,
+   - arithmetic identity checks from `run_report`:
+     - `run_report.ingress.sent - run_report.ingress.received == reconciliation.deltas.sent_minus_received`,
+     - `run_report.ingress.received - run_report.ingress.admit == reconciliation.deltas.received_minus_admit`,
+     - `run_report.rtdl.decision - run_report.rtdl.outcome == reconciliation.deltas.decision_minus_outcome`.
+7. Emit `m8_g_replay_reconciliation_snapshot.json` locally and publish durably.
+8. Return `overall_pass=true` only when blocker list is empty.
+
 Tasks:
-1. Validate replay anchor structure (required topic/partition offsets present).
-2. Validate reconciliation arithmetic against prior phase summary counts.
-3. Validate no impossible negative/drift deltas in closure summaries.
+1. Validate replay anchor structure and derived lower-bound coherence against upstream offsets.
+2. Validate reconciliation arithmetic + check-map posture against `run_report`.
+3. Validate no impossible negative deltas or cross-artifact run-scope drift.
 4. Emit `m8_g_replay_reconciliation_snapshot.json`.
 
 DoD:
@@ -833,6 +890,24 @@ Blocker Codes (Taxonomy):
 1. `M8G-B1`: replay anchor fields missing/incoherent.
 2. `M8G-B2`: reconciliation mismatch beyond allowed rules.
 3. `M8G-B3`: snapshot write/upload failure.
+4. `M8G-B4`: `M8.F` prerequisite or run-scope gate failed.
+5. `M8G-B5`: evidence-handle resolution/preparation check failed.
+
+Required snapshot fields (`m8_g_replay_reconciliation_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m8_execution_id`.
+2. `source_m8f_snapshot_local`, `source_m8f_snapshot_uri`.
+3. `artifact_refs` (`run_report`, `reconciliation`, `replay_anchors`, `ingest_offsets`, `rtdl_offsets`).
+4. `anchor_structure_checks`, `anchor_expected_lower_bounds`, `anchor_count_checks`.
+5. `reconciliation_checks`, `delta_checks`, `cross_artifact_identity_checks`.
+6. `blockers`, `overall_pass`, `elapsed_seconds`.
+
+Runtime budget:
+1. `M8.G` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
+
+Planning status:
+1. `M8.G` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
+2. Runtime execution is pending.
 
 ### M8.H Closure Marker + Obs/Gov Surface Verification
 Goal:
