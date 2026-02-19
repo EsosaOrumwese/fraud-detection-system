@@ -869,8 +869,11 @@ Active-phase planning posture:
   - `M8.A` is expanded to execution-grade with deterministic handle-closure algorithm and snapshot contract,
   - `M8.B` is expanded to execution-grade with deterministic reporter readiness algorithm and snapshot contract,
   - `M8.C` is expanded to execution-grade with deterministic input-readiness algorithm and snapshot contract,
+  - `M8.D` is expanded to execution-grade with deterministic contention-probe algorithm and snapshot contract,
   - `M8.A` rerun is green after reporter surface materialization,
-  - `M8.B` execution is green and `M8.C` is now planning-locked for execution.
+  - `M8.B` execution is green,
+  - `M8.C` execution is green,
+  - `M8.D` executed fail-closed; remediation is required before progression.
 
 M8.A execution closure (2026-02-19):
   - execution id: `m8_20260219T073801Z`
@@ -909,6 +912,21 @@ M8.C execution closure (2026-02-19):
     - required P7/P8/P9/P10 evidence objects readable and run-scoped,
     - ingest ambiguity indicators resolved at zero,
     - ingest and RTDL offsets semantic minimums pass.
+
+M8.D execution closure (2026-02-19):
+  - execution id: `m8_20260219T091250Z`
+  - local snapshot: `runs/dev_substrate/m8/m8_20260219T091250Z/m8_d_single_writer_probe_snapshot.json`
+  - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T091250Z/m8_d_single_writer_probe_snapshot.json`
+  - result: `overall_pass=false`, blocker `M8D-B4`
+  - probe outcomes:
+    - two same-run reporter tasks overlapped (`32.435s`)
+    - one task succeeded, one failed with `S3_APPEND_CONFLICT`
+    - conflict-signal evidence confirmed; `M8D-B1` cleared
+  - fail-closed posture:
+    - reporter contention deny behavior exists at append-conflict layer,
+    - pinned lock contract (`db_advisory_lock` via `REPORTER_LOCK_*`) is not executable/provable in reporter runtime path.
+  - consequence:
+    - `M8.D` remains open; `M8.E..M8.I` blocked pending `M8D-B4` remediation + rerun.
 
 Sub-phase progress:
   - [x] `M8.A` P11 authority + handles closure.
@@ -1049,7 +1067,8 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M8 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M8.D` single-writer contention fail-closed probe,
+- remediate `M8D-B4` so reporter runtime enforces/proves the pinned lock contract,
 - require durable artifact:
   - `evidence/dev_min/run_control/<m8_execution_id>/m8_d_single_writer_probe_snapshot.json`,
+- rerun `M8.D` and require `overall_pass=true` with blockers empty,
 - continue `M8.E..M8.I` only after `M8.D` passes fail-closed checks.

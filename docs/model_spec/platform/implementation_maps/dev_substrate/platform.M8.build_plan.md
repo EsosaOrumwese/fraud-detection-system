@@ -459,21 +459,107 @@ Blocker Codes (Taxonomy):
 Goal:
 1. Prove fail-closed behavior under same-run reporter contention.
 
+Entry conditions:
+1. `M8.C` is pass with blockers empty:
+   - local: `runs/dev_substrate/m8/m8_20260219T082913Z/m8_c_input_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T082913Z/m8_c_input_readiness_snapshot.json`.
+2. Active run scope is fixed:
+   - `platform_run_id=platform_20260213T214223Z`.
+3. Reporter runtime and lock-contract handles remain concrete and non-placeholder:
+   - `TD_REPORTER`
+   - `ROLE_REPORTER_SINGLE_WRITER`
+   - `REPORTER_LOCK_BACKEND`
+   - `REPORTER_LOCK_KEY_PATTERN`.
+
+Required inputs:
+1. `M8.C` pass snapshot (local preferred, durable fallback).
+2. Reporter runtime surfaces:
+   - ECS cluster/service/task-definition handles for one-shot reporter invocation,
+   - CloudWatch log group/prefix for reporter task logs.
+3. Lock proof surfaces:
+   - runtime signal proving lock acquisition/denial semantics,
+   - run-scoped closure output surfaces (`run_report` path + governance/event stream if available).
+
+Preparation checks:
+1. Validate `M8.C` pass posture and run-scope match.
+2. Validate reporter task-definition revision matches M8.B-ready runtime posture.
+3. Validate contention-probe executability:
+   - lock semantics are actually wired in runtime path (not just contract config),
+   - probe can produce deterministic overlap window for two same-run invocations.
+   Failure of this preparation check is fail-closed (`M8D-B4`).
+
+Deterministic verification algorithm (M8.D):
+1. Load `M8.C` snapshot; fail on missing/invalid/pass-mismatch -> `M8D-B5`.
+2. Resolve reporter + lock handles; unresolved/placeholder/wildcard -> `M8D-B5`.
+3. Assert lock wiring is executable in runtime lane (code-path/log signal), not only declarative contract:
+   - missing executable lock behavior -> `M8D-B4`.
+4. Launch two reporter one-shot tasks with same `platform_run_id` in controlled overlap window.
+5. Wait for both tasks to terminal state and capture:
+   - task ARNs, exit codes, stop reasons, log stream refs, start/stop timestamps.
+6. Evaluate contention outcome:
+   - exactly one writer succeeds in lock-protected section,
+   - second writer is denied/fails closed with lock-conflict signal.
+   Any other outcome -> `M8D-B1` or `M8D-B2` per failure class.
+7. Verify no conflicting closure writes:
+   - no dual-success conflicting write pattern for run closure artifacts,
+   - governance/report outputs remain single-writer coherent for the probe window.
+   Conflict -> `M8D-B2`.
+8. Emit `m8_d_single_writer_probe_snapshot.json` locally and publish durably.
+9. Return `overall_pass=true` only when blocker list is empty.
+
 Tasks:
-1. Trigger controlled contention probe for same `platform_run_id`.
-2. Verify only one reporter obtains lock and second writer fails closed.
-3. Verify no concurrent writer produces conflicting closure artifacts.
-4. Emit `m8_d_single_writer_probe_snapshot.json`.
+1. Execute controlled two-writer contention probe for same run scope.
+2. Verify second writer fail-closed behavior with explicit runtime evidence.
+3. Verify closure outputs remain single-writer coherent during probe window.
+4. Emit and publish `m8_d_single_writer_probe_snapshot.json` (local + durable).
+
+Required snapshot fields (`m8_d_single_writer_probe_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m8_execution_id`.
+2. `source_m8c_snapshot_local`, `source_m8c_snapshot_uri`.
+3. `probe_inputs` (task definition, lock contract, overlap window settings).
+4. `task_invocations` (task ids, state transitions, exits, stop reasons, log refs).
+5. `contention_outcome_checks`, `single_writer_output_checks`.
+6. `blockers`, `overall_pass`, `elapsed_seconds`.
 
 DoD:
 - [ ] Contention probe demonstrates single-writer lock correctness.
+- [ ] Second writer is denied/fails closed with explicit runtime evidence.
 - [ ] No conflicting closure writes occur under probe.
 - [ ] Snapshot exists locally and durably.
 
+Runtime budget:
+1. `M8.D` target budget: <= 15 minutes wall clock.
+2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
+
+Planning status:
+1. `M8.D` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
+2. Runtime execution completed on `m8_execution_id=m8_20260219T091250Z` with fail-closed verdict.
+
+Execution closure (2026-02-19):
+1. Probe execution:
+   - execution id: `m8_20260219T091250Z`
+   - local snapshot: `runs/dev_substrate/m8/m8_20260219T091250Z/m8_d_single_writer_probe_snapshot.json`
+   - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T091250Z/m8_d_single_writer_probe_snapshot.json`.
+2. Contention outcomes observed:
+   - two reporter one-shot tasks launched for same run scope with overlap `32.435s`,
+   - one task exited `0`,
+   - one task exited `1` with runtime trace including `RuntimeError: S3_APPEND_CONFLICT`.
+3. Probe classification:
+   - `M8D-B1` cleared after corrected log retrieval confirmed explicit conflict signal on losing writer,
+   - unresolved `M8D-B4` remains because pinned lock contract (`REPORTER_LOCK_BACKEND`/`REPORTER_LOCK_KEY_PATTERN`, `db_advisory_lock`) is not executable/provable in reporter runtime path.
+4. Verdict:
+   - `overall_pass=false`,
+   - blockers: `M8D-B4`.
+5. Phase posture:
+   - `M8.D` remains open (fail-closed),
+   - `M8.E` stays blocked until `M8D-B4` is remediated and `M8.D` rerun passes.
+
 Blocker Codes (Taxonomy):
-1. `M8D-B1`: lock does not enforce single-writer.
-2. `M8D-B2`: concurrent writer succeeds unexpectedly.
+1. `M8D-B1`: lock does not enforce single-writer under contention probe.
+2. `M8D-B2`: concurrent writer succeeds unexpectedly or conflicting closure writes observed.
 3. `M8D-B3`: snapshot write/upload failure.
+4. `M8D-B4`: lock semantics not executable/provable in reporter runtime path.
+5. `M8D-B5`: `M8.C` prerequisite or run-scope gate failed.
 
 ### M8.E Reporter One-Shot Execution
 Goal:

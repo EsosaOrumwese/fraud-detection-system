@@ -1408,6 +1408,14 @@ resource "aws_ecs_task_definition" "reporter" {
           name  = "FP_COMPONENT_MODE"
           value = "platform_reporter"
         },
+        {
+          name  = "REPORTER_LOCK_BACKEND"
+          value = "db_advisory_lock"
+        },
+        {
+          name  = "REPORTER_LOCK_KEY_PATTERN"
+          value = "reporter:{platform_run_id}"
+        },
       ]
       secrets = [
         {

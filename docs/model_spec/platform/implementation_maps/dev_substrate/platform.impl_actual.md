@@ -14146,3 +14146,178 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. Previous entry labels for blocker-taxonomy rename were stamped with `08:33:00 +00:00` in header text.
 2. Actual execution occurred around `09:01:55 +00:00`.
 3. This note corrects timeline interpretation without rewriting prior entries.
+
+## Entry: 2026-02-19 09:08:28 +00:00 - M8.D planning lock (execution-grade expansion)
+### User directive
+1. Plan out `M8.D` as the next M8 sub-phase.
+
+### Problem framing
+1. `M8.D` was high-level only and lacked deterministic execution controls.
+2. This lane is safety-critical: if contention proof is weak, we can claim single-writer without real runtime evidence.
+3. Runtime inspection showed reporter task wiring does not expose an obvious lock-acquire primitive in `platform_reporter` code path by default; plan must fail closed on that gap instead of assuming lock behavior.
+
+### Planned expansion
+1. Anchor entry on `M8.C` pass artifact and fixed run scope.
+2. Add explicit required inputs for two-task contention probe and runtime evidence capture.
+3. Add deterministic algorithm for overlap-run probe, contention outcome checks, and conflicting-write checks.
+4. Add explicit blocker class for non-executable lock semantics (`M8D-B4`).
+5. Mirror expansion state in main platform build tracker.
+
+## Entry: 2026-02-19 09:08:28 +00:00 - M8.D planning expansion applied
+### Changes executed
+1. Expanded `M8.D` in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+2. Added execution-grade planning content:
+   - entry conditions tied to `M8.C` pass artifact,
+   - required inputs + preparation checks,
+   - deterministic contention-probe algorithm,
+   - snapshot schema contract for `m8_d_single_writer_probe_snapshot.json`,
+   - runtime budget + expanded blocker taxonomy (`M8D-B1..B5`).
+3. Mirrored status in main tracker:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - recorded `M8.D` as execution-grade expanded and next active execution step.
+
+### Outcome
+1. `M8.D` is planning-ready for fail-closed execution.
+2. No runtime execution occurred in this step.
+3. Immediate next action remains full `M8.D` execution on explicit USER go-ahead.
+
+## Entry: 2026-02-19 09:12:50 +00:00 - M8.D execution start lock (single-writer contention probe)
+### User directive
+1. Proceed with full execution of `M8.D` and document reasoning/decisions during implementation.
+
+### Execution intent
+1. Enforce `M8.D` entry gate from `M8.C` pass artifact and fixed run scope.
+2. Discover live reporter runtime surfaces from managed substrate (cluster/task def/network handles) before probe.
+3. Execute deterministic two-task overlap probe for same `platform_run_id`.
+4. Verify contention outcome and closure-output coherence.
+5. Emit/publish `m8_d_single_writer_probe_snapshot.json` and close `M8.D` only on blocker-empty pass.
+
+### Fail-closed posture
+1. If lock semantics are not executable/provable in runtime path, stop with `M8D-B4`.
+2. If both concurrent writers succeed without explicit lock-denial evidence, fail with `M8D-B1/M8D-B2`.
+
+## Entry: 2026-02-19 09:13:55 +00:00 - M8.D in-flight runtime-surface decision (lock executability)
+### Observation
+1. Live reporter task definition (`fraud-platform-dev-min-reporter:2`) is one-shot worker invocation and carries run-scope env, but no explicit lock backend/key env usage in container command.
+2. Reporter runtime code path (`platform_reporter.worker` + `platform_reporter.run_reporter`) does not expose explicit advisory-lock acquisition primitive.
+3. This means lock semantics are not directly provable from declared runtime path alone.
+
+### Decision
+1. Keep fail-closed blocker class `M8D-B4` active for missing executable lock semantics proof.
+2. Still run controlled two-task contention probe to collect empirical runtime evidence:
+   - terminal states/exits,
+   - logs for denial/conflict signals,
+   - closure-output coherence checks.
+3. Final verdict remains fail-closed unless runtime proves explicit second-writer denial path.
+
+## Entry: 2026-02-19 09:15:10 +00:00 - M8.D in-flight recovery decision (local command timeout)
+### Observation
+1. Initial contention script invocation timed out at the shell boundary before completion.
+2. Timeout occurred on operator command path, not yet classified as runtime probe failure.
+
+### Decision
+1. Reattach safely using deterministic `startedBy` key (`m8d-m8_20260219t091250z`).
+2. Launch probe tasks only if none already exist for that key (avoid duplicate contention injections).
+3. Continue evidence collection from actual task outcomes and keep fail-closed posture unchanged.
+
+## Entry: 2026-02-19 09:17:20 +00:00 - M8.D in-flight evidence correction (log retrieval)
+### Observation
+1. Contention probe produced two terminal tasks (1 success / 1 failure) with overlap, but log retrieval path used invalid CloudWatch API option combination (`orderBy=LastEventTime` with `logStreamNamePrefix`).
+2. As a result, conflict-signal extraction was incomplete, which can misclassify `M8D-B1`.
+
+### Decision
+1. Correct log retrieval against task-scoped stream prefix without unsupported ordering combination.
+2. Re-evaluate failure reason classification using fetched logs:
+   - lock/conflict denial evidence,
+   - generic runtime failure evidence.
+3. Update M8.D closure reasoning from corrected evidence while preserving existing probe task outcomes.
+
+## Entry: 2026-02-19 09:17:46 +00:00 - M8.D execution closure (fail-closed)
+### Reasoning and execution trail
+1. Enforced entry gate from `M8.C` pass artifact (`m8_20260219T082913Z`) and fixed run scope (`platform_20260213T214223Z`).
+2. Runtime surface inspection found lock-contract drift before probe:
+   - reporter task/runtime does not expose `REPORTER_LOCK_BACKEND`/`REPORTER_LOCK_KEY_PATTERN` in executable path,
+   - worker command does not include explicit lock primitive,
+   - therefore `M8D-B4` was activated fail-closed pending runtime proof.
+3. Executed controlled two-task same-run probe under managed ECS runtime:
+   - cluster: `fraud-platform-dev-min`
+   - task definition: `fraud-platform-dev-min-reporter:2`
+   - startedBy: `m8d-m8_20260219t091250z`
+   - overlap observed: `32.435s`.
+4. First collection pass had an observability bug (invalid CloudWatch API option mix), which under-reported conflict signals and incorrectly kept `M8D-B1`.
+5. Corrected log retrieval and reclassified contention outcome from task-scoped logs:
+   - losing writer emitted `RuntimeError: S3_APPEND_CONFLICT`,
+   - winning writer exited `0`,
+   - contention deny signal confirmed.
+6. Reclassification decision:
+   - `M8D-B1` cleared (deny signal exists),
+   - `M8D-B4` remains unresolved because observed deny behavior is append-conflict side effect, not the pinned lock-contract execution path.
+
+### Artifacts
+1. Local snapshot:
+   - `runs/dev_substrate/m8/m8_20260219T091250Z/m8_d_single_writer_probe_snapshot.json`.
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T091250Z/m8_d_single_writer_probe_snapshot.json`.
+
+### Verdict
+1. `overall_pass=false`.
+2. Final blockers:
+   - `M8D-B4`.
+3. `M8.D` remains fail-closed/open until lock-contract remediation + rerun.
+
+### Phase state updates
+1. Updated `platform.M8.build_plan.md` with M8.D execution closure and fail-closed status.
+2. Updated `platform.build_plan.md` with M8.D fail-closed closure and revised immediate next action (remediate `M8D-B4`, rerun M8.D).
+
+## Entry: 2026-02-19 09:20:20 +00:00 - M8D-B4 remediation plan lock (explicit reporter lock semantics)
+### Problem
+1. `M8.D` fail-closed verdict left `M8D-B4` unresolved: pinned lock contract is not executable/provable in reporter runtime path.
+
+### Selected remediation
+1. Implement explicit single-writer lock acquisition/release in `platform_reporter.worker`.
+2. Backend remains pinned to `db_advisory_lock`.
+3. Lock key remains pinned to `REPORTER_LOCK_KEY_PATTERN` with required `{platform_run_id}` rendering.
+4. Lock DSN sourced from runtime (`IG_ADMISSION_DSN`, fallback profile locator) and must be Postgres for this backend.
+5. Losing contender must fail closed with explicit lock-denied error surface (`REPORTER_LOCK_NOT_ACQUIRED`).
+6. Add explicit lock observability logs (attempt/acquire/deny/release).
+7. Wire reporter ECS task env with `REPORTER_LOCK_BACKEND` and `REPORTER_LOCK_KEY_PATTERN` to make contract concrete in managed runtime surface.
+
+### Implementation steps
+1. Patch `src/fraud_detection/platform_reporter/worker.py` with lock context manager + deterministic lock-id derivation.
+2. Patch `infra/terraform/modules/demo/main.tf` reporter task env to include lock contract env vars.
+3. Rebuild/publish platform image and rematerialize reporter task definition on demo substrate.
+4. Rerun `M8.D` contention probe and require blocker-empty pass to clear `M8D-B4`.
+
+## Entry: 2026-02-19 09:26:40 +00:00 - M8D-B4 remediation implementation applied (worker + task env)
+### Code changes
+1. `src/fraud_detection/platform_reporter/worker.py`:
+   - added explicit single-writer lock context around `reporter.export()` in `run_once`,
+   - implemented lock backend/key config loading from env (`REPORTER_LOCK_BACKEND`, `REPORTER_LOCK_KEY_PATTERN`),
+   - implemented deterministic lock key rendering (`{platform_run_id}` required) and lock-id derivation,
+   - implemented Postgres advisory lock path (`pg_try_advisory_lock` / `pg_advisory_unlock`) with fail-closed denial error `REPORTER_LOCK_NOT_ACQUIRED`,
+   - added explicit lock observability logs for attempt/acquired/denied/released,
+   - added DSN resolution path (`IG_ADMISSION_DSN` env fallback to profile admission locator) and Postgres DSN guard.
+2. `infra/terraform/modules/demo/main.tf`:
+   - wired reporter task env vars:
+     - `REPORTER_LOCK_BACKEND=db_advisory_lock`
+     - `REPORTER_LOCK_KEY_PATTERN=reporter:{platform_run_id}`.
+
+### Validation
+1. Python compile check passed for modified worker.
+2. Reporter service tests passed (`tests/services/platform_reporter`, `2 passed`).
+
+### Next execution step
+1. Rebuild/publish platform image with this runtime change.
+2. Rematerialize reporter task definition on demo substrate.
+3. Rerun `M8.D` contention probe and require blocker-empty pass.
+
+## Entry: 2026-02-19 09:27:50 +00:00 - M8D-B4 rollout lane decision (Docker daemon unavailable)
+### Observation
+1. Local Docker daemon is unavailable (`dockerDesktopLinuxEngine` pipe not found), so local image build/push cannot execute.
+
+### Decision
+1. Use authoritative CI packaging lane (`dev_min_m1_packaging.yml`) for immutable image build/push.
+2. Keep branch-governance constraints: stay on active branch, no branch switch.
+3. After CI digest resolves, apply targeted Terraform reporter task-definition update using that immutable digest.
+4. Rerun `M8.D` against rematerialized runtime.

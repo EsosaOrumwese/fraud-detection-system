@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import argparse
 from dataclasses import dataclass
+import hashlib
 import json
 import logging
 import os
 from pathlib import Path
 import time
 
+from fraud_detection.ingestion_gate.config import WiringProfile
+from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
+from fraud_detection.postgres_runtime import postgres_threadlocal_connection
 from fraud_detection.platform_runtime import resolve_platform_run_id
 
 from .run_reporter import PlatformRunReporter
@@ -23,6 +28,8 @@ class PlatformRunReporterWorkerConfig:
     profile_path: Path
     poll_seconds: float
     required_platform_run_id: str | None = None
+    lock_backend: str = "db_advisory_lock"
+    lock_key_pattern: str = "reporter:{platform_run_id}"
 
 
 class PlatformRunReporterWorker:
@@ -31,11 +38,17 @@ class PlatformRunReporterWorker:
 
     def run_once(self) -> dict[str, object]:
         run_id = _resolve_run_id(required=self.config.required_platform_run_id)
-        reporter = PlatformRunReporter.build(
-            profile_path=str(self.config.profile_path),
-            platform_run_id=run_id,
-        )
-        payload = reporter.export()
+        with _single_writer_lock(
+            profile_path=self.config.profile_path,
+            run_id=run_id,
+            lock_backend=self.config.lock_backend,
+            lock_key_pattern=self.config.lock_key_pattern,
+        ):
+            reporter = PlatformRunReporter.build(
+                profile_path=str(self.config.profile_path),
+                platform_run_id=run_id,
+            )
+            payload = reporter.export()
         return {
             "platform_run_id": run_id,
             "ingress_sent": int((payload.get("ingress") or {}).get("sent", 0)),
@@ -63,10 +76,14 @@ def load_worker_config(*, profile_path: Path, poll_seconds: float, required_plat
         raise RuntimeError(f"PLATFORM_REPORTER_PROFILE_NOT_FOUND:{profile}")
     poll = max(1.0, float(poll_seconds))
     required = str(required_platform_run_id or "").strip() or None
+    lock_backend = str(os.getenv("REPORTER_LOCK_BACKEND") or "db_advisory_lock").strip().lower()
+    lock_key_pattern = str(os.getenv("REPORTER_LOCK_KEY_PATTERN") or "reporter:{platform_run_id}").strip()
     return PlatformRunReporterWorkerConfig(
         profile_path=profile,
         poll_seconds=poll,
         required_platform_run_id=required,
+        lock_backend=lock_backend,
+        lock_key_pattern=lock_key_pattern,
     )
 
 
@@ -81,6 +98,95 @@ def _resolve_run_id(*, required: str | None) -> str:
     if not run_id:
         raise RuntimeError("PLATFORM_REPORTER_RUN_ID_REQUIRED")
     return run_id
+
+
+def _resolve_lock_dsn(*, profile_path: Path) -> str:
+    dsn = str(os.getenv("IG_ADMISSION_DSN") or "").strip()
+    if dsn:
+        return dsn
+    profile = WiringProfile.load(profile_path)
+    return str(profile.admission_db_path or "").strip()
+
+
+def _render_lock_key(*, pattern: str, run_id: str) -> str:
+    rendered = pattern.replace("{platform_run_id}", run_id).strip()
+    if "{platform_run_id}" not in pattern:
+        raise RuntimeError("REPORTER_LOCK_KEY_PATTERN_MISSING_PLATFORM_RUN_ID_TOKEN")
+    if not rendered or "{" in rendered or "}" in rendered:
+        raise RuntimeError("REPORTER_LOCK_KEY_PATTERN_RENDER_FAILED")
+    return rendered
+
+
+def _lock_id_from_key(key: str) -> int:
+    digest = hashlib.sha256(key.encode("utf-8")).digest()
+    # Map deterministic key to signed 64-bit Postgres advisory lock id.
+    return int.from_bytes(digest[:8], byteorder="big", signed=True)
+
+
+@contextmanager
+def _single_writer_lock(*, profile_path: Path, run_id: str, lock_backend: str, lock_key_pattern: str):
+    backend = str(lock_backend or "").strip().lower()
+    if backend in {"", "none", "disabled"}:
+        logger.info("platform reporter lock disabled by backend=%s", backend or "empty")
+        yield
+        return
+    if backend != "db_advisory_lock":
+        raise RuntimeError(f"REPORTER_LOCK_BACKEND_UNSUPPORTED:{backend}")
+
+    dsn = _resolve_lock_dsn(profile_path=profile_path)
+    if not dsn:
+        raise RuntimeError("REPORTER_LOCK_DSN_REQUIRED")
+    if not is_postgres_dsn(dsn):
+        raise RuntimeError("REPORTER_LOCK_DSN_NOT_POSTGRES")
+
+    lock_key = _render_lock_key(pattern=lock_key_pattern, run_id=run_id)
+    lock_id = _lock_id_from_key(lock_key)
+
+    with postgres_threadlocal_connection(dsn) as conn:
+        logger.info(
+            "platform reporter lock attempt backend=%s lock_key=%s lock_id=%s run_id=%s",
+            backend,
+            lock_key,
+            lock_id,
+            run_id,
+        )
+        acquired = bool(conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_id,)).fetchone()[0])
+        if not acquired:
+            logger.error(
+                "platform reporter lock denied backend=%s lock_key=%s lock_id=%s run_id=%s",
+                backend,
+                lock_key,
+                lock_id,
+                run_id,
+            )
+            raise RuntimeError(f"REPORTER_LOCK_NOT_ACQUIRED:{lock_key}")
+        logger.info(
+            "platform reporter lock acquired backend=%s lock_key=%s lock_id=%s run_id=%s",
+            backend,
+            lock_key,
+            lock_id,
+            run_id,
+        )
+        try:
+            yield
+        finally:
+            released = bool(conn.execute("SELECT pg_advisory_unlock(%s)", (lock_id,)).fetchone()[0])
+            if released:
+                logger.info(
+                    "platform reporter lock released backend=%s lock_key=%s lock_id=%s run_id=%s",
+                    backend,
+                    lock_key,
+                    lock_id,
+                    run_id,
+                )
+            else:
+                logger.warning(
+                    "platform reporter lock release returned false backend=%s lock_key=%s lock_id=%s run_id=%s",
+                    backend,
+                    lock_key,
+                    lock_id,
+                    run_id,
+                )
 
 
 def main() -> None:
@@ -117,4 +223,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
