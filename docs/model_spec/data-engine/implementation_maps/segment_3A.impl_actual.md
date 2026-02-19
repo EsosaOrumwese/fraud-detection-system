@@ -3688,3 +3688,67 @@ Phase decision:
      - `878cddcd58bf4a36bd88c56de0d18056`,
      - `3dd2a10fb61b4ab581f9e9251c8d72ab`,
      - `fa527d6a0a4c4eab97516d9e95be8420`.
+
+### Entry: 2026-02-19 02:31
+
+Design element: `P2 planning lock (S3 merchant dispersion remediation, CF-3A-02)`.
+Summary: user requested planning-only expansion for `P2`. This entry pins the
+planning posture before editing the build plan.
+
+P2 planning posture pinned:
+1) phase ownership:
+   - `P2` is owned by `S3` (merchant-level dispersion) with downstream readout
+     on `S4`/`zone_alloc`.
+   - `S2` geometry from `P1` is treated as locked authority and must not be
+     reopened in `P2`.
+2) statistical gap to close:
+   - from `P1` witness (`fa527d...`), `S3 merchant_share_std_median = 0.017801`
+     vs hard gate floor `0.02` (gap `0.002199`).
+   - `S2`, `S4`, `zone_alloc` already sit in strong posture and are protected
+     by non-regression vetoes.
+3) knob families to plan for `P2`:
+   - deterministic per-merchant concentration scaling over S2 alphas,
+   - bounded dispersion amplitude (hash-keyed, reproducible),
+   - optional concentration floor guards to avoid unstable tails.
+4) veto rails for all `P2` candidates:
+   - no conservation regressions (`S4` / `zone_alloc`),
+   - no RNG-accounting regressions (`S3` event/trace/audit integrity),
+   - no statistical backslide on locked `P1` realism surfaces.
+5) run protocol:
+   - `S3` lane rerun law: `S3 -> S4 -> S5 -> S6 -> S7`,
+   - prune superseded candidate runs before expensive retries,
+   - witness rerun required before `P2` close decision.
+
+Next action in this step:
+1) expand `P2` in `segment_3A.build_plan.md` into concrete `P2.1..P2.x`
+   sub-phases with quantitative targets, candidate ranking rule, and explicit
+   close criteria (`UNLOCK_P3` or `HOLD_P2_REOPEN`).
+
+### Entry: 2026-02-19 02:34
+
+Design element: `P2 build-plan expansion committed`.
+Summary: expanded `P2` from a single high-level row into executable `P2.1..P2.5`
+lanes in `segment_3A.build_plan.md`.
+
+What was added:
+1) `P2` authority baseline anchors from post-`P1` lock:
+   - selected run `3dd2...`,
+   - witness run `fa52...`,
+   - pinned starting metrics (`S3 std`, `S4 multi-zone`, `S4 top1`,
+     `zone_alloc top1`).
+2) explicit `P2` execution posture:
+   - rerun law pinned to `S3->S7`,
+   - scorer authority and comparator artifacts pinned,
+   - explicit `S2` freeze posture during `P2`.
+3) phased planning depth:
+   - `P2.1` target envelope + knob contract,
+   - `P2.2` deterministic sealed knob wiring in `S3`,
+   - `P2.3` bounded sweep + objective ranking + vetoes,
+   - `P2.4` witness lock + smoke seed stability check,
+   - `P2.5` closure decision and retention/prune.
+4) closure semantics:
+   - explicit decision output required: `UNLOCK_P3` or `HOLD_P2_REOPEN`.
+
+Planning outcome:
+1) `P2` is now implementation-ready with bounded knob families, measurable
+   target movement, veto rails, and a deterministic witness path.

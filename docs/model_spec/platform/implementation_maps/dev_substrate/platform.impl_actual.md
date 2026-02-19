@@ -13156,3 +13156,60 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Progression decision
 1. `M7.G` is now closure-grade green for current run scope.
 2. Next executable lane is `M7.H` (`P10.B`) case/label commit evidence closure.
+
+## Entry: 2026-02-19 02:47:00 +00:00 - P10.B planning pre-change lock (M7.H execution-grade expansion)
+### User directive
+1. Proceed with planning out `P10.B`.
+
+### Current gap assessment
+1. `P10.B` in `platform.M7.P10.build_plan.md` is currently summary-level:
+   - goal/inputs/tasks/doD exist,
+   - but no deterministic verification algorithm, no explicit snapshot schema, no runtime budget gate, and no expanded fail-closed blocker taxonomy.
+2. `M7.H` in `platform.M7.build_plan.md` mirrors the same summary-level structure and depends on `P10.B` expansion for execution safety.
+
+### Planning decision
+1. Expand `P10.B` to execution-grade depth in `platform.M7.P10.build_plan.md` with:
+   - entry conditions and fixed run-scope contract,
+   - required handles + runtime-truth anchors,
+   - deterministic verification algorithm,
+   - explicit case/label evidence computation rules,
+   - required snapshot field schema,
+   - runtime budget and fail-closed gating,
+   - expanded blockers for scope mismatch, evidence incompleteness, and append-only/idempotency drift.
+2. Keep `P10.C` orchestration unchanged except where it must consume new `P10.B` snapshot fields.
+3. Sync orchestrator references in `platform.M7.build_plan.md` and top-level progression note in `platform.build_plan.md` only where needed for consistency.
+
+### Safety/performance posture
+1. Planning-only step: no runtime execution, no infra mutation.
+2. Preserve no-local-compute law and managed-evidence law in all new `P10.B` checks.
+3. Keep runtime verification algorithm efficient by using summary artifacts and bounded DB checks rather than full-table scans.
+
+## Entry: 2026-02-19 02:49:00 +00:00 - P10.B planning expansion applied (execution-grade)
+### Changes applied
+1. Expanded `P10.B Case/Label Commit Closure` in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`
+2. Added execution-grade details:
+   - explicit entry conditions tied to `M7.G` pass and fixed run scope,
+   - required input expansion (handles + policy/identity/runtime anchors),
+   - preparation checks before execution,
+   - deterministic verification algorithm (`M7.G` dependency, two-probe readiness, summary completeness, append-only checks, idempotency checks, case-to-label coherence),
+   - required snapshot field schema,
+   - runtime budget gate (`<=20 minutes`),
+   - expanded blocker taxonomy (`M7H-B1..M7H-B6`).
+
+### Orchestrator alignment updates
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`:
+   - corrected stale current posture (`M7.H` is next),
+   - synced `M7.H` DoD with runtime budget gate,
+   - synced `M7.H` blockers to `M7H-B1..M7H-B6`,
+   - added explicit note that `P10.B` depth is now execution-grade in `platform.M7.P10.build_plan.md`.
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - added M7 expansion-state note that `M7.H` planning is execution-grade with deterministic algorithm and expanded blockers.
+
+### Why this closes planning drift
+1. Before this change, `P10.B` was structurally complete but operationally ambiguous for execution.
+2. After this change, `P10.B` has the same closure-grade planning depth as `P10.A`, enabling fail-closed execution without improvisation.
+
+### Execution status
+1. Planning only; `M7.H` runtime execution not started in this step.
+2. Next step remains execution of `M7.H` against the expanded authority.

@@ -66,7 +66,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Phase
 Current posture:
-1. M7 is active and execution has started (`M7.A`..`M7.E` are closed; `M7.F` is next).
+1. M7 is active and execution has started (`M7.A`..`M7.G` are closed; `M7.H` is next).
 
 Execution block:
 1. No M8 execution is allowed before M7 verdict is `ADVANCE_TO_M8`.
@@ -568,11 +568,22 @@ DoD:
 - [ ] Case summary and label summary are present and run-scoped.
 - [ ] Append-only + idempotency posture is validated for case/label writes.
 - [ ] Snapshot published locally and durably.
+- [ ] Runtime budget target is met (or explicitly waived).
+
+Planning status:
+1. `P10.B` depth is now execution-grade in `platform.M7.P10.build_plan.md` with:
+   - entry checks bound to `M7.G` pass dependency,
+   - deterministic verification algorithm,
+   - explicit snapshot schema contract,
+   - expanded fail-closed blockers (`M7H-B1..M7H-B6`).
 
 Blockers:
 1. `M7H-B1`: case/label evidence missing or incomplete.
 2. `M7H-B2`: append-only/idempotency posture violation.
 3. `M7H-B3`: snapshot write/upload failure.
+4. `M7H-B4`: missing/non-pass `M7.G` dependency.
+5. `M7H-B5`: case-label lane service readiness/runtime conformance failure.
+6. `M7H-B6`: case-to-label coherence failure for run scope.
 
 ### M7.I P8..P10 Gate Rollup + Verdict
 Goal:

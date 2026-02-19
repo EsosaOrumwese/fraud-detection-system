@@ -426,6 +426,121 @@ Definition of done:
 - [ ] S3 RNG accounting checks remain PASS.
 - [ ] no downstream S4 conservation regressions introduced.
 
+P2 authority baseline (post-P1 lock):
+- selected run-id: `3dd2a10fb61b4ab581f9e9251c8d72ab`.
+- witness run-id: `fa527d6a0a4c4eab97516d9e95be8420`.
+- current anchors:
+  - `S3` merchant share-std median: `0.017801` (gap to B floor: `+0.002199`).
+  - `S4` escalated multi-zone rate: `0.917127`.
+  - `S4` top1 median: `0.750000`.
+  - `zone_alloc` top1 median: `0.750000`.
+
+Execution posture:
+- rerun law for this phase:
+  - `S3` code/policy change -> rerun `S3 -> S4 -> S5 -> S6 -> S7`.
+- scorer contract:
+  - baseline authority:
+    - `segment3a_p0_baseline_metrics_81599ab107ba4c8db7fc5850287360fe.json`
+  - candidate comparator:
+    - `score_segment3a_p0_candidate.py`
+- `P1`-locked `S2` posture is treated as frozen in `P2`; no `S2` reopen in this phase.
+
+#### P2.1 - Target Envelope + Dispersion Knob Contract
+Goal:
+- pin quantitative `P2` targets and deterministic knob families before touching `S3`.
+
+Scope:
+- target envelope for `P2` candidate selection:
+  - primary: `S3 merchant_share_std_median >= 0.020` (`B` hard gate).
+  - stretch movement: toward `>= 0.025` without destabilizing downstream shape.
+  - guardrails (seed `42`):
+    - `S4 escalated_multi_zone_rate >= 0.85`,
+    - `S4 top1_share_median <= 0.80`,
+    - `zone_alloc top1_share_median <= 0.80`.
+- pin dispersion knobs (deterministic, bounded):
+  - `alpha_temperature` (compression/flattening on prior concentration),
+  - `merchant_dispersion_sigma` (hash-keyed merchant amplitude),
+  - `merchant_dispersion_clip` (bounded jitter cap),
+  - `alpha_floor` (strictly-positive concentration floor).
+
+Definition of done:
+- [ ] target envelope + guardrails are pinned in notes.
+- [ ] candidate knob ranges are explicitly listed.
+- [ ] run-sequence and prune posture are pinned for `S3->S7` iterations.
+
+#### P2.2 - S3 Knob Surface Wiring (Deterministic + Sealed)
+Goal:
+- wire bounded dispersion knobs into `S3` without breaking deterministic replay discipline.
+
+Scope:
+- implement deterministic merchant-level dispersion transform in
+  `packages/engine/src/engine/layers/l1/seg_3A/s3_zone_shares/runner.py`.
+- read `S3` dispersion knobs from sealed `zone_mixture_policy` extension block
+  (no new artefact family in this phase), with fail-closed defaults.
+- preserve RNG law:
+  - unchanged stream identity discipline,
+  - unchanged event/trace accounting invariants,
+  - no wall-clock or non-sealed randomness.
+
+Definition of done:
+- [ ] `S3` implements bounded dispersion transform with deterministic keying.
+- [ ] policy/knob read path is sealed-input compatible and fail-closed.
+- [ ] compile + static sanity pass is green before first candidate run.
+
+#### P2.3 - Bounded Candidate Sweep + Ranking
+Goal:
+- find one `S3` dispersion candidate that crosses the hard gate while preserving locked `P1` posture.
+
+Scope:
+- run bounded sweep on `S3` dispersion knobs only; rerun `S3->S7` per candidate.
+- score candidates against `P0` baseline and `P1` authority anchors.
+- rank with objective:
+  - `J2 = 0.60*d_s3_std + 0.20*d_s4_multi_zone + 0.10*d_s4_top1_down + 0.10*d_zone_top1_down`
+  - where:
+    - `d_s3_std = candidate_s3_std - p1_s3_std` (higher is better),
+    - `d_s4_multi_zone = candidate_s4_multi_zone - p1_s4_multi_zone` (higher is better),
+    - `d_s4_top1_down = p1_s4_top1 - candidate_s4_top1` (higher is better),
+    - `d_zone_top1_down = p1_zone_top1 - candidate_zone_top1` (higher is better).
+- hard veto:
+  - any `S6` FAIL,
+  - any conservation regression,
+  - any guardrail breach from `P2.1`.
+
+Definition of done:
+- [ ] at least one candidate reaches `S3 merchant_share_std_median >= 0.020`.
+- [ ] ranked sweep table + veto reasons are recorded.
+- [ ] one candidate is promoted to witness lane.
+
+#### P2.4 - Witness Lock + Stability Smoke
+Goal:
+- prove selected `P2` candidate is deterministic on witness rerun and does not show obvious seed fragility.
+
+Scope:
+- rerun selected candidate once on seed `42` and compare deterministic metrics exactly.
+- run smoke checks on additional seeds `{7, 101}` for directional stability
+  (not full `P5` certification).
+- keep structural rails (`S6/S7`) as strict vetoes.
+
+Definition of done:
+- [ ] witness rerun reproduces deterministic metrics exactly on seed `42`.
+- [ ] smoke seeds preserve `S3` uplift direction and keep hard rails PASS.
+- [ ] no new RNG-accounting anomalies are introduced.
+
+#### P2.5 - P2 Closeout and Lock Decision
+Goal:
+- close `P2` with explicit authority candidate and handoff to `P3`.
+
+Scope:
+- publish `P2` summary artifacts (sweep + witness + smoke).
+- pin retained run-id set and prune superseded `P2` candidates.
+- record explicit phase decision:
+  - `UNLOCK_P3` or `HOLD_P2_REOPEN`.
+
+Definition of done:
+- [ ] closure artifacts are emitted and referenced in build plan + notes.
+- [ ] retained run set is applied; superseded run folders pruned.
+- [ ] explicit close decision is recorded (`UNLOCK_P3` / `HOLD_P2_REOPEN`).
+
 ### P3 - S4 anti-collapse remediation (CF-3A-05)
 Goal:
 - prevent integerization collapse that turns escalated pairs monolithic.

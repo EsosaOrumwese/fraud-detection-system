@@ -241,6 +241,13 @@ Remediation blockers:
 Goal:
 1. Publish closure-grade case/label evidence with append-only/idempotent posture checks.
 
+Entry conditions:
+1. `P10.A` snapshot exists and reports `overall_pass=true`.
+2. Active run scope is fixed:
+   - `platform_run_id=platform_20260213T214223Z`
+   - `m7_execution_id=m7_20260218T141420Z`.
+3. `CM`/`LS` services are on non-stub runtime task definitions and scheduler-healthy.
+
 Required inputs:
 1. `M7.G` pass snapshot.
 2. Service handles:
@@ -250,6 +257,51 @@ Required inputs:
 3. Evidence handles:
    - `CASE_EVIDENCE_PATH_PATTERN`
    - `LABEL_EVIDENCE_PATH_PATTERN`.
+4. Identity/policy anchors:
+   - `CASE_SUBJECT_KEY_FIELDS`
+   - `LABEL_SUBJECT_KEY_FIELDS`
+   - `ACTION_IDEMPOTENCY_KEY_FIELDS` (from P9 lane)
+   - `config/platform/case_mgmt/taxonomy_v0.yaml`
+   - `config/platform/label_store/taxonomy_v0.yaml`
+   - `config/platform/case_mgmt/label_emission_policy_v0.yaml`.
+5. Runtime truth anchors:
+   - `src/fraud_detection/case_mgmt/ids.py`
+   - `src/fraud_detection/label_store/ids.py`.
+
+Preparation checks:
+1. Confirm `M7.G` pass source snapshot:
+   - `runs/dev_substrate/m7/<m7_execution_id>/m7_g_case_label_db_readiness_snapshot.json`
+   - `overall_pass=true`.
+2. Confirm case/label service handles resolve to concrete ECS services.
+3. Confirm evidence handles resolve to concrete run-scoped durable paths.
+4. Confirm no unresolved blockers are carried from `M7.G`.
+
+Deterministic verification algorithm (P10.B):
+1. Read `M7.G` pass snapshot and fail closed if not pass (`M7H-B4`).
+2. Perform two-probe service checks for `case-trigger`, `case-mgmt`, and `label-store`:
+   - each probe requires `desired=1`, `running=1`, `pending=0`,
+   - task definitions must be non-stub worker commands.
+   - failures -> `M7H-B5`.
+3. Build run-scoped evidence summaries:
+   - `case_labels/case_summary.json`
+   - `case_labels/label_summary.json`.
+4. Validate summary completeness:
+   - required fields present, non-null, and scoped to active `platform_run_id`,
+   - durable object existence confirmed at run-scoped evidence paths.
+   - failures -> `M7H-B1`.
+5. Validate append-only posture:
+   - no in-place mutation indicators in summary proofs,
+   - append counters/history markers are monotonic for this run.
+   - failures -> `M7H-B2`.
+6. Validate idempotency posture:
+   - duplicate/replay suppression counters are present,
+   - no duplicate inflation in deterministic identity counts (`case_timeline_event_id`, `label_assertion_id`) for run scope.
+   - failures -> `M7H-B2`.
+7. Validate case-to-label coherence:
+   - if run-scoped case commits are non-zero, label summary must be coherent with label-emission policy posture (no orphan label assertions).
+   - failures -> `M7H-B6`.
+8. Emit `m7_h_case_label_commit_snapshot.json` and publish local + durable.
+9. Compute `overall_pass=true` only when blocker list is empty.
 
 Tasks:
 1. Verify case-trigger consumption and CM append-only timeline writes.
@@ -260,15 +312,43 @@ Tasks:
    - `case_labels/label_summary.json`.
 5. Publish `m7_h_case_label_commit_snapshot.json`.
 
+Required snapshot fields:
+1. `phase`, `phase_id`, `platform_run_id`, `m7_execution_id`.
+2. `m7g_dependency`:
+   - source snapshot path,
+   - `overall_pass` carry-forward flag.
+3. `service_readiness`:
+   - two-probe ECS posture for `case-trigger`, `case-mgmt`, `label-store`,
+   - runtime command conformance summary.
+4. `case_summary` and `label_summary`:
+   - durable URIs,
+   - key counts,
+   - run-scope conformance flags.
+5. `append_only_checks`:
+   - mutation/drift indicators,
+   - monotonicity check outputs.
+6. `idempotency_checks`:
+   - duplicate suppression counters,
+   - deterministic identity inflation checks.
+7. `overall_pass`, `blockers`, `elapsed_seconds`.
+
+Runtime budget:
+1. `P10.B` target budget: <= 20 minutes wall clock.
+2. If exceeded, lane remains fail-closed until explicit USER waiver.
+
 DoD:
 - [ ] Case summary and label summary exist and are run-scoped.
 - [ ] Append-only and idempotency checks pass.
 - [ ] Snapshot exists locally + durably.
+- [ ] Runtime budget target is met (or explicitly waived).
 
 Blockers:
 1. `M7H-B1`: case/label evidence missing or incomplete.
 2. `M7H-B2`: append-only/idempotency violation.
 3. `M7H-B3`: snapshot publish failure.
+4. `M7H-B4`: missing/non-pass `M7.G` dependency.
+5. `M7H-B5`: case-label lane service readiness/runtime conformance failure.
+6. `M7H-B6`: case-to-label coherence failure for run scope.
 
 ### P10.C Plane Closure Summary
 Goal:

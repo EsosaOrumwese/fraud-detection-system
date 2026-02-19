@@ -756,6 +756,10 @@ Active-phase planning posture:
       - CM/LS rematerialized to real worker runtime (`:14` task definitions),
       - DB migrations rematerialized to one-shot runtime proof (`:13`) and executed with `exit=0` and `db_migrations_ok tables=5`,
       - rerun snapshot verdict: `overall_pass=true`, blockers empty.
+  - `M7.H` (`P10.B`) planning expanded to execution-grade (`2026-02-19`):
+    - deterministic verification algorithm pinned in `platform.M7.P10.build_plan.md`,
+    - explicit snapshot schema + runtime budget gate added,
+    - fail-closed blocker taxonomy expanded to `M7H-B1..M7H-B6`.
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.
