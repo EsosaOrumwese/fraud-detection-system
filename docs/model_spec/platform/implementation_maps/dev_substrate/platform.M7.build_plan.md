@@ -531,6 +531,9 @@ Execution notes (`2026-02-19`):
 4. What remains fail-closed:
    - `M7G-B2`: DB readiness/migration proof not materialized (CM/LS + DB-migrations task definitions still stub commands).
    - `M7G-B5`: CM/LS scheduler health is green but runtime command conformance is red (sleep-loop stubs, not worker runtime).
+5. Remediation authority before rerun:
+   - execute `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` subsection:
+     - `M7.G Remediation Plan (M7G-B2 + M7G-B5) Before Rerun`.
 
 ### M7.H P10 Case/Label Commit Evidence Closure
 Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (`P10.B`).
@@ -683,10 +686,12 @@ Current blockers:
      - CM/LS task definitions are stubs (no DB-ready worker command/secrets posture).
    - closure rule:
      - materialize real DB-migrations task command and CM/LS worker runtime posture with managed DB connect/schema proof.
+     - follow `platform.M7.P10.build_plan.md` remediation subsection for ordered closure.
 2. `M7G-B5` (open, `M7.G` blocker)
    - CM/LS services are scheduler-healthy but runtime command conformance fails (sleep-loop stubs).
    - closure rule:
      - rematerialize CM/LS services to real worker runtime commands and confirm two-probe healthy posture on those commands.
+     - follow `platform.M7.P10.build_plan.md` remediation subsection for ordered closure.
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.
 2. If this register is non-empty, M7 execution remains blocked.

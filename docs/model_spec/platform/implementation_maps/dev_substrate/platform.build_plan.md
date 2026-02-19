@@ -909,3 +909,6 @@ M7 is active for deep-plan closure and execution sequencing.
 Next action:
 - close `M7G-B2` and `M7G-B5` by rematerializing CM/LS + DB migrations to real worker/runtime commands with managed DB proof,
 - rerun `M7.G` and require `overall_pass=true` before opening `M7.H`.
+- detailed execution authority for this remediation is pinned in:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`
+  - subsection `M7.G Remediation Plan (M7G-B2 + M7G-B5) Before Rerun`.

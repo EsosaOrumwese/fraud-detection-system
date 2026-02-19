@@ -12972,3 +12972,31 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Decision integrity
 1. `M7G-B1` remains documented as a historical debt that was closed on `2026-02-19`.
 2. Forward progression remains blocked until `M7G-B2` and `M7G-B5` are closed and `M7.G` reruns PASS.
+
+## Entry: 2026-02-19 01:50:00 +00:00 - Planning insertion for M7.G remediation lane (`M7G-B2`/`M7G-B5`)
+### User directive
+1. Include explicit plan for rematerializing CM/LS + DB-migrations to real worker/runtime DB posture.
+
+### Planning decision
+1. Add a dedicated remediation subsection under `P10.A` (authoritative execution detail).
+2. Add orchestrator reference in `platform.M7.build_plan.md` so M7 sequencing points to the same remediation lane.
+3. Add top-level reference in `platform.build_plan.md` immediate-next-action section.
+
+### Why
+1. Current next action is stated but not expanded as a closure-grade step plan.
+2. `M7.G` cannot rerun safely without pinned rollout order, evidence contract, and fail-closed closure criteria.
+
+## Entry: 2026-02-19 01:55:00 +00:00 - Added execution-grade remediation plan for `M7G-B2`/`M7G-B5`
+### Changes applied
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`
+   - added subsection: `M7.G Remediation Plan (M7G-B2 + M7G-B5) Before Rerun`.
+   - pinned required handles, ordered execution steps, remediation DoD, and remediation blockers (`M7G-R1..R6`).
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+   - linked M7.G execution notes and blocker closure rules to the new remediation subsection as ordered authority.
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - added immediate-next-action reference to the exact remediation subsection.
+
+### Decision rationale
+1. Existing next action stated intent but lacked closure-grade execution mechanics.
+2. `M7.G` rerun needs explicit command/env/DB migration rematerialization order to avoid another ambiguous fail-closed loop.
+3. The new subsection now acts as the single authoritative runbook for closing `M7G-B2` and `M7G-B5` before `M7.H`.

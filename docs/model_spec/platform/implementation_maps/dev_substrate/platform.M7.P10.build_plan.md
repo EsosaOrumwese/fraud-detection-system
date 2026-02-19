@@ -177,6 +177,61 @@ Execution notes (`2026-02-19`):
    - `M7G-B2`: DB readiness/migration proof not materialized (CM/LS + DB migrations task definitions still stub commands).
    - `M7G-B5`: CM/LS service runtime command conformance failed (scheduler healthy but sleep-loop stubs).
 
+#### M7.G Remediation Plan (`M7G-B2` + `M7G-B5`) Before Rerun
+Goal:
+1. Rematerialize CM/LS + DB-migrations to real worker/runtime DB posture and rerun `P10.A` to PASS.
+
+Pinned execution posture:
+1. No local-compute substitute for managed DB proof.
+2. No planner drift: execute this subsection sequentially and fail-closed at each gate.
+3. Keep run scope fixed:
+   - `platform_run_id=platform_20260213T214223Z`
+   - `m7_execution_id=m7_20260218T141420Z`.
+
+Required handles (must resolve before apply):
+1. `SVC_CM`, `SVC_LS`, `SVC_CASE_TRIGGER`, `TD_DB_MIGRATIONS`.
+2. `RDS_ENDPOINT`, `DB_NAME`, `DB_SECURITY_GROUP_ID`.
+3. `SSM_DB_USER_PATH`, `SSM_DB_PASSWORD_PATH` (and `SSM_DB_DSN_PATH` if used by runtime).
+4. `ROLE_CASE_LABELS`, `ROLE_DB_MIGRATIONS` (or equivalent task role binding for migration task).
+
+Execution steps:
+1. Runtime command conformance pin:
+   - replace CM/LS task-definition stub commands with real worker commands for `case_mgmt` and `label_store`.
+   - require DB config/env/secrets to be present on CM/LS task definitions.
+2. Migration lane conformance pin:
+   - replace `TD_DB_MIGRATIONS` stub command with real migrations entrypoint/command.
+   - require migration task role has DB + secret read permissions required for execution.
+3. Rematerialization rollout:
+   - apply targeted infra changes for:
+     - `fraud-platform-dev-min-case-mgmt`,
+     - `fraud-platform-dev-min-label-store`,
+     - `fraud-platform-dev-min-db-migrations`.
+   - wait for CM/LS steady-state on new task-definition revisions.
+4. Managed DB proof (required before rerun):
+   - run DB migrations one-shot task and require successful exit.
+   - verify migration/schema readiness from managed runtime lane (not laptop substitute).
+5. Service readiness proof:
+   - run two-probe CM/LS checks (`desired=1`, `running=1`, `pending=0`) on rematerialized task definitions.
+   - verify no startup crashloop signal in recent ECS events.
+6. `P10.A` rerun:
+   - republish `m7_g_case_label_db_readiness_snapshot.json` local + durable.
+   - require `overall_pass=true` with blocker list empty.
+
+Remediation DoD:
+- [ ] CM/LS task definitions run real worker commands (no sleep-loop stubs).
+- [ ] CM/LS task definitions include DB-ready env/secrets posture.
+- [ ] `TD_DB_MIGRATIONS` runs real migration command and completes successfully.
+- [ ] Managed DB connect + schema readiness are proven from managed runtime lane.
+- [ ] `P10.A` rerun snapshot is green (`overall_pass=true`).
+
+Remediation blockers:
+1. `M7G-R1`: CM/LS command/env conformance patch not materialized.
+2. `M7G-R2`: DB migration task command/role/secret posture invalid.
+3. `M7G-R3`: targeted rematerialization apply failed.
+4. `M7G-R4`: migration run failed or schema proof missing.
+5. `M7G-R5`: CM/LS two-probe readiness failed after rematerialization.
+6. `M7G-R6`: `P10.A` rerun snapshot publish failed.
+
 ### P10.B Case/Label Commit Closure (`M7.H` depth)
 Goal:
 1. Publish closure-grade case/label evidence with append-only/idempotent posture checks.
