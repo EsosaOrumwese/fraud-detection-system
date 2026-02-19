@@ -13285,3 +13285,29 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 4. cr_repo_name=fraud-platform-dev-min
 5. cr_repo_uri=230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-min
 6. push_dev_min_latest=true (convenience tag only; immutable digest remains authoritative).
+
+## Entry: 2026-02-19 03:30:41 +00:00 - P10.B functional drift discovery after crashloop fix (RTDL payload shape mismatch)
+### What changed
+1. Case-trigger runtime crashloop (invalid literal for int('')) is now closed on patched digest sha256:340288... and service is stable.
+2. Despite stability, managed DB evidence remains zero for case/label surfaces.
+
+### Managed runtime probe findings
+1. One-shot RTDL topic probe on p.bus.rtdl.v1 shows records are flat decision/action payloads with keys like:
+   - decision rows: decision_id, source_event, pins, ...
+   - action rows: ction_id, decision_id, pins, ...
+2. These records do not carry canonical envelope fields expected by current CaseTrigger logic:
+   - missing top-level vent_type,
+   - missing top-level platform_run_id (run scope is under pins.platform_run_id).
+3. Current _process_record requires vent_type in {decision_response, action_outcome} and uses nvelope.platform_run_id, so flat RTDL records are acknowledged but skipped.
+
+### Fail-closed assessment
+1. M7.H / P10.B cannot close while CaseTrigger consumes but produces zero triggers due normalization drift.
+2. This is implementation/runtime alignment drift (docs expect lane closure; worker currently treats managed RTDL shape as non-actionable).
+
+### Decision
+1. Patch case_trigger.worker to normalize RTDL flat decision records into the canonical processing path:
+   - infer decision_response when decision_id + source_event exist and vent_type missing,
+   - fallback run-scope extraction to pins.platform_run_id when top-level run id is absent,
+   - use flat record as payload when nested payload envelope is absent.
+2. Keep behavior fail-closed for unrecognized action records (no broad guessing beyond deterministic decision-shape inference).
+3. Rebuild/publish image, rematerialize case-trigger, then rerun P10.B evidence closure.

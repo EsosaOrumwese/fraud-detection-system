@@ -209,14 +209,24 @@ class CaseTriggerWorker:
         offset = str(row["offset"])
         offset_kind = str(row["offset_kind"])
         envelope = _unwrap_envelope(row.get("payload"))
-        event_type = str(envelope.get("event_type") or "").strip()
+        event_type = str(envelope.get("event_type") or "").strip().lower()
+        payload_value = envelope.get("payload")
+        payload: Mapping[str, Any] | dict[str, Any]
+        if isinstance(payload_value, Mapping):
+            payload = dict(payload_value)
+        else:
+            payload = {}
+        if not event_type:
+            inferred = _infer_rtdl_event_type(envelope)
+            if inferred:
+                event_type = inferred
+                payload = dict(envelope)
         if event_type not in {"decision_response", "action_outcome"}:
             return True
 
-        platform_run_id = str(envelope.get("platform_run_id") or "").strip()
+        platform_run_id = _extract_platform_run_id(envelope)
         if self.config.required_platform_run_id and platform_run_id != self.config.required_platform_run_id:
             return True
-        payload = envelope.get("payload") if isinstance(envelope.get("payload"), Mapping) else {}
         if not isinstance(payload, Mapping):
             return True
 
@@ -687,6 +697,39 @@ def _unwrap_envelope(value: Any) -> dict[str, Any]:
 
 def _looks_like_envelope(value: Mapping[str, Any]) -> bool:
     return all(value.get(key) not in (None, "") for key in ("event_id", "event_type", "schema_version"))
+
+
+def _extract_platform_run_id(envelope: Mapping[str, Any]) -> str:
+    direct = str(envelope.get("platform_run_id") or "").strip()
+    if direct:
+        return direct
+    pins = envelope.get("pins")
+    if isinstance(pins, Mapping):
+        scoped = str(pins.get("platform_run_id") or "").strip()
+        if scoped:
+            return scoped
+    payload = envelope.get("payload")
+    if isinstance(payload, Mapping):
+        nested = str(payload.get("platform_run_id") or "").strip()
+        if nested:
+            return nested
+        nested_pins = payload.get("pins")
+        if isinstance(nested_pins, Mapping):
+            scoped = str(nested_pins.get("platform_run_id") or "").strip()
+            if scoped:
+                return scoped
+    return ""
+
+
+def _infer_rtdl_event_type(payload: Mapping[str, Any]) -> str | None:
+    decision_id = str(payload.get("decision_id") or "").strip()
+    source_event = payload.get("source_event")
+    if decision_id and isinstance(source_event, Mapping):
+        return "decision_response"
+    outcome_id = str(payload.get("outcome_id") or payload.get("action_outcome_id") or "").strip()
+    if outcome_id:
+        return "action_outcome"
+    return None
 
 
 def _partition_from_shard(shard_id: str) -> int:
