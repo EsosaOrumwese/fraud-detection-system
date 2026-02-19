@@ -15099,3 +15099,34 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. `M9.B` is complete.
 2. `M9.C` is unblocked for execution.
 
+## Entry: 2026-02-19 13:04:54 +00:00 - M9.C planning expansion completed
+### Problem framing
+1. `M9.C` was summary-level and did not define a deterministic dispatch/poll/evidence verification path for the Confluent teardown workflow.
+2. Without explicit prechecks and result semantics, teardown could drift into ambiguous "workflow passed but proof unclear" posture.
+
+### Planning decisions
+1. Expanded `M9.C` to execution-grade with:
+   - entry conditions pinned to `M9.B` pass snapshot and preserve controls,
+   - required dispatch handles + workflow input map,
+   - preparation checks for workflow contract and handle resolution,
+   - deterministic execution algorithm (dispatch -> poll -> source snapshot parse -> verify -> publish).
+2. Fail-closed semantics pinned on Confluent result:
+   - require `destroy_outcome=success`,
+   - require `post_destroy_state_resource_count=0`,
+   - require source snapshot to be readable and unambiguous.
+3. Blocker model expanded to full coverage:
+   - added `M9C-B4` (snapshot publication failure),
+   - added `M9C-B5` (invalid/unreadable M9.B prerequisite).
+4. Main plan updated to record `M9.C` execution-grade readiness and set immediate next action to execute `M9.C`.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
+   - `M9.C` expanded from summary to execution-grade contract.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - M9 expansion-state bullet added for `M9.C`.
+   - immediate next action set to execute `M9.C`.
+
+### Phase posture
+1. This step is planning-only; no `M9.C` teardown execution was run.
+2. `M9.C` is now execution-ready.
+

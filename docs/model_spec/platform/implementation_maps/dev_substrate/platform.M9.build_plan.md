@@ -345,20 +345,99 @@ Blockers:
 Goal:
 1. Execute Confluent teardown using existing managed lane.
 
+Entry conditions:
+1. `M9.B` is closed PASS:
+   - local: `runs/dev_substrate/m9/m9_20260219T125838Z/m9_b_teardown_inventory_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T125838Z/m9_b_teardown_inventory_snapshot.json`.
+2. `M9.B` preserve controls remain valid:
+   - overlap targets empty,
+   - destroy-scope violations empty,
+   - preserve-missing targets empty.
+3. Managed workflow lane exists and is reachable:
+   - `.github/workflows/dev_min_confluent_destroy.yml`.
+
+Required inputs:
+1. Handles/values for workflow dispatch:
+   - `AWS_REGION`
+   - `ROLE_TERRAFORM_APPLY` (OIDC role to assume)
+   - `TF_STATE_BUCKET`
+   - `TF_LOCK_TABLE`
+   - `TF_STATE_KEY_CONFLUENT`
+   - `S3_EVIDENCE_BUCKET`.
+2. Workflow inputs:
+   - `aws_region`
+   - `aws_role_to_assume`
+   - `tf_state_bucket`
+   - `tf_lock_table`
+   - `tf_state_key_confluent`
+   - `evidence_bucket`
+   - `evidence_prefix`
+   - `upload_evidence_to_s3`.
+3. Access/command surface:
+   - GitHub Actions API/CLI access (`gh`),
+   - read access to workflow run artifacts/logs.
+
+Preparation checks:
+1. Validate required dispatch handles are resolved and non-placeholder.
+2. Validate workflow file contains expected `workflow_dispatch` inputs and fail-closed enforcement step.
+3. Validate `M9.B` preserve-set snapshot still pass-valid before dispatch.
+
+Deterministic execution algorithm (M9.C):
+1. Load `M9.B` pass snapshot; if unreadable or failed -> `M9C-B5`.
+2. Resolve dispatch parameters from handles and fixed M9 evidence policy:
+   - evidence prefix for M9 capture remains under run-control durability.
+3. Dispatch `.github/workflows/dev_min_confluent_destroy.yml` with explicit inputs.
+   - dispatch failure -> `M9C-B1`.
+4. Poll/watch workflow run to terminal state.
+   - non-success completion -> `M9C-B2`.
+5. Read workflow-produced Confluent destroy snapshot (artifact and/or S3 URI).
+   - missing/ambiguous snapshot -> `M9C-B3`.
+6. Validate workflow result semantics:
+   - `destroy_outcome=success`
+   - `post_destroy_state_resource_count=0`
+   - `overall_pass=true`.
+   Any mismatch -> `M9C-B2`.
+7. Emit local `m9_c_confluent_destroy_snapshot.json` with:
+   - dispatch inputs (non-secret),
+   - workflow run metadata (id/url),
+   - source Confluent snapshot ref + parsed outcome,
+   - blockers and `overall_pass`.
+8. Publish snapshot durably; publish failure -> `M9C-B4`.
+
 Tasks:
-1. Dispatch `.github/workflows/dev_min_confluent_destroy.yml`.
-2. Capture workflow run url/id, verdict, and state/resource summary.
-3. Emit `m9_c_confluent_destroy_snapshot.json`.
+1. Dispatch Confluent destroy workflow with explicit M9-scoped inputs.
+2. Capture workflow run metadata + source teardown snapshot.
+3. Validate destroy outcome and post-destroy state count.
+4. Emit and publish `m9_c_confluent_destroy_snapshot.json`.
+
+Required snapshot fields (`m9_c_confluent_destroy_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m9_execution_id`.
+2. `source_m9b_snapshot_local`, `source_m9b_snapshot_uri`.
+3. `workflow_name`, `workflow_run_id`, `workflow_run_url`, `workflow_conclusion`.
+4. `dispatch_inputs` (non-secret only).
+5. `source_confluent_destroy_snapshot_uri`, `source_confluent_destroy_snapshot`.
+6. `destroy_outcome`, `post_destroy_state_resource_count`.
+7. `blockers`, `overall_pass`, `elapsed_seconds`.
+
+Runtime budget:
+1. `M9.C` target budget: <= 25 minutes wall clock.
+2. Over-budget execution remains fail-closed unless explicit user waiver is recorded.
 
 DoD:
 - [ ] Existing Confluent teardown workflow executed successfully.
 - [ ] Result evidence captures pass/fail + post-destroy state summary.
 - [ ] Snapshot exists locally and durably.
 
+Planning status:
+1. `M9.C` is now execution-grade (entry/precheck/dispatch/poll/snapshot contract pinned).
+2. No teardown execution/destruction was run in this planning step.
+
 Blockers:
 1. `M9C-B1`: workflow dispatch failure.
 2. `M9C-B2`: workflow run failed/non-zero teardown.
 3. `M9C-B3`: post-destroy state summary missing/ambiguous.
+4. `M9C-B4`: snapshot publication failure.
+5. `M9C-B5`: prerequisite `M9.B` closure invalid/unreadable.
 
 ### M9.D Demo Stack Teardown Execution
 Goal:
