@@ -1212,6 +1212,11 @@ Post-closure reinforcement:
 2. Ownership split is explicit:
    - `M2.I` owns the control-plane capability and hardening,
    - `M9/P12` reuses this lane for both Confluent and demo teardown via `stack_target`.
+3. Cross-platform cost-capture policy uplift (2026-02-19):
+   - `M2.I` remains the AWS budget/materialization baseline.
+   - Cross-platform monthly exposure closure is enforced in `M9.G` with required `AWS + Confluent Cloud` rollup.
+   - Managed Confluent billing capture lane is implemented at `.github/workflows/dev_min_m9g_confluent_billing.yml`.
+   - No teardown closeout is green if Confluent billing is missing/unreadable in `M9.G`.
 
 ## M2.J Exit Readiness Review and M3 Handoff
 Goal:

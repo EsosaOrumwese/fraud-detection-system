@@ -1131,8 +1131,10 @@ Active-phase planning posture:
   - `M9.E` execution is green with blockers empty; `M9.F` is unblocked.
   - `M9.F` is expanded to execution-grade with deterministic metadata-only SSM cleanup verification and snapshot contract.
   - `M9.F` execution is green with blockers empty; `M9.G` is unblocked.
-  - `M9.G` is expanded to execution-grade with deterministic live budget/cost posture validation and post-teardown footgun checks.
-  - `M9.G` execution is green with blockers empty; `M9.H` is unblocked.
+  - `M9.G` is expanded to execution-grade with deterministic cross-platform (`AWS + Confluent Cloud`) cost posture validation and post-teardown footgun checks.
+  - `M9.G` was executed AWS-only; scope uplift reopens `M9.G` until Confluent billing is included.
+  - managed Confluent billing lane is implemented in `.github/workflows/dev_min_m9g_confluent_billing.yml`.
+  - cost-optimization posture is pinned in `platform.M9.build_plan.md` (phase-aware start/stop, `RunTask` conversion, TTL teardown, right-sizing, mandatory cross-platform gate).
 
 Sub-phase progress:
   - [x] `M9.A` P12 authority + handoff closure.
@@ -1141,7 +1143,7 @@ Sub-phase progress:
   - [x] `M9.D` demo stack teardown execution.
   - [x] `M9.E` post-destroy residual checks.
   - [x] `M9.F` demo-scoped secret cleanup verification.
-  - [x] `M9.G` post-teardown cost-guardrail snapshot.
+  - [ ] `M9.G` post-teardown cost-guardrail snapshot (cross-platform).
   - [ ] `M9.H` teardown-proof artifact publication.
   - [ ] `M9.I` M9 verdict + M10 handoff.
 
@@ -1269,12 +1271,36 @@ M9.G execution closure (2026-02-19):
     - `M9.G` is closed
     - `M9.H` is unblocked.
 
+M9.G scope uplift (2026-02-19):
+  - policy decision:
+    - cost capture for this program must include all active platforms/resources (`AWS + Confluent Cloud`) to avoid surprise charges.
+  - effect:
+    - previous `M9.G` closure (`m9_20260219T160549Z`) is downgraded to `aws_only_observation`.
+    - `M9.G` is reopened under cross-platform scope and must be rerun with Confluent billing included.
+  - progression guard:
+    - `M9.H` must not execute until reopened `M9.G` passes blocker-free.
+
+M9.G cross-platform rerun attempt (2026-02-19):
+  - execution id: `m9_20260219T162445Z`
+  - local snapshot: `runs/dev_substrate/m9/m9_20260219T162445Z/m9_g_cost_guardrail_snapshot.json`
+  - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T162445Z/m9_g_cost_guardrail_snapshot.json`
+  - result: `overall_pass=false`
+  - blocker:
+    - `M9G-B8` (`confluent.billing.cost.list` unavailable because Confluent Cloud billing auth context is missing locally)
+  - posture:
+    - AWS side still healthy (`aws_mtd_cost_amount=17.8956072585`, thresholds match, cost-footgun checks clear)
+    - cross-platform closure remains blocked until Confluent MTD billing is captured.
+  - remediation path:
+    - use managed workflow lane `.github/workflows/dev_min_m9g_confluent_billing.yml` to produce:
+      - `evidence/dev_min/run_control/<m9_execution_id>/confluent_billing_snapshot.json`,
+    - then rerun `M9.G` rollup using that managed snapshot.
+
 M9 DoD checklist:
 - [x] Canonical execution lane is GitHub Actions teardown workflows produced under `M2.I`; no local secret-bearing destroy path is used.
 - [x] demo resources are destroyed while retained core/evidence surfaces remain as pinned.
 - [x] no demo ECS services/tasks remain and no NAT/LB cost-footgun resources remain.
 - [x] demo-scoped secrets/credentials are removed from SSM.
-- [x] post-teardown budget/cost guardrail snapshot is captured and blocker-free.
+- [ ] post-teardown cross-platform (`AWS + Confluent Cloud`) cost guardrail snapshot is captured and blocker-free.
 - [ ] teardown proof artifact exists locally and durably.
 - [ ] M9 verdict is `ADVANCE_TO_M10` with empty blocker rollup.
 
@@ -1387,7 +1413,8 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M9 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M9.H` teardown-proof artifact assembly/publication using `M9.G` closure evidence as authority,
+- dispatch managed Confluent billing workflow (`.github/workflows/dev_min_m9g_confluent_billing.yml`) for current `m9_execution_id`,
+- rerun reopened `M9.G` cross-platform cost-guardrail snapshot using managed Confluent billing evidence + `M9.F` closure evidence,
 - preserve fail-closed posture:
-  - do not execute `M9.I` verdict/handoff until `M9.H` teardown-proof artifact exists locally and durably.
+  - do not execute `M9.H` teardown-proof assembly until reopened `M9.G` cross-platform snapshot is captured and blocker-free.
 

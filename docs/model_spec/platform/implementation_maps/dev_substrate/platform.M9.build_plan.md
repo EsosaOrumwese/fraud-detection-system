@@ -855,7 +855,14 @@ Entry conditions:
    - `ECS_CLUSTER_NAME`
    - `RDS_INSTANCE_ID`
    - `CLOUDWATCH_LOG_GROUP_PREFIX`
-   - `LOG_RETENTION_DAYS`.
+   - `LOG_RETENTION_DAYS`
+   - `COST_CAPTURE_SCOPE`
+   - `CONFLUENT_BILLING_SOURCE_MODE`
+   - `TOTAL_MONTHLY_BUDGET_LIMIT_AMOUNT`
+   - `TOTAL_MONTHLY_BUDGET_LIMIT_UNIT`
+   - `TOTAL_BUDGET_ALERT_1_AMOUNT`
+   - `TOTAL_BUDGET_ALERT_2_AMOUNT`
+   - `TOTAL_BUDGET_ALERT_3_AMOUNT`.
 
 Required inputs:
 1. Source snapshots:
@@ -867,6 +874,9 @@ Required inputs:
    - `aws sts get-caller-identity` for `account_id`.
    - `aws budgets describe-budget` and `aws budgets describe-notifications-for-budget`.
    - `aws ce get-cost-and-usage` (month-to-date cost posture).
+   - Confluent Cloud billing API snapshot (managed control-plane lane, non-secret output only):
+     - workflow: `.github/workflows/dev_min_m9g_confluent_billing.yml`
+     - durable artifact key: `evidence/dev_min/run_control/<m9_execution_id>/confluent_billing_snapshot.json`.
    - `aws ec2 describe-nat-gateways` (non-deleted NAT residuals).
    - `aws elbv2 describe-load-balancers` (+ tag/name scope check).
    - `aws ecs list-services` + `aws ecs describe-services`.
@@ -877,6 +887,8 @@ Preparation checks:
 1. Validate `M9.F` snapshot readability and PASS semantics; mismatch -> `M9G-B6`.
 2. Validate `M2.I` budget baseline snapshot readability; mismatch -> `M9G-B6`.
 3. Validate all budget/cost handles resolve with no placeholder/wildcard drift; failure -> `M9G-B1`.
+4. Validate `COST_CAPTURE_SCOPE=aws_plus_confluent_cloud`; mismatch -> `M9G-B8`.
+5. Validate managed Confluent billing snapshot exists for this `m9_execution_id`; missing/unreadable -> `M9G-B8`.
 
 Deterministic execution algorithm (M9.G):
 1. Load authoritative source snapshots (`M2.I`, `M9.B`, `M9.E`, `M9.F`) and enforce entry gates.
@@ -885,31 +897,44 @@ Deterministic execution algorithm (M9.G):
    - name, limit amount, limit unit match pinned handles,
    - threshold notifications include `10/20/28` set (`AWS_BUDGET_ALERT_1/2/3_AMOUNT`).
 4. Read month-to-date cost from CE and compute:
-   - `mtd_cost_amount`,
+   - `aws_mtd_cost_amount`,
    - `budget_limit_amount`,
    - `budget_utilization_pct`.
-5. Recompute post-teardown cost-footgun indicators:
+5. Read Confluent month-to-date billing snapshot and compute:
+   - `confluent_mtd_cost_amount`,
+   - `confluent_billing_currency`,
+   - `confluent_billing_period_start/end`.
+6. Compute combined cost posture:
+   - `combined_mtd_cost_amount = aws_mtd_cost_amount + confluent_mtd_cost_amount`,
+   - `combined_budget_utilization_pct = combined_mtd_cost_amount / TOTAL_MONTHLY_BUDGET_LIMIT_AMOUNT`.
+7. Recompute post-teardown cost-footgun indicators:
    - NAT non-deleted count,
    - demo-scoped load balancer residual count,
    - ECS service desired count > 0,
    - runtime DB existence state,
    - log groups under prefix with retention > `LOG_RETENTION_DAYS` or null retention.
-6. Apply blocker mapping:
+8. Apply blocker mapping:
    - budget unreadable/misaligned -> `M9G-B1`,
    - notification threshold drift -> `M9G-B2`,
    - critical budget posture (utilization at/above alert_3) -> `M9G-B3`,
    - any cost-footgun residual indicator -> `M9G-B4`,
    - log-retention drift -> `M9G-B5`,
-   - source snapshot/entry gate invalid -> `M9G-B6`.
-7. Emit local `m9_g_cost_guardrail_snapshot.json` with non-secret posture only.
-8. Publish snapshot durably; publish failure -> `M9G-B7`.
+   - source snapshot/entry gate invalid -> `M9G-B6`,
+   - Confluent billing unreadable/unavailable -> `M9G-B8`,
+   - combined cross-platform critical posture (at/above `TOTAL_BUDGET_ALERT_3_AMOUNT`) -> `M9G-B9`.
+9. Emit local `m9_g_cost_guardrail_snapshot.json` with non-secret posture only.
+10. Publish snapshot durably; publish failure -> `M9G-B7`.
 
 Tasks:
-1. Capture budget object + notification threshold posture against pinned handles.
-2. Capture MTD cost posture and compute budget utilization.
-3. Recompute post-teardown cost-footgun indicators.
-4. Apply fail-closed blocker mapping and emit `m9_g_cost_guardrail_snapshot.json`.
-5. Publish snapshot to durable evidence path.
+1. Capture AWS budget object + notification threshold posture against pinned handles.
+2. Capture AWS MTD cost posture.
+3. Capture Confluent Cloud MTD billing posture from managed API snapshot.
+   - dispatch managed lane (`dev_min_m9g_confluent_billing.yml`) with current `m9_execution_id`,
+   - require workflow verdict PASS before rollup.
+4. Compute combined cross-platform MTD rollup and utilization.
+5. Recompute post-teardown cost-footgun indicators.
+6. Apply fail-closed blocker mapping and emit `m9_g_cost_guardrail_snapshot.json`.
+7. Publish snapshot to durable evidence path.
 
 Required snapshot fields (`m9_g_cost_guardrail_snapshot.json`):
 1. `phase`, `phase_id`, `platform_run_id`, `m9_execution_id`.
@@ -922,24 +947,47 @@ Required snapshot fields (`m9_g_cost_guardrail_snapshot.json`):
    - `notification_thresholds`,
    - `threshold_match_pass`.
 7. `mtd_cost_posture`:
-   - `mtd_cost_amount`, `budget_utilization_pct`, `critical_threshold_amount`.
-8. `post_teardown_cost_footguns`:
+   - `aws_mtd_cost_amount`, `budget_utilization_pct`, `critical_threshold_amount`.
+8. `confluent_mtd_cost_posture`:
+   - `confluent_mtd_cost_amount`, `billing_currency`, `billing_period_start`, `billing_period_end`.
+   - `source_workflow_file`, `source_workflow_run_id`, `source_snapshot_uri`.
+9. `combined_mtd_cost_posture`:
+   - `scope`, `combined_mtd_cost_amount`, `combined_budget_limit_amount`, `combined_budget_utilization_pct`, `combined_critical_threshold_amount`.
+10. `post_teardown_cost_footguns`:
    - `nat_non_deleted_count`,
    - `lb_demo_scoped_residual_count`,
    - `ecs_desired_gt_zero_count`,
    - `runtime_db_state`,
    - `log_retention_drift_count`.
-9. `non_secret_policy_pass`.
-10. `blockers`, `overall_pass`, `elapsed_seconds`.
+11. `non_secret_policy_pass`.
+12. `blockers`, `overall_pass`, `elapsed_seconds`.
 
 Runtime budget:
 1. `M9.G` target budget: <= 10 minutes wall clock.
 2. Over-budget execution remains fail-closed unless explicit user waiver is recorded.
 
 DoD:
-- [x] Budget posture is readable and in-policy.
-- [x] Post-teardown cost-footgun indicators are clear.
-- [x] Snapshot exists locally and durably.
+- [x] AWS budget posture is readable and in-policy.
+- [x] Post-teardown AWS-resource cost-footgun indicators are clear.
+- [ ] Confluent Cloud MTD billing is captured in the lane.
+- [ ] Combined AWS+Confluent MTD posture is computed and in-policy.
+- [ ] Cross-platform snapshot exists locally and durably.
+
+Pinned cost-optimization posture for dev substrate (execution navigation anchor):
+1. Default all ECS services to `desired_count=0`; only start lane-specific services for the current phase.
+2. Convert non-daemon components to ECS `RunTask` jobs instead of always-on services.
+3. Enforce idle auto-teardown TTL so forgotten-up runtime windows do not burn cost.
+4. Right-size ECS CPU/memory from measured p95 usage; avoid static generous defaults.
+5. Keep cross-platform cost gates (`AWS + Confluent Cloud`) mandatory before phase advance, with hard stop near alert-3.
+6. Keep dev log retention short (`LOG_RETENTION_DAYS=7`) and debug verbosity off by default.
+7. Keep Confluent dev footprint minimal and teardown quickly after run closure.
+8. Require per-run cost attribution (`run_id` + tags + durable evidence receipt).
+
+Recommended implementation order:
+1. Phase-aware ECS start/stop profile.
+2. Idle auto-teardown guard.
+3. ECS task-definition right-sizing.
+4. Keep `M9.G` cross-platform billing gate mandatory.
 
 Planning status:
 1. `M9.G` is now execution-grade (entry/precheck/live-budget-live-cost/footgun-check/snapshot contract pinned).
@@ -978,6 +1026,39 @@ Execution closure (2026-02-19):
    - `M9.G` is closed.
    - `M9.H` is unblocked.
 
+Policy uplift (2026-02-19, cross-platform cost scope):
+1. Cost capture scope is now pinned as `aws_plus_confluent_cloud`.
+2. The above execution closure is AWS-only and does not satisfy cross-platform cost capture.
+3. `M9.G` is reopened under the updated scope and must be rerun with Confluent billing included before `M9.H`.
+
+Cross-platform rerun attempt (2026-02-19):
+1. Execution id:
+   - `m9_20260219T162445Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T162445Z/m9_g_cost_guardrail_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T162445Z/m9_g_cost_guardrail_snapshot.json`.
+3. Result:
+   - `overall_pass=false`.
+4. Blocker outcome:
+   - `M9G-B8` raised:
+     - Confluent billing surface unreadable/unavailable because Confluent CLI is not authenticated for billing reads.
+   - AWS side remained readable (`aws_mtd_cost_amount=17.8956072585`, thresholds match, footguns clear), but cross-platform closure is fail-closed.
+5. Consequence:
+   - `M9.G` remains open.
+   - `M9.H` remains blocked.
+
+Managed-lane implementation (2026-02-19):
+1. Added workflow:
+   - `.github/workflows/dev_min_m9g_confluent_billing.yml`.
+2. Workflow contract:
+   - source auth: GitHub Actions secrets `TF_VAR_CONFLUENT_CLOUD_API_KEY/SECRET`,
+   - source API: `GET https://api.confluent.cloud/billing/v1/costs`,
+   - output: non-secret `confluent_billing_snapshot.json` to:
+     - local workflow artifact,
+     - durable key `evidence/dev_min/run_control/<m9_execution_id>/confluent_billing_snapshot.json`.
+3. Implication:
+   - `M9.G` rerun must now consume this managed snapshot path; local `confluent` CLI auth is not the closure path.
+
 Blockers:
 1. `M9G-B1`: budget surface unreadable/misaligned.
 2. `M9G-B2`: budget notification threshold drift/missing alerts.
@@ -986,6 +1067,8 @@ Blockers:
 5. `M9G-B5`: log-retention drift above pinned dev_min cap.
 6. `M9G-B6`: prerequisite source snapshot invalid/unreadable.
 7. `M9G-B7`: snapshot publication failure.
+8. `M9G-B8`: Confluent billing surface unreadable/unavailable.
+9. `M9G-B9`: combined AWS+Confluent critical cost posture.
 
 ### M9.H Teardown-Proof Artifact Publication
 Goal:
@@ -1043,8 +1126,10 @@ Budget rule:
 1. Over-budget lanes require explicit blocker notation and remediation/retry posture before progression.
 
 ## 7) Current Planning Status
-1. M9 is planning-open with `M9.A`, `M9.B`, `M9.C`, `M9.D`, `M9.E`, `M9.F`, and `M9.G` execution closed green.
-2. `M9.H` is now the next execution lane.
-3. `M9.G` is execution-closed with blocker-free cost-guardrail evidence.
-4. Unified teardown workflow decision is pinned:
+1. M9 is planning-open with `M9.A`, `M9.B`, `M9.C`, `M9.D`, `M9.E`, and `M9.F` execution closed green.
+2. `M9.G` is reopened under cross-platform cost scope (`aws_plus_confluent_cloud`).
+3. Latest rerun (`m9_20260219T162445Z`) is fail-closed on `M9G-B8` (Confluent billing unreadable).
+4. Managed billing lane is implemented at `.github/workflows/dev_min_m9g_confluent_billing.yml`.
+5. `M9.H` remains blocked until `M9.G` cross-platform rerun is blocker-free.
+6. Unified teardown workflow decision is pinned:
    - `dev_min_confluent_destroy.yml` is stack-aware (`stack_target=confluent|demo`).

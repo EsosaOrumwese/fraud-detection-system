@@ -861,6 +861,34 @@ or
 
 * `ENABLE_COST_ANOMALY_DETECTION = true` *(recommended)*
 
+### 11.4.1 Cross-platform cost capture scope (pinned)
+
+* `COST_CAPTURE_SCOPE = "aws_plus_confluent_cloud"`
+* `COST_CAPTURE_ENFORCEMENT_MODE = "fail_closed"`
+* `COST_CAPTURE_PERIOD = "month_to_date_utc"`
+* `CONFLUENT_BILLING_SOURCE_MODE = "managed_control_plane_api_snapshot"`
+* `CONFLUENT_BILLING_CURRENCY = "USD"`
+
+Cross-platform budget rollup handles:
+* `TOTAL_MONTHLY_BUDGET_LIMIT_AMOUNT = 30`
+* `TOTAL_MONTHLY_BUDGET_LIMIT_UNIT = "USD"`
+* `TOTAL_BUDGET_ALERT_1_AMOUNT = 10`
+* `TOTAL_BUDGET_ALERT_2_AMOUNT = 20`
+* `TOTAL_BUDGET_ALERT_3_AMOUNT = 28`
+
+Managed input handles (names only; values remain secret-managed):
+* `CONFLUENT_BILLING_API_KEY_INPUT = "TF_VAR_confluent_cloud_api_key"`
+* `CONFLUENT_BILLING_API_SECRET_INPUT = "TF_VAR_confluent_cloud_api_secret"`
+* `CONFLUENT_BILLING_SECRET_SOURCE = "GitHubActionsSecrets(TF_VAR_CONFLUENT_CLOUD_API_KEY,TF_VAR_CONFLUENT_CLOUD_API_SECRET)"`
+* `M9G_CONFLUENT_BILLING_WORKFLOW_FILE = ".github/workflows/dev_min_m9g_confluent_billing.yml"`
+
+Evidence handle:
+* `CONFLUENT_BILLING_SNAPSHOT_KEY_PATTERN = "evidence/dev_min/run_control/{m9_execution_id}/confluent_billing_snapshot.json"`
+
+Policy note:
+* Cost capture is not green unless both AWS and Confluent Cloud MTD billing are captured and combined.
+* If Confluent billing is unreadable/unavailable, cost posture is blocker state (no phase advance).
+
 ### 11.5 Tag-based cost visibility (pinned)
 
 * All demo resources must be taggable and tagged with:

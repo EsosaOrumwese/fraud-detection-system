@@ -15531,3 +15531,120 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 2. `M9.H` is now the next execution lane.
 3. Main/deep build plans and logbook were repinned to reflect `M9.G` closure.
 
+## Entry: 2026-02-19 16:18:35 +00:00 - Cost scope uplift pinned (`AWS + Confluent Cloud`) and M9.G reopened
+### Problem framing
+1. Existing `M9.G` closure captured AWS-only cost posture (`Budgets + Cost Explorer`) and did not include Confluent Cloud billing.
+2. Program policy was clarified: cost capture must include all active platforms/resources to prevent surprise charges.
+
+### Planning decisions
+1. Pinned cross-platform cost-capture handles in registry authority:
+   - `COST_CAPTURE_SCOPE=aws_plus_confluent_cloud`,
+   - Confluent billing source mode, evidence key pattern, and combined budget handles.
+2. Upgraded `M9.G` contract from AWS-only to cross-platform:
+   - required Confluent billing capture lane added,
+   - combined (`AWS + Confluent`) MTD rollup added,
+   - blocker taxonomy expanded (`M9G-B8` Confluent billing unreadable, `M9G-B9` combined critical posture),
+   - DoD now requires Confluent capture and combined in-policy posture.
+3. Applied fail-closed progression policy:
+   - prior `m9_20260219T160549Z` result is retained as historical `aws_only_observation`,
+   - `M9.G` is reopened under updated scope,
+   - `M9.H` is blocked until reopened `M9.G` passes blocker-free.
+4. Reinforced `M2.I` posture note:
+   - `M2.I` remains AWS baseline,
+   - cross-platform exposure closure is owned by `M9.G`.
+
+### Outcome
+1. Documentation and phase posture were repinned; no runtime rerun was executed in this step.
+2. Next required runtime action is reopened `M9.G` execution with Confluent billing included.
+
+## Entry: 2026-02-19 16:25:53 +00:00 - M9.G cross-platform rerun attempted, fail-closed on Confluent billing auth
+### Problem framing
+1. We needed to execute reopened `M9.G` under the pinned cross-platform scope (`AWS + Confluent Cloud`).
+2. The run had to fail-closed if Confluent billing could not be read.
+
+### Decision trail and execution notes
+1. Executed full `M9.G` lane with:
+   - AWS budget + CE MTD checks,
+   - Confluent billing read via `confluent billing cost list`,
+   - combined rollup and full blocker mapping.
+2. AWS side succeeded and remained consistent with prior posture.
+3. Confluent billing read failed:
+   - CLI returned login requirement for Confluent Cloud billing access.
+4. Applied blocker mapping exactly as pinned:
+   - `M9G-B8` (Confluent billing unreadable/unavailable),
+   - no attempt was made to bypass with defaults or zero-fill.
+
+### Runtime outcomes
+1. Execution id:
+   - `m9_20260219T162445Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T162445Z/m9_g_cost_guardrail_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T162445Z/m9_g_cost_guardrail_snapshot.json`.
+3. Key values:
+   - `overall_pass=false`
+   - blockers include `M9G-B8`
+   - `aws_mtd_cost_amount=17.8956072585`
+   - Confluent and combined MTD fields unresolved (`null`) due billing auth failure.
+
+### Phase posture updates
+1. `M9.G` remains open.
+2. `M9.H` remains blocked.
+3. Main/deep build plans and logbook were repinned with this fail-closed attempt.
+
+## Entry: 2026-02-19 16:33:08 +00:00 - Managed M9.G Confluent billing lane implemented in GitHub Actions
+### Problem framing
+1. Reopened `M9.G` required Confluent Cloud billing capture, but local CLI path failed (`M9G-B8`) because billing commands require interactive Confluent login in current local posture.
+2. We needed a managed, non-laptop lane that can capture Confluent billing deterministically using secret-managed credentials.
+
+### Planning decisions
+1. Implemented a dedicated managed workflow:
+   - `.github/workflows/dev_min_m9g_confluent_billing.yml`.
+2. Credential and auth model:
+   - reuse existing GitHub secrets `TF_VAR_CONFLUENT_CLOUD_API_KEY` / `TF_VAR_CONFLUENT_CLOUD_API_SECRET`,
+   - map these into workflow env and call Confluent Cost API directly via Basic auth (no interactive `confluent login` dependency).
+3. API/query model:
+   - query `GET https://api.confluent.cloud/billing/v1/costs` for MTD window,
+   - follow pagination via `metadata.next`,
+   - compute non-secret MTD total amount and emit summary snapshot.
+4. Evidence model:
+   - workflow writes `confluent_billing_snapshot.json` locally,
+   - uploads durable copy to `evidence/dev_min/run_control/<m9_execution_id>/confluent_billing_snapshot.json`,
+   - uploads CI artifact for audit.
+5. Fail-closed model:
+   - workflow exits non-zero on API/auth/query failure,
+   - missing billing evidence remains blocker state for `M9.G`.
+6. Documentation/authority repins:
+   - added workflow handle and secret-source notes in registry,
+   - updated `M9.G` contract to require this managed workflow output,
+   - updated main platform and M2 reinforcement notes to route cross-platform closure through the new lane.
+
+### Outcome
+1. Managed billing lane is now implemented in repository workflows.
+2. `M9.G` is now unblocked from local-login dependency, pending workflow dispatch and successful billing snapshot capture.
+
+## Entry: 2026-02-19 16:45:53 +00:00 - Cost-optimization posture pinned as execution navigation anchor
+### Problem framing
+1. Cost control guidance was discussed but was still mostly conversational, which risks drift during execution.
+2. We needed a single pinned posture in the active plan so teams can track what to optimize, in what order, and why.
+
+### Planning decisions
+1. Pinned optimization posture directly in `platform.M9.build_plan.md` under `M9.G` as an execution navigation anchor:
+   - default ECS services to `desired_count=0` and start only phase-lane services,
+   - convert non-daemon workloads to ECS `RunTask`,
+   - enforce idle auto-teardown TTL,
+   - right-size task CPU/memory from p95 usage,
+   - keep cross-platform (`AWS + Confluent`) cost gate mandatory,
+   - keep short dev log retention and debug-off default,
+   - keep minimal Confluent dev footprint and quick teardown,
+   - require per-run cost attribution.
+2. Pinned recommended implementation order:
+   - phase-aware ECS start/stop profile,
+   - idle auto-teardown guard,
+   - task-definition right-sizing,
+   - mandatory `M9.G` cross-platform billing gate retained.
+3. Added pointer in `platform.build_plan.md` so the main plan explicitly references this posture.
+
+### Outcome
+1. Cost optimization is now plan-pinned and auditable (not chat-only guidance).
+2. Future phase progression can reference this anchor without reinterpreting intent.
+
