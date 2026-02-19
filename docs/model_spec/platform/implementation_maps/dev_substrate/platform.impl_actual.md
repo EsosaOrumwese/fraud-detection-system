@@ -13311,3 +13311,32 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - use flat record as payload when nested payload envelope is absent.
 2. Keep behavior fail-closed for unrecognized action records (no broad guessing beyond deterministic decision-shape inference).
 3. Rebuild/publish image, rematerialize case-trigger, then rerun P10.B evidence closure.
+
+## Entry: 2026-02-19 03:37:41 +00:00 - P10.B replay remediation decision (checkpoint rewind required)
+### Observation
+1. After RTDL-shape normalization deploy, CaseTrigger service remained stable but run-scoped case/label DB counts were still zero.
+2. RTDL topic probe confirms historical run-scoped decision records exist at earliest offsets.
+3. CaseTrigger logs show connection/reset posture only; no fresh processing evidence.
+
+### Root cause inference
+1. Earlier (pre-fix) CaseTrigger executions acknowledged flat RTDL rows as non-actionable and still advanced consumer checkpoints.
+2. With fixed parser now deployed, worker starts from stored checkpoints near tail and does not replay historical decisions.
+
+### Decision
+1. Execute managed DB replay reset for this lane:
+   - rewind case_trigger_worker_consumer_checkpoints for stream case_trigger.v0::<platform_run_id>,
+   - clear run-scoped CM/LS rows and CT run artifacts to avoid stale mixed-state.
+2. Keep reset scoped to active run platform_20260213T214223Z and run from managed runtime lane.
+3. After reset, wait for services and re-measure run-scoped counts for P10.B closure.
+
+## Entry: 2026-02-19 03:40:47 +00:00 - P10.B follow-up drift fix (nested payload inference)
+### Probe outcome
+1. Managed RTDL sample probe using patched task definition showed decision records are nested under outer key payload (SAMPLE_DECISION=NONE at top-level decision-id scan).
+2. Previous event-type inference only inspected outer mapping, so nested decision payloads still bypassed normalization.
+
+### Decision
+1. Patch CaseTrigger inference flow to inspect both:
+   - outer mapping,
+   - nested payload mapping (when present).
+2. If inferred event type originates from nested payload, route nested payload directly to adapter path.
+3. Rebuild/publish image and rematerialize case-trigger again, then rerun run-scoped DB evidence checks.

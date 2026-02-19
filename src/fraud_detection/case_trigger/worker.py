@@ -218,9 +218,11 @@ class CaseTriggerWorker:
             payload = {}
         if not event_type:
             inferred = _infer_rtdl_event_type(envelope)
+            if not inferred and isinstance(payload, Mapping):
+                inferred = _infer_rtdl_event_type(payload)
             if inferred:
                 event_type = inferred
-                payload = dict(envelope)
+                payload = dict(payload) if isinstance(payload, Mapping) and payload else dict(envelope)
         if event_type not in {"decision_response", "action_outcome"}:
             return True
 
