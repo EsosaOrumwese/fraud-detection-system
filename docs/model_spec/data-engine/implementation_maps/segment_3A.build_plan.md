@@ -885,9 +885,150 @@ Scope:
 - evaluate hard gates, stretch gates, and cross-seed stability.
 
 Definition of done:
-- [ ] cross-seed certification artifact is emitted.
-- [ ] explicit verdict recorded: `PASS_BPLUS`, `PASS_B`, or `FAIL_REALISM`.
-- [ ] freeze candidate and supporting evidence pack are pinned.
+- [x] cross-seed certification artifact is emitted.
+- [x] explicit verdict recorded: `PASS_BPLUS`, `PASS_B`, or `FAIL_REALISM`.
+- [x] freeze candidate and supporting evidence pack are pinned.
+
+P5 authority baseline (post-P4 close):
+- `P4` handoff decision: `UNLOCK_P5_BEST_EFFORT`.
+- locked candidate posture:
+  - variant `P4K2` / run `58df4758c04040d796d38a08c481b555`.
+- witness/smoke authority runs:
+  - `6977c4ef82cc4f01ae76549047c08f51` (`seed=42`),
+  - `b57d89c4bc0741389d4980201eb51ffe` (`seed=7`),
+  - `d2751ee567fa4935ba572c9644e9e901` (`seed=101`).
+- locked known gap carried into certification:
+  - `S1 monotonic_violations` remains above P4 stretch target.
+
+Execution posture:
+- no further tuning in `P5`; certification is readout-only on the locked `P4K2`
+  posture.
+- deterministic rerun requirement per seed:
+  - staged run receipt -> full `S0->S7` chain -> baseline/candidate scoring.
+- smoke seed input workaround remains bounded and local:
+  - if staged run root lacks `1A/outlet_catalogue/seed=<seed>`, alias from
+    `seed=42` payload path inside that run root only (bytes unchanged).
+- hard rails remain fail-closed in certification:
+  - all seeds must keep `S6/S7` PASS and `P2/P3` non-regression rails.
+
+#### P5.1 - Certification Contract Lock
+Goal:
+- pin exact certification contract before execution.
+
+Scope:
+- lock certification seeds to `{42,7,101,202}`.
+- lock required lane to full `S0->S7` per seed.
+- lock verdict semantics:
+  - `PASS_BPLUS`: all hard + stretch gates pass on all seeds.
+  - `PASS_B`: all hard gates pass on all seeds, stretch may remain open.
+  - `FAIL_REALISM`: any hard gate fail on any seed, or any `S6/S7` fail.
+
+Definition of done:
+- [x] seedpack, run lane, and verdict semantics are pinned.
+- [x] no open tuning knobs remain in `P5`.
+- [x] runtime budget for certification lane is pinned.
+
+#### P5.2 - Seedpack Execution + Scoring
+Goal:
+- execute the full seedpack on locked posture and score each run.
+
+Scope:
+- for each seed in `{42,7,101,202}`:
+  - stage run root under `runs/fix-data-engine/segment_3A`,
+  - apply bounded seed-path alias workaround only if required,
+  - execute `make segment3a RUNS_ROOT=... RUN_ID=...`,
+  - emit baseline metrics + candidate-vs-anchor score artifacts.
+- runtime budget gate:
+  - target `< 90s` per seed,
+  - target `< 8m` total for `P5` seedpack lane.
+
+Definition of done:
+- [x] all 4 seed runs complete with emitted score artifacts.
+- [x] each seed has explicit `S6/S7` status and rail status captured.
+- [x] runtime evidence is recorded vs budget.
+
+#### P5.3 - Integrated Aggregation + Stability Readout
+Goal:
+- compute single integrated realism view for verdicting.
+
+Scope:
+- aggregate per-seed hard/stetch gate outcomes and key realism metrics.
+- compute cross-seed dispersion for key surfaces:
+  - `S1 major_dip_max_abs`,
+  - `S3 merchant_share_std_median`,
+  - `S4 escalated_multi_zone_rate`,
+  - `S4/zone_alloc top1 median`.
+- emit integrated certification artifact:
+  - `segment3a_p5_certification_summary.json`,
+  - `segment3a_p5_certification_summary.md`.
+
+Definition of done:
+- [x] integrated certification summary artifacts are emitted.
+- [x] per-seed + aggregate gate matrix is explicit.
+- [x] cross-seed stability readout is included in the summary.
+
+#### P5.4 - Verdict + Freeze Candidate Decision
+Goal:
+- finalize certified grade and freeze posture for `3A`.
+
+Scope:
+- apply locked verdict semantics to integrated summary:
+  - `PASS_BPLUS`, `PASS_B`, or `FAIL_REALISM`.
+- if verdict is pass (`B` or `B+`), pin final freeze candidate run-id.
+- if verdict is fail, pin explicit best-effort freeze posture for `P6`.
+
+Definition of done:
+- [x] explicit verdict is recorded.
+- [x] freeze candidate run-id (or fail rationale) is recorded.
+- [x] next handoff decision to `P6` is explicit.
+
+#### P5.5 - Evidence Pack + Retention Handshake
+Goal:
+- close certification lane with reproducible evidence and bounded storage.
+
+Scope:
+- publish retained evidence set (runs + reports + score artifacts).
+- prepare explicit keep-set for `P6` freeze/prune.
+- ensure implementation notes + logbook capture final `P5` decision trail.
+
+Definition of done:
+- [x] evidence pack paths are complete and reproducible.
+- [x] keep-set for `P6` is defined.
+- [x] decision trail is fully documented.
+
+P5 execution outcome:
+- certification runs (`S0->S7`, locked `P4K2` posture):
+  - `seed=42` -> `d516f89608ed43ad8ea1018fbb33d9d8`,
+  - `seed=7` -> `1b136a61051343c0bc1638397dbb3416`,
+  - `seed=101` -> `4029ada5ebd047de991124f372179808`,
+  - `seed=202` -> `77f0345ea9d3460c929bd26e99eb522a`.
+- aggregate verdict:
+  - `FAIL_REALISM`.
+- failure cause under locked verdict contract:
+  - seed `202` breached hard gate `3A-V04_s3_merchant_share_std_median` while
+    `S6/S7` remained PASS on all seeds.
+- freeze candidate run-id (best-effort authority witness):
+  - `d516f89608ed43ad8ea1018fbb33d9d8` (`seed=42`).
+- runtime budget evidence:
+  - observed max per-seed runtime: `44.876s` (`<= 90s` target),
+  - observed total runtime: `174.727s` (`<= 480s` target).
+- explicit handoff decision:
+  - `UNLOCK_P6_FREEZE_BEST_EFFORT_BELOW_B`.
+- retained evidence pack:
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p5_runs.json`,
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p5_certification_summary.json`,
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p5_certification_summary.md`.
+- keep-set prepared for `P6` freeze/prune:
+  - `81599ab107ba4c8db7fc5850287360fe`,
+  - `3f2e94f2d1504c249e434949659a496f`,
+  - `58df4758c04040d796d38a08c481b555`,
+  - `6977c4ef82cc4f01ae76549047c08f51`,
+  - `b57d89c4bc0741389d4980201eb51ffe`,
+  - `d2751ee567fa4935ba572c9644e9e901`,
+  - `d516f89608ed43ad8ea1018fbb33d9d8`,
+  - `1b136a61051343c0bc1638397dbb3416`,
+  - `4029ada5ebd047de991124f372179808`,
+  - `77f0345ea9d3460c929bd26e99eb522a`.
 
 ### P6 - Freeze and handoff
 Goal:
@@ -898,6 +1039,34 @@ Scope:
 - prune superseded failed run folders while preserving evidence.
 
 Definition of done:
-- [ ] freeze status recorded (`FROZEN_CERTIFIED_BPLUS`, `FROZEN_CERTIFIED_B`, or `FROZEN_BEST_EFFORT_BELOW_B`).
-- [ ] retained evidence paths are complete and reproducible.
-- [ ] implementation notes and logbook include full decision trail.
+- [x] freeze status recorded (`FROZEN_CERTIFIED_BPLUS`, `FROZEN_CERTIFIED_B`, or `FROZEN_BEST_EFFORT_BELOW_B`).
+- [x] retained evidence paths are complete and reproducible.
+- [x] implementation notes and logbook include full decision trail.
+
+P6 execution outcome:
+- freeze status:
+  - `FROZEN_BEST_EFFORT_BELOW_B`.
+- freeze authority run-id:
+  - `d516f89608ed43ad8ea1018fbb33d9d8` (`seed=42` witness).
+- prune execution:
+  - command: `tools/prune_run_folders_keep_set.py --yes`,
+  - result: `candidate_count=0` (no-op; run root already matched keep-set).
+- retained run-id set:
+  - `81599ab107ba4c8db7fc5850287360fe`,
+  - `3f2e94f2d1504c249e434949659a496f`,
+  - `58df4758c04040d796d38a08c481b555`,
+  - `6977c4ef82cc4f01ae76549047c08f51`,
+  - `b57d89c4bc0741389d4980201eb51ffe`,
+  - `d2751ee567fa4935ba572c9644e9e901`,
+  - `d516f89608ed43ad8ea1018fbb33d9d8`,
+  - `1b136a61051343c0bc1638397dbb3416`,
+  - `4029ada5ebd047de991124f372179808`,
+  - `77f0345ea9d3460c929bd26e99eb522a`.
+- retained evidence pack:
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p5_runs.json`,
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p5_certification_summary.json`,
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p5_certification_summary.md`,
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p6_freeze_summary.json`,
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p6_freeze_summary.md`.
+- explicit handoff decision:
+  - `SEGMENT_3A_FROZEN_MOVE_TO_3B`.

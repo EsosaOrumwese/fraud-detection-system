@@ -4420,3 +4420,168 @@ Prune action:
 Outcome:
 1) `P4` close artifacts remain reproducible from retained authority set.
 2) run-folder count reduced to the explicit keep-set plus `reports`.
+
+### Entry: 2026-02-19 07:46
+
+Design element: `P5 planning expansion (integrated certification after best-effort P4 close)`.
+Summary: user requested planning for `P5`. This entry pins certification
+posture and the expanded execution lanes before any `P5` runs.
+
+Planning posture:
+1) carry `P4` handoff state exactly as closed:
+   - decision `UNLOCK_P5_BEST_EFFORT`,
+   - locked posture `P4K2`,
+   - known open gap in `S1` monotonicity.
+2) `P5` is certification-only:
+   - no additional tuning or knob movement,
+   - full `S0->S7` reruns per certification seed.
+3) preserve fail-closed rails:
+   - `S6/S7` must pass per seed,
+   - `P2/P3` non-regression rails must hold on all certification seeds.
+
+Why expanded this way:
+1) best-effort handoff requires explicit separation between:
+   - improvement evidence (`P4`),
+   - final grade authority (`P5`).
+2) certification must remain auditable and reproducible with deterministic lane
+   and fixed verdict semantics.
+3) storage/runtime constraints require explicit run budget and retention lane in
+   the phase plan itself.
+
+P5 expansion committed to build plan:
+1) added authority baseline and execution posture for certification.
+2) decomposed `P5` into execution-grade lanes:
+   - `P5.1` certification contract lock,
+   - `P5.2` seedpack execution + scoring,
+   - `P5.3` integrated aggregation + stability readout,
+   - `P5.4` verdict + freeze candidate decision,
+   - `P5.5` evidence pack + retention handshake.
+3) pinned verdict semantics:
+   - `PASS_BPLUS`, `PASS_B`, `FAIL_REALISM`.
+
+Next action:
+1) on user go-ahead, execute `P5.1` then `P5.2` sequentially with run-budget
+   evidence and decision-trail updates after each lane.
+
+### Entry: 2026-02-19 07:54
+
+Design element: `P5 full execution (contract lock -> seedpack reruns -> integrated certification)`.
+Summary: executed complete `P5` on locked `P4K2` posture with no additional
+tuning and produced integrated certification artifacts for verdicting.
+
+Execution contract (`P5.1`) locked:
+1) seeds fixed to `{42,7,101,202}`.
+2) required lane fixed to full `S0->S7` rerun per seed.
+3) verdict semantics fixed:
+   - `PASS_BPLUS`: all hard+stretch gates pass on all seeds,
+   - `PASS_B`: all hard gates pass on all seeds,
+   - `FAIL_REALISM`: any hard gate fail on any seed or `S6/S7` fail.
+4) runtime budget fixed:
+   - `<90s` per seed,
+   - `<480s` total seedpack lane.
+
+Seedpack execution (`P5.2`) completed:
+1) staged and executed all four runs under
+   `runs/fix-data-engine/segment_3A`:
+   - `seed=42`: `d516f89608ed43ad8ea1018fbb33d9d8` (`44.876s`),
+   - `seed=7`: `1b136a61051343c0bc1638397dbb3416` (`42.234s`),
+   - `seed=101`: `4029ada5ebd047de991124f372179808` (`42.833s`),
+   - `seed=202`: `77f0345ea9d3460c929bd26e99eb522a` (`44.784s`).
+2) bounded smoke-seed alias workaround reused (run-root-local only) where needed
+   for `1A/outlet_catalogue/seed=<seed>` path token.
+3) per-seed scoring emitted through baseline/candidate scorers and registered in
+   `segment3a_p5_runs.json`.
+
+Integrated aggregation (`P5.3`) emitted:
+1) `runs/fix-data-engine/segment_3A/reports/segment3a_p5_certification_summary.json`.
+2) `runs/fix-data-engine/segment_3A/reports/segment3a_p5_certification_summary.md`.
+3) summary contains:
+   - per-seed hard/stretch maps,
+   - `S6/S7` status per seed,
+   - cross-seed stability stats,
+   - runtime-budget evidence.
+
+### Entry: 2026-02-19 07:55
+
+Design element: `P5 verdict close + P6 handoff`.
+Summary: closed `P5` with explicit fail rationale, freeze-candidate posture, and
+retention handshake for `P6`.
+
+Certification outcome:
+1) integrated verdict: `FAIL_REALISM`.
+2) root hard-gate breach:
+   - seed `202` failed `3A-V04_s3_merchant_share_std_median`
+     (`0.019400 < 0.020000` threshold).
+3) all seeds remained `S6/S7 PASS`; failure is realism-grade, not state
+   execution failure.
+
+Stability and runtime evidence:
+1) deterministic S1 shape persisted across seedpack:
+   - `major_dip_max_abs=0.336092`,
+   - `monotonic_violations=5`.
+2) runtime targets satisfied:
+   - max seed runtime `44.876s` (`<=90s`),
+   - total `174.727s` (`<=480s`).
+
+Decision and handoff:
+1) freeze-candidate witness pinned:
+   - `d516f89608ed43ad8ea1018fbb33d9d8` (`seed=42`).
+2) explicit handoff decision:
+   - `UNLOCK_P6_FREEZE_BEST_EFFORT_BELOW_B`.
+3) keep-set prepared for `P6` prune/freeze:
+   - `81599ab107ba4c8db7fc5850287360fe`,
+   - `3f2e94f2d1504c249e434949659a496f`,
+   - `58df4758c04040d796d38a08c481b555`,
+   - `6977c4ef82cc4f01ae76549047c08f51`,
+   - `b57d89c4bc0741389d4980201eb51ffe`,
+   - `d2751ee567fa4935ba572c9644e9e901`,
+   - `d516f89608ed43ad8ea1018fbb33d9d8`,
+   - `1b136a61051343c0bc1638397dbb3416`,
+   - `4029ada5ebd047de991124f372179808`,
+   - `77f0345ea9d3460c929bd26e99eb522a`.
+
+### Entry: 2026-02-19 08:00
+
+Design element: `P6 freeze evidence emission`.
+Summary: emitted explicit P6 freeze artifacts to seal Segment `3A` closure with
+best-effort-below-B status and reproducible evidence references.
+
+Artifacts emitted:
+1) `runs/fix-data-engine/segment_3A/reports/segment3a_p6_freeze_summary.json`.
+2) `runs/fix-data-engine/segment_3A/reports/segment3a_p6_freeze_summary.md`.
+
+Pinned freeze posture:
+1) `freeze_status=FROZEN_BEST_EFFORT_BELOW_B`.
+2) freeze authority witness:
+   - run `d516f89608ed43ad8ea1018fbb33d9d8` (`seed=42`).
+3) carry-forward rationale:
+   - `P5` verdict `FAIL_REALISM` due to seed `202` hard-gate breach on
+     `3A-V04_s3_merchant_share_std_median`.
+
+### Entry: 2026-02-19 08:01
+
+Design element: `P6 keep-set prune + handoff closure`.
+Summary: executed keep-set prune on Segment `3A` run root and finalized P6
+handoff decision.
+
+Prune execution:
+1) command:
+   - `python tools/prune_run_folders_keep_set.py --runs-root runs/fix-data-engine/segment_3A ... --yes`.
+2) outcome:
+   - `candidate_count=0` (no-op),
+   - run root already matched pinned keep-set before P6 closure.
+
+Final retained run-id set:
+1) `81599ab107ba4c8db7fc5850287360fe`.
+2) `3f2e94f2d1504c249e434949659a496f`.
+3) `58df4758c04040d796d38a08c481b555`.
+4) `6977c4ef82cc4f01ae76549047c08f51`.
+5) `b57d89c4bc0741389d4980201eb51ffe`.
+6) `d2751ee567fa4935ba572c9644e9e901`.
+7) `d516f89608ed43ad8ea1018fbb33d9d8`.
+8) `1b136a61051343c0bc1638397dbb3416`.
+9) `4029ada5ebd047de991124f372179808`.
+10) `77f0345ea9d3460c929bd26e99eb522a`.
+
+Handoff decision:
+1) `SEGMENT_3A_FROZEN_MOVE_TO_3B`.

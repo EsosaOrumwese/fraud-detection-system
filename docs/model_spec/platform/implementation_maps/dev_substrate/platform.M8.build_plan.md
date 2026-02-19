@@ -174,14 +174,18 @@ Runtime budget:
 2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
 
 DoD:
-- [ ] Required handles are explicit and probe-pass.
-- [ ] Placeholder/wildcard required handles are absent.
-- [ ] Snapshot exists locally and durably.
+- [x] Required handles are explicit and probe-pass.
+- [x] Placeholder/wildcard required handles are absent.
+- [x] Snapshot exists locally and durably.
 
 Planning status:
 1. `M8.A` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
 2. Execution attempted on `2026-02-19` under `m8_execution_id=m8_20260219T073801Z`.
-3. Lane is currently blocked fail-closed on `M8A-B2` until reporter handles are concretely materialized.
+3. Initial attempt failed closed on `M8A-B2` (`TD_REPORTER`, `ROLE_REPORTER_SINGLE_WRITER` unresolved).
+4. Reporter surfaces were materialized via Terraform demo lane:
+   - role: `fraud-platform-dev-min-reporter-single-writer`,
+   - task definition family: `fraud-platform-dev-min-reporter`.
+5. Rerun passed on `m8_execution_id=m8_20260219T075228Z` (`overall_pass=true`, blockers empty).
 
 Execution closure (2026-02-19):
 1. Snapshot emitted locally:
@@ -196,6 +200,20 @@ Execution closure (2026-02-19):
    - `ROLE_REPORTER_SINGLE_WRITER`,
    - `TD_REPORTER`.
 5. M8.A remains open until required reporter handles are bound to concrete values and rerun passes.
+
+Execution closure rerun (2026-02-19):
+1. Snapshot emitted locally:
+   - `runs/dev_substrate/m8/m8_20260219T075228Z/m8_a_handle_closure_snapshot.json`.
+2. Snapshot published durably:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T075228Z/m8_a_handle_closure_snapshot.json`.
+3. Result:
+   - `overall_pass=true`,
+   - `resolved_handle_count=17`,
+   - `unresolved_handle_count=0`,
+   - blockers empty.
+4. Reporter runtime hardening applied post-materialization:
+   - active reporter task definition now `fraud-platform-dev-min-reporter:2` on managed platform image digest (not busybox default).
+5. `M8.A` is now closed and `M8.B` is unblocked.
 
 Blockers:
 1. `M8A-B1`: M7 handoff invalid or unreadable.
@@ -433,7 +451,7 @@ Notes:
 3. Missing required evidence object keeps M8 in `HOLD_M8`.
 
 ## 8) M8 Completion Checklist
-- [ ] M8.A complete
+- [x] M8.A complete
 - [ ] M8.B complete
 - [ ] M8.C complete
 - [ ] M8.D complete

@@ -58,6 +58,10 @@ output "role_env_conformance_name" {
   value = module.demo.role_env_conformance_name
 }
 
+output "role_reporter_single_writer_name" {
+  value = module.demo.role_reporter_single_writer_name
+}
+
 output "ecs_probe_task_definition_arn" {
   value = module.demo.ecs_probe_task_definition_arn
 }
@@ -124,6 +128,14 @@ output "ecs_wsp_task_definition_arn" {
 
 output "td_wsp" {
   value = module.demo.ecs_wsp_task_definition_family
+}
+
+output "ecs_reporter_task_definition_arn" {
+  value = module.demo.ecs_reporter_task_definition_arn
+}
+
+output "td_reporter" {
+  value = module.demo.ecs_reporter_task_definition_family
 }
 
 output "vpc_id" {

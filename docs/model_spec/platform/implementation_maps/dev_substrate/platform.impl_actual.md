@@ -13813,3 +13813,91 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 2. Kept M8 status `ACTIVE` in main plan with explicit blocked sub-phase note.
 3. Next required closure action:
    - materialize concrete reporter role/task-definition handles and rerun `M8.A`.
+
+## Entry: 2026-02-19 07:48:19 +00:00 - M8A-B2 remediation design lock (reporter materialization)
+### Problem statement
+1. `M8.A` is blocked on unresolved required handles:
+   - `ROLE_REPORTER_SINGLE_WRITER`
+   - `TD_REPORTER`
+2. Live AWS posture confirms no reporter task definition family and no reporter single-writer IAM role are currently materialized.
+
+### Options considered
+1. Patch registry-only values without infra changes.
+   - Rejected: would clear `M8.A` textually but leave runtime drift; `M8.B` would fail on missing/invalid reporter runtime surface.
+2. Reuse existing env-conformance role/task as reporter handles.
+   - Rejected: semantic mismatch (`env_conformance` daemon surface, not reporter one-shot contract) and weak single-writer identity boundary.
+3. Materialize dedicated reporter role + task definition in Terraform demo module, then pin handles to those concrete names.
+   - Selected: resolves blocker at authority + runtime levels and preserves P11 single-writer intent.
+
+### Selected remediation
+1. Terraform module (`infra/terraform/modules/demo`) changes:
+   - add lane role key `reporter_single_writer`,
+   - include reporter role in object-store data-plane policy binding,
+   - add one-shot ECS task definition family `${name_prefix}-reporter` with managed runtime command:
+     - `python -m fraud_detection.platform_reporter.worker --profile config/platform/profiles/dev_min.yaml --once --required-platform-run-id ${required_platform_run_id}`
+   - inject required runtime env/secrets for reporter path (`PLATFORM_RUN_ID`, `OBJECT_STORE_REGION`, run-scope env key, `IG_ADMISSION_DSN`).
+2. Terraform outputs:
+   - expose reporter role name and reporter task definition family/arn.
+3. Handle registry:
+   - pin `TD_REPORTER` and `ROLE_REPORTER_SINGLE_WRITER` to concrete deterministic values.
+4. Apply demo stack and verify:
+   - ECS task definition family exists,
+   - IAM role exists,
+   - rerun `M8.A` closure snapshot and require `overall_pass=true`.
+
+## Entry: 2026-02-19 07:53:16 +00:00 - M8A-B2 remediation executed (reporter surfaces materialized + rerun green)
+### Terraform and authority changes applied
+1. Updated module/runtime IaC:
+   - `infra/terraform/modules/demo/main.tf`
+   - `infra/terraform/modules/demo/outputs.tf`
+   - `infra/terraform/dev_min/demo/outputs.tf`
+2. Added dedicated reporter surfaces:
+   - IAM role: `fraud-platform-dev-min-reporter-single-writer`
+   - ECS task definition family: `fraud-platform-dev-min-reporter`
+3. Pinned handle registry values:
+   - `TD_REPORTER = "fraud-platform-dev-min-reporter"`
+   - `ROLE_REPORTER_SINGLE_WRITER = "fraud-platform-dev-min-reporter-single-writer"`
+   - file: `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`.
+
+### Materialization evidence
+1. Targeted Terraform apply completed (`4 added, 0 changed, 0 destroyed`) with reporter resources created.
+2. Live probes confirmed:
+   - ECS task definition exists: `arn:aws:ecs:eu-west-2:230372904534:task-definition/fraud-platform-dev-min-reporter:1`
+   - IAM role exists: `arn:aws:iam::230372904534:role/fraud-platform-dev-min-reporter-single-writer`
+   - Terraform outputs now expose:
+     - `td_reporter = fraud-platform-dev-min-reporter`
+     - `role_reporter_single_writer_name = fraud-platform-dev-min-reporter-single-writer`.
+
+### M8.A rerun closure
+1. Reran deterministic `M8.A` closure algorithm with materialization probes.
+2. Published rerun artifact:
+   - local: `runs/dev_substrate/m8/m8_20260219T075228Z/m8_a_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T075228Z/m8_a_handle_closure_snapshot.json`
+3. Result:
+   - `overall_pass=true`
+   - `resolved_handle_count=17`
+   - `unresolved_handle_count=0`
+   - blockers empty.
+
+### Phase state updates
+1. Marked `M8.A` complete in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+2. Advanced immediate next action to `M8.B`.
+
+## Entry: 2026-02-19 07:56:37 +00:00 - Reporter runtime image correction (pre-M8.B hardening)
+### Observation
+1. Initial reporter task materialization used default image `public.ecr.aws/docker/library/busybox:1.36`.
+2. Reporter command invokes Python worker; leaving busybox would fail at runtime (`M8.B`/`M8.E` risk).
+
+### Correction
+1. Rebound reporter task definition to managed platform image digest already used by active daemon tasks.
+2. Applied targeted replacement for reporter task definition only.
+3. Verified live posture:
+   - task definition: `arn:aws:ecs:eu-west-2:230372904534:task-definition/fraud-platform-dev-min-reporter:2`
+   - image: `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-min@sha256:3fc4dc01cef9e8d7947fa79814ea9efc9fecdcdeabc325a2c2dfcd956753f162`
+   - role: `arn:aws:iam::230372904534:role/fraud-platform-dev-min-reporter-single-writer`.
+
+### Decision
+1. Keep `M8.A` verdict green (handle closure unaffected).
+2. Carry corrected reporter runtime posture into `M8.B` readiness validation.

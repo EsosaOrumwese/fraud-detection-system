@@ -58,6 +58,10 @@ output "role_env_conformance_name" {
   value = aws_iam_role.lane_app_roles["env_conformance"].name
 }
 
+output "role_reporter_single_writer_name" {
+  value = aws_iam_role.lane_app_roles["reporter_single_writer"].name
+}
+
 output "ecs_probe_task_definition_arn" {
   value = aws_ecs_task_definition.runtime_probe.arn
 }
@@ -120,6 +124,14 @@ output "ecs_wsp_task_definition_arn" {
 
 output "ecs_wsp_task_definition_family" {
   value = aws_ecs_task_definition.control_job["wsp"].family
+}
+
+output "ecs_reporter_task_definition_arn" {
+  value = aws_ecs_task_definition.reporter.arn
+}
+
+output "ecs_reporter_task_definition_family" {
+  value = aws_ecs_task_definition.reporter.family
 }
 
 output "vpc_id" {

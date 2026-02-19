@@ -10,11 +10,12 @@ locals {
   ig_event_bus_stream_name = "${var.name_prefix}-ig-bus-v0"
   db_password_value        = trimspace(var.db_password) != "" ? var.db_password : random_password.db_password.result
   lane_role_names = {
-    ig_service      = "${var.name_prefix}-ig-service"
-    rtdl_core       = "${var.name_prefix}-rtdl-core"
-    decision_lane   = "${var.name_prefix}-decision-lane"
-    case_labels     = "${var.name_prefix}-case-labels"
-    env_conformance = "${var.name_prefix}-env-conformance"
+    ig_service             = "${var.name_prefix}-ig-service"
+    rtdl_core              = "${var.name_prefix}-rtdl-core"
+    decision_lane          = "${var.name_prefix}-decision-lane"
+    case_labels            = "${var.name_prefix}-case-labels"
+    env_conformance        = "${var.name_prefix}-env-conformance"
+    reporter_single_writer = "${var.name_prefix}-reporter-single-writer"
   }
 
   archive_bucket_resolved = trimspace(var.archive_bucket) != "" ? var.archive_bucket : "${var.name_prefix}-archive"
@@ -574,7 +575,7 @@ resource "aws_iam_role_policy" "lane_app_secret_read" {
 resource "aws_iam_role_policy" "lane_app_object_store_data_plane" {
   for_each = {
     for key, role in aws_iam_role.lane_app_roles : key => role
-    if contains(["rtdl_core", "ig_service", "case_labels"], key)
+    if contains(["rtdl_core", "ig_service", "case_labels", "reporter_single_writer"], key)
   }
 
   name   = "${var.name_prefix}-${each.key}-object-store-data-plane"
@@ -1360,6 +1361,75 @@ resource "aws_ecs_task_definition" "control_job" {
     fp_resource = "demo_ecs_task_definition_control_job"
     fp_pack     = "control_ingress"
     fp_service  = each.value.family_name
+  })
+}
+
+resource "aws_ecs_task_definition" "reporter" {
+  family                   = "${var.name_prefix}-reporter"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.ecs_daemon_task_cpu
+  memory                   = var.ecs_daemon_task_memory
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.lane_app_roles["reporter_single_writer"].arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "reporter"
+      image     = local.daemon_container_image_resolved
+      essential = true
+      command = [
+        "sh",
+        "-c",
+        "set -e; python -m fraud_detection.platform_reporter.worker --profile config/platform/profiles/dev_min.yaml --once --required-platform-run-id ${var.required_platform_run_id}",
+      ]
+      environment = [
+        {
+          name  = "PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "OBJECT_STORE_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = var.required_platform_run_id_env_key
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "FP_PACK_ID"
+          value = "obs_gov"
+        },
+        {
+          name  = "FP_RUNTIME_MODE"
+          value = "job"
+        },
+        {
+          name  = "FP_COMPONENT_MODE"
+          value = "platform_reporter"
+        },
+      ]
+      secrets = [
+        {
+          name      = "IG_ADMISSION_DSN"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        },
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.demo.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs/obs_gov/reporter"
+        }
+      }
+    }
+  ])
+
+  tags = merge(local.tags_demo, {
+    fp_resource = "demo_ecs_task_definition_reporter"
+    fp_pack     = "obs_gov"
+    fp_service  = "${var.name_prefix}-reporter"
   })
 }
 

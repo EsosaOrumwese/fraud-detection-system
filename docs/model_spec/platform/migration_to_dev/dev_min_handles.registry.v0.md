@@ -558,7 +558,7 @@ These are logical identifiers; the real AWS ARNs/names are bound by Terraform ou
 * `TD_SR = "fraud-platform-dev-min-sr"`
 * `TD_WSP = "fraud-platform-dev-min-wsp"`
 * `TD_DB_MIGRATIONS` *(if needed)*
-* `TD_REPORTER`
+* `TD_REPORTER = "fraud-platform-dev-min-reporter"`
 
 ### 7.4 ECS services (daemons)
 
@@ -807,7 +807,7 @@ These handles pin the IAM roles used by Terraform and every ECS task/service. Th
 
   * for `SVC_ENV_CONFORMANCE`
 
-* `ROLE_REPORTER_SINGLE_WRITER`
+* `ROLE_REPORTER_SINGLE_WRITER = "fraud-platform-dev-min-reporter-single-writer"`
 
   * for `TD_REPORTER`
 
