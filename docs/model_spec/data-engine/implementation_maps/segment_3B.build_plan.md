@@ -439,6 +439,29 @@ POPT.1R.5 closure record:
 - run-retention note:
   - no additional superseded run-id folders were created during this closure lane.
 
+### POPT.1R.NEXT - Safer redesign lane (country-keyed one-pass prep)
+Goal:
+- reopen `S2` prep-lane with a lower-risk algorithm that is memory-safe and avoids repeated global scan cost.
+
+Scope:
+- rollback CSK batch path and start from pre-reopen stable runner code.
+- add deterministic precheck that all tile surfaces resolve to explicit country-keyed files for required countries:
+  - `tile_weights`: `part-<ISO>.parquet`,
+  - `tile_index`: `country=<ISO>/...`,
+  - `tile_bounds`: `country=<ISO>/...`.
+- fail-closed on unresolved/mixed file-key patterns in this lane (no unresolved fallback scans).
+- process each country once with direct file-targeted reads (one-pass per dataset per country), preserving existing validator/error semantics.
+- keep RNG/edge-loop and output contracts unchanged.
+
+Definition of done:
+- [ ] rollback to pre-CSK runner state is complete.
+- [ ] country-key coverage precheck artifact is emitted for witness run.
+- [ ] prep lane no longer uses batch-wide repeated scans/collects.
+- [ ] interim runtime checkpoint passes:
+  - `tile_read_map_alloc_project_total <= 500s`,
+  - `S2 wall <= 700s`.
+- [ ] if interim checkpoint passes, proceed to full runtime gate check (`S2 <=300s` OR `>=25%` reduction).
+
 ### POPT.2 - Secondary hotspot optimization (expected S5 or S3)
 Goal:
 - reduce second-ranked bottleneck while preserving check semantics.
@@ -577,6 +600,7 @@ Definition of done:
 ## 8) Current phase status
 - `POPT.0`: completed
 - `POPT.1`: in_progress (`HOLD_POPT1_REOPEN`)
+- `POPT.1R.NEXT`: in_progress (`OPEN_AFTER_ROLLBACK`)
 - `POPT.2`: pending
 - `POPT.3`: pending
 - `POPT.4`: pending

@@ -3113,3 +3113,50 @@ Interpretation:
 1) CSK implementation is functionally safe (validator semantics and downstream contracts intact).
 2) current batch-scan strategy is performance-regressive and does not satisfy `POPT.1` runtime gate.
 3) reopen focus stays on prep-lane algorithm redesign (reduce repeated batch scans and heavy collect cost) under memory-safe constraints.
+### Entry: 2026-02-19 12:12
+
+Design element: `3B immediate rollback of POPT.1R.3 code path`.
+Summary: user directed immediate revert after witness closure confirmed severe runtime regression despite contract correctness pass.
+
+Rollback decision:
+1) restore `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py` to pre-CSK commit snapshot (`87eb55cd`).
+2) keep all decision/evidence docs and scorer artifacts (they remain authority for why rollback was required).
+
+Rationale:
+1) closure candidate remained far outside runtime budget:
+   - baseline `S2=406.375s`, candidate `S2=1267.437s`.
+2) prep lane remained dominant and regressed (`~1148s` tile prep).
+3) correctness stayed green, so rollback targets performance posture only.
+
+Execution constraints:
+1) no destructive workspace reset; file-scoped rollback only.
+2) no doc rollback; append-only trail preserved.
+3) after rollback, open a safer redesign lane with stricter algorithm bounds and witness gates before touching S2 again.
+### Entry: 2026-02-19 12:18
+
+Design element: `3B rollback executed + safer redesign lane opened`.
+Summary: completed immediate rollback of S2 runner to pre-CSK state and opened a stricter reopen lane in build plan (`POPT.1R.NEXT`).
+
+Rollback execution:
+1) restored file:
+   - `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`
+   from commit `87eb55cd`.
+2) post-rollback checks:
+   - `py_compile` PASS,
+   - CSK symbols removed (`TILE_SURFACE_COUNTRY_BATCH_SIZE`, country-batch helpers, batch progress marker).
+
+Why rollback was mandatory:
+1) witness contract was green but runtime gate failed severely (`S2 1267.437s` vs `406.375s` baseline).
+2) prep lane dominated and regressed (`1148.305s`), so keeping this code would violate the performance-first gate.
+
+Safer redesign lane opened (`POPT.1R.NEXT`):
+1) fail-closed precheck for explicit country-keyed tile files.
+2) no unresolved fallback scans.
+3) one-pass per-country file-targeted reads (no repeated batch-wide scan/collect loops).
+4) interim runtime checkpoint before full gate:
+   - prep lane `<=500s`,
+   - `S2 wall <=700s`.
+
+Plan posture:
+1) `POPT.1` remains `HOLD_POPT1_REOPEN`.
+2) next coding action is constrained to `POPT.1R.NEXT` only.

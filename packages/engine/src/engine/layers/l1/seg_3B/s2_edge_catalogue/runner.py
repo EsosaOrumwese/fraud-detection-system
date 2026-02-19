@@ -89,7 +89,6 @@ RNG_DOMAIN_STREAM = "mlr:3B.edge_catalogue.stream"
 EDGE_ID_PREFIX = "3B.EDGE"
 MAX_ATTEMPTS = 64
 EDGE_BATCH_SIZE = 100_000
-TILE_SURFACE_COUNTRY_BATCH_SIZE = 8
 
 
 @dataclass(frozen=True)
@@ -242,57 +241,6 @@ def _resolve_parquet_files(root: Path) -> list[Path]:
     if not paths:
         raise InputResolutionError(f"No parquet files found under {root}")
     return paths
-
-
-def _infer_country_iso_from_parquet_path(path: Path) -> Optional[str]:
-    for token in path.parts:
-        if token.startswith("country="):
-            iso = token.split("=", 1)[1].strip().upper()
-            if len(iso) == 2 and iso.isalpha():
-                return iso
-    stem = path.stem
-    if stem.startswith("part-"):
-        suffix = stem.split("-", 1)[1].strip().upper()
-        if len(suffix) == 2 and suffix.isalpha():
-            return suffix
-    return None
-
-
-def _group_parquet_files_by_country(paths: list[Path]) -> tuple[dict[str, list[Path]], list[Path]]:
-    grouped: dict[str, list[Path]] = {}
-    unresolved: list[Path] = []
-    for path in paths:
-        country_iso = _infer_country_iso_from_parquet_path(path)
-        if country_iso:
-            grouped.setdefault(country_iso, []).append(path)
-        else:
-            unresolved.append(path)
-    for files in grouped.values():
-        files.sort()
-    unresolved.sort()
-    return grouped, unresolved
-
-
-def _iter_country_batches(countries_sorted: list[str], batch_size: int) -> Iterator[list[str]]:
-    if batch_size <= 0:
-        batch_size = len(countries_sorted) or 1
-    for index in range(0, len(countries_sorted), batch_size):
-        yield countries_sorted[index : index + batch_size]
-
-
-def _batch_files_for_countries(
-    grouped_files: dict[str, list[Path]],
-    unresolved_files: list[Path],
-    countries_batch: list[str],
-) -> list[Path]:
-    batch_files: list[Path] = []
-    for country_iso in countries_batch:
-        batch_files.extend(grouped_files.get(country_iso, []))
-    if unresolved_files:
-        batch_files.extend(unresolved_files)
-    if not batch_files:
-        return []
-    return sorted(set(batch_files))
 
 
 def _atomic_publish_dir(tmp_root: Path, final_root: Path, logger, label: str) -> None:
@@ -1349,64 +1297,113 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         tile_weights_files = _resolve_parquet_files(tile_weights_root)
         tile_bounds_files = _resolve_parquet_files(tile_bounds_root)
 
-        tile_weights_by_country, tile_weights_unresolved = _group_parquet_files_by_country(tile_weights_files)
-        tile_index_by_country, tile_index_unresolved = _group_parquet_files_by_country(tile_index_files)
-        tile_bounds_by_country_files, tile_bounds_unresolved = _group_parquet_files_by_country(tile_bounds_files)
+        tile_index_scan = pl.scan_parquet(tile_index_files)
+        tile_weights_scan = pl.scan_parquet(tile_weights_files)
+        tile_bounds_scan = pl.scan_parquet(tile_bounds_files)
 
         tile_allocations: dict[str, list[tuple[int, int]]] = {}
         tile_bounds_by_country: dict[str, dict[int, tuple[float, float, float, float, float, float]]] = {}
 
-        total_batches = max(1, (len(countries_sorted) + TILE_SURFACE_COUNTRY_BATCH_SIZE - 1) // TILE_SURFACE_COUNTRY_BATCH_SIZE)
-        for batch_idx, countries_batch in enumerate(
-            _iter_country_batches(countries_sorted, TILE_SURFACE_COUNTRY_BATCH_SIZE),
-            start=1,
-        ):
-            batch_set = set(countries_batch)
-            weight_batch_files = _batch_files_for_countries(
-                tile_weights_by_country,
-                tile_weights_unresolved,
-                countries_batch,
+        for country_iso in countries_sorted:
+            weights_df = (
+                tile_weights_scan.filter(pl.col("country_iso") == country_iso)
+                .select(["tile_id", "weight_fp", "dp"])
+                .collect()
             )
-            index_batch_files = _batch_files_for_countries(
-                tile_index_by_country,
-                tile_index_unresolved,
-                countries_batch,
+            if weights_df.is_empty():
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_weights_missing",
+                    {"country_iso": country_iso, "path": str(tile_weights_root)},
+                    manifest_fingerprint,
+                )
+            dp_values = weights_df.get_column("dp").unique()
+            if dp_values.len() != 1:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_weights_dp_mismatch",
+                    {"country_iso": country_iso, "dp_values": dp_values.to_list()},
+                    manifest_fingerprint,
+                )
+            weights_map: dict[int, int] = {}
+            for tile_id, weight_fp in zip(
+                weights_df.get_column("tile_id").to_list(),
+                weights_df.get_column("weight_fp").to_list(),
+            ):
+                weights_map[int(tile_id)] = int(weight_fp)
+            if sum(weights_map.values()) <= 0:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_weights_zero_sum",
+                    {"country_iso": country_iso},
+                    manifest_fingerprint,
+                )
+
+            index_df = (
+                tile_index_scan.filter(pl.col("country_iso") == country_iso)
+                .select(["tile_id"])
+                .collect()
             )
-            bounds_batch_files = _batch_files_for_countries(
-                tile_bounds_by_country_files,
-                tile_bounds_unresolved,
-                countries_batch,
+            if index_df.is_empty():
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_index_missing",
+                    {"country_iso": country_iso, "path": str(tile_index_root)},
+                    manifest_fingerprint,
+                )
+            index_ids = set(int(value) for value in index_df.get_column("tile_id").to_list())
+            missing_index = [tile_id for tile_id in weights_map if tile_id not in index_ids]
+            if missing_index:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_id_not_in_index",
+                    {"country_iso": country_iso, "missing": missing_index[:10]},
+                    manifest_fingerprint,
+                )
+
+            tile_alloc = _allocate_edges_int(weights_map, edges_per_country[country_iso])
+            allocations = [
+                (tile_id, count)
+                for tile_id, count in sorted(tile_alloc.items())
+                if count > 0
+            ]
+            needed_bounds = {tile_id for tile_id, count in allocations if count > 0}
+
+            bounds_id_df = (
+                tile_bounds_scan.filter(pl.col("country_iso") == country_iso)
+                .select(["tile_id"])
+                .collect()
             )
-
-            if weight_batch_files:
-                weights_batch_df = (
-                    pl.scan_parquet(weight_batch_files)
-                    .filter(pl.col("country_iso").is_in(countries_batch))
-                    .select(["country_iso", "tile_id", "weight_fp", "dp"])
-                    .collect()
+            if bounds_id_df.is_empty():
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_bounds_missing",
+                    {"country_iso": country_iso, "path": str(tile_bounds_root)},
+                    manifest_fingerprint,
                 )
-            else:
-                weights_batch_df = pl.DataFrame(
-                    schema={"country_iso": pl.Utf8, "tile_id": pl.Int64, "weight_fp": pl.Int64, "dp": pl.Int64}
+            bounds_ids = set(int(value) for value in bounds_id_df.get_column("tile_id").to_list())
+            missing_bounds = [tile_id for tile_id in weights_map if tile_id not in bounds_ids]
+            if missing_bounds:
+                _abort(
+                    "E3B_S2_TILE_SURFACE_INVALID",
+                    "V-08",
+                    "tile_bounds_missing_ids",
+                    {"country_iso": country_iso, "missing": missing_bounds[:10]},
+                    manifest_fingerprint,
                 )
-
-            if index_batch_files:
-                index_batch_df = (
-                    pl.scan_parquet(index_batch_files)
-                    .filter(pl.col("country_iso").is_in(countries_batch))
-                    .select(["country_iso", "tile_id"])
-                    .collect()
-                )
-            else:
-                index_batch_df = pl.DataFrame(schema={"country_iso": pl.Utf8, "tile_id": pl.Int64})
-
-            if bounds_batch_files:
-                bounds_batch_df = (
-                    pl.scan_parquet(bounds_batch_files)
-                    .filter(pl.col("country_iso").is_in(countries_batch))
+            bounds_map: dict[int, tuple[float, float, float, float, float, float]] = {}
+            if needed_bounds:
+                bounds_df = (
+                    tile_bounds_scan.filter(pl.col("country_iso") == country_iso)
+                    .filter(pl.col("tile_id").is_in(list(needed_bounds)))
                     .select(
                         [
-                            "country_iso",
                             "tile_id",
                             "min_lon_deg",
                             "max_lon_deg",
@@ -1418,141 +1415,18 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     )
                     .collect()
                 )
-            else:
-                bounds_batch_df = pl.DataFrame(
-                    schema={
-                        "country_iso": pl.Utf8,
-                        "tile_id": pl.Int64,
-                        "min_lon_deg": pl.Float64,
-                        "max_lon_deg": pl.Float64,
-                        "min_lat_deg": pl.Float64,
-                        "max_lat_deg": pl.Float64,
-                        "centroid_lon_deg": pl.Float64,
-                        "centroid_lat_deg": pl.Float64,
-                    }
-                )
-
-            weights_rows_by_country: dict[str, list[tuple[int, int, int]]] = {}
-            for row in weights_batch_df.iter_rows(named=True):
-                country_iso = str(row["country_iso"] or "").upper()
-                if country_iso not in batch_set:
-                    continue
-                weights_rows_by_country.setdefault(country_iso, []).append(
-                    (int(row["tile_id"]), int(row["weight_fp"]), int(row["dp"]))
-                )
-
-            index_ids_by_country: dict[str, set[int]] = {}
-            for row in index_batch_df.iter_rows(named=True):
-                country_iso = str(row["country_iso"] or "").upper()
-                if country_iso not in batch_set:
-                    continue
-                index_ids_by_country.setdefault(country_iso, set()).add(int(row["tile_id"]))
-
-            bounds_rows_by_country: dict[str, dict[int, tuple[float, float, float, float, float, float]]] = {}
-            for row in bounds_batch_df.iter_rows(named=True):
-                country_iso = str(row["country_iso"] or "").upper()
-                if country_iso not in batch_set:
-                    continue
-                tile_id = int(row["tile_id"])
-                bounds_rows_by_country.setdefault(country_iso, {})[tile_id] = (
-                    float(row["min_lon_deg"]),
-                    float(row["max_lon_deg"]),
-                    float(row["min_lat_deg"]),
-                    float(row["max_lat_deg"]),
-                    float(row["centroid_lon_deg"]),
-                    float(row["centroid_lat_deg"]),
-                )
-
-            for country_iso in countries_batch:
-                weight_rows = weights_rows_by_country.get(country_iso, [])
-                if not weight_rows:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_weights_missing",
-                        {"country_iso": country_iso, "path": str(tile_weights_root)},
-                        manifest_fingerprint,
+                for row in bounds_df.iter_rows(named=True):
+                    tile_id = int(row["tile_id"])
+                    bounds_map[tile_id] = (
+                        float(row["min_lon_deg"]),
+                        float(row["max_lon_deg"]),
+                        float(row["min_lat_deg"]),
+                        float(row["max_lat_deg"]),
+                        float(row["centroid_lon_deg"]),
+                        float(row["centroid_lat_deg"]),
                     )
-                dp_values = sorted({dp for _, _, dp in weight_rows})
-                if len(dp_values) != 1:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_weights_dp_mismatch",
-                        {"country_iso": country_iso, "dp_values": dp_values},
-                        manifest_fingerprint,
-                    )
-
-                weights_map: dict[int, int] = {}
-                for tile_id, weight_fp, _ in weight_rows:
-                    weights_map[tile_id] = weight_fp
-                if sum(weights_map.values()) <= 0:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_weights_zero_sum",
-                        {"country_iso": country_iso},
-                        manifest_fingerprint,
-                    )
-
-                index_ids = index_ids_by_country.get(country_iso, set())
-                if not index_ids:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_index_missing",
-                        {"country_iso": country_iso, "path": str(tile_index_root)},
-                        manifest_fingerprint,
-                    )
-                missing_index = [tile_id for tile_id in weights_map if tile_id not in index_ids]
-                if missing_index:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_id_not_in_index",
-                        {"country_iso": country_iso, "missing": missing_index[:10]},
-                        manifest_fingerprint,
-                    )
-
-                tile_alloc = _allocate_edges_int(weights_map, edges_per_country[country_iso])
-                allocations = [
-                    (tile_id, count)
-                    for tile_id, count in sorted(tile_alloc.items())
-                    if count > 0
-                ]
-                needed_bounds = {tile_id for tile_id, count in allocations if count > 0}
-
-                country_bounds = bounds_rows_by_country.get(country_iso, {})
-                if not country_bounds:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_bounds_missing",
-                        {"country_iso": country_iso, "path": str(tile_bounds_root)},
-                        manifest_fingerprint,
-                    )
-                missing_bounds = [tile_id for tile_id in weights_map if tile_id not in country_bounds]
-                if missing_bounds:
-                    _abort(
-                        "E3B_S2_TILE_SURFACE_INVALID",
-                        "V-08",
-                        "tile_bounds_missing_ids",
-                        {"country_iso": country_iso, "missing": missing_bounds[:10]},
-                        manifest_fingerprint,
-                    )
-
-                bounds_map: dict[int, tuple[float, float, float, float, float, float]] = {}
-                for tile_id in sorted(needed_bounds):
-                    bounds_map[tile_id] = country_bounds[tile_id]
-                tile_allocations[country_iso] = allocations
-                tile_bounds_by_country[country_iso] = bounds_map
-
-            logger.info(
-                "S2: tile-surface prep batch %s/%s processed countries=%s",
-                batch_idx,
-                total_batches,
-                len(countries_batch),
-            )
+            tile_allocations[country_iso] = allocations
+            tile_bounds_by_country[country_iso] = bounds_map
 
         timer.info(
             f"S2: tile allocations prepared (countries={len(countries_sorted)}, "
