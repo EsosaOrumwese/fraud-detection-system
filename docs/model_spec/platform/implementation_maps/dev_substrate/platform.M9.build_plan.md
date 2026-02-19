@@ -228,22 +228,101 @@ Blockers:
 Goal:
 1. Freeze deterministic destroy-set/preserve-set before destructive operations.
 
+Entry conditions:
+1. `M9.A` is closed PASS:
+   - local: `runs/dev_substrate/m9/m9_20260219T123856Z/m9_a_handle_handoff_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T123856Z/m9_a_handle_handoff_snapshot.json`.
+2. Required `M9.A` closure facts:
+   - `overall_pass=true`
+   - blockers empty
+   - no unresolved/placeholder/wildcard required handles.
+
+Required inputs:
+1. `M9.A` snapshot (handle closure matrix).
+2. Runbook P12 authority:
+   - `dev_min_spine_green_v0_run_process_flow.md` (`P12.3..P12.6`).
+3. Terraform outputs:
+   - `infra/terraform/dev_min/core` (`s3_bucket_names`, `dynamodb_table_names`, `budget_name`)
+   - `infra/terraform/dev_min/demo` (ECS service names, task definitions, RDS identifiers, SSM path outputs)
+   - `infra/terraform/dev_min/confluent` (Confluent environment/cluster identifiers, SSM path outputs).
+4. Handles registry for pinned non-dynamic keys:
+   - `TF_STATE_BUCKET`, `TF_STATE_KEY_CORE`, `TF_STATE_KEY_CONFLUENT`, `TF_STATE_KEY_DEMO`, `TF_LOCK_TABLE`.
+
+Preparation checks:
+1. Validate `M9.A` snapshot is readable and pass.
+2. Validate required inventory inputs from Terraform outputs are readable and non-empty.
+3. Validate preserve-set mandatory surfaces are discoverable before inventory freeze.
+
+Deterministic inventory algorithm (M9.B):
+1. Load and validate `M9.A` pass snapshot; failure -> `M9B-B5`.
+2. Materialize destroy-set categories from authoritative inputs:
+   - `terraform_state_targets`:
+     - `dev_min/confluent/terraform.tfstate`
+     - `dev_min/demo/terraform.tfstate`
+   - `confluent_targets`:
+     - environment + cluster identifiers from Confluent outputs/handles.
+   - `demo_runtime_targets`:
+     - ECS daemon service names (`SVC_*`),
+     - reporter task definition (`TD_REPORTER`),
+     - runtime DB identifiers (`RDS_INSTANCE_ID`, `RDS_ENDPOINT`),
+     - demo-scoped SSM paths resolved from demo/confluent outputs.
+3. Materialize preserve-set categories from authoritative inputs:
+   - core data buckets:
+     - evidence, object-store, archive, quarantine,
+   - state/control surfaces:
+     - tfstate bucket + core key + lock table,
+   - budget/control object:
+     - budget name (cost guardrail continuity).
+4. Validate destroy-set scope:
+   - if any core-preserve surface appears in destroy-set -> `M9B-B1`.
+5. Validate preserve-set completeness:
+   - if required retained surface missing -> `M9B-B2`.
+6. Validate overlap is zero:
+   - if any resource appears in both destroy-set and preserve-set -> `M9B-B3`.
+7. Emit local `m9_b_teardown_inventory_snapshot.json` with explicit include/exclude arrays and category summaries.
+8. Publish snapshot durably; upload failure -> `M9B-B4`.
+
 Tasks:
-1. Pin destroy-set:
-   - demo Terraform stack resources,
-   - Confluent demo resources.
-2. Pin preserve-set:
-   - evidence/object-store buckets and retained core surfaces.
-3. Emit `m9_b_teardown_inventory_snapshot.json` with explicit include/exclude lists.
+1. Freeze destroy-set from demo + confluent authoritative targets.
+2. Freeze preserve-set from core/evidence/state/budget authoritative targets.
+3. Run overlap/scope/completeness checks.
+4. Emit and publish `m9_b_teardown_inventory_snapshot.json`.
+
+Required snapshot fields (`m9_b_teardown_inventory_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m9_execution_id`.
+2. `source_m9a_snapshot_local`, `source_m9a_snapshot_uri`.
+3. `destroy_set`:
+   - `terraform_state_targets`,
+   - `confluent_targets`,
+   - `demo_runtime_targets`,
+   - `demo_secret_targets`.
+4. `preserve_set`:
+   - `core_bucket_targets`,
+   - `state_control_targets`,
+   - `budget_targets`.
+5. `overlap_targets`, `destroy_scope_violations`, `preserve_missing_targets`.
+6. `blockers`, `overall_pass`, `elapsed_seconds`.
+
+Runtime budget:
+1. `M9.B` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless explicit user waiver is recorded.
 
 DoD:
 - [ ] Destroy-set is explicit and demo-scoped.
 - [ ] Preserve-set is explicit and excludes evidence-loss paths.
+- [ ] Destroy-set and preserve-set overlap is empty.
 - [ ] Snapshot exists locally and durably.
+
+Planning status:
+1. `M9.B` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
+2. No teardown execution/destruction was run in this planning step.
 
 Blockers:
 1. `M9B-B1`: destroy-set contains non-demo/core-protected surfaces.
 2. `M9B-B2`: preserve-set is missing required retained buckets/surfaces.
+3. `M9B-B3`: destroy/preserve overlap detected.
+4. `M9B-B4`: snapshot publication failure.
+5. `M9B-B5`: prerequisite `M9.A` closure invalid/unreadable.
 
 ### M9.C Confluent Teardown Execution (Reuse Existing Workflow)
 Goal:

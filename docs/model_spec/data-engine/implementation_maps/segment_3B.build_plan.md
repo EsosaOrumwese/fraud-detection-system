@@ -485,13 +485,86 @@ Goal:
 - reduce second-ranked bottleneck while preserving check semantics.
 
 Scope:
-- optimize I/O traversal and evidence assembly path.
-- preserve bundle hash law and index ordering laws.
+- optimize `S5` validation-bundle hot lanes (hash + evidence assembly) under deterministic digest law.
+- preserve bundle hash law, index ordering law, and validation semantics.
+- keep `S5` as primary `POPT.2` target; only touch `S3` if `S5` gates are met and secondary residuals remain.
 
 Definition of done:
 - [ ] secondary hotspot runtime materially reduced vs baseline.
 - [ ] parity/invariants remain non-regressed.
 - [ ] audit evidence completeness remains intact.
+
+POPT.2 baseline anchors (authority):
+- hotspot authority artifact:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt0_baseline_724a63d3f8b242809b8ec3b746d0c776.json`
+- pinned baseline:
+  - `S5 wall = 240.468s` (`34.47%` segment share),
+  - dominant evidence from logs: long hash lanes for `rng_trace_log` + `rng_event_edge_jitter`.
+- execution dependency:
+  - preferred: execute after `POPT.1` runtime closure,
+  - allowed by user waiver: isolated `S5` optimization on fixed authority run roots if `POPT.1` remains open.
+
+### POPT.2.1 - S5 lane decomposition lock (profiling authority)
+Goal:
+- produce execution-grade breakdown of `S5` into hash/validate/bundle lanes before edits.
+
+Scope:
+- emit machine-readable lane timing for:
+  - `validate_s1_s4_inputs`,
+  - `validate_s2_edges/index`,
+  - `hash_rng_trace_log`,
+  - `hash_rng_event_edge_jitter`,
+  - `bundle_publish_finalize`.
+- pin throughput metrics (rows/s or lines/s) for each hash lane.
+
+Definition of done:
+- [ ] lane timing artifact exists for baseline authority run.
+- [ ] top-2 `S5` hotspot lanes are numerically pinned.
+- [ ] profiler overhead is zero/near-zero and auditable.
+
+### POPT.2.2 - Hash-lane algorithm optimization (primary)
+Goal:
+- reduce `S5` hash-lane wall time without weakening digest guarantees.
+
+Scope:
+- replace high-overhead per-record decode loops with deterministic streaming byte-hash + bounded structural checks.
+- avoid repeated file open/close churn and redundant pass-through of the same log parts.
+- preserve exactly the same final bundle digests and failure semantics on malformed/empty members.
+
+Definition of done:
+- [ ] hash lane wall-time reduced materially vs baseline.
+- [ ] digest outputs remain byte-identical for unchanged inputs.
+- [ ] malformed/empty log failure behavior is non-regressed.
+
+### POPT.2.3 - Validation/evidence assembly trim (secondary)
+Goal:
+- remove avoidable non-hash overhead in `S5` fast path.
+
+Scope:
+- reduce redundant materialization of already-validated metadata.
+- collapse duplicate scans of `S2` index/edge evidence where a single pass can serve both checks.
+- keep schema and validation-result payloads unchanged.
+
+Definition of done:
+- [ ] non-hash `S5` lanes show measurable reduction.
+- [ ] validation result payload schema and semantics are unchanged.
+- [ ] no new warnings/errors introduced in green runs.
+
+### POPT.2.4 - Witness gate and closure
+Goal:
+- certify `POPT.2` candidate under runtime + non-regression gates.
+
+Scope:
+- run witness lane with patched `S5` candidate (`S5` only on fixed run-id or full `S2->S5` depending on `POPT.1` posture).
+- score against explicit gates:
+  - `S5 <= 180s` OR `>=25%` reduction vs `240.468s`,
+  - deterministic bundle digest parity for unchanged inputs,
+  - no schema/path drift, no validator regressions.
+
+Definition of done:
+- [ ] closure artifact emitted (`POPT.2` gate scorecard).
+- [ ] explicit decision recorded (`UNLOCK_POPT3` or `HOLD_POPT2_REOPEN`).
+- [ ] superseded run-id folders pruned after evidence capture.
 
 ### POPT.3 - Logging and serialization budget optimization
 Goal:
@@ -619,7 +692,7 @@ Definition of done:
 - `POPT.0`: completed
 - `POPT.1`: in_progress (`HOLD_POPT1_REOPEN`)
 - `POPT.1R.NEXT`: in_progress (`OPEN_AFTER_ROLLBACK`)
-- `POPT.2`: pending
+- `POPT.2`: pending (`PLANNING_EXPANDED`)
 - `POPT.3`: pending
 - `POPT.4`: pending
 - `P0`: pending

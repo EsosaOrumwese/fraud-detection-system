@@ -9,7 +9,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Callable, Optional
 
 import polars as pl
 from jsonschema import Draft202012Validator
@@ -266,11 +266,10 @@ def _hash_jsonl_with_validation(
     schema: dict,
     logger,
     label: str,
+    on_record: Optional[Callable[[dict], None]] = None,
 ) -> tuple[str, int, int]:
-    validator_schema = schema
-    validator = Draft202012Validator(validator_schema)
-    total_lines = sum(_count_lines(path) for path in paths)
-    tracker = _ProgressTracker(total_lines, logger, label)
+    validator = Draft202012Validator(schema)
+    tracker = _ProgressTracker(None, logger, label)
     hasher = hashlib.sha256()
     total_bytes = 0
     total_events = 0
@@ -281,52 +280,37 @@ def _hash_jsonl_with_validation(
                     continue
                 hasher.update(line)
                 total_bytes += len(line)
-                payload = line.decode("utf-8").strip()
+                payload = line.strip()
                 if payload:
                     total_events += 1
-                    errors = list(validator.iter_errors(json.loads(payload)))
-                    if errors:
+                    try:
+                        record = json.loads(payload)
+                    except json.JSONDecodeError as exc:
                         raise SchemaValidationError(
-                            f"JSONL schema validation failed at {path}:{line_no}: {errors[0].message}"
+                            f"JSONL parse failed at {path}:{line_no}: {exc.msg}"
+                        ) from exc
+                    error = next(validator.iter_errors(record), None)
+                    if error is not None:
+                        raise SchemaValidationError(
+                            f"JSONL schema validation failed at {path}:{line_no}: {error.message}"
                         )
+                    if on_record is not None:
+                        on_record(record)
                 tracker.update(1)
     return hasher.hexdigest(), total_bytes, total_events
 
 
-def _count_lines(path: Path) -> int:
-    count = 0
-    with path.open("rb") as handle:
-        for _ in handle:
-            count += 1
-    return count
-
-
-def _select_trace_row(rows: Iterable[dict], module: str, substream: str) -> Optional[dict]:
-    best: Optional[dict] = None
-    for row in rows:
-        if row.get("module") != module or row.get("substream_label") != substream:
-            continue
-        if best is None:
-            best = row
-            continue
-        key = (int(row.get("rng_counter_after_hi") or 0), int(row.get("rng_counter_after_lo") or 0))
-        best_key = (
-            int(best.get("rng_counter_after_hi") or 0),
-            int(best.get("rng_counter_after_lo") or 0),
-        )
-        if key > best_key:
-            best = row
+def _pick_trace_row(best: Optional[dict], row: dict) -> dict:
+    if best is None:
+        return row
+    key = (int(row.get("rng_counter_after_hi") or 0), int(row.get("rng_counter_after_lo") or 0))
+    best_key = (
+        int(best.get("rng_counter_after_hi") or 0),
+        int(best.get("rng_counter_after_lo") or 0),
+    )
+    if key > best_key:
+        return row
     return best
-
-
-def _iter_jsonl_records(paths: list[Path]) -> Iterable[dict]:
-    for path in paths:
-        with path.open("r", encoding="utf-8") as handle:
-            for line in handle:
-                payload = line.strip()
-                if not payload:
-                    continue
-                yield json.loads(payload)
 
 
 def _validate_parquet_rows(
@@ -913,34 +897,60 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
         audit_paths = _resolve_event_paths(audit_entry, run_paths, config.external_roots, tokens)
         audit_schema = _schema_for_payload(schema_layer1, schema_layer1, "rng/core/rng_audit_log/record")
+        audit_rows_total = 0
+        audit_has_identity_match = False
+
+        def _collect_audit_row(row: dict) -> None:
+            nonlocal audit_rows_total, audit_has_identity_match
+            audit_rows_total += 1
+            if audit_has_identity_match:
+                return
+            audit_has_identity_match = (
+                row.get("run_id") == str(run_id_value)
+                and int(row.get("seed") or -1) == int(seed)
+                and row.get("manifest_fingerprint") == str(manifest_fingerprint)
+                and row.get("parameter_hash") == str(parameter_hash)
+            )
+
         audit_digest, audit_bytes, audit_events = _hash_jsonl_with_validation(
-            audit_paths, audit_schema, logger, "S5: hash rng_audit_log"
+            audit_paths,
+            audit_schema,
+            logger,
+            "S5: hash rng_audit_log",
+            on_record=_collect_audit_row,
         )
-        audit_rows = list(_iter_jsonl_records(audit_paths))
-        audit_match = [
-            row
-            for row in audit_rows
-            if row.get("run_id") == str(run_id_value)
-            and int(row.get("seed") or -1) == int(seed)
-            and row.get("manifest_fingerprint") == str(manifest_fingerprint)
-            and row.get("parameter_hash") == str(parameter_hash)
-        ]
-        if not audit_match:
+        if not audit_has_identity_match:
             _abort(
                 "E3B_S5_RNG_ACCOUNTING_MISMATCH",
                 "V-09",
                 "rng_audit_identity_mismatch",
-                {"records": len(audit_rows)},
+                {"records": audit_rows_total},
                 manifest_fingerprint,
             )
 
         trace_paths = _resolve_event_paths(trace_entry, run_paths, config.external_roots, tokens)
         trace_schema = _schema_for_payload(schema_layer1, schema_layer1, "rng/core/rng_trace_log/record")
+        trace_jitter_row: Optional[dict] = None
+        trace_tile_row: Optional[dict] = None
+
+        def _collect_trace_row(row: dict) -> None:
+            nonlocal trace_jitter_row, trace_tile_row
+            if row.get("module") != "3B.S2":
+                return
+            substream = str(row.get("substream_label") or "")
+            if substream == "edge_jitter":
+                trace_jitter_row = _pick_trace_row(trace_jitter_row, row)
+            elif substream == "edge_tile_assign":
+                trace_tile_row = _pick_trace_row(trace_tile_row, row)
+
         trace_digest, trace_bytes, trace_events = _hash_jsonl_with_validation(
-            trace_paths, trace_schema, logger, "S5: hash rng_trace_log"
+            trace_paths,
+            trace_schema,
+            logger,
+            "S5: hash rng_trace_log",
+            on_record=_collect_trace_row,
         )
-        trace_rows = _iter_jsonl_records(trace_paths)
-        jitter_trace = _select_trace_row(trace_rows, "3B.S2", "edge_jitter")
+        jitter_trace = trace_jitter_row
         if jitter_trace is None:
             _abort(
                 "E3B_S5_RNG_ACCOUNTING_MISMATCH",
@@ -1006,7 +1016,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             tile_digest, tile_bytes, tile_events = _hash_jsonl_with_validation(
                 tile_paths, tile_schema, logger, "S5: hash rng_event_edge_tile_assign"
             )
-            tile_trace = _select_trace_row(_iter_jsonl_records(trace_paths), "3B.S2", "edge_tile_assign")
+            tile_trace = trace_tile_row
             if tile_trace and int(tile_trace.get("events_total") or 0) != tile_events:
                 _abort(
                     "E3B_S5_RNG_ACCOUNTING_MISMATCH",

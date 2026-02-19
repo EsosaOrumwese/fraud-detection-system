@@ -15024,3 +15024,35 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. `M9.A` is complete.
 2. `M9.B` is unblocked for execution.
 
+## Entry: 2026-02-19 12:45:37 +00:00 - M9.B planning expansion completed
+### Problem framing
+1. `M9.B` was still summary-level and did not explicitly enforce destroy-set vs preserve-set separation prior to destructive teardown lanes.
+2. Without explicit overlap/scope guards, later teardown steps could accidentally target retained core/evidence surfaces.
+
+### Planning decisions
+1. `M9.B` was expanded to execution-grade with:
+   - entry conditions pinned to `M9.A` pass snapshot,
+   - required input surfaces from core/demo/confluent Terraform outputs + runbook P12 authority,
+   - deterministic inventory algorithm for destroy-set and preserve-set construction,
+   - explicit overlap and scope blockers.
+2. Preserve-set contract was pinned to include:
+   - retained buckets (evidence/object-store/archive/quarantine),
+   - state/control surfaces (tfstate bucket/key + lock table),
+   - budget continuity object.
+3. Blocker taxonomy was expanded from two to five to keep fail-closed coverage complete:
+   - added overlap detection (`M9B-B3`),
+   - snapshot publish failure (`M9B-B4`),
+   - prerequisite integrity (`M9B-B5`).
+4. Main platform build plan now explicitly records `M9.B` as execution-grade and sets next action to execute `M9.B`.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
+   - `M9.B` expanded to execution-grade with algorithm/snapshot schema/runtime budget/blockers.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - M9 expansion-state bullet added for `M9.B`,
+   - immediate next action updated to execute `M9.B`.
+
+### Phase posture
+1. This step is planning-only; no teardown runtime execution/destruction was performed.
+2. `M9.B` is now execution-ready.
+

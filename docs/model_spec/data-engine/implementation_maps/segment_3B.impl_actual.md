@@ -3251,3 +3251,99 @@ Partition hygiene evidence:
 Decision:
 1) do not proceed to full `S3->S5` witness for this checkpoint candidate.
 2) keep `POPT.1` reopen active and continue algorithmic redesign focused on prep-lane compute cost.
+### Entry: 2026-02-19 12:55
+
+Design element: `3B POPT.2 planning expansion`.
+Summary: expanded `POPT.2` from generic placeholder into execution-grade subphases with quantified runtime gates, evidence artifacts, and dependency posture.
+
+Why now:
+1) user requested explicit `POPT.2` planning.
+2) `POPT.1` remains open; however `POPT.2` planning is still required so execution order and gates are clear.
+
+POPT.2 planning decisions:
+1) target hotspot fixed to `S5` (secondary hotspot authority from POPT.0):
+   - baseline `S5=240.468s`.
+2) split into subphases:
+   - `POPT.2.1`: lane decomposition lock,
+   - `POPT.2.2`: hash-lane algorithm optimization (primary),
+   - `POPT.2.3`: validation/evidence assembly trim,
+   - `POPT.2.4`: witness gate + closure.
+3) pinned closure gate:
+   - `S5 <= 180s` OR `>=25%` reduction vs `240.468s`.
+4) pinned non-regression law:
+   - deterministic bundle digest parity,
+   - no schema/path/validator behavior drift.
+5) execution dependency explicitly captured:
+   - preferred after `POPT.1` closure,
+   - optional isolated `S5` lane execution only with user waiver while `POPT.1` is open.
+
+Files updated:
+1) `docs/model_spec/data-engine/implementation_maps/segment_3B.build_plan.md`.
+2) phase status adjusted to `POPT.2: pending (PLANNING_EXPANDED)`.
+### Entry: 2026-02-19 13:08
+
+Design element: `3B POPT.2 full execution kickoff`.
+Summary: starting full `POPT.2` execution (`2.1`..`2.4`) with `S5` as the explicit hotspot target.
+
+Execution order pinned:
+1) `POPT.2.1`: produce baseline S5 lane timing artifact from authority run.
+2) `POPT.2.2`: optimize S5 hash lanes without semantic drift.
+3) `POPT.2.3`: trim secondary validation/evidence overhead if still needed.
+4) `POPT.2.4`: witness run + closure scorer.
+
+Primary bottleneck hypothesis (from prior runs):
+1) S5 hash lanes dominate wall time, especially:
+   - `hash rng_event_edge_jitter`,
+   - `hash rng_trace_log`.
+2) current implementation likely incurs avoidable multiple full-file passes:
+   - line counting pre-pass,
+   - hash+schema-validation pass,
+   - separate record-iteration pass(es) for audit/trace checks.
+
+Optimization approach selected:
+1) preserve digest semantics (hash raw line bytes exactly as stored).
+2) keep JSON schema validation but collapse to a single parse/validation pass per file.
+3) integrate audit/trace selection checks into the same hash pass via callback hooks.
+4) remove dedicated line-count pre-pass in hot hash paths (use unbounded progress mode).
+
+Rejected alternatives:
+1) disable JSON schema validation for hash lanes.
+   - Rejected: violates contract-strength posture.
+2) change digest basis to canonicalized JSON.
+   - Rejected: would alter existing digest law and bundle compatibility.
+
+Risk controls:
+1) non-regression gates include digest parity and S5 schema/path stability.
+2) if S5 runtime regresses or digest parity fails, stop and revert immediately.
+### Entry: 2026-02-19 12:50
+
+Design element: `3B POPT.2 pre-change execution lock (2.1 -> 2.4)`.
+Summary: before touching `S5`, lock exact algorithmic edits, evidence tooling, and witness protocol for full `POPT.2` closure under open `POPT.1` waiver posture.
+
+Authority and execution posture:
+1) `POPT.2` target remains `S5` secondary hotspot on fixed run-root authority.
+2) execution uses isolated `segment3b-s5` rerun on pinned run-id to avoid upstream recompute while `POPT.1` remains open.
+3) closure still requires runtime movement + non-regression (digest/validator/schema/path) gates.
+
+Pinned `POPT.2` implementation sequence:
+1) `POPT.2.1`:
+   - add read-only scorer `tools/score_segment3b_popt2_s5_lane_timing.py`.
+   - parse S5 run-log markers and emit machine-readable lane timing + throughput table.
+2) `POPT.2.2` (primary S5 patch):
+   - remove `_count_lines` pre-pass from `_hash_jsonl_with_validation`.
+   - run tracker in unknown-total mode (single-pass only).
+   - switch per-record schema error probing from `list(iter_errors)` to first-error extraction.
+   - add optional callback hook to collect required audit/trace evidence in the same pass.
+3) `POPT.2.3` (secondary trim):
+   - remove redundant post-hash JSONL scans for `rng_audit_log` and `rng_trace_log`.
+   - derive `audit_match`, `jitter_trace`, and `tile_trace` during hash pass callbacks.
+4) `POPT.2.4`:
+   - run `segment3b-s5` witness on authority run-id.
+   - score closure via new `tools/score_segment3b_popt2_closure.py`.
+   - record explicit decision (`UNLOCK_POPT3` or `HOLD_POPT2_REOPEN`).
+
+Invariants that must not move:
+1) digest law: hash raw JSONL line bytes exactly as stored.
+2) schema strength: every parsed event still validated against current schema anchors.
+3) failure semantics: malformed payloads and accounting mismatches must remain fail-closed.
+4) bundle/index paths and schema outputs must remain unchanged.
