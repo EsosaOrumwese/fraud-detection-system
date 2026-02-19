@@ -4110,3 +4110,61 @@ Resulting phase posture:
    stretch criteria remain open despite `P3` closure.
 3) run-retention posture unchanged from `P2` close (no new superseded run set to
    prune in this no-op phase).
+
+### Entry: 2026-02-19 03:28
+
+Design element: `P4 planning lock (S1 escalation-shape smoothing)`.
+Summary: user requested expansion of `P4` plan. This entry pins the planning
+posture and target gap before editing the build plan.
+
+Pinned baseline gap (post-P3 authority set):
+1) `S1 zone_count_curve_major_dip_max_abs = 0.501379` (witness/smoke).
+2) `S1 zone_count_curve_monotonic_violations = 5` (witness/smoke).
+3) `S1` stretch monotonicity target (`3A-S07`) remains open; this is now the
+   primary realism blocker after `P2/P3`.
+
+Planning posture for expanded `P4`:
+1) keep `P2/P3` outputs as non-regression rails:
+   - maintain `S3 std >= 0.020`,
+   - maintain `S4/zone_alloc` hard-gate posture and conservation.
+2) apply conditional remediation ladder:
+   - start with low-blast policy-threshold/theta shaping under existing S1 rule
+     model,
+   - only open code-surface smoothing lane if policy-only sweep cannot reduce
+     major dips to target envelope.
+3) keep rerun posture contract-safe for this phase:
+   - full `S0->S7` per candidate (known safe against partial-lane coupling).
+
+Next action:
+1) expand `P4` in build plan into explicit `P4.1..P4.x` sub-phases with
+   quantitative envelope, bounded knob lanes, witness/smoke closure, and
+   explicit handoff decision.
+
+### Entry: 2026-02-19 03:31
+
+Design element: `P4 build-plan expansion committed`.
+Summary: expanded `P4` in `segment_3A.build_plan.md` from a single summary row
+into execution-grade `P4.1..P4.6` lanes with measurable S1-shape targets and
+explicit decision branches.
+
+What was added:
+1) `P4` authority baseline anchors:
+   - selected/witness/smoke run-ids and the open S1-shape gap metrics.
+2) explicit execution posture:
+   - preserve `P2/P3` realism surfaces as hard non-regression rails,
+   - run bounded low-blast policy-only lane first,
+   - open code-smoothing lane only if policy-only lane is insufficient,
+   - contract-safe rerun law pinned to full `S0->S7`.
+3) phased structure:
+   - `P4.1` targets + rail contract,
+   - `P4.2` policy-only knob contract,
+   - `P4.3` bounded policy sweep + `J4` ranking,
+   - `P4.4` optional smooth-band code lane,
+   - `P4.5` witness/smoke lock,
+   - `P4.6` closeout + handoff.
+4) close decisions pinned:
+   - `UNLOCK_P5`, `UNLOCK_P5_BEST_EFFORT`, or `HOLD_P4_REOPEN`.
+
+Planning outcome:
+1) `P4` is now implementation-ready with explicit bounded tuning lanes,
+   objective ranking, strict veto rails, and auditable closure semantics.

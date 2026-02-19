@@ -769,6 +769,15 @@ Active-phase planning posture:
         - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/case_labels/label_summary.json`
         - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_h_case_label_commit_snapshot.json`
     - closure result: `overall_pass=true`, blockers empty.
+  - `M7.I` (`P8..P10 verdict`) closure (`2026-02-19`):
+    - first pass failed closed on source schema contract (`M7I-B2`: `m7_a_handle_closure_snapshot.json` missing `phase_id`),
+    - `M7.A` snapshot schema normalized (`phase_id=P8..P10_HANDLE_CLOSURE`) and republished local+durable,
+    - rerun closure artifacts:
+      - local:
+        - `runs/dev_substrate/m7/20260218T141420Z/m7_i_verdict_snapshot.json`
+      - durable:
+        - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_i_verdict_snapshot.json`
+    - closure result: `verdict=ADVANCE_TO_M8`, `overall_pass=true`, blockers empty.
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.
@@ -779,7 +788,7 @@ Sub-phase progress:
   - [x] `M7.F` P9 decision/action/audit commit evidence closure.
   - [x] `M7.G` P10 identity-key pin + managed DB readiness.
   - [x] `M7.H` P10 case/label commit evidence closure.
-  - [ ] `M7.I` P8..P10 verdict + blocker rollup.
+  - [x] `M7.I` P8..P10 verdict + blocker rollup.
   - [ ] `M7.J` M8 handoff publication.
 
 M7 DoD checklist:
@@ -788,7 +797,7 @@ M7 DoD checklist:
 - [x] Decision lane commit evidence exists (`decision_summary`, `action_summary`, `audit_summary`) and append-only posture holds.
 - [x] P10 identity key fields are pinned for this run and no placeholders remain.
 - [x] Case and label summaries are durable and consistent with append-only/idempotent writes.
-- [ ] M7 verdict is `ADVANCE_TO_M8` with empty blocker rollup.
+- [x] M7 verdict is `ADVANCE_TO_M8` with empty blocker rollup.
 - [ ] M8 handoff pack is published and non-secret.
 
 ## M8 - P11 Obs/Gov closure
@@ -921,7 +930,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M7 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M7.I` P8..P10 verdict rollup using now-green `M7.H` evidence base,
-- require durable verdict artifact:
-  - `evidence/dev_min/run_control/<m7_execution_id>/m7_i_verdict_snapshot.json`,
-- then proceed to `M7.J` handoff publication for M8 entry.
+- execute `M7.J` handoff publication using now-green `M7.I` verdict,
+- require durable handoff artifact:
+  - `evidence/dev_min/run_control/<m7_execution_id>/m8_handoff_pack.json`,
+- then proceed to M8 planning/execution gate only after USER go-ahead.

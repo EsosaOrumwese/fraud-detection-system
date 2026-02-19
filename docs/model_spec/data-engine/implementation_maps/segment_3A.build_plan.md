@@ -716,6 +716,134 @@ Definition of done:
 - [ ] downstream S4/zone_alloc realism improves or remains non-regressed.
 - [ ] policy/version lineage is sealed and recorded.
 
+P4 authority baseline (post-P3 lock):
+- selected run-id: `3f2e94f2d1504c249e434949659a496f`.
+- witness run-id: `6a3e291aae764c9bbf19b1c39443a68a`.
+- smoke run-ids:
+  - `682c20d2343e4ffaae4d4057d5b23b9e` (`seed=7`),
+  - `8d31ca8eaeda4e7d8e1c0c2443cc89c7` (`seed=101`).
+- open gap owned by `P4`:
+  - `S1 zone_count_curve_major_dip_max_abs = 0.501379` (witness/smoke),
+  - `S1 zone_count_curve_monotonic_violations = 5` (witness/smoke).
+
+Execution posture:
+- `P2/P3` realism surfaces are frozen as non-regression rails:
+  - keep `S3 merchant_share_std_median >= 0.020`,
+  - keep `S4 multi-zone >= 0.85`, `S4 top1 <= 0.80`, `zone_alloc top1 <= 0.80`,
+  - keep conservation + `S6/S7` strict PASS.
+- bounded execution ladder:
+  - start with policy-only smoothing under current S1 rule model,
+  - only open S1 code-surface smoothing if policy-only lane cannot meet target.
+- rerun law for this phase:
+  - full `S0->S7` per candidate (contract-safe lane).
+
+#### P4.1 - Target Envelope + S1 Shape Contract
+Goal:
+- pin measurable S1-shape targets and non-regression rails before tuning.
+
+Scope:
+- primary movement target (phase pass):
+  - `S1 major_dip_max_abs <= 0.20` on witness seed,
+  - `S1 monotonic_violations <= 2` on witness seed.
+- stretch target (align to `3A-S07` trajectory):
+  - `S1 major_dip_max_abs <= 0.10`,
+  - `S1 major_dip_count_gt_010 = 0`.
+- keep escalation-rate corridor to avoid pathological over/under-escalation:
+  - witness escalation rate in `[0.55, 0.70]`.
+
+Definition of done:
+- [ ] quantitative targets and rail thresholds are pinned.
+- [ ] non-regression rail set is explicit.
+- [ ] candidate budget and stop criteria are pinned.
+
+#### P4.2 - Policy-Only Knob Contract (Low-Blast Lane)
+Goal:
+- define bounded policy knobs for S1 shape smoothing without code changes.
+
+Scope:
+- tune existing `zone_mixture_policy` controls:
+  - `theta_mix`,
+  - rule thresholds for `site_count_lt`, `zone_count_country_ge`, `site_count_ge`.
+- pin bounded ranges:
+  - `theta_mix in {0.20, 0.35, 0.50}`,
+  - `site_count_lt in {2, 3, 4}`,
+  - `zone_count_country_ge in {3, 4, 5}`,
+  - `site_count_ge in {25, 35, 45}`.
+- keep rule semantics and policy schema compatible in this lane.
+
+Definition of done:
+- [ ] bounded knob families and ranges are listed.
+- [ ] candidate matrix cardinality is capped (`<= 6`).
+- [ ] veto rails are pinned before first candidate run.
+
+#### P4.3 - Policy-Only Sweep + Ranking
+Goal:
+- find one policy-only candidate that materially reduces S1 shape incoherence.
+
+Scope:
+- execute bounded candidate set (`<= 6`) with full `S0->S7` reruns.
+- rank with objective:
+  - `J4 = 0.70*d_s1_dip_down + 0.30*d_s1_mono_viol_down`,
+  - where:
+    - `d_s1_dip_down = p3_major_dip_max_abs - candidate_major_dip_max_abs`,
+    - `d_s1_mono_viol_down = p3_monotonic_violations - candidate_monotonic_violations`.
+- hard veto:
+  - any `S6/S7` FAIL,
+  - any conservation/schema regression,
+  - any `P2/P3` non-regression breach.
+
+Definition of done:
+- [ ] ranked sweep table + veto reasons are emitted.
+- [ ] one candidate is promoted, or lane is explicitly marked insufficient.
+- [ ] explicit decision recorded: `P4_POLICY_LOCK` or `P4_NEEDS_CODE_SMOOTHING`.
+
+#### P4.4 - Smooth-Band S1 Lane (Only If Needed)
+Goal:
+- open code+policy smoothing only if policy-only lane cannot meet `P4.1` targets.
+
+Scope:
+- add additive smooth-band escalation controls in S1 policy/runner:
+  - monotonic `tz_count` escalation band,
+  - bounded `site_count` effect (slope + cap).
+- preserve deterministic decision logic and sealed-input contract.
+- run bounded reruns (`<= 4`) and re-rank with `J4`.
+
+Definition of done:
+- [ ] additive smooth-band controls are schema-valid and deterministic.
+- [ ] bounded code-smoothing sweep artifacts are emitted.
+- [ ] one candidate is promoted or phase is marked reopen-required.
+
+#### P4.5 - Witness Lock + Smoke Stability
+Goal:
+- prove selected `P4` posture is stable and non-regressive.
+
+Scope:
+- witness replay on seed `42`.
+- smoke checks on seeds `{7,101}`.
+- enforce both S1-shape movement and `P2/P3` non-regression rails.
+
+Definition of done:
+- [ ] witness run confirms selected S1-shape movement.
+- [ ] smoke seeds preserve direction and keep hard rails PASS.
+- [ ] no new anomalies appear in `S6`.
+
+#### P4.6 - Closeout and Handoff
+Goal:
+- close `P4` with explicit authority posture and route to certification lane.
+
+Scope:
+- publish `P4` summary artifacts (sweeps + witness/smoke + decision).
+- prune superseded run-ids; retain authority lineage.
+- record explicit decision:
+  - `UNLOCK_P5`,
+  - `UNLOCK_P5_BEST_EFFORT`,
+  - or `HOLD_P4_REOPEN`.
+
+Definition of done:
+- [ ] closeout artifacts are emitted and referenced.
+- [ ] retained run set is applied; superseded runs pruned.
+- [ ] explicit handoff decision is recorded.
+
 ### P5 - Integrated certification (`B`/`B+`) across seedpack
 Goal:
 - run full seedpack and determine certified grade.

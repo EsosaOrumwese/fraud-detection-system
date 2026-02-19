@@ -673,14 +673,14 @@ Runtime budget:
 2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
 
 DoD:
-- [ ] Predicate set explicit and reproducible.
-- [ ] Blocker rollup complete and fail-closed.
-- [ ] Verdict snapshot published locally and durably.
-- [ ] Runtime budget target met (or explicitly waived).
+- [x] Predicate set explicit and reproducible.
+- [x] Blocker rollup complete and fail-closed.
+- [x] Verdict snapshot published locally and durably.
+- [x] Runtime budget target met (or explicitly waived).
 
 Planning status:
 1. `M7.I` is now execution-grade (algorithm + schema + blocker taxonomy pinned).
-2. Execution remains pending until explicit user go-ahead.
+2. Execution completed on `2026-02-19` with fail-closed rerun closure and final verdict `ADVANCE_TO_M8`.
 
 Blockers:
 1. `M7I-B1`: prerequisite snapshot missing/unreadable.
@@ -689,6 +689,30 @@ Blockers:
 4. `M7I-B4`: verdict snapshot write/upload failure.
 5. `M7I-B5`: run-scope mismatch across source snapshots.
 6. `M7I-B6`: required source snapshot reports non-pass posture.
+
+Execution closure (`2026-02-19`):
+1. First execution pass failed closed as designed:
+   - verdict `HOLD_M7`,
+   - blocker `M7I-B2` on source schema conformance:
+     - missing required `phase_id` in `m7_a_handle_closure_snapshot.json`.
+2. Remediation applied (no semantic runtime change):
+   - normalized `M7.A` source snapshot schema by adding:
+     - `phase_id=P8..P10_HANDLE_CLOSURE`,
+   - republished normalized `m7_a_handle_closure_snapshot.json` locally and durably.
+3. Rerun result:
+   - gate map (`m7a..m7h`) all `true`,
+   - plane predicates all `true`,
+   - blocker rollup empty.
+4. Published verdict artifact:
+   - local:
+     - `runs/dev_substrate/m7/20260218T141420Z/m7_i_verdict_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_i_verdict_snapshot.json`
+5. Final verdict:
+   - `verdict=ADVANCE_TO_M8`
+   - `overall_pass=true`
+   - blockers empty
+   - runtime budget within target.
 
 ### M7.J M8 Handoff Artifact Publication
 Goal:
@@ -753,7 +777,7 @@ Notes:
 - [x] M7.F complete
 - [x] M7.G complete
 - [x] M7.H complete
-- [ ] M7.I complete
+- [x] M7.I complete
 - [ ] M7.J complete
 
 ## 8) Risks and Controls

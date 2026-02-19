@@ -13537,3 +13537,57 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Execution posture
 1. This step is planning-only.
 2. M7.I execution remains pending explicit USER go-ahead.
+
+## Entry: 2026-02-19 07:00:27 +00:00 - M7.I execution start lock (P8..P10 gate rollup)
+### User directive
+1. Proceed with full execution and documentation of M7.I.
+
+### Execution intent
+1. Execute the pinned M7.I algorithm from `platform.M7.build_plan.md`.
+2. Run fail-closed prechecks across `m7_a..m7_h` snapshots:
+   - readability,
+   - run-scope conformance,
+   - required fields contract,
+   - pass posture.
+3. Produce `m7_i_verdict_snapshot.json` with deterministic gate map, predicate map, blocker rollup, and verdict.
+4. Publish local plus durable evidence and only then mark M7.I complete.
+
+## Entry: 2026-02-19 07:03:15 +00:00 - M7.I blocker triage (schema conformance)
+### Observation
+1. First M7.I execution produced `HOLD_M7` with blocker:
+   - `M7I-B2`: missing required field `phase_id` in `m7_a_handle_closure_snapshot.json`.
+2. All gate booleans and plane predicates were true; blocker was purely source-schema conformance.
+
+### Decision
+1. Keep fail-closed stance (do not waive schema rule).
+2. Normalize `M7.A` snapshot schema by adding `phase_id` with no semantic changes.
+3. Republish normalized `M7.A` snapshot and rerun M7.I deterministically.
+
+## Entry: 2026-02-19 07:03:30 +00:00 - M7.I execution closure (ADVANCE_TO_M8)
+### Actions executed
+1. Normalized `runs/dev_substrate/m7/20260218T141420Z/m7_a_handle_closure_snapshot.json` by adding:
+   - `phase_id=P8..P10_HANDLE_CLOSURE`.
+2. Republished normalized M7.A artifact to durable control root:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_a_handle_closure_snapshot.json`.
+3. Reran deterministic M7.I rollup algorithm and republished verdict artifact:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_i_verdict_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_i_verdict_snapshot.json`.
+
+### Final result
+1. `gate_map`: all `m7a..m7h=true`.
+2. `predicate_map`:
+   - `p8_rtdl_caught_up=true`
+   - `p9_decision_chain_committed=true`
+   - `p10_case_labels_committed=true`.
+3. `blocker_rollup=[]`, `blockers=[]`.
+4. `verdict=ADVANCE_TO_M8`, `overall_pass=true`, runtime budget within target.
+
+### Documentation closure
+1. `platform.M7.build_plan.md` updated:
+   - M7.I DoD marked complete,
+   - execution closure notes added,
+   - M7 completion checklist marks `M7.I` complete.
+2. `platform.build_plan.md` updated:
+   - M7.I progress + verdict closure captured,
+   - M7 DoD verdict item marked complete,
+   - next action moved to `M7.J`.
