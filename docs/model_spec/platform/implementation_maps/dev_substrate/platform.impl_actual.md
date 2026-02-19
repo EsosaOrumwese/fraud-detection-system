@@ -15330,3 +15330,68 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - removal of active preflight hold posture,
    - next action shift to residual-resource verification (`M9.E`).
 
+## Entry: 2026-02-19 15:25:24 +00:00 - M9.E planning expansion to execution-grade
+### Problem framing
+1. `M9.E` remained summary-level and was not sufficient for fail-closed execution under P12.
+2. Residual verification needed explicit, deterministic checks across ECS/NAT/LB/RDS with blocker-coded outcomes.
+
+### Planning decisions
+1. Expanded `M9.E` to execution-grade in `platform.M9.build_plan.md` with:
+   - entry conditions pinned to `M9.D` PASS semantics and `M9.B` preserve-set continuity,
+   - required handle set and query surfaces,
+   - preparation checks for prerequisite validity and authorization/readability,
+   - deterministic execution algorithm for residual scans and blocker mapping,
+   - required snapshot schema for `m9_e_post_destroy_residual_snapshot.json`,
+   - runtime budget and fail-closed over-budget rule,
+   - expanded blocker taxonomy (`M9E-B1..B7`).
+2. Repinned main platform plan expansion state to mark:
+   - `M9.E` is now execution-grade with deterministic residual scan/snapshot contract.
+
+### Outcome
+1. Planning-only change; no runtime residual scan executed in this step.
+2. `M9.E` is now ready for execution with explicit closure criteria and blocker model.
+
+## Entry: 2026-02-19 15:33:39 +00:00 - M9.E execution completed (post-destroy residual verification)
+### Problem framing
+1. `M9.E` had to prove teardown cleanliness beyond Terraform state by scanning runtime residual surfaces (`ECS`, `NAT`, `LB`, `RDS`).
+2. Execution had to remain fail-closed against:
+   - invalid `M9.D`/`M9.B` prerequisites,
+   - unreadable query surfaces,
+   - any residual demo-scoped resource.
+
+### Decision trail and execution notes
+1. Prerequisite gates validated first:
+   - `M9.B` preserve-set snapshot PASS with zero overlap/scope violations,
+   - `M9.D` teardown snapshot PASS (`destroy_outcome=success`, `post_destroy_state_resource_count=0`).
+2. Residual scan implementation used deterministic class-by-class checks:
+   - ECS cluster services + running tasks,
+   - EC2 NAT gateways,
+   - ELBv2 load balancers with tag/name demo-scope filtering,
+   - RDS instance by pinned `RDS_INSTANCE_ID`.
+3. During execution scripting, PowerShell typed collection construction caused transient serializer errors.
+   - Corrective decision: switch to plain array-backed collections for snapshot assembly.
+   - No gate semantics were accepted from failed attempts; only final successful pass was recorded.
+4. Durable evidence publication succeeded to run-control S3 path.
+
+### Runtime outcomes
+1. Execution id:
+   - `m9_20260219T153208Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T153208Z/m9_e_post_destroy_residual_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T153208Z/m9_e_post_destroy_residual_snapshot.json`.
+3. Residual results:
+   - ECS service residual: `0` (`total=0`, `residual=0`)
+   - ECS running tasks residual: `0`
+   - NAT residual: `0` (`total_non_deleted=0`, `demo_scoped_residual=0`)
+   - LB residual: `0` (`total_scanned=0`, `demo_scoped_residual=0`)
+   - runtime DB: `not_found`
+   - query errors: none.
+4. Verdict:
+   - `overall_pass=true`
+   - blockers empty.
+
+### Phase posture updates
+1. `M9.E` is closed PASS.
+2. `M9.F` is now the next execution lane.
+3. Main/deep build plans were repinned to reflect `M9.E` closure and next-action shift.
+

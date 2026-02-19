@@ -601,24 +601,125 @@ Blockers:
 Goal:
 1. Prove no demo runtime or known cost-footgun resources remain.
 
+Entry conditions:
+1. `M9.D` is closed PASS:
+   - local: `runs/dev_substrate/m9/m9_20260219T150604Z/m9_d_demo_destroy_snapshot.json`
+   - durable source: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/teardown_demo_20260219T150604Z/demo_destroy_snapshot.json`.
+2. `M9.D` source semantics remain true:
+   - `destroy_outcome=success`
+   - `post_destroy_state_resource_count=0`
+   - `overall_pass=true`.
+3. `M9.B` preserve-set contract remains readable and pass-valid.
+
+Required inputs:
+1. Source snapshots:
+   - `M9.B` teardown inventory/preserve-set snapshot.
+   - `M9.D` demo teardown snapshot.
+2. Required handles:
+   - `AWS_REGION`
+   - `ECS_CLUSTER_NAME`
+   - `RDS_INSTANCE_ID`
+   - `TAG_PROJECT_KEY`
+   - `TAG_ENV_KEY`
+   - `TAG_OWNER_KEY`
+   - `TAG_EXPIRES_AT_KEY`.
+3. Residual query surfaces:
+   - ECS service/task reads,
+   - EC2 NAT gateway reads,
+   - ELBv2 load balancer reads,
+   - RDS DB instance read.
+
+Preparation checks:
+1. Validate `M9.D` snapshot readability and PASS semantics; mismatch -> `M9E-B4`.
+2. Validate `M9.B` preserve-set still has zero overlap/scope violations; mismatch -> `M9E-B5`.
+3. Validate required residual query handles resolve and are non-placeholder; mismatch/query failure -> `M9E-B6`.
+
+Deterministic execution algorithm (M9.E):
+1. Load `M9.D` and `M9.B` authoritative snapshots and enforce entry gates.
+2. ECS residual checks:
+   - query `ECS_CLUSTER_NAME` services,
+   - fail if any demo-scoped service has `desiredCount>0` or `runningCount>0`,
+   - query cluster running tasks; fail if any running task remains.
+3. NAT residual checks:
+   - query NAT gateways in `AWS_REGION`,
+   - fail if any non-deleted gateway remains with demo scope (`name_prefix`/tag posture aligned to `dev_min`).
+4. LB residual checks:
+   - query ALB/NLB in `AWS_REGION`,
+   - fail if any active demo-scoped load balancer remains.
+5. Runtime DB residual checks:
+   - query `RDS_INSTANCE_ID`,
+   - fail if DB instance still exists in any non-terminal residual posture.
+6. Assemble residual summary object with normalized findings by class:
+   - `ecs_services`, `ecs_tasks`, `nat_gateways`, `load_balancers`, `runtime_db`.
+7. Compute blocker union and `overall_pass`:
+   - any residual finding -> fail closed.
+8. Emit local `m9_e_post_destroy_residual_snapshot.json`.
+9. Publish snapshot durably; publish failure -> `M9E-B7`.
+
 Tasks:
-1. Verify:
-   - no demo ECS services with `desiredCount>0`,
-   - no running demo tasks,
-   - no NAT gateway,
-   - no always-on LB in demo VPC,
-   - runtime DB teardown state as pinned.
-2. Emit `m9_e_post_destroy_residual_snapshot.json`.
+1. Execute residual scans for ECS/NAT/LB/RDS using pinned handles.
+2. Apply fail-closed blocker mapping for any residual finding.
+3. Emit and publish `m9_e_post_destroy_residual_snapshot.json`.
+
+Required snapshot fields (`m9_e_post_destroy_residual_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m9_execution_id`.
+2. `source_m9b_snapshot_local`, `source_m9b_snapshot_uri`.
+3. `source_m9d_snapshot_local`, `source_m9d_snapshot_uri`.
+4. `residual_checks`:
+   - `ecs_service_counts`
+   - `ecs_task_counts`
+   - `nat_gateway_counts`
+   - `load_balancer_counts`
+   - `runtime_db_state`.
+5. `residual_findings`:
+   - `ecs_services`
+   - `ecs_tasks`
+   - `nat_gateways`
+   - `load_balancers`
+   - `runtime_db`.
+6. `blockers`, `overall_pass`, `elapsed_seconds`.
+
+Runtime budget:
+1. `M9.E` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless explicit user waiver is recorded.
 
 DoD:
-- [ ] Residual scan passes all required checks.
-- [ ] Any residual finding is fail-closed and blocker-coded.
-- [ ] Snapshot exists locally and durably.
+- [x] Residual scan passes all required checks.
+- [x] Any residual finding is fail-closed and blocker-coded.
+- [x] Snapshot exists locally and durably.
+
+Planning status:
+1. `M9.E` is now execution-grade (entry/precheck/residual-query/snapshot contract pinned).
+2. Historical planning-only state is superseded by execution closure below.
+
+Execution closure (2026-02-19):
+1. Execution id:
+   - `m9_20260219T153208Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T153208Z/m9_e_post_destroy_residual_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T153208Z/m9_e_post_destroy_residual_snapshot.json`.
+3. Result:
+   - `overall_pass=true`,
+   - blockers empty.
+4. Residual verification outcomes:
+   - ECS services residual: `0` (cluster-level service count `0`),
+   - ECS running tasks residual: `0`,
+   - NAT residual: `0` (`total_non_deleted=0`),
+   - load balancer residual: `0` (`total_scanned=0`, `demo_scoped_residual=0`),
+   - runtime DB state: `not_found` (no residual RDS instance).
+   - query errors: none.
+5. Consequence:
+   - `M9.E` is closed.
+   - `M9.F` is unblocked.
 
 Blockers:
 1. `M9E-B1`: residual ECS service/task remains.
 2. `M9E-B2`: NAT/LB footgun detected.
 3. `M9E-B3`: runtime DB residual detected.
+4. `M9E-B4`: prerequisite `M9.D` closure invalid/unreadable.
+5. `M9E-B5`: preserve-control drift from `M9.B` detected.
+6. `M9E-B6`: residual query surface unreadable/unauthorized.
+7. `M9E-B7`: snapshot publication failure.
 
 ### M9.F Demo-Scoped Secret Cleanup Verification
 Goal:
@@ -710,7 +811,7 @@ Budget rule:
 1. Over-budget lanes require explicit blocker notation and remediation/retry posture before progression.
 
 ## 7) Current Planning Status
-1. M9 is planning-open with `M9.A`, `M9.B`, `M9.C`, and `M9.D` execution closed green.
-2. `M9.E` is now the next execution lane.
+1. M9 is planning-open with `M9.A`, `M9.B`, `M9.C`, `M9.D`, and `M9.E` execution closed green.
+2. `M9.F` is now the next execution lane.
 3. Unified teardown workflow decision is pinned:
    - `dev_min_confluent_destroy.yml` is stack-aware (`stack_target=confluent|demo`).

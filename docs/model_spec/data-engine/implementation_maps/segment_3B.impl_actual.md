@@ -3735,3 +3735,113 @@ Gate outcomes:
 Final decision:
 1) `UNLOCK_POPT4`.
 2) plan status sync required: mark `POPT.3` completed and `POPT.4` unlocked.
+### Entry: 2026-02-19 14:54
+
+Design element: `3B POPT.4 execution lock (integrated witness + freeze)`.
+Summary: opened full POPT.4 execution with explicit ordered subphases and closure gates before any run/prune actions.
+
+Pinned execution order:
+1) `POPT.4.1` integrated witness:
+   - run fresh `S0->S5` chain on a new run-id under `runs/fix-data-engine/segment_3B`.
+2) `POPT.4.2` integrated closure scoring:
+   - score runtime movement vs `POPT.0` baseline (`>=10%` improvement gate),
+   - verify structural pass and S5 digest/path determinism parity vs locked authority posture.
+3) `POPT.4.3` keep-set prune + freeze:
+   - retain only baseline authority + POPT.4 witness run-id folders for active lane,
+   - emit prune summary artifact and close POPT section.
+
+Authorities and constraints:
+1) baseline runtime authority:
+   - `segment3b_popt0_baseline_724a63d3f8b242809b8ec3b746d0c776.json` (`697.64s` report-sum baseline).
+2) optimized authority (pre-POPT.4):
+   - `segment3b_popt3_closure_724a63d3f8b242809b8ec3b746d0c776.json`.
+3) hard constraints:
+   - preserve progressive engine semantics (`S0->S5`),
+   - no schema/path contract drift,
+   - prune superseded run-id folders to protect storage.
+### Entry: 2026-02-19 15:02
+
+Design element: `3B POPT.4 integrated witness execution (staging + fallback lane)`.
+Summary: attempted fresh integrated run-id witness first, then switched to authority replay lane after staging constraints and run-id binding behavior were observed.
+
+Execution sequence and findings:
+1) fresh run-id attempt:
+   - staged candidate run-id: `78ea624d1bd246f1a2d0ce64f2aac019`.
+   - initial `segment3b` execution failed at `S0` because fresh run-id lacked staged upstream sealed inputs under run-root (`sealed_inputs_1A` path missing).
+2) fallback to authority replay:
+   - switched witness to locked run-id `724a63d3f8b242809b8ec3b746d0c776`.
+   - executed full-chain command with `RUN_ID=724...`.
+3) make-run-id binding caveat discovered:
+   - `segment3b` target propagated `RUN_ID` to `S0/S1/S2`, but `S3` resolved latest staged receipt and attempted execution on `78ea...` (causing `E3B_S3_019_INFRASTRUCTURE_IO_ERROR`).
+   - corrected by explicitly pinning per-state run-id vars for downstream states.
+
+Operational correction:
+1) forced `S3/S4/S5` to authority run-id via:
+   - `SEG3B_S3_RUN_ID=724...`,
+   - `SEG3B_S4_RUN_ID=724...`,
+   - `SEG3B_S5_RUN_ID=724...`.
+2) resulting `S3` replay on authority run-id failed with:
+   - `E3B_S3_OUTPUT_INCONSISTENT_REWRITE`,
+   - followed by runner exception-path bug (`EngineFailure` attribute access on `error_code`).
+3) executed `S4->S5` successfully on authority run-id to complete witness evidence pack.
+
+### Entry: 2026-02-19 15:21
+
+Design element: `3B POPT.4 closure scoring + retention proof`.
+Summary: scored integrated lane and executed keep-set prune proof; POPT.4 remains open under fail-closed posture.
+
+Artifacts:
+1) closure scorer tool:
+   - `tools/score_segment3b_popt4_closure.py`.
+2) closure outputs:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt4_closure_724a63d3f8b242809b8ec3b746d0c776.json`
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt4_closure_724a63d3f8b242809b8ec3b746d0c776.md`
+3) prune summary outputs:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt4_prune_summary_724a63d3f8b242809b8ec3b746d0c776.json`
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt4_prune_summary_724a63d3f8b242809b8ec3b746d0c776.md`
+
+Measured closure outcomes:
+1) runtime movement gate:
+   - baseline total `697.64s`,
+   - candidate total `1138.638s`,
+   - movement `-63.21%` (FAIL).
+2) determinism gate:
+   - S5 digest parity PASS,
+   - output-path parity PASS.
+3) structural gate:
+   - FAIL because `S3` run-report status became `FAIL` during replay attempt.
+
+Retention/prune proof:
+1) keep-set pinned to `{724a63d3f8b242809b8ec3b746d0c776}`.
+2) pruned run-id folders:
+   - `0762ad15e0a34ef6a2ce62372b95f813`,
+   - `19334bfdbacb40dba38ad851c69dd0e6`,
+   - `78ea624d1bd246f1a2d0ce64f2aac019`,
+   - `ef21b94d9d8743b2bc264e2c3a791865`.
+
+Decision:
+1) `POPT.4` cannot close yet; decision=`HOLD_POPT4_REOPEN`.
+2) required reopen lanes:
+   - `POPT.4R.S2` for severe runtime regression in `S2` prep lane,
+   - `POPT.4R.S3` for replay idempotence closure and exception-path hardening in `S3`.
+### Entry: 2026-02-19 15:31
+
+Design element: `3B POPT.4R execution start (S3-first)`.
+Summary: reopened POPT.4 with blocker-lane sequencing and began execution on `POPT.4R.S3` before touching `S2` runtime.
+
+Sequencing decision:
+1) execute `S3` lane first because replay/idempotence failure is a hard structural blocker independent of `S2` tuning.
+2) only after `S3` lane is green proceed to `S2` runtime recovery lane.
+
+POPT.4R.S3 implementation targets:
+1) `S3` replay determinism:
+   - remove volatile rewrite drift in `edge_universe_hash_3B` payload path so same run-id replay does not hash-diff on optional timestamps.
+2) exception-path hardening:
+   - map `EngineFailure` fields correctly (`failure_code`, `failure_class`, `detail`) in `S3` runner fail path.
+3) run-id wiring hardening:
+   - ensure `SEG3B_S3/S4/S5` default run-id binding follows `RUN_ID` like upstream states to prevent mixed-run execution.
+
+Witness plan for this lane:
+1) compile patch.
+2) run `segment3b-s3` twice on authority run-id `724a63d3f8b242809b8ec3b746d0c776`.
+3) verify second run remains PASS with no `E3B_S3_OUTPUT_INCONSISTENT_REWRITE`.

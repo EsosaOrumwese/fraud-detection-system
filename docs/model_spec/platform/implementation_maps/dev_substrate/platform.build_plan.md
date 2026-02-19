@@ -1127,13 +1127,15 @@ Active-phase planning posture:
   - `M9.C` execution is green with blockers empty; `M9.D` is unblocked.
   - `M9.D` is expanded to execution-grade with deterministic managed-lane dispatch/poll/verification algorithm and preserve-control drift gate.
   - `M9.D` execution is green with blockers empty; `M9.E` is unblocked.
+  - `M9.E` is expanded to execution-grade with deterministic residual scan/blocker mapping/snapshot contract.
+  - `M9.E` execution is green with blockers empty; `M9.F` is unblocked.
 
 Sub-phase progress:
   - [x] `M9.A` P12 authority + handoff closure.
   - [x] `M9.B` teardown inventory + preserve-set freeze.
   - [x] `M9.C` Confluent teardown execution (existing workflow lane).
   - [x] `M9.D` demo stack teardown execution.
-  - [ ] `M9.E` post-destroy residual checks.
+  - [x] `M9.E` post-destroy residual checks.
   - [ ] `M9.F` demo-scoped secret cleanup verification.
   - [ ] `M9.G` post-teardown cost-guardrail snapshot.
   - [ ] `M9.H` teardown-proof artifact publication.
@@ -1206,10 +1208,26 @@ M9.D execution closure (2026-02-19):
     - `M9.D` is closed
     - `M9.E` is unblocked.
 
+M9.E execution closure (2026-02-19):
+  - execution id: `m9_20260219T153208Z`
+  - local snapshot: `runs/dev_substrate/m9/m9_20260219T153208Z/m9_e_post_destroy_residual_snapshot.json`
+  - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T153208Z/m9_e_post_destroy_residual_snapshot.json`
+  - result: `overall_pass=true`, blockers empty
+  - residual outcomes:
+    - ECS services: `0` total, `0` residual
+    - ECS running tasks: `0`
+    - NAT gateways: `0` non-deleted, `0` demo-scoped residual
+    - load balancers: `0` scanned, `0` demo-scoped residual
+    - runtime DB state: `not_found`
+    - query errors: none
+  - consequence:
+    - `M9.E` is closed
+    - `M9.F` is unblocked.
+
 M9 DoD checklist:
 - [x] Canonical execution lane is GitHub Actions teardown workflows produced under `M2.I`; no local secret-bearing destroy path is used.
 - [x] demo resources are destroyed while retained core/evidence surfaces remain as pinned.
-- [ ] no demo ECS services/tasks remain and no NAT/LB cost-footgun resources remain.
+- [x] no demo ECS services/tasks remain and no NAT/LB cost-footgun resources remain.
 - [ ] demo-scoped secrets/credentials are removed from SSM.
 - [ ] teardown proof artifact exists locally and durably.
 - [ ] M9 verdict is `ADVANCE_TO_M10` with empty blocker rollup.
@@ -1323,7 +1341,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M9 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M9.E` post-destroy residual-resource verification using `M9.D` closure evidence as authority,
+- execute `M9.F` demo-scoped secret cleanup verification using `M9.E` closure evidence as authority,
 - preserve fail-closed posture:
-  - do not execute `M9.F` secret-cleanup checks until `M9.E` residual snapshot is captured and blocker-free.
+  - do not execute `M9.G` cost-guardrail snapshot until `M9.F` secret-cleanup snapshot is captured and blocker-free.
 

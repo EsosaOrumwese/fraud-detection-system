@@ -841,8 +841,148 @@ Scope:
 
 Definition of done:
 - [ ] witness lane runtime and determinism are accepted.
-- [ ] keep-set + prune workflow is proven.
+- [x] keep-set + prune workflow is proven.
 - [ ] `POPT` is explicitly marked closed.
+
+POPT.4 execution anchors (2026-02-19):
+- baseline runtime authority:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt0_baseline_724a63d3f8b242809b8ec3b746d0c776.json`
+  - baseline segment elapsed (`report sum`): `697.64s`.
+- optimized authority prior to integrated lock:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt3_closure_724a63d3f8b242809b8ec3b746d0c776.json`
+  - `S5` authority wall: `43.686s` with runtime/log/non-regression guards green.
+- closure threshold for "material runtime movement":
+  - integrated candidate segment elapsed must improve by at least `10%` vs POPT.0 baseline.
+
+### POPT.4.1 - Integrated witness run (S0->S5)
+Goal:
+- prove optimized code path composes across the full progressive 3B chain.
+
+Scope:
+- execute one fresh integrated candidate run-id on `runs/fix-data-engine/segment_3B`.
+- run full chain `S0 -> S1 -> S2 -> S3 -> S4 -> S5`.
+- capture run-log timing and per-state run-report evidence.
+
+Definition of done:
+- [ ] integrated witness run-id exists and all states are `PASS`.
+- [x] candidate elapsed table is emitted for `S0..S5`.
+- [x] candidate run-id is pinned as POPT.4 witness authority.
+
+### POPT.4.2 - Integrated closure scoring (runtime + determinism + structural)
+Goal:
+- certify whether POPT stack is lock-ready before remediation P0.
+
+Scope:
+- score integrated candidate against:
+  - runtime movement gate (`>=10%` faster vs POPT.0 baseline),
+  - structural gate (`S0..S5` pass, bundle/flag consistency),
+  - determinism gate (S5 digest/path parity with locked authority posture).
+- emit closure artifacts (`json` + `md`) under segment reports.
+
+Definition of done:
+- [x] integrated closure artifact exists.
+- [x] explicit decision recorded (`CLOSED` or `HOLD_POPT4_REOPEN`).
+- [x] if hold: reopen lane and blocker are named.
+
+### POPT.4.3 - Keep-set prune and freeze handoff
+Goal:
+- enforce storage discipline and freeze optimized authority.
+
+Scope:
+- apply keep-set run retention (baseline authority + POPT.4 integrated witness).
+- prune superseded run-id folders under `runs/fix-data-engine/segment_3B`.
+- emit prune summary artifact and pin frozen authority in plan status.
+
+Definition of done:
+- [x] keep-set and prune actions are artifacted.
+- [x] superseded run-id folders are removed.
+- [ ] `POPT` section is explicitly closed and handoff to remediation `P0` is recorded.
+
+POPT.4 execution record and decision (2026-02-19):
+- integrated witness authority:
+  - run-id: `724a63d3f8b242809b8ec3b746d0c776`.
+- execution notes:
+  - attempted fresh candidate staging (`78ea624d1bd246f1a2d0ce64f2aac019`) failed at `S0` due missing staged upstream sealed artefacts under run-root.
+  - switched to authority run-id replay lane.
+  - executed `S0 -> S1 -> S2`; `S3` replay failed with `E3B_S3_OUTPUT_INCONSISTENT_REWRITE` and runner exception path.
+  - completed `S4 -> S5` on authority run-id to finalize witness evidence.
+- closure artifacts:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt4_closure_724a63d3f8b242809b8ec3b746d0c776.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt4_closure_724a63d3f8b242809b8ec3b746d0c776.md`
+- measured gates:
+  - runtime movement: FAIL (`candidate_total=1138.638s` vs baseline `697.64s`, `-63.21%` movement).
+  - determinism: PASS (S5 digest and output-path parity vs authority lock).
+  - structural: FAIL (`state_status_pass=false` due `S3 status=FAIL`).
+- prune evidence:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt4_prune_summary_724a63d3f8b242809b8ec3b746d0c776.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt4_prune_summary_724a63d3f8b242809b8ec3b746d0c776.md`
+  - retained run-id set after prune: `{724a63d3f8b242809b8ec3b746d0c776}`.
+- decision:
+  - `HOLD_POPT4_REOPEN`.
+  - reopen lane:
+    - `POPT.4R.S2`: investigate/close `S2` runtime regression path (tile-allocation prep explosion),
+    - `POPT.4R.S3`: resolve `S3` replay idempotence failure (`E3B_S3_OUTPUT_INCONSISTENT_REWRITE`) before integrated close.
+
+### POPT.4R - Reopen lane before POPT closure
+Goal:
+- close replay/idempotence and runtime blockers that prevented `POPT.4` closure.
+
+Scope:
+- execute blocker-specific reopen lanes in strict order:
+  1) `POPT.4R.S3` replay/idempotence closure,
+  2) `POPT.4R.S2` runtime-regression closure,
+  3) rerun integrated closure score and decide close/hold.
+
+Definition of done:
+- [ ] both blocker lanes have explicit artifacted outcomes.
+- [ ] integrated closure score is rerun after blocker lanes.
+- [ ] explicit decision recorded (`CLOSED` or retained `HOLD_POPT4_REOPEN`).
+
+### POPT.4R.S3 - S3 replay/idempotence and exception-path closure
+Goal:
+- ensure replay on same run-id does not fail with rewrite/idempotence violations.
+
+Scope:
+- remove replay-volatile payload drift in `edge_universe_hash_3B` generation.
+- fix `S3` exception mapping so `EngineFailure` surfaces deterministic `failure_code/failure_class/detail` in run-report path.
+- fix 3B run-id propagation for `S3/S4/S5` state targets to avoid accidental mixed-run execution.
+- witness by rerunning `S3` twice on authority run-id and confirming both runs PASS without rewrite failure.
+
+Definition of done:
+- [ ] `S3` replay on authority run-id is idempotent (`PASS` on repeated invocation).
+- [ ] no `E3B_S3_OUTPUT_INCONSISTENT_REWRITE` during replay witness.
+- [ ] exception-path mapping uses `EngineFailure.failure_code/failure_class/detail`.
+- [ ] make run-id wiring for `SEG3B_S3/S4/S5` defaults is corrected.
+
+### POPT.4R.S2 - S2 runtime regression closure
+Goal:
+- recover `S2` prep-lane runtime back toward or below POPT baseline authority band.
+
+Scope:
+- profile current `S2` prep lane on authority run-id and isolate dominant cost growth.
+- implement bounded optimization on `tile allocations prepared` path (data-structure/search/join reuse first).
+- witness with `S2` rerun on authority run-id and report movement vs:
+  - POPT baseline (`~406s`),
+  - failed POPT.4 witness (`~1047s`).
+
+Definition of done:
+- [ ] `S2` runtime movement is positive and material vs failed witness.
+- [ ] no schema/path/RNG accounting regressions in `S2`.
+- [ ] downstream `S3/S4/S5` remain green on witness lane.
+
+### POPT.4R.CLOSE - Integrated rescore and freeze decision
+Goal:
+- re-evaluate full POPT closure after reopen fixes.
+
+Scope:
+- run integrated witness (`S0->S5`) on authority run-id.
+- regenerate `segment3b_popt4_closure_<run_id>.json/.md`.
+- if gates pass, mark `POPT` closed and handoff to `P0`; else retain hold with explicit blocker carry-forward.
+
+Definition of done:
+- [ ] integrated closure artifact refreshed post-reopen.
+- [ ] final `POPT` decision state updated in current phase status.
+- [ ] next-phase pointer (`P0` or hold lane) is explicit.
 
 ## 6) Remediation phases (data realism first)
 
@@ -947,7 +1087,7 @@ Definition of done:
 - `POPT.2`: completed (`UNLOCK_POPT3_AFTER_POPT2R2`)
 - `POPT.2R`: completed (`UNLOCK_POPT3`)
 - `POPT.3`: completed (`UNLOCK_POPT4`)
-- `POPT.4`: pending (`UNLOCKED_AFTER_POPT3`)
+- `POPT.4`: in_progress (`HOLD_POPT4_REOPEN`)
 - `P0`: pending
 - `P1`: pending
 - `P2`: pending
