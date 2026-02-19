@@ -3160,3 +3160,62 @@ Safer redesign lane opened (`POPT.1R.NEXT`):
 Plan posture:
 1) `POPT.1` remains `HOLD_POPT1_REOPEN`.
 2) next coding action is constrained to `POPT.1R.NEXT` only.
+### Entry: 2026-02-19 12:22
+
+Design element: `3B POPT.1R.NEXT execution start (safer lane)`.
+Summary: user requested direct start of `POPT.1R.NEXT` after rollback. Marked `POPT.1R.4` superseded and now starting implementation of a lower-risk prep-lane redesign.
+
+Pinned objectives for this execution:
+1) keep S2 contract behavior deterministic and validator-compatible.
+2) remove repeated batch/global scan pattern that caused severe prep-lane regression.
+3) enforce fail-closed country-key partition hygiene (no unresolved fallback scans).
+
+Alternatives considered:
+1) reopen batched CSK again with different batch width.
+   - Rejected: already demonstrated large runtime regression and unstable memory/runtime tradeoff.
+2) keep pre-CSK baseline unchanged and move on.
+   - Rejected: user requested continued reopen effort under safer redesign lane.
+3) country-keyed one-pass prep (selected):
+   - pre-resolve exact file sets per country for each tile surface,
+   - fail closed on mixed/unresolved path patterns,
+   - read each country's files directly once per dataset,
+   - derive ids/bounds from one collected bounds frame per country.
+
+Execution plan for `POPT.1R.NEXT` now:
+1) patch `S2` runner tile-prep block:
+   - add strict country-key file grouping helpers,
+   - add unresolved-path precheck and abort,
+   - replace full-scan-per-country filters with country-file-targeted one-pass reads.
+2) keep RNG/edge loop untouched.
+3) syntax gate.
+4) stage fresh witness run-id and run `segment3b-s2` first (interim runtime checkpoint lane).
+5) emit/compare lane timing artifact before deciding whether to continue `S3->S5`.
+### Entry: 2026-02-19 12:32
+
+Design element: `3B POPT.1R.NEXT patch applied (strict country-key one-pass prep)`.
+Summary: patched S2 tile-surface prep lane to remove unresolved fallback behavior and switch to direct per-country file-targeted reads under explicit partition-key precheck.
+
+Patch scope:
+1) added helpers in `runner.py`:
+   - `_country_from_partition_path`,
+   - `_country_from_part_suffix`,
+   - `_group_paths_by_country`.
+2) tile-surface prep changes:
+   - resolve country-file groups by required key pattern:
+     - `tile_weights`: part suffix `part-<ISO>.parquet`,
+     - `tile_index`/`tile_bounds`: folder token `country=<ISO>`.
+   - fail closed on unresolved paths (`tile_surface_partition_unresolved`).
+   - emit precheck artifact:
+     - `.../reports/layer1/3B/state=S2/seed=<seed>/manifest_fingerprint=<fp>/tile_surface_partition_precheck.json`.
+   - per-country reads are now direct file-targeted one-pass scans (no global tile-scan + per-country filter loops).
+   - bounds handling reduced to one collection per country with in-memory projection for needed tile ids.
+3) preserved:
+   - existing tile-surface validator semantics for missing/DP/index/bounds consistency,
+   - RNG and downstream S2 logic unchanged.
+
+Validation:
+1) syntax gate passed (`py_compile`).
+
+Next execution:
+1) stage fresh run-id for `segment_3B` witness lane.
+2) run `segment3b-s2` first and evaluate `POPT.1R.NEXT` interim runtime checkpoint.

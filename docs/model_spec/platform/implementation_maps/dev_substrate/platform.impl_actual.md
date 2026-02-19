@@ -14855,6 +14855,39 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. `M8.I` is planning-complete and execution-ready.
 2. Runtime execution was not performed in this planning step.
 
+## Entry: 2026-02-19 12:13:24 +00:00 - M8.I executed and closed PASS
+### Execution reasoning trail
+1. Entry gate remained hard-pinned to `M8.H` pass and run scope `platform_20260213T214223Z`.
+2. Source matrix loaded in fixed deterministic order (`M8.A..M8.H`) with required field and run-scope checks before verdict evaluation.
+3. During implementation, two local command-assembly issues were hit and resolved before final run:
+   - PowerShell interpolation parse issue in non-secret scanner string construction,
+   - `HashSet.ToArray()` method incompatibility in this shell runtime.
+   Both were corrected locally without changing runtime state or evidence semantics.
+4. Verdict logic was applied exactly as pinned:
+   - predicate map from source pass posture,
+   - source blocker rollup union,
+   - verdict `ADVANCE_TO_M9` only when all predicates true and rollup empty.
+5. Non-secret policy check was executed as a hard gate before handoff acceptance; no violations detected.
+
+### Runtime outcomes
+1. Execution id: `m8_20260219T121603Z`.
+2. Verdict artifact:
+   - local: `runs/dev_substrate/m8/m8_20260219T121603Z/m8_i_verdict_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T121603Z/m8_i_verdict_snapshot.json`.
+3. Handoff artifact:
+   - local: `runs/dev_substrate/m8/m8_20260219T121603Z/m9_handoff_pack.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T121603Z/m9_handoff_pack.json`.
+4. Results:
+   - verdict `ADVANCE_TO_M9`,
+   - `overall_pass=true`,
+   - blockers empty,
+   - non-secret policy pass.
+
+### Phase posture updates
+1. `M8.I` is complete.
+2. M8 execution lanes are complete and technically ready for transition.
+3. Per transition authority rule, `M9` activation remains user-governed and awaits explicit USER confirmation.
+
 ## Entry: 2026-02-19 12:13:24 +00:00 - M8.I execution start lock (verdict + handoff)
 ### Execution intent
 1. Execute deterministic `M8.I` verdict rollup from pinned `M8.A..M8.H` pass snapshots.
@@ -14874,3 +14907,4 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - artifact write/upload failures => `M8I-B4`,
    - non-secret handoff violation => `M8I-B5`.
 4. Non-secret check will run against handoff keys/values with strict secret-bearing pattern detection before publish.
+

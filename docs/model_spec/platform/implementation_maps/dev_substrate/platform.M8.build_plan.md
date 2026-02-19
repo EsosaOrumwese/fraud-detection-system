@@ -1128,9 +1128,9 @@ Tasks:
 5. Publish both artifacts locally and durably.
 
 DoD:
-- [ ] M8 verdict snapshot is deterministic and reproducible.
-- [ ] M9 handoff artifact is complete and non-secret.
-- [ ] Both artifacts exist locally and durably.
+- [x] M8 verdict snapshot is deterministic and reproducible.
+- [x] M9 handoff artifact is complete and non-secret.
+- [x] Both artifacts exist locally and durably.
 
 Blocker Codes (Taxonomy):
 1. `M8I-B1`: source snapshot missing/unreadable.
@@ -1174,7 +1174,31 @@ Runtime budget:
 
 Planning status:
 1. `M8.I` is now execution-grade (entry/precheck/algorithm/snapshot + handoff contract pinned).
-2. Runtime execution is pending.
+2. Runtime execution is complete with pass closure.
+
+Execution closure (2026-02-19):
+1. Execution id: `m8_20260219T121603Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m8/m8_20260219T121603Z/m8_i_verdict_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T121603Z/m8_i_verdict_snapshot.json`.
+3. Handoff artifacts:
+   - local: `runs/dev_substrate/m8/m8_20260219T121603Z/m9_handoff_pack.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T121603Z/m9_handoff_pack.json`.
+4. Outcomes:
+   - verdict: `ADVANCE_TO_M9`,
+   - `overall_pass=true`,
+   - blockers empty,
+   - non-secret policy pass with zero violations.
+5. Predicate outcomes:
+   - `p11_handles_closed=true`,
+   - `single_writer_verified=true`,
+   - `closure_bundle_complete=true`,
+   - `replay_reconciliation_coherent=true`,
+   - `closure_marker_valid=true`,
+   - `obs_outputs_valid=true`.
+6. Phase posture:
+   - `M8.I` is closed,
+   - M8 execution lanes are complete and ready for user-governed transition confirmation.
 
 ## 6) Runtime Budget Gates
 1. `M8.A`: <= 10 minutes
@@ -1234,7 +1258,7 @@ Notes:
 - [x] M8.F complete
 - [x] M8.G complete
 - [x] M8.H complete
-- [ ] M8.I complete
+- [x] M8.I complete
 
 ## 9) Exit Criteria
 M8 can be marked `DONE` only when:
@@ -1247,4 +1271,5 @@ M8 can be marked `DONE` only when:
 Note:
 1. This file does not change phase status.
 2. Status transition is made only in `platform.build_plan.md`.
+
 

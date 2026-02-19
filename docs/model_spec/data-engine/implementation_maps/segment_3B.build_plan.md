@@ -411,8 +411,14 @@ Scope:
 - preserve audit-critical logs and failure visibility.
 
 Definition of done:
-- [ ] log cadence is budgeted and stable.
-- [ ] no loss of required observability signals.
+- [x] log cadence is budgeted and stable.
+- [x] no loss of required observability signals.
+
+POPT.1R.4 status note:
+- superseded/waived for this reopen cycle after rollback + `POPT.1R.NEXT` decision.
+- reason:
+  - `POPT.1R.3` failure was prep-lane algorithmic (`tile_read_map_alloc_project_total`), not edge-loop/log cadence.
+  - existing loop heartbeat cadence already remained bounded and audit-complete in witness runs.
 
 ### POPT.1R.5 - Witness + closure decision
 Goal:

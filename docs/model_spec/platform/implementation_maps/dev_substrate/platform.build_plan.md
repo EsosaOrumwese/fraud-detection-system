@@ -884,6 +884,8 @@ Active-phase planning posture:
   - `M8.H` is expanded to execution-grade with deterministic closure-marker/Obs-Gov surface verification algorithm and snapshot contract.
   - `M8.H` execution is green with blockers empty; `M8.I` is unblocked.
   - `M8.I` is expanded to execution-grade with deterministic verdict-rollup + M9 handoff contract.
+  - `M8.I` execution is green with blockers empty; verdict is `ADVANCE_TO_M9`.
+  - `M8.I` is expanded to execution-grade with deterministic verdict-rollup + M9 handoff contract.
 
 M8.A execution closure (2026-02-19):
   - execution id: `m8_20260219T073801Z`
@@ -1041,6 +1043,21 @@ M8.H execution closure (2026-02-19):
     - `M8.H` is closed
     - `M8.I` is unblocked for execution.
 
+M8.I execution closure (2026-02-19):
+  - execution id: `m8_20260219T121603Z`
+  - local verdict snapshot: `runs/dev_substrate/m8/m8_20260219T121603Z/m8_i_verdict_snapshot.json`
+  - durable verdict snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T121603Z/m8_i_verdict_snapshot.json`
+  - local handoff artifact: `runs/dev_substrate/m8/m8_20260219T121603Z/m9_handoff_pack.json`
+  - durable handoff artifact: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T121603Z/m9_handoff_pack.json`
+  - result:
+    - `overall_pass=true`
+    - blockers empty
+    - verdict `ADVANCE_TO_M9`
+    - non-secret policy pass with zero violations
+  - consequence:
+    - `M8.I` is closed
+    - M8 execution lanes are complete and ready for user-governed M9 activation.
+
 Sub-phase progress:
   - [x] `M8.A` P11 authority + handles closure.
   - [x] `M8.B` reporter runtime + lock readiness.
@@ -1050,15 +1067,15 @@ Sub-phase progress:
   - [x] `M8.F` closure evidence bundle completeness.
   - [x] `M8.G` replay anchor + reconciliation coherence.
   - [x] `M8.H` closure marker + env/anomaly outputs verification.
-  - [ ] `M8.I` P11 verdict + M9 handoff.
+  - [x] `M8.I` P11 verdict + M9 handoff.
 
 M8 DoD checklist:
 - [x] Single-writer reporter lock is enforced and evidenced.
 - [x] Required Obs/Gov closure artifacts are durable and run-scoped.
 - [x] Replay anchors and reconciliation are coherent with prior phase evidence.
 - [x] `run_completed.json` exists and references correct `platform_run_id`.
-- [ ] M8 verdict is `ADVANCE_TO_M9` with empty blocker rollup.
-- [ ] M9 handoff pack is published and non-secret.
+- [x] M8 verdict is `ADVANCE_TO_M9` with empty blocker rollup.
+- [x] M9 handoff pack is published and non-secret.
 
 ## M9 - P12 Teardown
 Status: `NOT_STARTED`
@@ -1180,9 +1197,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M8 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M8.I` P11 verdict rollup + M9 handoff publication lane,
-- require durable artifact:
-  - `evidence/dev_min/run_control/<m8_execution_id>/m8_i_verdict_snapshot.json`,
-  - `evidence/dev_min/run_control/<m8_execution_id>/m9_handoff_pack.json`,
-- keep fail-closed posture:
-  - no advance to `M9` unless `M8.I` is `overall_pass=true` with blockers empty and verdict `ADVANCE_TO_M9`.
+- confirm user-governed transition of M8 to `DONE` and activation of `M9`,
+- preserve fail-closed posture:
+  - do not activate `M9` until USER explicitly confirms progression.
+
