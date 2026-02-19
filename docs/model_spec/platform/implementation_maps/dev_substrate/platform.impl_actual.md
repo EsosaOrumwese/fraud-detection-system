@@ -14854,3 +14854,23 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Phase posture
 1. `M8.I` is planning-complete and execution-ready.
 2. Runtime execution was not performed in this planning step.
+
+## Entry: 2026-02-19 12:13:24 +00:00 - M8.I execution start lock (verdict + handoff)
+### Execution intent
+1. Execute deterministic `M8.I` verdict rollup from pinned `M8.A..M8.H` pass snapshots.
+2. Publish both closure artifacts:
+   - `m8_i_verdict_snapshot.json`
+   - `m9_handoff_pack.json`
+   locally and durably.
+
+### Pre-execution decisions
+1. Entry gate is hard-anchored to `M8.H` pass snapshot:
+   - `runs/dev_substrate/m8/m8_20260219T120213Z/m8_h_obs_gov_closure_snapshot.json`.
+2. Source matrix will be loaded in fixed order `M8.A..M8.H` to keep verdict deterministic.
+3. Fail-closed taxonomy is active:
+   - source read/parse failures => `M8I-B1`,
+   - run-scope/field contract failures => `M8I-B2`,
+   - source blocker rollup non-empty => `M8I-B3`,
+   - artifact write/upload failures => `M8I-B4`,
+   - non-secret handoff violation => `M8I-B5`.
+4. Non-secret check will run against handoff keys/values with strict secret-bearing pattern detection before publish.
