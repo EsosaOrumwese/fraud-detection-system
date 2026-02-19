@@ -1238,25 +1238,116 @@ Execution closure (2026-02-19):
 Goal:
 1. Compute deterministic M9 verdict and publish M10 handoff.
 
-Tasks:
-1. Roll up `M9.A..M9.H` pass posture.
-2. Set verdict:
-   - `ADVANCE_TO_M10` only if all required predicates are true and blocker union is empty,
-   - else `HOLD_M9`.
-3. Emit:
+Entry conditions:
+1. `M9.H` is pass with blockers empty:
+   - local: `runs/dev_substrate/m9/m9_20260219T181800Z/teardown_proof.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/teardown/teardown_proof.json`.
+2. `M9.A..M9.G` are closed pass in current planning status.
+3. Active run scope is pinned to:
+   - `platform_run_id=platform_20260213T214223Z`.
+4. No unresolved blockers remain from `M9.H`.
+
+Required inputs:
+1. Pass snapshots for `M9.A..M9.H` (local preferred, durable fallback):
+   - `M9.A`: `runs/dev_substrate/m9/m9_20260219T123856Z/m9_a_handle_handoff_snapshot.json`
+   - `M9.B`: `runs/dev_substrate/m9/m9_20260219T125838Z/m9_b_teardown_inventory_snapshot.json`
+   - `M9.C`: `runs/dev_substrate/m9/m9_20260219T131353Z/m9_c_confluent_destroy_snapshot.json`
+   - `M9.D`: `runs/dev_substrate/m9/m9_20260219T150604Z/m9_d_demo_destroy_snapshot.json`
+   - `M9.E`: `runs/dev_substrate/m9/m9_20260219T153208Z/m9_e_post_destroy_residual_snapshot.json`
+   - `M9.F`: `runs/dev_substrate/m9/m9_20260219T155120Z/m9_f_secret_cleanup_snapshot.json`
+   - `M9.G`: `runs/dev_substrate/m9/m9_20260219T185951Z/m9_g_cost_guardrail_snapshot.json`
+   - `M9.H`: `runs/dev_substrate/m9/m9_20260219T181800Z/teardown_proof.json`.
+2. Durable run-control evidence root for:
    - `m9_i_verdict_snapshot.json`
-   - `m10_handoff_pack.json` (non-secret only).
+   - `m10_handoff_pack.json`.
+3. Canonical teardown proof durable path:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/<platform_run_id>/teardown/teardown_proof.json`.
+
+Preparation checks (fail-closed):
+1. Validate all source snapshots above are readable and parseable.
+2. Validate source snapshots include required fields:
+   - `phase`, `phase_id`, `overall_pass`, `blockers`.
+3. Validate run-scope conformance for run-id-carrying sources:
+   - `M9.A`, `M9.B`, `M9.C`, `M9.E`, `M9.F`, `M9.H` must carry `platform_run_id=platform_20260213T214223Z`.
+4. Validate teardown proof schema minimum exists:
+   - `terraform_destroy_status`,
+   - `confirmed_absent`,
+   - `source_snapshots`,
+   - `overall_pass=true`.
+5. Validate required durable evidence root values are concrete (no placeholder/wildcard).
+
+Deterministic verification algorithm (M9.I):
+1. Load `M9.A..M9.H` source snapshots; any missing/unreadable/parse failure -> `M9I-B1`.
+2. Enforce run-scope conformance across required run-id-carrying snapshots (`M9.A`, `M9.B`, `M9.C`, `M9.E`, `M9.F`, `M9.H`); mismatch -> `M9I-B2`.
+3. Build deterministic source matrix in fixed phase order:
+   - `M9.A`, `M9.B`, `M9.C`, `M9.D`, `M9.E`, `M9.F`, `M9.G`, `M9.H`.
+4. Roll up blockers from all source snapshots:
+   - `source_blocker_rollup = union(source.blockers for all phases)`.
+5. Compute P12 predicate map from source pass posture:
+   - `p12_authority_closed = M9.A.overall_pass`,
+   - `teardown_inventory_frozen = M9.B.overall_pass`,
+   - `confluent_destroy_verified = M9.C.overall_pass`,
+   - `demo_destroy_verified = M9.D.overall_pass`,
+   - `post_destroy_residual_clear = M9.E.overall_pass`,
+   - `demo_secret_cleanup_verified = M9.F.overall_pass`,
+   - `cross_platform_cost_guardrail_clear = M9.G.overall_pass`,
+   - `teardown_proof_published = M9.H.overall_pass`.
+6. Evaluate verdict:
+   - if every predicate above is true and `source_blocker_rollup` is empty -> `ADVANCE_TO_M10`,
+   - else -> `HOLD_M9`.
+7. Non-secret policy checks for handoff payload:
+   - payload contains refs/ids/verdict only (no secrets/tokens/credentials),
+   - fail on any key/value matching secret-bearing patterns (`secret`, `password`, `token`, `AKIA`, private key markers) -> `M9I-B5`.
+8. Emit `m9_i_verdict_snapshot.json` locally and publish durably.
+9. Emit `m10_handoff_pack.json` locally and publish durably.
+10. Return `overall_pass=true` only when:
+   - verdict is `ADVANCE_TO_M10`,
+   - blockers list is empty,
+   - both artifacts are written and durably published.
+
+Tasks:
+1. Build source snapshot matrix from `M9.A..M9.H`.
+2. Compute deterministic predicate map + blocker rollup.
+3. Compute verdict and emit `m9_i_verdict_snapshot.json`.
+4. Build non-secret handoff payload and emit `m10_handoff_pack.json`.
+5. Publish both artifacts locally and durably.
 
 DoD:
 - [ ] Verdict rule applied deterministically.
 - [ ] `m10_handoff_pack.json` passes non-secret policy.
 - [ ] Both artifacts exist locally and durably.
 
-Blockers:
-1. `M9I-B1`: source snapshot missing/invalid.
-2. `M9I-B2`: blocker union non-empty.
-3. `M9I-B3`: handoff non-secret policy violation.
-4. `M9I-B4`: artifact publication failure.
+Blocker Codes (Taxonomy):
+1. `M9I-B1`: source snapshot missing/unreadable.
+2. `M9I-B2`: predicate evaluation incomplete/invalid (including run-scope mismatch).
+3. `M9I-B3`: blocker rollup non-empty.
+4. `M9I-B4`: verdict/handoff write or upload failure.
+5. `M9I-B5`: handoff payload non-secret policy violation.
+
+Required snapshot fields (`m9_i_verdict_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m9_execution_id`.
+2. `source_snapshot_refs` (map for `M9.A..M9.H` local + durable refs).
+3. `source_phase_matrix` (phase -> `overall_pass`, `blockers`, `phase_id`).
+4. `source_blocker_rollup`.
+5. `p12_predicates`.
+6. `verdict`.
+7. `blockers`, `overall_pass`, `elapsed_seconds`.
+
+Required handoff fields (`m10_handoff_pack.json`):
+1. `handoff_id`, `generated_at_utc`, `platform_run_id`.
+2. `m9_verdict`, `m9_overall_pass`, `m9_execution_id`.
+3. `source_verdict_snapshot_uri`.
+4. `phase_pass_matrix` (`M9.A..M9.H`).
+5. `required_evidence_refs`:
+   - run-control source snapshots for `M9.A..M9.G`,
+   - canonical teardown proof URI (`evidence/runs/<platform_run_id>/teardown/teardown_proof.json`),
+   - latest cross-platform cost guardrail snapshot URI.
+6. `m10_entry_gate`:
+   - `required_verdict=ADVANCE_TO_M10`,
+   - `required_overall_pass=true`.
+7. `non_secret_policy`:
+   - `pass=true|false`,
+   - `violations`.
 
 ## 6) M9 Runtime Budget Targets
 1. `M9.A` <= 10 minutes.

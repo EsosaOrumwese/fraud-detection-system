@@ -15994,3 +15994,91 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - blockers empty
    - `errors=[]` in guardrail snapshot (ELB AccessDenied removed).
 
+## Entry: 2026-02-19 19:09:31 +00:00 - Expanded M9.I plan to execution-grade closure contract
+### Problem framing
+1. `M9.I` remained high-level and was not yet closure-grade for deterministic execution.
+2. We need `M9.I` to be fail-closed and explicit before running verdict/handoff publication.
+
+### Planning decisions
+1. Pinned fixed source matrix order for rollup:
+   - `M9.A`, `M9.B`, `M9.C`, `M9.D`, `M9.E`, `M9.F`, `M9.G`, `M9.H`.
+2. Pinned run-scope validation posture:
+   - strict `platform_run_id` match required for run-id-carrying sources (`M9.A`, `M9.B`, `M9.C`, `M9.E`, `M9.F`, `M9.H`),
+   - `M9.D` and `M9.G` are still required pass sources but treated as non-run-id carriers.
+3. Pinned P12 predicate map:
+   - authority closed,
+   - teardown inventory frozen,
+   - confluent destroy verified,
+   - demo destroy verified,
+   - residuals clear,
+   - demo secret cleanup verified,
+   - cross-platform cost guardrail clear,
+   - teardown proof published.
+4. Pinned verdict rule:
+   - `ADVANCE_TO_M10` only when all predicates are true and source blocker rollup is empty,
+   - else `HOLD_M9`.
+5. Pinned non-secret handoff policy for `m10_handoff_pack.json`:
+   - refs/ids/verdict only,
+   - fail-closed on secret-bearing key/value patterns.
+6. Pinned `M9.I` artifact contract:
+   - `m9_i_verdict_snapshot.json` local + durable,
+   - `m10_handoff_pack.json` local + durable,
+   - explicit required fields for both artifacts.
+7. Extended blocker taxonomy to `M9I-B1..M9I-B5` with distinct causes for:
+   - source read/parse failure,
+   - predicate/run-scope invalidity,
+   - blocker rollup non-empty,
+   - write/upload failure,
+   - non-secret policy violations.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`:
+   - expanded `M9.I` section with entry conditions, required inputs, prechecks, deterministic algorithm, tasks, blocker taxonomy, and required fields.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - marked `M9.I` as execution-grade in M9 expansion state.
+
+### Outcome
+1. `M9.I` is now planning-complete and execution-ready.
+2. Next step is runtime execution of `M9.I` artifact publication and verdict closure.
+
+## Entry: 2026-02-19 19:11:24 +00:00 - M9.I execution preflight and normalization decisions
+### Preflight evidence validation
+1. Loaded all required source artifacts for `M9.I`:
+   - `M9.A`: `runs/dev_substrate/m9/m9_20260219T123856Z/m9_a_handle_handoff_snapshot.json`
+   - `M9.B`: `runs/dev_substrate/m9/m9_20260219T125838Z/m9_b_teardown_inventory_snapshot.json`
+   - `M9.C`: `runs/dev_substrate/m9/m9_20260219T131353Z/m9_c_confluent_destroy_snapshot.json`
+   - `M9.D`: `runs/dev_substrate/m9/m9_20260219T150604Z/m9_d_demo_destroy_snapshot.json`
+   - `M9.E`: `runs/dev_substrate/m9/m9_20260219T153208Z/m9_e_post_destroy_residual_snapshot.json`
+   - `M9.F`: `runs/dev_substrate/m9/m9_20260219T155120Z/m9_f_secret_cleanup_snapshot.json`
+   - `M9.G`: `runs/dev_substrate/m9/m9_20260219T185951Z/m9_g_cost_guardrail_snapshot.json`
+   - `M9.H`: `runs/dev_substrate/m9/m9_20260219T181800Z/teardown_proof.json`.
+2. Verified source pass posture:
+   - all have `overall_pass=true`,
+   - all have empty `blockers`.
+3. Verified run-scope-carrying sources match:
+   - `platform_run_id=platform_20260213T214223Z` across `M9.A`, `M9.B`, `M9.C`, `M9.E`, `M9.F`, `M9.H`.
+
+### Normalization and contract decisions
+1. Source schema variation exists for `M9.D`:
+   - contains `phase_owner`/`stack_target` but not canonical `phase`/`phase_id`.
+2. Execution decision:
+   - keep raw source untouched,
+   - normalize only in `M9.I` phase matrix by assigning deterministic phase labels:
+     - `M9.D` -> `phase=M9.D`, `phase_id=P12_DEMO_TEARDOWN`.
+3. Same normalization policy applies if a source omits `phase`/`phase_id`:
+   - local `M9.I` matrix carries canonical lane identity without mutating source evidence.
+
+### Verdict and handoff posture
+1. P12 predicates will be derived directly from `M9.A..H` `overall_pass`.
+2. Verdict target:
+   - `ADVANCE_TO_M10` only if predicate set is all true and blocker union remains empty.
+3. Handoff non-secret enforcement:
+   - scan full payload keys/values for secret-bearing patterns before publish.
+4. Artifact publish targets:
+   - local:
+     - `runs/dev_substrate/m9/<m9_execution_id>/m9_i_verdict_snapshot.json`
+     - `runs/dev_substrate/m9/<m9_execution_id>/m10_handoff_pack.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m9_execution_id>/m9_i_verdict_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m9_execution_id>/m10_handoff_pack.json`.
+

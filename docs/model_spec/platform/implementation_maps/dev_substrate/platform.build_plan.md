@@ -1141,6 +1141,7 @@ Active-phase planning posture:
     - `.github/workflows/dev_min_ecs_rightsizing_report.yml`
     - `.github/workflows/dev_min_m9g_cost_guardrail.yml`
   - note: these controls supersede historical M4 always-on singleton posture for current dev operations (default-off + explicit phase activation).
+  - `M9.I` is now expanded to execution-grade with deterministic source-matrix rollup (`M9.A..M9.H`), predicate-based verdict (`ADVANCE_TO_M10|HOLD_M9`), non-secret handoff policy, and local+durable artifact contract (`m9_i_verdict_snapshot.json`, `m10_handoff_pack.json`).
 
 Sub-phase progress:
   - [x] `M9.A` P12 authority + handoff closure.
