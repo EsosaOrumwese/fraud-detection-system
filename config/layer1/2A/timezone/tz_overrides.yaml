@@ -24,6 +24,12 @@
   expiry_yyyy_mm_dd: null
   notes: "S2 tz resolution fallback for SH when tz_world polygons miss jittered points."
 - scope: country
+  target: "FK"
+  tzid: "Atlantic/Stanley"
+  evidence_url: null
+  expiry_yyyy_mm_dd: null
+  notes: "S2 tz resolution fallback for FK when tz_world polygons miss jittered points."
+- scope: country
   target: "CN"
   tzid: "Asia/Shanghai"
   evidence_url: null

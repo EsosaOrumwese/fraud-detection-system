@@ -1,0 +1,603 @@
+name: dev-min-m9g-cost-guardrail
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region used for budget/cost/resource checks"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      evidence_bucket:
+        description: "Durable evidence bucket"
+        required: true
+        default: "fraud-platform-dev-min-evidence"
+        type: string
+      evidence_prefix:
+        description: "Evidence key prefix"
+        required: true
+        default: "evidence/dev_min/run_control"
+        type: string
+      m9_execution_id:
+        description: "Optional fixed M9 execution id (default: m9_<timestamp>)"
+        required: false
+        default: ""
+        type: string
+      dispatch_confluent_billing:
+        description: "Dispatch managed Confluent billing workflow for same m9_execution_id"
+        required: true
+        default: true
+        type: boolean
+      confluent_billing_workflow_file:
+        description: "Workflow file for managed Confluent billing lane"
+        required: true
+        default: "dev_min_m9g_confluent_billing.yml"
+        type: string
+      confluent_snapshot_timeout_minutes:
+        description: "Max wait (minutes) for Confluent billing snapshot object"
+        required: true
+        default: "20"
+        type: string
+      aws_budget_name:
+        description: "AWS budget name"
+        required: true
+        default: "fraud-platform-dev-min-budget"
+        type: string
+      aws_budget_limit_amount:
+        description: "AWS budget limit amount"
+        required: true
+        default: "30"
+        type: string
+      aws_budget_limit_unit:
+        description: "AWS budget limit unit"
+        required: true
+        default: "USD"
+        type: string
+      aws_budget_alert_1_amount:
+        description: "AWS budget alert level 1 amount"
+        required: true
+        default: "10"
+        type: string
+      aws_budget_alert_2_amount:
+        description: "AWS budget alert level 2 amount"
+        required: true
+        default: "20"
+        type: string
+      aws_budget_alert_3_amount:
+        description: "AWS budget alert level 3 amount"
+        required: true
+        default: "28"
+        type: string
+      total_monthly_budget_limit_amount:
+        description: "Combined AWS+Confluent monthly budget limit amount"
+        required: true
+        default: "30"
+        type: string
+      total_monthly_budget_limit_unit:
+        description: "Combined budget unit"
+        required: true
+        default: "USD"
+        type: string
+      total_budget_alert_3_amount:
+        description: "Combined critical alert amount"
+        required: true
+        default: "28"
+        type: string
+      ecs_cluster_name:
+        description: "ECS cluster name for footgun check"
+        required: true
+        default: "fraud-platform-dev-min"
+        type: string
+      service_name_prefix:
+        description: "Service name prefix for resource scope"
+        required: true
+        default: "fraud-platform-dev-min"
+        type: string
+      rds_instance_id:
+        description: "Runtime DB instance id for footgun check"
+        required: true
+        default: "fraud-platform-dev-min-db"
+        type: string
+      cloudwatch_log_group_prefix:
+        description: "CloudWatch log-group prefix for retention drift checks"
+        required: true
+        default: "/fraud-platform/dev_min"
+        type: string
+      log_retention_days:
+        description: "Max allowed retention in days for dev log groups"
+        required: true
+        default: "7"
+        type: string
+      upload_evidence_to_s3:
+        description: "Upload M9.G snapshot JSON to S3"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  actions: write
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-min-m9g-cost-guardrail-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  m9g_guardrail:
+    name: Capture and enforce M9.G cross-platform cost guardrail
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m9_execution_id }}" ]]; then
+            M9_EXECUTION_ID="${{ inputs.m9_execution_id }}"
+          else
+            M9_EXECUTION_ID="m9_${TS}"
+          fi
+
+          OUTPUT_DIR="runs/dev_substrate/m9/${TS}"
+          OUTPUT_PATH="${OUTPUT_DIR}/m9_g_cost_guardrail_snapshot.json"
+          CONFLUENT_S3_URI="s3://${{ inputs.evidence_bucket }}/${{ inputs.evidence_prefix }}/${M9_EXECUTION_ID}/confluent_billing_snapshot.json"
+          SNAPSHOT_S3_URI="s3://${{ inputs.evidence_bucket }}/${{ inputs.evidence_prefix }}/${M9_EXECUTION_ID}/m9_g_cost_guardrail_snapshot.json"
+          mkdir -p "${OUTPUT_DIR}"
+
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m9_execution_id=${M9_EXECUTION_ID}" >> "$GITHUB_OUTPUT"
+          echo "output_path=${OUTPUT_PATH}" >> "$GITHUB_OUTPUT"
+          echo "confluent_snapshot_s3_uri=${CONFLUENT_S3_URI}" >> "$GITHUB_OUTPUT"
+          echo "snapshot_s3_uri=${SNAPSHOT_S3_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Optionally dispatch managed Confluent billing workflow
+        if: ${{ inputs.dispatch_confluent_billing }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WORKFLOW_FILE: ${{ inputs.confluent_billing_workflow_file }}
+          M9_EXECUTION_ID: ${{ steps.run_meta.outputs.m9_execution_id }}
+          AWS_REGION_INPUT: ${{ inputs.aws_region }}
+          AWS_ROLE_TO_ASSUME_INPUT: ${{ inputs.aws_role_to_assume }}
+          EVIDENCE_BUCKET_INPUT: ${{ inputs.evidence_bucket }}
+          EVIDENCE_PREFIX_INPUT: ${{ inputs.evidence_prefix }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          workflow_file = os.environ["WORKFLOW_FILE"]
+          payload = {
+            "ref": os.environ.get("GITHUB_REF_NAME", ""),
+            "inputs": {
+              "aws_region": os.environ["AWS_REGION_INPUT"],
+              "aws_role_to_assume": os.environ["AWS_ROLE_TO_ASSUME_INPUT"],
+              "evidence_bucket": os.environ["EVIDENCE_BUCKET_INPUT"],
+              "evidence_prefix": os.environ["EVIDENCE_PREFIX_INPUT"],
+              "m9_execution_id": os.environ["M9_EXECUTION_ID"],
+              "upload_evidence_to_s3": "true",
+            },
+          }
+          url = (
+            f"{os.environ.get('GITHUB_API_URL', 'https://api.github.com')}"
+            f"/repos/{os.environ['GITHUB_REPOSITORY']}/actions/workflows/{workflow_file}/dispatches"
+          )
+          req = urllib.request.Request(
+            url,
+            method="POST",
+            headers={
+              "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+              "Accept": "application/vnd.github+json",
+              "Content-Type": "application/json",
+            },
+            data=json.dumps(payload).encode("utf-8"),
+          )
+          with urllib.request.urlopen(req, timeout=30):
+            pass
+          PY
+
+      - name: Wait for Confluent billing snapshot object
+        id: wait_confluent
+        shell: bash
+        env:
+          CONFLUENT_S3_URI: ${{ steps.run_meta.outputs.confluent_snapshot_s3_uri }}
+          TIMEOUT_MINUTES: ${{ inputs.confluent_snapshot_timeout_minutes }}
+        run: |
+          set -euo pipefail
+          TIMEOUT_SEC=$(( TIMEOUT_MINUTES * 60 ))
+          INTERVAL_SEC=20
+          ELAPSED=0
+          while true; do
+            if aws s3 ls "${CONFLUENT_S3_URI}" >/dev/null 2>&1; then
+              echo "found=true" >> "$GITHUB_OUTPUT"
+              break
+            fi
+            if [[ "${ELAPSED}" -ge "${TIMEOUT_SEC}" ]]; then
+              echo "found=false" >> "$GITHUB_OUTPUT"
+              break
+            fi
+            sleep "${INTERVAL_SEC}"
+            ELAPSED=$(( ELAPSED + INTERVAL_SEC ))
+          done
+
+      - name: Build M9.G cross-platform snapshot
+        id: m9g
+        shell: bash
+        env:
+          SNAPSHOT_PATH: ${{ steps.run_meta.outputs.output_path }}
+          M9_EXECUTION_ID: ${{ steps.run_meta.outputs.m9_execution_id }}
+          CONFLUENT_S3_URI: ${{ steps.run_meta.outputs.confluent_snapshot_s3_uri }}
+          SNAPSHOT_S3_URI: ${{ steps.run_meta.outputs.snapshot_s3_uri }}
+          CONFLUENT_FOUND: ${{ steps.wait_confluent.outputs.found }}
+          AWS_BUDGET_NAME: ${{ inputs.aws_budget_name }}
+          AWS_BUDGET_LIMIT_AMOUNT: ${{ inputs.aws_budget_limit_amount }}
+          AWS_BUDGET_LIMIT_UNIT: ${{ inputs.aws_budget_limit_unit }}
+          AWS_BUDGET_ALERT_1_AMOUNT: ${{ inputs.aws_budget_alert_1_amount }}
+          AWS_BUDGET_ALERT_2_AMOUNT: ${{ inputs.aws_budget_alert_2_amount }}
+          AWS_BUDGET_ALERT_3_AMOUNT: ${{ inputs.aws_budget_alert_3_amount }}
+          TOTAL_MONTHLY_BUDGET_LIMIT_AMOUNT: ${{ inputs.total_monthly_budget_limit_amount }}
+          TOTAL_MONTHLY_BUDGET_LIMIT_UNIT: ${{ inputs.total_monthly_budget_limit_unit }}
+          TOTAL_BUDGET_ALERT_3_AMOUNT: ${{ inputs.total_budget_alert_3_amount }}
+          ECS_CLUSTER_NAME: ${{ inputs.ecs_cluster_name }}
+          SERVICE_NAME_PREFIX: ${{ inputs.service_name_prefix }}
+          RDS_INSTANCE_ID: ${{ inputs.rds_instance_id }}
+          CLOUDWATCH_LOG_GROUP_PREFIX: ${{ inputs.cloudwatch_log_group_prefix }}
+          LOG_RETENTION_DAYS: ${{ inputs.log_retention_days }}
+          COST_CAPTURE_SCOPE: aws_plus_confluent_cloud
+          COST_CAPTURE_ENFORCEMENT_MODE: fail_closed
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from datetime import UTC, datetime, timedelta
+          from decimal import Decimal
+
+          def aws_json(args):
+            cmd = ["aws"] + args + ["--output", "json"]
+            proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            return json.loads(proc.stdout) if proc.stdout.strip() else {}
+
+          def safe_aws_json(args):
+            cmd = ["aws"] + args + ["--output", "json"]
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            if proc.returncode != 0:
+              return None, proc.stderr.strip()
+            return (json.loads(proc.stdout) if proc.stdout.strip() else {}), ""
+
+          def as_decimal(v):
+            return Decimal(str(v))
+
+          now = datetime.now(UTC)
+          today = now.date()
+          month_start = today.replace(day=1).isoformat()
+          tomorrow = (today + timedelta(days=1)).isoformat()
+
+          blockers = []
+          errors = []
+          notes = []
+
+          account = aws_json(["sts", "get-caller-identity"]).get("Account", "")
+          if not account:
+            blockers.append("M9G-B1")
+            errors.append({"surface": "sts", "error": "missing account id"})
+
+          budget_name = os.environ["AWS_BUDGET_NAME"]
+          budget_limit_expected = Decimal(os.environ["AWS_BUDGET_LIMIT_AMOUNT"])
+          budget_unit_expected = os.environ["AWS_BUDGET_LIMIT_UNIT"]
+          alert_1 = Decimal(os.environ["AWS_BUDGET_ALERT_1_AMOUNT"])
+          alert_2 = Decimal(os.environ["AWS_BUDGET_ALERT_2_AMOUNT"])
+          alert_3 = Decimal(os.environ["AWS_BUDGET_ALERT_3_AMOUNT"])
+
+          total_limit = Decimal(os.environ["TOTAL_MONTHLY_BUDGET_LIMIT_AMOUNT"])
+          total_limit_unit = os.environ["TOTAL_MONTHLY_BUDGET_LIMIT_UNIT"]
+          total_alert_3 = Decimal(os.environ["TOTAL_BUDGET_ALERT_3_AMOUNT"])
+
+          budget_payload, budget_err = safe_aws_json([
+            "budgets", "describe-budget",
+            "--account-id", account if account else "000000000000",
+            "--budget-name", budget_name,
+          ])
+          notifications_payload, notif_err = safe_aws_json([
+            "budgets", "describe-notifications-for-budget",
+            "--account-id", account if account else "000000000000",
+            "--budget-name", budget_name,
+          ])
+
+          threshold_match_pass = False
+          notification_thresholds = []
+          budget_limit_actual = None
+          budget_limit_unit_actual = None
+
+          if budget_err:
+            blockers.append("M9G-B1")
+            errors.append({"surface": "budgets.describe-budget", "error": budget_err})
+          else:
+            budget_obj = budget_payload.get("Budget", {})
+            budget_limit_actual = Decimal(str(budget_obj.get("BudgetLimit", {}).get("Amount", "0")))
+            budget_limit_unit_actual = str(budget_obj.get("BudgetLimit", {}).get("Unit", ""))
+            if budget_limit_actual != budget_limit_expected or budget_limit_unit_actual != budget_unit_expected:
+              blockers.append("M9G-B1")
+
+          if notif_err:
+            blockers.append("M9G-B2")
+            errors.append({"surface": "budgets.describe-notifications-for-budget", "error": notif_err})
+          else:
+            notifications = notifications_payload.get("Notifications", [])
+            for n in notifications:
+              try:
+                notification_thresholds.append(Decimal(str(n.get("Threshold"))))
+              except Exception:
+                pass
+            expected = {alert_1, alert_2, alert_3}
+            actual = set(notification_thresholds)
+            threshold_match_pass = expected.issubset(actual)
+            if not threshold_match_pass:
+              blockers.append("M9G-B2")
+
+          ce_payload, ce_err = safe_aws_json([
+            "ce", "get-cost-and-usage",
+            "--time-period", f"Start={month_start},End={tomorrow}",
+            "--granularity", "MONTHLY",
+            "--metrics", "UnblendedCost",
+          ])
+          aws_mtd_cost = None
+          if ce_err:
+            blockers.append("M9G-B1")
+            errors.append({"surface": "ce.get-cost-and-usage", "error": ce_err})
+          else:
+            try:
+              aws_mtd_cost = Decimal(
+                str(
+                  ce_payload["ResultsByTime"][0]["Total"]["UnblendedCost"]["Amount"]
+                )
+              )
+            except Exception as exc:
+              blockers.append("M9G-B1")
+              errors.append({"surface": "ce.parse", "error": str(exc)})
+
+          confluent_snapshot_local = "/tmp/confluent_billing_snapshot.json"
+          confluent_mtd_cost = None
+          confluent_currency = None
+          confluent_period_start = None
+          confluent_period_end = None
+          confluent_workflow_file = None
+          confluent_workflow_run_id = None
+
+          if os.environ.get("CONFLUENT_FOUND", "false") != "true":
+            blockers.append("M9G-B8")
+            errors.append({"surface": "confluent.snapshot", "error": "snapshot object not found before timeout"})
+          else:
+            cp_proc = subprocess.run(
+              ["aws", "s3", "cp", os.environ["CONFLUENT_S3_URI"], confluent_snapshot_local],
+              capture_output=True,
+              text=True,
+            )
+            if cp_proc.returncode != 0:
+              blockers.append("M9G-B8")
+              errors.append({"surface": "confluent.snapshot.download", "error": cp_proc.stderr.strip()})
+            else:
+              try:
+                confluent_payload = json.loads(open(confluent_snapshot_local, "r", encoding="utf-8").read())
+                if not confluent_payload.get("overall_pass", False):
+                  blockers.append("M9G-B8")
+                amt = confluent_payload.get("confluent_mtd_cost_amount")
+                if amt is None:
+                  blockers.append("M9G-B8")
+                else:
+                  confluent_mtd_cost = Decimal(str(amt))
+                confluent_currency = confluent_payload.get("billing_currency")
+                q = confluent_payload.get("query_window", {})
+                confluent_period_start = q.get("start_date")
+                confluent_period_end = q.get("end_date")
+                confluent_workflow_file = confluent_payload.get("workflow_file")
+                confluent_workflow_run_id = confluent_payload.get("workflow_run_id")
+              except Exception as exc:
+                blockers.append("M9G-B8")
+                errors.append({"surface": "confluent.snapshot.parse", "error": str(exc)})
+
+          nat_payload, nat_err = safe_aws_json(["ec2", "describe-nat-gateways"])
+          nat_non_deleted_count = 0
+          if nat_err:
+            errors.append({"surface": "ec2.describe-nat-gateways", "error": nat_err})
+          else:
+            for ngw in nat_payload.get("NatGateways", []):
+              if ngw.get("State") != "deleted":
+                nat_non_deleted_count += 1
+
+          lb_payload, lb_err = safe_aws_json(["elbv2", "describe-load-balancers"])
+          lb_demo_scoped_residual_count = 0
+          if lb_err:
+            errors.append({"surface": "elbv2.describe-load-balancers", "error": lb_err})
+          else:
+            prefix = os.environ["SERVICE_NAME_PREFIX"]
+            for lb in lb_payload.get("LoadBalancers", []):
+              if prefix in (lb.get("LoadBalancerName") or ""):
+                lb_demo_scoped_residual_count += 1
+
+          ecs_payload, ecs_err = safe_aws_json(["ecs", "list-services", "--cluster", os.environ["ECS_CLUSTER_NAME"]])
+          ecs_desired_gt_zero_count = 0
+          if ecs_err:
+            errors.append({"surface": "ecs.list-services", "error": ecs_err})
+          else:
+            arns = ecs_payload.get("serviceArns", [])
+            for i in range(0, len(arns), 10):
+              chunk = arns[i : i + 10]
+              d_payload, d_err = safe_aws_json(["ecs", "describe-services", "--cluster", os.environ["ECS_CLUSTER_NAME"], "--services", *chunk])
+              if d_err:
+                errors.append({"surface": "ecs.describe-services", "error": d_err})
+                continue
+              for svc in d_payload.get("services", []):
+                if int(svc.get("desiredCount", 0)) > 0:
+                  ecs_desired_gt_zero_count += 1
+
+          rds_state = "not_found"
+          rds_payload, rds_err = safe_aws_json(["rds", "describe-db-instances", "--db-instance-identifier", os.environ["RDS_INSTANCE_ID"]])
+          if rds_err:
+            if "DBInstanceNotFound" not in rds_err:
+              errors.append({"surface": "rds.describe-db-instances", "error": rds_err})
+          else:
+            dbs = rds_payload.get("DBInstances", [])
+            if dbs:
+              rds_state = dbs[0].get("DBInstanceStatus", "unknown")
+
+          logs_payload, logs_err = safe_aws_json(["logs", "describe-log-groups", "--log-group-name-prefix", os.environ["CLOUDWATCH_LOG_GROUP_PREFIX"]])
+          log_retention_drift_count = 0
+          if logs_err:
+            errors.append({"surface": "logs.describe-log-groups", "error": logs_err})
+          else:
+            limit = int(os.environ["LOG_RETENTION_DAYS"])
+            for lg in logs_payload.get("logGroups", []):
+              retention = lg.get("retentionInDays")
+              if retention is None or int(retention) > limit:
+                log_retention_drift_count += 1
+
+          if nat_non_deleted_count > 0 or lb_demo_scoped_residual_count > 0 or ecs_desired_gt_zero_count > 0 or rds_state != "not_found":
+            blockers.append("M9G-B4")
+          if log_retention_drift_count > 0:
+            blockers.append("M9G-B5")
+
+          combined_mtd_cost = None
+          combined_utilization_pct = None
+          if aws_mtd_cost is not None and confluent_mtd_cost is not None:
+            combined_mtd_cost = aws_mtd_cost + confluent_mtd_cost
+            combined_utilization_pct = (combined_mtd_cost / total_limit) * Decimal("100")
+            if combined_mtd_cost >= total_alert_3:
+              blockers.append("M9G-B9")
+          elif "M9G-B8" not in blockers:
+            blockers.append("M9G-B8")
+
+          if aws_mtd_cost is not None and aws_mtd_cost >= alert_3:
+            blockers.append("M9G-B3")
+
+          if os.environ.get("COST_CAPTURE_SCOPE") != "aws_plus_confluent_cloud":
+            blockers.append("M9G-B8")
+            notes.append("COST_CAPTURE_SCOPE mismatch")
+          if os.environ.get("COST_CAPTURE_ENFORCEMENT_MODE") != "fail_closed":
+            blockers.append("M9G-B8")
+            notes.append("COST_CAPTURE_ENFORCEMENT_MODE mismatch")
+
+          overall_pass = len(set(blockers)) == 0
+          snapshot = {
+            "phase": "M9",
+            "phase_id": "P12",
+            "lane": "M9.G.cross_platform_cost_guardrail_managed",
+            "m9_execution_id": os.environ["M9_EXECUTION_ID"],
+            "captured_at_utc": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "cost_capture_scope": os.environ.get("COST_CAPTURE_SCOPE"),
+            "cost_capture_enforcement_mode": os.environ.get("COST_CAPTURE_ENFORCEMENT_MODE"),
+            "budget_posture": {
+              "budget_name": budget_name,
+              "limit_amount_expected": str(budget_limit_expected),
+              "limit_amount_actual": str(budget_limit_actual) if budget_limit_actual is not None else None,
+              "limit_unit_expected": budget_unit_expected,
+              "limit_unit_actual": budget_limit_unit_actual,
+              "notification_thresholds": [str(x) for x in sorted(set(notification_thresholds))],
+              "threshold_match_pass": threshold_match_pass,
+            },
+            "mtd_cost_posture": {
+              "aws_mtd_cost_amount": str(aws_mtd_cost) if aws_mtd_cost is not None else None,
+              "critical_threshold_amount": str(alert_3),
+              "utilization_pct": (
+                str((aws_mtd_cost / budget_limit_expected) * Decimal("100"))
+                if aws_mtd_cost is not None else None
+              ),
+            },
+            "confluent_mtd_cost_posture": {
+              "confluent_mtd_cost_amount": str(confluent_mtd_cost) if confluent_mtd_cost is not None else None,
+              "billing_currency": confluent_currency,
+              "billing_period_start": confluent_period_start,
+              "billing_period_end": confluent_period_end,
+              "source_snapshot_uri": os.environ["CONFLUENT_S3_URI"],
+              "source_workflow_file": confluent_workflow_file,
+              "source_workflow_run_id": confluent_workflow_run_id,
+            },
+            "combined_mtd_cost_posture": {
+              "scope": "aws_plus_confluent_cloud",
+              "combined_mtd_cost_amount": str(combined_mtd_cost) if combined_mtd_cost is not None else None,
+              "combined_budget_limit_amount": str(total_limit),
+              "combined_budget_limit_unit": total_limit_unit,
+              "combined_budget_utilization_pct": str(combined_utilization_pct) if combined_utilization_pct is not None else None,
+              "combined_critical_threshold_amount": str(total_alert_3),
+            },
+            "post_teardown_cost_footguns": {
+              "nat_non_deleted_count": nat_non_deleted_count,
+              "lb_demo_scoped_residual_count": lb_demo_scoped_residual_count,
+              "ecs_desired_gt_zero_count": ecs_desired_gt_zero_count,
+              "runtime_db_state": rds_state,
+              "log_retention_drift_count": log_retention_drift_count,
+            },
+            "evidence_s3_uri": os.environ["SNAPSHOT_S3_URI"],
+            "errors": errors,
+            "notes": notes,
+            "blockers": sorted(set(blockers)),
+            "overall_pass": overall_pass,
+          }
+
+          out = os.environ["SNAPSHOT_PATH"]
+          os.makedirs(os.path.dirname(out), exist_ok=True)
+          with open(out, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, indent=2)
+            f.write("\n")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+            f.write(f"overall_pass={'true' if overall_pass else 'false'}\n")
+          PY
+
+      - name: Upload M9.G snapshot to S3
+        if: ${{ inputs.upload_evidence_to_s3 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 cp \
+            "${{ steps.run_meta.outputs.output_path }}" \
+            "${{ steps.run_meta.outputs.snapshot_s3_uri }}" \
+            --region "${{ inputs.aws_region }}"
+
+      - name: Upload workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-min-m9g-cost-guardrail-${{ steps.run_meta.outputs.timestamp }}
+          path: ${{ steps.run_meta.outputs.output_path }}
+          if-no-files-found: error
+
+      - name: Enforce fail-closed verdict
+        if: ${{ steps.m9g.outputs.overall_pass != 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "M9.G cross-platform cost guardrail failed closed. See snapshot artifact."
+          exit 1

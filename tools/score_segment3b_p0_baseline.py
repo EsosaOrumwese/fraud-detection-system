@@ -686,11 +686,11 @@ def main() -> None:
         "phase": "P0",
         "generated_utc": _utc_now(),
         "overall_verdict": overall_verdict,
-        "baseline_lock_path": str((out_dir / "segment3b_p0_baseline_lock.json").replace("\\", "/")),
-        "scorer_contract_path": str((out_dir / "segment3b_p0_scorer_contract_v1.json").replace("\\", "/")),
-        "cross_seed_summary_path": str((out_dir / "3B_validation_cross_seed_summary.json").replace("\\", "/")),
+        "baseline_lock_path": str(out_dir / "segment3b_p0_baseline_lock.json").replace("\\", "/"),
+        "scorer_contract_path": str(out_dir / "segment3b_p0_scorer_contract_v1.json").replace("\\", "/"),
+        "cross_seed_summary_path": str(out_dir / "3B_validation_cross_seed_summary.json").replace("\\", "/"),
         "seed_metric_paths": {
-            str(seed): str((out_dir / f"3B_validation_metrics_seed_{seed}.json").replace("\\", "/"))
+            str(seed): str(out_dir / f"3B_validation_metrics_seed_{seed}.json").replace("\\", "/")
             for seed in required_seeds
         },
         "p1_entry_targets": {

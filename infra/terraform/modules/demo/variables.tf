@@ -77,6 +77,16 @@ variable "ecs_daemon_task_memory" {
   default = "512"
 }
 
+variable "ecs_daemon_service_desired_count_default" {
+  type    = number
+  default = 0
+
+  validation {
+    condition     = var.ecs_daemon_service_desired_count_default >= 0
+    error_message = "ecs_daemon_service_desired_count_default must be >= 0."
+  }
+}
+
 variable "required_platform_run_id_env_key" {
   type    = string
   default = "REQUIRED_PLATFORM_RUN_ID"

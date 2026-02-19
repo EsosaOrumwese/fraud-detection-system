@@ -1135,6 +1135,12 @@ Active-phase planning posture:
   - `M9.G` was executed AWS-only; scope uplift reopens `M9.G` until Confluent billing is included.
   - managed Confluent billing lane is implemented in `.github/workflows/dev_min_m9g_confluent_billing.yml`.
   - cost-optimization posture is pinned in `platform.M9.build_plan.md` (phase-aware start/stop, `RunTask` conversion, TTL teardown, right-sizing, mandatory cross-platform gate).
+  - managed optimization lanes are now implemented:
+    - `.github/workflows/dev_min_ecs_phase_profile.yml`
+    - `.github/workflows/dev_min_idle_teardown_guard.yml`
+    - `.github/workflows/dev_min_ecs_rightsizing_report.yml`
+    - `.github/workflows/dev_min_m9g_cost_guardrail.yml`
+  - note: these controls supersede historical M4 always-on singleton posture for current dev operations (default-off + explicit phase activation).
 
 Sub-phase progress:
   - [x] `M9.A` P12 authority + handoff closure.
@@ -1413,8 +1419,8 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M9 is active for deep-plan closure and execution sequencing.
 Next action:
-- dispatch managed Confluent billing workflow (`.github/workflows/dev_min_m9g_confluent_billing.yml`) for current `m9_execution_id`,
-- rerun reopened `M9.G` cross-platform cost-guardrail snapshot using managed Confluent billing evidence + `M9.F` closure evidence,
+- run managed M9.G guardrail workflow (`.github/workflows/dev_min_m9g_cost_guardrail.yml`) for current `m9_execution_id`,
+- keep `dispatch_confluent_billing=true` so Confluent evidence is captured in the same lane before rollup,
 - preserve fail-closed posture:
   - do not execute `M9.H` teardown-proof assembly until reopened `M9.G` cross-platform snapshot is captured and blocker-free.
 

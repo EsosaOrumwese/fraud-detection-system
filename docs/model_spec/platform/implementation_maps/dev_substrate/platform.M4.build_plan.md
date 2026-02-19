@@ -30,6 +30,10 @@ In scope:
    - `obs_gov` (environment conformance daemon only; reporter remains P11 task)
 2. Run-scope enforcement (`REQUIRED_PLATFORM_RUN_ID`) for all in-scope daemons.
 3. Deterministic singleton policy (1 replica per daemon/service for v0).
+   - Historical M4 closure posture.
+   - Superseded for current operations by M9 cost-optimization control:
+     - Terraform daemon default `desired_count=0`,
+     - explicit phase-profile start/stop workflow controls desired/running state.
 4. Dependency readiness checks (Kafka/S3/DB/logging reachability) and crashloop detection.
 5. Duplicate-consumer guard and no-parallel once-off consumer discipline.
 6. Durable readiness evidence publication and M5 handoff package.

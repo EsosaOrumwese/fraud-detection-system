@@ -972,6 +972,10 @@ DoD:
 - [ ] Confluent Cloud MTD billing is captured in the lane.
 - [ ] Combined AWS+Confluent MTD posture is computed and in-policy.
 - [ ] Cross-platform snapshot exists locally and durably.
+- [x] Step-1 implementation lane exists (phase-aware ECS profile control + desired-count default-off).
+- [x] Step-2 implementation lane exists (idle auto-teardown guard).
+- [x] Step-3 implementation lane exists (p95 right-sizing recommendation lane).
+- [x] Step-4 implementation lane exists (managed cross-platform M9.G guardrail workflow).
 
 Pinned cost-optimization posture for dev substrate (execution navigation anchor):
 1. Default all ECS services to `desired_count=0`; only start lane-specific services for the current phase.
@@ -988,6 +992,34 @@ Recommended implementation order:
 2. Idle auto-teardown guard.
 3. ECS task-definition right-sizing.
 4. Keep `M9.G` cross-platform billing gate mandatory.
+
+Implementation status (2026-02-19):
+1. Step 1 implemented:
+   - Terraform default daemon posture now pins `desired_count=0` via `ecs_daemon_service_desired_count_default`.
+   - Managed profile workflow implemented:
+     - `.github/workflows/dev_min_ecs_phase_profile.yml`
+   - Profile workflow emits fail-closed `ecs_phase_profile_snapshot.json` with run-tag attribution (`fp_run_id`, `fp_phase_profile`).
+2. Step 2 implemented:
+   - Managed idle guard workflow implemented:
+     - `.github/workflows/dev_min_idle_teardown_guard.yml`
+   - Supports explicit enforcement modes:
+     - `observe_only`
+     - `stop_services`
+     - `destroy_demo_stack` (dispatches unified teardown workflow when run-scope is resolvable)
+   - Emits fail-closed `idle_teardown_guard_snapshot.json`.
+3. Step 3 implemented:
+   - Managed right-sizing workflow implemented:
+     - `.github/workflows/dev_min_ecs_rightsizing_report.yml`
+   - Computes p95 CPU/memory posture from CloudWatch (`AWS/ECS`) and emits recommendation snapshot:
+     - `ecs_rightsizing_snapshot.json`.
+4. Step 4 implemented:
+   - Managed cross-platform M9.G workflow implemented:
+     - `.github/workflows/dev_min_m9g_cost_guardrail.yml`
+   - Enforces fail-closed budget/footgun checks and combined AWS+Confluent rollup using managed Confluent billing evidence.
+   - Emits canonical `m9_g_cost_guardrail_snapshot.json`.
+5. Closure state:
+   - implementation lanes are materialized;
+   - authoritative cross-platform rerun is still required to close `M9.G` blocker-free.
 
 Planning status:
 1. `M9.G` is now execution-grade (entry/precheck/live-budget-live-cost/footgun-check/snapshot contract pinned).

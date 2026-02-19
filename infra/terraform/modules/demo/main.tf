@@ -1447,7 +1447,7 @@ resource "aws_ecs_service" "daemon" {
   name            = each.value.service_name
   cluster         = aws_ecs_cluster.demo.id
   task_definition = aws_ecs_task_definition.daemon[each.key].arn
-  desired_count   = 1
+  desired_count   = var.ecs_daemon_service_desired_count_default
   launch_type     = "FARGATE"
 
   deployment_maximum_percent         = 100

@@ -1,0 +1,395 @@
+name: dev-min-ecs-phase-profile
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region for ECS and evidence operations"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      ecs_cluster_name:
+        description: "ECS cluster name"
+        required: true
+        default: "fraud-platform-dev-min"
+        type: string
+      service_name_prefix:
+        description: "Service name prefix"
+        required: true
+        default: "fraud-platform-dev-min"
+        type: string
+      profile:
+        description: "Phase-aware service profile"
+        required: true
+        default: "m6_control_ingress"
+        type: choice
+        options:
+          - m6_control_ingress
+          - m7_p8_rtdl_core
+          - m7_p9_decision_lane
+          - m7_p10_case_labels
+          - m8_obs_gov
+          - all_spine_daemons
+          - custom
+      action:
+        description: "Profile action"
+        required: true
+        default: "status"
+        type: choice
+        options:
+          - start
+          - stop
+          - status
+      start_desired_count:
+        description: "Desired count to set when action=start"
+        required: true
+        default: "1"
+        type: string
+      custom_service_names_csv:
+        description: "Comma-separated explicit service names (used when profile=custom)"
+        required: false
+        default: ""
+        type: string
+      platform_run_id:
+        description: "Optional run id for service tagging/cost attribution"
+        required: false
+        default: ""
+        type: string
+      heartbeat_param_path:
+        description: "SSM parameter path for operator heartbeat"
+        required: true
+        default: "/fraud-platform/dev_min/demo/manual/heartbeat"
+        type: string
+      update_heartbeat:
+        description: "Update heartbeat parameter after action"
+        required: true
+        default: true
+        type: boolean
+      evidence_bucket:
+        description: "Durable evidence bucket"
+        required: true
+        default: "fraud-platform-dev-min-evidence"
+        type: string
+      evidence_prefix:
+        description: "Evidence key prefix"
+        required: true
+        default: "evidence/dev_min/run_control"
+        type: string
+      upload_evidence_to_s3:
+        description: "Upload snapshot JSON to S3"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-min-ecs-phase-profile-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  apply_profile:
+    name: Apply ECS phase-aware service profile
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          EXECUTION_ID="ecs_profile_${TS}"
+          OUTPUT_DIR="runs/dev_substrate/m9/${TS}"
+          OUTPUT_PATH="${OUTPUT_DIR}/ecs_phase_profile_snapshot.json"
+          S3_URI="s3://${{ inputs.evidence_bucket }}/${{ inputs.evidence_prefix }}/${EXECUTION_ID}/ecs_phase_profile_snapshot.json"
+          mkdir -p "${OUTPUT_DIR}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "execution_id=${EXECUTION_ID}" >> "$GITHUB_OUTPUT"
+          echo "output_path=${OUTPUT_PATH}" >> "$GITHUB_OUTPUT"
+          echo "evidence_s3_uri=${S3_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Apply profile action and capture snapshot
+        id: apply_profile
+        shell: bash
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          ECS_CLUSTER_NAME: ${{ inputs.ecs_cluster_name }}
+          SERVICE_NAME_PREFIX: ${{ inputs.service_name_prefix }}
+          PROFILE: ${{ inputs.profile }}
+          ACTION: ${{ inputs.action }}
+          START_DESIRED_COUNT: ${{ inputs.start_desired_count }}
+          CUSTOM_SERVICE_NAMES_CSV: ${{ inputs.custom_service_names_csv }}
+          PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          HEARTBEAT_PARAM_PATH: ${{ inputs.heartbeat_param_path }}
+          UPDATE_HEARTBEAT: ${{ inputs.update_heartbeat }}
+          SNAPSHOT_PATH: ${{ steps.run_meta.outputs.output_path }}
+          EXECUTION_ID: ${{ steps.run_meta.outputs.execution_id }}
+          EVIDENCE_S3_URI: ${{ steps.run_meta.outputs.evidence_s3_uri }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from datetime import UTC, datetime
+
+          profile = os.environ["PROFILE"].strip()
+          action = os.environ["ACTION"].strip()
+          cluster = os.environ["ECS_CLUSTER_NAME"].strip()
+          prefix = os.environ["SERVICE_NAME_PREFIX"].strip()
+          custom_csv = os.environ.get("CUSTOM_SERVICE_NAMES_CSV", "").strip()
+          platform_run_id = os.environ.get("PLATFORM_RUN_ID", "").strip()
+          heartbeat_path = os.environ.get("HEARTBEAT_PARAM_PATH", "").strip()
+          update_heartbeat = os.environ.get("UPDATE_HEARTBEAT", "true").lower() == "true"
+          start_desired_raw = os.environ.get("START_DESIRED_COUNT", "1").strip()
+
+          now = datetime.now(UTC)
+          blockers: list[str] = []
+          mutations: list[dict] = []
+          tag_results: list[dict] = []
+          heartbeat_result = {"attempted": False, "status": "skipped", "error": ""}
+
+          if action not in {"start", "stop", "status"}:
+            blockers.append("INVALID_ACTION")
+          if profile == "custom" and not custom_csv:
+            blockers.append("CUSTOM_PROFILE_EMPTY")
+
+          try:
+            start_desired = int(start_desired_raw)
+          except ValueError:
+            start_desired = -1
+          if action == "start" and start_desired < 1:
+            blockers.append("INVALID_START_DESIRED_COUNT")
+
+          profile_suffixes = {
+            "m6_control_ingress": ["ig"],
+            "m7_p8_rtdl_core": ["rtdl-core-archive-writer", "rtdl-core-ieg", "rtdl-core-ofp", "rtdl-core-csfb"],
+            "m7_p9_decision_lane": ["decision-lane-dl", "decision-lane-df", "decision-lane-al", "decision-lane-dla"],
+            "m7_p10_case_labels": ["case-trigger", "case-mgmt", "label-store"],
+            "m8_obs_gov": ["env-conformance"],
+            "all_spine_daemons": [
+              "ig",
+              "rtdl-core-archive-writer",
+              "rtdl-core-ieg",
+              "rtdl-core-ofp",
+              "rtdl-core-csfb",
+              "decision-lane-dl",
+              "decision-lane-df",
+              "decision-lane-al",
+              "decision-lane-dla",
+              "case-trigger",
+              "case-mgmt",
+              "label-store",
+              "env-conformance",
+            ],
+          }
+
+          if profile == "custom":
+            targets = [x.strip() for x in custom_csv.split(",") if x.strip()]
+          elif profile in profile_suffixes:
+            targets = [f"{prefix}-{suffix}" for suffix in profile_suffixes[profile]]
+          else:
+            targets = []
+            blockers.append("UNKNOWN_PROFILE")
+
+          def aws_json(args: list[str]) -> dict:
+            cmd = ["aws"] + args + ["--output", "json"]
+            proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            return json.loads(proc.stdout) if proc.stdout.strip() else {}
+
+          def describe_services(names: list[str]) -> tuple[list[dict], list[dict]]:
+            if not names:
+              return [], []
+            all_services = []
+            all_failures = []
+            for idx in range(0, len(names), 10):
+              chunk = names[idx : idx + 10]
+              payload = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", *chunk])
+              all_services.extend(payload.get("services", []))
+              all_failures.extend(payload.get("failures", []))
+            return all_services, all_failures
+
+          discovered = aws_json(["ecs", "list-services", "--cluster", cluster]).get("serviceArns", [])
+          discovered_names = sorted([arn.rsplit("/", 1)[-1] for arn in discovered])
+
+          missing_targets = sorted([name for name in targets if name not in discovered_names])
+          if targets and missing_targets:
+            blockers.append("PROFILE_TARGET_SERVICE_MISSING")
+
+          if action in {"start", "stop"} and not blockers:
+            desired = start_desired if action == "start" else 0
+            for service_name in targets:
+              subprocess.run(
+                [
+                  "aws", "ecs", "update-service",
+                  "--cluster", cluster,
+                  "--service", service_name,
+                  "--desired-count", str(desired),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+              )
+              mutations.append({
+                "service_name": service_name,
+                "action": action,
+                "desired_count_set": desired,
+              })
+
+          services, failures = describe_services(targets)
+          if failures:
+            blockers.append("PROFILE_TARGET_DESCRIBE_FAILURE")
+
+          service_rows = []
+          for svc in sorted(services, key=lambda x: x.get("serviceName", "")):
+            service_rows.append({
+              "service_name": svc.get("serviceName"),
+              "service_arn": svc.get("serviceArn"),
+              "status": svc.get("status"),
+              "desired_count": svc.get("desiredCount", 0),
+              "running_count": svc.get("runningCount", 0),
+              "pending_count": svc.get("pendingCount", 0),
+              "task_definition": svc.get("taskDefinition"),
+            })
+
+          if action == "start" and platform_run_id:
+            for row in service_rows:
+              arn = row.get("service_arn")
+              if not arn:
+                continue
+              proc = subprocess.run(
+                [
+                  "aws", "ecs", "tag-resource",
+                  "--resource-arn", arn,
+                  "--tags",
+                  f"key=fp_run_id,value={platform_run_id}",
+                  f"key=fp_phase_profile,value={profile}",
+                ],
+                capture_output=True,
+                text=True,
+              )
+              tag_results.append({
+                "service_name": row.get("service_name"),
+                "rc": proc.returncode,
+                "stderr": proc.stderr.strip(),
+              })
+              if proc.returncode != 0:
+                blockers.append("SERVICE_TAGGING_FAILED")
+
+          if update_heartbeat and heartbeat_path:
+            heartbeat_result["attempted"] = True
+            state = "active" if action == "start" else ("inactive" if action == "stop" else "observed")
+            heartbeat_payload = {
+              "state": state,
+              "profile": profile,
+              "action": action,
+              "platform_run_id": platform_run_id,
+              "target_service_count": len(targets),
+              "updated_at_utc": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            }
+            proc = subprocess.run(
+              [
+                "aws", "ssm", "put-parameter",
+                "--name", heartbeat_path,
+                "--type", "String",
+                "--overwrite",
+                "--value", json.dumps(heartbeat_payload, separators=(",", ":")),
+              ],
+              capture_output=True,
+              text=True,
+            )
+            if proc.returncode == 0:
+              heartbeat_result["status"] = "updated"
+            else:
+              heartbeat_result["status"] = "failed"
+              heartbeat_result["error"] = proc.stderr.strip()
+              blockers.append("HEARTBEAT_UPDATE_FAILED")
+
+          overall_pass = len(blockers) == 0
+          snapshot = {
+            "phase": "M9",
+            "phase_id": "P12",
+            "lane": "M9.G.ecs_phase_profile_control",
+            "execution_id": os.environ["EXECUTION_ID"],
+            "captured_at_utc": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "profile": profile,
+            "action": action,
+            "ecs_cluster_name": cluster,
+            "service_name_prefix": prefix,
+            "platform_run_id": platform_run_id,
+            "target_services": targets,
+            "missing_target_services": missing_targets,
+            "mutations": mutations,
+            "service_rows": service_rows,
+            "describe_failures": failures,
+            "tag_results": tag_results,
+            "heartbeat": heartbeat_result,
+            "evidence_s3_uri": os.environ.get("EVIDENCE_S3_URI"),
+            "blockers": sorted(set(blockers)),
+            "overall_pass": overall_pass,
+          }
+
+          out = os.environ["SNAPSHOT_PATH"]
+          os.makedirs(os.path.dirname(out), exist_ok=True)
+          with open(out, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, indent=2)
+            f.write("\n")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+            f.write(f"overall_pass={'true' if overall_pass else 'false'}\n")
+          PY
+
+      - name: Upload profile snapshot to S3
+        if: ${{ inputs.upload_evidence_to_s3 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 cp \
+            "${{ steps.run_meta.outputs.output_path }}" \
+            "${{ steps.run_meta.outputs.evidence_s3_uri }}" \
+            --region "${{ inputs.aws_region }}"
+
+      - name: Upload workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-min-ecs-phase-profile-${{ steps.run_meta.outputs.timestamp }}
+          path: ${{ steps.run_meta.outputs.output_path }}
+          if-no-files-found: error
+
+      - name: Enforce fail-closed verdict
+        if: ${{ steps.apply_profile.outputs.overall_pass != 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "ECS phase-profile action failed. See snapshot artifact."
+          exit 1

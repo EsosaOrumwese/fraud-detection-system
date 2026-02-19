@@ -1040,9 +1040,9 @@ Scope:
 - pin failure surfaces and initial target deltas.
 
 Definition of done:
-- [ ] baseline metric pack exists for required seeds.
-- [ ] failing gates are explicitly enumerated by severity.
-- [ ] scorer artifact contract is fixed for subsequent phases.
+- [x] baseline metric pack exists for required seeds.
+- [x] failing gates are explicitly enumerated by severity.
+- [x] scorer artifact contract is fixed for subsequent phases.
 
 ### P0.1 - Authority baseline lock (run + surfaces)
 Goal:
@@ -1058,9 +1058,9 @@ Scope:
 - emit baseline lock artifact with run-id, manifest fingerprint, and dataset paths.
 
 Definition of done:
-- [ ] baseline lock artifact exists under `runs/fix-data-engine/segment_3B/reports/`.
-- [ ] run-id + manifest fingerprint are explicitly pinned for P0-P5 continuity.
-- [ ] baseline dataset surface map is explicit and reviewable.
+- [x] baseline lock artifact exists under `runs/fix-data-engine/segment_3B/reports/`.
+- [x] run-id + manifest fingerprint are explicitly pinned for P0-P5 continuity.
+- [x] baseline dataset surface map is explicit and reviewable.
 
 ### P0.2 - Per-seed realism metric extraction (hard + stretch)
 Goal:
@@ -1076,9 +1076,9 @@ Scope:
 - emit one metric artifact per seed.
 
 Definition of done:
-- [ ] `3B_validation_metrics_seed_<seed>.json` emitted for all required seeds.
-- [ ] every `3B-V*` and `3B-S*` metric has a measured value per seed (no missing fields).
-- [ ] per-seed metrics carry run-id + manifest provenance fields.
+- [x] `3B_validation_metrics_seed_<seed>.json` emitted for all required seeds.
+- [x] every `3B-V*` and `3B-S*` metric has a measured value per seed (no missing fields).
+- [x] per-seed metrics carry run-id + manifest provenance fields.
 
 ### P0.3 - Cross-seed stability and failure decomposition
 Goal:
@@ -1095,9 +1095,9 @@ Scope:
 - rank failures by closure leverage (largest miss-distance + upstream causal leverage first).
 
 Definition of done:
-- [ ] `3B_validation_cross_seed_summary.json` emitted with `3B-X*` results.
-- [ ] failure matrix is explicit with quantified miss-distance for each failing gate.
-- [ ] ranked remediation backlog is produced and mapped to `P1/P2/P3`.
+- [x] `3B_validation_cross_seed_summary.json` emitted with `3B-X*` results.
+- [x] failure matrix is explicit with quantified miss-distance for each failing gate.
+- [x] ranked remediation backlog is produced and mapped to `P1/P2/P3`.
 
 ### P0.4 - Scorer contract freeze and P1 handoff pack
 Goal:
@@ -1113,9 +1113,42 @@ Scope:
 - record explicit `P1` entry targets for S1 lineage metrics (`V08/V09/V10` and related stretch metrics).
 
 Definition of done:
-- [ ] scorer contract is versioned/pinned and referenced in plan.
-- [ ] P0 handoff pack is complete and reproducible.
-- [ ] `P1` starts with explicit numeric entry targets sourced from P0 evidence.
+- [x] scorer contract is versioned/pinned and referenced in plan.
+- [x] P0 handoff pack is complete and reproducible.
+- [x] `P1` starts with explicit numeric entry targets sourced from P0 evidence.
+
+P0 closure record (2026-02-19):
+- required-seed run map used by scorer:
+  - `42 -> 724a63d3f8b242809b8ec3b746d0c776`
+  - `7 -> 3686a5ebc2ee42f4a84edea17f80376d`
+  - `101 -> 595a30d1278a4af39ea0fd1a78451571`
+  - `202 -> c90f94802ae94ff6a932c84e1520a112`
+- baseline/scorer artifacts emitted:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p0_baseline_lock.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p0_scorer_contract_v1.json`
+  - `runs/fix-data-engine/segment_3B/reports/3B_validation_metrics_seed_42.json`
+  - `runs/fix-data-engine/segment_3B/reports/3B_validation_metrics_seed_7.json`
+  - `runs/fix-data-engine/segment_3B/reports/3B_validation_metrics_seed_101.json`
+  - `runs/fix-data-engine/segment_3B/reports/3B_validation_metrics_seed_202.json`
+  - `runs/fix-data-engine/segment_3B/reports/3B_validation_cross_seed_summary.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p0_handoff_pack.json`
+  - `runs/fix-data-engine/segment_3B/reports/3B_validation_failure_trace.md`
+- seed-101 closure note:
+  - initial staged run `3fa3ea2c6ce8479f98bb09cffadc87ba` failed in `S2` with `E3B_S2_TZ_RESOLUTION_FAILED`.
+  - applied deterministic timezone override (`FK -> Atlantic/Stanley`) in `config/layer1/2A/timezone/tz_overrides.yaml`.
+  - reran seed-101 chain to `595a30d1278a4af39ea0fd1a78451571` and included this run in certification scoring.
+- verdict from cross-seed summary:
+  - `overall_verdict=FAIL_REALISM` (`pass_b=false`, `pass_bplus=false`).
+  - `3B-X01`: PASS.
+  - `3B-X02`: PASS.
+  - `3B-X03`: FAIL.
+- dominant hard-gate failures pinned for next phases:
+  - `P1/S1`: `3B-V08`, `3B-V09`, `3B-V10`.
+  - `P2/S2`: `3B-V01..V07` except alias-fidelity `3B-V11` which is PASS.
+  - `P3/S4`: `3B-V12`.
+- decision:
+  - `P0` closed with locked scorer contract and baseline evidence pack.
+  - next pointer: `UNLOCK_P1`.
 
 ### P1 - S1 lineage enrichment (`CF-3B-03`)
 Goal:
@@ -1130,6 +1163,98 @@ Definition of done:
 - [ ] `3B-V08` and `3B-V09` pass on witness seeds.
 - [ ] active `rule_id` count shows movement toward `3B-V10`.
 - [ ] no regressions in S1/S2 join integrity.
+
+P1 authority baseline (from P0 lock):
+- baseline run-map:
+  - `42 -> 724a63d3f8b242809b8ec3b746d0c776`
+  - `7 -> 3686a5ebc2ee42f4a84edea17f80376d`
+  - `101 -> 595a30d1278a4af39ea0fd1a78451571`
+  - `202 -> c90f94802ae94ff6a932c84e1520a112`
+- baseline anchors:
+  - `rule_id_non_null_rate = 0.0` (all seeds)
+  - `rule_version_non_null_rate = 0.0` (all seeds)
+  - `active_rule_id_count = 0` (all seeds)
+  - `virtual_rate = 0.0309` (all seeds)
+  - `settlement_tzid_top1_share = 0.055016...` (all seeds; stretch gate already PASS)
+
+Execution posture:
+- rerun law for this phase:
+  - `S1` code/policy change -> rerun `S1 -> S2 -> S3 -> S4 -> S5` for witness seeds first.
+- witness seed set for phase-close:
+  - `{42, 101}` (authority + previously recovered seed lane).
+- P1 guardrails (to avoid contaminating P2/P3):
+  - keep `virtual_rate` within `+/- 0.0020` absolute from baseline on witness seeds.
+  - keep `settlement_tzid_top1_share <= 0.18` (`3B-S10` non-regression).
+  - keep `3B-V11` alias-fidelity PASS.
+- scoring contract:
+  - source of truth remains `segment3b_p0_scorer_contract_v1.json`;
+  - no threshold edits allowed inside `P1`.
+
+#### P1.1 - Lineage Contract Lock (rule identity + fallback law)
+Goal:
+- pin deterministic lineage semantics before any S1 code edits.
+
+Scope:
+- lock rule identity law for `rule_id`:
+  - derive from matched rule content (MCC/channel/decision) or explicit rule key if present.
+- lock rule version law for `rule_version`:
+  - use policy `version` from sealed `mcc_channel_rules`.
+- lock fallback lineage for merchants with no direct rule match:
+  - non-null fallback `rule_id` and `rule_version` with explicit `decision_reason`.
+- pin required non-null coverage target:
+  - `>= 0.99` hard, `>= 0.998` stretch.
+
+Definition of done:
+- [ ] lineage field laws are documented in impl notes before implementation.
+- [ ] fallback lineage semantics are deterministic and non-null by design.
+- [ ] no change yet to public schema/path contracts.
+
+#### P1.2 - S1 Lineage Emission Implementation
+Goal:
+- implement deterministic emission of `rule_id` and `rule_version` in `virtual_classification_3B`.
+
+Scope:
+- update S1 runner to materialize lineage fields from matched classification rule path.
+- keep `is_virtual` decision logic unchanged for first pass (lineage-only uplift).
+- ensure `source_policy_id` and `source_policy_version` remain coherent with sealed policy bytes.
+- emit/record rule-hit counts for diagnostic review (run report or auxiliary evidence surface).
+
+Definition of done:
+- [ ] witness run completes `S1 -> S5` without schema/path drift.
+- [ ] `3B-V08` and `3B-V09` pass on witness seeds.
+- [ ] `virtual_rate` guardrail stays within `+/- 0.0020`.
+
+#### P1.3 - Rule Diversity Closure (`3B-V10`)
+Goal:
+- ensure rule lineage is not collapsed to one opaque label; close active-rule diversity gate.
+
+Scope:
+- measure active `rule_id` cardinality on witness seeds.
+- if `< 3`, widen deterministic rule granularity (while preserving decision outcomes), for example:
+  - include explicit rule branch class in `rule_id` composition,
+  - or promote explicit policy rule keys where available.
+- forbid synthetic/randomized diversification; diversity must come from real policy branches.
+
+Definition of done:
+- [ ] `active_rule_id_count >= 3` on witness seeds (`3B-V10` hard target).
+- [ ] stretch movement toward `>=5` is recorded if achieved (`3B-S09`).
+- [ ] decision outputs (`is_virtual`) remain stable unless an explicit policy reopen is approved.
+
+#### P1.4 - Witness Lock + P1 Closeout
+Goal:
+- freeze one P1 authority candidate and hand off a clean S1 lineage baseline to P2.
+
+Scope:
+- rerun witness seeds with final P1 candidate.
+- emit P1 summary artifacts (lineage coverage + gate status + non-regression rails).
+- pin retained run-id set and prune superseded failed/superseded run folders.
+- record explicit phase decision:
+  - `UNLOCK_P2` or `HOLD_P1_REOPEN`.
+
+Definition of done:
+- [ ] `3B-V08`, `3B-V09`, `3B-V10` pass on witness seeds.
+- [ ] `virtual_rate`, `3B-S10`, and `3B-V11` guardrails remain non-regressed.
+- [ ] P1 closure artifacts and decision are pinned in plan + impl notes.
 
 ### P2 - S2 topology and settlement coupling core (`CF-3B-01 + CF-3B-02`)
 Goal:
@@ -1199,14 +1324,14 @@ Definition of done:
 
 ## 8) Current phase status
 - `POPT.0`: completed
-- `POPT.1`: in_progress (`HOLD_POPT1_REOPEN`)
-- `POPT.1R.NEXT`: in_progress (`OPEN_AFTER_ROLLBACK`)
+- `POPT.1`: completed (`CLOSED_VIA_POPT1R_TRACK`)
+- `POPT.1R.NEXT`: completed (`UNLOCK_POPT2`)
 - `POPT.2`: completed (`UNLOCK_POPT3_AFTER_POPT2R2`)
 - `POPT.2R`: completed (`UNLOCK_POPT3`)
 - `POPT.3`: completed (`UNLOCK_POPT4`)
 - `POPT.4`: completed (`CLOSED_UNLOCK_P0`)
-- `P0`: pending (`PLANNING_EXPANDED`)
-- `P1`: pending
+- `P0`: completed (`EXECUTED_FAIL_REALISM_UNLOCK_P1`)
+- `P1`: pending (`PLANNING_EXPANDED_READY_FOR_EXECUTION`)
 - `P2`: pending
 - `P3`: pending
 - `P4`: pending

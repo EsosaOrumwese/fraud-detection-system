@@ -1,0 +1,357 @@
+name: dev-min-ecs-rightsizing-report
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region for ECS/CloudWatch/evidence operations"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      ecs_cluster_name:
+        description: "ECS cluster name"
+        required: true
+        default: "fraud-platform-dev-min"
+        type: string
+      service_name_prefix:
+        description: "Service name prefix"
+        required: true
+        default: "fraud-platform-dev-min"
+        type: string
+      lookback_hours:
+        description: "Lookback window in hours for p95 utilization"
+        required: true
+        default: "24"
+        type: string
+      cloudwatch_period_seconds:
+        description: "Metric period in seconds"
+        required: true
+        default: "300"
+        type: string
+      evidence_bucket:
+        description: "Durable evidence bucket"
+        required: true
+        default: "fraud-platform-dev-min-evidence"
+        type: string
+      evidence_prefix:
+        description: "Evidence key prefix"
+        required: true
+        default: "evidence/dev_min/run_control"
+        type: string
+      upload_evidence_to_s3:
+        description: "Upload rightsizing snapshot JSON to S3"
+        required: true
+        default: true
+        type: boolean
+  schedule:
+    - cron: "5 */6 * * *"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-min-ecs-rightsizing-report-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  capture_rightsizing_report:
+    name: Capture ECS p95 rightsizing report
+    runs-on: ubuntu-latest
+    env:
+      RESOLVED_AWS_REGION: ${{ inputs.aws_region || vars.DEV_MIN_AWS_REGION || 'eu-west-2' }}
+      RESOLVED_AWS_ROLE: ${{ inputs.aws_role_to_assume || vars.DEV_MIN_AWS_ROLE_TO_ASSUME }}
+      RESOLVED_ECS_CLUSTER: ${{ inputs.ecs_cluster_name || vars.DEV_MIN_ECS_CLUSTER_NAME || 'fraud-platform-dev-min' }}
+      RESOLVED_SERVICE_PREFIX: ${{ inputs.service_name_prefix || vars.DEV_MIN_SERVICE_NAME_PREFIX || 'fraud-platform-dev-min' }}
+      RESOLVED_LOOKBACK_HOURS: ${{ inputs.lookback_hours || vars.DEV_MIN_RIGHTSIZE_LOOKBACK_HOURS || '24' }}
+      RESOLVED_CW_PERIOD_SECONDS: ${{ inputs.cloudwatch_period_seconds || vars.DEV_MIN_RIGHTSIZE_CW_PERIOD_SECONDS || '300' }}
+      RESOLVED_EVIDENCE_BUCKET: ${{ inputs.evidence_bucket || vars.DEV_MIN_EVIDENCE_BUCKET || 'fraud-platform-dev-min-evidence' }}
+      RESOLVED_EVIDENCE_PREFIX: ${{ inputs.evidence_prefix || vars.DEV_MIN_EVIDENCE_PREFIX || 'evidence/dev_min/run_control' }}
+      RESOLVED_UPLOAD_EVIDENCE: ${{ inputs.upload_evidence_to_s3 || 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Validate required resolved config
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${RESOLVED_AWS_ROLE}" ]]; then
+            echo "RESOLVED_AWS_ROLE is empty. Set workflow input or repo variable DEV_MIN_AWS_ROLE_TO_ASSUME."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.RESOLVED_AWS_REGION }}
+          role-to-assume: ${{ env.RESOLVED_AWS_ROLE }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          EXECUTION_ID="rightsize_${TS}"
+          OUTPUT_DIR="runs/dev_substrate/m9/${TS}"
+          OUTPUT_PATH="${OUTPUT_DIR}/ecs_rightsizing_snapshot.json"
+          S3_URI="s3://${RESOLVED_EVIDENCE_BUCKET}/${RESOLVED_EVIDENCE_PREFIX}/${EXECUTION_ID}/ecs_rightsizing_snapshot.json"
+          mkdir -p "${OUTPUT_DIR}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "execution_id=${EXECUTION_ID}" >> "$GITHUB_OUTPUT"
+          echo "output_path=${OUTPUT_PATH}" >> "$GITHUB_OUTPUT"
+          echo "evidence_s3_uri=${S3_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Build rightsizing snapshot
+        id: rightsize
+        shell: bash
+        env:
+          SNAPSHOT_PATH: ${{ steps.run_meta.outputs.output_path }}
+          EXECUTION_ID: ${{ steps.run_meta.outputs.execution_id }}
+          EVIDENCE_S3_URI: ${{ steps.run_meta.outputs.evidence_s3_uri }}
+          ECS_CLUSTER_NAME: ${{ env.RESOLVED_ECS_CLUSTER }}
+          SERVICE_NAME_PREFIX: ${{ env.RESOLVED_SERVICE_PREFIX }}
+          LOOKBACK_HOURS: ${{ env.RESOLVED_LOOKBACK_HOURS }}
+          CLOUDWATCH_PERIOD_SECONDS: ${{ env.RESOLVED_CW_PERIOD_SECONDS }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import math
+          import os
+          import statistics
+          import subprocess
+          from datetime import UTC, datetime, timedelta
+
+          def aws_json(args):
+            cmd = ["aws"] + args + ["--output", "json"]
+            proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            return json.loads(proc.stdout) if proc.stdout.strip() else {}
+
+          def safe_aws_json(args):
+            cmd = ["aws"] + args + ["--output", "json"]
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            if proc.returncode != 0:
+              return None, proc.stderr.strip()
+            if not proc.stdout.strip():
+              return {}, ""
+            return json.loads(proc.stdout), ""
+
+          def p95(values):
+            if not values:
+              return None
+            vals = sorted(values)
+            idx = int(math.ceil(0.95 * len(vals))) - 1
+            idx = max(0, min(idx, len(vals) - 1))
+            return float(vals[idx])
+
+          now = datetime.now(UTC)
+          blockers = []
+          errors = []
+          cluster = os.environ["ECS_CLUSTER_NAME"]
+          prefix = os.environ["SERVICE_NAME_PREFIX"]
+
+          try:
+            lookback_hours = int(os.environ.get("LOOKBACK_HOURS", "24"))
+            period_seconds = int(os.environ.get("CLOUDWATCH_PERIOD_SECONDS", "300"))
+          except ValueError:
+            lookback_hours = -1
+            period_seconds = -1
+
+          if lookback_hours <= 0:
+            blockers.append("INVALID_LOOKBACK_HOURS")
+          if period_seconds <= 0:
+            blockers.append("INVALID_PERIOD_SECONDS")
+
+          start = now - timedelta(hours=max(1, lookback_hours if lookback_hours > 0 else 1))
+          end = now
+
+          service_arns = aws_json(["ecs", "list-services", "--cluster", cluster]).get("serviceArns", [])
+          service_names = sorted([arn.rsplit("/", 1)[-1] for arn in service_arns if prefix in arn])
+          if not service_names:
+            blockers.append("NO_SERVICES_MATCH_PREFIX")
+
+          service_payload = {"services": [], "failures": []}
+          for i in range(0, len(service_names), 10):
+            chunk = service_names[i : i + 10]
+            payload = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", *chunk])
+            service_payload["services"].extend(payload.get("services", []))
+            service_payload["failures"].extend(payload.get("failures", []))
+          if service_payload["failures"]:
+            blockers.append("ECS_DESCRIBE_FAILURE")
+
+          rows = []
+          for svc in sorted(service_payload["services"], key=lambda x: x.get("serviceName", "")):
+            service_name = svc.get("serviceName")
+            td_arn = svc.get("taskDefinition")
+            current_cpu = None
+            current_mem = None
+            if td_arn:
+              td_payload, td_err = safe_aws_json(["ecs", "describe-task-definition", "--task-definition", td_arn])
+              if td_err:
+                errors.append({"service_name": service_name, "surface": "describe-task-definition", "error": td_err})
+              else:
+                td = td_payload.get("taskDefinition", {})
+                try:
+                  current_cpu = int(td.get("cpu")) if td.get("cpu") else None
+                except ValueError:
+                  current_cpu = None
+                try:
+                  current_mem = int(td.get("memory")) if td.get("memory") else None
+                except ValueError:
+                  current_mem = None
+
+            cpu_metric, cpu_err = safe_aws_json([
+              "cloudwatch", "get-metric-statistics",
+              "--namespace", "AWS/ECS",
+              "--metric-name", "CPUUtilization",
+              "--start-time", start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "--end-time", end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "--period", str(period_seconds),
+              "--statistics", "Average",
+              "--dimensions", f"Name=ClusterName,Value={cluster}", f"Name=ServiceName,Value={service_name}",
+            ])
+            mem_metric, mem_err = safe_aws_json([
+              "cloudwatch", "get-metric-statistics",
+              "--namespace", "AWS/ECS",
+              "--metric-name", "MemoryUtilization",
+              "--start-time", start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "--end-time", end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "--period", str(period_seconds),
+              "--statistics", "Average",
+              "--dimensions", f"Name=ClusterName,Value={cluster}", f"Name=ServiceName,Value={service_name}",
+            ])
+
+            if cpu_err:
+              errors.append({"service_name": service_name, "surface": "cpu_metric", "error": cpu_err})
+            if mem_err:
+              errors.append({"service_name": service_name, "surface": "memory_metric", "error": mem_err})
+
+            cpu_vals = [float(dp["Average"]) for dp in (cpu_metric or {}).get("Datapoints", []) if "Average" in dp]
+            mem_vals = [float(dp["Average"]) for dp in (mem_metric or {}).get("Datapoints", []) if "Average" in dp]
+            cpu_p95 = p95(cpu_vals)
+            mem_p95 = p95(mem_vals)
+            cpu_mean = float(statistics.mean(cpu_vals)) if cpu_vals else None
+            mem_mean = float(statistics.mean(mem_vals)) if mem_vals else None
+
+            recommendation = "hold"
+            recommendation_reason = "insufficient_data"
+            rec_cpu = current_cpu
+            rec_mem = current_mem
+
+            if cpu_p95 is not None and mem_p95 is not None and current_cpu and current_mem:
+              recommendation_reason = "within_band"
+              if cpu_p95 >= 75 or mem_p95 >= 75:
+                recommendation = "upsize_candidate"
+                recommendation_reason = "p95_high"
+                rec_cpu = min(max(current_cpu, current_cpu * 2), 2048)
+                rec_mem = min(max(current_mem, current_mem * 2), 4096)
+              elif cpu_p95 <= 25 and mem_p95 <= 25 and current_cpu > 256 and current_mem > 512:
+                recommendation = "downsize_candidate"
+                recommendation_reason = "p95_low"
+                rec_cpu = max(256, current_cpu // 2)
+                rec_mem = max(512, current_mem // 2)
+
+            rows.append({
+              "service_name": service_name,
+              "desired_count": int(svc.get("desiredCount", 0)),
+              "running_count": int(svc.get("runningCount", 0)),
+              "task_definition_arn": td_arn,
+              "current_task_cpu": current_cpu,
+              "current_task_memory": current_mem,
+              "cpu_utilization": {
+                "sample_count": len(cpu_vals),
+                "p95": cpu_p95,
+                "mean": cpu_mean,
+              },
+              "memory_utilization": {
+                "sample_count": len(mem_vals),
+                "p95": mem_p95,
+                "mean": mem_mean,
+              },
+              "recommendation": recommendation,
+              "recommendation_reason": recommendation_reason,
+              "recommended_task_cpu": rec_cpu,
+              "recommended_task_memory": rec_mem,
+            })
+
+          if errors:
+            blockers.append("RIGHTSIZE_METRIC_QUERY_ERRORS")
+
+          overall_pass = len(blockers) == 0
+          snapshot = {
+            "phase": "M9",
+            "phase_id": "P12",
+            "lane": "M9.G.ecs_rightsizing_recommendation",
+            "execution_id": os.environ["EXECUTION_ID"],
+            "captured_at_utc": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "ecs_cluster_name": cluster,
+            "service_name_prefix": prefix,
+            "window": {
+              "start_utc": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "end_utc": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "lookback_hours": lookback_hours,
+              "period_seconds": period_seconds,
+            },
+            "service_count": len(rows),
+            "service_rows": rows,
+            "errors": errors,
+            "evidence_s3_uri": os.environ.get("EVIDENCE_S3_URI"),
+            "blockers": sorted(set(blockers)),
+            "overall_pass": overall_pass,
+          }
+
+          out = os.environ["SNAPSHOT_PATH"]
+          os.makedirs(os.path.dirname(out), exist_ok=True)
+          with open(out, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, indent=2)
+            f.write("\n")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+            f.write(f"overall_pass={'true' if overall_pass else 'false'}\n")
+          PY
+
+      - name: Upload rightsizing snapshot to S3
+        if: ${{ env.RESOLVED_UPLOAD_EVIDENCE == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 cp \
+            "${{ steps.run_meta.outputs.output_path }}" \
+            "${{ steps.run_meta.outputs.evidence_s3_uri }}" \
+            --region "${{ env.RESOLVED_AWS_REGION }}"
+
+      - name: Upload workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-min-ecs-rightsizing-report-${{ steps.run_meta.outputs.timestamp }}
+          path: ${{ steps.run_meta.outputs.output_path }}
+          if-no-files-found: error
+
+      - name: Enforce fail-closed verdict
+        if: ${{ steps.rightsize.outputs.overall_pass != 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "ECS rightsizing report failed closed. See snapshot artifact."
+          exit 1

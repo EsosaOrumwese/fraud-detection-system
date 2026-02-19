@@ -626,8 +626,27 @@ These are how tasks/services locate each other.
 
 ### 7.6 Execution policies (v0 defaults)
 
-* `ECS_SERVICE_DESIRED_COUNT_DEFAULT = 1`
+* `ECS_SERVICE_DESIRED_COUNT_DEFAULT = 0`
 * `ECS_TASK_RETRY_MAX = 1` *(task retries controlled by operator; fail closed by default)*
+
+Phase-aware profile control:
+* `ECS_PHASE_PROFILE_WORKFLOW_FILE = ".github/workflows/dev_min_ecs_phase_profile.yml"`
+* `ECS_PHASE_PROFILE_DEFAULT_START_DESIRED_COUNT = 1`
+* `ECS_PHASE_PROFILE_MAP = {"m6_control_ingress":["ig"],"m7_p8_rtdl_core":["rtdl-core-archive-writer","rtdl-core-ieg","rtdl-core-ofp","rtdl-core-csfb"],"m7_p9_decision_lane":["decision-lane-dl","decision-lane-df","decision-lane-al","decision-lane-dla"],"m7_p10_case_labels":["case-trigger","case-mgmt","label-store"],"m8_obs_gov":["env-conformance"],"all_spine_daemons":["ig","rtdl-core-archive-writer","rtdl-core-ieg","rtdl-core-ofp","rtdl-core-csfb","decision-lane-dl","decision-lane-df","decision-lane-al","decision-lane-dla","case-trigger","case-mgmt","label-store","env-conformance"]}`
+
+Idle guard and teardown posture:
+* `IDLE_TEARDOWN_GUARD_WORKFLOW_FILE = ".github/workflows/dev_min_idle_teardown_guard.yml"`
+* `IDLE_TTL_MINUTES = 90`
+* `IDLE_GUARD_ENFORCEMENT_MODE_DEFAULT = "stop_services"` *(allowed: `observe_only|stop_services|destroy_demo_stack`)*
+
+Rightsizing posture:
+* `ECS_RIGHTSIZING_WORKFLOW_FILE = ".github/workflows/dev_min_ecs_rightsizing_report.yml"`
+* `RIGHTSIZE_LOOKBACK_HOURS = 24`
+* `RIGHTSIZE_CW_PERIOD_SECONDS = 300`
+
+Per-run cost attribution tags:
+* `COST_ATTRIBUTION_TAG_RUN_ID_KEY = "fp_run_id"`
+* `COST_ATTRIBUTION_TAG_PHASE_PROFILE_KEY = "fp_phase_profile"`
 
 ### 7.7 Runtime control knobs (v0 defaults)
 
@@ -881,6 +900,7 @@ Managed input handles (names only; values remain secret-managed):
 * `CONFLUENT_BILLING_API_SECRET_INPUT = "TF_VAR_confluent_cloud_api_secret"`
 * `CONFLUENT_BILLING_SECRET_SOURCE = "GitHubActionsSecrets(TF_VAR_CONFLUENT_CLOUD_API_KEY,TF_VAR_CONFLUENT_CLOUD_API_SECRET)"`
 * `M9G_CONFLUENT_BILLING_WORKFLOW_FILE = ".github/workflows/dev_min_m9g_confluent_billing.yml"`
+* `M9G_COST_GUARDRAIL_WORKFLOW_FILE = ".github/workflows/dev_min_m9g_cost_guardrail.yml"`
 
 Evidence handle:
 * `CONFLUENT_BILLING_SNAPSHOT_KEY_PATTERN = "evidence/dev_min/run_control/{m9_execution_id}/confluent_billing_snapshot.json"`

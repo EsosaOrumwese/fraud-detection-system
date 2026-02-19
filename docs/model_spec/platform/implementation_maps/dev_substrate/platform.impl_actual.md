@@ -15648,3 +15648,94 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. Cost optimization is now plan-pinned and auditable (not chat-only guidance).
 2. Future phase progression can reference this anchor without reinterpreting intent.
 
+## Entry: 2026-02-19 17:19:48 +00:00 - M9.G cost-optimization implementation kickoff (execution lanes pinned before code)
+### Problem framing
+1. Optimization posture was pinned in planning, but runtime controls were still mostly manual and therefore drift-prone.
+2. To execute the recommended order, we need managed controls that reduce always-on spend and keep `M9.G` as a hard cross-platform gate.
+
+### Alternatives considered
+1. Keep posture as docs-only guidance and rely on operator discipline.
+   - Rejected: too easy to drift; no deterministic enforcement.
+2. Implement only one lane (cost gate) and defer orchestration optimization.
+   - Rejected: leaves major ECS idle-cost source unaddressed.
+3. Implement all four lanes now with fail-closed behavior and durable evidence.
+   - Selected.
+
+### Decisions before implementation
+1. Implement phase-aware ECS service profile control in GitHub Actions (start/stop/status) with deterministic profile maps.
+2. Keep Terraform default service posture cost-safe by pinning daemon service default desired count to `0` (explicit start required).
+3. Implement idle auto-teardown guard as managed workflow with explicit enforcement modes:
+   - `observe_only`,
+   - `stop_services` (default enforcement recommendation),
+   - `destroy_demo_stack` (explicit operator opt-in).
+4. Implement p95 right-sizing evidence lane as managed workflow that emits recommendations; no silent auto-resize.
+5. Implement managed `M9.G` cross-platform cost guardrail workflow that fails closed when Confluent billing evidence is missing.
+6. Record all new handles and plan references so implementation stays registry-first and auditable.
+
+### Immediate execution plan
+1. Patch Terraform/module variables for `desired_count=0` default posture.
+2. Add managed workflows for:
+   - ECS phase profile control,
+   - idle auto-teardown guard,
+   - right-sizing recommendations,
+   - cross-platform `M9.G` guardrail.
+3. Repin handles registry + M9 build plan + main platform plan + logbook with decision trail.
+
+## Entry: 2026-02-19 17:28:31 +00:00 - M9.G cost-optimization order implemented (managed lanes + terraform posture)
+### Execution summary
+1. Implemented recommended order end-to-end as concrete managed controls.
+2. Preserved fail-closed behavior on every new lane (snapshot + blocker model + non-zero workflow exit).
+
+### Decision trail and implementation details
+1. Step 1 (phase-aware start/stop profile):
+   - Terraform daemon default was changed from implicit always-on to explicit off-by-default:
+     - `infra/terraform/modules/demo/main.tf` (`desired_count = var.ecs_daemon_service_desired_count_default`)
+     - `infra/terraform/modules/demo/variables.tf` (new variable, default `0`)
+     - `infra/terraform/dev_min/demo/variables.tf` (new variable, default `0`)
+     - `infra/terraform/dev_min/demo/main.tf` (passes new variable to module)
+   - Added managed profile workflow:
+     - `.github/workflows/dev_min_ecs_phase_profile.yml`
+   - Rationale:
+     - remove always-on idle spend,
+     - enforce explicit lane activation,
+     - attach per-run attribution tags (`fp_run_id`, `fp_phase_profile`) at start time.
+2. Step 2 (idle auto-teardown guard):
+   - Added managed guard workflow:
+     - `.github/workflows/dev_min_idle_teardown_guard.yml`
+   - Guard supports explicit enforcement modes:
+     - `observe_only`,
+     - `stop_services`,
+     - `destroy_demo_stack` (dispatches unified teardown workflow with run-scope requirements).
+   - Rationale:
+     - prevent forgotten-up windows,
+     - keep destructive action explicit and gated by run-scope completeness.
+3. Step 3 (right-sizing from p95):
+   - Added managed rightsizing workflow:
+     - `.github/workflows/dev_min_ecs_rightsizing_report.yml`
+   - Computes p95 CPU/memory from CloudWatch (`AWS/ECS`) and emits recommendations; no silent auto-resize.
+   - Rationale:
+     - keep optimization evidence-driven and reversible,
+     - avoid hidden runtime behavior changes.
+4. Step 4 (mandatory cross-platform M9.G gate):
+   - Added managed cross-platform guardrail workflow:
+     - `.github/workflows/dev_min_m9g_cost_guardrail.yml`
+   - Workflow optionally dispatches the managed Confluent billing lane, waits for the billing snapshot, then computes combined AWS+Confluent posture and fail-closed blockers.
+   - Rationale:
+     - convert M9.G from local/manual to managed deterministic closure lane.
+5. Registry and plan repins:
+   - Updated handles registry with optimization control handles + new workflow handles:
+     - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+   - Updated deep/main M9 planning references:
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+
+### Validation notes
+1. Terraform formatting check passed after patch:
+   - `terraform fmt -check -recursive infra/terraform/dev_min/demo infra/terraform/modules/demo`.
+2. Workflow YAML parse check passed for all `dev_min_*` workflows via `python + yaml.safe_load`.
+3. This step is implementation + planning alignment only; no live infrastructure mutation/dispatch was executed in this entry.
+
+### Outcome
+1. Recommended optimization order is now implemented as managed operational lanes.
+2. `M9.G` remains open until the new managed guardrail workflow is executed blocker-free for current run scope.
+

@@ -3986,3 +3986,91 @@ Expanded lanes:
 Decision:
 1) plan status moved to `P0: pending (PLANNING_EXPANDED)`.
 2) next execution step is `P0.1` (baseline lock artifact emission) before any state-level code/policy changes.
+
+### Entry: 2026-02-19 17:24
+
+Design element: `3B P0 full execution lane start (P0.1->P0.4)`.
+Summary: executed full `P0` baseline-scoring lane by staging required seeds in the fix root, generating a locked scorer contract, and producing the baseline handoff pack for `P1`.
+
+Execution lock before running:
+1) keep `POPT`-closed authority as baseline anchor (`run_id=724a63d3f8b242809b8ec3b746d0c776`, manifest `c8fd43cd...05c8`).
+2) run required-seed coverage `{42,7,101,202}` and fail closed if any seed is missing.
+3) allow only scorer/harness + staging changes for `P0`; no realism-shape tuning in `S1/S2/S4`.
+4) emit immutable P0 artifacts under:
+   - `runs/fix-data-engine/segment_3B/reports/`.
+
+Preparation/work completed in this lane:
+1) added staging harness:
+   - `tools/stage_segment3b_run.py`
+   - supports deterministic run staging from authority run, run_receipt seeding, upstream/surface cloning, and optional S2 cache transfer.
+2) added full baseline scorer harness:
+   - `tools/score_segment3b_p0_baseline.py`
+   - emits baseline lock, per-seed metrics, cross-seed summary, scorer contract, handoff pack, and failure trace.
+3) fixed scorer bug before scoring:
+   - replaced invalid `Path.replace(...)` usage with correct path handling to avoid contract generation failure.
+
+### Entry: 2026-02-19 17:39
+
+Design element: `3B P0 full execution closure (required seeds + scorer contract freeze)`.
+Summary: completed `P0.1..P0.4`, produced full baseline artifact pack, and closed the phase with verdict `FAIL_REALISM` and explicit `P1/P2/P3` carry-forward targets.
+
+Seed execution map used for final scoring:
+1) `42 -> 724a63d3f8b242809b8ec3b746d0c776` (authority baseline).
+2) `7 -> 3686a5ebc2ee42f4a84edea17f80376d`.
+3) `101 -> 595a30d1278a4af39ea0fd1a78451571`.
+4) `202 -> c90f94802ae94ff6a932c84e1520a112`.
+
+Seed-101 failure/recovery decision trail:
+1) first staged seed-101 run (`3fa3ea2c6ce8479f98bb09cffadc87ba`) failed in `S2` with `E3B_S2_TZ_RESOLUTION_FAILED`.
+2) root fix applied in sealed upstream policy/config:
+   - `config/layer1/2A/timezone/tz_overrides.yaml`:
+     - added `FK -> Atlantic/Stanley`.
+3) reran seed-101 to completion (`595a30d1278a4af39ea0fd1a78451571`) and used it in final P0 scoring.
+
+Artifacts emitted:
+1) baseline lock:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_p0_baseline_lock.json`.
+2) scorer contract:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_p0_scorer_contract_v1.json`.
+3) per-seed metrics:
+   - `runs/fix-data-engine/segment_3B/reports/3B_validation_metrics_seed_42.json`
+   - `runs/fix-data-engine/segment_3B/reports/3B_validation_metrics_seed_7.json`
+   - `runs/fix-data-engine/segment_3B/reports/3B_validation_metrics_seed_101.json`
+   - `runs/fix-data-engine/segment_3B/reports/3B_validation_metrics_seed_202.json`
+4) cross-seed summary:
+   - `runs/fix-data-engine/segment_3B/reports/3B_validation_cross_seed_summary.json`.
+5) handoff + failure decomposition:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_p0_handoff_pack.json`
+   - `runs/fix-data-engine/segment_3B/reports/3B_validation_failure_trace.md`.
+
+Measured outcome (from cross-seed summary):
+1) `overall_verdict=FAIL_REALISM` (`pass_b=false`, `pass_bplus=false`).
+2) `3B-X01`: PASS.
+3) `3B-X02`: PASS.
+4) `3B-X03`: FAIL.
+5) hard failure concentration:
+   - `P1/S1`: `3B-V08`, `3B-V09`, `3B-V10`.
+   - `P2/S2`: `3B-V01..V07`.
+   - `P3/S4`: `3B-V12`.
+6) hard rail pass retained:
+   - `3B-V11` alias fidelity PASS.
+
+Decision:
+1) `P0` closed with scorer/threshold contract frozen and baseline evidence pack complete.
+2) phase transition decision: `UNLOCK_P1`.
+
+### Entry: 2026-02-19 17:42
+
+Design element: `3B run retention hygiene post-P0`.
+Summary: pruned superseded failed run-id folder created during seed-101 first-pass failure to keep fix-lane storage within retention rules.
+
+Action:
+1) executed:
+   - `python tools/prune_run_folders_keep_set.py --runs-root runs/fix-data-engine/segment_3B --keep 724a63d3f8b242809b8ec3b746d0c776 --keep 3686a5ebc2ee42f4a84edea17f80376d --keep 595a30d1278a4af39ea0fd1a78451571 --keep c90f94802ae94ff6a932c84e1520a112 --yes`.
+2) removed:
+   - `runs/fix-data-engine/segment_3B/3fa3ea2c6ce8479f98bb09cffadc87ba`.
+3) retained keep-set:
+   - `724a63d3f8b242809b8ec3b746d0c776`
+   - `3686a5ebc2ee42f4a84edea17f80376d`
+   - `595a30d1278a4af39ea0fd1a78451571`
+   - `c90f94802ae94ff6a932c84e1520a112`.

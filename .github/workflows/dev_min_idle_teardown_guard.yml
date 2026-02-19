@@ -1,0 +1,450 @@
+name: dev-min-idle-teardown-guard
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region for ECS/SSM/evidence operations"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      ecs_cluster_name:
+        description: "ECS cluster name"
+        required: true
+        default: "fraud-platform-dev-min"
+        type: string
+      service_name_prefix:
+        description: "Service name prefix"
+        required: true
+        default: "fraud-platform-dev-min"
+        type: string
+      heartbeat_param_path:
+        description: "SSM heartbeat parameter path"
+        required: true
+        default: "/fraud-platform/dev_min/demo/manual/heartbeat"
+        type: string
+      idle_ttl_minutes:
+        description: "Idle threshold in minutes"
+        required: true
+        default: "90"
+        type: string
+      enforcement_mode:
+        description: "Idle-breach enforcement mode"
+        required: true
+        default: "stop_services"
+        type: choice
+        options:
+          - observe_only
+          - stop_services
+          - destroy_demo_stack
+      destroy_workflow_file:
+        description: "Workflow file used when enforcement_mode=destroy_demo_stack"
+        required: true
+        default: "dev_min_confluent_destroy.yml"
+        type: string
+      destroy_workflow_ref:
+        description: "Git ref for destroy workflow dispatch (empty = current ref)"
+        required: false
+        default: ""
+        type: string
+      required_platform_run_id:
+        description: "Explicit run id for demo destroy dispatch (optional; falls back to heartbeat payload)"
+        required: false
+        default: ""
+        type: string
+      tf_state_bucket:
+        description: "Terraform backend bucket used by destroy workflow"
+        required: true
+        default: "fraud-platform-dev-min-tfstate"
+        type: string
+      tf_lock_table:
+        description: "Terraform lock table used by destroy workflow"
+        required: true
+        default: "fraud-platform-dev-min-tf-locks"
+        type: string
+      tf_state_key_demo:
+        description: "Terraform demo stack state key used by destroy workflow"
+        required: true
+        default: "dev_min/demo/terraform.tfstate"
+        type: string
+      destroy_evidence_bucket:
+        description: "Evidence bucket input for destroy workflow dispatch"
+        required: true
+        default: "fraud-platform-dev-min-evidence"
+        type: string
+      destroy_evidence_prefix:
+        description: "Evidence prefix input for destroy workflow dispatch"
+        required: true
+        default: "evidence/dev_min/substrate"
+        type: string
+      evidence_bucket:
+        description: "Durable evidence bucket for idle guard snapshots"
+        required: true
+        default: "fraud-platform-dev-min-evidence"
+        type: string
+      evidence_prefix:
+        description: "Evidence key prefix for idle guard snapshots"
+        required: true
+        default: "evidence/dev_min/run_control"
+        type: string
+      upload_evidence_to_s3:
+        description: "Upload idle guard snapshot JSON to S3"
+        required: true
+        default: true
+        type: boolean
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  actions: write
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-min-idle-teardown-guard-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  enforce_idle_guard:
+    name: Enforce dev_min idle guard
+    runs-on: ubuntu-latest
+    env:
+      RESOLVED_AWS_REGION: ${{ inputs.aws_region || vars.DEV_MIN_AWS_REGION || 'eu-west-2' }}
+      RESOLVED_AWS_ROLE: ${{ inputs.aws_role_to_assume || vars.DEV_MIN_AWS_ROLE_TO_ASSUME }}
+      RESOLVED_ECS_CLUSTER: ${{ inputs.ecs_cluster_name || vars.DEV_MIN_ECS_CLUSTER_NAME || 'fraud-platform-dev-min' }}
+      RESOLVED_SERVICE_PREFIX: ${{ inputs.service_name_prefix || vars.DEV_MIN_SERVICE_NAME_PREFIX || 'fraud-platform-dev-min' }}
+      RESOLVED_HEARTBEAT_PARAM: ${{ inputs.heartbeat_param_path || vars.DEV_MIN_HEARTBEAT_PARAM_PATH || '/fraud-platform/dev_min/demo/manual/heartbeat' }}
+      RESOLVED_IDLE_TTL_MINUTES: ${{ inputs.idle_ttl_minutes || vars.DEV_MIN_IDLE_TTL_MINUTES || '90' }}
+      RESOLVED_ENFORCEMENT_MODE: ${{ inputs.enforcement_mode || vars.DEV_MIN_IDLE_GUARD_MODE || 'stop_services' }}
+      RESOLVED_DESTROY_WORKFLOW_FILE: ${{ inputs.destroy_workflow_file || vars.DEV_MIN_DESTROY_WORKFLOW_FILE || 'dev_min_confluent_destroy.yml' }}
+      RESOLVED_DESTROY_WORKFLOW_REF: ${{ inputs.destroy_workflow_ref || vars.DEV_MIN_DESTROY_WORKFLOW_REF || github.ref_name }}
+      RESOLVED_REQUIRED_PLATFORM_RUN_ID: ${{ inputs.required_platform_run_id || vars.DEV_MIN_REQUIRED_PLATFORM_RUN_ID || '' }}
+      RESOLVED_TF_STATE_BUCKET: ${{ inputs.tf_state_bucket || vars.DEV_MIN_TF_STATE_BUCKET || 'fraud-platform-dev-min-tfstate' }}
+      RESOLVED_TF_LOCK_TABLE: ${{ inputs.tf_lock_table || vars.DEV_MIN_TF_LOCK_TABLE || 'fraud-platform-dev-min-tf-locks' }}
+      RESOLVED_TF_STATE_KEY_DEMO: ${{ inputs.tf_state_key_demo || vars.DEV_MIN_TF_STATE_KEY_DEMO || 'dev_min/demo/terraform.tfstate' }}
+      RESOLVED_DESTROY_EVIDENCE_BUCKET: ${{ inputs.destroy_evidence_bucket || vars.DEV_MIN_DESTROY_EVIDENCE_BUCKET || 'fraud-platform-dev-min-evidence' }}
+      RESOLVED_DESTROY_EVIDENCE_PREFIX: ${{ inputs.destroy_evidence_prefix || vars.DEV_MIN_DESTROY_EVIDENCE_PREFIX || 'evidence/dev_min/substrate' }}
+      RESOLVED_EVIDENCE_BUCKET: ${{ inputs.evidence_bucket || vars.DEV_MIN_EVIDENCE_BUCKET || 'fraud-platform-dev-min-evidence' }}
+      RESOLVED_EVIDENCE_PREFIX: ${{ inputs.evidence_prefix || vars.DEV_MIN_EVIDENCE_PREFIX || 'evidence/dev_min/run_control' }}
+      RESOLVED_UPLOAD_EVIDENCE: ${{ inputs.upload_evidence_to_s3 || 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Validate required resolved config
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${RESOLVED_AWS_ROLE}" ]]; then
+            echo "RESOLVED_AWS_ROLE is empty. Set workflow input or repo variable DEV_MIN_AWS_ROLE_TO_ASSUME."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.RESOLVED_AWS_REGION }}
+          role-to-assume: ${{ env.RESOLVED_AWS_ROLE }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          EXECUTION_ID="idle_guard_${TS}"
+          OUTPUT_DIR="runs/dev_substrate/m9/${TS}"
+          OUTPUT_PATH="${OUTPUT_DIR}/idle_teardown_guard_snapshot.json"
+          S3_URI="s3://${RESOLVED_EVIDENCE_BUCKET}/${RESOLVED_EVIDENCE_PREFIX}/${EXECUTION_ID}/idle_teardown_guard_snapshot.json"
+          mkdir -p "${OUTPUT_DIR}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "execution_id=${EXECUTION_ID}" >> "$GITHUB_OUTPUT"
+          echo "output_path=${OUTPUT_PATH}" >> "$GITHUB_OUTPUT"
+          echo "evidence_s3_uri=${S3_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Evaluate idle posture and enforce guard
+        id: guard
+        shell: bash
+        env:
+          SNAPSHOT_PATH: ${{ steps.run_meta.outputs.output_path }}
+          EXECUTION_ID: ${{ steps.run_meta.outputs.execution_id }}
+          EVIDENCE_S3_URI: ${{ steps.run_meta.outputs.evidence_s3_uri }}
+          AWS_REGION: ${{ env.RESOLVED_AWS_REGION }}
+          AWS_ROLE_TO_ASSUME: ${{ env.RESOLVED_AWS_ROLE }}
+          ECS_CLUSTER_NAME: ${{ env.RESOLVED_ECS_CLUSTER }}
+          SERVICE_NAME_PREFIX: ${{ env.RESOLVED_SERVICE_PREFIX }}
+          HEARTBEAT_PARAM_PATH: ${{ env.RESOLVED_HEARTBEAT_PARAM }}
+          IDLE_TTL_MINUTES: ${{ env.RESOLVED_IDLE_TTL_MINUTES }}
+          ENFORCEMENT_MODE: ${{ env.RESOLVED_ENFORCEMENT_MODE }}
+          DESTROY_WORKFLOW_FILE: ${{ env.RESOLVED_DESTROY_WORKFLOW_FILE }}
+          DESTROY_WORKFLOW_REF: ${{ env.RESOLVED_DESTROY_WORKFLOW_REF }}
+          REQUIRED_PLATFORM_RUN_ID: ${{ env.RESOLVED_REQUIRED_PLATFORM_RUN_ID }}
+          TF_STATE_BUCKET: ${{ env.RESOLVED_TF_STATE_BUCKET }}
+          TF_LOCK_TABLE: ${{ env.RESOLVED_TF_LOCK_TABLE }}
+          TF_STATE_KEY_DEMO: ${{ env.RESOLVED_TF_STATE_KEY_DEMO }}
+          DESTROY_EVIDENCE_BUCKET: ${{ env.RESOLVED_DESTROY_EVIDENCE_BUCKET }}
+          DESTROY_EVIDENCE_PREFIX: ${{ env.RESOLVED_DESTROY_EVIDENCE_PREFIX }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import urllib.request
+          from datetime import UTC, datetime
+
+          def aws_json(args):
+            cmd = ["aws"] + args + ["--output", "json"]
+            proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            return json.loads(proc.stdout) if proc.stdout.strip() else {}
+
+          def safe_aws_json(args):
+            cmd = ["aws"] + args + ["--output", "json"]
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            if proc.returncode != 0:
+              return None, proc.stderr.strip()
+            if not proc.stdout.strip():
+              return {}, ""
+            return json.loads(proc.stdout), ""
+
+          now = datetime.now(UTC)
+          blockers = []
+          actions = []
+          cluster = os.environ["ECS_CLUSTER_NAME"]
+          prefix = os.environ["SERVICE_NAME_PREFIX"]
+          heartbeat_path = os.environ["HEARTBEAT_PARAM_PATH"]
+          mode = os.environ["ENFORCEMENT_MODE"]
+          ttl_raw = os.environ["IDLE_TTL_MINUTES"]
+
+          try:
+            ttl_minutes = int(ttl_raw)
+          except ValueError:
+            ttl_minutes = -1
+          if ttl_minutes <= 0:
+            blockers.append("INVALID_IDLE_TTL")
+
+          service_arns = aws_json(["ecs", "list-services", "--cluster", cluster]).get("serviceArns", [])
+          service_names = [arn.rsplit("/", 1)[-1] for arn in service_arns if prefix in arn]
+          services = []
+          failures = []
+          for i in range(0, len(service_names), 10):
+            chunk = service_names[i : i + 10]
+            payload = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", *chunk])
+            services.extend(payload.get("services", []))
+            failures.extend(payload.get("failures", []))
+          if failures:
+            blockers.append("ECS_DESCRIBE_FAILURE")
+
+          active_services = []
+          for svc in services:
+            desired = int(svc.get("desiredCount", 0))
+            running = int(svc.get("runningCount", 0))
+            if desired > 0 or running > 0:
+              active_services.append({
+                "service_name": svc.get("serviceName"),
+                "service_arn": svc.get("serviceArn"),
+                "desired_count": desired,
+                "running_count": running,
+              })
+
+          heartbeat_payload = {}
+          heartbeat_error = ""
+          param_payload, err = safe_aws_json(["ssm", "get-parameter", "--name", heartbeat_path])
+          if err:
+            blockers.append("HEARTBEAT_READ_FAILED")
+            heartbeat_error = err
+          else:
+            raw = param_payload.get("Parameter", {}).get("Value", "")
+            try:
+              heartbeat_payload = json.loads(raw) if raw else {}
+            except json.JSONDecodeError:
+              blockers.append("HEARTBEAT_JSON_INVALID")
+
+          hb_time_raw = (
+            heartbeat_payload.get("updated_at_utc")
+            or heartbeat_payload.get("last_activity_utc")
+            or heartbeat_payload.get("captured_at_utc")
+            or ""
+          )
+          idle_minutes = None
+          if hb_time_raw:
+            try:
+              hb_dt = datetime.fromisoformat(hb_time_raw.replace("Z", "+00:00"))
+              idle_minutes = int((now - hb_dt).total_seconds() // 60)
+            except ValueError:
+              blockers.append("HEARTBEAT_TIME_INVALID")
+          else:
+            blockers.append("HEARTBEAT_TIME_MISSING")
+
+          idle_breach = idle_minutes is not None and ttl_minutes > 0 and idle_minutes >= ttl_minutes
+          enforced = {"mode": mode, "triggered": False, "result": "none", "details": []}
+
+          if mode not in {"observe_only", "stop_services", "destroy_demo_stack"}:
+            blockers.append("INVALID_ENFORCEMENT_MODE")
+
+          if idle_breach and len(active_services) > 0 and mode in {"stop_services", "destroy_demo_stack"}:
+            enforced["triggered"] = True
+            if mode == "stop_services":
+              for row in active_services:
+                proc = subprocess.run(
+                  [
+                    "aws", "ecs", "update-service",
+                    "--cluster", cluster,
+                    "--service", row["service_name"],
+                    "--desired-count", "0",
+                  ],
+                  capture_output=True,
+                  text=True,
+                )
+                item = {
+                  "service_name": row["service_name"],
+                  "rc": proc.returncode,
+                  "stderr": proc.stderr.strip(),
+                }
+                enforced["details"].append(item)
+                if proc.returncode != 0:
+                  blockers.append("IDLE_STOP_SERVICE_UPDATE_FAILED")
+              if "IDLE_STOP_SERVICE_UPDATE_FAILED" not in blockers:
+                enforced["result"] = "stopped_services"
+                actions.append("stop_services")
+            elif mode == "destroy_demo_stack":
+              run_id = os.environ.get("REQUIRED_PLATFORM_RUN_ID", "").strip() or str(heartbeat_payload.get("platform_run_id", "")).strip()
+              if not run_id:
+                blockers.append("IDLE_DESTROY_RUN_ID_MISSING")
+              else:
+                payload = {
+                  "ref": os.environ.get("DESTROY_WORKFLOW_REF", "") or os.environ.get("GITHUB_REF_NAME", ""),
+                  "inputs": {
+                    "stack_target": "demo",
+                    "aws_region": os.environ["AWS_REGION"],
+                    "aws_role_to_assume": os.environ["AWS_ROLE_TO_ASSUME"],
+                    "tf_state_bucket": os.environ["TF_STATE_BUCKET"],
+                    "tf_lock_table": os.environ["TF_LOCK_TABLE"],
+                    "tf_state_key_demo": os.environ["TF_STATE_KEY_DEMO"],
+                    "required_platform_run_id": run_id,
+                    "evidence_bucket": os.environ["DESTROY_EVIDENCE_BUCKET"],
+                    "evidence_prefix": os.environ["DESTROY_EVIDENCE_PREFIX"],
+                    "upload_evidence_to_s3": "true",
+                  },
+                }
+                url = (
+                  f"{os.environ.get('GITHUB_API_URL', 'https://api.github.com')}"
+                  f"/repos/{os.environ['GITHUB_REPOSITORY']}/actions/workflows/{os.environ['DESTROY_WORKFLOW_FILE']}/dispatches"
+                )
+                req = urllib.request.Request(
+                  url,
+                  method="POST",
+                  headers={
+                    "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+                    "Accept": "application/vnd.github+json",
+                    "Content-Type": "application/json",
+                  },
+                  data=json.dumps(payload).encode("utf-8"),
+                )
+                try:
+                  with urllib.request.urlopen(req, timeout=30):
+                    pass
+                  enforced["result"] = "destroy_dispatched"
+                  enforced["details"].append({"required_platform_run_id": run_id})
+                  actions.append("dispatch_destroy_demo_stack")
+                except Exception as exc:
+                  blockers.append("IDLE_DESTROY_DISPATCH_FAILED")
+                  enforced["details"].append({"error": str(exc)})
+
+          if idle_breach and len(active_services) > 0 and mode == "observe_only":
+            blockers.append("IDLE_BREACH_OBSERVED_ONLY")
+
+          post_service_rows = []
+          if service_names:
+            for i in range(0, len(service_names), 10):
+              chunk = service_names[i : i + 10]
+              payload = aws_json(["ecs", "describe-services", "--cluster", cluster, "--services", *chunk])
+              for svc in payload.get("services", []):
+                post_service_rows.append({
+                  "service_name": svc.get("serviceName"),
+                  "desired_count": int(svc.get("desiredCount", 0)),
+                  "running_count": int(svc.get("runningCount", 0)),
+                  "pending_count": int(svc.get("pendingCount", 0)),
+                })
+
+          overall_pass = len(blockers) == 0
+          snapshot = {
+            "phase": "M9",
+            "phase_id": "P12",
+            "lane": "M9.G.idle_teardown_guard",
+            "execution_id": os.environ["EXECUTION_ID"],
+            "captured_at_utc": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "ecs_cluster_name": cluster,
+            "service_name_prefix": prefix,
+            "heartbeat_param_path": heartbeat_path,
+            "idle_ttl_minutes": ttl_minutes,
+            "idle_minutes": idle_minutes,
+            "idle_breach": idle_breach,
+            "enforcement_mode": mode,
+            "active_service_count": len(active_services),
+            "active_services": active_services,
+            "post_service_rows": sorted(post_service_rows, key=lambda x: x["service_name"]),
+            "heartbeat_payload": heartbeat_payload,
+            "heartbeat_error": heartbeat_error,
+            "enforcement": enforced,
+            "actions": actions,
+            "evidence_s3_uri": os.environ.get("EVIDENCE_S3_URI"),
+            "blockers": sorted(set(blockers)),
+            "overall_pass": overall_pass,
+          }
+
+          out = os.environ["SNAPSHOT_PATH"]
+          os.makedirs(os.path.dirname(out), exist_ok=True)
+          with open(out, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, indent=2)
+            f.write("\n")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+            f.write(f"overall_pass={'true' if overall_pass else 'false'}\n")
+          PY
+
+      - name: Upload idle guard snapshot to S3
+        if: ${{ env.RESOLVED_UPLOAD_EVIDENCE == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 cp \
+            "${{ steps.run_meta.outputs.output_path }}" \
+            "${{ steps.run_meta.outputs.evidence_s3_uri }}" \
+            --region "${{ env.RESOLVED_AWS_REGION }}"
+
+      - name: Upload workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-min-idle-teardown-guard-${{ steps.run_meta.outputs.timestamp }}
+          path: ${{ steps.run_meta.outputs.output_path }}
+          if-no-files-found: error
+
+      - name: Enforce fail-closed verdict
+        if: ${{ steps.guard.outputs.overall_pass != 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Idle guard failed closed. See snapshot artifact."
+          exit 1

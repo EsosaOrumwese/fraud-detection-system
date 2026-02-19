@@ -93,6 +93,11 @@ variable "ecs_daemon_task_memory" {
   default = "512"
 }
 
+variable "ecs_daemon_service_desired_count_default" {
+  type    = number
+  default = 0
+}
+
 variable "required_platform_run_id_env_key" {
   type    = string
   default = "REQUIRED_PLATFORM_RUN_ID"
