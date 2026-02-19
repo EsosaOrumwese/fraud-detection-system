@@ -190,7 +190,8 @@ jobs:
             terraform -chdir="${{ steps.stack_cfg.outputs.terraform_dir }}" destroy \
               -auto-approve \
               -input=false \
-              -var="required_platform_run_id=${{ steps.stack_cfg.outputs.required_platform_run_id }}"
+              -var="required_platform_run_id=${{ steps.stack_cfg.outputs.required_platform_run_id }}" \
+              -var="confluent_credentials_source=manual"
           else
             terraform -chdir="${{ steps.stack_cfg.outputs.terraform_dir }}" destroy -auto-approve -input=false
           fi
