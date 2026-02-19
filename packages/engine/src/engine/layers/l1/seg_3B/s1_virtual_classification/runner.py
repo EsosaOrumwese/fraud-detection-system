@@ -670,7 +670,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 {"path": str(policy_path)},
                 manifest_fingerprint,
             )
-        rule_map: dict[tuple[str, str], str] = {}
+        rule_map: dict[tuple[str, str], dict[str, str]] = {}
         for rule in rules:
             if not isinstance(rule, dict):
                 _abort(
@@ -689,7 +689,26 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     {"mcc": key[0], "channel": key[1]},
                     manifest_fingerprint,
                 )
-            rule_map[key] = str(rule.get("decision") or "")
+            decision = str(rule.get("decision") or "").strip().lower()
+            if decision not in ("virtual", "physical"):
+                _abort(
+                    "E3B_S1_005_POLICY_SCHEMA_INVALID",
+                    "V-06",
+                    "policy_rule_decision_invalid",
+                    {"mcc": key[0], "channel": key[1], "decision": decision},
+                    manifest_fingerprint,
+                )
+            explicit_rule_id = str(rule.get("rule_id") or "").strip()
+            if _is_placeholder(explicit_rule_id) or not explicit_rule_id:
+                explicit_rule_id = f"MCC_{key[0]}__CHANNEL_{key[1]}__DECISION_{decision.upper()}"
+            explicit_rule_version = str(rule.get("rule_version") or "").strip()
+            if _is_placeholder(explicit_rule_version) or not explicit_rule_version:
+                explicit_rule_version = policy_version
+            rule_map[key] = {
+                "decision": decision,
+                "rule_id": explicit_rule_id,
+                "rule_version": explicit_rule_version,
+            }
         logger.info("S1: loaded virtual rules (rules=%d, policy_version=%s)", len(rule_map), policy_version)
 
         current_phase = "merchant_universe"
@@ -768,20 +787,29 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
 
         current_phase = "classification"
         rules_df = pl.DataFrame(
-            [{"mcc_str": mcc, "channel": channel, "decision": decision} for (mcc, channel), decision in rule_map.items()]
+            [
+                {
+                    "mcc_str": mcc,
+                    "channel": channel,
+                    "rule_decision": rule_meta["decision"],
+                    "rule_id": rule_meta["rule_id"],
+                    "rule_version": rule_meta["rule_version"],
+                }
+                for (mcc, channel), rule_meta in rule_map.items()
+            ]
         )
         classification_df = (
             merchant_df.join(rules_df, on=["mcc_str", "channel"], how="left")
             .with_columns(
-                pl.when(pl.col("decision") == "virtual")
+                pl.when(pl.col("rule_decision") == "virtual")
                 .then(True)
                 .otherwise(False)
                 .alias("is_virtual"),
-                pl.when(pl.col("decision").is_null())
+                pl.when(pl.col("rule_decision").is_null())
                 .then(pl.lit(_DECISION_DEFAULT))
                 .otherwise(pl.lit(_DECISION_RULE_MATCH))
                 .alias("decision_reason"),
-                pl.when(pl.col("decision") == "virtual")
+                pl.when(pl.col("rule_decision") == "virtual")
                 .then(pl.lit(_VIRTUAL_MODE_VIRTUAL))
                 .otherwise(pl.lit(_VIRTUAL_MODE_NON_VIRTUAL))
                 .alias("virtual_mode"),
@@ -792,8 +820,16 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 pl.lit(policy_id).alias("source_policy_id"),
                 pl.lit(policy_version).alias("source_policy_version"),
                 pl.lit(policy_digest).alias("classification_digest"),
-                pl.lit(None, dtype=pl.Utf8).alias("rule_id"),
-                pl.lit(None, dtype=pl.Utf8).alias("rule_version"),
+                pl.when(pl.col("rule_id").is_null() | (pl.col("rule_id") == ""))
+                .then(pl.lit(_DECISION_DEFAULT))
+                .otherwise(pl.col("rule_id"))
+                .cast(pl.Utf8)
+                .alias("rule_id"),
+                pl.when(pl.col("rule_version").is_null() | (pl.col("rule_version") == ""))
+                .then(pl.lit(policy_version))
+                .otherwise(pl.col("rule_version"))
+                .cast(pl.Utf8)
+                .alias("rule_version"),
                 pl.lit(None, dtype=pl.Utf8).alias("notes"),
             )
             .select(
@@ -814,7 +850,17 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
             )
         )
         virtual_merchants = int(classification_df.filter(pl.col("is_virtual")).height)
+        lineage_counts = classification_df.select(
+            [
+                pl.col("rule_id").is_not_null().sum().alias("rule_id_non_null_rows"),
+                pl.col("rule_version").is_not_null().sum().alias("rule_version_non_null_rows"),
+                pl.col("rule_id").drop_nulls().n_unique().alias("active_rule_id_count"),
+            ]
+        ).row(0, named=True)
         counts["virtual_merchants"] = virtual_merchants
+        counts["rule_id_non_null_rows"] = int(lineage_counts["rule_id_non_null_rows"] or 0)
+        counts["rule_version_non_null_rows"] = int(lineage_counts["rule_version_non_null_rows"] or 0)
+        counts["active_rule_id_count"] = int(lineage_counts["active_rule_id_count"] or 0)
         timer.info(f"S1: classification complete (virtual_merchants={virtual_merchants}, total={total_merchants})")
 
         current_phase = "settlement_coords"

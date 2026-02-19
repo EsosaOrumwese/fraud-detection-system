@@ -1160,9 +1160,9 @@ Scope:
 - preserve virtual prevalence posture unless intentionally policy-adjusted.
 
 Definition of done:
-- [ ] `3B-V08` and `3B-V09` pass on witness seeds.
-- [ ] active `rule_id` count shows movement toward `3B-V10`.
-- [ ] no regressions in S1/S2 join integrity.
+- [x] `3B-V08` and `3B-V09` pass on witness seeds.
+- [x] active `rule_id` count shows movement toward `3B-V10`.
+- [x] no regressions in S1/S2 join integrity.
 
 P1 authority baseline (from P0 lock):
 - baseline run-map:
@@ -1205,9 +1205,9 @@ Scope:
   - `>= 0.99` hard, `>= 0.998` stretch.
 
 Definition of done:
-- [ ] lineage field laws are documented in impl notes before implementation.
-- [ ] fallback lineage semantics are deterministic and non-null by design.
-- [ ] no change yet to public schema/path contracts.
+- [x] lineage field laws are documented in impl notes before implementation.
+- [x] fallback lineage semantics are deterministic and non-null by design.
+- [x] no change yet to public schema/path contracts.
 
 #### P1.2 - S1 Lineage Emission Implementation
 Goal:
@@ -1220,9 +1220,9 @@ Scope:
 - emit/record rule-hit counts for diagnostic review (run report or auxiliary evidence surface).
 
 Definition of done:
-- [ ] witness run completes `S1 -> S5` without schema/path drift.
-- [ ] `3B-V08` and `3B-V09` pass on witness seeds.
-- [ ] `virtual_rate` guardrail stays within `+/- 0.0020`.
+- [x] witness run completes `S1 -> S5` without schema/path drift.
+- [x] `3B-V08` and `3B-V09` pass on witness seeds.
+- [x] `virtual_rate` guardrail stays within `+/- 0.0020`.
 
 #### P1.3 - Rule Diversity Closure (`3B-V10`)
 Goal:
@@ -1236,9 +1236,9 @@ Scope:
 - forbid synthetic/randomized diversification; diversity must come from real policy branches.
 
 Definition of done:
-- [ ] `active_rule_id_count >= 3` on witness seeds (`3B-V10` hard target).
-- [ ] stretch movement toward `>=5` is recorded if achieved (`3B-S09`).
-- [ ] decision outputs (`is_virtual`) remain stable unless an explicit policy reopen is approved.
+- [x] `active_rule_id_count >= 3` on witness seeds (`3B-V10` hard target).
+- [x] stretch movement toward `>=5` is recorded if achieved (`3B-S09`).
+- [x] decision outputs (`is_virtual`) remain stable unless an explicit policy reopen is approved.
 
 #### P1.4 - Witness Lock + P1 Closeout
 Goal:
@@ -1252,9 +1252,34 @@ Scope:
   - `UNLOCK_P2` or `HOLD_P1_REOPEN`.
 
 Definition of done:
-- [ ] `3B-V08`, `3B-V09`, `3B-V10` pass on witness seeds.
-- [ ] `virtual_rate`, `3B-S10`, and `3B-V11` guardrails remain non-regressed.
-- [ ] P1 closure artifacts and decision are pinned in plan + impl notes.
+- [x] `3B-V08`, `3B-V09`, `3B-V10` pass on witness seeds.
+- [x] `virtual_rate`, `3B-S10`, and `3B-V11` guardrails remain non-regressed.
+- [x] P1 closure artifacts and decision are pinned in plan + impl notes.
+
+P1 closure record (2026-02-19):
+- closure candidate run-map:
+  - `42 -> 8d2f7c6a93ea4b3ba17fc97f2fb0a89d`
+  - `101 -> 4b575d80610a44f4a4a807a8cc0b76b5`
+- witness scorer artifacts:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p1_witness_summary_p1_candidate_20260219.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p1_witness_summary_p1_candidate_20260219.md`
+- hard-gate results:
+  - `3B-V08`: PASS on both witness seeds (`rule_id_non_null_rate=1.0`).
+  - `3B-V09`: PASS on both witness seeds (`rule_version_non_null_rate=1.0`).
+  - `3B-V10`: PASS on both witness seeds (`active_rule_id_count=553`).
+  - stretch note: `3B-S09` achieved (`>=5` active rule IDs).
+- guardrail results:
+  - `virtual_rate=0.0309` on both witness seeds (no drift vs baseline).
+  - `3B-S10`: PASS (`settlement_tzid_top1_share=0.055016...`).
+  - `3B-V11`: PASS (`alias_max_abs_delta=3.385543823281392e-08`).
+- structural/run status:
+  - witness chains ended `S5 PASS` for both seeds.
+  - no schema/path drift observed in `S1` outputs.
+- retention/prune:
+  - retained P1 authorities: `8d2f7c6a93ea4b3ba17fc97f2fb0a89d`, `4b575d80610a44f4a4a807a8cc0b76b5`.
+  - superseded failed staging run-id folders pruned in closure (`1b9801dca4a24adf8cbc63442079a702`, `76cfad0bf15448b08988e62081a913c3`).
+- decision:
+  - `UNLOCK_P2`.
 
 ### P2 - S2 topology and settlement coupling core (`CF-3B-01 + CF-3B-02`)
 Goal:
@@ -1331,7 +1356,7 @@ Definition of done:
 - `POPT.3`: completed (`UNLOCK_POPT4`)
 - `POPT.4`: completed (`CLOSED_UNLOCK_P0`)
 - `P0`: completed (`EXECUTED_FAIL_REALISM_UNLOCK_P1`)
-- `P1`: pending (`PLANNING_EXPANDED_READY_FOR_EXECUTION`)
+- `P1`: completed (`EXECUTED_UNLOCK_P2`)
 - `P2`: pending
 - `P3`: pending
 - `P4`: pending

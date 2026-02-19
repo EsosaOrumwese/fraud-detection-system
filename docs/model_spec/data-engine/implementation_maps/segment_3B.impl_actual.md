@@ -4123,3 +4123,139 @@ Guardrails and rerun law pinned for P1:
 Decision:
 1) `P1` planning is now execution-grade in the build plan.
 2) next action is execution of `P1.1` (lineage contract lock) before code edits.
+
+### Entry: 2026-02-19 19:14
+
+Design element: `3B P1.1 execution lock (S1 lineage contract before code edits)`.
+Summary: before changing `S1`, pinned exact lineage mechanics to close `3B-V08/V09/V10` while keeping S1 decision outcomes stable for P2 handoff.
+
+Authority readback:
+1) `state.3B.s1.expanded.md` requires classification reason provenance and deterministic policy-governed semantics.
+2) `schemas.3B.yaml#/plan/virtual_classification_3B` allows nullable `rule_id`/`rule_version`, but P1 target requires practical non-null coverage (`>=0.99` hard).
+3) current S1 runner hard-codes:
+   - `rule_id = null`
+   - `rule_version = null`
+   which is the direct cause of V08/V09 hard failures.
+
+Alternatives considered:
+1) policy-only fix by adding explicit `rule_id` and `rule_version` fields to `mcc_channel_rules.yaml`:
+   - rejected for P1.1 because it would force reseal (`S0`) and add avoidable blast radius before validating code-path closure.
+2) synthetic post-classification imputation not tied to matched rule path:
+   - rejected; would pass metrics but violate explainability intent.
+3) deterministic in-run lineage from matched `(mcc, channel, decision)` path + policy version:
+   - selected; no contract drift, no RNG involvement, and direct auditability.
+
+Pinned implementation law for P1.1/P1.2:
+1) `rule_id`:
+   - for matched rows: deterministic ID derived from matched rule content (`mcc`, `channel`, `decision`) unless policy supplies explicit `rule_id`.
+   - for fallback rows: deterministic `DEFAULT_GUARD`.
+2) `rule_version`:
+   - always non-null and equal to sealed policy `version` (`mcc_channel_rules.version`) for both matched and fallback rows.
+3) `decision_reason`:
+   - keep existing closed vocabulary usage (`RULE_MATCH` vs `DEFAULT_GUARD`) unless an explicit override lane is introduced.
+4) first pass must not alter `is_virtual` logic.
+
+Guardrails pinned for witness closure:
+1) witness seeds: `{42, 101}`.
+2) non-regression rails:
+   - `abs(virtual_rate - baseline) <= 0.002`,
+   - `settlement_tzid_top1_share <= 0.18`,
+   - alias fidelity (`3B-V11`) remains PASS.
+3) rerun law:
+   - code change in S1 -> rerun `S1 -> S5` on each witness seed.
+
+### Entry: 2026-02-19 19:17
+
+Design element: `3B P1.2 implementation patch (deterministic S1 lineage emission)`.
+Summary: implemented lineage fields in `S1` and added a dedicated P1 witness scorer so P1 evaluation does not overwrite P0 lock artifacts.
+
+Code changes:
+1) `packages/engine/src/engine/layers/l1/seg_3B/s1_virtual_classification/runner.py`
+   - policy-rule parsing now materializes deterministic lineage metadata:
+     - validates `decision` domain (`virtual|physical`) with fail-closed error `policy_rule_decision_invalid`,
+     - computes deterministic fallback `rule_id` when absent (`MCC_<mcc>__CHANNEL_<channel>__DECISION_<decision>`),
+     - computes deterministic fallback `rule_version` from policy version.
+   - classification join now uses `rule_decision` + lineage columns from matched rule rows.
+   - output `virtual_classification_3B` now emits non-null lineage by construction:
+     - `rule_id`: matched rule id else `DEFAULT_GUARD`,
+     - `rule_version`: matched rule version else policy version.
+   - run report counters now include:
+     - `rule_id_non_null_rows`,
+     - `rule_version_non_null_rows`,
+     - `active_rule_id_count`.
+2) new scorer:
+   - `tools/score_segment3b_p1_witness.py`
+   - evaluates witness-seed P1 closure gates/guardrails:
+     - `3B-V08`, `3B-V09`, `3B-V10`,
+     - virtual-rate drift guardrail,
+     - `3B-S10` non-regression,
+     - `3B-V11` alias fidelity.
+   - emits dedicated P1 artifacts under `runs/fix-data-engine/segment_3B/reports/`.
+
+Verification:
+1) `python -m py_compile packages/engine/src/engine/layers/l1/seg_3B/s1_virtual_classification/runner.py` -> PASS.
+2) `python -m py_compile tools/score_segment3b_p1_witness.py` -> PASS.
+
+Next execution step:
+1) stage fresh witness run-ids for seeds `42` and `101`.
+2) run `S1->S5` for each witness run.
+3) score P1 witness closure and decide `UNLOCK_P2` vs `HOLD_P1_REOPEN`.
+
+### Entry: 2026-02-19 19:43
+
+Design element: `3B P1.3/P1.4 witness execution and phase closure`.
+Summary: executed witness runs for seeds `{42,101}`, closed lineage gates `3B-V08/V09/V10`, and confirmed non-regression guardrails before unlocking `P2`.
+
+Execution decisions and rationale:
+1) staging-path correction:
+   - first attempt using staged runs + `--copy-s2-cache` raised `SameFileError` in staging utility because source/target cache path resolved to same file.
+   - decision: keep staged run-ids but avoid cache-copy mode for this closure lane to prevent non-remediation path failures.
+2) rerun law correction:
+   - initial `S1->S5` attempt failed due missing `S0` gate receipt in staged lane.
+   - decision: run `S0->S5` for witness closure so sealed-gate prerequisites are present and phase evidence is contract-valid.
+3) seed-101 runtime optimization:
+   - after `S0->S1`, reused existing seed-101 `S2` cache from authority run `595a30d1278a4af39ea0fd1a78451571` to reduce repeated heavy compute while preserving deterministic policy/seed context.
+
+Witness execution map:
+1) seed `42`:
+   - run-id `8d2f7c6a93ea4b3ba17fc97f2fb0a89d`,
+   - `S0->S5` PASS.
+2) seed `101`:
+   - run-id `4b575d80610a44f4a4a807a8cc0b76b5`,
+   - `S0->S1` then cache-assisted `S2->S5` PASS.
+
+Observed S1 closure counters (both witness seeds):
+1) `rule_id_non_null_rows=10000` (`rate=1.0`).
+2) `rule_version_non_null_rows=10000` (`rate=1.0`).
+3) `active_rule_id_count=553` (hard + stretch diversity cleared).
+4) `virtual_merchants=309`, `merchants_total=10000` (decision posture stable).
+
+P1 scorer closure artifacts:
+1) `runs/fix-data-engine/segment_3B/reports/segment3b_p1_witness_summary_p1_candidate_20260219.json`
+2) `runs/fix-data-engine/segment_3B/reports/segment3b_p1_witness_summary_p1_candidate_20260219.md`
+
+Scored closure result:
+1) decision: `UNLOCK_P2`.
+2) hard gates:
+   - `3B-V08`: PASS.
+   - `3B-V09`: PASS.
+   - `3B-V10`: PASS.
+3) guardrails:
+   - virtual-rate drift guard: PASS (`virtual_rate=0.0309` on both seeds),
+   - `3B-S10`: PASS (`settlement_tzid_top1_share=0.055016...`),
+   - `3B-V11`: PASS (`alias_max_abs_delta=3.385543823281392e-08`).
+
+### Entry: 2026-02-19 19:44
+
+Design element: `3B P1 run-retention closure hygiene`.
+Summary: removed superseded failed P1 staging folders to keep `runs/fix-data-engine/segment_3B` within bounded retention while preserving authority/witness evidence.
+
+Action:
+1) executed:
+   - `python tools/prune_run_folders_keep_set.py --runs-root runs/fix-data-engine/segment_3B --keep 3686a5ebc2ee42f4a84edea17f80376d --keep 4b575d80610a44f4a4a807a8cc0b76b5 --keep 595a30d1278a4af39ea0fd1a78451571 --keep 724a63d3f8b242809b8ec3b746d0c776 --keep 8d2f7c6a93ea4b3ba17fc97f2fb0a89d --keep c90f94802ae94ff6a932c84e1520a112 --yes`.
+2) removed run-id folders:
+   - `1b9801dca4a24adf8cbc63442079a702`
+   - `76cfad0bf15448b08988e62081a913c3`
+3) retained authorities:
+   - P0 seedpack authorities: `724a63d3f8b242809b8ec3b746d0c776`, `3686a5ebc2ee42f4a84edea17f80376d`, `595a30d1278a4af39ea0fd1a78451571`, `c90f94802ae94ff6a932c84e1520a112`.
+   - P1 witness authorities: `8d2f7c6a93ea4b3ba17fc97f2fb0a89d`, `4b575d80610a44f4a4a807a8cc0b76b5`.

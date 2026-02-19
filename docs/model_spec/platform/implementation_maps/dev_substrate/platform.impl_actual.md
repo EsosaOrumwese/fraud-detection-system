@@ -16082,3 +16082,82 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m9_execution_id>/m9_i_verdict_snapshot.json`
      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m9_execution_id>/m10_handoff_pack.json`.
 
+## Entry: 2026-02-19 19:15:12 +00:00 - M9.I attempt-1 fail-closed and scanner remediation decision
+### Attempt-1 outcome
+1. Executed first `M9.I` publication run:
+   - execution id: `m9_20260219T191458Z`
+   - artifacts were emitted and uploaded, but verdict was `HOLD_M9` with `M9I-B5`.
+2. Fail-closed blocker:
+   - `M9I-B5` (handoff non-secret policy violation).
+
+### Root cause
+1. Scanner rule matched key names against `secret` pattern globally.
+2. Required handoff schema includes key `non_secret_policy`, which contains the token `secret` by design.
+3. This produced a false-positive on policy metadata, not an actual secret-bearing payload.
+
+### Remediation decision
+1. Keep fail-closed posture, but narrow scanner semantics to detect real secret leakage:
+   - do not flag approved policy metadata keys (`non_secret_policy` and nested metadata paths),
+   - continue scanning all string values and non-policy keys for sensitive patterns.
+2. Rerun `M9.I` after scanner fix; require:
+   - blocker-free verdict,
+   - local + durable artifacts,
+   - deterministic `ADVANCE_TO_M10` outcome.
+
+## Entry: 2026-02-19 19:16:20 +00:00 - M9.I attempt-2 fail-closed and final scanner narrowing
+### Attempt-2 outcome
+1. Second `M9.I` run still failed closed with `M9I-B5`.
+2. Execution id:
+   - `m9_20260219T191602Z`.
+
+### Root cause
+1. Scanner still evaluated plain string values with broad `secret` token matching.
+2. Handoff intentionally carries evidence references such as:
+   - `m9_f_secret_cleanup_snapshot.json`,
+   which are benign artifacts and not credential material.
+
+### Final remediation decision
+1. Change scanner from generic token words to credential-shaped patterns only:
+   - key-side checks: explicit credential key names (`password`, `api_key`, `api_secret`, `access_key`, `secret_key`, `session_token`, `private_key`),
+   - value-side checks: `AKIA/ASIA` key prefixes, private key PEM markers, JWT-like token strings, explicit secret-bearing assignment forms.
+2. Keep fail-closed behavior unchanged:
+   - any matched credential-shaped signal remains `M9I-B5`.
+
+## Entry: 2026-02-19 19:17:06 +00:00 - M9.I authoritative PASS after scanner narrowing
+### Execution
+1. Re-executed `M9.I` with narrowed credential-shaped scanner policy.
+2. Execution id:
+   - `m9_20260219T191706Z`.
+3. Artifact publication:
+   - local:
+     - `runs/dev_substrate/m9/m9_20260219T191706Z/m9_i_verdict_snapshot.json`
+     - `runs/dev_substrate/m9/m9_20260219T191706Z/m10_handoff_pack.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T191706Z/m9_i_verdict_snapshot.json`
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T191706Z/m10_handoff_pack.json`.
+
+### Outcomes
+1. Verdict:
+   - `ADVANCE_TO_M10`.
+2. Pass posture:
+   - `overall_pass=true`,
+   - blockers empty,
+   - `source_blocker_rollup=[]`.
+3. Handoff policy:
+   - `non_secret_policy.pass=true`,
+   - `violations=[]`.
+4. Predicate posture:
+   - all P12 predicates evaluate `true` from `M9.A..M9.H` source matrix.
+5. Durable publish verification:
+   - `aws s3api head-object` succeeded for both:
+     - `evidence/dev_min/run_control/m9_20260219T191706Z/m9_i_verdict_snapshot.json`
+     - `evidence/dev_min/run_control/m9_20260219T191706Z/m10_handoff_pack.json`.
+
+### Consequence
+1. `M9.I` is closed green.
+2. M9 phase closure criteria are satisfied.
+3. `platform.build_plan.md` updated to mark:
+   - `M9 status=DONE`,
+   - `M9.I` sub-phase checkbox complete,
+   - M9 DoD verdict checkbox complete.
+
