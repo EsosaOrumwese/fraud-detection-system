@@ -13444,3 +13444,69 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 5. ls_label_timeline_run=200
 6. coherence check: label_orphans_missing_case_event=0
 7. case-trigger publish posture: ADMIT=200, AMBIGUOUS=0.
+
+## Entry: 2026-02-19 06:35:32 +00:00 - P10.C planning pre-change lock (M7.P10 execution-grade expansion)
+### User directive
+1. Move to planning P10.C in platform.M7.P10.build_plan.md.
+
+### Current posture observed
+1. P10.A and P10.B are closed with durable snapshots.
+2. P10.C is still summary-level and lacks deterministic execution mechanics.
+
+### Planning decision
+1. Expand P10.C into execution-grade content before runtime execution.
+2. Add:
+   - required inputs and preparation checks,
+   - deterministic verification algorithm,
+   - explicit snapshot schema contract,
+   - runtime budget gate,
+   - fail-closed blocker set aligned to M7.I.
+3. Keep this planning-only (no runtime execution in this step).
+
+## Entry: 2026-02-19 06:36:06 +00:00 - P10.C planning expansion applied (M7.P10)
+### Changes applied
+1. Expanded P10.C in docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md from summary-level to execution-grade.
+2. Added:
+   - required inputs and preparation checks,
+   - deterministic verification algorithm,
+   - explicit snapshot schema contract,
+   - runtime budget gate (<=10m),
+   - fail-closed blocker taxonomy (M7P10-B1..M7P10-B5).
+
+### Intent
+1. Ensure M7.I can execute without improvisation.
+2. Make P10 closure predicate-driven (P8, P9, P10) with deterministic blocker rollup.
+
+### Execution posture
+1. Planning-only update complete.
+2. Next step is runtime execution of P10.C (M7.I) using the now-pinned algorithm.
+
+## Entry: 2026-02-19 06:38:16 +00:00 - P10.C execution start lock (M7.I rollup)
+### User directive
+1. Execute full P10.C and document decision trail during execution.
+
+### Execution intent
+1. Use the pinned deterministic P10.C algorithm in platform.M7.P10.build_plan.md.
+2. Validate run-scope and pass posture across P8, P9, P10.A, P10.B snapshots.
+3. Emit m7_p10_plane_snapshot.json locally + durably with explicit predicate map and blocker rollup.
+4. Keep lane fail-closed if any predicate/run-scope/publish condition is violated.
+
+## Entry: 2026-02-19 06:40:32 +00:00 - P10.C execution closure recorded (M7.I rollup inputs prepared)
+### Decision trail during execution
+1. Precondition check was run first against all four prerequisite snapshots (m7_p8_plane_snapshot.json, m7_p9_plane_snapshot.json, m7_g_case_label_db_readiness_snapshot.json, m7_h_case_label_commit_snapshot.json).
+2. Run-scope conformance was treated as hard gate before verdict (platform_run_id=platform_20260213T214223Z, m7_execution_id=m7_20260218T141420Z), with fail-closed posture if any mismatch appeared.
+3. Predicate rollup was computed deterministically from source snapshot overall_pass values only:
+   - p8_rtdl_caught_up=true
+   - p9_decision_chain_committed=true
+   - p10_case_labels_committed=true
+4. Blocker rollup was computed from source blockers with provenance; result stayed empty ([]), so no escalation blocker remained.
+5. Snapshot publication was required in two surfaces (local + durable) before closure acceptance.
+
+### Closure evidence
+1. Local artifact: runs/dev_substrate/m7/20260218T141420Z/m7_p10_plane_snapshot.json.
+2. Durable artifact: s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p10_plane_snapshot.json.
+3. Final verdict in artifact: overall_pass=true, blockers empty, runtime budget within target.
+
+### Outcome
+1. P10.C closure is now evidence-complete and reproducible.
+2. Next progression point remains M7.I/M7.J in the M7 orchestrator lane.

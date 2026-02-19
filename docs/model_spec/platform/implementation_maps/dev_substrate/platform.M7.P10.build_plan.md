@@ -373,32 +373,108 @@ Execution closure (`2026-02-19`):
      - `ls_label_assertions=200`, `ls_label_timeline=200`
      - `ct_publish_admit_total=200`, `ct_publish_ambiguous_total=0`
 
-### P10.C Plane Closure Summary
+### P10.C Plane Closure Summary (`M7.I` depth)
 Goal:
 1. Emit deterministic P10 closure artifact for M7 orchestrator.
+2. Provide machine-checkable P10 predicate posture for M7 verdict rollup.
 
 Entry conditions:
-1. `P10.A` and `P10.B` completed.
+1. `P10.A` snapshot exists and reports `overall_pass=true`.
+2. `P10.B` snapshot exists and reports `overall_pass=true`.
+3. Active run scope is fixed:
+   - `platform_run_id=platform_20260213T214223Z`
+   - `m7_execution_id=m7_20260218T141420Z`.
 
-Tasks:
-1. Roll up blockers from `M7.G..M7.H`.
-2. Compute `p10_overall_pass`.
-3. Publish `m7_p10_plane_snapshot.json` with:
+Required inputs:
+1. `runs/dev_substrate/m7/<m7_execution_id>/m7_g_case_label_db_readiness_snapshot.json`
+2. `runs/dev_substrate/m7/<m7_execution_id>/m7_h_case_label_commit_snapshot.json`
+3. `runs/dev_substrate/m7/<m7_execution_id>/m7_p8_plane_snapshot.json`
+4. `runs/dev_substrate/m7/<m7_execution_id>/m7_p9_plane_snapshot.json`
+5. Durable roots:
+   - `evidence/dev_min/run_control/<m7_execution_id>/...`
+   - `evidence/runs/<platform_run_id>/...`
+
+Preparation checks:
+1. Ensure all source snapshots are readable (local preferred, durable fallback if needed).
+2. Verify each source snapshot carries the active `platform_run_id` and `m7_execution_id`.
+3. Verify each source snapshot has `overall_pass` field and blocker list contract.
+
+Deterministic verification algorithm (P10.C):
+1. Load source snapshots (`P8`, `P9`, `P10.A`, `P10.B`); missing/unreadable -> `M7P10-B1`.
+2. Verify run-scope conformance across all snapshots (`platform_run_id`, `m7_execution_id`); mismatch -> `M7P10-B4`.
+3. Evaluate required predicate booleans:
+   - `p8_rtdl_caught_up = m7_p8_plane_snapshot.overall_pass`
+   - `p9_decision_chain_committed = m7_p9_plane_snapshot.overall_pass`
+   - `p10_case_labels_committed = m7_h_case_label_commit_snapshot.overall_pass`.
+4. If any required predicate is false -> `M7P10-B2`.
+5. Roll up blockers from source snapshots into a deterministic ordered set.
+6. If rolled blockers non-empty -> `M7P10-B3`.
+7. Emit `m7_p10_plane_snapshot.json` locally with:
    - source snapshot refs,
-   - subject-key pin evidence,
-   - case/label commit counts,
+   - predicate map,
    - blocker rollup,
    - `overall_pass`.
+8. Publish the snapshot durably.
+9. Compute `overall_pass=true` only when predicates are all true, blocker rollup is empty, and durable publish succeeds.
+
+Tasks:
+1. Roll up blockers from `M7.G..M7.H` plus `P8/P9` closure snapshots.
+2. Compute deterministic predicate map (`p8`, `p9`, `p10`).
+3. Publish `m7_p10_plane_snapshot.json` locally + durably.
+
+Required snapshot fields:
+1. `phase`, `phase_id`, `platform_run_id`, `m7_execution_id`.
+2. `source_snapshots` map:
+   - path + `overall_pass` for `m7_p8_plane_snapshot`, `m7_p9_plane_snapshot`, `m7_g_case_label_db_readiness_snapshot`, `m7_h_case_label_commit_snapshot`.
+3. `predicate_map`:
+   - `p8_rtdl_caught_up`
+   - `p9_decision_chain_committed`
+   - `p10_case_labels_committed`.
+4. `blocker_rollup`:
+   - ordered list + source provenance.
+5. `overall_pass`, `blockers`, `elapsed_seconds`.
+
+Runtime budget:
+1. `P10.C` target budget: <= 10 minutes wall clock.
+2. If exceeded, lane remains fail-closed until explicit USER waiver.
 
 DoD:
-- [ ] Plane snapshot exists locally + durably.
-- [ ] Blocker rollup is explicit.
-- [ ] `overall_pass` is deterministic.
+- [x] Plane snapshot exists locally + durably.
+- [x] Blocker rollup is explicit and reproducible.
+- [x] `overall_pass` is deterministic and predicate-driven.
+- [x] Runtime budget target is met (or explicitly waived).
 
 Blockers:
 1. `M7P10-B1`: source snapshot missing/unreadable.
-2. `M7P10-B2`: blocker rollup non-empty.
-3. `M7P10-B3`: plane snapshot publish failure.
+2. `M7P10-B2`: required predicate false or invalid.
+3. `M7P10-B3`: blocker rollup non-empty.
+4. `M7P10-B4`: run-scope mismatch across source snapshots.
+5. `M7P10-B5`: plane snapshot write/upload failure.
+
+Execution closure (`2026-02-19`):
+1. Source snapshots consumed:
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_p8_plane_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_p9_plane_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_g_case_label_db_readiness_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_h_case_label_commit_snapshot.json`
+2. Run-scope conformance checks:
+   - `platform_run_id=platform_20260213T214223Z` matched across all sources.
+   - `m7_execution_id=m7_20260218T141420Z` matched across all sources.
+3. Predicate map result:
+   - `p8_rtdl_caught_up=true`
+   - `p9_decision_chain_committed=true`
+   - `p10_case_labels_committed=true`
+4. Blocker rollup:
+   - empty (`[]`).
+5. Published snapshot:
+   - local:
+     - `runs/dev_substrate/m7/20260218T141420Z/m7_p10_plane_snapshot.json`
+   - durable:
+     - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p10_plane_snapshot.json`
+6. Verdict:
+   - `overall_pass=true`
+   - blockers empty
+   - runtime budget within target.
 
 ## 7) Evidence Contract (P10)
 Run-scoped:
@@ -413,7 +489,7 @@ Control-plane:
 ## 8) Completion Checklist (P10)
 - [x] P10.A complete
 - [x] P10.B complete
-- [ ] P10.C complete
+- [x] P10.C complete
 
 ## 9) Exit Criteria (P10)
 P10 branch is closure-ready only when:

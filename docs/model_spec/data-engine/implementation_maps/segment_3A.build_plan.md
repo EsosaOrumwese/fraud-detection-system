@@ -568,9 +568,9 @@ Scope:
 - preserve strict per-pair count conservation.
 
 Definition of done:
-- [ ] S4 multi-zone and top1-share B gates pass on witness seed.
-- [ ] conservation and schema checks remain PASS.
-- [ ] zone_alloc mirrors S4 with no drift.
+- [x] S4 multi-zone and top1-share B gates pass on witness seed.
+- [x] conservation and schema checks remain PASS.
+- [x] zone_alloc mirrors S4 with no drift.
 
 P3 authority baseline (post-P2 lock):
 - selected run-id: `3f2e94f2d1504c249e434949659a496f`.
@@ -612,9 +612,9 @@ Scope:
     - `S4 share_pairs_single_zone > 0.20` on witness or `> 0.22` on smoke.
 
 Definition of done:
-- [ ] collapse-risk panel is emitted for witness+smoke anchors.
-- [ ] explicit decision is recorded: `P3_NOOP_LOCK` or `P3_ACTIVE_TUNE`.
-- [ ] rerun scope for the chosen lane is pinned before execution.
+- [x] collapse-risk panel is emitted for witness+smoke anchors.
+- [x] explicit decision is recorded: `P3_NOOP_LOCK` or `P3_ACTIVE_TUNE`.
+- [x] rerun scope for the chosen lane is pinned before execution.
 
 #### P3.2 - Safeguard Knob Contract (Only If Active)
 Goal:
@@ -628,9 +628,9 @@ Scope:
 - pin bounded candidate ranges and fail-closed defaults.
 
 Definition of done:
-- [ ] knob families and ranges are documented.
-- [ ] deterministic seed/keying contract is explicit.
-- [ ] veto rails are pinned (`S6/S7`, conservation, `P2` non-regression).
+- [x] knob families and ranges are documented (`N/A`, lane not opened under `P3_NOOP_LOCK`).
+- [x] deterministic seed/keying contract is explicit (`N/A`, lane not opened under `P3_NOOP_LOCK`).
+- [x] veto rails are pinned (`S6/S7`, conservation, `P2` non-regression) (`N/A`, lane not opened under `P3_NOOP_LOCK`).
 
 #### P3.3 - Bounded S4 Safeguard Sweep (Only If Active)
 Goal:
@@ -647,9 +647,9 @@ Scope:
   - any guardrail breach (`S4 multi-zone < 0.85`, `S4 top1 > 0.80`, `zone_alloc top1 > 0.80`).
 
 Definition of done:
-- [ ] ranked sweep table + veto reasons are emitted.
-- [ ] one candidate is promoted (or lane is explicitly abandoned as unnecessary).
-- [ ] runtime evidence is recorded for each candidate run.
+- [x] ranked sweep table + veto reasons are emitted (`N/A`, lane not opened under `P3_NOOP_LOCK`).
+- [x] one candidate is promoted (or lane is explicitly abandoned as unnecessary).
+- [x] runtime evidence is recorded for each candidate run (`N/A`, lane not opened under `P3_NOOP_LOCK`).
 
 #### P3.4 - Witness Lock + Smoke Stability
 Goal:
@@ -663,9 +663,9 @@ Scope:
   - no degradation on S4/zone_alloc hard-gate posture.
 
 Definition of done:
-- [ ] witness replay confirms deterministic metric stability.
-- [ ] smoke seeds keep rails PASS and directionally stable.
-- [ ] no new RNG/accounting anomalies appear in `S6`.
+- [x] witness replay confirms deterministic metric stability.
+- [x] smoke seeds keep rails PASS and directionally stable.
+- [x] no new RNG/accounting anomalies appear in `S6`.
 
 #### P3.5 - Closeout and Handoff
 Goal:
@@ -680,9 +680,28 @@ Scope:
   - or `HOLD_P3_REOPEN`.
 
 Definition of done:
-- [ ] closeout artifacts are emitted and referenced.
-- [ ] retained run set is applied; superseded runs pruned.
-- [ ] explicit handoff decision is recorded.
+- [x] closeout artifacts are emitted and referenced.
+- [x] retained run set is applied; superseded runs pruned.
+- [x] explicit handoff decision is recorded.
+
+P3 execution outcome (2026-02-19):
+- precheck decision:
+  - `P3_NOOP_LOCK` (collapse-risk triggers not active on witness+smoke anchors).
+- active tuning lane:
+  - not opened (`P3.2/P3.3` N/A by decision gate).
+- authority and stability evidence reused:
+  - selected run-id: `3f2e94f2d1504c249e434949659a496f`
+  - witness run-id: `6a3e291aae764c9bbf19b1c39443a68a`
+  - smoke run-ids:
+    - `682c20d2343e4ffaae4d4057d5b23b9e` (`seed=7`)
+    - `8d31ca8eaeda4e7d8e1c0c2443cc89c7` (`seed=101`)
+- emitted artifacts:
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p3_1_collapse_risk_panel.json`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p3_1_collapse_risk_panel.md`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p3_closeout_summary.json`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p3_closeout_summary.md`
+- explicit handoff decision:
+  - `UNLOCK_P4` (S1 escalation-shape stretch remains open).
 
 ### P4 - S1 escalation-shape smoothing (CF-3A-04, conditional)
 Goal:
