@@ -877,6 +877,11 @@ resource "aws_ecs_task_definition" "daemon" {
           name      = "AL_IG_API_KEY"
           valueFrom = aws_ssm_parameter.ig_api_key.arn
         }
+        ] : [], each.key == "decision-lane-dla" ? [
+        {
+          name      = "DLA_INDEX_DSN"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        }
       ] : [])
       logConfiguration = {
         logDriver = "awslogs"

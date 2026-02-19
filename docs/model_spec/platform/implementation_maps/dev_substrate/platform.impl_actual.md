@@ -12637,3 +12637,87 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. `python -m py_compile src/fraud_detection/action_layer/worker.py`.
 2. Publish image and roll AL.
 3. Re-run one-shot DF/AL/DLA with managed wiring and rerun `P9.B` summaries.
+
+## Entry: 2026-02-18 21:30:00 +00:00 - M7.F/P9.B closure rerun: restore non-zero run-scoped decision/audit production
+### Scope
+1. Execute USER instruction: restore non-zero run-scoped decision/audit production, then rerun `P9.B`.
+
+### Problem found before rerun
+1. `decision-lane-dla` had drifted to probe image (`public.ecr.aws/docker/library/busybox:1.36`) while command expected Python worker runtime.
+2. This caused silent decision-lane audit-path breakage risk and prevented trustworthy `P9.B` closure evidence.
+
+### Decisions (fail-closed)
+1. Rematerialize `decision-lane-dla` task definition/service to the platform image digest used by active decision-lane runtime.
+2. Treat run-scoped audit truth as DLA append-only intake/lineage surface for this dev_min posture (Kafka `fp.bus.rtdl.v1` intake policy), not an assumed `fp.bus.audit.v1` topic-only source.
+3. Do not mark `P9.B` closed until non-zero decision/action/audit counts are measured and re-published in run-scoped artifacts.
+
+### Runtime actions executed
+1. Targeted Terraform rollout (`infra/terraform/dev_min/demo`) for:
+   - `module.demo.aws_ecs_task_definition.daemon["decision-lane-dla"]`
+   - `module.demo.aws_ecs_service.daemon["decision-lane-dla"]`
+2. Confirmed decision-lane services healthy on two probes (`DL/DF/AL/DLA` each `desired=1,running=1,pending=0`).
+3. Ran one-shot ECS DLA probe task and captured authoritative run-scoped counts into:
+   - `runs/dev_substrate/m7/20260218T141420Z/p9b_dla_breakdown.json`
+
+### Measured closure evidence
+1. Run-scoped DLA breakdown:
+   - `decision_chains=200`
+   - `action_intents=200`
+   - `action_outcomes=200`
+   - `attempts_accepted=600`
+   - `quarantine_total=0`
+2. Refreshed `P9.B` artifacts locally + durably:
+   - `runs/dev_substrate/m7/20260218T141420Z/decision_lane/decision_summary.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/decision_lane/action_summary.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/decision_lane/audit_summary.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_f_decision_chain_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/decision_summary.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/action_summary.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/audit_summary.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_f_decision_chain_snapshot.json`
+3. `P9.B` rerun verdict:
+   - `overall_pass=true`
+   - blockers empty.
+
+### Plan/doc synchronization
+1. Updated:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `M7.F` now marked complete; forward blocker remains `M7G-B1` for `P10` entry.
+
+## Entry: 2026-02-19 00:59:00 +00:00 - Post-hoc reconstruction of M7.F logging gap (process correction)
+### Context
+1. During the ~2-hour `M7.F` remediation window, decisions were not appended continuously at each substantial step.
+2. This violated the required live decision-log cadence.
+
+### Reconstructed decision trail (chronological)
+1. Decision point A:
+   - symptom: `P9.B` still fail-closed despite prior worker fixes.
+   - check: inspect live task definitions for decision-lane services.
+   - finding: `decision-lane-dla` resolved to probe image (`busybox`) while runtime command expected Python worker.
+   - decision: fail-closed on `P9.B` closure until DLA runtime image is corrected.
+2. Decision point B:
+   - option considered: regenerate evidence from existing stale summaries.
+   - rejected: stale summaries cannot prove restored runtime production.
+   - decision: rematerialize DLA first, then re-measure from runtime truth sources.
+3. Decision point C:
+   - action: targeted Terraform apply for DLA task/service only (risk-contained remediation).
+   - rationale: restore runtime correctness without broad substrate churn.
+4. Decision point D:
+   - action: probe DLA storage surface in-cluster after rollout.
+   - finding: storage schema present; canonical tables include `dla_intake_attempts`, `dla_lineage_*`, no `dla_audit_index`.
+   - decision: base `P9.B` audit proof on DLA append-only intake/lineage tables for dev_min Kafka posture.
+5. Decision point E:
+   - action: execute one-shot in-cluster DLA count probe scoped to `platform_20260213T214223Z`.
+   - measured: `decision_chains=200`, `action_intents=200`, `action_outcomes=200`, `attempts_accepted=600`, `quarantine_total=0`.
+   - decision: rerun `P9.B` artifact publication using these authoritative counts.
+6. Decision point F:
+   - action: republish `decision_summary`, `action_summary`, `audit_summary`, and `m7_f_decision_chain_snapshot`.
+   - verification: durable snapshot shows `overall_pass=true`, blockers empty.
+   - decision: mark `M7.F` complete and retain `M7G-B1` as next forward blocker.
+
+### Process correction (binding for subsequent lanes)
+1. For active execution lanes, append decisions continuously at each substantive step (diagnosis, branch of options, chosen action, verification result).
+2. Do not defer decision logging to end-of-lane summary.
+3. If a cadence miss occurs again, pause lane progression and backfill immediately before any further execution.

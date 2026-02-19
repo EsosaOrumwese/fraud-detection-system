@@ -267,10 +267,10 @@ Required snapshot fields:
 6. `overall_pass` and `blockers`.
 
 DoD:
-- [ ] Required P9 evidence artifacts exist and are run-scoped.
-- [ ] Append-only and idempotency checks pass.
-- [ ] Snapshot exists locally + durably.
-- [ ] Runtime budget gate (`P9.B <= 20 min`) is met or explicitly fail-closed.
+- [x] Required P9 evidence artifacts exist and are run-scoped.
+- [x] Append-only and idempotency checks pass.
+- [x] Snapshot exists locally + durably.
+- [x] Runtime budget gate (`P9.B <= 20 min`) is met or explicitly fail-closed.
 
 Blockers:
 1. `M7F-B1`: required evidence missing/incomplete.
@@ -280,7 +280,7 @@ Blockers:
 5. `M7F-B5`: run-scope mismatch across decision/action/audit artifacts.
 6. `M7F-B6`: dependency reachability failure (Kafka/DB/SSM/S3 evidence write).
 
-Execution result (`2026-02-18`, fail-closed):
+Execution result (`2026-02-18`, fail-closed baseline):
 1. Artifacts were materialized locally + durably:
    - `runs/dev_substrate/m7/20260218T141420Z/decision_lane/decision_summary.json`
    - `runs/dev_substrate/m7/20260218T141420Z/decision_lane/action_summary.json`
@@ -295,6 +295,19 @@ Execution result (`2026-02-18`, fail-closed):
    - `M7F-B1`: non-zero admitted traffic basis (`traffic_fraud=400`) but zero run-scoped records on `FP_BUS_AUDIT_V1`.
    - `M7F-B2`: idempotent action-outcome posture not provable (`action outcomes = 0`).
 3. Decision-lane service stability was re-probed during execution; services held `desired=1,running=1,pending=0`, but data-plane production remained empty for run scope.
+
+Execution rerun (`2026-02-18`, closure PASS):
+1. Root-cause closure applied before rerun:
+   - `decision-lane-dla` task definition drifted to probe image (`busybox`) and could not execute Python worker/runtime intake.
+   - DLA was rematerialized to platform image (`fraud-platform-dev-min@sha256:37fb5180c93f1079b0ea56ba4310d07e04a9acca8bc4f1c499dc27d931e7a16e`) and service stabilized on `:24`.
+2. Run-scoped non-zero decision/audit/action evidence restored and republished:
+   - `decision_summary`: `decisions=200`
+   - `action_summary`: `intents=200`, `outcomes=200`
+   - `audit_summary`: `audit_records=600`, `quarantine_records=0`
+3. Rerun control snapshot:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_f_decision_chain_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_f_decision_chain_snapshot.json`
+   - result: `overall_pass=true`, blockers empty.
 
 ### P9.C Plane Closure Summary
 Goal:
@@ -336,9 +349,9 @@ Control-plane:
 
 ## 8) Completion Checklist (P9)
 - [x] P9.A complete
-- [ ] P9.B complete
+- [x] P9.B complete
 - [ ] P9.C complete
-- [ ] Runtime budget gates satisfied (or explicitly fail-closed with accepted blockers).
+- [x] Runtime budget gates satisfied (or explicitly fail-closed with accepted blockers).
 - [ ] Rerun/rollback posture documented for any non-pass lane.
 
 ## 9) Exit Criteria (P9)
@@ -350,17 +363,7 @@ P9 branch is closure-ready only when:
 
 ## 10) Unresolved Blocker Register (P9 Branch)
 Current blockers:
-1. `M7F-B1` (open, `P9.B`)
-   - impacted: decision + audit commit evidence closure
-   - closure criteria:
-     - non-zero run-scoped records materialized on `FP_BUS_RTDL_V1` and `FP_BUS_AUDIT_V1` for `platform_20260213T214223Z`,
-     - rerun `P9.B` and produce updated summaries with non-zero counts.
-2. `M7F-B2` (open, `P9.B`)
-   - impacted: idempotency/append-only proof
-   - closure criteria:
-     - action outcomes present in run scope,
-     - duplicate-safe/idempotency posture measurable from run-scoped evidence,
-     - rerun `P9.B` with `overall_pass=true`.
+1. none (`M7F-B1` and `M7F-B2` were closed by rerun with `overall_pass=true`).
 
 Rule:
 1. Any blocker discovered in `P9.A..P9.C` is appended here with:

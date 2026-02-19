@@ -453,9 +453,9 @@ Tasks:
 4. Publish local + durable snapshot.
 
 DoD:
-- [ ] Decision/action/audit summaries exist and are run-scoped.
-- [ ] Append-only + idempotency checks pass.
-- [ ] Snapshot published locally and durably.
+- [x] Decision/action/audit summaries exist and are run-scoped.
+- [x] Append-only + idempotency checks pass.
+- [x] Snapshot published locally and durably.
 
 Planning status:
 1. `M7.F` deep planning is expanded to execution-grade in `platform.M7.P9.build_plan.md`:
@@ -467,10 +467,14 @@ Planning status:
    - decision-lane evidence summaries + control snapshot were published locally and durably,
    - `m7_f_decision_chain_snapshot.json` reported `overall_pass=false`,
    - blocker set is currently `M7F-B1` + `M7F-B2` (non-zero ingest basis but zero run-scoped decision/audit outputs; idempotency not provable).
+3. Runtime rerun closed PASS (`2026-02-18`):
+   - `decision-lane-dla` was rematerialized from probe-image drift to platform image (`:24` task definition),
+   - rerun summaries reported non-zero run-scope production:
+     - decisions `200`, action outcomes `200`, audit records `600`,
+   - `m7_f_decision_chain_snapshot.json` now reports `overall_pass=true` with empty blocker set.
 
 Blockers:
-1. `M7F-B1`: non-zero ingest basis but zero run-scoped decision/audit records on managed bus evidence.
-2. `M7F-B2`: append-only/idempotency posture not provable because action outcomes are zero.
+1. none (M7F blockers closed on rerun).
 
 ### M7.G P10 Identity-Key Pin + Managed DB Readiness
 Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (`P10.A`).
@@ -632,7 +636,7 @@ Notes:
 - [x] M7.C complete
 - [x] M7.D complete
 - [x] M7.E complete
-- [ ] M7.F complete
+- [x] M7.F complete
 - [ ] M7.G complete
 - [ ] M7.H complete
 - [ ] M7.I complete
@@ -653,15 +657,7 @@ Control: M7.B/E/G readiness gates before commit lanes.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M7 Closure)
 Current blockers:
-1. `M7F-B1` (open, blocker for `M7.F` close)
-   - run-scoped summaries exist but show zero decision/audit records despite non-zero traffic admitted (`traffic_fraud=400`).
-   - closure rule:
-     - restore run-scoped decision + audit production and rerun `M7.F` to a PASS snapshot.
-2. `M7F-B2` (open, blocker for `M7.F` close)
-   - idempotent action-outcome posture not provable (`action outcomes = 0`).
-   - closure rule:
-     - produce non-zero action outcomes and rerun `M7.F` idempotency checks.
-3. `M7G-B1` (open, forward blocker for `M7.G`/`P10` entry)
+1. `M7G-B1` (open, forward blocker for `M7.G`/`P10` entry)
    - subject-key handle placeholders unresolved in registry:
      - `CASE_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
      - `LABEL_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`

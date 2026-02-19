@@ -3040,3 +3040,156 @@ Implementation details:
   table schemas.
 
 Next: re-run `make segment3a-s7`.
+
+---
+
+### Entry: 2026-02-18 21:06
+
+Design element: 3A remediation build-plan initialization (`B/B+` target).
+Summary: read the `3A` published/remediation reports and all `S0..S7`
+state-expanded specs, then created a phased remediation plan with explicit
+runtime and statistical gates.
+
+Authority inputs reviewed for this planning pass:
+1) statistical reports:
+   - `docs/reports/eda/segment_3A/segment_3A_published_report.md`
+   - `docs/reports/eda/segment_3A/segment_3A_remediation_report.md`
+2) state-expanded contracts:
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s0.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s1.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s2.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s3.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s4.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s5.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s6.expanded.md`
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/state.3A.s7.expanded.md`
+
+Planning decisions pinned:
+1) causal remediation focus:
+   - `S2` prior geometry -> `S3` dispersion -> `S4` anti-collapse -> `zone_alloc`.
+2) state-role posture:
+   - `S0/S6/S7` remain veto rails and evidence gates, not optimization targets.
+3) upstream freeze posture for initial cycle:
+   - `1A/1B/2A/2B` remain frozen unless explicit reopen decision is made later.
+4) runtime law enforcement:
+   - added mandatory `POPT` lane before data-shape tuning.
+5) certification law:
+   - required seedpack `{42,7,101,202}`,
+   - explicit hard `B` gates, `B+` stretch gates, and cross-seed CV gates.
+
+Artifact created:
+1) `docs/model_spec/data-engine/implementation_maps/segment_3A.build_plan.md`
+   - includes phased plan: `POPT.0`, `POPT.1`, `P0`, `P1`, `P2`, `P3`,
+     conditional `P4`, `P5`, `P6`.
+   - each phase has explicit scope and DoD checklist.
+
+---
+
+### Entry: 2026-02-18 21:13
+
+Design element: `POPT.0` execution plan (`3A` runtime baseline + hotspot map).
+Summary: execute one clean `3A S0->S7` chain in a dedicated fix-data-engine run
+root with frozen-upstream posture, then emit baseline runtime artifacts and
+pin budget targets for `POPT.1`.
+
+Decision and execution contract:
+1) run-root strategy:
+   - create `runs/fix-data-engine/segment_3A/<run_id>` with a staged
+     `run_receipt.json` cloned from authority lineage `c25...` and updated
+     `run_id`.
+2) input-resolution strategy:
+   - keep run-local root first and frozen authority root second in
+     `ENGINE_EXTERNAL_ROOTS` so upstream 1A/1B/2A surfaces resolve without
+     copying large upstream data into candidate root.
+3) execution scope:
+   - run full `make segment3a` (`S0->S7`) for seed `42`.
+4) baseline artifact strategy:
+   - add `tools/score_segment3a_popt0_baseline.py` to emit:
+     - `segment3a_popt0_baseline_<run_id>.json`
+     - `segment3a_popt0_hotspot_map_<run_id>.md`
+5) closure checks for this phase:
+   - measured per-state elapsed table is emitted,
+   - ranked hotspot map is emitted,
+   - progression gate and runtime budget targets are pinned in build plan.
+
+---
+
+### Entry: 2026-02-18 21:18
+
+Design element: `POPT.0` scorer contract finalization for `3A`.
+Summary: locked runtime/evidence extraction strategy based on live `c25...`
+artifact structure before implementing `score_segment3a_popt0_baseline.py`.
+
+Key findings and decisions:
+1) report-shape reality for `3A`:
+   - `S1..S7` emit `run_report.json` under `reports/layer1/3A/state=S*/...`.
+   - `S0` does not emit a state run-report in current lineage; timing must come
+     from run-log start/complete markers and evidence from `s0_gate_receipt_3A`
+     plus `sealed_inputs_3A`.
+2) timing source of truth:
+   - use run-log window parsing for `S0..S7` with:
+     - starts: `engine.layers.l1.seg_3A.sN_*: S[N]: run log initialized`.
+     - completes: `S[N] 3A complete:` CLI lines.
+3) evidence payload strategy:
+   - `S0`: upstream gate count, sealed policy count, sealed input count.
+   - `S1..S7`: compact counters/digests from each state run-report.
+   - `S7`: include validation `index.json` file count + `_passed.flag` presence.
+4) budget posture for `POPT.0`:
+   - pin tight single-process budgets in seconds with `S6/S7/S5` expected as
+     primary hotspot candidates for `POPT.1`.
+5) execution sequencing:
+   - implement scorer first,
+   - stage fresh `runs/fix-data-engine/segment_3A/<run_id>` receipt,
+   - run `make segment3a` with frozen-upstream external-root precedence,
+   - emit baseline + hotspot artifacts and close POPT.0 checklist rows.
+
+---
+
+### Entry: 2026-02-18 21:31
+
+Design element: `POPT.0` execution + closure (`3A`).
+Summary: implemented the `3A` runtime scorer, executed clean `S0->S7` lane,
+resolved run-lane staging issues, and pinned hotspot authority for `POPT.1`.
+
+Implementation and execution trail:
+1) new scorer implemented:
+   - `tools/score_segment3a_popt0_baseline.py`.
+   - emits:
+     - `segment3a_popt0_baseline_<run_id>.json`
+     - `segment3a_popt0_hotspot_map_<run_id>.md`
+   - evidence extraction contract:
+     - `S0` from run-log timing + `s0_gate_receipt_3A` + `sealed_inputs_3A`.
+     - `S1..S7` from run-report counters/digests.
+     - `S7` also checks validation `index.json` / `_passed.flag`.
+2) run-lane issue discovered and handled:
+   - first candidate run failed gate resolution because `3A S0` expects upstream
+     `1A/1B/2A` surfaces under active run-id path.
+   - lane staging adjusted by copying required upstream surfaces from authority
+     run (`1A validation + outlet_catalogue`, `1B validation`, `2A validation +
+     site_timezones + tz_timetable_cache + legality_report`).
+3) schema-format issue discovered and handled:
+   - `S0` rejected receipt timestamp with 3 fractional digits (`.fff`), while
+     schema requires exactly 6 (`.ffffff`).
+   - fixed by writing staged `run_receipt.created_utc` with 6-digit fractional
+     precision before run.
+4) clean authority run executed:
+   - run-id: `06b822558c294a0888e3f8f342e83947`.
+   - command lane: `make segment3a` with
+     `ENGINE_RUNS_ROOT=runs/fix-data-engine/segment_3A` and frozen-upstream
+     external roots (`segment_3A`, `c25...`, repo root, `runs/local_full_run-5`).
+   - result: full `S0..S7` PASS.
+5) baseline scoring and hotspot authority:
+   - artifacts:
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_popt0_baseline_06b822558c294a0888e3f8f342e83947.json`
+     - `runs/fix-data-engine/segment_3A/reports/segment3a_popt0_hotspot_map_06b822558c294a0888e3f8f342e83947.md`
+   - ranked hotspots:
+     - `S6` (`17.94s`, `RED`) primary,
+     - `S7` (`13.14s`, `RED`) secondary,
+     - `S5` (`12.50s`, `RED`) closure.
+   - progression gate: `GO`, `next_state_for_popt1=S6`.
+6) storage hygiene:
+   - pruned superseded run folders in `runs/fix-data-engine/segment_3A` and
+     retained only active run-id folder + reports.
+
+Outcome:
+- `POPT.0` is closed and `POPT.1` target lane is now explicitly `S6 -> S7/S5`.

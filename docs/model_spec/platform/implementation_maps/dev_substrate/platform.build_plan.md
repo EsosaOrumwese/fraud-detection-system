@@ -731,7 +731,7 @@ Active-phase planning posture:
       - deterministic verification algorithm,
       - snapshot schema contract,
       - fail-closed blocker taxonomy (`M7F-B1..M7F-B6`).
-    - runtime execution performed (`2026-02-18`) and closed fail-closed:
+    - runtime execution performed (`2026-02-18`) and initially closed fail-closed:
       - run-scoped artifacts were published:
         - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/decision_summary.json`
         - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T214223Z/decision_lane/action_summary.json`
@@ -739,6 +739,10 @@ Active-phase planning posture:
       - control snapshot published:
         - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_f_decision_chain_snapshot.json`
       - closure result: `overall_pass=false` with open blockers `M7F-B1` and `M7F-B2`.
+    - rerun closure (`2026-02-18`) after DLA image drift remediation:
+      - `decision-lane-dla` restored from probe image drift to platform image/task definition `:24`,
+      - refreshed summaries are non-zero (`decisions=200`, `action_outcomes=200`, `audit_records=600`),
+      - closure result: `overall_pass=true`, blocker rollup empty.
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.
@@ -746,7 +750,7 @@ Sub-phase progress:
   - [x] `M7.C` P8 offsets/caught-up evidence closure.
   - [x] `M7.D` P8 archive durability proof closure.
   - [x] `M7.E` P9 decision-lane readiness + idempotency posture.
-  - [ ] `M7.F` P9 decision/action/audit commit evidence closure.
+  - [x] `M7.F` P9 decision/action/audit commit evidence closure.
   - [ ] `M7.G` P10 identity-key pin + managed DB readiness.
   - [ ] `M7.H` P10 case/label commit evidence closure.
   - [ ] `M7.I` P8..P10 verdict + blocker rollup.
@@ -755,7 +759,7 @@ Sub-phase progress:
 M7 DoD checklist:
 - [x] RTDL caught-up evidence exists with lag <= `RTDL_CAUGHT_UP_LAG_MAX`.
 - [x] RTDL offsets snapshot and caught-up artifact are durable and run-scoped.
-- [ ] Decision lane commit evidence exists (`decision_summary`, `action_summary`, `audit_summary`) and append-only posture holds.
+- [x] Decision lane commit evidence exists (`decision_summary`, `action_summary`, `audit_summary`) and append-only posture holds.
 - [ ] P10 identity key fields are pinned for this run and no placeholders remain.
 - [ ] Case and label summaries are durable and consistent with append-only/idempotent writes.
 - [ ] M7 verdict is `ADVANCE_TO_M8` with empty blocker rollup.
@@ -891,5 +895,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M7 is active for deep-plan closure and execution sequencing.
 Next action:
-- remediate `M7F-B1`/`M7F-B2` (restore non-zero run-scoped decision + audit + action-outcome evidence) and rerun `M7.F`,
-- keep fail-closed progression: `M7G-B1` subject-key placeholders remain an open forward blocker for `P10` entry.
+- enter `M7.G` planning/execution to close `P10` identity-key pin + managed DB readiness,
+- keep fail-closed progression: `M7G-B1` subject-key placeholders remain an open blocker until pinned.
