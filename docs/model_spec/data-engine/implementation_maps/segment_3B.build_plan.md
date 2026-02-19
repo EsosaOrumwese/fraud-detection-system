@@ -460,13 +460,25 @@ Scope:
 - keep RNG/edge-loop and output contracts unchanged.
 
 Definition of done:
-- [ ] rollback to pre-CSK runner state is complete.
-- [ ] country-key coverage precheck artifact is emitted for witness run.
-- [ ] prep lane no longer uses batch-wide repeated scans/collects.
+- [x] rollback to pre-CSK runner state is complete.
+- [x] country-key coverage precheck artifact is emitted for witness run.
+- [x] prep lane no longer uses batch-wide repeated scans/collects.
 - [ ] interim runtime checkpoint passes:
   - `tile_read_map_alloc_project_total <= 500s`,
   - `S2 wall <= 700s`.
 - [ ] if interim checkpoint passes, proceed to full runtime gate check (`S2 <=300s` OR `>=25%` reduction).
+
+POPT.1R.NEXT checkpoint record:
+- checkpoint run-id: `0762ad15e0a34ef6a2ce62372b95f813` (`S2` only).
+- partition precheck artifact:
+  - `runs/fix-data-engine/segment_3B/0762ad15e0a34ef6a2ce62372b95f813/reports/layer1/3B/state=S2/seed=42/manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8/tile_surface_partition_precheck.json`
+  - result: no missing required countries for weights/index/bounds; unresolved-path count `0`.
+- runtime checkpoint result:
+  - `S2 wall=1048.344s` (`00:17:28`) -> FAIL vs `<=700s` interim gate.
+  - `tile_read_map_alloc_project_total=922.751s` (`88.02%`) -> FAIL vs `<=500s` interim gate.
+- status:
+  - safer/fail-closed posture achieved,
+  - performance still outside interim budget; keep `POPT.1` in reopen mode.
 
 ### POPT.2 - Secondary hotspot optimization (expected S5 or S3)
 Goal:

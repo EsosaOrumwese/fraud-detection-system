@@ -1,0 +1,402 @@
+# Dev Substrate Deep Plan - M9 (P12 Teardown)
+_Status source of truth: `platform.build_plan.md`_  
+_This document provides deep planning detail for M9._  
+_Last updated: 2026-02-19_
+
+## 0) Purpose
+M9 closes `P12 TEARDOWN` on managed substrate by proving:
+1. Teardown is executed through managed control-plane lanes (no laptop secret-bearing destroy path).
+2. Demo-scoped runtime resources are destroyed deterministically.
+3. Residual-cost footguns are absent after teardown.
+4. Demo-scoped secret surfaces are cleaned up.
+5. Teardown proof and M10 handoff artifacts are published.
+
+## 1) Authority Inputs
+Primary:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P12` section)
+3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
+
+Supporting:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md` (`M2.I` teardown lane contract)
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md` (`M8.I` handoff contract)
+3. Existing teardown workflow lane:
+   - `.github/workflows/dev_min_confluent_destroy.yml`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+
+## 2) Scope Boundary for M9
+In scope:
+1. P12 authority/handle closure and teardown preserve-set freeze.
+2. Confluent teardown using existing managed workflow lane.
+3. Demo stack teardown execution on managed lane.
+4. Post-destroy residual-resource checks.
+5. Demo-scoped SSM secret cleanup verification.
+6. Post-teardown budget/cost-guardrail snapshot.
+7. Teardown-proof artifact publication and M10 handoff.
+
+Out of scope:
+1. Deleting retained S3 evidence/object-store buckets.
+2. Learning/Registry rollout.
+3. M10 semantic/scale certification runs.
+
+## 3) M9 Deliverables
+1. `M9.A` handle + handoff closure snapshot.
+2. `M9.B` teardown inventory/preserve-set snapshot.
+3. `M9.C` Confluent teardown workflow snapshot.
+4. `M9.D` demo stack teardown workflow snapshot.
+5. `M9.E` post-destroy residual-resource snapshot.
+6. `M9.F` demo-secret cleanup snapshot.
+7. `M9.G` cost-guardrail post-teardown snapshot.
+8. `M9.H` teardown-proof artifact (`teardown_proof.json`) local + durable.
+9. `M9.I` M9 verdict snapshot + M10 handoff pack.
+
+## 4) Execution Gate for This Phase
+Current posture:
+1. `M8.I` verdict is `ADVANCE_TO_M9`.
+2. `m9_handoff_pack.json` exists locally and durably.
+3. M9 is active for planning/execution by explicit user direction.
+
+Execution block:
+1. No teardown execution starts until `M9.A` and `M9.B` close green.
+2. No phase closure is allowed with unresolved residual-resource findings.
+3. No M9 closure is allowed if demo-secret cleanup is ambiguous.
+
+## 4.1) Decision Pin: Existing Destroy Workflow Reuse
+1. M9 does not replace `.github/workflows/dev_min_confluent_destroy.yml`.
+2. M9 reuses that workflow as the canonical Confluent teardown lane.
+3. Any missing teardown lanes (for demo destroy/post-check) are additive; they do not invalidate the existing Confluent lane.
+
+## 4.2) Anti-Cram Law (Binding for M9)
+1. M9 is not execution-ready unless these lanes are explicit:
+   - authority/handles
+   - teardown inventory + preserve-set
+   - managed teardown workflows
+   - residual-resource verification
+   - secret cleanup verification
+   - post-teardown budget posture
+   - teardown evidence + handoff
+2. If a missing lane is discovered, execution pauses and plan expansion is mandatory before continuing.
+
+## 4.3) Capability-Lane Coverage Matrix (Must Stay Explicit)
+| Capability lane | Primary sub-phase owner | Supporting sub-phases | Minimum PASS evidence |
+| --- | --- | --- | --- |
+| Authority + handoff closure | M9.A | M9.I | zero unresolved required P12 handles |
+| Teardown target/preserve-set freeze | M9.B | M9.D/M9.E | explicit destroy-set and preserve-set contract |
+| Confluent teardown execution | M9.C | M9.E | workflow result PASS + state/resource summary |
+| Demo teardown execution | M9.D | M9.E | workflow result PASS + destroy summary |
+| Residual-resource verification | M9.E | M9.I | no demo ECS services/tasks, no NAT/LB footguns |
+| Demo-secret cleanup | M9.F | M9.I | demo-scoped SSM cleanup PASS |
+| Post-teardown cost posture | M9.G | M9.I | guardrail snapshot PASS |
+| Teardown proof publication | M9.H | M9.I | `teardown_proof.json` local + durable |
+| Verdict + M10 handoff | M9.I | - | `ADVANCE_TO_M10` + durable handoff pack |
+
+## 5) Work Breakdown (Deep)
+
+### M9.A P12 Authority + Handoff Closure
+Goal:
+1. Resolve all required P12 handles before any destroy execution.
+2. Validate M8->M9 handoff contract and fixed run scope.
+
+Entry conditions:
+1. M8 is `DONE` in `platform.build_plan.md`.
+2. M8 verdict is `ADVANCE_TO_M9`.
+3. M9 handoff pack is readable:
+   - local: `runs/dev_substrate/m8/m8_20260219T121603Z/m9_handoff_pack.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T121603Z/m9_handoff_pack.json`.
+
+Required inputs:
+1. M8 artifacts:
+   - `m8_i_verdict_snapshot.json`
+   - `m9_handoff_pack.json`.
+2. Required P12 handles (runbook `P12.3` closure set):
+   - Terraform/state:
+     - `TF_STATE_BUCKET`
+     - `TF_STATE_KEY_CORE`
+     - `TF_STATE_KEY_CONFLUENT`
+     - `TF_STATE_KEY_DEMO`
+     - `TF_LOCK_TABLE`
+   - Tagging:
+     - `TAG_PROJECT_KEY`
+     - `TAG_ENV_KEY`
+     - `TAG_OWNER_KEY`
+     - `TAG_EXPIRES_AT_KEY`
+   - Demo resources:
+     - `CONFLUENT_ENV_NAME`
+     - `CONFLUENT_CLUSTER_NAME`
+     - `ECS_CLUSTER_NAME`
+     - `SVC_IG`
+     - `SVC_RTDL_CORE_ARCHIVE_WRITER`
+     - `SVC_RTDL_CORE_IEG`
+     - `SVC_RTDL_CORE_OFP`
+     - `SVC_RTDL_CORE_CSFB`
+     - `SVC_DECISION_LANE_DL`
+     - `SVC_DECISION_LANE_DF`
+     - `SVC_DECISION_LANE_AL`
+     - `SVC_DECISION_LANE_DLA`
+     - `SVC_CASE_TRIGGER`
+     - `SVC_CM`
+     - `SVC_LS`
+     - `SVC_ENV_CONFORMANCE`
+     - `TD_REPORTER`
+     - `RDS_INSTANCE_ID`
+     - `RDS_ENDPOINT`
+
+Preparation checks:
+1. Validate run-scope continuity across:
+   - M8 verdict snapshot,
+   - M9 handoff pack,
+   - active platform run scope.
+2. Validate each required handle key exists in registry and resolves to non-empty concrete value.
+3. Validate no wildcard/placeholder values in required closure set.
+4. Validate handoff indicates blocker-free posture.
+
+Deterministic verification algorithm (M9.A):
+1. Load local `m9_handoff_pack.json`; if unreadable, load durable fallback; if both fail -> `M9A-B1`.
+2. Validate handoff gate:
+   - `m8_verdict=ADVANCE_TO_M9`,
+   - `overall_pass=true`,
+   - blocker list empty.
+   Any mismatch -> `M9A-B1`.
+3. Resolve required handle keys from registry into closure matrix:
+   - `handle_key`, `resolved`, `value`, `source`.
+4. Fail closed on unresolved required handles -> `M9A-B2`.
+5. Detect wildcard/placeholder handles in required set -> `M9A-B4`.
+6. Validate run-scope continuity between handoff and active execution -> `M9A-B3` on mismatch.
+7. Emit local snapshot `m9_a_handle_handoff_snapshot.json` with:
+   - run scope,
+   - handoff refs,
+   - required handle matrix,
+   - unresolved/placeholder findings,
+   - blockers and `overall_pass`.
+8. Publish snapshot durably; publish failure -> `M9A-B5`.
+
+Tasks:
+1. Execute handoff-gate validation from M8 closure artifacts.
+2. Resolve and verify required P12 handle closure set.
+3. Emit and publish `m9_a_handle_handoff_snapshot.json` (local + durable).
+
+Required snapshot fields (`m9_a_handle_handoff_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m9_execution_id`.
+2. `source_m8_verdict_local`, `source_m8_verdict_uri`.
+3. `source_m9_handoff_local`, `source_m9_handoff_uri`.
+4. `required_handle_keys`, `resolved_handle_count`, `unresolved_handle_count`.
+5. `unresolved_handle_keys`, `placeholder_handle_keys`, `wildcard_handle_keys`.
+6. `handoff_gate_checks`, `run_scope_check`.
+7. `blockers`, `overall_pass`, `elapsed_seconds`.
+
+Runtime budget:
+1. `M9.A` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless explicit user waiver is recorded.
+
+DoD:
+- [x] M8 handoff gate checks pass.
+- [x] Required P12 handles resolve with zero unresolved required keys.
+- [x] Required-handle closure set has zero placeholder/wildcard values.
+- [x] Snapshot exists locally and durably.
+
+Planning status:
+1. `M9.A` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
+2. No runtime teardown/destruction was executed during planning expansion.
+
+Execution closure (2026-02-19):
+1. Execution id:
+   - `m9_20260219T123856Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T123856Z/m9_a_handle_handoff_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T123856Z/m9_a_handle_handoff_snapshot.json`.
+3. Result:
+   - `overall_pass=true`,
+   - blockers empty.
+4. Gate verification outcome:
+   - M8 verdict + handoff gates pass (`ADVANCE_TO_M9`, `overall_pass=true`, blocker-free matrix),
+   - run-scope continuity pass (`platform_20260213T214223Z`).
+5. Handle closure outcome:
+   - `resolved_handle_count=28`,
+   - `unresolved_handle_count=0`,
+   - no placeholder/wildcard required handles.
+6. `M9.A` is closed and `M9.B` is unblocked.
+
+Blockers:
+1. `M9A-B1`: M8 handoff invalid/unreadable.
+2. `M9A-B2`: required handle unresolved.
+3. `M9A-B3`: run-scope mismatch between handoff and active execution.
+4. `M9A-B4`: placeholder/wildcard handle in required closure set.
+5. `M9A-B5`: snapshot publication failure.
+
+### M9.B Teardown Inventory + Preserve-Set Freeze
+Goal:
+1. Freeze deterministic destroy-set/preserve-set before destructive operations.
+
+Tasks:
+1. Pin destroy-set:
+   - demo Terraform stack resources,
+   - Confluent demo resources.
+2. Pin preserve-set:
+   - evidence/object-store buckets and retained core surfaces.
+3. Emit `m9_b_teardown_inventory_snapshot.json` with explicit include/exclude lists.
+
+DoD:
+- [ ] Destroy-set is explicit and demo-scoped.
+- [ ] Preserve-set is explicit and excludes evidence-loss paths.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M9B-B1`: destroy-set contains non-demo/core-protected surfaces.
+2. `M9B-B2`: preserve-set is missing required retained buckets/surfaces.
+
+### M9.C Confluent Teardown Execution (Reuse Existing Workflow)
+Goal:
+1. Execute Confluent teardown using existing managed lane.
+
+Tasks:
+1. Dispatch `.github/workflows/dev_min_confluent_destroy.yml`.
+2. Capture workflow run url/id, verdict, and state/resource summary.
+3. Emit `m9_c_confluent_destroy_snapshot.json`.
+
+DoD:
+- [ ] Existing Confluent teardown workflow executed successfully.
+- [ ] Result evidence captures pass/fail + post-destroy state summary.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M9C-B1`: workflow dispatch failure.
+2. `M9C-B2`: workflow run failed/non-zero teardown.
+3. `M9C-B3`: post-destroy state summary missing/ambiguous.
+
+### M9.D Demo Stack Teardown Execution
+Goal:
+1. Execute demo stack teardown in managed control plane.
+
+Tasks:
+1. Use pinned managed lane to run demo destroy for `infra/terraform/dev_min/demo`.
+2. Capture destroy summary and state-count result.
+3. Emit `m9_d_demo_destroy_snapshot.json`.
+
+DoD:
+- [ ] Demo stack teardown lane executes successfully.
+- [ ] Terraform/state summary confirms demo resource deletion intent/outcome.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M9D-B1`: managed demo-destroy lane missing.
+2. `M9D-B2`: destroy execution failed.
+3. `M9D-B3`: destroy summary missing/ambiguous.
+
+### M9.E Post-Destroy Residual Verification
+Goal:
+1. Prove no demo runtime or known cost-footgun resources remain.
+
+Tasks:
+1. Verify:
+   - no demo ECS services with `desiredCount>0`,
+   - no running demo tasks,
+   - no NAT gateway,
+   - no always-on LB in demo VPC,
+   - runtime DB teardown state as pinned.
+2. Emit `m9_e_post_destroy_residual_snapshot.json`.
+
+DoD:
+- [ ] Residual scan passes all required checks.
+- [ ] Any residual finding is fail-closed and blocker-coded.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M9E-B1`: residual ECS service/task remains.
+2. `M9E-B2`: NAT/LB footgun detected.
+3. `M9E-B3`: runtime DB residual detected.
+
+### M9.F Demo-Scoped Secret Cleanup Verification
+Goal:
+1. Prove demo-scoped credentials are removed from SSM after teardown.
+
+Tasks:
+1. Verify Confluent/demo DB/demo API-key paths are absent or rotated to non-live posture per pinned policy.
+2. Emit `m9_f_secret_cleanup_snapshot.json`.
+
+DoD:
+- [ ] Demo-scoped secret cleanup checks pass.
+- [ ] No secret values are emitted in evidence.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M9F-B1`: demo-scoped secret path still active.
+2. `M9F-B2`: cleanup check emits secret-bearing payload.
+
+### M9.G Post-Teardown Cost-Guardrail Snapshot
+Goal:
+1. Confirm cost posture is within dev_min guardrails after teardown.
+
+Tasks:
+1. Capture budget object/threshold posture and post-teardown cost-risk indicators.
+2. Emit `m9_g_cost_guardrail_snapshot.json`.
+
+DoD:
+- [ ] Budget posture is readable and in-policy.
+- [ ] Post-teardown cost-footgun indicators are clear.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M9G-B1`: budget surface unreadable/misaligned.
+2. `M9G-B2`: post-teardown cost-risk remains.
+
+### M9.H Teardown-Proof Artifact Publication
+Goal:
+1. Publish the canonical P12 teardown proof object.
+
+Tasks:
+1. Assemble `teardown_proof.json` using `M9.B..M9.G` outputs.
+2. Publish local + durable:
+   - `evidence/runs/<platform_run_id>/teardown/teardown_proof.json` (durable canonical form).
+
+DoD:
+- [ ] Teardown-proof schema is complete and run-scoped.
+- [ ] Artifact exists locally and durably.
+
+Blockers:
+1. `M9H-B1`: proof assembly missing required fields/refs.
+2. `M9H-B2`: durable publish failed.
+
+### M9.I M9 Verdict + M10 Handoff
+Goal:
+1. Compute deterministic M9 verdict and publish M10 handoff.
+
+Tasks:
+1. Roll up `M9.A..M9.H` pass posture.
+2. Set verdict:
+   - `ADVANCE_TO_M10` only if all required predicates are true and blocker union is empty,
+   - else `HOLD_M9`.
+3. Emit:
+   - `m9_i_verdict_snapshot.json`
+   - `m10_handoff_pack.json` (non-secret only).
+
+DoD:
+- [ ] Verdict rule applied deterministically.
+- [ ] `m10_handoff_pack.json` passes non-secret policy.
+- [ ] Both artifacts exist locally and durably.
+
+Blockers:
+1. `M9I-B1`: source snapshot missing/invalid.
+2. `M9I-B2`: blocker union non-empty.
+3. `M9I-B3`: handoff non-secret policy violation.
+4. `M9I-B4`: artifact publication failure.
+
+## 6) M9 Runtime Budget Targets
+1. `M9.A` <= 10 minutes.
+2. `M9.B` <= 10 minutes.
+3. `M9.C` <= 25 minutes.
+4. `M9.D` <= 30 minutes.
+5. `M9.E` <= 10 minutes.
+6. `M9.F` <= 10 minutes.
+7. `M9.G` <= 10 minutes.
+8. `M9.H` <= 10 minutes.
+9. `M9.I` <= 10 minutes.
+
+Budget rule:
+1. Over-budget lanes require explicit blocker notation and remediation/retry posture before progression.
+
+## 7) Current Planning Status
+1. M9 is planning-open with `M9.A` execution closed green.
+2. `M9.B` is now the next execution lane; no destructive lane is allowed before `M9.A` and `M9.B` closure.
+3. Existing workflow reuse decision is pinned:
+   - `dev_min_confluent_destroy.yml` is reused, not replaced.

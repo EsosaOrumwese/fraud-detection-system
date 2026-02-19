@@ -3219,3 +3219,35 @@ Validation:
 Next execution:
 1) stage fresh run-id for `segment_3B` witness lane.
 2) run `segment3b-s2` first and evaluate `POPT.1R.NEXT` interim runtime checkpoint.
+### Entry: 2026-02-19 12:42
+
+Design element: `3B POPT.1R.NEXT S2 checkpoint result`.
+Summary: executed S2-only witness checkpoint on safer one-pass country-keyed prep path. Functional pass achieved with strict partition precheck artifact, but interim runtime gate failed.
+
+Checkpoint execution:
+1) staged fresh run-id: `0762ad15e0a34ef6a2ce62372b95f813` (includes run-local `tmp/`).
+2) executed: `make segment3b-s2` only.
+3) status: `PASS`.
+
+Measured results:
+1) lane artifact:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r2_lane_timing_0762ad15e0a34ef6a2ce62372b95f813.json`.
+2) checkpoint timings:
+   - `S2 wall = 1048.344s` (`00:17:28`),
+   - `tile_read_map_alloc_project_total = 922.751s` (`88.02%`),
+   - `edge_jitter_tz_loop = 103.078s`.
+3) interim gate verdict:
+   - FAIL (`S2<=700s` not met; prep<=500s not met).
+
+Partition hygiene evidence:
+1) precheck artifact emitted:
+   - `.../tile_surface_partition_precheck.json`.
+2) precheck outcome:
+   - required countries `233`,
+   - indexed countries `249` for each tile surface,
+   - no missing required countries,
+   - unresolved-path fail-closed not triggered.
+
+Decision:
+1) do not proceed to full `S3->S5` witness for this checkpoint candidate.
+2) keep `POPT.1` reopen active and continue algorithmic redesign focused on prep-lane compute cost.

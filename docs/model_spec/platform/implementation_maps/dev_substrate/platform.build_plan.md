@@ -83,8 +83,8 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | M5 | P3 | Oracle lane (inlet assertion/sort/checker) | DONE |
 | M6 | P4-P7 | Control+Ingress closure | DONE |
 | M7 | P8-P10 | RTDL + Case/Labels closure | DONE |
-| M8 | P11 | Obs/Gov closure | ACTIVE |
-| M9 | P12 | Teardown proof + cost guardrails | NOT_STARTED |
+| M8 | P11 | Obs/Gov closure | DONE |
+| M9 | P12 | Teardown proof + cost guardrails | ACTIVE |
 | M10 | certification | Semantic Green + Scale Green certification | NOT_STARTED |
 
 ---
@@ -114,7 +114,8 @@ Current deep-plan file state:
   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` (present)
   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (present)
 - `M8`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md` (present)
-- `M9..M10`: deferred until phase activation is approved.
+- `M9`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md` (present)
+- `M10`: deferred until phase activation is approved.
 
 ---
 
@@ -147,7 +148,8 @@ Current phase posture:
 - `M5` is `DONE`,
 - `M6` is `DONE`,
 - `M7` is `DONE`,
-- `M8` is `ACTIVE` for planning/execution.
+- `M8` is `DONE`,
+- `M9` is `ACTIVE` for planning/execution.
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -1078,15 +1080,81 @@ M8 DoD checklist:
 - [x] M9 handoff pack is published and non-secret.
 
 ## M9 - P12 Teardown
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 Entry gate:
 - M8 is `DONE`.
-DoD summary:
-- Canonical execution lane is GitHub Actions teardown workflows produced under `M2.I`; no local secret-bearing destroy path is required.
-- demo resources destroyed; core/evidence preserved.
-- no demo ECS services/tasks remain and no NAT/LB cost-footgun resources remain.
-- demo-scoped secrets/credentials are removed from SSM.
-- teardown proof artifact exists.
+- M8 verdict is `ADVANCE_TO_M9`.
+- M9 handoff pack is present:
+  - local: `runs/dev_substrate/m8/m8_20260219T121603Z/m9_handoff_pack.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T121603Z/m9_handoff_pack.json`.
+
+Objective:
+- Execute deterministic, cost-safe P12 teardown on managed substrate while preserving required long-lived evidence/object-store surfaces.
+
+Scope:
+- Teardown execution lanes only via managed control-plane workflows (no local secret-bearing destroy path).
+- demo/runtime resource destroy, residual-resource checks, demo-scoped secret cleanup, and teardown-proof publication.
+- cost posture verification after teardown.
+
+Out of scope:
+- deletion of retained evidence/object-store buckets,
+- Learning/Registry rollout.
+
+Decision pin (closed):
+- M9 does not replace `.github/workflows/dev_min_confluent_destroy.yml`.
+- M9 reuses that workflow as the canonical Confluent teardown lane and adds any missing teardown lanes for full P12 proof.
+
+Active-phase planning posture:
+- Detailed M9 authority file:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`.
+- M9 sub-phase progression model:
+  - `M9.A` authority + handoff closure matrix for P12,
+  - `M9.B` teardown inventory + preserve-set freeze,
+  - `M9.C` Confluent teardown execution (reused existing workflow lane),
+  - `M9.D` demo stack teardown execution lane,
+  - `M9.E` post-destroy residual-resource verification,
+  - `M9.F` demo-scoped secret/credential cleanup verification,
+  - `M9.G` cost-guardrail snapshot after teardown,
+  - `M9.H` teardown-proof artifact assembly/publication,
+  - `M9.I` M9 verdict rollup + M10 handoff pack publication.
+- M9 expansion state:
+  - `M9.A` is expanded to execution-grade with deterministic handoff/handle-closure algorithm and snapshot contract.
+  - `M9.A` execution is green with blockers empty; `M9.B` is unblocked.
+
+Sub-phase progress:
+  - [x] `M9.A` P12 authority + handoff closure.
+  - [ ] `M9.B` teardown inventory + preserve-set freeze.
+  - [ ] `M9.C` Confluent teardown execution (existing workflow lane).
+  - [ ] `M9.D` demo stack teardown execution.
+  - [ ] `M9.E` post-destroy residual checks.
+  - [ ] `M9.F` demo-scoped secret cleanup verification.
+  - [ ] `M9.G` post-teardown cost-guardrail snapshot.
+  - [ ] `M9.H` teardown-proof artifact publication.
+  - [ ] `M9.I` M9 verdict + M10 handoff.
+
+M9.A execution closure (2026-02-19):
+  - execution id: `m9_20260219T123856Z`
+  - local snapshot: `runs/dev_substrate/m9/m9_20260219T123856Z/m9_a_handle_handoff_snapshot.json`
+  - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T123856Z/m9_a_handle_handoff_snapshot.json`
+  - result: `overall_pass=true`, blockers empty
+  - gate outcomes:
+    - M8 verdict/handoff gate checks pass (`ADVANCE_TO_M9`, `overall_pass=true`, blocker-free phase matrix)
+    - run-scope continuity pass (`platform_20260213T214223Z`)
+  - handle closure outcomes:
+    - `resolved_handle_count=28`
+    - `unresolved_handle_count=0`
+    - placeholder/wildcard required handles: none
+  - consequence:
+    - `M9.A` is closed
+    - `M9.B` is unblocked.
+
+M9 DoD checklist:
+- [ ] Canonical execution lane is GitHub Actions teardown workflows produced under `M2.I`; no local secret-bearing destroy path is used.
+- [ ] demo resources are destroyed while retained core/evidence surfaces remain as pinned.
+- [ ] no demo ECS services/tasks remain and no NAT/LB cost-footgun resources remain.
+- [ ] demo-scoped secrets/credentials are removed from SSM.
+- [ ] teardown proof artifact exists locally and durably.
+- [ ] M9 verdict is `ADVANCE_TO_M10` with empty blocker rollup.
 
 ## M10 - Certification (Semantic + Scale)
 Status: `NOT_STARTED`
@@ -1195,9 +1263,9 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M8 is active for deep-plan closure and execution sequencing.
+M9 is active for deep-plan closure and execution sequencing.
 Next action:
-- confirm user-governed transition of M8 to `DONE` and activation of `M9`,
+- complete `M9.B` teardown inventory + preserve-set freeze before running any destructive teardown workflow,
 - preserve fail-closed posture:
-  - do not activate `M9` until USER explicitly confirms progression.
+  - do not execute destructive teardown lanes (`M9.C..M9.D`) until `M9.A` and `M9.B` are closed.
 

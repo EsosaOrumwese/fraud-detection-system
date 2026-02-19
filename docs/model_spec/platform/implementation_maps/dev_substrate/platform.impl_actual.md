@@ -14908,3 +14908,119 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - non-secret handoff violation => `M8I-B5`.
 4. Non-secret check will run against handoff keys/values with strict secret-bearing pattern detection before publish.
 
+## Entry: 2026-02-19 12:28:25 +00:00 - M9 planning activation and destroy-lane reuse decision
+### Problem framing
+1. USER requested immediate start of M9 planning and asked whether M9 replaces the current destroy workflow.
+2. Prior authority already pins a Confluent teardown workflow lane from `M2.I`, but M9 deep-plan file did not exist and `platform.build_plan.md` had only a summary-level M9 block.
+
+### Planning decisions
+1. Phase posture decision:
+   - set `M8` to `DONE`,
+   - set `M9` to `ACTIVE` for planning/execution.
+2. Destroy-workflow decision (explicit answer to USER question):
+   - M9 does not replace `.github/workflows/dev_min_confluent_destroy.yml`,
+   - M9 reuses it as the canonical Confluent teardown lane,
+   - any additional teardown workflow lane required by P12 is additive and scoped to missing coverage.
+3. M9 decomposition decision:
+   - expanded P12 into `M9.A..M9.I` to keep capability-lane coverage explicit and avoid cram posture:
+     - authority/handoff closure,
+     - teardown inventory + preserve-set,
+     - Confluent destroy,
+     - demo destroy,
+     - residual checks,
+     - secret cleanup checks,
+     - cost guardrail snapshot,
+     - teardown proof publication,
+     - verdict + M10 handoff.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - M9 promoted to active planning posture with explicit sub-phase and DoD checklists.
+   - M9 section now pins destroy-workflow reuse (not replacement).
+   - Immediate-next-action now points to `M9.A` then `M9.B` before destructive lanes.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
+   - created as the deep planning authority for P12 with explicit scope, lanes, blockers, and runtime budgets.
+
+### Phase posture
+1. This step is planning-only; no teardown execution has been run yet.
+2. Next execution lane is `M9.A` (authority + handoff closure), then `M9.B` (inventory/preserve-set freeze).
+
+## Entry: 2026-02-19 12:33:53 +00:00 - M9.A planning start lock (execution-grade expansion)
+### Planning intent
+1. Expand `M9.A` from summary-level bullets to execution-grade contract before any teardown execution.
+2. Keep M9 fail-closed by pinning entry gate, required handle set, deterministic verification algorithm, snapshot schema, runtime budget, and blocker taxonomy.
+
+### Pre-edit decisions
+1. Authority source for required handles is fixed to runbook `P12.3` and the handles registry; no ad hoc handle additions.
+2. `M9.A` planning must explicitly validate M8 handoff (`ADVANCE_TO_M9`, empty blockers) and run-scope continuity before handle closure can pass.
+3. Main plan (`platform.build_plan.md`) will be updated to record that `M9.A` is expanded to execution-grade and is the immediate execution lane.
+
+## Entry: 2026-02-19 12:34:43 +00:00 - M9.A planning expansion completed
+### Decisions implemented
+1. `M9.A` was upgraded to execution-grade in `platform.M9.build_plan.md` with:
+   - entry conditions,
+   - required input matrix,
+   - preparation checks,
+   - deterministic verification algorithm,
+   - required snapshot schema,
+   - runtime budget,
+   - expanded blocker taxonomy (`M9A-B1..B5`).
+2. Required handle closure set was pinned explicitly to runbook `P12.3` keys, including Terraform/state, tagging keys, Confluent handles, ECS service handles, and DB handles.
+3. Main plan expansion-state was updated to explicitly note that `M9.A` is now execution-grade.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
+   - expanded `M9.A` section from summary to execution-grade contract.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - added `M9` expansion-state bullet for `M9.A` execution-grade posture.
+
+### Phase posture
+1. M9 remains planning/execution active.
+2. `M9.A` is now plan-closed and execution-ready.
+3. No teardown execution was run in this step.
+
+## Entry: 2026-02-19 12:39:43 +00:00 - M9.A execution started (authority + handoff closure)
+### Execution intent
+1. Execute `M9.A` fail-closed using the pinned deterministic algorithm.
+2. Validate M8 handoff gate and run-scope continuity.
+3. Resolve required `P12.3` handles from authoritative sources (registry + Terraform outputs) with zero placeholders/wildcards.
+4. Publish `m9_a_handle_handoff_snapshot.json` locally and durably.
+
+### Pre-execution decisions
+1. Handle resolution source order was pinned before execution:
+   - first: explicit values in handles registry (`KEY = \"value\"`),
+   - second: Terraform outputs for dynamic runtime handles.
+2. Run-scope continuity was treated as a hard gate:
+   - expected `platform_run_id=platform_20260213T214223Z`.
+3. Placeholder/wildcard detection was enforced as blocker family `M9A-B4`.
+4. Snapshot durability upload failure remains blocker `M9A-B5`.
+
+## Entry: 2026-02-19 12:39:43 +00:00 - M9.A executed and closed PASS
+### Execution reasoning trail
+1. Handoff gate validation was anchored to both M8 verdict and M9 handoff payload:
+   - `ADVANCE_TO_M9`,
+   - `overall_pass=true`,
+   - blocker-free source matrix.
+2. We avoided implicit handle defaults by resolving each required key through deterministic source order and recording per-key source attribution.
+3. Dynamic handle keys without explicit registry values were resolved from live Terraform outputs to avoid ambiguous naming assumptions.
+4. Run-scope continuity was checked across M8 verdict, handoff pack, and expected active run id before handle closure could pass.
+
+### Runtime outcomes
+1. Execution id:
+   - `m9_20260219T123856Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T123856Z/m9_a_handle_handoff_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T123856Z/m9_a_handle_handoff_snapshot.json`.
+3. Result:
+   - `overall_pass=true`,
+   - blockers empty.
+4. Closure details:
+   - `resolved_handle_count=28`,
+   - `unresolved_handle_count=0`,
+   - placeholder keys: none,
+   - wildcard keys: none.
+
+### Phase posture updates
+1. `M9.A` is complete.
+2. `M9.B` is unblocked for execution.
+
