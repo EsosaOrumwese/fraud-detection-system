@@ -3517,3 +3517,79 @@ Plan sync written:
 3) current phase status updated:
    - `POPT.2R: in_progress (R1_COMPLETE_OPEN_R2)`.
 4) explicit pointer added: proceed to `POPT.2R.2`.
+### Entry: 2026-02-19 13:27
+
+Design element: `3B POPT.2R.2 backend decision (compiled validator path)`.
+Summary: while starting R2, discovered `fastjsonschema` backend is absent in current environment; selected explicit compiled-validator backend with dependency pin plus safe fallback.
+
+Observed environment:
+1) `fastjsonschema`: not installed.
+2) `orjson`: installed.
+
+Decision:
+1) add `fastjsonschema` as engine dependency in `pyproject.toml`.
+2) implement S5 hash-lane validator backend selection:
+   - primary: compiled `fastjsonschema` validator (cached by schema digest),
+   - fallback: existing `Draft202012Validator` first-error path.
+3) switch JSONL payload parse path to `orjson.loads` (bytes) with strict fallback to stdlib `json` when needed.
+
+Why this is accepted for R2:
+1) satisfies R2 intent (compiled-validator acceleration) with explicit dependency trace.
+2) preserves fail-closed semantics and digest law.
+3) keeps compatibility safety: fallback remains available if compiled backend fails.
+
+Planned validation for this lane:
+1) compile gates.
+2) isolated S5 witness on authority run-id.
+3) closure scoring and plan sync with explicit `R2` result.
+### Entry: 2026-02-19 13:39
+
+Design element: `3B POPT.2R.2 compiled-validator implementation + witness`.
+Summary: executed R2 high-impact lane with compiled JSON schema validators and fast bytes parser; runtime gate cleared with large margin while non-regression stayed green.
+
+Implementation details:
+1) dependency and environment:
+   - pinned `fastjsonschema` in `pyproject.toml`.
+   - installed `fastjsonschema` into active `.venv` used by make targets.
+2) S5 runner patch:
+   - added compiled validator backend selection with schema-digest cache,
+   - fallback path retained: `Draft202012Validator` first-error fail-closed validation,
+   - parse path switched to `orjson.loads(bytes)` for hot JSONL lanes,
+   - digest law unchanged (raw line bytes still hashed).
+3) compile gates: PASS.
+
+Witness execution:
+1) command:
+   - `make segment3b-s5 RUNS_ROOT=runs/fix-data-engine/segment_3B SEG3B_S5_RUN_ID=724a63d3f8b242809b8ec3b746d0c776`.
+2) runtime observation:
+   - runner logs confirmed `validator_backend=fastjsonschema_compiled` for hash lanes.
+3) scored artifacts:
+   - `segment3b_popt2r2_s5_lane_timing_724a63d3f8b242809b8ec3b746d0c776.{json,md}`,
+   - `segment3b_popt2r2_closure_724a63d3f8b242809b8ec3b746d0c776.{json,md}`.
+
+Measured outcome:
+1) baseline S5 wall: `240.468s`.
+2) candidate S5 wall: `42.641s`.
+3) movement: `+82.27%` (runtime gate PASS).
+
+Non-regression:
+1) digest parity PASS.
+2) output path stability PASS.
+3) S5 status PASS.
+
+Decision:
+1) `POPT.2R.2` clears gate.
+2) `POPT.2R.3` decision is `UNLOCK_POPT3`.
+### Entry: 2026-02-19 13:40
+
+Design element: `3B plan/status closure sync after POPT.2R.2`.
+Summary: synchronized build plan with R2/R3 outcomes and updated phase-status posture.
+
+Plan sync:
+1) marked `POPT.2` runtime/hot-lane DoDs as achieved.
+2) marked `POPT.2R` DoDs complete.
+3) added R2 execution record and R3 closure decision block.
+4) updated current phase status:
+   - `POPT.2`: completed (`UNLOCK_POPT3_AFTER_POPT2R2`),
+   - `POPT.2R`: completed (`UNLOCK_POPT3`),
+   - `POPT.3`: pending (`UNLOCKED_AFTER_POPT2R3`).

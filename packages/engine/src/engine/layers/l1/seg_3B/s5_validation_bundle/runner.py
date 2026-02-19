@@ -11,8 +11,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
+import orjson
 import polars as pl
 from jsonschema import Draft202012Validator
+
+try:
+    import fastjsonschema
+    from fastjsonschema import JsonSchemaException as FastJsonSchemaException
+except Exception:  # pragma: no cover - optional backend fallback
+    fastjsonschema = None
+    FastJsonSchemaException = Exception  # type: ignore[assignment]
 
 from engine.contracts.jsonschema_adapter import normalize_nullable_schema, validate_dataframe
 from engine.contracts.loader import (
@@ -79,6 +87,9 @@ DATASET_S5_REPORT = "s5_run_report_3B"
 
 # POPT.2R.1: lower hash-lane log cadence to reduce avoidable log drag.
 S5_HASH_PROGRESS_LOG_INTERVAL_S = 5.0
+
+# POPT.2R.2: compiled-validator cache for hot JSONL schema lanes.
+_FASTJSONSCHEMA_VALIDATOR_CACHE: dict[str, Callable[[object], None]] = {}
 
 
 @dataclass(frozen=True)
@@ -210,6 +221,59 @@ def _json_digest(payload: object) -> str:
     return hashlib.sha256(_json_bytes(payload)).hexdigest()
 
 
+def _schema_digest(schema: dict) -> str:
+    return hashlib.sha256(
+        json.dumps(schema, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _parse_json_payload(payload: bytes, path: Path, line_no: int) -> object:
+    try:
+        return orjson.loads(payload)
+    except orjson.JSONDecodeError as exc:
+        raise SchemaValidationError(
+            f"JSONL parse failed at {path}:{line_no}: {exc}"
+        ) from exc
+
+
+def _build_record_validator(schema: dict, logger, label: str) -> Callable[[object, Path, int], None]:
+    if fastjsonschema is not None:
+        try:
+            cache_key = _schema_digest(schema)
+            compiled = _FASTJSONSCHEMA_VALIDATOR_CACHE.get(cache_key)
+            if compiled is None:
+                compiled = fastjsonschema.compile(schema)
+                _FASTJSONSCHEMA_VALIDATOR_CACHE[cache_key] = compiled
+            logger.info("%s: validator_backend=fastjsonschema_compiled", label)
+
+            def _validate_fast(record: object, path: Path, line_no: int) -> None:
+                try:
+                    compiled(record)
+                except FastJsonSchemaException as exc:
+                    raise SchemaValidationError(
+                        f"JSONL schema validation failed at {path}:{line_no}: {exc.message}"
+                    ) from exc
+
+            return _validate_fast
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "%s: validator_backend=fastjsonschema_compile_failed fallback=draft202012 detail=%s",
+                label,
+                exc,
+            )
+    draft_validator = Draft202012Validator(schema)
+    logger.info("%s: validator_backend=draft202012", label)
+
+    def _validate_draft(record: object, path: Path, line_no: int) -> None:
+        error = next(draft_validator.iter_errors(record), None)
+        if error is not None:
+            raise SchemaValidationError(
+                f"JSONL schema validation failed at {path}:{line_no}: {error.message}"
+            )
+
+    return _validate_draft
+
+
 def _write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(_json_bytes(payload))
@@ -278,7 +342,7 @@ def _hash_jsonl_with_validation(
     label: str,
     on_record: Optional[Callable[[dict], None]] = None,
 ) -> tuple[str, int, int]:
-    validator = Draft202012Validator(schema)
+    validate_record = _build_record_validator(schema, logger, label)
     tracker = _ProgressTracker(
         None,
         logger,
@@ -295,20 +359,11 @@ def _hash_jsonl_with_validation(
                     continue
                 hasher.update(line)
                 total_bytes += len(line)
-                payload = line.strip()
+                payload = line.rstrip(b"\r\n")
                 if payload:
                     total_events += 1
-                    try:
-                        record = json.loads(payload)
-                    except json.JSONDecodeError as exc:
-                        raise SchemaValidationError(
-                            f"JSONL parse failed at {path}:{line_no}: {exc.msg}"
-                        ) from exc
-                    error = next(validator.iter_errors(record), None)
-                    if error is not None:
-                        raise SchemaValidationError(
-                            f"JSONL schema validation failed at {path}:{line_no}: {error.message}"
-                        )
+                    record = _parse_json_payload(payload, path, line_no)
+                    validate_record(record, path, line_no)
                     if on_record is not None:
                         on_record(record)
                 tracker.update(1)

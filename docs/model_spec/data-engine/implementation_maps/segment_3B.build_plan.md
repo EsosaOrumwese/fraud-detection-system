@@ -490,7 +490,7 @@ Scope:
 - keep `S5` as primary `POPT.2` target; only touch `S3` if `S5` gates are met and secondary residuals remain.
 
 Definition of done:
-- [ ] secondary hotspot runtime materially reduced vs baseline.
+- [x] secondary hotspot runtime materially reduced vs baseline.
 - [x] parity/invariants remain non-regressed.
 - [x] audit evidence completeness remains intact.
 
@@ -532,7 +532,7 @@ Scope:
 - preserve exactly the same final bundle digests and failure semantics on malformed/empty members.
 
 Definition of done:
-- [ ] hash lane wall-time reduced materially vs baseline.
+- [x] hash lane wall-time reduced materially vs baseline.
 - [x] digest outputs remain byte-identical for unchanged inputs.
 - [x] malformed/empty log failure behavior is non-regressed.
 
@@ -603,8 +603,8 @@ Scope:
 
 Definition of done:
 - [x] `POPT.2R.1` executed and scored.
-- [ ] `POPT.2R.2` executed and scored if `R1` misses gate.
-- [ ] explicit final decision recorded (`UNLOCK_POPT3` or retained `HOLD_POPT2_REOPEN` with waiver path).
+- [x] `POPT.2R.2` executed and scored if `R1` misses gate.
+- [x] explicit final decision recorded (`UNLOCK_POPT3` or retained `HOLD_POPT2_REOPEN` with waiver path).
 
 ### POPT.2R.1 - Low-risk log-cadence trim
 Goal:
@@ -654,9 +654,31 @@ Scope:
 - rerun isolated `segment3b-s5` witness and rescore.
 
 Definition of done:
-- [ ] runtime movement is measured and compared to baseline.
-- [ ] non-regression gates (digest/path/status) remain PASS.
-- [ ] runtime gate verdict is explicit.
+- [x] runtime movement is measured and compared to baseline.
+- [x] non-regression gates (digest/path/status) remain PASS.
+- [x] runtime gate verdict is explicit.
+
+POPT.2R.2 execution record (2026-02-19):
+- implementation scope:
+  - dependency pin added: `fastjsonschema` in `pyproject.toml`,
+  - S5 hash lanes switched to compiled validator backend with schema-digest cache and fail-closed fallback to `Draft202012`,
+  - JSONL parse fast path switched to `orjson.loads(bytes)` in S5 hash loop.
+- witness execution:
+  - command: isolated `segment3b-s5` rerun on authority run-id
+    `724a63d3f8b242809b8ec3b746d0c776`.
+  - artifacts:
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_popt2r2_s5_lane_timing_724a63d3f8b242809b8ec3b746d0c776.json`
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_popt2r2_closure_724a63d3f8b242809b8ec3b746d0c776.json`
+- measured outcome:
+  - baseline `S5 wall=240.468s`,
+  - candidate `S5 wall=42.641s`,
+  - runtime movement `+82.27%` (runtime gate PASS).
+- non-regression:
+  - digest parity PASS,
+  - output path stability PASS,
+  - S5 status PASS.
+- decision:
+  - `R2` clears gate and unlocks `POPT.3`.
 
 ### POPT.2R.3 - Final decision gate
 Goal:
@@ -667,8 +689,18 @@ Scope:
 - if runtime gate still fails after `R2`: retain `HOLD_POPT2_REOPEN` and proceed only under explicit waiver with recorded rationale.
 
 Definition of done:
-- [ ] closure decision and rationale appended.
-- [ ] next phase pointer is explicit in current-phase status.
+- [x] closure decision and rationale appended.
+- [x] next phase pointer is explicit in current-phase status.
+
+POPT.2R.3 closure decision (2026-02-19):
+- final decision: `UNLOCK_POPT3`.
+- rationale:
+  - runtime gate passed strongly in `R2`,
+  - non-regression gates remained green.
+- progression:
+  - `POPT.2` closed,
+  - `POPT.2R` closed,
+  - `POPT.3` unlocked.
 
 ### POPT.3 - Logging and serialization budget optimization
 Goal:
@@ -796,9 +828,9 @@ Definition of done:
 - `POPT.0`: completed
 - `POPT.1`: in_progress (`HOLD_POPT1_REOPEN`)
 - `POPT.1R.NEXT`: in_progress (`OPEN_AFTER_ROLLBACK`)
-- `POPT.2`: in_progress (`HOLD_POPT2_REOPEN`)
-- `POPT.2R`: in_progress (`R1_COMPLETE_OPEN_R2`)
-- `POPT.3`: pending
+- `POPT.2`: completed (`UNLOCK_POPT3_AFTER_POPT2R2`)
+- `POPT.2R`: completed (`UNLOCK_POPT3`)
+- `POPT.3`: pending (`UNLOCKED_AFTER_POPT2R3`)
 - `POPT.4`: pending
 - `P0`: pending
 - `P1`: pending

@@ -15233,3 +15233,30 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - `platform.M9.build_plan.md`
    - `platform.build_plan.md`.
 
+## Entry: 2026-02-19 13:35:02 +00:00 - Unified teardown lane implemented and docs repinned
+### Implementation actions
+1. Upgraded `.github/workflows/dev_min_confluent_destroy.yml` into a stack-aware unified teardown workflow:
+   - new dispatch input `stack_target=confluent|demo`,
+   - stack-specific Terraform dir/key resolution,
+   - conditional Confluent secret requirement (`confluent` only),
+   - unified snapshot schema carrying `stack_target`, `terraform_dir`, and state key.
+2. Preserved fail-closed workflow semantics:
+   - reject static AWS creds,
+   - non-success destroy or non-empty post-destroy state -> fail.
+3. Repinned execution docs to single-lane model:
+   - `M9.C` uses unified workflow with `stack_target=confluent`,
+   - `M9.D` uses unified workflow with `stack_target=demo`,
+   - removed planning dependency on a separate demo workflow file.
+
+### Docs updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
+
+### Superseded assumption (explicit)
+1. Prior planning statement that `M9.D` requires `.github/workflows/dev_min_demo_destroy.yml` is superseded by the unified stack-target workflow model.
+
+### Phase posture
+1. This step implemented workflow + doc repin only.
+2. No new teardown execution run was performed in this step.
+

@@ -560,7 +560,7 @@ Planning status:
 2. No teardown execution/destruction was run in this planning step.
 
 Blockers:
-1. `M9D-B1`: managed demo-destroy lane missing.
+1. `M9D-B1`: unified teardown lane missing or not dispatchable for `stack_target=demo`.
 2. `M9D-B2`: destroy execution failed.
 3. `M9D-B3`: destroy summary missing/ambiguous.
 4. `M9D-B4`: snapshot publication failure.
