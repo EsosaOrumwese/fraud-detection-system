@@ -110,6 +110,15 @@ def test_platform_run_reporter_exports_cross_plane_artifact(tmp_path: Path, monk
     assert payload["basis"]["provenance"]["environment"] == "test"
     assert payload["artifact_refs"]["local_path"]
     assert payload["artifact_refs"]["object_store_path"].endswith("/obs/platform_run_report.json")
+    closure_bundle = payload["artifact_refs"]["closure_bundle"]
+    assert set(closure_bundle.keys()) == {
+        "run_completed",
+        "run_report",
+        "reconciliation",
+        "replay_anchors",
+        "environment_conformance",
+        "anomaly_summary",
+    }
     assert any(
         ("case_trigger" in item) and ("reconciliation" in item)
         for item in payload["evidence_refs"]["component_reconciliation_refs"]
@@ -137,6 +146,19 @@ def test_platform_run_reporter_exports_cross_plane_artifact(tmp_path: Path, monk
     assert reporter_events
     assert reporter_events[-1]["actor"]["actor_id"] == "SYSTEM::platform_run_reporter"
     assert reporter_events[-1]["provenance"]["environment"] == "test"
+
+    required_paths = [
+        object_store_root / platform_run_id / "run_completed.json",
+        object_store_root / platform_run_id / "obs" / "run_report.json",
+        object_store_root / platform_run_id / "obs" / "reconciliation.json",
+        object_store_root / platform_run_id / "obs" / "replay_anchors.json",
+        object_store_root / platform_run_id / "obs" / "environment_conformance.json",
+        object_store_root / platform_run_id / "obs" / "anomaly_summary.json",
+    ]
+    for path in required_paths:
+        assert path.exists()
+    run_completed_payload = json.loads((object_store_root / platform_run_id / "run_completed.json").read_text(encoding="utf-8"))
+    assert run_completed_payload["platform_run_id"] == platform_run_id
 
 
 def test_query_ops_receipts_counts_run_scoped_rows_with_colliding_receipt_ids(tmp_path: Path) -> None:

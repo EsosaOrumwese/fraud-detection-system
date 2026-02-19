@@ -19,6 +19,7 @@ from fraud_detection.identity_entity_graph.query import IdentityGraphQuery
 from fraud_detection.ingestion_gate.config import WiringProfile
 from fraud_detection.ingestion_gate.pg_index import is_postgres_dsn
 from fraud_detection.online_feature_plane.observability import OfpObservabilityReporter
+from fraud_detection.platform_conformance.checker import run_environment_conformance
 from fraud_detection.platform_governance import (
     EvidenceRefResolutionRequest,
     build_evidence_ref_resolution_corridor,
@@ -170,17 +171,138 @@ class PlatformRunReporter:
         self._emit_evidence_resolution_events(payload)
         run_root = RUNS_ROOT / self.platform_run_id
         local_path = run_root / "obs" / "platform_run_report.json"
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-        local_path.write_text(json.dumps(payload, sort_keys=True, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+        _write_json_file(local_path, payload)
 
         store_path = f"{_run_prefix_for_store(self.store, self.platform_run_id)}/obs/platform_run_report.json"
         self.store.write_json(store_path, payload)
         self._emit_report_generated_event(payload)
+        closure_bundle_refs = self._emit_closure_bundle(payload=payload, run_root=run_root, report_store_path=store_path)
         payload["artifact_refs"] = {
             "local_path": str(local_path),
             "object_store_path": store_path,
+            "closure_bundle": closure_bundle_refs,
         }
         return payload
+
+    def _emit_closure_bundle(
+        self,
+        *,
+        payload: dict[str, Any],
+        run_root: Path,
+        report_store_path: str,
+    ) -> dict[str, dict[str, str]]:
+        run_prefix = _run_prefix_for_store(self.store, self.platform_run_id)
+        local_run_completed_path = run_root / "run_completed.json"
+        local_run_report_path = run_root / "obs" / "run_report.json"
+        local_reconciliation_path = run_root / "obs" / "reconciliation.json"
+        local_replay_anchors_path = run_root / "obs" / "replay_anchors.json"
+        local_environment_conformance_path = run_root / "obs" / "environment_conformance.json"
+        local_anomaly_summary_path = run_root / "obs" / "anomaly_summary.json"
+
+        store_run_completed_path = f"{run_prefix}/run_completed.json"
+        store_run_report_path = f"{run_prefix}/obs/run_report.json"
+        store_reconciliation_path = f"{run_prefix}/obs/reconciliation.json"
+        store_replay_anchors_path = f"{run_prefix}/obs/replay_anchors.json"
+        store_environment_conformance_path = f"{run_prefix}/obs/environment_conformance.json"
+        store_anomaly_summary_path = f"{run_prefix}/obs/anomaly_summary.json"
+
+        run_report_payload = dict(payload)
+        reconciliation_payload = _build_reconciliation_payload(payload)
+        replay_anchors_payload = _build_replay_anchors_payload(
+            store=self.store,
+            platform_run_id=self.platform_run_id,
+            run_prefix=run_prefix,
+            report_store_path=report_store_path,
+        )
+        environment_conformance_payload = self._build_environment_conformance_payload(
+            output_path=local_environment_conformance_path
+        )
+        anomaly_summary_payload = _build_anomaly_summary_payload(payload)
+        run_completed_payload = _build_run_completed_payload(
+            platform_run_id=self.platform_run_id,
+            run_report_ref=store_run_report_path,
+            reconciliation_ref=store_reconciliation_path,
+            replay_anchors_ref=store_replay_anchors_path,
+            environment_conformance_ref=store_environment_conformance_path,
+            anomaly_summary_ref=store_anomaly_summary_path,
+            governance_events_ref=f"{run_prefix}/obs/governance/events.jsonl",
+        )
+
+        _write_json_file(local_run_report_path, run_report_payload)
+        _write_json_file(local_reconciliation_path, reconciliation_payload)
+        _write_json_file(local_replay_anchors_path, replay_anchors_payload)
+        _write_json_file(local_environment_conformance_path, environment_conformance_payload)
+        _write_json_file(local_anomaly_summary_path, anomaly_summary_payload)
+        _write_json_file(local_run_completed_path, run_completed_payload)
+
+        self.store.write_json(store_run_report_path, run_report_payload)
+        self.store.write_json(store_reconciliation_path, reconciliation_payload)
+        self.store.write_json(store_replay_anchors_path, replay_anchors_payload)
+        self.store.write_json(store_environment_conformance_path, environment_conformance_payload)
+        self.store.write_json(store_anomaly_summary_path, anomaly_summary_payload)
+        self.store.write_json(store_run_completed_path, run_completed_payload)
+
+        return {
+            "run_completed": {
+                "local_path": str(local_run_completed_path),
+                "object_store_path": store_run_completed_path,
+            },
+            "run_report": {
+                "local_path": str(local_run_report_path),
+                "object_store_path": store_run_report_path,
+            },
+            "reconciliation": {
+                "local_path": str(local_reconciliation_path),
+                "object_store_path": store_reconciliation_path,
+            },
+            "replay_anchors": {
+                "local_path": str(local_replay_anchors_path),
+                "object_store_path": store_replay_anchors_path,
+            },
+            "environment_conformance": {
+                "local_path": str(local_environment_conformance_path),
+                "object_store_path": store_environment_conformance_path,
+            },
+            "anomaly_summary": {
+                "local_path": str(local_anomaly_summary_path),
+                "object_store_path": store_anomaly_summary_path,
+            },
+        }
+
+    def _build_environment_conformance_payload(self, *, output_path: Path) -> dict[str, Any]:
+        local_parity_profile = os.getenv(
+            "PLATFORM_CONFORMANCE_LOCAL_PARITY_PROFILE",
+            "config/platform/profiles/local_parity.yaml",
+        )
+        dev_profile = os.getenv(
+            "PLATFORM_CONFORMANCE_DEV_PROFILE",
+            "config/platform/profiles/dev.yaml",
+        )
+        prod_profile = os.getenv(
+            "PLATFORM_CONFORMANCE_PROD_PROFILE",
+            "config/platform/profiles/prod.yaml",
+        )
+        try:
+            result = run_environment_conformance(
+                local_parity_profile=local_parity_profile,
+                dev_profile=dev_profile,
+                prod_profile=prod_profile,
+                platform_run_id=self.platform_run_id,
+                output_path=str(output_path),
+            )
+            return dict(result.payload)
+        except Exception as exc:
+            return {
+                "generated_at_utc": _utc_now(),
+                "platform_run_id": self.platform_run_id,
+                "status": "DEGRADED",
+                "error": f"ENV_CONFORMANCE_UNAVAILABLE:{str(exc)[:256]}",
+                "profiles": {
+                    "local_parity_profile": local_parity_profile,
+                    "dev_profile": dev_profile,
+                    "prod_profile": prod_profile,
+                },
+            }
 
     def _collect_ingress(self) -> dict[str, Any]:
         ready_summary = _collect_wsp_ready_summary(self.store, self.platform_run_id)
@@ -554,6 +676,120 @@ def _component_reconciliation_refs(platform_run_id: str) -> list[str]:
     return [str(path) for path in candidates if path.exists()]
 
 
+def _build_reconciliation_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    ingress = _mapping(payload.get("ingress"))
+    rtdl = _mapping(payload.get("rtdl"))
+    archive = _mapping(payload.get("archive"))
+    archive_summary = _mapping(archive.get("summary"))
+    case_labels = _mapping(payload.get("case_labels"))
+    case_summary = _mapping(case_labels.get("summary"))
+    checks = {
+        "sent_ge_received": int(ingress.get("sent", 0)) >= int(ingress.get("received", 0)),
+        "received_ge_admit": int(ingress.get("received", 0)) >= int(ingress.get("admit", 0)),
+        "decision_ge_outcome": int(rtdl.get("decision", 0)) >= int(rtdl.get("outcome", 0)),
+        "archive_seen_ge_archived": int(archive_summary.get("seen_total", 0)) >= int(archive_summary.get("archived_total", 0)),
+    }
+    status = "PASS" if all(bool(value) for value in checks.values()) else "WARN"
+    return {
+        "generated_at_utc": _utc_now(),
+        "platform_run_id": str(payload.get("platform_run_id") or "").strip() or None,
+        "status": status,
+        "checks": checks,
+        "inputs": {
+            "ingress": ingress,
+            "rtdl": rtdl,
+            "archive_summary": archive_summary,
+            "case_labels_summary": case_summary,
+        },
+        "deltas": {
+            "sent_minus_received": int(ingress.get("sent", 0)) - int(ingress.get("received", 0)),
+            "received_minus_admit": int(ingress.get("received", 0)) - int(ingress.get("admit", 0)),
+            "decision_minus_outcome": int(rtdl.get("decision", 0)) - int(rtdl.get("outcome", 0)),
+        },
+        "basis": {
+            "component_reconciliation_refs": list(_mapping(payload.get("evidence_refs")).get("component_reconciliation_refs") or []),
+        },
+    }
+
+
+def _build_replay_anchors_payload(
+    *,
+    store: ObjectStore,
+    platform_run_id: str,
+    run_prefix: str,
+    report_store_path: str,
+) -> dict[str, Any]:
+    ingest_offsets_ref = f"{run_prefix}/ingest/kafka_offsets_snapshot.json"
+    rtdl_offsets_ref = f"{run_prefix}/rtdl_core/offsets_snapshot.json"
+    ingest_payload = _store_json_if_exists(store, ingest_offsets_ref)
+    rtdl_payload = _store_json_if_exists(store, rtdl_offsets_ref)
+    ingest_offsets = _collect_topic_partition_offsets(ingest_payload)
+    rtdl_offsets = _collect_topic_partition_offsets(rtdl_payload)
+    return {
+        "generated_at_utc": _utc_now(),
+        "platform_run_id": platform_run_id,
+        "anchors": {
+            "ingest": ingest_offsets,
+            "rtdl_core": rtdl_offsets,
+        },
+        "source_refs": {
+            "ingest_offsets_ref": ingest_offsets_ref,
+            "rtdl_offsets_ref": rtdl_offsets_ref,
+            "run_report_ref": report_store_path,
+        },
+        "counts": {
+            "ingest_anchors": len(ingest_offsets),
+            "rtdl_anchors": len(rtdl_offsets),
+        },
+    }
+
+
+def _build_anomaly_summary_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    ingress = _mapping(payload.get("ingress"))
+    rtdl = _mapping(payload.get("rtdl"))
+    case_labels = _mapping(payload.get("case_labels"))
+    case_summary = _mapping(case_labels.get("summary"))
+    anomaly_counts = {
+        "ingress_publish_ambiguous": int(ingress.get("publish_ambiguous", 0)),
+        "ingress_receipt_write_failed": int(ingress.get("receipt_write_failed", 0)),
+        "rtdl_degraded": int(rtdl.get("degraded", 0)),
+        "case_labels_anomalies_total": int(case_summary.get("anomalies_total", 0)),
+    }
+    total = sum(anomaly_counts.values())
+    return {
+        "generated_at_utc": _utc_now(),
+        "platform_run_id": str(payload.get("platform_run_id") or "").strip() or None,
+        "status": "PASS" if total == 0 else "WARN",
+        "anomaly_counts": anomaly_counts,
+        "anomaly_total": total,
+    }
+
+
+def _build_run_completed_payload(
+    *,
+    platform_run_id: str,
+    run_report_ref: str,
+    reconciliation_ref: str,
+    replay_anchors_ref: str,
+    environment_conformance_ref: str,
+    anomaly_summary_ref: str,
+    governance_events_ref: str,
+) -> dict[str, Any]:
+    return {
+        "generated_at_utc": _utc_now(),
+        "platform_run_id": platform_run_id,
+        "status": "COMPLETED",
+        "closure_refs": {
+            "run_report_ref": run_report_ref,
+            "reconciliation_ref": reconciliation_ref,
+            "replay_anchors_ref": replay_anchors_ref,
+            "environment_conformance_ref": environment_conformance_ref,
+            "anomaly_summary_ref": anomaly_summary_ref,
+            "governance_events_ref": governance_events_ref,
+        },
+    }
+
+
 def _load_dla_append_success_total(platform_run_id: str) -> int:
     path = RUNS_ROOT / platform_run_id / "decision_log_audit" / "metrics" / "last_metrics.json"
     if not path.exists():
@@ -564,6 +800,47 @@ def _load_dla_append_success_total(platform_run_id: str) -> int:
         return 0
     metrics = _mapping(payload.get("metrics"))
     return int(metrics.get("append_success_total", 0))
+
+
+def _store_json_if_exists(store: ObjectStore, relative_path: str) -> dict[str, Any]:
+    try:
+        if not store.exists(relative_path):
+            return {}
+        payload = store.read_json(relative_path)
+    except Exception:
+        return {}
+    return dict(payload) if isinstance(payload, dict) else {}
+
+
+def _collect_topic_partition_offsets(payload: Any) -> list[dict[str, Any]]:
+    offsets: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+
+    def visit(node: Any) -> None:
+        if isinstance(node, dict):
+            topic = node.get("topic")
+            partition = node.get("partition")
+            offset = node.get("offset")
+            if topic is not None and partition is not None and offset is not None:
+                key = (str(topic), str(partition), str(offset))
+                if key not in seen:
+                    seen.add(key)
+                    offsets.append(
+                        {
+                            "topic": str(topic),
+                            "partition": int(partition) if str(partition).isdigit() else partition,
+                            "offset": str(offset),
+                        }
+                    )
+            for value in node.values():
+                visit(value)
+            return
+        if isinstance(node, list):
+            for item in node:
+                visit(item)
+
+    visit(payload)
+    return offsets
 
 
 def _read_store_text(store: ObjectStore, path: str) -> str:
@@ -627,6 +904,11 @@ def _load_json_file(path: Path) -> dict[str, Any]:
     except json.JSONDecodeError:
         return {}
     return dict(payload) if isinstance(payload, dict) else {}
+
+
+def _write_json_file(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, sort_keys=True, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
 
 
 def _evidence_ref_values(raw: Any) -> list[str]:

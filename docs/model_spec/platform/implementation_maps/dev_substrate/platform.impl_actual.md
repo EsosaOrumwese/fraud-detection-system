@@ -14516,3 +14516,113 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Phase posture
 1. `M8.F` is planning-complete and execution-ready.
 2. No runtime execution was performed in this planning action.
+
+## Entry: 2026-02-19 10:40:30 +00:00 - M8.F execution start lock (bundle completeness run)
+### Execution intent
+1. Execute deterministic `M8.F` closure-bundle completeness validation for active run scope.
+2. Publish `m8_f_bundle_completeness_snapshot.json` locally and durably.
+
+### Pre-execution posture
+1. Source gate is `M8.E` pass (`m8_20260219T095720Z`) and remains the required prerequisite for this lane.
+2. Required bundle targets are fixed to run-scoped Obs/Gov objects under:
+   - `evidence/runs/platform_20260213T214223Z/`.
+3. Fail-closed blocker model for execution:
+   - `M8F-B1` missing/unreadable required artifact,
+   - `M8F-B2` parse/run-scope conformance failure,
+   - `M8F-B3` snapshot publication failure,
+   - `M8F-B4/B5` prerequisite or handle-resolution/preparation failure.
+
+### Execution decision
+1. Validate all six required objects with per-object verdict rows (existence, readability, JSON parseability, run-scope conformance).
+2. Keep classification deterministic and blocker-driven; no partial green.
+3. Only close `M8.F` on blocker-empty pass with durable snapshot proof.
+
+## Entry: 2026-02-19 10:44:13 +00:00 - M8.F fail-first classification correction decision
+### Observation
+1. First `M8.F` execution (`m8_20260219T104212Z`) returned fail-closed as expected, but blocker typing drifted to `M8F-B2` because native AWS CLI failures were not being treated as terminating in the validation script.
+2. Direct prefix inspection confirms required bundle objects are materially missing from run-scoped Obs root:
+   - present: `obs/platform_run_report.json`, `obs/governance/events.jsonl`,
+   - missing: `run_completed.json`, `obs/run_report.json`, `obs/reconciliation.json`, `obs/replay_anchors.json`, `obs/environment_conformance.json`, `obs/anomaly_summary.json`.
+
+### Decision
+1. Rerun `M8.F` immediately with corrected native command error handling (`$PSNativeCommandUseErrorActionPreference = $true`) to produce authoritative blocker classification.
+2. Preserve fail-closed posture and keep required target set unchanged (no aliasing from `run_report.json` to `platform_run_report.json`), because the bundle contract is pinned in `M8` evidence policy.
+3. Use rerun snapshot as canonical closure evidence for `M8.F` status (expected hold on `M8F-B1` unless missing artifacts are materialized).
+
+## Entry: 2026-02-19 10:45:42 +00:00 - M8.F executed fail-closed (authoritative rerun)
+### Reasoning and execution trail
+1. Executed `M8.F` once (`m8_20260219T104212Z`) and observed fail-closed with non-authoritative blocker typing due native command error handling behavior; treated as fail-first witness only.
+2. Applied classification correction (native command failures enforced as terminating) and reran `M8.F` deterministically (`m8_20260219T104508Z`).
+3. Kept required bundle targets strict to pinned contract paths:
+   - `run_completed.json`,
+   - `obs/run_report.json`,
+   - `obs/reconciliation.json`,
+   - `obs/replay_anchors.json`,
+   - `obs/environment_conformance.json`,
+   - `obs/anomaly_summary.json`.
+4. Verified run-scoped Obs prefix to isolate content drift:
+   - available: `obs/platform_run_report.json`, `obs/governance/events.jsonl`,
+   - required six bundle objects are absent.
+
+### Artifacts
+1. Fail-first witness snapshot:
+   - local: `runs/dev_substrate/m8/m8_20260219T104212Z/m8_f_bundle_completeness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T104212Z/m8_f_bundle_completeness_snapshot.json`.
+2. Authoritative rerun snapshot:
+   - local: `runs/dev_substrate/m8/m8_20260219T104508Z/m8_f_bundle_completeness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T104508Z/m8_f_bundle_completeness_snapshot.json`.
+
+### Verdict
+1. Canonical `M8.F` verdict from rerun: `overall_pass=false`.
+2. Blockers:
+   - `M8F-B1` (required closure artifacts missing/unreadable).
+3. `M8.F` remains open fail-closed.
+4. `M8.G..M8.I` remain blocked pending `M8F-B1` remediation and rerun.
+
+### Phase state updates
+1. Updated `platform.M8.build_plan.md` with `M8.F` execution closure and fail-closed hold details.
+2. Updated `platform.build_plan.md` to record `M8.F` fail-closed posture and retarget immediate next action to `M8F-B1` remediation.
+
+## Entry: 2026-02-19 10:58:27 +00:00 - M8F-B1 remediation implementation (canonical closure-bundle emitter)
+### Root cause
+1. Reporter runtime emitted only:
+   - `obs/platform_run_report.json`
+   - `obs/governance/events.jsonl`
+2. Canonical `M8.F` bundle targets were never emitted by implementation:
+   - `run_completed.json`
+   - `obs/run_report.json`
+   - `obs/reconciliation.json`
+   - `obs/replay_anchors.json`
+   - `obs/environment_conformance.json`
+   - `obs/anomaly_summary.json`.
+
+### Decision
+1. Fix at source: extend `PlatformRunReporter.export()` to emit the full closure bundle (local + object store) on every reporter one-shot run.
+2. Keep existing `platform_run_report.json` output unchanged for backward compatibility and reference continuity.
+3. Do not weaken `M8.F` contract or alias required paths.
+
+### Implemented changes
+1. `src/fraud_detection/platform_reporter/run_reporter.py`:
+   - added bundle emission path `_emit_closure_bundle(...)` called from `export()`,
+   - emits all six canonical artifacts at pinned paths,
+   - added structured payload builders:
+     - reconciliation summary payload,
+     - replay anchors payload from available offset sources,
+     - anomaly summary payload,
+     - run completed marker payload,
+     - environment conformance payload (uses checker with graceful degraded fallback),
+   - extended `artifact_refs` with `closure_bundle` entries.
+2. `tests/services/platform_reporter/test_run_reporter.py`:
+   - validates presence of all six required closure artifacts,
+   - validates `closure_bundle` refs and run-scope in `run_completed.json`.
+
+### Validation
+1. Targeted tests pass:
+   - `python -m pytest -q tests/services/platform_reporter`
+   - result: `2 passed`.
+
+### Next execution step
+1. Rebuild/publish platform image with reporter changes.
+2. Rematerialize reporter task definition to new image digest.
+3. Rerun `M8.E` to materialize closure bundle.
+4. Rerun `M8.F` and require blocker-empty pass.

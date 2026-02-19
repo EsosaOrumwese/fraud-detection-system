@@ -877,6 +877,7 @@ Active-phase planning posture:
   - `M8.C` execution is green,
   - `M8.D` remediation rerun is green with blockers empty; `M8.E` is unblocked.
   - `M8.E` execution is green with blockers empty; `M8.F` is unblocked.
+  - `M8.F` executed fail-closed on canonical rerun with blocker `M8F-B1`; `M8.G..M8.I` blocked pending remediation.
 
 M8.A execution closure (2026-02-19):
   - execution id: `m8_20260219T073801Z`
@@ -962,6 +963,25 @@ M8.E execution closure (2026-02-19):
   - consequence:
     - `M8.E` is closed
     - `M8.F..M8.I` are unblocked for sequential execution.
+
+M8.F execution closure (2026-02-19):
+  - fail-first witness:
+    - execution id: `m8_20260219T104212Z`
+    - local snapshot: `runs/dev_substrate/m8/m8_20260219T104212Z/m8_f_bundle_completeness_snapshot.json`
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T104212Z/m8_f_bundle_completeness_snapshot.json`
+    - posture: fail-closed witness only; rerun produced canonical blocker classification.
+  - canonical rerun:
+    - execution id: `m8_20260219T104508Z`
+    - local snapshot: `runs/dev_substrate/m8/m8_20260219T104508Z/m8_f_bundle_completeness_snapshot.json`
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T104508Z/m8_f_bundle_completeness_snapshot.json`
+    - result: `overall_pass=false`, blocker `M8F-B1`
+    - elapsed: `11.756s`
+  - drift evidence:
+    - required bundle targets missing: `run_completed.json`, `obs/run_report.json`, `obs/reconciliation.json`, `obs/replay_anchors.json`, `obs/environment_conformance.json`, `obs/anomaly_summary.json`
+    - observed non-substitute Obs files: `obs/platform_run_report.json`, `obs/governance/events.jsonl`
+  - consequence:
+    - `M8.F` remains open fail-closed
+    - `M8.G..M8.I` remain blocked pending `M8F-B1` remediation + rerun.
 
 Sub-phase progress:
   - [x] `M8.A` P11 authority + handles closure.
@@ -1102,8 +1122,8 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M8 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M8.F` closure-bundle completeness verification against run-scoped Obs/Gov artifacts,
+- remediate `M8F-B1` by materializing the required run-scoped closure bundle objects at pinned contract paths,
 - require durable artifact:
   - `evidence/dev_min/run_control/<m8_execution_id>/m8_f_bundle_completeness_snapshot.json`,
-- require `overall_pass=true` with blockers empty for `M8.F`,
+- rerun `M8.F` and require `overall_pass=true` with blockers empty,
 - continue `M8.G..M8.I` only after `M8.F` passes.

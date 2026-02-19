@@ -769,7 +769,28 @@ Runtime budget:
 
 Planning status:
 1. `M8.F` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
-2. Runtime execution has not started in this planning step.
+2. Runtime execution completed fail-closed with canonical rerun evidence.
+
+Execution closure (2026-02-19):
+1. Fail-first witness run:
+   - execution id: `m8_20260219T104212Z`
+   - local snapshot: `runs/dev_substrate/m8/m8_20260219T104212Z/m8_f_bundle_completeness_snapshot.json`
+   - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T104212Z/m8_f_bundle_completeness_snapshot.json`
+   - posture: fail-closed witness only; blocker typing corrected in rerun.
+2. Authoritative rerun:
+   - execution id: `m8_20260219T104508Z`
+   - local snapshot: `runs/dev_substrate/m8/m8_20260219T104508Z/m8_f_bundle_completeness_snapshot.json`
+   - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T104508Z/m8_f_bundle_completeness_snapshot.json`.
+3. Canonical rerun outcomes:
+   - `overall_pass=false`,
+   - blockers: `M8F-B1`,
+   - all six required bundle targets are missing at pinned contract paths.
+4. Verified available non-substitute Obs files during closure:
+   - `obs/platform_run_report.json`,
+   - `obs/governance/events.jsonl`.
+5. Phase posture:
+   - `M8.F` remains open fail-closed,
+   - `M8.G..M8.I` remain blocked pending `M8F-B1` remediation + rerun pass.
 
 ### M8.G Replay Anchors + Reconciliation Coherence
 Goal:
