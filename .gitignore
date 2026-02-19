@@ -177,6 +177,7 @@ reference/spatial/population/2025/source/Global2_Release_Statement_R2025A_v1.pdf
 temp/
 .env.localstack.example
 .tmp/
+.tmp_*
 
 # SR runtime artifacts (sensitive, generated)
 runs/fraud-platform/
