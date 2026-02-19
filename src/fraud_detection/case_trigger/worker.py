@@ -110,7 +110,18 @@ class _ConsumerCheckpointStore:
     def advance(self, *, topic: str, partition: int, offset: str, offset_kind: str) -> None:
         next_offset = str(offset)
         if offset_kind in {"file_line", "kafka_offset"}:
-            next_offset = str(int(offset) + 1)
+            try:
+                next_offset = str(int(offset) + 1)
+            except ValueError:
+                logger.warning(
+                    "CaseTrigger checkpoint received non-numeric offset; topic=%s partition=%s kind=%s offset=%r",
+                    topic,
+                    partition,
+                    offset_kind,
+                    offset,
+                )
+                offset_kind = f"{offset_kind}_opaque"
+                next_offset = str(offset)
         with sqlite3.connect(self.path) as conn:
             conn.execute(
                 """
@@ -447,6 +458,19 @@ class CaseTriggerWorker:
                     limit=self.config.poll_max_records,
                     start_position=start_position,
                 ):
+                    raw_offset = record.get("offset") if isinstance(record, Mapping) else None
+                    try:
+                        normalized_offset = int(raw_offset) if raw_offset is not None else None
+                    except (TypeError, ValueError):
+                        normalized_offset = None
+                    if normalized_offset is None:
+                        logger.warning(
+                            "CaseTrigger dropping kafka row with invalid offset; topic=%s partition=%s raw_offset=%r",
+                            topic,
+                            partition,
+                            raw_offset,
+                        )
+                        continue
                     payload = record.get("payload") if isinstance(record.get("payload"), Mapping) else {}
                     if isinstance(payload.get("payload"), Mapping):
                         payload = dict(payload.get("payload") or {})
@@ -454,7 +478,7 @@ class CaseTriggerWorker:
                         {
                             "topic": topic,
                             "partition": int(partition),
-                            "offset": str(record.get("offset")) if record.get("offset") is not None else "",
+                            "offset": str(normalized_offset),
                             "offset_kind": "kafka_offset",
                             "payload": payload,
                         }

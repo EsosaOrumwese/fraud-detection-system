@@ -13213,3 +13213,75 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Execution status
 1. Planning only; `M7.H` runtime execution not started in this step.
 2. Next step remains execution of `M7.H` against the expanded authority.
+
+## Entry: 2026-02-19 02:55:00 +00:00 - P10.B execution start (fail-closed blocker discovery + remediation design lock)
+### User directive
+1. Proceed with complete `P10.B` execution and document reasoning/decision trail.
+
+### Entry-gate probes and blocker discovered
+1. `M7.G` dependency is green (`overall_pass=true`) at:
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_g_case_label_db_readiness_snapshot.json`
+2. Service posture probe shows:
+   - `case-mgmt:14` and `label-store:14` on real worker commands,
+   - `case-trigger:13` still on sleep-loop stub command.
+3. Managed DB probe (via ECS one-shot on `db-migrations:13`) shows current run-state:
+   - `cm_cases=0`, `cm_case_trigger_intake=0`, `cm_case_timeline=0`,
+   - `ls_label_assertions=0`, `ls_label_timeline=0`,
+   - `ct_*` tables not present (worker has never materialized publish/replay/checkpoint lane).
+
+### Fail-closed assessment
+1. `P10.B` cannot be truthfully closed with stubbed `case-trigger` because:
+   - no runtime conformance for required case-trigger service lane,
+   - no source production path from RTDL -> case lane -> CM/LS append chain.
+2. This maps directly to `M7H-B5` (service/runtime conformance failure) and would cascade into `M7H-B1` (missing case/label evidence).
+
+### Remediation decision
+1. Targeted rematerialization scope:
+   - `infra/terraform/modules/demo/main.tf` only for `case-trigger` daemon branch + env/secrets wiring.
+2. Runtime posture to materialize:
+   - real command: `python -m fraud_detection.case_trigger.worker --profile /tmp/dev_min_case_trigger.yaml`,
+   - kafka ingest from `fp.bus.rtdl.v1`,
+   - required run-scope gating,
+   - IG publish corridor auth via `CASE_TRIGGER_IG_API_KEY`,
+   - replay/checkpoint/publish stores on managed DB DSN (no local sqlite state).
+3. Keep rollout narrow:
+   - targeted Terraform apply for case-trigger task definition + service only.
+4. After rematerialization:
+   - rerun managed DB evidence probes,
+   - build `case_summary.json`, `label_summary.json`, and `m7_h_case_label_commit_snapshot.json`.
+
+## Entry: 2026-02-19 03:14:35 +00:00 - P10.B blocker correction plan (case-trigger Kafka offset normalization)
+### Runtime truth observed
+1. case-trigger task definition raud-platform-dev-min-case-trigger:15 is now materialized on real worker command and Kafka wiring (vent_bus_kind=kafka).
+2. Current crashloop is not file-reader drift; CloudWatch logs show ValueError: invalid literal for int() with base 10: '' from case_trigger.worker checkpoint advance.
+3. Failure occurs in _ConsumerCheckpointStore.advance when offset_kind=kafka_offset but row offset resolves to blank/invalid token.
+
+### Fail-closed assessment
+1. M7.H / P10.B cannot close while case-trigger restarts; this is M7H-B5 service/runtime conformance failure and cascades to missing case/label evidence (M7H-B1).
+2. Leaving the runtime as-is creates non-deterministic ingestion and zero commit progression for case/label lane.
+
+### Decision
+1. Patch src/fraud_detection/case_trigger/worker.py to normalize Kafka offsets before they enter checkpoint advancement:
+   - parse and validate offset from reader record,
+   - skip malformed rows with bounded warning instead of crashing worker,
+   - preserve idempotent checkpoint progression for valid offsets only.
+2. Rebuild/publish platform image and rematerialize case-trigger service to new digest.
+3. Re-run P10.B verification sequence and publish closure artifacts (case_summary.json, label_summary.json, m7_h_case_label_commit_snapshot.json).
+
+### Why this path
+1. This is the minimal production-safe correction that preserves current contract boundaries and removes the active crashloop root cause.
+2. It keeps runtime fully managed (no laptop compute) and allows deterministic lane closure evidence.
+
+## Entry: 2026-02-19 03:15:55 +00:00 - P10.B remediation execution step: image refresh via authoritative build lane
+### Decision checkpoint
+1. Runtime fix is code-level in case_trigger.worker; closure requires new immutable image digest.
+2. Selected build lane remains authoritative dev-min-m1-packaging GitHub Actions workflow (no ad-hoc local image publish).
+3. Branch posture for this execution: dispatch workflow against active branch migrate-dev to package current head.
+
+### Pinned dispatch inputs
+1. platform_run_id=platform_20260213T214223Z
+2. ws_region=eu-west-2
+3. ws_role_to_assume=arn:aws:iam::230372904534:role/GitHubAction-AssumeRoleWithAction
+4. cr_repo_name=fraud-platform-dev-min
+5. cr_repo_uri=230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-min
+6. push_dev_min_latest=true (convenience tag only; immutable digest remains authoritative).
