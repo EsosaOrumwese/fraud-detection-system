@@ -3845,3 +3845,67 @@ Witness plan for this lane:
 1) compile patch.
 2) run `segment3b-s3` twice on authority run-id `724a63d3f8b242809b8ec3b746d0c776`.
 3) verify second run remains PASS with no `E3B_S3_OUTPUT_INCONSISTENT_REWRITE`.
+### Entry: 2026-02-19 15:37
+
+Design element: `3B POPT.4R.S3 closure`.
+Summary: completed S3 replay/idempotence lane; blocker removed and run-id wiring corrected.
+
+Implemented changes:
+1) `packages/engine/src/engine/layers/l1/seg_3B/s3_alias_tables/runner.py`:
+   - when `edge_universe_hash_3B` already exists and deterministic fields match, reuse existing payload verbatim to avoid optional timestamp drift on replay.
+   - corrected `EngineFailure` mapping in fail path to:
+     - `failure_code`,
+     - `failure_class`,
+     - `detail`.
+2) `Makefile`:
+   - added defaults:
+     - `SEG3B_S3_RUN_ID ?= $(RUN_ID)`,
+     - `SEG3B_S4_RUN_ID ?= $(RUN_ID)`,
+     - `SEG3B_S5_RUN_ID ?= $(RUN_ID)`.
+
+Witness results:
+1) ran `segment3b-s3` twice on run-id `724a63d3f8b242809b8ec3b746d0c776`.
+2) both invocations completed `PASS`.
+3) no `E3B_S3_OUTPUT_INCONSISTENT_REWRITE` occurred.
+4) follow-up `segment3b-s4` and `segment3b-s5` on `RUN_ID=724...` remained `PASS`.
+
+Evidence:
+1) `runs/fix-data-engine/segment_3B/reports/segment3b_popt4r_s3_replay_summary_724a63d3f8b242809b8ec3b746d0c776.json`
+2) `runs/fix-data-engine/segment_3B/reports/segment3b_popt4r_s3_replay_summary_724a63d3f8b242809b8ec3b746d0c776.md`
+
+Decision:
+1) `POPT.4R.S3` closed.
+2) next active lane: `POPT.4R.S2` runtime regression closure.
+### Entry: 2026-02-19 15:40
+
+Design element: `3B POPT.4R.S2 plan lock (tile-surface prep cache)`.
+Summary: selected a digest-keyed deterministic cache strategy for `S2` tile-surface prep to remove repeated expensive per-country parquet scans on replay lanes.
+
+Problem observed:
+1) `S2` prep lane (`tile allocations prepared`) expanded to ~`936s` in replay witness.
+2) current path re-reads tile weights/index/bounds per country in a long loop.
+
+Chosen approach:
+1) add run-local cache artifact for computed:
+   - `tile_allocations` (country -> [(tile_id, count)]),
+   - `tile_bounds_by_country` (country -> tile bounds tuple map),
+   keyed by:
+   - sealed digests of `tile_index`, `tile_weights`, `tile_bounds`,
+   - `edge_scale`,
+   - required country set.
+2) on cache hit:
+   - skip per-country parquet scan loop entirely,
+   - load deterministic cached structures and proceed to downstream lanes unchanged.
+3) on cache miss:
+   - execute existing loop,
+   - emit cache artifact for future replay.
+
+Safety constraints:
+1) no RNG logic change.
+2) no schema/output path drift for public datasets.
+3) cache is internal optimization only and must be deterministic for same digest/key inputs.
+
+Witness plan:
+1) compile patch.
+2) execute `segment3b-s2` once to materialize cache.
+3) execute `segment3b-s2` again and verify cache-hit plus material runtime drop.

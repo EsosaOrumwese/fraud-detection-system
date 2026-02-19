@@ -725,18 +725,110 @@ Blockers:
 Goal:
 1. Prove demo-scoped credentials are removed from SSM after teardown.
 
+Entry conditions:
+1. `M9.E` is closed PASS:
+   - local: `runs/dev_substrate/m9/m9_20260219T153208Z/m9_e_post_destroy_residual_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T153208Z/m9_e_post_destroy_residual_snapshot.json`.
+2. `M9.E` source semantics remain true:
+   - `overall_pass=true`,
+   - blockers empty.
+3. `M9.B` demo secret target set is readable and non-empty.
+
+Required inputs:
+1. Source snapshots:
+   - `M9.B` teardown inventory/preserve-set snapshot.
+   - `M9.E` residual verification snapshot.
+2. Required handles/targets:
+   - `AWS_REGION`
+   - `SSM_CONFLUENT_BOOTSTRAP_PATH`
+   - `SSM_CONFLUENT_API_KEY_PATH`
+   - `SSM_CONFLUENT_API_SECRET_PATH`
+   - `SSM_IG_API_KEY_PATH`
+   - `SSM_DB_USER_PATH`
+   - `SSM_DB_PASSWORD_PATH`
+   - `SSM_DB_DSN_PATH` (if present in `M9.B` demo-secret target set).
+3. Query surface:
+   - SSM metadata-only reads (`describe-parameters` by exact name); no value reads.
+
+Preparation checks:
+1. Validate `M9.E` snapshot readability and PASS semantics; mismatch -> `M9F-B3`.
+2. Validate `M9.B` secret target set remains readable and scoped; mismatch -> `M9F-B4`.
+3. Validate all required target paths are derivable from handles and `M9.B`; mismatch/query failure -> `M9F-B5`.
+
+Deterministic execution algorithm (M9.F):
+1. Load `M9.E` and `M9.B` authoritative snapshots and enforce entry gates.
+2. Construct canonical secret target set from `M9.B` `destroy_set.demo_secret_targets` and pinned SSM handles.
+3. For each target path, execute metadata-only existence check (exact-name SSM parameter lookup):
+   - if parameter metadata exists -> mark `present`,
+   - if parameter absent -> mark `absent`,
+   - if query unauthorized/unreadable -> fail closed.
+4. Compute cleanup verdict:
+   - any `present` target -> `M9F-B1` (still active),
+   - any query unreadable/unauthorized -> `M9F-B5`.
+5. Enforce non-secret evidence posture:
+   - snapshot may include path, metadata timestamps/type/tier,
+   - snapshot must not include secret values; violation -> `M9F-B2`.
+6. Emit local `m9_f_secret_cleanup_snapshot.json` with full target matrix.
+7. Publish snapshot durably; publish failure -> `M9F-B6`.
+
 Tasks:
-1. Verify Confluent/demo DB/demo API-key paths are absent or rotated to non-live posture per pinned policy.
-2. Emit `m9_f_secret_cleanup_snapshot.json`.
+1. Execute metadata-only SSM cleanup verification for all demo-secret target paths.
+2. Apply fail-closed blocker mapping for present/unknown targets.
+3. Enforce non-secret output policy in the emitted evidence.
+4. Emit and publish `m9_f_secret_cleanup_snapshot.json`.
+
+Required snapshot fields (`m9_f_secret_cleanup_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m9_execution_id`.
+2. `source_m9b_snapshot_local`, `source_m9b_snapshot_uri`.
+3. `source_m9e_snapshot_local`, `source_m9e_snapshot_uri`.
+4. `secret_target_matrix`:
+   - `parameter_name`
+   - `expected_scope` (`demo_secret_target`)
+   - `exists` (`true|false|unknown`)
+   - `metadata` (non-secret only).
+5. `present_targets`, `absent_targets`, `unknown_targets`.
+6. `non_secret_policy_pass`.
+7. `blockers`, `overall_pass`, `elapsed_seconds`.
+
+Runtime budget:
+1. `M9.F` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless explicit user waiver is recorded.
 
 DoD:
-- [ ] Demo-scoped secret cleanup checks pass.
-- [ ] No secret values are emitted in evidence.
-- [ ] Snapshot exists locally and durably.
+- [x] Demo-scoped secret cleanup checks pass.
+- [x] No secret values are emitted in evidence.
+- [x] Snapshot exists locally and durably.
+
+Planning status:
+1. `M9.F` is now execution-grade (entry/precheck/metadata-only secret-check/snapshot contract pinned).
+2. Historical planning-only state is superseded by execution closure below.
+
+Execution closure (2026-02-19):
+1. Execution id:
+   - `m9_20260219T155120Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T155120Z/m9_f_secret_cleanup_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T155120Z/m9_f_secret_cleanup_snapshot.json`.
+3. Result:
+   - `overall_pass=true`,
+   - blockers empty.
+4. Secret-cleanup outcomes:
+   - all canonical demo-secret targets are `absent`,
+   - `present_targets=[]`,
+   - `unknown_targets=[]`,
+   - `query_errors=[]`,
+   - `non_secret_policy_pass=true`.
+5. Consequence:
+   - `M9.F` is closed.
+   - `M9.G` is unblocked.
 
 Blockers:
 1. `M9F-B1`: demo-scoped secret path still active.
 2. `M9F-B2`: cleanup check emits secret-bearing payload.
+3. `M9F-B3`: prerequisite `M9.E` closure invalid/unreadable.
+4. `M9F-B4`: secret target-set drift from `M9.B` detected.
+5. `M9F-B5`: secret-query surface unreadable/unauthorized.
+6. `M9F-B6`: snapshot publication failure.
 
 ### M9.G Post-Teardown Cost-Guardrail Snapshot
 Goal:
@@ -811,7 +903,7 @@ Budget rule:
 1. Over-budget lanes require explicit blocker notation and remediation/retry posture before progression.
 
 ## 7) Current Planning Status
-1. M9 is planning-open with `M9.A`, `M9.B`, `M9.C`, `M9.D`, and `M9.E` execution closed green.
-2. `M9.F` is now the next execution lane.
+1. M9 is planning-open with `M9.A`, `M9.B`, `M9.C`, `M9.D`, `M9.E`, and `M9.F` execution closed green.
+2. `M9.G` is now the next execution lane.
 3. Unified teardown workflow decision is pinned:
    - `dev_min_confluent_destroy.yml` is stack-aware (`stack_target=confluent|demo`).

@@ -949,10 +949,27 @@ Scope:
 - witness by rerunning `S3` twice on authority run-id and confirming both runs PASS without rewrite failure.
 
 Definition of done:
-- [ ] `S3` replay on authority run-id is idempotent (`PASS` on repeated invocation).
-- [ ] no `E3B_S3_OUTPUT_INCONSISTENT_REWRITE` during replay witness.
-- [ ] exception-path mapping uses `EngineFailure.failure_code/failure_class/detail`.
-- [ ] make run-id wiring for `SEG3B_S3/S4/S5` defaults is corrected.
+- [x] `S3` replay on authority run-id is idempotent (`PASS` on repeated invocation).
+- [x] no `E3B_S3_OUTPUT_INCONSISTENT_REWRITE` during replay witness.
+- [x] exception-path mapping uses `EngineFailure.failure_code/failure_class/detail`.
+- [x] make run-id wiring for `SEG3B_S3/S4/S5` defaults is corrected.
+
+POPT.4R.S3 execution record (2026-02-19):
+- code updates:
+  - `packages/engine/src/engine/layers/l1/seg_3B/s3_alias_tables/runner.py`
+    - replay-idempotent reuse of existing `edge_universe_hash_3B` payload when deterministic fields match.
+    - exception mapping fixed to `EngineFailure.failure_code/failure_class/detail`.
+  - `Makefile`
+    - default run-id propagation added for `SEG3B_S3_RUN_ID`, `SEG3B_S4_RUN_ID`, `SEG3B_S5_RUN_ID`.
+- witness commands:
+  - `make --no-print-directory segment3b-s3 RUNS_ROOT=runs/fix-data-engine/segment_3B SEG3B_S3_RUN_ID=724a63d3f8b242809b8ec3b746d0c776` (run 1)
+  - `make --no-print-directory segment3b-s3 RUNS_ROOT=runs/fix-data-engine/segment_3B SEG3B_S3_RUN_ID=724a63d3f8b242809b8ec3b746d0c776` (run 2)
+- witness outcome:
+  - both replay invocations `PASS`,
+  - no `E3B_S3_OUTPUT_INCONSISTENT_REWRITE` observed.
+- evidence artifact:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt4r_s3_replay_summary_724a63d3f8b242809b8ec3b746d0c776.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt4r_s3_replay_summary_724a63d3f8b242809b8ec3b746d0c776.md`
 
 ### POPT.4R.S2 - S2 runtime regression closure
 Goal:

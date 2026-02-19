@@ -15395,3 +15395,65 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 2. `M9.F` is now the next execution lane.
 3. Main/deep build plans were repinned to reflect `M9.E` closure and next-action shift.
 
+## Entry: 2026-02-19 15:39:33 +00:00 - M9.F planning expansion to execution-grade
+### Problem framing
+1. `M9.F` remained summary-level and did not expose a deterministic, non-secret verification method for demo credential cleanup.
+2. We needed an execution contract that proves secret-path cleanup without reading or emitting sensitive values.
+
+### Planning decisions
+1. Expanded `M9.F` to execution-grade in `platform.M9.build_plan.md` with:
+   - entry gates pinned to `M9.E` PASS semantics and `M9.B` secret target-set continuity,
+   - explicit secret target handles (`SSM_CONFLUENT_*`, `SSM_DB_*`, `SSM_IG_API_KEY_PATH`),
+   - metadata-only SSM query posture (exact-name checks via `describe-parameters`; no value reads),
+   - deterministic algorithm for target-matrix assembly, existence classification, blocker mapping, and non-secret policy checks,
+   - required snapshot schema for `m9_f_secret_cleanup_snapshot.json`,
+   - runtime budget and fail-closed over-budget rule,
+   - expanded blocker taxonomy (`M9F-B1..B6`).
+2. Repinned main platform plan expansion-state to mark:
+   - `M9.F` is now execution-grade with deterministic metadata-only SSM cleanup verification.
+
+### Outcome
+1. Planning-only change; no `M9.F` runtime execution was run in this step.
+2. `M9.F` is ready for execution with explicit closure criteria and non-secret evidence constraints.
+
+## Entry: 2026-02-19 15:53:25 +00:00 - M9.F execution completed (demo-scoped secret cleanup verification)
+### Problem framing
+1. `M9.F` had to prove that demo-scoped runtime credentials were actually cleaned from SSM after teardown.
+2. Verification had to remain non-secret and fail-closed: metadata-only checks, no secret-value reads, no ambiguous outcomes accepted.
+
+### Decision trail and execution notes
+1. Entry gates were revalidated before query execution:
+   - `M9.E` PASS snapshot readability and semantics (`overall_pass=true`, blockers empty),
+   - `M9.B` demo-secret target set continuity.
+2. Canonical target set was constructed from handles plus `M9.B` target inventory:
+   - `/fraud-platform/dev_min/confluent/api_key`
+   - `/fraud-platform/dev_min/confluent/api_secret`
+   - `/fraud-platform/dev_min/confluent/bootstrap`
+   - `/fraud-platform/dev_min/db/user`
+   - `/fraud-platform/dev_min/db/password`
+   - `/fraud-platform/dev_min/db/dsn`
+   - `/fraud-platform/dev_min/ig/api_key`.
+3. Query posture was enforced as metadata-only (`ssm:DescribeParameters` exact-name filters); no parameter values were fetched or written.
+4. Snapshot was emitted locally then published durably to run-control evidence path.
+
+### Runtime outcomes
+1. Execution id:
+   - `m9_20260219T155120Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T155120Z/m9_f_secret_cleanup_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T155120Z/m9_f_secret_cleanup_snapshot.json`.
+3. Cleanup results:
+   - canonical demo-secret targets absent: `7/7`
+   - `present_targets=[]`
+   - `unknown_targets=[]`
+   - `query_errors=[]`
+   - `non_secret_policy_pass=true`.
+4. Verdict:
+   - `overall_pass=true`
+   - blockers empty.
+
+### Phase posture updates
+1. `M9.F` is closed PASS.
+2. `M9.G` is now the next execution lane.
+3. Main/deep build plans and logbook were repinned to reflect `M9.F` closure.
+

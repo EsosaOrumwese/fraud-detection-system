@@ -219,6 +219,36 @@ def _write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
 
+def _write_json_compact(path: Path, payload: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _tile_surface_cache_key(
+    tile_index_digest: str,
+    tile_weights_digest: str,
+    tile_bounds_digest: str,
+    countries_sorted: list[str],
+    edge_scale: int,
+) -> str:
+    h = hashlib.sha256()
+    h.update(tile_index_digest.encode("ascii"))
+    h.update(b"|")
+    h.update(tile_weights_digest.encode("ascii"))
+    h.update(b"|")
+    h.update(tile_bounds_digest.encode("ascii"))
+    h.update(b"|")
+    h.update(str(edge_scale).encode("ascii"))
+    h.update(b"|")
+    for country_iso in countries_sorted:
+        h.update(country_iso.encode("ascii"))
+        h.update(b",")
+    return h.hexdigest()
+
+
 def _schema_for_payload(schema_pack: dict, schema_layer1: dict, anchor: str) -> dict:
     schema = _schema_from_pack(schema_pack, anchor)
     _inline_external_refs(schema, schema_layer1, "schemas.layer1.yaml#")
@@ -1395,155 +1425,238 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
 
         tile_allocations: dict[str, list[tuple[int, int]]] = {}
         tile_bounds_by_country: dict[str, dict[int, tuple[float, float, float, float, float, float]]] = {}
+        cache_key = _tile_surface_cache_key(
+            verified_assets["tile_index"][3],
+            verified_assets["tile_weights"][3],
+            verified_assets["tile_bounds"][3],
+            countries_sorted,
+            edge_scale,
+        )
+        cache_path = precheck_root / f"tile_surface_cache_{cache_key}.json"
+        cache_hit = False
 
-        for country_iso in countries_sorted:
-            country_weight_files = tile_weights_by_country.get(country_iso, [])
-            country_index_files = tile_index_by_country.get(country_iso, [])
-            country_bounds_files = tile_bounds_by_country_files.get(country_iso, [])
+        if cache_path.exists():
+            try:
+                cache_payload = _load_json(cache_path)
+                if (
+                    str(cache_payload.get("cache_key") or "") == cache_key
+                    and int(cache_payload.get("edge_scale") or -1) == edge_scale
+                    and list(cache_payload.get("countries_sorted") or []) == countries_sorted
+                    and str(cache_payload.get("tile_index_digest") or "") == verified_assets["tile_index"][3]
+                    and str(cache_payload.get("tile_weights_digest") or "") == verified_assets["tile_weights"][3]
+                    and str(cache_payload.get("tile_bounds_digest") or "") == verified_assets["tile_bounds"][3]
+                ):
+                    alloc_payload = cache_payload.get("tile_allocations") or {}
+                    bounds_payload = cache_payload.get("tile_bounds_by_country") or {}
+                    for country_iso in countries_sorted:
+                        alloc_rows = alloc_payload.get(country_iso) or []
+                        tile_allocations[country_iso] = [
+                            (int(row[0]), int(row[1]))
+                            for row in alloc_rows
+                            if isinstance(row, list) and len(row) == 2 and int(row[1]) > 0
+                        ]
+                        bounds_rows = bounds_payload.get(country_iso) or {}
+                        decoded_bounds: dict[int, tuple[float, float, float, float, float, float]] = {}
+                        for tile_id_text, values in bounds_rows.items():
+                            if not isinstance(values, list) or len(values) != 6:
+                                continue
+                            decoded_bounds[int(tile_id_text)] = (
+                                float(values[0]),
+                                float(values[1]),
+                                float(values[2]),
+                                float(values[3]),
+                                float(values[4]),
+                                float(values[5]),
+                            )
+                        tile_bounds_by_country[country_iso] = decoded_bounds
+                    cache_hit = True
+                    timer.info(
+                        f"S2: tile allocations loaded from cache (countries={len(countries_sorted)}, "
+                        f"edge_scale={edge_scale})"
+                    )
+                else:
+                    logger.info("S2: tile surface cache key mismatch; recomputing allocations")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("S2: tile surface cache load failed; recomputing (%s)", exc)
 
-            if not country_weight_files:
-                _abort(
-                    "E3B_S2_TILE_SURFACE_INVALID",
-                    "V-08",
-                    "tile_weights_missing",
-                    {"country_iso": country_iso, "path": str(tile_weights_root)},
-                    manifest_fingerprint,
-                )
-            weights_df = (
-                pl.scan_parquet(country_weight_files)
-                .select(["tile_id", "weight_fp", "dp"])
-                .collect()
-            )
-            if weights_df.is_empty():
-                _abort(
-                    "E3B_S2_TILE_SURFACE_INVALID",
-                    "V-08",
-                    "tile_weights_missing",
-                    {"country_iso": country_iso, "path": str(tile_weights_root)},
-                    manifest_fingerprint,
-                )
-            dp_values = weights_df.get_column("dp").unique()
-            if dp_values.len() != 1:
-                _abort(
-                    "E3B_S2_TILE_SURFACE_INVALID",
-                    "V-08",
-                    "tile_weights_dp_mismatch",
-                    {"country_iso": country_iso, "dp_values": dp_values.to_list()},
-                    manifest_fingerprint,
-                )
-            weights_map: dict[int, int] = {}
-            for tile_id, weight_fp in zip(
-                weights_df.get_column("tile_id").to_list(),
-                weights_df.get_column("weight_fp").to_list(),
-            ):
-                weights_map[int(tile_id)] = int(weight_fp)
-            if sum(weights_map.values()) <= 0:
-                _abort(
-                    "E3B_S2_TILE_SURFACE_INVALID",
-                    "V-08",
-                    "tile_weights_zero_sum",
-                    {"country_iso": country_iso},
-                    manifest_fingerprint,
-                )
+        if not cache_hit:
+            for country_iso in countries_sorted:
+                country_weight_files = tile_weights_by_country.get(country_iso, [])
+                country_index_files = tile_index_by_country.get(country_iso, [])
+                country_bounds_files = tile_bounds_by_country_files.get(country_iso, [])
 
-            if not country_index_files:
-                _abort(
-                    "E3B_S2_TILE_SURFACE_INVALID",
-                    "V-08",
-                    "tile_index_missing",
-                    {"country_iso": country_iso, "path": str(tile_index_root)},
-                    manifest_fingerprint,
+                if not country_weight_files:
+                    _abort(
+                        "E3B_S2_TILE_SURFACE_INVALID",
+                        "V-08",
+                        "tile_weights_missing",
+                        {"country_iso": country_iso, "path": str(tile_weights_root)},
+                        manifest_fingerprint,
+                    )
+                weights_df = (
+                    pl.scan_parquet(country_weight_files)
+                    .select(["tile_id", "weight_fp", "dp"])
+                    .collect()
                 )
-            index_df = (
-                pl.scan_parquet(country_index_files)
-                .select(["tile_id"])
-                .collect()
-            )
-            if index_df.is_empty():
-                _abort(
-                    "E3B_S2_TILE_SURFACE_INVALID",
-                    "V-08",
-                    "tile_index_missing",
-                    {"country_iso": country_iso, "path": str(tile_index_root)},
-                    manifest_fingerprint,
-                )
-            index_ids = set(int(value) for value in index_df.get_column("tile_id").to_list())
-            missing_index = [tile_id for tile_id in weights_map if tile_id not in index_ids]
-            if missing_index:
-                _abort(
-                    "E3B_S2_TILE_SURFACE_INVALID",
-                    "V-08",
-                    "tile_id_not_in_index",
-                    {"country_iso": country_iso, "missing": missing_index[:10]},
-                    manifest_fingerprint,
-                )
+                if weights_df.is_empty():
+                    _abort(
+                        "E3B_S2_TILE_SURFACE_INVALID",
+                        "V-08",
+                        "tile_weights_missing",
+                        {"country_iso": country_iso, "path": str(tile_weights_root)},
+                        manifest_fingerprint,
+                    )
+                dp_values = weights_df.get_column("dp").unique()
+                if dp_values.len() != 1:
+                    _abort(
+                        "E3B_S2_TILE_SURFACE_INVALID",
+                        "V-08",
+                        "tile_weights_dp_mismatch",
+                        {"country_iso": country_iso, "dp_values": dp_values.to_list()},
+                        manifest_fingerprint,
+                    )
+                weights_map: dict[int, int] = {}
+                for tile_id, weight_fp in zip(
+                    weights_df.get_column("tile_id").to_list(),
+                    weights_df.get_column("weight_fp").to_list(),
+                ):
+                    weights_map[int(tile_id)] = int(weight_fp)
+                if sum(weights_map.values()) <= 0:
+                    _abort(
+                        "E3B_S2_TILE_SURFACE_INVALID",
+                        "V-08",
+                        "tile_weights_zero_sum",
+                        {"country_iso": country_iso},
+                        manifest_fingerprint,
+                    )
 
-            tile_alloc = _allocate_edges_int(weights_map, edges_per_country[country_iso])
-            allocations = [
-                (tile_id, count)
-                for tile_id, count in sorted(tile_alloc.items())
-                if count > 0
-            ]
-            needed_bounds = {tile_id for tile_id, count in allocations if count > 0}
+                if not country_index_files:
+                    _abort(
+                        "E3B_S2_TILE_SURFACE_INVALID",
+                        "V-08",
+                        "tile_index_missing",
+                        {"country_iso": country_iso, "path": str(tile_index_root)},
+                        manifest_fingerprint,
+                    )
+                index_df = (
+                    pl.scan_parquet(country_index_files)
+                    .select(["tile_id"])
+                    .collect()
+                )
+                if index_df.is_empty():
+                    _abort(
+                        "E3B_S2_TILE_SURFACE_INVALID",
+                        "V-08",
+                        "tile_index_missing",
+                        {"country_iso": country_iso, "path": str(tile_index_root)},
+                        manifest_fingerprint,
+                    )
+                index_ids = set(int(value) for value in index_df.get_column("tile_id").to_list())
+                missing_index = [tile_id for tile_id in weights_map if tile_id not in index_ids]
+                if missing_index:
+                    _abort(
+                        "E3B_S2_TILE_SURFACE_INVALID",
+                        "V-08",
+                        "tile_id_not_in_index",
+                        {"country_iso": country_iso, "missing": missing_index[:10]},
+                        manifest_fingerprint,
+                    )
 
-            if not country_bounds_files:
-                _abort(
-                    "E3B_S2_TILE_SURFACE_INVALID",
-                    "V-08",
-                    "tile_bounds_missing",
-                    {"country_iso": country_iso, "path": str(tile_bounds_root)},
-                    manifest_fingerprint,
+                tile_alloc = _allocate_edges_int(weights_map, edges_per_country[country_iso])
+                allocations = [
+                    (tile_id, count)
+                    for tile_id, count in sorted(tile_alloc.items())
+                    if count > 0
+                ]
+                needed_bounds = {tile_id for tile_id, count in allocations if count > 0}
+
+                if not country_bounds_files:
+                    _abort(
+                        "E3B_S2_TILE_SURFACE_INVALID",
+                        "V-08",
+                        "tile_bounds_missing",
+                        {"country_iso": country_iso, "path": str(tile_bounds_root)},
+                        manifest_fingerprint,
+                    )
+                bounds_df = (
+                    pl.scan_parquet(country_bounds_files)
+                    .select(
+                        [
+                            "tile_id",
+                            "min_lon_deg",
+                            "max_lon_deg",
+                            "min_lat_deg",
+                            "max_lat_deg",
+                            "centroid_lon_deg",
+                            "centroid_lat_deg",
+                        ]
+                    )
+                    .collect()
                 )
-            bounds_df = (
-                pl.scan_parquet(country_bounds_files)
-                .select(
-                    [
-                        "tile_id",
-                        "min_lon_deg",
-                        "max_lon_deg",
-                        "min_lat_deg",
-                        "max_lat_deg",
-                        "centroid_lon_deg",
-                        "centroid_lat_deg",
-                    ]
-                )
-                .collect()
-            )
-            if bounds_df.is_empty():
-                _abort(
-                    "E3B_S2_TILE_SURFACE_INVALID",
-                    "V-08",
-                    "tile_bounds_missing",
-                    {"country_iso": country_iso, "path": str(tile_bounds_root)},
-                    manifest_fingerprint,
-                )
-            bounds_all: dict[int, tuple[float, float, float, float, float, float]] = {}
-            for row in bounds_df.iter_rows(named=True):
-                tile_id = int(row["tile_id"])
-                bounds_all[tile_id] = (
-                    float(row["min_lon_deg"]),
-                    float(row["max_lon_deg"]),
-                    float(row["min_lat_deg"]),
-                    float(row["max_lat_deg"]),
-                    float(row["centroid_lon_deg"]),
-                    float(row["centroid_lat_deg"]),
-                )
-            bounds_ids = set(bounds_all)
-            missing_bounds = [tile_id for tile_id in weights_map if tile_id not in bounds_ids]
-            if missing_bounds:
-                _abort(
-                    "E3B_S2_TILE_SURFACE_INVALID",
-                    "V-08",
-                    "tile_bounds_missing_ids",
-                    {"country_iso": country_iso, "missing": missing_bounds[:10]},
-                    manifest_fingerprint,
-                )
-            bounds_map: dict[int, tuple[float, float, float, float, float, float]] = {}
-            if needed_bounds:
-                for tile_id in sorted(needed_bounds):
-                    bounds_map[tile_id] = bounds_all[tile_id]
-            tile_allocations[country_iso] = allocations
-            tile_bounds_by_country[country_iso] = bounds_map
+                if bounds_df.is_empty():
+                    _abort(
+                        "E3B_S2_TILE_SURFACE_INVALID",
+                        "V-08",
+                        "tile_bounds_missing",
+                        {"country_iso": country_iso, "path": str(tile_bounds_root)},
+                        manifest_fingerprint,
+                    )
+                bounds_all: dict[int, tuple[float, float, float, float, float, float]] = {}
+                for row in bounds_df.iter_rows(named=True):
+                    tile_id = int(row["tile_id"])
+                    bounds_all[tile_id] = (
+                        float(row["min_lon_deg"]),
+                        float(row["max_lon_deg"]),
+                        float(row["min_lat_deg"]),
+                        float(row["max_lat_deg"]),
+                        float(row["centroid_lon_deg"]),
+                        float(row["centroid_lat_deg"]),
+                    )
+                bounds_ids = set(bounds_all)
+                missing_bounds = [tile_id for tile_id in weights_map if tile_id not in bounds_ids]
+                if missing_bounds:
+                    _abort(
+                        "E3B_S2_TILE_SURFACE_INVALID",
+                        "V-08",
+                        "tile_bounds_missing_ids",
+                        {"country_iso": country_iso, "missing": missing_bounds[:10]},
+                        manifest_fingerprint,
+                    )
+                bounds_map: dict[int, tuple[float, float, float, float, float, float]] = {}
+                if needed_bounds:
+                    for tile_id in sorted(needed_bounds):
+                        bounds_map[tile_id] = bounds_all[tile_id]
+                tile_allocations[country_iso] = allocations
+                tile_bounds_by_country[country_iso] = bounds_map
+
+            cache_payload = {
+                "cache_key": cache_key,
+                "edge_scale": int(edge_scale),
+                "countries_sorted": countries_sorted,
+                "tile_index_digest": verified_assets["tile_index"][3],
+                "tile_weights_digest": verified_assets["tile_weights"][3],
+                "tile_bounds_digest": verified_assets["tile_bounds"][3],
+                "tile_allocations": {
+                    iso: [[int(tile_id), int(count)] for tile_id, count in tile_allocations.get(iso, [])]
+                    for iso in countries_sorted
+                },
+                "tile_bounds_by_country": {
+                    iso: {
+                        str(tile_id): [
+                            float(values[0]),
+                            float(values[1]),
+                            float(values[2]),
+                            float(values[3]),
+                            float(values[4]),
+                            float(values[5]),
+                        ]
+                        for tile_id, values in tile_bounds_by_country.get(iso, {}).items()
+                    }
+                    for iso in countries_sorted
+                },
+            }
+            _write_json_compact(cache_path, cache_payload)
+            logger.info("S2: tile surface cache written path=%s", cache_path)
 
         timer.info(
             f"S2: tile allocations prepared (countries={len(countries_sorted)}, "
