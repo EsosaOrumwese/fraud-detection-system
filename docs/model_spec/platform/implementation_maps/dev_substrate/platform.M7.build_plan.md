@@ -601,32 +601,94 @@ Closure notes (`2026-02-19`):
 
 ### M7.I P8..P10 Gate Rollup + Verdict
 Goal:
-1. Compute deterministic M7 verdict.
+1. Compute deterministic M7 verdict from closed P8/P9/P10 plane evidence.
+2. Emit machine-checkable rollup artifact for M8 handoff gate.
 
 Entry conditions:
 1. `M7.A..M7.H` snapshots are readable.
+2. Active run scope is fixed:
+   - `platform_run_id=platform_20260213T214223Z`
+   - `m7_execution_id=m7_20260218T141420Z`.
+3. No unresolved blocker remains in `M7.A..M7.H`.
+
+Required inputs:
+1. Local control-plane snapshots:
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_a_handle_closure_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_b_rtdl_readiness_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_c_rtdl_caught_up_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_d_archive_durability_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_e_decision_lane_readiness_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_f_decision_chain_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_g_case_label_db_readiness_snapshot.json`
+   - `runs/dev_substrate/m7/20260218T141420Z/m7_h_case_label_commit_snapshot.json`.
+2. Durable fallback root:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/`.
+3. M7 evidence contract references:
+   - `evidence/runs/platform_20260213T214223Z/rtdl_core/*`
+   - `evidence/runs/platform_20260213T214223Z/decision_lane/*`
+   - `evidence/runs/platform_20260213T214223Z/case_labels/*`.
+
+Preparation checks:
+1. Verify each source snapshot has:
+   - `phase`, `phase_id`, `platform_run_id`, `m7_execution_id`, `overall_pass`, `blockers`.
+2. Verify run-scope conformance across all sources; mismatch is fail-closed.
+3. Verify each source snapshot has `overall_pass=true`; otherwise open gate blocker.
+4. Verify source artifacts are non-secret before producing verdict artifact.
 
 Tasks:
-1. Evaluate predicates:
-   - `p8_rtdl_caught_up`
-   - `p9_decision_chain_committed`
-   - `p10_case_labels_committed`.
-2. Roll up blockers from `M7.A..M7.H`.
-3. Verdict:
+1. Evaluate deterministic gate map from source snapshots:
+   - `m7a_handles_closed = m7_a_handle_closure_snapshot.overall_pass`
+   - `m7b_rtdl_ready = m7_b_rtdl_readiness_snapshot.overall_pass`
+   - `m7c_rtdl_caught_up = m7_c_rtdl_caught_up_snapshot.overall_pass`
+   - `m7d_archive_durable = m7_d_archive_durability_snapshot.overall_pass`
+   - `m7e_decision_lane_ready = m7_e_decision_lane_readiness_snapshot.overall_pass`
+   - `m7f_decision_chain_committed = m7_f_decision_chain_snapshot.overall_pass`
+   - `m7g_case_label_db_ready = m7_g_case_label_db_readiness_snapshot.overall_pass`
+   - `m7h_case_labels_committed = m7_h_case_label_commit_snapshot.overall_pass`.
+2. Evaluate plane predicates:
+   - `p8_rtdl_caught_up = (m7b_rtdl_ready && m7c_rtdl_caught_up && m7d_archive_durable)`
+   - `p9_decision_chain_committed = (m7e_decision_lane_ready && m7f_decision_chain_committed)`
+   - `p10_case_labels_committed = (m7g_case_label_db_ready && m7h_case_labels_committed)`.
+3. Roll up blockers from `M7.A..M7.H` into deterministic ordered set with source provenance.
+4. Verdict:
    - all predicates true + blockers empty => `ADVANCE_TO_M8`
    - else => `HOLD_M7`.
-4. Publish `m7_i_verdict_snapshot.json`.
+5. Emit `m7_i_verdict_snapshot.json` locally with:
+   - source snapshot refs + pass posture,
+   - gate map and plane predicate map,
+   - blocker rollup,
+   - verdict + `overall_pass`.
+6. Publish `m7_i_verdict_snapshot.json` durably.
+
+Required snapshot fields (`m7_i_verdict_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m7_execution_id`.
+2. `source_snapshots` map (`m7_a..m7_h` local path, durable URI, `overall_pass`).
+3. `gate_map` (`m7a..m7h` booleans).
+4. `predicate_map` (`p8_rtdl_caught_up`, `p9_decision_chain_committed`, `p10_case_labels_committed`).
+5. `blocker_rollup` (ordered list + source).
+6. `verdict`, `overall_pass`, `blockers`, `started_at_utc`, `completed_at_utc`, `elapsed_seconds`.
+
+Runtime budget:
+1. `M7.I` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
 
 DoD:
 - [ ] Predicate set explicit and reproducible.
 - [ ] Blocker rollup complete and fail-closed.
 - [ ] Verdict snapshot published locally and durably.
+- [ ] Runtime budget target met (or explicitly waived).
+
+Planning status:
+1. `M7.I` is now execution-grade (algorithm + schema + blocker taxonomy pinned).
+2. Execution remains pending until explicit user go-ahead.
 
 Blockers:
 1. `M7I-B1`: prerequisite snapshot missing/unreadable.
 2. `M7I-B2`: predicate evaluation incomplete/invalid.
 3. `M7I-B3`: blocker rollup non-empty.
 4. `M7I-B4`: verdict snapshot write/upload failure.
+5. `M7I-B5`: run-scope mismatch across source snapshots.
+6. `M7I-B6`: required source snapshot reports non-pass posture.
 
 ### M7.J M8 Handoff Artifact Publication
 Goal:
