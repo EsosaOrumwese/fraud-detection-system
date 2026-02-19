@@ -13901,3 +13901,119 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Decision
 1. Keep `M8.A` verdict green (handle closure unaffected).
 2. Carry corrected reporter runtime posture into `M8.B` readiness validation.
+
+## Entry: 2026-02-19 08:03:19 +00:00 - M8.B planning lock (execution-grade expansion)
+### User directive
+1. Proceed with planning `M8.B`.
+
+### Problem framing
+1. `M8.B` currently contains only high-level goal/tasks/blockers.
+2. `M8.A` is now green, so `M8.B` must be expanded to deterministic execution contract before runtime steps.
+3. Without entry checks + algorithm + snapshot schema, M8.B execution would remain interpretation-heavy.
+
+### Planned expansion
+1. Add strict entry conditions tied to `M8.A` rerun pass artifact.
+2. Pin required inputs/handles and preparation checks for reporter task + role + lock contract.
+3. Add deterministic readiness algorithm (task-definition probes, role-policy checks, lock contract validation).
+4. Add required snapshot schema contract + runtime budget + expanded blocker taxonomy.
+5. Mirror planning status in main platform build plan so phase tracker stays aligned.
+
+## Entry: 2026-02-19 08:06:42 +00:00 - M8.B planning expansion applied
+### Changes executed
+1. Expanded `M8.B` in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+2. Added execution-grade planning content:
+   - entry conditions tied to `M8.A` rerun pass artifact,
+   - required inputs + handle closure set for reporter readiness,
+   - deterministic verification algorithm (task definition, command/image posture, role binding/policies, lock contract),
+   - snapshot schema contract for `m8_b_reporter_readiness_snapshot.json`,
+   - runtime budget and expanded blockers (`M8B-B5`).
+3. Mirrored status in main tracker:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - marked `M8.B` as execution-grade planned while keeping execution pending.
+
+### Outcome
+1. `M8.B` now has deterministic, fail-closed execution guidance.
+2. No runtime execution occurred in this step.
+3. Next operational step is full `M8.B` execution on explicit USER go-ahead.
+
+## Entry: 2026-02-19 08:06:48 +00:00 - M8.B execution start lock (reporter readiness)
+### User directive
+1. Proceed with full execution of `M8.B` and document reasoning/decisions during implementation.
+
+### Execution intent
+1. Enforce `M8.B` entry gate from `M8.A` rerun snapshot.
+2. Run deterministic reporter readiness checks:
+   - task definition runtime posture,
+   - reporter role binding and minimal IAM capability families,
+   - lock contract validity and renderability.
+3. Emit/publish `m8_b_reporter_readiness_snapshot.json` and mark `M8.B` complete only on blocker-empty pass.
+
+## Entry: 2026-02-19 08:08:08 +00:00 - M8.B execution closure (PASS)
+### Reasoning and execution trail
+1. Kept `M8.B` strictly gate-driven from `M8.A` pass artifact to avoid cross-phase drift:
+   - used `runs/dev_substrate/m8/m8_20260219T075228Z/m8_a_handle_closure_snapshot.json` as prerequisite authority.
+2. Resolved reporter readiness handles from registry + core output, then fail-closed checked unresolved/placeholder/wildcard posture before any runtime probe.
+3. Reporter runtime checks were split into two layers:
+   - command/runtime semantics (`worker`, `--once`, run-scope flag, no stub command),
+   - image posture (managed ECR digest; explicit busybox rejection).
+   This avoided a false PASS where a task exists but is non-runnable.
+4. IAM validation used both binding and capability checks:
+   - task role ARN equals `ROLE_REPORTER_SINGLE_WRITER`,
+   - role trust allows `ecs-tasks.amazonaws.com`,
+   - inline policy action/resource families cover SSM read + evidence/run-control S3 read/write.
+5. Lock contract was validated as data-contract, not execution side effect:
+   - backend allowlist (`db_advisory_lock`),
+   - key pattern token presence and renderability against active `platform_run_id`.
+
+### Artifacts and verdict
+1. Local snapshot:
+   - `runs/dev_substrate/m8/m8_20260219T080757Z/m8_b_reporter_readiness_snapshot.json`.
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T080757Z/m8_b_reporter_readiness_snapshot.json`.
+3. Verdict:
+   - `overall_pass=true`,
+   - blockers empty,
+   - elapsed `10.283s` (within `M8.B` budget).
+
+### Phase state update
+1. Marked `M8.B` complete in deep plan + main plan.
+2. Advanced immediate next action to `M8.C`.
+
+## Entry: 2026-02-19 08:16:33 +00:00 - M8.C planning lock (execution-grade expansion)
+### User directive
+1. Plan out `M8.C`.
+
+### Problem framing
+1. `M8.C` was still high-level (goal/tasks/DoD/blockers) and not execution-grade.
+2. Without deterministic entry checks + artifact list + semantic checks, `M8.C` execution would be interpretation-heavy and drift-prone.
+3. `M8.C` is a closure safety gate for reporter run; ambiguity here can leak into `M8.E..M8.I`.
+
+### Planned expansion
+1. Anchor entry on `M8.B` pass snapshot and fixed run scope.
+2. Pin the required upstream evidence object set from P7/P8/P9/P10 with explicit rendered URI expectations.
+3. Add deterministic checks for:
+   - readability,
+   - run-scope conformance,
+   - ingest ambiguity posture (`publish_unknown` style signal must be zero),
+   - offsets semantic minimums.
+4. Add required snapshot schema for `m8_c_input_readiness_snapshot.json`.
+5. Expand blocker taxonomy to include prerequisite/run-scope gating and semantic failure classes.
+
+## Entry: 2026-02-19 08:16:33 +00:00 - M8.C planning expansion applied
+### Changes executed
+1. Expanded `M8.C` in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+2. Added execution-grade planning content:
+   - strict entry conditions from `M8.B` pass artifact,
+   - required handles and concrete required upstream evidence object list,
+   - deterministic verification algorithm with run-scope/ambiguity/offset semantics checks,
+   - required snapshot schema contract for `m8_c_input_readiness_snapshot.json`,
+   - runtime budget and expanded blockers (`M8C-B4`, `M8C-B5`).
+3. Mirrored M8 expansion state in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+
+### Outcome
+1. `M8.C` is now planning-ready for fail-closed execution.
+2. No runtime execution occurred in this step.
+3. Immediate next action remains `M8.C` execution on explicit USER go-ahead.

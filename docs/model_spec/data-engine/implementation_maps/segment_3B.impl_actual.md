@@ -2493,3 +2493,86 @@ Actions taken:
 
 Expected outcome:
 - Latest selection stable under mtime changes.
+
+---
+
+### Entry: 2026-02-19 08:15
+
+Design element: `3B remediation build-plan design lock (pre-implementation planning)`.
+Summary: user requested full remediation planning for Segment `3B` after reading
+state-expanded docs and the published/remediation reports. This entry locks the
+planning posture and phase model before writing the build-plan document.
+
+Problem framing from authority docs:
+1) Baseline realism posture is below target (`D` / borderline `D+`).
+2) Dominant failure is S2 edge-topology collapse (fixed edge count/country
+   count/weight shape).
+3) Secondary failures are weak S1 explainability lineage and weak S1->S2
+   settlement coherence.
+4) S3 and S5 are mostly integrity-strong and must remain hard non-regression
+   rails.
+5) S4 contract coverage must expand so unrealistic runs cannot pass as green.
+
+Alternatives considered:
+1) Draft only remediation phases (`P0..P5`) and ignore performance lane.
+   - Rejected because engine performance law is binding and requires runtime
+     triage before iterative remediation.
+2) Draft performance-only plan now and defer realism phases.
+   - Rejected because user requested remediation plan, not a performance-only
+     memo.
+3) Draft integrated plan with mandatory `POPT` pre-lane and phased remediation
+   with DoDs and certification closure.
+   - Selected as it satisfies both performance-first law and realism target.
+
+Decisions pinned:
+1) Create a new execution-grade plan file:
+   - `docs/model_spec/data-engine/implementation_maps/segment_3B.build_plan.md`
+2) Plan structure:
+   - `POPT.0..POPT.4` (runtime baseline, hotspot closure, fast-lane freeze),
+   - `P0..P5` (baseline scoring, S1/S2/S4 core remediation, optional B+ lane,
+     integrated certification + freeze).
+3) Certification seeds and closure rules:
+   - required seeds `{42,7,101,202}`;
+   - verdict semantics `PASS_BPLUS`, `PASS_B`, `FAIL_REALISM`.
+4) Hard/stretch/stability gates:
+   - adopt `3B-V*`, `3B-S*`, `3B-X*` gates directly from remediation report.
+5) Sequential rerun law in plan:
+   - S0/S1/S2/S3/S4/S5 progressive rerun matrix with fail-closed gating.
+6) Freeze posture:
+   - no upstream reopen assumed for this planning cycle.
+
+Next action:
+1) materialize the new `segment_3B.build_plan.md` with full phased DoDs.
+2) append post-write decision trail and logbook entry.
+
+---
+
+### Entry: 2026-02-19 08:17
+
+Design element: `3B remediation build-plan materialized`.
+Summary: created Segment `3B` remediation build plan with execution-grade phases
+and closure gates aligned to published/remediation authority.
+
+Changes applied:
+1) added new file:
+   - `docs/model_spec/data-engine/implementation_maps/segment_3B.build_plan.md`
+2) populated sections:
+   - objective + closure rules,
+   - source-of-truth stack (reports, states, contracts),
+   - remediation boundaries and causal order,
+   - hard/stress/stability gate matrices,
+   - run protocol + runtime budgets + retention,
+   - mandatory `POPT` pre-lane,
+   - remediation phases `P0..P5` with DoD checklists,
+   - certification artifact contract and phase-status table.
+
+Key planning assertions encoded:
+1) `S2` is the primary realism correction surface; `S1` and `S4` are mandatory
+   support surfaces for explainability and governance.
+2) `S3/S5` remain non-regression integrity rails.
+3) `CF-3B-05/06` are conditional calibration lanes after core `B` gates.
+4) no phase can close without checklist-complete DoD evidence.
+
+Ready state:
+1) build plan exists and is implementation-ready.
+2) no remediation execution started in this step.

@@ -226,45 +226,209 @@ Blockers:
 Goal:
 1. Prove reporter task runtime posture and lock backend readiness.
 
+Entry conditions:
+1. `M8.A` rerun is pass with blockers empty:
+   - local: `runs/dev_substrate/m8/m8_20260219T075228Z/m8_a_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T075228Z/m8_a_handle_closure_snapshot.json`.
+2. Active run scope is fixed:
+   - `platform_run_id=platform_20260213T214223Z`.
+3. Reporter handles are concretely pinned:
+   - `TD_REPORTER=fraud-platform-dev-min-reporter`
+   - `ROLE_REPORTER_SINGLE_WRITER=fraud-platform-dev-min-reporter-single-writer`.
+
+Required inputs:
+1. `M8.A` pass snapshot (local preferred, durable fallback).
+2. Reporter readiness handles:
+   - `TD_REPORTER`
+   - `ROLE_REPORTER_SINGLE_WRITER`
+   - `REPORTER_LOCK_BACKEND`
+   - `REPORTER_LOCK_KEY_PATTERN`
+   - `S3_EVIDENCE_BUCKET`
+   - `S3_EVIDENCE_RUN_ROOT_PATTERN`
+   - `RUN_REPORT_PATH_PATTERN`
+   - `REPLAY_ANCHORS_PATH_PATTERN`
+   - `RECONCILIATION_PATH_PATTERN`
+   - `ENV_CONFORMANCE_PATH_PATTERN`
+   - `RUN_CLOSURE_MARKER_PATH_PATTERN`.
+3. Runtime probe surfaces:
+   - `aws ecs describe-task-definition` for `TD_REPORTER`,
+   - `aws iam get-role` for `ROLE_REPORTER_SINGLE_WRITER`,
+   - inline role-policy retrieval for required action families.
+
+Preparation checks:
+1. Validate `M8.A` pass posture and run-scope match.
+2. Validate reporter handle values are non-empty and non-placeholder.
+3. Validate lock contract values:
+   - backend equals `db_advisory_lock`,
+   - key pattern includes `{platform_run_id}` and renders cleanly for active run.
+
+Deterministic verification algorithm (M8.B):
+1. Load `M8.A` snapshot; fail on missing/invalid/pass-mismatch -> `M8B-B5`.
+2. Resolve required handles; unresolved/placeholder/wildcard -> `M8B-B5`.
+3. Describe `TD_REPORTER`; fail on missing task definition -> `M8B-B1`.
+4. Validate reporter runtime command posture:
+   - contains `python -m fraud_detection.platform_reporter.worker`,
+   - includes `--once`,
+   - includes run-scope enforcement (`--required-platform-run-id` or equivalent env lock),
+   - no no-op/stub echo loop command.
+   Failure -> `M8B-B1`.
+5. Validate reporter image posture:
+   - managed platform image (ECR platform digest),
+   - explicitly reject `public.ecr.aws/docker/library/busybox*`.
+   Failure -> `M8B-B1`.
+6. Validate reporter role binding:
+   - task role ARN resolves to `ROLE_REPORTER_SINGLE_WRITER`,
+   - IAM role exists and is assumable by ECS tasks.
+   Failure -> `M8B-B2`.
+7. Validate minimal role capability families via inline policies:
+   - SSM parameter read for runtime secret surfaces,
+   - S3 read/write on evidence run roots,
+   - S3 read/write on run-control evidence roots.
+   Failure -> `M8B-B2`.
+8. Validate lock contract rendering:
+   - `REPORTER_LOCK_BACKEND` in allowlist (`db_advisory_lock` for v0),
+   - rendered lock key has no unresolved template token.
+   Failure -> `M8B-B3`.
+9. Emit `m8_b_reporter_readiness_snapshot.json` locally and publish durably.
+10. Return `overall_pass=true` only when blocker list is empty.
+
 Tasks:
-1. Validate reporter task definition points to managed platform image and non-stub command.
-2. Validate IAM posture for reporter role (read upstream evidence, write closure artifacts, logs).
-3. Validate lock backend configuration and lock-key derivation for run scope.
-4. Emit `m8_b_reporter_readiness_snapshot.json`.
+1. Validate task definition runtime posture (image + command + run-scope enforcement).
+2. Validate reporter role existence, binding, and minimal policy capability families.
+3. Validate lock backend/key contract.
+4. Emit and publish `m8_b_reporter_readiness_snapshot.json` (local + durable).
+
+Required snapshot fields (`m8_b_reporter_readiness_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m8_execution_id`.
+2. `source_m8a_snapshot_local`, `source_m8a_snapshot_uri`.
+3. `td_reporter`, `td_reporter_arn`, `td_reporter_revision`, `reporter_image`.
+4. `reporter_command_checks`, `reporter_role_binding_checks`, `reporter_role_policy_checks`.
+5. `lock_contract`, `lock_contract_checks`.
+6. `blockers`, `overall_pass`, `elapsed_seconds`.
 
 DoD:
-- [ ] Reporter task runtime posture is valid and managed.
-- [ ] Role and lock backend posture checks pass.
-- [ ] Snapshot exists locally and durably.
+- [x] Reporter task runtime posture is valid and managed.
+- [x] Role and lock backend posture checks pass.
+- [x] Snapshot exists locally and durably.
+
+Runtime budget:
+1. `M8.B` target budget: <= 12 minutes wall clock.
+2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
+
+Planning status:
+1. `M8.B` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
+2. Execution completed on `m8_execution_id=m8_20260219T080757Z` with pass verdict.
+
+Execution closure (2026-02-19):
+1. Snapshot emitted locally:
+   - `runs/dev_substrate/m8/m8_20260219T080757Z/m8_b_reporter_readiness_snapshot.json`.
+2. Snapshot published durably:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T080757Z/m8_b_reporter_readiness_snapshot.json`.
+3. Result:
+   - `overall_pass=true`,
+   - blockers empty.
+4. Runtime posture confirmed:
+   - reporter task definition `fraud-platform-dev-min-reporter:2`,
+   - managed platform image digest (no busybox),
+   - role binding `fraud-platform-dev-min-reporter-single-writer`,
+   - lock contract valid (`db_advisory_lock`, `reporter:{platform_run_id}` renderable).
+5. `M8.B` is closed and `M8.C` is unblocked.
 
 Blockers:
 1. `M8B-B1`: reporter task/runtime command invalid.
 2. `M8B-B2`: reporter role capability mismatch.
 3. `M8B-B3`: lock backend/key configuration invalid.
 4. `M8B-B4`: snapshot write/upload failure.
+5. `M8B-B5`: `M8.A` prerequisite or run-scope gate failed.
 
 ### M8.C Closure Input Evidence Readiness
 Goal:
-1. Verify all required closeout inputs are readable before reporter run.
+1. Verify all required upstream evidence artifacts are readable, run-scoped, and semantically sufficient before reporter closeout.
+
+Entry conditions:
+1. `M8.B` is pass with blockers empty:
+   - local: `runs/dev_substrate/m8/m8_20260219T080757Z/m8_b_reporter_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T080757Z/m8_b_reporter_readiness_snapshot.json`.
+2. Active run scope is fixed:
+   - `platform_run_id=platform_20260213T214223Z`.
+3. No concurrent reporter closeout execution for the same run scope.
+
+Required inputs:
+1. `M8.B` pass snapshot (local preferred, durable fallback).
+2. Required handles (renderable and non-placeholder):
+   - `S3_EVIDENCE_BUCKET`
+   - `S3_EVIDENCE_RUN_ROOT_PATTERN`
+   - `RECEIPT_SUMMARY_PATH_PATTERN`
+   - `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`
+   - `RTDL_CORE_EVIDENCE_PATH_PATTERN`
+   - `DECISION_LANE_EVIDENCE_PATH_PATTERN`
+   - `CASE_EVIDENCE_PATH_PATTERN`
+   - `LABEL_EVIDENCE_PATH_PATTERN`.
+3. Required evidence objects after handle rendering:
+   - `ingest/receipt_summary.json`
+   - `ingest/kafka_offsets_snapshot.json`
+   - `rtdl_core/caught_up.json`
+   - `rtdl_core/offsets_snapshot.json`
+   - `decision_lane/decision_summary.json`
+   - `decision_lane/action_summary.json`
+   - `decision_lane/audit_summary.json`
+   - `case_labels/case_summary.json`
+   - `case_labels/label_summary.json`.
+
+Preparation checks:
+1. Validate `M8.B` pass posture and run-scope match.
+2. Validate all required handle values resolve concretely (no wildcard/placeholder posture).
+3. Render required evidence URIs and verify every URI sits under rendered run root:
+   - `s3://<S3_EVIDENCE_BUCKET>/evidence/runs/<platform_run_id>/...`.
+
+Deterministic verification algorithm (M8.C):
+1. Load `M8.B` snapshot; fail on missing/invalid/pass-mismatch -> `M8C-B5`.
+2. Resolve required handles; unresolved/placeholder/wildcard -> `M8C-B5`.
+3. Render required evidence object URIs from handle patterns + run scope.
+4. For each required URI, assert `HEAD`/read success and non-zero payload; failure -> `M8C-B1`.
+5. Parse each artifact and assert run-scope conformance (`platform_run_id` in payload or pinned run metadata); mismatch -> `M8C-B2`.
+6. Validate ingest ambiguity posture from receipt summary:
+   - `publish_unknown_count` (or equivalent ambiguity indicator) must be zero.
+   - ambiguity present -> `M8C-B2`.
+7. Validate offsets semantics minimums:
+   - ingest and rtdl offsets snapshots contain at least one topic/partition range.
+   - empty/invalid ranges -> `M8C-B3`.
+8. Emit `m8_c_input_readiness_snapshot.json` locally and publish durably.
+9. Return `overall_pass=true` only when blocker list is empty.
 
 Tasks:
-1. Validate readability of required upstream evidence families:
-   - ingest summaries (`ig_ready`, receipt/offset/quarantine where applicable),
-   - RTDL core summaries,
-   - decision-lane summaries,
-   - case/label summaries.
-2. Verify source artifacts are run-scoped to active `platform_run_id`.
-3. Emit `m8_c_input_readiness_snapshot.json`.
+1. Validate required upstream evidence object readability for P7/P8/P9/P10 surfaces.
+2. Validate run-scope and ambiguity posture from evidence payloads.
+3. Validate offsets snapshot semantic minimums (non-empty topic/partition ranges).
+4. Emit and publish `m8_c_input_readiness_snapshot.json` (local + durable).
+
+Required snapshot fields (`m8_c_input_readiness_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m8_execution_id`.
+2. `source_m8b_snapshot_local`, `source_m8b_snapshot_uri`.
+3. `rendered_evidence_root`, `required_evidence_uris`.
+4. `readability_checks`, `run_scope_checks`, `ambiguity_checks`, `offset_semantics_checks`.
+5. `blockers`, `overall_pass`, `elapsed_seconds`.
 
 DoD:
 - [ ] Required input evidence URIs are readable.
-- [ ] Run-scope conformance across required input surfaces passes.
+- [ ] Run-scope and ingest ambiguity posture checks pass.
+- [ ] Offsets semantic checks pass for ingest and RTDL snapshots.
 - [ ] Snapshot exists locally and durably.
+
+Runtime budget:
+1. `M8.C` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
+
+Planning status:
+1. `M8.C` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
+2. Runtime execution remains pending on explicit USER go-ahead.
 
 Blockers:
 1. `M8C-B1`: required evidence URI missing/unreadable.
-2. `M8C-B2`: run-scope mismatch in required evidence.
-3. `M8C-B3`: snapshot write/upload failure.
+2. `M8C-B2`: run-scope mismatch or unresolved ingest publish ambiguity in required evidence.
+3. `M8C-B3`: required offsets semantic checks failed.
+4. `M8C-B4`: snapshot write/upload failure.
+5. `M8C-B5`: `M8.B` prerequisite or run-scope gate failed.
 
 ### M8.D Single-Writer Contention Probe
 Goal:
@@ -452,7 +616,7 @@ Notes:
 
 ## 8) M8 Completion Checklist
 - [x] M8.A complete
-- [ ] M8.B complete
+- [x] M8.B complete
 - [ ] M8.C complete
 - [ ] M8.D complete
 - [ ] M8.E complete

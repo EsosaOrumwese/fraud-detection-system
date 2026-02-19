@@ -867,7 +867,10 @@ Active-phase planning posture:
 - M8 expansion state:
   - planning is expanded to execution-grade in `platform.M8.build_plan.md`,
   - `M8.A` is expanded to execution-grade with deterministic handle-closure algorithm and snapshot contract,
-  - `M8.A` rerun is now green after reporter surface materialization; `M8.B` is unblocked.
+  - `M8.B` is expanded to execution-grade with deterministic reporter readiness algorithm and snapshot contract,
+  - `M8.C` is expanded to execution-grade with deterministic input-readiness algorithm and snapshot contract,
+  - `M8.A` rerun is green after reporter surface materialization,
+  - `M8.B` execution is green and `M8.C` is now planning-locked for execution.
 
 M8.A execution closure (2026-02-19):
   - execution id: `m8_20260219T073801Z`
@@ -885,9 +888,16 @@ M8.A remediation + rerun closure (2026-02-19):
   - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T075228Z/m8_a_handle_closure_snapshot.json`
   - result: `overall_pass=true`, blockers empty.
 
+M8.B execution closure (2026-02-19):
+  - execution id: `m8_20260219T080757Z`
+  - local snapshot: `runs/dev_substrate/m8/m8_20260219T080757Z/m8_b_reporter_readiness_snapshot.json`
+  - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T080757Z/m8_b_reporter_readiness_snapshot.json`
+  - result: `overall_pass=true`, blockers empty
+  - posture: reporter runtime/role/lock readiness verified; `M8.C` unblocked.
+
 Sub-phase progress:
   - [x] `M8.A` P11 authority + handles closure.
-  - [ ] `M8.B` reporter runtime + lock readiness.
+  - [x] `M8.B` reporter runtime + lock readiness.
   - [ ] `M8.C` closure input evidence readiness.
   - [ ] `M8.D` single-writer contention fail-closed probe.
   - [ ] `M8.E` reporter one-shot execution.
@@ -1024,7 +1034,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M8 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M8.B` reporter runtime + single-writer lock readiness,
+- execute `M8.C` closure input evidence readiness checks,
 - require durable artifact:
-  - `evidence/dev_min/run_control/<m8_execution_id>/m8_b_reporter_readiness_snapshot.json`,
-- continue `M8.C..M8.I` only after `M8.B` passes fail-closed checks.
+  - `evidence/dev_min/run_control/<m8_execution_id>/m8_c_input_readiness_snapshot.json`,
+- continue `M8.D..M8.I` only after `M8.C` passes fail-closed checks.
