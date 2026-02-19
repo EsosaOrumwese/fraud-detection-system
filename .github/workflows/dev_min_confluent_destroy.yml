@@ -40,6 +40,11 @@ on:
         required: true
         default: "dev_min/demo/terraform.tfstate"
         type: string
+      required_platform_run_id:
+        description: "Platform run id required by demo stack terraform (for destroy/apply parity)"
+        required: false
+        default: ""
+        type: string
       evidence_bucket:
         description: "Durable evidence bucket"
         required: true
@@ -84,6 +89,7 @@ jobs:
         run: |
           set -euo pipefail
           STACK="${{ inputs.stack_target }}"
+          REQUIRED_PLATFORM_RUN_ID="${{ inputs.required_platform_run_id }}"
           case "${STACK}" in
             confluent)
               TF_DIR="infra/terraform/dev_min/confluent"
@@ -100,10 +106,15 @@ jobs:
               exit 1
               ;;
           esac
+          if [[ "${STACK}" == "demo" && -z "${REQUIRED_PLATFORM_RUN_ID}" ]]; then
+            echo "required_platform_run_id must be provided when stack_target=demo."
+            exit 1
+          fi
           echo "stack_target=${STACK}" >> "$GITHUB_OUTPUT"
           echo "terraform_dir=${TF_DIR}" >> "$GITHUB_OUTPUT"
           echo "tf_state_key=${TF_STATE_KEY}" >> "$GITHUB_OUTPUT"
           echo "requires_confluent_secrets=${REQUIRES_CONFLUENT_SECRETS}" >> "$GITHUB_OUTPUT"
+          echo "required_platform_run_id=${REQUIRED_PLATFORM_RUN_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Reject static AWS credential posture
         shell: bash
@@ -175,7 +186,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          terraform -chdir="${{ steps.stack_cfg.outputs.terraform_dir }}" destroy -auto-approve -input=false
+          if [[ "${{ steps.stack_cfg.outputs.stack_target }}" == "demo" ]]; then
+            terraform -chdir="${{ steps.stack_cfg.outputs.terraform_dir }}" destroy \
+              -auto-approve \
+              -input=false \
+              -var="required_platform_run_id=${{ steps.stack_cfg.outputs.required_platform_run_id }}"
+          else
+            terraform -chdir="${{ steps.stack_cfg.outputs.terraform_dir }}" destroy -auto-approve -input=false
+          fi
 
       - name: Capture post-destroy state count
         id: state_post
