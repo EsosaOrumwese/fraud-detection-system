@@ -3635,3 +3635,103 @@ Design rationale:
 1) `POPT.3` is now a hardening lane, not a heavy rescue lane, because `POPT.2R.2` already achieved minute-scale runtime.
 2) plan includes no-op/skip path for micro-trim if baseline is already within budget to avoid unnecessary churn.
 3) deterministic and contract safety constraints were kept explicit across all subphases.
+### Entry: 2026-02-19 14:46
+
+Design element: `3B POPT.3 execution start (3.1 -> 3.4)`.
+Summary: start full POPT.3 execution with explicit sequence: baseline log-budget inventory, logging hardening, conditional serialization decision, witness + closure.
+
+Pinned execution sequence:
+1) `POPT.3.1`:
+   - add log-budget scorer tool for S5 session-level line/bytes/category counts and required message presence.
+   - emit baseline artifact from current authority S5 session.
+2) `POPT.3.2`:
+   - harden logging cadence policy with bounded progress output and guaranteed terminal heartbeat for each hash lane.
+3) `POPT.3.3`:
+   - conditionally execute serialization trim only if `3.1/3.2` evidence shows over-budget drag; else record `SKIPPED_NO_GAIN`.
+4) `POPT.3.4`:
+   - isolated S5 witness on authority run-id, then POPT.3 closure scoring.
+
+Gates pinned for closure:
+1) runtime guard: `S5<=55s` and no material regression vs `42.641s` authority baseline.
+2) log-budget guard: bounded progress-line volume + required narrative lines present.
+3) non-regression guard: digest parity/path stability + `S5 PASS`.
+
+Safety constraints:
+1) digest law unchanged.
+2) schema/path contracts unchanged.
+3) no upstream reruns; isolated S5 witness only.
+### Entry: 2026-02-19 14:47
+
+Design element: `3B POPT.3.1 baseline/candidate log-budget artifacts`.
+Summary: executed log-budget scorer on the authority run-id to pin both baseline and post-hardening candidate evidence for S5 session volume/narrative guards.
+
+Artifacts emitted:
+1) baseline:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt3_log_budget_baseline_724a63d3f8b242809b8ec3b746d0c776.{json,md}`.
+2) candidate:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt3_log_budget_candidate_724a63d3f8b242809b8ec3b746d0c776.{json,md}`.
+
+Measured deltas:
+1) baseline:
+   - `total_lines=17`, `progress_lines=0`, `validator_backend_lines=3`, `required_narrative_present=true`.
+2) candidate (post-POPT.3.2 witness):
+   - `total_lines=20`, `progress_lines=3`, `validator_backend_lines=3`, `required_narrative_present=true`.
+
+Decision impact:
+1) progress heartbeat visibility is restored without breaching the progress-line budget.
+2) log-budget lane is considered hardened; no broad trimming was required.
+
+### Entry: 2026-02-19 14:47
+
+Design element: `3B POPT.3.2 runner hardening implementation`.
+Summary: patched S5 progress tracker so hash lanes always emit a terminal heartbeat even when elapsed time is shorter than cadence interval.
+
+Code patch:
+1) file:
+   - `packages/engine/src/engine/layers/l1/seg_3B/s5_validation_bundle/runner.py`.
+2) mechanics:
+   - added `_ProgressTracker._emit()` helper and `flush()` method,
+   - `update()` now emits through `_emit()` at interval,
+   - `_hash_jsonl_with_validation()` now calls `tracker.flush()` at lane end.
+
+Why this change:
+1) prior cadence-only emission could suppress all progress lines on short hash lanes, reducing observability.
+2) terminal heartbeat restores operator visibility while retaining bounded cadence.
+3) digest/schema/output behavior remains unchanged because only logging flow was touched.
+
+Verification:
+1) `python -m py_compile` passed for patched runner and new scorers.
+2) isolated S5 witness logged terminal hash progress lines for all three hash lanes.
+
+### Entry: 2026-02-19 14:47
+
+Design element: `3B POPT.3.3 conditional decision`.
+Summary: recorded explicit conditional verdict for serialization micro-trim.
+
+Verdict:
+1) `SKIPPED_NO_GAIN`.
+
+Rationale:
+1) runtime guard already passes by wide margin (`43.686s <= 55s`).
+2) log-budget guard is green with low volume (`progress_lines=3`, budget `<=16`).
+3) additional serialization edits would increase blast radius without credible return.
+
+### Entry: 2026-02-19 14:47
+
+Design element: `3B POPT.3.4 witness + closure scoring`.
+Summary: completed isolated S5 witness and closure scoring; all POPT.3 gates passed and lane closed.
+
+Witness and scoring:
+1) witness command:
+   - `make segment3b-s5 RUNS_ROOT=runs/fix-data-engine/segment_3B SEG3B_S5_RUN_ID=724a63d3f8b242809b8ec3b746d0c776`.
+2) closure artifact:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt3_closure_724a63d3f8b242809b8ec3b746d0c776.{json,md}`.
+
+Gate outcomes:
+1) runtime guard: PASS (`candidate=43.686s`, baseline `42.641s`, regression `2.45%`, within allowed `<=15%` and `<=55s`).
+2) log-budget guard: PASS (`progress_lines=3 <= 16`, required narrative presence true).
+3) non-regression guard: PASS (digest parity true, output path stable, `S5 PASS`).
+
+Final decision:
+1) `UNLOCK_POPT4`.
+2) plan status sync required: mark `POPT.3` completed and `POPT.4` unlocked.

@@ -140,6 +140,12 @@ class _ProgressTracker:
             self._total is not None and self._processed >= self._total
         ):
             return
+        self._emit(now)
+
+    def flush(self) -> None:
+        self._emit(time.monotonic())
+
+    def _emit(self, now: float) -> None:
         self._last_log = now
         elapsed = now - self._start
         rate = self._processed / elapsed if elapsed > 0 else 0.0
@@ -367,6 +373,7 @@ def _hash_jsonl_with_validation(
                     if on_record is not None:
                         on_record(record)
                 tracker.update(1)
+    tracker.flush()
     return hasher.hexdigest(), total_bytes, total_events
 
 

@@ -712,9 +712,9 @@ Scope:
 - allow no-op closure if current baseline already satisfies all `POPT.3` gates.
 
 Definition of done:
-- [ ] `POPT.3` closure artifact emitted with explicit gate verdict.
-- [ ] runtime/log-budget gates pass (or explicit no-op closure rationale is recorded).
-- [ ] no digest/schema/path/run-report regressions.
+- [x] `POPT.3` closure artifact emitted with explicit gate verdict.
+- [x] runtime/log-budget gates pass (or explicit no-op closure rationale is recorded).
+- [x] no digest/schema/path/run-report regressions.
 
 POPT.3 baseline anchors (entry authority):
 - baseline run-id (post-`POPT.2R.2`): `724a63d3f8b242809b8ec3b746d0c776`.
@@ -739,9 +739,21 @@ Scope:
   - warnings/errors (when present) preserved.
 
 Definition of done:
-- [ ] baseline log-budget artifact exists.
-- [ ] required message set is explicitly pinned.
-- [ ] baseline over-budget conditions (if any) are enumerated.
+- [x] baseline log-budget artifact exists.
+- [x] required message set is explicitly pinned.
+- [x] baseline over-budget conditions (if any) are enumerated.
+
+POPT.3.1 closure record (2026-02-19):
+- baseline inventory artifacts:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt3_log_budget_baseline_724a63d3f8b242809b8ec3b746d0c776.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt3_log_budget_baseline_724a63d3f8b242809b8ec3b746d0c776.md`
+- baseline counters:
+  - `total_lines=17`
+  - `progress_lines=0`
+  - `validator_backend_lines=3`
+  - `required_narrative_present=true`
+- conclusion:
+  - no baseline log-budget breach was detected; `POPT.3` remains hardening-oriented.
 
 ### POPT.3.2 - Logging cadence policy hardening
 Goal:
@@ -753,9 +765,18 @@ Scope:
 - preserve deterministic content for required summary/audit logs.
 
 Definition of done:
-- [ ] high-frequency progress line volume is reduced or bounded by policy.
-- [ ] required narrative/audit log lines remain present.
-- [ ] no change in validator failure visibility.
+- [x] high-frequency progress line volume is reduced or bounded by policy.
+- [x] required narrative/audit log lines remain present.
+- [x] no change in validator failure visibility.
+
+POPT.3.2 closure record (2026-02-19):
+- code change:
+  - `packages/engine/src/engine/layers/l1/seg_3B/s5_validation_bundle/runner.py`
+- hardening applied:
+  - added terminal `flush()` on progress tracker to guarantee one final heartbeat per hash lane.
+  - preserved bounded-cadence behavior for in-flight progress messages.
+- witness evidence:
+  - candidate log-budget artifact shows `progress_lines=3` with required narrative lines intact and compiled validator backend lines unchanged (`=3`).
 
 ### POPT.3.3 - Serialization micro-trim (conditional)
 Goal:
@@ -767,9 +788,18 @@ Scope:
 - skip this lane if baseline already satisfies runtime + log-budget gates.
 
 Definition of done:
-- [ ] conditional decision recorded (`EXECUTED` or `SKIPPED_NO_GAIN`).
-- [ ] if executed: measurable movement and no contract drift.
-- [ ] if skipped: rationale and evidence are recorded.
+- [x] conditional decision recorded (`EXECUTED` or `SKIPPED_NO_GAIN`).
+- [x] if executed: measurable movement and no contract drift.
+- [x] if skipped: rationale and evidence are recorded.
+
+POPT.3.3 closure record (2026-02-19):
+- decision: `SKIPPED_NO_GAIN`.
+- rationale:
+  - post-`POPT.3.2` witness remained comfortably inside runtime/log-budget gates.
+  - additional serialization edits would increase blast radius without a justified gain.
+- authority artifacts:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt3_log_budget_candidate_724a63d3f8b242809b8ec3b746d0c776.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt3_log_budget_candidate_724a63d3f8b242809b8ec3b746d0c776.md`
 
 ### POPT.3.4 - Witness gate and closure
 Goal:
@@ -783,9 +813,23 @@ Scope:
   - non-regression guard: digest parity, output path stability, `S5 PASS`.
 
 Definition of done:
-- [ ] closure scorecard emitted (`segment3b_popt3_closure_<run_id>.json/.md`).
-- [ ] explicit decision recorded (`UNLOCK_POPT4` or `HOLD_POPT3_REOPEN`).
-- [ ] current phase status updated with next-lane pointer.
+- [x] closure scorecard emitted (`segment3b_popt3_closure_<run_id>.json/.md`).
+- [x] explicit decision recorded (`UNLOCK_POPT4` or `HOLD_POPT3_REOPEN`).
+- [x] current phase status updated with next-lane pointer.
+
+POPT.3.4 closure decision (2026-02-19):
+- witness execution:
+  - command: `make segment3b-s5 RUNS_ROOT=runs/fix-data-engine/segment_3B SEG3B_S5_RUN_ID=724a63d3f8b242809b8ec3b746d0c776`
+  - result: `S5 PASS`
+- closure artifacts:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt3_closure_724a63d3f8b242809b8ec3b746d0c776.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt3_closure_724a63d3f8b242809b8ec3b746d0c776.md`
+- measured gates:
+  - runtime guard: PASS (`candidate=43.686s`, baseline `42.641s`, regression `2.45%`, within `<=15%` budget and `<=55s` cap).
+  - log-budget guard: PASS (`progress_lines=3 <= 16`, required narrative present).
+  - non-regression guard: PASS (digest parity, output-path stability, `S5 PASS`).
+- final decision:
+  - `UNLOCK_POPT4`.
 
 ### POPT.4 - Fast-lane closure and freeze
 Goal:
@@ -902,8 +946,8 @@ Definition of done:
 - `POPT.1R.NEXT`: in_progress (`OPEN_AFTER_ROLLBACK`)
 - `POPT.2`: completed (`UNLOCK_POPT3_AFTER_POPT2R2`)
 - `POPT.2R`: completed (`UNLOCK_POPT3`)
-- `POPT.3`: pending (`PLANNING_EXPANDED`)
-- `POPT.4`: pending
+- `POPT.3`: completed (`UNLOCK_POPT4`)
+- `POPT.4`: pending (`UNLOCKED_AFTER_POPT3`)
 - `P0`: pending
 - `P1`: pending
 - `P2`: pending
