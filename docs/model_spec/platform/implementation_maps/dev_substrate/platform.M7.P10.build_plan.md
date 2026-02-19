@@ -1,7 +1,7 @@
 # Dev Substrate Deep Plan - M7.P10 (P10 CASE_LABELS_COMMITTED)
 _Status source of truth: `platform.build_plan.md` and `platform.M7.build_plan.md`_
 _This document provides plane-deep planning detail for M7 P10._
-_Last updated: 2026-02-18_
+_Last updated: 2026-02-19_
 
 ## 0) Purpose
 Close `P10 CASE_LABELS_COMMITTED` with explicit durable proof that case/label lane:
@@ -42,7 +42,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Plane
 Current posture:
-1. `P10.A` executed fail-closed (`overall_pass=false`); `P10.B`/`P10.C` not started.
+1. `P10.A` rerun is pass-closed (`overall_pass=true`); `P10.B`/`P10.C` not started.
 
 Execution block:
 1. No P10 runtime execution before P9 closure is pass-consumed by M7 orchestrator.
@@ -155,7 +155,7 @@ Runtime budget:
 
 DoD:
 - [x] Subject-key identity handles are pinned and non-placeholder.
-- [ ] Managed DB readiness checks pass.
+- [x] Managed DB readiness checks pass.
 - [x] Snapshot exists locally + durably.
 - [x] Runtime budget target is met (or explicitly waived).
 
@@ -173,9 +173,14 @@ Execution notes (`2026-02-19`):
 2. Subject-key closure is now green:
    - `CASE_SUBJECT_KEY_FIELDS=platform_run_id,event_class,event_id`
    - `LABEL_SUBJECT_KEY_FIELDS=platform_run_id,event_id`
-3. Fail-closed blockers from live runtime truth:
+3. Initial fail-closed blockers from live runtime truth:
    - `M7G-B2`: DB readiness/migration proof not materialized (CM/LS + DB migrations task definitions still stub commands).
    - `M7G-B5`: CM/LS service runtime command conformance failed (scheduler healthy but sleep-loop stubs).
+4. Remediation rerun closure:
+   - CM/LS rematerialized to real worker runtime (`fraud-platform-dev-min-case-mgmt:14`, `fraud-platform-dev-min-label-store:14`).
+   - DB migrations rematerialized to one-shot managed runtime proof (`fraud-platform-dev-min-db-migrations:13`).
+   - one-shot task `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/d51d7efc8c274152920aad1ceb029b44` exited `0` with log evidence `db_migrations_ok tables=5`.
+   - rerun snapshot verdict is now `overall_pass=true` with blocker list empty.
 
 #### M7.G Remediation Plan (`M7G-B2` + `M7G-B5`) Before Rerun
 Goal:
@@ -218,11 +223,11 @@ Execution steps:
    - require `overall_pass=true` with blocker list empty.
 
 Remediation DoD:
-- [ ] CM/LS task definitions run real worker commands (no sleep-loop stubs).
-- [ ] CM/LS task definitions include DB-ready env/secrets posture.
-- [ ] `TD_DB_MIGRATIONS` runs real migration command and completes successfully.
-- [ ] Managed DB connect + schema readiness are proven from managed runtime lane.
-- [ ] `P10.A` rerun snapshot is green (`overall_pass=true`).
+- [x] CM/LS task definitions run real worker commands (no sleep-loop stubs).
+- [x] CM/LS task definitions include DB-ready env/secrets posture.
+- [x] `TD_DB_MIGRATIONS` runs real migration command and completes successfully.
+- [x] Managed DB connect + schema readiness are proven from managed runtime lane.
+- [x] `P10.A` rerun snapshot is green (`overall_pass=true`).
 
 Remediation blockers:
 1. `M7G-R1`: CM/LS command/env conformance patch not materialized.
@@ -303,7 +308,7 @@ Control-plane:
 3. `evidence/dev_min/run_control/<m7_execution_id>/m7_p10_plane_snapshot.json`
 
 ## 8) Completion Checklist (P10)
-- [ ] P10.A complete
+- [x] P10.A complete
 - [ ] P10.B complete
 - [ ] P10.C complete
 

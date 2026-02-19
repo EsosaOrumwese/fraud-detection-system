@@ -298,9 +298,9 @@ Scope:
 - keep `S0/S1` frozen in this phase; no escalation-policy edits in `P1`.
 
 Definition of done:
-- [ ] S2 hard gates move into or toward B bands on witness seed.
-- [ ] no S2 domain/integrity regressions.
-- [ ] policy digests + decision trail captured.
+- [x] S2 hard gates move into or toward B bands on witness seed.
+- [x] no S2 domain/integrity regressions.
+- [x] policy digests + decision trail captured.
 
 P1 authority baseline (from P0):
 - run-id: `81599ab107ba4c8db7fc5850287360fe`
@@ -335,9 +335,9 @@ Scope:
   - floor/bump intensity and caps in `zone_floor_policy`.
 
 Definition of done:
-- [ ] movement envelope values are pinned in notes before first candidate run.
-- [ ] knob families and tested ranges are explicitly listed.
-- [ ] run-sequence and retention policy are pinned (`S2->S7`, prune superseded runs).
+- [x] movement envelope values are pinned in notes before first candidate run.
+- [x] knob families and tested ranges are explicitly listed.
+- [x] run-sequence and retention policy are pinned (`S2->S7`, prune superseded runs).
 
 #### P1.2 - Prior Geometry Candidate Sweep (`country_zone_alphas`)
 Goal:
@@ -360,9 +360,9 @@ Selection method:
 - hard veto if conservation rails fail (`S4` or `zone_alloc`).
 
 Definition of done:
-- [ ] at least one alpha candidate produces positive `d_top1` and `d_tail`.
-- [ ] candidate ranking table is recorded in decision trail.
-- [ ] one alpha candidate is promoted to `P1.3` floor co-calibration lane.
+- [x] at least one alpha candidate produces positive `d_top1` and `d_tail`.
+- [x] candidate ranking table is recorded in decision trail.
+- [x] one alpha candidate is promoted to `P1.3` floor co-calibration lane.
 
 #### P1.3 - Floor/Boost Co-Calibration (`zone_floor_policy`)
 Goal:
@@ -374,9 +374,9 @@ Scope:
 - reject variants that improve `S2` but regress downstream concentration in `S4/zone_alloc`.
 
 Definition of done:
-- [ ] selected floor-policy variant improves `S2` concentration metrics vs `P0` baseline.
-- [ ] `S3` merchant share-std and `S4` escalated multi-zone rate are non-regressed.
-- [ ] conservation rails remain PASS.
+- [x] selected floor-policy variant improves `S2` concentration metrics vs `P0` baseline.
+- [x] `S3` merchant share-std and `S4` escalated multi-zone rate are non-regressed.
+- [x] conservation rails remain PASS.
 
 #### P1.4 - Witness Lock + P1 Closeout
 Goal:
@@ -388,10 +388,30 @@ Scope:
 - pin retained run-ids and prune superseded run folders.
 
 Definition of done:
-- [ ] witness rerun reproduces metrics within deterministic tolerance (exact for deterministic fields).
-- [ ] final `P1` artifact paths are pinned in build plan + notes.
-- [ ] explicit `P1` decision recorded:
+- [x] witness rerun reproduces metrics within deterministic tolerance (exact for deterministic fields).
+- [x] final `P1` artifact paths are pinned in build plan + notes.
+- [x] explicit `P1` decision recorded:
   - `UNLOCK_P2` or `HOLD_P1_REOPEN`.
+
+P1 closure snapshot (2026-02-19):
+- decision: `UNLOCK_P2`.
+- promoted alpha authority (`P1.2`): `878cddcd58bf4a36bd88c56de0d18056`.
+- selected floor co-calibration candidate (`P1.3`): `3dd2a10fb61b4ab581f9e9251c8d72ab` (`F0`, `floor_scale=1.00`, `threshold_shift=0.00`).
+- witness rerun (`P1.4`): `fa527d6a0a4c4eab97516d9e95be8420` (exact metric replay vs selected candidate).
+- retained run-id set after prune:
+  - `06b822558c294a0888e3f8f342e83947` (`POPT.0` runtime baseline),
+  - `81599ab107ba4c8db7fc5850287360fe` (`P0` baseline authority),
+  - `878cddcd58bf4a36bd88c56de0d18056` (`P1.2` alpha authority),
+  - `3dd2a10fb61b4ab581f9e9251c8d72ab` (`P1.3` selected floor candidate),
+  - `fa527d6a0a4c4eab97516d9e95be8420` (`P1.4` witness).
+- artifacts:
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p1_2_sweep_summary.json`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p1_3_sweep_summary.json`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p1_3_sweep_summary.md`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p1_4_witness_summary.json`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p1_4_witness_summary.md`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_candidate_vs_baseline_3dd2a10fb61b4ab581f9e9251c8d72ab.json`
+  - `runs/fix-data-engine/segment_3A/reports/segment3a_p0_candidate_vs_baseline_fa527d6a0a4c4eab97516d9e95be8420.json`
 
 ### P2 - S3 merchant dispersion remediation (CF-3A-02)
 Goal:

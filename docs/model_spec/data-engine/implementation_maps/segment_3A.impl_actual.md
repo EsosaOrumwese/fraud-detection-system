@@ -3575,3 +3575,116 @@ What was added to `segment_3A.build_plan.md`:
 Planning result:
 - `P1` is now actionable as a data-remediation phase with measurable movement
   targets and a bounded run strategy; ready for execution when directed.
+
+### Entry: 2026-02-19 02:03
+
+Design element: `P1 execution mechanics lock (variant rendering + run staging)`.
+Summary: to execute `P1` end-to-end without manual copy/paste drift, implement
+small deterministic helper tools before running the candidate sweep.
+
+Decision rationale:
+1) `country_zone_alphas.yaml` and `zone_floor_policy.yaml` are large; repeated
+   manual edits are error-prone and non-auditable for a sweep lane.
+2) `S0` requires per-run `run_receipt.json`; deterministic parameter-hashing of
+   governed policy files is needed so each candidate run carries coherent tokens.
+
+Tooling to add:
+1) `tools/render_segment3a_p1_policies.py`
+   - input: frozen baseline alpha/floor files + knobs.
+   - knobs:
+     - alpha blend-to-uniform (`blend_lambda`),
+     - floor scale (`floor_scale`),
+     - bump-threshold shift or forced threshold.
+   - output: active policy files in `config/layer1/3A/allocation/`.
+2) `tools/stage_segment3a_run.py`
+   - creates fresh run-id folder + `run_receipt.json` under
+     `runs/fix-data-engine/segment_3A/<run_id>`.
+   - computes deterministic `parameter_hash` from sealed policy bytes:
+     - `zone_mixture_policy.yaml`,
+     - `country_zone_alphas.yaml`,
+     - `zone_floor_policy.yaml`,
+     - `day_effect_policy_v1.json`.
+
+Sweep execution contract (P1.2 -> P1.4):
+1) freeze baseline policy snapshots in `scratch_files/segment3a_p1_baseline/`.
+2) alpha-only sweep candidates (`P1.2`), choose winner by pinned objective `J`.
+3) floor co-calibration candidates (`P1.3`) with alpha winner fixed.
+4) witness rerun of final candidate (`P1.4`) and explicit close decision.
+5) prune superseded run-id folders; keep baseline + final authority (+ optional
+   one comparator evidence run).
+
+### Entry: 2026-02-19 02:14
+
+Design element: `P1.3/P1.4 execution lock (floor co-calibration + witness)`.
+Summary: executing full `P1` closeout now from the promoted alpha authority
+candidate (`blend_lambda=0.30`, run `878cddcd58bf4a36bd88c56de0d18056`).
+
+Execution decisions pinned before runs:
+1) keep alpha geometry fixed at `blend_lambda=0.30` for all `P1.3` candidates.
+2) run bounded floor-policy sweep only (no code-path edits):
+   - `F0`: `floor_scale=1.00`, `threshold_shift=0.00` (control).
+   - `F1`: `floor_scale=1.10`, `threshold_shift=-0.05` (more tail support).
+   - `F2`: `floor_scale=0.90`, `threshold_shift=+0.05` (less floor forcing).
+3) every candidate follows sequential rerun law:
+   - stage run folder -> run `S0->S7` -> emit `P0` baseline metrics +
+     candidate-vs-baseline deltas.
+4) selection/veto for `P1.3`:
+   - primary objective remains movement on `S2` concentration vs `P0` baseline.
+   - non-regression guard relative to promoted alpha run:
+     - do not reduce `S3 merchant_share_std_median`,
+     - do not reduce `S4 escalated_multi_zone_rate`,
+     - no `S4/zone_alloc` conservation regressions.
+5) `P1.4` witness rule:
+   - rerun selected floor candidate once, require deterministic metric replay for
+     scored fields (exact equality at current deterministic posture).
+
+Expected closure outcomes for this pass:
+1) emit `P1.3` sweep summary artifact with ranking + veto status.
+2) emit witness candidate-vs-baseline artifacts for `P1.4`.
+3) update build-plan DoDs and record explicit phase decision:
+   - `UNLOCK_P2` or `HOLD_P1_REOPEN`.
+
+### Entry: 2026-02-19 02:22
+
+Design element: `P1.3/P1.4 executed and closed`.
+Summary: completed full `P1` execution for Segment `3A` and closed phase
+decision as `UNLOCK_P2`.
+
+Execution results:
+1) `P1.3` bounded floor sweep executed with promoted alpha (`lambda=0.30`) fixed:
+   - `F0` (`floor_scale=1.00`, `threshold_shift=0.00`) -> run
+     `3dd2a10fb61b4ab581f9e9251c8d72ab`.
+   - `F1` (`floor_scale=1.10`, `threshold_shift=-0.05`) -> run
+     `949c3a5a1f1a487ab4684ca078f81770`.
+   - `F2` (`floor_scale=0.90`, `threshold_shift=+0.05`) -> run
+     `ef82ad476d6249dc856dbe060e8d36e1`.
+2) sweep ranking/selection:
+   - highest unconstrained `J` was `F2`, but it regressed `S3 std` vs alpha
+     authority (`-0.000165`), so failed strict non-regression guard.
+   - `F0` satisfied strict non-regression and remained strongly improved vs
+     `P0` baseline; selected as `P1.3` authority.
+3) `P1.4` witness rerun:
+   - witness run `fa527d6a0a4c4eab97516d9e95be8420`.
+   - exact replay confirmed for scored deterministic metrics:
+     `S2 top1`, `S2 share>=0.99`, `S3 std`, `S4 multi-zone`, `S4 top1`,
+     `zone_alloc top1`.
+
+Pinned artifacts:
+1) `runs/fix-data-engine/segment_3A/reports/segment3a_p1_3_sweep_summary.json`
+2) `runs/fix-data-engine/segment_3A/reports/segment3a_p1_3_sweep_summary.md`
+3) `runs/fix-data-engine/segment_3A/reports/segment3a_p1_4_witness_summary.json`
+4) `runs/fix-data-engine/segment_3A/reports/segment3a_p1_4_witness_summary.md`
+
+Phase decision:
+1) `UNLOCK_P2`.
+2) Note: realism verdict remains `FAIL_REALISM` at end of `P1` because `S3`
+   hard gate (`median std >= 0.02`) is still open; this is expected and handed
+   to `P2` ownership.
+3) storage hygiene:
+   - pruned superseded `P1` run folders and stale zero-byte staged folders.
+   - retained run-id set:
+     - `06b822558c294a0888e3f8f342e83947`,
+     - `81599ab107ba4c8db7fc5850287360fe`,
+     - `878cddcd58bf4a36bd88c56de0d18056`,
+     - `3dd2a10fb61b4ab581f9e9251c8d72ab`,
+     - `fa527d6a0a4c4eab97516d9e95be8420`.

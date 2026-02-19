@@ -747,14 +747,15 @@ Active-phase planning posture:
       - local snapshot: `runs/dev_substrate/m7/20260218T141420Z/m7_p9_plane_snapshot.json`
       - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p9_plane_snapshot.json`
       - closure result: `overall_pass=true`, blocker rollup empty.
-  - `M7.G` (`P10.A`) executed fail-closed (`2026-02-19`):
+  - `M7.G` (`P10.A`) initial fail-closed then rerun pass (`2026-02-19`):
     - local snapshot: `runs/dev_substrate/m7/20260218T141420Z/m7_g_case_label_db_readiness_snapshot.json`
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_g_case_label_db_readiness_snapshot.json`
     - closure subset now green:
       - subject-key handles are pinned and runtime-aligned (`CASE_SUBJECT_KEY_FIELDS`, `LABEL_SUBJECT_KEY_FIELDS`).
-    - open blockers:
-      - `M7G-B2`: managed DB readiness/migration proof not materialized (stub DB migration lane + no DB-ready CM/LS runtime posture).
-      - `M7G-B5`: CM/LS scheduler health is green but runtime command conformance is red (sleep-loop stubs).
+    - remediation closure:
+      - CM/LS rematerialized to real worker runtime (`:14` task definitions),
+      - DB migrations rematerialized to one-shot runtime proof (`:13`) and executed with `exit=0` and `db_migrations_ok tables=5`,
+      - rerun snapshot verdict: `overall_pass=true`, blockers empty.
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.
@@ -763,7 +764,7 @@ Sub-phase progress:
   - [x] `M7.D` P8 archive durability proof closure.
   - [x] `M7.E` P9 decision-lane readiness + idempotency posture.
   - [x] `M7.F` P9 decision/action/audit commit evidence closure.
-  - [ ] `M7.G` P10 identity-key pin + managed DB readiness.
+  - [x] `M7.G` P10 identity-key pin + managed DB readiness.
   - [ ] `M7.H` P10 case/label commit evidence closure.
   - [ ] `M7.I` P8..P10 verdict + blocker rollup.
   - [ ] `M7.J` M8 handoff publication.
@@ -907,8 +908,11 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M7 is active for deep-plan closure and execution sequencing.
 Next action:
-- close `M7G-B2` and `M7G-B5` by rematerializing CM/LS + DB migrations to real worker/runtime commands with managed DB proof,
-- rerun `M7.G` and require `overall_pass=true` before opening `M7.H`.
-- detailed execution authority for this remediation is pinned in:
+- execute `M7.H` (`P10.B`) case/label commit evidence closure on the now-green `M7.G` base,
+- require run-scoped durable artifacts:
+  - `evidence/runs/<platform_run_id>/case_labels/case_summary.json`
+  - `evidence/runs/<platform_run_id>/case_labels/label_summary.json`
+  - `evidence/dev_min/run_control/<m7_execution_id>/m7_h_case_label_commit_snapshot.json`.
+- detailed execution authority is pinned in:
   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`
-  - subsection `M7.G Remediation Plan (M7G-B2 + M7G-B5) Before Rerun`.
+  - subsection `P10.B Case/Label Commit Closure (M7.H depth)`.

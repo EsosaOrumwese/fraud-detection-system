@@ -634,9 +634,119 @@ resource "aws_ecs_task_definition" "db_migrations" {
   container_definitions = jsonencode([
     {
       name      = "db-migrations"
-      image     = var.ecs_probe_container_image
+      image     = local.daemon_container_image_resolved
       essential = true
-      command   = ["sh", "-c", "echo db_migrations_task_materialized && exit 0"]
+      command = [
+        "sh",
+        "-c",
+        <<-EOT
+set -euo pipefail
+
+python - <<'PY'
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+import yaml
+
+base = Path("config/platform/profiles/dev_min.yaml")
+data = yaml.safe_load(base.read_text(encoding="utf-8")) or {}
+run_id = os.getenv("PLATFORM_RUN_ID", "").strip()
+
+case_mgmt = data.setdefault("case_mgmt", {})
+case_mgmt_policy = case_mgmt.setdefault("policy", {})
+case_mgmt_policy["label_emission_policy_ref"] = "config/platform/case_mgmt/label_emission_policy_v0.yaml"
+case_mgmt_wiring = case_mgmt.setdefault("wiring", {})
+case_mgmt_wiring["stream_id"] = "case_mgmt.v0"
+case_mgmt_wiring["event_bus_kind"] = "file"
+case_mgmt_wiring["event_bus_root"] = "runs/fraud-platform/eb"
+case_mgmt_wiring["event_bus_start_position"] = "latest"
+case_mgmt_wiring["admitted_topics"] = ["fp.bus.case.v1"]
+case_mgmt_wiring["poll_max_records"] = 1
+case_mgmt_wiring["poll_sleep_seconds"] = 0.1
+case_mgmt_wiring["required_platform_run_id"] = os.getenv("CASE_MGMT_REQUIRED_PLATFORM_RUN_ID", run_id)
+case_mgmt_wiring["locator"] = os.getenv("CASE_MGMT_LOCATOR", "")
+case_mgmt_wiring["label_store_locator"] = os.getenv("LABEL_STORE_LOCATOR", "")
+
+label_store = data.setdefault("label_store", {})
+label_store_wiring = label_store.setdefault("wiring", {})
+label_store_wiring["stream_id"] = "label_store.v0"
+label_store_wiring["locator"] = os.getenv("LABEL_STORE_LOCATOR", "")
+label_store_wiring["required_platform_run_id"] = os.getenv("LABEL_STORE_REQUIRED_PLATFORM_RUN_ID", run_id)
+label_store_wiring["poll_seconds"] = 0.1
+
+out = Path("/tmp/dev_min_case_lane_migrations.yaml")
+out.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+print(str(out))
+PY
+
+python -m fraud_detection.case_mgmt.worker --profile /tmp/dev_min_case_lane_migrations.yaml --once
+python -m fraud_detection.label_store.worker --profile /tmp/dev_min_case_lane_migrations.yaml --once
+
+python - <<'PY'
+from __future__ import annotations
+
+import os
+
+import psycopg
+
+dsn = os.getenv("CASE_MGMT_LOCATOR", "").strip()
+if not dsn:
+    raise SystemExit("CASE_MGMT_LOCATOR missing")
+
+required_tables = (
+    "cm_cases",
+    "cm_case_trigger_intake",
+    "cm_case_timeline",
+    "ls_label_assertions",
+    "ls_label_timeline",
+)
+
+missing: list[str] = []
+with psycopg.connect(dsn, autocommit=True) as conn:
+    with conn.cursor() as cur:
+        for table in required_tables:
+            cur.execute("SELECT to_regclass(%s)", (table,))
+            row = cur.fetchone()
+            if not row or row[0] is None:
+                missing.append(table)
+
+if missing:
+    raise SystemExit("MISSING_DB_TABLES:" + ",".join(missing))
+
+print(f"db_migrations_ok tables={len(required_tables)}")
+PY
+EOT
+      ]
+      environment = [
+        {
+          name  = "PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = var.required_platform_run_id_env_key
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "CASE_MGMT_REQUIRED_PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "LABEL_STORE_REQUIRED_PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+      ]
+      secrets = [
+        {
+          name      = "CASE_MGMT_LOCATOR"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        },
+        {
+          name      = "LABEL_STORE_LOCATOR"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        },
+      ]
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -712,6 +822,80 @@ resource "aws_ecs_task_definition" "daemon" {
         "sh",
         "-c",
         "set -e; python -c \"import pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; dla=d.setdefault('dla',{}); wiring=dla.setdefault('wiring',{}); wiring['event_bus_kind']='kafka'; wiring['admitted_topics']=['fp.bus.rtdl.v1']; policy=dla.setdefault('policy',{}); policy['intake_policy_ref']='config/platform/dla/intake_policy_local_parity_v0.yaml'; o=pathlib.Path('/tmp/dev_min_dla.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.decision_log_audit.worker --profile /tmp/dev_min_dla.yaml",
+        ] : each.key == "case-mgmt" ? [
+        "sh",
+        "-c",
+        <<-EOT
+set -e
+python - <<'PY'
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+import yaml
+
+base = Path("config/platform/profiles/dev_min.yaml")
+data = yaml.safe_load(base.read_text(encoding="utf-8")) or {}
+
+case_mgmt = data.setdefault("case_mgmt", {})
+case_mgmt_policy = case_mgmt.setdefault("policy", {})
+case_mgmt_policy["label_emission_policy_ref"] = "config/platform/case_mgmt/label_emission_policy_v0.yaml"
+case_mgmt_wiring = case_mgmt.setdefault("wiring", {})
+case_mgmt_wiring["stream_id"] = "case_mgmt.v0"
+case_mgmt_wiring["event_bus_kind"] = "kafka"
+case_mgmt_wiring["event_bus_start_position"] = "latest"
+case_mgmt_wiring["admitted_topics"] = ["fp.bus.case.v1"]
+case_mgmt_wiring["poll_max_records"] = 200
+case_mgmt_wiring["poll_sleep_seconds"] = 0.5
+case_mgmt_wiring["required_platform_run_id"] = os.getenv("CASE_MGMT_REQUIRED_PLATFORM_RUN_ID", "")
+case_mgmt_wiring["locator"] = os.getenv("CASE_MGMT_LOCATOR", "")
+case_mgmt_wiring["label_store_locator"] = os.getenv("LABEL_STORE_LOCATOR", "")
+
+label_store = data.setdefault("label_store", {})
+label_store_wiring = label_store.setdefault("wiring", {})
+label_store_wiring["stream_id"] = "label_store.v0"
+label_store_wiring["locator"] = os.getenv("LABEL_STORE_LOCATOR", "")
+label_store_wiring["required_platform_run_id"] = os.getenv("LABEL_STORE_REQUIRED_PLATFORM_RUN_ID", "")
+label_store_wiring["poll_seconds"] = 2.0
+
+out = Path("/tmp/dev_min_cm.yaml")
+out.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+print(str(out))
+PY
+
+python -m fraud_detection.case_mgmt.worker --profile /tmp/dev_min_cm.yaml
+EOT
+        ] : each.key == "label-store" ? [
+        "sh",
+        "-c",
+        <<-EOT
+set -e
+python - <<'PY'
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+import yaml
+
+base = Path("config/platform/profiles/dev_min.yaml")
+data = yaml.safe_load(base.read_text(encoding="utf-8")) or {}
+
+label_store = data.setdefault("label_store", {})
+label_store_wiring = label_store.setdefault("wiring", {})
+label_store_wiring["stream_id"] = "label_store.v0"
+label_store_wiring["locator"] = os.getenv("LABEL_STORE_LOCATOR", "")
+label_store_wiring["required_platform_run_id"] = os.getenv("LABEL_STORE_REQUIRED_PLATFORM_RUN_ID", "")
+label_store_wiring["poll_seconds"] = 2.0
+
+out = Path("/tmp/dev_min_ls.yaml")
+out.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+print(str(out))
+PY
+
+python -m fraud_detection.label_store.worker --profile /tmp/dev_min_ls.yaml
+EOT
         ] : [
         "sh",
         "-c",
@@ -840,6 +1024,36 @@ resource "aws_ecs_task_definition" "daemon" {
           name  = "DLA_EVENT_BUS_REGION"
           value = var.aws_region
         },
+        ] : [], each.key == "case-mgmt" ? [
+        {
+          name  = "PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "CASE_MGMT_REQUIRED_PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "LABEL_STORE_REQUIRED_PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "KAFKA_SECURITY_PROTOCOL"
+          value = "SASL_SSL"
+        },
+        {
+          name  = "KAFKA_SASL_MECHANISM"
+          value = "PLAIN"
+        },
+        ] : [], each.key == "label-store" ? [
+        {
+          name  = "PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
+        {
+          name  = "LABEL_STORE_REQUIRED_PLATFORM_RUN_ID"
+          value = var.required_platform_run_id
+        },
       ] : [])
       secrets = concat(each.key == "ig" ? [
         {
@@ -850,7 +1064,7 @@ resource "aws_ecs_task_definition" "daemon" {
           name      = "IG_ADMISSION_DSN"
           valueFrom = aws_ssm_parameter.db_dsn.arn
         }
-        ] : [], contains(["ig", "rtdl-core-archive-writer", "decision-lane-dl", "decision-lane-df", "decision-lane-al", "decision-lane-dla"], each.key) ? [
+        ] : [], contains(["ig", "rtdl-core-archive-writer", "decision-lane-dl", "decision-lane-df", "decision-lane-al", "decision-lane-dla", "case-mgmt"], each.key) ? [
         {
           name      = "KAFKA_BOOTSTRAP_SERVERS"
           valueFrom = aws_ssm_parameter.confluent_bootstrap.arn
@@ -880,6 +1094,20 @@ resource "aws_ecs_task_definition" "daemon" {
         ] : [], each.key == "decision-lane-dla" ? [
         {
           name      = "DLA_INDEX_DSN"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        }
+        ] : [], each.key == "case-mgmt" ? [
+        {
+          name      = "CASE_MGMT_LOCATOR"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        },
+        {
+          name      = "LABEL_STORE_LOCATOR"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        }
+        ] : [], each.key == "label-store" ? [
+        {
+          name      = "LABEL_STORE_LOCATOR"
           valueFrom = aws_ssm_parameter.db_dsn.arn
         }
       ] : [])
