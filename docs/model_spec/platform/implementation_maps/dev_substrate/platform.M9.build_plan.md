@@ -63,9 +63,13 @@ Execution block:
 3. No M9 closure is allowed if demo-secret cleanup is ambiguous.
 
 ## 4.1) Decision Pin: Existing Destroy Workflow Reuse
-1. M9 does not replace `.github/workflows/dev_min_confluent_destroy.yml`.
-2. M9 reuses that workflow as the canonical Confluent teardown lane.
-3. Any missing teardown lanes (for demo destroy/post-check) are additive; they do not invalidate the existing Confluent lane.
+1. M9 uses one canonical managed teardown workflow:
+   - `.github/workflows/dev_min_confluent_destroy.yml`.
+2. Teardown target is selected by workflow input:
+   - `stack_target=confluent|demo`.
+3. Lane split is logical, not file-based:
+   - `M9.C` dispatches with `stack_target=confluent`,
+   - `M9.D` dispatches with `stack_target=demo`.
 
 ## 4.2) Anti-Cram Law (Binding for M9)
 1. M9 is not execution-ready unless these lanes are explicit:
@@ -341,7 +345,7 @@ Blockers:
 4. `M9B-B4`: snapshot publication failure.
 5. `M9B-B5`: prerequisite `M9.A` closure invalid/unreadable.
 
-### M9.C Confluent Teardown Execution (Reuse Existing Workflow)
+### M9.C Confluent Teardown Execution (Unified Workflow)
 Goal:
 1. Execute Confluent teardown using existing managed lane.
 
@@ -365,6 +369,7 @@ Required inputs:
    - `TF_STATE_KEY_CONFLUENT`
    - `S3_EVIDENCE_BUCKET`.
 2. Workflow inputs:
+   - `stack_target` (`confluent`)
    - `aws_region`
    - `aws_role_to_assume`
    - `tf_state_bucket`
@@ -386,7 +391,8 @@ Deterministic execution algorithm (M9.C):
 1. Load `M9.B` pass snapshot; if unreadable or failed -> `M9C-B5`.
 2. Resolve dispatch parameters from handles and fixed M9 evidence policy:
    - evidence prefix for M9 capture remains under run-control durability.
-3. Dispatch `.github/workflows/dev_min_confluent_destroy.yml` with explicit inputs.
+3. Dispatch `.github/workflows/dev_min_confluent_destroy.yml` with explicit inputs:
+   - `stack_target=confluent`.
    - dispatch failure -> `M9C-B1`.
 4. Poll/watch workflow run to terminal state.
    - non-success completion -> `M9C-B2`.
@@ -484,7 +490,8 @@ Required inputs:
    - `TF_STATE_KEY_DEMO`
    - `S3_EVIDENCE_BUCKET`.
 2. Managed lane contract (pinned for M9.D):
-   - expected workflow file: `.github/workflows/dev_min_demo_destroy.yml`
+   - expected workflow file: `.github/workflows/dev_min_confluent_destroy.yml`
+   - required dispatch selector: `stack_target=demo`
    - expected behavior:
      - terraform init (demo backend)
      - terraform destroy demo stack
@@ -505,7 +512,8 @@ Deterministic execution algorithm (M9.D):
 1. Load `M9.C` pass snapshot and verify source semantics; mismatch -> `M9D-B5`.
 2. Re-load `M9.B` preserve snapshot and verify controls remain pass; mismatch -> `M9D-B6`.
 3. Confirm managed demo-destroy workflow exists; absent -> `M9D-B1`.
-4. Dispatch `.github/workflows/dev_min_demo_destroy.yml` with explicit inputs.
+4. Dispatch `.github/workflows/dev_min_confluent_destroy.yml` with explicit inputs:
+   - `stack_target=demo`.
    - dispatch failure -> `M9D-B1`.
 5. Poll/watch workflow run to terminal state.
    - non-success completion -> `M9D-B2`.
@@ -674,5 +682,5 @@ Budget rule:
 ## 7) Current Planning Status
 1. M9 is planning-open with `M9.A`, `M9.B`, and `M9.C` execution closed green.
 2. `M9.D` is now the next execution lane.
-3. Existing workflow reuse decision is pinned:
-   - `dev_min_confluent_destroy.yml` is reused, not replaced.
+3. Unified teardown workflow decision is pinned:
+   - `dev_min_confluent_destroy.yml` is stack-aware (`stack_target=confluent|demo`).

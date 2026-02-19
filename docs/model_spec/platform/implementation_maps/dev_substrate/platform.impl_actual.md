@@ -15210,3 +15210,26 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. This step is planning-only; no `M9.D` teardown execution was run.
 2. `M9.D` is now execution-ready, with explicit fail-closed block if managed demo-destroy workflow is missing.
 
+## Entry: 2026-02-19 13:24:46 +00:00 - Unified teardown lane repin (pre-change lock)
+### Problem framing
+1. USER requested one unified destroy workflow covering both Confluent and demo teardown.
+2. Current posture uses a Confluent-specific workflow and leaves M9.D blocked on a missing demo workflow file.
+
+### Pre-change decisions
+1. We will not create a second workflow; we will upgrade the existing workflow into a single stack-aware teardown lane.
+2. Canonical workflow file remains:
+   - `.github/workflows/dev_min_confluent_destroy.yml`
+   but with unified behavior keyed by:
+   - `stack_target=confluent|demo`.
+3. `M9.C` and `M9.D` will both use this same workflow:
+   - `M9.C`: `stack_target=confluent`
+   - `M9.D`: `stack_target=demo`.
+4. Fail-closed behavior remains mandatory:
+   - explicit stack resolution,
+   - stack-specific Terraform dir/state key,
+   - source snapshot semantics (`destroy_outcome=success`, `post_destroy_state_resource_count=0`, `overall_pass=true`).
+5. Docs to repin in this change:
+   - `platform.M2.build_plan.md`
+   - `platform.M9.build_plan.md`
+   - `platform.build_plan.md`.
+

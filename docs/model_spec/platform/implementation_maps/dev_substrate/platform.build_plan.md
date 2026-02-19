@@ -281,7 +281,7 @@ Phase closure snapshot:
   - [x] `M2.G` network/no-NAT/no-always-on-LB verification.
   - [x] `M2.H` runtime DB readiness + migrations posture.
   - [x] `M2.I` budget and teardown-viability proof.
-  - [x] `M2.I` control-plane teardown lane materialized in GitHub Actions (`.github/workflows/dev_min_confluent_destroy.yml`) to avoid local secret dependency.
+  - [x] `M2.I` control-plane unified teardown lane materialized in GitHub Actions (`.github/workflows/dev_min_confluent_destroy.yml`, `stack_target=confluent|demo`) to avoid local secret dependency.
   - [x] `M2.J` exit-readiness and M3 handoff.
   - authoritative closeout execution:
     - `m2_execution_id=m2_20260213T205715Z`
@@ -295,7 +295,7 @@ M2 DoD checklist:
 - [x] Required handles resolve to reachable substrate resources.
 - [x] Confluent bootstrap/key/secret and required topics are validated.
   - Canonical command lane: `python tools/dev_substrate/verify_m2f_topic_readiness.py`.
-- [x] Confluent destroy capability is available in GitHub Actions (`workflow_dispatch`) with OIDC and remote-state lock discipline.
+- [x] Unified teardown capability is available in GitHub Actions (`workflow_dispatch`) with OIDC and remote-state lock discipline.
 - [x] No NAT and no forbidden always-on infra posture is proven.
 - [x] runtime DB and migration readiness are validated.
 - [x] Budget alerts and teardown viability are evidenced.
@@ -1101,8 +1101,9 @@ Out of scope:
 - Learning/Registry rollout.
 
 Decision pin (closed):
-- M9 does not replace `.github/workflows/dev_min_confluent_destroy.yml`.
-- M9 reuses that workflow as the canonical Confluent teardown lane and adds any missing teardown lanes for full P12 proof.
+- M9 uses one canonical stack-aware teardown workflow:
+  - `.github/workflows/dev_min_confluent_destroy.yml`
+  - `stack_target=confluent|demo`.
 
 Active-phase planning posture:
 - Detailed M9 authority file:
@@ -1110,8 +1111,8 @@ Active-phase planning posture:
 - M9 sub-phase progression model:
   - `M9.A` authority + handoff closure matrix for P12,
   - `M9.B` teardown inventory + preserve-set freeze,
-  - `M9.C` Confluent teardown execution (reused existing workflow lane),
-  - `M9.D` demo stack teardown execution lane,
+  - `M9.C` Confluent teardown execution (unified workflow, `stack_target=confluent`),
+  - `M9.D` demo stack teardown execution (unified workflow, `stack_target=demo`),
   - `M9.E` post-destroy residual-resource verification,
   - `M9.F` demo-scoped secret/credential cleanup verification,
   - `M9.G` cost-guardrail snapshot after teardown,
@@ -1304,7 +1305,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M9 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M9.D` demo stack teardown via managed lane (materialize workflow lane first if missing),
+- execute `M9.D` demo stack teardown via unified managed workflow (`stack_target=demo`),
 - preserve fail-closed posture:
   - do not execute `M9.E` residual checks until `M9.D` teardown snapshot is captured and blocker-free.
 

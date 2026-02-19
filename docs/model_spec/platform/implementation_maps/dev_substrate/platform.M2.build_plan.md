@@ -1113,28 +1113,31 @@ DoD:
 - [x] Destroy target surface is bounded to demo scope.
 - [x] Post-teardown verification checklist is executable and pinned.
 
-### M2.I-D1 Managed Teardown Workflow Lane (GitHub Actions)
+### M2.I-D1 Managed Unified Teardown Workflow Lane (GitHub Actions)
 Goal:
 1. Ensure teardown can be executed without laptop secret materialization by using a CI control plane.
 
 Tasks:
 1. Materialize a dedicated workflow-dispatch lane:
    - `.github/workflows/dev_min_confluent_destroy.yml`
+   - stack selector input: `stack_target=confluent|demo`
 2. Require OIDC-assumed AWS role and reject static AWS credentials.
-3. Resolve Confluent Cloud management credentials only from GitHub Secrets mapping:
+3. Resolve Confluent Cloud management credentials only from GitHub Secrets mapping when `stack_target=confluent`:
    - `TF_VAR_CONFLUENT_CLOUD_API_KEY -> TF_VAR_confluent_cloud_api_key`
    - `TF_VAR_CONFLUENT_CLOUD_API_SECRET -> TF_VAR_confluent_cloud_api_secret`
-4. Run canonical destroy surface only for:
-   - `infra/terraform/dev_min/confluent`
+4. Run canonical destroy surface by stack target:
+   - `stack_target=confluent` -> `infra/terraform/dev_min/confluent`
+   - `stack_target=demo` -> `infra/terraform/dev_min/demo`
 5. Emit non-secret execution evidence with:
    - workflow run id/url,
+   - stack target,
    - Terraform destroy outcome,
    - post-destroy state resource count.
 6. Persist the evidence as CI artifact and, when configured, durable S3 evidence object.
 
 DoD:
 - [x] Dedicated workflow-dispatch destroy lane exists and is executable.
-- [x] Confluent destroy no longer depends on local secret-bearing shell setup.
+- [x] Managed teardown no longer depends on local secret-bearing shell setup.
 - [x] Workflow evidence includes pass/fail verdict and post-destroy state count.
 
 ### M2.I-E Emergency Budget Stop Protocol
@@ -1202,11 +1205,11 @@ Execution result (authoritative):
      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T201427Z/teardown_viability_snapshot.json`
 
 Post-closure reinforcement:
-1. A managed teardown execution lane was added for Confluent stack destroy:
+1. A managed unified teardown execution lane was added:
    - `.github/workflows/dev_min_confluent_destroy.yml`
 2. Ownership split is explicit:
    - `M2.I` owns the control-plane capability and hardening,
-   - `M9/P12` reuses this lane as the canonical teardown execution mechanism.
+   - `M9/P12` reuses this lane for both Confluent and demo teardown via `stack_target`.
 
 ## M2.J Exit Readiness Review and M3 Handoff
 Goal:
