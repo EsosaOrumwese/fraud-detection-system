@@ -3071,3 +3071,45 @@ Patch details:
 Next action:
 1) rerun `segment3b-s2` on staged run-id `ef21b94d...`.
 2) if green, continue `S3->S5` and emit lane timing artifact for `POPT.1R.3` closure scoring.
+### Entry: 2026-02-19 12:02
+
+Design element: `3B POPT.1R.3 witness execution + closure evidence`.
+Summary: completed witness execution on staged run-id `ef21b94d...`, resolved staging-path blocker, and produced closure artifacts. Contract correctness remained green (`S2..S5 PASS`) but runtime gate failed badly due prep-lane regression.
+
+Execution timeline and blockers:
+1) first rerun after CSK patch failed with `E3B_S2_019_INFRASTRUCTURE_IO_ERROR` at `rng_logs`:
+   - detail: missing run-local tmp trace file path under `runs/.../tmp/...`.
+   - root cause: staged run root did not include `tmp/` directory.
+2) created run-local `tmp/` directory and reran `S2`.
+3) completed witness chain:
+   - `make segment3b-s2` (PASS),
+   - `make segment3b-s3` (PASS),
+   - `make segment3b-s4` (PASS),
+   - `make segment3b-s5` (PASS).
+
+Measured outcome (authority compare):
+1) baseline authority (`724a63d...`):
+   - `S2 wall = 406.375s`,
+   - prep lane `tile_read_map_alloc_project_total = 286.304s`.
+2) candidate (`ef21b94d...`):
+   - `S2 wall = 1267.437s`,
+   - prep lane `tile_read_map_alloc_project_total = 1148.305s` (`90.60%` share),
+   - edge loop `97.47s` (not the bottleneck).
+3) closure scorer verdict:
+   - `runtime_gate_pass = false`,
+   - `downstream_pass = true`,
+   - `rng_accounting_coherent = true`,
+   - decision `HOLD_POPT1_REOPEN`.
+
+Artifacts emitted:
+1) lane timing candidate:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r2_lane_timing_ef21b94d9d8743b2bc264e2c3a791865.json`
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r2_lane_timing_ef21b94d9d8743b2bc264e2c3a791865.md`
+2) closure scoring:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1_closure_ef21b94d9d8743b2bc264e2c3a791865.json`
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1_closure_ef21b94d9d8743b2bc264e2c3a791865.md`
+
+Interpretation:
+1) CSK implementation is functionally safe (validator semantics and downstream contracts intact).
+2) current batch-scan strategy is performance-regressive and does not satisfy `POPT.1` runtime gate.
+3) reopen focus stays on prep-lane algorithm redesign (reduce repeated batch scans and heavy collect cost) under memory-safe constraints.

@@ -880,6 +880,9 @@ Active-phase planning posture:
   - `M8.F` executed fail-closed on canonical rerun with blocker `M8F-B1`; `M8.G..M8.I` blocked pending remediation.
   - `M8.F` remediation reruns are green with blockers empty; `M8.G..M8.I` are unblocked.
   - `M8.G` is expanded to execution-grade with deterministic replay-anchor/reconciliation verification algorithm and snapshot contract.
+  - `M8.G` execution is green with blockers empty; `M8.H` is unblocked.
+  - `M8.H` is expanded to execution-grade with deterministic closure-marker/Obs-Gov surface verification algorithm and snapshot contract.
+  - `M8.H` execution is green with blockers empty; `M8.I` is unblocked.
 
 M8.A execution closure (2026-02-19):
   - execution id: `m8_20260219T073801Z`
@@ -1008,6 +1011,35 @@ M8.F execution closure (2026-02-19):
     - `M8.F` is closed
     - `M8.G..M8.I` are unblocked for sequential execution.
 
+M8.G execution closure (2026-02-19):
+  - execution id: `m8_20260219T114220Z`
+  - local snapshot: `runs/dev_substrate/m8/m8_20260219T114220Z/m8_g_replay_reconciliation_snapshot.json`
+  - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T114220Z/m8_g_replay_reconciliation_snapshot.json`
+  - result: `overall_pass=true`, blockers empty
+  - coherence outcomes:
+    - replay-anchor structure checks passed,
+    - anchor count parity checks passed,
+    - derived lower-bound checks passed (ingest expected `0` actual `0`; rtdl expected `0` actual `0`),
+    - reconciliation checks passed (`status=PASS`, all check-map predicates true),
+    - delta non-negativity and cross-artifact arithmetic identities passed.
+  - consequence:
+    - `M8.G` is closed
+    - `M8.H..M8.I` are unblocked for sequential execution.
+
+M8.H execution closure (2026-02-19):
+  - execution id: `m8_20260219T120213Z`
+  - local snapshot: `runs/dev_substrate/m8/m8_20260219T120213Z/m8_h_obs_gov_closure_snapshot.json`
+  - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T120213Z/m8_h_obs_gov_closure_snapshot.json`
+  - result: `overall_pass=true`, blockers empty
+  - closure-surface outcomes:
+    - closure marker present and valid (`status=COMPLETED`, run-scoped, required refs present),
+    - environment-conformance and anomaly-summary outputs valid and run-scoped,
+    - governance surface sample parse and run-scope checks passed,
+    - derived-summary boundary checks passed (no base-truth mutation signal).
+  - consequence:
+    - `M8.H` is closed
+    - `M8.I` is unblocked for execution.
+
 Sub-phase progress:
   - [x] `M8.A` P11 authority + handles closure.
   - [x] `M8.B` reporter runtime + lock readiness.
@@ -1015,14 +1047,14 @@ Sub-phase progress:
   - [x] `M8.D` single-writer contention fail-closed probe.
   - [x] `M8.E` reporter one-shot execution.
   - [x] `M8.F` closure evidence bundle completeness.
-  - [ ] `M8.G` replay anchor + reconciliation coherence.
-  - [ ] `M8.H` closure marker + env/anomaly outputs verification.
+  - [x] `M8.G` replay anchor + reconciliation coherence.
+  - [x] `M8.H` closure marker + env/anomaly outputs verification.
   - [ ] `M8.I` P11 verdict + M9 handoff.
 
 M8 DoD checklist:
 - [x] Single-writer reporter lock is enforced and evidenced.
 - [x] Required Obs/Gov closure artifacts are durable and run-scoped.
-- [ ] Replay anchors and reconciliation are coherent with prior phase evidence.
+- [x] Replay anchors and reconciliation are coherent with prior phase evidence.
 - [x] `run_completed.json` exists and references correct `platform_run_id`.
 - [ ] M8 verdict is `ADVANCE_TO_M9` with empty blocker rollup.
 - [ ] M9 handoff pack is published and non-secret.
@@ -1147,8 +1179,9 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M8 is active for deep-plan closure and execution sequencing.
 Next action:
-- execute `M8.G` replay-anchor + reconciliation coherence lane,
+- execute `M8.I` P11 verdict rollup + M9 handoff publication lane,
 - require durable artifact:
-  - `evidence/dev_min/run_control/<m8_execution_id>/m8_g_replay_reconciliation_snapshot.json`,
+  - `evidence/dev_min/run_control/<m8_execution_id>/m8_i_verdict_snapshot.json`,
+  - `evidence/dev_min/run_control/<m8_execution_id>/m9_handoff_pack.json`,
 - keep fail-closed posture:
-  - no advance to `M8.H` unless `M8.G` is `overall_pass=true` with blockers empty.
+  - no advance to `M9` unless `M8.I` is `overall_pass=true` with blockers empty and verdict `ADVANCE_TO_M9`.

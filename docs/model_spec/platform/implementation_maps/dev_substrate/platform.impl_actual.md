@@ -14704,3 +14704,112 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Phase posture
 1. `M8.G` is planning-complete and execution-ready.
 2. No runtime execution was performed in this planning step.
+
+## Entry: 2026-02-19 11:43:23 +00:00 - M8.G executed and closed PASS
+### Execution reasoning trail
+1. We held a strict entry gate from `M8.F` pass (`m8_20260219T111902Z`) and fixed run scope (`platform_20260213T214223Z`) before any coherence evaluation.
+2. Decision for replay-anchor validation was to avoid brittle non-empty assumptions; we used a derived lower-bound rule from upstream offsets:
+   - expected anchors are computed from partitions/rows that show progress (`run_end_offset >= 0` or `watermark_high > 0`),
+   - this prevents false failures in legitimate zero-progress windows.
+3. Reconciliation validation was pinned to three layers:
+   - status/check-map (`status=PASS`, all checks true),
+   - delta sanity (non-negative required deltas),
+   - arithmetic identity parity against `run_report` counters.
+4. We kept fail-closed taxonomy active end-to-end (`M8G-B1..B5`) and only accepted closure if blocker rollup stayed empty and snapshot publication succeeded.
+
+### Runtime outcomes
+1. Execution id: `m8_20260219T114220Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m8/m8_20260219T114220Z/m8_g_replay_reconciliation_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T114220Z/m8_g_replay_reconciliation_snapshot.json`.
+3. Verdict:
+   - `overall_pass=true`,
+   - blockers empty.
+4. Coherence details:
+   - replay-anchor structure present and count parity passed,
+   - derived lower-bound checks passed:
+     - ingest expected `0`, actual `0`,
+     - rtdl expected `0`, actual `0`,
+   - reconciliation checks passed:
+     - `status=PASS`,
+     - check-map all true,
+     - delta non-negativity passed,
+     - cross-artifact arithmetic identity checks passed.
+
+### Phase posture updates
+1. `M8.G` is complete.
+2. `M8.H..M8.I` are unblocked for sequential execution.
+
+## Entry: 2026-02-19 11:39:16 +00:00 - M8.H planning expanded to execution-grade
+### Problem framing
+1. `M8.H` was summary-only and not yet execution-safe (no pinned entry gate, no deterministic checks, no snapshot schema contract).
+2. This lane must prove P11 closeout surface integrity, not just object presence.
+
+### Runtime-shape grounding used for planning
+1. `run_completed.json` shape validated live:
+   - keys: `status`, `platform_run_id`, `closure_refs`, `generated_at_utc`,
+   - status currently `COMPLETED`.
+2. `environment_conformance.json` shape validated live:
+   - keys: `status`, `checks`, `profiles`, `platform_run_id`, `generated_at_utc`,
+   - status currently `PASS`, checks currently all `PASS`.
+3. `anomaly_summary.json` shape validated live:
+   - keys: `status`, `anomaly_total`, `anomaly_counts`, `platform_run_id`, `generated_at_utc`,
+   - status currently `PASS`.
+4. Governance surface validated live:
+   - `obs/governance/events.jsonl` exists and is readable.
+
+### Planning decisions
+1. Entry gate is hard-pinned to `M8.G` pass posture (same fail-closed model used in prior lanes).
+2. `run_completed.json` is treated as canonical closure marker and must carry resolvable run-scoped refs for:
+   - run report, reconciliation, replay anchors, environment conformance, anomaly summary, governance events.
+3. Obs output validation includes both status and semantic coherence:
+   - environment conformance: all checks pass,
+   - anomaly summary: non-negative total and total equals sum of count-map values.
+4. Derived-summary boundary check is explicitly introduced (no base-truth mutation signal):
+   - summary payloads must remain contract-bounded (no raw payload surfaces),
+   - closure refs must resolve to Obs/Gov summary surfaces only.
+5. Governance surface verification is pinned to parseable JSONL sample with required fields and run-scope conformance, plus presence of `RUN_REPORT_GENERATED`.
+6. Blocker taxonomy extended for prerequisite/handle failure and summary-boundary violation:
+   - `M8H-B4`, `M8H-B5`, `M8H-B6`.
+
+### Plan outputs updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`:
+   - `M8.H` expanded to execution-grade (entry/precheck/algorithm/snapshot schema/runtime budget).
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - M8 expansion-state bullet updated to record `M8.H` execution-grade planning posture.
+
+### Phase posture
+1. `M8.H` is planning-complete and execution-ready.
+2. No runtime execution was performed in this planning step.
+
+## Entry: 2026-02-19 12:03:25 +00:00 - M8.H executed and closed PASS
+### Execution reasoning trail
+1. Entry gate was held strictly at `M8.G` pass (`m8_20260219T114220Z`) with run scope fixed to `platform_20260213T214223Z`.
+2. Closure-marker verification was treated as a contract gate, not a file-exists gate:
+   - required `status=COMPLETED`,
+   - required run-scope conformance,
+   - required closure-ref completeness + resolvability.
+3. Governance verification decision:
+   - validate parse/schema/run-scope on sampled rows (`N=50`) for budgeted execution,
+   - additionally require `RUN_REPORT_GENERATED` presence to prove closeout event surface.
+4. Derived-summary boundary was enforced as a separate blocker family (`M8H-B6`) to keep P11 outputs strictly summary-level and prevent latent base-truth coupling.
+5. Fail-closed posture was preserved end-to-end (`M8H-B1..B6`); closure accepted only with empty blocker rollup and durable snapshot publication.
+
+### Runtime outcomes
+1. Execution id: `m8_20260219T120213Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m8/m8_20260219T120213Z/m8_h_obs_gov_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T120213Z/m8_h_obs_gov_closure_snapshot.json`.
+3. Verdict:
+   - `overall_pass=true`,
+   - blockers empty.
+4. Verification highlights:
+   - closure marker checks all pass,
+   - env-conformance checks all pass,
+   - anomaly-summary numeric coherence passes,
+   - governance sample parse/field/run-scope checks pass and `RUN_REPORT_GENERATED` is present,
+   - derived-summary boundary checks pass.
+
+### Phase posture updates
+1. `M8.H` is complete.
+2. `M8.I` is unblocked for execution.

@@ -384,9 +384,22 @@ Scope:
 - enforce batch RSS safety by design (bounded batch size, no global full materialization).
 
 Definition of done:
-- [ ] S2 prep lane completes without infra/memory failures.
+- [x] S2 prep lane completes without infra/memory failures.
 - [ ] tile prep delta is materially below the failed reopen attempts.
-- [ ] all existing S2 validator behaviors remain intact.
+- [x] all existing S2 validator behaviors remain intact.
+
+POPT.1R.3 execution record:
+- witness run-id: `ef21b94d9d8743b2bc264e2c3a791865`.
+- execution outcome:
+  - `S2..S5 PASS`,
+  - `S2 wall=1267.437s` (`00:21:07`) vs baseline `406.375s`,
+  - prep lane (`tile_read_map_alloc_project_total`) `1148.305s` (`90.60%` of S2 wall).
+- guardrail checks:
+  - validator behavior intact (`tile_*` failure taxonomy unchanged),
+  - RNG accounting coherent (`rng_events_total=169272`, `rng_draws_total=338544`, `rng_blocks_total=169272`).
+- closure posture:
+  - runtime gate failed (`HOLD_POPT1_REOPEN`),
+  - reopen required for prep-lane algorithm, not for contract correctness.
 
 ### POPT.1R.4 - Loop/log budget alignment (secondary reopen trim)
 Goal:
@@ -413,9 +426,18 @@ Scope:
   - RNG accounting coherent.
 
 Definition of done:
-- [ ] closure artifact emitted for reopen candidate.
-- [ ] explicit decision recorded: `UNLOCK_POPT2` or `HOLD_POPT1_REOPEN`.
-- [ ] superseded failed run folders are pruned after evidence capture.
+- [x] closure artifact emitted for reopen candidate.
+- [x] explicit decision recorded: `UNLOCK_POPT2` or `HOLD_POPT1_REOPEN`.
+- [x] superseded failed run folders are pruned after evidence capture.
+
+POPT.1R.5 closure record:
+- closure artifacts:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1r2_lane_timing_ef21b94d9d8743b2bc264e2c3a791865.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1_closure_ef21b94d9d8743b2bc264e2c3a791865.json`
+- decision:
+  - `HOLD_POPT1_REOPEN` (runtime gate fail, downstream non-regression pass).
+- run-retention note:
+  - no additional superseded run-id folders were created during this closure lane.
 
 ### POPT.2 - Secondary hotspot optimization (expected S5 or S3)
 Goal:

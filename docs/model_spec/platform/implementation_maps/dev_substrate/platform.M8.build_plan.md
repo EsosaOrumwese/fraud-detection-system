@@ -882,9 +882,9 @@ Tasks:
 4. Emit `m8_g_replay_reconciliation_snapshot.json`.
 
 DoD:
-- [ ] Replay anchors are structurally complete and coherent.
-- [ ] Reconciliation results are coherent with upstream evidence.
-- [ ] Snapshot exists locally and durably.
+- [x] Replay anchors are structurally complete and coherent.
+- [x] Reconciliation results are coherent with upstream evidence.
+- [x] Snapshot exists locally and durably.
 
 Blocker Codes (Taxonomy):
 1. `M8G-B1`: replay anchor fields missing/incoherent.
@@ -907,27 +907,158 @@ Runtime budget:
 
 Planning status:
 1. `M8.G` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
-2. Runtime execution is pending.
+2. Runtime execution is complete with pass closure.
+
+Execution closure (2026-02-19):
+1. Execution id: `m8_20260219T114220Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m8/m8_20260219T114220Z/m8_g_replay_reconciliation_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T114220Z/m8_g_replay_reconciliation_snapshot.json`.
+3. Outcomes:
+   - `overall_pass=true`,
+   - blockers empty,
+   - run-scope checks passed across all source artifacts.
+4. Replay-anchor coherence outcomes:
+   - required keys present,
+   - count parity passed (`counts` match anchor arrays),
+   - derived lower-bounds from offsets:
+     - ingest expected min `0`, actual `0`,
+     - rtdl expected min `0`, actual `0`,
+     - both lower-bound checks passed.
+5. Reconciliation coherence outcomes:
+   - `status=PASS`,
+   - all boolean checks true,
+   - non-negative deltas passed,
+   - cross-artifact arithmetic identity checks passed.
+6. Phase posture:
+   - `M8.G` is closed,
+   - `M8.H` is unblocked.
 
 ### M8.H Closure Marker + Obs/Gov Surface Verification
 Goal:
 1. Confirm closure marker and governance outputs satisfy P11 close condition.
 
+Entry conditions:
+1. `M8.G` is pass with blockers empty.
+2. Active run scope is pinned to:
+   - `platform_run_id=platform_20260213T214223Z`.
+3. No unresolved blockers remain from `M8.G`.
+
+Required inputs:
+1. `M8.G` pass snapshot (local preferred, durable fallback).
+2. Run-scoped closure artifacts:
+   - `evidence/runs/<platform_run_id>/run_completed.json`
+   - `evidence/runs/<platform_run_id>/obs/environment_conformance.json`
+   - `evidence/runs/<platform_run_id>/obs/anomaly_summary.json`
+   - `evidence/runs/<platform_run_id>/obs/governance/events.jsonl`.
+3. Referenced closure-ref artifacts from `run_completed.json`:
+   - `obs/run_report.json`
+   - `obs/reconciliation.json`
+   - `obs/replay_anchors.json`.
+4. M8 control-plane evidence root for `m8_h_obs_gov_closure_snapshot.json`.
+
+Preparation checks (fail-closed):
+1. Validate `M8.G` pass posture and run-scope match.
+2. Validate all required objects are readable.
+3. Validate closure refs in `run_completed.json` are non-empty and run-scoped.
+4. Validate required handle values are concrete (no placeholder/wildcard) before evaluation.
+
+Deterministic verification algorithm (M8.H):
+1. Load `M8.G` pass snapshot; fail on missing/invalid/pass-mismatch -> `M8H-B4`.
+2. Load and parse:
+   - `run_completed.json`
+   - `environment_conformance.json`
+   - `anomaly_summary.json`
+   - referenced closure-ref JSON objects (`run_report`, `reconciliation`, `replay_anchors`).
+3. Enforce closure-marker checks:
+   - `status == COMPLETED`,
+   - `platform_run_id` equals active run scope,
+   - `closure_refs` includes required refs:
+     - `run_report_ref`,
+     - `reconciliation_ref`,
+     - `replay_anchors_ref`,
+     - `environment_conformance_ref`,
+     - `anomaly_summary_ref`,
+     - `governance_events_ref`,
+   - each closure ref resolves to readable object under the same run scope.
+4. Enforce Obs output checks:
+   - `environment_conformance.status == PASS`,
+   - every check row in `environment_conformance.checks` has `status == PASS`,
+   - `anomaly_summary.status == PASS`,
+   - `anomaly_summary.anomaly_total >= 0`,
+   - `anomaly_summary.anomaly_total == sum(anomaly_summary.anomaly_counts[*])`.
+5. Enforce derived-summary boundary checks (no base-truth mutation signal):
+   - `run_completed`, `environment_conformance`, and `anomaly_summary` top-level keys remain contract-bounded summary keys (no raw event payload arrays/maps),
+   - closure refs resolve to Obs/Gov summary surfaces only (`obs/*` and `run_completed.json`), not mutable base-truth stores.
+6. Governance surface checks:
+   - `obs/governance/events.jsonl` exists and is readable,
+   - sample parse check passes for first N lines (N>=50) with required event fields:
+     - `event_id`,
+     - `event_family`,
+     - `ts_utc`,
+     - `pins.platform_run_id`,
+   - sampled governance rows are run-scoped (`pins.platform_run_id == active run scope`),
+   - at least one `RUN_REPORT_GENERATED` event exists in sampled or full scan result.
+7. Emit `m8_h_obs_gov_closure_snapshot.json` locally and publish durably.
+8. Return `overall_pass=true` only when blocker list is empty.
+
 Tasks:
-1. Verify `run_completed.json` exists and indicates completed run posture.
-2. Verify `environment_conformance.json` and `anomaly_summary.json` are present and run-scoped.
-3. Verify outputs remain derived summaries (no base-truth mutation signal).
-4. Emit `m8_h_obs_gov_closure_snapshot.json`.
+1. Validate closure marker shape, status, run scope, and closure-ref resolvability.
+2. Validate environment-conformance and anomaly-summary PASS posture and numeric coherence.
+3. Validate governance surface readability + schema/run-scope sample checks.
+4. Validate derived-summary boundary posture (no base-truth mutation signal).
+5. Emit `m8_h_obs_gov_closure_snapshot.json`.
 
 DoD:
-- [ ] Closure marker exists with correct run scope.
-- [ ] Environment-conformance and anomaly-summary outputs are present and valid.
-- [ ] Snapshot exists locally and durably.
+- [x] Closure marker exists with correct run scope.
+- [x] Environment-conformance and anomaly-summary outputs are present and valid.
+- [x] Derived-summary boundary checks pass (no base-truth mutation signal).
+- [x] Snapshot exists locally and durably.
 
 Blocker Codes (Taxonomy):
 1. `M8H-B1`: closure marker missing/invalid.
 2. `M8H-B2`: required Obs/Gov output missing/invalid.
 3. `M8H-B3`: snapshot write/upload failure.
+4. `M8H-B4`: `M8.G` prerequisite or run-scope gate failed.
+5. `M8H-B5`: evidence-handle resolution/preparation check failed.
+6. `M8H-B6`: derived-summary boundary violation.
+
+Required snapshot fields (`m8_h_obs_gov_closure_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m8_execution_id`.
+2. `source_m8g_snapshot_local`, `source_m8g_snapshot_uri`.
+3. `artifact_refs` (`run_completed`, `environment_conformance`, `anomaly_summary`, `governance_events`, `run_report`, `reconciliation`, `replay_anchors`).
+4. `closure_marker_checks`, `closure_ref_checks`.
+5. `env_conformance_checks`, `anomaly_summary_checks`.
+6. `governance_surface_checks`, `derived_summary_boundary_checks`.
+7. `blockers`, `overall_pass`, `elapsed_seconds`.
+
+Runtime budget:
+1. `M8.H` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
+
+Planning status:
+1. `M8.H` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
+2. Runtime execution is complete with pass closure.
+
+Execution closure (2026-02-19):
+1. Execution id: `m8_20260219T120213Z`.
+2. Snapshot artifacts:
+   - local: `runs/dev_substrate/m8/m8_20260219T120213Z/m8_h_obs_gov_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T120213Z/m8_h_obs_gov_closure_snapshot.json`.
+3. Outcomes:
+   - `overall_pass=true`,
+   - blockers empty,
+   - closure-marker, Obs outputs, governance surface, and derived-summary checks all passed.
+4. Key verification outcomes:
+   - closure marker (`run_completed.json`) exists, parseable, `status=COMPLETED`, run-scoped, and includes all required closure refs,
+   - environment conformance is `PASS` with all check rows `PASS`,
+   - anomaly summary is `PASS` with coherent numeric totals,
+   - governance surface parse checks passed for first `50` sampled rows with required fields and run scope,
+   - governance surface includes `RUN_REPORT_GENERATED`,
+   - derived-summary boundary checks passed (contract-bounded keys, allowed closure-ref surfaces only, no raw payload fields).
+5. Phase posture:
+   - `M8.H` is closed,
+   - `M8.I` is unblocked.
 
 ### M8.I P11 Verdict + M9 Handoff
 Goal:
@@ -1016,8 +1147,8 @@ Notes:
 - [x] M8.D complete
 - [x] M8.E complete
 - [x] M8.F complete
-- [ ] M8.G complete
-- [ ] M8.H complete
+- [x] M8.G complete
+- [x] M8.H complete
 - [ ] M8.I complete
 
 ## 9) Exit Criteria
