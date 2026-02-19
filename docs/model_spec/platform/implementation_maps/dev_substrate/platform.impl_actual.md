@@ -15888,3 +15888,40 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - blockers empty.
 2. `M9.I` is now unblocked and is the next execution lane.
 
+## Entry: 2026-02-19 18:43:46 +00:00 - Addressed Copilot workflow review findings for M9.G managed lanes
+### Problem framing
+1. Copilot review surfaced failure-mode gaps in the two managed workflows:
+   - unsafe arithmetic division on potentially invalid budget inputs,
+   - billing-service region ambiguity,
+   - weak date input validation,
+   - currency precision drift due to float serialization,
+   - weak timeout input validation and noisy script hygiene issues.
+2. These lanes are fail-closed gates, so ambiguous parsing/region behavior is a correctness risk, not just style.
+
+### Decisions and implementation
+1. Hardened timeout parsing in `.github/workflows/dev_min_m9g_cost_guardrail.yml`:
+   - added explicit integer validation for `TIMEOUT_MINUTES` before bash arithmetic.
+2. Hardened budget/cost decimal handling in guardrail snapshot builder:
+   - removed unused `as_decimal` helper,
+   - added robust `parse_decimal_env(...)` with structured error emission,
+   - fail-closed on invalid/non-positive `AWS_BUDGET_LIMIT_AMOUNT` and `TOTAL_MONTHLY_BUDGET_LIMIT_AMOUNT`.
+3. Pinned billing API calls to billing region in guardrail lane:
+   - `budgets describe-*` and `ce get-cost-and-usage` now call with `--region us-east-1`.
+4. Removed silent notification-threshold parsing:
+   - replaced bare `except Exception: pass` with typed exceptions and structured `errors[]` entries.
+5. Guarded utilization computations:
+   - `mtd_cost_posture.utilization_pct` now only computes when divisor is present and `>0`,
+   - `combined_budget_utilization_pct` now computes only when `total_limit>0`; otherwise lane remains fail-closed.
+6. Improved Confluent billing workflow input rigor in `.github/workflows/dev_min_m9g_confluent_billing.yml`:
+   - introduced strict `%Y-%m-%d` parsing with explicit blocker/error (`INVALID_BILLING_DATE_FORMAT`),
+   - range check now uses parsed date objects (not raw string comparison).
+7. Eliminated float currency drift:
+   - `confluent_mtd_cost_amount` is now serialized and output as string (`Decimal` text form), not `float`.
+8. Normalized secret env expectations:
+   - workflow now exposes both `TF_VAR_confluent_cloud_api_*` and `CONFLUENT_CLOUD_API_*`,
+   - runtime lookup accepts either naming surface to align operator expectations across workflows.
+
+### Outcome
+1. Copilot findings were resolved with fail-closed behavior preserved.
+2. The managed M9.G lanes are now more deterministic under malformed input/region edge cases.
+
