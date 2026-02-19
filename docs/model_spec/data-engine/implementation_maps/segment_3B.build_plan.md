@@ -1044,6 +1044,79 @@ Definition of done:
 - [ ] failing gates are explicitly enumerated by severity.
 - [ ] scorer artifact contract is fixed for subsequent phases.
 
+### P0.1 - Authority baseline lock (run + surfaces)
+Goal:
+- pin the exact baseline authority run/surfaces so all later movement is measured against one immutable posture.
+
+Scope:
+- lock active baseline run-id and manifest fingerprint for Segment `3B`.
+- lock baseline source datasets for metric extraction:
+  - `virtual_classification_3B`,
+  - `virtual_settlement_3B`,
+  - `edge_catalogue_3B`,
+  - `virtual_validation_contract_3B`.
+- emit baseline lock artifact with run-id, manifest fingerprint, and dataset paths.
+
+Definition of done:
+- [ ] baseline lock artifact exists under `runs/fix-data-engine/segment_3B/reports/`.
+- [ ] run-id + manifest fingerprint are explicitly pinned for P0-P5 continuity.
+- [ ] baseline dataset surface map is explicit and reviewable.
+
+### P0.2 - Per-seed realism metric extraction (hard + stretch)
+Goal:
+- compute authoritative per-seed realism measurements on all declared hard/stretch metrics.
+
+Scope:
+- run metric extraction for required seeds `{42,7,101,202}` from locked surfaces.
+- compute and persist:
+  - heterogeneity metrics (`3B-V01..V04`, `3B-S01..S04`),
+  - settlement-coherence metrics (`3B-V05..V07`, `3B-S05..S07`, `3B-S10`),
+  - explainability/coverage metrics (`3B-V08..V10`, `3B-S08..S09`),
+  - structural realism gate proxy (`3B-V12` observable fields).
+- emit one metric artifact per seed.
+
+Definition of done:
+- [ ] `3B_validation_metrics_seed_<seed>.json` emitted for all required seeds.
+- [ ] every `3B-V*` and `3B-S*` metric has a measured value per seed (no missing fields).
+- [ ] per-seed metrics carry run-id + manifest provenance fields.
+
+### P0.3 - Cross-seed stability and failure decomposition
+Goal:
+- quantify stability and decompose failures into remediation-ready deltas for P1/P2/P3.
+
+Scope:
+- compute cross-seed stability checks (`3B-X01..X03`).
+- generate failing-gate matrix:
+  - failed metric,
+  - observed value(s),
+  - threshold(s),
+  - miss distance (absolute + percent),
+  - probable causal state (`S1`, `S2`, `S4`) aligned to remediation report hypotheses.
+- rank failures by closure leverage (largest miss-distance + upstream causal leverage first).
+
+Definition of done:
+- [ ] `3B_validation_cross_seed_summary.json` emitted with `3B-X*` results.
+- [ ] failure matrix is explicit with quantified miss-distance for each failing gate.
+- [ ] ranked remediation backlog is produced and mapped to `P1/P2/P3`.
+
+### P0.4 - Scorer contract freeze and P1 handoff pack
+Goal:
+- freeze scoring semantics so later phase movement is real and cannot be "regraded" by changing the ruler.
+
+Scope:
+- freeze metric definitions, threshold table, grading rubric (`PASS_B`, `PASS_BPLUS`, `FAIL_REALISM`), and artifact schema.
+- emit P0 handoff pack:
+  - baseline lock artifact,
+  - per-seed metric pack,
+  - cross-seed summary,
+  - failure decomposition note with initial target deltas.
+- record explicit `P1` entry targets for S1 lineage metrics (`V08/V09/V10` and related stretch metrics).
+
+Definition of done:
+- [ ] scorer contract is versioned/pinned and referenced in plan.
+- [ ] P0 handoff pack is complete and reproducible.
+- [ ] `P1` starts with explicit numeric entry targets sourced from P0 evidence.
+
 ### P1 - S1 lineage enrichment (`CF-3B-03`)
 Goal:
 - make classification explainability auditable and non-opaque.
@@ -1132,7 +1205,7 @@ Definition of done:
 - `POPT.2R`: completed (`UNLOCK_POPT3`)
 - `POPT.3`: completed (`UNLOCK_POPT4`)
 - `POPT.4`: completed (`CLOSED_UNLOCK_P0`)
-- `P0`: pending (`UNLOCKED_AFTER_POPT4`)
+- `P0`: pending (`PLANNING_EXPANDED`)
 - `P1`: pending
 - `P2`: pending
 - `P3`: pending

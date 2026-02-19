@@ -3963,3 +3963,26 @@ Gate outcomes:
 Decision:
 1) `POPT.4` decision updated to `CLOSED`.
 2) next lane is `P0` (realism baseline lock/scaffolding) with POPT gate cleared.
+### Entry: 2026-02-19 16:12
+
+Design element: `3B P0 expansion to execution-grade subphases`.
+Summary: expanded `P0` from a high-level placeholder into a deterministic four-lane plan so baseline realism evidence is pinned before any S1/S2/S4 remediation edits.
+
+Why this expansion:
+1) avoid ambiguous "baseline" language that allows metric drift during remediation.
+2) enforce one immutable authority posture for all downstream phase movement.
+3) ensure P1/P2/P3 start from quantified miss-distance instead of qualitative impressions.
+
+Expanded lanes:
+1) `P0.1` authority baseline lock:
+   - pin run-id/manifest + exact dataset surfaces for metrics.
+2) `P0.2` per-seed metric extraction:
+   - compute full hard/stretch metric set for required seeds `{42,7,101,202}`.
+3) `P0.3` cross-seed + failure decomposition:
+   - compute stability gates and rank failure miss-distance with causal-state mapping.
+4) `P0.4` scorer contract freeze + P1 handoff:
+   - lock metric/threshold/rubric schema and pin numeric P1 entry targets.
+
+Decision:
+1) plan status moved to `P0: pending (PLANNING_EXPANDED)`.
+2) next execution step is `P0.1` (baseline lock artifact emission) before any state-level code/policy changes.
