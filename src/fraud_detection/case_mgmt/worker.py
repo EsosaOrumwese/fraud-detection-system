@@ -316,8 +316,9 @@ class CaseMgmtWorker:
                     start_position=start_position,
                 ):
                     payload = record.get("payload") if isinstance(record.get("payload"), Mapping) else {}
-                    if isinstance(payload.get("payload"), Mapping):
-                        payload = dict(payload.get("payload") or {})
+                    # Keep the full Kafka envelope so _process_record can validate event_type/run scope.
+                    if isinstance(payload.get("envelope"), Mapping):
+                        payload = dict(payload.get("envelope") or {})
                     rows.append(
                         {
                             "topic": topic,

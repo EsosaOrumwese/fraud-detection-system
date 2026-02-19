@@ -13340,3 +13340,62 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - nested payload mapping (when present).
 2. If inferred event type originates from nested payload, route nested payload directly to adapter path.
 3. Rebuild/publish image and rematerialize case-trigger again, then rerun run-scoped DB evidence checks.
+
+## Entry: 2026-02-19 04:15:27 +00:00 - P10.B active blocker isolation (stale IG endpoint in case-trigger runtime)
+### Managed probe findings
+1. ECS service readiness is green for `case-trigger`, `case-mgmt`, `label-store`, and `ig` (`desired=1`, `running=1`, `pending=0`).
+2. `P10.B` DB probe remains fail-closed:
+   - `case_trigger_replay_ledger` has run-scoped rows,
+   - `case_trigger_publish` has `PUBLISHED=0`,
+   - `cm_case_timeline` and `ls_*` remain zero.
+3. Reason-code probe shows dominant publish outcome is `AMBIGUOUS` with:
+   - `IG_PUSH_RETRY_EXHAUSTED ... No route to host` against `http://10.42.0.44:8080`.
+4. Live IG task currently runs at private IP `10.42.0.46`, while case-trigger task definition still pins `IG_INGEST_URL=http://10.42.0.44:8080`.
+
+### Root cause
+1. `case-trigger` has endpoint drift: IG ingress target is task-private-IP pinned at deploy time and became stale after IG rematerialization.
+2. This maps directly to `M7H-B5` (runtime conformance failure) and blocks downstream `M7H-B1` closure because no publish success reaches case lane.
+
+### Decision
+1. Remediate by repinning `ig_ingest_url` to the current IG private endpoint and rematerializing case-trigger task definition/service.
+2. Execute run-scoped cleanup/reset for case-trigger + case/label tables/checkpoints to remove stale ambiguous/mismatch debt before replay.
+3. Re-run managed DB probes; only proceed to artifact publication when:
+   - run-scoped published count is non-zero,
+   - CM/LS append surfaces are non-zero and coherent,
+   - duplicate inflation checks remain zero.
+
+## Entry: 2026-02-19 04:36:15 +00:00 - P10.B deterministic mismatch root cause pinned (observed_time drift)
+### Probe evidence
+1. After endpoint and auth alignment, `case-trigger` remained fail-closed with `REPLAY_PAYLOAD_MISMATCH` quarantine outcomes.
+2. Managed mismatch diff probe on latest run-scoped mismatch row shows payload drift is isolated to:
+   - `observed_time`,
+   - downstream `payload_hash`.
+3. `case_trigger_id` remains stable, so repeated source rows with same deterministic identity are treated as mismatches solely because worker currently injects envelope-time (`ts_utc`) as `observed_time`.
+
+### Root cause
+1. In `src/fraud_detection/case_trigger/worker.py`, `_adapt_trigger` overrides adapter timestamp with bus-envelope time for both decision and action paths.
+2. Replayed/duplicated RTDL rows can carry different envelope delivery times while representing the same deterministic source decision, causing false payload-hash drift and quarantine.
+
+### Decision
+1. Patch `_adapt_trigger` to use source-contract timestamps first:
+   - DF decision -> `decided_at_utc`,
+   - AL outcome -> `completed_at_utc`.
+2. Use envelope timestamp only as fallback when source payload omits contract timestamp.
+3. Rebuild/publish image, rematerialize `case-trigger`, clear run-scoped case-trigger/case/label state, then rerun P10.B probes and artifact closure.
+
+## Entry: 2026-02-19 05:37:43 +00:00 - P10.B blocker root-cause pinned (CaseMgmt Kafka envelope strip)
+### Runtime evidence gathered
+1. Managed DB probe confirmed: case_trigger_publish has non-zero admits (ADMIT=197), while cm_* and ls_* commit tables remain zero.
+2. IG log evidence on active task shows successful publishes to p.bus.case.v1 up to offsets 378..392 for vent_type=case_trigger.
+3. Managed one-shot Kafka probe from CaseMgmt runtime credentials confirmed topic payload shape is canonical envelope with top-level vent_type=case_trigger and top-level platform_run_id=platform_20260213T214223Z.
+4. Active CaseMgmt runtime log stream loops Resetting offset ... to offset 196 with no intake/label commit progression.
+
+### Root cause
+1. In src/fraud_detection/case_mgmt/worker.py (_read_kafka), Kafka rows were being reduced from envelope to nested payload body.
+2. _process_record expects envelope-level vent_type; stripping removes that discriminator, so case-trigger records are never admitted into CM intake.
+3. This leaves P10.B fail-closed under M7H-B1/M7H-B5 despite IG publish success.
+
+### Decision and implementation
+1. Patched _read_kafka to preserve full envelope semantics for Kafka records and only unwrap explicit nvelope wrappers when present.
+2. Kept the change minimal and scoped to CaseMgmt Kafka intake path.
+3. Next lane is mandatory: rebuild/publish image, rematerialize case-mgmt service, then rerun P10.B evidence probes.
