@@ -142,12 +142,18 @@ def main() -> None:
         / "index.json"
     )
     s7_index = _load_json(s7_index_path)
+    s7_flag_path = (
+        run_root
+        / "data/layer1/3A/validation"
+        / f"manifest_fingerprint={manifest_fingerprint}"
+        / "_passed.flag"
+    )
 
     veto = {
         "s6_status_pass": str(s6_report.get("status")) == "PASS" and str(s6_report.get("overall_status")) == "PASS",
         "s6_issues_error_zero": int((s6_report.get("counts") or {}).get("issues_error") or 0) == 0,
         "s7_status_pass": str(s7_report.get("status")) == "PASS",
-        "s7_passed_flag_present": any(
+        "s7_passed_flag_present": s7_flag_path.exists() or any(
             str(item.get("path", "")).endswith("_passed.flag")
             for item in (s7_index.get("files") or [])
             if isinstance(item, dict)

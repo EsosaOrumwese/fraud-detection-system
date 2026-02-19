@@ -3318,3 +3318,98 @@ Next execution step:
 - run `S0->S7`,
 - emit `segment3a_popt0_baseline_<run_id>.json` for candidate timing,
 - execute `segment3a_popt1_closure_<run_id>.json` scoring.
+
+### Entry: 2026-02-19 01:32
+
+Design element: `POPT.1 closure unblock pass (S5 + scorer/veto hygiene)`.
+Summary: closure evidence showed `S6/S7` runtime gates are green, but `POPT.1`
+remains blocked by two items: `S5` required runtime gate miss and false-negative
+`S7 _passed.flag` veto detection in the scorer.
+
+Observed closure result (`run_id=3bad5e09e5ae46a3beb949dd718233fa`):
+1) green movement:
+   - `S6`: `17.94s -> 3.33s` (runtime gate clear).
+   - `S7`: `13.15s -> 2.92s` (runtime gate clear).
+2) open gates:
+   - `S5`: `12.50s -> 12.16s` (required gate not yet clear).
+   - `s7_passed_flag_present=False` despite `_passed.flag` physically present in
+     `data/layer1/3A/validation/...`.
+
+Execution decisions pinned before edits:
+1) scorer hygiene fix first:
+   - patch `tools/score_segment3a_popt1_closure.py` to validate `S7` pass flag
+     by direct path existence fallback in addition to index listing.
+2) runtime hygiene fix for log spam:
+   - throttle unknown-total progress mode in `S6/S7` so updates are cadence-
+     limited (no per-row spam when totals are unknown).
+3) required runtime closure fix for `S5`:
+   - remove redundant row-wise upstream schema re-validation loops in `S5`
+     (`S1..S4`) and replace with fail-closed required-column guards.
+   - preserve all structural/domain/conservation checks and fail-closed aborts.
+4) verification lane:
+   - compile patched files,
+   - run fresh staged `segment3a` candidate,
+   - rescore `POPT.1` closure,
+   - keep only baseline + latest evidence run-id after closure.
+
+Risk control:
+- No policy/coeff/statistical-logic changes.
+- Changes are runtime-path optimizations and scorer correctness only.
+- Structural vetoes remain mandatory (`S6/S7 PASS`, `S5` conservation, identity).
+
+### Entry: 2026-02-19 01:36
+
+Design element: `POPT.1 closure completion`.
+Summary: closed Segment `3A` `POPT.1` by fixing scorer veto detection,
+removing residual runtime overhead in `S5`, and re-running full `S0->S7`
+candidate lane with prune retention applied.
+
+Edits executed:
+1) scorer veto fix:
+   - file: `tools/score_segment3a_popt1_closure.py`.
+   - change: `s7_passed_flag_present` now passes if either:
+     - `_passed.flag` appears in `index.json` member list, or
+     - direct file exists at
+       `data/layer1/3A/validation/manifest_fingerprint=<...>/_passed.flag`.
+   - reason: previous scorer produced a false-negative veto despite physical
+     pass-flag presence.
+
+2) runtime hygiene (`S6/S7`):
+   - files:
+     - `packages/engine/src/engine/layers/l1/seg_3A/s6_validation/runner.py`
+     - `packages/engine/src/engine/layers/l1/seg_3A/s7_validation_bundle/runner.py`
+   - change: unknown-total progress updates now obey cadence throttling
+     (`0.5s`) instead of logging every event/update.
+   - result: removed high-volume log spam and associated overhead in `S7`.
+
+3) `S5` closure-lane optimization:
+   - file: `packages/engine/src/engine/layers/l1/seg_3A/s5_zone_alloc/runner.py`.
+   - change: replaced redundant upstream row-wise schema re-validation
+     (`S1..S4`) with fail-closed required-column guards (`_require_columns`).
+   - preserved rails:
+     - domain checks,
+     - conservation checks,
+     - routing universe digest/masking contract,
+     - output schema validation and publish immutability checks.
+
+Execution evidence:
+- candidate run-id: `81599ab107ba4c8db7fc5850287360fe`
+- command: `make segment3a ... RUN_ID=81599ab107ba4c8db7fc5850287360fe`
+- run result: PASS (`S0..S7`).
+- measured runtime movement (vs baseline `06b822558c294a0888e3f8f342e83947`):
+  - `S5`: `12.499s -> 4.596s` (`+63.23%`)
+  - `S6`: `17.942s -> 2.933s` (`+83.65%`)
+  - `S7`: `13.145s -> 2.249s` (`+82.89%`)
+
+Closure artifacts:
+- `runs/fix-data-engine/segment_3A/reports/segment3a_popt1_closure_81599ab107ba4c8db7fc5850287360fe.json`
+- `runs/fix-data-engine/segment_3A/reports/segment3a_popt1_closure_81599ab107ba4c8db7fc5850287360fe.md`
+- closure decision: `UNLOCK_P0`
+- veto summary: all clear (`S6/S7 PASS`, `_passed.flag` present,
+  `S5` conservation zero, manifest/parameter identity match).
+
+Storage hygiene:
+- pruned superseded run folders under `runs/fix-data-engine/segment_3A`.
+- keep set now:
+  - baseline: `06b822558c294a0888e3f8f342e83947`
+  - latest closure candidate: `81599ab107ba4c8db7fc5850287360fe`

@@ -147,11 +147,7 @@ class _ProgressTracker:
     def update(self, count: int) -> None:
         self._processed += int(count)
         now = time.monotonic()
-        if (
-            now - self._last_log < 0.5
-            and self._total is not None
-            and self._processed < self._total
-        ):
+        if now - self._last_log < 0.5 and (self._total is None or self._processed < self._total):
             return
         self._last_log = now
         elapsed = now - self._start

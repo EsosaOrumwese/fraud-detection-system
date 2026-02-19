@@ -12885,3 +12885,90 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Gate impact
 1. `M7G-B1` is closed.
 2. `P10.A` entry gate can proceed to runtime execution checks (`M7G-B2..B5`).
+
+## Entry: 2026-02-19 01:31:00 +00:00 - M7.G / P10.A execution start (live decision logging)
+### User directive
+1. Proceed to execute `P10.A` and document decisions along the way.
+
+### Execution contract for this lane
+1. Use existing `M7` execution scope:
+   - `platform_run_id=platform_20260213T214223Z`
+   - `m7_execution_id=m7_20260218T141420Z`.
+2. Execute fail-closed checks in order:
+   - subject-key resolution + runtime-truth match,
+   - managed DB readiness from managed runtime network,
+   - CM/LS service two-probe readiness,
+   - snapshot publish local + durable.
+3. At each substantial step, append outcomes before moving forward.
+
+### Initial decision
+1. Reuse current M7 execution id to keep plane continuity with closed P8/P9 artifacts.
+2. Do not introduce new tooling files for this lane; use live AWS probes + direct snapshot assembly.
+
+## Entry: 2026-02-19 01:36:00 +00:00 - M7.G live probes: runtime-command drift detected for case/label lane
+### Probe outcomes so far
+1. AWS identity and cluster probes succeeded on account `230372904534` and ECS cluster `fraud-platform-dev-min`.
+2. First/second CM+LS service probes show scheduler posture stable (`desired=1`,`running=1`,`pending=0`).
+3. Critical runtime drift discovered from task-definition inspection:
+   - `fraud-platform-dev-min-case-mgmt:13` command is a daemon echo + `while true; sleep 300` stub.
+   - `fraud-platform-dev-min-label-store:13` command is a daemon echo + `while true; sleep 300` stub.
+   - no DB secrets/env are wired on these two task definitions.
+4. DB migrations task-definition also remains a stub (`echo db_migrations_task_materialized && exit 0`).
+
+### Decision taken mid-execution
+1. Proceed fail-closed with `P10.A` snapshot assembly and explicitly classify blockers:
+   - `M7G-B2` (managed DB readiness/migration proof not materialized),
+   - `M7G-B5` (CM/LS service runtime not conformance-ready for P10 entry despite scheduler health).
+2. Do not attempt improvised local DB checks as substitute for managed-runtime proof.
+
+## Entry: 2026-02-19 01:40:00 +00:00 - M7.G / P10.A executed fail-closed (subject-key closure pass; DB/runtime readiness fail)
+### Execution outcome
+1. Published `M7.G` snapshot:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_g_case_label_db_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_g_case_label_db_readiness_snapshot.json`
+2. Snapshot verdict:
+   - `overall_pass=false`
+   - blockers: `M7G-B2`, `M7G-B5`.
+
+### What passed
+1. `P9.C` prerequisite was pass-consumed (`overall_pass=true`).
+2. Subject-key identity handles are now concrete and runtime-aligned:
+   - `CASE_SUBJECT_KEY_FIELDS=platform_run_id,event_class,event_id`
+   - `LABEL_SUBJECT_KEY_FIELDS=platform_run_id,event_id`
+3. Runtime budget passed (`elapsed_seconds=11.96`, target `<=900`).
+
+### What failed (and why)
+1. `M7G-B5` service-runtime conformance failure:
+   - `case-mgmt` and `label-store` services are scheduler-healthy but task commands are sleep-loop stubs (not real worker runtime commands).
+2. `M7G-B2` managed DB readiness failure:
+   - RDS + SSM handles exist, but DB-readiness proof cannot be closed because:
+     - CM/LS task definitions are stub runtime commands with no DB secret wiring,
+     - `TD_DB_MIGRATIONS` command is also a stub (`echo ... && exit 0`), so migration/schema proof is not materialized.
+
+### Decision taken
+1. Keep `M7.G` fail-closed; do not advance to `M7.H`.
+2. Update plan documents to reflect runtime truth:
+   - `M7G-B1` closed,
+   - `M7G-B2` and `M7G-B5` open with concrete remediation requirement (real worker commands + DB-ready migration lane).
+
+## Entry: 2026-02-19 01:44:00 +00:00 - M7.G fail-closed result synced into orchestrator/main plans
+### Scope
+1. Align planning docs to live `P10.A` execution truth (no post-hoc drift).
+
+### Files synchronized
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`
+   - marked `P10.A` execution posture as fail-closed,
+   - marked subject-key pin + snapshot + budget DoD checks complete,
+   - appended execution notes with exact snapshot refs and blocker results.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+   - updated `M7.G` DoD status,
+   - replaced open-blocker posture from `M7G-B1` to active blockers `M7G-B2`/`M7G-B5`,
+   - updated unresolved blocker register closure rules.
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - added `M7.G` fail-closed execution note under M7 expansion state,
+   - marked P10 subject-key DoD item complete,
+   - updated immediate-next-action lane to close `M7G-B2`/`M7G-B5` then rerun `M7.G`.
+
+### Decision integrity
+1. `M7G-B1` remains documented as a historical debt that was closed on `2026-02-19`.
+2. Forward progression remains blocked until `M7G-B2` and `M7G-B5` are closed and `M7.G` reruns PASS.

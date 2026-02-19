@@ -42,7 +42,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Plane
 Current posture:
-1. Planning active only.
+1. `P10.A` executed fail-closed (`overall_pass=false`); `P10.B`/`P10.C` not started.
 
 Execution block:
 1. No P10 runtime execution before P9 closure is pass-consumed by M7 orchestrator.
@@ -154,10 +154,10 @@ Runtime budget:
 2. If exceeded, lane remains fail-closed until explicit USER waiver.
 
 DoD:
-- [ ] Subject-key identity handles are pinned and non-placeholder.
+- [x] Subject-key identity handles are pinned and non-placeholder.
 - [ ] Managed DB readiness checks pass.
-- [ ] Snapshot exists locally + durably.
-- [ ] Runtime budget target is met (or explicitly waived).
+- [x] Snapshot exists locally + durably.
+- [x] Runtime budget target is met (or explicitly waived).
 
 Blockers:
 1. `M7G-B1`: subject-key placeholder unresolved.
@@ -165,6 +165,17 @@ Blockers:
 3. `M7G-B3`: snapshot publish failure.
 4. `M7G-B4`: subject-key drift vs runtime truth anchors.
 5. `M7G-B5`: CM/LS service readiness failure for P10 entry.
+
+Execution notes (`2026-02-19`):
+1. `P10.A` snapshot published:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_g_case_label_db_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_g_case_label_db_readiness_snapshot.json`
+2. Subject-key closure is now green:
+   - `CASE_SUBJECT_KEY_FIELDS=platform_run_id,event_class,event_id`
+   - `LABEL_SUBJECT_KEY_FIELDS=platform_run_id,event_id`
+3. Fail-closed blockers from live runtime truth:
+   - `M7G-B2`: DB readiness/migration proof not materialized (CM/LS + DB migrations task definitions still stub commands).
+   - `M7G-B5`: CM/LS service runtime command conformance failed (scheduler healthy but sleep-loop stubs).
 
 ### P10.B Case/Label Commit Closure (`M7.H` depth)
 Goal:

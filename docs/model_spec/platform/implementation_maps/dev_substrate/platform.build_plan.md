@@ -747,6 +747,14 @@ Active-phase planning posture:
       - local snapshot: `runs/dev_substrate/m7/20260218T141420Z/m7_p9_plane_snapshot.json`
       - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_p9_plane_snapshot.json`
       - closure result: `overall_pass=true`, blocker rollup empty.
+  - `M7.G` (`P10.A`) executed fail-closed (`2026-02-19`):
+    - local snapshot: `runs/dev_substrate/m7/20260218T141420Z/m7_g_case_label_db_readiness_snapshot.json`
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_g_case_label_db_readiness_snapshot.json`
+    - closure subset now green:
+      - subject-key handles are pinned and runtime-aligned (`CASE_SUBJECT_KEY_FIELDS`, `LABEL_SUBJECT_KEY_FIELDS`).
+    - open blockers:
+      - `M7G-B2`: managed DB readiness/migration proof not materialized (stub DB migration lane + no DB-ready CM/LS runtime posture).
+      - `M7G-B5`: CM/LS scheduler health is green but runtime command conformance is red (sleep-loop stubs).
 
 Sub-phase progress:
   - [x] `M7.A` authority + handle closure for `P8..P10`.
@@ -764,7 +772,7 @@ M7 DoD checklist:
 - [x] RTDL caught-up evidence exists with lag <= `RTDL_CAUGHT_UP_LAG_MAX`.
 - [x] RTDL offsets snapshot and caught-up artifact are durable and run-scoped.
 - [x] Decision lane commit evidence exists (`decision_summary`, `action_summary`, `audit_summary`) and append-only posture holds.
-- [ ] P10 identity key fields are pinned for this run and no placeholders remain.
+- [x] P10 identity key fields are pinned for this run and no placeholders remain.
 - [ ] Case and label summaries are durable and consistent with append-only/idempotent writes.
 - [ ] M7 verdict is `ADVANCE_TO_M8` with empty blocker rollup.
 - [ ] M8 handoff pack is published and non-secret.
@@ -899,5 +907,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M7 is active for deep-plan closure and execution sequencing.
 Next action:
-- enter `M7.G` planning/execution to close `P10` identity-key pin + managed DB readiness,
-- keep fail-closed progression: `M7G-B1` subject-key placeholders remain an open blocker until pinned.
+- close `M7G-B2` and `M7G-B5` by rematerializing CM/LS + DB migrations to real worker/runtime commands with managed DB proof,
+- rerun `M7.G` and require `overall_pass=true` before opening `M7.H`.

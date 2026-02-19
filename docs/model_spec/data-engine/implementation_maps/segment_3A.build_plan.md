@@ -170,6 +170,13 @@ Execution posture:
   - if `S7` code changes: rerun `S7`.
   - if `S5` code changes: rerun `S5 -> S6 -> S7`.
 - prune superseded run-id folders before each expensive candidate pass.
+- closure authority:
+  - candidate run-id: `81599ab107ba4c8db7fc5850287360fe`
+  - closure decision: `UNLOCK_P0`
+  - measured deltas vs baseline `06b822558c294a0888e3f8f342e83947`:
+    - `S5`: `12.50s -> 4.60s` (`+63.23%`)
+    - `S6`: `17.94s -> 2.93s` (`+83.65%`)
+    - `S7`: `13.15s -> 2.25s` (`+82.89%`)
 
 #### POPT.1.1 - Baseline guard + closure scorer lock
 Goal:
@@ -180,9 +187,9 @@ Scope:
 - capture current baseline timings for `S6/S7/S5` and invariant fields used for non-regression.
 
 Definition of done:
-- [ ] `segment3a_popt1_closure_<run_id>.json` schema is pinned.
-- [ ] baseline snapshot for `S6/S7/S5` is pinned as scorer input.
-- [ ] veto checks are encoded (status, issue counts, digest/index integrity).
+- [x] `segment3a_popt1_closure_<run_id>.json` schema is pinned.
+- [x] baseline snapshot for `S6/S7/S5` is pinned as scorer input.
+- [x] veto checks are encoded (status, issue counts, digest/index integrity).
 
 #### POPT.1.2 - S6 primary hotspot optimization
 Goal:
@@ -193,9 +200,9 @@ Scope:
 - optimize data-structure/reuse and IO sequencing only; no rule changes.
 
 Definition of done:
-- [ ] `S6` elapsed improves vs baseline (`17.94s`) with measured evidence.
-- [ ] `S6` reaches at least `AMBER` budget (`<= 14.0s`) or shows >=15% reduction if still above.
-- [ ] `S6` run-report remains `overall_status=PASS`, `issues_error=0`, `issues_total` non-regressed.
+- [x] `S6` elapsed improves vs baseline (`17.94s`) with measured evidence.
+- [x] `S6` reaches at least `AMBER` budget (`<= 14.0s`) or shows >=15% reduction if still above.
+- [x] `S6` run-report remains `overall_status=PASS`, `issues_error=0`, `issues_total` non-regressed.
 
 #### POPT.1.3 - S7 secondary hotspot optimization
 Goal:
@@ -206,9 +213,9 @@ Scope:
 - keep index-only bundle posture and required member coverage unchanged.
 
 Definition of done:
-- [ ] `S7` elapsed improves vs baseline (`13.14s`) with measured evidence.
-- [ ] `S7` reaches at least `AMBER` budget (`<= 12.0s`) or shows >=10% reduction if still above.
-- [ ] `index.json` integrity and `_passed.flag` semantics remain unchanged.
+- [x] `S7` elapsed improves vs baseline (`13.14s`) with measured evidence.
+- [x] `S7` reaches at least `AMBER` budget (`<= 12.0s`) or shows >=10% reduction if still above.
+- [x] `index.json` integrity and `_passed.flag` semantics remain unchanged.
 
 #### POPT.1.4 - S5 closure-lane trim (conditional)
 Goal:
@@ -219,9 +226,9 @@ Scope:
 - no changes to allocation semantics or digest masking rules.
 
 Definition of done:
-- [ ] if executed, `S5` elapsed improves vs baseline (`12.50s`) with measured evidence.
-- [ ] `S5` reaches at least `AMBER` budget (`<= 12.0s`) or shows >=8% reduction if still above.
-- [ ] `pairs_count_conservation_violations=0` and `routing_universe_hash` contract remains valid.
+- [x] if executed, `S5` elapsed improves vs baseline (`12.50s`) with measured evidence.
+- [x] `S5` reaches at least `AMBER` budget (`<= 12.0s`) or shows >=8% reduction if still above.
+- [x] `pairs_count_conservation_violations=0` and `routing_universe_hash` contract remains valid.
 
 #### POPT.1.5 - Determinism + structural witness
 Goal:
@@ -232,9 +239,9 @@ Scope:
 - enforce fail-closed veto if any structural or digest contract drifts unexpectedly.
 
 Definition of done:
-- [ ] `S6` and `S7` statuses remain PASS across witness pass.
-- [ ] no schema/index/passed-flag regressions.
-- [ ] closure scorer reports runtime improvement with no veto violations.
+- [x] `S6` and `S7` statuses remain PASS across witness pass.
+- [x] no schema/index/passed-flag regressions.
+- [x] closure scorer reports runtime improvement with no veto violations.
 
 #### POPT.1.6 - Phase closure and lock
 Goal:
@@ -245,16 +252,16 @@ Scope:
 - update plan/notes/logbook with measured deltas and next-phase decision.
 
 Definition of done:
-- [ ] closure artifacts emitted:
+- [x] closure artifacts emitted:
   - `runs/fix-data-engine/segment_3A/reports/segment3a_popt1_closure_<run_id>.json`
   - `runs/fix-data-engine/segment_3A/reports/segment3a_popt1_closure_<run_id>.md`
-- [ ] explicit decision recorded: `UNLOCK_P0` or `HOLD_POPT1_REOPEN`.
-- [ ] retention/prune set is applied to keep storage bounded.
+- [x] explicit decision recorded: `UNLOCK_P0` or `HOLD_POPT1_REOPEN`.
+- [x] retention/prune set is applied to keep storage bounded.
 
 Definition of done:
-- [ ] hotspot runtime reduced with measured evidence.
-- [ ] deterministic replay witness is PASS.
-- [ ] structural non-regression checks remain PASS.
+- [x] hotspot runtime reduced with measured evidence.
+- [x] deterministic replay witness is PASS.
+- [x] structural non-regression checks remain PASS.
 
 ### P0 - Baseline statistical pack and scoring harness
 Goal:

@@ -219,9 +219,11 @@ Execution notes:
 4. Topic/materialization probe basis:
    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260218T133848Z/topic_readiness_snapshot.json` (`overall_pass=true`).
 5. Forward debt (not an M7.A blocker, but blocks P10 execution entry):
-   - `M7G-B1` remains open because:
+   - historical at `M7.A` execution time:
      - `CASE_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
      - `LABEL_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`.
+   - later closure (`2026-02-19`):
+     - `M7G-B1` closed after concrete subject-key pin.
 
 Blockers:
 1. `M7A-B1`: M6 handoff invalid/unreadable or run-id mismatch.
@@ -508,14 +510,27 @@ Tasks:
 4. Publish local + durable snapshot.
 
 DoD:
-- [ ] `CASE_SUBJECT_KEY_FIELDS` and `LABEL_SUBJECT_KEY_FIELDS` are pinned, concrete, and non-placeholder.
+- [x] `CASE_SUBJECT_KEY_FIELDS` and `LABEL_SUBJECT_KEY_FIELDS` are pinned, concrete, and non-placeholder.
 - [ ] Managed DB readiness is proven for CM/LS runtime.
-- [ ] Snapshot published locally and durably.
+- [x] Snapshot published locally and durably.
 
 Blockers:
-1. `M7G-B1`: subject-key handle placeholders unresolved.
-2. `M7G-B2`: DB readiness/migration failure.
-3. `M7G-B3`: snapshot write/upload failure.
+1. `M7G-B2`: DB readiness/migration failure.
+2. `M7G-B3`: snapshot write/upload failure.
+3. `M7G-B5`: CM/LS service runtime conformance failure for P10 entry.
+
+Execution notes (`2026-02-19`):
+1. `M7.G` snapshot published:
+   - local: `runs/dev_substrate/m7/20260218T141420Z/m7_g_case_label_db_readiness_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m7_g_case_label_db_readiness_snapshot.json`
+2. Snapshot verdict:
+   - `overall_pass=false`
+   - blockers: `M7G-B2`, `M7G-B5`.
+3. What closed:
+   - `M7G-B1` subject-key placeholder debt is closed with pinned runtime-aligned values.
+4. What remains fail-closed:
+   - `M7G-B2`: DB readiness/migration proof not materialized (CM/LS + DB-migrations task definitions still stub commands).
+   - `M7G-B5`: CM/LS scheduler health is green but runtime command conformance is red (sleep-loop stubs, not worker runtime).
 
 ### M7.H P10 Case/Label Commit Evidence Closure
 Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (`P10.B`).
@@ -653,20 +668,25 @@ Control: mandatory offsets/caught-up artifacts and lag threshold gate.
 R2: Decision chain passes while audit truth is mutable.  
 Control: append-only checks in P9 evidence closure.
 
-R3: P10 proceeds with unresolved subject identity keys.  
-Control: hard blocker `M7G-B1` on placeholder subject-key fields.
+R3: P10 proceeds with unresolved identity/runtime-readiness proof.  
+Control: hard blockers on `M7G-B2`/`M7G-B5` (and `M7G-B1` if subject keys regress to placeholder posture).
 
 R4: Hidden substrate downtime after teardown/rematerialization cycles.  
 Control: M7.B/E/G readiness gates before commit lanes.
 
 ## 8.1) Unresolved Blocker Register (Must Be Empty Before M7 Closure)
 Current blockers:
-1. `M7G-B1` (open, forward blocker for `M7.G`/`P10` entry)
-   - subject-key handle placeholders unresolved in registry:
-     - `CASE_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
-     - `LABEL_SUBJECT_KEY_FIELDS = <PIN_AT_P10_PHASE_ENTRY>`
+1. `M7G-B2` (open, `M7.G` blocker)
+   - DB readiness/migration proof is not materialized for CM/LS lane.
+   - live drift evidence:
+     - `TD_DB_MIGRATIONS` is stub command (`echo ... && exit 0`),
+     - CM/LS task definitions are stubs (no DB-ready worker command/secrets posture).
    - closure rule:
-     - pin concrete non-placeholder subject-key fields before `M7.G` execution.
+     - materialize real DB-migrations task command and CM/LS worker runtime posture with managed DB connect/schema proof.
+2. `M7G-B5` (open, `M7.G` blocker)
+   - CM/LS services are scheduler-healthy but runtime command conformance fails (sleep-loop stubs).
+   - closure rule:
+     - rematerialize CM/LS services to real worker runtime commands and confirm two-probe healthy posture on those commands.
 Rule:
 1. Any newly discovered blocker is appended here with closure criteria.
 2. If this register is non-empty, M7 execution remains blocked.
