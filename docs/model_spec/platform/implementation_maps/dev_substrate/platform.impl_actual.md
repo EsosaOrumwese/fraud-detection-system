@@ -16161,3 +16161,86 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - `M9.I` sub-phase checkbox complete,
    - M9 DoD verdict checkbox complete.
 
+## Entry: 2026-02-19 22:54:54 +00:00 - M10 expansion plan (semantic + scale certification)
+### Problem framing
+1. `M9` is now closed green with durable `M10` handoff artifacts, but `M10` in the main build plan remains a high-level stub and there is no `platform.M10.build_plan.md`.
+2. Phase-coverage law requires explicit capability lanes before execution; a summary-only M10 would force ad hoc decisions mid-run and repeat prior anti-cram failures.
+
+### Expansion strategy
+1. Activate M10 for planning by explicit user direction (`Proceed with expanding M10`) while keeping runtime execution gates fail-closed.
+2. Expand M10 in the main plan to include:
+   - objective/scope/failure posture,
+   - explicit sub-phase map (`M10.A..M10.J`),
+   - DoD checklist tied to semantic + scale certification.
+3. Create `platform.M10.build_plan.md` with execution-grade detail:
+   - authority inputs,
+   - entry conditions,
+   - lane-specific tasks and blocker taxonomy,
+   - evidence contract (local + durable),
+   - runtime budgets and closure rule.
+
+### Lane decomposition decision
+1. Certification lanes selected to cover both correctness and production-like performance posture:
+   - `M10.A` authority + threshold pinning,
+   - `M10.B` semantic 20-event run,
+   - `M10.C` semantic 200-event run,
+   - `M10.D` incident drill execution/evidence,
+   - `M10.E` representative-window scale run,
+   - `M10.F` burst run,
+   - `M10.G` soak run,
+   - `M10.H` recovery-under-load run,
+   - `M10.I` reproducibility and deterministic replay cross-check,
+   - `M10.J` final certification verdict + bundle publish.
+2. This decomposition is chosen to prevent "toy green" acceptance and to make closure auditable against your scale concern.
+
+### Safety and drift posture
+1. No runtime execution is implied by this expansion alone.
+2. `M10` cannot close if only 20/200 semantic runs pass; scale lanes must also pass with pinned thresholds.
+3. No local-compute deviation is allowed for certification runs; managed-substrate runtime posture remains mandatory.
+
+## Entry: 2026-02-19 22:56:50 +00:00 - M10 planning expansion applied to build plans
+### Changes applied
+1. Expanded main phase tracker in `platform.build_plan.md`:
+   - set roadmap status `M10=ACTIVE`,
+   - marked deep-plan routing for M10 as present,
+   - updated current phase posture to include `M10` active planning,
+   - replaced M10 stub with execution-grade planning section:
+     - objective/scope/failure posture,
+     - sub-phase map `M10.A..M10.J`,
+     - sub-phase checklist and M10 DoD checklist,
+     - immediate-next-action shifted to `M10.A` threshold matrix closure.
+2. Created deep plan file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`.
+
+### Design decisions captured in the expansion
+1. M10 is explicitly split into semantic, drill, scale, reproducibility, and verdict lanes to prevent toy closure.
+2. Scale lanes are mandatory for M10 closure; 20/200 semantic-only success is insufficient.
+3. Fail-closed posture is preserved for every lane via per-lane blocker taxonomy and durable evidence requirement.
+4. Runtime budget targets were pinned to enforce performance-first execution discipline during certification.
+
+### Outcome
+1. M10 planning is now execution-grade and lane-complete.
+2. No runtime M10 lane has been executed yet; next execution step remains `M10.A`.
+
+## Entry: 2026-02-19 22:59:56 +00:00 - M10.A expansion to execution-grade closure contract
+### Problem framing
+1. Initial `M10.A` was still task-level and lacked the deterministic closure mechanics used in prior phases (entry checks, fixed algorithm, snapshot schema, and dependency freeze semantics).
+2. Without this expansion, executing `M10.A` would invite ad hoc threshold pinning and reopen anti-cram drift in `M10.B..M10.J`.
+
+### Expansion decisions
+1. Upgraded `M10.A` in `platform.M10.build_plan.md` to include:
+   - entry conditions tied to M9 verdict/handoff,
+   - required inputs and fail-closed preparation checks,
+   - deterministic pinning algorithm in fixed key order,
+   - explicit DoD checklist with dependency-freeze requirement,
+   - expanded blocker taxonomy (`M10A-B1..B5`),
+   - required snapshot field contract for `m10_a_threshold_matrix_snapshot.json`.
+2. Kept execution fail-closed on unresolved threshold values:
+   - no placeholders/wildcards accepted,
+   - no lane-start (`M10.B..M10.J`) without a closed M10.A snapshot.
+3. Updated `platform.build_plan.md` to reflect that M10.A is now execution-grade and to set immediate-next-action to actual M10.A execution closure.
+
+### Outcome
+1. `M10.A` planning is now closure-grade and ready for execution.
+2. No runtime lane execution was performed in this step.
+

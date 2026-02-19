@@ -4259,3 +4259,94 @@ Action:
 3) retained authorities:
    - P0 seedpack authorities: `724a63d3f8b242809b8ec3b746d0c776`, `3686a5ebc2ee42f4a84edea17f80376d`, `595a30d1278a4af39ea0fd1a78451571`, `c90f94802ae94ff6a932c84e1520a112`.
    - P1 witness authorities: `8d2f7c6a93ea4b3ba17fc97f2fb0a89d`, `4b575d80610a44f4a4a807a8cc0b76b5`.
+
+### Entry: 2026-02-19 22:53
+
+Design element: `3B P2 planning expansion (S2 topology + settlement-coupling closure lane)`.
+Summary: expanded `P2` from a single summary block into execution-grade subphases (`P2.1..P2.6`) with explicit statistical DoDs, reseal/rerun laws, and runtime budgets.
+
+Authority readback used for this planning step:
+1) remediation/statistical authority:
+   - `docs/reports/eda/segment_3B/segment_3B_remediation_report.md`.
+2) state mechanics authority:
+   - `docs/model_spec/data-engine/layer-1/specs/state-flow/3B/state.3B.s2.expanded.md`.
+3) implementation reality:
+   - `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`,
+   - `config/layer1/3B/virtual/cdn_country_weights.yaml`.
+4) baseline failure anchors:
+   - `runs/fix-data-engine/segment_3B/reports/3B_validation_failure_trace.md`,
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_p0_handoff_pack.json`.
+
+Why the plan was expanded this way:
+1) current hard-gate miss-distance is concentrated in S2 (`V01..V07`) and is causal, not cosmetic:
+   - flat topology (`edge_scale` global),
+   - profile spread collapse (uniform edge/country behavior),
+   - weak settlement coupling (overlap/distance failures).
+2) remediation report ranks `CF-3B-01` and `CF-3B-02` as a coupled core fix; planning had to reflect that they close together, not as independent partial wins.
+3) P1 is now closed and frozen, so P2 must carry S1 outputs as authority and avoid reopening classification logic.
+
+Planning decisions pinned:
+1) add `P2` entry-lock anchors with explicit observed-vs-threshold values for `3B-V01..V07`.
+2) split execution into six subphases:
+   - `P2.1` baseline decomposition,
+   - `P2.2` merchant-conditioned topology,
+   - `P2.3` settlement-coupled allocation,
+   - `P2.4` coupled calibration,
+   - `P2.5` witness closeout,
+   - `P2.6` cross-seed shadow stability.
+3) codify rerun law by change type:
+   - S2 code-only edits: `S2->S5`,
+   - sealed policy-byte edits: `S0->S5`.
+4) pin runtime budgets for this phase so iteration remains minute-scale and fail-closed on unexplained runtime regressions.
+
+Decision:
+1) P2 plan is now execution-grade and ready for `P2.1` start without ambiguity on closure criteria.
+
+### Entry: 2026-02-19 23:06
+
+Design element: `3B P2 full execution lock (P2.1->P2.6) before code changes`.
+Summary: pinned the concrete S2 redesign mechanics and risk controls before implementing P2 so tuning is causal and reproducible, not ad-hoc.
+
+Execution intent (what will be changed now):
+1) move S2 off the global-template behavior while preserving contracts:
+   - replace fixed per-merchant edge cardinality with deterministic merchant-conditioned `edge_scale_m`,
+   - replace uncoupled global country allocation with settlement-coupled merchant-specific country probabilities.
+2) keep this lane as code-only in first pass:
+   - no policy-schema or registry edits in initial P2 execution pass,
+   - rerun law remains `S2->S5` on staged witness roots.
+3) preserve P1 freeze:
+   - no S1 decision-path edits; S1 authority remains frozen from P1 witness runs.
+
+Problem decomposition used to choose algorithm:
+1) `3B-V03` is mathematically impossible to pass with current `edge_weight=1/500` law (top1 stuck at `0.002`), so cardinality and/or weight law must change.
+2) `3B-V05..V07` cannot move materially unless settlement affects country allocation directly in S2.
+3) prior S2 design is optimized around one global country allocation; that is exactly the statistical degeneracy source.
+
+Algorithm selected for P2:
+1) deterministic merchant-conditioned topology:
+   - derive `edge_scale_m` per merchant from deterministic hash + settlement-note bucket modifiers + profile class.
+2) settlement-coupled country probabilities:
+   - mix global base priors with settlement-locality priors (country-centroid distance law),
+   - apply bounded concentration/dispersion bias per deterministic merchant profile.
+3) per-edge weight law:
+   - assign edge weights from merchant-country probability mass split across edges in each country (`p(country)/count(country)`),
+   - guarantees per-merchant weights sum to ~1 and allows realistic top1 movement.
+4) tile allocation strategy:
+   - keep existing tile validators/taxonomy,
+   - precompute country tile-weight maps once,
+   - cache tile allocations by `(country_iso, edges_country)` to avoid repeated heavy work,
+   - only materialize bounds needed by actually requested allocations (memory-safe posture).
+
+Alternatives considered and rejected:
+1) policy-only edge_scale reduction (single global value):
+   - rejected because it cannot pass `V01/V02/V04` (still no cross-merchant variance).
+2) full policy-schema expansion first (`edge_topology` and `settlement_coupling` objects):
+   - deferred; higher blast radius and reseal requirements before proving mechanics in code.
+3) synthetic post-hoc metric fixes in scorers:
+   - rejected as non-causal and non-compliant with realism intent.
+
+Closure gates pinned for this execution pass:
+1) witness hard gates: `3B-V01..V07` on seeds `{42,101}`.
+2) guardrails: `3B-V11` remains PASS; `S2->S5` structural chain remains PASS.
+3) shadow stability: run seeds `{7,202}` and ensure no hard re-fail on P2 surfaces.
+4) if witness remains below B hard gates, continue bounded calibration inside P2 (no phase hop).

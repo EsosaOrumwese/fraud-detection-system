@@ -85,7 +85,7 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | M7 | P8-P10 | RTDL + Case/Labels closure | DONE |
 | M8 | P11 | Obs/Gov closure | DONE |
 | M9 | P12 | Teardown proof + cost guardrails | DONE |
-| M10 | certification | Semantic Green + Scale Green certification | NOT_STARTED |
+| M10 | certification | Semantic Green + Scale Green certification | ACTIVE |
 
 ---
 
@@ -115,7 +115,7 @@ Current deep-plan file state:
   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (present)
 - `M8`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md` (present)
 - `M9`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md` (present)
-- `M10`: deferred until phase activation is approved.
+- `M10`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md` (present)
 
 ---
 
@@ -149,7 +149,8 @@ Current phase posture:
 - `M6` is `DONE`,
 - `M7` is `DONE`,
 - `M8` is `DONE`,
-- `M9` is `DONE`.
+- `M9` is `DONE`,
+- `M10` is `ACTIVE` (planning expansion).
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -1442,22 +1443,93 @@ M9 DoD checklist:
 - [x] M9 verdict is `ADVANCE_TO_M10` with empty blocker rollup.
 
 ## M10 - Certification (Semantic + Scale)
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 Entry gate:
-- M9 is `DONE` for dry cycle OR explicit rerun approved.
-- Scale thresholds are pinned before execution (no ad hoc pass criteria during run).
-DoD summary:
-- Semantic Green:
-  - 20-event shakedown run green end-to-end.
-  - 200-event run green end-to-end.
-  - at least one incident drill is executed with expected fail-closed evidence.
-- Scale Green:
-  - representative-window run passes on contiguous event-time slice (not sub-second toy slice).
-  - burst run passes at elevated ingest pressure without semantic drift.
-  - soak run passes under sustained load with stable lag/checkpoint behavior.
-  - recovery run passes after controlled restart under load with idempotent outcomes.
-- evidence bundle supports portfolio-grade claim.
-- replay-anchor narrative is demonstrable from evidence artifacts.
+- M9 is `DONE`.
+- M9->M10 handoff is present:
+  - local: `runs/dev_substrate/m9/m9_20260219T191706Z/m10_handoff_pack.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T191706Z/m10_handoff_pack.json`.
+- Scale thresholds must be pinned before any scale lane execution (no ad hoc pass criteria mid-run).
+- Runtime posture remains managed-substrate only (no laptop runtime compute).
+
+Objective:
+- Produce certification-grade proof that dev-substrate spine is both semantically correct and operationally credible under scale-oriented conditions.
+
+Scope:
+- Semantic certification runs (20-event and 200-event) with deterministic evidence.
+- Incident drill execution with fail-closed behavior and replay/audit trace.
+- Scale certification runs:
+  - representative-window,
+  - burst,
+  - soak,
+  - recovery-under-load.
+- Reproducibility proof via second run and deterministic replay-anchor coherence.
+- Final certification verdict and evidence bundle publication.
+
+Out of scope:
+- Learning/Registry rollout (still baseline out-of-scope).
+- Production SLO commitment; this phase is dev certification, not prod go-live.
+
+Failure posture:
+- Fail closed on any of:
+  - missing/unpinned thresholds before scale lanes,
+  - semantic gate failures in 20/200 runs,
+  - missing incident drill evidence,
+  - scale-lane SLO/gate failure,
+  - reproducibility or replay-anchor drift,
+  - incomplete certification bundle publication.
+
+Phase closure posture:
+- Detailed M10 authority file:
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`.
+- M10 entry handoff anchor:
+  - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T191706Z/m10_handoff_pack.json`.
+- M10 sub-phase progression model:
+  - `M10.A` authority + threshold pinning + execution matrix freeze.
+  - `M10.B` semantic 20-event certification run.
+  - `M10.C` semantic 200-event certification run.
+  - `M10.D` incident drill execution + evidence closure.
+  - `M10.E` representative-window scale run.
+  - `M10.F` burst run.
+  - `M10.G` soak run.
+  - `M10.H` recovery-under-load run.
+  - `M10.I` reproducibility + deterministic replay coherence.
+  - `M10.J` final certification verdict + portfolio evidence bundle publication.
+- M10 expansion state:
+  - planning expansion is in progress with deep lane mapping in `platform.M10.build_plan.md`,
+  - `M10.A` is now expanded to execution-grade with:
+    - entry-gate checks from M9 handoff,
+    - deterministic threshold pinning algorithm,
+    - explicit snapshot schema and blocker taxonomy,
+    - lane-dependency matrix freeze contract for `M10.B..M10.J`,
+  - no runtime execution lane is marked complete yet.
+
+Sub-phase progress:
+  - [ ] `M10.A` authority + threshold pinning.
+  - [ ] `M10.B` semantic 20-event run.
+  - [ ] `M10.C` semantic 200-event run.
+  - [ ] `M10.D` incident drill execution.
+  - [ ] `M10.E` representative-window run.
+  - [ ] `M10.F` burst run.
+  - [ ] `M10.G` soak run.
+  - [ ] `M10.H` recovery-under-load run.
+  - [ ] `M10.I` reproducibility + replay coherence.
+  - [ ] `M10.J` final certification verdict + bundle publish.
+
+M10 DoD checklist:
+- [ ] Semantic Green:
+  - [ ] 20-event shakedown run green end-to-end.
+  - [ ] 200-event run green end-to-end.
+  - [ ] at least one incident drill executed with expected fail-closed evidence.
+- [ ] Scale Green:
+  - [ ] representative-window run passes on contiguous event-time slice (not sub-second toy slice).
+  - [ ] burst run passes at elevated ingest pressure without semantic drift.
+  - [ ] soak run passes under sustained load with stable lag/checkpoint behavior.
+  - [ ] recovery run passes after controlled restart under load with idempotent outcomes.
+- [ ] Reproducibility:
+  - [ ] second run demonstrates deterministic replay/evidence coherence.
+- [ ] Evidence bundle:
+  - [ ] certification bundle is published locally + durably and supports portfolio-grade claim.
 
 ---
 
@@ -1548,7 +1620,10 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M9 is closed (`DONE`) with blocker-free verdict and durable M10 handoff artifacts.
+M10 is active for planning expansion under the M9 handoff.
 Next action:
-- keep `M10` as `NOT_STARTED` until USER explicitly activates M10 certification execution.
+- execute `M10.A` threshold matrix closure:
+  - pin certification thresholds and runtime budgets (no placeholders),
+  - freeze `M10.B..M10.J` lane execution matrix,
+  - emit `m10_a_threshold_matrix_snapshot.json` local + durable with blocker-free entry gate.
 

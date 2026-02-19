@@ -1,0 +1,383 @@
+# Dev Substrate Deep Plan - M10 (Certification: Semantic + Scale)
+_Status source of truth: `platform.build_plan.md`_
+_This document provides deep planning detail for M10._
+_Last updated: 2026-02-19_
+
+## 0) Purpose
+M10 certifies that dev-substrate Spine Green v0 is:
+1. Semantically correct (20-event + 200-event gates).
+2. Operationally credible under scale-oriented scenarios (window, burst, soak, recovery).
+3. Deterministic and reproducible across repeat runs with replay-anchor coherence.
+4. Auditable via complete local + durable evidence bundle.
+
+## 1) Authority Inputs
+Primary:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
+3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
+4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
+
+Supporting:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+3. M9 handoff artifacts:
+   - local: `runs/dev_substrate/m9/m9_20260219T191706Z/m10_handoff_pack.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T191706Z/m10_handoff_pack.json`
+
+## 2) Scope Boundary for M10
+In scope:
+1. Semantic certification runs (20 + 200 events) with complete plane closure checks.
+2. Incident drill execution and recording.
+3. Scale-oriented validation runs:
+   - representative-window,
+   - burst,
+   - soak,
+   - recovery-under-load.
+4. Reproducibility check on a second run.
+5. Final certification verdict and bundle publication.
+
+Out of scope:
+1. Learning/Registry rollout.
+2. Production cutover.
+3. Long-horizon cost optimization redesign (already covered by M9 posture and guardrails).
+
+## 3) M10 Deliverables
+1. `M10.A` threshold pinning + execution matrix snapshot.
+2. `M10.B` semantic 20-event run snapshot.
+3. `M10.C` semantic 200-event run snapshot.
+4. `M10.D` incident drill snapshot.
+5. `M10.E` representative-window run snapshot.
+6. `M10.F` burst run snapshot.
+7. `M10.G` soak run snapshot.
+8. `M10.H` recovery-under-load snapshot.
+9. `M10.I` reproducibility and replay coherence snapshot.
+10. `M10.J` certification verdict snapshot + certification bundle index.
+
+## 4) Execution Gate for This Phase
+Current posture:
+1. `M9` is closed (`DONE`) with verdict `ADVANCE_TO_M10`.
+2. M9->M10 handoff exists locally and durably.
+3. M10 is activated for planning expansion by explicit user direction.
+
+Execution block:
+1. No M10 runtime lane starts until `M10.A` closes with pinned thresholds and execution matrix.
+2. No lane can pass with missing durable evidence publication.
+3. M10 cannot close if only semantic lanes pass without scale lanes.
+
+## 4.1) Anti-cram coverage matrix (must stay explicit)
+| Capability lane | Primary owner | Supporting owners | Minimum PASS evidence |
+| --- | --- | --- | --- |
+| Authority + thresholds | M10.A | M10.J | threshold pin snapshot, blocker-free |
+| Semantic correctness | M10.B, M10.C | M10.J | 20/200 semantic run snapshots |
+| Incident behavior | M10.D | M10.J | drill injection + fail-closed evidence |
+| Scale credibility | M10.E, M10.F, M10.G, M10.H | M10.J | window/burst/soak/recovery snapshots |
+| Reproducibility | M10.I | M10.J | second-run coherence snapshot |
+| Certification verdict | M10.J | - | `ADVANCE_CERTIFIED_DEV_MIN` verdict |
+
+## 5) Work Breakdown (Deep)
+
+### M10.A Authority + Threshold Pinning + Execution Matrix
+Goal:
+1. Freeze certification thresholds, runtime budgets, and lane execution matrix before runtime lanes.
+
+Entry conditions:
+1. `M9` is closed with verdict `ADVANCE_TO_M10`.
+2. M9 handoff is readable:
+   - local: `runs/dev_substrate/m9/m9_20260219T191706Z/m10_handoff_pack.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T191706Z/m10_handoff_pack.json`.
+3. No unresolved blocker remains from M9 (`source_blocker_rollup=[]`).
+
+Required inputs:
+1. M9 handoff + verdict artifacts (`m10_handoff_pack.json`, `m9_i_verdict_snapshot.json`).
+2. Runbook authority for certification expectations (semantic + incident + scale posture).
+3. Current runtime/cost posture anchors from M9:
+   - cross-platform guardrail snapshot (latest pass),
+   - teardown-proof and phase closure facts for baseline references.
+4. Managed-run execution surfaces to be used in M10.B..M10.I (workflow/command lanes remain managed-substrate only).
+
+Preparation checks (fail-closed):
+1. Validate M9 handoff parseability and required gate fields:
+   - `m9_verdict=ADVANCE_TO_M10`,
+   - `m9_overall_pass=true`.
+2. Validate all threshold slots are present in draft matrix (no omitted dimensions):
+   - representative window,
+   - burst,
+   - soak,
+   - recovery,
+   - semantic acceptance,
+   - incident drill profile,
+   - per-lane runtime budgets.
+3. Validate each threshold slot is concrete (no placeholder/wildcard text).
+4. Validate execution matrix maps each M10 lane to:
+   - entry dependencies,
+   - success criteria,
+   - evidence outputs,
+   - blocker family.
+
+Deterministic pinning algorithm (M10.A):
+1. Build threshold matrix object in fixed key order:
+   - `semantic_matrix`,
+   - `incident_drill_profile`,
+   - `scale_matrix`,
+   - `runtime_budget_matrix`,
+   - `lane_execution_matrix`.
+2. Materialize semantic matrix:
+   - `run_20.required=true`,
+   - `run_200.required=true`,
+   - pass rule: required semantic gates pass with empty blocker union.
+3. Materialize incident drill profile:
+   - `drill_required=true`,
+   - `drill_type` (single pinned type for this cycle),
+   - expected fail-closed signals and recovery evidence requirements.
+4. Materialize scale matrix fields:
+   - representative window: `duration_minutes`, `min_admitted_events`,
+   - burst: `ingest_multiplier`, `duration_minutes`,
+   - soak: `duration_minutes`, `lag_stability_bound`,
+   - recovery: `target_components`, `rto_seconds`, `idempotency_checks`.
+5. Materialize runtime budget matrix for `M10.A..M10.J` lanes.
+6. Materialize lane execution matrix for `M10.B..M10.J` with deterministic ordering and dependency edges.
+7. Validate matrix completeness:
+   - any missing/non-concrete field -> `M10A-B1/B2`.
+8. Emit `m10_a_threshold_matrix_snapshot.json` locally.
+9. Publish snapshot durably; upload failure -> `M10A-B3`.
+
+Tasks:
+1. Build and validate threshold matrix object.
+2. Pin semantic acceptance rules and incident drill profile.
+3. Pin scale thresholds and per-lane runtime budgets.
+4. Freeze lane execution matrix and dependencies.
+5. Emit and publish `m10_a_threshold_matrix_snapshot.json`.
+
+DoD:
+- [ ] Entry-gate checks pass from M9 handoff.
+- [ ] Threshold matrix pinned (no placeholders/wildcards).
+- [ ] Runtime budget matrix pinned for all M10 lanes.
+- [ ] Incident drill profile pinned with expected fail-closed evidence.
+- [ ] Lane execution matrix (M10.B..M10.J) is frozen and dependency-complete.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M10A-B1`: threshold matrix incomplete.
+2. `M10A-B2`: placeholder or wildcard threshold values.
+3. `M10A-B3`: snapshot publication failure.
+4. `M10A-B4`: M9 handoff gate invalid or unreadable.
+5. `M10A-B5`: lane execution matrix dependency gap.
+
+Required snapshot fields (`m10_a_threshold_matrix_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m10_execution_id`.
+2. `source_handoff_refs` (local + durable refs to M9 handoff/verdict artifacts).
+3. `entry_gate_checks`.
+4. `semantic_matrix`.
+5. `incident_drill_profile`.
+6. `scale_matrix`.
+7. `runtime_budget_matrix`.
+8. `lane_execution_matrix`.
+9. `blockers`, `overall_pass`, `elapsed_seconds`.
+
+### M10.B Semantic 20-event certification run
+Goal:
+1. Re-prove semantic green with lightweight deterministic run.
+
+Tasks:
+1. Execute managed run for 20 events.
+2. Validate P4..P11 closure artifacts and blocker-free posture.
+3. Emit `m10_b_semantic_20_snapshot.json` local + durable.
+
+DoD:
+- [ ] 20-event run passes all semantic gates.
+- [ ] Blockers empty.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M10B-B1`: semantic gate failure.
+2. `M10B-B2`: missing required evidence object.
+3. `M10B-B3`: run-scope mismatch.
+
+### M10.C Semantic 200-event certification run
+Goal:
+1. Re-prove semantic green at baseline depth with 200 events.
+
+Tasks:
+1. Execute managed run for 200 events.
+2. Validate same semantic gates as M10.B.
+3. Emit `m10_c_semantic_200_snapshot.json` local + durable.
+
+DoD:
+- [ ] 200-event run passes all semantic gates.
+- [ ] Blockers empty.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M10C-B1`: semantic gate failure.
+2. `M10C-B2`: missing required evidence object.
+3. `M10C-B3`: run-scope mismatch.
+
+### M10.D Incident drill execution
+Goal:
+1. Demonstrate fail-closed behavior under controlled fault injection.
+
+Tasks:
+1. Execute pinned drill profile from M10.A.
+2. Capture injection time, impacted lane, detection signal, and recovery signal.
+3. Capture replay-anchor and audit trace continuity.
+4. Emit `m10_d_incident_drill_snapshot.json` local + durable.
+
+DoD:
+- [ ] Drill executed and recorded.
+- [ ] Expected fail-closed behavior observed.
+- [ ] Recovery signal observed and evidenced.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M10D-B1`: drill injection not executed.
+2. `M10D-B2`: fail-closed behavior not observed.
+3. `M10D-B3`: recovery evidence missing.
+
+### M10.E Representative-window scale run
+Goal:
+1. Validate contiguous event-time slice behavior beyond toy window.
+
+Tasks:
+1. Execute representative-window run with pinned window size.
+2. Validate lag, checkpoint movement, and closure artifact completeness.
+3. Emit `m10_e_window_scale_snapshot.json` local + durable.
+
+DoD:
+- [ ] Window run meets pinned volume/duration threshold.
+- [ ] Lag stability remains within pinned bounds.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M10E-B1`: window threshold miss.
+2. `M10E-B2`: lag stability violation.
+3. `M10E-B3`: evidence publication failure.
+
+### M10.F Burst run
+Goal:
+1. Validate short high-rate ingest behavior without semantic drift.
+
+Tasks:
+1. Execute burst profile at pinned ingest multiplier and duration.
+2. Validate semantic invariants against pre-burst baseline.
+3. Emit `m10_f_burst_snapshot.json` local + durable.
+
+DoD:
+- [ ] Burst profile executed as pinned.
+- [ ] No semantic drift beyond pinned tolerance.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M10F-B1`: burst profile not achieved.
+2. `M10F-B2`: semantic drift detected.
+3. `M10F-B3`: evidence publication failure.
+
+### M10.G Soak run
+Goal:
+1. Validate sustained operation and stable checkpoint/lag behavior.
+
+Tasks:
+1. Execute soak run for pinned duration.
+2. Validate lag and checkpoint monotonic progress.
+3. Emit `m10_g_soak_snapshot.json` local + durable.
+
+DoD:
+- [ ] Soak duration meets threshold.
+- [ ] Lag/checkpoint posture stable within pinned bounds.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M10G-B1`: soak duration not achieved.
+2. `M10G-B2`: lag instability or checkpoint stall.
+3. `M10G-B3`: evidence publication failure.
+
+### M10.H Recovery-under-load run
+Goal:
+1. Validate controlled restart/recovery behavior under active load.
+
+Tasks:
+1. Restart pinned target component(s) under load.
+2. Measure recovery time objective (RTO).
+3. Validate idempotency and no duplicate side-effect drift.
+4. Emit `m10_h_recovery_snapshot.json` local + durable.
+
+DoD:
+- [ ] Recovery test executed on pinned targets.
+- [ ] RTO meets pinned threshold.
+- [ ] Idempotency checks pass.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M10H-B1`: restart/recovery sequence failed.
+2. `M10H-B2`: RTO breach.
+3. `M10H-B3`: idempotency drift detected.
+
+### M10.I Reproducibility + replay coherence
+Goal:
+1. Prove deterministic replay/evidence coherence on second run.
+
+Tasks:
+1. Execute second run under same pinned profile.
+2. Compare replay-anchor and required summary surfaces against primary run.
+3. Emit `m10_i_reproducibility_snapshot.json` local + durable.
+
+DoD:
+- [ ] Second run executed.
+- [ ] Required coherence checks pass.
+- [ ] Snapshot exists locally and durably.
+
+Blockers:
+1. `M10I-B1`: second run missing.
+2. `M10I-B2`: replay-anchor or summary coherence failure.
+3. `M10I-B3`: evidence publication failure.
+
+### M10.J Final certification verdict + bundle publication
+Goal:
+1. Compute final M10 verdict and publish certification bundle index.
+
+Tasks:
+1. Roll up `M10.A..M10.I` pass matrix.
+2. Produce deterministic verdict:
+   - `ADVANCE_CERTIFIED_DEV_MIN` only when all lanes pass with empty blocker union.
+3. Build certification bundle index referencing all mandatory evidence objects.
+4. Emit:
+   - `m10_j_certification_verdict_snapshot.json`
+   - `m10_certification_bundle_index.json`
+   local + durable.
+
+DoD:
+- [ ] Verdict computed deterministically.
+- [ ] Verdict is `ADVANCE_CERTIFIED_DEV_MIN` with blocker-free rollup.
+- [ ] Certification bundle index exists locally and durably.
+
+Blockers:
+1. `M10J-B1`: source lane snapshot missing/unreadable.
+2. `M10J-B2`: blocker union non-empty.
+3. `M10J-B3`: verdict/bundle publish failure.
+
+## 6) M10 Runtime Budget Targets
+1. `M10.A` <= 30 minutes.
+2. `M10.B` <= 45 minutes.
+3. `M10.C` <= 60 minutes.
+4. `M10.D` <= 60 minutes.
+5. `M10.E` <= 120 minutes.
+6. `M10.F` <= 90 minutes.
+7. `M10.G` <= 180 minutes.
+8. `M10.H` <= 120 minutes.
+9. `M10.I` <= 90 minutes.
+10. `M10.J` <= 30 minutes.
+
+Budget rule:
+1. Over-budget lane cannot be marked PASS without explicit remediation note and rerun decision.
+
+## 7) Certification close rule
+M10 can be marked `DONE` only when all are true:
+1. `M10.A..M10.J` DoD checklists are complete.
+2. Semantic and scale lanes pass with empty blocker union.
+3. Incident drill evidence is present.
+4. Reproducibility check passes.
+5. Final verdict is `ADVANCE_CERTIFIED_DEV_MIN`.
+
+## 8) Current planning status
+1. M10 planning expansion is open.
+2. No runtime lane (`M10.B..M10.J`) has been executed yet.
+3. Next lane is `M10.A` threshold pinning and execution matrix freeze.

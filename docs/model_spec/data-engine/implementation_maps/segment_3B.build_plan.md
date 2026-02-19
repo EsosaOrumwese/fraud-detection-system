@@ -1289,11 +1289,153 @@ Scope:
 - replace fixed global edge template with merchant-conditioned topology.
 - implement settlement-coupled country weighting with bounded guardrails.
 - keep deterministic RNG envelope and declared stream namespaces.
+- keep `P1` lineage closure frozen (no reopen of S1 decision logic in this phase).
 
 Definition of done:
 - [ ] hard heterogeneity gates (`3B-V01..V04`) pass on witness seeds.
 - [ ] settlement coherence gates (`3B-V05..V07`) pass on witness seeds.
 - [ ] S2/S3 integrity and RNG accounting remain PASS.
+
+P2 entry lock (post-P1):
+- P1 authority is frozen and carried as read-only into this phase:
+  - `42 -> 8d2f7c6a93ea4b3ba17fc97f2fb0a89d`
+  - `101 -> 4b575d80610a44f4a4a807a8cc0b76b5`
+- baseline miss-distance anchors for P2 hard gates (from P0 lock):
+  - `3B-V01` (`CV(edges_per_merchant)`): observed `0.0` vs `>=0.25`.
+  - `3B-V02` (`CV(countries_per_merchant)`): observed `0.0` vs `>=0.20`.
+  - `3B-V03` (`p50(top1_share)`): observed `0.002` vs `[0.03,0.20]`.
+  - `3B-V04` (median pairwise JS): observed `0.0` vs `>=0.05`.
+  - `3B-V05` (median settlement overlap): observed `0.0` vs `>=0.03`.
+  - `3B-V06` (p75 settlement overlap): observed `0.002` vs `>=0.06`.
+  - `3B-V07` (median edge-settlement distance): observed `~7929 km` vs `<=6000 km`.
+- principal datasets touched in this phase:
+  - `edge_catalogue_3B`,
+  - `edge_catalogue_index_3B`,
+  - `rng_event_edge_jitter`,
+  - `rng_trace_log`,
+  - `rng_audit_log`.
+- policy/config surfaces targeted for realism movement:
+  - `config/layer1/3B/virtual/cdn_country_weights.yaml` (topology + coupling knobs).
+- frozen guardrails in this phase:
+  - keep `3B-V11` alias fidelity non-regressed,
+  - keep S2 RNG envelope/stream law unchanged (`virtual_edge_catalogue` stream semantics).
+
+P2 phase law (execution ordering):
+- `P2.1` must close before any topology/coupling edits.
+- `P2.2` and `P2.3` are statistically coupled and close as one lane (no partial acceptance).
+- `P2.4` calibration closes before `P2.5` witness lock.
+- `P2.5` emits explicit decision: `UNLOCK_P3` or `HOLD_P2_REOPEN`.
+
+#### P2.1 - S2 baseline decomposition and causal attribution lock
+Goal:
+- quantify exactly which S2 mechanics dominate each failing gate before changing knobs.
+
+Scope:
+- compute per-merchant and per-country decomposition from current S2 outputs:
+  - edge-count variance components,
+  - country-footprint variance components,
+  - top1-share distribution and entropy/HHI spread,
+  - settlement-overlap and distance slices by merchant profile/size.
+- tie failures to concrete S2 mechanics:
+  - global `edge_scale`,
+  - globally shared country allocation vector,
+  - uncoupled settlement geography in allocation law.
+- emit a machine-readable P2 baseline attribution artifact used as calibration authority.
+
+Definition of done:
+- [ ] baseline attribution artifact is emitted and pinned.
+- [ ] each hard gate `3B-V01..V07` has a quantified causal driver map.
+- [ ] no state outputs/policies are changed in this subphase.
+
+#### P2.2 - Merchant-conditioned topology implementation (`CF-3B-01`)
+Goal:
+- break global-template collapse in S2 by introducing deterministic merchant-conditioned topology.
+
+Scope:
+- replace single global `edge_scale` usage with deterministic merchant-specific `edge_scale_m`.
+- introduce merchant-conditioned country probability shaping (profile/size-conditioned terms) without RNG abuse.
+- preserve deterministic allocation law and schema/path contracts for S2 outputs.
+- preserve S2 validator taxonomy and fail-closed behavior.
+
+Definition of done:
+- [ ] `3B-V01` passes on witness seeds (`CV(edges_per_merchant) >= 0.25`).
+- [ ] `3B-V02` passes on witness seeds (`CV(countries_per_merchant) >= 0.20`).
+- [ ] `3B-V03` moves into corridor on witness seeds (`p50(top1_share) in [0.03,0.20]`).
+- [ ] no RNG envelope drift and no schema/path drift in S2 outputs.
+
+#### P2.3 - Settlement-coupled allocation implementation (`CF-3B-02`)
+Goal:
+- make settlement anchors materially influence edge geography while avoiding over-coupling.
+
+Scope:
+- add settlement-coupling term to S2 country allocation law (proximity/jurisdiction affinity weighting).
+- enforce bounded coupling knobs:
+  - minimum base-prior floor (avoid hard local lock-in),
+  - maximum settlement-bias cap (avoid unrealistic mono-country collapse),
+  - deterministic tie-break ordering.
+- keep operational timezone and world-geometry validation rails unchanged.
+
+Definition of done:
+- [ ] `3B-V05` passes on witness seeds (median overlap `>=0.03`).
+- [ ] `3B-V06` passes on witness seeds (p75 overlap `>=0.06`).
+- [ ] `3B-V07` passes on witness seeds (median distance `<=6000 km`).
+- [ ] `3B-V01..V04` remain non-regressed relative to `P2.2` closure candidate.
+
+#### P2.4 - Coupled calibration and candidate selection
+Goal:
+- calibrate topology+coupling knobs jointly to close all P2 hard gates with realistic shape.
+
+Scope:
+- run bounded deterministic candidate sweep on primary witness seed (`42`) with changed-state reruns (`S2->S5` unless reseal required).
+- objective function is miss-distance minimization on `3B-V01..V07` with hard vetoes:
+  - no synthetic/random gate gaming,
+  - no alias-fidelity break (`3B-V11`),
+  - no contract/validator drift.
+- retain top candidate by weighted miss-distance + guardrail cleanliness.
+
+Definition of done:
+- [ ] selected candidate clears `3B-V01..V07` on seed `42`.
+- [ ] candidate remains guardrail-clean (`3B-V11` PASS, RNG/accounting PASS).
+- [ ] selected candidate config/knob set is pinned in plan + impl notes.
+
+#### P2.5 - Witness lock and P2 phase closeout
+Goal:
+- verify the selected P2 candidate on witness seeds and close phase with an explicit decision.
+
+Scope:
+- execute witness seeds `{42,101}` with rerun law based on change type:
+  - code-only S2 change: rerun `S2->S5`,
+  - sealed policy bytes changed: rerun `S0->S5`.
+- score hard gates `3B-V01..V07` and carry guardrails:
+  - `3B-V11` alias fidelity,
+  - S2/S3/S4/S5 structural PASS.
+- emit witness summary + closure artifact and prune superseded failed run folders.
+
+Definition of done:
+- [ ] `3B-V01..V07` pass on both witness seeds.
+- [ ] structural/non-regression guardrails remain PASS.
+- [ ] closure artifacts are pinned and decision recorded (`UNLOCK_P3` or `HOLD_P2_REOPEN`).
+
+#### P2.6 - Cross-seed stability shadow (pre-P3 confidence lock)
+Goal:
+- check that P2 realism movement is not seed-fragile before handing off to P3.
+
+Scope:
+- execute shadow seeds `{7,202}` on locked P2 candidate.
+- evaluate stability rails for P2 metrics:
+  - cross-seed CV behavior on top1-share, overlap, distance, and JS surfaces.
+- this is a confidence gate for handoff quality, not final segment certification.
+
+Definition of done:
+- [ ] no hard-gate re-fail appears on shadow seeds for `3B-V01..V07`.
+- [ ] cross-seed stability for P2 surfaces remains within `B` posture (`3B-X01` compatible).
+- [ ] `P3` handoff note is emitted with retained run-id set.
+
+P2 runtime budgets (binding for this phase):
+- candidate lane (`single-seed`, changed-state onward): `<= 20 min`.
+- witness lane (`2 seeds`): `<= 45 min`.
+- shadow lane (`2 additional seeds`): `<= 45 min`.
+- if a lane breaches budget without realism gain, pause for hotspot analysis before next attempt.
 
 ### P3 - S4 realism governance expansion (`CF-3B-04`)
 Goal:
@@ -1357,7 +1499,7 @@ Definition of done:
 - `POPT.4`: completed (`CLOSED_UNLOCK_P0`)
 - `P0`: completed (`EXECUTED_FAIL_REALISM_UNLOCK_P1`)
 - `P1`: completed (`EXECUTED_UNLOCK_P2`)
-- `P2`: pending
+- `P2`: pending (`PLANNING_EXPANDED_READY_FOR_EXECUTION`)
 - `P3`: pending
 - `P4`: pending
 - `P5`: pending
