@@ -1,0 +1,298 @@
+name: dev-min-m9g-confluent-billing
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region used for evidence upload"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      evidence_bucket:
+        description: "Durable evidence bucket"
+        required: true
+        default: "fraud-platform-dev-min-evidence"
+        type: string
+      evidence_prefix:
+        description: "Evidence key prefix"
+        required: true
+        default: "evidence/dev_min/run_control"
+        type: string
+      m9_execution_id:
+        description: "Optional fixed M9 execution id (default: m9_<timestamp>)"
+        required: false
+        default: ""
+        type: string
+      start_date:
+        description: "Optional billing start date (YYYY-MM-DD). Default: first day of current UTC month"
+        required: false
+        default: ""
+        type: string
+      end_date:
+        description: "Optional billing end date (YYYY-MM-DD). Default: current UTC date"
+        required: false
+        default: ""
+        type: string
+      upload_evidence_to_s3:
+        description: "Upload billing snapshot JSON to S3"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-min-m9g-confluent-billing-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  CONFLUENT_CLOUD_API_KEY: ${{ secrets.TF_VAR_CONFLUENT_CLOUD_API_KEY }}
+  CONFLUENT_CLOUD_API_SECRET: ${{ secrets.TF_VAR_CONFLUENT_CLOUD_API_SECRET }}
+
+jobs:
+  capture_confluent_billing:
+    name: Capture Confluent billing snapshot for M9.G
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Ensure Confluent billing secrets are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${CONFLUENT_CLOUD_API_KEY:-}" ]]; then
+            echo "Missing CONFLUENT_CLOUD_API_KEY mapping from GitHub secret TF_VAR_CONFLUENT_CLOUD_API_KEY."
+            exit 1
+          fi
+          if [[ -z "${CONFLUENT_CLOUD_API_SECRET:-}" ]]; then
+            echo "Missing CONFLUENT_CLOUD_API_SECRET mapping from GitHub secret TF_VAR_CONFLUENT_CLOUD_API_SECRET."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m9_execution_id }}" ]]; then
+            M9_EXECUTION_ID="${{ inputs.m9_execution_id }}"
+          else
+            M9_EXECUTION_ID="m9_${TS}"
+          fi
+
+          OUTPUT_DIR="runs/dev_substrate/m9/${TS}"
+          OUTPUT_PATH="${OUTPUT_DIR}/confluent_billing_snapshot.json"
+          EVIDENCE_S3_URI="s3://${{ inputs.evidence_bucket }}/${{ inputs.evidence_prefix }}/${M9_EXECUTION_ID}/confluent_billing_snapshot.json"
+          mkdir -p "${OUTPUT_DIR}"
+
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m9_execution_id=${M9_EXECUTION_ID}" >> "$GITHUB_OUTPUT"
+          echo "output_path=${OUTPUT_PATH}" >> "$GITHUB_OUTPUT"
+          echo "evidence_s3_uri=${EVIDENCE_S3_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Capture Confluent billing snapshot (Cost API)
+        id: capture
+        shell: bash
+        env:
+          SNAPSHOT_PATH: ${{ steps.run_meta.outputs.output_path }}
+          M9_EXECUTION_ID: ${{ steps.run_meta.outputs.m9_execution_id }}
+          START_DATE_INPUT: ${{ inputs.start_date }}
+          END_DATE_INPUT: ${{ inputs.end_date }}
+          EVIDENCE_S3_URI: ${{ steps.run_meta.outputs.evidence_s3_uri }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from datetime import UTC, datetime
+          from decimal import Decimal, InvalidOperation
+
+          snapshot_path = os.environ["SNAPSHOT_PATH"]
+          m9_execution_id = os.environ["M9_EXECUTION_ID"]
+          start_input = os.environ.get("START_DATE_INPUT", "").strip()
+          end_input = os.environ.get("END_DATE_INPUT", "").strip()
+          evidence_s3_uri = os.environ.get("EVIDENCE_S3_URI", "")
+
+          api_key = os.environ.get("CONFLUENT_CLOUD_API_KEY", "")
+          api_secret = os.environ.get("CONFLUENT_CLOUD_API_SECRET", "")
+
+          now = datetime.now(UTC)
+          start_date = start_input if start_input else now.replace(day=1).strftime("%Y-%m-%d")
+          end_date = end_input if end_input else now.strftime("%Y-%m-%d")
+
+          blockers = []
+          errors = []
+          total = Decimal("0")
+          line_items = []
+          page_count = 0
+
+          def parse_amount(v):
+            if v is None:
+              return None
+            try:
+              return Decimal(str(v))
+            except (InvalidOperation, ValueError):
+              return None
+
+          if not api_key or not api_secret:
+            blockers.append("CONFLUENT_BILLING_SECRET_MISSING")
+          if start_date > end_date:
+            blockers.append("INVALID_BILLING_DATE_RANGE")
+
+          url = (
+            "https://api.confluent.cloud/billing/v1/costs?"
+            + urllib.parse.urlencode({"start_date": start_date, "end_date": end_date})
+          )
+
+          if not blockers:
+            auth_raw = f"{api_key}:{api_secret}".encode("utf-8")
+            auth = base64.b64encode(auth_raw).decode("utf-8")
+            next_url = url
+            while next_url:
+              req = urllib.request.Request(
+                next_url,
+                headers={
+                  "Authorization": f"Basic {auth}",
+                  "Accept": "application/json",
+                },
+                method="GET",
+              )
+              try:
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                  payload = json.loads(resp.read().decode("utf-8"))
+              except urllib.error.HTTPError as e:
+                body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+                errors.append(
+                  {
+                    "surface": "confluent.billing.v1.costs",
+                    "status_code": e.code,
+                    "message": body or str(e),
+                  }
+                )
+                blockers.append("CONFLUENT_BILLING_API_HTTP_ERROR")
+                break
+              except Exception as e:  # noqa: BLE001
+                errors.append(
+                  {
+                    "surface": "confluent.billing.v1.costs",
+                    "status_code": None,
+                    "message": str(e),
+                  }
+                )
+                blockers.append("CONFLUENT_BILLING_API_ERROR")
+                break
+
+              page_count += 1
+              data = payload.get("data", [])
+              if isinstance(data, list):
+                line_items.extend(data)
+              meta = payload.get("metadata", {}) if isinstance(payload, dict) else {}
+              next_url = meta.get("next")
+
+          currency = "USD"
+          for item in line_items:
+            amount = parse_amount(item.get("amount"))
+            if amount is None:
+              amounts = item.get("amounts")
+              if isinstance(amounts, dict):
+                amount = parse_amount(amounts.get("total"))
+            if amount is not None:
+              total += amount
+            if item.get("currency"):
+              currency = str(item.get("currency"))
+
+          overall_pass = len(blockers) == 0
+
+          snapshot = {
+            "phase": "M9",
+            "phase_id": "P12",
+            "lane": "M9.G.confluent_billing_managed",
+            "m9_execution_id": m9_execution_id,
+            "query_window": {"start_date": start_date, "end_date": end_date},
+            "confluent_mtd_cost_amount": float(total) if overall_pass else None,
+            "billing_currency": currency,
+            "line_item_count": len(line_items),
+            "page_count": page_count,
+            "source_mode": "managed_control_plane_api_snapshot",
+            "workflow_name": "dev-min-m9g-confluent-billing",
+            "workflow_file": "dev_min_m9g_confluent_billing.yml",
+            "workflow_run_id": os.environ.get("GITHUB_RUN_ID"),
+            "workflow_run_url": f"{os.environ.get('GITHUB_SERVER_URL')}/{os.environ.get('GITHUB_REPOSITORY')}/actions/runs/{os.environ.get('GITHUB_RUN_ID')}",
+            "evidence_s3_uri": evidence_s3_uri,
+            "errors": errors,
+            "blockers": blockers,
+            "overall_pass": overall_pass,
+            "captured_at_utc": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+          }
+
+          os.makedirs(os.path.dirname(snapshot_path), exist_ok=True)
+          with open(snapshot_path, "w", encoding="utf-8") as f:
+            json.dump(snapshot, f, indent=2)
+            f.write("\n")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+            f.write(f"overall_pass={'true' if overall_pass else 'false'}\n")
+            f.write(
+              "confluent_mtd_cost_amount="
+              + (str(float(total)) if overall_pass else "")
+              + "\n"
+            )
+          PY
+
+      - name: Upload Confluent billing snapshot to S3
+        if: ${{ inputs.upload_evidence_to_s3 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 cp \
+            "${{ steps.run_meta.outputs.output_path }}" \
+            "${{ steps.run_meta.outputs.evidence_s3_uri }}" \
+            --region "${{ inputs.aws_region }}"
+
+      - name: Upload workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m9g-confluent-billing-${{ steps.run_meta.outputs.timestamp }}
+          path: ${{ steps.run_meta.outputs.output_path }}
+          if-no-files-found: error
+
+      - name: Enforce fail-closed verdict
+        if: ${{ steps.capture.outputs.overall_pass != 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Confluent billing capture failed. See snapshot artifact."
+          exit 1
