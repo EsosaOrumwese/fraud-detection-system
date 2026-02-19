@@ -1350,6 +1350,34 @@ M9.G post-hardening validation rerun (2026-02-19):
   - note:
     - snapshot `errors[]` includes non-blocking ELB `DescribeLoadBalancers` AccessDenied diagnostic under current lane policy.
 
+M9.G IAM-drift closure rerun (2026-02-19):
+  - trigger:
+    - remove ELB AccessDenied diagnostic residual from guardrail evidence.
+  - IAM remediation:
+    - role: `GitHubAction-AssumeRoleWithAction`
+    - added inline policy `GitHubActionsM9GuardrailReadOnlyDevMin` granting:
+      - `elasticloadbalancing:DescribeLoadBalancers` on `*`.
+  - guardrail workflow:
+    - run id: `22195781513`
+    - URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22195781513`
+    - result: `success`
+  - dispatched billing workflow:
+    - run id: `22195792243`
+    - URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22195792243`
+    - result: `success`
+  - authoritative execution id:
+    - `m9_20260219T185951Z`
+  - local snapshots:
+    - `runs/dev_substrate/m9/m9_20260219T185951Z/m9_g_cost_guardrail_snapshot.json`
+    - `runs/dev_substrate/m9/m9_20260219T185951Z/confluent_billing_snapshot.json`
+  - durable snapshots:
+    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T185951Z/m9_g_cost_guardrail_snapshot.json`
+    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T185951Z/confluent_billing_snapshot.json`
+  - result:
+    - `overall_pass=true`
+    - blockers empty
+    - `errors=[]` in guardrail snapshot.
+
 M9.H execution closure (2026-02-19):
   - execution id:
     - `m9_20260219T181800Z`

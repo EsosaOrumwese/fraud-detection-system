@@ -15965,3 +15965,32 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - `elbv2.describe-load-balancers` AccessDenied for the OIDC role.
 2. Current lane behavior keeps this as non-blocking diagnostic (blockers remain empty). This does not block `M9.G` closure under current policy.
 
+## Entry: 2026-02-19 19:02:33 +00:00 - Resolved ELB IAM AccessDenied and reconfirmed clean M9.G diagnostics
+### Problem framing
+1. Even though `M9.G` passed, diagnostics still carried ELB AccessDenied (`elasticloadbalancing:DescribeLoadBalancers`) for OIDC role `GitHubAction-AssumeRoleWithAction`.
+2. We decided to remove this residual drift so cost-footgun evidence is clean (`errors=[]`) and not reliant on tolerated permission gaps.
+
+### Remediation execution
+1. Applied least-privilege inline policy to GitHub OIDC role:
+   - role: `GitHubAction-AssumeRoleWithAction`
+   - policy name: `GitHubActionsM9GuardrailReadOnlyDevMin`
+   - action: `elasticloadbalancing:DescribeLoadBalancers`
+   - resource: `*`.
+2. Re-dispatched patched managed workflows:
+   - guardrail: run `22195781513`
+   - billing: run `22195792243`.
+
+### Evidence and outcome
+1. Authoritative execution id:
+   - `m9_20260219T185951Z`.
+2. Durable evidence:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T185951Z/m9_g_cost_guardrail_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T185951Z/confluent_billing_snapshot.json`.
+3. Local evidence mirrors:
+   - `runs/dev_substrate/m9/m9_20260219T185951Z/m9_g_cost_guardrail_snapshot.json`
+   - `runs/dev_substrate/m9/m9_20260219T185951Z/confluent_billing_snapshot.json`.
+4. Result:
+   - `overall_pass=true`
+   - blockers empty
+   - `errors=[]` in guardrail snapshot (ELB AccessDenied removed).
+
