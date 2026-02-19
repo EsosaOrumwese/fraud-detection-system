@@ -1131,6 +1131,7 @@ Active-phase planning posture:
   - `M9.E` execution is green with blockers empty; `M9.F` is unblocked.
   - `M9.F` is expanded to execution-grade with deterministic metadata-only SSM cleanup verification and snapshot contract.
   - `M9.F` execution is green with blockers empty; `M9.G` is unblocked.
+  - `M9.G` is expanded to execution-grade with deterministic live budget/cost posture validation and post-teardown footgun checks.
 
 Sub-phase progress:
   - [x] `M9.A` P12 authority + handoff closure.

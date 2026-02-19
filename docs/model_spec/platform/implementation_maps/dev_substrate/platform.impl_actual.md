@@ -15457,3 +15457,29 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 2. `M9.G` is now the next execution lane.
 3. Main/deep build plans and logbook were repinned to reflect `M9.F` closure.
 
+## Entry: 2026-02-19 15:59:22 +00:00 - M9.G planning expansion to execution-grade
+### Problem framing
+1. `M9.G` was still summary-level and did not yet expose a deterministic, fail-closed algorithm for post-teardown budget/cost guardrail closure.
+2. We needed to pin exactly how to prove:
+   - budget object + threshold posture remains aligned to registry handles,
+   - post-teardown cost-footgun indicators remain clear,
+   - closure evidence is non-secret and reproducible.
+
+### Planning decisions
+1. Expanded `M9.G` to execution-grade in `platform.M9.build_plan.md` with:
+   - entry gates pinned to `M9.F` PASS semantics and `M2.I` budget baseline readability,
+   - explicit required handles for budget/cost/log-retention surfaces (`AWS_BUDGET_*`, `ECS_CLUSTER_NAME`, `RDS_INSTANCE_ID`, `CLOUDWATCH_LOG_GROUP_PREFIX`, `LOG_RETENTION_DAYS`),
+   - deterministic query surface definition (STS, Budgets, Cost Explorer, ECS/EC2/ELBv2/RDS/CloudWatch Logs),
+   - deterministic execution algorithm for budget alignment, threshold checks, MTD utilization, and post-teardown footgun recomputation,
+   - required snapshot schema for `m9_g_cost_guardrail_snapshot.json`,
+   - runtime budget + fail-closed over-budget rule,
+   - expanded blocker taxonomy (`M9G-B1..B7`).
+2. Explicit fail-closed rule was pinned for critical cost posture:
+   - utilization at/above the pinned alert_3 threshold (`AWS_BUDGET_ALERT_3_AMOUNT`) is blocker-coded.
+3. Repinned current planning status to mark:
+   - `M9.G` is execution-grade and pending execution.
+
+### Outcome
+1. Planning-only change; no `M9.G` runtime execution was run in this step.
+2. `M9.G` is now ready for deterministic execution with explicit closure criteria.
+

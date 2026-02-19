@@ -834,18 +834,125 @@ Blockers:
 Goal:
 1. Confirm cost posture is within dev_min guardrails after teardown.
 
+Entry conditions:
+1. `M9.F` is closed PASS:
+   - local: `runs/dev_substrate/m9/m9_20260219T155120Z/m9_f_secret_cleanup_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T155120Z/m9_f_secret_cleanup_snapshot.json`.
+2. `M9.F` source semantics remain true:
+   - `overall_pass=true`,
+   - blockers empty.
+3. Budget guardrail baseline from `M2.I` remains readable:
+   - local: `runs/dev_substrate/m2_i/20260213T201427Z/budget_guardrail_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260213T201427Z/budget_guardrail_snapshot.json`.
+4. Required handles are resolvable from registry authority:
+   - `AWS_REGION`
+   - `AWS_BUDGET_NAME`
+   - `AWS_BUDGET_LIMIT_AMOUNT`
+   - `AWS_BUDGET_LIMIT_UNIT`
+   - `AWS_BUDGET_ALERT_1_AMOUNT`
+   - `AWS_BUDGET_ALERT_2_AMOUNT`
+   - `AWS_BUDGET_ALERT_3_AMOUNT`
+   - `ECS_CLUSTER_NAME`
+   - `RDS_INSTANCE_ID`
+   - `CLOUDWATCH_LOG_GROUP_PREFIX`
+   - `LOG_RETENTION_DAYS`.
+
+Required inputs:
+1. Source snapshots:
+   - `M2.I` `budget_guardrail_snapshot.json`.
+   - `M9.B` teardown inventory/preserve-set snapshot.
+   - `M9.E` residual-resource snapshot.
+   - `M9.F` secret-cleanup snapshot.
+2. Query surfaces (metadata/cost only; no secrets):
+   - `aws sts get-caller-identity` for `account_id`.
+   - `aws budgets describe-budget` and `aws budgets describe-notifications-for-budget`.
+   - `aws ce get-cost-and-usage` (month-to-date cost posture).
+   - `aws ec2 describe-nat-gateways` (non-deleted NAT residuals).
+   - `aws elbv2 describe-load-balancers` (+ tag/name scope check).
+   - `aws ecs list-services` + `aws ecs describe-services`.
+   - `aws rds describe-db-instances --db-instance-identifier <RDS_INSTANCE_ID>`.
+   - `aws logs describe-log-groups --log-group-name-prefix <CLOUDWATCH_LOG_GROUP_PREFIX>`.
+
+Preparation checks:
+1. Validate `M9.F` snapshot readability and PASS semantics; mismatch -> `M9G-B6`.
+2. Validate `M2.I` budget baseline snapshot readability; mismatch -> `M9G-B6`.
+3. Validate all budget/cost handles resolve with no placeholder/wildcard drift; failure -> `M9G-B1`.
+
+Deterministic execution algorithm (M9.G):
+1. Load authoritative source snapshots (`M2.I`, `M9.B`, `M9.E`, `M9.F`) and enforce entry gates.
+2. Resolve runtime `account_id` via STS for budget/CE reads.
+3. Read live budget object and notifications; validate:
+   - name, limit amount, limit unit match pinned handles,
+   - threshold notifications include `10/20/28` set (`AWS_BUDGET_ALERT_1/2/3_AMOUNT`).
+4. Read month-to-date cost from CE and compute:
+   - `mtd_cost_amount`,
+   - `budget_limit_amount`,
+   - `budget_utilization_pct`.
+5. Recompute post-teardown cost-footgun indicators:
+   - NAT non-deleted count,
+   - demo-scoped load balancer residual count,
+   - ECS service desired count > 0,
+   - runtime DB existence state,
+   - log groups under prefix with retention > `LOG_RETENTION_DAYS` or null retention.
+6. Apply blocker mapping:
+   - budget unreadable/misaligned -> `M9G-B1`,
+   - notification threshold drift -> `M9G-B2`,
+   - critical budget posture (utilization at/above alert_3) -> `M9G-B3`,
+   - any cost-footgun residual indicator -> `M9G-B4`,
+   - log-retention drift -> `M9G-B5`,
+   - source snapshot/entry gate invalid -> `M9G-B6`.
+7. Emit local `m9_g_cost_guardrail_snapshot.json` with non-secret posture only.
+8. Publish snapshot durably; publish failure -> `M9G-B7`.
+
 Tasks:
-1. Capture budget object/threshold posture and post-teardown cost-risk indicators.
-2. Emit `m9_g_cost_guardrail_snapshot.json`.
+1. Capture budget object + notification threshold posture against pinned handles.
+2. Capture MTD cost posture and compute budget utilization.
+3. Recompute post-teardown cost-footgun indicators.
+4. Apply fail-closed blocker mapping and emit `m9_g_cost_guardrail_snapshot.json`.
+5. Publish snapshot to durable evidence path.
+
+Required snapshot fields (`m9_g_cost_guardrail_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m9_execution_id`.
+2. `source_m2i_budget_snapshot_local`, `source_m2i_budget_snapshot_uri`.
+3. `source_m9b_snapshot_local`, `source_m9b_snapshot_uri`.
+4. `source_m9e_snapshot_local`, `source_m9e_snapshot_uri`.
+5. `source_m9f_snapshot_local`, `source_m9f_snapshot_uri`.
+6. `budget_posture`:
+   - `budget_name`, `limit_amount`, `limit_unit`,
+   - `notification_thresholds`,
+   - `threshold_match_pass`.
+7. `mtd_cost_posture`:
+   - `mtd_cost_amount`, `budget_utilization_pct`, `critical_threshold_amount`.
+8. `post_teardown_cost_footguns`:
+   - `nat_non_deleted_count`,
+   - `lb_demo_scoped_residual_count`,
+   - `ecs_desired_gt_zero_count`,
+   - `runtime_db_state`,
+   - `log_retention_drift_count`.
+9. `non_secret_policy_pass`.
+10. `blockers`, `overall_pass`, `elapsed_seconds`.
+
+Runtime budget:
+1. `M9.G` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless explicit user waiver is recorded.
 
 DoD:
 - [ ] Budget posture is readable and in-policy.
 - [ ] Post-teardown cost-footgun indicators are clear.
 - [ ] Snapshot exists locally and durably.
 
+Planning status:
+1. `M9.G` is now execution-grade (entry/precheck/live-budget-live-cost/footgun-check/snapshot contract pinned).
+2. Historical summary-only state is superseded; execution not run in this planning step.
+
 Blockers:
 1. `M9G-B1`: budget surface unreadable/misaligned.
-2. `M9G-B2`: post-teardown cost-risk remains.
+2. `M9G-B2`: budget notification threshold drift/missing alerts.
+3. `M9G-B3`: critical budget posture after teardown.
+4. `M9G-B4`: post-teardown cost-footgun residual detected.
+5. `M9G-B5`: log-retention drift above pinned dev_min cap.
+6. `M9G-B6`: prerequisite source snapshot invalid/unreadable.
+7. `M9G-B7`: snapshot publication failure.
 
 ### M9.H Teardown-Proof Artifact Publication
 Goal:
@@ -905,5 +1012,6 @@ Budget rule:
 ## 7) Current Planning Status
 1. M9 is planning-open with `M9.A`, `M9.B`, `M9.C`, `M9.D`, `M9.E`, and `M9.F` execution closed green.
 2. `M9.G` is now the next execution lane.
-3. Unified teardown workflow decision is pinned:
+3. `M9.G` is expanded to execution-grade and pending execution.
+4. Unified teardown workflow decision is pinned:
    - `dev_min_confluent_destroy.yml` is stack-aware (`stack_target=confluent|demo`).
