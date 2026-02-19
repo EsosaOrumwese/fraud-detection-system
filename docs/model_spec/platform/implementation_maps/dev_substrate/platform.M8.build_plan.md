@@ -522,10 +522,10 @@ Required snapshot fields (`m8_d_single_writer_probe_snapshot.json`):
 6. `blockers`, `overall_pass`, `elapsed_seconds`.
 
 DoD:
-- [ ] Contention probe demonstrates single-writer lock correctness.
-- [ ] Second writer is denied/fails closed with explicit runtime evidence.
-- [ ] No conflicting closure writes occur under probe.
-- [ ] Snapshot exists locally and durably.
+- [x] Contention probe demonstrates single-writer lock correctness.
+- [x] Second writer is denied/fails closed with explicit runtime evidence.
+- [x] No conflicting closure writes occur under probe.
+- [x] Snapshot exists locally and durably.
 
 Runtime budget:
 1. `M8.D` target budget: <= 15 minutes wall clock.
@@ -534,6 +534,7 @@ Runtime budget:
 Planning status:
 1. `M8.D` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
 2. Runtime execution completed on `m8_execution_id=m8_20260219T091250Z` with fail-closed verdict.
+3. Runtime remediation rerun completed on `m8_execution_id=m8_20260219T093130Z` with pass verdict.
 
 Execution closure (2026-02-19):
 1. Probe execution:
@@ -554,6 +555,29 @@ Execution closure (2026-02-19):
    - `M8.D` remains open (fail-closed),
    - `M8.E` stays blocked until `M8D-B4` is remediated and `M8.D` rerun passes.
 
+Execution remediation rerun closure (2026-02-19):
+1. Remediation posture:
+   - reporter worker now executes explicit advisory-lock path (`db_advisory_lock`),
+   - reporter runtime env includes:
+     - `REPORTER_LOCK_BACKEND=db_advisory_lock`,
+     - `REPORTER_LOCK_KEY_PATTERN=reporter:{platform_run_id}`,
+   - reporter task definition rematerialized to `fraud-platform-dev-min-reporter:3`.
+2. Rerun execution:
+   - execution id: `m8_20260219T093130Z`
+   - local snapshot: `runs/dev_substrate/m8/m8_20260219T093130Z/m8_d_single_writer_probe_snapshot.json`
+   - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T093130Z/m8_d_single_writer_probe_snapshot.json`.
+3. Rerun outcomes:
+   - two same-run reporter tasks overlapped (`30.782s`),
+   - one task succeeded, one task failed closed under contention,
+   - conflict/lock signal evidence present (`lock_conflict_signal_count=9`),
+   - no conflicting closure writes observed.
+4. Verdict:
+   - `overall_pass=true`,
+   - blockers empty.
+5. Phase posture:
+   - `M8.D` is closed,
+   - `M8.E` is unblocked for execution.
+
 Blocker Codes (Taxonomy):
 1. `M8D-B1`: lock does not enforce single-writer under contention probe.
 2. `M8D-B2`: concurrent writer succeeds unexpectedly or conflicting closure writes observed.
@@ -565,24 +589,149 @@ Blocker Codes (Taxonomy):
 Goal:
 1. Execute reporter closeout for active run scope on managed compute.
 
+Entry conditions:
+1. `M8.D` is pass with blockers empty:
+   - local: `runs/dev_substrate/m8/m8_20260219T093130Z/m8_d_single_writer_probe_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T093130Z/m8_d_single_writer_probe_snapshot.json`.
+2. Active run scope is fixed:
+   - `platform_run_id=platform_20260213T214223Z`.
+3. Reporter runtime contract remains concrete on live task definition:
+   - `TD_REPORTER`,
+   - `ROLE_REPORTER_SINGLE_WRITER`,
+   - `REPORTER_LOCK_BACKEND=db_advisory_lock`,
+   - `REPORTER_LOCK_KEY_PATTERN=reporter:{platform_run_id}`.
+
+Required inputs:
+1. `M8.D` pass snapshot (local preferred, durable fallback).
+2. Reporter runtime surfaces:
+   - ECS cluster + task-definition handles for one-shot invocation,
+   - CloudWatch log group/prefix for reporter logs.
+3. Closure output surfaces:
+   - run-scoped evidence root for Obs/Gov outputs,
+   - M8 control-plane evidence root for `m8_e_reporter_execution_snapshot.json`.
+
+Preparation checks:
+1. Validate `M8.D` pass posture and run-scope match.
+2. Validate reporter task-definition revision and image digest align with post-remediation runtime lane.
+3. Validate lock contract env remains concrete (no placeholder/wildcard/unset values).
+4. Validate evidence bucket/path permissions for local->durable snapshot publication.
+   Failure of any preparation check is fail-closed (`M8E-B4`/`M8E-B5`).
+
+Deterministic verification algorithm (M8.E):
+1. Load `M8.D` pass snapshot; fail on missing/invalid/pass-mismatch -> `M8E-B4`.
+2. Resolve reporter runtime handles and run scope; unresolved/placeholder/wildcard -> `M8E-B5`.
+3. Launch one reporter task for fixed `platform_run_id` with deterministic `startedBy` marker.
+4. Wait for terminal outcome within M8.E budget window.
+   - timeout/non-terminal -> `M8E-B1`.
+5. Verify terminal status:
+   - task exit must be `0`,
+   - no fatal runtime exception patterns in task logs.
+   Failure -> `M8E-B1`.
+6. Verify lock lifecycle evidence from runtime logs/surfaces:
+   - lock attempt/acquire/release present,
+   - no lock-denied conflict pattern in this one-shot lane.
+   Failure -> `M8E-B2`.
+7. Emit `m8_e_reporter_execution_snapshot.json` locally and publish durably.
+8. Return `overall_pass=true` only when blocker list is empty.
+
 Tasks:
 1. Invoke one-shot reporter task with run-scope inputs.
-2. Verify task completion (`exit=0`) and lock lifecycle in logs (acquire/write/release).
-3. Emit `m8_e_reporter_execution_snapshot.json`.
+2. Verify task completion (`exit=0`) and lock lifecycle in logs (attempt/acquire/release).
+3. Emit `m8_e_reporter_execution_snapshot.json` (local + durable).
+
+Required snapshot fields (`m8_e_reporter_execution_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m8_execution_id`.
+2. `source_m8d_snapshot_local`, `source_m8d_snapshot_uri`.
+3. `reporter_invocation` (task arn/id, startedBy, cluster, task definition revision, image digest).
+4. `terminal_outcome_checks` (exit code, stop reason, runtime timing).
+5. `lock_lifecycle_checks` (attempt/acquire/release signal checks).
+6. `blockers`, `overall_pass`, `elapsed_seconds`.
 
 DoD:
-- [ ] Reporter task exits successfully.
-- [ ] Lock lifecycle is evidenced in runtime logs/snapshot.
-- [ ] Snapshot exists locally and durably.
+- [x] Reporter task exits successfully.
+- [x] Lock lifecycle is evidenced in runtime logs/snapshot.
+- [x] Snapshot exists locally and durably.
 
 Blocker Codes (Taxonomy):
 1. `M8E-B1`: reporter task failed or timed out.
 2. `M8E-B2`: lock lifecycle evidence incomplete.
 3. `M8E-B3`: snapshot write/upload failure.
+4. `M8E-B4`: `M8.D` prerequisite or run-scope gate failed.
+5. `M8E-B5`: reporter runtime contract/handle resolution failed.
+
+Runtime budget:
+1. `M8.E` target budget: <= 15 minutes wall clock.
+2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
+
+Planning status:
+1. `M8.E` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
+2. Runtime execution completed on `m8_execution_id=m8_20260219T095720Z` with pass verdict.
+
+Execution closure (2026-02-19):
+1. One-shot execution:
+   - execution id: `m8_20260219T095720Z`
+   - local snapshot: `runs/dev_substrate/m8/m8_20260219T095720Z/m8_e_reporter_execution_snapshot.json`
+   - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T095720Z/m8_e_reporter_execution_snapshot.json`.
+2. Runtime posture validated before launch:
+   - source gate `M8.D` pass artifact readable,
+   - reporter task definition `fraud-platform-dev-min-reporter:3`,
+   - lock contract env concrete (`db_advisory_lock`, `reporter:{platform_run_id}`).
+3. One-shot outcomes:
+   - reporter task exit `0` (`task_id=89ce923388114e13932d3b793d790b47`),
+   - no timeout/fatal runtime pattern,
+   - lock lifecycle evidenced (`attempt`, `acquired`, `released`) with no deny signal.
+4. Verdict:
+   - `overall_pass=true`,
+   - blockers empty,
+   - elapsed `77.158s`.
+5. Phase posture:
+   - `M8.E` is closed,
+   - `M8.F` is unblocked for execution.
 
 ### M8.F Closure Bundle Completeness
 Goal:
 1. Verify required closure artifacts exist and are run-scoped.
+
+Entry conditions:
+1. `M8.E` is pass with blockers empty:
+   - local: `runs/dev_substrate/m8/m8_20260219T095720Z/m8_e_reporter_execution_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T095720Z/m8_e_reporter_execution_snapshot.json`.
+2. Active run scope is fixed:
+   - `platform_run_id=platform_20260213T214223Z`.
+3. Run-scoped evidence root is resolvable and readable:
+   - `evidence/runs/<platform_run_id>/`.
+
+Required inputs:
+1. `M8.E` pass snapshot (local preferred, durable fallback).
+2. Required run-scoped closure bundle targets:
+   - `evidence/runs/<platform_run_id>/run_completed.json`
+   - `evidence/runs/<platform_run_id>/obs/run_report.json`
+   - `evidence/runs/<platform_run_id>/obs/reconciliation.json`
+   - `evidence/runs/<platform_run_id>/obs/replay_anchors.json`
+   - `evidence/runs/<platform_run_id>/obs/environment_conformance.json`
+   - `evidence/runs/<platform_run_id>/obs/anomaly_summary.json`.
+3. M8 control-plane evidence root for `m8_f_bundle_completeness_snapshot.json`.
+
+Preparation checks:
+1. Validate `M8.E` pass posture and run-scope match.
+2. Validate evidence bucket/root handles are concrete and non-placeholder.
+3. Validate local->durable snapshot publication path is writable.
+   Failure of any preparation check is fail-closed (`M8F-B4`/`M8F-B5`).
+
+Deterministic verification algorithm (M8.F):
+1. Load `M8.E` pass snapshot; fail on missing/invalid/pass-mismatch -> `M8F-B4`.
+2. Resolve required closure artifact paths from fixed run scope.
+3. For each required object:
+   - validate object existence/readability,
+   - fetch payload and validate parseability (JSON),
+   - evaluate run-scope conformance (`platform_run_id`/equivalent field alignment).
+4. Record per-artifact verdict rows:
+   - `exists`, `readable`, `json_parse_ok`, `run_scope_ok`, `failure_reason`.
+5. Classify blockers:
+   - missing/unreadable object -> `M8F-B1`,
+   - parse/scope/content conformance failure -> `M8F-B2`.
+6. Emit `m8_f_bundle_completeness_snapshot.json` locally and publish durably.
+7. Return `overall_pass=true` only when blocker list is empty.
 
 Tasks:
 1. Validate artifact existence:
@@ -595,6 +744,13 @@ Tasks:
 2. Validate each artifact references active run scope.
 3. Emit `m8_f_bundle_completeness_snapshot.json`.
 
+Required snapshot fields (`m8_f_bundle_completeness_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m8_execution_id`.
+2. `source_m8e_snapshot_local`, `source_m8e_snapshot_uri`.
+3. `bundle_targets` (required object paths under run-scoped root).
+4. `artifact_checks` (per-object existence/readability/parse/scope results).
+5. `blockers`, `overall_pass`, `elapsed_seconds`.
+
 DoD:
 - [ ] Required closure artifacts exist at pinned paths.
 - [ ] Artifact run-scope conformance checks pass.
@@ -604,6 +760,16 @@ Blocker Codes (Taxonomy):
 1. `M8F-B1`: required closure artifact missing.
 2. `M8F-B2`: closure artifact run-scope mismatch.
 3. `M8F-B3`: snapshot write/upload failure.
+4. `M8F-B4`: `M8.E` prerequisite or run-scope gate failed.
+5. `M8F-B5`: evidence-handle resolution/preparation check failed.
+
+Runtime budget:
+1. `M8.F` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
+
+Planning status:
+1. `M8.F` is now execution-grade (entry/precheck/algorithm/snapshot contract pinned).
+2. Runtime execution has not started in this planning step.
 
 ### M8.G Replay Anchors + Reconciliation Coherence
 Goal:
@@ -729,8 +895,8 @@ Notes:
 - [x] M8.A complete
 - [x] M8.B complete
 - [x] M8.C complete
-- [ ] M8.D complete
-- [ ] M8.E complete
+- [x] M8.D complete
+- [x] M8.E complete
 - [ ] M8.F complete
 - [ ] M8.G complete
 - [ ] M8.H complete

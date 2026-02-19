@@ -175,6 +175,122 @@ Definition of done:
 - [ ] deterministic replay parity passes on same seed/input.
 - [ ] structural validators remain green.
 
+POPT.1 baseline anchors (from POPT.0):
+- optimization target state: `S2`
+- baseline run-id: `724a63d3f8b242809b8ec3b746d0c776`
+- baseline `S2 wall`: `406.375s`
+- baseline hotspot share: `58.25%`
+- observed dominant sub-lanes in `S2`:
+  - `tile allocations prepared` lane dominates pre-loop wall time,
+  - per-edge jitter/tz assignment loop is the second heavy lane.
+
+POPT.1 closure gates (quantified):
+- runtime movement gate:
+  - `S2 wall <= 300s` OR
+  - `S2 wall reduction >= 25%` vs baseline (`<=304.78s` equivalent).
+- non-regression gates:
+  - `S2` run-report counters remain structurally valid (`edges_total`, `rng_events_total`, `rng_draws_total` non-null and coherent),
+  - downstream `S3/S4/S5` remain `PASS`,
+  - no schema/path drift in `edge_catalogue_3B` and `edge_catalogue_index_3B`.
+- determinism gate:
+  - identical policy + seed produces equivalent structural counters and no new validator failures.
+
+### POPT.1.1 - Hot-lane decomposition lock (no semantics change)
+Goal:
+- expose `S2` internal lanes with enough resolution to prove where wall time is spent.
+
+Scope:
+- pin baseline timing split for:
+  - input resolve + seal checks,
+  - tile allocation prep,
+  - jitter/tz placement loop,
+  - write/publish lane.
+- ensure added timing markers are low-frequency and deterministic.
+
+Definition of done:
+- [ ] machine-readable lane timing breakdown exists for candidate runs.
+- [ ] no output or schema changes from instrumentation-only edits.
+- [ ] instrumentation overhead is bounded and does not dominate wall time.
+
+### POPT.1.2 - S2 prep-lane optimization (primary)
+Goal:
+- reduce `tile allocation prep` cost without changing assignment semantics.
+
+Scope:
+- optimize country-level asset reuse/data structures in `S2` prep path.
+- eliminate repeated expensive transforms where immutable-by-run inputs permit reuse.
+- keep single-process memory-safe posture (Fast-Compute-Safe).
+
+Definition of done:
+- [ ] prep lane wall time materially reduced vs POPT.0 baseline trace.
+- [ ] no change in required `S2` counters semantics.
+- [ ] no memory pressure regressions observed on candidate run.
+
+### POPT.1.3 - Edge placement loop optimization (secondary inside POPT.1)
+Goal:
+- reduce per-edge jitter/tz loop overhead while preserving RNG/accounting contract.
+
+Scope:
+- optimize loop data access patterns and avoid repeated per-edge lookup work.
+- preserve RNG stream usage/accounting and event surface contracts.
+
+Definition of done:
+- [ ] placement-loop throughput improves measurably vs baseline.
+- [ ] `rng_events_total` and `rng_draws_total` remain coherent and valid.
+- [ ] no new `S2` validator failures.
+
+### POPT.1.4 - Logging cadence budget for S2
+Goal:
+- reduce avoidable log-induced overhead in the `S2` hotspot lane.
+
+Scope:
+- cap high-frequency progress logs to practical cadence while retaining audit-critical events.
+- keep error/warn visibility unchanged.
+
+Definition of done:
+- [ ] log volume reduced on S2 hot lane.
+- [ ] required auditability remains intact.
+- [ ] measurable S2 wall-time movement attributable to lower logging drag.
+
+### POPT.1.5 - Witness rerun and gate checks
+Goal:
+- validate optimized `S2` behavior under full downstream chain.
+
+Scope:
+- execute single-seed witness rerun from changed state onward: `S2 -> S3 -> S4 -> S5`.
+- score against POPT.1 runtime and non-regression gates.
+
+Definition of done:
+- [x] witness chain is green (`S2..S5 PASS`).
+- [x] POPT.1 closure gates are evaluated in artifact form.
+- [x] failures (if any) are mapped to explicit reopen action.
+
+### POPT.1.6 - Closure decision and handoff
+Goal:
+- close POPT.1 with explicit decision and next-phase pointer.
+
+Scope:
+- if runtime + non-regression gates pass: promote POPT.1 closure and open `POPT.2` on secondary hotspot (`S5`).
+- otherwise: keep POPT.1 open with bounded reopen plan (no phase drift).
+
+Definition of done:
+- [x] explicit decision is recorded (`UNLOCK_POPT2` or `HOLD_POPT1_REOPEN`).
+- [x] retained candidate run-id and artifacts are pinned.
+- [x] build plan phase status is synchronized to closure truth.
+
+POPT.1 execution evidence and closure:
+- passing witness candidate:
+  - run-id: `19334bfdbacb40dba38ad851c69dd0e6`
+  - outcome: `S2..S5 PASS`, but runtime gate failed (`S2=633.094s`, baseline `406.375s`)
+  - closure artifact:
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1_closure_19334bfdbacb40dba38ad851c69dd0e6.json`
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1_closure_19334bfdbacb40dba38ad851c69dd0e6.md`
+- failed bounded attempts (captured then pruned to protect storage):
+  - `2e7537c20492400b888b03868e00ffce` (`S2` fail at `tile_surfaces`, infra/memory pressure posture)
+  - `9459c3d21cfd4a4a9eb6ca93b20af84e` (`S2` fail late in batched prep lane)
+- closure decision: `HOLD_POPT1_REOPEN`
+- reopen lane: redesign `S2` tile-allocation prep strategy under strict single-process memory budget and minute-scale runtime gate.
+
 ### POPT.2 - Secondary hotspot optimization (expected S5 or S3)
 Goal:
 - reduce second-ranked bottleneck while preserving check semantics.
@@ -312,7 +428,7 @@ Definition of done:
 
 ## 8) Current phase status
 - `POPT.0`: completed
-- `POPT.1`: pending
+- `POPT.1`: in_progress (`HOLD_POPT1_REOPEN`)
 - `POPT.2`: pending
 - `POPT.3`: pending
 - `POPT.4`: pending

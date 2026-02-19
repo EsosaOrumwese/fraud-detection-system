@@ -2662,3 +2662,215 @@ Measured baseline (authority for POPT lane):
 Closure decision:
 1) `POPT.0` is closed.
 2) `POPT.1` opens on `S2` as the primary optimization lane.
+
+### Entry: 2026-02-19 09:05
+
+Design element: `3B POPT.1 planning expansion (execution-grade for S2 hotspot)`.
+Summary: user requested planning for `POPT.1`; expanded the build plan from summary-level to concrete `POPT.1.1..POPT.1.6` phases with quantified runtime gates and explicit closure decisions.
+
+Planning decisions pinned:
+1) primary target lane remains `S2` from `POPT.0` authority baseline.
+2) baseline anchors explicitly pinned:
+   - run-id `724a63d3f8b242809b8ec3b746d0c776`,
+   - `S2 wall=406.375s`, share `58.25%`.
+3) closure gates quantified to avoid vague movement criteria:
+   - `S2 wall <=300s` OR `>=25%` reduction vs baseline (`<=304.78s` equivalent),
+   - downstream `S3/S4/S5 PASS`,
+   - no schema/path drift on S2 outputs,
+   - determinism via equivalent structural counters + no new validator failures.
+4) phase decomposition chosen to enforce performance-first law:
+   - `POPT.1.1` lane decomposition lock,
+   - `POPT.1.2` prep-lane optimization,
+   - `POPT.1.3` edge-placement loop optimization,
+   - `POPT.1.4` logging cadence budget,
+   - `POPT.1.5` witness rerun + gates,
+   - `POPT.1.6` explicit close decision (`UNLOCK_POPT2` or `HOLD_POPT1_REOPEN`).
+
+Rationale:
+1) this split isolates the two dominant S2 sub-lanes (prep and edge-placement) and prevents mixed-cause tuning.
+2) quantified gates keep the phase fail-closed and auditable.
+3) closure handoff to `POPT.2` is conditional on runtime and non-regression gates, not on subjective improvement.
+### Entry: 2026-02-19 09:26
+
+Design element: `3B POPT.1 execution start (S2 prep-lane + placement/log cadence optimization)`.
+Summary: executing full `POPT.1` with code-first hotspot closure in `S2`, then witness rerun `S2->S5`, closure-gate scoring, and phase-status synchronization.
+
+Baseline authority and problem focus:
+1) authority run-id: `724a63d3f8b242809b8ec3b746d0c776`.
+2) baseline hotspot: `S2 wall=406.375s` (`58.25%` share).
+3) dominant sub-lane from run log: `tile allocations prepared` consumed the majority of `S2` wall time.
+
+Alternatives considered:
+1) Keep per-country lazy scans and only reduce progress-log cadence.
+   - Rejected: expected gain too small versus `>=25%` runtime gate.
+2) Rewrite edge-placement semantics (sampling algorithm) for vectorized generation.
+   - Rejected in `POPT.1`: high semantic drift risk for RNG/accounting contract.
+3) Replace repeated per-country parquet scans with one-pass country-scoped materialization,
+   keep allocation/validation semantics intact, and apply low-risk loop/log overhead trims.
+   - Selected: targets primary hotspot while preserving contract behavior.
+
+Implementation plan (POPT.1.1->POPT.1.6):
+1) `POPT.1.1` lane lock:
+   - instrument and preserve existing timer checkpoints; no contract changes.
+2) `POPT.1.2` prep-lane optimization:
+   - in `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`:
+     - materialize `tile_weights`, `tile_index`, `tile_bounds` once for required countries;
+     - build per-country maps in memory (weights/index/bounds IDs + bounds payload);
+     - remove repeated `filter(...).collect()` in the country loop.
+3) `POPT.1.3` placement-loop micro-optimization:
+   - precompute per-country static refs (`country_geom`, allocations, bounds) and
+     `edges_by_country` totals outside merchant loop to reduce repeated dict churn.
+4) `POPT.1.4` logging cadence budget:
+   - increase progress-log cadence interval from 0.5s to a practical heartbeat interval
+     while retaining ETA/rate/processed totals.
+5) `POPT.1.5` witness rerun:
+   - stage a new run-id under `runs/fix-data-engine/segment_3B` from frozen upstream
+     authorities and execute witness chain (full `segment3b` lane for deterministic proof).
+6) `POPT.1.6` closure:
+   - score runtime/non-regression gates;
+   - record explicit decision `UNLOCK_POPT2` or `HOLD_POPT1_REOPEN`.
+
+Invariants explicitly protected:
+1) no schema/path/output contract drift on `edge_catalogue_3B` + index.
+2) RNG accounting invariants (`rng_events_total`, `rng_draws_total`, `rng_blocks_total`) preserved.
+3) deterministic digest/id laws unchanged.
+4) single-process memory-safe posture retained (Fast-Compute-Safe).
+
+Next action: patch `S2` and then execute witness run + scorer artifacts.
+### Entry: 2026-02-19 09:33
+
+Design element: `3B POPT.1 code patch applied (S2 prep-lane + loop/log trims)`.
+Summary: implemented `POPT.1.2/1.3/1.4` changes in `3B.S2` and validated syntax (`py_compile`) before witness rerun.
+
+Files changed:
+1) `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`.
+
+What was changed:
+1) Added progress heartbeat constant:
+   - `PROGRESS_LOG_MIN_INTERVAL_S = 2.0` (from prior 0.5s cadence).
+2) Replaced repeated per-country parquet scans in tile-surface prep with country-scoped materialization:
+   - one pass for `tile_weights` (`country_iso,tile_id,weight_fp,dp`),
+   - one pass for `tile_index` (`country_iso,tile_id`),
+   - one pass for `tile_bounds` ids + one joined bounds payload lookup for needed tiles.
+3) Preserved existing validation semantics (`tile_weights_missing`, `dp_mismatch`,
+   `tile_id_not_in_index`, `tile_bounds_missing_ids`, `tile_bounds_missing`) with the
+   same abort codes/validator ids.
+4) Reduced placement-loop lookup churn:
+   - precomputed `edges_by_country` totals and `country_loop_plan` outside merchant loop,
+   - removed per-merchant country-total dict increments and repeated country-map lookups.
+
+Why this is safe for POPT.1:
+1) No contract/schema surface changes.
+2) RNG stream/counter logic untouched.
+3) Edge construction logic (id, digest, tz resolution, acceptance checks) untouched.
+4) Changes are confined to data access pattern and loop orchestration overhead.
+
+Validation completed:
+1) `python -m py_compile packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py` -> PASS.
+
+Next action:
+1) stage fresh run-id and execute witness chain;
+2) score runtime/non-regression gates for `POPT.1` closure decision.
+### Entry: 2026-02-19 09:45
+
+Design element: `3B POPT.1 corrective patch after first witness failure (memory-safe tile fast path)`.
+Summary: first witness run (`2e7537c...`) failed in `S2/tile_surfaces` with infra error and empty detail (consistent with memory-pressure failure in bulk materialization). Applied corrective strategy preserving `POPT.1` intent.
+
+Failure evidence:
+1) run-id: `2e7537c20492400b888b03868e00ffce`.
+2) `S2` failed at `phase=tile_surfaces` after ~193s.
+3) error context detail was empty string, with no contract validator error prior to failure.
+
+Root-cause hypothesis and decision:
+1) Prior patch materialized broad country-scoped tile surfaces in one shot.
+2) On this lane, tile surfaces are large enough to risk memory spikes under single-process constraints.
+3) Decision: replace bulk materialization with partition-aware country file loading plus fallback, preserving semantics and memory safety.
+
+Corrective implementation:
+1) Added country file inference/mapping helpers:
+   - `_country_iso_from_parquet_path`,
+   - `_build_country_file_map`.
+2) `S2` tile-surface load mode now chooses:
+   - `country_file_fast_path` when country files can be mapped for all required countries,
+   - `scan_filter_fallback` otherwise.
+3) Per-country path now loads only that country's parquet subset for `weights/index/bounds`;
+   no global one-shot materialization is used.
+4) Kept all existing abort codes and validation semantics unchanged.
+5) Kept prior loop/log-cadence improvements in place.
+
+Validation:
+1) `py_compile` pass on updated `3B.S2` runner.
+
+Next action:
+1) rerun witness lane on fresh run-id;
+2) if pass, score `POPT.1` closure gates.
+### Entry: 2026-02-19 10:07
+
+Design element: `3B POPT.1 second corrective pass (batch scan-filter tile prep)`.
+Summary: first corrective pass removed OOM risk but regressed `S2` prep (`~503s` tile allocation prep). Introduced bounded-batch scan-filter strategy to reduce global scan count while preserving memory safety.
+
+Observed issue from run `19334bf...`:
+1) `S2` completed, but tile prep delta was `~503.52s`, driving `S2 wall` to `633.094s`.
+2) Root cause: per-country file loads across 233 countries increased file-open/read overhead.
+
+New decision:
+1) Replace per-country file path loads with batched country-filter scans.
+2) Keep bounded memory posture by limiting per-batch country cardinality.
+
+Implementation details:
+1) Added `TILE_SURFACE_COUNTRY_BATCH_SIZE = 12`.
+2) Tile prep now runs in batches:
+   - batch-scan `weights/index/bounds` for 12 countries at a time,
+   - build per-country maps from each batch,
+   - perform existing validation + allocation checks unchanged.
+3) Added low-frequency batch progress logs (`batch i/n`).
+4) Removed country-file mapping helpers from prior pass (no longer used).
+
+Invariants retained:
+1) same `V-08` validator error codes.
+2) same `tile_alloc` semantics and required bounds checks.
+3) no RNG/event/schema contract changes.
+
+Validation:
+1) `py_compile` pass for updated `3B.S2` runner.
+
+Next action:
+1) execute another witness run and compare against baseline `S2=406.375s` gate.
+### Entry: 2026-02-19 10:20
+
+Design element: `3B POPT.1 execution closure (revert-to-safe + HOLD decision)`.
+Summary: completed full `POPT.1` execution attempts and closed with `HOLD_POPT1_REOPEN` because runtime gate failed despite downstream non-regression PASS.
+
+Execution outcome summary:
+1) Attempt `2e7537c...`:
+   - failed in `S2/tile_surfaces` with infra error (memory-pressure posture).
+2) Attempt `19334bf...` (best passing candidate):
+   - full chain `S0..S5 PASS`.
+   - `S2 wall=633.094s` vs baseline `406.375s` (runtime gate fail).
+   - non-regression gates passed (`S3/S4/S5 PASS`, RNG accounting coherent).
+3) Attempt `9459c3d...`:
+   - late `S2` failure under batch-scan correction; runtime and stability unacceptable.
+
+Code safety decision:
+1) runtime-lane experimental patches were reverted from `3B.S2` to the HEAD-safe baseline implementation.
+2) no net engine-behavior change is retained from this failed optimization cycle.
+
+Closure artifact and verdict:
+1) added scorer tool:
+   - `tools/score_segment3b_popt1_closure.py`
+2) emitted closure artifacts:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1_closure_19334bfdbacb40dba38ad851c69dd0e6.json`
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_popt1_closure_19334bfdbacb40dba38ad851c69dd0e6.md`
+3) explicit decision:
+   - `HOLD_POPT1_REOPEN`.
+
+Run retention/prune discipline:
+1) pruned failed/superseded run-id folders after evidence capture:
+   - removed: `2e7537c20492400b888b03868e00ffce`, `9459c3d21cfd4a4a9eb6ca93b20af84e`.
+2) retained keep-set:
+   - baseline authority: `724a63d3f8b242809b8ec3b746d0c776`.
+   - best passing candidate evidence: `19334bfdbacb40dba38ad851c69dd0e6`.
+
+Next required reopen lane:
+1) `S2` prep-lane redesign that avoids repeated global scans without bulk memory spikes,
+   with strict gate target `S2 <=300s` or `>=25%` reduction vs baseline before `POPT.2` unlock.

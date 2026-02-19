@@ -870,10 +870,13 @@ Active-phase planning posture:
   - `M8.B` is expanded to execution-grade with deterministic reporter readiness algorithm and snapshot contract,
   - `M8.C` is expanded to execution-grade with deterministic input-readiness algorithm and snapshot contract,
   - `M8.D` is expanded to execution-grade with deterministic contention-probe algorithm and snapshot contract,
+  - `M8.E` is expanded to execution-grade with deterministic one-shot reporter verification algorithm and snapshot contract,
+  - `M8.F` is expanded to execution-grade with deterministic closure-bundle verification algorithm and snapshot contract,
   - `M8.A` rerun is green after reporter surface materialization,
   - `M8.B` execution is green,
   - `M8.C` execution is green,
-  - `M8.D` executed fail-closed; remediation is required before progression.
+  - `M8.D` remediation rerun is green with blockers empty; `M8.E` is unblocked.
+  - `M8.E` execution is green with blockers empty; `M8.F` is unblocked.
 
 M8.A execution closure (2026-02-19):
   - execution id: `m8_20260219T073801Z`
@@ -928,19 +931,51 @@ M8.D execution closure (2026-02-19):
   - consequence:
     - `M8.D` remains open; `M8.E..M8.I` blocked pending `M8D-B4` remediation + rerun.
 
+M8.D remediation rerun closure (2026-02-19):
+  - remediation applied:
+    - reporter worker lock path is now explicit (`db_advisory_lock`),
+    - reporter runtime env now carries `REPORTER_LOCK_BACKEND` + `REPORTER_LOCK_KEY_PATTERN`,
+    - reporter task definition rematerialized to revision `fraud-platform-dev-min-reporter:3`.
+  - execution id: `m8_20260219T093130Z`
+  - local snapshot: `runs/dev_substrate/m8/m8_20260219T093130Z/m8_d_single_writer_probe_snapshot.json`
+  - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T093130Z/m8_d_single_writer_probe_snapshot.json`
+  - result: `overall_pass=true`, blockers empty
+  - probe outcomes:
+    - two same-run reporter tasks overlapped (`30.782s`)
+    - one task succeeded, one failed closed under lock/conflict posture
+    - conflict/lock signals recorded (`lock_conflict_signal_count=9`)
+    - no conflicting closure writes observed
+  - consequence:
+    - `M8.D` is closed
+    - `M8.E..M8.I` are unblocked for sequential execution.
+
+M8.E execution closure (2026-02-19):
+  - execution id: `m8_20260219T095720Z`
+  - local snapshot: `runs/dev_substrate/m8/m8_20260219T095720Z/m8_e_reporter_execution_snapshot.json`
+  - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T095720Z/m8_e_reporter_execution_snapshot.json`
+  - result: `overall_pass=true`, blockers empty
+  - runtime outcomes:
+    - reporter one-shot task `89ce923388114e13932d3b793d790b47` exited `0`
+    - lock lifecycle evidence present (`attempt/acquired/released`)
+    - no lock-denied signal and no fatal runtime pattern
+  - elapsed: `77.158s`
+  - consequence:
+    - `M8.E` is closed
+    - `M8.F..M8.I` are unblocked for sequential execution.
+
 Sub-phase progress:
   - [x] `M8.A` P11 authority + handles closure.
   - [x] `M8.B` reporter runtime + lock readiness.
   - [x] `M8.C` closure input evidence readiness.
-  - [ ] `M8.D` single-writer contention fail-closed probe.
-  - [ ] `M8.E` reporter one-shot execution.
+  - [x] `M8.D` single-writer contention fail-closed probe.
+  - [x] `M8.E` reporter one-shot execution.
   - [ ] `M8.F` closure evidence bundle completeness.
   - [ ] `M8.G` replay anchor + reconciliation coherence.
   - [ ] `M8.H` closure marker + env/anomaly outputs verification.
   - [ ] `M8.I` P11 verdict + M9 handoff.
 
 M8 DoD checklist:
-- [ ] Single-writer reporter lock is enforced and evidenced.
+- [x] Single-writer reporter lock is enforced and evidenced.
 - [ ] Required Obs/Gov closure artifacts are durable and run-scoped.
 - [ ] Replay anchors and reconciliation are coherent with prior phase evidence.
 - [ ] `run_completed.json` exists and references correct `platform_run_id`.
@@ -1067,8 +1102,8 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M8 is active for deep-plan closure and execution sequencing.
 Next action:
-- remediate `M8D-B4` so reporter runtime enforces/proves the pinned lock contract,
+- execute `M8.F` closure-bundle completeness verification against run-scoped Obs/Gov artifacts,
 - require durable artifact:
-  - `evidence/dev_min/run_control/<m8_execution_id>/m8_d_single_writer_probe_snapshot.json`,
-- rerun `M8.D` and require `overall_pass=true` with blockers empty,
-- continue `M8.E..M8.I` only after `M8.D` passes fail-closed checks.
+  - `evidence/dev_min/run_control/<m8_execution_id>/m8_f_bundle_completeness_snapshot.json`,
+- require `overall_pass=true` with blockers empty for `M8.F`,
+- continue `M8.G..M8.I` only after `M8.F` passes.

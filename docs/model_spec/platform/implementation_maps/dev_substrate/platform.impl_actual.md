@@ -14321,3 +14321,198 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 2. Keep branch-governance constraints: stay on active branch, no branch switch.
 3. After CI digest resolves, apply targeted Terraform reporter task-definition update using that immutable digest.
 4. Rerun `M8.D` against rematerialized runtime.
+
+## Entry: 2026-02-19 09:31:30 +00:00 - M8.D rerun start after lock remediation
+### Runtime posture update
+1. Reporter task definition rematerialized to `fraud-platform-dev-min-reporter:3`.
+2. Runtime now includes explicit lock contract env:
+   - `REPORTER_LOCK_BACKEND=db_advisory_lock`
+   - `REPORTER_LOCK_KEY_PATTERN=reporter:{platform_run_id}`.
+3. Reporter image updated to immutable digest `sha256:a5a82c9e116d048a71ab09b87225eac62d4c5c7d98558566f06cd802dedda122`.
+
+### Decision
+1. Execute fresh `M8.D` contention probe (`m8_20260219T093130Z`) with same run scope.
+2. Require explicit lock acquire/deny evidence in logs and blocker-empty pass for closure.
+
+## Entry: 2026-02-19 09:35:14 +00:00 - M8.D remediation rerun closed pass
+### Reasoning and execution trail
+1. Used the rematerialized reporter runtime surface (`fraud-platform-dev-min-reporter:3`) because it is the first revision that makes the pinned lock contract executable in the worker path.
+2. Kept probe shape deterministic with same run scope and two overlapping reporter one-shot invocations to isolate lock behavior from unrelated runtime drift.
+3. Evaluated results against fail-closed criteria only:
+   - one winner/one loser under overlap,
+   - explicit conflict/lock-deny signal present,
+   - no conflicting closure writes.
+4. Accepted closure only after local and durable snapshot writes both succeeded.
+
+### Artifacts
+1. Local snapshot:
+   - `runs/dev_substrate/m8/m8_20260219T093130Z/m8_d_single_writer_probe_snapshot.json`.
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T093130Z/m8_d_single_writer_probe_snapshot.json`.
+
+### Verdict
+1. `overall_pass=true`.
+2. Blockers: empty.
+3. `M8D-B4` is resolved and `M8.D` is closed.
+4. Next unblocked sub-phase is `M8.E`.
+
+### Phase state updates
+1. Updated `platform.M8.build_plan.md` to mark `M8.D` complete and record remediation-rerun closure evidence.
+2. Updated `platform.build_plan.md` to mark `M8.D` complete, set single-writer DoD item complete, and retarget immediate next action to `M8.E`.
+
+## Entry: 2026-02-19 09:46:16 +00:00 - M8.E planning expansion decision (execution-grade before run)
+### Problem framing
+1. `M8.E` is now the active lane after `M8.D` pass, but the deep plan section is still summary-level and leaves room for interpretation drift during execution.
+2. We need an execution-grade plan for reporter one-shot closure that is deterministic, fail-closed, and tied to concrete evidence artifacts before any runtime invocation.
+
+### Alternatives considered
+1. Keep `M8.E` as a short checklist and rely on operator judgment during execution.
+   - Rejected: too hand-wavy and violates anti-cram/decision-completeness posture.
+2. Expand only commands (without explicit entry/precheck/algorithm contract).
+   - Rejected: command-only planning obscures acceptance criteria and blocker routing.
+3. Expand `M8.E` with the same structure used for `M8.D` (entry, required inputs, preparation checks, deterministic algorithm, snapshot contract, blockers, runtime budget).
+   - Selected: highest auditability and lowest execution ambiguity.
+
+### Selected planning posture
+1. Gate `M8.E` strictly on `M8.D` pass artifact (`m8_20260219T093130Z`) and fixed run scope.
+2. Require live runtime contract checks before launch:
+   - reporter task definition is the expected rematerialized revision and digest lane,
+   - lock contract env is present and concrete (`REPORTER_LOCK_BACKEND`, `REPORTER_LOCK_KEY_PATTERN`).
+3. Require one-shot reporter success plus explicit lock lifecycle evidence in logs.
+4. Require local + durable publication of `m8_e_reporter_execution_snapshot.json`.
+5. Add blocker taxonomy for prerequisites/runtime drift and lock-lifecycle evidence failure.
+
+### Planned file updates
+1. Expand `M8.E` in `platform.M8.build_plan.md` to execution-grade structure.
+2. Update `platform.build_plan.md` M8 expansion state to reflect `M8.E` planning expansion and current `M8.D` pass posture.
+3. Keep phase status unchanged (`M8.E` remains planned, not executed) until runtime proof exists.
+
+## Entry: 2026-02-19 09:49:20 +00:00 - M8.E planning expansion applied
+### What changed
+1. Expanded `M8.E` in `platform.M8.build_plan.md` with execution-grade detail:
+   - entry conditions anchored on `M8.D` pass artifact,
+   - required inputs and preparation checks,
+   - deterministic execution algorithm,
+   - required snapshot schema fields,
+   - extended blocker taxonomy (`M8E-B4`, `M8E-B5`),
+   - M8.E-specific runtime budget and planning status.
+2. Updated `platform.build_plan.md` M8 expansion state:
+   - marks `M8.E` as execution-grade planned,
+   - corrects stale `M8.D` fail-closed wording to current green rerun posture.
+
+### Why this shape
+1. Keeps M8 execution deterministic and auditable before runtime operations.
+2. Prevents operator improvisation at `M8.E` entry and preserves fail-closed behavior on missing prerequisites/runtime drift.
+3. Aligns deep-plan and platform-level plan so there is one active truth for the next lane.
+
+### Phase posture
+1. `M8.E` is now planning-complete and execution-ready.
+2. No runtime execution was performed in this planning action.
+
+## Entry: 2026-02-19 09:56:14 +00:00 - M8.E execution start lock (precheck gate pass)
+### Execution intent
+1. Execute `M8.E` one-shot reporter lane on managed ECS runtime with fixed run scope.
+2. Produce deterministic `m8_e_reporter_execution_snapshot.json` locally and durably.
+
+### Precheck outcomes (fail-closed gate)
+1. AWS identity is valid for runtime calls (`arn:aws:iam::230372904534:user/fraud-dev`).
+2. `M8.D` pass artifact is readable at:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T093130Z/m8_d_single_writer_probe_snapshot.json`.
+3. Live reporter runtime contract is concrete on `fraud-platform-dev-min-reporter:3`:
+   - role: `fraud-platform-dev-min-reporter-single-writer`,
+   - lock env present: `REPORTER_LOCK_BACKEND=db_advisory_lock`, `REPORTER_LOCK_KEY_PATTERN=reporter:{platform_run_id}`.
+
+### Execution decision
+1. Use the same network surface proven in `M8.D` pass snapshot:
+   - cluster `fraud-platform-dev-min`,
+   - subnets `subnet-098d02f3d52500fff`, `subnet-086e790e06191911f`,
+   - security group `sg-0331c9cd1633a7757`,
+   - log group `/fraud-platform/dev_min/demo/manual`, prefix `ecs/obs_gov/reporter`.
+2. Launch one reporter task with deterministic `startedBy=m8e-<m8_execution_id_lower>`.
+3. Fail closed on any non-zero exit, missing lock lifecycle evidence, or snapshot publication failure.
+
+## Entry: 2026-02-19 09:59:21 +00:00 - M8.E executed and closed PASS
+### Reasoning and execution trail
+1. Reused the already-proven runtime/network lane from `M8.D` to eliminate substrate variance in `M8.E`:
+   - cluster `fraud-platform-dev-min`,
+   - task definition `fraud-platform-dev-min-reporter:3`,
+   - subnets/security group from M8.D pass probe.
+2. Kept one-shot invocation deterministic with `startedBy=m8e-m8_20260219t095720z` and fixed run scope `platform_20260213T214223Z`.
+3. Evaluated pass criteria strictly in this order:
+   - terminal execution success (`exit=0`, no timeout),
+   - lock lifecycle evidence present (`attempt`, `acquired`, `released`),
+   - no lock-denied signal for one-shot lane,
+   - local + durable snapshot publication.
+4. Held blocker model fail-closed throughout (`M8E-B1..B5`); no blocker triggered.
+
+### Artifacts
+1. Local snapshot:
+   - `runs/dev_substrate/m8/m8_20260219T095720Z/m8_e_reporter_execution_snapshot.json`.
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m8_20260219T095720Z/m8_e_reporter_execution_snapshot.json`.
+
+### Runtime outcomes
+1. Task invocation:
+   - `task_id=89ce923388114e13932d3b793d790b47`,
+   - `exit_code=0`,
+   - `stop_reason=\"Essential container in task exited\"`.
+2. Lock lifecycle evidence:
+   - attempt/acquired/released present,
+   - no deny signal (`REPORTER_LOCK_NOT_ACQUIRED` absent).
+3. Performance:
+   - elapsed `77.158s` (within `M8.E` budget).
+
+### Verdict
+1. `overall_pass=true`.
+2. Blockers: empty.
+3. `M8.E` is closed.
+4. Next unblocked sub-phase is `M8.F`.
+
+### Phase state updates
+1. Updated `platform.M8.build_plan.md` to mark `M8.E` DoD complete and record execution closure.
+2. Updated `platform.build_plan.md` to mark `M8.E` complete and retarget immediate next action to `M8.F`.
+
+## Entry: 2026-02-19 10:06:12 +00:00 - M8.F planning expansion decision (bundle closure gate)
+### Problem framing
+1. `M8.F` currently states intent but does not yet pin deterministic execution mechanics.
+2. Without explicit entry/precheck/schema, `M8.F` can drift into ad hoc artifact inspection and inconsistent blocker classification.
+
+### Planning decision
+1. Expand `M8.F` to execution-grade before any runtime action.
+2. Gate `M8.F` strictly on `M8.E` pass artifact (`m8_20260219T095720Z`) and fixed run scope.
+3. Define deterministic artifact validation algorithm:
+   - required-object existence checks,
+   - JSON parse/readability checks,
+   - run-scope conformance checks on each object.
+4. Extend blocker taxonomy to separate:
+   - missing bundle object,
+   - scope mismatch/content invalidity,
+   - snapshot publication issues,
+   - prerequisite or registry-resolution failure.
+
+### Planned updates
+1. `platform.M8.build_plan.md`:
+   - add `M8.F` entry conditions, required inputs, preparation checks, deterministic algorithm, required snapshot fields, runtime budget, planning status.
+2. `platform.build_plan.md`:
+   - mark `M8.F` as expanded to execution-grade in M8 expansion state.
+3. Keep phase status unchanged in this step (`M8.F` planned, not executed).
+
+## Entry: 2026-02-19 10:07:01 +00:00 - M8.F planning expansion applied
+### What changed
+1. Expanded `M8.F` in `platform.M8.build_plan.md` to execution-grade:
+   - entry conditions anchored on `M8.E` pass artifact,
+   - required inputs and preparation checks,
+   - deterministic bundle-verification algorithm,
+   - required snapshot schema fields,
+   - extended blocker taxonomy (`M8F-B4`, `M8F-B5`),
+   - lane-specific runtime budget and planning status.
+2. Updated `platform.build_plan.md` expansion-state bullets to explicitly include `M8.F` as execution-grade planned.
+
+### Why this structure
+1. Bundle verification is now deterministic and reproducible instead of manual inspection-driven.
+2. Precheck gates prevent ambiguous execution when evidence handles or prerequisite states drift.
+3. Blocker separation now cleanly distinguishes missing objects, scope/content invalidity, and execution infrastructure failures.
+
+### Phase posture
+1. `M8.F` is planning-complete and execution-ready.
+2. No runtime execution was performed in this planning action.
