@@ -262,13 +262,138 @@ Goal:
 - reduce the top-ranked hotspot state wall time without changing output semantics.
 
 Scope:
-- optimize data structures, join/search pattern, and loop mechanics in the selected state.
+- optimize `S3` compute + validation path (`baseline intensity composition`) selected by `POPT.0`.
 - preserve output schema, partition identity, idempotency checks, and validator behavior.
+- no policy/coeff/realism tuning in this phase; this is compute-path and validation-lane efficiency only.
 
 Definition of done:
 - [ ] selected hotspot wall-time reduced by `>= 25%` vs `POPT.0` baseline or reaches pinned target budget.
 - [ ] deterministic replay parity is preserved on same seed + same inputs.
 - [ ] downstream states remain green from changed-state onward.
+
+POPT.1 baseline anchors (from POPT.0):
+- optimization target state: `S3`.
+- baseline authority run-id: `7b08449ccffc44beaa99e64bf0201efc`.
+- baseline `S3 wall`: `488.250s` (`34.35%` share).
+- baseline downstream anchors:
+  - `S4 wall=484.561s`,
+  - `S5 wall=235.733s`.
+- baseline `S3` structural anchors:
+  - `status=PASS`,
+  - `counts.baseline_rows=2776704`,
+  - `counts.class_baseline_rows=241248`,
+  - `counts.domain_rows=16528`,
+  - `weekly_sum_error_violations_count=0`.
+
+POPT.1 closure gates (quantified):
+- runtime movement gate:
+  - `S3 wall <= 420.0s` (target budget), OR
+  - `S3 wall reduction >= 25%` vs baseline (`<= 366.188s` equivalent).
+- structural non-regression gates:
+  - `S3 status=PASS`,
+  - `weekly_sum_error_violations_count=0`,
+  - no `error_code/error_class` in `S3` run report,
+  - `counts.baseline_rows/class_baseline_rows/domain_rows` unchanged from baseline.
+- downstream continuity gates:
+  - rerun chain `S3 -> S4 -> S5` remains all `PASS`,
+  - no schema/path drift for `merchant_zone_baseline_local_5A` and `class_zone_baseline_local_5A`.
+- determinism gate:
+  - same seed + same inputs reproduces equivalent structural counters and no new validator failures.
+
+Execution posture:
+- run root: `runs/fix-data-engine/segment_5A`.
+- rerun law:
+  - if only `S3` code changes: rerun `S3 -> S4 -> S5`,
+  - if `S4` or `S5` are touched by support fixes during this phase, rerun from earliest changed state onward.
+- prune superseded failed run-id folders before each expensive candidate rerun.
+- no upstream reopen in `POPT.1`; any upstream dependency defect is logged and held for later explicit reopen lane.
+
+#### POPT.1.1 - Equivalence contract and scorer lock
+Goal:
+- pin exactly what "no semantic change" means for S3 optimization closure.
+
+Scope:
+- define machine-readable closure artifact for baseline-vs-candidate comparison.
+- pin required equality checks (`counts`, `status`, weekly-sum violation rail, schema/path identity).
+- pin allowed differences (`durations.wall_ms`, timing-only telemetry).
+
+Definition of done:
+- [ ] `segment5a_popt1_closure_<run_id>.json` contract is pinned.
+- [ ] veto checks are explicit and executable from run-report artifacts.
+- [ ] no unresolved semantic-equivalence gap remains before code edits.
+
+#### POPT.1.2 - S3 lane instrumentation and logging budget lock
+Goal:
+- expose where S3 wall time is spent without materially perturbing runtime.
+
+Scope:
+- add low-frequency phase markers for S3 macro-lanes:
+  - input load + schema validation,
+  - domain/shape alignment,
+  - baseline compute + aggregation,
+  - output validation + write.
+- keep instrumentation deterministic and bounded (heartbeat-level, not per-row logs).
+
+Definition of done:
+- [ ] lane timing markers are present in `run_log`.
+- [ ] instrumentation overhead is bounded and non-dominant.
+- [ ] no output/schema change from instrumentation-only edits.
+
+#### POPT.1.3 - S3 compute-path optimization
+Goal:
+- reduce expansion/composition overhead in S3 core compute lane.
+
+Scope:
+- optimize join/groupby/materialization sequence in `s3_baseline_intensity` while preserving deterministic ordering.
+- reduce avoidable intermediate materializations and repeated scans on immutable columns.
+- keep same output columns, sorting keys, and idempotent publish behavior.
+
+Definition of done:
+- [ ] `S3` wall time improves materially vs baseline.
+- [ ] compute-lane share decreases in lane profile evidence.
+- [ ] baseline output structure and invariants remain intact.
+
+#### POPT.1.4 - S3 validation-path optimization
+Goal:
+- reduce schema-validation drag on large rowsets while preserving fail-closed guarantees.
+
+Scope:
+- optimize heavy-row validation path (especially large S3 output arrays) using deterministic fast-path mechanics equivalent to current schema intent.
+- preserve strict failure semantics and error-surface behavior for contract violations.
+- ensure witness/certification lanes continue to run with full validation guarantees.
+
+Definition of done:
+- [ ] validation lane wall-time decreases vs baseline lane profile.
+- [ ] fail-closed behavior remains intact on negative checks.
+- [ ] no relaxation of required schema/contract rails.
+
+#### POPT.1.5 - Witness rerun and closure scoring
+Goal:
+- prove optimization gains on end-to-end changed-state chain with non-regression rails.
+
+Scope:
+- execute witness rerun `S3 -> S4 -> S5` on seed `42`.
+- compute baseline-vs-candidate closure summary (`runtime + veto rails`).
+- classify result as pass/reopen with explicit blocker mapping.
+
+Definition of done:
+- [ ] witness chain is green (`S3..S5 PASS`).
+- [ ] closure artifact JSON/MD emitted for candidate run-id.
+- [ ] any miss is mapped to bounded reopen action (no phase drift).
+
+#### POPT.1.6 - Phase closure and handoff
+Goal:
+- close `POPT.1` with explicit decision and next-phase pointer.
+
+Scope:
+- record closure decision: `UNLOCK_POPT2` or `HOLD_POPT1_REOPEN`.
+- pin retained run-id/artifacts and prune superseded failures.
+- synchronize build-plan status + implementation notes + logbook.
+
+Definition of done:
+- [ ] explicit closure decision is recorded.
+- [ ] retained run-map and artifact pointers are pinned.
+- [ ] storage prune action is completed and logged.
 
 ### POPT.2 - Secondary hotspot closure (selected by POPT.0)
 Goal:
@@ -413,7 +538,7 @@ Definition of done:
 - Reopen lane is out-of-scope for this first 5A-local pass and requires explicit go-ahead.
 
 ## 8) Current phase status
-- `POPT`: in progress (`POPT.0` closed; `POPT.1` next on `S3`).
+- `POPT`: in progress (`POPT.0` closed; `POPT.1` expanded/planned on `S3`, execution pending).
 - `P0`: planned.
 - `P1`: planned.
 - `P2`: planned.

@@ -3823,3 +3823,89 @@ Plan updates applied:
 Retention/prune posture:
 - Keep-set authority remains run-id `7b08449ccffc44beaa99e64bf0201efc`.
 - No additional superseded run-id folders existed under `runs/fix-data-engine/segment_5A` at closure time, so no prune action was required.
+
+---
+
+### Entry: 2026-02-20 20:03
+
+Design element: `POPT.1` execution-grade plan expansion for Segment 5A (`S3` primary hotspot).
+Summary: Expanded `POPT.1` from a generic placeholder into subphases (`POPT.1.1 -> POPT.1.6`) with quantified runtime/non-regression gates, explicit rerun law, and closure artifact contract.
+
+Problem framing:
+- `POPT.0` established `S3` as primary hotspot (`488.250s`, `34.35%` share).
+- Current `S3` implementation includes known heavy paths:
+  - large rowset schema validation via Python row iteration (`_validate_array_rows(... iter_rows(named=True))`),
+  - high-volume expansion + aggregation pipeline (`shape_join`, `baseline_compute`, grouped sums, output validation).
+- Running optimization without a tighter contract would risk:
+  - semantic drift in baseline outputs,
+  - repeated reruns without clear closure criteria,
+  - ambiguous runtime gains that cannot be audited.
+
+Alternatives considered:
+1) **Start coding S3 optimizations immediately (no additional phase planning)**
+   - Rejected: insufficient guardrails for semantic equivalence and closure scoring.
+2) **Keep POPT.1 at one coarse checklist**
+   - Rejected: too vague for auditable execution and fail-closed decisions.
+3) **Expand POPT.1 into bounded subphases with explicit gates and artifact contracts**
+   - Accepted: gives deterministic execution sequence, measurable DoDs, and clear reopen behavior.
+
+What was added to the build plan:
+1) `POPT.1` baseline anchors and quantified closure gates:
+   - runtime movement gate (`<= 420s` or `>=25%` reduction from baseline),
+   - structural non-regression (`status`, counts, weekly-sum violation rail),
+   - downstream continuity (`S3->S4->S5 PASS`),
+   - determinism parity expectations.
+2) Execution posture:
+   - rerun law pinned (`S3` change => rerun `S3->S5`),
+   - prune posture retained,
+   - no upstream reopen inside `POPT.1`.
+3) Subphase expansion:
+   - `POPT.1.1` equivalence contract + closure scorer lock,
+   - `POPT.1.2` S3 lane instrumentation (budgeted logging),
+   - `POPT.1.3` compute-path optimization,
+   - `POPT.1.4` validation-path optimization,
+   - `POPT.1.5` witness rerun + closure scoring,
+   - `POPT.1.6` explicit close decision + handoff.
+
+Decision guardrails:
+- No realism/policy/coeff tuning in `POPT.1`.
+- Fail-closed non-regression semantics remain binding.
+- Runtime movement must be evidenced via closure artifact, not narrative.
+
+Immediate next execution intent:
+1) implement `POPT.1.1` scorer/equivalence contract first.
+2) then execute `POPT.1.2` instrumentation to get lane-resolved baseline for S3 before code-path edits.
+
+---
+
+### Entry: 2026-02-20 20:06
+
+Execution start: Segment 5A `POPT.1` full implementation (`POPT.1.1 -> POPT.1.6`).
+Summary: Started execution with a plan to close all `POPT.1` subphases in one continuous lane, while documenting decisions as they are made.
+
+Initial bottleneck hypothesis (from POPT.0 + code review):
+- `S3` wall (`488.250s`) likely dominated by:
+  1) large-row schema validation loops (`_validate_array_rows(... iter_rows(named=True))`) on
+     `merchant_zone_baseline_local_5A` and `class_zone_baseline_local_5A`,
+  2) expansion/composition (`shape_join`, grouped sums, repeated materializations).
+
+Alternatives considered before coding:
+1) **Do compute-only tuning first, ignore validation lane**
+   - Rejected: if validation dominates, compute-only changes produce weak runtime movement.
+2) **Relax validation semantics in candidate lanes (sampling-only)**
+   - Rejected for this phase: violates explicit POPT.1 non-regression/fail-closed posture unless equivalent checks are proven.
+3) **Instrument lanes first, then optimize both compute and validation with full-semantics preservation**
+   - Accepted: gives auditable hotspot evidence and reduces risk of semantic drift.
+
+Execution order locked:
+1) `POPT.1.1`: add closure scorer for baseline-vs-candidate runtime + rails.
+2) `POPT.1.2`: add bounded lane timing instrumentation in S3 logs.
+3) run instrumentation baseline candidate (`S3->S5`) and inspect lane shares.
+4) `POPT.1.3` + `POPT.1.4`: implement S3 compute/validation-path optimizations based on measured lane split.
+5) `POPT.1.5`: witness run (`S3->S5`) and emit closure artifacts.
+6) `POPT.1.6`: explicit close decision + prune sync.
+
+Guardrails reaffirmed:
+- no policy/coeff/realism-shape tuning in POPT.1;
+- deterministic output contract must remain unchanged;
+- downstream `S4/S5` PASS is hard veto rail.
