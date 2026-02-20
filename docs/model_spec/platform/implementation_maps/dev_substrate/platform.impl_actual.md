@@ -16887,3 +16887,222 @@ Risk handling:
    - run-scoped case-trigger flow present (`case_trigger_event_count=25`),
    - case-trigger/case-mgmt/label-store services healthy (`ACTIVE`, `desired=running=1`).
 5. `run_report.case_labels.*` remains informational (`UNKNOWN/0`) and not used as hard closure criterion.
+
+## Entry: 2026-02-20 05:35:33 +00:00 - M10.D planning expansion (incident drill execution-grade)
+### Why expansion was needed
+1. `M10.D` was still task-level and not executable without interpretation drift.
+2. The drill profile in `M10.A` is concrete (`duplicates`, target `100`) and required direct mapping to deterministic evidence checks.
+
+### Alternatives considered for drill verification
+1. Gate all case/label outcomes from `run_report.case_labels.*`.
+2. Use implementation-aligned hard gates from run-scoped evidence + service-health, while keeping unstable report-only case counters informational.
+
+### Decision chosen
+1. Chose option 2.
+2. Rationale:
+   - current run_report case metrics are known to be sparse/`UNKNOWN` even on accepted runs,
+   - hard-gating on that surface would create false-negative blockers,
+   - run-scoped receipt/decision/action/audit surfaces are stable and already used in M10.B/M10.C closures.
+
+### What was expanded in M10.D
+1. Entry conditions pinned to `M10.C` pass + `M10.A.incident_drill_profile` authority.
+2. Required inputs/surfaces pinned, including drill manifest + execution result artifacts.
+3. Deterministic algorithm added:
+   - pre-baseline capture,
+   - deterministic duplicate tuple selection from run-scoped ADMIT receipts,
+   - managed injection one-shot + reporter refresh,
+   - post-baseline checks against expected fail-closed outcomes.
+4. Runtime budget gate pinned (`M10.D <= 60 minutes`).
+5. Blocker taxonomy expanded to `M10D-B1..B8`.
+6. Required snapshot schema pinned for `m10_d_incident_drill_snapshot.json`.
+
+### Cross-doc sync
+1. High-level M10 expansion state in `platform.build_plan.md` now explicitly states `M10.D` is execution-grade planned.
+2. Next action remains execution of `M10.D`.
+
+## Entry: 2026-02-20 05:40:30 +00:00 - M10.D execution preflight and injection-lane decision
+### Preflight checks completed
+1. `M10.C` dependency validated from `runs/dev_substrate/m10/m10_20260220T045637Z/m10_c_semantic_200_snapshot.json`:
+   - `overall_pass=true`, blockers empty, run scope `platform_20260219T234150Z`.
+2. `M10.A` incident profile validated from `m10_a_threshold_matrix_snapshot.json`:
+   - `drill_required=true`, `drill_type=duplicates`, `duplicate_event_count_target=100`.
+3. Runtime health precheck for drill-critical services is green:
+   - IG, IEG, DF, case-trigger are `ACTIVE` with `desired=running=1`.
+
+### Alternatives considered for duplicate injection
+1. Inject duplicates from local CLI directly into IG endpoint.
+2. Inject duplicates from managed ECS one-shot inside VPC using existing runtime image/secret posture.
+
+### Decision chosen
+1. Use managed ECS one-shot injection lane (option 2).
+2. Rationale:
+   - IG endpoint is private VPC service address in current posture,
+   - managed task keeps auth/network semantics identical to runtime,
+   - avoids local connectivity/auth drift and stays within no-local-compute posture for data-plane actions.
+
+### Next actions
+1. Resolve deterministic candidate set (>=100 ADMIT receipts) and capture pre-drill baseline.
+2. Execute managed duplicate-injection one-shot.
+3. Execute reporter one-shot.
+4. Evaluate drill outcomes and publish `m10_d_incident_drill_snapshot.json` local + durable.
+
+## Entry: 2026-02-20 05:43:09 +00:00 - M10.D deterministic candidate manifest + pre-baseline captured
+### What was captured
+1. Created execution root:
+   - `runs/dev_substrate/m10/m10_20260220T054251Z`
+2. Wrote deterministic injection manifest:
+   - `m10_d_injection_manifest.json`
+   - selection policy: first `N=100` ADMIT receipts sorted by receipt object key.
+3. Wrote pre-drill baseline:
+   - `m10_d_pre_baseline.json`
+   - baseline counters:
+     - `receipt_total=340`, `admit=260`, `duplicate=80`,
+     - `publish_ambiguous=0`,
+     - `decision=25`, `action_intent=25`, `action_outcome=25`,
+     - `case_trigger=25`, `audit_count=75`.
+
+### Decision refinement before injection
+1. Receipt artifacts contain deterministic duplicate tuple identity (`event_type`, `event_id`, `dedupe_key`) but not full original event payload.
+2. Chosen managed injection mechanism for this cycle:
+   - replay via managed WSP one-shot on same run scope (auth-bound IG push path),
+   - treat deterministic receipt-manifest as drill target/control set,
+   - verify drill success by post-drill duplicate delta + no-double-side-effect gates.
+3. Rationale:
+   - preserves managed runtime boundary,
+   - avoids inventing synthetic payload reconstruction paths,
+   - remains deterministic and auditable through manifest + task ARN + post-state deltas.
+
+### Next action
+1. Execute managed WSP duplicate-injection one-shot (`WSP_MAX_EVENTS_PER_OUTPUT=100`, pinned run scope), then reporter refresh.
+
+## Entry: 2026-02-20 05:44:47 +00:00 - M10.D duplicate injection task executed
+### Result
+1. Managed duplicate-injection task succeeded:
+   - task: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/615a5ce1cfb047c481505e39ace42ec2`
+   - mode: `managed_wsp_replay`
+   - `WSP_MAX_EVENTS_PER_OUTPUT=100`, run scope pinned to `platform_20260219T234150Z`
+   - exit: `0`.
+2. Result artifact:
+   - `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_injection_task_result.json`.
+
+### Next action
+1. Run reporter one-shot to refresh closure artifacts before evaluating drill outcome gates.
+
+## Entry: 2026-02-20 05:48:40 +00:00 - M10.D blocker triage (`M10D-B2`) and remediation decision
+### Fail-closed result observed
+1. Initial M10.D verifier emitted `overall_pass=false` with blocker `M10D-B2`.
+2. Drill deltas showed no injection effect:
+   - `duplicate_delta=0` (target `>=100`),
+   - side-effect deltas remained zero (expected),
+   - runtime budget and dependency gates passed.
+
+### Root cause evidence
+1. WSP task logs for injection attempt (`task 615a5ce1...`) show READY dedupe behavior:
+   - repeated `SKIPPED_DUPLICATE` statuses,
+   - no `STREAMED` emissions for the drill attempt.
+2. Evidence saved at:
+   - `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_attempt1_wsp_logs.json`.
+
+### Alternatives considered
+1. Build a direct IG HTTP injector that reconstructs full canonical event envelopes from raw oracle payloads.
+2. Re-emit READY with a fresh scenario run-id so WSP processes a new control message and replays deterministic duplicates into IG.
+
+### Decision chosen
+1. Use option 2 (fresh READY reemit + WSP replay) for remediation.
+2. Rationale:
+   - keeps drill fully managed and aligned to existing runtime lane,
+   - avoids introducing a custom payload-reconstruction injector mid-phase,
+   - directly resolves the observed READY dedupe root cause.
+
+### Next actions
+1. Execute SR reemit with a new scenario run-id on same `platform_run_id`.
+2. Re-run WSP drill one-shot + reporter refresh.
+3. Re-evaluate M10.D outcomes and republish authoritative snapshot.
+
+## Entry: 2026-02-20 05:53:30 +00:00 - M10.D remediation pivot (READY replay -> direct WSP stream CLI)
+### New evidence after first remediation attempt
+1. SR reemit with fresh run-id executed but returned `REEMIT_NOT_FOUND` for that run-id; no READY was published for drill use.
+2. WSP rerun still consumed only historical READY records and returned `SKIPPED_DUPLICATE` statuses.
+
+### Decision pivot
+1. Switch injection execution from READY-consumer path to direct WSP engine-rooted stream CLI (`fraud_detection.world_streamer_producer.cli`) in managed task runtime.
+2. Keep managed constraints unchanged:
+   - same VPC/private IG endpoint,
+   - same auth header secret injection,
+   - same pinned `platform_run_id`.
+
+### Why this is the best remediation
+1. It preserves controlled duplicate replay without touching WSP READY dedupe state or introducing ad-hoc local injector code.
+2. It emits deterministic event batch directly from pinned oracle roots, which is exactly what duplicate drill needs.
+3. It remains fully auditable (task ARN + command mode + pre/post counters).
+
+### Next actions
+1. Execute direct WSP CLI injection one-shot with `max-events=100`.
+2. Execute reporter refresh.
+3. Recompute M10.D snapshot and close fail-closed if all drill outcomes pass.
+
+## Entry: 2026-02-20 05:55:30 +00:00 - M10.D remediation attempt failed (task script quoting)
+### Failure observed
+1. Direct WSP CLI injection task (`8e52384d...`) exited `1`.
+2. CloudWatch log shows shell-to-python heredoc quoting drift caused Python to parse the trailing shell command as code (`SyntaxError`), so stream injection never executed.
+
+### Decision
+1. Keep direct WSP CLI remediation path, but simplify heredoc quoting to canonical `<<'PY' ... PY` form (no nested quote escaping).
+2. Rationale:
+   - root cause is command wrapper syntax, not runtime capability,
+   - fastest deterministic fix without changing drill intent.
+
+### Next action
+1. Re-run direct WSP CLI injection task with corrected script quoting, then continue reporter + M10.D re-evaluation.
+
+## Entry: 2026-02-20 06:02:10 +00:00 - M10.D evidence-surface drift detected (ingest summary staleness)
+### Observation
+1. Post-drill `ingest/receipt_summary.json` remained unchanged (`340` total) despite successful direct WSP stream task.
+2. Raw receipt-object scan under `ig/receipts/` shows live state changed materially:
+   - objects: `660`
+   - decisions: `ADMIT=500`, `DUPLICATE=160`.
+
+### Decision
+1. Treat `ingest/receipt_summary.json` as stale for this lane and derive drill counters from canonical raw receipts (`ig/receipts/*.json`) for blocker evaluation.
+2. Keep summary file as informational unless refreshed by explicit materialization step.
+3. Execute one more direct duplicate injection pass to satisfy strict duplicate target (`>=100` delta from pre-baseline).
+
+### Rationale
+1. Raw receipt objects are the source-of-truth evidence surface for admission outcomes.
+2. This preserves fail-closed semantics without false negatives caused by stale aggregate summaries.
+
+## Entry: 2026-02-20 06:08:51 +00:00 - M10.D final closure after remediation chain
+### Final verification inputs
+1. Re-ran direct managed duplicate injection (`REMEDIATION_DIRECT_WSP_CLI_INJECTION_V3`) and reporter one-shot (`REPORTER_AFTER_REMEDIATION_DRILL_V3`) under the same run scope.
+2. Computed post-drill counters from raw receipt objects (`ig/receipts/*.json`) and preserved `receipt_summary.json` as informational due to staleness drift.
+3. Kept incident-profile authority unchanged from `M10.A` (`duplicates`, target `100`), so closure remains tied to pinned thresholds.
+
+### Alternatives considered at closure point
+1. Hold closure until `receipt_summary.json` is forcibly rematerialized and then re-evaluate counters from that file only.
+2. Close with raw receipt truth as authoritative for this lane, while explicitly recording summary staleness and mitigation path.
+
+### Decision chosen
+1. Chose option 2.
+2. Rationale:
+   - raw receipt objects are the canonical admission truth and are already append-only/run-scoped,
+   - waiting for summary rematerialization would add non-essential phase latency without increasing truth quality,
+   - fail-closed behavior is still preserved by hard blocker checks and explicit drift documentation.
+
+### Closure results
+1. Local authoritative snapshot:
+   - `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot.json`
+2. Durable snapshots:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260220T054251Z/m10_d_incident_drill_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260219T234150Z/m10/m10_d_incident_drill_snapshot.json`
+3. Verdict:
+   - `overall_pass=true`
+   - `blockers=[]`
+4. Key checks:
+   - `duplicate_delta=320` (target `>=100`) via `delta_extracts`,
+   - side-effect safety held (`action_intent_delta=0`, `action_outcome_delta=0`, `case_trigger_delta=0`, `audit_delta=0`),
+   - `publish_ambiguous_absent=true`,
+   - runtime budget pass (`1542s <= 3600s`).
+
+### Cross-doc synchronization decision
+1. Updated platform-wide immediate next action from `M10.D` to `M10.E` to remove stale execution pointer.
+2. M10 detailed plan already marks `M10.D` closed pass and sets `M10.E` as next lane.

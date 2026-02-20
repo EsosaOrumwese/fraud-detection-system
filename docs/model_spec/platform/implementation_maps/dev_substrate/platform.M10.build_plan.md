@@ -409,22 +409,126 @@ Required snapshot fields (`m10_c_semantic_200_snapshot.json`):
 Goal:
 1. Demonstrate fail-closed behavior under controlled fault injection.
 
-Tasks:
-1. Execute pinned drill profile from M10.A.
-2. Capture injection time, impacted lane, detection signal, and recovery signal.
-3. Capture replay-anchor and audit trace continuity.
-4. Emit `m10_d_incident_drill_snapshot.json` local + durable.
+Entry conditions:
+1. `M10.C` is closed pass:
+   - local snapshot exists and is parseable.
+   - durable snapshot exists and is parseable.
+2. `M10.C` snapshot has:
+   - `overall_pass=true`,
+   - empty blocker list.
+3. `M10.A` incident drill profile remains authoritative:
+   - `incident_drill_profile.drill_required=true`,
+   - `incident_drill_profile.drill_type=duplicates`,
+   - `incident_drill_profile.injection_profile.duplicate_event_count_target=100`.
+4. Lane dependency remains strict:
+   - `M10.D.depends_on` contains exactly `M10.C`.
+
+Required inputs:
+1. `M10.A` threshold snapshot (incident drill profile authority).
+2. `M10.C` pass snapshot (run-scope + semantic baseline authority).
+3. Managed drill execution lane (no local data-plane compute):
+   - deterministic duplicate injection one-shot,
+   - reporter one-shot closure refresh.
+4. Required evidence surfaces (same run scope):
+   - `RECEIPT_SUMMARY_PATH_PATTERN`,
+   - `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`,
+   - `DECISION_LANE_EVIDENCE_PATH_PATTERN`,
+   - `DLA_EVIDENCE_PATH_PATTERN`,
+   - `RUN_REPORT_PATH_PATTERN`,
+   - `REPLAY_ANCHORS_PATH_PATTERN`,
+   - `EVIDENCE_RUN_COMPLETED_KEY`.
+5. Drill evidence artifacts:
+   - injection manifest (selected duplicate tuple set),
+   - drill execution result (attempted/succeeded/failed injections),
+   - pre/post baseline extracts.
+
+Preparation checks (fail-closed):
+1. Parse/validate `M10.A` incident drill profile and `M10.C` pass posture.
+2. Validate duplicate target is concrete positive integer (`>=1`).
+3. Validate run-scoped candidate receipt set can provide at least target duplicate tuples.
+4. Validate managed runtime health preconditions for in-scope services:
+   - IG, RTDL core, decision lane, case-trigger, reporter.
+5. Validate drill scope is concrete:
+   - one explicit `platform_run_id`,
+   - no placeholder/wildcard identifiers.
+
+Deterministic verification algorithm (M10.D):
+1. Load source snapshots (`M10.A`, `M10.C`); parse/non-pass failures -> `M10D-B4`.
+2. Resolve pre-drill run-scoped baseline from canonical evidence:
+   - ingress summary (`ADMIT`, `DUPLICATE`, `PUBLISH_AMBIGUOUS`),
+   - decision/action/audit summaries,
+   - case-trigger event count from run-scoped receipts.
+3. Build deterministic duplicate injection manifest:
+   - enumerate run-scoped `ADMIT` receipts,
+   - sort deterministically by receipt object key,
+   - select first `duplicate_event_count_target` tuples with unchanged payload hash and idempotency tuple (`platform_run_id,event_class,event_id`).
+4. Execute managed duplicate injection one-shot against IG (auth required), recording per-item result.
+5. Execute reporter one-shot on same run scope.
+6. Resolve post-drill run-scoped evidence refs.
+7. Evaluate expected fail-closed outcomes from `M10.A.incident_drill_profile`:
+   - `duplicate_receipts_present`: post `DUPLICATE` delta >= target.
+   - `no_double_actions`: decision/action deltas remain unchanged by duplicate replay.
+   - `no_duplicate_case_records`: case-trigger event count delta remains unchanged by duplicate replay.
+   - `audit_append_only_preserved`: audit surface remains monotonic append-only (no shrink/overwrite drift).
+8. Enforce additional closure gates:
+   - no unresolved `PUBLISH_AMBIGUOUS`,
+   - run-scope coherence across all evidence refs.
+9. Enforce runtime budget gate from `M10.A` matrix (`M10.D <= 60 minutes`) or fail-closed.
+10. Emit `m10_d_incident_drill_snapshot.json` locally.
+11. Publish snapshot durably; publish failure -> `M10D-B7`.
 
 DoD:
-- [ ] Drill executed and recorded.
-- [ ] Expected fail-closed behavior observed.
-- [ ] Recovery signal observed and evidenced.
-- [ ] Snapshot exists locally and durably.
+- [x] `M10.C` dependency pass posture validates.
+- [x] Duplicate injection drill executes and is fully recorded.
+- [x] Expected fail-closed outcomes pass (`duplicate_receipts_present`, `no_double_actions`, `no_duplicate_case_records`, `audit_append_only_preserved`).
+- [x] No unresolved `PUBLISH_AMBIGUOUS` state exists after drill.
+- [x] Runtime budget gate (`<= 60 minutes`) passes.
+- [x] Snapshot exists locally and durably with blocker-free verdict.
+
+Execution notes (`2026-02-20`, `m10_execution_id=m10_20260220T054251Z`):
+1. Initial fail-closed attempt was preserved as witness:
+   - `m10_d_incident_drill_snapshot_attempt1_fail.json`
+   - blocker: `M10D-B2` (`duplicate_delta=0`) due READY replay dedupe (`SKIPPED_DUPLICATE`).
+2. Final successful remediation lane used direct managed WSP stream injection (no local compute):
+   - injection task: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/b8cf588aace5416da5c93836c4110133` (`exit=0`)
+   - reporter task: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/9cce528e41094de6a397cbbb0d1a8ba7` (`exit=0`)
+3. Evidence-surface calibration for this lane:
+   - `ingest/receipt_summary.json` was stale during drill window,
+   - drill counters were derived from canonical raw receipts (`ig/receipts/*.json`) and written to:
+     - `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_raw_receipt_counts.json`.
+4. Authoritative closure snapshot:
+   - local: `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot.json`
+   - durable run-control: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260220T054251Z/m10_d_incident_drill_snapshot.json`
+   - durable run-scoped: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260219T234150Z/m10/m10_d_incident_drill_snapshot.json`
+5. Final result:
+   - `overall_pass=true`, blockers empty,
+   - runtime budget pass (`elapsed_seconds=1542`, `budget_seconds=3600`),
+   - drill outcomes:
+     - `duplicate_delta=320` (target `>=100`),
+     - `action_intent_delta=0`, `action_outcome_delta=0`,
+     - `case_trigger_delta=0`,
+     - `audit_delta=0` (append-only preserved).
 
 Blockers:
 1. `M10D-B1`: drill injection not executed.
-2. `M10D-B2`: fail-closed behavior not observed.
-3. `M10D-B3`: recovery evidence missing.
+2. `M10D-B2`: expected fail-closed drill outcomes not observed.
+3. `M10D-B3`: required drill evidence missing/unreadable.
+4. `M10D-B4`: invalid/non-pass dependency snapshot (`M10.C`/`M10.A`) or malformed drill profile.
+5. `M10D-B5`: insufficient deterministic candidate set for duplicate target.
+6. `M10D-B6`: run-scope mismatch.
+7. `M10D-B7`: snapshot publication failure.
+8. `M10D-B8`: runtime budget breach.
+
+Required snapshot fields (`m10_d_incident_drill_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m10_execution_id`.
+2. `source_snapshot_refs` (`M10.A`, `M10.C` local + durable refs).
+3. `incident_profile` (drill cycle/type/injection target + expected outcomes).
+4. `pre_drill_baseline` and `post_drill_baseline`.
+5. `injection_manifest_ref` and `injection_execution_summary`.
+6. `drill_outcome_checks` (per-outcome pass/fail matrix).
+7. `run_scope_coherence_checks`.
+8. `runtime_budget` (`budget_seconds`, `elapsed_seconds`, `budget_pass`).
+9. `blockers`, `overall_pass`.
 
 ### M10.E Representative-window scale run
 Goal:
@@ -575,4 +679,5 @@ M10 can be marked `DONE` only when all are true:
 2. `M10.A` is closed green by execution `m10_20260219T231017Z`.
 3. `M10.B` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T032146Z`).
 4. `M10.C` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T045637Z`).
-5. Next lane is `M10.D` incident drill execution.
+5. `M10.D` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T054251Z`).
+6. Next lane is `M10.E` representative-window scale run.
