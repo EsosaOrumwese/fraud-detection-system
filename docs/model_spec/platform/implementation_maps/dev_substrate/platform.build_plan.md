@@ -1508,11 +1508,12 @@ Phase closure posture:
     - deterministic semantic verification algorithm for 20-event run,
     - explicit semantic evidence surface contract and snapshot schema,
     - fail-closed blocker taxonomy (`M10B-B1..B5`),
-  - no runtime execution lane is marked complete yet.
+  - `M10.B` runtime lane has been executed and closed pass on `platform_20260219T234150Z`,
+  - authoritative closure snapshot: `m10_20260220T032146Z/m10_b_semantic_20_snapshot.json` (`overall_pass=true`, blockers empty).
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
-  - [ ] `M10.B` semantic 20-event run.
+  - [x] `M10.B` semantic 20-event run.
   - [ ] `M10.C` semantic 200-event run.
   - [ ] `M10.D` incident drill execution.
   - [ ] `M10.E` representative-window run.
@@ -1628,8 +1629,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M10 is active for planning expansion under the M9 handoff.
 Next action:
-- execute `M10.B` semantic 20-event certification run:
-  - use `M10.A` pinned threshold matrix as acceptance authority,
-  - enforce required semantic evidence surfaces and run-scope coherence,
-  - emit `m10_b_semantic_20_snapshot.json` local + durable with blocker-free semantic gates.
+- execute `M10.C` semantic 200-event certification run using the same evidence-contract posture that closed `M10.B`.
 

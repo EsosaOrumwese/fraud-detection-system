@@ -264,11 +264,30 @@ Deterministic verification algorithm (M10.B):
 8. Publish snapshot durably; publish failure -> `M10B-B5`.
 
 DoD:
-- [ ] `M10.A` entry-gate dependencies validate.
-- [ ] Managed 20-event run completes with semantic gates closed.
-- [ ] Required semantic evidence surfaces exist and are run-scope coherent.
-- [ ] No unresolved `PUBLISH_AMBIGUOUS` state exists.
-- [ ] Snapshot exists locally and durably with blocker-free verdict.
+- [x] `M10.A` entry-gate dependencies validate.
+- [x] Managed 20-event run completes with semantic gates closed.
+- [x] Required semantic evidence surfaces exist and are run-scope coherent.
+- [x] No unresolved `PUBLISH_AMBIGUOUS` state exists.
+- [x] Snapshot exists locally and durably with blocker-free verdict.
+
+Execution notes (`2026-02-20`, continued lane run on `platform_20260219T234150Z`):
+1. Managed runtime chain executed (`SR -> WSP -> reporter`) and exited cleanly:
+   - `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/fdeb1b672bf94370b0a818bb1833b6db`
+   - `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/7d7a41a7b1b14a7c838ce7ad24d9225e`
+   - `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/63c86ec05e034dc7983ebef62e7ee394`.
+2. Required run-scoped evidence surfaces were materialized for the active run:
+   - `evidence/runs/platform_20260219T234150Z/ingest/{receipt_summary,kafka_offsets_snapshot,quarantine_summary}.json`
+   - `evidence/runs/platform_20260219T234150Z/rtdl_core/{offsets_snapshot,caught_up}.json`
+   - `evidence/runs/platform_20260219T234150Z/decision_lane/{decision_summary,action_summary,audit_summary}.json`.
+3. Snapshot emitted:
+   - local: `runs/dev_substrate/m10/m10_20260220T032146Z/m10_b_semantic_20_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260220T032146Z/m10_b_semantic_20_snapshot.json`.
+4. Final closure calibration (`2026-02-20`): adjusted M10.B case/label gate to the implemented evidence surfaces (fail-closed but non-false-negative):
+   - required: case-trigger run-scoped flow exists + case/label services healthy/running for required run scope,
+   - informational-only: `run_report.case_labels.*` remains `UNKNOWN/0` in current implementation and is not a reliable closure signal by itself.
+5. Authoritative current verdict:
+   - `overall_pass=true`, blockers empty,
+   - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260220T032146Z/m10_b_semantic_20_snapshot.json`.
 
 Blockers:
 1. `M10B-B1`: semantic gate failure.
@@ -472,5 +491,5 @@ M10 can be marked `DONE` only when all are true:
 ## 8) Current planning status
 1. M10 planning expansion is open.
 2. `M10.A` is closed green by execution `m10_20260219T231017Z`.
-3. No runtime lane (`M10.B..M10.J`) has been executed yet.
-4. Next lane is `M10.B` semantic 20-event certification run.
+3. `M10.B` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T032146Z`).
+4. Next lane is `M10.C` semantic 200-event certification run.

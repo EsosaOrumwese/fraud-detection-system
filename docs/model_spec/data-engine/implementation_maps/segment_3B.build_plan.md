@@ -1292,9 +1292,9 @@ Scope:
 - keep `P1` lineage closure frozen (no reopen of S1 decision logic in this phase).
 
 Definition of done:
-- [ ] hard heterogeneity gates (`3B-V01..V04`) pass on witness seeds.
-- [ ] settlement coherence gates (`3B-V05..V07`) pass on witness seeds.
-- [ ] S2/S3 integrity and RNG accounting remain PASS.
+- [x] hard heterogeneity gates (`3B-V01..V04`) pass on witness seeds.
+- [x] settlement coherence gates (`3B-V05..V07`) pass on witness seeds.
+- [x] S2/S3 integrity and RNG accounting remain PASS.
 
 P2 entry lock (post-P1):
 - P1 authority is frozen and carried as read-only into this phase:
@@ -1343,9 +1343,9 @@ Scope:
 - emit a machine-readable P2 baseline attribution artifact used as calibration authority.
 
 Definition of done:
-- [ ] baseline attribution artifact is emitted and pinned.
-- [ ] each hard gate `3B-V01..V07` has a quantified causal driver map.
-- [ ] no state outputs/policies are changed in this subphase.
+- [x] baseline attribution artifact is emitted and pinned.
+- [x] each hard gate `3B-V01..V07` has a quantified causal driver map.
+- [x] no state outputs/policies are changed in this subphase.
 
 #### P2.2 - Merchant-conditioned topology implementation (`CF-3B-01`)
 Goal:
@@ -1358,10 +1358,10 @@ Scope:
 - preserve S2 validator taxonomy and fail-closed behavior.
 
 Definition of done:
-- [ ] `3B-V01` passes on witness seeds (`CV(edges_per_merchant) >= 0.25`).
-- [ ] `3B-V02` passes on witness seeds (`CV(countries_per_merchant) >= 0.20`).
-- [ ] `3B-V03` moves into corridor on witness seeds (`p50(top1_share) in [0.03,0.20]`).
-- [ ] no RNG envelope drift and no schema/path drift in S2 outputs.
+- [x] `3B-V01` passes on witness seeds (`CV(edges_per_merchant) >= 0.25`).
+- [x] `3B-V02` passes on witness seeds (`CV(countries_per_merchant) >= 0.20`).
+- [x] `3B-V03` moves into corridor on witness seeds (`p50(top1_share) in [0.03,0.20]`).
+- [x] no RNG envelope drift and no schema/path drift in S2 outputs.
 
 #### P2.3 - Settlement-coupled allocation implementation (`CF-3B-02`)
 Goal:
@@ -1376,10 +1376,10 @@ Scope:
 - keep operational timezone and world-geometry validation rails unchanged.
 
 Definition of done:
-- [ ] `3B-V05` passes on witness seeds (median overlap `>=0.03`).
-- [ ] `3B-V06` passes on witness seeds (p75 overlap `>=0.06`).
-- [ ] `3B-V07` passes on witness seeds (median distance `<=6000 km`).
-- [ ] `3B-V01..V04` remain non-regressed relative to `P2.2` closure candidate.
+- [x] `3B-V05` passes on witness seeds (median overlap `>=0.03`).
+- [x] `3B-V06` passes on witness seeds (p75 overlap `>=0.06`).
+- [x] `3B-V07` passes on witness seeds (median distance `<=6000 km`).
+- [x] `3B-V01..V04` remain non-regressed relative to `P2.2` closure candidate.
 
 #### P2.4 - Coupled calibration and candidate selection
 Goal:
@@ -1394,9 +1394,9 @@ Scope:
 - retain top candidate by weighted miss-distance + guardrail cleanliness.
 
 Definition of done:
-- [ ] selected candidate clears `3B-V01..V07` on seed `42`.
-- [ ] candidate remains guardrail-clean (`3B-V11` PASS, RNG/accounting PASS).
-- [ ] selected candidate config/knob set is pinned in plan + impl notes.
+- [x] selected candidate clears `3B-V01..V07` on seed `42`.
+- [x] candidate remains guardrail-clean (`3B-V11` PASS, RNG/accounting PASS).
+- [x] selected candidate config/knob set is pinned in plan + impl notes.
 
 #### P2.5 - Witness lock and P2 phase closeout
 Goal:
@@ -1412,9 +1412,9 @@ Scope:
 - emit witness summary + closure artifact and prune superseded failed run folders.
 
 Definition of done:
-- [ ] `3B-V01..V07` pass on both witness seeds.
-- [ ] structural/non-regression guardrails remain PASS.
-- [ ] closure artifacts are pinned and decision recorded (`UNLOCK_P3` or `HOLD_P2_REOPEN`).
+- [x] `3B-V01..V07` pass on both witness seeds.
+- [x] structural/non-regression guardrails remain PASS.
+- [x] closure artifacts are pinned and decision recorded (`UNLOCK_P3` or `HOLD_P2_REOPEN`).
 
 #### P2.6 - Cross-seed stability shadow (pre-P3 confidence lock)
 Goal:
@@ -1427,9 +1427,24 @@ Scope:
 - this is a confidence gate for handoff quality, not final segment certification.
 
 Definition of done:
-- [ ] no hard-gate re-fail appears on shadow seeds for `3B-V01..V07`.
-- [ ] cross-seed stability for P2 surfaces remains within `B` posture (`3B-X01` compatible).
-- [ ] `P3` handoff note is emitted with retained run-id set.
+- [x] no hard-gate re-fail appears on shadow seeds for `3B-V01..V07`.
+- [x] cross-seed stability for P2 surfaces remains within `B` posture (`3B-X01` compatible).
+- [x] `P3` handoff note is emitted with retained run-id set.
+
+P2 execution outcome (2026-02-20):
+- initial full-seed candidate scored `HOLD_P2_REOPEN` due only to settlement-overlap misses (`3B-V05/3B-V06`) while `3B-V01..V04`, `3B-V07`, and guardrails remained PASS.
+- applied bounded settlement-share calibration in S2 (profile-specific floor/cap with deterministic renormalization) without reopening S1 or changing schema/policy contracts.
+- witness recalibration summary:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p2_candidate_witness_recal1_20260220.json`
+  - decision: `UNLOCK_P3`.
+- full witness+shadow closure summary:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p2_candidate_full_recal1_20260220.json`
+  - decision: `UNLOCK_P3`.
+- retained P2 authority run map:
+  - `42 -> fc455a28a3504168a763a081b9b5a744`
+  - `101 -> d9eb3d579d6042429a9f8c8497e05657`
+  - `7 -> fef22283640747a7ad7282b9f66efe04`
+  - `202 -> 3af65609569c4e0680c6299aceacfc44`
 
 P2 runtime budgets (binding for this phase):
 - candidate lane (`single-seed`, changed-state onward): `<= 20 min`.
@@ -1499,7 +1514,7 @@ Definition of done:
 - `POPT.4`: completed (`CLOSED_UNLOCK_P0`)
 - `P0`: completed (`EXECUTED_FAIL_REALISM_UNLOCK_P1`)
 - `P1`: completed (`EXECUTED_UNLOCK_P2`)
-- `P2`: pending (`PLANNING_EXPANDED_READY_FOR_EXECUTION`)
+- `P2`: completed (`EXECUTED_UNLOCK_P3`)
 - `P3`: pending
 - `P4`: pending
 - `P5`: pending

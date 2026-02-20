@@ -4463,3 +4463,88 @@ Why this is the preferred next move:
 1) isolates the only failing gate family,
 2) minimizes blast radius against already-green metrics,
 3) keeps calibration causal and mathematically explicit.
+
+### Entry: 2026-02-20 01:00
+
+Design element: `3B P2 execution blocker - immutability violation on reused run roots`.
+Summary: first attempt to rerun S2 on existing seed-101 run root (`595a...`) failed with immutability enforcement, so P2 closeout switched to fresh staged run-ids for each seed lane.
+
+Observed blocker:
+1) `segment3b-s2` on `595a30d1278a4af39ea0fd1a78451571` wrote progress then failed with:
+   - `E3B_S2_020_IMMUTABILITY_VIOLATION`.
+2) implication:
+   - rerunning changed state outputs on previously materialized immutable roots is invalid for this lane.
+
+Decision:
+1) stage fresh run roots and execute `S0->S5` there (not `S2->S5` on old immutable folders).
+2) preserve P1 freeze logically by reusing same seed/manifest/authority lineage, but with fresh physical output roots.
+3) initial staged witness+shadow map used:
+   - `42 -> 11ed2ae6204946c6a1501f7ba4b0e008` (already green),
+   - `101 -> 6e26ad1a0b2a45c7ac08997104ca2ffd`,
+   - `7 -> 1e8bee3a287f486098f736530acfaa40`,
+   - `202 -> 404cde870efa40c3afc442ffc7a4ea87`.
+
+### Entry: 2026-02-20 01:26
+
+Design element: `3B P2.4 settlement-coherence calibration patch`.
+Summary: after first full-seed score still held (`HOLD_P2_REOPEN`) with only `V05/V06` failing, calibration was narrowed to deterministic settlement-share shaping.
+
+Patch mechanics applied:
+1) added profile-specific settlement share bounds:
+   - floor: `OFFSHORE_HUB=0.035`, `HYBRID_FOOTPRINT=0.045`, `REGIONAL_COMPACT=0.075`,
+   - cap: `OFFSHORE_HUB=0.22`, `HYBRID_FOOTPRINT=0.26`, `REGIONAL_COMPACT=0.30`.
+2) after probability normalization, enforce settlement-country share into `[floor, cap]` and deterministically renormalize remaining country mass.
+3) no schema/policy/registry changes; S2 code-only calibration with deterministic math.
+
+Validation sequence:
+1) witness-first recalibration:
+   - `42 -> fc455a28a3504168a763a081b9b5a744`,
+   - `101 -> d9eb3d579d6042429a9f8c8497e05657`.
+2) witness score artifact:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p2_candidate_witness_recal1_20260220.json`.
+3) witness result:
+   - decision `UNLOCK_P3` (all `V01..V07` + guardrails PASS on witness seeds).
+
+### Entry: 2026-02-20 01:54
+
+Design element: `3B P2 full closeout (P2.5 + P2.6)`.
+Summary: executed shadow seeds on the locked calibrated candidate and closed P2 with `UNLOCK_P3`.
+
+Final retained authority run map:
+1) `42 -> fc455a28a3504168a763a081b9b5a744`
+2) `101 -> d9eb3d579d6042429a9f8c8497e05657`
+3) `7 -> fef22283640747a7ad7282b9f66efe04`
+4) `202 -> 3af65609569c4e0680c6299aceacfc44`
+
+Final scoring artifact:
+1) `runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p2_candidate_full_recal1_20260220.json`
+2) decision: `UNLOCK_P3`.
+3) closure posture:
+   - `3B-V01..V07`: PASS on all four seeds,
+   - `3B-V11`: PASS on all four seeds,
+   - structural `S2/S3/S4/S5`: PASS on all four seeds,
+   - stability CV rails: PASS.
+
+Runtime evidence against P2 budgets:
+1) witness lane (`42+101`) completed within `<=45 min`.
+2) shadow lane (`7+202`) completed within `<=45 min`.
+3) per-run dominant hotspot remains S2 topology materialization (~13 minutes/run) but stayed within phase budget envelope.
+
+### Entry: 2026-02-20 01:58
+
+Design element: `3B P2 run-retention closure`.
+Summary: pruned superseded run-id folders after P2 closeout while preserving baseline authorities and locked P2 keep-set.
+
+Prune action:
+1) command:
+   - `python tools/prune_run_folders_keep_set.py --runs-root runs/fix-data-engine/segment_3B --keep 724a63d3f8b242809b8ec3b746d0c776 --keep 8d2f7c6a93ea4b3ba17fc97f2fb0a89d --keep 4b575d80610a44f4a4a807a8cc0b76b5 --keep 3686a5ebc2ee42f4a84edea17f80376d --keep 595a30d1278a4af39ea0fd1a78451571 --keep c90f94802ae94ff6a932c84e1520a112 --keep fc455a28a3504168a763a081b9b5a744 --keep d9eb3d579d6042429a9f8c8497e05657 --keep fef22283640747a7ad7282b9f66efe04 --keep 3af65609569c4e0680c6299aceacfc44 --yes`.
+2) removed superseded folders:
+   - `11ed2ae6204946c6a1501f7ba4b0e008`
+   - `1e8bee3a287f486098f736530acfaa40`
+   - `404cde870efa40c3afc442ffc7a4ea87`
+   - `6e26ad1a0b2a45c7ac08997104ca2ffd`
+3) retained final P2 authority set:
+   - `fc455a28a3504168a763a081b9b5a744`
+   - `d9eb3d579d6042429a9f8c8497e05657`
+   - `fef22283640747a7ad7282b9f66efe04`
+   - `3af65609569c4e0680c6299aceacfc44`.

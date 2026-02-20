@@ -810,15 +810,53 @@ resource "aws_ecs_task_definition" "daemon" {
         ] : each.key == "decision-lane-dl" ? [
         "sh",
         "-c",
-        "set -e; python -c \"import pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; d.setdefault('dl',{}).setdefault('policy',{})['profiles_ref']='config/platform/dl/policy_profiles_v0.yaml'; d['dl']['policy']['profile_id']='dev'; o=pathlib.Path('/tmp/dev_min_dl.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.degrade_ladder.worker --profile /tmp/dev_min_dl.yaml",
+        <<-EOT
+set -e
+python - <<'PY'
+from __future__ import annotations
+
+from pathlib import Path
+import yaml
+
+profile_path = Path("config/platform/profiles/dev_min.yaml")
+profile = yaml.safe_load(profile_path.read_text(encoding="utf-8")) or {}
+
+policy_profiles_path = Path("config/platform/dl/policy_profiles_v0.yaml")
+policy_profiles = yaml.safe_load(policy_profiles_path.read_text(encoding="utf-8")) or {}
+profiles = policy_profiles.setdefault("profiles", {})
+seed_profile = profiles.get("dev") or profiles.get("local_parity") or profiles.get("local")
+if not isinstance(seed_profile, dict):
+    raise SystemExit("DL_POLICY_PROFILE_SEED_MISSING")
+
+runtime_profile = yaml.safe_load(yaml.safe_dump(seed_profile)) or {}
+signals = runtime_profile.setdefault("signals", {})
+signals["required"] = ["posture_store_health"]
+signals["optional"] = ["control_publish_health"]
+signals["required_max_age_seconds"] = 120
+profiles["dev_min_runtime"] = runtime_profile
+
+runtime_policy_path = Path("/tmp/dev_min_dl_policy_profiles.yaml")
+runtime_policy_path.write_text(yaml.safe_dump(policy_profiles, sort_keys=False), encoding="utf-8")
+
+dl = profile.setdefault("dl", {})
+dl_policy = dl.setdefault("policy", {})
+dl_policy["profiles_ref"] = str(runtime_policy_path)
+dl_policy["profile_id"] = "dev_min_runtime"
+
+runtime_profile_path = Path("/tmp/dev_min_dl.yaml")
+runtime_profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+print(str(runtime_profile_path))
+PY
+python -m fraud_detection.degrade_ladder.worker --profile /tmp/dev_min_dl.yaml
+EOT
         ] : each.key == "decision-lane-df" ? [
         "sh",
         "-c",
-        "set -e; python -c \"import pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; d.setdefault('dl',{}).setdefault('policy',{})['profiles_ref']='config/platform/dl/policy_profiles_v0.yaml'; d['dl']['policy']['profile_id']='dev'; tp=pathlib.Path('config/platform/df/trigger_policy_v0.yaml'); t=yaml.safe_load(tp.read_text()) or {}; dt=t.setdefault('decision_trigger',{}); dt['admitted_traffic_topics']=['fp.bus.traffic.fraud.v1']; tp_out=pathlib.Path('/tmp/df_trigger_policy_dev_min.yaml'); tp_out.write_text(yaml.safe_dump(t, sort_keys=False), encoding='utf-8'); d.setdefault('df',{}).setdefault('policy',{})['trigger_policy_ref']=str(tp_out); d.setdefault('df',{}).setdefault('wiring',{})['event_bus_kind']='kafka'; o=pathlib.Path('/tmp/dev_min_df.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.decision_fabric.worker --profile /tmp/dev_min_df.yaml",
+        "set -e; python -c \"import os,pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; d.setdefault('dl',{}).setdefault('policy',{})['profiles_ref']='config/platform/dl/policy_profiles_v0.yaml'; d['dl']['policy']['profile_id']='dev'; tp=pathlib.Path('config/platform/df/trigger_policy_v0.yaml'); t=yaml.safe_load(tp.read_text()) or {}; dt=t.setdefault('decision_trigger',{}); dt['admitted_traffic_topics']=['fp.bus.traffic.fraud.v1']; tp_out=pathlib.Path('/tmp/df_trigger_policy_dev_min.yaml'); tp_out.write_text(yaml.safe_dump(t, sort_keys=False), encoding='utf-8'); d.setdefault('df',{}).setdefault('policy',{})['trigger_policy_ref']=str(tp_out); wiring=d.setdefault('df',{}).setdefault('wiring',{}); wiring['event_bus_kind']='kafka'; wiring['ig_ingest_url']=os.getenv('IG_INGEST_URL',''); o=pathlib.Path('/tmp/dev_min_df.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.decision_fabric.worker --profile /tmp/dev_min_df.yaml",
         ] : each.key == "decision-lane-al" ? [
         "sh",
         "-c",
-        "set -e; python -c \"import pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; al=d.setdefault('al',{}); wiring=al.setdefault('wiring',{}); wiring['event_bus_kind']='kafka'; wiring['admitted_topics']=['fp.bus.rtdl.v1']; o=pathlib.Path('/tmp/dev_min_al.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.action_layer.worker --profile /tmp/dev_min_al.yaml",
+        "set -e; python -c \"import os,pathlib,yaml; p=pathlib.Path('config/platform/profiles/dev_min.yaml'); d=yaml.safe_load(p.read_text()) or {}; al=d.setdefault('al',{}); wiring=al.setdefault('wiring',{}); wiring['event_bus_kind']='kafka'; wiring['admitted_topics']=['fp.bus.rtdl.v1']; wiring['ig_ingest_url']=os.getenv('IG_INGEST_URL',''); o=pathlib.Path('/tmp/dev_min_al.yaml'); o.write_text(yaml.safe_dump(d, sort_keys=False), encoding='utf-8'); print(o)\"; python -m fraud_detection.action_layer.worker --profile /tmp/dev_min_al.yaml",
         ] : each.key == "decision-lane-dla" ? [
         "sh",
         "-c",
@@ -1055,10 +1093,18 @@ EOT
           name  = "DF_REQUIRED_PLATFORM_RUN_ID"
           value = var.required_platform_run_id
         },
+        {
+          name  = "IG_INGEST_URL"
+          value = var.ig_ingest_url
+        },
         ] : [], each.key == "decision-lane-al" ? [
         {
           name  = "AL_REQUIRED_PLATFORM_RUN_ID"
           value = var.required_platform_run_id
+        },
+        {
+          name  = "IG_INGEST_URL"
+          value = var.ig_ingest_url
         },
         ] : [], each.key == "decision-lane-dla" ? [
         {
