@@ -3642,3 +3642,184 @@ Invariants locked:
 Immediate next execution intent:
 1) run `POPT.0` (clean baseline + hotspot profile collection).
 2) close hotspot order from evidence and proceed into `POPT.1`.
+
+### Entry: 2026-02-20 18:52
+
+Design element: Segment 5A POPT.0 execution plan lock (baseline run + hotspot profiling artifacts).
+Summary: Locked the execution method for `POPT.0` before any run edits. We will stage a fresh run-id under `runs/fix-data-engine/segment_5A`, execute `S0->S5` sequentially, and emit required baseline/hotspot/profile artifacts from run reports + state log milestones.
+
+Problem framing:
+- `POPT.0` requires one authoritative baseline run and three hotspot profile artifacts (`S2/S4/S5`) before `POPT.1`.
+- There is currently no staged run under `runs/fix-data-engine/segment_5A` and no existing `score_segment5a_popt0_baseline.py` tool in `tools/`.
+- Upstream inputs for 5A are cross-segment (`1A..3B`) and must remain frozen for this lane.
+
+Alternatives considered:
+1) **Copy all upstream `1A..3B` surfaces into the new 5A run root**
+   - Rejected: high storage pressure and unnecessary duplication, conflicts with storage-prune posture.
+2) **Run 5A directly in `runs/local_full_run-5/c25...` without a new fix-data-engine run-id**
+   - Rejected: violates active remediation posture to execute in `runs/fix-data-engine/...` lanes.
+3) **Stage a new 5A run-id that references frozen upstream via external roots**
+   - Accepted: keeps the run isolated, auditable, and storage-safe while preserving frozen upstream authority.
+
+Source authority decision:
+- Use upstream authority run root `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92` because:
+  - seed is `42` (matches POPT.0 seed policy),
+  - manifest fingerprint is `c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`,
+  - it contains complete `1A..3B` outputs required by 5A S0 gate.
+
+Profiling method decision:
+1) **Full cProfile per state**
+   - Rejected for POPT.0 baseline: introduces runtime perturbation and extra repeated heavy reruns for S4/S5.
+2) **Evidence decomposition from run reports + state-log milestones**
+   - Accepted for POPT.0: uses true baseline run execution with zero semantic perturbation and still yields lane-level decomposition (`input_resolution`, `load/validation`, `core_compute`, `output_write/idempotency`).
+
+Execution steps locked:
+1) Pre-run storage check + prune-failed precheck under `runs/fix-data-engine/segment_5A`.
+2) Stage new run-id and write `run_receipt.json` (seed=42, manifest/parameter hash pinned to frozen upstream authority run).
+3) Execute `make segment5a-s0 .. segment5a-s5` with `RUNS_ROOT=runs/fix-data-engine/segment_5A` and explicit external root to `c25...`.
+4) Emit artifacts:
+   - `segment5a_popt0_baseline_<run_id>.json`
+   - `segment5a_popt0_hotspot_map_<run_id>.md`
+   - `segment5a_popt0_profile_s2_<run_id>.json`
+   - `segment5a_popt0_profile_s4_<run_id>.json`
+   - `segment5a_popt0_profile_s5_<run_id>.json`
+5) Record `GO_POPT1` or `HOLD_POPT0_REOPEN` with budget posture from measured evidence.
+
+Invariants pinned:
+- No policy/coeff/config tuning in POPT.0.
+- Frozen upstream inputs (`1A..3B`) stay unchanged.
+- Determinism/idempotency/contract compatibility must remain unchanged.
+- Keep-set + prune posture enforced after closure.
+
+### Entry: 2026-02-20 18:55
+
+Execution update: POPT.0 baseline run blocker discovered in pre-S0 hook (`scenario_calendar_5a`).
+Summary: First `make segment5a` attempt failed before S0 because `segment5a-s0` force-calls `scenario_calendar_5a`, and that target expects `zone_alloc` to exist in the active run root.
+
+Observed failure:
+- `make segment5a ...` failed at `makefile:2034 scenario_calendar_5a`.
+- Root cause: target resolves `zone_alloc_dir=$RUN_ROOT/data/layer1/3A/zone_alloc/seed={seed}/manifest_fingerprint={manifest}` and does not consult `ENGINE_EXTERNAL_ROOTS`.
+- Since the staged run root was intentionally minimal, `zone_alloc` was absent and target aborted.
+
+Alternatives considered:
+1) Disable/skip the `scenario_calendar_5a` pre-hook.
+   - Rejected: requires makefile behavior change for an execution lane; not justified for POPT.0.
+2) Point `SCENARIO_CAL_RUN_ROOT` to upstream `c25...`.
+   - Rejected: would emit scenario calendar under upstream authority run, violating lane isolation.
+3) Copy minimal required `zone_alloc` partition into staged run root, then rerun target.
+   - Accepted: smallest blast radius, preserves isolation, keeps makefile behavior unchanged.
+
+Action taken:
+- Copied:
+  - `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data/layer1/3A/zone_alloc/seed=42/manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8/`
+  - into:
+  - `runs/fix-data-engine/segment_5A/7b08449ccffc44beaa99e64bf0201efc/data/layer1/3A/zone_alloc/seed=42/manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8/`
+- Re-ran `make scenario_calendar_5a` for the staged run-id; succeeded and emitted `scenario_calendar_5A.parquet`.
+
+Why this is acceptable:
+- No policy/statistical tuning introduced.
+- Only minimal prerequisite data was staged to satisfy enforced pre-S0 make hook.
+- 5A execution remains in fix-data-engine lane with frozen upstream semantics.
+
+---
+
+### Entry: 2026-02-20 19:04
+
+Execution update: S0 upstream-surface resolution blocker and closure.
+Summary: After fixing `scenario_calendar_5a`, `segment5a-s0` still failed because several required upstream `layer1` surfaces were resolved strictly inside the staged run root instead of external roots.
+
+Observed failure details:
+- `segment5a-s0` failed on missing upstream paths under `runs/fix-data-engine/segment_5A/7b08449ccffc44beaa99e64bf0201efc/data/layer1/...`.
+- Root cause in state mechanics: `_resolve_dataset_path` treats `data/...` entries as run-root-owned and does not transparently fallback to `ENGINE_EXTERNAL_ROOTS` for those references.
+- Additional hash-gate failures appeared until dependent `2B` validation surfaces were also present (`s0_gate_receipt`, `s7_audit_report`, `sealed_inputs`).
+
+Alternatives considered:
+1) **Patch S0 path resolver to fallback to external roots now**
+   - Rejected for this lane: code change during baseline capture would contaminate POPT.0 runtime authority.
+2) **Use directory junction/symlink from staged run root to upstream root**
+   - Rejected by environment constraints in this run:
+     - junction path policy blocked,
+     - symlink creation failed (`WinError 1314` privilege).
+3) **Copy only required upstream partitions into staged run root**
+   - Accepted: deterministic, no code/policy changes, fastest way to keep POPT.0 lane pure.
+
+Action taken:
+- Copied required upstream `layer1` partitions (`1A..3B` + required `2B` validation surfaces) from:
+  - `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92`
+  into staged run-id:
+  - `runs/fix-data-engine/segment_5A/7b08449ccffc44beaa99e64bf0201efc`.
+- Re-ran `segment5a-s0`; state passed.
+
+Decision guardrail:
+- Baseline authority remained policy/code invariant because only run-local prerequisite data placement changed.
+
+---
+
+### Entry: 2026-02-20 19:18
+
+Execution update: POPT.0 baseline chain completed (`S0->S5 PASS`).
+Summary: Completed full sequential baseline on run-id `7b08449ccffc44beaa99e64bf0201efc` with seed `42`; all states passed and runtime authority was captured for hotspot ranking.
+
+Measured state timings (seconds):
+- `S0=171.249`, `S1=9.891`, `S2=31.734`, `S3=488.250`, `S4=484.561`, `S5=235.733`.
+- Segment elapsed (`S0..S5` sum): `1421.418s` (`23m41s`), candidate-lane budget status `RED` vs `20m` target.
+
+Hotspot evidence and ranking:
+1) `S3` (34.35% share, 488.250s) - baseline intensity composition/normalization.
+2) `S4` (34.09% share, 484.561s) - scenario overlay expansion/horizon projection.
+3) `S5` (16.58% share, 235.733s) - validation bundle recomposition and publication.
+
+Immediate implication:
+- `POPT.1` should target `S3` first because it is rank-1 by wall time and co-dominant with `S4` in segment budget breach.
+
+---
+
+### Entry: 2026-02-20 19:21
+
+Design element: baseline artifact emission tool for POPT.0 closure.
+Summary: Implemented `tools/score_segment5a_popt0_baseline.py` to convert run reports + logs into required POPT.0 artifacts in one deterministic pass.
+
+Problem framing:
+- POPT.0 closure requires five concrete artifacts with consistent fields and lane decomposition (`S2/S4/S5`).
+- Manual extraction is error-prone and non-repeatable for future reopen/verification cycles.
+
+Alternatives considered:
+1) **Manual markdown/JSON assembly per run**
+   - Rejected: high transcription risk and poor replayability.
+2) **Ad hoc shell parsing only**
+   - Rejected: fragile and hard to keep schema-stable across reruns.
+3) **Dedicated scorer script with fixed output contract**
+   - Accepted: deterministic and reusable for rerun comparisons.
+
+Artifacts emitted for run-id `7b08449ccffc44beaa99e64bf0201efc`:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_popt0_baseline_7b08449ccffc44beaa99e64bf0201efc.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_popt0_hotspot_map_7b08449ccffc44beaa99e64bf0201efc.md`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_popt0_profile_s2_7b08449ccffc44beaa99e64bf0201efc.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_popt0_profile_s4_7b08449ccffc44beaa99e64bf0201efc.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_popt0_profile_s5_7b08449ccffc44beaa99e64bf0201efc.json`
+
+Lane decomposition highlights:
+- `S2`: core compute dominant (`~92.2%`).
+- `S4`: input-load/schema-validation dominant (`~88.7%`) with minor output-write cost.
+- `S5`: core compute dominant (`~99.8%`).
+
+---
+
+### Entry: 2026-02-20 19:24
+
+Closure decision: `POPT.0` complete, `GO_POPT1` unlocked.
+Summary: Closed POPT.0 in build plan with all DoD checkboxes green, baseline authority pinned, and explicit handoff target set to `S3` for `POPT.1`.
+
+Decision rationale:
+- Candidate-lane runtime misses target (`23m41s` > `20m`), so optimization is mandatory before realism-heavy rerun cadence.
+- Hotspot ranking + lane decomposition provide enough deterministic evidence to begin code-level optimization safely.
+
+Plan updates applied:
+- `docs/model_spec/data-engine/implementation_maps/segment_5A.build_plan.md`:
+  - POPT.0 + POPT.0.1..0.5 DoDs marked complete,
+  - closure snapshot added with run-id, hotspot order, budget status, and artifact pointers,
+  - current phase status set to `POPT in progress (POPT.0 closed; POPT.1 next on S3)`.
+
+Retention/prune posture:
+- Keep-set authority remains run-id `7b08449ccffc44beaa99e64bf0201efc`.
+- No additional superseded run-id folders existed under `runs/fix-data-engine/segment_5A` at closure time, so no prune action was required.

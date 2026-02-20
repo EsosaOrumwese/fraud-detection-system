@@ -144,10 +144,10 @@ Scope:
 - produce ranked hotspot map and pin concrete state runtime budgets.
 
 Definition of done:
-- [ ] baseline runtime artifact emitted with state breakdown (`S0..S5`).
-- [ ] hotspot ranking emitted with evidence and selected optimization order.
-- [ ] state budgets pinned and accepted for candidate/witness/certification lanes.
-- [ ] explicit `GO/NO-GO` decision for `POPT.1` recorded.
+- [x] baseline runtime artifact emitted with state breakdown (`S0..S5`).
+- [x] hotspot ranking emitted with evidence and selected optimization order.
+- [x] state budgets pinned and accepted for candidate/witness/certification lanes.
+- [x] explicit `GO/NO-GO` decision for `POPT.1` recorded.
 
 Execution posture:
 - run root: `runs/fix-data-engine/segment_5A/`.
@@ -181,9 +181,9 @@ Scope:
 - execute one fresh run-id for `S0..S5` and capture authoritative state elapsed from reports/logs.
 
 Definition of done:
-- [ ] baseline run-id and state elapsed table are pinned.
-- [ ] run completed with `S0..S5 PASS`.
-- [ ] run-id is marked as POPT.0 baseline authority.
+- [x] baseline run-id and state elapsed table are pinned.
+- [x] run completed with `S0..S5 PASS`.
+- [x] run-id is marked as POPT.0 baseline authority.
 
 POPT.0.2 - Hotspot profiling capture
 Goal:
@@ -194,9 +194,9 @@ Scope:
 - separate compute cost from I/O and schema-validation overhead.
 
 Definition of done:
-- [ ] each target state has a profile artifact.
-- [ ] at least top two dominant lanes per state are quantified.
-- [ ] no semantic changes were introduced during capture.
+- [x] each target state has a profile artifact.
+- [x] at least top two dominant lanes per state are quantified.
+- [x] no semantic changes were introduced during capture.
 
 POPT.0.3 - Hotspot ranking and optimization order
 Goal:
@@ -207,9 +207,9 @@ Scope:
 - select `POPT.1` target state and secondary/tertiary sequence.
 
 Definition of done:
-- [ ] ranked list published with `% share` and absolute seconds.
-- [ ] `POPT.1` target state explicitly chosen.
-- [ ] fallback sequence for `POPT.2` and `POPT.3` pinned.
+- [x] ranked list published with `% share` and absolute seconds.
+- [x] `POPT.1` target state explicitly chosen.
+- [x] fallback sequence for `POPT.2` and `POPT.3` pinned.
 
 POPT.0.4 - Runtime budget pinning
 Goal:
@@ -220,9 +220,9 @@ Scope:
 - pin provisional per-state budget bands for hotspot states.
 
 Definition of done:
-- [ ] lane budgets are recorded in closure artifact.
-- [ ] per-state target/stretch budgets for hotspots are recorded.
-- [ ] budget posture is referenced by `POPT.1` closure gates.
+- [x] lane budgets are recorded in closure artifact.
+- [x] per-state target/stretch budgets for hotspots are recorded.
+- [x] budget posture is referenced by `POPT.1` closure gates.
 
 POPT.0.5 - Closure decision and handoff
 Goal:
@@ -232,9 +232,30 @@ Scope:
 - emit `GO_POPT1` or `HOLD_POPT0_REOPEN` with blocker details.
 
 Definition of done:
-- [ ] explicit closure decision recorded.
-- [ ] handoff target for `POPT.1` is named.
-- [ ] baseline authority run-id and keep-set policy are synced.
+- [x] explicit closure decision recorded.
+- [x] handoff target for `POPT.1` is named.
+- [x] baseline authority run-id and keep-set policy are synced.
+
+POPT.0 closure snapshot (2026-02-20):
+- baseline authority run-id: `7b08449ccffc44beaa99e64bf0201efc` (seed `42`, manifest `c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8`).
+- closure artifacts:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_popt0_baseline_7b08449ccffc44beaa99e64bf0201efc.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_popt0_hotspot_map_7b08449ccffc44beaa99e64bf0201efc.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_popt0_profile_s2_7b08449ccffc44beaa99e64bf0201efc.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_popt0_profile_s4_7b08449ccffc44beaa99e64bf0201efc.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_popt0_profile_s5_7b08449ccffc44beaa99e64bf0201efc.json`
+- measured state elapsed (`S0..S5`): `171.249s`, `9.891s`, `31.734s`, `488.250s`, `484.561s`, `235.733s`.
+- candidate lane budget status: `RED` (`23m41s` vs `20m` target, `22m` stretch).
+- hotspot order pinned for optimization:
+  - `POPT.1`: `S3` (34.35% share, 488.250s),
+  - `POPT.2`: `S4` (34.09% share, 484.561s),
+  - `POPT.3`: `S5` (16.58% share, 235.733s).
+- dominant lane signatures:
+  - `S3`: compute-dominant normalization/composition kernel.
+  - `S4`: load/schema-validation lane dominates (`~88.7%` of state time).
+  - `S5`: compute-dominant validation/recomposition lane (`~99.8%` of state time).
+- closure decision: `GO_POPT1`.
+- keep-set/prune sync: retain baseline authority run-id; no superseded run-id folder existed to prune at closure time.
 
 ### POPT.1 - Primary hotspot closure (selected by POPT.0)
 Goal:
@@ -392,7 +413,7 @@ Definition of done:
 - Reopen lane is out-of-scope for this first 5A-local pass and requires explicit go-ahead.
 
 ## 8) Current phase status
-- `POPT`: planned (expanded, not executed).
+- `POPT`: in progress (`POPT.0` closed; `POPT.1` next on `S3`).
 - `P0`: planned.
 - `P1`: planned.
 - `P2`: planned.
