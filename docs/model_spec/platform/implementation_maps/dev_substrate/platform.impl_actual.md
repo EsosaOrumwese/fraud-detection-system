@@ -16702,3 +16702,52 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - blockers empty,
    - `overall_pass=true`.
 3. M10 progression is unblocked to `M10.C`.
+## Entry: 2026-02-20 03:36:00 +00:00 - M10.C planning expansion approach (before edits)
+### Problem to solve
+1. `M10.C` (semantic 200-event certification) is currently task-level only and not execution-grade.
+2. Without expansion, execution would be ad hoc and likely repeat M10.B issues (stale READY replay, evidence-surface drift, and false-negative case/label gates).
+
+### Design choices for M10.C expansion
+1. Keep M10.C dependency strict: `M10.C <- M10.B` where source snapshot must be pass and blocker-free.
+2. Reuse M10.B semantic evidence contract, but with run target pinned to `admitted_event_target=200` from `M10.A.semantic_matrix.run_200`.
+3. Add explicit run-scope strategy to avoid duplicate/replay confusion:
+   - managed lane must execute under a concrete certification run scope,
+   - prefer fresh run scope for M10.C to preserve deterministic attribution.
+4. Preserve fail-closed posture on evidence-path drift:
+   - if required `ingest/rtdl_core/decision_lane` surfaces are absent after managed run, M10.C must fail and emit deterministic blocker.
+5. Prevent false-negative case/label gating drift by pinning implemented closure basis used in late M10.B closure:
+   - case-trigger run-scoped flow + case/label service health,
+   - keep run_report case-label UNKNOWN counters as informational telemetry.
+6. Add explicit runtime budget gate from M10.A matrix (`M10.C <= 60 minutes`).
+
+### Planned edits
+1. Expand `M10.C` section in `platform.M10.build_plan.md` with:
+   - entry conditions,
+   - required inputs/evidence handles,
+   - preparation checks,
+   - deterministic execution/verification algorithm,
+   - DoD/blockers/snapshot schema,
+   - runtime budget rule.
+2. Update `platform.build_plan.md` M10 expansion state to mark `M10.C` planning as execution-grade and set immediate next action to M10.C execution.
+
+### Expected outcome
+1. M10.C becomes executable without unresolved decision holes.
+2. Execution can proceed fail-closed with deterministic blocker attribution instead of ad hoc runtime interpretation.
+## Entry: 2026-02-20 03:41:00 +00:00 - M10.C planning expansion applied
+### What changed
+1. Expanded `M10.C` in `platform.M10.build_plan.md` from shallow task list to execution-grade contract:
+   - entry conditions,
+   - required inputs/evidence handles,
+   - preparation checks,
+   - deterministic verification algorithm,
+   - DoD checklist,
+   - blocker taxonomy (`M10C-B1..B6`),
+   - required snapshot schema.
+2. Added explicit runtime budget gate (`M10.C <= 60 minutes`) and fail-closed behavior on breach.
+3. Aligned case/label semantic checks for M10.C with implemented closure posture established in M10.B (avoid false-negative drift from run-report-only UNKNOWN counters).
+4. Synced high-level M10 expansion state in `platform.build_plan.md` so it explicitly marks M10.C as execution-grade planned.
+
+### Decision quality check
+1. No unresolved decision holes remain for M10.C entry.
+2. Dependency graph remains strict (`M10.C <- M10.B`).
+3. Next step can proceed directly to managed M10.C execution under fail-closed semantics.

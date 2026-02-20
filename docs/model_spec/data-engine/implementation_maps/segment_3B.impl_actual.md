@@ -4548,3 +4548,26 @@ Prune action:
    - `d9eb3d579d6042429a9f8c8497e05657`
    - `fef22283640747a7ad7282b9f66efe04`
    - `3af65609569c4e0680c6299aceacfc44`.
+
+### Entry: 2026-02-20 04:43
+
+Design element: `3B P3 planning expansion lock (CF-3B-04 realism governance)`.
+Summary: expanded `P3` into execution-grade subphases so S4 realism governance can be implemented with fail-closed sequencing and no reopen of frozen P2 behavior.
+
+Planning rationale:
+1) P2 already closed hard realism metrics (`V01..V07`), so P3 must focus on governance coverage (`V12`) without touching S1/S2/S3 behavior.
+2) remediation authority requires observe-mode then enforce-mode for realism checks; the plan now encodes this ordering explicitly.
+3) S4 contract schema currently has narrow test taxonomy; planning therefore starts with a schema/policy lock lane (`P3.1`) before code edits.
+
+Key decisions pinned:
+1) retain P2 authority runs as read-only input baselines for P3 witness/shadow evaluation.
+2) enforce phase law:
+   - `P3.1` contract model lock,
+   - `P3.2` observe-mode dry run,
+   - `P3.3` enforce-mode witness lock,
+   - `P3.4` shadow confirmation + closeout.
+3) keep rerun strategy performance-first:
+   - prefer `S4->S5` on locked P2 roots,
+   - explicit fallback to staged `S0->S5` only when immutable-output constraints block in-place reruns.
+4) carry non-regression guard:
+   - no regressions on frozen `P2` hard gates while closing `V12`.

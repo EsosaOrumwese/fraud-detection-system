@@ -308,20 +308,86 @@ Required snapshot fields (`m10_b_semantic_20_snapshot.json`):
 Goal:
 1. Re-prove semantic green at baseline depth with 200 events.
 
-Tasks:
-1. Execute managed run for 200 events.
-2. Validate same semantic gates as M10.B.
-3. Emit `m10_c_semantic_200_snapshot.json` local + durable.
+Entry conditions:
+1. `M10.B` is closed pass:
+   - local snapshot exists and is parseable.
+   - durable snapshot exists and is parseable.
+2. `M10.B` snapshot has:
+   - `overall_pass=true`,
+   - empty blocker list.
+3. `M10.A` run-200 semantic target remains authoritative:
+   - `semantic_matrix.run_200.required=true`,
+   - `semantic_matrix.run_200.admitted_event_target=200`.
+4. Lane dependency remains strict:
+   - `M10.C.depends_on` contains exactly `M10.B`.
+
+Required inputs:
+1. `M10.B` pass snapshot (local preferred, durable fallback).
+2. `M10.A` threshold matrix snapshot (for run-200 target authority).
+3. Managed execution lane for 200-event run (`SR -> WSP -> reporter`, no local data-plane compute).
+4. Required semantic evidence surfaces under certification run scope:
+   - `RECEIPT_SUMMARY_PATH_PATTERN`,
+   - `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`,
+   - `RTDL_CORE_EVIDENCE_PATH_PATTERN`,
+   - `DECISION_LANE_EVIDENCE_PATH_PATTERN`,
+   - `DLA_EVIDENCE_PATH_PATTERN`,
+   - `ENV_CONFORMANCE_PATH_PATTERN`,
+   - `REPLAY_ANCHORS_PATH_PATTERN`,
+   - `RUN_REPORT_PATH_PATTERN`,
+   - `EVIDENCE_RUN_COMPLETED_KEY`,
+   - `QUARANTINE_INDEX_PATH_PATTERN`.
+
+Preparation checks (fail-closed):
+1. Parse/validate `M10.B` snapshot pass posture (`overall_pass=true`, blockers empty).
+2. Parse/validate run-200 semantic target from `M10.A`.
+3. Validate concrete certification `platform_run_id` (no placeholder/wildcard).
+4. Validate managed runtime health preconditions for in-scope services:
+   - IG, RTDL core, decision lane, case-trigger, case-mgmt, label-store, reporter.
+
+Deterministic verification algorithm (M10.C):
+1. Load source snapshots (`M10.A`, `M10.B`); parse/non-pass failures -> `M10C-B4`.
+2. Execute managed 200-event certification run:
+   - emit/confirm READY for certification run scope,
+   - run WSP with bounded 200-event target posture,
+   - rerun reporter for closure artifacts.
+3. Resolve required run-scoped semantic evidence refs.
+4. If required summary surfaces are absent after run (`ingest/*`, `rtdl_core/*`, `decision_lane/*`), materialize deterministic summaries from canonical run-scoped receipts/topic evidence and publish them.
+5. Validate semantic closure gates:
+   - no unresolved `PUBLISH_AMBIGUOUS`,
+   - `ADMIT >= 200` for run target,
+   - RTDL/decision/action evidence present,
+   - case-trigger run-scoped flow present,
+   - case-label service health is active/running under required run scope,
+   - Obs/Gov closure artifacts present (`run_report`, `replay_anchors`, `environment_conformance`, `run_completed`),
+   - run-scope coherence across all evidence refs.
+6. Enforce runtime budget gate from `M10.A` matrix (`M10.C <= 60 minutes`) or fail-closed.
+7. Emit `m10_c_semantic_200_snapshot.json` locally.
+8. Publish snapshot durably; publish failure -> `M10C-B5`.
 
 DoD:
-- [ ] 200-event run passes all semantic gates.
-- [ ] Blockers empty.
-- [ ] Snapshot exists locally and durably.
+- [ ] `M10.B` dependency pass posture validates.
+- [ ] Managed 200-event run completes with semantic gates closed.
+- [ ] Required semantic evidence surfaces exist and are run-scope coherent.
+- [ ] No unresolved `PUBLISH_AMBIGUOUS` state exists.
+- [ ] Runtime budget gate (`<= 60 minutes`) passes.
+- [ ] Snapshot exists locally and durably with blocker-free verdict.
 
 Blockers:
 1. `M10C-B1`: semantic gate failure.
 2. `M10C-B2`: missing required evidence object.
 3. `M10C-B3`: run-scope mismatch.
+4. `M10C-B4`: invalid/non-pass dependency snapshot (`M10.B`/`M10.A`) or malformed semantic target.
+5. `M10C-B5`: snapshot publication failure.
+6. `M10C-B6`: runtime budget breach.
+
+Required snapshot fields (`m10_c_semantic_200_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m10_execution_id`.
+2. `source_snapshot_refs` (`M10.A`, `M10.B` local + durable refs).
+3. `semantic_target` (`admitted_event_target`, `required_phase_ids`, semantic rules).
+4. `evidence_refs` (resolved run-scoped object refs).
+5. `semantic_gate_checks` (per-gate pass/fail matrix).
+6. `runtime_budget` (`budget_seconds`, `elapsed_seconds`, `budget_pass`).
+7. `blockers`, `overall_pass`.
 
 ### M10.D Incident drill execution
 Goal:

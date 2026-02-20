@@ -1510,6 +1510,11 @@ Phase closure posture:
     - fail-closed blocker taxonomy (`M10B-B1..B5`),
   - `M10.B` runtime lane has been executed and closed pass on `platform_20260219T234150Z`,
   - authoritative closure snapshot: `m10_20260220T032146Z/m10_b_semantic_20_snapshot.json` (`overall_pass=true`, blockers empty).
+  - `M10.C` is now expanded to execution-grade with:
+    - strict dependency on `M10.B` pass,
+    - run-200 target authority from `M10.A`,
+    - deterministic managed execution algorithm (`SR -> WSP -> reporter` + evidence-surface closure),
+    - fail-closed blocker taxonomy (`M10C-B1..B6`) including runtime-budget gate.
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.

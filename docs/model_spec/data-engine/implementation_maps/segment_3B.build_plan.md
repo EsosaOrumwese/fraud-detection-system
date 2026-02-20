@@ -1457,14 +1457,108 @@ Goal:
 - block green-but-unrealistic runs at contract level.
 
 Scope:
-- add realism-check block into `virtual_validation_contract_3B`.
+- expand `virtual_validation_contract_3B` from integrity-only checks to explicit realism governance checks.
 - run one observe-mode pass, then enforce blocking mode.
-- persist measured value + threshold + status per realism check.
+- preserve `P2` frozen realism shape while hardening S4 governance semantics.
 
 Definition of done:
-- [ ] `3B-V12` passes (realism block active and enforced).
-- [ ] contract rows map to all hard-gate surfaces.
-- [ ] no schema or registry drift from S4 outputs.
+- [ ] `3B-V12` passes (`realism-check block active + enforced`) on witness seeds.
+- [ ] realism contract rows map to hard-gate surfaces (`S1`, `S2`, `S3`) and remain schema-valid.
+- [ ] no `P2` realism regressions are introduced by governance expansion.
+
+P3 entry lock (post-P2):
+- locked P2 authority run map (read-only for this phase):
+  - `42 -> fc455a28a3504168a763a081b9b5a744`
+  - `101 -> d9eb3d579d6042429a9f8c8497e05657`
+  - `7 -> fef22283640747a7ad7282b9f66efe04`
+  - `202 -> 3af65609569c4e0680c6299aceacfc44`
+- frozen in this phase:
+  - `S1` classification logic and policy,
+  - `S2` topology/coupling knobs and code,
+  - `S3` alias generation mechanics.
+- principal P3 surfaces touched:
+  - `config/layer1/3B/virtual/virtual_validation.yml`,
+  - `packages/engine/src/engine/layers/l1/seg_3B/s4_virtual_contracts/runner.py`,
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/3B/schemas.3B.yaml` (if new contract row/test fields are required),
+  - `tools/score_segment3b_p0_baseline.py` (or a dedicated P3 scorer) for explicit `3B-V12` verdict capture.
+
+P3 phase law (execution ordering):
+- `P3.1` schema/policy model lock must close before any S4 code edit.
+- `P3.2` observe-mode lane must close before switching enforcement.
+- `P3.3` enforce-mode lane must close on witness seeds before shadow confirmation.
+- `P3.4` emits explicit decision: `UNLOCK_P4` or `HOLD_P3_REOPEN`.
+
+#### P3.1 - Contract-model and schema lock
+Goal:
+- define a deterministic realism-check contract model that can represent and enforce `3B-V12` without ambiguity.
+
+Scope:
+- map required realism governance families into S4 contract rows:
+  - edge heterogeneity,
+  - settlement coherence,
+  - classification explainability,
+  - alias fidelity.
+- pin whether existing `test_type` enum is extended or mapped via existing types with deterministic naming convention.
+- pin observe/enforce switch mechanism in policy (explicit mode key; no implicit defaults).
+- ensure thresholds payload can carry required governance thresholds (extend schema only if required).
+
+Definition of done:
+- [ ] schema/policy design decision is pinned in build plan + impl notes.
+- [ ] contract row taxonomy for all required realism families is explicit.
+- [ ] no unresolved schema hole remains for observe/enforce semantics.
+
+#### P3.2 - Observe-mode implementation and dry run
+Goal:
+- land realism-check rows in S4 contract in non-blocking mode for one dry-run evidence pass.
+
+Scope:
+- implement S4 contract row emission for realism families in observe mode.
+- keep current structural tests (`IP_COUNTRY_MIX`, `SETTLEMENT_CUTOFF`) intact.
+- execute witness seeds with minimal rerun law for this change type:
+  - preferred: `S4->S5` on locked P2 run roots,
+  - fallback: staged `S0->S5` if immutable-output constraints block in-place rerun.
+- emit observe-mode evidence artifact proving checks are present and schema-valid.
+
+Definition of done:
+- [ ] observe-mode contract rows are present on witness seeds.
+- [ ] S4/S5 remain PASS with no schema/path drift.
+- [ ] `P2` hard-gate surfaces remain non-regressed on witness seeds.
+
+#### P3.3 - Enforce-mode switch and witness lock
+Goal:
+- switch realism-check rows from observe to blocking enforcement and prove `3B-V12` closure.
+
+Scope:
+- toggle policy mode to enforce; ensure realism checks resolve to blocking severity + enabled state.
+- rerun witness seeds under the same rerun law used in `P3.2`.
+- score `3B-V12` explicitly and carry guardrails:
+  - S4/S5 structural PASS,
+  - no `P2` hard-gate regressions (`3B-V01..V07` stay PASS on witness seeds).
+
+Definition of done:
+- [ ] `3B-V12` is PASS on both witness seeds.
+- [ ] contract rows for required realism families are active and enforced.
+- [ ] witness non-regression on `3B-V01..V07` remains PASS.
+
+#### P3.4 - Shadow confirmation and phase closeout
+Goal:
+- confirm enforce-mode realism governance is seed-stable before P4 handoff.
+
+Scope:
+- execute shadow seeds `{7,202}` under locked enforce-mode S4 contract.
+- verify `3B-V12` and structural guardrails on shadow seeds.
+- emit closure artifact and retain final P3 run keep-set.
+
+Definition of done:
+- [ ] `3B-V12` remains PASS on shadow seeds.
+- [ ] no structural regressions appear in `S4/S5`.
+- [ ] closure decision recorded (`UNLOCK_P4` or `HOLD_P3_REOPEN`) with retained run map.
+
+P3 runtime budgets (binding for this phase):
+- observe lane witness (`2 seeds`, `S4->S5` preferred): `<= 15 min`.
+- enforce lane witness (`2 seeds`): `<= 15 min`.
+- shadow confirmation (`2 seeds`): `<= 20 min`.
+- if immutable-output constraints force full-chain fallback (`S0->S5`), lane budget cap becomes `<= 45 min` with explicit blocker note.
 
 ### P4 - Conditional concentration cleanup + B+ calibration (`CF-3B-05/06`)
 Goal:
@@ -1515,6 +1609,6 @@ Definition of done:
 - `P0`: completed (`EXECUTED_FAIL_REALISM_UNLOCK_P1`)
 - `P1`: completed (`EXECUTED_UNLOCK_P2`)
 - `P2`: completed (`EXECUTED_UNLOCK_P3`)
-- `P3`: pending
+- `P3`: pending (`PLANNING_EXPANDED_READY_FOR_EXECUTION`)
 - `P4`: pending
 - `P5`: pending
