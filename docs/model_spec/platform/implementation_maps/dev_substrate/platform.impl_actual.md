@@ -17465,3 +17465,90 @@ Risk handling:
 ### Consequence
 1. M10.F is now execution-ready by plan quality (not yet executed).
 2. Immediate next action remains execution of M10.F on managed substrate with fail-closed evidence capture.
+
+## Entry: 2026-02-20 17:33:53 +00:00 - M10.F execution kickoff and lane strategy
+### Requested objective
+1. Execute `M10.F` burst lane end-to-end with fail-closed closure.
+2. Keep reasoning trail and decisions documented as execution progresses.
+3. Teardown resources after successful lane closure.
+
+### Initial constraints recognized
+1. Runtime services were previously torn down after M10.E closure, so M10.F cannot execute until substrate/runtime is re-materialized.
+2. Runtime compute must remain managed-substrate only; local host is restricted to control-plane orchestration.
+3. M10.F authority is pinned in `platform.M10.build_plan.md` and requires strict dependency on M10.E pass.
+
+### Early execution alternatives considered
+1. Execute M10.F immediately against retained evidence only (no rematerialization).
+2. Re-materialize full demo substrate and runtime services first, then execute managed burst chain.
+
+### Decision chosen
+1. Chose option 2.
+2. Rationale:
+   - burst lane requires live ingest + downstream service activity and cannot be closed purely from historical evidence,
+   - fail-closed posture requires real managed runtime checks (health, lag/checkpoint, semantic drift surfaces),
+   - this preserves no-local-runtime-compute law.
+
+### Immediate action sequence pinned
+1. Re-validate M10.E dependency and M10.A burst thresholds.
+2. Re-materialize substrate/runtime with minimal required service set for M10 lane.
+3. Execute M10.F chain (`SR -> WSP burst -> reporter`) and collect pre/post baseline evidence.
+4. Build/publish `m10_f_burst_snapshot.json` local + durable.
+5. Update M10 docs and then tear down resources with managed workflow.
+
+## Entry: 2026-02-20 17:35:40 +00:00 - M10.F substrate rematerialization method decision
+### Situation
+1. Managed teardown completed for both demo and confluent stacks after M10.E.
+2. No managed "apply" workflow is currently available in `.github/workflows` for dev_min core runtime rematerialization.
+
+### Alternatives considered
+1. Add a new managed apply workflow first, then continue M10.F.
+2. Use established local control-plane Terraform apply lane (`confluent` then `demo`) and preserve managed-only runtime compute for the actual burst execution.
+
+### Decision chosen
+1. Chose option 2 for this M10.F execution cycle.
+2. Rationale:
+   - fastest route to restore runtime prerequisites without changing authority scope mid-lane,
+   - consistent with historical M2/M4 rematerialization method already used in this track,
+   - keeps runtime data-plane compute managed (ECS tasks/services), while local host remains orchestration-only.
+
+### Inputs pinned before apply
+1. `required_platform_run_id = platform_20260219T234150Z` (keeps M10 lane continuity with M10.B..E snapshots).
+2. `ecs_daemon_container_image` to be resolved from the latest immutable ECR digest for `fraud-platform-dev-min`.
+3. Terraform backend paths remain canonical:
+   - `dev_min/confluent/terraform.tfstate`
+   - `dev_min/demo/terraform.tfstate`.
+
+## Entry: 2026-02-20 17:37:35 +00:00 - Confluent rematerialization lane selection for M10.F
+### New constraint discovered
+1. Local shell does not currently hold Confluent Cloud management credentials (`TF_VAR_confluent_cloud_api_key/secret` unset).
+2. Confluent stack rematerialization requires those credentials to recreate cluster/topics.
+
+### Alternatives considered
+1. Pause and request manual local credential injection before proceeding.
+2. Use existing managed workflow `dev-min-m2f-topic-readiness` which already maps required secrets from GitHub and performs Confluent apply + topic readiness verification.
+
+### Decision chosen
+1. Chose option 2.
+2. Rationale:
+   - avoids secret sprawl into local shell,
+   - aligns with managed-ops posture already used in this migration track,
+   - produces durable evidence artifact for Confluent readiness that M10.F can inherit.
+
+### Execution note
+1. Confluent bring-up will be handled by managed workflow run on `migrate-dev`.
+2. Demo runtime stack will still be applied locally afterward because a managed demo-apply workflow is not yet present.
+
+## Entry: 2026-02-20 17:42:45 +00:00 - Confluent rematerialization result for M10.F prerequisites
+### Action executed
+1. Ran managed workflow `dev-min-m2f-topic-readiness` on `migrate-dev`:
+   - run URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22234445436`.
+
+### Outcome
+1. Workflow completed `success`.
+2. Durable topic-readiness evidence materialized at:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/substrate/m2_20260220T173709Z/topic_readiness_snapshot.json`.
+3. Confluent stack + topic readiness is now considered restored for M10.F runtime entry.
+
+### Next decision
+1. Demo runtime stack still absent (ECS services/tasks removed by teardown).
+2. Proceed with local Terraform apply of demo stack using immutable image digest and existing M10 run scope.

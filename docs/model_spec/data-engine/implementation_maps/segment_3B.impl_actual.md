@@ -5166,3 +5166,105 @@ Performance/risk posture embedded:
 1) no-rerun P5 budget: `<=15 min`.
 2) conditional rerun budget (only if triggered): `<=90 min`.
 3) freeze declaration is blocked on unexplained runtime overrun or integrity check failure.
+
+### Entry: 2026-02-20 17:36:02 +00:00
+
+Design element: 3B P5.1 integrity check issue triage (stale canonical scorer files).
+Summary: during P5.1 audit, discovered that root-level scorer outputs in `runs/fix-data-engine/segment_3B/reports/` are stale baseline artifacts (2026-02-19, `FAIL_REALISM`) and do not represent the locked P4 candidate-D authority run-map.
+
+Observed mismatch:
+1) locked authority cross-seed summary:
+   - `reports/p4_candidate_d_full_20260220/3B_validation_cross_seed_summary.json`
+   - verdict `PASS_BPLUS`, required run-map matches retained keep-set.
+2) root-level `3B_validation_metrics_seed_*.json` currently point to prior baseline run roots and show `FAIL_REALISM`.
+3) this is an artifact-routing/staleness issue, not an S2/S4 behavioral regression.
+
+Alternatives considered:
+1) trigger full engine rerun for all required seeds.
+   - rejected: no evidence of manifest inconsistency or run artifact corruption in the locked authority pack.
+2) ignore stale root files and freeze using only existing candidate-D subfolder pack.
+   - rejected: P5 requires canonical freeze-ready artifacts without ambiguity.
+3) chosen: regenerate canonical scorer outputs from locked run-map (scoring-only, no state rerun).
+   - use scorer tools with explicit `--seed-run` overrides,
+   - emit a dedicated P5 authority folder and root-level P5 freeze artifacts.
+
+Decision:
+1) `P5.3` rerun gate status remains `SKIP_ENGINE_RERUN` at this point.
+2) execute scoring-only recertification to restore canonical artifact integrity for freeze closure.
+
+### Entry: 2026-02-20 17:36:50 +00:00
+
+Design element: 3B P5.1/P5.2 scoring-only recertification execution (no engine rerun).
+Summary: executed the full scorer chain against the locked candidate-D run-map to produce an unambiguous P5 authority pack after stale root-metrics detection.
+
+Execution details:
+1) baseline/stability scorer rerun (explicit seed->run map overrides):
+   - tool: `tools/score_segment3b_p0_baseline.py`
+   - output dir: `runs/fix-data-engine/segment_3B/reports/p5_freeze_20260220`
+   - output:
+     - `3B_validation_cross_seed_summary.json`
+     - `3B_validation_metrics_seed_{42,7,101,202}.json`
+     - `segment3b_p0_baseline_lock.json`
+     - `segment3b_p0_handoff_pack.json`
+   - result: `overall_verdict=PASS_BPLUS`.
+2) hard-gate summary scorer rerun:
+   - tool: `tools/score_segment3b_p2_summary.py`
+   - output:
+     - `runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p5_freeze_20260220.json`
+   - result: `decision=UNLOCK_P3`.
+3) governance enforce scorer rerun:
+   - tool: `tools/score_segment3b_p3_governance.py`
+   - output dir: `runs/fix-data-engine/segment_3B/reports/p5_freeze_20260220`
+   - output:
+     - `segment3b_p3_governance_p5_freeze_20260220_enforce.json`
+   - result: `decision=PASS`.
+
+Decision rationale:
+1) scoring-only lane was chosen to repair certification artifact coherence while preserving the sealed, already-certified state outputs.
+2) engine rerun remained disallowed by fail-closed economy because trigger conditions for state rebuild were still absent.
+
+### Entry: 2026-02-20 17:39:25 +00:00
+
+Design element: 3B P5 closure (integrity adjudication, rerun gate decision, and freeze handoff).
+Summary: completed P5.1 through P5.4 with explicit integrity artifacts, rerun-gate decision, and final segment freeze declaration.
+
+P5.1 integrity lock:
+1) emitted:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_p5_evidence_integrity.json`
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_p5_evidence_integrity.md`
+2) checks covered:
+   - artifact existence across P5/P2/P3 authority files,
+   - required seed set exactness (`{42,7,101,202}`),
+   - single-manifest consistency,
+   - per-seed S4/S5 run-report presence + manifest match,
+   - scorer schema key presence.
+3) result:
+   - `all_checks_pass=true`.
+
+P5.3 rerun gate decision:
+1) evaluated trigger classes:
+   - missing/invalid authority artifact: `false` (after scoring-only recertification),
+   - multi-manifest inconsistency: `false`,
+   - post-P4 engine mutation on seg_3B source surface: `false`.
+2) decision:
+   - `SKIP_ENGINE_RERUN`.
+3) alternative rejected:
+   - full state rerun from S0->S5; rejected due absent trigger evidence and avoidable runtime cost.
+
+P5.2/P5.4 freeze synthesis + handoff:
+1) emitted freeze package:
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_p5_freeze_summary.json`
+   - `runs/fix-data-engine/segment_3B/reports/segment3b_p5_freeze_summary.md`
+2) freeze decision:
+   - `SEGMENT_3B_FROZEN_PASS_BPLUS`.
+3) locked run keep-set remains:
+   - `3e700b15d84043a6a919e50cad286030`
+   - `3e9daa862af74ccc9527f1603bab86ae`
+   - `b77b42bacef14937a173c013879a0732`
+   - `b81f93f7c696416d99708c17d4b4e730`
+   - `724a63d3f8b242809b8ec3b746d0c776`
+4) reopen law pinned:
+   - allowed classes: `contract drift`, `upstream reopen`, `critical bug`,
+   - any reopen requires seeded impact + rerun plan + rollback plan.
+5) next pointer:
+   - `UNLOCK_SEGMENT_5A_POPT0`.

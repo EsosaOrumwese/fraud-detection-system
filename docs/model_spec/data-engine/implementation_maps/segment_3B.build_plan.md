@@ -1810,9 +1810,9 @@ Scope:
 - emit freeze summary and retained evidence pack.
 
 Definition of done:
-- [ ] certification summary artifact is emitted.
-- [ ] explicit verdict recorded (`PASS_BPLUS`, `PASS_B`, or `FAIL_REALISM`).
-- [ ] freeze status and keep-set are recorded with prune closure.
+- [x] certification summary artifact is emitted.
+- [x] explicit verdict recorded (`PASS_BPLUS`, `PASS_B`, or `FAIL_REALISM`).
+- [x] freeze status and keep-set are recorded with prune closure.
 
 P5 entry lock (post-P4 closure authority):
 - locked run-map authority:
@@ -1848,9 +1848,9 @@ Scope:
 - verify required seed set is exactly `{42,7,101,202}`.
 
 Definition of done:
-- [ ] required artifact checklist is fully green.
-- [ ] manifest fingerprint is single-valued across required seeds.
-- [ ] no scorer/report schema drift is detected.
+- [x] required artifact checklist is fully green.
+- [x] manifest fingerprint is single-valued across required seeds.
+- [x] no scorer/report schema drift is detected.
 
 #### P5.2 - Freeze pack synthesis
 Goal:
@@ -1868,9 +1868,9 @@ Scope:
   - locked S2 knob authority statement.
 
 Definition of done:
-- [ ] freeze summary artifacts (`json` + `md`) are emitted.
-- [ ] freeze summary exactly matches locked P4 authority results.
-- [ ] run retention and evidence paths are explicit and reproducible.
+- [x] freeze summary artifacts (`json` + `md`) are emitted.
+- [x] freeze summary exactly matches locked P4 authority results.
+- [x] run retention and evidence paths are explicit and reproducible.
 
 #### P5.3 - Conditional rerun safety gate (fail-closed)
 Goal:
@@ -1885,9 +1885,9 @@ Scope:
   - minimum required rerun is full required seeds from changed state onward, with fresh score pack replacement.
 
 Definition of done:
-- [ ] rerun trigger evaluation recorded (`SKIPPED` or `ENTERED`) with evidence.
-- [ ] if entered, replacement authority pack is complete and internally consistent.
-- [ ] final freeze verdict is based on current valid authority only.
+- [x] rerun trigger evaluation recorded (`SKIPPED` or `ENTERED`) with evidence.
+- [x] rerun path adjudicated as `SKIPPED` (no missing artifacts, no manifest inconsistency, no post-P4 engine mutation).
+- [x] final freeze verdict is based on current valid authority only.
 
 #### P5.4 - Freeze decision and handoff closure
 Goal:
@@ -1903,14 +1903,44 @@ Scope:
 - write handoff pointer for next segment planning.
 
 Definition of done:
-- [ ] explicit freeze decision recorded with reasoned authority references.
-- [ ] reopen law and trigger classes are documented.
-- [ ] next-segment handoff pointer is pinned.
+- [x] explicit freeze decision recorded with reasoned authority references.
+- [x] reopen law and trigger classes are documented.
+- [x] next-segment handoff pointer is pinned.
 
 P5 runtime budgets (binding):
 - evidence integrity + freeze-pack synthesis (no rerun lane): `<= 15 min`.
 - conditional rerun lane (if triggered): `<= 90 min` total for required seeds.
 - unexplained runtime overrun blocks freeze declaration until root-cause note is recorded.
+
+P5 closure record (2026-02-20):
+- stale canonical scorer issue was detected and resolved in-lane:
+  - root-level `3B_validation_metrics_seed_*.json` were stale baseline artifacts,
+  - scoring-only recertification was executed from locked run-map (no engine rerun).
+- P5 authority score pack:
+  - `runs/fix-data-engine/segment_3B/reports/p5_freeze_20260220/3B_validation_cross_seed_summary.json`
+  - outcome: `overall_verdict=PASS_BPLUS`.
+- hard/governance closure pack:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p5_freeze_20260220.json` -> `UNLOCK_P3`
+  - `runs/fix-data-engine/segment_3B/reports/p5_freeze_20260220/segment3b_p3_governance_p5_freeze_20260220_enforce.json` -> `PASS`
+- integrity gate artifact:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p5_evidence_integrity.json`
+  - decision: `SKIP_ENGINE_RERUN`, `all_checks_pass=true`.
+- freeze artifacts:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p5_freeze_summary.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p5_freeze_summary.md`
+- final freeze decision:
+  - `SEGMENT_3B_FROZEN_PASS_BPLUS`.
+- runtime budget evidence:
+  - observed no-rerun P5 lane wall (triage -> freeze closure): `~3m23s`,
+  - budget gate: `<=15 min` -> `PASS`.
+- retained run-id keep-set:
+  - `3e700b15d84043a6a919e50cad286030`
+  - `3e9daa862af74ccc9527f1603bab86ae`
+  - `b77b42bacef14937a173c013879a0732`
+  - `b81f93f7c696416d99708c17d4b4e730`
+  - `724a63d3f8b242809b8ec3b746d0c776`
+- handoff pointer:
+  - `UNLOCK_SEGMENT_5A_POPT0`.
 
 ## 7) Certification artifacts and decision package
 - Required artifacts:
@@ -1935,4 +1965,4 @@ P5 runtime budgets (binding):
 - `P2`: completed (`EXECUTED_UNLOCK_P3`)
 - `P3`: completed (`EXECUTED_UNLOCK_P4`)
 - `P4`: completed (`EXECUTED_PASS_BPLUS_UNLOCK_P5`)
-- `P5`: pending (`PLANNING_EXPANDED_READY_FOR_EXECUTION`)
+- `P5`: completed (`EXECUTED_SEGMENT_3B_FROZEN_PASS_BPLUS`)
