@@ -1524,8 +1524,9 @@ resource "aws_db_subnet_group" "demo" {
 }
 
 resource "random_password" "db_password" {
-  length  = 24
-  special = true
+  length           = 24
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}:?"
 }
 
 resource "aws_db_instance" "runtime" {

@@ -3544,3 +3544,101 @@ Actions taken:
 
 Expected outcome:
 - Latest receipt selection stable under mtime changes.
+
+---
+
+### Entry: 2026-02-20 18:17
+
+Design element: Segment 5A remediation planning baseline (B/B+ improvement lane, not rescue lane).
+Summary: Created a dedicated remediation build plan for 5A with phased closure from channel activation through certification freeze, while leaving `POPT` as an explicit placeholder by user directive.
+
+Problem framing and rationale:
+- 5A is not a red-grade segment, but published/remediation authority still identifies structural caveats that matter downstream:
+  - effective channel collapse to `mixed`,
+  - class/country concentration overshoot,
+  - extreme tail-zone dormancy,
+  - DST-linked residual mismatch,
+  - overlay fairness spread at country edges.
+- Because these artifacts are state-owned (S1/S2/S3/S4), remediation must follow state-causal order and avoid threshold-only tuning.
+- User directive for this pass: create remediation plan now and keep performance lane (`POPT`) as a placeholder to be expanded later.
+
+Decision path:
+1) **Do not skip planning because grade is already B+**
+   - Rejected: would preserve known artifacts and propagate them to 5B/6A/6B.
+2) **Create a full phased remediation map now (P0-P5) and defer POPT details**
+   - Accepted: keeps execution deterministic and auditable while honoring the directive to leave POPT unexpanded in this revision.
+3) **Use gate stack from remediation report as contract, not as a forge target**
+   - Accepted: gates are used to verify realism movement with invariants (heavy-tail/archetype/conservation) pinned as veto rails.
+
+What was produced:
+1) New build plan file:
+   - `docs/model_spec/data-engine/implementation_maps/segment_5A.build_plan.md`
+2) Plan structure:
+   - objective + closure rules (`PASS_BPLUS_ROBUST`, `PASS_B`, `HOLD_REMEDIATE`),
+   - source-of-truth stack (reports + state-expanded docs + contracts),
+   - state ownership map for each weakness axis,
+   - hard/stretched gate matrix with seed policy `{42,7,101,202}`,
+   - rerun matrix and retention/prune posture,
+   - explicit `POPT` placeholder section (deferred),
+   - phased remediation stack `P0..P5` with DoDs.
+
+Algorithmic and governance posture pinned in the plan:
+- sequential-state rerun law enforced (`S1->S5`, `S2->S5`, `S3->S5`, `S4->S5`).
+- candidate -> witness -> certification promotion flow is explicit.
+- non-regression invariants are explicit:
+  - mass/shape conservation,
+  - heavy-tail preservation,
+  - class archetype ordering,
+  - deterministic replay/idempotency.
+
+Immediate next execution intent:
+1) start `P0` baseline lock for 5A using the new plan.
+2) keep `POPT` untouched until explicitly expanded in a follow-up planning pass.
+
+---
+
+### Entry: 2026-02-20 18:28
+
+Design element: Segment 5A POPT expansion before remediation execution.
+Summary: Expanded `segment_5A.build_plan.md` with an execution-grade optimization lane (`POPT.0..POPT.5`) so runtime evidence is gathered and acted on before heavy remediation iterations.
+
+Problem statement:
+- User asked to include optimization planning now so execution can begin with clear performance intent.
+- Current 5A implementation review shows likely heavy kernels in:
+  - `S2` (`shape_synthesis` domain/template loops),
+  - `S4` (event expansion + scope-key expansion + overlay aggregation),
+  - `S5` (wide validation scans + recomposition sample loop).
+- A realism-first cycle without profiling would risk repeated slow reruns with poor bottleneck visibility.
+
+Decision path and alternatives:
+1) **Start P0 realism only, defer profiling**
+   - Rejected: does not provide hotspot evidence for efficient optimization decisions.
+2) **Run profiling only, defer remediation planning**
+   - Rejected: loses linkage between performance gates and remediation phase closure.
+3) **Integrate optimization lane now and pair baseline profiling with P0**
+   - Accepted: keeps remediation and performance governance connected while preserving fail-closed quality gates.
+
+What was changed in plan:
+1) Replaced `POPT placeholder` with concrete phases:
+   - `POPT.0`: profiled baseline lock (state elapsed + hotspot ranking).
+   - `POPT.1`: primary hotspot closure.
+   - `POPT.2`: secondary hotspot closure.
+   - `POPT.3`: tertiary hotspot closure.
+   - `POPT.4`: validation/I-O cost control lane.
+   - `POPT.5`: optimization certification + unlock decision.
+2) Added provisional runtime gates:
+   - candidate lane `<= 20 min`,
+   - witness lane `<= 40 min`,
+   - certification lane `<= 90 min`,
+   with final state budgets pinned in `POPT.0`.
+3) Updated `P0` scope to consume `POPT.0` runtime/profile artifacts as baseline authority.
+4) Updated current phase status to `POPT planned (expanded, not executed)`.
+
+Invariants locked:
+- No realism-shape tuning inside POPT phases.
+- Determinism, idempotency, and contract compatibility are hard veto rails.
+- Single-process efficient baseline is required before any optional parallel posture.
+
+Immediate next execution intent:
+1) run `POPT.0` (clean baseline + hotspot profile collection).
+2) close hotspot order from evidence and proceed into `POPT.1`.

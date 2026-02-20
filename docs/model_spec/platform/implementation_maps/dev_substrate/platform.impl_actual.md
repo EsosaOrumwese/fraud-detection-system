@@ -17552,3 +17552,168 @@ Risk handling:
 ### Next decision
 1. Demo runtime stack still absent (ECS services/tasks removed by teardown).
 2. Proceed with local Terraform apply of demo stack using immutable image digest and existing M10 run scope.
+
+## Entry: 2026-02-20 17:45:30 +00:00 - M10.F blocker triage: demo apply failed on RDS password policy
+### Failure observed
+1. `terraform apply` for `infra/terraform/dev_min/demo` failed while creating `aws_db_instance.runtime`.
+2. AWS error: master password contains disallowed characters for RDS Postgres (`/`, `@`, `"`, or space not permitted).
+3. Root cause: `random_password.db_password` currently uses unrestricted default special-character set, which can emit forbidden chars.
+
+### Alternatives considered
+1. Short-term bypass: pass a manual `db_password` variable for this apply only.
+2. Corrective fix in Terraform module: constrain generated special characters to RDS-valid subset and rerun apply.
+
+### Decision chosen
+1. Chose option 2.
+2. Rationale:
+   - fixes the defect at source and prevents recurring failures in future rematerializations,
+   - aligns with production-hardening posture (remove avoidable apply fragility),
+   - avoids introducing ad hoc secret handling in command history for a one-off workaround.
+
+### Planned remediation
+1. Patch `infra/terraform/modules/demo/main.tf` `random_password.db_password` with explicit `override_special` excluding RDS-forbidden characters.
+2. Re-run demo stack apply with same run scope + immutable image input.
+3. Continue M10.F execution only after apply completes.
+
+## Entry: 2026-02-20 17:50:40 +00:00 - Post-rematerialization sequencing decision (DB migrations before daemon start)
+### New runtime fact
+1. Demo apply recreated RDS (`fraud-platform-dev-min-db`) from fresh state.
+2. Schema-dependent runtime services (IG and downstreams) can fail immediately if migrations are not applied first.
+
+### Alternatives considered
+1. Start all daemon services first and let failures indicate missing schema, then backfill migrations.
+2. Execute DB migrations one-shot first, then start daemon profile and verify service posture.
+
+### Decision chosen
+1. Chose option 2.
+2. Rationale:
+   - enforces fail-closed readiness before runtime traffic,
+   - avoids noisy restart loops and ambiguous errors in IG/RTDL services,
+   - matches historical M4/M6 operational ordering.
+
+### Next actions
+1. Run ECS one-shot task using `ecs_db_migrations_task_definition_arn` and wait for `exit_code=0`.
+2. Start `all_spine_daemons` profile to desired count `1` via managed workflow.
+3. Verify running/healthy counts before M10.F pre-baseline capture.
+
+## Entry: 2026-02-20 17:55:57 +00:00 - M10.F service-activation method decision (workflow unavailable)
+### Situation
+1. M10.F requires daemon runtime activation before burst execution.
+2. Preferred managed workflow lane (dev-min-ecs-phase-profile) is not available in the currently dispatchable remote workflow inventory.
+
+### Alternatives considered
+1. Halt M10.F and first publish/merge workflow updates so activation can run through workflow-dispatch.
+2. Use direct ECS control-plane scaling for in-scope daemon services and preserve managed runtime compute for data-plane behavior.
+
+### Decision chosen
+1. Chose option 2 for this execution cycle.
+2. Rationale:
+   - unblocks certification lane execution without branch-history operations,
+   - keeps no-local-runtime-compute law intact (all workload compute stays on ECS),
+   - remains auditable via explicit service health snapshots and subsequent lane artifacts.
+
+### Execution controls pinned
+1. Scale only the 13 spine daemon services to desired=1.
+2. Exclude runtime-probe service from lane criticality.
+3. Require post-scale health check (unning==desired==1) for all 13 services before any burst task launch.
+
+## Entry: 2026-02-20 17:57:42 +00:00 - M10.F burst-profile sizing decision
+### Runtime state after activation
+1. All 13 daemon services reached healthy desired=running=1 posture.
+2. DB migrations had already completed with xit_code=0.
+
+### Throughput baseline extraction
+1. Source: M10.E authoritative snapshot (un_report_extract.ingress.admit=50100, untime_budget.elapsed_seconds=7180).
+2. Derived baseline:
+   - aseline_admit_per_min = 418.66295264623955.
+3. M10.F authority target derived from M10.A burst multiplier (3.0x):
+   - 	arget_admit_per_min = 1255.9888579387186.
+   - 	arget_admit_over_15m = 18839.83286908078.
+
+### Burst profile alternatives considered
+1. Low profile (speedup~600, low cap): safe duration but high risk of missing multiplier.
+2. Aggressive profile (speedup>=5000): high throughput but risk of under-15-minute duration collapse.
+3. Balanced profile (speedup=1800, per-output cap=5000, concurrency parallel): intended to exceed throughput target while preserving >15m window.
+
+### Decision chosen
+1. Chose option 3 for attempt-1.
+2. Explicit overrides for WSP run-task:
+   - WSP_STREAM_SPEEDUP=1800
+   - WSP_MAX_EVENTS_PER_OUTPUT=5000
+   - WSP_OUTPUT_CONCURRENCY=4.
+3. Failure posture:
+   - if multiplier or duration miss occurs, classify under M10F-B1 and remediate with bounded top-up/retune within <=90m runtime budget.
+
+## Entry: 2026-02-20 18:03:30 +00:00 - M10.F blocker triage: READY-empty burst attempt
+### Observation
+1. SR_READY_REFRESH completed with exit   but produced only placeholder log marker (sr_task_definition_materialized), no durable READY emission evidence.
+2. WSP attempt-1 (READY-consumer path) exited quickly with [] result, indicating no READY messages processed.
+
+### Root-cause assessment
+1. Active SR task-definition posture in this stack is still placeholder/limited and cannot be relied upon to produce READY for this lane.
+2. Burst lane therefore cannot execute materially through default READY-consumer path.
+
+### Alternatives considered
+1. Halt lane and rematerialize SR implementation before continuing M10.F.
+2. Keep chain continuity by running SR step, then execute WSP via direct CLI command override (engine-root + output policy) as already proven in M10.E.
+
+### Decision chosen
+1. Chose option 2 for M10.F closure continuity.
+2. Rationale:
+   - preserves forward progress without mutating implementation mid-certification lane,
+   - aligns with previously accepted M10.E operational caveat,
+   - remains fully managed runtime compute (ECS run-task), with explicit caveat recorded.
+
+### Remediation controls
+1. Classify initial ready-consumer no-op as M10F-B9 intermediate blocker state.
+2. Execute WSP_BURST_ATTEMPT_2_DIRECT_CLI with explicit command override and pinned burst profile.
+3. Re-evaluate all burst gates only after reporter refresh from this direct run.
+
+## Entry: 2026-02-20 18:09:40 +00:00 - M10.F remediation decision after NO_TRAFFIC_OUTPUTS
+### Failure details
+1. Attempt-3 used direct CLI with explicit four-output override.
+2. Runtime returned NO_TRAFFIC_OUTPUTS and warning that override set was outside traffic-policy expectations.
+
+### Alternatives considered
+1. Keep explicit override and reduce to a single traffic output.
+2. Remove output override entirely and let WSP policy refs select traffic+context outputs.
+
+### Decision chosen
+1. Chose option 2 for lane authority alignment and comparability with M10.E success path.
+2. Rationale:
+   - profile-policy merge is the previously proven behavior in this track,
+   - avoids output-surface mismatch in CLI override validation,
+   - preserves deterministic control of rate via WSP_STREAM_SPEEDUP + WSP_MAX_EVENTS while keeping output selection authoritative.
+
+### Next run posture
+1. Execute WSP_BURST_ATTEMPT_4_DIRECT_CLI_POLICY_MERGE:
+   - no --output-ids argument,
+   - keep WSP_STREAM_SPEEDUP=1800, WSP_MAX_EVENTS=22000, and env-pinned oracle/IG settings.
+
+## Entry: 2026-02-20 18:11:05 +00:00 - M10.F IG endpoint correction decision
+### Failure analysis
+1. Attempt-4 reached active streaming, proving oracle and output policy wiring were valid.
+2. IG rejected pushes with 404 because requested route was /v1/ingest/push/v1/ingest/push.
+
+### Root cause
+1. IG_INGEST_URL was set to full ingest endpoint path, while WSP runner appends ingest route internally.
+
+### Decision
+1. Correct IG_INGEST_URL override to base URL only: http://10.42.0.195:8080.
+2. Keep all other burst knobs and oracle pins unchanged for clean comparability.
+3. Rerun as WSP_BURST_ATTEMPT_5_DIRECT_CLI_POLICY_MERGE.
+
+## Entry: 2026-02-20 18:13:20 +00:00 - M10.F auth remediation decision (IG allowlist drift)
+### Root cause confirmation
+1. IG service runs uth_mode=api_key and authorizes only tokens present in uth_allowlist.
+2. Current shared SSM token (/fraud-platform/dev_min/ig/api_key) is placeholder REPLACE_ME_IG_API_KEY.
+3. Since placeholder is absent from allowlist, every WSP push is rejected with 401, yielding IG_PUSH_REJECTED.
+
+### Alternatives considered
+1. Temporarily add placeholder token to allowlist file.
+2. Correct SSM token to intended runtime principal already allowlisted (dev-min-wsp).
+
+### Decision chosen
+1. Chose option 2 to restore intended dev_min security posture without broadening allowlist with placeholders.
+2. Follow-up control required: force IG service redeploy so running daemon refreshes injected secret env.
+3. Then rerun burst task without changing workload knobs to preserve experimental comparability.
