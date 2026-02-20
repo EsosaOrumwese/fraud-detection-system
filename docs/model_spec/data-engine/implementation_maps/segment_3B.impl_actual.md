@@ -4571,3 +4571,143 @@ Key decisions pinned:
    - explicit fallback to staged `S0->S5` only when immutable-output constraints block in-place reruns.
 4) carry non-regression guard:
    - no regressions on frozen `P2` hard gates while closing `V12`.
+
+### Entry: 2026-02-20 04:49:48 +00:00
+
+Design element: 3B P3.1 pre-edit lock - realism governance model (observe->enforce) for S4.
+Summary: before code edits, pinned the exact governance model needed to close CF-3B-04 while preserving frozen P2 realism surfaces.
+
+Problem statement (from current code + remediation authority):
+1) S4 currently emits only two structural tests (IP_COUNTRY_MIX, SETTLEMENT_CUTOFF) and does not encode realism governance families required by 3B-V12.
+2) Policy irtual_validation.yml has no explicit observe/enforce switch, so contract enforcement posture is implicit and not auditable.
+3) Schema enum for irtual_validation_contract_3B.test_type does not permit remediation-required realism families (EDGE_HETEROGENEITY, SETTLEMENT_COHERENCE, CLASSIFICATION_EXPLAINABILITY, ALIAS_FIDELITY).
+4) Current scorer treats V12 as presence-only; it does not distinguish observe rows from enforce rows.
+
+Decision set chosen:
+1) Extend policy schema and policy file with explicit governance mode:
+   - ealism_enforcement_mode: observe|enforce.
+2) Extend policy with ealism_checks thresholds (B-floor controls from remediation report) so S4 contract rows are policy-derived, not hard-coded constants.
+3) Extend S4 contract row generation to include four required realism families as first-class 	est_type values.
+4) Encode mode semantics directly in row severity:
+   - observe mode -> realism rows emitted as WARNING (enabled=true),
+   - enforce mode -> realism rows emitted as BLOCKING (enabled=true).
+5) Preserve existing two structural checks and keep their current blocking semantics.
+6) Update scorer logic for 3B-V12 to require:
+   - all required realism test families present,
+   - each required family has at least one row with nabled=true and severity=BLOCKING.
+
+Alternatives considered and rejected:
+1) Keep existing enum and overload existing types with profile labels.
+   - Rejected: weak auditability and ambiguous taxonomy against remediation authority.
+2) Add a new column nforced to validation contract rows.
+   - Rejected for now: unnecessary schema blast radius because severity already represents gating semantics.
+3) Treat observe mode as nabled=false rows.
+   - Rejected: hides checks from downstream harness execution traces; WARNING keeps checks visible while non-blocking.
+
+Expected blast radius and safeguards:
+1) Touched surfaces limited to S4 schema/policy/runner + scorer semantics.
+2) S1/S2/S3 frozen by design; no edits planned in those states.
+3) Rerun law preferred: S4->S5 on P2-locked run roots.
+4) Known risk: immutable-output protection on reused run roots; fallback is fresh staged run roots with full chain if needed.
+
+Immediate execution steps:
+1) patch schema (schemas.3B.yaml) for new 	est_type enum values and policy fields.
+2) patch policy file (irtual_validation.yml) with mode + realism thresholds.
+3) patch S4 runner to emit realism rows under observe/enforce semantics.
+4) patch scorer V12 evaluation to verify enforced posture.
+5) execute P3.2 observe witness, then P3.3 enforce witness, then P3.4 shadow closure.
+
+### Entry: 2026-02-20 04:53:18 +00:00
+
+Design element: 3B P3.1 implementation - schema/policy/S4 contract generation + V12 scoring hardening.
+Summary: implemented the governance-model lock with explicit observe/enforce semantics and realism-family contract rows in S4.
+
+Code-path deltas landed:
+1) schemas.3B.yaml
+   - extended irtual_validation_contract_3B.test_type enum with:
+     - EDGE_HETEROGENEITY, SETTLEMENT_COHERENCE, CLASSIFICATION_EXPLAINABILITY, ALIAS_FIDELITY.
+   - extended irtual_validation_contract_3B.thresholds properties with realism-gate threshold fields.
+   - extended policy/virtual_validation_policy_v1 to require:
+     - ealism_enforcement_mode (observe|enforce),
+     - ealism_checks object containing B-floor threshold keys.
+2) config/layer1/3B/virtual/virtual_validation.yml
+   - set ealism_enforcement_mode: observe for P3.2 dry-run lane.
+   - added full ealism_checks threshold set aligned to remediation B-floor gates.
+3) s4_virtual_contracts/runner.py
+   - policy parse + fail-closed validation for ealism_enforcement_mode and ealism_checks.
+   - deterministic contract-row emission added for four realism families.
+   - mode semantics encoded through severity:
+     - observe -> WARNING, enforce -> BLOCKING.
+   - preserved existing structural checks (IP_COUNTRY_MIX, SETTLEMENT_CUTOFF) as blocking.
+4) scoring hardening:
+   - 	ools/score_segment3b_p3_governance.py added for P3-specific observe/enforce closure.
+   - 	ools/score_segment3b_p0_baseline.py updated so V12 now requires presence plus enforced blocking rows, not presence-only.
+
+Reasoning behind severity encoding choice:
+1) keeps schema blast radius small (no new boolean enforcement column required).
+2) aligns with remediation intent: observe then enforce should be directly visible in contract row severities.
+3) preserves row execution visibility (nabled=true) in both modes for audit.
+
+Validation executed before run:
+1) python -m py_compile passed for:
+   - packages/engine/src/engine/layers/l1/seg_3B/s4_virtual_contracts/runner.py
+   - 	ools/score_segment3b_p3_governance.py
+   - 	ools/score_segment3b_p0_baseline.py
+
+Next step:
+- execute P3.2 witness observe lane on locked P2 run roots (42, 101) via segment3b-s4 + segment3b-s5, then score governance + P2 non-regression.
+
+### Entry: 2026-02-20 04:53:46 +00:00
+
+Design element: 3B P3.2 execution pivot - sealed digest mismatch on locked roots.
+Summary: direct S4->S5 rerun on locked P2 witness root failed by design once policy bytes changed.
+
+Observed failure:
+1) command: make RUNS_ROOT=runs/fix-data-engine/segment_3B RUN_ID=fc455a28a3504168a763a081b9b5a744 segment3b-s4 segment3b-s5.
+2) hard failure:
+   - E3B_S4_005_SEALED_INPUT_DIGEST_MISMATCH on logical id irtual_validation_policy.
+3) cause:
+   - P3.1 changed config/layer1/3B/virtual/virtual_validation.yml bytes,
+   - locked P2 roots carry old sealed digest in sealed_inputs_3B, so S4 correctly failed closed.
+
+Decision:
+1) do not bypass/waive seal check.
+2) stage fresh run-ids for witness seeds and run full S0->S5 so S0 reseals updated policy digest.
+3) keep seed/run mapping explicit in P3 evidence artifacts and docs.
+
+Why this lane is correct:
+1) preserves identity + sealing law,
+2) avoids mutable rewrite anti-pattern,
+3) keeps P2 statistical surfaces frozen by reusing same seed + manifest lineage while allowing policy reseal.
+
+### Entry: 2026-02-20 05:23:31 +00:00
+
+Design element: 3B P3.2 observe witness closure + P3.3 enforce pivot.
+Summary: completed observe-mode witness execution on staged roots and closed the observe evidence gate; then switched policy mode to enforce for witness lock.
+
+P3.2 execution evidence:
+1) staged witness run-ids:
+   - seed 42 -> ccb721d41aa14adb8be01ff9adffe88e
+   - seed 101 -> 1c2563dc859b45e4a5d828bd74e054e7
+2) full chain executed for each staged root: S0->S5 (policy reseal required).
+3) governance scorer (observe mode):
+   - uns/fix-data-engine/segment_3B/reports/segment3b_p3_governance_p32_observe_witness_observe.json
+   - decision: PASS.
+4) non-regression guardrails (V01..V07, V11, structural):
+   - uns/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p32_observe_witness_guard.json
+   - decision: UNLOCK_P3.
+
+Runtime observations (witness observe lane):
+1) seed 42 chain wall ~968s.
+2) seed 101 chain wall ~749s.
+3) dominant wall remains S2 topology prep; S4 governance overhead is negligible (<5s state wall).
+
+Decision to progress:
+1) observe-mode presence and schema-valid governance rows confirmed.
+2) witness non-regression on frozen P2 surfaces confirmed.
+3) proceed to enforce witness lock (P3.3) by changing policy mode to nforce.
+
+P3.3 pivot action applied:
+1) config/layer1/3B/virtual/virtual_validation.yml
+   - ealism_enforcement_mode: observe -> enforce.
+2) due policy-byte change, enforce witness lane will again require fresh staged run-ids + S0->S5.

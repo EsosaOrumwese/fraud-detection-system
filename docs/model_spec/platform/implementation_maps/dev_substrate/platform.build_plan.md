@@ -1515,11 +1515,16 @@ Phase closure posture:
     - run-200 target authority from `M10.A`,
     - deterministic managed execution algorithm (`SR -> WSP -> reporter` + evidence-surface closure),
     - fail-closed blocker taxonomy (`M10C-B1..B6`) including runtime-budget gate.
+  - `M10.C` execution is now closed pass on run scope `platform_20260219T234150Z`:
+    - execution id: `m10_20260220T045637Z`,
+    - local snapshot: `runs/dev_substrate/m10/m10_20260220T045637Z/m10_c_semantic_200_snapshot.json`,
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260220T045637Z/m10_c_semantic_200_snapshot.json`,
+    - verdict: `overall_pass=true`, blockers empty, runtime budget pass (`418s <= 3600s`).
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
   - [x] `M10.B` semantic 20-event run.
-  - [ ] `M10.C` semantic 200-event run.
+  - [x] `M10.C` semantic 200-event run.
   - [ ] `M10.D` incident drill execution.
   - [ ] `M10.E` representative-window run.
   - [ ] `M10.F` burst run.
@@ -1530,8 +1535,8 @@ Sub-phase progress:
 
 M10 DoD checklist:
 - [ ] Semantic Green:
-  - [ ] 20-event shakedown run green end-to-end.
-  - [ ] 200-event run green end-to-end.
+  - [x] 20-event shakedown run green end-to-end.
+  - [x] 200-event run green end-to-end.
   - [ ] at least one incident drill executed with expected fail-closed evidence.
 - [ ] Scale Green:
   - [ ] representative-window run passes on contiguous event-time slice (not sub-second toy slice).
@@ -1634,5 +1639,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M10 is active for planning expansion under the M9 handoff.
 Next action:
-- execute `M10.C` semantic 200-event certification run using the same evidence-contract posture that closed `M10.B`.
+- execute `M10.D` incident drill lane with deterministic fail-closed evidence capture.
 

@@ -314,7 +314,14 @@ def _seed_metrics(ctx: SeedContext, countries: gpd.GeoDataFrame) -> dict[str, An
     tz_top1_share = float(tz_counts.get_column("len")[0] / max(1, vs_df.height)) if tz_counts.height else 0.0
 
     test_types = set(str(v) for v in vv_df.get_column("test_type").to_list() if v is not None)
-    realism_block_active = REQUIRED_REALISM_TEST_TYPES.issubset(test_types)
+    realism_block_present = REQUIRED_REALISM_TEST_TYPES.issubset(test_types)
+    realism_block_enforced = True
+    for test_type in REQUIRED_REALISM_TEST_TYPES:
+        subset = vv_df.filter(pl.col("test_type") == test_type)
+        enforced = subset.filter((pl.col("enabled") == True) & (pl.col("severity") == "BLOCKING")).height > 0  # noqa: E712
+        if not enforced:
+            realism_block_enforced = False
+            break
     decode = s3_report.get("decode") or {}
 
     metrics = {
@@ -334,7 +341,8 @@ def _seed_metrics(ctx: SeedContext, countries: gpd.GeoDataFrame) -> dict[str, An
         "rule_version_non_null_rate": float(len(non_empty_rule_version) / max(1, total_rows)),
         "active_rule_id_count": int(len(set(non_empty_rule_id))),
         "alias_max_abs_delta": float(decode.get("max_abs_delta") or float("inf")),
-        "realism_block_active_enforced": bool(realism_block_active),
+        "realism_block_present": bool(realism_block_present),
+        "realism_block_active_enforced": bool(realism_block_present and realism_block_enforced),
         "settlement_tzid_top1_share": tz_top1_share,
         "virtual_validation_test_count": int(vv_df.height),
         "virtual_validation_test_types": sorted(test_types),

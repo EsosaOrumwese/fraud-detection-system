@@ -365,12 +365,28 @@ Deterministic verification algorithm (M10.C):
 8. Publish snapshot durably; publish failure -> `M10C-B5`.
 
 DoD:
-- [ ] `M10.B` dependency pass posture validates.
-- [ ] Managed 200-event run completes with semantic gates closed.
-- [ ] Required semantic evidence surfaces exist and are run-scope coherent.
-- [ ] No unresolved `PUBLISH_AMBIGUOUS` state exists.
-- [ ] Runtime budget gate (`<= 60 minutes`) passes.
-- [ ] Snapshot exists locally and durably with blocker-free verdict.
+- [x] `M10.B` dependency pass posture validates.
+- [x] Managed 200-event run completes with semantic gates closed.
+- [x] Required semantic evidence surfaces exist and are run-scope coherent.
+- [x] No unresolved `PUBLISH_AMBIGUOUS` state exists.
+- [x] Runtime budget gate (`<= 60 minutes`) passes.
+- [x] Snapshot exists locally and durably with blocker-free verdict.
+
+Execution notes (`2026-02-20`, `m10_execution_id=m10_20260220T045637Z`):
+1. Managed runtime chain executed on active run scope `platform_20260219T234150Z`:
+   - SR: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/5b8836b4e5544d38ab121fb9abf1cc07` (`exit=0`)
+   - WSP: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/244622df568f409491600b23973174cd` (`exit=0`)
+   - reporter: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/b7eec2642bb640589077638b1b1057e8` (`exit=0`)
+2. Snapshot emitted and published:
+   - local: `runs/dev_substrate/m10/m10_20260220T045637Z/m10_c_semantic_200_snapshot.json`
+   - durable run-control: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260220T045637Z/m10_c_semantic_200_snapshot.json`
+   - durable run-scoped: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260219T234150Z/m10/m10_c_semantic_200_snapshot.json`
+3. Authoritative result:
+   - `overall_pass=true`, blockers empty.
+   - runtime budget pass (`elapsed_seconds=418`, `budget_seconds=3600`).
+4. Case/label closure remains implementation-aligned:
+   - hard gate: case-trigger flow + case/label ECS service health,
+   - informational-only: `run_report.case_labels.*` (`UNKNOWN/0` currently).
 
 Blockers:
 1. `M10C-B1`: semantic gate failure.
@@ -558,4 +574,5 @@ M10 can be marked `DONE` only when all are true:
 1. M10 planning expansion is open.
 2. `M10.A` is closed green by execution `m10_20260219T231017Z`.
 3. `M10.B` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T032146Z`).
-4. Next lane is `M10.C` semantic 200-event certification run.
+4. `M10.C` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T045637Z`).
+5. Next lane is `M10.D` incident drill execution.

@@ -1,4 +1,18 @@
 version: v1.0.0
 ip_country_tolerance: 0.010000
 cutoff_tolerance_seconds: 1800
-notes: "v1: ip_country_tolerance=max(0.01,5/E) clamped; cutoff_tolerance_seconds=1800"
+realism_enforcement_mode: enforce
+realism_checks:
+  edge_count_cv_min: 0.25
+  country_count_cv_min: 0.20
+  top1_share_p50_min: 0.03
+  top1_share_p50_max: 0.20
+  js_divergence_median_min: 0.05
+  settlement_overlap_median_min: 0.03
+  settlement_overlap_p75_min: 0.06
+  settlement_distance_median_max_km: 6000.0
+  rule_id_non_null_rate_min: 0.99
+  rule_version_non_null_rate_min: 0.99
+  active_rule_id_count_min: 3
+  alias_max_abs_delta_max: 0.000001
+notes: "v2: adds explicit realism_enforcement_mode and hard-gate realism check thresholds"
