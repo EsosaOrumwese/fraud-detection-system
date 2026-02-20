@@ -372,7 +372,7 @@ def load_worker_config(profile_path: Path) -> ArchiveWriterConfig:
             "fp.bus.context.arrival_entities.v1",
             "fp.bus.context.flow_anchor.fraud.v1",
             "fp.bus.rtdl.v1",
-            "fp.bus.case.v1",
+            "fp.bus.case.triggers.v1",
         )
 
     object_path_style_value = str(_env(object_store.get("path_style") or "true")).strip().lower()

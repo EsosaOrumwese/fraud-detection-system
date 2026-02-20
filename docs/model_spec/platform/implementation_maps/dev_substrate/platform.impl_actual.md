@@ -16627,3 +16627,27 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. Patch IG health probe Kafka branch for `confluent-kafka` compatibility (`list_topics`-based topic/partition check).
 2. Rebuild/publish image, roll runtime, and rerun targeted 20-event WSP path.
 3. Keep M10.B open until IG health is green and semantic evidence closes.
+
+## 2026-02-20 02:05:04 +00:00 - M10.B semantic lane drift isolation: case topic contract mismatch
+### Evidence observed
+1. Managed 20-event WSP lane produced status=STREAMED with mitted=20 for platform_20260219T234150Z.
+2. Reporter closure still showed RTDL/Case lanes non-advancing (tdl.decision=0, case/label health UNKNOWN).
+3. Live runtime logs showed repeated Kafka errors for p.bus.case.v1 (UNKNOWN_PARTITION) while Confluent topic inventory confirmed only p.bus.case.triggers.v1 exists for case lane.
+
+### Decision logic
+1. This is a contract drift, not throughput drift: managed bus topics were pinned to p.bus.case.triggers.v1, but runtime configs/defaults still referenced p.bus.case.v1.
+2. Fail-closed on M10.B closure until topic contract is canonicalized across runtime surfaces.
+3. Selected remediation is direct canonical alignment (no stopgap alias topic creation), to preserve migration authority and avoid dual-topic ambiguity.
+
+### Patches applied
+1. infra/terraform/modules/demo/main.tf case-mgmt wiring now uses p.bus.case.triggers.v1 in both migration and daemon command templates.
+2. src/fraud_detection/case_mgmt/worker.py default admitted topic updated to p.bus.case.triggers.v1.
+3. src/fraud_detection/archive_writer/worker.py fallback admitted topic updated to p.bus.case.triggers.v1.
+4. config/platform/archive_writer/topics_v0.yaml updated to p.bus.case.triggers.v1.
+5. config/platform/ig/partitioning_profiles_v0.yaml case-trigger stream updated to p.bus.case.triggers.v1.
+6. config/platform/profiles/local_parity.yaml case_mgmt admitted topic updated to p.bus.case.triggers.v1 for cross-track consistency.
+
+### Next mandatory execution
+1. Rebuild/publish immutable image with the config/code changes.
+2. Re-apply demo stack so task-definition command wiring updates are materialized.
+3. Re-run SR -> WSP(20) -> reporter and regenerate M10.B semantic snapshot with blocker-free verdict.

@@ -375,7 +375,7 @@ def load_worker_config(profile_path: Path) -> CaseMgmtWorkerConfig:
     if isinstance(admitted, list) and admitted:
         admitted_topics = tuple(str(item).strip() for item in admitted if str(item).strip())
     else:
-        admitted_topics = ("fp.bus.case.v1",)
+        admitted_topics = ("fp.bus.case.triggers.v1",)
     checkpoint_path = Path(
         resolve_run_scoped_path(
             str(_env(cm_wiring.get("consumer_checkpoint_path") or "")).strip() or None,
