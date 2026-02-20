@@ -17106,3 +17106,40 @@ Risk handling:
 ### Cross-doc synchronization decision
 1. Updated platform-wide immediate next action from `M10.D` to `M10.E` to remove stale execution pointer.
 2. M10 detailed plan already marks `M10.D` closed pass and sets `M10.E` as next lane.
+
+## Entry: 2026-02-20 06:23:42 +00:00 - M10.E planning expansion to execution-grade contract
+### Why expansion was required now
+1. `M10.E` remained a three-line stub (`run window`, `check lag`, `emit snapshot`) and was not execution-safe under decision-completeness law.
+2. Moving into scale lanes without explicit entry gates/algorithms would reintroduce interpretation drift and anti-cram failure patterns seen earlier.
+
+### Alternatives considered for M10.E closure criteria
+1. Keep M10.E minimal and discover details during execution.
+2. Fully pin execution contract now (entry authority, deterministic window selection, lag/checkpoint checks, blockers, and snapshot schema).
+
+### Decision chosen
+1. Chose option 2.
+2. Rationale:
+   - M10 scale lanes are the first non-toy credibility gate after semantic/drill closure,
+   - missing contract details in M10.E would produce avoidable blocker churn during runtime,
+   - explicit schema/check taxonomy keeps evidence deterministic and reviewable.
+
+### Key design decisions pinned in the expansion
+1. Dependency + authority:
+   - hard dependency on `M10.D` pass,
+   - representative-window thresholds from `M10.A` (`30m`, `>=50000` ADMIT, contiguous event-time required, `min_plane_closure=P11`),
+   - runtime budget from `M10.A` (`<=120m`).
+2. Deterministic window selection:
+   - derive window manifest from oracle stream-view metadata/manifests with pinned output/sort-key handles,
+   - avoid full parquet hashing/row-wise scans in preparation checks (performance-first posture),
+   - select earliest contiguous window satisfying coverage + threshold constraints.
+3. Lag/checkpoint gate strategy:
+   - enforce concrete lag bound using `RTDL_CAUGHT_UP_LAG_MAX`,
+   - require checkpoint monotonic movement and no sustained stall over run window,
+   - fail closed on unresolved lag/checkpoint handle surfaces.
+4. Blocker and snapshot hardening:
+   - expanded blockers to `M10E-B1..B8`,
+   - required snapshot schema for `m10_e_window_scale_snapshot.json` now includes target, manifest, gate matrices, lag/checkpoint checks, run-scope coherence, and runtime budget.
+
+### Cross-doc updates applied
+1. Updated `platform.M10.build_plan.md` M10.E section from stub to execution-grade lane contract.
+2. Updated `platform.build_plan.md` M10 expansion state to explicitly record M10.E execution-grade readiness and fail-closed blocker taxonomy.

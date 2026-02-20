@@ -1531,6 +1531,11 @@ Phase closure posture:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260220T054251Z/m10_d_incident_drill_snapshot.json`,
     - verdict: `overall_pass=true`, blockers empty, runtime budget pass (`1542s <= 3600s`),
     - closure note: drill counters were resolved from canonical raw receipts because ingest summary surface was stale during drill window.
+  - `M10.E` is now expanded to execution-grade with:
+    - strict dependency on `M10.D` pass + representative-window authority from `M10.A`,
+    - deterministic window-manifest selection from oracle stream-view roots (`duration=30m`, `min_admitted_events>=50000`, contiguous event-time required),
+    - explicit lag/checkpoint closure gates and fail-closed blocker taxonomy (`M10E-B1..B8`),
+    - required snapshot schema for `m10_e_window_scale_snapshot.json` (local + durable publication contract).
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.

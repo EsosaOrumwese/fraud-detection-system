@@ -534,20 +534,116 @@ Required snapshot fields (`m10_d_incident_drill_snapshot.json`):
 Goal:
 1. Validate contiguous event-time slice behavior beyond toy window.
 
-Tasks:
-1. Execute representative-window run with pinned window size.
-2. Validate lag, checkpoint movement, and closure artifact completeness.
-3. Emit `m10_e_window_scale_snapshot.json` local + durable.
+Entry conditions:
+1. `M10.D` is closed pass:
+   - local snapshot exists and is parseable.
+   - durable snapshot exists and is parseable.
+2. `M10.D` snapshot has:
+   - `overall_pass=true`,
+   - empty blocker list.
+3. `M10.A` representative-window profile remains authoritative:
+   - `scale_matrix.representative_window.duration_minutes=30`,
+   - `scale_matrix.representative_window.min_admitted_events=50000`,
+   - `scale_matrix.representative_window.contiguous_event_time_required=true`,
+   - `scale_matrix.representative_window.min_plane_closure=P11`.
+4. Runtime budget authority is present:
+   - `runtime_budget_matrix.M10.E.max_minutes=120`.
+5. Lane dependency remains strict:
+   - `M10.E.depends_on` contains exactly `M10.D`.
+
+Required inputs:
+1. `M10.A` threshold snapshot (representative-window + runtime-budget authority).
+2. `M10.D` pass snapshot (semantic/drill baseline authority).
+3. Managed execution lane for representative-window run (`SR -> WSP -> reporter`, no local data-plane compute).
+4. Oracle stream-view authority for deterministic window selection:
+   - `ORACLE_STREAM_VIEW_ROOT`,
+   - `ORACLE_REQUIRED_OUTPUT_IDS`,
+   - `ORACLE_SORT_KEY_BY_OUTPUT_ID`.
+5. Required run-scoped evidence surfaces:
+   - `RECEIPT_SUMMARY_PATH_PATTERN`,
+   - `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`,
+   - `RTDL_CORE_EVIDENCE_PATH_PATTERN`,
+   - `DECISION_LANE_EVIDENCE_PATH_PATTERN`,
+   - `DLA_EVIDENCE_PATH_PATTERN`,
+   - `ENV_CONFORMANCE_PATH_PATTERN`,
+   - `REPLAY_ANCHORS_PATH_PATTERN`,
+   - `RUN_REPORT_PATH_PATTERN`,
+   - `EVIDENCE_RUN_COMPLETED_KEY`.
+
+Preparation checks (fail-closed):
+1. Parse/validate `M10.A` and `M10.D` source snapshots and pass posture.
+2. Validate representative-window thresholds are concrete positive values (no placeholders/wildcards).
+3. Validate lag/checkpoint guard authority for this lane:
+   - `RTDL_CAUGHT_UP_LAG_MAX` is concrete and positive,
+   - checkpoint/offset evidence handle(s) are present and resolvable.
+4. Resolve deterministic candidate event-time window from oracle stream-view metadata/manifests:
+   - no full parquet hashing/row-wise scan during planning checks,
+   - candidate must satisfy duration + contiguous event-time requirement.
+5. Validate candidate window can satisfy `min_admitted_events` target for selected output set.
+6. Validate managed runtime health preconditions for in-scope services:
+   - IG, RTDL core, decision lane, case-trigger, case-mgmt, label-store, reporter.
+7. Validate lane run scope is explicit and non-placeholder:
+   - one concrete `platform_run_id` for this lane execution.
+
+Deterministic verification algorithm (M10.E):
+1. Load source snapshots (`M10.A`, `M10.D`); parse/non-pass failures -> `M10E-B4`.
+2. Build deterministic representative-window manifest:
+   - enumerate oracle stream-view partitions using pinned `ORACLE_REQUIRED_OUTPUT_IDS`,
+   - anchor on pinned sort-key/event-time columns from `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
+   - choose earliest contiguous `duration_minutes` window that satisfies minimum output coverage and no time-gap drift.
+3. Materialize lane run config from manifest:
+   - explicit `window_start_utc`/`window_end_utc`,
+   - fixed `platform_run_id`,
+   - managed task overrides only (no local compute path).
+4. Execute managed chain for the window run:
+   - SR ready publication for lane scope,
+   - WSP streaming bounded to manifest window,
+   - reporter one-shot closure refresh.
+5. Resolve post-run required evidence refs.
+6. Evaluate representative-window closure gates:
+   - `ADMIT >= min_admitted_events` from canonical admission evidence,
+   - contiguous event-time obligation is preserved for emitted run slice,
+   - no unresolved `PUBLISH_AMBIGUOUS`,
+   - run-scope coherence across evidence surfaces,
+   - minimum plane closure reaches `P11`.
+7. Evaluate lag/checkpoint stability:
+   - checkpoint movement is monotonic over lane run window,
+   - lag remains within `RTDL_CAUGHT_UP_LAG_MAX` at closure,
+   - no sustained checkpoint stall.
+8. Enforce runtime budget gate from `M10.A` (`M10.E <= 120 minutes`) or fail-closed.
+9. Emit `m10_e_window_scale_snapshot.json` locally.
+10. Publish snapshot durably; publish failure -> `M10E-B7`.
 
 DoD:
-- [ ] Window run meets pinned volume/duration threshold.
-- [ ] Lag stability remains within pinned bounds.
-- [ ] Snapshot exists locally and durably.
+- [ ] `M10.D` dependency pass posture validates.
+- [ ] Representative-window run meets pinned duration/volume thresholds (`30m`, `>=50000` ADMIT).
+- [ ] Contiguous event-time slice obligation is proven from lane manifest/evidence.
+- [ ] Lag/checkpoint stability checks pass with pinned guard thresholds.
+- [ ] No unresolved `PUBLISH_AMBIGUOUS` state exists.
+- [ ] Runtime budget gate (`<= 120 minutes`) passes.
+- [ ] Snapshot exists locally and durably with blocker-free verdict.
 
 Blockers:
-1. `M10E-B1`: window threshold miss.
-2. `M10E-B2`: lag stability violation.
-3. `M10E-B3`: evidence publication failure.
+1. `M10E-B1`: representative-window threshold miss (duration/volume).
+2. `M10E-B2`: contiguous event-time obligation not met.
+3. `M10E-B3`: lag/checkpoint stability violation.
+4. `M10E-B4`: invalid/non-pass dependency snapshot (`M10.D`/`M10.A`) or malformed scale profile.
+5. `M10E-B5`: required evidence missing/unreadable.
+6. `M10E-B6`: run-scope mismatch or unresolved publish ambiguity.
+7. `M10E-B7`: snapshot publication failure.
+8. `M10E-B8`: runtime budget breach.
+
+Required snapshot fields (`m10_e_window_scale_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m10_execution_id`.
+2. `source_snapshot_refs` (`M10.A`, `M10.D` local + durable refs).
+3. `window_target` (`duration_minutes`, `min_admitted_events`, `contiguous_event_time_required`, `min_plane_closure`).
+4. `window_manifest_ref` (`window_start_utc`, `window_end_utc`, required outputs, manifest hash/ref).
+5. `evidence_refs` (resolved run-scoped object refs for required semantic/lag surfaces).
+6. `scale_gate_checks` (volume/duration/contiguity/plane-closure pass-fail matrix).
+7. `lag_checkpoint_checks` (lag bound + checkpoint monotonic movement checks).
+8. `run_scope_coherence_checks`.
+9. `runtime_budget` (`budget_seconds`, `elapsed_seconds`, `budget_pass`).
+10. `blockers`, `overall_pass`.
 
 ### M10.F Burst run
 Goal:
