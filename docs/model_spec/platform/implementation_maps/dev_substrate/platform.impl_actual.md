@@ -16611,3 +16611,19 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - `WSP_MAX_EVENTS_PER_OUTPUT=20`,
    - run-scope pinned.
 4. Execute managed reporter one-shot and then evaluate M10.B semantic evidence.
+
+## Entry: 2026-02-20 10:52:00 +00:00 - M10.B root-cause refinement: IG health probe drift after Kafka adapter migration
+### Evidence
+1. Managed probe to `/v1/ops/health` returned `RED` with reason `BUS_UNHEALTHY`.
+2. WSP failure remained `IG_PUSH_REJECTED` with zero emissions, and IG persisted `400` on `/v1/ingest/push`.
+3. Kafka bootstrap secret was repaired (`pkc-...:9092`) and daemons redeployed, but health remained red.
+
+### Diagnosis
+1. `ingestion_gate.health.HealthProbe._bus_describe_ok` still uses kafka-python producer methods (`partitions_for`, `bootstrap_connected`).
+2. Event-bus adapter has already migrated to `confluent-kafka` Producer, which does not expose those methods.
+3. The method throws and maps to `BUS_UNHEALTHY`, causing IG fail-closed admission for all pushes.
+
+### Decision
+1. Patch IG health probe Kafka branch for `confluent-kafka` compatibility (`list_topics`-based topic/partition check).
+2. Rebuild/publish image, roll runtime, and rerun targeted 20-event WSP path.
+3. Keep M10.B open until IG health is green and semantic evidence closes.
