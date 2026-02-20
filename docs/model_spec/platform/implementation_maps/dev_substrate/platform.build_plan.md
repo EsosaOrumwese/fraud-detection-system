@@ -1543,6 +1543,11 @@ Phase closure posture:
     - verdict: `overall_pass=true`, blockers empty,
     - representative-window gates: `ADMIT=50100` (`>=50000`) and four-output contiguous span proof (`min_output_span_minutes=153.57`),
     - runtime budget closure basis: primary full-window WSP execution `7180s <= 7200s` (strict end-to-end remediation chain `9474s` recorded as optimization debt).
+  - `M10.F` is now expanded to execution-grade with:
+    - strict dependency on `M10.E` pass + burst authority from `M10.A`,
+    - deterministic burst profile contract (`3.0x`, `15m`, admit ratio `>=0.995`, `semantic_drift_allowed=false`),
+    - explicit semantic-drift and lag/checkpoint closure gates under burst load,
+    - fail-closed blocker taxonomy (`M10F-B1..B9`) and required snapshot schema for `m10_f_burst_snapshot.json`.
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.

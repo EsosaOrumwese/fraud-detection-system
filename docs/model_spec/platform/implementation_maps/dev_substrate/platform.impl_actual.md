@@ -17423,3 +17423,45 @@ Risk handling:
 ### Decision closure
 1. USER directive satisfied: resources were torn down after successful M10.E closure.
 2. Evidence/object-store artifacts were retained intentionally.
+
+## Entry: 2026-02-20 17:30:52 +00:00 - M10.F planning expansion to execution-grade contract
+### Why M10.F expansion was required
+1. `M10.F` remained a minimal stub and was not safe to execute under decision-completeness and anti-cram laws.
+2. Burst lanes can create false-green outcomes if throughput and semantic safety are not jointly pinned before runtime.
+
+### Alternatives considered for burst closure model
+1. Keep burst lane minimal: run a high-rate stream, then eyeball run report deltas.
+2. Pin a deterministic burst contract first: dependency gate, threshold authority, baseline derivation, managed execution profile, semantic-drift matrix, lag/checkpoint matrix, blockers, and snapshot schema.
+
+### Decision chosen
+1. Chose option 2.
+2. Rationale:
+   - prevents ad hoc threshold interpretation during execution,
+   - keeps burst validation auditable and reproducible,
+   - preserves fail-closed behavior when burst pressure interacts with dedupe/replay surfaces.
+
+### M10.F design decisions pinned
+1. Dependency/authority:
+   - strict dependency on `M10.E` pass,
+   - burst thresholds from `M10.A` (`ingest_multiplier=3.0`, `duration_minutes=15`, `min_successful_admit_ratio=0.995`, `semantic_drift_allowed=false`),
+   - runtime budget gate `M10.F <= 90m`.
+2. Baseline model:
+   - representative baseline throughput is derived from `M10.E` authoritative outputs,
+   - burst gate measures multiplier and admit ratio against that baseline.
+3. Semantic safety model:
+   - `semantic_drift_allowed=false` is enforced explicitly,
+   - unresolved `PUBLISH_AMBIGUOUS` is hard-blocking,
+   - side-effect drift checks for decision/action/case surfaces are required.
+4. Stability model:
+   - lag/checkpoint checks are mandatory under burst, not optional post-hoc notes.
+5. Blockers/snapshot:
+   - expanded blockers to `M10F-B1..B9`,
+   - defined required `m10_f_burst_snapshot.json` schema (targets, baseline, execution window, gates, runtime budget).
+
+### Cross-doc synchronization executed
+1. Updated `platform.M10.build_plan.md` M10.F section from stub to execution-grade lane contract.
+2. Updated `platform.build_plan.md` M10 expansion state to explicitly mark M10.F as execution-grade planned.
+
+### Consequence
+1. M10.F is now execution-ready by plan quality (not yet executed).
+2. Immediate next action remains execution of M10.F on managed substrate with fail-closed evidence capture.

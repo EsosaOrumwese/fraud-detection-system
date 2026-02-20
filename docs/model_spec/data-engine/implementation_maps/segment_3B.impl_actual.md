@@ -5116,3 +5116,53 @@ Phase close decision:
 1) P4 status: CLOSED.
 2) decision pointer: `UNLOCK_P5`.
 3) freeze posture entering P5: lock candidate-D S2 constants as authority unless explicit reopen decision is recorded.
+
+### Entry: 2026-02-20 17:25:13 +00:00
+
+Design element: 3B P5 planning expansion (integrated certification + freeze closure design).
+Summary: expanded P5 from stub into execution-grade subphases with fail-closed rerun triggers so freeze can be declared from authoritative evidence without unnecessary recompute.
+
+Problem framing at P5 entry:
+1) P4 already produced full required-seed PASS_BPLUS authority with hard/governance green.
+2) existing plan text for P5 was too coarse and did not define:
+   - evidence-integrity checks,
+   - rerun trigger conditions,
+   - freeze-pack schema/output,
+   - explicit reopen law after freeze.
+
+Alternatives considered:
+1) force a mandatory fresh full four-seed rerun in P5.
+   - rejected as default because no post-P4 engine mutation is required for certification declaration and this would add avoidable runtime cost.
+2) freeze immediately from P4 cross-seed summary only.
+   - rejected because it lacks explicit artifact-integrity checks and does not protect against missing-path/manifest drift failure modes.
+3) chosen: evidence-first no-rerun lane with conditional rerun gate.
+   - run integrity audit first,
+   - emit canonical freeze pack,
+   - rerun only if fail-closed triggers fire.
+
+Chosen P5 design:
+1) `P5.1` evidence-integrity lock:
+   - verify required artifacts, seed completeness (`{42,7,101,202}`), and single-manifest coherence.
+2) `P5.2` freeze-pack synthesis:
+   - emit `segment3b_p5_freeze_summary.json` + `.md` with verdict matrix, run map, and keep-set.
+3) `P5.3` conditional rerun safety gate:
+   - rerun only on missing artifacts, manifest inconsistency, or post-P4 engine mutation.
+4) `P5.4` freeze decision/handoff:
+   - record explicit freeze decision and reopen law trigger classes.
+
+Authority pinned in plan:
+1) locked run-map:
+   - 42 -> 3e700b15d84043a6a919e50cad286030
+   - 7 -> 3e9daa862af74ccc9527f1603bab86ae
+   - 101 -> b77b42bacef14937a173c013879a0732
+   - 202 -> b81f93f7c696416d99708c17d4b4e730
+2) locked verdict authority:
+   - `p4_candidate_d_full_20260220/3B_validation_cross_seed_summary.json` => `PASS_BPLUS`.
+3) locked hard/governance authorities:
+   - `segment3b_p2_summary_p4_candidate_d_full.json` => `UNLOCK_P3`
+   - `segment3b_p3_governance_p4_candidate_d_full_enforce.json` => `PASS`.
+
+Performance/risk posture embedded:
+1) no-rerun P5 budget: `<=15 min`.
+2) conditional rerun budget (only if triggered): `<=90 min`.
+3) freeze declaration is blocked on unexplained runtime overrun or integrity check failure.

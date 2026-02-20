@@ -1814,6 +1814,104 @@ Definition of done:
 - [ ] explicit verdict recorded (`PASS_BPLUS`, `PASS_B`, or `FAIL_REALISM`).
 - [ ] freeze status and keep-set are recorded with prune closure.
 
+P5 entry lock (post-P4 closure authority):
+- locked run-map authority:
+  - `42 -> 3e700b15d84043a6a919e50cad286030`
+  - `7 -> 3e9daa862af74ccc9527f1603bab86ae`
+  - `101 -> b77b42bacef14937a173c013879a0732`
+  - `202 -> b81f93f7c696416d99708c17d4b4e730`
+- locked scorer verdict authority:
+  - `runs/fix-data-engine/segment_3B/reports/p4_candidate_d_full_20260220/3B_validation_cross_seed_summary.json`
+  - verdict: `PASS_BPLUS`.
+- locked hard/governance authorities:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p4_candidate_d_full.json` -> `UNLOCK_P3`
+  - `runs/fix-data-engine/segment_3B/reports/p4_candidate_d_full_20260220/segment3b_p3_governance_p4_candidate_d_full_enforce.json` -> `PASS`.
+- freeze target posture:
+  - no further S2 knob movement in P5 unless fail-closed trigger fires.
+
+P5 phase law (execution ordering):
+- `P5.1` evidence-integrity lock: verify all required certification artifacts exist and are internally consistent.
+- `P5.2` freeze-pack synthesis: emit canonical P5 freeze summary (`json` + `md`) using locked P4 authority map.
+- `P5.3` conditional rerun gate: rerun only if P4 authority invalidates (missing artifact, manifest drift, or post-P4 engine mutation).
+- `P5.4` final freeze/handoff decision: pin `FROZEN` posture, reopen law, and next-segment handoff pointer.
+
+#### P5.1 - Certification evidence integrity lock
+Goal:
+- prove P4 authority artifacts are complete, seed-complete, and mutually coherent before freeze declaration.
+
+Scope:
+- verify required artifacts for each seed in locked run-map:
+  - `S4/S5 run_report.json`,
+  - `3B_validation_metrics_seed_<seed>.json`,
+  - cross-seed summary and hard/governance summaries.
+- verify manifest fingerprint consistency across all required seeds.
+- verify required seed set is exactly `{42,7,101,202}`.
+
+Definition of done:
+- [ ] required artifact checklist is fully green.
+- [ ] manifest fingerprint is single-valued across required seeds.
+- [ ] no scorer/report schema drift is detected.
+
+#### P5.2 - Freeze pack synthesis
+Goal:
+- produce a canonical freeze package that can be consumed without re-scoring ambiguity.
+
+Scope:
+- emit:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p5_freeze_summary.json`
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p5_freeze_summary.md`
+- include:
+  - verdict (`PASS_BPLUS`/`PASS_B`/`FAIL_REALISM`),
+  - locked run-map, manifest fingerprint, seed verdict matrix,
+  - hard/stability/stretch pass matrix,
+  - retained keep-set + prune posture,
+  - locked S2 knob authority statement.
+
+Definition of done:
+- [ ] freeze summary artifacts (`json` + `md`) are emitted.
+- [ ] freeze summary exactly matches locked P4 authority results.
+- [ ] run retention and evidence paths are explicit and reproducible.
+
+#### P5.3 - Conditional rerun safety gate (fail-closed)
+Goal:
+- prevent stale/invalid freeze declaration when authority artifacts drift.
+
+Scope:
+- trigger rerun only if any condition is true:
+  - missing/invalid P4 authority artifacts,
+  - multi-manifest inconsistency,
+  - post-P4 mutation in engine files used by Segment 3B scoring surface.
+- rerun policy:
+  - minimum required rerun is full required seeds from changed state onward, with fresh score pack replacement.
+
+Definition of done:
+- [ ] rerun trigger evaluation recorded (`SKIPPED` or `ENTERED`) with evidence.
+- [ ] if entered, replacement authority pack is complete and internally consistent.
+- [ ] final freeze verdict is based on current valid authority only.
+
+#### P5.4 - Freeze decision and handoff closure
+Goal:
+- close Segment 3B formally and set explicit reopen law for downstream segment work.
+
+Scope:
+- record one of:
+  - `SEGMENT_3B_FROZEN_PASS_BPLUS`,
+  - `SEGMENT_3B_FROZEN_PASS_B`,
+  - `SEGMENT_3B_NOT_FROZEN` (with blocker list).
+- lock reopen law:
+  - any reopen requires explicit reason class (`contract drift`, `upstream reopen`, `critical bug`) and seeded impact plan.
+- write handoff pointer for next segment planning.
+
+Definition of done:
+- [ ] explicit freeze decision recorded with reasoned authority references.
+- [ ] reopen law and trigger classes are documented.
+- [ ] next-segment handoff pointer is pinned.
+
+P5 runtime budgets (binding):
+- evidence integrity + freeze-pack synthesis (no rerun lane): `<= 15 min`.
+- conditional rerun lane (if triggered): `<= 90 min` total for required seeds.
+- unexplained runtime overrun blocks freeze declaration until root-cause note is recorded.
+
 ## 7) Certification artifacts and decision package
 - Required artifacts:
   - `3B_validation_metrics_seed_<seed>.json`
@@ -1837,4 +1935,4 @@ Definition of done:
 - `P2`: completed (`EXECUTED_UNLOCK_P3`)
 - `P3`: completed (`EXECUTED_UNLOCK_P4`)
 - `P4`: completed (`EXECUTED_PASS_BPLUS_UNLOCK_P5`)
-- `P5`: pending
+- `P5`: pending (`PLANNING_EXPANDED_READY_FOR_EXECUTION`)

@@ -674,20 +674,118 @@ Required snapshot fields (`m10_e_window_scale_snapshot.json`):
 Goal:
 1. Validate short high-rate ingest behavior without semantic drift.
 
-Tasks:
-1. Execute burst profile at pinned ingest multiplier and duration.
-2. Validate semantic invariants against pre-burst baseline.
-3. Emit `m10_f_burst_snapshot.json` local + durable.
+Entry conditions:
+1. `M10.E` is closed pass:
+   - local snapshot exists and is parseable.
+   - durable snapshot exists and is parseable.
+2. `M10.E` snapshot has:
+   - `overall_pass=true`,
+   - empty blocker list.
+3. `M10.A` burst profile remains authoritative:
+   - `scale_matrix.burst.ingest_multiplier=3.0`,
+   - `scale_matrix.burst.duration_minutes=15`,
+   - `scale_matrix.burst.min_successful_admit_ratio=0.995`,
+   - `scale_matrix.burst.semantic_drift_allowed=false`.
+4. Runtime budget authority is present:
+   - `runtime_budget_matrix.M10.F.max_minutes=90`.
+5. Lane dependency remains strict:
+   - `M10.F.depends_on` contains exactly `M10.E`.
+
+Required inputs:
+1. `M10.A` threshold snapshot (burst + runtime-budget authority).
+2. `M10.E` pass snapshot (representative baseline authority).
+3. Managed execution lane for burst run (`SR -> WSP -> reporter`, no local data-plane compute).
+4. Oracle stream-view authority for deterministic output selection:
+   - `ORACLE_REQUIRED_OUTPUT_IDS`,
+   - `ORACLE_SORT_KEY_BY_OUTPUT_ID`.
+5. Required run-scoped evidence surfaces:
+   - `RECEIPT_SUMMARY_PATH_PATTERN`,
+   - `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`,
+   - `RTDL_CORE_EVIDENCE_PATH_PATTERN`,
+   - `DECISION_LANE_EVIDENCE_PATH_PATTERN`,
+   - `DLA_EVIDENCE_PATH_PATTERN`,
+   - `RUN_REPORT_PATH_PATTERN`,
+   - `REPLAY_ANCHORS_PATH_PATTERN`,
+   - `ENV_CONFORMANCE_PATH_PATTERN`,
+   - `EVIDENCE_RUN_COMPLETED_KEY`.
+
+Preparation checks (fail-closed):
+1. Parse/validate `M10.A` and `M10.E` source snapshots and pass posture.
+2. Validate burst thresholds are concrete positive values (no placeholders/wildcards).
+3. Derive representative baseline throughput from `M10.E` authoritative snapshot:
+   - baseline source is `M10.E.runtime_budget.elapsed_seconds` + admitted volume evidence,
+   - baseline units are normalized to admitted-events/minute and emitted-events/minute.
+4. Validate managed runtime health preconditions for in-scope services:
+   - IG, RTDL core, decision lane, case-trigger, case-mgmt, label-store, reporter.
+5. Validate lag/checkpoint guard authority:
+   - `RTDL_CAUGHT_UP_LAG_MAX` is concrete and positive,
+   - required lag/checkpoint evidence handles are resolvable.
+6. Validate lane run scope is explicit and non-placeholder:
+   - one concrete `platform_run_id` for this lane execution.
+
+Deterministic verification algorithm (M10.F):
+1. Load source snapshots (`M10.A`, `M10.E`); parse/non-pass failures -> `M10F-B4`.
+2. Build deterministic burst execution profile:
+   - fixed burst duration from authority (`15m`),
+   - fixed output set from pinned oracle handles,
+   - explicit managed task overrides for burst pressure posture.
+3. Capture pre-burst baseline for burst-window deltas:
+   - admission counters,
+   - rtdl lag/checkpoint surfaces,
+   - semantic safety anchors (`publish_ambiguous`, decision/action/case baselines).
+4. Execute managed burst chain:
+   - SR ready publication for lane scope,
+   - WSP burst run for pinned duration and burst profile,
+   - reporter one-shot closure refresh.
+5. Resolve post-burst required evidence refs.
+6. Evaluate burst load gates:
+   - achieved ingest multiplier >= pinned target (`3.0x`) against representative baseline,
+   - burst duration meets pinned threshold (`15m`),
+   - successful admit ratio >= pinned threshold (`0.995`).
+7. Evaluate semantic drift gates (`semantic_drift_allowed=false`):
+   - no unresolved `PUBLISH_AMBIGUOUS`,
+   - no duplicate side-effect drift in decision/action/case lanes,
+   - no fail-open behavior in run-scope evidence surfaces.
+8. Evaluate lag/checkpoint stability under burst:
+   - closure lag <= `RTDL_CAUGHT_UP_LAG_MAX`,
+   - checkpoint movement is monotonic with no sustained stall.
+9. Enforce runtime budget gate from `M10.A` (`M10.F <= 90 minutes`) or fail-closed.
+10. Emit `m10_f_burst_snapshot.json` locally.
+11. Publish snapshot durably; publish failure -> `M10F-B3`.
 
 DoD:
-- [ ] Burst profile executed as pinned.
-- [ ] No semantic drift beyond pinned tolerance.
-- [ ] Snapshot exists locally and durably.
+- [ ] `M10.E` dependency pass posture validates.
+- [ ] Burst profile executed as pinned (`3.0x`, `15m`).
+- [ ] Successful admit ratio meets pinned threshold (`>=0.995`).
+- [ ] No semantic drift (`semantic_drift_allowed=false`) and no unresolved `PUBLISH_AMBIGUOUS`.
+- [ ] Lag/checkpoint stability checks pass under burst load.
+- [ ] Runtime budget gate (`<= 90 minutes`) passes.
+- [ ] Snapshot exists locally and durably with blocker-free verdict.
 
 Blockers:
-1. `M10F-B1`: burst profile not achieved.
+1. `M10F-B1`: burst profile not achieved (multiplier/duration/admit ratio miss).
 2. `M10F-B2`: semantic drift detected.
 3. `M10F-B3`: evidence publication failure.
+4. `M10F-B4`: invalid/non-pass dependency snapshot (`M10.E`/`M10.A`) or malformed burst profile.
+5. `M10F-B5`: baseline or required evidence missing/unreadable.
+6. `M10F-B6`: run-scope mismatch or unresolved publish ambiguity.
+7. `M10F-B7`: lag/checkpoint instability under burst.
+8. `M10F-B8`: runtime budget breach.
+9. `M10F-B9`: managed burst task execution failure.
+
+Required snapshot fields (`m10_f_burst_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m10_execution_id`.
+2. `source_snapshot_refs` (`M10.A`, `M10.E` local + durable refs).
+3. `burst_target` (`ingest_multiplier`, `duration_minutes`, `min_successful_admit_ratio`, `semantic_drift_allowed`).
+4. `baseline_extract` (representative throughput baseline + pre-burst counters).
+5. `burst_execution_window` (task refs, start/end timestamps, output set, managed overrides).
+6. `evidence_refs` (resolved run-scoped object refs for semantic + lag/checkpoint surfaces).
+7. `burst_load_checks` (multiplier/duration/admit-ratio pass-fail matrix).
+8. `semantic_drift_checks` (publish ambiguity, side-effect drift, fail-open absence).
+9. `lag_checkpoint_checks`.
+10. `run_scope_coherence_checks`.
+11. `runtime_budget` (`budget_seconds`, `elapsed_seconds`, `budget_pass`).
+12. `blockers`, `overall_pass`.
 
 ### M10.G Soak run
 Goal:
