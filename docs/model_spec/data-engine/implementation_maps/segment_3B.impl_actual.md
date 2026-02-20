@@ -4767,3 +4767,352 @@ Retention/prune action:
 
 Phase decision:
 - P3 closed with UNLOCK_P4.
+
+### Entry: 2026-02-20 06:24:17 +00:00
+
+Design element: 3B P4 planning pre-lock (B+ recovery lane after P3 close).
+Summary: established the exact post-P3 gap profile and mapped it to currently available S2 tuning surfaces before expanding P4 phases.
+
+Post-P3 baseline facts (authority set):
+1) enforce baseline keep-set:
+   - 42 -> a56ae15a4a014c0dbd7125d048b338d3
+   - 101 -> 27135d9a2d024c6f85b81e485ee3fc6a
+   - 7 -> 293d3cef6a4046bf89ce6ee4d2b48128
+   - 202 -> da5f0b94b888480993e93accbacb569b
+2) current grade is PASS_B with all hard gates passing and stability rails green.
+3) B+ misses are concentrated in S2 stretch gates only:
+   - S01 (CV edges_per_merchant),
+   - S02 (CV countries_per_merchant),
+   - S03 (	op1_share p50 lower bound),
+   - S05 (settlement_overlap_median),
+   - S06 (settlement_overlap_p75).
+
+Knob-surface discovery outcome:
+1) S2 topology/coupling controls are currently code-first constants in s2_edge_catalogue/runner.py:
+   - profile breakpoints,
+   - profile scale multipliers,
+   - coupling coefficients,
+   - settlement boost/floor/cap,
+   - locality decay (xp(-d/3600)),
+   - profile exponent,
+   - edge-scale band clamp (8..52) and scale-factor range ( .52..1.60).
+2) cdn_country_weights.yaml still carries global base priors and edge_scale root, but the effective B+ shaping knobs are in code.
+3) decision: P4 first pass remains code-only tuning on S2 (no policy schema expansion) to keep blast radius bounded and iteration practical.
+
+Planning implications pinned:
+1) keep S1/S3/S4 frozen during P4 unless explicit blocker proves unavoidable.
+2) execute P4 in two statistical lanes:
+   - coherence uplift lane (S05/S06, secondary S03),
+   - spread/divergence lane (S01/S02/S03) with hard-gate veto protections.
+3) retain strict veto gates:
+   - any hard-gate regression (V01..V12) aborts candidate.
+4) keep decision endpoint explicit:
+   - UNLOCK_P5 if B+ achieved or materially improved with no hard regressions,
+   - else HOLD_P4_REOPEN with ranked residual misses.
+
+### Entry: 2026-02-20 06:25:13 +00:00
+
+Design element: 3B P4 build-plan expansion (phase decomposition with DoDs).
+Summary: converted P4 from a high-level block to an execution-grade phased plan aligned to the actual residual fail family and live S2 knob topology.
+
+What was added to build plan:
+1) P4 entry lock with enforced baseline run map and frozen-state boundaries.
+2) explicit residual B+ fail family (S01/S02/S03/S05/S06) captured from enforce baseline artifacts.
+3) phased execution model:
+   - P4.1 fail-family decomposition + knob-authority lock,
+   - P4.2 settlement coherence uplift lane,
+   - P4.3 spread/divergence uplift lane,
+   - P4.4 conditional anti-concentration lane,
+   - P4.5 full-seed B+ closeout decision.
+4) per-phase DoDs with veto posture (hard-gate fail => reject candidate).
+5) runtime budgets aligned with S2-dominant full-chain reality.
+
+Planning decisions encoded:
+1) default posture remains S2-only tuning to control blast radius.
+2) S1 reopen is conditional and only allowed through P4.4 trigger logic.
+3) decision endpoint is explicit and auditable (UNLOCK_P5 vs HOLD_P4_REOPEN).
+
+No engine code/policy changes executed in this step.
+
+### Entry: 2026-02-20 06:26:56 +00:00
+
+Design element: 3B P4.1 closure + P4.2 candidate-A tuning decision.
+Summary: locked fail-family decomposition and selected first coherence-uplift knob wave for S2.
+
+Baseline miss decomposition (from P3 enforce keep-set):
+1) Coherence family:
+   - S05 fixed at  .045 across all seeds (target >=0.07), miss  .025.
+   - S06 in [0.069, 0.075] (target >=0.12), miss  .045..0.051.
+2) Spread family:
+   - S01 in [0.320, 0.366] (target >=0.40).
+   - S02 in [0.288, 0.327] (target >=0.35).
+   - S03 in [0.0375, 0.045] (target lower bound  .05).
+3) safety context:
+   - all hard gates (V01..V12) currently pass with margin,
+   - V07 distance is very safe (~1.8-1.9k km vs <=6k), allowing stronger settlement coupling.
+
+Knob-to-metric mapping locked:
+1) S05/S06 primary knobs:
+   - locality decay denominator,
+   - profile_coupling,
+   - profile_settlement_boost,
+   - profile_settlement_floor/cap.
+2) S01/S02/S03 primary knobs (deferred to P4.3):
+   - profile split and scale multipliers,
+   - scale factor range + edge-scale clamp,
+   - profile exponent spread.
+
+Candidate-A (P4.2 coherence-first) chosen edits:
+1) increase settlement pull and floors/caps while keeping spread knobs unchanged.
+2) specific direction:
+   - stronger coupling across all profiles,
+   - higher settlement boost,
+   - materially higher settlement floor and wider cap,
+   - tighter locality decay (faster falloff with distance).
+3) rationale:
+   - directly attacks S05/S06 largest miss first,
+   - expected positive side-effect on S03 (higher top1 share),
+   - minimal interference with spread-lane knobs reserved for P4.3.
+
+Alternatives considered:
+1) spread-first (S01/S02) before coherence:
+   - rejected because largest ranked misses are coherence and likely dominate B+ closure.
+2) simultaneous coherence+spread broad edit in one pass:
+   - rejected for first pass to preserve attribution clarity and reduce rollback complexity.
+
+Execution lane for candidate-A:
+1) patch S2 constants only.
+2) run witness seeds {42,101} with staged fresh run-ids (S0->S5).
+3) score via:
+   - stretch/hard matrix (score_segment3b_p0_baseline.py on witness set),
+   - hard guard (score_segment3b_p2_summary.py).
+4) go/no-go to P4.3 based on witness movement and hard-gate veto.
+
+### Entry: 2026-02-20 06:59:46 +00:00
+
+Design element: 3B P4.2 candidate-A witness execution + scoring closure.
+Summary: executed full-chain witness runs for candidate-A S2 coherence edits, scored movement, and locked next action for P4.2 shadow confirmation before entering P4.3.
+
+Execution completed:
+1) witness run map (fresh staged roots):
+   - 42 -> 4be35a94cc1545588c1a20901cd04ff4
+   - 101 -> f913775d00a2437b8f8d5b1592249338
+2) rerun law: S0->S5 (S2 code edits require full-chain reseal/rebuild).
+3) wall runtime evidence:
+   - seed 42: 864.76s
+   - seed 101: 830.80s
+   - witness lane total: 1695.56s (~28.3 min), within P4 witness budget (<=45 min).
+
+Scoring evidence:
+1) baseline/stetch scorer:
+   - runs/fix-data-engine/segment_3B/reports/p4_candidate_a_witness_20260220/3B_validation_cross_seed_summary.json
+   - overall_verdict=PASS_B
+2) hard-guard scorer:
+   - runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p4_candidate_a_witness.json
+   - decision=UNLOCK_P3 (no V01..V11 regression on witness seeds).
+3) enforce governance scorer:
+   - runs/fix-data-engine/segment_3B/reports/p4_candidate_a_witness_20260220/segment3b_p3_governance_p4_candidate_a_witness_enforce.json
+   - decision=PASS (V12 enforce rows intact).
+
+Observed movement vs P3 enforce baseline (witness seeds only):
+1) coherence family:
+   - S05: 0.045 -> 0.075 on both seeds (now PASS vs >=0.07).
+   - S06: [0.0717, 0.0750] -> [0.1100, 0.1100] (large uplift; still short of >=0.12 by 0.01).
+2) spread family:
+   - S02 improved modestly on both seeds.
+   - S01 unchanged (still below >=0.40).
+   - S03 mixed/down (still below >=0.05).
+3) hard/stability families remain green.
+
+Decision and alternatives:
+1) accepted: keep candidate-A coherence knobs as new working baseline for P4.3 (largest miss family materially reduced without hard regressions).
+2) rejected: immediate spread edits before shadow check.
+   - reason: P4.2 DoD requires shadow safety confirmation before handoff; skipping would break phase law and reduce attribution clarity.
+
+Next action pinned:
+1) stage shadow run roots for seeds {7,202} from enforced P3 keep-set.
+2) execute full-chain shadow witness on candidate-A.
+3) score shadow hard/governance safety; if green, advance to P4.3 spread/divergence tuning.
+
+### Entry: 2026-02-20 07:30:07 +00:00
+
+Design element: 3B P4.2 shadow closure + P4.3 candidate-B design lock.
+Summary: completed required P4.2 shadow safety lane for candidate-A, confirmed hard/governance stability across all four seeds, and locked spread/divergence-only candidate-B edits for P4.3.
+
+P4.2 shadow closure evidence:
+1) shadow run map (staged from P3 enforce keep-set):
+   - 7 -> 62c48b6c297d4318bf63a036eb2d4fbc
+   - 202 -> 9ecdb16f181a4cf284b5a35a11e9283f
+2) rerun law: S0->S5 (S2 code edits).
+3) wall runtime evidence:
+   - seed 7: 855.17s
+   - seed 202: 863.97s
+   - shadow lane total: 1719.14s (~28.7 min), within lane budget.
+
+Four-seed candidate-A scoring:
+1) baseline/stretch pack:
+   - runs/fix-data-engine/segment_3B/reports/p4_candidate_a_full_20260220/3B_validation_cross_seed_summary.json
+   - overall_verdict=PASS_B.
+2) hard guardrails:
+   - runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p4_candidate_a_full.json
+   - decision=UNLOCK_P3 (all P2/hard guardrails green).
+3) enforce governance:
+   - runs/fix-data-engine/segment_3B/reports/p4_candidate_a_full_20260220/segment3b_p3_governance_p4_candidate_a_full_enforce.json
+   - decision=PASS.
+
+P4.2 DoD status:
+1) movement gate met and exceeded for S05; S06 materially reduced miss.
+2) no hard-gate or governance regressions on witness/shadow.
+3) P4.2 marked closed; handoff to P4.3 approved.
+
+P4.3 candidate-B objective lock:
+1) residual misses to target: S01/S02/S03 and remaining S06 tail.
+2) metric mechanics interpretation:
+   - S03 lower-bound miss is primarily edge-count geometry (top1 share ~ inverse of typical edge multiplicity),
+   - S01/S02 miss requires wider merchant-level edge/country dispersion, not uniform level shift.
+3) chosen knob lane (spread-only; keep candidate-A coherence constants fixed):
+   - widen profile split toward low/high extremes (breakpoint shift),
+   - widen profile/size scale multipliers,
+   - reduce global edge-count level,
+   - widen scale-factor interval and clamp envelope.
+
+Alternatives considered and rejected:
+1) coherence-first additional uplift in P4.3 (boost/floor/cap edits):
+   - rejected for first P4.3 pass to preserve attribution and avoid masking spread-lane causality.
+2) S1 reopen now:
+   - rejected; trigger lane is P4.4-only and currently unsupported by evidence.
+
+Execution next:
+1) apply candidate-B S2 constants.
+2) run witness seeds {42,101} on fresh staged roots.
+3) score against P4.3 witness gates + veto rules before shadow promotion.
+
+### Entry: 2026-02-20 07:58:54 +00:00
+
+Design element: 3B P4.3 candidate-B witness result and residual-tail strategy.
+Summary: candidate-B spread lane delivered strong witness closure on S01/S02/S03 with hard/governance safety intact; remaining stretch blocker is isolated to S06 (=0.11 on both witness seeds).
+
+Candidate-B witness execution evidence:
+1) run map:
+   - 42 -> 13c39802cdd14acd94f7b7c0e1fb60f1
+   - 101 -> 31d4543c6ce14d5092d4af247e043c2d
+2) wall runtime:
+   - seed 42: 804.11s
+   - seed 101: 836.83s
+   - witness lane total: 1640.94s (~27.3 min), under budget.
+3) scorers:
+   - baseline/stretch: runs/fix-data-engine/segment_3B/reports/p4_candidate_b_witness_20260220/3B_validation_cross_seed_summary.json
+   - hard guards: runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p4_candidate_b_witness.json (UNLOCK_P3)
+   - governance enforce: runs/fix-data-engine/segment_3B/reports/p4_candidate_b_witness_20260220/segment3b_p3_governance_p4_candidate_b_witness_enforce.json (PASS)
+
+Observed witness movement vs candidate-A:
+1) S01: pass on both seeds (large uplift).
+2) S02: pass on both seeds (large uplift).
+3) S03: pass on both seeds (moved above 0.05 lower bound).
+4) S05: stayed pass at 0.075.
+5) S06: unchanged at 0.11 (still short of 0.12).
+
+Decision:
+1) keep candidate-B spread constants locked (they solved the spread family cleanly).
+2) open a minimal coherence micro-lane (candidate-C) to close only S06 while preserving B-candidate spread gains.
+
+Candidate-C planned deltas (bounded scope):
+1) adjust only settlement concentration controls:
+   - profile_settlement_boost (small uplift),
+   - profile_settlement_floor/cap (small uplift),
+   - locality decay (small tightening).
+2) leave profile splits/scale clamps unchanged to avoid disturbing S01/S02/S03 gains.
+
+Alternative considered and rejected:
+1) run candidate-B shadow immediately before S06 closure:
+   - rejected for now because residual blocker is deterministic and local; pushing shadow first would add 2 full-chain runs before the known remaining closure attempt.
+
+### Entry: 2026-02-20 08:57:06 +00:00
+
+Design element: 3B P4.5 near-miss triage after candidate-C four-seed attempt.
+Summary: full four-seed candidate-C remained PASS_B with a single residual miss (seed=7, S03 lower bound short by ~0.002236); hard/governance remained green.
+
+Closure evidence snapshot:
+1) full score pack:
+   - runs/fix-data-engine/segment_3B/reports/p4_candidate_c_full_20260220/3B_validation_cross_seed_summary.json
+   - overall_verdict=PASS_B.
+2) seed-level: three seeds PASS_BPLUS (42,101,202), one seed PASS_B (7).
+3) isolated residual:
+   - seed 7: S03 observed=0.047764 vs threshold >=0.050.
+
+Decision:
+1) do not roll back candidate-C; improvement is material and stable.
+2) execute a bounded D-lane micro-adjustment to lift S03 tail with minimal blast radius:
+   - reduce global edge-count multiplier slightly (0.039 -> 0.038),
+   - keep spread/coherence structure unchanged.
+
+Rationale:
+1) S03 miss magnitude is small and tied to edge multiplicity geometry.
+2) tiny multiplicity reduction should raise top1-share medians without threatening hard gates.
+3) preserves all previous successful knobs; limits regression risk.
+
+Execution law for D-lane:
+1) run seed-7 single-seed probe first.
+2) only if seed-7 clears with hard/governance intact, run full four-seed certification rerun.
+
+### Entry: 2026-02-20 09:12:03 +00:00
+
+Design element: 3B P4 candidate-D probe execution and go/no-go adjudication.
+Summary: executed bounded D-lane scalar trim probe on seed 7 and confirmed the isolated S03 tail closed without hard/governance regressions.
+
+What changed for candidate-D:
+1) single bounded S2 adjustment on top of candidate-C:
+   - global edge-count scalar `0.039 -> 0.038`.
+2) all other spread/coherence constants retained to preserve previously-closed gates.
+
+Probe execution evidence:
+1) run map:
+   - 7 -> 3e9daa862af74ccc9527f1603bab86ae
+2) score artifact:
+   - runs/fix-data-engine/segment_3B/reports/p4_candidate_d_seed7_probe_20260220/3B_validation_cross_seed_summary.json
+   - verdict: `PASS_BPLUS` for seed 7.
+3) hard/governance safety on probe:
+   - hard guardrail remained green in downstream summary chain,
+   - enforce governance remained pass-compatible.
+
+Decision logic:
+1) accepted: promote candidate-D to full four-seed certification lane.
+2) rejected: additional pre-certification knob churn.
+   - reason: isolated tail miss was closed by minimal adjustment; further edits would add regression surface without a remaining statistical blocker.
+
+### Entry: 2026-02-20 09:56:12 +00:00
+
+Design element: 3B P4 final certification closure, retention prune, and P5 unlock.
+Summary: completed full four-seed candidate-D certification, obtained PASS_BPLUS across all required seeds, then pruned superseded run-id folders to enforce storage-safe retention posture.
+
+Final authority evidence (candidate-D full):
+1) full cross-seed realism score:
+   - runs/fix-data-engine/segment_3B/reports/p4_candidate_d_full_20260220/3B_validation_cross_seed_summary.json
+   - outcome: `overall_verdict=PASS_BPLUS`.
+2) hard gate authority:
+   - runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p4_candidate_d_full.json
+   - decision: `UNLOCK_P3` (all hard gates retained).
+3) governance authority:
+   - runs/fix-data-engine/segment_3B/reports/p4_candidate_d_full_20260220/segment3b_p3_governance_p4_candidate_d_full_enforce.json
+   - decision: `PASS`.
+
+Final retained run-map:
+1) 42 -> 3e700b15d84043a6a919e50cad286030
+2) 7 -> 3e9daa862af74ccc9527f1603bab86ae
+3) 101 -> b77b42bacef14937a173c013879a0732
+4) 202 -> b81f93f7c696416d99708c17d4b4e730
+
+Retention/prune decision:
+1) retained only:
+   - final certification keep-set above,
+   - one optimization baseline anchor `724a63d3f8b242809b8ec3b746d0c776`.
+2) pruned:
+   - all other superseded `runs/fix-data-engine/segment_3B/<run_id>` folders.
+3) rationale:
+   - preserve reproducibility for final authority and baseline timing anchor,
+   - prevent avoidable local storage growth from superseded candidates.
+
+Phase close decision:
+1) P4 status: CLOSED.
+2) decision pointer: `UNLOCK_P5`.
+3) freeze posture entering P5: lock candidate-D S2 constants as authority unless explicit reopen decision is recorded.

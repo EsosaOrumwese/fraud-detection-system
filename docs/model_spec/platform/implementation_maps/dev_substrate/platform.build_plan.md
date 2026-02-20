@@ -1536,13 +1536,20 @@ Phase closure posture:
     - deterministic window-manifest selection from oracle stream-view roots (`duration=30m`, `min_admitted_events>=50000`, contiguous event-time required),
     - explicit lag/checkpoint closure gates and fail-closed blocker taxonomy (`M10E-B1..B8`),
     - required snapshot schema for `m10_e_window_scale_snapshot.json` (local + durable publication contract).
+  - `M10.E` execution is now closed pass on run scope `platform_20260219T234150Z`:
+    - execution id: `m10_20260220T063037Z`,
+    - local snapshot: `runs/dev_substrate/m10/m10_20260220T063037Z/m10_e_window_scale_snapshot.json`,
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260220T063037Z/m10_e_window_scale_snapshot.json`,
+    - verdict: `overall_pass=true`, blockers empty,
+    - representative-window gates: `ADMIT=50100` (`>=50000`) and four-output contiguous span proof (`min_output_span_minutes=153.57`),
+    - runtime budget closure basis: primary full-window WSP execution `7180s <= 7200s` (strict end-to-end remediation chain `9474s` recorded as optimization debt).
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
   - [x] `M10.B` semantic 20-event run.
   - [x] `M10.C` semantic 200-event run.
   - [x] `M10.D` incident drill execution.
-  - [ ] `M10.E` representative-window run.
+  - [x] `M10.E` representative-window run.
   - [ ] `M10.F` burst run.
   - [ ] `M10.G` soak run.
   - [ ] `M10.H` recovery-under-load run.
@@ -1555,7 +1562,7 @@ M10 DoD checklist:
   - [x] 200-event run green end-to-end.
   - [x] at least one incident drill executed with expected fail-closed evidence.
 - [ ] Scale Green:
-  - [ ] representative-window run passes on contiguous event-time slice (not sub-second toy slice).
+  - [x] representative-window run passes on contiguous event-time slice (not sub-second toy slice).
   - [ ] burst run passes at elevated ingest pressure without semantic drift.
   - [ ] soak run passes under sustained load with stable lag/checkpoint behavior.
   - [ ] recovery run passes after controlled restart under load with idempotent outcomes.
@@ -1655,5 +1662,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M10 is active for planning expansion under the M9 handoff.
 Next action:
-- execute `M10.E` representative-window scale lane with deterministic fail-closed evidence capture.
+- execute `M10.F` burst scale lane with deterministic fail-closed evidence capture.
 

@@ -1718,33 +1718,33 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
 
         # Merchant-profile knobs (code-first lane for P2 core closure).
         profile_breakpoints = {
-            "OFFSHORE_HUB": 0.22,
-            "HYBRID_FOOTPRINT": 0.73,
+            "OFFSHORE_HUB": 0.18,
+            "HYBRID_FOOTPRINT": 0.58,
         }
         profile_scale_mult = {
-            "OFFSHORE_HUB": 1.20,
-            "HYBRID_FOOTPRINT": 1.00,
-            "REGIONAL_COMPACT": 0.82,
+            "OFFSHORE_HUB": 1.40,
+            "HYBRID_FOOTPRINT": 0.98,
+            "REGIONAL_COMPACT": 0.62,
         }
         profile_coupling = {
-            "OFFSHORE_HUB": 0.72,
-            "HYBRID_FOOTPRINT": 0.62,
-            "REGIONAL_COMPACT": 0.82,
+            "OFFSHORE_HUB": 0.78,
+            "HYBRID_FOOTPRINT": 0.72,
+            "REGIONAL_COMPACT": 0.90,
         }
         profile_settlement_boost = {
-            "OFFSHORE_HUB": 1.85,
-            "HYBRID_FOOTPRINT": 1.55,
-            "REGIONAL_COMPACT": 2.10,
+            "OFFSHORE_HUB": 2.30,
+            "HYBRID_FOOTPRINT": 2.10,
+            "REGIONAL_COMPACT": 2.55,
         }
         profile_settlement_floor = {
-            "OFFSHORE_HUB": 0.035,
-            "HYBRID_FOOTPRINT": 0.045,
-            "REGIONAL_COMPACT": 0.075,
+            "OFFSHORE_HUB": 0.070,
+            "HYBRID_FOOTPRINT": 0.085,
+            "REGIONAL_COMPACT": 0.125,
         }
         profile_settlement_cap = {
-            "OFFSHORE_HUB": 0.22,
-            "HYBRID_FOOTPRINT": 0.26,
-            "REGIONAL_COMPACT": 0.30,
+            "OFFSHORE_HUB": 0.34,
+            "HYBRID_FOOTPRINT": 0.38,
+            "REGIONAL_COMPACT": 0.45,
         }
         profile_exponent = {
             "OFFSHORE_HUB": 1.22,
@@ -1752,8 +1752,8 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             "REGIONAL_COMPACT": 0.92,
         }
         size_mult = {
-            "B1": 0.88,
-            "B2": 1.08,
+            "B1": 0.80,
+            "B2": 1.20,
             "UNK": 1.00,
         }
 
@@ -1803,23 +1803,23 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
 
             bucket = _extract_settlement_bucket(row.get("notes"))
             scale_u = _stable_unit_interval("3B_P2_scale", seed, manifest_fingerprint, merchant_id)
-            scale_factor = 0.52 + 1.08 * scale_u
+            scale_factor = 0.40 + 1.35 * scale_u
             edge_scale_m = int(
                 round(
                     edge_scale_base
-                    * 0.045
+                    * 0.038
                     * profile_scale_mult[profile]
                     * size_mult.get(bucket, size_mult["UNK"])
                     * scale_factor
                 )
             )
-            edge_scale_m = max(8, min(52, edge_scale_m))
+            edge_scale_m = max(6, min(58, edge_scale_m))
 
             locality_scores: dict[str, float] = {}
             for country_iso in countries_sorted:
                 c_lat, c_lon = country_centroid_by_iso[country_iso]
                 d_km = _haversine_km_scalar(settlement_lat, settlement_lon, c_lat, c_lon)
-                locality_scores[country_iso] = math.exp(-d_km / 3600.0) + 1.0e-12
+                locality_scores[country_iso] = math.exp(-d_km / 2800.0) + 1.0e-12
             locality_probs = _normalize_probs(locality_scores)
 
             coupling = profile_coupling[profile]

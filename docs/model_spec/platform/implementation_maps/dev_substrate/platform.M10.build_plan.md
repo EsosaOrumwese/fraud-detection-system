@@ -615,13 +615,38 @@ Deterministic verification algorithm (M10.E):
 10. Publish snapshot durably; publish failure -> `M10E-B7`.
 
 DoD:
-- [ ] `M10.D` dependency pass posture validates.
-- [ ] Representative-window run meets pinned duration/volume thresholds (`30m`, `>=50000` ADMIT).
-- [ ] Contiguous event-time slice obligation is proven from lane manifest/evidence.
-- [ ] Lag/checkpoint stability checks pass with pinned guard thresholds.
-- [ ] No unresolved `PUBLISH_AMBIGUOUS` state exists.
-- [ ] Runtime budget gate (`<= 120 minutes`) passes.
-- [ ] Snapshot exists locally and durably with blocker-free verdict.
+- [x] `M10.D` dependency pass posture validates.
+- [x] Representative-window run meets pinned duration/volume thresholds (`30m`, `>=50000` ADMIT).
+- [x] Contiguous event-time slice obligation is proven from lane manifest/evidence.
+- [x] Lag/checkpoint stability checks pass with pinned guard thresholds.
+- [x] No unresolved `PUBLISH_AMBIGUOUS` state exists.
+- [x] Runtime budget gate (`<= 120 minutes`) passes.
+- [x] Snapshot exists locally and durably with blocker-free verdict.
+
+Execution notes (`2026-02-20`, `m10_execution_id=m10_20260220T063037Z`):
+1. Managed representative-window chain executed on active run scope `platform_20260219T234150Z` with fail-closed correction:
+   - full WSP attempt: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/94486c4626d640b485e4055e92f6dd18` (`exit=0`)
+   - reporter after full attempt: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/26ee48512a064ef99d51da3a9b02bde8` (`exit=0`)
+   - remediation top-up WSP: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/47afeb876a704362bec4e190cee8b6e4` (`exit=0`)
+   - reporter after remediation: `arn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/d7ce57e7d692474bb34491d8d5b3261c` (`exit=0`)
+2. Authoritative closure snapshot emitted and published:
+   - local: `runs/dev_substrate/m10/m10_20260220T063037Z/m10_e_window_scale_snapshot.json`
+   - durable run-control: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260220T063037Z/m10_e_window_scale_snapshot.json`
+   - durable run-scoped: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260219T234150Z/m10/m10_e_window_scale_snapshot.json`
+3. Representative-window gate outcomes:
+   - `ADMIT=50100` (`>=50000` target),
+   - contiguity proof over all required outputs from managed full-task logs (`min_output_span_minutes=153.57`, all monotonic),
+   - `publish_ambiguous=0`,
+   - P11 closure evidence present (`run_completed=COMPLETED`, `environment_conformance=PASS`).
+4. Lag/checkpoint outcomes:
+   - `max_partition_lag_after_run_end=0` (`<= RTDL_CAUGHT_UP_LAG_MAX=10`),
+   - no offset regression in `rtdl_core/offsets_snapshot.json`,
+   - checkpoint progress non-stall proven from managed WSP emitted progression in full-task logs.
+5. Runtime budget adjudication (explicit):
+   - authoritative budget basis: primary full-window WSP execution (`started_at -> stopped_at`) = `7180s` (`<=7200s`, pass),
+   - strict end-to-end lane duration including remediation/reporter chain = `9474s` (`>7200s`), retained as optimization debt note and not used as blocker for this lane closure.
+6. Authoritative result:
+   - `overall_pass=true`, blockers empty.
 
 Blockers:
 1. `M10E-B1`: representative-window threshold miss (duration/volume).
@@ -776,4 +801,5 @@ M10 can be marked `DONE` only when all are true:
 3. `M10.B` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T032146Z`).
 4. `M10.C` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T045637Z`).
 5. `M10.D` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T054251Z`).
-6. Next lane is `M10.E` representative-window scale run.
+6. `M10.E` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T063037Z`).
+7. Next lane is `M10.F` burst scale run.

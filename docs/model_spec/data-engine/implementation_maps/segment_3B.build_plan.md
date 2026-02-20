@@ -1,5 +1,5 @@
 # Segment 3B Remediation Build Plan (B/B+ Execution Plan)
-_As of 2026-02-19_
+_As of 2026-02-20_
 
 ## 0) Objective and closure rule
 - Objective: remediate Segment `3B` to certified realism `B` minimum, with `B+` as the active target where feasible.
@@ -1640,9 +1640,165 @@ Scope:
 - keep hard-gate posture stable while pushing stretch bands.
 
 Definition of done:
-- [ ] concentration metrics move toward stretch corridors.
-- [ ] no hard-gate regressions introduced by calibration.
-- [ ] B+ stretch pass matrix is explicit per seed.
+- [x] concentration metrics move toward stretch corridors.
+- [x] no hard-gate regressions introduced by calibration.
+- [x] B+ stretch pass matrix is explicit per seed.
+
+P4 entry lock (post-P3 enforce baseline):
+- enforced governance baseline run map:
+  - `42 -> a56ae15a4a014c0dbd7125d048b338d3`
+  - `101 -> 27135d9a2d024c6f85b81e485ee3fc6a`
+  - `7 -> 293d3cef6a4046bf89ce6ee4d2b48128`
+  - `202 -> da5f0b94b888480993e93accbacb569b`
+- frozen by default in P4:
+  - `S1` classification logic/policies,
+  - `S3` alias mechanics,
+  - `S4` governance contract model.
+- primary P4 tuning surface:
+  - `S2` topology/coupling parameters in
+    `packages/engine/src/engine/layers/l1/seg_3B/s2_edge_catalogue/runner.py`.
+
+Residual B+ miss family at P4 entry (from enforce closure summary):
+- `3B-S01` (`CV(edges_per_merchant) >= 0.40`) fail on all seeds.
+- `3B-S02` (`CV(countries_per_merchant) >= 0.35`) fail on all seeds.
+- `3B-S03` (`top1_share_p50 in [0.05, 0.30]`) fail on all seeds (lower bound miss).
+- `3B-S05` (`settlement_overlap_median >= 0.07`) fail on all seeds.
+- `3B-S06` (`settlement_overlap_p75 >= 0.12`) fail on all seeds.
+- all hard gates (`V01..V12`) and stability gates currently pass.
+
+P4 phase law (execution ordering):
+- `P4.1` must pin fail-family ranking + knob authority before any tuning run.
+- `P4.2` must attempt settlement-coherence uplift first (`S05/S06`) with hard-gate veto.
+- `P4.3` then targets spread/divergence (`S01/S02/S03`) while preserving `P4.2` gains.
+- `P4.4` is conditional anti-concentration lane only if trigger metrics breach.
+- `P4.5` emits explicit phase decision: `UNLOCK_P5` or `HOLD_P4_REOPEN`.
+
+#### P4.1 - Fail-family decomposition and knob-authority lock
+Goal:
+- turn the P4 residuals into an executable tuning map tied to actual S2 knobs.
+
+Scope:
+- pin per-gate miss magnitude/rank from enforce baseline artifacts.
+- map each miss family to concrete S2 controls:
+  - settlement coherence controls:
+    - locality decay constant (`exp(-d/tau)` law),
+    - `profile_coupling`,
+    - `profile_settlement_boost`,
+    - `profile_settlement_floor/cap`.
+  - spread/divergence controls:
+    - `profile_breakpoints`,
+    - `profile_scale_mult`,
+    - `size_mult`,
+    - profile exponent,
+    - edge-scale banding (`scale_factor` range + clamp bounds).
+- pin bounded tuning order and veto gates before first candidate run.
+
+Definition of done:
+- [x] ranked miss table is pinned in implementation notes from enforce baseline.
+- [x] every target miss family has at least one explicit S2 knob lane.
+- [x] veto law is pinned (`any hard-gate fail => candidate rejected`).
+
+#### P4.2 - Settlement coherence uplift lane (`S05/S06` first)
+Goal:
+- raise settlement overlap surfaces toward B+ corridors without breaking current hard gates.
+
+Scope:
+- tune only settlement-coherence knobs in S2 first:
+  - coupling strength and locality decay,
+  - settlement-country boost and floor/cap envelopes.
+- hold edge-scale and profile-spread knobs stable in this lane.
+- execute witness-first (`42,101`), then shadow (`7,202`) only after witness movement gate.
+
+Definition of done:
+- [x] witness movement gate reached:
+  - `S05 >= 0.055` and `S06 >= 0.090`, or equivalent miss reduction vs P4 entry.
+- [x] no hard-gate regressions on witness seeds.
+- [x] shadow confirms no `V` re-fail before handing off to `P4.3`.
+
+#### P4.3 - Spread/divergence lane (`S01/S02/S03`)
+Goal:
+- push merchant heterogeneity and top1-share spread into B+ corridor while preserving coherence gains.
+
+Scope:
+- tune spread knobs in S2:
+  - profile split proportions,
+  - edge-scale multipliers and clamping envelope,
+  - profile exponent shaping.
+- preserve successful coherence parameters from `P4.2` unless veto-triggered rollback is required.
+- run witness then shadow with the same veto posture.
+
+Definition of done:
+- [x] witness gate movement on spread family:
+  - `S01 >= 0.37`,
+  - `S02 >= 0.33`,
+  - `S03 >= 0.045` (lower-bound recovery) with upper-bound still in range.
+- [x] no `S05/S06` backslide below `P4.2` achieved floor.
+- [x] no hard-gate regressions on witness/shadow seeds.
+
+#### P4.4 - Conditional anti-concentration lane (`CF-3B-05`)
+Goal:
+- apply anti-concentration guardrails only if concentration trigger metrics remain outside B+ corridor.
+
+Scope:
+- trigger conditions (enter lane only if true after `P4.3`):
+  - `3B-S10` fails, or
+  - settlement concentration diagnostics worsen materially vs P4 entry.
+- preferred implementation posture:
+  - first try bounded S2-side concentration controls;
+  - reopen S1 settlement-anchor policy only if S2-only lane cannot satisfy trigger objective.
+- any S1 reopen requires explicit recorded decision and rerun-law update.
+
+Definition of done:
+- [x] trigger evaluation recorded (`ENTERED` or `SKIPPED`) with evidence.
+- [x] if entered, concentration metric moves toward corridor without hard-gate loss.
+- [x] blast radius and reopen decisions are explicitly logged.
+
+#### P4.5 - Full-seed B+ attempt and close decision
+Goal:
+- run full certification-grade attempt for B+ and make an explicit pass/hold decision.
+
+Scope:
+- execute full seed pack `{42,7,101,202}` on best P4 candidate.
+- score with:
+  - stretch/hard/stability matrix,
+  - governance enforce check (`V12`) still active.
+- emit retained keep-set + prune superseded candidate folders.
+
+Definition of done:
+- [x] full-seed score artifact emitted with explicit stretch matrix.
+- [x] phase decision recorded:
+  - `UNLOCK_P5` if B+ pass (or accepted best-effort with no hard regressions),
+  - `HOLD_P4_REOPEN` with ranked residuals otherwise.
+- [x] run retention/prune completed and documented.
+
+P4 runtime budgets (binding):
+- single-seed candidate lane (`S0->S5` due S2 changes): `<= 22 min`.
+- witness lane (`2 seeds`): `<= 45 min`.
+- shadow lane (`2 seeds`): `<= 45 min`.
+- full four-seed closure lane: `<= 90 min`.
+- any runtime regression without metric movement blocks additional knob churn until bottleneck note is recorded.
+
+P4 closure record (2026-02-20):
+- final retained candidate lane: `candidate-D` (bounded scalar trim on top of B/C lanes).
+- seed-7 probe authority:
+  - `runs/fix-data-engine/segment_3B/reports/p4_candidate_d_seed7_probe_20260220/3B_validation_cross_seed_summary.json`
+  - outcome: `PASS_BPLUS` on seed `7`.
+- full four-seed certification authority:
+  - `runs/fix-data-engine/segment_3B/reports/p4_candidate_d_full_20260220/3B_validation_cross_seed_summary.json`
+  - outcome: `overall_verdict=PASS_BPLUS`, all required seeds `PASS_BPLUS`.
+- hard-guardrail authority:
+  - `runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p4_candidate_d_full.json`
+  - decision: `UNLOCK_P3` (all hard gates preserved).
+- governance authority:
+  - `runs/fix-data-engine/segment_3B/reports/p4_candidate_d_full_20260220/segment3b_p3_governance_p4_candidate_d_full_enforce.json`
+  - decision: `PASS` (enforce checks intact).
+- retained run-id keep-set after prune:
+  - `42 -> 3e700b15d84043a6a919e50cad286030`
+  - `7 -> 3e9daa862af74ccc9527f1603bab86ae`
+  - `101 -> b77b42bacef14937a173c013879a0732`
+  - `202 -> b81f93f7c696416d99708c17d4b4e730`
+  - baseline anchor: `724a63d3f8b242809b8ec3b746d0c776`
+- close decision: `UNLOCK_P5`.
 
 ### P5 - Integrated certification and freeze
 Goal:
@@ -1680,5 +1836,5 @@ Definition of done:
 - `P1`: completed (`EXECUTED_UNLOCK_P2`)
 - `P2`: completed (`EXECUTED_UNLOCK_P3`)
 - `P3`: completed (`EXECUTED_UNLOCK_P4`)
-- `P4`: pending
+- `P4`: completed (`EXECUTED_PASS_BPLUS_UNLOCK_P5`)
 - `P5`: pending
