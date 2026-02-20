@@ -4383,3 +4383,83 @@ Why this correction is preferred:
 1) preserves the P2 realism algorithm while restoring bounded memory behavior.
 2) keeps determinism and schema/path contracts intact.
 3) aligns with performance-first law: algorithmic/data-structure correction before retrying long runs.
+
+### Entry: 2026-02-19 23:36
+
+Design element: `3B P2.2 retry failure on TZ resolution and deterministic fallback hardening`.
+Summary: after the memory-safe tile-surface redesign, S2 progressed into edge placement but failed on `E3B_S2_TZ_RESOLUTION_FAILED` for valid generated points where polygon/nudge matching produced no unique tz candidate.
+
+Observed failure:
+1) run-id: `11ed2ae6204946c6a1501f7ba4b0e008` (seed `42`).
+2) failure signature:
+   - `V-11` fail at `tz_resolution_failed`,
+   - sample context: `country_iso=MN`, point near valid in-country coordinates.
+
+Cause analysis:
+1) the new topology materially changed country assignment spread and generated points in countries where tz polygon matching can be ambiguous or sparse.
+2) current resolver allows only:
+   - exact polygon unique candidate,
+   - nudge unique candidate,
+   - explicit country override policy.
+3) countries without explicit overrides can still fail despite deterministic and valid in-country points.
+
+Hardening decision:
+1) add deterministic country-level fallback tz map derived from sealed `tz_world` geometry:
+   - for each `country_iso`, choose the most frequent tzid among that country's tz polygons,
+   - lexical tie-break for deterministic stability.
+2) resolver order becomes:
+   - polygon unique -> nudge unique -> explicit override -> deterministic country-default fallback.
+3) keep fail-closed posture:
+   - if no deterministic country default exists, retain hard abort.
+
+Why this is acceptable:
+1) it preserves deterministic behavior and avoids introducing random fallback behavior.
+2) it is still rooted in sealed tz assets, not ad-hoc constants.
+3) it closes a practical robustness gap surfaced only after P2 topology movement.
+
+### Entry: 2026-02-19 23:53
+
+Design element: `3B P2.5/P2.6 execution lock (witness+shadow rerun lane with bounded run retention)`.
+Summary: pinned the exact run-id strategy for finishing P2 so we close witness/shadow checks without proliferating run folders and without reopening frozen P1 surfaces.
+
+Execution strategy locked:
+1) use code-only rerun law (`S2->S5`) because current lane changes only S2 implementation bytes.
+2) keep S1 frozen and reuse existing run roots that already carry valid S1 lineage:
+   - witness seed `42`: `11ed2ae6204946c6a1501f7ba4b0e008` (already S2->S5 green after latest patches),
+   - witness seed `101`: rerun S2->S5 on `595a30d1278a4af39ea0fd1a78451571`,
+   - shadow seed `7`: rerun S2->S5 on `3686a5ebc2ee42f4a84edea17f80376d`,
+   - shadow seed `202`: rerun S2->S5 on `c90f94802ae94ff6a932c84e1520a112`.
+3) avoid creating fresh staged run folders for this closure pass to keep storage bounded and reduce prune pressure.
+
+Why this is the chosen lane:
+1) preserves P1 freeze (no S1 recompute drift),
+2) minimizes disk churn while still executing full changed-state evidence,
+3) keeps witness/shadow seedpack aligned with P2 plan DoDs and scorer contract.
+
+### Entry: 2026-02-20 00:56
+
+Design element: `3B P2.4 calibration reopen after first witness+shadow score`.
+Summary: first full P2 witness/shadow score closed `V01..V04` and `V07` across all seeds but failed only settlement-overlap gates `V05/V06`, so calibration is narrowed to settlement-country share shaping without touching already-healthy topology surfaces.
+
+Observed post-execution score pattern:
+1) hard-pass on all seeds:
+   - `3B-V01`, `3B-V02`, `3B-V03`, `3B-V04`, `3B-V07`, `3B-V11`.
+2) hard-fail on all seeds:
+   - `3B-V05` (median overlap ~`0.023` vs `>=0.03`),
+   - `3B-V06` (p75 overlap ~`0.03` vs `>=0.06`).
+3) interpretation:
+   - topology heterogeneity and distance realism are now in-band,
+   - settlement influence exists but is underpowered in the allocation mass, consistently across seeds.
+
+Calibration decision:
+1) do not change edge cardinality/topology knobs (protect `V01..V04` closure).
+2) add bounded settlement-country share shaping after probability normalization:
+   - profile-specific settlement share floor (raise under-coupled merchants),
+   - profile-specific settlement share cap (prevent mono-country collapse),
+   - deterministic renormalization of non-settlement countries.
+3) keep this as S2 code-only calibration lane and revalidate via witness-first run before re-scoring all seeds.
+
+Why this is the preferred next move:
+1) isolates the only failing gate family,
+2) minimizes blast radius against already-green metrics,
+3) keeps calibration causal and mathematically explicit.

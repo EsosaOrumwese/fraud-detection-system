@@ -16587,3 +16587,27 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 2. Rebuild/publish immutable image via authoritative CI lane (`dev-min-m1-packaging`).
 3. Re-apply demo stack to new digest, wait for daemon health convergence, then rerun M10.B (`SR -> WSP(20) -> reporter -> semantic snapshot`).
 4. Keep M10.B fail-closed until full semantic evidence exists with blocker-free verdict.
+
+## Entry: 2026-02-20 10:24:00 +00:00 - M10.B rollout plan after packaging fix (credential-safe apply posture)
+### New immutable artifact
+1. CI packaging run (`dev-min-m1-packaging`, run `22207368985`) completed successfully on head `7e7a77dd...`.
+2. Published digest resolved from ECR:
+   - `sha256:ac6e7c42f230f6354c74db7746e0d28d23e10f43e44a3788992aa6ceca3dcd46`.
+
+### Rollout risk considered
+1. Demo Terraform apply rewrites Confluent SSM material by default.
+2. Using `remote_state` values risks regressing to stale runtime credentials and reopening Kafka auth drift.
+
+### Chosen apply posture
+1. Apply demo with explicit immutable image digest and run-scope pins.
+2. Set Confluent vars from *current decrypted SSM values* (`bootstrap/api key/api secret`) during apply, so rollout does not overwrite good credentials with stale state.
+3. Preserve current run scope (`platform_20260219T234150Z`) and demo log namespace while replacing runtime image.
+
+### Post-apply closure sequence
+1. Wait for daemon convergence (`running=1` on all in-scope services).
+2. Execute managed one-shot SR READY emit (task override on placeholder SR TD).
+3. Execute managed one-shot WSP with:
+   - `IG_INGEST_URL=http://<live_ig_private_ip>:8080`,
+   - `WSP_MAX_EVENTS_PER_OUTPUT=20`,
+   - run-scope pinned.
+4. Execute managed reporter one-shot and then evaluate M10.B semantic evidence.

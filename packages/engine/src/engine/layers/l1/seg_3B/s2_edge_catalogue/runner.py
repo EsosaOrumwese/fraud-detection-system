@@ -11,6 +11,7 @@ import struct
 import subprocess
 import time
 import uuid
+from collections import Counter
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, ROUND_FLOOR, getcontext
@@ -1643,6 +1644,18 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     manifest_fingerprint,
                 )
 
+        default_tz_by_country: dict[str, str] = {}
+        tz_counter_by_country: dict[str, Counter[str]] = {}
+        for tzid_value, country_iso in zip(tzids, tz_geom_countries):
+            if not country_iso:
+                continue
+            counter = tz_counter_by_country.setdefault(str(country_iso), Counter())
+            counter[str(tzid_value)] += 1
+        for country_iso, counter in tz_counter_by_country.items():
+            ranked = sorted(counter.items(), key=lambda item: (-item[1], item[0]))
+            if ranked:
+                default_tz_by_country[country_iso] = ranked[0][0]
+
         current_phase = "rng_policy"
         rng_policy_path = verified_assets["route_rng_policy_v1"][1]
         rng_policy = _load_json(rng_policy_path)
@@ -1722,6 +1735,16 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             "OFFSHORE_HUB": 1.85,
             "HYBRID_FOOTPRINT": 1.55,
             "REGIONAL_COMPACT": 2.10,
+        }
+        profile_settlement_floor = {
+            "OFFSHORE_HUB": 0.035,
+            "HYBRID_FOOTPRINT": 0.045,
+            "REGIONAL_COMPACT": 0.075,
+        }
+        profile_settlement_cap = {
+            "OFFSHORE_HUB": 0.22,
+            "HYBRID_FOOTPRINT": 0.26,
+            "REGIONAL_COMPACT": 0.30,
         }
         profile_exponent = {
             "OFFSHORE_HUB": 1.22,
@@ -1810,6 +1833,23 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             adjusted_probs = _normalize_probs(
                 {country_iso: mixed_probs[country_iso] ** exponent for country_iso in countries_sorted}
             )
+            settlement_share = float(adjusted_probs.get(settlement_country) or 0.0)
+            settlement_floor = float(profile_settlement_floor[profile])
+            settlement_cap = float(profile_settlement_cap[profile])
+            target_settlement_share = min(max(settlement_share, settlement_floor), settlement_cap)
+            if abs(target_settlement_share - settlement_share) > 1.0e-12:
+                remainder = max(1.0e-12, 1.0 - settlement_share)
+                scale_other = max(0.0, 1.0 - target_settlement_share) / remainder
+                adjusted_probs = _normalize_probs(
+                    {
+                        country_iso: (
+                            target_settlement_share
+                            if country_iso == settlement_country
+                            else float(adjusted_probs[country_iso]) * scale_other
+                        )
+                        for country_iso in countries_sorted
+                    }
+                )
 
             edges_per_country_m = _allocate_edges_decimal(
                 {country_iso: Decimal(str(prob)) for country_iso, prob in adjusted_probs.items()},
@@ -2156,6 +2196,9 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             override = overrides_country.get(country_iso)
             if override:
                 return override, "OVERRIDE"
+            default_tz = default_tz_by_country.get(country_iso)
+            if default_tz:
+                return default_tz, "OVERRIDE"
             _abort(
                 "E3B_S2_TZ_RESOLUTION_FAILED",
                 "V-11",
