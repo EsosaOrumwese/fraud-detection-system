@@ -16549,3 +16549,41 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ### Next runtime action
 1. Build and publish a new immutable image containing the adapter patch.
 2. Roll managed services/tasks to that digest and rerun M10.B semantic lane.
+
+## Entry: 2026-02-20 09:56:00 +00:00 - Documentation visibility checkpoint before continuing M10.B
+### Reason for this entry
+1. USER reported that in-flight reasoning/decision documentation was not visible enough during execution.
+2. This checkpoint is added before further execution to keep the trail explicit and auditable.
+
+### What is now explicitly confirmed
+1. Live M10.B decision trail is being captured in both:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+   - `docs/logbook/02-2026/2026-02-20.md`
+2. Existing M10.B entries already capture:
+   - endpoint/auth failure progression,
+   - Confluent credential rotation and verification,
+   - Kafka client compatibility diagnosis,
+   - adapter remediation choice and patch scope.
+
+### Execution discipline for next steps
+1. Before each substantial M10.B action, append a short decision note in the implementation map.
+2. After each action, append runtime outcome and blocker delta in the logbook.
+3. Keep fail-closed status until semantic evidence surfaces are complete and blocker-free.
+
+## Entry: 2026-02-20 10:11:00 +00:00 - M10.B live blocker: image packaging drift after Kafka adapter migration
+### Runtime evidence gathered
+1. Core daemon services required for semantic closure were unstable (`running=0` for IG/archive-writer/DF/AL/case-trigger at observation time).
+2. CloudWatch logs for latest container attempts across failing services showed the same hard import failure:
+   - `ModuleNotFoundError: No module named 'confluent_kafka'`.
+3. Task definitions were already on the intended new image digest (`sha256:990b...`), so this was not stale rollout; it was image contents.
+
+### Root-cause analysis
+1. `Dockerfile` uses a curated dependency selector (not full `pip install .`) driven by a hardcoded `selected` set.
+2. After adapter migration to `confluent-kafka`, `pyproject.toml` was updated, but `Dockerfile` `selected` list did not include `confluent-kafka`.
+3. Result: image built/pushed successfully but omitted required runtime wheel, causing managed services to crash-loop.
+
+### Decision
+1. Patch `Dockerfile` dependency selector to include `confluent-kafka`.
+2. Rebuild/publish immutable image via authoritative CI lane (`dev-min-m1-packaging`).
+3. Re-apply demo stack to new digest, wait for daemon health convergence, then rerun M10.B (`SR -> WSP(20) -> reporter -> semantic snapshot`).
+4. Keep M10.B fail-closed until full semantic evidence exists with blocker-free verdict.

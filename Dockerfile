@@ -49,6 +49,7 @@ selected = {
     "werkzeug",
     "referencing",
     "kafka-python",
+    "confluent-kafka",
     "orjson",
 }
 
