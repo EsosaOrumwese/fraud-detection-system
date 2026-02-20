@@ -52,6 +52,7 @@ dependencies = [
     "psycopg[binary] (>=3.2.3,<4.0.0)",
     "duckdb (>=1.0.0,<2.0.0)",
     "kafka-python (>=2.2.15,<3.0.0)",
+    "confluent-kafka (>=2.13.0,<3.0.0)",
 ]
 
 [project.scripts]

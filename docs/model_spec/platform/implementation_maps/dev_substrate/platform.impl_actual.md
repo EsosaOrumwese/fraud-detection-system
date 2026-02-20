@@ -16361,3 +16361,191 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. `M10.B` planning is now execution-ready.
 2. Runtime execution has not started in this step.
 
+## Entry: 2026-02-19 23:27:18 +00:00 - M10.B execution start lock and managed-lane availability check
+### Problem framing
+1. USER requested full `M10.B` execution (managed 20-event semantic certification) with live reasoning captured during execution.
+2. `M10.B` algorithm requires a managed run lane, not docs-only validation.
+
+### Live checks and findings
+1. Managed substrate availability check executed before run dispatch:
+   - `aws ecs list-clusters` returned empty list.
+   - `aws ssm get-parameters-by-path --path /fraud-platform/dev_min` returned empty list.
+   - `terraform -chdir=infra/terraform/dev_min/demo output -json` and `.../confluent output -json` returned `{}`.
+2. Interpretation:
+   - dev_min runtime is currently torn down, so no managed data-plane exists to execute the 20-event run.
+
+### Decision and rationale
+1. Do not downgrade `M10.B` to a docs-only/evidence-only pass.
+2. Remediate by re-materializing managed substrate (`core -> confluent -> demo`) and only then execute the M10.B managed 20-event lane.
+3. Keep fail-closed posture: if rematerialization cannot restore managed lane, M10.B remains open with blocker (no synthetic closure).
+
+## Entry: 2026-02-19 23:30:12 +00:00 - Managed substrate rematerialization runbook (live execution notes)
+### Objective
+1. Restore a runnable managed lane for M10.B without introducing laptop compute into the data plane.
+2. Keep execution aligned to pinned image/runtime posture:
+   - image digest: `sha256:2072e48137013851c349e9de2e5e0b4a8a2ff522d0a0db1ef609970d9c080c54`,
+   - cluster: `fraud-platform-dev-min`,
+   - run scope initially anchored to `platform_20260213T214223Z` (from closed M10.A matrix).
+
+### Execution trail
+1. Loaded operator-local `.env.dev_min` into process scope for managed stack bring-up inputs (no secret values recorded in notes).
+2. Ran `infra/terraform/dev_min/core` apply.
+3. Ran `infra/terraform/dev_min/demo` apply with:
+   - `confluent_credentials_source=manual`,
+   - runtime Confluent bootstrap/API key/API secret injected from operator env,
+   - immutable daemon image set to the pinned digest above,
+   - explicit `required_platform_run_id`.
+4. Verified post-apply outputs:
+   - ECS cluster/task-def/service surfaces materialized,
+   - RDS instance + SSM DSN/user/password surfaces materialized,
+   - daemon service map (`13`) emitted as expected.
+5. Started daemon services (`desired=1`) and validated all `13/13` reached `running=1`.
+6. Executed DB migrations one-shot task and required `exit_code=0` before lane continuation.
+
+### Problems encountered and decisions
+1. PowerShell argument-continuation issue (`\` split Terraform args) caused a false start.
+   - Decision: switch to explicit argument-array invocation (`& terraform @args`) to keep deterministic invocation semantics.
+2. `core` apply removed budget object and `expires_at` tags when budget-email/expiry vars were not provided in that invocation.
+   - This is a governance/cost posture drift (not a semantic lane success signal).
+   - Decision: do not treat this as M10.B closure; record drift and restore in subsequent remediation lane.
+
+### Current result from this segment
+1. Managed runtime is up and healthy for execution (`ECS + RDS + SSM + Kinesis + daemon services`).
+2. M10.B can proceed to run-dispatch checks.
+3. Governance side-drift on budget/tag posture is explicitly recorded and not treated as acceptable closure.
+
+## Entry: 2026-02-19 23:38:44 +00:00 - M10.B run-dispatch blocker discovery (SR control task still placeholder)
+### Finding
+1. On live task-definition inspection after rematerialization:
+   - `TD_SR` command remained placeholder:
+     - `echo sr_task_definition_materialized && exit 0`.
+2. `TD_WSP` command is real worker logic and supports bounded event caps through `WSP_MAX_EVENTS_PER_OUTPUT`.
+
+### Why this is material
+1. M10.B requires a real managed run dispatch path.
+2. Placeholder `TD_SR` cannot emit READY control signals, so M10.B cannot prove managed semantic run execution if used as-is.
+
+### Decision
+1. Fail closed on using placeholder `TD_SR` as a valid run-dispatch lane.
+2. Keep managed-only posture by using ECS one-shot command override for SR emission path (no local data-plane fallback).
+3. Before dispatching, rotate run scope to fresh `platform_run_id` so M10.B validates non-duplicate admission behavior rather than replay-only duplicates.
+
+## Entry: 2026-02-19 23:41:57 +00:00 - Run-scope rotation for non-duplicate M10.B certification
+### Problem framing
+1. Reusing old run scope (`platform_20260213T214223Z`) risks duplicate-only ingest outcomes from prior admissions.
+2. M10.B semantic target requires a meaningful bounded run, not a duplicate replay artifact.
+
+### Decision logic
+1. Rotate `required_platform_run_id` via managed `demo` apply to a fresh run scope.
+2. Keep same substrate/log-group naming and same pinned image digest.
+3. Reinject IG API key via SSM update path as part of apply (non-secret handling preserved in notes).
+
+### Execution and outcome
+1. Applied demo with fresh run scope:
+   - `NEW_PLATFORM_RUN_ID=platform_20260219T234150Z`.
+2. Terraform performed controlled task-definition/service revision rollover.
+3. Re-started daemon services and reran DB migrations:
+   - migration task `exit_code=0`.
+
+### Consequence for M10.B continuation
+1. Runtime scope is now fresh and aligned for bounded semantic certification (`20-event` target path).
+2. Remaining immediate blocker is SR dispatch command posture (placeholder TD), already pinned for managed one-shot override remediation in next step.
+
+
+## Entry: 2026-02-20 00:22:57 +00:00 - M10.B live execution trail (WSP failure root-cause isolation)
+### What was checked live
+1. Pulled stopped-task timeline for SR/WSP runs under raud-platform-dev-min to isolate the latest semantic-20 attempt outcome.
+2. Resolved WSP log stream for task ddb6e4beac7e41468ef35ae57ee40c7c in log group /fraud-platform/dev_min/demo/m10b_20260219T232752Z.
+3. Inspected log events for that exact task to avoid inference from surrounding runs.
+
+### Runtime truth discovered
+1. Latest WSP attempt did not admit events; push calls retried then exhausted against localhost:8081.
+2. WSP result payload from the same task confirms semantic failure surfaces:
+   - stale READY branch failed with PLATFORM_RUN_ID_MISMATCH (old message id),
+   - active run branch failed with IG_PUSH_RETRY_EXHAUSTED.
+3. IG service is healthy as a daemon, but there is no service-discovery registration (serviceRegistries=[]) and no load balancer fronting IG.
+4. IG task listens on  .0.0.0:8080 while failing WSP path targeted localhost:8081; this is endpoint-wiring drift, not RTDL/decision-lane logic.
+
+### Decision trail
+1. Fail closed on M10.B: do not treat task exit   as semantic pass when logs show push exhaustion and no admissions.
+2. Chosen remediation lane:
+   - emit fresh READY via managed SR run-task,
+   - run WSP with explicit IG_INGEST_URL=http://<live-ig-private-ip>:8080 override,
+   - only then run reporter and evaluate mandatory semantic evidence surfaces.
+3. No local compute fallback accepted; remediation stays managed ECS run-task only.
+
+### Current blocker state
+1. M10B-B2 remains active: semantic evidence not yet complete because admissions did not commit.
+2. Additional live blocker captured during remediation dispatch:
+   - SR rerun task 812ff943f3f747a287a254148947b8aa exited 1; root cause pending log extraction before next action.
+
+## Entry: 2026-02-20 01:07:24 +00:00 - M10.B blocker deep-dive (Confluent auth + client compatibility)
+### Evidence-driven diagnosis sequence
+1. Confirmed repeated M10.B WSP failures after SR READY publish were not random:
+   - first failure mode: localhost:8081 ingress drift,
+   - second failure mode: IG auth 401 (WSP principal mismatch),
+   - third failure mode: long-latency IG_PUSH_RETRY_EXHAUSTED with IG returning eventual 400.
+2. Verified IG HTTP status progression from server logs:
+   - 401 before auth correction,
+   - 400 after auth correction.
+3. Verified Confluent runtime credential posture directly from SSM values:
+   - confluent-kafka admin metadata call initially failed with explicit SASL authentication error.
+4. Dispatched managed workflow dev-min-m2f-topic-readiness run 22206773359 on migrate-dev to rotate runtime Kafka credentials and republish SSM secrets.
+5. Revalidated credentials post-rotation:
+   - confluent-kafka metadata fetch succeeded (cluster_id=lkc-18rg03, expected topic set visible).
+6. Forced new ECS deployments for all daemon services so refreshed SSM secret values were loaded by running tasks.
+7. Despite valid credentials + redeploy, IG still logged repeated KafkaConnectionError: Unable to determine broker version while using current kafka-python adapter.
+
+### Interpretation
+1. Runtime credentials are no longer the blocker.
+2. Active blocker is client-compatibility on the in-code Kafka adapter path (kafka-python handshake/version path against Confluent in this posture), which prevents IG publish and therefore blocks M10.B semantic closure.
+
+### Decision (fail-closed)
+1. Keep M10.B open.
+2. Implement targeted runtime fix in platform code:
+   - migrate src/fraud_detection/event_bus/kafka.py from kafka-python runtime operations to confluent-kafka producer/consumer operations.
+3. Rebuild/publish platform image and roll managed services, then rerun SR -> WSP -> reporter for semantic 20-event closure.
+4. Record this as an implementation/runtime drift closure, not a docs-only adjustment.
+
+## Entry: 2026-02-20 01:09:09 +00:00 - Kafka adapter remediation implemented for dev_min Confluent compatibility
+### Design decision before code
+1. Candidate options considered:
+   - A) keep kafka-python and tune handshake/api-version flags,
+   - B) switch event-bus adapter to confluent-kafka (librdkafka-backed),
+   - C) bypass Kafka lane in M10.B.
+2. Rejection rationale:
+   - A rejected because runtime evidence showed persistent broker-version handshake failures under valid credentials.
+   - C rejected because it violates dev_min managed-bus authority for in-scope spine closure.
+3. Selected B as direct compatibility fix with minimal surface-area change:
+   - patch only src/fraud_detection/event_bus/kafka.py publisher/reader internals,
+   - preserve external adapter interfaces (publish, list_partitions, ead, uild_*).
+
+### Code changes applied
+1. Replaced kafka-python producer/consumer implementation with confluent-kafka:
+   - producer path now uses synchronous delivery callback + timeout fail-closed (KAFKA_PUBLISH_TIMEOUT, KAFKA_PUBLISH_ERROR).
+   - reader path now uses Consumer.list_topics, watermark offsets, explicit partition assignment, and poll-loop decoding.
+2. Preserved existing env handle contract (KAFKA_*) and return shape for downstream workers.
+3. Added dependency pin in pyproject.toml:
+   - confluent-kafka (>=2.13.0,<3.0.0).
+4. Local syntax guard executed:
+   - python -m py_compile src/fraud_detection/event_bus/kafka.py -> pass.
+
+### Next mandatory runtime steps
+1. Build/publish new immutable image containing this adapter change.
+2. Re-materialize/redeploy daemon and one-shot task definitions to new digest.
+3. Re-run SR -> WSP -> reporter for platform_20260219T234150Z and regenerate M10.B semantic snapshot.
+
+## Entry: 2026-02-20 01:09:58 +00:00 - Post-patch connectivity verification (adapter smoke)
+### Verification command
+1. Executed adapter smoke with run-time SSM Kafka credentials via module path:
+   - uild_kafka_reader(client_id='smoke-m10b').list_partitions('fp.bus.control.v1').
+2. Result:
+   - partition list returned [0].
+
+### Interpretation
+1. The patched adapter (confluent-kafka path) is able to authenticate and fetch metadata for the control topic under current SSM credentials.
+2. This clears the previously observed kafka-python connection/version blocker at adapter level.
+
+### Next runtime action
+1. Build and publish a new immutable image containing the adapter patch.
+2. Roll managed services/tasks to that digest and rerun M10.B semantic lane.

@@ -7,9 +7,10 @@ from datetime import datetime, timezone
 import json
 import logging
 import os
+import time
 from typing import Any
 
-from kafka import KafkaConsumer, KafkaProducer, TopicPartition
+from confluent_kafka import Consumer, KafkaError, Producer, TopicPartition
 
 from .publisher import EbRef
 
@@ -42,12 +43,40 @@ class KafkaReaderConfig:
 
 
 def _strip_scheme(value: str) -> str:
-    # Some stacks store bootstrap as "SASL_SSL://host:9092". kafka-python expects "host:9092".
     v = value.strip()
     for prefix in ("SASL_SSL://", "PLAINTEXT://", "SSL://"):
         if v.upper().startswith(prefix):
             return v[len(prefix) :]
     return v
+
+
+def _producer_conf(config: KafkaConfig) -> dict[str, Any]:
+    return {
+        "bootstrap.servers": config.bootstrap_servers,
+        "security.protocol": config.security_protocol,
+        "sasl.mechanism": config.sasl_mechanism,
+        "sasl.username": config.sasl_username or "",
+        "sasl.password": config.sasl_password or "",
+        "client.id": config.client_id,
+        "request.timeout.ms": max(1000, int(config.request_timeout_ms)),
+        "message.send.max.retries": max(0, int(config.retries)),
+        "enable.idempotence": True,
+    }
+
+
+def _consumer_conf(config: KafkaReaderConfig) -> dict[str, Any]:
+    return {
+        "bootstrap.servers": config.bootstrap_servers,
+        "security.protocol": config.security_protocol,
+        "sasl.mechanism": config.sasl_mechanism,
+        "sasl.username": config.sasl_username or "",
+        "sasl.password": config.sasl_password or "",
+        "client.id": config.client_id,
+        "group.id": f"{config.client_id}-group",
+        "enable.auto.commit": False,
+        "auto.offset.reset": "latest",
+        "session.timeout.ms": max(6000, int(config.request_timeout_ms)),
+    }
 
 
 class KafkaEventBusPublisher:
@@ -67,37 +96,45 @@ class KafkaEventBusPublisher:
         )
         if not (self.config.sasl_username and self.config.sasl_password):
             raise RuntimeError("KAFKA_SASL_CREDENTIALS_MISSING")
-        self._producer = KafkaProducer(
-            bootstrap_servers=self.config.bootstrap_servers,
-            security_protocol=self.config.security_protocol,
-            sasl_mechanism=self.config.sasl_mechanism,
-            sasl_plain_username=self.config.sasl_username,
-            sasl_plain_password=self.config.sasl_password,
-            client_id=self.config.client_id,
-            acks="all",
-            retries=max(0, int(self.config.retries)),
-            request_timeout_ms=max(1000, int(self.config.request_timeout_ms)),
-            value_serializer=lambda obj: json.dumps(obj, ensure_ascii=True, separators=(",", ":")).encode("utf-8"),
-            key_serializer=lambda s: (s or "").encode("utf-8"),
-        )
+        self._producer = Producer(_producer_conf(self.config))
 
     def publish(self, topic: str, partition_key: str, payload: dict[str, Any]) -> EbRef:
         if not topic:
             raise RuntimeError("KAFKA_TOPIC_MISSING")
-        future = self._producer.send(topic, key=partition_key, value=payload)
-        metadata = future.get(timeout=self.config.request_timeout_ms / 1000.0)
+        payload_bytes = json.dumps(payload, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+        delivery: dict[str, Any] = {}
+
+        def _on_delivery(err, msg) -> None:
+            delivery["error"] = err
+            delivery["message"] = msg
+
+        self._producer.produce(
+            topic=topic,
+            key=(partition_key or "").encode("utf-8"),
+            value=payload_bytes,
+            on_delivery=_on_delivery,
+        )
+        deadline = time.monotonic() + (max(1000, int(self.config.request_timeout_ms)) / 1000.0)
+        while "message" not in delivery and "error" not in delivery:
+            self._producer.poll(0.1)
+            if time.monotonic() >= deadline:
+                raise RuntimeError("KAFKA_PUBLISH_TIMEOUT")
+        err = delivery.get("error")
+        if err is not None:
+            raise RuntimeError(f"KAFKA_PUBLISH_ERROR:{err}")
+        msg = delivery["message"]
         published_at = datetime.now(tz=timezone.utc).isoformat()
         logger.info(
             "EB publish kafka topic=%s partition=%s offset=%s bytes=%s",
             topic,
-            metadata.partition,
-            metadata.offset,
-            len(json.dumps(payload, ensure_ascii=True, separators=(",", ":"))),
+            msg.partition(),
+            msg.offset(),
+            len(payload_bytes),
         )
         return EbRef(
             topic=topic,
-            partition=int(metadata.partition),
-            offset=str(metadata.offset),
+            partition=int(msg.partition()),
+            offset=str(msg.offset()),
             offset_kind="kafka_offset",
             published_at_utc=published_at,
         )
@@ -121,29 +158,20 @@ class KafkaEventBusReader:
         )
         if not (self.config.sasl_username and self.config.sasl_password):
             raise RuntimeError("KAFKA_SASL_CREDENTIALS_MISSING")
-        self._consumer = KafkaConsumer(
-            bootstrap_servers=self.config.bootstrap_servers,
-            security_protocol=self.config.security_protocol,
-            sasl_mechanism=self.config.sasl_mechanism,
-            sasl_plain_username=self.config.sasl_username,
-            sasl_plain_password=self.config.sasl_password,
-            client_id=self.config.client_id,
-            enable_auto_commit=False,
-            auto_offset_reset="latest",
-            request_timeout_ms=max(1000, int(self.config.request_timeout_ms)),
-        )
+        self._consumer = Consumer(_consumer_conf(self.config))
 
     def list_partitions(self, topic: str) -> list[int]:
         if not topic:
             return []
         try:
-            partitions = self._consumer.partitions_for_topic(topic)
+            metadata = self._consumer.list_topics(topic=topic, timeout=max(1.0, self.config.request_timeout_ms / 1000.0))
+            topic_meta = metadata.topics.get(topic)
+            if topic_meta is None or topic_meta.error is not None:
+                return []
+            return sorted(int(partition) for partition in topic_meta.partitions.keys())
         except Exception as exc:
             logger.warning("Kafka list_partitions failed topic=%s detail=%s", topic, str(exc)[:256])
             return []
-        if not partitions:
-            return []
-        return sorted(int(partition) for partition in partitions)
 
     def read(
         self,
@@ -157,37 +185,40 @@ class KafkaEventBusReader:
         if not topic:
             return []
         max_records = max(1, int(limit))
-        tp = TopicPartition(topic, int(partition))
+        base_tp = TopicPartition(topic, int(partition))
         try:
-            self._consumer.assign([tp])
             if from_offset is None:
-                if str(start_position).strip().lower() == "latest":
-                    self._consumer.seek_to_end(tp)
-                else:
-                    self._consumer.seek_to_beginning(tp)
+                low, high = self._consumer.get_watermark_offsets(base_tp, timeout=max(1.0, self.config.request_timeout_ms / 1000.0))
+                start_offset = high if str(start_position).strip().lower() == "latest" else low
             else:
-                self._consumer.seek(tp, max(0, int(from_offset)))
+                start_offset = max(0, int(from_offset))
+            self._consumer.assign([TopicPartition(topic, int(partition), int(start_offset))])
             rows: list[dict[str, Any]] = []
+            poll_timeout = max(0.05, int(self.config.poll_timeout_ms) / 1000.0)
             while len(rows) < max_records:
-                batch = self._consumer.poll(
-                    timeout_ms=max(50, int(self.config.poll_timeout_ms)),
-                    max_records=min(max_records - len(rows), max(1, int(self.config.max_poll_records))),
+                msg = self._consumer.poll(timeout=poll_timeout)
+                if msg is None:
+                    break
+                if msg.error():
+                    if msg.error().code() != KafkaError._PARTITION_EOF:
+                        logger.warning(
+                            "Kafka read failed topic=%s partition=%s from_offset=%s detail=%s",
+                            topic,
+                            partition,
+                            from_offset,
+                            str(msg.error())[:256],
+                        )
+                    break
+                ts_type, ts_ms = msg.timestamp()
+                if ts_type is None:
+                    ts_ms = None
+                rows.append(
+                    {
+                        "offset": int(msg.offset()),
+                        "payload": _decode_kafka_payload(msg.value()),
+                        "published_at_utc": _kafka_record_timestamp_utc(ts_ms),
+                    }
                 )
-                if not batch:
-                    break
-                records = batch.get(tp, [])
-                if not records:
-                    break
-                for record in records:
-                    rows.append(
-                        {
-                            "offset": int(record.offset),
-                            "payload": _decode_kafka_payload(record.value),
-                            "published_at_utc": _kafka_record_timestamp_utc(record.timestamp),
-                        }
-                    )
-                    if len(rows) >= max_records:
-                        break
             return rows
         except Exception as exc:
             logger.warning(
