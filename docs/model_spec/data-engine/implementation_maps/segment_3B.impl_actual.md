@@ -4711,3 +4711,59 @@ P3.3 pivot action applied:
 1) config/layer1/3B/virtual/virtual_validation.yml
    - ealism_enforcement_mode: observe -> enforce.
 2) due policy-byte change, enforce witness lane will again require fresh staged run-ids + S0->S5.
+
+### Entry: 2026-02-20 06:21:13 +00:00
+
+Design element: 3B P3.3/P3.4 execution closeout (enforce witness + shadow + prune).
+Summary: completed enforce witness and shadow lanes, closed V12 governance gate across all required seeds, confirmed no P2 guardrail regression, and pruned superseded observe-only run roots.
+
+Execution lanes completed:
+1) Enforce witness (P3.3)
+   - staged run map:
+     - 42 -> a56ae15a4a014c0dbd7125d048b338d3
+     - 101 -> 27135d9a2d024c6f85b81e485ee3fc6a
+   - rerun law: S0->S5 (policy reseal required).
+   - governance artifact:
+     - uns/fix-data-engine/segment_3B/reports/segment3b_p3_governance_p33_enforce_witness_enforce.json
+     - decision: PASS.
+   - guardrail artifact:
+     - uns/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p33_enforce_witness_guard.json
+     - decision: UNLOCK_P3.
+
+2) Enforce shadow (P3.4)
+   - staged run map:
+     - 7 -> 293d3cef6a4046bf89ce6ee4d2b48128
+     - 202 -> da5f0b94b888480993e93accbacb569b
+   - rerun law: S0->S5 (policy reseal required).
+   - shadow governance artifact:
+     - uns/fix-data-engine/segment_3B/reports/segment3b_p3_governance_p34_shadow_enforce_enforce.json
+     - decision: PASS.
+
+3) Full four-seed governance + realism confirmation
+   - full governance artifact:
+     - uns/fix-data-engine/segment_3B/reports/segment3b_p3_governance_p34_full_enforce_enforce.json
+     - decision: PASS.
+   - full guardrail artifact:
+     - uns/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p34_full_guard.json
+     - decision: UNLOCK_P3.
+   - hardened baseline scorer check (with enforced-V12 semantics):
+     - uns/fix-data-engine/segment_3B/reports/p3_closure_enforce_20260220/3B_validation_cross_seed_summary.json
+     - result: overall.overall_verdict=PASS_B.
+
+Budget/throughput notes:
+1) preferred S4->S5 path remained blocked after policy edits by sealed-digest law (correct fail-closed behavior).
+2) full-chain fallback (S0->S5) stayed within fallback budget envelope (<=45 min per two-seed lane).
+3) S2 remained dominant hotspot; S4 governance overhead stayed low (~4-5s/state).
+
+Retention/prune action:
+1) superseded observe-only staged runs removed:
+   - ccb721d41aa14adb8be01ff9adffe88e
+   - 1c2563dc859b45e4a5d828bd74e054e7
+2) retain enforce keep-set for P3 authority:
+   - 42 -> a56ae15a4a014c0dbd7125d048b338d3
+   - 101 -> 27135d9a2d024c6f85b81e485ee3fc6a
+   - 7 -> 293d3cef6a4046bf89ce6ee4d2b48128
+   - 202 -> da5f0b94b888480993e93accbacb569b
+
+Phase decision:
+- P3 closed with UNLOCK_P4.

@@ -1462,9 +1462,9 @@ Scope:
 - preserve `P2` frozen realism shape while hardening S4 governance semantics.
 
 Definition of done:
-- [ ] `3B-V12` passes (`realism-check block active + enforced`) on witness seeds.
-- [ ] realism contract rows map to hard-gate surfaces (`S1`, `S2`, `S3`) and remain schema-valid.
-- [ ] no `P2` realism regressions are introduced by governance expansion.
+- [x] `3B-V12` passes (`realism-check block active + enforced`) on witness seeds.
+- [x] realism contract rows map to hard-gate surfaces (`S1`, `S2`, `S3`) and remain schema-valid.
+- [x] no `P2` realism regressions are introduced by governance expansion.
 
 P3 entry lock (post-P2):
 - locked P2 authority run map (read-only for this phase):
@@ -1503,9 +1503,26 @@ Scope:
 - ensure thresholds payload can carry required governance thresholds (extend schema only if required).
 
 Definition of done:
-- [ ] schema/policy design decision is pinned in build plan + impl notes.
-- [ ] contract row taxonomy for all required realism families is explicit.
-- [ ] no unresolved schema hole remains for observe/enforce semantics.
+- [x] schema/policy design decision is pinned in build plan + impl notes.
+- [x] contract row taxonomy for all required realism families is explicit.
+- [x] no unresolved schema hole remains for observe/enforce semantics.
+
+P3.1 closure record (2026-02-20):
+- schema + policy + runner lock applied:
+  - `docs/model_spec/data-engine/layer-1/specs/contracts/3B/schemas.3B.yaml`
+  - `config/layer1/3B/virtual/virtual_validation.yml`
+  - `packages/engine/src/engine/layers/l1/seg_3B/s4_virtual_contracts/runner.py`
+- governance taxonomy emitted as first-class test families:
+  - `EDGE_HETEROGENEITY`
+  - `SETTLEMENT_COHERENCE`
+  - `CLASSIFICATION_EXPLAINABILITY`
+  - `ALIAS_FIDELITY`
+- mode semantics pinned:
+  - observe -> realism rows `severity=WARNING`
+  - enforce -> realism rows `severity=BLOCKING`
+- scoring hardening:
+  - new P3 scorer: `tools/score_segment3b_p3_governance.py`
+  - `tools/score_segment3b_p0_baseline.py` updated so `3B-V12` requires blocking+enabled realism rows.
 
 #### P3.2 - Observe-mode implementation and dry run
 Goal:
@@ -1520,9 +1537,25 @@ Scope:
 - emit observe-mode evidence artifact proving checks are present and schema-valid.
 
 Definition of done:
-- [ ] observe-mode contract rows are present on witness seeds.
-- [ ] S4/S5 remain PASS with no schema/path drift.
-- [ ] `P2` hard-gate surfaces remain non-regressed on witness seeds.
+- [x] observe-mode contract rows are present on witness seeds.
+- [x] S4/S5 remain PASS with no schema/path drift.
+- [x] `P2` hard-gate surfaces remain non-regressed on witness seeds.
+
+P3.2 closure record (2026-02-20):
+- initial preferred rerun (`S4->S5` on locked root `fc455a28a3504168a763a081b9b5a744`) failed closed with:
+  - `E3B_S4_005_SEALED_INPUT_DIGEST_MISMATCH` (policy digest changed post-P3.1).
+- fallback lane executed (sealed-law compliant):
+  - staged witness run map:
+    - `42 -> ccb721d41aa14adb8be01ff9adffe88e`
+    - `101 -> 1c2563dc859b45e4a5d828bd74e054e7`
+  - rerun law used: full `S0->S5` (policy reseal required).
+- evidence artifacts:
+  - governance observe score:
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_p3_governance_p32_observe_witness_observe.json`
+    - decision: `PASS`
+  - witness non-regression guard:
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p32_observe_witness_guard.json`
+    - decision: `UNLOCK_P3`
 
 #### P3.3 - Enforce-mode switch and witness lock
 Goal:
@@ -1536,9 +1569,22 @@ Scope:
   - no `P2` hard-gate regressions (`3B-V01..V07` stay PASS on witness seeds).
 
 Definition of done:
-- [ ] `3B-V12` is PASS on both witness seeds.
-- [ ] contract rows for required realism families are active and enforced.
-- [ ] witness non-regression on `3B-V01..V07` remains PASS.
+- [x] `3B-V12` is PASS on both witness seeds.
+- [x] contract rows for required realism families are active and enforced.
+- [x] witness non-regression on `3B-V01..V07` remains PASS.
+
+P3.3 closure record (2026-02-20):
+- policy mode switched to enforce (`realism_enforcement_mode=enforce`) then resealed via staged runs:
+  - `42 -> a56ae15a4a014c0dbd7125d048b338d3`
+  - `101 -> 27135d9a2d024c6f85b81e485ee3fc6a`
+- rerun law used: full `S0->S5` (policy reseal required).
+- evidence artifacts:
+  - enforce witness governance score:
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_p3_governance_p33_enforce_witness_enforce.json`
+    - decision: `PASS`
+  - witness non-regression guard:
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p33_enforce_witness_guard.json`
+    - decision: `UNLOCK_P3`
 
 #### P3.4 - Shadow confirmation and phase closeout
 Goal:
@@ -1550,9 +1596,33 @@ Scope:
 - emit closure artifact and retain final P3 run keep-set.
 
 Definition of done:
-- [ ] `3B-V12` remains PASS on shadow seeds.
-- [ ] no structural regressions appear in `S4/S5`.
-- [ ] closure decision recorded (`UNLOCK_P4` or `HOLD_P3_REOPEN`) with retained run map.
+- [x] `3B-V12` remains PASS on shadow seeds.
+- [x] no structural regressions appear in `S4/S5`.
+- [x] closure decision recorded (`UNLOCK_P4`) with retained run map.
+
+P3.4 closure record (2026-02-20):
+- staged shadow enforce run map:
+  - `7 -> 293d3cef6a4046bf89ce6ee4d2b48128`
+  - `202 -> da5f0b94b888480993e93accbacb569b`
+- rerun law used: full `S0->S5` (policy reseal required).
+- evidence artifacts:
+  - shadow governance score:
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_p3_governance_p34_shadow_enforce_enforce.json`
+    - decision: `PASS`
+  - full four-seed governance score:
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_p3_governance_p34_full_enforce_enforce.json`
+    - decision: `PASS`
+  - full guardrail confirmation:
+    - `runs/fix-data-engine/segment_3B/reports/segment3b_p2_summary_p34_full_guard.json`
+    - decision: `UNLOCK_P3`
+  - closure baseline score (with hardened V12 semantics):
+    - `runs/fix-data-engine/segment_3B/reports/p3_closure_enforce_20260220/3B_validation_cross_seed_summary.json`
+    - outcome: `overall.pass_b=true`, `overall.overall_verdict=PASS_B`.
+- final P3 retained enforce run map:
+  - `42 -> a56ae15a4a014c0dbd7125d048b338d3`
+  - `101 -> 27135d9a2d024c6f85b81e485ee3fc6a`
+  - `7 -> 293d3cef6a4046bf89ce6ee4d2b48128`
+  - `202 -> da5f0b94b888480993e93accbacb569b`
 
 P3 runtime budgets (binding for this phase):
 - observe lane witness (`2 seeds`, `S4->S5` preferred): `<= 15 min`.
@@ -1609,6 +1679,6 @@ Definition of done:
 - `P0`: completed (`EXECUTED_FAIL_REALISM_UNLOCK_P1`)
 - `P1`: completed (`EXECUTED_UNLOCK_P2`)
 - `P2`: completed (`EXECUTED_UNLOCK_P3`)
-- `P3`: pending (`PLANNING_EXPANDED_READY_FOR_EXECUTION`)
+- `P3`: completed (`EXECUTED_UNLOCK_P4`)
 - `P4`: pending
 - `P5`: pending
