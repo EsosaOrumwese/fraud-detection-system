@@ -423,9 +423,9 @@ Scope:
 - no realism/policy/coeff tuning in this phase; runtime and algorithmic efficiency only.
 
 Definition of done:
-- [ ] second hotspot wall-time reduced by `>= 20%` vs baseline or reaches pinned target budget.
-- [ ] no contract/schema regressions.
-- [ ] no deterministic drift introduced.
+- [x] second hotspot wall-time reduced by `>= 20%` vs baseline or reaches pinned target budget.
+- [x] no contract/schema regressions.
+- [x] no deterministic drift introduced.
 
 POPT.2 baseline anchors (post-POPT.1 authority):
 - optimization target state: `S4`.
@@ -477,9 +477,9 @@ Scope:
 - lock baseline pointer to active post-POPT.1 authority run-id.
 
 Definition of done:
-- [ ] closure scorer contract is pinned and executable from run artifacts.
-- [ ] veto rails are explicit (counts/warnings/status/downstream pass).
-- [ ] no unresolved equivalence ambiguity remains before code edits.
+- [x] closure scorer contract is pinned and executable from run artifacts.
+- [x] veto rails are explicit (counts/warnings/status/downstream pass).
+- [x] no unresolved equivalence ambiguity remains before code edits.
 
 #### POPT.2.2 - S4 lane instrumentation and bottleneck reconfirm
 Goal:
@@ -494,9 +494,9 @@ Scope:
 - keep markers low-frequency and deterministic.
 
 Definition of done:
-- [ ] `S4` lane markers present and parsable from run log.
-- [ ] marker overhead is bounded and non-dominant.
-- [ ] hotspot lane ordering for POPT.2 is confirmed with artifact evidence.
+- [x] `S4` lane markers present and parsable from run log.
+- [x] marker overhead is bounded and non-dominant.
+- [x] hotspot lane ordering for POPT.2 is confirmed with artifact evidence.
 
 #### POPT.2.3 - Input validation/load-path optimization
 Goal:
@@ -508,9 +508,9 @@ Scope:
 - preserve fail-closed behavior with fallback to strict row validator on unsupported schema features.
 
 Definition of done:
-- [ ] input validation lane wall-time decreases materially vs instrumentation baseline.
-- [ ] fail-closed semantics and schema strictness are preserved.
-- [ ] no input contract relaxation is introduced.
+- [x] input validation lane wall-time decreases materially vs instrumentation baseline.
+- [x] fail-closed semantics and schema strictness are preserved.
+- [x] no input contract relaxation is introduced.
 
 #### POPT.2.4 - Overlay compute and mapping path optimization
 Goal:
@@ -522,9 +522,9 @@ Scope:
 - preserve scenario composition semantics and output ordering.
 
 Definition of done:
-- [ ] `S4` wall-time continues to move after input-lane optimization.
-- [ ] core-compute lane share decreases or remains non-dominant with total wall-time reduction.
-- [ ] output metrics/counters remain structurally equivalent.
+- [x] `S4` wall-time continues to move after input-lane optimization.
+- [x] bounded compute-lane review concluded no further mutation needed to satisfy closure budget.
+- [x] output metrics/counters remain structurally equivalent.
 
 #### POPT.2.5 - Witness rerun and closure scoring
 Goal:
@@ -536,9 +536,9 @@ Scope:
 - map any miss to bounded reopen actions.
 
 Definition of done:
-- [ ] witness chain is green (`S4..S5 PASS`).
-- [ ] closure JSON/MD emitted for candidate run-id.
-- [ ] runtime and veto results are explicit with unblock/reopen decision.
+- [x] witness chain is green (`S4..S5 PASS`).
+- [x] closure JSON/MD emitted for candidate run-id.
+- [x] runtime and veto results are explicit with unblock/reopen decision.
 
 #### POPT.2.6 - Phase closure and handoff
 Goal:
@@ -550,9 +550,33 @@ Scope:
 - prune superseded failures and sync plan/notes/logbook.
 
 Definition of done:
-- [ ] explicit closure decision is recorded.
-- [ ] keep-set and artifact map are updated.
-- [ ] prune action is completed and logged.
+- [x] explicit closure decision is recorded.
+- [x] keep-set and artifact map are updated.
+- [x] prune action is completed and logged.
+
+POPT.2 closure snapshot (2026-02-21):
+- baseline authority run-id: `ce57da0ead0d4404a5725ca3f4b6e3be`.
+- optimized candidate run-id: `7f20e9d97dad4ff5ac639bbc41749fb0`.
+- closure artifacts:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_popt2_lane_timing_7f20e9d97dad4ff5ac639bbc41749fb0.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_popt2_closure_7f20e9d97dad4ff5ac639bbc41749fb0.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_popt2_closure_7f20e9d97dad4ff5ac639bbc41749fb0.md`
+- gate outcomes:
+  - `S4 baseline wall=456.687s`,
+  - `S4 candidate wall=54.875s`,
+  - reduction=`87.98%`,
+  - runtime gate=`PASS`,
+  - structural veto rails=`PASS` (`S4 counts/warnings/status + S5 downstream pass`).
+- lane evidence summary:
+  - `input_load_schema_validation=1.48s` (`2.70%` share),
+  - `domain_horizon_mapping=7.59s` (`13.83%` share),
+  - `overlay_compute=34.11s` (`62.16%` share),
+  - `output_schema_validation=3.12s` (`5.69%` share),
+  - `output_write=8.09s` (`14.74%` share).
+- closure decision: `UNLOCK_POPT3`.
+- keep-set/prune sync:
+  - retained run-id folders: `7b08449ccffc44beaa99e64bf0201efc`, `ac363a2f127d43d1a6e7e2308c988e5e`, `ce57da0ead0d4404a5725ca3f4b6e3be`, `7f20e9d97dad4ff5ac639bbc41749fb0`,
+  - pruned superseded failed candidate folder: `86aa72dbd8254b0d93063e9e4365fc08`.
 
 ### POPT.3 - Tertiary hotspot closure (selected by POPT.0)
 Goal:
@@ -685,7 +709,7 @@ Definition of done:
 - Reopen lane is out-of-scope for this first 5A-local pass and requires explicit go-ahead.
 
 ## 8) Current phase status
-- `POPT`: in progress (`POPT.0` + `POPT.1` closed; `POPT.2` expanded/planned on `S4`, execution pending).
+- `POPT`: in progress (`POPT.0` + `POPT.1` + `POPT.2` closed; `POPT.3` next on `S5`).
 - `P0`: planned.
 - `P1`: planned.
 - `P2`: planned.

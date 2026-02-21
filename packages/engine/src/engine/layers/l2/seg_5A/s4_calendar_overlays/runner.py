@@ -53,6 +53,13 @@ MODULE_NAME = "5A.s4_calendar_overlays"
 SEGMENT = "5A"
 STATE = "S4"
 S4_SPEC_VERSION = "1.0.0"
+FAST_ROW_VALIDATION_ANCHORS = {
+    "model/merchant_zone_profile_5A",
+    "model/shape_grid_definition_5A",
+    "model/merchant_zone_baseline_local_5A",
+    "scenario/scenario_calendar_5A",
+}
+ROW_INDEX_COL = "__row_index"
 
 
 @dataclass(frozen=True)
@@ -72,7 +79,9 @@ class _StepTimer:
         self._start = time.monotonic()
         self._last = self._start
 
-    def info(self, message: str) -> None:
+    def info(self, message: str, *args: object) -> None:
+        if args:
+            message = message % args
         now = time.monotonic()
         elapsed = now - self._start
         delta = now - self._last
@@ -187,6 +196,7 @@ def _validate_array_rows(
     label: Optional[str] = None,
     total_rows: Optional[int] = None,
     progress_min_rows: int = 50000,
+    frame: Optional[pl.DataFrame] = None,
 ) -> None:
     schema = _schema_for_payload(schema_pack, schema_layer1, schema_layer2, anchor)
     if schema.get("type") != "array":
@@ -201,6 +211,13 @@ def _validate_array_rows(
         if isinstance(item_schema.get("$defs"), dict):
             merged_defs.update(item_schema.get("$defs", {}))
         item_schema["$defs"] = merged_defs
+
+    if frame is not None and anchor in FAST_ROW_VALIDATION_ANCHORS:
+        if _validate_array_rows_fast(frame, item_schema, anchor, max_errors=max_errors):
+            if logger and label and frame.height >= progress_min_rows:
+                logger.info("%s fast-path validator rows=%s", label, frame.height)
+            return
+
     validator = Draft202012Validator(item_schema)
     errors: list[dict[str, object]] = []
     tracker = None
@@ -228,6 +245,340 @@ def _validate_array_rows(
             for item in errors
         ]
         raise SchemaValidationError("Schema validation failed:\n" + "\n".join(lines), errors)
+
+
+def _is_string_dtype(dtype: object) -> bool:
+    return dtype in {pl.Utf8, pl.String, pl.Categorical, pl.Enum}
+
+
+def _is_integer_dtype(dtype: object) -> bool:
+    return bool(getattr(dtype, "is_integer", lambda: False)())
+
+
+def _is_number_dtype(dtype: object) -> bool:
+    return bool(getattr(dtype, "is_numeric", lambda: False)())
+
+
+def _resolve_schema_ref(node: dict[str, object], defs: dict[str, object]) -> dict[str, object]:
+    current: dict[str, object] = dict(node)
+    while "$ref" in current:
+        ref = str(current.get("$ref") or "")
+        if not ref.startswith("#/$defs/"):
+            raise ContractError(f"Unsupported schema ref for fast validator: {ref}")
+        key = ref.split("/")[-1]
+        target = defs.get(key)
+        if not isinstance(target, dict):
+            raise ContractError(f"Missing $defs target for fast validator: {ref}")
+        merged = dict(target)
+        for k, v in current.items():
+            if k != "$ref":
+                merged[k] = v
+        current = merged
+    return current
+
+
+def _normalize_property_schema(raw_schema: dict[str, object], defs: dict[str, object]) -> dict[str, object]:
+    schema = _resolve_schema_ref(raw_schema, defs)
+    nullable = False
+
+    if "anyOf" in schema:
+        branches = schema.get("anyOf")
+        if isinstance(branches, list):
+            non_null_branch: Optional[dict[str, object]] = None
+            for branch in branches:
+                if not isinstance(branch, dict):
+                    continue
+                branch_resolved = _resolve_schema_ref(branch, defs)
+                branch_type = branch_resolved.get("type")
+                if branch_type == "null":
+                    nullable = True
+                    continue
+                non_null_branch = branch_resolved
+            if non_null_branch is not None:
+                schema = non_null_branch
+
+    schema_type = schema.get("type")
+    schema_types: list[str] = []
+    if isinstance(schema_type, str):
+        schema_types = [schema_type]
+    elif isinstance(schema_type, list):
+        for item in schema_type:
+            if isinstance(item, str):
+                if item == "null":
+                    nullable = True
+                else:
+                    schema_types.append(item)
+
+    normalized: dict[str, object] = {
+        "types": schema_types,
+        "nullable": nullable,
+    }
+    for key in (
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "pattern",
+        "enum",
+        "minLength",
+        "maxLength",
+    ):
+        if key in schema:
+            normalized[key] = schema[key]
+    return normalized
+
+
+def _collect_row_indices(frame_idx: pl.DataFrame, expr: pl.Expr, limit: int) -> list[int]:
+    if limit <= 0:
+        return []
+    sample = frame_idx.filter(expr).select(ROW_INDEX_COL).head(limit)
+    if sample.is_empty():
+        return []
+    return [int(value) for value in sample.get_column(ROW_INDEX_COL).to_list()]
+
+
+def _append_expr_errors(
+    frame_idx: pl.DataFrame,
+    expr: pl.Expr,
+    field: str,
+    message: str,
+    errors: list[dict[str, object]],
+    max_errors: int,
+) -> None:
+    remaining = max_errors - len(errors)
+    if remaining <= 0:
+        return
+    indices = _collect_row_indices(frame_idx, expr, remaining)
+    for row_index in indices:
+        errors.append({"row_index": row_index, "field": field, "message": message})
+        if len(errors) >= max_errors:
+            break
+
+
+def _validate_array_rows_fast(
+    frame: pl.DataFrame,
+    item_schema: dict[str, object],
+    anchor: str,
+    max_errors: int = 5,
+) -> bool:
+    defs = item_schema.get("$defs") or {}
+    if not isinstance(defs, dict):
+        return False
+
+    required = item_schema.get("required") or []
+    properties = item_schema.get("properties") or {}
+    if not isinstance(required, list) or not isinstance(properties, dict):
+        return False
+
+    errors: list[dict[str, object]] = []
+    for column in required:
+        if isinstance(column, str) and column not in frame.columns:
+            errors.append(
+                {
+                    "row_index": -1,
+                    "field": column,
+                    "message": f"required property '{column}' is missing",
+                }
+            )
+        if len(errors) >= max_errors:
+            break
+    if errors:
+        lines = [f"row {item['row_index']}: {item['field']} {item['message']}".strip() for item in errors]
+        raise SchemaValidationError("Schema validation failed:\n" + "\n".join(lines), errors)
+
+    frame_idx = frame.with_row_index(ROW_INDEX_COL)
+    required_set = {str(item) for item in required if isinstance(item, str)}
+
+    for column, raw_schema in properties.items():
+        if column not in frame.columns:
+            continue
+        if not isinstance(raw_schema, dict):
+            return False
+        normalized = _normalize_property_schema(raw_schema, defs)
+        types = normalized.get("types") or []
+        if not isinstance(types, list) or len(types) != 1:
+            return False
+        schema_type = str(types[0])
+        nullable = bool(normalized.get("nullable"))
+        dtype = frame.schema.get(column)
+
+        if not nullable:
+            _append_expr_errors(
+                frame_idx,
+                pl.col(column).is_null(),
+                column,
+                "null is not allowed",
+                errors,
+                max_errors,
+            )
+            if len(errors) >= max_errors:
+                break
+
+        non_null = pl.col(column).is_not_null()
+        if schema_type == "string":
+            if not _is_string_dtype(dtype):
+                _append_expr_errors(
+                    frame_idx,
+                    non_null,
+                    column,
+                    "value is not of type string",
+                    errors,
+                    max_errors,
+                )
+            else:
+                pattern = normalized.get("pattern")
+                if isinstance(pattern, str):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (~pl.col(column).str.contains(pattern)),
+                        column,
+                        "value does not match required pattern",
+                        errors,
+                        max_errors,
+                    )
+                min_len = normalized.get("minLength")
+                if isinstance(min_len, int):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column).str.len_chars() < min_len),
+                        column,
+                        f"string length is less than minimum {min_len}",
+                        errors,
+                        max_errors,
+                    )
+                max_len = normalized.get("maxLength")
+                if isinstance(max_len, int):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column).str.len_chars() > max_len),
+                        column,
+                        f"string length exceeds maximum {max_len}",
+                        errors,
+                        max_errors,
+                    )
+                enum_values = normalized.get("enum")
+                if isinstance(enum_values, list) and enum_values:
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (~pl.col(column).is_in(enum_values)),
+                        column,
+                        "value is not in enum",
+                        errors,
+                        max_errors,
+                    )
+        elif schema_type == "integer":
+            if not _is_integer_dtype(dtype):
+                _append_expr_errors(
+                    frame_idx,
+                    non_null,
+                    column,
+                    "value is not of type integer",
+                    errors,
+                    max_errors,
+                )
+            else:
+                minimum = normalized.get("minimum")
+                if isinstance(minimum, (int, float)):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column) < minimum),
+                        column,
+                        f"value is less than minimum {minimum}",
+                        errors,
+                        max_errors,
+                    )
+                maximum = normalized.get("maximum")
+                if isinstance(maximum, (int, float)):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column) > maximum),
+                        column,
+                        f"value exceeds maximum {maximum}",
+                        errors,
+                        max_errors,
+                    )
+        elif schema_type == "number":
+            if not _is_number_dtype(dtype):
+                _append_expr_errors(
+                    frame_idx,
+                    non_null,
+                    column,
+                    "value is not of type number",
+                    errors,
+                    max_errors,
+                )
+            else:
+                minimum = normalized.get("minimum")
+                if isinstance(minimum, (int, float)):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column) < minimum),
+                        column,
+                        f"value is less than minimum {minimum}",
+                        errors,
+                        max_errors,
+                    )
+                maximum = normalized.get("maximum")
+                if isinstance(maximum, (int, float)):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column) > maximum),
+                        column,
+                        f"value exceeds maximum {maximum}",
+                        errors,
+                        max_errors,
+                    )
+                ex_min = normalized.get("exclusiveMinimum")
+                if isinstance(ex_min, (int, float)):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column) <= ex_min),
+                        column,
+                        f"value must be > {ex_min}",
+                        errors,
+                        max_errors,
+                    )
+                ex_max = normalized.get("exclusiveMaximum")
+                if isinstance(ex_max, (int, float)):
+                    _append_expr_errors(
+                        frame_idx,
+                        non_null & (pl.col(column) >= ex_max),
+                        column,
+                        f"value must be < {ex_max}",
+                        errors,
+                        max_errors,
+                    )
+        elif schema_type == "boolean":
+            if dtype != pl.Boolean:
+                _append_expr_errors(
+                    frame_idx,
+                    non_null,
+                    column,
+                    "value is not of type boolean",
+                    errors,
+                    max_errors,
+                )
+        else:
+            return False
+
+        if len(errors) >= max_errors:
+            break
+
+        if column in required_set and column not in frame.columns:
+            errors.append(
+                {
+                    "row_index": -1,
+                    "field": column,
+                    "message": f"required property '{column}' is missing",
+                }
+            )
+            if len(errors) >= max_errors:
+                break
+
+    if errors:
+        lines = [f"row {item['row_index']}: {item['field']} {item['message']}".strip() for item in errors]
+        raise SchemaValidationError("Schema validation failed:\n" + "\n".join(lines), errors)
+    return True
 
 
 def _env_flag(name: str) -> bool:
@@ -584,6 +935,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             output_validation_mode,
             output_sample_rows,
         )
+        timer.info("S4: phase begin")
 
         tokens = {
             "seed": str(seed),
@@ -962,6 +1314,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             logger=logger,
             label="S4: validate merchant_zone_profile_5A rows",
             total_rows=profile_df.height,
+            frame=profile_df,
         )
         _validate_array_rows(
             grid_df.iter_rows(named=True),
@@ -972,6 +1325,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             logger=logger,
             label="S4: validate shape_grid_definition_5A rows",
             total_rows=grid_df.height,
+            frame=grid_df,
         )
         _validate_array_rows(
             baseline_df.iter_rows(named=True),
@@ -983,6 +1337,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             label="S4: validate merchant_zone_baseline_local_5A rows",
             total_rows=baseline_df.height,
             progress_min_rows=200000,
+            frame=baseline_df,
         )
         _validate_array_rows(
             calendar_df.iter_rows(named=True),
@@ -993,6 +1348,14 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             logger=logger,
             label="S4: validate scenario_calendar_5A rows",
             total_rows=calendar_df.height,
+            frame=calendar_df,
+        )
+        timer.info(
+            "S4: phase input_load_schema_validation complete (profile_rows=%s, grid_rows=%s, baseline_rows=%s, calendar_rows=%s)",
+            profile_df.height,
+            grid_df.height,
+            baseline_df.height,
+            calendar_df.height,
         )
 
         current_phase = "domain_build"
@@ -1140,6 +1503,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             "S4: baseline projected to horizon (rows=%s, buckets=%s)",
             baseline_horizon_df.height,
             horizon_buckets,
+        )
+        timer.info(
+            "S4: phase domain_horizon_mapping complete (domain_rows=%s, horizon_rows=%s, projected_rows=%s)",
+            domain_df.height,
+            horizon_map_df.height,
+            baseline_horizon_df.height,
         )
 
         current_phase = "calendar_validation"
@@ -1761,7 +2130,14 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             ["merchant_id", "legal_country_iso", "tzid", "local_horizon_bucket_index"]
         )
         counts["scenario_rows"] = scenario_local_df.height
+        timer.info(
+            "S4: phase overlay_compute complete (event_rows=%s, expanded_rows=%s, scenario_rows=%s)",
+            len(event_rows),
+            len(expanded_rows),
+            counts["scenario_rows"],
+        )
 
+        current_phase = "output_schema_validation"
         if output_validate_full:
             _validate_array_rows(
                 scenario_local_df.iter_rows(named=True),
@@ -1773,6 +2149,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 label="S4: validate merchant_zone_scenario_local_5A rows",
                 total_rows=scenario_local_df.height,
                 progress_min_rows=200000,
+                frame=scenario_local_df,
             )
         else:
             _validate_dataframe_fast(
@@ -1816,6 +2193,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 label="S4: validate merchant_zone_overlay_factors_5A rows",
                 total_rows=overlay_factors_df.height,
                 progress_min_rows=200000,
+                frame=overlay_factors_df,
             )
         else:
             _validate_dataframe_fast(
@@ -1856,6 +2234,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     label="S4: validate merchant_zone_scenario_utc_5A rows",
                     total_rows=scenario_utc_df.height,
                     progress_min_rows=200000,
+                    frame=scenario_utc_df,
                 )
             else:
                 _validate_dataframe_fast(
@@ -1872,6 +2251,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         else:
             logger.info("S4: UTC scenario intensities disabled by scenario_horizon_config.")
 
+        timer.info(
+            "S4: phase output_schema_validation complete (scenario_rows=%s, overlay_rows=%s, emit_utc=%s)",
+            counts["scenario_rows"],
+            counts["overlay_rows"],
+            bool(scenario_utc_df is not None),
+        )
         current_phase = "output_write"
         scenario_entry = find_dataset_entry(dictionary_5a, "merchant_zone_scenario_local_5A").entry
         scenario_local_path = _resolve_dataset_path(scenario_entry, run_paths, config.external_roots, tokens)
@@ -1890,6 +2275,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 scenario_utc_path, scenario_utc_df, logger, "merchant_zone_scenario_utc_5A"
             )
 
+        timer.info("S4: phase output_write complete")
         status = "PASS"
         timer.info("S4: completed scenario overlay synthesis")
 

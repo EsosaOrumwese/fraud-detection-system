@@ -4165,3 +4165,180 @@ Reasoning trail:
 
 Immediate next step:
 - begin `POPT.2.1` by adding/locking S4 closure scorer contract and output artifacts (`lane_timing + closure decision`).
+
+---
+
+### Entry: 2026-02-21 02:15
+
+Execution start: Segment 5A `POPT.2` full implementation (`POPT.2.1 -> POPT.2.6`).
+Summary: Started full `POPT.2` execution targeting `S4` with documentation-first posture and explicit lane evidence before optimization.
+
+Current authority posture at start:
+- Baseline run-id: `ce57da0ead0d4404a5725ca3f4b6e3be`.
+- S4 wall baseline: `456.687s`.
+- S4 constraints: keep scenario semantics and warning rails unchanged; no policy/coeff tuning.
+- Closure threshold: `<=360s` OR `>=20%` reduction (`<=365.350s`).
+
+Evidence review before coding:
+- Existing run log and POPT.0 profile both indicate large time burn in S4 input validation lane.
+- Concrete prior evidence from `ce57...` run log:
+  - `merchant_zone_baseline_local_5A` row-wise schema validation consumed ~`414s` by itself before horizon mapping/overlay compute.
+- This makes row-wise JSONSchema iteration the first closure target.
+
+Alternatives considered:
+1) Instrument only and defer optimization to later cycle.
+   - Rejected: would consume rerun budget without reducing bottleneck.
+2) Optimize overlay aggregation first (scope keys/event expansion/join order).
+   - Rejected as first lane: overlay compute is secondary vs input validation drag.
+3) Replace S4 heavy row-wise validation with strict vectorized full-frame checks (fast path) + fallback row validator, and keep output/sample validation semantics unchanged.
+   - Accepted: highest expected gain with low semantic risk if fail-closed fallback remains.
+
+Execution order locked for POPT.2:
+1) `POPT.2.1`: add closure scorer contract (`lane timing + closure decision artifacts`).
+2) `POPT.2.2`: add S4 phase markers and run instrumentation witness (`S4->S5`) to reconfirm lane ordering.
+3) `POPT.2.3`: implement strict vectorized fast-path for S4 heavy input anchors.
+4) `POPT.2.4`: apply bounded compute-path optimizations only if lane evidence requires it after 2.3.
+5) `POPT.2.5`: witness rerun (`S4->S5`) and emit closure artifacts.
+6) `POPT.2.6`: close decision + keep-set prune + plan sync.
+
+Guardrails reaffirmed:
+- no policy/config/coeff changes in POPT.2;
+- no contract/schema relaxation;
+- no upstream reopen;
+- downstream `S4->S5 PASS` is hard veto;
+- all decisions logged inline while executing.
+
+---
+
+### Entry: 2026-02-21 02:22
+
+Execution update: `POPT.2.1` + `POPT.2.2` tooling/instrumentation landed.
+Summary: Implemented POPT.2 closure/lane scorers and added deterministic S4 phase markers required for lane decomposition and closure gating.
+
+What was implemented:
+1) Tooling (`POPT.2.1`):
+   - `tools/score_segment5a_popt2_lane_timing.py`
+     - parses S4 phase markers from run log,
+     - emits lane timing JSON/MD (`input_load_schema_validation`, `domain_horizon_mapping`, `overlay_compute`, `output_schema_validation`, `output_write`).
+   - `tools/score_segment5a_popt2_closure.py`
+     - compares baseline-vs-candidate S4 runtime,
+     - enforces closure rule (`<=360s` OR `>=20%` reduction),
+     - enforces S4 structural/warning rails + downstream S5 pass,
+     - emits explicit decision (`UNLOCK_POPT3` / `HOLD_POPT2_REOPEN`).
+2) Runner instrumentation (`POPT.2.2`):
+   - file: `packages/engine/src/engine/layers/l2/seg_5A/s4_calendar_overlays/runner.py`.
+   - added timer markers for S4 phases:
+     - phase begin,
+     - input load/schema validation complete,
+     - domain+horizon mapping complete,
+     - overlay compute complete,
+     - output schema validation complete,
+     - output write complete.
+   - extended `_StepTimer.info` to support format args.
+
+Parallel optimization prep embedded (still policy-neutral):
+- Added strict fast-path capability in `_validate_array_rows(..., frame=...)` for known heavy S4 input anchors with fallback to row validator.
+- This keeps fail-closed behavior unchanged while enabling vectorized validation path for large frames.
+- Input call sites now pass frame handles so fast path can engage when valid.
+
+Alternatives considered during implementation:
+1) Add markers only and defer scorer creation.
+   - Rejected: would force manual gate interpretation.
+2) Build scorer without count/warning anchors from run reports.
+   - Rejected: weak non-regression rail coverage.
+3) Keep row-wise-only validation path and optimize only compute first.
+   - Rejected: contradicts direct baseline evidence of validation-lane dominance.
+
+Sanity checks:
+- `py_compile` passed for updated runner and new scorer tools.
+
+Immediate next step:
+- execute instrumentation witness candidate (`S4->S5`) on new run-id to quantify current lane shares and validate marker coverage before deciding whether extra compute-lane tuning is needed beyond fast-path validation.
+
+---
+
+### Entry: 2026-02-21 02:29
+
+Execution incident + correction: candidate staging/rerun protocol during `POPT.2.5`.
+Summary: Initial candidate attempts failed for non-algorithmic reasons (run-root routing and cloned-output conflict). Resolved by pinning explicit `RUNS_ROOT` and using clean-stage copy semantics for changed-state outputs.
+
+Incident 1 (operator/run-root routing):
+- First `make segment5a-s4 SEG5A_S4_RUN_ID=<id>` attempts failed immediately with `S4_IO_READ_FAILED` and no new run log.
+- Root cause: command omitted `RUNS_ROOT=runs/fix-data-engine/segment_5A`, so make defaulted to `runs/local_full_run-5` and did not locate intended staged receipt/root.
+- Correction:
+  - all POPT.2 execution commands pinned with explicit `RUNS_ROOT=runs/fix-data-engine/segment_5A`.
+
+Incident 2 (idempotent publish conflict in cloned candidate):
+- Candidate run `86aa...` reached output write and failed with `S4_OUTPUT_CONFLICT`.
+- Root cause: cloned run folder contained prior `S4` output parquet files; changed compute path produced different byte payload, triggering strict idempotent conflict.
+- Alternatives considered:
+  1) disable idempotent conflict rail during POPT.2.
+     - Rejected: violates deterministic fail-closed posture.
+  2) continue full-folder clone and manually delete conflicting dirs.
+     - Rejected in this environment due direct delete policy blocks and higher risk.
+  3) stage a clean candidate by copying required upstream inputs (`S0..S3`) but excluding `S4/S5` outputs.
+     - Accepted.
+
+Pinned corrective staging pattern:
+- New candidate `7f20...` staged with:
+  - `run_receipt.json` updated to new run-id,
+  - copied required `data/layer2/5A` directories excluding:
+    - `merchant_zone_scenario_local`,
+    - `merchant_zone_overlay_factors`,
+    - `merchant_zone_scenario_utc`,
+    - `validation`.
+  - copied reports only for `S1/S2/S3`.
+- This preserved progressive-state inputs while avoiding output conflicts for changed states.
+
+Result:
+- Corrected candidate execution succeeded on `S4->S5` and produced closure artifacts.
+
+---
+
+### Entry: 2026-02-21 02:30
+
+Execution close: `POPT.2` formally closed with `UNLOCK_POPT3`.
+Summary: Completed full POPT.2 lane (tooling, instrumentation, optimization, witness rerun, closure scoring, prune sync) and passed all runtime/veto gates.
+
+Candidate authority and outcomes:
+- baseline run-id: `ce57da0ead0d4404a5725ca3f4b6e3be`.
+- candidate run-id: `7f20e9d97dad4ff5ac639bbc41749fb0`.
+- closure artifact:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_popt2_closure_7f20e9d97dad4ff5ac639bbc41749fb0.json`.
+- gate result:
+  - `decision.result=UNLOCK_POPT3`.
+
+Quantified movement:
+- `S4 wall`:
+  - baseline `456.687s` -> candidate `54.875s`.
+  - improvement `87.98%`.
+- runtime gate (`<=360s` or `>=20%` reduction): PASS.
+
+Veto rail status:
+- `S4 status=PASS`: true.
+- counts unchanged (`domain/event/horizon/overlay/scenario`): true.
+- warnings non-regressed (`overlay_warn_bounds_total`, `overlay_warn_aggregate`): true.
+- validation mode stable (`fast_sampled`): true.
+- S4 error surface clean: true.
+- downstream `S5 PASS`: true.
+
+Lane decomposition evidence (`segment5a_popt2_lane_timing_7f20....json`):
+- `input_load_schema_validation=1.48s` (`2.70%`).
+- `domain_horizon_mapping=7.59s` (`13.83%`).
+- `overlay_compute=34.11s` (`62.16%`).
+- `output_schema_validation=3.12s` (`5.69%`).
+- `output_write=8.09s` (`14.74%`).
+
+POPT.2.4 decision:
+- Since POPT.2 closure gates were exceeded with large margin, no additional high-risk compute mutation was required in this phase.
+- Compute lane remains largest by share but absolute wall is already within strong minute-scale budget; handoff to `POPT.3` on S5 is justified.
+
+Storage/prune action:
+- command:
+  - `python tools/prune_run_folders_keep_set.py --runs-root runs/fix-data-engine/segment_5A --keep 7b08449ccffc44beaa99e64bf0201efc --keep ac363a2f127d43d1a6e7e2308c988e5e --keep ce57da0ead0d4404a5725ca3f4b6e3be --keep 7f20e9d97dad4ff5ac639bbc41749fb0 --yes`.
+- removed superseded failed folder:
+  - `86aa72dbd8254b0d93063e9e4365fc08`.
+
+Decision:
+- `POPT.2` closed.
+- handoff target: `POPT.3` on `S5`.

@@ -17782,3 +17782,13 @@ Risk handling:
 ### Alternatives rejected
 1. run_report-only deltas as attempt basis (rejected due previously observed counter-basis drift).
 2. unbounded long-run retry (rejected due budget/cost risk and prior overrun evidence).
+
+## Entry: 2026-02-21 02:26:40 +00:00 - M10.F rerun blocker: control-plane reachability loss
+### Blocker
+1. AWS control-plane requests timed out repeatedly during active burst attempt supervision.
+2. This prevents immediate status read and explicit stop enforcement.
+
+### Decision
+1. Treat as execution blocker and pause all progression.
+2. Continue bounded control retries only; do not advance lane status claims while visibility/control is degraded.
+3. Once control-plane access returns, perform immediate task-state reconciliation and restore bounded posture evidence.
