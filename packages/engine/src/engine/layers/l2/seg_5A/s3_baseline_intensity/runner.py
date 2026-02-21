@@ -49,6 +49,7 @@ SEGMENT = "5A"
 STATE = "S3"
 S3_SPEC_VERSION = "1.0.0"
 PROGRESS_LOG_INTERVAL_SECONDS = 5.0
+TAIL_RESCUE_COUNTRY_SUPPORT_WEIGHT = 0.20
 FAST_ROW_VALIDATION_ANCHORS = {
     "model/merchant_zone_profile_5A",
     "model/shape_grid_definition_5A",
@@ -691,6 +692,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         "shape_rows": 0,
         "grid_rows": 0,
         "class_baseline_rows": 0,
+        "tail_target_rows": 0,
+        "tail_rescued_rows": 0,
+        "tail_rescue_enabled": False,
     }
     metrics: dict[str, Optional[float]] = {
         "lambda_local_base_min": None,
@@ -699,6 +703,10 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         "lambda_local_base_max": None,
         "weekly_sum_relative_error_max": None,
         "weekly_sum_relative_error_p95": None,
+        "tail_zero_rate_before_rescue": None,
+        "tail_zero_rate_after_rescue": None,
+        "tail_added_weekly_mass": None,
+        "tail_support_strength_p95": None,
     }
     weekly_sum_error_violations = 0
 
@@ -988,6 +996,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             "legal_country_iso",
             "tzid",
             "demand_class",
+            "demand_subclass",
             "channel_group",
             "weekly_volume_expected",
             "scale_factor",
@@ -1234,6 +1243,47 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 manifest_fingerprint,
             )
 
+        tail_rescue_policy = baseline_policy.get("tail_rescue") or {}
+        tail_rescue_enabled = bool(tail_rescue_policy.get("enabled", False))
+        tail_target_subclass = str(tail_rescue_policy.get("target_subclass") or "tail_zone")
+        tail_floor_epsilon = float(tail_rescue_policy.get("tail_floor_epsilon") or 0.0)
+        tail_lift_power = float(tail_rescue_policy.get("tail_lift_power") or 0.0)
+        tail_lift_max_multiplier = float(tail_rescue_policy.get("tail_lift_max_multiplier") or 0.0)
+        counts["tail_rescue_enabled"] = tail_rescue_enabled
+        if tail_rescue_enabled:
+            if tail_target_subclass != "tail_zone":
+                _abort(
+                    "S3_REQUIRED_POLICY_MISSING",
+                    "V-07",
+                    "tail_rescue_target_subclass_invalid",
+                    {"target_subclass": tail_target_subclass},
+                    manifest_fingerprint,
+                )
+            if tail_floor_epsilon < 0:
+                _abort(
+                    "S3_REQUIRED_POLICY_MISSING",
+                    "V-07",
+                    "tail_rescue_floor_invalid",
+                    {"tail_floor_epsilon": tail_floor_epsilon},
+                    manifest_fingerprint,
+                )
+            if tail_lift_power <= 0:
+                _abort(
+                    "S3_REQUIRED_POLICY_MISSING",
+                    "V-07",
+                    "tail_rescue_power_invalid",
+                    {"tail_lift_power": tail_lift_power},
+                    manifest_fingerprint,
+                )
+            if tail_lift_max_multiplier < 1:
+                _abort(
+                    "S3_REQUIRED_POLICY_MISSING",
+                    "V-07",
+                    "tail_rescue_multiplier_invalid",
+                    {"tail_lift_max_multiplier": tail_lift_max_multiplier},
+                    manifest_fingerprint,
+                )
+
         if baseline_policy.get("utc_projection", {}).get("emit_utc_baseline"):
             _abort(
                 "S3_REQUIRED_POLICY_MISSING",
@@ -1284,6 +1334,146 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 "weekly_volume_exceeds_limit",
                 {"max_weekly_volume_expected": max_weekly_volume_expected},
                 manifest_fingerprint,
+            )
+        tail_target_rows = int(profile_df.filter(pl.col("demand_subclass") == "tail_zone").height)
+        counts["tail_target_rows"] = tail_target_rows
+
+        if tail_rescue_enabled and tail_target_rows > 0:
+            non_tail_df = profile_df.filter(pl.col("demand_subclass") != tail_target_subclass)
+            support_tz_df = non_tail_df.group_by("tzid").agg(pl.col("base_scale").sum().alias("support_tz"))
+            support_country_df = non_tail_df.group_by("legal_country_iso").agg(
+                pl.col("base_scale").sum().alias("support_country")
+            )
+            support_tz_denominator = float(
+                support_tz_df.select(pl.col("support_tz").quantile(0.95)).item() or 0.0
+            )
+            support_country_denominator = float(
+                support_country_df.select(pl.col("support_country").quantile(0.95)).item() or 0.0
+            )
+            support_tz_denominator = max(support_tz_denominator, 1.0)
+            support_country_denominator = max(support_country_denominator, 1.0)
+
+            tail_mask = pl.col("demand_subclass") == tail_target_subclass
+            profile_df = (
+                profile_df.join(support_tz_df, on="tzid", how="left")
+                .join(support_country_df, on="legal_country_iso", how="left")
+                .with_columns(
+                    [
+                        pl.col("support_tz").fill_null(0.0),
+                        pl.col("support_country").fill_null(0.0),
+                    ]
+                )
+                .with_columns(
+                    [
+                        pl.min_horizontal(
+                            pl.lit(1.0), pl.col("support_tz") / pl.lit(float(support_tz_denominator))
+                        ).alias("tail_support_tz_norm"),
+                        pl.min_horizontal(
+                            pl.lit(1.0),
+                            pl.col("support_country") / pl.lit(float(support_country_denominator)),
+                        ).alias("tail_support_country_norm"),
+                    ]
+                )
+                .with_columns(
+                    pl.max_horizontal(
+                        pl.col("tail_support_tz_norm"),
+                        pl.col("tail_support_country_norm") * pl.lit(float(TAIL_RESCUE_COUNTRY_SUPPORT_WEIGHT)),
+                    ).alias("tail_support_strength")
+                )
+                .with_columns(
+                    (
+                        pl.lit(1.0)
+                        + (pl.lit(float(tail_lift_max_multiplier)) - pl.lit(1.0))
+                        * pl.col("tail_support_strength").pow(float(tail_lift_power))
+                    ).alias("tail_lift_multiplier")
+                )
+                .with_columns(
+                    (pl.lit(float(tail_floor_epsilon)) * pl.col("tail_lift_multiplier")).alias("tail_floor_target")
+                )
+                .with_columns(
+                    pl.when(tail_mask & (pl.col("tail_support_strength") > 0))
+                    .then(pl.max_horizontal(pl.col("base_scale"), pl.col("tail_floor_target")))
+                    .otherwise(pl.col("base_scale"))
+                    .alias("effective_base_scale")
+                )
+            )
+
+            if profile_df.filter(pl.col("effective_base_scale") > max_weekly_volume_expected).height:
+                _abort(
+                    "S3_INTENSITY_NUMERIC_INVALID",
+                    "V-07",
+                    "weekly_volume_exceeds_limit_after_tail_rescue",
+                    {"max_weekly_volume_expected": max_weekly_volume_expected},
+                    manifest_fingerprint,
+                )
+
+            tail_stats_rows = profile_df.filter(tail_mask).select(
+                [
+                    pl.len().alias("tail_rows"),
+                    (pl.col("base_scale") <= 0).cast(pl.Int64).sum().alias("tail_zero_before"),
+                    (pl.col("effective_base_scale") <= 0).cast(pl.Int64).sum().alias("tail_zero_after"),
+                    (pl.col("effective_base_scale") > pl.col("base_scale"))
+                    .cast(pl.Int64)
+                    .sum()
+                    .alias("tail_rescued_rows"),
+                    (
+                        pl.max_horizontal(
+                            pl.col("effective_base_scale") - pl.col("base_scale"),
+                            pl.lit(0.0),
+                        )
+                    )
+                    .sum()
+                    .alias("tail_added_mass"),
+                    pl.col("tail_support_strength").quantile(0.95).alias("tail_support_strength_p95"),
+                ]
+            ).to_dicts()
+            tail_stats = tail_stats_rows[0] if tail_stats_rows else {}
+            tail_rows = int(tail_stats.get("tail_rows") or 0)
+            tail_zero_before = int(tail_stats.get("tail_zero_before") or 0)
+            tail_zero_after = int(tail_stats.get("tail_zero_after") or 0)
+            tail_rescued_rows = int(tail_stats.get("tail_rescued_rows") or 0)
+            tail_added_mass = float(tail_stats.get("tail_added_mass") or 0.0)
+            tail_support_strength_p95 = float(tail_stats.get("tail_support_strength_p95") or 0.0)
+
+            counts["tail_rescued_rows"] = tail_rescued_rows
+            metrics["tail_zero_rate_before_rescue"] = (
+                float(tail_zero_before / tail_rows) if tail_rows > 0 else None
+            )
+            metrics["tail_zero_rate_after_rescue"] = (
+                float(tail_zero_after / tail_rows) if tail_rows > 0 else None
+            )
+            metrics["tail_added_weekly_mass"] = tail_added_mass
+            metrics["tail_support_strength_p95"] = tail_support_strength_p95
+            logger.info(
+                "S3: tail_rescue enabled target=%s rows=%s rescued=%s "
+                "zero_rate_before=%.6f zero_rate_after=%.6f added_mass=%.6f support_p95=%.6f",
+                tail_target_subclass,
+                tail_rows,
+                tail_rescued_rows,
+                float(metrics["tail_zero_rate_before_rescue"] or 0.0),
+                float(metrics["tail_zero_rate_after_rescue"] or 0.0),
+                tail_added_mass,
+                tail_support_strength_p95,
+            )
+            profile_df = profile_df.with_columns(
+                [
+                    pl.col("effective_base_scale").alias("base_scale"),
+                    pl.when(tail_mask)
+                    .then(pl.col("effective_base_scale"))
+                    .otherwise(pl.col("weekly_volume_expected"))
+                    .alias("weekly_volume_expected"),
+                ]
+            ).drop(
+                [
+                    "support_tz",
+                    "support_country",
+                    "tail_support_tz_norm",
+                    "tail_support_country_norm",
+                    "tail_support_strength",
+                    "tail_lift_multiplier",
+                    "tail_floor_target",
+                    "effective_base_scale",
+                ]
             )
 
         current_phase = "shape_join"

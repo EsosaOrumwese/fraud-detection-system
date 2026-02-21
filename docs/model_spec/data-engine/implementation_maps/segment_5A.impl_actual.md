@@ -5680,3 +5680,369 @@ Files changed in this planning step:
 Execution note:
 - no engine code, policy values, or runtime run-ids were mutated in this step.
 - next action is to execute `P3.1` contract lock artifact generation exactly as specified in the updated plan.
+
+---
+
+### Entry: 2026-02-21 17:49
+
+P3 full execution pre-edit lock (documentation-first, fail-closed).
+Summary: Locked the concrete execution method for `P3.1 -> P3.6` before code changes; identified a scoring-surface mismatch that must be closed early in P3.
+
+Authority surfaces reviewed in this lock step:
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5A/state.5A.s3.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/schemas.5A.yaml`
+- `config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml`
+- `packages/engine/src/engine/layers/l2/seg_5A/s3_baseline_intensity/runner.py`
+- `tools/score_segment5a_p0_realism.py`
+
+Critical issue discovered before execution:
+- current tail gates in `tools/score_segment5a_p0_realism.py` are computed from `merchant_zone_profile_5A` (S1 surface):
+  - `tail_zero_rate` = zero share of `weekly_volume_expected` for `demand_subclass='tail_zone'`.
+- this means S3-only remediation can fail to move P3 gates even if `merchant_zone_baseline_local_5A` improves, which violates P3 ownership.
+- P3.2 therefore must explicitly include scorer metric-surface adjudication and patch if needed.
+
+Observed baseline numbers on current P2 authority (`66c708d45d984be18fe45a40c3b79ecc`):
+- tail-zero-rate (current scorer surface): `0.9818927`.
+- non-trivial tzids (current scorer surface): `127`.
+- tail-zero-rate on S3 weekly baseline surface matches currently (`0.9818927`) because no rescue exists yet.
+- diagnostic support coverage indicates a direct same-cell non-tail support proxy is too sparse (~4%), so rescue logic must use broader bounded support evidence.
+
+Design choices locked for implementation:
+1) P3.3 contract lane:
+- extend `policy/baseline_intensity_policy_5A` schema with bounded `tail_rescue` controls while preserving strictness (`additionalProperties: false`).
+- keep policy version `v1` (dictionary expects `v1`) and add conservative defaults in policy yaml.
+
+2) P3.4 S3 algorithm lane:
+- implement deterministic support-aware lower-tail rescue inside S3 baseline composition.
+- rescue restricted to tail rows and bounded by policy knobs; no stochastic path, no uncontrolled inflation.
+- preserve existing hard-limit checks and weekly conservation checks against the effective scale used to compute baseline.
+
+3) P3.2/P3.5 scoring lane:
+- patch scorer to support explicit phase `P3` closure decision (`UNLOCK_P4` / `HOLD_P3_REOPEN`).
+- patch tail metrics to evaluate the causal S3 baseline surface, while keeping threshold semantics from plan/remediation.
+- keep P1/P2 freeze rails as veto checks in P3 decision logic.
+
+4) Run execution lane:
+- stage fresh candidate run-ids from P2 authority run `66c708d45d984be18fe45a40c3b79ecc`.
+- run only `S3 -> S4 -> S5` for each candidate (no upstream reopen in P3 local lane).
+- enforce explicit `RUNS_ROOT=runs/fix-data-engine/segment_5A` and explicit per-state run-id pins to avoid run-root drift.
+
+Alternatives considered and rejected:
+- reopen S1 and tune weekly scale there:
+  - rejected for P3 local lane because P1/P2 are frozen and this would violate phase ownership.
+- keep current scorer surface unchanged:
+  - rejected because it decouples P3 effect from P3 gate movement and causes false saturation.
+- high-floor unconditional rescue:
+  - rejected due synthetic inflation risk and likely concentration/channel collateral.
+
+Next actions in execution order:
+1) Emit `P3.1` contract artifact.
+2) Emit `P3.2` hotspot + metric-surface alignment artifact.
+3) Implement `P3.3/P3.4` code changes (schema/policy/runner/scorer).
+4) Execute bounded candidate sweep (`S3->S5`) and score `P3`.
+5) Emit `P3.6` closure package and prune superseded run folders.
+
+---
+
+### Entry: 2026-02-21 17:51
+
+P3.1 and P3.2 evidence artifacts emitted (no code changes yet).
+Summary: Completed contract lock artifact and hotspot/alignment artifact prior to schema/runner/scorer edits.
+
+P3.1 output:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p3_1_tail_contract.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p3_1_tail_contract.md`
+- Locked:
+  - hard targets: `tail_zero_rate <= 0.90`, `nontrivial_tzids >= 190`,
+  - stretch targets: `tail_zero_rate <= 0.80`, `nontrivial_tzids >= 230`,
+  - frozen veto rails: mass/shape + P1 channel + P2 concentration protections,
+  - phase decision vocabulary: `UNLOCK_P4` vs `HOLD_P3_REOPEN`.
+
+P3.2 output:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p3_2_tail_hotspot_map_66c708d45d984be18fe45a40c3b79ecc.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p3_2_tail_hotspot_map_66c708d45d984be18fe45a40c3b79ecc.md`
+
+P3.2 findings that drive upcoming implementation:
+1) Metric-surface alignment:
+- verdict: `patched_required`.
+- reason: current gate surface is S1 (`merchant_zone_profile_5A`) while P3 change ownership is S3.
+
+2) Baseline tail posture on authority run:
+- current scorer surface: `tail_zero_rate=0.9818927`, `nontrivial_tzids=127`.
+- proposed S3-causal surface: `tail_zero_rate=0.9818927`, `nontrivial_tzids=74`.
+
+3) Dormancy concentration:
+- top zero-row countries and tzids are concentrated in FR/DE/EU clusters; tail dormancy remains broad and structural.
+
+4) Support-proxy coverage diagnostics:
+- same `(country,tz,channel)` non-tail support is sparse (~`3.96%` of tail rows),
+- same `tz` non-tail support is moderate (~`59.13%`),
+- same `country` non-tail support is universal (`100%`).
+- implication: rescue formula must be bounded and support-aware using broader but controlled support evidence, not strict same-cell support only.
+
+Decision:
+- proceed to `P3.3/P3.4` implementation lane (schema + policy + S3 runner + scorer patch).
+- keep S1 closed; no upstream reopen in this local P3 pass.
+
+---
+
+### Entry: 2026-02-21 17:55
+
+P3.3/P3.4 implementation lane landed (schema + policy + S3 + scorer).
+Summary: Implemented contract-safe tail rescue controls and wired deterministic S3 lower-tail rescue, then updated scorer phase semantics to close P3 against S3-causal metrics.
+
+Files changed:
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/schemas.5A.yaml`
+- `config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml`
+- `packages/engine/src/engine/layers/l2/seg_5A/s3_baseline_intensity/runner.py`
+- `tools/score_segment5a_p0_realism.py`
+
+Design choices and rationale:
+1) Contract lane (`schemas.5A.yaml`):
+- added required `tail_rescue` block under `policy/baseline_intensity_policy_5A` with strict bounds:
+  - `enabled`,
+  - `target_subclass=tail_zone`,
+  - `tail_floor_epsilon >= 0`,
+  - `tail_lift_power > 0`,
+  - `tail_lift_max_multiplier >= 1`.
+- rationale: explicit bounded knobs with fail-closed schema validation; no free-form policy drift.
+
+2) Policy lane (`baseline_intensity_policy_5A.v1.yaml`):
+- added initial conservative tail rescue defaults:
+  - `enabled: true`,
+  - `target_subclass: tail_zone`,
+  - `tail_floor_epsilon: 0.05`,
+  - `tail_lift_power: 0.85`,
+  - `tail_lift_max_multiplier: 2.5`.
+- rationale: seed a bounded first candidate for P3.5 without opening S1.
+
+3) S3 implementation lane:
+- included `demand_subclass` in S1 profile columns consumed by S3.
+- implemented deterministic tail rescue path:
+  - build non-tail support surfaces by `tzid` and by `legal_country_iso`,
+  - normalize support with p95 denominators (bounded to `>=1.0`),
+  - compute support strength as:
+    - `max(tz_norm, country_norm * 0.20)`,
+  - compute bounded lift floor:
+    - `tail_floor_epsilon * (1 + (tail_lift_max_multiplier-1) * support_strength^tail_lift_power)`,
+  - for tail rows with positive support strength:
+    - `effective_base_scale = max(base_scale, tail_floor_target)`.
+- enforced post-rescue hard-limit check (`effective_base_scale <= max_weekly_volume_expected`).
+- preserved deterministic compute/validation flow and weekly-sum conservation checks against effective base scale.
+- added run-report counters/metrics:
+  - `tail_target_rows`, `tail_rescued_rows`, `tail_rescue_enabled`,
+  - `tail_zero_rate_before_rescue`, `tail_zero_rate_after_rescue`,
+  - `tail_added_weekly_mass`, `tail_support_strength_p95`.
+
+4) Scorer lane (`score_segment5a_p0_realism.py`):
+- changed tail metrics to S3-causal surface:
+  - `tail_zero_rate` from weekly `lambda_local_base` over tail keys,
+  - `nontrivial_tzids` from all-zone weekly sums in `merchant_zone_baseline_local_5A`.
+- added phase `P3` semantics:
+  - required seeds default `{42}`,
+  - explicit closure decision:
+    - `UNLOCK_P4` if P3 hard tail gates + frozen rails pass,
+    - else `HOLD_P3_REOPEN`.
+
+Alternative considered and rejected during implementation:
+- using tail-only tz nontrivial count in scorer:
+  - rejected for now to preserve threshold comparability (`>=190/230`) with historical gate semantics while still moving to S3-causal measurement.
+
+Validation performed:
+- compiled changed Python modules:
+  - `python -m compileall packages/engine/src/engine/layers/l2/seg_5A/s3_baseline_intensity/runner.py tools/score_segment5a_p0_realism.py`
+- compile completed with no syntax errors.
+
+Next action:
+- execute `P3.5` bounded candidate sweep (`S3 -> S4 -> S5`) on staged run-id(s), score phase `P3`, and close with `P3.6`.
+
+---
+
+### Entry: 2026-02-21 17:57
+
+P3.5 candidate sweep started (lane A, conservative initial knobs).
+Summary: Staged clean candidate run-id from P2 authority and prepared bounded `S3 -> S4 -> S5` execution lane.
+
+Staging decision:
+- source authority run: `66c708d45d984be18fe45a40c3b79ecc`.
+- candidate run: `b0d4f4e5ad884a51a2df51d1fd0b4278`.
+- staging method:
+  - cloned source run folder,
+  - rewrote `run_receipt.run_id` to candidate id,
+  - removed mutable downstream outputs to avoid idempotent write conflicts:
+    - `merchant_zone_baseline_local`,
+    - `class_zone_baseline_local`,
+    - `merchant_zone_scenario_local`,
+    - `merchant_zone_overlay_factors`,
+    - `merchant_zone_scenario_utc`,
+    - `validation`,
+    - state run reports for `S3/S4/S5`.
+
+Why this method:
+- preserves sealed upstream context (`S0/S1/S2`, manifest, parameter hash) exactly.
+- avoids contaminated-output conflicts while minimizing rerun blast radius.
+
+Execution commands locked:
+1) `make segment5a-s3 RUNS_ROOT=runs/fix-data-engine/segment_5A SEG5A_S3_RUN_ID=b0d4f4e5ad884a51a2df51d1fd0b4278`
+2) `make segment5a-s4 RUNS_ROOT=runs/fix-data-engine/segment_5A SEG5A_S4_RUN_ID=b0d4f4e5ad884a51a2df51d1fd0b4278`
+3) `make segment5a-s5 RUNS_ROOT=runs/fix-data-engine/segment_5A SEG5A_S5_RUN_ID=b0d4f4e5ad884a51a2df51d1fd0b4278`
+4) `python tools/score_segment5a_p0_realism.py --runs-root runs/fix-data-engine/segment_5A --phase P3 --run-id b0d4f4e5ad884a51a2df51d1fd0b4278`
+
+Candidate lane label:
+- `P3 lane A (conservative)` using current policy defaults:
+  - `tail_floor_epsilon=0.05`,
+  - `tail_lift_power=0.85`,
+  - `tail_lift_max_multiplier=2.5`.
+
+---
+
+### Entry: 2026-02-21 17:58
+
+P3.5 lane A first run failed in S3; corrective fix selected.
+Summary: Candidate run `b0d4f4e5ad884a51a2df51d1fd0b4278` failed at `S3 scale_policy` due expression-order bug in the new tail-rescue branch.
+
+Failure evidence:
+- command failed:
+  - `make segment5a-s3 RUNS_ROOT=runs/fix-data-engine/segment_5A SEG5A_S3_RUN_ID=b0d4f4e5ad884a51a2df51d1fd0b4278`
+- run report:
+  - `runs/fix-data-engine/segment_5A/b0d4f4e5ad884a51a2df51d1fd0b4278/reports/layer2/5A/state=S3/manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8/run_report.json`
+- failure context:
+  - `error_code=S3_IO_READ_FAILED`,
+  - `phase=scale_policy`,
+  - `detail=tail_lift_multiplier`.
+
+Root cause:
+- Polars evaluation order in a single `.with_columns([...])` block does not guarantee immediate availability of a newly aliased column for sibling expressions.
+- `tail_floor_target` referenced `tail_lift_multiplier` within the same block where `tail_lift_multiplier` was being defined.
+
+Corrective decision:
+- split this into two sequential `.with_columns(...)` calls:
+  1) compute `tail_lift_multiplier`,
+  2) compute `tail_floor_target` from it.
+- keep all other logic unchanged to isolate this fix and preserve causal attribution.
+
+---
+
+### Entry: 2026-02-21 18:04
+
+P3.5 lane A rerun closed for evidence; escalation to lane B.
+Summary: After fixing two implementation defects (expression-order bug + weekly-sum-vs-scale echo mismatch), lane A completed `S3/S4/S5 PASS` and produced first valid P3 gateboard. Tail zero-rate closed, but nontrivial TZID hard gate remained short; moving to moderate lane B.
+
+Execution incidents and closures:
+1) Sequencing incident:
+- attempted parallel launch of `S3/S4/S5` on same run-id (`906e20965f3f4d919405d8952924b57c`) created dependency race (`S4/S5` started before S3 completion).
+- correction:
+  - cleaned only stale `S4/S5` artifacts for this run-id,
+  - reran sequentially (`S4` then `S5`) after `S3` PASS.
+
+2) S5 validation mismatch incident (earlier lane A run):
+- issue: `S3_WEEKLY_SUM_VS_SCALE` failures (`14370` rows) when rescue changed effective base scale but baseline output still echoed old `weekly_volume_expected`.
+- correction:
+  - align `weekly_volume_expected` in S3 output to effective rescued scale for target tail rows.
+- result:
+  - S5 recomposition error cleared; only non-blocking warnings remained.
+
+Lane A validated evidence (run `906e20965f3f4d919405d8952924b57c`):
+- `S3` run metrics:
+  - `tail_zero_rate_before_rescue=0.9818927`,
+  - `tail_zero_rate_after_rescue=0.0`,
+  - `tail_rescued_rows=14370`,
+  - `tail_added_weekly_mass=1144.9075`.
+- phase score (`tools/score_segment5a_p0_realism.py --phase P3`):
+  - `tail_zero_rate=0.0` (hard pass),
+  - `nontrivial_tzids=177` (hard fail vs `>=190`),
+  - decision: `HOLD_P3_REOPEN`.
+
+Decision to escalate:
+- move to lane B (moderate) by increasing `tail_floor_epsilon` only:
+  - `0.05 -> 0.20`,
+  - keep `tail_lift_power=0.85`, `tail_lift_max_multiplier=2.5`.
+- rationale:
+  - attribution shows hard miss is isolated to nontrivial TZID count,
+  - single-knob increase minimizes blast radius while targeting exactly the failing metric.
+
+---
+
+### Entry: 2026-02-21 18:09
+
+P3.5 lane B executed end-to-end and closed hard P3 gates (`UNLOCK_P4`).
+Summary: Completed lane B sequential execution on staged run `6817ca5a2e2648a1a8cf62deebfa0fcb` with a single knob escalation (`tail_floor_epsilon=0.20`) and held all frozen rails green.
+
+Execution trace:
+1) `S3` (`segment5a-s3`) completed with tail rescue diagnostics:
+- `tail_target_rows=14635`,
+- `tail_rescued_rows=14370`,
+- `tail_zero_rate_before_rescue=0.981893`,
+- `tail_zero_rate_after_rescue=0.000000`,
+- `tail_added_weekly_mass=4579.630028`,
+- `tail_support_strength_p95=1.0`.
+
+2) `S4` (`segment5a-s4`) completed without schema or overlay-path regressions.
+
+3) `S5` (`segment5a-s5`) completed `PASS`; no recurrence of prior recomposition mismatch after S3 weekly echo alignment fix.
+
+4) P3 scoring:
+- executed:
+  - `python tools/score_segment5a_p0_realism.py --runs-root runs/fix-data-engine/segment_5A --phase P3 --run-id 6817ca5a2e2648a1a8cf62deebfa0fcb`
+- output:
+  - `segment5a_p3_realism_gateboard_6817ca5a2e2648a1a8cf62deebfa0fcb.{json,md}`
+- decision:
+  - `UNLOCK_P4`
+  - reason in artifact: P3 tail gates met on required seed with frozen rails intact.
+
+Key closure metrics (seed `42`):
+- `tail_zero_rate=0.0` (hard pass, stretch pass),
+- `nontrivial_tzids=196` (hard pass, stretch miss vs `>=230`),
+- frozen rails:
+  - channel rails pass,
+  - concentration rails pass,
+  - mass/shape rails pass.
+
+Decision rationale:
+- accepted lane B as minimal effective closure:
+  - only one policy knob was moved (`tail_floor_epsilon`),
+  - hard P3 closure criteria are green,
+  - no evidence of collateral regressions in frozen axes.
+- explicit bounded miss retained:
+  - P3 stretch nontrivial-TZID target remains short (`196` vs `230`),
+  - carried forward as non-blocking caveat for P4/P5 integration, not a blocker to `UNLOCK_P4`.
+
+Alternative considered and rejected:
+- opening a stronger lane C (`tail_lift_max_multiplier` increase or `tail_lift_power` reduction) was rejected at this step to avoid unnecessary blast radius after hard closure was already achieved.
+
+---
+
+### Entry: 2026-02-21 18:11
+
+P3.6 closure package completed, corrected, and pruned.
+Summary: Published movement/caveat closure artifacts vs P2 authority, corrected an initial movement-pack extraction bug, and pruned superseded P3 lane run folders.
+
+Closure artifacts emitted:
+1) Baseline P3 gateboard for P2 authority reference:
+- `segment5a_p3_realism_gateboard_66c708d45d984be18fe45a40c3b79ecc.{json,md}`
+
+2) Movement pack baseline -> closure:
+- `segment5a_p3_6_movement_66c708d45d984be18fe45a40c3b79ecc_to_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+- `segment5a_p3_6_movement_66c708d45d984be18fe45a40c3b79ecc_to_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+- movement summary:
+  - `tail_zero_rate`: `0.981893 -> 0.000000`,
+  - `nontrivial_tzids`: `127 -> 196`,
+  - tail caveat severity: `material -> watch`.
+
+Correction logged:
+- first draft of the movement pack was invalid for rails with dotted key names due PowerShell member-access parsing (`...0.08`, `...1e-9`).
+- corrective action:
+  - regenerated movement pack via deterministic Python JSON key access,
+  - verified closure rails now reflect actual scorer verdicts (all frozen rails `PASS`).
+- this correction was applied before marking P3 closure complete.
+
+Prune action:
+- executed keep-set prune under `runs/fix-data-engine/segment_5A` to remove superseded P3 candidates only:
+  - removed `b0d4f4e5ad884a51a2df51d1fd0b4278`,
+  - removed `906e20965f3f4d919405d8952924b57c`.
+- retained authority/freeze lineage run ids including:
+  - `66c708d45d984be18fe45a40c3b79ecc` (P2 authority),
+  - `6817ca5a2e2648a1a8cf62deebfa0fcb` (P3 closure).
+
+Closure decision:
+- `P3` is closed with `UNLOCK_P4` on the execution seed policy (`{42}`), with explicit bounded stretch miss recorded for nontrivial TZIDs.

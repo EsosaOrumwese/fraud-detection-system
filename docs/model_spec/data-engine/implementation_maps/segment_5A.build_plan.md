@@ -1159,9 +1159,9 @@ Scope:
   - `merchant_zone_scenario_local_5A`.
 
 Definition of done:
-- [ ] P3 contract artifact is emitted with hard/stretch targets and frozen veto rails.
-- [ ] all P3 acceptance checks are machine-checkable and version-pinned.
-- [ ] P3 scoring decision vocabulary is pinned (`UNLOCK_P4` vs `HOLD_P3_REOPEN`).
+- [x] P3 contract artifact is emitted with hard/stretch targets and frozen veto rails.
+- [x] all P3 acceptance checks are machine-checkable and version-pinned.
+- [x] P3 scoring decision vocabulary is pinned (`UNLOCK_P4` vs `HOLD_P3_REOPEN`).
 
 #### P3.2 - Tail dormancy attribution and metric-surface alignment (no tuning yet)
 Goal:
@@ -1178,9 +1178,9 @@ Scope:
 - publish ranked hotspot map plus first bounded knob lane selection.
 
 Definition of done:
-- [ ] hotspot artifact identifies dominant dormancy contributors with percentages.
-- [ ] scorer-surface alignment verdict is explicit (`aligned` or `patched`) with rationale.
-- [ ] no policy/runner value changes are applied in this subphase.
+- [x] hotspot artifact identifies dominant dormancy contributors with percentages.
+- [x] scorer-surface alignment verdict is explicit (`aligned` or `patched`) with rationale.
+- [x] no policy/runner value changes are applied in this subphase.
 
 #### P3.3 - Tail-lift contract and policy lane (schema + policy)
 Goal:
@@ -1196,9 +1196,9 @@ Scope:
 - pin default values to conservative, non-synthetic posture before candidate sweeps.
 
 Definition of done:
-- [ ] schema admits only bounded tail-rescue knobs with explicit numeric limits.
-- [ ] policy file is updated with versioned conservative defaults.
-- [ ] S3 policy load/validation path accepts the new contract without regressions.
+- [x] schema admits only bounded tail-rescue knobs with explicit numeric limits.
+- [x] policy file is updated with versioned conservative defaults.
+- [x] S3 policy load/validation path accepts the new contract without regressions.
 
 #### P3.4 - S3 bounded lower-tail rescue implementation
 Goal:
@@ -1217,9 +1217,9 @@ Scope:
   - upper-tail sanity deltas.
 
 Definition of done:
-- [ ] S3 runner emits deterministic bounded tail rescue with policy-controlled behavior.
-- [ ] protection rails remain green on each accepted candidate.
-- [ ] diagnostic artifacts quantify movement and non-regression for each iteration.
+- [x] S3 runner emits deterministic bounded tail rescue with policy-controlled behavior.
+- [x] protection rails remain green on each accepted candidate.
+- [x] diagnostic artifacts quantify movement and non-regression for each iteration.
 
 #### P3.5 - Candidate calibration loop and phase scoring
 Goal:
@@ -1234,9 +1234,9 @@ Scope:
 - produce movement report vs P2 authority run `66c708d45d984be18fe45a40c3b79ecc`.
 
 Definition of done:
-- [ ] P3 hard tail gates are green on execution seed or saturation is evidenced.
-- [ ] B+ stretch attempt outcome is explicit (achieved or bounded miss with attribution).
-- [ ] accepted knob set is minimal and alternatives rejected are documented with evidence.
+- [x] P3 hard tail gates are green on execution seed or saturation is evidenced.
+- [x] B+ stretch attempt outcome is explicit (achieved or bounded miss with attribution).
+- [x] accepted knob set is minimal and alternatives rejected are documented with evidence.
 
 #### P3.6 - Closure handoff, prune, and freeze pointer update
 Goal:
@@ -1251,9 +1251,37 @@ Scope:
 - update implementation notes and logbook with final reasoning trail.
 
 Definition of done:
-- [ ] closure artifact set is complete and linked from the build plan.
-- [ ] explicit `UNLOCK/HOLD` decision is recorded with blocker rationale where applicable.
-- [ ] superseded run-id folders are pruned under keep-set policy.
+- [x] closure artifact set is complete and linked from the build plan.
+- [x] explicit `UNLOCK/HOLD` decision is recorded with blocker rationale where applicable.
+- [x] superseded run-id folders are pruned under keep-set policy.
+
+P3 closure snapshot (2026-02-21):
+- authority baseline run-id: `66c708d45d984be18fe45a40c3b79ecc` (`HOLD_P3_REOPEN` under P3-tail gates).
+- closure run-id: `6817ca5a2e2648a1a8cf62deebfa0fcb` (`UNLOCK_P4`).
+- bounded lane summary:
+  - lane A (`906e20965f3f4d919405d8952924b57c`): tail-zero-rate closed, nontrivial TZID short (`177`).
+  - lane B (`6817ca5a2e2648a1a8cf62deebfa0fcb` with `tail_floor_epsilon=0.20`): hard tail gates closed.
+- closure movement (baseline -> closure):
+  - `tail_zero_rate: 0.981893 -> 0.000000`,
+  - `nontrivial_tzids: 127 -> 196`.
+- B+ tail stretch outcome:
+  - achieved for tail-zero-rate (`<=0.80`),
+  - bounded miss for nontrivial TZIDs (`196` vs `>=230`), explicitly accepted for P4 handoff.
+- freeze rails at closure run remain green:
+  - P1 channel rails pass,
+  - P2 concentration rails pass,
+  - mass/shape invariants pass.
+- closure artifacts:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p3_realism_gateboard_66c708d45d984be18fe45a40c3b79ecc.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p3_realism_gateboard_66c708d45d984be18fe45a40c3b79ecc.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p3_realism_gateboard_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p3_realism_gateboard_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p3_6_movement_66c708d45d984be18fe45a40c3b79ecc_to_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p3_6_movement_66c708d45d984be18fe45a40c3b79ecc_to_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+- prune sync completed:
+  - removed superseded P3 lane run-id folders:
+    - `b0d4f4e5ad884a51a2df51d1fd0b4278`,
+    - `906e20965f3f4d919405d8952924b57c`.
 
 ### P4 - DST and overlay fairness closure (S4)
 Goal:
@@ -1293,6 +1321,6 @@ Definition of done:
 - `P0`: in progress (`gateboard + caveat map tooling/artifacts emitted`; hold on required witness seed `101` input gap).
 - `P1`: closed (`UNLOCK_P2`; authority run `d9caca5f1552456eaf73780932768845`).
 - `P2`: closed (`UNLOCK_P3`; authority run `66c708d45d984be18fe45a40c3b79ecc`).
-- `P3`: planned (expanded into execution-grade `P3.1 -> P3.6` with contract/schema/runner/scoring lanes).
+- `P3`: closed (`UNLOCK_P4`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch partially met with bounded TZID miss).
 - `P4`: planned.
 - `P5`: planned.
