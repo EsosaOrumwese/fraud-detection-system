@@ -1122,12 +1122,138 @@ Goal:
 
 Scope:
 - apply support-aware tail lift controls in baseline intensity composition.
-- enforce hard numeric bounds and conservation invariants.
+- align metric surface so P3 decisions are driven by true S3 tail behavior (not proxy drift).
+- enforce hard numeric bounds and conservation/concentration/channel invariants.
 
 Definition of done:
 - [ ] tail-zone zero-rate and non-trivial TZID count meet B thresholds on witness seeds.
 - [ ] mass conservation/normalization invariants remain exact.
 - [ ] no runaway upper-tail artifacts introduced.
+
+P3 execution posture (temporary waiver for execution lanes):
+- execution-lane seed policy for `P3` only: `{42}` (same temporary waiver posture used in `P1/P2` while upstream witness seed `101` remains unavailable).
+- freeze rails from prior closed phases are veto constraints in every P3 iteration:
+  - P1 channel rails remain green (`>=2` realized channel groups; `night_share(CNP)-night_share(CP) >= 0.08`),
+  - P2 concentration rails remain green (`max_class_share <= 0.55`; `max_country_share_within_class <= 0.40`),
+  - mass conservation and shape normalization stay exact.
+- changes are limited to:
+  - `S3` implementation path,
+  - `baseline_intensity_policy_5A` contract/policy fields,
+  - P3 scorer surfaces/artifacts needed for closure evidence.
+
+#### P3.1 - Tail contract lock and frozen-rail baseline
+Goal:
+- pin exact measurable P3 targets and freeze non-regression rails before touching S3 logic.
+
+Scope:
+- lock P3 hard and stretch targets:
+  - hard (`B`): `tail_zero_rate <= 0.90`, `nontrivial_tzids >= 190`,
+  - stretch (`B+`): `tail_zero_rate <= 0.80`, `nontrivial_tzids >= 230`.
+- lock frozen protection rails from closed phases:
+  - P1 channel realization/night-gap,
+  - P2 concentration gates,
+  - mass/shape invariants.
+- pin authority datasets for this phase:
+  - `merchant_zone_profile_5A`,
+  - `class_zone_baseline_local_5A`,
+  - `merchant_zone_scenario_local_5A`.
+
+Definition of done:
+- [ ] P3 contract artifact is emitted with hard/stretch targets and frozen veto rails.
+- [ ] all P3 acceptance checks are machine-checkable and version-pinned.
+- [ ] P3 scoring decision vocabulary is pinned (`UNLOCK_P4` vs `HOLD_P3_REOPEN`).
+
+#### P3.2 - Tail dormancy attribution and metric-surface alignment (no tuning yet)
+Goal:
+- isolate true dormancy drivers and ensure P3 gates read the correct S3-caused statistical surface.
+
+Scope:
+- decompose dormancy by:
+  - `demand_class/demand_subclass`,
+  - `legal_country_iso`,
+  - `tzid`,
+  - merchant contribution rank within dormant cells.
+- explicitly test whether current tail gates are proxying S1-only surfaces or S3 outputs.
+- if mismatch exists, patch scorer surface to S3-authoritative measurement while preserving published threshold semantics.
+- publish ranked hotspot map plus first bounded knob lane selection.
+
+Definition of done:
+- [ ] hotspot artifact identifies dominant dormancy contributors with percentages.
+- [ ] scorer-surface alignment verdict is explicit (`aligned` or `patched`) with rationale.
+- [ ] no policy/runner value changes are applied in this subphase.
+
+#### P3.3 - Tail-lift contract and policy lane (schema + policy)
+Goal:
+- expose bounded tail-lift controls in contract-safe policy shape before runner tuning.
+
+Scope:
+- extend `policy/baseline_intensity_policy_5A` schema to support a bounded `tail_rescue` block.
+- add/lock tail controls in `baseline_intensity_policy_5A`:
+  - `tail_floor_epsilon`,
+  - `tail_lift_power`,
+  - `tail_lift_max_multiplier`.
+- preserve strict contract posture (`additionalProperties: false`) with explicit field bounds.
+- pin default values to conservative, non-synthetic posture before candidate sweeps.
+
+Definition of done:
+- [ ] schema admits only bounded tail-rescue knobs with explicit numeric limits.
+- [ ] policy file is updated with versioned conservative defaults.
+- [ ] S3 policy load/validation path accepts the new contract without regressions.
+
+#### P3.4 - S3 bounded lower-tail rescue implementation
+Goal:
+- implement support-aware lower-tail rescue in S3 without flattening realistic heavy-tail structure.
+
+Scope:
+- implement deterministic tail-rescue transformation in `S3` using policy knobs from P3.3.
+- apply rescue only to low-support tail cells with bounded multiplier ceilings.
+- enforce post-transform safeguards:
+  - no hard-limit violations,
+  - no concentration/channel rail regressions,
+  - no mass/shape invariant drift.
+- emit per-run diagnostics for tail movement:
+  - zero-rate delta,
+  - non-trivial TZID delta,
+  - upper-tail sanity deltas.
+
+Definition of done:
+- [ ] S3 runner emits deterministic bounded tail rescue with policy-controlled behavior.
+- [ ] protection rails remain green on each accepted candidate.
+- [ ] diagnostic artifacts quantify movement and non-regression for each iteration.
+
+#### P3.5 - Candidate calibration loop and phase scoring
+Goal:
+- calibrate P3 knobs to close hard tail gates and attempt B+ tail stretch without synthetic inflation.
+
+Scope:
+- run bounded candidate ladder (conservative -> moderate -> strong) on P3 knobs only.
+- after each candidate:
+  - rerun sequential lane `S3 -> S4 -> S5`,
+  - score P3 gates and frozen veto rails,
+  - reject any candidate that regresses P1/P2 rails or introduces upper-tail artifacts.
+- produce movement report vs P2 authority run `66c708d45d984be18fe45a40c3b79ecc`.
+
+Definition of done:
+- [ ] P3 hard tail gates are green on execution seed or saturation is evidenced.
+- [ ] B+ stretch attempt outcome is explicit (achieved or bounded miss with attribution).
+- [ ] accepted knob set is minimal and alternatives rejected are documented with evidence.
+
+#### P3.6 - Closure handoff, prune, and freeze pointer update
+Goal:
+- close P3 unambiguously and hand off to `P4` with retained authority artifacts.
+
+Scope:
+- emit P3 gateboard + movement pack + caveat-axis refresh.
+- emit explicit decision:
+  - `UNLOCK_P4`,
+  - or `HOLD_P3_REOPEN`.
+- sync keep-set/prune under `runs/fix-data-engine/segment_5A`.
+- update implementation notes and logbook with final reasoning trail.
+
+Definition of done:
+- [ ] closure artifact set is complete and linked from the build plan.
+- [ ] explicit `UNLOCK/HOLD` decision is recorded with blocker rationale where applicable.
+- [ ] superseded run-id folders are pruned under keep-set policy.
 
 ### P4 - DST and overlay fairness closure (S4)
 Goal:
@@ -1167,6 +1293,6 @@ Definition of done:
 - `P0`: in progress (`gateboard + caveat map tooling/artifacts emitted`; hold on required witness seed `101` input gap).
 - `P1`: closed (`UNLOCK_P2`; authority run `d9caca5f1552456eaf73780932768845`).
 - `P2`: closed (`UNLOCK_P3`; authority run `66c708d45d984be18fe45a40c3b79ecc`).
-- `P3`: planned.
+- `P3`: planned (expanded into execution-grade `P3.1 -> P3.6` with contract/schema/runner/scoring lanes).
 - `P4`: planned.
 - `P5`: planned.

@@ -5616,3 +5616,67 @@ Storage/prune sync:
 
 Phase status consequence:
 - P2 is closed with explicit handoff `UNLOCK_P3`.
+
+---
+
+### Entry: 2026-02-21 17:42
+
+P3 planning expansion (execution-grade) completed before implementation.
+Summary: Replaced the placeholder P3 block in the build plan with explicit subphases (`P3.1 -> P3.6`) so tail remediation can be executed as a controlled, auditable lane instead of ad-hoc knob edits.
+
+Why this expansion was required:
+- current P3 in `segment_5A.build_plan.md` only captured high-level intent and did not expose ordering constraints for contract/schema/policy/runner/scoring work.
+- remediation authority for 5A tail dormancy calls for bounded tail-lift controls (`tail_floor_epsilon`, `tail_lift_power`, `tail_lift_max_multiplier`), but current 5A policy contract did not yet expose these knobs.
+- fail-closed posture requires contract + policy admissibility before runner-level behavior changes.
+
+Pre-edit reconnaissance performed (no runtime mutation):
+1) Build-plan/readiness check:
+- verified P2 closure authority remains `66c708d45d984be18fe45a40c3b79ecc` with decision `UNLOCK_P3`.
+- confirmed P3 section was still a non-executable placeholder.
+
+2) Remediation authority cross-check:
+- validated that 5A remediation report positions tail dormancy as a primary blocker and recommends bounded lower-tail rescue controls.
+
+3) Contract/policy/runner reality check:
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5A/schemas.5A.yaml`:
+  - `policy/baseline_intensity_policy_5A` is strict (`additionalProperties: false`) and currently lacks tail-rescue fields.
+- `config/layer2/5A/policy/baseline_intensity_policy_5A.v1.yaml`:
+  - currently only scale units, tolerances, clip mode, hard limits, UTC projection.
+- `packages/engine/src/engine/layers/l2/seg_5A/s3_baseline_intensity/runner.py`:
+  - loads/validates baseline policy and enforces hard limits, but contains no explicit support-aware tail-lift branch.
+
+Design decisions locked into the expanded P3 plan:
+1) Order of operations:
+- `P3.1` contract lock -> `P3.2` attribution + metric-surface alignment -> `P3.3` schema/policy lane -> `P3.4` S3 implementation -> `P3.5` bounded calibration -> `P3.6` closure/prune/handoff.
+- rationale: prevents implementation drift and avoids tuning against the wrong metric surface.
+
+2) Metric-surface alignment as explicit subphase:
+- added explicit check in `P3.2` to confirm whether tail gates are reading the causal S3 output surface.
+- rationale: scorer posture currently computes tail metrics from `merchant_zone_profile_5A`; P3 is an S3-focused rescue phase, so this must be adjudicated before tuning.
+
+3) Frozen rail vetoes during P3:
+- P1 channel rails and P2 concentration rails are hard veto constraints in every P3 lane.
+- rationale: tail rescue must not reopen already-closed realism axes.
+
+4) Seed posture continuity:
+- execution-lane policy remains `{42}` under the existing temporary witness-seed waiver.
+- rationale: keeps phase continuity with P1/P2 while upstream `seed=101` availability remains unresolved.
+
+Alternatives considered and rejected:
+- Direct runner tuning first, then patch contract/schema later.
+  - rejected because contract laws are strict and this would create non-reproducible ad-hoc behavior.
+- One-shot integrated P3 with no subphase split.
+  - rejected due high drift risk and poor auditability.
+- Opening upstream phase/state rework before P3-local attempt.
+  - rejected for now; no saturation evidence yet on local P3 controls.
+
+Files changed in this planning step:
+- `docs/model_spec/data-engine/implementation_maps/segment_5A.build_plan.md`
+  - expanded P3 into `P3.1 -> P3.6`,
+  - pinned hard/stretch tail targets and frozen veto rails,
+  - added contract/policy/runner/scoring/closure lanes,
+  - updated phase status line to reflect execution-grade expansion.
+
+Execution note:
+- no engine code, policy values, or runtime run-ids were mutated in this step.
+- next action is to execute `P3.1` contract lock artifact generation exactly as specified in the updated plan.
