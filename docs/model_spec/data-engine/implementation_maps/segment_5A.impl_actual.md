@@ -5087,3 +5087,37 @@ Prune action:
 
 Rationale:
 - preserve storage headroom while keeping all authority candidates and baseline references needed for P0/P1 progression.
+
+---
+
+### Entry: 2026-02-21 06:16
+
+P1 planning expansion completed (phase-level, data-first).
+Summary: Expanded `P1` from placeholder to execution-grade subphases (`P1.1`..`P1.6`) with explicit DoDs and temporary seed-waiver scope.
+
+Planning decisions made:
+1) Keep P1 strictly causal to `S1/S2`.
+   - Reason: current dominant blocker is channel collapse (`channel_group=mixed`), which originates in S1/S2 realization.
+   - Tradeoff: avoids premature tuning in P2/P3/P4 lanes.
+2) Use temporary execution seed waiver `{42}` for P1 iteration only.
+   - Reason: upstream `seed=101` artifacts are currently unavailable under strict S0 validation law.
+   - Guardrail: certification seed policy remains unchanged at P5 (`42,7,101,202`).
+3) Define subphase closure by data movement, not implementation activity.
+   - Each subphase DoD is metric-backed (channel realization support, CP/CNP night-gap movement, archetype non-regression).
+
+Subphase structure pinned:
+- `P1.1`: channel authority contract and metric lock.
+- `P1.2`: S1 channel assignment realization lane.
+- `P1.3`: S2 channel-conditioned shape realization lane.
+- `P1.4`: integrated S1+S2 calibration loop.
+- `P1.5`: witness scoring + caveat refresh.
+- `P1.6`: closure decision + handoff.
+
+Alternatives considered and rejected:
+1) Keep single-block P1 placeholder and improvise during execution.
+   - Rejected: high risk of scope drift and poor auditability.
+2) Include P2/P3/P4 metrics in P1 closure criteria.
+   - Rejected: contaminates causality and obscures whether channel lane is fixed.
+
+Next step:
+- execute `P1.1` contract artifact first, then move into `P1.2`/`P1.3` implementation lanes.

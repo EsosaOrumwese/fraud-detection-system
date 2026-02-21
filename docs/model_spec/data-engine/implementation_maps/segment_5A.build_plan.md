@@ -840,6 +840,114 @@ Definition of done:
 - [ ] `night_share(CNP) - night_share(CP)` meets B threshold on witness seeds.
 - [ ] no schema/idempotency regressions in `merchant_zone_profile_5A` and `class_zone_shape_5A`.
 
+P1 execution posture (temporary waiver for execution lanes):
+- execution-lane seed policy for `P1` only: `{42}` (user-approved temporary waiver while upstream `seed=101` remains unavailable).
+- witness/certification policy remains unchanged for freeze:
+  - `P5` still requires `{42,7,101,202}`.
+- data-first focus in this phase:
+  - prioritize statistical shape movement (`channel_group` realization and CP/CNP night-gap),
+  - avoid non-causal tuning outside `S1/S2`.
+
+#### P1.1 - Channel authority contract and target map
+Goal:
+- lock exact measurable target surfaces for channel realism so S1/S2 edits are evaluated against one contract.
+
+Scope:
+- pin authority datasets for this phase:
+  - `merchant_zone_profile_5A`,
+  - `class_zone_shape_5A`,
+  - `class_zone_baseline_local_5A`.
+- pin P1 target metrics:
+  - realized channel groups with `>=10%` mass each (`B`),
+  - `night_share(CNP)-night_share(CP) >= 0.08` (`B`) and `>=0.12` (`B+`).
+- pin non-regression invariants:
+  - class archetype ordering preserved (`online_24h` remains more night-heavy than `consumer_daytime`),
+  - mass/normalization guards unchanged.
+
+Definition of done:
+- [ ] P1 metric contract artifact is emitted and references exact dataset surfaces.
+- [ ] acceptance thresholds are machine-checkable and version-pinned.
+- [ ] invariant set is explicitly recorded for veto checks.
+
+#### P1.2 - S1 channel assignment realization lane
+Goal:
+- make CP/CNP realization explicit in `S1` so output no longer collapses to `mixed`.
+
+Scope:
+- inspect and tune `S1` channel-assignment policy path:
+  - assignment priors/weights for channel groups,
+  - deterministic tie-break/seed behavior.
+- ensure emitted `merchant_zone_profile_5A` carries usable channel signal (not degenerate).
+- keep class allocation logic coherent with current demand-class semantics.
+
+Definition of done:
+- [ ] `merchant_zone_profile_5A` shows at least 2 realized channel groups with non-trivial volume support.
+- [ ] no deterministic replay/idempotency regression in S1 outputs.
+- [ ] S1-only rerun evidence is captured before moving to S2 changes.
+
+#### P1.3 - S2 channel-conditioned shape realization lane
+Goal:
+- ensure S2 shape synthesis actually uses channel dimension to produce differentiated temporal profiles.
+
+Scope:
+- tune `S2` `(demand_class, zone, channel_group)` shape-selection/adjustment path.
+- preserve template realism:
+  - no synthetic flattening,
+  - no extreme discontinuities.
+- verify shape normalization remains exact after channel activation.
+
+Definition of done:
+- [ ] `class_zone_shape_5A` contains realized CP/CNP rows where policy intends them.
+- [ ] channel-conditioned shape differences are measurable in night-share profile.
+- [ ] shape normalization and schema validity remain green.
+
+#### P1.4 - S1+S2 integrated calibration loop (data-only closure)
+Goal:
+- calibrate S1/S2 jointly until channel realism clears B gate without harming core archetype behavior.
+
+Scope:
+- iterative loop:
+  - rerun `S1 -> S2 -> S3 -> S4 -> S5` (seed `42`),
+  - evaluate P1 target metrics and archetype veto checks.
+- adjust only causal knobs in S1/S2; do not leak into P2/P3/P4 objectives.
+- stop criteria:
+  - channel gate clears or statistically saturates with clear evidence.
+
+Definition of done:
+- [ ] either B-level channel gate is met on execution seed, or saturation evidence is documented.
+- [ ] archetype and mass-conservation invariants remain non-regressed.
+- [ ] chosen knob set and rejected alternatives are documented.
+
+#### P1.5 - Phase witness scoring and caveat refresh
+Goal:
+- publish a clean P1 score snapshot and caveat-axis movement after S1/S2 closure attempt.
+
+Scope:
+- run scorer on latest P1 authority run-id(s),
+- emit channel-focused score table plus full caveat-axis refresh (`channel/concentration/tail/dst/overlay`),
+- compare against P0 baseline to quantify movement magnitude.
+
+Definition of done:
+- [ ] scored P1 artifact emitted in `runs/fix-data-engine/segment_5A/reports`.
+- [ ] movement vs P0 baseline is explicit and numeric.
+- [ ] unresolved residuals are mapped to next phase (`P2/P3/P4`) without ambiguity.
+
+#### P1.6 - Phase closure decision and handoff
+Goal:
+- close P1 with explicit state and unlock P2 only if P1 scope is complete.
+
+Scope:
+- emit one decision:
+  - `UNLOCK_P2`,
+  - or `HOLD_P1_REOPEN`.
+- sync keep-set/prune and update plan/implementation/logbook trails.
+- if hold: pin exact blocker and reopen lane with bounded objectives.
+
+Definition of done:
+- [ ] explicit closure decision is recorded with evidence refs.
+- [ ] keep-set is pruned/synced.
+- [ ] handoff posture to `P2` is unambiguous.
+
 ### P2 - Concentration de-skew (S1-first)
 Goal:
 - reduce over-concentration without destroying realistic heavy-tail structure.
