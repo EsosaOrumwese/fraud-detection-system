@@ -1622,6 +1622,29 @@ P5 execution snapshot (2026-02-21):
   - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_6_prune_handoff_6817ca5a2e2648a1a8cf62deebfa0fcb__89f523553164416f9cf332f39e730e1b__d52ebade75684401b02ac78b2ee88946__22801d79479342b8921a0438922ddca7.json`
   - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_6_prune_handoff_6817ca5a2e2648a1a8cf62deebfa0fcb__89f523553164416f9cf332f39e730e1b__d52ebade75684401b02ac78b2ee88946__22801d79479342b8921a0438922ddca7.md`
 
+P2 targeted multi-seed reopen snapshot (2026-02-21, concentration lane only; frozen P3/P4 rails):
+- objective: clear the only blocker (`max_country_share_within_class_lte_0.40`) for seeds `7/101/202` without reopening P3/P4 ownership.
+- mutable lane:
+  - `config/layer2/5A/policy/demand_scale_policy_5A.v1.yaml`
+  - change: `realism_targets.max_weekly_volume_expected: 90000 -> 45000`.
+- frozen lane:
+  - no code/policy edits in S3/S4 (`P3/P4` rails unchanged),
+  - reruns were replay-only (`S2 -> S5`) on staged run-ids after S1 concentration closure.
+- staged certification run-set:
+  - seed `42` -> `9a2ca2e26aea45b994b56d726a08b02c`,
+  - seed `7` -> `323f583c3bd148d489d11a672aa9a8c0`,
+  - seed `101` -> `945eb4ebe85741ea8b558cba872206b7`,
+  - seed `202` -> `1b5f4133d4b04bfbb1540bb711cabea3`.
+- integrated result (`--phase P5`):
+  - artifact: `runs/fix-data-engine/segment_5A/reports/segment5a_p5_realism_gateboard_9a2ca2e26aea45b994b56d726a08b02c__323f583c3bd148d489d11a672aa9a8c0__945eb4ebe85741ea8b558cba872206b7__1b5f4133d4b04bfbb1540bb711cabea3.json`
+  - decision: `PASS_B`,
+  - reason: hard gates pass on all required seeds; stretch remains bounded miss.
+- concentration closure evidence:
+  - seed `7`: `max_country_share_within_class=0.397568`,
+  - seed `101`: `0.397568`,
+  - seed `202`: `0.397568`,
+  - seed `42`: `0.354453`.
+
 ## 7) Saturation and optional upstream reopen rule
 - If P1-P4 plateau with repeatable misses caused by upstream amplification signatures (1A/2A sparsity/concentration), open a separate explicit reopen lane.
 - Reopen lane is out-of-scope for this first 5A-local pass and requires explicit go-ahead.
@@ -1630,7 +1653,7 @@ P5 execution snapshot (2026-02-21):
 - `POPT`: closed (`POPT.0` + `POPT.1` + `POPT.2` + `POPT.3` + `POPT.4` + `POPT.5` complete; `UNLOCK_P0`).
 - `P0`: in progress (`gateboard + caveat map tooling/artifacts emitted`; hold on required witness seed `101` input gap).
 - `P1`: closed (`UNLOCK_P2`; authority run `d9caca5f1552456eaf73780932768845`).
-- `P2`: closed (`UNLOCK_P3`; authority run `66c708d45d984be18fe45a40c3b79ecc`).
+- `P2`: closed (`UNLOCK_P3`); multi-seed concentration reopen also closed on run-set `9a2ca2e26aea45b994b56d726a08b02c/323f583c3bd148d489d11a672aa9a8c0/945eb4ebe85741ea8b558cba872206b7/1b5f4133d4b04bfbb1540bb711cabea3`.
 - `P3`: closed (`UNLOCK_P4`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch partially met with bounded TZID miss).
 - `P4`: closed (`UNLOCK_P5`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch bounded miss on overlay dispersion).
-- `P5`: in progress (`P5.1 -> P5.6` executed; seed coverage closed; currently `HOLD_P5_REMEDIATE` on hard concentration gate miss `max_country_share_within_class_lte_0.40` for seeds `7/101/202`).
+- `P5`: in progress (`P5.1 -> P5.6` previously executed in HOLD lane; targeted P2 reopen now lifts hard blockers and yields `PASS_B` on required seeds with bounded stretch misses).

@@ -825,7 +825,7 @@ def main() -> None:
     parser.add_argument(
         "--phase",
         default="P0",
-        choices=["P0", "P1", "P2", "P3", "P4"],
+        choices=["P0", "P1", "P2", "P3", "P4", "P5"],
         help="Scoring phase semantics to apply (default: P0).",
     )
     parser.add_argument(
@@ -833,7 +833,7 @@ def main() -> None:
         default="",
         help=(
             "Comma-separated required seed set for phase closure. "
-            "Defaults: P0=42,101; P1=42; P2=42; P3=42; P4=42."
+            "Defaults: P0=42,101; P1=42; P2=42; P3=42; P4=42; P5=42,7,101,202."
         ),
     )
     parser.add_argument("--out-json", default="")
@@ -854,6 +854,8 @@ def main() -> None:
         required_seeds = {42}
     elif phase == "P4":
         required_seeds = {42}
+    elif phase == "P5":
+        required_seeds = {42, 7, 101, 202}
     else:
         required_seeds = {42, 101}
 
@@ -884,6 +886,29 @@ def main() -> None:
     caveat_complete = True
     observed_seeds = sorted({int(r["seed"]) for r in run_payloads if r.get("seed") is not None})
     missing_required_seeds = sorted(required_seeds - set(observed_seeds))
+
+    def _hard_gate_pack_pass(run: dict[str, Any]) -> bool:
+        hard = run["gates"]["hard"]
+        return bool(
+            hard["mass_conservation_mae_lte_1e-9"]
+            and hard["shape_norm_max_abs_lte_1e-9"]
+            and hard["channel_realization_ge2_groups_ge10pct"]
+            and hard["channel_night_gap_cnp_minus_cp_gte_0.08"]
+            and hard["max_class_share_lte_0.55"]
+            and hard["max_country_share_within_class_lte_0.40"]
+            and hard["tail_zero_rate_lte_0.90"]
+            and hard["nontrivial_tzids_gte_190"]
+            and hard["overall_mismatch_rate_lte_0.002"]
+            and hard["dst_zone_mismatch_rate_lte_0.005"]
+            and hard["overlay_top_countries_no_zero_affected_share"]
+            and hard["overlay_p90_p10_ratio_lte_2.0"]
+        )
+
+    def _stretch_gate_pack_pass(run: dict[str, Any]) -> bool:
+        return all(bool(v) for v in run["gates"]["stretch"].values())
+
+    phase_summary: dict[str, Any] = {}
+
     if phase == "P1":
         p1_run_gate_status: dict[str, bool] = {}
         for run in run_payloads:
@@ -1014,6 +1039,122 @@ def main() -> None:
                 "result": "HOLD_P4_REOPEN",
                 "reason": reason,
             }
+    elif phase == "P5":
+        runs_by_seed: dict[int, dict[str, Any]] = {}
+        for run in run_payloads:
+            seed = run.get("seed")
+            if seed is None:
+                continue
+            runs_by_seed[int(seed)] = run
+
+        seed_matrix: dict[str, dict[str, Any]] = {}
+        hard_fail_seeds: list[int] = []
+        stretch_fail_seeds: list[int] = []
+        for seed in sorted(required_seeds):
+            run = runs_by_seed.get(seed)
+            if run is None:
+                continue
+            hard_ok = _hard_gate_pack_pass(run)
+            stretch_ok = _stretch_gate_pack_pass(run)
+            if not hard_ok:
+                hard_fail_seeds.append(seed)
+            if not stretch_ok:
+                stretch_fail_seeds.append(seed)
+            seed_matrix[str(seed)] = {
+                "run_id": run["run_id"],
+                "hard_pass": hard_ok,
+                "stretch_pass": stretch_ok,
+                "posture": run["gates"]["posture"],
+            }
+
+        stability_metrics = [
+            "max_class_share",
+            "max_country_share_within_class",
+            "tail_zero_rate",
+            "nontrivial_tzids",
+            "dst_zone_mismatch_rate",
+            "overlay_p90_p10_ratio",
+        ]
+        b_stability_threshold = 0.25
+        bplus_stability_threshold = 0.15
+        b_stability_fail = sorted(
+            [
+                metric
+                for metric in stability_metrics
+                if cross_seed_cv.get(metric) is None or float(cross_seed_cv[metric]) > b_stability_threshold
+            ]
+        )
+        bplus_stability_fail = sorted(
+            [
+                metric
+                for metric in stability_metrics
+                if cross_seed_cv.get(metric) is None or float(cross_seed_cv[metric]) > bplus_stability_threshold
+            ]
+        )
+
+        full_seed_coverage = len(missing_required_seeds) == 0
+        hard_all_pass = full_seed_coverage and not hard_fail_seeds
+        stretch_all_pass = full_seed_coverage and not stretch_fail_seeds
+        stability_b_pass = full_seed_coverage and len(b_stability_fail) == 0
+        stability_bplus_pass = full_seed_coverage and len(bplus_stability_fail) == 0
+
+        if baseline_locked and scorer_complete and caveat_complete and hard_all_pass and stability_b_pass:
+            if stretch_all_pass and stability_bplus_pass:
+                decision = {
+                    "result": "PASS_BPLUS_ROBUST",
+                    "reason": "P5 integrated certification passed hard+stretch gates and cross-seed stability.",
+                }
+            else:
+                reason = "P5 hard gates passed on required seeds; B+ stretch remained bounded."
+                if stretch_fail_seeds:
+                    reason = (
+                        "P5 hard gates passed on required seeds; stretch miss on seeds="
+                        + ",".join(str(seed) for seed in sorted(stretch_fail_seeds))
+                    )
+                elif bplus_stability_fail:
+                    reason = (
+                        "P5 hard gates passed on required seeds; B+ stability miss metrics="
+                        + ",".join(bplus_stability_fail)
+                    )
+                decision = {
+                    "result": "PASS_B",
+                    "reason": reason,
+                }
+        else:
+            if missing_required_seeds:
+                reason = (
+                    "Required certification seed set is incomplete for P5 closure; missing seeds="
+                    + ",".join(str(seed) for seed in missing_required_seeds)
+                )
+            elif hard_fail_seeds:
+                reason = "P5 hard gates failed for seeds=" + ",".join(str(seed) for seed in sorted(hard_fail_seeds))
+            elif b_stability_fail:
+                reason = "P5 cross-seed stability failed for metrics=" + ",".join(b_stability_fail)
+            else:
+                reason = "P5 evidence package incomplete; hold until integrated certification evidence is complete."
+            decision = {
+                "result": "HOLD_P5_REMEDIATE",
+                "reason": reason,
+            }
+
+        phase_summary = {
+            "seed_matrix": seed_matrix,
+            "hard_fail_seeds": sorted(hard_fail_seeds),
+            "stretch_fail_seeds": sorted(stretch_fail_seeds),
+            "stability_thresholds": {
+                "b": b_stability_threshold,
+                "bplus": bplus_stability_threshold,
+            },
+            "stability_fail_metrics": {
+                "b": b_stability_fail,
+                "bplus": bplus_stability_fail,
+            },
+            "full_seed_coverage": full_seed_coverage,
+            "hard_all_pass": hard_all_pass,
+            "stretch_all_pass": stretch_all_pass,
+            "stability_b_pass": stability_b_pass,
+            "stability_bplus_pass": stability_bplus_pass,
+        }
     else:
         if baseline_locked and scorer_complete and caveat_complete and not missing_required_seeds:
             decision = {
@@ -1046,6 +1187,8 @@ def main() -> None:
         "cross_seed_cv": cross_seed_cv,
         "decision": decision,
     }
+    if phase_summary:
+        payload["phase_summary"] = phase_summary
 
     base_name = "__".join(run_ids)
     out_json = (

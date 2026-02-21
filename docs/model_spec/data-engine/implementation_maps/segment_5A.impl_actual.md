@@ -6499,3 +6499,85 @@ Integrated P5 scoring:
 
 Final handoff posture after full P5 execution:
 - `HOLD_REMEDIATE` (no freeze claim) with owner-phase attribution to concentration lane (`P2`-owned behavior under multi-seed certification).
+
+---
+
+### Entry: 2026-02-21 22:35
+
+Targeted 5A P2 multi-seed reopen opened (concentration lane only, frozen P3/P4 rails).
+Summary: Reopened only S1-owned concentration behavior to clear required-seed P5 blocker on seeds `7/101/202`, while explicitly freezing P3/P4 code+policy ownership.
+
+Decision-completeness checks:
+1) Blocker attribution confirmed from latest integrated P5 gateboard:
+- only failing hard gate = `max_country_share_within_class_lte_0.40` on seeds `7/101/202`.
+- all other hard gates (channel/tail/dst/overlay + mass/shape) were already green.
+
+2) Causal surface confirmation:
+- scorer concentration metrics are sourced from `merchant_zone_profile_5A` + `merchant_class_profile_5A` (S1 outputs), not S3/S4 outputs.
+- therefore concentration closure can be tuned in S1 policy lane first, then replay S2->S5 for integrated confirmation.
+
+3) Frozen-rail boundary pinned:
+- no edits to S3/S4 runner code or P3/P4 policy surfaces.
+- only mutable file in this reopen lane:
+  - `config/layer2/5A/policy/demand_scale_policy_5A.v1.yaml`.
+
+Alternatives considered and rejected:
+1) Reopen S3/S4 directly:
+- rejected because blocker ownership is S1 concentration surface, and reopening P3/P4 would break attribution discipline.
+
+2) Add country-specific per-class damping code/config (DK-specific patch):
+- rejected as high-governance risk and avoidable for this lane.
+
+3) Broad multi-knob class-shape remap (brand exponent + zone multipliers + pareto shifts):
+- trialed quickly on pilot and worsened concentration (`0.551 -> 0.578`), so rejected.
+
+Chosen bounded lane:
+- tune global soft-cap ceiling only:
+  - `realism_targets.max_weekly_volume_expected: 90000 -> 45000`.
+- rationale: observed blocker was a small number of extreme rows; lowering cap dampens outlier rows without reopening class assignment or overlay/tail ownership.
+
+---
+
+### Entry: 2026-02-21 22:55
+
+Targeted P2 reopen executed and integrated P5 hard-blocker closed (PASS_B).
+Summary: Completed staged multi-seed reruns under frozen P3/P4 rails and re-scored integrated P5; required-seed hard gates are now green.
+
+Execution steps and evidence:
+1) Pilot staging and closure (seed 7 source):
+- staged run-id: `323f583c3bd148d489d11a672aa9a8c0`.
+- S1-only calibration loop reached concentration closure:
+  - `max_country_share_within_class=0.397568`,
+  - `max_class_share=0.538829`.
+
+2) Multi-seed staging for integrated certification set:
+- seed `42` -> `9a2ca2e26aea45b994b56d726a08b02c` (from `6817...`),
+- seed `7`  -> `323f583c3bd148d489d11a672aa9a8c0` (pilot),
+- seed `101` -> `945eb4ebe85741ea8b558cba872206b7` (from `d52...`),
+- seed `202` -> `1b5f4133d4b04bfbb1540bb711cabea3` (from `2280...`).
+
+3) Replay sequence (frozen ownership):
+- ran `S1` on all staged runs with the concentration cap update.
+- then replayed `S2 -> S5` on each staged run (no S3/S4 logic mutation; replay-only).
+
+4) Concentration hard-gate closure before integrated scoring:
+- seed `7`: `0.397568` (PASS <= 0.40),
+- seed `101`: `0.397568` (PASS),
+- seed `202`: `0.397568` (PASS),
+- seed `42`: `0.354453` (PASS).
+
+5) Integrated scoring (`--phase P5`):
+- command output artifacts:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_realism_gateboard_9a2ca2e26aea45b994b56d726a08b02c__323f583c3bd148d489d11a672aa9a8c0__945eb4ebe85741ea8b558cba872206b7__1b5f4133d4b04bfbb1540bb711cabea3.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_realism_gateboard_9a2ca2e26aea45b994b56d726a08b02c__323f583c3bd148d489d11a672aa9a8c0__945eb4ebe85741ea8b558cba872206b7__1b5f4133d4b04bfbb1540bb711cabea3.md`
+- decision: `PASS_B`.
+- decision reason: hard gates pass on all required seeds; stretch misses remain bounded.
+
+Performance evidence (runtime budget posture):
+- S1 per run remained minute-scale (~9-10s observed).
+- replay S2->S5 for 4-run certification set completed in ~9m16s total wall-clock.
+
+Current posture after targeted reopen:
+- concentration blocker that held P5 is closed.
+- P3/P4 rails remained frozen by design in this lane.
+- integrated posture is now hard-pass at `B` across required seeds; stretch remains non-blocking caveat.
