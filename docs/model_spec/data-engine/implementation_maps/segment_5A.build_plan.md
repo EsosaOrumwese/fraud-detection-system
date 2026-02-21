@@ -1478,6 +1478,114 @@ Definition of done:
 - [ ] freeze package emitted with run-map + score artifacts + decision rationale.
 - [ ] superseded run-id folders pruned under keep-set policy.
 
+P5 execution posture:
+- P5 starts from P4 closure authority (`UNLOCK_P5` on `6817ca5a2e2648a1a8cf62deebfa0fcb`).
+- frozen state/code surfaces:
+  - keep P1/P2/P3/P4 logic and policy knobs unchanged unless a P5 blocker requires explicit reopen.
+- mutable surfaces for P5:
+  - certification scorer/evidence tooling only,
+  - run-pack assembly metadata + freeze package docs.
+- runtime budget gates:
+  - per-seed `S0 -> S5` certification lane target `<= 8m` (or `S4 -> S5 <= 2m` when reusing sealed upstream run),
+  - certification scoring/evidence pass target `<= 2m`.
+
+#### P5.1 - Certification contract lock + seed inventory
+Goal:
+- lock exact P5 acceptance contract and verify required seed availability before execution.
+
+Scope:
+- pin required certification seeds `{42, 7, 101, 202}` and gate matrix (`G1..G11` hard, `G1..G12` stretch/caveat).
+- inventory existing `runs/fix-data-engine/segment_5A` run-id seed coverage.
+- classify certification posture:
+  - `FULL_CERT_READY` (all seeds available),
+  - `SEED_GAP_BLOCKED` (one or more required seeds missing).
+- pin fail-closed decision:
+  - no `PASS_B`/`PASS_BPLUS_ROBUST` claim without required-seed closure or explicit user waiver artifact.
+
+Definition of done:
+- [ ] P5 contract artifact emitted with full gate matrix and required seed set.
+- [ ] seed inventory artifact emitted with explicit gap list.
+- [ ] decision posture pinned (`FULL_CERT_READY` or `SEED_GAP_BLOCKED`).
+
+#### P5.2 - Seed-pack closure lane (if gaps exist)
+Goal:
+- close missing certification seeds with minimal blast radius and deterministic lineage.
+
+Scope:
+- for each missing seed, create/run a bounded certification lane:
+  - preferred: sealed run-pack lane using existing frozen logic and segment-local execution.
+  - fallback: full segment `S0 -> S5` rerun for that seed if sealed reuse is not possible.
+- enforce per-seed runtime budget and capture elapsed evidence.
+- reject any lane that regresses frozen hard rails from P1..P4.
+
+Definition of done:
+- [ ] all required seeds have valid run-ids with `S0..S5 PASS`.
+- [ ] runtime evidence recorded per seed.
+- [ ] no frozen-rail regressions introduced during seed-pack closure.
+
+#### P5.3 - Multi-seed integrated scoring (`P5` semantics)
+Goal:
+- score integrated 5A realism over required seeds and produce grade decision evidence.
+
+Scope:
+- extend scorer semantics for `--phase P5`:
+  - hard decision (`PASS_B` / `HOLD_P5_REMEDIATE`) on all required seeds,
+  - stretch decision (`PASS_BPLUS_ROBUST` or bounded miss),
+  - cross-seed stability checks (CV targets from remediation authority).
+- emit unified multi-run gateboard with per-seed and aggregate stats.
+
+Definition of done:
+- [ ] integrated `P5` score artifacts emitted (`json` + `md`).
+- [ ] explicit grade verdict recorded with failing gates listed when not `B+`.
+- [ ] cross-seed CV evidence included for key remediation metrics.
+
+#### P5.4 - Residual-risk adjudication and bounded reopen rule
+Goal:
+- decide whether remaining misses are acceptable caveats or require explicit reopen.
+
+Scope:
+- classify residual misses into:
+  - `accepted_caveat` (non-blocking for freeze),
+  - `reopen_required` (blocking).
+- if blocking, map miss to owner phase (`P2/P3/P4`) and stop freeze.
+- if non-blocking, record caveat rationale and downstream risk posture.
+
+Definition of done:
+- [ ] each residual miss has an owner and disposition.
+- [ ] reopen/no-reopen decision is explicit and auditable.
+- [ ] no silent acceptance of unresolved blockers.
+
+#### P5.5 - Freeze package assembly
+Goal:
+- publish the immutable 5A freeze package for downstream segments.
+
+Scope:
+- assemble freeze pack contents:
+  - authority run-map (per seed),
+  - integrated gateboards and movement artifacts,
+  - caveat map + residual-risk note,
+  - runtime evidence summary.
+- emit freeze pointer document for 5A with timestamped decision.
+
+Definition of done:
+- [ ] freeze package artifacts emitted and linked from build plan.
+- [ ] freeze pointer identifies authoritative run-ids and grade posture.
+- [ ] package is sufficient for downstream audit/replay.
+
+#### P5.6 - Retention prune and handoff closure
+Goal:
+- finalize P5 with storage-safe pruning and clear handoff posture.
+
+Scope:
+- prune superseded run-id folders using keep-set policy (retain freeze pack + immediate rollback candidates).
+- log final storage state and retained set.
+- mark segment 5A as frozen or explicitly hold with blockers.
+
+Definition of done:
+- [ ] prune operation executed (or explicit no-op evidence recorded).
+- [ ] retained keep-set documented.
+- [ ] final handoff decision recorded (`FROZEN_5A` or `HOLD_REMEDIATE`).
+
 ## 7) Saturation and optional upstream reopen rule
 - If P1-P4 plateau with repeatable misses caused by upstream amplification signatures (1A/2A sparsity/concentration), open a separate explicit reopen lane.
 - Reopen lane is out-of-scope for this first 5A-local pass and requires explicit go-ahead.
@@ -1489,4 +1597,4 @@ Definition of done:
 - `P2`: closed (`UNLOCK_P3`; authority run `66c708d45d984be18fe45a40c3b79ecc`).
 - `P3`: closed (`UNLOCK_P4`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch partially met with bounded TZID miss).
 - `P4`: closed (`UNLOCK_P5`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch bounded miss on overlay dispersion).
-- `P5`: planned.
+- `P5`: planned (expanded into execution-grade `P5.1 -> P5.6` integrated certification + freeze lanes).

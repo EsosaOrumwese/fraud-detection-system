@@ -6293,3 +6293,41 @@ Compatibility verification:
     - `UNLOCK_P4` preserved.
   - note:
     - P3 gateboard now carries the exact DST surface fields as part of shared scorer behavior.
+
+---
+
+### Entry: 2026-02-21 21:40
+
+P5 planning expansion locked (integrated certification + freeze lanes).
+Summary: Expanded P5 from placeholder into execution-grade `P5.1 -> P5.6`, with explicit seed-closure, integrated scoring semantics, residual-risk adjudication, freeze packaging, and retention closure.
+
+Primary planning findings:
+1) Seed inventory reality:
+- current `runs/fix-data-engine/segment_5A` run-id set is seed `42` only.
+- required certification seeds (`42,7,101,202`) are not yet available in run inventory.
+
+2) Certification posture:
+- fail-closed law applied:
+  - no `PASS_B`/`PASS_BPLUS_ROBUST` claim at P5 without required-seed closure or explicit waiver artifact.
+
+3) Scope posture:
+- P5 remains tooling/certification dominant:
+  - no planned reopening of P1..P4 logic unless blocker evidence demands it.
+
+Chosen P5 structure:
+- `P5.1`: contract lock + seed inventory posture (`FULL_CERT_READY` vs `SEED_GAP_BLOCKED`).
+- `P5.2`: seed-pack closure lane for missing seeds with runtime evidence.
+- `P5.3`: integrated multi-seed scoring (`P5` semantics, hard/stretch + CV).
+- `P5.4`: residual-risk adjudication and bounded reopen decision.
+- `P5.5`: freeze package assembly (authority run-map + gateboards + caveats + runtime evidence).
+- `P5.6`: prune + handoff closure (`FROZEN_5A` vs `HOLD_REMEDIATE`).
+
+Alternatives considered and rejected:
+1) claim P5 certification from seed-42-only evidence:
+- rejected as non-compliant with required-seed certification posture.
+
+2) reopen P4 tuning first before seed closure:
+- rejected because current blocker for P5 is seed availability completeness, not P4 hard-gate failure.
+
+3) force immediate full 4-seed reruns without staged seed inventory lock:
+- rejected; plan now locks inventory and budget gates first to keep execution auditable and performance-aware.
