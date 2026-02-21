@@ -6102,3 +6102,194 @@ No execution in this step:
 - no `S4/S5` runs launched,
 - no run-id folders modified,
 - no policy/code changes applied beyond planning document expansion.
+
+---
+
+### Entry: 2026-02-21 21:20
+
+P4 execution start: attribution-first lane locked before code edits.
+Summary: Before modifying S4 or scorer, I validated the active contradiction between the current P3-closure gateboard and S5 recomposition evidence and locked the remediation order to avoid tuning against a measurement artifact.
+
+Observed contradiction on authority run `6817ca5a2e2648a1a8cf62deebfa0fcb`:
+1) scorer (`tools/score_segment5a_p0_realism.py`, current logic):
+- `overall_mismatch_rate=0.0479015`,
+- `dst_zone_mismatch_rate=0.0586479`,
+- both fail hard P4 thresholds.
+
+2) S5 exact recomposition evidence (`validation_report_5A.json`):
+- `S4_RECOMPOSITION_SAMPLE`: `PASS`,
+- `fail_count=0`,
+- `max_abs_err=0.0`,
+- `max_rel_err=0.0`.
+
+Interpretation:
+- this points to a metric-surface mismatch:
+  - scorer’s DST metric uses a fixed-offset approximation (`offset_start_h` + constant week alignment shift),
+  - S5 uses exact per-row timezone conversion + shape-grid lookup (`_bucket_index_for_row`),
+  - therefore P4 is currently blocked by scorer surface drift, not necessarily by S4 composition defect.
+
+Decision (chosen):
+1) Execute `P4.1`/`P4.2` first with explicit artifacts:
+- lock P4 contract and baseline snapshot,
+- emit attribution artifact proving scorer-vs-S5 mismatch.
+
+2) Remediate scorer surface in `P4.3` before any aggressive S4 tuning:
+- patch scorer DST reconstruction to exact horizon->grid mapping consistent with S4/S5 semantics,
+- add explicit `P4` phase semantics (`UNLOCK_P5` / `HOLD_P4_REOPEN`).
+
+3) Keep S4 changes bounded in this pass:
+- no speculative overlay/fairness retuning until scorer-surface correctness is restored and re-scored.
+
+Alternatives considered and rejected:
+1) tune S4 policies immediately to chase current mismatch gates:
+- rejected; would optimize against a likely measurement defect and risk fake movement.
+
+2) treat scorer output as authority and ignore S5 recomposition evidence:
+- rejected; violates fail-closed rigor because two internal authorities disagree.
+
+3) reopen upstream (`S3`/`S2`) during P4:
+- rejected; P4 ownership is S4/scoring surface and upstream is frozen by plan.
+
+---
+
+### Entry: 2026-02-21 21:23
+
+P4.1 and P4.2 artifacts emitted; scorer-surface patch lane opened.
+Summary: Produced contract + attribution artifacts and confirmed `patched_required` verdict before touching scorer code.
+
+Artifacts emitted:
+1) P4.1 contract lock:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p4_1_dst_overlay_contract.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p4_1_dst_overlay_contract.md`
+
+2) P4.2 attribution:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p4_2_dst_overlay_attribution_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p4_2_dst_overlay_attribution_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+
+Attribution conclusion:
+- scorer legacy DST surface and S5 exact recomposition are materially inconsistent on the same run.
+- verdict: `patched_required` for scorer metric surface.
+
+Code-change lane opened:
+- `tools/score_segment5a_p0_realism.py`
+  - add exact horizon->grid DST reconstruction path aligned with S4/S5 semantics,
+  - retain legacy metrics for audit continuity,
+  - add explicit `P4` phase semantics (`UNLOCK_P5` / `HOLD_P4_REOPEN`).
+
+---
+
+### Entry: 2026-02-21 21:29
+
+P4.3/P4.5 scorer patch landed, timeout incident resolved, and P4 closure scored.
+Summary: Implemented exact DST scoring surface + P4 phase decision logic, hit an initial runtime timeout, optimized the exact path, and closed P4 at hard `B`.
+
+Primary file changed:
+- `tools/score_segment5a_p0_realism.py`
+
+What changed in scorer:
+1) Exact DST reconstruction surface:
+- added `_parse_rfc3339_utc`.
+- added `_exact_dst_metrics`:
+  - derive scenario horizon from `scenario_manifest_5A` + observed scenario horizon buckets,
+  - map `(scenario_id, tzid, local_horizon_bucket_index)` to `bucket_index` via timezone-aware conversion and `shape_grid_definition_5A`,
+  - recompute mismatch on sampled scenario rows by exact join to `merchant_zone_baseline_local_5A`.
+
+2) Dual-surface metrics:
+- preserved legacy fixed-offset DST metrics for audit:
+  - `overall_mismatch_rate_legacy`,
+  - `dst_zone_mismatch_rate_legacy`,
+  - `dst_sampled_rows_legacy`.
+- set gate-driving metrics to exact surface when available:
+  - `overall_mismatch_rate`,
+  - `dst_zone_mismatch_rate`,
+  - `dst_metric_surface`.
+
+3) Phase semantics:
+- added `--phase P4`.
+- required-seed default for `P4` set to `{42}`.
+- added P4 decision logic:
+  - `UNLOCK_P5` if P1-P3 frozen rails + P4 hard DST/overlay gates pass,
+  - otherwise `HOLD_P4_REOPEN`.
+
+Runtime incident and optimization:
+1) Incident:
+- first P4 scoring run timed out (~4 minutes) after initial exact-surface implementation.
+
+2) Root causes:
+- excessive map expansion and expensive baseline join path in exact DST query.
+
+3) Optimization decisions:
+- introduced deterministic sample modulus for exact DST path (`EXACT_DST_SAMPLE_MOD=500`) to control scorer runtime.
+- switched exact join flow to sampled-key mapping + baseline subset join:
+  - build `hm_exact` only for sampled `(scenario_id,tzid,local_horizon_bucket_index)` keys,
+  - prefilter baseline rows by sampled join keys before recomposition join.
+
+4) Outcome:
+- P4 scoring runtime reduced to ~24.8s (minute-scale compliant for tooling lane).
+
+Scoring result after patch:
+- command:
+  - `python tools/score_segment5a_p0_realism.py --runs-root runs/fix-data-engine/segment_5A --phase P4 --run-id 6817ca5a2e2648a1a8cf62deebfa0fcb`
+- output:
+  - `segment5a_p4_realism_gateboard_6817ca5a2e2648a1a8cf62deebfa0fcb.{json,md}`
+- decision:
+  - `UNLOCK_P5`
+- posture:
+  - `PASS_B` (`12/12` hard gates pass; stretch `5/9`).
+
+Key metric movement on same run (legacy -> exact surface):
+- `overall_mismatch_rate: 0.0479015 -> 0.0`,
+- `dst_zone_mismatch_rate: 0.0586479 -> 0.0`,
+- `dst_sampled_rows: 446750 (legacy) vs 71422 (exact sample lane)`.
+
+P4 stretch posture:
+- DST stretch gates pass on exact surface.
+- remaining stretch misses are non-P4-local blend:
+  - concentration stretch (`max_class_share<=0.50`, `max_country_share<=0.35`),
+  - tail breadth stretch (`nontrivial_tzids>=230`),
+  - overlay dispersion stretch (`p90/p10<=1.6`, observed `1.7722`).
+- decision:
+  - accept bounded stretch miss; do not introduce S4-only synthetic tuning in this pass.
+
+Alternatives considered and rejected:
+1) force S4 policy tuning to hit overlay stretch in P4:
+- rejected; risks engineered flatness and violates realism-first posture without necessity for hard closure.
+
+2) keep legacy scorer surface and accept hard fail:
+- rejected; contradicted by exact S5 recomposition evidence.
+
+---
+
+### Entry: 2026-02-21 21:31
+
+P4.6 closure package emitted and phase closed.
+Summary: Published P4 closure artifacts (surface realignment + movement + closure snapshot), updated plan status to closed, and kept run-folder state unchanged (no new run-id lane required for scorer-surface remediation).
+
+Artifacts emitted:
+1) P4.3 realignment:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p4_3_dst_surface_realignment_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p4_3_dst_surface_realignment_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+
+2) P4.5 closure snapshot:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p4_5_closure_snapshot_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p4_5_closure_snapshot_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+
+3) P4.6 movement pack:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p4_6_movement_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p4_6_movement_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+
+Phase closure decision:
+- `P4` closed with `UNLOCK_P5` at hard `B` posture, with explicit bounded stretch miss carried to integrated certification.
+
+Prune sync:
+- executed keep-set prune check on `runs/fix-data-engine/segment_5A` with full keep-set;
+- result `candidate_count=0` (no-op), which is expected because P4 was completed as a scorer-surface remediation lane without generating additional run-id candidates.
+
+Compatibility verification:
+- reran scorer in `P3` mode after scorer-surface patch to ensure phase semantics remain intact:
+  - command:
+    - `python tools/score_segment5a_p0_realism.py --runs-root runs/fix-data-engine/segment_5A --phase P3 --run-id 6817ca5a2e2648a1a8cf62deebfa0fcb`
+  - result:
+    - `UNLOCK_P4` preserved.
+  - note:
+    - P3 gateboard now carries the exact DST surface fields as part of shared scorer behavior.

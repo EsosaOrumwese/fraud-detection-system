@@ -7,7 +7,7 @@ import argparse
 import json
 import math
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from statistics import mean, pstdev
 from typing import Any
@@ -18,6 +18,7 @@ import duckdb
 SCENARIO_START_UTC = datetime(2026, 1, 1, 0, 0, tzinfo=timezone.utc)
 SCENARIO_END_UTC = datetime(2026, 4, 1, 0, 0, tzinfo=timezone.utc)
 WEEK_ALIGNMENT_SHIFT = 72
+EXACT_DST_SAMPLE_MOD = 500
 NIGHT_HOURS = {0, 1, 2, 3, 4, 5}
 EPS = 1e-12
 
@@ -81,6 +82,240 @@ def _tz_meta_rows(tzids: list[str]) -> list[tuple[str, int, int]]:
             dst_shift = 0
         rows.append((tzid, off_start, dst_shift))
     return rows
+
+
+def _parse_rfc3339_utc(value: str) -> datetime:
+    text = str(value).strip()
+    for fmt in ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ"):
+        try:
+            return datetime.strptime(text, fmt).replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    raise ValueError(f"Unsupported RFC3339 UTC timestamp: {value}")
+
+
+def _exact_dst_metrics(con: duckdb.DuckDBPyConnection, run_root: Path) -> dict[str, float | int | str] | None:
+    scenario_rows = con.execute(
+        f"""
+        WITH scenario_bounds AS (
+          SELECT scenario_id, horizon_start_utc, horizon_end_utc
+          FROM {_scan(run_root, "scenario_manifest")}
+        ),
+        scenario_horizon AS (
+          SELECT scenario_id, MAX(local_horizon_bucket_index) + 1 AS horizon_buckets
+          FROM {_scan(run_root, "merchant_zone_scenario_local")}
+          GROUP BY 1
+        )
+        SELECT
+          b.scenario_id,
+          b.horizon_start_utc,
+          b.horizon_end_utc,
+          h.horizon_buckets
+        FROM scenario_bounds b
+        JOIN scenario_horizon h USING (scenario_id)
+        """
+    ).fetchall()
+    if not scenario_rows:
+        return None
+
+    grid_rows = con.execute(
+        f"""
+        SELECT bucket_index, local_day_of_week, local_minutes_since_midnight
+        FROM {_scan(run_root, "shape_grid_definition")}
+        """
+    ).fetchall()
+    if not grid_rows:
+        return None
+    grid_lookup = {(int(dow), int(minutes)): int(bucket) for bucket, dow, minutes in grid_rows}
+
+    tzids = [str(row[0]) for row in con.execute(f"SELECT DISTINCT tzid FROM {_scan(run_root, 'merchant_zone_scenario_local')}").fetchall()]
+    if not tzids:
+        return None
+
+    scenario_specs: dict[str, tuple[datetime, datetime, int]] = {}
+    for scenario_id, start_text, end_text, horizon_buckets in scenario_rows:
+        if horizon_buckets is None:
+            continue
+        horizon_buckets_int = int(horizon_buckets)
+        if horizon_buckets_int <= 0:
+            continue
+        start_utc = _parse_rfc3339_utc(str(start_text))
+        end_utc = _parse_rfc3339_utc(str(end_text))
+        total_minutes = int((end_utc - start_utc).total_seconds() // 60)
+        if total_minutes <= 0:
+            continue
+        if total_minutes % horizon_buckets_int != 0:
+            return None
+        bucket_minutes = total_minutes // horizon_buckets_int
+        if bucket_minutes <= 0:
+            continue
+        scenario_specs[str(scenario_id)] = (start_utc, end_utc, bucket_minutes)
+    if not scenario_specs:
+        return None
+
+    sampled_keys = con.execute(
+        f"""
+        SELECT scenario_id, tzid, local_horizon_bucket_index
+        FROM {_scan(run_root, "merchant_zone_scenario_local")}
+        WHERE MOD(HASH(merchant_id, legal_country_iso, tzid, local_horizon_bucket_index), {EXACT_DST_SAMPLE_MOD}) = 0
+        GROUP BY 1,2,3
+        """
+    ).fetchall()
+    if not sampled_keys:
+        return None
+
+    tz_meta_cache: dict[tuple[str, str], tuple[ZoneInfo | None, int]] = {}
+    hm_rows: list[tuple[str, str, int, int, int]] = []
+    for scenario_id, tzid_raw, horizon_idx_raw in sampled_keys:
+        scenario_id_str = str(scenario_id)
+        spec = scenario_specs.get(scenario_id_str)
+        if spec is None:
+            continue
+        tzid = str(tzid_raw)
+        horizon_idx = int(horizon_idx_raw)
+        start_utc, end_utc, bucket_minutes = spec
+        cache_key = (scenario_id_str, tzid)
+        if cache_key not in tz_meta_cache:
+            try:
+                zone = ZoneInfo(tzid)
+                off_start = int(start_utc.astimezone(zone).utcoffset().total_seconds() // 3600)
+                off_end = int(end_utc.astimezone(zone).utcoffset().total_seconds() // 3600)
+                dst_shift_h = off_end - off_start
+            except Exception:
+                zone = None
+                dst_shift_h = 0
+            tz_meta_cache[cache_key] = (zone, dst_shift_h)
+        zone, dst_shift_h = tz_meta_cache[cache_key]
+        if zone is None:
+            continue
+        utc_dt = start_utc + timedelta(minutes=horizon_idx * bucket_minutes)
+        local_dt = utc_dt.astimezone(zone)
+        local_minutes = local_dt.hour * 60 + local_dt.minute
+        local_minutes = (local_minutes // bucket_minutes) * bucket_minutes
+        bucket_index = grid_lookup.get((local_dt.isoweekday(), local_minutes))
+        if bucket_index is None:
+            continue
+        hm_rows.append((scenario_id_str, tzid, horizon_idx, int(bucket_index), int(dst_shift_h)))
+
+    if not hm_rows:
+        return None
+
+    con.execute("DROP TABLE IF EXISTS hm_exact")
+    con.execute(
+        """
+        CREATE TEMP TABLE hm_exact(
+          scenario_id VARCHAR,
+          tzid VARCHAR,
+          local_horizon_bucket_index BIGINT,
+          bucket_index BIGINT,
+          dst_shift_h INTEGER
+        )
+        """
+    )
+    con.executemany("INSERT INTO hm_exact VALUES (?, ?, ?, ?, ?)", hm_rows)
+
+    exact_row = con.execute(
+        f"""
+        WITH s AS (
+          SELECT
+            scenario_id,
+            merchant_id,
+            legal_country_iso,
+            tzid,
+            channel_group,
+            local_horizon_bucket_index,
+            lambda_local_scenario,
+            overlay_factor_total,
+            COALESCE(channel_group, '__NULL__') AS channel_key
+          FROM {_scan(run_root, "merchant_zone_scenario_local")}
+          WHERE MOD(HASH(merchant_id, legal_country_iso, tzid, local_horizon_bucket_index), {EXACT_DST_SAMPLE_MOD}) = 0
+        ),
+        mapped AS (
+          SELECT
+            s.scenario_id,
+            s.merchant_id,
+            s.legal_country_iso,
+            s.tzid,
+            s.channel_key,
+            hm.bucket_index,
+            hm.dst_shift_h,
+            s.lambda_local_scenario,
+            s.overlay_factor_total
+          FROM s
+          JOIN hm_exact hm
+            ON hm.scenario_id = s.scenario_id
+           AND hm.tzid = s.tzid
+           AND hm.local_horizon_bucket_index = s.local_horizon_bucket_index
+        ),
+        b_keys AS (
+          SELECT DISTINCT
+            scenario_id,
+            merchant_id,
+            legal_country_iso,
+            tzid,
+            channel_key,
+            bucket_index
+          FROM mapped
+        ),
+        b_raw AS (
+          SELECT
+            scenario_id,
+            merchant_id,
+            legal_country_iso,
+            tzid,
+            COALESCE(channel_group, '__NULL__') AS channel_key,
+            bucket_index,
+            lambda_local_base
+          FROM {_scan(run_root, "merchant_zone_baseline_local")}
+        ),
+        b AS (
+          SELECT
+            r.scenario_id,
+            r.merchant_id,
+            r.legal_country_iso,
+            r.tzid,
+            r.channel_key,
+            r.bucket_index,
+            r.lambda_local_base
+          FROM b_raw r
+          JOIN b_keys
+            ON b_keys.scenario_id = r.scenario_id
+           AND b_keys.merchant_id = r.merchant_id
+           AND b_keys.legal_country_iso = r.legal_country_iso
+           AND b_keys.tzid = r.tzid
+           AND b_keys.bucket_index = r.bucket_index
+           AND b_keys.channel_key = r.channel_key
+        ),
+        j AS (
+          SELECT
+            m.dst_shift_h,
+            ABS(m.lambda_local_scenario - b.lambda_local_base * m.overlay_factor_total) AS err
+          FROM mapped m
+          JOIN b
+            ON b.scenario_id = m.scenario_id
+           AND b.merchant_id = m.merchant_id
+           AND b.legal_country_iso = m.legal_country_iso
+           AND b.tzid = m.tzid
+           AND b.bucket_index = m.bucket_index
+           AND b.channel_key = m.channel_key
+        )
+        SELECT
+          COUNT(*) AS sampled_rows,
+          AVG(CASE WHEN err > 1e-6 THEN 1.0 ELSE 0.0 END) AS overall_mismatch_rate,
+          AVG(CASE WHEN dst_shift_h <> 0 THEN CASE WHEN err > 1e-6 THEN 1.0 ELSE 0.0 END END) AS dst_zone_mismatch_rate
+        FROM j
+        """
+    ).fetchone()
+
+    sampled_rows = int(exact_row[0] or 0)
+    if sampled_rows <= 0:
+        return None
+    return {
+        "surface": "exact_horizon_grid_mapping_v2",
+        "sampled_rows": sampled_rows,
+        "overall_mismatch_rate": float(exact_row[1] or 0.0),
+        "dst_zone_mismatch_rate": float(exact_row[2] or 0.0),
+    }
 
 
 def _state_statuses(run_root: Path) -> dict[str, str]:
@@ -306,13 +541,15 @@ def _evaluate_run(ref: RunRef) -> dict[str, Any]:
     tail_zero_rate = float(tail_row[0] or 0.0)
     nontrivial_tzids = int(tail_row[1] or 0)
 
-    # DST mismatch metrics (sampled reconstruction).
+    # DST mismatch metrics.
+    # Keep legacy surface for audit continuity, but use exact horizon->grid mapping
+    # for gating when available.
     tzids = [str(r[0]) for r in con.execute(f"SELECT DISTINCT tzid FROM {_scan(run_root, 'merchant_zone_scenario_local')}").fetchall()]
     tz_meta_rows = _tz_meta_rows(tzids)
     con.execute("CREATE OR REPLACE TEMP TABLE tz_meta(tzid VARCHAR, offset_start_h INTEGER, dst_shift_h INTEGER)")
     con.executemany("INSERT INTO tz_meta VALUES (?, ?, ?)", tz_meta_rows)
 
-    dst_row = con.execute(
+    dst_row_legacy = con.execute(
         f"""
         WITH b AS (
           SELECT
@@ -349,9 +586,21 @@ def _evaluate_run(ref: RunRef) -> dict[str, Any]:
         FROM j
         """
     ).fetchone()
-    dst_sampled_rows = int(dst_row[0] or 0)
-    overall_mismatch_rate = float(dst_row[1] or 0.0)
-    dst_zone_mismatch_rate = float(dst_row[2] or 0.0)
+    dst_sampled_rows_legacy = int(dst_row_legacy[0] or 0)
+    overall_mismatch_rate_legacy = float(dst_row_legacy[1] or 0.0)
+    dst_zone_mismatch_rate_legacy = float(dst_row_legacy[2] or 0.0)
+
+    exact_dst = _exact_dst_metrics(con, run_root)
+    if exact_dst is None:
+        dst_metric_surface = "legacy_fixed_offset_start_h_v1"
+        dst_sampled_rows = dst_sampled_rows_legacy
+        overall_mismatch_rate = overall_mismatch_rate_legacy
+        dst_zone_mismatch_rate = dst_zone_mismatch_rate_legacy
+    else:
+        dst_metric_surface = str(exact_dst["surface"])
+        dst_sampled_rows = int(exact_dst["sampled_rows"])
+        overall_mismatch_rate = float(exact_dst["overall_mismatch_rate"])
+        dst_zone_mismatch_rate = float(exact_dst["dst_zone_mismatch_rate"])
 
     # Overlay country fairness.
     overlay_row = con.execute(
@@ -497,9 +746,13 @@ def _evaluate_run(ref: RunRef) -> dict[str, Any]:
             "tail_zero_rate": tail_zero_rate,
             "nontrivial_tzids": nontrivial_tzids,
             "tail_metric_surface": "merchant_zone_baseline_local_5A",
+            "dst_metric_surface": dst_metric_surface,
             "dst_sampled_rows": dst_sampled_rows,
             "overall_mismatch_rate": overall_mismatch_rate,
             "dst_zone_mismatch_rate": dst_zone_mismatch_rate,
+            "dst_sampled_rows_legacy": dst_sampled_rows_legacy,
+            "overall_mismatch_rate_legacy": overall_mismatch_rate_legacy,
+            "dst_zone_mismatch_rate_legacy": dst_zone_mismatch_rate_legacy,
             "overlay_country_affected_share_p10": affected_p10,
             "overlay_country_affected_share_p90": affected_p90,
             "overlay_country_affected_share_p90_p10_ratio": overlay_p90_p10_ratio,
@@ -572,7 +825,7 @@ def main() -> None:
     parser.add_argument(
         "--phase",
         default="P0",
-        choices=["P0", "P1", "P2", "P3"],
+        choices=["P0", "P1", "P2", "P3", "P4"],
         help="Scoring phase semantics to apply (default: P0).",
     )
     parser.add_argument(
@@ -580,7 +833,7 @@ def main() -> None:
         default="",
         help=(
             "Comma-separated required seed set for phase closure. "
-            "Defaults: P0=42,101; P1=42; P2=42."
+            "Defaults: P0=42,101; P1=42; P2=42; P3=42; P4=42."
         ),
     )
     parser.add_argument("--out-json", default="")
@@ -598,6 +851,8 @@ def main() -> None:
     elif phase == "P2":
         required_seeds = {42}
     elif phase == "P3":
+        required_seeds = {42}
+    elif phase == "P4":
         required_seeds = {42}
     else:
         required_seeds = {42, 101}
@@ -720,6 +975,43 @@ def main() -> None:
                 reason = "P3 tail/frozen-rail hard gate failed for run_ids=" + ",".join(failing_runs)
             decision = {
                 "result": "HOLD_P3_REOPEN",
+                "reason": reason,
+            }
+    elif phase == "P4":
+        p4_run_gate_status: dict[str, bool] = {}
+        for run in run_payloads:
+            hard = run["gates"]["hard"]
+            p4_run_gate_status[run["run_id"]] = bool(
+                hard["mass_conservation_mae_lte_1e-9"]
+                and hard["shape_norm_max_abs_lte_1e-9"]
+                and hard["channel_realization_ge2_groups_ge10pct"]
+                and hard["channel_night_gap_cnp_minus_cp_gte_0.08"]
+                and hard["max_class_share_lte_0.55"]
+                and hard["max_country_share_within_class_lte_0.40"]
+                and hard["tail_zero_rate_lte_0.90"]
+                and hard["nontrivial_tzids_gte_190"]
+                and hard["overall_mismatch_rate_lte_0.002"]
+                and hard["dst_zone_mismatch_rate_lte_0.005"]
+                and hard["overlay_top_countries_no_zero_affected_share"]
+                and hard["overlay_p90_p10_ratio_lte_2.0"]
+            )
+        failing_runs = sorted([run_id for run_id, ok in p4_run_gate_status.items() if not ok])
+        if baseline_locked and scorer_complete and caveat_complete and not missing_required_seeds and not failing_runs:
+            decision = {
+                "result": "UNLOCK_P5",
+                "reason": "P4 DST/overlay hard gates met on required seeds with P1-P3 frozen rails intact.",
+            }
+        else:
+            reason = "P4 evidence package incomplete; hold until required-seed gateboard is complete."
+            if missing_required_seeds:
+                reason = (
+                    "Required seed set is incomplete for P4 closure; missing seeds="
+                    + ",".join(str(s) for s in missing_required_seeds)
+                )
+            elif failing_runs:
+                reason = "P4 DST/overlay/frozen-rail hard gate failed for run_ids=" + ",".join(failing_runs)
+            decision = {
+                "result": "HOLD_P4_REOPEN",
                 "reason": reason,
             }
     else:
