@@ -1006,9 +1006,9 @@ Scope:
   - `class_zone_baseline_local_5A` (for channel/non-regression checks).
 
 Definition of done:
-- [ ] P2 contract artifact emitted with explicit concentration + protection thresholds.
-- [ ] acceptance thresholds are machine-checkable and version-pinned.
-- [ ] veto rails are explicitly recorded for every P2 lane.
+- [x] P2 contract artifact emitted with explicit concentration + protection thresholds.
+- [x] acceptance thresholds are machine-checkable and version-pinned.
+- [x] veto rails are explicitly recorded for every P2 lane.
 
 #### P2.2 - Concentration attribution and hotspot map (no tuning yet)
 Goal:
@@ -1026,9 +1026,9 @@ Scope:
 - publish ranked hotspot map and choose first bounded knob lane.
 
 Definition of done:
-- [ ] hotspot artifact emitted with ranked contributors and contribution percentages.
-- [ ] first knob lane is chosen with explicit rationale.
-- [ ] no policy/value changes applied in this subphase.
+- [x] hotspot artifact emitted with ranked contributors and contribution percentages.
+- [x] first knob lane is chosen with explicit rationale.
+- [x] no policy/value changes applied in this subphase.
 
 #### P2.3 - Lane A: class-share closure via S1 scale controls
 Goal:
@@ -1043,9 +1043,9 @@ Scope:
 - reject any candidate that regresses P1 channel rails.
 
 Definition of done:
-- [ ] `max_class_share` shows monotonic improvement and reaches B target or saturation evidence is recorded.
-- [ ] P1 channel rails remain green on each accepted candidate.
-- [ ] no mass/shape invariant regressions are introduced.
+- [x] `max_class_share` shows monotonic improvement and reaches B target or saturation evidence is recorded.
+- [x] P1 channel rails remain green on each accepted candidate.
+- [x] no mass/shape invariant regressions are introduced.
 
 #### P2.4 - Lane B: within-class country de-skew closure
 Goal:
@@ -1060,9 +1060,9 @@ Scope:
 - rerun `S1 -> S5` on each accepted candidate.
 
 Definition of done:
-- [ ] `max_single_country_share_within_class <= 0.40` or saturation evidence is documented.
-- [ ] heavy-tail structure remains plausible (no synthetic flattening).
-- [ ] P1 channel rails and core invariants remain non-regressed.
+- [x] `max_single_country_share_within_class <= 0.40` or saturation evidence is documented.
+- [x] heavy-tail structure remains plausible (no synthetic flattening).
+- [x] P1 channel rails and core invariants remain non-regressed.
 
 #### P2.5 - Integrated concentration closure loop
 Goal:
@@ -1076,9 +1076,9 @@ Scope:
   - channel rails, mass conservation, shape normalization, deterministic replay/idempotency.
 
 Definition of done:
-- [ ] both P2 hard concentration gates are green on execution seed.
-- [ ] final knob set is minimal and rationale for rejected alternatives is recorded.
-- [ ] fallback remap lane is either closed or explicitly rejected with evidence.
+- [x] both P2 hard concentration gates are green on execution seed.
+- [x] final knob set is minimal and rationale for rejected alternatives is recorded.
+- [x] fallback remap lane is either closed or explicitly rejected with evidence.
 
 #### P2.6 - P2 scoring, movement quantification, and closure handoff
 Goal:
@@ -1095,10 +1095,26 @@ Scope:
 - sync keep-set/prune and update implementation/logbook trails.
 
 Definition of done:
-- [ ] P2 score artifacts are emitted in `runs/fix-data-engine/segment_5A/reports`.
-- [ ] movement vs P1 baseline is explicit and numeric.
-- [ ] explicit closure decision and P3 handoff posture are recorded.
-- [ ] superseded run-id folders are pruned under keep-set policy.
+- [x] P2 score artifacts are emitted in `runs/fix-data-engine/segment_5A/reports`.
+- [x] movement vs P1 baseline is explicit and numeric.
+- [x] explicit closure decision and P3 handoff posture are recorded.
+- [x] superseded run-id folders are pruned under keep-set policy.
+
+P2 closure snapshot (2026-02-21):
+- authority closure run-id: `66c708d45d984be18fe45a40c3b79ecc` (`UNLOCK_P3`).
+- lane progression:
+  - lane A (`ece48ba58426416b9a97d22e2f4ef380`): class-share gate closed, country-share remained high.
+  - lane B (`e60d96688776446fb8301b545e7ab59a`): near-pass (`max_country_share_within_class=0.40499`).
+  - integrated minimal closure (`66c708d45d984be18fe45a40c3b79ecc`): both concentration hard gates green.
+- closure metrics on authority run:
+  - `max_class_share=0.5409` (PASS),
+  - `max_country_share_within_class=0.3769` (PASS),
+  - P1 protection rails preserved (`2` realized channels; `night_gap=0.2760`; mass/shape exact).
+- closure artifacts:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p2_realism_gateboard_66c708d45d984be18fe45a40c3b79ecc.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p2_realism_gateboard_66c708d45d984be18fe45a40c3b79ecc.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p2_5_movement_66c708d45d984be18fe45a40c3b79ecc.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p2_5_movement_66c708d45d984be18fe45a40c3b79ecc.md`
 
 ### P3 - Tail-zone activation rescue (S3)
 Goal:
@@ -1150,7 +1166,7 @@ Definition of done:
 - `POPT`: closed (`POPT.0` + `POPT.1` + `POPT.2` + `POPT.3` + `POPT.4` + `POPT.5` complete; `UNLOCK_P0`).
 - `P0`: in progress (`gateboard + caveat map tooling/artifacts emitted`; hold on required witness seed `101` input gap).
 - `P1`: closed (`UNLOCK_P2`; authority run `d9caca5f1552456eaf73780932768845`).
-- `P2`: in planning (expanded to `P2.1..P2.6`).
+- `P2`: closed (`UNLOCK_P3`; authority run `66c708d45d984be18fe45a40c3b79ecc`).
 - `P3`: planned.
 - `P4`: planned.
 - `P5`: planned.

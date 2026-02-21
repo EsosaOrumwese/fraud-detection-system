@@ -563,7 +563,7 @@ def main() -> None:
     parser.add_argument(
         "--phase",
         default="P0",
-        choices=["P0", "P1"],
+        choices=["P0", "P1", "P2"],
         help="Scoring phase semantics to apply (default: P0).",
     )
     parser.add_argument(
@@ -571,7 +571,7 @@ def main() -> None:
         default="",
         help=(
             "Comma-separated required seed set for phase closure. "
-            "Defaults: P0=42,101; P1=42."
+            "Defaults: P0=42,101; P1=42; P2=42."
         ),
     )
     parser.add_argument("--out-json", default="")
@@ -585,6 +585,8 @@ def main() -> None:
     if args.required_seeds.strip():
         required_seeds = {int(token.strip()) for token in args.required_seeds.split(",") if token.strip()}
     elif phase == "P1":
+        required_seeds = {42}
+    elif phase == "P2":
         required_seeds = {42}
     else:
         required_seeds = {42, 101}
@@ -643,6 +645,37 @@ def main() -> None:
                 reason = "P1 channel realism hard gate failed for run_ids=" + ",".join(failing_runs)
             decision = {
                 "result": "HOLD_P1_REOPEN",
+                "reason": reason,
+            }
+    elif phase == "P2":
+        p2_run_gate_status: dict[str, bool] = {}
+        for run in run_payloads:
+            hard = run["gates"]["hard"]
+            p2_run_gate_status[run["run_id"]] = bool(
+                hard["mass_conservation_mae_lte_1e-9"]
+                and hard["shape_norm_max_abs_lte_1e-9"]
+                and hard["channel_realization_ge2_groups_ge10pct"]
+                and hard["channel_night_gap_cnp_minus_cp_gte_0.08"]
+                and hard["max_class_share_lte_0.55"]
+                and hard["max_country_share_within_class_lte_0.40"]
+            )
+        failing_runs = sorted([run_id for run_id, ok in p2_run_gate_status.items() if not ok])
+        if baseline_locked and scorer_complete and caveat_complete and not missing_required_seeds and not failing_runs:
+            decision = {
+                "result": "UNLOCK_P3",
+                "reason": "P2 concentration gates met on required seeds with P1 protection rails intact.",
+            }
+        else:
+            reason = "P2 evidence package incomplete; hold until required-seed gateboard is complete."
+            if missing_required_seeds:
+                reason = (
+                    "Required seed set is incomplete for P2 closure; missing seeds="
+                    + ",".join(str(s) for s in missing_required_seeds)
+                )
+            elif failing_runs:
+                reason = "P2 concentration/protection hard gate failed for run_ids=" + ",".join(failing_runs)
+            decision = {
+                "result": "HOLD_P2_REOPEN",
                 "reason": reason,
             }
     else:
