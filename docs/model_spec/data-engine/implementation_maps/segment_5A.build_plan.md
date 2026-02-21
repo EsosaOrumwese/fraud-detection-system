@@ -1297,6 +1297,148 @@ Definition of done:
 - [ ] overlay fairness (`p90/p10`) meets B threshold and no top-volume country has zero coverage.
 - [ ] scenario-vs-baseline-overlay composition remains structurally coherent.
 
+P4 execution posture:
+- freeze `S1/S2/S3` at P3 closure authority run `6817ca5a2e2648a1a8cf62deebfa0fcb`; do not reopen upstream lanes in P4.
+- mutable surfaces for P4:
+  - `packages/engine/src/engine/layers/l2/seg_5A/s4_calendar_overlays/runner.py`,
+  - `config/layer2/5A/scenario/scenario_overlay_policy_5A.v1.yaml`,
+  - `config/layer2/5A/scenario/scenario_overlay_validation_policy_5A.v1.yaml`,
+  - `config/layer2/5A/validation/validation_policy_5A.v1.yaml` (gate exposure only),
+  - `tools/score_segment5a_p0_realism.py` (phase semantics/evidence only).
+- rerun matrix for every P4 candidate: `S4 -> S5` only.
+- runtime budget gate (performance-first law):
+  - target `S4 <= 60s`, `S5 <= 45s` on seed `42` candidate lane,
+  - reject candidates that regress combined `S4+S5` runtime by `>20%` without demonstrated statistical gain.
+
+#### P4.1 - DST/overlay contract lock and baseline authority snapshot
+Goal:
+- lock exact P4-owned targets and freeze inherited rails before S4 edits.
+
+Scope:
+- pin P4 hard/stretch gates and surfaces:
+  - hard (`B`):
+    - `overall_mismatch_rate <= 0.002`,
+    - `dst_zone_mismatch_rate <= 0.005`,
+    - `overlay_top_countries_zero_affected_count == 0`,
+    - `overlay_p90_p10_ratio <= 2.0`.
+  - stretch (`B+`):
+    - `overall_mismatch_rate <= 0.0005`,
+    - `dst_zone_mismatch_rate <= 0.002`,
+    - `overlay_p90_p10_ratio <= 1.6`.
+- pin P3 closure run as baseline:
+  - `overall_mismatch_rate=0.0479015`,
+  - `dst_zone_mismatch_rate=0.0586479`,
+  - `overlay_p90_p10_ratio=1.7722`,
+  - `overlay_top_countries_zero_affected_count=0`.
+- freeze inherited veto rails:
+  - P1 channel rails,
+  - P2 concentration rails,
+  - P3 tail rails,
+  - mass/shape invariants.
+
+Definition of done:
+- [ ] P4 contract artifact is emitted with baseline snapshot and hard/stretch target table.
+- [ ] inherited frozen rails are explicitly listed as veto checks.
+- [ ] decision vocabulary is pinned for P4 closure (`UNLOCK_P5` vs `HOLD_P4_REOPEN`).
+
+#### P4.2 - DST residual attribution and transition-window diagnostics
+Goal:
+- isolate why residual mismatch is concentrated in DST-observing zones and transition windows.
+
+Scope:
+- produce per-`tzid`/date diagnostics from authority run:
+  - mismatch heatmap table (`frac_mismatch`),
+  - DST-shift indicator join,
+  - Spearman correlation between mismatch and DST-shift,
+  - transition-window vs non-transition mismatch split.
+- separate two failure mechanisms:
+  - local/UTC bucket alignment drift,
+  - overlay application timing asymmetry around DST boundaries.
+- no policy/runner tuning in this subphase.
+
+Definition of done:
+- [ ] hotspot artifact ranks top DST zones and transition windows by mismatch contribution.
+- [ ] attribution verdict is explicit (`time-alignment`, `overlay-timing`, or `mixed`) with numeric evidence.
+- [ ] no state-output mutation occurs in this subphase.
+
+#### P4.3 - DST boundary correction implementation (S4 local-time handling)
+Goal:
+- compress overall + DST-zone mismatch into B band without breaking frozen rails.
+
+Scope:
+- implement explicit DST-boundary-safe local-week bucket mapping in `S4`:
+  - deterministic handling for skipped/repeated local times,
+  - stable mapping precedence rules for transition buckets,
+  - transition-window audit counters in run-report.
+- emit new S4 diagnostics:
+  - `overall_mismatch_rate`,
+  - `dst_zone_mismatch_rate`,
+  - `dst_transition_window_mismatch_rate`,
+  - mismatch vs DST-shift association summary.
+- keep scenario amplitude bounds and mass/shape checks unchanged.
+
+Definition of done:
+- [ ] S4 emits deterministic DST-corrected mapping behavior with reproducible diagnostics.
+- [ ] `overall_mismatch_rate` and `dst_zone_mismatch_rate` move materially toward hard gates.
+- [ ] no regression in P1/P2/P3 frozen rails or scenario amplitude bounds.
+
+#### P4.4 - Overlay fairness stratification controls (S4 policy + selection)
+Goal:
+- tighten country affected-share dispersion while preserving realistic scenario semantics.
+
+Scope:
+- extend overlay policy with bounded fairness knobs for top-volume countries:
+  - `min_affected_share_top_volume_country`,
+  - `max_affected_share_top_volume_country`,
+  - `coverage_dispersion_limit_p90_p10`,
+  - top-volume-country eligibility rule.
+- implement deterministic stratified application in `S4`:
+  - country stratum first, then class/zone,
+  - preserve existing event ordering and clamp semantics.
+- keep `overlay_top_countries_zero_affected_count == 0` as hard veto.
+
+Definition of done:
+- [ ] fairness knobs are contract-valid and bounded.
+- [ ] `overlay_p90_p10_ratio` improves without creating synthetic flatness.
+- [ ] top-volume country zero-coverage remains zero on accepted candidates.
+
+#### P4.5 - Bounded calibration ladder + phase scoring
+Goal:
+- close P4 hard gates and attempt P4 stretch with controlled blast radius.
+
+Scope:
+- run bounded candidate ladder (A conservative -> B moderate -> C strong) by changing only P4 knobs.
+- for each candidate:
+  - rerun `S4 -> S5`,
+  - score with `tools/score_segment5a_p0_realism.py --phase P4` (to be added),
+  - enforce frozen-rail veto before promotion.
+- phase semantics to add in scorer:
+  - `UNLOCK_P5` when P4 hard gates + frozen rails pass,
+  - `HOLD_P4_REOPEN` otherwise.
+
+Definition of done:
+- [ ] at least one candidate reaches P4 hard-gate closure or saturation evidence is explicit.
+- [ ] stretch attempt outcome is recorded (`achieved` or `bounded miss` with attribution).
+- [ ] accepted knob set is minimal; rejected alternatives are evidence-backed.
+
+#### P4.6 - Closure handoff, prune, and freeze-pointer update
+Goal:
+- close P4 with auditable artifacts and hand off to integrated certification (`P5`).
+
+Scope:
+- emit:
+  - P4 gateboard(s),
+  - P4 movement pack vs P3 authority,
+  - caveat-axis refresh.
+- record explicit decision (`UNLOCK_P5` or `HOLD_P4_REOPEN`) with blockers if any.
+- prune superseded P4 candidate run-id folders under keep-set policy.
+- update implementation notes and logbook with full decision trail.
+
+Definition of done:
+- [ ] closure artifact set is complete and linked from this build plan.
+- [ ] explicit `UNLOCK/HOLD` decision is recorded with phase-owned blockers.
+- [ ] superseded run-id folders are pruned.
+
 ### P5 - Integrated certification and freeze
 Goal:
 - certify final 5A posture on required seeds and freeze authority artifacts.
@@ -1322,5 +1464,5 @@ Definition of done:
 - `P1`: closed (`UNLOCK_P2`; authority run `d9caca5f1552456eaf73780932768845`).
 - `P2`: closed (`UNLOCK_P3`; authority run `66c708d45d984be18fe45a40c3b79ecc`).
 - `P3`: closed (`UNLOCK_P4`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch partially met with bounded TZID miss).
-- `P4`: planned.
+- `P4`: planned (expanded into execution-grade `P4.1 -> P4.6` with DST + overlay fairness lanes).
 - `P5`: planned.

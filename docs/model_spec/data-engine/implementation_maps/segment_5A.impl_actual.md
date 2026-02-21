@@ -6046,3 +6046,59 @@ Prune action:
 
 Closure decision:
 - `P3` is closed with `UNLOCK_P4` on the execution seed policy (`{42}`), with explicit bounded stretch miss recorded for nontrivial TZIDs.
+
+---
+
+### Entry: 2026-02-21 21:02
+
+P4 planning expansion locked (execution-grade `P4.1 -> P4.6`, no runtime mutation).
+Summary: Expanded P4 from a high-level placeholder into explicit DST + overlay fairness remediation lanes with hard/stretch gates, runtime budgets, scorer semantics, and closure artifacts, while preserving the P3 freeze posture.
+
+Why this expansion was required:
+- P3 closure run (`6817ca5a2e2648a1a8cf62deebfa0fcb`) opened `UNLOCK_P4` for tail scope, but P4-owned axes remain open:
+  - `overall_mismatch_rate=0.0479015` (vs B `<=0.002`),
+  - `dst_zone_mismatch_rate=0.0586479` (vs B `<=0.005`),
+  - overlay fairness hard gate already passes (`p90/p10=1.7722`, top-country zero-coverage `0`), but B+ tightening still open (`<=1.6`).
+- existing scorer semantics stopped at `P3`; planning had to include explicit `P4` decision semantics to avoid ambiguous closure handling.
+
+Decision boundaries locked for P4:
+1) Freeze scope:
+- keep `S1/S2/S3` frozen at P3 closure authority.
+- allow mutations only in S4 runner/policies and phase scoring surface.
+
+2) Sequential rerun law:
+- every candidate reruns `S4 -> S5` only.
+- no upstream reopen in P4 lane.
+
+3) Runtime gate (performance-first law):
+- target candidate-lane runtime budget:
+  - `S4 <= 60s`,
+  - `S5 <= 45s`,
+  - reject regressions `>20%` without measurable statistical gain.
+
+Chosen P4 lane decomposition:
+- `P4.1`: lock contract + baseline snapshot + phase decision vocabulary (`UNLOCK_P5` / `HOLD_P4_REOPEN`).
+- `P4.2`: DST attribution lane first (transition-window and DST-shift diagnostics), no tuning yet.
+- `P4.3`: implement DST boundary correction in S4 mapping/transition handling.
+- `P4.4`: overlay country fairness stratification controls.
+- `P4.5`: bounded calibration ladder + phase scoring.
+- `P4.6`: closure pack + prune + handoff.
+
+Alternatives considered and rejected:
+1) Start with overlay fairness tuning before DST diagnostics:
+- rejected because the dominant current misses are DST/overall mismatch hard gates; fairness is secondary at current posture.
+
+2) Reopen S3/S2 during P4:
+- rejected because P4 ownership is S4-local by design and P3 just closed with a fresh freeze pointer; reopening would confound attribution.
+
+3) Run full-seed panel immediately in P4 planning stage:
+- rejected for planning phase; keep seed panel expansion for execution once a stable candidate clears single-seed directional checks.
+
+Files updated for planning:
+- `docs/model_spec/data-engine/implementation_maps/segment_5A.build_plan.md`
+  - expanded P4 into `P4.1 -> P4.6` with explicit DoDs and runtime budgets.
+
+No execution in this step:
+- no `S4/S5` runs launched,
+- no run-id folders modified,
+- no policy/code changes applied beyond planning document expansion.
