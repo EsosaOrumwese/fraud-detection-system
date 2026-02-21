@@ -810,6 +810,22 @@ Definition of done:
 - [ ] gate scorer outputs include all hard/stretches listed in Section 3.
 - [ ] baseline caveat map explicitly tags channel/concentration/tail/DST/overlay axes.
 
+P0 execution snapshot (2026-02-21):
+- tooling implemented:
+  - `tools/score_segment5a_p0_realism.py` (hard/stretch gates + caveat axes + cross-seed CV + closure decision).
+- emitted artifacts:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p0_realism_gateboard_b4d6809bf10d4ac590159dda3ed7a310.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p0_realism_gateboard_b4d6809bf10d4ac590159dda3ed7a310__7e3de9d210bb466ea268f4a9557747e1.json`
+- observed seed-pack posture:
+  - available seeded runs in active root are seed `42` only (multiple replay run-ids),
+  - required witness seed `101` is unavailable upstream in sealed `1A..3B` artifacts.
+- blocker detail:
+  - true seed-101 witness attempt (`a2b7d3399a1341559320b0977ebbc1dd`) fails in `S0` because strict Layer-1 validation bundle index laws cannot be satisfied without genuine upstream seed-101 bundles.
+- current P0 decision:
+  - `HOLD_P0_REMEDIATE` (missing required witness seed `101`).
+- caveat map (current baseline):
+  - `channel=material`, `concentration=material`, `tail=material`, `dst=material`, `overlay=watch`.
+
 ### P1 - Channel realism activation (S1 + S2)
 Goal:
 - remove effective `mixed`-only collapse and realize CP/CNP channel-conditioned behavior.
@@ -885,7 +901,7 @@ Definition of done:
 
 ## 8) Current phase status
 - `POPT`: closed (`POPT.0` + `POPT.1` + `POPT.2` + `POPT.3` + `POPT.4` + `POPT.5` complete; `UNLOCK_P0`).
-- `P0`: unlocked (next).
+- `P0`: in progress (`gateboard + caveat map tooling/artifacts emitted`; hold on required witness seed `101` input gap).
 - `P1`: planned.
 - `P2`: planned.
 - `P3`: planned.
