@@ -3909,3 +3909,259 @@ Guardrails reaffirmed:
 - no policy/coeff/realism-shape tuning in POPT.1;
 - deterministic output contract must remain unchanged;
 - downstream `S4/S5` PASS is hard veto rail.
+
+---
+
+### Entry: 2026-02-20 20:10
+
+Execution update: `POPT.1.2` S3 lane instrumentation landed.
+Summary: Added explicit S3 phase markers to `s3_baseline_intensity` with bounded timer logs, plus a small `_StepTimer` API extension to support formatted marker payloads.
+
+What changed:
+- File: `packages/engine/src/engine/layers/l2/seg_5A/s3_baseline_intensity/runner.py`
+- Added timer markers at:
+  - phase begin,
+  - input load + schema validation complete,
+  - domain alignment complete,
+  - core compute complete,
+  - output schema validation complete,
+  - output write complete.
+- Updated `_StepTimer.info(message, *args)` to support formatted markers without changing timer semantics.
+
+Decision rationale:
+- Need deterministic, low-frequency lane timestamps before optimization edits so we can quantify where S3 wall time actually sits.
+- Marker cadence is phase-level only (no row-level/per-loop spam), honoring log-budget constraints.
+
+Alternatives considered:
+1) Parse only existing generic logs.
+   - Rejected: insufficient phase boundaries for an auditable lane breakdown.
+2) Add high-frequency progress logs.
+   - Rejected: would introduce avoidable runtime overhead and noisy logs.
+
+Non-regression expectation:
+- Instrumentation does not alter data outputs or policy decisions; only additional timer log lines are introduced.
+
+---
+
+### Entry: 2026-02-20 20:12
+
+Execution update: `POPT.1.1` scorer contract implemented (5A).
+Summary: Added two scorer tools to make POPT.1 gates executable and reproducible from artifacts/logs.
+
+New tools:
+1) `tools/score_segment5a_popt1_lane_timing.py`
+   - parses S3 phase markers from run log,
+   - emits lane table (`input_load_schema_validation`, `domain_alignment`, `core_compute`,
+     `output_schema_validation`, `output_write`) with wall-share.
+2) `tools/score_segment5a_popt1_closure.py`
+   - compares baseline-vs-candidate S3 runtime,
+   - enforces POPT.1 runtime gate (`<=420s` or `>=25%` reduction),
+   - enforces structural/downstream rails (`S3 counts + weekly_sum rail + S4/S5 PASS`),
+   - emits explicit close decision (`UNLOCK_POPT2` / `HOLD_POPT1_REOPEN`).
+
+Decision rationale:
+- POPT.1 requires deterministic, machine-readable closure evidence, not manual interpretation.
+- Splitting lane-timing and closure allows us to diagnose bottlenecks and score gates independently.
+
+Alternatives considered:
+1) Reuse only generic `segment5a_popt0_baseline` outputs.
+   - Rejected: lacks S3 lane decomposition required for targeted optimization decisions.
+2) Manual closure checks in notes.
+   - Rejected: not replayable/auditable for subsequent reopen cycles.
+
+Next step:
+- Run one instrumentation-only candidate pass (`S3->S5`) to produce first lane artifact and identify dominant S3 sub-lane before optimization edits.
+
+---
+
+### Entry: 2026-02-20 20:12
+
+Execution decision: candidate run staging method for POPT.1 iteration.
+Summary: Chose to clone baseline run folder to a fresh run-id and rerun `S3->S5` in that staged folder.
+
+Evidence:
+- Baseline run folder size is ~45 MB (small enough for iterative clone staging without storage pressure).
+
+Alternatives considered:
+1) Reuse baseline authority run-id directly for candidate reruns.
+   - Rejected: would overwrite authority lane outputs and weaken auditability.
+2) Build candidate run-id from sparse/manual selective copies each iteration.
+   - Rejected: higher risk of missing prerequisite artifacts and unnecessary operator overhead.
+3) Clone baseline run folder + update `run_receipt.run_id`.
+   - Accepted: deterministic, low-risk, and fast for repeated candidate iterations.
+
+Operational rule pinned:
+- Each candidate run uses a new run-id folder; baseline authority run-id remains immutable.
+
+Execution details:
+- Staged candidate run-id: `e3c2e952919346d3a56b797c4c6d4a6a`.
+- Staging action: cloned baseline run folder and updated `run_receipt.run_id` to match staged folder.
+- Sanity check: `py_compile` passed for modified runner + scorer tools before executing candidate chain.
+
+---
+
+### Entry: 2026-02-20 20:41
+
+Execution update: `POPT.1.2` baseline evidence captured; `POPT.1.4` optimization lane implemented.
+Summary: Ran instrumentation candidate (`S3` on `e3c2...`) and confirmed output-schema validation dominates S3 wall time. Implemented vectorized fast-path schema checks and reduced progress-log cadence to cut validation overhead.
+
+Evidence from lane artifact:
+- Artifact: `runs/fix-data-engine/segment_5A/reports/segment5a_popt1_lane_timing_e3c2e952919346d3a56b797c4c6d4a6a.json`
+- `S3 wall`: `473.656s`
+- lane split:
+  - `input_load_schema_validation`: `27.95s` (`5.90%`)
+  - `domain_alignment`: `0.06s`
+  - `core_compute`: `0.58s`
+  - `output_schema_validation`: `444.38s` (`93.82%`)
+  - `output_write`: `0.23s`
+
+Diagnosis:
+- `S3` runtime bottleneck is not compute composition; it is row-wise JSON-schema validation over very large outputs.
+- Existing progress logging cadence (`0.5s`) produced high log volume during multi-minute validation loops.
+
+Alternatives considered:
+1) Optimize join/groupby/materialization first.
+   - Rejected as primary lane: lane evidence shows compute is negligible in this state.
+2) Disable schema validation in candidate lanes.
+   - Rejected: violates fail-closed contract semantics for this phase.
+3) Keep full schema semantics but replace row-wise loop with vectorized DataFrame checks for supported S3 model anchors.
+   - Accepted.
+
+Changes applied:
+1) `packages/engine/src/engine/layers/l2/seg_5A/s3_baseline_intensity/runner.py`
+   - Added vectorized fast validator path in `_validate_array_rows(...)` for S3 model anchors:
+     - `merchant_zone_profile_5A`
+     - `shape_grid_definition_5A`
+     - `class_zone_shape_5A`
+     - `merchant_zone_baseline_local_5A`
+     - `class_zone_baseline_local_5A`
+   - Fast path enforces required columns, nullability, type, numeric bounds, string pattern/length/enum checks.
+   - Retains fallback to `Draft202012Validator` loop for unsupported schema shapes.
+2) Reduced `_ProgressTracker` logging cadence from `0.5s` to `5.0s` to cap log overhead without removing progress/ETA visibility.
+3) Updated S3 validation calls to pass DataFrame handles into fast-path validation.
+
+Safety posture:
+- No policy/config/coeff changes.
+- No output schema/path changes.
+- Validation remains fail-closed; unsupported schema features automatically fallback to original row validator.
+
+Immediate next step:
+- run fresh clean candidate chain (`S3 -> S4 -> S5`) on new run-id with empty validation output folder to avoid S5 publish conflicts and measure actual runtime movement.
+
+---
+
+### Entry: 2026-02-20 20:56
+
+Execution correction: `POPT.1.5` closure scorer baseline-count anchor fixed.
+Summary: The first closure artifact for candidate `ce57...` incorrectly reported `s3_counts_unchanged=false` due to a brittle baseline lookup. Patched scorer to read baseline counts from baseline `S3 run_report.json` instead of hotspot-rank evidence.
+
+Problem observed:
+- Closure artifact (`segment5a_popt1_closure_ce57...json`) failed only on `s3_counts_unchanged`.
+- Candidate `S3` run report had expected counters, but scorer read baseline counters from `POPT.0 hotspots[0].evidence`.
+- After optimization, hotspot ordering changed (`S4` became rank-1), so `hotspots[0]` was no longer guaranteed to represent S3 counters.
+
+Alternatives considered:
+1) Keep hotspot-based baseline lookup and hard-pin hotspot order in POPT.0 artifacts.
+   - Rejected: fragile; any legitimate hotspot-order movement would produce false negatives.
+2) Disable count-equality veto in closure scorer.
+   - Rejected: violates non-regression rails.
+3) Source baseline counters directly from baseline `S3 run_report.json` (path from baseline artifact, fallback to state report discovery).
+   - Accepted: stable, state-specific, and auditable.
+
+Patch applied:
+- File: `tools/score_segment5a_popt1_closure.py`
+  - added `_baseline_s3_report_path(...)` resolver,
+  - switched baseline count source to baseline `S3 run_report.json` `counts` block,
+  - added `count_anchors` block to closure payload (`source`, keys, baseline vs candidate counters).
+
+Reasoning trail:
+- Closure tools are authority for phase advancement; false veto signals are unacceptable.
+- Correcting the scorer (tooling-only change) does not mutate state outputs and is compliant with rerun law (scorer rerun only).
+
+---
+
+### Entry: 2026-02-20 20:57
+
+Execution close: `POPT.1` formally closed with `UNLOCK_POPT2`.
+Summary: Re-ran closure scorer for `ce57...` after anchor fix; all runtime and structural gates passed. Updated build plan closure snapshot and pruned superseded failed candidate folder.
+
+Verified evidence:
+- Artifact: `runs/fix-data-engine/segment_5A/reports/segment5a_popt1_closure_ce57da0ead0d4404a5725ca3f4b6e3be.json`
+  - `decision.result=UNLOCK_POPT2`
+  - `runtime_gate_pass=true`
+  - `veto.*=true` (including `s3_counts_unchanged=true`)
+  - `S3 baseline=488.250s`, `candidate=28.907s`, improvement `94.08%`.
+- Artifact: `runs/fix-data-engine/segment_5A/reports/segment5a_popt1_lane_timing_ce57da0ead0d4404a5725ca3f4b6e3be.json`
+  - lane markers complete,
+  - bounded overhead check true,
+  - major validation-lane reduction confirmed.
+
+Storage/prune action:
+- Used keep-set prune utility:
+  - `python tools/prune_run_folders_keep_set.py --runs-root runs/fix-data-engine/segment_5A --keep 7b08449ccffc44beaa99e64bf0201efc --keep ac363a2f127d43d1a6e7e2308c988e5e --keep ce57da0ead0d4404a5725ca3f4b6e3be --yes`
+- Result:
+  - removed superseded failed staging folder `e3c2e952919346d3a56b797c4c6d4a6a`.
+
+Decision:
+- Advance to `POPT.2` targeting `S4` as next hotspot per pinned ordering.
+- Keep `POPT.1` outputs/code as locked baseline for later remediation phases.
+
+---
+
+### Entry: 2026-02-21 02:06
+
+Design element: `POPT.2` plan expansion for Segment 5A (`S4` secondary hotspot).
+Summary: Expanded `POPT.2` from a placeholder into execution-grade subphases (`POPT.2.1 -> POPT.2.6`) with explicit runtime/veto gates, baseline anchors, rerun law, and handoff decision contract.
+
+Problem framing:
+- `POPT.1` closed successfully and shifted the dominant hotspot to `S4`.
+- Active post-POPT.1 authority run (`ce57...`) shows `S4 wall=456.687s` (still above `S4` target budget `360s`).
+- Historical lane evidence from `POPT.0` showed `S4` dominated by input load/schema-validation (~88.7%), indicating likely first optimization lane.
+
+Baseline authority pinned for POPT.2 planning:
+- run-id: `ce57da0ead0d4404a5725ca3f4b6e3be`.
+- S4 anchors:
+  - `status=PASS`,
+  - `wall=456.687s`,
+  - `domain_rows=16528`,
+  - `event_rows=2000`,
+  - `horizon_buckets=2160`,
+  - `overlay_rows=35700480`,
+  - `scenario_rows=35700480`,
+  - warning rails (`overlay_warn_bounds_total=0`, `overlay_warn_aggregate=0`).
+
+Alternatives considered:
+1) Start coding S4 optimizations directly without re-instrumenting.
+   - Rejected: POPT.0 lane evidence may not perfectly represent post-POPT.1 posture; re-confirmation needed before deep edits.
+2) Treat POPT.2 as one coarse checklist (similar to early draft).
+   - Rejected: insufficient auditability and weak fail-closed closure behavior.
+3) Expand POPT.2 into bounded subphases with explicit scorer/veto contracts and lane reconfirmation.
+   - Accepted: aligns with strict phase-closure law and avoids ambiguous reopen loops.
+
+Decisions captured in the plan:
+1) Runtime gate for closure:
+   - `S4 <= 360.0s` OR `>=20%` reduction vs active baseline (`<=365.350s`).
+2) Structural veto rails:
+   - stable key counts (`domain/event/horizon/overlay/scenario`),
+   - no new error surface,
+   - warning rails non-regression,
+   - downstream `S4->S5 PASS`.
+3) Rerun law:
+   - S4-only edits rerun `S4->S5`,
+   - S5 support edits rerun `S5` and rescore closure,
+   - no upstream reopen inside POPT.2.
+4) Subphase expansion:
+   - `POPT.2.1` scorer/equivalence contract,
+   - `POPT.2.2` lane instrumentation + hotspot reconfirm,
+   - `POPT.2.3` input validation/load-path optimization,
+   - `POPT.2.4` overlay compute + mapping optimization,
+   - `POPT.2.5` witness rerun + closure scoring,
+   - `POPT.2.6` close decision + prune/handoff.
+
+Reasoning trail:
+- POPT work remains performance-only; no realism/policy coefficient movement is permitted here.
+- S4 already runs with sampled output validation mode; first optimization priority is pre-output input/validation and avoidable materialization overhead.
+- Decision quality improves by separating lane reconfirmation from mutation phases, so each optimization pass is evidence-driven.
+
+Immediate next step:
+- begin `POPT.2.1` by adding/locking S4 closure scorer contract and output artifacts (`lane_timing + closure decision`).

@@ -787,6 +787,24 @@ Required snapshot fields (`m10_f_burst_snapshot.json`):
 11. `runtime_budget` (`budget_seconds`, `elapsed_seconds`, `budget_pass`).
 12. `blockers`, `overall_pass`.
 
+Execution status (2026-02-20):
+1. Execution id:
+   - `m10_20260220T175149Z`.
+2. Snapshot paths:
+   - local: `runs/dev_substrate/m10/m10_20260220T175149Z/m10_f_burst_snapshot.json`
+   - durable run-control: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260220T175149Z/m10_f_burst_snapshot.json`
+   - durable run-scoped: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260219T234150Z/m10/m10_f_burst_snapshot.json`
+3. Verdict:
+   - `overall_pass=false`
+   - blockers: `M10F-B1`, `M10F-B5`, `M10F-B8`.
+4. Key closure facts:
+   - burst lane was materially executable only after IG auth remediation (`/fraud-platform/dev_min/ig/api_key -> dev-min-wsp` + IG redeploy),
+   - measured primary burst attempt runtime was `132.79m` (`>90m` budget),
+   - achieved multiplier remained below pinned `3.0x` target against M10.E representative baseline.
+5. Consequence:
+   - `M10.F` is currently `BLOCKED` and not closure-pass.
+   - Next action is blocker remediation + bounded rerun before entering `M10.G`.
+
 ### M10.G Soak run
 Goal:
 1. Validate sustained operation and stable checkpoint/lag behavior.
@@ -900,4 +918,5 @@ M10 can be marked `DONE` only when all are true:
 4. `M10.C` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T045637Z`).
 5. `M10.D` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T054251Z`).
 6. `M10.E` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T063037Z`).
-7. Next lane is `M10.F` burst scale run.
+7. `M10.F` has been executed and is currently blocked (`m10_execution_id=m10_20260220T175149Z`, blockers `M10F-B1/B5/B8`).
+8. Next lane remains `M10.F` blocker remediation + bounded rerun.

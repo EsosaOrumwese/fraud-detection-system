@@ -1548,6 +1548,12 @@ Phase closure posture:
     - deterministic burst profile contract (`3.0x`, `15m`, admit ratio `>=0.995`, `semantic_drift_allowed=false`),
     - explicit semantic-drift and lag/checkpoint closure gates under burst load,
     - fail-closed blocker taxonomy (`M10F-B1..B9`) and required snapshot schema for `m10_f_burst_snapshot.json`.
+  - `M10.F` runtime lane has now been executed fail-closed and is currently `BLOCKED`:
+    - execution id: `m10_20260220T175149Z`,
+    - local snapshot: `runs/dev_substrate/m10/m10_20260220T175149Z/m10_f_burst_snapshot.json`,
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260220T175149Z/m10_f_burst_snapshot.json`,
+    - verdict: `overall_pass=false`,
+    - blocker rollup: `M10F-B1` (multiplier miss), `M10F-B5` (attempt-scoped admit-ratio evidence instability), `M10F-B8` (runtime budget breach).
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
@@ -1555,7 +1561,7 @@ Sub-phase progress:
   - [x] `M10.C` semantic 200-event run.
   - [x] `M10.D` incident drill execution.
   - [x] `M10.E` representative-window run.
-  - [ ] `M10.F` burst run.
+  - [ ] `M10.F` burst run (currently blocked; rerun required).
   - [ ] `M10.G` soak run.
   - [ ] `M10.H` recovery-under-load run.
   - [ ] `M10.I` reproducibility + replay coherence.
@@ -1667,5 +1673,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M10 is active for planning expansion under the M9 handoff.
 Next action:
-- execute `M10.F` burst scale lane with deterministic fail-closed evidence capture.
+- resolve `M10.F` blockers (`M10F-B1/B5/B8`) and execute bounded burst rerun before `M10.G`.
 

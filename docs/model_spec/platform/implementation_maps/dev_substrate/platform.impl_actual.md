@@ -17717,3 +17717,68 @@ Risk handling:
 1. Chose option 2 to restore intended dev_min security posture without broadening allowlist with placeholders.
 2. Follow-up control required: force IG service redeploy so running daemon refreshes injected secret env.
 3. Then rerun burst task without changing workload knobs to preserve experimental comparability.
+
+## Entry: 2026-02-20 20:33:10 +00:00 - M10.F budget overrun decision and recalibration
+### What changed after auth remediation
+1. IG auth blockers were resolved; WSP moved from fail-fast to sustained streaming.
+2. Sustained run demonstrated lane executability but exposed runtime-budget risk.
+
+### Why execution was stopped
+1. M10.F authority budget is <=90m.
+2. Attempt-6 crossed ~132m while still running, so allowing completion would guarantee budget failure.
+3. Continuing would also create avoidable cost burn and violate performance-first posture.
+
+### Decision
+1. Stop attempt-6 and classify as calibration evidence (not closure).
+2. Run reporter refresh and quantify achieved throughput/admit ratio from this long attempt.
+3. Use quantified rates to retune next burst run as bounded execution (new burst attempt, same run scope) targeting:
+   - duration >=15m,
+   - multiplier >=3.0,
+   - runtime <=90m.
+4. Maintain fail-closed: if calibrated rerun still misses threshold, close lane as blocked with explicit blocker evidence (no silent pass).
+
+## Entry: 2026-02-20 20:37:24 +00:00 - M10.F closure state synchronized as blocked
+### Closure artifact publication
+1. Published m10_f_burst_snapshot.json locally and durably with fail-closed verdict.
+2. Snapshot carries deterministic blocker rollup (M10F-B1/B5/B8) and execution trail for all burst attempts in this cycle.
+
+### Why lane remains blocked
+1. Burst multiplier target (3.0x vs M10.E baseline) was not met in materially executable attempt.
+2. Runtime budget exceeded (132.79m > 90m) before closure-safe pass criteria.
+3. Attempt-scoped admit-ratio metric requires receipt-window derivation due run-report counter-basis discontinuity across reporter refresh.
+
+### Immediate implementation consequence
+1. M10.F cannot be marked done.
+2. M10 progression to M10.G remains blocked until bounded burst rerun closes these blockers.
+3. Platform build-plan files were synchronized to reflect blocked state and updated immediate next action.
+
+## Entry: 2026-02-20 20:39:12 +00:00 - Cost guardrail action after blocked M10.F
+### Action
+1. Reduced active daemon footprint by scaling all in-scope spine services to zero.
+2. Verified no residual running daemon tasks remained.
+
+### Reasoning
+1. M10.F is blocked and cannot progress immediately to M10.G.
+2. Keeping daemons up during blocked state creates avoidable idle spend.
+3. Controlled scale-to-zero preserves substrate while preventing unnecessary runtime cost.
+
+## Entry: 2026-02-21 02:09:23 +00:00 - M10.F bounded rerun design (blocker-only)
+### Objective lock
+1. Clear only M10F-B1, M10F-B5, M10F-B8.
+2. Keep scope on current run id (platform_20260219T234150Z) and existing lane authority.
+
+### Method decisions
+1. B5 evidence source is upgraded to deterministic DB-window measurement:
+   - source table: IG Postgres ops index eceipts,
+   - key dimensions: platform_run_id, created_at_utc, decision.
+2. B8 bounded execution posture:
+   - run burst task with high-speed profile,
+   - enforce wall-clock cap by explicit stop if task exceeds bounded window.
+3. B1 calculation basis:
+   - numerator: attempt-window ADMIT rate from receipts table,
+   - denominator: M10.E baseline admit/min from authoritative snapshot,
+   - plus admit-ratio (ADMIT / total receipts) gate.
+
+### Alternatives rejected
+1. run_report-only deltas as attempt basis (rejected due previously observed counter-basis drift).
+2. unbounded long-run retry (rejected due budget/cost risk and prior overrun evidence).
