@@ -340,6 +340,11 @@ def _hash64(prefix: bytes, merchant_bytes: bytes, zone_bytes: bytes, horizon_byt
     return int.from_bytes(digest[:8], "big", signed=False)
 
 
+def _sample_seed(prefix: bytes) -> int:
+    digest = hashlib.sha256(prefix).digest()
+    return int.from_bytes(digest[:8], "little", signed=False)
+
+
 def _minhash_sample(
     paths: list[Path],
     sample_n: int,
@@ -349,6 +354,54 @@ def _minhash_sample(
 ) -> list[dict]:
     if sample_n <= 0:
         return []
+
+    # High-blast fast path: deterministic vectorized hashing + bottom-k in Polars.
+    try:
+        sample_columns = [
+            "merchant_id",
+            "legal_country_iso",
+            "tzid",
+            "local_horizon_bucket_index",
+        ]
+        if include_channel_group:
+            sample_columns.append("channel_group")
+
+        hash_inputs: list[pl.Expr] = [
+            pl.col("merchant_id"),
+            pl.col("legal_country_iso"),
+            pl.col("tzid"),
+            pl.col("local_horizon_bucket_index"),
+        ]
+        order_by: list[str] = [
+            "__sample_hash",
+            "merchant_id",
+            "legal_country_iso",
+            "tzid",
+            "local_horizon_bucket_index",
+        ]
+        if include_channel_group:
+            hash_inputs.append(pl.col("channel_group"))
+            order_by.append("channel_group")
+
+        sample_df = (
+            pl.scan_parquet([str(path) for path in paths])
+            .select(sample_columns)
+            .with_columns(
+                pl.struct(hash_inputs).hash(seed=_sample_seed(prefix)).alias("__sample_hash")
+            )
+            .bottom_k(sample_n, by=order_by)
+            .sort(order_by)
+            .select(sample_columns)
+            .collect()
+        )
+        logger.info(
+            "S5: recomposition sample mode=fast_struct_hash_top_n_v2 selected=%s",
+            sample_df.height,
+        )
+        return list(sample_df.iter_rows(named=True))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("S5: fast sample path failed; falling back to reference path: %s", exc)
+
     heap: list[tuple[int, tuple[str, str, int], tuple[object, object, object, int, object]]] = []
     base_columns = [
         "merchant_id",

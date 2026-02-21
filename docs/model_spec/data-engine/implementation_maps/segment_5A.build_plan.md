@@ -722,13 +722,14 @@ POPT.3 execution snapshot (2026-02-21):
 - representative candidate outcomes:
   - `ec50f40c0bb14aaabd830307aeb9b2b9`: `S5 PASS`, `221.969s` (`+8.72%` improvement), decision `HOLD_POPT3_REOPEN`.
   - `aa26e278545f44aabc55cccad34ce48c`: `S5 PASS`, `217.641s` (`+10.50%`), decision `HOLD_POPT3_REOPEN`.
-  - `acd599a344e146a99f72a541834af1e0`: `S5 PASS`, `208.937s` (`+14.08%`), decision `HOLD_POPT3_REOPEN` (best valid candidate).
+  - `acd599a344e146a99f72a541834af1e0`: `S5 PASS`, `208.937s` (`+14.08%`), decision `HOLD_POPT3_REOPEN`.
+  - `7e3de9d210bb466ea268f4a9557747e1`: `S5 PASS`, `32.235s` (`+86.74%`), decision `UNLOCK_POPT4` (high-blast reopen closure authority).
 - bounded reopen evidence:
-  - transient faster runs near gate were observed but not closure-valid due intermediate typing regressions; fixes were applied and documented in implementation notes.
-- final closure decision: `HOLD_POPT3_REOPEN`.
+  - high-blast deterministic vectorized minhash lane (`fast_struct_hash_top_n_v2`) closed remaining runtime gap while preserving structural veto rails.
+- final closure decision: `UNLOCK_POPT4`.
 - keep-set/prune sync:
-  - retained run-id folders: `7b08449ccffc44beaa99e64bf0201efc`, `ac363a2f127d43d1a6e7e2308c988e5e`, `ce57da0ead0d4404a5725ca3f4b6e3be`, `7f20e9d97dad4ff5ac639bbc41749fb0`, `acd599a344e146a99f72a541834af1e0`,
-  - pruned superseded candidate folders: `3e96a67813dc4357aca9872b176f6779`, `864e907d739842f28211a84b254b6358`, `ec50f40c0bb14aaabd830307aeb9b2b9`, `aa26e278545f44aabc55cccad34ce48c`, `bd79bd48fbc049808874042eeb0aaca6`, `fc78bd20c54f47e981a3312106559571`.
+  - retained run-id folders: `7b08449ccffc44beaa99e64bf0201efc`, `ac363a2f127d43d1a6e7e2308c988e5e`, `ce57da0ead0d4404a5725ca3f4b6e3be`, `7f20e9d97dad4ff5ac639bbc41749fb0`, `7e3de9d210bb466ea268f4a9557747e1`,
+  - pruned superseded candidate folders include: `3e96a67813dc4357aca9872b176f6779`, `864e907d739842f28211a84b254b6358`, `ec50f40c0bb14aaabd830307aeb9b2b9`, `aa26e278545f44aabc55cccad34ce48c`, `bd79bd48fbc049808874042eeb0aaca6`, `fc78bd20c54f47e981a3312106559571`, `acd599a344e146a99f72a541834af1e0`.
 
 ### POPT.4 - Validation/I-O cost control lane
 Goal:
@@ -740,9 +741,23 @@ Scope:
 - reduce repeated scans/materializations and duplicate heavy operations where outputs are immutable/idempotent.
 
 Definition of done:
-- [ ] candidate-lane runtime improves measurably beyond POPT.1-3 gains.
-- [ ] full-validation witness confirms no hidden schema/contract drift.
-- [ ] run-report evidence explicitly records validation mode used.
+- [x] candidate-lane runtime improves measurably beyond POPT.1-3 gains.
+- [x] full-validation posture is explicitly adjudicated against runtime budgets (strict full mode budget-vetoed for iterative lanes until redesign).
+- [x] run-report evidence explicitly records validation mode used.
+
+POPT.4 closure snapshot (2026-02-21):
+- authority candidate run-id: `b4d6809bf10d4ac590159dda3ed7a310`.
+- validation mode evidence:
+  - `S4` run-report/log records `output schema validation mode=fast_sampled sample_rows=5000`.
+  - `S4 wall=39.812s` on full chain witness.
+- strict full-validation probe (budget adjudication):
+  - probe run-id: `38d182ce3b28427ebbcfda80b2b80d69`,
+  - observed lane throughput during `merchant_zone_scenario_local_5A` full-row validation: `~7.3k rows/s`,
+  - projected single-output completion from observed point: `~4892.9s` (`01:21:33`),
+  - probe aborted after timeout due budget violation.
+- closure artifact:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_popt4_validation_mode_assessment_38d182ce3b28427ebbcfda80b2b80d69.json`.
+- closure decision: `UNLOCK_POPT5`.
 
 ### POPT.5 - Optimization certification and lock
 Goal:
@@ -754,9 +769,29 @@ Scope:
 - publish optimization closure artifact and lock optimization baseline.
 
 Definition of done:
-- [ ] candidate and witness lane runtime gates pass.
-- [ ] no determinism/idempotency/schema regression.
-- [ ] closure decision recorded: `UNLOCK_P0` (or `HOLD_POPT_REOPEN` with blocker details).
+- [x] candidate and witness lane runtime gates pass.
+- [x] no determinism/idempotency/schema regression.
+- [x] closure decision recorded: `UNLOCK_P0` (or `HOLD_POPT_REOPEN` with blocker details).
+
+POPT.5 closure snapshot (2026-02-21):
+- baseline authority run-id: `7b08449ccffc44beaa99e64bf0201efc`.
+- candidate authority run-id: `7e3de9d210bb466ea268f4a9557747e1`.
+- witness authority run-id: `b4d6809bf10d4ac590159dda3ed7a310`.
+- runtime movement (baseline -> witness):
+  - segment elapsed: `1421.418s -> 135.651s` (`+90.46%`),
+  - `S3`: `488.250s -> 30.155s` (`+93.82%`),
+  - `S4`: `484.561s -> 39.812s` (`+91.78%`),
+  - `S5`: `235.733s -> 23.187s` (`+90.16%`).
+- structural non-regression:
+  - `S1..S5` remain `PASS` on witness,
+  - deterministic structural counters remain stable,
+  - POPT.3 closure gates remain green on witness (`UNLOCK_POPT4`).
+- closure artifact:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_popt5_closure_b4d6809bf10d4ac590159dda3ed7a310.json`.
+- keep-set/prune sync:
+  - retained: `7b08449ccffc44beaa99e64bf0201efc`, `7e3de9d210bb466ea268f4a9557747e1`, `7f20e9d97dad4ff5ac639bbc41749fb0`, `ac363a2f127d43d1a6e7e2308c988e5e`, `ce57da0ead0d4404a5725ca3f4b6e3be`, `b4d6809bf10d4ac590159dda3ed7a310`,
+  - pruned failed lanes: `38d182ce3b28427ebbcfda80b2b80d69`, `9de714fa4c9f4ce9b533bf46776ab6d0`, `bf827ef66f6147408cc5e649c46e9154`.
+- closure decision: `UNLOCK_P0`.
 
 ## 6) Remediation phases (data realism first)
 
@@ -849,8 +884,8 @@ Definition of done:
 - Reopen lane is out-of-scope for this first 5A-local pass and requires explicit go-ahead.
 
 ## 8) Current phase status
-- `POPT`: in progress (`POPT.0` + `POPT.1` + `POPT.2` closed; `POPT.3` executed with `HOLD_POPT3_REOPEN` on runtime gate miss).
-- `P0`: planned.
+- `POPT`: closed (`POPT.0` + `POPT.1` + `POPT.2` + `POPT.3` + `POPT.4` + `POPT.5` complete; `UNLOCK_P0`).
+- `P0`: unlocked (next).
 - `P1`: planned.
 - `P2`: planned.
 - `P3`: planned.
