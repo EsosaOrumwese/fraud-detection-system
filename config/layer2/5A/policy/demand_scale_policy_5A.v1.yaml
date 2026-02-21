@@ -2,7 +2,7 @@ policy_id: demand_scale_policy_5A
 version: v1
 weekly_volume_unit: arrivals_per_local_week
 global_multiplier: 0.664569
-brand_size_exponent: 0.08
+brand_size_exponent: 0.04
 zone_role_multipliers:
   primary_zone: 1.15
   secondary_zone: 1.0
@@ -29,16 +29,16 @@ class_params:
   ref_per_site_weekly: 150.0
   high_variability_flag: false
 - demand_class: consumer_daytime
-  median_per_site_weekly: 260.0
-  pareto_alpha: 2.0
-  clip_max_per_site_weekly: 8000.0
-  ref_per_site_weekly: 260.0
+  median_per_site_weekly: 225.0
+  pareto_alpha: 2.25
+  clip_max_per_site_weekly: 6500.0
+  ref_per_site_weekly: 225.0
   high_variability_flag: false
 - demand_class: evening_weekend
-  median_per_site_weekly: 240.0
-  pareto_alpha: 2.1
-  clip_max_per_site_weekly: 7000.0
-  ref_per_site_weekly: 240.0
+  median_per_site_weekly: 220.0
+  pareto_alpha: 2.4
+  clip_max_per_site_weekly: 5000.0
+  ref_per_site_weekly: 220.0
   high_variability_flag: false
 - demand_class: fuel_convenience
   median_per_site_weekly: 300.0
@@ -65,10 +65,10 @@ class_params:
   ref_per_site_weekly: 450.0
   high_variability_flag: false
 - demand_class: online_bursty
-  median_per_site_weekly: 380.0
-  pareto_alpha: 1.4
-  clip_max_per_site_weekly: 30000.0
-  ref_per_site_weekly: 380.0
+  median_per_site_weekly: 360.0
+  pareto_alpha: 1.6
+  clip_max_per_site_weekly: 22000.0
+  ref_per_site_weekly: 360.0
   high_variability_flag: true
 - demand_class: travel_hospitality
   median_per_site_weekly: 200.0
@@ -86,6 +86,6 @@ realism_targets:
   - 900
   p99_p50_ratio_min: 6
   max_class_volume_share: 0.6
-  max_weekly_volume_expected: 5000000
+  max_weekly_volume_expected: 90000
   soft_cap_ratio: 0.15
-  soft_cap_multiplier: 1.0
+  soft_cap_multiplier: 1.1
