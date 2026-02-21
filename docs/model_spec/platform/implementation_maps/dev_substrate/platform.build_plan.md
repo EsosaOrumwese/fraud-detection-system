@@ -1561,6 +1561,11 @@ Phase closure posture:
     - verdict: `overall_pass=false`,
     - blocker rollup now: `M10F-B1` only (`M10F-B5` and `M10F-B8` cleared),
     - closure fact: bounded window receipt truth was `DUPLICATE=10002`, `ADMIT=0`, so multiplier/admit-ratio gates remained fail-closed.
+  - `M10F-B1` remediation lane is now pinned and implemented at config/infra posture level:
+    - `config/platform/profiles/dev_min.yaml` now pins `wsp_checkpoint` to Postgres via `${WSP_CHECKPOINT_DSN}`,
+    - WSP control-job bootstrap now fails closed if `WSP_CHECKPOINT_DSN` is missing,
+    - Terraform demo module now injects `WSP_CHECKPOINT_DSN` secret into WSP control-job task-definition,
+    - next `demo` apply/refresh is required to materialize updated WSP task-definition before closure rerun.
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
@@ -1680,5 +1685,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M10 is active for planning expansion under the M9 handoff.
 Next action:
-- resolve `M10.F` blocker `M10F-B1` (multiplier/admit-ratio miss under duplicate-only burst window) before `M10.G`.
+- execute `M10F-B1` rerun closure on fresh run scope (with Postgres WSP checkpoint posture) and clear burst multiplier/admit-ratio gates before `M10.G`.
 

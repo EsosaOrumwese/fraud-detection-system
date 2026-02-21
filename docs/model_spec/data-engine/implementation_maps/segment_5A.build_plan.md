@@ -588,8 +588,8 @@ Scope:
 
 Definition of done:
 - [ ] `S5` wall-time reduced by `>= 20%` vs active baseline or reaches pinned target budget.
-- [ ] `S5` remains `PASS` with no error-surface expansion and stable structural counters.
-- [ ] candidate runtime evidence and closure decision artifacts are emitted.
+- [x] `S5` remains `PASS` with no error-surface expansion and stable structural counters.
+- [x] candidate runtime evidence and closure decision artifacts are emitted.
 
 POPT.3 baseline anchors (post-POPT.2 authority):
 - baseline authority run-id: `7f20e9d97dad4ff5ac639bbc41749fb0`.
@@ -637,9 +637,9 @@ Scope:
 - bind closure decision to explicit `UNLOCK_POPT4` vs `HOLD_POPT3_REOPEN`.
 
 Definition of done:
-- [ ] `segment5a_popt3_closure_<run_id>.json` contract is pinned.
-- [ ] veto checks are executable from run report and output artifacts.
-- [ ] unresolved equivalence ambiguity is zero before mutation.
+- [x] `segment5a_popt3_closure_<run_id>.json` contract is pinned.
+- [x] veto checks are executable from run report and output artifacts.
+- [x] unresolved equivalence ambiguity is zero before mutation.
 
 #### POPT.3.2 - S5 lane instrumentation and hotspot reconfirm
 Goal:
@@ -654,9 +654,9 @@ Scope:
 - capture lane timing artifact for candidate/baseline comparison.
 
 Definition of done:
-- [ ] lane-timing artifact emitted for `S5`.
-- [ ] instrumentation overhead is bounded and non-dominant.
-- [ ] no output/schema drift from instrumentation-only edits.
+- [x] lane-timing artifact emitted for `S5`.
+- [x] instrumentation overhead is bounded and non-dominant.
+- [x] no output/schema drift from instrumentation-only edits.
 
 #### POPT.3.3 - Schema/introspection and projection narrowing
 Goal:
@@ -668,9 +668,9 @@ Scope:
 - avoid redundant `collect`/materialize calls on identical immutable intermediates.
 
 Definition of done:
-- [ ] evidence shows reduced non-compute overhead and/or lower full-frame scans.
-- [ ] validation semantics and issue-surface remain unchanged.
-- [ ] deterministic ordering/path semantics remain intact.
+- [x] evidence shows reduced non-compute overhead and/or lower full-frame scans.
+- [x] validation semantics and issue-surface remain unchanged.
+- [x] deterministic ordering/path semantics remain intact.
 
 #### POPT.3.4 - Recomposition/check-path compute optimization
 Goal:
@@ -682,9 +682,9 @@ Scope:
 - preserve all existing failure triggers and output bundle publication semantics.
 
 Definition of done:
-- [ ] `S5` runtime moves materially vs baseline.
-- [ ] no validator rule is removed or weakened.
-- [ ] bundle/index outputs remain complete and contract-compliant.
+- [x] `S5` runtime moves materially vs baseline.
+- [x] no validator rule is removed or weakened.
+- [x] bundle/index outputs remain complete and contract-compliant.
 
 #### POPT.3.5 - Witness rerun and closure scoring
 Goal:
@@ -696,9 +696,9 @@ Scope:
 - map misses to bounded reopen action if needed.
 
 Definition of done:
-- [ ] rerun completes with `S5 PASS`.
-- [ ] closure artifacts JSON/MD are emitted for candidate run-id.
-- [ ] runtime and veto outcomes are explicit with unblock/reopen decision.
+- [x] rerun completes with `S5 PASS`.
+- [x] closure artifacts JSON/MD are emitted for candidate run-id.
+- [x] runtime and veto outcomes are explicit with unblock/reopen decision.
 
 #### POPT.3.6 - Phase closure and handoff
 Goal:
@@ -710,9 +710,25 @@ Scope:
 - prune superseded failed candidate folders and sync plan/notes/logbook.
 
 Definition of done:
-- [ ] explicit closure decision is recorded.
-- [ ] keep-set and artifact pointers are updated.
-- [ ] prune action is completed and logged.
+- [x] explicit closure decision is recorded.
+- [x] keep-set and artifact pointers are updated.
+- [x] prune action is completed and logged.
+
+POPT.3 execution snapshot (2026-02-21):
+- baseline authority run-id: `7f20e9d97dad4ff5ac639bbc41749fb0` (`S5 wall=243.187s`).
+- closure tooling artifacts added:
+  - `tools/score_segment5a_popt3_lane_timing.py`,
+  - `tools/score_segment5a_popt3_closure.py`.
+- representative candidate outcomes:
+  - `ec50f40c0bb14aaabd830307aeb9b2b9`: `S5 PASS`, `221.969s` (`+8.72%` improvement), decision `HOLD_POPT3_REOPEN`.
+  - `aa26e278545f44aabc55cccad34ce48c`: `S5 PASS`, `217.641s` (`+10.50%`), decision `HOLD_POPT3_REOPEN`.
+  - `acd599a344e146a99f72a541834af1e0`: `S5 PASS`, `208.937s` (`+14.08%`), decision `HOLD_POPT3_REOPEN` (best valid candidate).
+- bounded reopen evidence:
+  - transient faster runs near gate were observed but not closure-valid due intermediate typing regressions; fixes were applied and documented in implementation notes.
+- final closure decision: `HOLD_POPT3_REOPEN`.
+- keep-set/prune sync:
+  - retained run-id folders: `7b08449ccffc44beaa99e64bf0201efc`, `ac363a2f127d43d1a6e7e2308c988e5e`, `ce57da0ead0d4404a5725ca3f4b6e3be`, `7f20e9d97dad4ff5ac639bbc41749fb0`, `acd599a344e146a99f72a541834af1e0`,
+  - pruned superseded candidate folders: `3e96a67813dc4357aca9872b176f6779`, `864e907d739842f28211a84b254b6358`, `ec50f40c0bb14aaabd830307aeb9b2b9`, `aa26e278545f44aabc55cccad34ce48c`, `bd79bd48fbc049808874042eeb0aaca6`, `fc78bd20c54f47e981a3312106559571`.
 
 ### POPT.4 - Validation/I-O cost control lane
 Goal:
@@ -833,7 +849,7 @@ Definition of done:
 - Reopen lane is out-of-scope for this first 5A-local pass and requires explicit go-ahead.
 
 ## 8) Current phase status
-- `POPT`: in progress (`POPT.0` + `POPT.1` + `POPT.2` closed; `POPT.3` expanded/planned on `S5`, execution pending).
+- `POPT`: in progress (`POPT.0` + `POPT.1` + `POPT.2` closed; `POPT.3` executed with `HOLD_POPT3_REOPEN` on runtime gate miss).
 - `P0`: planned.
 - `P1`: planned.
 - `P2`: planned.

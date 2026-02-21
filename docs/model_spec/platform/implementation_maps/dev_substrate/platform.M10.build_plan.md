@@ -823,6 +823,31 @@ Bounded rerun status (2026-02-21):
    - `M10.F` remains `BLOCKED` and cannot advance to `M10.G`.
    - Required next action is `M10F-B1` remediation under explicit user-approved lane posture.
 
+M10F-B1 remediation plan (2026-02-21):
+1. Goal:
+   - restore ADMIT-bearing burst windows (not duplicate-only) so multiplier/admit-ratio gates can pass.
+2. Root-cause posture:
+   - bounded rerun `m10_20260221T020923Z` showed `DUPLICATE=10002`, `ADMIT=0` in attempt window,
+   - this indicates replay against previously admitted event-id surface for current run scope.
+3. Remediation actions (pinned):
+   - pin WSP checkpoint durability in `dev_min` profile to Postgres (`wsp_checkpoint.backend=postgres`, `dsn=${WSP_CHECKPOINT_DSN}`),
+   - inject `WSP_CHECKPOINT_DSN` into WSP control job task-definition from managed SSM DB DSN handle,
+   - enforce fail-closed runtime startup if `WSP_CHECKPOINT_DSN` is absent in WSP job runtime,
+   - execute next `M10.F` burst on a fresh run scope and preserve B5/B8 closure method (IG Postgres receipt-window + bounded runtime).
+4. Implementation staging status:
+   - profile + Terraform remediation patches are committed to codebase posture,
+   - runtime materialization of the new WSP task-definition requires next demo apply/refresh cycle before closure rerun.
+5. DoD for remediation lane:
+- [ ] `dev_min` profile explicitly includes `wsp_checkpoint` Postgres posture.
+- [ ] Terraform control-job WSP task-definition materializes `WSP_CHECKPOINT_DSN` secret binding.
+- [ ] WSP runtime profile bootstrap fails-closed when checkpoint DSN is missing.
+- [ ] New bounded burst attempt runs on fresh scope with ADMIT-bearing receipts in attempt window.
+- [ ] `M10F-B1` clears (`multiplier>=3.0`, `admit_ratio>=0.995`, `duration>=15m`).
+6. Blockers:
+1. `M10F-B1-R1`: WSP checkpoint DSN not materialized in runtime task environment.
+2. `M10F-B1-R2`: burst rerun executed on stale dedupe surface (duplicate-only admissions).
+3. `M10F-B1-R3`: ADMIT-bearing window exists but multiplier/admit-ratio still below pinned target.
+
 ### M10.G Soak run
 Goal:
 1. Validate sustained operation and stable checkpoint/lag behavior.

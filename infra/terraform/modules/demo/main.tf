@@ -215,9 +215,16 @@ security = wiring.setdefault("security", {})
 security["api_key_header"] = "X-IG-Api-Key"
 security["wsp_auth_token"] = os.getenv("IG_API_KEY", "")
 
+wsp_checkpoint = wiring.setdefault("wsp_checkpoint", {})
+wsp_checkpoint["backend"] = "postgres"
+wsp_checkpoint["dsn"] = os.getenv("WSP_CHECKPOINT_DSN", "")
+wsp_checkpoint["flush_every"] = int(os.getenv("WSP_CHECKPOINT_FLUSH_EVERY", "100"))
+
 # Fail-closed if secret injection is missing (auth boundary must be enforced).
 if not security["wsp_auth_token"].strip():
     raise SystemExit("IG_API_KEY missing (SSM secret injection) - fail closed")
+if not wsp_checkpoint["dsn"].strip():
+    raise SystemExit("WSP_CHECKPOINT_DSN missing (checkpoint durability boundary) - fail closed")
 
 out = Path("/tmp/dev_min_wsp.yaml")
 out.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
@@ -1386,12 +1393,17 @@ resource "aws_ecs_task_definition" "control_job" {
           value = each.value.component_mode
         },
       ]
-      secrets = [
+      secrets = concat([
         {
           name      = "IG_API_KEY"
           valueFrom = aws_ssm_parameter.ig_api_key.arn
         },
-      ]
+        ], each.key == "wsp" ? [
+        {
+          name      = "WSP_CHECKPOINT_DSN"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        },
+      ] : [])
       logConfiguration = {
         logDriver = "awslogs"
         options = {

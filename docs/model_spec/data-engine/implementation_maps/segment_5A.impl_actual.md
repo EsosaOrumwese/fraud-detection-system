@@ -4682,3 +4682,83 @@ Next step:
 - rerun a fresh clean witness candidate to confirm both:
   1) no validation regression,
   2) runtime gate closure (candidate expected around prior ~193s envelope).
+
+---
+
+### Entry: 2026-02-21 03:19
+
+Follow-up regression analysis and patch (sample frame typing).
+Summary: The typed sampled-key patch did not fully resolve overflow failures; failure persisted in the downstream `sample_with_bucket -> sample_df` materialization step.
+
+Observed evidence:
+- repeated `S4_PRESENT` failure with same overflow message despite sampled-key typing fix.
+- indicates failing builder was not the sampled-key frame used for scenario join, but a later frame creation path.
+
+Root cause:
+- `sample_df = pl.DataFrame(sample_with_bucket)` still relied on inference with large `merchant_id` values, causing i64/i128 builder mismatch.
+
+Fix applied:
+- added explicit schema overrides for `sample_df` creation:
+  - `merchant_id: UInt64`,
+  - key text columns `Utf8`,
+  - horizon/bucket ints as `Int64`,
+  - recomposition value columns as `Float64`,
+  - optional `channel_group: Utf8`.
+
+Validation:
+- compile sanity passed.
+
+Next step:
+- rerun fresh witness candidate; if runtime remains in ~193-201s envelope with `PASS`, score closure and finalize POPT.3 decision.
+
+---
+
+### Entry: 2026-02-21 03:24
+
+Execution close: `POPT.3` completed with bounded reopen attempts; final decision `HOLD_POPT3_REOPEN`.
+Summary: Completed full `POPT.3` execution lane (`3.1 -> 3.6`) with multiple bounded reopen attempts, maintained deterministic fail-closed behavior, improved `S5` materially, but did not meet the runtime closure gate (`<=180s` or `>=20%` reduction) on a fully valid candidate.
+
+Final evidence:
+- baseline authority: `7f20e9d97dad4ff5ac639bbc41749fb0`, `S5=243.187s`.
+- best valid candidate: `acd599a344e146a99f72a541834af1e0`, `S5=208.937s`, improvement `14.08%`, `S5 PASS`.
+- closure artifact:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_popt3_closure_acd599a344e146a99f72a541834af1e0.json`
+  - decision=`HOLD_POPT3_REOPEN`.
+- lane artifact:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_popt3_lane_timing_acd599a344e146a99f72a541834af1e0.json`
+  - recomposition lane remains dominant (`~99.76%` share).
+
+What closed successfully in POPT.3:
+- closure scorer/contract and lane tooling added and exercised.
+- S5 marker coverage complete.
+- repeated schema introspection/path-resolution pressure reduced.
+- recomposition path partially optimized (vectorized compare path, minhash hot-loop caching, key-only minhash pass with typed joins).
+- structural rails preserved on final candidate:
+  - `S5 PASS`,
+  - no error surface,
+  - counts unchanged,
+  - required outputs present.
+
+Why phase did not unlock:
+- runtime gate remained missed on valid candidate despite measurable gains.
+- transient near-gate faster attempts were invalid due intermediate typing regressions; these were corrected before final closure decision.
+
+Storage/retention action completed:
+- prune keep-set applied; retained:
+  - `7b08449ccffc44beaa99e64bf0201efc`,
+  - `ac363a2f127d43d1a6e7e2308c988e5e`,
+  - `ce57da0ead0d4404a5725ca3f4b6e3be`,
+  - `7f20e9d97dad4ff5ac639bbc41749fb0`,
+  - `acd599a344e146a99f72a541834af1e0`.
+- pruned superseded candidate folders:
+  - `3e96a67813dc4357aca9872b176f6779`,
+  - `864e907d739842f28211a84b254b6358`,
+  - `ec50f40c0bb14aaabd830307aeb9b2b9`,
+  - `aa26e278545f44aabc55cccad34ce48c`,
+  - `bd79bd48fbc049808874042eeb0aaca6`,
+  - `fc78bd20c54f47e981a3312106559571`.
+
+Recommended handoff posture:
+- keep current `S5` optimizations (they are non-regressing and materially faster),
+- treat `POPT.3` as executed-but-holding,
+- only reopen with a new explicit strategy if we want to chase the remaining runtime delta.

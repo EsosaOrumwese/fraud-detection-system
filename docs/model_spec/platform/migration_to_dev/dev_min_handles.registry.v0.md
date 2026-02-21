@@ -729,6 +729,11 @@ Optional:
 * `DB_SECURITY_GROUP_ID = SECURITY_GROUP_ID_DB`
 * `DB_PORT = 5432`
 
+### 8.5.1 WSP checkpoint durability handle (pinned)
+
+* `WSP_CHECKPOINT_DSN` *(runtime env for WSP checkpoint store; v0 resolves from `SSM_DB_DSN_PATH` when DSN mode is used)*.
+* `WSP_CHECKPOINT_FLUSH_EVERY = 100` *(default dev_min checkpoint flush cadence for burst/scale lanes)*.
+
 ### 8.6 DB migrations / bootstrap (if required)
 
 * `DB_MIGRATIONS_REQUIRED = true` *(default until proven otherwise)*

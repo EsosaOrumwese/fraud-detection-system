@@ -17879,3 +17879,51 @@ Risk handling:
 ### Phase consequence
 1. M10.F remains blocked with blocker set reduced to `M10F-B1` only.
 2. No `M10.G` progression is allowed until explicit `M10F-B1` remediation closes.
+
+## Entry: 2026-02-21 03:07:10 +00:00 - M10F-B1 remediation implemented (checkpoint durability + fail-closed runtime posture)
+### Trigger
+1. Bounded rerun for `M10.F` cleared `M10F-B5/B8` but remained blocked on `M10F-B1` with duplicate-only receipt window (`DUPLICATE=10002`, `ADMIT=0`).
+2. Required remediation was to prevent stale replay posture from silently producing non-admit burst windows.
+
+### Alternatives considered
+1. Keep current ephemeral WSP checkpoint posture and repeatedly rerun on same scope.
+2. Pin WSP checkpoint durability to Postgres and enforce secret-backed runtime fail-closed startup, then rerun on fresh scope.
+
+### Decision chosen
+1. Chose option 2.
+2. Rationale:
+   - aligns with dev_min managed runtime posture,
+   - removes implicit checkpoint fragility from burst certification lanes,
+   - prevents silent fallback behavior by enforcing DSN presence as a hard runtime precondition.
+
+### Implemented remediation
+1. Runtime profile pin:
+   - `config/platform/profiles/dev_min.yaml`
+   - added `wsp_checkpoint` block:
+     - `backend: postgres`
+     - `dsn: ${WSP_CHECKPOINT_DSN}`
+     - `flush_every: 100`.
+2. Terraform WSP control-job runtime bootstrap hardening:
+   - `infra/terraform/modules/demo/main.tf`
+   - WSP profile bootstrap now injects/forces:
+     - `wsp_checkpoint.backend = postgres`
+     - `wsp_checkpoint.dsn = env(WSP_CHECKPOINT_DSN)`
+     - `wsp_checkpoint.flush_every = env(WSP_CHECKPOINT_FLUSH_EVERY, default=100)`
+   - fail-closed if checkpoint DSN missing:
+     - `SystemExit("WSP_CHECKPOINT_DSN missing (checkpoint durability boundary) - fail closed")`.
+3. Terraform secret materialization for WSP job:
+   - `infra/terraform/modules/demo/main.tf`
+   - WSP control-job task-definition now injects secret env:
+     - `WSP_CHECKPOINT_DSN <- aws_ssm_parameter.db_dsn.arn`.
+
+### Plan and authority sync
+1. M10 deep plan now contains explicit `M10F-B1` remediation lane, DoD, and blocker family:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`.
+2. Main platform plan now records remediation posture as implemented and keeps next action gated on B1 closure:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+3. Handle registry now pins WSP checkpoint DSN/flush handles:
+   - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`.
+
+### Consequence
+1. B1 remediation substrate is now implemented.
+2. Next closure action remains executional: run fresh-scope bounded `M10.F` and require ADMIT-bearing window to clear B1.

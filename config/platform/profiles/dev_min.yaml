@@ -31,3 +31,7 @@ wiring:
     auth_allowlist_ref: config/platform/ig/ingest_api_keys_dev_min_v0.txt
     push_rate_limit_per_minute: 0
     store_read_failure_threshold: 3
+  wsp_checkpoint:
+    backend: postgres
+    dsn: ${WSP_CHECKPOINT_DSN}
+    flush_every: 100

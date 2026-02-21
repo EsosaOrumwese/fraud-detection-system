@@ -1897,7 +1897,21 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                                 record_check(CHECK_S4_RECOMPOSE, "FAIL", {"missing_bucket": missing_bucket})
                                 update_run_check(run_checks, CHECK_S4_RECOMPOSE, "FAIL")
                             elif sample_with_bucket:
-                                sample_df = pl.DataFrame(sample_with_bucket)
+                                sample_schema_overrides = {
+                                    "merchant_id": pl.UInt64,
+                                    "legal_country_iso": pl.Utf8,
+                                    "tzid": pl.Utf8,
+                                    "local_horizon_bucket_index": pl.Int64,
+                                    "bucket_index": pl.Int64,
+                                    "lambda_local_scenario": pl.Float64,
+                                    "overlay_factor_total": pl.Float64,
+                                }
+                                if include_channel_group:
+                                    sample_schema_overrides["channel_group"] = pl.Utf8
+                                sample_df = pl.DataFrame(
+                                    sample_with_bucket,
+                                    schema_overrides=sample_schema_overrides,
+                                )
                                 join_keys = ["merchant_id", "legal_country_iso", "tzid"]
                                 if include_channel_group:
                                     join_keys.append("channel_group")
