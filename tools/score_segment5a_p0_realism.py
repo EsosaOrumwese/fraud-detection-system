@@ -507,8 +507,9 @@ def _evaluate_run(ref: RunRef) -> dict[str, Any]:
 
 
 def _write_md(path: Path, payload: dict[str, Any]) -> None:
+    phase = str(payload.get("phase", "P0"))
     lines: list[str] = [
-        "# Segment 5A P0 Realism Baseline",
+        f"# Segment 5A {phase} Realism Gateboard",
         "",
         f"- phase decision: `{payload['decision']['result']}`",
         f"- reason: {payload['decision']['reason']}",
@@ -556,13 +557,22 @@ def _write_md(path: Path, payload: dict[str, Any]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Score Segment 5A P0 realism gates")
+    parser = argparse.ArgumentParser(description="Score Segment 5A realism gates")
     parser.add_argument("--runs-root", default="runs/fix-data-engine/segment_5A")
     parser.add_argument("--run-id", action="append", required=True, help="Repeat for each run-id to include (e.g. seed 42, 101)")
     parser.add_argument(
+        "--phase",
+        default="P0",
+        choices=["P0", "P1"],
+        help="Scoring phase semantics to apply (default: P0).",
+    )
+    parser.add_argument(
         "--required-seeds",
-        default="42,101",
-        help="Comma-separated required seed set for P0 closure (default: 42,101).",
+        default="",
+        help=(
+            "Comma-separated required seed set for phase closure. "
+            "Defaults: P0=42,101; P1=42."
+        ),
     )
     parser.add_argument("--out-json", default="")
     parser.add_argument("--out-md", default="")
@@ -571,7 +581,13 @@ def main() -> None:
     runs_root = Path(args.runs_root)
     run_ids = [str(r).strip() for r in args.run_id if str(r).strip()]
     refs = [_resolve_run_ref(runs_root, rid) for rid in run_ids]
-    required_seeds = {int(token.strip()) for token in args.required_seeds.split(",") if token.strip()}
+    phase = str(args.phase).upper()
+    if args.required_seeds.strip():
+        required_seeds = {int(token.strip()) for token in args.required_seeds.split(",") if token.strip()}
+    elif phase == "P1":
+        required_seeds = {42}
+    else:
+        required_seeds = {42, 101}
 
     run_payloads = [_evaluate_run(ref) for ref in refs]
 
@@ -600,25 +616,55 @@ def main() -> None:
     caveat_complete = True
     observed_seeds = sorted({int(r["seed"]) for r in run_payloads if r.get("seed") is not None})
     missing_required_seeds = sorted(required_seeds - set(observed_seeds))
-    if baseline_locked and scorer_complete and caveat_complete and not missing_required_seeds:
-        decision = {
-            "result": "UNLOCK_P1",
-            "reason": "P0 baseline authority captured with gateboard + caveat map for seeded run pack.",
-        }
-    else:
-        reason = "P0 evidence package incomplete; hold until baseline/gateboard/caveat map is complete."
-        if missing_required_seeds:
-            reason = (
-                "Required witness seed set is incomplete for P0 closure; missing seeds="
-                + ",".join(str(s) for s in missing_required_seeds)
+    if phase == "P1":
+        p1_run_gate_status: dict[str, bool] = {}
+        for run in run_payloads:
+            hard = run["gates"]["hard"]
+            p1_run_gate_status[run["run_id"]] = bool(
+                hard["mass_conservation_mae_lte_1e-9"]
+                and hard["shape_norm_max_abs_lte_1e-9"]
+                and hard["channel_realization_ge2_groups_ge10pct"]
+                and hard["channel_night_gap_cnp_minus_cp_gte_0.08"]
             )
-        decision = {
-            "result": "HOLD_P0_REMEDIATE",
-            "reason": reason,
-        }
+        failing_runs = sorted([run_id for run_id, ok in p1_run_gate_status.items() if not ok])
+        if baseline_locked and scorer_complete and caveat_complete and not missing_required_seeds and not failing_runs:
+            decision = {
+                "result": "UNLOCK_P2",
+                "reason": "P1 channel realism gate met on required seeds with mass/shape rails intact.",
+            }
+        else:
+            reason = "P1 evidence package incomplete; hold until required-seed gateboard is complete."
+            if missing_required_seeds:
+                reason = (
+                    "Required seed set is incomplete for P1 closure; missing seeds="
+                    + ",".join(str(s) for s in missing_required_seeds)
+                )
+            elif failing_runs:
+                reason = "P1 channel realism hard gate failed for run_ids=" + ",".join(failing_runs)
+            decision = {
+                "result": "HOLD_P1_REOPEN",
+                "reason": reason,
+            }
+    else:
+        if baseline_locked and scorer_complete and caveat_complete and not missing_required_seeds:
+            decision = {
+                "result": "UNLOCK_P1",
+                "reason": "P0 baseline authority captured with gateboard + caveat map for seeded run pack.",
+            }
+        else:
+            reason = "P0 evidence package incomplete; hold until baseline/gateboard/caveat map is complete."
+            if missing_required_seeds:
+                reason = (
+                    "Required witness seed set is incomplete for P0 closure; missing seeds="
+                    + ",".join(str(s) for s in missing_required_seeds)
+                )
+            decision = {
+                "result": "HOLD_P0_REMEDIATE",
+                "reason": reason,
+            }
 
     payload: dict[str, Any] = {
-        "phase": "P0",
+        "phase": phase,
         "segment": "5A",
         "generated_utc": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         "runs_root": str(runs_root).replace("\\", "/"),
@@ -636,12 +682,12 @@ def main() -> None:
     out_json = (
         Path(args.out_json)
         if args.out_json
-        else runs_root / "reports" / f"segment5a_p0_realism_gateboard_{base_name}.json"
+        else runs_root / "reports" / f"segment5a_{phase.lower()}_realism_gateboard_{base_name}.json"
     )
     out_md = (
         Path(args.out_md)
         if args.out_md
-        else runs_root / "reports" / f"segment5a_p0_realism_gateboard_{base_name}.md"
+        else runs_root / "reports" / f"segment5a_{phase.lower()}_realism_gateboard_{base_name}.md"
     )
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")

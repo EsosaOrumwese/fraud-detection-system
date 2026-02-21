@@ -965,6 +965,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                     "merchant_id": merchant_ids,
                     "legal_country_iso": countries,
                     "tzid": tzids,
+                    "channel_group": channel_groups,
                     "demand_class": demand_classes,
                     "demand_subclass": demand_subclasses,
                     "profile_id": profile_ids,

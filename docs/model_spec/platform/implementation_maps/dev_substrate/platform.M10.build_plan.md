@@ -802,7 +802,7 @@ Execution status (2026-02-20):
    - measured primary burst attempt runtime was `132.79m` (`>90m` budget),
    - achieved multiplier remained below pinned `3.0x` target against M10.E representative baseline.
 5. Consequence:
-   - `M10.F` is currently `BLOCKED` and not closure-pass.
+   - `M10.F` was `BLOCKED` and not closure-pass on this initial attempt.
    - Next action is blocker remediation + bounded rerun before entering `M10.G`.
 
 Bounded rerun status (2026-02-21):
@@ -820,8 +820,8 @@ Bounded rerun status (2026-02-21):
    - `M10F-B8` cleared (`elapsed_seconds=1366.095`, budget `<=5400`),
    - `M10F-B1` remains fail-closed because window receipts were `DUPLICATE=10002`, `ADMIT=0` (multiplier and admit-ratio miss).
 5. Consequence:
-   - `M10.F` remains `BLOCKED` and cannot advance to `M10.G`.
-   - Required next action is `M10F-B1` remediation under explicit user-approved lane posture.
+   - at this bounded-rerun checkpoint, `M10.F` was still `BLOCKED` and could not advance to `M10.G`.
+   - required next action at that point was `M10F-B1` remediation under explicit user-approved lane posture.
 
 M10F-B1 remediation plan (2026-02-21):
 1. Goal:
@@ -835,18 +835,37 @@ M10F-B1 remediation plan (2026-02-21):
    - enforce fail-closed runtime startup if `WSP_CHECKPOINT_DSN` is absent in WSP job runtime,
    - execute next `M10.F` burst on a fresh run scope and preserve B5/B8 closure method (IG Postgres receipt-window + bounded runtime).
 4. Implementation staging status:
-   - profile + Terraform remediation patches are committed to codebase posture,
-   - runtime materialization of the new WSP task-definition requires next demo apply/refresh cycle before closure rerun.
+   - profile + Terraform remediation patches are committed and materialized in runtime posture,
+   - WSP task-definition revision with checkpoint DSN secret binding is active (`fraud-platform-dev-min-wsp:25`).
 5. DoD for remediation lane:
-- [ ] `dev_min` profile explicitly includes `wsp_checkpoint` Postgres posture.
-- [ ] Terraform control-job WSP task-definition materializes `WSP_CHECKPOINT_DSN` secret binding.
-- [ ] WSP runtime profile bootstrap fails-closed when checkpoint DSN is missing.
-- [ ] New bounded burst attempt runs on fresh scope with ADMIT-bearing receipts in attempt window.
-- [ ] `M10F-B1` clears (`multiplier>=3.0`, `admit_ratio>=0.995`, `duration>=15m`).
+- [x] `dev_min` profile explicitly includes `wsp_checkpoint` Postgres posture.
+- [x] Terraform control-job WSP task-definition materializes `WSP_CHECKPOINT_DSN` secret binding.
+- [x] WSP runtime profile bootstrap fails-closed when checkpoint DSN is missing.
+- [x] New bounded burst attempt runs on fresh scope with ADMIT-bearing receipts in attempt window.
+- [x] `M10F-B1` clears (`multiplier>=3.0`, `admit_ratio>=0.995`, `duration>=15m`).
 6. Blockers:
-1. `M10F-B1-R1`: WSP checkpoint DSN not materialized in runtime task environment.
-2. `M10F-B1-R2`: burst rerun executed on stale dedupe surface (duplicate-only admissions).
-3. `M10F-B1-R3`: ADMIT-bearing window exists but multiplier/admit-ratio still below pinned target.
+1. none active (`M10F-B1-R1/R2/R3` cleared by materialization + fresh-scope pass run).
+
+Fresh-scope closure status (2026-02-21):
+1. Execution id:
+   - `m10_20260221T060601Z`.
+2. Scope and runtime posture:
+   - fresh `platform_run_id`: `platform_20260221T060431Z`,
+   - WSP task-definition: `fraud-platform-dev-min-wsp:25` (checkpoint DSN secret bound),
+   - burst launch posture: sharded four-output run (`speed=120`) under bounded stop control.
+3. Snapshot paths:
+   - local: `runs/dev_substrate/m10/m10_20260221T060601Z/m10_f_burst_snapshot.json`
+   - durable run-control: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260221T060601Z/m10_f_burst_snapshot.json`
+   - durable run-scoped: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260221T060431Z/m10/m10_f_burst_snapshot.json`
+4. Deterministic gate outcomes:
+   - receipt window counts: `ADMIT=22606`, duplicates absent in attempt window,
+   - achieved multiplier: `3.1277` (`>=3.0`),
+   - admit ratio: `1.0` (`>=0.995`),
+   - elapsed: `1035.812s` (`<=5400s`),
+   - `overall_pass=true`, blockers empty.
+5. Consequence:
+   - `M10.F` is closure-pass and no longer blocked.
+   - Lane can advance to `M10.G` soak planning/execution.
 
 ### M10.G Soak run
 Goal:
@@ -961,5 +980,5 @@ M10 can be marked `DONE` only when all are true:
 4. `M10.C` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T045637Z`).
 5. `M10.D` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T054251Z`).
 6. `M10.E` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T063037Z`).
-7. `M10.F` has been rerun and remains blocked (`m10_execution_id=m10_20260221T020923Z`, blocker `M10F-B1` only; `M10F-B5/B8` cleared).
-8. Next lane remains `M10.F` `M10F-B1` remediation; no `M10.G` entry is allowed.
+7. `M10.F` is closed pass on fresh scope `platform_20260221T060431Z` (`m10_execution_id=m10_20260221T060601Z`, blockers empty).
+8. Next lane is `M10.G` soak run planning/execution.

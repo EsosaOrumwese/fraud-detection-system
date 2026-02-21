@@ -5121,3 +5121,184 @@ Alternatives considered and rejected:
 
 Next step:
 - execute `P1.1` contract artifact first, then move into `P1.2`/`P1.3` implementation lanes.
+
+---
+
+### Entry: 2026-02-21 06:21
+
+P1 execution design lock before code edits (documentation-first).
+Summary: Before mutating code, audited `S1/S2/S3` implementation against contracts and locked a causal patch plan for channel-realism activation.
+
+Observed blockers (code-level):
+- `S2` currently hard-codes channel realization to `mixed`:
+  - validates only that `mixed` exists in policy channel set,
+  - binds `channel_group = "mixed"` for rule resolution, synthesis rows, and catalogue rows.
+- `S3` currently hard-collapses channel dimension:
+  - filters `class_zone_shape_5A` rows to `channel_group == "mixed"`,
+  - injects `channel_group="mixed"` into `merchant_zone_profile_5A` before shape join.
+- `S1` computes channel group from merchant attributes/policy but does not carry `channel_group` into `merchant_zone_profile_5A`.
+
+Contracts and risk checks:
+- `schemas.5A.yaml#/model/merchant_zone_profile_5A` allows additive fields (`additionalProperties: true`), so adding `channel_group` is contract-safe.
+- `schemas.5A.yaml#/model/class_zone_shape_5A` already includes `channel_group`; no schema extension needed.
+- Determinism risk is low if we reuse existing deterministic selection law and only widen domain keys.
+
+Alternatives considered:
+1) Patch only `S2` and keep `S3` mixed behavior.
+   - Rejected: `S3` would still erase channel differentiation and P1 metrics cannot move.
+2) Patch `S3` only and synthesize channel in-place.
+   - Rejected: channel identity would be synthetic and disconnected from S1 assignment semantics.
+3) Full causal patch across `S1+S2+S3` with no policy-forcing edits in this lane.
+   - Accepted: preserves causal ownership, minimizes blast radius, and aligns to P1 scope.
+
+Implementation plan (accepted):
+1) `S1`: emit `channel_group` in `merchant_zone_profile_5A`.
+2) `S2`: derive domain by `(demand_class, legal_country_iso, tzid, channel_group)` and resolve templates by actual channel group from domain rows.
+3) `S3`: read `channel_group` from profile, stop mixed filter/injection, keep join on `(demand_class, legal_country_iso, tzid, channel_group)`.
+4) Compile + run sequential candidate lane `S1 -> S5` on fresh staged run-id (`seed=42` waiver lane).
+5) Score P1 channel movement and caveat refresh, then emit closure decision (`UNLOCK_P2` or `HOLD_P1_REOPEN`).
+
+Guardrails:
+- No branch operations.
+- No direct edits to published/remediation reports.
+- Keep storage bounded by pruning superseded run-id folders after evidence extraction.
+
+---
+
+### Entry: 2026-02-21 06:25
+
+P1.1 contract artifact emitted and P1.2/P1.3 code lane implemented.
+Summary: Completed P1.1 machine-checkable contract artifact and implemented channel-propagation patch across `S1/S2/S3` before candidate rerun.
+
+P1.1 completion evidence:
+- emitted:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p1_1_channel_contract.json`,
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p1_1_channel_contract.md`.
+- artifact pins:
+  - authority datasets (`merchant_zone_profile_5A`, `class_zone_shape_5A`, `class_zone_baseline_local_5A`),
+  - B/B+ channel targets,
+  - non-regression invariants,
+  - seed-waiver posture for P1 (`{42}` only).
+
+Code changes implemented:
+1) `S1` (`s1_demand_classification/runner.py`)
+   - `merchant_zone_profile_5A` now emits `channel_group` from policy-driven assignment path.
+2) `S2` (`s2_weekly_shape_library/runner.py`)
+   - domain upgraded from `(class,country,tzid)` to `(class,country,tzid,channel_group)`,
+   - removed hard `mixed` channel bind; template rule lookup now uses row channel,
+   - added policy/domain channel consistency check,
+   - preserved backward compatibility by defaulting missing profile `channel_group` to `mixed` with explicit warning,
+   - catalogue emission keyed by `(demand_class, channel_group)`.
+3) `S3` (`s3_baseline_intensity/runner.py`)
+   - removed `shape_df` mixed-only filter,
+   - removed forced `channel_group="mixed"` overwrite on profile rows,
+   - reads profile `channel_group` and keeps compatibility fallback to `mixed` if legacy input omits it.
+
+Why this patch shape was selected:
+- minimal causal closure for P1 channel activation with no policy-forcing edits yet,
+- keeps deterministic template law intact (`5A.S2.template|...|channel_group|...` hash input unchanged in form),
+- preserves fail-closed input guards and idempotent publish behavior.
+
+Immediate verification:
+- compile sanity passed for modified files and scorer tool:
+  - `s1_demand_classification/runner.py`,
+  - `s2_weekly_shape_library/runner.py`,
+  - `s3_baseline_intensity/runner.py`,
+  - `tools/score_segment5a_p0_realism.py`.
+
+Next step:
+- run fresh staged candidate lane (`S1 -> S5`, seed `42`) and score P1 movement.
+
+---
+
+### Entry: 2026-02-21 06:28
+
+P1 execution run-1 adjudication (`e9c3e7d221704de9b31b2c7c6eb48a9e`) and validator reopen.
+Summary: First full-chain candidate run after `S1/S2/S3` patch reached `S5` and failed with one material parity defect caused by legacy mixed-only validator assumptions.
+
+Run-1 evidence:
+- `S0..S4 PASS`; `S5 FAIL`.
+- S5 issue table contained:
+  - `S3_DOMAIN_PARITY / S3_DOMAIN_MISSING` (`missing_count=16528`),
+  - plus known overlay warn-bounds warning lane.
+
+Root cause:
+- `S5` builds S1 baseline-domain keys without `channel_group`, then forcibly inserts `channel_group="mixed"` whenever baseline includes channel dimension.
+- After P1 channel activation, baseline uses real `cp/cnp`; forcing `mixed` makes every S1 row appear missing.
+
+Alternatives considered:
+1) Suppress S3 domain parity check temporarily.
+   - Rejected: hides real join-contract defects and weakens fail-closed rails.
+2) Keep S5 logic unchanged and downgrade issue severity.
+   - Rejected: would encode false-negative validation semantics.
+3) Make S5 domain parity channel-aware with backward compatibility.
+   - Accepted.
+
+Patch applied (`S5` validator):
+- S1 zone-domain now includes `channel_group` when present in S1 profile.
+- Mixed fallback now applies only when baseline requires channel key but S1 profile genuinely lacks channel column (legacy compatibility path).
+
+Immediate follow-up:
+- reran `segment5a-s5` on same run-id to verify check logic; recomposition checks reduced to one warning-only issue.
+- observed idempotent publish conflict (`S5_OUTPUT_CONFLICT`) because prior failed S5 attempt had already materialized FAIL validation bundle under same run-id.
+
+Adjudication:
+- treat run-id as contaminated by mixed PASS/FAIL artifact lineage.
+- move to fresh run-id for clean authority evidence.
+
+---
+
+### Entry: 2026-02-21 06:33
+
+P1 clean authority run + scoring closure (`d9caca5f1552456eaf73780932768845`).
+Summary: Executed fresh staged full-chain run with patched `S1/S2/S3/S5`, then scored P1 gate movement and produced closure artifacts.
+
+Clean run results:
+- run-id: `d9caca5f1552456eaf73780932768845`.
+- state status: `S0 PASS`, `S1 PASS`, `S2 PASS`, `S3 PASS`, `S4 PASS`, `S5 PASS`.
+- runtime posture remained minute-scale (full chain completed in ~2m55s wall).
+
+Scoring artifacts emitted:
+- `segment5a_p1_realism_gateboard_d9caca5f1552456eaf73780932768845.json/.md`,
+- `segment5a_p1_5_movement_d9caca5f1552456eaf73780932768845.json/.md`.
+
+P1 gate outcomes:
+- realized channel groups (`>=10%` mass): `2` (`cp`, `cnp`) -> PASS.
+- channel share:
+  - `cp=0.8274`,
+  - `cnp=0.1726`.
+- `night_share(CNP)-night_share(CP)=0.2715` -> exceeds B (`0.08`) and B+ (`0.12`) channel thresholds.
+- decision: `UNLOCK_P2` (`P1` execution seed `{42}`).
+
+Movement vs P0 baseline (`b4d6809bf10d4ac590159dda3ed7a310`):
+- baseline channel posture: `mixed=1.0`, realized groups `1`, night-gap `null`.
+- candidate channel posture: CP/CNP realized with large positive night-gap.
+- caveat-axis movement:
+  - `channel`: `material -> clear`,
+  - `concentration`: `material` (unchanged),
+  - `tail`: `material` (unchanged),
+  - `dst`: `material` (unchanged),
+  - `overlay`: `watch` (unchanged).
+
+P2 handoff rationale:
+- channel lane is now statistically active and contract-valid.
+- residual realism debt remains concentrated in `concentration/tail/dst` axes, matching planned P2/P3/P4 ownership.
+
+---
+
+### Entry: 2026-02-21 06:35
+
+P1 storage sync and keep-set prune.
+Summary: Removed superseded failed run-id from P1 execution lane and synced keep-set for next-phase work.
+
+Removed:
+- `e9c3e7d221704de9b31b2c7c6eb48a9e` (superseded mixed-status run-id; S5 publish conflict lineage).
+
+Retained:
+- `7b08449ccffc44beaa99e64bf0201efc`
+- `7e3de9d210bb466ea268f4a9557747e1`
+- `7f20e9d97dad4ff5ac639bbc41749fb0`
+- `ac363a2f127d43d1a6e7e2308c988e5e`
+- `b4d6809bf10d4ac590159dda3ed7a310`
+- `ce57da0ead0d4404a5725ca3f4b6e3be`
+- `d9caca5f1552456eaf73780932768845` (current P1 authority).

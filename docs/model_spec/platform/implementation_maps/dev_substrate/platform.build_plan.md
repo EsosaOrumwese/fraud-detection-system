@@ -1548,7 +1548,7 @@ Phase closure posture:
     - deterministic burst profile contract (`3.0x`, `15m`, admit ratio `>=0.995`, `semantic_drift_allowed=false`),
     - explicit semantic-drift and lag/checkpoint closure gates under burst load,
     - fail-closed blocker taxonomy (`M10F-B1..B9`) and required snapshot schema for `m10_f_burst_snapshot.json`.
-  - `M10.F` runtime lane has now been executed fail-closed and is currently `BLOCKED`:
+  - `M10.F` initial runtime execution was fail-closed and `BLOCKED`:
     - execution id: `m10_20260220T175149Z`,
     - local snapshot: `runs/dev_substrate/m10/m10_20260220T175149Z/m10_f_burst_snapshot.json`,
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260220T175149Z/m10_f_burst_snapshot.json`,
@@ -1565,7 +1565,14 @@ Phase closure posture:
     - `config/platform/profiles/dev_min.yaml` now pins `wsp_checkpoint` to Postgres via `${WSP_CHECKPOINT_DSN}`,
     - WSP control-job bootstrap now fails closed if `WSP_CHECKPOINT_DSN` is missing,
     - Terraform demo module now injects `WSP_CHECKPOINT_DSN` secret into WSP control-job task-definition,
-    - next `demo` apply/refresh is required to materialize updated WSP task-definition before closure rerun.
+    - remediation materialized in runtime with WSP task-definition `fraud-platform-dev-min-wsp:25`.
+  - `M10.F` fresh-scope closure rerun executed and passed:
+    - execution id: `m10_20260221T060601Z`,
+    - platform run scope: `platform_20260221T060431Z`,
+    - local snapshot: `runs/dev_substrate/m10/m10_20260221T060601Z/m10_f_burst_snapshot.json`,
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260221T060601Z/m10_f_burst_snapshot.json`,
+    - verdict: `overall_pass=true`, blockers empty,
+    - closure metrics: `ADMIT=22606`, `achieved_multiplier=3.1277`, `admit_ratio=1.0`, `elapsed_seconds=1035.812`.
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
@@ -1573,7 +1580,7 @@ Sub-phase progress:
   - [x] `M10.C` semantic 200-event run.
   - [x] `M10.D` incident drill execution.
   - [x] `M10.E` representative-window run.
-  - [ ] `M10.F` burst run (currently blocked on `M10F-B1`; bounded rerun done, B5/B8 cleared).
+  - [x] `M10.F` burst run (fresh-scope pass; blocker set empty).
   - [ ] `M10.G` soak run.
   - [ ] `M10.H` recovery-under-load run.
   - [ ] `M10.I` reproducibility + replay coherence.
@@ -1586,7 +1593,7 @@ M10 DoD checklist:
   - [x] at least one incident drill executed with expected fail-closed evidence.
 - [ ] Scale Green:
   - [x] representative-window run passes on contiguous event-time slice (not sub-second toy slice).
-  - [ ] burst run passes at elevated ingest pressure without semantic drift.
+  - [x] burst run passes at elevated ingest pressure without semantic drift.
   - [ ] soak run passes under sustained load with stable lag/checkpoint behavior.
   - [ ] recovery run passes after controlled restart under load with idempotent outcomes.
 - [ ] Reproducibility:
@@ -1685,5 +1692,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M10 is active for planning expansion under the M9 handoff.
 Next action:
-- execute `M10F-B1` rerun closure on fresh run scope (with Postgres WSP checkpoint posture) and clear burst multiplier/admit-ratio gates before `M10.G`.
+- execute `M10.G` soak run on managed substrate and enforce lag/checkpoint stability gates before `M10.H`.
 

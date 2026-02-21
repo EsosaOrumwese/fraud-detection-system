@@ -1242,9 +1242,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             s1_domain_class = s1_profile_scan.select(
                 ["demand_class", "legal_country_iso", "tzid"]
             ).unique()
-            s1_domain_zone = s1_profile_scan.select(
-                ["merchant_id", "legal_country_iso", "tzid"]
-            ).unique()
+            s1_domain_zone_keys = ["merchant_id", "legal_country_iso", "tzid"]
+            if "channel_group" in s1_profile_columns:
+                s1_domain_zone_keys.append("channel_group")
+            s1_domain_zone = s1_profile_scan.select(s1_domain_zone_keys).unique()
         else:
             record_check(CHECK_S1_PRESENT, "FAIL", {"detail": "merchant_zone_profile_5A missing"})
             record_issue(
@@ -1529,7 +1530,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
                         if s1_domain_zone is not None:
                             s1_zone = s1_domain_zone
-                            if "channel_group" in baseline_keys:
+                            if "channel_group" in baseline_keys and "channel_group" not in s1_profile_columns:
                                 s1_zone = s1_zone.with_columns(pl.lit("mixed").alias("channel_group"))
                             baseline_domain = baseline_scan.select(baseline_keys).unique()
                             missing_domain = s1_zone.join(baseline_domain, on=baseline_keys, how="anti").collect()

@@ -17927,3 +17927,109 @@ Risk handling:
 ### Consequence
 1. B1 remediation substrate is now implemented.
 2. Next closure action remains executional: run fresh-scope bounded `M10.F` and require ADMIT-bearing window to clear B1.
+
+## Entry: 2026-02-21 04:54:44 +00:00 - M10F-B1 closure attempt #1 after checkpoint materialization
+### Goal
+1. Validate whether checkpoint-DSN materialization alone clears `M10F-B1` without additional run-scope changes.
+2. Keep bounded execution posture and preserve prior `B5/B8` closure method.
+
+### Alternatives considered
+1. Rotate run scope immediately and rerun once.
+2. Run once on current scope first to isolate effect of checkpoint materialization itself.
+
+### Decision chosen
+1. Chose option 2 first.
+2. Rationale:
+   - isolates causality between checkpoint materialization and receipt behavior,
+   - avoids assuming scope contamination until observed in fresh evidence.
+
+### Outcome
+1. Execution id: `m10_20260221T045444`.
+2. Snapshot: `runs/dev_substrate/m10/m10_20260221T045444Z/m10_f_burst_snapshot.json`.
+3. Runtime stayed within budget (`~1043s`), but closure could not be accepted due to unstable attempt-window receipt extraction (`B5` reopened by query-timeout posture).
+4. Consequence:
+   - no claim of B1 closure was accepted,
+   - required immediate hardening of receipt-window evidence extraction before further B1 adjudication.
+
+## Entry: 2026-02-21 05:21:41 +00:00 - M10F-B1 closure attempt #2 with deterministic receipt-window extraction
+### Problem
+1. Prior run proved runtime viability but could not be adjudicated cleanly because receipt-window extraction was unstable.
+
+### Decision
+1. Keep same run scope and move to deterministic in-VPC reporter-query lane (already proven for `B5`).
+
+### Outcome
+1. Execution id: `m10_20260221T052141`.
+2. Snapshot: `runs/dev_substrate/m10/m10_20260221T052141Z/m10_f_burst_snapshot.json`.
+3. Deterministic window counts observed:
+   - `ADMIT=27596`
+   - `DUPLICATE=277`
+4. Gate results:
+   - multiplier pass (`3.8197`),
+   - admit-ratio fail (`0.9901 < 0.995`).
+5. Consequence:
+   - `M10F-B1` remained open,
+   - residual duplicates indicated stale run-scope dedupe contamination was still plausible.
+
+## Entry: 2026-02-21 05:43:17 +00:00 - M10F-B1 closure attempt #3 to test whether tuning alone can clear ratio gate
+### Alternatives considered
+1. Rotate to fresh scope now.
+2. Run one more bounded attempt with tuned sharded posture to test if duplicates are merely transient at current scope.
+
+### Decision chosen
+1. Chose option 2 for one final same-scope test.
+2. Rationale:
+   - one additional data point avoids unnecessary scope churn if ratio could converge naturally.
+
+### Outcome
+1. Execution id: `m10_20260221T054317`.
+2. Snapshot: `runs/dev_substrate/m10/m10_20260221T054317Z/m10_f_burst_snapshot.json`.
+3. Deterministic window counts:
+   - `ADMIT=24870`
+   - `DUPLICATE=273`
+4. Gate results:
+   - multiplier pass (`3.4322`),
+   - admit-ratio fail (`0.9891 < 0.995`).
+5. Consequence:
+   - same-scope tuning path was rejected as non-closing for `B1`,
+   - fresh-scope rotation became required (fail-closed).
+
+## Entry: 2026-02-21 06:04:31 +00:00 - Fresh-scope rotation decision for definitive B1 closure
+### Trigger
+1. Two consecutive same-scope bounded runs passed multiplier but failed admit ratio due to persistent duplicate floor.
+
+### Decision
+1. Rotate to fresh `platform_run_id` and rerun burst under the same checkpoint-durable posture.
+2. New run scope pinned: `platform_20260221T060431`.
+
+### Implementation notes
+1. Reapplied demo posture to materialize fresh run scope with WSP task-definition `fraud-platform-dev-min-wsp:25`.
+2. Preserved bounded sharded launch posture and deterministic receipt-window extraction.
+
+## Entry: 2026-02-21 06:27:23 +00:00 - M10.F B1 closure achieved on fresh scope (`overall_pass=true`)
+### Execution summary
+1. Execution id: `m10_20260221T060601Z`.
+2. Local snapshot:
+   - `runs/dev_substrate/m10/m10_20260221T060601Z/m10_f_burst_snapshot.json`.
+3. Durable run-control snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260221T060601Z/m10_f_burst_snapshot.json`.
+4. Durable run-scoped snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260221T060431Z/m10/m10_f_burst_snapshot.json`.
+
+### Deterministic gate outcomes
+1. Receipt window counts:
+   - `ADMIT=22606`,
+   - duplicates absent in attempt window.
+2. Burst criteria:
+   - achieved multiplier `3.1277` (`>=3.0`),
+   - admit ratio `1.0` (`>=0.995`),
+   - duration gate pass (`~17.3m` window),
+   - runtime budget pass (`1035.812s <= 5400s`).
+3. Semantic drift checks:
+   - `PUBLISH_AMBIGUOUS=0`,
+   - fail-open and side-effect drift checks remained false.
+
+### Closure verdict
+1. `M10F-B1` is cleared.
+2. Blocker union for `M10.F` is empty.
+3. Phase progression can move to `M10.G` (soak run), with `M10.F` now formally closure-pass.

@@ -975,19 +975,33 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 {"path": str(profile_path)},
                 manifest_fingerprint,
             )
-        profile_df = pl.read_parquet(
-            profile_path,
-            columns=[
-                "manifest_fingerprint",
-                "parameter_hash",
-                "merchant_id",
-                "legal_country_iso",
-                "tzid",
-                "demand_class",
-                "weekly_volume_expected",
-                "scale_factor",
-            ],
-        )
+        profile_df = pl.read_parquet(profile_path)
+        if "channel_group" not in profile_df.columns:
+            logger.warning(
+                "S3: merchant_zone_profile_5A missing channel_group; defaulting to mixed for compatibility."
+            )
+            profile_df = profile_df.with_columns(pl.lit("mixed").alias("channel_group"))
+        profile_required_columns = [
+            "manifest_fingerprint",
+            "parameter_hash",
+            "merchant_id",
+            "legal_country_iso",
+            "tzid",
+            "demand_class",
+            "channel_group",
+            "weekly_volume_expected",
+            "scale_factor",
+        ]
+        missing_profile_columns = [column for column in profile_required_columns if column not in profile_df.columns]
+        if missing_profile_columns:
+            _abort(
+                "S3_REQUIRED_INPUT_MISSING",
+                "V-05",
+                "merchant_zone_profile_columns_missing",
+                {"missing_columns": missing_profile_columns},
+                manifest_fingerprint,
+            )
+        profile_df = profile_df.select(profile_required_columns)
         _validate_array_rows(
             profile_df.iter_rows(named=True),
             schema_5a,
@@ -1088,7 +1102,6 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
         shape_df = shape_df.filter(pl.col("parameter_hash") == str(parameter_hash))
         shape_df = shape_df.filter(pl.col("scenario_id") == str(scenario_id))
-        shape_df = shape_df.filter(pl.col("channel_group") == "mixed")
         if shape_df.is_empty():
             _abort(
                 "S3_GATE_OR_S2_INVALID",
@@ -1230,7 +1243,14 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 manifest_fingerprint,
             )
 
-        profile_df = profile_df.with_columns(pl.lit("mixed").alias("channel_group"))
+        if profile_df.filter(pl.col("channel_group").is_null()).height:
+            _abort(
+                "S3_DOMAIN_ALIGNMENT_FAILED",
+                "V-07",
+                "profile_channel_group_missing",
+                {"detail": "merchant_zone_profile_5A contains null channel_group"},
+                manifest_fingerprint,
+            )
         base_scale_col = pl.col("weekly_volume_expected").cast(pl.Float64)
         if profile_df.filter(base_scale_col.is_null()).height:
             _abort(
