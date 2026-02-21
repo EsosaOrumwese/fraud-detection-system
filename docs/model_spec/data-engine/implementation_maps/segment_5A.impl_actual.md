@@ -6331,3 +6331,118 @@ Alternatives considered and rejected:
 
 3) force immediate full 4-seed reruns without staged seed inventory lock:
 - rejected; plan now locks inventory and budget gates first to keep execution auditable and performance-aware.
+
+---
+
+### Entry: 2026-02-21 21:42
+
+P5 execution start: fail-closed certification lane chosen over synthetic seed forging.
+Summary: Began `P5.1 -> P5.6` execution with a strict decision to avoid fabricated seed evidence and to certify only from contract-valid run surfaces.
+
+Context observed at start:
+1) `segment_5A` run inventory contains only seed `42` authorities.
+2) `P5` contract requires `{42, 7, 101, 202}` for integrated certification.
+3) No existing `5A` runs for seeds `7/101/202` are present in `runs/local_full_run-5` or `runs/fix-data-engine/segment_5A`.
+
+Decision path and alternatives considered:
+1) Synthetic seed cloning inside `segment_5A` run folders (copying `seed=42` payloads to other seed partitions):
+- rejected for certification lane because it would create misleading multi-seed evidence and violate realism-first intent.
+
+2) Blindly mark P5 blocked without executing all subphases:
+- rejected because USER asked for full phase execution with auditable artifacts.
+
+3) Execute all P5 subphases with explicit blocker attribution and no hidden assumptions:
+- chosen.
+- posture: produce `P5.1` contract/inventory artifacts, execute `P5.2` deterministic blocker scan, run `P5.3` integrated scorer with `--phase P5`, then publish `P5.4/P5.5/P5.6` closure artifacts and handoff decision.
+
+---
+
+### Entry: 2026-02-21 21:44
+
+Implemented P5 scorer semantics and executed integrated scoring.
+Summary: Extended `tools/score_segment5a_p0_realism.py` to support `--phase P5`, seeded-certification defaults, and integrated pass/hold logic with stability thresholds.
+
+File changed:
+- `tools/score_segment5a_p0_realism.py`
+
+What changed (decision trail):
+1) Added `P5` parser support:
+- `choices=[P0..P5]`.
+- default required seeds for `P5` pinned to `{42,7,101,202}`.
+
+2) Added integrated `P5` decision semantics:
+- hard-pack pass requires all hard gates used for `P4`.
+- stretch-pack pass requires all stretch gates.
+- cross-seed stability thresholds pinned:
+  - `B`: CV `<= 0.25`,
+  - `B+`: CV `<= 0.15`.
+- decisions:
+  - `PASS_BPLUS_ROBUST` when hard+stretch+stability all pass on required seeds,
+  - `PASS_B` when hard+`B` stability pass and stretch/B+ are bounded misses,
+  - `HOLD_P5_REMEDIATE` otherwise (including any required-seed gap).
+
+3) Added `phase_summary` payload for P5 auditability:
+- seed matrix,
+- hard/stretch failing seeds,
+- stability thresholds and failing metrics,
+- full-seed coverage boolean.
+
+Validation:
+- compile sanity: `python -m py_compile tools/score_segment5a_p0_realism.py` (PASS).
+
+Execution:
+- command:
+  - `python tools/score_segment5a_p0_realism.py --runs-root runs/fix-data-engine/segment_5A --phase P5 --run-id 6817ca5a2e2648a1a8cf62deebfa0fcb`
+- output artifacts:
+  - `segment5a_p5_realism_gateboard_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+  - `segment5a_p5_realism_gateboard_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+- decision result:
+  - `HOLD_P5_REMEDIATE`.
+- primary reason:
+  - missing required seeds `7,101,202`.
+
+Notable metric posture on available authority seed (`42`):
+- run posture remains `PASS_B` (`12/12` hard, `5/9` stretch).
+- hold is purely certification-coverage/stability-completeness driven, not a hard-gate failure on seed `42`.
+
+---
+
+### Entry: 2026-02-21 21:47
+
+Executed P5.1/P5.2/P5.4/P5.5/P5.6 closure artifact lanes and finalized handoff posture.
+Summary: Completed all remaining P5 subphase artifact lanes and recorded explicit non-freeze decision with blockers.
+
+Artifacts emitted:
+1) P5.1 contract + inventory:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_1_certification_contract.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_1_certification_contract.md`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_1_seed_inventory.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_1_seed_inventory.md`
+
+2) P5.2 seed-gap blocker scan:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_2_seed_gap_blockers.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_2_seed_gap_blockers.md`
+
+3) P5.4 residual risk adjudication:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_4_residual_risk_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_4_residual_risk_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+
+4) P5.5 freeze package (hold posture):
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_5_freeze_package_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_5_freeze_package_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+
+5) P5.6 prune + handoff:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_6_prune_handoff_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_6_prune_handoff_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+
+Prune operation:
+- executed keep-set prune on `runs/fix-data-engine/segment_5A` with 9 retained run-ids.
+- result: `candidate_count=0` (no-op, documented).
+
+P5.2 blocker root cause (explicit):
+- seed-specific upstream roots available for `7/101/202` (`segment_3B` authorities) do not include required `2B` seed-scoped egress surfaces used by 5A.S0 (`s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`).
+- without those surfaces, no contract-valid `S0->S5` seed-pack closure lane can be completed for missing seeds under current freeze posture.
+
+Final P5 handoff decision:
+- `HOLD_REMEDIATE` (not `FROZEN_5A`).
+- blocker owner: upstream seed-coverage reopen lane (`2B` seed-pack availability for `7/101/202`).

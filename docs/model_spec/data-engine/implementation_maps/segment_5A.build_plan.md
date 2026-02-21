@@ -1474,9 +1474,9 @@ Scope:
 
 Definition of done:
 - [ ] hard gates pass on all required seeds (`PASS_B` minimum).
-- [ ] stretch gates evaluated and verdict recorded (`PASS_BPLUS_ROBUST` or not).
-- [ ] freeze package emitted with run-map + score artifacts + decision rationale.
-- [ ] superseded run-id folders pruned under keep-set policy.
+- [x] stretch gates evaluated and verdict recorded (`PASS_BPLUS_ROBUST` or not).
+- [x] freeze package emitted with run-map + score artifacts + decision rationale.
+- [x] superseded run-id folders pruned under keep-set policy.
 
 P5 execution posture:
 - P5 starts from P4 closure authority (`UNLOCK_P5` on `6817ca5a2e2648a1a8cf62deebfa0fcb`).
@@ -1503,9 +1503,9 @@ Scope:
   - no `PASS_B`/`PASS_BPLUS_ROBUST` claim without required-seed closure or explicit user waiver artifact.
 
 Definition of done:
-- [ ] P5 contract artifact emitted with full gate matrix and required seed set.
-- [ ] seed inventory artifact emitted with explicit gap list.
-- [ ] decision posture pinned (`FULL_CERT_READY` or `SEED_GAP_BLOCKED`).
+- [x] P5 contract artifact emitted with full gate matrix and required seed set.
+- [x] seed inventory artifact emitted with explicit gap list.
+- [x] decision posture pinned (`FULL_CERT_READY` or `SEED_GAP_BLOCKED`).
 
 #### P5.2 - Seed-pack closure lane (if gaps exist)
 Goal:
@@ -1521,7 +1521,7 @@ Scope:
 Definition of done:
 - [ ] all required seeds have valid run-ids with `S0..S5 PASS`.
 - [ ] runtime evidence recorded per seed.
-- [ ] no frozen-rail regressions introduced during seed-pack closure.
+- [x] no frozen-rail regressions introduced during seed-pack closure.
 
 #### P5.3 - Multi-seed integrated scoring (`P5` semantics)
 Goal:
@@ -1535,9 +1535,9 @@ Scope:
 - emit unified multi-run gateboard with per-seed and aggregate stats.
 
 Definition of done:
-- [ ] integrated `P5` score artifacts emitted (`json` + `md`).
-- [ ] explicit grade verdict recorded with failing gates listed when not `B+`.
-- [ ] cross-seed CV evidence included for key remediation metrics.
+- [x] integrated `P5` score artifacts emitted (`json` + `md`).
+- [x] explicit grade verdict recorded with failing gates listed when not `B+`.
+- [x] cross-seed CV evidence included for key remediation metrics.
 
 #### P5.4 - Residual-risk adjudication and bounded reopen rule
 Goal:
@@ -1551,9 +1551,9 @@ Scope:
 - if non-blocking, record caveat rationale and downstream risk posture.
 
 Definition of done:
-- [ ] each residual miss has an owner and disposition.
-- [ ] reopen/no-reopen decision is explicit and auditable.
-- [ ] no silent acceptance of unresolved blockers.
+- [x] each residual miss has an owner and disposition.
+- [x] reopen/no-reopen decision is explicit and auditable.
+- [x] no silent acceptance of unresolved blockers.
 
 #### P5.5 - Freeze package assembly
 Goal:
@@ -1568,9 +1568,9 @@ Scope:
 - emit freeze pointer document for 5A with timestamped decision.
 
 Definition of done:
-- [ ] freeze package artifacts emitted and linked from build plan.
-- [ ] freeze pointer identifies authoritative run-ids and grade posture.
-- [ ] package is sufficient for downstream audit/replay.
+- [x] freeze package artifacts emitted and linked from build plan.
+- [x] freeze pointer identifies authoritative run-ids and grade posture.
+- [x] package is sufficient for downstream audit/replay.
 
 #### P5.6 - Retention prune and handoff closure
 Goal:
@@ -1582,9 +1582,38 @@ Scope:
 - mark segment 5A as frozen or explicitly hold with blockers.
 
 Definition of done:
-- [ ] prune operation executed (or explicit no-op evidence recorded).
-- [ ] retained keep-set documented.
-- [ ] final handoff decision recorded (`FROZEN_5A` or `HOLD_REMEDIATE`).
+- [x] prune operation executed (or explicit no-op evidence recorded).
+- [x] retained keep-set documented.
+- [x] final handoff decision recorded (`FROZEN_5A` or `HOLD_REMEDIATE`).
+
+P5 execution snapshot (2026-02-21):
+- execution authority run-id: `6817ca5a2e2648a1a8cf62deebfa0fcb`.
+- phase decision: `HOLD_P5_REMEDIATE` (required seed-set coverage incomplete).
+- required certification seeds: `{42, 7, 101, 202}`.
+- observed seeds in 5A run inventory: `{42}`.
+- missing required seeds: `{7, 101, 202}`.
+- integrated scoring posture:
+  - seed `42`: `PASS_B` (`12/12` hard, `5/9` stretch),
+  - cross-seed CV metrics: unavailable (`n/a`) because required seed coverage is incomplete.
+- P5.2 blocker attribution:
+  - available seed-specific upstream roots for `7/101/202` (`segment_3B` authorities) do not contain required `2B` seed-scoped egress surfaces (`s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`),
+  - result: seed-pack closure cannot proceed without upstream reopen/seed-pack generation.
+- handoff posture: `HOLD_REMEDIATE` (no 5A freeze claim).
+- closure artifacts:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_1_certification_contract.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_1_certification_contract.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_1_seed_inventory.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_1_seed_inventory.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_2_seed_gap_blockers.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_2_seed_gap_blockers.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_realism_gateboard_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_realism_gateboard_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_4_residual_risk_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_4_residual_risk_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_5_freeze_package_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_5_freeze_package_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_6_prune_handoff_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_6_prune_handoff_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
 
 ## 7) Saturation and optional upstream reopen rule
 - If P1-P4 plateau with repeatable misses caused by upstream amplification signatures (1A/2A sparsity/concentration), open a separate explicit reopen lane.
@@ -1597,4 +1626,4 @@ Definition of done:
 - `P2`: closed (`UNLOCK_P3`; authority run `66c708d45d984be18fe45a40c3b79ecc`).
 - `P3`: closed (`UNLOCK_P4`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch partially met with bounded TZID miss).
 - `P4`: closed (`UNLOCK_P5`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch bounded miss on overlay dispersion).
-- `P5`: planned (expanded into execution-grade `P5.1 -> P5.6` integrated certification + freeze lanes).
+- `P5`: in progress (`P5.1 -> P5.6` executed; currently `HOLD_P5_REMEDIATE` on required seed coverage gap `7/101/202` with upstream `2B` seed-surface blocker).
