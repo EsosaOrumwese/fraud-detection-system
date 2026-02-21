@@ -1554,6 +1554,13 @@ Phase closure posture:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260220T175149Z/m10_f_burst_snapshot.json`,
     - verdict: `overall_pass=false`,
     - blocker rollup: `M10F-B1` (multiplier miss), `M10F-B5` (attempt-scoped admit-ratio evidence instability), `M10F-B8` (runtime budget breach).
+  - `M10.F` bounded rerun closure (blocker-only remediation) executed:
+    - execution id: `m10_20260221T020923Z`,
+    - local snapshot: `runs/dev_substrate/m10/m10_20260221T020923Z/m10_f_burst_snapshot.json`,
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260221T020923Z/m10_f_burst_snapshot.json`,
+    - verdict: `overall_pass=false`,
+    - blocker rollup now: `M10F-B1` only (`M10F-B5` and `M10F-B8` cleared),
+    - closure fact: bounded window receipt truth was `DUPLICATE=10002`, `ADMIT=0`, so multiplier/admit-ratio gates remained fail-closed.
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
@@ -1561,7 +1568,7 @@ Sub-phase progress:
   - [x] `M10.C` semantic 200-event run.
   - [x] `M10.D` incident drill execution.
   - [x] `M10.E` representative-window run.
-  - [ ] `M10.F` burst run (currently blocked; rerun required).
+  - [ ] `M10.F` burst run (currently blocked on `M10F-B1`; bounded rerun done, B5/B8 cleared).
   - [ ] `M10.G` soak run.
   - [ ] `M10.H` recovery-under-load run.
   - [ ] `M10.I` reproducibility + replay coherence.
@@ -1673,5 +1680,5 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M10 is active for planning expansion under the M9 handoff.
 Next action:
-- resolve `M10.F` blockers (`M10F-B1/B5/B8`) and execute bounded burst rerun before `M10.G`.
+- resolve `M10.F` blocker `M10F-B1` (multiplier/admit-ratio miss under duplicate-only burst window) before `M10.G`.
 

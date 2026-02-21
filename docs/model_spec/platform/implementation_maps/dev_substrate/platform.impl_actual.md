@@ -17792,3 +17792,90 @@ Risk handling:
 1. Treat as execution blocker and pause all progression.
 2. Continue bounded control retries only; do not advance lane status claims while visibility/control is degraded.
 3. Once control-plane access returns, perform immediate task-state reconciliation and restore bounded posture evidence.
+
+## Entry: 2026-02-21 02:36:05 +00:00 - M10.F bounded rerun reconciliation after control-plane recovery
+### Situation
+1. Bounded burst task `9cc52d0f16df4dcc8693b98dc7f714a4` had been launched, but AWS CLI control-path calls timed out during supervision.
+2. Bounded-stop enforcement had to be restored before any blocker adjudication could proceed.
+
+### Alternatives considered
+1. Wait for CLI recovery and continue with the same control lane.
+2. Use boto3 control-plane calls immediately to restore visibility and stop control.
+
+### Decision chosen
+1. Chose option 2.
+2. Rationale:
+   - restored deterministic control quickly,
+   - avoided uncontrolled runtime budget drift,
+   - preserved bounded rerun law for M10F-B8 closure.
+
+### Execution outcome
+1. Task was reconciled and stopped under operator control.
+2. Attempt window captured from task truth:
+   - started_at `2026-02-21T02:12:59.915000+00:00`
+   - stopped_at `2026-02-21T02:35:46.010000+00:00`
+   - elapsed `1366.095s`.
+3. Evidence file:
+   - `runs/dev_substrate/m10/m10_20260221T020923Z/m10_f_rerun_wsp_task_result.json`.
+
+## Entry: 2026-02-21 02:46:21 +00:00 - M10.F B5 remediation lane: reporter refresh + DB-window truth extraction
+### Problem
+1. `M10F-B5` required deterministic attempt-scoped evidence (not run_report deltas).
+2. Local host could not connect to private RDS endpoint directly, so direct local Postgres reads were not viable.
+
+### Alternatives considered
+1. Use local DB connection with SSM credentials and query receipts table.
+2. Execute an in-VPC managed task using existing reporter task-definition secret injection (`IG_ADMISSION_DSN`) and query receipts in-place.
+
+### Decision chosen
+1. Chose option 2.
+2. Rationale:
+   - preserves managed-compute posture,
+   - avoids private-network reachability dependency on operator laptop,
+   - uses existing task role/secret wiring with no infra mutation.
+
+### Implementation notes
+1. Reporter one-shot refresh executed and passed:
+   - task `60c0437e5905465fb5ef1502b2c4ced8`
+   - exit code `0`
+   - evidence: `runs/dev_substrate/m10/m10_20260221T020923Z/m10_f_rerun_reporter_refresh_task_result.json`.
+2. Initial query-task attempts failed due inline `python -c` newline escaping.
+3. Query execution was repinned to heredoc script injection (`cat > /tmp/m10f_query.py <<'PY' ...`) to eliminate quoting drift.
+4. Successful query-task:
+   - task `a48e2c0e16de4944bc7b08d7f0f82905`
+   - log stream `ecs/obs_gov/reporter/reporter/a48e2c0e16de4944bc7b08d7f0f82905`
+   - marker output `M10F_METRICS_JSON=...`.
+5. Metrics artifact captured:
+   - `runs/dev_substrate/m10/m10_20260221T020923Z/m10_f_rerun_receipts_window_metrics.json`.
+
+## Entry: 2026-02-21 02:52:23 +00:00 - M10.F bounded rerun blocker adjudication (B1/B5/B8 only)
+### Deterministic blocker assessment inputs
+1. Burst task window truth:
+   - `runs/dev_substrate/m10/m10_20260221T020923Z/m10_f_rerun_wsp_task_result.json`.
+2. Postgres receipt-window truth:
+   - `runs/dev_substrate/m10/m10_20260221T020923Z/m10_f_rerun_receipts_window_metrics.json`.
+3. Required run-scoped evidence existence checks against pinned S3 refs.
+4. M10.E baseline admit/min from authority snapshot (`418.66295264623955`).
+
+### Results
+1. `M10F-B8` cleared:
+   - runtime elapsed `1366.095s` within lane budget `<=5400s`.
+2. `M10F-B5` cleared:
+   - deterministic attempt-window counts now sourced from IG Postgres receipts table,
+   - required evidence refs are readable.
+3. `M10F-B1` remains fail-closed:
+   - attempt-window counts: `DUPLICATE=10002`, `ADMIT=0`, `PUBLISH_AMBIGUOUS=0`,
+   - achieved multiplier `0.0` (target `>=3.0`),
+   - admit ratio `0.0` (target `>=0.995`).
+
+### Closure artifacts
+1. Local closure snapshot:
+   - `runs/dev_substrate/m10/m10_20260221T020923Z/m10_f_burst_snapshot.json`.
+2. Durable run-control snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260221T020923Z/m10_f_burst_snapshot.json`.
+3. Durable run-scoped snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260219T234150Z/m10/m10_f_burst_snapshot.json`.
+
+### Phase consequence
+1. M10.F remains blocked with blocker set reduced to `M10F-B1` only.
+2. No `M10.G` progression is allowed until explicit `M10F-B1` remediation closes.

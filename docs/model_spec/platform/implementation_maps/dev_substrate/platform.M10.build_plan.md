@@ -805,6 +805,24 @@ Execution status (2026-02-20):
    - `M10.F` is currently `BLOCKED` and not closure-pass.
    - Next action is blocker remediation + bounded rerun before entering `M10.G`.
 
+Bounded rerun status (2026-02-21):
+1. Execution id:
+   - `m10_20260221T020923Z`.
+2. Snapshot paths:
+   - local: `runs/dev_substrate/m10/m10_20260221T020923Z/m10_f_burst_snapshot.json`
+   - durable run-control: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260221T020923Z/m10_f_burst_snapshot.json`
+   - durable run-scoped: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260219T234150Z/m10/m10_f_burst_snapshot.json`
+3. Verdict:
+   - `overall_pass=false`
+   - blockers: `M10F-B1` only.
+4. Blocker-only remediation outcomes:
+   - `M10F-B5` cleared by deterministic IG Postgres receipt-window measurement over the exact bounded attempt window,
+   - `M10F-B8` cleared (`elapsed_seconds=1366.095`, budget `<=5400`),
+   - `M10F-B1` remains fail-closed because window receipts were `DUPLICATE=10002`, `ADMIT=0` (multiplier and admit-ratio miss).
+5. Consequence:
+   - `M10.F` remains `BLOCKED` and cannot advance to `M10.G`.
+   - Required next action is `M10F-B1` remediation under explicit user-approved lane posture.
+
 ### M10.G Soak run
 Goal:
 1. Validate sustained operation and stable checkpoint/lag behavior.
@@ -918,5 +936,5 @@ M10 can be marked `DONE` only when all are true:
 4. `M10.C` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T045637Z`).
 5. `M10.D` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T054251Z`).
 6. `M10.E` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T063037Z`).
-7. `M10.F` has been executed and is currently blocked (`m10_execution_id=m10_20260220T175149Z`, blockers `M10F-B1/B5/B8`).
-8. Next lane remains `M10.F` blocker remediation + bounded rerun.
+7. `M10.F` has been rerun and remains blocked (`m10_execution_id=m10_20260221T020923Z`, blocker `M10F-B1` only; `M10F-B5/B8` cleared).
+8. Next lane remains `M10.F` `M10F-B1` remediation; no `M10.G` entry is allowed.

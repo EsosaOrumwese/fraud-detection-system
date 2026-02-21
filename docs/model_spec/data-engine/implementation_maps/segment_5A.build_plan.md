@@ -1,5 +1,5 @@
 # Segment 5A Remediation Build Plan (B/B+ Execution Plan)
-_As of 2026-02-20_
+_As of 2026-02-21_
 
 ## 0) Objective and closure rule
 - Objective: keep Segment `5A` at certified realism quality and improve it beyond current caveats, targeting `B+` robustness (not threshold-forging).
@@ -580,15 +580,139 @@ POPT.2 closure snapshot (2026-02-21):
 
 ### POPT.3 - Tertiary hotspot closure (selected by POPT.0)
 Goal:
-- close remaining major runtime drag that blocks fast iteration cadence.
+- close the remaining runtime bottleneck in `S5` validation-bundle compute path.
 
 Scope:
-- optimize third-ranked hotspot state and remove avoidable high-cardinality overhead.
+- optimize `S5` recomposition/validation checks and remove avoidable full-frame rescans.
+- preserve deterministic validation semantics, bundle/index publication, and fail-closed rails.
 
 Definition of done:
-- [ ] third hotspot wall-time reduced by `>= 15%` vs baseline or reaches pinned target budget.
-- [ ] full state-chain from changed-state onward stays green.
-- [ ] no increase in failure-rate/noise in run reports.
+- [ ] `S5` wall-time reduced by `>= 20%` vs active baseline or reaches pinned target budget.
+- [ ] `S5` remains `PASS` with no error-surface expansion and stable structural counters.
+- [ ] candidate runtime evidence and closure decision artifacts are emitted.
+
+POPT.3 baseline anchors (post-POPT.2 authority):
+- baseline authority run-id: `7f20e9d97dad4ff5ac639bbc41749fb0`.
+- baseline `S5 wall`: `243.187s` (`RED` vs `180s` target, `240s` stretch).
+- baseline lane signature (`S5`):
+  - `core_compute=242.681s` (`99.79%` share),
+  - `input_resolution=0.480s`,
+  - `input_load_schema_validation=0.025s`,
+  - `output_write_idempotency=0.001s`.
+- baseline structural anchors:
+  - `status=PASS`,
+  - `counts.s1_rows=16528`,
+  - `counts.s1_merchants=886`,
+  - `counts.s1_countries=53`,
+  - `counts.s1_tzids=268`,
+  - `error_code/error_class=null`.
+
+POPT.3 closure gates (quantified):
+- runtime movement gate:
+  - `S5 wall <= 180.0s` (target), OR
+  - `S5 reduction >= 20%` vs baseline (`<= 194.550s`).
+- structural veto rails:
+  - `S5 status=PASS`,
+  - `error_code/error_class` remain null,
+  - S1-derived structural counts unchanged (`rows/merchants/countries/tzids`),
+  - required validation outputs exist (`validation_bundle_index`, `validation_report`, `_passed.flag`).
+- determinism gate:
+  - same seed + same inputs reproduces equivalent structural counters and no new validator failures.
+
+Execution posture:
+- run root: `runs/fix-data-engine/segment_5A`.
+- rerun law:
+  - if only `S5` code changes: rerun `S5` only,
+  - if shared utility touched by S4/S5 requires it: rerun earliest changed state onward.
+- no policy/config/coeff mutations in `POPT.3`.
+- prune superseded failed candidate run-id folders before each expensive rerun.
+
+#### POPT.3.1 - S5 closure scorer and equivalence contract lock
+Goal:
+- pin machine-checkable closure contract for runtime and structural veto rails.
+
+Scope:
+- define/lock closure artifact schema for baseline-vs-candidate `S5`.
+- pin accepted differences (timing-only fields) and veto fields (status/counts/errors/required outputs).
+- bind closure decision to explicit `UNLOCK_POPT4` vs `HOLD_POPT3_REOPEN`.
+
+Definition of done:
+- [ ] `segment5a_popt3_closure_<run_id>.json` contract is pinned.
+- [ ] veto checks are executable from run report and output artifacts.
+- [ ] unresolved equivalence ambiguity is zero before mutation.
+
+#### POPT.3.2 - S5 lane instrumentation and hotspot reconfirm
+Goal:
+- reconfirm the exact `S5` hot path before compute mutation.
+
+Scope:
+- add low-overhead `S5` phase markers around:
+  - input/load validation complete,
+  - recomposition checks complete,
+  - issue-table assembly complete,
+  - bundle index/report write complete.
+- capture lane timing artifact for candidate/baseline comparison.
+
+Definition of done:
+- [ ] lane-timing artifact emitted for `S5`.
+- [ ] instrumentation overhead is bounded and non-dominant.
+- [ ] no output/schema drift from instrumentation-only edits.
+
+#### POPT.3.3 - Schema/introspection and projection narrowing
+Goal:
+- eliminate avoidable schema-resolution and width-amplification overhead.
+
+Scope:
+- hoist repeated `LazyFrame.columns` / schema introspection to single-pass schema collection.
+- narrow downstream checks to minimal required columns before heavy joins/aggregations.
+- avoid redundant `collect`/materialize calls on identical immutable intermediates.
+
+Definition of done:
+- [ ] evidence shows reduced non-compute overhead and/or lower full-frame scans.
+- [ ] validation semantics and issue-surface remain unchanged.
+- [ ] deterministic ordering/path semantics remain intact.
+
+#### POPT.3.4 - Recomposition/check-path compute optimization
+Goal:
+- reduce `S5` core compute time while preserving fail-closed validation behavior.
+
+Scope:
+- optimize recomposition sample/check passes to avoid duplicate full-width scans.
+- tighten join/groupby path for mismatch-level and aggregate checks.
+- preserve all existing failure triggers and output bundle publication semantics.
+
+Definition of done:
+- [ ] `S5` runtime moves materially vs baseline.
+- [ ] no validator rule is removed or weakened.
+- [ ] bundle/index outputs remain complete and contract-compliant.
+
+#### POPT.3.5 - Witness rerun and closure scoring
+Goal:
+- verify `S5` runtime gain + non-regression rails on a clean candidate rerun.
+
+Scope:
+- execute witness rerun on `S5` (seed `42`) with pinned run root.
+- emit `lane_timing` + `closure` artifacts and explicit decision.
+- map misses to bounded reopen action if needed.
+
+Definition of done:
+- [ ] rerun completes with `S5 PASS`.
+- [ ] closure artifacts JSON/MD are emitted for candidate run-id.
+- [ ] runtime and veto outcomes are explicit with unblock/reopen decision.
+
+#### POPT.3.6 - Phase closure and handoff
+Goal:
+- close `POPT.3` with retained authority map and next-phase pointer.
+
+Scope:
+- record final decision: `UNLOCK_POPT4` or `HOLD_POPT3_REOPEN`.
+- pin retained run-id/artifacts.
+- prune superseded failed candidate folders and sync plan/notes/logbook.
+
+Definition of done:
+- [ ] explicit closure decision is recorded.
+- [ ] keep-set and artifact pointers are updated.
+- [ ] prune action is completed and logged.
 
 ### POPT.4 - Validation/I-O cost control lane
 Goal:
@@ -709,7 +833,7 @@ Definition of done:
 - Reopen lane is out-of-scope for this first 5A-local pass and requires explicit go-ahead.
 
 ## 8) Current phase status
-- `POPT`: in progress (`POPT.0` + `POPT.1` + `POPT.2` closed; `POPT.3` next on `S5`).
+- `POPT`: in progress (`POPT.0` + `POPT.1` + `POPT.2` closed; `POPT.3` expanded/planned on `S5`, execution pending).
 - `P0`: planned.
 - `P1`: planned.
 - `P2`: planned.

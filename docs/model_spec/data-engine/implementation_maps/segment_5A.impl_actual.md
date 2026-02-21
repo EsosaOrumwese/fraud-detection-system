@@ -4342,3 +4342,343 @@ Storage/prune action:
 Decision:
 - `POPT.2` closed.
 - handoff target: `POPT.3` on `S5`.
+
+---
+
+### Entry: 2026-02-21 02:45
+
+Design element: `POPT.3` planning expansion for Segment 5A (`S5` hotspot closure).
+Summary: Expanded `POPT.3` from a placeholder into execution-grade subphases (`POPT.3.1 -> POPT.3.6`) with quantified runtime gates, structural veto rails, and explicit closure/handoff decisions.
+
+Problem framing:
+- After `POPT.2`, hotspot ownership moved decisively to `S5`.
+- Authority evidence (`7f20e9d97dad4ff5ac639bbc41749fb0`) shows:
+  - `S5 wall=243.187s` (`RED` vs `180s` target, `240s` stretch),
+  - lane split is almost entirely compute: `core_compute=242.681s` (`99.79%` share),
+  - non-compute lanes are negligible (`input_resolution=0.480s`, `input/schema=0.025s`, `write=0.001s`).
+- This implies further S4/S2 tuning is no longer the fastest route to candidate-lane acceleration; `S5` compute path is now the dominant blocker.
+
+Alternatives considered:
+1) Skip `POPT.3` and move directly to remediation `P0`.
+   - Rejected: violates performance-first runtime gate posture because the dominant hotspot is still above target/stretch.
+2) Apply one coarse `S5` optimization pass without lane/scorer contract.
+   - Rejected: weak auditability and high risk of silent validator-semantic drift.
+3) Expand `POPT.3` into bounded subphases with closure scorer + lane reconfirm + targeted compute optimization.
+   - Accepted: strongest fail-closed posture and best alignment with documented phase-closure law.
+
+Decisions pinned in plan:
+1) Baseline authority for POPT.3:
+   - run-id `7f20e9d97dad4ff5ac639bbc41749fb0`,
+   - baseline anchors:
+     - `status=PASS`,
+     - `error_code/error_class=null`,
+     - `counts: rows=16528, merchants=886, countries=53, tzids=268`.
+2) Closure runtime gate:
+   - `S5 <= 180.0s` OR `>=20%` reduction (`<=194.550s`).
+3) Structural veto rails:
+   - `S5 PASS` with clean error surface,
+   - S1-derived count anchors unchanged,
+   - required validation outputs present (`index`, `report`, `_passed.flag`).
+4) Execution breakdown:
+   - `POPT.3.1` scorer/equivalence contract,
+   - `POPT.3.2` lane instrumentation/hotspot reconfirm,
+   - `POPT.3.3` schema/introspection + projection narrowing,
+   - `POPT.3.4` recomposition/check-path compute optimization,
+   - `POPT.3.5` witness rerun + closure scoring,
+   - `POPT.3.6` closure decision + prune/handoff sync.
+5) Rerun/prune posture:
+   - S5-only code edits rerun `S5` only,
+   - prune superseded failed candidate run folders before expensive reruns.
+
+Reasoning trail:
+- Because `S5` is compute-dominant, optimization should target algorithmic/dataflow improvements first:
+  - reduce repeated schema introspection and redundant materialization,
+  - narrow column width before expensive recomposition checks,
+  - remove duplicate full-frame scans while preserving fail-closed semantics.
+- Policy/config/coeff movement remains explicitly out of scope in `POPT.3`.
+- The phase is structured to maintain deterministic validator behavior while compressing runtime to minute-scale budgets.
+
+Immediate next step:
+- execute `POPT.3.1` by locking the closure scorer contract and required artifacts before touching `S5` runtime code.
+
+---
+
+### Entry: 2026-02-21 02:47
+
+Execution start: Segment 5A `POPT.3` full implementation (`POPT.3.1 -> POPT.3.6`).
+Summary: Started full POPT.3 execution with documentation-first posture. Completed code reconnaissance on `S5` and pinned high-probability bottlenecks before mutation.
+
+Baseline authority at execution start:
+- run-id: `7f20e9d97dad4ff5ac639bbc41749fb0`.
+- `S5 wall=243.187s`.
+- lane signature from baseline artifact:
+  - `core_compute=242.681s` (`99.79%`),
+  - non-compute lanes negligible.
+
+Recon evidence from current `S5` implementation:
+- `S5` per-scenario checks contain multiple repeated `scan.columns` introspection calls (`S1`, `S2`, `S3`, `S4`, spec-compat branches).
+- recomposition check path currently:
+  1) samples scenario rows with `_minhash_sample` (Python heap + row dictionaries),
+  2) maps horizon->bucket in Python loop,
+  3) joins baseline lazy frame to sample keys then materializes,
+  4) computes tolerance failures in Python row loop.
+- this path is deterministic but mixes vectorized and row-wise computation; likely dominates `core_compute` under large scenario rowsets.
+
+Alternatives considered before coding:
+1) Optimize only instrumentation/scorer and defer runner changes.
+   - Rejected: baseline already proves compute-dominant drag; this would not move runtime gate.
+2) Aggressive redesign to fully vectorized recomposition checks (remove Python loops entirely).
+   - Deferred (not first move): high blast radius on validator semantics; better as a second pass if bounded changes fail.
+3) Bounded optimization lane:
+   - add explicit `S5` phase markers + lane scorer,
+   - hoist schema introspection and required-field anchors out of scenario loop,
+   - narrow recomposition-join payload and reduce repeated materialization,
+   - keep fail-closed semantics unchanged.
+   - Accepted as first execution lane.
+
+Execution order reaffirmed:
+1) `POPT.3.1`: scorer + closure contract tooling.
+2) `POPT.3.2`: `S5` phase markers.
+3) `POPT.3.3`: schema/introspection + projection narrowing.
+4) `POPT.3.4`: bounded recomposition/check compute optimization.
+5) `POPT.3.5`: witness rerun + closure scoring.
+6) `POPT.3.6`: close decision + prune sync + docs sync.
+
+Guardrails pinned:
+- no policy/config/coeff edits,
+- no validation-rule relaxation,
+- no idempotency weakening,
+- rerun only from earliest changed state (target: `S5` only).
+
+---
+
+### Entry: 2026-02-21 02:53
+
+Execution update: `POPT.3.1` + `POPT.3.2` + bounded `POPT.3.3/.4` code lane implemented.
+Summary: Implemented closure/lane tooling for `S5`, added deterministic S5 phase markers, and applied bounded compute-path optimizations focused on repeated scans/introspection and recomposition-path overhead.
+
+What was implemented:
+1) Tooling (`POPT.3.1` + `POPT.3.2`):
+   - Added `tools/score_segment5a_popt3_lane_timing.py`:
+     - parses S5 phase markers from run log,
+     - emits lane timing JSON/MD (`input_load_schema_validation`, `recomposition_checks`, `issue_table_assembly`, `bundle_index_report_write`, `output_write_idempotency`).
+   - Added `tools/score_segment5a_popt3_closure.py`:
+     - compares baseline-vs-candidate `S5` runtime,
+     - enforces closure gate (`<=180s` OR `>=20%` reduction),
+     - enforces structural rails (`status/errors/count anchors/required outputs`),
+     - emits explicit decision (`UNLOCK_POPT4` / `HOLD_POPT3_REOPEN`).
+
+2) `S5` instrumentation lane (`POPT.3.2`):
+   - file: `packages/engine/src/engine/layers/l2/seg_5A/s5_validation_bundle/runner.py`.
+   - extended `_StepTimer.info` to accept formatted payload args.
+   - added deterministic S5 markers:
+     - phase begin,
+     - input-load/schema-validation complete,
+     - recomposition-checks complete,
+     - issue-table assembly complete,
+     - bundle index/report write complete,
+     - existing bundle complete marker retained.
+
+3) bounded compute-path optimization (`POPT.3.3/.4`):
+   - replaced repeated `LazyFrame.columns` introspection with `_scan_columns()` (collect-schema first; fallback preserved).
+   - reduced per-scenario repeated scans in `S4`-sourced checks inside S5:
+     - merged scenario lambda invalid/nonfinite/max/sum into a single aggregate collect.
+     - merged overlay hard/warn violation counts into one overlay aggregate collect.
+   - removed redundant path resolution in recomposition sampling:
+     - reuses already-resolved `scenario_paths` instead of resolving parquet paths again.
+   - reduced Python overhead in `_minhash_sample`:
+     - avoids per-row dictionary construction for non-selected rows,
+     - stores compact tuple payload in heap and materializes dict only for final selected sample rows.
+   - replaced recomposition error loop/map with vectorized Polars evaluation:
+     - left-join sampled rows with baseline values,
+     - compute `abs_err`/`rel_err` and fail counts via expressions.
+   - added path-keyed cache for repeated spec-version reads (`s2`/`s3`) to avoid duplicate scans across scenarios.
+
+Alternatives considered during mutation:
+1) Full vectorized redesign of minhash sampling.
+   - Deferred: larger semantic blast radius against explicit hash-law behavior.
+2) Keep row-loop recomposition checks and optimize only marker/scorer layer.
+   - Rejected: insufficient movement potential for compute-dominant bottleneck.
+3) Bounded hybrid optimization (chosen):
+   - keep deterministic law intact,
+   - compress repeated scans and Python overhead first,
+   - preserve fail-closed validation semantics.
+
+Validation performed:
+- `python -m py_compile` passed for:
+  - `s5_validation_bundle/runner.py`,
+  - `tools/score_segment5a_popt3_lane_timing.py`,
+  - `tools/score_segment5a_popt3_closure.py`.
+
+Immediate next step:
+- stage a clean candidate run-id and execute witness rerun (`S5` only), then emit `POPT.3` lane + closure artifacts and decide `UNLOCK_POPT4` vs `HOLD_POPT3_REOPEN`.
+
+---
+
+### Entry: 2026-02-21 02:54
+
+Execution incident during first `POPT.3.5` witness rerun.
+Summary: First candidate rerun (`run_id=3e96a67813dc4357aca9872b176f6779`) showed large runtime drop but failed with `S5_VALIDATION_FAILED` due a code defect introduced in `_minhash_sample`.
+
+Observed evidence:
+- run completed in ~`19.0s` wall for `S5` (strong runtime movement) but status `FAIL`.
+- validation report shows `S4_PRESENT` failure payload:
+  - `"cannot access local variable 'heap' where it is not associated with a value"`.
+- root cause:
+  - `_minhash_sample` heap variable was type-annotated but not initialized to `[]` after refactor.
+
+Alternatives considered:
+1) Revert all bounded `_minhash_sample` optimization changes.
+   - Rejected initially: error is a single deterministic defect, not a semantic mismatch.
+2) Apply minimal corrective patch (`heap=[]`) and rerun.
+   - Accepted: smallest safe fix preserving intended optimization lane for measurement.
+
+Fix applied:
+- `runner.py`: initialize `heap` explicitly:
+  - from annotation-only declaration to assigned empty list.
+
+Validation:
+- compile sanity rerun passed (`py_compile` on `runner.py`).
+
+Next step:
+- rerun `S5` on same candidate run-id after fix, then score lane/closure artifacts.
+
+---
+
+### Entry: 2026-02-21 02:59
+
+Second execution incident in recomposition refactor path.
+Summary: Fresh witness run (`run_id=864e907d739842f28211a84b254b6358`) still failed despite the heap fix; failure traced to eager/lazy API misuse in vectorized recomposition stats.
+
+Observed evidence:
+- run advanced through full recomposition scan and then failed with:
+  - `S4_PRESENT detail="'DataFrame' object has no attribute 'collect'"`.
+- root cause:
+  - `sample_eval` was already an eager `DataFrame` (result of `.collect()`),
+  - recomposition stats line incorrectly called `.collect()` again on `DataFrame.select(...)`.
+
+Alternatives considered:
+1) Revert vectorized recomposition refactor and restore prior row-loop implementation.
+   - Rejected immediately: bug is localized API misuse; semantics are still valid.
+2) Apply narrow fix: remove extra `.collect()` call and keep vectorized lane.
+   - Accepted as minimal, deterministic correction.
+
+Fix applied:
+- `runner.py`: changed recomposition stats extraction to stay on eager frame:
+  - from `sample_eval.select(...).collect()`
+  - to `sample_eval.select(...)`.
+
+Validation:
+- compile sanity passed on `runner.py`.
+
+Next step:
+- run a new clean S5 witness candidate and proceed to POPT.3 lane/closure scoring.
+
+---
+
+### Entry: 2026-02-21 03:04
+
+POPT.3 reopen decision after first valid closure score.
+Summary: First valid candidate (`ec50f40c0bb14aaabd830307aeb9b2b9`) passed structural rails but missed runtime gate (`221.969s`, only `8.72%` improvement vs `243.187s`). Opened one bounded reopen pass focused on minhash hashing overhead.
+
+Evidence-driven diagnosis:
+- `segment5a_popt3_lane_timing_ec50...json` shows:
+  - `recomposition_checks=221.44s` (`99.76%` of S5 wall),
+  - other lanes near-zero.
+- run-log progress confirms hotspot is minhash sampling scan over `35,700,480` rows.
+
+Alternatives considered:
+1) Relax runtime gate and close POPT.3 as partial.
+   - Rejected: phase closure law requires target gate or explicit user waiver.
+2) High-blast redesign of sampling law (replace SHA256 top-n).
+   - Rejected in this lane: risks changing validator semantics.
+3) Bounded algorithmic optimization preserving hash law:
+   - cache merchant/zone/horizon byte encodings used in per-row SHA256 concatenation,
+   - remove repeated string formatting/encoding from hot loop.
+   - Accepted.
+
+Implementation applied:
+- `_hash64` now consumes cached bytes (`merchant_bytes`, `zone_bytes`, `horizon_bytes`) instead of rebuilding strings each row.
+- `_minhash_sample` now maintains:
+  - `merchant_key_cache`,
+  - `zone_key_cache`,
+  - `horizon_key_cache`,
+  and reuses cached byte payloads during row hashing.
+- PK tie-break semantics retained (`merchant_key`, `zone_key`, `horizon_key`).
+
+Validation:
+- compile sanity passed on `runner.py`.
+
+Next step:
+- run one new clean S5 witness candidate and rescore POPT.3 closure.
+
+---
+
+### Entry: 2026-02-21 03:10
+
+POPT.3 reopen extension (second bounded lane).
+Summary: After cache-based reopen, runtime improved to `217.641s` but still below gate. Added a second bounded optimization to reduce minhash scan width by decoupling sample-key selection from sample-value fetch.
+
+Evidence:
+- candidate `aa26...` closure remained `HOLD_POPT3_REOPEN`:
+  - improvement `10.50%` vs baseline (still below `20%` gate).
+- lane timing remained overwhelmingly recomposition-bound (`~217.11s` in recomposition checks).
+
+Alternatives considered:
+1) stop after first reopen and accept gate miss.
+   - Rejected for now; still room for bounded semantic-preserving optimization.
+2) change sample law/algorithm (non-SHA hashing).
+   - Rejected: higher risk to validator-law intent.
+3) preserve sample law but reduce hot-path data width:
+   - first pass: minhash over key columns only (`merchant_id`, country, tzid, horizon, optional channel),
+   - second pass: fetch `lambda_local_scenario`/`overlay_factor_total` only for sampled keys via lazy join.
+   - Accepted.
+
+Implementation applied:
+- `_minhash_sample` now reads/handles key columns only.
+- recomposition block now performs post-sampling fetch:
+  - `scenario_scan.select(sample_keys + lambda/overlay).join(sampled_keys).collect()`
+  - then continues bucket mapping + tolerance checks.
+- compile sanity passed on `runner.py`.
+
+Expected effect:
+- reduce Python-loop throughput burden in minhash pass by removing per-row lambda/overlay handling and payload width.
+
+Next step:
+- execute one fresh clean witness candidate and re-score POPT.3 closure.
+
+---
+
+### Entry: 2026-02-21 03:14
+
+Third execution incident after key-only minhash lane.
+Summary: Candidate `bd79...` achieved strong runtime movement (`~192.95s`) but failed validation due sample-key DataFrame type inference overflow on `merchant_id`.
+
+Observed evidence:
+- `S4_PRESENT` failure detail:
+  - DataFrame builder overflow / mixed schema append error with large integer values.
+- root cause:
+  - `pl.DataFrame(sample_rows)` inferred an incompatible integer dtype for large `merchant_id` values during sampled-key join preparation.
+
+Alternatives considered:
+1) Cast scenario side to string and join on text keys.
+   - Rejected: would force full-scan casts on large scenario frame and add avoidable compute cost.
+2) Define explicit sampled-key schema overrides and keep native numeric/string join types.
+   - Accepted.
+
+Fix applied:
+- in sampled-key join preparation:
+  - `merchant_id -> pl.UInt64`,
+  - `legal_country_iso -> pl.Utf8`,
+  - `tzid -> pl.Utf8`,
+  - `local_horizon_bucket_index -> pl.Int64`,
+  - optional `channel_group -> pl.Utf8`.
+- join now uses typed sampled-key lazy frame.
+
+Validation:
+- compile sanity passed.
+
+Next step:
+- rerun a fresh clean witness candidate to confirm both:
+  1) no validation regression,
+  2) runtime gate closure (candidate expected around prior ~193s envelope).

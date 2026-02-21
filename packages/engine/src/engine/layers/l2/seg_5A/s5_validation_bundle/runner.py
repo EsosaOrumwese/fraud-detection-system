@@ -131,11 +131,13 @@ class _StepTimer:
         self._start = time.monotonic()
         self._last = self._start
 
-    def info(self, message: str) -> None:
+    def info(self, message: str, *args: object) -> None:
         now = time.monotonic()
         elapsed = now - self._start
         delta = now - self._last
         self._last = now
+        if args:
+            message = message % args
         self._logger.info("%s (elapsed=%.2fs, delta=%.2fs)", message, elapsed, delta)
 
 
@@ -326,14 +328,14 @@ def _bundle_digest(bundle_root: Path, entries: list[dict]) -> str:
     return hasher.hexdigest()
 
 
-def _hash64(prefix: bytes, merchant_id: object, zone_key: str, horizon_key: object) -> int:
+def _hash64(prefix: bytes, merchant_bytes: bytes, zone_bytes: bytes, horizon_bytes: bytes) -> int:
     digest = hashlib.sha256(
         prefix
-        + str(merchant_id).encode("ascii")
+        + merchant_bytes
         + b"|"
-        + zone_key.encode("ascii")
+        + zone_bytes
         + b"|"
-        + str(horizon_key).encode("ascii")
+        + horizon_bytes
     ).digest()
     return int.from_bytes(digest[:8], "big", signed=False)
 
@@ -347,84 +349,118 @@ def _minhash_sample(
 ) -> list[dict]:
     if sample_n <= 0:
         return []
-    heap: list[tuple[int, tuple[str, str, int], dict]] = []
-    total_rows = None
-    if pq is not None:
-        total_rows = sum(int(pq.ParquetFile(path).metadata.num_rows) for path in paths)
-    tracker = _ProgressTracker(total_rows, logger, "S5: recomposition sample scan")
-    columns = [
+    heap: list[tuple[int, tuple[str, str, int], tuple[object, object, object, int, object]]] = []
+    base_columns = [
         "merchant_id",
         "legal_country_iso",
         "tzid",
         "local_horizon_bucket_index",
-        "lambda_local_scenario",
-        "overlay_factor_total",
     ]
+    columns = list(base_columns)
     if include_channel_group:
         columns.append("channel_group")
+
+    total_rows = None
+    if pq is not None:
+        total_rows = sum(int(pq.ParquetFile(path).metadata.num_rows) for path in paths)
+    tracker = _ProgressTracker(total_rows, logger, "S5: recomposition sample scan")
+    merchant_key_cache: dict[object, tuple[str, bytes]] = {}
+    zone_key_cache: dict[tuple[object, object, object], tuple[str, bytes]] = {}
+    horizon_key_cache: dict[int, bytes] = {}
+
+    def _merchant_key_bytes(merchant_id: object) -> tuple[str, bytes]:
+        cached = merchant_key_cache.get(merchant_id)
+        if cached is not None:
+            return cached
+        key = str(merchant_id)
+        value = (key, key.encode("ascii"))
+        merchant_key_cache[merchant_id] = value
+        return value
+
+    def _zone_key_bytes(country: object, tzid: object, channel_group: object) -> tuple[str, bytes]:
+        token = (country, tzid, channel_group if include_channel_group else None)
+        cached = zone_key_cache.get(token)
+        if cached is not None:
+            return cached
+        zone_key = f"{country}|{tzid}"
+        if include_channel_group:
+            zone_key = f"{zone_key}|{channel_group}"
+        value = (zone_key, zone_key.encode("ascii"))
+        zone_key_cache[token] = value
+        return value
+
+    def _horizon_bytes(horizon_key: int) -> bytes:
+        cached = horizon_key_cache.get(horizon_key)
+        if cached is not None:
+            return cached
+        value = str(horizon_key).encode("ascii")
+        horizon_key_cache[horizon_key] = value
+        return value
 
     for path in paths:
         if pq is None:
             df = pl.read_parquet(path, columns=columns)
-            rows = df.iter_rows(named=True)
-            for row in rows:
-                channel_group = row.get("channel_group") if include_channel_group else None
-                zone_key = f"{row['legal_country_iso']}|{row['tzid']}"
-                if include_channel_group:
-                    zone_key = f"{zone_key}|{channel_group}"
-                horizon_key = int(row["local_horizon_bucket_index"])
-                hash_val = _hash64(prefix, row["merchant_id"], zone_key, horizon_key)
-                pk = (str(row["merchant_id"]), zone_key, horizon_key)
+            for row in df.iter_rows(named=False):
+                merchant_id = row[0]
+                country = row[1]
+                tzid = row[2]
+                horizon_key = int(row[3])
+                channel_group = row[4] if include_channel_group else None
+                merchant_key, merchant_bytes = _merchant_key_bytes(merchant_id)
+                zone_key, zone_bytes = _zone_key_bytes(country, tzid, channel_group)
+                hash_val = _hash64(prefix, merchant_bytes, zone_bytes, _horizon_bytes(horizon_key))
+                pk = (merchant_key, zone_key, horizon_key)
+                payload = (merchant_id, country, tzid, horizon_key, channel_group)
                 if len(heap) < sample_n:
-                    heapq.heappush(heap, (-hash_val, pk, row))
+                    heapq.heappush(heap, (-hash_val, pk, payload))
                 else:
                     worst_hash = -heap[0][0]
                     worst_pk = heap[0][1]
                     if hash_val < worst_hash or (hash_val == worst_hash and pk < worst_pk):
-                        heapq.heapreplace(heap, (-hash_val, pk, row))
+                        heapq.heapreplace(heap, (-hash_val, pk, payload))
             tracker.update(df.height)
             continue
         parquet = pq.ParquetFile(path)
         for batch in parquet.iter_batches(batch_size=65536, columns=columns):
             data = batch.to_pydict()
             channel_groups = data.get("channel_group") if include_channel_group else None
-            for idx, (merchant_id, country, tzid, horizon_bucket, lambda_scenario, overlay_factor) in enumerate(
-                zip(
-                    data["merchant_id"],
-                    data["legal_country_iso"],
-                    data["tzid"],
-                    data["local_horizon_bucket_index"],
-                    data["lambda_local_scenario"],
-                    data["overlay_factor_total"],
-                )
-            ):
+            merchant_ids = data["merchant_id"]
+            countries = data["legal_country_iso"]
+            tzids = data["tzid"]
+            horizon_buckets = data["local_horizon_bucket_index"]
+            for idx in range(batch.num_rows):
+                merchant_id = merchant_ids[idx]
+                country = countries[idx]
+                tzid = tzids[idx]
+                horizon_key = int(horizon_buckets[idx])
                 channel_group = channel_groups[idx] if channel_groups is not None else None
-                zone_key = f"{country}|{tzid}"
-                if include_channel_group:
-                    zone_key = f"{zone_key}|{channel_group}"
-                horizon_key = int(horizon_bucket)
-                row = {
-                    "merchant_id": merchant_id,
-                    "legal_country_iso": country,
-                    "tzid": tzid,
-                    "local_horizon_bucket_index": horizon_key,
-                    "lambda_local_scenario": lambda_scenario,
-                    "overlay_factor_total": overlay_factor,
-                }
-                if include_channel_group:
-                    row["channel_group"] = channel_group
-                hash_val = _hash64(prefix, merchant_id, zone_key, horizon_key)
-                pk = (str(merchant_id), zone_key, horizon_key)
+                merchant_key, merchant_bytes = _merchant_key_bytes(merchant_id)
+                zone_key, zone_bytes = _zone_key_bytes(country, tzid, channel_group)
+                hash_val = _hash64(prefix, merchant_bytes, zone_bytes, _horizon_bytes(horizon_key))
+                pk = (merchant_key, zone_key, horizon_key)
+                payload = (merchant_id, country, tzid, horizon_key, channel_group)
                 if len(heap) < sample_n:
-                    heapq.heappush(heap, (-hash_val, pk, row))
+                    heapq.heappush(heap, (-hash_val, pk, payload))
                 else:
                     worst_hash = -heap[0][0]
                     worst_pk = heap[0][1]
                     if hash_val < worst_hash or (hash_val == worst_hash and pk < worst_pk):
-                        heapq.heapreplace(heap, (-hash_val, pk, row))
+                        heapq.heapreplace(heap, (-hash_val, pk, payload))
             tracker.update(batch.num_rows)
     selected = sorted([(-item[0], item[1], item[2]) for item in heap], key=lambda item: (item[0], item[1]))
-    return [item[2] for item in selected]
+    rows: list[dict] = []
+    for _, _, payload in selected:
+        merchant_id, country, tzid, horizon_key, channel_group = payload
+        row = {
+            "merchant_id": merchant_id,
+            "legal_country_iso": country,
+            "tzid": tzid,
+            "local_horizon_bucket_index": int(horizon_key),
+        }
+        if include_channel_group:
+            row["channel_group"] = channel_group
+        rows.append(row)
+    return rows
 
 
 def _scenario_horizon_map(policy: dict) -> dict[str, dict]:
@@ -493,6 +529,13 @@ def _ensure_required_columns(columns: list[str], required: list[str]) -> list[st
 def _count_invalid(scan: pl.LazyFrame, expr: pl.Expr) -> int:
     value = scan.select(expr.cast(pl.UInt64).sum()).collect().item()
     return int(value or 0)
+
+
+def _scan_columns(scan: pl.LazyFrame) -> list[str]:
+    try:
+        return list(scan.collect_schema().names())
+    except Exception:  # noqa: BLE001
+        return list(scan.columns)
 
 
 def _load_policy(
@@ -680,6 +723,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             "validation_issue_table_5A, validation_passed_flag_5A)",
             manifest_fingerprint,
         )
+        timer.info("S5: phase begin")
 
         current_phase = "s0_gate"
         s0_payload: Optional[dict] = None
@@ -1023,15 +1067,16 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         s1_domain_class: Optional[pl.LazyFrame] = None
         s1_domain_zone: Optional[pl.LazyFrame] = None
         s1_profile_scan: Optional[pl.LazyFrame] = None
+        s1_profile_columns: list[str] = []
         profile_path = _resolve_output_path(DATASET_MERCHANT_PROFILE, tokens)
         if profile_path:
             profile_paths = _resolve_parquet_files(profile_path)
             s1_profile_scan = pl.scan_parquet([str(path) for path in profile_paths])
-            columns = list(s1_profile_scan.columns)
+            s1_profile_columns = _scan_columns(s1_profile_scan)
             required_fields = _array_required_fields(
                 schema_5a, schema_layer1, schema_layer2, "model/merchant_zone_profile_5A"
             )
-            missing_cols = _ensure_required_columns(columns, required_fields)
+            missing_cols = _ensure_required_columns(s1_profile_columns, required_fields)
             row_summary = s1_profile_scan.select(
                 [
                     pl.count().alias("row_count"),
@@ -1157,10 +1202,28 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 segment="S1",
             )
 
+        s1_spec_version: Optional[str] = None
+        if s1_profile_scan is not None and "s1_spec_version" in s1_profile_columns:
+            versions = (
+                s1_profile_scan.select(pl.col("s1_spec_version").drop_nulls().unique())
+                .collect()
+                .get_column("s1_spec_version")
+            )
+            s1_spec_version = str(versions[0]) if len(versions) else None
+
+        timer.info(
+            "S5: phase input_load_schema_validation complete (scenarios=%s, s1_rows=%s)",
+            len(scenario_ids),
+            counts.get("s1_rows"),
+        )
+
         current_phase = "per_scenario_checks"
         tolerances = validation_policy.get("tolerances") or {}
         bounds = validation_policy.get("bounds") or {}
         sampling = validation_policy.get("sampling") or {}
+
+        s2_version_by_path: dict[str, Optional[str]] = {}
+        s3_version_by_path: dict[str, Optional[str]] = {}
 
         for scenario_id in scenario_ids:
             run_checks: dict[str, str] = {}
@@ -1218,7 +1281,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
                     shape_paths = _resolve_parquet_files(shape_path)
                     shape_scan = pl.scan_parquet([str(path) for path in shape_paths])
-                    shape_columns = list(shape_scan.columns)
+                    shape_columns = _scan_columns(shape_scan)
                     shape_required = _array_required_fields(
                         schema_5a, schema_layer1, schema_layer2, "model/class_zone_shape_5A"
                     )
@@ -1338,13 +1401,14 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 )
             current_phase = "s3_check"
             baseline_scan: Optional[pl.LazyFrame] = None
+            baseline_columns: list[str] = []
             baseline_keys: list[str] = ["merchant_id", "legal_country_iso", "tzid"]
             baseline_path = _resolve_output_path(DATASET_BASELINE_LOCAL, run_tokens)
             if baseline_path:
                 try:
                     baseline_paths = _resolve_parquet_files(baseline_path)
                     baseline_scan = pl.scan_parquet([str(path) for path in baseline_paths])
-                    baseline_columns = list(baseline_scan.columns)
+                    baseline_columns = _scan_columns(baseline_scan)
                     if "channel_group" in baseline_columns:
                         baseline_keys.append("channel_group")
                     baseline_required = _array_required_fields(
@@ -1515,6 +1579,8 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
             current_phase = "s4_check"
             scenario_scan: Optional[pl.LazyFrame] = None
+            scenario_paths: list[Path] = []
+            scenario_columns: list[str] = []
             scenario_keys: list[str] = ["merchant_id", "legal_country_iso", "tzid"]
             overlay_scan: Optional[pl.LazyFrame] = None
             include_channel_group = False
@@ -1526,7 +1592,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 try:
                     scenario_paths = _resolve_parquet_files(scenario_path)
                     scenario_scan = pl.scan_parquet([str(path) for path in scenario_paths])
-                    scenario_columns = list(scenario_scan.columns)
+                    scenario_columns = _scan_columns(scenario_scan)
                     if "channel_group" in scenario_columns:
                         scenario_keys.append("channel_group")
                         include_channel_group = True
@@ -1551,8 +1617,22 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                         record_check(CHECK_S4_PRESENT, "PASS", {"path": str(scenario_path)})
                         update_run_check(run_checks, CHECK_S4_PRESENT, "PASS")
 
-                        invalid_lambda = _count_invalid(scenario_scan, pl.col("lambda_local_scenario") < 0)
-                        invalid_lambda += _count_invalid(scenario_scan, ~pl.col("lambda_local_scenario").is_finite())
+                        scenario_stats = scenario_scan.select(
+                            [
+                                (pl.col("lambda_local_scenario") < 0).cast(pl.UInt64).sum().alias("lambda_negative"),
+                                (~pl.col("lambda_local_scenario").is_finite())
+                                .cast(pl.UInt64)
+                                .sum()
+                                .alias("lambda_nonfinite"),
+                                pl.col("lambda_local_scenario").max().alias("max_lambda"),
+                                pl.col("lambda_local_scenario").sum().alias("sum_local_lambda"),
+                            ]
+                        ).collect()
+                        lambda_negative = int(scenario_stats["lambda_negative"][0] or 0)
+                        lambda_nonfinite = int(scenario_stats["lambda_nonfinite"][0] or 0)
+                        max_lambda = float(scenario_stats["max_lambda"][0] or 0.0)
+                        total_local_scenario = float(scenario_stats["sum_local_lambda"][0] or 0.0)
+                        invalid_lambda = lambda_negative + lambda_nonfinite
                         lambda_status = "PASS" if invalid_lambda == 0 else "FAIL"
                         record_check(CHECK_S4_LAMBDA, lambda_status, {"invalid_lambda": invalid_lambda})
                         update_run_check(run_checks, CHECK_S4_LAMBDA, lambda_status)
@@ -1633,12 +1713,39 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                             else:
                                 overlay_scan = None
 
-                        if overlay_scan is not None and overlay_min is not None and overlay_max is not None:
-                            hard_violations = _count_invalid(
-                                overlay_scan,
+                        warn_min = bounds.get("overlay_factor_min_warn")
+                        warn_max = bounds.get("overlay_factor_max_warn")
+                        warn_min = float(warn_min) if warn_min is not None else None
+                        warn_max = float(warn_max) if warn_max is not None else None
+
+                        overlay_hard_violations: Optional[int] = None
+                        overlay_warn_violations: Optional[int] = None
+                        if overlay_scan is not None:
+                            hard_expr = (
                                 (pl.col("overlay_factor_total") < overlay_min)
-                                | (pl.col("overlay_factor_total") > overlay_max),
+                                | (pl.col("overlay_factor_total") > overlay_max)
+                            ) if (overlay_min is not None and overlay_max is not None) else None
+                            warn_expr = (
+                                (pl.col("overlay_factor_total") < (warn_min if warn_min is not None else -1.0))
+                                | (pl.col("overlay_factor_total") > (warn_max if warn_max is not None else 1.0e18))
                             )
+                            overlay_stats = overlay_scan.select(
+                                [
+                                    (
+                                        hard_expr.cast(pl.UInt64).sum().alias("hard_violations")
+                                        if hard_expr is not None
+                                        else pl.lit(None, dtype=pl.UInt64).alias("hard_violations")
+                                    ),
+                                    warn_expr.cast(pl.UInt64).sum().alias("warn_violations"),
+                                ]
+                            ).collect()
+                            hard_val = overlay_stats["hard_violations"][0]
+                            warn_val = overlay_stats["warn_violations"][0]
+                            overlay_hard_violations = int(hard_val) if hard_val is not None else None
+                            overlay_warn_violations = int(warn_val) if warn_val is not None else 0
+
+                        if overlay_scan is not None and overlay_min is not None and overlay_max is not None:
+                            hard_violations = int(overlay_hard_violations or 0)
                             hard_status = "PASS" if hard_violations == 0 else "FAIL"
                             record_check(
                                 CHECK_S4_OVERLAY_HARD,
@@ -1661,15 +1768,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                             update_run_check(run_checks, CHECK_S4_OVERLAY_HARD, "FAIL")
 
                         if overlay_scan is not None:
-                            warn_min = bounds.get("overlay_factor_min_warn")
-                            warn_max = bounds.get("overlay_factor_max_warn")
-                            warn_min = float(warn_min) if warn_min is not None else None
-                            warn_max = float(warn_max) if warn_max is not None else None
-                            warn_violations = _count_invalid(
-                                overlay_scan,
-                                (pl.col("overlay_factor_total") < (warn_min if warn_min is not None else -1.0))
-                                | (pl.col("overlay_factor_total") > (warn_max if warn_max is not None else 1.0e18)),
-                            )
+                            warn_violations = int(overlay_warn_violations or 0)
                             warn_status = "PASS" if warn_violations == 0 else "WARN"
                             record_check(
                                 CHECK_S4_OVERLAY_WARN,
@@ -1690,10 +1789,6 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
                         guardrail_warn = float(bounds.get("lambda_scenario_max_per_bucket_warn") or 0.0)
                         guardrail_fail = float(bounds.get("lambda_scenario_max_per_bucket_fail") or 0.0)
-                        guardrail_stats = scenario_scan.select(
-                            pl.col("lambda_local_scenario").max().alias("max_lambda")
-                        ).collect()
-                        max_lambda = float(guardrail_stats["max_lambda"][0] or 0.0)
                         if guardrail_fail and max_lambda > guardrail_fail:
                             guard_status = "FAIL"
                         elif guardrail_warn and max_lambda > guardrail_warn:
@@ -1746,12 +1841,42 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                                 )
                             )
                             sample_rows = _minhash_sample(
-                                _resolve_parquet_files(scenario_path),
+                                scenario_paths,
                                 sample_n,
                                 prefix,
                                 logger,
                                 include_channel_group=include_channel_group,
                             )
+                            sample_key_cols = [
+                                "merchant_id",
+                                "legal_country_iso",
+                                "tzid",
+                                "local_horizon_bucket_index",
+                            ]
+                            if include_channel_group:
+                                sample_key_cols.append("channel_group")
+                            if sample_rows:
+                                sample_schema_overrides: dict[str, pl.DataType] = {
+                                    "merchant_id": pl.UInt64,
+                                    "legal_country_iso": pl.Utf8,
+                                    "tzid": pl.Utf8,
+                                    "local_horizon_bucket_index": pl.Int64,
+                                }
+                                if include_channel_group:
+                                    sample_schema_overrides["channel_group"] = pl.Utf8
+                                sampled_keys = pl.DataFrame(
+                                    sample_rows,
+                                    schema_overrides=sample_schema_overrides,
+                                ).lazy()
+                                sampled_inputs = (
+                                    scenario_scan.select(
+                                        sample_key_cols + ["lambda_local_scenario", "overlay_factor_total"]
+                                    )
+                                    .join(sampled_keys, on=sample_key_cols, how="inner")
+                                    .collect()
+                                )
+                                sample_rows = sampled_inputs.iter_rows(named=True)
+
                             sample_with_bucket: list[dict] = []
                             missing_bucket = 0
                             for row in sample_rows:
@@ -1777,36 +1902,37 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                                 if include_channel_group:
                                     join_keys.append("channel_group")
                                 join_keys.append("bucket_index")
-                                baseline_sample = (
-                                    baseline_scan.select(join_keys + ["lambda_local_base"])
-                                    .join(sample_df.lazy(), on=join_keys, how="inner")
-                                    .collect()
-                                )
-                                baseline_map = {
-                                    tuple(row[key] for key in join_keys): float(row["lambda_local_base"])
-                                    for row in baseline_sample.iter_rows(named=True)
-                                }
                                 abs_fail = float(tolerances.get("s4_recompose_abs_fail") or 0.0)
                                 rel_fail = float(tolerances.get("s4_recompose_rel_fail") or 0.0)
                                 rel_floor = float(tolerances.get("s4_recompose_rel_denominator_floor") or 0.0)
-                                max_abs_err = 0.0
-                                max_rel_err = 0.0
-                                fail_count = 0
-                                missing_baseline = 0
-                                for row in sample_with_bucket:
-                                    key = tuple(row[key] for key in join_keys)
-                                    base_val = baseline_map.get(key)
-                                    if base_val is None:
-                                        missing_baseline += 1
-                                        continue
-                                    expected = base_val * float(row["overlay_factor_total"])
-                                    actual = float(row["lambda_local_scenario"])
-                                    abs_err = abs(actual - expected)
-                                    rel_err = abs_err / max(abs(actual), rel_floor) if rel_floor >= 0 else abs_err
-                                    max_abs_err = max(max_abs_err, abs_err)
-                                    max_rel_err = max(max_rel_err, rel_err)
-                                    if abs_err > abs_fail and rel_err > rel_fail:
-                                        fail_count += 1
+                                sample_eval = (
+                                    sample_df.lazy()
+                                    .join(
+                                        baseline_scan.select(join_keys + ["lambda_local_base"]),
+                                        on=join_keys,
+                                        how="left",
+                                    )
+                                    .with_columns(
+                                        [
+                                            (pl.col("lambda_local_base") * pl.col("overlay_factor_total"))
+                                            .alias("expected_lambda"),
+                                            (pl.col("lambda_local_scenario") - pl.col("lambda_local_base") * pl.col("overlay_factor_total"))
+                                            .abs()
+                                            .alias("abs_err"),
+                                        ]
+                                    )
+                                    .with_columns(
+                                        (
+                                            pl.col("abs_err")
+                                            / pl.max_horizontal(
+                                                pl.col("lambda_local_scenario").abs(),
+                                                pl.lit(rel_floor),
+                                            )
+                                        ).alias("rel_err")
+                                    )
+                                    .collect()
+                                )
+                                missing_baseline = int(sample_eval.filter(pl.col("lambda_local_base").is_null()).height)
                                 if missing_baseline:
                                     record_check(
                                         CHECK_S4_RECOMPOSE,
@@ -1815,6 +1941,19 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                                     )
                                     update_run_check(run_checks, CHECK_S4_RECOMPOSE, "FAIL")
                                 else:
+                                    recomposition_stats = sample_eval.select(
+                                        [
+                                            pl.col("abs_err").max().alias("max_abs_err"),
+                                            pl.col("rel_err").max().alias("max_rel_err"),
+                                            ((pl.col("abs_err") > abs_fail) & (pl.col("rel_err") > rel_fail))
+                                            .cast(pl.UInt64)
+                                            .sum()
+                                            .alias("fail_count"),
+                                        ]
+                                    )
+                                    max_abs_err = float(recomposition_stats["max_abs_err"][0] or 0.0)
+                                    max_rel_err = float(recomposition_stats["max_rel_err"][0] or 0.0)
+                                    fail_count = int(recomposition_stats["fail_count"][0] or 0)
                                     recomposition_status = "PASS" if fail_count == 0 else "FAIL"
                                     record_check(
                                         CHECK_S4_RECOMPOSE,
@@ -1832,13 +1971,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                         if utc_path:
                             utc_paths = _resolve_parquet_files(utc_path)
                             utc_scan = pl.scan_parquet([str(path) for path in utc_paths])
-                            total_local = scenario_scan.select(
-                                pl.col("lambda_local_scenario").sum().alias("total_local")
-                            ).collect()["total_local"][0]
                             total_utc = utc_scan.select(
                                 pl.col("lambda_utc_scenario").sum().alias("total_utc")
                             ).collect()["total_utc"][0]
-                            total_local = float(total_local or 0.0)
+                            total_local = total_local_scenario
                             total_utc = float(total_utc or 0.0)
                             abs_err = abs(total_local - total_utc)
                             rel_floor = float(tolerances.get("s4_local_vs_utc_total_rel_fail") or 0.0)
@@ -1887,17 +2023,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 check_id = str(
                     (spec_compat_config.get("enforcement") or {}).get("failure_check_id") or CHECK_SPEC_COMPAT
                 )
-                s1_version = None
-                if s1_profile_scan is not None and "s1_spec_version" in s1_profile_scan.columns:
-                    versions = (
-                        s1_profile_scan.select(pl.col("s1_spec_version").unique())
-                        .collect()
-                        .get_column("s1_spec_version")
-                    )
-                    s1_version = str(versions[0]) if len(versions) else None
-                if scenario_scan is not None and "s4_spec_version" in scenario_scan.columns:
+                s1_version = s1_spec_version
+                if scenario_scan is not None and "s4_spec_version" in scenario_columns:
                     s4_versions = (
-                        scenario_scan.select(pl.col("s4_spec_version").unique())
+                        scenario_scan.select(pl.col("s4_spec_version").drop_nulls().unique())
                         .collect()
                         .get_column("s4_spec_version")
                     )
@@ -1905,25 +2034,38 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 else:
                     s4_version = None
                 s2_version = None
-                s3_version = None
                 shape_path = _resolve_output_path(DATASET_CLASS_ZONE_SHAPE, run_tokens)
                 if shape_path:
-                    shape_paths = _resolve_parquet_files(shape_path)
-                    shape_scan = pl.scan_parquet([str(path) for path in shape_paths])
-                    if "s2_spec_version" in shape_scan.columns:
-                        values = (
-                            shape_scan.select(pl.col("s2_spec_version").unique())
-                            .collect()
-                            .get_column("s2_spec_version")
-                        )
-                        s2_version = str(values[0]) if len(values) else None
-                if baseline_scan is not None and "s3_spec_version" in baseline_scan.columns:
-                    values = (
-                        baseline_scan.select(pl.col("s3_spec_version").unique())
-                        .collect()
-                        .get_column("s3_spec_version")
-                    )
-                    s3_version = str(values[0]) if len(values) else None
+                    shape_key = str(shape_path)
+                    if shape_key not in s2_version_by_path:
+                        shape_paths = _resolve_parquet_files(shape_path)
+                        shape_scan_for_spec = pl.scan_parquet([str(path) for path in shape_paths])
+                        shape_cols = _scan_columns(shape_scan_for_spec)
+                        if "s2_spec_version" in shape_cols:
+                            values = (
+                                shape_scan_for_spec.select(pl.col("s2_spec_version").drop_nulls().unique())
+                                .collect()
+                                .get_column("s2_spec_version")
+                            )
+                            s2_version_by_path[shape_key] = str(values[0]) if len(values) else None
+                        else:
+                            s2_version_by_path[shape_key] = None
+                    s2_version = s2_version_by_path[shape_key]
+
+                s3_version = None
+                if baseline_scan is not None and baseline_path is not None:
+                    baseline_key = str(baseline_path)
+                    if baseline_key not in s3_version_by_path:
+                        if "s3_spec_version" in baseline_columns:
+                            values = (
+                                baseline_scan.select(pl.col("s3_spec_version").drop_nulls().unique())
+                                .collect()
+                                .get_column("s3_spec_version")
+                            )
+                            s3_version_by_path[baseline_key] = str(values[0]) if len(values) else None
+                        else:
+                            s3_version_by_path[baseline_key] = None
+                    s3_version = s3_version_by_path[baseline_key]
                 versions = {"s1": s1_version, "s2": s2_version, "s3": s3_version, "s4": s4_version}
                 enforcement = spec_compat_config.get("enforcement") or {}
                 missing_fields = [key for key, value in versions.items() if not value]
@@ -2002,6 +2144,13 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 }
             )
 
+        timer.info(
+            "S5: phase recomposition_checks complete (scenarios=%s, checks=%s, issues=%s)",
+            len(scenario_results),
+            len(checks),
+            len(issues),
+        )
+
         overall_status = "PASS"
         has_warn = False
         for check_id, check_payload in checks.items():
@@ -2078,6 +2227,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         issues_df_path = tmp_root / issues_rel
         issues_df_path.parent.mkdir(parents=True, exist_ok=True)
         issues_df.write_parquet(issues_df_path)
+        timer.info("S5: phase issue_table_assembly complete (issue_rows=%s)", len(issue_rows))
 
         report_digest = sha256_file(tmp_root / report_rel)
         issues_digest = sha256_file(tmp_root / issues_rel)
@@ -2110,6 +2260,12 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             }
             _validate_payload(schema_layer2, schema_layer1, schema_layer2, "validation/passed_flag_5A", flag_payload)
             _write_json(tmp_root / flag_rel, flag_payload)
+
+        timer.info(
+            "S5: phase bundle_index_report_write complete (overall_status=%s, entries=%s)",
+            overall_status,
+            len(entries),
+        )
 
         current_phase = "publish"
         if bundle_root.exists():
