@@ -18033,3 +18033,47 @@ Risk handling:
 1. `M10F-B1` is cleared.
 2. Blocker union for `M10.F` is empty.
 3. Phase progression can move to `M10.G` (soak run), with `M10.F` now formally closure-pass.
+
+## Entry: 2026-02-21 16:55:50 +00:00 - M10.G planning expanded to execution-grade (soak lane)
+### Why expansion was required
+1. `M10.G` existed as a minimal stub and was not sufficient for fail-closed execution under the anti-cram and decision-completeness laws.
+2. Soak validation is a long-running lane; without explicit dependency, evidence, and stability rules, closure could drift into hand-wavy assertions.
+
+### Alternatives considered
+1. Keep the current short `M10.G` section and decide details during execution.
+2. Expand now to execution-grade with fixed entry gates, algorithm, blocker taxonomy, and snapshot schema before runtime.
+
+### Decision chosen
+1. Chose option 2.
+2. Rationale:
+   - preserves fail-closed posture before any expensive long-run execution,
+   - prevents execution-time improvisation and missing-lane surprises,
+   - aligns M10.G planning quality with M10.E/M10.F closure standards.
+
+### Decisions pinned for M10.G plan
+1. Dependency gates:
+   - `M10.F` pass snapshot is mandatory entry input,
+   - `M10.A` soak thresholds remain authoritative (`90m`, lag bound `10`, stability window `30m`),
+   - latest M9 guardrail posture must be non-critical before soak start.
+2. Run-scope posture:
+   - soak run must use fresh `platform_run_id` (no reuse of burst scope).
+3. Deterministic measurement posture:
+   - fixed `5m` sample cadence,
+   - explicit t0/periodic/final observation series,
+   - lag/checkpoint closure computed over final `30m` stability window.
+4. Semantic safety posture:
+   - `PUBLISH_AMBIGUOUS=0`,
+   - no fail-open,
+   - no side-effect drift.
+5. Fail-closed blocker taxonomy expanded to `M10G-B1..B8`.
+6. Snapshot schema for `m10_g_soak_snapshot.json` pinned with dependency refs, target object, observation refs, lag/checkpoint checks, semantic checks, runtime budget, and blocker rollup.
+
+### Files updated for planning sync
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`:
+   - replaced minimal `M10.G` stub with execution-grade lane contract.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - synced high-level M10 expansion summary to include M10.G execution-grade status and blocker taxonomy.
+
+### Consequence
+1. M10.G is now planning-complete and execution-ready by documentation quality.
+2. Next action can proceed to managed runtime execution of M10.G without unresolved planning holes.

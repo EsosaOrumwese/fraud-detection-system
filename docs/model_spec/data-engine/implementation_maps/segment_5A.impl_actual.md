@@ -5302,3 +5302,71 @@ Retained:
 - `b4d6809bf10d4ac590159dda3ed7a310`
 - `ce57da0ead0d4404a5725ca3f4b6e3be`
 - `d9caca5f1552456eaf73780932768845` (current P1 authority).
+
+---
+
+### Entry: 2026-02-21 16:54
+
+P2 planning design lock (concentration closure lane).
+Summary: Locked execution approach for `P2` before any tuning edits; objective is concentration de-skew in `S1` while preserving P1 channel realism closure.
+
+Problem posture inherited from P1 closure:
+- `channel` caveat is cleared after P1 (`cp/cnp` realized and night-gap strong).
+- remaining material axes include `concentration`, `tail`, `dst`; `overlay` remains watch.
+- P2 scope is concentration only; P3/P4 own tail and dst/overlay.
+
+Knob inventory confirmed (S1-owned):
+- `config/layer2/5A/policy/demand_scale_policy_5A.v1.yaml`:
+  - `class_params.*` (`median_per_site_weekly`, `pareto_alpha`, `clip_max_per_site_weekly`, `ref_per_site_weekly`),
+  - `channel_group_multipliers`,
+  - `virtual_mode_multipliers`,
+  - `brand_size_exponent`,
+  - soft-cap controls (`soft_cap_ratio`, `soft_cap_multiplier`, `max_weekly_volume_expected`).
+- `config/layer2/5A/policy/merchant_class_policy_5A.v1.yaml`:
+  - `decision_tree_v1.by_channel_group` class assignment mapping (high-blast lane; not first move).
+
+Alternatives considered:
+1) Direct decision-tree remap first.
+   - Rejected for initial lane: high blast radius and risks breaking P1 channel/archetype realism.
+2) Uniform country-level downscaling.
+   - Rejected: would forge distribution and violate realism intent.
+3) Two-stage scale-first concentration closure with assignment remap as bounded fallback.
+   - Accepted: lower blast, auditable causality, preserves channel lock while moving concentration metrics.
+
+P2 planning decisions:
+1) P2 will be expanded into explicit subphases (`P2.1..P2.6`) with DoDs.
+2) Freeze guardrails from P1 are veto rails in every P2 iteration:
+   - channel realization remains at least two groups with non-trivial mass,
+   - `night_share(CNP)-night_share(CP) >= 0.08`,
+   - mass/shape invariants remain exact.
+3) Execution seed posture remains temporary waiver `{42}` for iterative P2 lanes until upstream `seed=101` is available under S0 sealing law.
+4) First tuning lanes are scale-path knobs; assignment remap is explicitly a fallback lane only if scale-path saturates.
+
+Next step:
+- sync the build plan with detailed `P2` subphases and DoDs, then begin `P2.1` contract lock.
+
+---
+
+### Entry: 2026-02-21 16:56
+
+P2 plan expansion published (`P2.1..P2.6`).
+Summary: Expanded `segment_5A.build_plan.md` P2 from placeholder into execution-grade subphases with explicit DoDs, veto rails, and closure decision semantics.
+
+What was added to plan:
+1) `P2.1` contract lock (targets + protected rails).
+2) `P2.2` attribution/hotspot decomposition (no tuning).
+3) `P2.3` class-share closure lane (S1 scale controls first).
+4) `P2.4` within-class country de-skew lane.
+5) `P2.5` integrated closure loop with bounded high-blast fallback.
+6) `P2.6` scoring + closure handoff (`UNLOCK_P3`/`HOLD_P2_REOPEN`).
+
+Execution governance pinned:
+- temporary execution seed waiver remains `{42}` for P2 iteration lanes.
+- certification seed law unchanged at P5.
+- P1 channel closure metrics are now explicit veto rails for every P2 iteration.
+
+Status sync:
+- phase status updated to reflect `P1 closed` and `P2 in planning (expanded)`.
+
+Next step:
+- execute `P2.1` by emitting concentration contract artifact and baseline-protection snapshot.

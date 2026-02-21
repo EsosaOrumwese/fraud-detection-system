@@ -982,6 +982,124 @@ Definition of done:
 - [ ] `max_single_country_share_within_class <= 0.40` on witness seeds.
 - [ ] heavy-tail and archetype invariants remain non-regressed.
 
+P2 execution posture (temporary waiver for execution lanes):
+- execution-lane seed policy for `P2` only: `{42}`.
+- certification seed law remains unchanged for freeze (`P5` still requires `{42,7,101,202}`).
+- P1 lock rails are veto constraints in all P2 iterations:
+  - at least 2 realized channel groups with non-trivial support,
+  - `night_share(CNP)-night_share(CP) >= 0.08`,
+  - no mixed-collapse reintroduction.
+
+#### P2.1 - Concentration contract lock and protected-rail baseline
+Goal:
+- pin concentration closure targets, protected non-regression rails, and authority datasets before tuning.
+
+Scope:
+- lock primary P2 target metrics:
+  - `max_class_share <= 0.55` (`B`), `<= 0.50` (`B+` stretch),
+  - `max_single_country_share_within_class <= 0.40` (`B`), `<= 0.35` (`B+` stretch).
+- lock P1 protection rails:
+  - channel realization and channel night-gap stay above P1 closure thresholds.
+- lock authority surfaces:
+  - `merchant_class_profile_5A`,
+  - `merchant_zone_profile_5A`,
+  - `class_zone_baseline_local_5A` (for channel/non-regression checks).
+
+Definition of done:
+- [ ] P2 contract artifact emitted with explicit concentration + protection thresholds.
+- [ ] acceptance thresholds are machine-checkable and version-pinned.
+- [ ] veto rails are explicitly recorded for every P2 lane.
+
+#### P2.2 - Concentration attribution and hotspot map (no tuning yet)
+Goal:
+- identify exactly which classes, channels, virtual modes, and country clusters drive concentration.
+
+Scope:
+- decompose `max_class_share` contribution by:
+  - `demand_class`,
+  - `channel_group`,
+  - `virtual_mode`,
+  - top merchants by weekly volume.
+- decompose `max_single_country_share_within_class` by:
+  - class-country pair,
+  - top merchants within dominant class-country cells.
+- publish ranked hotspot map and choose first bounded knob lane.
+
+Definition of done:
+- [ ] hotspot artifact emitted with ranked contributors and contribution percentages.
+- [ ] first knob lane is chosen with explicit rationale.
+- [ ] no policy/value changes applied in this subphase.
+
+#### P2.3 - Lane A: class-share closure via S1 scale controls
+Goal:
+- reduce `max_class_share` to B target using low-blast S1 scale-path controls.
+
+Scope:
+- tune S1 scale controls first (no class-assignment remap yet):
+  - `class_params` (`median_per_site_weekly`, `ref_per_site_weekly`, `clip_max_per_site_weekly`),
+  - `channel_group_multipliers`,
+  - `virtual_mode_multipliers`.
+- rerun sequential lane `S1 -> S2 -> S3 -> S4 -> S5` on each candidate.
+- reject any candidate that regresses P1 channel rails.
+
+Definition of done:
+- [ ] `max_class_share` shows monotonic improvement and reaches B target or saturation evidence is recorded.
+- [ ] P1 channel rails remain green on each accepted candidate.
+- [ ] no mass/shape invariant regressions are introduced.
+
+#### P2.4 - Lane B: within-class country de-skew closure
+Goal:
+- reduce `max_single_country_share_within_class` without artificial country flattening.
+
+Scope:
+- tune de-skew controls:
+  - `brand_size_exponent`,
+  - soft-cap controls (`soft_cap_ratio`, `soft_cap_multiplier`, `max_weekly_volume_expected`),
+  - class-specific clip limits where justified by attribution evidence.
+- keep heavy-tail realism by preserving plausible top-country dominance ordering.
+- rerun `S1 -> S5` on each accepted candidate.
+
+Definition of done:
+- [ ] `max_single_country_share_within_class <= 0.40` or saturation evidence is documented.
+- [ ] heavy-tail structure remains plausible (no synthetic flattening).
+- [ ] P1 channel rails and core invariants remain non-regressed.
+
+#### P2.5 - Integrated concentration closure loop
+Goal:
+- jointly satisfy both concentration hard gates with minimal stable knob set.
+
+Scope:
+- integrate best candidates from P2.3/P2.4 and run bounded iterative calibration.
+- if scale-path saturates, open bounded fallback lane:
+  - limited `merchant_class_policy_5A` decision-tree remap with explicit veto gates.
+- enforce strict veto after each attempt:
+  - channel rails, mass conservation, shape normalization, deterministic replay/idempotency.
+
+Definition of done:
+- [ ] both P2 hard concentration gates are green on execution seed.
+- [ ] final knob set is minimal and rationale for rejected alternatives is recorded.
+- [ ] fallback remap lane is either closed or explicitly rejected with evidence.
+
+#### P2.6 - P2 scoring, movement quantification, and closure handoff
+Goal:
+- publish P2 closure evidence and decide phase handoff unambiguously.
+
+Scope:
+- emit P2 gateboard and movement vs P1 authority:
+  - concentration metrics,
+  - protected channel rails,
+  - caveat axis refresh.
+- emit explicit decision:
+  - `UNLOCK_P3`,
+  - or `HOLD_P2_REOPEN`.
+- sync keep-set/prune and update implementation/logbook trails.
+
+Definition of done:
+- [ ] P2 score artifacts are emitted in `runs/fix-data-engine/segment_5A/reports`.
+- [ ] movement vs P1 baseline is explicit and numeric.
+- [ ] explicit closure decision and P3 handoff posture are recorded.
+- [ ] superseded run-id folders are pruned under keep-set policy.
+
 ### P3 - Tail-zone activation rescue (S3)
 Goal:
 - reduce tail-zone dormancy with bounded lower-tail lift and no synthetic inflation.
@@ -1031,8 +1149,8 @@ Definition of done:
 ## 8) Current phase status
 - `POPT`: closed (`POPT.0` + `POPT.1` + `POPT.2` + `POPT.3` + `POPT.4` + `POPT.5` complete; `UNLOCK_P0`).
 - `P0`: in progress (`gateboard + caveat map tooling/artifacts emitted`; hold on required witness seed `101` input gap).
-- `P1`: planned.
-- `P2`: planned.
+- `P1`: closed (`UNLOCK_P2`; authority run `d9caca5f1552456eaf73780932768845`).
+- `P2`: in planning (expanded to `P2.1..P2.6`).
 - `P3`: planned.
 - `P4`: planned.
 - `P5`: planned.

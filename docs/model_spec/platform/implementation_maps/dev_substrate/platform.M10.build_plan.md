@@ -1,7 +1,7 @@
 # Dev Substrate Deep Plan - M10 (Certification: Semantic + Scale)
 _Status source of truth: `platform.build_plan.md`_
 _This document provides deep planning detail for M10._
-_Last updated: 2026-02-19_
+_Last updated: 2026-02-21_
 
 ## 0) Purpose
 M10 certifies that dev-substrate Spine Green v0 is:
@@ -869,22 +869,114 @@ Fresh-scope closure status (2026-02-21):
 
 ### M10.G Soak run
 Goal:
-1. Validate sustained operation and stable checkpoint/lag behavior.
+1. Validate sustained operation under managed runtime load with stable lag/checkpoint behavior and no semantic drift.
+
+Entry conditions:
+1. `M10.F` is closed pass:
+   - local: `runs/dev_substrate/m10/m10_20260221T060601Z/m10_f_burst_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260221T060601Z/m10_f_burst_snapshot.json`.
+2. `M10.A` scale matrix remains authoritative for soak thresholds:
+   - `duration_minutes=90`,
+   - `lag_stability_bound.max_lag_messages=10`,
+   - `lag_stability_bound.window_minutes=30`.
+3. `M10.F` blocker union is empty and checkpoint durability posture remains pinned (`WSP_CHECKPOINT_DSN` path active).
+4. Latest M9 cost-guardrail posture is non-critical (no alert-3 hard-stop) before starting a long-run lane.
+
+Required inputs:
+1. `M10.A` threshold snapshot and `M10.F` closure snapshot (local preferred, durable fallback).
+2. Managed run lane for sharded WSP execution across all four stream-view outputs.
+3. Required run-scoped evidence surfaces:
+   - `RECEIPT_SUMMARY_PATH_PATTERN`,
+   - `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`,
+   - `RTDL_CORE_EVIDENCE_PATH_PATTERN`,
+   - `RUN_REPORT_PATH_PATTERN`,
+   - `REPLAY_ANCHORS_PATH_PATTERN`,
+   - `ENV_CONFORMANCE_PATH_PATTERN`.
+4. Runtime handles for stability checks:
+   - `RTDL_CAUGHT_UP_LAG_MAX`,
+   - `RTDL_CORE_CONSUMER_GROUP_ID`,
+   - `WSP_CHECKPOINT_DSN`.
+
+Preparation checks (fail-closed):
+1. Parse `M10.A` + `M10.F` snapshots; any unreadable/non-pass dependency -> `M10G-B4`.
+2. Validate soak threshold concreteness:
+   - duration, lag bound, stability window are non-placeholder numeric values.
+3. Validate run-scope isolation:
+   - generate a fresh `platform_run_id` for soak execution (no reuse of `M10.F` run scope).
+4. Validate required handles resolve from registry/SSM before launch:
+   - lag bound handle, consumer-group handle, checkpoint DSN.
+5. Validate cost-guardrail precheck is non-critical; critical posture -> `M10G-B8`.
+
+Deterministic verification algorithm (M10.G):
+1. Load `M10.A` and `M10.F` snapshots and assert pass dependencies.
+2. Derive soak target object in fixed order:
+   - `duration_minutes=90`,
+   - `stability_window_minutes=30`,
+   - `max_lag_messages=10`,
+   - `sample_interval_minutes=5`.
+3. Start managed soak run on fresh scope with four-output sharded WSP launch at representative (non-burst) ingest posture.
+4. Capture t0 baseline:
+   - receipt counters,
+   - lag snapshot by topic/partition,
+   - checkpoint cursor state.
+5. Capture periodic observation samples every `5` minutes through the soak window:
+   - admitted/duplicate counts delta,
+   - lag maxima and distribution,
+   - checkpoint movement deltas.
+6. Evaluate lag/checkpoint stability on the final `30`-minute window:
+   - `max_partition_lag <= 10`,
+   - checkpoint movement monotonic,
+   - no sustained checkpoint stall window greater than `10` minutes.
+7. Evaluate semantic drift posture over soak window:
+   - `PUBLISH_AMBIGUOUS=0`,
+   - fail-open absent,
+   - side-effect drift absent.
+8. Enforce runtime budget gate (`M10.G <= 180 minutes`) and emit fail-closed blocker on breach.
+9. Emit `m10_g_soak_snapshot.json` locally and publish durably.
 
 Tasks:
-1. Execute soak run for pinned duration.
-2. Validate lag and checkpoint monotonic progress.
-3. Emit `m10_g_soak_snapshot.json` local + durable.
+1. Validate dependencies (`M10.A`, `M10.F`, latest M9 guardrail posture).
+2. Pin soak execution target object + sampling cadence.
+3. Execute fresh-scope managed soak run.
+4. Collect t0 + periodic + final observation evidence.
+5. Compute lag/checkpoint stability verdict over pinned stability window.
+6. Compute semantic-drift verdict over full soak window.
+7. Emit/publish `m10_g_soak_snapshot.json` with blocker rollup.
 
 DoD:
-- [ ] Soak duration meets threshold.
-- [ ] Lag/checkpoint posture stable within pinned bounds.
-- [ ] Snapshot exists locally and durably.
+- [ ] Entry dependency checks pass (`M10.A`, `M10.F`, M9 guardrail precheck).
+- [ ] Soak duration meets threshold (`>=90` minutes).
+- [ ] Lag bound passes over stability window (`max lag <=10`).
+- [ ] Checkpoint progression is monotonic with no sustained stall (`<=10` minutes).
+- [ ] Semantic drift checks pass (`PUBLISH_AMBIGUOUS=0`, no fail-open, no side-effect drift).
+- [ ] Runtime budget passes (`elapsed_seconds <=10800`).
+- [ ] Snapshot exists locally and durably with blocker union empty.
 
 Blockers:
 1. `M10G-B1`: soak duration not achieved.
-2. `M10G-B2`: lag instability or checkpoint stall.
-3. `M10G-B3`: evidence publication failure.
+2. `M10G-B2`: lag bound breach in stability window.
+3. `M10G-B3`: checkpoint stall or non-monotonic progression.
+4. `M10G-B4`: dependency snapshot invalid/unreadable (`M10.A` or `M10.F`).
+5. `M10G-B5`: semantic drift detected during soak.
+6. `M10G-B6`: required evidence surfaces missing/unreadable.
+7. `M10G-B7`: snapshot publication failure.
+8. `M10G-B8`: budget/cost guardrail hard-stop or runtime budget breach.
+
+Required snapshot fields (`m10_g_soak_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m10_execution_id`.
+2. `dependency_refs` (`M10.A`, `M10.F`, guardrail precheck refs).
+3. `soak_target` (`duration_minutes`, `stability_window_minutes`, `max_lag_messages`, `sample_interval_minutes`).
+4. `soak_execution_window` (start/end timestamps, sharded task refs, stop reason).
+5. `observation_series_ref` (periodic sample artifact path).
+6. `lag_checkpoint_checks` (max lag, monotonic movement, stall analysis).
+7. `semantic_drift_checks`.
+8. `runtime_budget` (`budget_seconds`, `elapsed_seconds`, `budget_pass`).
+9. `evidence_refs` (resolved run-scoped evidence paths).
+10. `blockers`, `overall_pass`.
+
+Planning status (2026-02-21):
+1. `M10.G` planning is now execution-grade and dependency-complete.
+2. Execution is not yet started.
 
 ### M10.H Recovery-under-load run
 Goal:

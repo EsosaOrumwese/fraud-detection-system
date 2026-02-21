@@ -1,6 +1,6 @@
 # Dev Substrate Migration Build Plan (Fresh Start)
 _Track: local_parity -> dev_min managed substrate (Spine Green v0)_
-_Last updated: 2026-02-19_
+_Last updated: 2026-02-21_
 
 ## 0) Purpose
 This is the active execution plan for migrating the already-canonical local-parity Spine Green v0 flow into `dev_min` with:
@@ -1573,6 +1573,11 @@ Phase closure posture:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260221T060601Z/m10_f_burst_snapshot.json`,
     - verdict: `overall_pass=true`, blockers empty,
     - closure metrics: `ADMIT=22606`, `achieved_multiplier=3.1277`, `admit_ratio=1.0`, `elapsed_seconds=1035.812`.
+  - `M10.G` is now expanded to execution-grade with:
+    - strict dependency on `M10.F` pass + `M10.A` soak thresholds,
+    - deterministic soak contract (`90m` duration, `max_lag_messages=10`, `30m` stability window, `5m` sampling cadence),
+    - explicit lag/checkpoint stability and semantic-drift gates for sustained load,
+    - fail-closed blocker taxonomy (`M10G-B1..B8`) and required snapshot schema for `m10_g_soak_snapshot.json`.
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
