@@ -944,12 +944,12 @@ Tasks:
 7. Emit/publish `m10_g_soak_snapshot.json` with blocker rollup.
 
 DoD:
-- [ ] Entry dependency checks pass (`M10.A`, `M10.F`, M9 guardrail precheck).
-- [ ] Soak duration meets threshold (`>=90` minutes).
+- [x] Entry dependency checks pass (`M10.A`, `M10.F`, M9 guardrail precheck).
+- [x] Soak duration meets threshold (`>=90` minutes).
 - [ ] Lag bound passes over stability window (`max lag <=10`).
-- [ ] Checkpoint progression is monotonic with no sustained stall (`<=10` minutes).
-- [ ] Semantic drift checks pass (`PUBLISH_AMBIGUOUS=0`, no fail-open, no side-effect drift).
-- [ ] Runtime budget passes (`elapsed_seconds <=10800`).
+- [x] Checkpoint progression is monotonic with no sustained stall (`<=10` minutes).
+- [x] Semantic drift checks pass (`PUBLISH_AMBIGUOUS=0`, no fail-open, no side-effect drift).
+- [x] Runtime budget passes (`elapsed_seconds <=10800`).
 - [ ] Snapshot exists locally and durably with blocker union empty.
 
 Blockers:
@@ -974,9 +974,22 @@ Required snapshot fields (`m10_g_soak_snapshot.json`):
 9. `evidence_refs` (resolved run-scoped evidence paths).
 10. `blockers`, `overall_pass`.
 
-Planning status (2026-02-21):
-1. `M10.G` planning is now execution-grade and dependency-complete.
-2. Execution is not yet started.
+Execution status (2026-02-21):
+1. Execution id: `m10_20260221T212100Z`.
+2. Fresh run scope: `platform_20260221T212100Z`.
+3. Local artifacts:
+   - `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_observation_series.json`
+   - `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_soak_snapshot.json`
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260221T212100Z/m10_g_soak_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260221T212100Z/m10/m10_g_soak_snapshot.json`
+5. Verdict: `overall_pass=false`; blocker union = `["M10G-B2"]`.
+6. Gate outcomes:
+   - duration/runtime budget: pass,
+   - checkpoint monotonic/stall: pass,
+   - semantic drift: pass,
+   - lag stability window: fail (`max_lag_window=310`, threshold `<=10`).
+7. Lane remains blocked and cannot advance to `M10.H` until `M10G-B2` is remediated and rerun passes.
 
 ### M10.H Recovery-under-load run
 Goal:
@@ -1073,4 +1086,5 @@ M10 can be marked `DONE` only when all are true:
 5. `M10.D` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T054251Z`).
 6. `M10.E` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T063037Z`).
 7. `M10.F` is closed pass on fresh scope `platform_20260221T060431Z` (`m10_execution_id=m10_20260221T060601Z`, blockers empty).
-8. Next lane is `M10.G` soak run planning/execution.
+8. `M10.G` executed on fresh scope `platform_20260221T212100Z` and is blocked on `M10G-B2` (`max_lag_window=310`).
+9. Next lane is bounded `M10.G` lag-remediation rerun; `M10.H` remains blocked.

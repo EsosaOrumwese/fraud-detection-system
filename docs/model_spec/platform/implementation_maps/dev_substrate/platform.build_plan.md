@@ -1578,6 +1578,13 @@ Phase closure posture:
     - deterministic soak contract (`90m` duration, `max_lag_messages=10`, `30m` stability window, `5m` sampling cadence),
     - explicit lag/checkpoint stability and semantic-drift gates for sustained load,
     - fail-closed blocker taxonomy (`M10G-B1..B8`) and required snapshot schema for `m10_g_soak_snapshot.json`.
+  - `M10.G` fresh-scope execution was completed and adjudicated:
+    - execution id: `m10_20260221T212100Z`,
+    - platform run scope: `platform_20260221T212100Z`,
+    - local snapshot: `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_soak_snapshot.json`,
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260221T212100Z/m10_g_soak_snapshot.json`,
+    - verdict: `overall_pass=false`, blockers `["M10G-B2"]`,
+    - observed lag window max: `310` (threshold `<=10`).
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
@@ -1586,7 +1593,7 @@ Sub-phase progress:
   - [x] `M10.D` incident drill execution.
   - [x] `M10.E` representative-window run.
   - [x] `M10.F` burst run (fresh-scope pass; blocker set empty).
-  - [ ] `M10.G` soak run.
+  - [ ] `M10.G` soak run (executed; blocked on `M10G-B2`).
   - [ ] `M10.H` recovery-under-load run.
   - [ ] `M10.I` reproducibility + replay coherence.
   - [ ] `M10.J` final certification verdict + bundle publish.

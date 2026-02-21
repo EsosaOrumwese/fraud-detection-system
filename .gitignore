@@ -126,6 +126,7 @@ dmypy.json
 
 # terraform state
 *.tfstate*
+*.tfplan
 .terraform/
 /infra/terraform/terraform.tfvars
 infra/terraform/**/terraform.tfvars
@@ -185,3 +186,6 @@ runs/fraud-platform/**
 .env.example
 .env.platform.local
 .env.dev_min
+infra/terraform/dev_min/demo/$planFile
+infra/terraform/dev_min/demo/$planFile
+infra/terraform/dev_min/demo/$planFile

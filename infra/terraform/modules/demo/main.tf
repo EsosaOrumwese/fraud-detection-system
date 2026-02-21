@@ -20,7 +20,13 @@ locals {
 
   archive_bucket_resolved = trimspace(var.archive_bucket) != "" ? var.archive_bucket : "${var.name_prefix}-archive"
 
-  daemon_container_image_resolved = trimspace(var.ecs_daemon_container_image) != "" ? var.ecs_daemon_container_image : var.ecs_probe_container_image
+  daemon_container_image_resolved  = trimspace(var.ecs_daemon_container_image) != "" ? var.ecs_daemon_container_image : var.ecs_probe_container_image
+  oracle_engine_run_root_resolved  = trimspace(var.oracle_engine_run_root) != "" ? var.oracle_engine_run_root : "s3://${var.object_store_bucket}/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92"
+  oracle_scenario_id_resolved      = trimspace(var.oracle_scenario_id) != "" ? var.oracle_scenario_id : "baseline_v1"
+  oracle_stream_view_root_resolved = trimspace(var.oracle_stream_view_root) != "" ? var.oracle_stream_view_root : "${local.oracle_engine_run_root_resolved}/stream_view/ts_utc"
+  sr_manifest_fingerprint_resolved = trimspace(var.sr_manifest_fingerprint) != "" ? var.sr_manifest_fingerprint : "c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8"
+  sr_parameter_hash_resolved       = trimspace(var.sr_parameter_hash) != "" ? var.sr_parameter_hash : "56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7"
+  sr_seed_resolved                 = var.sr_seed > 0 ? var.sr_seed : 42
 
   daemon_service_specs = {
     "ig" = {
@@ -144,7 +150,102 @@ locals {
       command = [
         "sh",
         "-c",
-        "echo sr_task_definition_materialized && exit 0",
+        <<-EOT
+set -e
+
+missing=""
+for k in PLATFORM_RUN_ID PLATFORM_STORE_ROOT OBJECT_STORE_REGION CONTROL_BUS_STREAM CONTROL_BUS_REGION ORACLE_ENGINE_RUN_ROOT ORACLE_SCENARIO_ID ORACLE_STREAM_VIEW_ROOT SR_AUTHORITY_DSN SR_MANIFEST_FINGERPRINT SR_PARAMETER_HASH SR_SEED; do
+  v="$(eval "printf '%s' \"\\$$k\"")"
+  if [ -z "$v" ]; then
+    missing="$missing$k "
+  fi
+done
+if [ -n "$missing" ]; then
+  echo "Missing required env(s): $missing"
+  exit 1
+fi
+
+python - <<'PY'
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+import os
+import yaml
+
+base = Path("config/platform/sr/wiring_aws.yaml")
+data = yaml.safe_load(base.read_text(encoding="utf-8")) or {}
+
+data["profile_id"] = "dev_min"
+data["object_store_root"] = os.getenv("PLATFORM_STORE_ROOT", "")
+data["control_bus_kind"] = "kinesis"
+data["control_bus_root"] = "runs/fraud-platform/control_bus"
+data["control_bus_topic"] = "fp.bus.control.v1"
+data["control_bus_stream"] = os.getenv("CONTROL_BUS_STREAM", "")
+data["control_bus_region"] = os.getenv("CONTROL_BUS_REGION", "")
+endpoint = (os.getenv("CONTROL_BUS_ENDPOINT_URL", "") or "").strip()
+if endpoint:
+    data["control_bus_endpoint_url"] = endpoint
+else:
+    data.pop("control_bus_endpoint_url", None)
+data["oracle_engine_run_root"] = os.getenv("ORACLE_ENGINE_RUN_ROOT", "")
+data["oracle_scenario_id"] = os.getenv("ORACLE_SCENARIO_ID", "")
+data["oracle_stream_view_root"] = os.getenv("ORACLE_STREAM_VIEW_ROOT", "")
+data["authority_store_dsn"] = os.getenv("SR_AUTHORITY_DSN", "")
+data["s3_region"] = os.getenv("OBJECT_STORE_REGION", "")
+data["s3_endpoint_url"] = None
+data["s3_path_style"] = False
+data["acceptance_mode"] = "dev_min_managed"
+data["execution_mode"] = "managed"
+data["execution_launch_ref"] = "ecs:control_job:sr"
+data["execution_identity_env"] = "ECS_TASK_ID"
+data["state_mode"] = "managed"
+
+out = Path("/tmp/dev_min_sr.yaml")
+out.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+window_start = (os.getenv("SR_WINDOW_START_UTC", "") or "").strip()
+window_end = (os.getenv("SR_WINDOW_END_UTC", "") or "").strip()
+if not window_start or not window_end:
+    now = datetime.now(tz=timezone.utc)
+    if not window_start:
+        window_start = now.isoformat()
+    if not window_end:
+        window_end = (now + timedelta(minutes=90)).isoformat()
+
+Path("/tmp/dev_min_sr_window.env").write_text(
+    f"SR_WINDOW_START_UTC={window_start}\nSR_WINDOW_END_UTC={window_end}\n",
+    encoding="utf-8",
+)
+print(str(out))
+PY
+
+set -a
+. /tmp/dev_min_sr_window.env
+set +a
+
+EQ="$SR_RUN_EQUIVALENCE_KEY"
+if [ -z "$EQ" ]; then
+  EQ="dev_min_managed:$${PLATFORM_RUN_ID}:$${ORACLE_SCENARIO_ID}:m10g"
+fi
+
+python -m fraud_detection.scenario_runner.cli \
+  run \
+  --wiring /tmp/dev_min_sr.yaml \
+  --policy config/platform/sr/policy_v0.yaml \
+  --run-equivalence-key "$EQ" \
+  --manifest-fingerprint "$SR_MANIFEST_FINGERPRINT" \
+  --parameter-hash "$SR_PARAMETER_HASH" \
+  --seed "$SR_SEED" \
+  --scenario-id "$ORACLE_SCENARIO_ID" \
+  --window-start "$SR_WINDOW_START_UTC" \
+  --window-end "$SR_WINDOW_END_UTC" \
+  --engine-run-root "$ORACLE_ENGINE_RUN_ROOT" \
+  --output-id arrival_events_5B \
+  --output-id s1_arrival_entities_6B \
+  --output-id s3_event_stream_with_fraud_6B \
+  --output-id s3_flow_anchor_with_fraud_6B
+EOT
       ]
     }
     "wsp" = {
@@ -1377,6 +1478,38 @@ resource "aws_ecs_task_definition" "control_job" {
           value = var.aws_region
         },
         {
+          name  = "ORACLE_ENGINE_RUN_ROOT"
+          value = local.oracle_engine_run_root_resolved
+        },
+        {
+          name  = "ORACLE_SCENARIO_ID"
+          value = local.oracle_scenario_id_resolved
+        },
+        {
+          name  = "ORACLE_STREAM_VIEW_ROOT"
+          value = local.oracle_stream_view_root_resolved
+        },
+        {
+          name  = "SR_MANIFEST_FINGERPRINT"
+          value = local.sr_manifest_fingerprint_resolved
+        },
+        {
+          name  = "SR_PARAMETER_HASH"
+          value = local.sr_parameter_hash_resolved
+        },
+        {
+          name  = "SR_SEED"
+          value = tostring(local.sr_seed_resolved)
+        },
+        {
+          name  = "SR_RUN_EQUIVALENCE_KEY"
+          value = "dev_min_managed:${var.required_platform_run_id}:${local.oracle_scenario_id_resolved}:m10g"
+        },
+        {
+          name  = "ECS_TASK_ID"
+          value = "sr:${var.required_platform_run_id}"
+        },
+        {
           name  = var.required_platform_run_id_env_key
           value = var.required_platform_run_id
         },
@@ -1401,6 +1534,11 @@ resource "aws_ecs_task_definition" "control_job" {
         ], each.key == "wsp" ? [
         {
           name      = "WSP_CHECKPOINT_DSN"
+          valueFrom = aws_ssm_parameter.db_dsn.arn
+        },
+        ] : [], each.key == "sr" ? [
+        {
+          name      = "SR_AUTHORITY_DSN"
           valueFrom = aws_ssm_parameter.db_dsn.arn
         },
       ] : [])

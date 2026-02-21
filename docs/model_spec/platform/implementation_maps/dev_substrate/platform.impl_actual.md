@@ -18077,3 +18077,453 @@ Risk handling:
 ### Consequence
 1. M10.G is now planning-complete and execution-ready by documentation quality.
 2. Next action can proceed to managed runtime execution of M10.G without unresolved planning holes.
+
+## Entry: 2026-02-21 17:00:36 +00:00 - M10.G execution kickoff and state re-validation after interrupted turn
+### Trigger
+1. USER re-issued explicit execution directive for full `M10.G` after an interrupted turn.
+2. Interrupted-turn policy required state re-validation before any runtime mutation.
+
+### Validation findings
+1. Branch posture remained `migrate-dev`; no branch operations were performed.
+2. Prior `M10.F` closure artifacts are still present and readable:
+   - `runs/dev_substrate/m10/m10_20260221T060601Z/m10_f_burst_snapshot.json`,
+   - durable counterpart under `evidence/dev_min/run_control/...`.
+3. Current ECS daemon desired-count posture is torn down (`desired=0`) while task definitions remain pinned to `platform_20260221T060431Z`.
+
+### Decision impact
+1. `M10.G` requires a fresh run scope and sustained managed runtime execution.
+2. Therefore runtime re-materialization and run-scope rotation are required before soak launch.
+
+## Entry: 2026-02-21 17:04:20 +00:00 - M10.G execution method decision (run-scope rotation + soak sampling)
+### Problem
+1. All daemon/control task definitions are still pinned to prior run scope (`platform_20260221T060431Z`).
+2. M10.G plan requires a fresh run scope and deterministic stability sampling over 90 minutes.
+
+### Alternatives considered
+1. Reuse old run scope and only run fresh WSP tasks with overrides.
+2. Register ad-hoc task definitions manually via API to change run scope.
+3. Rotate run scope through Terraform authority (`required_platform_run_id`) and run managed soak with periodic evidence sampling.
+
+### Decision chosen
+1. Chose option 3.
+2. Rationale:
+   - keeps authority surface aligned with IaC truth,
+   - avoids ad-hoc task-definition drift,
+   - ensures all daemon/control surfaces use the same fresh run scope.
+
+### Execution posture pinned
+1. Fresh run id format: `platform_YYYYMMDDTHHMMSSZ`.
+2. Lane activation:
+   - scale all in-scope daemon services to desired `1` for soak window,
+   - launch four sharded WSP tasks against IG private IPs.
+3. Soak cadence:
+   - sample every `5` minutes for `90` minutes,
+   - run reporter one-shot per sample to refresh run-scoped evidence.
+4. Stability checks:
+   - lag bound and caught-up posture from `rtdl_core/caught_up.json` + offsets/evidence surfaces,
+   - checkpoint non-stall from periodic monotonic movement in observed counters/evidence stamps.
+
+## Entry: 2026-02-21 17:10:40 +00:00 - Run-scope rotation risk triage (full apply vs targeted apply)
+### Observation
+1. Dry-run full Terraform plan for fresh run scope showed required task-definition/service rotations, but also surfaced unrelated sensitive drift surfaces:
+   - `aws_ssm_parameter.ig_api_key` update,
+   - broad manifest/object rewrites,
+   - non-essential job task-definition replacements.
+
+### Alternatives considered
+1. Execute full apply and accept unrelated mutations.
+2. Abort execution and ask for a new decision.
+3. Execute targeted apply limited to run-scope-critical ECS resources only.
+
+### Decision chosen
+1. Chose option 3.
+2. Rationale:
+   - M10.G requires run-scope rotation on daemon/control/reporter surfaces, not SSM secret mutation,
+   - targeted apply minimizes blast radius and preserves fail-closed safety on sensitive handles.
+
+### Target set pinned
+1. `module.demo.aws_ecs_task_definition.daemon`
+2. `module.demo.aws_ecs_task_definition.control_job`
+3. `module.demo.aws_ecs_task_definition.reporter`
+4. `module.demo.aws_ecs_service.daemon`
+
+## Entry: 2026-02-21 17:15:32 +00:00 - Targeted run-scope rotation applied (`platform_20260221T170620Z`)
+### Execution result
+1. Targeted Terraform apply executed against `infra/terraform/dev_min/demo` using:
+   - `required_platform_run_id=platform_20260221T170620Z`,
+   - pinned daemon image digest (same as active runtime),
+   - explicit `ig_api_key` injection from SSM to avoid secret drift.
+2. Apply completed successfully:
+   - task-definition revisions advanced for daemon/control/reporter families,
+   - daemon ECS services updated to consume new revisions.
+
+### Post-apply authority facts
+1. Control task definitions:
+   - `fraud-platform-dev-min-sr:22`,
+   - `fraud-platform-dev-min-wsp:26`.
+2. Reporter task definition:
+   - `fraud-platform-dev-min-reporter:14`.
+3. Daemon task definitions advanced to `:*+1` revisions and are now aligned to run scope `platform_20260221T170620Z`.
+
+### Remaining execution decision to close before launch
+1. M10.G requires a concrete representative ingest posture (non-burst), but only qualitative guidance existed ("non-burst representative").
+2. This must be pinned explicitly before WSP task launch to satisfy decision-completeness.
+
+## Entry: 2026-02-21 17:19:10 +00:00 - M10.G representative ingest posture pinning
+### Decision required
+1. Convert qualitative "representative non-burst" soak posture into concrete WSP launch parameters.
+
+### Alternatives considered
+1. Use default WSP speed (implicit, unknown) and accept runtime variability.
+2. Reuse burst posture (`WSP_STREAM_SPEEDUP=120`) and lower max events.
+3. Pin a deterministic moderate speed tied to observed burst-to-baseline ratio.
+
+### Decision chosen
+1. Chose option 3.
+2. Pinned values for M10.G:
+   - `WSP_STREAM_SPEEDUP=40`,
+   - `WSP_MAX_EVENTS=1000000`,
+   - four-output sharded launch with dedicated IG endpoint per task.
+
+### Rationale
+1. `M10.F` burst used `120` and achieved ~`3.13x` representative baseline.
+2. Selecting `40` (one-third of burst speed) preserves "non-burst" posture while keeping sustained ingest material enough for 90-minute soak adjudication.
+3. High max-events cap prevents premature WSP completion before soak-duration gate.
+
+## Entry: 2026-02-21 19:04:26 +00:00 - M10.G blocker remediation plan pinned before Terraform edits (SR control job no-op)
+
+Problem observed during active M10.G execution:
+1. Fresh run-scope platform_20260221T170620Z had no SR run artifacts under vidence/runs/<platform_run_id>/sr/*.
+2. module.demo.aws_ecs_task_definition.control_job["sr"] is still a no-op (cho sr_task_definition_materialized && exit 0).
+3. This leaves READY publication non-deterministic for fresh scopes and allows accidental stale READY consumption risk.
+
+Alternatives considered:
+1. Keep Terraform placeholder and continue using ad-hoc ECS command overrides for SR.
+   - Rejected for M10.G closure because the lane remains structurally drift-prone and hidden from IaC truth.
+2. Generate READY from local CLI then continue soak.
+   - Rejected due managed-only/no-local-compute lane law for dev_min.
+3. Rematerialize SR control job in Terraform as real Scenario Runner CLI execution with pinned managed inputs.
+   - Accepted because it closes the root cause in managed substrate and removes implicit override dependency.
+
+Pinned remediation details:
+1. Replace SR control-job command with managed SR execution script:
+   - Generate /tmp/dev_min_sr.yaml from runtime env.
+   - Enforce fail-closed required env checks.
+   - Execute python -m fraud_detection.scenario_runner.cli ... run ... with pinned 4-output output_ids.
+2. Add SR runtime env surfaces to control job task definition:
+   - ORACLE_ENGINE_RUN_ROOT, ORACLE_SCENARIO_ID, ORACLE_STREAM_VIEW_ROOT,
+   - SR_MANIFEST_FINGERPRINT, SR_PARAMETER_HASH, SR_SEED.
+3. Add SR authority secret injection:
+   - SR_AUTHORITY_DSN from existing DB DSN SSM parameter.
+4. Preserve run-scope injection through existing PLATFORM_RUN_ID / REQUIRED_PLATFORM_RUN_ID envs.
+
+Expected outcome after apply + rerun:
+1. Fresh-scope SR artifacts are materialized (un_plan, un_record, un_status, un_facts_view, eady_signal).
+2. WSP soak launch consumes fresh READY from same scope (no stale READY dependence).
+3. M10.G snapshot can be computed without hidden control-plane ambiguity.
+
+## Entry: 2026-02-21 19:08:40 +00:00 - M10.G SR remediation patch applied + validation checkpoint
+
+Work completed in this checkpoint:
+1. Patched infra/terraform/modules/demo/main.tf SR control job from no-op to managed Scenario Runner CLI run path.
+2. Added SR required runtime env surfaces and DB authority DSN secret mapping in control-job task definition.
+3. Added Oracle/SR pin variables in module + root Terraform variable sets and wired them through module call.
+4. Updated 	erraform.tfvars.example with explicit SR Oracle pin examples.
+
+Issue encountered and resolved during patch:
+1. Terraform interpolation collision inside SR shell heredoc (${PLATFORM_RUN_ID} / ${ORACLE_SCENARIO_ID}) caused Invalid reference at validate time.
+2. Resolution: escaped shell placeholders as $ and $ so Terraform leaves them for container runtime.
+
+Validation result:
+1. 	erraform -chdir=infra/terraform/dev_min/demo validate -> PASS.
+
+Next action pinned:
+1. targeted plan/apply for SR/WSP/reporter/daemon task definitions + daemon services for active run scope, then rerun full M10.G soak on fresh execution id.
+
+## Entry: 2026-02-21 19:12:15 +00:00 - M10.G targeted plan triage before apply (SR remediation)
+
+Plan run: 	erraform plan -refresh=false -target module.demo.aws_ecs_task_definition.control_job with pinned runtime vars.
+
+Initial planning pitfall detected and corrected:
+1. Without explicit TF_VAR_ecs_daemon_container_image and TF_VAR_ig_api_key, plan drifted toward busybox image + IG API key mutation.
+2. Corrective action taken:
+   - set TF_VAR_ecs_daemon_container_image to currently deployed digest,
+   - set TF_VAR_ig_api_key from SSM current value.
+
+Final targeted plan outcome:
+1. Scope reduced to control-job task definitions only (sr, wsp) with replacement revisions.
+2. No daemon-service/image cascade and no SSM mutation in final target plan.
+3. Planned SR diffs exactly match intended remediation (real SR command + SR authority DSN + Oracle pins).
+
+Decision:
+1. Apply this targeted plan as safe remediation baseline, then rerun managed M10.G chain on fresh execution id.
+
+## Entry: 2026-02-21 19:15:04 +00:00 - M10.G rerun kickoff after SR rematerialization
+### Pre-execution state
+1. Previous M10.G attempt (m10_20260221T171447Z, platform_20260221T170620Z) launched services and WSP shards but observed zero traffic/admission progression because SR control-job was a no-op placeholder in IaC at that time.
+2. SR control-job has now been rematerialized in Terraform (raud-platform-dev-min-sr:23) with real Scenario Runner CLI path and pinned Oracle authority inputs.
+3. Runtime substrate is currently up (desired_count active), and WSP task definition is at raud-platform-dev-min-wsp:27.
+
+### Decision completeness check (M10.G)
+1. Dependencies:
+   - M10.A threshold matrix PASS confirmed.
+   - M10.F closure PASS confirmed (m10_20260221T060601Z).
+   - Latest M9 guardrail is non-critical.
+2. Required runtime handles are concrete and resolvable:
+   - RTDL_CORE_CONSUMER_GROUP_ID, RTDL_CORE_OFFSET_COMMIT_POLICY pinned in Terraform vars.
+   - WSP_CHECKPOINT_DSN injected via SSM secret in WSP control-job task definition.
+3. Required unresolved decision set before execution: none.
+
+### Alternatives considered
+1. Reuse existing platform_20260221T170620Z scope and continue from partial state.
+2. Rotate to a fresh run scope and execute full SR->WSP->soak chain from clean authority boundary.
+
+### Decision chosen
+1. Choose option 2 (fresh scope).
+2. Rationale:
+   - avoids stale partial-window ambiguity from interrupted run,
+   - satisfies M10.G run-scope isolation law cleanly,
+   - yields deterministic closure artifacts with explicit t0 baseline.
+
+### Execution plan pinned
+1. Rotate run scope via targeted Terraform apply (daemon/control/reporter + daemon services), with sensitive drift guards (cs_daemon_container_image, ig_api_key) injected explicitly.
+2. Run SR once on fresh scope and verify SR artifacts under vidence/runs/<platform_run_id>/sr/*.
+3. Launch 4-way sharded WSP soak (speedup=40, max-events-per-output=1000000).
+4. Sample every 5 minutes for 90 minutes; refresh reporter each sample; adjudicate lag/checkpoint/semantic gates.
+5. Emit/publish m10_g_soak_snapshot.json and update M10 plans + implementation docs.
+
+## Entry: 2026-02-21 19:19:19 +00:00 - M10.G SR blocker triage (M10G-B6 precursor)
+### Observation
+1. Fresh-scope SR control job (raud-platform-dev-min-sr:24) exited non-zero (xit_code=2).
+2. CloudWatch log tail shows argparse failure:
+   - invalid choice: '/tmp/dev_min_sr.yaml' (choose from run, reemit, quarantine).
+3. This indicates command-line argument ordering drift in Terraform SR command template.
+
+### Root cause
+1. Terraform currently invokes:
+   - python -m fraud_detection.scenario_runner.cli --wiring ... --policy ... run ...
+2. SR CLI parser expects subcommand before base args because --wiring/--policy are attached to the un subparser.
+3. Correct invocation shape is:
+   - python -m fraud_detection.scenario_runner.cli run --wiring ... --policy ... ...
+
+### Alternatives considered
+1. Bypass by ad-hoc ECS un-task command override for this single execution.
+2. Patch Terraform command template and rematerialize SR task definition.
+
+### Decision chosen
+1. Choose option 2.
+2. Rationale:
+   - closes structural IaC defect instead of masking it,
+   - keeps managed execution deterministic for subsequent lanes (M10.H/I/J),
+   - aligns with fail-closed doctrine and avoids hidden manual override debt.
+
+### Immediate remediation plan
+1. Patch SR command order in infra/terraform/modules/demo/main.tf.
+2. Run targeted Terraform apply for module.demo.aws_ecs_task_definition.control_job only (pin image + IG key drift guards).
+3. Rerun SR one-shot and require xit_code=0 + presence of vidence/runs/<platform_run_id>/sr/* before WSP launch resumes.
+
+## Entry: 2026-02-21 19:25:19 +00:00 - M10.G remediation applied and SR authority restored
+### Change applied
+1. Patched SR control-job command ordering in Terraform to satisfy SR CLI parser contract:
+   - from cli --wiring ... --policy ... run ...
+   - to   cli run --wiring ... --policy ... ....
+2. Targeted rematerialization applied to module.demo.aws_ecs_task_definition.control_job[\"sr\"] only.
+3. New SR task definition revision is now active: raud-platform-dev-min-sr:25.
+
+### Verification evidence
+1. Retry SR one-shot task succeeded on fresh scope:
+   - task: rn:aws:ecs:eu-west-2:230372904534:task/fraud-platform-dev-min/c5e2ca5124344a09b80efccae93bbf27
+   - exit code:  .
+2. Fresh SR artifacts now exist for platform_20260221T191525Z:
+   - sr/run_plan/*, sr/run_status/*, sr/run_record/*, sr/run_facts_view/*, sr/ready_signal/*.
+
+### Decision and next action
+1. M10G-B6 precursor from missing SR artifacts is cleared.
+2. Proceed with managed 4-way WSP soak launch + 90-minute sampling and fail-closed adjudication.
+
+## Entry: 2026-02-21 19:36:31 +00:00 - M10.G WSP launch blocker (M10G-B5 risk) triaged
+### Observation
+1. WSP tasks exited quickly with IG_PUSH_RETRY_EXHAUSTED and emitted   events.
+2. WSP logs show retry reason: Invalid URL 'http:/v1/ingest/push': No host supplied.
+3. Launch artifact captured ig_ingest_url as http:// (host missing).
+
+### Root cause
+1. PowerShell interpolation bug in runtime launch command: "http://" with : immediately after variable name collapsed host token.
+2. Resulting override sent malformed IG_INGEST_URL into all WSP tasks.
+
+### Decision
+1. Treat this as active M10G-B5 execution blocker risk until corrected.
+2. Apply runtime-only remediation (no code change required): relaunch WSP with explicit braced interpolation "http://:8080".
+3. Preserve failed-attempt artifacts for audit (m10_g_wsp_launch_attempt1_pre_sr_fix.json, task log evidence).
+
+### Next action
+1. Relaunch four WSP tasks with corrected URL.
+2. Re-run quick admission probe; only then start 90-minute sampling window clock.
+
+## Entry: 2026-02-21 19:42:08 +00:00 - M10.G sampler parse bug triage before full-window retry
+### Observation
+1. First full-window sampler attempt aborted at checkpoint timestamp parsing stage.
+2. ConvertFrom-Json returned max_updated_at_utc in a non-ISO presentation for this run, causing strict [datetime]::Parse(...) failure.
+
+### Decision
+1. No lane-state conclusion is drawn from this aborted attempt.
+2. Patch sampler parsing to be type-tolerant:
+   - accept pre-typed DateTime values directly,
+   - otherwise parse via DateTimeOffset with fallback.
+3. Restart M10.G soak window from zero minutes after parser fix.
+
+## Entry: 2026-02-21 21:20:41 +00:00 - M10.G rerun plan lock for blocker-only remediation (M10G-B2)
+### Context
+1. Prior managed soak run m10_20260221T191525Z met duration/checkpoint/semantic/runtime-budget gates but failed lag stability (max_lag_window=40 > 10), resulting in blocker M10G-B2.
+2. All non-lag gates were already green, so this rerun is constrained to clear lag bound without changing lane semantics.
+
+### Decision-completeness check
+1. Dependencies remain closed and readable:
+   - M10.A pass snapshot,
+   - M10.F pass snapshot,
+   - latest M9 cost guardrail snapshot with non-critical posture.
+2. Fresh run scope is required and will be rotated before launch.
+3. No unresolved execution inputs remain for this rerun scope.
+
+### Chosen remediation posture
+1. Keep sharded 4-output WSP topology and 90-minute/5-minute sampling contract unchanged.
+2. Reduce representative ingest pace from WSP_STREAM_SPEEDUP=40 to WSP_STREAM_SPEEDUP=8.
+3. Keep WSP_MAX_EVENTS_PER_OUTPUT=1000000 to avoid early completion before soak duration.
+
+### Rationale
+1. Previous lag trace was consistently above threshold (20-40 range) at speed 40.
+2. Reducing speed is the minimal, bounded lever that targets only lag pressure while preserving managed-path behavior and full-plane flow.
+3. This avoids changing consumer topology or hidden local scripts; the lane remains managed and auditable.
+
+### Execution sequence locked
+1. Append live notes before each runtime mutation.
+2. Rotate to a fresh platform_run_id via Terraform targeted apply (daemon/control/reporter surfaces only).
+3. Run SR one-shot on the fresh scope and verify SR artifacts.
+4. Launch 4-way WSP soak with the pinned overrides above.
+5. Sample every 5 minutes for 90 minutes, adjudicate M10G-B1..B8, publish local+durable snapshots.
+
+## Entry: 2026-02-21 21:21:57 +00:00 - M10.G rotate-plan safety correction (service desired-count drift)
+### Observation
+1. First targeted Terraform plan for run-scope rotation showed `aws_ecs_service.daemon[*].desired_count -> 0` due module default `ecs_daemon_service_desired_count_default=0` in this execution context.
+2. Applying that plan would shut down in-scope workers and invalidate soak semantics.
+
+### Decision
+1. Do not apply service-targeted plan.
+2. Re-plan with task-definition targets only:
+   - daemon task definitions,
+   - control-job task definitions (`sr`, `wsp`),
+   - reporter task definition.
+3. After task-def apply, roll ECS services explicitly with existing desired counts preserved.
+
+### Rationale
+1. Preserves runtime posture continuity while still rotating run-scope env/command payloads.
+2. Avoids unintended service shutdown and keeps lane closure bounded to M10.G objectives.
+
+## Entry: 2026-02-21 21:27:46 +00:00 - M10.G run-scope rotation completed with desired-count preservation
+### Actions completed
+1. Applied task-definition-only Terraform rotation for fresh scope `platform_20260221T212100Z`.
+2. Explicitly rolled all daemon services to new task-definition revisions via `aws ecs update-service --force-new-deployment` while preserving pre-rotation desired counts.
+3. Verified convergence to stable ACTIVE posture across all in-scope services.
+
+### Evidence
+1. `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_service_state_pre_rotate.json`
+2. `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_service_rollout_updates.json`
+3. `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_service_state_post_rotate.json`
+4. `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_run_scope_alignment.json`
+
+### Runtime posture after rotation
+1. `sr:26`, `wsp:29`, `reporter:16`, `ig:31` active for this scope.
+2. Daemon service desired/running counts preserved (IG=4, others=1), so soak preconditions remain valid.
+
+### Next step
+1. Execute SR one-shot for the fresh scope and require `exit_code=0` + SR artifact surfaces before WSP soak launch.
+
+## Entry: 2026-02-21 21:29:41 +00:00 - M10.G SR gate passed on fresh scope
+### Actions
+1. Launched SR one-shot task on `sr:26` for `platform_20260221T212100Z`.
+2. Waited for task completion and captured task result.
+3. Validated required SR artifact surfaces under run-scoped evidence prefix.
+
+### Evidence
+1. `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_sr_task_result.json`
+2. `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_sr_artifacts_snapshot.json`
+
+### Result
+1. SR task exited `0`.
+2. Required SR surfaces present: `run_plan`, `run_status`, `run_record`, `run_facts_view`, `ready_signal`.
+3. M10.G can proceed to WSP soak launch on this fresh scope.
+
+## Entry: 2026-02-21 21:30:46 +00:00 - M10.G launch incident recurrence: IG URL interpolation defect
+### Observation
+1. First WSP launch on fresh scope produced `IG_INGEST_URL=http://` on all four tasks.
+2. Root cause is PowerShell variable interpolation form `"http://$ip:8080"` where `:8080` is consumed in a way that drops host value.
+
+### Decision
+1. Treat this as an immediate execution blocker; do not start soak clock on malformed launch.
+2. Stop malformed WSP tasks.
+3. Relaunch with explicit interpolation form `"http://$($ip):8080"` and verify overrides before sampling starts.
+
+### Rationale
+1. Prevents silent no-admission runs and false soak evidence.
+2. Keeps rerun auditable and deterministic with explicit remediation evidence.
+
+## Entry: 2026-02-21 21:51:44 +00:00 - M10.G sampling surface adjustment (fail-closed, evidence-backed)
+### Observation
+1. Run-scoped traffic is active (`ig/receipts/*` and `ig/quarantine/*` objects continuously written for `platform_20260221T212100Z`).
+2. Expected `ingest/receipt_summary.json` did not materialize during pre-soak probe attempts.
+3. Direct DB sampling from local executor is currently unavailable (`psycopg` connect timeout to runtime DSN).
+
+### Decision
+1. Start/measure soak using available canonical run-scoped evidence surfaces:
+   - S3 run-scoped receipts/quarantine object streams,
+   - Kafka end offsets from Confluent (SASL credentials from SSM),
+   - WSP task liveness and stop status.
+2. Compute lag as: `kafka_end_offset - max_admitted_offset_from_receipts` per topic-partition.
+3. Compute checkpoint-stall surrogate from receipt stream progression (`max receipt write timestamp` monotonicity + stall window).
+
+### Rationale
+1. Keeps lane managed and auditable without introducing local runtime compute dependencies.
+2. Uses authoritative surfaces that are present on this run scope.
+3. Preserves fail-closed posture: if required surfaces disappear/read failures occur, emit blocker in snapshot.
+
+## Entry: 2026-02-21 21:52:24 +00:00 - M10.G soak clock anchor pinned after corrected WSP launch
+### Decision
+1. Soak execution window start is pinned to corrected launch timestamp from `m10_g_wsp_launch.json`:
+   - `2026-02-21T21:31:33.1718774Z`.
+2. Duration threshold remains `90` minutes; target end is derived deterministically from this start.
+3. Sampling cadence remains `5` minutes and includes live append entries in logbook during run.
+
+### Why this anchor
+1. Earlier launch attempt for this rerun used malformed `IG_INGEST_URL` and is explicitly excluded from soak timing.
+2. Corrected launch is the first valid managed traffic posture for this run scope.
+
+## Entry: 2026-02-21 23:13:14 +00:00 - M10.G execution result recorded (fresh scope `platform_20260221T212100Z`)
+### Runtime execution summary
+1. Fresh run scope rotation completed and converged (`sr:26`, `wsp:29`, `reporter:16`, daemons rolled with preserved desired counts).
+2. SR one-shot passed (`exit_code=0`) and required SR artifacts were present.
+3. WSP launch required one corrective relaunch due IG URL interpolation defect; corrected launch used valid `http://<ip>:8080` targets.
+4. Soak window anchored at corrected launch (`2026-02-21T21:31:33Z`) and observed through target end with 5-minute cadence samples.
+
+### Key measured outcomes
+1. Duration gate: PASS (`elapsed_seconds=6064.398` >= 90m and <= runtime budget).
+2. Semantic drift gate: PASS (`publish_ambiguous_max=0`, no fail-open marker).
+3. Checkpoint monotonic/stall gate: PASS (monotonic surrogate; `max_stall_minutes=0.0`).
+4. Lag stability gate: FAIL (`max_lag_window=310`, threshold `<=10`).
+
+### Blocker adjudication
+1. Blockers: `M10G-B2` only.
+2. Snapshot verdict: `overall_pass=false`.
+
+### Evidence set
+1. `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_observation_series.json`
+2. `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_soak_snapshot.json`
+3. `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_soak_snapshot_publish.json`
+4. durable run-control snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260221T212100Z/m10_g_soak_snapshot.json`
+5. durable run-scoped snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260221T212100Z/m10/m10_g_soak_snapshot.json`
+
+### Next-step recommendation (bounded)
+1. Keep run-scope rotation logic unchanged.
+2. Run a lag-focused M10.G bounded rerun with lower ingest pressure OR increase RTDL consumer throughput to satisfy `max_lag<=10` in final 30-minute window.
+3. Do not advance to M10.H until `M10G-B2` is cleared.

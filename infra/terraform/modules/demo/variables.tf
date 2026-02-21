@@ -278,6 +278,36 @@ variable "write_db_dsn_parameter" {
   default = true
 }
 
+variable "oracle_engine_run_root" {
+  type    = string
+  default = ""
+}
+
+variable "oracle_scenario_id" {
+  type    = string
+  default = ""
+}
+
+variable "oracle_stream_view_root" {
+  type    = string
+  default = ""
+}
+
+variable "sr_manifest_fingerprint" {
+  type    = string
+  default = ""
+}
+
+variable "sr_parameter_hash" {
+  type    = string
+  default = ""
+}
+
+variable "sr_seed" {
+  type    = number
+  default = 42
+}
+
 variable "common_tags" {
   type = map(string)
 }

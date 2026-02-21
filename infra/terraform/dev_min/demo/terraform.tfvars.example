@@ -67,3 +67,11 @@ ssm_db_user_path = "/fraud-platform/dev_min/db/user"
 ssm_db_password_path = "/fraud-platform/dev_min/db/password"
 ssm_db_dsn_path = "/fraud-platform/dev_min/db/dsn"
 write_db_dsn_parameter = false
+
+# SR managed control-job Oracle pins (dev_min canonical source)
+oracle_engine_run_root = "s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92"
+oracle_scenario_id = "baseline_v1"
+oracle_stream_view_root = "s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc"
+sr_manifest_fingerprint = "c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8"
+sr_parameter_hash = "56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7"
+sr_seed = 42

@@ -300,3 +300,33 @@ variable "write_db_dsn_parameter" {
   type    = bool
   default = true
 }
+
+variable "oracle_engine_run_root" {
+  type    = string
+  default = "s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92"
+}
+
+variable "oracle_scenario_id" {
+  type    = string
+  default = "baseline_v1"
+}
+
+variable "oracle_stream_view_root" {
+  type    = string
+  default = "s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc"
+}
+
+variable "sr_manifest_fingerprint" {
+  type    = string
+  default = "c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8"
+}
+
+variable "sr_parameter_hash" {
+  type    = string
+  default = "56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7"
+}
+
+variable "sr_seed" {
+  type    = number
+  default = 42
+}

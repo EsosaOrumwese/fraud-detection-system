@@ -85,5 +85,11 @@ module "demo" {
   ssm_db_password_path                     = var.ssm_db_password_path
   ssm_db_dsn_path                          = var.ssm_db_dsn_path
   write_db_dsn_parameter                   = var.write_db_dsn_parameter
+  oracle_engine_run_root                   = var.oracle_engine_run_root
+  oracle_scenario_id                       = var.oracle_scenario_id
+  oracle_stream_view_root                  = var.oracle_stream_view_root
+  sr_manifest_fingerprint                  = var.sr_manifest_fingerprint
+  sr_parameter_hash                        = var.sr_parameter_hash
+  sr_seed                                  = var.sr_seed
   common_tags                              = local.common_tags
 }

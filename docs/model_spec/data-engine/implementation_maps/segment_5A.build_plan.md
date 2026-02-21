@@ -1645,6 +1645,17 @@ P2 targeted multi-seed reopen snapshot (2026-02-21, concentration lane only; fro
   - seed `202`: `0.397568`,
   - seed `42`: `0.354453`.
 
+P5 freeze artifact refresh + prune closure (2026-02-21):
+- refreshed artifacts on PASS_B authority run-set:
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_4_residual_risk_9a2ca2e26aea45b994b56d726a08b02c__323f583c3bd148d489d11a672aa9a8c0__945eb4ebe85741ea8b558cba872206b7__1b5f4133d4b04bfbb1540bb711cabea3.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_5_freeze_package_9a2ca2e26aea45b994b56d726a08b02c__323f583c3bd148d489d11a672aa9a8c0__945eb4ebe85741ea8b558cba872206b7__1b5f4133d4b04bfbb1540bb711cabea3.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_6_prune_handoff_9a2ca2e26aea45b994b56d726a08b02c__323f583c3bd148d489d11a672aa9a8c0__945eb4ebe85741ea8b558cba872206b7__1b5f4133d4b04bfbb1540bb711cabea3.json`
+- refreshed handoff decision:
+  - `FROZEN_5A` (hard gates pass on required seeds; stretch misses retained as accepted caveats).
+- prune result:
+  - keep-set: `9a2ca2e26aea45b994b56d726a08b02c`, `323f583c3bd148d489d11a672aa9a8c0`, `945eb4ebe85741ea8b558cba872206b7`, `1b5f4133d4b04bfbb1540bb711cabea3`,
+  - removed superseded run-id folders: `12`.
+
 ## 7) Saturation and optional upstream reopen rule
 - If P1-P4 plateau with repeatable misses caused by upstream amplification signatures (1A/2A sparsity/concentration), open a separate explicit reopen lane.
 - Reopen lane is out-of-scope for this first 5A-local pass and requires explicit go-ahead.
@@ -1656,4 +1667,4 @@ P2 targeted multi-seed reopen snapshot (2026-02-21, concentration lane only; fro
 - `P2`: closed (`UNLOCK_P3`); multi-seed concentration reopen also closed on run-set `9a2ca2e26aea45b994b56d726a08b02c/323f583c3bd148d489d11a672aa9a8c0/945eb4ebe85741ea8b558cba872206b7/1b5f4133d4b04bfbb1540bb711cabea3`.
 - `P3`: closed (`UNLOCK_P4`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch partially met with bounded TZID miss).
 - `P4`: closed (`UNLOCK_P5`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch bounded miss on overlay dispersion).
-- `P5`: in progress (`P5.1 -> P5.6` previously executed in HOLD lane; targeted P2 reopen now lifts hard blockers and yields `PASS_B` on required seeds with bounded stretch misses).
+- `P5`: closed (`PASS_B` on required seeds, refreshed `P5.4/P5.5/P5.6`, handoff=`FROZEN_5A`, superseded run-id folders pruned).

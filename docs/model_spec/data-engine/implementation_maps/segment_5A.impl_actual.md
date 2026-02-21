@@ -6581,3 +6581,54 @@ Current posture after targeted reopen:
 - concentration blocker that held P5 is closed.
 - P3/P4 rails remained frozen by design in this lane.
 - integrated posture is now hard-pass at `B` across required seeds; stretch remains non-blocking caveat.
+
+---
+
+### Entry: 2026-02-21 23:35
+
+Refreshed P5.4/P5.5/P5.6 artifacts on PASS_B run-set and pruned superseded 5A run folders.
+Summary: Completed the requested post-reopen closure step by regenerating freeze/handoff artifacts against the new authority gateboard and executing keep-set pruning.
+
+Inputs used:
+1) Integrated PASS_B gateboard:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_realism_gateboard_9a2ca2e26aea45b994b56d726a08b02c__323f583c3bd148d489d11a672aa9a8c0__945eb4ebe85741ea8b558cba872206b7__1b5f4133d4b04bfbb1540bb711cabea3.json`.
+
+2) Authority keep-set (required-seed map):
+- seed `42` -> `9a2ca2e26aea45b994b56d726a08b02c`,
+- seed `7` -> `323f583c3bd148d489d11a672aa9a8c0`,
+- seed `101` -> `945eb4ebe85741ea8b558cba872206b7`,
+- seed `202` -> `1b5f4133d4b04bfbb1540bb711cabea3`.
+
+Artifacts refreshed:
+1) P5.4 residual risk:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_4_residual_risk_9a2ca2e26aea45b994b56d726a08b02c__323f583c3bd148d489d11a672aa9a8c0__945eb4ebe85741ea8b558cba872206b7__1b5f4133d4b04bfbb1540bb711cabea3.json`
+- `.md` companion generated.
+- decision: `FROZEN_5A` (no blocking hard-gate residuals; stretch misses kept as accepted caveats).
+
+2) P5.5 freeze package:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_5_freeze_package_9a2ca2e26aea45b994b56d726a08b02c__323f583c3bd148d489d11a672aa9a8c0__945eb4ebe85741ea8b558cba872206b7__1b5f4133d4b04bfbb1540bb711cabea3.json`
+- `.md` companion generated.
+- posture: `PASS_B`, final decision: `FROZEN_5A`.
+
+3) P5.6 prune/handoff:
+- `runs/fix-data-engine/segment_5A/reports/segment5a_p5_6_prune_handoff_9a2ca2e26aea45b994b56d726a08b02c__323f583c3bd148d489d11a672aa9a8c0__945eb4ebe85741ea8b558cba872206b7__1b5f4133d4b04bfbb1540bb711cabea3.json`
+- `.md` companion generated.
+- prune status: `COMPLETE`.
+
+Prune action executed (superseded run-id folders removed):
+- `22801d79479342b8921a0438922ddca7`
+- `66c708d45d984be18fe45a40c3b79ecc`
+- `6817ca5a2e2648a1a8cf62deebfa0fcb`
+- `7b08449ccffc44beaa99e64bf0201efc`
+- `7e3de9d210bb466ea268f4a9557747e1`
+- `7f20e9d97dad4ff5ac639bbc41749fb0`
+- `89f523553164416f9cf332f39e730e1b`
+- `ac363a2f127d43d1a6e7e2308c988e5e`
+- `b4d6809bf10d4ac590159dda3ed7a310`
+- `ce57da0ead0d4404a5725ca3f4b6e3be`
+- `d52ebade75684401b02ac78b2ee88946`
+- `d9caca5f1552456eaf73780932768845`
+
+Post-prune inventory:
+- retained run-id folders under `runs/fix-data-engine/segment_5A` = `4` (authority keep-set only).
+- `reports/` preserved.
