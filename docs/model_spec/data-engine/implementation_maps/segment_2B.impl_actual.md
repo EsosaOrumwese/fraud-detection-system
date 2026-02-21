@@ -6381,3 +6381,34 @@ Operational posture:
 1) no further `2B` remediation changes in this cycle.
 2) any future reopen requires explicit constraint change approval
    (`1A/1B` reopen and/or synthetic-group policy decision with realism guardrails).
+
+### Entry: 2026-02-21 22:05
+
+Support-only upstream reopen for 5A P5 seed closure (`2B` seed-pack lane).
+
+Context:
+1) `5A P5` required seeds `{42,7,101,202}` were blocked on missing seed-scoped `2B` egress surfaces for `7/101/202`.
+2) Segment `2B` remained frozen for remediation posture; this lane is support-only (no policy/logic tuning).
+
+Decision:
+1) open bounded `2B` lane to materialize required seed-scoped egress outputs for `5A.S0` only.
+2) keep `2B` code/policies unchanged.
+3) avoid synthetic seed cloning from seed `42`.
+
+Execution:
+1) staged seed-specific run roots from frozen `3B` authorities:
+- seed `7` -> `72de072a6ba446da883aff5e166d0e58`
+- seed `101` -> `22b22199940d4b1a98764af28af3a761`
+- seed `202` -> `bd778d87473d4485b28c880e3044896f`
+
+2) ran `2B` states on each run root:
+- `S0 -> S8` invoked unchanged.
+
+Observed state posture:
+1) `S1/S2/S3/S4` outputs materialized for each seed (required by `5A.S0`).
+2) `S8` validation bundles and `_passed.flag` materialized for each run.
+3) `S5/S6` reported missing `s5_arrival_roster` in this staged lane; this does not block 5A consumption because 5A does not seal/use `2B` S5/S6 artifacts.
+
+Lane closure (support scope):
+1) `SEED_PACK_READY_FOR_5A` for seeds `7/101/202`.
+2) no changes to 2B remediation/freeze policy were introduced.

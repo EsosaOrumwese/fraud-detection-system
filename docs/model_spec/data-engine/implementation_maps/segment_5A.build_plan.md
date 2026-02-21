@@ -1519,8 +1519,8 @@ Scope:
 - reject any lane that regresses frozen hard rails from P1..P4.
 
 Definition of done:
-- [ ] all required seeds have valid run-ids with `S0..S5 PASS`.
-- [ ] runtime evidence recorded per seed.
+- [x] all required seeds have valid run-ids with `S0..S5 PASS`.
+- [x] runtime evidence recorded per seed.
 - [x] no frozen-rail regressions introduced during seed-pack closure.
 
 #### P5.3 - Multi-seed integrated scoring (`P5` semantics)
@@ -1587,17 +1587,24 @@ Definition of done:
 - [x] final handoff decision recorded (`FROZEN_5A` or `HOLD_REMEDIATE`).
 
 P5 execution snapshot (2026-02-21):
-- execution authority run-id: `6817ca5a2e2648a1a8cf62deebfa0fcb`.
-- phase decision: `HOLD_P5_REMEDIATE` (required seed-set coverage incomplete).
+- execution authority run-set:
+  - seed `42` -> `6817ca5a2e2648a1a8cf62deebfa0fcb`,
+  - seed `7` -> `89f523553164416f9cf332f39e730e1b`,
+  - seed `101` -> `d52ebade75684401b02ac78b2ee88946`,
+  - seed `202` -> `22801d79479342b8921a0438922ddca7`.
+- phase decision: `HOLD_P5_REMEDIATE` (required-seed coverage closed, but hard gate miss remains on required seeds).
 - required certification seeds: `{42, 7, 101, 202}`.
-- observed seeds in 5A run inventory: `{42}`.
-- missing required seeds: `{7, 101, 202}`.
+- observed seeds in 5A run inventory: `{7, 42, 101, 202}`.
+- missing required seeds: `{}`.
 - integrated scoring posture:
   - seed `42`: `PASS_B` (`12/12` hard, `5/9` stretch),
-  - cross-seed CV metrics: unavailable (`n/a`) because required seed coverage is incomplete.
+  - seeds `7/101/202`: hard-gate fail on `max_country_share_within_class_lte_0.40`,
+  - cross-seed CV metrics: `B` and `B+` stability thresholds pass (no blocker).
 - P5.2 blocker attribution:
-  - available seed-specific upstream roots for `7/101/202` (`segment_3B` authorities) do not contain required `2B` seed-scoped egress surfaces (`s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`),
-  - result: seed-pack closure cannot proceed without upstream reopen/seed-pack generation.
+  - initial seed-gap blocker (missing `2B` seed-scoped surfaces) was resolved via bounded upstream `2B` reopen lane:
+    - seed `7` -> `runs/fix-data-engine/segment_2B/72de072a6ba446da883aff5e166d0e58`,
+    - seed `101` -> `runs/fix-data-engine/segment_2B/22b22199940d4b1a98764af28af3a761`,
+    - seed `202` -> `runs/fix-data-engine/segment_2B/bd778d87473d4485b28c880e3044896f`.
 - handoff posture: `HOLD_REMEDIATE` (no 5A freeze claim).
 - closure artifacts:
   - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_1_certification_contract.json`
@@ -1606,14 +1613,14 @@ P5 execution snapshot (2026-02-21):
   - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_1_seed_inventory.md`
   - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_2_seed_gap_blockers.json`
   - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_2_seed_gap_blockers.md`
-  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_realism_gateboard_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
-  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_realism_gateboard_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
-  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_4_residual_risk_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
-  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_4_residual_risk_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
-  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_5_freeze_package_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
-  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_5_freeze_package_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
-  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_6_prune_handoff_6817ca5a2e2648a1a8cf62deebfa0fcb.json`
-  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_6_prune_handoff_6817ca5a2e2648a1a8cf62deebfa0fcb.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_realism_gateboard_6817ca5a2e2648a1a8cf62deebfa0fcb__89f523553164416f9cf332f39e730e1b__d52ebade75684401b02ac78b2ee88946__22801d79479342b8921a0438922ddca7.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_realism_gateboard_6817ca5a2e2648a1a8cf62deebfa0fcb__89f523553164416f9cf332f39e730e1b__d52ebade75684401b02ac78b2ee88946__22801d79479342b8921a0438922ddca7.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_4_residual_risk_6817ca5a2e2648a1a8cf62deebfa0fcb__89f523553164416f9cf332f39e730e1b__d52ebade75684401b02ac78b2ee88946__22801d79479342b8921a0438922ddca7.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_4_residual_risk_6817ca5a2e2648a1a8cf62deebfa0fcb__89f523553164416f9cf332f39e730e1b__d52ebade75684401b02ac78b2ee88946__22801d79479342b8921a0438922ddca7.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_5_freeze_package_6817ca5a2e2648a1a8cf62deebfa0fcb__89f523553164416f9cf332f39e730e1b__d52ebade75684401b02ac78b2ee88946__22801d79479342b8921a0438922ddca7.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_5_freeze_package_6817ca5a2e2648a1a8cf62deebfa0fcb__89f523553164416f9cf332f39e730e1b__d52ebade75684401b02ac78b2ee88946__22801d79479342b8921a0438922ddca7.md`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_6_prune_handoff_6817ca5a2e2648a1a8cf62deebfa0fcb__89f523553164416f9cf332f39e730e1b__d52ebade75684401b02ac78b2ee88946__22801d79479342b8921a0438922ddca7.json`
+  - `runs/fix-data-engine/segment_5A/reports/segment5a_p5_6_prune_handoff_6817ca5a2e2648a1a8cf62deebfa0fcb__89f523553164416f9cf332f39e730e1b__d52ebade75684401b02ac78b2ee88946__22801d79479342b8921a0438922ddca7.md`
 
 ## 7) Saturation and optional upstream reopen rule
 - If P1-P4 plateau with repeatable misses caused by upstream amplification signatures (1A/2A sparsity/concentration), open a separate explicit reopen lane.
@@ -1626,4 +1633,4 @@ P5 execution snapshot (2026-02-21):
 - `P2`: closed (`UNLOCK_P3`; authority run `66c708d45d984be18fe45a40c3b79ecc`).
 - `P3`: closed (`UNLOCK_P4`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch partially met with bounded TZID miss).
 - `P4`: closed (`UNLOCK_P5`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch bounded miss on overlay dispersion).
-- `P5`: in progress (`P5.1 -> P5.6` executed; currently `HOLD_P5_REMEDIATE` on required seed coverage gap `7/101/202` with upstream `2B` seed-surface blocker).
+- `P5`: in progress (`P5.1 -> P5.6` executed; seed coverage closed; currently `HOLD_P5_REMEDIATE` on hard concentration gate miss `max_country_share_within_class_lte_0.40` for seeds `7/101/202`).

@@ -6446,3 +6446,56 @@ P5.2 blocker root cause (explicit):
 Final P5 handoff decision:
 - `HOLD_REMEDIATE` (not `FROZEN_5A`).
 - blocker owner: upstream seed-coverage reopen lane (`2B` seed-pack availability for `7/101/202`).
+
+---
+
+### Entry: 2026-02-21 22:00
+
+P5 seed-gap closure lane launched via bounded upstream `2B` reopen (support-only).
+Summary: To satisfy required P5 seeds (`7/101/202`) without policy tuning, I opened a narrow `2B` support lane to materialize only the seed-scoped egress surfaces required by `5A.S0`.
+
+Decision rationale:
+1) `5A.S0` requires seed-matched `2B` surfaces (`s1_site_weights`, `s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`) plus `2B` validation gate artifacts.
+2) Synthetic cloning from seed `42` was rejected as non-realistic certification evidence.
+3) Full upstream reopen across multiple segments was rejected as unnecessary blast radius.
+
+Chosen execution path:
+1) stage three `2B` run roots (`seed=7/101/202`) from existing frozen `3B` seed authorities with run-receipt identity rewrite only.
+2) run `2B S0->S8` unchanged to materialize seed-scoped `2B` outputs.
+3) stage those roots into `segment_5A` and run `5A S0->S5` for seeds `7/101/202`.
+4) rerun integrated `P5` scoring on `{42,7,101,202}`.
+
+---
+
+### Entry: 2026-02-21 22:15
+
+Execution outcome: seed coverage closed; integrated `P5` still `HOLD` due hard concentration gate on new seeds.
+
+Seed closure evidence:
+1) Upstream `2B` support runs:
+- seed `7` -> `runs/fix-data-engine/segment_2B/72de072a6ba446da883aff5e166d0e58`
+- seed `101` -> `runs/fix-data-engine/segment_2B/22b22199940d4b1a98764af28af3a761`
+- seed `202` -> `runs/fix-data-engine/segment_2B/bd778d87473d4485b28c880e3044896f`
+
+2) 5A runs generated from those seed-closed upstream roots:
+- seed `7` -> `runs/fix-data-engine/segment_5A/89f523553164416f9cf332f39e730e1b`
+- seed `101` -> `runs/fix-data-engine/segment_5A/d52ebade75684401b02ac78b2ee88946`
+- seed `202` -> `runs/fix-data-engine/segment_5A/22801d79479342b8921a0438922ddca7`
+
+3) Runtime evidence captured per seed via baseline profiler artifacts:
+- `segment5a_popt0_baseline_<run_id>.json` for `42/7/101/202` authorities.
+
+Integrated P5 scoring:
+1) gateboard run-set:
+- `segment5a_p5_realism_gateboard_6817ca5a2e2648a1a8cf62deebfa0fcb__89f523553164416f9cf332f39e730e1b__d52ebade75684401b02ac78b2ee88946__22801d79479342b8921a0438922ddca7.json`
+
+2) decision:
+- `HOLD_P5_REMEDIATE`.
+
+3) blocker details:
+- hard gate `max_country_share_within_class_lte_0.40` fails on seeds `7`, `101`, `202`.
+- seed `42` remains `PASS_B`.
+- cross-seed stability CV thresholds pass (`B` + `B+`) and are not the blocker.
+
+Final handoff posture after full P5 execution:
+- `HOLD_REMEDIATE` (no freeze claim) with owner-phase attribution to concentration lane (`P2`-owned behavior under multi-seed certification).

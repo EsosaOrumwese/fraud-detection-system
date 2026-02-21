@@ -1241,3 +1241,16 @@ P5 closure record (2026-02-18):
 - handoff:
   - remediation focus moves to segment `3A`; `2B` remains frozen unless an
     explicit upstream-constraint reopen is approved.
+
+Support reopen note (2026-02-21):
+- a bounded support-only reopen was executed to unblock `5A P5` required seed coverage.
+- scope:
+  - materialize seed-scoped `2B` egress surfaces for seeds `7/101/202` (`S1/S2/S3/S4` outputs + `S8` validation bundle/flag),
+  - no policy/logic tuning; no change to 2B remediation freeze posture.
+- support run-ids:
+  - seed `7`: `72de072a6ba446da883aff5e166d0e58`
+  - seed `101`: `22b22199940d4b1a98764af28af3a761`
+  - seed `202`: `bd778d87473d4485b28c880e3044896f`
+- outcome:
+  - `SEED_PACK_READY_FOR_5A` achieved,
+  - segment `2B` remains `FROZEN_BEST_EFFORT_BELOW_B` for remediation purposes.
