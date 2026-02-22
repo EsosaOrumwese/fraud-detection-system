@@ -4233,3 +4233,91 @@ Rationale:
    regression risk.
 3) evidence remains available for future reopen consideration without carrying the
    code path forward now.
+
+### Entry: 2026-02-22 17:19
+
+Design element: bounded temporal-horizon reopen for `2A.S3` to support downstream 5B `P1` closure.
+Summary: current `tz_timetable_cache` entries terminate at 2025 transitions for many DST zones, while downstream run horizon is in 2026. This yields deterministic one-hour mismatches in 5B around DST shift windows. Reopen is scoped to extending transition horizon in S3 without changing S1/S2 topology policy.
+
+Root-cause evidence:
+1) decoded cache entries for representative tzids:
+   - `Europe/Berlin` last transition around `2025-10-26`;
+   - `America/Toronto` last transition around `2025-11-02`.
+2) downstream mismatch profile:
+   - one-hour signature concentrated in March 2026 DST lanes.
+
+Chosen implementation:
+1) augment `_compile_tzid_index(...)` with deterministic future-transition synthesis using `ZoneInfo` offset-change detection,
+2) synthesize only when explicit transition horizon is below configured target year,
+3) target year computed from release tag year + bounded extension budget,
+4) maintain existing invariants: monotone transition instants, minute-level offset normalization, deterministic output order.
+
+Performance and safety posture:
+1) bounded search (daily stride + binary search per detected change) keeps cost proportional to actual transition events,
+2) no per-row downstream data scans in S3 reopen,
+3) shared cache schema bump to prevent stale old-format reuse.
+
+Alternatives considered and rejected:
+1) force metadata-only release year uplift:
+   - rejected as non-causal and non-realistic.
+2) topology reassignment in S2:
+   - rejected for this root-cause lane.
+3) leave cache behavior unchanged and tune 5B only:
+   - rejected; upstream ownership is evidenced.
+
+Planned validation:
+1) compile gate for modified S3 runner,
+2) `2A S3->S5` rerun on authority run-id,
+3) decode new cache and verify representative tzids have >=2026 transition horizon,
+4) downstream `5B S4->S5` and P1 rescoring to measure `T1/T2/T3/T11` movement.
+
+### Entry: 2026-02-22 17:21
+
+Execution step: implemented bounded `2A.S3` transition-horizon extension and cache invalidation.
+Summary: patched S3 timetable compilation so tzids with explicit-transition cut-off are deterministically extended beyond release year using ZoneInfo offset-change synthesis; bumped shared-cache schema to avoid stale v1 cache reuse.
+
+Code changes:
+1) `packages/engine/src/engine/layers/l1/seg_2A/s3_timetable/runner.py`
+   - cache schema: `s3_tz_index_v1 -> s3_tz_index_v2`.
+   - added release/horizon controls:
+     - `_release_year_from_tag(...)`,
+     - `_future_transition_years_budget(...)` (`ENGINE_2A_S3_FUTURE_TRANSITION_YEARS`, default `3`, max `8`).
+   - added deterministic future transition synthesizer:
+     - `_offset_seconds_at_utc(...)`,
+     - `_synthesize_future_transitions(...)` (daily stride + binary search per offset change).
+   - extended `_compile_tzid_index(...)` to append synthesized transitions when explicit horizon is below target.
+   - emitted `HORIZON_EXTENSION_POLICY` runtime event and `CACHE_STORE` synthesized-transition count.
+
+Reasoning for chosen patch:
+1) root-cause is horizon truncation, so owner fix belongs in S3 transition index build.
+2) deterministic extension from timezone rules is causal and auditable, unlike metadata-only relabeling.
+3) schema bump is required so archive-digest cache key cannot silently reuse pre-fix payload.
+
+Validation status:
+- compile gate: `python -m py_compile .../seg_2A/s3_timetable/runner.py` -> PASS.
+- next: execute `2A S3->S5` and inspect cache horizon years for representative DST tzids.
+
+### Entry: 2026-02-22 17:32
+
+Execution step: completed upstream reopen witness run (`2A S3->S5`) and validated horizon movement.
+Summary: reran `2A` authority lane on run-id `c25...` with the new S3 logic. S3/S4/S5 all passed, and cache transitions now extend through 2028 for representative DST zones.
+
+Run details:
+1) command lane:
+   - `make segment2a-s3 segment2a-s4 segment2a-s5 RUNS_ROOT=runs/local_full_run-5 RUN_ID=c25... ENGINE_2A_S3_FUTURE_TRANSITION_YEARS=3`.
+2) S3 runtime evidence:
+   - `HORIZON_EXTENSION_POLICY`: `release=2025a`, `future_horizon_year=2028`, `cache_schema=s3_tz_index_v2`.
+   - `CACHE_STORE`: `synthesized_transitions_total=1206`, `rle_cache_bytes=455351`, `transitions_total=36340`.
+3) S4/S5 posture:
+   - `S4 PASS`, `missing_tzids_count=0`.
+   - `S5 PASS` and bundle digest emitted.
+
+Post-run horizon verification:
+1) decoded `tz_cache_v1.bin` confirms representative last transitions now in 2028:
+   - `Europe/Berlin` `2028-10-29T01:00:00Z`,
+   - `Europe/Paris` `2028-10-29T01:00:00Z`,
+   - `America/Toronto` `2028-11-05T06:00:00Z`,
+   - `Europe/London` `2028-10-29T01:00:00Z`.
+
+Decision:
+- upstream `2A` temporal-horizon reopen lane succeeded and is ready for downstream `5B` re-evaluation.

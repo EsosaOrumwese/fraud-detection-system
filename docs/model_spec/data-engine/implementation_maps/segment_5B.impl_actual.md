@@ -6966,3 +6966,118 @@ Artifacts emitted:
 
 Hygiene:
 - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
+
+### Entry: 2026-02-22 17:09
+
+Planning step: pinned post-P1 execution bridge and blocked direct P2 entry until upstream ownership lane is closed.
+Summary: after P1 closed as `HOLD_P1_REOPEN`, we clarified execution intent in the build plan so remediation cannot drift into calibration (`P2`) before clearing the upstream temporal-horizon defect chain.
+
+Why this update was required:
+1) current posture is explicit hold (`T1/T2/T3/T11` fail; `T12` pass), so direct `P2` start would violate fail-closed phase discipline.
+2) ownership is split: local semantic lane is corrected, residual temporal defect remains upstream-owned.
+3) the plan needed a machine-readable, checklist-style bridge so sequencing is auditable.
+
+Alternatives considered and rejected:
+1) enter `P2` and backfill reopen work later:
+   - rejected; mixes causal lanes and risks tuning around unresolved correctness defects.
+2) keep reopen intent as informal chat-only instruction:
+   - rejected; insufficient for audit and phase-governance law.
+
+Execution sequence now pinned in build plan:
+1) targeted upstream `2A` reopen for temporal-horizon owner knobs only.
+2) rerun `5B` local lane `S4 -> S5` on authority run-id.
+3) rescore `P1` hard gates (`T1/T2/T3/T11/T12`) with refreshed artifacts.
+4) only then decide `UNLOCK_P2` or keep `HOLD_P1_REOPEN` with explicit waiver/freeze.
+
+Decision:
+- `P2` remains blocked until `P1 Reopen Bridge` DoD is satisfied.
+
+### Entry: 2026-02-22 17:19
+
+Planning step: begin `P1 Reopen Bridge` execution with bounded upstream `2A` temporal-horizon owner lane.
+Summary: diagnostics show `T1/T2/T3/T11` failures are concentrated in March 2026 and are almost entirely exact one-hour deltas across DST-observing tzids. This pattern is consistent with upstream timetable horizon cut-off, not random 5B parser/serialization drift.
+
+Evidence reviewed before reopen:
+1) `segment5b_p1_temporal_diagnostics_c25...json`:
+   - `t1=2.6410%`, `t2=2.6410%`, `t3=2.2670pp`, support concentrated in `Europe/*`, `America/Toronto`, `Asia/Jerusalem`.
+2) sampled attribution run:
+   - mismatches overwhelmingly in `2026-03` (`~7.78%` for month sample; `2026-01` near zero),
+   - per-tz mismatch dominated by exact `+/-3600s` signatures.
+3) decoded `2A` cache (`tz_cache_v1.bin`):
+   - representative last transitions are in `2025` (e.g., Berlin/Paris/Toronto), confirming horizon truncation against run year `2026`.
+
+Decision and bounded scope for reopen:
+1) reopen upstream owner at `2A.S3` only (timetable transition horizon extension);
+2) no broad topology recalibration (`2A.S1/S2` policy retune) in this lane;
+3) keep `5B` local `S4/S5` code frozen during this bridge.
+
+Implementation approach selected:
+1) extend `S3` compiled transition index with deterministic future transitions derived from `ZoneInfo` offset-change search,
+2) anchor horizon to `release_year + bounded_years_budget` (env-tunable, deterministic default),
+3) bump shared cache schema version to invalidate stale v1 cache payloads for same tzdb archive digest.
+
+Alternatives considered and rejected:
+1) synthetic release-tag relabel only (e.g., force 2026 tag without real transition extension):
+   - rejected; would forge metadata posture without fixing one-hour mismatch behaviour.
+2) broad `S2` override retune first:
+   - rejected for this lane; owner evidence points to temporal horizon, not assignment policy.
+3) no upstream code reopen and proceed to P2:
+   - rejected by fail-closed `P1 Reopen Bridge` rule.
+
+Execution sequence locked for this bridge:
+1) patch `2A.S3` temporal-horizon extension and cache schema bump;
+2) compile gate and run `2A S3->S5` on authority run-id `c25...`;
+3) rerun `5B S4->S5` on same authority run-id;
+4) rescore `P1` gates and emit refreshed closure artifacts;
+5) decide `UNLOCK_P2` or retain `HOLD_P1_REOPEN`.
+
+### Entry: 2026-02-22 17:21
+
+Execution step: upstream owner patch landed for P1 bridge (`2A.S3` temporal horizon).
+Summary: implemented and compile-validated the bounded 2A horizon extension lane so downstream 5B can be re-evaluated against a cache that carries post-2025 DST transitions.
+
+Bridge control notes:
+1) no local 5B S4/S5 logic changed in this step.
+2) no 2A topology retune (`S1/S2`) included.
+3) cache schema bump ensures this bridge uses freshly compiled timetable payloads.
+
+Immediate next sequence:
+1) rerun `2A S3->S5` on authority run-id `c25...`,
+2) rerun `5B S4->S5` on same run-id,
+3) rescore `P1` gates and record final branch decision (`UNLOCK_P2` vs `HOLD_P1_REOPEN`).
+
+### Entry: 2026-02-22 17:32
+
+Execution step: completed full `P1 Reopen Bridge` sequence through downstream rerun and rescoring.
+Summary: after upstream `2A` horizon correction, reran `5B S4->S5` on authority run-id and rescored `P1`. Hard temporal mismatches collapsed to zero for `T1/T2` and `T11` turned green; residual hold remains only on `T3` power criterion.
+
+Run details:
+1) commands:
+   - `make segment5b-s4 segment5b-s5 RUNS_ROOT=runs/local_full_run-5 RUN_ID=c25...`.
+2) outcomes:
+   - `S4 PASS` and republished `arrival_events_5B`.
+   - `S5` remained fail-closed (`S5_VALIDATION_FAILED`) but emitted validation artifacts used by scorer.
+3) refreshed scorer:
+   - `python tools/score_segment5b_p1_realism.py --runs-root runs/local_full_run-5 --run-id c25... --out-root runs/fix-data-engine/segment_5B/reports --sample-target 200000`.
+
+Measured movement after bridge:
+1) `T1`: `2.6410% -> 0.0000%` (`PASS`).
+2) `T2`: `2.6410% -> 0.0000%` (`PASS`).
+3) `T11`: `FAIL -> PASS` (`one_hour_mass=0.0000%`, release still `2025a`, run year `2026`).
+4) `T12`: remains `PASS`.
+5) `T3`: value `0.0000pp` but remains `FAIL` because `insufficient_power=true` (`min_window_support=1`).
+
+Branch decision and artifacts:
+1) refreshed artifacts:
+   - `segment5b_p1_realism_gateboard_c25....json/.md`,
+   - `segment5b_p1_temporal_diagnostics_c25....json`,
+   - `segment5b_p1_t11_t12_contract_check_c25....json`.
+2) refreshed closure artifacts:
+   - `segment5b_p1_2a_reopen_decision_c25....json` (`UPSTREAM_REOPEN_COMPLETED_HOLD_T3_POWER`),
+   - `segment5b_p1_closure_c25....json` (`HOLD_P1_REOPEN`).
+3) decision:
+   - upstream reopen objective achieved,
+   - `P2` remains blocked pending local `T3` power-closure decision.
+
+Operational note:
+- attempted immediate prune of temporary `.p1bridge_*` backup directories, but shell policy blocked direct `Remove-Item` commands in this environment.

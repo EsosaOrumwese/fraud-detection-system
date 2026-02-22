@@ -1389,6 +1389,41 @@ P1 closure snapshot (2026-02-22):
 - phase decision:
   - `HOLD_P1_REOPEN` with explicit conditional branch decision `UNLOCK_P1_UPSTREAM_2A_REOPEN`.
 
+#### P1 Reopen Bridge (mandatory before P2 entry)
+Objective:
+- clear upstream temporal-horizon ownership defects first, then re-close P1 on refreshed evidence.
+
+Execution sequence:
+1. run targeted upstream `2A` reopen for temporal-horizon owner knobs only (no broad calibration retune).
+2. rerun `5B` local correctness lane `S4 -> S5` on authority run-id.
+3. rescore `P1` hard gates (`T1/T2/T3/T11/T12`) and refresh closure artifacts.
+4. if `T11` clears and temporal hard gates pass, set `UNLOCK_P2`.
+5. if hard gates remain unresolved, keep `HOLD_P1_REOPEN` and record explicit waiver/freeze decision; do not enter `P2`.
+
+Definition of done:
+- [x] upstream `2A` reopen evidence bundle is archived with knob deltas and measured movement.
+- [x] refreshed `5B P1` gateboard is emitted after reopen.
+- [x] explicit branch decision recorded: `UNLOCK_P2` or retained `HOLD_P1_REOPEN`.
+- [x] no `P2` execution begins unless `UNLOCK_P2` is recorded.
+
+P1 Reopen Bridge snapshot (2026-02-22):
+- upstream reopen execution (`2A S3->S5`, authority run-id `c25a2675fbfbacd952b13bb594880e92`):
+  - `2A.S3` patched for bounded future transition synthesis and cache schema bump (`s3_tz_index_v2`),
+  - `HORIZON_EXTENSION_POLICY`: release `2025a`, horizon target year `2028`,
+  - `CACHE_STORE`: `synthesized_transitions_total=1206`, `rle_cache_bytes=455351`.
+- downstream rerun:
+  - `5B S4` completed with rebuilt `2A` cache inputs,
+  - `5B S5` remained fail-closed (`S5_VALIDATION_FAILED`) but emitted refreshed validation artifacts for scoring.
+- refreshed P1 gate posture:
+  - `T1`: `0.0000%` (`PASS`),
+  - `T2`: `0.0000%` (`PASS`),
+  - `T3`: `0.0000 pp` value but `FAIL` due `insufficient_power=true` (`min_window_support=1`),
+  - `T11`: `PASS` (`release=2025a`, `run_year_max=2026`, `one_hour_mass=0.0000%`),
+  - `T12`: `PASS`.
+- phase decision:
+  - retain `HOLD_P1_REOPEN` (single residual hard gate `T3` power criterion),
+  - `P2` remains blocked.
+
 ### P2 - Wave B calibration (timezone concentration + virtual share)
 Goal:
 - move concentration and virtual-share realism into B/B+ bands without breaking Wave-A correctness.
@@ -1452,4 +1487,5 @@ Definition of done:
 3. `POPT.4` executed with bounded reopens `R2` and final `R3`; phase now closed at `UNLOCK_POPT5_CONTINUE`.
 4. `POPT.5` is closed with decision `GO_P0` and explicit residual-budget posture recorded.
 5. `P0` is closed (`P0.1 -> P0.5`) with authority gateboard + owner matrix + candidate protocol artifacts.
-6. Proceed into remediation stack `P1 -> P5` (starting with Wave-A correctness lane).
+6. `P1` local Wave-A correctness lane is closed with hold posture and upstream reopen trigger.
+7. `P1 Reopen Bridge` executed; `P2` remains blocked until `T3` power-closure branch records `UNLOCK_P2`.

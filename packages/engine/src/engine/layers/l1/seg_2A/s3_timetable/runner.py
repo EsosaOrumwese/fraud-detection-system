@@ -11,11 +11,13 @@ import subprocess
 import tarfile
 import time
 import uuid
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 import polars as pl
+from zoneinfo import ZoneInfo
 
 try:
     import pyarrow.parquet as pq
@@ -76,8 +78,11 @@ _TZ_SOURCE_ALLOWLIST = {
     "solar88",
     "solar89",
 }
-_S3_INDEX_CACHE_SCHEMA = "s3_tz_index_v1"
+_S3_INDEX_CACHE_SCHEMA = "s3_tz_index_v2"
 _PROGRESS_LOG_INTERVAL_SECONDS = 1.0
+_S3_FUTURE_TRANSITION_YEARS_ENV = "ENGINE_2A_S3_FUTURE_TRANSITION_YEARS"
+_S3_FUTURE_TRANSITION_YEARS_DEFAULT = 3
+_S3_FUTURE_TRANSITION_YEARS_MAX = 8
 
 
 @dataclass(frozen=True)
@@ -656,11 +661,104 @@ def _offset_minutes(
     return int(offset_seconds // 60)
 
 
+def _release_year_from_tag(release_tag: str) -> Optional[int]:
+    if len(release_tag) < 4:
+        return None
+    year_text = release_tag[:4]
+    if not year_text.isdigit():
+        return None
+    return int(year_text)
+
+
+def _future_transition_years_budget() -> int:
+    raw = os.environ.get(_S3_FUTURE_TRANSITION_YEARS_ENV, str(_S3_FUTURE_TRANSITION_YEARS_DEFAULT))
+    try:
+        value = int(raw)
+    except ValueError:
+        value = _S3_FUTURE_TRANSITION_YEARS_DEFAULT
+    if value < 0:
+        return 0
+    return min(value, _S3_FUTURE_TRANSITION_YEARS_MAX)
+
+
+def _offset_seconds_at_utc(tz: ZoneInfo, instant_utc: int) -> int:
+    utc_dt = datetime.fromtimestamp(int(instant_utc), tz=timezone.utc)
+    offset = utc_dt.astimezone(tz).utcoffset()
+    return int(offset.total_seconds()) if offset is not None else 0
+
+
+def _synthesize_future_transitions(
+    tzid: str,
+    *,
+    last_instant: int,
+    last_offset_minutes: int,
+    scan_start_year: int,
+    target_year: int,
+    adjustments: list[dict],
+) -> list[tuple[int, int]]:
+    if target_year < scan_start_year:
+        return []
+    if scan_start_year < 1970:
+        scan_start_year = 1970
+    try:
+        tz = ZoneInfo(tzid)
+    except Exception:
+        return []
+
+    start_ts = int(datetime(scan_start_year, 1, 1, tzinfo=timezone.utc).timestamp())
+    end_ts = int(datetime(target_year + 1, 1, 1, tzinfo=timezone.utc).timestamp())
+    if end_ts <= start_ts:
+        return []
+
+    cursor = start_ts
+    if last_instant != MIN_INSTANT:
+        cursor = max(cursor, int(last_instant) + 1)
+    if cursor >= end_ts:
+        return []
+
+    synthesized: list[tuple[int, int]] = []
+    current_offset_seconds = _offset_seconds_at_utc(tz, cursor)
+    current_offset_minutes = _offset_minutes(current_offset_seconds, tzid, cursor, adjustments)
+    if current_offset_minutes != last_offset_minutes:
+        synthesized.append((cursor, current_offset_minutes))
+        last_offset_minutes = current_offset_minutes
+
+    while cursor < end_ts:
+        window_end = min(cursor + 86_400, end_ts)
+        if window_end <= cursor:
+            break
+        end_offset_seconds = _offset_seconds_at_utc(tz, window_end)
+        if end_offset_seconds == current_offset_seconds:
+            cursor = window_end
+            continue
+
+        lo = cursor
+        hi = window_end
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if _offset_seconds_at_utc(tz, mid) == current_offset_seconds:
+                lo = mid
+            else:
+                hi = mid
+        transition_ts = hi
+        new_offset_seconds = _offset_seconds_at_utc(tz, transition_ts)
+        new_offset_minutes = _offset_minutes(new_offset_seconds, tzid, transition_ts, adjustments)
+        if new_offset_minutes != last_offset_minutes and transition_ts > last_instant:
+            synthesized.append((transition_ts, new_offset_minutes))
+            last_offset_minutes = new_offset_minutes
+        current_offset_seconds = new_offset_seconds
+        cursor = transition_ts + 1
+    return synthesized
+
+
 def _compile_tzid_index(
     tzid: str,
     tzif_path: Path,
     adjustments: list[dict],
-) -> list[tuple[int, int]]:
+    *,
+    release_year: Optional[int],
+    future_horizon_year: Optional[int],
+) -> tuple[list[tuple[int, int]], int]:
     with tzif_path.open("rb") as handle:
         trans_idx, trans_list_utc, utcoff, _isdst, _abbr, _tz_str = tz_common.load_data(handle)
     if utcoff:
@@ -696,7 +794,21 @@ def _compile_tzid_index(
         entries.append((instant_value, offset_minutes))
         last_instant = instant_value
         last_offset = offset_minutes
-    return entries
+
+    synthesized_count = 0
+    if release_year is not None and future_horizon_year is not None and future_horizon_year >= release_year:
+        future_entries = _synthesize_future_transitions(
+            tzid,
+            last_instant=last_instant,
+            last_offset_minutes=last_offset,
+            scan_start_year=release_year,
+            target_year=future_horizon_year,
+            adjustments=adjustments,
+        )
+        if future_entries:
+            entries.extend(future_entries)
+            synthesized_count = len(future_entries)
+    return entries, synthesized_count
 
 
 def _encode_index(entries: list[tuple[str, list[tuple[int, int]]]]) -> bytes:
@@ -1055,6 +1167,24 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 MODULE_NAME,
                 {"detail": "tzdb_archive_sha256_invalid"},
             )
+        release_year = _release_year_from_tag(str(tzdb_release_tag))
+        future_year_budget = _future_transition_years_budget()
+        future_horizon_year = (
+            (release_year + future_year_budget)
+            if (release_year is not None and future_year_budget > 0)
+            else None
+        )
+        _emit_event(
+            logger,
+            "HORIZON_EXTENSION_POLICY",
+            str(manifest_fingerprint),
+            "INFO",
+            release_tag=str(tzdb_release_tag),
+            release_year=release_year,
+            future_year_budget=future_year_budget,
+            future_horizon_year=future_horizon_year,
+            cache_schema=_S3_INDEX_CACHE_SCHEMA,
+        )
         archive_candidates = list(release_dir.glob("*.tar.gz")) + list(release_dir.glob("*.tgz"))
         if len(archive_candidates) != 1:
             _emit_failure_event(
@@ -1147,6 +1277,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             offset_min: Optional[int] = None
             offset_max: Optional[int] = None
             transitions_total = 0
+            synthesized_transitions_total = 0
             try:
                 output_dir, tzdb_tmp_root = _compile_tzdb(
                     archive_path,
@@ -1187,7 +1318,14 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 progress = _ProgressTracker(len(tzids_sorted), logger, "S3 tzids")
                 for tzid in tzids_sorted:
                     tzif_path = tzifs[tzid]
-                    transitions = _compile_tzid_index(tzid, tzif_path, adjustments)
+                    transitions, synthesized_count = _compile_tzid_index(
+                        tzid,
+                        tzif_path,
+                        adjustments,
+                        release_year=release_year,
+                        future_horizon_year=future_horizon_year,
+                    )
+                    synthesized_transitions_total += int(synthesized_count)
                     for instant, offset in transitions:
                         if instant is None or offset is None:
                             raise EngineFailure(
@@ -1245,6 +1383,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 cache_key=str(tzdb_archive_sha256).lower(),
                 tzid_count=counts["tzid_count"],
                 rle_cache_bytes=counts["rle_cache_bytes"],
+                synthesized_transitions_total=synthesized_transitions_total,
             )
 
         _emit_event(

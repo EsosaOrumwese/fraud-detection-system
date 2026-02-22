@@ -1,15 +1,23 @@
 # Migration To Dev - Authority Index
 
-This folder contains the authoritative migration documents for lifting
-Spine Green v0 from local parity to dev_min managed substrate.
+This folder contains the authoritative migration documents for lifting platform runtime
+from local parity semantics into managed substrate environments.
 
-## Files
+## Active authority sets
+
+### Dev-min (certified spine baseline)
 - `dev_min_spine_green_v0_run_process_flow.md`
   - Canonical dev_min run-process twin keyed by `phase_id=P#` (`P0..P11`, `P12` teardown).
 - `dev_min_handles.registry.v0.md`
   - Single source of truth for dev_min wiring handles (S3, Kafka, ECS, DB, IAM, evidence paths).
 
-## Mapping Source (Semantic Authority)
+### Dev-full (full-platform extension authority)
+- `dev_full_platform_green_v0_run_process_flow.md`
+  - Canonical dev_full run-process authority keyed by `phase_id=P#` (`P(-1)`, `P0..P17`) for Spine + Learning/Evolution closure.
+- `dev_full_handles.registry.v0.md` (required companion; create/pin before execution)
+  - Intended single source of truth for dev_full concrete handles (EKS/MSK/S3/Aurora/Redis/Databricks/SageMaker/MWAA/StepFunctions/IAM/evidence).
+
+## Mapping source (semantic authority)
 These docs translate and preserve the canonical local-parity flow in:
 - `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
 - `docs/design/platform/local-parity/addendum_1_phase_state_machine_and_gates.txt`
@@ -19,7 +27,7 @@ These docs translate and preserve the canonical local-parity flow in:
 - `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`
 - `docs/design/platform/local-parity/addendum_5_concurrency_backpressure_knobs.txt`
 
-## Working Rule
-Treat the run-process document + handles registry as a pair:
+## Working rule
+Treat process-flow + handles registry as a pair for each environment:
 - process-flow defines phase semantics, gates, and proof obligations;
-- handles registry defines the concrete names/paths/IDs used by implementation.
+- handles registry defines concrete names/paths/IDs used by implementation.
