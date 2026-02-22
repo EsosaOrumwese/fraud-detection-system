@@ -794,18 +794,32 @@ Objective:
 - reduce Python/control-plane overhead in `S2` latent draw path while preserving RNG semantics.
 
 Definition of done:
-- [ ] bounded `S2` hot-path optimization patch applied.
-- [ ] compile gates pass.
+- [x] bounded `S2` hot-path optimization patch applied.
+- [x] compile gates pass.
 - [ ] witness `S2 <= 45.0s`.
+
+POPT.3R.1 execution snapshot (2026-02-22):
+- retained patch: bounded `S2` vectorization + reduced realised-loop overhead in `packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py`.
+- witness trail:
+  - isolated confirmations: `48.156s`, `48.172s` (after outlier `52.342s`),
+  - integration witness (`POPT.3R.3` authority): `46.718s`.
+- closure: movement improved vs reopen anchor `48.516s` but stretch gate remains unmet (`46.718s > 45.0s`).
 
 #### POPT.3R.2 - S3 algorithmic pass
 Objective:
 - reduce per-row/domain-key and RNG dispatch overhead in `S3` count realization path while preserving count-law semantics.
 
 Definition of done:
-- [ ] bounded `S3` hot-path optimization patch applied.
-- [ ] compile gates pass.
+- [x] bounded `S3` hot-path optimization patch applied.
+- [x] compile gates pass.
 - [ ] witness `S3 <= 45.0s`.
+
+POPT.3R.2 execution snapshot (2026-02-22):
+- candidate patch applied in `packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py`, then fail-closed rollback to `HEAD` after sustained regression.
+- witness trail:
+  - candidate runs: `59.218s`, `58.500s` (regressed),
+  - post-rollback integration witness (`POPT.3R.3` authority): `55.093s`.
+- closure: stretch gate unmet (`55.093s > 45.0s`), rollback retained as final code posture.
 
 #### POPT.3R.3 - Integration witness + veto
 Objective:
@@ -816,11 +830,41 @@ Decision outcomes:
 - `HOLD_POPT3_REOPEN` if stretch closure fails or guardrails fail.
 
 Definition of done:
-- [ ] witness chain `S2/S3/S4/S5` is complete.
-- [ ] `S4/S5` remain `PASS` and `bundle_integrity_ok=true`.
-- [ ] structural invariants remain unchanged (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights`).
-- [ ] explicit reopen decision recorded with retained artifacts.
-- [ ] prune checklist executed and logged.
+- [x] witness chain `S2/S3/S4/S5` is complete.
+- [x] `S4/S5` remain `PASS` and `bundle_integrity_ok=true`.
+- [x] structural invariants remain unchanged (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights`).
+- [x] explicit reopen decision recorded with retained artifacts.
+- [x] prune checklist executed and logged.
+
+POPT.3R.3 closure snapshot (2026-02-22):
+- authority source:
+  - run-id `c25a2675fbfbacd952b13bb594880e92`,
+  - `segment_state_runs`: `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/reports/layer2/segment_state_runs/segment=5B/utc_day=2026-02-22/segment_state_runs.jsonl`.
+- integrated witness timings:
+  - `S2=46.718s` (`wall_ms=46718`),
+  - `S3=55.093s` (`wall_ms=55093`),
+  - `S4=457.188s` (`wall_ms=457188`, `PASS`),
+  - `S5=1.686s` (`wall_ms=1686`, `PASS`, `bundle_integrity_ok=true`).
+- gate outcomes:
+  - target gate (`S2<=35s` and `S3<=35s`): `FAIL`,
+  - stretch gate (`S2<=45s` and `S3<=45s`): `FAIL`,
+  - guardrails (`S2/S3/S4/S5 PASS`, structure preserved, bundle integrity): `PASS`.
+- structural invariants (baseline_v1):
+  - `bucket_rows=35700480`,
+  - `arrivals_total=124724153`,
+  - `arrival_rows=124724153`,
+  - `arrival_virtual=2802007`,
+  - `missing_group_weights=0`.
+- retained closure artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- housekeeping + hygiene:
+  - `S5` first attempt failed with `S5_INFRASTRUCTURE_IO_ERROR` (`F4:S5_OUTPUT_CONFLICT ... phase=publish`), then rerun passed after timestamped `.stale_*` move.
+  - `python -m py_compile packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py` -> `PASS`.
+  - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
+- phase decision:
+  - `HOLD_POPT3_REOPEN`.
 
 ### POPT.4 - Validation lane + logging budget closure
 Goal:

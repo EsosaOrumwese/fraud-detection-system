@@ -6025,3 +6025,162 @@ Decision implications for reopen sequence:
 Artifacts emitted:
 - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r0_profile_lock_c25a2675fbfbacd952b13bb594880e92.json`
 - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r0_profile_lock_c25a2675fbfbacd952b13bb594880e92.md`
+
+### Entry: 2026-02-22 12:10
+
+Design lock before `POPT.3R.1` + `POPT.3R.2` code edits (post-`POPT.3R.0` profiling).
+Summary: selecting a bounded algorithmic patch set that directly targets the measured hot phases without policy/schema/output-shape changes.
+
+Hotspot authority (from `POPT.3R.0`):
+- `S2 total=48.509s`:
+  - `realised_join_transform_write_loop=25.193s` (`51.93%`),
+  - `latent_draw_compute=22.117s` (`45.59%`).
+- `S3 total=51.476s`:
+  - `bucket_count_compute_loop=48.604s` (`94.42%`).
+
+Decision constraints carried from plan:
+1) keep RNG semantics deterministic and audit-equivalent.
+2) do not change realism laws (`count_law`, `hurdle`, etc.).
+3) do not change contracts/schema/publish paths.
+4) keep changes bounded to `S2` and `S3` runners only.
+
+Alternatives considered and rejected before editing:
+1) Increase workers/inflight knobs in `S3`:
+   - rejected for `POPT.3R` owner lane because this is resource scaling, not algorithmic efficiency; also unstable on constrained host RAM posture.
+2) Disable/relax validation to gain runtime:
+   - rejected because this changes quality/guardrail posture and violates reopen scope.
+3) Move to completely different RNG key derivation model:
+   - rejected due high semantic blast radius (risk to deterministic replay/accounting).
+
+Chosen patch strategy:
+A) `S2` patch set (`POPT.3R.1`):
+   - reduce per-group Python overhead in latent generation via vectorized U64->U(0,1) and vectorized Box-Muller pairs.
+   - reduce realised-loop column-expression overhead by replacing repeated `with_columns` phases with a single compact projection path where possible.
+   - keep exact counter accounting checks and factor clipping semantics.
+
+B) `S3` patch set (`POPT.3R.2`):
+   - add a zero-allocation fast path in `_process_counts_batch` for the hot case (`blocks_per_row==1`, no RNG event file emission).
+   - avoid per-row list allocations/function dispatch for Philox draw extraction and U(0,1) conversion.
+   - reduce per-row domain-key overhead with cached bucket suffix bytes and reduced string assembly churn while preserving domain-key law string semantics.
+
+Risk assessment and fail-closed plan:
+- medium risk in `S3` hot loop due high touch density; low/medium risk in `S2` vectorization.
+- compile gate mandatory after each patch set.
+- if either state regresses materially on immediate witness, rollback that state patch before proceeding.
+
+Execution sequence locked:
+1) implement `S2` patch, compile, run `segment5b-s2` witness.
+2) implement `S3` patch, compile, run `segment5b-s3` witness.
+3) if both reach or approach stretch target, run full `S2->S3->S4->S5` in `POPT.3R.3`.
+
+### Entry: 2026-02-22 12:26
+
+Execution step: `POPT.3R.1` S2 patch iteration results and decision.
+Summary: applied two bounded S2 optimization passes, validated compile, and ran repeated S2 witnesses; movement is positive but insufficient for stretch closure.
+
+Patch set applied in this iteration:
+1) latent path optimization:
+   - vectorized U64->U(0,1) conversion and Box-Muller pair generation,
+   - vectorized factor clipping path,
+   - reduced `_draw_philox_u64` list append/control overhead.
+2) realised loop optimization:
+   - consolidated repeated validation scans into lower-pass checks,
+   - shifted numeric validity checks to NumPy arrays,
+   - reduced intermediate DataFrame churn when assembling output payload columns.
+
+Validation and witness evidence:
+- compile gate:
+  - `python -m py_compile packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py` -> `PASS`.
+- S2 witnesses (same authority run-id):
+  1) candidate-A: `52.34s` (`wall_ms=52342`) -> fail-closed flagged as potential noise/regression.
+  2) candidate-A confirm rerun: `48.16s` (`wall_ms=48162`).
+  3) candidate-B (with realised-loop consolidation): `48.17s` (`wall_ms=48173`).
+
+Interpretation and decision:
+- against current reopen anchor (`48.516s`), observed movement is marginally positive (~`-0.34s`, `-0.70%`) but far from stretch target (`<=45s`).
+- candidate-A first run shows host-variance sensitivity; repeated runs cluster around `48.16-48.17s`.
+- decision: retain current S2 patch set (no measurable regression in repeated runs), but do not claim closure for `POPT.3R.1` gate.
+
+Alternative paths considered at this checkpoint:
+1) immediate rollback of S2 patch due first run regression:
+   - rejected because repeated witness disproved sustained regression.
+2) continue pushing S2 with high-blast-radius join-model rewrite now:
+   - rejected at this moment to preserve bounded reopen scope and avoid compounding risk before S3 lane is addressed.
+
+Next action:
+- proceed to `POPT.3R.2` S3 fast-path optimization, then adjudicate integrated reopen decision in `POPT.3R.3`.
+
+### Entry: 2026-02-22 12:30
+
+Execution step: `POPT.3R.2` S3 fast-path candidate failed and is being rolled back.
+Summary: the hot-loop fast-path patch produced sustained runtime regression across repeated witnesses, so the lane is fail-closed and reverted.
+
+Candidate patch intent:
+- introduce event-off / single-block fast path in `_process_counts_batch`,
+- reduce helper-call/list-allocation overhead,
+- cache bucket suffix string conversions,
+- keep RNG domain-key semantics unchanged.
+
+Observed outcomes:
+- witness-1: `59.22s` (`wall_ms=59218`) vs anchor ~`51.5s`.
+- witness-2 confirm: `58.50s` (`wall_ms=58501`) (still materially regressed).
+- regression is persistent enough to reject as host-noise-only.
+
+Decision reasoning:
+1) Keep candidate and continue tuning in-place:
+   - rejected; sustained +13% to +15% degradation violates fail-closed posture.
+2) Partial rollback while retaining `_draw_philox_u64` micro-change:
+   - rejected for now to minimize ambiguity; restore full known-good file first.
+3) Full file rollback to known-good baseline:
+   - selected; fastest route back to trustworthy evidence lane.
+
+Rollback action:
+- restore `packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py` from `HEAD`.
+- rerun compile + S3 witness to confirm return to stable performance envelope.
+
+Implication for POPT.3R closure:
+- S3 stretch target remains unmet in this iteration.
+- reopen decision will likely stay hold unless integrated run shows unexpected gate recovery.
+
+### Entry: 2026-02-22 12:44
+
+Execution step: `POPT.3R.3` integrated witness + phase closure.
+Summary: completed the full `S2 -> S3 -> S4 -> S5` chain on the current reopen code posture (`S2` retained patch, `S3` rollback), emitted dedicated `POPT.3R` closure artifacts, and locked decision `HOLD_POPT3_REOPEN`.
+
+Why this integration run was required:
+1) `POPT.3R.1` and `POPT.3R.2` had state-local evidence only; closure needs downstream guardrails from `S4/S5`.
+2) `S3` rollback could have changed end-to-end timing posture and safety outputs relative to the candidate lane.
+3) plan DoD requires explicit structural invariants + prune evidence, not only isolated state timings.
+
+Integrated witness selected from `segment_state_runs` (authority run-id unchanged):
+- source: `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/reports/layer2/segment_state_runs/segment=5B/utc_day=2026-02-22/segment_state_runs.jsonl`.
+- sequence:
+  - `S2 PASS` `wall_ms=46718`,
+  - `S3 PASS` `wall_ms=55093`,
+  - `S4 PASS` `wall_ms=457188`,
+  - `S5` first attempt `FAIL` (`S5_INFRASTRUCTURE_IO_ERROR`, `F4:S5_OUTPUT_CONFLICT ... publish`), rerun `PASS` `wall_ms=1686`, `bundle_integrity_ok=true`.
+
+Gate adjudication for reopen lane:
+1) target gate (`S2<=35s`, `S3<=35s`) -> `FAIL`.
+2) stretch gate (`S2<=45s`, `S3<=45s`) -> `FAIL` (`S2=46.718s`, `S3=55.093s`).
+3) guardrails -> `PASS` (`S2/S3/S4/S5 PASS`, structural invariants unchanged, bundle integrity true).
+4) decision -> `HOLD_POPT3_REOPEN`.
+
+Alternative closure actions considered at this checkpoint:
+1) keep iterating in `POPT.3R` despite iteration cap:
+   - rejected to avoid unbounded churn; plan explicitly caps reopen iterations and demands explicit hold/freeze when unmet.
+2) reopen `S4/S5` to absorb `S3` mismatch:
+   - rejected by scope lock; `POPT.3R` is owner-limited to `S2/S3`, with `S4/S5` frozen as safety witnesses.
+3) retain regressive `S3` candidate and compensate in downstream policy:
+   - rejected because runtime regression was sustained and this lane is performance-only, not realism/policy retuning.
+
+Artifacts emitted for auditable closure:
+- `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r_closure_c25a2675fbfbacd952b13bb594880e92.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r_closure_c25a2675fbfbacd952b13bb594880e92.md`
+
+Hygiene/validation executed for closure:
+- compile gate:
+  - `python -m py_compile packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py` -> `PASS`.
+- prune gate:
+  - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
