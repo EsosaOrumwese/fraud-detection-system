@@ -5492,3 +5492,223 @@ What was added to build plan:
 Decision:
 - plan is now closure-grade for execution start.
 - no code mutation executed in this step; this entry is planning-only and preserves audit sequence.
+
+### Entry: 2026-02-22 06:44
+
+Execution start: `POPT.2` full phase execution (`POPT.2.1 -> POPT.2.6`).
+Summary: began implementation lane with scorer lock + targeted S4 hot-path optimization design chosen from live code inspection.
+
+Hot-path inspection findings (from `s4_arrival_events/runner.py`):
+1) Batch-loop control plane still performs multiple Python row-wise loops over large row counts:
+   - `row_seq_start` dictionary updates per row,
+   - `group_table_index` tuple-dict lookup per row,
+   - merchant/tz lookup list comprehensions per row.
+2) `S4` runtime remains dominant and compute-lane heavy (`>500s` witness).
+3) Event logging lane already disabled (`ENGINE_5B_S4_RNG_EVENTS=0`), so current optimization value is in compute/control-plane path, not audit log suppression.
+
+Alternatives considered before coding:
+1) **Knob-only changes** (`batch_rows`, `max_arrivals_chunk`) first.
+   - rejected as primary: uncertain gain and memory-risk tradeoff under user laptop constraints.
+2) **Deep RNG derivation redesign in kernel** (replace Python hashlib derivation).
+   - rejected for primary lane due higher semantic blast radius (potential distribution/replay drift).
+3) **Low-risk control-plane acceleration around unchanged kernel semantics**.
+   - accepted as primary lane:
+     - vectorized merchant index mapping via sorted-array `searchsorted`,
+     - vectorized group-table lookup via sorted structured key arrays + `searchsorted`,
+     - compiled row-sequence accumulation helper in numba kernel module,
+     - keep existing RNG derivation semantics intact for this pass.
+
+POPT.2.1 execution decision:
+- implement dedicated scorer tooling first (`tools/score_segment5b_popt2_closure.py`) before S4 mutation so closure adjudication is fail-closed and machine-checkable.
+
+Risk controls pinned:
+- no realism policy/coeff changes in `POPT.2`.
+- no contract/schema edits.
+- rerun lane constrained to `S4 -> S5` per sequential-state law.
+- if runtime gate fails after primary lane, record `HOLD_POPT2_REOPEN` with bounded fallback (`POPT.2R`).
+
+### Entry: 2026-02-22 06:47
+
+Execution step: `POPT.2.1` scorer/contract lock implemented and validated.
+Summary: added `tools/score_segment5b_popt2_closure.py` and ran it on current witness authority lane to establish pre-mutation adjudication baseline.
+
+What was implemented:
+1) New scorer tool:
+   - `tools/score_segment5b_popt2_closure.py`.
+2) Output artifacts:
+   - `segment5b_popt2_lane_timing_<run_id>.json`,
+   - `segment5b_popt2_closure_<run_id>.json`,
+   - `segment5b_popt2_closure_<run_id>.md`.
+3) Gates encoded in scorer:
+   - runtime movement (`S4 >=35%` reduction vs POPT0 baseline),
+   - stretch budget (`S4 <=300s`) tracking,
+   - structural invariants (`bucket_rows/arrivals/virtual/missing_group_weights`),
+   - downstream continuity (`S5 PASS + bundle_integrity_ok`),
+   - determinism/idempotence posture (status/error rails),
+   - non-regression guardrail for `S2/S3/S5` elapsed (+15% allowance vs POPT1 anchors).
+
+Validation executed:
+- `python -m py_compile tools/score_segment5b_popt2_closure.py` (PASS).
+- scorer run on authority witness lane:
+  - `python tools/score_segment5b_popt2_closure.py --runs-root runs/local_full_run-5 --run-id c25a2675fbfbacd952b13bb594880e92 --out-root runs/fix-data-engine/segment_5B/reports`.
+
+Observed pre-mutation baseline decision:
+- `HOLD_POPT2_REOPEN` (as expected pre-optimization),
+- runtime gate failed (`S4 504.641s -> 532.453s`, `-5.51%` movement),
+- structural + downstream + determinism + non-regression rails all passed.
+
+Why this matters:
+- scorer confirms phase failure is strictly runtime-lane, not correctness-lane.
+- this de-risks proceeding with aggressive compute/control-plane optimization while preserving structural invariants.
+
+### Entry: 2026-02-22 06:49
+
+Pre-edit design lock for `POPT.2.3/POPT.2.4` code mutation.
+Summary: finalizing low-blast-radius S4 optimization set before touching code.
+
+Chosen mutation set:
+1) Merchant index mapping:
+   - move from Python dict/list-comprehension lookups to vectorized `np.searchsorted` over sorted merchant-id array.
+2) Group table index mapping:
+   - move from per-row tuple-dict lookup to vectorized structured-key (`merchant_id`, `day_index`) `searchsorted` over sorted lookup arrays.
+3) Row sequence accumulation:
+   - add compiled helper in `numba_kernel.py` to compute `row_seq_start` with persistent merchant sequence state array.
+
+Data structures and complexity posture:
+1) Merchant mapping:
+   - input: `merchant_array[batch]` (`uint64`),
+   - index: sorted `merchant_ids_arr` (`uint64`),
+   - complexity: `O(B log M)` in vectorized native path instead of `O(B)` Python dict loop with high interpreter overhead.
+2) Group mapping:
+   - lookup: sorted structured array of keys (`merchant_id:uint64`, `day_index:int32`) + aligned table index array,
+   - query: batch structured keys + `np.searchsorted`,
+   - complexity: `O(B log G)` vectorized native path replacing `O(B)` Python tuple hashing.
+3) Row sequence:
+   - state array: `merchant_seq_state[int64]` length `M`,
+   - compiled pass over batch rows: `O(B)` numba loop (no Python dict churn).
+
+Alternatives rejected at this point:
+1) chunk-size increase as primary lever (`max_arrivals_chunk` upscaling):
+   - rejected due user memory constraints and uncertain runtime gain-to-risk ratio.
+2) RNG derivation redesign in kernel:
+   - rejected for this pass due higher deterministic semantics risk.
+
+Success criteria for this mutation set:
+- measurable `S4` reduction from scorer on next witness run,
+- unchanged structural counters and `S5` closure posture,
+- no new fail codes in `S4/S5`.
+
+### Entry: 2026-02-22 06:53
+
+Execution step: `POPT.2.3/POPT.2.4` primary mutation set implemented.
+Summary: applied low-blast-radius S4 performance patch focused on control-plane acceleration and compiled row-sequence path.
+
+Files updated:
+1) `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/numba_kernel.py`
+2) `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+
+Implemented changes:
+1) Added compiled helper in numba module:
+   - `build_row_seq_start(merchant_indices, counts, merchant_seq_state, out_row_seq_start)`.
+   - purpose: replace per-row Python dict sequence accumulation with compiled loop while preserving exact sequence semantics.
+2) Merchant index mapping:
+   - replaced Python dict/list-comprehension mapping with vectorized `np.searchsorted` over sorted `merchant_ids_arr`.
+   - added explicit mismatch guardrail (`merchant_missing`) preserving fail-closed behavior.
+3) Group table index mapping:
+   - precomputed sorted structured-key lookup arrays (`merchant_id`, `day_index`) from `group_alias_tables.key_to_table`.
+   - replaced per-row tuple-dict lookup with vectorized structured `searchsorted` match resolution.
+4) Progress logging budget:
+   - introduced `ENGINE_5B_S4_PROGRESS_INTERVAL_SECONDS` (default `2.0s`) and wired trackers to that cadence.
+   - this retains heartbeat observability while reducing log I/O pressure.
+5) Row sequence state lifecycle:
+   - replaced scenario-local Python dict with fixed-size `merchant_seq_state` numpy array, reset per scenario.
+
+Why this is safe:
+- no change to kernel routing/time-draw semantics.
+- no change to contracts, schema, or policy.
+- preserved all existing validation/abort rails (`V-08`, etc).
+
+Validation performed:
+- `python -m py_compile packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/numba_kernel.py` (PASS)
+- `python -m py_compile packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py` (PASS)
+
+Next action:
+- run witness rerun `S4 -> S5` on authority run-id and score closure with `tools/score_segment5b_popt2_closure.py`.
+
+### Entry: 2026-02-22 06:59
+
+Execution step: `POPT.2.5` first witness + closure scoring on primary patch.
+Summary: witness run completed with structural integrity preserved, but runtime movement regressed materially.
+
+Observed results:
+1) `S4` witness:
+   - `PASS`,
+   - elapsed `558.859s` (worse than baseline `504.641s` and prior witness `532.453s`).
+2) `S5` witness:
+   - first attempt failed with known publish-lane conflict (`F4:S5_OUTPUT_CONFLICT`),
+   - handled non-destructively by moving existing bundle folder to `.stale_0659`,
+   - rerun succeeded (`PASS`).
+3) scorer adjudication (`tools/score_segment5b_popt2_closure.py`):
+   - decision `HOLD_POPT2_REOPEN`,
+   - runtime gate `FAIL` (`-10.74%` movement),
+   - structural/downstream/determinism/non-regression rails `PASS`.
+
+Reasoning:
+- the patch met correctness rails but failed the only blocking lane (runtime), so continuing with this code would violate performance-first fail-closed posture.
+- immediate rollback is preferred over carrying known-regressive code into subsequent phases.
+
+Decision:
+- enter fail-closed rollback branch before final POPT.2 closure.
+
+### Entry: 2026-02-22 07:00
+
+Execution step: fail-closed rollback of regressive S4 patch.
+Summary: reverted the primary control-plane optimization mutations in `S4` runner/kernel and restored prior implementation behavior.
+
+Rollback scope:
+1) `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+   - removed vectorized merchant/group lookup path added in this pass,
+   - removed compiled row-seq helper usage,
+   - restored prior progress-tracker configuration in code.
+2) `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/numba_kernel.py`
+   - removed added `build_row_seq_start` helper,
+   - restored original export surface.
+
+Validation:
+- compile checks passed on both files after rollback.
+
+Why rollback instead of iterative patching in-place:
+- runtime regression was large and unambiguous in witness evidence.
+- preserving best-known lane takes precedence; reopen lane should start from known-safe code state.
+
+### Entry: 2026-02-22 07:10
+
+Execution step: post-rollback witness, final POPT.2 scoring, and closure handoff.
+Summary: reran `S4 -> S5` on restored code; runtime remained above target, closure decision remained hold, and phase was closed with reopen posture.
+
+Post-rollback witness evidence:
+1) `S4`:
+   - `PASS`,
+   - elapsed `550.875s` (better than regressed patch run, still above baseline/target).
+2) `S5`:
+   - first attempt again hit publish-lane conflict (`S5_OUTPUT_CONFLICT`),
+   - handled non-destructively by moving active bundle folder to `.stale_0709`,
+   - rerun succeeded (`PASS`).
+3) final scorer:
+   - `HOLD_POPT2_REOPEN`,
+   - runtime gate `FAIL` (`baseline 504.641s`, candidate 550.875s, reduction `-9.16%`),
+   - structural/downstream/determinism/non-regression gates `PASS`.
+
+Phase closure decision (`POPT.2.6`):
+- `HOLD_POPT2_REOPEN`.
+- reason: runtime movement gate is unresolved after primary lane execution + rollback.
+- retained artifacts:
+  - `segment5b_popt2_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `segment5b_popt2_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `segment5b_popt2_closure_c25a2675fbfbacd952b13bb594880e92.md`
+
+Bounded reopen recommendation:
+- proceed to `POPT.2R` only with higher-blast-radius kernel-focused optimization lane and strict veto gates/rollback.
+
+Prune closure:
+- `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` executed (`no failed sentinels`).

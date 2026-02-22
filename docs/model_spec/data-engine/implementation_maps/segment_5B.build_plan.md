@@ -427,9 +427,9 @@ Scope:
   - explicit decision vocabulary (`UNLOCK_POPT3_CONTINUE` vs `HOLD_POPT2_REOPEN`).
 
 Definition of done:
-- [ ] POPT.2 scorer contract is executable.
-- [ ] all veto rails are artifact-derived and machine-checkable.
-- [ ] no unresolved equivalence ambiguity remains before S4 edits.
+- [x] POPT.2 scorer contract is executable.
+- [x] all veto rails are artifact-derived and machine-checkable.
+- [x] no unresolved equivalence ambiguity remains before S4 edits.
 
 #### POPT.2.2 - Algorithm/design lock for S4 hotspot
 Objective:
@@ -452,9 +452,9 @@ Complexity posture:
 - target: keep `O(A)` kernel path but materially reduce pre/post `O(B)` Python overhead and allocation churn.
 
 Definition of done:
-- [ ] selected algorithm and fallback trigger are pinned.
-- [ ] complexity + memory/IO posture are explicitly recorded.
-- [ ] logging budget and validation posture for witness runs are pinned.
+- [x] selected algorithm and fallback trigger are pinned.
+- [x] complexity + memory/IO posture are explicitly recorded.
+- [x] logging budget and validation posture for witness runs are pinned.
 
 #### POPT.2.3 - S4 control-plane optimization (pre-kernel)
 Objective:
@@ -497,9 +497,9 @@ Scope:
 - compare to both POPT0 baseline and latest POPT1 witness anchor.
 
 Definition of done:
-- [ ] `S4` and `S5` are `PASS`.
+- [x] `S4` and `S5` are `PASS`.
 - [ ] runtime movement gate is satisfied.
-- [ ] structural/determinism/downstream gates are all green.
+- [x] structural/determinism/downstream gates are all green.
 
 #### POPT.2.6 - Phase closure and handoff
 Objective:
@@ -514,9 +514,33 @@ Scope:
 - sync build plan + implementation map + logbook.
 
 Definition of done:
-- [ ] explicit closure decision is recorded.
-- [ ] retained run/artifact pointers are pinned.
-- [ ] prune action is completed and logged.
+- [x] explicit closure decision is recorded.
+- [x] retained run/artifact pointers are pinned.
+- [x] prune action is completed and logged.
+
+POPT.2 closure snapshot (2026-02-22):
+- authority witness run-id: `c25a2675fbfbacd952b13bb594880e92` (source root `runs/local_full_run-5`).
+- closure artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt2_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt2_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt2_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- execution outcomes:
+  - primary control-plane optimization patch was implemented and witnessed; runtime regressed (`S4=558.859s`), so lane was fail-closed and reverted.
+  - post-revert witness remained above baseline gate (`S4=550.875s`), while structural/downstream/determinism rails stayed green.
+- quantified closure:
+  - runtime gate: `FAIL` (`S4 baseline=504.641s`, candidate=`550.875s`, reduction `-9.16%`).
+  - stretch budget gate (`<=300s`): `FAIL`.
+  - structural gate: `PASS` (all pinned counters exact).
+  - non-regression gate (`S2/S3/S5`): `PASS`.
+  - downstream + determinism gates: `PASS`.
+- recurring witness blocker handled:
+  - `S5_OUTPUT_CONFLICT` on same-run publish target handled non-destructively by moving existing bundle folder to timestamped `.stale_*` backups before rerun.
+- phase decision: `HOLD_POPT2_REOPEN`.
+- bounded reopen posture:
+  - advance to `POPT.2R` (higher-blast-radius kernel-focused lane) only with strict veto gates and immediate rollback on runtime non-movement.
+- prune closure evidence:
+  - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B`
+  - result: no failed sentinels.
 
 ### POPT.3 - S2/S3 secondary throughput closure
 Goal:

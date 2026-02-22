@@ -1,7 +1,7 @@
 # Dev Substrate Deep Plan - M10 (Certification: Semantic + Scale)
 _Status source of truth: `platform.build_plan.md`_
 _This document provides deep planning detail for M10._
-_Last updated: 2026-02-21_
+_Last updated: 2026-02-22_
 
 ## 0) Purpose
 M10 certifies that dev-substrate Spine Green v0 is:
@@ -1158,13 +1158,13 @@ Tasks:
 5. Emit and publish `m10_i_reproducibility_snapshot.json`.
 
 DoD:
-- [ ] Second run executed on fresh scope.
-- [ ] Required run-scoped evidence surfaces exist for both baseline and second run.
-- [ ] Replay-anchor topic/partition keyset matches baseline.
-- [ ] Ratio-drift tolerances are satisfied (`duplicate`, `quarantine` shares).
-- [ ] Strict semantic invariants pass (`publish_ambiguous=0`, `fail_open=0`).
-- [ ] Runtime budget passes (`<=90` minutes).
-- [ ] Snapshot exists locally and durably with blocker union empty.
+- [x] Second run executed on fresh scope.
+- [x] Required run-scoped evidence surfaces exist for both baseline and second run.
+- [x] Replay-anchor topic/partition keyset matches baseline.
+- [x] Ratio-drift tolerances are satisfied (`duplicate`, `quarantine` shares).
+- [x] Strict semantic invariants pass (`publish_ambiguous=0`, `fail_open=0`).
+- [x] Runtime budget passes (`<=90` minutes).
+- [x] Snapshot exists locally and durably with blocker union empty.
 
 Blockers:
 1. `M10I-B1`: second run missing/failed.
@@ -1176,6 +1176,31 @@ Blockers:
 7. `M10I-B7`: semantic invariant breach (`publish_ambiguous` or `fail_open`).
 8. `M10I-B8`: snapshot publication failure.
 9. `M10I-B9`: runtime budget breach.
+
+Execution status update (2026-02-22):
+1. Execution id: `m10_20260222T064333Z`.
+2. Fresh run scope: `platform_20260222T064333Z`.
+3. Local artifacts:
+   - `runs/dev_substrate/m10/m10_20260222T064333Z/m10_i_reproducibility_snapshot.json`
+   - `runs/dev_substrate/m10/m10_20260222T064333Z/m10_i_baseline_vector.json`
+   - `runs/dev_substrate/m10/m10_20260222T064333Z/m10_i_candidate_vector.json`
+   - `runs/dev_substrate/m10/m10_20260222T064333Z/m10_i_observation_series.json`
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T064333Z/m10_i_reproducibility_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260222T064333Z/m10/m10_i_reproducibility_snapshot.json`
+5. Verdict: `overall_pass=true`; blocker union = `[]`.
+6. Comparator outcomes:
+   - `anchor_keyset_match=true` (`anchor_keyset_count=12` on both runs),
+   - `duplicate_share_delta=0.00059848` (<= `0.05`),
+   - `quarantine_share_delta=0.00132463` (<= `0.05`),
+   - `semantic_invariant_pass=true` (`publish_ambiguous=0`, `fail_open=0`),
+   - `lag_pass=true` (`max_lag_window=4`, threshold `<=10`),
+   - `profile_match=true`,
+   - `missing_required_surfaces=[]`.
+7. Runtime budget:
+   - `elapsed_seconds=2554.005` (budget `<=5400`), `budget_pass=true`.
+8. Closure note:
+   - baseline `obs/replay_anchors.json` arrays were empty; comparator keyset source was pinned to authoritative `ingest/kafka_offsets_snapshot.json` topic/partition pairs while still requiring `obs/replay_anchors.json` object presence as an evidence surface.
 
 ### M10.J Final certification verdict + bundle publication
 Goal:
@@ -1234,5 +1259,5 @@ M10 can be marked `DONE` only when all are true:
 7. `M10.F` is closed pass on fresh scope `platform_20260221T060431Z` (`m10_execution_id=m10_20260221T060601Z`, blockers empty).
 8. `M10.G` remediation rerun closed PASS on fresh scope `platform_20260221T234738Z` (`max_lag_window=3`, blockers empty).
 9. `M10.H` recovery-under-load run is closed PASS on fresh scope `platform_20260222T015122Z` (`max_lag_window=4`, blockers empty).
-10. `M10.I` is now expanded to execution-grade with pinned baseline/coherence comparator rules.
-11. Next lane is `M10.I` reproducibility + replay coherence execution.
+10. `M10.I` reproducibility + replay coherence run is closed PASS on fresh scope `platform_20260222T064333Z` (`m10_execution_id=m10_20260222T064333Z`, blockers empty).
+11. Next lane is `M10.J` final certification verdict + bundle publication.

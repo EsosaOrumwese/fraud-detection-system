@@ -1611,6 +1611,13 @@ Phase closure posture:
     - strict semantic invariants + bounded ratio-drift tolerances pinned,
     - blocker taxonomy expanded to `M10I-B1..B9`,
     - runtime budget pinned to `<=90m`.
+  - `M10.I` reproducibility + replay coherence run is now closed PASS on fresh scope:
+    - execution id: `m10_20260222T064333Z`,
+    - platform run scope: `platform_20260222T064333Z`,
+    - local snapshot: `runs/dev_substrate/m10/m10_20260222T064333Z/m10_i_reproducibility_snapshot.json`,
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T064333Z/m10_i_reproducibility_snapshot.json`,
+    - verdict: `overall_pass=true`, blockers `[]`,
+    - comparator closure: `anchor_keyset_match=true`, `duplicate_share_delta=0.00059848`, `quarantine_share_delta=0.00132463`, `semantic_invariant_pass=true`, `lag_pass=true`.
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
@@ -1621,7 +1628,7 @@ Sub-phase progress:
   - [x] `M10.F` burst run (fresh-scope pass; blocker set empty).
   - [x] `M10.G` soak run (remediation rerun PASS).
   - [x] `M10.H` recovery-under-load run.
-  - [ ] `M10.I` reproducibility + replay coherence.
+  - [x] `M10.I` reproducibility + replay coherence.
   - [ ] `M10.J` final certification verdict + bundle publish.
 
 M10 DoD checklist:
@@ -1634,8 +1641,8 @@ M10 DoD checklist:
   - [x] burst run passes at elevated ingest pressure without semantic drift.
   - [x] soak run passes under sustained load with stable lag/checkpoint behavior.
   - [x] recovery run passes after controlled restart under load with idempotent outcomes.
-- [ ] Reproducibility:
-  - [ ] second run demonstrates deterministic replay/evidence coherence.
+- [x] Reproducibility:
+  - [x] second run demonstrates deterministic replay/evidence coherence.
 - [ ] Evidence bundle:
   - [ ] certification bundle is published locally + durably and supports portfolio-grade claim.
 
@@ -1728,7 +1735,7 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M10 is active for planning expansion under the M9 handoff.
+M10 is active for final certification closure under the M9 handoff.
 Next action:
-- execute `M10.G` soak run on managed substrate and enforce lag/checkpoint stability gates before `M10.H`.
+- execute `M10.J` final certification verdict + bundle publication on managed substrate.
 

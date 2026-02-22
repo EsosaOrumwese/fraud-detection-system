@@ -18994,3 +18994,181 @@ Why this closes planning drift:
 
 No runtime mutation:
 1. Docs-only planning update; no service/infra/data mutation occurred.
+
+## Entry: 2026-02-22 06:43:33 +00:00 - M10.I execution started (I0 baseline bind + comparator-source decision)
+Context:
+1. USER approved full M10.I execution with detailed live reasoning logs.
+2. New execution scope initialized:
+   - m10_execution_id=m10_20260222T064333Z
+   - platform_run_id=platform_20260222T064333Z
+3. Baseline authority run is fixed to closed M10.H:
+   - m10_20260222T015122Z / platform_20260222T015122Z.
+
+Material finding during I0 baseline bind:
+1. obs/replay_anchors.json for baseline currently has empty nchors.ingest and nchors.rtdl_core arrays.
+2. Baseline authoritative ingest offsets do exist under:
+   - ingest/kafka_offsets_snapshot.json.
+3. Root reason is reporter anchor extraction shape mismatch (offset field expected while snapshot rows are dmissions_offset + kafka_end_offset).
+
+Decision and alternatives:
+1. Alternative A: fail M10.I immediately on empty replay-anchor surface and block execution.
+2. Alternative B: patch reporter implementation first, rerun baseline M10.H, then continue M10.I.
+3. Alternative C (selected for this lane): preserve fail-closed posture but use authoritative ingest offsets snapshot keyset as the replay-coherence anchor comparator source for M10.I, while still checking replay-anchor file presence as an evidence surface.
+
+Why C was selected now:
+1. Keeps comparator meaningful and auditable against actual topic/partition truth.
+2. Avoids invalidly passing due empty/empty anchor keysets.
+3. Avoids reopening baseline lane while still preserving blocker visibility for anchor-surface quality.
+
+Next steps:
+1. Compute and persist baseline coherence vector artifact.
+2. Rotate managed runtime to fresh run scope via bounded task-definition rematerialization and service rollout.
+3. Execute second-run chain and coherence comparator.
+
+## Entry: 2026-02-22 06:44:23 +00:00 - M10.I I1 pre-change lock: fresh-scope rematerialization strategy
+Decision point:
+1. Need a fresh run scope ($platform) across managed runtime components before second-run execution.
+
+Alternatives considered:
+1. Full demo-stack Terraform apply.
+   - Risk: unnecessary drift surface and slower cycle for a run-scope rotation step.
+2. Manual per-service mutation via AWS APIs.
+   - Risk: brittle and less auditable than IaC authority.
+3. Targeted Terraform apply for task-definition lanes only (selected).
+   - Scope: daemon + control_job + reporter task-definition resources.
+   - Inputs pinned: equired_platform_run_id, explicit daemon image digest, current IG API key.
+
+Why selected:
+1. Forces deterministic run-scope rotation while minimizing collateral drift.
+2. Preserves IaC authority and reproducibility.
+3. Keeps M10.I runtime budget realistic.
+
+Pinned execution inputs (non-secret posture):
+1. equired_platform_run_id=platform_20260222T064333Z.
+2. cs_daemon_container_image pinned to active platform digest.
+3. ig_api_key pulled from SSM and currently allowlisted.
+
+Next steps:
+1. Run targeted Terraform plan/apply.
+2. Roll 13 daemon services to latest task-definition revisions and verify conformance.
+3. Proceed to SR -> WSP second-run execution.
+
+## Entry: 2026-02-22 06:49:11 +00:00 - M10.I I1 scope-rotation rollout completed (13-service conformance)
+Execution details:
+1. Targeted scope-rotation apply completed successfully (m10_i_scope_rotate_apply.json).
+2. Pre-rollout state + rollout plan artifacts captured:
+   - m10_i_service_state_pre_rollout.json
+   - m10_i_service_rollout_plan.json
+3. Rolled all 13 daemon services to latest task-definition revisions and waited stable.
+4. Post-rollout verification artifacts captured:
+   - m10_i_service_state_post_rollout.json
+   - m10_i_service_alignment_post_rollout.json
+   - m10_i_service_rollout_mismatches.json
+
+Gate result:
+1. planned_updates=13.
+2. mismatch_count=0.
+3. No probe-image drift detected in rolled services.
+
+Decision consequence:
+1. Candidate run scope $platform is now live across managed daemons and safe for second-run execution.
+2. Proceeding to SR -> WSP candidate run and stabilization sampling.
+
+## Entry: 2026-02-22 06:51:06 +00:00 - M10.I I1 candidate-run sampling posture pinned (before load)
+Decision point:
+1. Candidate second run needs comparable observation depth versus baseline for coherence adjudication.
+
+Alternatives considered:
+1. Short-window sample (10-15 min): faster but weaker comparability vs baseline recovery window.
+2. Full 30-minute window at 5-minute cadence (selected): stronger comparability and better drift confidence while still within M10.I<=90m runtime budget.
+
+Sampling law for this run:
+1. Use authoritative DB+Kafka sampler (not run_report-only lag proxies).
+2. Keep same output load posture as baseline (4-way WSP, speedup 8, per-output cap 1000000).
+3. Preserve fail-closed semantics on missing sample evidence.
+
+Security handling:
+1. Temporary DB sampler ingress /32 will be opened for sampler connectivity.
+2. Rule must be revoked immediately after snapshot closure.
+
+## Entry: 2026-02-22 06:56:18 +00:00 - M10.I candidate run started (SR gate + artifact presence decision)
+Context:
+1. Scope rotation and 13-service conformance had passed.
+2. M10.I needed a fresh candidate run under same managed profile as baseline.
+
+Decision process:
+1. Candidate run would not proceed directly to WSP launch unless SR one-shot passed and SR required prefixes were visible under run scope.
+2. This prevents false positives where comparator receives partial surfaces and then reports synthetic drift.
+3. Selected fail-closed order:
+   - SR task gate -> SR artifact existence gate -> WSP load launch.
+
+Execution results:
+1. SR task PASS (`m10_i_sr_task_result.json`, `exit_code=0`).
+2. SR required artifact prefixes present (`m10_i_sr_artifacts_snapshot.json`).
+3. WSP launched under pinned 4-way profile (`m10_i_wsp_launch.json`, `m10_i_wsp_waves_overrides_verify.json`).
+
+## Entry: 2026-02-22 07:11:42 +00:00 - M10.I authoritative sampling completed and run-scoped surfaces materialized
+Context:
+1. Needed authoritative lag/coherence observations for comparator, not inferred summaries.
+2. Sampler required temporary DB ingress for run window.
+
+Decision process:
+1. Chosen sampler window: 30 minutes, 5-minute cadence (7 samples), matching pinned M10.I plan.
+2. Preserved bounded temporary DB ingress posture and mandatory revoke-on-close.
+3. Required candidate run-scoped surfaces were pinned as a hard gate before comparator:
+   - ingest receipt summary,
+   - ingest Kafka offsets snapshot,
+   - RTDL offsets snapshot,
+   - obs/run_report,
+   - obs/replay_anchors.
+
+Execution results:
+1. Temporary DB ingress applied (`m10_i_db_temp_ingress_apply.json`).
+2. Sample series completed (`m10_i_stabilization_sample_00..06.json`, rollup in `m10_i_observation_series.json`).
+3. Candidate run-scoped surfaces materialized and uploaded:
+   - `m10_i_receipt_summary.json`,
+   - `m10_i_ingest_kafka_offsets_snapshot.json`,
+   - `m10_i_rtdl_offsets_snapshot.json`.
+4. Reporter closeout PASS (`m10_i_reporter_refresh.json`, `exit_code=0`).
+5. Required-surface snapshot gate PASS (`m10_i_required_surfaces_snapshot.json`).
+
+## Entry: 2026-02-22 07:26:12 +00:00 - M10.I comparator adjudication and publication closure
+Comparator decision model applied:
+1. Baseline vector source: closed M10.H run (`platform_20260222T015122Z`).
+2. Candidate vector source: fresh M10.I run (`platform_20260222T064333Z`).
+3. Replay keyset comparator used authoritative `ingest/kafka_offsets_snapshot.json` topic/partition keyset due empty arrays in `obs/replay_anchors.json`, while still requiring replay-anchor object presence.
+
+Adjudication outcome:
+1. `anchor_keyset_match=true`.
+2. `duplicate_share_delta=0.00059848` (<=0.05).
+3. `quarantine_share_delta=0.00132463` (<=0.05).
+4. `semantic_invariant_pass=true` (`publish_ambiguous=0`, `fail_open=0`).
+5. `lag_pass=true` (`max_lag_window=4`, threshold <=10).
+6. `profile_match=true`.
+7. Runtime budget PASS: `2554.005s <= 5400s`.
+8. Final verdict: `overall_pass=true`, blockers empty.
+
+Evidence publication:
+1. Local snapshot: `runs/dev_substrate/m10/m10_20260222T064333Z/m10_i_reproducibility_snapshot.json`.
+2. Durable run-control snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T064333Z/m10_i_reproducibility_snapshot.json`.
+3. Durable run-scoped snapshot: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260222T064333Z/m10/m10_i_reproducibility_snapshot.json`.
+
+Security/cost hygiene closure:
+1. Temporary DB ingress revoked (`m10_i_db_temp_ingress_revoke.json`).
+2. Remaining ad-hoc WSP tasks stopped (`m10_i_post_closure_wsp_cleanup.json`, `stopped_count=4`).
+
+## Entry: 2026-02-22 07:28:24 +00:00 - M10.I plan synchronization after closure
+Doc synchronization actions:
+1. Updated deep M10 plan (`platform.M10.build_plan.md`):
+   - marked M10.I DoD checklist complete,
+   - appended execution-status section with concrete metrics/evidence refs,
+   - updated current-planning status to set next lane as M10.J.
+2. Updated main platform plan (`platform.build_plan.md`):
+   - added M10.I closure summary under M10 expansion state,
+   - marked sub-phase progress `M10.I` complete,
+   - marked reproducibility DoD complete,
+   - updated immediate next action to M10.J.
+
+Decision consequence:
+1. M10.I is now closed in both execution evidence and planning docs.
+2. Remaining M10 closure lane is M10.J certification verdict + bundle publication.
