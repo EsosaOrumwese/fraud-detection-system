@@ -868,12 +868,67 @@ POPT.3R.3 closure snapshot (2026-02-22):
 
 ### POPT.4 - Validation lane + logging budget closure
 Goal:
-- ensure `S5` and hot-state logging cadence are budgeted and not runtime-dominant.
+- close the remaining operational-efficiency defects around `S5` replay publish handling and hot-state logging cadence without changing data law semantics.
+
+Scope lock:
+- owner lanes:
+  - `S5` publish/replay-idempotence path (`S5_OUTPUT_CONFLICT` handling and stale-folder behavior),
+  - logging cadence in hot states (`S2`, `S3`, `S4`).
+- frozen rails:
+  - no realism policy tuning,
+  - no schema/contract changes,
+  - no RNG/arrival law changes.
+
+Runtime and operational targets:
+- `S5` replay target:
+  - rerun on same run-id should close cleanly with no manual intervention and no nested `.stale_*` chain growth.
+- logging budget target:
+  - default logging posture must avoid material runtime drag in hot lanes (target: no more than `2%` overhead versus low-verbosity control witness).
+- safety target:
+  - `S2/S3/S4/S5` outputs and structural invariants remain unchanged relative to current authority posture.
+
+Decision outcomes:
+- `UNLOCK_POPT5_CONTINUE` if all `POPT.4` gates pass.
+- `HOLD_POPT4_REOPEN` if replay-idempotence remains unstable or logging budget target is missed.
+
+#### POPT.4.0 - Authority lock + measurement design
+Objective:
+- pin exact authority evidence and measurement protocol before any code edit.
 
 Definition of done:
-- [ ] S5 remains functionally strict while runtime is within budget.
-- [ ] high-frequency progress logging is budgeted (no material runtime drag).
-- [ ] required auditability remains intact.
+- [ ] authority run-id and witness set are pinned for `POPT.4`.
+- [ ] replay-idempotence acceptance checks are pinned (`S5` first-attempt pass on rerun, no stale nesting growth).
+- [ ] logging-budget measurement protocol is pinned (control/candidate comparison and overhead formula).
+
+#### POPT.4.1 - S5 replay publish hardening
+Objective:
+- make same-run publish retries deterministic and non-destructive without recursive stale-folder growth.
+
+Definition of done:
+- [ ] `S5` replay-conflict handling is bounded to active target only (no broad wildcard stale moves).
+- [ ] rerun on same run-id succeeds on first `S5` attempt after bounded preflight/cleanup logic.
+- [ ] no new nested `.stale_*.stale_*` paths are produced by this lane.
+- [ ] compile and state-level guardrails pass.
+
+#### POPT.4.2 - Hot-state logging budget cap
+Objective:
+- reduce logging overhead in `S2/S3/S4` while preserving required auditability.
+
+Definition of done:
+- [ ] progress logs use bounded heartbeat cadence (no per-event high-cardinality spam in default mode).
+- [ ] required audit logs remain intact and deterministic.
+- [ ] measured overhead versus low-verbosity control is within budget (`<=2%` in hot lanes).
+
+#### POPT.4.3 - Integration witness + veto
+Objective:
+- validate that replay hardening and logging budget changes hold under integrated chain execution.
+
+Definition of done:
+- [ ] witness chain `S2/S3/S4/S5` completes with all states `PASS`.
+- [ ] `S5` replay attempt posture is stable and no nested stale growth is observed.
+- [ ] structural invariants remain unchanged (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights`).
+- [ ] logging budget evidence and replay-idempotence evidence are archived.
+- [ ] explicit decision recorded (`UNLOCK_POPT5_CONTINUE` or `HOLD_POPT4_REOPEN`).
 
 ### POPT.5 - Performance certification lock
 Goal:
@@ -968,6 +1023,7 @@ Definition of done:
 
 ## 8) Immediate execution order from this plan
 1. `POPT.0` is closed and pinned (authority: `c25a2675fbfbacd952b13bb594880e92`).
-2. Start optimization execution from pinned hotspot order (`S4` then `S1`) under `POPT.1/POPT.2` with strict non-regression rails.
-3. Close `POPT.3` and `POPT.4` once `S4/S1` budgets materially improve.
-4. Enter remediation `P0 -> P1 -> P2 -> P3 -> P4 -> P5` with strict veto gates.
+2. `POPT.1`, `POPT.2`, and `POPT.3/POPT.3R` are closed with explicit hold posture on `POPT.3R` stretch gate.
+3. Execute `POPT.4` (`POPT.4.0 -> POPT.4.1 -> POPT.4.2 -> POPT.4.3`) under strict non-regression rails.
+4. If `POPT.4` passes, close `POPT.5` performance certification lock.
+5. Enter remediation `P0 -> P1 -> P2 -> P3 -> P4 -> P5` with strict veto gates.

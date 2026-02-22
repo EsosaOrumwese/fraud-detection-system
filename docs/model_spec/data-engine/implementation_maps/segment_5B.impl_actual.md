@@ -6184,3 +6184,40 @@ Hygiene/validation executed for closure:
   - `python -m py_compile packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py` -> `PASS`.
 - prune gate:
   - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
+
+### Entry: 2026-02-22 12:52
+
+Planning step: expanded `POPT.4` into execution-grade subphases with explicit veto gates and budgets.
+Summary: converted `POPT.4` from a placeholder into a bounded operational hardening lane focused on two defects observed repeatedly in witness runs: `S5` replay publish conflict churn and logging-overhead drag in hot states.
+
+Why `POPT.4` is the next owner lane:
+1) `POPT.3R` is closed with hold due stretch failure; further `S2/S3` churn is not currently cost-effective.
+2) repeated `S5_OUTPUT_CONFLICT` handling via broad wildcard stale moves is operationally safe but storage-inefficient and noisy.
+3) hot-state logging cadence remains a known performance-risk vector under minute-scale budget law.
+
+Alternatives considered and rejected while planning:
+1) reopen `S2/S3` again before touching `POPT.4`:
+   - rejected because this duplicates failed-churn pattern without addressing operational defects already visible.
+2) jump directly to remediation `P0` with no `POPT.4`:
+   - rejected because unresolved replay/logging inefficiency would pollute remediation iteration cadence and runtime evidence.
+3) solve `S5` conflict by destructive delete of existing validation outputs:
+   - rejected because non-destructive replay posture is required and auditable retention is preferred.
+
+POPT.4 planning decisions pinned:
+1) split into `POPT.4.0 -> POPT.4.1 -> POPT.4.2 -> POPT.4.3`:
+   - `4.0` authority and measurement lock,
+   - `4.1` `S5` replay publish hardening (bounded stale handling),
+   - `4.2` logging budget cap for `S2/S3/S4`,
+   - `4.3` integrated witness + veto.
+2) enforce scope lock:
+   - no realism/policy/schema/contract edits in `POPT.4`.
+3) enforce quantitative gates:
+   - `S5` rerun stability with no nested `.stale_*.stale_*` growth,
+   - logging overhead target `<=2%` vs low-verbosity control lane.
+
+Execution order update rationale:
+- immediate order now reflects current truth:
+  - `POPT.1/2/3/3R` closed,
+  - `POPT.4` next,
+  - `POPT.5` after `POPT.4`,
+  - remediation stack only after performance track closure/hold is explicit.
