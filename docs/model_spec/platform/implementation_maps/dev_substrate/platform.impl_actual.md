@@ -19456,3 +19456,59 @@ Action:
 Completion marker:
 1. `local_parity -> dev_min` track marked **COMPLETE**.
 2. Completion anchored to authoritative certification execution `m10_20260222T081047Z` plus post-cert teardown refresh evidence.
+
+## Entry: 2026-02-22 13:30 +00:00 - Post-M10 extension planning pin (`M11+`) for full-platform green
+Reasoning:
+1. USER requested explicit extension of the program beyond spine closure so full-platform (`Learning/Registry`) can be migrated on `dev_min` without reopening local-parity build paths.
+2. Existing build plan was fully correct for spine baseline, but it ended at `M10` certification and treated post-certification as generic next-scope planning; this risks ambiguity for execution ownership and gate identity.
+3. To avoid drift, the extension needed to preserve the certified spine as frozen truth while adding new phases with explicit non-regression carry-forward from `M8..M10`.
+
+Decision:
+1. Keep `M1..M10` immutable as the certified spine baseline.
+2. Add post-spine full-platform phases `M11..M14` with canonical IDs `F1..F4`.
+3. Pin a hard non-regression law: no `M11+` closure is valid unless `M8..M10` critical gates remain pass-closed after Learning/Registry activation.
+4. Keep substrate posture managed-only (`Terraform + GitHub Actions + ECS + S3 + RDS + Confluent + SSM/IAM/KMS + CloudWatch`), explicitly prohibiting laptop runtime compute.
+
+Implementation:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - scope lock expanded for post-M10 full-platform extension,
+   - program DoD expanded with Learning/Registry + final full-platform verdict,
+   - roadmap extended with `M11/F1`..`M14/F4` (`NOT_STARTED`),
+   - deep-plan routing and evidence template expanded to `M1..M14`,
+   - evidence-fidelity map extended with expected evidence families for `M11..M14`,
+   - immediate next action changed from generic post-cert planning to explicit `M11` activation path,
+   - new section `Post-M10 Full-Platform Extension (M11+)` added with non-regression law and managed stack posture.
+
+Constraints preserved:
+1. No change to the closed verdict of `M1..M10`.
+2. No resource/materialization changes were executed (documentation-only update).
+3. No branch-history operations were performed.
+
+## Entry: 2026-02-22 13:45 +00:00 - Correction: M11+ plan depth normalized to phase-grade structure
+Reasoning:
+1. USER flagged that the initial `M11+` treatment in `platform.build_plan.md` looked like a roadmap list, not an execution-grade phase plan.
+2. That feedback is correct: while roadmap/evidence entries existed, the new phases lacked the same per-phase planning shape used by `M1..M10` (entry gate, scope, failure posture, DoD, and exit rule), which could cause tracking drift during implementation.
+
+Decision:
+1. Keep `M11..M14` in the canonical roadmap and evidence matrix.
+2. Add full phase sections for each new phase directly in `platform.build_plan.md`, matching established style from prior phases.
+3. Preserve user-governed activation and fail-closed posture for all new phases.
+
+Implementation:
+1. Added explicit sections:
+   - `## M11 - F1 Learning/Registry authority + runtime closure`
+   - `## M12 - F2 OFS dataset build and archive/data contracts closure`
+   - `## M13 - F3 MF train/eval + MPR publish/promotion closure`
+   - `## M14 - F4 Full-platform certification + spine non-regression verdict`
+2. Each section now includes:
+   - status, entry gate, objective, scope/out-of-scope,
+   - fail-closed blocker posture,
+   - sub-phase progression model and deep-plan routing file,
+   - explicit DoD checklist and phase-exit condition.
+3. M14 final close rule pinned as verdict-based (`ADVANCE_FULL_PLATFORM_DEV_MIN`) with blocker-free gate closure.
+4. Clarified Section 13 as summary-only and pointed it back to authoritative `M11..M14` phase sections to prevent future interpretation drift.
+
+Constraints preserved:
+1. No runtime/infra changes were executed.
+2. No branch operations were performed.
+3. Existing `M1..M10` certified closure was not modified.

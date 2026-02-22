@@ -6221,3 +6221,90 @@ Execution order update rationale:
   - `POPT.4` next,
   - `POPT.5` after `POPT.4`,
   - remediation stack only after performance track closure/hold is explicit.
+
+### Entry: 2026-02-22 12:58
+
+Planning step: `POPT.4.0` authority lock and defect root-cause pin before code changes.
+Summary: identified concrete owners for the two `POPT.4` lanes and pinned the bounded fix strategy with fail-closed gates.
+
+Observed authority defects:
+1) `S5` replay publish conflict:
+   - repeated first-attempt `S5_OUTPUT_CONFLICT` on same run-id.
+   - root mechanism in `s5_validation_bundle/runner.py`:
+     - existing bundle path is treated as conflict when `existing_index.read_bytes()` differs from candidate index bytes.
+     - `index_payload` includes `generated_utc=utc_now_rfc3339_micro()`, so bytewise mismatch is expected on each rerun even when data payload is otherwise identical.
+2) logging budget in hot states:
+   - `_ProgressTracker` default cadence remains `min_interval_seconds=0.5` in `S2`, `S3`, `S4`.
+   - this generates high-frequency progress logs in long loops and contributes avoidable control-plane overhead.
+
+Alternatives considered and rejected:
+1) keep current behavior and rely on external `.stale_*` housekeeping:
+   - rejected; operationally noisy, storage-churn heavy, and violates replay-idempotence intent for `POPT.4`.
+2) remove `generated_utc` from index schema/payload entirely:
+   - rejected; unnecessary schema-surface change for this lane and outside minimal blast radius.
+3) disable progress logs by default:
+   - rejected; removes useful runtime observability and conflicts with auditability posture.
+
+Chosen bounded strategy:
+1) `POPT.4.1` (`S5`):
+   - keep index schema unchanged,
+   - replace strict bytewise index comparison with semantic comparison that ignores volatile field `generated_utc`,
+   - keep strict checks for:
+     - required index existence,
+     - logical index equivalence (minus volatile field),
+     - `_passed.flag` presence when overall `PASS`,
+     - passed-flag digest equality.
+2) `POPT.4.2` (`S2/S3/S4`):
+   - add explicit env-configurable progress cadence controls per state:
+     - `ENGINE_5B_S2_PROGRESS_INTERVAL_SEC`,
+     - `ENGINE_5B_S3_PROGRESS_INTERVAL_SEC`,
+     - `ENGINE_5B_S4_PROGRESS_INTERVAL_SEC`,
+   - set default cadence to `2.0s` to reduce log pressure while preserving heartbeat visibility,
+   - keep existing detailed audit/rng logs unchanged.
+
+Execution + measurement protocol locked:
+1) compile gates after patch.
+2) run `S5` twice back-to-back on same run-id; second run must pass first-attempt without manual housekeeping.
+3) run integrated witness `S2 -> S3 -> S4 -> S5`.
+4) capture timings from `segment_state_runs` and compare against latest pre-POPT4 anchors for overhead movement:
+   - anchor reference set: `S2=46718ms`, `S3=55093ms`, `S4=457188ms`.
+5) if any structural invariant drifts or `S5` replay still conflicts -> fail-closed `HOLD_POPT4_REOPEN`.
+
+### Entry: 2026-02-22 13:03
+
+Execution step: implemented `POPT.4.1` + `POPT.4.2` code patches (pre-witness).
+Summary: applied bounded code changes to `S5` replay publish semantics and hot-state progress cadence knobs, with no policy/schema/contract edits.
+
+Files changed:
+1) `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
+2) `packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py`
+3) `packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py`
+4) `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+
+Patch details and rationale:
+1) `POPT.4.1` (`S5` replay hardening):
+   - added canonical index comparison helper that ignores volatile `generated_utc` and sorts entries by path.
+   - replaced bytewise index compare with semantic compare for existing-vs-candidate bundle index.
+   - retained strict conflict checks for missing index, non-volatile mismatch, missing `_passed.flag`, and digest mismatch.
+   - expected effect: same-run replay should no longer fail solely because index timestamp changed.
+2) `POPT.4.2` (`S2/S3/S4` logging budget):
+   - added env-configurable cadence knobs:
+     - `ENGINE_5B_S2_PROGRESS_INTERVAL_SEC`,
+     - `ENGINE_5B_S3_PROGRESS_INTERVAL_SEC`,
+     - `ENGINE_5B_S4_PROGRESS_INTERVAL_SEC`.
+   - default cadence raised from `0.5s` to `2.0s` for `_ProgressTracker`.
+   - wired explicit cadence into hot-loop trackers and logged chosen cadence at run start.
+   - expected effect: lower logging overhead with preserved heartbeat/ETA observability.
+
+Alternatives rejected during implementation:
+1) hard-delete/rename existing `S5` bundle inside runner:
+   - rejected as destructive/high-blast for audit lineage.
+2) disable progress trackers entirely:
+   - rejected due observability loss.
+3) change validation index schema to remove `generated_utc`:
+   - rejected as unnecessary contract-surface change for this lane.
+
+Next immediate gates:
+1) compile all touched runners.
+2) run `S5` replay test (same run-id, repeated invocation, no manual housekeeping).
+3) run integrated witness chain for `POPT.4.3`.
