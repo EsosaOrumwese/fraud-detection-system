@@ -225,17 +225,37 @@ Block mapping summary:
 Goal:
 - make transition from M0 to M1 deterministic.
 
+Status:
+- `DONE` (transition protocol pinned and aligned to master-plan entry gates).
+
 Tasks:
 1. Define M1 go/no-go checks and required artifacts.
 2. Ensure no ambiguous “proceed” path remains.
 3. Pin explicit USER confirmation requirement before M1 activation.
 
 DoD:
-- [ ] M1 transition protocol is explicit and complete.
-- [ ] all M0 blockers either closed or explicitly documented with no-go.
+- [x] M1 transition protocol is explicit and complete.
+- [x] all M0 blockers either closed or explicitly documented with no-go.
 
 Evidence target:
 - transition section in this file + master plan alignment.
+
+M0.E transition protocol (pinned):
+1. M0->M1 planning transition go:
+   - `M0.A..M0.E` completed in deep plan.
+   - no active `execution_risk` blockers from M0 lanes.
+   - master-plan M0 sub-phase progress shows `M0.A..M0.E` complete.
+2. M1 execution transition go (strict):
+   - master-plan M1 entry gate remains binding:
+     - M0 is marked `DONE` by status owner in master plan.
+     - required image/release handles are resolved.
+   - from M0.D mapping, `ECR_REPO_URI` unresolved is a hard `M1` execution blocker.
+3. M1 transition no-go:
+   - if any M0 blocker is open,
+   - if `ECR_REPO_URI` is unresolved when attempting M1 execution,
+   - if USER has not explicitly approved moving from M0 to M1.
+4. Branch-governance reminder:
+   - no branch-history operations are permitted without explicit USER branch method + confirmation.
 
 ## 6) Risks and Controls
 R1: Authority drift between docs.
@@ -255,10 +275,10 @@ R4: Premature implementation pressure.
 - [x] M0.B complete.
 - [x] M0.C complete.
 - [x] M0.D complete.
-- [ ] M0.E complete.
-- [ ] M0 prerequisite closure snapshot published.
-- [ ] M0 closure note appended in implementation map.
-- [ ] M0 action log appended in logbook.
+- [x] M0.E complete.
+- [x] M0 prerequisite closure snapshot published.
+- [x] M0 closure note appended in implementation map.
+- [x] M0 action log appended in logbook.
 
 ## 8) Exit Criteria and Handoff
 M0 is eligible for closure when:
@@ -268,10 +288,30 @@ M0 is eligible for closure when:
 4. USER confirms progression to M1 planning/execution.
 
 Handoff posture:
-- M1 remains `NOT_STARTED` until explicit USER activation.
+- M1 is `ACTIVE` for planning by explicit USER activation.
+- M1 execution remains blocked by M1 execution gates (notably `ECR_REPO_URI` materialization).
 
 ## 9) M0 Closure Notes (In-Plan)
-Populate this section during M0 closure:
-1. `M0 prerequisite closure notes` (`M0.PR0..M0.PR5` status and evidence summary).
+1. `M0 prerequisite closure notes` (`M0.PR0..M0.PR5` status and evidence summary):
+   - `M0.PR0` baseline separation check: PASS.
+   - `M0.PR1` authority-trio existence check: PASS.
+   - `M0.PR2` vocabulary/pin alignment check: PASS.
+   - `M0.PR3` fail-closed open-handle isolation: PASS.
+   - `M0.PR4` cost-to-outcome rule continuity: PASS.
+   - `M0.PR5` deep-plan control surface: PASS.
 2. `M0.C alignment closure notes` (final mismatch classification and blocker verdict): completed in Section `M0.C`.
 3. `M0.D TO_PIN dependency backlog` (dependency classes, phase blockers, materialization order): completed in Section `M0.D`.
+
+## 10) M0 Closure Snapshot
+Closure verdict:
+- `M0 = DONE` in `platform.build_plan.md`.
+
+Evidence references:
+1. Master control plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+2. Deep M0 plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M0.build_plan.md`
+3. Decision trail:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.impl_actual.md`
+4. Action log:
+   - `docs/logbook/02-2026/2026-02-22.md`

@@ -7412,3 +7412,31 @@ Decision:
 Alternative considered:
 1) convert entire script to shell-native PowerShell execution lane:
    - rejected; unnecessary complexity versus deterministic path normalization fix.
+
+### Entry: 2026-02-22 19:02
+
+P2.3 result interpretation and tie-break decision.
+Summary: bounded sweep completed with empirical confirmation that raising `p_virtual_hybrid` to `0.80` yields no movement on `T6/T7`.
+
+Observed from candidate matrix:
+1) baseline (`p=0.35`) and probe (`p=0.80`) both produced:
+   - `T6=75.1922%`,
+   - `T7=2.2466%`,
+   - frozen rails all PASS.
+2) only runtime differed modestly (`460.122s` vs `435.405s`) with no realism gain.
+
+Tie-break decision:
+1) do not keep a no-gain policy drift (`p=0.80`) merely for runtime tie-break.
+2) revert to baseline policy value (`p=0.35`) to preserve semantic minimality.
+3) execute one final `S4->S5` rerun + `P1/P2` rescoring so run artifacts align with restored policy.
+
+Why this is chosen:
+1) realism objective dominates; runtime-only change with zero metric movement is not a valid calibration promotion.
+2) minimizing unnecessary policy divergence reduces future audit ambiguity.
+
+Next actions:
+1) set `p_virtual_hybrid=0.3500`.
+2) cleanup `arrival_events` + `validation` outputs for authority run-id.
+3) rerun `make segment5b-s4 segment5b-s5`.
+4) rerun `score_segment5b_p1_realism.py` and `score_segment5b_p2_calibration.py` (canonical unsuffixed artifacts).
+5) close `P2.4/P2.5` as not-triggered and complete `P2.6` decision.

@@ -572,3 +572,65 @@ _As of 2026-02-22_
 
 ### Next lane
 1. `M0.E` exit-readiness and M1 transition pin.
+
+## Entry: 2026-02-22 19:52 +00:00 - M0.E planned and executed (exit-readiness + M1 transition protocol)
+
+### Scope
+1. Executed M0.E inside build-plan docs only.
+2. No external planning artifacts were created.
+
+### What was pinned
+1. Explicit M0->M1 transition protocol was added in `platform.M0.build_plan.md` (`M0.E transition protocol`).
+2. Protocol now distinguishes:
+   - M1 planning transition conditions,
+   - M1 execution transition conditions (with `ECR_REPO_URI` unresolved as hard blocker),
+   - no-go conditions,
+   - USER approval requirement before moving M0->M1.
+
+### Checklist synchronization
+1. Deep-plan M0 checklist now marks `M0.E` complete.
+2. Master-plan M0 DoD now marks:
+   - `M0.PR0..PR5` satisfied,
+   - authority trio validated,
+   - M1 transition protocol pinned.
+3. Master-plan M0 sub-phase progress now marks `M0.E` complete.
+
+### Current posture
+1. M0 lanes `A..E` are now complete.
+2. Master-plan phase status remains `M0 ACTIVE` until USER chooses whether to close M0 and advance to M1.
+
+## Entry: 2026-02-22 19:57 +00:00 - M0.E execution finalization (checklist synchronization)
+
+### Finalization actions
+1. Updated deep M0 completion checklist to mark implementation-map/logbook closure evidence items complete.
+2. Updated master M0 DoD checklist to mark closure evidence line complete.
+
+### Status posture
+1. M0 lane checklist is now fully green in both deep and master plans.
+2. M0 phase status remains `ACTIVE` intentionally pending explicit USER decision to close M0 and advance to M1.
+
+## Entry: 2026-02-22 20:07 +00:00 - Phase transition executed: M0 closed, M1 planning activated
+
+### Trigger
+1. USER confirmed M0 is done and requested moving to M1 planning.
+
+### Transition updates
+1. Master plan status moved from:
+   - `M0 ACTIVE` -> `M0 DONE`
+   - `M1 NOT_STARTED` -> `M1 ACTIVE`
+2. M0 section updated with explicit closure snapshot and handoff approval context.
+3. M1 section updated with planning posture and explicit execution blocker note (`M1-B1`: `ECR_REPO_URI` unresolved).
+
+### New deep planning artifact
+1. Created `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M1.build_plan.md`.
+2. M1 deep plan now includes:
+   - purpose/authority/scope,
+   - execution gate,
+   - work breakdown `M1.A..M1.E`,
+   - blocker taxonomy,
+   - completion checklist,
+   - exit/handoff criteria.
+
+### Notes
+1. This transition is planning-only; no runtime/infra/image build execution was performed.
+2. M1 execution remains fail-closed behind `ECR_REPO_URI` materialization and explicit user execution command.

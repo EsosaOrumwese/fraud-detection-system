@@ -79,8 +79,8 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 
 | Plan Phase | Canonical phase_id | Name | Status |
 | --- | --- | --- | --- |
-| M0 | pre-P(-1) | Mobilization + authority lock | ACTIVE |
-| M1 | P(-1) | Packaging readiness (image/provenance) | NOT_STARTED |
+| M0 | pre-P(-1) | Mobilization + authority lock | DONE |
+| M1 | P(-1) | Packaging readiness (image/provenance) | ACTIVE |
 | M2 | P0 | Substrate readiness (core/streaming/runtime/data_ml/ops) | NOT_STARTED |
 | M3 | P1 | Run pinning and orchestrator readiness | NOT_STARTED |
 | M4 | P2 | Spine daemon readiness on EKS | NOT_STARTED |
@@ -121,10 +121,10 @@ Each phase (M1..M13) must publish:
 - cost-to-outcome receipt path
 - operator + UTC timestamp
 
-## 7) Current Active Phase
+## 7) Phase Status Detail
 
 ## M0 - Mobilization + Authority Lock
-Status: `ACTIVE`
+Status: `DONE`
 
 Objective:
 - lock dev_full authority and phase-governance so implementation can start without hidden prerequisites or naming drift.
@@ -168,12 +168,12 @@ Implementation tasks:
    - explicit go/no-go criteria.
 
 M0 DoD checklist:
-- [ ] `M0.PR0`..`M0.PR5` all satisfied and evidenced.
-- [ ] Authority trio validated without unresolved contradictions.
+- [x] `M0.PR0`..`M0.PR5` all satisfied and evidenced.
+- [x] Authority trio validated without unresolved contradictions.
 - [x] `TO_PIN` list accepted as fail-closed materialization backlog with dependency ordering.
 - [x] Deep M0 plan exists and is execution-grade (`platform.M0.build_plan.md`).
-- [ ] M1 transition protocol is pinned with explicit go/no-go checks.
-- [ ] M0 closure evidence recorded in impl map + logbook.
+- [x] M1 transition protocol is pinned with explicit go/no-go checks.
+- [x] M0 closure evidence recorded in impl map + logbook.
 
 Rollback posture:
 - Docs-only rollback is allowed before M1 starts.
@@ -193,7 +193,12 @@ M0 sub-phase progress:
 - [x] `M0.B` planning topology lock.
 - [x] `M0.C` authority alignment matrix closure pass.
 - [x] `M0.D` TO_PIN dependency backlog lock.
-- [ ] `M0.E` exit-readiness and M1 transition pin.
+- [x] `M0.E` exit-readiness and M1 transition pin.
+
+M0 closure snapshot:
+- M0 DoD checklist is fully green.
+- All M0 sub-phases `A..E` are complete.
+- Handoff to M1 planning is explicitly approved by USER.
 
 ---
 
@@ -201,7 +206,7 @@ M0 sub-phase progress:
 These are master-plan stubs for all `M#` phases so execution has explicit intent before deep-plan expansion.
 
 ## M1 - Packaging Readiness
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 
 Objective:
 - close `P(-1)` with immutable image and provenance evidence.
@@ -209,6 +214,10 @@ Objective:
 Entry gate:
 - M0 is `DONE`.
 - required image/release handles are resolved.
+
+M1 planning posture:
+- M1 is active for planning and contract freeze.
+- M1 execution remains blocked until `ECR_REPO_URI` is materialized (`M1-B1`).
 
 Planned lanes:
 - build, security/provenance, release evidence.

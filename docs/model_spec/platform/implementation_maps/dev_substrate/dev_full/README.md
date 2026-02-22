@@ -17,6 +17,7 @@ This folder is reserved for `dev_full` planning and implementation notes.
   - dev_full migration authority created and section pins closed.
   - dev_full run-process authority created.
   - dev_full handles registry drafted.
-  - `platform.build_plan.md` created with `M0` active.
+  - `platform.build_plan.md` created; `M0` closed and `M1` planning active.
   - `platform.M0.build_plan.md` created for deep M0 planning.
+  - `platform.M1.build_plan.md` created for deep M1 planning.
 - `dev_min` remains closed and isolated under `../dev_min/`.
