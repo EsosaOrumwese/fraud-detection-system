@@ -642,10 +642,103 @@ POPT.2R closure snapshot (2026-02-22):
 Goal:
 - close remaining throughput drag in `S2` and `S3` where runtime remains above budget after POPT.1/POPT.2.
 
+Authority anchors:
+- latest witness before POPT.3:
+  - `S2=47.202s` (`durations.wall_ms=47202`),
+  - `S3=51.750s` (`durations.wall_ms=51750`).
+- pinned state budgets from POPT.0:
+  - `S2 target=35.0s`, `stretch=45.0s`,
+  - `S3 target=35.0s`, `stretch=45.0s`.
+
+Execution constraints:
+- no realism/policy calibration edits in this lane.
+- no schema/contract output-shape changes.
+- RNG accounting and deterministic replay rails are non-negotiable.
+
+POPT.3 closure gates:
+- primary target gate (green close):
+  - `S2 <= 35.0s`,
+  - `S3 <= 35.0s`.
+- stretch gate (amber with explicit waiver):
+  - `S2 <= 45.0s`,
+  - `S3 <= 45.0s`,
+  - plus measurable movement vs anchors.
+- guardrails:
+  - `S2/S3/S4/S5` all `PASS`,
+  - no new RNG failure classes,
+  - no structural/regression drift in downstream metrics (`arrivals_total`, `arrival_rows`, `arrival_virtual`, `bucket_rows`, `missing_group_weights`, `bundle_integrity_ok=true`).
+
+Execution posture:
+- authority run-id remains `c25a2675fbfbacd952b13bb594880e92`.
+- rerun protocol for any `S2/S3` mutation:
+  - `segment5b-s2 -> segment5b-s3 -> segment5b-s4 -> segment5b-s5`.
+- same-run `S5_OUTPUT_CONFLICT` handling remains non-destructive via `.stale_*` bundle move before rerun.
+
+#### POPT.3.1 - Design lock and hotspot pin
+Objective:
+- pin exact hot loops to optimize in S2/S3 and reject non-bounded alternatives.
+
 Definition of done:
-- [ ] `S2` and `S3` each within pinned state budgets (or explicit waiver with evidence).
-- [ ] no RNG-accounting regressions introduced.
-- [ ] no realism-shape tuning performed in POPT phases.
+- [x] chosen optimization lane is explicitly pinned with rationale.
+- [x] rejected alternatives are captured with blast-radius reasons.
+- [x] closure gates and veto conditions are locked.
+
+#### POPT.3.2 - S2/S3 implementation lane
+Objective:
+- apply low/medium-blast performance changes in S2/S3 compute hot paths.
+
+Definition of done:
+- [x] S2/S3 code optimizations are implemented.
+- [x] compile checks pass.
+- [x] policy/schema/contract semantics remain unchanged.
+
+#### POPT.3.3 - Witness execution and measurement
+Objective:
+- run bounded witness chain and capture state timings + guardrails.
+
+Definition of done:
+- [x] `S2` witness is `PASS`.
+- [x] `S3` witness is `PASS`.
+- [x] downstream safety witness (`S4`,`S5`) is `PASS` (with documented housekeeping if conflict occurs).
+- [x] updated timing evidence and closure artifacts are emitted.
+
+#### POPT.3.4 - Closure decision
+Objective:
+- decide close vs hold using explicit target/stretch/guardrail gates.
+
+Decision outcomes:
+- `UNLOCK_POPT4_CONTINUE` if primary target gate and all guardrails pass.
+- `UNLOCK_POPT4_CONTINUE_WITH_WAIVER` if stretch gate passes with explicit runtime waiver evidence.
+- `HOLD_POPT3_REOPEN` if stretch gate fails or any guardrail fails.
+
+Definition of done:
+- [x] closure decision is explicitly recorded.
+- [x] retained run/artifact pointers are pinned.
+- [x] waiver rationale is recorded if target gate is missed. (`N/A`: stretch gate failed; phase held)
+- [x] prune checklist is executed and logged.
+
+POPT.3 closure snapshot (2026-02-22):
+- witness run-id: `c25a2675fbfbacd952b13bb594880e92`.
+- post-rollback witness timings:
+  - `S2=48.516s` (`wall_ms=48516`, anchor `47.202s`, `+2.78%`),
+  - `S3=51.485s` (`wall_ms=51485`, anchor `51.750s`, `-0.51%`),
+  - `S4=444.297s` (`wall_ms=444297`, `PASS`),
+  - `S5=1.733s` (`wall_ms=1733`, `PASS`, `bundle_integrity_ok=true`).
+- gate outcomes:
+  - primary target gate (`S2<=35s` and `S3<=35s`): `FAIL`,
+  - stretch gate (`S2<=45s` and `S3<=45s`): `FAIL`,
+  - guardrails (`S2/S3/S4/S5 PASS`, no structural drift, bundle integrity): `PASS`.
+- S5 replay handling:
+  - first attempt failed with `S5_INFRASTRUCTURE_IO_ERROR` (`F4:S5_OUTPUT_CONFLICT ... phase=publish`),
+  - non-destructive housekeeping applied via timestamped `.stale_*` move, rerun passed.
+- retained closure artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- prune checklist:
+  - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
+- phase decision:
+  - `HOLD_POPT3_REOPEN` (stretch gate not met in final post-rollback witness).
 
 ### POPT.4 - Validation lane + logging budget closure
 Goal:
