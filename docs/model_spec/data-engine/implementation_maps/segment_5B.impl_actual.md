@@ -7555,3 +7555,80 @@ Safety and invariants:
 1) no changes to `1A/1B/2A/2B/5A` frozen rails in this lane.
 2) no creation of new run-id folders unless strictly required; reuse authority run-id to control storage.
 3) pre-rerun cleanup of superseded `3B/5B` output partitions is mandatory to avoid stale publish artifacts.
+
+### Entry: 2026-02-22 19:24
+
+Execution update: owner-leverage quantification completed for `P2.U1`.
+Summary: produced a deterministic leverage artifact from authority run `c25...` to rank bounded `3B.S1` policy deltas by projected `T7` movement.
+
+Artifacts emitted:
+1) `runs/fix-data-engine/segment_5B/reports/segment5b_p2u1_owner_leverage_c25a2675fbfbacd952b13bb594880e92.json`
+2) `runs/fix-data-engine/segment_5B/reports/segment5b_p2u1_owner_leverage_c25a2675fbfbacd952b13bb594880e92.csv`
+
+Key findings:
+1) baseline virtual share reconfirmed: `2.2466%`.
+2) large bounded CNP-only candidate mass exists in currently non-virtual rules.
+3) recommended first bounded candidate set:
+   - flip `mcc=5994, channel=card_not_present` to `virtual`,
+   - flip `mcc=5962, channel=card_not_present` to `virtual`.
+4) projected uplift from this pair: `+1.46 pp` (sufficient to cross `T7` B lower bound while keeping policy drift narrow).
+
+Decision:
+1) execute first reopen candidate as the two-rule bounded set above.
+2) rerun `3B.S1->S5`, then `5B.S4->S5`, then rescore `P1/P2`.
+
+### Entry: 2026-02-22 19:25
+
+Execution update: launched first upstream-owner candidate (`P2.U1.C1`) by applying two-rule CNP-only delta in `3B.S1` policy.
+
+Applied delta:
+1) `config/layer1/3B/virtual/mcc_channel_rules.yaml`
+   - `5962/card_not_present`: `physical -> virtual`
+   - `5994/card_not_present`: `physical -> virtual`
+
+Justification:
+1) projected `T7` uplift clears B lower bound with narrow policy drift.
+2) keeps `card_present` posture unchanged.
+3) aligned with owner boundary (`3B.S1`), avoiding local `5B` workaround.
+
+Execution next:
+1) rerun `3B.S1->S5` on run-id `c25a2675fbfbacd952b13bb594880e92`.
+2) rerun `5B.S4->S5`.
+3) score `segment5b_p1_realism.py` and `segment5b_p2_calibration.py` with candidate suffix for adjudication.
+
+### Entry: 2026-02-22 19:56
+
+Execution outcome: `P2.U1.C1` completed end-to-end and owner-lane objective for `T7` is closed.
+
+Operational issues handled during execution:
+1) `3B.S1` initially failed on sealed digest mismatch after policy edit.
+   - resolution: rerun from `3B.S0` to reseal changed policy digest.
+2) `3B.S4` failed once on `E3B_S4_OUTPUT_INCONSISTENT_REWRITE`.
+   - resolution: remove stale `s4_run_summary_3B.json`, rerun `S4->S5`.
+3) before downstream `5B.S4`, `5B.S0` was reopened to refresh sealed upstream digests from rebuilt `3B` outputs.
+
+Candidate `C1` results (vs baseline):
+1) `T7`:
+   - baseline `2.2466%`,
+   - candidate `3.7043%` (`PASS_B`).
+2) `T6`:
+   - baseline `75.1922%`,
+   - candidate `74.3382%` (improved, still `FAIL_B` vs `<=72%`).
+3) frozen rails (`T1/T2/T3/T4/T5/T11/T12`):
+   - all `PASS` (no regressions).
+4) runtime:
+   - `S4+S5=469.498s` (`PASS` vs budget).
+
+Artifacts pinned:
+1) owner leverage:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u1_owner_leverage_c25a2675fbfbacd952b13bb594880e92.json`
+2) candidate matrix:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u1_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.json`
+3) candidate gateboard:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92_p2u1_c1.json`
+4) canonical refreshed gateboard:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92.json`
+
+Phase branch decision:
+1) `HOLD_P2_UPSTREAM_REOPEN`.
+2) reason: T7 owner lane is now green; residual blocker is T6 concentration closure.

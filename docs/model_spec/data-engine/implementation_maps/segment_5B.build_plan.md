@@ -1670,11 +1670,34 @@ Scope:
   - `5B` hard rails (`T1/T2/T3/T4/T5/T11/T12`) are veto rails in this lane.
 
 Definition of done:
-- [ ] owner-lane candidate matrix is recorded (rule deltas + measured `T6/T7` movement).
-- [ ] at least one bounded candidate is executed end-to-end through `3B` and downstream `5B`.
-- [ ] branch decision is explicit:
+- [x] owner-lane candidate matrix is recorded (rule deltas + measured `T6/T7` movement).
+- [x] at least one bounded candidate is executed end-to-end through `3B` and downstream `5B`.
+- [x] branch decision is explicit:
   - `UNLOCK_P3` if B closure is reached with frozen rails green, or
   - `HOLD_P2_UPSTREAM_REOPEN` with retained best-evidence candidate and freeze rationale.
+
+P2.U1 closure snapshot (2026-02-22):
+- retained candidate:
+  - `3B.S1` policy delta in `config/layer1/3B/virtual/mcc_channel_rules.yaml`:
+    - `5962/card_not_present`: `physical -> virtual`,
+    - `5994/card_not_present`: `physical -> virtual`.
+- execution chain completed:
+  - `3B`: `S0 -> S1 -> S2 -> S3 -> S4 -> S5`,
+  - `5B`: `S0 -> S4 -> S5`,
+  - rescoring: `segment5b_p1_realism` and `segment5b_p2_calibration`.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u1_owner_leverage_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u1_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92_p2u1_c1.json`
+  - canonical refreshed gateboard:
+    - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92.json`
+- measured movement vs baseline:
+  - `T7`: `2.2466% -> 3.7043%` (`PASS_B`),
+  - `T6`: `75.1922% -> 74.3382%` (improved, still `FAIL_B`),
+  - frozen rails `T1/T2/T3/T4/T5/T11/T12`: all `PASS`,
+  - runtime `S4+S5`: `469.498s` (`PASS` budget).
+- branch decision:
+  - `HOLD_P2_UPSTREAM_REOPEN` (T7 owner lane closed successfully; remaining blocker is `T6`).
 
 ### P3 - Wave C contract hardening
 Goal:
@@ -1729,4 +1752,5 @@ Definition of done:
 6. `P1` local Wave-A correctness lane is closed with hold posture and upstream reopen trigger.
 7. `P1 Reopen Bridge` + `P1.T3` are closed with explicit `UNLOCK_P2`.
 8. `P2` is closed with `UNLOCK_P2_UPSTREAM_REOPEN` (local infeasibility proven for `T7`; frozen rails preserved).
-9. active execution lane is `P2.U1` (upstream owner reopen at `3B.S1`), then rescore and branch.
+9. `P2.U1` executed and closed: `T7` now `PASS_B`, frozen rails preserved, `T6` remains red.
+10. active posture is `HOLD_P2_UPSTREAM_REOPEN` pending explicit next lane for `T6` closure.

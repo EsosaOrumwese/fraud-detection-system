@@ -5293,3 +5293,47 @@ Reopen guardrails:
 1) minimal policy drift first (small CNP-only candidate set).
 2) fail-closed revert if 3B validation or downstream 5B frozen rails regress.
 3) log every candidate and outcome before considering wider policy movement.
+
+### Entry: 2026-02-22 19:25 +00:00
+
+Execution update: applied bounded `S1` policy delta for first owner candidate.
+Policy edits committed for candidate-1:
+1) `mcc=5962`, `channel=card_not_present`: `physical -> virtual`.
+2) `mcc=5994`, `channel=card_not_present`: `physical -> virtual`.
+
+File changed:
+1) `config/layer1/3B/virtual/mcc_channel_rules.yaml`.
+
+Why these two:
+1) leverage artifact (`segment5b_p2u1_owner_leverage_c25...`) ranks both as high-mass CNP-only candidates.
+2) combined projected uplift is sufficient to cross `T7` lower bound with low rule-count drift.
+3) CNP-only posture preserves physical-first rail for card-present channels.
+
+Next execution (no branch hops):
+1) rerun `3B.S1 -> S2 -> S3 -> S4 -> S5` on authority run-id.
+2) if 3B remains green, rerun downstream `5B.S4 -> S5` and rescore.
+
+### Entry: 2026-02-22 19:55 +00:00
+
+Execution outcome: `3B` upstream-owner rebuild completed on authority run-id after two fail-closed corrections.
+
+Observed fail-closed blockers and resolutions:
+1) initial `S1` failure:
+   - code: `E3B_S1_006_SEALED_INPUT_DIGEST_MISMATCH`.
+   - cause: `mcc_channel_rules.yaml` digest changed while `3B.S0` sealed inputs still referenced prior digest.
+   - fix: reopen from `3B.S0` (removed old `s0_gate_receipt_3B` + `sealed_inputs_3B` partitions, reran `S0`).
+2) subsequent `S4` failure:
+   - code: `E3B_S4_OUTPUT_INCONSISTENT_REWRITE`.
+   - cause: stale `reports/layer1/3B/state=S4/.../s4_run_summary_3B.json` blocked non-identical rewrite.
+   - fix: remove stale `s4_run_summary_3B.json` and rerun `S4` then `S5`.
+
+Final `3B` posture for candidate-1:
+1) `S0->S5` all PASS on run-id `c25a2675fbfbacd952b13bb594880e92`.
+2) `S1` classification movement:
+   - `virtual_merchants=379` (from candidate rule expansion).
+3) `S5` validation bundle refreshed and PASS:
+   - digest `a99a76149abc998fdd73cd67372ca14eac984234f3a301a49c5ac7541134a7e0`.
+
+Performance note (captured for future POPT reopen):
+1) `S2` consumed the dominant wall time (`~935s`) in this reopen lane.
+2) this confirms `S2` topology prep remains a significant runtime bottleneck when 3B owner lanes are reopened.

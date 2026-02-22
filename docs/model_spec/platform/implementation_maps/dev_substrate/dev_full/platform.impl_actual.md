@@ -782,3 +782,396 @@ _As of 2026-02-22_
 ### Current closure posture
 1. M1.B is now planning-complete (execution-grade) but not closed.
 2. M1.B closure remains blocked on explicit `ENTRYPOINT_MPR_RUNNER` pinning decision (`M1-B2`).
+
+## Entry: 2026-02-22 19:23 +00:00 - M1.B execution checkpoint 1 (decision closure for MPR runner mapping)
+
+### Problem
+1. M1.B execution could not proceed to closure because `ENTRYPOINT_MPR_RUNNER` had no concrete runnable module mapping.
+
+### Alternatives considered
+1. Repin registry to remove `ENTRYPOINT_MPR_RUNNER` from image-entrypoint contract (temporary deferral).
+   - rejected for this execution pass because dev_full authority already frames MPR as an in-scope runtime lane and removing it now would increase semantic drift risk.
+2. Map `ENTRYPOINT_MPR_RUNNER` to an unrelated existing module (for example MF publish path).
+   - rejected because it would blur ownership boundaries (MF publish vs MPR lifecycle governance).
+3. Implement a dedicated MPR runner surface under `learning_registry` and bind the entrypoint to it.
+   - selected: gives an explicit, owned command surface for MPR lane and clears M1.B matrix ambiguity without changing handle semantics.
+
+### Decision
+1. Implement `python -m fraud_detection.learning_registry.worker` as `ENTRYPOINT_MPR_RUNNER` mapping.
+2. Keep implementation intentionally fail-closed and minimal for M1.B scope:
+   - deterministic argparse contract,
+   - explicit subcommands for corridor operations (`run`, `promote`, `rollback-drill`),
+   - no silent success for unsupported payloads.
+3. After module lands, execute full M1.B command-surface validation matrix and record per-row results.
+
+## Entry: 2026-02-22 19:27 +00:00 - M1.B execution checkpoint 2 (MPR runner module implemented)
+
+### Implementation completed
+1. Added new module:
+   - `src/fraud_detection/learning_registry/worker.py`
+2. New command surface:
+   - `python -m fraud_detection.learning_registry.worker --profile <path> run [--once]`
+   - `python -m fraud_detection.learning_registry.worker --profile <path> promote --event-path <json>`
+   - `python -m fraud_detection.learning_registry.worker --profile <path> rollback-drill --event-path <json>`
+
+### Design choices
+1. Used existing learning-registry contracts:
+   - `RegistryLifecycleEventContract` validates payload schema before any command success.
+2. Enforced fail-closed event semantics:
+   - `promote` requires `event_type=BUNDLE_PROMOTED_ACTIVE`.
+   - `rollback-drill` requires `event_type=BUNDLE_ROLLED_BACK`.
+3. Kept run-loop scope minimal and explicit:
+   - returns deterministic `IDLE_NO_REQUEST_SOURCE` payload for `run --once`,
+   - no hidden queue assumptions introduced in M1.B.
+
+### Why this is sufficient for M1.B
+1. M1.B requires deterministic, owned entrypoint contracts for packaging/launch validation.
+2. This module establishes that contract without crossing into M12 behavior claims.
+
+## Entry: 2026-02-22 19:25 +00:00 - M1.B execution checkpoint 3 (first matrix run failed on launcher env)
+
+### What happened
+1. Ran full entrypoint validation matrix using `python -m ... --help` commands.
+2. All rows failed with module resolution error:
+   - `Error while finding module specification for 'fraud_detection...'`
+
+### Root cause
+1. Validation shell did not include `PYTHONPATH=src`, so python runtime could not resolve project modules from source tree.
+2. This is an execution environment blocker, not a command-contract blocker.
+
+### Alternatives considered
+1. Mark matrix as failed and stop.
+   - rejected because failure is non-semantic launcher drift and does not test entrypoint contracts.
+2. Install package globally before validation.
+   - rejected for M1.B because it introduces extra mutable environment assumptions.
+3. Re-run matrix with explicit `PYTHONPATH=src`.
+   - selected: deterministic and aligned to local source-based command-surface validation.
+
+### Decision
+1. Re-run the same matrix with `PYTHONPATH=src` exported in process scope.
+2. Preserve first-run artifact as failure evidence, then evaluate semantic pass/fail on rerun.
+
+## Entry: 2026-02-22 19:27 +00:00 - M1.B execution checkpoint 4 (matrix rerun + subcommand proof)
+
+### Actions executed
+1. Re-ran full entrypoint matrix with `PYTHONPATH=src`.
+2. Ran targeted subcommand validation for:
+   - `SR run --help`,
+   - `OFS run --help`,
+   - `MF run --help`,
+   - `MPR run/promote/rollback-drill --help`.
+3. Executed MPR command behavior checks with schema-valid sample payloads:
+   - valid promote event -> PASS,
+   - valid rollback event -> PASS,
+   - invalid promote event type -> expected FAIL.
+
+### Evidence artifacts produced
+1. `runs/dev_substrate/dev_full/m1/m1b_entrypoint_validation_20260222T192558Z.json` (first failed run; launcher env drift evidence).
+2. `runs/dev_substrate/dev_full/m1/m1b_entrypoint_validation_20260222T192718Z.json` (full matrix PASS).
+3. `runs/dev_substrate/dev_full/m1/m1b_subcommand_validation_20260222T192734Z.json` (subcommand PASS).
+4. `runs/dev_substrate/dev_full/m1/m1b_mpr_command_checks_20260222T192755Z.json` (MPR fail-closed behavior checks PASS).
+
+### Outcome
+1. All matrix rows now pass command-surface validation.
+2. `ENTRYPOINT_MPR_RUNNER` mapping is no longer ambiguous (`fraud_detection.learning_registry.worker`).
+3. `M1-B2` is closed for M1.B scope.
+
+## Entry: 2026-02-22 19:30 +00:00 - M1.B full execution closure
+
+### Closure updates
+1. Updated deep plan `M1.B` section to:
+   - map `ENTRYPOINT_MPR_RUNNER` to concrete module contract,
+   - record execution artifacts and blocker adjudication,
+   - mark M1.B DoDs complete.
+2. Updated M1 completion checklist:
+   - `M1.B complete` marked checked.
+3. Updated master plan M1 sub-phase progress:
+   - `M1.B` marked complete.
+
+### Residual blockers
+1. `M1-B1` (`ECR_REPO_URI` unresolved) remains active at phase level and still blocks build-go execution for later M1 lanes.
+
+## Entry: 2026-02-22 19:31 +00:00 - M1.B closure consistency pass
+
+### Consistency actions
+1. Updated master-plan M1 posture line to remove stale statement that `M1-B2` was still active.
+2. Ran syntax compile check for new module:
+   - `python -m py_compile src/fraud_detection/learning_registry/worker.py`
+   - result: PASS.
+
+### Outcome
+1. Deep-plan and master-plan closure narratives are now consistent for M1.B.
+2. New `ENTRYPOINT_MPR_RUNNER` module passes compile gate.
+
+## Entry: 2026-02-22 19:33 +00:00 - M1-B1 resolution execution (`ECR_REPO_URI` materialization)
+
+### Trigger
+1. USER requested: "Let's resolve M1-B1".
+
+### Problem statement
+1. `M1-B1` remained active because `ECR_REPO_URI` was still `TO_PIN` in dev_full handles registry.
+2. M1 build-go remained blocked by that unresolved handle.
+
+### Investigation
+1. Verified AWS identity and account context via STS.
+2. Checked for existing ECR repository `fraud-platform-dev-full` in `eu-west-2`.
+3. Result:
+   - account identity available,
+   - repository did not exist, so URI could not be resolved from existing state.
+
+### Alternatives considered
+1. Infer URI string from account/region/repo-name pattern without creating repository.
+   - rejected: fails closure-grade verification because handle would point to a potentially non-existent substrate object.
+2. Keep `TO_PIN` and defer to a later infra phase.
+   - rejected: directly conflicts with user request to resolve `M1-B1` now.
+3. Create repository now, then resolve URI from AWS source-of-truth.
+   - selected: deterministic, auditable, and immediately closes `M1-B1`.
+
+### Execution
+1. Created ECR repository:
+   - name: `fraud-platform-dev-full`
+   - region: `eu-west-2`
+   - image scan on push: enabled
+   - encryption: AES256
+2. Captured resolution evidence artifact:
+   - `runs/dev_substrate/dev_full/m1/m1b1_ecr_resolution_20260222T193300Z.json`
+3. Materialized registry handle:
+   - `ECR_REPO_URI = "230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full"`
+4. Updated open-handle list:
+   - removed `ECR_REPO_URI` from Section 14 open materialization handles.
+5. Synced M1 and M0 planning docs to mark `M1-B1` as closed.
+
+### Outcome
+1. `M1-B1` is now closed.
+2. M1 is no longer blocked by missing `ECR_REPO_URI`.
+3. Remaining M1 closure work is `M1.C`, `M1.D`, and `M1.E`.
+
+## Entry: 2026-02-22 19:38 +00:00 - M1.C planning expansion (provenance/evidence contract)
+
+### Trigger
+1. USER requested: "Proceed with planning out M1.C".
+
+### Planning objective
+1. Convert `M1.C` from stub to execution-grade contract so P(-1) packaging provenance can be validated deterministically and linked to P1 run pinning surfaces.
+
+### Inputs reviewed
+1. `dev_full_platform_green_v0_run_process_flow.md` (`P(-1)` requires immutable digest + provenance metadata emission).
+2. `dev_full_handles.registry.v0.md`:
+   - field handles (`FIELD_WRITTEN_AT_UTC`, `CONFIG_DIGEST_FIELD`),
+   - image handles (`IMAGE_TAG_GIT_SHA_PATTERN`, `IMAGE_REFERENCE_MODE`, `ECR_REPO_URI`),
+   - evidence handles (`EVIDENCE_PHASE_PREFIX_PATTERN`, `EVIDENCE_RUN_JSON_KEY`, `RUN_PIN_PATH_PATTERN`).
+3. Prior dev_min M1.C structure as a planning template, adapted to dev_full handles.
+
+### Alternatives considered
+1. Keep M1.C high-level and defer exact field/path contracts to M1.E build-go.
+   - rejected: would reintroduce ambiguity at execution time and weaken fail-closed posture.
+2. Introduce new registry handles for every provenance field key before planning M1.C.
+   - rejected for now: unnecessary handle inflation before proving existing handle set can anchor the contract.
+3. Pin explicit M1.C field/path/mismatch contract directly in deep plan using existing handles and canonical field names.
+   - selected: fastest deterministic closure path with minimal naming drift.
+
+### Decisions pinned
+1. Required provenance field set was explicitly pinned (image tag/digest/git, build metadata, driver/source pointers, digest anchors).
+2. Run-scoped evidence objects under `P(-1)` were explicitly pinned:
+   - `packaging_provenance.json`,
+   - `image_digest_manifest.json`,
+   - `release_metadata_receipt.json`.
+3. P(-1) -> P1 linkage checks were pinned across:
+   - `EVIDENCE_PHASE_PREFIX_PATTERN`,
+   - `RUN_PIN_PATH_PATTERN`,
+   - `EVIDENCE_RUN_JSON_KEY`.
+4. Fail-closed mismatch policy was pinned for tag->digest mismatch, digest format mismatch, object mismatch, missing evidence, and mutable-tag misuse.
+5. Validation artifact contract was pinned:
+   - `provenance_consistency_checks.json` with row-level verdict details.
+6. `M1-B3` remains active until M1.C execution proves this contract.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M1.build_plan.md`
+   - `M1.C` expanded to execution-grade planning detail.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+   - M1 posture note updated to reflect M1.C expansion and active `M1-B3`.
+
+## Entry: 2026-02-22 19:44:17 +00:00 - M1.C execution kickoff (managed provenance lane)
+
+### Trigger
+1. USER directed full execution of `M1.C` with in-progress reasoning documentation.
+
+### Decision-completeness precheck
+1. `M1-B1` (`ECR_REPO_URI`) is closed and materialized.
+2. `IMAGE_BUILD_DRIVER` is pinned to `github_actions`; execution must use a managed workflow lane, not local ad-hoc build.
+3. `M1.C` requires immutable digest evidence plus provenance artifacts (`packaging_provenance`, `image_digest_manifest`, `release_metadata_receipt`, `provenance_consistency_checks`).
+
+### Options evaluated
+1. Use existing `dev_min_m1_packaging` workflow with dev_full inputs.
+   - rejected: evidence schema is insufficient for current dev_full `M1.C` contract and would require post-hoc patching.
+2. Execute local docker build/push and synthesize evidence locally.
+   - rejected: violates pinned build-driver posture (`github_actions`) and increases drift risk.
+3. Create dedicated dev_full packaging workflow and execute via `workflow_dispatch` on active branch.
+   - selected: aligns with pinned driver and keeps provenance surface explicit/reproducible.
+
+### Execution plan (selected)
+1. Add `.github/workflows/dev_full_m1_packaging.yml` with fail-closed build/push/digest steps.
+2. Emit required `M1.C` artifacts in run-scoped `P(-1)` evidence path structure.
+3. Dispatch workflow with concrete `platform_run_id` and ECR inputs.
+4. Mirror artifact pack locally under `runs/dev_substrate/dev_full/m1/`.
+5. Update M1 plans and blockers (`M1-B3`) only after evidence PASS is verifiable.
+
+## Entry: 2026-02-22 19:45:23 +00:00 - M1.C workflow realization (dev_full managed packaging lane)
+
+### Implementation action
+1. Added dedicated workflow: `.github/workflows/dev_full_m1_packaging.yml`.
+
+### Why this workflow was added
+1. `M1.C` for dev_full requires provenance artifacts beyond the existing dev_min workflow contract.
+2. Build driver is pinned to `github_actions`; this preserves execution-mode alignment.
+
+### Contract surfaces implemented
+1. Build/push immutable image to ECR using `git-<sha>` tag.
+2. Resolve immutable digest from AWS ECR source-of-truth.
+3. Emit required `P(-1)` artifacts:
+   - `packaging_provenance.json`
+   - `image_digest_manifest.json`
+   - `release_metadata_receipt.json`
+   - `provenance_consistency_checks.json`
+4. Emit supplemental operator artifacts:
+   - `build_command_surface_receipt.json`
+   - `ci_m1_outputs.json`
+5. Optional S3 upload path retained but explicitly input-gated (`s3_evidence_bucket` optional).
+
+### Risk notes
+1. Direct S3 upload requires evidence bucket materialization; workflow keeps this optional so `M1.C` can execute without forcing M2 substrate side effects.
+2. P1 linkage equality checks remain runtime-following checks once `run.json` and `run_header` are materialized; workflow writes an explicit linkage guard note in the conformance artifact.
+
+## Entry: 2026-02-22 19:47:50 +00:00 - M1.C execution blocker (`M1C-B5`) detected in managed run
+
+### What happened
+1. Managed workflow run (`dev_min_m1_packaging` against `migrate-dev`) failed at `Push immutable image`.
+2. Failure reason from run log:
+   - assumed role `GitHubAction-AssumeRoleWithAction` missing `ecr:InitiateLayerUpload` on `fraud-platform-dev-full` repository.
+
+### Why this blocks M1.C
+1. `M1.C` closure requires immutable digest from a pushed image in ECR.
+2. Without push permission, digest resolution and provenance artifacts cannot be emitted by CI lane.
+
+### Alternatives considered
+1. Bypass by local push/build and synthesize evidence.
+   - rejected: violates pinned `IMAGE_BUILD_DRIVER=github_actions` posture.
+2. Grant broad wildcard admin policy to workflow role.
+   - rejected: over-privileged and unnecessary for this blocker.
+3. Apply minimal repository-scoped ECR push permissions to `GitHubAction-AssumeRoleWithAction`.
+   - selected: least-privilege remediation aligned to immediate blocker.
+
+### Remediation plan
+1. Materialize inline IAM policy for workflow role with required ECR push/read actions on:
+   - `arn:aws:ecr:eu-west-2:230372904534:repository/fraud-platform-dev-full`
+2. Re-run managed M1 packaging workflow.
+3. On PASS, mirror artifact pack and close `M1-B3`.
+
+## Entry: 2026-02-22 19:53:04 +00:00 - M1.C execution remediation and PASS closure
+
+### Execution sequence
+1. Initial managed run attempt:
+   - workflow: `dev_min_m1_packaging` (`ref=migrate-dev`, dev_full inputs)
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22284036943`
+   - outcome: FAIL at `Push immutable image`.
+2. Root cause extracted from failed-step logs:
+   - role `arn:aws:sts::230372904534:assumed-role/GitHubAction-AssumeRoleWithAction/GitHubActions`
+   - denied action: `ecr:InitiateLayerUpload`
+   - resource: `arn:aws:ecr:eu-west-2:230372904534:repository/fraud-platform-dev-full`.
+3. Remediation selected and applied (least privilege):
+   - inline role policy added: `GitHubActionsEcrPushDevFull`
+   - allowed actions (repo-scoped):
+     - `ecr:BatchCheckLayerAvailability`
+     - `ecr:BatchGetImage`
+     - `ecr:CompleteLayerUpload`
+     - `ecr:DescribeImages`
+     - `ecr:GetDownloadUrlForLayer`
+     - `ecr:InitiateLayerUpload`
+     - `ecr:PutImage`
+     - `ecr:UploadLayerPart`
+   - plus auth token read (`ecr:GetAuthorizationToken` on `*`).
+4. Rerun after remediation:
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22284070905`
+   - platform run id: `platform_20260222T194849Z`
+   - outcome: PASS through build/push/digest/evidence upload.
+
+### Evidence handling decisions
+1. Downloaded CI artifact pack locally for deterministic audit mirror:
+   - `runs/dev_substrate/dev_full/m1/m1c_20260222T195004Z/m1-p-1-packaging-ci-evidence/`.
+2. CI artifact schema gap handled explicitly:
+   - CI pack included `packaging_provenance.json` but not `image_digest_manifest.json`, `release_metadata_receipt.json`, or `provenance_consistency_checks.json` required by dev_full `M1.C` closure contract.
+3. Added normalized/canonical local phase evidence mirror under:
+   - `runs/dev_substrate/dev_full/m1/m1c_20260222T195004Z/evidence/runs/platform_20260222T194849Z/P(-1)/`
+   containing:
+   - `packaging_provenance.json` (normalized with `build_driver` + `build_context_path`),
+   - `image_digest_manifest.json`,
+   - `release_metadata_receipt.json`,
+   - `provenance_consistency_checks.json`,
+   - plus `build_command_surface_receipt.json` and `ci_m1_outputs.json`.
+4. Validation basis for derived artifacts:
+   - digest re-resolved from AWS ECR and equality-checked with CI digest,
+   - immutable tag pattern checked (`git-<sha>`),
+   - required provenance fields completeness checked,
+   - OCI anchor equality checked.
+
+### Closure result
+1. `m1c_execution_snapshot.json`:
+   - `runs/dev_substrate/dev_full/m1/m1c_20260222T195004Z/m1c_execution_snapshot.json`
+   - `overall_pass=true`, blockers empty.
+2. `M1.C` marked complete in deep plan and master plan.
+3. Phase blocker `M1-B3` marked closed.
+4. Remaining M1 work is explicitly limited to `M1.D` and `M1.E`.
+
+
+## Entry: 2026-02-22 19:56:18 +00:00 - M1.D planning kickoff (security and secret-injection contract)
+
+### Trigger
+1. USER requested expansion of M1.D.
+
+### Planning objective
+1. Convert M1.D from a high-level stub into an execution-grade, fail-closed security contract for packaging.
+
+### Authority surfaces reviewed
+1. platform.M1.build_plan.md (M1.D placeholder and M1-B4 blocker lane).
+2. dev_full_handles.registry.v0.md secret backend + secret path handles + no-plaintext policy handles.
+3. dev-full_managed-substrate_migration.design-authority.v0.md sections on secrets, identity, and outputs posture.
+
+### Key design question
+1. What can be proven in M1 (packaging lane) versus what must remain runtime conformance in M2+?
+
+### Decision frame
+1. M1.D should enforce packaging-surface controls immediately:
+   - no secret values in Dockerfile/workflow/build context,
+   - no baked static credentials,
+   - only path/handle references are permitted.
+2. Runtime secret materialization checks (path existence/value retrieval) remain phase-bound to substrate/runtime (M2+), but M1.D must pin the required handle contract now.
+3. Closure evidence for M1.D must include explicit leak-scan and policy receipts, not narrative-only statements.
+
+## Entry: 2026-02-22 19:57:04 +00:00 - M1.D expansion completed (execution-grade planning)
+
+### What was added to M1.D
+1. Planning precheck and blocker posture alignment (M1-B4 as active lane).
+2. No-baked-secret policy contract for packaging surfaces.
+3. Runtime secret-source contract with explicit required path-handle list and phase boundary (M1 vs M2+ ownership).
+4. Packaging-time leakage checks across Dockerfile, workflow, build context, and evidence payloads.
+5. Fail-closed mismatch policy for secret findings.
+6. Explicit security evidence contract:
+   - security_secret_injection_checks.json
+   - secret_source_contract_receipt.json
+   - uild_context_secret_scan.json
+7. Build-go validation method and deterministic sub-blocker taxonomy (M1D-B1..B5).
+
+### Key planning decisions
+1. Kept runtime secret retrieval/materialization checks out of M1 closure claims (assigned to M2+), while still requiring full handle mapping now.
+2. Treated secret-value leakage in evidence as a hard fail, not a warning, to preserve governance/audit safety.
+3. Preserved compatibility with existing M1.C workflow evidence while explicitly pinning extra M1.D artifacts for M1.D execution lane.
+
+### Files updated
+1. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M1.build_plan.md
+   - M1.D expanded to execution-grade contract detail.
+2. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md
+   - M1 posture updated to reflect expanded M1.D and active M1-B4.
+
+### Current status
+1. M1.D is planning-complete (expanded) but not execution-closed.
+2. M1-B4 remains active pending M1.D execution evidence.

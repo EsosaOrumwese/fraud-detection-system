@@ -292,7 +292,7 @@ Allowed tokens in pattern handles:
 ### 6.1 ECR repository
 
 * `ECR_REPO_NAME = "fraud-platform-dev-full"`
-* `ECR_REPO_URI = "TO_PIN"`
+* `ECR_REPO_URI = "230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full"`
 
 ### 6.2 Image identity strategy
 
@@ -598,10 +598,9 @@ These are intentionally explicit and must be pinned before first `dev-full-up` e
 7. `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`
 8. `MSK_CLUSTER_ARN`
 9. `MSK_BOOTSTRAP_BROKERS_SASL_IAM`
-10. `ECR_REPO_URI`
-11. `EKS_CLUSTER_ARN`
-12. `DBX_WORKSPACE_URL`
-13. `AWS_BUDGET_NOTIFICATION_EMAIL`
+10. `EKS_CLUSTER_ARN`
+11. `DBX_WORKSPACE_URL`
+12. `AWS_BUDGET_NOTIFICATION_EMAIL`
 
 ---
 

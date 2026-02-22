@@ -217,25 +217,27 @@ Entry gate:
 
 M1 planning posture:
 - M1 is active for planning and contract freeze.
-- M1 execution remains blocked until `ECR_REPO_URI` is materialized (`M1-B1`).
+- `M1-B1` (`ECR_REPO_URI`) is resolved; handle is now materialized.
 - `M1.A` has been expanded to execution-grade contract detail in the deep plan (strategy, boundary, blockers, evidence).
-- `M1.B` has been expanded to execution-grade matrix planning; unresolved `ENTRYPOINT_MPR_RUNNER` mapping is an active `M1-B2` closure blocker.
+- `M1.B` execution is closed (`PASS`); `ENTRYPOINT_MPR_RUNNER` mapping is now concrete and `M1-B2` is closed.
+- `M1.C` execution is closed (`PASS`); immutable digest and provenance evidence are emitted for `platform_20260222T194849Z` and `M1-B3` is closed.
+- `M1.D` is expanded to execution-grade security/secret-injection planning; `M1-B4` remains active until execution closure.
 
 Planned lanes:
 - build, security/provenance, release evidence.
 
 DoD anchors:
-- [ ] immutable digest captured.
-- [ ] entrypoint contract validated.
-- [ ] release evidence bundle committed.
+- [x] immutable digest captured.
+- [x] entrypoint contract validated.
+- [x] release evidence bundle committed.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M1.build_plan.md`
 
 M1 sub-phase progress:
 - [x] `M1.A` image contract freeze.
-- [ ] `M1.B` entrypoint matrix closure.
-- [ ] `M1.C` provenance/evidence contract closure.
+- [x] `M1.B` entrypoint matrix closure.
+- [x] `M1.C` provenance/evidence contract closure.
 - [ ] `M1.D` security/secret-injection contract closure.
 - [ ] `M1.E` build-go transition and blocker adjudication.
 

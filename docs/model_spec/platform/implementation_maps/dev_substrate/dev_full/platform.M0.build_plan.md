@@ -218,7 +218,7 @@ Materialization order (fail-closed):
    - `AWS_BUDGET_NOTIFICATION_EMAIL`.
 
 Block mapping summary:
-1. `M1` hard blocker if `ECR_REPO_URI` unresolved.
+1. `M1` hard blocker if `ECR_REPO_URI` unresolved. Current status: `RESOLVED` (2026-02-22, see M1 evidence artifact).
 2. `M2` hard blockers if any remaining TO_PIN handle unresolved.
 
 ## M0.E Exit Readiness and M1 Transition Pin
