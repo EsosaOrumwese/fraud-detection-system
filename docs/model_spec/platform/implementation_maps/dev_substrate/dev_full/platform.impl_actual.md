@@ -1547,3 +1547,36 @@ _As of 2026-02-22_
 2. Stack backend-init readiness confirmed for all five stacks:
    - `core`, `streaming`, `runtime`, `data_ml`, `ops`.
 3. M2.A is eligible to close in the build plans; M2 remains in-progress for M2.B onward.
+
+## Entry: 2026-02-22 20:53:45 +00:00 - M2.B planning expansion (execution-grade)
+
+### Trigger
+1. USER requested planning kickoff for M2.B after M2.A closure.
+
+### Planning objective
+1. Expand M2.B from high-level stub to execution-grade contract before any terraform apply in core lane.
+2. Preserve decision-completeness law by exposing command surface, blockers, evidence schema, and closure rule.
+
+### Reasoning process and decisions
+1. Reviewed authority and handle surfaces that govern core/ lane:
+   - dev_full_handles.registry.v0.md for pinned core handles and downstream dependencies,
+   - dev-full_managed-substrate_migration.design-authority.v0.md Section 8 (core/ stack responsibilities),
+   - current infra/terraform/dev_full/core/main.tf runtime truth.
+2. Noted material execution risk:
+   - core/main.tf is still M2.A skeleton-only, so M2.B execution would otherwise drift into undefined apply scope.
+3. Considered alternatives:
+   - start execution anyway and discover missing surfaces during apply,
+   - expand plan first and pin blocker/evidence contracts.
+4. Selected approach:
+   - expand M2.B first (fail-closed), pin skeleton state as explicit M2B-B1 entry blocker, and defer execution until closure inputs are present.
+
+### What was added to M2.B planning
+1. Decision precheck with required handles and downstream-unblock outputs.
+2. Canonical command surface (init/validate/plan/apply/output).
+3. Fail-closed blocker taxonomy (M2B-B1..B5).
+4. Evidence contract (m2b_core_plan_snapshot, m2b_core_apply_snapshot, output-handle matrix, blocker register, execution summary).
+5. Closure rule and explicit current entry blocker posture.
+
+### Master plan sync
+1. platform.build_plan.md now records M2.B as execution-grade expanded.
+2. Current M2.B entry blocker is explicitly pinned in master posture so execution cannot proceed ambiguously.

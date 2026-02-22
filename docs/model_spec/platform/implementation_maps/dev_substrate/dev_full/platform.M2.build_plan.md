@@ -165,6 +165,61 @@ DoD:
 - [ ] baseline tags/policies pass conformance checks.
 - [ ] M2.B evidence snapshot committed.
 
+M2.B planning precheck (decision completeness):
+1. Required handles for this lane are pinned:
+   - `TF_STACK_CORE_DIR`, `TF_STATE_BUCKET`, `TF_STATE_BUCKET_REGION`, `TF_LOCK_TABLE`, `TF_STATE_KEY_CORE`
+   - `S3_OBJECT_STORE_BUCKET`, `S3_EVIDENCE_BUCKET`, `S3_ARTIFACTS_BUCKET`
+   - `S3_BUCKET_ENCRYPTION_ENABLED`, `S3_BUCKET_PUBLIC_ACCESS_BLOCKED`, `S3_BUCKET_VERSIONING_ENABLED`
+   - `KMS_KEY_ALIAS_PLATFORM`
+   - downstream-unblock handles expected from core outputs: `MSK_CLIENT_SUBNET_IDS`, `MSK_SECURITY_GROUP_ID`
+2. Current execution reality:
+   - `infra/terraform/dev_full/core/main.tf` is still M2.A skeletal (backend + local only), with no concrete resource/module or output surfaces yet.
+3. M2.B remains planning-only in this step; core implementation completeness is pinned as an entry blocker for M2.B execution.
+
+M2.B execution contract (planned):
+1. Preconditions:
+   - `M2.A` PASS evidence is present,
+   - backend/lock is reachable and unchanged from M2.A closure.
+2. Core command surface:
+   - `terraform -chdir=infra/terraform/dev_full/core init -reconfigure -backend-config=...`
+   - `terraform -chdir=infra/terraform/dev_full/core validate`
+   - `terraform -chdir=infra/terraform/dev_full/core plan -input=false -detailed-exitcode -out <m2b_core_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/core apply -input=false <m2b_core_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/core output -json`
+3. Acceptance checks:
+   - plan/apply commands exit cleanly (`0`) with deterministic artifact capture,
+   - core emits required downstream outputs for streaming/runtime entry,
+   - bucket posture is confirmed for core-managed buckets (encryption/versioning/public access block),
+   - KMS alias/key mapping is queryable and stable.
+
+M2.B fail-closed policy (planned):
+1. `M2B-B1`: core stack is non-materialized (no meaningful resources) or apply surface is incomplete.
+2. `M2B-B2`: terraform init/validate/plan/apply fails under pinned backend/state posture.
+3. `M2B-B3`: required output contract missing (including downstream-unblock handles for later stacks).
+4. `M2B-B4`: security/tagging posture drift on core-managed surfaces.
+5. `M2B-B5`: evidence artifacts missing/inconsistent with command receipts.
+
+M2.B evidence contract (planned):
+1. `m2b_core_plan_snapshot.json`
+   - command receipts, plan summary, resource-action rollup.
+2. `m2b_core_apply_snapshot.json`
+   - apply receipt, terraform output surface, state identity.
+3. `m2b_core_output_handle_matrix.json`
+   - mapping of core outputs to required registry handles and downstream consumers.
+4. `m2b_blocker_register.json`
+   - active `M2B-B*` blockers with severity and remediation.
+5. `m2b_execution_summary.json`
+   - rollup verdict (`overall_pass`), next gate (`M2.C_READY` or `BLOCKED`).
+
+M2.B expected entry blocker (current planning reality):
+1. `M2B-B1`: core stack implementation is still skeleton-only and cannot satisfy core output/materialization DoD until resource/module/output surfaces are added.
+
+M2.B closure rule:
+1. M2.B can close only when:
+   - all `M2B-B*` blockers are resolved,
+   - DoD checks are green,
+   - evidence artifacts are produced and readable.
+
 ## M2.C Streaming Stack Materialization
 Goal:
 - apply and validate `streaming/` stack (MSK serverless + stream access posture).

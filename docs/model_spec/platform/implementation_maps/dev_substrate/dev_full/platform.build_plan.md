@@ -262,6 +262,9 @@ M2 planning posture:
 - `M2.A` is now expanded to execution-grade backend/lock checks with explicit fail-closed blocker taxonomy (`M2A-B*`).
 - `M2.A` execution is now closed green with deterministic evidence:
   - `runs/dev_substrate/dev_full/m2/m2a_20260222T204011Z/m2a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+- `M2.B` is now expanded to execution-grade core apply planning (`M2B-B*`, command surface, output/evidence contracts).
+- Current known M2.B entry blocker is pinned:
+  - `M2B-B1`: `infra/terraform/dev_full/core/main.tf` remains skeleton-only and must be materialized before M2.B execution.
 - M2 phase execution remains active for `M2.B` onward.
 
 DoD anchors:
