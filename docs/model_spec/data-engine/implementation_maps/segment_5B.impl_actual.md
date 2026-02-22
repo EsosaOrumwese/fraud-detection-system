@@ -5796,3 +5796,54 @@ Why this strict sequence:
 - runtime closure gate depends on `S4` elapsed from fresh witness under unchanged upstream surfaces.
 - downstream integrity gate requires same-run `S5` success.
 - non-destructive housekeeping preserves rollback/audit trace while resolving replay publish conflicts.
+
+### Entry: 2026-02-22 08:19
+
+Execution step: `POPT.2R.3` witness executed (`S4 -> S5 -> scorer`).
+Summary: runtime movement improved strongly; replay conflict recurred in S5 and was resolved with non-destructive housekeeping; scorer artifacts emitted.
+
+Witness results:
+1) `S4` witness:
+   - command: `make segment5b-s4 RUN_ID=c25a2675fbfbacd952b13bb594880e92`
+   - result: `PASS`, `durations.wall_ms=460968` (`460.968s`).
+2) `S5` first attempt:
+   - command: `make segment5b-s5 RUN_ID=c25a2675fbfbacd952b13bb594880e92`
+   - result: `FAIL` (`S5_INFRASTRUCTURE_IO_ERROR` with `error_context.detail=F4:S5_OUTPUT_CONFLICT S5 5B.s5_validation_bundle`).
+3) non-destructive housekeeping:
+   - moved existing bundle directory:
+     - from `.../validation/manifest_fingerprint=c8fd...05c8`
+     - to `.../validation/manifest_fingerprint=c8fd...05c8.stale_20260222_081902`
+4) `S5` rerun:
+   - result: `PASS`, bundle integrity `true`.
+5) scorer:
+   - command: `python tools/score_segment5b_popt2_closure.py --runs-root runs/local_full_run-5 --run-id c25a2675fbfbacd952b13bb594880e92 --out-root runs/fix-data-engine/segment_5B/reports`
+   - artifacts emitted:
+     - `segment5b_popt2_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+     - `segment5b_popt2_closure_c25a2675fbfbacd952b13bb594880e92.json`
+     - `segment5b_popt2_closure_c25a2675fbfbacd952b13bb594880e92.md`
+
+Runtime movement computation:
+- reopen anchor (`POPT.2`): `550.875s`.
+- candidate (`POPT.2R`): `460.968s`.
+- delta: `-89.907s` (`-16.32%`), which clears the `POPT.2R` mandatory movement gate and the `<= 532.453s` gate.
+
+### Entry: 2026-02-22 08:20
+
+Closure step: `POPT.2R.4` decision locked.
+Summary: `POPT.2R` closes with `UNLOCK_POPT3_CONTINUE`; legacy scorer decision remains `HOLD_POPT2_REOPEN` because it evaluates POPT2's stricter 35% gate.
+
+Decision basis:
+1) `POPT.2R` mandatory gates (build-plan authority) all pass:
+   - `S4 <= 532.453s` -> pass (`460.968s`),
+   - >=3% improvement vs `550.875s` -> pass (`16.32%`).
+2) structural/determinism/downstream gates pass:
+   - structural counters unchanged vs anchor,
+   - `S4 PASS`, `S5 PASS`, `bundle_integrity_ok=true`.
+3) stretch gate (`<=495.788s`) also passes.
+
+Important nuance:
+- `tools/score_segment5b_popt2_closure.py` is phase-tagged `POPT.2` and enforces a `35%` reduction vs baseline gate, so its decision remains `HOLD_POPT2_REOPEN`.
+- this is not a `POPT.2R` failure; it is expected scorer-contract mismatch to the 2R quantified gates.
+
+Prune closure:
+- executed `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> no failed sentinels.

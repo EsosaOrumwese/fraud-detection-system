@@ -1,11 +1,16 @@
 # Dev Substrate Track Maps
-_As of 2026-02-12_
+_As of 2026-02-22_
 
 **FRESH START RESET:** this folder is now the authoritative planning notebook for a clean `local_parity -> dev` migration run from scratch. Prior dev_substrate implementation attempts are historical context only and must not be adapted forward.
+
+## Track status
+- `local_parity -> dev_min` migration track is closed with certification verdict `ADVANCE_CERTIFIED_DEV_MIN`.
+- See `platform.migration_wrap_up.md` for closure anchors.
 
 ## Active maps
 - `platform.build_plan.md`
 - `platform.impl_actual.md`
+- `platform.migration_wrap_up.md`
 - `platform.M0.build_plan.md` (deep-plan detail for closed phase M0)
 - `platform.M1.build_plan.md` (deep-plan detail for active phase M1)
 

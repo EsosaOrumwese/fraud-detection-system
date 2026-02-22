@@ -19334,3 +19334,125 @@ Doc synchronization actions:
 Decision consequence:
 1. Program migration plan now records end-to-end certification closure with deterministic verdict `ADVANCE_CERTIFIED_DEV_MIN`.
 2. Active execution lane for M10 is closed.
+
+## Entry: 2026-02-22 08:30:52 +00:00 - Post-certification execution bundle (steps 1,2,3) start lock
+Context:
+1. USER directed immediate execution of:
+   - step 1: cost-safe teardown refresh,
+   - step 2: certification-pack freeze,
+   - step 3: migration closeout docs + wrap-up completion marker.
+2. M10 phase was already closed with certification verdict.
+
+Execution strategy decision:
+1. For step 1, selected managed teardown lane reuse (GitHub workflow dispatch) over local terraform destroy.
+   - reason: preserves no-local-secret/no-local-destroy posture pinned in M2.I/M9 authority.
+2. For step 2, selected immutable freeze summary anchored to authoritative M10.J artifact set (`m10_20260222T081047Z`) plus durable refs.
+3. For step 3, selected explicit wrap-up note file under dev_substrate maps and linked it from README to make completion discoverable.
+
+## Entry: 2026-02-22 08:31:10 +00:00 - Step 1 executed: managed teardown refresh (demo + confluent)
+Managed dispatch inputs source:
+1. Reused known-good M9 dispatch contract values from historical snapshots to avoid parameter drift.
+2. Workflow lane used: `.github/workflows/dev_min_confluent_destroy.yml` on `migrate-dev`.
+
+Run results:
+1. Demo teardown dispatch:
+   - run id: `22273463052`
+   - url: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22273463052`
+   - source snapshot: `teardown_demo_20260222T081559Z/demo_destroy_snapshot.json`
+   - outcome: `destroy_outcome=success`, `post_destroy_state_resource_count=0`, `overall_pass=true`.
+2. Confluent teardown dispatch:
+   - run id: `22273580166`
+   - url: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22273580166`
+   - source snapshot: `teardown_confluent_20260222T082424Z/confluent_destroy_snapshot.json`
+   - outcome: `destroy_outcome=success`, `post_destroy_state_resource_count=0`, `overall_pass=true`.
+
+Evidence capture:
+1. Downloaded workflow artifacts for both runs into:
+   - `runs/dev_substrate/m10/m10_j_teardown_refresh_demo_artifacts/`
+   - `runs/dev_substrate/m10/m10_j_teardown_refresh_confluent_artifacts/`.
+
+## Entry: 2026-02-22 08:31:42 +00:00 - Step 2 executed: certification-pack freeze artifacts
+Goal:
+1. Freeze a compact operator-facing claim package without mutating certification semantics.
+
+Artifacts produced (authoritative exec `m10_20260222T081047Z`):
+1. `runs/dev_substrate/m10/m10_20260222T081047Z/m10_post_cert_teardown_refresh_snapshot.json`
+2. `runs/dev_substrate/m10/m10_20260222T081047Z/m10_certified_dev_min_summary.json`
+3. `runs/dev_substrate/m10/m10_20260222T081047Z/m10_certified_dev_min_summary.md`
+
+Durable publication:
+1. `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_post_cert_teardown_refresh_snapshot.json`
+2. `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_certified_dev_min_summary.json`
+3. `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_certified_dev_min_summary.md`
+
+Issue encountered + remediation:
+1. First freeze script pass emitted false blockers for teardown refresh.
+2. Root cause: predicate used `int(v or -1)` causing valid `0` state count to be treated as false.
+3. Remediation:
+   - replaced with explicit numeric-clean check `int(v) == 0` with exception handling,
+   - republished same artifact keys with corrected payload.
+4. Corrected teardown refresh verdict: `overall_pass=true`, blockers empty.
+
+## Entry: 2026-02-22 08:32:05 +00:00 - Step 3 executed: migration closeout docs + wrap-up completion marker
+Doc updates:
+1. Corrected M10.J execution-id references to canonical `...Z` form in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+2. Added explicit migration wrap-up note:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.migration_wrap_up.md`
+   - marks migration track complete and records authoritative certification + teardown-refresh anchors.
+3. Updated map router:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+   - includes wrap-up note and completion status marker.
+
+Closure decision:
+1. Steps 1, 2, and 3 are complete.
+2. Migration track is now explicitly marked complete in wrap-up note with traceable local/durable proof.
+
+## Entry: 2026-02-22 08:33:18 +00:00 - Canonical execution-id normalization note (`...Z` suffix)
+Observation:
+1. During initial M10.J closure documentation, some plan-note references omitted the trailing `Z` in execution ids (`m10_20260222T080908`, `m10_20260222T081047`).
+2. Artifact filesystem/S3 keys are canonical with `...Z` suffix.
+
+Corrective action:
+1. Normalized plan references to:
+   - `m10_20260222T080908Z`
+   - `m10_20260222T081047Z`.
+2. Preserved earlier entries as historical notes while adding this correction for audit clarity.
+
+## Entry: 2026-02-22 08:34:14 +00:00 - Teardown refresh residual checks attached (post-destroy runtime surfaces)
+Reasoning:
+1. Managed teardown snapshots already proved terraform destroy success and empty state count.
+2. Added independent AWS residual checks to strengthen cost-safe posture proof and reduce hidden-runtime risk.
+
+Checks executed (`eu-west-2`):
+1. ECS cluster `fraud-platform-dev-min` status + counters.
+2. ECS services list for `fraud-platform-dev-min`.
+3. NAT gateways filtered for `fraud-platform` tag/name surfaces.
+4. Load balancers filtered for `fraud-platform` name surfaces.
+
+Outcome:
+1. ECS cluster: `INACTIVE`, `runningTasks=0`, `activeServices=0`.
+2. ECS services: empty list.
+3. NAT gateway filtered list: empty.
+4. Load balancer filtered list: empty.
+
+Artifact updates:
+1. Updated and republished:
+   - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_post_cert_teardown_refresh_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_post_cert_teardown_refresh_snapshot.json`
+2. Added `residual_checks` + `residual_checks_overall_pass=true` fields.
+3. Updated freeze summary artifacts to include residual-check closure flag:
+   - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_certified_dev_min_summary.json`
+   - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_certified_dev_min_summary.md`
+
+## Entry: 2026-02-22 08:34:57 +00:00 - Migration wrap-up note published and linked
+Action:
+1. Created wrap-up note to explicitly mark migration-track completion:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.migration_wrap_up.md`.
+2. Linked wrap-up in map router and added track-status line:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`.
+
+Completion marker:
+1. `local_parity -> dev_min` track marked **COMPLETE**.
+2. Completion anchored to authoritative certification execution `m10_20260222T081047Z` plus post-cert teardown refresh evidence.

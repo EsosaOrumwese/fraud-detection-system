@@ -580,9 +580,9 @@ Objective:
 - lock specific high-impact lane and rejected alternatives before code edits.
 
 Definition of done:
-- [ ] chosen mutation lane is explicitly pinned with rationale.
-- [ ] rejected alternatives and blast-radius rationale are recorded.
-- [ ] runtime/quality veto conditions are locked.
+- [x] chosen mutation lane is explicitly pinned with rationale.
+- [x] rejected alternatives and blast-radius rationale are recorded.
+- [x] runtime/quality veto conditions are locked.
 
 #### POPT.2R.2 - Serialization-path optimization implementation
 Objective:
@@ -593,18 +593,18 @@ Scope:
 - reuse mapped/formatted arrays when equality conditions hold.
 
 Definition of done:
-- [ ] code changes are applied in S4 runner.
-- [ ] compile checks pass.
-- [ ] no contract/schema/policy semantics are changed.
+- [x] code changes are applied in S4 runner.
+- [x] compile checks pass.
+- [x] no contract/schema/policy semantics are changed.
 
 #### POPT.2R.3 - Witness rerun and scoring
 Objective:
 - run `S4 -> S5` witness on candidate and score with POPT2 scorer contract.
 
 Definition of done:
-- [ ] witness `S4` is `PASS`.
-- [ ] witness `S5` is `PASS` (with documented housekeeping if conflict occurs).
-- [ ] scorer artifacts are emitted and reviewed.
+- [x] witness `S4` is `PASS`.
+- [x] witness `S5` is `PASS` (with documented housekeeping if conflict occurs).
+- [x] scorer artifacts are emitted and reviewed.
 
 #### POPT.2R.4 - Closure decision and rollback discipline
 Objective:
@@ -615,10 +615,28 @@ Decision outcomes:
 - `HOLD_POPT2R_REOPEN` if mandatory movement fails.
 
 Definition of done:
-- [ ] closure decision is explicitly recorded.
-- [ ] retained run/artifact pointers are pinned.
-- [ ] if candidate regresses vs anchor, rollback/restore action is recorded.
-- [ ] prune checklist is executed and logged.
+- [x] closure decision is explicitly recorded.
+- [x] retained run/artifact pointers are pinned.
+- [x] if candidate regresses vs anchor, rollback/restore action is recorded. (N/A: candidate improved vs anchor)
+- [x] prune checklist is executed and logged.
+
+POPT.2R closure snapshot (2026-02-22):
+- witness run-id: `c25a2675fbfbacd952b13bb594880e92`.
+- runtime movement:
+  - `S4=460.968s`,
+  - vs reopen anchor `550.875s`: `-89.907s` (`-16.32%`),
+  - vs `532.453s` gate anchor: pass (`460.968 <= 532.453`).
+- downstream/structural:
+  - `S5` final status `PASS` (after non-destructive `.stale_*` housekeeping for one replay conflict),
+  - bundle integrity `true`,
+  - structural invariants unchanged (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights`).
+- scorer artifacts (POPT2 contract):
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt2_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt2_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt2_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- phase decision:
+  - scorer emits `HOLD_POPT2_REOPEN` due legacy POPT2 `35%` reduction gate,
+  - `POPT.2R` quantified mandatory gates are satisfied; decision: `UNLOCK_POPT3_CONTINUE`.
 
 ### POPT.3 - S2/S3 secondary throughput closure
 Goal:

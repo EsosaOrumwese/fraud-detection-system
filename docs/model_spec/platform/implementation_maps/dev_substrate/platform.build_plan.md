@@ -1628,19 +1628,28 @@ Phase closure posture:
       - durable publication verification,
     - expanded blocker taxonomy pinned (`M10J-B1..B8`) including schema, source-pass posture, evidence-family completeness, publish verification, and runtime budget.
   - `M10.J` final certification verdict + bundle publication is now closed PASS:
-    - first pass execution id: `m10_20260222T080908` (valid pass),
-    - authoritative bounded rerun execution id: `m10_20260222T081047` (metadata-quality correction only),
+    - first pass execution id: `m10_20260222T080908Z` (valid pass),
+    - authoritative bounded rerun execution id: `m10_20260222T081047Z` (metadata-quality correction only),
     - local artifacts:
-      - `runs/dev_substrate/m10/m10_20260222T081047/m10_j_certification_verdict_snapshot.json`,
-      - `runs/dev_substrate/m10/m10_20260222T081047/m10_certification_bundle_index.json`,
-      - `runs/dev_substrate/m10/m10_20260222T081047/m10_j_source_matrix_snapshot.json`,
+      - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`,
+      - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_certification_bundle_index.json`,
+      - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_source_matrix_snapshot.json`,
     - durable artifacts:
-      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_j_certification_verdict_snapshot.json`,
-      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_certification_bundle_index.json`,
-      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_j_source_matrix_snapshot.json`,
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`,
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_certification_bundle_index.json`,
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_j_source_matrix_snapshot.json`,
     - final verdict: `ADVANCE_CERTIFIED_DEV_MIN`,
     - blockers: `[]`,
     - runtime budget closure: `1.617s <= 1800s`.
+  - post-certification closure bundle is now published:
+    - teardown refresh snapshot:
+      - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_post_cert_teardown_refresh_snapshot.json`
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_post_cert_teardown_refresh_snapshot.json`
+    - certification freeze summary:
+      - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_certified_dev_min_summary.json`
+      - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_certified_dev_min_summary.md`
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_certified_dev_min_summary.json`
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_certified_dev_min_summary.md`
   - M10 phase closeout result:
     - all lanes `M10.A..M10.J` are pass-closed,
     - certification close rule satisfied.

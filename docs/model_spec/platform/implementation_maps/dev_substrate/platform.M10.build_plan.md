@@ -1291,16 +1291,16 @@ Blockers:
 8. `M10J-B8`: runtime budget breach.
 
 Execution status update (2026-02-22):
-1. First-pass execution id: `m10_20260222T080908` (`overall_pass=true`) produced valid verdict artifacts.
-2. Authoritative bounded rerun execution id: `m10_20260222T081047` (metadata-quality corrected; no source/infra mutation).
+1. First-pass execution id: `m10_20260222T080908Z` (`overall_pass=true`) produced valid verdict artifacts.
+2. Authoritative bounded rerun execution id: `m10_20260222T081047Z` (metadata-quality corrected; no source/infra mutation).
 3. Authoritative local artifacts:
-   - `runs/dev_substrate/m10/m10_20260222T081047/m10_j_certification_verdict_snapshot.json`
-   - `runs/dev_substrate/m10/m10_20260222T081047/m10_certification_bundle_index.json`
-   - `runs/dev_substrate/m10/m10_20260222T081047/m10_j_source_matrix_snapshot.json`
+   - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`
+   - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_certification_bundle_index.json`
+   - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_source_matrix_snapshot.json`
 4. Authoritative durable artifacts:
-   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_j_certification_verdict_snapshot.json`
-   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_certification_bundle_index.json`
-   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_j_source_matrix_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_certification_bundle_index.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_j_source_matrix_snapshot.json`
 5. Verdict:
    - `verdict=ADVANCE_CERTIFIED_DEV_MIN`
    - `overall_pass=true`
@@ -1312,6 +1312,13 @@ Execution status update (2026-02-22):
    - M9 cost guardrail posture passed (`m9_g_cost_guardrail_snapshot.overall_pass=true`).
 7. Runtime budget:
    - `elapsed_seconds=1.617` (budget `<=1800`), `budget_pass=true`.
+8. Post-certification freeze and teardown refresh artifacts:
+   - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_post_cert_teardown_refresh_snapshot.json`
+   - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_certified_dev_min_summary.json`
+   - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_certified_dev_min_summary.md`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_post_cert_teardown_refresh_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_certified_dev_min_summary.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_certified_dev_min_summary.md`
 
 ## 6) M10 Runtime Budget Targets
 1. `M10.A` <= 30 minutes.
@@ -1347,5 +1354,5 @@ M10 can be marked `DONE` only when all are true:
 8. `M10.G` remediation rerun closed PASS on fresh scope `platform_20260221T234738Z` (`max_lag_window=3`, blockers empty).
 9. `M10.H` recovery-under-load run is closed PASS on fresh scope `platform_20260222T015122Z` (`max_lag_window=4`, blockers empty).
 10. `M10.I` reproducibility + replay coherence run is closed PASS on fresh scope `platform_20260222T064333Z` (`m10_execution_id=m10_20260222T064333Z`, blockers empty).
-11. `M10.J` final certification verdict + bundle publication is closed PASS on `m10_execution_id=m10_20260222T081047` with `verdict=ADVANCE_CERTIFIED_DEV_MIN`.
+11. `M10.J` final certification verdict + bundle publication is closed PASS on `m10_execution_id=m10_20260222T081047Z` with `verdict=ADVANCE_CERTIFIED_DEV_MIN`.
 12. M10 lanes `A..J` are closed and certification close rule is satisfied.
