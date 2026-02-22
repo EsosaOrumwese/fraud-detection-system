@@ -164,7 +164,270 @@ Phase exit:
 
 ---
 
-## 8) Cost-to-Outcome Operating Rule (Execution Binding)
+## 8) Phase Plan Stubs (M1..M13)
+These are master-plan stubs for all `M#` phases so execution has explicit intent before deep-plan expansion.
+
+## M1 - Packaging Readiness
+Status: `NOT_STARTED`
+
+Objective:
+- close `P(-1)` with immutable image and provenance evidence.
+
+Entry gate:
+- M0 is `DONE`.
+- required image/release handles are resolved.
+
+Planned lanes:
+- build, security/provenance, release evidence.
+
+DoD anchors:
+- [ ] immutable digest captured.
+- [ ] entrypoint contract validated.
+- [ ] release evidence bundle committed.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M1.build_plan.md`
+
+## M2 - Substrate Readiness
+Status: `NOT_STARTED`
+
+Objective:
+- close `P0` by materializing core/streaming/runtime/data_ml/ops stacks.
+
+Entry gate:
+- M1 is `DONE`.
+- state backend and lock table reachable.
+
+Planned lanes:
+- Terraform apply/destroy viability, IAM/secret conformance, budget surface.
+
+DoD anchors:
+- [ ] all five stacks apply cleanly.
+- [ ] required handles are materialized or explicit blockers raised.
+- [ ] infra evidence snapshot committed.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M2.build_plan.md`
+
+## M3 - Run Pinning and Orchestrator Readiness
+Status: `NOT_STARTED`
+
+Objective:
+- close `P1` with deterministic run pinning and orchestration entry integrity.
+
+Entry gate:
+- M2 is `DONE`.
+
+Planned lanes:
+- run header/digest, lock identity, orchestrator wiring.
+
+DoD anchors:
+- [ ] run pin artifact committed.
+- [ ] config digest committed.
+- [ ] run-scope identity checks pass.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M3.build_plan.md`
+
+## M4 - Spine Daemon Readiness on EKS
+Status: `NOT_STARTED`
+
+Objective:
+- close `P2` daemon readiness for spine runtime services.
+
+Entry gate:
+- M3 is `DONE`.
+
+Planned lanes:
+- deployment health, env conformance, telemetry heartbeat.
+
+DoD anchors:
+- [ ] required spine services are healthy.
+- [ ] run-scope bindings are validated.
+- [ ] daemon readiness snapshot committed.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
+
+## M5 - Oracle Readiness and Ingest Preflight
+Status: `NOT_STARTED`
+
+Objective:
+- close `P3-P4` with oracle/stream-view validation and ingress boundary readiness.
+
+Entry gate:
+- M4 is `DONE`.
+
+Planned lanes:
+- oracle contract checks, stream-view checks, topic readiness, IG boundary preflight.
+
+DoD anchors:
+- [ ] required oracle outputs/manifest checks pass.
+- [ ] ingress boundary + MSK readiness evidence committed.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`
+
+## M6 - Control and Ingress Closure
+Status: `NOT_STARTED`
+
+Objective:
+- close `P5-P7` end-to-end ingest streaming and commit semantics.
+
+Entry gate:
+- M5 is `DONE`.
+
+Planned lanes:
+- READY publication, WSP streaming, receipt/quarantine/offset closure.
+
+DoD anchors:
+- [ ] READY receipt committed.
+- [ ] streaming active with bounded lag.
+- [ ] ingest commit evidence complete.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md`
+
+## M7 - RTDL and Case/Labels Closure
+Status: `NOT_STARTED`
+
+Objective:
+- close `P8-P10` for RTDL, decision chain, and case/label append lanes.
+
+Entry gate:
+- M6 is `DONE`.
+
+Planned lanes:
+- RTDL caught-up proof, decision/action/audit proof, case/label writer-boundary proof.
+
+DoD anchors:
+- [ ] RTDL core closure evidence is green.
+- [ ] decision/action/audit triplet closure is green.
+- [ ] case/label append closure is green.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.build_plan.md`
+
+## M8 - Spine Obs/Gov Closure
+Status: `NOT_STARTED`
+
+Objective:
+- close `P11` and publish spine non-regression pack.
+
+Entry gate:
+- M7 is `DONE`.
+
+Planned lanes:
+- run report/reconciliation, governance append closure, non-regression anchors.
+
+DoD anchors:
+- [ ] spine run report committed.
+- [ ] governance closure marker committed.
+- [ ] non-regression pack committed.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M8.build_plan.md`
+
+## M9 - Learning Input Readiness
+Status: `NOT_STARTED`
+
+Objective:
+- close `P12` with anti-leakage and replay-basis pinning.
+
+Entry gate:
+- M8 is `DONE`.
+
+Planned lanes:
+- learning input contract, as-of label policy, replay basis checks.
+
+DoD anchors:
+- [ ] anti-leakage checks pass.
+- [ ] learning input readiness snapshot committed.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M9.build_plan.md`
+
+## M10 - OFS Dataset Closure
+Status: `NOT_STARTED`
+
+Objective:
+- close `P13` with immutable dataset manifest and fingerprint.
+
+Entry gate:
+- M9 is `DONE`.
+
+Planned lanes:
+- Databricks dataset build, quality gates, rollback recipe.
+
+DoD anchors:
+- [ ] OFS manifest committed.
+- [ ] dataset fingerprint committed.
+- [ ] OFS rollback recipe committed.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M10.build_plan.md`
+
+## M11 - MF Train/Eval Closure
+Status: `NOT_STARTED`
+
+Objective:
+- close `P14` with reproducible training/evaluation and candidate bundle evidence.
+
+Entry gate:
+- M10 is `DONE`.
+
+Planned lanes:
+- SageMaker runs, MLflow lineage, eval gates, rollback/safe-disable path.
+
+DoD anchors:
+- [ ] MF eval report committed.
+- [ ] candidate bundle receipt committed.
+- [ ] rollback/safe-disable evidence committed.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M11.build_plan.md`
+
+## M12 - MPR Promotion/Rollback Closure
+Status: `NOT_STARTED`
+
+Objective:
+- close `P15` promotion corridor with rollback drill evidence.
+
+Entry gate:
+- M11 is `DONE`.
+
+Planned lanes:
+- promotion gate checks, rollback drill, active-bundle compatibility checks.
+
+DoD anchors:
+- [ ] promotion receipt committed.
+- [ ] rollback drill report committed.
+- [ ] active-bundle compatibility checks green.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M12.build_plan.md`
+
+## M13 - Final Verdict and Teardown Closure
+Status: `NOT_STARTED`
+
+Objective:
+- close `P16-P17` with full-platform verdict and idle-safe cost closure.
+
+Entry gate:
+- M12 is `DONE`.
+
+Planned lanes:
+- full source matrix aggregation, six-proof matrix check, teardown residual scan, cost closure.
+
+DoD anchors:
+- [ ] final verdict bundle committed.
+- [ ] teardown residual scan clean or accepted with explicit waiver.
+- [ ] cost-to-outcome receipt and cost snapshot committed.
+
+Deep plan:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M13.build_plan.md`
+
+## 9) Cost-to-Outcome Operating Rule (Execution Binding)
 For every active phase:
 1. Publish a phase spend envelope before execution.
 2. Publish phase cost-to-outcome receipt at closure.
@@ -173,10 +436,10 @@ For every active phase:
 
 This rule is binding for all phases M1..M13.
 
-## 9) Branch and Change Safety
+## 10) Branch and Change Safety
 - No branch-history operations without explicit USER branch-governance confirmation.
 - No cross-branch execution improvisation.
 - No destructive git commands.
 
-## 10) Next Action
+## 11) Next Action
 - Expand and execute `M0` in `platform.M0.build_plan.md`.

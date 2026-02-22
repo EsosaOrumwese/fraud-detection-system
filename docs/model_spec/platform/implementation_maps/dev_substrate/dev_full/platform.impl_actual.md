@@ -320,3 +320,22 @@ _As of 2026-02-22_
 
 ### Immediate next step
 1. Expand `M0` in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M0.build_plan.md` and execute M0 closure checks.
+
+## Entry: 2026-02-22 18:24 +00:00 - Master plan expanded with explicit Mx phase stubs
+
+### Trigger
+1. USER reported that the master build plan lacked explicit plans for the `M#` phases.
+
+### Decision
+1. Keep `platform.build_plan.md` as status owner and add explicit phase stubs for `M1..M13`.
+2. Each stub now carries objective, entry gate, planned lanes, DoD anchors, and deep-plan file path.
+3. Preserve progressive elaboration by keeping details concise here while deferring implementation depth to `platform.M*.build_plan.md` per active phase.
+
+### Changes applied
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`:
+   - added `Section 8) Phase Plan Stubs (M1..M13)` with concrete planning scaffolds,
+   - renumbered trailing sections (`Cost-to-Outcome`, `Branch and Change Safety`, `Next Action`) to maintain ordering.
+
+### Result
+1. Master plan now includes explicit plans for all `Mx` phases, not just roadmap status rows.
+2. Phase execution can proceed without ambiguity about what each upcoming phase is meant to close.
