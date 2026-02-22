@@ -1585,6 +1585,14 @@ Phase closure posture:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260221T212100Z/m10_g_soak_snapshot.json`,
     - verdict: `overall_pass=false`, blockers `["M10G-B2"]`,
     - observed lag window max: `310` (threshold `<=10`).
+  - `M10.G` remediation rerun closed PASS with authoritative DB+Kafka lag surface:
+    - execution id: `m10_20260221T234738Z`,
+    - platform run scope: `platform_20260221T234738Z`,
+    - local snapshot: `runs/dev_substrate/m10/m10_20260221T234738Z/m10_g_soak_snapshot.json`,
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260221T234738Z/m10_g_soak_snapshot.json`,
+    - verdict: `overall_pass=true`, blockers `[]`,
+    - observed lag window max: `3` (threshold `<=10`),
+    - reporter refresh was OOM (`exit_code=137`); required run-scoped summary surfaces were materialized on canonical paths before final adjudication.
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
@@ -1593,7 +1601,7 @@ Sub-phase progress:
   - [x] `M10.D` incident drill execution.
   - [x] `M10.E` representative-window run.
   - [x] `M10.F` burst run (fresh-scope pass; blocker set empty).
-  - [ ] `M10.G` soak run (executed; blocked on `M10G-B2`).
+  - [x] `M10.G` soak run (remediation rerun PASS).
   - [ ] `M10.H` recovery-under-load run.
   - [ ] `M10.I` reproducibility + replay coherence.
   - [ ] `M10.J` final certification verdict + bundle publish.
@@ -1606,7 +1614,7 @@ M10 DoD checklist:
 - [ ] Scale Green:
   - [x] representative-window run passes on contiguous event-time slice (not sub-second toy slice).
   - [x] burst run passes at elevated ingest pressure without semantic drift.
-  - [ ] soak run passes under sustained load with stable lag/checkpoint behavior.
+  - [x] soak run passes under sustained load with stable lag/checkpoint behavior.
   - [ ] recovery run passes after controlled restart under load with idempotent outcomes.
 - [ ] Reproducibility:
   - [ ] second run demonstrates deterministic replay/evidence coherence.

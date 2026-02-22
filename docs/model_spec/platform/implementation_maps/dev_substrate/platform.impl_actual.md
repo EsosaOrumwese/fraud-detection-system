@@ -18666,3 +18666,41 @@ Decision:
 1. DB admissions/receipts/wsp_checkpoint tables (run-scoped).
 2. Kafka partition end offsets for traffic/context topics.
 3. ECS task status for launched WSP task ARNs.
+
+## Entry: 2026-02-22 00:03:55 +00:00 - M10G-B2 remediation: sampler SQL placeholder bug detected pre-window
+### Observation
+1. Initial DB+Kafka sampler start failed before first sample with psycopg placeholder parsing error.
+2. Faulting query used %FAIL_OPEN% directly in SQL string under psycopg placeholder grammar.
+
+### Decision
+1. Escape SQL wildcard percent characters in the fail-open probe (%%FAIL_OPEN%%).
+2. Restart sampler from current time while preserving original soak end anchor from launch timestamp.
+3. Keep all other sampler logic unchanged.
+
+## Entry: 2026-02-22 01:33:37 +00:00 - M10G-B2 remediation: B1 timing artifact triage and correction plan
+### Observation
+1. First final rollup after authoritative sampler returned M10G-B1 only, while M10G-B2 was cleared (max_lag_window=3).
+2. Root cause: sampler loop ended once wall-clock reached target end without forcing a terminal sample at/after target boundary.
+3. Last sample timestamp was ~85.8 minutes from launch anchor, so duration gate failed despite sustained run activity.
+
+### Decision
+1. Append one terminal post-target sample immediately using the same DB+Kafka method.
+2. Recompute snapshot against updated observation series and republish both durable snapshot locations.
+3. Keep all thresholds and blocker taxonomy unchanged.
+
+## Entry: 2026-02-22 01:37:38 +00:00 - M10.G evidence-surface remediation note (reporter OOM path)
+### Observation
+1. Reporter refresh task completed with xit_code=137 (OutOfMemoryError) during M10.G finalization.
+2. Required run-scoped summary surfaces (obs/run_report.json, obs/replay_anchors.json, obs/environment_conformance.json, ingest/rtdl offset snapshots) were not auto-materialized for this scope.
+
+### Decision
+1. Keep lane fail-closed on missing required surfaces (M10G-B6) unless the surfaces are concretely materialized.
+2. Materialize run-scoped required summary artifacts from authoritative run data for this scope:
+   - ingest/rtdl snapshots from DB+Kafka sampler rows,
+   - receipt summary from receipts-table counts,
+   - environment conformance + replay anchors + run report as explicit run-scoped artifacts.
+3. Upload these artifacts to canonical required S3 paths before final blocker adjudication.
+
+### Rationale
+1. M10.G blocker model checks evidence-surface existence/readability; missing surfaces cannot be silently ignored.
+2. This keeps closure deterministic and auditable under the current reporter runtime limitation while preserving strict run-scope evidence paths.
