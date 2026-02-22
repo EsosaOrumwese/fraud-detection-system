@@ -7217,3 +7217,57 @@ Summary: after `P1.T3` closure, removed all nested `.stale_*` directories under
 Verification:
 1) post-prune scan of validation subtree shows no remaining `.stale_*` or `.p1bridge_*` directories.
 2) active validation bundle path remains intact.
+
+### Entry: 2026-02-22 18:16
+
+Planning step: expanded `P2` into execution-grade calibration phases (`P2.1..P2.6`).
+Summary: after `P1` closure (`UNLOCK_P2`), we converted `P2` from a placeholder into a bounded, fail-closed calibration program focused on `T6` (timezone concentration) and `T7` (virtual share), while freezing all Wave-A correctness rails.
+
+Why this expansion was necessary:
+1) previous `P2` section did not specify owner knobs, feasibility math, or branch decisions.
+2) without sensitivity-first planning, we risk blind knob sweeps and mark-forging behavior.
+3) we need explicit runtime and veto gates so `P2` does not regress correctness or iteration speed.
+
+Pinned decision structure for P2:
+1) `P2.1` contract lock:
+   - primary closure gates are `T6/T7`.
+   - frozen veto rails are `T1/T2/T3/T4/T5/T11/T12`.
+2) `P2.2` math-first sensitivity/feasibility:
+   - lock formulas (`T6=top10_share`, `T7=N_virtual/N_total`),
+   - derive hybrid-coin feasibility approximation to decide whether local closure is reachable under bounded knobs.
+3) `P2.3` policy-only bounded sweep (low blast radius):
+   - tune `arrival_routing_policy_5B.hybrid_policy.p_virtual_hybrid` and bounded virtual multipliers first.
+4) `P2.4` conditional `S4` code lane:
+   - open only if policy-only search cannot close `T6` but evidence says local support exists.
+   - no synthetic tzids; redistribution remains within existing legal support.
+5) `P2.5` witness stability on subset seeds (`42`, `7`, optional `101`).
+6) `P2.6` explicit branch decision:
+   - `UNLOCK_P3`, `HOLD_P2_REOPEN`, or conditional `UNLOCK_P2_UPSTREAM_REOPEN`.
+
+Alternative planning paths considered and rejected:
+1) immediate broad upstream reopen (`3B/5A/2B`) before local feasibility proof:
+   - rejected as high blast radius and contrary to bounded ownership closure.
+2) direct S4 code redesign before policy-only evidence:
+   - rejected; low-blast policy levers must be exhausted first.
+3) threshold relaxation to force pass:
+   - rejected; violates realism-first posture.
+
+Runtime and evidence posture locked:
+1) candidate lane budget (`S4->S5`, seed 42): `<=9 min`.
+2) witness lane budget (2 seeds): `<=18 min`.
+3) every candidate must emit scorer artifacts + veto summary + runtime evidence.
+
+Files updated in this planning step:
+1) `docs/model_spec/data-engine/implementation_maps/segment_5B.build_plan.md`.
+
+Next execution entrypoint:
+- `P2.1` contract lock artifact emission and scorer surface pin (`tools/score_segment5b_p2_calibration.py`).
+
+### Entry: 2026-02-22 18:17
+
+Documentation alignment step: updated immediate execution order after P2 expansion.
+Summary: added explicit handoff line in `segment_5B.build_plan.md` section `Immediate execution order` so the next actionable step is unambiguous (`P2.1` contract lock).
+
+Reason:
+1) after expanding `P2`, execution order still ended at P1 closure.
+2) explicit next-step pin avoids sequencing ambiguity during phase kickoff.

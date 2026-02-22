@@ -127,40 +127,73 @@ Each phase (M1..M13) must publish:
 Status: `ACTIVE`
 
 Objective:
-- lock the dev_full authority stack and create execution control surfaces before implementation lanes begin.
+- lock dev_full authority and phase-governance so implementation can start without hidden prerequisites or naming drift.
 
 Entry criteria:
 - dev_full design authority exists and stack pins are set.
 - dev_full run-process authority exists.
 - dev_full handles registry exists.
+- dev_min is treated as certified baseline (reference only; no scope-mixing).
+
+M0 prerequisite lanes (M0.PR*, mandatory):
+1. `M0.PR0` baseline separation check:
+   - `dev_min` track remains closed/isolated,
+   - `dev_full` has independent authority set.
+2. `M0.PR1` authority-trio existence check:
+   - `dev-full_managed-substrate_migration.design-authority.v0.md`
+   - `dev_full_platform_green_v0_run_process_flow.md`
+   - `dev_full_handles.registry.v0.md`
+3. `M0.PR2` vocabulary/pin alignment check:
+   - stack pins (EKS/MSK/S3/Aurora/Redis/Databricks/SageMaker/MLflow/MWAA/Step Functions),
+   - canonical phase IDs (`P(-1)..P17`),
+   - topic set continuity and owner boundaries.
+4. `M0.PR3` fail-closed open-handle isolation:
+   - `TO_PIN` set exists in one explicit section,
+   - no hidden unresolved handles outside that set.
+5. `M0.PR4` cost-to-outcome rule continuity:
+   - policy, run-process, and handle docs all include matching phase envelope/receipt posture.
+6. `M0.PR5` deep-plan control surface:
+   - `platform.M0.build_plan.md` exists and carries execution-grade DoD lanes.
 
 Implementation tasks:
-1. Validate internal consistency across authority trio:
-   - design authority,
-   - run-process,
-   - handles registry.
-2. Close any naming mismatches between run-process and handles registry.
-3. Confirm open materialization set (`TO_PIN`) is isolated and fail-closed.
-4. Create deep-phase plan shell for M0 and define M0 DoD checks.
-5. Pin phase transition protocol for M1 entry.
+1. `M0.A` authority freeze and precedence validation.
+2. `M0.B` planning topology lock (status ownership + deep-plan routing discipline).
+3. `M0.C` authority alignment matrix:
+   - stack pins, phase IDs, topic ownership, cost-to-outcome surfaces.
+4. `M0.D` lock materialization backlog:
+   - classify `TO_PIN` handles by dependency order (`identity`, `network`, `data`, `ops`).
+5. `M0.E` exit-readiness and M1 transition pin:
+   - status owner rule,
+   - required M0 closure artifacts,
+   - explicit go/no-go criteria.
 
 M0 DoD checklist:
-- [ ] Authority trio validated without contradictions.
-- [ ] `TO_PIN` list accepted as fail-closed materialization backlog.
-- [ ] Deep M0 plan exists (`platform.M0.build_plan.md`).
-- [ ] Phase transition protocol to M1 is pinned.
+- [ ] `M0.PR0`..`M0.PR5` all satisfied and evidenced.
+- [ ] Authority trio validated without unresolved contradictions.
+- [ ] `TO_PIN` list accepted as fail-closed materialization backlog with dependency ordering.
+- [x] Deep M0 plan exists and is execution-grade (`platform.M0.build_plan.md`).
+- [ ] M1 transition protocol is pinned with explicit go/no-go checks.
 - [ ] M0 closure evidence recorded in impl map + logbook.
 
 Rollback posture:
 - Docs-only rollback is allowed before M1 starts.
 
 Evidence outputs:
-- `platform.M0.build_plan.md`
+- M0 prerequisite closure notes in `platform.M0.build_plan.md`
+- M0 authority alignment notes in `platform.M0.build_plan.md`
+- M0 TO_PIN dependency backlog notes in `platform.M0.build_plan.md`
 - M0 closure note in `platform.impl_actual.md`
 - dated action record in `docs/logbook`
 
 Phase exit:
 - M0 can move to `DONE` only after all checklist items are checked.
+
+M0 sub-phase progress:
+- [x] `M0.A` authority freeze and precedence validation.
+- [ ] `M0.B` planning topology lock.
+- [ ] `M0.C` authority alignment matrix closure pass.
+- [ ] `M0.D` TO_PIN dependency backlog lock.
+- [ ] `M0.E` exit-readiness and M1 transition pin.
 
 ---
 

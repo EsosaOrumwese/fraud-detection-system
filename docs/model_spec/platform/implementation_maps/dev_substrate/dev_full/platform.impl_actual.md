@@ -339,3 +339,164 @@ _As of 2026-02-22_
 ### Result
 1. Master plan now includes explicit plans for all `Mx` phases, not just roadmap status rows.
 2. Phase execution can proceed without ambiguity about what each upcoming phase is meant to close.
+
+## Entry: 2026-02-22 18:11 +00:00 - M0 planning expansion request (pre-edit)
+
+### Trigger
+1. USER requested explicit planning for `M0`, including prerequisites, and expansion in `platform.M0.build_plan.md`.
+
+### Planning intent
+1. Keep `M0` as a planning/authority-closure phase (no runtime mutation).
+2. Add prerequisite lanes so `M0` can fail-closed on missing authority surfaces before M1.
+3. Create deep M0 plan with sectioned sub-phases, DoDs, blocker taxonomy, evidence contract, and transition protocol.
+
+### Scope of edits
+1. Update `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md` (`M0` section only) to include explicit prerequisite lane IDs and closure checks.
+2. Create `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M0.build_plan.md` with detailed plan.
+3. Optionally update `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/README.md` to include the M0 deep-plan artifact.
+
+### Constraints
+1. No phase status promotion beyond current `M0 ACTIVE` in this planning pass.
+2. No runtime infrastructure execution.
+
+## Entry: 2026-02-22 18:30 +00:00 - M0 planning expanded with prerequisite lanes and deep-plan file
+
+### What was implemented
+1. Expanded `M0` in master plan with explicit prerequisite lanes (`M0.PR1..M0.PR5`) and execution lanes (`M0.A..M0.E`).
+2. Created deep M0 planning file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M0.build_plan.md`
+3. Updated dev_full README posture to include deep M0 plan presence.
+
+### Master-plan changes
+1. Added prerequisite lane definitions and closure expectations under `M0`.
+2. Added explicit task decomposition for M0 planning work and DoD anchors.
+3. Added evidence output anchor for prerequisite snapshot.
+4. Marked the "deep M0 plan exists" checklist item as complete after file creation.
+
+### Deep-plan design decisions
+1. M0 is explicitly docs/control-surface only (no runtime mutation in this phase).
+2. Prerequisites are separated from execution lanes to keep fail-closed entry into M1.
+3. Blocker taxonomy `M0-B1..B5` is pinned to avoid ambiguous M0 closure claims.
+4. M1 transition protocol is explicit: all M0 DoDs + no blockers + user approval.
+
+### Immediate next operational step
+1. Execute `M0.PR1` and `M0.PR2` checks and publish mismatch matrix.
+
+## Entry: 2026-02-22 18:38 +00:00 - M0 planning strategy realigned to dev_min style (non-template correction)
+
+### Trigger
+1. USER flagged that planning posture drifted toward generic template behavior and requested alignment with dev_min planning strategy.
+
+### Correction applied
+1. Reworked master M0 section to use concrete lanes and prerequisite flow consistent with dev_min style.
+2. Rewrote `platform.M0.build_plan.md` into dev_min-style deep-plan structure:
+   - Purpose
+   - Authority Inputs
+   - Scope Boundary
+   - M0 Deliverables
+   - Execution Gate
+   - Work Breakdown (`M0.A..M0.E`) with explicit DoDs
+   - Risks and Controls
+   - Completion Checklist
+   - Exit Criteria and Handoff
+3. Grounded M0.D with actual current `TO_PIN` list from `dev_full_handles.registry.v0.md` Section 14 and mapped it as dependency backlog work.
+
+### Why this resolves the issue
+1. The plan now follows the same disciplined strategy used in dev_min instead of generic section scaffolding.
+2. M0 closure is now tied to concrete artifacts and blocker taxonomy, with explicit fail-closed transition rules.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M0.build_plan.md`
+
+## Entry: 2026-02-22 18:45 +00:00 - M10.A planning expansion kickoff (pre-edit)
+
+### Trigger
+1. USER requested expansion of plans for `M10.A` in dev_full track.
+
+### Decision
+1. Create missing deep plan file: `platform.M10.build_plan.md`.
+2. Expand `M10.A` to execution-grade detail now.
+3. Keep `M10.B+` as explicit stubs to preserve progressive elaboration and avoid anti-cram drift.
+
+### M10.A focus (aligned to P13)
+1. Databricks OFS run contract pinning.
+2. Dataset manifest and fingerprint closure contract.
+3. OFS quality-gate and leakage checks.
+4. OFS rollback recipe and evidence publication contract.
+5. Cost-to-outcome envelope/receipt obligations for M10 phase lane.
+
+### Constraint
+1. No phase status changes in this pass.
+2. Planning/documentation only.
+
+## Entry: 2026-02-22 18:53 +00:00 - M10.A planning expansion completed (dev_full)
+
+### What was implemented
+1. Created deep M10 plan file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M10.build_plan.md`
+2. Expanded `M10.A` to execution-grade planning scope in the deep plan.
+3. Updated master plan M10 section to reflect sub-phase expansion state.
+
+### M10.A planning scope pinned
+1. P13 input contract closure (archive/labels/as-of/replay basis references).
+2. Databricks OFS execution handle contract.
+3. Dataset manifest and fingerprint contract expectations.
+4. OFS quality/leakage gate planning surface.
+5. Rollback recipe planning surface.
+6. Cost-to-outcome planning artifacts for M10 execution.
+
+### Control posture
+1. M10 remains `NOT_STARTED` in master plan (no status promotion).
+2. `M10.B+` intentionally left unexpanded to preserve progressive elaboration.
+3. M10 runtime execution remains blocked until master plan activates M10 and prior phase gates close.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M10.build_plan.md` (new)
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md` (M10 sub-phase planning status line)
+
+## Entry: 2026-02-22 19:08 +00:00 - M0.A executed after USER correction (focus shifted from M10 back to M0)
+
+### Trigger
+1. USER clarified that current focus should be `M0.A`, not `M10`.
+
+### Actions taken
+1. Stopped advancing M10 work and executed M0.A authority-freeze pass.
+2. Produced authority alignment artifact:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/M0_alignment_matrix.md`
+3. Updated deep M0 plan status:
+   - `M0.A` marked `DONE`.
+   - M0.A DoD checks marked complete.
+4. Updated master build plan M0 section with sub-phase progress line and marked `M0.A` complete.
+
+### M0.A outcome
+1. Precedence chain consistency: PASS.
+2. Stack baseline consistency (EKS/MSK/S3/Aurora/Redis/Databricks/SageMaker/MLflow/MWAA/Step Functions): PASS.
+3. No-laptop runtime posture consistency: PASS.
+4. dev_min baseline continuity as reference-only (no scope-mixing): PASS.
+5. Cost-to-outcome continuity across policy/run/handles/master plan: PASS.
+6. Execution-risk mismatches: none detected in M0.A pass.
+
+### Next focus
+1. Continue with `M0.B` and `M0.C` closure lanes.
+
+## Entry: 2026-02-22 19:16 +00:00 - User-directed rollback: remove external M0 artifact + revert mistaken M10 planning
+
+### Trigger
+1. USER requested to keep concerns inside build plans and stated M10 planning was a mistaken detour.
+
+### Rollback actions applied
+1. Deleted external M0 artifact file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/M0_alignment_matrix.md`
+2. Folded M0.A evidence back into build plans:
+   - `platform.M0.build_plan.md` now contains in-plan M0.A closure notes.
+   - master `platform.build_plan.md` M0 evidence outputs now reference build-plan sections only.
+3. Removed mistaken M10 deep-plan addition:
+   - deleted `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M10.build_plan.md`
+   - removed M10 sub-phase expansion note from master plan.
+4. Removed remaining external snapshot wording in M0 deep plan and added in-plan closure-notes section for M0 outputs.
+
+### Result
+1. Planning concerns are now confined to build-plan docs (`platform.build_plan.md`, `platform.M0.build_plan.md`).
+2. M10 expansion detour has been rolled back as requested.
+3. Current active work remains M0 track (`M0.B` onward).
