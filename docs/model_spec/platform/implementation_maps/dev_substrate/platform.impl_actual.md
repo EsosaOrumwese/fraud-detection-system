@@ -18947,3 +18947,50 @@ To avoid post-lane cost bleed while preserving daemon substrate for next lane, e
 2. Left managed daemon services untouched.
 3. Recorded cleanup artifact:
    - uns/dev_substrate/m10/m10_20260222T015122Z/m10_h_post_closure_wsp_cleanup.json.
+
+## Entry: 2026-02-22 06:39:17 +00:00 - Pre-change lock: expand M10.I reproducibility lane to execution-grade
+Context:
+1. USER requested: "Let's plan out M10.I".
+2. M10.H is now closed PASS with blocker-free snapshot on platform_20260222T015122Z.
+3. Current M10.I section is summary-level and risks interpretation drift during execution.
+
+Design decision process:
+1. Needed to choose reproducibility posture: strict count-equality vs coherence-with-tolerance.
+2. Strict absolute equality was rejected as sole gate because managed at-least-once delivery + restart/load choreography can create bounded count variance without semantic drift.
+3. Chosen posture: fail-closed coherence gates with explicit tolerance bands on distribution deltas, while keeping strict invariants for safety semantics.
+4. Baseline authority pinned to closed M10.H snapshot/artifacts; second run must use same pinned profile/handles and declare any mismatch as blocker.
+
+Planned expansion scope in platform.M10.build_plan.md:
+1. Add explicit entry gates tied to M10.H pass artifacts.
+2. Add deterministic algorithm I0 -> I3:
+   - baseline bind,
+   - second managed run execution,
+   - coherence comparator,
+   - snapshot publication.
+3. Add required evidence schema for m10_i_reproducibility_snapshot.json.
+4. Add concrete DoD checklist and expanded blocker taxonomy (M10I-B1..B8).
+5. Update main platform plan status block to reflect M10.I execution-grade expansion.
+
+No runtime mutation in this step:
+1. This is planning/documentation-only; no infra/service/data changes.
+
+## Entry: 2026-02-22 06:40:02 +00:00 - Applied M10.I execution-grade planning expansion
+Changes applied:
+1. Expanded M10.I in platform.M10.build_plan.md from summary-level to execution-grade.
+2. Added:
+   - fail-closed entry gates bound to closed M10.H artifacts,
+   - pinned decisions for comparator posture (strict semantics + bounded ratio drift),
+   - deterministic execution algorithm (I0 -> I3),
+   - required m10_i_reproducibility_snapshot.json schema,
+   - concrete DoD checklist,
+   - expanded blocker taxonomy (M10I-B1..B9).
+3. Updated platform.build_plan.md M10 summary section to reflect M10.I expansion and pinned rails.
+4. Updated current-status line in deep plan to show M10.I is planning-complete and execution-next.
+
+Why this closes planning drift:
+1. Removes interpretation gaps before M10.I execution.
+2. Makes pass/fail deterministic and auditable (no ad hoc comparator logic during run).
+3. Preserves fail-closed semantics if profile/evidence compatibility drifts.
+
+No runtime mutation:
+1. Docs-only planning update; no service/infra/data mutation occurred.

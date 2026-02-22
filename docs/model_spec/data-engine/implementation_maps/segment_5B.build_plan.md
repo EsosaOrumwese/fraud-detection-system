@@ -368,10 +368,155 @@ Scope:
 - `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/numba_kernel.py`
 - optional policy knobs in `config/layer2/5B/arrival_routing_policy_5B.yaml` (only if required by algorithmic redesign, not realism tuning).
 
+POPT.2 baseline anchors (authority evidence):
+- baseline from `POPT.0`:
+  - `S4 wall = 504.641s` (`67.71%` of segment),
+  - lane decomposition: `compute=502.457s`, `input_load=1.830s`, `validation=0.328s`, `write=0.026s`,
+  - dominant lane: `compute`.
+- latest witness after `POPT.1` closure:
+  - `S4 wall = 532.453s` (`S4` still dominant bottleneck).
+- structural anchor payload (must remain invariant):
+  - `bucket_rows=35700480`,
+  - `arrivals_total=124724153`,
+  - `arrival_rows=124724153`,
+  - `arrival_virtual=2802007`,
+  - `missing_group_weights=0`.
+
+POPT.2 closure gates (quantified):
+- runtime movement gate (mandatory):
+  - `S4 reduction >= 35%` vs `504.641s` baseline (`S4 <= 327.017s` practical threshold), and
+  - no material regression on `S2/S3/S5` elapsed beyond +15% from their current witness anchors.
+- runtime budget alignment gate (stretch, preferred):
+  - `S4 <= 300s` (state stretch budget),
+  - with explicit note if not yet at target `<= 240s`.
+- structural non-regression gate:
+  - `S4 status=PASS`,
+  - `total_bucket_rows`, `total_arrivals`, `total_rows_written`, `total_virtual` unchanged,
+  - `missing_group_weights` not increased.
+- deterministic/idempotence gate:
+  - replay on same `(run_id, seed, parameter_hash, manifest_fingerprint)` remains idempotent,
+  - no new `S4_OUTPUT_CONFLICT` / `S5_OUTPUT_CONFLICT` without documented housekeeping action.
+- downstream continuity gate:
+  - rerun `S4 -> S5` both `PASS`,
+  - `S5` bundle integrity remains `true`.
+
+Execution posture:
+- run root: `runs/fix-data-engine/segment_5B`.
+- execution run-id lane: continue authority witness lane `c25a2675fbfbacd952b13bb594880e92` unless a new candidate run-id is required for clean isolation.
+- rerun law:
+  - any `S4` code change reruns `S4 -> S5`.
+- logging budget posture:
+  - keep `ENGINE_5B_S4_RNG_EVENTS=0` for optimization witness runs (rng_trace retained),
+  - no high-cardinality validation/event logging unless explicitly needed for defect triage.
+- prune posture:
+  - prune superseded failed run-id folders before each expensive witness rerun.
+
+#### POPT.2.1 - Equivalence contract and scorer lock
+Objective:
+- pin machine-checkable closure adjudication for S4 optimization lane before code edits.
+
+Scope:
+- add scorer contract artifacts:
+  - `segment5b_popt2_lane_timing_<run_id>.json`,
+  - `segment5b_popt2_closure_<run_id>.json`,
+  - `segment5b_popt2_closure_<run_id>.md`.
+- scorer must evaluate:
+  - runtime movement + budget gates,
+  - structural invariants,
+  - downstream `S5` continuity,
+  - explicit decision vocabulary (`UNLOCK_POPT3_CONTINUE` vs `HOLD_POPT2_REOPEN`).
+
 Definition of done:
-- [ ] `S4` wall time reduced materially vs baseline (target `>= 35%` reduction).
-- [ ] deterministic replay/idempotence checks pass.
-- [ ] count conservation, routing nullability, and schema invariants remain exact.
+- [ ] POPT.2 scorer contract is executable.
+- [ ] all veto rails are artifact-derived and machine-checkable.
+- [ ] no unresolved equivalence ambiguity remains before S4 edits.
+
+#### POPT.2.2 - Algorithm/design lock for S4 hotspot
+Objective:
+- choose the lowest-risk highest-yield S4 optimization path with clear fallback.
+
+Design alternatives:
+- Option A: parameter-only tuning (`batch_rows`, `max_arrivals_chunk`) without code-path redesign.
+- Option B: control-plane vectorization + workspace reuse around existing numba kernel.
+- Option C: deeper kernel redesign (inner-loop mechanics/dtype/storage changes).
+
+Decision:
+- choose Option B as primary lane:
+  - keep core numba semantics,
+  - remove Python per-row control-plane overhead around batch preparation and seed/index derivation,
+  - reduce repeated allocation churn in segment buffers.
+- Option C remains fallback only if Option B fails runtime movement gate.
+
+Complexity posture:
+- current: per-batch `O(B)` Python loops + `O(A)` kernel expansion (`A` arrivals), with heavy constant factors in prep and serialization.
+- target: keep `O(A)` kernel path but materially reduce pre/post `O(B)` Python overhead and allocation churn.
+
+Definition of done:
+- [ ] selected algorithm and fallback trigger are pinned.
+- [ ] complexity + memory/IO posture are explicitly recorded.
+- [ ] logging budget and validation posture for witness runs are pinned.
+
+#### POPT.2.3 - S4 control-plane optimization (pre-kernel)
+Objective:
+- reduce Python-side preprocessing overhead before `expand_arrivals`.
+
+Scope:
+- optimize high-frequency per-row prep lanes:
+  - `row_seq_start` derivation,
+  - `group_table_index` lookup,
+  - `merchant_idx_array` and `zone_rep_idx` derivation,
+  - RNG seed/ctr derivation key construction.
+- prefer vectorized/native-path derivation and bounded caches over Python row loops.
+
+Definition of done:
+- [ ] control-plane prep elapsed materially reduced in lane decomposition.
+- [ ] scenario/domain guardrails (`V-08`) remain strict and unchanged.
+- [ ] no changes to statistical semantics of routing/time draws.
+
+#### POPT.2.4 - S4 kernel + buffer lifecycle optimization
+Objective:
+- improve compute-lane throughput without changing output semantics.
+
+Scope:
+- optimize per-segment allocation lifecycle for output arrays and intermediate buffers.
+- tune chunking strategy to reduce reallocation and improve kernel occupancy.
+- keep `NUMBA` acceleration mandatory in optimization witness lane.
+
+Definition of done:
+- [ ] compute lane shows measurable reduction vs baseline decomposition.
+- [ ] no RNG-accounting drift (`rng_draws_total`, `rng_blocks_total`, `rng_events_total` integrity).
+- [ ] no contract/schema regressions introduced.
+
+#### POPT.2.5 - Witness rerun and closure scoring
+Objective:
+- prove runtime gain and non-regression on changed-state chain.
+
+Scope:
+- rerun `S4 -> S5` on candidate lane.
+- emit full POPT.2 closure artifacts from scorer.
+- compare to both POPT0 baseline and latest POPT1 witness anchor.
+
+Definition of done:
+- [ ] `S4` and `S5` are `PASS`.
+- [ ] runtime movement gate is satisfied.
+- [ ] structural/determinism/downstream gates are all green.
+
+#### POPT.2.6 - Phase closure and handoff
+Objective:
+- close POPT.2 with explicit decision and retained artifact/run pointers.
+
+Scope:
+- decision outcomes:
+  - `UNLOCK_POPT3_CONTINUE` when all mandatory gates pass,
+  - `HOLD_POPT2_REOPEN` with bounded reopen lane if any gate fails.
+- run-folder hygiene:
+  - prune superseded failed runs under keep-set protocol.
+- sync build plan + implementation map + logbook.
+
+Definition of done:
+- [ ] explicit closure decision is recorded.
+- [ ] retained run/artifact pointers are pinned.
+- [ ] prune action is completed and logged.
 
 ### POPT.3 - S2/S3 secondary throughput closure
 Goal:

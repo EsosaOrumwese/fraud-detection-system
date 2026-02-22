@@ -5442,3 +5442,53 @@ Prune/posture closure:
 
 Decision:
 - `UNLOCK_POPT2_CONTINUE`.
+
+### Entry: 2026-02-22 02:34
+
+Design element: `POPT.2` expanded to execution-grade phase plan.
+Summary: converted `POPT.2` from a placeholder into a full S4 optimization execution map with quantified gates, sub-phases, and explicit handoff decisions.
+
+Problem framing used:
+- `S4` remains the dominant segment bottleneck after `POPT.1` closure.
+- baseline authority (`POPT.0`) shows:
+  - `S4=504.641s` with compute lane dominance (`~502.457s`),
+  - `S4` consumes `67.71%` of segment runtime.
+- latest witness lane remained high (`S4=532.453s`), confirming no accidental closure-by-drift.
+
+Code-lane inspection outcomes (S4):
+1) pre-kernel Python control plane still has many row-wise loops:
+   - `row_seq_start`, `group_table_index`, merchant/tz index mapping, RNG key derivation.
+2) kernel path (`expand_arrivals`) is hot and compute dominant by evidence.
+3) per-segment buffer lifecycle repeatedly allocates large arrays and may contribute to compute-adjacent drag.
+4) logging/event posture can increase overhead if high-cardinality lanes are enabled.
+
+Alternatives considered:
+1) **Knob-only tuning** (`batch_rows`, `max_arrivals_chunk`) without code redesign.
+   - rejected as primary approach: likely insufficient for a `>=35%` movement target from a compute-dominant baseline.
+2) **Control-plane vectorization + buffer lifecycle optimization while preserving current numba semantics**.
+   - accepted as primary `POPT.2` lane: best risk/reward under deterministic/non-regression constraints.
+3) **Deep kernel redesign** (inner-loop mechanics/dtype/storage model changes).
+   - retained as fallback (`POPT.2R`) only if primary lane fails runtime movement gates.
+
+What was added to build plan:
+1) Baseline anchors:
+   - runtime/lane anchors from `POPT.0`,
+   - latest witness anchor from `POPT.1`,
+   - structural invariants (`bucket_rows`, `arrivals_total`, `arrival_virtual`, `missing_group_weights`).
+2) Quantified closure gates:
+   - mandatory runtime movement (`>=35%` vs baseline),
+   - stretch budget alignment (`<=300s`, with note vs `<=240s` target),
+   - structural/determinism/downstream gates.
+3) Execution posture:
+   - run-id lane, rerun law (`S4 -> S5`), logging budget posture, prune discipline.
+4) Sub-phase decomposition:
+   - `POPT.2.1` scorer/contract lock,
+   - `POPT.2.2` algorithm lock,
+   - `POPT.2.3` pre-kernel control-plane optimization,
+   - `POPT.2.4` kernel + buffer lifecycle optimization,
+   - `POPT.2.5` witness rerun + scoring,
+   - `POPT.2.6` closure/handoff.
+
+Decision:
+- plan is now closure-grade for execution start.
+- no code mutation executed in this step; this entry is planning-only and preserves audit sequence.

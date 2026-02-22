@@ -1092,20 +1092,90 @@ Execution status update (2026-02-22):
 Goal:
 1. Prove deterministic replay/evidence coherence on second run.
 
+Entry conditions (fail-closed):
+1. `M10.H` is closed PASS with empty blocker union.
+2. Baseline references are readable:
+   - `runs/dev_substrate/m10/m10_20260222T015122Z/m10_h_recovery_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260222T015122Z/obs/run_report.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260222T015122Z/obs/replay_anchors.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260222T015122Z/ingest/receipt_summary.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260222T015122Z/ingest/kafka_offsets_snapshot.json`
+3. Second-run profile is pinned to same managed posture as baseline (`dev_min`, same oracle roots, same WSP load shape, same IG auth posture).
+4. Latest M9 cost posture remains non-critical.
+
+Pinned decisions for `M10.I`:
+1. Baseline authority run: `platform_20260222T015122Z` (from closed `M10.H`).
+2. Comparator mode: fail-closed coherence with strict semantic invariants + bounded ratio drift tolerance.
+3. Semantic invariants are strict:
+   - `publish_ambiguous == 0`,
+   - `fail_open == 0`,
+   - no missing required evidence surfaces.
+4. Ratio-drift tolerance (second run vs baseline):
+   - `|duplicate_share_delta| <= 0.05`,
+   - `|quarantine_share_delta| <= 0.05`.
+5. Replay-anchor coherence:
+   - topic/partition keyset must match exactly,
+   - second-run lag gate remains `max_lag_window <= 10`.
+6. Runtime budget: `M10.I <= 90` minutes.
+
+Deterministic execution algorithm (`I0 -> I3`):
+1. `I0` Baseline bind:
+   - load baseline `M10.H` snapshot and baseline run-scoped evidence surfaces,
+   - compute baseline coherence vector (`decision shares`, replay-anchor keyset, semantic flags),
+   - fail closed if baseline is incomplete.
+2. `I1` Second-run execution:
+   - rotate to fresh `platform_run_id`,
+   - run managed chain (`SR -> WSP -> reporter closeout`) under same pinned profile/load posture,
+   - collect second-run run-scoped evidence surfaces.
+3. `I2` Coherence comparator:
+   - compare baseline vs second-run vectors using pinned tolerance rules,
+   - enforce strict semantic invariants and replay-anchor keyset equality,
+   - classify blockers deterministically.
+4. `I3` Snapshot publication:
+   - emit `m10_i_reproducibility_snapshot.json` locally and durably.
+
+Required `m10_i_reproducibility_snapshot.json` schema:
+1. `phase`, `phase_id`, `m10_execution_id`, `platform_run_id`.
+2. `baseline_refs` and `candidate_refs`.
+3. `baseline_vector`:
+   - `ingress_counts`, `decision_shares`, `max_lag_window`, `anchor_keyset`, `semantic_flags`.
+4. `candidate_vector`:
+   - same fields as baseline.
+5. `comparisons`:
+   - `anchor_keyset_match`,
+   - `duplicate_share_delta`,
+   - `quarantine_share_delta`,
+   - `semantic_invariant_pass`,
+   - `lag_pass`.
+6. `runtime_budget` (`budget_seconds`, `elapsed_seconds`, `budget_pass`).
+7. `blockers`, `overall_pass`.
+
 Tasks:
-1. Execute second run under same pinned profile.
-2. Compare replay-anchor and required summary surfaces against primary run.
-3. Emit `m10_i_reproducibility_snapshot.json` local + durable.
+1. Bind baseline vector from closed `M10.H` authoritative evidence.
+2. Execute fresh second run under the same pinned managed profile.
+3. Materialize run-scoped required surfaces for the second run.
+4. Run deterministic coherence comparator against baseline.
+5. Emit and publish `m10_i_reproducibility_snapshot.json`.
 
 DoD:
-- [ ] Second run executed.
-- [ ] Required coherence checks pass.
-- [ ] Snapshot exists locally and durably.
+- [ ] Second run executed on fresh scope.
+- [ ] Required run-scoped evidence surfaces exist for both baseline and second run.
+- [ ] Replay-anchor topic/partition keyset matches baseline.
+- [ ] Ratio-drift tolerances are satisfied (`duplicate`, `quarantine` shares).
+- [ ] Strict semantic invariants pass (`publish_ambiguous=0`, `fail_open=0`).
+- [ ] Runtime budget passes (`<=90` minutes).
+- [ ] Snapshot exists locally and durably with blocker union empty.
 
 Blockers:
-1. `M10I-B1`: second run missing.
-2. `M10I-B2`: replay-anchor or summary coherence failure.
-3. `M10I-B3`: evidence publication failure.
+1. `M10I-B1`: second run missing/failed.
+2. `M10I-B2`: baseline artifact missing/unreadable.
+3. `M10I-B3`: second-run required surface missing/unreadable.
+4. `M10I-B4`: baseline/second-run profile mismatch (pins/handles drift).
+5. `M10I-B5`: replay-anchor keyset mismatch.
+6. `M10I-B6`: ratio-drift tolerance breach.
+7. `M10I-B7`: semantic invariant breach (`publish_ambiguous` or `fail_open`).
+8. `M10I-B8`: snapshot publication failure.
+9. `M10I-B9`: runtime budget breach.
 
 ### M10.J Final certification verdict + bundle publication
 Goal:
@@ -1164,4 +1234,5 @@ M10 can be marked `DONE` only when all are true:
 7. `M10.F` is closed pass on fresh scope `platform_20260221T060431Z` (`m10_execution_id=m10_20260221T060601Z`, blockers empty).
 8. `M10.G` remediation rerun closed PASS on fresh scope `platform_20260221T234738Z` (`max_lag_window=3`, blockers empty).
 9. `M10.H` recovery-under-load run is closed PASS on fresh scope `platform_20260222T015122Z` (`max_lag_window=4`, blockers empty).
-10. Next lane is `M10.I` reproducibility + replay coherence.
+10. `M10.I` is now expanded to execution-grade with pinned baseline/coherence comparator rules.
+11. Next lane is `M10.I` reproducibility + replay coherence execution.

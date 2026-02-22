@@ -1605,6 +1605,12 @@ Phase closure posture:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T015122Z/m10_h_recovery_snapshot.json`,
     - verdict: `overall_pass=true`, blockers `[]`,
     - key closure metrics: `restart_to_stable_seconds=172.162`, `max_lag_window=4`, `window_minutes=35.643`, `max_publish_ambiguous=0`, `max_fail_open=0`.
+  - `M10.I` is now expanded to execution-grade:
+    - entry gates pinned to closed `M10.H` baseline artifacts,
+    - deterministic comparator algorithm pinned (`I0 -> I3`),
+    - strict semantic invariants + bounded ratio-drift tolerances pinned,
+    - blocker taxonomy expanded to `M10I-B1..B9`,
+    - runtime budget pinned to `<=90m`.
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
