@@ -7081,3 +7081,27 @@ Branch decision and artifacts:
 
 Operational note:
 - attempted immediate prune of temporary `.p1bridge_*` backup directories, but shell policy blocked direct `Remove-Item` commands in this environment.
+
+### Entry: 2026-02-22 17:34
+
+Planning step: start `P1.T3` closure lane (final hard-gate residual after upstream reopen).
+Summary: `T1/T2/T11/T12` are now green; only `T3` is red due `insufficient_power` from brittle min-window support logic (single-row tail windows). We will close this with a bounded, realism-preserving power criterion.
+
+Execution plan for P1.T3:
+1) high-power audit first (no code changes):
+   - rerun P1 scorer with larger sample target and publish support distribution artifact.
+2) criterion hardening (if needed):
+   - adjust `S5` and scorer power checks to use material-window exposure thresholds
+     (exposed-window count + aggregate support), not global minimum over sparse tails.
+3) rerun `S5` only (S5 code change lane), then rescore P1 and refresh closure artifacts.
+4) decide branch:
+   - `UNLOCK_P2` if `T3` closes with all other hard/veto rails intact,
+   - else keep `HOLD_P1_REOPEN` with explicit residual record.
+
+Alternatives rejected:
+1) forcing `UNLOCK_P2` since `T3` value is numerically `0.0000pp`:
+   - rejected; power gate still needs explicit closure.
+2) lowering thresholds ad-hoc without statistical rationale:
+   - rejected; would be mark-forging risk.
+3) reopening `2A` again:
+   - rejected; upstream horizon objective already achieved.

@@ -14,8 +14,9 @@ from local parity semantics into managed substrate environments.
 ### Dev-full (full-platform extension authority)
 - `dev_full_platform_green_v0_run_process_flow.md`
   - Canonical dev_full run-process authority keyed by `phase_id=P#` (`P(-1)`, `P0..P17`) for Spine + Learning/Evolution closure.
-- `dev_full_handles.registry.v0.md` (required companion; create/pin before execution)
-  - Intended single source of truth for dev_full concrete handles (EKS/MSK/S3/Aurora/Redis/Databricks/SageMaker/MWAA/StepFunctions/IAM/evidence).
+- `dev_full_handles.registry.v0.md`
+  - Single source of truth for dev_full concrete handles (EKS/MSK/S3/Aurora/Redis/Databricks/SageMaker/MWAA/Step Functions/IAM/evidence).
+  - Note: `TO_PIN` materialization handles in Section 14 are explicit fail-closed prerequisites before first `dev-full-up`.
 
 ## Mapping source (semantic authority)
 These docs translate and preserve the canonical local-parity flow in:

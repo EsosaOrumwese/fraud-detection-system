@@ -1424,6 +1424,28 @@ P1 Reopen Bridge snapshot (2026-02-22):
   - retain `HOLD_P1_REOPEN` (single residual hard gate `T3` power criterion),
   - `P2` remains blocked.
 
+#### P1.T3 - DST-window power-closure lane (post-upstream reopen)
+Objective:
+- close the final P1 hard-gate residual (`T3`) without weakening realism, by replacing brittle min-support veto behavior with statistically meaningful exposure-power criteria.
+
+Execution sequence:
+1. run high-power audit scorer pass (no code changes) to quantify whether `T3` insufficiency is sample-size limited or criterion-structure limited.
+2. if still insufficient, implement bounded criterion hardening in `5B.S5` + `P1` scorer:
+   - evaluate DST-window power on material/exposed windows (not single-row tails),
+   - require explicit minimum exposed-window count and minimum aggregate support.
+3. rerun `5B.S5` (S5-only change lane) on authority run-id and verify fail-closed parity.
+4. rerun `P1` scorer and refresh reopen/closure artifacts.
+5. branch decision:
+   - `UNLOCK_P2` if `T3` closes and other P1 hard/veto rails remain green,
+   - else retain `HOLD_P1_REOPEN` with explicit residual waiver/freeze.
+
+Definition of done:
+- [ ] high-power audit artifact is captured with explicit support distribution.
+- [ ] updated `S5` power policy is machine-readable in run report context fields.
+- [ ] refreshed `P1` gateboard records `T3` power outcome with transparent thresholds.
+- [ ] explicit branch decision recorded (`UNLOCK_P2` or retained `HOLD_P1_REOPEN`).
+- [ ] no regressions on `T1/T2/T4/T5/T11/T12`.
+
 ### P2 - Wave B calibration (timezone concentration + virtual share)
 Goal:
 - move concentration and virtual-share realism into B/B+ bands without breaking Wave-A correctness.
