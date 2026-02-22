@@ -946,6 +946,25 @@ POPT.4 closure snapshot (2026-02-22):
 - phase decision:
   - `HOLD_POPT4_REOPEN`.
 
+#### POPT.4R2 - Bounded cadence/measurement reopen (active)
+Objective:
+- run one additional bounded pass to close the residual logging-overhead miss without reopening realism or contract lanes.
+
+Scope lock:
+- allowed:
+  - progress cadence default retune only (`S2/S3/S4`),
+  - paired `S4` control/candidate timing measurement refresh.
+- frozen:
+  - `S5` replay semantic-compare logic,
+  - policy knobs, schemas/contracts, RNG law, routing/arrival law.
+
+Definition of done:
+- [ ] one bounded cadence retune is applied (no additional algorithmic lane changes).
+- [ ] compile gate passes for touched runners.
+- [ ] integrated witness `S2/S3/S4/S5` passes with structural non-regression.
+- [ ] paired `S4` overhead versus low-verbosity control is recomputed and archived.
+- [ ] explicit decision recorded (`UNLOCK_POPT5_CONTINUE` or `HOLD_POPT4_REOPEN`).
+
 ### POPT.5 - Performance certification lock
 Goal:
 - close performance track before realism tuning promotion.

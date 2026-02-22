@@ -1,9 +1,12 @@
 # Dev Substrate Migration Build Plan (Fresh Start)
-_Track: local_parity -> dev_min managed substrate (Spine Green v0)_
+_Track: local_parity -> dev_min managed substrate (Spine Green v0), then dev_full for Learning/Registry + full-platform closure_
 _Last updated: 2026-02-22_
 
 ## 0) Purpose
-This is the active execution plan for migrating the already-canonical local-parity Spine Green v0 flow into `dev_min` with:
+This is the active execution plan for:
+1. migrating the already-canonical local-parity Spine Green v0 flow into `dev_min`,
+2. then extending Learning/Registry + full-platform certification on `dev_full`,
+with:
 - no laptop runtime compute,
 - strict phase gates,
 - fail-closed behavior,
@@ -20,8 +23,8 @@ In scope for certified baseline (closed):
 - Run/Operate + Obs/Gov
 
 In scope for post-M10 full-platform extension (planned):
-- Learning/Registry (OFS/MF/MPR) on `dev_min` managed substrate only
-- Full-platform certification with spine non-regression gates
+- Learning/Registry (OFS/MF/MPR) on `dev_full` managed substrate
+- Full-platform certification on `dev_full` with spine non-regression gates
 
 Out of scope for this program:
 - local-parity rebuild/re-implementation
@@ -34,6 +37,11 @@ Execution authority:
 2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 3. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
 4. `docs/design/platform/local-parity/*` for semantic source truth
+
+Post-M10 extension authority (`M11+`, dev_full target):
+1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` *(required before M11 execution closure)*
+2. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md` *(required before M11 execution closure)*
+3. `docs/model_spec/platform/platform-wide/dev_substrate_to_production_resource_tooling_notes.md` *(tooling/reference authority for dev_full posture)*
 
 If drift appears:
 - stop implementation,
@@ -49,9 +57,9 @@ Migration program is complete only when all are true:
 - No local/laptop runtime compute is used for platform services/jobs.
 - P12 teardown leaves no demo cost-bearing resources.
 - A second run is reproducible without semantic drift.
-- Learning/Registry (`OFS/MF/MPR`) is green on `dev_min` with deterministic evidence.
-- `M8..M10` spine non-regression gates pass after Learning/Registry activation.
-- Final full-platform verdict is published with blocker-free rollup.
+- Learning/Registry (`OFS/MF/MPR`) is green on `dev_full` with deterministic evidence.
+- `M8..M10` spine non-regression gates pass after Learning/Registry activation on `dev_full`.
+- Final full-platform verdict for `dev_full` is published with blocker-free rollup.
 
 ## 4) Non-Negotiable Guardrails
 - No laptop compute for runtime jobs/services.
@@ -97,10 +105,10 @@ Canonical lifecycle keys:
 | M8 | P11 | Obs/Gov closure | DONE |
 | M9 | P12 | Teardown proof + cost guardrails | DONE |
 | M10 | certification | Semantic Green + Scale Green certification | DONE |
-| M11 | F1 | Learning/Registry authority + handles + runtime closure | NOT_STARTED |
-| M12 | F2 | OFS dataset build and archive/data contracts closure | NOT_STARTED |
-| M13 | F3 | MF train/eval + MPR publish/promotion closure | NOT_STARTED |
-| M14 | F4 | Full-platform certification + spine non-regression verdict | NOT_STARTED |
+| M11 | F1 | Dev-full authority + handles + runtime closure for Learning/Registry | NOT_STARTED |
+| M12 | F2 | Dev-full OFS dataset build and archive/data contracts closure | NOT_STARTED |
+| M13 | F3 | Dev-full MF train/eval + MPR publish/promotion closure | NOT_STARTED |
+| M14 | F4 | Dev-full full-platform certification + spine non-regression verdict | NOT_STARTED |
 
 ---
 
@@ -1715,12 +1723,13 @@ Entry gate:
   - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`
   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`
 - USER explicitly activates `M11`.
+- Dev-full authority package is pinned (runbook/handles/authority docs for `M11+`); if absent, `M11` remains fail-closed.
 
 Objective:
-- Establish deterministic execution authority for Learning/Registry (`OFS/MF/MPR`) on managed `dev_min` substrate without introducing ownership drift or non-repeatable runtime behavior.
+- Establish deterministic execution authority for Learning/Registry (`OFS/MF/MPR`) on managed `dev_full` substrate without introducing ownership drift or non-repeatable runtime behavior.
 
 Scope:
-- Learning/Registry handle closure in `dev_min` registry (no wildcard or implicit surfaces).
+- Learning/Registry handle closure in `dev_full` registry authority (no wildcard or implicit surfaces).
 - Runtime topology and IAM closure for:
   - OFS job lane (ECS run-task),
   - MF job lane (ECS run-task),
@@ -1782,7 +1791,7 @@ Entry gate:
 - USER explicitly activates `M12`.
 
 Objective:
-- Prove deterministic OFS dataset construction from archive/label surfaces with explicit `as-of` semantics, leak-safe joins, and reproducible manifest evidence.
+- Prove deterministic OFS dataset construction on `dev_full` from archive/label surfaces with explicit `as-of` semantics, leak-safe joins, and reproducible manifest evidence.
 
 Scope:
 - OFS intent envelope and run-scope controls.
@@ -1834,7 +1843,7 @@ Entry gate:
 - USER explicitly activates `M13`.
 
 Objective:
-- Prove managed MF training/evaluation and MPR publish/promotion corridor with deterministic evidence, compatibility enforcement, and rollback safety.
+- Prove managed MF training/evaluation and MPR publish/promotion corridor on `dev_full` with deterministic evidence, compatibility enforcement, and rollback safety.
 
 Scope:
 - MF train/eval execution lanes on managed compute.
@@ -1884,7 +1893,7 @@ Entry gate:
 - USER explicitly activates `M14`.
 
 Objective:
-- Produce final full-platform dev-min certification verdict by combining:
+- Produce final full-platform `dev_full` certification verdict by combining:
   - Learning/Registry closure results (`M11..M13`),
   - mandatory spine non-regression carry-forward validation (`M8..M10`).
 
@@ -1896,7 +1905,7 @@ Scope:
 
 Out of scope:
 - Production cutover/go-live.
-- Environment promotion beyond `dev_min`.
+- Environment promotion beyond `dev_full`.
 
 Failure posture:
 - Fail closed on any of:
@@ -1923,7 +1932,7 @@ M14 DoD checklist:
 - [ ] Post-cert teardown/cost safety posture is revalidated.
 
 Phase exit:
-- `M14` can be marked `DONE` only when all DoD checks are true and final verdict is `ADVANCE_FULL_PLATFORM_DEV_MIN`.
+- `M14` can be marked `DONE` only when all DoD checks are true and final verdict is `ADVANCE_FULL_PLATFORM_DEV_FULL`.
 
 ---
 
@@ -1942,10 +1951,10 @@ This map keeps high-level planning aligned to runbook evidence obligations.
 | M8 | P11 | `obs/run_report.json`, `obs/reconciliation.json`, `obs/replay_anchors.json`, `obs/environment_conformance.json`, `obs/anomaly_summary.json`, `run_completed.json` |
 | M9 | P12 | teardown proof artifact + post-destroy resource check snapshot |
 | M10 | certification | semantic run bundles (20/200) + scale-run bundles (window/burst/soak/recovery) + drill refs |
-| M11 | F1 | learning/registry handle closure snapshot + runtime integration matrix + non-regression precheck matrix (`M8..M10`) |
-| M12 | F2 | OFS dataset manifest bundle + label_asof proof + join/parity evidence |
-| M13 | F3 | MF train/eval reports + bundle publication receipt + MPR promotion/rollback governance evidence |
-| M14 | F4 | full-platform certification verdict + spine non-regression rollup + integrated evidence bundle index |
+| M11 | F1 | dev_full learning/registry handle closure snapshot + runtime integration matrix + non-regression precheck matrix (`M8..M10`) |
+| M12 | F2 | dev_full OFS dataset manifest bundle + label_asof proof + join/parity evidence |
+| M13 | F3 | dev_full MF train/eval reports + bundle publication receipt + MPR promotion/rollback governance evidence |
+| M14 | F4 | dev_full full-platform certification verdict + spine non-regression rollup + integrated evidence bundle index |
 
 ---
 
@@ -2020,7 +2029,7 @@ Control: required P12 teardown proof and budget guardrails.
 ## 12) Immediate Next Action
 M10 is closed with certification verdict published.
 Next action:
-- activate `M11` planning/execution for Learning/Registry rollout in `dev_min`.
+- activate `M11` planning/execution for Learning/Registry rollout in `dev_full`.
 - enforce mandatory `M8..M10` carry-forward non-regression gates before any `M11` closure claim.
 
 ---
@@ -2037,7 +2046,7 @@ This section is a summary bridge. Authoritative per-phase execution planning is 
    - `M11` closes only with `ADVANCE_TO_M12|HOLD_M11`.
    - `M12` closes only with `ADVANCE_TO_M13|HOLD_M12`.
    - `M13` closes only with `ADVANCE_TO_M14|HOLD_M13`.
-   - `M14` closes only with `ADVANCE_FULL_PLATFORM_DEV_MIN|HOLD_M14`.
+   - `M14` closes only with `ADVANCE_FULL_PLATFORM_DEV_FULL|HOLD_M14`.
 2. Mandatory spine carry-forward non-regression:
    - `M8..M10` remain hard gates for any `M11+` closure claim.
    - A failure in carry-forward matrix is blocker state; no phase advance.
@@ -2061,10 +2070,10 @@ Decisions intentionally deferred to `platform.M11.build_plan.md` .. `platform.M1
 
 Fail-closed rule for deferred decisions:
 1. If execution reaches a missing required decision, stop execution and pin it first.
-2. Any new resource/topic/path/secret surface must be pinned in `dev_min_handles.registry.v0.md` before use.
+2. Any new resource/topic/path/secret surface for `M11+` must be pinned in `dev_full` registry authority before use (M11.A closure dependency).
 
 Execution intent:
-- extend from Spine Green v0 certification to full-platform green in `dev_min`.
+- extend from Spine Green v0 certification to full-platform green in `dev_full`.
 - preserve `M1..M10` as frozen certified baseline; no semantic rewrites.
 
 Mandatory non-regression law:
@@ -2079,8 +2088,9 @@ Managed substrate/tooling posture for M11+:
   - Terraform for substrate materialization/changes.
   - GitHub Actions for managed phase execution workflows and evidence publishing.
 - Runtime compute:
-  - ECS run-task for OFS/MF job-style workloads.
-  - ECS service for long-lived API/control runtimes only where required (default desired count remains bounded/off by profile).
+  - `dev_full` runtime posture is toolchain-oriented (for example SageMaker/Aurora/Databricks/MLflow/Airflow) as pinned in M11.A.
+  - handwritten service replicas for these managed surfaces are out-of-policy for this track.
+  - where ECS is still used, it remains bounded by phase profile/cost guardrails.
 - Data and messaging:
   - S3 for archive/features/models/evidence durable artifacts.
   - RDS for transactional registries/ledgers/indexes.

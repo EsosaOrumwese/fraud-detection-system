@@ -1,10 +1,10 @@
-# Dev Substrate Deep Plan - M11 (F1 Learning/Registry Authority + Runtime Closure)
+# Dev Substrate Deep Plan - M11 (F1 Dev-Full Learning/Registry Authority + Runtime Closure)
 _Status source of truth: `platform.build_plan.md`_
 _This document provides deep planning detail for M11._
 _Last updated: 2026-02-22_
 
 ## 0) Purpose
-M11 closes `F1` by proving Learning/Registry runtime authority is execution-ready on `dev_min` with no local compute dependency and no spine regression risk:
+M11 closes `F1` by proving Learning/Registry runtime authority is execution-ready on `dev_full` (bridged from the certified `dev_min` spine baseline) with no local compute dependency and no spine regression risk:
 1. Required `OFS/MF/MPR` handles are explicit, concrete, and fail-closed.
 2. Managed runtime decomposition (jobs/services/entrypoints) is deterministic and auditable.
 3. IAM + secrets + data/messaging ownership boundaries are pinned for safe implementation.
@@ -15,11 +15,12 @@ M11 closes `F1` by proving Learning/Registry runtime authority is execution-read
 ## 1) Authority Inputs
 Primary:
 1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
-2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
-3. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` *(required; created/pinned by M11.A if absent)*
+3. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md` *(required; created/pinned by M11.A if absent)*
 4. `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md`
 5. `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`
 6. `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
+7. `docs/model_spec/platform/platform-wide/dev_substrate_to_production_resource_tooling_notes.md`
 
 Supporting:
 1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`
@@ -31,7 +32,7 @@ Supporting:
 
 ## 2) Scope Boundary for M11
 In scope:
-1. Learning/Registry authority and required-handle closure in `dev_min`.
+1. Learning/Registry authority and required-handle closure in `dev_full`.
 2. Runtime decomposition and entrypoint closure for:
    - OFS jobs,
    - MF jobs,
@@ -122,6 +123,9 @@ Required inputs:
 2. M11 authority set (Section 1 sources in this file).
 3. M11 cross-phase pins from main plan:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` Section `13.1` and `13.2`.
+4. Dev-full authority package:
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+   - `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
 
 Preparation checks (fail-closed):
 1. Validate source artifact readability:
@@ -136,6 +140,9 @@ Preparation checks (fail-closed):
 4. Validate authority set completeness:
    - every Section 1 source exists and is readable.
    - no unresolved "TBD" authority dependency.
+5. Validate M11 target-environment consistency:
+   - M11 objective/scope/snapshot contracts reference `dev_full` as runtime target.
+   - any remaining `dev_min` runtime target in M11 surfaces is treated as drift.
 
 Deterministic closure algorithm (M11.A):
 1. Load local M10 verdict artifact; if unreadable load durable artifact; if both fail -> `M11A-B1`.
@@ -146,6 +153,8 @@ Deterministic closure algorithm (M11.A):
    - run-scope or verdict inconsistency between local/durable -> `M11A-B4`.
 5. Resolve and verify M11 authority inputs (Section 1):
    - any missing/unreadable authority -> `M11A-B3`.
+6. Resolve and verify dev-full authority package:
+   - missing `dev_full` authority docs -> `M11A-B7`.
 6. Build deterministic authority matrix in fixed order:
    - primary authority refs,
    - supporting refs,
@@ -156,7 +165,8 @@ Deterministic closure algorithm (M11.A):
 Tasks:
 1. Validate M10 verdict, blocker posture, and source readability.
 2. Validate M11 authority set completeness (Section 1 docs).
-3. Emit `m11_a_authority_handoff_snapshot.json` (local + durable contract).
+3. Validate dev-full authority package presence/readability.
+4. Emit `m11_a_authority_handoff_snapshot.json` (local + durable contract).
 
 Required snapshot fields (`m11_a_authority_handoff_snapshot.json`):
 1. `phase`, `phase_id`, `platform_run_id`, `m11_execution_id`, `subphase_id="M11.A"`.
@@ -166,7 +176,9 @@ Required snapshot fields (`m11_a_authority_handoff_snapshot.json`):
 5. `source_consistency_checks`.
 6. `authority_refs` (primary + supporting).
 7. `authority_readability_matrix`.
-8. `blockers`, `overall_pass`, `elapsed_seconds`, `created_utc`.
+8. `target_environment` (`dev_full` expected).
+9. `target_environment_consistency_checks`.
+10. `blockers`, `overall_pass`, `elapsed_seconds`, `created_utc`.
 
 Runtime budget:
 1. `M11.A` planning/closure target budget: <= 10 minutes wall clock.
@@ -176,6 +188,8 @@ DoD:
 - [ ] M10 handoff gate is pass-closed and blocker-free.
 - [ ] M11 authority list is complete and concrete.
 - [ ] M10 local/durable artifact coherence is verified.
+- [ ] Dev-full authority package is present and readable.
+- [ ] Target environment consistency confirms `dev_full`.
 - [ ] Snapshot schema for M11.A is pinned.
 - [ ] Snapshot exists locally and durably.
 
@@ -186,6 +200,7 @@ Blockers:
 4. `M11A-B4`: local/durable source inconsistency.
 5. `M11A-B5`: snapshot publication failure.
 6. `M11A-B6`: runtime budget breach without waiver.
+7. `M11A-B7`: required dev-full authority package missing/unreadable.
 
 ### M11.B Learning/Registry Handle Closure Matrix
 Goal:
@@ -194,7 +209,7 @@ Goal:
 
 Tasks:
 1. Build required-handle set for OFS/MF/MPR lanes from authorities.
-2. Resolve each handle from `dev_min_handles.registry.v0.md`.
+2. Resolve each handle from `dev_full_handles.registry.v0.md`.
 3. Fail closed on unresolved/wildcard/placeholder required handles.
 4. Emit `m11_b_handle_closure_snapshot.json`.
 

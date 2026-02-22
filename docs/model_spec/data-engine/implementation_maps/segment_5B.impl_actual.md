@@ -6397,3 +6397,36 @@ Hygiene:
 
 Phase decision:
 - `HOLD_POPT4_REOPEN` (logging-overhead gate miss persists).
+
+### Entry: 2026-02-22 14:18
+
+Planning step: open `POPT.4R2` as one additional bounded cadence/measurement pass.
+Summary: user requested one more bounded pass; I am reopening only the progress-cadence default and paired timing measurement lane, with replay-hardening logic and all data semantics frozen.
+
+Why reopen instead of immediate waiver:
+1) residual miss is still small (`2.380%` vs `<=2%`), suggesting a final bounded cadence adjustment may close the gate.
+2) this can be attempted without touching realism, contracts, or model laws.
+3) explicit user direction is to run one more bounded pass before waiver/hold finalization.
+
+Alternatives considered and rejected for R2:
+1) reopen algorithmic hot path in `S4`:
+   - rejected as out-of-scope for this bounded lane and higher blast radius than needed.
+2) change measurement threshold or scoring rule:
+   - rejected; would weaken the gate contract rather than fixing operational overhead.
+3) skip integrated witness and run only control timings:
+   - rejected; `POPT.4` closure requires integrated pass evidence.
+
+Chosen bounded R2 strategy:
+1) retune default heartbeat cadence in `S2/S3/S4` from `5.0s` to `10.0s`.
+2) keep env overrides unchanged for operator control.
+3) execute:
+   - compile gate,
+   - integrated witness `S2 -> S3 -> S4 -> S5`,
+   - paired `S4` control (`30s`) and `S4` default recheck (`10s`),
+   - final `S5` rerun witness.
+4) compute overhead as:
+   - `(S4_default_recheck_ms - S4_low_verbosity_ms) / S4_low_verbosity_ms`.
+
+Veto and closure criteria:
+1) if paired overhead `<=2%` and all safety gates pass -> `UNLOCK_POPT5_CONTINUE`.
+2) if paired overhead still `>2%` -> retain `HOLD_POPT4_REOPEN` and request explicit waiver/next-lane direction.

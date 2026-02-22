@@ -19601,3 +19601,30 @@ Constraints preserved:
 1. Documentation-only update (no infra/runtime execution).
 2. No branch operations were performed.
 3. Main phase status was not changed.
+
+## Entry: 2026-02-22 14:37 +00:00 - Environment repin accepted: Learning/Evolution on dev_full (not dev_min)
+Reasoning:
+1. USER pinned a critical migration-direction correction: `dev_min` was intended only for off-laptop spine migration (`M1..M10`), while Learning/Evolution should be built in `dev_full`.
+2. USER's objective includes production-shaped managed-tooling exposure (for example SageMaker/Aurora/Databricks/MLflow/Airflow), which would be diluted by extending Learning/Evolution on `dev_min`.
+3. Without explicit authority artifacts for `dev_full`, M11 planning could drift or reopen `dev_min` assumptions; that is a fail-closed risk.
+
+Decision:
+1. Keep `dev_min` as certified spine baseline and repin `M11+` runtime target to `dev_full`.
+2. Materialize missing dev_full authority stubs immediately so `M11.A` has explicit references and no implicit defaults.
+3. Keep execution blocked on unresolved `dev_full` handles (`TBD_M11B`) until `M11.B` closure.
+
+Implementation:
+1. Created `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md` with:
+   - environment boundary pin (`M1..M10` on `dev_min`, `M11+` on `dev_full`),
+   - managed-toolchain orientation,
+   - fail-closed rule for unresolved dev_full authority/handles.
+2. Created `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` with:
+   - global dev_full constants,
+   - managed toolchain intent pins,
+   - required-handle family matrix using explicit `TBD_M11B` blockers.
+3. Updated `docs/model_spec/platform/migration_to_dev/README.md` to index the dev_full authority pair and clarify scope split between dev_min and dev_full.
+
+Constraints preserved:
+1. Documentation-only update (no infra/runtime execution).
+2. No branch/history operations were performed.
+3. Sensitive values were not introduced into docs.
