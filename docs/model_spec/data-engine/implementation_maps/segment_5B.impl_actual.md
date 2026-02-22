@@ -6395,6 +6395,67 @@ Artifacts emitted for this reopen closure:
 Hygiene:
 - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
 
+### Entry: 2026-02-22 15:55
+
+Planning + execution step: close `POPT.5` with machine-checkable certification artifacts and explicit residual-budget posture.
+Summary: user asked to plan and execute `POPT.5`; I chose to implement a dedicated scorer so closure is reproducible, auditable, and not a hand-written summary.
+
+Why this implementation path was chosen:
+1) existing `POPT.0..POPT.4R3` evidence already exists, but `POPT.5` lacked a deterministic certification artifact.
+2) without a scorer, `GO_P0` would rely on manual interpretation and increase audit ambiguity.
+3) we needed explicit handling of the known candidate-lane budget miss while still preserving the accepted non-blocking reopen posture.
+
+Alternatives considered and rejected:
+1) write only markdown summary without machine-readable output:
+   - rejected; weak auditability and no deterministic rerun path.
+2) force a new heavy rerun before `POPT.5` closure:
+   - rejected; not necessary for certification of already accepted POPT evidence and would waste runtime.
+3) declare full runtime-pass despite budget miss:
+   - rejected; that would hide a real residual and violate fail-closed evidence posture.
+
+Implementation details:
+1) added scorer:
+   - `tools/score_segment5b_popt5_certification.py`.
+2) scorer reads accepted artifacts and latest state witnesses:
+   - `segment5b_popt0_budget_pin_*`,
+   - `segment5b_popt0_hotspot_map_*`,
+   - `segment5b_popt1_closure_*`,
+   - `segment5b_popt2_closure_*`,
+   - `segment5b_popt3r_closure_*`,
+   - `segment5b_popt4r3_closure_*`,
+   - latest `segment_state_runs` for `S1..S5`.
+3) scorer emits:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_popt5_certification_c25a2675fbfbacd952b13bb594880e92.json`,
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_popt5_certification_c25a2675fbfbacd952b13bb594880e92.md`.
+4) compile/run validation:
+   - initial syntax miss fixed (unclosed parenthesis),
+   - JSON loader hardened to `utf-8-sig` for BOM-tolerant artifact reads,
+   - final scorer run succeeded.
+
+Certification result captured by scorer:
+1) phase decisions are non-blocking under accepted reopen posture:
+   - `POPT.1=UNLOCK_POPT2_CONTINUE`,
+   - `POPT.2=HOLD_POPT2_REOPEN` (accepted residual),
+   - `POPT.3R=HOLD_POPT3_REOPEN` (accepted residual),
+   - `POPT.4R3=UNLOCK_POPT5_CONTINUE`.
+2) critical guards:
+   - logging-budget `PASS`,
+   - replay-idempotence `PASS`,
+   - structural non-regression `PASS`.
+3) explicit residual:
+   - candidate lane total `00:09:25` vs target `00:07:00` (budget miss retained as visible residual).
+4) decision:
+   - `GO_P0`,
+   - verdict: `PASS_RUNTIME_CERTIFIED_WITH_ACCEPTED_RESIDUAL_BUDGET_MISS`.
+
+Corrective continuity note:
+1) the earlier planning entry at `2026-02-22 15:06` ends with `HOLD_POPT4_REOPEN`, but that was pre-R3 planning context.
+2) authoritative final `POPT.4` outcome remains the executed `2026-02-22 15:07` entry and `segment5b_popt4r3_closure_*` artifact (`UNLOCK_POPT5_CONTINUE`).
+3) `POPT.5` is now closed on top of that executed authority.
+
+Hygiene:
+- `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
+
 ### Entry: 2026-02-22 15:07
 
 Execution step: completed `POPT.4R3` measurement-only lane and final gate adjudication.

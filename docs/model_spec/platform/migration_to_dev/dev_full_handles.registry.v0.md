@@ -115,3 +115,34 @@ Operational note:
 | `DF_MPR_ALLOWED_HUMAN_ACTORS` | PINNED | `HUMAN::platform_governance` |
 | `DF_MPR_RESOLUTION_ORDER` | PINNED | `tenant_active>global_active>safe_fallback>fail_closed` |
 | `DF_MPR_FAIL_CLOSED_ON_INCOMPATIBLE` | PINNED | `true` |
+
+## 9. Observability and Evidence Taxonomy Handles (M11.G)
+
+| Key | Status | Value |
+|---|---|---|
+| `DF_M11_EVIDENCE_SCHEMA_VERSION` | PINNED | `m11_snapshot_schema_v1` |
+| `DF_M11_REQUIRED_EVIDENCE_FAMILIES` | PINNED | `m11_a_authority_handoff_snapshot,m11_b_handle_closure_snapshot,m11_c_runtime_decomposition_snapshot,m11_d_iam_secret_kms_snapshot,m11_e_data_contract_snapshot,m11_f_messaging_governance_snapshot` |
+| `DF_M11_BLOCKER_TAXONOMY_MODE` | PINNED | `fail_closed_union` |
+| `DF_M11_NON_SECRET_EVIDENCE_POLICY` | PINNED | `no_secrets_in_snapshots_or_logs` |
+
+## 10. Spine Non-Regression Carry-Forward Handles (M11.H)
+
+| Key | Status | Value |
+|---|---|---|
+| `DF_M11_NON_REGRESSION_M8_VERDICT_LOCAL` | PINNED | `runs/dev_substrate/m8/m8_20260219T121603Z/m8_i_verdict_snapshot.json` |
+| `DF_M11_NON_REGRESSION_M9_VERDICT_LOCAL` | PINNED | `runs/dev_substrate/m9/m9_20260219T191706Z/m9_i_verdict_snapshot.json` |
+| `DF_M11_NON_REGRESSION_M10_VERDICT_LOCAL` | PINNED | `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json` |
+| `DF_M11_NON_REGRESSION_BLOCKER_MODE` | PINNED | `fail_closed_union` |
+| `DF_M11_NON_REGRESSION_RERUN_POLICY` | PINNED | `rerun_non_regression_before_M12_M13_M14_verdicts` |
+
+## 11. Cost and Teardown Continuity Handles (M11.I)
+
+| Key | Status | Value |
+|---|---|---|
+| `DF_M11_LEARNING_PHASE_PROFILE_POLICY` | PINNED | `on_demand_lanes_with_profiled_start_stop` |
+| `DF_M11_LEARNING_DEFAULT_DESIRED_COUNT` | PINNED | `0` |
+| `DF_M11_LEARNING_JOB_EXECUTION_MODE` | PINNED | `ephemeral_run_task` |
+| `DF_M11_LEARNING_IDLE_TTL_MINUTES` | PINNED | `60` |
+| `DF_M11_LEARNING_INCLUDE_IN_TEARDOWN` | PINNED | `true` |
+| `DF_M11_LEARNING_INCLUDE_IN_BILLING_GUARDRAIL` | PINNED | `true` |
+| `DF_M11_CROSS_PLATFORM_BILLING_REQUIRED` | PINNED | `true` |

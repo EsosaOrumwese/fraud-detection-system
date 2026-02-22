@@ -780,69 +780,285 @@ Goal:
 1. Pin required evidence artifacts and schemas for M11 and downstream M12/M13 entry.
 2. Pin blocker taxonomy families for deterministic fail-closed adjudication.
 
-Tasks:
-1. Define required evidence objects for each M11 sub-phase.
-2. Pin minimum snapshot field schema contract.
-3. Pin blocker taxonomy (`M11A-B*` .. `M11J-B*`) and rollup rule.
-4. Emit `m11_g_observability_evidence_snapshot.json`.
+Entry conditions:
+1. `M11.F` snapshot exists locally and durably.
+2. `M11.F` reports `overall_pass=true` with blocker union empty.
+3. Observability/evidence handles required by G are pinned and non-placeholder.
+
+Required inputs:
+1. `M11.F` source snapshots:
+   - local: `runs/dev_substrate/m11/<m11_execution_id>/m11_f_messaging_governance_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m11_execution_id>/m11_f_messaging_governance_snapshot.json`.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md`.
+3. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+4. `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`.
+
+Required observability/evidence handles for G closure:
+1. `DF_EVIDENCE_BUCKET`
+2. `DF_EVIDENCE_PREFIX_PATTERN`
+3. `DF_METRICS_SINK_HANDLE`
+4. `DF_ALERTING_CHANNEL_HANDLE`
+5. `DF_GOVERNANCE_EVENT_TOPIC`
+6. `DF_M11_EVIDENCE_SCHEMA_VERSION`
+7. `DF_M11_REQUIRED_EVIDENCE_FAMILIES`
+8. `DF_M11_BLOCKER_TAXONOMY_MODE`
+9. `DF_M11_NON_SECRET_EVIDENCE_POLICY`
+
+Preparation checks (fail-closed):
+1. Resolve M11.F snapshot (local preferred, durable fallback) and verify pass posture.
+2. Resolve required G handles and assert:
+   - all keys present exactly once,
+   - status is `PINNED`,
+   - value is non-placeholder.
+3. Validate required evidence family list for `M11.A..M11.F` is explicit.
+4. Validate minimum snapshot schema contract is explicit and reusable.
+5. Validate blocker taxonomy coverage exists across `M11A-B*` .. `M11J-B*` patterns.
+6. Validate non-secret evidence policy is explicit and non-open.
+
+Deterministic closure algorithm (M11.G):
+1. Resolve M11.F snapshot; unreadable or non-pass -> `M11G-B4`.
+2. Resolve required G handles from registry; unresolved/placeholder -> `M11G-B2`.
+3. Build required evidence family matrix:
+   - `m11_a_authority_handoff_snapshot.json`,
+   - `m11_b_handle_closure_snapshot.json`,
+   - `m11_c_runtime_decomposition_snapshot.json`,
+   - `m11_d_iam_secret_kms_snapshot.json`,
+   - `m11_e_data_contract_snapshot.json`,
+   - `m11_f_messaging_governance_snapshot.json`.
+4. Validate each required family exists under active `m11_execution_id`; missing family -> `M11G-B1`.
+5. Extract blocker taxonomy tokens from this file and verify coverage for each M11 sub-phase family (`A..J`); missing family -> `M11G-B3`.
+6. Build minimum snapshot-schema contract for reuse in `M11.H/I/J` and `M12/M13` entry checks.
+7. Emit `m11_g_observability_evidence_snapshot.json` locally.
+8. Publish durable snapshot; publish failure -> `M11G-B5`.
+
+Required snapshot fields (`m11_g_observability_evidence_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m11_execution_id`, `subphase_id="M11.G"`.
+2. `m11f_source_ref_local`, `m11f_source_ref_uri`, `m11f_source_mode`.
+3. `required_handle_refs` (resolved key/value set used by G).
+4. `required_evidence_family_matrix`.
+5. `minimum_snapshot_schema_contract`.
+6. `blocker_taxonomy_matrix`.
+7. `non_secret_evidence_policy`.
+8. `blockers`, `overall_pass`, `elapsed_seconds`, `created_utc`.
+
+Runtime budget:
+1. `M11.G` target budget: <= 15 minutes.
+2. Over-budget without user waiver -> `M11G-B6`.
 
 DoD:
-- [ ] Required evidence family list is complete and scoped.
-- [ ] Snapshot schema contract is explicit and reusable.
-- [ ] Blocker taxonomy and rollup contract are pinned.
-- [ ] Non-secret evidence policy is explicit.
+- [x] Required evidence family list is complete and scoped.
+- [x] Snapshot schema contract is explicit and reusable.
+- [x] Blocker taxonomy and rollup contract are pinned.
+- [x] Non-secret evidence policy is explicit.
+- [x] Snapshot exists locally and durably.
+
+Execution evidence (2026-02-22):
+1. Local snapshot:
+   - `runs/dev_substrate/m11/m11_20260222T145654Z/m11_g_observability_evidence_snapshot.json`
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_g_observability_evidence_snapshot.json`
+3. Closure result:
+   - `overall_pass=true`
+   - blockers empty
+4. Observability/evidence handle family pinned:
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` Section 9 (`DF_M11_EVIDENCE_SCHEMA_VERSION`, `DF_M11_REQUIRED_EVIDENCE_FAMILIES`, taxonomy and non-secret policy handles).
 
 Blockers:
 1. `M11G-B1`: missing required evidence family.
 2. `M11G-B2`: snapshot schema incomplete/ambiguous.
 3. `M11G-B3`: blocker taxonomy/rollup contract missing.
+4. `M11G-B4`: M11.F dependency unreadable or not pass-closed.
+5. `M11G-B5`: snapshot publication failure.
+6. `M11G-B6`: runtime budget breach without waiver.
 
 ### M11.H Spine Carry-Forward Non-Regression Matrix
 Goal:
 1. Convert `M8..M10` carry-forward law into executable acceptance matrix for `M11+`.
 2. Prevent false green claims that break certified spine behavior.
 
-Tasks:
-1. Pin critical non-regression probes from:
-   - `M8` (Obs/Gov closure integrity),
-   - `M9` (teardown/cost guardrail enforceability),
-   - `M10` (semantic + scale surfaces required for integrated posture).
-2. Pin acceptance thresholds and blocker mapping for each probe.
-3. Pin rerun policy for non-regression probes during M11+ execution.
-4. Emit `m11_h_non_regression_matrix_snapshot.json`.
+Entry conditions:
+1. `M11.G` snapshot exists locally and durably.
+2. `M11.G` reports `overall_pass=true` with blocker union empty.
+3. Non-regression source handles are pinned and non-placeholder.
+
+Required inputs:
+1. `M11.G` source snapshots:
+   - local: `runs/dev_substrate/m11/<m11_execution_id>/m11_g_observability_evidence_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m11_execution_id>/m11_g_observability_evidence_snapshot.json`.
+2. Carry-forward source snapshots:
+   - `M8` verdict snapshot (`m8_i_verdict_snapshot.json`),
+   - `M9` verdict snapshot (`m9_i_verdict_snapshot.json`),
+   - `M10` certification verdict snapshot (`m10_j_certification_verdict_snapshot.json`).
+3. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+
+Required non-regression handles for H closure:
+1. `DF_M11_NON_REGRESSION_M8_VERDICT_LOCAL`
+2. `DF_M11_NON_REGRESSION_M9_VERDICT_LOCAL`
+3. `DF_M11_NON_REGRESSION_M10_VERDICT_LOCAL`
+4. `DF_M11_NON_REGRESSION_BLOCKER_MODE`
+5. `DF_M11_NON_REGRESSION_RERUN_POLICY`
+
+Preparation checks (fail-closed):
+1. Resolve M11.G snapshot (local preferred, durable fallback) and verify pass posture.
+2. Resolve required H handles and assert:
+   - all keys present exactly once,
+   - status is `PINNED`,
+   - value is non-placeholder.
+3. Resolve M8/M9/M10 source snapshots and verify readability.
+4. Validate each source verdict is pass-closed and non-blocked.
+5. Validate rerun policy and blocker mode are explicit fail-closed postures.
+
+Deterministic closure algorithm (M11.H):
+1. Resolve M11.G snapshot; unreadable or non-pass -> `M11H-B4`.
+2. Resolve required H handles from registry; unresolved/placeholder -> `M11H-B2`.
+3. Load M8/M9/M10 source verdict snapshots from pinned local paths; unreadable source -> `M11H-B3`.
+4. Build non-regression probe matrix in fixed order:
+   - Probe `NR-M8-OBS_GOV_VERDICT`: M8 verdict `overall_pass=true`,
+   - Probe `NR-M9-TEARDOWN_COST_VERDICT`: M9 verdict `overall_pass=true`,
+   - Probe `NR-M10-CERTIFICATION_VERDICT`: M10 verdict `overall_pass=true` and `verdict=ADVANCE_CERTIFIED_DEV_MIN`.
+5. Apply acceptance thresholds:
+   - all probes must pass; any probe fail -> `M11H-B1`.
+6. Apply blocker mode:
+   - blocker mode must be `fail_closed_union`; mismatch -> `M11H-B2`.
+7. Emit `m11_h_non_regression_matrix_snapshot.json` locally.
+8. Publish durable snapshot; publish failure -> `M11H-B5`.
+
+Required snapshot fields (`m11_h_non_regression_matrix_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m11_execution_id`, `subphase_id="M11.H"`.
+2. `m11g_source_ref_local`, `m11g_source_ref_uri`, `m11g_source_mode`.
+3. `required_handle_refs` (resolved key/value set used by H).
+4. `source_snapshot_matrix` (M8/M9/M10 refs and readability).
+5. `non_regression_probe_matrix` (probe/predicate/pass/failure_reason).
+6. `acceptance_thresholds`.
+7. `rerun_policy`.
+8. `blockers`, `overall_pass`, `elapsed_seconds`, `created_utc`.
+
+Runtime budget:
+1. `M11.H` target budget: <= 20 minutes.
+2. Over-budget without user waiver -> `M11H-B6`.
 
 DoD:
-- [ ] Non-regression matrix has explicit probes, thresholds, and owners.
-- [ ] Each probe has deterministic evidence source paths.
-- [ ] Failure mapping to blockers is explicit and fail-closed.
-- [ ] Matrix is approved as mandatory for `M11..M14`.
+- [x] Non-regression matrix has explicit probes, thresholds, and owners.
+- [x] Each probe has deterministic evidence source paths.
+- [x] Failure mapping to blockers is explicit and fail-closed.
+- [x] Matrix is approved as mandatory for `M11..M14`.
+- [x] Snapshot exists locally and durably.
+
+Execution evidence (2026-02-22):
+1. Local snapshot:
+   - `runs/dev_substrate/m11/m11_20260222T145654Z/m11_h_non_regression_matrix_snapshot.json`
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_h_non_regression_matrix_snapshot.json`
+3. Closure result:
+   - `overall_pass=true`
+   - blockers empty
+4. Carry-forward handle family pinned:
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` Section 10 (`DF_M11_NON_REGRESSION_*` handles).
 
 Blockers:
 1. `M11H-B1`: missing critical probe for M8/M9/M10 carry-forward.
 2. `M11H-B2`: threshold/acceptance ambiguity.
 3. `M11H-B3`: probe evidence source undefined/unreadable.
+4. `M11H-B4`: M11.G dependency unreadable or not pass-closed.
+5. `M11H-B5`: snapshot publication failure.
+6. `M11H-B6`: runtime budget breach without waiver.
 
 ### M11.I Cost + Teardown Continuity for Learning Lanes
 Goal:
 1. Keep post-M10 cost discipline intact while adding learning runtime lanes.
 2. Ensure learning lanes integrate into existing destroy/guardrail posture.
 
-Tasks:
-1. Pin phase-profile start/stop policy for learning services/tasks.
-2. Pin teardown scope inclusion for learning demo resources.
-3. Pin cost guardrail inclusion requirements for learning lanes.
-4. Emit `m11_i_cost_teardown_continuity_snapshot.json`.
+Entry conditions:
+1. `M11.H` snapshot exists locally and durably.
+2. `M11.H` reports `overall_pass=true` with blocker union empty.
+3. Cost/teardown continuity handles required by I are pinned and non-placeholder.
+
+Required inputs:
+1. `M11.H` source snapshots:
+   - local: `runs/dev_substrate/m11/<m11_execution_id>/m11_h_non_regression_matrix_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m11_execution_id>/m11_h_non_regression_matrix_snapshot.json`.
+2. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`.
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+
+Required continuity handles for I closure:
+1. `DF_COST_GUARDRAIL_HANDLE`
+2. `DF_TEARDOWN_WORKFLOW_HANDLE`
+3. `DF_M11_LEARNING_PHASE_PROFILE_POLICY`
+4. `DF_M11_LEARNING_DEFAULT_DESIRED_COUNT`
+5. `DF_M11_LEARNING_JOB_EXECUTION_MODE`
+6. `DF_M11_LEARNING_IDLE_TTL_MINUTES`
+7. `DF_M11_LEARNING_INCLUDE_IN_TEARDOWN`
+8. `DF_M11_LEARNING_INCLUDE_IN_BILLING_GUARDRAIL`
+9. `DF_M11_CROSS_PLATFORM_BILLING_REQUIRED`
+
+Preparation checks (fail-closed):
+1. Resolve M11.H snapshot (local preferred, durable fallback) and verify pass posture.
+2. Resolve required I handles and assert:
+   - all keys present exactly once,
+   - status is `PINNED`,
+   - value is non-placeholder.
+3. Validate phase-profile policy indicates on-demand posture for learning lanes.
+4. Validate default desired count is zero and execution mode is explicit.
+5. Validate idle teardown TTL is parse-valid positive integer.
+6. Validate teardown and billing inclusion flags are explicitly true.
+
+Deterministic closure algorithm (M11.I):
+1. Resolve M11.H snapshot; unreadable or non-pass -> `M11I-B4`.
+2. Resolve required I handles from registry; unresolved/placeholder -> `M11I-B3`.
+3. Build learning-lane continuity matrix in fixed lane order:
+   - OFS,
+   - MF,
+   - MPR control.
+4. Validate phase-profile posture:
+   - default desired count zero for service lanes,
+   - job execution mode set to run-task/ephemeral posture.
+5. Validate teardown inclusion:
+   - learning resources are included in teardown scope.
+6. Validate cost guardrail continuity:
+   - learning lanes explicitly included in cross-platform billing guardrail.
+7. Emit `m11_i_cost_teardown_continuity_snapshot.json` locally.
+8. Publish durable snapshot; publish failure -> `M11I-B5`.
+
+Required snapshot fields (`m11_i_cost_teardown_continuity_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m11_execution_id`, `subphase_id="M11.I"`.
+2. `m11h_source_ref_local`, `m11h_source_ref_uri`, `m11h_source_mode`.
+3. `required_handle_refs` (resolved key/value set used by I).
+4. `learning_phase_profile_matrix`.
+5. `teardown_inclusion_matrix`.
+6. `billing_guardrail_continuity`.
+7. `blockers`, `overall_pass`, `elapsed_seconds`, `created_utc`.
+
+Runtime budget:
+1. `M11.I` target budget: <= 15 minutes.
+2. Over-budget without user waiver -> `M11I-B6`.
 
 DoD:
-- [ ] Learning lanes are included in phase-profile control policy.
-- [ ] Teardown preserve/destroy matrix includes learning resources.
-- [ ] Cross-platform billing guardrail posture remains mandatory.
-- [ ] Snapshot captures continuity policy and blocker mapping.
+- [x] Learning lanes are included in phase-profile control policy.
+- [x] Teardown preserve/destroy matrix includes learning resources.
+- [x] Cross-platform billing guardrail posture remains mandatory.
+- [x] Snapshot captures continuity policy and blocker mapping.
+- [x] Snapshot exists locally and durably.
+
+Execution evidence (2026-02-22):
+1. Local snapshot:
+   - `runs/dev_substrate/m11/m11_20260222T145654Z/m11_i_cost_teardown_continuity_snapshot.json`
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_i_cost_teardown_continuity_snapshot.json`
+3. Closure result:
+   - `overall_pass=true`
+   - blockers empty
+4. Cost/teardown continuity handle family pinned:
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` Section 11 (`DF_M11_LEARNING_*` continuity handles).
 
 Blockers:
 1. `M11I-B1`: learning lane omitted from phase profile controls.
 2. `M11I-B2`: teardown inclusion ambiguity for learning resources.
 3. `M11I-B3`: cost guardrail continuity gap.
+4. `M11I-B4`: M11.H dependency unreadable or not pass-closed.
+5. `M11I-B5`: snapshot publication failure.
+6. `M11I-B6`: runtime budget breach without waiver.
 
 ### M11.J Verdict + M12 Handoff
 Goal:
@@ -906,14 +1122,14 @@ M11 verdict snapshot (`m11_j_verdict_snapshot.json`) additional required fields:
 5. `m12_handoff_ref_uri`.
 
 ## 8) M11 DoD (Phase-Level)
-- [ ] `M11.A..M11.I` are planned and executed with blocker-free closure snapshots.
-- [ ] Required handles for Learning/Registry are fully closed and concrete.
-- [ ] Runtime/IAM/data/messaging/evidence/cost lanes are explicit and non-ambiguous.
-- [ ] `M8..M10` non-regression matrix is pinned with executable acceptance rules.
+- [x] `M11.A..M11.I` are planned and executed with blocker-free closure snapshots.
+- [x] Required handles for Learning/Registry are fully closed and concrete.
+- [x] Runtime/IAM/data/messaging/evidence/cost lanes are explicit and non-ambiguous.
+- [x] `M8..M10` non-regression matrix is pinned with executable acceptance rules.
 - [ ] `M11.J` publishes `ADVANCE_TO_M12` verdict and `m12_handoff_pack.json` locally + durably.
 
 ## 9) Planning Status
 1. This file is now expanded to execution-grade planning depth.
-2. `M11.A..M11.F` closure execution has been completed with local + durable evidence publication.
-3. `M11.G..M11.J` remain open for sequential expansion/execution.
+2. `M11.A..M11.I` closure execution has been completed with local + durable evidence publication.
+3. `M11.J` remains open for sequential expansion/execution.
 4. Status transitions remain governed only by `platform.build_plan.md`.

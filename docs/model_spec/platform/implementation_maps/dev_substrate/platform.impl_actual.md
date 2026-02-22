@@ -20059,3 +20059,178 @@ Constraints preserved:
 1. No branch/history operations.
 2. No secrets recorded in repository notes.
 3. No runtime infrastructure mutation.
+
+## Entry: 2026-02-22 15:44 +00:00 - Pre-change lock for M11.G planning + execution
+Reasoning:
+1. USER requested sequential plan+execute for `M11.G/H/I`.
+2. `M11.G` currently lacks execution-grade closure mechanics (entry gates, required handle set, deterministic algorithm, snapshot schema, runtime budget gate).
+3. Registry does not yet pin explicit observability/evidence taxonomy handles for M11.
+
+Decision:
+1. Expand `M11.G` to execution-grade before running.
+2. Add explicit `M11.G` handle family to `dev_full_handles.registry.v0.md` for evidence schema/taxonomy/policy closure.
+3. Execute `M11.G` closure by validating `M11.A..M11.F` evidence family completeness, schema contract minimums, blocker taxonomy coverage (`M11A-B*..M11J-B*`), and non-secret evidence policy.
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secret material in docs.
+3. No runtime infra mutation.
+
+## Entry: 2026-02-22 15:48 +00:00 - M11.G executed and closed pass (observability/evidence taxonomy)
+Reasoning:
+1. M11.G had to convert observability/evidence intent into deterministic closure predicates before non-regression (`M11.H`) can consume reliable evidence surfaces.
+2. Prior state lacked explicit evidence/taxonomy handles and execution-grade checks.
+
+Decision trail:
+1. Expanded `M11.G` section in `platform.M11.build_plan.md` to execution-grade:
+   - entry gate on M11.F pass,
+   - required-handle set,
+   - deterministic algorithm for evidence-family, schema, taxonomy, and non-secret policy checks,
+   - runtime budget + blocker expansion.
+2. Added registry Section 9 in `dev_full_handles.registry.v0.md` for M11.G-specific surfaces:
+   - schema version,
+   - required evidence families,
+   - blocker taxonomy mode,
+   - non-secret evidence policy.
+3. Executed M11.G closure algorithm inline (no helper files):
+   - validated M11.F pass dependency,
+   - validated required-handle closure,
+   - verified all required evidence families (`M11.A..M11.F`) present under active execution id,
+   - verified taxonomy family coverage for `M11A-B*..M11J-B*`,
+   - pinned reusable minimum snapshot schema contract.
+
+Evidence:
+1. Local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_g_observability_evidence_snapshot.json`.
+2. Durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_g_observability_evidence_snapshot.json`.
+
+Result:
+1. `overall_pass=true`.
+2. blockers empty.
+3. Runtime budget satisfied.
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secret material recorded.
+3. No runtime infra mutation.
+
+## Entry: 2026-02-22 15:49 +00:00 - Pre-change lock for M11.H planning + execution
+Reasoning:
+1. `M11.H` must convert M8/M9/M10 carry-forward law into deterministic acceptance probes before phase advance.
+2. Current M11.H section is high-level and does not define source snapshots, thresholds, or blocker mapping mechanics.
+3. Non-regression predicates need explicit pinning to avoid interpretive drift during M12/M13.
+
+Decision:
+1. Expand `M11.H` to execution-grade before run.
+2. Pin non-regression matrix handles in registry (required source snapshots + blocker mode + rerun policy).
+3. Execute M11.H closure by validating source snapshots and required predicates from M8/M9/M10 certification surfaces.
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secrets recorded.
+3. No runtime infra mutation.
+
+## Entry: 2026-02-22 15:53 +00:00 - M11.H executed and closed pass (spine non-regression matrix)
+Reasoning:
+1. M11.H needed deterministic proof that `M8..M10` certified behavior remains mandatory carry-forward law for learning-lane extension.
+2. Prior state lacked pinned source refs and explicit blocker/threshold mechanics.
+
+Decision trail:
+1. Expanded `M11.H` to execution-grade in `platform.M11.build_plan.md`:
+   - dependency gate on M11.G,
+   - required handle set,
+   - deterministic probe matrix and threshold contract,
+   - explicit rerun policy and blocker mode checks.
+2. Added registry Section 10 in `dev_full_handles.registry.v0.md`:
+   - pinned M8/M9/M10 source verdict refs,
+   - pinned blocker mode and rerun policy handles.
+3. Executed M11.H closure algorithm inline (no helper files):
+   - validated M11.G pass dependency,
+   - validated required handle closure,
+   - loaded and validated pinned M8/M9/M10 snapshots,
+   - computed three fixed probes and threshold acceptance,
+   - enforced fail-closed blocker mode.
+
+Evidence:
+1. Local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_h_non_regression_matrix_snapshot.json`.
+2. Durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_h_non_regression_matrix_snapshot.json`.
+
+Result:
+1. `overall_pass=true`.
+2. blockers empty.
+3. Runtime budget satisfied.
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secret material recorded.
+3. No runtime infra mutation.
+
+## Entry: 2026-02-22 15:54 +00:00 - Pre-change lock for M11.I planning + execution
+Reasoning:
+1. `M11.I` must enforce cost/teardown continuity for learning lanes before M11 verdict aggregation.
+2. Current M11.I section is high-level and does not provide deterministic continuity checks.
+3. Registry does not yet pin learning-lane phase-profile/TTL inclusion handles.
+
+Decision:
+1. Expand M11.I to execution-grade before run.
+2. Pin M11.I continuity handles in registry (phase-profile policy, desired-count defaults, idle TTL, teardown and billing inclusion flags).
+3. Execute M11.I closure with deterministic policy checks and publish local + durable snapshot.
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secrets recorded.
+3. No runtime infra mutation.
+
+## Entry: 2026-02-22 15:58 +00:00 - M11.I executed and closed pass (cost + teardown continuity)
+Reasoning:
+1. M11.I needed explicit continuity proof so learning-lane activation cannot bypass established teardown/cost discipline.
+2. Prior state lacked execution-grade policy and handle closure for this lane.
+
+Decision trail:
+1. Expanded `M11.I` to execution-grade in `platform.M11.build_plan.md`:
+   - dependency gate on M11.H,
+   - required continuity handle set,
+   - deterministic phase-profile/teardown/billing continuity algorithm,
+   - runtime budget + blocker expansion.
+2. Added registry Section 11 in `dev_full_handles.registry.v0.md`:
+   - learning phase-profile policy,
+   - default desired count,
+   - job execution mode,
+   - idle TTL,
+   - teardown inclusion and billing inclusion flags,
+   - cross-platform billing requirement.
+3. Executed M11.I closure algorithm inline (no helper files):
+   - validated M11.H pass dependency,
+   - validated continuity handle closure,
+   - validated on-demand/run-task posture and desired_count=0,
+   - validated teardown inclusion and cross-platform billing continuity.
+
+Evidence:
+1. Local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_i_cost_teardown_continuity_snapshot.json`.
+2. Durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_i_cost_teardown_continuity_snapshot.json`.
+
+Result:
+1. `overall_pass=true`.
+2. blockers empty.
+3. Runtime budget satisfied.
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secret material recorded.
+3. No runtime infra mutation.
+
+## Entry: 2026-02-22 16:00 +00:00 - M11 status synchronization after G/H/I closure
+Reasoning:
+1. After sequential closure of `M11.G`, `M11.H`, and `M11.I`, main and deep build plans must remain status-consistent.
+2. Leaving stale status lines would create tracking drift before `M11.J`.
+
+Actions:
+1. Updated `platform.M11.build_plan.md`:
+   - phase-level DoD checklist reflects `M11.A..M11.I` complete,
+   - planning-status section updated (`M11.J` only open).
+2. Updated `platform.build_plan.md`:
+   - active-state line updated to `M11.A..M11.I executed; M11.J pending`,
+   - execution notes include G/H/I evidence refs,
+   - M11 DoD checklist marks observability/non-regression/cost continuity as complete.
+
+Outcome:
+1. Deep-plan and main-plan status now aligned for entry into `M11.J`.

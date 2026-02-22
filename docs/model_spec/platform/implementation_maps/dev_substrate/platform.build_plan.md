@@ -178,7 +178,7 @@ Current phase posture:
 - `M8` is `DONE`,
 - `M9` is `DONE`,
 - `M10` is `DONE` (certification closed).
-- `M11` is `ACTIVE` (`M11.A..M11.F` executed; `M11.G` pending).
+- `M11` is `ACTIVE` (`M11.A..M11.I` executed; `M11.J` pending).
 - `M12` is `NOT_STARTED`.
 - `M13` is `NOT_STARTED`.
 - `M14` is `NOT_STARTED`.
@@ -1788,16 +1788,25 @@ Execution notes:
 - `M11.F` completed with blocker-free messaging/governance corridor snapshot:
   - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_f_messaging_governance_snapshot.json`
   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_f_messaging_governance_snapshot.json`
-- `M11` remains `ACTIVE` until `M11.G..M11.J` close.
+- `M11.G` completed with blocker-free observability/evidence taxonomy snapshot:
+  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_g_observability_evidence_snapshot.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_g_observability_evidence_snapshot.json`
+- `M11.H` completed with blocker-free spine non-regression matrix snapshot:
+  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_h_non_regression_matrix_snapshot.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_h_non_regression_matrix_snapshot.json`
+- `M11.I` completed with blocker-free cost/teardown continuity snapshot:
+  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_i_cost_teardown_continuity_snapshot.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_i_cost_teardown_continuity_snapshot.json`
+- `M11` remains `ACTIVE` until `M11.J` close.
 
 M11 DoD checklist:
 - [x] Required `OFS/MF/MPR` handles are pinned and resolvable.
 - [x] Runtime lane topology is fully specified and managed-substrate only.
 - [x] IAM role map and secret/materialization surfaces are least-privilege and auditable.
 - [x] Data ownership + messaging/governance boundaries are explicit and non-overlapping.
-- [ ] Observability/evidence schemas and blocker taxonomy are pinned.
-- [ ] `M8..M10` non-regression matrix is pinned as mandatory carry-forward gate.
-- [ ] Cost/teardown continuity is pinned for learning lanes.
+- [x] Observability/evidence schemas and blocker taxonomy are pinned.
+- [x] `M8..M10` non-regression matrix is pinned as mandatory carry-forward gate.
+- [x] Cost/teardown continuity is pinned for learning lanes.
 - [ ] `M11` verdict + `m12_handoff_pack.json` are published locally + durably.
 
 Phase exit:

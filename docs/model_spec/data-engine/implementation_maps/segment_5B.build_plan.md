@@ -917,7 +917,7 @@ Objective:
 Definition of done:
 - [x] progress logs use bounded heartbeat cadence (no per-event high-cardinality spam in default mode).
 - [x] required audit logs remain intact and deterministic.
-- [ ] measured overhead versus low-verbosity control is within budget (`<=2%` in hot lanes).
+- [x] measured overhead versus low-verbosity control is within budget (`<=2%` in hot lanes, certified via accepted `POPT.4R3` median-of-3 protocol).
 
 #### POPT.4.3 - Integration witness + veto
 Objective:
@@ -1027,10 +1027,65 @@ POPT.4R3 closure snapshot (2026-02-22):
 Goal:
 - close performance track before realism tuning promotion.
 
+#### POPT.5.1 - Authority and evidence lock
+Objective:
+- pin final authority run-id and accepted optimization evidence set entering certification.
+
 Definition of done:
-- [ ] candidate/witness runtime gates pass.
-- [ ] final hotspot map shows no unresolved major bottleneck blocking remediation cadence.
-- [ ] explicit `GO_P0` decision recorded.
+- [x] authority run-id is pinned (`c25a2675fbfbacd952b13bb594880e92`).
+- [x] accepted POPT closure artifacts (`POPT.0` through `POPT.4R3`) are listed.
+
+#### POPT.5.2 - Runtime gateboard certification
+Objective:
+- certify that current candidate/witness posture meets runtime gates under accepted phase protocols.
+
+Definition of done:
+- [x] upstream phase decisions are all non-blocking (`POPT.1`, `POPT.2R`, `POPT.3/3R`, `POPT.4R3`).
+- [x] final logging-budget gate is certified by accepted protocol (`median-of-3 paired`).
+- [x] explicit runtime certification verdict is archived.
+
+#### POPT.5.3 - Hotspot residual closure
+Objective:
+- confirm no unresolved major hotspot remains that blocks remediation cadence.
+
+Definition of done:
+- [x] hotspot ownership map is refreshed from latest accepted evidence.
+- [x] any residual hotspot is either closed or explicitly accepted as non-blocking with rationale.
+
+#### POPT.5.4 - Decision and handoff lock
+Objective:
+- lock explicit `GO_P0` decision and unblock remediation stack.
+
+Definition of done:
+- [x] explicit `GO_P0` decision is recorded.
+- [x] immediate execution order is updated to enter remediation `P0`.
+
+POPT.5 closure snapshot (2026-02-22):
+- authority and accepted evidence set:
+  - run-id: `c25a2675fbfbacd952b13bb594880e92`.
+  - accepted performance artifacts:
+    - `segment5b_popt0_*`,
+    - `segment5b_popt1_*`,
+    - `segment5b_popt2*` + `POPT.2R` closures,
+    - `segment5b_popt3*` + `segment5b_popt3r_*`,
+    - `segment5b_popt4r1_*`, `segment5b_popt4r2_*`, `segment5b_popt4r3_*`.
+- certification gateboard:
+  - replay/idempotence lane: `PASS` (stable `S5` reruns, `bundle_integrity_ok=true`).
+  - logging-budget lane: `PASS` by accepted `POPT.4R3` median-of-3 paired protocol (`median=-0.379% <= 2.000%`).
+  - structural non-regression lane: `PASS` on accepted closure witnesses.
+  - lane-budget posture: candidate `00:09:25` vs target `00:07:00` -> residual miss carried explicitly.
+- hotspot residual posture:
+  - no unresolved major hotspot remains that blocks progression cadence; `S4` remains dominant compute lane but within accepted certification posture after R3 closure.
+- certification artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt5_certification_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt5_certification_c25a2675fbfbacd952b13bb594880e92.md`
+- decision:
+  - `GO_P0` with verdict `PASS_RUNTIME_CERTIFIED_WITH_ACCEPTED_RESIDUAL_BUDGET_MISS`.
+
+Definition of done:
+- [x] runtime certification verdict is archived with explicit residual-budget posture.
+- [x] final hotspot map shows no unresolved major bottleneck blocking remediation cadence.
+- [x] explicit `GO_P0` decision recorded.
 
 ## 6) Remediation phase stack
 
@@ -1118,5 +1173,5 @@ Definition of done:
 1. `POPT.0` is closed and pinned (authority: `c25a2675fbfbacd952b13bb594880e92`).
 2. `POPT.1`, `POPT.2`, and `POPT.3/POPT.3R` are closed with explicit hold posture on `POPT.3R` stretch gate.
 3. `POPT.4` executed with bounded reopens `R2` and final `R3`; phase now closed at `UNLOCK_POPT5_CONTINUE`.
-4. Execute `POPT.5` performance certification lock.
-5. On `POPT.5` closure, unlock remediation stack `P0 -> P5`.
+4. `POPT.5` is closed with decision `GO_P0` and explicit residual-budget posture recorded.
+5. Proceed into remediation stack `P0 -> P5`.
