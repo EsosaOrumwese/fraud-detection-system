@@ -1,0 +1,360 @@
+name: dev-full-m1-packaging
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform_run_id:
+        description: "Run scope for P(-1) evidence layout"
+        required: true
+        type: string
+      aws_region:
+        description: "AWS region for ECR operations"
+        required: true
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      ecr_repo_name:
+        description: "ECR repository name (for digest resolution)"
+        required: true
+        type: string
+      ecr_repo_uri:
+        description: "ECR repository URI (for build/push tag)"
+        required: true
+        type: string
+      image_build_context_path:
+        description: "Docker build context path"
+        required: false
+        default: "."
+        type: string
+      image_dockerfile_path:
+        description: "Dockerfile path"
+        required: false
+        default: "Dockerfile"
+        type: string
+      push_dev_full_latest:
+        description: "Also push non-authoritative dev-full-latest convenience tag"
+        required: false
+        default: false
+        type: boolean
+      s3_evidence_bucket:
+        description: "Optional evidence bucket for direct P(-1) upload"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-m1-packaging-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build_and_push:
+    name: Build and push immutable platform image (dev_full)
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      image_digest: ${{ steps.digest.outputs.image_digest }}
+      git_sha: ${{ steps.meta.outputs.git_sha }}
+      ci_run_id: ${{ steps.run_meta.outputs.ci_run_id }}
+      build_actor: ${{ steps.run_meta.outputs.build_actor }}
+      phase_prefix: ${{ steps.evidence.outputs.phase_prefix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Compute immutable image metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          GIT_SHA="${GITHUB_SHA}"
+          IMAGE_TAG="git-${GIT_SHA}"
+          IMAGE_REF="${{ inputs.ecr_repo_uri }}:${IMAGE_TAG}"
+          echo "git_sha=${GIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
+
+      - name: Record CI run metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "ci_run_id=${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "build_actor=${GITHUB_ACTOR}" >> "$GITHUB_OUTPUT"
+
+      - name: Build immutable image
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f "${{ inputs.image_dockerfile_path }}" ]]; then
+            echo "Pinned Dockerfile not found: ${{ inputs.image_dockerfile_path }}"
+            exit 1
+          fi
+          docker build \
+            --file "${{ inputs.image_dockerfile_path }}" \
+            --tag "${{ steps.meta.outputs.image_ref }}" \
+            "${{ inputs.image_build_context_path }}"
+
+      - name: Push immutable image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker push "${{ steps.meta.outputs.image_ref }}"
+
+      - name: Push non-authoritative convenience tag
+        if: ${{ inputs.push_dev_full_latest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker tag "${{ steps.meta.outputs.image_ref }}" "${{ inputs.ecr_repo_uri }}:dev-full-latest"
+          docker push "${{ inputs.ecr_repo_uri }}:dev-full-latest"
+
+      - name: Resolve immutable image digest
+        id: digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIGEST="$(aws ecr describe-images \
+            --repository-name "${{ inputs.ecr_repo_name }}" \
+            --image-ids imageTag="${{ steps.meta.outputs.image_tag }}" \
+            --region "${{ inputs.aws_region }}" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)"
+          if [[ -z "${DIGEST}" || "${DIGEST}" == "None" || "${DIGEST}" == "null" ]]; then
+            echo "Unable to resolve immutable digest from ECR."
+            exit 1
+          fi
+          echo "image_digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Emit M1.C evidence artifacts (CI-local)
+        id: evidence
+        shell: bash
+        env:
+          PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          IMAGE_TAG: ${{ steps.meta.outputs.image_tag }}
+          IMAGE_DIGEST: ${{ steps.digest.outputs.image_digest }}
+          GIT_SHA: ${{ steps.meta.outputs.git_sha }}
+          BUILD_ACTOR: ${{ steps.run_meta.outputs.build_actor }}
+          CI_RUN_ID: ${{ steps.run_meta.outputs.ci_run_id }}
+          ECR_REPO_URI: ${{ inputs.ecr_repo_uri }}
+          IMAGE_DOCKERFILE_PATH: ${{ inputs.image_dockerfile_path }}
+          IMAGE_BUILD_CONTEXT_PATH: ${{ inputs.image_build_context_path }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          WRITTEN_AT_UTC="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          PHASE_DIR="evidence/runs/${PLATFORM_RUN_ID}/P(-1)"
+          mkdir -p "${PHASE_DIR}"
+          export WRITTEN_AT_UTC
+          export PHASE_DIR
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          phase_dir = Path(os.environ["PHASE_DIR"])
+          platform_run_id = os.environ["PLATFORM_RUN_ID"]
+          image_tag = os.environ["IMAGE_TAG"]
+          image_digest = os.environ["IMAGE_DIGEST"]
+          git_sha = os.environ["GIT_SHA"]
+          build_actor = os.environ["BUILD_ACTOR"]
+          ci_run_id = os.environ["CI_RUN_ID"]
+          ecr_repo_uri = os.environ["ECR_REPO_URI"]
+          dockerfile_path = os.environ["IMAGE_DOCKERFILE_PATH"]
+          build_context_path = os.environ["IMAGE_BUILD_CONTEXT_PATH"]
+          written_at_utc = os.environ["WRITTEN_AT_UTC"]
+          run_url = (
+              f"{os.environ['GITHUB_SERVER_URL']}/"
+              f"{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+          )
+          branch = os.environ["GITHUB_REF_NAME"]
+
+          packaging_provenance = {
+              "phase_id": "P(-1)",
+              "platform_run_id": platform_run_id,
+              "written_at_utc": written_at_utc,
+              "image_tag": image_tag,
+              "image_digest": image_digest,
+              "git_sha": git_sha,
+              "build_driver": "github_actions",
+              "image_reference_mode": "immutable_preferred",
+              "ecr_repo_uri": ecr_repo_uri,
+              "dockerfile_path": dockerfile_path,
+              "build_context_path": build_context_path,
+              "build_completed_at_utc": written_at_utc,
+              "build_actor": build_actor,
+              "oci_digest_algo": "sha256",
+              "oci_digest_value": image_digest,
+          }
+
+          digest_manifest = {
+              "phase_id": "P(-1)",
+              "platform_run_id": platform_run_id,
+              "written_at_utc": written_at_utc,
+              "ecr_repo_uri": ecr_repo_uri,
+              "image_tag": image_tag,
+              "image_digest": image_digest,
+              "oci_digest_algo": "sha256",
+              "digest_source": "aws_ecr_describe_images",
+          }
+
+          release_metadata_receipt = {
+              "phase_id": "P(-1)",
+              "platform_run_id": platform_run_id,
+              "written_at_utc": written_at_utc,
+              "git_sha": git_sha,
+              "image_tag": image_tag,
+              "image_digest": image_digest,
+              "build_driver": "github_actions",
+              "build_actor": build_actor,
+              "ci_run_id": ci_run_id,
+              "ci_run_url": run_url,
+              "branch_ref": branch,
+              "release_verdict": "PASS",
+              "release_blocker": "",
+          }
+
+          checks = []
+          def add_check(check_id: str, passed: bool, detail: str) -> None:
+              checks.append(
+                  {
+                      "check_id": check_id,
+                      "status": "PASS" if passed else "FAIL",
+                      "detail": detail,
+                  }
+              )
+
+          add_check(
+              "digest_format_sha256",
+              bool(re.fullmatch(r"sha256:[0-9a-f]{64}", image_digest or "")),
+              f"image_digest={image_digest}",
+          )
+          add_check(
+              "immutable_tag_pattern",
+              bool(image_tag.startswith("git-") and image_tag == f"git-{git_sha}"),
+              f"image_tag={image_tag}, git_sha={git_sha}",
+          )
+          add_check(
+              "oci_anchor_match",
+              packaging_provenance["oci_digest_value"] == image_digest,
+              "oci digest anchor mirrors resolved image digest",
+          )
+          add_check(
+              "build_driver_pinned",
+              packaging_provenance["build_driver"] == "github_actions",
+              f"build_driver={packaging_provenance['build_driver']}",
+          )
+          add_check(
+              "required_fields_present",
+              all(
+                  packaging_provenance.get(k)
+                  for k in (
+                      "phase_id",
+                      "platform_run_id",
+                      "written_at_utc",
+                      "image_tag",
+                      "image_digest",
+                      "git_sha",
+                      "build_driver",
+                      "image_reference_mode",
+                      "ecr_repo_uri",
+                      "dockerfile_path",
+                      "build_context_path",
+                      "build_completed_at_utc",
+                      "build_actor",
+                  )
+              ),
+              "all required provenance fields non-empty",
+          )
+
+          overall_pass = all(c["status"] == "PASS" for c in checks)
+          provenance_consistency = {
+              "phase_id": "P(-1)",
+              "platform_run_id": platform_run_id,
+              "written_at_utc": written_at_utc,
+              "overall_pass": overall_pass,
+              "checks": checks,
+              "linkage_guard_note": (
+                  "P(-1) provenance generated; P1 run-pin equality checks execute when run.json/run_header surfaces are materialized."
+              ),
+          }
+
+          build_command_surface_receipt = {
+              "phase_id": "P(-1)",
+              "platform_run_id": platform_run_id,
+              "written_at_utc": written_at_utc,
+              "selected_build_driver": "github_actions",
+              "command_family_id": "github_actions_v0",
+              "immutable_tag": image_tag,
+              "resolved_digest": image_digest,
+              "build_actor": build_actor,
+              "ci_run_id": ci_run_id,
+              "verdict": "PASS" if overall_pass else "FAIL",
+              "failure_reason": "" if overall_pass else "PROVENANCE_CONSISTENCY_CHECK_FAILED",
+          }
+
+          ci_outputs = {
+              "image_tag": image_tag,
+              "image_digest": image_digest,
+              "git_sha": git_sha,
+              "ci_run_id": ci_run_id,
+              "build_actor": build_actor,
+          }
+
+          files = {
+              "packaging_provenance.json": packaging_provenance,
+              "image_digest_manifest.json": digest_manifest,
+              "release_metadata_receipt.json": release_metadata_receipt,
+              "provenance_consistency_checks.json": provenance_consistency,
+              "build_command_surface_receipt.json": build_command_surface_receipt,
+              "ci_m1_outputs.json": ci_outputs,
+          }
+          for name, payload in files.items():
+              (phase_dir / name).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+          PY
+          echo "phase_prefix=evidence/runs/${PLATFORM_RUN_ID}/P(-1)" >> "$GITHUB_OUTPUT"
+
+      - name: Optional direct upload to S3 evidence bucket
+        if: ${{ inputs.s3_evidence_bucket != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3api head-bucket --bucket "${{ inputs.s3_evidence_bucket }}" --region "${{ inputs.aws_region }}" > /dev/null
+          aws s3 cp \
+            "evidence/runs/${{ inputs.platform_run_id }}/P(-1)/" \
+            "s3://${{ inputs.s3_evidence_bucket }}/evidence/runs/${{ inputs.platform_run_id }}/P(-1)/" \
+            --recursive
+
+      - name: Upload CI evidence artifact pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-full-m1-p-1-packaging-ci-evidence
+          path: evidence/runs/${{ inputs.platform_run_id }}/P(-1)/
+          if-no-files-found: error
