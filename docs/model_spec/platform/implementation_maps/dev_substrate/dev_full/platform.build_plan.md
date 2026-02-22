@@ -280,7 +280,8 @@ M2 planning posture:
 - `M2.C` execution is now closed (`PASS`) with full apply/evidence closure:
   - `runs/dev_substrate/dev_full/m2/m2c_20260222T222113Z/m2c_execution_summary.json` (`overall_pass=true`, blockers=`0`).
   - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2c_20260222T222113Z/`.
-- M2 phase execution remains active for `M2.C` onward.
+- `M2.D` is now expanded to execution-grade planning (`M2D-B*`, command surface, topic/schema/SR-authority evidence contracts).
+- M2 phase execution remains active for `M2.D` onward.
 
 DoD anchors:
 - [ ] all five stacks apply cleanly.
@@ -535,4 +536,4 @@ This rule is binding for all phases M1..M13.
 - No destructive git commands.
 
 ## 11) Next Action
-- Continue active phase `M2` by closing `M2.C` full apply/evidence lane after `M2C-B1` clearance.
+- Continue active phase `M2` by executing `M2.D` topic/schema readiness precheck and adjudicating `M2D-B*` blockers to blocker-free closure.

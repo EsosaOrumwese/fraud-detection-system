@@ -1919,11 +1919,107 @@ Goal:
 Scope:
 - `validation_policy_5B` threshold keys and modes.
 - contract/schema alignment and implementation references.
+- `S5` validation runner policy-consumption behavior for temporal and calibration sentinels.
 
 Definition of done:
 - [ ] new/updated policy keys are contract-pinned and consumed by runner logic.
 - [ ] ambiguity in local-time semantics is removed in docs/contracts.
 - [ ] validation outputs include required sentinel metrics for governance.
+
+#### P3.1 - Policy/schema delta inventory and pin set (no code edits)
+Objective:
+- produce an explicit, minimal contract pin-set for the realism thresholds currently enforced implicitly or via env fallbacks.
+
+Pin-set to define:
+- civil-time gates:
+  - `max_civil_mismatch_rate`,
+  - `max_one_hour_shift_rate`,
+  - `dst_window_hour_bin_mae_pp_max`,
+  - `dst_window_min_support`,
+  - `dst_window_min_exposed_windows`,
+  - `dst_window_min_total_support`.
+- calibration gates:
+  - `top10_tz_share_max_b`,
+  - `top10_tz_share_max_bplus`,
+  - `virtual_share_min_b`, `virtual_share_max_b`,
+  - `virtual_share_min_bplus`, `virtual_share_max_bplus`,
+  - `weekend_share_delta_pp_max_b`,
+  - `weekend_share_delta_pp_max_bplus`,
+  - `residual_std_min_b`, `residual_std_max_b`,
+  - `residual_std_min_bplus`, `residual_std_max_bplus`.
+
+File targets:
+- `config/layer2/5B/validation_policy_5B.yaml`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+
+Definition of done:
+- [ ] every active realism gate threshold used in `P1/P2` scoring is represented in policy key form.
+- [ ] schema is expanded to admit the pinned keys (strict schema compatibility preserved).
+- [ ] no unresolved threshold source remains in env-only behavior for closure-critical gates.
+
+#### P3.2 - Runner policy-consumption hardening (`5B.S5`)
+Objective:
+- move `S5` realism gating to policy-first semantics for closure-critical thresholds and sentinel checks.
+
+Scope:
+- `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
+
+Required behavior:
+- policy keys in `P3.1` become primary source for gate thresholds.
+- env overrides become non-authoritative diagnostics-only path (or explicitly disabled for closure lane).
+- fail-closed behavior remains enforced for hard temporal gates.
+
+Definition of done:
+- [ ] `S5` reads and enforces policy-pinned temporal and calibration thresholds.
+- [ ] closure-critical thresholds are no longer silently defaulted in code paths.
+- [ ] run-report includes explicit threshold provenance (`policy_path`, key names, resolved values).
+
+#### P3.3 - Sentinel artifact and bundle surface hardening
+Objective:
+- make realism sentinel metrics first-class artifacts under validation bundle governance.
+
+Scope:
+- `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/dataset_dictionary.layer2.5B.yaml` (if new sentinel dataset id is required)
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/artefact_registry_5B.yaml` (if registry entry changes are required)
+
+Sentinel minimum set:
+- `T1/T2/T3/T6/T7/T8/T9/T11/T12` numeric metrics and gate verdicts.
+
+Definition of done:
+- [ ] sentinel metric payload is emitted deterministically in validation outputs.
+- [ ] bundle index includes sentinel payload artifact (or embeds equivalent fields with stable schema).
+- [ ] scorer scripts consume the same sentinel fields without ad-hoc parsing drift.
+
+#### P3.4 - Local-time representation contract pinning
+Objective:
+- remove ambiguity between UTC canonical timestamps and local wall-clock representation across `S4` producer and `S5` validator.
+
+Scope:
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s4.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s5.expanded.md`
+- `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml` (if field-level semantic annotations are needed)
+
+Definition of done:
+- [ ] producer/validator local-time semantics are explicitly specified and consistent.
+- [ ] contract text prohibits ambiguous UTC-marker reuse for local wall-clock fields.
+- [ ] `T12` semantic intent is directly traceable to contract text.
+
+#### P3.5 - P3 closure scoring and handoff decision
+Objective:
+- verify Wave C hardening without reopening calibration behavior.
+
+Execution lane:
+- if only policy/schema/runner validation logic changes: rerun `5B: S5`.
+- if local-time serialization semantics change in `S4`: rerun `5B: S4 -> S5`.
+- then rescore:
+  - `tools/score_segment5b_p1_realism.py`
+  - `tools/score_segment5b_p2_calibration.py`
+
+Definition of done:
+- [ ] retained `P2` calibration posture is preserved (`T6/T7` no regression beyond veto tolerance).
+- [ ] hard rails remain pass.
+- [ ] explicit handoff decision recorded: `UNLOCK_P4` or `HOLD_P3_REMEDIATE`.
 
 ### P4 - Multi-seed certification and robustness lock
 Goal:
@@ -1971,4 +2067,5 @@ Definition of done:
 12. `P2.U2.2` trigger lane is closed with `SKIP_P2_U2_2_3B_CODE`.
 13. `P2.U2.3` branch closure is recorded as `HOLD_P2_UPSTREAM_REOPEN`.
 14. `P2.U3` is closed with `KEEP_u3_1_c1` and lane decision `UNLOCK_P3`.
-15. Active lane: `P3` (Wave C contract hardening).
+15. `P3` is expanded to execution-grade (`P3.1 -> P3.5`) with explicit policy/schema/runner/contract lanes.
+16. Active step: `P3.1` (policy/schema delta inventory and pin set).

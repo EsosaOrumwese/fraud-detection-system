@@ -72,6 +72,30 @@ realism_checks:
     require_country_mix_close_if_virtual: true
     ip_country_max_abs_dev: 0.05
 
+civil_time_gates:
+  max_civil_mismatch_rate: 0.005
+  max_one_hour_shift_rate: 0.001
+  dst_window_hour_bin_mae_pp_max: 1.5
+  dst_window_min_support: 50
+  dst_window_min_exposed_windows: 3
+  dst_window_min_total_support: 2000
+
+calibration_sentinels:
+  evaluation_mode: warn_only
+  min_sample_rows: 25000
+  top10_tz_share_max_b: 0.72
+  top10_tz_share_max_bplus: 0.62
+  virtual_share_min_b: 0.03
+  virtual_share_max_b: 0.08
+  virtual_share_min_bplus: 0.05
+  virtual_share_max_bplus: 0.12
+  weekend_share_delta_pp_max_b: 0.20
+  weekend_share_delta_pp_max_bplus: 0.10
+  residual_std_min_b: 1.20
+  residual_std_max_b: 1.60
+  residual_std_min_bplus: 1.25
+  residual_std_max_bplus: 1.50
+
 failure_policy:
   mode: fail_closed
   max_warnings: 0

@@ -2105,3 +2105,50 @@ _As of 2026-02-22_
 ### Documentation updates completed
 1. Updated deep plan `platform.M2.build_plan.md` to mark M2.C DoD and checklist as complete with execution closure notes.
 2. Updated master plan `platform.build_plan.md` to mark M2.C closed and add PASS evidence references.
+
+## Entry: 2026-02-22 22:42:46 +00:00 - M2.D planning kickoff (topic/schema + SR authority)
+
+### Planning intent
+1. Expand M2.D from stub-level to execution-grade plan before any command execution.
+2. Ensure M2.D includes managed-first controls already pinned in authority docs:
+   - SR READY commit-authority checks (Step Functions only),
+   - schema/topic readiness under MSK+Glue posture,
+   - producer/consumer identity path checks for stream lanes.
+
+### Scope boundary for this pass
+1. Plan expansion only (no infra mutations, no runtime execution).
+2. Update deep M2 plan and master plan posture note for M2.D expansion.
+
+## Entry: 2026-02-22 22:45:32 +00:00 - M2.D expanded to execution-grade precheck lane (planning closure)
+
+### Problem
+1. M2.D in platform.M2.build_plan.md was still stub-level and could not be executed fail-closed.
+2. Master plan still pointed to stale M2.C next action, which creates phase-tracking drift.
+3. Managed-first controls (topic/schema readiness + SR Step Functions commit-authority) needed explicit M2.D enforcement before runtime-stack materialization in M2.E.
+
+### Decision process
+1. Chosen approach: expand M2.D to the same depth as M2.A-C (precheck, command surface, blocker taxonomy, evidence contract, closure rule).
+2. Alternatives considered:
+   - Keep M2.D high-level and resolve details during execution. Rejected as anti-cram drift risk.
+   - Move identity checks entirely to M2.E. Rejected because M2.D must still validate binding completeness and authority routing.
+3. Sequencing decision to avoid deadlock:
+   - M2.D validates binding completeness and ownership mapping now.
+   - Identity materialization remains M2.E responsibility.
+   - Any TO_PIN identity references are allowed only when explicitly routed to M2.E (no unknowns/no defaults).
+
+### What was patched
+1. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M2.build_plan.md
+   - Added M2.D decision-completeness precheck.
+   - Added M2.D execution contract and command surface.
+   - Added fail-closed blockers M2D-B1..M2D-B7.
+   - Added M2.D evidence artifacts (m2d_* suite) and closure rule.
+   - Added expected entry blockers for current planning reality.
+2. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md
+   - Added explicit note that M2.D is now execution-grade planned.
+   - Updated M2 phase posture from M2.C onward to M2.D onward.
+   - Updated Next Action to execute M2.D and adjudicate M2D-B* blockers.
+
+### Result
+1. M2.D is now executable with deterministic fail-closed rules and evidence outputs.
+2. Master plan and deep plan are phase-consistent (M2.D is the active lane).
+3. No runtime mutation was performed in this pass (planning-only closure).

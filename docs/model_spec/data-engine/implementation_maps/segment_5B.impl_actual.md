@@ -7998,3 +7998,68 @@ Decision and canonical posture:
 Storage hygiene completed:
 1) pruned superseded `u3_1_c1` backup directories after acceptance (`removed_count=16`).
 2) prune receipt emitted under `runs/fix-data-engine/segment_5B/reports/`.
+
+### Entry: 2026-02-22 22:26
+
+Planning lock: `P3` expanded to execution-grade (`P3.1 -> P3.5`) before any Wave C edits.
+
+Why `P3` planning is needed now:
+1) `P2` is now closed at `PASS_B` posture with retained candidate (`u3_1_c1`), so next risk is durability/regression rather than immediate calibration movement.
+2) current `S5` validation gate logic still relies on environment-driven thresholds for parts of civil-time/DST checks, while schema currently defines a narrower policy surface.
+3) remediation authority explicitly requires Wave C to pin semantics and thresholds in contract/policy form to prevent silent drift.
+
+Observed gap inventory used for planning:
+1) policy file exists (`config/layer2/5B/validation_policy_5B.yaml`) but does not yet expose full `P1/P2` realism threshold set as first-class keys.
+2) strict schema (`additionalProperties: false`) means any new thresholds/sentinels must be contract-added first.
+3) `S5` runner currently reads civil-time thresholds from env fallbacks in addition to policy; this is closure-fragile for governance.
+4) sentinel output requirements for `T6/T7/T8/T9` exist in scorer paths but are not yet contract-pinned as a durable validation surface.
+
+Chosen planning structure:
+1) `P3.1` policy/schema pin-set inventory.
+2) `P3.2` runner policy-consumption hardening.
+3) `P3.3` sentinel artifact and bundle-surface hardening.
+4) `P3.4` local-time representation contract pinning (`S4/S5` docs/contracts).
+5) `P3.5` closure scoring + handoff decision (`UNLOCK_P4` vs `HOLD_P3_REMEDIATE`).
+
+Execution-lane matrix pinned in plan:
+1) policy/schema/validation-only edits -> rerun `5B.S5` then rescore.
+2) if local-time serialization semantics in `S4` change -> rerun `5B.S4 -> S5` then rescore.
+
+Decision:
+1) active step is now `P3.1` (inventory + pin set), with no code changes executed in this entry.
+
+### Entry: 2026-02-22 22:54
+
+Execution planning lock before Wave C code edits (`P3.1 -> P3.5` implementation lane).
+
+Concrete gap confirmation from live code/contract inspection:
+1) `S5` civil-time thresholds (`civil_mismatch_limit`, DST support minima) are currently sourced from env vars with hardcoded defaults, not policy-first.
+2) `validation_policy_5B` schema in `schemas.5B.yaml` currently has no explicit threshold surface for:
+   - civil mismatch rate,
+   - one-hour shift signature bound,
+   - DST window MAE threshold,
+   - calibration sentinel thresholds (`T6/T7/T8/T9`).
+3) `validation_report_5B` schema already permits additional fields (`additionalProperties: true` in `schemas.layer2.yaml`), so sentinel emission can be added without Layer-2 schema breakage.
+
+Alternatives considered and decision:
+1) Option A: keep env-threshold path and only document values in plan.
+   - rejected: fails Wave C objective; threshold provenance remains non-contractual.
+2) Option B: add policy keys, keep env as silent override precedence.
+   - rejected: still drift-prone and not audit-safe.
+3) Option C (chosen): add policy keys + schema pins, make policy authoritative in runner, keep env override only under explicit opt-in guard for diagnostics.
+   - accepted: preserves operational escape hatch while making closure behavior deterministic and auditable.
+
+Implementation shape selected:
+1) `P3.1`:
+   - extend `config/layer2/5B/validation_policy_5B.yaml` with:
+     - `civil_time_gates` (T1/T2/T3 thresholds + support minima),
+     - `calibration_sentinels` (T6/T7/T8/T9 thresholds + evaluation mode).
+   - extend `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml` accordingly.
+2) `P3.2/P3.3`:
+   - update `S5` runner to read policy-first thresholds, compute and emit sentinel metrics in `validation_report_5B`.
+   - add explicit threshold provenance in report payload.
+3) `P3.4`:
+   - add explicit local-time representation contract text in S4/S5 state docs (UTC canonical vs local wall-clock fields).
+4) `P3.5`:
+   - rerun `5B.S5` (no S4 semantic/code change planned),
+   - rerun `P1/P2` scoring and verify no regression on retained `P2` posture.

@@ -379,6 +379,101 @@ DoD:
 - [ ] SR READY commit-authority route is explicit and evidence-path contract is valid.
 - [ ] M2.D readiness snapshot committed.
 
+M2.D planning precheck (decision completeness):
+1. Required topic-handle set is pinned and non-empty:
+   - `FP_BUS_CONTROL_V1`
+   - `FP_BUS_TRAFFIC_FRAUD_V1`
+   - `FP_BUS_CONTEXT_ARRIVAL_EVENTS_V1`
+   - `FP_BUS_CONTEXT_ARRIVAL_ENTITIES_V1`
+   - `FP_BUS_CONTEXT_FLOW_ANCHOR_FRAUD_V1`
+   - `FP_BUS_RTDL_V1`
+   - `FP_BUS_AUDIT_V1`
+   - `FP_BUS_CASE_TRIGGERS_V1`
+   - `FP_BUS_LABELS_EVENTS_V1`
+2. Required stream substrate handles are pinned and queryable from M2.C outputs:
+   - `MSK_CLUSTER_ARN`, `MSK_BOOTSTRAP_BROKERS_SASL_IAM`, `SSM_MSK_BOOTSTRAP_BROKERS_PATH`
+   - `GLUE_SCHEMA_REGISTRY_NAME`, `GLUE_SCHEMA_COMPATIBILITY_MODE`
+3. Required SR commit-authority handles are pinned:
+   - `SR_READY_COMMIT_AUTHORITY`
+   - `SR_READY_COMMIT_STATE_MACHINE`
+   - `SR_READY_RECEIPT_REQUIRES_SFN_EXECUTION_REF`
+   - `SR_READY_COMMIT_RECEIPT_PATH_PATTERN`
+4. Required lane-binding identity handles are named and owned (materialization may be completed in M2.E):
+   - `ROLE_FLINK_EXECUTION`
+   - `ROLE_LAMBDA_IG_EXECUTION`
+   - `ROLE_APIGW_IG_INVOKE`
+   - `ROLE_DDB_IG_IDEMPOTENCY_RW`
+   - `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`
+5. Precheck closure condition for identity bindings in M2.D:
+   - binding matrix must be complete with no unknown handles,
+   - any `TO_PIN` identity handles must be explicitly routed to `M2.E` materialization (no implicit defaults).
+
+M2.D execution contract (planned):
+1. Preconditions:
+   - `M2.C` PASS evidence is present and unchanged.
+   - `dev_full_handles.registry.v0.md` is the active source for topic/schema/authority handle names.
+2. Topic/readiness precheck:
+   - every required topic handle resolves to one canonical topic name,
+   - topic names satisfy naming policy (`fp.bus.*.v1`) and uniqueness checks,
+   - cluster connectivity posture is queryable from bootstrap-broker and cluster-ARN surfaces.
+3. Schema precheck:
+   - Glue schema registry exists and matches pinned compatibility mode,
+   - anchor schema surface is present and readable.
+4. Lane binding precheck:
+   - producer/consumer ownership matrix exists for each required topic,
+   - every owner binding references a known role handle (no anonymous principal).
+5. SR authority precheck:
+   - READY commit authority is `step_functions_only`,
+   - referenced orchestrator state machine is resolvable,
+   - READY receipt path contract is syntactically valid and non-ambiguous.
+
+M2.D command surface (planned, execution-time):
+1. MSK + registry posture:
+   - `aws kafka describe-cluster-v2 --cluster-arn <MSK_CLUSTER_ARN> --region <MSK_REGION>`
+   - `aws ssm get-parameter --name <SSM_MSK_BOOTSTRAP_BROKERS_PATH> --with-decryption --region <AWS_REGION>`
+   - `aws glue get-registry --name <GLUE_SCHEMA_REGISTRY_NAME> --region <AWS_REGION>`
+2. SR authority posture:
+   - `aws stepfunctions describe-state-machine --state-machine-arn <resolved SR_READY_COMMIT_STATE_MACHINE ARN> --region <AWS_REGION>`
+3. Binding and policy precheck:
+   - role-handle presence checks against registry and IAM lookup where materialized,
+   - deterministic topic-owner matrix validation script (no unknown owner/no duplicate owner rows).
+4. Optional topic existence probe (when admin surface exists):
+   - bounded Kafka admin probe from managed identity lane to confirm required topic creation/readiness.
+
+M2.D fail-closed policy (planned):
+1. `M2D-B1`: required topic handle set missing, duplicated, or naming-drifted.
+2. `M2D-B2`: MSK/bootstrap surface unreadable or cluster not queryable.
+3. `M2D-B3`: schema registry missing/unreadable or compatibility mismatch.
+4. `M2D-B4`: lane-binding matrix incomplete or references unknown identities.
+5. `M2D-B5`: SR commit-authority contract drift (`SR_READY_COMMIT_AUTHORITY` mismatch, missing state-machine route, or invalid receipt-path contract).
+6. `M2D-B6`: optional topic-existence probe required for this environment but not executable.
+7. `M2D-B7`: evidence artifacts missing or inconsistent with command receipts.
+
+M2.D evidence contract (planned):
+1. `m2d_topic_surface_matrix.json`
+   - required topic handles, resolved names, naming/uniqueness checks.
+2. `m2d_schema_registry_snapshot.json`
+   - registry presence, compatibility-mode checks, anchor-schema presence checks.
+3. `m2d_lane_binding_matrix.json`
+   - producer/consumer owner map, role-handle references, unresolved-to-M2.E routing markers.
+4. `m2d_sr_commit_authority_snapshot.json`
+   - SR authority and Step Functions route conformance checks.
+5. `m2d_blocker_register.json`
+   - active `M2D-B*` blockers with severity/remediation.
+6. `m2d_execution_summary.json`
+   - rollup verdict (`overall_pass`), next gate (`M2.E_READY` or `BLOCKED`).
+
+M2.D expected entry blockers (current planning reality):
+1. `M2D-B4`: lane-binding matrix is not yet materialized as an auditable artifact.
+2. `M2D-B6`: topic-existence probe capability is not yet pinned as executable or waived.
+
+M2.D closure rule:
+1. M2.D can close only when:
+   - all `M2D-B*` blockers are resolved,
+   - all DoD checks are green,
+   - evidence artifacts are produced and readable,
+   - any unresolved identity materialization is explicitly handed off to M2.E with zero unknown bindings.
+
 ## M2.E Runtime Stack and IAM Role Posture
 Goal:
 - apply and validate `runtime/` stack and managed-first identity/control surfaces.
