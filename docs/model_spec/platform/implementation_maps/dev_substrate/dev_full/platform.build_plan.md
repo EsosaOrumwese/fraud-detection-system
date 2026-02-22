@@ -221,7 +221,8 @@ M1 planning posture:
 - `M1.A` has been expanded to execution-grade contract detail in the deep plan (strategy, boundary, blockers, evidence).
 - `M1.B` execution is closed (`PASS`); `ENTRYPOINT_MPR_RUNNER` mapping is now concrete and `M1-B2` is closed.
 - `M1.C` execution is closed (`PASS`); immutable digest and provenance evidence are emitted for `platform_20260222T194849Z` and `M1-B3` is closed.
-- `M1.D` is expanded to execution-grade security/secret-injection planning; `M1-B4` remains active until execution closure.
+- `M1.D` execution is closed (`PASS`) on managed CI run `22284273953`; required security artifacts are emitted and `M1-B4` is closed.
+- `M1.E` is expanded to execution-grade transition/handoff planning; `M1-B5` remains active until explicit M1 closeout adjudication.
 
 Planned lanes:
 - build, security/provenance, release evidence.
@@ -238,7 +239,7 @@ M1 sub-phase progress:
 - [x] `M1.A` image contract freeze.
 - [x] `M1.B` entrypoint matrix closure.
 - [x] `M1.C` provenance/evidence contract closure.
-- [ ] `M1.D` security/secret-injection contract closure.
+- [x] `M1.D` security/secret-injection contract closure.
 - [ ] `M1.E` build-go transition and blocker adjudication.
 
 ## M2 - Substrate Readiness

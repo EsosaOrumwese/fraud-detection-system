@@ -164,6 +164,25 @@ def _env_progress_interval_seconds(name: str, default: float = DEFAULT_PROGRESS_
     return value
 
 
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name, str(default))
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} invalid: {raw}") from exc
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name, f"{default}")
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} invalid: {raw}") from exc
+    if not math.isfinite(value):
+        raise ValueError(f"{name} invalid: {raw}")
+    return value
+
+
 def _emit_event(logger, event: str, manifest_fingerprint: Optional[str], severity: str, **fields: object) -> None:
     payload = {
         "event": event,
@@ -449,6 +468,7 @@ class EdgeAliasTables:
     prob: np.ndarray
     alias: np.ndarray
     edge_index: np.ndarray
+    edge_weight: np.ndarray
     key_to_table: dict[int, int]
 
 
@@ -565,17 +585,20 @@ def _build_edge_alias_tables(
     edge_catalogue_df = edge_catalogue_df.sort(["merchant_id", "edge_id"])
     edge_ids: list[int] = []
     edge_tzid_idx: list[int] = []
+    edge_weights: list[float] = []
     edges_by_merchant: dict[int, list[int]] = {}
     for row in edge_catalogue_df.iter_rows(named=True):
         merchant_id = int(row["merchant_id"])
         edge_id = str(row["edge_id"])
         tzid_operational = int(row["tzid_operational_idx"])
+        edge_weight = float(row.get("edge_weight") or 0.0)
         edge_index = len(edge_ids)
         edge_value = int(edge_id, 16)
         if edge_value == 0:
             raise InputResolutionError(f"edge_id cannot be 0 for merchant={merchant_id}")
         edge_ids.append(edge_value)
         edge_tzid_idx.append(tzid_operational)
+        edge_weights.append(edge_weight)
         edges_by_merchant.setdefault(merchant_id, []).append(edge_index)
 
     key_to_table: dict[int, int] = {}
@@ -612,6 +635,7 @@ def _build_edge_alias_tables(
             prob=np.array(prob_values, dtype=np.float64),
             alias=np.array(alias_values, dtype=np.int64),
             edge_index=np.array(edge_index_values, dtype=np.int32),
+            edge_weight=np.array(edge_weights, dtype=np.float64),
             key_to_table=key_to_table,
         ),
         np.array(edge_ids, dtype=np.uint64),

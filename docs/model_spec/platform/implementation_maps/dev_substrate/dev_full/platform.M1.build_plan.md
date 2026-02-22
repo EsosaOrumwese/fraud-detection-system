@@ -390,9 +390,9 @@ Tasks:
 3. Define packaging-time leakage checks (context lint + env policy).
 
 DoD:
-- [ ] no-baked-secret policy explicit and testable.
-- [ ] runtime secret source contract explicit.
-- [ ] leak-check criteria defined for build-go.
+- [x] no-baked-secret policy explicit and testable.
+- [x] runtime secret source contract explicit.
+- [x] leak-check criteria defined for build-go.
 
 M1.D planning precheck (decision completeness):
 1. `M1-B1` (ECR handle) is closed and no longer blocks packaging execution.
@@ -489,6 +489,50 @@ M1.D blocker adjudication contract (planned):
    - `M1D-B4`: security evidence artifact contract incomplete or non-executable.
    - `M1D-B5`: security check failure in build-go execution.
 
+M1.D execution closure (2026-02-22):
+1. Managed execution carrier:
+   - workflow id: `dev_min_m1_packaging` (executed on `ref=migrate-dev`).
+   - security profile: `secret_contract_profile=dev_full`.
+2. Authoritative pass run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22284273953`
+   - platform run id: `platform_20260222T200115Z`.
+3. Managed step closure:
+   - `Run M1.D security and secret-injection checks` completed `success` before build/push finalization.
+4. Evidence artifact pack (CI download mirror):
+   - `runs/dev_substrate/dev_full/m1/m1d_20260222T200233Z/m1-p-1-packaging-ci-evidence/`
+   - includes mandatory M1.D artifacts:
+     - `security_secret_injection_checks.json`
+     - `secret_source_contract_receipt.json`
+     - `build_context_secret_scan.json`
+5. Security verdict highlights:
+   - `security_secret_injection_checks.json`:
+     - `verdict=PASS`,
+     - blocker codes empty,
+     - Dockerfile secret env/copy hits = `0`,
+     - build-context findings = `0`.
+   - `secret_source_contract_receipt.json`:
+     - `secrets_backend=ssm_and_secrets_manager`,
+     - required secret-path handle list count = `12`,
+     - runtime materialization ownership explicitly deferred to `M2+`.
+   - `build_context_secret_scan.json`:
+     - scanned files count = `360`,
+     - findings count = `0`,
+     - summary pass = `true`.
+6. Execution rollup snapshot:
+   - `runs/dev_substrate/dev_full/m1/m1d_20260222T200233Z/m1d_execution_snapshot.json`
+   - `overall_pass=true`, active blockers empty.
+
+M1.D blocker adjudication (execution):
+1. `M1D-B1` Dockerfile/build-context secret injection risk unresolved: CLOSED.
+2. `M1D-B2` static credential rejection posture missing/bypassable: CLOSED.
+3. `M1D-B3` runtime secret source mapping incomplete: CLOSED.
+4. `M1D-B4` security evidence artifact contract incomplete/non-executable: CLOSED.
+5. `M1D-B5` security check failure in build-go execution: CLOSED.
+
+M1.D verdict:
+1. `PASS` (execution closure complete).
+2. Phase-level blocker `M1-B4` is now closed.
+
 ## M1.E Build-Go Transition and Blocker Adjudication
 Goal:
 - make M1 execution start deterministic and fail-closed.
@@ -503,11 +547,93 @@ DoD:
 - [ ] blocker register exists with clear owner/action.
 - [ ] M1 closure evidence contract is explicit.
 
+M1.E planning precheck (decision completeness):
+1. `M1-B1` (`ECR_REPO_URI`) is closed.
+2. `M1-B2` (entrypoint contract coverage) is closed.
+3. `M1-B3` (provenance/evidence ambiguity) is closed.
+4. `M1-B4` (security/secret-injection posture) is closed.
+5. `M1-B5` remains the only active M1 blocker and is owned by this lane.
+
+M1.E build-go preconditions (planned, mandatory):
+1. Packaging identity and provenance surfaces remain pinned:
+   - `IMAGE_BUILD_DRIVER=github_actions`
+   - `IMAGE_REFERENCE_MODE=immutable_preferred`
+   - `IMAGE_TAG_GIT_SHA_PATTERN` contract preserved (`git-{git_sha}`).
+2. Managed workflow lane readiness:
+   - default-branch dispatchable workflow id exists for packaging lane,
+   - active-branch code path is targetable via `--ref`,
+   - OIDC role for workflow has required ECR permissions for target repository.
+3. Required `P(-1)` evidence objects are present and coherent:
+   - `packaging_provenance.json`,
+   - `image_digest_manifest.json`,
+   - `release_metadata_receipt.json`,
+   - `provenance_consistency_checks.json`,
+   - `security_secret_injection_checks.json`,
+   - `secret_source_contract_receipt.json`,
+   - `build_context_secret_scan.json`.
+4. Digest integrity posture:
+   - ECR-resolved digest equals CI-recorded digest,
+   - immutable tag resolves to same digest and same `git_sha`.
+5. Security posture:
+   - no secret findings in build-context scan,
+   - no blocker codes in security checks,
+   - `SECRETS_BACKEND=ssm_and_secrets_manager` in contract receipt.
+
+M1.E no-go conditions (planned, fail-closed):
+1. Any active `M1-B*` blocker remains unresolved.
+2. Managed workflow cannot be dispatched/replayed under pinned driver posture.
+3. Any required `P(-1)` evidence object missing/unreadable.
+4. Any digest mismatch across ECR, provenance, and receipt surfaces.
+5. Any security scan failure or secret leakage finding.
+6. Any unresolved branch/workflow execution ambiguity that would force local-only fallback.
+
+M1.E blocker register contract (planned):
+1. Severity classes:
+   - `S1` hard blocker: invalidates M1 closure immediately,
+   - `S2` transition blocker: allows analysis but blocks handoff to M2,
+   - `S3` advisory: must be recorded with rationale if accepted.
+2. Required blocker fields:
+   - `blocker_id`, `severity`, `owner_lane`, `detected_at_utc`, `evidence_ref`, `resolution_action`, `resolution_status`.
+3. Lane-specific blockers for M1.E:
+   - `M1E-B1`: build-go precondition set incomplete.
+   - `M1E-B2`: workflow-dispatch path ambiguous under pinned driver posture.
+   - `M1E-B3`: closure evidence bundle incomplete or inconsistent.
+   - `M1E-B4`: unresolved cross-lane blocker carried without explicit acceptance.
+   - `M1E-B5`: M1->M2 handoff gate ambiguity.
+
+M1.E closure evidence contract (planned):
+1. Required closure artifacts:
+   - `m1_closure_blocker_register.json`
+   - `m1_build_go_transition_receipt.json`
+   - `m1_handoff_readiness_snapshot.json`
+2. Artifact placement:
+   - local mirror: `runs/dev_substrate/dev_full/m1/<execution_id>/`
+   - canonical contract path (when evidence bucket materializes in M2): `EVIDENCE_PHASE_PREFIX_PATTERN` with `phase_id="P(-1)"`.
+3. `m1_build_go_transition_receipt.json` minimum fields:
+   - `phase_id`, `platform_run_id`, `image_tag`, `image_digest`, `git_sha`, `build_driver`, `workflow_run_id`, `workflow_run_url`, `transition_verdict`.
+4. `m1_handoff_readiness_snapshot.json` minimum fields:
+   - `m1_subphase_status` (`A..E`),
+   - `active_blockers` list,
+   - `m2_entry_gate_ready` boolean,
+   - `notes` and explicit `fail_closed` flag.
+
+M1.E validation method (planned):
+1. Compile closure inputs from M1.A..M1.D execution artifacts and run metadata.
+2. Evaluate no-go conditions and blocker severity matrix.
+3. Emit closure artifacts with deterministic verdicts.
+4. Mark M1 `DONE` only if:
+   - `M1.E` verdict is `PASS`,
+   - `M1-B5` is closed,
+   - no residual `S1/S2` blockers remain.
+
+M1.E execution boundary note (planned):
+1. `M1.E` does not perform new image builds by default; it adjudicates build-go closure from existing managed evidence unless rerun is required for contradiction resolution.
+
 ## 6) Blocker Taxonomy (M1)
 - `M1-B1`: `ECR_REPO_URI` unresolved (hard blocker for packaging execution) - `CLOSED` (2026-02-22).
 - `M1-B2`: entrypoint coverage incomplete for required lanes - `CLOSED` (2026-02-22).
 - `M1-B3`: provenance/evidence contract ambiguous or inconsistent - `CLOSED` (2026-02-22).
-- `M1-B4`: secret posture incomplete or leakage checks undefined.
+- `M1-B4`: secret posture incomplete or leakage checks undefined - `CLOSED` (2026-02-22).
 - `M1-B5`: build-go transition remains ambiguous.
 
 Any active `M1-B*` blocker prevents M1 execution closure.
@@ -516,7 +642,7 @@ Any active `M1-B*` blocker prevents M1 execution closure.
 - [x] M1.A complete.
 - [x] M1.B complete.
 - [x] M1.C complete.
-- [ ] M1.D complete.
+- [x] M1.D complete.
 - [ ] M1.E complete.
 - [ ] M1 blockers resolved or explicitly pinned for no-go.
 - [ ] M1 closure note appended in implementation map.

@@ -7632,3 +7632,35 @@ Artifacts pinned:
 Phase branch decision:
 1) `HOLD_P2_UPSTREAM_REOPEN`.
 2) reason: T7 owner lane is now green; residual blocker is T6 concentration closure.
+
+### Entry: 2026-02-22 20:00
+
+Design lock: `P2.4` local deterministic concentration-tempering lane for residual `T6`.
+Summary: after `P2.U1.C1`, only `T6` remains red. This lane keeps `3B` owner changes frozen and opens a bounded `5B.S4` code path that redistributes virtual-edge picks away from high-concentration tzids using existing merchant support only.
+
+Chosen mechanism (deterministic, no synthetic support):
+1) identify top-K operational tzids from `edge_catalogue_3B` weighted by `edge_weight`.
+2) for each merchant, build an alternate alias table over that merchant’s existing non-top-K edges (if any).
+3) during virtual routing in kernel:
+   - draw edge as usual from full alias table using `e0`,
+   - if selected edge is top-K and merchant has non-top table, use `e1` as deterministic coin;
+   - with configured probability, redirect to non-top table using the same `e0` uniform.
+4) no new RNG draws, no new tzids, no cross-merchant borrowing.
+
+Why this lane:
+1) closes residual concentration with local `S4` ownership while preserving upstream freeze.
+2) preserves count conservation and routing integrity invariants.
+3) avoids expensive repeated `3B.S2` reopen cycles for a now-non-owner axis.
+
+Controls and bounded sweep posture:
+1) lane is opt-in via env knobs (default off):
+   - `ENGINE_5B_S4_TZ_TEMPER_ENABLE`,
+   - `ENGINE_5B_S4_TZ_TEMPER_TOPK`,
+   - `ENGINE_5B_S4_TZ_TEMPER_REDIRECT_P`.
+2) bounded candidates planned:
+   - `redirect_p in {0.35, 0.55}` with `topk=10`.
+3) each candidate reruns `5B.S4->S5` only, then rescoring `P1/P2`.
+
+Acceptance/veto:
+1) accept only if `T6<=72%` and `T7` remains in-band and frozen rails remain green.
+2) if not closed in bounded attempts, keep best candidate evidence and retain hold posture.

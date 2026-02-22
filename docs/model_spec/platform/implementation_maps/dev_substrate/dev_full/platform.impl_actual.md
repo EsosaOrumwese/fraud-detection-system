@@ -1175,3 +1175,125 @@ _As of 2026-02-22_
 ### Current status
 1. M1.D is planning-complete (expanded) but not execution-closed.
 2. M1-B4 remains active pending M1.D execution evidence.
+
+## Entry: 2026-02-22 19:59:04 +00:00 - M1.D execution kickoff (managed security lane)
+
+### Trigger
+1. USER directed full execution of M1.D with detailed, in-progress reasoning capture.
+
+### Execution intent
+1. Execute M1.D as a managed build-lane security closure, not local-only checks.
+2. Produce required M1.D artifacts under P(-1):
+   - security_secret_injection_checks.json
+   - secret_source_contract_receipt.json
+   - uild_context_secret_scan.json
+
+### Decision points before implementation
+1. Dedicated dev_full workflow cannot be dispatched until present on default branch (GitHub workflow discovery constraint).
+2. Existing default-branch workflow id (dev_min_m1_packaging) can run on ef=migrate-dev; selected as managed execution carrier for M1.D closure.
+3. Security checks will be implemented inline in workflow to avoid local-script-only drift and preserve auditable CI behavior.
+
+## Entry: 2026-02-22 20:00:37 +00:00 - M1.D workflow implementation decisions
+
+### Why workflow-level implementation was selected
+1. M1.D closure requires managed, auditable checks tied to build-go lane.
+2. Local-only scanning would not satisfy managed execution proof requirements.
+
+### Implemented controls in managed workflow (dev_min_m1_packaging on ef=migrate-dev)
+1. Added optional input secret_contract_profile (dev_min|dev_full) so one managed workflow can carry both security contracts without branch-level workflow id drift.
+2. Inserted pre-build fail-closed step Run M1.D security and secret-injection checks:
+   - scans Dockerfile for secret-bearing ARG/ENV tokens,
+   - scans Dockerfile copy/add lines for high-risk secret file patterns,
+   - scans Dockerfile COPY source roots for banned file-name/content secret signatures,
+   - emits security_secret_injection_checks.json, secret_source_contract_receipt.json, uild_context_secret_scan.json,
+   - exits non-zero on any policy violation.
+3. Added receipt assertion guards in artifact-emission step to ensure the three M1.D artifacts always exist before upload.
+
+### Tradeoffs evaluated
+1. Option: create separate local script and call it from workflow.
+   - rejected to avoid additional local-script dependency drift and to keep contract logic in one auditable CI surface.
+2. Option: scan entire repo recursively.
+   - rejected for efficiency and relevance reasons; selected bounded scan over Dockerfile COPY source roots to align with actual image content surface.
+3. Option: enforce runtime secret materialization in M1.
+   - rejected as phase-boundary drift; M1 records contract handles, M2+ proves materialization/retrieval.
+
+### Validation performed
+1. Workflow YAML parse check passed locally after patch.
+
+## Entry: 2026-02-22 20:04:02 +00:00 - M1.D managed run execution and closure
+
+### Run execution
+1. Triggered managed workflow with dev_full security profile:
+   - workflow id: dev_min_m1_packaging
+   - ref: migrate-dev
+   - run: https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22284273953
+   - inputs included secret_contract_profile=dev_full and dev_full ECR handles.
+2. Run result:
+   - overall workflow: success.
+   - security gate step: Run M1.D security and secret-injection checks passed before build/push finalization.
+
+### Evidence validation decisions
+1. Downloaded CI artifact pack locally for deterministic audit mirror:
+   - uns/dev_substrate/dev_full/m1/m1d_20260222T200233Z/m1-p-1-packaging-ci-evidence/.
+2. Verified required M1.D artifacts and content:
+   - security_secret_injection_checks.json: erdict=PASS, blocker codes empty.
+   - secret_source_contract_receipt.json: secrets_backend=ssm_and_secrets_manager, required dev_full path-handle list present.
+   - uild_context_secret_scan.json: scanned_files=360, indings_count=0, summary pass true.
+3. Built execution rollup snapshot:
+   - uns/dev_substrate/dev_full/m1/m1d_20260222T200233Z/m1d_execution_snapshot.json
+   - overall_pass=true.
+
+### Blocker adjudication
+1. M1D-B1..M1D-B5: all closed by passing managed security evidence.
+2. Phase blocker M1-B4 closed.
+
+### Plan/status updates
+1. Updated platform.M1.build_plan.md:
+   - marked M1.D DoD complete,
+   - added M1.D execution closure evidence,
+   - closed M1-B4 in taxonomy,
+   - marked M1.D complete in M1 checklist.
+2. Updated platform.build_plan.md:
+   - synced M1 posture and sub-phase progress (M1.D closed).
+
+### Residual M1 scope
+1. Remaining open lane is M1.E only (M1-B5 path).
+
+## Entry: 2026-02-22 20:05:10 +00:00 - M1.E planning kickoff (build-go transition and blocker adjudication)
+
+### Trigger
+1. USER requested planning expansion for M1.E.
+
+### Planning objective
+1. Convert M1.E from stub to execution-grade transition lane with explicit build-go gates.
+2. Close ambiguity around final M1 closure evidence and blocker adjudication (M1-B5).
+
+### Current preconditions observed
+1. M1.A..M1.D are now execution-closed.
+2. Remaining M1 closure scope is transition governance (M1.E) only.
+3. Branch/workflow constraints remain relevant: workflow ids must exist on default branch for direct dispatch.
+
+## Entry: 2026-02-22 20:06:02 +00:00 - M1.E planning expansion completed
+
+### What was added to M1.E
+1. Decision-completeness precheck showing M1-B5 as sole active blocker.
+2. Explicit build-go preconditions tied to pinned handles and managed workflow posture.
+3. Fail-closed no-go condition set.
+4. Severity-based blocker register contract and M1E-B1..B5 taxonomy.
+5. Closure evidence contract with explicit artifact names and required fields.
+6. Validation method and M1->M2 handoff gate rules.
+
+### Key design decisions
+1. Kept M1.E as adjudication/handoff lane, not mandatory rebuild lane.
+2. Required closure to be evidence-driven from M1.A..M1.D outputs unless contradictions force rerun.
+3. Kept fail-closed posture: no M1 DONE if any S1/S2 blocker remains.
+
+### Files updated
+1. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M1.build_plan.md
+   - expanded M1.E to execution-grade planning.
+2. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md
+   - synced M1 posture to reflect expanded M1.E and active M1-B5.
+
+### Current status
+1. M1.E is planning-complete (expanded), execution pending.
+2. M1-B5 remains active until M1.E execution closure.
