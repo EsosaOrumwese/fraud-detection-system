@@ -551,3 +551,24 @@ _As of 2026-02-22_
 
 ### Next lane
 1. `M0.D` TO_PIN dependency backlog lock.
+
+## Entry: 2026-02-22 19:42 +00:00 - M0.D planned and executed (TO_PIN dependency backlog lock)
+
+### Scope
+1. Executed M0.D within build-plan docs only.
+2. No external planning artifact files created.
+
+### Actions performed
+1. Classified every `TO_PIN` handle from `dev_full_handles.registry.v0.md` Section 14 into dependency classes.
+2. Mapped earliest blocked phase per handle (`M1` for `ECR_REPO_URI`; `M2` for remaining unresolved handles).
+3. Pinned explicit materialization order (`M0.D-1`..`M0.D-4`) and owner lanes.
+4. Recorded verification surfaces for each handle in-plan.
+
+### Outcome
+1. M0.D DoD checks are complete.
+2. M0 completion checklist now marks M0.D complete.
+3. Master plan marks M0.D sub-phase complete.
+4. Master M0 DoD line for TO_PIN dependency ordering is now satisfied.
+
+### Next lane
+1. `M0.E` exit-readiness and M1 transition pin.

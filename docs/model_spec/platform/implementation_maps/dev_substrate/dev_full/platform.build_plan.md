@@ -170,7 +170,7 @@ Implementation tasks:
 M0 DoD checklist:
 - [ ] `M0.PR0`..`M0.PR5` all satisfied and evidenced.
 - [ ] Authority trio validated without unresolved contradictions.
-- [ ] `TO_PIN` list accepted as fail-closed materialization backlog with dependency ordering.
+- [x] `TO_PIN` list accepted as fail-closed materialization backlog with dependency ordering.
 - [x] Deep M0 plan exists and is execution-grade (`platform.M0.build_plan.md`).
 - [ ] M1 transition protocol is pinned with explicit go/no-go checks.
 - [ ] M0 closure evidence recorded in impl map + logbook.
@@ -192,7 +192,7 @@ M0 sub-phase progress:
 - [x] `M0.A` authority freeze and precedence validation.
 - [x] `M0.B` planning topology lock.
 - [x] `M0.C` authority alignment matrix closure pass.
-- [ ] `M0.D` TO_PIN dependency backlog lock.
+- [x] `M0.D` TO_PIN dependency backlog lock.
 - [ ] `M0.E` exit-readiness and M1 transition pin.
 
 ---

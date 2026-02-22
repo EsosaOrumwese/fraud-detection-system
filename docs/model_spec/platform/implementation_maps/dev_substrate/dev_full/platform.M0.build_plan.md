@@ -153,6 +153,9 @@ M0.C alignment closure notes (in-plan):
 Goal:
 - shape unresolved handles into ordered, fail-closed materialization plan.
 
+Status:
+- `DONE` (dependency classification, phase-block mapping, and materialization order pinned).
+
 Current `TO_PIN` set from registry Section 14:
 1. `ROLE_TERRAFORM_APPLY_DEV_FULL`
 2. `ROLE_EKS_NODEGROUP_DEV_FULL`
@@ -178,12 +181,45 @@ Tasks:
 3. Pin materialization order for closure (who/where/how checked).
 
 DoD:
-- [ ] all TO_PIN items dependency-classified.
-- [ ] phase-entry blockers mapped per item.
-- [ ] materialization order published.
+- [x] all TO_PIN items dependency-classified.
+- [x] phase-entry blockers mapped per item.
+- [x] materialization order published.
 
 Evidence target:
 - this file (`M0.D TO_PIN dependency backlog` section).
+
+M0.D TO_PIN dependency backlog (in-plan):
+
+| TO_PIN handle | Dependency class | Earliest blocked phase | Owner lane | Verification surface |
+| --- | --- | --- | --- | --- |
+| `ECR_REPO_URI` | runtime substrate | `M1` | packaging/release lane | ECR repo resolve + immutable tag push succeeds |
+| `ROLE_TERRAFORM_APPLY_DEV_FULL` | identity/iam | `M2` | infra apply lane | IAM role exists + assumed by IaC runner |
+| `ROLE_EKS_NODEGROUP_DEV_FULL` | identity/iam | `M2` | runtime infra lane | IAM role exists + bound to EKS nodegroup |
+| `ROLE_EKS_RUNTIME_PLATFORM_BASE` | identity/iam | `M2` | runtime infra lane | IAM role exists + IRSA/runtime policy binding |
+| `ROLE_STEP_FUNCTIONS_ORCHESTRATOR` | identity/iam | `M2` | orchestration lane | IAM role exists + SFN execution policy checks |
+| `ROLE_MWAA_EXECUTION` | identity/iam | `M2` | orchestration lane | IAM role exists + MWAA execution binding |
+| `ROLE_SAGEMAKER_EXECUTION` | identity/iam | `M2` | data_ml lane | IAM role exists + SageMaker execution binding |
+| `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS` | identity/iam | `M2` | data_ml lane | IAM role exists + Databricks trust/policy checks |
+| `MSK_CLUSTER_ARN` | runtime substrate | `M2` | streaming lane | MSK cluster exists + ARN resolved |
+| `MSK_BOOTSTRAP_BROKERS_SASL_IAM` | runtime substrate | `M2` | streaming lane | bootstrap brokers resolve + auth mode check |
+| `EKS_CLUSTER_ARN` | runtime substrate | `M2` | runtime infra lane | EKS cluster exists + ARN resolved |
+| `DBX_WORKSPACE_URL` | data/ml | `M2` | data_ml lane | workspace URL resolves + token path validated |
+| `AWS_BUDGET_NOTIFICATION_EMAIL` | ops/cost | `M2` | ops lane | budget notification channel configured |
+
+Materialization order (fail-closed):
+1. `M0.D-1` identity/iam foundations:
+   - `ROLE_TERRAFORM_APPLY_DEV_FULL`, `ROLE_EKS_NODEGROUP_DEV_FULL`, `ROLE_EKS_RUNTIME_PLATFORM_BASE`,
+   - `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`, `ROLE_MWAA_EXECUTION`, `ROLE_SAGEMAKER_EXECUTION`, `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`.
+2. `M0.D-2` substrate anchors:
+   - `ECR_REPO_URI`, `MSK_CLUSTER_ARN`, `MSK_BOOTSTRAP_BROKERS_SASL_IAM`, `EKS_CLUSTER_ARN`.
+3. `M0.D-3` data_ml endpoint:
+   - `DBX_WORKSPACE_URL`.
+4. `M0.D-4` ops/cost channel:
+   - `AWS_BUDGET_NOTIFICATION_EMAIL`.
+
+Block mapping summary:
+1. `M1` hard blocker if `ECR_REPO_URI` unresolved.
+2. `M2` hard blockers if any remaining TO_PIN handle unresolved.
 
 ## M0.E Exit Readiness and M1 Transition Pin
 Goal:
@@ -218,7 +254,7 @@ R4: Premature implementation pressure.
 - [x] M0.A complete.
 - [x] M0.B complete.
 - [x] M0.C complete.
-- [ ] M0.D complete.
+- [x] M0.D complete.
 - [ ] M0.E complete.
 - [ ] M0 prerequisite closure snapshot published.
 - [ ] M0 closure note appended in implementation map.
@@ -238,4 +274,4 @@ Handoff posture:
 Populate this section during M0 closure:
 1. `M0 prerequisite closure notes` (`M0.PR0..M0.PR5` status and evidence summary).
 2. `M0.C alignment closure notes` (final mismatch classification and blocker verdict): completed in Section `M0.C`.
-3. `M0.D TO_PIN dependency backlog` (dependency classes, phase blockers, materialization order).
+3. `M0.D TO_PIN dependency backlog` (dependency classes, phase blockers, materialization order): completed in Section `M0.D`.
