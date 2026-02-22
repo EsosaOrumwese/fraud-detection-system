@@ -959,11 +959,31 @@ Scope lock:
   - policy knobs, schemas/contracts, RNG law, routing/arrival law.
 
 Definition of done:
-- [ ] one bounded cadence retune is applied (no additional algorithmic lane changes).
-- [ ] compile gate passes for touched runners.
-- [ ] integrated witness `S2/S3/S4/S5` passes with structural non-regression.
-- [ ] paired `S4` overhead versus low-verbosity control is recomputed and archived.
-- [ ] explicit decision recorded (`UNLOCK_POPT5_CONTINUE` or `HOLD_POPT4_REOPEN`).
+- [x] one bounded cadence retune is applied (no additional algorithmic lane changes).
+- [x] compile gate passes for touched runners.
+- [x] integrated witness `S2/S3/S4/S5` passes with structural non-regression.
+- [x] paired `S4` overhead versus low-verbosity control is recomputed and archived.
+- [x] explicit decision recorded (`UNLOCK_POPT5_CONTINUE` or `HOLD_POPT4_REOPEN`).
+
+POPT.4R2 closure snapshot (2026-02-22):
+- cadence retune:
+  - `S2/S3/S4` default progress cadence changed `5.0s -> 10.0s` (env overrides retained).
+- compile:
+  - `python -m py_compile ...seg_5B/s2_latent_intensity/runner.py ...seg_5B/s3_bucket_counts/runner.py ...seg_5B/s4_arrival_events/runner.py ...seg_5B/s5_validation_bundle/runner.py` -> `PASS`.
+- integrated witness:
+  - `S2 PASS wall_ms=45422`, `S3 PASS wall_ms=49422`, `S4 PASS wall_ms=434532`, `S5 PASS wall_ms=2061`.
+- paired S4 logging-budget check:
+  - control (`30s`) `wall_ms=445891`,
+  - default recheck (`10s`) `wall_ms=458656`,
+  - overhead `= 2.863%` vs target `<=2.000%` -> `FAIL`.
+- replay witness:
+  - `S5` rerun `PASS wall_ms=2108`, bundle idempotence stable.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r2_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r2_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r2_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- phase decision:
+  - `HOLD_POPT4_REOPEN` (R2 did not close the strict overhead gate).
 
 ### POPT.5 - Performance certification lock
 Goal:
@@ -1059,7 +1079,7 @@ Definition of done:
 ## 8) Immediate execution order from this plan
 1. `POPT.0` is closed and pinned (authority: `c25a2675fbfbacd952b13bb594880e92`).
 2. `POPT.1`, `POPT.2`, and `POPT.3/POPT.3R` are closed with explicit hold posture on `POPT.3R` stretch gate.
-3. `POPT.4` executed through `4.0 -> 4.3`; replay lane closed, logging-overhead gate remains open -> decision `HOLD_POPT4_REOPEN`.
+3. `POPT.4` and bounded reopen `POPT.4R2` executed; replay lane is closed but logging-overhead gate remains open -> decision `HOLD_POPT4_REOPEN`.
 4. `POPT.5` is blocked until either:
    - `POPT.4` logging-overhead gate is closed, or
    - explicit user waiver is recorded for this residual miss.

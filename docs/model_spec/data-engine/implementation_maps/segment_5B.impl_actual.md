@@ -6430,3 +6430,53 @@ Chosen bounded R2 strategy:
 Veto and closure criteria:
 1) if paired overhead `<=2%` and all safety gates pass -> `UNLOCK_POPT5_CONTINUE`.
 2) if paired overhead still `>2%` -> retain `HOLD_POPT4_REOPEN` and request explicit waiver/next-lane direction.
+
+### Entry: 2026-02-22 14:19
+
+Execution step: completed full `POPT.4R2` bounded cadence/measurement lane.
+Summary: applied only the planned cadence retune (`5.0s -> 10.0s` in `S2/S3/S4` defaults), ran compile + integrated witness + paired S4 control/recheck + replay witness, and recomputed strict overhead gate.
+
+Code edits in this lane:
+1) `packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py`
+   - `DEFAULT_PROGRESS_INTERVAL_SECONDS: 5.0 -> 10.0`.
+2) `packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py`
+   - `DEFAULT_PROGRESS_INTERVAL_SECONDS: 5.0 -> 10.0`.
+3) `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+   - `DEFAULT_PROGRESS_INTERVAL_SECONDS: 5.0 -> 10.0`.
+
+Execution evidence (authority run-id unchanged):
+1) compile gate:
+   - `python -m py_compile ...seg_5B/s2_latent_intensity/runner.py ...seg_5B/s3_bucket_counts/runner.py ...seg_5B/s4_arrival_events/runner.py ...seg_5B/s5_validation_bundle/runner.py` -> `PASS`.
+2) integrated witness (`S2 -> S3 -> S4 -> S5`):
+   - `S2 PASS wall_ms=45422`,
+   - `S3 PASS wall_ms=49422`,
+   - `S4 PASS wall_ms=434532`,
+   - `S5 PASS wall_ms=2061`.
+3) paired logging-budget check:
+   - `S4 control @30s` -> `wall_ms=445891`,
+   - `S4 default recheck @10s` -> `wall_ms=458656`,
+   - overhead `= (458656-445891)/445891 = 2.863%`.
+4) replay witness:
+   - `S5` rerun `PASS wall_ms=2108`, bundle integrity remains true.
+
+Gate adjudication for R2:
+1) replay-idempotence gate -> `PASS`.
+2) structural non-regression gate -> `PASS` (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights` unchanged).
+3) logging-overhead gate (`<=2%`) -> `FAIL` (`2.863%`).
+4) phase decision -> `HOLD_POPT4_REOPEN`.
+
+Alternatives considered at R2 close:
+1) continue cadence escalation in same lane (`15s`, `20s`, ...):
+   - rejected as diminishing-return churn without evidence it will close strict gate under current host-variance pattern.
+2) reinterpret gate using integrated candidate S4 (`434532`) vs control (`445891`) to claim pass:
+   - rejected because gate protocol for R2 explicitly used paired recheck comparison and must remain auditable/consistent.
+3) relax gate threshold:
+   - rejected due performance-law fail-closed posture.
+
+Artifacts emitted:
+1) `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r2_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+2) `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r2_closure_c25a2675fbfbacd952b13bb594880e92.json`
+3) `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r2_closure_c25a2675fbfbacd952b13bb594880e92.md`
+
+Hygiene:
+- `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
