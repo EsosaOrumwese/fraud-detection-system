@@ -6632,3 +6632,29 @@ Prune action executed (superseded run-id folders removed):
 Post-prune inventory:
 - retained run-id folders under `runs/fix-data-engine/segment_5A` = `4` (authority keep-set only).
 - `reports/` preserved.
+
+---
+
+### Entry: 2026-02-22 00:02
+
+Design correction: B+ stretch-recovery plan belongs to Segment 5A build plan.
+Summary: user clarified the intended target was 5A (not 5B). Added an explicit post-freeze B+ recovery lane to `segment_5A.build_plan.md` and mapped the remaining stretch blockers to owner-state lanes.
+
+Decision details:
+1) Added new section `9) Post-freeze B+ stretch recovery lane` and `P6` mini-plan to 5A build plan.
+2) Pinned four stretch blockers as explicit closure targets:
+- `max_class_share <= 0.50`
+- `max_single_country_share_within_class <= 0.35`
+- `nontrivial_tzids >= 230`
+- `overlay_p90_p10_ratio <= 1.6`
+3) Locked execution order and ownership:
+- `P6.2` concentration (`S1/S2`),
+- `P6.3` tail-zone richness (`S3`),
+- `P6.4` overlay fairness (`S4`),
+- `P6.5` integrated 4-seed decision/freeze refresh.
+4) Pinned veto posture: no stretch promotion is valid if any existing hard B gate regresses.
+
+Why this decision:
+- 5A is already frozen at `PASS_B` with explicit bounded stretch caveats.
+- The requested next step is to attempt a controlled B+ uplift, not open a separate 5B lane.
+- Explicit owner-mapped P6 prevents scope drift while preserving rollback authority.

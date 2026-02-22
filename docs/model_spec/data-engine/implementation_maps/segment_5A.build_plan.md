@@ -1668,3 +1668,75 @@ P5 freeze artifact refresh + prune closure (2026-02-21):
 - `P3`: closed (`UNLOCK_P4`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch partially met with bounded TZID miss).
 - `P4`: closed (`UNLOCK_P5`; closure run `6817ca5a2e2648a1a8cf62deebfa0fcb`; B+ stretch bounded miss on overlay dispersion).
 - `P5`: closed (`PASS_B` on required seeds, refreshed `P5.4/P5.5/P5.6`, handoff=`FROZEN_5A`, superseded run-id folders pruned).
+
+## 9) Post-freeze B+ stretch recovery lane (requested)
+- Purpose: reopen 5A in a bounded, metric-owned lane to attempt `PASS_BPLUS_ROBUST` while preserving current hard-gate `PASS_B` posture as a frozen fallback.
+- Current stretch blockers to target:
+  - `max_class_share <= 0.50` (concentration stretch).
+  - `max_single_country_share_within_class <= 0.35` (within-class concentration stretch).
+  - `nontrivial_tzids >= 230` (tail-zone richness stretch).
+  - `overlay_p90_p10_ratio <= 1.6` (overlay fairness stretch).
+- Frozen non-negotiables for this lane:
+  - all hard B gates must remain green on `{42,7,101,202}`,
+  - no regressions on channel realization or mass/shape conservation rails,
+  - existing `PASS_B` freeze pack remains rollback authority.
+
+### P6 - B+ stretch recovery mini-plan
+Goal:
+- close stretch metrics with minimal blast radius and strict veto on hard-gate regressions.
+
+Execution order:
+- `P6.1` contract lock and blocker baseline.
+- `P6.2` concentration stretch closure (`S1/S2-owned` lane).
+- `P6.3` tail-zone richness stretch closure (`S3-owned` lane).
+- `P6.4` overlay fairness stretch closure (`S4-owned` lane).
+- `P6.5` integrated 4-seed certification and freeze refresh.
+
+Definition of done:
+- [ ] all four stretch blockers are green on required seeds and decision is `PASS_BPLUS_ROBUST`, or
+- [ ] saturation evidence is explicit and segment remains `FROZEN_5A` at `PASS_B` without hard-gate regressions.
+
+#### P6.1 - Stretch contract lock and baseline snapshot
+Goal:
+- pin exact metric definitions, seed set, and owner-state mapping before tuning.
+
+Definition of done:
+- [ ] baseline stretch table emitted for authority run-set.
+- [ ] each blocker has one owning lane (`P6.2`, `P6.3`, or `P6.4`) and explicit mutable surfaces.
+- [ ] veto rule is pinned: any hard-gate regression aborts promotion.
+
+#### P6.2 - Concentration stretch lane (`S1/S2`)
+Goal:
+- reduce class and within-class concentration from B-pass to B+ bands.
+
+Definition of done:
+- [ ] `max_class_share <= 0.50` on all required seeds.
+- [ ] `max_single_country_share_within_class <= 0.35` on all required seeds.
+- [ ] no regressions on hard concentration gates (`<=0.55`, `<=0.40`) or other frozen rails.
+
+#### P6.3 - Tail-zone richness stretch lane (`S3`)
+Goal:
+- lift non-trivial TZID coverage to B+ band without synthetic flattening.
+
+Definition of done:
+- [ ] `nontrivial_tzids >= 230` on all required seeds.
+- [ ] `tail_zero_rate <= 0.80` remains satisfied or improved.
+- [ ] archetype ordering and heavy-tail behavior invariants remain intact.
+
+#### P6.4 - Overlay fairness stretch lane (`S4`)
+Goal:
+- tighten overlay affected-share dispersion to B+ band with no top-country exclusions.
+
+Definition of done:
+- [ ] `overlay_p90_p10_ratio <= 1.6` on all required seeds.
+- [ ] `overlay_top_countries_zero_affected_count == 0` remains hard-pass.
+- [ ] DST hard gates remain green after overlay adjustments.
+
+#### P6.5 - Integrated B+ certification and freeze refresh
+Goal:
+- re-score integrated 4-seed posture and either promote to B+ or lock bounded saturation evidence.
+
+Definition of done:
+- [ ] integrated gateboard emitted for required seeds with explicit phase decision.
+- [ ] freeze package updated if promoted (`PASS_BPLUS_ROBUST`) or reaffirmed (`FROZEN_5A PASS_B`).
+- [ ] superseded P6 candidate run-id folders pruned under keep-set policy.

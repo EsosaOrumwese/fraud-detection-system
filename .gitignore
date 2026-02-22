@@ -187,5 +187,3 @@ runs/fraud-platform/**
 .env.platform.local
 .env.dev_min
 infra/terraform/dev_min/demo/$planFile
-infra/terraform/dev_min/demo/$planFile
-infra/terraform/dev_min/demo/$planFile
