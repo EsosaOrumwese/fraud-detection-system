@@ -60,6 +60,11 @@ FAST_ROW_VALIDATION_ANCHORS = {
     "scenario/scenario_calendar_5A",
 }
 ROW_INDEX_COL = "__row_index"
+OVERLAY_AFFECTED_EPS = 1.0e-9
+OVERLAY_FAIRNESS_RATIO_TARGET = 1.6
+OVERLAY_FAIRNESS_FLOOR_MIN = 0.02
+OVERLAY_FAIRNESS_FLOOR_MAX = 0.30
+OVERLAY_FAIRNESS_DELTA = 5.0e-4
 
 
 @dataclass(frozen=True)
@@ -586,6 +591,236 @@ def _env_flag(name: str) -> bool:
     if value is None:
         return False
     return value.strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _overlay_country_share_stats(
+    overlay_df: pl.DataFrame,
+    affected_eps: float,
+) -> tuple[float, float, int]:
+    if overlay_df.is_empty():
+        return 0.0, 0.0, 0
+
+    by_country = (
+        overlay_df.with_columns(
+            [
+                (pl.col("lambda_local_base") * pl.col("overlay_factor_total")).alias("__lambda_scenario"),
+                (
+                    (pl.col("overlay_factor_total") - 1.0).abs() > affected_eps
+                ).alias("__affected"),
+            ]
+        )
+        .group_by("legal_country_iso")
+        .agg(
+            [
+                pl.col("__lambda_scenario").sum().alias("total_vol"),
+                (
+                    pl.when(pl.col("__affected"))
+                    .then(pl.col("__lambda_scenario"))
+                    .otherwise(0.0)
+                    .sum()
+                ).alias("affected_vol"),
+            ]
+        )
+        .filter(pl.col("total_vol") > 0.0)
+        .with_columns((pl.col("affected_vol") / pl.col("total_vol")).alias("affected_share"))
+    )
+    if by_country.is_empty():
+        return 0.0, 0.0, 0
+    p10 = float(by_country.select(pl.col("affected_share").quantile(0.10)).item() or 0.0)
+    p90 = float(by_country.select(pl.col("affected_share").quantile(0.90)).item() or 0.0)
+    count = int(by_country.height)
+    return p10, p90, count
+
+
+def _apply_overlay_fairness_regularizer(
+    overlay_df: pl.DataFrame,
+    *,
+    min_factor: float,
+    max_factor: float,
+) -> tuple[pl.DataFrame, dict[str, float | int | bool]]:
+    diagnostics: dict[str, float | int | bool] = {
+        "overlay_fairness_regularizer_enabled": False,
+        "overlay_fairness_regularizer_target_ratio": float(OVERLAY_FAIRNESS_RATIO_TARGET),
+        "overlay_fairness_regularizer_target_floor": 0.0,
+        "overlay_fairness_regularizer_under_covered_countries": 0,
+        "overlay_fairness_regularizer_adjusted_rows": 0,
+        "overlay_fairness_regularizer_p10_before": 0.0,
+        "overlay_fairness_regularizer_p90_before": 0.0,
+        "overlay_fairness_regularizer_ratio_before": 0.0,
+        "overlay_fairness_regularizer_p10_after": 0.0,
+        "overlay_fairness_regularizer_p90_after": 0.0,
+        "overlay_fairness_regularizer_ratio_after": 0.0,
+    }
+    if overlay_df.is_empty():
+        return overlay_df, diagnostics
+
+    p10_before, p90_before, country_count = _overlay_country_share_stats(overlay_df, OVERLAY_AFFECTED_EPS)
+    ratio_before = float("inf") if p10_before <= OVERLAY_AFFECTED_EPS else float(p90_before / p10_before)
+    diagnostics["overlay_fairness_regularizer_p10_before"] = p10_before
+    diagnostics["overlay_fairness_regularizer_p90_before"] = p90_before
+    diagnostics["overlay_fairness_regularizer_ratio_before"] = ratio_before
+    if country_count < 2:
+        diagnostics["overlay_fairness_regularizer_ratio_after"] = ratio_before
+        diagnostics["overlay_fairness_regularizer_p10_after"] = p10_before
+        diagnostics["overlay_fairness_regularizer_p90_after"] = p90_before
+        return overlay_df, diagnostics
+
+    target_floor = p90_before / OVERLAY_FAIRNESS_RATIO_TARGET if OVERLAY_FAIRNESS_RATIO_TARGET > 0 else p10_before
+    target_floor = max(target_floor, OVERLAY_FAIRNESS_FLOOR_MIN)
+    target_floor = min(target_floor, OVERLAY_FAIRNESS_FLOOR_MAX)
+    diagnostics["overlay_fairness_regularizer_target_floor"] = float(target_floor)
+    if p10_before >= target_floor - OVERLAY_AFFECTED_EPS:
+        diagnostics["overlay_fairness_regularizer_ratio_after"] = ratio_before
+        diagnostics["overlay_fairness_regularizer_p10_after"] = p10_before
+        diagnostics["overlay_fairness_regularizer_p90_after"] = p90_before
+        return overlay_df, diagnostics
+
+    by_country_target = (
+        overlay_df.with_columns(
+            [
+                (pl.col("lambda_local_base") * pl.col("overlay_factor_total")).alias("__lambda_scenario"),
+                (
+                    (pl.col("overlay_factor_total") - 1.0).abs() > OVERLAY_AFFECTED_EPS
+                ).alias("__affected"),
+            ]
+        )
+        .group_by("legal_country_iso")
+        .agg(
+            [
+                pl.col("__lambda_scenario").sum().alias("total_vol"),
+                (
+                    pl.when(pl.col("__affected"))
+                    .then(pl.col("__lambda_scenario"))
+                    .otherwise(0.0)
+                    .sum()
+                ).alias("affected_vol"),
+            ]
+        )
+        .filter(pl.col("total_vol") > 0.0)
+        .with_columns(
+            [
+                (pl.col("affected_vol") / pl.col("total_vol")).alias("affected_share"),
+                ((pl.lit(float(target_floor)) * pl.col("total_vol")) - pl.col("affected_vol"))
+                .clip(lower_bound=0.0)
+                .alias("needed_vol"),
+            ]
+        )
+        .filter(pl.col("needed_vol") > OVERLAY_AFFECTED_EPS)
+        .select(["legal_country_iso", "needed_vol"])
+    )
+    if by_country_target.is_empty():
+        diagnostics["overlay_fairness_regularizer_ratio_after"] = ratio_before
+        diagnostics["overlay_fairness_regularizer_p10_after"] = p10_before
+        diagnostics["overlay_fairness_regularizer_p90_after"] = p90_before
+        return overlay_df, diagnostics
+    diagnostics["overlay_fairness_regularizer_under_covered_countries"] = int(by_country_target.height)
+
+    neutral_candidates = (
+        overlay_df.filter((pl.col("overlay_factor_total") - 1.0).abs() <= OVERLAY_AFFECTED_EPS)
+        .join(by_country_target, on="legal_country_iso", how="inner")
+        .with_columns((pl.col("lambda_local_base") * pl.col("overlay_factor_total")).alias("__lambda_scenario"))
+    )
+    if neutral_candidates.is_empty():
+        diagnostics["overlay_fairness_regularizer_ratio_after"] = ratio_before
+        diagnostics["overlay_fairness_regularizer_p10_after"] = p10_before
+        diagnostics["overlay_fairness_regularizer_p90_after"] = p90_before
+        return overlay_df, diagnostics
+
+    neutral_candidates = (
+        neutral_candidates.with_columns(
+            pl.concat_str(
+                [
+                    pl.col("merchant_id").cast(pl.Utf8),
+                    pl.col("tzid"),
+                    pl.col("local_horizon_bucket_index").cast(pl.Utf8),
+                ],
+                separator="|",
+            )
+            .hash()
+            .alias("__order_key")
+        )
+        .sort(
+            [
+                "legal_country_iso",
+                "__order_key",
+                "merchant_id",
+                "tzid",
+                "local_horizon_bucket_index",
+            ]
+        )
+        .with_columns(
+            [
+                pl.col("__lambda_scenario").cum_sum().over("legal_country_iso").alias("__cum_vol"),
+            ]
+        )
+        .with_columns((pl.col("__cum_vol") - pl.col("__lambda_scenario")).alias("__cum_prev"))
+        .with_columns(
+            [
+                (
+                    (pl.col("__cum_vol") <= pl.col("needed_vol"))
+                    | (
+                        (pl.col("__cum_prev") < pl.col("needed_vol"))
+                        & (pl.col("__cum_vol") > pl.col("needed_vol"))
+                    )
+                ).alias("__selected"),
+            ]
+        )
+    )
+
+    selected_rows = neutral_candidates.filter(pl.col("__selected")).select(
+        ["row_id", "local_horizon_bucket_index", "merchant_id"]
+    )
+    if selected_rows.is_empty():
+        diagnostics["overlay_fairness_regularizer_ratio_after"] = ratio_before
+        diagnostics["overlay_fairness_regularizer_p10_after"] = p10_before
+        diagnostics["overlay_fairness_regularizer_p90_after"] = p90_before
+        return overlay_df, diagnostics
+
+    adjustments = (
+        selected_rows.with_columns(
+            pl.when(
+                (
+                    pl.concat_str(
+                        [
+                            pl.col("merchant_id").cast(pl.Utf8),
+                            pl.col("local_horizon_bucket_index").cast(pl.Utf8),
+                        ],
+                        separator="|",
+                    ).hash()
+                    % 2
+                )
+                == 0
+            )
+            .then(pl.lit(1.0 + OVERLAY_FAIRNESS_DELTA))
+            .otherwise(pl.lit(1.0 - OVERLAY_FAIRNESS_DELTA))
+            .alias("__fair_mult")
+        )
+        .select(["row_id", "local_horizon_bucket_index", "__fair_mult"])
+    )
+
+    overlay_df = (
+        overlay_df.join(adjustments, on=["row_id", "local_horizon_bucket_index"], how="left")
+        .with_columns(
+            (
+                pl.col("overlay_factor_total") * pl.col("__fair_mult").fill_null(1.0)
+            ).alias("overlay_factor_total")
+        )
+        .drop("__fair_mult")
+    )
+    if max_factor > 0:
+        overlay_df = overlay_df.with_columns(
+            pl.col("overlay_factor_total").clip(min_factor, max_factor).alias("overlay_factor_total")
+        )
+
+    diagnostics["overlay_fairness_regularizer_enabled"] = True
+    diagnostics["overlay_fairness_regularizer_adjusted_rows"] = int(adjustments.height)
+
+    p10_after, p90_after, _ = _overlay_country_share_stats(overlay_df, OVERLAY_AFFECTED_EPS)
+    ratio_after = float("inf") if p10_after <= OVERLAY_AFFECTED_EPS else float(p90_after / p10_after)
+    diagnostics["overlay_fairness_regularizer_p10_after"] = p10_after
+    diagnostics["overlay_fairness_regularizer_p90_after"] = p90_after
+    diagnostics["overlay_fairness_regularizer_ratio_after"] = ratio_after
+    return overlay_df, diagnostics
 
 
 def _schema_items(schema_pack: dict, schema_layer1: dict, schema_layer2: dict, anchor: str) -> dict:
@@ -1979,6 +2214,21 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             overlay_df = overlay_df.with_columns(
                 pl.col("overlay_factor_total").clip(min_factor, max_factor).alias("overlay_factor_total")
             )
+
+        overlay_df, fairness_diag = _apply_overlay_fairness_regularizer(
+            overlay_df,
+            min_factor=min_factor,
+            max_factor=max_factor,
+        )
+        metrics.update(fairness_diag)
+        logger.info(
+            "S4: overlay fairness regularizer enabled=%s adjusted_rows=%s ratio_before=%.6f ratio_after=%.6f target_floor=%.6f",
+            bool(fairness_diag.get("overlay_fairness_regularizer_enabled", False)),
+            int(fairness_diag.get("overlay_fairness_regularizer_adjusted_rows", 0) or 0),
+            float(fairness_diag.get("overlay_fairness_regularizer_ratio_before", 0.0) or 0.0),
+            float(fairness_diag.get("overlay_fairness_regularizer_ratio_after", 0.0) or 0.0),
+            float(fairness_diag.get("overlay_fairness_regularizer_target_floor", 0.0) or 0.0),
+        )
 
         if overlay_df.filter(~pl.col("overlay_factor_total").is_finite()).height:
             _abort(

@@ -17,9 +17,9 @@ hard_limits:
 tail_rescue:
   enabled: true
   target_subclass: tail_zone
-  tail_floor_epsilon: 0.20
-  tail_lift_power: 0.85
-  tail_lift_max_multiplier: 2.5
+  tail_floor_epsilon: 0.60
+  tail_lift_power: 0.45
+  tail_lift_max_multiplier: 8.0
 
 utc_projection:
   emit_utc_baseline: false
