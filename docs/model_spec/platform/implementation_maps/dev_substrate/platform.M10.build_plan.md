@@ -1055,12 +1055,12 @@ Tasks:
 6. Emit `m10_h_recovery_snapshot.json` local + durable.
 
 DoD:
-- [ ] Reporter OOM prerequisite (`H0`) is closed (`exit_code=0` + native `obs/*` surfaces).
-- [ ] Recovery test executed on pinned target (`fraud-platform-dev-min-ig`).
-- [ ] RTO meets pinned threshold (`<=10` minutes).
-- [ ] Post-recovery lag stabilization passes (`max_lag<=10` over `30` minutes).
-- [ ] Idempotency/semantic drift checks pass.
-- [ ] Snapshot exists locally and durably with blocker union empty.
+- [x] Reporter OOM prerequisite (`H0`) is closed (`exit_code=0` + native `obs/*` surfaces).
+- [x] Recovery test executed on pinned target (`fraud-platform-dev-min-ig`).
+- [x] RTO meets pinned threshold (`<=10` minutes).
+- [x] Post-recovery lag stabilization passes (`max_lag<=10` over `30` minutes).
+- [x] Idempotency/semantic drift checks pass.
+- [x] Snapshot exists locally and durably with blocker union empty.
 
 Blockers:
 1. `M10H-B0`: reporter OOM prerequisite unresolved.
@@ -1068,6 +1068,25 @@ Blockers:
 3. `M10H-B2`: RTO breach.
 4. `M10H-B3`: idempotency/semantic drift detected.
 5. `M10H-B4`: required recovery evidence surfaces missing/unreadable.
+6. `M10H-B5`: runtime budget breach (`>120` minutes).
+
+Execution status update (2026-02-22):
+1. Execution id: `m10_20260222T015122Z`.
+2. Fresh run scope: `platform_20260222T015122Z`.
+3. Local artifacts:
+   - `runs/dev_substrate/m10/m10_20260222T015122Z/m10_h_recovery_snapshot.json`
+   - `runs/dev_substrate/m10/m10_20260222T015122Z/m10_h_observation_series.json`
+   - `runs/dev_substrate/m10/m10_20260222T015122Z/m10_h_restart_injection.json`
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T015122Z/m10_h_recovery_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260222T015122Z/m10/m10_h_recovery_snapshot.json`
+5. Verdict: `overall_pass=true`; blocker union = `[]`.
+6. Gate outcomes:
+   - `H0` gate: pass (`reporter exit_code=0`, native `obs/*` surfaces present),
+   - recovery target restart: pass (`restart_to_stable_seconds=172.162`, threshold `<=600`),
+   - stabilization window: pass (`window_minutes=35.643`, `max_lag_window=4`, threshold `<=10`),
+   - semantic drift: pass (`max_publish_ambiguous=0`, `max_fail_open=0`),
+   - runtime budget: pass (`elapsed_seconds=4823.044`, budget `<=7200`).
 
 ### M10.I Reproducibility + replay coherence
 Goal:
@@ -1144,4 +1163,5 @@ M10 can be marked `DONE` only when all are true:
 6. `M10.E` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T063037Z`).
 7. `M10.F` is closed pass on fresh scope `platform_20260221T060431Z` (`m10_execution_id=m10_20260221T060601Z`, blockers empty).
 8. `M10.G` remediation rerun closed PASS on fresh scope `platform_20260221T234738Z` (`max_lag_window=3`, blockers empty).
-9. Next lane is `M10.H` recovery-under-load execution.
+9. `M10.H` recovery-under-load run is closed PASS on fresh scope `platform_20260222T015122Z` (`max_lag_window=4`, blockers empty).
+10. Next lane is `M10.I` reproducibility + replay coherence.

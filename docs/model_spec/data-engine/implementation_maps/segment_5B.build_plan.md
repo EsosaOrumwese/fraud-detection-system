@@ -252,9 +252,9 @@ Scope:
   - grouping identity/counters/schema and downstream pass posture.
 
 Definition of done:
-- [ ] closure scorer contract is pinned and executable.
-- [ ] veto checks are explicit and machine-checkable from artifacts.
-- [ ] no unresolved equivalence ambiguity remains before code edits.
+- [x] closure scorer contract is pinned and executable.
+- [x] veto checks are explicit and machine-checkable from artifacts.
+- [x] no unresolved equivalence ambiguity remains before code edits.
 
 #### POPT.1.2 - Algorithm/design lock for S1 hotspot
 Objective:
@@ -276,9 +276,9 @@ Complexity posture:
 - target: `O(N)` columnar scan in native engine + `O(U log U)` deterministic ordering (`U` unique keys), with much lower constant factors.
 
 Definition of done:
-- [ ] chosen algorithm is documented with rationale and fallback trigger.
-- [ ] expected complexity and memory/IO posture are explicitly recorded.
-- [ ] logging cadence budget for scan progress is pinned (no high-frequency spam).
+- [x] chosen algorithm is documented with rationale and fallback trigger.
+- [x] expected complexity and memory/IO posture are explicitly recorded.
+- [x] logging cadence budget for scan progress is pinned (no high-frequency spam).
 
 #### POPT.1.3 - Domain-derivation implementation
 Objective:
@@ -290,9 +290,9 @@ Scope:
 - emit deterministic key ordering prior to group assignment.
 
 Definition of done:
-- [ ] `S1` hotspot path no longer depends on per-row Python tuple insertion.
-- [ ] key-domain parity holds versus baseline authority on structural counters.
-- [ ] no schema/contract compatibility regressions introduced.
+- [x] `S1` hotspot path no longer depends on per-row Python tuple insertion.
+- [x] key-domain parity holds versus baseline authority on structural counters.
+- [x] no schema/contract compatibility regressions introduced.
 
 #### POPT.1.4 - Instrumentation + logging budget closure
 Objective:
@@ -303,9 +303,9 @@ Scope:
 - ensure phase markers remain sufficient for lane decomposition artifacts.
 
 Definition of done:
-- [ ] lane timing markers remain parsable.
-- [ ] logging cadence is bounded and non-dominant in `S1` elapsed.
-- [ ] no loss of required audit evidence.
+- [x] lane timing markers remain parsable.
+- [x] logging cadence is bounded and non-dominant in `S1` elapsed.
+- [x] no loss of required audit evidence.
 
 #### POPT.1.5 - Witness rerun and closure scoring
 Objective:
@@ -319,9 +319,9 @@ Scope:
   - `segment5b_popt1_closure_<run_id>.md`.
 
 Definition of done:
-- [ ] witness chain `S1..S5` is all `PASS`.
-- [ ] runtime gate and veto rails are scored from artifacts.
-- [ ] reopen blockers (if any) are mapped to bounded follow-up action.
+- [x] witness chain `S1..S5` is all `PASS`.
+- [x] runtime gate and veto rails are scored from artifacts.
+- [x] reopen blockers (if any) are mapped to bounded follow-up action.
 
 #### POPT.1.6 - Phase closure and handoff
 Objective:
@@ -335,9 +335,26 @@ Scope:
 - sync build plan + implementation map + logbook.
 
 Definition of done:
-- [ ] explicit closure decision is recorded.
-- [ ] retained run-id and artifact pointers are pinned.
-- [ ] prune action is completed and logged.
+- [x] explicit closure decision is recorded.
+- [x] retained run-id and artifact pointers are pinned.
+- [x] prune action is completed and logged.
+
+POPT.1 closure snapshot (2026-02-22):
+- witness authority run-id: `c25a2675fbfbacd952b13bb594880e92` (source root `runs/local_full_run-5`).
+- closure artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt1_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt1_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt1_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- quantified closure:
+  - runtime: `S1 148.452s -> 11.844s` (`92.02%` reduction), gate `PASS`.
+  - structural parity: all pinned counters/shape rails exact, gate `PASS`.
+  - downstream continuity: `S2/S3/S4/S5 = PASS`, gate `PASS`.
+- execution blocker handled during witness:
+  - `S5_OUTPUT_CONFLICT` on pre-existing bundle for same run-id; handled by moving stale bundle folder to `.stale_0224` backup and rerunning `S5` (non-destructive).
+- phase decision: `UNLOCK_POPT2_CONTINUE`.
+- prune closure evidence:
+  - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B`
+  - result: no failed sentinels.
 
 ### POPT.2 - S4 expansion-path optimization (primary hotspot)
 Goal:

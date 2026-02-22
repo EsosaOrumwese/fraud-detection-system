@@ -18797,3 +18797,153 @@ Decision:
 2. Also pass live ig_api_key value to prevent unintended SSM secret overwrite during targeted apply.
 3. Verify latest task-definition image posture for reporter/sr/wsp/ig.
 4. Continue H0 and full M10.H only after drift is cleared.
+
+## Entry: 2026-02-22 02:05:39 +00:00 - M10.H live execution checkpoint: service rollout computation and image-conformance gate
+Context:
+1. Continuing approved H0 + M10.H execution on m10_20260222T015122Z / platform_20260222T015122Z after fail-closed remediation apply.
+2. Needed deterministic pre-mutation evidence and explicit drift guard before touching ECS services.
+
+Decision process and alternatives:
+1. Needed current -> latest task-definition mapping for all 13 daemon services.
+2. First attempt failed due ECS DescribeServices API cap (<=10 service names per request).
+3. Chosen fix: deterministic batched describe (10 + 3), then family-level latest TD lookup per service.
+4. While deriving latest TD, detected an AWS CLI footgun (--max-items 1 introduced token noise for some families, producing mixed values). Rejected that path.
+5. Adopted robust selector: query first task-definition ARN from sorted family list and regex-filter valid ARN tokens only.
+
+Execution details:
+1. Captured pre-rollout state + planned upgrades:
+   - uns/dev_substrate/m10/m10_20260222T015122Z/m10_h_service_state_pre_rollout.json
+   - uns/dev_substrate/m10/m10_20260222T015122Z/m10_h_service_rollout_plan.json
+2. Computed rollout scope: 13/13 services require upgrade to latest revision (all currently one revision behind latest after rematerialization).
+3. Added explicit image-conformance precheck on all target latest TDs:
+   - uns/dev_substrate/m10/m10_20260222T015122Z/m10_h_service_td_alignment_pre_rollout.json
+4. Precheck result: probe_count=0 (no busybox/probe image drift on target revisions).
+5. Reporter prerequisite posture verified separately:
+   - latest reporter TD raud-platform-dev-min-reporter:19
+   - image pinned to platform digest; memory pinned to 1024 MiB.
+
+Why this matters:
+1. Prevents repeating the earlier drift incident where latest revisions could point to probe image.
+2. Keeps H0 closure auditable: rollout occurs only after explicit conformance proof.
+3. Keeps mutation bounded: upgrade only known service set with preserved desired counts.
+
+Next step (already queued):
+1. Apply rollout updates to the 13 services.
+2. Wait for stabilization and capture post-rollout state/alignment artifacts.
+3. Execute SR -> WSP chain, then H0 reporter one-shot gate, then M10.H restart drill.
+
+## Entry: 2026-02-22 02:31:47 +00:00 - M10.H live blocker remediation + restart drill entry
+Context and blocker:
+1. Initial corrected WSP launch exited quickly with IG_PUSH_REJECTED; IG logs showed repeated 401 on /v1/ingest/push.
+2. Root cause isolated from live runtime surfaces:
+   - IG enforcement is uth_mode=api_key + allowlist from config/platform/ig/ingest_api_keys_dev_min_v0.txt.
+   - Runtime secret /fraud-platform/dev_min/ig/api_key was not allowlisted.
+3. This made load generation invalid (cannot claim recovery-under-load when ingest is unauthorized).
+
+Decision process:
+1. Option A: patch allowlist to include current secret-like value and redeploy IG.
+2. Option B: rotate SSM key to pinned allowlisted identity (dev-min-wsp) so runtime aligns with documented writer identity posture.
+3. Selected Option B for this lane because it is bounded, auditable, and does not introduce persistent source drift.
+
+Actions executed:
+1. Preserved failed launch artifacts as attempt history:
+   - m10_h_wsp_launch_attempt1_bad_url.json
+   - m10_h_wsp_launch_attempt2_auth401.json
+2. Rotated SSM param /fraud-platform/dev_min/ig/api_key to dev-min-wsp (old value stored as SHA256 only):
+   - uns/dev_substrate/m10/m10_20260222T015122Z/m10_h_ig_auth_remediation.json
+3. Relaunched 4-way WSP load and verified tasks entered RUNNING state.
+4. Captured valid pre-fault baseline with non-zero ingress:
+   - ingress.admit=339, duplicate=335, quarantine=16, publish_ambiguous=0.
+5. Injected controlled restart on pinned target service raud-platform-dev-min-ig:
+   - restart-to-stable 172.162s (RTO pass against <=600s),
+   - all 4 IG tasks replaced,
+   - evidence: m10_h_restart_injection.json.
+
+Current execution posture:
+1. Continue into stabilization window with authoritative lag sampling (db + kafka), not inferred lag proxies.
+2. Temporary DB sampler ingress /32 was applied (same bounded posture used previously) to enable DB reads for lag/checkpoint queries.
+3. On completion, ingress rule will be revoked and closure snapshot assembled.
+
+## Entry: 2026-02-22 03:13:13 +00:00 - M10.H full execution closure (H0 + recovery-under-load) with live remediation trail
+Execution scope:
+1. Active execution id: m10_20260222T015122Z.
+2. Active run scope: platform_20260222T015122Z.
+3. Goal: close H0 prerequisite and complete M10.H with blocker-free recovery verdict.
+
+Detailed execution trail:
+1. Service rollout and image drift guard before H0/H1:
+   - generated m10_h_service_state_pre_rollout.json + m10_h_service_rollout_plan.json.
+   - found all 13 services one revision behind latest after rematerialization.
+   - ran image conformance check (m10_h_service_td_alignment_pre_rollout.json): probe_count=0.
+   - rolled all 13 services to latest and waited stable.
+   - captured post-rollout conformance (m10_h_service_state_post_rollout.json, m10_h_service_alignment_post_rollout.json), mismatch count  .
+
+2. H0 closure path:
+   - SR one-shot PASS (m10_h_sr_task_result.json, xit_code=0).
+   - SR artifact prefixes present (m10_h_sr_artifacts_snapshot.json).
+   - first WSP launch attempt had malformed IG_INGEST_URL due PowerShell interpolation (http:// only).
+     - fail-closed preserved as m10_h_wsp_launch_attempt1_bad_url.json.
+     - relaunched with corrected URL syntax.
+   - reporter one-shot gate PASS (m10_h_reporter_refresh.json, xit_code=0).
+   - native obs surfaces confirmed present (m10_h_h0_obs_surfaces_snapshot.json).
+
+3. Recovery-under-load blockers and remediations:
+   - observed IG_PUSH_REJECTED from WSP.
+   - live log evidence showed IG returning HTTP 401.
+   - root cause: SSM /fraud-platform/dev_min/ig/api_key value not in IG allowlist.
+   - bounded remediation chosen: rotate SSM value to allowlisted identity dev-min-wsp (no secret plaintext persisted; old value captured as SHA256 only).
+     - artifact: m10_h_ig_auth_remediation.json.
+   - preserved auth-failed launch as m10_h_wsp_launch_attempt2_auth401.json.
+   - relaunched WSP load after remediation; tasks entered RUNNING and ingress baseline became non-zero.
+
+4. H1 restart injection:
+   - pre-fault baseline captured with ingress activity (m10_h_prefault_baseline_snapshot.json):
+     - dmit=339, duplicate=335, quarantine=16, publish_ambiguous=0.
+   - injected controlled restart on pinned target raud-platform-dev-min-ig.
+   - restart result (m10_h_restart_injection.json):
+     - estart_to_stable_seconds=172.162,
+     - to_pass=true (threshold <=600s),
+     - eplaced_task_count=4.
+
+5. H2 stabilization + adjudication:
+   - needed authoritative lag sampling from DB + Kafka; local DB connectivity was blocked by SG.
+   - applied bounded temporary /32 ingress to DB SG for sampler lane (m10_h_db_temp_ingress_apply.json).
+   - ran 5-minute cadence stabilization sampling over 30-minute target window.
+   - during first long loop, transient DNS endpoint failure hit ECS (cs.eu-west-2.amazonaws.com resolution failure) after several successful samples.
+     - fail-closed preserved partial samples ( 0..03) and resumed with bounded recovery loop.
+   - completed sample set ( 0..06) and aggregated:
+     - m10_h_observation_series.json,
+     - m10_h_ingest_kafka_offsets_snapshot.json,
+     - m10_h_rtdl_offsets_snapshot.json,
+     - m10_h_receipt_summary.json.
+   - published canonical run-scoped snapshots under:
+     - vidence/runs/platform_20260222T015122Z/ingest/kafka_offsets_snapshot.json,
+     - vidence/runs/platform_20260222T015122Z/rtdl_core/offsets_snapshot.json,
+     - vidence/runs/platform_20260222T015122Z/ingest/receipt_summary.json.
+   - ran post-stabilization reporter refresh PASS (m10_h_post_stabilization_reporter_refresh.json, xit_code=0).
+   - compiled final recovery snapshot (m10_h_recovery_snapshot.json) and published durable copies:
+     - vidence/dev_min/run_control/m10_20260222T015122Z/m10_h_recovery_snapshot.json,
+     - vidence/runs/platform_20260222T015122Z/m10/m10_h_recovery_snapshot.json.
+
+Final verdict:
+1. overall_pass=true.
+2. lockers=[].
+3. Closure metrics:
+   - estart_to_stable_seconds=172.162 (RTO pass),
+   - window_minutes=35.643,
+   - max_lag_window=4 (threshold <=10),
+   - checkpoint_monotonic=true,
+   - max_publish_ambiguous=0, max_fail_open=0,
+   - lapsed_seconds=4823.044 (runtime budget pass).
+
+Security closure:
+1. Temporary DB ingress rule was revoked at lane end (m10_h_db_temp_ingress_revoke.json).
+2. No temporary sampler ingress left active.
+
+## Entry: 2026-02-22 03:14:06 +00:00 - M10.H post-closure cost hygiene
+After M10.H verdict was finalized, 4 ad-hoc WSP run tasks from stabilization remained RUNNING.
+To avoid post-lane cost bleed while preserving daemon substrate for next lane, executed bounded cleanup:
+1. Stopped only amily:fraud-platform-dev-min-wsp ad-hoc tasks.
+2. Left managed daemon services untouched.
+3. Recorded cleanup artifact:
+   - uns/dev_substrate/m10/m10_20260222T015122Z/m10_h_post_closure_wsp_cleanup.json.

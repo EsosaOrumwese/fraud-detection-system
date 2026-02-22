@@ -1598,6 +1598,13 @@ Phase closure posture:
     - pinned recovery target: `fraud-platform-dev-min-ig`,
     - pinned thresholds: `RTO<=10m`, `post-recovery max_lag<=10`, stabilization window `30m`,
     - pinned runtime budget: `M10.H<=120m`.
+  - `M10.H` recovery-under-load run is now closed PASS on fresh scope:
+    - execution id: `m10_20260222T015122Z`,
+    - platform run scope: `platform_20260222T015122Z`,
+    - local snapshot: `runs/dev_substrate/m10/m10_20260222T015122Z/m10_h_recovery_snapshot.json`,
+    - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T015122Z/m10_h_recovery_snapshot.json`,
+    - verdict: `overall_pass=true`, blockers `[]`,
+    - key closure metrics: `restart_to_stable_seconds=172.162`, `max_lag_window=4`, `window_minutes=35.643`, `max_publish_ambiguous=0`, `max_fail_open=0`.
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
@@ -1607,7 +1614,7 @@ Sub-phase progress:
   - [x] `M10.E` representative-window run.
   - [x] `M10.F` burst run (fresh-scope pass; blocker set empty).
   - [x] `M10.G` soak run (remediation rerun PASS).
-  - [ ] `M10.H` recovery-under-load run.
+  - [x] `M10.H` recovery-under-load run.
   - [ ] `M10.I` reproducibility + replay coherence.
   - [ ] `M10.J` final certification verdict + bundle publish.
 
@@ -1620,7 +1627,7 @@ M10 DoD checklist:
   - [x] representative-window run passes on contiguous event-time slice (not sub-second toy slice).
   - [x] burst run passes at elevated ingest pressure without semantic drift.
   - [x] soak run passes under sustained load with stable lag/checkpoint behavior.
-  - [ ] recovery run passes after controlled restart under load with idempotent outcomes.
+  - [x] recovery run passes after controlled restart under load with idempotent outcomes.
 - [ ] Reproducibility:
   - [ ] second run demonstrates deterministic replay/evidence coherence.
 - [ ] Evidence bundle:
