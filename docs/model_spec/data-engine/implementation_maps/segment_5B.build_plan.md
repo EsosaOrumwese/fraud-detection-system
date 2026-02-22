@@ -896,27 +896,27 @@ Objective:
 - pin exact authority evidence and measurement protocol before any code edit.
 
 Definition of done:
-- [ ] authority run-id and witness set are pinned for `POPT.4`.
-- [ ] replay-idempotence acceptance checks are pinned (`S5` first-attempt pass on rerun, no stale nesting growth).
-- [ ] logging-budget measurement protocol is pinned (control/candidate comparison and overhead formula).
+- [x] authority run-id and witness set are pinned for `POPT.4`.
+- [x] replay-idempotence acceptance checks are pinned (`S5` first-attempt pass on rerun, no stale nesting growth).
+- [x] logging-budget measurement protocol is pinned (control/candidate comparison and overhead formula).
 
 #### POPT.4.1 - S5 replay publish hardening
 Objective:
 - make same-run publish retries deterministic and non-destructive without recursive stale-folder growth.
 
 Definition of done:
-- [ ] `S5` replay-conflict handling is bounded to active target only (no broad wildcard stale moves).
-- [ ] rerun on same run-id succeeds on first `S5` attempt after bounded preflight/cleanup logic.
-- [ ] no new nested `.stale_*.stale_*` paths are produced by this lane.
-- [ ] compile and state-level guardrails pass.
+- [x] `S5` replay-conflict handling is bounded to active target only (no broad wildcard stale moves).
+- [x] rerun on same run-id succeeds on first `S5` attempt after bounded preflight/cleanup logic.
+- [x] no new nested `.stale_*.stale_*` paths are produced by this lane.
+- [x] compile and state-level guardrails pass.
 
 #### POPT.4.2 - Hot-state logging budget cap
 Objective:
 - reduce logging overhead in `S2/S3/S4` while preserving required auditability.
 
 Definition of done:
-- [ ] progress logs use bounded heartbeat cadence (no per-event high-cardinality spam in default mode).
-- [ ] required audit logs remain intact and deterministic.
+- [x] progress logs use bounded heartbeat cadence (no per-event high-cardinality spam in default mode).
+- [x] required audit logs remain intact and deterministic.
 - [ ] measured overhead versus low-verbosity control is within budget (`<=2%` in hot lanes).
 
 #### POPT.4.3 - Integration witness + veto
@@ -924,11 +924,27 @@ Objective:
 - validate that replay hardening and logging budget changes hold under integrated chain execution.
 
 Definition of done:
-- [ ] witness chain `S2/S3/S4/S5` completes with all states `PASS`.
-- [ ] `S5` replay attempt posture is stable and no nested stale growth is observed.
-- [ ] structural invariants remain unchanged (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights`).
-- [ ] logging budget evidence and replay-idempotence evidence are archived.
-- [ ] explicit decision recorded (`UNLOCK_POPT5_CONTINUE` or `HOLD_POPT4_REOPEN`).
+- [x] witness chain `S2/S3/S4/S5` completes with all states `PASS`.
+- [x] `S5` replay attempt posture is stable and no nested stale growth is observed.
+- [x] structural invariants remain unchanged (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights`).
+- [x] logging budget evidence and replay-idempotence evidence are archived.
+- [x] explicit decision recorded (`UNLOCK_POPT5_CONTINUE` or `HOLD_POPT4_REOPEN`).
+
+POPT.4 closure snapshot (2026-02-22):
+- replay-idempotence:
+  - `S5` replay witnesses passed first-attempt with semantic index comparison (`wall_ms=3109`, `wall_ms=2157`) and no new stale-dir growth.
+- integrated witness:
+  - `S2 PASS wall_ms=58780`, `S3 PASS wall_ms=71516`, `S4 PASS wall_ms=527235`, `S5 PASS wall_ms=3109`.
+- logging budget paired check:
+  - `S4` low-verbosity control (`30s`) `wall_ms=437843`,
+  - `S4` default recheck (`5s`) `wall_ms=448264`,
+  - overhead `= 2.380%` vs target `<=2.000%` -> `FAIL`.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r1_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r1_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r1_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- phase decision:
+  - `HOLD_POPT4_REOPEN`.
 
 ### POPT.5 - Performance certification lock
 Goal:
@@ -1024,6 +1040,8 @@ Definition of done:
 ## 8) Immediate execution order from this plan
 1. `POPT.0` is closed and pinned (authority: `c25a2675fbfbacd952b13bb594880e92`).
 2. `POPT.1`, `POPT.2`, and `POPT.3/POPT.3R` are closed with explicit hold posture on `POPT.3R` stretch gate.
-3. Execute `POPT.4` (`POPT.4.0 -> POPT.4.1 -> POPT.4.2 -> POPT.4.3`) under strict non-regression rails.
-4. If `POPT.4` passes, close `POPT.5` performance certification lock.
-5. Enter remediation `P0 -> P1 -> P2 -> P3 -> P4 -> P5` with strict veto gates.
+3. `POPT.4` executed through `4.0 -> 4.3`; replay lane closed, logging-overhead gate remains open -> decision `HOLD_POPT4_REOPEN`.
+4. `POPT.5` is blocked until either:
+   - `POPT.4` logging-overhead gate is closed, or
+   - explicit user waiver is recorded for this residual miss.
+5. Remediation stack `P0 -> P5` remains blocked behind `POPT` closure/waiver.

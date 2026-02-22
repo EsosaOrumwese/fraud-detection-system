@@ -19512,3 +19512,92 @@ Constraints preserved:
 1. No runtime/infra changes were executed.
 2. No branch operations were performed.
 3. Existing `M1..M10` certified closure was not modified.
+
+## Entry: 2026-02-22 14:02 +00:00 - Cross-phase decision split pinned (`pin-now` vs `defer-per-phase`)
+Reasoning:
+1. USER requested explicit confirmation on which decisions must be pinned now in the main build plan versus deferred to deep phase plans.
+2. Without an explicit split in the main plan, phase execution could still drift into ad hoc decision timing.
+
+Decision:
+1. Pin a minimal cross-phase decision set now (binding across `M11..M14`).
+2. Explicitly defer lane-specific details to `platform.M11..M14.build_plan.md`.
+3. Add a fail-closed execution rule for deferred decisions.
+
+Implementation:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` Section 13:
+   - added `13.1 Cross-Phase Decisions Pinned Now (Binding)`:
+     - canonical verdict chain for `M11..M14`,
+     - mandatory `M8..M10` carry-forward non-regression,
+     - managed-only runtime law,
+     - control-plane law (`Terraform` + `GitHub Actions`),
+     - cost/teardown law continuity,
+     - evidence publication law (local + durable).
+   - added `13.2 Decisions Deferred to Deep Phase Plans (By Design)`:
+     - handles/SSM/S3 specifics,
+     - IAM policy specifics,
+     - thresholds/tolerances/profile parameters,
+     - blocker taxonomy/remediation specifics,
+     - snapshot schemas/filenames.
+   - added fail-closed rule requiring pinning before execution when a deferred decision becomes required.
+
+Constraints preserved:
+1. Documentation-only update (no infra/runtime changes).
+2. No branch operations were performed.
+3. Existing `M1..M10` closure status and evidence were unchanged.
+
+## Entry: 2026-02-22 13:47 +00:00 - M11 deep-plan expansion to execution-grade (`platform.M11.build_plan.md`)
+Reasoning:
+1. USER requested deep planning expansion for M11 and explicitly allowed additional sub-phases where needed for robust execution.
+2. No `platform.M11.build_plan.md` existed, so M11 lacked a dedicated deep authority artifact despite being introduced in the main plan.
+3. To satisfy anti-cram and decision-completeness laws, M11 needed explicit coverage for all capability lanes (not only the initial A..G draft).
+
+Decision:
+1. Create `platform.M11.build_plan.md` from scratch in the same execution-grade structure used by M8/M9/M10.
+2. Expand M11 sub-phases from the initial `A..G` draft to `A..J` to close uncovered lanes:
+   - added explicit messaging/governance corridor lane,
+   - added explicit cost/teardown continuity lane,
+   - separated verdict/handoff closure into its own terminal lane.
+3. Align main `platform.build_plan.md` M11 section with the deeper `A..J` decomposition and mark the M11 deep plan as present.
+
+Implementation:
+1. Added file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md`
+   - includes: purpose, authority inputs, scope, deliverables, execution gate, anti-cram matrix, capability-lane matrix, deep work breakdown (`M11.A..M11.J`), budgets, snapshot contracts, phase DoD, planning status.
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+   - deep-plan routing now marks `M11` as `(present)`,
+   - M11 sub-phase progression updated to `A..J`,
+   - M11 DoD updated to include messaging/governance, observability taxonomy, and cost/teardown continuity closure,
+   - wording adjusted from “on activation” to “Detailed authority file” for current truth.
+
+Constraints preserved:
+1. Documentation-only update (no runtime/infra execution).
+2. No branch operations were performed.
+3. Status source-of-truth rule preserved (`platform.build_plan.md` controls phase status).
+
+## Entry: 2026-02-22 13:52 +00:00 - M11.A expanded to execution-grade closure contract
+Reasoning:
+1. USER requested explicit planning of `M11.A` before execution.
+2. The prior `M11.A` block was too lightweight for deterministic execution (it lacked required inputs, prechecks, closure algorithm, snapshot schema detail, and runtime-budget gate).
+3. To satisfy fail-closed and anti-cram laws, `M11.A` needed to be upgraded to the same depth used in mature phase lanes.
+
+Decision:
+1. Expand `M11.A` in-place within `platform.M11.build_plan.md` to execution-grade depth.
+2. Anchor `M11.A` to both M10 closure artifacts (`verdict` + `bundle index`) and to cross-phase pin sections (`13.1/13.2`) in the main plan.
+3. Add deterministic blocker taxonomy extensions for source consistency and publication/runtime-budget failure modes.
+
+Implementation:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md` `M11.A` section with:
+   - required inputs (local + durable M10 sources, authority refs),
+   - fail-closed preparation checks,
+   - deterministic closure algorithm (`local preferred -> durable fallback`),
+   - required snapshot schema for `m11_a_authority_handoff_snapshot.json`,
+   - runtime budget gate and expanded blocker codes.
+2. New/expanded blocker set:
+   - `M11A-B4`: local/durable source inconsistency,
+   - `M11A-B5`: snapshot publication failure,
+   - `M11A-B6`: runtime budget breach without waiver.
+
+Constraints preserved:
+1. Documentation-only update (no infra/runtime execution).
+2. No branch operations were performed.
+3. Main phase status was not changed.

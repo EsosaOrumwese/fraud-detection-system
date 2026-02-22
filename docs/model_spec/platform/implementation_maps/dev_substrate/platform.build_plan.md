@@ -131,7 +131,7 @@ Current deep-plan file state:
 - `M8`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md` (present)
 - `M9`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md` (present)
 - `M10`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md` (present)
-- `M11`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md` (planned on activation)
+- `M11`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md` (present)
 - `M12`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M12.build_plan.md` (planned on activation)
 - `M13`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M13.build_plan.md` (planned on activation)
 - `M14`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M14.build_plan.md` (planned on activation)
@@ -1746,24 +1746,29 @@ Failure posture:
   - inability to define spine non-regression gate matrix for `M8..M10`.
 
 Phase planning posture:
-- Detailed authority file on activation:
+- Detailed authority file:
   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md`.
 - Planned sub-phase progression model:
-  - `M11.A` authority + handle closure matrix (`F1`),
-  - `M11.B` runtime decomposition and entrypoint closure (OFS/MF/MPR),
-  - `M11.C` IAM + secrets + KMS closure for learning lanes,
-  - `M11.D` data-surface contracts (archive/features/models/registry),
-  - `M11.E` observability/evidence schema closure for learning lanes,
-  - `M11.F` non-regression carry-forward gate matrix (`M8..M10`) pin,
-  - `M11.G` blocker rollup + verdict (`ADVANCE_TO_M12|HOLD_M11`).
+  - `M11.A` authority + M10 handoff closure,
+  - `M11.B` Learning/Registry handle closure matrix,
+  - `M11.C` runtime decomposition + entrypoint closure,
+  - `M11.D` IAM + secrets + KMS closure,
+  - `M11.E` data-store ownership + path contracts,
+  - `M11.F` messaging + governance/authn corridor closure,
+  - `M11.G` observability/evidence + blocker taxonomy closure,
+  - `M11.H` spine carry-forward non-regression matrix pin (`M8..M10`),
+  - `M11.I` cost + teardown continuity closure,
+  - `M11.J` blocker rollup + verdict (`ADVANCE_TO_M12|HOLD_M11`).
 
 M11 DoD checklist:
 - [ ] Required `OFS/MF/MPR` handles are pinned and resolvable.
 - [ ] Runtime lane topology is fully specified and managed-substrate only.
 - [ ] IAM role map and secret/materialization surfaces are least-privilege and auditable.
-- [ ] Data ownership boundaries and evidence contracts are explicit and non-overlapping.
+- [ ] Data ownership + messaging/governance boundaries are explicit and non-overlapping.
+- [ ] Observability/evidence schemas and blocker taxonomy are pinned.
 - [ ] `M8..M10` non-regression matrix is pinned as mandatory carry-forward gate.
-- [ ] `M11` verdict artifact is published locally + durably with blocker rollup.
+- [ ] Cost/teardown continuity is pinned for learning lanes.
+- [ ] `M11` verdict + `m12_handoff_pack.json` are published locally + durably.
 
 Phase exit:
 - `M11` can be marked `DONE` only when all DoD checks are true and verdict is `ADVANCE_TO_M12`.
@@ -2026,6 +2031,37 @@ This section is a summary bridge. Authoritative per-phase execution planning is 
 - `## M12 - F2 ...`
 - `## M13 - F3 ...`
 - `## M14 - F4 ...`
+
+### 13.1) Cross-Phase Decisions Pinned Now (Binding)
+1. Canonical verdict chain:
+   - `M11` closes only with `ADVANCE_TO_M12|HOLD_M11`.
+   - `M12` closes only with `ADVANCE_TO_M13|HOLD_M12`.
+   - `M13` closes only with `ADVANCE_TO_M14|HOLD_M13`.
+   - `M14` closes only with `ADVANCE_FULL_PLATFORM_DEV_MIN|HOLD_M14`.
+2. Mandatory spine carry-forward non-regression:
+   - `M8..M10` remain hard gates for any `M11+` closure claim.
+   - A failure in carry-forward matrix is blocker state; no phase advance.
+3. Managed-only runtime law:
+   - no laptop/local runtime compute for OFS/MF/MPR execution.
+4. Control-plane execution law:
+   - materialization and phase execution lanes are managed via `Terraform` and `GitHub Actions`.
+5. Cost/teardown law remains active:
+   - post-M10 phases may not bypass teardown/cost guardrail posture.
+   - no green/full-green claim with unresolved cost blockers.
+6. Evidence publication law:
+   - each `M11..M14` phase must publish local + durable S3 evidence artifacts before closure.
+
+### 13.2) Decisions Deferred to Deep Phase Plans (By Design)
+Decisions intentionally deferred to `platform.M11.build_plan.md` .. `platform.M14.build_plan.md`:
+1. Exact handle additions/changes and SSM/S3 path values.
+2. Exact IAM policy surfaces and task-role bindings per lane.
+3. Exact OFS/MF thresholds, tolerances, and dataset/eval profile parameters.
+4. Exact blocker taxonomies and remediation playbooks per sub-phase.
+5. Exact evidence snapshot schemas and artifact filenames.
+
+Fail-closed rule for deferred decisions:
+1. If execution reaches a missing required decision, stop execution and pin it first.
+2. Any new resource/topic/path/secret surface must be pinned in `dev_min_handles.registry.v0.md` before use.
 
 Execution intent:
 - extend from Spine Green v0 certification to full-platform green in `dev_min`.

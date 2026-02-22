@@ -72,6 +72,7 @@ MODULE_NAME = "5B.s4_arrival_events"
 SEGMENT = "5B"
 STATE = "S4"
 MICROS_PER_DAY = 86_400_000_000
+DEFAULT_PROGRESS_INTERVAL_SECONDS = 5.0
 
 
 @dataclass(frozen=True)
@@ -105,7 +106,7 @@ class _ProgressTracker:
         total: Optional[int],
         logger,
         label: str,
-        min_interval_seconds: float = 0.5,
+        min_interval_seconds: float = DEFAULT_PROGRESS_INTERVAL_SECONDS,
     ) -> None:
         self._total = int(total) if total is not None else None
         self._logger = logger
@@ -150,6 +151,17 @@ class _ProgressTracker:
 def _env_flag(name: str, default: str = "0") -> bool:
     value = os.environ.get(name, default)
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_progress_interval_seconds(name: str, default: float = DEFAULT_PROGRESS_INTERVAL_SECONDS) -> float:
+    raw = os.environ.get(name, f"{default}")
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} invalid: {raw}") from exc
+    if not math.isfinite(value) or value < 0.1:
+        raise ValueError(f"{name} invalid: {raw}")
+    return value
 
 
 def _emit_event(logger, event: str, manifest_fingerprint: Optional[str], severity: str, **fields: object) -> None:
@@ -922,6 +934,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     except ValueError:
         output_sample_rows = 2000
     output_validation_mode = "full" if output_validate_full else "fast_sampled"
+    progress_interval_seconds = _env_progress_interval_seconds("ENGINE_5B_S4_PROGRESS_INTERVAL_SEC")
     strict_ordering = _env_flag("ENGINE_5B_S4_STRICT_ORDERING")
     include_lambda = _env_flag("ENGINE_5B_S4_INCLUDE_LAMBDA")
     require_numba = _env_flag("ENGINE_5B_S4_REQUIRE_NUMBA", "1")
@@ -1032,6 +1045,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             "S4: rng_event logging=%s (set ENGINE_5B_S4_RNG_EVENTS=1 to enable)",
             "on" if enable_rng_events else "off",
         )
+        logger.info("S4: progress cadence interval=%.2fs", progress_interval_seconds)
         if include_lambda:
             logger.info("S4: lambda_realised inclusion enabled (may increase memory)")
         if not _HAVE_PYARROW:
@@ -1717,8 +1731,18 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 rows_total,
                 arrivals_total,
             )
-            tracker_rows = _ProgressTracker(rows_total, logger, f"S4: bucket rows (scenario_id={scenario_id})")
-            tracker_arrivals = _ProgressTracker(arrivals_total, logger, f"S4: arrivals emitted (scenario_id={scenario_id})")
+            tracker_rows = _ProgressTracker(
+                rows_total,
+                logger,
+                f"S4: bucket rows (scenario_id={scenario_id})",
+                min_interval_seconds=progress_interval_seconds,
+            )
+            tracker_arrivals = _ProgressTracker(
+                arrivals_total,
+                logger,
+                f"S4: arrivals emitted (scenario_id={scenario_id})",
+                min_interval_seconds=progress_interval_seconds,
+            )
 
             arrival_entry = find_dataset_entry(dictionary_5b, "arrival_events_5B").entry
             arrival_path = _resolve_dataset_path(

@@ -81,6 +81,7 @@ UINT64_MAX = UINT64_MASK
 TWO_NEG_64 = float.fromhex("0x1.0000000000000p-64")
 _HEX64_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 _KAPPA_MEDIAN_BOUNDS = (10.0, 80.0)
+DEFAULT_PROGRESS_INTERVAL_SECONDS = 5.0
 
 @dataclass(frozen=True)
 class S3Result:
@@ -113,7 +114,7 @@ class _ProgressTracker:
         total: Optional[int],
         logger,
         label: str,
-        min_interval_seconds: float = 0.5,
+        min_interval_seconds: float = DEFAULT_PROGRESS_INTERVAL_SECONDS,
     ) -> None:
         self._total = int(total) if total is not None else None
         self._logger = logger
@@ -282,6 +283,17 @@ def _env_flag(name: str) -> bool:
     if value is None:
         return False
     return value.strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _env_progress_interval_seconds(name: str, default: float = DEFAULT_PROGRESS_INTERVAL_SECONDS) -> float:
+    raw = os.environ.get(name, f"{default}")
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} invalid: {raw}") from exc
+    if not math.isfinite(value) or value < 0.1:
+        raise ValueError(f"{name} invalid: {raw}")
+    return value
 
 
 def _schema_items(schema_pack: dict, schema_layer1: dict, schema_layer2: dict, anchor: str) -> dict:
@@ -1100,6 +1112,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     except ValueError:
         output_sample_rows = 5000
     output_validation_mode = "full" if output_validate_full else "fast_sampled"
+    progress_interval_seconds = _env_progress_interval_seconds("ENGINE_5B_S3_PROGRESS_INTERVAL_SEC")
     strict_ordering = _env_flag("ENGINE_5B_S3_STRICT_ORDERING")
     ordering_stats_enabled = strict_ordering or _env_flag("ENGINE_5B_S3_ORDERING_STATS")
     validate_events_full = _env_flag("ENGINE_5B_S3_VALIDATE_EVENTS_FULL")
@@ -1210,6 +1223,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             "S3: rng_event logging=%s (set ENGINE_5B_S3_RNG_EVENTS=1 to enable)",
             "on" if enable_rng_events else "off",
         )
+        logger.info("S3: progress cadence interval=%.2fs", progress_interval_seconds)
         if not strict_ordering:
             logger.warning(
                 "S3: strict ordering disabled; output order follows input stream (set ENGINE_5B_S3_STRICT_ORDERING=1 to enforce)"
@@ -2028,7 +2042,12 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 len(realised_files),
                 rows_total,
             )
-            tracker = _ProgressTracker(rows_total, logger, f"S3: bucket counts (scenario_id={scenario_id})")
+            tracker = _ProgressTracker(
+                rows_total,
+                logger,
+                f"S3: bucket counts (scenario_id={scenario_id})",
+                min_interval_seconds=progress_interval_seconds,
+            )
 
             counts_entry = find_dataset_entry(dictionary_5b, "s3_bucket_counts_5B").entry
             counts_path = _resolve_dataset_path(

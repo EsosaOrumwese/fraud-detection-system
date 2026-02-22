@@ -6308,3 +6308,92 @@ Next immediate gates:
 1) compile all touched runners.
 2) run `S5` replay test (same run-id, repeated invocation, no manual housekeeping).
 3) run integrated witness chain for `POPT.4.3`.
+
+### Entry: 2026-02-22 13:40
+
+Planning step: bounded `POPT.4` reopen to close the residual logging-overhead gate miss.
+Summary: first `POPT.4` execution passed replay-idempotence and all structural safety gates, but logging overhead missed target narrowly (`2.186%` vs `<=2%`). I am reopening only the cadence default lane and keeping all data-law rails frozen.
+
+Observed gap and why reopen is justified:
+1) `POPT.4.1` objective is already satisfied:
+   - same-run `S5` replay passed repeatedly without manual `.stale_*` housekeeping.
+2) `POPT.4.2` objective is partially satisfied:
+   - cadence knobs exist and are auditable, but default-overhead gate failed by `0.186pp`.
+3) miss size is small enough that one bounded cadence retune is lower blast radius than declaring hold and carrying avoidable debt into remediation phases.
+
+Alternatives considered and rejected before this reopen:
+1) accept `HOLD_POPT4_REOPEN` immediately:
+   - rejected because the miss is marginal and a minimal default retune can likely close it without touching realism or contracts.
+2) relax the gate threshold from `<=2%` to a wider value:
+   - rejected because it weakens the performance law rather than fixing root operational overhead.
+3) disable progress heartbeat logs entirely:
+   - rejected because observability and run-ETA visibility are required for long S4 execution lanes.
+
+Bounded change selected:
+1) raise default progress cadence from `2.0s` to `5.0s` in `S2/S3/S4` trackers.
+2) keep env override knobs unchanged (`ENGINE_5B_S{2,3,4}_PROGRESS_INTERVAL_SEC`) so operators can tighten/loosen cadence explicitly.
+3) no changes to RNG model, policies, schemas, dataset writes, or validation contracts.
+
+Execution and veto protocol for this reopen:
+1) compile gate on touched runners.
+2) integrated witness `S2 -> S3 -> S4 -> S5` on authority run-id.
+3) low-verbosity `S4` control witness (`ENGINE_5B_S4_PROGRESS_INTERVAL_SEC=30`) and overhead recomputation.
+4) if overhead `<=2%` and all safety gates pass -> close `POPT.4` (`UNLOCK_POPT5_CONTINUE`).
+5) if overhead still fails -> retain `HOLD_POPT4_REOPEN` with explicit waiver request needed before progression.
+
+### Entry: 2026-02-22 13:41
+
+Execution step: applied bounded `POPT.4.2` default-cadence retune and reran witnesses.
+Summary: changed only the default heartbeat cadence constants in `S2/S3/S4` from `2.0s` to `5.0s`, preserved env override knobs, passed compile gate, and executed integrated + control lanes.
+
+Code edits applied in this reopen:
+1) `packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py`
+   - `DEFAULT_PROGRESS_INTERVAL_SECONDS: 2.0 -> 5.0`.
+2) `packages/engine/src/engine/layers/l2/seg_5B/s3_bucket_counts/runner.py`
+   - `DEFAULT_PROGRESS_INTERVAL_SECONDS: 2.0 -> 5.0`.
+3) `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+   - `DEFAULT_PROGRESS_INTERVAL_SECONDS: 2.0 -> 5.0`.
+
+Safety checks executed immediately after patch:
+1) compile gate:
+   - `python -m py_compile ...seg_5B/s2_latent_intensity/runner.py ...seg_5B/s3_bucket_counts/runner.py ...seg_5B/s4_arrival_events/runner.py ...seg_5B/s5_validation_bundle/runner.py` -> `PASS`.
+2) integrated witness chain:
+   - `S2 PASS wall_ms=58780`,
+   - `S3 PASS wall_ms=71516`,
+   - `S4 PASS wall_ms=527235`,
+   - `S5 PASS wall_ms=3109`.
+3) replay witness:
+   - second `S5` rerun `PASS wall_ms=2157`; publish path remained idempotent with no manual housekeeping.
+4) paired logging-budget control:
+   - `S4 control @30s` -> `wall_ms=437843`,
+   - `S4 default recheck @5s` -> `wall_ms=448264`,
+   - overhead `= (448264-437843)/437843 = 2.380%`.
+
+Interpretation of this evidence:
+1) `POPT.4.1` remains closed and stable:
+   - replay-idempotence behavior is now deterministic for same run-id.
+2) `POPT.4.2` remains partially open:
+   - default cadence retune reduced operational log pressure, but strict overhead gate (`<=2%`) still misses by `0.380pp` on paired runs.
+3) non-regression rails remain green:
+   - structural counts unchanged (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights`),
+   - bundle integrity remains true,
+   - no new stale-directory growth in this lane.
+
+Alternatives considered at close checkpoint:
+1) keep iterating cadence blindly (e.g., `10s+`) in same phase:
+   - rejected for now to avoid unbounded churn without first deciding whether to adjust measurement design vs continue strict default-cadence squeeze.
+2) declare pass using lenient interpretation of host variance:
+   - rejected; gate contract is explicit and fail-closed.
+3) roll back replay hardening because logging gate missed:
+   - rejected; replay lane is a clear operational fix and remains valid.
+
+Artifacts emitted for this reopen closure:
+1) `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r1_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+2) `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r1_closure_c25a2675fbfbacd952b13bb594880e92.json`
+3) `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r1_closure_c25a2675fbfbacd952b13bb594880e92.md`
+
+Hygiene:
+- `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
+
+Phase decision:
+- `HOLD_POPT4_REOPEN` (logging-overhead gate miss persists).

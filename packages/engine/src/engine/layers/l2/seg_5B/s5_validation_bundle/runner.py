@@ -154,6 +154,16 @@ def _write_json(path: Path, payload: object) -> None:
     path.write_bytes(_json_bytes(payload))
 
 
+def _canonical_index_payload(payload: dict) -> dict:
+    """Normalize volatile fields so replay comparisons are semantic, not bytewise."""
+    normalized = dict(payload)
+    normalized.pop("generated_utc", None)
+    entries = normalized.get("entries")
+    if isinstance(entries, list):
+        normalized["entries"] = sorted(entries, key=lambda item: str(item.get("path", "")))
+    return normalized
+
+
 def _schema_for_payload(schema_pack: dict, schema_layer1: dict, schema_layer2: dict, anchor: str) -> dict:
     schema = _schema_from_pack(schema_pack, anchor)
     _inline_external_refs(schema, schema_layer1, "schemas.layer1.yaml#")
@@ -1044,13 +1054,15 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                     MODULE_NAME,
                     {"detail": "bundle exists without index", "bundle_root": str(bundle_root)},
                 )
-            if existing_index.read_bytes() != (tmp_root / index_rel).read_bytes():
+            existing_index_payload = _load_json(existing_index)
+            candidate_index_payload = _load_json(tmp_root / index_rel)
+            if _canonical_index_payload(existing_index_payload) != _canonical_index_payload(candidate_index_payload):
                 raise EngineFailure(
                     "F4",
                     "S5_OUTPUT_CONFLICT",
                     STATE,
                     MODULE_NAME,
-                    {"detail": "index mismatch", "bundle_root": str(bundle_root)},
+                    {"detail": "index mismatch (non-volatile fields)", "bundle_root": str(bundle_root)},
                 )
             if overall_status == "PASS":
                 existing_flag = bundle_root / flag_rel

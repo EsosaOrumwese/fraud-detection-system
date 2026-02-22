@@ -63,6 +63,7 @@ UINT64_MASK = 0xFFFFFFFFFFFFFFFF
 UINT64_MAX = UINT64_MASK
 TWO_NEG_64 = float.fromhex("0x1.0000000000000p-64")
 _HEX64_PATTERN = re.compile(r"^[a-f0-9]{64}$")
+DEFAULT_PROGRESS_INTERVAL_SECONDS = 5.0
 
 
 @dataclass(frozen=True)
@@ -97,7 +98,7 @@ class _ProgressTracker:
         total: Optional[int],
         logger,
         label: str,
-        min_interval_seconds: float = 0.5,
+        min_interval_seconds: float = DEFAULT_PROGRESS_INTERVAL_SECONDS,
     ) -> None:
         self._total = int(total) if total is not None else None
         self._logger = logger
@@ -267,6 +268,17 @@ def _env_flag(name: str) -> bool:
     if value is None:
         return False
     return value.strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _env_progress_interval_seconds(name: str, default: float = DEFAULT_PROGRESS_INTERVAL_SECONDS) -> float:
+    raw = os.environ.get(name, f"{default}")
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} invalid: {raw}") from exc
+    if not math.isfinite(value) or value < 0.1:
+        raise ValueError(f"{name} invalid: {raw}")
+    return value
 
 
 def _schema_items(schema_pack: dict, schema_layer1: dict, schema_layer2: dict, anchor: str) -> dict:
@@ -766,6 +778,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         output_sample_rows = 5000
     output_validation_mode = "full" if output_validate_full else "fast_sampled"
     enable_rng_events = _env_flag("ENGINE_5B_S2_RNG_EVENTS")
+    progress_interval_seconds = _env_progress_interval_seconds("ENGINE_5B_S2_PROGRESS_INTERVAL_SEC")
     current_phase = "init"
     status = "FAIL"
     error_code: Optional[str] = None
@@ -844,6 +857,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             "S2: rng_event logging=%s (set ENGINE_5B_S2_RNG_EVENTS=1 to enable)",
             "on" if enable_rng_events else "off",
         )
+        logger.info("S2: progress cadence interval=%.2fs", progress_interval_seconds)
 
         tokens = {
             "seed": str(seed),
@@ -1583,7 +1597,12 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 group_count,
                 bucket_count,
             )
-            tracker = _ProgressTracker(group_count, logger, f"S2: group hyperparams (scenario_id={scenario_id})")
+            tracker = _ProgressTracker(
+                group_count,
+                logger,
+                f"S2: group hyperparams (scenario_id={scenario_id})",
+                min_interval_seconds=progress_interval_seconds,
+            )
             for row in group_features.iter_rows(named=True):
                 tracker.update(1)
                 group_id = str(row.get("group_id"))
@@ -1690,7 +1709,12 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     group_count,
                     bucket_count,
                 )
-                tracker = _ProgressTracker(group_count, logger, f"S2: latent draw (scenario_id={scenario_id})")
+                tracker = _ProgressTracker(
+                    group_count,
+                    logger,
+                    f"S2: latent draw (scenario_id={scenario_id})",
+                    min_interval_seconds=progress_interval_seconds,
+                )
                 for idx, group_id in enumerate(group_ids):
                     tracker.update(1)
                     sigma = group_sigma[idx]
@@ -1847,7 +1871,12 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 len(scenario_local_files),
                 rows_total,
             )
-            tracker = _ProgressTracker(rows_total, logger, f"S2: realised intensity rows (scenario_id={scenario_id})")
+            tracker = _ProgressTracker(
+                rows_total,
+                logger,
+                f"S2: realised intensity rows (scenario_id={scenario_id})",
+                min_interval_seconds=progress_interval_seconds,
+            )
 
             realised_entry = find_dataset_entry(dictionary_5b, "s2_realised_intensity_5B").entry
             realised_path = _resolve_dataset_path(
