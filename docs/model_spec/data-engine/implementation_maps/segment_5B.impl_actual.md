@@ -6498,6 +6498,68 @@ Decision:
 - `P0` planning expansion is complete and now execution-ready.
 - next step is `P0` execution lane (scorer/evidence), not `P1` edits yet.
 
+### Entry: 2026-02-22 16:07
+
+Execution step: completed full `P0` baseline authority scoring and handoff artifacts.
+Summary: executed `P0.1 -> P0.5` end-to-end by implementing a dedicated scorer, emitting gateboard/owner/protocol artifacts, and closing `P0` with explicit `UNLOCK_P1`.
+
+Why this execution design was chosen:
+1) `P0` needed machine-checkable closure, not narrative-only interpretation.
+2) we already had accepted authority run/evidence (`c25...`), so no new engine run was required.
+3) heavyweight key-level recomputation was intentionally avoided in `P0`; we used:
+   - exact full-scan checks where cheap (`T5`, `T6`, `T7`),
+   - deterministic sampled reconstruction for temporal checks (`T1/T2/T3/T8`),
+   - authority-backed conservation note for logical-key mismatch count in `T4`.
+
+Implementation details:
+1) added scorer:
+   - `tools/score_segment5b_p0_realism.py`.
+2) scorer outputs:
+   - `segment5b_p0_realism_gateboard_<run_id>.json/.md`,
+   - `segment5b_p0_owner_state_matrix_<run_id>.json`,
+   - `segment5b_p0_candidate_protocol_<run_id>.json`.
+3) data lanes:
+   - full scans: routing integrity + timezone concentration + virtual share.
+   - sampled temporal lane (`~49k` deterministic rows): civil mismatch, one-hour signature, DST-window hour MAE, weekend delta, contract marker checks.
+   - sampled dispersion lane (`~15k` deterministic S3 rows): standardized residual spread (`T9`).
+
+Observed baseline posture (B-gate focus):
+1) hard fails:
+   - `T1=2.6428%`,
+   - `T2=2.6428%`,
+   - `T3=3.0758pp`,
+   - `T10` (seed-panel insufficient evidence),
+   - `T11` (cache-horizon signal fail by metadata+mismatch inference),
+   - `T12` (local contract marker fail: non-UTC local fields with `Z` marker rate `100%`, `civil_time_ok=false`).
+2) major fails:
+   - `T6=75.1922%` top-10 timezone share,
+   - `T7=2.2466%` virtual share.
+3) green rails:
+   - `T4` conservation (`residual_sum=0`, key-level mismatch pinned from authority non-weakness),
+   - `T5` routing integrity (`violations=0`).
+4) context:
+   - `T8` pass (`0.0202pp`),
+   - `T9` fail (`1.7299`, above B range).
+
+Power and evidence caveats explicitly retained:
+1) `T3` has low DST-window support on sampled lane (`min_window_support=1`), flagged as `insufficient_power` in gateboard.
+2) `T10` is marked insufficient evidence in `P0` because authority run only includes seed `42`.
+3) `T11` is explicitly labeled inferred because cache manifest lacks direct horizon fields.
+
+Owner-state and protocol lock outcomes:
+1) `P1` owners pinned: `T1/T2/T3/T11/T12` (`S4/S5` local first, conditional `2A` reopen only if hard temporal gates persist).
+2) `P2` owners pinned: `T6/T7`.
+3) `P4` owner pinned: `T10` multi-seed certification.
+4) candidate protocol fixed to:
+   - mutable scope `S4/S5`,
+   - rerun lane `S4 -> S5`,
+   - frozen rails `T4/T5`,
+   - runtime gate `S4+S5 <= 9 min` with `>20%` regression veto absent gate movement.
+
+Decision:
+- `UNLOCK_P1`.
+- `P0` closure is complete with all required artifacts emitted and linked in build plan.
+
 ### Entry: 2026-02-22 15:07
 
 Execution step: completed `POPT.4R3` measurement-only lane and final gate adjudication.

@@ -1130,9 +1130,9 @@ Scope:
   - `HOLD_P0_REOPEN`.
 
 Definition of done:
-- [ ] metric table and formulas are machine-checkable (no prose-only gates).
-- [ ] authority run-id and dataset pointers are pinned.
-- [ ] phase decision vocabulary is explicit and deterministic.
+- [x] metric table and formulas are machine-checkable (no prose-only gates).
+- [x] authority run-id and dataset pointers are pinned.
+- [x] phase decision vocabulary is explicit and deterministic.
 
 #### P0.2 - Baseline scorecard and statistical-power audit
 Objective:
@@ -1146,9 +1146,9 @@ Scope:
   - `insufficient_power` flags when exposure exists but support is below threshold.
 
 Definition of done:
-- [ ] baseline gateboard includes pass/fail + measured value + threshold for every gate.
-- [ ] DST-window support and power flags are included (no silent low-power pass).
-- [ ] non-defect mechanics (`T4/T5` conservation/integrity) are explicitly separated from failing axes.
+- [x] baseline gateboard includes pass/fail + measured value + threshold for every gate.
+- [x] DST-window support and power flags are included (no silent low-power pass).
+- [x] non-defect mechanics (`T4/T5` conservation/integrity) are explicitly separated from failing axes.
 
 #### P0.3 - Owner-state attribution and reopen topology lock
 Objective:
@@ -1164,9 +1164,9 @@ Scope:
   - `T4`, `T5`, mass-conservation mechanics.
 
 Definition of done:
-- [ ] every failed gate has exactly one primary owner lane and optional secondary dependencies.
-- [ ] conditional-upstream reopen criteria are explicit (no ad-hoc upstream unlock).
-- [ ] frozen non-regression rails are pinned for P1 veto.
+- [x] every failed gate has exactly one primary owner lane and optional secondary dependencies.
+- [x] conditional-upstream reopen criteria are explicit (no ad-hoc upstream unlock).
+- [x] frozen non-regression rails are pinned for P1 veto.
 
 #### P0.4 - Candidate protocol and promotion veto lock
 Objective:
@@ -1184,9 +1184,9 @@ Scope:
   - reject candidates with runtime regression `>20%` absent clear gate movement.
 
 Definition of done:
-- [ ] candidate run protocol is pinned in machine-readable artifact.
-- [ ] veto gates and rollback triggers are explicit.
-- [ ] runtime budget checks are integrated into promotion decision.
+- [x] candidate run protocol is pinned in machine-readable artifact.
+- [x] veto gates and rollback triggers are explicit.
+- [x] runtime budget checks are integrated into promotion decision.
 
 #### P0.5 - Closure snapshot and handoff decision
 Objective:
@@ -1197,9 +1197,36 @@ Decision outcomes:
 - `HOLD_P0_REOPEN` when any metric/power/ownership ambiguity blocks safe P1 execution.
 
 Definition of done:
-- [ ] gateboard artifact set is complete and linked in plan.
-- [ ] owner-state matrix is complete and reviewed.
-- [ ] explicit `UNLOCK_P1` or `HOLD_P0_REOPEN` decision is recorded.
+- [x] gateboard artifact set is complete and linked in plan.
+- [x] owner-state matrix is complete and reviewed.
+- [x] explicit `UNLOCK_P1` or `HOLD_P0_REOPEN` decision is recorded.
+
+P0 closure snapshot (2026-02-22):
+- authority run-id:
+  - `c25a2675fbfbacd952b13bb594880e92`.
+- emitted artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p0_realism_gateboard_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p0_realism_gateboard_c25a2675fbfbacd952b13bb594880e92.md`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p0_owner_state_matrix_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p0_candidate_protocol_c25a2675fbfbacd952b13bb594880e92.json`
+- baseline gateboard highlights (`B` thresholds):
+  - hard fails: `T1`, `T2`, `T3`, `T10`, `T11`, `T12`.
+  - major fails: `T6`, `T7`.
+  - context fail: `T9`.
+  - green non-regression rails: `T4` (conservation), `T5` (routing integrity).
+- measured baseline values:
+  - `T1` civil mismatch `2.6428%`,
+  - `T2` one-hour signature mass `2.6428%`,
+  - `T3` DST-window MAE `3.0758 pp` (power caveat: `min_window_support=1`),
+  - `T6` top-10 timezone share `75.1922%`,
+  - `T7` virtual share `2.2466%`,
+  - `T12` contract signal: local-`Z` marker on non-UTC rows `100%`, `civil_time_ok=false`.
+- owner-state attribution locked:
+  - `P1` correctness lane: `T1/T2/T3/T11/T12`,
+  - `P2` calibration lane: `T6/T7`,
+  - `P4` certification lane: `T10`.
+- decision:
+  - `UNLOCK_P1`.
 
 ### P1 - Wave A correctness hardening (DST/civil-time first)
 Goal:
@@ -1277,5 +1304,5 @@ Definition of done:
 2. `POPT.1`, `POPT.2`, and `POPT.3/POPT.3R` are closed with explicit hold posture on `POPT.3R` stretch gate.
 3. `POPT.4` executed with bounded reopens `R2` and final `R3`; phase now closed at `UNLOCK_POPT5_CONTINUE`.
 4. `POPT.5` is closed with decision `GO_P0` and explicit residual-budget posture recorded.
-5. Execute `P0.1 -> P0.5` (authority lock, baseline gateboard, owner matrix, candidate protocol, handoff decision).
-6. On `UNLOCK_P1`, proceed into remediation stack `P1 -> P5`.
+5. `P0` is closed (`P0.1 -> P0.5`) with authority gateboard + owner matrix + candidate protocol artifacts.
+6. Proceed into remediation stack `P1 -> P5` (starting with Wave-A correctness lane).

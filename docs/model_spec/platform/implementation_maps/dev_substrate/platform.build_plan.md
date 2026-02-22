@@ -140,7 +140,7 @@ Current deep-plan file state:
 - `M9`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md` (present)
 - `M10`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md` (present)
 - `M11`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md` (present)
-- `M12`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M12.build_plan.md` (planned on activation)
+- `M12`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M12.build_plan.md` (present)
 - `M13`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M13.build_plan.md` (planned on activation)
 - `M14`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M14.build_plan.md` (planned on activation)
 
@@ -1848,15 +1848,41 @@ Failure posture:
   - missing durable manifest/evidence artifacts.
 
 Phase planning posture:
-- Detailed authority file on activation:
+- Detailed authority file:
   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M12.build_plan.md`.
 - Planned sub-phase progression model:
-  - `M12.A` OFS authority + input-contract closure,
-  - `M12.B` archive/label readiness and as-of gate checks,
-  - `M12.C` OFS runtime execution lane closure,
-  - `M12.D` manifest/fingerprint determinism checks,
-  - `M12.E` parity/leakage checks and blocker adjudication,
+  - `M12.A` OFS authority + input-contract closure.
+  - `M12.B` archive/label readiness + label-asof gate closure.
+  - `M12.C` OFS managed runtime execution lane closure.
+  - `M12.D` manifest/fingerprint determinism + rerun reproducibility closure.
+  - `M12.E` parity/leakage checks + blocker adjudication closure.
   - `M12.F` verdict + `M13` handoff (`ADVANCE_TO_M13|HOLD_M12`).
+
+Capability-lane coverage required before execution:
+- authority + handoff + handle closure,
+- identity/IAM + secrets + runtime profile closure,
+- archive + label timeline + asof contracts,
+- join-scope + drop-policy + leakage controls,
+- managed execution + retry/rerun controls,
+- observability/evidence + blocker taxonomy,
+- cost/teardown continuity posture for OFS lane.
+
+Required evidence outputs (minimum):
+- `m12_a_authority_input_contract_snapshot.json`
+- `m12_b_archive_label_asof_readiness_snapshot.json`
+- `m12_c_ofs_runtime_execution_snapshot.json`
+- `m12_d_manifest_determinism_snapshot.json`
+- `m12_e_parity_leakage_snapshot.json`
+- `m12_f_verdict_snapshot.json`
+- `m13_handoff_pack.json`
+
+M12 blocker families (phase-level):
+- `M12A-B*` authority/handle/input-contract blockers.
+- `M12B-B*` archive/label-asof readiness blockers.
+- `M12C-B*` runtime execution and publication blockers.
+- `M12D-B*` determinism/reproducibility blockers.
+- `M12E-B*` parity/leakage/blocker-adjudication blockers.
+- `M12F-B*` verdict/handoff publication blockers.
 
 M12 DoD checklist:
 - [ ] OFS datasets are built on managed compute with no local execution dependency.
@@ -2062,10 +2088,10 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M10 is closed with certification verdict published.
+M11 is closed with verdict `ADVANCE_TO_M12`.
 Next action:
-- activate `M11` planning/execution for Learning/Registry rollout in `dev_full`.
-- enforce mandatory `M8..M10` carry-forward non-regression gates before any `M11` closure claim.
+- keep `M12` as the active next implementation target and execute only on explicit USER activation.
+- enforce mandatory `M8..M10` carry-forward non-regression gates throughout `M12` closure.
 
 ---
 

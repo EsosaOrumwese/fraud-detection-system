@@ -20303,3 +20303,46 @@ Action:
 
 Outcome:
 1. M11 sub-phase formatting and closure pattern are now consistent end-to-end (`M11.A..M11.J`).
+
+## Entry: 2026-02-22 16:15 +00:00 - Pre-change lock for M12 planning expansion (main + deep plan)
+Reasoning:
+1. USER requested expansion of M12 in the main platform build plan and a deeper M12 plan doc.
+2. Current state:
+   - main plan M12 block is high-level (sufficient for gate-level intent but not execution-grade),
+   - `platform.M12.build_plan.md` does not exist.
+3. Decision-completeness/anti-cram laws require explicit capability-lane coverage before M12 execution can begin.
+
+Decision:
+1. Expand main-plan M12 section to include execution-grade lane map, deterministic evidence expectations, and blocker families.
+2. Create `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M12.build_plan.md` with deep sub-phase plan (`M12.A..M12.F`) and explicit DoD per lane.
+3. Keep M12 status unchanged (`NOT_STARTED`) until explicit USER activation for execution.
+
+Constraints preserved:
+1. Planning-only changes; no runtime infra mutation.
+2. No branch/history operations.
+3. No secret material in notes or docs.
+
+## Entry: 2026-02-22 16:20 +00:00 - M12 planning expansion completed (main + deep plan)
+Reasoning:
+1. M11 closure (`ADVANCE_TO_M12`) made M12 the next active planning target.
+2. Existing M12 main-plan text was gate-level but not fully execution-grade; deep M12 plan file was absent.
+
+Actions completed:
+1. Updated `platform.build_plan.md`:
+   - deep-plan routing now marks M12 file as present,
+   - expanded M12 section with capability-lane coverage, required evidence outputs, and blocker-family map,
+   - refreshed immediate-next-action section to reflect post-M11 reality.
+2. Created `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M12.build_plan.md` with execution-grade M12 decomposition:
+   - `M12.A..M12.F` goals, entry conditions, required inputs, DoD, blocker families,
+   - runtime budget posture,
+   - required snapshot contracts,
+   - phase-level DoD and planning status.
+
+Design decisions pinned in planning:
+1. M12 remains planning-only; runtime execution is explicitly blocked until USER activation.
+2. M12.A is the planned handle-closure lane for M12-specific OFS contract handles (`DF_OFS_LABEL_ASOF_UTC`, `DF_OFS_JOIN_SCOPE`, `DF_OFS_LEAKAGE_POLICY`, etc.) before any OFS runtime execution.
+3. M12 verdict remains fail-closed (`ADVANCE_TO_M13|HOLD_M12`) with deterministic source-matrix rollup in M12.F.
+
+Outcome:
+1. Main and deep planning layers for M12 are now aligned and execution-ready at planning level.
+2. No runtime infra mutation occurred.
