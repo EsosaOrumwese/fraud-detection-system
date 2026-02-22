@@ -145,6 +145,23 @@ Execution MUST NOT start if any required handle class is unresolved:
 4. S3 path-pattern handles
 5. run lock/reporter lock handles
 
+### 3.4 Cost-to-outcome execution rule
+
+Execution MUST NOT start a phase unless a phase spend envelope is recorded with:
+
+1. max spend allowance for this phase window,
+2. expected phase window duration,
+3. hard stop condition if spend/quality drifts,
+4. expected proof artifacts for closure.
+
+Phase closure MUST publish a cost-to-outcome receipt containing:
+
+1. spend consumed in phase window,
+2. proof artifacts emitted,
+3. decision/risk retired by that phase spend.
+
+Phase advancement is fail-closed if spend is consumed without material proof outcome.
+
 ---
 
 ## 4. Phase Map (Summary)
@@ -397,6 +414,7 @@ For every phase below:
 2. Any append-only ownership violation.
 3. Any missing required evidence artifact at phase closure.
 4. Any runtime drift from pinned stack substitutions.
+5. Any phase that consumed spend without an accepted cost-to-outcome receipt.
 
 ---
 

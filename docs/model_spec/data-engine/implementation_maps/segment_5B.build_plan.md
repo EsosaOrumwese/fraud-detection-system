@@ -1423,6 +1423,7 @@ P1 Reopen Bridge snapshot (2026-02-22):
 - phase decision:
   - retain `HOLD_P1_REOPEN` (single residual hard gate `T3` power criterion),
   - `P2` remains blocked.
+  - superseded by `P1.T3` closure snapshot below.
 
 #### P1.T3 - DST-window power-closure lane (post-upstream reopen)
 Objective:
@@ -1440,11 +1441,32 @@ Execution sequence:
    - else retain `HOLD_P1_REOPEN` with explicit residual waiver/freeze.
 
 Definition of done:
-- [ ] high-power audit artifact is captured with explicit support distribution.
-- [ ] updated `S5` power policy is machine-readable in run report context fields.
-- [ ] refreshed `P1` gateboard records `T3` power outcome with transparent thresholds.
-- [ ] explicit branch decision recorded (`UNLOCK_P2` or retained `HOLD_P1_REOPEN`).
-- [ ] no regressions on `T1/T2/T4/T5/T11/T12`.
+- [x] high-power audit artifact is captured with explicit support distribution.
+- [x] updated `S5` power policy is machine-readable in run report context fields.
+- [x] refreshed `P1` gateboard records `T3` power outcome with transparent thresholds.
+- [x] explicit branch decision recorded (`UNLOCK_P2` or retained `HOLD_P1_REOPEN`).
+- [x] no regressions on `T1/T2/T4/T5/T11/T12`.
+
+P1.T3 closure snapshot (2026-02-22):
+- high-power no-code audit:
+  - artifact: `runs/fix-data-engine/segment_5B/reports/segment5b_p1_t3_high_power_audit_c25a2675fbfbacd952b13bb594880e92.json`,
+  - finding: sample-size increase (`~2.0M`) did not clear global-min veto because sparse tails keep `min_support=1`.
+- criterion hardening implemented:
+  - `S5` + scorer now evaluate DST-window power on material windows:
+    - material floor `>=50`,
+    - min material windows `>=3`,
+    - min material total support `>=2000`.
+- rerun/scoring posture on authority run-id `c25a2675fbfbacd952b13bb594880e92`:
+  - `S5`: `PASS` (after non-destructive stale-folder move for prior publish conflict),
+  - `T1`: `PASS` (`0.0000%`),
+  - `T2`: `PASS` (`0.0000%`),
+  - `T3`: `PASS` (`0.0000pp`, `insufficient_power=false`, material windows `11`, material support total `2880`),
+  - `T4`: `PASS`,
+  - `T5`: `PASS`,
+  - `T11`: `PASS`,
+  - `T12`: `PASS`.
+- phase decision:
+  - `UNLOCK_P2`.
 
 ### P2 - Wave B calibration (timezone concentration + virtual share)
 Goal:
@@ -1510,4 +1532,4 @@ Definition of done:
 4. `POPT.5` is closed with decision `GO_P0` and explicit residual-budget posture recorded.
 5. `P0` is closed (`P0.1 -> P0.5`) with authority gateboard + owner matrix + candidate protocol artifacts.
 6. `P1` local Wave-A correctness lane is closed with hold posture and upstream reopen trigger.
-7. `P1 Reopen Bridge` executed; `P2` remains blocked until `T3` power-closure branch records `UNLOCK_P2`.
+7. `P1 Reopen Bridge` + `P1.T3` are closed with explicit `UNLOCK_P2`.

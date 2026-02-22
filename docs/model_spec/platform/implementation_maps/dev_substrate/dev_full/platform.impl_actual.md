@@ -250,3 +250,73 @@ _As of 2026-02-22_
 
 ### Remaining explicit dependency
 1. `Section 14` `TO_PIN` materialization handles still require value closure before first `dev-full-up` execution.
+
+## Entry: 2026-02-22 17:56 +00:00 - Cost-to-outcome operating law pinned in dev_full authorities
+
+### Trigger
+1. USER requested that spend discipline be explicitly captured so cost is tied to meaningful outcomes and not wasted.
+
+### Decision
+1. Treat budget cap as guardrail only, and enforce phase-level spend-to-proof discipline as a hard operating law.
+2. Encode this across policy, run execution, and handle contracts so it is enforceable (not just narrative).
+
+### Applied updates
+1. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
+   - Added `Section 5.2.1 Cost-to-outcome operating law (pinned)`.
+   - Added `Section 15.7 Cost-to-outcome gates` to DoD acceptance gates.
+2. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`
+   - Added `Section 3.4 Cost-to-outcome execution rule` (phase entry + closure obligations).
+   - Added stop-the-line condition for spend without accepted cost-to-outcome receipt.
+3. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+   - Added `Section 13.4 Cost-to-outcome control handles` for envelope/receipt/daily posture artifacts.
+
+### Why this closes the concern
+1. Every phase now needs pre-run spend envelope + post-run cost-to-outcome receipt.
+2. Phase advancement is fail-closed for spend without material proof outcome.
+3. Daily cross-platform cost posture is now explicit and auditable.
+
+## Entry: 2026-02-22 18:12 +00:00 - Dev-full master build plan drafting (pre-edit)
+
+### Trigger
+1. USER requested a dedicated build plan for `dev_full`.
+2. Dev-full authority set is now present (`design authority`, `run_process`, `handles registry`) and needs an execution tracker.
+
+### Problem to solve
+1. `dev_full` folder lacked `platform.build_plan.md`, so there was no canonical status owner for phase progression.
+2. Without a master plan, phase sequencing, DoDs, and anti-cram coverage controls would drift.
+
+### Decision
+1. Create `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md` as the status-owning execution plan.
+2. Use the proven dev_min structure, adapted for full-platform scope (`P(-1)..P17`).
+3. Keep deep-phase details deferred by progressive elaboration, but pin roadmap, phase ownership, and DoD-level closure gates now.
+4. Include the newly pinned cost-to-outcome law as a mandatory phase advancement condition.
+
+### Planned outputs
+1. New dev_full master build plan file with:
+   - authority precedence,
+   - global success criteria,
+   - non-negotiable guardrails,
+   - phase roadmap (M0..M13 mapped to canonical `P#`),
+   - phase status ownership and deep-plan routing rules.
+2. Update dev_full README to mark build plan as present and active.
+3. Append logbook decision/action entry.
+
+## Entry: 2026-02-22 18:16 +00:00 - Dev-full master build plan created
+
+### Implemented
+1. Created `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`.
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/README.md` to include the new plan and current posture.
+
+### Build plan posture
+1. Plan is scoped to full-platform dev_full execution (`P(-1)..P17`).
+2. Canonical phase roadmap established as `M0..M13` with one active phase at a time.
+3. `M0` is set to `ACTIVE` to validate authority consistency and fail-closed materialization backlog before runtime execution phases.
+4. Cost-to-outcome law is encoded as execution binding in the plan (phase envelope + outcome receipt required).
+
+### Why this is the right starting point
+1. It prevents immediate implementation drift by making phase status ownership explicit.
+2. It aligns directly with the three dev_full authority docs.
+3. It keeps planning progressive while still preventing anti-cram holes via required phase lanes and DoDs.
+
+### Immediate next step
+1. Expand `M0` in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M0.build_plan.md` and execute M0 closure checks.

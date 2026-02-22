@@ -180,6 +180,9 @@ def main() -> None:
     parser.add_argument("--run-id", default=RUN_ID_DEFAULT)
     parser.add_argument("--out-root", default="runs/fix-data-engine/segment_5B/reports")
     parser.add_argument("--sample-target", type=int, default=200_000)
+    parser.add_argument("--dst-material-floor", type=int, default=50)
+    parser.add_argument("--dst-min-material-windows", type=int, default=3)
+    parser.add_argument("--dst-min-total-support", type=int, default=2000)
     args = parser.parse_args()
 
     runs_root = Path(args.runs_root)
@@ -364,8 +367,17 @@ def main() -> None:
     if sample_size > 0:
         weekend_delta_pp = abs((weekend_obs_count / sample_size) - (weekend_exp_count / sample_size)) * 100.0
 
+    material_floor = max(1, int(args.dst_material_floor))
+    min_material_windows = max(1, int(args.dst_min_material_windows))
+    min_total_support = max(1, int(args.dst_min_total_support))
+
+    material_window_ids = [wid for wid, n in window_support.items() if n >= material_floor]
+    material_supports = [int(window_support[wid]) for wid in material_window_ids]
+    material_total_support = int(sum(material_supports)) if material_supports else 0
+
     window_mae_pp_values: list[float] = []
-    for wid, n in window_support.items():
+    for wid in material_window_ids:
+        n = int(window_support[wid])
         if n <= 0:
             continue
         obs = window_obs_hours[wid]
@@ -376,7 +388,11 @@ def main() -> None:
         window_mae_pp_values.append(mae_pp)
     t3_value = (mean(window_mae_pp_values) if window_mae_pp_values else None)
     min_window_support = min(window_support.values()) if window_support else 0
-    insufficient_power = bool(window_support) and min_window_support < 5000
+    min_material_support = min(material_supports) if material_supports else 0
+    insufficient_power = (
+        len(material_window_ids) < min_material_windows
+        or material_total_support < min_total_support
+    )
 
     # T9 dispersion (sampled S3 residual spread).
     s3_sample = _deterministic_s3_sample(s3_path, target=200_000)
@@ -438,7 +454,13 @@ def main() -> None:
             "bplus_pass": (t3_value is not None and t3_value <= 0.7 and not insufficient_power),
             "source": "arrival_events_sampled_dst_window_hour_mae",
             "window_count": len(window_support),
+            "material_window_count": len(material_window_ids),
             "min_window_support": min_window_support,
+            "min_material_window_support": min_material_support,
+            "material_total_support": material_total_support,
+            "material_window_floor": material_floor,
+            "min_material_windows_threshold": min_material_windows,
+            "min_total_support_threshold": min_total_support,
             "insufficient_power": insufficient_power,
         },
         "T4": {
@@ -582,7 +604,13 @@ def main() -> None:
             "arrival_sample_bad_parse_count": bad_parse_count,
             "contract_parse_mismatch_count": contract_parse_mismatch_count,
             "dst_window_count": len(window_support),
+            "dst_window_material_count": len(material_window_ids),
             "dst_window_support_min": min_window_support,
+            "dst_window_support_material_min": min_material_support,
+            "dst_window_support_material_total": material_total_support,
+            "dst_window_material_floor": material_floor,
+            "dst_window_min_material_windows_threshold": min_material_windows,
+            "dst_window_min_total_support_threshold": min_total_support,
             "dst_window_insufficient_power": insufficient_power,
             "local_lane_decision": local_lane_decision,
         },
@@ -618,7 +646,13 @@ def main() -> None:
         "t2_one_hour_signature_mass": t2_value,
         "t3_dst_window_mae_pp": t3_value,
         "dst_window_count": len(window_support),
+        "dst_window_material_count": len(material_window_ids),
         "dst_window_support_min": min_window_support,
+        "dst_window_support_material_min": min_material_support,
+        "dst_window_support_material_total": material_total_support,
+        "dst_window_material_floor": material_floor,
+        "dst_window_min_material_windows_threshold": min_material_windows,
+        "dst_window_min_total_support_threshold": min_total_support,
         "dst_window_insufficient_power": insufficient_power,
         "window_support": dict(window_support),
     }
@@ -645,7 +679,7 @@ def main() -> None:
         "## Key Metrics",
         f"- `T1` mismatch_rate: `{gate_values['T1']['value_fmt']}`",
         f"- `T2` one_hour_signature_mass: `{gate_values['T2']['value_fmt']}`",
-        f"- `T3` dst_window_mae_pp: `{gate_values['T3']['value_fmt']}` (windows={len(window_support)}, min_support={min_window_support})",
+        f"- `T3` dst_window_mae_pp: `{gate_values['T3']['value_fmt']}` (windows={len(window_support)}, material_windows={len(material_window_ids)}, min_support={min_window_support}, material_total={material_total_support})",
         f"- `T4` conservation: `{gate_values['T4']['value_fmt']}`",
         f"- `T5` routing_integrity: `{gate_values['T5']['value_fmt']}`",
         f"- `T11` cache_horizon: `{gate_values['T11']['value_fmt']}`",

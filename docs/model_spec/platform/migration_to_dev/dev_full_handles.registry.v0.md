@@ -572,6 +572,17 @@ Allowed tokens in pattern handles:
 * `TEARDOWN_BLOCK_ON_RESIDUAL_RISK = true`
 * `TEARDOWN_RESIDUAL_SCAN_PATH_PATTERN = "evidence/runs/{platform_run_id}/teardown/residual_scan.json"`
 
+### 13.4 Cost-to-outcome control handles
+
+* `PHASE_BUDGET_ENVELOPE_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/phase_budget_envelope.json"`
+* `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/phase_cost_outcome_receipt.json"`
+* `DAILY_COST_POSTURE_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/daily_cost_posture.json"`
+* `PHASE_COST_OUTCOME_REQUIRED = true`
+* `PHASE_ENVELOPE_REQUIRED = true`
+* `PHASE_COST_HARD_STOP_ON_MISSING_OUTCOME = true`
+* `COST_POSTURE_REVIEW_CADENCE_HOURS = 24`
+* `COST_OUTCOME_RECEIPT_REQUIRED_FIELDS = "phase_id,phase_execution_id,window_start_utc,window_end_utc,spend_amount,spend_currency,artifacts_emitted,decision_or_risk_retired"`
+
 ---
 
 ## 14. Open Materialization Handles (Fail-Closed)

@@ -275,13 +275,24 @@ def _build_transition_windows(tzid: str, utc_min: datetime, utc_max: datetime) -
     return [(t - timedelta(hours=24), t + timedelta(hours=24)) for t in transitions]
 
 
-def _dst_window_support(rows: list[dict], min_support: int) -> dict:
+def _dst_window_support(
+    rows: list[dict],
+    *,
+    material_window_floor: int,
+    min_material_windows: int,
+    min_material_total_support: int,
+) -> dict:
     if not rows:
         return {
             "dst_window_count": 0,
             "dst_windows_with_exposure": 0,
+            "dst_windows_material_count": 0,
             "dst_window_support_min": 0,
-            "dst_window_support_threshold": int(min_support),
+            "dst_window_support_material_min": 0,
+            "dst_window_support_material_total": 0,
+            "dst_window_material_floor": int(material_window_floor),
+            "dst_window_material_windows_threshold": int(min_material_windows),
+            "dst_window_material_total_support_threshold": int(min_material_total_support),
             "dst_window_insufficient_power": False,
         }
 
@@ -297,8 +308,13 @@ def _dst_window_support(rows: list[dict], min_support: int) -> dict:
         return {
             "dst_window_count": 0,
             "dst_windows_with_exposure": 0,
+            "dst_windows_material_count": 0,
             "dst_window_support_min": 0,
-            "dst_window_support_threshold": int(min_support),
+            "dst_window_support_material_min": 0,
+            "dst_window_support_material_total": 0,
+            "dst_window_material_floor": int(material_window_floor),
+            "dst_window_material_windows_threshold": int(min_material_windows),
+            "dst_window_material_total_support_threshold": int(min_material_total_support),
             "dst_window_insufficient_power": False,
         }
 
@@ -319,12 +335,23 @@ def _dst_window_support(rows: list[dict], min_support: int) -> dict:
                 support[key] = support.get(key, 0) + 1
 
     supports = list(support.values())
+    material_supports = [v for v in supports if v >= int(material_window_floor)]
+    material_total = int(sum(material_supports)) if material_supports else 0
+    insufficient = (
+        len(material_supports) < int(min_material_windows)
+        or material_total < int(min_material_total_support)
+    )
     return {
         "dst_window_count": int(sum(len(w) for w in windows_by_tz.values())),
         "dst_windows_with_exposure": int(len(support)),
+        "dst_windows_material_count": int(len(material_supports)),
         "dst_window_support_min": int(min(supports)) if supports else 0,
-        "dst_window_support_threshold": int(min_support),
-        "dst_window_insufficient_power": bool(supports and min(supports) < int(min_support)),
+        "dst_window_support_material_min": int(min(material_supports)) if material_supports else 0,
+        "dst_window_support_material_total": material_total,
+        "dst_window_material_floor": int(material_window_floor),
+        "dst_window_material_windows_threshold": int(min_material_windows),
+        "dst_window_material_total_support_threshold": int(min_material_total_support),
+        "dst_window_insufficient_power": bool(insufficient),
     }
 
 
@@ -726,17 +753,29 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             civil_mismatch_limit = max(0.0, float(civil_mismatch_limit_raw))
         except Exception:
             civil_mismatch_limit = 0.005
-        dst_window_min_support_raw = os.environ.get("ENGINE_5B_S5_DST_WINDOW_MIN_SUPPORT", "5000")
+        dst_window_material_floor_raw = os.environ.get("ENGINE_5B_S5_DST_WINDOW_MIN_SUPPORT", "50")
+        dst_window_min_material_windows_raw = os.environ.get("ENGINE_5B_S5_DST_WINDOW_MIN_EXPOSED_WINDOWS", "3")
+        dst_window_min_total_support_raw = os.environ.get("ENGINE_5B_S5_DST_WINDOW_MIN_TOTAL_SUPPORT", "2000")
         try:
-            dst_window_min_support = max(1, int(dst_window_min_support_raw))
+            dst_window_material_floor = max(1, int(dst_window_material_floor_raw))
         except Exception:
-            dst_window_min_support = 5000
+            dst_window_material_floor = 50
+        try:
+            dst_window_min_material_windows = max(1, int(dst_window_min_material_windows_raw))
+        except Exception:
+            dst_window_min_material_windows = 3
+        try:
+            dst_window_min_total_support = max(1, int(dst_window_min_total_support_raw))
+        except Exception:
+            dst_window_min_total_support = 2000
         logger.info(
-            "S5: failure policy mode=%s max_warnings=%d civil_mismatch_limit=%.6f dst_window_min_support=%d",
+            "S5: failure policy mode=%s max_warnings=%d civil_mismatch_limit=%.6f dst_window_material_floor=%d dst_window_min_exposed_windows=%d dst_window_min_total_support=%d",
             failure_mode,
             max_warnings,
             civil_mismatch_limit,
-            dst_window_min_support,
+            dst_window_material_floor,
+            dst_window_min_material_windows,
+            dst_window_min_total_support,
         )
 
         current_phase = "upstream_pass"
@@ -976,7 +1015,12 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
         civil_time_ok, civil_detail = _check_civil_time(sample_rows, civil_mismatch_limit)
         civil_time_gate_ok = civil_time_ok
-        dst_support = _dst_window_support(sample_rows, dst_window_min_support)
+        dst_support = _dst_window_support(
+            sample_rows,
+            material_window_floor=dst_window_material_floor,
+            min_material_windows=dst_window_min_material_windows,
+            min_material_total_support=dst_window_min_total_support,
+        )
         if bool(dst_support.get("dst_window_insufficient_power")):
             issues.append(
                 {

@@ -243,8 +243,25 @@ The following values are now explicitly pinned for v0 execution:
 1. `DEV_FULL_MONTHLY_BUDGET_LIMIT_USD = 300` (hard cap for v0).
 2. `DEV_FULL_BUDGET_ALERT_1_USD = 120`, `DEV_FULL_BUDGET_ALERT_2_USD = 210`, `DEV_FULL_BUDGET_ALERT_3_USD = 270`.
 3. Budget alerts MUST exist for AWS total billing (including streaming/runtime/data services) with fail-closed advancement policy when alert-3 is breached.
-3. Idle runtime posture MUST be controlled (lane-based start/stop and teardown discipline).
-4. `COST_CAPTURE_SCOPE = "aws_plus_external_ml_platform_if_separately_billed"` (no blind spots).
+4. Idle runtime posture MUST be controlled (lane-based start/stop and teardown discipline).
+5. `COST_CAPTURE_SCOPE = "aws_plus_external_ml_platform_if_separately_billed"` (no blind spots).
+
+### 5.2.1 Cost-to-outcome operating law (pinned)
+
+1. Every phase execution window MUST declare a pre-run spend envelope:
+   * max spend allowance for the phase window,
+   * expected duration window,
+   * hard stop/kill condition,
+   * required proof artifacts expected at phase closure.
+2. Every phase closure MUST publish a cost-to-outcome receipt:
+   * spend consumed in the window,
+   * artifacts produced,
+   * decision or risk retired by that spend.
+3. Phase advancement is fail-closed if:
+   * spend materially breaches the declared phase envelope, or
+   * material proof artifacts are missing for the spend consumed.
+4. Active implementation windows MUST publish daily cross-platform cost posture (`AWS + external ML platforms where billed separately`).
+5. Default runtime posture remains "off when not proving"; idle cost burn without active proof work is disallowed.
 
 ### 5.3 Always-on vs Ephemeral policy
 
@@ -580,6 +597,13 @@ Critical dev_min spine behaviors remain green after learning activation:
 ### 15.6 Portfolio-credibility gate
 
 Operator can demonstrate full lifecycle operation with production-shaped tools and evidence, not just component demos.
+
+### 15.7 Cost-to-outcome gates
+
+1. Every executed phase has a pre-run spend envelope artifact and a post-run cost-to-outcome receipt artifact.
+2. Every phase closure explicitly states what proof/decision was gained for spend consumed.
+3. Any phase with spend but no material proof/decision outcome is blocked from advancing.
+4. Daily cross-platform cost posture snapshots exist for all active build windows.
 
 ---
 
