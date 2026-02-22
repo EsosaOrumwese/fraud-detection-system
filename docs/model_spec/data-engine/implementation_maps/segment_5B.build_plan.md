@@ -985,7 +985,7 @@ POPT.4R2 closure snapshot (2026-02-22):
 - phase decision:
   - `HOLD_POPT4_REOPEN` (R2 did not close the strict overhead gate).
 
-#### POPT.4R3 - Measurement-protocol bounded reopen (active)
+#### POPT.4R3 - Measurement-protocol bounded reopen (closed)
 Objective:
 - run one final bounded measurement pass before waiver decision, using paired-run median to reduce host-jitter bias while keeping code and semantics frozen.
 
@@ -998,11 +998,30 @@ Scope lock:
   - policies, schemas/contracts, RNG/arrival law, replay logic.
 
 Definition of done:
-- [ ] no code changes are introduced in R3 lane.
-- [ ] at least three paired overhead observations are available for adjudication.
-- [ ] median paired overhead is computed and archived with raw pair evidence.
-- [ ] replay-idempotence still passes on post-measurement `S5` witness.
-- [ ] explicit decision recorded (`UNLOCK_POPT5_CONTINUE` or `HOLD_POPT4_REOPEN` and move-on).
+- [x] no code changes are introduced in R3 lane.
+- [x] at least three paired overhead observations are available for adjudication.
+- [x] median paired overhead is computed and archived with raw pair evidence.
+- [x] replay-idempotence still passes on post-measurement `S5` witness.
+- [x] explicit decision recorded (`UNLOCK_POPT5_CONTINUE` or `HOLD_POPT4_REOPEN` and move-on).
+
+POPT.4R3 closure snapshot (2026-02-22):
+- protocol:
+  - measurement-only lane with median-of-3 paired overhead adjudication.
+- paired overhead set:
+  - Pair #1 (R2 baseline): control `445891ms`, candidate `458656ms`, overhead `+2.863%`.
+  - Pair #2 (R3 fresh): control `466186ms`, candidate `447891ms`, overhead `-3.925%`.
+  - Pair #3 (R3 fresh): control `457608ms`, candidate `455875ms`, overhead `-0.379%`.
+- adjudication:
+  - median overhead `= -0.379%` vs target `<=2.000%` -> `PASS`.
+  - mean overhead `= -0.480%`.
+- replay witness:
+  - `S5` post-measurement rerun `PASS wall_ms=2108`, `bundle_integrity_ok=true`.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r3_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r3_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r3_closure_c25a2675fbfbacd952b13bb594880e92.md`
+- phase decision:
+  - `UNLOCK_POPT5_CONTINUE`.
 
 ### POPT.5 - Performance certification lock
 Goal:
@@ -1098,8 +1117,6 @@ Definition of done:
 ## 8) Immediate execution order from this plan
 1. `POPT.0` is closed and pinned (authority: `c25a2675fbfbacd952b13bb594880e92`).
 2. `POPT.1`, `POPT.2`, and `POPT.3/POPT.3R` are closed with explicit hold posture on `POPT.3R` stretch gate.
-3. `POPT.4` and bounded reopen `POPT.4R2` executed; replay lane is closed but logging-overhead gate remains open -> decision `HOLD_POPT4_REOPEN`.
-4. `POPT.5` is blocked until either:
-   - `POPT.4` logging-overhead gate is closed, or
-   - explicit user waiver is recorded for this residual miss.
-5. Remediation stack `P0 -> P5` remains blocked behind `POPT` closure/waiver.
+3. `POPT.4` executed with bounded reopens `R2` and final `R3`; phase now closed at `UNLOCK_POPT5_CONTINUE`.
+4. Execute `POPT.5` performance certification lock.
+5. On `POPT.5` closure, unlock remediation stack `P0 -> P5`.

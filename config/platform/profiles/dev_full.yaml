@@ -1,0 +1,48 @@
+profile_id: dev_full
+policy:
+  policy_rev: dev-full-v0
+  partitioning_profiles_ref: config/platform/ig/partitioning_profiles_v0.yaml
+  partitioning_profile_id: ig.partitioning.v0.traffic
+  require_gate_pass: true
+  stream_speedup: 1
+wiring:
+  object_store:
+    root: s3://fraud-platform-dev-full-object-store
+    endpoint: ${OBJECT_STORE_ENDPOINT}
+    region: ${OBJECT_STORE_REGION}
+    path_style: false
+ofp:
+  policy:
+    features_ref: config/platform/ofp/features_v0.yaml
+ofs:
+  policy:
+    launcher_policy_ref: config/platform/ofs/launcher_policy_v0.yaml
+  wiring:
+    stream_id: ofs.v0
+    required_platform_run_id: ${OFS_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID:-}}
+    run_ledger_locator: ${OFS_RUN_LEDGER_DSN:-}
+    object_store_root: ${PLATFORM_STORE_ROOT:-s3://fraud-platform-dev-full-object-store}
+    object_store_endpoint: ${OBJECT_STORE_ENDPOINT}
+    object_store_region: ${OBJECT_STORE_REGION}
+    object_store_path_style: ${OBJECT_STORE_PATH_STYLE:-false}
+    request_prefix: ${OFS_REQUEST_PREFIX:-${ACTIVE_PLATFORM_RUN_ID:-}/ofs/job_requests}
+    request_poll_seconds: ${OFS_REQUEST_POLL_SECONDS:-2.0}
+    request_batch_limit: ${OFS_REQUEST_BATCH_LIMIT:-20}
+    max_publish_retry_attempts: ${OFS_MAX_PUBLISH_RETRY_ATTEMPTS:-3}
+    service_release_id: ${OFS_SERVICE_RELEASE_ID:-git:dev_full}
+mf:
+  policy:
+    launcher_policy_ref: config/platform/mf/launcher_policy_v0.yaml
+  wiring:
+    stream_id: mf.v0
+    required_platform_run_id: ${MF_REQUIRED_PLATFORM_RUN_ID:-${ACTIVE_PLATFORM_RUN_ID:-}}
+    run_ledger_locator: ${MF_RUN_LEDGER_DSN:-}
+    object_store_root: ${PLATFORM_STORE_ROOT:-s3://fraud-platform-dev-full-object-store}
+    object_store_endpoint: ${OBJECT_STORE_ENDPOINT}
+    object_store_region: ${OBJECT_STORE_REGION}
+    object_store_path_style: ${OBJECT_STORE_PATH_STYLE:-false}
+    request_prefix: ${MF_REQUEST_PREFIX:-${ACTIVE_PLATFORM_RUN_ID:-}/mf/job_requests}
+    request_poll_seconds: ${MF_REQUEST_POLL_SECONDS:-2.0}
+    request_batch_limit: ${MF_REQUEST_BATCH_LIMIT:-20}
+    max_publish_retry_attempts: ${MF_MAX_PUBLISH_RETRY_ATTEMPTS:-3}
+    service_release_id: ${MF_SERVICE_RELEASE_ID:-git:dev_full}

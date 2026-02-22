@@ -178,7 +178,7 @@ Current phase posture:
 - `M8` is `DONE`,
 - `M9` is `DONE`,
 - `M10` is `DONE` (certification closed).
-- `M11` is `ACTIVE` (`M11.A` and `M11.B` executed; `M11.C` pending).
+- `M11` is `ACTIVE` (`M11.A..M11.F` executed; `M11.G` pending).
 - `M12` is `NOT_STARTED`.
 - `M13` is `NOT_STARTED`.
 - `M14` is `NOT_STARTED`.
@@ -1776,13 +1776,25 @@ Execution notes:
 - `M11.B` completed with blocker-free handle closure snapshot:
   - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_b_handle_closure_snapshot.json`
   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_b_handle_closure_snapshot.json`
-- `M11` remains `ACTIVE` until `M11.C..M11.J` close.
+- `M11.C` completed with blocker-free runtime decomposition snapshot:
+  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_c_runtime_decomposition_snapshot.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_c_runtime_decomposition_snapshot.json`
+- `M11.D` completed with blocker-free IAM/secret/KMS closure snapshot:
+  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_d_iam_secret_kms_snapshot.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_d_iam_secret_kms_snapshot.json`
+- `M11.E` completed with blocker-free data-store/path contract snapshot:
+  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_e_data_contract_snapshot.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_e_data_contract_snapshot.json`
+- `M11.F` completed with blocker-free messaging/governance corridor snapshot:
+  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_f_messaging_governance_snapshot.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_f_messaging_governance_snapshot.json`
+- `M11` remains `ACTIVE` until `M11.G..M11.J` close.
 
 M11 DoD checklist:
-- [ ] Required `OFS/MF/MPR` handles are pinned and resolvable.
-- [ ] Runtime lane topology is fully specified and managed-substrate only.
-- [ ] IAM role map and secret/materialization surfaces are least-privilege and auditable.
-- [ ] Data ownership + messaging/governance boundaries are explicit and non-overlapping.
+- [x] Required `OFS/MF/MPR` handles are pinned and resolvable.
+- [x] Runtime lane topology is fully specified and managed-substrate only.
+- [x] IAM role map and secret/materialization surfaces are least-privilege and auditable.
+- [x] Data ownership + messaging/governance boundaries are explicit and non-overlapping.
 - [ ] Observability/evidence schemas and blocker taxonomy are pinned.
 - [ ] `M8..M10` non-regression matrix is pinned as mandatory carry-forward gate.
 - [ ] Cost/teardown continuity is pinned for learning lanes.

@@ -19855,3 +19855,207 @@ Constraints preserved:
 1. No branch/history operations.
 2. No secrets or credentials committed.
 3. No local tool file proliferation.
+
+## Entry: 2026-02-22 15:20 +00:00 - Pre-change lock for M11.C expansion + execution
+Reasoning:
+1. USER requested sequential flow: expand current subphase plan before execution.
+2. `M11.C` plan was still lightweight and lacked deterministic entry/algorithm/snapshot schema needed for auditable closure.
+3. Runtime entrypoint verification showed OFS/MF CLIs are concrete in code, but dev_full runtime profile/pack artifacts were not yet present, creating `M11C-B1` risk.
+
+Decision:
+1. Expand `M11.C` section to execution-grade first.
+2. Materialize missing dev_full runtime contract artifacts as part of C execution:
+   - `config/platform/profiles/dev_full.yaml`
+   - `config/platform/run_operate/packs/dev_full_learning_jobs.v0.yaml`
+3. Execute M11.C closure by generating deterministic runtime decomposition snapshot and publishing it locally + durably.
+
+Alternatives considered:
+1. Keep profile/pack unresolved and close C with blockers:
+   - rejected because USER requested full execution and this would defer deterministic runtime closure.
+2. Reuse `local_parity` or `dev_min` profile in C:
+   - rejected due environment-target drift (`dev_full` required).
+
+Constraints preserved:
+1. No branch/history operations.
+2. No credentials in repo.
+3. No execution of long-lived local daemons; only static contract validation and snapshot generation.
+
+## Entry: 2026-02-22 15:24 +00:00 - M11.C blocker encountered and remediation decision
+Observation:
+1. First M11.C execution attempt failed with `M11C-B1`.
+2. Failure surface:
+   - OFS/MF module validation used bare `python -m ...` without runtime pack environment.
+   - module resolution failed (`ModuleNotFoundError: fraud_detection`) because `PYTHONPATH=src` was missing.
+
+Alternatives considered:
+1. Keep blocker and defer to later sub-phase:
+   - rejected; this is an environment-validation artifact, not true runtime decomposition failure.
+2. Change entrypoint commands to filesystem-based invocation:
+   - rejected; would drift from established module entrypoint posture.
+3. Re-run validation under the same env contract as run/operate pack (`PYTHONPATH=src`):
+   - selected; matches authoritative runtime packaging semantics.
+
+Remediation decision:
+1. Keep command templates unchanged.
+2. Patch M11.C validation note to require pack env context.
+3. Re-run M11.C closure with env-conformant command checks and refresh snapshot.
+
+## Entry: 2026-02-22 15:31 +00:00 - M11.D execution pre-lock (IAM/secret surface pinning)
+Reasoning:
+1. `M11.D` execution requires concrete IAM/SSM/KMS handles, but current dev_full registry only pinned high-level runtime handles.
+2. Without explicit role-per-lane and secret-path handles, D would either fail closed or drift into implicit assumptions.
+
+Decision:
+1. Add explicit D-handle family in `dev_full_handles.registry.v0.md`:
+   - per-lane roles (`OFS/MF/MPR`),
+   - required SSM paths for run ledgers and managed service credentials,
+   - KMS alias handle.
+2. Use deterministic logical-handle naming (`iam://...`, `/fraud-platform/dev_full/...`, `alias/...`) with no placeholders.
+3. Validate closure via matrix checks (uniqueness, path format, non-placeholder, lane-role cardinality).
+
+Alternatives rejected:
+1. Reuse single shared role handle for all lanes only:
+   - rejected because it weakens least-privilege closure evidence.
+2. Delay secret-path pinning to M11.E:
+   - rejected because D is the explicit IAM/secret closure lane.
+
+## Entry: 2026-02-22 15:31 +00:00 - Pre-change lock for M11.E planning + execution
+Reasoning:
+1. USER required sequential execution for `M11.C/D/E/F` with expansion-before-execution.
+2. `M11.E` is currently lightweight and cannot close fail-closed because it lacks:
+   - entry gate dependency on `M11.D` pass snapshot,
+   - deterministic required key set for store/path ownership,
+   - overlap/conflict detection algorithm,
+   - explicit run-scope semantics checks,
+   - retention contract checks and runtime budget gate.
+3. Existing dev_full handle registry does not yet expose explicit archive/dataset/eval/registry path handles, which would leave path-contract ambiguity if we execute now.
+
+Decision:
+1. Expand `M11.E` to execution-grade first.
+2. Pin missing data-store/path contract handles in `dev_full_handles.registry.v0.md` before running M11.E closure.
+3. Execute M11.E with deterministic owner/path/run-scope/retention matrices and publish local + durable snapshot.
+
+Alternatives considered:
+1. Execute M11.E without adding new handles and infer paths from prose:
+   - rejected because it creates hidden path drift and weakens auditable closure.
+2. Defer path pinning to M12:
+   - rejected because `M11.E` is the explicit data-contract closure gate for M11.
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secret material recorded.
+3. No unmanaged local daemon or long-running compute.
+
+## Entry: 2026-02-22 15:34 +00:00 - M11.E blocker cycle and remediation (`M11E-B2`)
+Observation:
+1. First M11.E closure run failed with `M11E-B2` despite all required keys being pinned.
+2. Root cause was parser normalization drift:
+   - markdown table values are backtick-quoted in registry,
+   - retention parser attempted integer conversion on raw values (for example `` `365` ``),
+   - resulting parse failure misclassified as unresolved path/retention contract.
+
+Alternatives considered:
+1. Remove backticks from registry values globally:
+   - rejected because that would diverge from current style used across handle tables.
+2. Ignore retention parse failures in M11.E:
+   - rejected because retention parse-validity is explicit M11.E DoD.
+3. Normalize parsed values in M11.E closure algorithm (`strip surrounding backticks`) and rerun:
+   - selected as deterministic, local, and style-preserving.
+
+Remediation:
+1. Kept registry style unchanged.
+2. Updated M11.E execution logic to normalize handle values before semantic checks.
+3. Re-ran M11.E closure and republished snapshot.
+
+Outcome:
+1. `M11E-B2` cleared.
+2. M11.E closed pass with blocker-free snapshot publication (local + durable).
+
+## Entry: 2026-02-22 15:35 +00:00 - M11.E executed and closed pass (data-store/path contracts)
+Reasoning:
+1. M11.E must prove deterministic ownership and path contracts before messaging/governance closure in M11.F.
+2. Required E-handle family was missing from registry at entry, so execution would have remained ambiguous without additional pinning.
+
+Decision trail:
+1. Added Section 7 in `dev_full_handles.registry.v0.md` to pin data-contract roots and retention handles.
+2. Executed deterministic M11.E closure algorithm:
+   - validated M11.D dependency pass posture,
+   - resolved required E handles,
+   - built fixed-order owner matrix,
+   - checked path collisions and run-scope semantics,
+   - validated retention parse/positivity.
+3. During first run encountered `M11E-B2` caused by markdown-value parsing (backticks); normalized parser and reran.
+
+Implementation artifacts:
+1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (Section 7 added).
+2. Local snapshot: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_e_data_contract_snapshot.json`.
+3. Durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_e_data_contract_snapshot.json`.
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md` updated with M11.E execution evidence and completed DoD checks.
+
+Results:
+1. `overall_pass=true`.
+2. blockers empty.
+3. Runtime budget satisfied.
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secret material recorded.
+3. No unmanaged local runtime services started.
+
+## Entry: 2026-02-22 15:36 +00:00 - Pre-change lock for M11.F planning + execution
+Reasoning:
+1. Next sequential lane is `M11.F` after M11.E pass closure.
+2. Current M11.F section is still high-level and lacks deterministic closure mechanics:
+   - dependency gate on M11.E snapshot,
+   - required messaging/governance/authn handle set,
+   - deterministic producer/consumer ownership matrix and conflict checks,
+   - explicit MPR resolution/fail-closed predicates,
+   - runtime budget gate and snapshot schema.
+3. Registry currently lacks explicit M11.F messaging/authn contract handles.
+
+Decision:
+1. Expand M11.F to execution-grade before running it.
+2. Pin messaging + governance/authn contract handles in `dev_full_handles.registry.v0.md`.
+3. Execute M11.F closure with deterministic corridor checks and publish local + durable snapshot.
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secrets recorded.
+3. No runtime infrastructure mutation.
+
+## Entry: 2026-02-22 15:41 +00:00 - M11.F executed and closed pass (messaging + governance/authn corridor)
+Reasoning:
+1. M11.F is the first fail-closed corridor proof for Learning/Registry control flow before M11.G observability taxonomy.
+2. Existing handles were insufficiently explicit for messaging ownership and governance authn, so F needed a dedicated registry section before closure.
+
+Decision trail:
+1. Expanded `M11.F` in `platform.M11.build_plan.md` to execution-grade:
+   - entry gate dependency on M11.E pass,
+   - deterministic required handle set,
+   - ownership/authn/corridor algorithms,
+   - snapshot schema and runtime budget gate.
+2. Added `dev_full_handles.registry.v0.md` Section 8 with explicit messaging/governance handles:
+   - learning bus/topic, governance topic, registry topic,
+   - MPR authn mode + allowed actor sets,
+   - deterministic resolution-order + fail-closed compatibility flag.
+3. Executed deterministic M11.F closure algorithm inline (no new helper files):
+   - validated M11.E dependency pass posture,
+   - resolved required F handles,
+   - built producer/consumer ownership matrix,
+   - validated governance/authn actor constraints,
+   - validated MPR promotion/rollback/resolution fail-closed predicates.
+4. Published local + durable snapshot and marked M11.F DoD complete.
+
+Evidence:
+1. Local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_f_messaging_governance_snapshot.json`.
+2. Durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_f_messaging_governance_snapshot.json`.
+
+Result:
+1. `overall_pass=true`.
+2. blockers empty.
+3. Runtime budget satisfied.
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secrets recorded in repository notes.
+3. No runtime infrastructure mutation.

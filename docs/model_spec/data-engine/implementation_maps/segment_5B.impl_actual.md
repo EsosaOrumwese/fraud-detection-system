@@ -6395,6 +6395,49 @@ Artifacts emitted for this reopen closure:
 Hygiene:
 - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
 
+### Entry: 2026-02-22 15:07
+
+Execution step: completed `POPT.4R3` measurement-only lane and final gate adjudication.
+Summary: no code-path edits were made in this lane. I executed two fresh interleaved `S4` control/candidate pairs, combined with the existing R2 pair for median-of-3 adjudication, then ran `S5` replay witness and closed the phase decision.
+
+R3 run sequence:
+1) Pair #2 (fresh):
+   - control `S4@30s`: `started_at=2026-02-22T15:07:30.647022Z`, `wall_ms=466186`,
+   - candidate `S4@10s`: `started_at=2026-02-22T15:15:24.711856Z`, `wall_ms=447891`.
+2) Pair #3 (fresh):
+   - control `S4@30s`: `started_at=2026-02-22T15:23:04.332170Z`, `wall_ms=457608`,
+   - candidate `S4@10s`: `started_at=2026-02-22T15:30:50.198817Z`, `wall_ms=455875`.
+3) Post-measurement replay witness:
+   - `S5`: `started_at=2026-02-22T15:38:33.392447Z`, `PASS`, `wall_ms=2108`, `bundle_integrity_ok=true`.
+
+Median-of-3 paired-overhead computation:
+1) Pair #1 (R2 carry-forward):
+   - control `445891`, candidate `458656`, overhead `+2.863%`.
+2) Pair #2 (R3 fresh):
+   - control `466186`, candidate `447891`, overhead `-3.925%`.
+3) Pair #3 (R3 fresh):
+   - control `457608`, candidate `455875`, overhead `-0.379%`.
+4) adjudication:
+   - median overhead `-0.379%`,
+   - mean overhead `-0.480%`,
+   - threshold `<=2.000%` -> `PASS`.
+
+Interpretation and alternatives at close:
+1) paired variance remains present across runs, but median protocol (pinned pre-run) gives a robust central estimate and avoids overreacting to single-run jitter.
+2) continuing to R4 tuning was considered and rejected because R3 already satisfies the bounded final-attempt objective and closes gate under pinned protocol.
+3) forcing HOLD despite passing median was rejected because it would violate the agreed R3 adjudication law and create unnecessary churn.
+
+Artifacts emitted:
+1) `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r3_lane_timing_c25a2675fbfbacd952b13bb594880e92.json`
+2) `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r3_closure_c25a2675fbfbacd952b13bb594880e92.json`
+3) `runs/fix-data-engine/segment_5B/reports/segment5b_popt4r3_closure_c25a2675fbfbacd952b13bb594880e92.md`
+
+Hygiene:
+- `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
+
+Phase decision:
+- `UNLOCK_POPT5_CONTINUE`.
+
 ### Entry: 2026-02-22 15:06
 
 Planning step: open `POPT.4R3` as final bounded measurement protocol lane before move-on decision.

@@ -61,3 +61,57 @@ Operational note:
 - `M11` cannot execute with any unresolved required handle in Section 3.
 - Placeholder/wildcard values are prohibited for required keys.
 - Any new required surface discovered during `M11+` must be added here before use.
+
+## 5. Runtime Contract Handles (M11.C-M11.F)
+
+| Key | Status | Value |
+|---|---|---|
+| `DF_PLATFORM_PROFILE_PATH` | PINNED | `config/platform/profiles/dev_full.yaml` |
+| `DF_LEARNING_RUN_PACK_REF` | PINNED | `config/platform/run_operate/packs/dev_full_learning_jobs.v0.yaml` |
+| `DF_OFS_ENTRYPOINT_CMD` | PINNED | `python -m fraud_detection.offline_feature_plane.worker --profile config/platform/profiles/dev_full.yaml run --once` |
+| `DF_MF_ENTRYPOINT_CMD` | PINNED | `python -m fraud_detection.model_factory.worker --profile config/platform/profiles/dev_full.yaml run --once` |
+| `DF_MPR_PROMOTION_TRIGGER_CMD` | PINNED | `airflow dags trigger mpr_promotion_approval` |
+| `DF_MPR_ROLLBACK_TRIGGER_CMD` | PINNED | `airflow dags trigger mpr_rollback` |
+
+## 6. IAM, Secrets, and KMS Handles (M11.D)
+
+| Key | Status | Value |
+|---|---|---|
+| `DF_OFS_TASK_ROLE_ARN` | PINNED | `iam://fraud-platform-dev-full-ofs-task-role` |
+| `DF_MF_TASK_ROLE_ARN` | PINNED | `iam://fraud-platform-dev-full-mf-task-role` |
+| `DF_MPR_CONTROL_ROLE_ARN` | PINNED | `iam://fraud-platform-dev-full-mpr-control-role` |
+| `DF_KMS_KEY_ALIAS` | PINNED | `alias/fraud-platform-dev-full` |
+| `DF_SSM_OFS_RUN_LEDGER_DSN_PATH` | PINNED | `/fraud-platform/dev_full/ofs/run_ledger_dsn` |
+| `DF_SSM_MF_RUN_LEDGER_DSN_PATH` | PINNED | `/fraud-platform/dev_full/mf/run_ledger_dsn` |
+| `DF_SSM_RUNTIME_DB_DSN_PATH` | PINNED | `/fraud-platform/dev_full/runtime/db_dsn` |
+| `DF_SSM_MLFLOW_TRACKING_URI_PATH` | PINNED | `/fraud-platform/dev_full/mlflow/tracking_uri` |
+| `DF_SSM_DATABRICKS_HOST_PATH` | PINNED | `/fraud-platform/dev_full/databricks/host` |
+| `DF_SSM_DATABRICKS_TOKEN_PATH` | PINNED | `/fraud-platform/dev_full/databricks/token` |
+| `DF_SSM_AIRFLOW_API_TOKEN_PATH` | PINNED | `/fraud-platform/dev_full/airflow/api_token` |
+
+## 7. Data-Store and Retention Contract Handles (M11.E)
+
+| Key | Status | Value |
+|---|---|---|
+| `DF_SPINE_ARCHIVE_ROOT` | PINNED | `s3://fraud-platform-dev-full-object-store/archive/` |
+| `DF_DATASET_MANIFEST_ROOT` | PINNED | `s3://fraud-platform-dev-full-object-store/ofs/manifests/{platform_run_id}/` |
+| `DF_EVAL_REPORT_ROOT` | PINNED | `s3://fraud-platform-dev-full-object-store/mf/eval_reports/{platform_run_id}/` |
+| `DF_REGISTRY_EVENT_ROOT` | PINNED | `s3://fraud-platform-dev-full-object-store/mpr/registry_events/` |
+| `DF_DATASET_RETENTION_DAYS` | PINNED | `180` |
+| `DF_EVAL_REPORT_RETENTION_DAYS` | PINNED | `365` |
+| `DF_MODEL_ARTIFACT_RETENTION_DAYS` | PINNED | `365` |
+| `DF_EVIDENCE_RETENTION_DAYS` | PINNED | `365` |
+
+## 8. Messaging and Governance/Authn Corridor Handles (M11.F)
+
+| Key | Status | Value |
+|---|---|---|
+| `DF_LEARNING_EVENT_BUS_HANDLE` | PINNED | `confluent://fraud-platform-dev-full-learning-bus` |
+| `DF_LEARNING_EVENT_TOPIC` | PINNED | `fp.bus.learning.v1` |
+| `DF_GOVERNANCE_EVENT_TOPIC` | PINNED | `fp.bus.control.v1` |
+| `DF_REGISTRY_EVENT_TOPIC` | PINNED | `fp.bus.registry.v1` |
+| `DF_MPR_AUTHN_MODE` | PINNED | `service_token` |
+| `DF_MPR_ALLOWED_SYSTEM_ACTORS` | PINNED | `SYSTEM::model_factory,SYSTEM::platform_orchestrator` |
+| `DF_MPR_ALLOWED_HUMAN_ACTORS` | PINNED | `HUMAN::platform_governance` |
+| `DF_MPR_RESOLUTION_ORDER` | PINNED | `tenant_active>global_active>safe_fallback>fail_closed` |
+| `DF_MPR_FAIL_CLOSED_ON_INCOMPATIBLE` | PINNED | `true` |

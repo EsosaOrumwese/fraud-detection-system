@@ -355,91 +355,425 @@ Goal:
 1. Pin exact managed runtime topology for OFS/MF/MPR.
 2. Ensure no lane depends on local/laptop execution.
 
-Tasks:
-1. Define runtime mode per lane:
-   - OFS: ECS run-task.
-   - MF: ECS run-task.
-   - MPR: ECS service or run-task (explicitly pinned).
-2. Map each lane to concrete entrypoint command and container runtime assumptions.
-3. Pin desired-count/start-stop posture for any service lane.
-4. Emit `m11_c_runtime_decomposition_snapshot.json`.
+Entry conditions:
+1. `M11.B` snapshot exists locally and durably.
+2. `M11.B` reports `overall_pass=true` with blocker union empty.
+3. Required runtime handles from `dev_full_handles.registry.v0.md` are pinned and non-placeholder:
+   - `DF_RUNTIME_CLUSTER_HANDLE`
+   - `DF_RUNTIME_EXECUTION_ROLE`
+   - `DF_ORCHESTRATION_HANDLE`
+   - `DF_TRAINING_JOB_HANDLE`.
+
+Required inputs:
+1. `M11.B` source snapshots:
+   - local: `runs/dev_substrate/m11/<m11_execution_id>/m11_b_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m11_execution_id>/m11_b_handle_closure_snapshot.json`.
+2. Runtime implementation surfaces:
+   - `src/fraud_detection/offline_feature_plane/worker.py`
+   - `src/fraud_detection/model_factory/worker.py`
+   - `src/fraud_detection/learning_registry/contracts.py`
+3. Runtime profile/pack contracts:
+   - `config/platform/profiles/dev_full.yaml`
+   - `config/platform/run_operate/packs/dev_full_learning_jobs.v0.yaml`
+4. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+
+Preparation checks (fail-closed):
+1. Resolve M11.B snapshot (local preferred, durable fallback) and verify pass posture.
+2. Parse required runtime handles and assert no unresolved/placeholder value.
+3. Verify OFS/MF entrypoint modules expose CLI main and required `run` command posture.
+4. Verify dev_full profile/pack artifacts exist and reference dev_full runtime surfaces.
+5. Verify MPR runtime mode is explicitly non-local and bound to orchestration handle.
+
+Deterministic closure algorithm (M11.C):
+1. Resolve M11.B snapshot; unreadable or non-pass -> `M11C-B4`.
+2. Resolve runtime handle set from registry; unresolved/placeholder -> `M11C-B2`.
+3. Build deterministic runtime decomposition matrix for lanes:
+   - OFS lane:
+     - mode: `ECS_RUN_TASK`,
+     - entrypoint: `python -m fraud_detection.offline_feature_plane.worker --profile config/platform/profiles/dev_full.yaml run --once`,
+     - role: `DF_RUNTIME_EXECUTION_ROLE`,
+     - cluster: `DF_RUNTIME_CLUSTER_HANDLE`.
+   - MF lane:
+     - mode: `ECS_RUN_TASK`,
+     - entrypoint: `python -m fraud_detection.model_factory.worker --profile config/platform/profiles/dev_full.yaml run --once`,
+     - role: `DF_RUNTIME_EXECUTION_ROLE`,
+     - cluster: `DF_RUNTIME_CLUSTER_HANDLE`.
+   - MPR lane:
+     - mode: `AIRFLOW_DAG_CONTROL`,
+     - entrypoints:
+       - promotion trigger from `DF_PROMOTION_APPROVAL_CHANNEL`,
+       - rollback trigger from `DF_ROLLBACK_CHANNEL`,
+     - run/operate orchestration anchor: `DF_ORCHESTRATION_HANDLE`.
+4. Validate command conformance:
+   - module import/help checks pass for OFS/MF worker commands under pack env (`PYTHONPATH=src`),
+   - no lane references `local_parity` profile or local filesystem-only runtime root.
+5. Emit `m11_c_runtime_decomposition_snapshot.json` locally.
+6. Publish durable snapshot; publish failure -> `M11C-B5`.
+
+Required snapshot fields (`m11_c_runtime_decomposition_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m11_execution_id`, `subphase_id="M11.C"`.
+2. `m11b_source_ref_local`, `m11b_source_ref_uri`, `m11b_source_mode`.
+3. `runtime_handle_refs` (resolved key/value set used by C).
+4. `runtime_decomposition_matrix` (lane/mode/entrypoint/role/cluster/orchestration bindings).
+5. `entrypoint_validation_checks`.
+6. `profile_pack_conformance_checks`.
+7. `blockers`, `overall_pass`, `elapsed_seconds`, `created_utc`.
+
+Runtime budget:
+1. `M11.C` target budget: <= 20 minutes.
+2. Over-budget without user waiver -> `M11C-B6`.
 
 DoD:
-- [ ] Runtime mode is pinned for OFS/MF/MPR with no ambiguity.
-- [ ] Entrypoint matrix is complete and runnable in managed substrate.
-- [ ] No local runtime path remains in authoritative flow.
-- [ ] Snapshot includes deterministic lane-to-entrypoint map.
+- [x] M11.B dependency is pass-closed and linked.
+- [x] Runtime mode is pinned for OFS/MF/MPR with no ambiguity.
+- [x] Entrypoint matrix is complete and command-valid.
+- [x] No local runtime path remains in authoritative flow.
+- [x] Profile/pack contracts for dev_full learning lanes are present.
+- [x] Snapshot exists locally and durably.
+
+Execution evidence (2026-02-22):
+1. Local snapshot:
+   - `runs/dev_substrate/m11/m11_20260222T145654Z/m11_c_runtime_decomposition_snapshot.json`
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_c_runtime_decomposition_snapshot.json`
+3. Closure result:
+   - `overall_pass=true`
+   - blockers empty
+4. Runtime contract artifacts materialized:
+   - `config/platform/profiles/dev_full.yaml`
+   - `config/platform/run_operate/packs/dev_full_learning_jobs.v0.yaml`
 
 Blockers:
 1. `M11C-B1`: missing/invalid entrypoint for required lane.
-2. `M11C-B2`: runtime mode ambiguity (job vs service unresolved).
+2. `M11C-B2`: runtime mode ambiguity or unresolved runtime handle.
 3. `M11C-B3`: local-runtime dependency detected.
+4. `M11C-B4`: M11.B dependency unreadable or not pass-closed.
+5. `M11C-B5`: snapshot publication failure.
+6. `M11C-B6`: runtime budget breach without waiver.
 
 ### M11.D IAM + Secrets + KMS Closure
 Goal:
 1. Pin least-privilege role map and secret materialization for Learning/Registry lanes.
 2. Ensure fail-closed secret posture before execution.
 
-Tasks:
-1. Pin task-role mapping for OFS/MF/MPR lanes.
-2. Pin required SSM paths and secret materialization policy.
-3. Validate KMS/encryption posture for secret-bearing surfaces.
-4. Emit `m11_d_iam_secret_kms_snapshot.json`.
+Entry conditions:
+1. `M11.C` snapshot exists locally and durably.
+2. `M11.C` reports `overall_pass=true` with blocker union empty.
+3. Runtime topology in M11.C is fixed for OFS/MF/MPR lanes.
+
+Required inputs:
+1. `M11.C` source snapshots:
+   - local: `runs/dev_substrate/m11/<m11_execution_id>/m11_c_runtime_decomposition_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m11_execution_id>/m11_c_runtime_decomposition_snapshot.json`.
+2. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+3. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`.
+
+Required IAM/secret handles for D closure:
+1. `DF_OFS_TASK_ROLE_ARN`
+2. `DF_MF_TASK_ROLE_ARN`
+3. `DF_MPR_CONTROL_ROLE_ARN`
+4. `DF_KMS_KEY_ALIAS`
+5. `DF_SSM_OFS_RUN_LEDGER_DSN_PATH`
+6. `DF_SSM_MF_RUN_LEDGER_DSN_PATH`
+7. `DF_SSM_RUNTIME_DB_DSN_PATH`
+8. `DF_SSM_MLFLOW_TRACKING_URI_PATH`
+9. `DF_SSM_DATABRICKS_HOST_PATH`
+10. `DF_SSM_DATABRICKS_TOKEN_PATH`
+11. `DF_SSM_AIRFLOW_API_TOKEN_PATH`
+
+Preparation checks (fail-closed):
+1. Resolve M11.C snapshot (local preferred, durable fallback) and verify pass posture.
+2. Resolve required IAM/secret handles and assert:
+   - all keys present exactly once,
+   - status is `PINNED`,
+   - value is non-placeholder.
+3. Role-mapping checks:
+   - each lane (`OFS`, `MF`, `MPR`) has exactly one role handle,
+   - no lane role is empty.
+4. Secret-path checks:
+   - each required SSM path is absolute (`/fraud-platform/dev_full/...`),
+   - no duplicate secret path across different semantic surfaces.
+5. KMS checks:
+   - alias/key handle present and syntactically valid (`alias/...` or `arn:...`).
+
+Deterministic closure algorithm (M11.D):
+1. Resolve M11.C snapshot; unreadable or non-pass -> `M11D-B4`.
+2. Resolve required IAM/secret handles from registry; missing/unresolved -> `M11D-B1` or `M11D-B2`.
+3. Build lane role map:
+   - `OFS -> DF_OFS_TASK_ROLE_ARN`,
+   - `MF -> DF_MF_TASK_ROLE_ARN`,
+   - `MPR -> DF_MPR_CONTROL_ROLE_ARN`.
+4. Build secret materialization matrix:
+   - path, owner lane, secret class, materialization policy (`required_before_runtime=true`).
+5. Build least-privilege mapping matrix:
+   - role -> allowed surface families (object store prefixes, SSM path prefixes, orchestration controls).
+6. Validate KMS mapping for secret-bearing surfaces.
+7. Emit `m11_d_iam_secret_kms_snapshot.json` locally.
+8. Publish durable snapshot; publish failure -> `M11D-B5`.
+
+Required snapshot fields (`m11_d_iam_secret_kms_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m11_execution_id`, `subphase_id="M11.D"`.
+2. `m11c_source_ref_local`, `m11c_source_ref_uri`, `m11c_source_mode`.
+3. `lane_role_map`.
+4. `secret_path_matrix`.
+5. `kms_binding_matrix`.
+6. `least_privilege_matrix`.
+7. `blockers`, `overall_pass`, `elapsed_seconds`, `created_utc`.
+
+Runtime budget:
+1. `M11.D` target budget: <= 20 minutes.
+2. Over-budget without user waiver -> `M11D-B6`.
 
 DoD:
-- [ ] Each required lane has exactly one runtime task role.
-- [ ] Secret sources/paths are explicit and non-duplicated.
-- [ ] Missing required secrets are explicit blockers (fail-closed).
-- [ ] Snapshot documents role->surface least-privilege mapping.
+- [x] M11.C dependency is pass-closed and linked.
+- [x] Each required lane has exactly one runtime task/control role.
+- [x] Secret sources/paths are explicit, unique, and non-placeholder.
+- [x] KMS binding surface is explicit for secret-bearing materials.
+- [x] Snapshot documents role/secret/kms least-privilege closure.
+- [x] Snapshot exists locally and durably.
+
+Execution evidence (2026-02-22):
+1. Local snapshot:
+   - `runs/dev_substrate/m11/m11_20260222T145654Z/m11_d_iam_secret_kms_snapshot.json`
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_d_iam_secret_kms_snapshot.json`
+3. Closure result:
+   - `overall_pass=true`
+   - blockers empty
 
 Blockers:
-1. `M11D-B1`: unresolved runtime role.
-2. `M11D-B2`: missing required SSM secret path/materialization rule.
+1. `M11D-B1`: unresolved runtime role handle.
+2. `M11D-B2`: missing/invalid required SSM secret path handle.
 3. `M11D-B3`: privilege overreach or role/surface mismatch.
+4. `M11D-B4`: M11.C dependency unreadable or not pass-closed.
+5. `M11D-B5`: snapshot publication failure.
+6. `M11D-B6`: runtime budget breach without waiver.
 
 ### M11.E Data-Store Ownership + Path Contracts
 Goal:
 1. Pin deterministic ownership and path contracts for archive/features/models/registry/evidence.
 2. Prevent cross-plane truth collisions.
 
-Tasks:
-1. Build owner matrix (`OFS`, `MF`, `MPR`, existing spine components).
-2. Pin concrete path patterns and run-scope semantics where required.
-3. Pin retention/lifecycle posture references for learning artifacts.
-4. Emit `m11_e_data_contract_snapshot.json`.
+Entry conditions:
+1. `M11.D` snapshot exists locally and durably.
+2. `M11.D` reports `overall_pass=true` with blocker union empty.
+3. Data-store/path-contract handles required by E are pinned and non-placeholder.
+
+Required inputs:
+1. `M11.D` source snapshots:
+   - local: `runs/dev_substrate/m11/<m11_execution_id>/m11_d_iam_secret_kms_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m11_execution_id>/m11_d_iam_secret_kms_snapshot.json`.
+2. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+3. Local-parity ownership truth references:
+   - `docs/design/platform/local-parity/spine_green_v0_run_process_flow.txt`
+   - `docs/design/platform/local-parity/addendum_4_io_ownership_matrix.txt`.
+4. `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md`.
+
+Required data-contract handles for E closure:
+1. `DF_SPINE_ARCHIVE_ROOT`
+2. `DF_OFS_DATA_ROOT`
+3. `DF_LABEL_TIMELINE_ROOT`
+4. `DF_DATASET_MANIFEST_ROOT`
+5. `DF_EVAL_REPORT_ROOT`
+6. `DF_FEATURE_STORE_HANDLE`
+7. `DF_MODEL_ARTIFACT_ROOT`
+8. `DF_MODEL_REGISTRY_HANDLE`
+9. `DF_REGISTRY_EVENT_ROOT`
+10. `DF_EVIDENCE_BUCKET`
+11. `DF_EVIDENCE_PREFIX_PATTERN`
+12. `DF_DATASET_RETENTION_DAYS`
+13. `DF_EVAL_REPORT_RETENTION_DAYS`
+14. `DF_MODEL_ARTIFACT_RETENTION_DAYS`
+15. `DF_EVIDENCE_RETENTION_DAYS`
+
+Preparation checks (fail-closed):
+1. Resolve M11.D snapshot (local preferred, durable fallback) and verify pass posture.
+2. Resolve required E handles and assert:
+   - all keys present exactly once,
+   - status is `PINNED`,
+   - value is non-placeholder.
+3. Build candidate owner matrix and assert one-owner truth law:
+   - each truth surface has exactly one writer owner,
+   - readers may be multiple but cannot claim ownership.
+4. Path-conflict checks:
+   - concrete path/prefix values are pairwise non-identical for independent truth surfaces,
+   - no learning root collides with spine archive root.
+5. Run-scope checks:
+   - run-scoped surfaces explicitly include `{platform_run_id}` or equivalent run partitioning,
+   - global registry surfaces are explicitly marked non-run-scoped.
+6. Retention checks:
+   - retention-day handles parse as positive integers,
+   - immutable-governance surfaces are marked append-only/non-destructive.
+
+Deterministic closure algorithm (M11.E):
+1. Resolve M11.D snapshot; unreadable or non-pass -> `M11E-B4`.
+2. Resolve required E handles from registry; unresolved/placeholder -> `M11E-B2`.
+3. Build deterministic data-store owner matrix in fixed order:
+   - spine archive truth,
+   - label timeline truth,
+   - OFS dataset manifests/eval outputs,
+   - feature store materialization,
+   - MF model artifacts,
+   - MPR registry state/events,
+   - evidence artifacts.
+4. Evaluate owner uniqueness and overlap rules:
+   - any multi-owner truth surface -> `M11E-B1`.
+5. Evaluate path/prefix conflict rules:
+   - any unresolved/duplicate/conflicting contract -> `M11E-B2`.
+6. Evaluate run-scope semantics:
+   - mismatch between declared scope and path contract -> `M11E-B3`.
+7. Evaluate retention predicates and append-only posture.
+8. Emit `m11_e_data_contract_snapshot.json` locally.
+9. Publish durable snapshot; publish failure -> `M11E-B5`.
+
+Required snapshot fields (`m11_e_data_contract_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m11_execution_id`, `subphase_id="M11.E"`.
+2. `m11d_source_ref_local`, `m11d_source_ref_uri`, `m11d_source_mode`.
+3. `required_handle_refs` (resolved key/value set used by E).
+4. `data_store_owner_matrix` (surface/owner/readers/path/scope/append_only).
+5. `path_contract_checks`.
+6. `run_scope_semantics_checks`.
+7. `retention_policy_matrix`.
+8. `blockers`, `overall_pass`, `elapsed_seconds`, `created_utc`.
+
+Runtime budget:
+1. `M11.E` target budget: <= 20 minutes.
+2. Over-budget without user waiver -> `M11E-B6`.
 
 DoD:
-- [ ] Data-store owner matrix has zero overlaps on truth ownership.
-- [ ] Path patterns are concrete and non-conflicting.
-- [ ] Required run-scope semantics are explicit (`platform_run_id` vs global registry events where applicable).
-- [ ] Snapshot captures owner + path + retention contract.
+- [x] Data-store owner matrix has zero overlaps on truth ownership.
+- [x] Path patterns are concrete and non-conflicting.
+- [x] Required run-scope semantics are explicit (`platform_run_id` vs global registry events where applicable).
+- [x] Retention posture for learning artifacts is explicit and parse-valid.
+- [x] Snapshot captures owner + path + retention contract.
+- [x] Snapshot exists locally and durably.
+
+Execution evidence (2026-02-22):
+1. Local snapshot:
+   - `runs/dev_substrate/m11/m11_20260222T145654Z/m11_e_data_contract_snapshot.json`
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_e_data_contract_snapshot.json`
+3. Closure result:
+   - `overall_pass=true`
+   - blockers empty
+4. Data-contract handle family pinned:
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` Section 7 (`DF_SPINE_ARCHIVE_ROOT`, dataset/eval/registry roots, retention handles).
 
 Blockers:
 1. `M11E-B1`: ownership overlap/ambiguity.
 2. `M11E-B2`: path conflict or unresolved prefix contract.
 3. `M11E-B3`: run-scope semantics mismatch.
+4. `M11E-B4`: M11.D dependency unreadable or not pass-closed.
+5. `M11E-B5`: snapshot publication failure.
+6. `M11E-B6`: runtime budget breach without waiver.
 
 ### M11.F Messaging + Governance/Authn Corridor Closure
 Goal:
 1. Pin learning-plane messaging interfaces and governance writer-boundary authn requirements.
 2. Ensure MPR corridor semantics are explicit and fail-closed.
 
-Tasks:
-1. Pin producer/consumer responsibilities for learning/registry events.
-2. Pin governance actor and authn requirements for MPR actions.
-3. Pin deterministic resolution/promotion/rollback corridor references.
-4. Emit `m11_f_messaging_governance_snapshot.json`.
+Entry conditions:
+1. `M11.E` snapshot exists locally and durably.
+2. `M11.E` reports `overall_pass=true` with blocker union empty.
+3. Messaging/governance/authn handles required by F are pinned and non-placeholder.
+
+Required inputs:
+1. `M11.E` source snapshots:
+   - local: `runs/dev_substrate/m11/<m11_execution_id>/m11_e_data_contract_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m11_execution_id>/m11_e_data_contract_snapshot.json`.
+2. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+3. `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`.
+4. `docs/model_spec/platform/pre-design_decisions/run_and_operate.pre-design_decisions.md`.
+5. `docs/model_spec/platform/pre-design_decisions/learning_and_evolution.pre-design_decisions.md`.
+
+Required messaging/authn handles for F closure:
+1. `DF_LEARNING_EVENT_BUS_HANDLE`
+2. `DF_LEARNING_EVENT_TOPIC`
+3. `DF_GOVERNANCE_EVENT_TOPIC`
+4. `DF_REGISTRY_EVENT_TOPIC`
+5. `DF_MPR_AUTHN_MODE`
+6. `DF_MPR_ALLOWED_SYSTEM_ACTORS`
+7. `DF_MPR_ALLOWED_HUMAN_ACTORS`
+8. `DF_MPR_RESOLUTION_ORDER`
+9. `DF_MPR_FAIL_CLOSED_ON_INCOMPATIBLE`
+10. `DF_PROMOTION_APPROVAL_CHANNEL`
+11. `DF_ROLLBACK_CHANNEL`
+12. `DF_MPR_PROMOTION_TRIGGER_CMD`
+13. `DF_MPR_ROLLBACK_TRIGGER_CMD`
+
+Preparation checks (fail-closed):
+1. Resolve M11.E snapshot (local preferred, durable fallback) and verify pass posture.
+2. Resolve required F handles and assert:
+   - all keys present exactly once,
+   - status is `PINNED`,
+   - value is non-placeholder.
+3. Build producer/consumer ownership matrix and assert:
+   - each event family has exactly one producer owner,
+   - consumer set is explicit and non-empty.
+4. Governance/authn checks:
+   - MPR actor model is explicit for `SYSTEM` and `HUMAN`,
+   - authn mode is explicit and non-open.
+5. Corridor semantics checks:
+   - promotion and rollback triggers are pinned and deterministic,
+   - resolution order is explicit and includes fail-closed terminal posture.
+
+Deterministic closure algorithm (M11.F):
+1. Resolve M11.E snapshot; unreadable or non-pass -> `M11F-B4`.
+2. Resolve required F handles from registry; unresolved/placeholder -> `M11F-B2`.
+3. Build deterministic messaging ownership matrix in fixed order:
+   - OFS dataset/evidence lifecycle events,
+   - MF publish/eval lifecycle events,
+   - MPR registry lifecycle events,
+   - governance audit/anomaly events.
+4. Validate ownership uniqueness and non-overlap:
+   - ambiguity or multi-producer event family -> `M11F-B1`.
+5. Build governance/authn corridor matrix:
+   - action type, required actor class, authn mode, allowed actor set.
+6. Validate MPR corridor semantics:
+   - promotion/rollback channels and trigger commands pinned,
+   - compatibility mismatch posture is fail-closed,
+   - resolution order explicit and deterministic.
+7. Emit `m11_f_messaging_governance_snapshot.json` locally.
+8. Publish durable snapshot; publish failure -> `M11F-B5`.
+
+Required snapshot fields (`m11_f_messaging_governance_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m11_execution_id`, `subphase_id="M11.F"`.
+2. `m11e_source_ref_local`, `m11e_source_ref_uri`, `m11e_source_mode`.
+3. `required_handle_refs` (resolved key/value set used by F).
+4. `messaging_ownership_matrix` (event_family/producer/consumers/topic_or_channel).
+5. `governance_authn_matrix` (action/authn_mode/allowed_actors/fail_closed).
+6. `mpr_corridor_checks`.
+7. `blockers`, `overall_pass`, `elapsed_seconds`, `created_utc`.
+
+Runtime budget:
+1. `M11.F` target budget: <= 20 minutes.
+2. Over-budget without user waiver -> `M11F-B6`.
 
 DoD:
-- [ ] Messaging ownership matrix is explicit and non-overlapping.
-- [ ] Governance action authn/actor requirements are explicit.
-- [ ] MPR fail-closed compatibility/resolution expectations are pinned.
-- [ ] Snapshot captures corridor contract and acceptance checks.
+- [x] Messaging ownership matrix is explicit and non-overlapping.
+- [x] Governance action authn/actor requirements are explicit.
+- [x] MPR fail-closed compatibility/resolution expectations are pinned.
+- [x] Snapshot captures corridor contract and acceptance checks.
+- [x] Snapshot exists locally and durably.
+
+Execution evidence (2026-02-22):
+1. Local snapshot:
+   - `runs/dev_substrate/m11/m11_20260222T145654Z/m11_f_messaging_governance_snapshot.json`
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_f_messaging_governance_snapshot.json`
+3. Closure result:
+   - `overall_pass=true`
+   - blockers empty
+4. Messaging/governance handle family pinned:
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` Section 8 (`DF_LEARNING_EVENT_BUS_HANDLE`, `DF_*_TOPIC`, MPR authn/actor/resolution handles).
 
 Blockers:
 1. `M11F-B1`: messaging ownership ambiguity.
 2. `M11F-B2`: missing governance/authn requirement for MPR actions.
 3. `M11F-B3`: unresolved promotion/rollback corridor semantics.
+4. `M11F-B4`: M11.E dependency unreadable or not pass-closed.
+5. `M11F-B5`: snapshot publication failure.
+6. `M11F-B6`: runtime budget breach without waiver.
 
 ### M11.G Observability/Evidence + Blocker Taxonomy Closure
 Goal:
@@ -580,6 +914,6 @@ M11 verdict snapshot (`m11_j_verdict_snapshot.json`) additional required fields:
 
 ## 9) Planning Status
 1. This file is now expanded to execution-grade planning depth.
-2. `M11.A` closure execution has been completed with local + durable evidence publication.
-3. No runtime infrastructure changes were performed during `M11.A` closure execution.
+2. `M11.A..M11.F` closure execution has been completed with local + durable evidence publication.
+3. `M11.G..M11.J` remain open for sequential expansion/execution.
 4. Status transitions remain governed only by `platform.build_plan.md`.
