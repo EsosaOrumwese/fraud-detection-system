@@ -1723,6 +1723,98 @@ P2.4 bounded local concentration-tempering snapshot (2026-02-22):
   - `runs/fix-data-engine/segment_5B/reports/segment5b_p24_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.csv`
   - `runs/fix-data-engine/segment_5B/reports/segment5b_p24_closure_c25a2675fbfbacd952b13bb594880e92.json`
 
+### P2.U2 - Upstream reopen lane for residual T6 owner (`3B.S2/S3`)
+Goal:
+- close residual timezone concentration (`T6`) by reopening the true upstream edge-weight/topology owner surfaces in `3B`, while keeping `P2.U1` `T7` posture and frozen rails intact.
+
+Scope:
+- mutable owner surfaces:
+  - `3B.S2` policy/coefficients controlling edge-weight concentration/diversification,
+  - `3B.S3` edge topology constraints only where needed for spread support.
+- downstream witness chain per candidate:
+  - `3B: S2 -> S3 -> S4 -> S5`,
+  - `5B: S0 -> S4 -> S5`,
+  - score `segment5b_p1_realism` + `segment5b_p2_calibration`.
+- frozen/veto rails:
+  - `T1/T2/T3/T4/T5/T11/T12` must remain pass,
+  - `T7` must stay in B band (`3%-8%`),
+  - runtime regression veto remains active.
+
+#### P2.U2.0 - Forensics lock (no rerun)
+Objective:
+- quantify where residual `T6` excess is coming from before touching upstream owners.
+
+Scope:
+- decompose current authority posture into:
+  - top-10 tz concentration table,
+  - merchant-level contribution matrix,
+  - `mcc/channel/virtual_mode` offender summary,
+  - required reduction counts to hit B (`<=72%`) and B+ (`<=62%`).
+- compute a ranked offender set and explicit coverage:
+  - minimum set expected to explain at least `80%` of required B reduction mass.
+
+Definition of done:
+- [x] forensics artifact pack exists (json + csv) under `runs/fix-data-engine/segment_5B/reports/`.
+- [x] required reduction math is explicit and reproducible from authority run-id.
+- [x] ranked offender set reaches `>=80%` coverage of required B reduction mass.
+- [x] next-lane owner candidates for `3B.S2/S3` are listed from evidence, not guesswork.
+
+P2.U2.0 closure snapshot (2026-02-22):
+- authority run-id:
+  - `c25a2675fbfbacd952b13bb594880e92`.
+- observed posture:
+  - `T6=74.3382%` (`top10_total=92,717,706` of `n_total=124,724,153`).
+- required reduction:
+  - to B (`<=72%`): `2,916,316` arrivals (`2.3382 pp`),
+  - to B+ (`<=62%`): `15,388,732` arrivals (`12.3382 pp`).
+- concentration ownership signal:
+  - top tzids are Europe-heavy (`Europe/London`, `Europe/Paris`, `Europe/Berlin`, ...),
+  - owner cohorts are overwhelmingly `NON_VIRTUAL + card_present`.
+- offender coverage:
+  - top merchant alone covers `5.8138x` of required B reduction mass (coverage target `>=0.8` met immediately),
+  - top `mcc/channel/virtual_mode` cohorts by top10 mass:
+    - `5651 / card_present / NON_VIRTUAL`,
+    - `5813 / card_present / NON_VIRTUAL`,
+    - `8641 / card_present / NON_VIRTUAL`,
+    - `5271 / card_present / NON_VIRTUAL`,
+    - `5199 / card_present / NON_VIRTUAL`.
+- emitted artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_forensics_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_offender_merchants_c25a2675fbfbacd952b13bb594880e92.csv`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_offender_mcc_channel_c25a2675fbfbacd952b13bb594880e92.csv`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_top10_tz_c25a2675fbfbacd952b13bb594880e92.csv`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_merchant_tz_hotspots_c25a2675fbfbacd952b13bb594880e92.csv`
+- decision:
+  - `UNLOCK_P2.U2.1` with owner shortlist pinned above.
+
+#### P2.U2.1 - Policy-only owner pass (`3B.S2/S3`)
+Objective:
+- attempt `T6` closure with bounded upstream policy/coeff changes before any new code path.
+
+Definition of done:
+- [ ] at least one bounded owner candidate runs end-to-end.
+- [ ] `T6` moves materially toward B with `T7` and frozen rails preserved.
+- [ ] keep/reject decision recorded per candidate.
+
+#### P2.U2.2 - Deterministic owner code lane (conditional)
+Objective:
+- open minimal upstream deterministic code-path only if `P2.U2.1` cannot close `T6`.
+
+Definition of done:
+- [ ] trigger decision is explicit (opened/skipped).
+- [ ] if opened, deterministic invariants and no-synthetic-support constraints are evidenced.
+- [ ] bounded strength sweep completed with veto rails enforced.
+
+#### P2.U2.3 - Closure and branch decision
+Objective:
+- close upstream reopen with explicit branch posture.
+
+Definition of done:
+- [ ] closure artifact includes best candidate deltas vs canonical.
+- [ ] branch decision recorded:
+  - `UNLOCK_P3` if `T6/T7` meet B with veto rails green,
+  - else `HOLD_P2_UPSTREAM_REOPEN`.
+
 ### P3 - Wave C contract hardening
 Goal:
 - pin corrected semantics and thresholds in policy/schema/contracts so closure is durable.
@@ -1777,4 +1869,5 @@ Definition of done:
 7. `P1 Reopen Bridge` + `P1.T3` are closed with explicit `UNLOCK_P2`.
 8. `P2` is closed with `UNLOCK_P2_UPSTREAM_REOPEN` (local infeasibility proven for `T7`; frozen rails preserved).
 9. `P2.U1` executed and closed: `T7` now `PASS_B`, frozen rails preserved, `T6` remains red.
-10. `P2.4` bounded local lane is now closed as insufficient for B closure on `T6`; active posture remains `HOLD_P2_UPSTREAM_REOPEN`.
+10. `P2.4` bounded local lane is now closed as insufficient for B closure on `T6`.
+11. `P2.U2.0` forensics lock is closed; active lane is `P2.U2.1` (policy-only owner pass on `3B.S2/S3`).

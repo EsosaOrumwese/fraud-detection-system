@@ -7741,3 +7741,84 @@ Quality/performance cleanup after `P2.4` execution.
 Applied:
 1) set explicit `return_dtype=pl.Int32` on `tzid_operational` mapping in `S4` runner to remove `MapWithoutReturnDtypeWarning` and tighten deterministic dtype behavior.
 2) compile gate rerun for modified runner -> PASS.
+
+### Entry: 2026-02-22 20:50
+
+Planning lock: open `P2.U2.0` forensics lane before any `3B.S2/S3` owner edits.
+
+Problem framing:
+1) after `P2.U1` + bounded local `P2.4`, `T7` is in-band but `T6` remains above B (`74.3382% > 72%`).
+2) local `5B.S4` tempering ceiling was demonstrated (`best 74.0336%`), so further local tuning is low-value for closure.
+3) upstream owner reopen needs evidence of where concentration mass actually sits, not guesswork.
+
+Chosen approach for `P2.U2.0`:
+1) produce a dedicated forensics artifact from authority run `c25...` with no reruns.
+2) compute exact B/B+ required reduction mass from observed `T6` and total arrivals.
+3) decompose top-10 tz mass at owner-relevant granularity:
+   - `merchant_id`,
+   - parsed `mcc/channel` from `3B` classification rule_id,
+   - `virtual_mode`.
+4) derive ranked offender set and cumulative coverage against required B reduction mass (`>=80%` DoD).
+
+Alternatives considered:
+1) jump directly to `3B.S2` coefficient tuning:
+   - rejected; likely to churn long reruns without owner-prioritized evidence.
+2) rely only on existing `P2.2` sensitivity artifact:
+   - rejected; it has merchant decomposition but not full owner-grade (`mcc/channel/virtual_mode`) for reopen targeting.
+
+Implementation plan:
+1) add script `tools/analyze_segment5b_p2u2_owner_forensics.py`.
+2) emit artifacts under `runs/fix-data-engine/segment_5B/reports/`:
+   - `segment5b_p2u2_forensics_<run_id>.json`,
+   - `segment5b_p2u2_offender_merchants_<run_id>.csv`,
+   - `segment5b_p2u2_offender_mcc_channel_<run_id>.csv`,
+   - `segment5b_p2u2_top10_tz_<run_id>.csv`.
+3) compile-check and execute script on authority run-id.
+4) sync plan/logbook with resulting owner shortlist for `P2.U2.1`.
+
+### Entry: 2026-02-22 21:10
+
+Execution closure: `P2.U2.0` forensics lane completed (no rerun path).
+
+What was executed:
+1) implemented `tools/analyze_segment5b_p2u2_owner_forensics.py`.
+2) compile gate:
+   - `python -m py_compile tools/analyze_segment5b_p2u2_owner_forensics.py` -> PASS.
+3) executed script on authority run:
+   - `python tools/analyze_segment5b_p2u2_owner_forensics.py --runs-root runs/local_full_run-5 --run-id c25a2675fbfbacd952b13bb594880e92 --out-root runs/fix-data-engine/segment_5B/reports`.
+
+Mid-lane correction applied:
+1) first run revealed regex escape bug in MCC extraction (`MCC_(\\d+)` parsed as literal slash sequence).
+2) patched to `MCC_(\d+)` and reran the lane.
+3) final artifacts now carry valid `mcc/channel` owner keys.
+
+Forensics findings (authority posture):
+1) observed concentration:
+   - `n_total=124,724,153`,
+   - `top10_total=92,717,706`,
+   - `T6=74.3382%`.
+2) required reduction:
+   - B target (`<=72%`): `2,916,316` arrivals (`2.3382 pp`),
+   - B+ target (`<=62%`): `15,388,732` arrivals (`12.3382 pp`).
+3) offender concentration shape:
+   - dominant top10 cohorts are `NON_VIRTUAL + card_present`.
+   - top `mcc/channel/virtual_mode` contributors include:
+     - `5651/card_present/NON_VIRTUAL`,
+     - `5813/card_present/NON_VIRTUAL`,
+     - `8641/card_present/NON_VIRTUAL`,
+     - `5271/card_present/NON_VIRTUAL`,
+     - `5199/card_present/NON_VIRTUAL`.
+4) coverage criterion:
+   - top merchant covers `5.8138x` of required-B reduction mass,
+   - `>=80%` offender-coverage DoD is satisfied.
+
+Decision for next lane:
+1) `UNLOCK_P2.U2.1`.
+2) owner candidate generation for `3B.S2/S3` should prioritize the listed `card_present/NON_VIRTUAL` cohorts and top-Europe tz concentration axis.
+
+Artifacts emitted:
+1) `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_forensics_c25a2675fbfbacd952b13bb594880e92.json`
+2) `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_offender_merchants_c25a2675fbfbacd952b13bb594880e92.csv`
+3) `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_offender_mcc_channel_c25a2675fbfbacd952b13bb594880e92.csv`
+4) `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_top10_tz_c25a2675fbfbacd952b13bb594880e92.csv`
+5) `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_merchant_tz_hotspots_c25a2675fbfbacd952b13bb594880e92.csv`

@@ -160,10 +160,10 @@ Tasks:
 4. Emit `core` stack apply/verification receipt.
 
 DoD:
-- [ ] `core` plan/apply succeeds.
-- [ ] required core outputs are materialized.
-- [ ] baseline tags/policies pass conformance checks.
-- [ ] M2.B evidence snapshot committed.
+- [x] `core` plan/apply succeeds.
+- [x] required core outputs are materialized.
+- [x] baseline tags/policies pass conformance checks.
+- [x] M2.B evidence snapshot committed.
 
 M2.B planning precheck (decision completeness):
 1. Required handles for this lane are pinned:
@@ -172,9 +172,9 @@ M2.B planning precheck (decision completeness):
    - `S3_BUCKET_ENCRYPTION_ENABLED`, `S3_BUCKET_PUBLIC_ACCESS_BLOCKED`, `S3_BUCKET_VERSIONING_ENABLED`
    - `KMS_KEY_ALIAS_PLATFORM`
    - downstream-unblock handles expected from core outputs: `MSK_CLIENT_SUBNET_IDS`, `MSK_SECURITY_GROUP_ID`
-2. Current execution reality:
-   - `infra/terraform/dev_full/core/main.tf` is still M2.A skeletal (backend + local only), with no concrete resource/module or output surfaces yet.
-3. M2.B remains planning-only in this step; core implementation completeness is pinned as an entry blocker for M2.B execution.
+2. Planning-time execution reality:
+   - `infra/terraform/dev_full/core/main.tf` was M2.A skeletal (backend + local only), with no concrete resource/module or output surfaces.
+3. That planning blocker was carried as `M2B-B1` and resolved during M2.B execution.
 
 M2.B execution contract (planned):
 1. Preconditions:
@@ -211,14 +211,35 @@ M2.B evidence contract (planned):
 5. `m2b_execution_summary.json`
    - rollup verdict (`overall_pass`), next gate (`M2.C_READY` or `BLOCKED`).
 
-M2.B expected entry blocker (current planning reality):
-1. `M2B-B1`: core stack implementation is still skeleton-only and cannot satisfy core output/materialization DoD until resource/module/output surfaces are added.
+M2.B expected entry blocker (planning-time reality):
+1. `M2B-B1`: core stack implementation was skeleton-only and could not satisfy core output/materialization DoD until resource/module/output surfaces were added.
 
 M2.B closure rule:
 1. M2.B can close only when:
    - all `M2B-B*` blockers are resolved,
    - DoD checks are green,
    - evidence artifacts are produced and readable.
+
+M2.B execution closure (2026-02-22):
+1. PASS evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/`
+2. Required artifacts produced:
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_core_plan_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_core_apply_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_core_output_handle_matrix.json`
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_core_policy_tag_conformance.json`
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_post_apply_stability_check.json`
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_execution_summary.json`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2b_20260222T210207Z/`
+4. Command verdict:
+   - `plan_exit=2` (creates present), `apply_exit=0`, `overall_pass=true`, blockers empty.
+   - `policy_tag_conformance_pass=true` (IAM attachments + required tags).
+   - post-apply stability plan returned no drift (`detailed_exit_code=0`).
+5. M2.B blocker adjudication:
+   - `M2B-B1` closed by materializing concrete core stack resources/outputs.
+   - `M2B-B2..B5` closed by successful command receipts and conformance checks.
 
 ## M2.C Streaming Stack Materialization
 Goal:
@@ -362,7 +383,7 @@ Any active `M2-B*` blocker prevents M2 execution closure.
 
 ## 7) M2 Completion Checklist
 - [x] M2.A complete.
-- [ ] M2.B complete.
+- [x] M2.B complete.
 - [ ] M2.C complete.
 - [ ] M2.D complete.
 - [ ] M2.E complete.

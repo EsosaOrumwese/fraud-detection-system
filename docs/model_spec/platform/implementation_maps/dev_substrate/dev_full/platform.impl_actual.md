@@ -1158,7 +1158,7 @@ _As of 2026-02-22_
 6. Explicit security evidence contract:
    - security_secret_injection_checks.json
    - secret_source_contract_receipt.json
-   - uild_context_secret_scan.json
+   - uild_context_secret_scan.json
 7. Build-go validation method and deterministic sub-blocker taxonomy (M1D-B1..B5).
 
 ### Key planning decisions
@@ -1186,7 +1186,7 @@ _As of 2026-02-22_
 2. Produce required M1.D artifacts under P(-1):
    - security_secret_injection_checks.json
    - secret_source_contract_receipt.json
-   - uild_context_secret_scan.json
+   - uild_context_secret_scan.json
 
 ### Decision points before implementation
 1. Dedicated dev_full workflow cannot be dispatched until present on default branch (GitHub workflow discovery constraint).
@@ -1205,7 +1205,7 @@ _As of 2026-02-22_
    - scans Dockerfile for secret-bearing ARG/ENV tokens,
    - scans Dockerfile copy/add lines for high-risk secret file patterns,
    - scans Dockerfile COPY source roots for banned file-name/content secret signatures,
-   - emits security_secret_injection_checks.json, secret_source_contract_receipt.json, uild_context_secret_scan.json,
+   - emits security_secret_injection_checks.json, secret_source_contract_receipt.json, uild_context_secret_scan.json,
    - exits non-zero on any policy violation.
 3. Added receipt assertion guards in artifact-emission step to ensure the three M1.D artifacts always exist before upload.
 
@@ -1236,9 +1236,9 @@ _As of 2026-02-22_
 1. Downloaded CI artifact pack locally for deterministic audit mirror:
    - uns/dev_substrate/dev_full/m1/m1d_20260222T200233Z/m1-p-1-packaging-ci-evidence/.
 2. Verified required M1.D artifacts and content:
-   - security_secret_injection_checks.json: erdict=PASS, blocker codes empty.
+   - security_secret_injection_checks.json: erdict=PASS, blocker codes empty.
    - secret_source_contract_receipt.json: secrets_backend=ssm_and_secrets_manager, required dev_full path-handle list present.
-   - uild_context_secret_scan.json: scanned_files=360, indings_count=0, summary pass true.
+   - uild_context_secret_scan.json: scanned_files=360, indings_count=0, summary pass true.
 3. Built execution rollup snapshot:
    - uns/dev_substrate/dev_full/m1/m1d_20260222T200233Z/m1d_execution_snapshot.json
    - overall_pass=true.
@@ -1337,7 +1337,7 @@ _As of 2026-02-22_
 
 ### Adjudication outcomes
 1. Build-go preconditions: all pass.
-2. No-go checks: all clear (alse).
+2. No-go checks: all clear (alse).
 3. Blocker register: no active blockers; all severity counts are zero.
 4. Handoff snapshot: m2_entry_gate_ready=true.
 
@@ -1470,8 +1470,8 @@ _As of 2026-02-22_
 
 ### Decision
 1. Resolve M2A-B1 by creating pinned backend resources directly using AWS CLI:
-   - S3 state bucket raud-platform-dev-full-tfstate
-   - DynamoDB lock table raud-platform-dev-full-tf-locks
+   - S3 state bucket raud-platform-dev-full-tfstate
+   - DynamoDB lock table raud-platform-dev-full-tf-locks
 2. Use bounded, least-scope setup for M2.A:
    - bucket encryption, versioning, public access block,
    - lock table with Terraform-standard LockID hash key and on-demand billing.
@@ -1580,3 +1580,170 @@ _As of 2026-02-22_
 ### Master plan sync
 1. platform.build_plan.md now records M2.B as execution-grade expanded.
 2. Current M2.B entry blocker is explicitly pinned in master posture so execution cannot proceed ambiguously.
+
+## Entry: 2026-02-22 20:58:35 +00:00 - M2.B pre-implementation design decision (core stack materialization)
+
+### Problem statement
+1. M2.B execution was blocked by M2B-B1 because `infra/terraform/dev_full/core/main.tf` was skeletal and could not satisfy core resource/output DoD.
+
+### Authority constraints applied
+1. Design authority Section 8.1 pins core ownership to base networking, KMS, core S3, and IAM baselines.
+2. Handles registry pins names for core S3 buckets, KMS alias, and downstream networking handles required by streaming/runtime lanes.
+3. M2.B must stay fail-closed with deterministic evidence (`plan/apply/output` + blocker register).
+
+### Alternatives considered
+1. Reuse `infra/terraform/modules/core` (dev_min module) as-is.
+   - Rejected: module is dev_min-shaped (includes DynamoDB + budget coupling) and does not provide dev_full networking outputs required by streaming/runtime.
+2. Implement only buckets/KMS and defer networking to runtime/streaming stacks.
+   - Rejected: contradicts dev_full authority (core owns base networking) and leaves downstream handle contract ambiguous.
+3. Implement a bounded dev_full core stack now (VPC/subnets/route baselines, MSK SG baseline, KMS key+alias, three core S3 buckets, baseline IAM roles).
+   - Selected: satisfies authority + M2.B DoD without overreaching into M2.C+ lane-specific resources.
+
+### Chosen implementation scope for this M2.B execution
+1. Materialize Terraform files in `infra/terraform/dev_full/core`:
+   - `versions.tf`, `variables.tf`, `outputs.tf`, and full `main.tf`.
+2. Provision bounded resources:
+   - VPC + 2 public + 2 private subnets (two AZs), route tables, internet gateway.
+   - Security group for MSK clients.
+   - KMS key and alias `alias/fraud-platform-dev-full`.
+   - S3 buckets: object-store, evidence, artifacts (versioning + public access block + encryption).
+   - IAM baseline roles: `ROLE_EKS_NODEGROUP_DEV_FULL`, `ROLE_EKS_RUNTIME_PLATFORM_BASE`.
+3. Execute canonical M2.B command surface:
+   - `terraform init`, `terraform validate`, `terraform plan`, `terraform apply`, `terraform output -json`.
+4. Emit M2.B evidence artifacts under `runs/dev_substrate/dev_full/m2/m2b_<timestamp>/`.
+
+### Risk controls
+1. No NAT Gateway in M2.B to avoid unnecessary cost burn before runtime lanes.
+2. No ambiguous local defaults; all naming aligns to pinned handles.
+3. On apply failure, fail-closed and capture blocker evidence before retry.
+
+## Entry: 2026-02-22 21:00:11 +00:00 - M2.B implementation step (core Terraform surfaces materialized)
+
+### What was implemented
+1. Replaced skeletal `infra/terraform/dev_full/core/main.tf` with concrete core stack resources:
+   - VPC/subnets/route baseline,
+   - MSK client SG baseline,
+   - KMS key + alias,
+   - core S3 buckets with encryption/versioning/public-access-block,
+   - IAM baseline roles for EKS nodegroup/runtime.
+2. Added stack-support files:
+   - `infra/terraform/dev_full/core/versions.tf`
+   - `infra/terraform/dev_full/core/variables.tf`
+   - `infra/terraform/dev_full/core/outputs.tf`
+3. Updated stack README to reflect M2.B ownership and execution scope.
+
+### Design choices captured
+1. No NAT gateway in M2.B to avoid unnecessary cost while still satisfying base networking ownership.
+2. Core outputs intentionally include downstream unblock handles:
+   - `MSK_CLIENT_SUBNET_IDS`, `MSK_SECURITY_GROUP_ID`, role ARNs, bucket names, KMS alias/arn.
+3. Bucket encryption uses KMS key from same stack to avoid AES256/KMS mismatch drift against dev_full posture.
+
+### Next execution step
+1. Run canonical command surface: `init`, `validate`, `plan`; if green, proceed `apply` and emit M2.B evidence artifacts.
+
+## Entry: 2026-02-22 21:05:04 +00:00 - M2.B execution run and blocker remediation trail
+
+### Command-lane execution sequence
+1. Reinitialized core backend with pinned state handles (`TF_STATE_BUCKET`, `TF_LOCK_TABLE`, `TF_STATE_KEY_CORE`).
+2. Ran `terraform validate` for syntactic/schema correctness.
+3. Entered `plan/apply/output` lane with artifact capture under:
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/`.
+
+### Issues encountered and decisions
+1. Issue: direct PowerShell CLI invocation for `terraform init` produced argument-shape error (`Too many command line arguments`).
+   - Decision: switch to `cmd /c` invocation for that lane to stabilize parsing.
+2. Issue: first combined evidence runner script failed due PowerShell string-escaping parser error around plan-file quoting.
+   - Decision alternatives considered:
+     - keep escaping strategy and iterate ad-hoc,
+     - switch to array-based command invocation for deterministic argument handling.
+   - Selected: array-based command invocation (`& terraform @args`) for all subsequent Terraform commands.
+   - Rationale: minimizes shell-specific quoting ambiguity and improves rerun determinism.
+
+### Execution results
+1. `plan` exit code: `2` (create set detected).
+2. `apply` exit code: `0` (success).
+3. Planned resource changes: `36` creates.
+4. Post-apply conformance:
+   - all three core buckets are KMS-encrypted, versioned, and public-access-blocked,
+   - KMS alias is materialized and enabled,
+   - required downstream handles exist (`MSK_CLIENT_SUBNET_IDS`, `MSK_SECURITY_GROUP_ID`, role ARNs).
+5. Final M2.B summary verdict:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M2.C_READY`.
+
+### Evidence publication
+1. Local evidence artifacts:
+   - `m2b_core_plan_snapshot.json`
+   - `m2b_core_apply_snapshot.json`
+   - `m2b_core_output_handle_matrix.json`
+   - `m2b_blocker_register.json`
+   - `m2b_execution_summary.json`
+2. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2b_20260222T210207Z/`.
+
+### Registry-first compliance action
+1. Updated `dev_full_handles.registry.v0.md` using M2.B outputs:
+   - pinned `MSK_CLIENT_SUBNET_IDS`, `MSK_SECURITY_GROUP_ID`,
+   - pinned `ROLE_EKS_NODEGROUP_DEV_FULL`, `ROLE_EKS_RUNTIME_PLATFORM_BASE`,
+   - removed these from open materialization list.
+2. This preserved Section 15 workflow (`registry update -> implementation -> conformance run`).
+
+## Entry: 2026-02-22 21:07:06 +00:00 - M2.B DoD conformance hardening (tags/policies explicit proof)
+
+### Why this step was added
+1. M2.B DoD requires baseline tags/policies conformance; initial evidence set proved apply/output and bucket posture but did not isolate IAM-policy/tag checks as a dedicated artifact.
+
+### Decision
+1. Add an explicit post-apply conformance artifact instead of relying on inference.
+2. Keep it in the same M2.B run scope for deterministic auditability.
+
+### Execution
+1. Queried IAM attached policies for:
+   - `ROLE_EKS_NODEGROUP_DEV_FULL`
+   - `ROLE_EKS_RUNTIME_PLATFORM_BASE`
+2. Queried required tag keys (`project`, `env`, `owner`) for:
+   - core VPC,
+   - object-store/evidence/artifacts buckets.
+3. Emitted artifact:
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_core_policy_tag_conformance.json`.
+4. Mirrored artifact to durable evidence path:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2b_20260222T210207Z/m2b_core_policy_tag_conformance.json`.
+5. Updated `m2b_execution_summary.json` with `policy_tag_conformance_pass=true`.
+
+### Outcome
+1. Conformance artifact verdict: `overall_pass=true`.
+2. M2.B DoD line for baseline tags/policies is now explicitly evidenced.
+
+## Entry: 2026-02-22 21:07:43 +00:00 - M2.B conformance artifact normalization
+
+### Observation
+1. `m2b_core_policy_tag_conformance.json` initially serialized `role_eks_runtime_platform_base.attached_policy_arns` as a string when only one policy was attached.
+
+### Decision
+1. Normalize this field to list shape for schema consistency with multi-policy roles.
+2. Re-upload normalized artifact to durable evidence path.
+
+### Outcome
+1. Artifact schema now remains stable regardless of policy cardinality.
+
+## Entry: 2026-02-22 21:08:34 +00:00 - M2.B post-apply terraform hygiene validation
+
+### Action
+1. Ran `terraform fmt -recursive` for `infra/terraform/dev_full/core`.
+2. Re-ran `terraform validate -no-color` after formatting.
+
+### Outcome
+1. Formatting changes applied to `outputs.tf` only.
+2. Validation remained PASS.
+
+## Entry: 2026-02-22 21:12:53 +00:00 - M2.B post-apply drift stability check
+
+### Action
+1. Ran a post-apply Terraform stability plan for infra/terraform/dev_full/core after formatting/validation.
+2. Captured the result in:
+   - uns/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_post_apply_stability_check.json
+3. Published durable mirror:
+   - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2b_20260222T210207Z/m2b_post_apply_stability_check.json
+
+### Outcome
+1. Detailed-exitcode was   (no drift).
+2. Confirms M2.B apply convergence and immediate config/runtime consistency.
