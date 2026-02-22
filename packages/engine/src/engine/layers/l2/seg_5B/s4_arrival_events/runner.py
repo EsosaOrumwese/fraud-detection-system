@@ -2034,12 +2034,28 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
                     ts_utc = _format_rfc3339_us(out_ts_utc_us)
                     ts_local_primary = _format_rfc3339_us(out_ts_local_primary_us)
-                    ts_local_operational = _format_rfc3339_us(out_ts_local_operational_us)
-                    ts_local_settlement = _format_rfc3339_us(out_ts_local_settlement_us)
+                    if np.array_equal(out_ts_local_operational_us, out_ts_local_primary_us):
+                        ts_local_operational = ts_local_primary
+                    else:
+                        ts_local_operational = _format_rfc3339_us(out_ts_local_operational_us)
+                    if np.array_equal(out_ts_local_settlement_us, out_ts_local_primary_us):
+                        ts_local_settlement = ts_local_primary
+                    elif np.array_equal(out_ts_local_settlement_us, out_ts_local_operational_us):
+                        ts_local_settlement = ts_local_operational
+                    else:
+                        ts_local_settlement = _format_rfc3339_us(out_ts_local_settlement_us)
 
                     tzid_primary = _map_indices(out_tzid_primary, tzid_lookup)
-                    tzid_operational = _map_indices(out_tzid_operational, tzid_lookup)
-                    tzid_settlement = _map_indices(out_tzid_settlement, tzid_lookup)
+                    if np.array_equal(out_tzid_operational, out_tzid_primary):
+                        tzid_operational = tzid_primary
+                    else:
+                        tzid_operational = _map_indices(out_tzid_operational, tzid_lookup)
+                    if np.array_equal(out_tzid_settlement, out_tzid_primary):
+                        tzid_settlement = tzid_primary
+                    elif np.array_equal(out_tzid_settlement, out_tzid_operational):
+                        tzid_settlement = tzid_operational
+                    else:
+                        tzid_settlement = _map_indices(out_tzid_settlement, tzid_lookup)
                     zone_rep = _map_indices(out_zone_rep_index, tzid_lookup)
 
                     edge_id_raw = np.zeros(out_edge_index.shape, dtype=np.uint64)
@@ -2049,7 +2065,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
                     site_id_raw = out_site_id
 
-                    channel_repeat = np.array(channel_values[seg_start:seg_end], dtype=object).repeat(seg_counts)
+                    channel_repeat = np.repeat(
+                        np.asarray(channel_values[seg_start:seg_end], dtype=object),
+                        seg_counts.astype(np.int64, copy=False),
+                    )
 
                     output_df = pl.DataFrame(
                         {

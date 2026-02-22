@@ -542,6 +542,84 @@ POPT.2 closure snapshot (2026-02-22):
   - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B`
   - result: no failed sentinels.
 
+### POPT.2R - S4 kernel/serialization reopen (high-blast-radius lane)
+Goal:
+- reopen S4 with a bounded high-impact optimization lane focused on post-kernel serialization and column-materialization overhead while preserving exact semantics.
+
+Authority anchors:
+- POPT0 baseline S4: `504.641s`.
+- POPT2 post-revert witness S4: `550.875s` (current reopen anchor).
+- best recent witness in this branch before regression: `532.453s`.
+
+Execution constraints:
+- no policy/config realism tuning in this lane.
+- no schema/contract shape changes.
+- fail-closed rollback is mandatory on runtime non-movement.
+
+POPT.2R closure gates (quantified):
+- mandatory movement gate:
+  - candidate `S4 <= 532.453s` and
+  - candidate `S4` improves by at least `3%` vs reopen anchor `550.875s`.
+- stretch movement gate:
+  - candidate `S4 <= 495.788s` (`>=10%` improvement vs reopen anchor).
+- structural/determinism gate:
+  - all POPT2 structural checks exact (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights`),
+  - `S4/S5` status `PASS`, no new unexpected failure classes.
+- downstream gate:
+  - `S5` bundle integrity remains `true`.
+
+Execution posture:
+- run lane: authority run-id `c25a2675fbfbacd952b13bb594880e92`.
+- rerun law: any code mutation reruns `S4 -> S5`.
+- idempotence housekeeping allowed:
+  - if `S5_OUTPUT_CONFLICT` occurs on same-run publish target, handle non-destructively via timestamped `.stale_*` bundle move before rerun.
+- prune hygiene remains mandatory before closure.
+
+#### POPT.2R.1 - Design lock and risk pin
+Objective:
+- lock specific high-impact lane and rejected alternatives before code edits.
+
+Definition of done:
+- [ ] chosen mutation lane is explicitly pinned with rationale.
+- [ ] rejected alternatives and blast-radius rationale are recorded.
+- [ ] runtime/quality veto conditions are locked.
+
+#### POPT.2R.2 - Serialization-path optimization implementation
+Objective:
+- reduce redundant timestamp/tzid conversion work after kernel expansion.
+
+Scope:
+- optimize S4 post-kernel conversion path where local-time/tzid arrays are often equal across columns.
+- reuse mapped/formatted arrays when equality conditions hold.
+
+Definition of done:
+- [ ] code changes are applied in S4 runner.
+- [ ] compile checks pass.
+- [ ] no contract/schema/policy semantics are changed.
+
+#### POPT.2R.3 - Witness rerun and scoring
+Objective:
+- run `S4 -> S5` witness on candidate and score with POPT2 scorer contract.
+
+Definition of done:
+- [ ] witness `S4` is `PASS`.
+- [ ] witness `S5` is `PASS` (with documented housekeeping if conflict occurs).
+- [ ] scorer artifacts are emitted and reviewed.
+
+#### POPT.2R.4 - Closure decision and rollback discipline
+Objective:
+- decide unlock vs hold from quantified gates and enforce rollback discipline.
+
+Decision outcomes:
+- `UNLOCK_POPT3_CONTINUE` if mandatory movement + all quality rails pass.
+- `HOLD_POPT2R_REOPEN` if mandatory movement fails.
+
+Definition of done:
+- [ ] closure decision is explicitly recorded.
+- [ ] retained run/artifact pointers are pinned.
+- [ ] if candidate regresses vs anchor, rollback/restore action is recorded.
+- [ ] prune checklist is executed and logged.
+
 ### POPT.3 - S2/S3 secondary throughput closure
 Goal:
 - close remaining throughput drag in `S2` and `S3` where runtime remains above budget after POPT.1/POPT.2.

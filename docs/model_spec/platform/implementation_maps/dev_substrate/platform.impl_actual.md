@@ -19172,3 +19172,165 @@ Doc synchronization actions:
 Decision consequence:
 1. M10.I is now closed in both execution evidence and planning docs.
 2. Remaining M10 closure lane is M10.J certification verdict + bundle publication.
+
+## Entry: 2026-02-22 08:06:21 +00:00 - M10.J planning lock (execution-grade expansion before runtime)
+Context:
+1. `M10.I` is closed PASS and synchronized across deep/main plans.
+2. `M10.J` existed at summary level, which left execution interpretation risk for final certification verdict logic.
+3. USER requested planning for `M10.J` before execution.
+
+Decision problem:
+1. Final certification lane can drift if verdict logic is not explicitly deterministic.
+2. Needed to pin whether certification is based on:
+   - a single latest run snapshot only,
+   - manual operator adjudication,
+   - or full source matrix rollup (`M10.A..M10.I`).
+
+Alternatives considered:
+1. Minimal lane (keep current summary + execute ad hoc script).
+   - Rejected: high interpretation drift and weak auditability for final program claim.
+2. Single-artifact lane (use only `M10.I` as proxy for full certification).
+   - Rejected: would bypass mandatory semantic/drill/scale source-lane closure checks.
+3. Deterministic source-matrix lane (selected).
+   - Use `M10.A..M10.I` as authoritative inputs.
+   - Compute verdict from pass matrix + blocker union only.
+   - Require evidence-family bundle index publication.
+
+Pinned decisions for M10.J planning:
+1. Entry gates are fail-closed and require readable complete `M10.A..M10.I` source snapshots.
+2. Verdict state space is binary and deterministic:
+   - `ADVANCE_CERTIFIED_DEV_MIN` when all source lanes pass and blocker union is empty,
+   - `HOLD_M10` otherwise.
+3. Certification bundle index is mandatory and must map evidence by family (`semantic`, `incident_drill`, `scale`, `reproducibility`).
+4. Runtime budget stays pinned at `<=30` minutes.
+5. Publication closure requires local artifact emission + durable object verification.
+
+Execution algorithm pinned in plan:
+1. `J0` source-matrix bind,
+2. `J1` source verification + blocker-union computation,
+3. `J2` bundle assembly,
+4. `J3` verdict synthesis,
+5. `J4` durable publish + verification.
+
+Planned schema contracts pinned:
+1. `m10_j_certification_verdict_snapshot.json` now requires source refs, per-lane outcomes, blocker union, verdict, runtime-budget fields.
+2. `m10_certification_bundle_index.json` now requires evidence-family map, lane snapshot index, publish refs, integrity summary.
+
+No runtime mutation in this step:
+1. Planning/docs-only expansion; no infra/runtime/data mutation performed.
+
+## Entry: 2026-02-22 08:08:19 +00:00 - M10.J execution start lock (J0/J1 source-matrix bind)
+Context:
+1. USER approved full M10.J execution with live decision-trail documentation.
+2. M10.J execution-grade plan is pinned with `J0 -> J4` fail-closed algorithm.
+3. Source lane closure set is `M10.A..M10.I`.
+
+Decision process before runtime actions:
+1. Needed to choose source authority strategy:
+   - local-only artifacts,
+   - durable-only artifacts,
+   - local preferred with durable fallback.
+2. Selected local-preferred + durable-fallback to satisfy plan contract while maximizing resiliency if older local files are missing.
+3. Fail-closed precondition pinned: each source lane must parse and assert `overall_pass=true` with empty blockers; otherwise verdict lane must hold.
+4. Bundle/vote determinism pinned to source snapshot content only (no manual interpretation).
+
+Execution intent for J0/J1:
+1. Bind canonical snapshot map for `M10.A..M10.I` from plan-closed execution IDs.
+2. Resolve each source artifact (local preferred, S3 fallback).
+3. Validate schema minimums (`overall_pass`, `blockers`) and compute blocker union.
+4. Stop on any source unreadable/invalid posture before bundle assembly.
+
+No infra mutation expected:
+1. M10.J is metadata/evidence rollup; no daemon/terraform changes are planned.
+
+## Entry: 2026-02-22 08:10:44 +00:00 - M10.J metadata-quality drift detected and bounded rerun decision
+Finding during post-run artifact review:
+1. First M10.J output (`m10_20260222T080908Z`) passed all gates and produced `ADVANCE_CERTIFIED_DEV_MIN`.
+2. Two metadata-quality issues were identified in non-gating fields:
+   - `resolved_mode` reflected `durable_cache` for lanes that were actually loaded from local paths due path-string normalization mismatch (`\\` vs `/`).
+   - `source_snapshot_hash` used Python built-in `hash()`, which is process-randomized and not stable for audit replay.
+
+Decision process:
+1. Option A: keep first artifact as-is because gate verdict is already PASS.
+   - Rejected: weakens audit determinism and source-resolution transparency.
+2. Option B: patch fields manually in-place.
+   - Rejected: increases mutation ambiguity and reduces reproducibility.
+3. Option C (selected): bounded rerun of M10.J with deterministic metadata fixes only.
+   - fix `resolved_mode` with explicit local/durable boolean,
+   - replace `hash()` with stable SHA256 over canonical JSON.
+
+Boundedness guard:
+1. No source lane changes, no infra mutation, no threshold changes.
+2. Same source matrix `M10.A..M10.I`, same verdict function.
+3. Rerun only refreshes certification artifact quality.
+
+## Entry: 2026-02-22 08:09:14 +00:00 - M10.J first full execution completed (J0->J4 PASS)
+Execution summary (first pass):
+1. Execution id: `m10_20260222T080908`.
+2. Performed deterministic source rollup across `M10.A..M10.I` with local-preferred + durable fallback strategy.
+3. Verified each source lane snapshot parseability + pass posture (`overall_pass=true`, blockers empty).
+4. Verified latest pinned M9 cost guardrail snapshot remains pass:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T185951Z/m9_g_cost_guardrail_snapshot.json`.
+5. Built and published:
+   - `m10_j_certification_verdict_snapshot.json`,
+   - `m10_certification_bundle_index.json`,
+   - `m10_j_source_matrix_snapshot.json`.
+
+First-pass outcome:
+1. `verdict=ADVANCE_CERTIFIED_DEV_MIN`.
+2. `overall_pass=true`.
+3. blockers empty.
+4. runtime budget pass (`1.444s <= 1800s`).
+
+Detected post-run quality issue:
+1. Non-gating metadata fields needed correction for audit quality:
+   - resolved source mode tags had path-normalization drift,
+   - snapshot hash field used non-stable Python hash.
+2. Triggered bounded rerun decision (captured in next entry) to produce deterministic metadata-clean artifact.
+
+## Entry: 2026-02-22 08:10:52 +00:00 - M10.J bounded rerun completed (authoritative closure artifact)
+Execution summary (authoritative rerun):
+1. Execution id: `m10_20260222T081047`.
+2. Applied bounded metadata corrections only:
+   - explicit `resolved_mode` local/durable selection,
+   - stable `source_snapshot_sha256` from canonical JSON.
+3. No source-lane, threshold, or infra mutation was introduced.
+
+Rerun outcome:
+1. `verdict=ADVANCE_CERTIFIED_DEV_MIN`.
+2. `overall_pass=true`.
+3. `blockers=[]`, `blocker_union=[]`.
+4. `m9_cost_guardrail_pass=true`.
+5. runtime budget pass (`1.617s <= 1800s`).
+
+Authoritative artifacts:
+1. Local:
+   - `runs/dev_substrate/m10/m10_20260222T081047/m10_j_certification_verdict_snapshot.json`
+   - `runs/dev_substrate/m10/m10_20260222T081047/m10_certification_bundle_index.json`
+   - `runs/dev_substrate/m10/m10_20260222T081047/m10_j_source_matrix_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_j_certification_verdict_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_certification_bundle_index.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_j_source_matrix_snapshot.json`
+
+Decision:
+1. Treat `m10_20260222T081047` as authoritative M10.J closure artifact set.
+2. First pass artifact (`m10_20260222T080908`) remains valid but superseded for audit clarity.
+
+## Entry: 2026-02-22 08:12:02 +00:00 - M10.J/M10 plan synchronization after execution closure
+Doc synchronization actions:
+1. Updated deep M10 plan (`platform.M10.build_plan.md`):
+   - marked M10.J DoD checklist complete,
+   - appended M10.J execution-status block with authoritative rerun (`m10_20260222T081047`),
+   - updated current-planning status to show M10 lanes A..J closed and certification close rule satisfied.
+2. Updated main platform plan (`platform.build_plan.md`):
+   - set roadmap phase status `M10=DONE`,
+   - set M10 section status `DONE`,
+   - added M10.J closure summary and authoritative artifact refs,
+   - marked sub-phase progress `M10.J` complete,
+   - marked M10 DoD groups complete,
+   - updated immediate next action to user-directed post-certification steps.
+
+Decision consequence:
+1. Program migration plan now records end-to-end certification closure with deterministic verdict `ADVANCE_CERTIFIED_DEV_MIN`.
+2. Active execution lane for M10 is closed.

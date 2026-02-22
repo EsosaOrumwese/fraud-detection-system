@@ -5712,3 +5712,87 @@ Bounded reopen recommendation:
 
 Prune closure:
 - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` executed (`no failed sentinels`).
+
+### Entry: 2026-02-22 07:31
+
+Design/plan step: `POPT.2R` phase expansion and execution lock.
+Summary: added full `POPT.2R` plan section to build plan and pinned the high-impact reopen lane before code edits.
+
+Why `POPT.2R` is needed:
+- `POPT.2` closed as `HOLD_POPT2_REOPEN`; runtime gate remains unresolved after primary patch and rollback.
+- structural/determinism/downstream rails were stable, so reopen can focus strictly on runtime.
+
+Chosen reopen lane:
+1) serialization/post-kernel optimization in S4:
+   - avoid redundant local-time formatting and tzid mapping when arrays are equal,
+   - preserve exact emitted values by reuse, not transformation.
+2) keep kernel routing semantics unchanged in this pass.
+
+Alternatives considered and rejected for this reopen:
+1) immediate deep RNG/kernel math redesign:
+   - rejected for first 2R pass due high semantic blast radius.
+2) knob-only sweep (`batch_rows/max_arrivals_chunk`) as primary:
+   - rejected as primary due uncertain gain and memory-risk under constrained laptop workload.
+
+Quantified reopen gates pinned:
+- mandatory movement:
+  - `S4 <= 532.453s` and >=3% improvement vs reopen anchor `550.875s`.
+- stretch movement:
+  - `S4 <= 495.788s` (>=10% vs reopen anchor).
+- all structural/downstream/determinism rails must remain green.
+
+Execution lock:
+- run lane remains authority run-id `c25a2675fbfbacd952b13bb594880e92`.
+- rerun protocol: `S4 -> S5`.
+- same non-destructive S5 idempotence housekeeping allowed if publish conflict recurs.
+
+### Entry: 2026-02-22 07:34
+
+Execution step: `POPT.2R.2` serialization-path optimization implemented.
+Summary: patched S4 post-kernel conversion path to remove redundant local-time/tzid conversion passes when arrays are equal.
+
+File updated:
+- `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+
+Changes applied:
+1) Local-time conversion reuse:
+   - `ts_local_operational` reuses `ts_local_primary` when underlying microsecond arrays are equal.
+   - `ts_local_settlement` reuses `ts_local_primary` or `ts_local_operational` when equal.
+2) TZID mapping reuse:
+   - `tzid_operational` reuses `tzid_primary` when index arrays match.
+   - `tzid_settlement` reuses `tzid_primary` or `tzid_operational` on equality.
+3) Minor allocation cleanup:
+   - `channel_group` repeat now uses explicit `np.repeat(np.asarray(...), ...)` typed path.
+
+Why this lane:
+- this targets repeated high-volume conversion work over arrival-event arrays without touching routing/draw semantics.
+- reuse decisions are exact-equality gated (`np.array_equal`), so emitted values remain unchanged.
+
+Risk assessment:
+- blast radius is moderate (output-materialization path), but semantic risk is bounded because conversion results are reused only when source arrays are identical.
+- no policy/contract/schema changes.
+
+Validation:
+- `python -m py_compile packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py` (PASS).
+- prune pre-run checklist executed (`no failed sentinels`).
+
+Next action:
+- execute witness `S4 -> S5` and score with `tools/score_segment5b_popt2_closure.py`.
+
+### Entry: 2026-02-22 08:11
+
+Execution prep step: `POPT.2R.3` witness lane started.
+Summary: locked witness sequence and conflict-handling posture before execution.
+
+Witness sequence pinned:
+1) run `segment5b-s4` on authority run-id `c25a2675fbfbacd952b13bb594880e92`.
+2) run `segment5b-s5` on same run-id.
+3) if `S5_OUTPUT_CONFLICT` recurs, apply non-destructive publish housekeeping:
+   - move `validation/manifest_fingerprint=*` to timestamped `.stale_*`,
+   - rerun `segment5b-s5`.
+4) run `tools/score_segment5b_popt2_closure.py` and decide `UNLOCK_POPT3_CONTINUE` vs `HOLD_POPT2R_REOPEN`.
+
+Why this strict sequence:
+- runtime closure gate depends on `S4` elapsed from fresh witness under unchanged upstream surfaces.
+- downstream integrity gate requires same-run `S5` success.
+- non-destructive housekeeping preserves rollback/audit trace while resolving replay publish conflicts.

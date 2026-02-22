@@ -1206,25 +1206,112 @@ Execution status update (2026-02-22):
 Goal:
 1. Compute final M10 verdict and publish certification bundle index.
 
+Entry conditions (fail-closed):
+1. `M10.A..M10.I` are closed with readable source snapshots.
+2. Each source lane snapshot has:
+   - `overall_pass=true`,
+   - empty blocker list,
+   - durable run-control object present.
+3. Required evidence families are present in source snapshots:
+   - semantic (`M10.B`, `M10.C`),
+   - incident drill (`M10.D`),
+   - scale (`M10.E`, `M10.F`, `M10.G`, `M10.H`),
+   - reproducibility (`M10.I`).
+4. Latest M9 cost posture remains non-critical for certification close.
+
+Pinned decisions for `M10.J`:
+1. Verdict function is deterministic over source lane snapshots only (`M10.A..M10.I`); no manual override path.
+2. Only two verdict states are permitted:
+   - `ADVANCE_CERTIFIED_DEV_MIN` (all source lanes pass, blocker union empty),
+   - `HOLD_M10` (otherwise).
+3. Certification bundle index is mandatory and must include:
+   - all lane snapshots,
+   - lane-level durable/local refs,
+   - evidence-family rollup map.
+4. Runtime budget for `M10.J` remains `<=30` minutes.
+5. Publication is complete only when both local files and durable objects are verifiably present.
+
+Deterministic execution algorithm (`J0 -> J4`):
+1. `J0` Source-matrix bind:
+   - resolve authoritative source snapshots for `M10.A..M10.I` (local preferred, durable fallback).
+2. `J1` Source verification:
+   - validate parseability/schema minimums,
+   - compute blocker union,
+   - fail closed on missing snapshot or inconsistent pass posture.
+3. `J2` Certification bundle assembly:
+   - construct bundle index by evidence family (semantic/drill/scale/repro),
+   - include source snapshot refs and lane outcome summary.
+4. `J3` Verdict synthesis:
+   - evaluate deterministic verdict rule,
+   - emit `m10_j_certification_verdict_snapshot.json` and `m10_certification_bundle_index.json` locally.
+5. `J4` Durable publication + verification:
+   - publish both artifacts to durable run-control prefix,
+   - verify durable presence (`head-object`) before PASS adjudication.
+
+Required `m10_j_certification_verdict_snapshot.json` schema:
+1. `phase`, `phase_id`, `m10_execution_id`, `captured_at_utc`.
+2. `source_snapshot_refs` (`M10.A..M10.I` local + durable refs).
+3. `lane_outcomes` (per-lane `overall_pass`, blocker list, key metrics hash/ref).
+4. `blocker_union`.
+5. `verdict`.
+6. `runtime_budget` (`budget_seconds`, `elapsed_seconds`, `budget_pass`).
+7. `overall_pass`.
+
+Required `m10_certification_bundle_index.json` schema:
+1. `phase`, `m10_execution_id`, `bundle_created_at_utc`.
+2. `evidence_family_index`:
+   - `semantic`, `incident_drill`, `scale`, `reproducibility`.
+3. `lane_snapshot_index` for `M10.A..M10.I`.
+4. `durable_publish_refs` for both J-lane artifacts.
+5. `bundle_integrity` (`missing_refs`, `integrity_pass`).
+
 Tasks:
-1. Roll up `M10.A..M10.I` pass matrix.
-2. Produce deterministic verdict:
-   - `ADVANCE_CERTIFIED_DEV_MIN` only when all lanes pass with empty blocker union.
-3. Build certification bundle index referencing all mandatory evidence objects.
-4. Emit:
-   - `m10_j_certification_verdict_snapshot.json`
-   - `m10_certification_bundle_index.json`
-   local + durable.
+1. Bind and verify source snapshots for `M10.A..M10.I`.
+2. Compute lane pass matrix and blocker union deterministically.
+3. Assemble certification evidence-family index.
+4. Emit local verdict snapshot + bundle index.
+5. Publish durable artifacts and verify object presence.
 
 DoD:
-- [ ] Verdict computed deterministically.
-- [ ] Verdict is `ADVANCE_CERTIFIED_DEV_MIN` with blocker-free rollup.
-- [ ] Certification bundle index exists locally and durably.
+- [x] Source snapshot matrix (`M10.A..M10.I`) validated and complete.
+- [x] Blocker union computed deterministically and auditable.
+- [x] Verdict computed deterministically from source matrix.
+- [x] Verdict is `ADVANCE_CERTIFIED_DEV_MIN` with blocker-free rollup.
+- [x] Certification bundle index exists locally and durably.
+- [x] Runtime budget passes (`<=30` minutes).
 
 Blockers:
 1. `M10J-B1`: source lane snapshot missing/unreadable.
-2. `M10J-B2`: blocker union non-empty.
-3. `M10J-B3`: verdict/bundle publish failure.
+2. `M10J-B2`: source snapshot schema/parse failure.
+3. `M10J-B3`: source lane pass posture invalid (`overall_pass!=true`).
+4. `M10J-B4`: blocker union non-empty.
+5. `M10J-B5`: required evidence-family mapping incomplete.
+6. `M10J-B6`: local verdict/bundle artifact emission failure.
+7. `M10J-B7`: durable publish or durable-verify failure.
+8. `M10J-B8`: runtime budget breach.
+
+Execution status update (2026-02-22):
+1. First-pass execution id: `m10_20260222T080908` (`overall_pass=true`) produced valid verdict artifacts.
+2. Authoritative bounded rerun execution id: `m10_20260222T081047` (metadata-quality corrected; no source/infra mutation).
+3. Authoritative local artifacts:
+   - `runs/dev_substrate/m10/m10_20260222T081047/m10_j_certification_verdict_snapshot.json`
+   - `runs/dev_substrate/m10/m10_20260222T081047/m10_certification_bundle_index.json`
+   - `runs/dev_substrate/m10/m10_20260222T081047/m10_j_source_matrix_snapshot.json`
+4. Authoritative durable artifacts:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_j_certification_verdict_snapshot.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_certification_bundle_index.json`
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_j_source_matrix_snapshot.json`
+5. Verdict:
+   - `verdict=ADVANCE_CERTIFIED_DEV_MIN`
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `blocker_union=[]`
+6. Entry-gate closure:
+   - `M10.A..M10.I` source matrix parse/read closure passed,
+   - per-lane pass posture closure passed (`overall_pass=true`, blockers empty),
+   - M9 cost guardrail posture passed (`m9_g_cost_guardrail_snapshot.overall_pass=true`).
+7. Runtime budget:
+   - `elapsed_seconds=1.617` (budget `<=1800`), `budget_pass=true`.
 
 ## 6) M10 Runtime Budget Targets
 1. `M10.A` <= 30 minutes.
@@ -1250,7 +1337,7 @@ M10 can be marked `DONE` only when all are true:
 5. Final verdict is `ADVANCE_CERTIFIED_DEV_MIN`.
 
 ## 8) Current planning status
-1. M10 planning expansion is open.
+1. M10 planning expansion is closed.
 2. `M10.A` is closed green by execution `m10_20260219T231017Z`.
 3. `M10.B` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T032146Z`).
 4. `M10.C` is closed pass on run scope `platform_20260219T234150Z` (`m10_execution_id=m10_20260220T045637Z`).
@@ -1260,4 +1347,5 @@ M10 can be marked `DONE` only when all are true:
 8. `M10.G` remediation rerun closed PASS on fresh scope `platform_20260221T234738Z` (`max_lag_window=3`, blockers empty).
 9. `M10.H` recovery-under-load run is closed PASS on fresh scope `platform_20260222T015122Z` (`max_lag_window=4`, blockers empty).
 10. `M10.I` reproducibility + replay coherence run is closed PASS on fresh scope `platform_20260222T064333Z` (`m10_execution_id=m10_20260222T064333Z`, blockers empty).
-11. Next lane is `M10.J` final certification verdict + bundle publication.
+11. `M10.J` final certification verdict + bundle publication is closed PASS on `m10_execution_id=m10_20260222T081047` with `verdict=ADVANCE_CERTIFIED_DEV_MIN`.
+12. M10 lanes `A..J` are closed and certification close rule is satisfied.

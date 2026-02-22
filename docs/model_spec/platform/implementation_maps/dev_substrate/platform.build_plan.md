@@ -1,6 +1,6 @@
 # Dev Substrate Migration Build Plan (Fresh Start)
 _Track: local_parity -> dev_min managed substrate (Spine Green v0)_
-_Last updated: 2026-02-21_
+_Last updated: 2026-02-22_
 
 ## 0) Purpose
 This is the active execution plan for migrating the already-canonical local-parity Spine Green v0 flow into `dev_min` with:
@@ -85,7 +85,7 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 | M7 | P8-P10 | RTDL + Case/Labels closure | DONE |
 | M8 | P11 | Obs/Gov closure | DONE |
 | M9 | P12 | Teardown proof + cost guardrails | DONE |
-| M10 | certification | Semantic Green + Scale Green certification | ACTIVE |
+| M10 | certification | Semantic Green + Scale Green certification | DONE |
 
 ---
 
@@ -150,7 +150,7 @@ Current phase posture:
 - `M7` is `DONE`,
 - `M8` is `DONE`,
 - `M9` is `DONE`,
-- `M10` is `ACTIVE` (planning expansion).
+- `M10` is `DONE` (certification closed).
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -1443,7 +1443,7 @@ M9 DoD checklist:
 - [x] M9 verdict is `ADVANCE_TO_M10` with empty blocker rollup.
 
 ## M10 - Certification (Semantic + Scale)
-Status: `ACTIVE`
+Status: `DONE`
 Entry gate:
 - M9 is `DONE`.
 - M9->M10 handoff is present:
@@ -1494,9 +1494,9 @@ Phase closure posture:
   - `M10.G` soak run.
   - `M10.H` recovery-under-load run.
   - `M10.I` reproducibility + deterministic replay coherence.
-  - `M10.J` final certification verdict + portfolio evidence bundle publication.
+- `M10.J` final certification verdict + portfolio evidence bundle publication.
 - M10 expansion state:
-  - planning expansion is in progress with deep lane mapping in `platform.M10.build_plan.md`,
+  - planning expansion and execution are closed with deep authority in `platform.M10.build_plan.md`,
   - `M10.A` is now expanded to execution-grade with:
     - entry-gate checks from M9 handoff,
     - deterministic threshold pinning algorithm,
@@ -1618,6 +1618,32 @@ Phase closure posture:
     - durable snapshot: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T064333Z/m10_i_reproducibility_snapshot.json`,
     - verdict: `overall_pass=true`, blockers `[]`,
     - comparator closure: `anchor_keyset_match=true`, `duplicate_share_delta=0.00059848`, `quarantine_share_delta=0.00132463`, `semantic_invariant_pass=true`, `lag_pass=true`.
+  - `M10.J` is now expanded to execution-grade:
+    - fail-closed entry gates require complete readable source matrix `M10.A..M10.I` with `overall_pass=true`,
+    - deterministic closure algorithm pinned (`J0 -> J4`):
+      - source-matrix bind,
+      - source verification + blocker-union build,
+      - evidence-family bundle assembly,
+      - verdict synthesis (`ADVANCE_CERTIFIED_DEV_MIN|HOLD_M10`),
+      - durable publication verification,
+    - expanded blocker taxonomy pinned (`M10J-B1..B8`) including schema, source-pass posture, evidence-family completeness, publish verification, and runtime budget.
+  - `M10.J` final certification verdict + bundle publication is now closed PASS:
+    - first pass execution id: `m10_20260222T080908` (valid pass),
+    - authoritative bounded rerun execution id: `m10_20260222T081047` (metadata-quality correction only),
+    - local artifacts:
+      - `runs/dev_substrate/m10/m10_20260222T081047/m10_j_certification_verdict_snapshot.json`,
+      - `runs/dev_substrate/m10/m10_20260222T081047/m10_certification_bundle_index.json`,
+      - `runs/dev_substrate/m10/m10_20260222T081047/m10_j_source_matrix_snapshot.json`,
+    - durable artifacts:
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_j_certification_verdict_snapshot.json`,
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_certification_bundle_index.json`,
+      - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047/m10_j_source_matrix_snapshot.json`,
+    - final verdict: `ADVANCE_CERTIFIED_DEV_MIN`,
+    - blockers: `[]`,
+    - runtime budget closure: `1.617s <= 1800s`.
+  - M10 phase closeout result:
+    - all lanes `M10.A..M10.J` are pass-closed,
+    - certification close rule satisfied.
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.
@@ -1629,22 +1655,22 @@ Sub-phase progress:
   - [x] `M10.G` soak run (remediation rerun PASS).
   - [x] `M10.H` recovery-under-load run.
   - [x] `M10.I` reproducibility + replay coherence.
-  - [ ] `M10.J` final certification verdict + bundle publish.
+  - [x] `M10.J` final certification verdict + bundle publish.
 
 M10 DoD checklist:
-- [ ] Semantic Green:
+- [x] Semantic Green:
   - [x] 20-event shakedown run green end-to-end.
   - [x] 200-event run green end-to-end.
   - [x] at least one incident drill executed with expected fail-closed evidence.
-- [ ] Scale Green:
+- [x] Scale Green:
   - [x] representative-window run passes on contiguous event-time slice (not sub-second toy slice).
   - [x] burst run passes at elevated ingest pressure without semantic drift.
   - [x] soak run passes under sustained load with stable lag/checkpoint behavior.
   - [x] recovery run passes after controlled restart under load with idempotent outcomes.
 - [x] Reproducibility:
   - [x] second run demonstrates deterministic replay/evidence coherence.
-- [ ] Evidence bundle:
-  - [ ] certification bundle is published locally + durably and supports portfolio-grade claim.
+- [x] Evidence bundle:
+  - [x] certification bundle is published locally + durably and supports portfolio-grade claim.
 
 ---
 
@@ -1735,7 +1761,7 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M10 is active for final certification closure under the M9 handoff.
+M10 is closed with certification verdict published.
 Next action:
-- execute `M10.J` final certification verdict + bundle publication on managed substrate.
+- await USER direction for post-certification actions (for example teardown refresh, migration wrap-up docs, or next-scope planning).
 
