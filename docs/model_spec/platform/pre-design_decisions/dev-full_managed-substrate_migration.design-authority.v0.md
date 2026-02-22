@@ -23,7 +23,7 @@
 * `dev_min` certification remains the baseline truth for Spine Green v0; `dev_full` extends scope and operational posture, it does not rewrite prior semantic laws.
 * **No laptop compute** for platform runtime in `dev_full`.
 * `dev_full` must cover the full platform: Spine + Learning/Evolution (`OFS`, `MF`, `MPR`).
-* Managed stack target for `dev_full` is pinned in Section 5 (Kubernetes/EKS, AWS MSK, S3, Aurora/Redis, Databricks, MLflow, SageMaker, Airflow, Step Functions, OTel, Terraform, GitHub Actions).
+* Managed stack target for `dev_full` is pinned in Section 5 (AWS MSK + Flink, API Gateway/Lambda/DynamoDB where appropriate, hybrid EKS for differentiating services, S3, Aurora/Redis, Databricks, MLflow, SageMaker, Airflow, Step Functions, OTel, Terraform, GitHub Actions).
 * **Decision evidence law:** no section is considered closed without explicit deploy/monitor/fail/recover/rollback/cost-control proof obligations.
 * Semantic invariants are unchanged across environments (dedupe identity, payload hash anomaly semantics, append-only truths, origin_offset evidence boundaries, fail-closed posture).
 
@@ -180,20 +180,23 @@ Multi-region resilience, tighter compliance, higher SLO rigor, and enterprise go
 
 ### 5.1 Primary dev_full stack selections (fixed)
 
-1. **Container orchestration/runtime:** `EKS` is the primary online service runtime for Control/Ingress, RTDL, and Case/Labels services.
+1. **Runtime strategy:** managed-first and replace-by-default. Custom services are retained only where they carry differentiating business logic or stricter semantic contracts that managed primitives cannot satisfy.
 2. **Event bus:** AWS MSK Serverless is the primary managed streaming substrate.
-3. **Durable object store:** AWS S3 remains durable truth/evidence/archive substrate.
-4. **Operational relational store:** Aurora PostgreSQL is the managed primary runtime relational store.
-5. **Low-latency join/state cache:** ElastiCache Redis is the managed join-plane cache/state substrate.
-6. **Data/feature processing lane:** Databricks is the primary OFS-scale data processing substrate.
-7. **Training and endpoint lane:** SageMaker is the primary managed ML training/deployment substrate.
-8. **Experiment tracking and model lifecycle metadata:** MLflow is the primary experiment/model tracking surface.
-9. **Workflow orchestration split:**
+3. **Stream processing lane:** MSK-integrated Flink is the primary runtime for stream-native transformations and joins (WSP/SR stream surfaces and RTDL ingress/context lanes).
+4. **Ingress edge:** API Gateway + Lambda + DynamoDB idempotency store is the default IG runtime posture; custom IG service runtime is permitted only if a pinned contract cannot be satisfied otherwise.
+5. **Durable object store:** AWS S3 remains durable truth/evidence/archive substrate.
+6. **Operational relational store:** Aurora PostgreSQL is the managed primary runtime relational store.
+7. **Low-latency join/state cache:** ElastiCache Redis is the managed join-plane cache/state substrate.
+8. **Hybrid custom-runtime allowance:** EKS is reserved for differentiating services that remain custom after managed-first adjudication (for example DF policy logic, CM/LS boundary mechanics, selected governance workers).
+9. **Data/feature processing lane:** Databricks is the primary OFS-scale data processing substrate.
+10. **Training and endpoint lane:** SageMaker is the primary managed ML training/deployment substrate.
+11. **Experiment tracking and model lifecycle metadata:** MLflow is the primary experiment/model tracking surface.
+12. **Workflow orchestration split:**
    * Step Functions: platform run-state orchestration/gates.
    * Airflow (MWAA): scheduled learning/data DAG orchestration.
-10. **Observability baseline:** OpenTelemetry-first telemetry with CloudWatch-backed operational signals and dashboarding.
-11. **Delivery and IaC:** Terraform + GitHub Actions are mandatory for reproducible provision/deploy flows.
-12. **Secrets and encryption:** IAM + KMS + Secrets Manager/SSM, no plain-text credentials in repo/runtime manifests.
+13. **Observability baseline:** OpenTelemetry-first telemetry with CloudWatch-backed operational signals and dashboarding.
+14. **Delivery and IaC:** Terraform + GitHub Actions are mandatory for reproducible provision/deploy flows.
+15. **Secrets and encryption:** IAM + KMS + Secrets Manager/SSM, no plain-text credentials in repo/runtime manifests.
 
 #### 5.1.1 Sectional pin closure set (2026-02-22)
 
@@ -237,6 +240,34 @@ The following values are now explicitly pinned for v0 execution:
      - `DFULL-SFN-B3 = EVIDENCE_MISSING_OR_INVALID`
      - `DFULL-SFN-B4 = ROLLBACK_OR_COMPENSATION_FAILED`
      - `DFULL-SFN-B5 = COST_GUARDRAIL_BREACH`
+8. **Managed-first runtime placement policy**
+   * `STREAM_ENGINE_MODE = "MSK_FLINK_DEFAULT"`
+   * `INGRESS_EDGE_MODE = "APIGW_LAMBDA_DDB_DEFAULT"`
+   * `EKS_USE_POLICY = "DIFFERENTIATING_SERVICES_ONLY"`
+   * Any EKS placement for non-differentiating lanes requires explicit pin and rationale.
+9. **Runtime-path selection policy (single-path law)**
+   * `PHASE_RUNTIME_PATH_MODE = "SINGLE_ACTIVE_PATH_PER_PHASE_RUN"`
+   * `PHASE_RUNTIME_PATH_PIN_REQUIRED = true`
+   * `RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED = false`
+   * fallback activation requires explicit blocker adjudication and a new `phase_execution_id`.
+10. **SR READY commit authority**
+   * `SR_READY_COMPUTE_MODE = "FLINK_ALLOWED"`
+   * `SR_READY_COMMIT_AUTHORITY = "STEP_FUNCTIONS_ONLY"`
+   * `SR_READY_RECEIPT_REQUIRES_SFN_EXECUTION_REF = true`
+   * no lane may claim `P5` closure from Flink output alone without Step Functions commit evidence.
+11. **Ingress edge operational envelope**
+   * `IG_MAX_REQUEST_BYTES = 1048576` (1 MiB)
+   * `IG_REQUEST_TIMEOUT_SECONDS = 30`
+   * `IG_INTERNAL_RETRY_MAX_ATTEMPTS = 3`
+   * `IG_INTERNAL_RETRY_BACKOFF_MS = 250`
+   * `IG_IDEMPOTENCY_TTL_SECONDS = 259200` (72h)
+   * `IG_DLQ_MODE = "SQS"`
+   * `IG_RATE_LIMIT_RPS = 200`
+   * `IG_RATE_LIMIT_BURST = 400`
+12. **Cross-runtime correlation contract**
+   * `CORRELATION_MODE = "W3C_TRACE_CONTEXT_PLUS_RUN_HEADERS"`
+   * required correlation fields: `platform_run_id,scenario_run_id,phase_id,event_id,runtime_lane,trace_id`.
+   * correlation headers/fields must survive API edge, Flink lanes, Step Functions transitions, EKS services, and evidence artifact emission.
 
 ### 5.2 Cost posture (hard requirements)
 
@@ -300,26 +331,31 @@ Every full run MUST emit a durable run bundle containing:
 ### 6.1 World Builder Plane
 
 * Oracle truth remains in S3.
-* SR/WSP run on EKS jobs/services.
+* SR/WSP stream lanes run on MSK-integrated Flink jobs; orchestration and gate commits remain Step Functions-controlled.
 * READY/control remains Kafka-backed, orchestrated via Step Functions run-state controls.
+* SR READY closure authority is Step Functions commit evidence (Flink output is compute evidence only).
 
 ### 6.2 Control & Ingress Plane
 
-* IG runs as EKS service.
+* IG default runtime is API Gateway + Lambda with DynamoDB idempotency boundary.
+* EKS-hosted IG remains an explicit fallback option only when a pinned contract requires custom service behavior.
 * Kafka topics remain authoritative bus surfaces.
 * Quarantine payloads/index and receipt evidence remain in S3 + managed store.
 * Authn/authz hardening rises to service identity and policy-bound ingress controls.
+* IG edge must enforce pinned envelope limits (payload size, timeout, retry budget, idempotency TTL, DLQ wiring, and rate limits).
 
 ### 6.3 RTDL Plane
 
-* Projections, join-state updates, DF/AL/DLA services run in EKS.
+* Stream-native projections and joins (`IEG`/`OFP` and equivalent inlet/context transforms) run on Flink.
+* `DF`/`AL`/`DLA` stay hybrid: managed integrations first, custom runtime only where semantic ownership requires it.
 * Redis serves low-latency join/cache lane where required.
 * Aurora/Postgres stores durable runtime relational state.
 * Audit evidence slices persist to S3.
 
 ### 6.4 Label & Case Plane
 
-* CM/LS services run in EKS with managed DB state.
+* Case and label orchestration should prefer managed workflows/events with Aurora state.
+* Custom CM/LS service runtime remains allowed where writer-boundary semantics require explicit service control.
 * Writer boundary semantics remain fail-closed with durable ack evidence.
 
 ### 6.5 Learning & Evolution Plane
@@ -367,7 +403,7 @@ Every cross-plane output carries policy/bundle/config/release identifiers requir
 
 * `core/` (base networking, KMS, core S3, IAM baselines)
 * `streaming/` (MSK cluster/topology/topic configuration/IAM access policy)
-* `runtime/` (EKS + online services)
+* `runtime/` (managed runtime surfaces: Flink apps, ingress edge, and selective EKS custom services)
 * `data_ml/` (Databricks, SageMaker, MLflow integration surfaces)
 * `ops/` (budgets, alarms, dashboards, workflow role bindings)
 
@@ -472,6 +508,10 @@ No mid-run implicit config mutation; version boundaries must be explicit and aud
 
 OpenTelemetry-first instrumentation with run-scoped correlation IDs.
 
+Pinned correlation law:
+* single trace/correlation continuity across API edge, stream processors, orchestrators, custom runtimes, and evidence writers is mandatory.
+* no phase may close if required correlation fields are missing in lane-level evidence.
+
 ### 11.2 Required signals
 
 * Service health, lag, error, latency.
@@ -499,6 +539,12 @@ Human operator triggers bounded workflows; all actions are traceable and reprodu
 * Step Functions orchestrates full-platform run-state gates.
 * Airflow orchestrates recurring OFS/MF schedules.
 * GitHub Actions executes CI/CD + infra promotions + policy checks.
+
+### 12.2.1 Runtime-path governance (fail-closed)
+
+* Every phase execution selects exactly one active runtime path and records it in run-control evidence before execution.
+* In-phase path switching is prohibited.
+* Fallback path activation is allowed only after blocker adjudication, with explicit operator approval and a new `phase_execution_id`.
 
 ### 12.3 Failure handling
 
@@ -632,7 +678,7 @@ After every full run, perform semantic drift and ownership-boundary audit before
 
 1. `dev_full` targets full-platform scope (Spine + Learning/Evolution).
 2. `dev_full` runtime has zero laptop compute posture.
-3. Primary stack is: EKS + AWS MSK + S3 + Aurora + Redis + Databricks + MLflow + SageMaker + Airflow + Step Functions + OTel + Terraform + GitHub Actions.
+3. Primary stack is managed-first: AWS MSK + Flink + API Gateway/Lambda/DynamoDB + S3 + Aurora + Redis + Databricks + MLflow + SageMaker + Airflow + Step Functions + OTel + Terraform + GitHub Actions, with EKS reserved for differentiating custom services.
 4. Per-lane proof obligations include deploy/monitor/fail/recover/rollback/cost-control evidence.
 
 ### 17.2 Sectional closure pins (2026-02-22)
@@ -646,6 +692,11 @@ This pass closes the initial open set and repins them as executable defaults:
 5. MLflow hosting mode -> closed by Section 5.1.1 item 5.
 6. Airflow deployment mode -> closed by Section 5.1.1 item 6.
 7. Step Functions decomposition/failure taxonomy -> closed by Section 5.1.1 item 7.
+8. Managed-first runtime placement policy -> closed by Section 5.1.1 item 8.
+9. Runtime-path selection policy -> closed by Section 5.1.1 item 9.
+10. SR READY commit authority -> closed by Section 5.1.1 item 10.
+11. Ingress edge operational envelope -> closed by Section 5.1.1 item 11.
+12. Cross-runtime correlation contract -> closed by Section 5.1.1 item 12.
 
 ### 17.3 Future upgrades (not pinned)
 
@@ -662,11 +713,12 @@ This pass closes the initial open set and repins them as executable defaults:
 | Plane/Layer | Component | local_parity | dev_min | dev_full (pinned target) | prod_target |
 | --- | --- | --- | --- | --- | --- |
 | World Builder | Oracle store | MinIO | S3 | S3 | S3 + Object Lock/WORM |
-| World Builder | SR/WSP | local compose | ECS ephemeral | EKS jobs/services | EKS hardened autoscale |
+| World Builder | SR/WSP | local compose | ECS ephemeral | MSK + Flink jobs (Step Functions-gated) | Flink hardened autoscale + checkpoint governance |
 | Control/Ingress | Event bus | Redpanda/LocalStack | Confluent Basic | AWS MSK Serverless | Kafka multi-AZ/tiered |
-| Control/Ingress | IG | local service | ECS service | EKS service | EKS + strict ingress controls |
-| RTDL | IEG/OFP/DF/AL/DLA | local workers | ECS workers/services | EKS services + Redis/Aurora | EKS + advanced stream processing |
-| Case/Labels | CM/LS | local services/db | ECS + managed runtime db | EKS + Aurora | EKS + enterprise governance |
+| Control/Ingress | IG | local service | ECS service | API Gateway + Lambda + DynamoDB idempotency (EKS fallback only if required) | Hardened private ingress + WAF + zero-trust service boundaries |
+| RTDL | IEG/OFP (stream transforms) | local workers | ECS workers/services | MSK + Flink stream processing | Flink hardened autoscale + state/checkpoint DR |
+| RTDL | DF/AL/DLA (ownership logic) | local workers | ECS workers/services | Hybrid managed integrations + selective EKS custom services | Policy-governed mixed runtime with strict SLO evidence |
+| Case/Labels | CM/LS | local services/db | ECS + managed runtime db | Hybrid managed workflows/events + Aurora (selective EKS where boundary semantics require) | Enterprise governance + audited workflow controls |
 | Learning/Evolution | OFS | local job | optional | Databricks jobs | Databricks/Snowflake scale |
 | Learning/Evolution | MF | scripts/local | optional | SageMaker + MLflow | SageMaker advanced MLOps |
 | Learning/Evolution | MPR governance | minimal | minimal | governed promotion/rollback | enterprise policy workflows |

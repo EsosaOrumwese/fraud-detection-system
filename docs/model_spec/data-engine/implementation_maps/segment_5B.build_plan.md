@@ -1792,9 +1792,30 @@ Objective:
 - attempt `T6` closure with bounded upstream policy/coeff changes before any new code path.
 
 Definition of done:
-- [ ] at least one bounded owner candidate runs end-to-end.
+- [x] at least one bounded owner candidate runs end-to-end.
 - [ ] `T6` moves materially toward B with `T7` and frozen rails preserved.
-- [ ] keep/reject decision recorded per candidate.
+- [x] keep/reject decision recorded per candidate.
+
+P2.U2.1 closure snapshot (2026-02-22):
+- candidate:
+  - `u2_1_c1` (`3B.S2/S3` policy-only via `cdn_country_weights` downweight on Europe-heavy owner set).
+- execution lane:
+  - `3B: S0 -> S2 -> S3 -> S4 -> S5`,
+  - `5B: S0 -> S4 -> S5`,
+  - scored with `segment5b_p1_realism.py` + `segment5b_p2_calibration.py`.
+- outcomes:
+  - `T6`: `74.3382% -> 74.2994%` (`-0.0389 pp`, non-material),
+  - `T7`: unchanged at `3.7043%`,
+  - frozen rails: preserved (`7/7` pass),
+  - `P2` lane decision: `HOLD_P2_REOPEN`.
+- adjudication:
+  - `REJECT_u2_1_c1` (policy-only `3B.S2/S3` movement is insufficient for B closure on `T6`).
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_realism_gateboard_c25a2675fbfbacd952b13bb594880e92_u2_1_c1.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92_u2_1_c1.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_closure_c25a2675fbfbacd952b13bb594880e92_u2_1_c1.json`
+- decision:
+  - `UNLOCK_P2.U2.2` for deterministic owner code-lane trigger evaluation.
 
 #### P2.U2.2 - Deterministic owner code lane (conditional)
 Objective:
@@ -1870,4 +1891,4 @@ Definition of done:
 8. `P2` is closed with `UNLOCK_P2_UPSTREAM_REOPEN` (local infeasibility proven for `T7`; frozen rails preserved).
 9. `P2.U1` executed and closed: `T7` now `PASS_B`, frozen rails preserved, `T6` remains red.
 10. `P2.4` bounded local lane is now closed as insufficient for B closure on `T6`.
-11. `P2.U2.0` forensics lock is closed; active lane is `P2.U2.1` (policy-only owner pass on `3B.S2/S3`).
+11. `P2.U2.1` is closed with `REJECT_u2_1_c1`; active lane is `P2.U2.2` (deterministic owner code lane, conditional trigger).

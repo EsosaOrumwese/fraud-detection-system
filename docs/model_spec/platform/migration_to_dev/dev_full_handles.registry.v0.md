@@ -93,6 +93,14 @@
 * `REQUIRED_PLATFORM_RUN_ID_ENV_KEY = "REQUIRED_PLATFORM_RUN_ID"`
 * `ACTIVE_RUN_ID_SOURCE = "env_required_platform_run_id"`
 
+### 1.9 Runtime-path governance (single-path law)
+
+* `PHASE_RUNTIME_PATH_MODE = "single_active_path_per_phase_run"`
+* `PHASE_RUNTIME_PATH_PIN_REQUIRED = true`
+* `RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED = false`
+* `RUNTIME_FALLBACK_REQUIRES_NEW_PHASE_EXECUTION_ID = true`
+* `PHASE_RUNTIME_PATH_EVIDENCE_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/runtime_path_selection.json"`
+
 ---
 
 ## 2. Terraform State and Stack Handles
@@ -332,9 +340,16 @@ Allowed tokens in pattern handles:
 
 ---
 
-## 7. EKS Runtime Handles
+## 7. Managed Runtime Handles
 
-### 7.1 Cluster and namespaces
+### 7.1 Runtime strategy pins
+
+* `RUNTIME_STRATEGY = "managed_first_hybrid"`
+* `RUNTIME_DEFAULT_STREAM_ENGINE = "msk_flink"`
+* `RUNTIME_DEFAULT_INGRESS_EDGE = "apigw_lambda_ddb"`
+* `RUNTIME_EKS_USE_POLICY = "differentiating_services_only"`
+
+### 7.2 EKS cluster and namespaces (selective custom-runtime lane)
 
 * `EKS_CLUSTER_NAME = "fraud-platform-dev-full"`
 * `EKS_CLUSTER_ARN = "TO_PIN"`
@@ -345,7 +360,39 @@ Allowed tokens in pattern handles:
 * `EKS_NAMESPACE_OBS_GOV = "fraud-platform-obs-gov"`
 * `EKS_NAMESPACE_LEARNING = "fraud-platform-learning"`
 
-### 7.2 Runtime service/deployment handles (spine)
+### 7.3 Flink runtime handles (MSK-integrated stream lanes)
+
+* `FLINK_RUNTIME_MODE = "MSK_MANAGED_FLINK"`
+* `FLINK_APP_WSP_STREAM_V0 = "fraud-platform-dev-full-wsp-stream-v0"`
+* `FLINK_APP_SR_READY_V0 = "fraud-platform-dev-full-sr-ready-v0"`
+* `FLINK_APP_RTDL_IEG_V0 = "fraud-platform-dev-full-rtdl-ieg-v0"`
+* `FLINK_APP_RTDL_OFP_V0 = "fraud-platform-dev-full-rtdl-ofp-v0"`
+* `FLINK_PARALLELISM_DEFAULT = 2`
+* `FLINK_CHECKPOINT_INTERVAL_MS = 60000`
+* `FLINK_CHECKPOINT_S3_PREFIX_PATTERN = "state/flink/{application_name}/"`
+
+### 7.4 Ingress edge handles (API Gateway + Lambda + DynamoDB)
+
+* `IG_EDGE_MODE = "apigw_lambda_ddb"`
+* `APIGW_IG_API_NAME = "fraud-platform-dev-full-ig-edge"`
+* `APIGW_IG_API_ID = "TO_PIN"`
+* `APIGW_IG_STAGE = "v1"`
+* `LAMBDA_IG_HANDLER_NAME = "fraud-platform-dev-full-ig-handler"`
+* `DDB_IG_IDEMPOTENCY_TABLE = "fraud-platform-dev-full-ig-idempotency"`
+* `DDB_IG_IDEMPOTENCY_PARTITION_KEY = "dedupe_key"`
+* `DDB_IG_IDEMPOTENCY_TTL_FIELD = "ttl_epoch"`
+* `IG_MAX_REQUEST_BYTES = 1048576`
+* `IG_REQUEST_TIMEOUT_SECONDS = 30`
+* `IG_INTERNAL_RETRY_MAX_ATTEMPTS = 3`
+* `IG_INTERNAL_RETRY_BACKOFF_MS = 250`
+* `IG_IDEMPOTENCY_TTL_SECONDS = 259200`
+* `IG_DLQ_MODE = "sqs"`
+* `IG_DLQ_QUEUE_NAME = "fraud-platform-dev-full-ig-dlq"`
+* `IG_REPLAY_MODE = "dlq_replay_workflow"`
+* `IG_RATE_LIMIT_RPS = 200`
+* `IG_RATE_LIMIT_BURST = 400`
+
+### 7.5 Runtime service/deployment handles (selective EKS custom lanes only)
 
 * `K8S_DEPLOY_IG = "ig"`
 * `K8S_DEPLOY_IEG = "ieg"`
@@ -360,15 +407,16 @@ Allowed tokens in pattern handles:
 * `K8S_DEPLOY_LS = "ls"`
 * `K8S_DEPLOY_ENV_CONFORMANCE = "env-conformance"`
 
-### 7.3 Runtime service/deployment handles (learning)
+### 7.6 Runtime service/deployment handles (learning)
 
 * `K8S_JOB_OFS_DISPATCHER = "ofs-dispatcher"`
 * `K8S_JOB_MF_DISPATCHER = "mf-dispatcher"`
 * `K8S_DEPLOY_MPR = "mpr"`
 
-### 7.4 Service discovery and ingress handles
+### 7.7 Service discovery and ingress handles
 
-* `IG_BASE_URL = "http://ig.fraud-platform-ingress.svc.cluster.local:8080"`
+* `IG_BASE_URL = "https://{api_id}.execute-api.eu-west-2.amazonaws.com/v1"`
+* `IG_BASE_URL_EKS_FALLBACK = "http://ig.fraud-platform-ingress.svc.cluster.local:8080"`
 * `IG_LISTEN_ADDR = "0.0.0.0"`
 * `IG_PORT = 8080`
 * `IG_INGEST_PATH = "/v1/ingest/push"`
@@ -376,7 +424,7 @@ Allowed tokens in pattern handles:
 * `IG_AUTH_MODE = "api_key"`
 * `IG_AUTH_HEADER_NAME = "X-IG-Api-Key"`
 
-### 7.5 Runtime control knobs
+### 7.8 Runtime control knobs
 
 * `READY_MESSAGE_FILTER = "platform_run_id=={platform_run_id}"`
 * `WSP_MAX_INFLIGHT = 1`
@@ -460,6 +508,10 @@ Allowed tokens in pattern handles:
 * `SFN_PLATFORM_RUN_ORCHESTRATOR_V0 = "fraud-platform-dev-full-platform-run-v0"`
 * `SFN_LEARNING_PIPELINE_GATE_V0 = "fraud-platform-dev-full-learning-gate-v0"`
 * `SFN_FINAL_VERDICT_AGGREGATOR_V0 = "fraud-platform-dev-full-final-verdict-v0"`
+* `SR_READY_COMMIT_AUTHORITY = "step_functions_only"`
+* `SR_READY_COMMIT_STATE_MACHINE = "SFN_PLATFORM_RUN_ORCHESTRATOR_V0"`
+* `SR_READY_RECEIPT_REQUIRES_SFN_EXECUTION_REF = true`
+* `SR_READY_COMMIT_RECEIPT_PATH_PATTERN = "evidence/runs/{platform_run_id}/sr/ready_commit_receipt.json"`
 
 ### 10.2 Failure taxonomy handles
 
@@ -490,6 +542,10 @@ Allowed tokens in pattern handles:
 * `ROLE_TERRAFORM_APPLY_DEV_FULL = "TO_PIN"`
 * `ROLE_EKS_NODEGROUP_DEV_FULL = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-eks-nodegroup"` (materialized in M2.B)
 * `ROLE_EKS_RUNTIME_PLATFORM_BASE = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-runtime-platform-base"` (materialized in M2.B)
+* `ROLE_FLINK_EXECUTION = "TO_PIN"`
+* `ROLE_LAMBDA_IG_EXECUTION = "TO_PIN"`
+* `ROLE_APIGW_IG_INVOKE = "TO_PIN"`
+* `ROLE_DDB_IG_IDEMPOTENCY_RW = "TO_PIN"`
 * `ROLE_STEP_FUNCTIONS_ORCHESTRATOR = "TO_PIN"`
 * `ROLE_MWAA_EXECUTION = "TO_PIN"`
 * `ROLE_SAGEMAKER_EXECUTION = "TO_PIN"`
@@ -536,6 +592,12 @@ Allowed tokens in pattern handles:
 * `OTEL_ENABLED = true`
 * `OTEL_COLLECTOR_SERVICE = "otel-collector"`
 * `OTEL_EXPORTER_PRIMARY = "cloudwatch"`
+* `OTEL_PROPAGATORS = "tracecontext,baggage"`
+* `CORRELATION_MODE = "w3c_trace_context_plus_run_headers"`
+* `CORRELATION_REQUIRED_FIELDS = "platform_run_id,scenario_run_id,phase_id,event_id,runtime_lane,trace_id"`
+* `CORRELATION_HEADERS_REQUIRED = "traceparent,tracestate,x-fp-platform-run-id,x-fp-phase-id,x-fp-event-id"`
+* `CORRELATION_ENFORCEMENT_FAIL_CLOSED = true`
+* `CORRELATION_AUDIT_PATH_PATTERN = "evidence/runs/{platform_run_id}/obs/correlation_audit.json"`
 
 ### 12.2 Dashboard and alert handles
 
@@ -599,6 +661,11 @@ These are intentionally explicit and must be pinned before first `dev-full-up` e
 8. `EKS_CLUSTER_ARN`
 9. `DBX_WORKSPACE_URL`
 10. `AWS_BUDGET_NOTIFICATION_EMAIL`
+11. `APIGW_IG_API_ID`
+12. `ROLE_FLINK_EXECUTION`
+13. `ROLE_LAMBDA_IG_EXECUTION`
+14. `ROLE_APIGW_IG_INVOKE`
+15. `ROLE_DDB_IG_IDEMPOTENCY_RW`
 
 ---
 

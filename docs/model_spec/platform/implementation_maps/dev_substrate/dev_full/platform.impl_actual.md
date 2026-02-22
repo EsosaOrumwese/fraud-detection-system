@@ -1889,3 +1889,88 @@ _As of 2026-02-22_
 ### Adjudication
 1. M2C-B1 remains closed.
 2. M2 phase remains active with next required step = full M2.C apply/evidence closure.
+
+## Entry: 2026-02-22 21:54:58 +00:00 - Authority repin plan for managed-first dev_full runtime
+
+### Problem statement
+1. Current authority text over-biases to EKS services for nearly all spine components, which conflicts with USER-directed senior architecture posture (replace with managed services by default).
+
+### Decision
+1. Repin authority docs to the following runtime strategy:
+   - SR/WSP and RTDL transform lanes on MSK+Flink where stream-native,
+   - IG on API Gateway + Lambda + DynamoDB idempotency (with explicit fallback policy),
+   - Case/Labels and decision lanes as hybrid (managed orchestration + custom logic only where differentiating).
+2. Keep Step Functions for run-state orchestration and MWAA for scheduled learning lanes.
+3. Ensure Resource Swap table, Section 5 stack pins, and phase runtime descriptions are mutually consistent.
+
+### Planned patch scope
+1. design-authority: section 5.1, section 6 mapping, section 17 summary, appendix A table.
+2. run-process: section 1.3 tooling pins, phase map runtime column, P2/P6/P8 wording where needed.
+3. handles registry: add explicit Flink/API Gateway/Lambda/DynamoDB handles and clarify EKS as hybrid-only runtime surface.
+
+## Entry: 2026-02-22 21:57:13 +00:00 - Managed-first authority update complete
+
+### Applied resolution
+1. Replaced authority assumptions that implicitly equated dev_full with "everything on EKS services".
+2. Pinned managed-first runtime defaults across the authority set:
+   - stream-native lanes -> MSK+Flink default,
+   - ingress edge -> API Gateway + Lambda + DynamoDB idempotency default,
+   - EKS -> selective custom-runtime lane only when explicitly justified.
+
+### Files updated
+1. docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md
+2. docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md
+3. docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md
+
+### Rationale
+1. Aligns dev_full with senior platform engineering posture (replace commodity plumbing with managed services, retain custom code only where differentiating).
+2. Reduces cost/ops burden from unnecessary always-on custom services.
+3. Preserves fail-closed semantic ownership and evidence obligations while improving production realism.
+
+## Entry: 2026-02-22 22:01:27 +00:00 - Detailed pin-closure plan for runtime risk controls
+
+### Why this pass is required
+1. Managed-first posture is now pinned, but four execution-critical controls were still under-specified and could create drift or operational ambiguity during implementation.
+
+### Controls to pin now
+1. Single active runtime path per phase/run with fail-closed fallback governance.
+2. SR READY commit authority fixed to Step Functions/evidence authority (Flink computes, SFN commits).
+3. IG edge operational envelope (size/timeout/retries/idempotency/DLQ/replay/rate limits).
+4. Cross-runtime correlation contract that binds API, Flink, Step Functions, EKS, and evidence artifacts to one traceable run identity.
+
+### Planned file touch list
+1. docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md
+2. docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md
+3. docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md
+
+## Entry: 2026-02-22 22:02:58 +00:00 - Four-risk pin closure applied (execution safety hardening)
+
+### Alternatives considered and decisions
+1. Runtime-path policy options considered:
+   - allow dynamic fallback mid-phase for convenience,
+   - enforce single active path with explicit failover ceremony.
+   Decision: enforce single active path; dynamic switching was rejected because it breaks reproducibility and makes evidence attribution ambiguous.
+
+2. SR authority options considered:
+   - allow Flink-ready output to implicitly close P5,
+   - require Step Functions as sole READY commit authority.
+   Decision: Step Functions-only commit authority to preserve deterministic gate closure and auditable control-plane ownership.
+
+3. IG edge control options considered:
+   - leave envelope loosely defined and tune during incidents,
+   - pin concrete bounds now (size/timeout/retry/idempotency/DLQ/rate).
+   Decision: pin concrete bounds now to avoid hidden production risk and inconsistent operator behavior.
+
+4. Observability correlation options considered:
+   - rely on best-effort logs/traces per lane,
+   - enforce cross-runtime correlation schema with fail-closed gates.
+   Decision: enforce required correlation fields across API/Flink/SFN/EKS/evidence surfaces for end-to-end auditability.
+
+### Files updated in this closure pass
+1. docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md
+2. docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md
+3. docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md
+
+### Outcome
+1. Authority docs now include concrete, testable controls for the four risk angles.
+2. Remaining work is implementation-phase conformance, not additional authority ambiguity.

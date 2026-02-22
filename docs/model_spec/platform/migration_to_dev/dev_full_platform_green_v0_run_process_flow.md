@@ -57,7 +57,7 @@
 
 ### 1.3 Substrate and tooling pins
 
-1. Runtime orchestration: `EKS`
+1. Runtime strategy: managed-first with hybrid fallback only for differentiating services (`MSK+Flink`, API Gateway/Lambda/DynamoDB, selective EKS custom services).
 2. Event bus: `AWS MSK Serverless` (`SASL_IAM`, `MSK_REGION=eu-west-2`)
 3. Durable object store/evidence/archive: `S3`
 4. Runtime relational state: `Aurora PostgreSQL Serverless v2 Multi-AZ`
@@ -85,6 +85,13 @@ Unchanged from local-parity/dev_min:
 3. origin-offset evidence boundary
 4. explicit degrade posture only
 5. deterministic provenance references for replay/audit
+
+### 1.6 Runtime-path and correlation laws (pinned)
+
+1. **Single-path per phase/run:** each phase execution must select exactly one active runtime path; in-phase switching is prohibited.
+2. **Fallback activation rule:** fallback path use is fail-closed and requires blocker adjudication, explicit approval, and a new `phase_execution_id`.
+3. **SR commit authority rule:** Flink may compute READY surfaces, but `P5` closure is valid only when Step Functions commits READY and receipt evidence carries the orchestrator execution reference.
+4. **Cross-runtime correlation rule:** required fields `platform_run_id,scenario_run_id,phase_id,event_id,runtime_lane,trace_id` must be preserved across API edge, stream lanes, orchestrator transitions, and evidence emission.
 
 ---
 
@@ -144,6 +151,7 @@ Execution MUST NOT start if any required handle class is unresolved:
 3. topic handles
 4. S3 path-pattern handles
 5. run lock/reporter lock handles
+6. phase runtime-path selection handles
 
 ### 3.4 Cost-to-outcome execution rule
 
@@ -171,15 +179,15 @@ Phase advancement is fail-closed if spend is consumed without material proof out
 | P(-1) | PACKAGING_READY | GH Actions + ECR | immutable image digest + provenance |
 | P0 | SUBSTRATE_READY | Terraform stacks | required handles resolvable |
 | P1 | RUN_PINNED | Step Functions run-state entry | run header + config digest committed |
-| P2 | DAEMONS_READY | EKS services | required service set healthy |
+| P2 | DAEMONS_READY | managed runtime workloads (Flink/API Gateway/Lambda/EKS selective) | required runtime lanes healthy |
 | P3 | ORACLE_READY | S3 + stream-view validation | oracle + stream-view contract valid |
-| P4 | INGEST_READY | IG + MSK preflight | writer-boundary + bus ready |
-| P5 | READY_PUBLISHED | SR + control topic | READY signal + receipt committed |
-| P6 | STREAMING_ACTIVE | WSP + IG + MSK | ingest streaming active + lag bounded |
+| P4 | INGEST_READY | ingress edge + MSK preflight | writer-boundary + bus ready |
+| P5 | READY_PUBLISHED | SR lane + control topic | READY signal + receipt committed |
+| P6 | STREAMING_ACTIVE | Flink stream lanes + ingress edge + MSK | ingest streaming active + lag bounded |
 | P7 | INGEST_COMMITTED | IG receipts/quarantine | admit/quarantine/offset evidence complete |
-| P8 | RTDL_CAUGHT_UP | RTDL + Redis/Aurora | inlet/projection closure committed |
-| P9 | DECISION_CHAIN_COMMITTED | DF/AL/DLA | decision/action/audit closure committed |
-| P10 | CASE_LABELS_COMMITTED | CM/LS + Aurora | case/label closure committed |
+| P8 | RTDL_CAUGHT_UP | Flink RTDL transforms + Redis/Aurora + hybrid services | inlet/projection closure committed |
+| P9 | DECISION_CHAIN_COMMITTED | hybrid DF/AL/DLA lanes | decision/action/audit closure committed |
+| P10 | CASE_LABELS_COMMITTED | hybrid case/label lanes + Aurora | case/label closure committed |
 | P11 | SPINE_OBS_GOV_CLOSED | reporter/governance | spine closure + non-regression pack |
 | P12 | LEARNING_INPUT_READY | OFS precheck lane | anti-leakage + replay basis pinned |
 | P13 | OFS_DATASET_COMMITTED | Databricks | dataset manifest + fingerprint |
@@ -230,13 +238,13 @@ For every phase below:
 
 ### P2 DAEMONS_READY
 
-* Entry gate: service manifests resolved against pinned image digest.
+* Entry gate: runtime lane manifests/configs resolved against pinned image digest and managed-runtime handles.
 * PASS gate:
-  1. required service set healthy,
+  1. required runtime lanes healthy,
   2. run-scope env conformance true,
-  3. telemetry heartbeat present.
-* Commit evidence: daemon readiness snapshot + service binding matrix.
-* Blockers: `DFULL-RUN-B2` (service health), `DFULL-RUN-B2.1` (binding drift).
+  3. telemetry heartbeat and required correlation fields present.
+* Commit evidence: runtime readiness snapshot + binding matrix.
+* Blockers: `DFULL-RUN-B2` (runtime lane health), `DFULL-RUN-B2.1` (binding drift).
 
 ### P3 ORACLE_READY
 
@@ -254,25 +262,27 @@ For every phase below:
 * PASS gate:
   1. ingest and ops health endpoints healthy,
   2. boundary auth checks enforced,
-  3. MSK topic readiness passes.
+  3. MSK topic readiness passes,
+  4. ingress edge envelope checks pass (`max_payload`, timeout, retry budget, idempotency TTL, DLQ/replay wiring, rate limits).
 * Commit evidence: ingress preflight snapshot.
-* Blockers: `DFULL-RUN-B4` (IG boundary failure), `DFULL-RUN-B4.1` (topic readiness failure).
+* Blockers: `DFULL-RUN-B4` (IG boundary failure), `DFULL-RUN-B4.1` (topic readiness failure), `DFULL-RUN-B4.2` (ingress edge envelope non-conformance).
 
 ### P5 READY_PUBLISHED
 
 * Entry gate: SR joins/replay prerequisites pass.
 * PASS gate:
   1. READY emitted to `fp.bus.control.v1`,
-  2. READY receipt committed,
-  3. duplicate/ambiguous READY prevented.
+  2. READY receipt committed with Step Functions execution reference,
+  3. duplicate/ambiguous READY prevented,
+  4. READY commit authority validated as Step Functions (not Flink-only compute).
 * Commit evidence: READY event proof + receipt artifact.
-* Blockers: `DFULL-RUN-B5` (READY emission failure), `DFULL-RUN-B5.1` (duplicate ambiguity).
+* Blockers: `DFULL-RUN-B5` (READY emission failure), `DFULL-RUN-B5.1` (duplicate ambiguity), `DFULL-RUN-B5.2` (missing Step Functions commit authority evidence).
 
 ### P6 STREAMING_ACTIVE
 
 * Entry gate: WSP source roots pinned for run.
 * PASS gate:
-  1. WSP->IG streaming active,
+  1. Flink-driven stream publication and ingress admission active,
   2. lag within threshold,
   3. no unresolved publish ambiguity.
 * Commit evidence: streaming counters snapshot + lag posture evidence.
@@ -290,7 +300,7 @@ For every phase below:
 
 ### P8 RTDL_CAUGHT_UP
 
-* Entry gate: RTDL services healthy and consuming.
+* Entry gate: RTDL transform lanes and hybrid ownership services healthy and consuming.
 * PASS gate:
   1. inlet/projection closure passes,
   2. lane lag and reconciliation within threshold,

@@ -1083,6 +1083,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     tz_temper_effective = False
     tz_temper_topk_names: list[str] = []
     tz_temper_eligible_merchants = 0
+    tz_temper_redirect_p = 0.0
 
     try:
         current_phase = "run_receipt"

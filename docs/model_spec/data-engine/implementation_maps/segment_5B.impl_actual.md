@@ -7861,3 +7861,52 @@ Execution lane for `u2_1_c1`:
 Performance/complexity posture:
 1) policy-only lane keeps algorithmic complexity unchanged in `S2/S3` (no runtime-risk code edits).
 2) expected wall-time remains bounded to existing partial-chain witness runtime; no full-segment replay.
+
+### Entry: 2026-02-22 22:00
+
+Execution closure: `P2.U2.1` bounded policy-only owner pass completed and rejected.
+
+What was attempted (`u2_1_c1`):
+1) policy-only change in `config/layer1/3B/virtual/cdn_country_weights.yaml` targeting Europe-heavy owner countries (`DE, CH, LU, BE, CZ, IT, SI, PL, LT, BY, GB, DK, ES, SM, MC`).
+2) intended chain:
+   - `3B: S2 -> S3 -> S4 -> S5`,
+   - `5B: S0 -> S4 -> S5`,
+   - score `P1/P2` and compare against pre-candidate baseline.
+
+Live blockers encountered and resolved:
+1) `3B.S2` sealed-input digest mismatch (`E3B_S2_005...`) immediately after policy edit.
+   - reason: progressive immutability requires reseal after policy digest drift.
+   - fix: rerun `3B.S0` first.
+2) `3B.S0` immutability violation on existing sealed outputs.
+   - fix: non-destructive output rotation under authority run-id for affected `3B/5B` roots before rerun.
+3) first attempt at `3B.S3/S4/S5` was incorrectly launched in parallel (dependency violation).
+   - consequence: `S4/S5` digest mismatches against stale `S3` artefacts.
+   - corrective action: rerun strictly sequential `S3 -> S4 -> S5` and rotate remaining stale `edge_universe_hash`/`virtual_routing_policy` roots.
+4) `5B.S4` failed on existing code defect:
+   - error: `cannot access local variable 'tz_temper_redirect_p' where it is not associated with a value` during run-report write.
+   - root cause: variable initialized only in inner path but referenced unconditionally in `finally` payload.
+   - fix applied: initialize `tz_temper_redirect_p = 0.0` in `S4` outer scope (`packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`), compile gate passed.
+5) `5B.S0/S4/S5` then rerun sequentially; lane completed.
+
+Candidate scoring result:
+1) `T6`: `74.3382% -> 74.2994%` (`delta=-0.0003886`, i.e. `-0.0389 pp`).
+2) `T7`: unchanged at `3.7043%`.
+3) frozen rails: preserved (`7/7` pass).
+4) `P2` decision: `HOLD_P2_REOPEN` (primary failure remains `T6`).
+
+Adjudication:
+1) `REJECT_u2_1_c1` for non-material `T6` movement.
+2) `UNLOCK_P2.U2.2` trigger evaluation (deterministic owner code lane).
+
+Artifact updates for this lane:
+1) candidate scorecards:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_realism_gateboard_c25a2675fbfbacd952b13bb594880e92_u2_1_c1.json`
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92_u2_1_c1.json`
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_closure_c25a2675fbfbacd952b13bb594880e92_u2_1_c1.json`
+2) operational receipts for non-destructive rotations:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_u21c1_rotated_paths_20260222T212620.txt`
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_u21c1_rotated_paths_extra_20260222T214523.txt`
+
+Post-lane hygiene decision:
+1) restored `config/layer1/3B/virtual/cdn_country_weights.yaml` to pre-lane workspace baseline after candidate rejection.
+2) restored unsuffixed `P1` gateboard from pre-candidate snapshot to keep canonical comparison surface stable.
