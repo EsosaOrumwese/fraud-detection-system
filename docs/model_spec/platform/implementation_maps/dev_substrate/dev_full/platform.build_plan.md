@@ -266,6 +266,9 @@ M2 planning posture:
   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_execution_summary.json` (`overall_pass=true`, blockers=`0`).
 - `M2.B` also published durable evidence:
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2b_20260222T210207Z/`.
+- `M2.C` is now expanded to execution-grade streaming planning (`M2C-B*`, command surface, MSK/schema evidence contracts).
+- `M2C-B1` (skeleton-only streaming stack) is now cleared with bounded readiness evidence:
+  - `runs/dev_substrate/dev_full/m2/m2c_b1_clear_20260222T212945Z/m2c_b1_clearance_summary.json` (`validate_exit=0`, `plan_exit=2`, `blocker_cleared=true`).
 - M2 phase execution remains active for `M2.C` onward.
 
 DoD anchors:

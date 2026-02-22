@@ -1462,7 +1462,7 @@ _As of 2026-02-22_
 
 ### Execution sequence selected
 1. Resolve backend resource blockers first (S3 + DynamoDB) so state/lock conformance can be proven.
-2. Materialize minimal infra/terraform/dev_full/{core,streaming,runtime,data_ml,ops} roots with backend surfaces required for 	erraform init readiness checks.
+2. Materialize minimal infra/terraform/dev_full/{core,streaming,runtime,data_ml,ops} roots with backend surfaces required for terraform init readiness checks.
 3. Run bounded conformance checks (no apply) and emit required M2.A evidence artifacts.
 4. Close M2.A only if all DoD checks pass and blocker register is empty.
 
@@ -1738,12 +1738,154 @@ _As of 2026-02-22_
 ## Entry: 2026-02-22 21:12:53 +00:00 - M2.B post-apply drift stability check
 
 ### Action
-1. Ran a post-apply Terraform stability plan for infra/terraform/dev_full/core after formatting/validation.
+1. Ran a post-apply Terraform stability plan for `infra/terraform/dev_full/core` after formatting/validation.
 2. Captured the result in:
-   - uns/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_post_apply_stability_check.json
+   - `runs/dev_substrate/dev_full/m2/m2b_20260222T210207Z/m2b_post_apply_stability_check.json`
 3. Published durable mirror:
-   - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2b_20260222T210207Z/m2b_post_apply_stability_check.json
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2b_20260222T210207Z/m2b_post_apply_stability_check.json`
 
 ### Outcome
-1. Detailed-exitcode was   (no drift).
+1. Detailed-exitcode was `0` (no drift).
 2. Confirms M2.B apply convergence and immediate config/runtime consistency.
+
+## Entry: 2026-02-22 21:17:45 +00:00 - M2.C planning expansion (execution-grade, no execution)
+
+### Trigger
+1. USER requested planning for M2.C after M2.B closure.
+
+### Planning objective
+1. Expand M2.C from stub into execution-grade streaming contract before any Terraform mutation in `infra/terraform/dev_full/streaming`.
+2. Keep decision-completeness fail-closed: no `plan/apply` starts until required handles, command surface, blockers, and evidence contracts are explicit.
+
+### Runtime truth and authority alignment used
+1. Runtime truth:
+   - `infra/terraform/dev_full/streaming/main.tf` is still skeleton-only (`backend + local`), inherited from M2.A readiness bootstrap.
+2. Handle authority:
+   - `MSK_CLIENT_SUBNET_IDS` and `MSK_SECURITY_GROUP_ID` are now materialized from M2.B and available for M2.C input closure.
+   - `MSK_CLUSTER_ARN` and `MSK_BOOTSTRAP_BROKERS_SASL_IAM` remain TO_PIN outputs expected to be produced by M2.C.
+3. Design authority alignment:
+   - dev_full streaming stack owns MSK topology/auth posture and schema baseline surfaces.
+
+### Alternatives considered
+1. Start M2.C execution immediately and discover missing surfaces during apply.
+   - Rejected: violates decision-completeness law and would produce avoidable mid-run ambiguity.
+2. Keep M2.C at high-level stub and defer detail to execution time.
+   - Rejected: repeats anti-cram failure mode.
+3. Expand M2.C fully now with explicit blocker taxonomy and evidence shape, then execute only after blocker closure inputs are known.
+   - Selected: preserves fail-closed posture and deterministic auditability.
+
+### What was added
+1. Decision precheck with required handles (`TF_*`, `MSK_*`, schema, SSM bootstrap path).
+2. Canonical command surface (`init/validate/plan/apply/output`).
+3. Fail-closed blocker taxonomy (`M2C-B1..B6`).
+4. Evidence artifacts contract:
+   - `m2c_streaming_plan_snapshot.json`
+   - `m2c_streaming_apply_snapshot.json`
+   - `m2c_msk_identity_snapshot.json`
+   - `m2c_schema_registry_snapshot.json`
+   - `m2c_blocker_register.json`
+   - `m2c_execution_summary.json`
+5. Closure rule and planning-time expected blocker pin.
+
+### Current pinned M2.C entry blocker
+1. `M2C-B1`: streaming stack implementation remains skeleton-only and cannot satisfy MSK/schema materialization DoD until resources/modules/outputs are added.
+
+### Master-plan sync
+1. Updated `platform.build_plan.md` to mark M2.C planning expansion complete.
+2. Elevated M2C-B1 into phase posture so execution is explicitly blocked until implementation materialization.
+
+## Entry: 2026-02-22 21:25:11 +00:00 - M2.C blocker-clearing design decision before Terraform edits
+
+### Objective
+1. Clear M2C-B1 by replacing the skeletal infra/terraform/dev_full/streaming stack with concrete MSK/schema resources.
+
+### Design options considered
+1. Minimal unblock approach (only placeholder outputs, no real streaming resources).
+   - Rejected: would close blocker cosmetically but fail M2.C execution DoD and create drift.
+2. Full topic + ACL + schema-per-topic provisioning in M2.C.
+   - Rejected for now: too broad; topic readiness is M2.D scope and would blur phase boundaries.
+3. Bounded M2.C materialization:
+   - MSK Serverless cluster with IAM auth,
+   - bootstrap brokers publish to SSM secure parameter,
+   - Glue schema registry baseline and one anchor schema,
+   - deterministic outputs for MSK_CLUSTER_ARN + MSK_BOOTSTRAP_BROKERS_SASL_IAM + schema handles.
+   - Selected: clears M2C-B1 with phase-correct scope and preserves M2.D room.
+
+### Input strategy decision
+1. Reuse M2.B materialized network handles (MSK_CLIENT_SUBNET_IDS, MSK_SECURITY_GROUP_ID) via Terraform remote state from dev_full/core.
+2. Keep optional override variables for explicit pinning if remote-state access posture changes.
+3. Store bootstrap brokers at SSM_MSK_BOOTSTRAP_BROKERS_PATH as secure string.
+
+### Risk controls
+1. No topic provisioning in M2.C to avoid phase-coupling with M2.D.
+2. Cluster policy remains narrowly account-scoped for now; stricter principal targeting deferred to M2.D role/topic readiness lane.
+3. All resource names and paths remain aligned to handle registry literals.
+
+## Entry: 2026-02-22 21:27:08 +00:00 - M2C-B1 clearing attempt hit Terraform variable-default function restriction
+
+### What failed
+1. terraform init for infra/terraform/dev_full/streaming failed before provider install due invalid variable default expression.
+2. Root cause:
+   - jsonencode() was used in variables.tf default for glue_anchor_schema_definition, and Terraform forbids function calls in variable default expressions.
+
+### Decision
+1. Replace function-based default with literal JSON heredoc string.
+2. Keep schema payload semantics unchanged.
+3. Rerun init/validate/plan immediately after patch to verify M2C-B1 clearance posture.
+
+## Entry: 2026-02-22 21:28:30 +00:00 - M2C-B1 clearing attempt hit MSK serverless vpc_config schema mismatch
+
+### What failed
+1. terraform validate failed for streaming stack with unsupported argument in aws_msk_serverless_cluster.vpc_config.
+2. Root cause:
+   - used security_groups argument name; provider schema expects security_group_ids.
+
+### Decision
+1. Patch to provider-correct field name.
+2. Rerun validate and then plan to confirm stack now passes bounded readiness checks.
+
+## Entry: 2026-02-22 21:30:42 +00:00 - M2C-B1 cleared with bounded streaming readiness evidence
+
+### Implementation actions executed
+1. Replaced skeletal streaming stack with concrete resources in infra/terraform/dev_full/streaming:
+   - main.tf (MSK Serverless, bootstrap-broker SSM parameter, Glue registry + anchor schema),
+   - versions.tf,
+   - variables.tf,
+   - outputs.tf,
+   - README update.
+2. Initialized backend for streaming state key and ran bounded readiness checks.
+
+### Problems encountered and decisions
+1. Problem: Terraform rejected function call in variable default (jsonencode in variables.tf).
+   - Decision: replaced with literal JSON heredoc default for schema definition.
+2. Problem: AWS provider schema mismatch in MSK serverless vpc_config (security_groups unsupported).
+   - Decision: patched to provider-correct field security_group_ids.
+
+### Bounded clearance verification
+1. validate exit code: 0
+2. plan detailed-exitcode: 2 (materializable changes present)
+3. clearance summary artifact:
+   - runs/dev_substrate/dev_full/m2/m2c_b1_clear_20260222T212945Z/m2c_b1_clearance_summary.json
+4. durable evidence mirror:
+   - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2c_b1_clear_20260222T212945Z/
+
+### Outcome
+1. M2C-B1 (skeleton-only streaming stack) is now cleared.
+2. M2.C is execution-ready for full plan/apply closure lane.
+
+
+
+## Entry: 2026-02-22 21:34:46 +00:00 - M2C-B1 post-clearance verification
+
+### Verification actions
+1. Read local clearance summary from runs/dev_substrate/dev_full/m2/m2c_b1_clear_20260222T212945Z/m2c_b1_clearance_summary.json.
+2. Queried durable evidence prefix s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2c_b1_clear_20260222T212945Z/ to ensure receipt persistence.
+
+### Result
+1. validate_exit_code=0
+2. plan_exit_code=2 (expected materializable delta)
+3. blocker_cleared=true
+
+### Adjudication
+1. M2C-B1 remains closed.
+2. M2 phase remains active with next required step = full M2.C apply/evidence closure.

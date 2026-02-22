@@ -7822,3 +7822,42 @@ Artifacts emitted:
 3) `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_offender_mcc_channel_c25a2675fbfbacd952b13bb594880e92.csv`
 4) `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_top10_tz_c25a2675fbfbacd952b13bb594880e92.csv`
 5) `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_merchant_tz_hotspots_c25a2675fbfbacd952b13bb594880e92.csv`
+
+### Entry: 2026-02-22 21:23
+
+Planning lock: `P2.U2.1` bounded policy-only owner candidate (`3B.S2/S3`) with feasibility bound check before rerun.
+
+New evidence added before candidate launch:
+1) computed `T6` movable ceiling from virtual lane only on authority run:
+   - `virtual_total=4,620,117`,
+   - `virtual_within_T6_top10=731,326` (`0.5864 pp` of total),
+   - required B reduction remains `2,916,316` (`2.3382 pp`).
+2) implication: `3B.S2/S3` policy-only lane cannot mathematically close `T6` to B by itself unless it materially affects non-virtual mass (unlikely by ownership).
+3) additional ownership signal:
+   - top `T6` offender merchant `7514239372188516374` has zero rows in `3B` `edge_catalogue`, reinforcing dominant non-virtual concentration outside `S2/S3` path.
+
+Why still execute `P2.U2.1`:
+1) build-plan DoD explicitly requires at least one bounded owner candidate run end-to-end.
+2) we need measured deltas (not inference-only) to formally accept/reject this owner lane.
+
+Candidate `u2_1_c1` design (policy-only, no code edits):
+1) edit `config/layer1/3B/virtual/cdn_country_weights.yaml` only.
+2) downweight Europe-heavy virtual-edge countries tied to top tz concentration axis:
+   - `DE, CH, LU, BE, CZ, IT, SI, PL, LT, BY, GB, DK, ES, SM, MC`.
+3) no changes to `3B.S1` classification policy (keep `T7` owner lane frozen).
+4) no changes to `5B` code path in this lane.
+
+Execution lane for `u2_1_c1`:
+1) rerun authority chain on `run_id=c25a2675fbfbacd952b13bb594880e92`:
+   - `3B: S2 -> S3 -> S4 -> S5`,
+   - `5B: S0 -> S4 -> S5`.
+2) rescore using:
+   - `tools/score_segment5b_p1_realism.py`,
+   - `tools/score_segment5b_p2_calibration.py` (with candidate suffix).
+3) decision rule:
+   - keep only if `T6` shows material movement with frozen rails + `T7` preserved,
+   - otherwise reject and move to `P2.U2.2` trigger decision.
+
+Performance/complexity posture:
+1) policy-only lane keeps algorithmic complexity unchanged in `S2/S3` (no runtime-risk code edits).
+2) expected wall-time remains bounded to existing partial-chain witness runtime; no full-segment replay.

@@ -257,6 +257,75 @@ DoD:
 - [ ] auth mode and secret reference contracts are consistent with authority.
 - [ ] M2.C evidence snapshot committed.
 
+M2.C planning precheck (decision completeness):
+1. Required handles for this lane are pinned:
+   - `TF_STACK_STREAMING_DIR`, `TF_STATE_BUCKET`, `TF_STATE_BUCKET_REGION`, `TF_LOCK_TABLE`, `TF_STATE_KEY_STREAMING`
+   - `MSK_CLUSTER_NAME`, `MSK_REGION`, `MSK_CLUSTER_MODE`, `MSK_AUTH_MODE`
+   - `MSK_CLIENT_SUBNET_IDS`, `MSK_SECURITY_GROUP_ID`
+   - `GLUE_SCHEMA_REGISTRY_NAME`, `GLUE_SCHEMA_COMPATIBILITY_MODE`
+   - `SSM_MSK_BOOTSTRAP_BROKERS_PATH`
+2. Planning-time execution reality:
+   - `infra/terraform/dev_full/streaming/main.tf` started as M2.A skeletal (backend + local only), with no concrete MSK/schema/IAM resources.
+3. `M2C-B1` clearance checkpoint has now been executed:
+   - `runs/dev_substrate/dev_full/m2/m2c_b1_clear_20260222T212945Z/m2c_b1_clearance_summary.json`
+   - `validate_exit=0`, `plan_exit=2`, `blocker_cleared=true`.
+
+M2.C execution contract (planned):
+1. Preconditions:
+   - `M2.B` PASS evidence is present and core networking outputs remain stable,
+   - `MSK_CLIENT_SUBNET_IDS` and `MSK_SECURITY_GROUP_ID` are sourced from M2.B materialized outputs.
+2. Streaming command surface:
+   - `terraform -chdir=infra/terraform/dev_full/streaming init -reconfigure -backend-config=...`
+   - `terraform -chdir=infra/terraform/dev_full/streaming validate`
+   - `terraform -chdir=infra/terraform/dev_full/streaming plan -input=false -detailed-exitcode -out <m2c_streaming_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/streaming apply -input=false <m2c_streaming_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/streaming output -json`
+3. Acceptance checks:
+   - MSK serverless cluster is materialized and queryable,
+   - IAM auth posture is explicit and consistent with `MSK_AUTH_MODE=SASL_IAM`,
+   - bootstrap-brokers value is materialized and written to `SSM_MSK_BOOTSTRAP_BROKERS_PATH`,
+   - schema registry baseline (`GLUE_SCHEMA_REGISTRY_NAME`, compatibility mode) is materialized/queryable.
+
+M2.C fail-closed policy (planned):
+1. `M2C-B1`: streaming stack is non-materialized (skeleton-only) or apply surface is incomplete.
+2. `M2C-B2`: terraform `init/validate/plan/apply` fails under pinned backend/state posture.
+3. `M2C-B3`: required MSK identity handles are missing (`MSK_CLUSTER_ARN`, `MSK_BOOTSTRAP_BROKERS_SASL_IAM`).
+4. `M2C-B4`: auth posture drift (`MSK_AUTH_MODE` mismatch or IAM access policy gap).
+5. `M2C-B5`: schema registry baseline not materialized or incompatible with pinned mode.
+6. `M2C-B6`: evidence artifacts missing/inconsistent with command receipts.
+
+M2.C evidence contract (planned):
+1. `m2c_streaming_plan_snapshot.json`
+   - command receipts, plan summary, resource-action rollup.
+2. `m2c_streaming_apply_snapshot.json`
+   - apply receipt, terraform output surface, state identity.
+3. `m2c_msk_identity_snapshot.json`
+   - `MSK_CLUSTER_ARN`, bootstrap brokers, subnet/SG references, auth mode checks.
+4. `m2c_schema_registry_snapshot.json`
+   - Glue schema registry presence and compatibility configuration checks.
+5. `m2c_blocker_register.json`
+   - active `M2C-B*` blockers with severity/remediation.
+6. `m2c_execution_summary.json`
+   - rollup verdict (`overall_pass`), next gate (`M2.D_READY` or `BLOCKED`).
+
+M2.C expected entry blocker (planning-time reality):
+1. `M2C-B1` (skeleton-only streaming stack) was the planning-time blocker and is now cleared by bounded readiness evidence.
+
+M2.C closure rule:
+1. M2.C can close only when:
+   - all `M2C-B*` blockers are resolved,
+   - DoD checks are green,
+   - evidence artifacts are produced and readable.
+
+M2.C blocker-clearance note (2026-02-22):
+1. This step cleared `M2C-B1` only (implementation completeness blocker) and did not execute full M2.C apply closure.
+2. Clearance artifacts:
+   - `runs/dev_substrate/dev_full/m2/m2c_b1_clear_20260222T212945Z/m2c_b1_clearance_summary.json`
+   - `runs/dev_substrate/dev_full/m2/m2c_b1_clear_20260222T212945Z/terraform_validate.log`
+   - `runs/dev_substrate/dev_full/m2/m2c_b1_clear_20260222T212945Z/terraform_plan.log`
+3. Durable mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2c_b1_clear_20260222T212945Z/`
+
 ## M2.D Topic and Schema Readiness Precheck
 Goal:
 - prove streaming substrate is ready for lane topic/schema provisioning contracts.
