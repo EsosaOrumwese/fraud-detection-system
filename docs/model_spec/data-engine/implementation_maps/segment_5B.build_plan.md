@@ -740,6 +740,88 @@ POPT.3 closure snapshot (2026-02-22):
 - phase decision:
   - `HOLD_POPT3_REOPEN` (stretch gate not met in final post-rollback witness).
 
+### POPT.3R - Bounded reopen for S2/S3 closure
+Goal:
+- close the remaining stretch gap on owner states `S2` and `S3` without reopening/further mutating `S4/S5` logic.
+
+Scope lock:
+- owner states: `S2`, `S3` only.
+- frozen rails: `S4`, `S5` behavior stays unchanged; these run only as downstream safety witnesses.
+- no realism/policy/schema/contract tuning in this lane.
+
+Runtime targets:
+- stretch closure target:
+  - `S2 <= 45.0s`,
+  - `S3 <= 45.0s`.
+- target gate (`<=35s`) remains aspirational, not required for reopen close.
+
+Rerun protocol:
+- per candidate change: `segment5b-s2 -> segment5b-s3 -> segment5b-s4 -> segment5b-s5`.
+- same non-destructive `S5_OUTPUT_CONFLICT` housekeeping policy applies before rerun.
+
+Iteration cap (anti-churn):
+- maximum `2` reopen iterations for `POPT.3R`.
+- if both iterations fail stretch closure, stop reopen lane and carry explicit hold/freeze decision.
+
+#### POPT.3R.0 - Profile lock (no behavior edits)
+Objective:
+- capture measured hotspot ownership in `S2/S3` to avoid blind tuning.
+
+Definition of done:
+- [x] top two cost centers identified in `S2` with measured contribution.
+- [x] top two cost centers identified in `S3` with measured contribution.
+- [x] no code/policy changes made in this subphase.
+
+POPT.3R.0 profile snapshot (2026-02-22):
+- authority source:
+  - run-id `c25a2675fbfbacd952b13bb594880e92`,
+  - log evidence `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/run_log_c25a2675fbfbacd952b13bb594880e92.log`.
+- S2 measured phase ownership (`total=48.509s`):
+  - `realised_join_transform_write_loop = 25.193s` (`51.93%`) [rank 1],
+  - `latent_draw_compute = 22.117s` (`45.59%`) [rank 2].
+- S3 measured phase ownership (`total=51.476s`):
+  - `bucket_count_compute_loop = 48.604s` (`94.42%`) [rank 1],
+  - `publish_finalize = 2.234s` (`4.34%`) [rank 2].
+- profiling-only constraints honored:
+  - no engine behavior edits,
+  - no policy/schema/contract changes.
+- retained profiling artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r0_profile_lock_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r0_profile_lock_c25a2675fbfbacd952b13bb594880e92.md`
+
+#### POPT.3R.1 - S2 algorithmic pass
+Objective:
+- reduce Python/control-plane overhead in `S2` latent draw path while preserving RNG semantics.
+
+Definition of done:
+- [ ] bounded `S2` hot-path optimization patch applied.
+- [ ] compile gates pass.
+- [ ] witness `S2 <= 45.0s`.
+
+#### POPT.3R.2 - S3 algorithmic pass
+Objective:
+- reduce per-row/domain-key and RNG dispatch overhead in `S3` count realization path while preserving count-law semantics.
+
+Definition of done:
+- [ ] bounded `S3` hot-path optimization patch applied.
+- [ ] compile gates pass.
+- [ ] witness `S3 <= 45.0s`.
+
+#### POPT.3R.3 - Integration witness + veto
+Objective:
+- execute full downstream safety chain and adjudicate close/hold.
+
+Decision outcomes:
+- `UNLOCK_POPT4_CONTINUE_WITH_WAIVER` if stretch closure passes and guardrails remain green.
+- `HOLD_POPT3_REOPEN` if stretch closure fails or guardrails fail.
+
+Definition of done:
+- [ ] witness chain `S2/S3/S4/S5` is complete.
+- [ ] `S4/S5` remain `PASS` and `bundle_integrity_ok=true`.
+- [ ] structural invariants remain unchanged (`bucket_rows`, `arrivals_total`, `arrival_rows`, `arrival_virtual`, `missing_group_weights`).
+- [ ] explicit reopen decision recorded with retained artifacts.
+- [ ] prune checklist executed and logged.
+
 ### POPT.4 - Validation lane + logging budget closure
 Goal:
 - ensure `S5` and hot-state logging cadence are budgeted and not runtime-dominant.

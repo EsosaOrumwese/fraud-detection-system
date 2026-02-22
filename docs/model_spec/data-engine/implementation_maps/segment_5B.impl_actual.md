@@ -5984,3 +5984,44 @@ Post-closure code posture:
 
 Prune closure:
 - executed `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
+
+### Entry: 2026-02-22 12:03
+
+Execution step: `POPT.3R.0` profile lock completed (no behavior edits).
+Summary: measured phase-level ownership for `S2` and `S3` from the latest authority run log and locked top-two cost centers per state before any reopen patching.
+
+Authority + method:
+1) authority run-id remained `c25a2675fbfbacd952b13bb594880e92`.
+2) evidence source:
+   - `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/run_log_c25a2675fbfbacd952b13bb594880e92.log`.
+3) approach:
+   - parsed timestamped `S2:`/`S3:` log markers from the latest invocation window,
+   - computed phase durations from marker-to-marker deltas,
+   - normalized each phase by state total runtime to produce contribution shares.
+
+Alternatives considered and rejected:
+1) add temporary in-code timers/counters:
+   - rejected for this subphase because `POPT.3R.0` is explicitly profile-only and must avoid any behavior mutation.
+2) rerun with altered env knobs for decomposition:
+   - rejected because knob changes would confound baseline ownership; profile lock needs same posture as closure witness.
+3) rely only on run-report wall clock without phase decomposition:
+   - rejected because it cannot produce ranked owner lanes for targeted patching.
+
+Measured results:
+- `S2 total=48.509s`:
+  - rank 1: `realised_join_transform_write_loop = 25.193s` (`51.93%`),
+  - rank 2: `latent_draw_compute = 22.117s` (`45.59%`),
+  - residual (`setup + publish`) = `1.199s` (`2.47%`).
+- `S3 total=51.476s`:
+  - rank 1: `bucket_count_compute_loop = 48.604s` (`94.42%`),
+  - rank 2: `publish_finalize = 2.234s` (`4.34%`),
+  - residual (`setup`) = `0.638s` (`1.24%`).
+
+Decision implications for reopen sequence:
+1) `POPT.3R.1` should target `S2` realised/join-transform path first, not setup/publish noise.
+2) `POPT.3R.2` should focus almost entirely on `S3` bucket-count compute loop; publish lane is secondary.
+3) no justification to touch policy/schema/contracts in this reopen lane.
+
+Artifacts emitted:
+- `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r0_profile_lock_c25a2675fbfbacd952b13bb594880e92.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_popt3r0_profile_lock_c25a2675fbfbacd952b13bb594880e92.md`
