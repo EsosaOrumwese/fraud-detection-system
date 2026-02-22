@@ -20234,3 +20234,72 @@ Actions:
 
 Outcome:
 1. Deep-plan and main-plan status now aligned for entry into `M11.J`.
+
+## Entry: 2026-02-22 16:03 +00:00 - Pre-change lock for M11.J planning + execution
+Reasoning:
+1. `M11.J` is the final closure gate for M11 and must produce deterministic verdict + M12 handoff artifacts.
+2. Current M11.J section is high-level and lacks execution-grade contracts:
+   - explicit dependency gate on M11.I pass,
+   - required verdict-mode/handoff-handle set,
+   - deterministic source matrix and blocker-union algorithm,
+   - explicit advance predicates for `ADVANCE_TO_M12`.
+3. Without these contracts, verdict publication could drift or become non-reproducible.
+
+Decision:
+1. Expand M11.J to execution-grade before running it.
+2. Pin final verdict/handoff handles in `dev_full_handles.registry.v0.md`.
+3. Execute M11.J closure against local `M11.A..M11.I` snapshots, publish local + durable verdict/handoff artifacts, then sync phase status to reflect closure.
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secret material in docs or snapshots.
+3. No runtime infra mutation.
+
+## Entry: 2026-02-22 16:08 +00:00 - M11.J executed and M11 closed (`ADVANCE_TO_M12`)
+Reasoning:
+1. `M11.J` must provide deterministic adjudication over `M11.A..M11.I` and produce the sole authority handoff artifact for M12.
+2. Prior M11.J section lacked execution-grade predicates and explicit handoff contract; those were expanded before execution.
+
+Decision trail:
+1. Expanded `M11.J` in `platform.M11.build_plan.md` with:
+   - entry gate on M11.I pass,
+   - required handle family (`DF_M11_J_*`),
+   - deterministic source matrix + blocker-union algorithm,
+   - explicit advance predicates and budget blocker.
+2. Added Section 12 to `dev_full_handles.registry.v0.md` to pin verdict/handoff handles.
+3. Executed M11.J closure algorithm inline (no helper files):
+   - validated M11.I dependency,
+   - resolved required J handles,
+   - loaded/parsing-validated all required source snapshots `M11.A..M11.I`,
+   - computed deterministic blocker rollup and predicate checks,
+   - emitted verdict snapshot + M12 handoff pack,
+   - published both artifacts locally and durably.
+4. Synced main/deep plan statuses post-pass.
+
+Evidence:
+1. Local verdict: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_j_verdict_snapshot.json`.
+2. Local handoff: `runs/dev_substrate/m11/m11_20260222T145654Z/m12_handoff_pack.json`.
+3. Durable verdict: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_j_verdict_snapshot.json`.
+4. Durable handoff: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m12_handoff_pack.json`.
+
+Outcome:
+1. `verdict=ADVANCE_TO_M12`.
+2. `overall_pass=true`.
+3. blockers empty.
+4. `M11` marked `DONE` in `platform.build_plan.md` roadmap/status and phase section.
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secret material recorded.
+3. No runtime infra mutation.
+
+## Entry: 2026-02-22 16:10 +00:00 - M11.J runtime-budget subsection normalized
+Reasoning:
+1. Most M11 sub-phases include an explicit per-lane runtime-budget subsection.
+2. M11.J had a budget blocker but no local subsection; this was a consistency gap for audit readability.
+
+Action:
+1. Added explicit `M11.J` runtime-budget subsection (`<=10 minutes`, fail-closed `M11J-B6`) in `platform.M11.build_plan.md`.
+
+Outcome:
+1. M11 sub-phase formatting and closure pattern are now consistent end-to-end (`M11.A..M11.J`).

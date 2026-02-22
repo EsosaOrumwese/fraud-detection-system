@@ -1065,27 +1065,101 @@ Goal:
 1. Aggregate M11 closure outcomes and publish deterministic verdict.
 2. Publish M12 handoff pack only when M11 passes fail-closed gates.
 
-Tasks:
-1. Build source matrix from `M11.A..M11.I` snapshots.
-2. Compute blocker union and verdict:
-   - `ADVANCE_TO_M12` when blocker union empty and required predicates true.
+Entry conditions:
+1. `M11.I` snapshot exists locally and durably.
+2. `M11.I` reports `overall_pass=true` with blocker union empty.
+3. Verdict/handoff handles required by J are pinned and non-placeholder.
+
+Required inputs:
+1. `M11.I` source snapshots:
+   - local: `runs/dev_substrate/m11/<m11_execution_id>/m11_i_cost_teardown_continuity_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m11_execution_id>/m11_i_cost_teardown_continuity_snapshot.json`.
+2. Source snapshots for `M11.A..M11.I`:
+   - `m11_a_authority_handoff_snapshot.json`
+   - `m11_b_handle_closure_snapshot.json`
+   - `m11_c_runtime_decomposition_snapshot.json`
+   - `m11_d_iam_secret_kms_snapshot.json`
+   - `m11_e_data_contract_snapshot.json`
+   - `m11_f_messaging_governance_snapshot.json`
+   - `m11_g_observability_evidence_snapshot.json`
+   - `m11_h_non_regression_matrix_snapshot.json`
+   - `m11_i_cost_teardown_continuity_snapshot.json`
+3. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+
+Required verdict/handoff handles for J closure:
+1. `DF_M11_J_VERDICT_MODE`
+2. `DF_M11_J_REQUIRED_SOURCE_SNAPSHOTS`
+3. `DF_M11_J_ADVANCE_PREDICATES`
+4. `DF_M11_J_M12_HANDOFF_REQUIRED_FIELDS`
+
+Preparation checks (fail-closed):
+1. Resolve M11.I snapshot (local preferred, durable fallback) and verify pass posture.
+2. Resolve required J handles and assert:
+   - all keys present exactly once,
+   - status is `PINNED`,
+   - value is non-placeholder.
+3. Resolve each required `M11.A..M11.I` source snapshot and verify readability/schema parse.
+4. Validate verdict mode is explicit fail-closed union posture.
+5. Validate required source list and handoff required-field list are explicit.
+
+Deterministic closure algorithm (M11.J):
+1. Resolve M11.I snapshot; unreadable or non-pass -> `M11J-B5`.
+2. Resolve required J handles from registry; unresolved/placeholder -> `M11J-B4`.
+3. Load required `M11.A..M11.I` snapshots from active `m11_execution_id`; any missing/unreadable -> `M11J-B1` or `M11J-B2`.
+4. Build deterministic `source_phase_matrix` in fixed order (`A..I`) with:
+   - `phase`,
+   - `phase_id`,
+   - `overall_pass`,
+   - `blockers`,
+   - source refs (local/durable).
+5. Compute `source_blocker_rollup` as deterministic union across all source blockers.
+6. Evaluate advance predicates:
+   - all source `overall_pass=true`,
+   - source blocker rollup empty,
+   - required source count complete.
+7. Compute verdict:
+   - `ADVANCE_TO_M12` when all predicates true,
    - `HOLD_M11` otherwise.
-3. Emit:
+8. Emit:
    - `m11_j_verdict_snapshot.json`,
    - `m12_handoff_pack.json`.
-4. Publish both locally + durably.
+9. Publish both artifacts durably; publication failure -> `M11J-B3`.
+
+Runtime budget:
+1. `M11.J` target budget: <= 10 minutes.
+2. Over-budget without user waiver -> `M11J-B6`.
 
 DoD:
-- [ ] Source matrix includes all M11 sub-phase snapshots.
-- [ ] Blocker rollup is deterministic and reproducible.
-- [ ] Verdict and handoff artifacts are published locally + durably.
-- [ ] `ADVANCE_TO_M12` only when all required predicates are true.
+- [x] Source matrix includes all M11 sub-phase snapshots.
+- [x] Blocker rollup is deterministic and reproducible.
+- [x] Verdict and handoff artifacts are published locally + durably.
+- [x] `ADVANCE_TO_M12` only when all required predicates are true.
+- [x] Runtime budget gate is satisfied.
+
+Execution evidence (2026-02-22):
+1. Local verdict snapshot:
+   - `runs/dev_substrate/m11/m11_20260222T145654Z/m11_j_verdict_snapshot.json`
+2. Local handoff pack:
+   - `runs/dev_substrate/m11/m11_20260222T145654Z/m12_handoff_pack.json`
+3. Durable verdict snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_j_verdict_snapshot.json`
+4. Durable handoff pack:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m12_handoff_pack.json`
+5. Closure result:
+   - `verdict=ADVANCE_TO_M12`
+   - `overall_pass=true`
+   - blockers empty
+6. Verdict/handoff handle family pinned:
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` Section 12 (`DF_M11_J_*` handles).
 
 Blockers:
 1. `M11J-B1`: missing required source snapshot.
 2. `M11J-B2`: source snapshot unreadable/schema-invalid.
 3. `M11J-B3`: publication failure for verdict/handoff artifacts.
 4. `M11J-B4`: predicate mismatch with attempted advance verdict.
+5. `M11J-B5`: M11.I dependency unreadable or not pass-closed.
+6. `M11J-B6`: runtime budget breach without waiver.
 
 ## 6) M11 Runtime Budget Posture (Planning)
 Planning target budgets:
@@ -1126,10 +1200,10 @@ M11 verdict snapshot (`m11_j_verdict_snapshot.json`) additional required fields:
 - [x] Required handles for Learning/Registry are fully closed and concrete.
 - [x] Runtime/IAM/data/messaging/evidence/cost lanes are explicit and non-ambiguous.
 - [x] `M8..M10` non-regression matrix is pinned with executable acceptance rules.
-- [ ] `M11.J` publishes `ADVANCE_TO_M12` verdict and `m12_handoff_pack.json` locally + durably.
+- [x] `M11.J` publishes `ADVANCE_TO_M12` verdict and `m12_handoff_pack.json` locally + durably.
 
 ## 9) Planning Status
 1. This file is now expanded to execution-grade planning depth.
-2. `M11.A..M11.I` closure execution has been completed with local + durable evidence publication.
-3. `M11.J` remains open for sequential expansion/execution.
+2. `M11.A..M11.J` closure execution has been completed with local + durable evidence publication.
+3. `M11` is closure-ready with `ADVANCE_TO_M12`.
 4. Status transitions remain governed only by `platform.build_plan.md`.

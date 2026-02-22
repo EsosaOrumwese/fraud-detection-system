@@ -146,3 +146,12 @@ Operational note:
 | `DF_M11_LEARNING_INCLUDE_IN_TEARDOWN` | PINNED | `true` |
 | `DF_M11_LEARNING_INCLUDE_IN_BILLING_GUARDRAIL` | PINNED | `true` |
 | `DF_M11_CROSS_PLATFORM_BILLING_REQUIRED` | PINNED | `true` |
+
+## 12. Verdict and Handoff Handles (M11.J)
+
+| Key | Status | Value |
+|---|---|---|
+| `DF_M11_J_VERDICT_MODE` | PINNED | `fail_closed_union` |
+| `DF_M11_J_REQUIRED_SOURCE_SNAPSHOTS` | PINNED | `m11_a_authority_handoff_snapshot,m11_b_handle_closure_snapshot,m11_c_runtime_decomposition_snapshot,m11_d_iam_secret_kms_snapshot,m11_e_data_contract_snapshot,m11_f_messaging_governance_snapshot,m11_g_observability_evidence_snapshot,m11_h_non_regression_matrix_snapshot,m11_i_cost_teardown_continuity_snapshot` |
+| `DF_M11_J_ADVANCE_PREDICATES` | PINNED | `all_sources_pass,blocker_union_empty,required_source_count_complete` |
+| `DF_M11_J_M12_HANDOFF_REQUIRED_FIELDS` | PINNED | `m11_execution_id,verdict,source_phase_matrix,source_blocker_rollup,target_environment,next_phase_id` |

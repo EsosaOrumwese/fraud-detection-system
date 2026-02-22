@@ -6456,6 +6456,48 @@ Corrective continuity note:
 Hygiene:
 - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
 
+### Entry: 2026-02-22 16:00
+
+Planning step: expanded remediation `P0` to execution-grade sub-phases before touching `P1`.
+Summary: after `POPT.5` closure, the next risk was ambiguous remediation start conditions; I expanded `P0` into concrete sections with machine-checkable outputs so `P1` cannot start on hand-wavy baselines.
+
+Why this expansion was required:
+1) prior `P0` only had three high-level bullets and did not lock metric formulas, attribution ownership, or candidate veto law.
+2) for 5B, upstream/local split is critical:
+   - DST cache-horizon ownership can be upstream (`2A`),
+   - timestamp semantics and gate strictness are local (`S4/S5`).
+3) without explicit owner matrix and protocol, we could mix correctness and calibration lanes and regress frozen rails.
+
+Alternatives considered and rejected:
+1) start `P1` immediately and backfill `P0` documentation later:
+   - rejected because this would violate phase-coverage and decision-completeness posture.
+2) keep `P0` narrative-only and rely on ad-hoc notebooks:
+   - rejected for weak reproducibility and audit gaps.
+3) broaden `P0` into a tuning lane:
+   - rejected; `P0` must remain evidence-only (no policy/runner edits).
+
+What was added to `P0` plan:
+1) sub-phases:
+   - `P0.1` metric-contract + authority lock,
+   - `P0.2` baseline scorecard + DST statistical-power audit,
+   - `P0.3` owner-state attribution + reopen topology lock,
+   - `P0.4` candidate protocol + promotion veto lock,
+   - `P0.5` closure snapshot + `UNLOCK_P1/HOLD_P0_REOPEN` decision.
+2) required artifacts:
+   - `segment5b_p0_realism_gateboard_<run_id>.{json,md}`,
+   - `segment5b_p0_owner_state_matrix_<run_id>.json`,
+   - `segment5b_p0_candidate_protocol_<run_id>.json`.
+3) explicit rule pins:
+   - `P0` is evidence-only (no config/code edits),
+   - non-defect mechanics (`T4/T5`) are frozen rails,
+   - conditional-upstream reopen criteria are explicit, not implicit.
+4) immediate order updated:
+   - execute `P0.1 -> P0.5` first, then `P1 -> P5` only on `UNLOCK_P1`.
+
+Decision:
+- `P0` planning expansion is complete and now execution-ready.
+- next step is `P0` execution lane (scorer/evidence), not `P1` edits yet.
+
 ### Entry: 2026-02-22 15:07
 
 Execution step: completed `POPT.4R3` measurement-only lane and final gate adjudication.

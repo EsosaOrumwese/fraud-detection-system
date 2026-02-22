@@ -1093,10 +1093,113 @@ Definition of done:
 Goal:
 - lock statistical baseline against authority reports and map exact fail axes before code/policy changes.
 
+Execution posture (binding):
+- no policy/config/runner edits in `P0`; evidence/scoring only.
+- authority run-id remains `c25a2675fbfbacd952b13bb594880e92` unless baseline evidence is missing/corrupt.
+- `P0` must separate:
+  - measured hard-gate failures,
+  - accepted residuals from performance track,
+  - non-defect mechanics (`S2/S3` duplicate-key pre-aggregation anatomy).
+
+Target datasets and evidence surfaces:
+- `arrival_events_5B` (primary temporal/routing realism surface).
+- `s4_arrival_summary_5B` (fast conservation/routing aggregates when present).
+- `s3_bucket_counts_5B` (count authority for conservation checks).
+- `s2_realised_intensity_5B` (dispersion-preservation checks).
+- `validation_bundle_5B` and `_passed.flag` (operational posture).
+- upstream timezone/cache evidence from `2A` needed for `T11` attribution.
+
+P0 artifacts (required):
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p0_realism_gateboard_<run_id>.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p0_realism_gateboard_<run_id>.md`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p0_owner_state_matrix_<run_id>.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p0_candidate_protocol_<run_id>.json`
+
+#### P0.1 - Metric-contract and authority lock
+Objective:
+- pin exact metric definitions, thresholds, and run authority for all remediation gates before scoring.
+
+Scope:
+- lock hard/major gate set from remediation authority:
+  - hard: `T1`, `T2`, `T3`, `T4`, `T5`, `T10`, `T11`, `T12`,
+  - major: `T6`, `T7`,
+  - context/stretch: `T8`, `T9`.
+- pin exact threshold table (`B` and `B+`) and metric formulas used by scorer.
+- lock decision vocabulary for `P0`:
+  - `UNLOCK_P1`,
+  - `HOLD_P0_REOPEN`.
+
 Definition of done:
-- [ ] baseline realism scorecard for required gates is emitted.
-- [ ] per-axis owner-state attribution is recorded (`DST`, `concentration`, `virtual share`, `conservation`).
-- [ ] candidate lane protocol and promotion veto rules are pinned.
+- [ ] metric table and formulas are machine-checkable (no prose-only gates).
+- [ ] authority run-id and dataset pointers are pinned.
+- [ ] phase decision vocabulary is explicit and deterministic.
+
+#### P0.2 - Baseline scorecard and statistical-power audit
+Objective:
+- compute baseline values for all `P0` gates and verify statistical power for DST-window diagnostics.
+
+Scope:
+- compute `T1..T12` on authority run evidence.
+- emit DST offset histogram and DST-window MAE decomposition for `T1/T2/T3`.
+- emit support diagnostics:
+  - per-window sampled support,
+  - `insufficient_power` flags when exposure exists but support is below threshold.
+
+Definition of done:
+- [ ] baseline gateboard includes pass/fail + measured value + threshold for every gate.
+- [ ] DST-window support and power flags are included (no silent low-power pass).
+- [ ] non-defect mechanics (`T4/T5` conservation/integrity) are explicitly separated from failing axes.
+
+#### P0.3 - Owner-state attribution and reopen topology lock
+Objective:
+- convert baseline failures into an explicit owner-state remediation map with upstream/local split.
+
+Scope:
+- produce owner matrix for each failing axis:
+  - `T11` cache-horizon ownership: upstream `2A`,
+  - `T12` contract semantics ownership: `5B/S4` + `5B/S5`,
+  - `T1/T2/T3` primary closure lane: `5B/S4` + `5B/S5` with conditional `2A` reopen,
+  - `T6/T7` calibration lane: `5B` routing policy with upstream-shape caveats from `5A/2B`.
+- mark rails that are already green and must remain frozen during P1:
+  - `T4`, `T5`, mass-conservation mechanics.
+
+Definition of done:
+- [ ] every failed gate has exactly one primary owner lane and optional secondary dependencies.
+- [ ] conditional-upstream reopen criteria are explicit (no ad-hoc upstream unlock).
+- [ ] frozen non-regression rails are pinned for P1 veto.
+
+#### P0.4 - Candidate protocol and promotion veto lock
+Objective:
+- pin execution protocol for P1 candidate runs so remediation can move fast without semantic drift.
+
+Scope:
+- lock rerun matrix for P1 correctness lane:
+  - local-only `S4/S5` edits -> rerun `S4 -> S5`,
+  - any `S1/S2/S3` edit is disallowed in P1 unless explicit reopen decision is recorded.
+- lock promotion rules:
+  - hard gates (`T1..T5`, `T11`, `T12`) must not regress from baseline rails,
+  - no candidate can promote on calibration gains while hard gates fail.
+- lock runtime budget for `P1` candidate lane:
+  - target `S4+S5 <= 9 min` on authority seed lane,
+  - reject candidates with runtime regression `>20%` absent clear gate movement.
+
+Definition of done:
+- [ ] candidate run protocol is pinned in machine-readable artifact.
+- [ ] veto gates and rollback triggers are explicit.
+- [ ] runtime budget checks are integrated into promotion decision.
+
+#### P0.5 - Closure snapshot and handoff decision
+Objective:
+- close P0 with unambiguous baseline authority and explicit handoff to `P1`.
+
+Decision outcomes:
+- `UNLOCK_P1` when baseline gateboard, owner matrix, and protocol artifacts are complete and internally consistent.
+- `HOLD_P0_REOPEN` when any metric/power/ownership ambiguity blocks safe P1 execution.
+
+Definition of done:
+- [ ] gateboard artifact set is complete and linked in plan.
+- [ ] owner-state matrix is complete and reviewed.
+- [ ] explicit `UNLOCK_P1` or `HOLD_P0_REOPEN` decision is recorded.
 
 ### P1 - Wave A correctness hardening (DST/civil-time first)
 Goal:
@@ -1162,7 +1265,7 @@ Definition of done:
 - `POPT.2`: `S4`.
 - `POPT.3`: `S2/S3`.
 - `POPT.4`: `S5` + logging cadence in hot states.
-- `P0`: scorer/evidence lane.
+- `P0`: scorer/evidence lane (`S4/S5` metrics + conditional `2A` cache-horizon evidence).
 - `P1`: `S4/S5` (+conditional `2A` reopen).
 - `P2`: `S4/S5` (+routing/virtual policies).
 - `P3`: `S5` + contract/policy pinning.
@@ -1174,4 +1277,5 @@ Definition of done:
 2. `POPT.1`, `POPT.2`, and `POPT.3/POPT.3R` are closed with explicit hold posture on `POPT.3R` stretch gate.
 3. `POPT.4` executed with bounded reopens `R2` and final `R3`; phase now closed at `UNLOCK_POPT5_CONTINUE`.
 4. `POPT.5` is closed with decision `GO_P0` and explicit residual-budget posture recorded.
-5. Proceed into remediation stack `P0 -> P5`.
+5. Execute `P0.1 -> P0.5` (authority lock, baseline gateboard, owner matrix, candidate protocol, handoff decision).
+6. On `UNLOCK_P1`, proceed into remediation stack `P1 -> P5`.
