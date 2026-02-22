@@ -38,6 +38,11 @@ on:
         required: false
         default: false
         type: boolean
+      secret_contract_profile:
+        description: "Security contract profile for secret path handles (dev_min|dev_full)"
+        required: false
+        default: "dev_min"
+        type: string
 
 permissions:
   contents: read
@@ -98,6 +103,257 @@ jobs:
           set -euo pipefail
           echo "ci_run_id=${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
           echo "build_actor=${GITHUB_ACTOR}" >> "$GITHUB_OUTPUT"
+
+      - name: Run M1.D security and secret-injection checks
+        shell: bash
+        env:
+          PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          IMAGE_BUILD_PATH: ${{ inputs.image_build_path }}
+          IMAGE_DOCKERFILE_PATH: ${{ inputs.image_dockerfile_path }}
+          SECRET_CONTRACT_PROFILE: ${{ inputs.secret_contract_profile }}
+          SECRETS_BACKEND: "ssm_and_secrets_manager"
+          GITHUB_WORKFLOW_PATH: ".github/workflows/dev_min_m1_packaging.yml"
+        run: |
+          set -euo pipefail
+          WRITTEN_AT_UTC="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          EVIDENCE_DIR="evidence/runs/${PLATFORM_RUN_ID}/P(-1)"
+          mkdir -p "${EVIDENCE_DIR}"
+          export WRITTEN_AT_UTC EVIDENCE_DIR
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import shlex
+          from pathlib import Path
+
+          profile = os.environ["SECRET_CONTRACT_PROFILE"].strip().lower()
+          platform_run_id = os.environ["PLATFORM_RUN_ID"]
+          dockerfile_path = Path(os.environ["IMAGE_DOCKERFILE_PATH"])
+          build_path = Path(os.environ["IMAGE_BUILD_PATH"])
+          evidence_dir = Path(os.environ["EVIDENCE_DIR"])
+          workflow_path = Path(os.environ["GITHUB_WORKFLOW_PATH"])
+          written_at_utc = os.environ["WRITTEN_AT_UTC"]
+          secrets_backend = os.environ["SECRETS_BACKEND"]
+
+          if profile == "dev_full":
+              required_secret_paths = [
+                  "/fraud-platform/dev_full/msk/bootstrap_brokers",
+                  "/fraud-platform/dev_full/aurora/endpoint",
+                  "/fraud-platform/dev_full/aurora/reader_endpoint",
+                  "/fraud-platform/dev_full/aurora/username",
+                  "/fraud-platform/dev_full/aurora/password",
+                  "/fraud-platform/dev_full/redis/endpoint",
+                  "/fraud-platform/dev_full/databricks/workspace_url",
+                  "/fraud-platform/dev_full/databricks/token",
+                  "/fraud-platform/dev_full/mlflow/tracking_uri",
+                  "/fraud-platform/dev_full/sagemaker/model_exec_role_arn",
+                  "/fraud-platform/dev_full/mwaa/webserver_url",
+                  "/fraud-platform/dev_full/ig/api_key",
+              ]
+          else:
+              required_secret_paths = []
+
+          errors = []
+          findings = []
+          checks = {}
+
+          # Check A: policy precheck presence in workflow source.
+          workflow_text = workflow_path.read_text(encoding="utf-8", errors="ignore") if workflow_path.exists() else ""
+          checks["static_aws_credentials_rejected_precheck_present"] = "Reject static AWS credential posture" in workflow_text
+          checks["secrets_backend_pinned"] = (secrets_backend == "ssm_and_secrets_manager")
+
+          # Check B: Dockerfile safety scan.
+          if not dockerfile_path.exists():
+              errors.append(f"dockerfile_missing:{dockerfile_path}")
+              docker_text = ""
+          else:
+              docker_text = dockerfile_path.read_text(encoding="utf-8", errors="ignore")
+
+          secret_key_tokens = (
+              "AWS_ACCESS_KEY_ID",
+              "AWS_SECRET_ACCESS_KEY",
+              "AWS_SESSION_TOKEN",
+              "CONFLUENT_CLOUD_API_SECRET",
+              "CONFLUENT_CLOUD_API_KEY",
+              "DATABRICKS_TOKEN",
+          )
+          dockerfile_secret_env_hits = []
+          dockerfile_secret_copy_hits = []
+          copy_sources = []
+
+          for idx, raw_line in enumerate(docker_text.splitlines(), start=1):
+              line = raw_line.strip()
+              if not line or line.startswith("#"):
+                  continue
+              upper = line.upper()
+              if upper.startswith("ENV ") or upper.startswith("ARG "):
+                  for token in secret_key_tokens:
+                      if token in line:
+                          dockerfile_secret_env_hits.append({"line": idx, "token": token})
+              if upper.startswith("COPY ") or upper.startswith("ADD "):
+                  lower = line.lower()
+                  if any(x in lower for x in (".env", "id_rsa", "id_ed25519", ".pem", ".p12", ".key")):
+                      dockerfile_secret_copy_hits.append({"line": idx, "line_text": line})
+                  try:
+                      parts = shlex.split(line, posix=True)
+                  except Exception:
+                      continue
+                  if len(parts) < 3:
+                      continue
+                  args = parts[1:]
+                  while args and args[0].startswith("--"):
+                      args = args[1:]
+                  if len(args) < 2:
+                      continue
+                  for src in args[:-1]:
+                      if src.startswith("--"):
+                          continue
+                      copy_sources.append(src)
+
+          checks["dockerfile_secret_arg_env_hits_count"] = len(dockerfile_secret_env_hits)
+          checks["dockerfile_secret_copy_hits_count"] = len(dockerfile_secret_copy_hits)
+          checks["dockerfile_secret_policy_pass"] = (
+              checks["dockerfile_secret_arg_env_hits_count"] == 0 and
+              checks["dockerfile_secret_copy_hits_count"] == 0
+          )
+
+          # Check C: Build-context scan over Dockerfile COPY sources only.
+          # This keeps scans bounded and aligned to actual image content surface.
+          source_roots = []
+          for src in copy_sources:
+              if src.startswith("http://") or src.startswith("https://"):
+                  continue
+              path = (build_path / src).resolve()
+              source_roots.append(path)
+
+          name_patterns = [
+              re.compile(r"(^|/)\.env(\..*)?$", re.IGNORECASE),
+              re.compile(r"(^|/)(id_rsa|id_ed25519)$", re.IGNORECASE),
+              re.compile(r"\.(pem|p12|key)$", re.IGNORECASE),
+              re.compile(r"(^|/)(credentials|credential)\.(json|ini|txt)$", re.IGNORECASE),
+          ]
+          content_patterns = [
+              re.compile(r"AKIA[0-9A-Z]{16}"),
+              re.compile(r"ASIA[0-9A-Z]{16}"),
+              re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"),
+              re.compile(r"ghp_[A-Za-z0-9]{36,}"),
+              re.compile(r"aws_secret_access_key\\s*=\\s*[^\\s]+", re.IGNORECASE),
+          ]
+
+          max_file_size_bytes = 1_000_000
+          scanned_files = 0
+          for root in sorted(set(source_roots)):
+              if not root.exists():
+                  continue
+              if root.is_file():
+                  candidates = [root]
+              else:
+                  candidates = [p for p in root.rglob("*") if p.is_file()]
+              for f in candidates:
+                  scanned_files += 1
+                  rel = f.as_posix()
+                  for pat in name_patterns:
+                      if pat.search(rel):
+                          findings.append({"type": "file_name", "path": rel, "pattern": pat.pattern})
+                          break
+                  try:
+                      if f.stat().st_size > max_file_size_bytes:
+                          continue
+                      text = f.read_text(encoding="utf-8", errors="ignore")
+                  except Exception:
+                      continue
+                  for pat in content_patterns:
+                      if pat.search(text):
+                          findings.append({"type": "content", "path": rel, "pattern": pat.pattern})
+                          break
+
+          checks["build_context_scanned_files_count"] = scanned_files
+          checks["build_context_findings_count"] = len(findings)
+          checks["build_context_secret_scan_pass"] = len(findings) == 0
+
+          # Check D: required secret-path handle mapping (profile-scoped).
+          checks["required_secret_path_handles_count"] = len(required_secret_paths)
+          checks["required_secret_path_contract_pass"] = bool(required_secret_paths) if profile == "dev_full" else True
+
+          overall_pass = (
+              checks["static_aws_credentials_rejected_precheck_present"] and
+              checks["secrets_backend_pinned"] and
+              checks["dockerfile_secret_policy_pass"] and
+              checks["build_context_secret_scan_pass"] and
+              checks["required_secret_path_contract_pass"] and
+              len(errors) == 0
+          )
+
+          blocker_codes = []
+          if not checks["dockerfile_secret_policy_pass"] or not checks["build_context_secret_scan_pass"]:
+              blocker_codes.append("M1D-B1")
+          if not checks["static_aws_credentials_rejected_precheck_present"]:
+              blocker_codes.append("M1D-B2")
+          if not checks["required_secret_path_contract_pass"]:
+              blocker_codes.append("M1D-B3")
+          if len(errors) > 0:
+              blocker_codes.append("M1D-B4")
+
+          build_context_secret_scan = {
+              "phase_id": "P(-1)",
+              "platform_run_id": platform_run_id,
+              "written_at_utc": written_at_utc,
+              "profile": profile,
+              "scan_scope": {
+                  "build_path": build_path.as_posix(),
+                  "dockerfile_path": dockerfile_path.as_posix(),
+                  "copy_source_roots": [p.as_posix() for p in sorted(set(source_roots)) if p.exists()],
+              },
+              "banned_name_patterns": [p.pattern for p in name_patterns],
+              "banned_content_patterns": [p.pattern for p in content_patterns],
+              "findings": findings[:200],
+              "errors": errors,
+              "summary": {
+                  "scanned_files": scanned_files,
+                  "findings_count": len(findings),
+                  "pass": checks["build_context_secret_scan_pass"] and len(errors) == 0,
+              },
+          }
+
+          secret_source_contract_receipt = {
+              "phase_id": "P(-1)",
+              "platform_run_id": platform_run_id,
+              "written_at_utc": written_at_utc,
+              "secret_contract_profile": profile,
+              "secrets_backend": secrets_backend,
+              "required_secret_path_handles": required_secret_paths,
+              "runtime_materialization_owner_phase": "M2+",
+              "runtime_materialization_note": "M1 validates handle contract only; path existence/value retrieval is executed in substrate/runtime phases.",
+              "verdict": "PASS" if checks["required_secret_path_contract_pass"] else "FAIL",
+          }
+
+          security_secret_injection_checks = {
+              "phase_id": "P(-1)",
+              "platform_run_id": platform_run_id,
+              "written_at_utc": written_at_utc,
+              "profile": profile,
+              "checks": checks,
+              "dockerfile_secret_arg_env_hits": dockerfile_secret_env_hits[:100],
+              "dockerfile_secret_copy_hits": dockerfile_secret_copy_hits[:100],
+              "errors": errors,
+              "blocker_codes": blocker_codes,
+              "verdict": "PASS" if overall_pass else "FAIL",
+              "failure_reason": "" if overall_pass else "M1_D_SECURITY_CONTRACT_FAILED",
+          }
+
+          (evidence_dir / "build_context_secret_scan.json").write_text(
+              json.dumps(build_context_secret_scan, indent=2), encoding="utf-8"
+          )
+          (evidence_dir / "secret_source_contract_receipt.json").write_text(
+              json.dumps(secret_source_contract_receipt, indent=2), encoding="utf-8"
+          )
+          (evidence_dir / "security_secret_injection_checks.json").write_text(
+              json.dumps(security_secret_injection_checks, indent=2), encoding="utf-8"
+          )
+
+          if not overall_pass:
+              raise SystemExit("M1.D security checks failed; see security artifacts for blocker codes.")
+          PY
 
       - name: Build immutable image
         shell: bash
@@ -193,21 +449,9 @@ jobs:
             "build_actor": "${{ steps.run_meta.outputs.build_actor }}"
           }
           JSON
-
-          cat > "${EVIDENCE_DIR}/security_secret_injection_checks.json" <<JSON
-          {
-            "phase_id": "P(-1)",
-            "platform_run_id": "${{ inputs.platform_run_id }}",
-            "written_at_utc": "${WRITTEN_AT_UTC}",
-            "checks": {
-              "static_aws_credentials_rejected": true,
-              "dockerfile_existence_precheck_present": true,
-              "digest_resolution_fail_closed_present": true
-            },
-            "verdict": "PASS",
-            "failure_reason": ""
-          }
-          JSON
+          test -f "${EVIDENCE_DIR}/security_secret_injection_checks.json"
+          test -f "${EVIDENCE_DIR}/secret_source_contract_receipt.json"
+          test -f "${EVIDENCE_DIR}/build_context_secret_scan.json"
 
       - name: Upload CI evidence artifact pack
         uses: actions/upload-artifact@v4
