@@ -51,6 +51,7 @@ module "demo" {
   ecs_daemon_container_image               = var.ecs_daemon_container_image
   ecs_daemon_task_cpu                      = var.ecs_daemon_task_cpu
   ecs_daemon_task_memory                   = var.ecs_daemon_task_memory
+  ecs_reporter_task_memory                 = var.ecs_reporter_task_memory
   ecs_daemon_service_desired_count_default = var.ecs_daemon_service_desired_count_default
   required_platform_run_id_env_key         = var.required_platform_run_id_env_key
   required_platform_run_id                 = var.required_platform_run_id

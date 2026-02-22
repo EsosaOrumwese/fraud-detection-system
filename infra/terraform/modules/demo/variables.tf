@@ -77,6 +77,11 @@ variable "ecs_daemon_task_memory" {
   default = "512"
 }
 
+variable "ecs_reporter_task_memory" {
+  type    = string
+  default = "512"
+}
+
 variable "ecs_daemon_service_desired_count_default" {
   type    = number
   default = 0

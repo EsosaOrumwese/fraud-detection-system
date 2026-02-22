@@ -1565,7 +1565,7 @@ resource "aws_ecs_task_definition" "reporter" {
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.ecs_daemon_task_cpu
-  memory                   = var.ecs_daemon_task_memory
+  memory                   = var.ecs_reporter_task_memory
   execution_role_arn       = aws_iam_role.ecs_task_execution.arn
   task_role_arn            = aws_iam_role.lane_app_roles["reporter_single_writer"].arn
 

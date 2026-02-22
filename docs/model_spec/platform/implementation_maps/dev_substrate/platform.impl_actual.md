@@ -18704,3 +18704,96 @@ Decision:
 ### Rationale
 1. M10.G blocker model checks evidence-surface existence/readability; missing surfaces cannot be silently ignored.
 2. This keeps closure deterministic and auditable under the current reporter runtime limitation while preserving strict run-scope evidence paths.
+
+## Entry: 2026-02-22 01:49:34 +00:00 - H0 pre-change decision lock (reporter OOM remediation strategy)
+### Problem
+1. M10.G closure required manual summary-surface materialization because reporter one-shot exited 137 (OutOfMemoryError).
+2. Runtime reporter task definition currently runs at memory=512 MiB.
+
+### Alternatives considered
+1. Increase global daemon memory (cs_daemon_task_memory) for all daemons.
+   - Rejected for H0 because it broadens runtime/cost footprint beyond reporter-specific fault scope.
+2. Retry reporter at same memory and rely on reduced load window.
+   - Rejected because it is non-deterministic and does not remove structural OOM risk.
+3. Add reporter-specific memory handle and increase only reporter task memory.
+   - Chosen: isolates remediation to H0 scope, preserves deterministic closure gate, minimizes collateral cost drift.
+
+### Chosen implementation
+1. Introduce cs_reporter_task_memory as a dedicated Terraform variable in demo module and stack.
+2. Set dev_min demo value to 1024 MiB (first right-size step).
+3. Apply targeted Terraform update for reporter task definition only and rerun reporter one-shot gate.
+4. H0 closes only if reporter exits   and native run-scoped obs/* surfaces materialize without manual substitution.
+
+## Entry: 2026-02-22 01:50:31 +00:00 - H0 code patch applied (reporter-specific memory handle)
+### Changes made
+1. Added dedicated Terraform variable cs_reporter_task_memory in demo module and dev_min demo stack.
+2. Wired reporter ECS task definition to use ar.ecs_reporter_task_memory instead of global daemon memory.
+3. Pinned dev_min default reporter memory to 1024 MiB.
+4. Ran 	erraform fmt on both modified Terraform directories.
+
+### Why this shape
+1. Keeps remediation constrained to reporter OOM surface.
+2. Avoids increasing memory for every daemon task (cost/scope control).
+3. Preserves deterministic IaC path for H0 closure evidence.
+
+### Next runtime step
+1. Targeted Terraform plan/apply for reporter task definition rematerialization.
+2. Rerun reporter one-shot gate and validate native obs/* artifact emission.
+
+## Entry: 2026-02-22 01:51:34 +00:00 - M10.H execution lock (H0 + H1/H2) on fresh scope
+### Execution ids
+1. m10_execution_id=m10_20260222T015122Z
+2. platform_run_id=platform_20260222T015122Z
+
+### Decision-completeness check before runtime mutation
+1. Pinned target service: raud-platform-dev-min-ig.
+2. Pinned thresholds are explicit and accepted:
+   - RTO<=10m,
+   - post-recovery max_lag<=10,
+   - stabilization window 30m,
+   - lane runtime budget <=120m.
+3. H0 prerequisite closure criteria are explicit:
+   - reporter exit  ,
+   - native run-scoped obs/environment_conformance.json, obs/run_report.json, obs/replay_anchors.json present.
+4. Fresh scope is generated and isolated from prior M10.G runs.
+
+### Locked execution order
+1. Rematerialize fresh-scope task definitions (daemon/control/reporter) with reporter memory uplift.
+2. Roll daemon services to fresh scope preserving desired counts.
+3. Run SR one-shot and launch 4-way WSP representative load.
+4. Execute H0 reporter gate and require native obs/* surfaces.
+5. Execute controlled IG restart under load and measure RTO.
+6. Run post-recovery stabilization sampling (lag/checkpoint/semantic) over 30 minutes.
+7. Emit + publish m10_h_recovery_snapshot.json and adjudicate blockers.
+
+## Entry: 2026-02-22 01:54:07 +00:00 - FAIL-CLOSED drift escalation during H0 rematerialization
+### Detected drift (material)
+1. Targeted Terraform rematerialization for fresh scope $pr produced new task-definition revisions with incorrect container image (public.ecr.aws/docker/library/busybox:1.36) for critical families (eporter, sr, wsp, daemon families including ig).
+2. Root trigger: cs_daemon_container_image default surface was unresolved in the apply context, so replacement task definitions were rendered with probe image instead of platform runtime image.
+3. Severity: high. If services are rolled to these latest revisions, platform runtime behavior will break.
+
+### Runtime impact assessment (current state)
+1. Managed services are still on prior healthy revisions; rollout to drifted revisions has NOT been executed.
+2. Therefore no live outage has been introduced yet, but the latest revision line is unsafe.
+
+### Fail-closed action
+1. Execution paused immediately before any service rollout/SR/WSP/H0 continuation.
+2. Awaiting explicit user go/no-go for remediation path.
+
+### Proposed remediation (for user decision)
+1. Re-run targeted task-definition rematerialization with explicit -var ecs_daemon_container_image=<current platform image digest> and same equired_platform_run_id.
+2. Verify latest revisions for reporter/sr/wsp/ig all point to platform image digest.
+3. Only then continue H0 reporter gate and M10.H lane execution.
+
+## Entry: 2026-02-22 02:00:18 +00:00 - User-approved remediation execution started after fail-closed pause
+### Approval context
+1. USER explicitly approved remediation path after drift escalation.
+2. Active execution ids remain:
+   - m10_execution_id=m10_20260222T015122Z
+   - platform_run_id=platform_20260222T015122Z
+
+### Remediation sequence (now executing)
+1. Re-run targeted task-definition rematerialization with explicit cs_daemon_container_image digest pin.
+2. Also pass live ig_api_key value to prevent unintended SSM secret overwrite during targeted apply.
+3. Verify latest task-definition image posture for reporter/sr/wsp/ig.
+4. Continue H0 and full M10.H only after drift is cleared.
