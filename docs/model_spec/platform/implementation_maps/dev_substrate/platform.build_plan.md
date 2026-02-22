@@ -1593,6 +1593,11 @@ Phase closure posture:
     - verdict: `overall_pass=true`, blockers `[]`,
     - observed lag window max: `3` (threshold `<=10`),
     - reporter refresh was OOM (`exit_code=137`); required run-scoped summary surfaces were materialized on canonical paths before final adjudication.
+  - `M10.H` planning is now pinned with prerequisite-first execution:
+    - hard prerequisite `H0`: close reporter OOM posture on managed runtime (`exit_code=0` + native `obs/*` summary emission),
+    - pinned recovery target: `fraud-platform-dev-min-ig`,
+    - pinned thresholds: `RTO<=10m`, `post-recovery max_lag<=10`, stabilization window `30m`,
+    - pinned runtime budget: `M10.H<=120m`.
 
 Sub-phase progress:
   - [x] `M10.A` authority + threshold pinning.

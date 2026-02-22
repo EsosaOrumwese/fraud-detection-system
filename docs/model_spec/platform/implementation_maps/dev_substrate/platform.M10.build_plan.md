@@ -1013,22 +1013,61 @@ Execution status update (2026-02-22 remediation rerun):
 Goal:
 1. Validate controlled restart/recovery behavior under active load.
 
+Entry conditions (fail-closed):
+1. `M10.G` is closed PASS with empty blocker union.
+2. Reporter OOM prerequisite (`H0`) is closed on managed runtime:
+   - reporter one-shot exits `0` on current runtime task definition,
+   - native run-scoped summary surfaces are emitted by reporter path:
+     - `obs/environment_conformance.json`,
+     - `obs/run_report.json`,
+     - `obs/replay_anchors.json`.
+3. Fresh run scope is required for `M10.H` (no reuse of `M10.G` scope).
+4. Latest M9 cost guardrail posture remains non-critical.
+
+Pinned decisions for `M10.H`:
+1. Recovery target service: `fraud-platform-dev-min-ig`.
+2. RTO threshold: `<=10` minutes from restart injection to stable running posture.
+3. Post-recovery lag threshold: `max_lag<=10`.
+4. Post-recovery stabilization window: `30` minutes.
+5. Runtime budget: `M10.H <= 120` minutes.
+
+Deterministic execution algorithm (`H0 -> H1 -> H2`):
+1. `H0` Reporter prerequisite closure:
+   - triage OOM evidence (`exit_code=137`) and apply runtime memory right-size on reporter task definition,
+   - rematerialize reporter runtime and run one-shot validation,
+   - require `exit_code=0` and native `obs/*` surface emission on canonical run-scoped paths.
+2. `H1` Recovery-under-load run:
+   - rotate to fresh `platform_run_id`,
+   - run `SR -> WSP` managed chain under representative load posture,
+   - capture pre-fault baseline (ingress, lag/checkpoint, semantic posture),
+   - inject controlled restart on pinned target service (`fraud-platform-dev-min-ig`),
+   - measure restart-to-stable time and continue post-recovery observation.
+3. `H2` Final adjudication:
+   - evaluate RTO, lag stabilization, checkpoint monotonicity, semantic/idempotency posture,
+   - emit/publish `m10_h_recovery_snapshot.json` locally and durably.
+
 Tasks:
-1. Restart pinned target component(s) under load.
-2. Measure recovery time objective (RTO).
-3. Validate idempotency and no duplicate side-effect drift.
-4. Emit `m10_h_recovery_snapshot.json` local + durable.
+1. Close `H0` reporter OOM prerequisite (managed runtime path, no manual artifact substitution).
+2. Execute controlled restart on pinned target (`fraud-platform-dev-min-ig`) under active representative load.
+3. Measure RTO against pinned threshold (`<=10` minutes).
+4. Validate post-recovery lag stabilization (`max_lag<=10` over `30`-minute window).
+5. Validate idempotency and no semantic drift (`PUBLISH_AMBIGUOUS=0`, fail-open absent).
+6. Emit `m10_h_recovery_snapshot.json` local + durable.
 
 DoD:
-- [ ] Recovery test executed on pinned targets.
-- [ ] RTO meets pinned threshold.
-- [ ] Idempotency checks pass.
-- [ ] Snapshot exists locally and durably.
+- [ ] Reporter OOM prerequisite (`H0`) is closed (`exit_code=0` + native `obs/*` surfaces).
+- [ ] Recovery test executed on pinned target (`fraud-platform-dev-min-ig`).
+- [ ] RTO meets pinned threshold (`<=10` minutes).
+- [ ] Post-recovery lag stabilization passes (`max_lag<=10` over `30` minutes).
+- [ ] Idempotency/semantic drift checks pass.
+- [ ] Snapshot exists locally and durably with blocker union empty.
 
 Blockers:
-1. `M10H-B1`: restart/recovery sequence failed.
-2. `M10H-B2`: RTO breach.
-3. `M10H-B3`: idempotency drift detected.
+1. `M10H-B0`: reporter OOM prerequisite unresolved.
+2. `M10H-B1`: restart/recovery sequence failed.
+3. `M10H-B2`: RTO breach.
+4. `M10H-B3`: idempotency/semantic drift detected.
+5. `M10H-B4`: required recovery evidence surfaces missing/unreadable.
 
 ### M10.I Reproducibility + replay coherence
 Goal:
