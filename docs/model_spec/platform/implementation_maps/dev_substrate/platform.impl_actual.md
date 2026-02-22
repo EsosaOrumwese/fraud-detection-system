@@ -19766,3 +19766,92 @@ Constraints preserved:
 1. Documentation-only update.
 2. No branch/history operations.
 3. No secrets introduced.
+
+## Entry: 2026-02-22 15:12 +00:00 - M11.B execution decision: handle-pin strategy selection
+Reasoning:
+1. `M11.B` cannot close unless all required `DF_*` handles are concrete (no `TBD_M11B`).
+2. Two viable strategies exist for pinning:
+   - Option A (AWS-only stack): Step Functions + SageMaker + Aurora + CloudWatch; no Airflow/Databricks/MLflow handles.
+   - Option B (mixed managed stack per dev_full objective): Step Functions for Run/Operate, Airflow for learning pipeline control surfaces, Databricks feature/data lane, MLflow registry lane, plus AWS substrate (S3/Aurora/CloudWatch/IAM).
+3. Current authority and USER intent favor Option B:
+   - recruiter/tooling exposure objective,
+   - prior clarification that Run/Operate spine remains Step Functions while Airflow orchestrates learning workflows.
+
+Decision:
+1. Adopt Option B and pin all `DF_*` required handles to concrete, non-placeholder values now.
+2. Pin Run/Operate orchestration explicitly to Step Functions in `DF_ORCHESTRATION_HANDLE`.
+3. Keep durable evidence publication on existing run-control S3 lane for M11.B snapshot (transitional), with explicit note that dev_full evidence bucket materialization remains downstream infra work.
+
+Execution steps:
+1. Patch `dev_full_handles.registry.v0.md` Section 3 table values/status.
+2. Execute M11.B closure algorithm and produce `m11_b_handle_closure_snapshot.json`.
+3. Publish local + durable snapshot and update M11.B DoD in deep plan.
+4. Record detailed results in implementation map + logbook.
+
+Constraints preserved:
+1. No secret material committed.
+2. No branch operations.
+3. No unmanaged local tool file creation.
+
+## Entry: 2026-02-22 15:13 +00:00 - M11.B owner mapping lane set corrected pre-execution
+Reasoning:
+1. During execution prep, metrics/alerts handle ownership naturally mapped to observability lane (`M11.G`).
+2. M11.B owner-set contract omitted `M11.G`, which would force an invalid assignment and create synthetic ambiguity.
+
+Decision:
+1. Patch M11.B owner-set contract to include `M11.G`.
+2. Keep single-owner constraint intact across all required handles.
+
+Implementation:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md`:
+   - owner mapping checks now permit `M11.G`,
+   - snapshot field contract for `owner_mapping_matrix` updated accordingly.
+
+## Entry: 2026-02-22 15:16 +00:00 - M11.B executed and closed pass (handle matrix)
+Reasoning:
+1. After planning expansion and owner-lane correction, `M11.B` still had hard blockers (`TBD_M11B` values) in registry.
+2. To execute fail-closed without ambiguity, all 18 required handles had to be concretely pinned first.
+
+Decision trail during execution:
+1. Selected mixed managed stack pin set (Option B) instead of AWS-only:
+   - preserves run/operate spine orchestration on Step Functions,
+   - keeps learning governance channels on Airflow,
+   - preserves Databricks + SageMaker + MLflow handle surfaces as intended dev_full toolchain.
+2. Rejected delaying handle pinning to M11.C:
+   - would violate M11.B objective and propagate unresolved ambiguity downstream.
+3. Reused transitional durable evidence lane (`dev_min` run-control bucket) for M11.B snapshot publication:
+   - avoids blocking execution on not-yet-materialized dev_full evidence bucket infra,
+   - explicitly recorded as transitional and to be normalized in downstream store/materialization lanes.
+
+Implementation:
+1. Patched `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`:
+   - all required `DF_*` values moved from `TBD_M11B` to concrete `PINNED` values,
+   - status updated to reflect M11.B required-handle closure,
+   - orchestration split note added (Step Functions run/operate + Airflow learning-control channels).
+2. Executed M11.B closure algorithm inline (no new utility files):
+   - resolved latest M11.A snapshot dependency and validated pass posture,
+   - parsed registry required-handle table,
+   - computed deterministic resolution matrix (`18` required keys),
+   - validated unresolved/placeholder/duplicate/owner-ambiguity counts.
+3. Emitted evidence:
+   - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_b_handle_closure_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_b_handle_closure_snapshot.json`
+4. Updated build plans:
+   - `platform.M11.build_plan.md` M11.B DoD marked complete with execution evidence,
+   - `platform.build_plan.md` M11 execution notes updated with M11.B closure refs.
+
+Results:
+1. `overall_pass=true`
+2. blockers empty
+3. closure counters:
+   - `required_total=18`
+   - `resolved_count=18`
+   - `unresolved_count=0`
+   - `placeholder_or_wildcard_count=0`
+   - `missing_or_duplicate_key_count=0`
+4. runtime budget gate satisfied (`elapsed_seconds=~2.4`).
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secrets or credentials committed.
+3. No local tool file proliferation.

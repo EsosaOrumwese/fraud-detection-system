@@ -279,7 +279,7 @@ Preparation checks (fail-closed):
    - unresolved markers (`TBD_M11B`, empty, null) are blockers,
    - placeholder/wildcard markers (`TBD`, `REPLACE_ME`, `*`) are blockers for required keys.
 5. Ownership mapping checks:
-   - each handle maps to exactly one owner lane (`M11.C/M11.D/M11.E/M11.F/M11.H/M11.I`) for downstream closure.
+   - each handle maps to exactly one owner lane (`M11.C/M11.D/M11.E/M11.F/M11.G/M11.H/M11.I`) for downstream closure.
 
 Deterministic closure algorithm (M11.B):
 1. Resolve M11.A snapshot (local preferred, durable fallback); unreadable -> `M11B-B6`.
@@ -313,7 +313,7 @@ Required snapshot fields (`m11_b_handle_closure_snapshot.json`):
 3. `required_handle_set` (ordered list).
 4. `resolution_matrix` (one row per required key).
 5. `closure_counters`.
-6. `owner_mapping_matrix` (`key -> M11.C/M11.D/M11.E/M11.F/M11.H/M11.I`).
+6. `owner_mapping_matrix` (`key -> M11.C/M11.D/M11.E/M11.F/M11.G/M11.H/M11.I`).
 7. `blockers`, `overall_pass`, `elapsed_seconds`, `created_utc`.
 
 Runtime budget:
@@ -321,13 +321,25 @@ Runtime budget:
 2. Over-budget without user waiver -> `M11B-B7`.
 
 DoD:
-- [ ] M11.A source snapshot is pass-closed and linked.
-- [ ] Required F1 handle set (`1..18`) is explicit and versioned.
-- [ ] Required-handle unresolved count is zero.
-- [ ] Placeholder/wildcard required-handle count is zero.
-- [ ] Missing/duplicate required-key count is zero.
-- [ ] Owner mapping to downstream sub-phases is complete and non-ambiguous.
-- [ ] Snapshot exists locally and durably.
+- [x] M11.A source snapshot is pass-closed and linked.
+- [x] Required F1 handle set (`1..18`) is explicit and versioned.
+- [x] Required-handle unresolved count is zero.
+- [x] Placeholder/wildcard required-handle count is zero.
+- [x] Missing/duplicate required-key count is zero.
+- [x] Owner mapping to downstream sub-phases is complete and non-ambiguous.
+- [x] Snapshot exists locally and durably.
+
+Execution evidence (2026-02-22):
+1. Local snapshot:
+   - `runs/dev_substrate/m11/m11_20260222T145654Z/m11_b_handle_closure_snapshot.json`
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_b_handle_closure_snapshot.json`
+3. Closure result:
+   - `overall_pass=true`
+   - blockers empty
+   - `resolved_count=18`, `required_total=18`
+4. Publication note:
+   - durable publish remains on transitional run-control lane until dev-full evidence bucket materialization closure in downstream lanes.
 
 Blockers:
 1. `M11B-B1`: unresolved required handle.

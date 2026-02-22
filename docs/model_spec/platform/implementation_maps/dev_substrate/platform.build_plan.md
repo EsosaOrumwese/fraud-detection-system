@@ -178,7 +178,7 @@ Current phase posture:
 - `M8` is `DONE`,
 - `M9` is `DONE`,
 - `M10` is `DONE` (certification closed).
-- `M11` is `ACTIVE` (`M11.A` executed; `M11.B` pending).
+- `M11` is `ACTIVE` (`M11.A` and `M11.B` executed; `M11.C` pending).
 - `M12` is `NOT_STARTED`.
 - `M13` is `NOT_STARTED`.
 - `M14` is `NOT_STARTED`.
@@ -1773,7 +1773,10 @@ Execution notes:
 - `M11.A` completed with blocker-free closure snapshot:
   - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_a_authority_handoff_snapshot.json`
   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_a_authority_handoff_snapshot.json`
-- `M11` remains `ACTIVE` until `M11.B..M11.J` close.
+- `M11.B` completed with blocker-free handle closure snapshot:
+  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_b_handle_closure_snapshot.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_b_handle_closure_snapshot.json`
+- `M11` remains `ACTIVE` until `M11.C..M11.J` close.
 
 M11 DoD checklist:
 - [ ] Required `OFS/MF/MPR` handles are pinned and resolvable.

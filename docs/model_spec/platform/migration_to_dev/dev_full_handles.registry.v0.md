@@ -3,7 +3,7 @@
 ## 0. Document Control
 
 ### 0.1 Status
-- Status: v0 (draft-initial, fail-closed)
+- Status: v0 (M11.B required handles pinned, fail-closed)
 - As-of: 2026-02-22 (Europe/London)
 - Purpose: hold the authoritative handle namespace for `M11+` (`dev_full` target).
 
@@ -30,30 +30,34 @@ Note:
 
 ## 3. Required Handle Families (M11.B Closure Matrix)
 
-All keys below are required surfaces for `M11+`. Any key left as `TBD_M11B` blocks execution.
+All keys below are required surfaces for `M11+`.
 
 | Key | Status | Value |
 |---|---|---|
 | `DF_AWS_REGION` | PINNED | `eu-west-2` |
-| `DF_EVIDENCE_BUCKET` | TBD | `TBD_M11B` |
-| `DF_EVIDENCE_PREFIX_PATTERN` | TBD | `TBD_M11B` |
-| `DF_RUNTIME_CLUSTER_HANDLE` | TBD | `TBD_M11B` |
-| `DF_RUNTIME_EXECUTION_ROLE` | TBD | `TBD_M11B` |
-| `DF_OFS_DATA_ROOT` | TBD | `TBD_M11B` |
-| `DF_LABEL_TIMELINE_ROOT` | TBD | `TBD_M11B` |
-| `DF_FEATURE_STORE_HANDLE` | TBD | `TBD_M11B` |
-| `DF_TRAINING_JOB_HANDLE` | TBD | `TBD_M11B` |
-| `DF_MODEL_ARTIFACT_ROOT` | TBD | `TBD_M11B` |
-| `DF_MODEL_REGISTRY_HANDLE` | TBD | `TBD_M11B` |
-| `DF_PROMOTION_APPROVAL_CHANNEL` | TBD | `TBD_M11B` |
-| `DF_ROLLBACK_CHANNEL` | TBD | `TBD_M11B` |
-| `DF_ORCHESTRATION_HANDLE` | TBD | `TBD_M11B` |
-| `DF_METRICS_SINK_HANDLE` | TBD | `TBD_M11B` |
-| `DF_ALERTING_CHANNEL_HANDLE` | TBD | `TBD_M11B` |
-| `DF_COST_GUARDRAIL_HANDLE` | TBD | `TBD_M11B` |
-| `DF_TEARDOWN_WORKFLOW_HANDLE` | TBD | `TBD_M11B` |
+| `DF_EVIDENCE_BUCKET` | PINNED | `fraud-platform-dev-full-evidence` |
+| `DF_EVIDENCE_PREFIX_PATTERN` | PINNED | `evidence/dev_full/runs/{platform_run_id}/{phase_id}/` |
+| `DF_RUNTIME_CLUSTER_HANDLE` | PINNED | `ecs://fraud-platform-dev-full-runtime-cluster` |
+| `DF_RUNTIME_EXECUTION_ROLE` | PINNED | `iam://fraud-platform-dev-full-runtime-role` |
+| `DF_OFS_DATA_ROOT` | PINNED | `s3://fraud-platform-dev-full-object-store/ofs/` |
+| `DF_LABEL_TIMELINE_ROOT` | PINNED | `s3://fraud-platform-dev-full-object-store/labels/timeline/` |
+| `DF_FEATURE_STORE_HANDLE` | PINNED | `databricks://fraud-platform-dev-full/feature_store/main` |
+| `DF_TRAINING_JOB_HANDLE` | PINNED | `sagemaker://fraud-platform-dev-full/training-jobs/main` |
+| `DF_MODEL_ARTIFACT_ROOT` | PINNED | `s3://fraud-platform-dev-full-object-store/models/` |
+| `DF_MODEL_REGISTRY_HANDLE` | PINNED | `mlflow://fraud-platform-dev-full/registry` |
+| `DF_PROMOTION_APPROVAL_CHANNEL` | PINNED | `airflow://fraud-platform-dev-full/dags/mpr_promotion_approval` |
+| `DF_ROLLBACK_CHANNEL` | PINNED | `airflow://fraud-platform-dev-full/dags/mpr_rollback` |
+| `DF_ORCHESTRATION_HANDLE` | PINNED | `stepfunctions://fraud-platform-dev-full/platform-run-operate` |
+| `DF_METRICS_SINK_HANDLE` | PINNED | `cloudwatch://fraud-platform-dev-full/metrics` |
+| `DF_ALERTING_CHANNEL_HANDLE` | PINNED | `cloudwatch://fraud-platform-dev-full/alerts` |
+| `DF_COST_GUARDRAIL_HANDLE` | PINNED | `github-actions://dev_full_m9g_cost_guardrail` |
+| `DF_TEARDOWN_WORKFLOW_HANDLE` | PINNED | `github-actions://dev_full_destroy_stack` |
+
+Operational note:
+- `DF_ORCHESTRATION_HANDLE` is the spine Run/Operate orchestrator handle (Step Functions posture).
+- Airflow handles are pinned for learning-governance control channels (`DF_PROMOTION_APPROVAL_CHANNEL`, `DF_ROLLBACK_CHANNEL`).
 
 ## 4. Fail-Closed Rule
-- `M11` cannot execute with any `TBD_M11B` value in Section 3.
+- `M11` cannot execute with any unresolved required handle in Section 3.
 - Placeholder/wildcard values are prohibited for required keys.
 - Any new required surface discovered during `M11+` must be added here before use.
