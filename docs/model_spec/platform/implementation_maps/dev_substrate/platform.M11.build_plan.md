@@ -219,32 +219,124 @@ Goal:
 1. Close all required F1 handle surfaces before build execution.
 2. Eliminate wildcard/placeholder handle usage.
 
-Tasks:
-1. Build required-handle set for OFS/MF/MPR lanes from authorities.
-2. Resolve each handle from `dev_full_handles.registry.v0.md`.
-3. Fail closed on unresolved/wildcard/placeholder required handles.
-4. Emit `m11_b_handle_closure_snapshot.json`.
+Entry conditions:
+1. `M11.A` closure snapshot exists locally and durably.
+2. `M11.A` snapshot reports `overall_pass=true` and blocker union empty.
+3. `M11` remains `ACTIVE` in `platform.build_plan.md`.
+4. `dev_full_handles.registry.v0.md` is present/readable and still under v0 fail-closed posture.
+
+Required inputs:
+1. `M11.A` source snapshots:
+   - local: `runs/dev_substrate/m11/<m11_execution_id>/m11_a_authority_handoff_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/<m11_execution_id>/m11_a_authority_handoff_snapshot.json` (transitional evidence lane).
+2. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+3. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`.
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (Section `13.1` + `13.2`).
+
+Required-handle set for F1 closure (authoritative in M11.B):
+1. `DF_AWS_REGION`
+2. `DF_EVIDENCE_BUCKET`
+3. `DF_EVIDENCE_PREFIX_PATTERN`
+4. `DF_RUNTIME_CLUSTER_HANDLE`
+5. `DF_RUNTIME_EXECUTION_ROLE`
+6. `DF_OFS_DATA_ROOT`
+7. `DF_LABEL_TIMELINE_ROOT`
+8. `DF_FEATURE_STORE_HANDLE`
+9. `DF_TRAINING_JOB_HANDLE`
+10. `DF_MODEL_ARTIFACT_ROOT`
+11. `DF_MODEL_REGISTRY_HANDLE`
+12. `DF_PROMOTION_APPROVAL_CHANNEL`
+13. `DF_ROLLBACK_CHANNEL`
+14. `DF_ORCHESTRATION_HANDLE`
+15. `DF_METRICS_SINK_HANDLE`
+16. `DF_ALERTING_CHANNEL_HANDLE`
+17. `DF_COST_GUARDRAIL_HANDLE`
+18. `DF_TEARDOWN_WORKFLOW_HANDLE`
 
 Required closure categories:
-1. Runtime identities:
-   - learning task/service handles (logical + concrete mapping contract).
-2. Data surfaces:
-   - archive/features/models/evidence S3 prefixes/patterns.
-3. Messaging/authn surfaces:
-   - topics/events and auth path/secret references where applicable.
-4. Governance surfaces:
-   - promotion/rollback actor/audit references.
+1. Runtime identities and execution:
+   - `DF_RUNTIME_CLUSTER_HANDLE`, `DF_RUNTIME_EXECUTION_ROLE`, `DF_TRAINING_JOB_HANDLE`.
+2. Data surfaces and evidence:
+   - `DF_OFS_DATA_ROOT`, `DF_LABEL_TIMELINE_ROOT`, `DF_FEATURE_STORE_HANDLE`, `DF_MODEL_ARTIFACT_ROOT`, `DF_EVIDENCE_BUCKET`, `DF_EVIDENCE_PREFIX_PATTERN`.
+3. Registry/governance corridor:
+   - `DF_MODEL_REGISTRY_HANDLE`, `DF_PROMOTION_APPROVAL_CHANNEL`, `DF_ROLLBACK_CHANNEL`.
+4. Run/operate and observability:
+   - `DF_ORCHESTRATION_HANDLE`, `DF_METRICS_SINK_HANDLE`, `DF_ALERTING_CHANNEL_HANDLE`, `DF_COST_GUARDRAIL_HANDLE`, `DF_TEARDOWN_WORKFLOW_HANDLE`.
+5. Region/core constants:
+   - `DF_AWS_REGION`.
+
+Preparation checks (fail-closed):
+1. Read M11.A snapshot (local preferred, durable fallback).
+2. Verify `M11.A` predicate:
+   - `overall_pass=true`,
+   - blockers empty,
+   - `target_environment=dev_full`.
+3. Parse Section 3 required-handle table in `dev_full_handles.registry.v0.md`:
+   - all required keys present exactly once,
+   - no duplicate keys,
+   - no missing key from M11.B required-handle set.
+4. Value-quality checks:
+   - unresolved markers (`TBD_M11B`, empty, null) are blockers,
+   - placeholder/wildcard markers (`TBD`, `REPLACE_ME`, `*`) are blockers for required keys.
+5. Ownership mapping checks:
+   - each handle maps to exactly one owner lane (`M11.C/M11.D/M11.E/M11.F/M11.H/M11.I`) for downstream closure.
+
+Deterministic closure algorithm (M11.B):
+1. Resolve M11.A snapshot (local preferred, durable fallback); unreadable -> `M11B-B6`.
+2. Verify M11.A pass posture; mismatch -> `M11B-B6`.
+3. Load `dev_full_handles.registry.v0.md`; unreadable -> `M11B-B4`.
+4. Resolve each required handle key by exact match from Section 3 table.
+5. Build deterministic resolution matrix in fixed key order (`1..18` above):
+   - `key`,
+   - `status` (`PINNED|UNRESOLVED|PLACEHOLDER`),
+   - `value`,
+   - `closure_owner_subphase`,
+   - `notes`.
+6. Compute closure counters:
+   - `required_total`,
+   - `resolved_count`,
+   - `unresolved_count`,
+   - `placeholder_or_wildcard_count`,
+   - `ownership_ambiguity_count`,
+   - `missing_or_duplicate_key_count`.
+7. Apply fail-closed blocker mapping:
+   - unresolved -> `M11B-B1`,
+   - placeholder/wildcard -> `M11B-B2`,
+   - ownership ambiguity -> `M11B-B3`,
+   - missing/duplicate key -> `M11B-B4`.
+8. Emit `m11_b_handle_closure_snapshot.json` locally.
+9. Publish durable snapshot; publish failure -> `M11B-B5`.
+
+Required snapshot fields (`m11_b_handle_closure_snapshot.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `m11_execution_id`, `subphase_id="M11.B"`.
+2. `m11a_source_ref_local`, `m11a_source_ref_uri`, `m11a_source_mode`.
+3. `required_handle_set` (ordered list).
+4. `resolution_matrix` (one row per required key).
+5. `closure_counters`.
+6. `owner_mapping_matrix` (`key -> M11.C/M11.D/M11.E/M11.F/M11.H/M11.I`).
+7. `blockers`, `overall_pass`, `elapsed_seconds`, `created_utc`.
+
+Runtime budget:
+1. `M11.B` target budget: <= 20 minutes.
+2. Over-budget without user waiver -> `M11B-B7`.
 
 DoD:
-- [ ] Required F1 handle set is explicit and versioned.
+- [ ] M11.A source snapshot is pass-closed and linked.
+- [ ] Required F1 handle set (`1..18`) is explicit and versioned.
 - [ ] Required-handle unresolved count is zero.
 - [ ] Placeholder/wildcard required-handle count is zero.
-- [ ] Snapshot exists with deterministic closure matrix.
+- [ ] Missing/duplicate required-key count is zero.
+- [ ] Owner mapping to downstream sub-phases is complete and non-ambiguous.
+- [ ] Snapshot exists locally and durably.
 
 Blockers:
 1. `M11B-B1`: unresolved required handle.
 2. `M11B-B2`: wildcard/placeholder required handle.
-3. `M11B-B3`: handle ownership ambiguity across components.
+3. `M11B-B3`: handle ownership ambiguity across components/sub-phases.
+4. `M11B-B4`: required key missing/duplicate or registry parse failure.
+5. `M11B-B5`: snapshot publication failure.
+6. `M11B-B6`: M11.A dependency unreadable or not pass-closed.
+7. `M11B-B7`: runtime budget breach without waiver.
 
 ### M11.C Runtime Decomposition + Entrypoint Closure
 Goal:

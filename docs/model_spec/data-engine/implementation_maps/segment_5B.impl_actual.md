@@ -6395,6 +6395,39 @@ Artifacts emitted for this reopen closure:
 Hygiene:
 - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
 
+### Entry: 2026-02-22 15:06
+
+Planning step: open `POPT.4R3` as final bounded measurement protocol lane before move-on decision.
+Summary: user requested one more attempt; after R2 miss, this lane will not change code or cadence defaults again. Instead, it will resolve the gate with a median-of-paired-runs protocol to reduce host-variance skew and then produce a final pass/fail decision.
+
+Why this protocol is chosen:
+1) R2 showed conflicting evidence:
+   - integrated `S4` was faster than control,
+   - paired recheck was slower than control.
+2) this pattern indicates host jitter/noise can dominate small overhead percentages.
+3) changing code again would add churn and blur causal attribution.
+
+Alternatives considered and rejected:
+1) continue cadence escalation (`10s -> 15s -> 20s`) in R3:
+   - rejected as code/path churn with weak evidence of reliable gate closure.
+2) immediately take waiver without another pass:
+   - rejected because user asked for one more attempt and we can do it without widening blast radius.
+3) redefine gate threshold:
+   - rejected; threshold is intentionally strict and fail-closed.
+
+R3 execution protocol pinned:
+1) no code edits in this lane (verify via git diff for `seg_5B` runners before/after runs).
+2) collect three paired overhead observations:
+   - Pair #1 uses existing R2 pair (`control@30s`, `candidate@10s`),
+   - Pair #2 and Pair #3 run fresh interleaved `S4` control/candidate witnesses.
+3) compute per-pair overhead:
+   - `(candidate_ms - control_ms) / control_ms`.
+4) compute median(overhead_pair_1..3) as adjudication metric.
+5) run `S5` replay witness post-measurement to reconfirm idempotence.
+6) decision:
+   - median `<=2%` -> `UNLOCK_POPT5_CONTINUE`,
+   - median `>2%` -> `HOLD_POPT4_REOPEN` and move on per user direction.
+
 Phase decision:
 - `HOLD_POPT4_REOPEN` (logging-overhead gate miss persists).
 

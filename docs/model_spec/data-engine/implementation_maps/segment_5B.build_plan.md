@@ -985,6 +985,25 @@ POPT.4R2 closure snapshot (2026-02-22):
 - phase decision:
   - `HOLD_POPT4_REOPEN` (R2 did not close the strict overhead gate).
 
+#### POPT.4R3 - Measurement-protocol bounded reopen (active)
+Objective:
+- run one final bounded measurement pass before waiver decision, using paired-run median to reduce host-jitter bias while keeping code and semantics frozen.
+
+Scope lock:
+- allowed:
+  - measurement protocol update only (paired-run set + median adjudication),
+  - additional `S4` control/candidate timing witnesses on same authority run-id.
+- frozen:
+  - all code paths in `S2/S3/S4/S5`,
+  - policies, schemas/contracts, RNG/arrival law, replay logic.
+
+Definition of done:
+- [ ] no code changes are introduced in R3 lane.
+- [ ] at least three paired overhead observations are available for adjudication.
+- [ ] median paired overhead is computed and archived with raw pair evidence.
+- [ ] replay-idempotence still passes on post-measurement `S5` witness.
+- [ ] explicit decision recorded (`UNLOCK_POPT5_CONTINUE` or `HOLD_POPT4_REOPEN` and move-on).
+
 ### POPT.5 - Performance certification lock
 Goal:
 - close performance track before realism tuning promotion.

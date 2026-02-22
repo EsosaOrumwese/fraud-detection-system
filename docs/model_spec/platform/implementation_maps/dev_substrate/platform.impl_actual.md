@@ -19701,3 +19701,68 @@ Constraints preserved:
 1. No branch/history operations.
 2. No secrets recorded in notes or plans.
 3. No infrastructure mutation beyond writing run artifacts and durable evidence.
+
+## Entry: 2026-02-22 15:07 +00:00 - Pre-change lock for M11.B planning expansion
+Reasoning:
+1. USER requested immediate deep planning for `M11.B`.
+2. Current `M11.B` section is still lightweight (goal/tasks/categories/DoD only) and lacks execution-grade controls:
+   - entry gates linked to `M11.A` evidence,
+   - required inputs and closure matrix schema,
+   - deterministic closure algorithm,
+   - runtime budget enforcement details,
+   - explicit open-decision pin list (for example orchestration handle split and evidence lane migration).
+3. Without these, execution could drift into ad hoc pinning and violate decision-completeness law.
+
+Decision:
+1. Expand `M11.B` to execution-grade scope only (planning update, no runtime execution).
+2. Add deterministic closure contract that is strict on placeholders/wildcards and explicit about `M11.B` outputs feeding `M11.C..M11.F`.
+3. Keep unresolved-value posture fail-closed with blocker rollup to `M11J`.
+
+Planned patch scope:
+1. Update `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md` `### M11.B` subsection:
+   - entry conditions,
+   - required inputs,
+   - preparation checks,
+   - deterministic closure algorithm,
+   - required matrix/schema fields,
+   - execution budget,
+   - expanded DoD and blockers.
+2. Record planning completion trail in implementation map + daily logbook.
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secrets/credentials in docs.
+3. No runtime execution until explicit USER go-ahead.
+
+## Entry: 2026-02-22 15:08 +00:00 - M11.B planning expanded to execution-grade
+Reasoning:
+1. `M11.B` needed deterministic closure mechanics before execution, otherwise handle pinning could drift during `dev_full` migration.
+2. Primary risk was ambiguous closure semantics around:
+   - dependency on M11.A pass snapshot,
+   - required handle-set completeness,
+   - placeholder/wildcard acceptance,
+   - ownership handoff into downstream M11 sub-phases.
+
+Decision:
+1. Expand `M11.B` with explicit execution contract and fail-closed blockers.
+2. Make the required-handle set explicit in-plan (`1..18`) and stable order to avoid parser/ordering ambiguity.
+3. Bind each handle to downstream owner lanes (`M11.C/D/E/F/H/I`) so M11.B outputs become executable inputs for subsequent lanes.
+
+Implementation:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md` (`### M11.B`) with:
+   - entry conditions and required inputs,
+   - explicit required-handle set (`DF_*` keys),
+   - preparation checks,
+   - deterministic closure algorithm,
+   - snapshot contract fields,
+   - runtime budget gate,
+   - expanded DoD and blocker taxonomy (`M11B-B1..B7`).
+
+Outcome:
+1. `M11.B` is now execution-ready at planning level (no runtime run executed yet).
+2. Remaining gating dependency is value pinning inside `dev_full_handles.registry.v0.md` (currently `TBD_M11B` values).
+
+Constraints preserved:
+1. Documentation-only update.
+2. No branch/history operations.
+3. No secrets introduced.
