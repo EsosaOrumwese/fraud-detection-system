@@ -4931,3 +4931,107 @@ Actions taken:
 
 Expected outcome:
 - routing_membership no longer fails due to virtual edge_ids not present in 3B edge_catalogue.
+
+---
+
+### Entry: 2026-02-22 01:51
+
+Design element: initial 5B optimization + remediation build plan creation.
+Summary: create a new `segment_5B.build_plan.md` that combines runtime optimization (`POPT`) and realism remediation (`P0..P5`) using the current 5B authority stack.
+
+Problem framing:
+- Segment 5B currently has clear evidence that runtime and realism concerns are both active:
+  - runtime is dominated by `S4`, then `S1`,
+  - remediation authority highlights deterministic DST/civil-time defect and calibration gaps (timezone concentration, virtual-share posture),
+  - governance durability needs policy/schema pinning in `S5`.
+- There was no existing `segment_5B.build_plan.md`, so execution could drift without an explicit phased roadmap.
+
+Decision path and alternatives considered:
+1) **Plan split strategy**
+   - Option A: remediation-only plan, defer optimization to ad-hoc notes.
+   - Option B: optimization-only plan, add remediation later.
+   - Option C: single integrated plan with `POPT` first, then remediation waves.
+   - Decision: Option C. This aligns with performance-first law and avoids realism iteration on a slow lane.
+
+2) **Phase granularity**
+   - Option A: state-by-state checklist only (`S0..S5`), no wave structure.
+   - Option B: wave structure from remediation report (`A/B/C`) only.
+   - Option C: hybrid: `POPT` phases by hotspot ownership, then wave-style remediation phases mapped to states.
+   - Decision: Option C for closure-grade coverage and clear ownership.
+
+3) **Upstream dependency posture**
+   - Option A: force upstream reopen (2A) immediately.
+   - Option B: prohibit any upstream reopen in 5B cycle.
+   - Option C: conditional upstream reopen only if Wave-A DST hard gates cannot close locally.
+   - Decision: Option C to preserve low blast radius while acknowledging report-stated upstream risk.
+
+4) **Gate system scope**
+   - Option A: qualitative targets only.
+   - Option B: strict hard/stretches (`T1..T7`) + runtime gates + cross-seed stability.
+   - Decision: Option B to make progression fail-closed and auditable.
+
+Planned/implemented documentation actions:
+1) Create `docs/model_spec/data-engine/implementation_maps/segment_5B.build_plan.md`.
+2) Include required sections:
+   - objective/closure rule,
+   - source-of-truth stack,
+   - ownership map,
+   - realism gates (`B`/`B+`),
+   - runtime budgets,
+   - run protocol + prune rules,
+   - `POPT.0..POPT.5`,
+   - remediation `P0..P5`,
+   - state/phase map and immediate execution order.
+3) Append audit trail in this implementation map and daily logbook.
+
+Result:
+- `segment_5B.build_plan.md` now exists and is aligned to:
+  - 5B state-expanded docs,
+  - 5B contracts,
+  - 5B published/remediation authority,
+  - performance-first constraints.
+
+### Entry: 2026-02-22 01:55
+
+Design element: `POPT.0` detailed expansion for Segment 5B.
+Summary: convert `POPT.0` from a high-level placeholder into an execution-grade profile-lock phase with explicit sub-phases, artifacts, and handoff decision gates.
+
+Problem framing:
+- Existing `POPT.0` had only coarse DoDs and could still lead to drift in how baseline/runtime evidence is captured.
+- Given the performance-first law, we need a strict pre-optimization closure step that pins:
+  - one authority baseline run-id,
+  - per-state elapsed evidence,
+  - lane-level hotspot decomposition,
+  - finalized runtime budgets before any optimization code edits.
+
+Decision path and alternatives considered:
+1) **Planning depth for `POPT.0`**
+   - Option A: keep `POPT.0` as a short checklist and capture details ad hoc in logbook.
+   - Option B: expand `POPT.0` inside the build plan into explicit sub-phases with DoDs and required artifacts.
+   - Decision: Option B. This keeps execution deterministic and auditable.
+
+2) **Baseline posture**
+   - Option A: always run a fresh full chain to start `POPT.0`.
+   - Option B: allow reuse of an existing clean baseline run-id if it matches current code/config posture; otherwise run a fresh full chain.
+   - Decision: Option B for efficiency while preserving evidence integrity.
+
+3) **Handoff semantics**
+   - Option A: implicit handoff to `POPT.1` once elapsed table exists.
+   - Option B: explicit `GO_POPT.1` vs `HOLD_POPT.0` decision with unresolved gaps listed.
+   - Decision: Option B to enforce fail-closed progression.
+
+Plan updates implemented:
+1) Updated `docs/model_spec/data-engine/implementation_maps/segment_5B.build_plan.md`:
+   - added `POPT.0` execution posture,
+   - added required closure artifacts,
+   - expanded into:
+     - `POPT.0.1` Baseline authority pin,
+     - `POPT.0.2` State elapsed capture,
+     - `POPT.0.3` Hot-lane decomposition,
+     - `POPT.0.4` Runtime budget finalization,
+     - `POPT.0.5` Handoff decision.
+2) Preserved existing `POPT.1..POPT.5` ordering and state ownership map.
+
+Expected execution benefit:
+- Lower ambiguity before touching optimization code.
+- Faster and safer iteration because bottleneck ranking and budgets are pinned from evidence first.
