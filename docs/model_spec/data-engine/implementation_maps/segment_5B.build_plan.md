@@ -77,12 +77,12 @@ _As of 2026-02-22_
 - Candidate lane (single seed, changed-state onward): target `<= 7 min`.
 - Witness lane (2 seeds): target `<= 14 min`.
 - Certification lane (4 seeds): target `<= 30 min`.
-- State budgets (initial, to be finalized by `POPT.0`):
-  - `S1 <= 30s`,
-  - `S2 <= 35s`,
-  - `S3 <= 35s`,
-  - `S4 <= 240s`,
-  - `S5 <= 5s`.
+- State budgets (finalized by `POPT.0` authority run `c25a2675fbfbacd952b13bb594880e92`):
+  - `S1 <= 90s` (stretch `120s`),
+  - `S2 <= 35s` (stretch `45s`),
+  - `S3 <= 35s` (stretch `45s`),
+  - `S4 <= 240s` (stretch `300s`),
+  - `S5 <= 5s` (stretch `8s`).
 
 ## 4) Run protocol, retention, and pruning
 - Active run root: `runs/fix-data-engine/segment_5B/`.
@@ -123,18 +123,18 @@ Objective:
 - choose and pin one clean authority baseline run-id under `runs/fix-data-engine/segment_5B/`.
 
 Definition of done:
-- [ ] baseline run-id is explicitly pinned and recorded in plan artifacts.
-- [ ] baseline contains complete `S0..S5` PASS evidence for the same code/config posture.
-- [ ] keep-set is refreshed so superseded failed runs are pruned before further profiling work.
+- [x] baseline run-id is explicitly pinned and recorded in plan artifacts.
+- [x] baseline contains complete `S0..S5` PASS evidence for the same code/config posture.
+- [x] keep-set is refreshed so superseded failed runs are pruned before further profiling work.
 
 #### POPT.0.2 - State elapsed capture
 Objective:
 - capture authoritative elapsed time per state and establish initial bottleneck ranking.
 
 Definition of done:
-- [ ] elapsed table for `S0..S5` is emitted from run-report/log evidence.
-- [ ] state ranking is recorded with absolute seconds and relative share.
-- [ ] any missing timing fields are called out explicitly (no silent defaults).
+- [x] elapsed table for `S0..S5` is emitted from run-report/log evidence.
+- [x] state ranking is recorded with absolute seconds and relative share.
+- [x] any missing timing fields are called out explicitly (no silent defaults).
 
 #### POPT.0.3 - Hot-lane decomposition
 Objective:
@@ -146,31 +146,48 @@ Method:
 - rank optimization owners by expected runtime gain (`S4` first unless evidence disproves).
 
 Definition of done:
-- [ ] hotspot decomposition artifact is emitted and versioned.
-- [ ] primary, secondary, and tertiary bottlenecks are explicitly named with evidence.
-- [ ] expected reduction targets for `POPT.1` and `POPT.2` are pinned from decomposition.
+- [x] hotspot decomposition artifact is emitted and versioned.
+- [x] primary, secondary, and tertiary bottlenecks are explicitly named with evidence.
+- [x] expected reduction targets for `POPT.1` and `POPT.2` are pinned from decomposition.
 
 #### POPT.0.4 - Runtime budget finalization
 Objective:
 - replace initial placeholder budgets with measured closure-grade budgets.
 
 Definition of done:
-- [ ] finalized state budgets are pinned for `S1..S5`.
-- [ ] candidate/witness/certification lane budgets are either confirmed or tightened.
-- [ ] budget rationale is evidence-backed and references baseline decomposition.
+- [x] finalized state budgets are pinned for `S1..S5`.
+- [x] candidate/witness/certification lane budgets are either confirmed or tightened.
+- [x] budget rationale is evidence-backed and references baseline decomposition.
 
 #### POPT.0.5 - Handoff decision
 Objective:
 - close `POPT.0` with an explicit go/no-go and ordered execution lane for optimization.
 
 Definition of done:
-- [ ] explicit decision is recorded as one of `GO_POPT.1` or `HOLD_POPT.0`.
-- [ ] if `GO_POPT.1`, ordered optimization lane is pinned (`S1 -> S4 -> S2/S3 -> S5` or evidence-driven variant).
-- [ ] if `HOLD_POPT.0`, unresolved evidence gaps are listed with exact closure actions.
+- [x] explicit decision is recorded as one of `GO_POPT.1` or `HOLD_POPT.0`.
+- [x] if `GO_POPT.1`, ordered optimization lane is pinned (`S1 -> S4 -> S2/S3 -> S5` or evidence-driven variant).
+- [x] if `HOLD_POPT.0`, unresolved evidence gaps are listed with exact closure actions.
+
+POPT.0 closure snapshot (2026-02-22):
+- authority baseline run-id: `c25a2675fbfbacd952b13bb594880e92` (source root `runs/local_full_run-5`), pinned in `runs/fix-data-engine/segment_5B/POPT0_BASELINE_RUN_ID.txt`.
+- baseline closure artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt0_baseline_lock_c25a2675fbfbacd952b13bb594880e92.md`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt0_state_elapsed_c25a2675fbfbacd952b13bb594880e92.csv`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt0_hotspot_map_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt0_budget_pin_c25a2675fbfbacd952b13bb594880e92.json`
+- measured segment elapsed (`S0..S5`): `745.263s` (`00:12:25`) vs candidate budget `<= 420s` -> `RED`.
+- hotspot ranking from decomposition:
+  1. `S4` (`504.641s`, `67.71%`, dominant lane `compute`)
+  2. `S1` (`148.452s`, `19.92%`, dominant lane `input_load`)
+  3. `S3` (`45.188s`, `6.06%`, dominant lane `compute`)
+- handoff decision: `GO_POPT.1` with evidence-driven owner ordering `S4 -> S1 -> S3 -> S2 -> S5`.
 
 ### POPT.1 - S1 domain-derivation redesign (secondary hotspot)
 Goal:
 - replace Python row materialization/set-dedupe path with lazy/vectorized unique-domain derivation.
+
+Execution note:
+- `POPT.0` hotspot evidence ranked `S4` above `S1`; execution starts on `S4` first (evidence-driven variant) and then returns to this `S1` lane.
 
 Scope:
 - `packages/engine/src/engine/layers/l2/seg_5B/s1_time_grid/runner.py`.
@@ -183,6 +200,9 @@ Definition of done:
 ### POPT.2 - S4 expansion-path optimization (primary hotspot)
 Goal:
 - reduce S4 wall time by cutting Python control-plane overhead while preserving deterministic output semantics.
+
+Execution note:
+- despite static numbering, this lane is promoted ahead of `POPT.1` for this cycle by `POPT.0` handoff evidence.
 
 Scope:
 - `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
@@ -304,7 +324,7 @@ Definition of done:
 - `P5`: freeze + prune.
 
 ## 8) Immediate execution order from this plan
-1. Start `POPT.0` baseline capture in `runs/fix-data-engine/segment_5B/`.
-2. Close `POPT.1` (S1 domain derivation) before touching remediation knobs.
-3. Close `POPT.2` (S4 expansion path) and `POPT.3`.
+1. `POPT.0` is closed and pinned (authority: `c25a2675fbfbacd952b13bb594880e92`).
+2. Start optimization execution from pinned hotspot order (`S4` then `S1`) under `POPT.1/POPT.2` with strict non-regression rails.
+3. Close `POPT.3` and `POPT.4` once `S4/S1` budgets materially improve.
 4. Enter remediation `P0 -> P1 -> P2 -> P3 -> P4 -> P5` with strict veto gates.

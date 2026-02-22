@@ -5035,3 +5035,101 @@ Plan updates implemented:
 Expected execution benefit:
 - Lower ambiguity before touching optimization code.
 - Faster and safer iteration because bottleneck ranking and budgets are pinned from evidence first.
+
+### Entry: 2026-02-22 02:02
+
+Design element: full execution closure of `POPT.0` for Segment 5B.
+Summary: executed `POPT.0.1 -> POPT.0.5` completely, pinned baseline authority, emitted all required artifacts, finalized runtime budgets, and recorded explicit `GO_POPT.1` handoff decision.
+
+Problem framing at execution start:
+- `runs/fix-data-engine/segment_5B/` did not exist yet.
+- There was no existing 5B-specific POPT scorer tool in `tools/`.
+- We needed closure-grade POPT.0 evidence without causing avoidable storage blast (arrival-event surfaces for 5B are very large).
+
+Decision path and alternatives considered (before running anything heavy):
+1) **How to obtain baseline authority**
+   - Option A: mint a fresh run-id under `runs/fix-data-engine/segment_5B` and execute `S0->S5` immediately.
+   - Option B: reuse an existing clean authority run-id with complete `S0..S5 PASS`, pin it under fix-data-engine artifacts, and avoid dataset duplication/rerun for POPT.0.
+   - Decision: Option B (`run_id=c25a2675fbfbacd952b13bb594880e92` in `runs/local_full_run-5`), because:
+     - complete 5B evidence exists (including final `S5 PASS` after prior failed attempts),
+     - this satisfies POPT.0 evidence goals with minimal storage and zero semantic perturbation,
+     - no code/policy changes are introduced by baseline capture itself.
+
+2) **How to produce POPT.0 artifacts**
+   - Option A: handcraft artifacts from ad hoc shell parsing.
+   - Option B: implement a dedicated deterministic scorer tool for 5B POPT.0.
+   - Decision: Option B to ensure replayability and auditability for future reopen lanes.
+
+3) **Where to source timing truth**
+   - Option A: rely on per-state `run_report.json` files under `reports/layer2/5B/state=S*`.
+   - Option B: rely on authoritative segment ledger `reports/layer2/segment_state_runs/segment=5B/.../segment_state_runs.jsonl`.
+   - Decision: Option B because 5B writes authoritative state records there and includes repeated S5 attempts with final PASS.
+
+Implementation actions executed:
+1) Created fix-lane root:
+   - `runs/fix-data-engine/segment_5B/reports/`.
+2) Enforced prune posture:
+   - ran `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B`.
+   - result: no failed sentinels found (clean root).
+3) Implemented tool:
+   - `tools/score_segment5b_popt0_baseline.py`.
+   - responsibilities:
+     - resolve authority run-id and receipts,
+     - load and reconcile state PASS rows from `segment_state_runs.jsonl`,
+     - compute elapsed table (`S0..S5`) with robust fallback logic,
+     - parse run log and derive lane decomposition (`input_load`, `compute`, `validation`, `write`),
+     - emit required POPT.0 artifacts and budget pin with handoff decision.
+4) Executed scorer:
+   - `python tools/score_segment5b_popt0_baseline.py --runs-root runs/local_full_run-5 --run-id c25a2675fbfbacd952b13bb594880e92 --out-root runs/fix-data-engine/segment_5B/reports`.
+5) Pinned baseline id under fix lane:
+   - `runs/fix-data-engine/segment_5B/POPT0_BASELINE_RUN_ID.txt`.
+
+Execution issue encountered and corrective decision:
+1) **Issue:** scorer crashed on timezone arithmetic mismatch:
+   - `TypeError: can't subtract offset-naive and offset-aware datetimes`.
+2) **Root cause:** run log timestamps are naive while `started_at_utc/finished_at_utc` parse as offset-aware.
+3) **Correction applied:** normalized parsed ISO timestamps to naive UTC in scorer.
+4) **Result:** scorer rerun succeeded and produced complete artifact set.
+
+POPT.0 closure artifacts emitted:
+- `runs/fix-data-engine/segment_5B/reports/segment5b_popt0_baseline_lock_c25a2675fbfbacd952b13bb594880e92.md`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_popt0_state_elapsed_c25a2675fbfbacd952b13bb594880e92.csv`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_popt0_hotspot_map_c25a2675fbfbacd952b13bb594880e92.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_popt0_budget_pin_c25a2675fbfbacd952b13bb594880e92.json`
+
+Measured POPT.0 baseline outcomes (seed=42 authority):
+- segment elapsed (`S0..S5`): `745.263s` (`00:12:25`) -> candidate lane `RED` versus `<=420s`.
+- state elapsed:
+  - `S0=1.296s`,
+  - `S1=148.452s`,
+  - `S2=44.015s`,
+  - `S3=45.188s`,
+  - `S4=504.641s`,
+  - `S5=1.671s`.
+- hotspot ranking:
+  1) `S4` (67.71%, dominant lane `compute`),
+  2) `S1` (19.92%, dominant lane `input_load`),
+  3) `S3` (6.06%, dominant lane `compute`).
+
+Budget finalization decisions pinned (from artifact):
+- state targets:
+  - `S1 <= 90s` (stretch `120s`),
+  - `S2 <= 35s` (stretch `45s`),
+  - `S3 <= 35s` (stretch `45s`),
+  - `S4 <= 240s` (stretch `300s`),
+  - `S5 <= 5s` (stretch `8s`).
+- lane targets retained:
+  - candidate `<=420s` (stretch `480s`),
+  - witness `<=840s` (stretch `960s`),
+  - certification `<=1800s` (stretch `2100s`).
+
+Handoff decision:
+- `GO_POPT.1` with evidence-driven owner sequence `S4 -> S1 -> S3 -> S2 -> S5`.
+- rationale: the candidate lane breach is dominated by `S4`, with `S1` as secondary hotspot.
+
+Documentation updates applied after execution:
+1) `docs/model_spec/data-engine/implementation_maps/segment_5B.build_plan.md`
+   - POPT.0 and subphase DoDs marked complete.
+   - runtime budgets in section 3.4 replaced with finalized values.
+   - closure snapshot inserted with artifact pointers, ranking, and handoff decision.
+   - immediate execution order updated to reflect POPT.0 closure and next-lane posture.
