@@ -5268,3 +5268,28 @@ P5.2/P5.4 freeze synthesis + handoff:
    - any reopen requires seeded impact + rerun plan + rollback plan.
 5) next pointer:
    - `UNLOCK_SEGMENT_5A_POPT0`.
+
+### Entry: 2026-02-22 19:22 +00:00
+
+Design element: bounded `3B.S1` reopen as upstream owner correction for `5B:T7`.
+Summary: Segment 5B `P2` proved local infeasibility (`share_hybrid=0`) for virtual-share closure. Reopen approved on owner surface `3B.S1` only (virtual classification policy), with deterministic downstream rebuild through `3B.S5`.
+
+Owner reasoning lock:
+1) `5B.S4` consumes `virtual_classification_3B.virtual_mode` and interprets `HYBRID` probabilistically via `p_virtual_hybrid`.
+2) current `3B.S1` implementation emits only `NON_VIRTUAL` and `VIRTUAL_ONLY`, so hybrid path is structurally inactive.
+3) therefore the first valid upstream correction is S1 classification-shape tuning, not `5B` routing-coin retune.
+
+Bounded scope selected:
+1) policy-only edits in `config/layer1/3B/virtual/mcc_channel_rules.yaml`.
+2) no schema changes and no runner algorithm changes in first reopen pass.
+3) rerun chain fixed to `S1 -> S2 -> S3 -> S4 -> S5` on authority run-id.
+
+Decision criteria:
+1) preserve deterministic outputs and contract validity for all reopened 3B states.
+2) maintain `3B` validation PASS.
+3) provide measurable `5B:T7` uplift without regressing frozen `5B` hard rails.
+
+Reopen guardrails:
+1) minimal policy drift first (small CNP-only candidate set).
+2) fail-closed revert if 3B validation or downstream 5B frozen rails regress.
+3) log every candidate and outcome before considering wider policy movement.

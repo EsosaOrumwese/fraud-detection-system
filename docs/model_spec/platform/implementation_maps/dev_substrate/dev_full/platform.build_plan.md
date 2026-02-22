@@ -219,6 +219,7 @@ M1 planning posture:
 - M1 is active for planning and contract freeze.
 - M1 execution remains blocked until `ECR_REPO_URI` is materialized (`M1-B1`).
 - `M1.A` has been expanded to execution-grade contract detail in the deep plan (strategy, boundary, blockers, evidence).
+- `M1.B` has been expanded to execution-grade matrix planning; unresolved `ENTRYPOINT_MPR_RUNNER` mapping is an active `M1-B2` closure blocker.
 
 Planned lanes:
 - build, security/provenance, release evidence.

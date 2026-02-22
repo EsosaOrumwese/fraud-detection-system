@@ -1655,6 +1655,27 @@ Definition of done:
 - [x] `T6/T7` either reach B posture or local infeasibility is proven with upstream reopen branch decision.
 - [x] explicit branch decision recorded: `UNLOCK_P3`, `HOLD_P2_REOPEN`, or conditional `UNLOCK_P2_UPSTREAM_REOPEN`.
 
+### P2.U1 - Upstream reopen lane for T7 owner (`3B.S1`)
+Goal:
+- reopen the true upstream owner surface for virtual-share shape (`3B.S1` classification policy) to recover `T7` toward B band while preserving frozen Wave-A rails.
+
+Scope:
+- mutable:
+  - `config/layer1/3B/virtual/mcc_channel_rules.yaml` (bounded rule edits only).
+- rerun chain:
+  - `3B: S1 -> S2 -> S3 -> S4 -> S5`,
+  - then `5B: S4 -> S5`,
+  - then `score_segment5b_p1_realism.py` + `score_segment5b_p2_calibration.py`.
+- frozen rails:
+  - `5B` hard rails (`T1/T2/T3/T4/T5/T11/T12`) are veto rails in this lane.
+
+Definition of done:
+- [ ] owner-lane candidate matrix is recorded (rule deltas + measured `T6/T7` movement).
+- [ ] at least one bounded candidate is executed end-to-end through `3B` and downstream `5B`.
+- [ ] branch decision is explicit:
+  - `UNLOCK_P3` if B closure is reached with frozen rails green, or
+  - `HOLD_P2_UPSTREAM_REOPEN` with retained best-evidence candidate and freeze rationale.
+
 ### P3 - Wave C contract hardening
 Goal:
 - pin corrected semantics and thresholds in policy/schema/contracts so closure is durable.
@@ -1708,4 +1729,4 @@ Definition of done:
 6. `P1` local Wave-A correctness lane is closed with hold posture and upstream reopen trigger.
 7. `P1 Reopen Bridge` + `P1.T3` are closed with explicit `UNLOCK_P2`.
 8. `P2` is closed with `UNLOCK_P2_UPSTREAM_REOPEN` (local infeasibility proven for `T7`; frozen rails preserved).
-8. `P2` is now expanded (`P2.1 -> P2.6`) and ready to start at `P2.1` contract lock.
+9. active execution lane is `P2.U1` (upstream owner reopen at `3B.S1`), then rescore and branch.

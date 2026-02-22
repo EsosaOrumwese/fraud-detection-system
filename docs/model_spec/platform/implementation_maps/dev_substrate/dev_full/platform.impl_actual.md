@@ -740,3 +740,45 @@ _As of 2026-02-22_
 3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M1.build_plan.md`
 4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
 5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.impl_actual.md`
+
+## Entry: 2026-02-22 19:18 +00:00 - M1.B planning expansion (entrypoint matrix closure)
+
+### Trigger
+1. USER requested: "Let's plan out M1.B".
+
+### Planning method used
+1. Loaded current `M1.B` deep-plan stub and dev_full handles registry entrypoint set.
+2. Scanned real runnable surfaces in `src/fraud_detection/**` for argparse/main contracts.
+3. Compared registry handle names against concrete module availability.
+
+### Findings
+1. Spine and most learning runner surfaces have concrete module contracts.
+2. Grouped handles (`ENTRYPOINT_RTDL_CORE_WORKER`, `ENTRYPOINT_DECISION_LANE_WORKER`) require explicit expansion to avoid hidden launch drift.
+3. `ENTRYPOINT_MPR_RUNNER` is present in handles registry but has no concrete runnable module mapping in current source tree.
+
+### Alternatives considered
+1. Treat `ENTRYPOINT_MPR_RUNNER` as implicitly covered by `model_factory.worker` publish-retry flow.
+   - rejected: this blurs MF vs MPR ownership and violates explicit-handle closure discipline.
+2. Mark M1.B complete for mapped handles and defer MPR ambiguity silently to later phases.
+   - rejected: violates fail-closed and decision-completeness posture.
+3. Expand M1.B matrix fully and record `ENTRYPOINT_MPR_RUNNER` as explicit blocker with resolution options.
+   - selected: preserves deterministic planning and prevents hidden drift before M1 execution.
+
+### Decisions pinned in this pass
+1. M1.B now includes a complete handle-to-command matrix for all known runtime surfaces.
+2. Validation method is pinned with explicit smoke contracts for non-subcommand and subcommand CLIs.
+3. Fail-closed criteria are pinned (`missing module`, `argparse failure`, `blocked mapping` => M1.B fail).
+4. `M1-B2` is explicitly tied to unresolved `ENTRYPOINT_MPR_RUNNER` mapping.
+5. Two closure options are documented:
+   - Option 1 (recommended): implement and pin a dedicated MPR runner module.
+   - Option 2: repin registry to move MPR execution outside image-entrypoint set for v0.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M1.build_plan.md`
+   - `M1.B` expanded to execution-grade matrix/validation/blocker closure rules.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+   - M1 planning posture updated to reflect M1.B expansion and active blocker context.
+
+### Current closure posture
+1. M1.B is now planning-complete (execution-grade) but not closed.
+2. M1.B closure remains blocked on explicit `ENTRYPOINT_MPR_RUNNER` pinning decision (`M1-B2`).

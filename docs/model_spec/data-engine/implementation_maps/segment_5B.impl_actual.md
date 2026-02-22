@@ -7519,3 +7519,39 @@ Change:
 
 Effect:
 - future sweeps will prefer semantically minimal configurations when realism outcomes are tied.
+
+### Entry: 2026-02-22 19:21
+
+Design lock: `P2` upstream reopen lane for `T7` owner (`3B.S1`).
+Summary: local `5B` calibration is mathematically blocked for `T7` because `share_hybrid=0.0`; this lane reopens upstream ownership at `3B.S1` (virtual classification policy) with bounded, evidence-first edits.
+
+Evidence used to lock owner and lane:
+1) `segment5b_p2_sensitivity_c25...json` shows `T7=2.2466%` and zero hybrid mass.
+2) `5B.S4` code-path maps `virtual_mode` as:
+   - `NON_VIRTUAL -> 0`,
+   - `HYBRID -> 1`,
+   - `VIRTUAL_ONLY -> 2`;
+   while current `3B.S1` implementation emits only `NON_VIRTUAL` or `VIRTUAL_ONLY`.
+3) therefore `p_virtual_hybrid` cannot move T7 under current upstream shape.
+
+Alternatives considered and rejected:
+1) reopen `5B.S4` to synthesize hybrid semantics locally:
+   - rejected; violates ownership boundary (classification authority belongs to `3B.S1`).
+2) broad upstream reopen across `5A/2B/3B` simultaneously:
+   - rejected; unnecessary blast radius for first owner-true correction.
+3) keep `T7` waiver and continue:
+   - rejected for now; user directed execution of upstream reopen lane.
+
+Chosen execution lane (bounded):
+1) quantify `mcc x channel` leverage from current run authority (`c25...`) using real arrival mass.
+2) apply minimal `3B` policy edits only in `config/layer1/3B/virtual/mcc_channel_rules.yaml` (targeting realistic CNP classes first).
+3) rerun `3B.S1 -> S2 -> S3 -> S4 -> S5` on authority run-id.
+4) rerun `5B.S4 -> S5`.
+5) rescore `5B` (`P1` + `P2`) and adjudicate:
+   - keep candidate only if frozen rails stay green and `T7` improves toward/into B band.
+6) if candidate fails/no movement, revert policy delta and record next bounded candidate.
+
+Safety and invariants:
+1) no changes to `1A/1B/2A/2B/5A` frozen rails in this lane.
+2) no creation of new run-id folders unless strictly required; reuse authority run-id to control storage.
+3) pre-rerun cleanup of superseded `3B/5B` output partitions is mandatory to avoid stale publish artifacts.

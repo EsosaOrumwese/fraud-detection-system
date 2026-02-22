@@ -171,11 +171,66 @@ Tasks:
    - learning (`OFS`, `MF`, `MPR` dispatch/runtime hooks).
 2. Map each to deterministic invocation contract (module + required args).
 3. Define validation method for build-go pass (`--help`/dry invocation contracts).
+4. Fail-closed unresolved handle-to-module mappings before M1 closure.
 
 DoD:
 - [ ] matrix covers all required handles in registry.
 - [ ] each entrypoint has deterministic invocation contract.
 - [ ] validation method is pinned and reproducible.
+
+M1.B planning precheck (decision completeness):
+1. `M1-B1` (`ECR_REPO_URI`) blocks build execution, but does not block entrypoint-matrix planning.
+2. Matrix closure requires every registry `ENTRYPOINT_*` handle to resolve to a concrete runtime invocation contract.
+3. Current unresolved mapping found during planning:
+   - `ENTRYPOINT_MPR_RUNNER` has no concrete runnable module in `src/fraud_detection/` yet.
+
+M1.B entrypoint matrix (planned, execution-grade):
+
+| Handle key | Runtime mode | Deterministic invocation contract | Required args contract | Mapping status |
+| --- | --- | --- | --- | --- |
+| `ENTRYPOINT_ORACLE_STREAM_SORT` | Oracle stream-sort job | `python -m fraud_detection.oracle_store.stream_sort_cli` | `--profile <path> --engine-run-root <s3://...> --scenario-id <id>` | READY |
+| `ENTRYPOINT_ORACLE_CHECKER` | Oracle checker job | `python -m fraud_detection.oracle_store.cli` | `--profile <path> --engine-run-root <s3://...>` (`--scenario-id`/`--output-ids` optional by phase posture) | READY |
+| `ENTRYPOINT_SR` | Scenario runner control task | `python -m fraud_detection.scenario_runner.cli run` | `--wiring <path> --policy <path> --run-equivalence-key <key> --manifest-fingerprint <fp> --parameter-hash <hash> --seed <int> --window-start <iso> --window-end <iso>` | READY |
+| `ENTRYPOINT_WSP` | World streamer producer task | `python -m fraud_detection.world_streamer_producer.cli` | `--profile <path>` (`--engine-run-root`, `--scenario-id`, `--output-ids`, `--max-events` optional overrides) | READY |
+| `ENTRYPOINT_IG_SERVICE` | IG daemon/service | `python -m fraud_detection.ingestion_gate.service` | `--profile <path>` (`--host`/`--port` optional overrides) | READY |
+| `ENTRYPOINT_RTDL_CORE_WORKER` | ArchiveWriter worker | `python -m fraud_detection.archive_writer.worker` | `--profile <path>` (`--once` optional) | READY |
+| `ENTRYPOINT_RTDL_CORE_WORKER` | IEG query service | `python -m fraud_detection.identity_entity_graph.service` | `--profile <path>` (`--host`/`--port` optional overrides) | READY |
+| `ENTRYPOINT_RTDL_CORE_WORKER` | OFP projector worker | `python -m fraud_detection.online_feature_plane.projector` | `--profile <path>` (`--once` optional) | READY |
+| `ENTRYPOINT_RTDL_CORE_WORKER` | CSFB intake worker | `python -m fraud_detection.context_store_flow_binding.intake` | `--policy <path>` (`--once`/`--replay-manifest` optional) | READY |
+| `ENTRYPOINT_DECISION_LANE_WORKER` | DL worker | `python -m fraud_detection.degrade_ladder.worker` | `--profile <path>` (`--once` optional) | READY |
+| `ENTRYPOINT_DECISION_LANE_WORKER` | DF worker | `python -m fraud_detection.decision_fabric.worker` | `--profile <path>` (`--once` optional) | READY |
+| `ENTRYPOINT_DECISION_LANE_WORKER` | AL worker | `python -m fraud_detection.action_layer.worker` | `--profile <path>` (`--once` optional) | READY |
+| `ENTRYPOINT_DECISION_LANE_WORKER` | DLA worker | `python -m fraud_detection.decision_log_audit.worker` | `--profile <path>` (`--once` optional) | READY |
+| `ENTRYPOINT_CASE_TRIGGER_WORKER` | CaseTrigger worker | `python -m fraud_detection.case_trigger.worker` | `--profile <path>` (`--once` optional) | READY |
+| `ENTRYPOINT_CM_SERVICE` | CM worker | `python -m fraud_detection.case_mgmt.worker` | `--profile <path>` (`--once` optional) | READY |
+| `ENTRYPOINT_LS_SERVICE` | LS worker | `python -m fraud_detection.label_store.worker` | `--profile <path>` (`--once` optional) | READY |
+| `ENTRYPOINT_ENV_CONFORMANCE_WORKER` | Env conformance worker | `python -m fraud_detection.platform_conformance.worker` | `--local-parity-profile <path> --dev-profile <path> --prod-profile <path>` (`--required-platform-run-id` optional, `--once` optional) | READY |
+| `ENTRYPOINT_REPORTER` | Obs/Gov reporter worker | `python -m fraud_detection.platform_reporter.worker` | `--profile <path>` (`--required-platform-run-id` optional, `--once` optional) | READY |
+| `ENTRYPOINT_OFS_RUNNER` | OFS worker/launcher | `python -m fraud_detection.offline_feature_plane.worker` | `--profile <path> run` (`--once` optional) | READY |
+| `ENTRYPOINT_MF_RUNNER` | MF worker/launcher | `python -m fraud_detection.model_factory.worker` | `--profile <path> run` (`--once` optional) | READY |
+| `ENTRYPOINT_MPR_RUNNER` | MPR promotion corridor runner | `TO_PIN` | `TO_PIN` | BLOCKED (`M1-B2`) |
+
+M1.B validation method (pinned for build-go pass):
+1. Handle-level argparse smoke checks in image context:
+   - run `python -m <module> --help` for non-subcommand workers/services,
+   - run `python -m <module> <subcommand> --help` for subcommand CLIs (`SR`, `OFS`, `MF`).
+2. Grouped-handle expansion is mandatory:
+   - `ENTRYPOINT_RTDL_CORE_WORKER` and `ENTRYPOINT_DECISION_LANE_WORKER` must validate all mapped workers/services, not a single representative command.
+3. Validation result contract:
+   - each matrix row must record `module`, `command`, `exit_code`, `stderr_summary`, and `status`.
+4. Fail-closed criteria:
+   - missing module, argparse failure, or unresolved handle mapping fails `M1.B`.
+   - `M1.B` cannot close while any row remains `BLOCKED`.
+
+M1.B unresolved mapping blocker (`M1-B2`) and closure options:
+1. Problem:
+   - `ENTRYPOINT_MPR_RUNNER` is present in handles registry but no concrete runnable module is pinned yet.
+2. Option 1 (recommended):
+   - implement and pin a dedicated MPR runner module (for example `fraud_detection.learning_registry.worker`) and update matrix + registry mapping.
+3. Option 2 (explicit temporary posture):
+   - repin handles registry to classify MPR execution through a non-image managed orchestrator surface for v0, and remove `ENTRYPOINT_MPR_RUNNER` from image-contract set.
+4. Closure rule:
+   - one option must be explicitly pinned before `M1.B` can be marked complete.
 
 ## M1.C Provenance and Evidence Contract
 Goal:
