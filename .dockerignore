@@ -29,11 +29,6 @@
 !docs/model_spec/data-engine/interface_pack/contracts/gate_receipt.schema.yaml
 !docs/model_spec/data-engine/interface_pack/contracts/instance_proof_receipt.schema.yaml
 !docs/model_spec/data-engine/interface_pack/contracts/run_receipt.schema.yaml
-!docs/model_spec/data-engine/interface_pack/layer-1
-!docs/model_spec/data-engine/interface_pack/layer-1/specs
-!docs/model_spec/data-engine/interface_pack/layer-1/specs/contracts
-!docs/model_spec/data-engine/interface_pack/layer-1/specs/contracts/1A
-!docs/model_spec/data-engine/interface_pack/layer-1/specs/contracts/1A/schemas.layer1.yaml
 !docs/model_spec/data-engine/layer-2
 !docs/model_spec/data-engine/layer-2/specs
 !docs/model_spec/data-engine/layer-2/specs/contracts
@@ -44,4 +39,3 @@
 !docs/model_spec/data-engine/layer-3/specs/contracts
 !docs/model_spec/data-engine/layer-3/specs/contracts/6B
 !docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml
-!docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.layer3.yaml

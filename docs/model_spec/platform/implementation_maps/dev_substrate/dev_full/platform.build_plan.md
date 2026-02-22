@@ -231,6 +231,13 @@ DoD anchors:
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M1.build_plan.md`
 
+M1 sub-phase progress:
+- [x] `M1.A` image contract freeze.
+- [ ] `M1.B` entrypoint matrix closure.
+- [ ] `M1.C` provenance/evidence contract closure.
+- [ ] `M1.D` security/secret-injection contract closure.
+- [ ] `M1.E` build-go transition and blocker adjudication.
+
 ## M2 - Substrate Readiness
 Status: `NOT_STARTED`
 

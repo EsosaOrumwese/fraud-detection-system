@@ -665,3 +665,78 @@ _As of 2026-02-22_
 1. This is planning-only; no image build/push was executed.
 2. `M1` remains `ACTIVE` (planning).
 3. `M1-B1` (`ECR_REPO_URI` unresolved) remains a hard block for M1 execution build-go.
+
+## Entry: 2026-02-22 19:13 +00:00 - M1.A execution checkpoint 1 (packaging conformance inspection)
+
+### What was inspected
+1. Real packaging surfaces:
+   - `Dockerfile`
+   - `.dockerignore`
+2. Handle coverage source:
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (`ENTRYPOINT_*` handles)
+3. Runtime reference scan:
+   - `src/`, `config/`, platform contract docs for schema/contract path usage.
+
+### Findings
+1. Positive:
+   - Docker packaging posture already uses explicit copy surfaces (no broad repo-copy instruction).
+   - `.dockerignore` uses default-deny + allowlist model, matching M1.A intent.
+   - Registry includes full spine + learning entrypoint handle set (`OFS`, `MF`, `MPR` included).
+2. Drift found:
+   - Dockerfile/.dockerignore include two extra schema files not present in M1.A include contract:
+     - `docs/model_spec/data-engine/interface_pack/layer-1/specs/contracts/1A/schemas.layer1.yaml`
+     - `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.layer3.yaml`
+   - Reference scan did not find active runtime references to these paths.
+
+### Alternatives considered
+1. Update M1.A contract to include these files.
+   - rejected for this execution pass because runtime reference scan shows no active dependency and this would expand image surface without need.
+2. Remove the extra surfaces from Dockerfile/.dockerignore and keep M1.A contract tight.
+   - selected to preserve lean packaging boundary and eliminate contract drift.
+
+### Decision
+1. Apply minimal remediation to packaging surfaces:
+   - remove extra copy line items from `Dockerfile`,
+   - remove matching allowlist lines from `.dockerignore`.
+2. Re-run packaging conformance checks after remediation.
+3. Close M1.A only if blocker set is empty after re-check.
+
+## Entry: 2026-02-22 19:17 +00:00 - M1.A execution checkpoint 2 (remediation applied + reconformance)
+
+### Remediation applied
+1. Packaging boundary was tightened:
+   - removed two extra copy lines from `Dockerfile`,
+   - removed corresponding allowlist reopen lines from `.dockerignore`.
+2. No other packaging surfaces were expanded.
+
+### Reconformance checks
+1. Verified Dockerfile copy set is now exactly within the M1.A include contract.
+2. Verified no broad context copy directives (`COPY . .`, `ADD .`) are present.
+3. Verified required include paths remain present in workspace.
+4. Verified learning modules remain in package surface via `COPY src/fraud_detection` and source-tree presence of:
+   - `offline_feature_plane`,
+   - `model_factory`,
+   - `learning_registry`.
+
+### Decision and rationale
+1. Keep strict allowlist posture as-is; do not broaden package surface for speculative future needs.
+2. Defer entrypoint invocation-level validation to `M1.B` (by design boundary), avoiding phase overlap.
+
+## Entry: 2026-02-22 19:19 +00:00 - M1.A full execution closure
+
+### Closure determination
+1. All M1.A DoD checks are now satisfied in deep plan.
+2. M1.A-specific blocker set (`M1A-B1..B4`) is fully closed.
+3. M1 completion checklist now marks `M1.A` complete.
+4. Master plan now reflects M1 sub-phase progress with `M1.A` checked.
+
+### Remaining phase-level block
+1. `M1-B1` (`ECR_REPO_URI` unresolved) remains active and still blocks M1 build-go execution.
+2. This is expected and not a regression from M1.A closure scope.
+
+### Files touched in this execution lane
+1. `.dockerignore`
+2. `Dockerfile`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M1.build_plan.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.impl_actual.md`

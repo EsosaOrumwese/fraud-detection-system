@@ -64,11 +64,11 @@ Tasks:
 5. Define M1.A closure evidence artifacts and fail-closed blockers.
 
 DoD:
-- [ ] image strategy is explicit and authority-aligned.
-- [ ] immutable tag/digest posture is explicit.
-- [ ] content boundary is explicit and auditable.
-- [ ] no local-only/runtime-irrelevant payloads are in authoritative build context.
-- [ ] M1.A blocker set is empty or explicitly carried as no-go for build execution.
+- [x] image strategy is explicit and authority-aligned.
+- [x] immutable tag/digest posture is explicit.
+- [x] content boundary is explicit and auditable.
+- [x] no local-only/runtime-irrelevant payloads are in authoritative build context.
+- [x] M1.A blocker set is empty or explicitly carried as no-go for build execution.
 
 M1.A planning precheck (decision completeness):
 1. `ECR_REPO_URI` remains unresolved and is a hard block for build/push execution (`M1-B1`), but it does not block packaging-contract planning.
@@ -134,6 +134,32 @@ M1.A evidence contract (planned):
 1. `image_contract_manifest.json` under `EVIDENCE_PHASE_PREFIX_PATTERN` with `phase_id="P(-1)"`.
 2. `build_context_allowlist_check.json` proving include/exclude validation results.
 3. `dockerignore_conformance_receipt.json` proving excluded high-volume/secret surfaces are blocked.
+
+M1.A execution checks and closure (2026-02-22):
+1. Docker context conformance checks:
+   - `Dockerfile` copy surfaces are explicit and bounded to the M1.A include contract.
+   - no broad repo-ingestion instruction (`COPY . .` / `ADD .`) remains.
+   - `.dockerignore` remains default-deny with explicit allowlist reopen rules.
+2. Drift remediation performed:
+   - removed non-referenced schema surfaces from packaging boundary:
+     - `docs/model_spec/data-engine/interface_pack/layer-1/specs/contracts/1A/schemas.layer1.yaml`
+     - `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.layer3.yaml`
+   - remediation aligned runtime packaging to the pinned M1.A include contract.
+3. Required include-path existence check:
+   - all pinned include paths in M1.A contract were verified present in workspace.
+4. Learning surface packaging check:
+   - learning-plane source modules are included by `COPY src/fraud_detection` packaging surface,
+   - `ENTRYPOINT_OFS_RUNNER`, `ENTRYPOINT_MF_RUNNER`, `ENTRYPOINT_MPR_RUNNER` remain pinned in handles registry for M1.B invocation-matrix closure.
+
+M1.A blocker adjudication (closure):
+1. `M1A-B1` image strategy ambiguity: CLOSED.
+2. `M1A-B2` include/exclude manifest incompleteness: CLOSED.
+3. `M1A-B3` learning entrypoint surfaces absent from package contract: CLOSED.
+4. `M1A-B4` broad repo ingestion policy: CLOSED.
+
+M1.A verdict:
+1. `PASS` (planning+conformance closure complete).
+2. M1 phase remains `ACTIVE`; build execution still blocked by phase-level blocker `M1-B1` (`ECR_REPO_URI` unresolved).
 
 ## M1.B Entrypoint Matrix Closure
 Goal:
@@ -203,7 +229,7 @@ DoD:
 Any active `M1-B*` blocker prevents M1 execution closure.
 
 ## 7) M1 Completion Checklist
-- [ ] M1.A complete.
+- [x] M1.A complete.
 - [ ] M1.B complete.
 - [ ] M1.C complete.
 - [ ] M1.D complete.

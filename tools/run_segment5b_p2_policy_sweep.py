@@ -156,6 +156,7 @@ def _candidate_rank(row: dict[str, Any]) -> tuple:
         int(bool(row["runtime_regression_veto"])),
         int(row["primary_failures_count"]),
         float(row["calibration_distance_to_b"]),
+        float(row.get("policy_drift", 0.0)),
         float(row["lane_seconds"]),
     )
 
@@ -259,6 +260,7 @@ def main() -> None:
         {
             "label": "baseline",
             "p_virtual_hybrid": p_original,
+            "policy_drift": 0.0,
             "t6": float((baseline_gateboard["gates"]["T6"] or {}).get("value") or 0.0),
             "t7": float((baseline_gateboard["gates"]["T7"] or {}).get("value") or 0.0),
             "frozen_failures": len(baseline_summary["frozen_failures"]),
@@ -301,6 +303,7 @@ def main() -> None:
             {
                 "label": label,
                 "p_virtual_hybrid": candidate_p,
+                "policy_drift": abs(candidate_p - p_original),
                 "t6": float((gateboard["gates"]["T6"] or {}).get("value") or 0.0),
                 "t7": float((gateboard["gates"]["T7"] or {}).get("value") or 0.0),
                 "frozen_failures": len(summary["frozen_failures"]),
@@ -364,6 +367,7 @@ def main() -> None:
             fieldnames=[
                 "label",
                 "p_virtual_hybrid",
+                "policy_drift",
                 "t6",
                 "t7",
                 "frozen_failures",

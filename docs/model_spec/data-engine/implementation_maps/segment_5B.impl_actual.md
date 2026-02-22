@@ -7496,3 +7496,26 @@ Plan sync:
    - marked `P2.1..P2.6` DoDs closed,
    - added closure snapshot and explicit branch decision,
    - updated immediate execution order with `P2` closure posture.
+
+### Entry: 2026-02-22 19:17
+
+Tooling hardening after P2 execution.
+Summary: updated `run_segment5b_p2_policy_sweep.py` tie-break ranking to penalize policy drift when calibration distance is unchanged.
+
+Why:
+1) prior ranking selected `p=0.80` over baseline purely on runtime despite zero realism movement.
+2) this can introduce unnecessary policy drift with no statistical benefit.
+
+Change:
+1) added `policy_drift=abs(candidate_p - p_original)` to matrix rows.
+2) ranking now orders by:
+   - frozen failures,
+   - runtime veto,
+   - primary failure count,
+   - calibration distance,
+   - policy drift,
+   - runtime.
+3) CSV now includes `policy_drift` column for auditability.
+
+Effect:
+- future sweeps will prefer semantically minimal configurations when realism outcomes are tied.
