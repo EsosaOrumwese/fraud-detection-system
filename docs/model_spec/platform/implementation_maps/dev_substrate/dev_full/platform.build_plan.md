@@ -206,7 +206,7 @@ M0 closure snapshot:
 These are master-plan stubs for all `M#` phases so execution has explicit intent before deep-plan expansion.
 
 ## M1 - Packaging Readiness
-Status: `ACTIVE`
+Status: `DONE`
 
 Objective:
 - close `P(-1)` with immutable image and provenance evidence.
@@ -216,13 +216,13 @@ Entry gate:
 - required image/release handles are resolved.
 
 M1 planning posture:
-- M1 is active for planning and contract freeze.
+- M1 planning and execution closure is complete.
 - `M1-B1` (`ECR_REPO_URI`) is resolved; handle is now materialized.
 - `M1.A` has been expanded to execution-grade contract detail in the deep plan (strategy, boundary, blockers, evidence).
 - `M1.B` execution is closed (`PASS`); `ENTRYPOINT_MPR_RUNNER` mapping is now concrete and `M1-B2` is closed.
 - `M1.C` execution is closed (`PASS`); immutable digest and provenance evidence are emitted for `platform_20260222T194849Z` and `M1-B3` is closed.
 - `M1.D` execution is closed (`PASS`) on managed CI run `22284273953`; required security artifacts are emitted and `M1-B4` is closed.
-- `M1.E` is expanded to execution-grade transition/handoff planning; `M1-B5` remains active until explicit M1 closeout adjudication.
+- `M1.E` execution is closed (`PASS`) with coherent consolidated closure pack `m1e_20260222T200909Z`; `M1-B5` is closed and M2 entry-gate readiness is true.
 
 Planned lanes:
 - build, security/provenance, release evidence.
@@ -240,7 +240,7 @@ M1 sub-phase progress:
 - [x] `M1.B` entrypoint matrix closure.
 - [x] `M1.C` provenance/evidence contract closure.
 - [x] `M1.D` security/secret-injection contract closure.
-- [ ] `M1.E` build-go transition and blocker adjudication.
+- [x] `M1.E` build-go transition and blocker adjudication.
 
 ## M2 - Substrate Readiness
 Status: `NOT_STARTED`

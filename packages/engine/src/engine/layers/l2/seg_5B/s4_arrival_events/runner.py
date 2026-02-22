@@ -643,6 +643,57 @@ def _build_edge_alias_tables(
     )
 
 
+def _build_non_top_edge_alias_tables(
+    edge_alias_tables: EdgeAliasTables,
+    edge_tzid_idx: np.ndarray,
+    top_tzid_idx: set[int],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[int, int]]:
+    key_to_table: dict[int, int] = {}
+    table_offsets: list[int] = []
+    table_lengths: list[int] = []
+    prob_values: list[float] = []
+    alias_values: list[int] = []
+    edge_index_values: list[int] = []
+
+    for merchant_id, table_index in edge_alias_tables.key_to_table.items():
+        offset = int(edge_alias_tables.table_offsets[table_index])
+        length = int(edge_alias_tables.table_lengths[table_index])
+        if length <= 0:
+            continue
+        non_top_edges: list[int] = []
+        non_top_weights: list[float] = []
+        for idx in range(length):
+            edge_idx = int(edge_alias_tables.edge_index[offset + idx])
+            tz_idx = int(edge_tzid_idx[edge_idx])
+            if tz_idx in top_tzid_idx:
+                continue
+            weight = float(edge_alias_tables.edge_weight[edge_idx])
+            if weight <= 0.0:
+                continue
+            non_top_edges.append(edge_idx)
+            non_top_weights.append(weight)
+        if not non_top_edges:
+            continue
+        prob, alias = _build_alias(non_top_weights)
+        new_table_index = len(table_offsets)
+        key_to_table[merchant_id] = new_table_index
+        table_offsets.append(len(prob_values))
+        table_lengths.append(len(non_top_edges))
+        for idx, edge_idx in enumerate(non_top_edges):
+            edge_index_values.append(edge_idx)
+            prob_values.append(float(prob[idx]))
+            alias_values.append(int(alias[idx]))
+
+    return (
+        np.array(table_offsets, dtype=np.int64),
+        np.array(table_lengths, dtype=np.int32),
+        np.array(prob_values, dtype=np.float64),
+        np.array(alias_values, dtype=np.int64),
+        np.array(edge_index_values, dtype=np.int32),
+        key_to_table,
+    )
+
+
 def _split_by_arrival_count(counts: np.ndarray, max_arrivals: int) -> list[tuple[int, int]]:
     if counts.size == 0:
         return []
@@ -995,6 +1046,11 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         max_arrivals_chunk = max(int(max_arrivals_env), 1000)
     except ValueError:
         max_arrivals_chunk = 250000
+    tz_temper_enabled_cfg = _env_flag("ENGINE_5B_S4_TZ_TEMPER_ENABLE")
+    tz_temper_topk_cfg = max(_env_int("ENGINE_5B_S4_TZ_TEMPER_TOPK", 10), 1)
+    tz_temper_redirect_p_cfg = _env_float("ENGINE_5B_S4_TZ_TEMPER_REDIRECT_P", 0.0)
+    if tz_temper_redirect_p_cfg < 0.0 or tz_temper_redirect_p_cfg > 1.0:
+        raise ValueError("ENGINE_5B_S4_TZ_TEMPER_REDIRECT_P must be in [0,1]")
 
     current_phase = "init"
     status = "FAIL"
@@ -1024,6 +1080,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     rng_events_total = {"arrival_time_jitter": 0, "arrival_site_pick": 0, "arrival_edge_pick": 0}
 
     output_paths: list[Path] = []
+    tz_temper_effective = False
+    tz_temper_topk_names: list[str] = []
+    tz_temper_eligible_merchants = 0
 
     try:
         current_phase = "run_receipt"
@@ -1081,6 +1140,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             "on" if enable_rng_events else "off",
         )
         logger.info("S4: progress cadence interval=%.2fs", progress_interval_seconds)
+        logger.info(
+            "S4: tz concentration tempering config enabled=%s topk=%d redirect_p=%.4f",
+            str(tz_temper_enabled_cfg).lower(),
+            tz_temper_topk_cfg,
+            tz_temper_redirect_p_cfg,
+        )
         if include_lambda:
             logger.info("S4: lambda_realised inclusion enabled (may increase memory)")
         if not _HAVE_PYARROW:
@@ -1601,6 +1666,63 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             if idx is not None:
                 edge_table_index[idx] = int(table_idx)
 
+        edge_topk_mask = np.zeros(edge_tzid_idx.shape[0], dtype=np.bool_)
+        merchant_non_top_table_index = np.full(len(merchant_ids), -1, dtype=np.int32)
+        non_top_table_offsets = np.zeros(0, dtype=np.int64)
+        non_top_table_lengths = np.zeros(0, dtype=np.int32)
+        non_top_prob = np.zeros(0, dtype=np.float64)
+        non_top_alias = np.zeros(0, dtype=np.int64)
+        non_top_edge_index = np.zeros(0, dtype=np.int32)
+        tz_temper_redirect_p = 0.0
+
+        if tz_temper_enabled_cfg and tz_temper_redirect_p_cfg > 0.0:
+            tz_weight_rows = (
+                edge_catalogue_df.group_by("tzid_operational")
+                .agg(pl.col("edge_weight").sum().alias("weight_sum"))
+                .sort("weight_sum", descending=True)
+                .iter_rows(named=True)
+            )
+            top_tzid_idx: set[int] = set()
+            for row in tz_weight_rows:
+                if len(top_tzid_idx) >= tz_temper_topk_cfg:
+                    break
+                tzid = str(row.get("tzid_operational") or "")
+                tzid_idx = tzid_to_idx.get(tzid)
+                if tzid_idx is None:
+                    continue
+                top_tzid_idx.add(int(tzid_idx))
+                tz_temper_topk_names.append(tzid)
+
+            if top_tzid_idx:
+                edge_topk_mask = np.isin(
+                    edge_tzid_idx.astype(np.int64),
+                    np.array(sorted(top_tzid_idx), dtype=np.int64),
+                )
+                (
+                    non_top_table_offsets,
+                    non_top_table_lengths,
+                    non_top_prob,
+                    non_top_alias,
+                    non_top_edge_index,
+                    non_top_key_to_table,
+                ) = _build_non_top_edge_alias_tables(edge_alias_tables, edge_tzid_idx, top_tzid_idx)
+                for merchant_id, table_idx in non_top_key_to_table.items():
+                    merchant_idx = merchant_index.get(int(merchant_id))
+                    if merchant_idx is not None:
+                        merchant_non_top_table_index[merchant_idx] = int(table_idx)
+                tz_temper_eligible_merchants = int(np.count_nonzero(merchant_non_top_table_index >= 0))
+                tz_temper_effective = tz_temper_eligible_merchants > 0 and bool(np.any(edge_topk_mask))
+                if tz_temper_effective:
+                    tz_temper_redirect_p = float(tz_temper_redirect_p_cfg)
+
+        logger.info(
+            "S4: tz tempering effective=%s topk_tzids=%d eligible_merchants=%d redirect_p=%.4f",
+            str(tz_temper_effective).lower(),
+            len(tz_temper_topk_names),
+            tz_temper_eligible_merchants,
+            tz_temper_redirect_p,
+        )
+
         for merchant_id, idx in merchant_index.items():
             mode = int(merchant_virtual_mode[idx])
             if mode != 2 and site_map_count[idx] <= 0:
@@ -2049,12 +2171,21 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         edge_alias_tables.alias,
                         edge_alias_tables.edge_index,
                         edge_tzid_idx,
+                        edge_topk_mask,
+                        merchant_non_top_table_index,
+                        non_top_table_offsets,
+                        non_top_table_lengths,
+                        non_top_prob,
+                        non_top_alias,
+                        non_top_edge_index,
                         merchant_virtual_mode,
                         merchant_settlement_tzid,
                         tz_index_start,
                         tz_index_count,
                         tz_transitions_utc,
                         tz_offsets_minutes,
+                        1 if tz_temper_effective else 0,
+                        float(tz_temper_redirect_p),
                         float(p_virtual_hybrid),
                         out_ts_utc_us,
                         out_arrival_seq,
@@ -2540,6 +2671,15 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     "rng_draws_total": rng_draws_total,
                     "rng_blocks_total": rng_blocks_total,
                     "rng_events_total": rng_events_total,
+                    "tz_temper": {
+                        "enabled_requested": bool(tz_temper_enabled_cfg),
+                        "enabled_effective": bool(tz_temper_effective),
+                        "topk_requested": int(tz_temper_topk_cfg),
+                        "redirect_p_requested": float(tz_temper_redirect_p_cfg),
+                        "redirect_p_effective": float(tz_temper_redirect_p),
+                        "topk_tzids": list(tz_temper_topk_names),
+                        "eligible_merchants": int(tz_temper_eligible_merchants),
+                    },
                     "details": scenario_details,
                 }
                 if error_context:

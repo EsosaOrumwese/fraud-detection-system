@@ -1297,3 +1297,86 @@ _As of 2026-02-22_
 ### Current status
 1. M1.E is planning-complete (expanded), execution pending.
 2. M1-B5 remains active until M1.E execution closure.
+
+## Entry: 2026-02-22 20:07:58 +00:00 - M1.E adjudication issue discovered (cross-run evidence split)
+
+### Observation
+1. M1.C and M1.D execution artifacts currently anchor different platform_run_id values:
+   - M1.C: platform_20260222T194849Z
+   - M1.D: platform_20260222T200115Z
+
+### Risk
+1. M1.E precondition/evidence coherence could be ambiguous if closure references mixed runs without explicit consolidation.
+
+### Alternatives considered
+1. Accept mixed-run evidence without consolidation.
+   - rejected: weakens deterministic closure claim and invites drift.
+2. Force a brand-new full rerun of all M1 lanes.
+   - rejected for now: unnecessary cost/time since managed evidence already exists and is internally valid.
+3. Consolidate required P(-1) artifact set for the latest managed run (platform_20260222T200115Z) by deriving missing provenance artifacts from CI outputs + ECR source-of-truth.
+   - selected: preserves fail-closed posture with coherent single-run closure evidence.
+
+### Decision
+1. Build a consolidated M1.E evidence pack rooted on platform_20260222T200115Z.
+2. Re-evaluate all no-go checks on this consolidated set before closing M1-B5.
+
+## Entry: 2026-02-22 20:10:09 +00:00 - M1.E execution completed and M1 closeout adjudicated
+
+### Execution artifacts produced
+1. uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/m1_closure_blocker_register.json
+2. uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/m1_build_go_transition_receipt.json
+3. uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/m1_handoff_readiness_snapshot.json
+4. execution rollup:
+   - uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/m1e_execution_summary.json
+
+### Consolidation mechanics applied
+1. Built coherent P(-1) set under one run scope:
+   - uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/evidence/runs/platform_20260222T200115Z/P(-1)/
+2. Carried forward managed-run security artifacts from M1.D.
+3. Derived missing provenance artifacts (image_digest_manifest, elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS ECR source-of-truth.
+
+### Adjudication outcomes
+1. Build-go preconditions: all pass.
+2. No-go checks: all clear (alse).
+3. Blocker register: no active blockers; all severity counts are zero.
+4. Handoff snapshot: m2_entry_gate_ready=true.
+
+### Plan closures applied
+1. platform.M1.build_plan.md:
+   - marked M1.E DoD complete,
+   - added execution closure record,
+   - closed M1-B5,
+   - marked all M1 completion checklist items complete.
+2. platform.build_plan.md:
+   - M1 status transitioned to DONE,
+   - M1.E sub-phase marked complete,
+   - M1 posture updated with closure evidence reference.
+
+### Final M1 posture
+1. M1.A..M1.E all PASS.
+2. M1-B1..M1-B5 all closed.
+3. Next phase entry readiness: M2 gate is ready, but execution remains user-governed.
+
+## Entry: 2026-02-22 20:10:45 +00:00 - M1 documentation consistency correction after closure
+
+### Issue
+1. Two wording drifts remained after M1.E closure:
+   - master-plan M1 posture still said "active for planning",
+   - M1.E planning precheck line still read as currently active M1-B5.
+
+### Correction
+1. Updated master-plan M1 posture to reflect closure-complete state.
+2. Updated M1.E planning precheck wording to historical context and explicit execution resolution.
+
+### Rationale
+1. Prevent ambiguous reading during M2 entry and future audits.
+
+## Entry: 2026-02-22 20:11:17 +00:00 - M1.E execution start context (supplemental audit note)
+
+### Note
+1. This supplemental note anchors initial M1.E execution intent in the implementation map.
+2. Primary in-line progression entries for this execution are already recorded in subsequent entries (cross-run split decision, closure adjudication, and wording consistency correction).
+
+### Starting intent recap
+1. Execute M1.E as fail-closed closeout adjudication.
+2. Produce required closure artifacts and close M1-B5 only if no-go checks clear.

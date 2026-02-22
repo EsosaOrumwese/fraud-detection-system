@@ -543,16 +543,16 @@ Tasks:
 3. Define closure evidence required to mark M1 `DONE`.
 
 DoD:
-- [ ] build-go checklist is explicit and complete.
-- [ ] blocker register exists with clear owner/action.
-- [ ] M1 closure evidence contract is explicit.
+- [x] build-go checklist is explicit and complete.
+- [x] blocker register exists with clear owner/action.
+- [x] M1 closure evidence contract is explicit.
 
 M1.E planning precheck (decision completeness):
 1. `M1-B1` (`ECR_REPO_URI`) is closed.
 2. `M1-B2` (entrypoint contract coverage) is closed.
 3. `M1-B3` (provenance/evidence ambiguity) is closed.
 4. `M1-B4` (security/secret-injection posture) is closed.
-5. `M1-B5` remains the only active M1 blocker and is owned by this lane.
+5. At planning kickoff, `M1-B5` was the only active M1 blocker and is owned by this lane; execution closure below resolves it.
 
 M1.E build-go preconditions (planned, mandatory):
 1. Packaging identity and provenance surfaces remain pinned:
@@ -629,12 +629,54 @@ M1.E validation method (planned):
 M1.E execution boundary note (planned):
 1. `M1.E` does not perform new image builds by default; it adjudicates build-go closure from existing managed evidence unless rerun is required for contradiction resolution.
 
+M1.E execution closure (2026-02-22):
+1. Execution strategy:
+   - evidence-driven closeout adjudication using managed `M1.A..M1.D` artifacts,
+   - no new build triggered unless contradiction detected.
+2. Coherence remediation during execution:
+   - detected cross-run evidence split between prior `M1.C` and `M1.D` closure runs,
+   - resolved by consolidating a complete required `P(-1)` set for latest managed run scope:
+     - `platform_run_id=platform_20260222T200115Z`.
+3. Consolidated execution pack:
+   - `runs/dev_substrate/dev_full/m1/m1e_20260222T200909Z/`
+   - required closure artifacts:
+     - `m1_closure_blocker_register.json`
+     - `m1_build_go_transition_receipt.json`
+     - `m1_handoff_readiness_snapshot.json`
+   - consolidated phase evidence root:
+     - `runs/dev_substrate/dev_full/m1/m1e_20260222T200909Z/evidence/runs/platform_20260222T200115Z/P(-1)/`
+4. Build-go precondition rollup:
+   - `build_driver_pinned=true`
+   - `reference_mode_pinned=true`
+   - `managed_workflow_readiness=true`
+   - `required_p1_objects_present=true`
+   - `digest_integrity_pass=true`
+   - `security_posture_pass=true`
+5. No-go rollup:
+   - all no-go checks are `false` (clear).
+6. Blocker register outcome:
+   - active blockers empty, severity counts (`S1/S2/S3`) all `0`.
+7. Handoff outcome:
+   - `m2_entry_gate_ready=true`
+   - `fail_closed=false`.
+
+M1.E blocker adjudication (execution):
+1. `M1E-B1` build-go precondition set incomplete: CLOSED.
+2. `M1E-B2` workflow-dispatch path ambiguity: CLOSED.
+3. `M1E-B3` closure evidence bundle incomplete/inconsistent: CLOSED.
+4. `M1E-B4` unresolved cross-lane blocker carried: CLOSED.
+5. `M1E-B5` M1->M2 handoff ambiguity: CLOSED.
+
+M1.E verdict:
+1. `PASS` (execution closure complete).
+2. Phase-level blocker `M1-B5` is now closed.
+
 ## 6) Blocker Taxonomy (M1)
 - `M1-B1`: `ECR_REPO_URI` unresolved (hard blocker for packaging execution) - `CLOSED` (2026-02-22).
 - `M1-B2`: entrypoint coverage incomplete for required lanes - `CLOSED` (2026-02-22).
 - `M1-B3`: provenance/evidence contract ambiguous or inconsistent - `CLOSED` (2026-02-22).
 - `M1-B4`: secret posture incomplete or leakage checks undefined - `CLOSED` (2026-02-22).
-- `M1-B5`: build-go transition remains ambiguous.
+- `M1-B5`: build-go transition remains ambiguous - `CLOSED` (2026-02-22).
 
 Any active `M1-B*` blocker prevents M1 execution closure.
 
@@ -643,10 +685,10 @@ Any active `M1-B*` blocker prevents M1 execution closure.
 - [x] M1.B complete.
 - [x] M1.C complete.
 - [x] M1.D complete.
-- [ ] M1.E complete.
-- [ ] M1 blockers resolved or explicitly pinned for no-go.
-- [ ] M1 closure note appended in implementation map.
-- [ ] M1 action log appended in logbook.
+- [x] M1.E complete.
+- [x] M1 blockers resolved or explicitly pinned for no-go.
+- [x] M1 closure note appended in implementation map.
+- [x] M1 action log appended in logbook.
 
 ## 8) Exit Criteria and Handoff
 M1 is eligible for closure when:
