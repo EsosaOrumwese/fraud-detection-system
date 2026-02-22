@@ -19628,3 +19628,76 @@ Constraints preserved:
 1. Documentation-only update (no infra/runtime execution).
 2. No branch/history operations were performed.
 3. Sensitive values were not introduced into docs.
+
+## Entry: 2026-02-22 14:55 +00:00 - Pre-change lock for M11.A drift patch + execution start
+Reasoning:
+1. USER directed immediate patch + execution of `M11.A`.
+2. Validation found three execution-blocking drifts in `platform.M11.build_plan.md` `M11.A`:
+   - entry condition wording implies both local and durable sources must be readable, while deterministic algorithm is local-first with durable fallback,
+   - authority completeness check incorrectly forbids unresolved `TBD` dependencies at `M11.A` even though `dev_full_handles.registry.v0.md` intentionally carries `TBD_M11B` for `M11.B` closure,
+   - deterministic algorithm step numbering contains duplicate `6`.
+3. Without patching those, running `M11.A` would violate decision-completeness and produce avoidable interpretation drift.
+
+Decision:
+1. Patch `M11.A` wording to match fail-closed algorithm and phase boundaries:
+   - source-readability gate becomes "at least one of local/durable per artifact",
+   - `TBD` closure remains explicitly deferred to `M11.B`,
+   - algorithm numbering normalized.
+2. Execute `M11.A` immediately after patch using inline command flow (no new tool files):
+   - read/validate M10 local anchors,
+   - verify authority-readability matrix,
+   - build deterministic snapshot,
+   - publish locally and attempt durable publish.
+3. If durable publish fails, close `M11.A` with blocker `M11A-B5` per fail-closed law.
+
+Execution plan:
+1. Patch `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md` (`M11.A` only).
+2. Generate `m11_execution_id` and write `runs/dev_substrate/m11/<m11_execution_id>/m11_a_authority_handoff_snapshot.json`.
+3. Attempt durable publish to run-control evidence prefix and record resolved URI/error in snapshot.
+4. Append runtime evidence + blocker posture in implementation map and logbook.
+
+Constraints preserved:
+1. No branch/history operation.
+2. No secrets written to docs.
+3. No runtime lane changes beyond `M11.A` authority/handoff execution.
+
+## Entry: 2026-02-22 14:57 +00:00 - M11.A patched + executed (pass-closed)
+Reasoning:
+1. `M11.A` had three deterministic-drift defects that could mislead execution:
+   - entry text required dual-source readability while algorithm used local-first/durable-fallback,
+   - authority check incorrectly blocked all `TBD` values at M11.A, conflicting with intended M11.B handle closure,
+   - duplicate algorithm step number introduced ordering ambiguity.
+2. USER requested immediate patch then execution.
+
+Decision:
+1. Patch M11.A wording first (fail-closed alignment), then execute without introducing any new utility files.
+2. Keep durable publication blocker semantics (`M11A-B5`) strict.
+3. Use existing run-control evidence lane for M11.A snapshot publication as a transitional posture until dev-full evidence handle closure in M11.B.
+
+Implementation:
+1. Patched `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md`:
+   - corrected source-readability contract to per-artifact local-preferred/durable-fallback,
+   - scoped `TBD` prohibition to M11.A authority-document references and explicitly deferred `TBD_M11B` to M11.B,
+   - fixed deterministic algorithm numbering.
+2. Executed M11.A closure runner inline (no new scripts/files under `tools/`):
+   - validated M10 verdict and blocker-free posture from local anchors,
+   - verified authority set readability,
+   - computed target-environment consistency checks,
+   - emitted closure snapshot.
+3. Published evidence:
+   - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_a_authority_handoff_snapshot.json`
+   - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_a_authority_handoff_snapshot.json`
+4. Updated phase status/evidence notes:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (`M11` moved to `ACTIVE`, M11.A execution note added),
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md` (`M11.A` DoD checks marked complete; execution evidence captured).
+
+Results:
+1. `m11_execution_id = m11_20260222T145654Z`
+2. `overall_pass = true`
+3. blockers empty
+4. runtime budget gate satisfied (< 10 minutes)
+
+Constraints preserved:
+1. No branch/history operations.
+2. No secrets recorded in notes or plans.
+3. No infrastructure mutation beyond writing run artifacts and durable evidence.

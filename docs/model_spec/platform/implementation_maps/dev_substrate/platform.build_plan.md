@@ -105,7 +105,7 @@ Canonical lifecycle keys:
 | M8 | P11 | Obs/Gov closure | DONE |
 | M9 | P12 | Teardown proof + cost guardrails | DONE |
 | M10 | certification | Semantic Green + Scale Green certification | DONE |
-| M11 | F1 | Dev-full authority + handles + runtime closure for Learning/Registry | NOT_STARTED |
+| M11 | F1 | Dev-full authority + handles + runtime closure for Learning/Registry | ACTIVE |
 | M12 | F2 | Dev-full OFS dataset build and archive/data contracts closure | NOT_STARTED |
 | M13 | F3 | Dev-full MF train/eval + MPR publish/promotion closure | NOT_STARTED |
 | M14 | F4 | Dev-full full-platform certification + spine non-regression verdict | NOT_STARTED |
@@ -178,7 +178,7 @@ Current phase posture:
 - `M8` is `DONE`,
 - `M9` is `DONE`,
 - `M10` is `DONE` (certification closed).
-- `M11` is `NOT_STARTED`.
+- `M11` is `ACTIVE` (`M11.A` executed; `M11.B` pending).
 - `M12` is `NOT_STARTED`.
 - `M13` is `NOT_STARTED`.
 - `M14` is `NOT_STARTED`.
@@ -1715,7 +1715,7 @@ M10 DoD checklist:
 ---
 
 ## M11 - F1 Learning/Registry authority + runtime closure
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 
 Entry gate:
 - `M10` is `DONE` with certification verdict `ADVANCE_CERTIFIED_DEV_MIN`.
@@ -1768,6 +1768,12 @@ Phase planning posture:
   - `M11.H` spine carry-forward non-regression matrix pin (`M8..M10`),
   - `M11.I` cost + teardown continuity closure,
   - `M11.J` blocker rollup + verdict (`ADVANCE_TO_M12|HOLD_M11`).
+
+Execution notes:
+- `M11.A` completed with blocker-free closure snapshot:
+  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_a_authority_handoff_snapshot.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_a_authority_handoff_snapshot.json`
+- `M11` remains `ACTIVE` until `M11.B..M11.J` close.
 
 M11 DoD checklist:
 - [ ] Required `OFS/MF/MPR` handles are pinned and resolvable.

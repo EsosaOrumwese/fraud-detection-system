@@ -110,9 +110,9 @@ Goal:
 Entry conditions:
 1. `M10` is `DONE` in `platform.build_plan.md`.
 2. M10 verdict is `ADVANCE_CERTIFIED_DEV_MIN`.
-3. Source artifacts are readable:
-   - local + durable `m10_j_certification_verdict_snapshot.json`.
-   - local + durable `m10_certification_bundle_index.json`.
+3. Source artifacts are readable with fail-closed fallback:
+   - for each required artifact, at least one of local or durable source is readable.
+   - local is preferred; durable is required fallback.
 
 Required inputs:
 1. M10 closure artifacts:
@@ -139,7 +139,8 @@ Preparation checks (fail-closed):
    - no conflicting verdict across local/durable artifacts.
 4. Validate authority set completeness:
    - every Section 1 source exists and is readable.
-   - no unresolved "TBD" authority dependency.
+   - no unresolved "TBD" in M11.A authority-document references.
+   - `TBD_M11B` required-handle values inside `dev_full_handles.registry.v0.md` are expected at M11.A and are closed in `M11.B`.
 5. Validate M11 target-environment consistency:
    - M11 objective/scope/snapshot contracts reference `dev_full` as runtime target.
    - any remaining `dev_min` runtime target in M11 surfaces is treated as drift.
@@ -155,12 +156,12 @@ Deterministic closure algorithm (M11.A):
    - any missing/unreadable authority -> `M11A-B3`.
 6. Resolve and verify dev-full authority package:
    - missing `dev_full` authority docs -> `M11A-B7`.
-6. Build deterministic authority matrix in fixed order:
+7. Build deterministic authority matrix in fixed order:
    - primary authority refs,
    - supporting refs,
    - source artifact refs.
-7. Emit `m11_a_authority_handoff_snapshot.json` locally.
-8. Publish snapshot durably; publish failure -> `M11A-B5`.
+8. Emit `m11_a_authority_handoff_snapshot.json` locally.
+9. Publish snapshot durably; publish failure -> `M11A-B5`.
 
 Tasks:
 1. Validate M10 verdict, blocker posture, and source readability.
@@ -185,13 +186,24 @@ Runtime budget:
 2. Over-budget without user waiver is blocker state (`M11A-B6`).
 
 DoD:
-- [ ] M10 handoff gate is pass-closed and blocker-free.
-- [ ] M11 authority list is complete and concrete.
-- [ ] M10 local/durable artifact coherence is verified.
-- [ ] Dev-full authority package is present and readable.
-- [ ] Target environment consistency confirms `dev_full`.
-- [ ] Snapshot schema for M11.A is pinned.
-- [ ] Snapshot exists locally and durably.
+- [x] M10 handoff gate is pass-closed and blocker-free.
+- [x] M11 authority list is complete and concrete for M11.A scope.
+- [x] M10 local/durable artifact coherence is verified.
+- [x] Dev-full authority package is present and readable.
+- [x] Target environment consistency confirms `dev_full`.
+- [x] Snapshot schema for M11.A is pinned.
+- [x] Snapshot exists locally and durably.
+
+Execution evidence (2026-02-22):
+1. Local snapshot:
+   - `runs/dev_substrate/m11/m11_20260222T145654Z/m11_a_authority_handoff_snapshot.json`
+2. Durable snapshot:
+   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_a_authority_handoff_snapshot.json`
+3. Closure result:
+   - `overall_pass=true`
+   - blockers empty
+4. Transitional publication note:
+   - `M11.A` durable publish reused existing run-control evidence lane; dev-full evidence handle pin remains part of `M11.B`.
 
 Blockers:
 1. `M11A-B1`: M10 handoff unreadable/invalid.
@@ -464,5 +476,6 @@ M11 verdict snapshot (`m11_j_verdict_snapshot.json`) additional required fields:
 
 ## 9) Planning Status
 1. This file is now expanded to execution-grade planning depth.
-2. No runtime infrastructure change or execution is performed by this planning update.
-3. Status transitions remain governed only by `platform.build_plan.md`.
+2. `M11.A` closure execution has been completed with local + durable evidence publication.
+3. No runtime infrastructure changes were performed during `M11.A` closure execution.
+4. Status transitions remain governed only by `platform.build_plan.md`.
