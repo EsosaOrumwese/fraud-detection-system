@@ -1,12 +1,9 @@
 # Dev Substrate Migration Build Plan (Fresh Start)
-_Track: local_parity -> dev_min managed substrate (Spine Green v0), then dev_full for Learning/Registry + full-platform closure_
+_Track: local_parity -> dev_min managed substrate (Spine Green v0)_
 _Last updated: 2026-02-22_
 
 ## 0) Purpose
-This is the active execution plan for:
-1. migrating the already-canonical local-parity Spine Green v0 flow into `dev_min`,
-2. then extending Learning/Registry + full-platform certification on `dev_full`,
-with:
+This is the active execution plan for migrating the already-canonical local-parity Spine Green v0 flow into `dev_min` with:
 - no laptop runtime compute,
 - strict phase gates,
 - fail-closed behavior,
@@ -16,20 +13,14 @@ with:
 This plan is intentionally progressive: we only expand detailed implementation steps when a phase becomes active.
 
 ## 1) Scope Lock
-In scope for certified baseline (closed):
+In scope for green migration baseline:
 - Control + Ingress
 - RTDL
 - Case + Labels
 - Run/Operate + Obs/Gov
 
-In scope for post-M10 full-platform extension (planned):
-- Learning/Registry (OFS/MF/MPR) on `dev_full` managed substrate
-- Full-platform certification on `dev_full` with spine non-regression gates
-
-Out of scope for this program:
-- local-parity rebuild/re-implementation
-- laptop runtime compute for platform jobs/services
-- production cutover
+Out of scope for this baseline:
+- Learning/Registry (OFS/MF/MPR)
 
 ## 2) Authority and Precedence
 Execution authority:
@@ -37,11 +28,6 @@ Execution authority:
 2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 3. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
 4. `docs/design/platform/local-parity/*` for semantic source truth
-
-Post-M10 extension authority (`M11+`, dev_full target):
-1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` *(required before M11 execution closure)*
-2. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md` *(required before M11 execution closure)*
-3. `docs/model_spec/platform/platform-wide/dev_substrate_to_production_resource_tooling_notes.md` *(tooling/reference authority for dev_full posture)*
 
 If drift appears:
 - stop implementation,
@@ -57,9 +43,6 @@ Migration program is complete only when all are true:
 - No local/laptop runtime compute is used for platform services/jobs.
 - P12 teardown leaves no demo cost-bearing resources.
 - A second run is reproducible without semantic drift.
-- Learning/Registry (`OFS/MF/MPR`) is green on `dev_full` with deterministic evidence.
-- `M8..M10` spine non-regression gates pass after Learning/Registry activation on `dev_full`.
-- Final full-platform verdict for `dev_full` is published with blocker-free rollup.
 
 ## 4) Non-Negotiable Guardrails
 - No laptop compute for runtime jobs/services.
@@ -88,9 +71,7 @@ Statuses:
 - `BLOCKED`
 
 ## 6) Phase Roadmap (Canonical)
-Canonical lifecycle keys:
-- `phase_id=P#` for Spine Green v0 migration phases from runbook.
-- `phase_id=F#` for post-spine full-platform extension phases.
+Canonical lifecycle key: `phase_id=P#` from migration runbook.
 
 | Plan Phase | Canonical phase_id | Name | Status |
 | --- | --- | --- | --- |
@@ -105,10 +86,6 @@ Canonical lifecycle keys:
 | M8 | P11 | Obs/Gov closure | DONE |
 | M9 | P12 | Teardown proof + cost guardrails | DONE |
 | M10 | certification | Semantic Green + Scale Green certification | DONE |
-| M11 | F1 | Dev-full authority + handles + runtime closure for Learning/Registry | DONE |
-| M12 | F2 | Dev-full OFS dataset build and archive/data contracts closure | NOT_STARTED |
-| M13 | F3 | Dev-full MF train/eval + MPR publish/promotion closure | NOT_STARTED |
-| M14 | F4 | Dev-full full-platform certification + spine non-regression verdict | NOT_STARTED |
 
 ---
 
@@ -117,7 +94,7 @@ Per-phase deep planning docs follow this naming pattern:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`
 - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
 - ...
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M14.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`
 
 Control rule:
 - `platform.build_plan.md` is the only file allowed to change phase status (`ACTIVE/DONE/BLOCKED`).
@@ -139,15 +116,11 @@ Current deep-plan file state:
 - `M8`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md` (present)
 - `M9`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md` (present)
 - `M10`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md` (present)
-- `M11`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md` (present)
-- `M12`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M12.build_plan.md` (present)
-- `M13`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M13.build_plan.md` (planned on activation)
-- `M14`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M14.build_plan.md` (planned on activation)
 
 ---
 
 ## 6.2) Phase Evidence Template (Pinned at M0)
-Each phase (M1..M14) must produce an evidence snapshot aligned to this template:
+Each phase (M1..M10) must produce an evidence snapshot aligned to this template:
 - `phase_id` and plan phase (`M#`)
 - `platform_run_id` (or `N/A` when run not created yet)
 - authority refs used (runbook + handles sections)
@@ -178,10 +151,6 @@ Current phase posture:
 - `M8` is `DONE`,
 - `M9` is `DONE`,
 - `M10` is `DONE` (certification closed).
-- `M11` is `DONE` (`M11.A..M11.J` executed; verdict `ADVANCE_TO_M12`).
-- `M12` is `NOT_STARTED`.
-- `M13` is `NOT_STARTED`.
-- `M14` is `NOT_STARTED`.
 
 ## M0 - Mobilization + Authority Lock
 Status: `DONE`
@@ -1714,289 +1683,6 @@ M10 DoD checklist:
 
 ---
 
-## M11 - F1 Learning/Registry authority + runtime closure
-Status: `DONE`
-
-Entry gate:
-- `M10` is `DONE` with certification verdict `ADVANCE_CERTIFIED_DEV_MIN`.
-- Spine evidence bundle remains readable and immutable:
-  - `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`
-  - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`
-- USER explicitly activates `M11`.
-- Dev-full authority package is pinned (runbook/handles/authority docs for `M11+`); if absent, `M11` remains fail-closed.
-
-Objective:
-- Establish deterministic execution authority for Learning/Registry (`OFS/MF/MPR`) on managed `dev_full` substrate without introducing ownership drift or non-repeatable runtime behavior.
-
-Scope:
-- Learning/Registry handle closure in `dev_full` registry authority (no wildcard or implicit surfaces).
-- Runtime topology and IAM closure for:
-  - OFS job lane (ECS run-task),
-  - MF job lane (ECS run-task),
-  - MPR runtime/control lane (service or job as pinned),
-  - registry/event evidence surfaces.
-- Durable storage contracts for:
-  - archive read basis,
-  - feature artifacts,
-  - model artifacts,
-  - registry state/evidence.
-- Spine non-regression precheck matrix design (`M8..M10` carry-forward contract).
-
-Out of scope:
-- OFS dataset build execution (moved to `M12`).
-- MF training/eval execution (moved to `M13`).
-- Integrated full-platform certification (moved to `M14`).
-
-Failure posture:
-- Fail closed on any of:
-  - unresolved required handles or ambiguous ownership boundaries,
-  - missing task-role least-privilege closure for OFS/MF/MPR lanes,
-  - undocumented runtime path requiring laptop execution,
-  - inability to define spine non-regression gate matrix for `M8..M10`.
-
-Phase planning posture:
-- Detailed authority file:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md`.
-- Planned sub-phase progression model:
-  - `M11.A` authority + M10 handoff closure,
-  - `M11.B` Learning/Registry handle closure matrix,
-  - `M11.C` runtime decomposition + entrypoint closure,
-  - `M11.D` IAM + secrets + KMS closure,
-  - `M11.E` data-store ownership + path contracts,
-  - `M11.F` messaging + governance/authn corridor closure,
-  - `M11.G` observability/evidence + blocker taxonomy closure,
-  - `M11.H` spine carry-forward non-regression matrix pin (`M8..M10`),
-  - `M11.I` cost + teardown continuity closure,
-  - `M11.J` blocker rollup + verdict (`ADVANCE_TO_M12|HOLD_M11`).
-
-Execution notes:
-- `M11.A` completed with blocker-free closure snapshot:
-  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_a_authority_handoff_snapshot.json`
-  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_a_authority_handoff_snapshot.json`
-- `M11.B` completed with blocker-free handle closure snapshot:
-  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_b_handle_closure_snapshot.json`
-  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_b_handle_closure_snapshot.json`
-- `M11.C` completed with blocker-free runtime decomposition snapshot:
-  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_c_runtime_decomposition_snapshot.json`
-  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_c_runtime_decomposition_snapshot.json`
-- `M11.D` completed with blocker-free IAM/secret/KMS closure snapshot:
-  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_d_iam_secret_kms_snapshot.json`
-  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_d_iam_secret_kms_snapshot.json`
-- `M11.E` completed with blocker-free data-store/path contract snapshot:
-  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_e_data_contract_snapshot.json`
-  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_e_data_contract_snapshot.json`
-- `M11.F` completed with blocker-free messaging/governance corridor snapshot:
-  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_f_messaging_governance_snapshot.json`
-  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_f_messaging_governance_snapshot.json`
-- `M11.G` completed with blocker-free observability/evidence taxonomy snapshot:
-  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_g_observability_evidence_snapshot.json`
-  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_g_observability_evidence_snapshot.json`
-- `M11.H` completed with blocker-free spine non-regression matrix snapshot:
-  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_h_non_regression_matrix_snapshot.json`
-  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_h_non_regression_matrix_snapshot.json`
-- `M11.I` completed with blocker-free cost/teardown continuity snapshot:
-  - local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_i_cost_teardown_continuity_snapshot.json`
-  - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_i_cost_teardown_continuity_snapshot.json`
-- `M11.J` completed with blocker-free verdict + handoff publication:
-  - verdict local: `runs/dev_substrate/m11/m11_20260222T145654Z/m11_j_verdict_snapshot.json`
-  - handoff local: `runs/dev_substrate/m11/m11_20260222T145654Z/m12_handoff_pack.json`
-  - verdict durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m11_j_verdict_snapshot.json`
-  - handoff durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m11_20260222T145654Z/m12_handoff_pack.json`
-  - verdict: `ADVANCE_TO_M12`
-
-M11 DoD checklist:
-- [x] Required `OFS/MF/MPR` handles are pinned and resolvable.
-- [x] Runtime lane topology is fully specified and managed-substrate only.
-- [x] IAM role map and secret/materialization surfaces are least-privilege and auditable.
-- [x] Data ownership + messaging/governance boundaries are explicit and non-overlapping.
-- [x] Observability/evidence schemas and blocker taxonomy are pinned.
-- [x] `M8..M10` non-regression matrix is pinned as mandatory carry-forward gate.
-- [x] Cost/teardown continuity is pinned for learning lanes.
-- [x] `M11` verdict + `m12_handoff_pack.json` are published locally + durably.
-
-Phase exit:
-- `M11` is marked `DONE`; all DoD checks are true and verdict is `ADVANCE_TO_M12`.
-
-## M12 - F2 OFS dataset build and archive/data contracts closure
-Status: `NOT_STARTED`
-
-Entry gate:
-- `M11` is `DONE` with verdict `ADVANCE_TO_M12`.
-- OFS runtime lane and data/secret surfaces are materialized from managed control plane.
-- USER explicitly activates `M12`.
-
-Objective:
-- Prove deterministic OFS dataset construction on `dev_full` from archive/label surfaces with explicit `as-of` semantics, leak-safe joins, and reproducible manifest evidence.
-
-Scope:
-- OFS intent envelope and run-scope controls.
-- Dataset build execution on managed compute (`ECS run-task`), no local job execution.
-- Label `as_of` discipline and join-scope closure.
-- Dataset manifest/evidence publication and replayability proof.
-- OFS parity evidence surfaces (where required by pinned pre-design decisions).
-
-Out of scope:
-- MF model training/evaluation/publish workflows (`M13`).
-- MPR promotion/rollback corridor closure (`M13`).
-- Full-platform certification rollup (`M14`).
-
-Failure posture:
-- Fail closed on any of:
-  - missing label-asof proof or leakage guard failure,
-  - non-deterministic dataset fingerprint across equivalent reruns,
-  - unresolved join-scope/drop-policy ambiguity,
-  - missing durable manifest/evidence artifacts.
-
-Phase planning posture:
-- Detailed authority file:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M12.build_plan.md`.
-- Planned sub-phase progression model:
-  - `M12.A` OFS authority + input-contract closure.
-  - `M12.B` archive/label readiness + label-asof gate closure.
-  - `M12.C` OFS managed runtime execution lane closure.
-  - `M12.D` manifest/fingerprint determinism + rerun reproducibility closure.
-  - `M12.E` parity/leakage checks + blocker adjudication closure.
-  - `M12.F` verdict + `M13` handoff (`ADVANCE_TO_M13|HOLD_M12`).
-
-Capability-lane coverage required before execution:
-- authority + handoff + handle closure,
-- identity/IAM + secrets + runtime profile closure,
-- archive + label timeline + asof contracts,
-- join-scope + drop-policy + leakage controls,
-- managed execution + retry/rerun controls,
-- observability/evidence + blocker taxonomy,
-- cost/teardown continuity posture for OFS lane.
-
-Required evidence outputs (minimum):
-- `m12_a_authority_input_contract_snapshot.json`
-- `m12_b_archive_label_asof_readiness_snapshot.json`
-- `m12_c_ofs_runtime_execution_snapshot.json`
-- `m12_d_manifest_determinism_snapshot.json`
-- `m12_e_parity_leakage_snapshot.json`
-- `m12_f_verdict_snapshot.json`
-- `m13_handoff_pack.json`
-
-M12 blocker families (phase-level):
-- `M12A-B*` authority/handle/input-contract blockers.
-- `M12B-B*` archive/label-asof readiness blockers.
-- `M12C-B*` runtime execution and publication blockers.
-- `M12D-B*` determinism/reproducibility blockers.
-- `M12E-B*` parity/leakage/blocker-adjudication blockers.
-- `M12F-B*` verdict/handoff publication blockers.
-
-M12 DoD checklist:
-- [ ] OFS datasets are built on managed compute with no local execution dependency.
-- [ ] Dataset manifest includes required as-of/join/fingerprint provenance.
-- [ ] Leakage checks pass fail-closed policy.
-- [ ] Equivalent rerun reproducibility is demonstrated for dataset fingerprints.
-- [ ] OFS evidence bundle is published locally + durably.
-- [ ] `M12` verdict artifact is blocker-free and published.
-
-Phase exit:
-- `M12` can be marked `DONE` only when all DoD checks are true and verdict is `ADVANCE_TO_M13`.
-
-## M13 - F3 MF train/eval + MPR publish/promotion closure
-Status: `NOT_STARTED`
-
-Entry gate:
-- `M12` is `DONE` with verdict `ADVANCE_TO_M13`.
-- OFS dataset manifests required for training intent are readable and integrity-checked.
-- USER explicitly activates `M13`.
-
-Objective:
-- Prove managed MF training/evaluation and MPR publish/promotion corridor on `dev_full` with deterministic evidence, compatibility enforcement, and rollback safety.
-
-Scope:
-- MF train/eval execution lanes on managed compute.
-- Eval report contract and fail-closed publish policy.
-- Bundle publication and registry write corridor.
-- MPR promotion/rollback controls and governance evidence.
-- Compatibility checks (feature/schema/capability posture) at publish/promote surfaces.
-
-Out of scope:
-- Integrated full-platform run certification (`M14`).
-- Production deployment/cutover.
-
-Failure posture:
-- Fail closed on any of:
-  - training/eval evidence gaps,
-  - bundle publication without required eval/provenance proofs,
-  - promotion attempted without governance/compatibility gates,
-  - rollback corridor missing or unproven.
-
-Phase planning posture:
-- Detailed authority file on activation:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M13.build_plan.md`.
-- Planned sub-phase progression model:
-  - `M13.A` MF/MPR authority + contract closure,
-  - `M13.B` training/eval runtime lane execution,
-  - `M13.C` publish corridor closure and evidence checks,
-  - `M13.D` promotion and rollback governance drills,
-  - `M13.E` verdict + `M14` handoff (`ADVANCE_TO_M14|HOLD_M13`).
-
-M13 DoD checklist:
-- [ ] MF train/eval runs are managed-substrate only and reproducible.
-- [ ] Eval reports meet pinned threshold and provenance requirements.
-- [ ] Bundle publish is blocked unless required evidence is complete.
-- [ ] MPR promotion corridor is compatibility-gated and auditable.
-- [ ] Rollback corridor is tested and evidence-backed.
-- [ ] `M13` verdict artifact is blocker-free and published.
-
-Phase exit:
-- `M13` can be marked `DONE` only when all DoD checks are true and verdict is `ADVANCE_TO_M14`.
-
-## M14 - F4 Full-platform certification + spine non-regression verdict
-Status: `NOT_STARTED`
-
-Entry gate:
-- `M13` is `DONE` with verdict `ADVANCE_TO_M14`.
-- `M8..M10` baseline certification artifacts remain readable and unmutated.
-- USER explicitly activates `M14`.
-
-Objective:
-- Produce final full-platform `dev_full` certification verdict by combining:
-  - Learning/Registry closure results (`M11..M13`),
-  - mandatory spine non-regression carry-forward validation (`M8..M10`).
-
-Scope:
-- Integrated certification execution matrix (spine + learning planes).
-- Cross-phase blocker rollup and deterministic final verdict synthesis.
-- Durable publication of full-platform certification bundle index and verdict.
-- Cost/teardown posture re-validation for integrated runtime.
-
-Out of scope:
-- Production cutover/go-live.
-- Environment promotion beyond `dev_full`.
-
-Failure posture:
-- Fail closed on any of:
-  - any failed source phase in `M8..M13`,
-  - non-regression breach in spine carry-forward gates,
-  - missing integrated evidence families,
-  - unresolved blocker union at final rollup.
-
-Phase planning posture:
-- Detailed authority file on activation:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M14.build_plan.md`.
-- Planned sub-phase progression model:
-  - `M14.A` authority + integrated threshold pinning,
-  - `M14.B` spine non-regression rerun matrix (`M8..M10` critical gates),
-  - `M14.C` learning-plane integrated run matrix (`M11..M13` outputs live),
-  - `M14.D` final blocker union + verdict synthesis,
-  - `M14.E` certification bundle publication + closeout.
-
-M14 DoD checklist:
-- [ ] Integrated source matrix (`M8..M13`) is complete and pass-closed.
-- [ ] Spine non-regression critical gates pass with learning enabled.
-- [ ] Full-platform evidence families are published locally + durably.
-- [ ] Final verdict artifact is published with deterministic blocker union and source refs.
-- [ ] Post-cert teardown/cost safety posture is revalidated.
-
-Phase exit:
-- `M14` can be marked `DONE` only when all DoD checks are true and final verdict is `ADVANCE_FULL_PLATFORM_DEV_FULL`.
-
----
-
 ## 9.1) High-Level Evidence Fidelity Map (Runbook Alignment)
 This map keeps high-level planning aligned to runbook evidence obligations.
 
@@ -2012,10 +1698,6 @@ This map keeps high-level planning aligned to runbook evidence obligations.
 | M8 | P11 | `obs/run_report.json`, `obs/reconciliation.json`, `obs/replay_anchors.json`, `obs/environment_conformance.json`, `obs/anomaly_summary.json`, `run_completed.json` |
 | M9 | P12 | teardown proof artifact + post-destroy resource check snapshot |
 | M10 | certification | semantic run bundles (20/200) + scale-run bundles (window/burst/soak/recovery) + drill refs |
-| M11 | F1 | dev_full learning/registry handle closure snapshot + runtime integration matrix + non-regression precheck matrix (`M8..M10`) |
-| M12 | F2 | dev_full OFS dataset manifest bundle + label_asof proof + join/parity evidence |
-| M13 | F3 | dev_full MF train/eval reports + bundle publication receipt + MPR promotion/rollback governance evidence |
-| M14 | F4 | dev_full full-platform certification verdict + spine non-regression rollup + integrated evidence bundle index |
 
 ---
 
@@ -2088,83 +1770,7 @@ R4: Cost leakage after demos
 Control: required P12 teardown proof and budget guardrails.
 
 ## 12) Immediate Next Action
-M11 is closed with verdict `ADVANCE_TO_M12`.
+M10 is closed with certification verdict published.
 Next action:
-- keep `M12` as the active next implementation target and execute only on explicit USER activation.
-- enforce mandatory `M8..M10` carry-forward non-regression gates throughout `M12` closure.
-
----
-
-## 13) Post-M10 Full-Platform Extension (M11+)
-This section is a summary bridge. Authoritative per-phase execution planning is in:
-- `## M11 - F1 ...`
-- `## M12 - F2 ...`
-- `## M13 - F3 ...`
-- `## M14 - F4 ...`
-
-### 13.1) Cross-Phase Decisions Pinned Now (Binding)
-1. Canonical verdict chain:
-   - `M11` closes only with `ADVANCE_TO_M12|HOLD_M11`.
-   - `M12` closes only with `ADVANCE_TO_M13|HOLD_M12`.
-   - `M13` closes only with `ADVANCE_TO_M14|HOLD_M13`.
-   - `M14` closes only with `ADVANCE_FULL_PLATFORM_DEV_FULL|HOLD_M14`.
-2. Mandatory spine carry-forward non-regression:
-   - `M8..M10` remain hard gates for any `M11+` closure claim.
-   - A failure in carry-forward matrix is blocker state; no phase advance.
-3. Managed-only runtime law:
-   - no laptop/local runtime compute for OFS/MF/MPR execution.
-4. Control-plane execution law:
-   - materialization and phase execution lanes are managed via `Terraform` and `GitHub Actions`.
-5. Cost/teardown law remains active:
-   - post-M10 phases may not bypass teardown/cost guardrail posture.
-   - no green/full-green claim with unresolved cost blockers.
-6. Evidence publication law:
-   - each `M11..M14` phase must publish local + durable S3 evidence artifacts before closure.
-
-### 13.2) Decisions Deferred to Deep Phase Plans (By Design)
-Decisions intentionally deferred to `platform.M11.build_plan.md` .. `platform.M14.build_plan.md`:
-1. Exact handle additions/changes and SSM/S3 path values.
-2. Exact IAM policy surfaces and task-role bindings per lane.
-3. Exact OFS/MF thresholds, tolerances, and dataset/eval profile parameters.
-4. Exact blocker taxonomies and remediation playbooks per sub-phase.
-5. Exact evidence snapshot schemas and artifact filenames.
-
-Fail-closed rule for deferred decisions:
-1. If execution reaches a missing required decision, stop execution and pin it first.
-2. Any new resource/topic/path/secret surface for `M11+` must be pinned in `dev_full` registry authority before use (M11.A closure dependency).
-
-Execution intent:
-- extend from Spine Green v0 certification to full-platform green in `dev_full`.
-- preserve `M1..M10` as frozen certified baseline; no semantic rewrites.
-
-Mandatory non-regression law:
-- `M8..M10` remain hard carry-forward gates.
-- any Learning/Registry rollout result is invalid unless:
-  - Obs/Gov closure integrity from `M8` still passes,
-  - teardown/cost posture from `M9` remains enforceable,
-  - semantic+scale certification surfaces from `M10` remain pass-closed under integrated runtime.
-
-Managed substrate/tooling posture for M11+:
-- IaC and orchestration:
-  - Terraform for substrate materialization/changes.
-  - GitHub Actions for managed phase execution workflows and evidence publishing.
-- Runtime compute:
-  - `dev_full` runtime posture is toolchain-oriented (for example SageMaker/Aurora/Databricks/MLflow/Airflow) as pinned in M11.A.
-  - handwritten service replicas for these managed surfaces are out-of-policy for this track.
-  - where ECS is still used, it remains bounded by phase profile/cost guardrails.
-- Data and messaging:
-  - S3 for archive/features/models/evidence durable artifacts.
-  - RDS for transactional registries/ledgers/indexes.
-  - Confluent Cloud Kafka for evented integration surfaces.
-- Secrets and identity:
-  - SSM SecureString + IAM least-privilege task roles + KMS-backed encryption.
-- Observability and proof:
-  - CloudWatch short-retention runtime logs.
-  - S3 durable evidence as the certification truth surface.
-
-Planned phase decomposition:
-- `M11/F1`: Learning/Registry authority + handles closure, runtime role and endpoint closure, entry contract closure.
-- `M12/F2`: OFS data/label-asof/join-scope closure, dataset manifest and parity evidence closure.
-- `M13/F3`: MF train/eval closure, bundle publication, MPR promotion corridor + rollback closure.
-- `M14/F4`: integrated full-platform certification (spine + learning), blocker rollup, final verdict publication.
+- await USER direction for post-certification actions (for example teardown refresh, migration wrap-up docs, or next-scope planning).
 
