@@ -190,12 +190,154 @@ Execution note:
 - `POPT.0` hotspot evidence ranked `S4` above `S1`; execution starts on `S4` first (evidence-driven variant) and then returns to this `S1` lane.
 
 Scope:
-- `packages/engine/src/engine/layers/l2/seg_5B/s1_time_grid/runner.py`.
+- code:
+  - `packages/engine/src/engine/layers/l2/seg_5B/s1_time_grid/runner.py`
+  - optional shared helper extraction if needed for reusable vectorized domain scan.
+- tooling/evidence:
+  - `tools/score_segment5b_popt1_closure.py` (new; baseline-vs-candidate runtime + veto rails).
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_popt1_*` artifacts.
+- out-of-scope:
+  - no policy/coeff realism tuning in `POPT.1`,
+  - no contract/schema semantics relaxation.
+
+POPT.1 baseline anchors (from POPT.0 authority):
+- baseline run-id: `c25a2675fbfbacd952b13bb594880e92`.
+- baseline `S1 wall`: `148.452s` (`19.92%` of segment lane).
+- lane signature: `input_load` dominant (`~146.84s`), compute secondary (`~1.18s`).
+- hotspot owner path:
+  - `S1: scanning merchant_zone_scenario_local_5A for grouping domain ...`
+  - `_scan_domain_keys` currently performs Python per-row tuple insertion over full scenario-local volume.
+
+POPT.1 closure gates (quantified):
+- runtime movement gate:
+  - `S1 wall <= 90s` (state budget target), OR
+  - `S1 reduction >= 40%` vs baseline (`<= 89.071s` equivalent).
+- structural non-regression gates:
+  - `S1 status=PASS`,
+  - `total_bucket_count` unchanged,
+  - `total_grouping_rows` unchanged,
+  - `total_unique_group_ids` unchanged,
+  - no new `error_code/error_class`.
+- grouping-shape rails:
+  - `median_members_per_group` non-regression within tight tolerance,
+  - `max_group_share` non-regression,
+  - no increase in scenario_count_failed.
+- downstream continuity gates:
+  - rerun `S1 -> S2 -> S3 -> S4 -> S5` all `PASS`.
+- determinism gate:
+  - same `(parameter_hash, manifest_fingerprint, seed)` reproduces identical structural counters and idempotent outputs.
+
+Execution posture:
+- run root: `runs/fix-data-engine/segment_5B`.
+- rerun law:
+  - any `S1` code change reruns `S1 -> S5` (sequential-state law).
+- prune posture:
+  - prune superseded failed run-id folders before each expensive candidate rerun.
+- fail-closed posture:
+  - any semantic/regression gate failure => `HOLD_POPT.1_REOPEN`.
+
+#### POPT.1.1 - Equivalence contract and scorer lock
+Objective:
+- pin exactly what counts as non-semantic optimization for `S1`.
+
+Scope:
+- define `segment5b_popt1_closure_<run_id>.json` schema:
+  - baseline vs candidate runtime deltas,
+  - structural counters veto rails,
+  - downstream chain pass/fail map,
+  - explicit decision field.
+- lock allowed differences:
+  - `durations`, lane timing, and logging cadence only.
+- lock forbidden differences:
+  - grouping identity/counters/schema and downstream pass posture.
 
 Definition of done:
-- [ ] `S1` wall time reduced materially vs baseline (target `>= 60%` reduction).
-- [ ] grouping/domain output parity holds on deterministic checks.
-- [ ] schema and downstream non-regression (`S2..S5`) remain green.
+- [ ] closure scorer contract is pinned and executable.
+- [ ] veto checks are explicit and machine-checkable from artifacts.
+- [ ] no unresolved equivalence ambiguity remains before code edits.
+
+#### POPT.1.2 - Algorithm/design lock for S1 hotspot
+Objective:
+- lock the pre-implementation algorithm choice and complexity target.
+
+Design alternatives:
+- Option A: keep Python per-row batch loops and tune batch size/log cadence only.
+- Option B: replace domain derivation with vectorized lazy scan + unique on required key columns.
+- Option C: pyarrow dictionary-encoding custom kernel path.
+
+Decision:
+- choose Option B as primary lane:
+  - compute keys using lazy/vectorized operators (`filter`, null checks, `select`, `unique`) and avoid Python row loops.
+  - keep deterministic output via explicit stable sort before grouping-id assignment.
+- Option C is fallback only if Option B cannot meet budget with parity.
+
+Complexity posture:
+- current: `O(N)` Python-row processing with high interpreter overhead.
+- target: `O(N)` columnar scan in native engine + `O(U log U)` deterministic ordering (`U` unique keys), with much lower constant factors.
+
+Definition of done:
+- [ ] chosen algorithm is documented with rationale and fallback trigger.
+- [ ] expected complexity and memory/IO posture are explicitly recorded.
+- [ ] logging cadence budget for scan progress is pinned (no high-frequency spam).
+
+#### POPT.1.3 - Domain-derivation implementation
+Objective:
+- implement vectorized key-domain extraction in `S1`.
+
+Scope:
+- replace `_scan_domain_keys` row loop path with vectorized/lazy domain extraction.
+- enforce scenario-id consistency and required-field null checks vectorially.
+- emit deterministic key ordering prior to group assignment.
+
+Definition of done:
+- [ ] `S1` hotspot path no longer depends on per-row Python tuple insertion.
+- [ ] key-domain parity holds versus baseline authority on structural counters.
+- [ ] no schema/contract compatibility regressions introduced.
+
+#### POPT.1.4 - Instrumentation + logging budget closure
+Objective:
+- keep observability while removing runtime drag from progress telemetry.
+
+Scope:
+- pin progress heartbeat cadence for heavy scans.
+- ensure phase markers remain sufficient for lane decomposition artifacts.
+
+Definition of done:
+- [ ] lane timing markers remain parsable.
+- [ ] logging cadence is bounded and non-dominant in `S1` elapsed.
+- [ ] no loss of required audit evidence.
+
+#### POPT.1.5 - Witness rerun and closure scoring
+Objective:
+- prove runtime gain and non-regression on changed-state chain.
+
+Scope:
+- execute witness rerun `S1 -> S2 -> S3 -> S4 -> S5`.
+- emit:
+  - `segment5b_popt1_lane_timing_<run_id>.json`,
+  - `segment5b_popt1_closure_<run_id>.json`,
+  - `segment5b_popt1_closure_<run_id>.md`.
+
+Definition of done:
+- [ ] witness chain `S1..S5` is all `PASS`.
+- [ ] runtime gate and veto rails are scored from artifacts.
+- [ ] reopen blockers (if any) are mapped to bounded follow-up action.
+
+#### POPT.1.6 - Phase closure and handoff
+Objective:
+- close phase with explicit decision and retained run/artifact map.
+
+Scope:
+- record closure decision:
+  - `UNLOCK_POPT3` (if in numbered order), or
+  - `UNLOCK_POPT2_CONTINUE` (if evidence-driven `S4` lane remains active first).
+- prune superseded failed run-id folders under keep-set rules.
+- sync build plan + implementation map + logbook.
+
+Definition of done:
+- [ ] explicit closure decision is recorded.
+- [ ] retained run-id and artifact pointers are pinned.
+- [ ] prune action is completed and logged.
 
 ### POPT.2 - S4 expansion-path optimization (primary hotspot)
 Goal:

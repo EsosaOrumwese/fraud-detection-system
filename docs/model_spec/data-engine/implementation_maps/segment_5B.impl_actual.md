@@ -5133,3 +5133,59 @@ Documentation updates applied after execution:
    - runtime budgets in section 3.4 replaced with finalized values.
    - closure snapshot inserted with artifact pointers, ranking, and handoff decision.
    - immediate execution order updated to reflect POPT.0 closure and next-lane posture.
+
+### Entry: 2026-02-22 02:05
+
+Design element: `POPT.1` execution-grade plan expansion (S1 domain-derivation lane).
+Summary: expanded `POPT.1` from a short placeholder into a full sub-phase closure plan (`POPT.1.1 -> POPT.1.6`) with quantified runtime gates, explicit non-regression rails, algorithm-selection rationale, and artifact contracts.
+
+Problem framing:
+- `POPT.0` showed `S1` as the second-largest hotspot (`148.452s`, `19.92%`) with dominant lane `input_load`.
+- run-log evidence traces this time to `S1` domain-key scanning of `merchant_zone_scenario_local_5A` (`rows_seen=35,700,480`) via Python row-wise loops in `_scan_domain_keys`.
+- the current `POPT.1` text did not yet define:
+  - closure scorer contract,
+  - quantified veto rails beyond generic wording,
+  - algorithmic choice and complexity rationale required by performance-first law.
+
+Decision path and alternatives considered:
+1) **Planning granularity**
+   - Option A: keep POPT.1 as a brief DoD list.
+   - Option B: expand to sub-phases with explicit closure artifacts and fail-closed decisions.
+   - Decision: Option B for auditability and deterministic phase control.
+
+2) **S1 optimization algorithm choice**
+   - Option A: retain Python per-row key scan and tune only batch/log cadence.
+   - Option B: replace key derivation with vectorized lazy scan + unique + deterministic sort.
+   - Option C: implement custom pyarrow dictionary/compute kernel.
+   - Decision: Option B as primary lane because it directly targets interpreter overhead while keeping semantics stable; Option C retained as fallback only.
+
+3) **Closure threshold posture**
+   - Option A: preserve prior informal `>=60%` reduction wording only.
+   - Option B: use budget-aligned quantified gate (`<=90s` or equivalent reduction) plus structural veto rails.
+   - Decision: Option B to align POPT closure with pinned runtime budgets and fail-closed semantics.
+
+What was changed in the build plan:
+1) Expanded `POPT.1` scope:
+   - code owner paths,
+   - closure tooling artifacts,
+   - explicit out-of-scope boundaries.
+2) Added baseline anchors from POPT.0 evidence (`run_id`, elapsed, lane signature, owner path).
+3) Added quantified closure gates:
+   - runtime gate,
+   - structural counters parity,
+   - grouping-shape non-regression,
+   - downstream `S1->S5` continuity,
+   - determinism/idempotency rail.
+4) Added six sub-phases:
+   - `POPT.1.1` equivalence contract and scorer lock,
+   - `POPT.1.2` algorithm/design lock + complexity posture,
+   - `POPT.1.3` domain-derivation implementation,
+   - `POPT.1.4` instrumentation/logging budget closure,
+   - `POPT.1.5` witness rerun + closure scoring,
+   - `POPT.1.6` explicit closure/handoff decision.
+5) Kept numbering interoperability explicit with evidence-driven execution order (`S4` promoted first from POPT.0 ranking), while preserving complete POPT.1 closure contract for when executed.
+
+Algorithmic posture pinned for implementation:
+- current hotspot path: `O(N)` Python row loop over scenario-local volume.
+- target posture: `O(N)` native columnar scan + `O(U log U)` deterministic ordering over unique key set (`U` keys), materially reducing constant factors and interpreter overhead.
+- invariants: same grouping identity/counters/schema; no policy/realism tuning in this phase.
