@@ -1237,10 +1237,133 @@ Scope:
 - `S5` civil-time validation power + strict enforcement.
 - conditional upstream `2A` timezone transition-horizon reopen if needed.
 
+Execution posture (binding):
+- local-first correction sequence:
+  1) fix `S4/S5` contract + enforcement locally,
+  2) measure hard-gate movement,
+  3) reopen upstream `2A` only if local lane cannot close `T1/T2/T3` and `T11` remains red.
+- frozen rails from `P0` are hard veto:
+  - `T4` conservation,
+  - `T5` routing field integrity.
+- P1 is correctness-only:
+  - no `T6/T7` calibration tuning in this phase.
+
+Mutable surfaces for P1:
+- code:
+  - `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+  - `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
+- policy/config:
+  - `config/layer2/5B/validation/validation_policy_5B.yaml`
+  - optional `config/layer2/5B/policy/arrival_routing_policy_5B.yaml` only for semantic guard exposure, not calibration.
+- conditional upstream (only on explicit trigger from `P1.5`):
+  - `L1/2A` timezone timetable cache horizon/coverage lane.
+
+P1 artifacts (required):
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p1_realism_gateboard_<run_id>.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p1_realism_gateboard_<run_id>.md`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p1_temporal_diagnostics_<run_id>.json`
+- `runs/fix-data-engine/segment_5B/reports/segment5b_p1_t11_t12_contract_check_<run_id>.json`
+- conditional:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_2a_reopen_decision_<run_id>.json`
+
+#### P1.1 - Correctness contract and veto lock
+Objective:
+- lock exact P1 success criteria and freeze non-regression rails before code/policy edits.
+
+Scope:
+- pin hard-closure targets for this phase:
+  - `T1`, `T2`, `T3`, `T11`, `T12`,
+  - with mandatory non-regression on `T4/T5`.
+- pin accepted decision vocabulary:
+  - `UNLOCK_P2`,
+  - `HOLD_P1_REOPEN`,
+  - `UNLOCK_P1_UPSTREAM_2A_REOPEN` (conditional branch only).
+- pin rerun matrix:
+  - local edits: `S4 -> S5`,
+  - upstream reopen accepted: full impacted chain including `2A` then `S4 -> S5`.
+
 Definition of done:
-- [ ] `T1/T2/T3` hard gates pass on candidate + witness lanes.
-- [ ] civil-time failures are no longer warn-only in enforced mode.
-- [ ] count/routing invariants remain non-regressed.
+- [ ] P1 contract artifact is machine-checkable with explicit targets/veto rails.
+- [ ] decision vocabulary is pinned and unambiguous.
+- [ ] rerun matrix is explicit and fail-closed.
+
+#### P1.2 - S4 local-time contract semantics correction
+Objective:
+- remove local timestamp representation ambiguity causing `T12` failure and downstream civil-time disagreement.
+
+Scope:
+- adjust local-time field serialization to true wall-clock semantics (no misleading UTC marker on local fields).
+- preserve UTC canonical fields unchanged for ordering/audit.
+- emit explicit diagnostic counters for local serialization contract checks.
+
+Definition of done:
+- [ ] local-time contract checker shows no semantic marker mismatch on local fields.
+- [ ] UTC canonical timeline fields remain unchanged in meaning.
+- [ ] no `T4/T5` regression introduced.
+
+#### P1.3 - S5 civil-time enforcement + sample-power hardening
+Objective:
+- make civil-time defects fail-closed and increase detection power for DST-window mismatch.
+
+Scope:
+- enforce fail-closed behavior for civil-time breach in validator path.
+- remove warning-only acceptance path for material civil-time mismatch.
+- raise civil-time sampling power from lean baseline and expose support metrics in output.
+
+Definition of done:
+- [ ] `civil_time_ok=false` can no longer end in pass verdict under enforced policy.
+- [ ] sampled support diagnostics are emitted with explicit `insufficient_power` flags.
+- [ ] `T4/T5` and `rng_accounting` rails remain green.
+
+#### P1.4 - Local-only candidate lane (S4/S5) and scoring
+Objective:
+- prove how far local fixes alone can close `T1/T2/T3/T12` before any upstream reopen.
+
+Scope:
+- execute local candidate rerun lane `S4 -> S5`.
+- score gates `T1..T5`, `T11`, `T12` using P1 scorer surfaces.
+- publish temporal diagnostics bundle and contract-check evidence.
+
+Definition of done:
+- [ ] local candidate gateboard is emitted.
+- [ ] movement on `T1/T2/T3/T12` is quantified vs P0 baseline.
+- [ ] explicit local-lane decision is recorded (`close`, `hold`, or `upstream reopen trigger`).
+
+#### P1.5 - Conditional upstream 2A reopen decision lane
+Objective:
+- decide, with evidence, whether upstream `2A` must be reopened for transition-horizon closure.
+
+Trigger rule:
+- open this lane only when:
+  - `T1/T2/T3` remain hard-fail after `P1.4`, and
+  - `T11` still indicates horizon incompleteness.
+
+Scope:
+- emit explicit reopen decision artifact with causal evidence.
+- if triggered and approved in phase flow:
+  - execute bounded `2A` horizon correction lane,
+  - rerun impacted downstream correctness lane for `5B`.
+
+Definition of done:
+- [ ] reopen decision artifact is emitted (triggered or not-triggered).
+- [ ] if triggered, reopened lane result is scored against `T11` and temporal hard gates.
+- [ ] no implicit upstream reopen occurs outside this decision lane.
+
+#### P1.6 - Closure scoring and handoff lock
+Objective:
+- close P1 with an explicit handoff decision and retained evidence pointers.
+
+Decision outcomes:
+- `UNLOCK_P2`:
+  - `T1/T2/T3/T11/T12` pass for B hard correctness posture on lane authority run(s),
+  - `T4/T5` remain green.
+- `HOLD_P1_REOPEN`:
+  - any hard correctness gate remains unresolved after allowed lanes.
+
+Definition of done:
+- [ ] P1 closure gateboard is archived with explicit pass/fail by gate.
+- [ ] explicit `UNLOCK_P2` or `HOLD_P1_REOPEN` decision is recorded.
+- [ ] retained authority run/artifact pointers are pinned for P2 entry.
 
 ### P2 - Wave B calibration (timezone concentration + virtual share)
 Goal:

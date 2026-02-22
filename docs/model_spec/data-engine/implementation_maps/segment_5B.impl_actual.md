@@ -6395,6 +6395,44 @@ Artifacts emitted for this reopen closure:
 Hygiene:
 - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
 
+### Entry: 2026-02-22 16:17
+
+Planning step: expanded remediation `P1` into execution-grade sub-phases with hard gates and explicit conditional upstream reopen protocol.
+Summary: after `P0` closed `UNLOCK_P1`, the next risk was an under-specified correctness lane that could mix DST/civil-time fixes with calibration work. I formalized `P1` so it stays correctness-only (`T1/T2/T3/T11/T12`) with `T4/T5` as frozen veto rails and a fail-closed decision vocabulary.
+
+Why this structure was chosen:
+1) `P0` evidence already isolated ownership:
+   - `P1` owns DST/civil-time defects,
+   - `P2` owns concentration/virtual-share calibration.
+2) mixing `T6/T7` tuning into `P1` would weaken causal attribution for temporal closure.
+3) a deterministic trigger was needed for the optional upstream `2A` reopen so upstream is touched only when local `S4/S5` closure is provably insufficient.
+
+Alternatives considered and rejected:
+1) reopen `2A` immediately before local fixes:
+   - rejected; violates local-first closure discipline and increases blast radius.
+2) merge `P1` and `P2` into one broad lane:
+   - rejected; removes clean gate ownership and complicates rollback logic.
+3) keep P1 at high-level text only:
+   - rejected; prior iterations showed this causes execution drift and weak auditability.
+
+P1 execution architecture pinned:
+1) `P1.1` correctness contract + veto lock.
+2) `P1.2` `S4` local-time serialization semantics correction.
+3) `P1.3` `S5` civil-time fail-closed enforcement + sampling-power hardening.
+4) `P1.4` local-only candidate lane (`S4 -> S5`) with quantified movement vs `P0`.
+5) `P1.5` conditional `2A` reopen decision artifact (triggered only by persistent temporal hard-fail + horizon incompleteness evidence).
+6) `P1.6` closure scoring with explicit `UNLOCK_P2` or `HOLD_P1_REOPEN`.
+
+Artifacts pinned for P1:
+1) `segment5b_p1_realism_gateboard_<run_id>.json/.md`
+2) `segment5b_p1_temporal_diagnostics_<run_id>.json`
+3) `segment5b_p1_t11_t12_contract_check_<run_id>.json`
+4) conditional `segment5b_p1_2a_reopen_decision_<run_id>.json`
+
+Decision:
+- `P1` plan is execution-ready and fail-closed.
+- next step is `P1.1` execution (no code edits before contract artifact + rerun matrix lock).
+
 ### Entry: 2026-02-22 15:55
 
 Planning + execution step: close `POPT.5` with machine-checkable certification artifacts and explicit residual-budget posture.
