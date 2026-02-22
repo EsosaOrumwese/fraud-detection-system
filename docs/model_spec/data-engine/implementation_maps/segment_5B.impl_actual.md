@@ -7664,3 +7664,80 @@ Controls and bounded sweep posture:
 Acceptance/veto:
 1) accept only if `T6<=72%` and `T7` remains in-band and frozen rails remain green.
 2) if not closed in bounded attempts, keep best candidate evidence and retain hold posture.
+
+### Entry: 2026-02-22 20:05
+
+Execution update: completed `P2.4` code wiring in `5B.S4` with deterministic, opt-in concentration tempering controls.
+
+What was implemented:
+1) `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/numba_kernel.py`
+   - extended kernel signature for tempering arrays/flags,
+   - uses existing second Philox output (`e1`) as deterministic redirect coin,
+   - applies redirect only when selected edge is in top-K and merchant has a non-top table,
+   - keeps draw-count invariants unchanged (no extra RNG draws).
+2) `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+   - added env knobs:
+     - `ENGINE_5B_S4_TZ_TEMPER_ENABLE`,
+     - `ENGINE_5B_S4_TZ_TEMPER_TOPK`,
+     - `ENGINE_5B_S4_TZ_TEMPER_REDIRECT_P`.
+   - captured `edge_weight` in `EdgeAliasTables` for deterministic weighting,
+   - built top-K tz mask and per-merchant non-top alias tables,
+   - wired new kernel arguments,
+   - emitted run-report `tz_temper` block (requested/effective settings and eligibility).
+3) compile gate:
+   - `python -m py_compile .../s4_arrival_events/runner.py` -> PASS,
+   - `python -m py_compile .../s4_arrival_events/numba_kernel.py` -> PASS.
+
+Design invariants preserved:
+1) no synthetic tz support,
+2) no cross-merchant borrowing,
+3) count conservation/routing integrity untouched,
+4) default behavior unchanged when tempering is disabled.
+
+### Entry: 2026-02-22 20:46
+
+Execution update: `P2.4` bounded candidate sweep completed on authority run-id `c25a2675fbfbacd952b13bb594880e92`.
+
+Candidate protocol executed (per candidate):
+1) remove prior `5B` outputs (`arrival_events` + `validation`) for the authority run-id,
+2) rerun `make segment5b-s4` and `make segment5b-s5` on `RUNS_ROOT=runs/local_full_run-5`,
+3) rescore with `score_segment5b_p1_realism.py` and `score_segment5b_p2_calibration.py`.
+
+Candidates and outcomes:
+1) `p24_c1` (`topk=10`, `redirect_p=0.35`):
+   - `T6=74.2331%`, `T7=3.7043%`.
+2) `p24_c2` (`topk=15`, `redirect_p=0.65`):
+   - `T6=74.1646%`, `T7=3.7043%`.
+3) `p24_c3` (`topk=10`, `redirect_p=1.00`):
+   - `T6=74.0336%`, `T7=3.7043%`.
+
+Common lane observations:
+1) frozen rails (`T1/T2/T3/T4/T5/T11/T12`) stayed green for all candidates,
+2) runtime veto did not trigger,
+3) best bounded local improvement was `p24_c3`, but still above B threshold for `T6` (`<=72%`).
+
+Canonical restore decision:
+1) do not leave authority lane in env-dependent candidate posture,
+2) rerun canonical lane with tempering disabled (`ENABLE=0`, `REDIRECT=0`),
+3) refresh unsuffixed canonical `P1/P2` gateboards.
+
+Canonical restored posture:
+1) `T6=74.3382%`, `T7=3.7043%`,
+2) branch remains `HOLD_P2_UPSTREAM_REOPEN` (local bounded lane insufficient for `T6` B closure).
+
+Artifacts emitted for this lane:
+1) `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92_p24_c1.json`
+2) `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92_p24_c2.json`
+3) `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92_p24_c3.json`
+4) `runs/fix-data-engine/segment_5B/reports/segment5b_p24_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.json`
+5) `runs/fix-data-engine/segment_5B/reports/segment5b_p24_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.csv`
+6) `runs/fix-data-engine/segment_5B/reports/segment5b_p24_closure_c25a2675fbfbacd952b13bb594880e92.json`
+7) canonical refresh: `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92.json`
+
+### Entry: 2026-02-22 20:47
+
+Quality/performance cleanup after `P2.4` execution.
+
+Applied:
+1) set explicit `return_dtype=pl.Int32` on `tzid_operational` mapping in `S4` runner to remove `MapWithoutReturnDtypeWarning` and tighten deterministic dtype behavior.
+2) compile gate rerun for modified runner -> PASS.

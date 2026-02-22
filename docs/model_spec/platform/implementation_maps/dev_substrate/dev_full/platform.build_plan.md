@@ -243,7 +243,7 @@ M1 sub-phase progress:
 - [x] `M1.E` build-go transition and blocker adjudication.
 
 ## M2 - Substrate Readiness
-Status: `NOT_STARTED`
+Status: `IN_PROGRESS`
 
 Objective:
 - close `P0` by materializing core/streaming/runtime/data_ml/ops stacks.
@@ -255,6 +255,15 @@ Entry gate:
 Planned lanes:
 - Terraform apply/destroy viability, IAM/secret conformance, budget surface.
 
+M2 planning posture:
+- M2 deep-plan authority is now materialized at `platform.M2.build_plan.md`.
+- M2 is expanded to execution-grade coverage across `M2.A..M2.J`.
+- Active blocker lane for phase entry remains `M2-B*` and will be adjudicated during execution.
+- `M2.A` is now expanded to execution-grade backend/lock checks with explicit fail-closed blocker taxonomy (`M2A-B*`).
+- `M2.A` execution is now closed green with deterministic evidence:
+  - `runs/dev_substrate/dev_full/m2/m2a_20260222T204011Z/m2a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+- M2 phase execution remains active for `M2.B` onward.
+
 DoD anchors:
 - [ ] all five stacks apply cleanly.
 - [ ] required handles are materialized or explicit blockers raised.
@@ -262,6 +271,18 @@ DoD anchors:
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M2.build_plan.md`
+
+M2 sub-phase progress:
+- [x] `M2.A` state backend and lock conformance.
+- [ ] `M2.B` core stack materialization.
+- [ ] `M2.C` streaming stack materialization.
+- [ ] `M2.D` topic/schema readiness precheck.
+- [ ] `M2.E` runtime stack and IAM role posture.
+- [ ] `M2.F` secret path contract and materialization checks.
+- [ ] `M2.G` data_ml stack materialization.
+- [ ] `M2.H` ops stack and cost guardrail surfaces.
+- [ ] `M2.I` destroy/recover rehearsal and residual scan.
+- [ ] `M2.J` P0 gate rollup and verdict.
 
 ## M3 - Run Pinning and Orchestrator Readiness
 Status: `NOT_STARTED`

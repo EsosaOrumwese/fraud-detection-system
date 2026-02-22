@@ -1699,6 +1699,30 @@ P2.U1 closure snapshot (2026-02-22):
 - branch decision:
   - `HOLD_P2_UPSTREAM_REOPEN` (T7 owner lane closed successfully; remaining blocker is `T6`).
 
+P2.4 bounded local concentration-tempering snapshot (2026-02-22):
+- trigger execution:
+  - opened as bounded local `S4` lane to test residual `T6` closure without reopening upstream rails.
+- implementation posture:
+  - deterministic optional `S4` tempering knobs wired (env-gated, default off),
+  - no synthetic tzids, no cross-merchant borrowing, no extra RNG draws.
+- candidate grid executed (`S4 -> S5` each, with frozen-rail veto scoring):
+  - `p24_c1`: `topk=10`, `redirect_p=0.35`,
+  - `p24_c2`: `topk=15`, `redirect_p=0.65`,
+  - `p24_c3`: `topk=10`, `redirect_p=1.00`.
+- measured outcomes:
+  - canonical restored (`temper=off`): `T6=74.3382%`, `T7=3.7043%`,
+  - best candidate (`p24_c3`): `T6=74.0336%`, `T7=3.7043%`,
+  - frozen rails `T1/T2/T3/T4/T5/T11/T12`: all `PASS` across candidates,
+  - runtime veto: none triggered.
+- closure decision:
+  - bounded local lane improved `T6` but did not reach B (`<=72%`),
+  - canonical authority outputs restored with tempering disabled,
+  - branch remains `HOLD_P2_UPSTREAM_REOPEN`.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p24_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p24_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.csv`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p24_closure_c25a2675fbfbacd952b13bb594880e92.json`
+
 ### P3 - Wave C contract hardening
 Goal:
 - pin corrected semantics and thresholds in policy/schema/contracts so closure is durable.
@@ -1753,4 +1777,4 @@ Definition of done:
 7. `P1 Reopen Bridge` + `P1.T3` are closed with explicit `UNLOCK_P2`.
 8. `P2` is closed with `UNLOCK_P2_UPSTREAM_REOPEN` (local infeasibility proven for `T7`; frozen rails preserved).
 9. `P2.U1` executed and closed: `T7` now `PASS_B`, frozen rails preserved, `T6` remains red.
-10. active posture is `HOLD_P2_UPSTREAM_REOPEN` pending explicit next lane for `T6` closure.
+10. `P2.4` bounded local lane is now closed as insufficient for B closure on `T6`; active posture remains `HOLD_P2_UPSTREAM_REOPEN`.

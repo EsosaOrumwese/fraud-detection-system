@@ -1380,3 +1380,170 @@ _As of 2026-02-22_
 ### Starting intent recap
 1. Execute M1.E as fail-closed closeout adjudication.
 2. Produce required closure artifacts and close M1-B5 only if no-go checks clear.
+
+## Entry: 2026-02-22 20:14:15 +00:00 - M2 planning decision (deep-plan authority missing)
+
+### Observation
+1. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M2.build_plan.md is missing.
+2. Master plan references this file as the M2 deep authority, but no execution-grade breakdown exists yet.
+
+### Decision
+1. Create platform.M2.build_plan.md as the execution-grade authority before any M2 execution.
+2. Expand M2 using anti-cram coverage lanes: state backend, stacks, IAM, secrets, network, observability/evidence, rollback/rerun, teardown, and cost-control.
+3. Keep M2 status as planning-expanded only; no infrastructure execution in this step.
+
+### Planned structure
+1. M2.A state backend + lock conformance
+2. M2.B core stack materialization
+3. M2.C streaming stack materialization
+4. M2.D Kafka/schema readiness
+5. M2.E runtime stack + IAM posture
+6. M2.F secret-path contract and materialization checks
+7. M2.G data_ml stack closure
+8. M2.H ops stack (budget/alarm/dashboard) closure
+9. M2.I destroy/recover rehearsal + residual scan
+10. M2.J P0 gate rollup + verdict
+
+## Entry: 2026-02-22 20:15:18 +00:00 - M2 planning expansion completed
+
+### Files created/updated
+1. Created deep-plan authority:
+   - docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M2.build_plan.md
+2. Updated master-plan M2 section:
+   - docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md
+
+### What was expanded
+1. Execution-grade subphase map M2.A..M2.J with goals/tasks/DoD per lane.
+2. Explicit blocker taxonomy (M2-B1..M2-B8) and fail-closed rule.
+3. Completion checklist and handoff criteria for M3 entry.
+4. Master-plan posture sync with M2 sub-phase progress checklist.
+
+### Planning decisions locked
+1. M2 remains planning-only in this step (no infra mutation yet).
+2. Anti-cram lane coverage is explicit across backend, stacks, IAM, secrets, streaming, data_ml, ops, teardown/recover, and P0 rollup.
+3. M2 execution will begin only on explicit USER command.
+
+## Entry: 2026-02-22 20:28:19 +00:00 - M2.A planning kickoff (state backend and lock conformance)
+
+### Trigger
+1. USER requested detailed planning expansion for M2.A.
+
+### Planning objective
+1. Expand M2.A from high-level tasks to execution-grade steps with fail-closed checks.
+2. Pin exact backend/lock conformance checks, evidence artifacts, and blocker taxonomy before execution.
+
+### Scope guard
+1. This step is planning only; no Terraform apply/destroy execution is performed.
+
+## Entry: 2026-02-22 20:30:19 +00:00 - M2.A planning expanded to execution-grade detail
+
+### Expansion applied
+1. Added decision-completeness precheck for backend and stack-root readiness.
+2. Added explicit command-surface contract for backend, posture, and stack namespace checks.
+3. Added fail-closed M2A-B1..M2A-B5 blocker taxonomy.
+4. Added evidence contract for M2.A closure artifacts.
+5. Added explicit closure rule and expected entry blockers from current environment reality.
+
+### Planning findings pinned
+1. TF_STATE_BUCKET and TF_LOCK_TABLE currently absent (CLI observations recorded in planning).
+2. infra/terraform/dev_full/* stack roots currently absent in repository.
+
+### Rationale
+1. Exposing these blockers at planning time prevents ad-hoc execution drift and avoids ambiguous failures during first M2.A run.
+
+## Entry: 2026-02-22 20:32:24 +00:00 - M2.A execution kickoff (state backend + stack-root readiness)
+
+### Trigger
+1. USER directed full execution of M2.A with continuous reasoning trail capture.
+
+### Starting blockers (from M2.A plan)
+1. M2A-B1: missing TF_STATE_BUCKET and TF_LOCK_TABLE.
+2. M2A-B3: missing infra/terraform/dev_full/* stack-root directories.
+
+### Execution sequence selected
+1. Resolve backend resource blockers first (S3 + DynamoDB) so state/lock conformance can be proven.
+2. Materialize minimal infra/terraform/dev_full/{core,streaming,runtime,data_ml,ops} roots with backend surfaces required for 	erraform init readiness checks.
+3. Run bounded conformance checks (no apply) and emit required M2.A evidence artifacts.
+4. Close M2.A only if all DoD checks pass and blocker register is empty.
+
+## Entry: 2026-02-22 20:33:01 +00:00 - M2.A remediation lane 1 started (backend resources)
+
+### Decision
+1. Resolve M2A-B1 by creating pinned backend resources directly using AWS CLI:
+   - S3 state bucket raud-platform-dev-full-tfstate
+   - DynamoDB lock table raud-platform-dev-full-tf-locks
+2. Use bounded, least-scope setup for M2.A:
+   - bucket encryption, versioning, public access block,
+   - lock table with Terraform-standard LockID hash key and on-demand billing.
+
+### Alternatives considered
+1. Defer resource creation and leave blocker open.
+   - rejected: user requested full M2.A execution closure.
+2. Rename handles to available ad-hoc names.
+   - rejected: would create handle drift against pinned registry authority.
+
+## Entry: 2026-02-22 20:33:31 +00:00 - M2.A remediation issue detected (PowerShell external-command error semantics)
+
+### Issue
+1. Initial backend-create script used 	ry/catch around AWS CLI commands.
+2. AWS CLI command failures are not terminating exceptions by default in this shell posture, so create branches were not reliably entered.
+
+### Impact
+1. M2A-B1 remained unresolved after first attempt.
+
+### Decision
+1. Switch to explicit $LASTEXITCODE checks after probe commands.
+2. Re-run backend resource creation with deterministic exit-code gating.
+
+## Entry: 2026-02-22 20:34:22 +00:00 - M2.A remediation lane 2 started (stack-root materialization)
+
+### State after lane 1
+1. M2A-B1 backend resources are now present and posture-configured.
+2. Remaining blocker is M2A-B3 (missing dev_full stack roots).
+
+### Decision
+1. Materialize minimal Terraform root surfaces for five stacks (core/streaming/runtime/data_ml/ops) sufficient for backend init/readiness checks.
+2. Keep this bounded to M2.A readiness (no apply/resources yet), avoiding premature lane-coupling with later M2 subphases.
+
+## Entry: 2026-02-22 20:39:08 +00:00 - M2.A first conformance sweep failed closed
+
+### What happened
+1. Ran full M2.A conformance runner and produced a complete first evidence pack:
+   - `runs/dev_substrate/dev_full/m2/m2a_20260222T203851Z/`
+2. Verdict from first sweep:
+   - `overall_pass=false`
+   - blockers: `M2A-B1`, `M2A-B2`, `M2A-B5`.
+
+### Investigation
+1. Read `m2a_blocker_register.json` and found all command errors came from malformed AWS CLI invocation surfaces.
+2. Root cause:
+   - helper function accepted an array argument, but call sites passed positional arrays without named binding;
+   - this produced `aws` parser errors (`the following arguments are required: command`) and caused false blocker inflation.
+
+### Decision and rationale
+1. Do not override blocker output manually.
+   - rejected: would break fail-closed evidence integrity.
+2. Validate substrate posture directly with raw AWS CLI, then fix the conformance runner and rerun full lane.
+   - selected: gives deterministic truth and preserves auditability.
+
+## Entry: 2026-02-22 20:40:23 +00:00 - M2.A rerun passed after command-binding remediation
+
+### Remediation applied
+1. Updated the local conformance runner call pattern to named argument binding:
+   - `Invoke-AwsJson -CommandArgs ... -Surface ...`
+2. Re-ran full M2.A end-to-end (no partial patching).
+
+### Final PASS artifacts
+1. Evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2a_20260222T204011Z/`
+2. Required artifacts:
+   - `runs/dev_substrate/dev_full/m2/m2a_20260222T204011Z/m2a_backend_conformance_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2a_20260222T204011Z/m2a_stack_backend_matrix.json`
+   - `runs/dev_substrate/dev_full/m2/m2a_20260222T204011Z/m2a_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m2/m2a_20260222T204011Z/m2a_execution_summary.json`
+
+### Closure verdict
+1. `overall_pass=true`, blockers empty, `next_gate=M2.B_READY`.
+2. Stack backend-init readiness confirmed for all five stacks:
+   - `core`, `streaming`, `runtime`, `data_ml`, `ops`.
+3. M2.A is eligible to close in the build plans; M2 remains in-progress for M2.B onward.

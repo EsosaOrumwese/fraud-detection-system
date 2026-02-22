@@ -1584,7 +1584,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         alias_layout = alias_layout_policy
         endianness = str(alias_layout.get("endianness") or "little")
         edge_catalogue_df = edge_catalogue_df.with_columns(
-            pl.col("tzid_operational").map_elements(lambda v: tzid_to_idx.get(str(v), -1)).alias(
+            pl.col("tzid_operational").map_elements(
+                lambda v: tzid_to_idx.get(str(v), -1), return_dtype=pl.Int32
+            ).alias(
                 "tzid_operational_idx"
             )
         )
