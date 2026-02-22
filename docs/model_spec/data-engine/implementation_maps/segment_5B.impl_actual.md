@@ -7440,3 +7440,59 @@ Next actions:
 3) rerun `make segment5b-s4 segment5b-s5`.
 4) rerun `score_segment5b_p1_realism.py` and `score_segment5b_p2_calibration.py` (canonical unsuffixed artifacts).
 5) close `P2.4/P2.5` as not-triggered and complete `P2.6` decision.
+
+### Entry: 2026-02-22 19:14
+
+Execution closure for `P2.3` policy-only lane and canonical re-alignment.
+
+What was executed:
+1) fixed sweep orchestration defects encountered mid-lane:
+   - regex replacement bug for `p_virtual_hybrid` update (`\\1` ambiguity with decimal values),
+   - make invocation path normalization (`RUNS_ROOT` forced to POSIX form for make shell lane).
+2) reran bounded `P2.3` sweep with baseline + upper-bound probe (`p=0.80`) using deterministic cleanup + rerun protocol.
+3) emitted candidate matrix + sweep summary artifacts.
+4) tie-breaked no-gain policy drift:
+   - probe produced zero realism movement,
+   - reverted `arrival_routing_policy_5B.p_virtual_hybrid` back to baseline `0.3500`.
+5) executed canonical `S4->S5` rerun after baseline restore and refreshed `P1/P2` gateboards.
+
+Empirical outcomes:
+1) candidate matrix:
+   - baseline (`p=0.35`) and probe (`p=0.80`) are numerically identical on calibration gates:
+     - `T6=75.1922%`,
+     - `T7=2.2466%`.
+2) frozen rails remained green through all lanes:
+   - `T1/T2/T3/T4/T5/T11/T12` all pass.
+3) runtime remained within P2 budget:
+   - canonical post-revert `S4+S5=468.217s` (`<=540s` budget pass).
+
+Interpretation:
+1) `P2.2` math predicted no hybrid leverage (`share_hybrid=0.0`),
+2) `P2.3` empirical probe confirmed the prediction at policy upper bound,
+3) therefore local `T7` closure is infeasible under allowed P2 policy knobs.
+
+P2.4/P2.5 decisions:
+1) `P2.4` not triggered:
+   - trigger requires `T7` reachable and `T6` unresolved after policy-only lane,
+   - here `T7` itself is locally unreachable.
+2) `P2.5` skipped with rationale:
+   - no promotable local candidate existed for witness certification.
+
+P2.6 phase decision:
+- `UNLOCK_P2_UPSTREAM_REOPEN`.
+- Rationale: local infeasibility proven for `T7` with frozen rails preserved.
+
+Artifacts pinned:
+1) `segment5b_p2_contract_lock_c25....json`
+2) `segment5b_p2_sensitivity_c25....json`
+3) `segment5b_p2_candidate_matrix_c25....csv`
+4) `segment5b_p2_sweep_summary_c25....json`
+5) `segment5b_p2_gateboard_c25....json/.md`
+6) `segment5b_p2_closure_c25....json`
+7) `segment5b_p2_phase_decision_c25....json`
+
+Plan sync:
+1) updated `segment_5B.build_plan.md`:
+   - marked `P2.1..P2.6` DoDs closed,
+   - added closure snapshot and explicit branch decision,
+   - updated immediate execution order with `P2` closure posture.

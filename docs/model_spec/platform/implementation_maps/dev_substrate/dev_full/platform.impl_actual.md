@@ -634,3 +634,34 @@ _As of 2026-02-22_
 ### Notes
 1. This transition is planning-only; no runtime/infra/image build execution was performed.
 2. M1 execution remains fail-closed behind `ECR_REPO_URI` materialization and explicit user execution command.
+
+## Entry: 2026-02-22 20:12 +00:00 - M1.A planning expansion (image contract freeze)
+
+### Trigger
+1. USER requested: "Let's plan out M1.A".
+
+### Reasoning and alternatives considered
+1. `M1.A` was still template-level and could not prevent recurrence of prior image-bloat drift.
+2. Alternative A: keep M1.A high-level and defer all image-boundary choices to build-go.
+   - rejected because it violates decision-completeness and would reintroduce execution-time improvisation.
+3. Alternative B: fully pin image strategy and include/exclude contract now, then execute build later.
+   - selected because it closes ambiguity before any build command, preserves fail-closed posture, and aligns with `P(-1)` intent.
+
+### Decisions pinned in plan
+1. Dev_full v0 remains `single platform image` for all spine + learning entrypoints.
+2. Immutable-first reference posture remains authoritative (`IMAGE_REFERENCE_MODE=immutable_preferred`, immutable git-sha tag authoritative, mutable latest tag non-authoritative).
+3. Explicit image include allowlist was pinned (runtime code + platform config + interface contracts only).
+4. Explicit exclude denylist was pinned (engine runtime source, run data, scratch/logbook, caches, env/secret files, infra trees not needed in runtime image).
+5. Build-context law pinned for execution: broad repo-copy posture is prohibited; explicit copy surfaces + `.dockerignore` conformance required.
+6. M1.A blocker set and planned evidence artifacts were added so closure can be judged deterministically.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M1.build_plan.md`
+   - expanded `M1.A` into execution-grade contract details (strategy, boundary manifest, blocker taxonomy, evidence contract).
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+   - master-plan note added that `M1.A` is now expanded in the deep plan.
+
+### Execution posture after this change
+1. This is planning-only; no image build/push was executed.
+2. `M1` remains `ACTIVE` (planning).
+3. `M1-B1` (`ECR_REPO_URI` unresolved) remains a hard block for M1 execution build-go.

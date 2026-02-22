@@ -61,12 +61,79 @@ Tasks:
 2. Pin authoritative image reference mode (immutable-first).
 3. Pin image content boundary (required includes/excludes) for dev_full runtime.
 4. Ensure learning-plane entrypoints are represented in package surface.
+5. Define M1.A closure evidence artifacts and fail-closed blockers.
 
 DoD:
 - [ ] image strategy is explicit and authority-aligned.
 - [ ] immutable tag/digest posture is explicit.
 - [ ] content boundary is explicit and auditable.
 - [ ] no local-only/runtime-irrelevant payloads are in authoritative build context.
+- [ ] M1.A blocker set is empty or explicitly carried as no-go for build execution.
+
+M1.A planning precheck (decision completeness):
+1. `ECR_REPO_URI` remains unresolved and is a hard block for build/push execution (`M1-B1`), but it does not block packaging-contract planning.
+2. M1.A closure requires contract pinning only; image build proof is executed later in M1 build-go lane.
+
+M1.A image strategy contract (planned):
+1. Strategy for dev_full v0 is `single platform image` with multi-entrypoint runtime modes.
+2. Rationale:
+   - preserves deterministic parity with dev_min closure model while adding learning entrypoints,
+   - minimizes release drift across lanes before runtime stabilization in M2-M13,
+   - keeps rollback semantics simple (one immutable digest across all services/jobs).
+3. Decomposition policy:
+   - multi-image split is explicitly out of scope for M1 and requires repin in design authority + handles registry before adoption.
+
+M1.A immutable image reference posture (planned):
+1. Authoritative mode: `IMAGE_REFERENCE_MODE = "immutable_preferred"` from handles registry.
+2. Authoritative tag: `IMAGE_TAG_GIT_SHA_PATTERN`.
+3. Non-authoritative convenience tag: `IMAGE_TAG_DEV_FULL_LATEST` (operator convenience only; never closure evidence).
+4. No phase closure may rely on mutable tags.
+
+M1.A authoritative image content boundary (planned):
+1. Required include set (explicit path allowlist):
+   - `pyproject.toml`
+   - `Dockerfile`
+   - `src/fraud_detection/` (recursive)
+   - `config/platform/` (recursive)
+   - `docs/model_spec/platform/contracts/` (recursive)
+   - `docs/model_spec/data-engine/interface_pack/engine_outputs.catalogue.yaml`
+   - `docs/model_spec/data-engine/interface_pack/engine_gates.map.yaml`
+   - `docs/model_spec/data-engine/interface_pack/contracts/canonical_event_envelope.schema.yaml`
+   - `docs/model_spec/data-engine/interface_pack/contracts/engine_invocation.schema.yaml`
+   - `docs/model_spec/data-engine/interface_pack/contracts/engine_output_locator.schema.yaml`
+   - `docs/model_spec/data-engine/interface_pack/contracts/gate_receipt.schema.yaml`
+   - `docs/model_spec/data-engine/interface_pack/contracts/instance_proof_receipt.schema.yaml`
+   - `docs/model_spec/data-engine/interface_pack/contracts/run_receipt.schema.yaml`
+   - `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+   - `docs/model_spec/data-engine/layer-3/specs/contracts/6B/schemas.6B.yaml`
+2. Explicit exclude set (must not be included in image context payload):
+   - `packages/engine/src/engine/` and any other engine-runtime source trees
+   - `runs/`, `data/`, `reference/`, `artefacts/`, `scratch_files/`
+   - `.git/`, `.venv/`, `__pycache__/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`
+   - `docs/logbook/`, `docs/tmp/`
+   - `infra/terraform/` and infra-local helper trees not required by runtime image execution
+   - `.env`, `.env.*`, ad hoc credential/token files
+3. Build-context law:
+   - broad `COPY . .` packaging posture is prohibited for M1 execution,
+   - Dockerfile copy instructions must map to explicit include surfaces only,
+   - `.dockerignore` must enforce exclude set before build-go.
+
+M1.A entrypoint-surface coverage requirement (planned):
+1. Packaging surface must include all runtime modules for:
+   - Spine (`SR`, `WSP`, `IG`, RTDL workers, decision workers, CM/LS, reporter),
+   - Learning (`OFS`, `MF`, `MPR`) via the registry entrypoint handles.
+2. M1.A does not validate invocation behavior; invocation validation remains in `M1.B`.
+
+M1.A closure blockers (planning):
+1. `M1A-B1`: image strategy ambiguity (single vs split) not explicitly pinned.
+2. `M1A-B2`: include/exclude manifest incomplete or contains runtime-irrelevant payloads.
+3. `M1A-B3`: learning entrypoint surfaces absent from package contract.
+4. `M1A-B4`: Docker build context policy allows broad repo ingestion.
+
+M1.A evidence contract (planned):
+1. `image_contract_manifest.json` under `EVIDENCE_PHASE_PREFIX_PATTERN` with `phase_id="P(-1)"`.
+2. `build_context_allowlist_check.json` proving include/exclude validation results.
+3. `dockerignore_conformance_receipt.json` proving excluded high-volume/secret surfaces are blocked.
 
 ## M1.B Entrypoint Matrix Closure
 Goal:

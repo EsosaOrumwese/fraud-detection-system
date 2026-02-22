@@ -218,6 +218,7 @@ Entry gate:
 M1 planning posture:
 - M1 is active for planning and contract freeze.
 - M1 execution remains blocked until `ECR_REPO_URI` is materialized (`M1-B1`).
+- `M1.A` has been expanded to execution-grade contract detail in the deep plan (strategy, boundary, blockers, evidence).
 
 Planned lanes:
 - build, security/provenance, release evidence.

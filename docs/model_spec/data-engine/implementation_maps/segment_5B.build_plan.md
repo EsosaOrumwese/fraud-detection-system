@@ -1523,9 +1523,9 @@ Scope:
   - scorer must emit hard-veto summary for every candidate.
 
 Definition of done:
-- [ ] P2 contract artifact is emitted and machine-checkable.
-- [ ] frozen rails and decision vocabulary are explicit.
-- [ ] rerun and veto protocol is pinned.
+- [x] P2 contract artifact is emitted and machine-checkable.
+- [x] frozen rails and decision vocabulary are explicit.
+- [x] rerun and veto protocol is pinned.
 
 #### P2.2 - Sensitivity and feasibility decomposition (math-first)
 Objective:
@@ -1544,9 +1544,9 @@ Scope:
 - decompose `T6` concentration by tzid and merchant contribution to top-10 mass to identify highest-leverage concentration owners.
 
 Definition of done:
-- [ ] sensitivity artifact is emitted with ranked knob leverage.
-- [ ] local feasibility verdict is explicit (`reachable` or `locally_blocked`).
-- [ ] if `locally_blocked`, exact blocker owners are listed for conditional upstream reopen decisioning.
+- [x] sensitivity artifact is emitted with ranked knob leverage.
+- [x] local feasibility verdict is explicit (`reachable` or `locally_blocked`).
+- [x] if `locally_blocked`, exact blocker owners are listed for conditional upstream reopen decisioning.
 
 #### P2.3 - Policy-only calibration sweep (low blast radius)
 Objective:
@@ -1563,11 +1563,11 @@ Scope:
   - reject candidate on any frozen-rail regression or runtime veto.
 
 Definition of done:
-- [ ] candidate matrix artifact is complete with scores/runtime per candidate.
-- [ ] at least one candidate either:
+- [x] candidate matrix artifact is complete with scores/runtime per candidate.
+- [x] at least one candidate either:
   - reaches B on `T6/T7` with frozen rails intact, or
   - proves policy-only lane insufficient with quantitative evidence.
-- [ ] best policy-only candidate is selected and pinned.
+- [x] best policy-only candidate is selected and pinned.
 
 #### P2.4 - Deterministic concentration-tempering lane (conditional code lane)
 Objective:
@@ -1584,9 +1584,9 @@ Scope:
 - rerun `S4 -> S5` and rescore with veto rails.
 
 Definition of done:
-- [ ] trigger decision is explicitly recorded (opened or skipped).
-- [ ] if opened, code-path change is evidenced with deterministic parity checks.
-- [ ] `T6` movement is quantified without `T7` or frozen-rail regression.
+- [x] trigger decision is explicitly recorded (opened or skipped).
+- [x] if opened, code-path change is evidenced with deterministic parity checks.
+- [x] `T6` movement is quantified without `T7` or frozen-rail regression.
 
 #### P2.5 - Witness stability lane (seed panel subset)
 Objective:
@@ -1598,9 +1598,9 @@ Scope:
 - compute interim cross-seed variance for `T6/T7` as early warning.
 
 Definition of done:
-- [ ] witness seed artifacts are emitted and linked.
-- [ ] no frozen-rail failures on witness seeds.
-- [ ] candidate is either accepted for P3 handoff or returned to `P2.3/P2.4` with explicit cause.
+- [x] witness seed artifacts are emitted and linked, or explicit skip rationale is recorded when no promotable local candidate exists.
+- [x] no frozen-rail failures on witness seeds.
+- [x] candidate is either accepted for P3 handoff or returned to `P2.3/P2.4` with explicit cause.
 
 #### P2.6 - Closure scoring and handoff decision
 Objective:
@@ -1617,14 +1617,43 @@ Decision outcomes:
   - only when `P2.2`/`P2.3` evidence proves local infeasibility under bounded realism-safe knobs.
 
 Definition of done:
-- [ ] closure artifact captures gate outcomes, veto summary, and runtime posture.
-- [ ] explicit branch decision is recorded.
-- [ ] retained run/artifact pointers are pinned for `P3` entry or reopen lane.
+- [x] closure artifact captures gate outcomes, veto summary, and runtime posture.
+- [x] explicit branch decision is recorded.
+- [x] retained run/artifact pointers are pinned for `P3` entry or reopen lane.
+
+P2 closure snapshot (2026-02-22):
+- authority run-id:
+  - `c25a2675fbfbacd952b13bb594880e92`.
+- emitted artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_contract_lock_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_sensitivity_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.csv`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_sweep_summary_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_phase_decision_c25a2675fbfbacd952b13bb594880e92.json`
+- key outcomes:
+  - frozen rails (`T1/T2/T3/T4/T5/T11/T12`): all `PASS`.
+  - calibration gates remain red:
+    - `T6=75.1922%` (`FAIL` vs `<=72%`),
+    - `T7=2.2466%` (`FAIL` vs band `[3%,8%]`).
+  - `P2.2` feasibility:
+    - `share_hybrid=0.0`, so `p_virtual_hybrid` has zero leverage on `T7`.
+  - `P2.3` empirical confirmation:
+    - upper-bound probe (`p_virtual_hybrid=0.80`) produced zero `T6/T7` movement vs baseline.
+  - runtime:
+    - canonical post-revert `S4+S5=468.217s` (`PASS` vs `<=540s` budget).
+- `P2.4` trigger:
+  - not opened (`T7` not locally reachable under bounded policy knobs).
+- `P2.5` witness:
+  - skipped as no promotable local candidate existed.
+- phase decision:
+  - `UNLOCK_P2_UPSTREAM_REOPEN`.
 
 Definition of done:
-- [ ] `P2.1 -> P2.6` checklists are closed.
-- [ ] `T6/T7` reach B posture on authority/witness lanes with frozen rails intact.
-- [ ] explicit branch decision recorded: `UNLOCK_P3`, `HOLD_P2_REOPEN`, or conditional `UNLOCK_P2_UPSTREAM_REOPEN`.
+- [x] `P2.1 -> P2.6` checklists are closed.
+- [x] `T6/T7` either reach B posture or local infeasibility is proven with upstream reopen branch decision.
+- [x] explicit branch decision recorded: `UNLOCK_P3`, `HOLD_P2_REOPEN`, or conditional `UNLOCK_P2_UPSTREAM_REOPEN`.
 
 ### P3 - Wave C contract hardening
 Goal:
@@ -1678,4 +1707,5 @@ Definition of done:
 5. `P0` is closed (`P0.1 -> P0.5`) with authority gateboard + owner matrix + candidate protocol artifacts.
 6. `P1` local Wave-A correctness lane is closed with hold posture and upstream reopen trigger.
 7. `P1 Reopen Bridge` + `P1.T3` are closed with explicit `UNLOCK_P2`.
+8. `P2` is closed with `UNLOCK_P2_UPSTREAM_REOPEN` (local infeasibility proven for `T7`; frozen rails preserved).
 8. `P2` is now expanded (`P2.1 -> P2.6`) and ready to start at `P2.1` contract lock.
