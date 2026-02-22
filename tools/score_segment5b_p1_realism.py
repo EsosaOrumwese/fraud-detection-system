@@ -531,131 +531,20 @@ def main() -> None:
     major_failures = [gid for gid, g in gate_values.items() if GATES[gid].klass == "major" and not bool(g["b_pass"])]
     context_failures = [gid for gid, g in gate_values.items() if GATES[gid].klass == "context" and not bool(g["b_pass"])]
 
-    owner_matrix = {
-        "generated_utc": _now_utc(),
-        "segment": "5B",
-        "run_id": run_id,
-        "owner_rows": [
-            {
-                "gate_id": "T1",
-                "primary_owner": "L2/5B/S4 + L2/5B/S5",
-                "secondary_dependency": "L1/2A cache horizon",
-                "phase_owner": "P1",
-                "notes": "DST/local-time correctness closure lane.",
-            },
-            {
-                "gate_id": "T2",
-                "primary_owner": "L2/5B/S4 + L2/5B/S5",
-                "secondary_dependency": "L1/2A cache horizon",
-                "phase_owner": "P1",
-                "notes": "One-hour signature is treated as deterministic defect indicator.",
-            },
-            {
-                "gate_id": "T3",
-                "primary_owner": "L2/5B/S4 + L2/5B/S5",
-                "secondary_dependency": "L1/2A cache horizon",
-                "phase_owner": "P1",
-                "notes": "DST-window profile parity owned by timestamp/render + validator semantics.",
-            },
-            {
-                "gate_id": "T4",
-                "primary_owner": "Frozen rail",
-                "secondary_dependency": None,
-                "phase_owner": "Veto rail",
-                "notes": "Conservation is non-regression rail; no reopen in P1.",
-            },
-            {
-                "gate_id": "T5",
-                "primary_owner": "Frozen rail",
-                "secondary_dependency": None,
-                "phase_owner": "Veto rail",
-                "notes": "Routing nullability integrity is non-regression rail.",
-            },
-            {
-                "gate_id": "T6",
-                "primary_owner": "L2/5B routing policy",
-                "secondary_dependency": "L2/5A + L1/2B shape constraints",
-                "phase_owner": "P2",
-                "notes": "Calibration lane only after hard temporal fixes.",
-            },
-            {
-                "gate_id": "T7",
-                "primary_owner": "L2/5B routing policy",
-                "secondary_dependency": "L2/5A class/channel mix",
-                "phase_owner": "P2",
-                "notes": "Virtual-share posture tuning lane.",
-            },
-            {
-                "gate_id": "T10",
-                "primary_owner": "Certification lane",
-                "secondary_dependency": "multi-seed run-set",
-                "phase_owner": "P4",
-                "notes": "Not a P1 blocker for baseline lock; required for final certification.",
-            },
-            {
-                "gate_id": "T11",
-                "primary_owner": "L1/2A",
-                "secondary_dependency": "L2/5B S4 consumption checks",
-                "phase_owner": "P1 (conditional upstream reopen)",
-                "notes": "Upstream reopen only if S4/S5 local fixes cannot close hard temporal gates.",
-            },
-            {
-                "gate_id": "T12",
-                "primary_owner": "L2/5B/S4 + L2/5B/S5",
-                "secondary_dependency": None,
-                "phase_owner": "P1",
-                "notes": "Local-time representation contract semantics owner.",
-            },
-        ],
-        "failures_by_phase": {
-            "P1": [g for g in ("T1", "T2", "T3", "T11", "T12") if g in hard_failures or g == "T11"],
-            "P2": [g for g in ("T6", "T7") if g in major_failures],
-            "P4": ["T10"] if not t10_sufficient else [],
-        },
-        "frozen_veto_rails": ["T4", "T5"],
-    }
+    p1_hard = ["T1", "T2", "T3", "T11", "T12"]
+    p1_veto = ["T4", "T5"]
+    p1_hard_failures = [gid for gid in p1_hard if not bool(gate_values[gid]["b_pass"])]
+    p1_veto_failures = [gid for gid in p1_veto if not bool(gate_values[gid]["b_pass"])]
 
-    candidate_protocol = {
-        "generated_utc": _now_utc(),
-        "segment": "5B",
-        "run_id": run_id,
-        "phase_scope": "P1 correctness lane",
-        "rerun_matrix": {
-            "allowed_mutation_scope": ["L2/5B/S4", "L2/5B/S5"],
-            "default_rerun": ["S4", "S5"],
-            "disallowed_without_explicit_reopen": ["S1", "S2", "S3"],
-            "conditional_upstream_reopen": {
-                "owner_segment": "2A",
-                "trigger": "T1/T2/T3 remain hard-fail after local S4/S5 correctness fixes",
-            },
-        },
-        "promotion_veto": {
-            "hard_non_regression_required": ["T4", "T5"],
-            "hard_closure_targets": ["T1", "T2", "T3", "T12"],
-            "upstream_horizon_gate": "T11",
-            "no_calibration_promotion_while_hard_fails": True,
-        },
-        "runtime_budget": {
-            "target_s4_s5_combined_seconds": 540,
-            "max_regression_without_gate_movement": 0.20,
-            "authority_reference": "P0/POPT5 lane posture",
-        },
-    }
-
-    phase_decision = "UNLOCK_P1"
-    unresolved_items: list[str] = []
-    # P0 is baseline lock: unresolved hard-fail gates are acceptable if ownership/protocol are complete.
-    for required in ("T1", "T2", "T3", "T4", "T5", "T6", "T7", "T11", "T12"):
-        if required not in gate_values:
-            unresolved_items.append(f"missing_gate:{required}")
-    if sample_size <= 0:
-        unresolved_items.append("no_arrival_sample")
-    if unresolved_items:
-        phase_decision = "HOLD_P0_REOPEN"
+    local_lane_decision = "hold"
+    if not p1_hard_failures and not p1_veto_failures:
+        local_lane_decision = "close"
+    elif any(gid in p1_hard_failures for gid in ("T1", "T2", "T3")) and ("T11" in p1_hard_failures):
+        local_lane_decision = "upstream_reopen_trigger"
 
     gateboard = {
         "generated_utc": _now_utc(),
-        "phase": "P0",
+        "phase": "P1",
         "segment": "5B",
         "run": {
             "run_id": run_id,
@@ -671,10 +560,6 @@ def main() -> None:
             "s3_bucket_counts_5B": s3_path,
             "arrival_events_5B_glob": arrivals_glob,
             "tz_timetable_cache": str(tz_cache_meta_path),
-            "authority_reports": [
-                "docs/reports/eda/segment_5B/segment_5B_published_report.md",
-                "docs/reports/eda/segment_5B/segment_5B_remediation_report.md",
-            ],
         },
         "gates": {
             gid: {
@@ -687,41 +572,75 @@ def main() -> None:
             for gid, values in gate_values.items()
         },
         "summary": {
-            "hard_failures": hard_failures,
-            "major_failures": major_failures,
-            "context_failures": context_failures,
+            "p1_hard_failures": p1_hard_failures,
+            "p1_veto_failures": p1_veto_failures,
+            "hard_failures_all": hard_failures,
             "civil_time_ok_latest": latest_civil_ok,
             "validation_report_status": validation_report.get("status"),
             "arrival_sample_size": sample_size,
             "arrival_sample_target": int(args.sample_target),
             "arrival_sample_bad_parse_count": bad_parse_count,
+            "contract_parse_mismatch_count": contract_parse_mismatch_count,
             "dst_window_count": len(window_support),
             "dst_window_support_min": min_window_support,
             "dst_window_insufficient_power": insufficient_power,
-            "unresolved_items": unresolved_items,
-            "phase_decision": phase_decision,
+            "local_lane_decision": local_lane_decision,
         },
     }
 
-    json_path = out_root / f"segment5b_p0_realism_gateboard_{run_id}.json"
-    md_path = out_root / f"segment5b_p0_realism_gateboard_{run_id}.md"
-    owner_path = out_root / f"segment5b_p0_owner_state_matrix_{run_id}.json"
-    protocol_path = out_root / f"segment5b_p0_candidate_protocol_{run_id}.json"
+    baseline_path = out_root / f"segment5b_p0_realism_gateboard_{run_id}.json"
+    baseline_gates = None
+    if baseline_path.exists():
+        try:
+            baseline_gates = (_load_json(baseline_path) or {}).get("gates")
+        except Exception:
+            baseline_gates = None
+    if baseline_gates:
+        deltas: dict[str, Any] = {}
+        for gid in ("T1", "T2", "T3"):
+            cur = gate_values[gid]["value"]
+            base = (baseline_gates.get(gid) or {}).get("value")
+            if isinstance(cur, (int, float)) and isinstance(base, (int, float)):
+                deltas[gid] = cur - base
+        gateboard["baseline_delta_vs_p0"] = deltas
+
+    json_path = out_root / f"segment5b_p1_realism_gateboard_{run_id}.json"
+    md_path = out_root / f"segment5b_p1_realism_gateboard_{run_id}.md"
+    temporal_path = out_root / f"segment5b_p1_temporal_diagnostics_{run_id}.json"
+    t11_t12_path = out_root / f"segment5b_p1_t11_t12_contract_check_{run_id}.json"
 
     json_path.write_text(json.dumps(gateboard, indent=2), encoding="utf-8")
-    owner_path.write_text(json.dumps(owner_matrix, indent=2), encoding="utf-8")
-    protocol_path.write_text(json.dumps(candidate_protocol, indent=2), encoding="utf-8")
+    temporal_payload = {
+        "generated_utc": _now_utc(),
+        "run_id": run_id,
+        "sample_size": sample_size,
+        "t1_mismatch_rate": t1_value,
+        "t2_one_hour_signature_mass": t2_value,
+        "t3_dst_window_mae_pp": t3_value,
+        "dst_window_count": len(window_support),
+        "dst_window_support_min": min_window_support,
+        "dst_window_insufficient_power": insufficient_power,
+        "window_support": dict(window_support),
+    }
+    temporal_path.write_text(json.dumps(temporal_payload, indent=2), encoding="utf-8")
+    t11_t12_payload = {
+        "generated_utc": _now_utc(),
+        "run_id": run_id,
+        "T11": gate_values["T11"],
+        "T12": gate_values["T12"],
+        "local_lane_decision": local_lane_decision,
+    }
+    t11_t12_path.write_text(json.dumps(t11_t12_payload, indent=2), encoding="utf-8")
 
     lines = [
-        f"# Segment 5B P0 Realism Gateboard - run_id {run_id}",
+        f"# Segment 5B P1 Realism Gateboard - run_id {run_id}",
         "",
-        "## Phase Decision",
-        f"- `{phase_decision}`",
+        "## Local Lane Decision",
+        f"- `{local_lane_decision}`",
         "",
-        "## Fail Axes (B gates)",
-        f"- hard_failures: `{hard_failures}`",
-        f"- major_failures: `{major_failures}`",
-        f"- context_failures: `{context_failures}`",
+        "## P1 Gate Status",
+        f"- p1_hard_failures: `{p1_hard_failures}`",
+        f"- p1_veto_failures: `{p1_veto_failures}`",
         "",
         "## Key Metrics",
         f"- `T1` mismatch_rate: `{gate_values['T1']['value_fmt']}`",
@@ -729,23 +648,17 @@ def main() -> None:
         f"- `T3` dst_window_mae_pp: `{gate_values['T3']['value_fmt']}` (windows={len(window_support)}, min_support={min_window_support})",
         f"- `T4` conservation: `{gate_values['T4']['value_fmt']}`",
         f"- `T5` routing_integrity: `{gate_values['T5']['value_fmt']}`",
-        f"- `T6` top10_tz_share: `{gate_values['T6']['value_fmt']}`",
-        f"- `T7` virtual_share: `{gate_values['T7']['value_fmt']}`",
+        f"- `T11` cache_horizon: `{gate_values['T11']['value_fmt']}`",
         f"- `T12` contract_integrity: `{gate_values['T12']['value_fmt']}`",
-        "",
-        "## Notes",
-        "- `T10` is marked insufficient evidence in P0 because required seed panel is not present in this authority run.",
-        "- `T11` is inferred from cache metadata plus mismatch signature because explicit horizon fields are absent in the cache manifest.",
-        "- Owner-state matrix and candidate protocol artifacts are emitted for P1 handoff.",
         "",
     ]
     md_path.write_text("\n".join(lines), encoding="utf-8")
 
-    print(f"[segment5b-p0] gateboard_json={json_path}")
-    print(f"[segment5b-p0] gateboard_md={md_path}")
-    print(f"[segment5b-p0] owner_matrix={owner_path}")
-    print(f"[segment5b-p0] candidate_protocol={protocol_path}")
-    print(f"[segment5b-p0] phase_decision={phase_decision}")
+    print(f"[segment5b-p1] gateboard_json={json_path}")
+    print(f"[segment5b-p1] gateboard_md={md_path}")
+    print(f"[segment5b-p1] temporal_diagnostics={temporal_path}")
+    print(f"[segment5b-p1] t11_t12_contract_check={t11_t12_path}")
+    print(f"[segment5b-p1] local_lane_decision={local_lane_decision}")
 
 
 if __name__ == "__main__":

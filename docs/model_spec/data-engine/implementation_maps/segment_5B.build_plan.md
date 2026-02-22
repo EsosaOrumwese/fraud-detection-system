@@ -1283,9 +1283,9 @@ Scope:
   - upstream reopen accepted: full impacted chain including `2A` then `S4 -> S5`.
 
 Definition of done:
-- [ ] P1 contract artifact is machine-checkable with explicit targets/veto rails.
-- [ ] decision vocabulary is pinned and unambiguous.
-- [ ] rerun matrix is explicit and fail-closed.
+- [x] P1 contract artifact is machine-checkable with explicit targets/veto rails.
+- [x] decision vocabulary is pinned and unambiguous.
+- [x] rerun matrix is explicit and fail-closed.
 
 #### P1.2 - S4 local-time contract semantics correction
 Objective:
@@ -1297,9 +1297,9 @@ Scope:
 - emit explicit diagnostic counters for local serialization contract checks.
 
 Definition of done:
-- [ ] local-time contract checker shows no semantic marker mismatch on local fields.
-- [ ] UTC canonical timeline fields remain unchanged in meaning.
-- [ ] no `T4/T5` regression introduced.
+- [x] local-time contract checker shows no semantic marker mismatch on local fields.
+- [x] UTC canonical timeline fields remain unchanged in meaning.
+- [x] no `T4/T5` regression introduced.
 
 #### P1.3 - S5 civil-time enforcement + sample-power hardening
 Objective:
@@ -1311,9 +1311,9 @@ Scope:
 - raise civil-time sampling power from lean baseline and expose support metrics in output.
 
 Definition of done:
-- [ ] `civil_time_ok=false` can no longer end in pass verdict under enforced policy.
-- [ ] sampled support diagnostics are emitted with explicit `insufficient_power` flags.
-- [ ] `T4/T5` and `rng_accounting` rails remain green.
+- [x] `civil_time_ok=false` can no longer end in pass verdict under enforced policy.
+- [x] sampled support diagnostics are emitted with explicit `insufficient_power` flags.
+- [x] `T4/T5` and `rng_accounting` rails remain green.
 
 #### P1.4 - Local-only candidate lane (S4/S5) and scoring
 Objective:
@@ -1325,9 +1325,9 @@ Scope:
 - publish temporal diagnostics bundle and contract-check evidence.
 
 Definition of done:
-- [ ] local candidate gateboard is emitted.
-- [ ] movement on `T1/T2/T3/T12` is quantified vs P0 baseline.
-- [ ] explicit local-lane decision is recorded (`close`, `hold`, or `upstream reopen trigger`).
+- [x] local candidate gateboard is emitted.
+- [x] movement on `T1/T2/T3/T12` is quantified vs P0 baseline.
+- [x] explicit local-lane decision is recorded (`close`, `hold`, or `upstream reopen trigger`).
 
 #### P1.5 - Conditional upstream 2A reopen decision lane
 Objective:
@@ -1345,9 +1345,9 @@ Scope:
   - rerun impacted downstream correctness lane for `5B`.
 
 Definition of done:
-- [ ] reopen decision artifact is emitted (triggered or not-triggered).
-- [ ] if triggered, reopened lane result is scored against `T11` and temporal hard gates.
-- [ ] no implicit upstream reopen occurs outside this decision lane.
+- [x] reopen decision artifact is emitted (triggered or not-triggered).
+- [x] if triggered, reopened lane result is scored against `T11` and temporal hard gates.
+- [x] no implicit upstream reopen occurs outside this decision lane.
 
 #### P1.6 - Closure scoring and handoff lock
 Objective:
@@ -1361,9 +1361,33 @@ Decision outcomes:
   - any hard correctness gate remains unresolved after allowed lanes.
 
 Definition of done:
-- [ ] P1 closure gateboard is archived with explicit pass/fail by gate.
-- [ ] explicit `UNLOCK_P2` or `HOLD_P1_REOPEN` decision is recorded.
-- [ ] retained authority run/artifact pointers are pinned for P2 entry.
+- [x] P1 closure gateboard is archived with explicit pass/fail by gate.
+- [x] explicit `UNLOCK_P2` or `HOLD_P1_REOPEN` decision is recorded.
+- [x] retained authority run/artifact pointers are pinned for P2 entry.
+
+P1 closure snapshot (2026-02-22):
+- authority run-id:
+  - `c25a2675fbfbacd952b13bb594880e92`.
+- emitted artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_contract_lock_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_realism_gateboard_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_realism_gateboard_c25a2675fbfbacd952b13bb594880e92.md`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_temporal_diagnostics_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_t11_t12_contract_check_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_2a_reopen_decision_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_closure_c25a2675fbfbacd952b13bb594880e92.json`
+- measured gate posture (`B` hard targets):
+  - `T1`: `2.6410%` (`FAIL`),
+  - `T2`: `2.6410%` (`FAIL`),
+  - `T3`: `2.2670 pp` (`FAIL`; improved vs `P0` but above gate),
+  - `T4`: conservation exact (`PASS`),
+  - `T5`: routing integrity exact (`PASS`),
+  - `T11`: horizon completeness inference `FAIL` (`release=2025a`, `run_year_max=2026`),
+  - `T12`: local contract integrity `PASS` (`local_z_marker_non_utc_rate=0%`, parse mismatch rate `0%`).
+- local-lane decision:
+  - `upstream_reopen_trigger`.
+- phase decision:
+  - `HOLD_P1_REOPEN` with explicit conditional branch decision `UNLOCK_P1_UPSTREAM_2A_REOPEN`.
 
 ### P2 - Wave B calibration (timezone concentration + virtual share)
 Goal:

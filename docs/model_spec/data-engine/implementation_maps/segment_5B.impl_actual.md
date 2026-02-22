@@ -6476,6 +6476,132 @@ Locked contents:
 Decision:
 - `P1.1` closure artifact is complete; proceed to `P1.2/P1.3` code+policy implementation lane.
 
+### Entry: 2026-02-22 16:41
+
+Execution step: implemented `P1.2` + `P1.3` code lane (`S4/S5`) and created dedicated `P1` scorer tooling.
+Summary: landed coordinated producer+validator semantics changes for local civil-time fields, hardened fail-closed validation behavior, increased civil-time sampling power, and emitted a dedicated `P1` scoring tool for gateboard/diagnostics/decision artifacts.
+
+Files changed:
+1) `packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`
+2) `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
+3) `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+4) `tools/score_segment5b_p1_realism.py` (new from `p0` scorer lineage)
+
+P1.2 implementation decisions (`S4` local-time semantics):
+1) added `_format_local_wall_us(...)` and switched local fields to wall-clock serialization without UTC marker semantics:
+   - `ts_local_primary`,
+   - `ts_local_settlement`,
+   - `ts_local_operational`.
+2) kept `ts_utc` serialization unchanged (`UTC+Z`) for canonical timeline/audit compatibility.
+3) contract alignment adjustment:
+   - added `$defs.local_wall_timestamp_micros` in `schemas.5B.yaml`,
+   - switched local field schema refs from `rfc3339_micros` to `local_wall_timestamp_micros`.
+
+Why schema update was applied in P1:
+1) without this, `S4` sample/full output validation would reject markerless local fields.
+2) bypassing schema validation was rejected as non-auditable drift.
+3) broad layer1 timestamp-definition change was rejected as unnecessary blast-radius.
+
+P1.3 implementation decisions (`S5` enforcement + sample power):
+1) parser contract update:
+   - `_parse_local_time` now treats trailing `Z` / `+00:00` on local fields as legacy lexical markers and parses local wall-clock deterministically.
+2) civil-time gate hardening:
+   - replaced first-failure boolean with rate-based checker (`_check_civil_time(..., max_mismatch_rate)`),
+   - removed warning-only pass-through override,
+   - civil mismatch now emits `ERROR` and remains fail-closed in verdict path.
+3) sample-power increase:
+   - `sample_target` from `min(50k, max(10k, 0.1%))` to `min(200k, max(25k, 0.5%))`.
+4) support diagnostics:
+   - added DST-window support computation (`_dst_window_support`) and emitted:
+     - window count,
+     - windows with exposure,
+     - min support,
+     - threshold,
+     - `dst_window_insufficient_power`.
+   - insufficient-power condition now records explicit `ERROR` issue and blocks civil gate.
+5) policy/runtime knobs:
+   - `ENGINE_5B_S5_MAX_CIVIL_MISMATCH_RATE` (default `0.005`),
+   - `ENGINE_5B_S5_DST_WINDOW_MIN_SUPPORT` (default `5000`).
+
+P1 scorer tooling decision:
+1) created `tools/score_segment5b_p1_realism.py` to emit required `P1` artifacts:
+   - `segment5b_p1_realism_gateboard_<run_id>.json/.md`,
+   - `segment5b_p1_temporal_diagnostics_<run_id>.json`,
+   - `segment5b_p1_t11_t12_contract_check_<run_id>.json`.
+2) retained established metric mechanics from `P0` scorer where valid, but changed:
+   - `T1` B threshold to `<=0.50%`,
+   - `T3` B+ threshold to `<=0.7pp`,
+   - `T3` pass now requires no `insufficient_power`,
+   - `T12` now checks producer-vs-validator local parse consistency and marker misuse independently from `civil_time_ok`.
+3) added local-lane decision output:
+   - `close`, `hold`, or `upstream_reopen_trigger`.
+
+Validation of this edit step:
+1) `python -m py_compile packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py tools/score_segment5b_p1_realism.py` -> `PASS`.
+
+Decision:
+- code lane is ready for `P1.4` execution (`S4 -> S5`) on the authority run lane.
+
+### Entry: 2026-02-22 16:50
+
+Execution step: completed `P1.4` local candidate lane (`S4 -> S5`) with blocker handling and scored `P1.5/P1.6` artifacts.
+Summary: ran full local lane on authority run-id after non-destructive output rotation, resolved one implementation blocker (`os` import in `S5`), then scored P1 gates and emitted reopen + closure decisions.
+
+Run-lane housekeeping before rerun:
+1) moved current `S4` scenario output to timestamped backup:
+   - from `.../arrival_events/.../scenario_id=baseline_v1`
+   - to `.../arrival_events/.../scenario_id=baseline_v1.p1_20260222_164215`.
+2) moved current `S5` validation bundle root to timestamped backup:
+   - from `.../validation/manifest_fingerprint=c8fd...05c8`
+   - to `.../validation/manifest_fingerprint=c8fd...05c8.p1_20260222_164215`.
+
+Execution outcomes:
+1) `S4` rerun:
+   - command: `make segment5b-s4 RUNS_ROOT=runs/local_full_run-5 SEG5B_S4_RUN_ID=c25...`.
+   - result: `PASS`, `wall_ms ~ 444560`, arrival output republished under canonical path.
+2) first `S5` attempt:
+   - failed immediately (`S5_INFRASTRUCTURE_IO_ERROR`) with `error_context.detail=name 'os' is not defined`.
+   - cause: new env-driven policy knobs in `S5` used `os.environ` without module import.
+   - fix: add `import os` in `S5` runner and recompile.
+3) second `S5` attempt after fix:
+   - command: same `make segment5b-s5 ...`.
+   - runtime behavior: validation executed, bundle published, final state `FAIL` with `S5_VALIDATION_FAILED` (expected under fail-closed because civil/DST gates remain unresolved locally).
+
+Scoring + decision artifacts:
+1) executed:
+   - `python tools/score_segment5b_p1_realism.py --runs-root runs/local_full_run-5 --run-id c25... --out-root runs/fix-data-engine/segment_5B/reports --sample-target 200000`
+2) emitted:
+   - `segment5b_p1_realism_gateboard_c25....json/.md`
+   - `segment5b_p1_temporal_diagnostics_c25....json`
+   - `segment5b_p1_t11_t12_contract_check_c25....json`
+3) additional phase artifacts emitted:
+   - `segment5b_p1_2a_reopen_decision_c25....json`
+   - `segment5b_p1_closure_c25....json`
+
+Measured P1 gate posture (`B`):
+1) `T1=2.6410%` (`FAIL`),
+2) `T2=2.6410%` (`FAIL`),
+3) `T3=2.2670pp` (`FAIL`; improved vs `P0` by `-0.8088pp`),
+4) `T4` `PASS`,
+5) `T5` `PASS`,
+6) `T11` `FAIL` (`release=2025a`, run year `2026`, one-hour signature still high),
+7) `T12` `PASS` (`local_z_marker_non_utc_rate=0%`, producer-vs-validator parse mismatch rate `0%`).
+
+Decision logic resolution:
+1) local-lane decision = `upstream_reopen_trigger` because:
+   - `T1/T2/T3` still hard-fail,
+   - `T11` remains hard-fail,
+   - veto rails `T4/T5` remain green.
+2) `P1.5` decision artifact records:
+   - `UNLOCK_P1_UPSTREAM_2A_REOPEN`.
+3) `P1.6` closure decision:
+   - `HOLD_P1_REOPEN` (cannot unlock `P2` until upstream horizon lane is corrected).
+
+Interpretation:
+1) the local semantic defect lane is closed (`T12` fixed).
+2) dominant remaining temporal defect is upstream horizon-owned (`T11` + DST signatures), not local parser/serialization mismatch.
+3) this is exactly the causal split intended by P1 design and remediation authority.
+
 ### Entry: 2026-02-22 16:17
 
 Planning step: expanded remediation `P1` into execution-grade sub-phases with hard gates and explicit conditional upstream reopen protocol.
