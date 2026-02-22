@@ -6395,6 +6395,87 @@ Artifacts emitted for this reopen closure:
 Hygiene:
 - `python tools/prune_failed_runs.py --runs-root runs/fix-data-engine/segment_5B` -> `no failed sentinels`.
 
+### Entry: 2026-02-22 16:35
+
+Execution pre-lock: begin full `P1` execution (`P1.1 -> P1.6`) with explicit technical decision on local-time contract mechanics.
+Summary: I reviewed `S4/S5` implementation against the remediation authority and found a hard conflict that must be resolved before safe edits: `S4` emits local timestamps through a UTC-`Z` formatter path while Wave-A requires local wall-clock semantics.
+
+Key observations from code + contract review:
+1) `S4` local serialization currently uses `_format_rfc3339_us(..., timezone=\"UTC\")` for:
+   - `ts_local_primary`,
+   - `ts_local_settlement`,
+   - `ts_local_operational`.
+2) `S5` local parser currently treats trailing `Z` as UTC (`+00:00`) before zone conversion, and the lean branch downgrades civil mismatch to warning/continue.
+3) this pairing explains the remediation findings:
+   - representation ambiguity in local-time fields,
+   - fail-open operational posture despite policy intent `fail_closed`.
+4) schema posture:
+   - `schemas.5B.yaml` references `rfc3339_micros` for local fields,
+   - `rfc3339_micros` (from layer1 defs) is `...Z`-constrained,
+   - direct switch to markerless local wall-clock would violate schema unless local field contract is adjusted.
+
+Alternatives considered:
+1) parser-only fix in `S5` (reinterpret existing `Z` local fields as local wall-clock) and leave `S4` serialization unchanged:
+   - pros: smallest code delta.
+   - cons: producer contract remains ambiguous; does not satisfy Wave-A requirement to stop UTC-marker local encoding.
+2) `S4` switch to markerless local wall-clock output while bypassing schema validation paths:
+   - pros: immediate semantic alignment.
+   - cons: creates producer-vs-contract drift and weakens auditable schema posture.
+3) coordinated local-surface fix (chosen):
+   - update `S4` local serialization to wall-clock representation,
+   - update `S5` parser/check semantics to consume local wall-clock deterministically,
+   - enforce civil-time fail-closed in lean path,
+   - raise sampling power and emit power diagnostics,
+   - add `S4` tz-cache horizon guardrails and emit machine-checkable P1 artifacts.
+
+Chosen execution design for P1:
+1) `P1.1` emit machine-checkable contract-lock artifact (targets, veto rails, rerun matrix, decisions).
+2) `P1.2` patch `S4` local-time serialization + add timezone horizon guard for active DST-relevant zones.
+3) `P1.3` patch `S5` to:
+   - remove warning-only civil-time override,
+   - enforce fail-closed verdict semantics,
+   - increase sample target (`0.5%`, floor `25k`, cap `200k`),
+   - emit DST-window support diagnostics with `insufficient_power`.
+4) `P1.4` rerun local lane `S4 -> S5` on authority run-id and score with dedicated P1 scorer outputs.
+5) `P1.5` emit explicit reopen decision artifact:
+   - if `T1/T2/T3` remain hard-fail and `T11` red, set `UNLOCK_P1_UPSTREAM_2A_REOPEN`.
+6) `P1.6` close with explicit `UNLOCK_P2` or `HOLD_P1_REOPEN`.
+
+Risk notes before code changes:
+1) same-run replay on `run_id=c25...` requires output housekeeping because:
+   - `S4` skips publish when output directory already exists,
+   - `S5` fail-closes on non-identical existing bundle/index.
+2) therefore local lane execution will include non-destructive archive/move of superseded `S4/S5` output roots before rerun.
+
+Decision:
+- proceed with coordinated `S4+S5` Wave-A implementation and explicit artifact-first closure scoring.
+
+### Entry: 2026-02-22 16:37
+
+Execution step: completed `P1.1` contract/veto lock artifact emission.
+Summary: emitted machine-checkable P1 contract artifact pinning hard targets, veto rails, decision vocabulary, rerun matrix, and required evidence outputs.
+
+Artifact emitted:
+1) `runs/fix-data-engine/segment_5B/reports/segment5b_p1_contract_lock_c25a2675fbfbacd952b13bb594880e92.json`
+
+Locked contents:
+1) hard targets:
+   - `T1<=0.50%`, `T2<=0.10%`, `T3<=1.5pp`, `T11=100%`, `T12=100%`.
+2) veto rails:
+   - `T4` conservation exact,
+   - `T5` routing integrity exact.
+3) decision vocabulary:
+   - `UNLOCK_P2`,
+   - `HOLD_P1_REOPEN`,
+   - `UNLOCK_P1_UPSTREAM_2A_REOPEN`.
+4) rerun matrix:
+   - local edits -> `S4 -> S5`,
+   - conditional upstream reopen -> `2A` then `S4 -> S5`,
+   - `S1/S2/S3` disallowed in P1 without explicit reopen decision.
+
+Decision:
+- `P1.1` closure artifact is complete; proceed to `P1.2/P1.3` code+policy implementation lane.
+
 ### Entry: 2026-02-22 16:17
 
 Planning step: expanded remediation `P1` into execution-grade sub-phases with hard gates and explicit conditional upstream reopen protocol.

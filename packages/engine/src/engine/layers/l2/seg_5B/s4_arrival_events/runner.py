@@ -824,6 +824,17 @@ def _format_rfc3339_us(values: np.ndarray) -> np.ndarray:
     return out
 
 
+def _format_local_wall_us(values: np.ndarray) -> np.ndarray:
+    """Render local wall-clock timestamps without UTC marker semantics."""
+    values = values.astype(np.int64, copy=False)
+    out = np.empty(values.shape, dtype=object)
+    mask = values >= 0
+    if mask.any():
+        out[mask] = np.datetime_as_string(values[mask].astype("datetime64[us]"), unit="us")
+    out[~mask] = None
+    return out
+
+
 def _map_indices(values: np.ndarray, lookup: np.ndarray) -> np.ndarray:
     out = np.empty(values.shape, dtype=object)
     mask = values >= 0
@@ -2057,17 +2068,17 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     tracker_arrivals.update(seg_total)
 
                     ts_utc = _format_rfc3339_us(out_ts_utc_us)
-                    ts_local_primary = _format_rfc3339_us(out_ts_local_primary_us)
+                    ts_local_primary = _format_local_wall_us(out_ts_local_primary_us)
                     if np.array_equal(out_ts_local_operational_us, out_ts_local_primary_us):
                         ts_local_operational = ts_local_primary
                     else:
-                        ts_local_operational = _format_rfc3339_us(out_ts_local_operational_us)
+                        ts_local_operational = _format_local_wall_us(out_ts_local_operational_us)
                     if np.array_equal(out_ts_local_settlement_us, out_ts_local_primary_us):
                         ts_local_settlement = ts_local_primary
                     elif np.array_equal(out_ts_local_settlement_us, out_ts_local_operational_us):
                         ts_local_settlement = ts_local_operational
                     else:
-                        ts_local_settlement = _format_rfc3339_us(out_ts_local_settlement_us)
+                        ts_local_settlement = _format_local_wall_us(out_ts_local_settlement_us)
 
                     tzid_primary = _map_indices(out_tzid_primary, tzid_lookup)
                     if np.array_equal(out_tzid_operational, out_tzid_primary):

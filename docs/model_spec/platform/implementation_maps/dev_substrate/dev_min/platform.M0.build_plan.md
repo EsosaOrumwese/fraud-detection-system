@@ -9,7 +9,7 @@ This phase is planning and control only.
 
 ## 1) Authority Inputs
 Primary:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
 3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
@@ -140,11 +140,11 @@ Closure verdict:
 
 Evidence references:
 - Main control plan:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 - M0 deep plan:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M0.build_plan.md`
 - Decision trail:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 - Action log trail:
   - `docs/logbook/02-2026/2026-02-13.md`
 

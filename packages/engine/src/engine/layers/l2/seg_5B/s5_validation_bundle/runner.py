@@ -7,7 +7,7 @@ import json
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -243,12 +243,88 @@ def _parse_rfc3339(value: str) -> datetime:
 
 def _parse_local_time(value: str, zone: ZoneInfo) -> datetime:
     text = value.strip()
+    # Local-wall contract: local fields are wall-clock values; trailing UTC markers
+    # are treated as legacy lexical markers, not UTC semantics.
     if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
+        text = text[:-1]
+    if text.endswith("+00:00"):
+        text = text[:-6]
     dt = datetime.fromisoformat(text)
     if dt.tzinfo is None:
         return dt.replace(tzinfo=zone)
     return dt.astimezone(zone)
+
+
+def _build_transition_windows(tzid: str, utc_min: datetime, utc_max: datetime) -> list[tuple[datetime, datetime]]:
+    try:
+        tz = ZoneInfo(tzid)
+    except Exception:  # noqa: BLE001
+        return []
+    probe_start = utc_min - timedelta(days=2)
+    probe_end = utc_max + timedelta(days=2)
+    cur = probe_start
+    prev_offset: Optional[int] = None
+    transitions: list[datetime] = []
+    while cur <= probe_end:
+        off = int(cur.astimezone(tz).utcoffset().total_seconds())
+        if prev_offset is not None and off != prev_offset:
+            transitions.append(cur)
+        prev_offset = off
+        cur += timedelta(hours=1)
+    return [(t - timedelta(hours=24), t + timedelta(hours=24)) for t in transitions]
+
+
+def _dst_window_support(rows: list[dict], min_support: int) -> dict:
+    if not rows:
+        return {
+            "dst_window_count": 0,
+            "dst_windows_with_exposure": 0,
+            "dst_window_support_min": 0,
+            "dst_window_support_threshold": int(min_support),
+            "dst_window_insufficient_power": False,
+        }
+
+    utc_values: list[datetime] = []
+    tzids: set[str] = set()
+    for row in rows:
+        tzid = row.get("tzid_primary")
+        ts_utc = row.get("ts_utc")
+        if tzid and ts_utc:
+            tzids.add(str(tzid))
+            utc_values.append(_parse_rfc3339(str(ts_utc)))
+    if not utc_values or not tzids:
+        return {
+            "dst_window_count": 0,
+            "dst_windows_with_exposure": 0,
+            "dst_window_support_min": 0,
+            "dst_window_support_threshold": int(min_support),
+            "dst_window_insufficient_power": False,
+        }
+
+    utc_min = min(utc_values)
+    utc_max = max(utc_values)
+    windows_by_tz = {tzid: _build_transition_windows(tzid, utc_min, utc_max) for tzid in sorted(tzids)}
+    support: dict[str, int] = {}
+    for row in rows:
+        tzid = row.get("tzid_primary")
+        ts_utc = row.get("ts_utc")
+        if not tzid or not ts_utc:
+            continue
+        parsed = _parse_rfc3339(str(ts_utc))
+        windows = windows_by_tz.get(str(tzid), [])
+        for idx, (ws, we) in enumerate(windows):
+            if ws <= parsed <= we:
+                key = f"{tzid}#w{idx+1}"
+                support[key] = support.get(key, 0) + 1
+
+    supports = list(support.values())
+    return {
+        "dst_window_count": int(sum(len(w) for w in windows_by_tz.values())),
+        "dst_windows_with_exposure": int(len(support)),
+        "dst_window_support_min": int(min(supports)) if supports else 0,
+        "dst_window_support_threshold": int(min_support),
+        "dst_window_insufficient_power": bool(supports and min(supports) < int(min_support)),
+    }
 
 
 def _parquet_total_rows(paths: list[Path], logger, label: str) -> int:
@@ -371,24 +447,50 @@ def _check_time_windows(rows: list[dict], bucket_maps: dict[str, dict[int, tuple
     return True, {}
 
 
-def _check_civil_time(rows: list[dict]) -> tuple[bool, dict]:
+def _check_civil_time(rows: list[dict], max_mismatch_rate: float) -> tuple[bool, dict]:
+    checked_rows = 0
+    mismatch_rows = 0
+    parse_error_rows = 0
+    first_issue: Optional[dict] = None
+
     for row in rows:
+        checked_rows += 1
         tzid = row.get("tzid_primary")
         ts_utc = row.get("ts_utc")
         ts_local = row.get("ts_local_primary")
         if not tzid or not ts_utc or not ts_local:
-            return False, {"detail": "missing tzid_primary/ts_local_primary/ts_utc"}
+            parse_error_rows += 1
+            if first_issue is None:
+                first_issue = {"detail": "missing tzid_primary/ts_local_primary/ts_utc"}
+            continue
         try:
             zone = ZoneInfo(str(tzid))
-        except Exception:  # noqa: BLE001
-            return False, {"detail": "invalid tzid", "tzid": str(tzid)}
-        utc_dt = _parse_rfc3339(str(ts_utc))
-        expected_local = utc_dt.astimezone(zone)
-        actual_local = _parse_local_time(str(ts_local), zone)
-        delta = abs((expected_local - actual_local).total_seconds())
+            utc_dt = _parse_rfc3339(str(ts_utc))
+            expected_local = utc_dt.astimezone(zone)
+            actual_local = _parse_local_time(str(ts_local), zone)
+            delta = abs((expected_local - actual_local).total_seconds())
+        except Exception as exc:  # noqa: BLE001
+            parse_error_rows += 1
+            if first_issue is None:
+                first_issue = {"detail": "local parse failed", "tzid": str(tzid), "error": str(exc)}
+            continue
         if delta > 1.0:
-            return False, {"detail": "local time mismatch", "tzid": str(tzid), "delta_seconds": delta}
-    return True, {}
+            mismatch_rows += 1
+            if first_issue is None:
+                first_issue = {"detail": "local time mismatch", "tzid": str(tzid), "delta_seconds": float(delta)}
+
+    mismatch_rate = (float(mismatch_rows + parse_error_rows) / float(checked_rows)) if checked_rows > 0 else 0.0
+    gate_ok = mismatch_rate <= float(max_mismatch_rate)
+    detail = {
+        "checked_rows": int(checked_rows),
+        "mismatch_rows": int(mismatch_rows),
+        "parse_error_rows": int(parse_error_rows),
+        "mismatch_rate": float(mismatch_rate),
+        "max_mismatch_rate": float(max_mismatch_rate),
+    }
+    if first_issue is not None:
+        detail["first_issue"] = first_issue
+    return gate_ok, detail
 
 
 def _check_routing_membership(
@@ -615,6 +717,26 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 bundle_policy.get("policy_id"),
                 bundle_policy.get("version"),
             )
+        failure_policy = (validation_policy or {}).get("failure_policy") or {}
+        failure_mode = str(failure_policy.get("mode") or "fail_closed").strip().lower()
+        max_warnings = int(failure_policy.get("max_warnings") or 0)
+        civil_mismatch_limit_raw = os.environ.get("ENGINE_5B_S5_MAX_CIVIL_MISMATCH_RATE", "0.005")
+        try:
+            civil_mismatch_limit = max(0.0, float(civil_mismatch_limit_raw))
+        except Exception:
+            civil_mismatch_limit = 0.005
+        dst_window_min_support_raw = os.environ.get("ENGINE_5B_S5_DST_WINDOW_MIN_SUPPORT", "5000")
+        try:
+            dst_window_min_support = max(1, int(dst_window_min_support_raw))
+        except Exception:
+            dst_window_min_support = 5000
+        logger.info(
+            "S5: failure policy mode=%s max_warnings=%d civil_mismatch_limit=%.6f dst_window_min_support=%d",
+            failure_mode,
+            max_warnings,
+            civil_mismatch_limit,
+            dst_window_min_support,
+        )
 
         current_phase = "upstream_pass"
         require_pass = (validation_policy or {}).get("require_upstream_pass") or {}
@@ -768,7 +890,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         else:
             logger.info("S5: arrival summary missing; physical/virtual counts omitted")
 
-        sample_target = min(50000, max(10000, int(n_arrivals_total * 0.001))) if n_arrivals_total > 0 else 0
+        sample_target = min(200000, max(25000, int(n_arrivals_total * 0.005))) if n_arrivals_total > 0 else 0
         rows_per_file = max(1, sample_target // max(1, min(20, len(arrival_paths))))
         sample_columns = [
             "manifest_fingerprint",
@@ -851,19 +973,30 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 }
             )
 
-        civil_time_ok, civil_detail = _check_civil_time(sample_rows)
+        civil_time_ok, civil_detail = _check_civil_time(sample_rows, civil_mismatch_limit)
         civil_time_gate_ok = civil_time_ok
+        dst_support = _dst_window_support(sample_rows, dst_window_min_support)
+        if bool(dst_support.get("dst_window_insufficient_power")):
+            issues.append(
+                {
+                    "manifest_fingerprint": manifest_fingerprint,
+                    "issue_code": "DST_WINDOW_INSUFFICIENT_POWER",
+                    "severity": "ERROR",
+                    "context": dst_support,
+                    "message": "DST-window sampled support below configured minimum",
+                }
+            )
+            civil_time_gate_ok = False
         if not civil_time_ok:
             issues.append(
                 {
                     "manifest_fingerprint": manifest_fingerprint,
                     "issue_code": "CIVIL_TIME_MISMATCH",
-                    "severity": "WARN",
+                    "severity": "ERROR",
                     "context": civil_detail,
-                    "message": "Sampled civil-time mismatch (lean mode)",
+                    "message": "Sampled civil-time mismatch exceeds configured threshold",
                 }
             )
-            civil_time_gate_ok = True
 
         current_phase = "routing_membership"
         site_entry = find_dataset_entry(dictionary_5b, DATASET_SITE_LOCATIONS).entry
@@ -982,6 +1115,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             "sampling": {
                 "arrival_sample_target": sample_target,
                 "arrival_sample_rows": len(sample_rows),
+                "civil_mismatch_rate": float(civil_detail.get("mismatch_rate") or 0.0),
+                "civil_mismatch_limit": float(civil_mismatch_limit),
+                "dst_window_support": dst_support,
             },
         }
         if have_summary_counts:

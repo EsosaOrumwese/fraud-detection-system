@@ -18,7 +18,7 @@ The AGENT is expected to **lead the design and implementation**, not wait for st
 - **Drive the process:** propose concrete production ready options, surface risks/edge cases, and ask for confirmation only on material decisions with the aim of reaching the goal of building the interconnected, fully-functional, and production ready platform.
 - **Assume the role of a top MLOps/DevOps/Data Scientist:** Don't just give boring and single sentence responses but intelligent ones that drive towards the goal as painted in the reading docs
 - **Internalize the design:** We're building for production so ensure to understand and internalize the network graph design painted by all the components.
-- **Always have a detailed implementation phased plan**: As you are the designer and implementer, you know how to start from zero, to the end. So when its time for implementation, always have a game plan that you are 100% sure on and that you stick to till implementation. This doesn't mean the plan is rigid. It is expected to be dynamic and to be improved on and expanded on, phase by phase, as implementation proceeds so as to not be handwavy on details but to nail it down succintly. This is so that, by the end of the implementation, we should have a plan that explicitly shows the build steps/road map used. Active living docs reside in: `docs\model_spec\platform\implementation_maps\dev_substrate\{COMP}.build_plan.md`.
+- **Always have a detailed implementation phased plan**: As you are the designer and implementer, you know how to start from zero, to the end. So when its time for implementation, always have a game plan that you are 100% sure on and that you stick to till implementation. This doesn't mean the plan is rigid. It is expected to be dynamic and to be improved on and expanded on, phase by phase, as implementation proceeds so as to not be handwavy on details but to nail it down succintly. This is so that, by the end of the implementation, we should have a plan that explicitly shows the build steps/road map used. Active living docs reside in: `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\{COMP}.build_plan.md` where `{TRACK}` is `dev_min` or `dev_full`.
 - **Living plan = progressive elaboration**: Start with Phase 1..Phase X only. When entering a phase, break it into sections with a clear "definition of done" checklist. If a section is still too broad, break it into components and add DoD checklists there. Do not attempt to enumerate every step at project start; expand detail only as each phase begins and evolves. 
 - **No halfbaked phases**: We do NOT progress to the next phase until it is rock solid and hardened. No halfbaked phases or sections for any reason what so ever. We're not aiming for "minimal function durability" but a hardened implementation!
 
@@ -38,7 +38,7 @@ Read these in order before modifying code so you share the project context:
    - `docs\model_spec\platform\narrative\narrative_observability_and_governance.md`
 5. Component design-authority for the component you are touching (in `docs\model_spec\platform\component-specific\`). [Attempts to view the entire platform as a graph network with focus on interconnection as well as function, so pay attention to that]
 6. Implementation decisions taken so far:
-   - Active track: `docs\model_spec\platform\implementation_maps\dev_substrate\{COMP}.impl_actual.md`
+   - Active track: `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\{COMP}.impl_actual.md` (`{TRACK}` = `dev_min` or `dev_full`)
    - Baseline history: `docs\model_spec\platform\implementation_maps\local_parity\{COMP}.impl_actual.md`
 7. Scan the entire repo for an understanding of what has already be laid down.
 7. If touching the Data Engine, then and only then follow `packages\engine\AGENTS.md` [USER has to explicitly state this].
@@ -65,7 +65,7 @@ This is a hard law for platform work. The AGENT must behave as a design-intent s
 
 - **Design-intent awareness is mandatory:** before and during implementation, the AGENT must continuously align changes against:
   - `docs\model_spec\platform\component-specific\flow-narrative-platform-design.md`,
-  - active phase DoD in `docs\model_spec\platform\implementation_maps\dev_substrate\platform.build_plan.md` or the component specific build plans in `docs\model_spec\platform\implementation_maps\dev_substrate\`,
+  - active phase DoD in `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\platform.build_plan.md` or the component specific build plans in `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\`,
   - pinned decisions in relevant `docs\model_spec\platform\pre-design_decisions` files.
 These are the intended design flow of the platform as well as pinned decisions. A study of it, as well as discussions with the USER, can lead the AGENT to an understanding of how the platform should operate
 - **Continuous drift assessment is mandatory:** at each substantial step, the AGENT must ask and answer. And most especially after each full run of the platform, the AGENT must assess the live stream flow:
@@ -108,10 +108,10 @@ This is a hard law for all implementation work (platform services, pipelines, jo
 
 ## Platform implementation maps (mandatory, detail-first)
 - For any platform component work, create/append a component implementation map at:
-  `docs\model_spec\platform\implementation_maps\dev_substrate\{COMP}.impl_actual.md`.
+  `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\{COMP}.impl_actual.md`.
 - **Scope separation (platform vs component impl_actual):**
-  - `dev_substrate\platform.impl_actual.md` records **platform-wide** decisions that affect multiple components, shared rails/semantics, substrate choices, environment ladder, or phase sequencing for the active dev substrate track.
-  - `dev_substrate\{COMP}.impl_actual.md` records **component-specific** decisions, for example: mechanics, file paths, invariants, tests, and interface details for that component only.
+  - `dev_substrate\{TRACK}\platform.impl_actual.md` records **platform-wide** decisions that affect multiple components, shared rails/semantics, substrate choices, environment ladder, or phase sequencing for the active track.
+  - `dev_substrate\{TRACK}\{COMP}.impl_actual.md` records **component-specific** decisions, for example: mechanics, file paths, invariants, tests, and interface details for that component only.
   - `local_parity\*.md` remains the immutable baseline/history track and should only receive append-only routing continuity notes.
 - Each entry MUST be detailed and auditable. Explicit detail is highly appreciated, but the plan itself must be explicit and stepwise. No vague "we will implement" phrasing and no skipped rationale.
 - The implementation map is a running **brainstorming notebook**. As you reason through a problem, capture the full thought process (e.g. assumptions, alternatives, decision criteria, edge cases, intended mechanics, etc). Do this **during** the design, not just before/after. The goal is to make the entire reasoning trail reviewable later, not a minimal recap.

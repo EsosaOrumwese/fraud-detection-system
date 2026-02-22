@@ -11,8 +11,8 @@ This file begins the active implementation map track for dev substrate promotion
   - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md`
   - component maps under `docs/model_spec/platform/implementation_maps/local_parity/`
 - New dev substrate decisions are appended under:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/*.impl_actual.md`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/*.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/*.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/*.build_plan.md`
 
 ### Scope posture
 This track is a substrate promotion (not platform semantic rewrite): maintain the same rails/contracts while swapping infrastructure and tightening runtime posture.
@@ -25,7 +25,7 @@ Separate baseline local-parity implementation history from active dev substrate 
 ### Changes applied
 - Created track folders:
   - `docs/model_spec/platform/implementation_maps/local_parity/`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/`
 - Moved existing root map files (39 files) into `local_parity/`.
 - Added new active-track starters:
   - `dev_substrate/platform.build_plan.md`
@@ -59,7 +59,7 @@ No platform semantic rails were changed. This was a documentation/process routin
 
 ### Interaction with repository topology decision
 - Active topology pin in:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.repo_topology.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.repo_topology.md`
   is compatible with this authority.
 - Naming is the only pending normalization:
   - authority uses `core/demo`;
@@ -79,7 +79,7 @@ User removed the separate topology draft document because it was not useful in i
 - Use the pinned authority directly as the placement/structure source:
   - `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
 - Keep topology/placement decisions as append-only entries in this file and corresponding phase items in:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### Consequence
 Earlier references to a separate topology draft are now historical context only; active implementation should not depend on that file.
@@ -220,7 +220,7 @@ Current active plan file is too coarse (5 broad phase lines) and is not sufficie
 - `docs/model_spec/platform/pre-design_decisions/observability_and_governance.pre-design_decisions.md`
 
 ### Decision
-Rewrite `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` into an explicit migration program with:
+Rewrite `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` into an explicit migration program with:
 1) wave-first sequencing,
 2) hard DoD gates per phase,
 3) meta-layer requirements embedded into each wave,
@@ -245,7 +245,7 @@ Plan rewrite only; no runtime behavior changes. This increases execution precisi
 ## Entry: 2026-02-10 9:52PM - Applied migration program rewrite in dev_substrate build plan
 
 ### What changed
-Replaced the coarse placeholder plan in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` with an explicit end-to-end migration program.
+Replaced the coarse placeholder plan in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` with an explicit end-to-end migration program.
 
 ### New plan structure (pinned)
 - Program posture + non-negotiable rails.
@@ -292,10 +292,10 @@ USER directed immediate execution of Phase 0 from the active dev-substrate build
 - `docs/runbooks/platform_parity_walkthrough_v0.md`
 
 ### Planned implementation artifacts
-- `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_baseline_snapshot.md`
-- `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_service_wave_matrix.md`
-- `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_acceptance_gate_templates.md`
-- update `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` Phase 0 DoD checkboxes to checked with references.
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/phase0_baseline_snapshot.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/phase0_service_wave_matrix.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/phase0_acceptance_gate_templates.md`
+- update `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` Phase 0 DoD checkboxes to checked with references.
 
 ### Drift sentinel checkpoint
 This pass is planning/control closure only. No runtime code/infrastructure behavior changes will be made.
@@ -304,15 +304,15 @@ This pass is planning/control closure only. No runtime code/infrastructure behav
 
 ### Implemented artifacts
 - Baseline freeze snapshot:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_baseline_snapshot.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/phase0_baseline_snapshot.md`
 - Service-wave migration matrix:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_service_wave_matrix.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/phase0_service_wave_matrix.md`
 - Acceptance gate templates:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_acceptance_gate_templates.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/phase0_acceptance_gate_templates.md`
 
 ### Build-plan closure updates
 - Updated Phase 0 DoD checkboxes to complete in:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 - Added explicit evidence links to the three Phase 0 artifacts.
 - Added Phase 0 status line (`closed as of 2026-02-10`).
 
@@ -353,7 +353,7 @@ Adopt a minimal-authority Phase 0 posture:
 3) proceed without generating comparative/duplicative artifacts.
 
 ### Planned edits
-- Update `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+- Update `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
   - rewrite Phase 0 work sections and DoD evidence links to authoritative sources only,
   - preserve closed status while removing references to deleted files.
 - Delete the three Phase 0 artifact files.
@@ -365,7 +365,7 @@ This is a planning-surface simplification only; no semantic/runtime behavior cha
 
 ### Changes applied
 1. Refactored Phase 0 in active build plan:
-   - file: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - file: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - replaced auxiliary-artifact framing with authority-first references:
      - pre-design migration authority,
      - run/operate pre-design decisions,
@@ -374,9 +374,9 @@ This is a planning-surface simplification only; no semantic/runtime behavior cha
      - local-parity runbook.
 
 2. Removed auxiliary Phase 0 files:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_baseline_snapshot.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_service_wave_matrix.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/phase0_acceptance_gate_templates.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/phase0_baseline_snapshot.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/phase0_service_wave_matrix.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/phase0_acceptance_gate_templates.md`
 
 ### Rationale
 - Align with USER instruction to avoid distracting/duplicative documentation.
@@ -432,7 +432,7 @@ This is a contract-surface simplification for migration execution clarity. No ru
    - `docs/model_spec/platform/contracts/README.md`
 
 4. Updated active build-plan evidence-conformance wording:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - now references existing contract families + reporter outputs (no dev_min schema family).
 
 ### Validation
@@ -451,7 +451,7 @@ USER requested Phase 1 expansion so no aspect is left ambiguous in the active de
 Phase 1 currently has only three broad bullets and three coarse DoD checks. It is insufficient to drive execution rigor for secure bootstrap and reproducible operator onboarding.
 
 ### Decision
-Expand Phase 1 in-place within `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` into explicit sub-sections with:
+Expand Phase 1 in-place within `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` into explicit sub-sections with:
 - account/tenancy and billing posture,
 - IAM and principal model,
 - secret taxonomy and path map,
@@ -471,7 +471,7 @@ Planning-only expansion; no runtime code/infrastructure behavior changes.
 ## Entry: 2026-02-10 10:13PM - Applied Phase 1 expansion in active dev-substrate build plan
 
 ### What changed
-Expanded Phase 1 in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` from coarse bullets into execution-ready detail.
+Expanded Phase 1 in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` from coarse bullets into execution-ready detail.
 
 ### New Phase 1 structure
 - Added authority anchors for Phase 1 execution.
@@ -545,7 +545,7 @@ This pass should only harden migration readiness posture and operator controls; 
    - `MSYS_NO_PATHCONV=1` on both new targets.
 
 5. Expanded Phase 1 execution detail and status in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - includes explicit handle map, runtime env injection keys, drill evidence summary, and DoD status updates.
 
 ### Execution evidence (sanitized)
@@ -623,7 +623,7 @@ USER requested dedicated dev-substrate environment file instead of relying on lo
    - add `.env.dev_min` to prevent accidental secret commit.
 3. `.env.dev_min.example`
    - add required key names with placeholders (no secrets).
-4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - note dedicated env surface under Phase 1 secret/bootstrap sections.
 
 ### Validation plan
@@ -649,7 +649,7 @@ No platform semantic/runtime changes; this is execution-surface hygiene and migr
 2. Updated `.gitignore` to ignore `.env.dev_min`.
 3. Added `.env.dev_min.example` with non-secret placeholders and required key names.
 4. Updated build-plan Phase 1 text in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - pinned dedicated env surface and `DEV_MIN_ENV_FILE` override handle.
 
 ### Validation evidence (sanitized)
@@ -768,7 +768,7 @@ USER flagged likely false-negative because Confluent dashboard shows active `eCK
    - remove mandatory IAM list-keys dependency from strict decision path,
    - implement Kafka readiness probe as above,
    - keep skip flag semantics for controlled drills.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - align Phase 1.D wording with implemented probe semantics.
 3. Re-run strict preflight and capture sanitized evidence.
 
@@ -787,7 +787,7 @@ This is a corrective drift fix to realign gate logic with event-bus design inten
      - bootstrap parse (host:port),
      - DNS resolution and TCP reachability to bootstrap endpoint.
    - check name changed from `confluent_api_probe` to `confluent_kafka_probe`.
-2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - Phase 1.D mandatory check wording now pins Kafka readiness probe semantics,
    - full Kafka auth/topic metadata verification explicitly deferred to Phase 2 provisioning/integration gates.
 3. Updated Phase 1 DoD + status in the same build plan:
@@ -833,7 +833,7 @@ Process hardening only; no semantic/component/runtime-flow change.
 ## Entry: 2026-02-10 11:14PM - Applied binding budget sentinel in dev-substrate build plan
 
 ### Implemented change
-- Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` with new section:
+- Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` with new section:
   - `Budget Sentinel (binding for all dev_substrate phases)`.
 
 ### Policy now pinned
@@ -884,7 +884,7 @@ Planning elaboration only; no semantic/runtime changes.
 ## Entry: 2026-02-10 11:17PM - Applied Phase 2 planning expansion in active dev-substrate build plan
 
 ### Implemented planning changes
-Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` Phase 2 from coarse outline to execution-ready plan.
+Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` Phase 2 from coarse outline to execution-ready plan.
 
 ### What was added
 1. Phase 2 authority anchors:
@@ -1115,7 +1115,7 @@ USER requested explicit workflow change: do not keep or commit `.env.*.example` 
 
 ### Planned edits
 - `Makefile`: change all error/help text from “copy from .env.dev_min.example” to local-only `.env.dev_min` instructions.
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`: remove template-file reference from dedicated env surface section.
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`: remove template-file reference from dedicated env surface section.
 - delete `.env.dev_min.example`.
 
 ### Cost posture
@@ -1131,7 +1131,7 @@ Process/documentation correction only; no platform semantic/runtime behavior cha
 2. Updated `Makefile` messaging for Phase 1/2 targets:
    - replaced “copy from .env.dev_min.example” with local-only guidance to create `.env.dev_min` with `DEV_MIN_*` keys.
 3. Updated active build-plan wording:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - dedicated env surface now pins only local `.env.dev_min` + `DEV_MIN_ENV_FILE` override.
 
 ### Outcome
@@ -1219,7 +1219,7 @@ Planning/process elaboration only; no runtime semantic changes.
 ## Entry: 2026-02-11 09:09AM - Applied Phase 3 expansion (settlement-first Control+Ingress migration plan)
 
 ### Implemented planning changes
-Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` Phase 3 from coarse outline to execution-ready, platform-settlement-first plan.
+Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` Phase 3 from coarse outline to execution-ready, platform-settlement-first plan.
 
 ### What was added
 1. Authority anchors for Phase 3:
@@ -1423,7 +1423,7 @@ During implementation review, the earlier pre-change note proposed `kafka-python
 ## Entry: 2026-02-11 10:03AM - Build-plan DoD state update after Phase 3.A/3.B execution
 
 ### Update applied
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
   - Marked Phase 3 DoD item for settlement gate (`3.A`) as complete.
   - Kept infra readiness (`3.B`) open with explicit blocker note:
     - S3 + Dynamo green,
@@ -1478,7 +1478,7 @@ USER requested:
 - `docs/model_spec/platform/implementation_maps/local_parity/event_bus.impl_actual.md`
 - Supporting structure references:
   - corresponding local-parity `*.build_plan.md` docs,
-  - active `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+  - active `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`.
 
 ### Observations distilled for 3.C planning
 1. Local parity repeatedly converged only when sequence was explicit and oracle stream-view identity was pinned before WSP/IG progression.
@@ -1503,9 +1503,9 @@ USER requested:
 
 ### Planned edits in this pass
 - Expand Phase 3.C section + DoD granularity in:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 - Add focused component build plans listed above under:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/`
 - Update dev_substrate README index to list active build-plan files.
 
 ### Cost posture
@@ -1518,7 +1518,7 @@ USER requested:
 
 ### Applied edits
 1. Expanded `Phase 3.C` in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. Added strict coupled migration structure:
    - `3.C.1 Oracle Store gate`
    - `3.C.2 Scenario Runner gate`
@@ -1529,13 +1529,13 @@ USER requested:
 3. Tightened DoD granularity in Phase 3:
    - component-matrix closure now explicitly references focused component build plans.
 4. Added focused dev_substrate component build plans:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/scenario_runner.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/world_streamer_producer.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/ingestion_gate.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/event_bus.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/oracle_store.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/scenario_runner.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/world_streamer_producer.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/ingestion_gate.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/event_bus.build_plan.md`
 5. Updated dev_substrate index file:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/README.md`
 
 ### Why this closes the planning ask
 - Local-parity carry-forward lessons are now encoded as explicit `dev_min` gates:
@@ -1564,7 +1564,7 @@ Current `dev_substrate/oracle_store.build_plan.md` was usable but still broad:
 3. It risked interpretation drift where local-parity semantics could leak into `dev_min` execution posture.
 
 ### Authorities considered
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (`3.C.1` Oracle first gate).
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` (`3.C.1` Oracle first gate).
 - `docs/model_spec/platform/pre-design_decisions/control_and_ingress.pre-design_decision.md`.
 - `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`.
 - Local baseline records:
@@ -1587,9 +1587,9 @@ Rewrite `dev_substrate/oracle_store.build_plan.md` so each phase is explicitly m
 6. Matrix closure and objective exit criteria into downstream C&I migration.
 
 ### Planned edits in this pass
-1. Update `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.build_plan.md`.
-2. Add component-specific trail file `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.impl_actual.md` (missing today) for Oracle decisions.
-3. Update `docs/model_spec/platform/implementation_maps/dev_substrate/README.md` to index Oracle component implementation map.
+1. Update `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/oracle_store.build_plan.md`.
+2. Add component-specific trail file `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/oracle_store.impl_actual.md` (missing today) for Oracle decisions.
+3. Update `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/README.md` to index Oracle component implementation map.
 
 ### Cost posture
 - Docs/planning only in this pass; no paid resources touched.
@@ -1610,9 +1610,9 @@ Rewrite `dev_substrate/oracle_store.build_plan.md` so each phase is explicitly m
    - security/retention/cost sentinel checks,
    - matrix closure gate.
 2. Added missing component-specific implementation map:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.impl_actual.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/oracle_store.impl_actual.md`
 3. Updated dev_substrate index:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/README.md`
 
 ### Why this resolves the USER ask
 - Oracle Store plan is now explicitly non-local in every phase and fail-closed by default.
@@ -1667,7 +1667,7 @@ USER asked to append the drafted prose section that defines the first migration 
 
 ### Decision
 Append this as the first substantive section in:
-`docs/model_spec/platform/implementation_maps/dev_substrate/dev_min_migration_narrative.md`.
+`docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/dev_min_migration_narrative.md`.
 
 ### Section intent
 1. Anchor migration start from fully green local-parity baseline.
@@ -1681,7 +1681,7 @@ Append this as the first substantive section in:
 
 ### Applied change
 Appended first substantive section to:
-`docs/model_spec/platform/implementation_maps/dev_substrate/dev_min_migration_narrative.md`
+`docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/dev_min_migration_narrative.md`
 
 ### Section appended
 `Section 1: Bootstrap Before Swap (Flow Step 1)` now establishes:
@@ -1705,8 +1705,8 @@ No drift introduced. The new section reinforces pinned intent: meta-layer-first 
 USER requested a fresh, empty narrative document so migration discussion can proceed incrementally by appended sections.
 
 ### Applied changes
-1. Created `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min_migration_narrative.md`.
-2. Indexed the new document in `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`.
+1. Created `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/dev_min_migration_narrative.md`.
+2. Indexed the new document in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/README.md`.
 
 ### Content posture
 The document intentionally starts as a minimal scaffold and explicitly states that sections will be appended in discussion order from local-parity baseline into `dev_min`.
@@ -1721,9 +1721,9 @@ No design drift introduced; this is documentation scaffolding only to enforce in
 
 ### Applied edits
 1. Added new narrative doc:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min_migration_narrative.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/dev_min_migration_narrative.md`
 2. Updated dev_substrate index:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/README.md`
 
 ### Outcome
 There is now a dedicated, minimal narrative artifact ready for progressive section append as discussion proceeds, without forcing a top-down completed-platform narrative.
@@ -1741,9 +1741,9 @@ Create a dedicated dev_substrate narrative document with minimal starting conten
 
 ### File plan
 1. Add:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min_migration_narrative.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/dev_min_migration_narrative.md`
 2. Update index:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/README.md`
 
 ### Authoring posture for this doc
 1. Incremental-first narrative only.
@@ -1846,8 +1846,8 @@ Amend platform-level Oracle expectation so `3.C.1` is considered green only when
 Without this, C&I progression could falsely pass on landed-but-unsorted artifacts and fail later in WSP/SR integration.
 
 ### Planned files
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/oracle_store.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/oracle_store.build_plan.md`
 
 ### Cost posture
 - Docs-only pass; no paid services touched.
@@ -1890,7 +1890,7 @@ The `3.C.2` plan update was applied immediately to satisfy the direct lock reque
 6. Traffic-mode closure proof requires `fraud` primary and `baseline` secondary run evidence.
 
 ### Scope of edit
-- File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- File: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 - Section: `3.C.2 Scenario Runner migration gate` only.
 
 ### Drift sentinel checkpoint
@@ -1944,7 +1944,7 @@ Implement role-aware versioning policy with secure defaults:
 1. `infra/terraform/modules/core/{variables.tf,main.tf}`
 2. `infra/terraform/envs/dev_min/{variables.tf,main.tf,terraform.tfvars.example}`
 3. `scripts/dev_substrate/phase2_terraform.ps1`
-4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 5. `docs/logbook/02-2026/2026-02-11.md`
 
 ### Validation plan
@@ -2031,7 +2031,7 @@ Add a binding cross-phase planning section to `platform.build_plan.md` that make
 - Rejected for now: increases fragmentation and weakens day-to-day operational visibility.
 
 ### Planned edits
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 - Add `Local-to-Managed Compute Migration Playbook (binding)` section with:
   - challenge statement,
   - compute/state inventory requirement,
@@ -2040,7 +2040,7 @@ Add a binding cross-phase planning section to `platform.build_plan.md` that make
   - cutover+rollback requirement,
   - portability acceptance definition (`run anywhere` evidence).
 - Add explicit coupling bullet under Phase `3.C` enforcing this playbook at each component gate.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 - Record pre-change and applied closure entries.
 3. `docs/logbook/02-2026/2026-02-12.md`
 - Log the same decision/action timeline with local time.
@@ -2058,7 +2058,7 @@ Docs-only pass; no paid services touched.
 ## Entry: 2026-02-12 4:30AM - Applied local-to-managed compute migration playbook in active platform build plan
 
 ### Changes applied
-1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` with a new binding cross-phase section:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` with a new binding cross-phase section:
 - `## Local-to-Managed Compute Migration Playbook (binding across phases)`.
 2. New section includes:
 - challenge statement (local success does not equal managed portability),
@@ -2104,7 +2104,7 @@ Current playbook section includes coupling inventory per service, but does not y
 Extend the `Local-to-Managed Compute Migration Playbook` with a mandatory process decomposition section and a binding artifact requirement (`Local Run Process Inventory Matrix`).
 
 ### Planned edit
-- File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- File: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 - Add explicit requirements:
   1. enumerate every local process/subprocess that participates in a run,
   2. assign stable process IDs and corridor ownership,
@@ -2123,7 +2123,7 @@ Docs-only pass; no paid services touched.
 ## Entry: 2026-02-12 4:46AM - Applied mandatory local process-inventory baseline into migration playbook
 
 ### Changes applied
-1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` under:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` under:
 - `Local-to-Managed Compute Migration Playbook (binding across phases)`.
 2. Added new mandatory-first work section:
 - `0. Local run process decomposition baseline (mandatory first)`.
@@ -2162,13 +2162,13 @@ Create a dedicated matrix file in active dev_substrate implementation maps and p
 2. `config/platform/run_operate/packs/local_parity_*.v0.yaml` (all six packs)
 3. `makefile` parity/dev-substrate orchestration targets
 4. `infra/local/docker-compose.platform-parity.yaml`
-5. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (playbook requirement)
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` (playbook requirement)
 
 ### Planned outputs
 1. New artifact:
-- `docs/model_spec/platform/implementation_maps/dev_substrate/local_run_process_inventory_matrix.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/local_run_process_inventory_matrix.md`
 2. Build-plan reference update:
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (explicit artifact path bullet under playbook section 0).
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` (explicit artifact path bullet under playbook section 0).
 3. Log trail update:
 - `docs/logbook/02-2026/2026-02-12.md`
 
@@ -2196,9 +2196,9 @@ Docs-only pass; no paid services touched.
 
 ### Changes applied
 1. Created baseline matrix artifact:
-- `docs/model_spec/platform/implementation_maps/dev_substrate/local_run_process_inventory_matrix.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/local_run_process_inventory_matrix.md`
 2. Linked artifact explicitly in active build plan playbook section:
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
   - added artifact path under `0. Local run process decomposition baseline (mandatory first)`.
 
 ### Matrix coverage delivered in this pass
@@ -2312,7 +2312,7 @@ Add an explicit migration-baseline section to `dev_substrate/platform.build_plan
   - user-directed freeze transition entry (`2026-02-10 4:15PM`).
 
 ### Planned edit
-- File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- File: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 - Add a top-level section that pins:
   - `Spine Green v0 = C&I + RTDL + Case/Labels + Run/Operate/Obs/Gov`,
   - `Learning/Registry (OFS/MF/MPR lifecycle closure)` out of scope for this migration phase.
@@ -2331,7 +2331,7 @@ Docs-only pass; no paid services touched.
 ## Entry: 2026-02-12 5:29AM - Applied Spine Green baseline pin for dev_substrate migration planning
 
 ### Changes applied
-1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`.
 2. Added section:
 - `## Migration Baseline Gate (Spine Green v0)`.
 3. The section now explicitly pins:
@@ -2377,7 +2377,7 @@ Create a dedicated implementation-map artifact that records the major Spine Gree
 
 ### Planned edits
 1. Add file:
-- `docs/model_spec/platform/implementation_maps/dev_substrate/local_run_spine_green_major_process_flow.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/local_run_spine_green_major_process_flow.md`
 2. Append action/evidence trail to:
 - `docs/logbook/02-2026/2026-02-12.md`
 
@@ -2396,7 +2396,7 @@ Docs-only pass; no paid services touched.
 
 ### Changes applied
 1. Added:
-- `docs/model_spec/platform/implementation_maps/dev_substrate/local_run_spine_green_major_process_flow.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/local_run_spine_green_major_process_flow.md`
 2. Captured strict Spine Green v0 local run order from substrate bring-up through obs/gov closure:
 - CI (`SR -> WSP -> IG`),
 - RTDL core + decision lane,
@@ -2405,7 +2405,7 @@ Docs-only pass; no paid services touched.
 3. Explicitly excluded Learning-plane processes.
 
 ### Validation
-1. Confirmed artifact is present in `docs/model_spec/platform/implementation_maps/dev_substrate/`.
+1. Confirmed artifact is present in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/`.
 2. Confirmed each step includes required fields (name, entry point, inputs/outputs, proof artifact).
 3. Confirmed proof artifacts reference existing repo paths or configured parity topics/object-store paths already used in local parity authorities.
 
@@ -2440,8 +2440,8 @@ Explicitly out of scope for migration baseline in this run:
 4. Platform narratives (control/ingress, RTDL, label/case, learning/evolution, obs/gov)
 5. `docs/model_spec/platform/component-specific/world_streamer_producer.design-authority.md`
 6. `docs/model_spec/platform/component-specific/flow-narrative-platform-design.md`
-7. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
-8. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+7. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
+8. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 9. `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md`
 10. `docs/runbooks/platform_parity_walkthrough_v0.md`
 
@@ -2531,7 +2531,7 @@ Apply two remediations:
 3. `tests/services/decision_log_audit/test_dla_phase3_intake.py` (coverage updates)
 4. `docs/logbook/02-2026/2026-02-12.md` (action trail)
 5. Post-run notes append to:
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 - `docs/model_spec/platform/implementation_maps/local_parity/platform.impl_actual.md`
 
 ### Validation plan
@@ -4712,12 +4712,12 @@ We sealed the local→dev_min bridge by producing two authoritative “migration
 - Removed: `config/platform/sr/wiring_dev_min.yaml`
 
 4. Legacy component-level dev_substrate implementation maps/build plans
-- Removed component artifacts under `docs/model_spec/platform/implementation_maps/dev_substrate/` for event bus, ingestion gate, oracle store, scenario runner, and WSP, plus prior `platform.build_plan.md`.
+- Removed component artifacts under `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/` for event bus, ingestion gate, oracle store, scenario runner, and WSP, plus prior `platform.build_plan.md`.
 
 ### New baseline after reset
 - Active dev_substrate maps are now only:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (fresh baseline)
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` (fresh baseline)
 - Folder README was rewritten to mark the reset and to route all implementation work to migration authority docs.
 
 ### Authority after reset (non-negotiable)
@@ -4842,7 +4842,7 @@ Patch is documentation-alignment only and tightens migration safety posture by e
 USER requested a fresh execution build plan that is systematic, progressive, and avoids rushed migration decisions.
 
 ### Problem statement
-`docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` was empty, leaving no active execution tracker for controlled phase-by-phase migration.
+`docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` was empty, leaving no active execution tracker for controlled phase-by-phase migration.
 
 ### Decision
 Create a fresh plan anchored to migration authority docs with:
@@ -4853,7 +4853,7 @@ Create a fresh plan anchored to migration authority docs with:
 - anti-rush controls (no phase advance without evidence + drift closure).
 
 ### Planned file edit
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### Validation plan
 - Verify plan contains canonical roadmap, active phase declaration, transition checklist, and immediate next action.
@@ -4865,7 +4865,7 @@ Planning artifact only; no runtime/code changes. Purpose is to prevent implement
 ## Entry: 2026-02-13 4:49AM - Applied fresh execution build plan baseline (dev_substrate)
 
 ### File updated
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### What was added
 1. Program-level migration purpose, scope lock, authority precedence, and non-negotiable guardrails.
@@ -4901,7 +4901,7 @@ USER requested a pre-commit run-through to ensure the fresh build plan makes sen
 2. Add high-level evidence fidelity mapping section so each roadmap phase has visible proof expectations aligned with runbook families.
 
 ### File to patch
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### Validation plan
 - grep for strengthened gate keywords (`READY`, `kafka_offsets_snapshot`, `RTDL_CAUGHT_UP_LAG_MAX`, `run_completed`, `teardown_proof`, `incident drill`).
@@ -4913,7 +4913,7 @@ This is documentation hardening only; no runtime/code changes. Objective is to p
 ## Entry: 2026-02-13 5:00AM - Applied build-plan runbook-fidelity hardening (pre-commit review closure)
 
 ### File updated
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### What was strengthened
 1. Program DoD now explicitly requires incident-drill evidence (fail-closed behavior proven).
@@ -4961,7 +4961,7 @@ Add explicit rule that 20/200 alone cannot close migration certification.
 - Update evidence-fidelity map row for M10 to include scale/recovery evidence families.
 
 ### File to patch
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### Validation plan
 - grep for "Semantic Green", "Scale Green", "representative window", "burst", "soak", "recovery" markers.
@@ -4973,7 +4973,7 @@ This is a planning hardening change to align dev validation with production-like
 ## Entry: 2026-02-13 5:06AM - Applied certification model upgrade: Semantic Green + Scale Green
 
 ### File updated
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### Changes applied
 1. Global program DoD upgraded:
@@ -5018,7 +5018,7 @@ No runtime/code changes; this is planning quality hardening to prevent underpowe
 - Migration cannot be claimed green-for-dev if only count-capped smoke runs were executed.
 
 ### Where enforced
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
   - Global Success Criteria
   - M10 Certification (Semantic + Scale)
   - 9.2 Scale-Green Threshold Pinning Rule
@@ -5056,9 +5056,9 @@ This improves planning depth while preventing control fragmentation by centraliz
 ## Entry: 2026-02-13 5:17AM - Applied two-layer planning structure (main plan + M0 deep plan)
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md` (new)
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M0.build_plan.md` (new)
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/README.md`
 
 ### What changed
 1. Main plan expansion
@@ -5103,8 +5103,8 @@ Close M0 completely as a governance phase by:
 4. leaving M1 unactivated until explicit USER go (aligned to user instruction not to build without direct approval).
 
 ### Files to update
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M0.build_plan.md`
 
 ### Validation plan
 - M0 status row reflects closure.
@@ -5118,8 +5118,8 @@ Planning/governance only; no runtime/infra implementation in this pass.
 ## Entry: 2026-02-13 5:22AM - Applied M0 full closure (governance phase complete)
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M0.build_plan.md`
 
 ### What was implemented
 1. Main roadmap/status closure
@@ -5165,9 +5165,9 @@ USER approved proceeding to the next step after M0 closure.
 3. Keep this pass planning-only; no runtime/infra/image build execution occurs in this step.
 
 ### Files to update
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md` (new)
-- `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md` (new)
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/README.md`
 
 ### Validation plan
 - Confirm roadmap and current-phase posture show `M1 = ACTIVE`.
@@ -5180,9 +5180,9 @@ This phase activation is document-controlled and user-approved. No build/runtime
 ## Entry: 2026-02-13 5:39AM - Applied M1 activation + deep M1 planning baseline (planning-only)
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md` (new)
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md` (new)
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/README.md`
 
 ### What changed
 1. Main plan activation
@@ -5248,8 +5248,8 @@ This is contract-freeze planning work only and remains within M1 scope.
 ## Entry: 2026-02-13 8:15AM - Applied M1.A image contract freeze
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### What was implemented
 1. M1.A contract freeze completed in deep plan:
@@ -5285,11 +5285,11 @@ USER directed: move to `M1.B`.
 Close M1.B by pinning a complete logical-entrypoint to module-command matrix for Spine Green v0 packaging readiness.
 
 ### Scope
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
    - complete M1.B DoD,
    - add frozen matrix for all Section 6.5 entrypoint handles,
    - pin validation method for build-go pass.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - update active-phase sub-progress to reflect M1.B closure.
 
 ### Key decisions (before patch)
@@ -5309,8 +5309,8 @@ Documentation-contract closure only; no runtime semantic or ownership-boundary c
 ## Entry: 2026-02-13 8:21AM - Applied M1.B entrypoint matrix completion
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### What was implemented
 1. Completed M1.B DoD in deep plan:
@@ -5353,12 +5353,12 @@ USER directed: move to `M1.C`.
 Close M1.C by pinning the packaging provenance field contract, run-scoped evidence paths, and fail-closed mismatch handling.
 
 ### Scope
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
    - complete M1.C DoD,
    - freeze provenance field set and required keys,
    - pin run-scoped evidence object contract,
    - define fail-closed mismatch criteria.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - update active-phase sub-progress to reflect M1.C closure.
 
 ### Key decisions (before patch)
@@ -5378,8 +5378,8 @@ Documentation-contract closure only; no runtime or infrastructure execution chan
 ## Entry: 2026-02-13 8:54AM - Applied M1.C provenance and evidence contract freeze
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### What was implemented
 1. Completed M1.C DoD in deep plan:
@@ -5418,11 +5418,11 @@ USER directed: move to `M1.D`.
 Close M1.D by pinning an explicit no-baked-secrets policy, runtime secret source/ownership model, and fail-closed leakage checks for the M1 build-go pass.
 
 ### Scope
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
    - complete M1.D DoD,
    - pin security/secret contract content,
    - define execution-time checks and evidence.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - update M1 sub-phase progress for M1.D completion.
 
 ### Key decisions (before patch)
@@ -5442,8 +5442,8 @@ Documentation-contract hardening only; no runtime or infrastructure behavior exe
 ## Entry: 2026-02-13 8:56AM - Applied M1.D security and secret-injection contract freeze
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### What was implemented
 1. Completed M1.D DoD in deep plan:
@@ -5483,11 +5483,11 @@ USER requested two actions in sequence:
 Close documentation drift between main-plan active phase and deep-plan authority, then close M1.E by pinning canonical build command surface and reproducibility/failure posture.
 
 ### Scope
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - add explicit M1 deep-plan reference in active M1 section,
    - update sub-phase progress for M1.E completion,
    - update applicable M1 checklist items that become objectively satisfied.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
    - complete M1.E DoD,
    - pin canonical build/push command surface,
    - pin required inputs/handles,
@@ -5510,13 +5510,13 @@ Documentation-contract closure only; no runtime/infrastructure execution changes
 ## Entry: 2026-02-13 9:00AM - Applied M1 main-plan reference update and M1.E build command-surface closure
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
 
 ### What was implemented
 1. Main-plan reference hardening (per USER request)
 - Added explicit active-phase reference that M1 execution authority lives in:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
 - Clarified that this deep plan contains pinned decisions required during build-go execution.
 
 2. M1.E closure in deep plan
@@ -5555,11 +5555,11 @@ USER directed: proceed to `M1.F`.
 Close M1.F by completing the M1 exit-readiness review and preparing the explicit build-go execution handoff statement, without prematurely closing M1 phase status.
 
 ### Scope
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
    - complete M1.F DoD,
    - add readiness verdict and execution handoff statement,
    - mark M1.F checklist complete.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - update active-phase sub-progress,
    - mark M1 handoff checklist item complete,
    - keep M1 status `ACTIVE` pending execution evidence.
@@ -5580,8 +5580,8 @@ Documentation-control closure only; no runtime/infra execution changes.
 ## Entry: 2026-02-13 9:04AM - Applied M1.F exit-readiness review and build-go handoff closure
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### What was implemented
 1. M1.F completion in deep plan:
@@ -5680,11 +5680,11 @@ USER directed reopening M1.A to explicitly specify what enters the platform imag
 Replace broad packaging language with an exact, auditable image content manifest for Spine Green v0 dev_min packaging.
 
 ### Scope
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
    - add explicit M1.A image content manifest (exact include set + explicit exclusion set),
    - record rationale and acceptance checks,
    - keep M1.A closed only after explicit manifest pin.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - reflect M1.A repin/reclosure note in active-phase progress.
 
 ### Dependency audit basis
@@ -5706,8 +5706,8 @@ This is a corrective packaging-contract hardening to prevent bloated/non-determi
 ## Entry: 2026-02-13 9:55AM - Applied M1.A repin: exact image content manifest (no wildcard ambiguity)
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### What changed
 1. Reopened and hardened M1.A with explicit image manifest:
@@ -5745,7 +5745,7 @@ Refined M1.A include set from broad `docs/model_spec/data-engine/interface_pack/
 - `contracts/run_receipt.schema.yaml`
 
 ### File updated
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
 
 ### Rationale
 This removes non-runtime interface-pack content (docs/examples/harvest) from the required image manifest and keeps packaging scope auditable and minimal.
@@ -5764,7 +5764,7 @@ Codified a binding fail-closed rule:
 ### Files updated
 1. `AGENTS.md`
    - added `Decision-completeness law (fail-closed)` under Drift Sentinel Law.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - added `10.2 Decision-Completeness Gate (Fail-Closed)` with execution-control wording.
 
 ### Effect
@@ -5778,7 +5778,7 @@ USER requested restructuring:
 - rename previous exit-readiness/handoff step from `M1.F` to `M1.G`.
 
 ### Changes applied
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
 - inserted new `M1.F Build Driver Authority Pin`.
 - pinned driver decision:
   - authoritative: `github_actions`,
@@ -5786,7 +5786,7 @@ USER requested restructuring:
 - shifted prior `M1.F Exit Readiness Review` to `M1.G` and aligned references.
 - updated completion checklist to include `M1.G complete`.
 
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 - updated M1 sub-phase progress labels:
   - `M1.F` now driver authority pin,
   - `M1.G` now exit-readiness + handoff.
@@ -5810,8 +5810,8 @@ Replan M1 with additional explicit pre-build-go phases and reopen readiness clos
 4. Align checklists/progress in main plan so build-go remains blocked.
 
 ### Files to update
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### Validation plan
 - New G/H/I sections exist with clear goals/tasks/DoDs.
@@ -5824,8 +5824,8 @@ This is control-surface hardening and does not execute runtime/build actions.
 ## Entry: 2026-02-13 10:26AM - Applied M1 replan: inserted explicit pre-build-go CI phases and reopened readiness
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### Structural changes
 1. Added new explicit pre-build-go phases:
@@ -5885,8 +5885,8 @@ Close `M1.G` by implementing the authoritative GitHub Actions workflow contract 
 - CI run id,
 - build actor.
 3. Record `M1.G` closure in:
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 4. Append action record in `docs/logbook/02-2026/2026-02-13.md`.
 
 ### Decision posture (before patch)
@@ -5906,8 +5906,8 @@ This change is contract realization for M1 only and does not execute build-go ru
 
 ### Files updated
 1. `.github/workflows/dev_min_m1_packaging.yml` (new)
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### What was implemented
 1. Authoritative CI workflow realization:
@@ -5981,8 +5981,8 @@ This is control-surface validation for migration readiness, not runtime flow exe
 ### Files updated
 1. `.github/workflows/dev_min_m1_packaging.yml`
 2. `tools/dev_substrate/validate_m1_ci_workflow_contract.py` (new)
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
-4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### Corrective action for discovered gap
 1. Patched workflow evidence emission to include:
@@ -6044,9 +6044,9 @@ Close M1 planning-phase readiness by:
 
 ### Review basis
 1. Deep plan:
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
 2. Main plan:
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 3. CI validation evidence:
 - `runs/dev_substrate/m1_h_validation/20260213T104213Z/ci_gate_validation_report.json`
 
@@ -6069,8 +6069,8 @@ This is planning/control closure only; no runtime build/push execution is perfor
 ## Entry: 2026-02-13 10:47AM - Applied M1.I closure: M1 planning gates complete
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### M1.I closure outcome
 1. M1.I DoD checklist marked complete:
@@ -7162,7 +7162,7 @@ USER explicitly requested adding a Confluent provisioning lane because repeated 
 2. Docs:
    - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`,
    - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`,
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`,
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md`,
    - `infra/terraform/dev_min/*/README.md` and `infra/terraform/modules/README.md`.
 3. Execution posture:
    - M2.F remains fail-closed until new lane is applied and auth/topic checks pass.
@@ -7373,8 +7373,8 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 
 ### Phase status update
 1. `M2.F` marked complete in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ## Entry: 2026-02-13 7:01PM - M2.G planning expansion (network posture lane, fail-closed)
 
@@ -7412,10 +7412,10 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - adds `network_posture_snapshot.json` while retaining `no_nat_check.json` compatibility artifact.
 
 ### Files updated for planning alignment
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md`
    - expanded M2.G into closure-grade sub-phases, command templates, blockers, and DoD.
    - capability matrix/evidence list updated for `network_posture_snapshot.json`.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - immediate next action now points to executing `M2.G-A -> M2.G-E` with required M2.G evidence gates.
 
 ### Execution posture after planning
@@ -7468,8 +7468,8 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 
 ### Planning status updates applied
 1. Marked `M2.G` complete in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. Shifted immediate next action to `M2.H` DB/migrations readiness lane.
 
 ## Entry: 2026-02-13 7:36PM - M2.H planning expansion and fail-closed blocker pin
@@ -7587,8 +7587,8 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 
 ### Plan-state updates
 1. Marked `M2.H` complete in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. Shifted immediate next action to `M2.I` budget/teardown guardrail lane.
 
 ## Entry: 2026-02-13 8:01PM - Pre-change lock: expand M2.I planning to closure-grade depth before execution
@@ -7612,8 +7612,8 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. Keep this pass planning-only (no infrastructure mutation).
 
 ### Design references reviewed for this planning pass
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
 5. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
@@ -7750,8 +7750,8 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 
 ### Plan-state updates
 1. Marked `M2.I` complete in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. Advanced immediate-next-action to `M2.J` exit-readiness/handoff.
 
 ## Entry: 2026-02-13 8:34PM - Cost dashboard text widget rendering fix (markdown escape cleanup)
@@ -7916,7 +7916,7 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - `M3.A -> M3.G` sub-phase progression checklist,
    - explicit M3 DoD checklist.
 3. Registered deep-plan routing for M3 in Section 6.1:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M3.build_plan.md`.
 4. Updated immediate-next-action block to focus on closing M3 decision pins and preparing M3 execution lane with fail-closed gating to M4.
 
 ### Deep-plan file created
@@ -7945,7 +7945,7 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 
 ### What was expanded
 1. Upgraded `M3.A` from lightweight bullets to closure-grade planning content in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M3.build_plan.md`.
 2. Added:
    - `M3.A Decision Pins (Closed Before Execution)`,
    - `M3.A Verification Command Catalog`,
@@ -8108,11 +8108,11 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m3b_20260213T214223Z/m3_b_run_id_generation_snapshot.json`
 
 ### Plan-state updates applied
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M3.build_plan.md`:
    - marked M3.B DoD complete,
    - recorded authoritative M3.B execution result and evidence,
    - marked `M3.B complete` in M3 checklist.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - marked `M3.B` complete in sub-phase progress,
    - marked M3 DoD item `platform_run_id generated and collision-checked` complete,
    - advanced immediate next action to `M3.C` then `M3.D -> M3.G`.
@@ -8127,7 +8127,7 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. Keep this pass planning-only (no M3.C execution command run yet).
 
 ### What was expanded
-1. In `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`:
+1. In `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M3.build_plan.md`:
    - expanded M3.C tasks to include:
      - pinned field-name envelope,
      - canonical payload materialization,
@@ -8140,7 +8140,7 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - added `M3.C Evidence Contract` with required local/durable artifacts and minimum snapshot fields.
    - added `M3.C Planning Status (Current)` with explicit input anchor to accepted M3.B output.
    - extended Section 6 evidence list to include M3.C artifacts.
-2. In `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. In `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - added M3.C planning-status summary in the active M3 posture,
    - kept M3.C sub-phase unchecked (planning-only),
    - refined immediate-next-action line to execute M3.C with explicit evidence artifact set.
@@ -8198,11 +8198,11 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. This is documented in `m3_c_config_payload.json` under `scenario.status`.
 
 ### Plan-state updates applied
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M3.build_plan.md`:
    - marked M3.C DoD complete,
    - recorded authoritative execution result + evidence,
    - marked `M3.C complete` in M3 completion checklist.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - marked `M3.C` complete in sub-phase progress,
    - marked M3 DoD item `run config payload canonicalized and digest-complete` complete,
    - advanced immediate next action to `M3.D` then `M3.E -> M3.G`.
@@ -8213,7 +8213,7 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. USER requested that the M3.C provisional-scenario note be captured in the main platform build plan.
 
 ### Change applied
-1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` under active M3 posture (`M3.C planning status`) to explicitly state:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` under active M3 posture (`M3.C planning status`) to explicitly state:
    - `ORACLE_REQUIRED_OUTPUT_IDS` and `ORACLE_SORT_KEY_BY_OUTPUT_ID` remain P3-entry placeholders,
    - scenario surface in M3.C payload is provisional until P5/SR confirmation.
 
@@ -8243,13 +8243,13 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 4. `M3.G`: canonical M3 closeout + M4 handoff artifact publication.
 
 ### Expected doc updates
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (active M3 summary alignment)
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M3.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` (active M3 summary alignment)
 
 ## Entry: 2026-02-13 10:05PM - Post-change record: M3.D -> M3.G planning expanded sequentially
 
 ### What was expanded
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M3.build_plan.md`:
    - Expanded `M3.D` with:
      - Decision Pins,
      - Verification Command Catalog (`M3D_V1..V7`),
@@ -8271,7 +8271,7 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
      - Blocker Taxonomy (`M3G-B1..B5`),
      - planning status.
    - Extended M3 evidence contract payload list to include D/E/F/G control-plane artifacts.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - Added active M3 summary line noting D->G sequential planning expansion and ordered fail-closed execution requirement.
    - Refined immediate-next-action to execute `M3.D`, then `M3.E -> M3.G` sequentially in one controlled closure lane.
 
@@ -8360,7 +8360,7 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 1. USER explicitly granted phase-transition go-ahead and requested that it be marked out first.
 
 ### Plan-state updates applied
-1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - roadmap statuses:
      - `M3: ACTIVE -> DONE`
      - `M4: NOT_STARTED -> ACTIVE`
@@ -8388,7 +8388,7 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. Create a closure-grade deep M4 plan doc with explicit sub-phases, DoDs, blocker model, evidence contract, and fail-closed transition rules.
 
 ### Authority set used
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P2 section)
 3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 4. M3 closeout evidence bundle (`m3_20260213T221631Z`) as handoff anchor.
@@ -8411,7 +8411,7 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 ## Entry: 2026-02-13 10:36PM - Post-change record: M4 expanded in main plan + deep M4 plan authored
 
 ### What changed
-1. Expanded M4 in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` from gate-level summary to active-phase planning surface.
+1. Expanded M4 in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` from gate-level summary to active-phase planning surface.
 2. Added M4 execution-planning structure in main plan:
    - objective/scope/failure posture,
    - sub-phase progression model `M4.A -> M4.J`,
@@ -8422,7 +8422,7 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - `platform.M4.build_plan.md` now marked present,
    - deferred set narrowed to `M5..M10`.
 4. Created new deep-phase plan:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`.
 
 ### Deep M4 plan contents authored
 1. Authority/scope/deliverables/execution-gate sections for P2.
@@ -8462,11 +8462,11 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - handoff rule to next sub-phase.
 
 ### Changes applied
-1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`:
    - expanded `M4.A` through `M4.J` with sequential execution-grade detail,
    - added `5.1) Sequential Closure Chain (A->J)`,
    - aligned evidence contract to include newly pinned artifacts across all sub-phases.
-2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - added explicit M4 expansion-state note confirming deep-plan completeness for `M4.A -> M4.J`.
 
 ### Outcome
@@ -8507,10 +8507,10 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. This is treated as the current naming contract source for M4 bring-up until Terraform-managed runtime service handles are materialized in later lanes.
 
 ### Plan state updates
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`:
    - M4.A DoD checklist marked complete.
    - M4 completion checklist now marks `M4.A` complete.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - M4 sub-phase progress now marks `M4.A` complete.
 
 ### Next step
@@ -8529,7 +8529,7 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 
 ### Changes made
 1. Expanded `M4.B` section in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`
 2. Added execution-grade structure:
    - `Entry conditions` anchored to `m4_20260214T121004Z` (`overall_pass=true`, `unresolved_handle_count=0`, `wildcard_key_present=false`),
    - `Required inputs` list (M4.A snapshot + P2 pack contract + required `SVC_*` handles),
@@ -8573,10 +8573,10 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 2. M4.C should now validate IAM role/task attachability against this exact service map.
 
 ### Plan state updates
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`:
    - M4.B DoD checklist marked complete.
    - M4 completion checklist marks `M4.B` complete.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - M4 sub-phase progress marks `M4.B` complete.
    - Immediate next action now points to `M4.C`.
 ## Entry: 2026-02-14 01:09PM - M4.C planning expansion (execution-grade, planning-only)
@@ -8589,7 +8589,7 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 
 ### Changes made
 1. Expanded `M4.C` in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`
 2. Added execution-grade structure:
    - `Entry conditions` anchored to `M4.B` pass artifact (`m4_b_service_map_snapshot.json`),
    - `Required inputs` including IAM role-handle family from registry Section 10 and runtime dependency handles,
@@ -8622,7 +8622,7 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
    - Added `ROLE_ENV_CONFORMANCE` under IAM role map (Section 10.3) for `SVC_ENV_CONFORMANCE`.
 2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
    - Added IAM appendix subsection `ROLE_ENV_CONFORMANCE (P2)` with permission shape + prohibitions.
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`
    - M4.C required-input role set now includes `ROLE_ENV_CONFORMANCE`.
    - Service-role matrix now pins `SVC_ENV_CONFORMANCE -> ROLE_ENV_CONFORMANCE`.
    - Blocker text `M4C-B4` now references missing `ROLE_ENV_CONFORMANCE` explicitly.
@@ -8656,10 +8656,10 @@ USER directed immediate progression to close `M2.F` after workflow secret mappin
 
 ### Plan-state updates
 1. Updated unresolved blocker register in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`
    with active `M4C-B1/B2/B4` entries, evidence anchors, and closure criteria.
 2. Updated immediate-next-action in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    to resolve and re-run `M4.C` before any `M4.D` progression.
 
 ### Closure requirements (before M4 can advance)
@@ -8728,11 +8728,11 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - baseline IAM policy-surface checks pass for lane roles.
 
 ### Plan-state updates
-1. docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md:
+1. docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md:
    - M4.C DoD marked complete.
    - M4 completion checklist marks M4.C complete.
    - unresolved blocker register cleared (Current blockers: None) and moved M4C-B1/B2/B4 to resolved with closure evidence.
-2. docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md:
+2. docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md:
    - M4 sub-phase progress marks M4.C complete.
    - immediate next action now points to M4.D.
 ## Entry: 2026-02-14 01:46PM - M4.C verification re-run (fresh evidence PASS)
@@ -8774,14 +8774,14 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 
 ### Planning actions
 1. Expanded `M4.D` in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`
 2. Added closure-grade planning structure for `M4.D`:
    - explicit entry conditions (`M4.C` PASS + immutable `M4.B` mapped-service scope + `M3` run-scope context),
    - explicit required input handles (ECS/VPC/subnets/SG, SSM, S3, RDS, CloudWatch),
    - deterministic task sequence (dependency matrix, control-plane network checks, managed-compute probe checks, fail-closed blocker mapping, artifact publication),
    - expanded DoD and blocker taxonomy (`M4D-B1..B5`).
 3. Updated high-level active-plan narrative:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - pinned that `M4.D` execution must include runtime-equivalent managed-compute probe evidence (no laptop-only dependency proof).
 
 ### Planning outcome
@@ -8799,7 +8799,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - `M4D-B6` when probe task definition is missing/unresolvable.
 
 ### Applied plan update
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`
    - required inputs include `ecs_probe_task_definition_arn`,
    - task sequence now explicitly launches one-shot ECS probe task using runtime-equivalent network config,
    - DoD requires probe launch anchor + probe exit status evidence,
@@ -8836,9 +8836,9 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - `blockers=[\"M4D-B5\"]`
 
 ### Plan-state updates
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`:
    - unresolved blocker register now includes active `M4D-B5` with closure criteria.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - immediate next action updated to resolve `M4D-B5` then re-run `M4.D`.
 ## Entry: 2026-02-14 02:25PM - Closed M4.D by canonical M4.A refresh + pass re-run
 
@@ -8868,12 +8868,12 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 2. `M4D-B5` resolved.
 
 ### Plan-state updates
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`:
    - `M4.A` required-handle set now explicitly includes `SECURITY_GROUP_ID_DB`,
    - `M4.D` DoD checklist marked complete,
    - unresolved blocker register cleared,
    - `M4D-B5` moved to resolved with closure evidence.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - M4 sub-phase progress marks `M4.D` complete,
    - immediate next action now points to `M4.E`.
 ## Entry: 2026-02-14 02:36PM - M4.E planning expansion (execution-grade, planning-only)
@@ -8883,7 +8883,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 
 ### Planning actions
 1. Expanded `M4.E` in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`
 2. Added execution-grade planning structure for launch-contract phase:
    - entry conditions bound to `M4.D` PASS + immutable `M4.B` service scope + `M3` image-provenance anchors,
    - required input surfaces (`M3`, `M4.A/B/C/D`, run-scope handles, dependency handles),
@@ -8897,7 +8897,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - added `M4E-B6` (image provenance incomplete/non-immutable),
    - added `M4E-B7` (role-binding drift vs `M4.C`).
 4. Updated high-level active plan:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - now states `M4.E` is execution-grade and ties next action to both `M4.D` evidence and `M3` image anchors.
 
 ### Planning outcome
@@ -8939,9 +8939,9 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - non-secret artifact PASS.
 
 ### Plan-state updates
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`:
    - unresolved blocker register now contains active `M4E-B5` with closure criteria.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - immediate next action now requires closing `M4E-B5` then rerunning `M4.E`.
 ## Entry: 2026-02-14 02:45PM - Closed M4.E by entrypoint pinning + pass rerun
 
@@ -8970,12 +8970,12 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - non-secret artifact PASS.
 
 ### Plan-state updates
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`:
    - `M4.E` DoD marked complete,
    - M4 completion checklist marks `M4.E` complete,
    - unresolved blockers cleared (`Current blockers: None`),
    - `M4E-B5` moved to resolved with authority/evidence anchors.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - M4 sub-phase progress marks `M4.E` complete,
    - immediate next action now points to `M4.F`.
 ## Entry: 2026-02-14 02:59PM - M4.F planning expansion (execution-grade, planning-only)
@@ -8985,7 +8985,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 
 ### Planning actions
 1. Expanded `M4.F` in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`
 2. Added execution-grade planning structure:
    - explicit entry conditions tied to clean `M4.E` PASS and immutable `M4.B` service scope,
    - required inputs across `M4.B/C/D/E` artifacts + runtime handles,
@@ -8998,7 +8998,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - added `M4F-B5` (run-scope mismatch evidence),
    - added `M4F-B6` (launch-contract/service-set drift at bring-up time).
 4. Updated high-level active plan:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - now reflects `M4.F` execution-grade planning and pack-ordered rollout + run-scope/crashloop validation in immediate next action.
 
 ### Planning outcome
@@ -9038,9 +9038,9 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - run-scope validation cannot be proven because no mapped daemon tasks are running.
 
 ### Plan-state updates
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`:
    - unresolved blocker register now includes active `M4F-B1/B2/B5/B6` with closure criteria.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - immediate next action now requires service/task-definition materialization for mapped daemons, then `M4.F` rerun.
 ## Entry: 2026-02-14 03:34PM - M4.F closure after ECS daemon materialization + rerun PASS
 
@@ -9073,11 +9073,11 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - run-scope checks pass for all mapped services (`task_definition_env_contains_expected_run_scope`).
 
 ### Plan-state updates
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`:
    - marked `M4.F` complete,
    - cleared unresolved blocker register,
    - moved `M4F-B1/B2/B5/B6` to resolved with closure evidence anchors.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - marked `M4.F` complete in M4 sub-phase progress,
    - advanced immediate next action to `M4.G` duplicate-consumer/singleton guard lane.
 ## Entry: 2026-02-14 03:46PM - M4.G planning expansion (execution-grade, planning-only)
@@ -9160,10 +9160,10 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 2. Duplicate/manual consumer interference was not observed under mapped daemon lanes at execution time.
 
 ### Plan-state updates
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`:
    - marked M4.G DoD checklist complete,
    - marked M4 completion checklist `M4.G complete`.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - marked M4 sub-phase progress `M4.G` complete,
    - marked high-level M4 duplicate-consumer DoD as complete,
    - advanced immediate next action to `M4.H` readiness evidence publication.
@@ -9195,14 +9195,14 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 ## Entry: 2026-02-14 04:21PM - M4.H planning expanded to execution-grade (planning-only)
 
 ### Changes applied
-1. Expanded `M4.H` in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md` from checklist-level to execution-grade with:
+1. Expanded `M4.H` in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md` from checklist-level to execution-grade with:
    - entry conditions bound to latest `M4.F` and `M4.G` PASS snapshots,
    - required input contract (`M4.B`/`M4.F`/`M4.G`, run identity, evidence roots),
    - canonical `operate/daemons_ready.json` schema requirements,
    - explicit pre-publish invariants (service coverage, singleton/duplicate posture, non-secret check),
    - explicit local + durable publication sequence,
    - strengthened DoD and fail-closed blocker taxonomy (`M4H-B1..B5`).
-2. Updated high-level M4 expansion note in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` to reflect M4.H execution-grade planning status.
+2. Updated high-level M4 expansion note in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` to reflect M4.H execution-grade planning status.
 
 ### Planning outcome
 1. M4.H is execution-ready at plan level with explicit acceptance predicates and no hand-wavy steps.
@@ -9291,7 +9291,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 ## Entry: 2026-02-14 04:55PM - M4.I planning expanded to execution-grade (planning-only)
 
 ### Changes applied
-1. Expanded `M4.I` section in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md` with:
+1. Expanded `M4.I` section in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md` with:
    - explicit entry conditions tied to `M4.H` PASS + readable `M4.A..M4.H` snapshots,
    - required input contract including run-scoped readiness evidence and control evidence root,
    - deterministic predicate derivation rules for all M4 verdict predicates (`handles_closed` through `readiness_evidence_durable`),
@@ -9299,7 +9299,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - explicit local + durable `m4_i_verdict_snapshot.json` publication contract,
    - additional DoD coverage for non-secret/run-id consistency,
    - expanded blocker taxonomy (`M4I-B1..B6`).
-2. Updated high-level M4 expansion note in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` to reflect M4.I execution-grade planning status.
+2. Updated high-level M4 expansion note in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` to reflect M4.I execution-grade planning status.
 
 ### Planning outcome
 1. `M4.I` is now execution-ready at plan level with no hand-wavy predicate or verdict logic.
@@ -9383,13 +9383,13 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 ## Entry: 2026-02-14 05:12PM - M4.J planning expanded to execution-grade (planning-only)
 
 ### Changes applied
-1. Expanded `M4.J` section in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md` with:
+1. Expanded `M4.J` section in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md` with:
    - strict entry gate (`M4.I` must be `ADVANCE_TO_M5` with empty blocker rollup and durable verdict upload),
    - required input contract across `M3` handoff + `M4.B/H/I`,
    - canonical `m5_handoff_pack.json` schema and `m5_entry_gate` semantics,
    - fail-closed invariants (required fields, URI readability, run-id consistency, non-secret policy),
    - strengthened DoD and extended blocker taxonomy (`M4J-B1..B6`).
-2. Updated high-level M4 expansion note in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` to reflect M4.J execution-grade planning status.
+2. Updated high-level M4 expansion note in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` to reflect M4.J execution-grade planning status.
 
 ### Planning outcome
 1. `M4.J` is now execution-ready at plan level.
@@ -9473,7 +9473,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 ## Entry: 2026-02-14 05:33PM - M4 DONE transition + M5 deep planning baseline established
 
 ### Changes applied
-1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - status table transition:
      - `M4` -> `DONE`
      - `M5` -> `ACTIVE`
@@ -9486,7 +9486,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
      - M5 active-phase model with `M5.A..M5.I` progression and M5 DoD checklist
    - immediate next action moved to `M5.A` entry.
 2. Created new deep plan file:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
    - includes execution-grade coverage:
      - scope/authority/capability matrix,
      - decision pins for P3,
@@ -9543,14 +9543,14 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 3. Reflect the expansion in the main platform build plan so the high-level authority references the new M5.A depth.
 
 ### Planned file changes
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 3. `docs/logbook/02-2026/2026-02-14.md`
 
 ## Entry: 2026-02-14 05:55PM - M5.A planning expansion applied (execution-grade)
 
 ### Changes applied
-1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md` (`M5.A`) to add:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md` (`M5.A`) to add:
    - explicit entry conditions tied to `M4.J` handoff openness and run-id inheritance,
    - required-input contract (authorities, source artifacts, materialization sources),
    - explicit handle closure model split into:
@@ -9559,7 +9559,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - fail-closed rules for placeholders, wildcard keys, and ambiguous origin conflicts,
    - canonical snapshot schema and local+durable publication path contract,
    - refined DoD and blocker taxonomy (`M5A-B1..B5`).
-2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` M5 expansion note to reflect the hardened M5.A closure model.
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` M5 expansion note to reflect the hardened M5.A closure model.
 
 ### Outcome
 1. M5.A is now planning-complete at execution-grade depth.
@@ -9592,7 +9592,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 
 ### Planned file changes
 1. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 3. `docs/logbook/02-2026/2026-02-14.md`
 
 ## Entry: 2026-02-14 06:01PM - P3 output/sort handles pinned in registry
@@ -9608,7 +9608,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 2. Added rationale text in registry clarifying:
    - this is Spine Green v0 fraud-mode scope,
    - deterministic tie-breakers remain `filename` + `file_row_number`.
-3. Updated stale planning note in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+3. Updated stale planning note in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - replaced “still placeholders” statement with “now pinned; historical M3.C evidence is provisional until re-executed”.
 
 ### Verification performed
@@ -9640,7 +9640,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 
 ### Planned file changes
 1. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 3. `docs/logbook/02-2026/2026-02-14.md`
 
 ## Entry: 2026-02-14 06:13PM - Sort-key pin extension applied
@@ -9731,7 +9731,7 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 2. Extended allowed prefix tokens in registry to include:
    - `{source_platform_run_id}` (seed-source selector use).
 3. Updated execution docs so this handle is part of required seed-source closure:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md` (M5.A conditional seed handles),
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md` (M5.A conditional seed handles),
    - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P3 required handles list).
 
 ### Rationale
@@ -9788,9 +9788,9 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 ### Planned patch scope
 1. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
-4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
-5. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
 
 ### Validation plan
 1. Run symbol sweep for `ORACLE_SEED_`, `TD_ORACLE_SEED`, `ENTRYPOINT_ORACLE_SEED`, `seed/sync`, and `SEED_REQUIRED` across migration-to-dev + active dev_substrate plan docs.
@@ -9801,9 +9801,9 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 ### Files updated
 1. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
-4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
-5. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
 
 ### What was changed
 1. Reframed P3 from `seed/sync -> stream-sort -> checker` to:
@@ -9873,9 +9873,9 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 
 ### Plan state updates applied
 1. Marked `M5.A` checklist items complete in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
 2. Marked M5 sub-phase progress for `M5.A` complete in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### Notes
 1. No runtime compute phase (stream-sort/checker) executed in this step.
@@ -9898,9 +9898,9 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 
 ### Scope
 1. Primary file:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
 2. Optional companion touch if needed for cross-reference:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (only if summary routing needs refresh).
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` (only if summary routing needs refresh).
 
 ### Non-goals
 1. No M5.B execution in this step.
@@ -9914,8 +9914,8 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 ## Entry: 2026-02-14 07:10PM - Applied M5.B planning expansion to execution-grade
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### M5.B planning upgrades applied
 1. Added explicit entry invariants tied to `M5.A` snapshot readability and pass posture.
@@ -9992,9 +9992,9 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 
 ### Plan updates applied
 1. Marked `M5.B` DoD checklist complete and added execution result note in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
 2. Marked M5 sub-phase progress for `M5.B` complete in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### Notes
 1. No runtime stream-sort/checker compute was executed in `M5.B`; this step is policy closure/evidence only.
@@ -10026,8 +10026,8 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 ## Entry: 2026-02-14 07:28PM - Applied M5.C planning expansion to execution-grade assertion lane
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### M5.C planning upgrades applied
 1. Added explicit entry invariants tied to latest `M5.B` pass artifact (local + durable readability).
@@ -10141,9 +10141,9 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 2. Make M5.D fully deterministic for M5.E handoff: per-output launch matrix, sort-key closure, path/pattern closure, and managed-compute launch profile closure.
 
 ### Planned scope
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
    - add entry invariants, required inputs/handles, deterministic task list, snapshot schema, DoD, blocker taxonomy.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - add M5 expansion summary line confirming M5.D is execution-grade planned.
 
 ### Non-goals
@@ -10158,8 +10158,8 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 ## Entry: 2026-02-14 07:47PM - Applied M5.D planning expansion to execution-grade launch-contract closure
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### M5.D planning upgrades applied
 1. Added explicit entry invariants pinned to `M5.C` PASS artifact readability (local + durable).
@@ -10298,14 +10298,14 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 2. Make M5.E deterministic and auditable across per-output execution and artifact checks.
 
 ### Planned scope
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
    - add entry invariants pinned to `M5.D` PASS,
    - add required input/handle matrix,
    - add deterministic managed-job execution contract,
    - add per-output artifact verification contract,
    - add summary snapshot schema/publication and fail-closed stop rule,
    - expand DoD and blocker taxonomy.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - add M5 expansion-state summary for M5.E execution-grade closure.
 
 ### Non-goals
@@ -10319,8 +10319,8 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 ## Entry: 2026-02-14 08:18PM - Applied M5.E planning expansion to execution-grade stream-sort closure
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### M5.E planning upgrades applied
 1. Added explicit entry invariants pinned to `M5.D` PASS artifact readability (local + durable).
@@ -10405,10 +10405,10 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 3. Any M5.E run without pinned `lane_mode` + `workload_profile_id` is a blocker.
 
 ### Docs updated to lock this decision
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
    - added two-lane laws, lane-aware M5.E tasks/DoD/blockers, and execution observation lock.
    - updated blocker register with active M5E blockers and closure criteria.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - added phase-level decision lock and challenge-proof references under M5.
 
 ### Outcome
@@ -10544,11 +10544,11 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m6_handoff_pack.json`
 
 ### Documentation/state updates completed
-1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`:
    - marked `M5.E..M5.I` DoD/checklists complete,
    - recorded execution results and closure evidence for `M5.E..M5.I`,
    - cleared unresolved blocker register (`none`) and moved closures to resolved list.
-2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - `M5` status set to `DONE`,
    - M5 sub-phase progress and DoD checklist set complete with closure evidence references.
 
@@ -10574,11 +10574,11 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m6_handoff_pack.json`.
 
 ### Planned scope
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - set roadmap status to reflect M5 closure and M6 activation,
    - replace M6 gate-only summary with expanded active-phase planning posture and DoD/checklist,
    - route to deep plan file and pin M6 immediate next action.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md` (new)
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M6.build_plan.md` (new)
    - deep plan purpose, scope, capability-lane matrix, evidence contract,
    - sub-phase breakdown (`M6.A..M6.I`) with entry conditions, tasks, DoD, blockers.
 
@@ -10589,8 +10589,8 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 ## Entry: 2026-02-15 02:04AM - Applied M6 planning expansion in main and deep build plans
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md` (new)
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M6.build_plan.md` (new)
 
 ### Main-plan updates applied
 1. Updated phase roadmap/status posture:
@@ -10635,9 +10635,9 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
    - snapshot schema and fail-closed blocker mapping.
 
 ### Planned scope
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M6.build_plan.md`
    - replace `M6.A` section with expanded structure and stronger closure criteria.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - add M6 expansion-state note that `M6.A` is now execution-grade and is the immediate execution gate.
 
 ### Non-goals
@@ -10647,8 +10647,8 @@ runs/dev_substrate/m4/20260214T133434Z/m4_c_lane_role_policy_surface.json
 ## Entry: 2026-02-15 02:08AM - Applied M6.A planning expansion to execution-grade closure
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M6.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### M6.A planning upgrades applied
 1. Reworked `M6.A` from compact checklist to execution-grade sub-phase with:
@@ -11573,8 +11573,8 @@ Re-executed `M6.G` under corrected IG Kafka-health posture and re-emitted run-sc
 
 ### Implementation
 - Updated:
-  - docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md
-  - docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md
+  - docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md
+  - docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md
 - Added managed workflow:
   - .github/workflows/dev_min_confluent_destroy.yml
 
@@ -11667,8 +11667,8 @@ Close `M6.H` (P4..P7 gate rollup + verdict) and `M6.I` (M7 handoff publication) 
 Expand migration/execution planning for `M7` in the main platform plan and create a detailed `platform.M7.build_plan.md`.
 
 ### Authority set reviewed for this change
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (current phase map + M7 placeholder).
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md` (M6 closure handoff semantics + evidence anchors).
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` (current phase map + M7 placeholder).
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M6.build_plan.md` (M6 closure handoff semantics + evidence anchors).
 3. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P8/P9/P10 execution and gate semantics).
 4. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` (RTDL/decision/case-label handles, evidence path patterns, runtime knobs, roles).
 5. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md` (managed substrate and append-only/no-laptop constraints).
@@ -11722,10 +11722,10 @@ Expand migration/execution planning for `M7` in the main platform plan and creat
 ### Scope completed
 1. Expanded M7 in the main platform build plan from summary-only to execution-grade phase structure.
 2. Created detailed deep plan:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md`.
 
 ### Main plan changes
-File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+File: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 1. Updated phase roadmap status:
    - `M7` set to `ACTIVE`.
 2. Updated deep-plan routing:
@@ -11740,7 +11740,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build
    - execute `M7.A` handle closure first and fail closed on unresolved placeholders.
 
 ### New deep plan structure (M7)
-File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+File: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md`
 1. Added M7 anti-cram/capability-lane matrix for `P8..P10`.
 2. Added decision pins aligned to migration authority and append-only laws.
 3. Added execution-grade sub-phases:
@@ -11794,13 +11794,13 @@ Branch M7 planning into dedicated per-plane deep plans:
 
 ### Scope completed
 1. Added dedicated per-plane deep plans:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P8.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P9.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P10.build_plan.md`.
 2. Updated M7 orchestrator and main platform plan to route authority to these branch docs.
 
 ### Main-plan alignment updates
-File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+File: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 1. Added M7 branch deep-plan routing in Section 6.1.
 2. Added branch authority references in active M7 planning posture.
 3. Updated M7 expansion-state text to explicitly split plane-depth detail by:
@@ -11809,7 +11809,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build
    - P10 (`platform.M7.P10.build_plan.md`).
 
 ### M7 orchestrator alignment updates
-File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+File: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md`
 1. Added `Branch Deep Plans` section (`1.1`) with control rule:
    - orchestrator owns cross-plane sequencing + final rollup,
    - branch docs own deep per-plane execution details.
@@ -11932,11 +11932,11 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 2. This is not an `M7.A` blocker, but it is a hard block for `M7.G`/`P10` execution entry until pinned.
 
 ### Plan alignment updates applied
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md`
    - marked `M7.A` DoD checklist complete,
    - added M7.A execution notes and evidence refs,
    - updated unresolved blocker register with open `M7G-B1`.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - marked sub-phase `M7.A` complete,
    - updated M7 expansion state to runtime-started,
    - updated immediate next action to `M7.B`.
@@ -11979,7 +11979,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ## Entry: 2026-02-18 14:46:00 +00:00 - M7.P8 (`P8.A..P8.D`) planning expansion completed for execution readiness
 
 ### Scope completed
-1. Expanded `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` from baseline lane definitions into execution-grade prep coverage for `P8.A..P8.D`.
+1. Expanded `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P8.build_plan.md` from baseline lane definitions into execution-grade prep coverage for `P8.A..P8.D`.
 
 ### What was added
 1. Readiness and preflight coverage:
@@ -12402,7 +12402,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 2. Align `P9.A` planning depth to the same closure-grade posture used for `P8`.
 
 ### Changes applied
-1. Expanded `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` with:
+1. Expanded `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P9.build_plan.md` with:
    - pre-execution readiness matrix (`P8 pass dependency`, service stability, policy handle closure, run-scope continuity, dependency reachability),
    - runtime budgets (`P9.A`, `P9.B`, `P9.C`, and plane-total),
    - rerun/rollback preparation contract,
@@ -12466,14 +12466,14 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 2. Make decision/action/audit closure deterministic and fail-closed (no interpretation drift at execution time).
 
 ### Changes applied
-1. Expanded `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md`:
+1. Expanded `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P9.build_plan.md`:
    - added `P9.B` pre-execution readiness matrix (`Section 4.6`),
    - added deterministic verification algorithm (`Section 4.7`),
    - deepened `P9.B` entry conditions, required inputs, preparation checks, task list, snapshot schema, and blocker taxonomy (`M7F-B1..M7F-B6`),
    - added explicit budget closure condition for `P9.B`.
-2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`:
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md`:
    - marked `M7.F` planning status as execution-grade and still execution-pending.
-3. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+3. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - recorded `M7.F` planning expansion and closure contents in M7 expansion state.
 
 ### Decision-completeness posture for `M7.F` execution
@@ -12681,9 +12681,9 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 
 ### Plan/doc synchronization
 1. Updated:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P9.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. `M7.F` now marked complete; forward blocker remains `M7G-B1` for `P10` entry.
 
 ## Entry: 2026-02-19 00:59:00 +00:00 - Post-hoc reconstruction of M7.F logging gap (process correction)
@@ -12830,7 +12830,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 
 ## Entry: 2026-02-19 01:21:00 +00:00 - P10.A planning depth expansion applied (M7.P10)
 ### What changed
-1. Expanded `P10.A Subject-Key Pin + Managed DB Readiness` in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` from summary bullets to execution-grade closure plan.
+1. Expanded `P10.A Subject-Key Pin + Managed DB Readiness` in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P10.build_plan.md` from summary bullets to execution-grade closure plan.
 2. Added explicit entry conditions tied to `P9.C` pass snapshot and fixed run scope.
 3. Added concrete required-input lanes (identity handles, DB handles, service/runtime handles, runtime truth anchors).
 4. Added deterministic verification algorithm with fail-closed blocker routing.
@@ -12956,15 +12956,15 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 1. Align planning docs to live `P10.A` execution truth (no post-hoc drift).
 
 ### Files synchronized
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P10.build_plan.md`
    - marked `P10.A` execution posture as fail-closed,
    - marked subject-key pin + snapshot + budget DoD checks complete,
    - appended execution notes with exact snapshot refs and blocker results.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md`
    - updated `M7.G` DoD status,
    - replaced open-blocker posture from `M7G-B1` to active blockers `M7G-B2`/`M7G-B5`,
    - updated unresolved blocker register closure rules.
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - added `M7.G` fail-closed execution note under M7 expansion state,
    - marked P10 subject-key DoD item complete,
    - updated immediate-next-action lane to close `M7G-B2`/`M7G-B5` then rerun `M7.G`.
@@ -12988,12 +12988,12 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 
 ## Entry: 2026-02-19 01:55:00 +00:00 - Added execution-grade remediation plan for `M7G-B2`/`M7G-B5`
 ### Changes applied
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P10.build_plan.md`
    - added subsection: `M7.G Remediation Plan (M7G-B2 + M7G-B5) Before Rerun`.
    - pinned required handles, ordered execution steps, remediation DoD, and remediation blockers (`M7G-R1..R6`).
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md`
    - linked M7.G execution notes and blocker closure rules to the new remediation subsection as ordered authority.
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - added immediate-next-action reference to the exact remediation subsection.
 
 ### Decision rationale
@@ -13139,16 +13139,16 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 
 ## Entry: 2026-02-19 02:03:00 +00:00 - Plan synchronization after M7.G rerun PASS
 ### Files synchronized
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P10.build_plan.md`
    - marked `P10.A` managed DB readiness DoD complete,
    - marked remediation DoD complete,
    - marked completion checklist `P10.A` complete,
    - appended rerun PASS evidence notes.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md`
    - marked `M7.G` DoD and completion checklist item complete,
    - converted blocker register for `M7G-B2/M7G-B5` to empty state (`none`),
    - appended rerun PASS evidence notes.
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - updated M7 expansion state to reflect initial fail-closed then rerun PASS,
    - marked `M7.G` sub-phase progress complete,
    - moved Immediate Next Action from remediation to `M7.H` execution.
@@ -13187,7 +13187,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ## Entry: 2026-02-19 02:49:00 +00:00 - P10.B planning expansion applied (execution-grade)
 ### Changes applied
 1. Expanded `P10.B Case/Label Commit Closure` in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P10.build_plan.md`
 2. Added execution-grade details:
    - explicit entry conditions tied to `M7.G` pass and fixed run scope,
    - required input expansion (handles + policy/identity/runtime anchors),
@@ -13198,12 +13198,12 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - expanded blocker taxonomy (`M7H-B1..M7H-B6`).
 
 ### Orchestrator alignment updates
-1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`:
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md`:
    - corrected stale current posture (`M7.H` is next),
    - synced `M7.H` DoD with runtime budget gate,
    - synced `M7.H` blockers to `M7H-B1..M7H-B6`,
    - added explicit note that `P10.B` depth is now execution-grade in `platform.M7.P10.build_plan.md`.
-2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - added M7 expansion-state note that `M7.H` planning is execution-grade with deterministic algorithm and expanded blockers.
 
 ### Why this closes planning drift
@@ -13465,7 +13465,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 
 ## Entry: 2026-02-19 06:36:06 +00:00 - P10.C planning expansion applied (M7.P10)
 ### Changes applied
-1. Expanded P10.C in docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md from summary-level to execution-grade.
+1. Expanded P10.C in docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P10.build_plan.md from summary-level to execution-grade.
 2. Added:
    - required inputs and preparation checks,
    - deterministic verification algorithm,
@@ -13527,7 +13527,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 6. Add explicit snapshot schema contract and runtime budget to prevent hand-wavy closure.
 
 ### Changes applied
-1. Expanded M7.I section in docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md with:
+1. Expanded M7.I section in docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md with:
    - required inputs + preparation checks,
    - deterministic algorithm,
    - required output fields for m7_i_verdict_snapshot.json,
@@ -13606,7 +13606,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 6. Keep runtime budget explicit to preserve performance-law posture.
 
 ### Changes applied
-1. Expanded `M7.J` in `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md` with:
+1. Expanded `M7.J` in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md` with:
    - entry conditions and scope lock,
    - required inputs and preparation checks,
    - deterministic handoff build tasks,
@@ -13614,7 +13614,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - runtime budget gate,
    - expanded blockers (`M7J-B1..M7J-B6`).
 2. Added main-plan alignment note in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`.
 
 ### Execution posture
 1. This step is planning-only.
@@ -13692,12 +13692,12 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 
 ## Entry: 2026-02-19 07:28:30 +00:00 - M8 planning expansion applied (main + deep plans aligned)
 ### Changes executed
-1. Main plan updated: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+1. Main plan updated: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`.
    - phase roadmap/status alignment:
      - `M7` transitioned to `DONE`,
      - `M8` transitioned to `ACTIVE`.
    - deep-plan routing updated to include:
-     - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md`.
    - current phase posture updated to reflect M8 activation.
    - M8 section replaced from summary-only to execution-grade planning:
      - objective/scope/failure posture,
@@ -13706,7 +13706,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - immediate-next-action moved from M7 closeout to M8 execution entry (`M8.A`).
    - evidence-fidelity map for M8 refined to explicit obs paths:
      - `obs/run_report.json`, `obs/reconciliation.json`, `obs/replay_anchors.json`, `obs/environment_conformance.json`, `obs/anomaly_summary.json`, `run_completed.json`.
-2. Deep plan created: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+2. Deep plan created: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md`.
    - execution-grade orchestrator for `P11`:
      - authority inputs and scope boundaries,
      - capability-lane coverage matrix,
@@ -13757,7 +13757,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ## Entry: 2026-02-19 07:33:33 +00:00 - M8.A expansion applied (execution-grade contract pinned)
 ### Changes executed
 1. Expanded `M8.A` section in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md`.
 2. Added execution-grade mechanics:
    - entry conditions with M7 handoff gate lock,
    - required input set (handoff refs + full P11 handle closure list),
@@ -13767,7 +13767,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - lane runtime budget gate,
    - planning status note and extended blocker taxonomy (`M8A-B5`).
 3. Aligned main phase plan in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    by marking M8 expansion state with explicit `M8.A` execution-grade readiness.
 
 ### Outcome
@@ -13881,8 +13881,8 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 
 ### Phase state updates
 1. Marked `M8.A` complete in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`.
 2. Advanced immediate next action to `M8.B`.
 
 ## Entry: 2026-02-19 07:56:37 +00:00 - Reporter runtime image correction (pre-M8.B hardening)
@@ -13921,7 +13921,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ## Entry: 2026-02-19 08:06:42 +00:00 - M8.B planning expansion applied
 ### Changes executed
 1. Expanded `M8.B` in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md`.
 2. Added execution-grade planning content:
    - entry conditions tied to `M8.A` rerun pass artifact,
    - required inputs + handle closure set for reporter readiness,
@@ -13929,7 +13929,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - snapshot schema contract for `m8_b_reporter_readiness_snapshot.json`,
    - runtime budget and expanded blockers (`M8B-B5`).
 3. Mirrored status in main tracker:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - marked `M8.B` as execution-grade planned while keeping execution pending.
 
 ### Outcome
@@ -14003,7 +14003,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ## Entry: 2026-02-19 08:16:33 +00:00 - M8.C planning expansion applied
 ### Changes executed
 1. Expanded `M8.C` in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md`.
 2. Added execution-grade planning content:
    - strict entry conditions from `M8.B` pass artifact,
    - required handles and concrete required upstream evidence object list,
@@ -14011,7 +14011,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - required snapshot schema contract for `m8_c_input_readiness_snapshot.json`,
    - runtime budget and expanded blockers (`M8C-B4`, `M8C-B5`).
 3. Mirrored M8 expansion state in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`.
 
 ### Outcome
 1. `M8.C` is now planning-ready for fail-closed execution.
@@ -14110,8 +14110,8 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 
 ### Phase state update
 1. Marked `M8.C` complete in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`.
 2. Advanced immediate next action to `M8.D`.
 
 ## Entry: 2026-02-19 08:33:00 +00:00 - Build-plan terminology normalization (blocker taxonomy clarity)
@@ -14166,7 +14166,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 ## Entry: 2026-02-19 09:08:28 +00:00 - M8.D planning expansion applied
 ### Changes executed
 1. Expanded `M8.D` in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md`.
 2. Added execution-grade planning content:
    - entry conditions tied to `M8.C` pass artifact,
    - required inputs + preparation checks,
@@ -14174,7 +14174,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - snapshot schema contract for `m8_d_single_writer_probe_snapshot.json`,
    - runtime budget + expanded blocker taxonomy (`M8D-B1..B5`).
 3. Mirrored status in main tracker:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - recorded `M8.D` as execution-grade expanded and next active execution step.
 
 ### Outcome
@@ -14696,9 +14696,9 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - `m8_g_replay_reconciliation_snapshot.json` with `artifact_refs`, anchor checks, reconciliation checks, blockers, verdict.
 
 ### Plan outputs updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md`:
    - `M8.G` expanded to execution-grade (entry/precheck/algorithm/snapshot schema/runtime budget).
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - M8 expansion-state bullet updated to record `M8.G` execution-grade planning posture.
 
 ### Phase posture
@@ -14773,9 +14773,9 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - `M8H-B4`, `M8H-B5`, `M8H-B6`.
 
 ### Plan outputs updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md`:
    - `M8.H` expanded to execution-grade (entry/precheck/algorithm/snapshot schema/runtime budget).
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - M8 expansion-state bullet updated to record `M8.H` execution-grade planning posture.
 
 ### Phase posture
@@ -14846,9 +14846,9 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - `m9_handoff_pack.json`.
 
 ### Plan outputs updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md`:
    - `M8.I` expanded to execution-grade (entry/precheck/algorithm/verdict rule/non-secret handoff/schema/runtime budget).
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - M8 expansion-state bullet updated to include `M8.I` execution-grade planning posture.
 
 ### Phase posture
@@ -14934,11 +14934,11 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
      - verdict + M10 handoff.
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - M9 promoted to active planning posture with explicit sub-phase and DoD checklists.
    - M9 section now pins destroy-workflow reuse (not replacement).
    - Immediate-next-action now points to `M9.A` then `M9.B` before destructive lanes.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M9.build_plan.md`
    - created as the deep planning authority for P12 with explicit scope, lanes, blockers, and runtime budgets.
 
 ### Phase posture
@@ -14969,9 +14969,9 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 3. Main plan expansion-state was updated to explicitly note that `M9.A` is now execution-grade.
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M9.build_plan.md`
    - expanded `M9.A` section from summary to execution-grade contract.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - added `M9` expansion-state bullet for `M9.A` execution-grade posture.
 
 ### Phase posture
@@ -15046,9 +15046,9 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 4. Main platform build plan now explicitly records `M9.B` as execution-grade and sets next action to execute `M9.B`.
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M9.build_plan.md`
    - `M9.B` expanded to execution-grade with algorithm/snapshot schema/runtime budget/blockers.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - M9 expansion-state bullet added for `M9.B`,
    - immediate next action updated to execute `M9.B`.
 
@@ -15120,9 +15120,9 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 4. Main plan updated to record `M9.C` execution-grade readiness and set immediate next action to execute `M9.C`.
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M9.build_plan.md`
    - `M9.C` expanded from summary to execution-grade contract.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - M9 expansion-state bullet added for `M9.C`.
    - immediate next action set to execute `M9.C`.
 
@@ -15200,9 +15200,9 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 3. Main platform plan now records `M9.D` as execution-grade and sets immediate next action to execute `M9.D` with lane-materialization prerequisite if missing.
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M9.build_plan.md`
    - `M9.D` expanded from summary to execution-grade contract.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - M9 expansion-state bullet added for `M9.D`.
    - immediate next action updated for `M9.D` execution posture.
 
@@ -15249,9 +15249,9 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - removed planning dependency on a separate demo workflow file.
 
 ### Docs updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M9.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md`
 
 ### Superseded assumption (explicit)
 1. Prior planning statement that `M9.D` requires `.github/workflows/dev_min_demo_destroy.yml` is superseded by the unified stack-target workflow model.
@@ -15726,8 +15726,8 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - Updated handles registry with optimization control handles + new workflow handles:
      - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
    - Updated deep/main M9 planning references:
-     - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
-     - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M9.build_plan.md`
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 
 ### Validation notes
 1. Terraform formatting check passed after patch:
@@ -16032,9 +16032,9 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
    - non-secret policy violations.
 
 ### Files updated
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M9.build_plan.md`:
    - expanded `M9.I` section with entry conditions, required inputs, prechecks, deterministic algorithm, tasks, blocker taxonomy, and required fields.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - marked `M9.I` as execution-grade in M9 expansion state.
 
 ### Outcome
@@ -16210,7 +16210,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
      - sub-phase checklist and M10 DoD checklist,
      - immediate-next-action shifted to `M10.A` threshold matrix closure.
 2. Created deep plan file:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M10.build_plan.md`.
 
 ### Design decisions captured in the expansion
 1. M10 is explicitly split into semantic, drill, scale, reproducibility, and verdict lanes to prevent toy closure.
@@ -16557,7 +16557,7 @@ File: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.bu
 
 ### What is now explicitly confirmed
 1. Live M10.B decision trail is being captured in both:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
    - `docs/logbook/02-2026/2026-02-20.md`
 2. Existing M10.B entries already capture:
    - endpoint/auth failure progression,
@@ -17918,9 +17918,9 @@ Risk handling:
 
 ### Plan and authority sync
 1. M10 deep plan now contains explicit `M10F-B1` remediation lane, DoD, and blocker family:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M10.build_plan.md`.
 2. Main platform plan now records remediation posture as implemented and keeps next action gated on B1 closure:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`.
 3. Handle registry now pins WSP checkpoint DSN/flush handles:
    - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`.
 
@@ -18069,9 +18069,9 @@ Risk handling:
 6. Snapshot schema for `m10_g_soak_snapshot.json` pinned with dependency refs, target object, observation refs, lag/checkpoint checks, semantic checks, runtime budget, and blocker rollup.
 
 ### Files updated for planning sync
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M10.build_plan.md`:
    - replaced minimal `M10.G` stub with execution-grade lane contract.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`:
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`:
    - synced high-level M10 expansion summary to include M10.G execution-grade status and blocker taxonomy.
 
 ### Consequence
@@ -19396,13 +19396,13 @@ Issue encountered + remediation:
 ## Entry: 2026-02-22 08:32:05 +00:00 - Step 3 executed: migration closeout docs + wrap-up completion marker
 Doc updates:
 1. Corrected M10.J execution-id references to canonical `...Z` form in:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M10.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`.
 2. Added explicit migration wrap-up note:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.migration_wrap_up.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.migration_wrap_up.md`
    - marks migration track complete and records authoritative certification + teardown-refresh anchors.
 3. Updated map router:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/README.md`
    - includes wrap-up note and completion status marker.
 
 Closure decision:
@@ -19449,9 +19449,9 @@ Artifact updates:
 ## Entry: 2026-02-22 08:34:57 +00:00 - Migration wrap-up note published and linked
 Action:
 1. Created wrap-up note to explicitly mark migration-track completion:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.migration_wrap_up.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.migration_wrap_up.md`.
 2. Linked wrap-up in map router and added track-status line:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/README.md`.
 
 Completion marker:
 1. `local_parity -> dev_min` track marked **COMPLETE**.
@@ -19464,8 +19464,8 @@ Reason:
    - remove `M11+` planning surfaces from the active track.
 
 Actions executed:
-1. Restored `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` to the last M10-only planning baseline.
-2. Restored `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md` to the last M10-only implementation-note baseline.
+1. Restored `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` to the last M10-only planning baseline.
+2. Restored `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md` to the last M10-only implementation-note baseline.
 3. Restored `docs/model_spec/platform/migration_to_dev/README.md` to dev-min-only authority index posture.
 4. Removed M11+ planning artifacts from active tree:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M11.build_plan.md`
@@ -19475,3 +19475,31 @@ Actions executed:
 Result:
 1. Active platform migration documentation is now explicitly scoped to `local_parity -> dev_min` closure (`M1..M10`) only.
 2. M11+ planning artifacts are intentionally cleared from the active docs surface to avoid track drift.
+
+## Entry: 2026-02-22 16:37:45 +00:00 - Track split refactor: isolate `dev_min` under `dev_substrate/dev_min`
+Reason:
+1. USER requested strict separation-of-concerns so `dev_min` and `dev_full` work do not share a single working folder.
+2. Existing structure kept all active files directly under `dev_substrate/`, which made future `dev_full` planning easy to mix with closed `dev_min` artifacts.
+
+Actions executed:
+1. Created folders:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/`
+2. Moved current dev_min map set into `dev_min/`:
+   - `platform.build_plan.md`, `platform.impl_actual.md`, `platform.migration_wrap_up.md`
+   - `platform.M0.build_plan.md` through `platform.M10.build_plan.md`
+   - `platform.M7.P8.build_plan.md`, `platform.M7.P9.build_plan.md`, `platform.M7.P10.build_plan.md`
+   - `README.md`
+3. Added new substrate index file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/README.md`
+   - explicitly routes to `dev_min/` and `dev_full/`.
+4. Added `dev_full` placeholder router:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/README.md`.
+5. Updated in-file path references inside moved `dev_min` markdowns from:
+   - `.../implementation_maps/dev_substrate/...`
+   - to `.../implementation_maps/dev_substrate/dev_min/...`
+   for internal continuity.
+
+Result:
+1. `dev_substrate` now has explicit two-lane structure (`dev_min`, `dev_full`) with no mixed working surface.
+2. Closed `dev_min` track docs remain intact and self-contained in one folder.

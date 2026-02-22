@@ -9,7 +9,7 @@ This phase closes infrastructure and handle readiness before P1 run pinning and 
 
 ## 1) Authority Inputs
 Primary:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P0 section)
 3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
@@ -17,7 +17,7 @@ Primary:
 Supporting:
 1. `infra/terraform/dev_min/core`
 2. `infra/terraform/dev_min/demo`
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md` (decision trail)
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md` (decision trail)
 
 ## 2) Scope Boundary for M2
 In scope:

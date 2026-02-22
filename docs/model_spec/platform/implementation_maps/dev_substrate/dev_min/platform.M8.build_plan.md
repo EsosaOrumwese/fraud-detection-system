@@ -12,18 +12,18 @@ M8 closes `P11 OBS_GOV_CLOSED` on managed substrate by proving:
 
 ## 1) Authority Inputs
 Primary:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P11` section)
 3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
 
 Supporting:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md`
 2. Local M7 handoff:
    - `runs/dev_substrate/m7/20260218T141420Z/m8_handoff_pack.json`
 3. Durable M7 handoff:
    - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m7_20260218T141420Z/m8_handoff_pack.json`
-4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 
 ## 2) Scope Boundary for M8
 In scope:

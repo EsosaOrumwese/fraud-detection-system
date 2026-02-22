@@ -8,17 +8,17 @@ M6 closes the control+ingress chain on managed substrate by proving `P4..P7` in 
 
 ## 1) Authority Inputs
 Primary:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P4..P7` sections)
 3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
 
 Supporting:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`
 2. `runs/dev_substrate/m5/20260215T002310Z/m6_handoff_pack.json`
 3. `runs/dev_substrate/m5/20260214T235117Z/stream_sort_summary.json`
 4. `runs/dev_substrate/m5/20260215T002040Z/checker_pass.json`
-5. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 
 ## 2) Scope Boundary for M6
 In scope:
@@ -118,7 +118,7 @@ Entry conditions:
 
 Required inputs:
 1. Authority:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P4..P7`)
    - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`.
 2. Source artifacts:

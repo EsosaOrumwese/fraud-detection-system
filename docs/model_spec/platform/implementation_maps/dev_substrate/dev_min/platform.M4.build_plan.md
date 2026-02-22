@@ -8,17 +8,17 @@ M4 activates the Spine Green v0 daemon packs on managed compute (ECS), enforces 
 
 ## 1) Authority Inputs
 Primary:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P2 section)
 3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
 
 Supporting:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M3.build_plan.md`
 2. `runs/dev_substrate/m3/20260213T221631Z/m4_handoff_pack.json`
 3. `runs/dev_substrate/m3/20260213T221631Z/m3_f_verdict_snapshot.json`
 4. `runs/dev_substrate/m2_j/20260213T205715Z/m3_handoff_pack.json`
-5. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 
 ## 2) Scope Boundary for M4
 In scope:

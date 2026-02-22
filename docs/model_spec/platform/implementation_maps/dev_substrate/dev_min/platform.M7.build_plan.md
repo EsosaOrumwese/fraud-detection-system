@@ -11,23 +11,23 @@ M7 closes `P8..P10` on managed substrate by proving:
 
 ## 1) Authority Inputs
 Primary:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P8..P10` sections)
 3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
 
 Supporting:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M6.build_plan.md`
 2. `runs/dev_substrate/m6/20260216T214025Z/m7_handoff_pack.json`
 3. `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m7_handoff_pack.json`
-4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 
 ## 1.1) Branch Deep Plans (Authoritative by Plane)
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P8.build_plan.md`
    - deep execution plan for `P8 RTDL_CAUGHT_UP`.
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P9.build_plan.md`
    - deep execution plan for `P9 DECISION_CHAIN_COMMITTED`.
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P10.build_plan.md`
    - deep execution plan for `P10 CASE_LABELS_COMMITTED`.
 
 Control rule:
@@ -233,7 +233,7 @@ Blocker Codes (Taxonomy):
 5. `M7A-B5`: snapshot write/upload failure.
 
 ### M7.B P8 RTDL Readiness + Consumer Posture
-Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` (`P8.A`).
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P8.build_plan.md` (`P8.A`).
 
 Goal:
 1. Prove RTDL core services are healthy and configured for commit-after-write consumption.
@@ -282,7 +282,7 @@ Blocker Codes (Taxonomy):
 4. `M7B-B4`: snapshot write/upload failure.
 
 ### M7.C P8 Offsets + Caught-Up Evidence Closure
-Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` (`P8.B`).
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P8.build_plan.md` (`P8.B`).
 
 Goal:
 1. Produce durable RTDL offsets/caught-up evidence and close the lag gate.
@@ -339,7 +339,7 @@ Blocker Codes (Taxonomy):
 5. `M7C-B5`: run-window ingest basis is stale versus active Kafka topic state.
 
 ### M7.D P8 Archive Durability Proof
-Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` (`P8.C`).
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P8.build_plan.md` (`P8.C`).
 
 Goal:
 1. Prove archive durability surface is working for M7 run scope.
@@ -392,7 +392,7 @@ Blocker Codes (Taxonomy):
 4. `M7D-B4`: archive writer runtime command is materialized but worker crashes under active service posture.
 
 ### M7.E P9 Decision-Lane Readiness + Idempotency Posture
-Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` (`P9.A`).
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P9.build_plan.md` (`P9.A`).
 
 Goal:
 1. Prove decision-lane services are healthy with pinned idempotency posture.
@@ -432,7 +432,7 @@ Blocker Codes (Taxonomy):
 4. `M7E-B4`: snapshot write/upload failure.
 
 ### M7.F P9 Decision-Chain Commit Evidence Closure
-Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` (`P9.B`).
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P9.build_plan.md` (`P9.B`).
 
 Goal:
 1. Produce durable decision/action/audit evidence for P9.
@@ -483,7 +483,7 @@ Blocker Codes (Taxonomy):
 1. none (M7F blockers closed on rerun).
 
 ### M7.G P10 Identity-Key Pin + Managed DB Readiness
-Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (`P10.A`).
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P10.build_plan.md` (`P10.A`).
 
 Goal:
 1. Close P10 decision debt by pinning subject-key handles and proving DB readiness.
@@ -532,7 +532,7 @@ Execution notes (`2026-02-19`):
    - `M7G-B2`: DB readiness/migration proof not materialized (CM/LS + DB-migrations task definitions still stub commands).
    - `M7G-B5`: CM/LS scheduler health is green but runtime command conformance is red (sleep-loop stubs, not worker runtime).
 5. Remediation authority before rerun:
-   - execute `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` subsection:
+   - execute `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P10.build_plan.md` subsection:
      - `M7.G Remediation Plan (M7G-B2 + M7G-B5) Before Rerun`.
 6. Rerun closure (`2026-02-19`):
    - CM/LS services rematerialized to real worker runtime (`:14` task definitions).
@@ -541,7 +541,7 @@ Execution notes (`2026-02-19`):
    - rerun snapshot verdict: `overall_pass=true`, blockers empty.
 
 ### M7.H P10 Case/Label Commit Evidence Closure
-Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (`P10.B`).
+Detailed lane authority: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P10.build_plan.md` (`P10.B`).
 
 Goal:
 1. Produce durable case/label evidence proving append-only/idempotent commits.

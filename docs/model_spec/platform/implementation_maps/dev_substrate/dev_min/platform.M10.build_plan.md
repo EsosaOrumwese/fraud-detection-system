@@ -12,14 +12,14 @@ M10 certifies that dev-substrate Spine Green v0 is:
 
 ## 1) Authority Inputs
 Primary:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
 3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
 
 Supporting:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M9.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 3. M9 handoff artifacts:
    - local: `runs/dev_substrate/m9/m9_20260219T191706Z/m10_handoff_pack.json`
    - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T191706Z/m10_handoff_pack.json`

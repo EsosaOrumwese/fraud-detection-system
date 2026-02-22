@@ -9,17 +9,17 @@ This phase creates and persists the canonical run manifest (`run.json`), pins co
 
 ## 1) Authority Inputs
 Primary:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P1 section)
 3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
 
 Supporting:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md`
 2. `runs/dev_substrate/m2_j/20260213T205715Z/m3_handoff_pack.json`
 3. `docs/model_spec/platform/contracts/dev_min/run_header.v0.schema.yaml`
 4. `docs/model_spec/platform/contracts/dev_min/README.md`
-5. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 
 ## 2) Scope Boundary for M3
 In scope:

@@ -91,31 +91,31 @@ Canonical lifecycle key: `phase_id=P#` from migration runbook.
 
 ## 6.1) Deep Phase Plan Routing
 Per-phase deep planning docs follow this naming pattern:
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M0.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md`
 - ...
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M10.build_plan.md`
 
 Control rule:
 - `platform.build_plan.md` is the only file allowed to change phase status (`ACTIVE/DONE/BLOCKED`).
 - `platform.M*.build_plan.md` documents deep plan detail, but cannot independently advance status.
 
 Current deep-plan file state:
-- `M0`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md` (present)
-- `M1`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md` (present)
-- `M2`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md` (present)
-- `M3`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md` (present)
-- `M4`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md` (present)
-- `M5`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md` (present)
-- `M6`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md` (present)
-- `M7`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md` (present)
+- `M0`: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M0.build_plan.md` (present)
+- `M1`: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md` (present)
+- `M2`: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md` (present)
+- `M3`: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M3.build_plan.md` (present)
+- `M4`: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md` (present)
+- `M5`: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md` (present)
+- `M6`: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M6.build_plan.md` (present)
+- `M7`: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md` (present)
 - `M7` branch deep plans:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` (present)
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` (present)
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (present)
-- `M8`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md` (present)
-- `M9`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md` (present)
-- `M10`: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md` (present)
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P8.build_plan.md` (present)
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P9.build_plan.md` (present)
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P10.build_plan.md` (present)
+- `M8`: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md` (present)
+- `M9`: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M9.build_plan.md` (present)
+- `M10`: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M10.build_plan.md` (present)
 
 ---
 
@@ -171,7 +171,7 @@ Implementation tasks:
    - append implementation decisions in `platform.impl_actual.md`,
    - append action logs in `docs/logbook/02-2026/2026-02-13.md`.
 6. Draft and approve deep-phase planning structure starting with:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M0.build_plan.md`.
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M0.build_plan.md`.
 
 DoD checklist:
 - [x] Build plan exists with canonical roadmap and progressive-elaboration rules.
@@ -220,7 +220,7 @@ Failure posture:
 
 Phase closure snapshot:
 - This phase completed planning + execution with authoritative CI evidence.
-- Detailed M1 execution authority is `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M1.build_plan.md` (contains pinned decisions required during build-go).
+- Detailed M1 execution authority is `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M1.build_plan.md` (contains pinned decisions required during build-go).
 - Sub-phase progress:
   - [x] `M1.A` image contract freeze complete (reopened + reclosed with exact image content manifest).
   - [x] `M1.B` entrypoint matrix completion complete.
@@ -271,7 +271,7 @@ Failure posture:
 - fail closed on any unresolved substrate handle, forbidden infra, missing secret/topic, or teardown-risk ambiguity.
 
 Phase closure snapshot:
-- Detailed M2 authority file: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md`.
+- Detailed M2 authority file: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md`.
 - Sub-phase progress:
   - [x] `M2.A` substrate authority and handle-closure matrix.
   - [x] `M2.B` Terraform backend/state partition readiness.
@@ -323,7 +323,7 @@ Failure posture:
 - fail closed on unresolved run identity inputs, digest mismatch, incomplete run manifest, or non-durable evidence publication.
 
 Phase closure posture:
-- Detailed M3 authority file: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M3.build_plan.md`.
+- Detailed M3 authority file: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M3.build_plan.md`.
 - M3.A planning status:
   - closure matrix + verification catalog executed,
   - latest authoritative run: `m3a_20260213T213547Z`,
@@ -386,7 +386,7 @@ Closure summary:
   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T170155Z/m4_i_verdict_snapshot.json`
   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T170953Z/m5_handoff_pack.json`
 - M4 deep authority/closure ledger:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`
 
 ## M5 - P3 Oracle lane
 Status: `DONE`
@@ -417,7 +417,7 @@ Failure posture:
 
 Active-phase planning posture:
 - Detailed M5 authority file:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M5.build_plan.md`.
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M5.build_plan.md`.
 - M5 entry handoff anchor:
   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m4_20260214T170953Z/m5_handoff_pack.json`.
 - M5 sub-phase progression model:
@@ -532,7 +532,7 @@ Failure posture:
 
 Active-phase planning posture:
 - Detailed M6 authority file:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M6.build_plan.md`.
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M6.build_plan.md`.
 - M6 entry handoff anchor:
   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m5_20260214T235117Z/m6_handoff_pack.json`.
 - M6 sub-phase progression model:
@@ -680,11 +680,11 @@ Failure posture:
 
 Active-phase planning posture:
 - Detailed M7 authority file:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`.
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md`.
 - Detailed M7 branch authority files:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P8.build_plan.md` (`P8` RTDL core).
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md` (`P9` decision lane).
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P10.build_plan.md` (`P10` case/labels).
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P8.build_plan.md` (`P8` RTDL core).
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P9.build_plan.md` (`P9` decision lane).
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P10.build_plan.md` (`P10` case/labels).
 - M7 entry handoff anchor:
   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m6_20260216T214025Z/m7_handoff_pack.json`.
 - M7 sub-phase progression model:
@@ -730,7 +730,7 @@ Active-phase planning posture:
       - first probe window failed fail-closed on rollout churn (`M7E-B1`);
       - rerun after service stabilization closed green on two-probe health + run-scope/idempotency/dependency checks.
   - `M7.F` (`P9.B`) planning is now expanded to execution-grade:
-    - authoritative deep plan section: `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md`
+    - authoritative deep plan section: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P9.build_plan.md`
     - planning closure includes:
       - pre-execution readiness matrix for `P9.B`,
       - deterministic verification algorithm,
@@ -856,7 +856,7 @@ Failure posture:
 
 Active-phase planning posture:
 - Detailed M8 authority file:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md`.
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md`.
 - M8 sub-phase progression model:
   - `M8.A` P11 authority + handles closure,
   - `M8.B` reporter runtime + single-writer lock readiness,
@@ -1108,7 +1108,7 @@ Decision pin (closed):
 
 Phase closure posture:
 - Detailed M9 authority file:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M9.build_plan.md`.
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M9.build_plan.md`.
 - M9 sub-phase progression model:
   - `M9.A` authority + handoff closure matrix for P12,
   - `M9.B` teardown inventory + preserve-set freeze,
@@ -1481,7 +1481,7 @@ Failure posture:
 
 Phase closure posture:
 - Detailed M10 authority file:
-  - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M10.build_plan.md`.
+  - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M10.build_plan.md`.
 - M10 entry handoff anchor:
   - `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T191706Z/m10_handoff_pack.json`.
 - M10 sub-phase progression model:
@@ -1703,7 +1703,7 @@ This map keeps high-level planning aligned to runbook evidence obligations.
 
 ## 9.2) Scale-Green Threshold Pinning Rule
 Scale validation thresholds must be pinned at M10 phase entry and recorded in:
-- `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 - daily logbook entry for the execution day.
 
 Minimum threshold dimensions to pin:
@@ -1732,7 +1732,7 @@ Before marking any phase `DONE`:
 2. Confirm evidence objects/files exist at pinned paths.
 3. Confirm no drift exceptions remain open.
 4. Append decision/action notes:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
    - `docs/logbook/<month>/<day>.md`
 5. If USER has given explicit go-ahead, set next phase to `ACTIVE`.
 6. If USER has not given explicit go-ahead, leave next phase `NOT_STARTED` and record hold reason.

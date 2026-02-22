@@ -14,6 +14,9 @@ $defs:
     $ref: 'schemas.layer1.yaml#/$defs/iana_tzid'
   rfc3339_micros:
     $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+  local_wall_timestamp_micros:
+    type: string
+    pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}$
   scenario_id:
     type: string
   seed:
@@ -267,11 +270,11 @@ egress:
         arrival_seq: { type: integer, minimum: 1 }
         ts_utc: { $ref: '#/$defs/rfc3339_micros' }
         tzid_primary: { $ref: '#/$defs/iana_tzid' }
-        ts_local_primary: { $ref: '#/$defs/rfc3339_micros' }
+        ts_local_primary: { $ref: '#/$defs/local_wall_timestamp_micros' }
         tzid_settlement: { $ref: '#/$defs/iana_tzid', nullable: true }
-        ts_local_settlement: { $ref: '#/$defs/rfc3339_micros', nullable: true }
+        ts_local_settlement: { $ref: '#/$defs/local_wall_timestamp_micros', nullable: true }
         tzid_operational: { $ref: '#/$defs/iana_tzid', nullable: true }
-        ts_local_operational: { $ref: '#/$defs/rfc3339_micros', nullable: true }
+        ts_local_operational: { $ref: '#/$defs/local_wall_timestamp_micros', nullable: true }
         tz_group_id: { type: string }
         site_id: { $ref: '#/$defs/id64', nullable: true }
         edge_id: { $ref: '#/$defs/id64', nullable: true }

@@ -12,15 +12,15 @@ Close `P10 CASE_LABELS_COMMITTED` with explicit durable proof that case/label la
 
 ## 1) Authority Inputs
 Primary:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md` (M7 section)
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md` (M7 section)
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.build_plan.md`
 3. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P10`)
 4. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 
 Supporting:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M7.P9.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M7.P9.build_plan.md`
 2. `runs/dev_substrate/m6/20260216T214025Z/m7_handoff_pack.json`
-3. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 
 ## 2) Scope Boundary for M7.P10
 In scope:

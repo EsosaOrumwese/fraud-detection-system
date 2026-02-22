@@ -9,7 +9,7 @@ This phase ensures we can produce a reproducible runtime image with validated en
 
 ## 1) Authority Inputs
 Primary:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P(-1))
 3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` (ECR/image/entrypoint handles)
 4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
@@ -593,7 +593,7 @@ M1 execution snapshot (build-go pass):
 5. S3 evidence path:
    - `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T114002Z/P(-1)/`
 6. First-time operator explanatory narrative:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md` (Entry: `2026-02-13 12:02PM - First-time operator evidence narrative`)
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md` (Entry: `2026-02-13 12:02PM - First-time operator evidence narrative`)
 
 ## 7) Risks and Controls
 R1: image/entrypoint mismatch discovered late  

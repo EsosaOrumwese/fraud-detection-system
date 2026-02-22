@@ -8,17 +8,17 @@ M5 establishes P3 oracle readiness on managed substrate by keeping the oracle in
 
 ## 1) Authority Inputs
 Primary:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P3 section)
 3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
 
 Supporting:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M4.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M4.build_plan.md`
 2. `runs/dev_substrate/m4/20260214T170953Z/m5_handoff_pack.json`
 3. `runs/dev_substrate/m4/20260214T170155Z/m4_i_verdict_snapshot.json`
 4. `runs/dev_substrate/m3/20260213T221631Z/run.json`
-5. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 
 ## 2) Scope Boundary for M5
 In scope:
@@ -126,7 +126,7 @@ Entry conditions:
 
 Required inputs:
 1. Authority sources:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md`
    - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`.
 2. Source artifacts:
@@ -213,7 +213,7 @@ Entry conditions:
 
 Required inputs:
 1. Authority:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P3.5`)
    - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md` (inlet policy handles).
 2. Source artifacts:
@@ -222,7 +222,7 @@ Required inputs:
    - `runs/dev_substrate/m3/20260213T221631Z/run.json`.
 3. Scan scope (drift guard):
    - migration authority docs in `docs/model_spec/platform/migration_to_dev/`,
-   - active M5 planning docs under `docs/model_spec/platform/implementation_maps/dev_substrate/`.
+   - active M5 planning docs under `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/`.
 
 Tasks:
 1. Validate `M5.A` carry-forward invariants:
@@ -295,7 +295,7 @@ Entry conditions:
 
 Required inputs:
 1. Authority:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P3.5`, `P3.8`)
    - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`.
 2. Source artifacts:
@@ -384,7 +384,7 @@ Entry conditions:
 
 Required inputs:
 1. Authority:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P3.9`, `P3.10`)
    - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`.
 2. Source artifacts:
@@ -496,7 +496,7 @@ Entry conditions:
 
 Required inputs:
 1. Authority:
-   - `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
    - `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (P3 stream-sort execution section)
    - `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`.
 2. Source artifacts:

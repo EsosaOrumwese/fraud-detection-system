@@ -13,17 +13,17 @@ M9 closes `P12 TEARDOWN` on managed substrate by proving:
 
 ## 1) Authority Inputs
 Primary:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.build_plan.md`
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.build_plan.md`
 2. `docs/model_spec/platform/migration_to_dev/dev_min_spine_green_v0_run_process_flow.md` (`P12` section)
 3. `docs/model_spec/platform/migration_to_dev/dev_min_handles.registry.v0.md`
 4. `docs/model_spec/platform/pre-design_decisions/dev-min_managed-substrate_migration.design-authority.v0.md`
 
 Supporting:
-1. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M2.build_plan.md` (`M2.I` teardown lane contract)
-2. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.M8.build_plan.md` (`M8.I` handoff contract)
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M2.build_plan.md` (`M2.I` teardown lane contract)
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.M8.build_plan.md` (`M8.I` handoff contract)
 3. Existing teardown workflow lane:
    - `.github/workflows/dev_min_confluent_destroy.yml`
-4. `docs/model_spec/platform/implementation_maps/dev_substrate/platform.impl_actual.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 
 ## 2) Scope Boundary for M9
 In scope:
