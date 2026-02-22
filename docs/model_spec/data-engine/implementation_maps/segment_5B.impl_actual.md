@@ -7271,3 +7271,144 @@ Summary: added explicit handoff line in `segment_5B.build_plan.md` section `Imme
 Reason:
 1) after expanding `P2`, execution order still ended at P1 closure.
 2) explicit next-step pin avoids sequencing ambiguity during phase kickoff.
+
+### Entry: 2026-02-22 18:20
+
+Execution start: `P2` full-phase remediation/calibration kickoff.
+Summary: beginning end-to-end execution of `P2.1 -> P2.6` under strict documentation-first cadence. This phase focuses only on `T6/T7` calibration while freezing Wave-A correctness rails (`T1/T2/T3/T4/T5/T11/T12`).
+
+Execution risks identified up front:
+1) `S4` publish semantics are append/protective: if output dir exists, publish is skipped.
+2) `S5` publish semantics are fail-closed on non-identical bundle/index (`S5_OUTPUT_CONFLICT`).
+3) using authority run-id for iterative candidates requires explicit output rotation hygiene before each rerun.
+
+Decision on run hygiene protocol:
+1) for each candidate lane, rotate/delete existing `5B` `arrival_events` and `validation` output roots under authority run-id before `S4->S5` rerun.
+2) do not accumulate stale backups during sweeps; remove superseded directories to protect storage.
+3) keep scoring artifacts under `runs/fix-data-engine/segment_5B/reports` as the retained evidence set.
+
+Alternatives considered and rejected:
+1) iterative reruns without output cleanup:
+   - rejected; `S4` would skip publish, making candidate measurements invalid.
+2) broad new run-id cloning for each candidate:
+   - rejected for storage/runtime overhead and unnecessary duplication.
+3) direct upstream reopen first:
+   - rejected; `P2` scope is local calibration-first by design.
+
+Immediate execution steps now:
+1) emit `P2.1` contract lock artifact.
+2) compute `P2.2` sensitivity + feasibility artifact and shortlist candidate knobs.
+3) execute bounded policy-only sweep with scorer+veto rails.
+
+### Entry: 2026-02-22 18:24
+
+Pre-implementation design lock for `P2` tooling.
+Summary: before running calibration lanes, we are introducing dedicated tooling to keep the `P2` process deterministic, auditable, and low-manual-overhead.
+
+Why tooling is required:
+1) `P2` requires repeated candidate reruns with strict frozen-rail checks and runtime vetoes.
+2) manual scoring/protocol handling is error-prone and risks undocumented assumptions.
+3) publish semantics of `S4/S5` require explicit pre-rerun cleanup each iteration.
+
+Tools selected for implementation:
+1) `tools/emit_segment5b_p2_contract_lock.py`
+   - writes machine-checkable contract lock artifact for `P2.1`.
+2) `tools/analyze_segment5b_p2_sensitivity.py`
+   - computes `P2.2` feasibility/sensitivity (virtual-share math + concentration decomposition).
+3) `tools/score_segment5b_p2_calibration.py`
+   - consumes latest `P1` gateboard for a candidate and emits `P2` gateboard/decision artifact with frozen-rail veto logic.
+4) `tools/run_segment5b_p2_policy_sweep.py`
+   - executes bounded `P2.3` sweep over `p_virtual_hybrid`,
+   - enforces output cleanup (`arrival_events`, `validation`) before each rerun,
+   - runs `S4->S5`, then `P1` scorer, then `P2` scorer, and records matrix CSV.
+
+Alternatives considered and rejected:
+1) drive everything from ad-hoc shell loops:
+   - rejected; weaker auditability and higher operator error risk.
+2) modify `P1` scorer directly to become multi-phase orchestrator:
+   - rejected; increases coupling and regression risk in an already-validated tool.
+3) full candidate run-id cloning for each point:
+   - rejected for storage overhead and slower iteration.
+
+Complexity/performance posture:
+1) each candidate iteration remains dominated by `S4` compute; tooling overhead is negligible.
+2) scoring scripts use lazy scans and artifact reuse.
+3) sweep bounds kept intentionally small to avoid unnecessary runtime churn.
+
+Next:
+- implement the four tools above, compile-check them, then execute `P2.1` and `P2.2` artifacts before sweep.
+
+### Entry: 2026-02-22 18:42
+
+Execution update: completed `P2.1` + `P2.2` artifacts and locked next-lane decision.
+
+P2.1 output:
+1) `segment5b_p2_contract_lock_c25....json` emitted with:
+   - primary closure gates (`T6/T7`),
+   - frozen veto rails (`T1/T2/T3/T4/T5/T11/T12`),
+   - runtime and publish-hygiene rules.
+
+P2.2 output:
+1) `segment5b_p2_sensitivity_c25....json` emitted.
+2) key findings:
+   - `T6=75.1922%` (still above B),
+   - `T7=2.2466%` (below B lower band 3%),
+   - `share_hybrid=0.0`, `share_virtual_only=0.0224656`,
+   - therefore hybrid coin knob has no effect (`T7_model_at_lo == T7_model_at_hi`),
+   - feasibility verdict: `locally_blocked_for_t7_b_under_current_bounds`.
+
+Decision for P2.3 execution scope:
+1) run bounded falsification sweep at upper-bound only (`p_virtual_hybrid=0.80`) rather than full redundant grid,
+2) reason: with zero hybrid mass, additional interior grid points are mathematically redundant and violate performance-first law.
+3) include baseline row + upper-bound probe + canonical final rerun on selected candidate.
+
+Alternatives considered and rejected:
+1) full 5-point policy sweep:
+   - rejected as non-informative runtime churn under proven zero-sensitivity.
+2) skip empirical probe entirely and rely only on analysis:
+   - rejected; we still want one empirical upper-bound confirmation.
+
+Next:
+- execute `tools/run_segment5b_p2_policy_sweep.py` with `--p-grid 0.80`.
+
+### Entry: 2026-02-22 18:44
+
+Execution incident during `P2.3` sweep orchestration.
+Summary: sweep failed before candidate rerun due regex replacement bug in `run_segment5b_p2_policy_sweep.py` when updating `p_virtual_hybrid`.
+
+Failure details:
+1) exception: `re.error: invalid group reference 10`.
+2) trigger: replacement string used `"\\1{value:.4f}"`; with value `0.8000`, regex engine interpreted `\\10` as group 10.
+3) impact: no candidate `S4/S5` rerun executed yet; only baseline scorer artifact row was emitted.
+
+Decision/fix approach:
+1) patch `_write_p(...)` to use function replacement (`lambda m: f"{m.group(1)}{value:.4f}"`) to avoid ambiguous backreference parsing.
+2) keep all other sweep logic unchanged.
+3) rerun same bounded sweep command after compile check.
+
+Alternatives considered:
+1) switch to YAML parser dependency for policy update:
+   - rejected for now to avoid new dependency and preserve lean tooling.
+2) manual edit for single candidate:
+   - rejected; weak reproducibility and weaker audit trail.
+
+### Entry: 2026-02-22 18:50
+
+Follow-up diagnosis for `P2.3` orchestration failure and remediation decision.
+Summary: failure was not from model logic. It was orchestration path formatting in make-invocation.
+
+Diagnosis:
+1) sweep invoked make with `RUNS_ROOT=runs\local_full_run-5` (backslashes).
+2) this lane runs through make shell semantics where backslashes can alter token parsing.
+3) symptom pattern:
+   - immediate S4 failure (`IO_WRITE_FAILED`) without normal run-log progress lines,
+   - no new S4/S5 run-report rows appended for attempted candidate lane.
+
+Decision:
+1) patch sweep make invocations to use POSIX-style path for `RUNS_ROOT` (`as_posix()`),
+2) keep Python scorer calls unchanged,
+3) rerun same bounded `P2.3` command after compile check.
+
+Alternative considered:
+1) convert entire script to shell-native PowerShell execution lane:
+   - rejected; unnecessary complexity versus deterministic path normalization fix.

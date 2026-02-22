@@ -500,3 +500,54 @@ _As of 2026-02-22_
 1. Planning concerns are now confined to build-plan docs (`platform.build_plan.md`, `platform.M0.build_plan.md`).
 2. M10 expansion detour has been rolled back as requested.
 3. Current active work remains M0 track (`M0.B` onward).
+
+## Entry: 2026-02-22 19:25 +00:00 - M0.B executed (planning topology lock)
+
+### Scope
+1. Executed `M0.B` inside build-plan docs only (no external planning artifacts).
+
+### Checks performed
+1. Verified status ownership is pinned to `platform.build_plan.md` (`Section 6.1` control rule).
+2. Verified deep plans are detail-only surfaces and cannot advance statuses.
+3. Verified current deep-plan inventory under `dev_full` has no competing status surface.
+4. Verified M-phase naming/routing convention exists in master plan.
+
+### Updates applied
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M0.build_plan.md`
+   - marked `M0.B` status `DONE`,
+   - marked M0.B DoD checks complete,
+   - added `M0.B closure notes (in-plan)`.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+   - updated M0 sub-phase progress: `M0.B` checked complete.
+
+### Result
+1. M0 topology lock is now closed.
+2. Next lane is `M0.C` authority alignment closure pass.
+
+## Entry: 2026-02-22 19:33 +00:00 - M0.C planned and executed (authority alignment closure pass)
+
+### Scope
+1. Executed M0.C strictly inside build-plan docs.
+2. No external artifact files were created.
+
+### Checks performed
+1. Stack pin continuity across design authority, run-process, handles, and master plan.
+2. Canonical phase-ID continuity (`P(-1)..P17`) and roadmap mapping consistency.
+3. Topic continuity/ownership consistency across design authority Appendix C, run-process topic list, and handles map.
+4. Cost-to-outcome continuity across policy (`5.2.1`, `15.7`), run-process (`3.4`), handles (`13.4`), and master plan binding rule.
+
+### Outcome
+1. No `execution_risk` mismatches found.
+2. No material wording-only mismatches requiring repin.
+
+### Updates applied
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M0.build_plan.md`
+   - marked `M0.C` status `DONE`,
+   - completed M0.C DoD checks,
+   - added in-plan `M0.C alignment closure notes` with classification summary,
+   - marked M0 completion checklist `M0.C` complete.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+   - marked M0 sub-phase progress `M0.C` complete.
+
+### Next lane
+1. `M0.D` TO_PIN dependency backlog lock.

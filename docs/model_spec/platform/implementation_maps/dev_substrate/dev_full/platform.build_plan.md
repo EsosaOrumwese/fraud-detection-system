@@ -190,8 +190,8 @@ Phase exit:
 
 M0 sub-phase progress:
 - [x] `M0.A` authority freeze and precedence validation.
-- [ ] `M0.B` planning topology lock.
-- [ ] `M0.C` authority alignment matrix closure pass.
+- [x] `M0.B` planning topology lock.
+- [x] `M0.C` authority alignment matrix closure pass.
 - [ ] `M0.D` TO_PIN dependency backlog lock.
 - [ ] `M0.E` exit-readiness and M1 transition pin.
 

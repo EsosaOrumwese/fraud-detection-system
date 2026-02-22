@@ -83,21 +83,33 @@ M0.A closure notes (in-plan):
 Goal:
 - keep status control and deep planning separated.
 
+Status:
+- `DONE` (topology-lock checks completed).
+
 Tasks:
 1. Confirm `platform.build_plan.md` is sole status owner.
 2. Confirm `platform.M*.build_plan.md` are deep detail only.
 3. Confirm M-phase naming/routing convention is pinned for dev_full.
 
 DoD:
-- [ ] topology/control rules verified in master plan.
-- [ ] no competing status surface exists.
+- [x] topology/control rules verified in master plan.
+- [x] no competing status surface exists.
 
 Evidence target:
 - this file (`M0 prerequisite closure notes` section to be added at M0 closure).
 
+M0.B closure notes (in-plan):
+1. Status ownership is pinned to `platform.build_plan.md` only (`Section 6.1`, control rule).
+2. Deep-plan role is pinned to `platform.M*.build_plan.md` detail-only (cannot advance phase status).
+3. Current dev_full deep-plan inventory confirms only active deep plan is `platform.M0.build_plan.md`; no parallel competing phase-status surface exists.
+4. M-phase naming/routing convention is pinned under master-plan deep routing section and references `platform.M0..platform.M13.build_plan.md`.
+
 ## M0.C Authority Alignment Matrix
 Goal:
 - remove hidden ambiguity across policy/run/handle docs.
+
+Status:
+- `DONE` (alignment closure pass completed; notes captured in-plan).
 
 Tasks:
 1. Compare and lock these alignment surfaces:
@@ -111,11 +123,31 @@ Tasks:
 3. Raise blocker IDs for any `execution_risk` mismatch.
 
 DoD:
-- [ ] matrix published with classification for all checked surfaces.
-- [ ] all execution-risk mismatches are resolved or explicitly blocked.
+- [x] matrix published with classification for all checked surfaces.
+- [x] all execution-risk mismatches are resolved or explicitly blocked.
 
 Evidence target:
 - this file (`M0.C alignment closure notes` section to be added when M0.C executes).
+
+M0.C alignment closure notes (in-plan):
+1. Stack pins alignment:
+   - design authority, run-process, handles registry, and master plan all align on
+     `EKS + MSK + S3 + Aurora + Redis + Databricks + SageMaker + MLflow + MWAA + Step Functions`.
+   - classification: `aligned`.
+2. Canonical phase ID alignment:
+   - run-process uses `P(-1)..P17`,
+   - master roadmap maps `M0..M13` consistently to canonical `P#`.
+   - classification: `aligned`.
+3. Topic ownership and continuity alignment:
+   - run-process appendix topic set and design-authority Appendix C are consistent,
+   - handles registry topic map includes all required spine + learning topics.
+   - classification: `aligned`.
+4. Cost-to-outcome continuity alignment:
+   - design authority (`5.2.1`, `15.7`), run-process (`3.4`), handles (`13.4`), and master plan (`Section 9`) are consistent.
+   - classification: `aligned`.
+5. Mismatch classification summary:
+   - `wording_only`: none material.
+   - `execution_risk`: none.
 
 ## M0.D TO_PIN Dependency Backlog Lock
 Goal:
@@ -184,8 +216,8 @@ R4: Premature implementation pressure.
 
 ## 7) M0 Completion Checklist
 - [x] M0.A complete.
-- [ ] M0.B complete.
-- [ ] M0.C complete.
+- [x] M0.B complete.
+- [x] M0.C complete.
 - [ ] M0.D complete.
 - [ ] M0.E complete.
 - [ ] M0 prerequisite closure snapshot published.
@@ -205,5 +237,5 @@ Handoff posture:
 ## 9) M0 Closure Notes (In-Plan)
 Populate this section during M0 closure:
 1. `M0 prerequisite closure notes` (`M0.PR0..M0.PR5` status and evidence summary).
-2. `M0.C alignment closure notes` (final mismatch classification and blocker verdict).
+2. `M0.C alignment closure notes` (final mismatch classification and blocker verdict): completed in Section `M0.C`.
 3. `M0.D TO_PIN dependency backlog` (dependency classes, phase blockers, materialization order).
