@@ -1974,3 +1974,134 @@ _As of 2026-02-22_
 ### Outcome
 1. Authority docs now include concrete, testable controls for the four risk angles.
 2. Remaining work is implementation-phase conformance, not additional authority ambiguity.
+
+## Entry: 2026-02-22 22:09:36 +00:00 - Plan synchronization pass (master + M0 + M1)
+
+### Why this pass was required
+1. Post-repin authority moved runtime posture to managed-first; build plans still contained stale EKS-first wording and stale phase-state markers.
+2. M0/M1 had historical closure truth but needed an explicit revisit record so downstream execution does not inherit old assumptions.
+
+### Changes made
+1. Master plan (`platform.build_plan.md`):
+   - roadmap status corrected (`M1=DONE`, `M2=IN_PROGRESS`),
+   - M4 renamed/reworded to managed-first runtime-lane readiness,
+   - M0 and M1 revisit snapshots added,
+   - next action updated to continue active M2 lane instead of stale M0 action.
+2. M0 deep plan (`platform.M0.build_plan.md`):
+   - execution posture updated to DONE (revisit pass),
+   - stack baseline references updated to managed-first posture,
+   - TO_PIN backlog refreshed to match current registry open handles (including Flink/API edge identities),
+   - M0->M1 transition notes adjusted to historical ECR blocker context without presenting it as active.
+3. M1 deep plan (`platform.M1.build_plan.md`):
+   - execution posture updated to DONE (revisit pass),
+   - scope clarified: non-container runtime artifact materialization belongs to M2 runtime/streaming lanes.
+
+### Outcome
+1. Planning docs are now consistent with current authority and active phase progression.
+2. M0 and M1 remain closed, but with explicit revisit evidence so no hidden assumptions leak into M2+.
+
+## Entry: 2026-02-22 22:11:09 +00:00 - M2 deep-plan patch kickoff for managed-first runtime controls
+
+### Intent
+1. Update `platform.M2.build_plan.md` so M2 execution lanes explicitly enforce the authority pins added in the dev_full authority set:
+   - single active runtime path per phase/run,
+   - SR READY commit authority = Step Functions only,
+   - IG edge envelope constraints,
+   - cross-runtime correlation fail-closed checks.
+
+### Why now
+1. Master/M0/M1 plans were already realigned; M2 deep plan must now carry executable gate checks so implementation cannot drift.
+
+## Entry: 2026-02-22 22:12:19 +00:00 - M2 deep-plan patch applied for managed-first control enforcement
+
+### Decision summary
+1. M2 deep plan was patched so the new authority pins are executable gate checks, not narrative-only guidance.
+2. Enforced controls in M2 planning lanes:
+   - runtime-path single-active governance,
+   - SR READY commit authority via Step Functions,
+   - IG edge envelope limits and conformance,
+   - cross-runtime correlation fail-closed checks.
+
+### Where controls were wired in M2 plan
+1. M2 purpose/scope/deliverables now include explicit managed-first control-rail closure obligations.
+2. M2.C now includes Flink stream-lane handle coherence checks and associated blockers/evidence artifacts.
+3. M2.D now includes SR commit-authority route checks and evidence-path validation.
+4. M2.E now includes runtime-path governance handle checks and managed runtime identity posture checks.
+5. M2.F now includes IG/API-edge secret-contract conformance checks.
+6. M2.H now includes correlation governance validation checks.
+7. M2.J now requires managed-first control-rail rollup checks before P0 closure.
+8. Blocker taxonomy expanded with `M2-B9..M2-B12` for the four controls.
+
+### Outcome
+1. `platform.M2.build_plan.md` now aligns with current dev_full authority and fail-closed control posture.
+
+## Entry: 2026-02-22 22:16:51 +00:00 - M2.C execution plan (full closure run)
+
+### Preconditions checked
+1. Streaming stack files exist and backend config is pinned in `infra/terraform/dev_full/streaming/backend.hcl.example`.
+2. Local execution identity is valid for account `230372904534`.
+
+### Execution strategy
+1. Run deterministic command surface in sequence: `init -> validate -> plan -> apply -> output`.
+2. Capture command logs and exit codes under a timestamped run directory in `runs/dev_substrate/dev_full/m2/`.
+3. Build all M2.C evidence artifacts required by deep plan, including stream-lane contract snapshot and blocker register.
+4. Upload evidence pack to the durable run-control S3 prefix.
+
+### Decision rationale
+1. Using full apply closure now is required because `M2C-B1` was only readiness-cleared and M2 cannot advance on partial closure.
+2. Evidence is generated as structured JSON to keep blocker adjudication deterministic and auditable.
+
+## Entry: 2026-02-22 22:17:54 +00:00 - M2.C execution attempt failed at terraform init (command tokenization issue)
+
+### Failure observed
+1. `terraform init` failed before backend interaction; log shows literal `-chdir $stackDir` resolution error.
+
+### Root cause
+1. In PowerShell, unquoted token `-chdir=$stackDir` was passed literally (variable not expanded within that token form).
+
+### Remediation decision
+1. Rerun M2.C command surface with explicit quoted arg expansion: `"-chdir=$stackDir"` (or equivalent).
+2. Keep failed run directory as audit trail and proceed with corrected full closure run.
+
+## Entry: 2026-02-22 22:18:43 +00:00 - M2.C rerun adjustment (remove cmd wrapper)
+
+### Failure observed
+1. PowerShell parser error occurred while constructing a quoted `cmd /c` wrapper for terraform plan.
+
+### Decision
+1. Remove `cmd` wrapper and run Terraform plan directly from PowerShell with explicit argument tokens and `-detailed-exitcode` capture.
+2. This keeps deterministic exit-code semantics while avoiding shell-escaping drift.
+
+## Entry: 2026-02-22 22:20:34 +00:00 - M2.C plan failure triage (plan-file path scope)
+
+### Failure observed
+1. `terraform plan` failed with: unable to write plan file because relative path was resolved under `infra/terraform/dev_full/streaming` and target directory did not exist there.
+
+### Remediation decision
+1. Switch plan output path to absolute filesystem path before rerun.
+2. Keep failed run directory as audit artifact and rerun full closure lane.
+
+## Entry: 2026-02-22 22:24:49 +00:00 - M2.C closure completed (full apply + evidence)
+
+### Execution timeline and problem-solving trail
+1. Attempt 1 failed at `terraform init` due PowerShell tokenization (`-chdir=$stackDir` literal expansion issue).
+2. Remediated by explicit quoted argument token expansion for `-chdir` and reran.
+3. Attempt 2 encountered parser/escaping drift from `cmd` wrapper approach for plan command construction.
+4. Remediated by removing `cmd` wrapper and using direct Terraform invocation with tokenized args and `-detailed-exitcode`.
+5. Attempt 3 reached plan but failed to write plan file because output path was chdir-relative to stack root.
+6. Remediated by using an absolute plan-file path (`runDirAbs`) and reran full lane.
+7. Final run succeeded end-to-end with deterministic evidence generation and durable S3 mirror.
+
+### Final authoritative PASS run
+1. `runs/dev_substrate/dev_full/m2/m2c_20260222T222113Z/m2c_execution_summary.json`
+   - `validate_exit=0`, `plan_exit=2`, `apply_exit=0`, `output_exit=0`, `overall_pass=true`, blockers empty.
+2. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2c_20260222T222113Z/`
+
+### Blocker adjudication result
+1. `M2C-B1`: previously cleared in readiness checkpoint.
+2. `M2C-B2..M2C-B7`: closed by final apply/evidence pass (`overall_pass=true`).
+
+### Documentation updates completed
+1. Updated deep plan `platform.M2.build_plan.md` to mark M2.C DoD and checklist as complete with execution closure notes.
+2. Updated master plan `platform.build_plan.md` to mark M2.C closed and add PASS evidence references.

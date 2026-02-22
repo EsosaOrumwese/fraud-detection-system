@@ -1,9 +1,9 @@
 {
   "enabled": true,
   "apply_when_groups_ge": 2,
-  "max_p_group_soft_cap": 0.78,
-  "regularization_strength": 0.34,
-  "entropy_floor": 0.48,
+  "max_p_group_soft_cap": 0.68,
+  "regularization_strength": 0.52,
+  "entropy_floor": 0.62,
   "policy_id": "group_mix_regularizer_v1",
   "policy_version": "1.0.0",
   "preserve_rank_order": true,

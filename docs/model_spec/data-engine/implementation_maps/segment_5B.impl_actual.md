@@ -7910,3 +7910,91 @@ Artifact updates for this lane:
 Post-lane hygiene decision:
 1) restored `config/layer1/3B/virtual/cdn_country_weights.yaml` to pre-lane workspace baseline after candidate rejection.
 2) restored unsuffixed `P1` gateboard from pre-candidate snapshot to keep canonical comparison surface stable.
+
+### Entry: 2026-02-22 22:09
+
+Execution closure: `P2.U2.2` trigger decision + superseded backup-prune completed.
+
+What was executed:
+1) pruned superseded `u2_1_c1` backup folders under authority run-root to reduce storage pressure and keep only active evidence artifacts.
+2) emitted explicit trigger-decision artifacts for `P2.U2.2`:
+   - json + markdown decision receipts under `runs/fix-data-engine/segment_5B/reports/`.
+
+Trigger outcome:
+1) decision=`SKIP_P2_U2_2_3B_CODE`.
+2) basis:
+   - required B reduction from `P2.U2.0` remains materially above virtual-lane movable ceiling.
+   - realized `P2.U2.1` policy-only owner lane movement (`-0.0389 pp`) is non-material.
+   - residual concentration remains dominated by non-virtual mass.
+3) implication:
+   - deterministic `3B` code lane would add blast radius without a credible closure path; lane is closed by explicit skip decision.
+
+Lane handoff:
+1) `P2.U2.3` branch stays `HOLD_P2_UPSTREAM_REOPEN`.
+2) active next lane=`P2.U3` (owner-true non-virtual path via `2B.S4` group-mix regularizer).
+
+### Entry: 2026-02-22 22:10
+
+Planning lock before execution: `P2.U3` bounded owner-true non-virtual candidate (`2B.S4`).
+
+Problem framing:
+1) post-`P2.U1` posture fixed `T7` into B, but `T6` remains above B with dominant non-virtual concentration.
+2) `3B.S2/S3` owner lane has been empirically rejected as non-material for `T6`.
+3) next owner-true surface affecting non-virtual mix concentration in downstream arrivals is `2B.S4` regularization policy (`group_mix_regularizer_v1`).
+
+Candidate strategy (single bounded pass first):
+1) edit only `config/layer1/2B/policy/group_mix_regularizer_v1.json`:
+   - `max_p_group_soft_cap`: `0.78 -> 0.68`,
+   - `regularization_strength`: `0.34 -> 0.52`,
+   - `entropy_floor`: `0.48 -> 0.62`.
+2) preserve structural rails:
+   - no code edits in this lane,
+   - no synthetic groups/tzids,
+   - no topology rewiring.
+
+Execution chain:
+1) `2B`: `S0 -> S4 -> S5 -> S6 -> S7 -> S8` (policy digest refresh + validation bundle refresh).
+2) `5B`: `S0 -> S4 -> S5`.
+3) score:
+   - `tools/score_segment5b_p1_realism.py`,
+   - `tools/score_segment5b_p2_calibration.py` with candidate suffix.
+
+Decision rule:
+1) keep candidate only if `T6` moves materially toward B with frozen rails and `T7` still in B band.
+2) otherwise reject and restore policy baseline immediately.
+
+### Entry: 2026-02-22 22:25
+
+Execution closure: `P2.U3` bounded owner-true non-virtual lane completed and accepted (`KEEP_u3_1_c1`).
+
+Policy candidate applied:
+1) `config/layer1/2B/policy/group_mix_regularizer_v1.json`
+   - `max_p_group_soft_cap`: `0.78 -> 0.68`
+   - `regularization_strength`: `0.34 -> 0.52`
+   - `entropy_floor`: `0.48 -> 0.62`
+
+Execution path and live blockers resolved:
+1) `2B.S0` first failed due immutability conflict on changed sealed outputs.
+   - action: non-destructive output rotation + rerun.
+2) `2B.S5` initially failed (`required_asset_missing` for `s5_arrival_roster`) because S0 was resealed while roster path had been rotated out.
+   - action: restore roster path from backup, then reseal `2B.S0` so sealed inputs include roster.
+3) `2B.S5` then failed `alias_policy_digest_mismatch`.
+   - action: rotate and rerun `2B.S2` alias outputs (`s2_alias_index` + `s2_alias_blob`) before resuming.
+4) `2B.S6` first execution targeted the wrong run-id (`abcd...`) due target-specific run-id arg behavior.
+   - action: rerun `2B.S6/S7/S8` with explicit `SEG2B_S{6,7,8}_RUN_ID=c25...`.
+5) `5B` chain executed with explicit `SEG5B_S{0,4,5}_RUN_ID=c25...` after targeted output rotation for `S0/S4/S5`.
+
+Result summary (candidate vs canonical baseline):
+1) `T6`: `74.3382% -> 66.6737%` (`-7.6645 pp`, crosses B threshold).
+2) `T7`: `3.7043% -> 3.7043%` (unchanged, remains in B band).
+3) frozen rails (`T1/T2/T3/T4/T5/T11/T12`): all pass.
+4) runtime lane (`S4+S5`): `454.140s` (within `<=540s` budget).
+
+Decision and canonical posture:
+1) candidate accepted: `KEEP_u3_1_c1`.
+2) promoted candidate `P2` gateboard/closure to unsuffixed canonical report names.
+3) `P2` upstream reopen lane now closes with `UNLOCK_P3`.
+
+Storage hygiene completed:
+1) pruned superseded `u3_1_c1` backup directories after acceptance (`removed_count=16`).
+2) prune receipt emitted under `runs/fix-data-engine/segment_5B/reports/`.

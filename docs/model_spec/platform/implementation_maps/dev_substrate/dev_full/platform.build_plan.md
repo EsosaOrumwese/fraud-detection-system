@@ -80,10 +80,10 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | Plan Phase | Canonical phase_id | Name | Status |
 | --- | --- | --- | --- |
 | M0 | pre-P(-1) | Mobilization + authority lock | DONE |
-| M1 | P(-1) | Packaging readiness (image/provenance) | ACTIVE |
-| M2 | P0 | Substrate readiness (core/streaming/runtime/data_ml/ops) | NOT_STARTED |
+| M1 | P(-1) | Packaging readiness (image/provenance) | DONE |
+| M2 | P0 | Substrate readiness (core/streaming/runtime/data_ml/ops) | IN_PROGRESS |
 | M3 | P1 | Run pinning and orchestrator readiness | NOT_STARTED |
-| M4 | P2 | Spine daemon readiness on EKS | NOT_STARTED |
+| M4 | P2 | Spine runtime-lane readiness (managed-first) | NOT_STARTED |
 | M5 | P3-P4 | Oracle readiness + ingest preflight | NOT_STARTED |
 | M6 | P5-P7 | Control + Ingress closure | NOT_STARTED |
 | M7 | P8-P10 | RTDL + Case/Labels closure | NOT_STARTED |
@@ -144,7 +144,7 @@ M0 prerequisite lanes (M0.PR*, mandatory):
    - `dev_full_platform_green_v0_run_process_flow.md`
    - `dev_full_handles.registry.v0.md`
 3. `M0.PR2` vocabulary/pin alignment check:
-   - stack pins (EKS/MSK/S3/Aurora/Redis/Databricks/SageMaker/MLflow/MWAA/Step Functions),
+   - stack pins (managed-first runtime: MSK+Flink, API Gateway/Lambda/DynamoDB, selective EKS, S3/Aurora/Redis/Databricks/SageMaker/MLflow/MWAA/Step Functions),
    - canonical phase IDs (`P(-1)..P17`),
    - topic set continuity and owner boundaries.
 4. `M0.PR3` fail-closed open-handle isolation:
@@ -200,6 +200,11 @@ M0 closure snapshot:
 - All M0 sub-phases `A..E` are complete.
 - Handoff to M1 planning is explicitly approved by USER.
 
+M0 revisit snapshot (authority repin pass):
+- [x] M0 prerequisites revalidated after managed-first authority repin.
+- [x] Vocabulary/pin alignment updated for MSK+Flink + API edge + selective EKS posture.
+- [x] No new M0 execution-risk contradiction detected; M0 remains `DONE`.
+
 ---
 
 ## 8) Phase Plan Stubs (M1..M13)
@@ -223,6 +228,9 @@ M1 planning posture:
 - `M1.C` execution is closed (`PASS`); immutable digest and provenance evidence are emitted for `platform_20260222T194849Z` and `M1-B3` is closed.
 - `M1.D` execution is closed (`PASS`) on managed CI run `22284273953`; required security artifacts are emitted and `M1-B4` is closed.
 - `M1.E` execution is closed (`PASS`) with coherent consolidated closure pack `m1e_20260222T200909Z`; `M1-B5` is closed and M2 entry-gate readiness is true.
+- M1 revisit after managed-first repin:
+  - container/provenance closure remains valid for custom-runtime lanes.
+  - managed runtime non-container artifact surfaces (Flink app package + IG Lambda package) are now explicitly tracked under M2 runtime/streaming materialization and are not silently assumed by M1.
 
 Planned lanes:
 - build, security/provenance, release evidence.
@@ -269,6 +277,9 @@ M2 planning posture:
 - `M2.C` is now expanded to execution-grade streaming planning (`M2C-B*`, command surface, MSK/schema evidence contracts).
 - `M2C-B1` (skeleton-only streaming stack) is now cleared with bounded readiness evidence:
   - `runs/dev_substrate/dev_full/m2/m2c_b1_clear_20260222T212945Z/m2c_b1_clearance_summary.json` (`validate_exit=0`, `plan_exit=2`, `blocker_cleared=true`).
+- `M2.C` execution is now closed (`PASS`) with full apply/evidence closure:
+  - `runs/dev_substrate/dev_full/m2/m2c_20260222T222113Z/m2c_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2c_20260222T222113Z/`.
 - M2 phase execution remains active for `M2.C` onward.
 
 DoD anchors:
@@ -282,7 +293,7 @@ Deep plan:
 M2 sub-phase progress:
 - [x] `M2.A` state backend and lock conformance.
 - [x] `M2.B` core stack materialization.
-- [ ] `M2.C` streaming stack materialization.
+- [x] `M2.C` streaming stack materialization.
 - [ ] `M2.D` topic/schema readiness precheck.
 - [ ] `M2.E` runtime stack and IAM role posture.
 - [ ] `M2.F` secret path contract and materialization checks.
@@ -311,22 +322,22 @@ DoD anchors:
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M3.build_plan.md`
 
-## M4 - Spine Daemon Readiness on EKS
+## M4 - Spine Runtime-Lane Readiness (Managed-First)
 Status: `NOT_STARTED`
 
 Objective:
-- close `P2` daemon readiness for spine runtime services.
+- close `P2` runtime-lane readiness for spine services under managed-first posture.
 
 Entry gate:
 - M3 is `DONE`.
 
 Planned lanes:
-- deployment health, env conformance, telemetry heartbeat.
+- lane health (Flink/API edge/selective EKS), env conformance, telemetry heartbeat + correlation continuity.
 
 DoD anchors:
-- [ ] required spine services are healthy.
+- [ ] required spine runtime lanes are healthy.
 - [ ] run-scope bindings are validated.
-- [ ] daemon readiness snapshot committed.
+- [ ] runtime readiness snapshot committed.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
@@ -524,4 +535,4 @@ This rule is binding for all phases M1..M13.
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M0` in `platform.M0.build_plan.md`.
+- Continue active phase `M2` by closing `M2.C` full apply/evidence lane after `M2C-B1` clearance.

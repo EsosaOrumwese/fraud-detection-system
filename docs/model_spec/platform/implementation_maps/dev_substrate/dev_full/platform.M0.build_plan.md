@@ -31,7 +31,7 @@ In scope:
 
 Out of scope:
 - Terraform apply/destroy,
-- EKS/MSK/Aurora/Databricks/SageMaker runtime execution,
+- managed runtime stack execution (Flink/API edge/selective EKS, plus data/runtime services),
 - any phase status transition beyond M0 unless DoD closes.
 
 ## 3) M0 Deliverables
@@ -43,7 +43,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Phase
 Current posture:
-- `M0` is `ACTIVE` for planning closure.
+- `M0` is `DONE` (revisit pass completed after managed-first authority repin).
 
 Execution block:
 1. No runtime mutation command is allowed during M0.
@@ -73,7 +73,7 @@ Evidence target:
 
 M0.A closure notes (in-plan):
 1. Precedence chain consistency across master plan, design authority, run-process, and handles registry: PASS.
-2. Stack baseline consistency (EKS/MSK/S3/Aurora/Redis/Databricks/SageMaker/MLflow/MWAA/Step Functions): PASS.
+2. Stack baseline consistency (managed-first runtime: MSK+Flink, API Gateway/Lambda/DynamoDB, selective EKS, plus S3/Aurora/Redis/Databricks/SageMaker/MLflow/MWAA/Step Functions): PASS.
 3. No-laptop runtime posture continuity: PASS.
 4. dev_min baseline usage is reference-only (no active scope mixing with dev_full): PASS.
 5. Cost-to-outcome continuity across policy/run/handles/master-plan surfaces: PASS.
@@ -132,7 +132,7 @@ Evidence target:
 M0.C alignment closure notes (in-plan):
 1. Stack pins alignment:
    - design authority, run-process, handles registry, and master plan all align on
-     `EKS + MSK + S3 + Aurora + Redis + Databricks + SageMaker + MLflow + MWAA + Step Functions`.
+     `managed-first runtime (MSK+Flink, API Gateway/Lambda/DynamoDB, selective EKS) + S3 + Aurora + Redis + Databricks + SageMaker + MLflow + MWAA + Step Functions`.
    - classification: `aligned`.
 2. Canonical phase ID alignment:
    - run-process uses `P(-1)..P17`,
@@ -158,18 +158,20 @@ Status:
 
 Current `TO_PIN` set from registry Section 14:
 1. `ROLE_TERRAFORM_APPLY_DEV_FULL`
-2. `ROLE_EKS_NODEGROUP_DEV_FULL`
-3. `ROLE_EKS_RUNTIME_PLATFORM_BASE`
-4. `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`
-5. `ROLE_MWAA_EXECUTION`
-6. `ROLE_SAGEMAKER_EXECUTION`
-7. `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`
-8. `MSK_CLUSTER_ARN`
-9. `MSK_BOOTSTRAP_BROKERS_SASL_IAM`
-10. `ECR_REPO_URI`
-11. `EKS_CLUSTER_ARN`
-12. `DBX_WORKSPACE_URL`
-13. `AWS_BUDGET_NOTIFICATION_EMAIL`
+2. `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`
+3. `ROLE_MWAA_EXECUTION`
+4. `ROLE_SAGEMAKER_EXECUTION`
+5. `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`
+6. `MSK_CLUSTER_ARN`
+7. `MSK_BOOTSTRAP_BROKERS_SASL_IAM`
+8. `EKS_CLUSTER_ARN`
+9. `DBX_WORKSPACE_URL`
+10. `AWS_BUDGET_NOTIFICATION_EMAIL`
+11. `APIGW_IG_API_ID`
+12. `ROLE_FLINK_EXECUTION`
+13. `ROLE_LAMBDA_IG_EXECUTION`
+14. `ROLE_APIGW_IG_INVOKE`
+15. `ROLE_DDB_IG_IDEMPOTENCY_RW`
 
 Tasks:
 1. Assign each item to dependency class:
@@ -192,33 +194,36 @@ M0.D TO_PIN dependency backlog (in-plan):
 
 | TO_PIN handle | Dependency class | Earliest blocked phase | Owner lane | Verification surface |
 | --- | --- | --- | --- | --- |
-| `ECR_REPO_URI` | runtime substrate | `M1` | packaging/release lane | ECR repo resolve + immutable tag push succeeds |
 | `ROLE_TERRAFORM_APPLY_DEV_FULL` | identity/iam | `M2` | infra apply lane | IAM role exists + assumed by IaC runner |
-| `ROLE_EKS_NODEGROUP_DEV_FULL` | identity/iam | `M2` | runtime infra lane | IAM role exists + bound to EKS nodegroup |
-| `ROLE_EKS_RUNTIME_PLATFORM_BASE` | identity/iam | `M2` | runtime infra lane | IAM role exists + IRSA/runtime policy binding |
 | `ROLE_STEP_FUNCTIONS_ORCHESTRATOR` | identity/iam | `M2` | orchestration lane | IAM role exists + SFN execution policy checks |
 | `ROLE_MWAA_EXECUTION` | identity/iam | `M2` | orchestration lane | IAM role exists + MWAA execution binding |
 | `ROLE_SAGEMAKER_EXECUTION` | identity/iam | `M2` | data_ml lane | IAM role exists + SageMaker execution binding |
 | `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS` | identity/iam | `M2` | data_ml lane | IAM role exists + Databricks trust/policy checks |
+| `ROLE_FLINK_EXECUTION` | identity/iam | `M2` | streaming lane | IAM role exists + Flink app execution policy checks |
+| `ROLE_LAMBDA_IG_EXECUTION` | identity/iam | `M2` | ingress edge lane | IAM role exists + Lambda execution policy checks |
+| `ROLE_APIGW_IG_INVOKE` | identity/iam | `M2` | ingress edge lane | API Gateway invoke role/policy checks |
+| `ROLE_DDB_IG_IDEMPOTENCY_RW` | identity/iam | `M2` | ingress edge lane | DDB idempotency table read/write policy checks |
 | `MSK_CLUSTER_ARN` | runtime substrate | `M2` | streaming lane | MSK cluster exists + ARN resolved |
 | `MSK_BOOTSTRAP_BROKERS_SASL_IAM` | runtime substrate | `M2` | streaming lane | bootstrap brokers resolve + auth mode check |
 | `EKS_CLUSTER_ARN` | runtime substrate | `M2` | runtime infra lane | EKS cluster exists + ARN resolved |
+| `APIGW_IG_API_ID` | runtime substrate | `M2` | ingress edge lane | API id resolved + stage mapping validated |
 | `DBX_WORKSPACE_URL` | data/ml | `M2` | data_ml lane | workspace URL resolves + token path validated |
 | `AWS_BUDGET_NOTIFICATION_EMAIL` | ops/cost | `M2` | ops lane | budget notification channel configured |
 
 Materialization order (fail-closed):
 1. `M0.D-1` identity/iam foundations:
-   - `ROLE_TERRAFORM_APPLY_DEV_FULL`, `ROLE_EKS_NODEGROUP_DEV_FULL`, `ROLE_EKS_RUNTIME_PLATFORM_BASE`,
-   - `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`, `ROLE_MWAA_EXECUTION`, `ROLE_SAGEMAKER_EXECUTION`, `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`.
+   - `ROLE_TERRAFORM_APPLY_DEV_FULL`, `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`, `ROLE_MWAA_EXECUTION`,
+   - `ROLE_SAGEMAKER_EXECUTION`, `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`,
+   - `ROLE_FLINK_EXECUTION`, `ROLE_LAMBDA_IG_EXECUTION`, `ROLE_APIGW_IG_INVOKE`, `ROLE_DDB_IG_IDEMPOTENCY_RW`.
 2. `M0.D-2` substrate anchors:
-   - `ECR_REPO_URI`, `MSK_CLUSTER_ARN`, `MSK_BOOTSTRAP_BROKERS_SASL_IAM`, `EKS_CLUSTER_ARN`.
+   - `MSK_CLUSTER_ARN`, `MSK_BOOTSTRAP_BROKERS_SASL_IAM`, `EKS_CLUSTER_ARN`, `APIGW_IG_API_ID`.
 3. `M0.D-3` data_ml endpoint:
    - `DBX_WORKSPACE_URL`.
 4. `M0.D-4` ops/cost channel:
    - `AWS_BUDGET_NOTIFICATION_EMAIL`.
 
 Block mapping summary:
-1. `M1` hard blocker if `ECR_REPO_URI` unresolved. Current status: `RESOLVED` (2026-02-22, see M1 evidence artifact).
+1. M1 packaging blocker from `ECR_REPO_URI` is historical and already resolved in closed M1.
 2. `M2` hard blockers if any remaining TO_PIN handle unresolved.
 
 ## M0.E Exit Readiness and M1 Transition Pin
@@ -249,10 +254,10 @@ M0.E transition protocol (pinned):
    - master-plan M1 entry gate remains binding:
      - M0 is marked `DONE` by status owner in master plan.
      - required image/release handles are resolved.
-   - from M0.D mapping, `ECR_REPO_URI` unresolved is a hard `M1` execution blocker.
+   - historical note: `ECR_REPO_URI` was the original M1 hard blocker and is already resolved in closed M1.
 3. M1 transition no-go:
    - if any M0 blocker is open,
-   - if `ECR_REPO_URI` is unresolved when attempting M1 execution,
+   - if required image/release handles are unresolved when attempting M1 execution,
    - if USER has not explicitly approved moving from M0 to M1.
 4. Branch-governance reminder:
    - no branch-history operations are permitted without explicit USER branch method + confirmation.
@@ -288,8 +293,8 @@ M0 is eligible for closure when:
 4. USER confirms progression to M1 planning/execution.
 
 Handoff posture:
-- M1 is `ACTIVE` for planning by explicit USER activation.
-- M1 execution remains blocked by M1 execution gates (notably `ECR_REPO_URI` materialization).
+- M1 is `DONE`.
+- M2 is `IN_PROGRESS`; M2 runtime/identity materialization gates own remaining `TO_PIN` closure.
 
 ## 9) M0 Closure Notes (In-Plan)
 1. `M0 prerequisite closure notes` (`M0.PR0..M0.PR5` status and evidence summary):
@@ -305,6 +310,9 @@ Handoff posture:
 ## 10) M0 Closure Snapshot
 Closure verdict:
 - `M0 = DONE` in `platform.build_plan.md`.
+
+M0 revisit verdict (managed-first authority repin):
+- `DONE` (no new `execution_risk` contradictions introduced).
 
 Evidence references:
 1. Master control plan:

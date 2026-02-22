@@ -28,11 +28,13 @@ In scope:
 3. Immutable provenance/evidence contract for `P(-1)`.
 4. Secret handling and packaging security posture.
 5. Build-go transition protocol and execution blockers.
+6. Managed-first compatibility note for packaging boundaries (container artifact vs non-container runtime artifacts).
 
 Out of scope:
 1. Terraform substrate execution (`M2`).
 2. Runtime daemon execution (`M4+`).
 3. Learning runtime execution (`M9+`).
+4. Flink application deployment packaging and API edge runtime deployment packaging (materialized under `M2` runtime/streaming lanes).
 
 ## 3) M1 Deliverables
 1. Pinned image contract for dev_full and explicit content boundary.
@@ -43,7 +45,7 @@ Out of scope:
 
 ## 4) Execution Gate for This Phase
 Current posture:
-1. `M1` is `ACTIVE` for planning.
+1. `M1` is `DONE` (revisit pass applied after managed-first authority repin).
 
 Execution block:
 1. Build execution is blocked until planning lanes `M1.A..M1.E` are closed.
@@ -698,4 +700,13 @@ M1 is eligible for closure when:
 4. USER confirms progression to M2.
 
 Handoff posture:
-- M2 remains `NOT_STARTED` until M1 is marked `DONE` in master plan.
+- M2 is `IN_PROGRESS` in master plan and owns runtime-surface materialization for managed lanes introduced by the authority repin.
+
+## 9) M1 Revisit Notes (Managed-First Repin)
+1. M1 closure remains valid for container/provenance controls on custom-runtime lanes.
+2. Managed runtime artifact surfaces introduced by repin are explicitly routed to M2:
+   - Flink runtime application package/deploy surfaces (`M2.C`/runtime lanes).
+   - API Gateway/Lambda/DynamoDB ingress edge materialization (`M2.E`/runtime lanes).
+3. No M1 blocker is reopened by the repin because:
+   - M1 is scoped to packaging/provenance contract closure,
+   - non-container runtime materialization is explicitly out of scope for M1 and now pinned to M2 execution lanes.

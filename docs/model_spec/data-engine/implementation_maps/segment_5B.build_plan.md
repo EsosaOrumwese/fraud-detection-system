@@ -1822,19 +1822,95 @@ Objective:
 - open minimal upstream deterministic code-path only if `P2.U2.1` cannot close `T6`.
 
 Definition of done:
-- [ ] trigger decision is explicit (opened/skipped).
-- [ ] if opened, deterministic invariants and no-synthetic-support constraints are evidenced.
-- [ ] bounded strength sweep completed with veto rails enforced.
+- [x] trigger decision is explicit (opened/skipped).
+- [x] if opened, deterministic invariants and no-synthetic-support constraints are evidenced.
+- [x] bounded strength sweep completed with veto rails enforced.
+
+P2.U2.2 closure snapshot (2026-02-22):
+- trigger artifact decision:
+  - `SKIP_P2_U2_2_3B_CODE`.
+- reason codes:
+  - `VIRTUAL_CEILING_BELOW_REQUIRED_B_MASS`,
+  - `POLICY_ONLY_REALIZED_DELTA_NON_MATERIAL`,
+  - `RESIDUAL_T6_DOMINATED_BY_NON_VIRTUAL_MASS`.
+- evidence inputs:
+  - required B reduction mass from `P2.U2.0` forensics,
+  - realized `u2_1_c1` delta from `P2.U2.1`,
+  - top10 virtual vs non-virtual contribution split from arrivals.
+- storage hygiene:
+  - superseded `u2_1_c1` backup folders pruned under authority run-id keep-set.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_trigger_decision_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_trigger_decision_c25a2675fbfbacd952b13bb594880e92.md`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u2_u21c1_prune_receipt_20260222T220442Z.txt`
+- decision:
+  - `UNLOCK_P2.U3` (owner-true non-virtual upstream lane).
 
 #### P2.U2.3 - Closure and branch decision
 Objective:
 - close upstream reopen with explicit branch posture.
 
 Definition of done:
-- [ ] closure artifact includes best candidate deltas vs canonical.
-- [ ] branch decision recorded:
+- [x] closure artifact includes best candidate deltas vs canonical.
+- [x] branch decision recorded:
   - `UNLOCK_P3` if `T6/T7` meet B with veto rails green,
   - else `HOLD_P2_UPSTREAM_REOPEN`.
+
+P2.U2.3 closure snapshot (2026-02-22):
+- best retained upstream posture in this lane:
+  - from `P2.U1`: `T7=3.7043%` (`PASS_B`),
+  - from `P2.U2.1`: `T6=74.2994%` (`FAIL_B`, non-material movement vs canonical `74.3382%`).
+- branch decision:
+  - `HOLD_P2_UPSTREAM_REOPEN`.
+- next unlocked lane:
+  - `P2.U3` (upstream owner-true non-virtual mass lane via `2B.S4` group-mix regularization).
+
+### P2.U3 - Upstream owner-true non-virtual lane (`2B.S4`)
+Goal:
+- attempt B closure on residual `T6` by tuning the upstream non-virtual mass owner path (`2B.S4` group-mix regularizer), while preserving `T7` and frozen rails.
+
+Scope:
+- mutable owner surface:
+  - `config/layer1/2B/policy/group_mix_regularizer_v1.json` (bounded edits only).
+- rerun chain per candidate:
+  - `2B: S0 -> S4 -> S5 -> S6 -> S7 -> S8`,
+  - `5B: S0 -> S4 -> S5`,
+  - score `segment5b_p1_realism.py` + `segment5b_p2_calibration.py`.
+- veto rails:
+  - `T1/T2/T3/T4/T5/T11/T12` must remain pass,
+  - `T7` must remain in B band (`3%-8%`),
+  - runtime regression veto active.
+
+Definition of done:
+- [x] at least one bounded owner-true candidate is executed end-to-end.
+- [x] keep/reject decision is explicit with measured deltas vs canonical.
+- [x] lane decision recorded: `UNLOCK_P3` or `HOLD_P2_UPSTREAM_REOPEN`.
+
+P2.U3 closure snapshot (2026-02-22):
+- retained candidate:
+  - `u3_1_c1` on `config/layer1/2B/policy/group_mix_regularizer_v1.json`:
+    - `max_p_group_soft_cap`: `0.78 -> 0.68`,
+    - `regularization_strength`: `0.34 -> 0.52`,
+    - `entropy_floor`: `0.48 -> 0.62`.
+- executed chain:
+  - `2B`: `S0 -> S4 -> S5 -> S6 -> S7 -> S8` (with `S2` replay correction for alias digest parity),
+  - `5B`: `S0 -> S4 -> S5`,
+  - scoring: `segment5b_p1_realism.py` + `segment5b_p2_calibration.py`.
+- measured outcome vs canonical baseline:
+  - `T6`: `74.3382% -> 66.6737%` (`-7.6645 pp`, now `PASS_B`),
+  - `T7`: `3.7043% -> 3.7043%` (unchanged, `PASS_B`),
+  - frozen rails `T1/T2/T3/T4/T5/T11/T12`: all `PASS`,
+  - runtime lane `S4+S5`: `454.140s` (`PASS` vs `<=540s`).
+- adjudication:
+  - `KEEP_u3_1_c1`,
+  - unsuffixed `P2` canonical gateboard/closure promoted to this retained posture,
+  - lane decision `UNLOCK_P3`.
+- artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_c25a2675fbfbacd952b13bb594880e92__u3_1_c1.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_closure_c25a2675fbfbacd952b13bb594880e92__u3_1_c1.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u3_candidate_matrix_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u3_closure_c25a2675fbfbacd952b13bb594880e92.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p2u3_u31c1_prune_receipt_20260222T222409Z.json`
 
 ### P3 - Wave C contract hardening
 Goal:
@@ -1891,4 +1967,8 @@ Definition of done:
 8. `P2` is closed with `UNLOCK_P2_UPSTREAM_REOPEN` (local infeasibility proven for `T7`; frozen rails preserved).
 9. `P2.U1` executed and closed: `T7` now `PASS_B`, frozen rails preserved, `T6` remains red.
 10. `P2.4` bounded local lane is now closed as insufficient for B closure on `T6`.
-11. `P2.U2.1` is closed with `REJECT_u2_1_c1`; active lane is `P2.U2.2` (deterministic owner code lane, conditional trigger).
+11. `P2.U2.1` is closed with `REJECT_u2_1_c1`.
+12. `P2.U2.2` trigger lane is closed with `SKIP_P2_U2_2_3B_CODE`.
+13. `P2.U2.3` branch closure is recorded as `HOLD_P2_UPSTREAM_REOPEN`.
+14. `P2.U3` is closed with `KEEP_u3_1_c1` and lane decision `UNLOCK_P3`.
+15. Active lane: `P3` (Wave C contract hardening).
