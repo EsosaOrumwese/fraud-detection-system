@@ -355,6 +355,7 @@ M3 planning posture:
 - `M3.C` has been expanded with canonical payload/digest decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.D` has been expanded with orchestrator-entry/run-lock decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.E` has been expanded with durable write-once evidence publication decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
+- `M3.F` has been expanded with runtime-scope export and M4 handoff decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.A` execution is now closed (`PASS`):
   - `runs/dev_substrate/dev_full/m3/m3a_20260223T174307Z/m3a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
 - `M3.A` blocker remediation closed:

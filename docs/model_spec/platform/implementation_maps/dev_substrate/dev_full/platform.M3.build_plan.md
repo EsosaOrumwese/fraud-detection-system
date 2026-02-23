@@ -695,6 +695,81 @@ DoD:
 - [ ] handoff references are durable and readable.
 - [ ] M4 runtime-scope env mapping is explicit.
 
+M3.F decision pins (closed before execution):
+1. Source-of-truth law:
+   - `platform_run_id` and `scenario_run_id` come from M3.B PASS artifacts.
+   - `config_digest` comes from M3.C PASS artifacts.
+   - run evidence object references come from M3.E committed objects.
+   - orchestrator entry references come from M3.D PASS artifacts.
+   - M3.F must not recompute identity or digest.
+2. Runtime-scope binding law:
+   - `required_platform_run_id_env_key` must equal registry-pinned `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`.
+   - `required_platform_run_id_env_value` must equal current `platform_run_id`.
+3. Correlation contract law:
+   - handoff pack must include required correlation fields list from runbook cross-runtime rule:
+     - `platform_run_id,scenario_run_id,phase_id,event_id,runtime_lane,trace_id`.
+4. Durable reference law:
+   - handoff pack must reference durable and readable M3 evidence surfaces:
+     - `evidence/runs/{platform_run_id}/run.json`,
+     - `evidence/runs/{platform_run_id}/run_pin/run_header.json`,
+     - M3.D orchestrator-entry readiness evidence object.
+5. Immutability law:
+   - once `m4_handoff_pack.json` is emitted for current M3 chain, in-place mutation is prohibited; changes require new M3.F execution id.
+6. Evidence safety law:
+   - handoff pack contains no secrets/tokens/credentials.
+
+M3.F verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3F-V1-INPUTS` | `Test-Path` checks for authoritative M3.B/M3.C/M3.D/M3.E artifacts | confirms prerequisite sources exist |
+| `M3F-V2-ENV-BINDING` | compare handoff `required_platform_run_id_env_key/value` with registry + current run id | verifies runtime-scope binding |
+| `M3F-V3-CORRELATION-CONTRACT` | verify handoff correlation list equals runbook pinned list | enforces correlation continuity anchor |
+| `M3F-V4-REF-READABLE` | `aws s3api head-object --bucket <S3_EVIDENCE_BUCKET> --key <referenced_key>` | proves referenced durable artifacts exist |
+| `M3F-V5-HANDOFF-PUBLISH` | `aws s3 cp <local_handoff_pack> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m3f_execution_id>/m4_handoff_pack.json` | publishes durable handoff pack |
+| `M3F-V6-HANDOFF-READBACK` | `aws s3 cp s3://<...>/m4_handoff_pack.json -` + local hash compare | proves durable handoff readback integrity |
+
+M3.F blocker taxonomy (fail-closed):
+1. `M3F-B1`: prerequisite source artifacts missing or not PASS.
+2. `M3F-B2`: runtime-scope env key/value binding mismatch.
+3. `M3F-B3`: correlation required fields list mismatch/incomplete.
+4. `M3F-B4`: referenced durable M3 artifacts unreadable/missing.
+5. `M3F-B5`: durable handoff publish failure.
+6. `M3F-B6`: handoff readback integrity mismatch.
+7. `M3F-B7`: secret material detected in handoff pack.
+8. `M3F-B8`: M3.F evidence contract missing/incomplete.
+
+M3.F evidence contract (planned):
+1. `m4_handoff_pack.json`
+2. `m3f_runtime_scope_binding_snapshot.json`
+3. `m3f_handoff_reference_receipts.json`
+4. `m3f_execution_summary.json`
+
+`m4_handoff_pack.json` minimum fields:
+1. `platform_run_id`
+2. `scenario_run_id`
+3. `config_digest`
+4. `required_platform_run_id_env_key`
+5. `required_platform_run_id_env_value`
+6. `correlation_required_fields`
+7. `durable_references`
+8. `source_execution_ids`
+9. `overall_pass`
+
+M3.F closure rule:
+1. M3.F can close only when:
+   - handoff pack contains all required run-scope and correlation fields,
+   - runtime-scope env mapping is explicit and correct,
+   - all referenced M3 durable artifacts are readable,
+   - handoff pack exists locally and durably with readback hash match,
+   - no active `M3F-B*` blockers remain.
+
+M3.F planning status (current):
+1. Prerequisite lanes `M3.B`, `M3.C`, `M3.D`, and `M3.E` are closed green.
+2. Runtime-scope and evidence handles are pinned in registry.
+3. No known pre-execution blockers for M3.F at planning time.
+4. Phase posture:
+   - planning expanded; execution not started.
+
 ### M3.G Rerun and Reset Discipline
 Goal:
 1. codify fail-closed rerun behavior for P1 identity changes.

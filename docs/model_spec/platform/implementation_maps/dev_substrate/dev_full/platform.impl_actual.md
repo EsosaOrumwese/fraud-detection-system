@@ -3851,6 +3851,66 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
    - DoD anchor `run pin artifact committed` marked complete,
    - M3 sub-phase progress marks M3.E complete.
 
+## Entry: 2026-02-23 22:41:06 +00:00 - M3.F planning-start (runtime scope export + M4 handoff)
+
+### Problem statement
+1. M3.F is currently only task bullets and lacks execution-grade closure mechanics.
+2. We need an explicit handoff contract for M4 that:
+   - exports required run scope fields,
+   - binds runtime env mapping (`REQUIRED_PLATFORM_RUN_ID`),
+   - carries correlation field contract anchors,
+   - references durable M3 evidence surfaces.
+
+### Decision vectors to pin
+1. Source-of-truth:
+   - M3.B for identity,
+   - M3.C for `config_digest`,
+   - M3.E for committed run evidence object refs,
+   - M3.D for orchestrator-entry readiness refs.
+2. Correlation field contract:
+   - derive from runbook pinned cross-runtime rule (`platform_run_id,scenario_run_id,phase_id,event_id,runtime_lane,trace_id`).
+3. Handoff publication:
+   - local + durable run-control publication with readback verification.
+4. Immutability posture:
+   - once handoff pack is emitted for current M3 execution chain, no in-place mutation allowed.
+
+### Alternatives considered
+1. Recompute identity/digest in handoff pack:
+   - rejected; violates lane ownership and increases drift risk.
+2. Handoff with only local file output:
+   - rejected; M4 needs durable, auditable entry contract.
+3. Omit correlation anchors and rely on later phases:
+   - rejected; correlation continuity must be explicit at handoff boundary.
+
+## Entry: 2026-02-23 22:42:00 +00:00 - M3.F planning expanded to execution-grade
+
+### What was added to M3.F
+1. Decision pins:
+   - source-of-truth ownership across M3.B/C/D/E,
+   - runtime-scope env key/value binding law,
+   - correlation required fields contract,
+   - durable-reference readability law,
+   - handoff immutability and secret-safety laws.
+2. Verification command catalog:
+   - prerequisite artifact checks,
+   - env binding checks,
+   - correlation contract checks,
+   - durable reference readability checks,
+   - handoff publish + readback checks.
+3. Fail-closed blocker taxonomy:
+   - `M3F-B1..M3F-B8`.
+4. Evidence contract and closure rule:
+   - concrete `m4_handoff_pack.json` shape and supporting receipts.
+
+### Reasoning notes
+1. I explicitly kept correlation fields in M3.F because M4 is the first phase that consumes runtime continuity from P1 and should not infer correlation requirements implicitly.
+2. I required durable-reference readability checks at handoff time to avoid pushing broken references into M4.
+3. I kept M3.F planning-only in this step; no runtime execution occurred.
+
+### Plan synchronization
+1. Master plan now explicitly notes M3.F planning expansion.
+2. M3.F remains execution-pending.
+
 ## Entry: 2026-02-23 18:57:12 +00:00 - M3.C planning expanded to execution-grade
 
 ### What was added to M3.C
