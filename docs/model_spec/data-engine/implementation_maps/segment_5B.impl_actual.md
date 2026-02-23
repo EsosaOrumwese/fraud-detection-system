@@ -8139,3 +8139,78 @@ Final phase decision:
 Observed nuance for next phase planning (recorded, not blocker):
 1) report-embedded calibration sentinels are sample-based and intentionally lightweight in this lane.
 2) scorer authority for closure remains the dedicated P1/P2 scoring scripts; if future policy moves to `enforce_b/enforce_bplus`, sentinel sampling strategy should be promoted to stronger representativeness criteria before turning hard-gate mode on.
+
+### Entry: 2026-02-23 04:30
+
+User-directed rerun closure: P3 witness replayed on a fresh run-id under `runs/fix-data-engine/segment_5B` with `local_full_run-5` left untouched for writes.
+
+Objective received:
+1) rerun the same `P3` witness in `runs/fix-data-engine/segment_5B/<new_run_id>`.
+2) from this point forward, do not write under `runs/local_full_run-5`.
+
+Execution design and rationale:
+1) full regeneration was not needed for this lane because `P3` changed validation/policy/contract semantics in `S5`.
+2) we still needed a fresh run-root identity for audit isolation, so we created a new run-id and isolated writable outputs there.
+3) to avoid high storage duplication while preserving immutable upstream evidence, we used directory junctions from fresh run-root to authority input surfaces (read path only), while keeping these writable and local to fresh run root:
+   - `data/layer2/5B/validation`
+   - `reports`
+   - `tmp`
+4) scorer dependency nuance discovered in execution:
+   - `score_segment5b_p1_realism.py` requires both `S4` and `S5` rows in latest `segment_state_runs` file.
+   - fresh run had only newly emitted `S5`; therefore we imported the latest `S4 PASS` row from authority run-report into fresh run-report file to satisfy scorer contract without mutating source run.
+
+Concrete execution:
+1) new run id created: `6ac88fc0d3364aecaf564b17ebad354e`.
+2) rerun command:
+   - `make segment5b-s5 RUNS_ROOT=runs/fix-data-engine/segment_5B SEG5B_S5_RUN_ID=6ac88fc0d3364aecaf564b17ebad354e`
+3) scoring commands:
+   - `python tools/score_segment5b_p1_realism.py --runs-root runs/fix-data-engine/segment_5B --run-id 6ac88fc0d3364aecaf564b17ebad354e --out-root runs/fix-data-engine/segment_5B/reports`
+   - `python tools/score_segment5b_p2_calibration.py --runs-root runs/fix-data-engine/segment_5B --run-id 6ac88fc0d3364aecaf564b17ebad354e --out-root runs/fix-data-engine/segment_5B/reports --p1-gateboard-path runs/fix-data-engine/segment_5B/reports/segment5b_p1_realism_gateboard_6ac88fc0d3364aecaf564b17ebad354e.json`
+
+Observed result:
+1) `S5` PASS in fresh run root; policy-first threshold provenance present.
+2) `P1` gateboard remains closed/green (hard/veto failures none).
+3) `P2` closure remains `PASS_B_CANDIDATE`, lane decision `UNLOCK_P3`.
+4) realism key metrics unchanged from authority posture (`T6=66.6737%`, `T7=3.7043%`).
+
+Artifacts emitted:
+1) fresh-run setup receipt:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p3_fresh_run_setup_20260223T042844Z.json`
+2) fresh-run witness outputs:
+   - `runs/fix-data-engine/segment_5B/6ac88fc0d3364aecaf564b17ebad354e/data/layer2/5B/validation/...`
+3) fresh-run scorecards:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p1_realism_gateboard_6ac88fc0d3364aecaf564b17ebad354e.json`
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_gateboard_6ac88fc0d3364aecaf564b17ebad354e.json`
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p2_closure_6ac88fc0d3364aecaf564b17ebad354e.json`
+
+### Entry: 2026-02-23 04:38
+
+Planning lock: `P4` expanded from placeholder into execution-grade certification lanes (`P4.1 -> P4.6`).
+
+Problem framing for P4 planning:
+1) `P3` is closed and stable on fresh-root witness, but robustness is still uncertified because required seed panel `{42,7,101,202}` is not yet fully represented in active fresh-run evidence.
+2) prior scorer behavior requires state-run evidence coherence (notably `S4` + `S5` availability per seed), so P4 plan must explicitly include evidence-topology and not only scoring commands.
+3) user constraint is explicit: no further writes under `runs/local_full_run-5`; therefore certification execution must be fresh-root-only.
+
+Alternatives considered:
+1) Option A: full regeneration for all seeds (`S0->S5`) regardless of evidence availability.
+   - rejected as default due avoidable runtime/storage cost and higher blast radius.
+2) Option B: scorer-only replay on whatever seed rows already exist.
+   - rejected because it can hide missing-seed evidence topology gaps and create false closure confidence.
+3) Option C (chosen): hybrid lane.
+   - lock seed authority first,
+   - run fresh-root-only witness,
+   - generate only missing seed evidence via minimal deterministic chain,
+   - then per-seed score and cross-seed closure.
+
+What was written into plan:
+1) `P4.1` seed authority/certification matrix lock.
+2) `P4.2` fresh-run topology lock (explicit no-local-full-write law).
+3) `P4.3` conditional missing-seed production lane with minimal-chain branching and runtime budgets.
+4) `P4.4` per-seed scoring + veto gateboard.
+5) `P4.5` cross-seed stability (`T10`) closure.
+6) `P4.6` explicit certification decision (`PASS_BPLUS_ROBUST | PASS_B_ROBUST | HOLD_P4_REMEDIATE`).
+
+Decision:
+1) active step advanced to `P4.1`.
+2) no execution started in this entry; this is planning-only and audit trail capture.
