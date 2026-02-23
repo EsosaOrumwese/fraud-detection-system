@@ -351,9 +351,13 @@ Planned lanes:
 M3 planning posture:
 - Deep plan has been created and expanded to execution-grade coverage across `M3.A..M3.J`.
 - `M3.A` has been expanded with command-level verification catalog, blocker taxonomy, and evidence/closure contract.
-- M3 execution remains fail-closed on current entry blockers:
-  - orchestrator runtime surface is down after teardown and must be rematerialized for P1 entry checks,
-  - unresolved required `TO_PIN` handles must be closed before execution identity is declared green.
+- `M3.A` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m3/m3a_20260223T174307Z/m3a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+- `M3.A` blocker remediation closed:
+  - `ROLE_TERRAFORM_APPLY_DEV_FULL` repinned from `TO_PIN` to active apply principal in registry.
+  - `core -> streaming -> runtime` rematerialized; Step Functions orchestrator surface restored and verified.
+- durable mirror:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3a_20260223T174307Z/`
 
 DoD anchors:
 - [ ] run pin artifact committed.
@@ -364,7 +368,7 @@ Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M3.build_plan.md`
 
 M3 sub-phase progress:
-- [ ] `M3.A` authority and handle closure matrix.
+- [x] `M3.A` authority and handle closure matrix.
 - [ ] `M3.B` deterministic run identity generation.
 - [ ] `M3.C` canonical payload and digest reproducibility.
 - [ ] `M3.D` orchestrator entry and lock identity readiness.

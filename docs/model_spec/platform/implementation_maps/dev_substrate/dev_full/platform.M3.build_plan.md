@@ -115,9 +115,9 @@ Tasks:
 4. classify unresolved required handles as blockers.
 
 DoD:
-- [ ] required M3 handle set is explicit and complete.
-- [ ] every required handle has a verification method.
-- [ ] unresolved required handles are blocker-marked.
+- [x] required M3 handle set is explicit and complete.
+- [x] every required handle has a verification method.
+- [x] unresolved required handles are blocker-marked.
 
 M3.A decision pins (closed before execution):
 1. Handle-source law:
@@ -173,13 +173,37 @@ M3.A closure rule:
    - orchestrator/evidence surfaces required for P1 are queryable or explicitly blocker-marked with hold verdict,
    - M3.A evidence contract is complete.
 
-M3.A planning status (current):
+M3.A planning status (pre-execution historical):
 1. Required handles are enumerated.
-2. Known open blockers before execution:
+2. Known open blockers before execution were:
    - `M3A-B2`: `ROLE_TERRAFORM_APPLY_DEV_FULL` is currently `TO_PIN`.
    - `M3A-B4`: runtime orchestrator surface is down post-teardown and cannot satisfy readiness query until rematerialized.
 3. Phase posture:
-   - planning expanded; execution not started.
+   - planning expanded and then executed.
+
+M3.A execution status (2026-02-23):
+1. Authoritative execution id:
+   - `m3a_20260223T174307Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3a_20260223T174307Z/`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3a_20260223T174307Z/`
+4. PASS artifacts:
+   - `m3a_handle_closure_snapshot.json`
+   - `m3a_blocker_register.json`
+   - `m3a_command_receipts.json`
+   - `m3a_execution_summary.json`
+   - `m3a_rematerialization_receipts.json`
+5. Closure results:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M3.A_READY`
+   - required handle set: `17/17` present, placeholder count `0`
+   - orchestrator query pass: `true` (Step Functions state machine present)
+6. Blocker remediation outcomes:
+   - `M3A-B2` closed by pinning `ROLE_TERRAFORM_APPLY_DEV_FULL` from `TO_PIN` to active apply principal.
+   - `M3A-B4` closed by rematerializing `core -> streaming -> runtime` and re-verifying Step Functions orchestrator surface.
+7. Wrapper/runtime command-surface retries occurred during remediation; failed attempts are retained as audit artifacts and excluded from closure evidence.
 
 ### M3.B Run Identity Generation Contract
 Goal:
@@ -335,7 +359,7 @@ DoD:
 Any active `M3-B*` blocker prevents M3 closure.
 
 ## 7) M3 Completion Checklist
-- [ ] M3.A complete.
+- [x] M3.A complete.
 - [ ] M3.B complete.
 - [ ] M3.C complete.
 - [ ] M3.D complete.

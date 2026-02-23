@@ -8559,3 +8559,90 @@ Alternatives rejected:
    - none.
 4) remediation closure status for Segment 5B:
    - CLOSED and FROZEN at robust B posture.
+
+### Entry: 2026-02-23 17:40
+
+`P6` execution start (B+ recovery lane from frozen `PASS_B_ROBUST`).
+
+Problem framing:
+1) frozen `P5` posture is robust `B`, with B+ gap isolated to `T6+` and `T7+`.
+2) `T10` cross-seed stability is already `BPLUS`; instability is not the blocker.
+3) lane objective is bounded upgrade attempt without reopening broad upstream topology by default.
+
+Decisions taken before reruns:
+1) emit explicit `P6.1` authority pin from `P5` freeze package.
+2) run policy-first feasibility check first, then only run bounded empirical probe if needed.
+3) keep `runs/local_full_run-5` read-only; all writes remain under `runs/fix-data-engine/segment_5B`.
+
+Artifacts emitted:
+1) `runs/fix-data-engine/segment_5B/reports/segment5b_p6_authority_pin_20260223T174025Z.json`
+2) `runs/fix-data-engine/segment_5B/reports/segment5b_p6_p62_feasibility_20260223T174042Z.json`
+
+Feasibility conclusion:
+1) `share_hybrid=0` on authority seed means `p_virtual_hybrid` has zero leverage on `T7`.
+2) per-seed bound `T6_floor = T6 - T7` remains above `0.62`, so local virtual-only reallocation cannot close `T6+`.
+3) decision: local-policy-only lane is infeasible for B+; proceed to bounded empirical confirmation + owner-check.
+
+### Entry: 2026-02-23 17:50
+
+`P6.2` bounded empirical probe executed on seed `42` with strongest local `S4` concentration tempering.
+
+Why this probe was still run:
+1) analytic feasibility already showed local infeasibility, but an empirical lane was executed to measure real movement under maximum bounded local knob pressure.
+2) this avoids hand-wavy closure and leaves a reproducible movement witness.
+
+Execution mechanics:
+1) run-id `6ac88fc0d3364aecaf564b17ebad354e` had `arrival_events` as a junction to `local_full`; this was replaced with a local writable directory to keep the no-local-full-write law.
+2) prior `S5` validation bundle was archived to `_failed/.../attempt=<ts>` before rerun to preserve immutability semantics.
+3) rerun command lane:
+   - `make segment5b-s4 segment5b-s5 RUNS_ROOT=runs/fix-data-engine/segment_5B RUN_ID=6ac88fc0d3364aecaf564b17ebad354e`
+   - env: `ENGINE_5B_S4_TZ_TEMPER_ENABLE=1`, `TOPK=24`, `REDIRECT_P=0.45`
+4) scored probe under isolated out-root:
+   - `runs/fix-data-engine/segment_5B/reports/p6_probe/...`
+
+Measured result:
+1) `T6`: `0.6667369 -> 0.6644603` (improvement `-0.0022766`, about `-0.23 pp`).
+2) `T7`: unchanged at `0.0370427`.
+3) B+ gaps remain material (`T6+` and `T7+` both red).
+
+Probe artifact:
+1) `runs/fix-data-engine/segment_5B/reports/segment5b_p6_p62_probe_6ac88fc0d3364aecaf564b17ebad354e_20260223T175012Z.json`
+
+### Entry: 2026-02-23 17:51
+
+`P6.3` conditional owner-reopen check closed.
+
+Reasoning:
+1) local `5B` knobs are mathematically blocked on `T7+` (`share_hybrid=0`) and empirically weak on `T6+`.
+2) forensics on current lane still shows dominant top-10 mass from non-virtual owners (seed-42 top contributor remains non-virtual, high-share merchant).
+3) simultaneous closure of `T6+` and `T7+` therefore requires coupled upstream owner movement (`3B.S1` classification + `2B/3B` topology surfaces), which exceeds this bounded P6 lane and risks frozen B rails.
+
+Decision:
+1) do not open broad upstream owner-reopen inside bounded `P6`.
+2) mark owner reopen as deferred/out-of-scope for this lane with explicit artifact.
+
+Artifact:
+1) `runs/fix-data-engine/segment_5B/reports/segment5b_p6_p63_owner_reopen_check_20260223T175104Z.json`
+
+### Entry: 2026-02-23 18:00
+
+`P6.4` certification + `P6.5` closure completed.
+
+Execution sequence:
+1) restored seed-42 back to baseline posture (removed probe `arrival_events` partition + archived probe validation bundle, reran `S4->S5` without temper knobs).
+2) refreshed canonical seed-42 `P1/P2` scorecards at reports root.
+3) reran multi-seed certifier on retained panel `{42,7,101,202}`.
+4) attempted to re-bind seed-42 `arrival_events` back to the original junction target (to reclaim probe storage), but this shell policy blocked junction creation commands in-session; run remains correct but retains a local `arrival_events` directory.
+
+Certification outcome:
+1) decision remains `PASS_B_ROBUST`.
+2) `T10` stability remains `BPLUS`; `T6+/T7+` remain the only blockers for B+.
+
+Closure artifacts:
+1) `runs/fix-data-engine/segment_5B/reports/segment5b_p6_p64_certification_20260223T180020Z.json`
+2) `runs/fix-data-engine/segment_5B/reports/segment5b_p6_prune_receipt_20260223T180010Z.json`
+3) `runs/fix-data-engine/segment_5B/reports/segment5b_p6_closure_20260223T180010Z.json`
+
+Final P6 decision:
+1) `SEG5B_P6_RETAIN_PASS_B`.
+2) Segment 5B remains frozen at robust `B`; B+ is not achieved within bounded local lane.

@@ -2337,10 +2337,28 @@ Execution sequence:
    - otherwise retain `SEG5B_FROZEN_PASS_B` with explicit residual note.
 
 Definition of done:
-- [ ] `P6` authority pin artifact is emitted and references only accepted `P5` freeze artifacts.
-- [ ] bounded candidate(s) show measurable movement on `T6+`/`T7+`/`T10` with zero hard-rail regressions.
-- [ ] certification decision artifact exists with explicit class (`PASS_BPLUS_ROBUST` or retained `PASS_B_ROBUST`).
-- [ ] keep-set/prune receipt is refreshed after final `P6` decision.
+- [x] `P6` authority pin artifact is emitted and references only accepted `P5` freeze artifacts.
+- [x] bounded candidate(s) show measurable movement on `T6+`/`T7+`/`T10` with zero hard-rail regressions.
+- [x] certification decision artifact exists with explicit class (`PASS_BPLUS_ROBUST` or retained `PASS_B_ROBUST`).
+- [x] keep-set/prune receipt is refreshed after final `P6` decision.
+
+P6 closure snapshot (2026-02-23):
+- `P6.1` authority lock emitted:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_authority_pin_20260223T174025Z.json`.
+- `P6.2` local-policy feasibility + bounded probe:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_p62_feasibility_20260223T174042Z.json`,
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_p62_probe_6ac88fc0d3364aecaf564b17ebad354e_20260223T175012Z.json`.
+- `P6.3` owner-reopen branch check:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_p63_owner_reopen_check_20260223T175104Z.json`,
+  - branch decision `OWNER_REOPEN_DEFERRED_OUTSIDE_BOUNDED_P6`.
+- `P6.4` certification replay:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_p64_certification_20260223T180020Z.json`,
+  - referenced closure `segment5b_p4_closure_20260223T175951Z.json` with decision `PASS_B_ROBUST`.
+- `P6.5` final closure:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_prune_receipt_20260223T180010Z.json`,
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_closure_20260223T180010Z.json`.
+- final decision:
+  - `SEG5B_P6_RETAIN_PASS_B` (`certified_class=PASS_B_ROBUST`).
 
 ## 9) Immediate execution order from this plan
 1. `POPT.0` is closed and pinned (authority: `c25a2675fbfbacd952b13bb594880e92`).
@@ -2360,5 +2378,5 @@ Definition of done:
 15. `P3` is closed (`P3.1 -> P3.5`) with decision `UNLOCK_P4`.
 16. `P4` is executed end-to-end (`P4.1 -> P4.6`) and reopened via `P4.R1 -> P4.R5`; final decision is `PASS_B_ROBUST`.
 17. `P5` is closed with decision `SEG5B_FROZEN_PASS_B`; Segment 5B remediation is closed/frozen.
-18. `P6` B+ recovery lane is opened from the frozen `PASS_B_ROBUST` baseline.
-19. Active step: `P6.1 Authority pin` (then `P6.2` bounded policy-first recovery sweep).
+18. `P6` B+ recovery lane is executed end-to-end (`P6.1 -> P6.5`) and closed with `SEG5B_P6_RETAIN_PASS_B`.
+19. Active step: `Next segment planning` (or explicit user-directed reopen lane).

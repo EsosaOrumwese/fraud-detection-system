@@ -3241,3 +3241,138 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
    - then `streaming`,
    - then `runtime`.
 3. Preserve failed attempt receipts as audit artifacts and exclude from closure evidence.
+
+## Entry: 2026-02-23 17:41:34 +00:00 - M3.A remediation attempt #2 failed (cmd quoting with spaces)
+
+### Failure
+1. `terraform plan` invocation through `cmd /c` failed with `Too many command line arguments`.
+2. Root cause was path quoting breakdown on absolute tfplan output paths containing spaces.
+
+### Decision
+1. Stop using `cmd /c` wrapper for terraform lane commands.
+2. Invoke terraform directly from PowerShell with explicit argv tokens (`& terraform <arg1> <arg2> ...`) and stream redirection.
+3. Re-run rematerialization with a new execution id; preserve failed attempt receipts for audit.
+
+## Entry: 2026-02-23 17:42:44 +00:00 - M3.A remediation attempt #3 failed (PowerShell terraform arg parsing)
+
+### Failure
+1. Direct PowerShell invocation of terraform with global `-chdir` repeatedly failed with `Too many command line arguments` in this environment.
+
+### Decision
+1. Revert to `cmd /c` wrapper (which is proven stable for this workstation's terraform shim).
+2. Remove plan-file emission (`-out`) from remediation lane to avoid path-quoting defects.
+3. Use:
+   - `init -reconfigure`
+   - `plan -detailed-exitcode` (no out file)
+   - `apply -auto-approve`
+4. Keep prior attempts as audit evidence; closure evidence will use the first fully passing run only.
+
+## Entry: 2026-02-23 17:54:39 +00:00 - M3.A verification/execution strategy after successful rematerialization
+
+### State update
+1. Rematerialization run `m3a_20260223T174307Z` succeeded for `core`, `streaming`, and `runtime` (all init/plan/apply pass).
+2. This clears runtime-surface unavailability precondition for M3.A verification.
+
+### Verification strategy
+1. Execute deterministic handle-closure evaluation against registry for required M3.A keys.
+2. Validate the following execution surfaces and record command receipts:
+   - M2->M3 handoff artifact presence,
+   - Step Functions orchestrator presence,
+   - evidence bucket reachability,
+   - required placeholder guard (`TO_PIN` must be absent for required keys).
+3. Emit M3.A evidence contract artifacts in the same execution folder.
+4. Mirror artifacts to durable S3 run-control prefix for this phase execution id.
+
+### Alternatives considered
+1. Mark M3.A closed from rematerialization receipts only:
+   - rejected, because M3.A closure is handle/evidence contract closure, not infra apply closure alone.
+2. Run ad-hoc checks without structured receipts:
+   - rejected, would reduce auditability.
+
+## Entry: 2026-02-23 17:55:35 +00:00 - M3.A verification script retry (parser defect)
+
+### Failure
+1. First verification run failed before artifact emission due PowerShell parser error in handle-line regex construction.
+2. No runtime mutation occurred; failure was artifact-generation logic only.
+
+### Fix
+1. Rewrote handle-line regex construction using safe single-quoted concatenation.
+2. Rerun verification on existing successful rematerialization execution id (`m3a_20260223T174307Z`).
+
+## Entry: 2026-02-23 17:56:30 +00:00 - M3.A verification retry #2 (scriptblock exit semantics)
+
+### Failure
+1. Verification helper used `exit` inside a check scriptblock, which terminated the full PowerShell process at the first check.
+2. Result: no complete M3.A artifact set was emitted in that attempt.
+
+### Fix
+1. Replaced `exit`-driven check logic with non-terminating check functions that return explicit status and captured output.
+2. Rerun full M3.A verification and durable publish for existing execution id.
+
+## Entry: 2026-02-23 18:00:38 +00:00 - M3.A executed to green (blockers closed, artifacts published)
+
+### Execution scope and final authoritative run
+1. Authoritative M3.A execution id: `m3a_20260223T174307Z`.
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3a_20260223T174307Z/`
+3. Durable mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3a_20260223T174307Z/`
+
+### Blocker closure outcomes
+1. `M3A-B2` (`TO_PIN` apply identity) closed:
+   - updated `ROLE_TERRAFORM_APPLY_DEV_FULL` from `TO_PIN` to `arn:aws:iam::230372904534:user/fraud-dev` in `dev_full_handles.registry.v0.md` (both occurrences), with explicit repin note for managed CI role later.
+2. `M3A-B4` (orchestrator surface unavailable) closed:
+   - rematerialized dependency chain via Terraform in strict order:
+     - `core` -> `streaming` -> `runtime`
+   - verified Step Functions now includes:
+     - `fraud-platform-dev-full-platform-run-v0`.
+
+### Command-surface failures encountered and resolved (documented decision trail)
+1. Attempt #1:
+   - relative tfplan output paths under `-chdir` caused `Failed to write plan file`.
+   - fix: move to strict sequencing and absolute-path approach.
+2. Attempt #2:
+   - `cmd /c` + absolute path quoting broke argument parsing due spaces.
+   - fix: remove plan-file output strategy.
+3. Attempt #3:
+   - direct PowerShell terraform invocation in this workstation/shim path failed global arg parsing for `-chdir`.
+   - fix: standardize back to proven `cmd /c` wrapper for terraform.
+4. Attempt #4 (authoritative rematerialization):
+   - used `init -> plan -detailed-exitcode -> apply` with strict stack dependency order.
+   - all three stacks passed (`core`, `streaming`, `runtime`).
+5. Verification script retries:
+   - parser bug in regex construction fixed,
+   - scriptblock `exit` semantic bug fixed,
+   - inline-if expression bug in helper fixed,
+   - final clean verification + artifact publication succeeded.
+
+### Authoritative artifact results
+1. `m3a_execution_summary.json`:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M3.A_READY`
+2. `m3a_handle_closure_snapshot.json`:
+   - required handles: `17/17` present
+   - placeholder count: `0`
+   - orchestrator query pass: `true`
+   - rematerialization pass: `true`
+3. `m3a_blocker_register.json`:
+   - no active blockers.
+4. `m3a_command_receipts.json`:
+   - includes handoff presence, evidence bucket reachability, Step Functions query, core/runtime output probes.
+5. `m3a_rematerialization_receipts.json`:
+   - all rematerialized stacks pass.
+
+### Plan/doc updates applied
+1. `platform.M3.build_plan.md`:
+   - M3.A DoDs checked,
+   - M3.A execution status block appended,
+   - M3 completion checklist marks M3.A complete.
+2. `platform.build_plan.md`:
+   - M3 posture updated to include M3.A PASS evidence and blocker remediation outcomes,
+   - M3 subphase progress marks `M3.A` complete.
+
+### Current phase posture
+1. M3 remains `IN_PROGRESS` overall.
+2. `M3.A` is closed green and M3 entry blockers for this lane are cleared.
+3. Next executable lane is `M3.B` (run identity generation).
