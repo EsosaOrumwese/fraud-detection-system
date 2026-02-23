@@ -8669,3 +8669,28 @@ Option 2 storage action (seed-42 arrival_events):
 Decision:
 1) option 1 and option 2 are both complete.
 2) 5B remains frozen at robust `B` with explicit upstream B+ backlog and reclaimed local storage.
+
+### Entry: 2026-02-23 18:37
+
+User-directed reopen accepted: start bounded upstream owner lane to chase `5B B+`.
+
+Problem framing:
+1) local `5B` lane is mathematically/empirically exhausted for B+ (`T7+` blocked locally; `T6+` under-moves).
+2) user explicitly requested upstream reopen now instead of retaining backlog-only posture.
+3) reopen must stay bounded to avoid destabilizing frozen B rails and avoid uncontrolled runtime/storage churn.
+
+Chosen execution lane:
+1) `U1` first: reopen `3B.S1` policy owner (`mcc_channel_rules`) because it is the direct owner of virtual-mass shape (`T7+`).
+2) run one-seed candidate first (`seed=7`, run-id `65bd3b8fde7f467f8abaee6a5516ee75`) before any multi-seed fanout.
+3) candidate policy `C1` planned:
+   - switch `card_present` decisions for MCC `5813` and `5271` from `physical` to `virtual`.
+
+Why `C1`:
+1) current `T7` gap to B+ lower edge is about `+1.30 pp`; `C1` is expected to add mid-single-digit virtual mass without immediately forcing `T7` above B+ upper bound.
+2) both MCCs are high-contribution non-virtual owners in top-10 timezone mass, so they may also help `T6+`.
+3) avoids over-aggressive first move like `5651/card_present` that likely overshoots `T7` band.
+
+Pre-run safety decisions:
+1) convert any 3B/5B output junction paths in the candidate run-id to local writable directories before reruns so no writes hit `runs/local_full_run-5`.
+2) clear candidate output roots for affected states before rerun to avoid immutability conflicts.
+3) keep canonical frozen scorecards untouched; candidate scoring writes to a separate reports lane.

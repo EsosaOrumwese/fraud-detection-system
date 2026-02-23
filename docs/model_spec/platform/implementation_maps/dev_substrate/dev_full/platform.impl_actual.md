@@ -3425,3 +3425,270 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 ### Execution posture
 1. This step is planning-only.
 2. No runtime mutation and no phase execution occurred.
+
+## Entry: 2026-02-23 18:36:31 +00:00 - M3.B execution design lock before command run
+
+### Decision-completeness check
+1. Required identity/derivation handles are present and pinned:
+   - `SCENARIO_EQUIVALENCE_KEY_INPUT`
+   - `SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS`
+   - `SCENARIO_EQUIVALENCE_KEY_CANONICALIZATION_MODE`
+   - `SCENARIO_RUN_ID_DERIVATION_MODE`
+   - `S3_EVIDENCE_BUCKET`
+   - `S3_EVIDENCE_RUN_ROOT_PATTERN`
+2. Pre-execution blockers from M3.A are already closed.
+
+### Algorithm choice for M3.B
+1. `platform_run_id` generation:
+   - base format `platform_<UTC YYYYMMDDTHHMMSSZ>`.
+   - collision policy: probe `evidence/runs/<platform_run_id>/`; if occupied, use suffix `_01.._20`.
+2. `scenario_run_id` generation (deterministic, no randomness):
+   - compute `scenario_equivalence_key = sha256(canonical_json(seed))` where seed includes:
+     - `SCENARIO_EQUIVALENCE_KEY_INPUT`
+     - `SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS`
+     - `SCENARIO_EQUIVALENCE_KEY_CANONICALIZATION_MODE`
+     - `ORACLE_SOURCE_NAMESPACE`
+     - `ORACLE_ENGINE_RUN_ID`
+     - `ORACLE_REQUIRED_OUTPUT_IDS`
+     - `ORACLE_SORT_KEY_BY_OUTPUT_ID`
+   - derive `scenario_run_id = scenario_<first32hex(scenario_equivalence_key)>`.
+
+### Alternatives considered
+1. Derive `scenario_run_id` randomly/UUID:
+   - rejected (violates deterministic law).
+2. Block M3.B until M3.C computes final config digest first:
+   - rejected for now because M3 plan explicitly scopes run-id generation to M3.B and requires progression.
+3. Derive `scenario_run_id` from `platform_run_id` only:
+   - rejected as too weak versus equivalence-handle contract.
+
+### Planned artifacts
+1. `m3b_run_id_generation_snapshot.json`
+2. `m3b_collision_probe_receipts.json`
+3. `m3b_run_identity_seed.json`
+4. `m3b_execution_summary.json`
+5. mirror all above to `evidence/dev_full/run_control/<m3b_execution_id>/`.
+
+## Entry: 2026-02-23 18:41:54 +00:00 - M3.B execution attempt #1 timed out at shell boundary; rerun policy
+
+### Runtime observation
+1. First execution attempt hit shell timeout before artifact publication completed.
+2. This was an execution-wrapper/runtime limit issue, not a deterministic-id algorithm failure.
+
+### Decision and rationale
+1. Keep the same M3.B algorithm and evidence contract (no logic mutation).
+2. Rerun immediately with a longer command timeout to avoid partial write drift.
+3. Preserve fail-closed blocker posture; do not mark lane complete until new execution evidence is fully written locally and durably.
+
+## Entry: 2026-02-23 18:42:58 +00:00 - M3.B execution closed green (deterministic id + collision proof)
+
+### Authoritative execution
+1. `m3b_execution_id`: `m3b_20260223T184232Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3b_20260223T184232Z/`
+3. Durable evidence root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3b_20260223T184232Z/`
+
+### Decision trail during execution
+1. Replaced brittle parser behavior from prior failed attempt (`m3b_20260223T183752Z`) with strict markdown handle parsing that supports:
+   - scalar string/bool handles,
+   - list handles (`ORACLE_REQUIRED_OUTPUT_IDS`),
+   - map handles (`ORACLE_SORT_KEY_BY_OUTPUT_ID`).
+2. Retained deterministic `platform_run_id` law and bounded collision policy (`_01.._20`) exactly as pinned in M3.B.
+3. Built deterministic scenario seed using pinned equivalence fields and oracle identity handles.
+4. Added oracle stream-view manifest head probes (required outputs only) to strengthen auditability of the seed inputs.
+
+### Results
+1. `overall_pass=true`, blockers empty.
+2. Selected ids:
+   - `platform_run_id=platform_20260223T184232Z`
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`
+3. Collision proof:
+   - one probe at `evidence/runs/platform_20260223T184232Z/` with `key_count=0`.
+4. Determinism proof:
+   - recompute check for `scenario_run_id` passed.
+
+### Evidence produced
+1. `m3b_run_id_generation_snapshot.json`
+2. `m3b_collision_probe_receipts.json`
+3. `m3b_run_identity_seed.json`
+4. `m3b_execution_summary.json`
+5. `m3b_command_receipts.json`
+
+### Plan/doc updates tied to closure
+1. `platform.M3.build_plan.md`:
+   - M3.B DoD checkboxes marked complete.
+   - M3.B execution-status block appended with ids/evidence and remediation note.
+   - M3 completion checklist marks M3.B complete.
+2. `platform.build_plan.md`:
+   - M3 planning posture updated with M3.B PASS evidence.
+   - M3 sub-phase progress marks M3.B complete.
+
+## Entry: 2026-02-23 18:53:24 +00:00 - M3.C planning-start (canonical payload + digest lane)
+
+### Problem statement
+1. `M3.C` is still high-level and not execution-grade.
+2. We need an explicit payload contract and digest reproducibility lane that can fail closed before `M3.D/M3.E`.
+3. `P1 RUN_PINNED` requires config digest commitment and mismatch blocker handling (`DFULL-RUN-B1.1`).
+
+### Alternatives considered
+1. Execute M3.C directly from current 5 task bullets:
+   - rejected due missing command catalog/blocker taxonomy/evidence contract.
+2. Defer digest formalization to M3.E write step:
+   - rejected; digest correctness must be proven before durable commit.
+3. Expand M3.C now with decision pins + evidence rules, then execute:
+   - accepted.
+
+### Chosen planning direction
+1. Build M3.C around one canonical payload object and one deterministic digest contract:
+   - canonicalization mode: `json_sorted_keys_v1` (registry-pinned),
+   - digest algorithm: `sha256` (registry-pinned),
+   - digest field name: `config_digest` (registry-pinned).
+2. Keep payload secret-safe:
+   - only non-secret handles, run ids, oracle manifest refs/hashes, and topology-defining lists/maps.
+   - no plaintext credentials/SSM secret values in payload or evidence.
+3. Add explicit reproducibility proof:
+   - compute digest twice from independent canonicalization passes and require exact equality.
+4. Define fail-closed blockers for:
+   - missing payload-required handles,
+   - canonicalization drift,
+   - digest mismatch/recompute mismatch,
+   - evidence artifact incompleteness.
+
+### Files to update in this planning step
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M3.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+3. `docs/logbook/02-2026/2026-02-23.md`
+
+## Entry: 2026-02-23 18:57:12 +00:00 - M3.C planning expanded to execution-grade
+
+### What was added to M3.C
+1. Decision pins:
+   - canonicalization law (`json_sorted_keys_v1`),
+   - digest law (`sha256`, field `config_digest`),
+   - payload composition minimum set,
+   - secret-safety law,
+   - immutability law for digest-changing edits,
+   - recompute law.
+2. Verification command catalog:
+   - M3.B input presence check,
+   - handle contract check,
+   - payload write check,
+   - digest recompute check,
+   - durable publish check.
+3. Fail-closed blocker taxonomy:
+   - `M3C-B1..M3C-B7`.
+4. Evidence contract and closure rule:
+   - concrete artifacts (`m3c_run_config_payload.json`, `m3c_run_config_digest_snapshot.json`, `m3c_digest_recompute_receipts.json`, `m3c_execution_summary.json`),
+   - minimum required snapshot fields pinned.
+
+### Reasoning notes
+1. I pinned digest-changing edits to force new `platform_run_id` because replay provenance otherwise becomes ambiguous.
+2. I constrained payload fields to non-secret run topology inputs only; this keeps evidence auditable and safe for durable publication.
+3. I kept M3.C as planning-only in this step and did not execute runtime commands.
+
+### Plan synchronization
+1. Master plan (`platform.build_plan.md`) now explicitly records that M3.C has been planning-expanded.
+2. `M3.C` execution status remains not started until you authorize execution.
+
+## Entry: 2026-02-23 18:56:34 +00:00 - M3.C digest-scope ambiguity closed before execution
+
+### Ambiguity detected
+1. M3.C payload includes run context fields (`platform_run_id`, `scenario_run_id`), but scenario equivalence contract ties deterministic identity to canonical config fields that include `config_digest`.
+2. If digest were computed over run-context-inclusive bytes, digest would vary per run and drift from M3.B scenario-equivalence seed intent.
+
+### Resolution pinned
+1. Compute `config_digest` from `digest_input_payload` only.
+2. `digest_input_payload` keys must match `SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS` exactly.
+3. Keep run context fields in the artifact for auditability but exclude them from digest bytes.
+4. Add execution-time assertion:
+   - recomputed M3.C digest must equal `seed_inputs.config_digest` from authoritative M3.B output.
+
+### Why this was chosen
+1. Preserves deterministic scenario identity contract from M3.B.
+2. Prevents per-run digest churn caused by volatile run context fields.
+3. Keeps provenance complete without weakening digest semantics.
+
+## Entry: 2026-02-23 18:57:13 +00:00 - M3.C self-reference digest loop resolved
+
+### Issue
+1. `SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS` includes `config_digest`.
+2. Using that list directly as digest-input keys causes a recursive definition (`config_digest` depends on payload that includes `config_digest`).
+
+### Resolution
+1. Added explicit self-reference exclusion law for M3.C:
+   - exclude `config_digest` from digest-input bytes.
+2. Preserve contract integrity by asserting:
+   - M3.C recomputed digest equals authoritative `seed_inputs.config_digest` from M3.B.
+
+### Execution impact
+1. Removes ambiguity and prevents unstable/non-terminating digest logic.
+2. Keeps M3.C deterministic and compatible with M3.B scenario-equivalence seed.
+
+## Entry: 2026-02-23 18:58:48 +00:00 - M3.C attempt #1 blocker (`M3C-B4`) and remediation pin
+
+### Attempt outcome
+1. Executed `M3.C` once under `m3c_20260223T185814Z`.
+2. Deterministic recompute itself passed, but closure failed with:
+   - `M3C-B4` (`config_digest` mismatch vs authoritative M3.B seed digest).
+
+### Root cause analysis
+1. Attempt #1 computed digest over canonical-equivalence payload keys (excluding self-reference).
+2. Authoritative M3.B digest was originally generated from a different profile:
+   - `algo`,
+   - `oracle_source_namespace`,
+   - `oracle_engine_run_id`,
+   - `oracle_required_output_ids`,
+   - `oracle_sort_key_by_output_id`,
+   - `scenario_mode`.
+3. Because profiles differed, equality assertion against M3.B digest failed.
+
+### Remediation decision (pinned)
+1. `config_digest_profile = m3b_seed_formula_v1` for this migration baseline.
+2. M3.C digest generation must use the same profile M3.B used, then enforce equality check against `seed_inputs.config_digest`.
+3. Keep attempt #1 artifacts as audit evidence; do not delete failed receipts.
+
+### Next action
+1. Rerun M3.C with `m3b_seed_formula_v1` digest input profile.
+2. Close only if blockers are zero and local+durable artifacts are complete.
+
+## Entry: 2026-02-23 19:01:02 +00:00 - M3.C rerun closed green after `M3C-B4` remediation
+
+### Authoritative execution
+1. `m3c_execution_id`: `m3c_20260223T185958Z`
+2. Source M3.B identity seed:
+   - `m3b_20260223T184232Z`
+3. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3c_20260223T185958Z/`
+4. Durable evidence root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3c_20260223T185958Z/`
+
+### Execution path
+1. Rebuilt digest-input payload using `m3b_seed_formula_v1` fields only.
+2. Applied canonicalization mode `json_sorted_keys_v1` and algorithm `sha256`.
+3. Recomputed digest twice and compared bytes/hash equality.
+4. Enforced equality to authoritative M3.B `seed_inputs.config_digest`.
+5. Ran secret-pattern scan against payload/evidence content before closure.
+
+### Results
+1. `overall_pass=true`, blockers empty, `next_gate=M3.C_READY`.
+2. Digest outputs:
+   - `config_digest=13f49c0d8e35264a1923844ae19f0e7bdba2b438763b46ae99db6aeeb0b8dc8b`
+   - `recompute_digest=13f49c0d8e35264a1923844ae19f0e7bdba2b438763b46ae99db6aeeb0b8dc8b`
+   - `matches_m3b_seed_digest=true`
+3. Payload secret-safety check passed.
+
+### Evidence produced
+1. `m3c_run_config_payload.json`
+2. `m3c_run_config_digest_snapshot.json`
+3. `m3c_digest_recompute_receipts.json`
+4. `m3c_execution_summary.json`
+
+### Plan/doc updates applied
+1. `platform.M3.build_plan.md`:
+   - M3.C DoDs checked complete,
+   - M3.C execution status block appended (attempt #1 blocker + PASS run),
+   - M3 completion checklist marks M3.C complete.
+2. `platform.build_plan.md`:
+   - M3 posture now includes M3.C PASS evidence and blocker remediation trail,
+   - M3 DoD anchor `config digest committed` marked complete,
+   - M3 sub-phase progress marks M3.C complete.

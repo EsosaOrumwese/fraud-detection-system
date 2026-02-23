@@ -352,6 +352,7 @@ M3 planning posture:
 - Deep plan has been created and expanded to execution-grade coverage across `M3.A..M3.J`.
 - `M3.A` has been expanded with command-level verification catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.B` has been expanded with deterministic run-id laws, collision retry policy, verification command catalog, blocker taxonomy, and evidence/closure contract.
+- `M3.C` has been expanded with canonical payload/digest decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.A` execution is now closed (`PASS`):
   - `runs/dev_substrate/dev_full/m3/m3a_20260223T174307Z/m3a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
 - `M3.A` blocker remediation closed:
@@ -359,10 +360,24 @@ M3 planning posture:
   - `core -> streaming -> runtime` rematerialized; Step Functions orchestrator surface restored and verified.
 - durable mirror:
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3a_20260223T174307Z/`
+- `M3.B` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m3/m3b_20260223T184232Z/m3b_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - `platform_run_id=platform_20260223T184232Z`
+  - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`
+- M3.B durable mirror:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3b_20260223T184232Z/`
+- `M3.C` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m3/m3c_20260223T185958Z/m3c_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - `config_digest=13f49c0d8e35264a1923844ae19f0e7bdba2b438763b46ae99db6aeeb0b8dc8b`
+  - digest profile continuity: `m3b_seed_formula_v1`, `matches_m3b_seed_digest=true`
+- `M3.C` blocker remediation trail retained:
+  - failed attempt `m3c_20260223T185814Z` raised `M3C-B4` (digest profile mismatch) and is preserved as audit evidence.
+- M3.C durable mirror:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3c_20260223T185958Z/`
 
 DoD anchors:
 - [ ] run pin artifact committed.
-- [ ] config digest committed.
+- [x] config digest committed.
 - [ ] run-scope identity checks pass.
 
 Deep plan:
@@ -370,8 +385,8 @@ Deep plan:
 
 M3 sub-phase progress:
 - [x] `M3.A` authority and handle closure matrix.
-- [ ] `M3.B` deterministic run identity generation.
-- [ ] `M3.C` canonical payload and digest reproducibility.
+- [x] `M3.B` deterministic run identity generation.
+- [x] `M3.C` canonical payload and digest reproducibility.
 - [ ] `M3.D` orchestrator entry and lock identity readiness.
 - [ ] `M3.E` durable run evidence publication.
 - [ ] `M3.F` runtime scope export and M4 handoff pack.

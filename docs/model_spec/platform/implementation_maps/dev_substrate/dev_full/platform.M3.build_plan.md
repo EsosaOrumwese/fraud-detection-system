@@ -217,9 +217,9 @@ Tasks:
 5. emit run identity snapshot with collision receipts.
 
 DoD:
-- [ ] run-id format pin is explicit.
-- [ ] collision probes are evidenced.
-- [ ] scenario-run derivation is deterministic and reproducible.
+- [x] run-id format pin is explicit.
+- [x] collision probes are evidenced.
+- [x] scenario-run derivation is deterministic and reproducible.
 
 M3.B decision pins (closed before execution):
 1. Platform-run-id format law:
@@ -282,12 +282,37 @@ M3.B closure rule:
    - all M3.B evidence artifacts are present locally and in durable run-control prefix,
    - no active `M3B-B*` blockers remain.
 
-M3.B planning status (current):
+M3.B planning status (historical pre-execution):
 1. Prerequisite lane `M3.A` is closed green.
 2. Required identity/derivation handles are pinned in registry.
 3. No known pre-execution blockers for M3.B at planning time.
 4. Phase posture:
-   - planning expanded; execution not started.
+   - planning expanded before execution.
+
+M3.B execution status (2026-02-23):
+1. Authoritative execution id:
+   - `m3b_20260223T184232Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3b_20260223T184232Z/`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3b_20260223T184232Z/`
+4. PASS artifacts:
+   - `m3b_run_id_generation_snapshot.json`
+   - `m3b_collision_probe_receipts.json`
+   - `m3b_run_identity_seed.json`
+   - `m3b_execution_summary.json`
+   - `m3b_command_receipts.json`
+5. Closure results:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M3.B_READY`
+   - `platform_run_id=platform_20260223T184232Z`
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`
+   - collision probe attempts: `1` (no collision, suffix not required)
+   - deterministic recompute check: `PASS`
+6. Blocker remediation outcomes:
+   - prior failed attempt `m3b_20260223T183752Z` had parser drift on list/dict handle values.
+   - rerun used strict markdown-handle parser and closed with zero blockers.
 
 ### M3.C Config Payload + Digest Contract
 Goal:
@@ -301,9 +326,127 @@ Tasks:
 5. emit payload hash evidence without secrets.
 
 DoD:
-- [ ] payload field set is explicit and complete.
-- [ ] digest reproducibility check passes.
-- [ ] payload evidence is secret-safe.
+- [x] payload field set is explicit and complete.
+- [x] digest reproducibility check passes.
+- [x] payload evidence is secret-safe.
+
+M3.C decision pins (closed before execution):
+1. Canonicalization law:
+   - payload canonicalization mode is registry-pinned `json_sorted_keys_v1`.
+   - canonical encoding uses sorted object keys and UTF-8 JSON bytes.
+2. Digest law:
+   - digest algorithm is registry-pinned `sha256` (`CONFIG_DIGEST_ALGO`).
+   - digest field name is registry-pinned `config_digest` (`CONFIG_DIGEST_FIELD`).
+3. Payload composition law:
+   - M3.C canonical payload must include at minimum:
+     - `platform_run_id` (from M3.B),
+     - `scenario_run_id` (from M3.B),
+     - `oracle_input_manifest_uri`,
+     - `oracle_input_manifest_sha256`,
+     - `oracle_required_output_ids`,
+     - `oracle_sort_key_by_output_id` (active required-output scope),
+     - `phase_id` (`P1`).
+4. Digest scope law:
+   - `config_digest` is computed from `digest_input_payload` only, where keys match `SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS`.
+   - self-reference exclusion applies: `config_digest` key is excluded from digest-input bytes to avoid recursive hash definition.
+   - run context fields (`platform_run_id`, `scenario_run_id`, `phase_id`) are persisted in the artifact but excluded from digest input bytes.
+   - M3.C must assert equality between recomputed digest and `seed_inputs.config_digest` from authoritative M3.B output.
+5. Secret-safety law:
+   - payload and digest evidence must not include credentials, SSM secret values, API secrets, or tokens.
+6. Immutability law:
+   - once `config_digest` is accepted for a run, digest-changing edits require a new `platform_run_id`.
+7. Recompute law:
+   - digest must be recomputed from a second canonicalization pass and match exactly before closure.
+8. Baseline continuity law (M3C-B4 remediation pin):
+   - for this migration baseline, `config_digest` must be generated with `m3b_seed_formula_v1` to preserve P1 continuity:
+     - `algo`,
+     - `oracle_source_namespace`,
+     - `oracle_engine_run_id`,
+     - `oracle_required_output_ids`,
+     - `oracle_sort_key_by_output_id`,
+     - `scenario_mode`.
+   - M3.C must assert computed digest equals authoritative `seed_inputs.config_digest` from M3.B.
+
+M3.C verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3C-V1-M3B-INPUTS` | `Test-Path runs/dev_substrate/dev_full/m3/<m3b_execution_id>/m3b_run_identity_seed.json` | ensures run identity seed exists for payload assembly |
+| `M3C-V2-HANDLE-CONTRACT` | `rg -n \"CONFIG_DIGEST_ALGO|CONFIG_DIGEST_FIELD|SCENARIO_EQUIVALENCE_KEY_CANONICALIZATION_MODE\" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` | confirms digest/canonicalization handles are pinned |
+| `M3C-V3-CANONICAL-PAYLOAD-WRITE` | write `m3c_run_config_payload.json` to local M3.C evidence root | proves canonical payload materialization |
+| `M3C-V4-DIGEST-RECOMPUTE` | compute digest twice from independent canonicalization passes and compare | proves deterministic digest reproducibility |
+| `M3C-V5-DURABLE-PUBLISH` | `aws s3 cp <local_artifact> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m3c_execution_id>/...` | proves durable publication lane |
+
+M3.C blocker taxonomy (fail-closed):
+1. `M3C-B1`: required payload fields missing/incomplete.
+2. `M3C-B2`: canonicalization mode mismatch or serialization drift.
+3. `M3C-B3`: digest algorithm/field contract mismatch.
+4. `M3C-B4`: recompute digest mismatch (non-deterministic payload hash).
+5. `M3C-B5`: secret material detected in payload/evidence surface.
+6. `M3C-B6`: durable evidence publish failure.
+7. `M3C-B7`: M3.C evidence contract missing/incomplete.
+
+M3.C evidence contract (planned):
+1. `m3c_run_config_payload.json`
+2. `m3c_run_config_digest_snapshot.json`
+3. `m3c_digest_recompute_receipts.json`
+4. `m3c_execution_summary.json`
+
+`m3c_run_config_digest_snapshot.json` minimum fields:
+1. `platform_run_id`
+2. `scenario_run_id`
+3. `phase_id`
+4. `canonicalization_mode`
+5. `digest_algo`
+6. `digest_field`
+7. `config_digest`
+8. `recompute_digest`
+9. `digest_match`
+10. `overall_pass`
+
+M3.C closure rule:
+1. M3.C can close only when:
+   - canonical payload contains all required non-secret fields,
+   - digest is computed with pinned algorithm/field name,
+   - independent recompute matches exactly,
+   - all M3.C evidence artifacts exist locally and in durable run-control prefix,
+   - no active `M3C-B*` blockers remain.
+
+M3.C planning status (historical pre-execution):
+1. Prerequisite lane `M3.B` is closed green.
+2. Digest/canonicalization handles are pinned in registry.
+3. No known pre-execution blockers for M3.C at planning time.
+4. Phase posture:
+   - planning expanded before execution.
+
+M3.C execution status (2026-02-23):
+1. Attempt #1 (blocked):
+   - execution id: `m3c_20260223T185814Z`
+   - result: `overall_pass=false`
+   - blocker: `M3C-B4` (digest profile mismatch versus authoritative M3.B seed digest)
+   - evidence:
+     - `runs/dev_substrate/dev_full/m3/m3c_20260223T185814Z/`
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3c_20260223T185814Z/`
+2. Authoritative PASS run:
+   - execution id: `m3c_20260223T185958Z`
+   - local evidence root:
+     - `runs/dev_substrate/dev_full/m3/m3c_20260223T185958Z/`
+   - durable evidence mirror:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3c_20260223T185958Z/`
+3. PASS artifacts:
+   - `m3c_run_config_payload.json`
+   - `m3c_run_config_digest_snapshot.json`
+   - `m3c_digest_recompute_receipts.json`
+   - `m3c_execution_summary.json`
+4. Closure results:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M3.C_READY`
+   - `config_digest=13f49c0d8e35264a1923844ae19f0e7bdba2b438763b46ae99db6aeeb0b8dc8b`
+   - `recompute_digest=13f49c0d8e35264a1923844ae19f0e7bdba2b438763b46ae99db6aeeb0b8dc8b`
+   - `matches_m3b_seed_digest=true`
+   - digest profile used: `m3b_seed_formula_v1`
+5. Blocker remediation outcome:
+   - M3.C digest profile was repinned to `m3b_seed_formula_v1` for P1 continuity with M3.B seed contract.
 
 ### M3.D Orchestrator Entry + Lock Identity Readiness
 Goal:
@@ -428,8 +571,8 @@ Any active `M3-B*` blocker prevents M3 closure.
 
 ## 7) M3 Completion Checklist
 - [x] M3.A complete.
-- [ ] M3.B complete.
-- [ ] M3.C complete.
+- [x] M3.B complete.
+- [x] M3.C complete.
 - [ ] M3.D complete.
 - [ ] M3.E complete.
 - [ ] M3.F complete.

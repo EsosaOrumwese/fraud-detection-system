@@ -2384,3 +2384,24 @@ P6 closure snapshot (2026-02-23):
 17. `P5` is closed with decision `SEG5B_FROZEN_PASS_B`; Segment 5B remediation is closed/frozen.
 18. `P6` B+ recovery lane is executed end-to-end (`P6.1 -> P6.5`) and closed with `SEG5B_P6_RETAIN_PASS_B`.
 19. Active step: `Next segment planning` (or explicit user-directed reopen lane).
+
+## 10) P6.U - Upstream B+ Reopen (user-directed, bounded)
+Goal:
+- test whether reopening true upstream owners can move Segment `5B` from robust `B` to `B+`.
+
+Scope:
+- `U1`: `3B.S1` virtual classification owner lane (`T7+` owner with `T6+` side-effect).
+- `U2`: `2B/3B` topology owner lane for residual `T6+` only if `U1` is insufficient.
+- `5B` remains veto authority; no hard-rail relaxations are allowed.
+
+Execution contract:
+1. run bounded candidate on one seed first (`seed=7` authority run-id).
+2. only fan out to four-seed lane if single-seed candidate shows material movement toward B+ with zero hard-rail regressions.
+3. rollback candidate policy/config immediately if candidate fails hard rails or shows non-material movement.
+
+Closure decisions:
+- `UNLOCK_U1_FANOUT`: single-seed upstream candidate is strong; proceed multi-seed.
+- `HOLD_U1_REJECTED`: candidate fails or movement is non-material; rollback and either try next bounded candidate or stop reopen.
+- `UNLOCK_U2`: `U1` closes `T7+` but residual `T6+` remains.
+- `SEG5B_UPGRADE_PASS_BPLUS`: full certification passes B+.
+- `SEG5B_RETAIN_PASS_B`: bounded upstream reopen exhausted without B+ closure.
