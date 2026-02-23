@@ -580,6 +580,79 @@ DoD:
 - [ ] durable run-header write succeeds and readback passes.
 - [ ] write-once guard behavior is documented.
 
+M3.E decision pins (closed before execution):
+1. Source-of-truth law:
+   - `platform_run_id` and `scenario_run_id` must be sourced from M3.B PASS artifacts.
+   - `config_digest` must be sourced from M3.C PASS artifacts.
+   - orchestrator/lock readiness references must be sourced from M3.D PASS artifacts.
+   - M3.E must not recompute identity or digest.
+2. Object key law:
+   - `run.json` target key is `EVIDENCE_RUN_JSON_KEY` resolved with current `platform_run_id`.
+   - run header target key is `RUN_PIN_PATH_PATTERN` resolved with current `platform_run_id`.
+3. Write-once law:
+   - pre-write `head-object` must confirm target keys do not already exist.
+   - if either key exists, M3.E fails closed (no overwrite path for P1 run pin).
+4. Integrity law:
+   - local payload SHA256 is computed before upload,
+   - uploaded object readback hash must equal local hash for both artifacts.
+5. Consistency law:
+   - `run.json` and run header must carry identical `platform_run_id`, `scenario_run_id`, and `config_digest`.
+6. Evidence safety law:
+   - no secrets/tokens/credentials in either artifact.
+
+M3.E verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3E-V1-INPUTS` | `Test-Path runs/dev_substrate/dev_full/m3/<m3b_id>/... && Test-Path runs/dev_substrate/dev_full/m3/<m3c_id>/... && Test-Path runs/dev_substrate/dev_full/m3/<m3d_id>/...` | confirms prerequisite evidence surfaces exist |
+| `M3E-V2-KEY-RESOLVE` | resolve `EVIDENCE_RUN_JSON_KEY` and `RUN_PIN_PATH_PATTERN` with current `platform_run_id` | proves deterministic target keys |
+| `M3E-V3-WRITE-ONCE-GUARD` | `aws s3api head-object --bucket <S3_EVIDENCE_BUCKET> --key <resolved_key>` | fails closed if key already exists |
+| `M3E-V4-UPLOAD` | `aws s3 cp <local_artifact> s3://<S3_EVIDENCE_BUCKET>/<resolved_key>` | publishes durable objects |
+| `M3E-V5-READBACK` | `aws s3 cp s3://<...>/<resolved_key> -` + local hash compare | verifies readback integrity |
+| `M3E-V6-CONSISTENCY` | compare identity/digest fields across both artifacts | enforces cross-object consistency |
+
+M3.E blocker taxonomy (fail-closed):
+1. `M3E-B1`: prerequisite M3.B/M3.C/M3.D PASS artifacts missing.
+2. `M3E-B2`: target key resolution failure for run evidence objects.
+3. `M3E-B3`: write-once guard violation (existing key detected).
+4. `M3E-B4`: durable write/upload failure.
+5. `M3E-B5`: readback integrity/hash mismatch.
+6. `M3E-B6`: cross-artifact identity/digest inconsistency.
+7. `M3E-B7`: secret material detected in run evidence payload.
+8. `M3E-B8`: M3.E evidence contract missing/incomplete.
+
+M3.E evidence contract (planned):
+1. `m3e_run_json_write_receipt.json`
+2. `m3e_run_header_write_receipt.json`
+3. `m3e_integrity_readback_receipts.json`
+4. `m3e_execution_summary.json`
+
+`m3e_run_json_write_receipt.json` minimum fields:
+1. `platform_run_id`
+2. `scenario_run_id`
+3. `config_digest`
+4. `resolved_run_json_key`
+5. `local_sha256`
+6. `s3_etag`
+7. `readback_sha256`
+8. `write_once_guard_pass`
+9. `overall_pass`
+
+M3.E closure rule:
+1. M3.E can close only when:
+   - both run evidence objects are published to resolved keys,
+   - write-once guard is explicitly evidenced as pass,
+   - readback hash checks pass for both objects,
+   - identity/digest consistency across objects is true,
+   - all M3.E evidence artifacts exist locally and in durable run-control prefix,
+   - no active `M3E-B*` blockers remain.
+
+M3.E planning status (current):
+1. Prerequisite lanes `M3.B`, `M3.C`, and `M3.D` are closed green.
+2. Run evidence key handles are pinned in registry.
+3. No known pre-execution blockers for M3.E at planning time.
+4. Phase posture:
+   - planning expanded; execution not started.
+
 ### M3.F Runtime Scope Export and M4 Handoff
 Goal:
 1. export run-scope contract required by M4.

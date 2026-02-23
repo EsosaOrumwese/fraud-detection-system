@@ -3711,6 +3711,70 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
    - M3 DoD anchor `run-scope identity checks pass` marked complete,
    - M3 sub-phase progress marks M3.D complete.
 
+## Entry: 2026-02-23 22:29:14 +00:00 - M3.E planning-start (durable run evidence publication)
+
+### Problem statement
+1. M3.E is still high-level and lacks execution-grade fail-closed mechanics.
+2. We need explicit write-once semantics for two authoritative objects:
+   - `run.json` (`EVIDENCE_RUN_JSON_KEY`)
+   - `run_header.json` (`RUN_PIN_PATH_PATTERN`)
+3. M3.E must consume already-closed M3.B/M3.C/M3.D evidence and not re-derive identity/digest.
+
+### Decision vectors to pin
+1. Source-of-truth composition:
+   - `platform_run_id`/`scenario_run_id` from M3.B,
+   - `config_digest` from M3.C,
+   - orchestrator/lock readiness references from M3.D.
+2. Write-once guard model:
+   - pre-write `head-object` existence checks on both keys,
+   - fail-closed if either key already exists for this `platform_run_id`.
+3. Integrity verification:
+   - local artifact SHA256 receipts,
+   - S3 readback (`head-object` + `s3 cp` content compare) before closure.
+
+### Alternatives considered
+1. Recompute identity/digest during M3.E:
+   - rejected; violates ownership boundaries of M3.B/M3.C.
+2. Allow overwrite with versioning fallback:
+   - rejected for P1 run-pin semantics; write-once is stricter and safer.
+3. Use only write-command success without readback:
+   - rejected; closure must include durability and integrity proof.
+
+### Files to patch in planning step
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M3.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+3. `docs/logbook/02-2026/2026-02-23.md`
+
+## Entry: 2026-02-23 22:30:05 +00:00 - M3.E planning expanded to execution-grade
+
+### What was added to M3.E
+1. Decision pins:
+   - source-of-truth ownership from M3.B/M3.C/M3.D artifacts,
+   - deterministic key resolution for `run.json` and run header,
+   - write-once guard semantics (pre-write existence check),
+   - readback integrity hashing,
+   - cross-object identity/digest consistency rule,
+   - evidence secret-safety rule.
+2. Verification command catalog:
+   - prerequisite artifact checks,
+   - key resolution checks,
+   - write-once guard checks,
+   - durable upload + readback checks,
+   - consistency checks.
+3. Fail-closed blocker taxonomy:
+   - `M3E-B1..M3E-B8`.
+4. Evidence contract and closure rule:
+   - four explicit artifacts with minimum receipt fields for run evidence publication.
+
+### Reasoning notes
+1. I kept M3.E as a pure publication phase and prevented identity/digest recomputation to preserve truth ownership boundaries.
+2. Write-once guard is pinned as strict fail-closed even with bucket versioning available because P1 run-pin semantics require immutability at logical key level.
+3. Integrity checks are explicit readback hashes, not just upload return codes, to prevent silent storage-layer drift.
+
+### Plan synchronization
+1. Master plan now explicitly notes M3.E planning expansion.
+2. M3.E remains execution-pending.
+
 ## Entry: 2026-02-23 18:57:12 +00:00 - M3.C planning expanded to execution-grade
 
 ### What was added to M3.C
