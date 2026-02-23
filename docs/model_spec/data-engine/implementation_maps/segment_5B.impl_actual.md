@@ -8063,3 +8063,79 @@ Implementation shape selected:
 4) `P3.5`:
    - rerun `5B.S5` (no S4 semantic/code change planned),
    - rerun `P1/P2` scoring and verify no regression on retained `P2` posture.
+
+### Entry: 2026-02-22 23:03
+
+Execution-in-progress decision trail: `P3.2/P3.3/P3.4` implementation wave applied before witness rerun.
+
+What changed in this pass:
+1) policy/schema pinning completed for Wave C threshold authority:
+   - `schemas.5B.yaml` now defines explicit `civil_time_gates` + `calibration_sentinels` surfaces under `validation_policy_5B`.
+   - `validation_policy_5B.yaml` carries concrete defaults for `T1/T2/T3` and calibration sentinels (`T6/T7/T8/T9`) with explicit `evaluation_mode`.
+2) `5B.S5` runner transitioned to policy-authoritative threshold resolution:
+   - prior behavior: env-default thresholds were primary.
+   - new behavior: policy-first thresholds; env overrides only when `ENGINE_5B_S5_ENABLE_POLICY_ENV_OVERRIDE` is explicitly enabled.
+3) civil-time gate expanded from single mismatch-rate check to explicit sub-gates:
+   - mismatch-rate gate (`T1`),
+   - one-hour-shift signature gate (`T2`),
+   - DST-window hour-bin MAE gate (`T3`) with existing support-power minima retained.
+4) calibration sentinel lane added in-runner and emitted in `validation_report_5B`:
+   - `T6`: top-10 tz concentration,
+   - `T7`: virtual-share band,
+   - `T8`: observed-vs-expected weekend-share delta,
+   - `T9`: residual std sentinel.
+   - gating behavior is controlled by policy `evaluation_mode` (`warn_only` vs enforce).
+5) local-time lexical contract was pinned in expanded state docs (`S4` and `S5`):
+   - `ts_local_*` is local wall-clock under paired `tzid_*`,
+   - suffixes like `Z`/`+00:00` in local fields are legacy lexical noise and not UTC semantics.
+
+Design alternatives considered during code lane and why rejected:
+1) keep env-first threshold resolution and only expose report metadata.
+   - rejected: leaves drift-prone runtime behavior and fails contract-hardening intent.
+2) enforce calibration gates immediately (`enforce_b`) during first Wave C pass.
+   - rejected for first pass: high risk of blocking closure due measurement-surface novelty; retained policy control via `evaluation_mode` instead.
+3) add new strict schema fields in `validation_report_5B` for every sentinel.
+   - rejected: unnecessary contract churn because existing layer schema already allows additive report payload fields.
+
+Risk controls pinned for witness run:
+1) no S4 generation semantics changed in this wave; expected rerun scope remains `S5`-only unless witness indicates otherwise.
+2) all newly added checks are fully visible in report payload for auditability and scorer alignment.
+3) candidate acceptance requires no regression of frozen rails and no instability on retained `P2` posture.
+
+### Entry: 2026-02-22 23:08
+
+Execution closure: `P3.1 -> P3.5` completed with decision `UNLOCK_P4`.
+
+Execution evidence and outcomes:
+1) code/contract updates completed:
+   - `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`
+   - `config/layer2/5B/validation_policy_5B.yaml`
+   - `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
+   - `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s4.expanded.md`
+   - `docs/model_spec/data-engine/layer-2/specs/state-flow/5B/state.5B.s5.expanded.md`
+2) runner compile gate passed after final provenance additions.
+3) witness lane executed on authority run-id:
+   - command: `make segment5b-s5 SEG5B_S5_RUN_ID=c25a2675fbfbacd952b13bb594880e92`
+   - elapsed: ~7.4s (within runtime budget posture).
+4) closure scoring rerun completed:
+   - `tools/score_segment5b_p1_realism.py`
+   - `tools/score_segment5b_p2_calibration.py`
+
+Closure check against P3 DoD:
+1) policy/schema pinning: complete.
+2) policy-first enforcement: complete.
+   - env threshold path is now opt-in only (`ENGINE_5B_S5_ENABLE_POLICY_ENV_OVERRIDE`).
+3) sentinel emission in validation output: complete.
+   - report now includes `civil_time_gates` + `calibration_sentinels` payloads with policy provenance (`policy_path`).
+4) local-time lexical contract pin: complete in S4/S5 expanded specs.
+5) handoff scoring:
+   - P1 hard rails: preserved green (`T1/T2/T3` pass, no veto failures).
+   - P2 posture: preserved (`phase_grade=PASS_B_CANDIDATE`, `lane_decision=UNLOCK_P3`, no frozen failures).
+
+Final phase decision:
+1) `P3` status=`CLOSED`.
+2) handoff=`UNLOCK_P4`.
+
+Observed nuance for next phase planning (recorded, not blocker):
+1) report-embedded calibration sentinels are sample-based and intentionally lightweight in this lane.
+2) scorer authority for closure remains the dedicated P1/P2 scoring scripts; if future policy moves to `enforce_b/enforce_bplus`, sentinel sampling strategy should be promoted to stronger representativeness criteria before turning hard-gate mode on.

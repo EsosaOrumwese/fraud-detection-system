@@ -235,8 +235,8 @@ Allowed tokens in pattern handles:
 ### 4.1 MSK cluster identity
 
 * `MSK_CLUSTER_NAME = "fraud-platform-dev-full-msk"`
-* `MSK_CLUSTER_ARN = "TO_PIN"`
-* `MSK_BOOTSTRAP_BROKERS_SASL_IAM = "TO_PIN"`
+* `MSK_CLUSTER_ARN = "arn:aws:kafka:eu-west-2:230372904534:cluster/fraud-platform-dev-full-msk/a38adf23-ea5e-4c99-a4cd-109afb1530a8-s3"` (materialized in M2.C)
+* `MSK_BOOTSTRAP_BROKERS_SASL_IAM = "boot-6zhso8cu.c3.kafka-serverless.eu-west-2.amazonaws.com:9098"` (materialized in M2.C)
 * `MSK_CLIENT_SUBNET_IDS = ["subnet-0f78c51075c563f8b","subnet-02a2247be3765e842"]` (materialized in M2.B)
 * `MSK_SECURITY_GROUP_ID = "sg-07b93e3d50bacea7d"` (materialized in M2.B)
 
@@ -656,16 +656,14 @@ These are intentionally explicit and must be pinned before first `dev-full-up` e
 3. `ROLE_MWAA_EXECUTION`
 4. `ROLE_SAGEMAKER_EXECUTION`
 5. `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`
-6. `MSK_CLUSTER_ARN`
-7. `MSK_BOOTSTRAP_BROKERS_SASL_IAM`
-8. `EKS_CLUSTER_ARN`
-9. `DBX_WORKSPACE_URL`
-10. `AWS_BUDGET_NOTIFICATION_EMAIL`
-11. `APIGW_IG_API_ID`
-12. `ROLE_FLINK_EXECUTION`
-13. `ROLE_LAMBDA_IG_EXECUTION`
-14. `ROLE_APIGW_IG_INVOKE`
-15. `ROLE_DDB_IG_IDEMPOTENCY_RW`
+6. `EKS_CLUSTER_ARN`
+7. `DBX_WORKSPACE_URL`
+8. `AWS_BUDGET_NOTIFICATION_EMAIL`
+9. `APIGW_IG_API_ID`
+10. `ROLE_FLINK_EXECUTION`
+11. `ROLE_LAMBDA_IG_EXECUTION`
+12. `ROLE_APIGW_IG_INVOKE`
+13. `ROLE_DDB_IG_IDEMPOTENCY_RW`
 
 ---
 

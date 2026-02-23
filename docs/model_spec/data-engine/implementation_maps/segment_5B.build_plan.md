@@ -1922,9 +1922,9 @@ Scope:
 - `S5` validation runner policy-consumption behavior for temporal and calibration sentinels.
 
 Definition of done:
-- [ ] new/updated policy keys are contract-pinned and consumed by runner logic.
-- [ ] ambiguity in local-time semantics is removed in docs/contracts.
-- [ ] validation outputs include required sentinel metrics for governance.
+- [x] new/updated policy keys are contract-pinned and consumed by runner logic.
+- [x] ambiguity in local-time semantics is removed in docs/contracts.
+- [x] validation outputs include required sentinel metrics for governance.
 
 #### P3.1 - Policy/schema delta inventory and pin set (no code edits)
 Objective:
@@ -1953,9 +1953,9 @@ File targets:
 - `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml`
 
 Definition of done:
-- [ ] every active realism gate threshold used in `P1/P2` scoring is represented in policy key form.
-- [ ] schema is expanded to admit the pinned keys (strict schema compatibility preserved).
-- [ ] no unresolved threshold source remains in env-only behavior for closure-critical gates.
+- [x] every active realism gate threshold used in `P1/P2` scoring is represented in policy key form.
+- [x] schema is expanded to admit the pinned keys (strict schema compatibility preserved).
+- [x] no unresolved threshold source remains in env-only behavior for closure-critical gates.
 
 #### P3.2 - Runner policy-consumption hardening (`5B.S5`)
 Objective:
@@ -1970,9 +1970,9 @@ Required behavior:
 - fail-closed behavior remains enforced for hard temporal gates.
 
 Definition of done:
-- [ ] `S5` reads and enforces policy-pinned temporal and calibration thresholds.
-- [ ] closure-critical thresholds are no longer silently defaulted in code paths.
-- [ ] run-report includes explicit threshold provenance (`policy_path`, key names, resolved values).
+- [x] `S5` reads and enforces policy-pinned temporal and calibration thresholds.
+- [x] closure-critical thresholds are no longer silently defaulted in code paths.
+- [x] run-report includes explicit threshold provenance (`policy_path`, key names, resolved values).
 
 #### P3.3 - Sentinel artifact and bundle surface hardening
 Objective:
@@ -1987,9 +1987,9 @@ Sentinel minimum set:
 - `T1/T2/T3/T6/T7/T8/T9/T11/T12` numeric metrics and gate verdicts.
 
 Definition of done:
-- [ ] sentinel metric payload is emitted deterministically in validation outputs.
-- [ ] bundle index includes sentinel payload artifact (or embeds equivalent fields with stable schema).
-- [ ] scorer scripts consume the same sentinel fields without ad-hoc parsing drift.
+- [x] sentinel metric payload is emitted deterministically in validation outputs.
+- [x] bundle index includes sentinel payload artifact (or embeds equivalent fields with stable schema).
+- [x] scorer scripts consume the same sentinel fields without ad-hoc parsing drift.
 
 #### P3.4 - Local-time representation contract pinning
 Objective:
@@ -2001,9 +2001,9 @@ Scope:
 - `docs/model_spec/data-engine/layer-2/specs/contracts/5B/schemas.5B.yaml` (if field-level semantic annotations are needed)
 
 Definition of done:
-- [ ] producer/validator local-time semantics are explicitly specified and consistent.
-- [ ] contract text prohibits ambiguous UTC-marker reuse for local wall-clock fields.
-- [ ] `T12` semantic intent is directly traceable to contract text.
+- [x] producer/validator local-time semantics are explicitly specified and consistent.
+- [x] contract text prohibits ambiguous UTC-marker reuse for local wall-clock fields.
+- [x] `T12` semantic intent is directly traceable to contract text.
 
 #### P3.5 - P3 closure scoring and handoff decision
 Objective:
@@ -2017,9 +2017,15 @@ Execution lane:
   - `tools/score_segment5b_p2_calibration.py`
 
 Definition of done:
-- [ ] retained `P2` calibration posture is preserved (`T6/T7` no regression beyond veto tolerance).
-- [ ] hard rails remain pass.
-- [ ] explicit handoff decision recorded: `UNLOCK_P4` or `HOLD_P3_REMEDIATE`.
+- [x] retained `P2` calibration posture is preserved (`T6/T7` no regression beyond veto tolerance).
+- [x] hard rails remain pass.
+- [x] explicit handoff decision recorded: `UNLOCK_P4` or `HOLD_P3_REMEDIATE`.
+
+Closure snapshot (`2026-02-22`, authority run `c25a2675fbfbacd952b13bb594880e92`):
+- `5B.S5` rerun completed with policy-first threshold provenance and sentinel payloads in `validation_report_5B`.
+- P1 lane remained closed (`T1/T2/T3` hard rails green; no veto failures).
+- P2 lane retained `PASS_B_CANDIDATE` posture with unchanged primary calibration closure (`T6/T7` B-pass preserved).
+- handoff decision: `UNLOCK_P4`.
 
 ### P4 - Multi-seed certification and robustness lock
 Goal:
@@ -2067,5 +2073,5 @@ Definition of done:
 12. `P2.U2.2` trigger lane is closed with `SKIP_P2_U2_2_3B_CODE`.
 13. `P2.U2.3` branch closure is recorded as `HOLD_P2_UPSTREAM_REOPEN`.
 14. `P2.U3` is closed with `KEEP_u3_1_c1` and lane decision `UNLOCK_P3`.
-15. `P3` is expanded to execution-grade (`P3.1 -> P3.5`) with explicit policy/schema/runner/contract lanes.
-16. Active step: `P3.1` (policy/schema delta inventory and pin set).
+15. `P3` is closed (`P3.1 -> P3.5`) with decision `UNLOCK_P4`.
+16. Active step: `P4` planning/execution lock (multi-seed certification and robustness).

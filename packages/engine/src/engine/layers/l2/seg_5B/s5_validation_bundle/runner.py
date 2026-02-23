@@ -355,6 +355,143 @@ def _dst_window_support(
     }
 
 
+def _dst_window_hour_bin_mae_pp(rows: list[dict], *, material_window_floor: int) -> dict:
+    if not rows:
+        return {"dst_window_hour_bin_mae_pp": None, "dst_windows_material_count": 0}
+
+    utc_values: list[datetime] = []
+    tzids: set[str] = set()
+    for row in rows:
+        tzid = row.get("tzid_primary")
+        ts_utc = row.get("ts_utc")
+        if tzid and ts_utc:
+            tzids.add(str(tzid))
+            utc_values.append(_parse_rfc3339(str(ts_utc)))
+    if not utc_values or not tzids:
+        return {"dst_window_hour_bin_mae_pp": None, "dst_windows_material_count": 0}
+
+    utc_min = min(utc_values)
+    utc_max = max(utc_values)
+    windows_by_tz = {tzid: _build_transition_windows(tzid, utc_min, utc_max) for tzid in sorted(tzids)}
+    per_window: dict[str, dict[str, list[int] | int]] = {}
+    for row in rows:
+        tzid = row.get("tzid_primary")
+        ts_utc = row.get("ts_utc")
+        ts_local = row.get("ts_local_primary")
+        if not tzid or not ts_utc or not ts_local:
+            continue
+        try:
+            zone = ZoneInfo(str(tzid))
+            utc_dt = _parse_rfc3339(str(ts_utc))
+            expected_local = utc_dt.astimezone(zone)
+            actual_local = _parse_local_time(str(ts_local), zone)
+        except Exception:  # noqa: BLE001
+            continue
+        for idx, (ws, we) in enumerate(windows_by_tz.get(str(tzid), [])):
+            if ws <= utc_dt <= we:
+                key = f"{tzid}#w{idx+1}"
+                slot = per_window.get(key)
+                if slot is None:
+                    slot = {"support": 0, "expected": [0] * 24, "actual": [0] * 24}
+                    per_window[key] = slot
+                slot["support"] = int(slot["support"]) + 1
+                slot["expected"][int(expected_local.hour)] += 1
+                slot["actual"][int(actual_local.hour)] += 1
+
+    maes: list[float] = []
+    for slot in per_window.values():
+        support = int(slot["support"])
+        if support < int(material_window_floor):
+            continue
+        diffs = [
+            abs((slot["actual"][h] / support) - (slot["expected"][h] / support))
+            for h in range(24)
+        ]
+        maes.append((sum(diffs) / 24.0) * 100.0)
+
+    return {
+        "dst_window_hour_bin_mae_pp": float(sum(maes) / len(maes)) if maes else None,
+        "dst_windows_material_count": int(len(maes)),
+    }
+
+
+def _observed_weekend_share(rows: list[dict]) -> Optional[float]:
+    if not rows:
+        return None
+    weekend = 0
+    valid = 0
+    for row in rows:
+        ts_utc = row.get("ts_utc")
+        if not ts_utc:
+            continue
+        try:
+            ts = _parse_rfc3339(str(ts_utc))
+        except Exception:  # noqa: BLE001
+            continue
+        valid += 1
+        if ts.weekday() >= 5:
+            weekend += 1
+    if valid <= 0:
+        return None
+    return float(weekend) / float(valid)
+
+
+def _expected_weekend_share_from_s3_sample(
+    rows: list[dict], bucket_maps: dict[str, dict[int, tuple[datetime, datetime]]]
+) -> Optional[float]:
+    if not rows:
+        return None
+    weekend_weight = 0.0
+    total_weight = 0.0
+    for row in rows:
+        scenario_id = str(row.get("scenario_id") or "")
+        bucket_index_raw = row.get("bucket_index")
+        count_raw = row.get("count_N")
+        if scenario_id not in bucket_maps or bucket_index_raw is None or count_raw is None:
+            continue
+        try:
+            bucket_index = int(bucket_index_raw)
+            count_n = float(count_raw)
+        except Exception:  # noqa: BLE001
+            continue
+        if count_n <= 0:
+            continue
+        start_end = bucket_maps[scenario_id].get(bucket_index)
+        if start_end is None:
+            continue
+        start_utc, _ = start_end
+        total_weight += count_n
+        if start_utc.weekday() >= 5:
+            weekend_weight += count_n
+    if total_weight <= 0.0:
+        return None
+    return float(weekend_weight) / float(total_weight)
+
+
+def _residual_std_from_s3_sample(rows: list[dict]) -> Optional[float]:
+    if not rows:
+        return None
+    residuals: list[float] = []
+    for row in rows:
+        n_raw = row.get("count_N")
+        lam_raw = row.get("lambda_realised")
+        if n_raw is None or lam_raw is None:
+            continue
+        try:
+            n = float(n_raw)
+            lam = float(lam_raw)
+        except Exception:  # noqa: BLE001
+            continue
+        if not (lam > 0.0):
+            continue
+        residuals.append((n - lam) / ((lam + 1.0e-9) ** 0.5))
+    if len(residuals) < 2:
+        return None
+    mean = sum(residuals) / float(len(residuals))
+    var = sum((val - mean) ** 2 for val in residuals) / float(len(residuals))
+    return float(var**0.5)
+
+
 def _parquet_total_rows(paths: list[Path], logger, label: str) -> int:
     tracker = _ProgressTracker(len(paths), logger, f"S5: count {label} files")
     total = 0
@@ -458,6 +595,44 @@ def _load_policy(
     return payload
 
 
+def _coerce_float(value: object, default: float, *, min_value: Optional[float] = None) -> float:
+    try:
+        resolved = float(value)
+    except Exception:  # noqa: BLE001
+        resolved = float(default)
+    if min_value is not None and resolved < float(min_value):
+        return float(min_value)
+    return float(resolved)
+
+
+def _coerce_int(value: object, default: int, *, min_value: Optional[int] = None) -> int:
+    try:
+        resolved = int(value)
+    except Exception:  # noqa: BLE001
+        resolved = int(default)
+    if min_value is not None and resolved < int(min_value):
+        return int(min_value)
+    return int(resolved)
+
+
+def _topk_tz_share(rows: list[dict], *, k: int) -> Optional[float]:
+    if not rows:
+        return None
+    counts: dict[str, int] = {}
+    total = 0
+    for row in rows:
+        tzid = row.get("tzid_primary")
+        if tzid is None:
+            continue
+        key = str(tzid)
+        counts[key] = counts.get(key, 0) + 1
+        total += 1
+    if total <= 0:
+        return None
+    ranked = sorted(counts.values(), reverse=True)
+    return float(sum(ranked[: max(1, int(k))])) / float(total)
+
+
 def _check_time_windows(rows: list[dict], bucket_maps: dict[str, dict[int, tuple[datetime, datetime]]]) -> tuple[bool, dict]:
     for row in rows:
         scenario_id = str(row.get("scenario_id") or "")
@@ -479,6 +654,7 @@ def _check_civil_time(rows: list[dict], max_mismatch_rate: float) -> tuple[bool,
     checked_rows = 0
     mismatch_rows = 0
     parse_error_rows = 0
+    one_hour_shift_rows = 0
     first_issue: Optional[dict] = None
 
     for row in rows:
@@ -502,18 +678,23 @@ def _check_civil_time(rows: list[dict], max_mismatch_rate: float) -> tuple[bool,
             if first_issue is None:
                 first_issue = {"detail": "local parse failed", "tzid": str(tzid), "error": str(exc)}
             continue
+        if abs(abs(delta) - 3600.0) <= 1.0:
+            one_hour_shift_rows += 1
         if delta > 1.0:
             mismatch_rows += 1
             if first_issue is None:
                 first_issue = {"detail": "local time mismatch", "tzid": str(tzid), "delta_seconds": float(delta)}
 
     mismatch_rate = (float(mismatch_rows + parse_error_rows) / float(checked_rows)) if checked_rows > 0 else 0.0
+    one_hour_shift_rate = (float(one_hour_shift_rows) / float(checked_rows)) if checked_rows > 0 else 0.0
     gate_ok = mismatch_rate <= float(max_mismatch_rate)
     detail = {
         "checked_rows": int(checked_rows),
         "mismatch_rows": int(mismatch_rows),
         "parse_error_rows": int(parse_error_rows),
+        "one_hour_shift_rows": int(one_hour_shift_rows),
         "mismatch_rate": float(mismatch_rate),
+        "one_hour_shift_rate": float(one_hour_shift_rate),
         "max_mismatch_rate": float(max_mismatch_rate),
     }
     if first_issue is not None:
@@ -629,11 +810,14 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     counts_match_s3 = False
     time_windows_ok = False
     civil_time_ok = False
+    civil_time_gate_ok = False
+    calibration_gate_ok = True
     routing_ok = False
     schema_ok = False
     schema_detail: dict = {}
     rng_accounting_ok = False
     bundle_integrity_ok = False
+    calibration_eval_mode = "warn_only"
 
     n_parameter_hashes = 0
     n_scenarios = 0
@@ -644,6 +828,8 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     n_arrivals_physical = 0
     n_arrivals_virtual = 0
     have_summary_counts = False
+    calibration_detail: dict = {}
+    civil_gate_detail: dict = {}
 
     current_phase = "init"
 
@@ -748,34 +934,93 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         failure_policy = (validation_policy or {}).get("failure_policy") or {}
         failure_mode = str(failure_policy.get("mode") or "fail_closed").strip().lower()
         max_warnings = int(failure_policy.get("max_warnings") or 0)
-        civil_mismatch_limit_raw = os.environ.get("ENGINE_5B_S5_MAX_CIVIL_MISMATCH_RATE", "0.005")
-        try:
-            civil_mismatch_limit = max(0.0, float(civil_mismatch_limit_raw))
-        except Exception:
-            civil_mismatch_limit = 0.005
-        dst_window_material_floor_raw = os.environ.get("ENGINE_5B_S5_DST_WINDOW_MIN_SUPPORT", "50")
-        dst_window_min_material_windows_raw = os.environ.get("ENGINE_5B_S5_DST_WINDOW_MIN_EXPOSED_WINDOWS", "3")
-        dst_window_min_total_support_raw = os.environ.get("ENGINE_5B_S5_DST_WINDOW_MIN_TOTAL_SUPPORT", "2000")
-        try:
-            dst_window_material_floor = max(1, int(dst_window_material_floor_raw))
-        except Exception:
-            dst_window_material_floor = 50
-        try:
-            dst_window_min_material_windows = max(1, int(dst_window_min_material_windows_raw))
-        except Exception:
-            dst_window_min_material_windows = 3
-        try:
-            dst_window_min_total_support = max(1, int(dst_window_min_total_support_raw))
-        except Exception:
-            dst_window_min_total_support = 2000
+        civil_cfg = (validation_policy or {}).get("civil_time_gates") or {}
+        calibration_cfg = (validation_policy or {}).get("calibration_sentinels") or {}
+        env_override_enabled = str(os.environ.get("ENGINE_5B_S5_ENABLE_POLICY_ENV_OVERRIDE") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        civil_mismatch_limit = _coerce_float(civil_cfg.get("max_civil_mismatch_rate"), 0.005, min_value=0.0)
+        one_hour_shift_limit = _coerce_float(civil_cfg.get("max_one_hour_shift_rate"), 0.001, min_value=0.0)
+        dst_window_hour_bin_mae_pp_max = _coerce_float(
+            civil_cfg.get("dst_window_hour_bin_mae_pp_max"), 1.5, min_value=0.0
+        )
+        dst_window_material_floor = _coerce_int(civil_cfg.get("dst_window_min_support"), 50, min_value=1)
+        dst_window_min_material_windows = _coerce_int(
+            civil_cfg.get("dst_window_min_exposed_windows"), 3, min_value=1
+        )
+        dst_window_min_total_support = _coerce_int(civil_cfg.get("dst_window_min_total_support"), 2000, min_value=1)
+
+        if env_override_enabled:
+            civil_mismatch_limit = _coerce_float(
+                os.environ.get("ENGINE_5B_S5_MAX_CIVIL_MISMATCH_RATE", civil_mismatch_limit),
+                civil_mismatch_limit,
+                min_value=0.0,
+            )
+            one_hour_shift_limit = _coerce_float(
+                os.environ.get("ENGINE_5B_S5_MAX_ONE_HOUR_SHIFT_RATE", one_hour_shift_limit),
+                one_hour_shift_limit,
+                min_value=0.0,
+            )
+            dst_window_hour_bin_mae_pp_max = _coerce_float(
+                os.environ.get("ENGINE_5B_S5_DST_WINDOW_HOUR_BIN_MAE_PP_MAX", dst_window_hour_bin_mae_pp_max),
+                dst_window_hour_bin_mae_pp_max,
+                min_value=0.0,
+            )
+            dst_window_material_floor = _coerce_int(
+                os.environ.get("ENGINE_5B_S5_DST_WINDOW_MIN_SUPPORT", dst_window_material_floor),
+                dst_window_material_floor,
+                min_value=1,
+            )
+            dst_window_min_material_windows = _coerce_int(
+                os.environ.get("ENGINE_5B_S5_DST_WINDOW_MIN_EXPOSED_WINDOWS", dst_window_min_material_windows),
+                dst_window_min_material_windows,
+                min_value=1,
+            )
+            dst_window_min_total_support = _coerce_int(
+                os.environ.get("ENGINE_5B_S5_DST_WINDOW_MIN_TOTAL_SUPPORT", dst_window_min_total_support),
+                dst_window_min_total_support,
+                min_value=1,
+            )
+
+        calibration_eval_mode = str(calibration_cfg.get("evaluation_mode") or "warn_only").strip().lower()
+        if calibration_eval_mode not in {"warn_only", "enforce_b", "enforce_bplus"}:
+            logger.warning("S5: unknown calibration evaluation_mode=%s; falling back to warn_only", calibration_eval_mode)
+            calibration_eval_mode = "warn_only"
+        calibration_min_sample_rows = _coerce_int(calibration_cfg.get("min_sample_rows"), 25000, min_value=1)
+        top10_tz_share_max_b = _coerce_float(calibration_cfg.get("top10_tz_share_max_b"), 0.72, min_value=0.0)
+        top10_tz_share_max_bplus = _coerce_float(
+            calibration_cfg.get("top10_tz_share_max_bplus"), 0.62, min_value=0.0
+        )
+        virtual_share_min_b = _coerce_float(calibration_cfg.get("virtual_share_min_b"), 0.03, min_value=0.0)
+        virtual_share_max_b = _coerce_float(calibration_cfg.get("virtual_share_max_b"), 0.08, min_value=0.0)
+        virtual_share_min_bplus = _coerce_float(calibration_cfg.get("virtual_share_min_bplus"), 0.05, min_value=0.0)
+        virtual_share_max_bplus = _coerce_float(calibration_cfg.get("virtual_share_max_bplus"), 0.12, min_value=0.0)
+        weekend_delta_max_b = _coerce_float(
+            calibration_cfg.get("weekend_share_delta_pp_max_b"), 0.20, min_value=0.0
+        )
+        weekend_delta_max_bplus = _coerce_float(
+            calibration_cfg.get("weekend_share_delta_pp_max_bplus"), 0.10, min_value=0.0
+        )
+        residual_std_min_b = _coerce_float(calibration_cfg.get("residual_std_min_b"), 1.20, min_value=0.0)
+        residual_std_max_b = _coerce_float(calibration_cfg.get("residual_std_max_b"), 1.60, min_value=0.0)
+        residual_std_min_bplus = _coerce_float(calibration_cfg.get("residual_std_min_bplus"), 1.25, min_value=0.0)
+        residual_std_max_bplus = _coerce_float(calibration_cfg.get("residual_std_max_bplus"), 1.50, min_value=0.0)
         logger.info(
-            "S5: failure policy mode=%s max_warnings=%d civil_mismatch_limit=%.6f dst_window_material_floor=%d dst_window_min_exposed_windows=%d dst_window_min_total_support=%d",
+            "S5: failure policy mode=%s max_warnings=%d env_override_enabled=%s civil_mismatch_limit=%.6f one_hour_shift_limit=%.6f dst_window_hour_bin_mae_pp_max=%.6f dst_window_material_floor=%d dst_window_min_exposed_windows=%d dst_window_min_total_support=%d calibration_eval_mode=%s calibration_min_sample_rows=%d",
             failure_mode,
             max_warnings,
+            str(env_override_enabled).lower(),
             civil_mismatch_limit,
+            one_hour_shift_limit,
+            dst_window_hour_bin_mae_pp_max,
             dst_window_material_floor,
             dst_window_min_material_windows,
             dst_window_min_total_support,
+            calibration_eval_mode,
+            calibration_min_sample_rows,
         )
 
         current_phase = "upstream_pass"
@@ -808,6 +1053,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         total_expected = 0
         total_buckets = 0
         total_nonzero = 0
+        s3_paths_for_sampling: list[Path] = []
 
         for seed in seed_list:
             for scenario_id in scenario_ids:
@@ -831,6 +1077,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                     )
                     raise InputResolutionError(f"Missing s3_bucket_counts_5B at {s3_path}")
                 s3_paths = _resolve_parquet_files(s3_path)
+                s3_paths_for_sampling.extend(s3_paths)
                 scan = pl.scan_parquet([str(path) for path in s3_paths])
                 if "count_N" not in scan.collect_schema().names():
                     raise ContractError("s3_bucket_counts_5B missing count_N column")
@@ -845,6 +1092,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 total_nonzero += int(metrics["rows_nonzero"][0] or 0)
                 for val in metrics["parameter_hashes"][0]:
                     parameter_hashes.add(str(val))
+        s3_paths_for_sampling = list(dict.fromkeys(s3_paths_for_sampling))
 
         n_parameter_hashes = len(parameter_hashes)
         n_buckets_total = total_buckets
@@ -930,7 +1178,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         else:
             logger.info("S5: arrival summary missing; physical/virtual counts omitted")
 
-        sample_target = min(200000, max(25000, int(n_arrivals_total * 0.005))) if n_arrivals_total > 0 else 0
+        sample_target = (
+            min(200000, max(calibration_min_sample_rows, int(n_arrivals_total * 0.005))) if n_arrivals_total > 0 else 0
+        )
         rows_per_file = max(1, sample_target // max(1, min(20, len(arrival_paths))))
         sample_columns = [
             "manifest_fingerprint",
@@ -951,6 +1201,48 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         sample_rows = _sample_rows(
             arrival_paths, sample_columns, sample_target, rows_per_file, logger, "arrival_events"
         )
+        s3_sample_rows: list[dict] = []
+        s3_sample_target = (
+            min(200000, max(calibration_min_sample_rows, int(max(1, n_buckets_total) * 0.02)))
+            if n_buckets_total > 0
+            else 0
+        )
+        s3_rows_per_file = max(1, s3_sample_target // max(1, min(20, len(s3_paths_for_sampling))))
+        s3_sample_columns = ["scenario_id", "bucket_index", "count_N"]
+        if s3_sample_target > 0 and s3_paths_for_sampling:
+            s3_has_lambda = False
+            try:
+                s3_schema = pl.scan_parquet([str(path) for path in s3_paths_for_sampling]).collect_schema()
+                s3_has_lambda = "lambda_realised" in s3_schema.names()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("S5: unable to inspect s3 schema for calibration sentinels: %s", exc)
+            if s3_has_lambda:
+                s3_sample_columns.append("lambda_realised")
+            try:
+                s3_sample_rows = _sample_rows(
+                    s3_paths_for_sampling,
+                    s3_sample_columns,
+                    s3_sample_target,
+                    s3_rows_per_file,
+                    logger,
+                    "s3_bucket_counts",
+                )
+            except Exception as exc:  # noqa: BLE001
+                if "lambda_realised" in s3_sample_columns:
+                    logger.warning(
+                        "S5: s3 sample with lambda_realised failed (%s); retrying without lambda_realised", exc
+                    )
+                    s3_sample_columns = ["scenario_id", "bucket_index", "count_N"]
+                    s3_sample_rows = _sample_rows(
+                        s3_paths_for_sampling,
+                        s3_sample_columns,
+                        s3_sample_target,
+                        s3_rows_per_file,
+                        logger,
+                        "s3_bucket_counts",
+                    )
+                else:
+                    raise
         schema_ok = True
         schema_detail = {}
         if n_arrivals_total > 0:
@@ -1014,13 +1306,51 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             )
 
         civil_time_ok, civil_detail = _check_civil_time(sample_rows, civil_mismatch_limit)
-        civil_time_gate_ok = civil_time_ok
+        one_hour_shift_rate = float(civil_detail.get("one_hour_shift_rate") or 0.0)
+        one_hour_shift_gate_ok = one_hour_shift_rate <= float(one_hour_shift_limit)
+        civil_time_gate_ok = civil_time_ok and one_hour_shift_gate_ok
+        if not one_hour_shift_gate_ok:
+            issues.append(
+                {
+                    "manifest_fingerprint": manifest_fingerprint,
+                    "issue_code": "CIVIL_TIME_ONE_HOUR_SHIFT_EXCEEDS_LIMIT",
+                    "severity": "ERROR",
+                    "context": {
+                        "one_hour_shift_rate": float(one_hour_shift_rate),
+                        "max_one_hour_shift_rate": float(one_hour_shift_limit),
+                        "checked_rows": int(civil_detail.get("checked_rows") or 0),
+                    },
+                    "message": "Sampled one-hour civil-time shift rate exceeds configured threshold",
+                }
+            )
         dst_support = _dst_window_support(
             sample_rows,
             material_window_floor=dst_window_material_floor,
             min_material_windows=dst_window_min_material_windows,
             min_material_total_support=dst_window_min_total_support,
         )
+        dst_hour_mae = _dst_window_hour_bin_mae_pp(
+            sample_rows, material_window_floor=dst_window_material_floor
+        )
+        dst_hour_bin_mae_pp = dst_hour_mae.get("dst_window_hour_bin_mae_pp")
+        dst_hour_bin_gate_ok = True
+        if dst_hour_bin_mae_pp is not None:
+            dst_hour_bin_gate_ok = float(dst_hour_bin_mae_pp) <= float(dst_window_hour_bin_mae_pp_max)
+            if not dst_hour_bin_gate_ok:
+                issues.append(
+                    {
+                        "manifest_fingerprint": manifest_fingerprint,
+                        "issue_code": "DST_WINDOW_HOUR_BIN_MAE_EXCEEDS_LIMIT",
+                        "severity": "ERROR",
+                        "context": {
+                            "dst_window_hour_bin_mae_pp": float(dst_hour_bin_mae_pp),
+                            "dst_window_hour_bin_mae_pp_max": float(dst_window_hour_bin_mae_pp_max),
+                            "dst_windows_material_count": int(dst_hour_mae.get("dst_windows_material_count") or 0),
+                        },
+                        "message": "DST-window hour-bin MAE exceeds configured threshold",
+                    }
+                )
+                civil_time_gate_ok = False
         if bool(dst_support.get("dst_window_insufficient_power")):
             issues.append(
                 {
@@ -1042,6 +1372,24 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                     "message": "Sampled civil-time mismatch exceeds configured threshold",
                 }
             )
+        civil_gate_detail = {
+            "threshold_source": "policy+opt_in_env_override" if env_override_enabled else "policy",
+            "policy_path": str(policy_path),
+            "max_civil_mismatch_rate": float(civil_mismatch_limit),
+            "max_one_hour_shift_rate": float(one_hour_shift_limit),
+            "dst_window_hour_bin_mae_pp_max": float(dst_window_hour_bin_mae_pp_max),
+            "dst_window_min_support": int(dst_window_material_floor),
+            "dst_window_min_exposed_windows": int(dst_window_min_material_windows),
+            "dst_window_min_total_support": int(dst_window_min_total_support),
+            "civil_mismatch_rate": float(civil_detail.get("mismatch_rate") or 0.0),
+            "one_hour_shift_rate": float(one_hour_shift_rate),
+            "dst_window_hour_bin_mae_pp": float(dst_hour_bin_mae_pp) if dst_hour_bin_mae_pp is not None else None,
+            "civil_time_ok": bool(civil_time_ok),
+            "one_hour_shift_gate_ok": bool(one_hour_shift_gate_ok),
+            "dst_window_hour_bin_gate_ok": bool(dst_hour_bin_gate_ok),
+            "dst_window_support": dst_support,
+            "civil_time_gate_ok": bool(civil_time_gate_ok),
+        }
 
         current_phase = "routing_membership"
         site_entry = find_dataset_entry(dictionary_5b, DATASET_SITE_LOCATIONS).entry
@@ -1073,6 +1421,205 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                     "message": "Sampled routing ids missing from universe",
                 }
             )
+
+        calibration_gate_ok = True
+        calibration_target = "bplus" if calibration_eval_mode == "enforce_bplus" else "b"
+        calibration_severity = "ERROR" if calibration_eval_mode in {"enforce_b", "enforce_bplus"} else "WARN"
+        top10_tz_share = _topk_tz_share(sample_rows, k=10)
+        if have_summary_counts and n_arrivals_total > 0:
+            virtual_share_observed = float(n_arrivals_virtual) / float(n_arrivals_total)
+        else:
+            sampled_virtual = [row for row in sample_rows if row.get("is_virtual") is not None]
+            if sampled_virtual:
+                virtual_share_observed = float(sum(1 for row in sampled_virtual if bool(row.get("is_virtual")))) / float(
+                    len(sampled_virtual)
+                )
+            else:
+                virtual_share_observed = None
+        weekend_share_observed = _observed_weekend_share(sample_rows)
+        weekend_share_expected = _expected_weekend_share_from_s3_sample(s3_sample_rows, bucket_maps)
+        weekend_share_delta_pp = (
+            abs(float(weekend_share_observed) - float(weekend_share_expected)) * 100.0
+            if weekend_share_observed is not None and weekend_share_expected is not None
+            else None
+        )
+        residual_std = (
+            _residual_std_from_s3_sample(s3_sample_rows)
+            if s3_sample_rows and "lambda_realised" in s3_sample_rows[0]
+            else None
+        )
+        if calibration_target == "bplus":
+            top10_limit = float(top10_tz_share_max_bplus)
+            virtual_min = float(virtual_share_min_bplus)
+            virtual_max = float(virtual_share_max_bplus)
+            weekend_delta_limit = float(weekend_delta_max_bplus)
+            residual_min = float(residual_std_min_bplus)
+            residual_max = float(residual_std_max_bplus)
+        else:
+            top10_limit = float(top10_tz_share_max_b)
+            virtual_min = float(virtual_share_min_b)
+            virtual_max = float(virtual_share_max_b)
+            weekend_delta_limit = float(weekend_delta_max_b)
+            residual_min = float(residual_std_min_b)
+            residual_max = float(residual_std_max_b)
+        calibration_sample_power_ok = (
+            len(sample_rows) >= int(calibration_min_sample_rows)
+            and len(s3_sample_rows) >= int(calibration_min_sample_rows)
+        )
+        if not calibration_sample_power_ok:
+            issues.append(
+                {
+                    "manifest_fingerprint": manifest_fingerprint,
+                    "issue_code": "CALIBRATION_SAMPLE_POWER_INSUFFICIENT",
+                    "severity": calibration_severity,
+                    "context": {
+                        "arrival_sample_rows": int(len(sample_rows)),
+                        "s3_sample_rows": int(len(s3_sample_rows)),
+                        "min_sample_rows": int(calibration_min_sample_rows),
+                    },
+                    "message": "Calibration sentinel sample support below configured threshold",
+                }
+            )
+            if calibration_severity == "ERROR":
+                calibration_gate_ok = False
+
+        top10_ok = top10_tz_share is not None and float(top10_tz_share) <= float(top10_limit)
+        if not top10_ok:
+            issues.append(
+                {
+                    "manifest_fingerprint": manifest_fingerprint,
+                    "issue_code": "CALIBRATION_TOP10_TZ_SHARE_EXCEEDS_LIMIT",
+                    "severity": calibration_severity,
+                    "context": {
+                        "top10_tz_share": float(top10_tz_share) if top10_tz_share is not None else None,
+                        "top10_tz_share_max": float(top10_limit),
+                        "target": calibration_target,
+                    },
+                    "message": "Top-10 timezone concentration exceeds calibration target",
+                }
+            )
+            if calibration_severity == "ERROR":
+                calibration_gate_ok = False
+
+        virtual_ok = (
+            virtual_share_observed is not None
+            and float(virtual_share_observed) >= float(virtual_min)
+            and float(virtual_share_observed) <= float(virtual_max)
+        )
+        if not virtual_ok:
+            issues.append(
+                {
+                    "manifest_fingerprint": manifest_fingerprint,
+                    "issue_code": "CALIBRATION_VIRTUAL_SHARE_OUT_OF_BOUNDS",
+                    "severity": calibration_severity,
+                    "context": {
+                        "virtual_share_observed": float(virtual_share_observed)
+                        if virtual_share_observed is not None
+                        else None,
+                        "virtual_share_min": float(virtual_min),
+                        "virtual_share_max": float(virtual_max),
+                        "target": calibration_target,
+                    },
+                    "message": "Observed virtual share is outside calibration target band",
+                }
+            )
+            if calibration_severity == "ERROR":
+                calibration_gate_ok = False
+
+        weekend_ok = weekend_share_delta_pp is not None and float(weekend_share_delta_pp) <= float(weekend_delta_limit)
+        if not weekend_ok:
+            issues.append(
+                {
+                    "manifest_fingerprint": manifest_fingerprint,
+                    "issue_code": "CALIBRATION_WEEKEND_DELTA_EXCEEDS_LIMIT",
+                    "severity": calibration_severity,
+                    "context": {
+                        "weekend_share_observed": float(weekend_share_observed)
+                        if weekend_share_observed is not None
+                        else None,
+                        "weekend_share_expected": float(weekend_share_expected)
+                        if weekend_share_expected is not None
+                        else None,
+                        "weekend_share_delta_pp": float(weekend_share_delta_pp)
+                        if weekend_share_delta_pp is not None
+                        else None,
+                        "weekend_share_delta_pp_max": float(weekend_delta_limit),
+                        "target": calibration_target,
+                    },
+                    "message": "Weekend share delta exceeds calibration target",
+                }
+            )
+            if calibration_severity == "ERROR":
+                calibration_gate_ok = False
+
+        residual_ok = (
+            residual_std is not None
+            and float(residual_std) >= float(residual_min)
+            and float(residual_std) <= float(residual_max)
+        )
+        if not residual_ok:
+            issues.append(
+                {
+                    "manifest_fingerprint": manifest_fingerprint,
+                    "issue_code": "CALIBRATION_RESIDUAL_STD_OUT_OF_BOUNDS",
+                    "severity": calibration_severity,
+                    "context": {
+                        "residual_std": float(residual_std) if residual_std is not None else None,
+                        "residual_std_min": float(residual_min),
+                        "residual_std_max": float(residual_max),
+                        "target": calibration_target,
+                    },
+                    "message": "Residual-std sentinel is outside calibration target range",
+                }
+            )
+            if calibration_severity == "ERROR":
+                calibration_gate_ok = False
+
+        calibration_detail = {
+            "evaluation_mode": calibration_eval_mode,
+            "target": calibration_target,
+            "severity_on_fail": calibration_severity,
+            "policy_path": str(policy_path),
+            "min_sample_rows": int(calibration_min_sample_rows),
+            "arrival_sample_rows": int(len(sample_rows)),
+            "s3_sample_rows": int(len(s3_sample_rows)),
+            "sample_power_ok": bool(calibration_sample_power_ok),
+            "metrics": {
+                "top10_tz_share": float(top10_tz_share) if top10_tz_share is not None else None,
+                "virtual_share_observed": float(virtual_share_observed)
+                if virtual_share_observed is not None
+                else None,
+                "weekend_share_observed": float(weekend_share_observed)
+                if weekend_share_observed is not None
+                else None,
+                "weekend_share_expected": float(weekend_share_expected)
+                if weekend_share_expected is not None
+                else None,
+                "weekend_share_delta_pp": float(weekend_share_delta_pp) if weekend_share_delta_pp is not None else None,
+                "residual_std": float(residual_std) if residual_std is not None else None,
+            },
+            "thresholds": {
+                "top10_tz_share_max_b": float(top10_tz_share_max_b),
+                "top10_tz_share_max_bplus": float(top10_tz_share_max_bplus),
+                "virtual_share_min_b": float(virtual_share_min_b),
+                "virtual_share_max_b": float(virtual_share_max_b),
+                "virtual_share_min_bplus": float(virtual_share_min_bplus),
+                "virtual_share_max_bplus": float(virtual_share_max_bplus),
+                "weekend_share_delta_pp_max_b": float(weekend_delta_max_b),
+                "weekend_share_delta_pp_max_bplus": float(weekend_delta_max_bplus),
+                "residual_std_min_b": float(residual_std_min_b),
+                "residual_std_max_b": float(residual_std_max_b),
+                "residual_std_min_bplus": float(residual_std_min_bplus),
+                "residual_std_max_bplus": float(residual_std_max_bplus),
+            },
+            "gates": {
+                "top10_tz_share_ok": bool(top10_ok),
+                "virtual_share_ok": bool(virtual_ok),
+                "weekend_delta_ok": bool(weekend_ok),
+                "residual_std_ok": bool(residual_ok),
+                "calibration_gate_ok": bool(calibration_gate_ok),
+            },
+        }
 
         current_phase = "rng_trace"
         rng_entry = find_dataset_entry(dictionary_5b, DATASET_RNG_TRACE).entry
@@ -1137,7 +1684,17 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         )
 
         overall_status = "PASS"
-        if not all([counts_match_s3, time_windows_ok, civil_time_gate_ok, routing_ok, schema_ok, rng_accounting_ok]):
+        if not all(
+            [
+                counts_match_s3,
+                time_windows_ok,
+                civil_time_gate_ok,
+                calibration_gate_ok,
+                routing_ok,
+                schema_ok,
+                rng_accounting_ok,
+            ]
+        ):
             overall_status = "FAIL"
 
         report_payload = {
@@ -1153,6 +1710,8 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             "counts_match_s3": counts_match_s3,
             "time_windows_ok": time_windows_ok,
             "civil_time_ok": civil_time_ok,
+            "civil_time_gate_ok": civil_time_gate_ok,
+            "calibration_gate_ok": calibration_gate_ok,
             "routing_ok": routing_ok,
             "schema_partition_pk_ok": schema_ok,
             "rng_accounting_ok": rng_accounting_ok,
@@ -1160,9 +1719,12 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             "sampling": {
                 "arrival_sample_target": sample_target,
                 "arrival_sample_rows": len(sample_rows),
+                "s3_sample_target": s3_sample_target,
+                "s3_sample_rows": len(s3_sample_rows),
                 "civil_mismatch_rate": float(civil_detail.get("mismatch_rate") or 0.0),
                 "civil_mismatch_limit": float(civil_mismatch_limit),
-                "dst_window_support": dst_support,
+                "civil_time_gates": civil_gate_detail,
+                "calibration_sentinels": calibration_detail,
             },
         }
         if have_summary_counts:
@@ -1324,6 +1886,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                         "counts_match_s3": counts_match_s3,
                         "time_windows_ok": time_windows_ok,
                         "civil_time_ok": civil_time_ok,
+                        "civil_time_gate_ok": civil_time_gate_ok,
+                        "calibration_gate_ok": calibration_gate_ok,
+                        "calibration_evaluation_mode": calibration_eval_mode,
                         "routing_ok": routing_ok,
                         "schema_partition_pk_ok": schema_ok,
                         "rng_accounting_ok": rng_accounting_ok,

@@ -1016,6 +1016,10 @@ For each arrival row in `s4_arrival_events_5B`:
 
     * consistent with 2A’s tz database, and
     * consistent with the configured DST policy (no unhandled gaps/folds, no unknown tzids).
+  * lexical interpretation contract:
+    * `ts_local_*` fields are interpreted as local wall-clock values in the paired `tzid_*`.
+    * trailing `Z` or `+00:00` in local fields is treated as legacy lexical noise, not UTC semantics.
+    * canonical serialization remains timezone-suffix-free local wall-clock text.
 
 * **Routing (2B/3A/3B semantics)**
 

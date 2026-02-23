@@ -1190,7 +1190,8 @@ _As of 2026-02-22_
 
 ### Decision points before implementation
 1. Dedicated dev_full workflow cannot be dispatched until present on default branch (GitHub workflow discovery constraint).
-2. Existing default-branch workflow id (dev_min_m1_packaging) can run on ef=migrate-dev; selected as managed execution carrier for M1.D closure.
+2. Existing default-branch workflow id (dev_min_m1_packaging) can run on 
+ef=migrate-dev; selected as managed execution carrier for M1.D closure.
 3. Security checks will be implemented inline in workflow to avoid local-script-only drift and preserve auditable CI behavior.
 
 ## Entry: 2026-02-22 20:00:37 +00:00 - M1.D workflow implementation decisions
@@ -1199,7 +1200,8 @@ _As of 2026-02-22_
 1. M1.D closure requires managed, auditable checks tied to build-go lane.
 2. Local-only scanning would not satisfy managed execution proof requirements.
 
-### Implemented controls in managed workflow (dev_min_m1_packaging on ef=migrate-dev)
+### Implemented controls in managed workflow (dev_min_m1_packaging on 
+ef=migrate-dev)
 1. Added optional input secret_contract_profile (dev_min|dev_full) so one managed workflow can carry both security contracts without branch-level workflow id drift.
 2. Inserted pre-build fail-closed step Run M1.D security and secret-injection checks:
    - scans Dockerfile for secret-bearing ARG/ENV tokens,
@@ -1234,13 +1236,15 @@ _As of 2026-02-22_
 
 ### Evidence validation decisions
 1. Downloaded CI artifact pack locally for deterministic audit mirror:
-   - uns/dev_substrate/dev_full/m1/m1d_20260222T200233Z/m1-p-1-packaging-ci-evidence/.
+   - 
+uns/dev_substrate/dev_full/m1/m1d_20260222T200233Z/m1-p-1-packaging-ci-evidence/.
 2. Verified required M1.D artifacts and content:
    - security_secret_injection_checks.json: erdict=PASS, blocker codes empty.
    - secret_source_contract_receipt.json: secrets_backend=ssm_and_secrets_manager, required dev_full path-handle list present.
    - uild_context_secret_scan.json: scanned_files=360, indings_count=0, summary pass true.
 3. Built execution rollup snapshot:
-   - uns/dev_substrate/dev_full/m1/m1d_20260222T200233Z/m1d_execution_snapshot.json
+   - 
+uns/dev_substrate/dev_full/m1/m1d_20260222T200233Z/m1d_execution_snapshot.json
    - overall_pass=true.
 
 ### Blocker adjudication
@@ -1323,17 +1327,23 @@ _As of 2026-02-22_
 ## Entry: 2026-02-22 20:10:09 +00:00 - M1.E execution completed and M1 closeout adjudicated
 
 ### Execution artifacts produced
-1. uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/m1_closure_blocker_register.json
-2. uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/m1_build_go_transition_receipt.json
-3. uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/m1_handoff_readiness_snapshot.json
+1. 
+uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/m1_closure_blocker_register.json
+2. 
+uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/m1_build_go_transition_receipt.json
+3. 
+uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/m1_handoff_readiness_snapshot.json
 4. execution rollup:
-   - uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/m1e_execution_summary.json
+   - 
+uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/m1e_execution_summary.json
 
 ### Consolidation mechanics applied
 1. Built coherent P(-1) set under one run scope:
-   - uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/evidence/runs/platform_20260222T200115Z/P(-1)/
+   - 
+uns/dev_substrate/dev_full/m1/m1e_20260222T200909Z/evidence/runs/platform_20260222T200115Z/P(-1)/
 2. Carried forward managed-run security artifacts from M1.D.
-3. Derived missing provenance artifacts (image_digest_manifest, elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS ECR source-of-truth.
+3. Derived missing provenance artifacts (image_digest_manifest, 
+elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS ECR source-of-truth.
 
 ### Adjudication outcomes
 1. Build-go preconditions: all pass.
@@ -2152,3 +2162,154 @@ _As of 2026-02-22_
 1. M2.D is now executable with deterministic fail-closed rules and evidence outputs.
 2. Master plan and deep plan are phase-consistent (M2.D is the active lane).
 3. No runtime mutation was performed in this pass (planning-only closure).
+
+## Entry: 2026-02-22 22:56:51 +00:00 - M2.D execution pre-lock (decision completeness + lane strategy)
+
+### Execution intent
+1. Execute M2.D fully as a fail-closed precheck lane and produce all planned `m2d_*` evidence artifacts.
+2. Close expected entry blockers `M2D-B4` and `M2D-B6` without pushing unresolved ambiguity into later phases.
+
+### Decision completeness check before command execution
+1. Topic handle set is present in registry (`FP_BUS_*` keys under Section 5).
+2. Streaming substrate handles are present and have materialized values from M2.C evidence (`MSK_CLUSTER_ARN`, bootstrap brokers, schema registry handles).
+3. SR authority handles are present (`SR_READY_COMMIT_*`).
+4. Lane identity handle names exist but multiple are still `TO_PIN` and are scoped to M2.E materialization.
+
+### Alternatives considered
+1. Treat M2.D as requiring live topic enumeration/creation proof via Kafka admin now.
+   - Rejected: topic provisioning lane is intentionally deferred; enforcing admin creation now would collapse phase boundaries with M2.E/M4.
+2. Waive topic existence probing entirely with no evidence.
+   - Rejected: would hide a capability gap and violate fail-closed posture.
+3. Execute bounded probe-policy decision:
+   - topic-handle coherence plus naming policy plus substrate queryability are mandatory in M2.D,
+   - live topic existence probe is marked `NOT_REQUIRED_AT_M2D` only when provisioning ownership is explicitly deferred and recorded.
+   - Selected.
+
+### Selected execution strategy
+1. Build M2.D run directory and capture deterministic command receipts.
+2. Query live MSK/SSM/Glue surfaces and compute schema/cluster readiness verdicts.
+3. Materialize a full lane-binding matrix with explicit owner and role-handle references.
+4. Materialize SR authority snapshot with route validity and state-machine resolution posture.
+5. Produce blocker register (`M2D-B1..M2D-B7`) with explicit severity/remediation.
+6. Publish local evidence and durable S3 mirror under `evidence/dev_full/run_control/m2d_<timestamp>/`.
+
+### Fail-closed commitments for this run
+1. Any unknown topic handle/name mapping blocks (`M2D-B1`).
+2. Any unreadable MSK/bootstrap/schema surface blocks (`M2D-B2/M2D-B3`).
+3. Any lane-binding row lacking owner-handle mapping blocks (`M2D-B4`).
+4. Any SR authority drift or invalid route contract blocks (`M2D-B5`).
+5. Any missing artifact blocks (`M2D-B7`).
+
+## Entry: 2026-02-22 22:59:34 +00:00 - M2.D fail-closed execution result (first pass blocked) and remediation decision
+
+### Observed result
+1. First M2.D execution attempt produced `overall_pass=false` with four blockers (`M2D-B1`, `M2D-B3`, `M2D-B4`, `M2D-B5`) in `runs/dev_substrate/dev_full/m2/m2d_20260222T225853Z/m2d_blocker_register.json`.
+
+### Root cause analysis
+1. Blockers `M2D-B1/B4/B5` were not substrate failures; they were introduced by parsing drift in the execution script:
+   - registry lines are formatted as one backticked assignment (`KEY = "value"`),
+   - parser expected split backticks around key/value and therefore missed many handles.
+2. Blocker `M2D-B3` was partly a command-surface error:
+   - used `aws glue get-registry --name <registry>`,
+   - correct CLI surface is `aws glue get-registry --registry-id RegistryName=<registry>`.
+
+### Alternatives considered
+1. Accept first-pass blockers and carry them forward to M2.E.
+   - Rejected: these blockers are execution-tooling defects, not true phase readiness defects.
+2. Patch only blocker register manually without rerun.
+   - Rejected: violates evidence integrity.
+3. Patch parser plus command surface and rerun full M2.D closure.
+   - Selected.
+
+### Remediation plan (immediate)
+1. Fix registry-handle parser in M2.D execution lane.
+2. Fix Glue registry command syntax.
+3. Rerun full M2.D artifact generation in a new run-id.
+4. Keep first blocked run as audit trail and reference it in closure notes.
+
+## Entry: 2026-02-22 23:00:02 +00:00 - Registry drift remediation during M2.D (MSK handle materialization)
+
+### Why this remediation was required
+1. `MSK_CLUSTER_ARN` and `MSK_BOOTSTRAP_BROKERS_SASL_IAM` were still marked `TO_PIN` in the dev_full registry despite M2.C having materialized both values.
+2. Leaving this unresolved would keep M2.D dependent on fallback evidence extraction and increase drift risk for downstream lanes.
+
+### Action taken
+1. Updated `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`:
+   - pinned concrete `MSK_CLUSTER_ARN` and `MSK_BOOTSTRAP_BROKERS_SASL_IAM` values from M2.C closure evidence.
+2. Removed both handles from Section 14 open materialization set.
+
+### Decision rationale
+1. Handle registry is authoritative; materialized values must be reflected there once proven.
+2. This reduces interpretation drift and keeps M2.D precheck deterministic.
+
+## Entry: 2026-02-22 23:01:41 +00:00 - M2.D rerun-2 triage (single remaining blocker M2D-B3)
+
+### Observation
+1. Rerun-2 (`m2d_20260222T230106Z`) reduced blockers to one: `M2D-B3`.
+2. Root cause is command-surface mismatch only: AWS Glue expects `--registry-id`, not `--id`.
+
+### Verification
+1. Manual probe with corrected command succeeded:
+   - `aws glue get-registry --registry-id RegistryName=fraud-platform-dev-full --region eu-west-2`.
+
+### Decision
+1. Keep fail-closed posture and execute one final full rerun with corrected Glue command.
+2. Preserve both prior blocked runs as intermediate audit evidence.
+
+## Entry: 2026-02-22 23:04:22 +00:00 - M2.D full execution closure (pass after fail-closed reruns)
+
+### Execution chronology
+1. Attempt A: `m2d_20260222T225853Z` -> `overall_pass=false`, blockers `M2D-B1/B3/B4/B5`.
+2. Attempt B: `m2d_20260222T230106Z` -> `overall_pass=false`, single blocker `M2D-B3`.
+3. Attempt C: `m2d_20260222T230240Z` -> `overall_pass=true`, blockers `0`.
+
+### Root-cause to remediation mapping
+1. Attempt A blockers were caused by execution-lane defects, not substrate drift:
+   - registry parser expected wrong assignment format,
+   - Glue command used wrong argument.
+   Decision: treat as tooling defect and rerun after fixing command/parsing; do not carry false blockers forward.
+2. During remediation, authority drift was discovered and corrected:
+   - `MSK_CLUSTER_ARN` and `MSK_BOOTSTRAP_BROKERS_SASL_IAM` were still `TO_PIN` in registry despite M2.C materialization.
+   Decision: pin concrete values in registry and remove both from open-materialization set before final rerun.
+3. Attempt B showed only remaining Glue argument mismatch (`--id` vs `--registry-id`).
+   Decision: verify corrected command manually and execute one final full rerun.
+
+### Final pass evidence (authoritative)
+1. Local evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/`
+2. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2d_20260222T230240Z/`
+3. Core verdict:
+   - `m2d_execution_summary.json`: `overall_pass=true`, `blocker_count=0`, `next_gate=M2.E_READY`.
+4. Command receipts (final pass):
+   - MSK describe: exit `0`
+   - SSM bootstrap read: exit `0`
+   - Glue registry query (`--registry-id`): exit `0`
+   - Glue anchor schema query: exit `0`
+   - Step Functions list: exit `0`
+
+### Blocker adjudication details
+1. `M2D-B1` closed:
+   - topic-handle set complete, naming policy pass, uniqueness pass.
+2. `M2D-B2` closed:
+   - MSK cluster queryable and bootstrap brokers readable.
+3. `M2D-B3` closed:
+   - Glue registry plus anchor schema compatibility checks pass.
+4. `M2D-B4` closed:
+   - lane-binding matrix materialized with no unknown role handles.
+   - `TO_PIN` role handles explicitly handed off to M2.E materialization.
+5. `M2D-B5` closed:
+   - SR authority contract valid (`step_functions_only`, route handle resolves, receipt path valid).
+   - live state-machine discovery remains deferred to M2.E materialization lane and is explicitly tracked in evidence.
+6. `M2D-B6` closed:
+   - explicit policy decision `NOT_REQUIRED_AT_M2D` recorded with handoff to M4/M5 for live topic-existence probes.
+7. `M2D-B7` closed:
+   - all required `m2d_*` artifacts present.
+
+### Documentation/state updates applied
+1. Marked M2.D complete and added execution-closure section in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M2.build_plan.md`
+2. Synced master M2 posture and next action (`M2.E`) in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+3. Registry authority aligned with materialized truth in:
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.

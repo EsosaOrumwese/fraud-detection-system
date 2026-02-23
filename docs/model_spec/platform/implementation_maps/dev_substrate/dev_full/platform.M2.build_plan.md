@@ -373,11 +373,11 @@ Tasks:
 5. Emit readiness matrix and fail-closed blockers.
 
 DoD:
-- [ ] required topic surfaces are reachable/provisionable.
-- [ ] schema registry handles/compatibility contract validated.
-- [ ] lane access bindings pass precheck.
-- [ ] SR READY commit-authority route is explicit and evidence-path contract is valid.
-- [ ] M2.D readiness snapshot committed.
+- [x] required topic surfaces are reachable/provisionable.
+- [x] schema registry handles/compatibility contract validated.
+- [x] lane access bindings pass precheck.
+- [x] SR READY commit-authority route is explicit and evidence-path contract is valid.
+- [x] M2.D readiness snapshot committed.
 
 M2.D planning precheck (decision completeness):
 1. Required topic-handle set is pinned and non-empty:
@@ -431,9 +431,10 @@ M2.D command surface (planned, execution-time):
 1. MSK + registry posture:
    - `aws kafka describe-cluster-v2 --cluster-arn <MSK_CLUSTER_ARN> --region <MSK_REGION>`
    - `aws ssm get-parameter --name <SSM_MSK_BOOTSTRAP_BROKERS_PATH> --with-decryption --region <AWS_REGION>`
-   - `aws glue get-registry --name <GLUE_SCHEMA_REGISTRY_NAME> --region <AWS_REGION>`
+   - `aws glue get-registry --registry-id RegistryName=<GLUE_SCHEMA_REGISTRY_NAME> --region <AWS_REGION>`
+   - `aws glue get-schema --schema-id RegistryName=<GLUE_SCHEMA_REGISTRY_NAME>,SchemaName=<GLUE_ANCHOR_SCHEMA_NAME> --region <AWS_REGION>`
 2. SR authority posture:
-   - `aws stepfunctions describe-state-machine --state-machine-arn <resolved SR_READY_COMMIT_STATE_MACHINE ARN> --region <AWS_REGION>`
+   - `aws stepfunctions list-state-machines --max-results 100 --region <AWS_REGION>`
 3. Binding and policy precheck:
    - role-handle presence checks against registry and IAM lookup where materialized,
    - deterministic topic-owner matrix validation script (no unknown owner/no duplicate owner rows).
@@ -464,8 +465,8 @@ M2.D evidence contract (planned):
    - rollup verdict (`overall_pass`), next gate (`M2.E_READY` or `BLOCKED`).
 
 M2.D expected entry blockers (current planning reality):
-1. `M2D-B4`: lane-binding matrix is not yet materialized as an auditable artifact.
-2. `M2D-B6`: topic-existence probe capability is not yet pinned as executable or waived.
+1. `M2D-B4` (planning-time): lane-binding matrix was not materialized as an auditable artifact.
+2. `M2D-B6` (planning-time): topic-existence probe capability was not pinned as executable/waived.
 
 M2.D closure rule:
 1. M2.D can close only when:
@@ -473,6 +474,33 @@ M2.D closure rule:
    - all DoD checks are green,
    - evidence artifacts are produced and readable,
    - any unresolved identity materialization is explicitly handed off to M2.E with zero unknown bindings.
+
+M2.D execution closure (2026-02-22):
+1. Final PASS evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/`
+2. Required artifacts produced:
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_topic_surface_matrix.json`
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_schema_registry_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_lane_binding_matrix.json`
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_sr_commit_authority_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_execution_summary.json`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2d_20260222T230240Z/`
+4. Command verdict:
+   - `kafka_describe_exit=0`, `ssm_get_parameter_exit=0`, `glue_get_registry_exit=0`, `glue_get_schema_exit=0`, `stepfunctions_list_exit=0`.
+   - `overall_pass=true`, blockers empty.
+5. Intermediate fail-closed runs retained for audit:
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T225853Z/` (parser/command-surface defects caused false blockers)
+   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230106Z/` (single Glue argument mismatch blocker)
+6. Blocker adjudication:
+   - `M2D-B1` closed by corrected registry parsing and concrete topic-handle coherence checks.
+   - `M2D-B2` closed by live MSK + SSM query success.
+   - `M2D-B3` closed by corrected Glue command surface and live registry/schema checks.
+   - `M2D-B4` closed by materialized lane-binding matrix with explicit M2.E handoff for `TO_PIN` identity handles.
+   - `M2D-B5` closed by SR authority contract validation (`step_functions_only`, route handle resolution, receipt path validity).
+   - `M2D-B6` closed by explicit `NOT_REQUIRED_AT_M2D` probe policy with deferred live topic-existence checks to `M4/M5`.
+   - `M2D-B7` closed by complete evidence artifact set.
 
 ## M2.E Runtime Stack and IAM Role Posture
 Goal:
@@ -604,7 +632,7 @@ Any active `M2-B*` blocker prevents M2 execution closure.
 - [x] M2.A complete.
 - [x] M2.B complete.
 - [x] M2.C complete.
-- [ ] M2.D complete.
+- [x] M2.D complete.
 - [ ] M2.E complete.
 - [ ] M2.F complete.
 - [ ] M2.G complete.

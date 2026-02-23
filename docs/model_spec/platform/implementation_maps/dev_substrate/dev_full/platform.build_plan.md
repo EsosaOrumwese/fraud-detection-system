@@ -280,8 +280,10 @@ M2 planning posture:
 - `M2.C` execution is now closed (`PASS`) with full apply/evidence closure:
   - `runs/dev_substrate/dev_full/m2/m2c_20260222T222113Z/m2c_execution_summary.json` (`overall_pass=true`, blockers=`0`).
   - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2c_20260222T222113Z/`.
-- `M2.D` is now expanded to execution-grade planning (`M2D-B*`, command surface, topic/schema/SR-authority evidence contracts).
-- M2 phase execution remains active for `M2.D` onward.
+- `M2.D` execution is now closed (`PASS`) with full precheck/evidence closure:
+  - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2d_20260222T230240Z/`.
+- M2 phase execution remains active for `M2.E` onward.
 
 DoD anchors:
 - [ ] all five stacks apply cleanly.
@@ -295,7 +297,7 @@ M2 sub-phase progress:
 - [x] `M2.A` state backend and lock conformance.
 - [x] `M2.B` core stack materialization.
 - [x] `M2.C` streaming stack materialization.
-- [ ] `M2.D` topic/schema readiness precheck.
+- [x] `M2.D` topic/schema readiness precheck.
 - [ ] `M2.E` runtime stack and IAM role posture.
 - [ ] `M2.F` secret path contract and materialization checks.
 - [ ] `M2.G` data_ml stack materialization.
@@ -536,4 +538,4 @@ This rule is binding for all phases M1..M13.
 - No destructive git commands.
 
 ## 11) Next Action
-- Continue active phase `M2` by executing `M2.D` topic/schema readiness precheck and adjudicating `M2D-B*` blockers to blocker-free closure.
+- Continue active phase `M2` by executing `M2.E` runtime stack and IAM role posture closure, then adjudicate runtime identity and path-governance blockers.
