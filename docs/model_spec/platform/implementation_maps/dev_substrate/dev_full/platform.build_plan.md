@@ -283,6 +283,8 @@ M2 planning posture:
 - `M2.D` execution is now closed (`PASS`) with full precheck/evidence closure:
   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_execution_summary.json` (`overall_pass=true`, blockers=`0`).
   - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2d_20260222T230240Z/`.
+- `M2.E` is now expanded to execution-grade planning (`M2E-B*`, runtime-stack command surface, runtime identity/API-edge/path-governance evidence contracts).
+- `M2E-B1` (runtime stack skeletal), `M2E-B3` (runtime role handles unresolved), and `M2E-B4` (API ID unresolved) are explicit entry blockers.
 - M2 phase execution remains active for `M2.E` onward.
 
 DoD anchors:

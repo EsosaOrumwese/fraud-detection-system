@@ -522,6 +522,104 @@ DoD:
 - [ ] runtime-path governance handles are materialized and conformance-checked.
 - [ ] M2.E evidence snapshot committed.
 
+M2.E planning precheck (decision completeness):
+1. Required runtime stack handles are pinned:
+   - `TF_STACK_RUNTIME_DIR`, `TF_STATE_BUCKET`, `TF_STATE_BUCKET_REGION`, `TF_LOCK_TABLE`, `TF_STATE_KEY_RUNTIME`
+2. Required runtime-critical identity handles are pinned and scoped to M2.E materialization:
+   - `ROLE_EKS_NODEGROUP_DEV_FULL`
+   - `ROLE_EKS_RUNTIME_PLATFORM_BASE`
+   - `ROLE_FLINK_EXECUTION`
+   - `ROLE_LAMBDA_IG_EXECUTION`
+   - `ROLE_APIGW_IG_INVOKE`
+   - `ROLE_DDB_IG_IDEMPOTENCY_RW`
+   - `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`
+3. Required managed-ingress/API-edge handles are pinned:
+   - `IG_EDGE_MODE`
+   - `APIGW_IG_API_ID`
+   - `LAMBDA_IG_HANDLER_NAME`
+   - `DDB_IG_IDEMPOTENCY_TABLE`
+4. Required runtime-path governance handles are pinned:
+   - `PHASE_RUNTIME_PATH_MODE`
+   - `PHASE_RUNTIME_PATH_PIN_REQUIRED`
+   - `RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED`
+   - `RUNTIME_FALLBACK_REQUIRES_NEW_PHASE_EXECUTION_ID`
+   - `PHASE_RUNTIME_PATH_EVIDENCE_PATH_PATTERN`
+5. Scope-routing decision for non-runtime Section 8.6 roles (no ambiguity allowed):
+   - `ROLE_MWAA_EXECUTION`, `ROLE_SAGEMAKER_EXECUTION`, `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`
+   - these remain in M2 global conformance scope but are materialized in M2.G/M2.H, not M2.E.
+
+M2.E execution contract (planned):
+1. Preconditions:
+   - `M2.D` PASS evidence is present and unchanged.
+   - runtime stack root has concrete Terraform surfaces beyond M2.A skeletal placeholder.
+2. Runtime stack command lane:
+   - `terraform -chdir=infra/terraform/dev_full/runtime init -reconfigure -backend-config=...`
+   - `terraform -chdir=infra/terraform/dev_full/runtime validate`
+   - `terraform -chdir=infra/terraform/dev_full/runtime plan -input=false -detailed-exitcode -out <m2e_runtime_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/runtime apply -input=false <m2e_runtime_plan>`
+   - `terraform -chdir=infra/terraform/dev_full/runtime output -json`
+3. Runtime identity conformance lane:
+   - verify runtime-critical role handles resolve to concrete identities after apply,
+   - verify least-privilege boundary posture is queryable for runtime-critical identities.
+4. API-edge runtime conformance lane:
+   - `IG_EDGE_MODE=apigw_lambda_ddb` contract is preserved,
+   - API gateway, lambda handler, and idempotency table surfaces are queryable,
+   - fail-closed if any edge surface is unresolved.
+5. Runtime-path governance conformance lane:
+   - handle set is complete/coherent,
+   - path-selection evidence contract pattern is valid and writable.
+
+M2.E command surface (planned, execution-time):
+1. Terraform runtime lane:
+   - `terraform init/validate/plan/apply/output` in `infra/terraform/dev_full/runtime`.
+2. Identity lane checks:
+   - `aws iam get-role --role-name <resolved role name>` for runtime-critical roles.
+3. API edge checks:
+   - API query via `apigatewayv2 get-api --api-id <APIGW_IG_API_ID>` (or explicit REST API equivalent if pinned),
+   - `aws lambda get-function --function-name <LAMBDA_IG_HANDLER_NAME>`,
+   - `aws dynamodb describe-table --table-name <DDB_IG_IDEMPOTENCY_TABLE>`.
+4. Runtime-path governance checks:
+   - deterministic handle/pattern validation for `PHASE_RUNTIME_PATH_*`,
+   - contract probe for evidence path pattern serialization (without writing secret values).
+
+M2.E fail-closed policy (planned):
+1. `M2E-B1`: runtime stack remains skeletal/non-materialized (cannot satisfy runtime DoD).
+2. `M2E-B2`: terraform `init/validate/plan/apply` fails under pinned backend/state posture.
+3. `M2E-B3`: one or more runtime-critical role handles unresolved/unmaterialized after apply.
+4. `M2E-B4`: managed API-edge surfaces unresolved/non-queryable (`APIGW/Lambda/DDB` contract failure).
+5. `M2E-B5`: runtime-path governance handle set missing/incoherent or invalid evidence path contract.
+6. `M2E-B6`: selective EKS runtime baseline identity posture drift (`ROLE_EKS_*` mismatch).
+7. `M2E-B7`: evidence artifacts missing/inconsistent with command receipts.
+
+M2.E evidence contract (planned):
+1. `m2e_runtime_plan_snapshot.json`
+   - command receipts, plan summary, resource-action rollup.
+2. `m2e_runtime_apply_snapshot.json`
+   - apply receipt, runtime outputs, state identity.
+3. `m2e_runtime_role_conformance_matrix.json`
+   - runtime-critical role-handle resolution + materialization checks.
+4. `m2e_api_edge_runtime_snapshot.json`
+   - API gateway/lambda/ddb conformance checks for ingress edge.
+5. `m2e_runtime_path_governance_snapshot.json`
+   - runtime-path governance handle and artifact-contract checks.
+6. `m2e_blocker_register.json`
+   - active `M2E-B*` blockers with severity/remediation.
+7. `m2e_execution_summary.json`
+   - rollup verdict (`overall_pass`), next gate (`M2.F_READY` or `BLOCKED`).
+
+M2.E expected entry blockers (current planning reality):
+1. `M2E-B1`: `infra/terraform/dev_full/runtime/` is still M2.A skeletal (`main.tf` only).
+2. `M2E-B3`: runtime-critical role handles are currently unresolved (`TO_PIN`).
+3. `M2E-B4`: `APIGW_IG_API_ID` is currently unresolved (`TO_PIN`).
+
+M2.E closure rule:
+1. M2.E can close only when:
+   - all `M2E-B*` blockers are resolved,
+   - all DoD checks are green,
+   - evidence artifacts are produced and readable,
+   - runtime-critical role handles are materialized,
+   - non-runtime role handles (`MWAA/SageMaker/Databricks`) are explicitly routed to M2.G/M2.H with zero unknown ownership.
+
 ## M2.F Secret Path Contract and Materialization Checks
 Goal:
 - verify secret-path contract completeness and materialization posture for required surfaces.

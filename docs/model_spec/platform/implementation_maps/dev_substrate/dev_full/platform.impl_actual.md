@@ -2313,3 +2313,41 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
 3. Registry authority aligned with materialized truth in:
    - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+
+## Entry: 2026-02-23 04:25:06 +00:00 - M2.E planning expanded to execution-grade (runtime stack + IAM/API edge + path governance)
+
+### Problem
+1. M2.E in the deep plan was still stub-level and could not be executed fail-closed.
+2. Runtime stack root (infra/terraform/dev_full/runtime) is still M2.A skeletal (main.tf only), so execution would stall without explicit blocker framing.
+3. Identity scope needed explicit partitioning to avoid phase deadlock between runtime and non-runtime roles.
+
+### Design decisions
+1. M2.E execution scope is pinned to runtime-critical identities and control surfaces:
+   - runtime roles: ROLE_EKS_NODEGROUP_DEV_FULL, ROLE_EKS_RUNTIME_PLATFORM_BASE, ROLE_FLINK_EXECUTION, ROLE_LAMBDA_IG_EXECUTION, ROLE_APIGW_IG_INVOKE, ROLE_DDB_IG_IDEMPOTENCY_RW, ROLE_STEP_FUNCTIONS_ORCHESTRATOR.
+   - API edge: APIGW_IG_API_ID, LAMBDA_IG_HANDLER_NAME, DDB_IG_IDEMPOTENCY_TABLE.
+   - runtime-path governance: PHASE_RUNTIME_PATH_* contract set.
+2. Section 8.6 non-runtime roles are explicitly routed (not ignored):
+   - ROLE_MWAA_EXECUTION, ROLE_SAGEMAKER_EXECUTION, ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS are pinned for M2 global conformance but materialized in M2.G/M2.H.
+3. Fail-closed blocker set for M2.E is now explicit (M2E-B1..M2E-B7) with entry blockers predeclared from current reality.
+
+### Alternatives considered
+1. Require all Section 8.6 roles to materialize in M2.E.
+   - Rejected: would blur stack boundaries and deadlock with data_ml/ops lanes.
+2. Defer identity checks entirely to later phases.
+   - Rejected: violates managed-first runtime safety and leaves P0 runtime posture implicit.
+3. Runtime-critical-now, non-runtime-routed approach.
+   - Selected.
+
+### What was patched
+1. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M2.build_plan.md
+   - Added M2.E decision-completeness precheck.
+   - Added M2.E execution contract and command surface.
+   - Added fail-closed blockers M2E-B1..M2E-B7.
+   - Added evidence contract (m2e_* artifacts).
+   - Added expected entry blockers and closure rule.
+2. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md
+   - Added M2.E execution-grade planning posture note and explicit current entry blockers (M2E-B1/B3/B4).
+
+### Result
+1. M2.E is now execution-ready from a planning perspective (still blocked by declared entry blockers).
+2. Phase sequencing remains clean: M2.E runtime closure first, then M2.F/M2.G/M2.H for remaining surfaces.
