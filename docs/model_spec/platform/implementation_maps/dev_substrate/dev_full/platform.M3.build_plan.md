@@ -691,9 +691,9 @@ Tasks:
 3. emit `m4_handoff_pack.json` locally and durably.
 
 DoD:
-- [ ] handoff pack contains all required run-scope fields.
-- [ ] handoff references are durable and readable.
-- [ ] M4 runtime-scope env mapping is explicit.
+- [x] handoff pack contains all required run-scope fields.
+- [x] handoff references are durable and readable.
+- [x] M4 runtime-scope env mapping is explicit.
 
 M3.F decision pins (closed before execution):
 1. Source-of-truth law:
@@ -768,7 +768,28 @@ M3.F planning status (current):
 2. Runtime-scope and evidence handles are pinned in registry.
 3. No known pre-execution blockers for M3.F at planning time.
 4. Phase posture:
-   - planning expanded; execution not started.
+   - planning expanded before execution.
+
+M3.F execution status (2026-02-23):
+1. Authoritative execution id:
+   - `m3f_20260223T224855Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3f_20260223T224855Z/`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3f_20260223T224855Z/`
+4. PASS artifacts:
+   - `m4_handoff_pack.json`
+   - `m3f_runtime_scope_binding_snapshot.json`
+   - `m3f_handoff_reference_receipts.json`
+   - `m3f_execution_summary.json`
+5. Closure results:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M3.F_READY`
+   - env binding: `REQUIRED_PLATFORM_RUN_ID -> platform_20260223T184232Z` (`PASS`)
+   - correlation contract fields: `platform_run_id,scenario_run_id,phase_id,event_id,runtime_lane,trace_id` (`PASS`)
+   - durable reference readability: `3/3` refs readable (`PASS`)
+   - handoff readback hash match: `PASS`
 
 ### M3.G Rerun and Reset Discipline
 Goal:
@@ -848,7 +869,7 @@ Any active `M3-B*` blocker prevents M3 closure.
 - [x] M3.C complete.
 - [x] M3.D complete.
 - [x] M3.E complete.
-- [ ] M3.F complete.
+- [x] M3.F complete.
 - [ ] M3.G complete.
 - [ ] M3.H complete.
 - [ ] M3.I complete.

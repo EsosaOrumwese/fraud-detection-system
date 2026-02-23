@@ -393,6 +393,12 @@ M3 planning posture:
   - write-once guard and readback hash integrity both pass.
 - M3.E durable mirror:
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3e_20260223T223411Z/`
+- `M3.F` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m3/m3f_20260223T224855Z/m3f_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - `m4_handoff_pack.json` published with explicit env binding + correlation contract + durable refs.
+  - handoff readback hash and reference readability checks pass.
+- M3.F durable mirror:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3f_20260223T224855Z/`
 
 DoD anchors:
 - [x] run pin artifact committed.
@@ -408,7 +414,7 @@ M3 sub-phase progress:
 - [x] `M3.C` canonical payload and digest reproducibility.
 - [x] `M3.D` orchestrator entry and lock identity readiness.
 - [x] `M3.E` durable run evidence publication.
-- [ ] `M3.F` runtime scope export and M4 handoff pack.
+- [x] `M3.F` runtime scope export and M4 handoff pack.
 - [ ] `M3.G` rerun/reset discipline.
 - [ ] `M3.H` phase budget and cost-outcome receipt.
 - [ ] `M3.I` gate rollup and blocker adjudication.

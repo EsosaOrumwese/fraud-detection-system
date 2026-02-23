@@ -3911,6 +3911,89 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 1. Master plan now explicitly notes M3.F planning expansion.
 2. M3.F remains execution-pending.
 
+## Entry: 2026-02-23 22:47:25 +00:00 - M3.F execution start (pre-run decision lock)
+
+### Execution objective
+1. Close M3.F by producing a durable M4 handoff contract that is:
+   - source-of-truth aligned to M3.B/C/D/E outputs,
+   - runtime-scope binding explicit (`REQUIRED_PLATFORM_RUN_ID`),
+   - correlation continuity anchored,
+   - durable and readback-verified.
+
+### Inputs locked for this run
+1. Upstream green sources:
+   - `m3b_20260223T184232Z` (identity),
+   - `m3c_20260223T185958Z` (config digest),
+   - `m3d_20260223T191338Z` (orchestrator/lock readiness),
+   - `m3e_20260223T223411Z` (committed run evidence objects).
+2. Handle anchors:
+   - `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`,
+   - `S3_EVIDENCE_BUCKET`,
+   - canonical field names from registry.
+3. Correlation required fields anchor:
+   - runbook cross-runtime rule (`platform_run_id,scenario_run_id,phase_id,event_id,runtime_lane,trace_id`).
+
+### Decision details before command execution
+1. Handoff pack content includes identity/digest triplet + env binding + correlation fields + durable refs + source execution ids.
+2. Durable refs in handoff must be `head-object` readable before closure.
+3. Handoff artifact will be published to unique run-control execution prefix and read back with SHA256 match.
+4. Secret scan on handoff payload is mandatory and fail-closed.
+
+### Alternatives considered and rejected
+1. Inline derive correlation fields from handles only:
+   - rejected; runbook is authoritative for cross-runtime rule.
+2. Accept non-readable durable refs and leave to M4:
+   - rejected; M3.F closure requires M4-ready references, not deferred breakage.
+3. Skip readback hash for handoff pack:
+   - rejected; publish-returncode-only is insufficient for closure evidence.
+
+## Entry: 2026-02-23 22:49:59 +00:00 - M3.F execution closed green (runtime scope export + M4 handoff)
+
+### Authoritative execution
+1. `m3f_execution_id`: `m3f_20260223T224855Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3f_20260223T224855Z/`
+3. Durable evidence root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3f_20260223T224855Z/`
+
+### Handoff artifact
+1. Durable handoff pack:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3f_20260223T224855Z/m4_handoff_pack.json`
+2. Handoff includes:
+   - identity/digest triplet,
+   - runtime-scope env binding key/value,
+   - correlation required fields list,
+   - durable references to M3 artifacts,
+   - source execution id map.
+
+### Execution decisions and checks during run
+1. Verified all prerequisite source phases are PASS before composing handoff.
+2. Enforced runtime binding:
+   - `required_platform_run_id_env_key=REQUIRED_PLATFORM_RUN_ID`,
+   - value equals current `platform_run_id`.
+3. Checked durable references readability with `head-object` prior to closure.
+4. Published handoff and validated SHA256 readback equality.
+5. Ran secret-surface scan on handoff payload (no hits).
+
+### Outcome
+1. `overall_pass=true`, blockers empty, `next_gate=M3.F_READY`.
+2. Env binding pass, correlation contract pass, durable reference readability pass (`3/3`), handoff readback hash pass.
+
+### Evidence produced
+1. `m4_handoff_pack.json`
+2. `m3f_runtime_scope_binding_snapshot.json`
+3. `m3f_handoff_reference_receipts.json`
+4. `m3f_execution_summary.json`
+
+### Plan/doc updates applied
+1. `platform.M3.build_plan.md`:
+   - M3.F DoDs checked complete,
+   - M3.F execution status appended,
+   - M3 completion checklist marks M3.F complete.
+2. `platform.build_plan.md`:
+   - M3 posture updated with M3.F PASS evidence,
+   - M3 sub-phase progress marks M3.F complete.
+
 ## Entry: 2026-02-23 18:57:12 +00:00 - M3.C planning expanded to execution-grade
 
 ### What was added to M3.C
