@@ -351,6 +351,7 @@ Planned lanes:
 M3 planning posture:
 - Deep plan has been created and expanded to execution-grade coverage across `M3.A..M3.J`.
 - `M3.A` has been expanded with command-level verification catalog, blocker taxonomy, and evidence/closure contract.
+- `M3.B` has been expanded with deterministic run-id laws, collision retry policy, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.A` execution is now closed (`PASS`):
   - `runs/dev_substrate/dev_full/m3/m3a_20260223T174307Z/m3a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
 - `M3.A` blocker remediation closed:

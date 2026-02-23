@@ -221,6 +221,74 @@ DoD:
 - [ ] collision probes are evidenced.
 - [ ] scenario-run derivation is deterministic and reproducible.
 
+M3.B decision pins (closed before execution):
+1. Platform-run-id format law:
+   - `platform_run_id` format is `platform_<YYYYMMDDTHHMMSSZ>` (UTC, second precision).
+2. Platform-run-id regex law:
+   - accepted shape regex: `^platform_[0-9]{8}T[0-9]{6}Z(_[0-9]{2})?$`.
+3. Collision law:
+   - collision check target is durable evidence root prefix:
+     - `evidence/runs/{platform_run_id}/`
+   - if prefix has objects, the id is treated as colliding.
+4. Retry/suffix law:
+   - collisions are resolved by deterministic monotonic suffix:
+     - `_01`, `_02`, ... `_20` (max 20 retries).
+5. Scenario-run derivation law:
+   - `scenario_run_id` must be generated via `SCENARIO_RUN_ID_DERIVATION_MODE` using `SCENARIO_EQUIVALENCE_KEY_INPUT` and canonical fields from registry.
+   - no random/uuid fallback is allowed.
+6. Immutability law:
+   - once accepted and emitted in M3.B artifacts, `platform_run_id` and `scenario_run_id` are immutable for this run.
+
+M3.B verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3B-V1-FORMAT` | local regex check against candidate `platform_run_id` | enforces canonical id shape |
+| `M3B-V2-COLLISION-PROBE` | `aws s3api list-objects-v2 --bucket <S3_EVIDENCE_BUCKET> --prefix evidence/runs/<platform_run_id>/ --max-keys 1` | detects run-id collision in durable evidence root |
+| `M3B-V3-HANDLE-CONTRACT` | `rg -n \"SCENARIO_EQUIVALENCE_KEY_INPUT|SCENARIO_EQUIVALENCE_KEY_CANONICAL_FIELDS|SCENARIO_RUN_ID_DERIVATION_MODE\" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` | confirms scenario-id derivation contract exists |
+| `M3B-V4-SEED-WRITE-LOCAL` | write local seed artifact under `runs/dev_substrate/dev_full/m3/<m3b_execution_id>/` | proves local generation trace |
+| `M3B-V5-SEED-WRITE-DURABLE` | `aws s3 cp <local_seed> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m3b_execution_id>/m3b_run_identity_seed.json` | proves durable publication lane |
+
+M3.B blocker taxonomy (fail-closed):
+1. `M3B-B1`: generated `platform_run_id` fails format regex.
+2. `M3B-B2`: collision unresolved within retry cap.
+3. `M3B-B3`: scenario derivation contract missing/incomplete.
+4. `M3B-B4`: local run-id seed artifact write failure.
+5. `M3B-B5`: durable seed artifact publish failure.
+6. `M3B-B6`: `scenario_run_id` derivation non-deterministic across recompute.
+7. `M3B-B7`: M3.B evidence contract missing/incomplete.
+
+M3.B evidence contract (planned):
+1. `m3b_run_id_generation_snapshot.json`
+2. `m3b_collision_probe_receipts.json`
+3. `m3b_run_identity_seed.json`
+4. `m3b_execution_summary.json`
+
+`m3b_run_id_generation_snapshot.json` minimum fields:
+1. `candidate_platform_run_id`
+2. `final_platform_run_id`
+3. `collision_detected`
+4. `collision_attempts`
+5. `format_check_pass`
+6. `scenario_run_id`
+7. `scenario_derivation_mode`
+8. `scenario_derivation_recompute_pass`
+9. `overall_pass`
+
+M3.B closure rule:
+1. M3.B can close only when:
+   - final `platform_run_id` passes format law,
+   - collision probe is evidenced and resolved within retry cap,
+   - `scenario_run_id` derivation is deterministic and reproducible,
+   - all M3.B evidence artifacts are present locally and in durable run-control prefix,
+   - no active `M3B-B*` blockers remain.
+
+M3.B planning status (current):
+1. Prerequisite lane `M3.A` is closed green.
+2. Required identity/derivation handles are pinned in registry.
+3. No known pre-execution blockers for M3.B at planning time.
+4. Phase posture:
+   - planning expanded; execution not started.
+
 ### M3.C Config Payload + Digest Contract
 Goal:
 1. produce canonical run payload and reproducible digest.

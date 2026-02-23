@@ -2357,6 +2357,10 @@ P6 closure snapshot (2026-02-23):
 - `P6.5` final closure:
   - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_prune_receipt_20260223T180010Z.json`,
   - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_closure_20260223T180010Z.json`.
+- explicit B+ backlog handoff:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_bplus_backlog_handoff_20260223T183222Z.json`.
+- storage normalization post-probe:
+  - seed-42 `arrival_events` restored to junction target under `runs/local_full_run-5/c25...` to reclaim local probe copy.
 - final decision:
   - `SEG5B_P6_RETAIN_PASS_B` (`certified_class=PASS_B_ROBUST`).
 

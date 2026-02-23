@@ -8646,3 +8646,26 @@ Closure artifacts:
 Final P6 decision:
 1) `SEG5B_P6_RETAIN_PASS_B`.
 2) Segment 5B remains frozen at robust `B`; B+ is not achieved within bounded local lane.
+
+### Entry: 2026-02-23 18:32
+
+User-directed follow-up executed: lock explicit upstream backlog posture and reclaim probe storage.
+
+Option 1 closure action (explicit backlog handoff):
+1) emitted explicit `B+` backlog handoff artifact, even though `P6` was already closed:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p6_bplus_backlog_handoff_20260223T183222Z.json`.
+2) handoff pins:
+   - frozen state remains `PASS_B_ROBUST`,
+   - B+ recovery is moved to upstream owner lanes (`3B.S1` + `2B/3B` topology),
+   - hard-rail veto set remains frozen for any future reopen.
+
+Option 2 storage action (seed-42 arrival_events):
+1) prior bounded probe had left a local `arrival_events` directory under run-id `6ac88...` (~4.2GB materialized copy).
+2) removed the local directory and recreated it as a junction to:
+   - `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data/layer2/5B/arrival_events`.
+3) verification:
+   - path mode `l----`, `LinkType=Junction`, target resolves to `local_full_run-5/c25...`.
+
+Decision:
+1) option 1 and option 2 are both complete.
+2) 5B remains frozen at robust `B` with explicit upstream B+ backlog and reclaimed local storage.

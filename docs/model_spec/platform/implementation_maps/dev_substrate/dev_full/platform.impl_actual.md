@@ -3376,3 +3376,52 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 1. M3 remains `IN_PROGRESS` overall.
 2. `M3.A` is closed green and M3 entry blockers for this lane are cleared.
 3. Next executable lane is `M3.B` (run identity generation).
+
+## Entry: 2026-02-23 18:31:13 +00:00 - M3.B planning expansion decision (run-identity lane)
+
+### Why M3.B needs deeper planning before execution
+1. Current M3.B section has goal/tasks/DoD but lacks execution-grade closure surfaces.
+2. Missing today:
+   - deterministic run-id format/regex pin,
+   - collision retry cap and suffix policy,
+   - command-level verification catalog,
+   - blocker taxonomy specific to identity generation,
+   - evidence contract + closure rule.
+
+### Alternatives considered
+1. Execute M3.B directly from current high-level tasks:
+   - rejected due decision-completeness law.
+2. Reuse dev_min M3.B as-is:
+   - rejected because dev_full evidence roots and orchestration surfaces differ.
+3. Expand dev_full M3.B now (planning-only), then execute against pinned contract:
+   - accepted.
+
+### Patch scope
+1. `platform.M3.build_plan.md`:
+   - enrich `M3.B` with decision pins, verify catalog, blockers, evidence contract, closure rule, and planning-status note.
+2. `platform.build_plan.md`:
+   - add explicit M3.B-planning expansion note under M3 posture.
+3. No runtime mutation in this step.
+
+## Entry: 2026-02-23 18:32:08 +00:00 - M3.B planning expansion completed (identity and collision lane)
+
+### Changes made
+1. Expanded `M3.B` in `platform.M3.build_plan.md` with:
+   - decision pins,
+   - deterministic id format/regex law,
+   - collision retry/suffix policy,
+   - scenario derivation law,
+   - verification command catalog,
+   - M3.B blocker taxonomy,
+   - evidence contract and closure rule,
+   - planning-status note.
+2. Updated master `platform.build_plan.md` M3 posture to note M3.B expansion.
+
+### Design choices
+1. Kept id format explicit and auditable (`platform_<UTC timestamp>` + bounded suffix retries).
+2. Kept scenario id derivation mode authority-driven (no invented algorithm drift).
+3. Forced deterministic/no-random fallback posture to preserve replay/provenance semantics.
+
+### Execution posture
+1. This step is planning-only.
+2. No runtime mutation and no phase execution occurred.
