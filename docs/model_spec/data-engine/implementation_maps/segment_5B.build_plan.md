@@ -2405,3 +2405,23 @@ Closure decisions:
 - `UNLOCK_U2`: `U1` closes `T7+` but residual `T6+` remains.
 - `SEG5B_UPGRADE_PASS_BPLUS`: full certification passes B+.
 - `SEG5B_RETAIN_PASS_B`: bounded upstream reopen exhausted without B+ closure.
+
+U1.C1 execution snapshot (2026-02-23, run-id `65bd3b8fde7f467f8abaee6a5516ee75`, seed `7`):
+- candidate objective:
+  - reopen upstream `3B.S1` virtual-owner lane and test bounded movement toward `B+` without breaking hard rails.
+- candidate lane actions:
+  - reran `2A.S4->S5` to rebuild a clean seed-7 `validation_bundle_2A` after legacy bundle contamination blocked `3B.S0` gate.
+  - reran full `3B.S0->S5` on candidate run-id.
+  - reopened `2B` upstream owner surfaces on the same run-id (`S0->S4`, `S7`, `S8`) to restore seed-7-compatible `5B.S0` sealed-input and `validation_bundle_2B` digests.
+  - reran `5B.S0`, `5B.S4`, `5B.S5`.
+  - rescored candidate in isolated out-root:
+    - `runs/fix-data-engine/segment_5B/reports/p6u1_c1_65bd/segment5b_p1_realism_gateboard_65bd3b8fde7f467f8abaee6a5516ee75.json`
+    - `runs/fix-data-engine/segment_5B/reports/p6u1_c1_65bd/segment5b_p2_gateboard_65bd3b8fde7f467f8abaee6a5516ee75_p6u1_c1_65bd.json`
+- measured posture:
+  - hard rails: pass.
+  - `T6`: improved vs baseline (`-0.6103 pp`) but remains B+ red.
+  - `T7`: regressed sharply (`+6.8196 pp` vs baseline) and fails B band (`10.5238%`).
+  - lane decision from scorer: `HOLD_P2_REOPEN`, phase grade `HOLD_REMEDIATE`.
+- bounded reopen decision:
+  - `HOLD_U1_REJECTED` for candidate `U1.C1`.
+  - keep `SEG5B_RETAIN_PASS_B` frozen authority; no fanout to multi-seed for this candidate.

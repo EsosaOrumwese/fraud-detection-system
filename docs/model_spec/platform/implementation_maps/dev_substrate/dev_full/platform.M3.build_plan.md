@@ -459,9 +459,111 @@ Tasks:
 4. emit orchestrator-entry readiness snapshot.
 
 DoD:
-- [ ] orchestrator-entry surface is reachable and evidenced.
-- [ ] lock identity contract is explicit.
-- [ ] runtime-role alignment check passes or blocker is explicit.
+- [x] orchestrator-entry surface is reachable and evidenced.
+- [x] lock identity contract is explicit.
+- [x] runtime-role alignment check passes or blocker is explicit.
+
+M3.D decision pins (closed before execution):
+1. Orchestrator authority law:
+   - `SFN_PLATFORM_RUN_ORCHESTRATOR_V0` is the only accepted P1 orchestrator-entry surface.
+   - `SR_READY_COMMIT_AUTHORITY` must remain `step_functions_only`.
+2. State-machine identity law:
+   - resolved state-machine name from handles must map to a single concrete ARN in the active account/region.
+3. Runtime-scope law:
+   - `REQUIRED_PLATFORM_RUN_ID_ENV_KEY` (`REQUIRED_PLATFORM_RUN_ID`) is mandatory for runtime scope propagation.
+4. Run-lock identity law:
+   - lock identity key is `platform_run_id` enforced by orchestrator execution posture.
+   - if any concurrent `RUNNING` execution exists for the same `platform_run_id`, M3.D fails closed.
+5. Role alignment law:
+   - orchestrator runtime identity must align to `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`.
+   - role mismatch between handles and live state-machine configuration is a blocker.
+6. Evidence safety law:
+   - orchestrator-entry evidence may include ARNs, execution ids, and status only; no secret material.
+
+M3.D verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3D-V1-HANDLE-CONTRACT` | `rg -n \"SFN_PLATFORM_RUN_ORCHESTRATOR_V0|SR_READY_COMMIT_AUTHORITY|ROLE_STEP_FUNCTIONS_ORCHESTRATOR|REQUIRED_PLATFORM_RUN_ID_ENV_KEY\" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` | confirms required orchestrator/lock handles are pinned |
+| `M3D-V2-SFN-EXISTS` | `aws stepfunctions list-state-machines --region eu-west-2` | verifies state machine exists and is discoverable |
+| `M3D-V3-SFN-DESCRIBE` | `aws stepfunctions describe-state-machine --state-machine-arn <resolved_arn> --region eu-west-2` | verifies orchestrator is queryable and returns roleArn |
+| `M3D-V4-ROLE-ALIGN` | compare `describe-state-machine.roleArn` with `ROLE_STEP_FUNCTIONS_ORCHESTRATOR` | validates runtime role alignment |
+| `M3D-V5-RUN-LOCK-CHECK` | `aws stepfunctions list-executions --state-machine-arn <resolved_arn> --status-filter RUNNING --max-results 100 --region eu-west-2` + filter by `platform_run_id` in execution input/name | detects concurrent run-lock conflicts |
+| `M3D-V6-EVIDENCE-PUBLISH` | `aws s3 cp <local_artifact> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m3d_execution_id>/...` | proves durable publication lane |
+
+M3.D blocker taxonomy (fail-closed):
+1. `M3D-B1`: required orchestrator/lock handle missing or unresolved.
+2. `M3D-B2`: Step Functions state machine not found/unqueryable.
+3. `M3D-B3`: orchestrator role mismatch versus `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`.
+4. `M3D-B4`: concurrent `RUNNING` execution detected for current `platform_run_id` (lock conflict).
+5. `M3D-B5`: runtime-scope env key contract missing (`REQUIRED_PLATFORM_RUN_ID_ENV_KEY`).
+6. `M3D-B6`: durable evidence publish failure.
+7. `M3D-B7`: M3.D evidence contract missing/incomplete.
+
+M3.D evidence contract (planned):
+1. `m3d_orchestrator_entry_readiness_snapshot.json`
+2. `m3d_run_lock_posture_snapshot.json`
+3. `m3d_command_receipts.json`
+4. `m3d_execution_summary.json`
+
+`m3d_orchestrator_entry_readiness_snapshot.json` minimum fields:
+1. `platform_run_id`
+2. `scenario_run_id`
+3. `resolved_state_machine_name`
+4. `resolved_state_machine_arn`
+5. `sr_ready_commit_authority`
+6. `required_platform_run_id_env_key`
+7. `configured_role_arn`
+8. `expected_role_arn`
+9. `role_alignment_pass`
+10. `overall_pass`
+
+M3.D closure rule:
+1. M3.D can close only when:
+   - orchestrator state machine is resolved and queryable,
+   - role alignment check passes,
+   - run-lock conflict check shows zero concurrent conflicting runs,
+   - all M3.D evidence artifacts exist locally and in durable run-control prefix,
+   - no active `M3D-B*` blockers remain.
+
+M3.D planning status (current):
+1. Prerequisite lanes `M3.B` and `M3.C` are closed green.
+2. Orchestrator and lock-related handles are pinned in registry.
+3. No known pre-execution blockers for M3.D at planning time.
+4. Phase posture:
+   - planning expanded before execution.
+
+M3.D execution status (2026-02-23):
+1. Attempt #1 (blocked):
+   - execution id: `m3d_20260223T191145Z`
+   - result: `overall_pass=false`
+   - blockers:
+     - `M3D-B1` (handle contract false-positive due registry parser drift),
+     - `M3D-B3` (cascaded role-alignment failure from empty expected-role parse).
+   - evidence:
+     - `runs/dev_substrate/dev_full/m3/m3d_20260223T191145Z/`
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3d_20260223T191145Z/`
+2. Authoritative PASS run:
+   - execution id: `m3d_20260223T191338Z`
+   - local evidence root:
+     - `runs/dev_substrate/dev_full/m3/m3d_20260223T191338Z/`
+   - durable evidence mirror:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3d_20260223T191338Z/`
+3. PASS artifacts:
+   - `m3d_orchestrator_entry_readiness_snapshot.json`
+   - `m3d_run_lock_posture_snapshot.json`
+   - `m3d_command_receipts.json`
+   - `m3d_execution_summary.json`
+4. Closure results:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M3.D_READY`
+   - state machine resolved:
+     - `arn:aws:states:eu-west-2:230372904534:stateMachine:fraud-platform-dev-full-platform-run-v0`
+   - role alignment: `PASS`
+   - running execution count: `0`
+   - conflicting execution count: `0`
+5. Blocker remediation outcome:
+   - registry parser updated to accept handle lines with trailing materialization notes; runtime posture unchanged.
 
 ### M3.E Durable Run Evidence Publication
 Goal:
@@ -573,7 +675,7 @@ Any active `M3-B*` blocker prevents M3 closure.
 - [x] M3.A complete.
 - [x] M3.B complete.
 - [x] M3.C complete.
-- [ ] M3.D complete.
+- [x] M3.D complete.
 - [ ] M3.E complete.
 - [ ] M3.F complete.
 - [ ] M3.G complete.

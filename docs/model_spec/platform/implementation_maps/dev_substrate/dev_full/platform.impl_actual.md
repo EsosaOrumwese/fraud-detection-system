@@ -3559,6 +3559,158 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
 3. `docs/logbook/02-2026/2026-02-23.md`
 
+## Entry: 2026-02-23 19:08:10 +00:00 - M3.D planning expanded to execution-grade
+
+### What was added to M3.D
+1. Decision pins:
+   - orchestrator authority and state-machine identity law,
+   - runtime-scope env law (`REQUIRED_PLATFORM_RUN_ID_ENV_KEY`),
+   - run-lock identity law based on Step Functions execution posture,
+   - role-alignment law (`ROLE_STEP_FUNCTIONS_ORCHESTRATOR`),
+   - evidence safety law.
+2. Verification command catalog:
+   - handle-contract checks,
+   - state machine discovery/describe checks,
+   - role alignment check,
+   - run-lock conflict check (`RUNNING` executions),
+   - durable evidence publication check.
+3. Fail-closed blocker taxonomy:
+   - `M3D-B1..M3D-B7`.
+4. Evidence contract and closure rule:
+   - concrete artifacts for orchestrator-entry and run-lock posture plus execution summary.
+
+### Reasoning notes
+1. I intentionally avoided introducing new run-lock handles in M3.D to prevent authority churn; lock semantics are derived from orchestrator execution state for this phase.
+2. I explicitly separated reporter lock handles from P1 run-lock semantics to avoid cross-plane lock confusion.
+3. I kept M3.D planning-only in this step; no runtime mutations or executions were performed.
+
+### Plan synchronization
+1. Master plan now records that M3.D has been planning-expanded.
+2. M3.D remains execution-pending.
+
+## Entry: 2026-02-23 19:09:08 +00:00 - Master roadmap status consistency correction
+
+### Drift corrected
+1. Top roadmap table in `platform.build_plan.md` had stale status values:
+   - `M2` showed `IN_PROGRESS` despite closure evidence,
+   - `M3` showed `NOT_STARTED` despite `M3.A..M3.C` completion.
+
+### Correction applied
+1. Set `M2` status to `DONE`.
+2. Set `M3` status to `IN_PROGRESS`.
+
+### Reasoning
+1. Keeps roadmap summary aligned with detailed phase evidence and avoids planning/verification ambiguity.
+
+## Entry: 2026-02-23 19:10:29 +00:00 - M3.D execution start (pre-run decision lock)
+
+### Execution objective
+1. Close `M3.D` by proving:
+   - orchestrator-entry surface is reachable and queryable,
+   - Step Functions runtime role alignment matches pinned handle,
+   - run-lock posture is conflict-free for current `platform_run_id`,
+   - durable evidence artifacts are published and readable.
+
+### Inputs locked for this run
+1. Source run identity from `M3.C` PASS artifact:
+   - `runs/dev_substrate/dev_full/m3/m3c_20260223T185958Z/m3c_execution_summary.json`
+2. Required handles:
+   - `SFN_PLATFORM_RUN_ORCHESTRATOR_V0`
+   - `SR_READY_COMMIT_AUTHORITY`
+   - `SR_READY_COMMIT_STATE_MACHINE`
+   - `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`
+   - `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`
+   - `S3_EVIDENCE_BUCKET`
+
+### Decision details before command execution
+1. State-machine resolution strategy:
+   - resolve state machine by exact name from handle using `list-state-machines`,
+   - enforce single-match rule (0 or >1 is fail-closed).
+2. Run-lock conflict strategy:
+   - enumerate `RUNNING` executions for resolved state machine,
+   - check both execution name and execution input payload for current `platform_run_id`,
+   - any non-self conflict triggers `M3D-B4`.
+3. Role alignment strategy:
+   - compare `describe-state-machine.roleArn` with `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`.
+4. Fail-closed publication strategy:
+   - write local artifacts first, publish to S3 run-control prefix second,
+   - mark phase blocked if any upload fails.
+
+### Alternatives considered and rejected
+1. Lock posture based only on execution names:
+   - rejected as too weak when naming conventions drift.
+2. Lock posture based only on execution input:
+   - rejected because some executions may omit or mask input; name fallback needed.
+3. Skip role-alignment check if state machine exists:
+   - rejected; role drift is material for runtime authority and must block closure.
+
+## Entry: 2026-02-23 19:12:25 +00:00 - M3.D attempt #1 blocker analysis and remediation choice
+
+### Attempt outcome
+1. Executed M3.D under `m3d_20260223T191145Z`.
+2. Result: `overall_pass=false` with blockers:
+   - `M3D-B1` (required handle missing),
+   - `M3D-B3` (role alignment failure).
+
+### Evidence-led diagnosis
+1. Step Functions surface itself is healthy:
+   - state machine resolved and queryable,
+   - configured role from AWS is `arn:aws:iam::230372904534:role/fraud-platform-dev-full-stepfunctions-orchestrator`,
+   - no run-lock conflict (`RUNNING` count = 0).
+2. Blockers were caused by local parser drift:
+   - registry parser failed to extract `ROLE_STEP_FUNCTIONS_ORCHESTRATOR` when line had trailing materialization note text after closing backtick.
+   - this left expected role empty and triggered role-alignment failure.
+
+### Remediation decision
+1. Keep phase laws unchanged.
+2. Repair execution parser only:
+   - accept registry rows with trailing notes after the backticked handle assignment.
+3. Rerun M3.D with unchanged AWS/runtime posture checks.
+
+### Why this decision
+1. Runtime evidence indicates no infrastructure drift.
+2. Correct fix is verifier robustness, not policy or infrastructure mutation.
+3. Failed attempt artifacts are retained for audit traceability.
+
+## Entry: 2026-02-23 19:14:37 +00:00 - M3.D rerun closed green after parser remediation
+
+### Authoritative execution
+1. `m3d_execution_id`: `m3d_20260223T191338Z`
+2. Source identity surface:
+   - latest M3.C PASS artifact (`m3c_20260223T185958Z`)
+3. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3d_20260223T191338Z/`
+4. Durable evidence root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3d_20260223T191338Z/`
+
+### Execution results
+1. `overall_pass=true`, blockers empty, `next_gate=M3.D_READY`.
+2. Orchestrator-entry checks:
+   - state machine resolved by name and queryable,
+   - resolved ARN:
+     - `arn:aws:states:eu-west-2:230372904534:stateMachine:fraud-platform-dev-full-platform-run-v0`.
+3. Role alignment:
+   - configured role equals expected `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`.
+4. Run-lock posture:
+   - running executions: `0`,
+   - conflicting executions for current `platform_run_id`: `0`.
+
+### Evidence produced
+1. `m3d_orchestrator_entry_readiness_snapshot.json`
+2. `m3d_run_lock_posture_snapshot.json`
+3. `m3d_command_receipts.json`
+4. `m3d_execution_summary.json`
+
+### Plan/doc updates applied
+1. `platform.M3.build_plan.md`:
+   - M3.D DoDs checked complete,
+   - M3.D execution status appended (attempt #1 blocker + authoritative PASS),
+   - M3 completion checklist marks M3.D complete.
+2. `platform.build_plan.md`:
+   - M3 posture includes M3.D PASS evidence and blocker-remediation trail,
+   - M3 DoD anchor `run-scope identity checks pass` marked complete,
+   - M3 sub-phase progress marks M3.D complete.
+
 ## Entry: 2026-02-23 18:57:12 +00:00 - M3.C planning expanded to execution-grade
 
 ### What was added to M3.C
@@ -3692,3 +3844,33 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
    - M3 posture now includes M3.C PASS evidence and blocker remediation trail,
    - M3 DoD anchor `config digest committed` marked complete,
    - M3 sub-phase progress marks M3.C complete.
+
+## Entry: 2026-02-23 19:07:12 +00:00 - M3.D planning-start (orchestrator entry + run-lock identity)
+
+### Problem statement
+1. `M3.D` is still a placeholder and not execution-grade.
+2. We need explicit rules for orchestrator-entry validation and run-lock identity before `M3.E/M3.F`.
+3. Current handles pin orchestrator names and authority, but run-lock semantics are implicit.
+
+### Alternatives considered
+1. Introduce new dedicated run-lock handles now:
+   - rejected for this phase; adds authority churn while equivalent lock semantics can be derived from orchestrator execution state.
+2. Use reporter lock handles for run lock:
+   - rejected; reporter lock is Obs/Gov-specific and not equivalent to P1 orchestrator lock semantics.
+3. Pin M3.D run-lock identity on Step Functions execution posture:
+   - accepted.
+
+### Planning decision direction
+1. Orchestrator-entry checks will prove:
+   - `SFN_PLATFORM_RUN_ORCHESTRATOR_V0` exists and is queryable,
+   - runtime role alignment for `ROLE_STEP_FUNCTIONS_ORCHESTRATOR` is intact.
+2. Run-lock identity contract will be:
+   - lock key is logical (`platform_run_id`) and enforced by orchestrator execution state,
+   - fail-closed if any concurrent `RUNNING` execution exists for the same `platform_run_id`,
+   - `REQUIRED_PLATFORM_RUN_ID_ENV_KEY` must remain the runtime-scope anchor.
+3. M3.D evidence will include explicit command receipts and a lock-readiness snapshot.
+
+### Files to update in this planning step
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M3.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+3. `docs/logbook/02-2026/2026-02-23.md`

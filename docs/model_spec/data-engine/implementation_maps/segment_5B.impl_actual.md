@@ -8694,3 +8694,41 @@ Pre-run safety decisions:
 1) convert any 3B/5B output junction paths in the candidate run-id to local writable directories before reruns so no writes hit `runs/local_full_run-5`.
 2) clear candidate output roots for affected states before rerun to avoid immutability conflicts.
 3) keep canonical frozen scorecards untouched; candidate scoring writes to a separate reports lane.
+
+### Entry: 2026-02-23 19:16
+
+`P6.U1.C1` bounded upstream reopen execution (single-seed, seed `7`) completed with explicit reject decision.
+
+Problem encountered at start:
+1) `3B.S0` failed with `F4:E3B_S0_001_UPSTREAM_GATE_FAILED`.
+2) Root cause was not the candidate policy itself; it was upstream bundle integrity drift:
+   - `2A` validation bundle in the candidate run-id had stale/contaminated index-vs-files shape.
+3) This required upstream hygiene before candidate realism could be judged.
+
+Decision trail and fixes applied:
+1) Rebuilt `2A` lane on the same run-id:
+   - ran `2A.S4` then `2A.S5` to emit a clean seed-7 `validation_bundle_2A`.
+2) Reran full `3B` chain:
+   - `3B.S0->S5` completed; candidate `3B` outputs and validation were regenerated for run-id `65bd3b8fde7f467f8abaee6a5516ee75`.
+3) `5B.S0` then failed on upstream `2B` gate and sealed-input integrity.
+4) Opened minimal `2B` owner lane on same run-id:
+   - rebuilt `2B.S0`,
+   - rebuilt `2B.S1->S4` (seed-7 surfaces),
+   - rebuilt `2B.S7` and `2B.S8` (fresh digest-compatible `validation_bundle_2B`).
+5) With upstream repaired, reran `5B.S0`, `5B.S4`, `5B.S5` successfully.
+
+Candidate scoring artifacts (isolated lane):
+1) `runs/fix-data-engine/segment_5B/reports/p6u1_c1_65bd/segment5b_p1_realism_gateboard_65bd3b8fde7f467f8abaee6a5516ee75.json`
+2) `runs/fix-data-engine/segment_5B/reports/p6u1_c1_65bd/segment5b_p2_gateboard_65bd3b8fde7f467f8abaee6a5516ee75_p6u1_c1_65bd.json`
+3) `runs/fix-data-engine/segment_5B/reports/p6u1_c1_65bd/segment5b_p2_closure_65bd3b8fde7f467f8abaee6a5516ee75_p6u1_c1_65bd.json`
+
+Measured outcome:
+1) Hard rails remained green.
+2) `T6` improved by `-0.6103 pp` vs baseline (`66.0634%`), still B+ red.
+3) `T7` moved to `10.5238%` (B red; regression `+6.8196 pp` vs baseline).
+4) Scorer lane decision: `HOLD_P2_REOPEN`, phase grade `HOLD_REMEDIATE`.
+
+Final decision for this candidate:
+1) `U1.C1` rejected (`HOLD_U1_REJECTED`) due unacceptable `T7` regression.
+2) No multi-seed fanout for this candidate.
+3) Keep Segment `5B` frozen authority at robust `B` (`SEG5B_RETAIN_PASS_B`) until a different bounded upstream candidate is selected.

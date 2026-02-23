@@ -83,8 +83,8 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | --- | --- | --- | --- |
 | M0 | pre-P(-1) | Mobilization + authority lock | DONE |
 | M1 | P(-1) | Packaging readiness (image/provenance) | DONE |
-| M2 | P0 | Substrate readiness (core/streaming/runtime/data_ml/ops) | IN_PROGRESS |
-| M3 | P1 | Run pinning and orchestrator readiness | NOT_STARTED |
+| M2 | P0 | Substrate readiness (core/streaming/runtime/data_ml/ops) | DONE |
+| M3 | P1 | Run pinning and orchestrator readiness | IN_PROGRESS |
 | M4 | P2 | Spine runtime-lane readiness (managed-first) | NOT_STARTED |
 | M5 | P3-P4 | Oracle readiness + ingest preflight | NOT_STARTED |
 | M6 | P5-P7 | Control + Ingress closure | NOT_STARTED |
@@ -353,6 +353,7 @@ M3 planning posture:
 - `M3.A` has been expanded with command-level verification catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.B` has been expanded with deterministic run-id laws, collision retry policy, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.C` has been expanded with canonical payload/digest decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
+- `M3.D` has been expanded with orchestrator-entry/run-lock decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.A` execution is now closed (`PASS`):
   - `runs/dev_substrate/dev_full/m3/m3a_20260223T174307Z/m3a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
 - `M3.A` blocker remediation closed:
@@ -374,11 +375,19 @@ M3 planning posture:
   - failed attempt `m3c_20260223T185814Z` raised `M3C-B4` (digest profile mismatch) and is preserved as audit evidence.
 - M3.C durable mirror:
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3c_20260223T185958Z/`
+- `M3.D` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m3/m3d_20260223T191338Z/m3d_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - state machine resolution and role alignment both pass.
+  - run-lock conflict check: running=`0`, conflicts=`0`.
+- `M3.D` blocker remediation trail retained:
+  - failed attempt `m3d_20260223T191145Z` raised `M3D-B1/M3D-B3` from local parser drift; rerun closed without runtime changes.
+- M3.D durable mirror:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3d_20260223T191338Z/`
 
 DoD anchors:
 - [ ] run pin artifact committed.
 - [x] config digest committed.
-- [ ] run-scope identity checks pass.
+- [x] run-scope identity checks pass.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M3.build_plan.md`
@@ -387,7 +396,7 @@ M3 sub-phase progress:
 - [x] `M3.A` authority and handle closure matrix.
 - [x] `M3.B` deterministic run identity generation.
 - [x] `M3.C` canonical payload and digest reproducibility.
-- [ ] `M3.D` orchestrator entry and lock identity readiness.
+- [x] `M3.D` orchestrator entry and lock identity readiness.
 - [ ] `M3.E` durable run evidence publication.
 - [ ] `M3.F` runtime scope export and M4 handoff pack.
 - [ ] `M3.G` rerun/reset discipline.
