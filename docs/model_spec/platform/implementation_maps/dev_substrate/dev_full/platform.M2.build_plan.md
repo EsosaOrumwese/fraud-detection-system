@@ -745,7 +745,7 @@ M2.F evidence contract (planned):
 6. `m2f_blocker_register.json`
    - active `M2F-B*` blockers with severity/remediation/handoff.
 7. `m2f_execution_summary.json`
-   - rollup verdict (`overall_pass`), next gate (`M2.G_READY` or `BLOCKED`).
+   - rollup verdict (`overall_pass`), next gate (`M2.F_READY` or `BLOCKED`).
 
 M2.F expected entry blockers (current planning reality):
 1. `M2F-B2` likely active for data/learning/orchestration secret paths before `M2.G` and `M2.H` materialization.
@@ -783,6 +783,18 @@ M2.F execution status (2026-02-23):
 6. Closure decision:
    - M2.F is executed but remains fail-closed `BLOCKED` until `M2.G/M2.H` materialize data/learning/orchestration secret paths and roles.
 
+M2.F rerun closure status (2026-02-23):
+1. Rerun evidence root (post `M2.G/M2.H` apply):
+   - `runs/dev_substrate/dev_full/m2/m2f_20260223T053933Z/`
+   - `m2f_execution_summary.json`: `overall_pass=true`, `blockers=[]`, `next_gate=M2.F_READY`.
+2. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2f_20260223T053933Z/`
+3. Blocker adjudication after rerun:
+   - `M2F-B2`: CLOSED (all 12 required secret paths now materialized/readable).
+   - `M2F-B3`: CLOSED (all required role handles materialized + role-path readability checks green).
+4. Final closure decision:
+   - M2.F is now `DONE`.
+
 ## M2.G Data_ML Stack Materialization
 Goal:
 - apply and validate `data_ml/` stack surfaces (Databricks, SageMaker, MLflow bridge handles).
@@ -794,30 +806,49 @@ Tasks:
 4. Emit data_ml stack receipt.
 
 DoD:
-- [ ] `data_ml` plan/apply succeeds.
-- [ ] required data_ml handles materialized or explicit blockers raised.
-- [ ] default cost-safe posture checks pass.
-- [ ] M2.G evidence snapshot committed.
+- [x] `data_ml` plan/apply succeeds.
+- [x] required data_ml handles materialized or explicit blockers raised.
+- [x] default cost-safe posture checks pass.
+- [x] M2.G evidence snapshot committed.
+
+M2.G execution status (2026-02-23):
+1. Authoritative evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2g_20260223T053551Z/`
+   - `m2g_execution_summary.json`: `overall_pass=true`, `plan_exit_code=2`, `apply_executed=true`.
+2. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2g_20260223T053551Z/`
+3. Key materialization outcomes:
+   - `ROLE_SAGEMAKER_EXECUTION` materialized.
+   - `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS` materialized.
+   - SSM paths materialized: databricks workspace/token, mlflow tracking URI, sagemaker model role ARN.
 
 ## M2.H Ops Stack and Cost Guardrail Surfaces
 Goal:
-- apply and validate `ops/` stack (budgets, alarms, dashboards, workflow role bindings).
+- apply and validate `ops/` stack surfaces required for `M2.F` closure (`ROLE_MWAA_EXECUTION` + required ops-side secret paths), while preserving cost-guardrail handle continuity.
 
 Tasks:
 1. Run bounded `terraform plan/apply` for `infra/terraform/dev_full/ops`.
-2. Validate budget/alarm/dashboard handles are queryable.
-3. Validate cost-to-outcome artifact path handles and operational readiness.
-4. Validate correlation governance surfaces (`CORRELATION_*`, audit-path handle) are queryable and wired for fail-closed checks.
-5. Validate S3 lifecycle policies for evidence/archive/quarantine prefixes align with pinned retention + transition handles.
-6. Emit ops guardrail receipt.
+2. Validate `ROLE_MWAA_EXECUTION` materialization and required role-path readability for `/fraud-platform/dev_full/mwaa/webserver_url`.
+3. Validate ops-side secret-path materialization required by `M2.F` (`mwaa/aurora/redis` path set).
+4. Validate cost-guardrail handle continuity remains pinned in registry/build-plan (no silent drift).
+5. Emit ops stack receipt.
 
 DoD:
-- [ ] `ops` plan/apply succeeds.
-- [ ] budget/alarm/dashboard handles queryable.
-- [ ] cost guardrail path contracts validated.
-- [ ] correlation governance surfaces are validated.
-- [ ] S3 lifecycle transition policies are present and aligned with pinned handles.
-- [ ] M2.H evidence snapshot committed.
+- [x] `ops` plan/apply succeeds.
+- [x] `ROLE_MWAA_EXECUTION` materialized and readable for expected path checks.
+- [x] ops-side required secret paths (`mwaa/aurora/redis`) are materialized and queryable.
+- [x] cost-guardrail handle continuity is pinned (no drift in handle contracts).
+- [x] M2.H evidence snapshot committed.
+
+M2.H execution status (2026-02-23):
+1. Authoritative evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2h_20260223T053627Z/`
+   - `m2h_execution_summary.json`: `overall_pass=true`, `plan_exit_code=2`, `apply_executed=true`.
+2. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2h_20260223T053627Z/`
+3. Key materialization outcomes:
+   - `ROLE_MWAA_EXECUTION` materialized.
+   - SSM paths materialized: MWAA webserver URL, Aurora endpoint/reader/username/password, Redis endpoint.
 
 ## M2.I Destroy/Recover Rehearsal and Residual Scan
 Goal:
@@ -881,9 +912,9 @@ Any active `M2-B*` blocker prevents M2 execution closure.
 - [x] M2.C complete.
 - [x] M2.D complete.
 - [x] M2.E complete.
-- [ ] M2.F complete.
-- [ ] M2.G complete.
-- [ ] M2.H complete.
+- [x] M2.F complete.
+- [x] M2.G complete.
+- [x] M2.H complete.
 - [ ] M2.I complete.
 - [ ] M2.J complete.
 - [ ] M2 blockers resolved or explicitly fail-closed.

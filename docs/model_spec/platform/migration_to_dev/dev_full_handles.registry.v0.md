@@ -578,9 +578,9 @@ Allowed tokens in pattern handles:
 * `ROLE_APIGW_IG_INVOKE = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-apigw-ig-invoke"` (materialized in M2.E)
 * `ROLE_DDB_IG_IDEMPOTENCY_RW = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-ddb-ig-idempotency-rw"` (materialized in M2.E)
 * `ROLE_STEP_FUNCTIONS_ORCHESTRATOR = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-stepfunctions-orchestrator"` (materialized in M2.E)
-* `ROLE_MWAA_EXECUTION = "TO_PIN"`
-* `ROLE_SAGEMAKER_EXECUTION = "TO_PIN"`
-* `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS = "TO_PIN"`
+* `ROLE_MWAA_EXECUTION = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-mwaa-execution"` (materialized in M2.H)
+* `ROLE_SAGEMAKER_EXECUTION = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-sagemaker-execution"` (materialized in M2.G)
+* `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-databricks-cross-account-access"` (materialized in M2.G)
 
 ### 11.2 Additional runtime role handles
 
@@ -683,11 +683,8 @@ Allowed tokens in pattern handles:
 These are intentionally explicit and must be pinned before first `dev-full-up` execution.
 
 1. `ROLE_TERRAFORM_APPLY_DEV_FULL`
-2. `ROLE_MWAA_EXECUTION`
-3. `ROLE_SAGEMAKER_EXECUTION`
-4. `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`
-5. `DBX_WORKSPACE_URL`
-6. `AWS_BUDGET_NOTIFICATION_EMAIL`
+2. `DBX_WORKSPACE_URL`
+3. `AWS_BUDGET_NOTIFICATION_EMAIL`
 
 ---
 

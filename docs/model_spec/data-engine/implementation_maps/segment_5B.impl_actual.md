@@ -8377,3 +8377,112 @@ Artifacts:
 1) active run root `runs/fix-data-engine/segment_5B` currently contains only the retained four-seed run-id set plus reports.
 2) no superseded run-id folder exists for deletion in this lane.
 3) prune step is therefore a no-op and keep-set remains unchanged.
+
+### Entry: 2026-02-23 05:32
+
+`P4.R1` root-cause confirmation and `P4.R2` implementation design lock.
+
+Confirmed blocker from executed P4 artifacts:
+1) seeds `7/101` fail only on `S5` with `DST_WINDOW_INSUFFICIENT_POWER`.
+2) per-seed `T1/T2/T3` mismatch metrics are zero; count/routing rails remained intact.
+3) therefore blocker is validation sampling power, not world-generation realism collapse.
+
+Code-path diagnosis in `S5`:
+1) `_sample_rows` takes first batch from sampled files and stops once target rows reached.
+2) current caller geometry (`sample_target=200k`, `rows_per_file~10k`) means arrival sample often saturates after ~20 files.
+3) this narrow file footprint can miss enough DST-material windows on some seeds, causing false fail-closed on power gate.
+
+Alternatives considered:
+1) lower DST material-power thresholds in policy.
+   - rejected for `P4.R2`: weakens authority gate rather than fixing evidence quality.
+2) inflate sample target dramatically (e.g., >1M rows).
+   - rejected for now: high Python dict memory pressure and avoidable runtime overhead.
+3) deterministic breadth-first file sampling at same target size (chosen).
+   - accepted: improves DST-window coverage while preserving deterministic behavior and bounded memory.
+
+Implementation decision:
+1) patch `_sample_rows` to distribute `sample_target` across a broad deterministic file set (instead of concentrating on ~20 files).
+2) keep total sample volume roughly unchanged (target still policy-driven), but increase file coverage.
+3) no policy/schema threshold edits in this lane.
+
+### Entry: 2026-02-23 05:36
+
+`P4.R3` execution interruption diagnosis and recovery decision.
+
+Observed failure after `S5` rerun attempt:
+1) all four seeds returned `S5_INFRASTRUCTURE_IO_ERROR`.
+2) run-report `error_context` shows nested `F4:S5_OUTPUT_CONFLICT` at phase `publish`.
+3) root cause: `S5` enforces immutable-by-digest bundle semantics for a run-id; after `P4.R2` sampling change, bundle digest changed, so in-place overwrite is vetoed.
+
+Recovery alternatives considered:
+1) create fresh run-ids and rerun full `S2->S5` for every seed.
+   - rejected: unnecessary runtime/storage expansion for a validation-only code change.
+2) patch `S5` to allow overwrite.
+   - rejected: violates current idempotence/immutability rail.
+3) archive prior validation bundle per run-id and rerun `S5` (chosen).
+   - accepted: preserves immutability trail and allows new deterministic witness under same run lineage.
+
+Execution recovery plan:
+1) move existing `data/layer2/5B/validation/manifest_fingerprint=<mf>` into `_failed/.../attempt=<ts>` for each retained run-id.
+2) rerun `segment5b-s5` for seeds `{7,101,42,202}`.
+3) continue `P4.R4` only if reruns complete without output-conflict errors.
+
+### Entry: 2026-02-23 05:34
+
+`P4.R2` implementation applied: broadened deterministic arrival sampling coverage in `S5`.
+
+Code change summary:
+1) file: `packages/engine/src/engine/layers/l2/seg_5B/s5_validation_bundle/runner.py`.
+2) function: `_sample_rows`.
+3) behavior shift:
+   - before: sample concentrated quickly into ~20 files due high `rows_per_file` and early stop.
+   - after: sample target is spread across a broad deterministic file set using:
+     - minimum rows-per-file floor for file-count planning,
+     - effective per-file row cap derived from `sample_target / sampled_file_count`.
+4) total sample volume remains bounded by existing `sample_target` policy path (no threshold relax).
+
+Expected effect:
+1) higher DST-window exposure/material support across seeds at same sample volume.
+2) reduced false fail-closed outcomes from `DST_WINDOW_INSUFFICIENT_POWER`.
+
+### Entry: 2026-02-23 05:36
+
+`P4.R3` first rerun attempt failed with output immutability conflict; recovery executed.
+
+Failure details:
+1) rerunning `S5` on existing run-ids after code change produced `S5_OUTPUT_CONFLICT` during publish.
+2) this was wrapped as `S5_INFRASTRUCTURE_IO_ERROR` in final state row due generic exception wrapper.
+3) root cause is expected idempotence behavior: existing bundle digest mismatched new deterministic output.
+
+Recovery executed:
+1) archived existing validation bundles into `_failed/.../attempt=<timestamp>` per run-id.
+2) reran `S5` for seeds `{7,101,42,202}`.
+3) second rerun completed `PASS` for all four seeds.
+
+Artifacts:
+1) archive receipt:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p4r3_bundle_archive_receipt_20260223T053613Z.json`
+2) successful rerun receipt:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p4r3_s5_rerun_receipts_retry2_20260223T053726Z.json`
+
+### Entry: 2026-02-23 05:39
+
+`P4.R4` and `P4.R5` closed.
+
+Execution outcomes:
+1) per-seed rescoring rerun (`P1` + `P2`) completed for seeds `{42,7,101,202}`.
+2) consolidated certifier rerun completed:
+   - `tools/score_segment5b_p4_certification.py`.
+3) final certification decision moved from hold to `PASS_B_ROBUST`.
+
+Post-reopen closure posture:
+1) hard rails: pass on all seeds.
+2) `S5` status: pass on all seeds.
+3) cross-seed stability (`T10`): `BPLUS` class (`overall_cv=0.0086795613`).
+4) `T6/T7`: remain B-pass / B+-stretch-fail (expected), so certified class remains robust `B`.
+
+Freeze/prune closure:
+1) freeze pointer emitted:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p4r5_freeze_pointer_20260223T053940Z.json`
+2) run-id prune remained no-op (only retained four-seed set exists in run root).
+3) active next step moved to `P5` in build plan.

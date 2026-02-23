@@ -546,18 +546,35 @@ def _sample_rows(
 ) -> list[dict]:
     if sample_target <= 0 or not paths:
         return []
-    max_files = max(1, min(len(paths), max(1, sample_target // max(1, rows_per_file))))
+    # Keep sample volume bounded but spread across a broad deterministic file set.
+    # This improves DST-window support robustness without inflating memory/runtime.
+    min_rows_per_file = 128
+    max_files = max(1, min(len(paths), max(1, sample_target // min_rows_per_file)))
     sample_paths = _sample_paths(paths, max_files)
+    effective_rows_per_file = max(
+        1,
+        min(
+            max(1, int(rows_per_file)),
+            (int(sample_target) + len(sample_paths) - 1) // len(sample_paths),
+        ),
+    )
+    logger.info(
+        "S5: sample %s plan target=%d files=%d rows_per_file=%d",
+        label,
+        int(sample_target),
+        len(sample_paths),
+        int(effective_rows_per_file),
+    )
     tracker = _ProgressTracker(len(sample_paths), logger, f"S5: sample {label} files")
     rows: list[dict] = []
     for path in sample_paths:
         if pq is not None:
             parquet = pq.ParquetFile(path)
-            for batch in parquet.iter_batches(batch_size=rows_per_file, columns=columns):
+            for batch in parquet.iter_batches(batch_size=effective_rows_per_file, columns=columns):
                 rows.extend(pl.from_arrow(batch).iter_rows(named=True))
                 break
         else:
-            rows.extend(pl.read_parquet(path, columns=columns).head(rows_per_file).iter_rows(named=True))
+            rows.extend(pl.read_parquet(path, columns=columns).head(effective_rows_per_file).iter_rows(named=True))
         tracker.update(1)
         if len(rows) >= sample_target:
             break

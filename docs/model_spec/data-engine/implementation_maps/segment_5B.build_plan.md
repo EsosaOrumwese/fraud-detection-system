@@ -2037,7 +2037,7 @@ Scope:
 - source authority remains frozen upstream artifacts; no mutation under `runs/local_full_run-5`.
 
 Definition of done:
-- [ ] all hard gates pass on `{42,7,101,202}`.
+- [x] all hard gates pass on `{42,7,101,202}`.
 - [x] B+ decision is explicit (`PASS_BPLUS_ROBUST` or `PASS_B`).
 - [x] cross-seed CV gate result is recorded and archived.
 
@@ -2162,20 +2162,23 @@ Definition of done:
 - [x] active next step updated (`UNLOCK_P5` or `HOLD_P4_REMEDIATE`).
 
 P4 closure snapshot (2026-02-23):
-- decision: `HOLD_P4_REMEDIATE`.
-- veto reason: `S5` status is `FAIL` for seeds `7` and `101` (DST window material-power gate).
-- cross-seed stability (`T10`) is strongly stable and non-blocking (`overall_cv=0.00868`, class=`BPLUS`).
-- runtime posture for `S4+S5` stays within P4 budget on all seeds (`<=720s`).
+- pre-reopen decision: `HOLD_P4_REMEDIATE` due `S5` FAIL on seeds `7/101` (DST material-power gate).
+- reopen lane executed `P4.R1 -> P4.R5` with S5 sampling robustness fix (`S5` validator lane only; no policy threshold relax).
+- final decision after reopen: `PASS_B_ROBUST`.
+- cross-seed stability (`T10`) remains strongly stable and non-blocking (`overall_cv=0.00868`, class=`BPLUS`).
+- runtime posture for `S4+S5` remains within P4 budget on all seeds (`<=720s`).
 - retained run-id set pinned for reopen lane:
   - `6ac88fc0d3364aecaf564b17ebad354e` (seed 42)
   - `65bd3b8fde7f467f8abaee6a5516ee75` (seed 7)
   - `c9011d0081db4e479336f3083c38dd30` (seed 101)
   - `d9a6aa2f64db4c9f9ec7ffff5c79f813` (seed 202)
 - closure artifacts:
-  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_state_runtime_receipts_20260223T052315Z.json`
-  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_seed_gateboard_20260223T052239Z.json`
-  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_t10_stability_20260223T052239Z.json`
-  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_closure_20260223T052239Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4r1_root_cause_20260223T053940Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4r3_s5_rerun_receipts_retry2_20260223T053726Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_seed_gateboard_20260223T053919Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_t10_stability_20260223T053919Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_closure_20260223T053919Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4r5_freeze_pointer_20260223T053940Z.json`
 
 ### P5 - Freeze, handoff, and prune closure
 Goal:
@@ -2215,5 +2218,5 @@ Definition of done:
 13. `P2.U2.3` branch closure is recorded as `HOLD_P2_UPSTREAM_REOPEN`.
 14. `P2.U3` is closed with `KEEP_u3_1_c1` and lane decision `UNLOCK_P3`.
 15. `P3` is closed (`P3.1 -> P3.5`) with decision `UNLOCK_P4`.
-16. `P4` is executed end-to-end (`P4.1 -> P4.6`) with seed-panel closure artifacts and explicit decision `HOLD_P4_REMEDIATE`.
-17. Active step: `P4 reopen` (resolve `S5` DST material-power lane for seeds `7` and `101` while preserving frozen rails).
+16. `P4` is executed end-to-end (`P4.1 -> P4.6`) and reopened via `P4.R1 -> P4.R5`; final decision is `PASS_B_ROBUST`.
+17. Active step: `P5` freeze/handoff/prune closure.

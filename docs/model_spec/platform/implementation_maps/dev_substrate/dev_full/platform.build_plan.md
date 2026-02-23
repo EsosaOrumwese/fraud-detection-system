@@ -1,6 +1,6 @@
 # Dev Substrate Build Plan (dev_full)
 _Track: dev_min certified baseline -> dev_full full-platform managed substrate_
-_Last updated: 2026-02-22_
+_Last updated: 2026-02-23_
 
 ## 0) Purpose
 This is the active execution plan for building `dev_full` from the certified `dev_min` baseline into a full-platform managed stack with:
@@ -55,6 +55,7 @@ Program is complete only when all are true:
 - No phase advancement without required evidence artifacts.
 - No spend-only progress: phase spend without material outcome is blocked.
 - Production-pattern law is binding: managed-service-first, no local/toy substitutes for pinned lanes without explicit authority repin.
+- Law reference: `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md` Section `7.6` is mandatory for all `dev_full` phase decisions and closures.
 
 ## 5) Progressive Elaboration Method
 Rules:
@@ -292,13 +293,19 @@ M2 planning posture:
 - supplemental live API probe evidence was added after lambda path-normalization reconcile:
   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_api_edge_live_probe_snapshot.json` (health `200`, ingest `202`).
 - runtime-critical handles were materialized and pinned from M2.E outputs (`APIGW_IG_API_ID`, `EKS_CLUSTER_ARN`, runtime role-arn set).
-- `M2.F` is now expanded to execution-grade planning (`M2F-B*`, secret inventory/materialization/readability/leakage contracts).
-- expected entry blockers for `M2.F` are explicit where dependencies remain unmaterialized (`M2.G/M2.H` role/secret surfaces).
-- `M2.F` execution has been run and remains fail-closed `BLOCKED` after blocker reduction:
-  - attempt-2: `runs/dev_substrate/dev_full/m2/m2f_20260223T052223Z/m2f_execution_summary.json`
-  - active blockers: `M2F-B2` (missing secret materialization), `M2F-B3` (unresolved MWAA/SageMaker/Databricks roles).
-- next dependency path is explicit: execute `M2.G` + `M2.H`, then rerun `M2.F` for closure.
-- M2 phase execution remains active for `M2.F` onward.
+- `M2.F` execution-grade lane remains the secret/role contract authority (`M2F-B*` taxonomy and evidence schema).
+- `M2.G` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m2/m2g_20260223T053551Z/m2g_execution_summary.json` (`overall_pass=true`).
+- `M2.H` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m2/m2h_20260223T053627Z/m2h_execution_summary.json` (`overall_pass=true`).
+- `M2.F` rerun after `M2.G/M2.H` is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m2/m2f_20260223T053933Z/m2f_execution_summary.json`
+  - result: `overall_pass=true`, blockers=`0`, `next_gate=M2.F_READY`.
+- durable mirrors:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2g_20260223T053551Z/`
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2h_20260223T053627Z/`
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2f_20260223T053933Z/`
+- M2 phase execution remains active for `M2.I` onward.
 
 DoD anchors:
 - [ ] all five stacks apply cleanly.
