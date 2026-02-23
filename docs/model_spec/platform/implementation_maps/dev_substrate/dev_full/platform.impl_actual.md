@@ -2351,3 +2351,194 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 ### Result
 1. M2.E is now execution-ready from a planning perspective (still blocked by declared entry blockers).
 2. Phase sequencing remains clean: M2.E runtime closure first, then M2.F/M2.G/M2.H for remaining surfaces.
+
+## Entry: 2026-02-23 04:28:21 +00:00 - M2.E execution design lock before runtime Terraform edits
+
+### Objective
+1. Clear M2E-B1/B3/B4 by materializing a concrete infra/terraform/dev_full/runtime stack and executing full init/validate/plan/apply/output closure.
+
+### Design alternatives considered
+1. Placeholder-only runtime stack with outputs faking handle values.
+   - Rejected: would violate fail-closed posture and produce non-operational runtime surfaces.
+2. Over-broad runtime stack including all Section 8.6 non-runtime lanes (MWAA/SageMaker/Databricks) in M2.E.
+   - Rejected: phase-boundary drift; these belong to data_ml/ops lanes.
+3. Runtime-critical managed-first stack in M2.E:
+   - API edge (APIGW + Lambda + DDB) materialized,
+   - runtime-critical roles materialized,
+   - Step Functions orchestrator state machine materialized,
+   - runtime-path governance handle-contract evidence emitted,
+   - non-runtime roles explicitly handed off to M2.G/M2.H.
+   - Selected.
+
+### Chosen runtime resources (M2.E scope)
+1. IAM roles:
+   - ROLE_FLINK_EXECUTION
+   - ROLE_LAMBDA_IG_EXECUTION
+   - ROLE_APIGW_IG_INVOKE
+   - ROLE_DDB_IG_IDEMPOTENCY_RW
+   - ROLE_STEP_FUNCTIONS_ORCHESTRATOR
+2. API edge:
+   - API Gateway HTTP API,
+   - Lambda handler,
+   - DynamoDB idempotency table,
+   - route bindings for /v1/ops/health and /v1/ingest/push.
+3. Orchestration runtime anchor:
+   - SFN_PLATFORM_RUN_ORCHESTRATOR_V0 (minimal pass-state machine for route materialization).
+4. Secret path surface:
+   - /fraud-platform/dev_full/ig/api_key materialized as SecureString (non-plaintext evidence policy preserved).
+5. Runtime-path governance evidence-ready contract outputs:
+   - PHASE_RUNTIME_PATH_* values surfaced in runtime outputs for conformance checks.
+
+### Dependency strategy
+1. Reuse core remote state for network baseline and tags where needed.
+2. Keep runtime stack self-contained; avoid introducing cross-stack circular dependencies.
+3. Use archive provider to produce deterministic Lambda deployment zip from local source file.
+
+### Risks and mitigation
+1. API Gateway integration misconfiguration risk:
+   - use Lambda proxy integration with explicit permissions and deterministic route keys.
+2. Step Functions role/state machine creation drift risk:
+   - materialize simple pass-only definition to close route handle with minimal blast radius.
+3. Secret leakage risk:
+   - evidence artifacts store only path names/arns and command exit codes; no secret values.
+
+## Entry: 2026-02-23 04:30:54 +00:00 - M2.E implementation checkpoint (runtime Terraform authored, pre-validate)
+
+### What was implemented
+1. Materialized runtime Terraform surfaces:
+   - infra/terraform/dev_full/runtime/main.tf
+   - infra/terraform/dev_full/runtime/variables.tf
+   - infra/terraform/dev_full/runtime/outputs.tf
+   - infra/terraform/dev_full/runtime/versions.tf
+   - infra/terraform/dev_full/runtime/lambda/ig_handler.py
+   - infra/terraform/dev_full/runtime/README.md
+2. Implemented resources for M2.E scope:
+   - runtime-critical IAM roles,
+   - API Gateway + Lambda + DDB idempotency table,
+   - Step Functions orchestrator state-machine surface,
+   - EKS cluster ARN surface,
+   - runtime-path governance contract outputs.
+
+### Immediate corrections before command execution
+1. Removed duplicate Terraform backend declaration from main.tf to avoid backend schema conflict with versions.tf.
+2. Corrected EKS security_group_ids conditional to return list shape in both branches.
+3. Updated Lambda zip output path to a deterministic module-local file (.ig_handler.zip) to avoid missing directory issues.
+
+### Next execution lane
+1. Run terraform fmt, init, validate, plan, apply, output for runtime stack.
+2. If provider/runtime constraints fail, classify as M2E-B2 and remediate iteratively.
+## Entry: 2026-02-23 04:32:48 +00:00 - M2.E command-lane execution start (live evidence run-id pinned)
+
+### Decision checkpoint
+1. I am executing M2.E with one bounded evidence root so blocker adjudication remains deterministic:
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/`.
+2. I will execute strict fail-closed order: `fmt -> init -> validate -> plan -> apply -> output`.
+3. I am treating any command failure as active blocker `M2E-B2` until proven to be configuration drift or missing handle surface.
+
+### Alternatives considered before execution
+1. Skip `fmt` and go straight to `init/validate`.
+   - Rejected: formatting drift can hide real diffs and increases avoidable review noise.
+2. Run `apply` directly and infer plan from state changes.
+   - Rejected: violates phase evidence contract requiring explicit plan/apply receipts.
+3. Run full command sequence with per-command logging and blocker classification.
+   - Selected.
+
+### Next actions now
+1. Capture command receipts (`terraform_fmt.log`, `terraform_init.log`, `terraform_validate.log`, `terraform_plan.log`, `terraform_apply.log`, `terraform_output.json`).
+2. Build `m2e_*` evidence snapshots from receipts.
+3. Mirror evidence to S3 and close/hold blockers based on measured results.
+## Entry: 2026-02-23 04:43:26 +00:00 - M2.E command-lane issue triage (`terraform init` backend-config flag)
+
+### Observed issue
+1. `terraform init -reconfigure -backend-config=backend.hcl.example` repeatedly returned `Too many command line arguments. Did you mean to use -chdir?` in this shell context.
+2. `terraform init -reconfigure` without backend values prompted for interactive backend bucket input and failed non-interactively.
+
+### Decision path
+1. Treat as execution-command surface defect, not substrate drift, because direct `terraform init` succeeded and backend itself is healthy.
+2. Replace file-based backend-config invocation with explicit inline backend keys:
+   - `bucket`, `key`, `region`, `dynamodb_table`, `encrypt`.
+3. Keep fail-closed posture by preserving failed-init receipts in evidence and documenting the remediation command used.
+
+### Result
+1. `terraform init -reconfigure` with inline backend-config arguments succeeded.
+2. Continued through `validate`, `plan` (`detailed_exit_code=2`), `apply` (`exit=0`), and `output` (`exit=0`).
+3. Runtime stack materialized with 21 resources added and all M2.E runtime-critical output handles present.
+## Entry: 2026-02-23 04:49:12 +00:00 - M2.E closure adjudication and authority reconciliation
+
+### Verification and blocker adjudication approach
+1. I generated evidence directly from runtime command receipts plus managed-surface API probes instead of relying on Terraform outputs alone.
+2. I validated all runtime-critical surfaces independently:
+   - API Gateway (`get-api`, `get-routes`),
+   - Lambda (`get-function`),
+   - DynamoDB (`describe-table`),
+   - SSM parameter metadata (`get-parameter` without value exposure),
+   - Step Functions (`describe-state-machine`),
+   - EKS (`describe-cluster`),
+   - IAM roles (`get-role` for each required runtime-critical role).
+3. I built the full M2.E evidence contract artifacts (`m2e_*`) and computed blocker status from those probes.
+
+### Runtime/cost/performance observations
+1. `terraform apply` runtime was dominated by EKS control-plane creation (~8m35s); this is expected for first materialization and was recorded as measured execution evidence.
+2. Non-EKS runtime surfaces (APIGW/Lambda/DDB/IAM/SFN/SSM) converged quickly and did not introduce blocker churn.
+
+### Closure result
+1. `m2e_execution_summary.json` is `overall_pass=true`, `blocker_count=0`, `next_gate=M2.F_READY`.
+2. All M2.E blockers `M2E-B1..M2E-B7` are closed with explicit evidence.
+3. Evidence is mirrored to durable storage:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2e_20260223T043248Z/`.
+
+### Authority updates completed after closure
+1. M2.E marked complete in deep/master build plans.
+2. `dev_full_handles.registry.v0.md` updated with materialized values for:
+   - `EKS_CLUSTER_ARN`, `APIGW_IG_API_ID`,
+   - `ROLE_FLINK_EXECUTION`, `ROLE_LAMBDA_IG_EXECUTION`, `ROLE_APIGW_IG_INVOKE`, `ROLE_DDB_IG_IDEMPOTENCY_RW`, `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`.
+3. Section 14 open-materialization list reduced to unresolved handles only (`ROLE_TERRAFORM_APPLY_DEV_FULL`, `ROLE_MWAA_EXECUTION`, `ROLE_SAGEMAKER_EXECUTION`, `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`, `DBX_WORKSPACE_URL`, `AWS_BUDGET_NOTIFICATION_EMAIL`).
+## Entry: 2026-02-23 04:53:44 +00:00 - Runtime artifact hygiene hardening after M2.E closure
+
+### Problem
+1. `archive_file` output path in runtime stack initially wrote `infra/terraform/dev_full/runtime/.ig_handler.zip`, leaving an untracked build artifact in repo root.
+
+### Decision
+1. Keep deterministic local archive build but move artifact under Terraform work directory:
+   - `output_path = "${path.module}/.terraform/ig_handler.zip"`.
+2. Remove the stray top-level zip artifact from workspace and re-run `terraform fmt` + `terraform validate` to ensure no config drift.
+
+### Result
+1. Runtime config remains valid (`terraform validate` pass).
+2. Build artifact hygiene aligned with no-repo-clutter posture.
+## Entry: 2026-02-23 04:57:31 +00:00 - M2.E supplemental runtime drift fix (API stage-path normalization)
+
+### Drift observed during live endpoint probe
+1. Managed API edge resources were queryable, but direct endpoint invocation returned `route_not_found`.
+2. Root cause: Lambda handler matched only raw paths `/v1/ops/health` and `/v1/ingest/push`, while HTTP API staged invocation passed path with stage prefix (`/v1/v1/...`).
+
+### Decision
+1. Apply minimal handler normalization at the boundary:
+   - remove leading `/{stage}` from incoming path when present,
+   - preserve existing route checks and response contract.
+2. Re-apply runtime stack to publish updated Lambda code and verify live probes.
+3. Record this as supplemental M2.E remediation evidence (not a new phase lane).
+## Entry: 2026-02-23 05:00:21 +00:00 - Supplemental reconcile result: live API probe now green
+
+### Execution
+1. Ran bounded reconcile plan/apply after handler normalization:
+   - `terraform_plan_reconcile_receipt.json` (`detailed_exit_code=2`),
+   - `terraform_apply_reconcile_receipt.json` (`exit_code=0`, lambda update only).
+2. Re-ran live endpoint probes with stage-aware path pattern:
+   - `GET /v1/v1/ops/health` -> `200`
+   - `POST /v1/v1/ingest/push` -> `202`
+3. Captured `m2e_api_edge_live_probe_snapshot.json` and mirrored to durable evidence.
+
+### Decision and carry-forward note
+1. M2.E remains closed because runtime surfaces are materialized and now live-probeable.
+2. A path-contract ambiguity is now explicit for downstream pinning:
+   - current stage (`v1`) + route keys (`/v1/...`) produces effective external path `/v1/v1/...`.
+   - this is documented as a downstream path-contract normalization decision to avoid silent drift in later runtime lanes.
+## Entry: 2026-02-23 05:03:15 +00:00 - Post-reconcile drift check
+
+### Check
+1. Executed `terraform plan -input=false -detailed-exitcode` in `infra/terraform/dev_full/runtime` after reconcile.
+
+### Result
+1. Plan returned `No changes` (effective detailed-exitcode `0`), confirming runtime state matches configuration after supplemental lambda patch.
+2. This closes immediate post-remediation drift risk for M2.E runtime stack.

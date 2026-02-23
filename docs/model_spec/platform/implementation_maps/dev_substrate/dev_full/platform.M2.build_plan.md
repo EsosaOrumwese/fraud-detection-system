@@ -516,11 +516,11 @@ Tasks:
 5. Emit role conformance matrix and runtime stack receipt.
 
 DoD:
-- [ ] `runtime` plan/apply succeeds.
-- [ ] required role handles are materialized or explicit blockers raised.
-- [ ] managed runtime identity baseline checks pass (API edge + selective EKS).
-- [ ] runtime-path governance handles are materialized and conformance-checked.
-- [ ] M2.E evidence snapshot committed.
+- [x] `runtime` plan/apply succeeds.
+- [x] required role handles are materialized or explicit blockers raised.
+- [x] managed runtime identity baseline checks pass (API edge + selective EKS).
+- [x] runtime-path governance handles are materialized and conformance-checked.
+- [x] M2.E evidence snapshot committed.
 
 M2.E planning precheck (decision completeness):
 1. Required runtime stack handles are pinned:
@@ -619,6 +619,37 @@ M2.E closure rule:
    - evidence artifacts are produced and readable,
    - runtime-critical role handles are materialized,
    - non-runtime role handles (`MWAA/SageMaker/Databricks`) are explicitly routed to M2.G/M2.H with zero unknown ownership.
+
+M2.E execution closure (2026-02-23):
+1. PASS evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/`
+2. Required artifacts produced:
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_runtime_plan_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_runtime_apply_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_runtime_role_conformance_matrix.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_api_edge_runtime_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_runtime_path_governance_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_api_edge_live_probe_snapshot.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_execution_summary.json`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2e_20260223T043248Z/`
+4. Command verdict:
+   - `fmt_exit=0`, `init_exit=0`, `validate_exit=0`, `plan_detailed_exit=2`, `apply_exit=0`, `output_exit=0`.
+5. Runtime materialization verdict:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M2.F_READY`.
+   - runtime stack apply materialized 21 resources (`21 added, 0 changed, 0 destroyed`).
+   - supplemental lambda reconcile apply succeeded (`1 changed`) to normalize API stage-path handling for live probes.
+   - live API probe receipts after reconcile: health `200`, ingest `202`.
+   - current invocation note: with `APIGW_IG_STAGE=v1` and route keys including `/v1`, external path is `/v1/v1/...`; path-contract normalization remains an explicit downstream pin.
+6. Blocker adjudication:
+   - `M2E-B1` closed by non-skeletal runtime stack apply and concrete outputs.
+   - `M2E-B2` closed by successful command lane; initial `backend.hcl.example` argument parsing defect was remediated by inline backend-config flags in the same run.
+   - `M2E-B3` closed by role-handle materialization (`ROLE_FLINK_EXECUTION`, `ROLE_LAMBDA_IG_EXECUTION`, `ROLE_APIGW_IG_INVOKE`, `ROLE_DDB_IG_IDEMPOTENCY_RW`, `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`).
+   - `M2E-B4` closed by API-edge probe (`APIGW_IG_API_ID`, required routes, Lambda, DDB).
+   - `M2E-B5` closed by runtime-path governance contract conformance.
+   - `M2E-B6` closed by selective EKS baseline and role alignment checks.
+   - `M2E-B7` closed by complete local + durable evidence artifact set.
 
 ## M2.F Secret Path Contract and Materialization Checks
 Goal:
@@ -731,7 +762,7 @@ Any active `M2-B*` blocker prevents M2 execution closure.
 - [x] M2.B complete.
 - [x] M2.C complete.
 - [x] M2.D complete.
-- [ ] M2.E complete.
+- [x] M2.E complete.
 - [ ] M2.F complete.
 - [ ] M2.G complete.
 - [ ] M2.H complete.

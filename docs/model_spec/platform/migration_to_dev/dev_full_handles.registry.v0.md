@@ -352,7 +352,7 @@ Allowed tokens in pattern handles:
 ### 7.2 EKS cluster and namespaces (selective custom-runtime lane)
 
 * `EKS_CLUSTER_NAME = "fraud-platform-dev-full"`
-* `EKS_CLUSTER_ARN = "TO_PIN"`
+* `EKS_CLUSTER_ARN = "arn:aws:eks:eu-west-2:230372904534:cluster/fraud-platform-dev-full"` (materialized in M2.E)
 * `EKS_NAMESPACE_PLATFORM = "fraud-platform"`
 * `EKS_NAMESPACE_INGRESS = "fraud-platform-ingress"`
 * `EKS_NAMESPACE_RTDL = "fraud-platform-rtdl"`
@@ -375,7 +375,7 @@ Allowed tokens in pattern handles:
 
 * `IG_EDGE_MODE = "apigw_lambda_ddb"`
 * `APIGW_IG_API_NAME = "fraud-platform-dev-full-ig-edge"`
-* `APIGW_IG_API_ID = "TO_PIN"`
+* `APIGW_IG_API_ID = "uzseb23517"` (materialized in M2.E)
 * `APIGW_IG_STAGE = "v1"`
 * `LAMBDA_IG_HANDLER_NAME = "fraud-platform-dev-full-ig-handler"`
 * `DDB_IG_IDEMPOTENCY_TABLE = "fraud-platform-dev-full-ig-idempotency"`
@@ -542,11 +542,11 @@ Allowed tokens in pattern handles:
 * `ROLE_TERRAFORM_APPLY_DEV_FULL = "TO_PIN"`
 * `ROLE_EKS_NODEGROUP_DEV_FULL = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-eks-nodegroup"` (materialized in M2.B)
 * `ROLE_EKS_RUNTIME_PLATFORM_BASE = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-runtime-platform-base"` (materialized in M2.B)
-* `ROLE_FLINK_EXECUTION = "TO_PIN"`
-* `ROLE_LAMBDA_IG_EXECUTION = "TO_PIN"`
-* `ROLE_APIGW_IG_INVOKE = "TO_PIN"`
-* `ROLE_DDB_IG_IDEMPOTENCY_RW = "TO_PIN"`
-* `ROLE_STEP_FUNCTIONS_ORCHESTRATOR = "TO_PIN"`
+* `ROLE_FLINK_EXECUTION = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution"` (materialized in M2.E)
+* `ROLE_LAMBDA_IG_EXECUTION = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-lambda-ig-execution"` (materialized in M2.E)
+* `ROLE_APIGW_IG_INVOKE = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-apigw-ig-invoke"` (materialized in M2.E)
+* `ROLE_DDB_IG_IDEMPOTENCY_RW = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-ddb-ig-idempotency-rw"` (materialized in M2.E)
+* `ROLE_STEP_FUNCTIONS_ORCHESTRATOR = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-stepfunctions-orchestrator"` (materialized in M2.E)
 * `ROLE_MWAA_EXECUTION = "TO_PIN"`
 * `ROLE_SAGEMAKER_EXECUTION = "TO_PIN"`
 * `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS = "TO_PIN"`
@@ -652,18 +652,11 @@ Allowed tokens in pattern handles:
 These are intentionally explicit and must be pinned before first `dev-full-up` execution.
 
 1. `ROLE_TERRAFORM_APPLY_DEV_FULL`
-2. `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`
-3. `ROLE_MWAA_EXECUTION`
-4. `ROLE_SAGEMAKER_EXECUTION`
-5. `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`
-6. `EKS_CLUSTER_ARN`
-7. `DBX_WORKSPACE_URL`
-8. `AWS_BUDGET_NOTIFICATION_EMAIL`
-9. `APIGW_IG_API_ID`
-10. `ROLE_FLINK_EXECUTION`
-11. `ROLE_LAMBDA_IG_EXECUTION`
-12. `ROLE_APIGW_IG_INVOKE`
-13. `ROLE_DDB_IG_IDEMPOTENCY_RW`
+2. `ROLE_MWAA_EXECUTION`
+3. `ROLE_SAGEMAKER_EXECUTION`
+4. `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`
+5. `DBX_WORKSPACE_URL`
+6. `AWS_BUDGET_NOTIFICATION_EMAIL`
 
 ---
 

@@ -283,9 +283,13 @@ M2 planning posture:
 - `M2.D` execution is now closed (`PASS`) with full precheck/evidence closure:
   - `runs/dev_substrate/dev_full/m2/m2d_20260222T230240Z/m2d_execution_summary.json` (`overall_pass=true`, blockers=`0`).
   - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2d_20260222T230240Z/`.
-- `M2.E` is now expanded to execution-grade planning (`M2E-B*`, runtime-stack command surface, runtime identity/API-edge/path-governance evidence contracts).
-- `M2E-B1` (runtime stack skeletal), `M2E-B3` (runtime role handles unresolved), and `M2E-B4` (API ID unresolved) are explicit entry blockers.
-- M2 phase execution remains active for `M2.E` onward.
+- `M2.E` execution is now closed (`PASS`) with full runtime stack apply and conformance evidence:
+  - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2e_20260223T043248Z/`.
+- supplemental live API probe evidence was added after lambda path-normalization reconcile:
+  - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_api_edge_live_probe_snapshot.json` (health `200`, ingest `202`).
+- runtime-critical handles were materialized and pinned from M2.E outputs (`APIGW_IG_API_ID`, `EKS_CLUSTER_ARN`, runtime role-arn set).
+- M2 phase execution remains active for `M2.F` onward.
 
 DoD anchors:
 - [ ] all five stacks apply cleanly.
@@ -300,7 +304,7 @@ M2 sub-phase progress:
 - [x] `M2.B` core stack materialization.
 - [x] `M2.C` streaming stack materialization.
 - [x] `M2.D` topic/schema readiness precheck.
-- [ ] `M2.E` runtime stack and IAM role posture.
+- [x] `M2.E` runtime stack and IAM role posture.
 - [ ] `M2.F` secret path contract and materialization checks.
 - [ ] `M2.G` data_ml stack materialization.
 - [ ] `M2.H` ops stack and cost guardrail surfaces.
@@ -540,4 +544,4 @@ This rule is binding for all phases M1..M13.
 - No destructive git commands.
 
 ## 11) Next Action
-- Continue active phase `M2` by executing `M2.E` runtime stack and IAM role posture closure, then adjudicate runtime identity and path-governance blockers.
+- Continue active phase `M2` by executing `M2.F` secret path contract and materialization checks.
