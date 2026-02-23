@@ -2620,3 +2620,88 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 1. Before M3+, phase closure must prove no managed-lane toy substitution.
 2. Oracle store usage must remain read-only from platform runtime with producer-owned writes.
 3. M2.H/M2.J and M10 now carry concrete evidence obligations tied to these pins.
+## Entry: 2026-02-23 05:27:42 +00:00 - M2.F expanded to execution-grade (secret contract lane)
+
+### Why this planning expansion was required
+1. `M2.F` was still stub-level and not executable without interpretation.
+2. User requested planning before execution with explicit decision completeness and blocker visibility.
+3. `M2.F` has cross-lane dependencies on `M2.G/M2.H` secret/role materialization; this had to be explicit to avoid hidden drift.
+
+### Design decisions made
+1. M2.F now uses five explicit conformance lanes:
+   - secret inventory contract,
+   - secret-path materialization/readability,
+   - runtime-role readability posture,
+   - plaintext leakage prevention,
+   - IG path-based auth secret contract.
+2. Blocker taxonomy `M2F-B1..B7` is now explicit and fail-closed.
+3. Evidence contract `m2f_*` artifacts is now pinned so closure is deterministic.
+4. Dependency handling is explicit:
+   - if required secret/role surfaces are not yet materialized in `M2.G/M2.H`, M2.F remains blocked with handoff evidence;
+   - no implicit pass allowed.
+
+### Expected entry posture (before execution)
+1. Likely blockers for first M2.F run:
+   - unresolved roles (`ROLE_MWAA_EXECUTION`, `ROLE_SAGEMAKER_EXECUTION`, `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`),
+   - missing data/learning/orchestration secret paths until `M2.G/M2.H` apply.
+2. This is intentional fail-closed behavior, now documented up front.
+
+### Files updated in this planning pass
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M2.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+## Entry: 2026-02-23 05:31:12 +00:00 - M2.F remediation decision between probe attempts
+
+### Observation from first M2.F execution attempt
+1. `M2F-B1` was triggered by authority-vs-registry secret-path inventory drift:
+   - `/fraud-platform/dev_full/ig/api_key` existed in registry but not in design authority Section 8.6 list.
+2. `M2F-B3` included one policy-deny check tied to an over-broad role-path expectation (`ROLE_STEP_FUNCTIONS_ORCHESTRATOR -> mwaa webserver path`) that is not a required runtime-read path for this lane.
+
+### Decision
+1. Patch authority secret-path inventory to include `/fraud-platform/dev_full/ig/api_key` so contract surfaces are aligned.
+2. Tighten role-path expectation map for rerun:
+   - remove Step Functions requirement for MWAA webserver secret path,
+   - keep Step Functions role materialization check but no forced secret-read assertion for that path.
+3. Rerun full M2.F evidence bundle under a fresh run-id to preserve audit chronology.
+## Entry: 2026-02-23 05:37:18 +00:00 - M2.F execution closure status (executed, fail-closed blocked)
+
+### Production-pattern law confirmation before execution
+1. Verified law references are present and active:
+   - design authority `Section 7.6 Production-pattern adoption law`,
+   - run-process global decision item for production-pattern law,
+   - master build-plan non-negotiable guardrail line.
+2. Execution was run under that law (managed-service-first, no manual secret backfilling).
+
+### Execution summary
+1. Attempt-1 (`m2f_20260223T051928Z`): blockers `B1/B2/B3`.
+2. Mid-run remediation:
+   - patched authority secret inventory to include IG API key path,
+   - refined role-path matrix to remove non-required Step Functions secret-read expectation.
+3. Attempt-2 (`m2f_20260223T052223Z`): blockers reduced to `B2/B3` only.
+4. Attempt-2 quantitative result:
+   - required secret paths: `12`,
+   - missing/unreadable paths: `10`,
+   - unresolved role handles: `3`,
+   - plaintext leakage findings: `0`.
+
+### Why blockers remain (and why this is correct)
+1. `M2F-B2` remains because required data/learning/orchestration secret paths are not yet materialized by stack applies expected in `M2.G/M2.H`.
+2. `M2F-B3` remains because role handles for `MWAA/SageMaker/Databricks` are still `TO_PIN`/unmaterialized.
+3. No manual secret/role patching was done outside IaC lanes to preserve production-pattern law.
+
+### Evidence publication
+1. Local evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2f_20260223T052223Z/`
+2. Durable mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2f_20260223T052223Z/`
+3. Key artifacts:
+   - `m2f_secret_inventory_snapshot.json`
+   - `m2f_secret_materialization_snapshot.json`
+   - `m2f_secret_role_readability_matrix.json`
+   - `m2f_plaintext_leakage_scan.json`
+   - `m2f_ig_secret_contract_snapshot.json`
+   - `m2f_blocker_register.json`
+   - `m2f_execution_summary.json`
+
+### Phase decision
+1. M2.F is executed fully and remains fail-closed blocked pending `M2.G` + `M2.H`.
+2. Next valid move is to materialize missing roles/secret paths via IaC in those lanes and rerun M2.F for closure.

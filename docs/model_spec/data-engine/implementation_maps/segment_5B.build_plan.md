@@ -2038,8 +2038,8 @@ Scope:
 
 Definition of done:
 - [ ] all hard gates pass on `{42,7,101,202}`.
-- [ ] B+ decision is explicit (`PASS_BPLUS_ROBUST` or `PASS_B`).
-- [ ] cross-seed CV gate result is recorded and archived.
+- [x] B+ decision is explicit (`PASS_BPLUS_ROBUST` or `PASS_B`).
+- [x] cross-seed CV gate result is recorded and archived.
 
 #### P4.1 - Seed authority lock and certification matrix
 Objective:
@@ -2060,9 +2060,9 @@ Execution:
   - `HOLD_P4_REMEDIATE`.
 
 Definition of done:
-- [ ] seed panel and metric ownership are pinned in a single matrix artifact.
-- [ ] certification outcomes are explicitly enumerated (no implicit grading).
-- [ ] no unresolved authority question remains before execution.
+- [x] seed panel and metric ownership are pinned in a single matrix artifact.
+- [x] certification outcomes are explicitly enumerated (no implicit grading).
+- [x] no unresolved authority question remains before execution.
 
 #### P4.2 - Fresh run-root topology lock (no-local-full-write law)
 Objective:
@@ -2077,9 +2077,9 @@ Execution:
   - run-id, seed, source roots, linked surfaces, writable roots.
 
 Definition of done:
-- [ ] all P4 run ids are created under `runs/fix-data-engine/segment_5B`.
-- [ ] no command in P4 execution path targets `runs/local_full_run-5` as output root.
-- [ ] setup receipt exists for every seed run-id.
+- [x] all P4 run ids are created under `runs/fix-data-engine/segment_5B`.
+- [x] no command in P4 execution path targets `runs/local_full_run-5` as output root.
+- [x] setup receipt exists for every seed run-id.
 
 #### P4.3 - Missing-seed production lane (conditional, minimal chain)
 Objective:
@@ -2106,9 +2106,9 @@ Runtime budgets (binding for certification lane):
 - escalated `S2 -> S5` target: `<= 1800s` per seed.
 
 Definition of done:
-- [ ] all seeds in `{42,7,101,202}` have fresh-root `S5` validation outputs.
-- [ ] no frozen config/policy rail was modified during seed generation.
-- [ ] runtime receipts are captured per seed against stated budgets.
+- [x] all seeds in `{42,7,101,202}` have fresh-root `S5` validation outputs.
+- [x] no frozen config/policy rail was modified during seed generation.
+- [x] runtime receipts are captured per seed against stated budgets.
 
 #### P4.4 - Per-seed scoring and veto gateboard
 Objective:
@@ -2127,9 +2127,9 @@ Veto rules:
 - any `T6/T7` B-fail on any seed => `HOLD_P4_REMEDIATE`.
 
 Definition of done:
-- [ ] per-seed gateboards exist for all required seeds.
-- [ ] consolidated P4 seed gateboard is produced.
-- [ ] veto disposition is explicit and evidence-backed.
+- [x] per-seed gateboards exist for all required seeds.
+- [x] consolidated P4 seed gateboard is produced.
+- [x] veto disposition is explicit and evidence-backed.
 
 #### P4.5 - Cross-seed stability closure (`T10`)
 Objective:
@@ -2143,9 +2143,9 @@ Execution:
   - fail otherwise.
 
 Definition of done:
-- [ ] `T10` value and class are recorded in closure artifact.
-- [ ] cross-seed metric table is archived with reproducible inputs.
-- [ ] stability class is integrated into final phase decision.
+- [x] `T10` value and class are recorded in closure artifact.
+- [x] cross-seed metric table is archived with reproducible inputs.
+- [x] stability class is integrated into final phase decision.
 
 #### P4.6 - Certification decision and handoff
 Objective:
@@ -2157,9 +2157,25 @@ Decision outputs:
 - `HOLD_P4_REMEDIATE`: any veto breach.
 
 Definition of done:
-- [ ] final P4 closure artifact records one of the three decisions.
-- [ ] retained run-id set for P5 freeze is pinned.
-- [ ] active next step updated (`UNLOCK_P5` or `HOLD_P4_REMEDIATE`).
+- [x] final P4 closure artifact records one of the three decisions.
+- [x] retained run-id set for P5 freeze is pinned.
+- [x] active next step updated (`UNLOCK_P5` or `HOLD_P4_REMEDIATE`).
+
+P4 closure snapshot (2026-02-23):
+- decision: `HOLD_P4_REMEDIATE`.
+- veto reason: `S5` status is `FAIL` for seeds `7` and `101` (DST window material-power gate).
+- cross-seed stability (`T10`) is strongly stable and non-blocking (`overall_cv=0.00868`, class=`BPLUS`).
+- runtime posture for `S4+S5` stays within P4 budget on all seeds (`<=720s`).
+- retained run-id set pinned for reopen lane:
+  - `6ac88fc0d3364aecaf564b17ebad354e` (seed 42)
+  - `65bd3b8fde7f467f8abaee6a5516ee75` (seed 7)
+  - `c9011d0081db4e479336f3083c38dd30` (seed 101)
+  - `d9a6aa2f64db4c9f9ec7ffff5c79f813` (seed 202)
+- closure artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_state_runtime_receipts_20260223T052315Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_seed_gateboard_20260223T052239Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_t10_stability_20260223T052239Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_closure_20260223T052239Z.json`
 
 ### P5 - Freeze, handoff, and prune closure
 Goal:
@@ -2199,5 +2215,5 @@ Definition of done:
 13. `P2.U2.3` branch closure is recorded as `HOLD_P2_UPSTREAM_REOPEN`.
 14. `P2.U3` is closed with `KEEP_u3_1_c1` and lane decision `UNLOCK_P3`.
 15. `P3` is closed (`P3.1 -> P3.5`) with decision `UNLOCK_P4`.
-16. `P4` is expanded to execution-grade (`P4.1 -> P4.6`) with explicit seed-certification lanes.
-17. Active step: `P4.1` (seed authority lock and certification matrix).
+16. `P4` is executed end-to-end (`P4.1 -> P4.6`) with seed-panel closure artifacts and explicit decision `HOLD_P4_REMEDIATE`.
+17. Active step: `P4 reopen` (resolve `S5` DST material-power lane for seeds `7` and `101` while preserving frozen rails).

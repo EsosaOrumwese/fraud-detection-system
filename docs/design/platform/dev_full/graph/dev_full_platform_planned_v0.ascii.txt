@@ -1,0 +1,132 @@
+DEV_FULL PLATFORM ARCHITECTURE (PLANNED v0, AUTHORITY-ALIGNED)
+===============================================================
+
+Purpose
+-------
+Run the full fraud platform (Spine + Learning/Evolution) on managed runtime,
+with no laptop compute, no ownership drift, and run-scoped evidence closure.
+
+
+LAYER 0: DELIVERY, ORCHESTRATION, IDENTITY
+------------------------------------------
+[GitHub Actions] -> build/deploy workflows -> [Terraform stacks] -> provision managed substrate
+                                     |
+                                     +-> [ECR immutable images: git tag -> digest]
+
+[Step Functions]
+  - phase-gate authority for P(-1)..P17
+  - commit authority for SR READY closure
+  - writes run-control evidence (runtime path, phase receipts, cost envelopes)
+
+[MWAA Airflow]
+  - schedules learning jobs (OFS/MF)
+
+[Run identity law]
+  - platform_run_id, scenario_run_id, phase_id, event_id, trace_id
+  - must survive across edge, stream lanes, orchestration, and evidence artifacts
+
+
+LAYER 1: MANAGED SUBSTRATE BACKBONE
+-----------------------------------
+[AWS MSK Serverless]      Kafka control, spine, and learning topics
+[S3 Object Store]         archive, receipts, quarantine, evidence bundles
+[Aurora PostgreSQL]       durable operational state
+[ElastiCache Redis]       low-latency join/state cache
+[DynamoDB]                IG idempotency store
+[Glue + Iceberg v2]       learning table authority
+[CloudWatch + OTel]       observability + alerts + correlation
+[Secrets Manager/SSM/KMS] runtime identities and secret handles
+
+
+LAYER 2: ORACLE BOUNDARY (EXTERNAL)
+-----------------------------------
+[Oracle Store S3 zone]
+  - warm source-of-stream
+  - read-only from platform runtime
+  - writer remains Data Engine/upstream producer
+
+
+LAYER 3: CONTROL + INGRESS (MANAGED-FIRST)
+------------------------------------------
+[SR READY lane, Flink compute + Step Functions commit]
+   -> publishes READY to [fp.bus.control.v1]
+
+[WSP stream lane, Flink]
+   <- consumes READY from control topic
+   <- reads required output_ids from Oracle stream_view
+   -> pushes envelopes to [API Gateway]
+
+[API Gateway] -> [IG Lambda handler]
+  - admission boundary and envelope checks
+  - idempotency check in [DynamoDB]
+  - append receipts/quarantine evidence
+  - publish ADMITTED events to MSK:
+      * fp.bus.traffic.fraud.v1
+      * fp.bus.context.*
+
+
+LAYER 4: RTDL + DECISION (HYBRID)
+---------------------------------
+MSK traffic/context ->
+  [IEG Flink projection] -> Aurora state
+  [OFP Flink projection] -> Redis (low-latency) + Aurora (durable)
+
+MSK traffic -> [Decision Fabric, EKS custom lane]
+Decision Fabric ->
+  [Action Layer, EKS custom lane]
+  [Decision Log and Audit, EKS custom lane]
+
+Action Layer ->
+  decision outcomes back through IG boundary
+  outcomes into Decision Log and Audit
+
+Decision Log and Audit ->
+  fp.bus.audit.v1
+  append-only audit records in S3
+
+[Archive Writer] consumes traffic/context/rtdl/case/labels/audit and writes immutable archive events to S3.
+
+
+LAYER 5: CASE + LABEL (HYBRID)
+------------------------------
+fp.bus.rtdl.v1 -> [Case Trigger] -> fp.bus.case.triggers.v1 -> [Case Management]
+[Case Management] -> case timeline append (Aurora)
+[Case Management] -> label writer boundary -> [Label Store]
+[Label Store] -> label assertion append (Aurora) + fp.bus.labels.events.v1
+
+
+LAYER 6: LEARNING + EVOLUTION
+-----------------------------
+fp.bus.learning.ofs.requests.v1 -> [OFS Databricks jobs]
+[OFS] -> dataset manifests/fingerprints (S3)
+[OFS] -> Iceberg table updates (Glue)
+fp.bus.learning.ofs.events.v1 -> fp.bus.learning.mf.requests.v1
+
+fp.bus.learning.mf.requests.v1 -> [MF SageMaker train/eval]
+[MF] -> eval events (fp.bus.learning.mf.events.v1)
+[MF] -> experiment/model metadata in [MLflow]
+
+MF candidate bundle -> [MPR promotion corridor]
+[MPR] -> promote/rollback decision -> [Active bundle resolution]
+[MPR] -> fp.bus.learning.registry.events.v1
+[Active bundle resolution] -> Decision Fabric (runtime policy/model binding)
+
+
+LAYER 7: OBSERVABILITY + GOVERNANCE
+-----------------------------------
+[OpenTelemetry correlation] -> [CloudWatch]
+All runtime lanes emit correlated telemetry with run identity headers.
+
+[Run Reporter + Conformance]
+  - emits full-platform closure evidence
+  - appends governance facts
+  - writes final verdict evidence bundle to S3
+
+
+BOUNDARY LAWS REPRESENTED
+-------------------------
+1) Managed-first runtime path is default; selective EKS only for differentiating logic.
+2) SR READY closure authority is Step Functions commit evidence, not compute output alone.
+3) IG owns admission truth; receipts/quarantine are append evidence surfaces.
+4) Append-only and dedupe/provenance laws remain unchanged from dev_min/local parity.
+5) Full-platform green claim requires run-scoped evidence closure across Spine + Learning.

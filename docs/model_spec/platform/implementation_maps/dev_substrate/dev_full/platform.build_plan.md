@@ -292,6 +292,12 @@ M2 planning posture:
 - supplemental live API probe evidence was added after lambda path-normalization reconcile:
   - `runs/dev_substrate/dev_full/m2/m2e_20260223T043248Z/m2e_api_edge_live_probe_snapshot.json` (health `200`, ingest `202`).
 - runtime-critical handles were materialized and pinned from M2.E outputs (`APIGW_IG_API_ID`, `EKS_CLUSTER_ARN`, runtime role-arn set).
+- `M2.F` is now expanded to execution-grade planning (`M2F-B*`, secret inventory/materialization/readability/leakage contracts).
+- expected entry blockers for `M2.F` are explicit where dependencies remain unmaterialized (`M2.G/M2.H` role/secret surfaces).
+- `M2.F` execution has been run and remains fail-closed `BLOCKED` after blocker reduction:
+  - attempt-2: `runs/dev_substrate/dev_full/m2/m2f_20260223T052223Z/m2f_execution_summary.json`
+  - active blockers: `M2F-B2` (missing secret materialization), `M2F-B3` (unresolved MWAA/SageMaker/Databricks roles).
+- next dependency path is explicit: execute `M2.G` + `M2.H`, then rerun `M2.F` for closure.
 - M2 phase execution remains active for `M2.F` onward.
 
 DoD anchors:

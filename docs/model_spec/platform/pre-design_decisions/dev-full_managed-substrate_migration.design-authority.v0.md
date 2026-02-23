@@ -470,6 +470,7 @@ Required IAM role handles:
 Required secret path handles:
 
 * `/fraud-platform/dev_full/msk/bootstrap_brokers`
+* `/fraud-platform/dev_full/ig/api_key`
 * `/fraud-platform/dev_full/aurora/endpoint`
 * `/fraud-platform/dev_full/aurora/reader_endpoint`
 * `/fraud-platform/dev_full/aurora/username`

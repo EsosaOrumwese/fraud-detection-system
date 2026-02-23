@@ -676,6 +676,113 @@ DoD:
 - [ ] IG/API-edge auth secret contract is path-based and leak-free.
 - [ ] M2.F evidence snapshot committed.
 
+M2.F planning precheck (decision completeness):
+1. Secret authority set is pinned and consistent across:
+   - design authority Section `8.6`,
+   - handles registry Section `11.3`,
+   - runtime/auth handles (`SSM_IG_API_KEY_PATH`).
+2. Runtime identity set for secret-readability checks is pinned:
+   - `ROLE_LAMBDA_IG_EXECUTION`,
+   - `ROLE_FLINK_EXECUTION`,
+   - `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`,
+   - `ROLE_MWAA_EXECUTION`,
+   - `ROLE_SAGEMAKER_EXECUTION`,
+   - `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`.
+3. Secrets policy handles are pinned:
+   - `SECRETS_BACKEND`,
+   - `SECRETS_PLAINTEXT_OUTPUT_ALLOWED`.
+4. Dependency sequencing is explicit:
+   - data/learning/orchestration secret paths may depend on `M2.G` and `M2.H` materialization.
+   - if these are absent, M2.F remains fail-closed with explicit blocker handoff; no implicit pass is allowed.
+
+M2.F execution contract (planned):
+1. Preconditions:
+   - `M2.E` PASS evidence is present and unchanged.
+   - active handle registry version is the source for required path inventory.
+2. Secret inventory conformance lane:
+   - build canonical required secret-path set from authority + registry.
+   - detect missing/extra/drifted paths.
+3. Path materialization/readability lane:
+   - verify each required path exists (`aws ssm get-parameter --name <path> --region <region>` without decryption for evidence safety).
+   - verify runtime-role read posture using IAM policy simulation or direct role-policy checks.
+4. Plaintext leakage lane:
+   - verify phase outputs/evidence/terraform outputs contain no secret values.
+   - enforce path/ARN-only evidence policy for secret references.
+5. IG edge secret contract lane:
+   - verify ingress auth path remains `SSM_IG_API_KEY_PATH` and no inline key appears in runtime env/outputs.
+
+M2.F command surface (planned, execution-time):
+1. Inventory + presence probes:
+   - `aws ssm get-parameter --name <path> --region <AWS_REGION>`
+   - `aws ssm describe-parameters --parameter-filters ...` (optional cross-check for prefix inventory).
+2. Runtime-role readability probes:
+   - `aws iam get-role --role-name <role>`
+   - `aws iam simulate-principal-policy --policy-source-arn <role-arn> --action-names ssm:GetParameter --resource-arns <path-arn>`
+3. Leak checks:
+   - deterministic scans across phase evidence payloads for banned plaintext secret patterns.
+   - conformance check that evidence includes only secret paths/arns, never values.
+
+M2.F fail-closed policy (planned):
+1. `M2F-B1`: required secret-path handle set is incomplete or drifted from authority.
+2. `M2F-B2`: one or more required secret paths are missing/unreadable.
+3. `M2F-B3`: one or more required runtime roles lack secret-readability permissions for required paths.
+4. `M2F-B4`: plaintext secret leakage detected in outputs/evidence.
+5. `M2F-B5`: IG auth contract drift (inline key/value or non-path-based auth reference).
+6. `M2F-B6`: secrets backend policy drift (`SECRETS_BACKEND` / plaintext policy mismatch).
+7. `M2F-B7`: evidence artifacts missing/inconsistent with probe receipts.
+
+M2.F evidence contract (planned):
+1. `m2f_secret_inventory_snapshot.json`
+   - canonical required set, source docs, drift findings.
+2. `m2f_secret_materialization_snapshot.json`
+   - per-path presence/readability probe results (no values).
+3. `m2f_secret_role_readability_matrix.json`
+   - required role x required path authorization/readability matrix.
+4. `m2f_plaintext_leakage_scan.json`
+   - scan scope, banned-pattern findings, pass/fail.
+5. `m2f_ig_secret_contract_snapshot.json`
+   - IG auth path posture and inline-secret absence checks.
+6. `m2f_blocker_register.json`
+   - active `M2F-B*` blockers with severity/remediation/handoff.
+7. `m2f_execution_summary.json`
+   - rollup verdict (`overall_pass`), next gate (`M2.G_READY` or `BLOCKED`).
+
+M2.F expected entry blockers (current planning reality):
+1. `M2F-B2` likely active for data/learning/orchestration secret paths before `M2.G` and `M2.H` materialization.
+2. `M2F-B3` likely active for unresolved role handles:
+   - `ROLE_MWAA_EXECUTION`, `ROLE_SAGEMAKER_EXECUTION`, `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`.
+3. `M2F-B1` may activate if authority-vs-registry path inventory is inconsistent during execution.
+
+M2.F closure rule:
+1. M2.F can close only when:
+   - all `M2F-B*` blockers are resolved,
+   - all DoD checks are green,
+   - evidence artifacts are produced and readable,
+   - any blocker dependency on `M2.G/M2.H` is explicitly closed by rerun evidence (no stale pass).
+
+M2.F execution status (2026-02-23):
+1. Attempt-1 evidence root (blocked):
+   - `runs/dev_substrate/dev_full/m2/m2f_20260223T051928Z/`
+   - blockers: `M2F-B1`, `M2F-B2`, `M2F-B3`.
+2. Remediation between attempts:
+   - authority secret-path inventory updated to include `/fraud-platform/dev_full/ig/api_key` for parity with registry.
+   - role-path expectation map tightened to remove non-required Step Functions -> MWAA secret-read assertion.
+3. Attempt-2 evidence root (blocked, reduced blocker set):
+   - `runs/dev_substrate/dev_full/m2/m2f_20260223T052223Z/`
+   - `m2f_execution_summary.json`: `overall_pass=false`, `blockers=[M2F-B2,M2F-B3]`, `next_gate=BLOCKED`.
+4. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2f_20260223T052223Z/`
+5. Blocker adjudication:
+   - `M2F-B1`: CLOSED (authority/registry inventory parity restored).
+   - `M2F-B2`: OPEN (10/12 required secret paths missing; expected before `M2.G/M2.H` materialization).
+   - `M2F-B3`: OPEN (unresolved role handles: `ROLE_MWAA_EXECUTION`, `ROLE_SAGEMAKER_EXECUTION`, `ROLE_DATABRICKS_CROSS_ACCOUNT_ACCESS`).
+   - `M2F-B4`: CLOSED (no plaintext leakage findings).
+   - `M2F-B5`: CLOSED (IG contract path-based and leak-free).
+   - `M2F-B6`: CLOSED (`SECRETS_BACKEND` and plaintext policy handles conformant).
+   - `M2F-B7`: CLOSED (required `m2f_*` artifact set complete).
+6. Closure decision:
+   - M2.F is executed but remains fail-closed `BLOCKED` until `M2.G/M2.H` materialize data/learning/orchestration secret paths and roles.
+
 ## M2.G Data_ML Stack Materialization
 Goal:
 - apply and validate `data_ml/` stack surfaces (Databricks, SageMaker, MLflow bridge handles).

@@ -8265,3 +8265,115 @@ Runtime evidence contract for this step:
 1) record per-seed state wall times from `segment_state_runs`.
 2) compare per-seed `S4+S5` totals against P4 witness budget (`<=720s`) and escalated lane budget (`<=1800s`) where applicable.
 3) carry all results into consolidated P4 gateboard artifacts in later steps (`P4.4/P4.5/P4.6`).
+
+### Entry: 2026-02-23 05:22
+
+Decision lock before `P4.4/P4.5/P4.6` consolidation tooling.
+
+Observed execution reality after multi-seed runs:
+1) `S2/S3/S4` completed for seeds `7/101/202`; `S5` passed for seed `202` and failed for seeds `7/101`.
+2) failure mode on seeds `7/101` is not count/routing corruption; it is `civil_time_gate_ok=false` due `DST_WINDOW_INSUFFICIENT_POWER` in `S5` report sampling lane.
+3) existing scorers (`score_segment5b_p1_realism.py`, `score_segment5b_p2_calibration.py`) emit per-seed gateboards, but there is no dedicated P4 certifier to combine:
+   - per-seed hard/major verdicts,
+   - run-state runtime budgets,
+   - `S5` execution status,
+   - cross-seed `T10` stability class,
+   - final phase decision.
+
+Alternatives considered:
+1) manual consolidation by ad-hoc shell snippets.
+   - rejected: reproducibility/audit quality too weak for freeze-grade closure.
+2) reuse `POPT.5` script.
+   - rejected: it is runtime-only and phase-specific; it does not evaluate P4 realism/veto semantics.
+3) add purpose-built P4 scorer script (chosen).
+   - accepted: produces deterministic, rerunnable closure artifacts and explicit decision law.
+
+Implementation shape selected:
+1) add `tools/score_segment5b_p4_certification.py`.
+2) inputs:
+   - run-id map for seeds `{42,7,101,202}`,
+   - per-seed `P1` gateboard + `P2` gateboard,
+   - per-seed `segment_state_runs` for `S4/S5` runtime and `S5` status.
+3) outputs:
+   - consolidated seed gateboard,
+   - `T10` stability artifact (CV on core metrics),
+   - final `P4` closure artifact (`PASS_BPLUS_ROBUST | PASS_B_ROBUST | HOLD_P4_REMEDIATE`),
+   - markdown summary.
+
+### Entry: 2026-02-23 05:19
+
+Execution closure for `P4.3` multi-seed production lane (`S2 -> S3 -> S4 -> S5` on missing seeds).
+
+Command lane executed:
+1) seed `7` (`run_id=65bd3b8fde7f467f8abaee6a5516ee75`):
+   - `S2` PASS, `S3` PASS, `S4` PASS, `S5` FAIL.
+2) seed `101` (`run_id=c9011d0081db4e479336f3083c38dd30`):
+   - `S2` PASS, `S3` PASS, `S4` PASS, `S5` FAIL.
+3) seed `202` (`run_id=d9a6aa2f64db4c9f9ec7ffff5c79f813`):
+   - `S2` PASS, `S3` PASS, `S4` PASS, `S5` PASS.
+
+Observed failure signature (`seed=7/101`, `S5`):
+1) validator failed with `F4:S5_VALIDATION_FAILED`.
+2) failure axis is civil-time gate material-power branch, not mismatch correctness:
+   - `civil_mismatch_rate=0`,
+   - `one_hour_shift_rate=0`,
+   - `civil_time_ok=true`,
+   - but `dst_window_insufficient_power=true` caused `civil_time_gate_ok=false`.
+3) example: seed `101` had `dst_windows_with_exposure=4` but `dst_windows_material_count=0` under current sampling lane.
+
+Decision:
+1) no rail edits were made in `P4.3` (as planned); this step remains execution-only evidence capture.
+2) continue to `P4.4/P4.5/P4.6` with full seed panel scoring to determine whether the hold is isolated to validator-power semantics.
+
+Artifacts:
+1) state runtime receipt (run-report derived):
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_state_runtime_receipts_20260223T052315Z.json`
+2) continuation runtime receipt (command stopwatch for seeds `101/202`):
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_state_runtime_receipts_partial_20260223T051847Z.json`
+
+### Entry: 2026-02-23 05:23
+
+Execution closure for `P4.4 -> P4.6` with dedicated certification scorer.
+
+What was executed:
+1) per-seed scoring for required panel `{42,7,101,202}`:
+   - `tools/score_segment5b_p1_realism.py` on each run-id,
+   - `tools/score_segment5b_p2_calibration.py` on each run-id.
+2) new deterministic certifier added and executed:
+   - `tools/score_segment5b_p4_certification.py`.
+
+Why new tooling was added:
+1) existing P1/P2 scorers are per-seed and do not issue a P4 certification decision.
+2) P4 needed one artifact surface with:
+   - per-seed veto vector (hard/major + `S5` runtime status),
+   - runtime budget check (`S4+S5`),
+   - cross-seed stability (`T10`),
+   - final decision token.
+
+Consolidated outcome:
+1) `T10` stability is strong (`overall_cv=0.0086795613`, class `BPLUS`).
+2) `T6/T7` are `B`-pass on all seeds (B+ stretch still red as expected).
+3) runtime is within P4 `S4+S5` budget for every seed.
+4) certification decision is `HOLD_P4_REMEDIATE` because:
+   - seed `7` has `S5 status=FAIL`,
+   - seed `101` has `S5 status=FAIL`.
+
+Interpretation:
+1) this is not a topology/dispersion collapse (those stayed stable across seeds).
+2) blocker is validator-power robustness in `S5` DST material-window lane; this is the required P4 reopen owner.
+
+Artifacts:
+1) consolidated seed gateboard:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_seed_gateboard_20260223T052239Z.json`
+2) cross-seed stability:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_t10_stability_20260223T052239Z.json`
+3) final closure decision:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_closure_20260223T052239Z.json`
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_closure_20260223T052239Z.md`
+
+### Entry: 2026-02-23 05:24
+
+`P4.6` prune posture check:
+1) active run root `runs/fix-data-engine/segment_5B` currently contains only the retained four-seed run-id set plus reports.
+2) no superseded run-id folder exists for deletion in this lane.
+3) prune step is therefore a no-op and keep-set remains unchanged.
