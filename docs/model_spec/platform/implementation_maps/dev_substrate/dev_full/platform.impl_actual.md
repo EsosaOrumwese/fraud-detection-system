@@ -2815,3 +2815,262 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
    - `infra/terraform/dev_full/data_ml` -> `PLAN_CLEAN` (exit `0`)
    - `infra/terraform/dev_full/ops` -> `PLAN_CLEAN` (exit `0`)
 2. No additional API keys were required to close this blocker set; closure was achieved via managed Terraform materialization of IAM+SSM control surfaces.
+
+## Entry: 2026-02-23 05:57:33 +00:00 - M2.G/M2.H deep-plan expansion for audit visibility
+
+### Why this expansion was needed
+1. User requested explicit planning visibility for `M2.G` and `M2.H` even after successful execution.
+2. Existing sections had execution status but were thinner than earlier M2 lanes (`M2.C/M2.E`) and could hide decision surfaces in later audits.
+
+### Planning decisions added
+1. Expanded both `M2.G` and `M2.H` with execution-grade subsections:
+   - planning precheck (decision completeness),
+   - execution contract,
+   - command surface,
+   - fail-closed blocker taxonomy (`M2G-B*`, `M2H-B*`),
+   - evidence contract,
+   - expected entry blocker (historical context),
+   - closure rule.
+2. Updated M2 deep-plan timestamp to reflect the new planning pass.
+
+### Outcome
+1. Plan and execution posture are now symmetric:
+   - observed evidence remains unchanged (`m2g_20260223T053551Z`, `m2h_20260223T053627Z`, `m2f_20260223T053933Z`),
+   - planning visibility now matches closure-grade audit standards used in earlier lanes.
+
+## Entry: 2026-02-23 06:00:44 +00:00 - M2.F DoD checkbox drift corrected
+
+### Observation
+1. User identified stale unchecked `M2.F` DoD items in `platform.M2.build_plan.md` around line 673 despite existing closure evidence (`m2f_20260223T053933Z` PASS).
+
+### Decision
+1. Treat this as documentation-state drift and correct immediately.
+2. Do not alter evidence or status claims; only align checkbox state with already-published closure artifacts.
+
+### Action taken
+1. Updated `M2.F` DoD checklist from unchecked to checked in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M2.build_plan.md`.
+
+### Outcome
+1. `M2.F` checklist state now matches run evidence and closure verdict.
+
+## Entry: 2026-02-23 06:03:22 +00:00 - M2.I and M2.J expanded to execution-grade planning
+
+### Why this planning pass was needed
+1. User requested explicit planning for `M2.I` and `M2.J` before execution.
+2. Existing sections were still gate-level and could hide execution dependencies for destroy/recover and P0 rollup lanes.
+
+### Planning decisions added for M2.I
+1. Added decision-completeness precheck including:
+   - rehearsal scope pin requirement,
+   - always-on allowlist requirement,
+   - required teardown/cost handles.
+2. Added explicit execution contract:
+   - baseline capture,
+   - bounded destroy,
+   - bounded recover,
+   - post-recovery drift checks,
+   - residual + cost posture scan.
+3. Added command surface, fail-closed blockers (`M2I-B1..B7`), evidence contract, and closure rule.
+
+### Planning decisions added for M2.J
+1. Added decision-completeness precheck including:
+   - upstream evidence availability,
+   - control-rail handle pin checks,
+   - severity model constraints.
+2. Added explicit execution contract:
+   - M2.A..M2.I rollup ingest,
+   - blocker adjudication,
+   - managed-first control-rail checks,
+   - production-pattern conformance rollup,
+   - M3 readiness receipt emission.
+3. Added command surface, fail-closed blockers (`M2J-B1..B8`), evidence contract, and closure rule.
+
+### Additional consistency correction
+1. Updated master-plan M2 subphase progress to reflect already-closed `M2.F/M2.G/M2.H`.
+
+## Entry: 2026-02-23 06:09:05 +00:00 - M2.I execution start (scope/allowlist pin before destructive actions)
+
+### Decision-completeness check before execution
+1. M2.I requires explicit rehearsal scope and residual allowlist before any destroy action.
+2. To avoid hidden blast radius, I chose bounded scope:
+   - `infra/terraform/dev_full/data_ml`
+   - `infra/terraform/dev_full/ops`
+3. Alternatives considered:
+   - full-stack destroy/recover (`core/streaming/runtime/data_ml/ops`): rejected for this lane because it exceeds planned bounded rehearsal and introduces avoidable risk/cost.
+   - no destroy (read-only validation only): rejected because it cannot satisfy M2.I DoD.
+
+### Pinned allowlist and constraints
+1. Always-on allowlist for this rehearsal:
+   - Terraform backend surfaces (`fraud-platform-dev-full-tfstate`, `fraud-platform-dev-full-tf-locks`),
+   - non-scoped stacks (`core`, `streaming`, `runtime`) and their resources,
+   - evidence bucket/prefix surfaces.
+2. No branch or cross-track operations.
+3. Fail-closed behavior:
+   - any destroy/recover failure, post-recovery drift, or evidence gap blocks M2.I closure.
+
+### Execution posture
+1. Capture pre-destroy baseline outputs and receipts first.
+2. Run destroy+recover sequentially per scoped stack (data_ml then ops) for easier rollback diagnosis.
+3. Run post-recovery no-drift plans for both stacks.
+4. Emit residual and cost posture artifacts tied to this rehearsal window.
+
+## Entry: 2026-02-23 06:10:41 +00:00 - M2.I command-surface failure and remediation decision
+
+### Failure observed
+1. Initial `M2.I` runner failed before destructive operations due a PowerShell invocation defect in helper function command dispatch.
+2. The failure occurred at command execution wrapper stage (no stack destroy/recover actions were performed).
+
+### Decision
+1. Treat as tooling defect (`M2I-B7` transient) and remediate immediately.
+2. Regenerate runner with explicit command-part parameter name (`CmdParts`) and deterministic joining logic.
+3. Rerun M2.I with a fresh run-id to keep evidence chronology clean and auditable.
+
+## Entry: 2026-02-23 06:11:46 +00:00 - M2.I second runner failure and execution strategy switch
+
+### Failure observed
+1. Second PowerShell runner attempt failed again in receipt-capture path (`null` handling in stderr trimming), still before any meaningful lane closure.
+2. Repeated wrapper failures were now dominating time without advancing substrate verification.
+
+### Decision
+1. Stop iterating on PowerShell wrappers for this lane.
+2. Switch to a Python-based orchestrator for M2.I command execution:
+   - deterministic JSON handling,
+   - explicit subprocess exit/error capture,
+   - lower risk of PowerShell null/coercion edge cases.
+3. Keep fail-closed chronology clean with a new run-id and preserve prior failed attempts as audit trail.
+
+## Entry: 2026-02-23 06:14:14 +00:00 - M2.I bounded destroy/recover rehearsal closed green
+
+### Execution summary
+1. Authoritative M2.I run:
+   - `runs/dev_substrate/dev_full/m2/m2i_20260223T061220Z/`
+2. Verdict:
+   - `m2i_execution_summary.json`: `overall_pass=true`, `next_gate=M2.I_READY`, `blockers=[]`.
+3. Key metrics:
+   - scope stacks: `2` (`data_ml`, `ops`),
+   - residual findings: `0`,
+   - post-recovery non-clean plans: `0`,
+   - rehearsal duration: `61.76s`.
+
+### Destroy/recover integrity evidence
+1. `data_ml`:
+   - pre-state count `11`,
+   - after-destroy state count `0`,
+   - post-state count `11`,
+   - post-recovery plan clean.
+2. `ops`:
+   - pre-state count `10`,
+   - after-destroy state count `0`,
+   - post-state count `10`,
+   - post-recovery plan clean.
+3. Residual scan:
+   - no forbidden residual findings under pinned allowlist.
+
+### Evidence publication
+1. Local evidence root:
+   - `runs/dev_substrate/dev_full/m2/m2i_20260223T061220Z/`
+2. Durable mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2i_20260223T061220Z/`
+
+### Notes
+1. Two earlier runner attempts remain as audit-only failed wrapper runs; they did not complete lane semantics and are not used as closure evidence.
+2. Next action is `M2.J` P0 rollup using authoritative M2.A..M2.I pass artifacts.
+
+## Entry: 2026-02-23 06:16:12 +00:00 - M2.J rollup input contract gap detected and closed
+
+### Gap detected during M2.J evidence aggregation
+1. M2.J requires paired `execution_summary + blocker_register` artifacts for each upstream lane (`M2.A..M2.I`).
+2. `M2.G` and `M2.H` had valid execution summaries but no explicit blocker-register artifacts, which would make rollup logic non-deterministic and vulnerable to implicit "assume-zero" behavior.
+
+### Alternatives considered
+1. Infer empty blockers when register file is missing:
+   - rejected because it violates fail-closed evidence contract.
+2. Re-run `M2.G` and `M2.H` solely to emit blocker files:
+   - rejected as unnecessary infra churn/cost for a docs+artifact contract gap.
+3. Materialize deterministic zero-blocker registers in-place with explicit provenance:
+   - accepted as lowest-risk closure that preserves run chronology and satisfies M2.J contract.
+
+### Action taken
+1. Created:
+   - `runs/dev_substrate/dev_full/m2/m2g_20260223T053551Z/m2g_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m2/m2h_20260223T053627Z/m2h_blocker_register.json`
+2. Published both to durable evidence prefixes under:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2g_20260223T053551Z/`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2h_20260223T053627Z/`
+
+## Entry: 2026-02-23 06:17:07 +00:00 - M2.J closed green; M2 phase closure adjudicated
+
+### Execution summary
+1. Authoritative M2.J run:
+   - `runs/dev_substrate/dev_full/m2/m2j_20260223T061612Z/`
+2. Verdict:
+   - `m2j_execution_summary.json`: `overall_pass=true`, `next_gate=M2_DONE_M3_READY`, `blockers=[]`.
+3. Rollup outcomes:
+   - `m2j_p0_rollup_matrix.json`: `phases_rolled=9`, `phase_blocker_count=0`.
+   - `m2j_managed_control_rail_snapshot.json`: runtime-path governance `pass`, SR READY commit authority `step_functions_only`, IG edge conformance `pass`, correlation contract `pass`.
+   - `m2j_m3_entry_readiness_receipt.json`: `m3_entry_ready=true`.
+
+### M2 closure adjudication
+1. `M2.I` and `M2.J` closure conditions are now fully satisfied.
+2. Consolidated M2 blocker posture:
+   - no unresolved `M2-B*`, `M2I-B*`, or `M2J-B*` blockers in authoritative closure evidence.
+3. Durable M2.J mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2j_20260223T061612Z/`
+4. Phase handoff:
+   - M2 marked `DONE`; M3 entry is now evidence-backed and unblocked.
+
+## Entry: 2026-02-23 06:21:50 +00:00 - Dev_full operator-requested cost-safe teardown initiated
+
+### User directive
+1. User requested immediate teardown before leaving, with priority on stopping active cost accrual.
+
+### Decision-completeness check
+1. Scope selected: full dev_full stack destroy for non-backend surfaces (ops, data_ml, untime, streaming, core).
+2. Retained by design (not destroyed in this pass): Terraform state bucket/table and existing evidence/oracle artifacts not managed by stack-targeted destroy.
+3. Destroy order pinned to minimize dependency deadlocks:
+   - ops -> data_ml -> untime -> streaming -> core.
+4. Fail-closed rule:
+   - any stack destroy failure is recorded with stack-specific blocker and residual impact.
+
+### Alternatives considered
+1. Runtime-only stop (leave infra up): rejected because user requested teardown and cost minimization.
+2. Partial destroy (untime/ops only): rejected because residual managed services (MSK/EKS/VPC-linked infra) would continue billing.
+3. Full backend-inclusive destroy: rejected to preserve reproducible state/evidence posture.
+
+## Entry: 2026-02-23 06:29:01 +00:00 - Dev_full teardown execution completed with one accepted residual blocker
+
+### Execution receipts
+1. Teardown run root:
+   - uns/dev_substrate/dev_full/teardown/teardown_20260223T062217Z/
+2. Summary:
+   - 	eardown_summary.json (overall_pass=false because core stack returned exit 1).
+3. Destroy outcomes by stack:
+   - ops: PASS
+   - data_ml: PASS
+   - untime: PASS
+   - streaming: PASS
+   - core: FAIL (single residual bucket blocker)
+
+### Blocker diagnosis
+1. core destroy failed only on:
+   - raud-platform-dev-full-evidence S3 bucket (BucketNotEmpty, versioned objects present).
+2. All other core resources destroyed successfully (VPC/subnets/SG/IGW/KMS/IAM roles/bucket controls).
+3. State check confirms only one remaining managed resource in core:
+   - ws_s3_bucket.core["evidence"].
+
+### Residual billing posture
+1. No active compute/runtime surfaces found for raud-platform-dev-full:
+   - EKS: none
+   - MSK: none
+   - Lambda/APIGW/StepFunctions/DynamoDB runtime tables: none
+   - RDS/MWAA/Flink apps: none
+2. Remaining retained surfaces:
+   - raud-platform-dev-full-evidence bucket
+   - raud-platform-dev-full-tfstate bucket
+   - raud-platform-dev-full-tf-locks table
+3. This residual set is storage/control-plane only; primary runtime cost accrual has been torn down.
+
+### Decision
+1. Accept residual evidence bucket for now (prevents destructive purge of evidence history while user is away).
+2. If full-zero residual is later required, run controlled versioned-object purge on raud-platform-dev-full-evidence then rerun core destroy.

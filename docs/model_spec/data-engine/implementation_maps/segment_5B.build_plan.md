@@ -2184,10 +2184,121 @@ P4 closure snapshot (2026-02-23):
 Goal:
 - freeze certified 5B posture and hand off cleanly to downstream segments.
 
+Scope:
+- freeze authority uses final P4 reopen-certified posture (`PASS_B_ROBUST`).
+- retained run-id keep-set remains:
+  - `6ac88fc0d3364aecaf564b17ebad354e` (seed 42)
+  - `65bd3b8fde7f467f8abaee6a5516ee75` (seed 7)
+  - `c9011d0081db4e479336f3083c38dd30` (seed 101)
+  - `d9a6aa2f64db4c9f9ec7ffff5c79f813` (seed 202)
+- execution root remains `runs/fix-data-engine/segment_5B` (no writes under `runs/local_full_run-5`).
+
 Definition of done:
-- [ ] freeze artifacts refreshed (gateboard + scorecards + pointers).
-- [ ] superseded run-id folders pruned under keep-set rules.
-- [ ] explicit freeze decision recorded (`5B frozen at PASS_B or PASS_BPLUS_ROBUST`).
+- [x] freeze artifacts refreshed (gateboard + scorecards + pointers).
+- [x] superseded run-id folders pruned under keep-set rules.
+- [x] explicit freeze decision recorded (`5B frozen at PASS_B or PASS_BPLUS_ROBUST`).
+
+#### P5.1 - Freeze authority lock
+Objective:
+- pin the exact closure authority used for freeze so downstream consumers have one deterministic source.
+
+Execution:
+- bind freeze authority to latest accepted artifacts:
+  - latest `segment5b_p4_closure_*.json`,
+  - latest `segment5b_p4_seed_gateboard_*.json`,
+  - latest `segment5b_p4_t10_stability_*.json`,
+  - latest `segment5b_p4r5_freeze_pointer_*.json`.
+- emit authority lock artifact:
+  - `segment5b_p5_freeze_authority_<ts>.json`.
+
+Definition of done:
+- [x] freeze authority artifact exists and references only accepted P4 closure artifacts.
+- [x] retained run-id keep-set is explicitly pinned in freeze authority artifact.
+- [x] no unresolved authority ambiguity remains.
+
+#### P5.2 - Freeze artifact refresh
+Objective:
+- publish final freeze package for Segment 5B with explicit decision posture and pointers.
+
+Execution:
+- emit freeze artifacts:
+  - `segment5b_freeze_decision_<ts>.json`,
+  - `segment5b_freeze_manifest_<ts>.json`,
+  - `segment5b_freeze_handoff_<ts>.md`.
+- include in manifest:
+  - final decision token (`PASS_B_ROBUST` or `PASS_BPLUS_ROBUST`),
+  - retained run-id set,
+  - required evidence pointers (`P1/P2/P4`),
+  - runtime posture summary (`S4+S5` witness lane).
+
+Definition of done:
+- [x] freeze decision artifact exists with explicit certified class.
+- [x] freeze manifest resolves every required evidence pointer.
+- [x] handoff note is generated and references the same authority set.
+
+#### P5.3 - Retention and prune enforcement
+Objective:
+- enforce keep-set retention without risking authority loss.
+
+Execution:
+- compute run-root inventory under `runs/fix-data-engine/segment_5B`.
+- classify folders into `retain` and `prune` sets.
+- prune only superseded run-id folders not in keep-set.
+- emit prune receipt:
+  - `segment5b_p5_prune_receipt_<ts>.json`.
+
+Definition of done:
+- [x] run inventory and classification are recorded in prune receipt.
+- [x] only non-keep-set run-id folders are deleted (if any).
+- [x] if no prune candidates exist, explicit no-op is recorded.
+
+#### P5.4 - Downstream handoff package
+Objective:
+- provide closure-grade transition package for downstream segments and integrated certification.
+
+Execution:
+- publish downstream handoff descriptor:
+  - `segment5b_p5_downstream_handoff_<ts>.json`.
+- include:
+  - frozen decision class,
+  - hard-rail posture summary,
+  - known stretch residuals (`T6/T7` B+ gap if applicable),
+  - required downstream assumptions (no 5B reopen unless explicit override).
+
+Definition of done:
+- [x] downstream handoff descriptor exists with explicit frozen assumptions.
+- [x] residual-risk section is present and non-empty when stretch gaps exist.
+- [x] descriptor references freeze authority and manifest artifacts.
+
+#### P5.5 - Final closure decision and active-step transition
+Objective:
+- close P5 with explicit segment freeze state and next-step transition.
+
+Decision outputs:
+- `SEG5B_FROZEN_PASS_BPLUS`:
+  - freeze package complete, prune complete, certified class `PASS_BPLUS_ROBUST`.
+- `SEG5B_FROZEN_PASS_B`:
+  - freeze package complete, prune complete, certified class `PASS_B_ROBUST`.
+- `HOLD_P5_REOPEN`:
+  - any freeze package inconsistency, authority mismatch, or prune safety breach.
+
+Definition of done:
+- [x] one of the three decision outputs is recorded.
+- [x] immediate execution order is updated to next segment/phase after freeze.
+- [x] implementation notes and logbook entries capture final freeze decision trail.
+
+P5 closure snapshot (2026-02-23):
+- final freeze decision: `SEG5B_FROZEN_PASS_B` (`certified_class=PASS_B_ROBUST`).
+- no unresolved blockers remain in freeze closure lane.
+- prune result: no-op (no superseded run-id folders outside keep-set).
+- emitted freeze/handoff artifacts:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p5_freeze_authority_20260223T060735Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_freeze_decision_20260223T060735Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_freeze_manifest_20260223T060735Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_freeze_handoff_20260223T060735Z.md`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p5_prune_receipt_20260223T060735Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p5_downstream_handoff_20260223T060735Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_p5_closure_20260223T060735Z.json`
 
 ## 7) Phase-to-state focus map
 - `POPT.0`: `S0..S5` evidence only.
@@ -2219,4 +2330,5 @@ Definition of done:
 14. `P2.U3` is closed with `KEEP_u3_1_c1` and lane decision `UNLOCK_P3`.
 15. `P3` is closed (`P3.1 -> P3.5`) with decision `UNLOCK_P4`.
 16. `P4` is executed end-to-end (`P4.1 -> P4.6`) and reopened via `P4.R1 -> P4.R5`; final decision is `PASS_B_ROBUST`.
-17. Active step: `P5` freeze/handoff/prune closure.
+17. `P5` is closed with decision `SEG5B_FROZEN_PASS_B`; Segment 5B remediation is closed/frozen.
+18. Active step: `Next segment planning` (or explicit user-directed lane).

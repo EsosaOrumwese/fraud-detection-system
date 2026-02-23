@@ -254,7 +254,7 @@ M1 sub-phase progress:
 - [x] `M1.E` build-go transition and blocker adjudication.
 
 ## M2 - Substrate Readiness
-Status: `IN_PROGRESS`
+Status: `DONE`
 
 Objective:
 - close `P0` by materializing core/streaming/runtime/data_ml/ops stacks.
@@ -305,13 +305,20 @@ M2 planning posture:
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2g_20260223T053551Z/`
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2h_20260223T053627Z/`
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2f_20260223T053933Z/`
-- M2 phase execution remains active for `M2.I` onward.
+- `M2.I` execution is now closed (`PASS`) with bounded destroy/recover and residual-scan evidence:
+  - `runs/dev_substrate/dev_full/m2/m2i_20260223T061220Z/m2i_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+- `M2.J` execution is now closed (`PASS`) with P0 rollup and M3-entry receipt:
+  - `runs/dev_substrate/dev_full/m2/m2j_20260223T061612Z/m2j_execution_summary.json` (`overall_pass=true`, blockers=`0`, `next_gate=M2_DONE_M3_READY`).
+- durable mirrors:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2i_20260223T061220Z/`
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m2j_20260223T061612Z/`
+- M2 closure posture is now blocker-free and handoff-ready for M3.
 
 DoD anchors:
-- [ ] all five stacks apply cleanly.
-- [ ] required handles are materialized or explicit blockers raised.
-- [ ] infra evidence snapshot committed.
-- [ ] production-pattern conformance snapshot (`managed-first + Oracle seating + lifecycle`) committed.
+- [x] all five stacks apply cleanly.
+- [x] required handles are materialized or explicit blockers raised.
+- [x] infra evidence snapshot committed.
+- [x] production-pattern conformance snapshot (`managed-first + Oracle seating + lifecycle`) committed.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M2.build_plan.md`
@@ -322,11 +329,11 @@ M2 sub-phase progress:
 - [x] `M2.C` streaming stack materialization.
 - [x] `M2.D` topic/schema readiness precheck.
 - [x] `M2.E` runtime stack and IAM role posture.
-- [ ] `M2.F` secret path contract and materialization checks.
-- [ ] `M2.G` data_ml stack materialization.
-- [ ] `M2.H` ops stack and cost guardrail surfaces.
-- [ ] `M2.I` destroy/recover rehearsal and residual scan.
-- [ ] `M2.J` P0 gate rollup and verdict.
+- [x] `M2.F` secret path contract and materialization checks.
+- [x] `M2.G` data_ml stack materialization.
+- [x] `M2.H` ops stack and cost guardrail surfaces.
+- [x] `M2.I` destroy/recover rehearsal and residual scan.
+- [x] `M2.J` P0 gate rollup and verdict.
 
 ## M3 - Run Pinning and Orchestrator Readiness
 Status: `NOT_STARTED`

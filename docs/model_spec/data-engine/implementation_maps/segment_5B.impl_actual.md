@@ -8486,3 +8486,76 @@ Freeze/prune closure:
    - `runs/fix-data-engine/segment_5B/reports/segment5b_p4r5_freeze_pointer_20260223T053940Z.json`
 2) run-id prune remained no-op (only retained four-seed set exists in run root).
 3) active next step moved to `P5` in build plan.
+
+### Entry: 2026-02-23 06:04
+
+Planning expansion for `P5` (freeze/handoff/prune) before execution.
+
+Planning intent:
+1) convert current high-level `P5` placeholder into execution-grade subphases with explicit artifacts and DoD checks.
+2) keep `P5` strictly post-certification governance scope (no realism-tuning or state-generation edits).
+3) preserve no-local-full-write posture and retained four-seed keep-set already pinned by `P4`.
+
+Subphase structure selected:
+1) `P5.1` freeze authority lock (inputs and retained run-id set pin).
+2) `P5.2` freeze artifact refresh (decision + manifest + handoff pointers).
+3) `P5.3` prune enforcement (proof-driven keep-set check and deletion only if superseded folders exist).
+4) `P5.4` downstream handoff package (explicit frozen posture for segment transitions).
+5) `P5.5` closure decision gate (`SEG5B_FROZEN_PASS_B` vs `HOLD_P5_REOPEN`).
+
+Alternatives rejected:
+1) single-step P5 closure with minimal checklist.
+   - rejected: insufficient auditability for freeze-grade posture.
+2) merging prune logic into handoff section.
+   - rejected: weak separation of retention safety vs downstream transition semantics.
+
+### Entry: 2026-02-23 06:07
+
+`P5.1 -> P5.5` execution closure for Segment 5B.
+
+`P5.1` freeze authority lock:
+1) selected latest accepted P4 authority set:
+   - `segment5b_p4_closure_20260223T053919Z.json`,
+   - `segment5b_p4_seed_gateboard_20260223T053919Z.json`,
+   - `segment5b_p4_t10_stability_20260223T053919Z.json`,
+   - `segment5b_p4r5_freeze_pointer_20260223T053940Z.json`.
+2) verified freeze-eligibility preconditions:
+   - P4 decision is in `{PASS_B_ROBUST, PASS_BPLUS_ROBUST}`.
+   - seed panel `{42,7,101,202}` present and complete.
+   - no hard/major failures on any seed.
+   - `S5` PASS on all seeds.
+   - `S4+S5` runtime budget pass on all seeds.
+3) emitted lock artifact:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p5_freeze_authority_20260223T060735Z.json`.
+
+`P5.2` freeze artifact refresh:
+1) emitted explicit freeze decision and manifest:
+   - `segment5b_freeze_decision_20260223T060735Z.json`,
+   - `segment5b_freeze_manifest_20260223T060735Z.json`.
+2) decision class mapping:
+   - P4 class `PASS_B_ROBUST` -> freeze token `SEG5B_FROZEN_PASS_B`.
+3) emitted human-readable handoff:
+   - `segment5b_freeze_handoff_20260223T060735Z.md`.
+
+`P5.3` retention/prune enforcement:
+1) run-root inventory evaluated against keep-set.
+2) no superseded run-id folder exists outside keep-set.
+3) prune action = no-op with receipt:
+   - `segment5b_p5_prune_receipt_20260223T060735Z.json`.
+
+`P5.4` downstream handoff package:
+1) emitted downstream descriptor:
+   - `segment5b_p5_downstream_handoff_20260223T060735Z.json`.
+2) included frozen assumptions + residual risk lane:
+   - hard rails pass,
+   - B+ stretch residual remains at `T6/T7`.
+
+`P5.5` final closure decision:
+1) emitted closure artifact:
+   - `segment5b_p5_closure_20260223T060735Z.json`.
+2) final decision:
+   - `SEG5B_FROZEN_PASS_B`.
+3) blocker state:
+   - none.
+4) remediation closure status for Segment 5B:
+   - CLOSED and FROZEN at robust B posture.
