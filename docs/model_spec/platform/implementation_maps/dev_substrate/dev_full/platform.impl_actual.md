@@ -3152,3 +3152,92 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
    - closure rule,
    - current planning status with explicit open blockers.
 3. Keep all checkboxes unresolved (`[ ]`) because this is planning-only.
+
+## Entry: 2026-02-23 17:36:54 +00:00 - M3.A planning expansion completed (verification + blockers + evidence contract)
+
+### Changes made
+1. Expanded `M3.A` in `platform.M3.build_plan.md` with:
+   - decision pins,
+   - verification command catalog,
+   - M3.A-specific blocker taxonomy,
+   - explicit evidence contract,
+   - closure rule,
+   - current planning status with known open blockers.
+2. Updated master `platform.build_plan.md` M3 posture to reference M3.A expansion explicitly.
+
+### Why this was required
+1. M3.A previously listed handles but had no deterministic verification/closure mechanics.
+2. Without command catalog + blocker taxonomy, execution would depend on interpretation and could drift.
+
+### Open blockers carried forward
+1. `M3A-B2`: `ROLE_TERRAFORM_APPLY_DEV_FULL` remains `TO_PIN` in handle registry.
+2. `M3A-B4`: orchestrator runtime surface remains down post-teardown until rematerialization.
+
+### Execution posture
+1. M3.A remains planning-only and unexecuted.
+2. No infra mutation or runtime start was performed in this step.
+
+## Entry: 2026-02-23 17:39:13 +00:00 - M3.A execution preflight and blocker remediation plan
+
+### Verified blockers (live)
+1. `M3A-B2` confirmed: `ROLE_TERRAFORM_APPLY_DEV_FULL` remains `TO_PIN` in registry (two sections).
+2. `M3A-B4` confirmed: `aws stepfunctions list-state-machines --region eu-west-2` returned empty set.
+
+### Alternatives considered
+1. Ignore apply-identity placeholder and proceed with runtime remediation only:
+   - rejected because M3.A closure requires zero unresolved required placeholders.
+2. Manually create Step Functions state machine out-of-band for quick unblock:
+   - rejected because it would bypass pinned Terraform authority and create drift risk.
+3. Rematerialize full five stacks before M3.A:
+   - rejected as unnecessary blast radius/cost for M3.A closure.
+4. Rematerialize minimum dependency chain (`core -> streaming -> runtime`) and pin apply identity to active execution principal:
+   - accepted.
+
+### Planned execution steps
+1. Pin `ROLE_TERRAFORM_APPLY_DEV_FULL` to current active principal ARN from STS.
+2. Apply Terraform stacks in dependency order: `core`, `streaming`, `runtime`.
+3. Re-run M3.A verification command set and produce evidence artifacts:
+   - `m3a_handle_closure_snapshot.json`
+   - `m3a_blocker_register.json`
+   - `m3a_command_receipts.json`
+   - `m3a_execution_summary.json`
+4. Publish M3.A evidence to durable S3 run-control prefix.
+
+### Fail-closed rules for this execution
+1. Any Terraform apply failure keeps `M3A-B4` open and blocks M3.A closure.
+2. Any unresolved required placeholder keeps `M3A-B2` open and blocks M3.A closure.
+3. Missing evidence artifacts => `M3A-B7` and no closure.
+
+## Entry: 2026-02-23 17:39:39 +00:00 - M3.A blocker remediation decision: apply-identity handle pin
+
+### Decision made
+1. Updated `ROLE_TERRAFORM_APPLY_DEV_FULL` from `TO_PIN` to active STS principal ARN:
+   - `arn:aws:iam::230372904534:user/fraud-dev`
+2. Applied this pin in both registry sections where the handle appears.
+
+### Why this option was chosen
+1. M3.A closure requires zero unresolved required placeholders.
+2. Execution lane is currently local operator apply, so active STS principal is the truthful apply identity now.
+3. Added explicit repin note to managed CI role for later lane activation.
+
+### Risks and controls
+1. Risk: user-principal pin could be mistaken as long-term production posture.
+2. Control: inline note marks this as local-apply pin and requires later managed-role repin.
+
+## Entry: 2026-02-23 17:40:44 +00:00 - M3.A remediation attempt #1 failed (pathing + dependency sequencing)
+
+### What failed
+1. Terraform plan used relative `-out` paths while executing with `-chdir`, causing `Failed to write plan file` for all three stacks.
+2. `streaming` and `runtime` additionally reported expected precondition failures because `core` outputs were still missing at that point.
+
+### Root cause analysis
+1. Pathing defect: plan output path was resolved relative to stack workdir and referenced a non-existent nested path.
+2. Sequencing defect: running plan for all stacks before successful `core` apply triggered known output-dependent preconditions.
+
+### Decision and correction
+1. Rerun with a new execution id and absolute tfplan file paths.
+2. Execute strictly sequentially:
+   - `core` init/plan/apply first,
+   - then `streaming`,
+   - then `runtime`.
+3. Preserve failed attempt receipts as audit artifacts and exclude from closure evidence.

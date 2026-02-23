@@ -350,6 +350,7 @@ Planned lanes:
 
 M3 planning posture:
 - Deep plan has been created and expanded to execution-grade coverage across `M3.A..M3.J`.
+- `M3.A` has been expanded with command-level verification catalog, blocker taxonomy, and evidence/closure contract.
 - M3 execution remains fail-closed on current entry blockers:
   - orchestrator runtime surface is down after teardown and must be rematerialized for P1 entry checks,
   - unresolved required `TO_PIN` handles must be closed before execution identity is declared green.

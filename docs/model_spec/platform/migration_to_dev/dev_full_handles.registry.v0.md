@@ -132,7 +132,7 @@
 
 ### 2.4 Apply identity
 
-* `ROLE_TERRAFORM_APPLY_DEV_FULL = "TO_PIN"`
+* `ROLE_TERRAFORM_APPLY_DEV_FULL = "arn:aws:iam::230372904534:user/fraud-dev"` (pinned for local operator apply in M3.A; repin to managed apply role when CI apply lane is activated)
 
 ---
 
@@ -570,7 +570,7 @@ Allowed tokens in pattern handles:
 
 ### 11.1 Required IAM role handles (design-authority pinned set)
 
-* `ROLE_TERRAFORM_APPLY_DEV_FULL = "TO_PIN"`
+* `ROLE_TERRAFORM_APPLY_DEV_FULL = "arn:aws:iam::230372904534:user/fraud-dev"` (pinned for local operator apply in M3.A; repin to managed apply role when CI apply lane is activated)
 * `ROLE_EKS_NODEGROUP_DEV_FULL = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-eks-nodegroup"` (materialized in M2.B)
 * `ROLE_EKS_RUNTIME_PLATFORM_BASE = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-runtime-platform-base"` (materialized in M2.B)
 * `ROLE_FLINK_EXECUTION = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution"` (materialized in M2.E)
