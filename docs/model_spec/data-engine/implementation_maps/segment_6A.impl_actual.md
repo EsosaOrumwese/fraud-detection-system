@@ -1162,3 +1162,78 @@ Actions taken:
 Expected outcome:
 - Latest receipt selection stable under mtime changes.
 - JSON outputs are less likely to be left partial on crash.
+
+### Entry: 2026-02-23 22:47
+
+6A remediation build-plan initialization (B/B+ authority-aligned):
+- Trigger: user requested that remediation planning for 6A be explicitly captured in a dedicated build plan before optimization planning.
+- Reviewed authorities used for this planning pass:
+  - `docs/reports/eda/segment_6A/segment_6A_published_report.md`
+  - `docs/reports/eda/segment_6A/segment_6A_remediation_report.md`
+  - `docs/model_spec/data-engine/layer-3/specs/state-flow/6A/state.6A.s0.expanded.md` through `state.6A.s5.expanded.md`
+- Planning decision:
+  - create `docs/model_spec/data-engine/implementation_maps/segment_6A.build_plan.md` as the execution controller for 6A closure.
+  - structure it with explicit phase stack and DoD checklists: `P0 -> P6`.
+- Chosen owner-state decomposition (aligned to remediation report Delta sets):
+  - `P1` owner: `S2` hard `K_max` post-merge enforcement (Delta A),
+  - `P2` owner: `S4` IP realism controls (Delta B),
+  - `P3` owner: `S5` propagation coupling (Delta C),
+  - `P4` owner: role mapping + fail-closed validation hardening (Delta D/E),
+  - `P5`: multi-seed B certification and freeze,
+  - `P6`: B+ extension only after B closure.
+- Gate policy pinned in plan:
+  - hard gates `T1-T10` for `B`,
+  - stretch thresholds for `B+`,
+  - fail-closed treatment for insufficient evidence.
+- Execution discipline pinned:
+  - sequential rerun matrix by earliest changed owner state,
+  - run retention/pruning keep-set under `runs/fix-data-engine/segment_6A/`.
+- This pass was planning-only; no engine code/config was changed.
+
+### Entry: 2026-02-23 22:55
+
+6A deep implementation hotspot analysis completed; pre-refactor optimization strategy pinned.
+
+Trigger:
+- User direction to move to the next step: deep 6A hotspot analysis and high-impact optimization strategy, before any refactor.
+
+Evidence collected (cold baselines):
+- Run `c25a2675fbfbacd952b13bb594880e92`:
+  - `S1=8.91s`, `S2=172.33s`, `S3=297.33s`, `S4=79.74s`, `S5=209.12s`.
+- Run `fd0a6cc8d887f06793ea9195f207138b`:
+  - `S1=12.08s`, `S2=246.94s`, `S3=405.41s`, `S4=173.36s`, `S5=289.97s`.
+- Hotspot order is stable across both baselines: `S3 > S5 > S2 > S4`.
+
+Code-path hotspot attribution:
+- `S2` (`packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py`):
+  - heavy Python loops in allocation and row-by-row emit (`allocate accounts to parties`; nested country->type->party->count loops),
+  - repeated full-range scans over `1..max_party_id` for holdings/summary emission.
+- `S3` (`packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py`):
+  - Python-side account-cell maps and per-cell weighted allocation,
+  - nested per-account/per-instrument row emission in tight loops.
+- `S4` (`packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py`):
+  - region emit loop is heavy for large regions,
+  - merge stage re-reads and merges all regional part files.
+- `S5` (`packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py`):
+  - role assignment for large tables is expensive,
+  - validation section performs repeated scans/collects over the same parquet inputs.
+
+Alternatives considered and decision:
+- Alternative A: start with realism-policy tuning first.
+  - Rejected: this does not address runtime bottlenecks and violates performance-first phase law for this lane.
+- Alternative B: increase parallel workers/fanout as primary fix.
+  - Rejected: user memory constraints and algorithmic inefficiency would remain.
+- Alternative C: refactor all hotspot states in one pass.
+  - Rejected: blast radius too high; weak rollback isolation.
+- Chosen: ordered high-impact strategy lanes with measured gates and deterministic invariants.
+
+Strategy lock applied to build plan:
+- Expanded `segment_6A.build_plan.md` Section `7` from placeholder to execution-grade `POPT.0 -> POPT.5`.
+- Added:
+  - pinned hotspot evidence,
+  - runtime budget targets (`S2<=120s`, `S3<=180s`, `S4<=90s`, `S5<=120s`, segment target `<=540s`),
+  - lane-by-lane DoD and minimum improvement requirements,
+  - hard constraints: determinism/contract/realism preserved; no policy-threshold edits inside POPT.
+
+Immediate next action (still pre-refactor posture):
+- Start `POPT.0` instrumentation and perf-evidence emission; no semantic behavior change in this step.

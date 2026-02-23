@@ -356,6 +356,7 @@ M3 planning posture:
 - `M3.D` has been expanded with orchestrator-entry/run-lock decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.E` has been expanded with durable write-once evidence publication decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.F` has been expanded with runtime-scope export and M4 handoff decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
+- `M3.G` has been expanded with rerun/reset fail-closed decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.A` execution is now closed (`PASS`):
   - `runs/dev_substrate/dev_full/m3/m3a_20260223T174307Z/m3a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
 - `M3.A` blocker remediation closed:
@@ -399,6 +400,12 @@ M3 planning posture:
   - handoff readback hash and reference readability checks pass.
 - M3.F durable mirror:
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3f_20260223T224855Z/`
+- `M3.G` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m3/m3g_20260223T225607Z/m3g_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - rerun/reset discipline evidence published (policy snapshot, reset class matrix, mutation guard receipts).
+  - identity-drift fail-closed posture and non-destructive rerun law both verified.
+- M3.G durable mirror:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3g_20260223T225607Z/`
 
 DoD anchors:
 - [x] run pin artifact committed.
@@ -415,7 +422,7 @@ M3 sub-phase progress:
 - [x] `M3.D` orchestrator entry and lock identity readiness.
 - [x] `M3.E` durable run evidence publication.
 - [x] `M3.F` runtime scope export and M4 handoff pack.
-- [ ] `M3.G` rerun/reset discipline.
+- [x] `M3.G` rerun/reset discipline.
 - [ ] `M3.H` phase budget and cost-outcome receipt.
 - [ ] `M3.I` gate rollup and blocker adjudication.
 - [ ] `M3.J` verdict and M4 entry marker.

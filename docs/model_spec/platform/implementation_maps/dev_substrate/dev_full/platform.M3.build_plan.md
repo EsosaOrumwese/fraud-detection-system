@@ -802,9 +802,103 @@ Tasks:
 4. emit rerun/reset policy snapshot for M3.
 
 DoD:
-- [ ] rerun/reset rules are explicit and auditable.
-- [ ] destructive rerun paths are prohibited.
-- [ ] identity drift behavior is fail-closed.
+- [x] rerun/reset rules are explicit and auditable.
+- [x] destructive rerun paths are prohibited.
+- [x] identity drift behavior is fail-closed.
+
+M3.G decision pins (closed before execution):
+1. Non-destructive law:
+   - append-only truth surfaces must not be deleted or rewritten for rerun.
+   - prohibited: deleting `evidence/runs/{platform_run_id}/...` objects to force rerun.
+2. Boundary-rerun law:
+   - rerun starts from failed phase boundary only, not from ad-hoc phase skipping.
+   - rerun requires explicit prior-phase closure evidence references.
+3. Identity drift law:
+   - if `platform_run_id`, `scenario_run_id`, or `config_digest` changes, a new run identity is mandatory.
+   - old run evidence remains immutable.
+4. Reset class law (runbook aligned):
+   - permitted reset classes are:
+     - service/runtime reset,
+     - checkpoint reset (only where policy exists),
+     - data replay reset from committed replay basis.
+   - local ad-hoc input replay is prohibited.
+5. Fail-closed approval law:
+   - any fallback/reset outside pinned classes requires blocker adjudication and explicit approval with a new `phase_execution_id`.
+6. Auditability law:
+   - each reset action must emit receipt with actor, timestamp, reason, class, and scope.
+
+M3.G verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3G-V1-RUNBOOK-RULES` | `rg -n \"Never rerun by deleting append-only truth surfaces|Rerun from failed phase boundary|Mandatory reset classes\" docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md` | anchors M3.G to runbook reset laws |
+| `M3G-V2-IDENTITY-DRIFT` | compare current `platform_run_id/scenario_run_id/config_digest` vs previous run metadata | enforces new-run requirement on drift |
+| `M3G-V3-PROHIBITED-MUTATION-GUARD` | check no delete/mutate commands or receipts target committed run evidence keys | proves non-destructive posture |
+| `M3G-V4-RESET-CLASS-MAP` | validate all reset actions map to allowed classes | blocks ad-hoc reset behavior |
+| `M3G-V5-RESET-RECEIPTS` | verify reset receipts include actor/timestamp/reason/class/scope | enforces auditability |
+| `M3G-V6-DURABLE-PUBLISH` | `aws s3 cp <local_artifact> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m3g_execution_id>/...` | publishes durable M3.G evidence |
+
+M3.G blocker taxonomy (fail-closed):
+1. `M3G-B1`: rerun/reset policy missing or internally inconsistent.
+2. `M3G-B2`: identity drift detected without new-run posture.
+3. `M3G-B3`: destructive mutation/delete action detected on committed evidence.
+4. `M3G-B4`: reset action outside permitted reset classes.
+5. `M3G-B5`: missing/invalid reset audit receipts.
+6. `M3G-B6`: fallback/reset without explicit blocker adjudication + phase execution id.
+7. `M3G-B7`: durable publication failure for M3.G policy evidence.
+8. `M3G-B8`: M3.G evidence contract missing/incomplete.
+
+M3.G evidence contract (planned):
+1. `m3g_rerun_reset_policy_snapshot.json`
+2. `m3g_reset_class_matrix.json`
+3. `m3g_prohibited_mutation_guard_receipts.json`
+4. `m3g_execution_summary.json`
+
+`m3g_rerun_reset_policy_snapshot.json` minimum fields:
+1. `platform_run_id`
+2. `scenario_run_id`
+3. `config_digest`
+4. `identity_drift_policy`
+5. `permitted_reset_classes`
+6. `prohibited_actions`
+7. `fallback_approval_rule`
+8. `overall_pass`
+
+M3.G closure rule:
+1. M3.G can close only when:
+   - rerun/reset policy is explicit, runbook-aligned, and auditable,
+   - prohibited destructive paths are explicitly blocked,
+   - identity drift handling is fail-closed,
+   - reset-class mapping and receipts are complete,
+   - all M3.G evidence artifacts exist locally and in durable run-control prefix,
+   - no active `M3G-B*` blockers remain.
+
+M3.G planning status (current):
+1. Prerequisite lanes `M3.B`..`M3.F` are closed green.
+2. Runbook reset laws and fail-closed posture are available and pinned.
+3. No known pre-execution blockers for M3.G at planning time.
+4. Phase posture:
+   - planning expanded; execution closed green.
+
+M3.G execution status (2026-02-23):
+1. Authoritative execution id:
+   - `m3g_20260223T225607Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3g_20260223T225607Z/`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3g_20260223T225607Z/`
+4. PASS artifacts:
+   - `m3g_rerun_reset_policy_snapshot.json`
+   - `m3g_reset_class_matrix.json`
+   - `m3g_prohibited_mutation_guard_receipts.json`
+   - `m3g_execution_summary.json`
+5. Closure results:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M3.G_READY`
+   - runbook reset-law anchors found (`PASS`)
+   - identity drift check (`PASS`: drift not detected for active run triplet)
+   - prohibited mutation guard (`PASS`: no delete markers, no multi-version rewrite on committed run evidence keys)
+   - reset-class and receipt integrity (`PASS`)
 
 ### M3.H Cost Envelope and Outcome Receipt
 Goal:
@@ -870,7 +964,7 @@ Any active `M3-B*` blocker prevents M3 closure.
 - [x] M3.D complete.
 - [x] M3.E complete.
 - [x] M3.F complete.
-- [ ] M3.G complete.
+- [x] M3.G complete.
 - [ ] M3.H complete.
 - [ ] M3.I complete.
 - [ ] M3.J complete.

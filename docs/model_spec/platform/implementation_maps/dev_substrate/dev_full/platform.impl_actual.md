@@ -3559,6 +3559,62 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
 3. `docs/logbook/02-2026/2026-02-23.md`
 
+## Entry: 2026-02-23 22:58:15 +00:00 - M3.G full execution closure (rerun/reset discipline)
+
+### Objective lock before execution
+1. Close `M3.G` by proving rerun/reset discipline is explicit, non-destructive, and fail-closed for identity drift.
+2. Keep scope constrained to policy/evidence validation only:
+   - no runtime topology edits,
+   - no destructive run-prefix mutations,
+   - no recomputation of already-committed M3 identity artifacts.
+
+### Alternatives considered during execution
+1. Reconstruct policy evidence from scratch by replaying prior M3 subphases:
+   - rejected; violates performance-first posture and risks accidental drift in closed evidence.
+2. Validate policy only from local artifacts:
+   - rejected; closure requires durable-read truth, not workstation-local-only proof.
+3. Use existing authoritative M3 chain (`M3.B..M3.F`) and execute bounded policy validation:
+   - accepted; minimal blast radius, deterministic, and aligned to runbook reset law.
+
+### Execution path and decisions
+1. Anchored reset-law phrases in runbook first to prevent interpretation drift.
+2. Bound active run identity triplet (`platform_run_id`, `scenario_run_id`, `config_digest`) to committed `run.json` + `run_header.json` and failed closed on mismatch.
+3. Chose object-version guard over whole-prefix hashing for mutation proof:
+   - checked delete markers and multi-version rewrites on committed run prefix,
+   - this preserves correctness while avoiding unnecessary heavy scans.
+4. Enforced reset-class map against the allowed set:
+   - `service_runtime_reset`,
+   - `checkpoint_reset`,
+   - `data_replay_reset`.
+5. Required rerun receipt schema completeness (actor/timestamp/reason/class/scope) before PASS.
+6. Published all artifacts to durable run-control prefix and verified presence.
+
+### Authoritative outputs
+1. `m3g_execution_id`: `m3g_20260223T225607Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3g_20260223T225607Z/`
+3. Durable evidence root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3g_20260223T225607Z/`
+4. Closure result:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `next_gate=M3.G_READY`
+
+### Blocker handling outcome
+1. No active `M3G-B*` blockers were raised in authoritative run.
+2. No fallback adjudication path was needed.
+3. No destructive remediation commands were used.
+
+### Documentation synchronization completed
+1. `platform.M3.build_plan.md`:
+   - M3.G DoD checkboxes set complete,
+   - execution status block appended with explicit PASS evidence.
+2. `platform.build_plan.md`:
+   - M3 posture updated with M3.G closure evidence,
+   - M3.G subphase progress marked complete.
+3. `docs/logbook/02-2026/2026-02-23.md`:
+   - execution closure note appended with command/evidence references.
+
 ## Entry: 2026-02-23 19:08:10 +00:00 - M3.D planning expanded to execution-grade
 
 ### What was added to M3.D
@@ -3993,6 +4049,78 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 2. `platform.build_plan.md`:
    - M3 posture updated with M3.F PASS evidence,
    - M3 sub-phase progress marks M3.F complete.
+
+## Entry: 2026-02-23 22:52:38 +00:00 - M3.G planning correction and start
+
+### Correction note
+1. During initial response to user request for M3.G planning, I momentarily continued M3.F-centric framing.
+2. Corrective action taken immediately:
+   - switched planning scope to `M3.G` only,
+   - retained prior entries as immutable audit trail,
+   - added explicit correction marker to avoid historical ambiguity.
+
+### M3.G planning objective
+1. Convert rerun/reset policy from high-level bullets into execution-grade, fail-closed contract.
+2. Ensure alignment with runbook reset laws:
+   - no destructive append-truth mutation,
+   - rerun from failed boundary,
+   - reset classes only from pinned set.
+
+## Entry: 2026-02-23 22:53:15 +00:00 - M3.G planning expanded to execution-grade
+
+### What was added to M3.G
+1. Decision pins:
+   - non-destructive law,
+   - boundary-rerun law,
+   - identity-drift new-run law,
+   - reset-class law,
+   - fallback approval law,
+   - auditability law.
+2. Verification command catalog:
+   - runbook law anchors,
+   - identity-drift checks,
+   - prohibited mutation guards,
+   - reset-class map checks,
+   - reset-receipt completeness checks,
+   - durable evidence publish checks.
+3. Fail-closed blocker taxonomy:
+   - `M3G-B1..M3G-B8`.
+4. Evidence contract and closure rule:
+   - explicit policy snapshot, class matrix, mutation-guard receipts, and execution summary.
+
+### Reasoning notes
+1. I anchored M3.G to runbook Section 6 rules to avoid policy drift between docs and execution practice.
+2. I treated destructive-evidence paths as hard blockers even for rerun convenience because P1 truth surfaces are append-only by law.
+3. I kept M3.G as planning-only in this step; no runtime reset actions executed.
+
+### Plan synchronization
+1. Master plan now explicitly records M3.G planning expansion.
+2. M3.G remains execution-pending.
+
+## Entry: 2026-02-23 22:54:23 +00:00 - M3.G execution start (pre-run decision lock)
+
+### Execution objective
+1. Close M3.G by proving rerun/reset discipline is explicit, runbook-aligned, non-destructive, and auditable.
+
+### Inputs locked for this run
+1. Latest M3 execution chain is green through M3.F.
+2. Runbook reset laws anchored from `dev_full_platform_green_v0_run_process_flow.md` Section 6.
+3. Active run identity context from `m4_handoff_pack.json`:
+   - `platform_run_id=platform_20260223T184232Z`
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`
+   - `config_digest=13f49c0d8e35264a1923844ae19f0e7bdba2b438763b46ae99db6aeeb0b8dc8b`
+
+### Decision details before command execution
+1. Identity-drift check will compare handoff triplet against committed run surfaces (`run.json`, `run_header.json`).
+2. Non-destructive guard will use object-version inspection for delete markers on run prefix; if unavailable, fallback will require explicit conservative guard receipts.
+3. Reset-class matrix will treat observed actions as empty unless explicit reset receipts exist; empty set is valid and auditable for this closure.
+4. All policy artifacts must be published locally and durably with blocker-free summary.
+
+### Alternatives considered and rejected
+1. Mark policy complete without scanning committed evidence prefix:
+   - rejected; non-destructive law requires concrete guard evidence.
+2. Infer reset actions heuristically from narrative text only:
+   - rejected; execution receipts must drive policy evidence.
 
 ## Entry: 2026-02-23 18:57:12 +00:00 - M3.C planning expanded to execution-grade
 
