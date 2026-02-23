@@ -2425,3 +2425,11 @@ U1.C1 execution snapshot (2026-02-23, run-id `65bd3b8fde7f467f8abaee6a5516ee75`,
 - bounded reopen decision:
   - `HOLD_U1_REJECTED` for candidate `U1.C1`.
   - keep `SEG5B_RETAIN_PASS_B` frozen authority; no fanout to multi-seed for this candidate.
+
+User freeze directive closure (2026-02-23):
+- user directed immediate freeze at `PASS_B`.
+- freeze decision artifacts emitted:
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_freeze_decision_20260223T223504Z.json`
+  - `runs/fix-data-engine/segment_5B/reports/segment5b_freeze_handoff_20260223T223504Z.md`
+- effective terminal status for Segment `5B`:
+  - `SEG5B_FROZEN_PASS_B` (`certified_class=PASS_B_ROBUST`).

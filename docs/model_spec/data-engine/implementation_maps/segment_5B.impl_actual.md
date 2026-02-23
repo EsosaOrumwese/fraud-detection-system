@@ -8732,3 +8732,20 @@ Final decision for this candidate:
 1) `U1.C1` rejected (`HOLD_U1_REJECTED`) due unacceptable `T7` regression.
 2) No multi-seed fanout for this candidate.
 3) Keep Segment `5B` frozen authority at robust `B` (`SEG5B_RETAIN_PASS_B`) until a different bounded upstream candidate is selected.
+
+### Entry: 2026-02-23 22:35
+
+User-directed freeze confirmation executed: lock Segment `5B` at `PASS_B` now.
+
+Decisions:
+1) accept explicit terminal freeze posture for `5B` with no further upstream fanout.
+2) preserve current authority scorecards from the bounded upstream witness lane.
+3) emit a fresh freeze decision artifact pair to make this user directive auditable and standalone.
+
+Artifacts emitted:
+1) `runs/fix-data-engine/segment_5B/reports/segment5b_freeze_decision_20260223T223504Z.json`
+2) `runs/fix-data-engine/segment_5B/reports/segment5b_freeze_handoff_20260223T223504Z.md`
+
+Effective terminal status:
+1) `SEG5B_FROZEN_PASS_B`.
+2) `certified_class=PASS_B_ROBUST`.

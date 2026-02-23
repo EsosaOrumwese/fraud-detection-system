@@ -3775,6 +3775,82 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 1. Master plan now explicitly notes M3.E planning expansion.
 2. M3.E remains execution-pending.
 
+## Entry: 2026-02-23 22:33:00 +00:00 - M3.E execution start (pre-write guard confirmation)
+
+### Pre-execution checks completed
+1. Upstream inputs are confirmed green:
+   - M3.B identity artifact present,
+   - M3.C digest artifact present,
+   - M3.D orchestrator-readiness artifact present.
+2. Target run prefix check:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/` returned no objects.
+   - Interpreted as write-once precondition candidate pass, pending key-level `head-object` checks.
+
+### Payload composition pinned for M3.E execution
+1. `run.json` will include:
+   - `platform_run_id`,
+   - `scenario_run_id`,
+   - `config_digest`,
+   - `phase_id=P1`,
+   - pointers to source M3.B/M3.C/M3.D evidence execution ids.
+2. `run_header.json` will carry the same identity/digest triplet plus `written_at_utc`.
+3. Cross-object consistency requirement:
+   - identity/digest triplet must be byte-equal semantically across both artifacts.
+
+### Execution safeguards
+1. Perform key-level existence guard via `head-object` on:
+   - resolved `run.json` key,
+   - resolved `run_header.json` key.
+2. Abort before upload if either key exists.
+3. After upload, read back both objects and verify SHA256 equality against local files.
+
+## Entry: 2026-02-23 22:35:27 +00:00 - M3.E execution closed green (write-once + readback integrity)
+
+### Authoritative execution
+1. `m3e_execution_id`: `m3e_20260223T223411Z`
+2. Source artifacts used:
+   - `m3b_20260223T184232Z` (identity),
+   - `m3c_20260223T185958Z` (digest),
+   - `m3d_20260223T191338Z` (orchestrator/lock readiness).
+3. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3e_20260223T223411Z/`
+4. Durable run-control evidence root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3e_20260223T223411Z/`
+
+### Durable publication results
+1. `run.json` committed at:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/run.json`
+2. `run_header.json` committed at:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/run_pin/run_header.json`
+
+### Reasoning and decisions during execution
+1. Interpreted `head-object` 404 as expected non-existence signal for write-once precondition.
+2. Treated any pre-existing key as fail-closed blocker (`M3E-B3`); no overwrite path implemented.
+3. Required readback hash equality instead of trusting upload success status.
+4. Enforced cross-object identity/digest consistency before closure.
+
+### Outcome
+1. `overall_pass=true`, blockers empty, `next_gate=M3.E_READY`.
+2. Write-once guard passed for both targets.
+3. SHA256 readback integrity passed for both objects.
+4. Secret scan found no prohibited fields.
+
+### Evidence produced
+1. `m3e_run_json_write_receipt.json`
+2. `m3e_run_header_write_receipt.json`
+3. `m3e_integrity_readback_receipts.json`
+4. `m3e_execution_summary.json`
+
+### Plan/doc updates applied
+1. `platform.M3.build_plan.md`:
+   - M3.E DoDs checked complete,
+   - M3.E execution status block appended,
+   - M3 completion checklist marks M3.E complete.
+2. `platform.build_plan.md`:
+   - M3 posture updated with M3.E PASS evidence,
+   - DoD anchor `run pin artifact committed` marked complete,
+   - M3 sub-phase progress marks M3.E complete.
+
 ## Entry: 2026-02-23 18:57:12 +00:00 - M3.C planning expanded to execution-grade
 
 ### What was added to M3.C

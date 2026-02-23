@@ -576,9 +576,9 @@ Tasks:
 4. enforce write-once posture for the same run id.
 
 DoD:
-- [ ] durable `run.json` write succeeds and readback passes.
-- [ ] durable run-header write succeeds and readback passes.
-- [ ] write-once guard behavior is documented.
+- [x] durable `run.json` write succeeds and readback passes.
+- [x] durable run-header write succeeds and readback passes.
+- [x] write-once guard behavior is documented.
 
 M3.E decision pins (closed before execution):
 1. Source-of-truth law:
@@ -651,7 +651,30 @@ M3.E planning status (current):
 2. Run evidence key handles are pinned in registry.
 3. No known pre-execution blockers for M3.E at planning time.
 4. Phase posture:
-   - planning expanded; execution not started.
+   - planning expanded before execution.
+
+M3.E execution status (2026-02-23):
+1. Authoritative execution id:
+   - `m3e_20260223T223411Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3e_20260223T223411Z/`
+3. Durable run-control evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3e_20260223T223411Z/`
+4. Published run evidence objects:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/run.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/run_pin/run_header.json`
+5. PASS artifacts:
+   - `m3e_run_json_write_receipt.json`
+   - `m3e_run_header_write_receipt.json`
+   - `m3e_integrity_readback_receipts.json`
+   - `m3e_execution_summary.json`
+6. Closure results:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M3.E_READY`
+   - write-once guard: `PASS` (both target keys absent pre-write via head-object 404)
+   - readback integrity: `PASS` for both objects
+   - cross-artifact consistency: `PASS`
 
 ### M3.F Runtime Scope Export and M4 Handoff
 Goal:
@@ -749,7 +772,7 @@ Any active `M3-B*` blocker prevents M3 closure.
 - [x] M3.B complete.
 - [x] M3.C complete.
 - [x] M3.D complete.
-- [ ] M3.E complete.
+- [x] M3.E complete.
 - [ ] M3.F complete.
 - [ ] M3.G complete.
 - [ ] M3.H complete.

@@ -384,9 +384,17 @@ M3 planning posture:
   - failed attempt `m3d_20260223T191145Z` raised `M3D-B1/M3D-B3` from local parser drift; rerun closed without runtime changes.
 - M3.D durable mirror:
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3d_20260223T191338Z/`
+- `M3.E` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m3/m3e_20260223T223411Z/m3e_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - run evidence objects committed:
+    - `evidence/runs/platform_20260223T184232Z/run.json`
+    - `evidence/runs/platform_20260223T184232Z/run_pin/run_header.json`
+  - write-once guard and readback hash integrity both pass.
+- M3.E durable mirror:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3e_20260223T223411Z/`
 
 DoD anchors:
-- [ ] run pin artifact committed.
+- [x] run pin artifact committed.
 - [x] config digest committed.
 - [x] run-scope identity checks pass.
 
@@ -398,7 +406,7 @@ M3 sub-phase progress:
 - [x] `M3.B` deterministic run identity generation.
 - [x] `M3.C` canonical payload and digest reproducibility.
 - [x] `M3.D` orchestrator entry and lock identity readiness.
-- [ ] `M3.E` durable run evidence publication.
+- [x] `M3.E` durable run evidence publication.
 - [ ] `M3.F` runtime scope export and M4 handoff pack.
 - [ ] `M3.G` rerun/reset discipline.
 - [ ] `M3.H` phase budget and cost-outcome receipt.
