@@ -1237,3 +1237,29 @@ Strategy lock applied to build plan:
 
 Immediate next action (still pre-refactor posture):
 - Start `POPT.0` instrumentation and perf-evidence emission; no semantic behavior change in this step.
+
+### Entry: 2026-02-23 23:05
+
+POPT.0 planning expansion decision (execution-grade, pre-implementation).
+
+Problem:
+- `POPT.0` currently states only high-level DoD.
+- For fail-closed execution we need explicit subphases, artifact schema, evidence paths, and promotion gates before touching runtime code.
+
+Alternatives considered:
+- Keep `POPT.0` minimal and infer details during coding.
+  - Rejected: too much ambiguity; high risk of drift and rework.
+- Expand all `POPT` lanes now in extreme detail.
+  - Rejected: unnecessary upfront expansion for lanes not yet started.
+- Expand only `POPT.0` into implementation-ready subphases.
+  - Chosen: aligns with progressive elaboration and keeps focus on immediate execution lane.
+
+Planned `POPT.0` expansion content:
+- scope lock and non-negotiable invariants for instrumentation-only changes,
+- per-state substep timing map for `S2/S3/S4/S5`,
+- machine-readable perf artifact contract under `reports/layer3/6A/perf/`,
+- witness protocol using fresh `runs/fix-data-engine/segment_6A/<run_id>` baselines,
+- explicit closure gates and `UNLOCK_POPT1` decision criteria.
+
+Scope note:
+- This step is planning/docs only; no runtime/algorithm code edits.

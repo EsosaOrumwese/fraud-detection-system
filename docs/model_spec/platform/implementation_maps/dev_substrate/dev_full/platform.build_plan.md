@@ -357,6 +357,7 @@ M3 planning posture:
 - `M3.E` has been expanded with durable write-once evidence publication decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.F` has been expanded with runtime-scope export and M4 handoff decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.G` has been expanded with rerun/reset fail-closed decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
+- `M3.H` has been expanded with phase-budget/cost-outcome decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.A` execution is now closed (`PASS`):
   - `runs/dev_substrate/dev_full/m3/m3a_20260223T174307Z/m3a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
 - `M3.A` blocker remediation closed:
@@ -406,6 +407,8 @@ M3 planning posture:
   - identity-drift fail-closed posture and non-destructive rerun law both verified.
 - M3.G durable mirror:
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3g_20260223T225607Z/`
+- M3.H planning note:
+  - pre-execution decision-completeness blocker remains explicit until Databricks cost-source URI/handle is pinned while `DATABRICKS_COST_CAPTURE_ENABLED=true`.
 
 DoD anchors:
 - [x] run pin artifact committed.

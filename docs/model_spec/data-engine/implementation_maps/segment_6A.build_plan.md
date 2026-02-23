@@ -308,10 +308,44 @@ Goal:
 ### 7.3 High-impact strategy lanes (ordered, before remediation tuning)
 
 #### POPT.0 - Profiling contract + deterministic performance harness
+Goal:
+- add instrumentation-only performance observability so later refactors are measured, comparable, and fail-closed.
+
+##### POPT.0.1 - Scope lock and invariants
 Definition of done:
-- [ ] Add state/substep timing emission (allocation vs emit vs validation) in `S2/S3/S4/S5`.
-- [ ] Emit machine-readable perf summary under `reports/layer3/6A/perf/`.
-- [ ] Pin baseline cold-run measurements and memory-safe runtime envelope.
+- [ ] `POPT.0` is explicitly instrumentation-only (no policy threshold edits, no algorithmic behavior edits).
+- [ ] Determinism contract pinned: no changes to idempotent publish behavior, output schemas, or RNG audit/trace semantics.
+- [ ] Run lane pinned to fresh roots under `runs/fix-data-engine/segment_6A/<run_id>`.
+
+##### POPT.0.2 - Substep timing map (owner states)
+Definition of done:
+- [ ] `S2` emits substep timings at minimum for: `load_contracts_inputs`, `load_party_base`, `allocate_accounts`, `emit_account_base`, `emit_holdings`, `emit_summary`, `rng_publish`.
+- [ ] `S3` emits substep timings at minimum for: `load_contracts_inputs`, `load_account_base`, `plan_counts`, `allocate_instruments`, `emit_instrument_base_links`, `rng_publish`.
+- [ ] `S4` emits substep timings at minimum for: `load_contracts_inputs`, `load_party_base`, `plan_device_counts`, `plan_ip_counts`, `emit_ip_base`, `emit_regions`, `merge_parts`, `rng_publish`.
+- [ ] `S5` emits substep timings at minimum for: `load_contracts_inputs`, `assign_party_roles`, `assign_account_roles`, `assign_merchant_roles`, `assign_device_roles`, `assign_ip_roles`, `validation_checks`, `bundle_publish`, `rng_publish`.
+- [ ] Timing emission uses stable machine-readable keys (no free-form-only logs).
+
+##### POPT.0.3 - Perf artifact contract
+Definition of done:
+- [ ] Emit `perf_events_6A.jsonl` with one row per timed substep.
+- [ ] Emit `perf_summary_6A.json` with per-state totals, per-substep totals, and hotspot ranking.
+- [ ] Emit `perf_budget_check_6A.json` with state budget pass/fail and segment budget pass/fail.
+- [ ] Artifact root pinned to `reports/layer3/6A/perf/` under run-scoped partitioning (`seed/parameter_hash/manifest_fingerprint`).
+
+##### POPT.0.4 - Baseline witness protocol
+Definition of done:
+- [ ] Cold-run witness executed once from `S0 -> S5` on a fresh `runs/fix-data-engine/segment_6A/<run_id>`.
+- [ ] Baseline comparison included against pinned authorities:
+  - `c25a2675fbfbacd952b13bb594880e92` (primary),
+  - `fd0a6cc8d887f06793ea9195f207138b` (variance reference).
+- [ ] Evidence clearly separates cold-run from rerun/warm-path measurements.
+
+##### POPT.0.5 - Closure gates
+Definition of done:
+- [ ] All four owner states (`S2/S3/S4/S5`) produce complete substep timing evidence.
+- [ ] Perf artifact files are reproducible and parseable (no missing required fields).
+- [ ] Instrumentation overhead is bounded and documented (no material unexplained runtime regression).
+- [ ] Decision recorded as `UNLOCK_POPT1` or `HOLD_POPT0` with blocker reasons if held.
 
 #### POPT.1 - `S3` allocation+emit vectorization (primary hotspot)
 Definition of done:

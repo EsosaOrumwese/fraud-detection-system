@@ -908,11 +908,84 @@ Tasks:
 1. emit M3 phase budget envelope.
 2. record M3 spend window and expected proof artifacts.
 3. emit M3 cost-to-outcome receipt.
+4. prove spend-without-proof hard-stop posture for M3 gate advancement.
 
 DoD:
 - [ ] phase budget envelope is committed.
 - [ ] cost-to-outcome receipt is committed.
 - [ ] spend-without-proof is fail-closed.
+
+M3.H planning precheck (decision completeness):
+1. Required handles are pinned for this lane:
+   - `DEV_FULL_MONTHLY_BUDGET_LIMIT_USD`, `DEV_FULL_BUDGET_ALERT_1_USD`, `DEV_FULL_BUDGET_ALERT_2_USD`, `DEV_FULL_BUDGET_ALERT_3_USD`, `BUDGET_CURRENCY`.
+   - `COST_CAPTURE_SCOPE`, `AWS_COST_CAPTURE_ENABLED`, `DATABRICKS_COST_CAPTURE_ENABLED`.
+   - `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`, `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`, `DAILY_COST_POSTURE_PATH_PATTERN`.
+   - `PHASE_COST_OUTCOME_REQUIRED`, `PHASE_ENVELOPE_REQUIRED`, `PHASE_COST_HARD_STOP_ON_MISSING_OUTCOME`.
+   - `COST_OUTCOME_RECEIPT_REQUIRED_FIELDS`.
+2. Upstream closure dependency:
+   - M3.A..M3.G authoritative summaries must remain `overall_pass=true`.
+3. Required source posture:
+   - AWS billing source must be queryable in billing region (`us-east-1`) for the active M3 window.
+   - Databricks billing source must be explicitly pinned when `DATABRICKS_COST_CAPTURE_ENABLED=true`.
+
+M3.H decision pins (closed before execution):
+1. Envelope-first law:
+   - M3.H must emit budget envelope before outcome receipt adjudication.
+2. Spend-without-proof law:
+   - if spend exists and outcome receipt is missing/invalid, phase fails closed (`M3H-B9`).
+3. Cross-source law:
+   - M3.H cost posture must include all enabled sources in `COST_CAPTURE_SCOPE`.
+   - source omission without explicit approved waiver is blocker.
+4. Currency normalization law:
+   - all source spends are normalized to `BUDGET_CURRENCY` before threshold checks.
+5. Required-fields law:
+   - receipt fields must satisfy `COST_OUTCOME_RECEIPT_REQUIRED_FIELDS` exactly.
+6. Window-bound law:
+   - M3 spend window in receipt is explicit (`window_start_utc`, `window_end_utc`) and tied to M3 execution interval.
+
+M3.H verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3H-V1-HANDLE-CLOSURE` | `rg -n \"DEV_FULL_MONTHLY_BUDGET_LIMIT_USD|PHASE_BUDGET_ENVELOPE_PATH_PATTERN|PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN|DATABRICKS_COST_CAPTURE_ENABLED\" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` | confirms required handle presence |
+| `M3H-V2-UPSTREAM-PASS` | parse M3.A..M3.G `m3*_execution_summary.json` and assert `overall_pass=true` | ensures budget lane anchors only on committed green chain |
+| `M3H-V3-AWS-COST-SOURCE` | `aws ce get-cost-and-usage --region us-east-1 --time-period Start=<month_start>,End=<tomorrow> --granularity MONTHLY --metrics UnblendedCost` | captures AWS MTD source spend |
+| `M3H-V4-DBX-COST-SOURCE` | load pinned Databricks billing source artifact for same window (`M3H_DATABRICKS_COST_SOURCE_URI`) | captures Databricks MTD source spend when enabled |
+| `M3H-V5-ENVELOPE-BUILD` | build `m3h_phase_budget_envelope.json` from pinned limits/alerts/currency | emits authoritative phase budget envelope |
+| `M3H-V6-OUTCOME-BUILD` | build `m3h_phase_cost_outcome_receipt.json` with required fields and artifact refs | emits cost-to-outcome proof |
+| `M3H-V7-DURABLE-PUBLISH` | `aws s3 cp <local_artifact> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m3h_execution_id>/...` | publishes durable M3.H evidence |
+
+M3.H blocker taxonomy (fail-closed):
+1. `M3H-B1`: one or more budget/cost handles missing or malformed.
+2. `M3H-B2`: upstream M3.A..M3.G closure evidence missing/non-green.
+3. `M3H-B3`: AWS billing source query fails or returns unusable payload.
+4. `M3H-B4`: Databricks cost capture is enabled but no pinned/queryable Databricks billing source exists.
+5. `M3H-B5`: phase budget envelope missing required fields or invalid thresholds.
+6. `M3H-B6`: cost-outcome receipt missing required fields or invalid artifact references.
+7. `M3H-B7`: spend currency normalization fails against `BUDGET_CURRENCY`.
+8. `M3H-B8`: durable publish/readback for M3.H artifacts fails.
+9. `M3H-B9`: spend observed without accepted cost-outcome receipt (`PHASE_COST_HARD_STOP_ON_MISSING_OUTCOME=true`).
+
+M3.H evidence contract (planned):
+1. `m3h_phase_budget_envelope.json`
+2. `m3h_phase_cost_outcome_receipt.json`
+3. `m3h_daily_cost_posture.json`
+4. `m3h_cost_source_receipts.json`
+5. `m3h_execution_summary.json`
+
+M3.H closure rule:
+1. M3.H can close only when:
+   - all `M3H-B*` blockers are resolved,
+   - DoD checks are green,
+   - envelope + outcome artifacts are present locally and durably,
+   - spend-without-proof policy check passes.
+
+M3.H planning status (current):
+1. Prerequisite lanes `M3.A`..`M3.G` are closed green.
+2. M3.H is expanded to execution-grade with explicit fail-closed blockers and evidence contract.
+3. Pre-execution open blocker to close before runtime execution:
+   - `M3H-B4` remains possible until a concrete Databricks billing source URI/handle is pinned for the active window while `DATABRICKS_COST_CAPTURE_ENABLED=true`.
+4. Phase posture:
+   - planning expanded; execution not started.
 
 ### M3.I Gate Rollup and Blocker Adjudication
 Goal:

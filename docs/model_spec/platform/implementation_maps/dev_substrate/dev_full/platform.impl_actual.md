@@ -3615,6 +3615,48 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 3. `docs/logbook/02-2026/2026-02-23.md`:
    - execution closure note appended with command/evidence references.
 
+## Entry: 2026-02-23 23:06:55 +00:00 - M3.H planning expanded (cost envelope + cost-to-outcome)
+
+### Why M3.H needed expansion now
+1. `M3.H` was still template-level and not executable under fail-closed posture.
+2. User asked to plan M3.H, and this phase is gate-critical because M3 cannot advance without cost-to-outcome proof.
+
+### Planning choices made
+1. Expanded M3.H into execution-grade sections:
+   - planning precheck,
+   - decision pins,
+   - verification command catalog,
+   - fail-closed blocker taxonomy,
+   - evidence contract,
+   - closure rule,
+   - planning status.
+2. Kept M3.H scoped to planning only in this step:
+   - no runtime cost queries yet,
+   - no envelope/outcome artifact generation yet.
+3. Preserved strict fail-closed semantics:
+   - spend-without-proof maps to explicit blocker (`M3H-B9`),
+   - missing enabled cost source maps to explicit blocker (`M3H-B4`).
+
+### Alternatives considered and rejected
+1. Treat Databricks cost as optional for M3.H even when enabled:
+   - rejected; violates pinned `COST_CAPTURE_SCOPE=aws_plus_databricks`.
+2. Execute M3.H immediately with AWS-only spend:
+   - rejected; decision completeness not closed for Databricks source handle/URI.
+3. Postpone planning until after M3.I:
+   - rejected; phase-order discipline requires M3.H definition before rollup/adjudication work in M3.I.
+
+### Explicit open item surfaced (pre-execution)
+1. Registry pins `DATABRICKS_COST_CAPTURE_ENABLED=true` but does not pin a concrete Databricks billing source handle/URI for M3.H execution window.
+2. This is encoded as pre-execution blocker `M3H-B4` and must be closed before executing M3.H.
+
+### Files updated in this planning step
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M3.build_plan.md`
+   - full M3.H execution-grade expansion.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+   - M3 posture updated to note M3.H expansion + pre-execution blocker note.
+3. `docs/logbook/02-2026/2026-02-23.md`
+   - action log appended for this planning expansion.
+
 ## Entry: 2026-02-23 19:08:10 +00:00 - M3.D planning expanded to execution-grade
 
 ### What was added to M3.D
