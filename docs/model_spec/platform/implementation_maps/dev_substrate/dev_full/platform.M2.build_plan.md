@@ -14,6 +14,10 @@ M2 closes `P0 SUBSTRATE_READY` for `dev_full` by proving that managed substrate 
    - SR READY commit authority (`Step Functions` only),
    - IG edge envelope limits,
    - cross-runtime correlation fail-closed contract.
+6. Production-pattern posture is explicit before M3:
+   - managed-service-first lane selection remains enforced,
+   - Oracle Store seating remains read-only warm source-of-stream boundary,
+   - S3 lifecycle transitions are materialized and queryable.
 
 ## 1) Authority Inputs
 Primary:
@@ -37,6 +41,9 @@ In scope:
    - SR commit-authority handles,
    - IG edge envelope handle set,
    - cross-runtime correlation handle set.
+6. Production-pattern conformance checks for `M0..M2` closure:
+   - no local/toy substitutes in pinned managed lanes,
+   - Oracle Store ownership + storage posture remains explicitly aligned.
 
 Out of scope:
 1. Runtime service behavior and daemon health (`M4+`).
@@ -694,13 +701,15 @@ Tasks:
 2. Validate budget/alarm/dashboard handles are queryable.
 3. Validate cost-to-outcome artifact path handles and operational readiness.
 4. Validate correlation governance surfaces (`CORRELATION_*`, audit-path handle) are queryable and wired for fail-closed checks.
-5. Emit ops guardrail receipt.
+5. Validate S3 lifecycle policies for evidence/archive/quarantine prefixes align with pinned retention + transition handles.
+6. Emit ops guardrail receipt.
 
 DoD:
 - [ ] `ops` plan/apply succeeds.
 - [ ] budget/alarm/dashboard handles queryable.
 - [ ] cost guardrail path contracts validated.
 - [ ] correlation governance surfaces are validated.
+- [ ] S3 lifecycle transition policies are present and aligned with pinned handles.
 - [ ] M2.H evidence snapshot committed.
 
 ## M2.I Destroy/Recover Rehearsal and Residual Scan
@@ -733,12 +742,14 @@ Tasks:
    - cross-runtime correlation fail-closed readiness.
 4. Emit P0 verdict artifact and M3 entry readiness receipt.
 5. Mark M2 complete only if blocker-free and fail-closed checks pass.
+6. Emit production-pattern conformance snapshot for `M0..M2` (`managed-first + Oracle seating + lifecycle`).
 
 DoD:
 - [ ] P0 rollup matrix complete.
 - [ ] blocker register shows no unresolved `S1/S2`.
 - [ ] managed-first control-rail readiness is explicit and green.
 - [ ] M3 entry readiness is explicit and evidence-backed.
+- [ ] production-pattern conformance snapshot is explicit and green.
 - [ ] M2 closure note appended in implementation map and logbook.
 
 ## 6) Blocker Taxonomy (M2)

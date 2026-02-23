@@ -68,6 +68,10 @@
 9. Orchestration split: `Step Functions` (run-state/gates) + `MWAA Airflow` (learning schedules)
 10. Delivery/IaC: `Terraform + GitHub Actions`
 11. Telemetry baseline: `OpenTelemetry` + CloudWatch-backed operational signals
+12. Learning tabular format: `Apache Iceberg v2` on S3 with `AWS Glue Data Catalog` (Delta is not default in v0).
+13. S3 lifecycle posture: regular S3 for active windows with transition policy to IA/Glacier IR by age.
+14. Oracle Store posture: warm source-of-stream S3 zone (`oracle-store/`), platform read-only, producer write-owned.
+15. Production-pattern law: managed-service-first execution; no local/toy substitutes in pinned dev_full lanes.
 
 ### 1.4 Budget and teardown posture
 
@@ -446,6 +450,10 @@ Fail-closed drift examples:
 3. Learning closure claimed without rollback drill evidence.
 4. Full verdict claimed without six-proof lane matrix.
 5. Cost-control closure missing at `P17`.
+6. OFS/MF tabular datasets emitted as unmanaged files without Iceberg table metadata.
+7. Evidence/archive lifecycle transitions missing or contradictory to pinned retention windows.
+8. Oracle source paths mixed into evidence/archive roots or writable by platform runtime.
+9. Managed lane replaced by local/custom toy substitute without explicit authority repin.
 
 ---
 

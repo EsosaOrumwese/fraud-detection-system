@@ -1,0 +1,180 @@
+variable "aws_region" {
+  type    = string
+  default = "eu-west-2"
+}
+
+variable "project" {
+  type    = string
+  default = "fraud-platform"
+}
+
+variable "environment" {
+  type    = string
+  default = "dev_full"
+}
+
+variable "owner" {
+  type    = string
+  default = "esosa"
+}
+
+variable "name_prefix" {
+  type    = string
+  default = "fraud-platform-dev-full"
+}
+
+variable "additional_tags" {
+  type    = map(string)
+  default = {}
+}
+
+variable "use_core_remote_state" {
+  type    = bool
+  default = true
+}
+
+variable "core_state_bucket" {
+  type    = string
+  default = "fraud-platform-dev-full-tfstate"
+}
+
+variable "core_state_key" {
+  type    = string
+  default = "dev_full/core/terraform.tfstate"
+}
+
+variable "core_state_region" {
+  type    = string
+  default = "eu-west-2"
+}
+
+variable "use_streaming_remote_state" {
+  type    = bool
+  default = true
+}
+
+variable "streaming_state_bucket" {
+  type    = string
+  default = "fraud-platform-dev-full-tfstate"
+}
+
+variable "streaming_state_key" {
+  type    = string
+  default = "dev_full/streaming/terraform.tfstate"
+}
+
+variable "streaming_state_region" {
+  type    = string
+  default = "eu-west-2"
+}
+
+variable "msk_cluster_arn_fallback" {
+  type    = string
+  default = "arn:aws:kafka:eu-west-2:230372904534:cluster/fraud-platform-dev-full-msk/a38adf23-ea5e-4c99-a4cd-109afb1530a8-s3"
+}
+
+variable "ssm_msk_bootstrap_brokers_path" {
+  type    = string
+  default = "/fraud-platform/dev_full/msk/bootstrap_brokers"
+}
+
+variable "role_flink_execution_name" {
+  type    = string
+  default = "fraud-platform-dev-full-flink-execution"
+}
+
+variable "role_lambda_ig_execution_name" {
+  type    = string
+  default = "fraud-platform-dev-full-lambda-ig-execution"
+}
+
+variable "role_apigw_ig_invoke_name" {
+  type    = string
+  default = "fraud-platform-dev-full-apigw-ig-invoke"
+}
+
+variable "role_ddb_ig_idempotency_rw_name" {
+  type    = string
+  default = "fraud-platform-dev-full-ddb-ig-idempotency-rw"
+}
+
+variable "role_step_functions_orchestrator_name" {
+  type    = string
+  default = "fraud-platform-dev-full-stepfunctions-orchestrator"
+}
+
+variable "apigw_ig_api_name" {
+  type    = string
+  default = "fraud-platform-dev-full-ig-edge"
+}
+
+variable "apigw_ig_stage_name" {
+  type    = string
+  default = "v1"
+}
+
+variable "lambda_ig_handler_name" {
+  type    = string
+  default = "fraud-platform-dev-full-ig-handler"
+}
+
+variable "ddb_ig_idempotency_table_name" {
+  type    = string
+  default = "fraud-platform-dev-full-ig-idempotency"
+}
+
+variable "ddb_ig_idempotency_hash_key" {
+  type    = string
+  default = "dedupe_key"
+}
+
+variable "ddb_ig_idempotency_ttl_attribute" {
+  type    = string
+  default = "ttl_epoch"
+}
+
+variable "ssm_ig_api_key_path" {
+  type    = string
+  default = "/fraud-platform/dev_full/ig/api_key"
+}
+
+variable "ig_api_key_seed_value" {
+  type      = string
+  default   = "dev-full-ig-api-key-rotate-before-prod"
+  sensitive = true
+}
+
+variable "sfn_platform_run_orchestrator_name" {
+  type    = string
+  default = "fraud-platform-dev-full-platform-run-v0"
+}
+
+variable "eks_cluster_name" {
+  type    = string
+  default = "fraud-platform-dev-full"
+}
+
+variable "phase_runtime_path_mode" {
+  type    = string
+  default = "single_active_path_per_phase_run"
+}
+
+variable "phase_runtime_path_pin_required" {
+  type    = bool
+  default = true
+}
+
+variable "runtime_path_switch_in_phase_allowed" {
+  type    = bool
+  default = false
+}
+
+variable "runtime_fallback_requires_new_phase_execution_id" {
+  type    = bool
+  default = true
+}
+
+variable "phase_runtime_path_evidence_path_pattern" {
+  type    = string
+  default = "evidence/dev_full/run_control/{phase_execution_id}/runtime_path_selection.json"
+}

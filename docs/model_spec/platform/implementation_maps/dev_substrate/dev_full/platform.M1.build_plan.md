@@ -8,7 +8,8 @@ M1 defines and closes the dev_full packaging contract for `P(-1)`:
 - reproducible image build,
 - full-platform entrypoint coverage (Spine + Learning/Evolution),
 - immutable provenance evidence,
-- fail-closed secret posture.
+- fail-closed secret posture,
+- production-pattern packaging posture (no toy/local runtime packaging shortcuts).
 
 ## 1) Authority Inputs
 Primary:

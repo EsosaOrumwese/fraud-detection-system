@@ -165,6 +165,11 @@ Allowed tokens in pattern handles:
 
 ### 3.4 Oracle store (external input boundary)
 
+* `ORACLE_STORE_BUCKET = "fraud-platform-dev-full-object-store"`
+* `ORACLE_STORE_ZONE = "warm_source_of_stream"`
+* `ORACLE_STORE_PLATFORM_ACCESS_MODE = "read_only"`
+* `ORACLE_STORE_WRITE_OWNER = "data_engine_or_upstream_producer"`
+* `ORACLE_ACTIVE_STORAGE_CLASS = "STANDARD"`
 * `ORACLE_SOURCE_NAMESPACE = "local_full_run-5"`
 * `ORACLE_ENGINE_RUN_ID = "c25a2675fbfbacd952b13bb594880e92"`
 * `S3_ORACLE_ROOT_PREFIX = "oracle-store/"`
@@ -227,6 +232,20 @@ Allowed tokens in pattern handles:
 * `RETENTION_TRAINING_ARTIFACTS_DAYS = 180`
 * `RETENTION_MLFLOW_METADATA_DAYS = 365`
 * `RETENTION_MPR_EVENT_HISTORY_DAYS = 365`
+* `RETENTION_ORACLE_SOURCE_DAYS = 365`
+
+### 3.10 Lifecycle transition handles (S3 class posture)
+
+* `S3_LIFECYCLE_MODE = "STANDARD_TO_IA_TO_GLACIER_IR"`
+* `EVIDENCE_TRANSITION_TO_STANDARD_IA_DAYS = 30`
+* `EVIDENCE_TRANSITION_TO_GLACIER_IR_DAYS = 180`
+* `ARCHIVE_TRANSITION_TO_STANDARD_IA_DAYS = 30`
+* `ARCHIVE_TRANSITION_TO_GLACIER_IR_DAYS = 60`
+* `QUARANTINE_EXPIRE_DAYS = 45`
+* `QUARANTINE_GLACIER_TRANSITION_ENABLED = false`
+* `ORACLE_TRANSITION_TO_STANDARD_IA_DAYS = 30`
+* `ORACLE_TRANSITION_TO_GLACIER_IR_DAYS = 180`
+* `ORACLE_TRANSITION_APPLIES_TO_ACTIVE_ENGINE_RUN = false`
 
 ---
 
@@ -498,6 +517,18 @@ Allowed tokens in pattern handles:
 * `SSM_DATABRICKS_TOKEN_PATH = "/fraud-platform/dev_full/databricks/token"`
 * `SSM_MLFLOW_TRACKING_URI_PATH = "/fraud-platform/dev_full/mlflow/tracking_uri"`
 * `SSM_SAGEMAKER_MODEL_EXEC_ROLE_ARN_PATH = "/fraud-platform/dev_full/sagemaker/model_exec_role_arn"`
+
+### 9.5 Lakehouse table format and catalog handles
+
+* `DATA_TABLE_FORMAT_PRIMARY = "APACHE_ICEBERG_V2"`
+* `DATA_TABLE_DELTA_MODE = "DISABLED_FOR_V0"`
+* `DATA_TABLE_CATALOG = "AWS_GLUE_DATA_CATALOG"`
+* `DATA_TABLE_STORAGE = "S3"`
+* `DATA_TABLE_QUERY_ENGINE = "ATHENA_GLUE_ICEBERG"`
+* `OFS_ICEBERG_DATABASE = "fraud_platform_dev_full_ofs"`
+* `OFS_ICEBERG_TABLE_PREFIX = "ofs_"`
+* `OFS_ICEBERG_WAREHOUSE_PREFIX_PATTERN = "learning/ofs/iceberg/warehouse/"`
+* `MF_FEATURE_TABLE_PREFIX = "mf_feature_"`
 
 ---
 

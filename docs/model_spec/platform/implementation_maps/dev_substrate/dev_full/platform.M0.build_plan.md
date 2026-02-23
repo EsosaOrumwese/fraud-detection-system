@@ -26,6 +26,8 @@ In scope:
 - authority freeze and precedence validation,
 - planning topology lock (status ownership and deep-plan routing),
 - authority alignment matrix (stack pins/phase IDs/topic ownership/cost-to-outcome continuity),
+- production-pattern law lock (managed-service-first, no toy/local substitutes),
+- Oracle Store seating lock (warm source-of-stream, platform read-only boundary),
 - fail-closed `TO_PIN` dependency backlog shaping,
 - M1 transition go/no-go protocol.
 
@@ -40,6 +42,7 @@ Out of scope:
 3. Dependency-ordered `TO_PIN` backlog with phase-entry impact (`M1`/`M2` blockers).
 4. Explicit M1 go/no-go transition contract.
 5. M0 closure evidence trail in implementation map and logbook.
+6. Production-pattern + Oracle seating conformance note for `M0..M2` entry discipline.
 
 ## 4) Execution Gate for This Phase
 Current posture:
@@ -145,7 +148,11 @@ M0.C alignment closure notes (in-plan):
 4. Cost-to-outcome continuity alignment:
    - design authority (`5.2.1`, `15.7`), run-process (`3.4`), handles (`13.4`), and master plan (`Section 9`) are consistent.
    - classification: `aligned`.
-5. Mismatch classification summary:
+5. Production-pattern + Oracle seating alignment:
+   - managed-service-first law is explicit in authority/run-process/master-plan guardrails,
+   - Oracle Store is pinned as warm source-of-stream boundary with platform read-only ownership.
+   - classification: `aligned`.
+6. Mismatch classification summary:
    - `wording_only`: none material.
    - `execution_risk`: none.
 

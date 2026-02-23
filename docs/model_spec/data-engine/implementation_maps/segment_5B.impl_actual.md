@@ -8214,3 +8214,54 @@ What was written into plan:
 Decision:
 1) active step advanced to `P4.1`.
 2) no execution started in this entry; this is planning-only and audit trail capture.
+
+### Entry: 2026-02-23 04:40
+
+Execution start: `P4.1` seed authority lock completed before multi-seed runs.
+
+What was done:
+1) emitted certification matrix artifact:
+   - `runs/fix-data-engine/segment_5B/reports/segment5b_p4_seed_authority_matrix_20260223T044046Z.json`
+2) pinned authority inputs inside artifact:
+   - baseline witness run-id: `6ac88fc0d3364aecaf564b17ebad354e`.
+   - seed panel: `{42,7,101,202}`.
+   - policy+schema hashes:
+     - `validation_policy_5B.yaml`: `5EC30DF3204992CE5D9E6E4C4951573ADAA4AFB02AF9CD9CF56A1826A5DA9C54`
+     - `schemas.5B.yaml`: `A6A51A7C96E24260249AF4CC9D86022CE18EF18D01F25C97DB314B16DE822DA6`
+   - workspace commit: `f4ed7562bd8e7022fc8a74d7dda5222edd96e2d3`.
+3) pinned certification decisions and gate ownership:
+   - outcomes: `PASS_BPLUS_ROBUST`, `PASS_B_ROBUST`, `HOLD_P4_REMEDIATE`.
+   - hard/major/context/cross-seed rails mapped explicitly.
+
+Decision reasoning for next lane (`P4.2/P4.3`):
+1) run-receipt seed is state-authoritative for `S2/S3/S4`, so each seed requires its own run-id receipt (cannot just mix seeds in one receipt-driven chain).
+2) `S5` can aggregate over available seed folders, but certification requires generating missing seed evidence where absent.
+3) therefore chosen approach is per-seed fresh run-id lanes under `runs/fix-data-engine/segment_5B`, with no writes under `runs/local_full_run-5`.
+
+Alternatives rejected:
+1) single run-id with manual multi-seed folder grafting before generation.
+   - rejected due receipt-seed semantics and high risk of incoherent run-report lineage.
+2) scorer-only extrapolation from seed 42 baseline.
+   - rejected because it would violate P4 robustness objective and leave `T10` unclosed.
+
+### Entry: 2026-02-23 04:47
+
+Execution design lock before `P4.3` multi-seed production.
+
+Current evidence topology check:
+1) seed `42` run-id `6ac88fc0d3364aecaf564b17ebad354e` already has `S2/S3/S4/S5` evidence.
+2) seeds `7/101/202` fresh run-ids exist with `S0/S1` surfaces and writable validation/report roots, but are missing generated `S2/S3/S4` evidence.
+3) therefore `P4.3` must generate missing seeds; scorer-only replay is not sufficient.
+
+Decision and rationale:
+1) chosen execution lane per missing seed: `S2 -> S3 -> S4 -> S5`.
+   - we do not rerun `S0/S1` because those surfaces are already present under each fresh run-root and P4 forbids policy/code drift.
+2) run ordering is sequential (`7`, then `101`, then `202`) instead of concurrent.
+   - reason: lower blast radius and lower RAM pressure while user is concurrently running other workloads.
+3) no code/policy/config edits are allowed in this lane.
+   - only state execution and evidence capture.
+
+Runtime evidence contract for this step:
+1) record per-seed state wall times from `segment_state_runs`.
+2) compare per-seed `S4+S5` totals against P4 witness budget (`<=720s`) and escalated lane budget (`<=1800s`) where applicable.
+3) carry all results into consolidated P4 gateboard artifacts in later steps (`P4.4/P4.5/P4.6`).

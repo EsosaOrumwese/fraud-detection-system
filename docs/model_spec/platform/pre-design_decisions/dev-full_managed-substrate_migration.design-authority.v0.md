@@ -197,6 +197,7 @@ Multi-region resilience, tighter compliance, higher SLO rigor, and enterprise go
 13. **Observability baseline:** OpenTelemetry-first telemetry with CloudWatch-backed operational signals and dashboarding.
 14. **Delivery and IaC:** Terraform + GitHub Actions are mandatory for reproducible provision/deploy flows.
 15. **Secrets and encryption:** IAM + KMS + Secrets Manager/SSM, no plain-text credentials in repo/runtime manifests.
+16. **Lakehouse table format:** Apache Iceberg (v2) on S3 with AWS Glue Data Catalog is the default tabular format for OFS/MF learning datasets; Delta is not the v0 default.
 
 #### 5.1.1 Sectional pin closure set (2026-02-22)
 
@@ -268,6 +269,18 @@ The following values are now explicitly pinned for v0 execution:
    * `CORRELATION_MODE = "W3C_TRACE_CONTEXT_PLUS_RUN_HEADERS"`
    * required correlation fields: `platform_run_id,scenario_run_id,phase_id,event_id,runtime_lane,trace_id`.
    * correlation headers/fields must survive API edge, Flink lanes, Step Functions transitions, EKS services, and evidence artifact emission.
+13. **Learning table format and catalog**
+   * `DATA_TABLE_FORMAT_PRIMARY = "APACHE_ICEBERG_V2"`
+   * `DATA_TABLE_CATALOG = "AWS_GLUE_DATA_CATALOG"`
+   * `DATA_TABLE_STORAGE = "S3"`
+   * `DATA_TABLE_QUERY_ENGINE = "ATHENA_GLUE_ICEBERG"`
+   * `DATA_TABLE_DELTA_MODE = "DISABLED_FOR_V0"`
+14. **S3 lifecycle transition posture (cost-safe without losing operator agility)**
+   * evidence and archive surfaces remain in S3 Standard during active debugging window, then transition by policy.
+   * default v0 transition policy:
+     - evidence: `STANDARD` -> `STANDARD_IA` at day 30 -> `GLACIER_IR` at day 180 -> expire day 365.
+     - archive: `STANDARD` -> `STANDARD_IA` at day 30 -> `GLACIER_IR` at day 60 -> expire day 90.
+     - quarantine: expire day 45 (no Glacier transition requirement).
 
 ### 5.2 Cost posture (hard requirements)
 
@@ -331,6 +344,8 @@ Every full run MUST emit a durable run bundle containing:
 ### 6.1 World Builder Plane
 
 * Oracle truth remains in S3.
+* Oracle Store seating is a warm source-of-stream zone under object-store governance (`oracle-store/` boundary), separate from evidence/archive roots.
+* Platform access to Oracle Store is read-only; data-engine (or upstream producer) remains write owner.
 * SR/WSP stream lanes run on MSK-integrated Flink jobs; orchestration and gate commits remain Step Functions-controlled.
 * READY/control remains Kafka-backed, orchestrated via Step Functions run-state controls.
 * SR READY closure authority is Step Functions commit evidence (Flink output is compute evidence only).
@@ -360,7 +375,7 @@ Every full run MUST emit a durable run bundle containing:
 
 ### 6.5 Learning & Evolution Plane
 
-* OFS: Databricks jobs build dataset artifacts/manifests against archive + labels truth.
+* OFS: Databricks jobs build dataset artifacts/manifests against archive + labels truth and publish governed Apache Iceberg tables on S3 via Glue catalog contracts.
 * MF: SageMaker training/eval pipeline with MLflow tracking.
 * MPR: explicit governed promotion/rollback remains activation authority for runtime bundle resolution.
 
@@ -392,6 +407,13 @@ No silent defaulting; degrade must be explicit and auditable.
 ### 7.5 Provenance
 
 Every cross-plane output carries policy/bundle/config/release identifiers required for replay and audit.
+
+### 7.6 Production-pattern adoption law
+
+1. Managed services are default and mandatory where they satisfy the required semantics; custom services are allowed only with explicit differentiating-logic rationale.
+2. No local/toy substitute path is allowed for a managed lane once that lane is pinned for `dev_full`.
+3. `M0..M2` must explicitly verify production-pattern conformance before advancing to runtime semantics (`M3+`).
+4. Any deviation from this law is fail-closed and requires authority repin before execution continues.
 
 ---
 
@@ -595,6 +617,17 @@ Retention tiers are pinned for v0 as follows:
 * `RETENTION_TRAINING_ARTIFACTS_DAYS = 180`
 * `RETENTION_MLFLOW_METADATA_DAYS = 365`
 * `RETENTION_MPR_EVENT_HISTORY_DAYS = 365`
+* `RETENTION_ORACLE_SOURCE_DAYS = 365`
+
+Lifecycle transition policy (v0 default):
+
+* `EVIDENCE_TRANSITION_TO_STANDARD_IA_DAYS = 30`
+* `EVIDENCE_TRANSITION_TO_GLACIER_IR_DAYS = 180`
+* `ARCHIVE_TRANSITION_TO_STANDARD_IA_DAYS = 30`
+* `ARCHIVE_TRANSITION_TO_GLACIER_IR_DAYS = 60`
+* `QUARANTINE_EXPIRY_ONLY = true`
+* `ORACLE_TRANSITION_TO_STANDARD_IA_DAYS = 30`
+* `ORACLE_TRANSITION_TO_GLACIER_IR_DAYS = 180`
 
 ---
 
@@ -697,6 +730,8 @@ This pass closes the initial open set and repins them as executable defaults:
 10. SR READY commit authority -> closed by Section 5.1.1 item 10.
 11. Ingress edge operational envelope -> closed by Section 5.1.1 item 11.
 12. Cross-runtime correlation contract -> closed by Section 5.1.1 item 12.
+13. Learning table format and catalog -> closed by Section 5.1.1 item 13.
+14. S3 lifecycle transition posture -> closed by Section 5.1.1 item 14.
 
 ### 17.3 Future upgrades (not pinned)
 

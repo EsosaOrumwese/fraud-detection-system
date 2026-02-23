@@ -54,6 +54,7 @@ Program is complete only when all are true:
 - No bypass of fail-closed gates.
 - No phase advancement without required evidence artifacts.
 - No spend-only progress: phase spend without material outcome is blocked.
+- Production-pattern law is binding: managed-service-first, no local/toy substitutes for pinned lanes without explicit authority repin.
 
 ## 5) Progressive Elaboration Method
 Rules:
@@ -146,7 +147,8 @@ M0 prerequisite lanes (M0.PR*, mandatory):
 3. `M0.PR2` vocabulary/pin alignment check:
    - stack pins (managed-first runtime: MSK+Flink, API Gateway/Lambda/DynamoDB, selective EKS, S3/Aurora/Redis/Databricks/SageMaker/MLflow/MWAA/Step Functions),
    - canonical phase IDs (`P(-1)..P17`),
-   - topic set continuity and owner boundaries.
+   - topic set continuity and owner boundaries,
+   - production-pattern adoption law + Oracle Store seating contract.
 4. `M0.PR3` fail-closed open-handle isolation:
    - `TO_PIN` set exists in one explicit section,
    - no hidden unresolved handles outside that set.
@@ -255,6 +257,7 @@ Status: `IN_PROGRESS`
 
 Objective:
 - close `P0` by materializing core/streaming/runtime/data_ml/ops stacks.
+ - prove `M0..M2` production-pattern conformance (managed-first surfaces, Oracle read-only seating, lifecycle policy enforcement).
 
 Entry gate:
 - M1 is `DONE`.
@@ -295,6 +298,7 @@ DoD anchors:
 - [ ] all five stacks apply cleanly.
 - [ ] required handles are materialized or explicit blockers raised.
 - [ ] infra evidence snapshot committed.
+- [ ] production-pattern conformance snapshot (`managed-first + Oracle seating + lifecycle`) committed.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M2.build_plan.md`
@@ -453,17 +457,18 @@ Deep plan:
 Status: `NOT_STARTED`
 
 Objective:
-- close `P13` with immutable dataset manifest and fingerprint.
+- close `P13` with immutable dataset manifest, fingerprint, and Iceberg table-commit evidence.
 
 Entry gate:
 - M9 is `DONE`.
 
 Planned lanes:
-- Databricks dataset build, quality gates, rollback recipe.
+- Databricks dataset build, Iceberg (Glue catalog) table commit, quality gates, rollback recipe.
 
 DoD anchors:
 - [ ] OFS manifest committed.
 - [ ] dataset fingerprint committed.
+- [ ] Iceberg table/metadata commit receipt committed.
 - [ ] OFS rollback recipe committed.
 
 Deep plan:

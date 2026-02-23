@@ -2542,3 +2542,81 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 ### Result
 1. Plan returned `No changes` (effective detailed-exitcode `0`), confirming runtime state matches configuration after supplemental lambda patch.
 2. This closes immediate post-remediation drift risk for M2.E runtime stack.
+## Entry: 2026-02-23 05:11:02 +00:00 - Dev_full authority pin update: Iceberg + S3 lifecycle posture
+
+### Request interpreted
+1. User requested explicit introduction of production-style dataset/storage posture into dev_full, specifically AWS-native Iceberg/Delta direction and whether we are aligned with common production patterns.
+
+### Decision path
+1. For AWS-first dev_full v0, pin `Apache Iceberg v2` as primary table format for OFS/MF tabular datasets.
+2. Keep Delta out of default v0 path (`DISABLED_FOR_V0`) to avoid dual-format complexity and to keep managed-tooling alignment deterministic.
+3. Keep operational evidence/archive on regular S3, but pin lifecycle transitions to IA/Glacier IR by age so cost posture is production-shaped without degrading active run operability.
+4. Integrate these pins into:
+   - design authority,
+   - handles registry,
+   - run-process drift watchlist,
+   - executable build-plan checkpoints (`M2.H`, `M10`).
+
+### Why this is the selected posture
+1. It matches AWS-native control plane behavior and common enterprise fraud-platform patterns:
+   - low-latency runtime lanes remain on stream/state systems,
+   - evidence/archive remain object-backed,
+   - analytical tables use lakehouse metadata with schema/snapshot semantics.
+2. It prevents toy drift by making table format + lifecycle policies auditable requirements, not optional notes.
+
+### Artifacts updated
+1. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+3. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M2.build_plan.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+
+### Carry-forward impact
+1. M2.H now must prove lifecycle-policy materialization.
+2. M10 now must prove Iceberg table/metadata commit evidence, not only manifest/fingerprint.
+## Entry: 2026-02-23 05:18:24 +00:00 - Production-pattern law + Oracle Store seating lock (M0..M2 conformance pass)
+
+### Why this pass was needed
+1. User requested explicit law-level enforcement that dev_full work follows production patterns, not toy substitutions.
+2. User asked where Oracle Store should sit given it is source-of-stream data (not hot operational state).
+
+### Decisions pinned
+1. Production-pattern adoption law is now explicit authority:
+   - managed-service-first default,
+   - no local/toy substitute for pinned lanes,
+   - fail-closed repin required for deviations.
+2. Oracle Store seating contract is now explicit:
+   - warm source-of-stream boundary in S3 (`oracle-store/` zone),
+   - platform is read-only consumer,
+   - producer/data-engine remains write owner.
+3. Oracle lifecycle posture pinned for cost-safe storage:
+   - active class standard,
+   - transition to IA and Glacier IR by age,
+   - retention handles explicit.
+
+### M0..M2 alignment updates applied
+1. M0:
+   - scope/deliverables/alignment notes now explicitly include production-pattern law + Oracle seating lock.
+2. M1:
+   - packaging purpose now explicitly states production-pattern packaging posture (no toy/local shortcuts).
+3. M2:
+   - purpose/scope/P0 rollup DoD now include explicit production-pattern conformance snapshot requirement,
+   - includes managed-first lane enforcement + Oracle seating + lifecycle policy checks.
+
+### Authority/registry/runbook updates applied
+1. `dev-full_managed-substrate_migration.design-authority.v0.md`
+   - added production-pattern law section,
+   - expanded world-builder oracle seating semantics,
+   - added oracle retention/transition handles.
+2. `dev_full_handles.registry.v0.md`
+   - added Oracle seating/access/storage-class handles,
+   - added oracle lifecycle transition handles,
+   - retained Iceberg + lifecycle pins added earlier.
+3. `dev_full_platform_green_v0_run_process_flow.md`
+   - pinned Oracle posture and production-pattern law in global decisions,
+   - added drift-watchlist triggers for Oracle ownership/path drift and toy substitutions.
+
+### Practical meaning for next execution
+1. Before M3+, phase closure must prove no managed-lane toy substitution.
+2. Oracle store usage must remain read-only from platform runtime with producer-owned writes.
+3. M2.H/M2.J and M10 now carry concrete evidence obligations tied to these pins.

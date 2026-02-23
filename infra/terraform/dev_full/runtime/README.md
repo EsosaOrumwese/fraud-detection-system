@@ -1,4 +1,10 @@
-# dev_full runtime stack (M2.A baseline)
+# dev_full runtime stack (M2.E runtime posture)
 
-This stack root is intentionally minimal and exists to satisfy M2.A backend/init readiness checks.
-Subsequent M2 lanes will materialize full resources and module wiring.
+This stack materializes managed-first runtime-critical surfaces used by `M2.E`:
+1. API edge (`APIGW + Lambda + DDB`) for IG ingress/health runtime contract.
+2. Runtime-critical IAM roles (`Flink`, `Lambda IG`, `APIGW invoke`, `DDB RW`, `StepFunctions`).
+3. Step Functions platform-run orchestrator state-machine surface.
+4. Selective EKS cluster baseline ARN surface for downstream runtime lanes.
+5. Runtime-path governance contract outputs for fail-closed path selection.
+
+It intentionally excludes non-runtime lanes (`MWAA`, `SageMaker`, `Databricks`) which are materialized in later M2 subphases.
