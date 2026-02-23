@@ -2312,8 +2312,37 @@ P5 closure snapshot (2026-02-23):
 - `P3`: `S5` + contract/policy pinning.
 - `P4`: full segment certification.
 - `P5`: freeze + prune.
+- `P6`: bounded `B+` recovery lane from frozen `PASS_B_ROBUST` baseline.
 
-## 8) Immediate execution order from this plan
+## 8) P6 - B+ Recovery Lane (bounded, veto-gated)
+Goal:
+- attempt an upgrade from `PASS_B_ROBUST` to `PASS_BPLUS_ROBUST` without breaking frozen B rails.
+
+Scope:
+- primary focus: `T6+`, `T7+`, and `T10` (`<=0.15`) closure.
+- preserve all `P4/P5` hard-rail posture and deterministic reproducibility.
+- start from existing frozen authority artifacts from `P5`.
+
+Execution sequence:
+1. `P6.1` Authority pin:
+   - lock `P5` freeze authority as reopen baseline and emit `segment5b_p6_authority_pin_<ts>.json`.
+2. `P6.2` Policy-first bounded sweep:
+   - run tightly bounded routing/calibration sweeps targeting `T6+/T7+` while vetoing any hard-rail drift.
+3. `P6.3` Conditional minimal owner-lane reopen:
+   - only if `P6.2` cannot close B+ and evidence proves policy-only infeasibility.
+4. `P6.4` Multi-seed B+ certification:
+   - run required seed panel `{42,7,101,202}` and score B+ gates + stability.
+5. `P6.5` Final decision:
+   - `SEG5B_FROZEN_PASS_BPLUS` if all B+ gates pass;
+   - otherwise retain `SEG5B_FROZEN_PASS_B` with explicit residual note.
+
+Definition of done:
+- [ ] `P6` authority pin artifact is emitted and references only accepted `P5` freeze artifacts.
+- [ ] bounded candidate(s) show measurable movement on `T6+`/`T7+`/`T10` with zero hard-rail regressions.
+- [ ] certification decision artifact exists with explicit class (`PASS_BPLUS_ROBUST` or retained `PASS_B_ROBUST`).
+- [ ] keep-set/prune receipt is refreshed after final `P6` decision.
+
+## 9) Immediate execution order from this plan
 1. `POPT.0` is closed and pinned (authority: `c25a2675fbfbacd952b13bb594880e92`).
 2. `POPT.1`, `POPT.2`, and `POPT.3/POPT.3R` are closed with explicit hold posture on `POPT.3R` stretch gate.
 3. `POPT.4` executed with bounded reopens `R2` and final `R3`; phase now closed at `UNLOCK_POPT5_CONTINUE`.
@@ -2331,4 +2360,5 @@ P5 closure snapshot (2026-02-23):
 15. `P3` is closed (`P3.1 -> P3.5`) with decision `UNLOCK_P4`.
 16. `P4` is executed end-to-end (`P4.1 -> P4.6`) and reopened via `P4.R1 -> P4.R5`; final decision is `PASS_B_ROBUST`.
 17. `P5` is closed with decision `SEG5B_FROZEN_PASS_B`; Segment 5B remediation is closed/frozen.
-18. Active step: `Next segment planning` (or explicit user-directed lane).
+18. `P6` B+ recovery lane is opened from the frozen `PASS_B_ROBUST` baseline.
+19. Active step: `P6.1 Authority pin` (then `P6.2` bounded policy-first recovery sweep).

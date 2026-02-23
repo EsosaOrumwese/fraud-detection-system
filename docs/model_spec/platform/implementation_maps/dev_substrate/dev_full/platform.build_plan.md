@@ -336,7 +336,7 @@ M2 sub-phase progress:
 - [x] `M2.J` P0 gate rollup and verdict.
 
 ## M3 - Run Pinning and Orchestrator Readiness
-Status: `NOT_STARTED`
+Status: `IN_PROGRESS`
 
 Objective:
 - close `P1` with deterministic run pinning and orchestration entry integrity.
@@ -346,6 +346,13 @@ Entry gate:
 
 Planned lanes:
 - run header/digest, lock identity, orchestrator wiring.
+- authority/handles closure, deterministic run-id, durable evidence write, M4 handoff contract, rerun/reset and phase-budget discipline.
+
+M3 planning posture:
+- Deep plan has been created and expanded to execution-grade coverage across `M3.A..M3.J`.
+- M3 execution remains fail-closed on current entry blockers:
+  - orchestrator runtime surface is down after teardown and must be rematerialized for P1 entry checks,
+  - unresolved required `TO_PIN` handles must be closed before execution identity is declared green.
 
 DoD anchors:
 - [ ] run pin artifact committed.
@@ -354,6 +361,18 @@ DoD anchors:
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M3.build_plan.md`
+
+M3 sub-phase progress:
+- [ ] `M3.A` authority and handle closure matrix.
+- [ ] `M3.B` deterministic run identity generation.
+- [ ] `M3.C` canonical payload and digest reproducibility.
+- [ ] `M3.D` orchestrator entry and lock identity readiness.
+- [ ] `M3.E` durable run evidence publication.
+- [ ] `M3.F` runtime scope export and M4 handoff pack.
+- [ ] `M3.G` rerun/reset discipline.
+- [ ] `M3.H` phase budget and cost-outcome receipt.
+- [ ] `M3.I` gate rollup and blocker adjudication.
+- [ ] `M3.J` verdict and M4 entry marker.
 
 ## M4 - Spine Runtime-Lane Readiness (Managed-First)
 Status: `NOT_STARTED`

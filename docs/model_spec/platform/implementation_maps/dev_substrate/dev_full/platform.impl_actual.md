@@ -3074,3 +3074,81 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 ### Decision
 1. Accept residual evidence bucket for now (prevents destructive purge of evidence history while user is away).
 2. If full-zero residual is later required, run controlled versioned-object purge on raud-platform-dev-full-evidence then rerun core destroy.
+
+## Entry: 2026-02-23 17:27:37 +00:00 - M3 planning kickoff (dev_full) with fail-closed prechecks
+
+### Trigger
+1. User requested to begin planning M3.
+
+### Pre-planning assessment
+1. `M2` is closed green and provides valid handoff to M3 (`M2_DONE_M3_READY`).
+2. `platform.M3.build_plan.md` does not exist yet and is now a mandatory planning artifact gap.
+3. Current substrate posture after operator-requested teardown:
+   - active runtime compute surfaces are down,
+   - retained storage/control-plane surfaces remain.
+4. P1 authority says primary runtime is Step Functions run-state entry; therefore execution (not planning) must fail-closed until runtime/orchestrator surfaces are rematerialized.
+
+### Decision
+1. Create an execution-grade `platform.M3.build_plan.md` before any M3 execution activity.
+2. Expand M3 in the master platform build plan with explicit subphase progression and DoDs.
+3. Carry explicit pre-execution blockers in M3 plan:
+   - missing orchestrator runtime surface after teardown,
+   - unresolved `TO_PIN` handles that are required by M3 command identity if applicable.
+4. Keep this turn strictly planning-only; no M3 runtime mutations.
+
+## Entry: 2026-02-23 17:29:00 +00:00 - M3 deep plan authored and master-plan M3 expanded
+
+### What was planned
+1. Created `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M3.build_plan.md`.
+2. Expanded M3 to execution-grade subphases `M3.A..M3.J` with explicit DoDs, blockers, and exit criteria.
+3. Updated M3 in `platform.build_plan.md`:
+   - status moved to `IN_PROGRESS` (planning active),
+   - lanes expanded beyond minimal stubs,
+   - subphase progress checklist added.
+
+### Planning choices and rationale
+1. Included anti-cram capability lane matrix for M3 (authority, IAM, control-plane, evidence, rollback, budget) to avoid hidden prerequisites during execution.
+2. Kept M3 planning-only in this step (no runtime mutation) because user asked to begin planning, not execute.
+3. Carried forward current fail-closed pre-execution blockers explicitly:
+   - orchestrator runtime surface currently unavailable after teardown,
+   - unresolved required `TO_PIN` handle (`ROLE_TERRAFORM_APPLY_DEV_FULL`) until pinned.
+4. Added explicit `M3.H` cost/outcome lane to keep phase budget law active from first executioned phase in dev_full track.
+
+### Alternatives considered
+1. Reuse dev_min M3 plan verbatim:
+   - rejected because dev_full runtime stack (MSK/Flink/APIGW/Lambda/StepFunctions selective EKS) and authority pins differ.
+2. Keep master plan minimal and defer details to execution:
+   - rejected due anti-cram/decision-completeness laws and previous drift risk.
+
+### Outcome
+1. M3 planning baseline is now execution-ready as documentation.
+2. M3 execution remains intentionally blocked until pre-execution blockers are cleared.
+
+## Entry: 2026-02-23 17:36:12 +00:00 - M3.A planning expansion decision (execution-grade closure surfaces)
+
+### Problem
+1. M3.A currently defines required handles and DoDs, but it does not yet define:
+   - verification command catalog,
+   - M3.A-specific blocker taxonomy,
+   - evidence contract schema,
+   - explicit closure rule.
+2. Without those, M3.A execution can drift into interpretation during implementation.
+
+### Alternatives considered
+1. Keep M3.A as-is and handle verification ad-hoc during execution:
+   - rejected; violates decision-completeness and anti-cram laws.
+2. Mark M3.A complete from existing handle list:
+   - rejected; no evidence contract exists yet.
+3. Expand M3.A now into execution-grade planning surfaces while keeping status unexecuted:
+   - accepted.
+
+### Planned patch scope
+1. `platform.M3.build_plan.md` only.
+2. Add M3.A sections:
+   - decision pins,
+   - verification command catalog,
+   - blocker taxonomy,
+   - evidence contract,
+   - closure rule,
+   - current planning status with explicit open blockers.
+3. Keep all checkboxes unresolved (`[ ]`) because this is planning-only.
