@@ -680,11 +680,69 @@ POPT.3 closure evidence:
   - `UNLOCK_POPT4`.
 
 #### POPT.4 - `S4` region emit/merge efficiency lane (compute-safe)
+Goal:
+- reduce `S4` runtime by removing region fanout input re-read amplification and trimming merge overhead while preserving deterministic outputs and fail-closed checks.
+
+##### POPT.4.0 - Design lock and baseline
 Definition of done:
-- [ ] Reduce region fanout overhead and merge amplification while keeping memory-safe posture.
-- [ ] Rework part merge into stream/append style to avoid repeated full-read concatenation overhead.
-- [ ] Keep optional parallelism secondary; single-process efficient path remains first-class.
-- [ ] `S4` wall-clock reduced by at least `20%` from baseline on cold-run witness.
+- [x] Baseline pinned to `run_id=592d82e8d51042128fc32cb4394f1fa2`:
+  - `S4=102.484s`,
+  - `emit_regions=74.015s`,
+  - `merge_parts=12.610s`,
+  - `load_party_base=13.860s`.
+- [x] Bottleneck root causes pinned:
+  - per-region worker repeatedly scans/filters `s1_party_base_6A`,
+  - region fanout merge receives many small part files.
+- [x] Invariants pinned:
+  - no policy/config edits,
+  - no schema/idempotence changes,
+  - deterministic seed contracts unchanged.
+
+##### POPT.4.1 - Region input-preload + fanout rewrite
+Definition of done:
+- [x] Build region-local party payloads once in parent process (`party_ids_by_type`, `party_country_by_id`) from already loaded `party_cells`/`party_meta`.
+- [x] Remove `party_base` read/filter from `_emit_region_parts`; worker uses preloaded payload only.
+- [x] Preserve deterministic sorted traversal by region/party/device axes.
+- [x] Preserve all fail-closed checks for missing/invalid region party allocations.
+
+##### POPT.4.2 - Merge-path efficiency closure
+Definition of done:
+- [x] Keep pyarrow stream merge path for part files, but eliminate unnecessary staging work introduced by region input reload.
+- [x] Ensure merge still produces single deterministic file per dataset surface.
+- [x] Verify no memory unsafe amplification from fanout payload handling.
+
+##### POPT.4.3 - Witness and decision
+Definition of done:
+- [x] Execute fresh `S4` owner-lane witness on new run-id with stable upstream inputs.
+- [x] Compare against `POPT.4.0` baseline with per-substep deltas.
+- [ ] Hard closure gate:
+  - `S4` runtime improvement `>=20%` (`<=81.987s`) with no contract regressions.
+- [ ] Stretch closure gate:
+  - target `emit_regions <=55s` and `merge_parts <=10s`.
+- [x] Record one decision only:
+  - `UNLOCK_POPT5` if hard gate passes,
+  - `HOLD_POPT4` if insufficient improvement,
+  - `REVERT_POPT4` on regression/contract risk.
+
+POPT.4 closure evidence:
+- Baseline (`run_id=592d82e8d51042128fc32cb4394f1fa2`):
+  - `S4=102.484s`, `emit_regions=74.015s`, `merge_parts=12.610s`.
+- Candidate matrix:
+  - `f29bae549afc42f4a78d10c285358dd6`: `S4=102.609s` (regression),
+  - `f388966781f84fd7acd9fa42b469b275`: `S4=94.719s` (best, `-7.58%`),
+  - `96804e13231b4c388299c1e376c4ccae`: `S4=102.672s`,
+  - `2f204ebdc5714787bb5f2fb4fcad0c7f` (`workers=3`): `S4=111.765s`.
+- Best candidate substep movement (`f388...`):
+  - `emit_regions=71.156s` (`-3.86%`),
+  - `merge_parts=7.609s` (`-39.66%`),
+  - `load_party_base=13.968s` (`+0.78%`).
+- Contract/non-regression checks:
+  - row-count parity preserved across all required S4 outputs on best candidate.
+- Gate outcome:
+  - hard gate: `FAIL` (`94.719s > 81.987s`),
+  - stretch gate: `FAIL`.
+- Decision:
+  - `HOLD_POPT4`.
 
 #### POPT.5 - Integration closure for performance lane
 Definition of done:

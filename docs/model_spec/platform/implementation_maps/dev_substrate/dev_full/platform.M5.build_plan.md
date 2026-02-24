@@ -139,9 +139,9 @@ Tasks:
 4. publish oracle boundary posture snapshot.
 
 DoD:
-- [ ] oracle boundary posture is explicit and read-only.
-- [ ] ownership posture is explicit and producer-owned.
-- [ ] oracle boundary snapshot is committed locally and durably.
+- [x] oracle boundary posture is explicit and read-only.
+- [x] ownership posture is explicit and producer-owned.
+- [x] oracle boundary snapshot is committed locally and durably.
 
 ### M5.C Required Outputs and Manifest Readability (P3)
 Goal:
@@ -154,9 +154,31 @@ Tasks:
 4. publish required-output matrix.
 
 DoD:
-- [ ] required outputs are present.
-- [ ] required manifests are readable.
-- [ ] required-output matrix is committed locally and durably.
+- [x] required outputs are present.
+- [x] required manifests are readable.
+- [x] required-output matrix is committed locally and durably.
+
+M5.C execution closure (2026-02-24):
+1. Baseline fail-closed run:
+   - `runs/dev_substrate/dev_full/m5/m5c_20260224T190532Z/m5c_execution_summary.json`
+   - outcome: `overall_pass=false`, blockers=`P3B-B2,P3B-B3`.
+2. Remediation:
+   - copied required oracle stream-view output prefixes/manifests from dev-min authoritative source to pinned dev-full oracle source path.
+3. Probe-fix:
+   - corrected prefix probe contract from `--max-items` to `--max-keys` to avoid false-negative prefix presence.
+4. Authoritative green run:
+   - `runs/dev_substrate/dev_full/m5/m5c_p3b_required_outputs_20260224T191554Z/m5c_execution_summary.json`
+   - outcome: `overall_pass=true`, blockers=`[]`, `prefixes=4/4`, `manifests=4/4`.
+5. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5c_p3b_required_outputs_20260224T191554Z/m5c_required_output_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5c_p3b_required_outputs_20260224T191554Z/m5c_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5c_p3b_required_outputs_20260224T191554Z/m5c_execution_summary.json`
+6. Prior fail evidence retained:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5c_20260224T190532Z/m5c_required_output_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5c_20260224T190532Z/m5c_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5c_20260224T190532Z/m5c_execution_summary.json`
+7. Next action:
+   - advance to `M5.D` (`P3.C`) execution.
 
 ### M5.D Stream-View Contract and Materialization (P3)
 Goal:
@@ -316,10 +338,20 @@ Any active `M5-B*` blocker prevents M5 closure.
 13. `phase_cost_outcome_receipt.json`
 14. `m5_execution_summary.json`
 
+## 8.1) Run-Folder Naming Convention (operator readability)
+1. New run-folder pattern (M5 onward where tooling is ad-hoc lane-driven):
+   - `<phase_code>_<semantic_label>_<UTCSTAMP>`
+   - example: `m5c_p3b_required_outputs_20260224T191554Z`
+2. Compatibility rule:
+   - legacy short ids (for example `m5c_20260224T190532Z`) remain valid evidence references and are not retroactively renamed.
+3. Hygiene rule:
+   - keep only authoritative run folders for each closure attempt,
+   - prune empty/non-authoritative ad-hoc attempts to avoid operator confusion.
+
 ## 9) M5 Completion Checklist
 - [x] M5.A complete
 - [x] M5.B complete
-- [ ] M5.C complete
+- [x] M5.C complete
 - [ ] M5.D complete
 - [ ] M5.E complete
 - [ ] M5.F complete
@@ -355,4 +387,5 @@ Handoff posture:
 5. Execution posture:
    - `M5.A` is closed green (`m5a_20260224T182433Z`).
    - `M5.B` / `P3.A` is closed green (`m5b_20260224T185046Z`).
-   - next actionable execution lane is `M5.C` (`P3.B`).
+   - `M5.C` / `P3.B` is closed green (`m5c_p3b_required_outputs_20260224T191554Z`) after oracle materialization remediation.
+   - next actionable execution lane is `M5.D` (`P3.C`).

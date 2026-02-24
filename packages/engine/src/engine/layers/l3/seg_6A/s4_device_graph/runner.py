@@ -107,9 +107,14 @@ class _ProgressTracker:
         self._last_log = self._start
         self._processed = 0
         self._cadence = cadence_seconds
+        self._completed_logged = False
 
     def update(self, count: int) -> None:
         self._processed += int(count)
+        if self._total > 0 and self._processed >= self._total:
+            self._processed = self._total
+            if self._completed_logged:
+                return
         now = time.monotonic()
         if now - self._last_log < self._cadence and self._processed < self._total:
             return
@@ -127,6 +132,8 @@ class _ProgressTracker:
             rate,
             eta,
         )
+        if self._total > 0 and self._processed >= self._total:
+            self._completed_logged = True
 
 
 def _emit_validation(
@@ -820,7 +827,8 @@ def _merge_parquet_parts(part_paths: list[Path], output_path: Path, logger, labe
 
 def _emit_region_parts(
     region_id: str,
-    party_base_path: Path,
+    party_ids_by_type: dict[str, list[int]],
+    party_country_by_id: dict[int, str],
     device_counts_by_party_type: dict[str, dict[str, int]],
     device_type_to_group: dict[str, str],
     group_to_types: dict[str, list[str]],
@@ -849,24 +857,10 @@ def _emit_region_parts(
     region_label = f"region={region_id}"
     timer = _StepTimer(logger)
 
-    frame = (
-        pl.scan_parquet(party_base_path)
-        .select(["party_id", "party_type", "region_id", "country_iso"])
-        .filter(pl.col("region_id") == region_id)
-        .collect()
-    )
-    if frame.is_empty():
+    if not party_ids_by_type:
         logger.warning("S4: %s has no parties; emitting empty outputs", region_label)
-
-    party_ids = frame["party_id"].to_list()
-    party_types = frame["party_type"].to_list()
-    country_isos = frame["country_iso"].to_list()
-    party_ids_by_type: dict[str, list[int]] = {}
-    party_country_by_id: dict[int, str] = {}
-    for party_id, party_type, country_iso in zip(party_ids, party_types, country_isos):
-        pid = int(party_id)
-        party_ids_by_type.setdefault(str(party_type), []).append(pid)
-        party_country_by_id[pid] = str(country_iso)
+    for party_type, party_list in party_ids_by_type.items():
+        party_ids_by_type[party_type] = sorted(int(pid) for pid in party_list)
 
     device_validator = Draft202012Validator(device_schema)
     device_links_validator = Draft202012Validator(device_links_schema)
@@ -1051,6 +1045,8 @@ def _emit_region_parts(
         logger,
         f"S4: emit s4_ip_links_6A ({region_label})",
     )
+    emit_pending = 0
+    ip_pending = 0
 
     seed_zero = _seed_for_label(manifest_fingerprint, parameter_hash, f"zero_gate|{region_id}")
     seed_weight = _seed_for_label(manifest_fingerprint, parameter_hash, f"weight|{region_id}")
@@ -1117,9 +1113,6 @@ def _emit_region_parts(
                     start_idx = party_device_totals.get(party_id, 0)
                     end_idx = start_idx + count
                     party_device_totals[party_id] = end_idx
-                    device_ids = [
-                        party_id * device_id_stride + idx for idx in range(start_idx + 1, end_idx + 1)
-                    ]
 
                     os_values, os_cum, os_total = os_cumulative.get(device_type, ([], [], 1.0))
                     if not os_values:
@@ -1127,20 +1120,18 @@ def _emit_region_parts(
                         os_cum = [1.0]
                         os_total = 1.0
 
-                    os_families = [
-                        _pick_from_cumulative(
+                    region_str = str(region_id)
+                    country_iso = party_country_by_id.get(party_id, "")
+                    total_ip_links_added = 0
+                    base_device_id = party_id * device_id_stride
+                    for idx in range(start_idx + 1, end_idx + 1):
+                        device_id = base_device_id + idx
+                        os_family = _pick_from_cumulative(
                             os_values,
                             os_cum,
                             os_total,
                             _fast_u01(seed_os, device_id),
                         )
-                        for device_id in device_ids
-                    ]
-
-                    region_str = str(region_id)
-                    country_iso = party_country_by_id.get(party_id, "")
-                    total_ip_links_added = 0
-                    for device_id, os_family in zip(device_ids, os_families):
                         device_buffer.append(
                             (
                                 device_id,
@@ -1210,9 +1201,20 @@ def _emit_region_parts(
                             _flush_device_buffers()
                         if len(ip_links_buffer) >= buffer_max_rows:
                             _flush_ip_links()
-                    emit_tracker.update(len(device_ids))
-                    ip_link_tracker.update(total_ip_links_added)
+                    emit_pending += count
+                    ip_pending += total_ip_links_added
+                    if emit_pending >= 50_000:
+                        emit_tracker.update(emit_pending)
+                        emit_pending = 0
+                    if ip_pending >= 50_000:
+                        ip_link_tracker.update(ip_pending)
+                        ip_pending = 0
                 alloc_tracker.update(1)
+
+    if emit_pending > 0:
+        emit_tracker.update(emit_pending)
+    if ip_pending > 0:
+        ip_link_tracker.update(ip_pending)
 
     _flush_device_buffers()
     _flush_ip_links()
@@ -2232,6 +2234,24 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     )
 
     results: list[dict] = []
+    region_party_ids_by_type: dict[str, dict[str, list[int]]] = {}
+    region_party_country_by_id: dict[str, dict[int, str]] = {}
+    for (region_id, party_type), parties in party_cells.items():
+        parties_sorted = sorted(int(pid) for pid in parties)
+        region_party_ids_by_type.setdefault(region_id, {})[party_type] = parties_sorted
+        country_map = region_party_country_by_id.setdefault(region_id, {})
+        for pid in parties_sorted:
+            meta = party_meta.get(pid)
+            if not meta:
+                _abort(
+                    "6A.S4.INPUT_INVALID",
+                    "V-06",
+                    "party_meta_missing",
+                    {"region_id": region_id, "party_id": pid},
+                    manifest_fingerprint,
+                )
+            country_map[pid] = str(meta[1])
+
     if use_parallel:
         with ProcessPoolExecutor(max_workers=worker_count) as executor:
             futures = {}
@@ -2240,7 +2260,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     executor.submit(
                         _emit_region_parts,
                         region_id,
-                        party_base_path,
+                        region_party_ids_by_type.get(region_id, {}),
+                        region_party_country_by_id.get(region_id, {}),
                         device_counts_by_region.get(region_id, {}),
                         device_type_to_group,
                         group_to_types,
@@ -2272,7 +2293,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             results.append(
                 _emit_region_parts(
                     region_id,
-                    party_base_path,
+                    region_party_ids_by_type.get(region_id, {}),
+                    region_party_country_by_id.get(region_id, {}),
                     device_counts_by_region.get(region_id, {}),
                     device_type_to_group,
                     group_to_types,

@@ -2068,3 +2068,241 @@ Gate decision:
 
 Forward note:
 - Remaining headroom is mostly in `allocate_accounts`; next lane (`POPT.4`) should proceed without reopening `POPT.3`.
+
+### Entry: 2026-02-24 19:03
+
+POPT.4 planning lock completed (pre-implementation).
+
+Baseline authority for this lane:
+- `run_id=592d82e8d51042128fc32cb4394f1fa2`:
+  - `S4=102.484s`,
+  - `emit_regions=74.015s`,
+  - `merge_parts=12.610s`,
+  - `load_party_base=13.860s`.
+
+Bottleneck analysis:
+- Main runtime drag is `emit_regions`, with strong evidence of fanout amplification:
+  - `_emit_region_parts` currently reopens and filters `s1_party_base_6A` per region call.
+  - this re-reads upstream parquet repeatedly even though parent already materialized `party_cells`/`party_meta`.
+- Secondary drag is part merge (`merge_parts`), expected to improve indirectly once region fanout staging overhead is reduced.
+
+Alternatives considered:
+1) Pure merge rewrite first.
+   - Rejected: does not address dominant `emit_regions` input-amplification.
+2) Force single-worker mode with no algorithm change.
+   - Rejected: may reduce memory pressure but unlikely to hit speed target.
+3) Preload region party payload once, remove per-region party scan, keep deterministic fanout/merge semantics.
+   - Selected.
+
+Execution strategy:
+- Expand build plan into `POPT.4.0..POPT.4.3` with hard/stretch gates.
+- Patch `_emit_region_parts` to accept precomputed region payload (`party_ids_by_type`, `party_country_by_id`) instead of `party_base_path`.
+- Build region payload maps once in `run_s4`, then fan out.
+- Run fresh `S4` witness and compare to baseline for decision `UNLOCK_POPT5` vs `HOLD_POPT4`.
+
+Invariant lock:
+- no policy/config threshold edits,
+- no schema/output path changes,
+- deterministic ordering and RNG contracts preserved.
+
+### Entry: 2026-02-24 19:07
+
+POPT.4.1 implementation applied (`S4` fanout input preload rewrite).
+
+File changed:
+- `packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py`
+
+What changed:
+- `_emit_region_parts` signature changed:
+  - removed `party_base_path` input,
+  - now receives precomputed region payload:
+    - `party_ids_by_type`,
+    - `party_country_by_id`.
+- Removed per-region `party_base` scan/filter collect from `_emit_region_parts`.
+- In parent `run_s4`:
+  - built region payload maps once from already-loaded `party_cells` + `party_meta`,
+  - fail-closed guard added for impossible missing `party_meta`,
+  - passed per-region payload into fanout execution (parallel and sequential lanes).
+
+Why this is expected to help:
+- avoids repeated parquet reads and row-materialization per region worker.
+- converts region fanout setup from repeated I/O to one-time in-memory map construction.
+
+Invariants preserved:
+- deterministic ordering retained via sorted party lists per region/party_type.
+- no schema, policy, or publish-surface changes.
+- no RNG stream/contract changes.
+
+Validation:
+- compile check passed:
+  - `python -m py_compile packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py`.
+
+Next step:
+- fresh `S4` witness run and hard/stress gate evaluation for `POPT.4` closure.
+
+### Entry: 2026-02-24 19:09
+
+POPT.4 first witness review and recovery decision (`POPT.4R1`) before next code edit.
+
+First witness summary (`run_id=f29bae549afc42f4a78d10c285358dd6`):
+- `S4=102.609s` vs baseline `102.484s` (`-0.12%`, hard gate fail).
+- substeps:
+  - `emit_regions=77.484s` (regressed vs `74.015s`),
+  - `merge_parts=8.531s` (improved vs `12.610s`).
+
+Interpretation:
+- input preload rewrite helped merge posture but did not move dominant `emit_regions`.
+- log trace shows very high-frequency progress updates in the deepest region emit loops (`emit_tracker`/`ip_link_tracker` updates per party allocation unit).
+- this creates measurable Python overhead and can trigger completion-log spam when estimated totals are exceeded.
+
+Recovery alternatives considered:
+1) Full vectorized region emit rewrite now.
+   - Rejected: high blast radius for this lane.
+2) Worker-count tuning only.
+   - Rejected for now: does not remove inner-loop Python overhead.
+3) Low-blast progress-path optimization:
+   - batch tracker updates in region emit loops,
+   - make tracker completion log single-shot (no repeated logs after reaching total).
+   - Selected as `POPT.4R1`.
+
+`POPT.4R1` plan:
+- modify `_ProgressTracker` to avoid repeated completion logging,
+- batch `emit_tracker`/`ip_link_tracker` updates in `_emit_region_parts`,
+- rerun fresh `S4` witness and re-evaluate hard gate.
+
+### Entry: 2026-02-24 19:12
+
+POPT.4R1 implementation applied.
+
+File changed:
+- `packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py`
+
+Changes:
+- `_ProgressTracker` now enforces single-shot completion logging:
+  - clamps processed to total,
+  - returns early on subsequent updates after completion is logged.
+- `_emit_region_parts` now batches progress updates:
+  - accumulates `emit_pending` and `ip_pending`,
+  - calls tracker update only at coarse thresholds (`50,000`) and final flush.
+
+Why this matters:
+- removes high-frequency `time.monotonic` + log formatting calls from deepest emit loops.
+- prevents completion overshoot from producing repeated completion log lines.
+
+Invariants:
+- no output schema changes,
+- no RNG semantics changes,
+- no policy/config edits.
+
+Validation:
+- compile check passed:
+  - `python -m py_compile packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py`.
+
+Next step:
+- run fresh `S4` witness and evaluate `POPT.4` gates.
+
+### Entry: 2026-02-24 19:16
+
+POPT.4R1 witness result and `POPT.4R2` decision.
+
+Witness (`run_id=f388966781f84fd7acd9fa42b469b275`) summary:
+- `S4=94.719s` (`-7.58%` vs baseline `102.484s`): improved but hard gate still fails.
+- strong movement in `merge_parts` (`12.610s -> 7.609s`), limited movement in `emit_regions` (`74.015s -> 71.156s`).
+
+Interpretation:
+- progress-path optimization removed avoidable overhead but dominant emit kernel cost remains in per-party object churn.
+- inner loop still allocates `device_ids` and `os_families` lists per party allocation block before emit append.
+
+Selected bounded recovery:
+- `POPT.4R2`: remove per-party list materialization and stream device/os generation directly in a single loop.
+- keep RNG semantics and ordering identical.
+
+Why this lane:
+- low blast radius (local to emit kernel),
+- expected to reduce Python allocation/GC overhead across millions of emitted device rows.
+
+### Entry: 2026-02-24 19:18
+
+POPT.4R2 implementation applied.
+
+File changed:
+- `packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py`
+
+What changed:
+- Removed per-party list materialization:
+  - deleted `device_ids` list build,
+  - deleted `os_families` list build.
+- Replaced with direct streaming loop:
+  - computes `device_id` and `os_family` inline per emitted row.
+- Preserved deterministic row order and RNG calls:
+  - same `start_idx -> end_idx` progression,
+  - same `seed_os` and `device_id` based draw path.
+
+Expected effect:
+- lower per-party Python object allocation pressure and reduced GC/interpreter overhead in `emit_regions`.
+
+Validation:
+- compile check passed:
+  - `python -m py_compile packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py`.
+
+Next step:
+- execute fresh `S4` witness and evaluate hard gate.
+
+### Entry: 2026-02-24 19:21
+
+POPT.4R2 witness variance observed; bounded worker-count sweep opened (`POPT.4R3`).
+
+Observed outcomes after `POPT.4R1/R2`:
+- best witness improved to ~`S4=94.719s`,
+- subsequent witness regressed near baseline due runtime variance under active workstation load.
+
+Decision:
+- run one bounded fanout knob pass with `ENGINE_6A_S4_WORKERS=3` to test whether reduced fanout parallelism lowers contention and improves stable wall-clock.
+- This is configuration-only (no schema/policy/code semantics changes).
+
+Closure rule for this lane:
+- if worker sweep still misses hard gate (`<=81.987s`), close `POPT.4` as `HOLD_POPT4` and route next work to `POPT.5`/next owner lane with recorded residual bottleneck.
+
+### Entry: 2026-02-24 19:26
+
+POPT.4 execution closed.
+
+Witness set:
+- `f29bae549afc42f4a78d10c285358dd6` (post preload rewrite),
+- `f388966781f84fd7acd9fa42b469b275` (`POPT.4R1`, progress batching),
+- `96804e13231b4c388299c1e376c4ccae` (`POPT.4R2`, streaming emit rewrite),
+- `2f204ebdc5714787bb5f2fb4fcad0c7f` (`POPT.4R3`, workers=3 sweep).
+
+Best observed candidate:
+- `run_id=f388966781f84fd7acd9fa42b469b275`.
+- `S4=94.719s` (`-7.58%` vs baseline `102.484s`).
+- substeps:
+  - `emit_regions=71.156s` (`-3.86%`),
+  - `merge_parts=7.609s` (`-39.66%`).
+
+Gate outcome:
+- hard gate (`<=81.987s`) not met.
+- stretch gate not met.
+
+Decision:
+- `POPT.4=HOLD_POPT4`.
+
+Residual bottleneck statement:
+- despite fanout input preload and progress-path reductions, dominant cost remains region emit kernel compute (`emit_regions`), not merge path.
+- reaching target likely requires higher-blast algorithmic redesign of device/ip emit kernel (vectorized generation or compiled path), which is outside this bounded lane.
+
+### Entry: 2026-02-24 19:28
+
+POPT.4 superseded-run prune executed.
+
+Keep-set retained under `runs/fix-data-engine/segment_6A`:
+- `2204694f83dc4bc7bfa5d04274b9f211` (`POPT.0` authority),
+- `592d82e8d51042128fc32cb4394f1fa2` (`POPT.1R2` full-chain baseline),
+- `94dcc9f10a324d829a0ece6f96eda5f6` (`POPT.2` closure witness),
+- `d9e03d8aeac24a21ad2560e649825b97` (`POPT.3` closure witness),
+- `f388966781f84fd7acd9fa42b469b275` (`POPT.4` best candidate witness).
+
+Removed superseded `POPT.4` candidates:
+- `f29bae549afc42f4a78d10c285358dd6`,
+- `96804e13231b4c388299c1e376c4ccae`,
+- `2f204ebdc5714787bb5f2fb4fcad0c7f`.

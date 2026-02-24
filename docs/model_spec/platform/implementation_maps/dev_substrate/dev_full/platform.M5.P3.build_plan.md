@@ -110,13 +110,69 @@ Tasks:
 3. build `m5c_required_output_matrix.json` with pass/fail per output.
 
 DoD:
-- [ ] all required outputs are present.
-- [ ] all required manifests are readable.
-- [ ] output matrix committed locally and durably.
+- [x] all required outputs are present.
+- [x] all required manifests are readable.
+- [x] output matrix committed locally and durably.
 
 P3.B precheck:
 1. P3.A is green.
 2. required output list is non-empty and deterministic.
+
+P3.B capability-lane coverage (execution gate):
+| Lane | Required handles/surfaces | Verification posture | Fail-closed condition |
+| --- | --- | --- | --- |
+| Required output contract integrity | `ORACLE_REQUIRED_OUTPUT_IDS` | parse pinned output list and validate non-empty + deterministic (no duplicates) | missing/empty/non-deterministic required output list |
+| Stream-view output surface presence | `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN`, `ORACLE_SOURCE_NAMESPACE`, `ORACLE_ENGINE_RUN_ID` | for each required output_id, resolve prefix and prove object presence | any required output prefix missing/empty |
+| Manifest readability | `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN` | for each required output_id, resolve manifest key and prove readable object | any required manifest missing/unreadable |
+| Matrix integrity + blocker adjudication | `m5c_required_output_matrix.json`, `m5c_blocker_register.json` | emit per-output pass/fail matrix and explicit blockers | unresolved failure without blocker mapping |
+| Evidence publication | `S3_EVIDENCE_BUCKET`, `S3_RUN_CONTROL_ROOT_PATTERN` | local artifacts plus durable publish/readback | local-only artifacts or durable publish/readback failure |
+
+P3.B verification command templates (operator lane):
+1. Required output list presence:
+   - `rg -n "ORACLE_REQUIRED_OUTPUT_IDS|S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN|S3_STREAM_VIEW_MANIFEST_KEY_PATTERN" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+2. Prefix presence per output:
+   - `aws s3api list-objects-v2 --bucket <ORACLE_STORE_BUCKET> --prefix <resolved_output_prefix> --max-keys 1`
+3. Manifest readability per output:
+   - `aws s3api head-object --bucket <ORACLE_STORE_BUCKET> --key <resolved_manifest_key>`
+4. Durable matrix publish:
+   - `aws s3 cp <local_m5c_required_output_matrix.json> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/m5c_required_output_matrix.json`
+   - `aws s3 ls s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/m5c_required_output_matrix.json`
+
+P3.B scoped blocker mapping (must be explicit before transition):
+1. `P3B-B1` -> `M5P3-B1`: required output/stream-view handles missing or unresolved.
+2. `P3B-B2` -> `M5P3-B3`: required output prefix missing/empty.
+3. `P3B-B3` -> `M5P3-B3`: required manifest missing/unreadable.
+4. `P3B-B4` -> `M5P3-B5`: output matrix/register inconsistency.
+5. `P3B-B5` -> `M5P3-B7`: durable publish/readback failure.
+6. `P3B-B6` -> `M5P3-B8`: transition attempted with unresolved `P3B-B*`.
+
+P3.B exit rule:
+1. all required outputs in `ORACLE_REQUIRED_OUTPUT_IDS` are present,
+2. all required manifests are readable,
+3. `m5c_required_output_matrix.json` exists locally and durably,
+4. no active `P3B-B*` blocker remains,
+5. P3.C remains blocked until P3.B pass is explicit in rollup evidence.
+
+P3.B execution closure (2026-02-24):
+1. Initial fail-closed run (pre-remediation baseline):
+   - execution id: `m5c_20260224T190532Z`
+   - result: `overall_pass=false`, blockers `P3B-B2/P3B-B3` (no outputs/manifests in dev-full oracle path at that time).
+2. Remediation applied:
+   - materialized required output prefixes from authoritative dev-min oracle source into pinned dev-full oracle source path.
+3. Probe-fix note:
+   - one interim rerun used `--max-items` for prefix probe and produced false-negative prefix checks;
+   - non-authoritative run folder was pruned and probe contract corrected to `--max-keys`.
+4. Authoritative pass run:
+   - execution id: `m5c_p3b_required_outputs_20260224T191554Z`
+   - local root: `runs/dev_substrate/dev_full/m5/m5c_p3b_required_outputs_20260224T191554Z/`
+   - summary: `runs/dev_substrate/dev_full/m5/m5c_p3b_required_outputs_20260224T191554Z/m5c_execution_summary.json`
+   - result: `overall_pass=true`, blockers `[]`, prefix presence `4/4`, manifest readability `4/4`.
+5. Durable evidence (authoritative pass):
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5c_p3b_required_outputs_20260224T191554Z/m5c_required_output_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5c_p3b_required_outputs_20260224T191554Z/m5c_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5c_p3b_required_outputs_20260224T191554Z/m5c_execution_summary.json`
+6. Gate impact:
+   - P3.B is green; P3.C (`M5.D`) is unblocked.
 
 ### P3.C (M5.D) Stream-View Contract and Materialization
 Goal:

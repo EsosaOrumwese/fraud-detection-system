@@ -6444,3 +6444,159 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 
 ### Outcome
 1. M5 run directory is now compact and authoritative-only for current executed lanes.
+
+## Entry: 2026-02-24 19:00:05 +00:00 - Pre-implementation planning for M5.C / P3.B
+
+### Trigger
+1. User requested planning + execution of `P3.B`.
+
+### Decision completeness check
+1. Upstream precheck is satisfied:
+   - `M5.B / P3.A` is green (`m5b_20260224T185046Z`).
+2. Required P3.B handles are pinned in registry:
+   - `ORACLE_REQUIRED_OUTPUT_IDS`,
+   - `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN`,
+   - `S3_STREAM_VIEW_MANIFEST_KEY_PATTERN`,
+   - `ORACLE_SOURCE_NAMESPACE`, `ORACLE_ENGINE_RUN_ID`,
+   - `ORACLE_STORE_BUCKET`, `S3_EVIDENCE_BUCKET`, `S3_RUN_CONTROL_ROOT_PATTERN`.
+3. No unresolved `TO_PIN` in the P3.B-required handle set.
+
+### Execution intent
+1. Expand P3.B plan section to execution-grade capability lanes and blocker mapping.
+2. Execute fail-closed required-output and manifest readability checks for all required output IDs.
+3. Emit and publish:
+   - `m5c_required_output_matrix.json`,
+   - `m5c_blocker_register.json`,
+   - `m5c_execution_summary.json`.
+4. Update M5/P3 trackers only if blocker-free and durable publish/readback passes.
+
+## Entry: 2026-02-24 19:04:24 +00:00 - P3.B cleanup + pre-execution probe (fail-closed posture)
+
+### Decision trail
+1. Two stale `m5c_*` folders existed from the previous timed-out attempt:
+   - `runs/dev_substrate/dev_full/m5/m5c_20260224T190119Z`
+   - `runs/dev_substrate/dev_full/m5/m5c_20260224T190207Z`
+2. To avoid non-authoritative clutter, both folders were pruned (no `INVALIDATED.txt` marker retention for empty shells).
+3. Oracle source pre-probe against dev-full bucket was executed before rerun:
+   - `aws s3api head-bucket --bucket fraud-platform-dev-full-object-store` -> success,
+   - `aws s3api list-objects-v2 --bucket fraud-platform-dev-full-object-store --max-items 20` -> no keys returned.
+
+### Implication
+1. P3.B cannot legitimately pass in current state because required stream-view output prefixes and manifests are absent under the pinned oracle source path.
+2. Correct execution posture is fail-closed evidence generation:
+   - emit per-output matrix with missing-prefix/missing-manifest flags,
+   - map blockers to `P3B-B*` / `M5P3-B*`,
+   - publish summary + blocker register durably for closure review.
+
+### Execution decision
+1. Proceed with a clean single `m5c_<timestamp>` run.
+2. Do not synthesize or backfill oracle objects as part of P3.B.
+
+## Entry: 2026-02-24 19:05:49 +00:00 - M5.C / P3.B executed (fail-closed blocker outcome)
+
+### Execution path
+1. Per-output checks were run against pinned handles from `dev_full_handles.registry.v0.md`:
+   - required output IDs,
+   - stream-view output prefix pattern,
+   - stream-view manifest key pattern,
+   - oracle source namespace/run-id,
+   - oracle/evidence bucket targets.
+2. For each required output ID:
+   - prefix presence probe via `list-objects-v2 --max-items 1`,
+   - manifest readability probe via `head-object`.
+3. Artifacts emitted:
+   - `m5c_required_output_matrix.json`,
+   - `m5c_blocker_register.json`,
+   - `m5c_execution_summary.json`.
+4. Durable publication/readback completed under:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5c_20260224T190532Z/`.
+
+### Result
+1. Execution id:
+   - `m5c_20260224T190532Z`
+2. Outcome:
+   - `overall_pass=false`
+   - blockers: `P3B-B2`, `P3B-B3`
+3. Concrete findings:
+   - required output prefixes present: `0/4`,
+   - required manifests readable: `0/4`.
+4. Blocker semantics:
+   - `P3B-B2` (`M5P3-B3`): required output prefixes are missing/empty.
+   - `P3B-B3` (`M5P3-B3`): required manifest objects are missing/unreadable (`404` on head-object).
+
+### Decision and next action
+1. Keep `M5.C` in fail-closed `HOLD_REMEDIATE`.
+2. Do not advance to `M5.D` until oracle stream-view outputs/manifests are materialized at the pinned source path.
+3. After materialization, rerun `M5.C` as a fresh execution id and keep only authoritative run folders.
+
+## Entry: 2026-02-24 19:18:15 +00:00 - M5.C remediation executed and closed green
+
+### Remediation actions executed
+1. Source truth selected:
+   - dev-min oracle stream-view prefixes under `fraud-platform-dev-min-object-store` for required outputs only.
+2. Copy operation:
+   - copied required `output_id=*` prefixes from:
+     - `s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/`
+     to:
+     - `s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/`.
+3. Manifest verification:
+   - `_stream_view_manifest.json` head checks pass for all required output IDs.
+
+### Decision trail during rerun
+1. First remediation rerun surfaced an instrumentation defect:
+   - prefix probe used `list-objects-v2 --max-items 1` and yielded false-negative prefix presence.
+2. Alternative options considered:
+   - trust manifest-head only and skip prefix probe,
+   - rerun with corrected prefix probe.
+3. Selected fix:
+   - keep both checks and correct prefix probe to `--max-keys 1` (service-level key count).
+4. Non-authoritative intermediate run was pruned to keep run folder clean.
+
+### Authoritative closure
+1. Execution id:
+   - `m5c_p3b_required_outputs_20260224T191554Z`
+2. Outcome:
+   - `overall_pass=true`
+   - blockers: none
+   - prefixes present: `4/4`
+   - manifests present: `4/4`
+3. Local evidence:
+   - `runs/dev_substrate/dev_full/m5/m5c_p3b_required_outputs_20260224T191554Z/m5c_required_output_matrix.json`
+   - `runs/dev_substrate/dev_full/m5/m5c_p3b_required_outputs_20260224T191554Z/m5c_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m5/m5c_p3b_required_outputs_20260224T191554Z/m5c_execution_summary.json`
+4. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5c_p3b_required_outputs_20260224T191554Z/m5c_required_output_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5c_p3b_required_outputs_20260224T191554Z/m5c_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5c_p3b_required_outputs_20260224T191554Z/m5c_execution_summary.json`
+
+### Naming/readability hardening
+1. Adopted readable run-id style for M5 lane reruns:
+   - `m5c_p3b_required_outputs_<UTCSTAMP>`.
+2. Added operator-facing run index:
+   - `runs/dev_substrate/dev_full/m5/RUN_INDEX.md`.
+
+## Entry: 2026-02-24 19:12:26 +00:00 - P3.B blocker remediation plan (source-approved copy lane)
+
+### Problem
+1. `M5.C / P3.B` failed with `P3B-B2/P3B-B3` because the pinned dev-full oracle source path has no required output prefixes/manifests.
+
+### Alternatives considered
+1. Recompute stream-sort directly in dev_full now.
+   - Rejected for this blocker: slower and unnecessary for `P3.B`, which only requires presence/readability validation.
+2. Synthesize placeholder manifests.
+   - Rejected: violates fail-closed contract and would fake oracle truth.
+3. Copy authoritative existing stream-view outputs from known-good oracle source.
+   - Selected: deterministic, contract-consistent, and fastest blocker clearance.
+
+### Selected remediation
+1. Copy only required output prefixes (and their manifests/receipts) from:
+   - `s3://fraud-platform-dev-min-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/output_id=<required_output_id>/`
+   to:
+   - `s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/stream_view/ts_utc/output_id=<required_output_id>/`
+2. Verify per-output `_stream_view_manifest.json` head/readability on destination.
+3. Rerun `M5.C/P3.B` with a human-readable execution id suffix and publish fresh evidence.
+
+### Naming improvement decision
+1. Keep compatibility prefix (`m5c_`) but add explicit semantic suffix for readability:
+   - `m5c_p3b_required_outputs_<timestamp>`
+2. This prevents operator confusion while preserving phase mapping conventions.
