@@ -478,6 +478,68 @@ POPT.1R closure evidence (`run_id=b68127889d454dc4ac0ae496475c99c5`, staged from
   - `HOLD_POPT1R` (insufficient recovery; still materially above `POPT.0`/primary baseline).
   - `POPT.2` remains blocked.
 
+#### POPT.1R2 - `S3` compact-cell rollback + clean-lane witness closure
+Goal:
+- recover `S3` to the last known fast mechanics while explicitly closing the `S5`-inflation ambiguity with a clean full-chain witness.
+
+##### POPT.1R2.0 - Recovery design lock
+Definition of done:
+- [x] Scope pinned to `S3` code only; no policy/config edits.
+- [x] Regression hypothesis pinned:
+  - tuple-packed `account_cells[(party_type, account_type)] -> list[(account_id, owner_id)]` introduced excess memory/object overhead in both `load_account_base` and `allocate_instruments`.
+- [x] Closure protocol pinned:
+  - quick `S3` witness for hotspot confirmation,
+  - clean `S0 -> S5` witness for `S5` blocker closure (no staged-junction ambiguity).
+
+##### POPT.1R2.1 - Compact account-cell/owner-map restore
+Definition of done:
+- [x] Restore `S3` ingest/allocation to compact baseline mechanics:
+  - `account_cells` stores `list[account_id]`,
+  - `account_owner` map used during emit,
+  - per-key deterministic account ordering stays at allocation boundary.
+- [x] Preserve fail-closed checks (`duplicate_account_id`, owner presence, cap checks, scheme coverage).
+- [x] Preserve RNG/event/schema/idempotence contracts.
+
+##### POPT.1R2.2 - Quick witness (`S3` only)
+Definition of done:
+- [x] Fresh run-id staged under `runs/fix-data-engine/segment_6A/` with required prerequisites.
+- [x] Execute `S3` only and collect perf artifacts.
+- [x] Gate:
+  - `S3_total` improves vs `POPT.1R` candidate (`b681...`) and
+  - `S3.allocate_instruments` is within `<=5%` of `POPT.0` witness (`220...`) for unlock to full witness.
+
+##### POPT.1R2.3 - Clean full-chain witness (`S0 -> S5`)
+Definition of done:
+- [x] Execute clean run from `S0` through `S5` on fresh run-id (no staged junction reuse).
+- [x] Confirm `S3` gain holds on full chain.
+- [x] Resolve blocker `POPT1.B2` by measuring `S5` on clean lane and recording whether inflation persists.
+
+##### POPT.1R2.4 - Closure decision
+Definition of done:
+- [x] Record explicit deltas vs `POPT.0` (`220...`) and `POPT.1R` (`b681...`).
+- [x] Decision recorded as one of:
+  - `UNLOCK_POPT2` (S3 recovery + blocker closed),
+  - `HOLD_POPT1R2` (insufficient S3 recovery),
+  - `REVERT_POPT1R2` (contract or perf regression).
+
+POPT.1R2 closure evidence:
+- Quick `S3` witness (`run_id=98af13c5571b48ce9e91728d77e9e983`, staged lane):
+  - `S3_total=413.953s` vs `POPT.1R` `418.172s` (`-1.01%`),
+  - `S3.allocate_instruments=382.609s` vs `POPT.1R` `385.203s` (`-0.67%`),
+  - still above `POPT.0`:
+    - `S3_total +32.63%` vs `312.109s`,
+    - `allocate_instruments +33.15%` vs `287.359s`.
+- Clean full-chain witness (`run_id=592d82e8d51042128fc32cb4394f1fa2`, `S0 -> S5`):
+  - `S3=409.797s` (`+31.30%` vs `POPT.0`, `-2.00%` vs `POPT.1R`),
+  - `S4=102.484s` (`+19.21%` vs `POPT.0`),
+  - `S5=1016.250s` (`+339.19%` vs `POPT.0`, `+0.07%` vs `POPT.1R`).
+- Blocker closure:
+  - `POPT1.B2` is closed as a diagnosis: `S5` inflation persists on a clean non-staged full run and is not caused by staged-junction witness setup.
+  - ownership routes to `POPT.2` (`S5` lane), not `S3`.
+- Decision:
+  - `HOLD_POPT1R2` (insufficient `S3` recovery to unlock).
+  - `POPT.2` is now unblocked for `S5`-owner optimization work.
+
 #### POPT.2 - `S5` validation-scan fusion + collect minimization
 Definition of done:
 - [ ] Collapse repeated parquet scans/collects into fused lazy plans per dataset.

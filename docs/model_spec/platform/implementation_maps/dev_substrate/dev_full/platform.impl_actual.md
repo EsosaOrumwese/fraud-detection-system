@@ -5461,3 +5461,690 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 ### Plan synchronization completed
 1. Updated M4 deep plan execution trail and marked M4.E DoDs/checklist complete.
 2. Updated master platform plan posture and sub-phase progress (`M4.E` complete).
+
+## Entry: 2026-02-24 06:21:57 +00:00 - M4.F planning start (decision-completeness lock)
+
+### Problem statement
+1. `M4.F` is currently template-level and cannot be executed/audited as-is.
+2. P2 runbook law requires cross-runtime correlation fields to be preserved across API edge, stream lanes, orchestrator transitions, and evidence emission.
+3. Current IG Lambda response does not expose a correlation echo surface, which weakens ingress-boundary proof.
+
+### Decision completeness check before execution
+1. Upstream gate anchor: `M4.E` must be PASS (`m4e_20260224T060311Z`).
+2. Correlation handle anchors must be explicit:
+   - `CORRELATION_REQUIRED_FIELDS`
+   - `CORRELATION_HEADERS_REQUIRED`
+   - `CORRELATION_ENFORCEMENT_FAIL_CLOSED`
+   - `CORRELATION_AUDIT_PATH_PATTERN`
+3. Runtime surfaces to probe in M4.F:
+   - ingress edge (`APIGW + Lambda + DDB`),
+   - orchestrator (`Step Functions`),
+   - stream lane telemetry surface (`MSK` metrics/log surfaces),
+   - observability lane (`CloudWatch prefix`, `OTEL` handles).
+
+### Strategy pinned
+1. Run M4.F attempt #1 fail-closed with strict correlation checks.
+2. If ingress proof surface is insufficient, remediate the IG runtime boundary minimally:
+   - emit structured correlation log fields,
+   - include correlation echo in ingress ACK payload,
+   - avoid secret-bearing payload logging.
+3. Re-run M4.F and close only when blockers are zero with durable evidence.
+
+### Security and audit posture
+1. No secret values are stored in M4.F artifacts.
+2. API key value is never written to files/logbooks/impl map.
+3. Correlation probe payload will include only non-secret run identity and trace fields.
+
+## Entry: 2026-02-24 06:22:43 +00:00 - M4.F planning expanded to execution-grade
+
+### What was added to M4.F
+1. Decision-completeness precheck:
+   - M4.E PASS gate,
+   - correlation handle closure,
+   - active-lane manifest anchoring,
+   - runtime boundary handle closure,
+   - artifact secret-safety requirement.
+2. Decision pins:
+   - fail-closed correlation law,
+   - active-lane-only telemetry law,
+   - ingress proof sufficiency law,
+   - orchestrator proof law,
+   - evidence proof law.
+3. Verification command catalog:
+   - `M4F-V1..M4F-V7` from gate checks through durable publish.
+4. Blocker taxonomy:
+   - `M4F-B1..M4F-B7`.
+5. Evidence contract and closure rule:
+   - correlation audit snapshot,
+   - telemetry surface snapshot,
+   - conformance snapshot,
+   - execution summary.
+
+### Planning rationale
+1. P2 runbook law requires explicit cross-runtime correlation preservation, so handle-only checks are insufficient.
+2. Telemetry continuity at P2 must be tied to active lane scope from M4.B rather than global/unscoped checks.
+3. Strong ingress proof may require runtime boundary instrumentation if current handler does not expose correlation carriage evidence.
+
+### Plan synchronization
+1. Updated:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+2. M4.F execution status remains pending until attempt #1 run is completed.
+
+## Entry: 2026-02-24 06:24:42 +00:00 - M4.F attempt #1 blockers and remediation decision
+
+### Attempt #1 outcome
+1. Executed `M4.F` as `m4f_20260224T062413Z`.
+2. Result: `overall_pass=false`, blockers `M4F-B3` + `M4F-B5`.
+
+### Root cause analysis
+1. Ingress boundary accepted probe (`202`) but did not expose runtime correlation-carriage proof:
+   - response lacked `correlation_echo` fields,
+   - Lambda logs lacked correlation trace marker.
+2. Telemetry lane failure is the same root issue on ingress lane:
+   - `lambda_correlation_log` surface failed.
+
+### Alternatives considered
+1. Relax ingress proof to status-only acceptance:
+   - rejected; conflicts with fail-closed correlation law and would weaken production-grade auditability.
+2. Depend only on Step Functions correlation proof:
+   - rejected; does not prove API-edge carriage.
+3. Add minimal ingress instrumentation (selected):
+   - emit structured correlation log containing required non-secret fields,
+   - return bounded `correlation_echo` in ACK payload for explicit boundary proof.
+
+### Remediation plan (selected)
+1. Patch `infra/terraform/dev_full/runtime/lambda/ig_handler.py`:
+   - parse request JSON body safely,
+   - extract only required correlation fields and required correlation headers,
+   - log a structured non-secret record,
+   - include `correlation_echo` in POST ACK.
+2. Apply runtime Terraform to update Lambda code package.
+3. Rerun M4.F and close only if blockers are zero.
+
+## Entry: 2026-02-24 06:27:18 +00:00 - M4.F remediation execution and closure
+
+### Runtime remediation application
+1. Ran `terraform plan/apply` in `infra/terraform/dev_full/runtime`.
+2. Materialized updated IG Lambda package with correlation-boundary instrumentation.
+
+### Why this remediation is safe
+1. Logging scope is restricted to correlation fields and required correlation headers only.
+2. Full ingest payload and secret values are not logged.
+3. API key remains sourced from SSM; no credential value written to artifacts.
+
+### Authoritative closure run
+1. Executed rerun: `m4f_20260224T062653Z`.
+2. Result:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `next_gate=M4.F_READY`.
+3. Key metrics:
+   - `required_field_count=6`
+   - `required_header_count=5`
+   - `ingress_boundary_pass=true`
+   - `orchestrator_boundary_pass=true`
+   - `telemetry_pass=true`
+   - `active_lane_count=5`
+   - `lane_surface_pass_count=5`.
+
+### Evidence anchors
+1. Local:
+   - `runs/dev_substrate/dev_full/m4/m4f_20260224T062653Z/m4f_execution_summary.json`
+   - `runs/dev_substrate/dev_full/m4/m4f_20260224T062653Z/m4f_correlation_audit_snapshot.json`
+   - `runs/dev_substrate/dev_full/m4/m4f_20260224T062653Z/m4f_telemetry_surface_snapshot.json`
+   - `runs/dev_substrate/dev_full/m4/m4f_20260224T062653Z/m4f_correlation_conformance_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4f_20260224T062653Z/`.
+
+### Plan synchronization completed
+1. Updated deep plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
+   - marked M4.F DoDs complete,
+   - recorded blocked attempt + remediation + closure run.
+2. Updated master plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+   - marked `M4.F` complete in sub-phase progress and posture trail.
+
+## Entry: 2026-02-24 06:29:32 +00:00 - M4.G pre-implementation decision lock
+
+### Problem statement
+1. M4.G is still template-level and needs closure-grade drill design + execution.
+2. We need a bounded failure injection that is reversible, low-blast, and auditable for P2 runtime posture.
+
+### Alternatives considered
+1. Disable API Gateway routes temporarily:
+   - rejected; edits routing surfaces and introduces more rollback blast area.
+2. Force Step Functions lane failure:
+   - rejected for M4.G scope because current state machine design is pass-through and does not exercise ingress-runtime recovery semantics.
+3. Bounded ingress Lambda concurrency clamp (selected):
+   - set `ReservedConcurrentExecutions=0` to force invocation failure,
+   - verify failure posture,
+   - restore original concurrency state,
+   - verify recovery + rollback parity.
+
+### Selected drill lane and why
+1. Lane: `ingress_edge` (`APIGW + Lambda + DDB`).
+2. Rationale:
+   - directly exercises runtime availability boundary used by P2/P4,
+   - supports deterministic pre/post probes,
+   - rollback is explicit and quick (restore concurrency state).
+
+### Execution contract pinned
+1. Pre-drill baseline must pass for health + ingest with run-scope/correlation payload.
+2. Failure injection must produce bounded service failure within timeout window.
+3. Recovery action must restore baseline behavior.
+4. Rollback parity must prove post-state equals pre-state for concurrency control.
+5. Post-drill M4.F-style health/run-scope assertions must remain green.
+
+### Security posture
+1. No API key values in artifacts/docs.
+2. Correlation payload is non-secret.
+3. Lambda logs are queried by trace marker only.
+
+## Entry: 2026-02-24 06:30:42 +00:00 - M4.G planning expanded to execution-grade
+
+### What was added to M4.G
+1. Decision-completeness precheck:
+   - M4.F PASS anchor,
+   - active-lane manifest anchor,
+   - drill lane handle closure,
+   - post-drill correlation anchors,
+   - bounded/reversible drill requirement.
+2. Decision pins:
+   - bounded-failure law,
+   - ingress-lane selection law,
+   - recovery law,
+   - rollback parity law,
+   - secret-safe evidence law.
+3. Verification command catalog:
+   - `M4G-V1..M4G-V8` from entry gate through durable publish.
+4. Fail-closed blocker taxonomy:
+   - `M4G-B1..M4G-B8`.
+5. Evidence contract and closure rule:
+   - failure snapshot,
+   - recovery/rollback snapshot,
+   - runtime drill snapshot,
+   - execution summary.
+
+### Planning rationale
+1. Ingress lane gives the cleanest bounded-failure mechanics with deterministic rollback.
+2. Concurrency clamp avoids destructive resource edits while still proving failure/recovery/rollback obligations.
+3. Post-drill equivalence check protects against hidden drift after recovery.
+
+### Plan synchronization
+1. Updated:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`.
+2. M4.G execution starts next under fail-closed posture.
+
+## Entry: 2026-02-24 06:31:24 +00:00 - M4.G execution start (fail-closed)
+
+### Execution objective
+1. Close M4.G by proving bounded failure injection, deterministic recovery, rollback parity, and post-drill conformance continuity.
+
+### Inputs locked
+1. M4.F PASS anchor:
+   - `m4f_20260224T062653Z`.
+2. Active lane manifest:
+   - `m4b_20260224T044454Z`.
+3. Drill lane:
+   - `ingress_edge` via `LAMBDA_IG_HANDLER_NAME`.
+
+### Execution strategy
+1. Capture pre-drill state and baseline ingress probes.
+2. Inject bounded failure (`ReservedConcurrentExecutions=0`).
+3. Observe failure posture with bounded wait.
+4. Restore pre-drill state and verify recovery.
+5. Prove rollback parity and post-drill run-scope/correlation continuity.
+6. Publish local + durable artifacts.
+
+### Fail-closed posture
+1. Any failure to observe injection effect or restore baseline will block closure.
+2. Any post-drill regression in run-scope/correlation surfaces is blocker-worthy.
+
+## Entry: 2026-02-24 06:33:53 +00:00 - M4.G closure run passed
+
+### Authoritative execution
+1. `m4g_execution_id`: `m4g_20260224T063238Z`.
+2. Result: `overall_pass=true`, blockers empty, `next_gate=M4.G_READY`.
+
+### Runtime drill outcomes
+1. Pre-drill baseline passed with correlation + telemetry proof at ingress boundary.
+2. Failure injection was effective:
+   - set Lambda reserved concurrency to `0`,
+   - observed bounded failure (`HTTP 503`) on ingress probe.
+3. Recovery and rollback succeeded:
+   - restored concurrency control to pre-drill state (`UNSET`),
+   - health/ingest recovered (`200/202`),
+   - correlation echo and log trace proofs remained valid.
+4. Post-drill parity is explicit:
+   - prestate == poststate for injected control.
+
+### Evidence anchors
+1. Local:
+   - `runs/dev_substrate/dev_full/m4/m4g_20260224T063238Z/m4g_failure_injection_snapshot.json`
+   - `runs/dev_substrate/dev_full/m4/m4g_20260224T063238Z/m4g_recovery_rollback_snapshot.json`
+   - `runs/dev_substrate/dev_full/m4/m4g_20260224T063238Z/m4g_runtime_drill_snapshot.json`
+   - `runs/dev_substrate/dev_full/m4/m4g_20260224T063238Z/m4g_execution_summary.json`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4g_20260224T063238Z/`.
+
+### Plan synchronization completed
+1. Updated `platform.M4.build_plan.md`:
+   - M4.G DoDs checked,
+   - execution trail recorded,
+   - M4.G checklist marked complete.
+2. Updated `platform.build_plan.md`:
+   - M4.G closure reflected in posture trail and sub-phase progress.
+
+## Entry: 2026-02-24 06:35:33 +00:00 - M4.H pre-execution path contract pin closure
+
+### Gap detected
+1. M4.H required deterministic run-scoped publication targets for P2 readiness + binding artifacts.
+2. Dev_full handles registry did not expose named handles for these two P2 outputs.
+
+### Decision
+1. Treat as decision-completeness blocker (fail-closed), not an implicit path default.
+2. Pin explicit path handles before M4.H execution.
+
+### Patch applied
+1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`:
+   - `P2_RUNTIME_READINESS_PATH_PATTERN = "evidence/runs/{platform_run_id}/operate/runtime_lanes_ready.json"`
+   - `P2_RUNTIME_BINDING_MATRIX_PATH_PATTERN = "evidence/runs/{platform_run_id}/operate/runtime_binding_matrix.json"`
+
+### Execution effect
+1. M4.H publication lane now has deterministic, handle-anchored run-scoped targets.
+
+## Entry: 2026-02-24 06:36:15 +00:00 - M4.H planning expanded to execution-grade
+
+### What was added to M4.H
+1. Decision-completeness precheck:
+   - M4.F/M4.G PASS gates,
+   - authoritative source artifact inventory,
+   - run-scoped path handle closure,
+   - identity anchors,
+   - non-secret requirement.
+2. Decision pins:
+   - authoritative-source law,
+   - run-scoped-first publication law,
+   - binding-explicitness law,
+   - invariant fail-closed law,
+   - non-secret artifact law.
+3. Verification command catalog:
+   - `M4H-V1..M4H-V7` from gates to durable publication.
+4. Blocker taxonomy:
+   - `M4H-B1..M4H-B6`.
+5. Evidence contract and closure rule:
+   - run-scoped readiness + binding outputs,
+   - M4.H control snapshot + summary.
+
+### Planning rationale
+1. P2 commit evidence in dev_full is runtime readiness snapshot plus binding matrix; M4.H now publishes both explicitly.
+2. Run-scoped publication is made authoritative to support downstream M4.I/M4.J references.
+3. Publication is fail-closed on source/readability drift to prevent carrying partial readiness into verdict phase.
+
+### Plan synchronization
+1. Updated:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`.
+2. M4.H execution starts next.
+
+## Entry: 2026-02-24 06:39:18 +00:00 - M4.H execution closure (PASS) with run-scoped publication proof
+
+### Execution objective
+1. Close M4.H by publishing canonical runtime readiness evidence for P2:
+   - run-scoped readiness payload,
+   - run-scoped binding matrix,
+   - control snapshot + execution summary.
+
+### Decision trail during execution
+1. Source selection decision:
+   - Chosen: use only closure-pass artifacts from `M4.A..M4.G`.
+   - Rejected: recompute readiness from live discovery during M4.H.
+   - Why: M4.H is a publication/attestation gate; introducing recompute would mix validation and mutation and increase drift risk.
+2. Publication target decision:
+   - Chosen: run-scoped path as canonical (`evidence/runs/{platform_run_id}/operate/...`) plus control mirror under `run_control`.
+   - Why: downstream gates (`M4.I/M4.J`) need deterministic per-run pointers, not phase-only snapshots.
+3. Security decision:
+   - Chosen: enforce non-secret artifact policy (IDs/ARNs allowed, secret values forbidden) before durable publication.
+   - Why: keeps evidence auditable and safe for long-lived storage.
+
+### Execution steps and outcomes
+1. Verified source gates:
+   - `m4f_20260224T062653Z` PASS,
+   - `m4g_20260224T063238Z` PASS.
+2. Assembled readiness artifacts locally:
+   - `runs/dev_substrate/dev_full/m4/m4h_20260224T063724Z/operate/runtime_lanes_ready.json`
+   - `runs/dev_substrate/dev_full/m4/m4h_20260224T063724Z/operate/runtime_binding_matrix.json`.
+3. Published canonical run-scoped artifacts durably:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/operate/runtime_lanes_ready.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/operate/runtime_binding_matrix.json`.
+4. Published control artifacts durably:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4h_20260224T063724Z/m4h_readiness_publication_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4h_20260224T063724Z/m4h_execution_summary.json`.
+5. Verified durable readability via `aws s3 ls` after publish.
+
+### Closure outcome
+1. `overall_pass=true`, `blockers=[]`, `next_gate=M4.H_READY`.
+2. Key metrics:
+   - `source_artifact_count=10`,
+   - `active_lane_count=5`,
+   - `invariants_pass_count=4/4`.
+3. M4.H status: closed green.
+
+### Plan synchronization
+1. Updated:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`.
+2. Marked M4.H DoDs and checklist as complete; phase posture now includes M4.H green.
+
+## Entry: 2026-02-24 06:44:11 +00:00 - M4.I planning expanded to execution-grade (pre-run decision lock)
+
+### Problem statement
+1. `M4.I` was still template-level.
+2. M4 cannot be closed safely without deterministic rollup/adjudication over `M4.A..M4.H`.
+
+### Decision-completeness checks (closed before execution)
+1. Upstream source set pinned:
+   - `M4.A..M4.H` execution summaries.
+2. Verdict vocabulary pinned:
+   - `ADVANCE_TO_M4J`, `HOLD_REMEDIATE`, `NO_GO_RESET_REQUIRED`.
+3. Policy source pinned:
+   - M4 blocker taxonomy (Section 6 in `platform.M4.build_plan.md`) is authoritative.
+4. Fail-closed precondition pinned:
+   - any missing/ambiguous source data produces non-advance verdict.
+
+### Alternatives considered
+1. Keep M4.I minimal and defer adjudication logic to M4.J:
+   - rejected; this collapses two distinct gates and weakens auditability.
+2. Roll up only latest summary plus checklist booleans:
+   - rejected; not robust against blocker-severity drift and unreadable artifacts.
+3. Build explicit execution-grade M4.I lane:
+   - selected; mirrors proven M3.I posture and preserves deterministic audit trail.
+
+### Planning outputs committed
+1. Expanded `M4.I` in `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md` with:
+   - precheck,
+   - decision pins,
+   - verification catalog (`M4I-V1..V7`),
+   - blocker taxonomy (`M4I-B1..M4I-B8`),
+   - evidence contract,
+   - closure rule.
+2. Execution posture:
+   - ready to execute fail-closed.
+
+## Entry: 2026-02-24 06:46:03 +00:00 - M4.I execution start (deterministic rollup path)
+
+### Execution objective
+1. Build deterministic M4 rollup and phase verdict from `M4.A..M4.H` closure artifacts.
+2. Publish local + durable `m4i_*` artifacts.
+3. Close blockers or fail closed with explicit blocker register.
+
+### Source lock (authoritative)
+1. M3 handoff for run scope:
+   - `runs/dev_substrate/dev_full/m3/m3f_20260223T224855Z/m4_handoff_pack.json`
+2. M4 closure summaries:
+   - `m4a_20260224T043334Z`, `m4b_20260224T044454Z`, `m4c_20260224T051711Z`,
+   - `m4d_20260224T054449Z`, `m4e_20260224T060311Z`, `m4f_20260224T062653Z`,
+   - `m4g_20260224T063238Z`, `m4h_20260224T063724Z`.
+
+### Execution strategy
+1. Validate source readability and upstream green chain.
+2. Build rollup matrix and explicit blocker register (resolved vs unresolved).
+3. Classify unresolved blockers by severity using M4 taxonomy mapping.
+4. Build verdict deterministically and verify repeatability with digest comparison.
+5. Publish evidence locally and to `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/{m4i_execution_id}/`.
+
+## Entry: 2026-02-24 06:47:31 +00:00 - M4.I execution closure (PASS) and blocker adjudication
+
+### What was executed
+1. Authoritative run:
+   - `m4i_20260224T064331Z`.
+2. Inputs used:
+   - run-scope handoff: `runs/dev_substrate/dev_full/m3/m3f_20260223T224855Z/m4_handoff_pack.json`,
+   - closure-pass summaries for `M4.A..M4.H`.
+3. Artifacts emitted:
+   - `m4i_gate_rollup_matrix.json`,
+   - `m4i_blocker_register.json`,
+   - `m4i_phase_verdict.json`,
+   - `m4i_execution_summary.json`.
+
+### Reasoning and decisions during execution
+1. Source selection:
+   - Selected strict closure-pass source set from `M4.A..M4.H`.
+   - Rejected scanning all historical attempts for adjudication inputs.
+   - Reason: historical blocked attempts are already remediated; M4.I should adjudicate current closure posture, not replay prior failed attempts.
+2. Severity policy:
+   - Selected explicit mapping aligned to M4 blocker taxonomy with conservative fallback (`unmapped -> S1`).
+   - Reason: avoids ambiguous severity outcomes and enforces fail-closed behavior if taxonomy drift appears.
+3. Determinism check:
+   - Implemented canonical JSON serialization + digest re-computation for verdict payload.
+   - Reason: catches accidental non-deterministic output paths before gate closure.
+4. Publication scope:
+   - Published all `m4i_*` artifacts to run-control durable prefix.
+   - Reason: M4.J consumes M4.I verdict and should not depend on local-only evidence.
+
+### Outcomes
+1. Chain integrity:
+   - `8/8` upstream phases green (`M4.A..M4.H`).
+2. Blocker adjudication:
+   - unresolved set is explicit and empty.
+3. Verdict:
+   - `ADVANCE_TO_M4J`.
+4. Summary:
+   - `overall_pass=true`,
+   - `blockers=[]`,
+   - `next_gate=M4.I_READY`.
+
+### Evidence anchors
+1. Local:
+   - `runs/dev_substrate/dev_full/m4/m4i_20260224T064331Z/`.
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4i_20260224T064331Z/`.
+
+### Plan synchronization
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`:
+   - M4.I DoDs checked complete,
+   - M4.I execution status block appended,
+   - M4 completion checklist marks `M4.I` complete.
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`:
+   - M4 posture updated with M4.I PASS evidence and durable mirror,
+   - sub-phase progress marks `M4.I` complete.
+
+## Entry: 2026-02-24 06:50:02 +00:00 - M4.J pre-execution pin closure and planning expansion
+
+### Drift detected before M4.J execution
+1. M4.J durable publication targets for `m4_execution_summary.json` and `m5_handoff_pack.json` were not explicitly pinned in handles registry.
+2. M4 evidence contract had a naming drift:
+   - listed `m4i_gate_rollup_verdict.json`,
+   - actual emitted artifact is `m4i_phase_verdict.json`.
+
+### Decision and rationale
+1. Treat both as fail-closed decision-completeness blockers.
+2. Pin explicit handles before execution to avoid path improvisation at closure gate.
+3. Align evidence contract naming to runtime truth to prevent reference drift in M4.J/M5 handoff.
+
+### Patches applied before execution
+1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`:
+   - `M4_EXECUTION_SUMMARY_PATH_PATTERN`
+   - `M5_HANDOFF_PACK_PATH_PATTERN`.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`:
+   - expanded `M4.J` to execution-grade:
+     - precheck,
+     - decision pins,
+     - verification catalog (`M4J-V1..V7`),
+     - blocker taxonomy (`M4J-B1..M4J-B8`),
+     - evidence contract,
+     - closure rule.
+   - corrected Section 7 evidence contract item `m4i_phase_verdict.json`.
+
+### Execution posture
+1. M4.J execution now proceeds under explicit transition law:
+   - inherit `M4.I` verdict,
+   - emit `ADVANCE_TO_M5` only when blocker-free chain is proven.
+
+## Entry: 2026-02-24 06:51:04 +00:00 - M4.J execution start (deterministic M5 handoff builder)
+
+### Execution objective
+1. Close M4 by publishing deterministic M5 handoff artifacts when and only when M4 closure posture is blocker-free.
+
+### Source lock (authoritative)
+1. M4.I closure artifacts:
+   - `m4i_20260224T064331Z/m4i_phase_verdict.json`
+   - `m4i_20260224T064331Z/m4i_blocker_register.json`
+   - `m4i_20260224T064331Z/m4i_execution_summary.json`
+2. Upstream chain summaries:
+   - `M4.A..M4.I` closure-pass execution summaries.
+3. Run scope and readiness dependencies:
+   - `M3.F m4_handoff_pack.json`
+   - M4.H run-scoped readiness artifacts.
+
+### Execution strategy
+1. Validate source readability + run-scope consistency.
+2. Enforce transition law:
+   - require `M4.I verdict = ADVANCE_TO_M4J`,
+   - require unresolved blocker set empty.
+3. Emit:
+   - `m4_execution_summary.json` with M4 verdict,
+   - `m5_handoff_pack.json` with explicit references,
+   - `m4j_execution_summary.json`.
+4. Publish locally and durably, then verify readback.
+
+## Entry: 2026-02-24 06:52:41 +00:00 - M4.J execution closure (PASS) and M4 final verdict
+
+### What was executed
+1. Authoritative run:
+   - `m4j_20260224T064802Z`.
+2. Artifacts emitted:
+   - `m4_execution_summary.json`,
+   - `m5_handoff_pack.json`,
+   - `m4j_execution_summary.json`.
+
+### Reasoning and decisions during execution
+1. Transition gating decision:
+   - required `M4.I verdict = ADVANCE_TO_M4J` and `M4.I unresolved blockers = 0`.
+   - reason: M4.J is an inheritance gate, not a reinterpretation gate.
+2. Upstream chain decision:
+   - required `M4.A..M4.I` summaries all `overall_pass=true`.
+   - reason: avoid issuing M5 handoff from partial M4 posture.
+3. Handoff payload shape decision:
+   - included run-scope IDs, required run-id env binding, correlation fields, and explicit refs to M4.H readiness + M4.I adjudication.
+   - reason: M5 must consume deterministic, provenance-complete handoff input.
+4. Determinism decision:
+   - computed stable SHA256 over canonical handoff payload serialization.
+   - reason: make entry marker reproducible for rerun audits.
+5. Post-publication consistency fix:
+   - `m4j_execution_summary.dod.closure_notes_appended_required_docs` was initially false (artifact emitted before doc sync),
+   - updated to `true` and republished durable summary after documentation completion.
+
+### Outcomes
+1. `overall_pass=true`, `blockers=[]`, `next_gate=M4.J_READY`.
+2. M4 phase verdict:
+   - `ADVANCE_TO_M5`.
+3. M5 entry readiness:
+   - `true`.
+4. Upstream closure chain:
+   - `9/9` green (`M4.A..M4.I`).
+
+### Evidence anchors
+1. Local:
+   - `runs/dev_substrate/dev_full/m4/m4j_20260224T064802Z/`.
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4j_20260224T064802Z/`.
+
+### Plan synchronization
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`:
+   - M4.J DoDs checked complete,
+   - M4.J execution status block appended,
+   - M4 completion checklist marked fully complete.
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`:
+   - M4 status set to `DONE`,
+   - M4 roadmap/status row aligned,
+   - M4.J closure evidence + `ADVANCE_TO_M5` posture recorded.
+
+## Entry: 2026-02-24 07:02:18 +00:00 - M5 planning architecture decision (split P3/P4 + orchestration parent)
+
+### Problem statement
+1. `M5` had only master-plan placeholders (`P3-P4`) and no deep plan file.
+2. `P3` and `P4` are distinct closure gates with different capabilities and failure modes; a single flat lane list risks phase cramming and drift.
+
+### Alternatives considered
+1. Single deep file only (`platform.M5.build_plan.md`) with all details inline:
+   - rejected; high coupling between oracle and ingress lanes would reduce audit clarity and increase accidental scope bleed.
+2. Split only by subphase checklist headings inside one file:
+   - rejected; still weak isolation for execution ownership and blocker taxonomy.
+3. Parent orchestration + split detailed child plans by gate (`P3`, `P4`):
+   - selected; preserves deterministic phase order while keeping each gate execution-grade and independently auditable.
+
+### Design decisions pinned
+1. File structure:
+   - parent orchestration: `platform.M5.build_plan.md`,
+   - P3 detail: `platform.M5.P3.build_plan.md`,
+   - P4 detail: `platform.M5.P4.build_plan.md`.
+2. Sequencing law:
+   - `M5.A -> M5.B -> M5.C -> M5.D -> M5.E -> M5.F -> M5.G -> M5.H -> M5.I -> M5.J`.
+3. Gate-transition law:
+   - P4 execution blocked until P3 verdict `ADVANCE_TO_P4`,
+   - M6 blocked until M5 verdict `ADVANCE_TO_M6`.
+4. Coverage law:
+   - both P3 and P4 include explicit precheck, DoD, verification catalog, blocker taxonomy, and evidence contract.
+
+### Planning artifacts materialized
+1. Added:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.P3.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.P4.build_plan.md`.
+2. Updated master phase plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+   - set M5 status to `IN_PROGRESS`,
+   - added M5 planning posture + deep plan routing to split docs.
+
+### Decision-completeness closure
+1. Closed initial planning blockers:
+   - `M5-B0` (deep plan incompleteness),
+   - `M5-B0.1` (missing P3/P4 decomposition).
+2. Execution posture:
+   - M5 is now planning-complete and execution-ready from `M5.A` (fail-closed).
+
+## Entry: 2026-02-24 07:11:27 +00:00 - Operator-requested dev_full teardown executed (away-mode cost stop)
+
+### Trigger
+1. User requested immediate resource teardown while away.
+
+### Execution decision
+1. Applied full stack destroy in dependency-safe order:
+   - `ops -> data_ml -> runtime -> streaming -> core`.
+2. Retention posture kept:
+   - Terraform backend bucket/table retained.
+   - Evidence bucket content retained (no destructive object/version purge).
+
+### Commands and evidence
+1. Teardown run root:
+   - `runs/dev_substrate/dev_full/teardown/teardown_20260224T070115Z/`
+2. Summary:
+   - `runs/dev_substrate/dev_full/teardown/teardown_20260224T070115Z/teardown_summary.json`
+3. Stack outcomes:
+   - `ops`: PASS,
+   - `data_ml`: PASS,
+   - `runtime`: PASS,
+   - `streaming`: PASS,
+   - `core`: FAIL (`BucketNotEmpty` on `fraud-platform-dev-full-evidence`).
+
+### Residual posture after teardown
+1. Runtime surfaces verified absent:
+   - EKS cluster: absent,
+   - MSK clusters: empty,
+   - Lambda IG handler: absent,
+   - API Gateway IG edge: none,
+   - DynamoDB IG table: absent,
+   - Step Functions orchestrator: absent,
+   - RDS clusters: none,
+   - MWAA environments: none,
+   - Flink applications: none.
+2. Remaining residual is storage/control-plane only:
+   - non-empty evidence bucket prevented full core zero-state.
+
+### Rationale
+1. This closure is cost-safe for compute/network runtime accrual while preserving run evidence.
+2. If full-zero residual is later required, perform controlled versioned-object purge on `fraud-platform-dev-full-evidence` and rerun core destroy.

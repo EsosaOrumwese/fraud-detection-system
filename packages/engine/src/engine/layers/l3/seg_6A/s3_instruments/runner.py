@@ -936,8 +936,8 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     account_validator = Draft202012Validator(account_schema)
 
     account_files = _list_parquet_files(account_base_path)
-    account_cells: dict[tuple[str, str], list[tuple[int, int]]] = {}
-    account_id_seen: set[int] = set()
+    account_cells: dict[tuple[str, str], list[int]] = {}
+    account_owner: dict[int, int] = {}
     total_accounts = 0
 
     timer.info("S3: loading account base for planning (files=%s)", len(account_files))
@@ -958,7 +958,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                     owner_id = int(owner_ids[idx])
                     account_type = str(account_types[idx])
                     party_type = str(party_types[idx])
-                    if account_id in account_id_seen:
+                    if account_id in account_owner:
                         _abort(
                             "6A.S3.INPUT_INVALID",
                             "V-06",
@@ -966,8 +966,8 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                             {"account_id": account_id},
                             manifest_fingerprint,
                         )
-                    account_id_seen.add(account_id)
-                    account_cells.setdefault((party_type, account_type), []).append((account_id, owner_id))
+                    account_owner[account_id] = owner_id
+                    account_cells.setdefault((party_type, account_type), []).append(account_id)
                     total_accounts += 1
         else:
             frame = pl.read_parquet(file_path, columns=["account_id", "owner_party_id", "account_type", "party_type"])
@@ -977,7 +977,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 owner_id = int(row["owner_party_id"])
                 account_type = str(row["account_type"])
                 party_type = str(row["party_type"])
-                if account_id in account_id_seen:
+                if account_id in account_owner:
                     _abort(
                         "6A.S3.INPUT_INVALID",
                         "V-06",
@@ -985,13 +985,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                         {"account_id": account_id},
                         manifest_fingerprint,
                     )
-                account_id_seen.add(account_id)
-                account_cells.setdefault((party_type, account_type), []).append((account_id, owner_id))
+                account_owner[account_id] = owner_id
+                account_cells.setdefault((party_type, account_type), []).append(account_id)
                 total_accounts += 1
-
-    # Deterministic one-time ordering per cell; avoid repeated sorting in allocation loop.
-    for rows in account_cells.values():
-        rows.sort(key=lambda pair: pair[0])
 
     logger.info(
         "S3: loaded account base for instrument planning (accounts=%s, cells=%s)",
@@ -1234,8 +1230,8 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         if n_instr <= 0:
             alloc_tracker.update(1)
             continue
-        cell_accounts = account_cells.get((party_type, account_type)) or []
-        if not cell_accounts:
+        accounts = account_cells.get((party_type, account_type)) or []
+        if not accounts:
             _abort(
                 "6A.S3.ALLOCATION_FAILED",
                 "V-08",
@@ -1275,9 +1271,8 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             )
 
         eligible_accounts: list[int] = []
-        eligible_owners: list[int] = []
         weights: list[float] = []
-        for account_id, owner_id in cell_accounts:
+        for account_id in sorted(accounts):
             u0 = _deterministic_uniform(
                 manifest_fingerprint, parameter_hash, account_id, instrument_type, "zero_gate"
             )
@@ -1294,7 +1289,6 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 weight = 1.0
             weight = max(weight_floor, weight)
             eligible_accounts.append(account_id)
-            eligible_owners.append(owner_id)
             weights.append(weight)
 
         if not eligible_accounts:
@@ -1440,9 +1434,18 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 {"instrument_type": instrument_type, "n_instr": n_instr},
                 manifest_fingerprint,
             )
-        for account_id, owner_id, count in zip(eligible_accounts, eligible_owners, alloc_counts):
+        for account_id, count in zip(eligible_accounts, alloc_counts):
             if count <= 0:
                 continue
+            owner_id = account_owner.get(account_id)
+            if owner_id is None:
+                _abort(
+                    "6A.S3.INPUT_INVALID",
+                    "V-06",
+                    "owner_party_missing",
+                    {"account_id": account_id},
+                    manifest_fingerprint,
+                )
             for _ in range(count):
                 while scheme_idx < len(scheme_queue) and scheme_queue[scheme_idx][1] <= 0:
                     scheme_idx += 1

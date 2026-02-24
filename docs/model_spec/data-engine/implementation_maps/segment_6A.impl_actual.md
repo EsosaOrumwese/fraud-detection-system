@@ -1679,3 +1679,137 @@ Retention action:
   - `b68127889d454dc4ac0ae496475c99c5` (current POPT.1R candidate).
 - Removed:
   - `6a29f01be03f4b509959a9237d2aec76` (superseded failed POPT.1 witness).
+
+### Entry: 2026-02-24 06:36
+
+POPT.1R2 planning lock (recovery + blocker-closure lane).
+
+Why we are opening POPT.1R2:
+- `POPT.1R` improved only marginally (`S3 -3.48%` vs failed lane) and remained materially above `POPT.0`.
+- `S5` runtime inflation remained unresolved in staged-lane witness and is a blocker because we cannot separate true cross-state effect from staged-lane artifacts.
+
+Root-cause refinement from code history + perf evidence:
+- `git diff` against pre-regression `S3` implementation isolates the largest structural drift in account ingest/allocation shape:
+  - from compact `account_cells: list[account_id] + account_owner map`
+  - to tuple-packed `account_cells: list[(account_id, owner_id)]` plus one-time global cell sorting.
+- Under this workload, that shift likely increased Python object churn and hot-loop overhead (`load_account_base` and `allocate_instruments` both worsened).
+
+Alternatives considered for POPT.1R2:
+1) Reopen large vectorized rewrite immediately.
+   - Rejected: high blast radius, prior witness already regressed severely.
+2) Jump directly into `S5` optimization while `S3` remains unstable.
+   - Rejected: violates owner-lane sequencing; leaves unresolved `S3` primary hotspot.
+3) Low-blast rollback to last known compact `S3` mechanics + clean full-chain witness to close `S5` ambiguity.
+   - Selected: lowest risk path to recover throughput and produce auditable blocker closure evidence.
+
+Pinned invariants for POPT.1R2:
+- No policy/config edits.
+- No schema changes to `s3_instrument_base_6A` or `s3_account_instrument_links_6A`.
+- Same RNG streams/events and fail-closed guards.
+- Deterministic ordering preserved at allocation boundary.
+
+Execution plan (now locked):
+1) Add `POPT.1R2` section to build plan with DoD and explicit gates.
+2) Patch `S3` runner to restore compact account-cell + owner-map mechanics.
+3) Compile check.
+4) Run quick `S3` witness on fresh staged run-id.
+5) If quick gate passes, run clean `S0 -> S5` witness on fresh run-id (no staged-junction ambiguity) to close `POPT1.B2`.
+6) Record deltas and final decision (`UNLOCK_POPT2` or `HOLD_POPT1R2`).
+
+### Entry: 2026-02-24 06:41
+
+POPT.1R2.1 implemented (`S3` compact account-cell rollback).
+
+File changed:
+- `packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py`
+
+Decision details:
+- Restored compact ingest/allocation representation:
+  - `account_cells[(party_type, account_type)] -> list[int]`.
+  - `account_owner[account_id] -> owner_party_id` map for emit-time lookup.
+- Restored duplicate-account fail-closed check to owner-map membership (`account_id in account_owner`).
+- Removed tuple-packed cell storage and one-time global tuple sorting pass.
+- Restored allocation traversal to deterministic per-key ordering (`for account_id in sorted(accounts)`), matching the last known fast behavior lane.
+- Restored explicit fail-closed guard `owner_party_missing` before emit append.
+
+Why this edit (and not broader rewrite):
+- This directly targets the structural drift with the strongest evidence of runtime regression while preserving the same probability model and RNG semantics.
+- Alternative considered: add additional micro-optimizations on top of tuple-packed layout first.
+  - Rejected for this lane because it would confound attribution; first objective is to recover to known-fast mechanics with minimal blast radius.
+
+Contracts/invariants preserved:
+- Same output schemas and write surfaces.
+- Same RNG stream labels and event publication semantics.
+- Same fail-closed checks for duplicate accounts, allocation caps, and scheme coverage.
+
+### Entry: 2026-02-24 06:38
+
+POPT.1R2.2 quick witness executed (`S3` only) on fresh staged run.
+
+Run setup:
+- Candidate run-id: `98af13c5571b48ce9e91728d77e9e983`.
+- Staged from `2204694f83dc4bc7bfa5d04274b9f211` with copied `6A` prerequisites (`S0/S1/S2`) and junction-mounted `layer1/layer2`.
+
+Quick-gate measurements (from `s3_perf_events_6A.jsonl`):
+- `load_account_base=30.328s`.
+- `allocate_instruments=382.609s`.
+- `S3_total=413.953s`.
+
+Comparisons:
+- vs `POPT.1R` (`b681...`):
+  - `S3_total -1.01%`,
+  - `allocate_instruments -0.67%`.
+- vs `POPT.0` (`220...`):
+  - `S3_total +32.63%`,
+  - `allocate_instruments +33.15%`.
+
+Gate interpretation:
+- Quick gate partially improved against `POPT.1R` but failed the proximity objective to `POPT.0`.
+- By strict POPT.1R2 gate, this is not enough for unlock.
+
+Decision at this point:
+- Keep lane open temporarily and execute clean full witness anyway to close blocker `POPT1.B2` (staged-lane ambiguity), because unresolved blocker ownership was explicitly requested to be closed.
+
+### Entry: 2026-02-24 07:11
+
+POPT.1R2.3 clean full-chain witness executed (`S0 -> S5`) and lane closed.
+
+Run setup:
+- Clean run-id: `592d82e8d51042128fc32cb4394f1fa2`.
+- No staged `S0/S1/S2` reuse; full owner chain executed from `S0` through `S5`.
+- `layer1/layer2` input roots were mounted from authority run to avoid deep copy; all `6A` owner outputs were freshly regenerated.
+
+Measured results (from `perf_summary_6A.json`):
+- `S2=265.516s` (`+38.92%` vs `POPT.0`).
+- `S3=409.797s` (`+31.30%` vs `POPT.0`, `-2.00%` vs `POPT.1R`).
+- `S3.allocate_instruments=378.438s` (`+31.70%` vs `POPT.0`, `-1.76%` vs `POPT.1R`).
+- `S4=102.484s` (`+19.21%` vs `POPT.0`).
+- `S5=1016.250s` (`+339.19%` vs `POPT.0`, `+0.07%` vs `POPT.1R`).
+- Segment elapsed: `1794.047s` vs budget `540s` (fail).
+
+Blocker-closure outcome:
+- `POPT1.B2` is now closed diagnostically:
+  - `S5` inflation persists on a clean, non-staged full chain.
+  - therefore the inflation is not staged-lane artifact noise.
+  - ownership moves to `S5` optimization lane (`POPT.2`).
+
+POPT.1R2 final decision:
+- `HOLD_POPT1R2`.
+- Reason: `S3` recovered only marginally and remains far above `POPT.0` authority.
+- Promotion: do not unlock downstream by `S3` success criterion; route next work to `POPT.2` (`S5` owner lane).
+
+### Entry: 2026-02-24 07:13
+
+POPT.1R2 retention/prune completed.
+
+Storage action:
+- Ran keep-set prune on `runs/fix-data-engine/segment_6A/`.
+- Kept:
+  - `2204694f83dc4bc7bfa5d04274b9f211` (`POPT.0` authority),
+  - `592d82e8d51042128fc32cb4394f1fa2` (`POPT.1R2` clean full witness).
+- Removed superseded:
+  - `98af13c5571b48ce9e91728d77e9e983` (quick `S3` witness),
+  - `b68127889d454dc4ac0ae496475c99c5` (`POPT.1R` candidate).
+
+Reasoning:
+- Keep-set now preserves one stable authority and one current closure witness while minimizing disk footprint.

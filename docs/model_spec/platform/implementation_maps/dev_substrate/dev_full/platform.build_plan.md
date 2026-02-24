@@ -84,9 +84,9 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M0 | pre-P(-1) | Mobilization + authority lock | DONE |
 | M1 | P(-1) | Packaging readiness (image/provenance) | DONE |
 | M2 | P0 | Substrate readiness (core/streaming/runtime/data_ml/ops) | DONE |
-| M3 | P1 | Run pinning and orchestrator readiness | IN_PROGRESS |
-| M4 | P2 | Spine runtime-lane readiness (managed-first) | NOT_STARTED |
-| M5 | P3-P4 | Oracle readiness + ingest preflight | NOT_STARTED |
+| M3 | P1 | Run pinning and orchestrator readiness | DONE |
+| M4 | P2 | Spine runtime-lane readiness (managed-first) | DONE |
+| M5 | P3-P4 | Oracle readiness + ingest preflight | IN_PROGRESS |
 | M6 | P5-P7 | Control + Ingress closure | NOT_STARTED |
 | M7 | P8-P10 | RTDL + Case/Labels closure | NOT_STARTED |
 | M8 | P11 | Spine obs/gov closure + non-regression pack | NOT_STARTED |
@@ -451,7 +451,7 @@ M3 sub-phase progress:
 - [x] `M3.J` verdict and M4 entry marker.
 
 ## M4 - Spine Runtime-Lane Readiness (Managed-First)
-Status: `IN_PROGRESS`
+Status: `DONE`
 
 Objective:
 - close `P2` runtime-lane readiness for spine services under managed-first posture.
@@ -470,6 +470,9 @@ M4 planning posture:
 - `M4.C` has been expanded with identity/IAM decision-completeness precheck, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M4.D` has been expanded with dependency-matrix precheck, probe command catalog, blocker taxonomy, and evidence/closure contract.
 - `M4.E` has been expanded with runtime-health/run-scope precheck, managed-surface health catalog, blocker taxonomy, and evidence/closure contract.
+- `M4.F` has been expanded with correlation-boundary/telemetry-surface precheck, runtime propagation catalog, blocker taxonomy, and evidence/closure contract.
+- `M4.G` has been expanded with bounded failure/recovery/rollback drill law, prestate/poststate parity checks, blocker taxonomy, and evidence/closure contract.
+- `M4.H` has been expanded with run-scoped readiness publication precheck, reference/readability rules, blocker taxonomy, and evidence/closure contract.
 - `M4.A` execution is now closed (`PASS`):
   - `runs/dev_substrate/dev_full/m4/m4a_20260224T043334Z/m4a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
   - closure snapshot and required-handle matrix published durably.
@@ -496,12 +499,37 @@ M4 planning posture:
     - `m4e_20260224T055944Z` (`M4E-B2/M4E-B3`, stage+route double-prefix `/v1/v1` drift).
   - remediation closure run: `runs/dev_substrate/dev_full/m4/m4e_20260224T060311Z/m4e_execution_summary.json` (`overall_pass=true`, blockers=`0`).
   - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4e_20260224T060311Z/`
-- Current phase posture: execution active with `M4.A/M4.B/M4.C/M4.D/M4.E` closed green.
+- M4.F execution closure (`PASS`):
+  - blocked attempt retained: `m4f_20260224T062413Z` (`M4F-B3/M4F-B5`, ingress correlation proof insufficiency).
+  - remediation closure run: `runs/dev_substrate/dev_full/m4/m4f_20260224T062653Z/m4f_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4f_20260224T062653Z/`
+- M4.G execution closure (`PASS`):
+  - closure run: `runs/dev_substrate/dev_full/m4/m4g_20260224T063238Z/m4g_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - bounded failure was observed (`503`) and fully recovered with rollback parity restored.
+  - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4g_20260224T063238Z/`
+- M4.H execution closure (`PASS`):
+  - closure run: `runs/dev_substrate/dev_full/m4/m4h_20260224T063724Z/m4h_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - run-scoped readiness artifacts:
+    - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/operate/runtime_lanes_ready.json`
+    - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/operate/runtime_binding_matrix.json`
+  - durable control mirror:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4h_20260224T063724Z/`
+- M4.I execution closure (`PASS`):
+  - closure run: `runs/dev_substrate/dev_full/m4/m4i_20260224T064331Z/m4i_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - verdict: `ADVANCE_TO_M4J`.
+  - durable mirror:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4i_20260224T064331Z/`
+- M4.J execution closure (`PASS`):
+  - closure run: `runs/dev_substrate/dev_full/m4/m4j_20260224T064802Z/m4j_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - M4 verdict: `ADVANCE_TO_M5`; M5 entry readiness `true`.
+  - durable mirror:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4j_20260224T064802Z/`
+- Current phase posture: `M4` is closed green with `M4.A..M4.J` complete and transition unblocked to M5.
 
 DoD anchors:
 - [x] required spine runtime lanes are healthy.
 - [x] run-scope bindings are validated.
-- [ ] runtime readiness snapshot committed.
+- [x] runtime readiness snapshot committed.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
@@ -512,14 +540,14 @@ M4 sub-phase progress:
 - [x] `M4.C` identity/IAM conformance.
 - [x] `M4.D` network/dependency reachability.
 - [x] `M4.E` runtime health and run-scope binding.
-- [ ] `M4.F` correlation and telemetry continuity.
-- [ ] `M4.G` failure/recovery/rollback runtime drill.
-- [ ] `M4.H` runtime readiness evidence publication.
-- [ ] `M4.I` gate rollup and blocker adjudication.
-- [ ] `M4.J` M5 handoff artifact publication.
+- [x] `M4.F` correlation and telemetry continuity.
+- [x] `M4.G` failure/recovery/rollback runtime drill.
+- [x] `M4.H` runtime readiness evidence publication.
+- [x] `M4.I` gate rollup and blocker adjudication.
+- [x] `M4.J` M5 handoff artifact publication.
 
 ## M5 - Oracle Readiness and Ingest Preflight
-Status: `NOT_STARTED`
+Status: `IN_PROGRESS`
 
 Objective:
 - close `P3-P4` with oracle/stream-view validation and ingress boundary readiness.
@@ -530,12 +558,24 @@ Entry gate:
 Planned lanes:
 - oracle contract checks, stream-view checks, topic readiness, IG boundary preflight.
 
+M5 planning posture:
+- M5 deep plan has been materialized with explicit `P3` and `P4` closure sequencing.
+- Capability lanes are explicit (authority/handles, oracle boundary, stream-view contract, IG health/auth, MSK readiness, envelope conformance, rollup/handoff).
+- M5 has been split into dedicated subplans to prevent phase cramming:
+  - `platform.M5.P3.build_plan.md` (P3 closure),
+  - `platform.M5.P4.build_plan.md` (P4 closure).
+- Transition law is pinned:
+  - P4 execution is blocked until P3 verdict is `ADVANCE_TO_P4`,
+  - M6 entry remains blocked until M5 verdict is `ADVANCE_TO_M6`.
+
 DoD anchors:
 - [ ] required oracle outputs/manifest checks pass.
 - [ ] ingress boundary + MSK readiness evidence committed.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.P3.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.P4.build_plan.md`
 
 ## M6 - Control and Ingress Closure
 Status: `NOT_STARTED`
