@@ -467,13 +467,24 @@ M4 planning posture:
 - Capability lanes are explicit (handles/runtime-path/IAM/network/health/correlation/drills/evidence/rollup/handoff).
 - `M4.A` has been expanded with handle-closure decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M4.B` has been expanded with runtime-path selection decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
+- `M4.C` has been expanded with identity/IAM decision-completeness precheck, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M4.A` execution is now closed (`PASS`):
   - `runs/dev_substrate/dev_full/m4/m4a_20260224T043334Z/m4a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
   - closure snapshot and required-handle matrix published durably.
   - remediation trail retained for first-attempt checker naming drift (`M4A-B1`) and closure rerun.
 - M4.A durable mirror:
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4a_20260224T043334Z/`
-- Current phase posture: planning expanded; execution started (`M4.A` closed green).
+- `M4.B` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m4/m4b_20260224T044454Z/m4b_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - runtime-path manifest and lane selection matrix published durably.
+  - single-active-path and selective-EKS policy conformance both pass.
+- M4.B durable mirror:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4b_20260224T044454Z/`
+- M4.C planning callout:
+  - execution has run and is currently fail-closed `BLOCKED` at `m4c_20260224T050409Z`,
+  - blockers: `M4C-B2` (unresolved `ROLE_EKS_IRSA_*`), `M4C-B4` (missing Aurora/Redis SSM paths), `M4C-B6` (binding matrix incomplete from unresolved IRSA handles).
+  - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4c_20260224T050409Z/`
+- Current phase posture: execution active with `M4.A/M4.B` closed green and `M4.C` fail-closed blocked pending remediation.
 
 DoD anchors:
 - [ ] required spine runtime lanes are healthy.
@@ -485,7 +496,7 @@ Deep plan:
 
 M4 sub-phase progress:
 - [x] `M4.A` authority and handle closure.
-- [ ] `M4.B` runtime-path pinning and lane manifest freeze.
+- [x] `M4.B` runtime-path pinning and lane manifest freeze.
 - [ ] `M4.C` identity/IAM conformance.
 - [ ] `M4.D` network/dependency reachability.
 - [ ] `M4.E` runtime health and run-scope binding.

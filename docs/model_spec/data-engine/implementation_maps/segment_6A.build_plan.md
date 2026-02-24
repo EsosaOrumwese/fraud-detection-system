@@ -360,16 +360,16 @@ Goal:
 
 ##### POPT.1.1 - Kernel design lock (pre-code, fail-closed)
 Definition of done:
-- [ ] Input/output invariants pinned for `S3`:
+- [x] Input/output invariants pinned for `S3`:
   - identical schema columns for `s3_instrument_base_6A` and `s3_account_instrument_links_6A`,
   - unchanged RNG trace/audit/event semantic contract (same substream labels + counters law),
   - unchanged fail-closed checks (`duplicate_account_id`, allocation-cap and scheme-coverage failures).
-- [ ] Data-layout decision pinned:
+- [x] Data-layout decision pinned:
   - contiguous account vectors per `(party_type, account_type)` cell with one-time sorted order,
   - owner lookup upgraded from hash-heavy lookup pattern to cache-friendly contiguous lookup.
-- [ ] Scheme assignment strategy pinned:
+- [x] Scheme assignment strategy pinned:
   - prefix-sum/block assignment plan replaces per-row queue depletion checks in tight loops.
-- [ ] Rejected alternatives documented:
+- [x] Rejected alternatives documented:
   - whole-state `numba/cython` rewrite (high blast radius),
   - full-frame explode/cross joins (memory amplification risk).
 
@@ -396,10 +396,31 @@ Definition of done:
 
 ##### POPT.1.5 - Witness, determinism, and closure gate
 Definition of done:
-- [ ] Execute cold witness on fresh run lane (`S3 -> S4 -> S5`, with `S0/S1/S2` already present for run identity).
+- [x] Execute cold witness on fresh run lane (`S3 -> S4 -> S5`, with `S0/S1/S2` already present for run identity).
 - [ ] `S3` wall-clock reduced by at least `30%` versus primary baseline (`c25`) on comparable cold lane.
 - [ ] No schema/idempotence/validation regressions in downstream `S4/S5`.
-- [ ] Decision recorded as `UNLOCK_POPT2` or `HOLD_POPT1` with blocker taxonomy.
+- [x] Decision recorded as `UNLOCK_POPT2` or `HOLD_POPT1` with blocker taxonomy.
+
+POPT.1 witness evidence (`run_id=6a29f01be03f4b509959a9237d2aec76`, staged fresh lane from `2204694f83dc4bc7bfa5d04274b9f211`):
+- Cold-lane setup:
+  - fresh run-id created under `runs/fix-data-engine/segment_6A/`,
+  - `run_receipt` rebased to new run-id,
+  - `layer1/layer2` staged via junctions to source run to avoid multi-GB copy,
+  - `6A` prerequisites copied (`s0_gate_receipt`, `sealed_inputs`, `s1_party_base_6A`, `s2_account_base_6A`).
+- Observed perf (from `perf_summary_6A.json`):
+  - `S3=433.266s` (baseline `POPT.0` `312.109s`, `+38.82%`; baseline `c25` `297.33s`, `+45.72%`),
+  - `S4=104.328s` (vs `POPT.0` `85.969s`, `+21.36%`),
+  - `S5=1058.344s` (vs `POPT.0` `231.391s`, `+357.38%`).
+  - `S3` hotspot specifically regressed: `allocate_instruments=400.703s` (vs `287.359s` in `POPT.0` witness).
+- Contracts/idempotence:
+  - no schema or publish-idempotence failures observed in `S3/S4/S5`.
+- Fail-closed decision:
+  - `HOLD_POPT1` (target was `>=30%` reduction in `S3`; observed material regression).
+  - candidate `S3` code lane was rolled back to baseline after witness to avoid carrying degraded implementation.
+
+POPT.1 blocker taxonomy:
+- `POPT1.B1`: `S3` allocation kernel rewrite increased CPU time in hot loop (regression at `allocate_instruments` step).
+- `POPT1.B2`: staged-lane witness also showed heavy `S5` runtime inflation; isolate whether environment/lane setup noise contributed before accepting any optimization claim.
 
 #### POPT.2 - `S5` validation-scan fusion + collect minimization
 Definition of done:

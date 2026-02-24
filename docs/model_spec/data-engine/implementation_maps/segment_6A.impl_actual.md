@@ -1546,3 +1546,44 @@ Risk review:
 - Memory posture remains bounded by existing flush threshold (`_DEFAULT_BATCH_ROWS`) and is safer than fully materializing scheme arrays at state scope.
 - No policy/config edits were made in this lane.
 - Next gate is witness execution for measured runtime and downstream no-regression (`S3 -> S4 -> S5`).
+
+### Entry: 2026-02-24 05:06
+
+POPT.1 witness run executed and failed closure criteria; lane reverted (fail-closed).
+
+Witness lane executed:
+- Candidate run-id: `6a29f01be03f4b509959a9237d2aec76`.
+- Staging method:
+  - fresh run-id under `runs/fix-data-engine/segment_6A/`,
+  - rebased `run_receipt` (`run_id` updated; `staged_from_run_id=2204694f83dc4bc7bfa5d04274b9f211`),
+  - `data/layer1` and `data/layer2` mounted via junctions to avoid full-copy storage overhead,
+  - copied only `6A` prerequisites (`s0_gate_receipt`, `sealed_inputs`, `s1_party_base_6A`, `s2_account_base_6A`),
+  - executed `S3 -> S4 -> S5`.
+
+Measured results from `perf_summary_6A.json`:
+- `S3=433.266s` vs POPT.0 witness `312.109s` (`+38.82%` regression).
+- `S3=433.266s` vs primary baseline `c25` `297.33s` (`+45.72%` regression).
+- Hotspot delta:
+  - `allocate_instruments=400.703s` vs `287.359s` baseline.
+- Additional state movement on this witness:
+  - `S4=104.328s` vs `85.969s` (`+21.36%`),
+  - `S5=1058.344s` vs `231.391s` (`+357.38%`).
+
+Interpretation:
+- The candidate `S3` rewrite did not meet optimization objectives and materially regressed primary hotspot timing.
+- `S5` inflation is large enough to treat witness lane as potentially noisy for cross-state posture, but `S3` regression is still explicit and sufficient to fail POPT.1 closure.
+
+Fail-closed action taken:
+- Reverted `packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py` to baseline implementation after witness.
+- Verified syntax after revert (`py_compile` pass).
+- Decision recorded as `HOLD_POPT1`; do not advance to `POPT.2`.
+
+Root-cause hypothesis for the failed candidate:
+- The column-buffer/list-multiplication pattern and revised scheme assignment path introduced higher Python-level allocation overhead than the baseline tuple-append/queue path under this workload shape.
+- The intended wins from one-time cell sorting and owner vector reuse were insufficient to offset added per-account list construction costs.
+
+Next safe direction (not executed in this entry):
+- Open `POPT.1R` with low-blast micro-optimizations only:
+  1) keep baseline emit path structure,
+  2) preserve one-time per-cell ordering/owner lookup improvements only if individually beneficial,
+  3) profile per-substep deltas in isolation before combining multiple structural edits.

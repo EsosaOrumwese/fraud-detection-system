@@ -202,10 +202,10 @@ Tasks:
 4. publish immutable lane manifest snapshot.
 
 DoD:
-- [ ] lane manifest is complete for all P2 lanes.
-- [ ] each lane has one active path with explicit owner.
-- [ ] fallback paths are explicit but inactive.
-- [ ] manifest snapshot is committed locally and durably.
+- [x] lane manifest is complete for all P2 lanes.
+- [x] each lane has one active path with explicit owner.
+- [x] fallback paths are explicit but inactive.
+- [x] manifest snapshot is committed locally and durably.
 
 M4.B planning precheck (decision completeness):
 1. Required upstream dependency:
@@ -271,7 +271,29 @@ M4.B planning status (current):
 2. M4.B is expanded to execution-grade with explicit blocker taxonomy and evidence contract.
 3. No pre-execution blockers are known at planning time.
 4. Phase posture:
-   - planning expanded; execution not started.
+   - planning expanded; execution closed green.
+
+M4.B execution status (2026-02-24):
+1. Authoritative execution id:
+   - `m4b_20260224T044454Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m4/m4b_20260224T044454Z/`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4b_20260224T044454Z/`
+4. PASS artifacts:
+   - `m4b_runtime_path_manifest.json`
+   - `m4b_lane_path_selection_matrix.json`
+   - `m4b_execution_summary.json`
+5. Closure results:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M4.B_READY`
+   - lane count: `5`
+   - single-active-path pass: `true`
+   - EKS policy conformance pass: `true`
+   - manifest digest: `fa5399d7c5fdee0e17b5f89bfc52958d7c5685cdb099a7eb16b0c21b4cc8f249`
+6. Execution note:
+   - initial shell wrapper timeout occurred during long publish window; lane rerun completed successfully with increased command timeout and no semantic blockers.
 
 ### M4.C Identity/IAM Conformance
 Goal:
@@ -287,6 +309,105 @@ DoD:
 - [ ] all runtime lanes have valid identity bindings.
 - [ ] no unresolved IAM drift remains.
 - [ ] identity conformance snapshot is durable.
+
+M4.C planning precheck (decision completeness):
+1. Required upstream dependency:
+   - latest M4.B execution summary is PASS (`m4b_20260224T044454Z`).
+2. Required identity handles are explicit for active M4.B lanes:
+   - `ROLE_FLINK_EXECUTION`
+   - `ROLE_LAMBDA_IG_EXECUTION`
+   - `ROLE_APIGW_IG_INVOKE`
+   - `ROLE_DDB_IG_IDEMPOTENCY_RW`
+   - `ROLE_EKS_RUNTIME_PLATFORM_BASE`
+3. Required EKS runtime identity handles for differentiating-services path:
+   - `ROLE_EKS_IRSA_IG`
+   - `ROLE_EKS_IRSA_RTDL`
+   - `ROLE_EKS_IRSA_DECISION_LANE`
+   - `ROLE_EKS_IRSA_CASE_LABELS`
+   - `ROLE_EKS_IRSA_OBS_GOV`
+4. Secret/identity posture handles are explicit:
+   - `SECRETS_BACKEND`
+   - `SECRETS_PLAINTEXT_OUTPUT_ALLOWED`
+   - `KMS_KEY_ALIAS_PLATFORM`
+   - required SSM path handles for runtime dependencies.
+
+M4.C decision pins (closed before execution):
+1. Active-lane-only law:
+   - identity conformance scope is derived from active paths in M4.B manifest.
+2. No-placeholder law:
+   - any required role handle unresolved/blank/placeholder is blocker-worthy.
+3. Least-privilege law:
+   - runtime role permissions must align to lane ownership surfaces; wildcard overreach is drift.
+4. Secrets policy law:
+   - plaintext secret output is forbidden; secret access must flow through pinned backend.
+5. Deterministic binding law:
+   - one canonical role-binding map per active lane for this phase execution.
+
+M4.C verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M4C-V1-M4B-GATE` | verify `runs/dev_substrate/dev_full/m4/m4b_20260224T044454Z/m4b_execution_summary.json` has `overall_pass=true` | enforces M4.C entry gate |
+| `M4C-V2-ROLE-HANDLE-CLOSURE` | parse required role handles and fail on unresolved placeholders | validates role handle closure |
+| `M4C-V3-RUNTIME-ROLE-READBACK` | read IAM role metadata/policies for active-lane role handles | validates materialized role surfaces |
+| `M4C-V4-SECRET-PATH-CONFORMANCE` | verify required SSM secret paths are readable by intended runtime principals | validates secret-access posture |
+| `M4C-V5-BINDING-MATRIX-PUBLISH` | `aws s3 cp <local_snapshot> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m4c_execution_id>/...` | publishes durable M4.C evidence |
+
+M4.C blocker taxonomy (fail-closed):
+1. `M4C-B1`: M4.B gate missing/non-pass.
+2. `M4C-B2`: required role handle missing/unresolved/malformed.
+3. `M4C-B3`: materialized role readback/policy validation failure.
+4. `M4C-B4`: required secret-path conformance failure.
+5. `M4C-B5`: plaintext/unsafe secrets posture detected.
+6. `M4C-B6`: role-binding matrix incomplete or inconsistent with active lane manifest.
+7. `M4C-B7`: durable publish/readback failure for M4.C artifacts.
+
+M4.C evidence contract (planned):
+1. `m4c_identity_conformance_snapshot.json`
+2. `m4c_role_binding_matrix.json`
+3. `m4c_secret_path_conformance_snapshot.json`
+4. `m4c_execution_summary.json`
+
+M4.C closure rule:
+1. M4.C can close only when:
+   - all `M4C-B*` blockers are resolved,
+   - DoD checks are green,
+   - conformance artifacts exist locally and durably,
+   - active-lane role-binding matrix is complete and placeholder-free.
+
+M4.C planning status (current):
+1. Prerequisite M4.B is closed green.
+2. M4.C is expanded to execution-grade with explicit blocker taxonomy and evidence contract.
+3. Known likely pre-execution blocker to verify at runtime:
+   - `ROLE_EKS_IRSA_*` handles appear unmaterialized and may raise `M4C-B2` until pinned/materialized.
+4. Phase posture:
+   - planning expanded (execution status recorded below).
+
+M4.C execution status (2026-02-24):
+1. Attempt #1 (non-authoritative due checker defect):
+   - execution id: `m4c_20260224T050216Z`
+   - issue: role-handle parser failed on annotated assignment lines, causing false unresolved-role signal.
+   - disposition: retained as audit evidence; not used for closure verdict.
+2. Attempt #2 (authoritative, fail-closed):
+   - execution id: `m4c_20260224T050409Z`
+   - local evidence: `runs/dev_substrate/dev_full/m4/m4c_20260224T050409Z/`
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4c_20260224T050409Z/`
+   - result: `overall_pass=false`, `blockers=[M4C-B2,M4C-B4,M4C-B6]`, `next_gate=BLOCKED`.
+3. Blocker details from authoritative run:
+   - `M4C-B2`: unresolved IRSA role handles for differentiating-services lane:
+     - `ROLE_EKS_IRSA_IG`
+     - `ROLE_EKS_IRSA_RTDL`
+     - `ROLE_EKS_IRSA_DECISION_LANE`
+     - `ROLE_EKS_IRSA_CASE_LABELS`
+     - `ROLE_EKS_IRSA_OBS_GOV`
+   - `M4C-B4`: missing runtime SSM dependency paths:
+     - `/fraud-platform/dev_full/aurora/endpoint`
+     - `/fraud-platform/dev_full/aurora/reader_endpoint`
+     - `/fraud-platform/dev_full/aurora/username`
+     - `/fraud-platform/dev_full/aurora/password`
+     - `/fraud-platform/dev_full/redis/endpoint`
+   - `M4C-B6`: role-binding matrix incomplete because unresolved IRSA handles leave differentiating-services binding partial.
+4. M4.C closure posture:
+   - DoD remains open until `M4C-B2/B4/B6` are remediated and M4.C rerun passes.
 
 ### M4.D Network + Dependency Reachability
 Goal:
@@ -425,7 +546,7 @@ Any active `M4-B*` blocker prevents M4 closure.
 
 ## 8) M4 Completion Checklist
 - [x] M4.A complete
-- [ ] M4.B complete
+- [x] M4.B complete
 - [ ] M4.C complete
 - [ ] M4.D complete
 - [ ] M4.E complete

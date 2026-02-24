@@ -3559,6 +3559,132 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
 3. `docs/logbook/02-2026/2026-02-23.md`
 
+## Entry: 2026-02-24 04:54:33 +00:00 - M4.C planning expanded (identity/IAM conformance)
+
+### Problem statement
+1. `M4.C` had to be execution-grade before runtime execution, with identity/IAM checks fully explicit and fail-closed.
+2. We needed clear separation between planning closure and runtime closure so M4.C would not advance on implicit assumptions.
+
+### Planning decisions made
+1. Expanded `M4.C` with explicit precheck, decision pins, verify catalog, blocker taxonomy, evidence contract, and closure rule in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
+2. Pinned M4.C entry dependency:
+   - M4.B PASS summary `m4b_20260224T044454Z` is mandatory for M4.C start.
+3. Pinned identity scope:
+   - active-lane runtime identities are required surfaces,
+   - unresolved/placeholder role handles are blocker-worthy (`M4C-B2`).
+4. Pinned secrets posture:
+   - plaintext output is forbidden,
+   - runtime secret access must conform to pinned backend/path ownership.
+
+### Known likely blocker before M4.C execution
+1. `ROLE_EKS_IRSA_*` handle family appears not fully materialized and is likely to trigger `M4C-B2` until pinned/materialized.
+
+### Alternatives considered
+1. Start M4.C execution now and discover IAM gaps mid-run:
+   - rejected; violates decision-completeness and increases rerun churn.
+2. Expand M4.C planning first with explicit blocker taxonomy and evidence contract:
+   - accepted.
+
+### Plan/doc synchronization
+1. `platform.M4.build_plan.md`:
+   - M4.C expanded to execution-grade; execution not started.
+2. `platform.build_plan.md`:
+   - M4 posture now explicitly records M4.C planning expansion and likely pre-execution blocker.
+
+### Next action
+1. Execute `M4.C` only after resolving/pinning missing runtime role handles and validating identity/secret conformance.
+
+## Entry: 2026-02-24 05:00:49 +00:00 - M4.C execution start (fail-closed precheck and blocker posture)
+
+### Execution objective
+1. Run full `M4.C` identity/IAM conformance against active M4.B runtime paths.
+2. Emit all four M4.C artifacts locally and durably, regardless of pass/fail.
+3. Keep closure fail-closed if any `M4C-B*` condition triggers.
+
+### Pre-execution findings (from live substrate readback)
+1. Required runtime role family currently materialized:
+   - `ROLE_FLINK_EXECUTION`, `ROLE_LAMBDA_IG_EXECUTION`, `ROLE_APIGW_IG_INVOKE`, `ROLE_DDB_IG_IDEMPOTENCY_RW`, `ROLE_EKS_RUNTIME_PLATFORM_BASE`, `ROLE_STEP_FUNCTIONS_ORCHESTRATOR`.
+2. Required EKS IRSA handle family appears unresolved in handle registry:
+   - `ROLE_EKS_IRSA_IG`, `ROLE_EKS_IRSA_RTDL`, `ROLE_EKS_IRSA_DECISION_LANE`, `ROLE_EKS_IRSA_CASE_LABELS`, `ROLE_EKS_IRSA_OBS_GOV`.
+3. Runtime dependency SSM path readback currently missing for:
+   - `/fraud-platform/dev_full/aurora/endpoint`
+   - `/fraud-platform/dev_full/aurora/reader_endpoint`
+   - `/fraud-platform/dev_full/aurora/username`
+   - `/fraud-platform/dev_full/aurora/password`
+   - `/fraud-platform/dev_full/redis/endpoint`
+4. Present SSM paths verified:
+   - `/fraud-platform/dev_full/msk/bootstrap_brokers`
+   - `/fraud-platform/dev_full/ig/api_key`
+
+### Decision taken before running checks
+1. Do not repin role handles or inject placeholder SSM values inside M4.C execution.
+2. Execute M4.C exactly as planned and capture authoritative blocker evidence (`M4C-B2`/`M4C-B4`) if present.
+3. Use blocker receipts to drive targeted remediation lane after this run, rather than masking drift with defaults.
+
+## Entry: 2026-02-24 05:02:53 +00:00 - M4.C attempt #1 parser defect identified; rerun approved
+
+### What happened
+1. First execution attempt (`m4c_20260224T050216Z`) completed and emitted artifacts, but role-handle parsing incorrectly treated annotated registry lines as unresolved.
+2. Root cause:
+   - parser regex required assignment lines to end immediately after closing backtick,
+   - registry role assignments include trailing materialization annotations, e.g. `(materialized in M2.E)`.
+
+### Impact
+1. False unresolved role detections were injected for materialized handles (`ROLE_FLINK_EXECUTION`, `ROLE_LAMBDA_IG_EXECUTION`, etc.).
+2. This inflated `M4C-B2` and `M4C-B6` signal and made attempt #1 non-authoritative for closure.
+
+### Decision
+1. Keep attempt #1 artifacts as immutable audit evidence (no deletion/overwrite).
+2. Correct parser to accept trailing annotation text on assignment lines.
+3. Rerun M4.C immediately and use rerun as authoritative blocker posture.
+
+## Entry: 2026-02-24 05:05:20 +00:00 - M4.C rerun executed (authoritative fail-closed result)
+
+### Authoritative execution
+1. `m4c_execution_id`: `m4c_20260224T050409Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m4/m4c_20260224T050409Z/`
+3. Durable evidence root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4c_20260224T050409Z/`
+4. Published artifacts:
+   - `m4c_identity_conformance_snapshot.json`
+   - `m4c_role_binding_matrix.json`
+   - `m4c_secret_path_conformance_snapshot.json`
+   - `m4c_execution_summary.json`
+
+### Execution result
+1. `overall_pass=false`
+2. `blockers=[M4C-B2,M4C-B4,M4C-B6]`
+3. `next_gate=BLOCKED`
+4. key metrics:
+   - `m4b_gate_pass=true`
+   - `required_role_count=11`
+   - `resolved_role_count=6`
+   - `required_secret_path_count=7`
+   - `present_secret_path_count=2`
+   - `binding_matrix_complete_pass=false`
+
+### Blocker details (authoritative)
+1. `M4C-B2` unresolved role handles:
+   - `ROLE_EKS_IRSA_IG`
+   - `ROLE_EKS_IRSA_RTDL`
+   - `ROLE_EKS_IRSA_DECISION_LANE`
+   - `ROLE_EKS_IRSA_CASE_LABELS`
+   - `ROLE_EKS_IRSA_OBS_GOV`
+2. `M4C-B4` missing SSM path materialization:
+   - `/fraud-platform/dev_full/aurora/endpoint`
+   - `/fraud-platform/dev_full/aurora/reader_endpoint`
+   - `/fraud-platform/dev_full/aurora/username`
+   - `/fraud-platform/dev_full/aurora/password`
+   - `/fraud-platform/dev_full/redis/endpoint`
+3. `M4C-B6` differentiating-services role-binding matrix incomplete because IRSA handles above are unassigned.
+
+### Remediation direction (pinned)
+1. Remediate `M4C-B4` by applying or repairing `infra/terraform/dev_full/ops` so required Aurora/Redis path parameters are materialized.
+2. Remediate `M4C-B2/M4C-B6` by introducing concrete IRSA role materialization for differentiating-services lane and pinning those ARN values in the registry.
+3. Rerun M4.C only after both remediations are complete; no placeholder role/value substitutions are allowed.
+
 ## Entry: 2026-02-23 23:28:13 +00:00 - M3.I planning expanded (gate rollup + blocker adjudication)
 
 ### Why this planning expansion was required
@@ -3938,6 +4064,95 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 ### Current posture
 1. M4.B planning is execution-grade.
 2. Runtime execution for M4.B has not started yet.
+
+## Entry: 2026-02-24 04:41:50 +00:00 - M4.B execution start (pre-run decision lock)
+
+### Objective lock
+1. Execute `M4.B` by producing immutable runtime-path manifest artifacts:
+   - `m4b_runtime_path_manifest.json`
+   - `m4b_lane_path_selection_matrix.json`
+   - `m4b_execution_summary.json`
+2. Enforce single-active-path and no in-phase switch laws for all P2 lanes.
+
+### Lane-set decision pinned before execution
+1. `stream_engine` lane:
+   - active path: `msk_flink`.
+2. `ingress_edge` lane:
+   - active path: `apigw_lambda_ddb`.
+3. `differentiating_services` lane:
+   - active path: `selective_eks_custom_services`.
+4. `orchestration_commit_authority` lane:
+   - active path: `step_functions`.
+5. `observability_runtime` lane:
+   - active path: `cloudwatch_otel`.
+
+### Explicit inactive/fallback posture
+1. EKS IG path is inactive fallback while API edge is active.
+2. EKS stream transform paths are inactive fallback while Flink stream path is active.
+3. Fallback paths remain declared with rationale; none are implicitly omitted.
+
+### Alternatives considered
+1. Activate both Flink and EKS stream paths:
+   - rejected; violates single-active-path law.
+2. Keep only managed paths and omit EKS fallback declarations:
+   - rejected; hides operational recovery options and violates explicit exclusion law.
+3. Managed-first active paths with explicit inactive fallbacks:
+   - accepted.
+
+### Pre-run checks completed
+1. M4.A gate is PASS (`m4a_20260224T043334Z`).
+2. Runtime-path governance handles are pinned and consistent with no-switch law.
+
+## Entry: 2026-02-24 04:45:40 +00:00 - M4.B execution closed green
+
+### Execution path
+1. Built runtime lane manifest from canonical handles and pinned defaults:
+   - stream lane active path `msk_flink`,
+   - ingress lane active path `apigw_lambda_ddb`,
+   - differentiating-services lane active path `selective_eks_custom_services`,
+   - orchestration commit lane active path `step_functions`,
+   - observability lane active path `cloudwatch_otel`.
+2. Enforced single-active-path checks for all lanes.
+3. Enforced explicit inactive/fallback declaration with rationale for every lane.
+4. Enforced EKS policy conformance:
+   - active EKS path allowed only in differentiating-services lane.
+5. Emitted manifest digest from canonical JSON for immutability/audit.
+
+### Operational issue encountered
+1. First shell invocation timed out during publish window.
+2. Assessment:
+   - this was tooling timeout, not semantic lane failure.
+3. Resolution:
+   - reran same lane with increased command timeout,
+   - verified semantic blockers remained empty.
+
+### Authoritative result
+1. `phase_execution_id`: `m4b_20260224T044454Z`
+2. Result:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `next_gate=M4.B_READY`
+3. Key metrics:
+   - lane_count=`5`,
+   - single_active_path_pass=`true`,
+   - eks_policy_conformance_pass=`true`,
+   - manifest_sha256=`fa5399d7c5fdee0e17b5f89bfc52958d7c5685cdb099a7eb16b0c21b4cc8f249`.
+
+### Evidence roots
+1. Local:
+   - `runs/dev_substrate/dev_full/m4/m4b_20260224T044454Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4b_20260224T044454Z/`
+
+### Plan synchronization
+1. `platform.M4.build_plan.md`:
+   - M4.B DoDs marked complete,
+   - execution status block appended,
+   - M4 checklist marks M4.B complete.
+2. `platform.build_plan.md`:
+   - M4 posture updated with M4.B PASS evidence and durable mirror,
+   - sub-phase progress marks M4.B complete,
+   - phase posture now states M4.A/M4.B are closed green.
 
 ## Entry: 2026-02-23 23:37:30 +00:00 - M3.J execution start (pre-run decision lock)
 
