@@ -525,6 +525,29 @@ def _deterministic_uniform(
     return u01(low64(digest))
 
 
+def _build_uniform_template(
+    manifest_fingerprint: str,
+    parameter_hash: str,
+    account_type: str,
+    label: str,
+) -> tuple[object, bytes]:
+    template = hashlib.sha256()
+    template.update(uer_string("mlr:6A"))
+    template.update(uer_string("s2"))
+    template.update(uer_string(label))
+    template.update(uer_string(manifest_fingerprint))
+    template.update(uer_string(parameter_hash))
+    return template, uer_string(account_type)
+
+
+def _deterministic_uniform_from_template(template: object, suffix: bytes, party_id: int) -> float:
+    # `template` is a preseeded hashlib object; copy() avoids repeated prefix hashing.
+    hasher = template.copy()
+    hasher.update(ser_u64(int(party_id)))
+    hasher.update(suffix)
+    return u01(low64(hasher.digest()))
+
+
 def _normal_icdf(p: float) -> float:
     if p <= 0.0 or p >= 1.0:
         raise ValueError("p must be in (0,1)")
@@ -1055,13 +1078,11 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         party_type = [""] + party_df.get_column("party_type").to_list()
         party_segment = [""] + party_df.get_column("segment_id").to_list()
 
-    country_to_party_ids: dict[str, list[int]] = {}
     cell_parties: dict[tuple[str, str, str], list[int]] = {}
-    for pid in range(1, max_party_id + 1):
+    for pid in party_ids:
         country = party_country[pid]
         if not country:
             continue
-        country_to_party_ids.setdefault(country, []).append(pid)
         cell_key = (party_region[pid], party_type[pid], party_segment[pid])
         cell_parties.setdefault(cell_key, []).append(pid)
 
@@ -1381,9 +1402,31 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
     allocation_cells = sorted([key for key, value in cell_counts.items() if value > 0])
     alloc_tracker = _ProgressTracker(len(allocation_cells), logger, "S2: allocate accounts to parties")
 
-    holdings_counts: dict[str, list[int]] = {}
+    holdings_counts: dict[str, dict[int, int]] = {}
+    country_account_nonzero: dict[tuple[str, str], list[tuple[int, int]]] = {}
+    party_holdings: dict[int, list[tuple[str, int]]] = {}
+    summary_counts: dict[tuple[str, str, str, str], int] = {}
     holdings_rows_total = 0
+    allocation_party_evaluations = 0
+    allocation_zero_gate_skips = 0
+    allocation_weight_computations = 0
     rng_event_rows_alloc: list[dict] = []
+    tag_multiplier_cache: dict[tuple[str, str], tuple[float, float]] = {}
+    uniform_templates_zero: dict[str, tuple[object, bytes]] = {}
+    uniform_templates_weight: dict[str, tuple[object, bytes]] = {}
+    for account_type_id in account_types_in_use:
+        uniform_templates_zero[account_type_id] = _build_uniform_template(
+            manifest_fingerprint,
+            parameter_hash,
+            account_type_id,
+            "zero_gate",
+        )
+        uniform_templates_weight[account_type_id] = _build_uniform_template(
+            manifest_fingerprint,
+            parameter_hash,
+            account_type_id,
+            "weight",
+        )
 
     for region_id, party_type_id, segment_id, account_type_id in allocation_cells:
         n_acc = int(cell_counts.get((region_id, party_type_id, segment_id, account_type_id), 0))
@@ -1428,23 +1471,32 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
 
         tags = segment_tags.get(segment_id) or []
         if tags:
-            for tag in tags:
-                adjustment = tag_adjustments_map.get((tag, account_type_id))
-                if not adjustment:
-                    continue
-                clip = adjustment.get("multipliers_clip") or {}
-                p_mult = float(adjustment.get("p_zero_weight_multiplier") or 1.0)
-                s_mult = float(adjustment.get("sigma_multiplier") or 1.0)
-                clip_min = float(clip.get("min") or 0.0)
-                clip_max = float(clip.get("max") or 0.0)
-                if clip_max:
-                    p_mult = min(p_mult, clip_max)
-                    s_mult = min(s_mult, clip_max)
-                if clip_min:
-                    p_mult = max(p_mult, clip_min)
-                    s_mult = max(s_mult, clip_min)
-                p_zero_weight *= p_mult
-                sigma *= s_mult
+            cache_key = (segment_id, account_type_id)
+            multipliers = tag_multiplier_cache.get(cache_key)
+            if multipliers is None:
+                p_zero_mult = 1.0
+                sigma_mult = 1.0
+                for tag in tags:
+                    adjustment = tag_adjustments_map.get((tag, account_type_id))
+                    if not adjustment:
+                        continue
+                    clip = adjustment.get("multipliers_clip") or {}
+                    p_mult = float(adjustment.get("p_zero_weight_multiplier") or 1.0)
+                    s_mult = float(adjustment.get("sigma_multiplier") or 1.0)
+                    clip_min = float(clip.get("min") or 0.0)
+                    clip_max = float(clip.get("max") or 0.0)
+                    if clip_max:
+                        p_mult = min(p_mult, clip_max)
+                        s_mult = min(s_mult, clip_max)
+                    if clip_min:
+                        p_mult = max(p_mult, clip_min)
+                        s_mult = max(s_mult, clip_min)
+                    p_zero_mult *= p_mult
+                    sigma_mult *= s_mult
+                multipliers = (p_zero_mult, sigma_mult)
+                tag_multiplier_cache[cache_key] = multipliers
+            p_zero_weight *= multipliers[0]
+            sigma *= multipliers[1]
         if p_zero_weight < 0.0:
             p_zero_weight = 0.0
         if p_zero_weight > 1.0:
@@ -1454,11 +1506,15 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
 
         eligible_party_ids: list[int] = []
         weights: list[float] = []
+        zero_template, type_suffix = uniform_templates_zero[account_type_id]
+        weight_template, _ = uniform_templates_weight[account_type_id]
+        allocation_party_evaluations += len(parties)
         for pid in parties:
-            u0 = _deterministic_uniform(manifest_fingerprint, parameter_hash, pid, account_type_id, "zero_gate")
+            u0 = _deterministic_uniform_from_template(zero_template, type_suffix, pid)
             if u0 < p_zero_weight:
+                allocation_zero_gate_skips += 1
                 continue
-            u1 = _deterministic_uniform(manifest_fingerprint, parameter_hash, pid, account_type_id, "weight")
+            u1 = _deterministic_uniform_from_template(weight_template, type_suffix, pid)
             u1 = min(max(u1, 1.0e-12), 1.0 - 1.0e-12)
             if sigma > 0:
                 z = _normal_icdf(u1)
@@ -1468,6 +1524,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             weight = max(weight_floor, weight)
             eligible_party_ids.append(pid)
             weights.append(weight)
+            allocation_weight_computations += 1
 
         if not eligible_party_ids:
             _abort(
@@ -1497,16 +1554,32 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         alloc_counts, alloc_meta = _largest_remainder_list(targets, n_acc, rng_alloc_stream)
         rng_alloc_stream.record_event()
 
-        counts_array = holdings_counts.get(account_type_id)
-        if counts_array is None:
-            counts_array = [0] * (max_party_id + 1)
-            holdings_counts[account_type_id] = counts_array
+        counts_map = holdings_counts.get(account_type_id)
+        if counts_map is None:
+            counts_map = {}
+            holdings_counts[account_type_id] = counts_map
 
         for pid, count in zip(eligible_party_ids, alloc_counts):
             if count <= 0:
                 continue
-            counts_array[pid] = count
+            if pid in counts_map:
+                _abort(
+                    "6A.S2.ALLOCATION_FAILED",
+                    "V-09",
+                    "duplicate_party_account_allocation",
+                    {
+                        "party_id": int(pid),
+                        "account_type": account_type_id,
+                    },
+                    manifest_fingerprint,
+                )
+            counts_map[pid] = int(count)
             holdings_rows_total += 1
+            country_iso = party_country[pid]
+            country_account_nonzero.setdefault((country_iso, account_type_id), []).append((int(pid), int(count)))
+            party_holdings.setdefault(int(pid), []).append((account_type_id, int(count)))
+            summary_key = (country_iso, party_region[pid], party_type[pid], account_type_id)
+            summary_counts[summary_key] = summary_counts.get(summary_key, 0) + int(count)
 
         rng_event_rows_alloc.append(
             {
@@ -1535,6 +1608,16 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             }
         )
         alloc_tracker.update(1)
+
+    for rows in country_account_nonzero.values():
+        rows.sort(key=lambda item: item[0])
+    logger.info(
+        "S2: allocation counters (party_evaluations=%d, zero_gate_skips=%d, weight_computations=%d, nonzero_party_account_pairs=%d)",
+        allocation_party_evaluations,
+        allocation_zero_gate_skips,
+        allocation_weight_computations,
+        holdings_rows_total,
+    )
 
     rng_attr_stream.record_event()
     rng_event_rows_attr = [
@@ -1617,16 +1700,13 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         account_buffer_rows = 0
         account_buffer.clear()
 
-    for country in sorted(country_to_party_ids.keys()):
-        party_ids = country_to_party_ids[country]
+    countries_in_use = sorted({key[0] for key in country_account_nonzero.keys()})
+    for country in countries_in_use:
         for account_type_id in account_types_in_use:
-            counts_array = holdings_counts.get(account_type_id)
-            if counts_array is None:
+            pid_counts = country_account_nonzero.get((country, account_type_id))
+            if not pid_counts:
                 continue
-            for pid in party_ids:
-                count = counts_array[pid]
-                if count <= 0:
-                    continue
+            for pid, count in pid_counts:
                 ptype = party_type[pid]
                 segment_id = party_segment[pid]
                 region_id = party_region[pid]
@@ -1702,14 +1782,8 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         holdings_buffer_rows = 0
         holdings_buffer.clear()
 
-    for pid in range(1, max_party_id + 1):
-        for account_type_id in account_types_in_use:
-            counts_array = holdings_counts.get(account_type_id)
-            if counts_array is None:
-                continue
-            count = counts_array[pid]
-            if count <= 0:
-                continue
+    for pid in sorted(party_holdings.keys()):
+        for account_type_id, count in party_holdings[pid]:
             holdings_buffer.append((pid, account_type_id, int(count)))
             holdings_buffer_rows += 1
             if holdings_buffer_rows >= _DEFAULT_BATCH_ROWS:
@@ -1733,23 +1807,6 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
     perf.record_elapsed("emit_holdings", step_started)
 
     step_started = time.monotonic()
-    summary_counts: dict[tuple[str, str, str, str], int] = {}
-    for pid in range(1, max_party_id + 1):
-        country = party_country[pid]
-        if not country:
-            continue
-        region_id = party_region[pid]
-        party_type_id = party_type[pid]
-        for account_type_id in account_types_in_use:
-            counts_array = holdings_counts.get(account_type_id)
-            if counts_array is None:
-                continue
-            count = counts_array[pid]
-            if count <= 0:
-                continue
-            key = (country, region_id, party_type_id, account_type_id)
-            summary_counts[key] = summary_counts.get(key, 0) + int(count)
-
     summary_final_path: Optional[Path] = None
     if summary_counts:
         summary_rows = [

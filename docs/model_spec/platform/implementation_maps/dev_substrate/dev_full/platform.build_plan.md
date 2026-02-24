@@ -562,6 +562,7 @@ Planned lanes:
 M5 planning posture:
 - M5 deep plan has been materialized with explicit `P3` and `P4` closure sequencing.
 - Capability lanes are explicit (authority/handles, oracle boundary, stream-view contract, IG health/auth, MSK readiness, envelope conformance, rollup/handoff).
+- `M5.P3.A` (oracle boundary/ownership) has been expanded to execution-grade capability-lane checks, blocker mapping, and exit rule.
 - M5 has been split into dedicated subplans to prevent phase cramming:
   - `platform.M5.P3.build_plan.md` (P3 closure),
   - `platform.M5.P4.build_plan.md` (P4 closure).
@@ -576,7 +577,7 @@ DoD anchors:
 
 M5 sub-phase progress:
 - [x] `M5.A` authority + handle closure (`m5a_20260224T182433Z`, blocker-free, durable evidence committed).
-- [ ] `M5.B` oracle source boundary + ownership.
+- [x] `M5.B` oracle source boundary + ownership (`m5b_20260224T185046Z`, blocker-free, durable evidence committed).
 - [ ] `M5.C` required outputs + manifest readability.
 - [ ] `M5.D` stream-view contract + materialization.
 - [ ] `M5.E` P3 rollup + verdict.

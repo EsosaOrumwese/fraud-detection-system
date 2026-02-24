@@ -1943,3 +1943,128 @@ Storage action:
   - `94dcc9f10a324d829a0ece6f96eda5f6` (`POPT.2` final closure witness).
 - Removed superseded failed candidate:
   - `9ab2b6a324884d97a1bec1f387e99595`.
+
+### Entry: 2026-02-24 18:45
+
+POPT.3 planning lock completed (`S2` owner lane) - plan only, no code execution yet.
+
+Authority and baseline:
+- `POPT.2` is closed (`UNLOCK_POPT3`) with final witness `94dcc9f10a324d829a0ece6f96eda5f6`.
+- `S2` baseline for this lane remains `run_id=592d82e8d51042128fc32cb4394f1fa2`:
+  - `allocate_accounts=212.531s`,
+  - `emit_account_base=32.250s`,
+  - `emit_holdings=11.907s`,
+  - `emit_summary=5.500s`.
+
+Observed structural bottlenecks from `S2` code path:
+- allocation hot loop performs repeated deterministic-hash payload construction per `(party_id, account_type)` draw path (`zero_gate`, `weight`),
+- repeated dict/array lookups in inner loops,
+- full `1..max_party_id` dense sweeps in holdings/summary paths despite sparse nonzero occupancy.
+
+Alternatives considered:
+1) Minimal micro-tuning only (local variable rebinding and tiny branch changes).
+   - Rejected: low expected gain against a >200s allocation hotspot.
+2) High-blast redesign to full dataframe/vectorized allocation semantics.
+   - Deferred: too much determinism/contract risk for one lane.
+3) Mid-blast structural optimization with deterministic-contract preservation.
+   - Selected: combine sparse index rewrite + deterministic kernel efficiency + emit-path sparse aggregation.
+
+Planned `POPT.3` execution structure (now written into build plan):
+- `POPT.3.0` design/baseline lock.
+- `POPT.3.1` sparse index compaction + loop-shape rewrite.
+- `POPT.3.2` allocation kernel micro-architecture optimization.
+- `POPT.3.3` emit-path batching + summary rewrite from sparse nonzero holdings.
+- `POPT.3.4` witness and phase decision.
+
+Pinned closure gates:
+- hard gate: `S2` improvement `>=25%` vs baseline (`<=199.137s`) with no contract regressions.
+- stretch gate: `S2<=180s` and `allocate_accounts<=150s`.
+- decision outcomes constrained to `UNLOCK_POPT4`, `HOLD_POPT3`, or `REVERT_POPT3`.
+
+Invariant lock for execution:
+- no policy/config threshold edits,
+- no schema changes,
+- no RNG audit/trace contract changes,
+- fail-closed behavior preserved.
+
+### Entry: 2026-02-24 18:50
+
+POPT.3.1-POPT.3.3 implementation completed in `S2` (pre-witness).
+
+File changed:
+- `packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py`
+
+Implemented changes:
+1) Sparse loop-shape rewrite (`POPT.3.1`)
+- Replaced `range(1, max_party_id + 1)` sweep used to build `cell_parties` with direct iteration on sorted `party_ids`.
+- Removed dense-country scan dependency in account emit path by introducing sparse nonzero index keyed by `(country_iso, account_type)`.
+- Replaced dense holdings/summary sweeps with sparse party-account structures built during allocation.
+
+2) Allocation-kernel optimization (`POPT.3.2`)
+- Added preseeded deterministic hash templates:
+  - `_build_uniform_template(...)`,
+  - `_deterministic_uniform_from_template(...)`.
+- Preserved deterministic hash contract (`label + manifest + parameter + party_id + account_type`) while removing repeated prefix serialization/hashing cost per draw.
+- Added tag-adjustment multiplier cache keyed by `(segment_id, account_type)` to avoid recomputing clip/multiplier traversal for repeated cells.
+- Added explicit allocation counters:
+  - `party_evaluations`,
+  - `zero_gate_skips`,
+  - `weight_computations`,
+  - `nonzero_party_account_pairs`.
+
+3) Emit/summary sparse rewrite (`POPT.3.3`)
+- During allocation, materialize:
+  - `holdings_counts[account_type][party_id]`,
+  - `party_holdings[party_id]`,
+  - `country_account_nonzero[(country, account_type)]`,
+  - `summary_counts[(country, region, party_type, account_type)]`.
+- Emit account base by iterating sparse `(country, account_type)` party-count lists (sorted by `party_id`).
+- Emit holdings by iterating sparse `party_holdings` (`party_id` sorted).
+- Emit summary directly from pre-aggregated `summary_counts` (no dense scan).
+
+Safety and invariants:
+- Added fail-closed check for impossible duplicate party/account allocations (`duplicate_party_account_allocation`).
+- No schema or policy/config changes.
+- RNG audit/log outputs and idempotent publish surfaces unchanged.
+
+Validation:
+- Compile check passed:
+  - `python -m py_compile packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py`.
+
+Next step:
+- Execute fresh `S2` witness run on new run-id, compare against baseline `592...`, and decide `UNLOCK_POPT4` vs `HOLD_POPT3`.
+
+### Entry: 2026-02-24 18:56
+
+POPT.3 witness executed and lane closed.
+
+Witness setup:
+- Run-id: `d9e03d8aeac24a21ad2560e649825b97`.
+- Inputs staged from baseline `592...`:
+  - copied `s0_gate_receipt`, `sealed_inputs`, `s1_party_base_6A`,
+  - junction-mounted `data/layer1` and `data/layer2`.
+- Executed:
+  - `python -m engine.cli.s2_account_base_6a --runs-root runs/fix-data-engine/segment_6A --run-id d9e03d8aeac24a21ad2560e649825b97 --contracts-layout model_spec`.
+
+Performance outcome (vs baseline `592...`):
+- `S2`: `265.516s -> 186.157s` (`-29.89%`).
+- `allocate_accounts`: `212.531s -> 142.281s` (`-33.05%`).
+- `emit_account_base`: `32.250s -> 31.375s` (`-2.71%`).
+- `emit_holdings`: `11.907s -> 9.438s` (`-20.74%`).
+- `emit_summary`: `5.500s -> 0.016s` (`-99.71%`).
+
+Contract/regression checks:
+- Row-count parity preserved:
+  - `s2_account_base_6A`: `8,725,420`,
+  - `s2_party_product_holdings_6A`: `7,271,622`,
+  - holdings `account_count` sum: `8,725,420`.
+- `s2_account_summary_6A` equality against baseline: `True`.
+- Account-base deterministic signature parity check over stable key subset: equal.
+
+Gate decision:
+- Hard closure gate met (`S2 <= 199.137s`).
+- Stretch gate partially met (`allocate_accounts <= 150s` pass; `S2 <= 180s` miss).
+- Phase decision: `POPT.3 = UNLOCK_POPT4`.
+
+Forward note:
+- Remaining headroom is mostly in `allocate_accounts`; next lane (`POPT.4`) should proceed without reopening `POPT.3`.

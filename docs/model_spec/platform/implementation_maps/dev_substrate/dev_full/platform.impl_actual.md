@@ -6326,3 +6326,121 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 1. M5.A is closed green.
 2. Entry to M5.B is unblocked.
 
+
+## Entry: 2026-02-24 18:44:26 +00:00 - Pre-implementation planning for M5.P3.A expansion
+
+### Trigger
+1. User requested explicit planning expansion for `M5.P3.A`.
+
+### Decision completeness check
+1. `M5.A` handle closure is already green (`m5a_20260224T182433Z`) with blocker-free required handle set.
+2. Required authority docs for P3.A are present and aligned:
+   - `platform.M5.build_plan.md`
+   - `dev_full_platform_green_v0_run_process_flow.md` (`P3`)
+   - `dev_full_handles.registry.v0.md` (oracle boundary handles).
+3. No unresolved decision hole blocks planning-only expansion of P3.A.
+
+### Planning objective for this change
+1. Expand P3.A from high-level tasks into execution-grade lane detail.
+2. Pin explicit verification surfaces and command templates for each lane.
+3. Add P3.A-scoped blocker taxonomy and exit rule so execution cannot be hand-wavy.
+4. Keep P3.A aligned to fail-closed ownership law: oracle source is external, platform read-only.
+
+## Entry: 2026-02-24 18:45:35 +00:00 - M5.P3.A planning expansion completed
+
+### What was changed
+1. Expanded `P3.A (M5.B)` in `platform.M5.P3.build_plan.md` from high-level tasks to execution-grade plan detail.
+2. Added explicit capability-lane coverage for:
+   - authority/handle integrity,
+   - namespace boundary isolation,
+   - ownership semantics,
+   - runtime write-deny posture,
+   - durable evidence publication,
+   - blocker adjudication.
+3. Added concrete operator verification command templates for each lane.
+4. Added P3.A-scoped blocker mapping (`P3A-B*`) to parent P3 blocker taxonomy (`M5P3-B*`).
+5. Added explicit P3.A exit rule gating transition to P3.B.
+6. Synced parent/master posture notes to reflect:
+   - M5.A closure already green,
+   - M5.P3.A now execution-grade planned,
+   - next execution lane remains `M5.B`.
+
+### Why this matters
+1. Removes ambiguity before execution of oracle boundary checks.
+2. Enforces fail-closed semantics at P3.A boundary (no implicit pass).
+3. Preserves anti-cram law by making P3.A independently auditable.
+
+### Execution impact
+1. No runtime execution performed in this step.
+2. No phase-status claim changed beyond planning posture synchronization.
+
+## Entry: 2026-02-24 18:52:27 +00:00 - M5.B / P3.A execution (oracle boundary and ownership)
+
+### Trigger
+1. User requested full execution of `P3.A`.
+
+### Pre-execution gate checks
+1. Confirmed `M4` entry verdict is `ADVANCE_TO_M5` from:
+   - `runs/dev_substrate/dev_full/m4/m4j_20260224T064802Z/m4j_execution_summary.json`.
+2. Confirmed `M5.A` handle closure is green from:
+   - `runs/dev_substrate/dev_full/m5/m5a_20260224T182433Z/m5a_execution_summary.json`.
+
+### Execution design (fail-closed)
+1. Implemented six capability-lane checks for P3.A:
+   - authority/handle integrity,
+   - namespace/boundary isolation,
+   - S3 prefix probe support checks,
+   - ownership/read-only semantics,
+   - runtime write-deny posture from active runtime-path manifest,
+   - durable evidence publish/readback.
+2. Explicit blocker mapping applied (`P3A-B1..B6` -> `M5P3-B1/B2/B7/B8`).
+
+### Runtime issue and remediation
+1. First run attempt (`m5b_20260224T184949Z`) failed due PowerShell inline-expression bug in command composition.
+2. Remediation:
+   - corrected expression logic to explicit detail variables,
+   - reran full P3.A verification end-to-end (no partial claim carry-over),
+   - invalidated first attempt with explicit marker file.
+
+### Authoritative result
+1. Execution id:
+   - `m5b_20260224T185046Z`
+2. Outcome:
+   - `overall_pass=true`
+   - `blocker_count=0`
+3. Local artifacts:
+   - `runs/dev_substrate/dev_full/m5/m5b_20260224T185046Z/m5b_oracle_boundary_snapshot.json`
+   - `runs/dev_substrate/dev_full/m5/m5b_20260224T185046Z/m5b_blocker_register.json`
+   - `runs/dev_substrate/dev_full/m5/m5b_20260224T185046Z/m5b_execution_summary.json`
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5b_20260224T185046Z/m5b_oracle_boundary_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5b_20260224T185046Z/m5b_blocker_register.json`
+5. Invalidated attempt marker:
+   - `runs/dev_substrate/dev_full/m5/m5b_20260224T184949Z/INVALIDATED.txt`
+
+### Phase decision
+1. `M5.B` / `P3.A` is closed green.
+2. Entry to `P3.B` (`M5.C`) is unblocked.
+
+## Entry: 2026-02-24 18:57:06 +00:00 - Run-folder pruning after invalidated reruns (M5)
+
+### Trigger
+1. User requested pruning run folders to avoid accumulation.
+
+### Cleanup policy applied
+1. Keep authoritative pass runs.
+2. Remove non-authoritative rerun artifacts:
+   - invalidated attempts,
+   - orphan/no-summary attempt folders.
+
+### Removed
+1. `runs/dev_substrate/dev_full/m5/m5a_20260224T182311Z` (no summary/orphan attempt).
+2. `runs/dev_substrate/dev_full/m5/m5a_20260224T182348Z` (invalidated first attempt).
+3. `runs/dev_substrate/dev_full/m5/m5b_20260224T184949Z` (invalidated first attempt).
+
+### Retained (authoritative)
+1. `runs/dev_substrate/dev_full/m5/m5a_20260224T182433Z`
+2. `runs/dev_substrate/dev_full/m5/m5b_20260224T185046Z`
+
+### Outcome
+1. M5 run directory is now compact and authoritative-only for current executed lanes.

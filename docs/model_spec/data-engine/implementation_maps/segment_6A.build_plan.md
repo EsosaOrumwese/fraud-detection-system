@@ -596,11 +596,88 @@ POPT.2 closure evidence:
   - `UNLOCK_POPT3`.
 
 #### POPT.3 - `S2` allocation and emit-path redesign
+Goal:
+- reduce `S2` runtime by redesigning allocation + emit paths around sparse party sets and lower-overhead deterministic kernels, without changing schema/policy or fail-closed behavior.
+
+##### POPT.3.0 - Design lock and runtime baseline
 Definition of done:
-- [ ] Replace high-cardinality Python dict/list walk patterns with contiguous array/batch operations.
-- [ ] Remove full `1..max_party_id` sweep loops where sparse aggregation is sufficient.
-- [ ] Emit account/holdings rows in chunked vectorized batches.
-- [ ] `S2` wall-clock reduced by at least `25%` from baseline on cold-run witness.
+- [x] Baseline pinned to `run_id=592d82e8d51042128fc32cb4394f1fa2` for `S2`.
+- [x] Baseline hotspots pinned:
+  - `allocate_accounts=212.531s`,
+  - `emit_account_base=32.250s`,
+  - `emit_holdings=11.907s`,
+  - `emit_summary=5.500s`.
+- [x] Complexity model and bottlenecks documented before code edits:
+  - repeated deterministic hash payload construction in allocation kernel,
+  - repeated dict/list lookups inside hot loops,
+  - avoidable full `1..max_party_id` sweeps.
+- [x] Invariants pinned:
+  - identical output schemas and dataset names,
+  - deterministic replay posture preserved,
+  - policy thresholds untouched,
+  - RNG audit/trace contract unchanged.
+
+##### POPT.3.1 - Sparse index compaction and loop-shape rewrite
+Definition of done:
+- [x] Replace full-range sweeps with sparse iteration over actual party id sets where semantically safe.
+- [x] Build compact per-cell/per-country party index structures once, then reuse in downstream loops.
+- [x] Remove repeated dictionary fallback/lookups in inner loops by prebinding arrays/maps per account type.
+- [x] Preserve fail-closed checks for missing parties/cells/rules.
+
+##### POPT.3.2 - Allocation kernel micro-architecture optimization
+Definition of done:
+- [x] Reduce per-party deterministic-uniform overhead by precomputing static hash payload components and using compact per-call mixing (no stochastic-contract drift).
+- [x] Precompute segment-tag adjustments per `(segment_id, account_type)` to avoid repeated adjustment traversal in the hot path.
+- [x] Keep `_largest_remainder_list` behavior + tie semantics intact while reducing pre/post work around it.
+- [x] Emit explicit counters for allocation-path work:
+  - eligible party evaluations,
+  - zero-gate skips,
+  - weight computations.
+
+##### POPT.3.3 - Emit-path batching and summary aggregation rewrite
+Definition of done:
+- [x] Drive account/holdings emission from sparse nonzero holdings structures instead of full dense scans.
+- [x] Keep chunked write path but reduce Python tuple churn via pre-sized batch building where practical.
+- [x] Replace summary nested loops with sparse aggregation over nonzero holdings entries.
+- [x] Preserve sample validation and idempotent publish behavior.
+
+##### POPT.3.4 - Witness and closure
+Definition of done:
+- [x] Execute fresh `S2` owner-lane witness on new run-id with stable upstream inputs.
+- [x] Compare against `POPT.3.0` baseline with per-substep deltas.
+- [x] Hard closure gate:
+  - `S2` runtime improvement `>=25%` vs baseline (`<=199.137s`) with no contract regressions.
+- [ ] Stretch closure gate:
+  - target `S2 <=180s` and `allocate_accounts <=150s` on witness lane.
+- [x] Record one decision only:
+  - `UNLOCK_POPT4` if hard closure gate passes,
+  - `HOLD_POPT3` if improvement is insufficient,
+  - `REVERT_POPT3` if regressions are detected.
+
+POPT.3 closure evidence:
+- Baseline (`run_id=592d82e8d51042128fc32cb4394f1fa2`):
+  - `S2=265.516s`,
+  - `allocate_accounts=212.531s`,
+  - `emit_account_base=32.250s`,
+  - `emit_holdings=11.907s`,
+  - `emit_summary=5.500s`.
+- Candidate (`run_id=d9e03d8aeac24a21ad2560e649825b97`, fresh `S2` witness):
+  - `S2=186.157s` (`-29.89%` vs baseline),
+  - `allocate_accounts=142.281s` (`-33.05%`),
+  - `emit_account_base=31.375s` (`-2.71%`),
+  - `emit_holdings=9.438s` (`-20.74%`),
+  - `emit_summary=0.016s` (`-99.71%`).
+- Contract/non-regression checks:
+  - `s2_account_summary_6A` equality vs baseline: `True`,
+  - row-count parity preserved:
+    - `s2_account_base_6A: 8,725,420`,
+    - `s2_party_product_holdings_6A: 7,271,622`,
+    - holdings `account_count` sum: `8,725,420`.
+- Gate result:
+  - hard gate: `PASS` (`186.157s <= 199.137s`),
+  - stretch gate: partial (`allocate_accounts` pass, `S2<=180s` not met).
+- Decision:
+  - `UNLOCK_POPT4`.
 
 #### POPT.4 - `S4` region emit/merge efficiency lane (compute-safe)
 Definition of done:

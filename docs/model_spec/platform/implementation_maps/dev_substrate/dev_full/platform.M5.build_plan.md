@@ -318,7 +318,7 @@ Any active `M5-B*` blocker prevents M5 closure.
 
 ## 9) M5 Completion Checklist
 - [x] M5.A complete
-- [ ] M5.B complete
+- [x] M5.B complete
 - [ ] M5.C complete
 - [ ] M5.D complete
 - [ ] M5.E complete
@@ -353,4 +353,6 @@ Handoff posture:
    - `M5-B0` resolved,
    - `M5-B0.1` resolved.
 5. Execution posture:
-   - ready to execute fail-closed from `M5.A`.
+   - `M5.A` is closed green (`m5a_20260224T182433Z`).
+   - `M5.B` / `P3.A` is closed green (`m5b_20260224T185046Z`).
+   - next actionable execution lane is `M5.C` (`P3.B`).

@@ -34,14 +34,69 @@ Tasks:
 4. emit `m5b_oracle_boundary_snapshot.json`.
 
 DoD:
-- [ ] oracle source boundary is explicit and valid.
-- [ ] platform write-deny/read-only posture is explicit.
-- [ ] snapshot committed locally and durably.
+- [x] oracle source boundary is explicit and valid.
+- [x] platform write-deny/read-only posture is explicit.
+- [x] snapshot committed locally and durably.
 
 P3.A precheck:
 1. M4 verdict is `ADVANCE_TO_M5`.
 2. oracle source namespace/run-id handles are pinned.
 3. oracle seating law remains intact (source-of-stream outside platform ownership).
+
+P3.A capability-lane coverage (execution gate):
+| Lane | Required handles/surfaces | Verification posture | Fail-closed condition |
+| --- | --- | --- | --- |
+| Authority + handle integrity | `ORACLE_STORE_*`, `S3_ORACLE_*`, `S3_STREAM_VIEW_*`, `ORACLE_INLET_*` | resolve handle set and validate non-empty/non-placeholder values | any required handle missing/inconsistent |
+| Namespace and boundary isolation | `S3_ORACLE_ROOT_PREFIX`, `S3_EVIDENCE_ROOT_PREFIX`, archive/quarantine prefixes | prove oracle prefixes remain under `oracle-store/` and do not overlap evidence/archive/quarantine roots | overlap or namespace drift detected |
+| Ownership semantics | `ORACLE_STORE_PLATFORM_ACCESS_MODE`, `ORACLE_STORE_WRITE_OWNER`, `ORACLE_INLET_PLATFORM_OWNERSHIP` | enforce read-only platform posture and external producer ownership | ownership contradiction or implicit platform write ownership |
+| Runtime write-deny posture | policy + runtime path selection evidence | verify no active write path to oracle source namespace for this phase execution | any active write-capable path to oracle prefix |
+| Evidence publication | `S3_EVIDENCE_BUCKET`, `S3_RUN_CONTROL_ROOT_PATTERN` | local artifact emission + durable publish/readback | local-only artifact or durable publish/readback failure |
+| Blocker adjudication | P3.A scoped blocker register | every unresolved check classified before transition | unresolved issue without blocker classification |
+
+P3.A verification command templates (operator lane):
+1. Handle presence:
+   - `rg -n "ORACLE_STORE_|S3_ORACLE_|S3_STREAM_VIEW_|ORACLE_INLET_" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+2. Oracle prefix and namespace isolation:
+   - `aws s3api list-objects-v2 --bucket <ORACLE_STORE_BUCKET> --prefix <S3_ORACLE_ROOT_PREFIX> --max-items 10`
+   - `aws s3api list-objects-v2 --bucket <S3_EVIDENCE_BUCKET> --prefix <S3_EVIDENCE_ROOT_PREFIX> --max-items 10`
+3. Overlap/drift check:
+   - assert oracle root does not start with any evidence/archive/quarantine root token.
+4. Ownership/read-only check:
+   - assert `ORACLE_STORE_PLATFORM_ACCESS_MODE == read_only`.
+   - assert `ORACLE_STORE_WRITE_OWNER != platform_runtime`.
+5. Runtime write-path posture check:
+   - verify active runtime path selection artifact for phase run does not include oracle write lanes.
+6. Durable publish/readback:
+   - `aws s3 cp <local_m5b_oracle_boundary_snapshot.json> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/m5b_oracle_boundary_snapshot.json`
+   - `aws s3 ls s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/m5b_oracle_boundary_snapshot.json`
+
+P3.A scoped blocker mapping (must be explicit before transition):
+1. `P3A-B1` -> `M5P3-B1`: required oracle handle missing/inconsistent.
+2. `P3A-B2` -> `M5P3-B2`: oracle namespace/boundary overlap drift.
+3. `P3A-B3` -> `M5P3-B2`: ownership/read-only semantics violation.
+4. `P3A-B4` -> `M5P3-B2`: runtime write-deny posture violation for oracle source.
+5. `P3A-B5` -> `M5P3-B7`: durable publish/readback failure.
+6. `P3A-B6` -> `M5P3-B8`: transition attempted with unresolved `P3A-B*`.
+
+P3.A exit rule:
+1. all capability lanes above are `PASS`,
+2. `m5b_oracle_boundary_snapshot.json` exists locally and durably,
+3. no active `P3A-B*` blocker remains,
+4. P3.B remains blocked until P3.A pass is explicit in rollup evidence.
+
+P3.A execution closure (2026-02-24):
+1. First attempt `m5b_20260224T184949Z` was invalidated:
+   - PowerShell inline expression bug prevented clean check rendering in the first execution command.
+2. Authoritative rerun:
+   - execution id: `m5b_20260224T185046Z`
+   - local root: `runs/dev_substrate/dev_full/m5/m5b_20260224T185046Z/`
+   - summary: `runs/dev_substrate/dev_full/m5/m5b_20260224T185046Z/m5b_execution_summary.json`
+   - result: `overall_pass=true`, `blocker_count=0`.
+3. Durable evidence (PASS):
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5b_20260224T185046Z/m5b_oracle_boundary_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5b_20260224T185046Z/m5b_blocker_register.json`
+4. Invalidated attempt marker:
+   - `runs/dev_substrate/dev_full/m5/m5b_20260224T184949Z/INVALIDATED.txt`
 
 ### P3.B (M5.C) Required Outputs + Manifest Readability
 Goal:
