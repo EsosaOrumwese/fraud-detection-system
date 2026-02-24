@@ -306,9 +306,9 @@ Tasks:
 4. publish identity conformance snapshot.
 
 DoD:
-- [ ] all runtime lanes have valid identity bindings.
-- [ ] no unresolved IAM drift remains.
-- [ ] identity conformance snapshot is durable.
+- [x] all runtime lanes have valid identity bindings.
+- [x] no unresolved IAM drift remains.
+- [x] identity conformance snapshot is durable.
 
 M4.C planning precheck (decision completeness):
 1. Required upstream dependency:
@@ -374,10 +374,10 @@ M4.C closure rule:
    - conformance artifacts exist locally and durably,
    - active-lane role-binding matrix is complete and placeholder-free.
 
-M4.C planning status (current):
+M4.C planning status (historical pre-execution snapshot):
 1. Prerequisite M4.B is closed green.
 2. M4.C is expanded to execution-grade with explicit blocker taxonomy and evidence contract.
-3. Known likely pre-execution blocker to verify at runtime:
+3. Known likely pre-execution blocker identified at planning time:
    - `ROLE_EKS_IRSA_*` handles appear unmaterialized and may raise `M4C-B2` until pinned/materialized.
 4. Phase posture:
    - planning expanded (execution status recorded below).
@@ -407,7 +407,18 @@ M4.C execution status (2026-02-24):
      - `/fraud-platform/dev_full/redis/endpoint`
    - `M4C-B6`: role-binding matrix incomplete because unresolved IRSA handles leave differentiating-services binding partial.
 4. M4.C closure posture:
-   - DoD remains open until `M4C-B2/B4/B6` are remediated and M4.C rerun passes.
+   - DoD remained open until `M4C-B2/B4/B6` remediation.
+5. Attempt #3 (authoritative closure run after remediation):
+   - execution id: `m4c_20260224T051711Z`
+   - local evidence: `runs/dev_substrate/dev_full/m4/m4c_20260224T051711Z/`
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4c_20260224T051711Z/`
+   - result: `overall_pass=true`, `blockers=[]`, `next_gate=M4.C_READY`.
+   - key metrics:
+     - `resolved_role_count=11/11`
+     - `present_secret_path_count=7/7`
+     - `binding_matrix_complete_pass=true`
+6. M4.C closure posture:
+   - `M4.C` is closed green.
 
 ### M4.D Network + Dependency Reachability
 Goal:
@@ -547,7 +558,7 @@ Any active `M4-B*` blocker prevents M4 closure.
 ## 8) M4 Completion Checklist
 - [x] M4.A complete
 - [x] M4.B complete
-- [ ] M4.C complete
+- [x] M4.C complete
 - [ ] M4.D complete
 - [ ] M4.E complete
 - [ ] M4.F complete

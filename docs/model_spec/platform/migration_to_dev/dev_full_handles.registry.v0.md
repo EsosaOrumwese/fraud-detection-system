@@ -584,11 +584,11 @@ Allowed tokens in pattern handles:
 
 ### 11.2 Additional runtime role handles
 
-* `ROLE_EKS_IRSA_IG`
-* `ROLE_EKS_IRSA_RTDL`
-* `ROLE_EKS_IRSA_DECISION_LANE`
-* `ROLE_EKS_IRSA_CASE_LABELS`
-* `ROLE_EKS_IRSA_OBS_GOV`
+* `ROLE_EKS_IRSA_IG = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-irsa-ig"` (materialized in M4.C remediation)
+* `ROLE_EKS_IRSA_RTDL = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-irsa-rtdl"` (materialized in M4.C remediation)
+* `ROLE_EKS_IRSA_DECISION_LANE = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-irsa-decision-lane"` (materialized in M4.C remediation)
+* `ROLE_EKS_IRSA_CASE_LABELS = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-irsa-case-labels"` (materialized in M4.C remediation)
+* `ROLE_EKS_IRSA_OBS_GOV = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-irsa-obs-gov"` (materialized in M4.C remediation)
 * `ROLE_EKS_IRSA_LEARNING`
 
 ### 11.3 Secret path handles (full list)

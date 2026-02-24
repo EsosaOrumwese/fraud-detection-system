@@ -3685,6 +3685,73 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 2. Remediate `M4C-B2/M4C-B6` by introducing concrete IRSA role materialization for differentiating-services lane and pinning those ARN values in the registry.
 3. Rerun M4.C only after both remediations are complete; no placeholder role/value substitutions are allowed.
 
+## Entry: 2026-02-24 05:18:51 +00:00 - M4.C blocker remediation executed and closure run passed
+
+### Remediation execution strategy chosen
+1. Chosen approach: durable IaC remediation, not registry-only aliasing.
+2. Reasoning:
+   - registry-only role aliasing would clear `M4C-B2` syntactically but would not materialize true IRSA identities.
+   - direct CLI parameter injection for missing SSM paths would create drift from Terraform ownership.
+3. Selected closure plan:
+   - apply `ops` stack to materialize missing Aurora/Redis SSM surfaces (`M4C-B4`),
+   - add and apply runtime IRSA role materialization for differentiating-services lane (`M4C-B2/M4C-B6`),
+   - pin resulting role ARNs in registry and rerun M4.C.
+
+### IaC changes made
+1. `infra/terraform/dev_full/runtime/versions.tf`:
+   - added `hashicorp/tls` provider for OIDC thumbprint discovery.
+2. `infra/terraform/dev_full/runtime/variables.tf`:
+   - added namespace, service-account, and IRSA role-name variables for IG/RTDL/Decision-Lane/Case-Labels/Obs-Gov.
+3. `infra/terraform/dev_full/runtime/main.tf`:
+   - added EKS OIDC provider resource (`aws_iam_openid_connect_provider.eks`),
+   - added IRSA trust-policy documents per lane role,
+   - added 5 IRSA IAM roles and baseline SSM-read policies.
+4. `infra/terraform/dev_full/runtime/outputs.tf`:
+   - added explicit outputs for each IRSA role ARN,
+   - extended `runtime_handle_materialization` output with `ROLE_EKS_IRSA_*` keys.
+
+### Apply/readback evidence
+1. `ops` stack:
+   - `terraform plan/apply` created missing SSM parameters:
+     - `/fraud-platform/dev_full/aurora/endpoint`
+     - `/fraud-platform/dev_full/aurora/reader_endpoint`
+     - `/fraud-platform/dev_full/aurora/username`
+     - `/fraud-platform/dev_full/aurora/password`
+     - `/fraud-platform/dev_full/redis/endpoint`
+   - also created `ROLE_MWAA_EXECUTION` surface as declared by ops stack.
+2. `runtime` stack:
+   - `terraform plan/apply` created OIDC provider and 5 IRSA roles:
+     - `fraud-platform-dev-full-irsa-ig`
+     - `fraud-platform-dev-full-irsa-rtdl`
+     - `fraud-platform-dev-full-irsa-decision-lane`
+     - `fraud-platform-dev-full-irsa-case-labels`
+     - `fraud-platform-dev-full-irsa-obs-gov`
+   - `runtime_handle_materialization` now emits all required `ROLE_EKS_IRSA_*` values.
+3. Registry pinning:
+   - updated `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` with concrete ARN assignments for the five `ROLE_EKS_IRSA_*` handles.
+
+### M4.C closure rerun
+1. Authoritative rerun id:
+   - `m4c_20260224T051711Z`
+2. Local evidence:
+   - `runs/dev_substrate/dev_full/m4/m4c_20260224T051711Z/`
+3. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4c_20260224T051711Z/`
+4. Result:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `next_gate=M4.C_READY`
+5. Key metrics:
+   - `resolved_role_count=11/11`
+   - `present_secret_path_count=7/7`
+   - `binding_matrix_complete_pass=true`
+
+### Closure decision
+1. `M4.C` is now closed green.
+2. Updated plan surfaces:
+   - `platform.M4.build_plan.md` marks M4.C DoD and completion as done.
+   - `platform.build_plan.md` marks M4.C complete in M4 sub-phase progress.
+
 ## Entry: 2026-02-23 23:28:13 +00:00 - M3.I planning expanded (gate rollup + blocker adjudication)
 
 ### Why this planning expansion was required

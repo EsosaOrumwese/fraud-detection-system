@@ -1587,3 +1587,56 @@ Next safe direction (not executed in this entry):
   1) keep baseline emit path structure,
   2) preserve one-time per-cell ordering/owner lookup improvements only if individually beneficial,
   3) profile per-substep deltas in isolation before combining multiple structural edits.
+
+### Entry: 2026-02-24 05:13
+
+POPT.1R planning lock + execution intent.
+
+Context:
+- Current `S3` implementation in `HEAD` still reflects the regressive `POPT.1` mechanic pattern (column-buffer expansion + scheme block slicing in inner loop), and witness evidence remains above baseline.
+- We need a low-blast recovery lane that can be measured quickly before committing to full-chain reruns.
+
+POPT.1R strategy (ranked):
+1) `R1` (primary): rollback `allocate_instruments` + emit mechanics to a lower-overhead deterministic path previously observed with better timings.
+2) `R2` (secondary, only if needed): isolate further micro-optimizations (`local variable binding`, reduced repeated casts/lookups) without changing RNG semantics.
+3) Full-chain witness only if `R1` passes quick `S3` gate.
+
+Pinned invariants for POPT.1R:
+- No policy/config threshold edits.
+- Output schema unchanged for `s3_instrument_base_6A` and `s3_account_instrument_links_6A`.
+- RNG trace/audit/event semantics unchanged (same streams, counters law).
+- Fail-closed checks unchanged (`duplicate_account_id`, `allocation_exceeds_capacity`, scheme coverage guards).
+
+Execution sequence:
+1) Update build plan with explicit `POPT.1R` phases and DoDs.
+2) Patch `S3` runner with low-blast rollback-to-fast mechanics.
+3) Run compile check.
+4) Stage fresh `run_id` and run `S3` quick witness.
+5) If and only if quick gate improves, run `S4 -> S5` closure witness.
+
+### Entry: 2026-02-24 05:18
+
+POPT.1R.1 executed (`S3` low-blast rollback-to-fast allocation/emit path).
+
+Files changed:
+- `packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py`
+
+What was changed:
+- Kept deterministic one-time per-cell ordering and `(account_id, owner_id)` ingest shape from current baseline.
+- Replaced regressive inner mechanics introduced in prior lane:
+  - removed block-slicing scheme assignment (`scheme_blocks`, `scheme_consumed`) in favor of deterministic queue depletion (`scheme_queue`, `scheme_idx`),
+  - removed column-buffer expansion (`dict[str, list]` + repeated list multiplication) and restored row-buffer emit (`instrument_buffer: list[tuple]`, `link_buffer: list[tuple]`),
+  - restored direct row append semantics during allocation loop with same fail-closed queue-exhaustion guards.
+- Output schemas, RNG events/counters, and fail-closed invariants remain unchanged.
+
+Why this direction:
+- The previous witness showed hotspot regression at `allocate_instruments` under block-slicing + column-buffer path.
+- This rollback is the lowest-blast path to recover throughput without touching priors/policies or cross-state semantics.
+
+Validation:
+- `py_compile` passed on updated `S3` runner.
+
+Next step:
+- Execute `POPT.1R.2` quick witness (`S3` only) on a fresh run-id and compare against:
+  - `POPT.1` failed witness (`run_id=6a29f01be03f4b509959a9237d2aec76`),
+  - `POPT.0` witness (`run_id=2204694f83dc4bc7bfa5d04274b9f211`).

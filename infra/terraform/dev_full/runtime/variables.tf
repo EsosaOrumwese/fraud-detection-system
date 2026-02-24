@@ -154,6 +154,76 @@ variable "eks_cluster_name" {
   default = "fraud-platform-dev-full"
 }
 
+variable "eks_namespace_ingress" {
+  type    = string
+  default = "fraud-platform-ingress"
+}
+
+variable "eks_namespace_rtdl" {
+  type    = string
+  default = "fraud-platform-rtdl"
+}
+
+variable "eks_namespace_case_labels" {
+  type    = string
+  default = "fraud-platform-case-labels"
+}
+
+variable "eks_namespace_obs_gov" {
+  type    = string
+  default = "fraud-platform-obs-gov"
+}
+
+variable "irsa_service_account_ig" {
+  type    = string
+  default = "ig"
+}
+
+variable "irsa_service_account_rtdl" {
+  type    = string
+  default = "rtdl"
+}
+
+variable "irsa_service_account_decision_lane" {
+  type    = string
+  default = "decision-lane"
+}
+
+variable "irsa_service_account_case_labels" {
+  type    = string
+  default = "case-labels"
+}
+
+variable "irsa_service_account_obs_gov" {
+  type    = string
+  default = "obs-gov"
+}
+
+variable "role_eks_irsa_ig_name" {
+  type    = string
+  default = "fraud-platform-dev-full-irsa-ig"
+}
+
+variable "role_eks_irsa_rtdl_name" {
+  type    = string
+  default = "fraud-platform-dev-full-irsa-rtdl"
+}
+
+variable "role_eks_irsa_decision_lane_name" {
+  type    = string
+  default = "fraud-platform-dev-full-irsa-decision-lane"
+}
+
+variable "role_eks_irsa_case_labels_name" {
+  type    = string
+  default = "fraud-platform-dev-full-irsa-case-labels"
+}
+
+variable "role_eks_irsa_obs_gov_name" {
+  type    = string
+  default = "fraud-platform-dev-full-irsa-obs-gov"
+}
+
 variable "phase_runtime_path_mode" {
   type    = string
   default = "single_active_path_per_phase_run"

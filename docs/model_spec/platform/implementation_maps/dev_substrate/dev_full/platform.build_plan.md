@@ -480,11 +480,11 @@ M4 planning posture:
   - single-active-path and selective-EKS policy conformance both pass.
 - M4.B durable mirror:
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4b_20260224T044454Z/`
-- M4.C planning callout:
-  - execution has run and is currently fail-closed `BLOCKED` at `m4c_20260224T050409Z`,
-  - blockers: `M4C-B2` (unresolved `ROLE_EKS_IRSA_*`), `M4C-B4` (missing Aurora/Redis SSM paths), `M4C-B6` (binding matrix incomplete from unresolved IRSA handles).
-  - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4c_20260224T050409Z/`
-- Current phase posture: execution active with `M4.A/M4.B` closed green and `M4.C` fail-closed blocked pending remediation.
+- M4.C execution closure (`PASS`):
+  - blocked attempt retained: `m4c_20260224T050409Z` (`M4C-B2/M4C-B4/M4C-B6`).
+  - remediation closure run: `runs/dev_substrate/dev_full/m4/m4c_20260224T051711Z/m4c_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4c_20260224T051711Z/`
+- Current phase posture: execution active with `M4.A/M4.B/M4.C` closed green.
 
 DoD anchors:
 - [ ] required spine runtime lanes are healthy.
@@ -497,7 +497,7 @@ Deep plan:
 M4 sub-phase progress:
 - [x] `M4.A` authority and handle closure.
 - [x] `M4.B` runtime-path pinning and lane manifest freeze.
-- [ ] `M4.C` identity/IAM conformance.
+- [x] `M4.C` identity/IAM conformance.
 - [ ] `M4.D` network/dependency reachability.
 - [ ] `M4.E` runtime health and run-scope binding.
 - [ ] `M4.F` correlation and telemetry continuity.

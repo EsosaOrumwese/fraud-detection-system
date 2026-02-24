@@ -1179,13 +1179,8 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     link_writer = None
     instrument_frames: list[pl.DataFrame] = []
     link_frames: list[pl.DataFrame] = []
-    instrument_buffer: dict[str, list] = {
-        "instrument_id": [],
-        "account_id": [],
-        "owner_party_id": [],
-        "instrument_type": [],
-        "scheme": [],
-    }
+    instrument_buffer: list[tuple] = []
+    link_buffer: list[tuple] = []
     buffered_rows = 0
 
     emit_tracker = _ProgressTracker(total_instruments, logger, "S3: emit s3_instrument_base_6A")
@@ -1197,12 +1192,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             return
         instrument_frame = pl.DataFrame(
             instrument_buffer,
-        ).with_columns(
-            pl.lit(int(seed)).alias("seed"),
-            pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
-            pl.lit(parameter_hash).alias("parameter_hash"),
-        ).select(
-            [
+            schema=[
                 "instrument_id",
                 "account_id",
                 "owner_party_id",
@@ -1211,9 +1201,14 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 "seed",
                 "manifest_fingerprint",
                 "parameter_hash",
-            ]
+            ],
+            orient="row",
         )
-        link_frame = instrument_frame.select(["account_id", "instrument_id", "instrument_type", "scheme"])
+        link_frame = pl.DataFrame(
+            link_buffer,
+            schema=["account_id", "instrument_id", "instrument_type", "scheme"],
+            orient="row",
+        )
         _validate_sample_rows(instrument_frame, instrument_validator, manifest_fingerprint, "s3_instrument_base_6A")
         _validate_sample_rows(link_frame, link_validator, manifest_fingerprint, "s3_account_instrument_links_6A")
         if _HAVE_PYARROW:
@@ -1229,8 +1224,8 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             instrument_frames.append(instrument_frame)
             link_frames.append(link_frame)
         buffered_rows = 0
-        for values in instrument_buffer.values():
-            values.clear()
+        instrument_buffer.clear()
+        link_buffer.clear()
 
     instrument_id = 1
     for key in sorted(instrument_counts.keys()):
@@ -1434,15 +1429,10 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             }
         )
 
-        scheme_blocks: list[tuple[str, int]] = []
-        scheme_total = 0
-        for (scheme_id, _), count in zip(scheme_options, scheme_counts):
-            count_int = int(count)
-            if count_int <= 0:
-                continue
-            scheme_total += count_int
-            scheme_blocks.append((scheme_id, scheme_total))
-        if not scheme_blocks and n_instr > 0:
+        scheme_queue = [(scheme_id, int(count)) for (scheme_id, _), count in zip(scheme_options, scheme_counts)]
+        scheme_queue = [(scheme_id, count) for scheme_id, count in scheme_queue if count > 0]
+        scheme_idx = 0
+        if not scheme_queue and n_instr > 0:
             _abort(
                 "6A.S3.ALLOCATION_FAILED",
                 "V-08",
@@ -1450,32 +1440,13 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 {"instrument_type": instrument_type, "n_instr": n_instr},
                 manifest_fingerprint,
             )
-        if scheme_total != n_instr:
-            _abort(
-                "6A.S3.ALLOCATION_FAILED",
-                "V-08",
-                "scheme_queue_exhausted",
-                {"instrument_type": instrument_type, "expected": n_instr, "actual": scheme_total},
-                manifest_fingerprint,
-            )
-
-        scheme_block_idx = 0
-        scheme_consumed = 0
         for account_id, owner_id, count in zip(eligible_accounts, eligible_owners, alloc_counts):
             if count <= 0:
                 continue
-
-            id_start = instrument_id
-            id_end = id_start + int(count)
-            instrument_id = id_end
-            instrument_buffer["instrument_id"].extend(range(id_start, id_end))
-            instrument_buffer["account_id"].extend([int(account_id)] * int(count))
-            instrument_buffer["owner_party_id"].extend([int(owner_id)] * int(count))
-            instrument_buffer["instrument_type"].extend([instrument_type] * int(count))
-
-            remaining = int(count)
-            while remaining > 0:
-                if scheme_block_idx >= len(scheme_blocks):
+            for _ in range(count):
+                while scheme_idx < len(scheme_queue) and scheme_queue[scheme_idx][1] <= 0:
+                    scheme_idx += 1
+                if scheme_idx >= len(scheme_queue):
                     _abort(
                         "6A.S3.ALLOCATION_FAILED",
                         "V-08",
@@ -1483,31 +1454,26 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                         {"instrument_type": instrument_type},
                         manifest_fingerprint,
                     )
-                scheme_id, block_end = scheme_blocks[scheme_block_idx]
-                block_remaining = block_end - scheme_consumed
-                if block_remaining <= 0:
-                    scheme_block_idx += 1
-                    continue
-                take = min(block_remaining, remaining)
-                instrument_buffer["scheme"].extend([scheme_id] * int(take))
-                scheme_consumed += int(take)
-                remaining -= int(take)
-                if scheme_consumed >= block_end:
-                    scheme_block_idx += 1
-
-            buffered_rows += int(count)
-            if buffered_rows >= _DEFAULT_BATCH_ROWS:
-                _flush_buffers()
+                scheme_id, remaining = scheme_queue[scheme_idx]
+                scheme_queue[scheme_idx] = (scheme_id, remaining - 1)
+                instrument_buffer.append(
+                    (
+                        instrument_id,
+                        account_id,
+                        owner_id,
+                        instrument_type,
+                        scheme_id,
+                        int(seed),
+                        manifest_fingerprint,
+                        parameter_hash,
+                    )
+                )
+                link_buffer.append((account_id, instrument_id, instrument_type, scheme_id))
+                instrument_id += 1
+                buffered_rows += 1
+                if buffered_rows >= _DEFAULT_BATCH_ROWS:
+                    _flush_buffers()
             emit_tracker.update(count)
-
-        if scheme_consumed != n_instr:
-            _abort(
-                "6A.S3.ALLOCATION_FAILED",
-                "V-08",
-                "scheme_queue_exhausted",
-                {"instrument_type": instrument_type, "expected": n_instr, "actual": scheme_consumed},
-                manifest_fingerprint,
-            )
 
         alloc_tracker.update(1)
 

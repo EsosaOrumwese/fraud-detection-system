@@ -52,6 +52,34 @@ locals {
   role_eks_nodegroup_dev_full_arn    = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.role_eks_nodegroup_dev_full_arn, "") : ""
 
   msk_cluster_arn = var.use_streaming_remote_state ? try(data.terraform_remote_state.streaming[0].outputs.msk_cluster_arn, var.msk_cluster_arn_fallback) : var.msk_cluster_arn_fallback
+
+  irsa_targets = {
+    ig = {
+      role_name       = var.role_eks_irsa_ig_name
+      namespace       = var.eks_namespace_ingress
+      service_account = var.irsa_service_account_ig
+    }
+    rtdl = {
+      role_name       = var.role_eks_irsa_rtdl_name
+      namespace       = var.eks_namespace_rtdl
+      service_account = var.irsa_service_account_rtdl
+    }
+    decision_lane = {
+      role_name       = var.role_eks_irsa_decision_lane_name
+      namespace       = var.eks_namespace_rtdl
+      service_account = var.irsa_service_account_decision_lane
+    }
+    case_labels = {
+      role_name       = var.role_eks_irsa_case_labels_name
+      namespace       = var.eks_namespace_case_labels
+      service_account = var.irsa_service_account_case_labels
+    }
+    obs_gov = {
+      role_name       = var.role_eks_irsa_obs_gov_name
+      namespace       = var.eks_namespace_obs_gov
+      service_account = var.irsa_service_account_obs_gov
+    }
+  }
 }
 
 data "aws_iam_policy_document" "assume_role_lambda" {
@@ -379,5 +407,75 @@ resource "aws_eks_cluster" "platform" {
 
   tags = merge(local.common_tags, {
     fp_resource = "eks_cluster"
+  })
+}
+
+data "tls_certificate" "eks_oidc" {
+  url = aws_eks_cluster.platform.identity[0].oidc[0].issuer
+}
+
+resource "aws_iam_openid_connect_provider" "eks" {
+  url             = aws_eks_cluster.platform.identity[0].oidc[0].issuer
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.eks_oidc.certificates[0].sha1_fingerprint]
+
+  tags = merge(local.common_tags, {
+    fp_resource = "eks_oidc_provider"
+  })
+}
+
+data "aws_iam_policy_document" "assume_role_irsa" {
+  for_each = local.irsa_targets
+
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.eks.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_eks_cluster.platform.identity[0].oidc[0].issuer, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_eks_cluster.platform.identity[0].oidc[0].issuer, "https://", "")}:sub"
+      values   = ["system:serviceaccount:${each.value.namespace}:${each.value.service_account}"]
+    }
+  }
+}
+
+resource "aws_iam_role" "eks_irsa" {
+  for_each = local.irsa_targets
+
+  name               = each.value.role_name
+  assume_role_policy = data.aws_iam_policy_document.assume_role_irsa[each.key].json
+  tags = merge(local.common_tags, {
+    fp_resource = "eks_irsa_${each.key}"
+  })
+}
+
+resource "aws_iam_role_policy" "eks_irsa_ssm_read" {
+  for_each = local.irsa_targets
+
+  name = "${each.value.role_name}-ssm-read"
+  role = aws_iam_role.eks_irsa[each.key].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/fraud-platform/dev_full/*"
+      }
+    ]
   })
 }

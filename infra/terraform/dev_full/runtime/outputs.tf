@@ -58,6 +58,26 @@ output "role_step_functions_orchestrator_arn" {
   value = aws_iam_role.step_functions_orchestrator.arn
 }
 
+output "role_eks_irsa_ig_arn" {
+  value = aws_iam_role.eks_irsa["ig"].arn
+}
+
+output "role_eks_irsa_rtdl_arn" {
+  value = aws_iam_role.eks_irsa["rtdl"].arn
+}
+
+output "role_eks_irsa_decision_lane_arn" {
+  value = aws_iam_role.eks_irsa["decision_lane"].arn
+}
+
+output "role_eks_irsa_case_labels_arn" {
+  value = aws_iam_role.eks_irsa["case_labels"].arn
+}
+
+output "role_eks_irsa_obs_gov_arn" {
+  value = aws_iam_role.eks_irsa["obs_gov"].arn
+}
+
 output "runtime_path_governance_contract" {
   value = {
     PHASE_RUNTIME_PATH_MODE                          = var.phase_runtime_path_mode
@@ -78,6 +98,11 @@ output "runtime_handle_materialization" {
     ROLE_APIGW_IG_INVOKE               = aws_iam_role.apigw_ig_invoke.arn
     ROLE_DDB_IG_IDEMPOTENCY_RW         = aws_iam_role.ddb_ig_idempotency_rw.arn
     ROLE_STEP_FUNCTIONS_ORCHESTRATOR   = aws_iam_role.step_functions_orchestrator.arn
+    ROLE_EKS_IRSA_IG                   = aws_iam_role.eks_irsa["ig"].arn
+    ROLE_EKS_IRSA_RTDL                 = aws_iam_role.eks_irsa["rtdl"].arn
+    ROLE_EKS_IRSA_DECISION_LANE        = aws_iam_role.eks_irsa["decision_lane"].arn
+    ROLE_EKS_IRSA_CASE_LABELS          = aws_iam_role.eks_irsa["case_labels"].arn
+    ROLE_EKS_IRSA_OBS_GOV              = aws_iam_role.eks_irsa["obs_gov"].arn
     EKS_CLUSTER_ARN                    = aws_eks_cluster.platform.arn
     SFN_PLATFORM_RUN_ORCHESTRATOR_V0   = aws_sfn_state_machine.platform_run_orchestrator.name
     SR_READY_COMMIT_AUTHORITY          = "step_functions_only"
