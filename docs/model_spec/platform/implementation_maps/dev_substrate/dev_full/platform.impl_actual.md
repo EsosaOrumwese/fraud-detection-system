@@ -6274,3 +6274,55 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 1. Production-pattern direction remains consistent and explicit.
 2. M5 now has both functional readiness and cost-outcome closure gating for production-parity discipline.
 3. No semantic ambiguity remains on M1 workflow naming posture.
+
+## Entry: 2026-02-24 18:26:34 +00:00 - M5.A authority/handle closure execution (P3/P4 precheck)
+
+### Trigger
+1. User approved planning + execution of M5.A.
+
+### Scope lock (what M5.A is allowed to do)
+1. Resolve required P3/P4 handles only (no boundary traffic or stream execution yet).
+2. Classify unresolved required handles as fail-closed blockers.
+3. Emit local + durable closure artifacts.
+
+### Decision trail (as executed)
+1. Chosen execution form:
+   - run a deterministic local verifier against the handles registry and publish outputs into run-control evidence.
+2. Required handle categories pinned for this run:
+   - P3: ORACLE_REQUIRED_OUTPUT_IDS, ORACLE_SORT_KEY_BY_OUTPUT_ID, S3_ORACLE_*, S3_STREAM_VIEW_*.
+   - P4: IG boundary/auth/envelope handles, MSK connectivity handles, and FP_BUS_*_V1 topic map handles.
+   - M5 evidence/handoff: S3_EVIDENCE_BUCKET, S3_RUN_CONTROL_ROOT_PATTERN, M5_HANDOFF_PACK_PATH_PATTERN, plus phase cost-envelope/receipt handles.
+3. First execution issue detected:
+   - registry string values include wrapped quotes in markdown ("value"), which produced invalid bucket syntax for AWS CLI if used raw.
+   - native command non-zero handling in PowerShell is not fail-closed unless explicitly enforced.
+4. Remediation chosen (and why):
+   - normalize registry values by trimming surrounding quotes before runtime use,
+   - enforce strict native command failure handling ($PSNativeCommandUseErrorActionPreference = True),
+   - rerun full M5.A verification to preserve deterministic artifact lineage.
+5. Invalid attempt handling:
+   - first attempt retained for audit but explicitly invalidated with marker file to prevent accidental gate use.
+
+### Authoritative execution (closure)
+1. Execution id:
+   - m5a_20260224T182433Z
+2. Local artifacts:
+   - runs/dev_substrate/dev_full/m5/m5a_20260224T182433Z/m5a_handle_closure_snapshot.json
+   - runs/dev_substrate/dev_full/m5/m5a_20260224T182433Z/m5a_blocker_register.json
+   - runs/dev_substrate/dev_full/m5/m5a_20260224T182433Z/m5a_execution_summary.json
+3. Durable artifacts:
+   - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5a_20260224T182433Z/m5a_handle_closure_snapshot.json
+   - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5a_20260224T182433Z/m5a_blocker_register.json
+4. Outcome:
+   - overall_pass=true
+   - blocker_count=0
+   - required handles verified=51
+
+### Invalidated attempt marker
+1. Non-authoritative run:
+   - runs/dev_substrate/dev_full/m5/m5a_20260224T182348Z/
+2. Marker:
+   - runs/dev_substrate/dev_full/m5/m5a_20260224T182348Z/INVALIDATED.txt
+### Phase state decision
+1. M5.A is closed green.
+2. Entry to M5.B is unblocked.
+

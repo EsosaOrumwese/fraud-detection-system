@@ -607,6 +607,22 @@ def _hash_to_unit(exprs: list[pl.Expr], seed: int) -> pl.Expr:
     return pl.struct(named).hash(seed=seed).cast(pl.UInt64) / pl.lit(float(1 << 64))
 
 
+def _derive_stream_seed(
+    base_seed: int,
+    manifest_fingerprint: str,
+    parameter_hash: str,
+    label: str,
+    salt: int,
+) -> int:
+    material = f"{int(base_seed)}|{manifest_fingerprint}|{parameter_hash}|{label}|{int(salt)}".encode("ascii")
+    digest = hashlib.blake2b(material, digest_size=8).digest()
+    return int.from_bytes(digest, "little", signed=False)
+
+
+def _hash_id_to_unit(id_expr: pl.Expr, seed: int) -> pl.Expr:
+    return id_expr.cast(pl.UInt64, strict=False).fill_null(0).hash(seed=seed).cast(pl.UInt64) / pl.lit(float(1 << 64))
+
+
 def _normalize_prob_rows(rows: list[dict]) -> list[dict]:
     normalized: list[dict] = []
     total = 0.0
@@ -684,29 +700,15 @@ def _build_role_expr(
 
 
 def _map_group_expr(column: str, mapping: dict[str, str], default_group: str) -> pl.Expr:
-    expr = None
-    for key, value in mapping.items():
-        condition = pl.col(column) == pl.lit(key)
-        if expr is None:
-            expr = pl.when(condition).then(pl.lit(value))
-        else:
-            expr = expr.when(condition).then(pl.lit(value))
-    if expr is None:
+    if not mapping:
         return pl.lit(default_group)
-    return expr.otherwise(pl.lit(default_group))
+    return pl.col(column).replace_strict(mapping, default=default_group)
 
 
 def _map_role_to_taxonomy_expr(role_expr: pl.Expr, mapping: dict[str, str], default_role: str) -> pl.Expr:
-    expr = None
-    for source, target in mapping.items():
-        condition = role_expr == pl.lit(source)
-        if expr is None:
-            expr = pl.when(condition).then(pl.lit(target))
-        else:
-            expr = expr.when(condition).then(pl.lit(target))
-    if expr is None:
+    if not mapping:
         return pl.lit(default_role)
-    return expr.otherwise(pl.lit(default_role))
+    return role_expr.replace_strict(mapping, default=default_role)
 
 
 def _write_json(path: Path, payload: dict) -> None:
@@ -1033,6 +1035,20 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     timer.info("S5: required S1-S4 inputs confirmed on disk")
     perf.record_elapsed("load_contracts_inputs", step_started)
 
+    run_seed = int(seed)
+    stream_seeds = {
+        "party_risk_tier": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "party_risk_tier", _HASH_SEED),
+        "party_role": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "party_role", _HASH_SEED + 1),
+        "account_risk_tier": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "account_risk_tier", _HASH_SEED + 2),
+        "account_role": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "account_role", _HASH_SEED + 3),
+        "merchant_risk_tier": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "merchant_risk_tier", _HASH_SEED + 4),
+        "merchant_role": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "merchant_role", _HASH_SEED + 5),
+        "device_risk_tier": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "device_risk_tier", _HASH_SEED + 6),
+        "device_role": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "device_role", _HASH_SEED + 7),
+        "ip_risk_tier": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "ip_risk_tier", _HASH_SEED + 8),
+        "ip_role": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "ip_role", _HASH_SEED + 9),
+    }
+
     taxonomy_roles = {}
     for role_set in taxonomy.get("role_sets", []) or []:
         entity_type = role_set.get("entity_type")
@@ -1069,26 +1085,8 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     else:
         logger.info("S5: assigning party fraud roles (inputs=%s)", party_base_path)
         party_lf = pl.scan_parquet(str(party_base_path))
-        party_u_risk = _hash_to_unit(
-            [
-                pl.col("party_id"),
-                pl.lit(seed),
-                pl.lit(manifest_fingerprint),
-                pl.lit(parameter_hash),
-                pl.lit("party_risk_tier"),
-            ],
-            _HASH_SEED,
-        )
-        party_u_role = _hash_to_unit(
-            [
-                pl.col("party_id"),
-                pl.lit(seed),
-                pl.lit(manifest_fingerprint),
-                pl.lit(parameter_hash),
-                pl.lit("party_role"),
-            ],
-            _HASH_SEED + 1,
-        )
+        party_u_risk = _hash_id_to_unit(pl.col("party_id"), stream_seeds["party_risk_tier"])
+        party_u_role = _hash_id_to_unit(pl.col("party_id"), stream_seeds["party_role"])
         party_thresholds = (party_prior.get("risk_tier_thresholds") or {}).get("thresholds", {})
         party_tier_expr = _risk_tier_expr(party_thresholds, party_u_risk)
         party_role_model = (party_prior.get("role_probability_model") or {}).get(
@@ -1106,7 +1104,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 [
                     party_tier_expr.alias("risk_tier"),
                     party_role_expr.alias("fraud_role_party"),
-                    pl.lit(seed).cast(pl.Int64).alias("seed"),
+                    pl.lit(run_seed).cast(pl.Int64).alias("seed"),
                     pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
                     pl.lit(parameter_hash).alias("parameter_hash"),
                 ]
@@ -1155,26 +1153,8 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         account_groups = (account_prior.get("cell_definition") or {}).get("account_groups", {})
         default_account_group = account_groups.get("OTHER_CURRENT_BASIC") or next(iter(account_groups.values()), "OTHER")
         account_group_expr = _map_group_expr("account_type", account_groups, default_account_group)
-        account_u_risk = _hash_to_unit(
-            [
-                pl.col("account_id"),
-                pl.lit(seed),
-                pl.lit(manifest_fingerprint),
-                pl.lit(parameter_hash),
-                pl.lit("account_risk_tier"),
-            ],
-            _HASH_SEED + 2,
-        )
-        account_u_role = _hash_to_unit(
-            [
-                pl.col("account_id"),
-                pl.lit(seed),
-                pl.lit(manifest_fingerprint),
-                pl.lit(parameter_hash),
-                pl.lit("account_role"),
-            ],
-            _HASH_SEED + 3,
-        )
+        account_u_risk = _hash_id_to_unit(pl.col("account_id"), stream_seeds["account_risk_tier"])
+        account_u_role = _hash_id_to_unit(pl.col("account_id"), stream_seeds["account_role"])
         account_thresholds = (account_prior.get("risk_tier_thresholds") or {}).get("thresholds", {})
         account_tier_expr = _risk_tier_expr(account_thresholds, account_u_risk)
         account_role_model = (account_prior.get("role_probability_model") or {}).get(
@@ -1188,7 +1168,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 [
                     account_tier_expr.alias("risk_tier"),
                     account_role_expr.alias("fraud_role_account"),
-                    pl.lit(seed).cast(pl.Int64).alias("seed"),
+                    pl.lit(run_seed).cast(pl.Int64).alias("seed"),
                     pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
                     pl.lit(parameter_hash).alias("parameter_hash"),
                 ]
@@ -1251,26 +1231,8 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             .drop_nulls()
             .unique()
         )
-        merchant_u_risk = _hash_to_unit(
-            [
-                pl.col("merchant_id"),
-                pl.lit(seed),
-                pl.lit(manifest_fingerprint),
-                pl.lit(parameter_hash),
-                pl.lit("merchant_risk_tier"),
-            ],
-            _HASH_SEED + 4,
-        )
-        merchant_u_role = _hash_to_unit(
-            [
-                pl.col("merchant_id"),
-                pl.lit(seed),
-                pl.lit(manifest_fingerprint),
-                pl.lit(parameter_hash),
-                pl.lit("merchant_role"),
-            ],
-            _HASH_SEED + 5,
-        )
+        merchant_u_risk = _hash_id_to_unit(pl.col("merchant_id"), stream_seeds["merchant_risk_tier"])
+        merchant_u_role = _hash_id_to_unit(pl.col("merchant_id"), stream_seeds["merchant_role"])
         merchant_thresholds = (merchant_prior.get("risk_tier_thresholds") or {}).get("thresholds", {})
         merchant_tier_expr = _risk_tier_expr(merchant_thresholds, merchant_u_risk)
         merchant_role_model = (merchant_prior.get("role_probability_model") or {}).get(
@@ -1285,7 +1247,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 [
                     merchant_tier_expr.alias("risk_tier"),
                     merchant_role_expr.alias("fraud_role_merchant"),
-                    pl.lit(seed).cast(pl.Int64).alias("seed"),
+                    pl.lit(run_seed).cast(pl.Int64).alias("seed"),
                     pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
                     pl.lit(parameter_hash).alias("parameter_hash"),
                 ]
@@ -1334,26 +1296,8 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         device_group_map = (device_prior.get("device_groups") or {}).get("device_type_to_group", {})
         default_device_group = next(iter(device_group_map.values()), "CONSUMER_PERSONAL")
         device_group_expr = _map_group_expr("device_type", device_group_map, default_device_group)
-        device_u_risk = _hash_to_unit(
-            [
-                pl.col("device_id"),
-                pl.lit(seed),
-                pl.lit(manifest_fingerprint),
-                pl.lit(parameter_hash),
-                pl.lit("device_risk_tier"),
-            ],
-            _HASH_SEED + 6,
-        )
-        device_u_role = _hash_to_unit(
-            [
-                pl.col("device_id"),
-                pl.lit(seed),
-                pl.lit(manifest_fingerprint),
-                pl.lit(parameter_hash),
-                pl.lit("device_role"),
-            ],
-            _HASH_SEED + 7,
-        )
+        device_u_risk = _hash_id_to_unit(pl.col("device_id"), stream_seeds["device_risk_tier"])
+        device_u_role = _hash_id_to_unit(pl.col("device_id"), stream_seeds["device_role"])
         device_thresholds = (device_prior.get("risk_tier_thresholds") or {}).get("thresholds", {})
         device_tier_expr = _risk_tier_expr(device_thresholds, device_u_risk)
         device_role_model = (device_prior.get("role_probability_model") or {}).get(
@@ -1374,7 +1318,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 [
                     device_tier_expr.alias("risk_tier"),
                     device_role_expr.alias("fraud_role_device"),
-                    pl.lit(seed).cast(pl.Int64).alias("seed"),
+                    pl.lit(run_seed).cast(pl.Int64).alias("seed"),
                     pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
                     pl.lit(parameter_hash).alias("parameter_hash"),
                 ]
@@ -1443,26 +1387,8 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             ip_group_expr = pl.lit("RESIDENTIAL")
         else:
             ip_group_expr = ip_group_expr.otherwise(pl.lit("RESIDENTIAL"))
-        ip_u_risk = _hash_to_unit(
-            [
-                pl.col("ip_id"),
-                pl.lit(seed),
-                pl.lit(manifest_fingerprint),
-                pl.lit(parameter_hash),
-                pl.lit("ip_risk_tier"),
-            ],
-            _HASH_SEED + 8,
-        )
-        ip_u_role = _hash_to_unit(
-            [
-                pl.col("ip_id"),
-                pl.lit(seed),
-                pl.lit(manifest_fingerprint),
-                pl.lit(parameter_hash),
-                pl.lit("ip_role"),
-            ],
-            _HASH_SEED + 9,
-        )
+        ip_u_risk = _hash_id_to_unit(pl.col("ip_id"), stream_seeds["ip_risk_tier"])
+        ip_u_role = _hash_id_to_unit(pl.col("ip_id"), stream_seeds["ip_role"])
         ip_thresholds = (ip_prior.get("risk_tier_thresholds") or {}).get("thresholds", {})
         ip_tier_expr = _risk_tier_expr(ip_thresholds, ip_u_risk)
         ip_role_model = (ip_prior.get("role_probability_model") or {}).get("pi_role_by_group_and_tier", {})
@@ -1482,7 +1408,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 [
                     ip_tier_expr.alias("risk_tier"),
                     ip_role_expr.alias("fraud_role_ip"),
-                    pl.lit(seed).cast(pl.Int64).alias("seed"),
+                    pl.lit(run_seed).cast(pl.Int64).alias("seed"),
                     pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
                     pl.lit(parameter_hash).alias("parameter_hash"),
                 ]
@@ -1558,9 +1484,11 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         if missing:
             return False, {"missing_columns": missing}
         null_checks = {}
-        for col in required_cols:
-            null_present = lf.select(pl.col(col).is_null().any().alias("null")).collect().item()
-            null_checks[col] = bool(null_present)
+        if required_cols:
+            null_row = lf.select([pl.col(col).is_null().any().alias(col) for col in required_cols]).collect().row(
+                0, named=True
+            )
+            null_checks = {col: bool(null_row.get(col, False)) for col in required_cols}
         return not any(null_checks.values()), {"nulls": null_checks}
 
     party_required = ["party_id"]
@@ -1571,11 +1499,17 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     party_ok, party_metrics = _structural_check(party_base_path, party_required)
     if policy_structural.get("party_base", {}).get("require_unique_party_id"):
         party_lf = pl.scan_parquet(str(party_base_path))
-        total_parties = party_lf.select(pl.count()).collect().item()
-        unique_parties = party_lf.select(pl.col("party_id").n_unique()).collect().item()
+        party_counts = party_lf.select(
+            [
+                pl.len().alias("party_count"),
+                pl.col("party_id").n_unique().alias("party_unique"),
+            ]
+        ).collect().row(0, named=True)
+        total_parties = int(party_counts.get("party_count", 0) or 0)
+        unique_parties = int(party_counts.get("party_unique", 0) or 0)
         party_ok = party_ok and (total_parties == unique_parties)
-        party_metrics["party_count"] = int(total_parties)
-        party_metrics["party_unique"] = int(unique_parties)
+        party_metrics["party_count"] = total_parties
+        party_metrics["party_unique"] = unique_parties
     _record_check(
         "STRUCTURAL_PARTY_BASE",
         "REQUIRED",
@@ -1744,18 +1678,36 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         "Account-instrument linkage caps failed." if not account_links_ok else "Account-instrument linkage caps passed.",
     )
 
-    def _role_fraction(path: Path, role_column: str, clean_role: str) -> tuple[int, int, float]:
+    def _role_fraction(path: Path, role_column: str, clean_role: str) -> tuple[int, int, float, set[str]]:
         lf = pl.scan_parquet(str(path))
-        total = lf.select(pl.count()).collect().item()
-        non_clean = lf.filter(pl.col(role_column) != pl.lit(clean_role)).select(pl.count()).collect().item()
-        total = int(total or 0)
-        non_clean = int(non_clean or 0)
+        row = lf.select(
+            [
+                pl.len().alias("total"),
+                (pl.col(role_column) != pl.lit(clean_role)).sum().cast(pl.Int64).alias("non_clean"),
+                pl.col(role_column).drop_nulls().unique().sort().implode().alias("vocab"),
+            ]
+        ).collect().row(0, named=True)
+        total = int(row.get("total", 0) or 0)
+        non_clean = int(row.get("non_clean", 0) or 0)
         frac = float(non_clean) / float(total) if total > 0 else 0.0
-        return total, non_clean, frac
+        vocab_raw = row.get("vocab")
+        if isinstance(vocab_raw, list):
+            if len(vocab_raw) == 1 and isinstance(vocab_raw[0], list):
+                vocab_values = vocab_raw[0]
+            else:
+                vocab_values = vocab_raw
+        elif vocab_raw is None:
+            vocab_values = []
+        else:
+            vocab_values = [vocab_raw]
+        vocab = {str(value) for value in vocab_values if value is not None}
+        return total, non_clean, frac, vocab
 
     role_policy = validation_policy.get("role_distribution_checks", {}) or {}
 
-    party_total, party_nonclean, party_frac = _role_fraction(party_roles_path, "fraud_role_party", "CLEAN")
+    party_total, party_nonclean, party_frac, party_roles = _role_fraction(
+        party_roles_path, "fraud_role_party", "CLEAN"
+    )
     party_min = float(role_policy.get("party_roles", {}).get("min_fraud_fraction", 0.0))
     party_max = float(role_policy.get("party_roles", {}).get("max_fraud_fraction", 1.0))
     party_roles_ok = party_min <= party_frac <= party_max
@@ -1768,7 +1720,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         "Party fraud-role distribution out of bounds." if not party_roles_ok else "Party roles within bounds.",
     )
 
-    account_total, account_nonclean, account_frac = _role_fraction(
+    account_total, account_nonclean, account_frac, account_roles = _role_fraction(
         account_roles_path, "fraud_role_account", "CLEAN_ACCOUNT"
     )
     account_min = float(role_policy.get("account_roles", {}).get("min_fraud_fraction", 0.0))
@@ -1783,7 +1735,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         "Account fraud-role distribution out of bounds." if not account_roles_ok else "Account roles within bounds.",
     )
 
-    merchant_total, merchant_nonclean, merchant_frac = _role_fraction(
+    merchant_total, merchant_nonclean, merchant_frac, merchant_roles = _role_fraction(
         merchant_roles_path, "fraud_role_merchant", "NORMAL"
     )
     merchant_min = float(role_policy.get("merchant_roles", {}).get("min_fraud_fraction", 0.0))
@@ -1798,7 +1750,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         "Merchant fraud-role distribution out of bounds." if not merchant_roles_ok else "Merchant roles within bounds.",
     )
 
-    device_total, device_nonclean, device_frac = _role_fraction(
+    device_total, device_nonclean, device_frac, device_roles = _role_fraction(
         device_roles_path, "fraud_role_device", "CLEAN_DEVICE"
     )
     device_min = float(role_policy.get("device_roles", {}).get("min_risky_fraction", 0.0))
@@ -1813,7 +1765,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         "Device fraud-role distribution out of bounds." if not device_roles_ok else "Device roles within bounds.",
     )
 
-    ip_total, ip_nonclean, ip_frac = _role_fraction(ip_roles_path, "fraud_role_ip", "CLEAN_IP")
+    ip_total, ip_nonclean, ip_frac, ip_roles = _role_fraction(ip_roles_path, "fraud_role_ip", "CLEAN_IP")
     ip_min = float(role_policy.get("ip_roles", {}).get("min_risky_fraction", 0.0))
     ip_max = float(role_policy.get("ip_roles", {}).get("max_risky_fraction", 1.0))
     ip_roles_ok = ip_min <= ip_frac <= ip_max
@@ -1828,21 +1780,6 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
     require_vocab = validation_policy.get("consistency_checks", {}).get("require_role_vocab_match_taxonomy", False)
     if require_vocab:
-        party_roles = set(
-            pl.scan_parquet(str(party_roles_path)).select(pl.col("fraud_role_party").unique()).collect()["fraud_role_party"]
-        )
-        account_roles = set(
-            pl.scan_parquet(str(account_roles_path)).select(pl.col("fraud_role_account").unique()).collect()["fraud_role_account"]
-        )
-        merchant_roles = set(
-            pl.scan_parquet(str(merchant_roles_path)).select(pl.col("fraud_role_merchant").unique()).collect()["fraud_role_merchant"]
-        )
-        device_roles = set(
-            pl.scan_parquet(str(device_roles_path)).select(pl.col("fraud_role_device").unique()).collect()["fraud_role_device"]
-        )
-        ip_roles = set(
-            pl.scan_parquet(str(ip_roles_path)).select(pl.col("fraud_role_ip").unique()).collect()["fraud_role_ip"]
-        )
         vocab_ok = (
             party_roles.issubset(taxonomy_roles.get("PARTY", set()))
             and account_roles.issubset(taxonomy_roles.get("ACCOUNT", set()))

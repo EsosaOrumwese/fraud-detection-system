@@ -574,6 +574,18 @@ DoD anchors:
 - [ ] ingress boundary + MSK readiness evidence committed.
 - [ ] M5 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
+M5 sub-phase progress:
+- [x] `M5.A` authority + handle closure (`m5a_20260224T182433Z`, blocker-free, durable evidence committed).
+- [ ] `M5.B` oracle source boundary + ownership.
+- [ ] `M5.C` required outputs + manifest readability.
+- [ ] `M5.D` stream-view contract + materialization.
+- [ ] `M5.E` P3 rollup + verdict.
+- [ ] `M5.F` ingress boundary health.
+- [ ] `M5.G` boundary auth enforcement.
+- [ ] `M5.H` MSK topic readiness.
+- [ ] `M5.I` ingress envelope conformance.
+- [ ] `M5.J` P4 rollup + M6 handoff.
+
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.P3.build_plan.md`

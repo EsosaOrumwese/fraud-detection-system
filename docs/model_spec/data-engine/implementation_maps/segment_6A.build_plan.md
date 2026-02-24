@@ -541,11 +541,59 @@ POPT.1R2 closure evidence:
   - `POPT.2` is now unblocked for `S5`-owner optimization work.
 
 #### POPT.2 - `S5` validation-scan fusion + collect minimization
+Goal:
+- reduce `S5` owner-state runtime by removing high-cost hash-expression overhead in role assignment and eliminating avoidable repeated validation scans/collects.
+
+##### POPT.2.0 - Design lock and baseline
 Definition of done:
-- [ ] Collapse repeated parquet scans/collects into fused lazy plans per dataset.
-- [ ] Compute structural/linkage/role/vocab checks from shared intermediate frames.
-- [ ] Keep fail-closed validation semantics unchanged.
-- [ ] `S5` wall-clock reduced by at least `25%` from baseline on cold-run witness.
+- [x] Baseline pinned to clean full-chain witness `run_id=592d82e8d51042128fc32cb4394f1fa2`.
+- [x] Hotspots pinned from baseline:
+  - `assign_account_roles`,
+  - `assign_device_roles`,
+  - `assign_ip_roles` (secondary),
+  - repeated validation scan/collect pattern.
+- [x] Invariants pinned:
+  - deterministic role assignment per row remains required,
+  - output schemas/idempotent publish surfaces unchanged,
+  - fail-closed validation semantics unchanged.
+
+##### POPT.2.1 - Role-hash kernel optimization (`S5` assignment path)
+Definition of done:
+- [x] Replace struct-heavy multi-field hash expressions with deterministic per-entity-id hash salts derived once per run (`manifest_fingerprint`, `parameter_hash`, `seed`, label).
+- [x] Preserve independent deterministic streams per role substream (`party/account/merchant/device/ip`, risk vs role).
+- [x] No schema or policy threshold changes.
+
+##### POPT.2.2 - Validation scan fusion + collect minimization
+Definition of done:
+- [x] Fuse per-column null checks into single collect per dataset in structural checks.
+- [x] Fuse role-fraction totals/non-clean counts into single collect per role table.
+- [x] Reuse/emit role vocab evidence from already-collected frames where possible; avoid duplicate full scans.
+- [x] Keep check IDs, thresholds, failure routing, and payload shape unchanged.
+
+##### POPT.2.3 - Witness and closure
+Definition of done:
+- [x] Execute fresh `S5` witness run on new run-id with stable upstream inputs.
+- [x] Compare against `POPT.2.0` baseline (`592...`) with explicit per-substep deltas.
+- [x] Close as one of:
+  - `UNLOCK_POPT3` if `S5` improves by `>=25%` with no contract regressions,
+  - `HOLD_POPT2` if insufficient improvement,
+  - `REVERT_POPT2` on regression/contract risk.
+
+POPT.2 closure evidence:
+- Baseline (`run_id=592d82e8d51042128fc32cb4394f1fa2`):
+  - `S5=1016.250s`.
+  - hotspots: `assign_device_roles=641.562s`, `assign_account_roles=289.578s`, `assign_ip_roles=50.047s`.
+- Candidate (`run_id=94dcc9f10a324d829a0ece6f96eda5f6`, fresh staged upstream inputs):
+  - `S5=70.391s` (`-93.07%` vs baseline).
+  - `assign_device_roles=33.719s` (`-94.74%`),
+  - `assign_account_roles=26.813s` (`-90.74%`),
+  - `assign_ip_roles=2.046s` (`-95.91%`).
+  - `S5` budget pass: `70.391s <= 120s`.
+  - validation status: `overall_status=PASS`, `fails=0`, `warns=0`.
+- Candidate fix note:
+  - intermediate run `9ab2b6a324884d97a1bec1f387e99595` exposed a vocab-aggregation bug in `POPT.2.2` (false `ROLE_VOCAB_TAXONOMY` fail), corrected before final witness.
+- Decision:
+  - `UNLOCK_POPT3`.
 
 #### POPT.3 - `S2` allocation and emit-path redesign
 Definition of done:

@@ -24,7 +24,7 @@ The AGENT is expected to **lead the design and implementation**, not wait for st
 
 ---
 
-## 1) Reading order (strict)
+## 1) Reading order (not that strict anymore. more laid back. If you feel its important, read it. Else, skip)
 Read these in order before modifying code so you share the project context:
 1. `docs\model_spec\platform\platform-wide\platform_blueprint_notes_v0.md`
    * New component (WSP) to replace data engine (as it now exists outside the platform): `docs\model_spec\platform\component-specific\world_streamer_producer.design-authority.md`. This trumps all other assumptions of the data engine as a vertex in the network
@@ -44,13 +44,6 @@ Read these in order before modifying code so you share the project context:
 7. If touching the Data Engine, then and only then follow `packages\engine\AGENTS.md` [USER has to explicitly state this].
 
 _Note: while the platform narratives are merely conceptual, the other docs in `platform-wide` and `component-specific` are not. However, that doesn't mean they're rigid or binding specifications. They mere attempt to paint the kind of design that will be needed. You (AGENT) as the implementer and design are free to design and implement based on the design intent (and this may not have been fully capture in those "design authority" docs)_
-
-**Authority clarification (platform-wide docs):**
-- The **core authority** docs are the two platform-wide notes you authored:
-  - `platform_blueprint_notes_v0.md`
-  - `deployment_tooling_notes_v0.md`
-- Other `platform-wide` files (e.g., `byref_validation`, `partitioning_policy`, `rails_and_substrate`) are **guardrail supplements** to make cross-cutting rails explicit. They **do not override** the two core notes.
-- If any conflict appears: prefer the core notes above, then the relevant component design‑authority doc; if still unclear, pause and ask the user.
 
 ---
 

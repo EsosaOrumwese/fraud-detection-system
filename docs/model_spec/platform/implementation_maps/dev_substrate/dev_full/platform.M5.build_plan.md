@@ -108,10 +108,25 @@ Tasks:
 4. classify unresolved required handles as blockers.
 
 DoD:
-- [ ] required M5 handle set is explicit and complete.
-- [ ] every required handle has a verification method.
-- [ ] unresolved required handles are blocker-marked.
-- [ ] M5.A closure snapshot exists locally and durably.
+- [x] required M5 handle set is explicit and complete.
+- [x] every required handle has a verification method.
+- [x] unresolved required handles are blocker-marked.
+- [x] M5.A closure snapshot exists locally and durably.
+
+M5.A execution closure (2026-02-24):
+1. First attempt `m5a_20260224T182348Z` was invalidated:
+   - registry quoted values (for example `S3_EVIDENCE_BUCKET`) were not normalized before AWS CLI usage,
+   - native command non-zero handling was not strict.
+2. Authoritative rerun (fail-closed, corrected):
+   - execution id: `m5a_20260224T182433Z`
+   - local root: `runs/dev_substrate/dev_full/m5/m5a_20260224T182433Z/`
+   - summary: `runs/dev_substrate/dev_full/m5/m5a_20260224T182433Z/m5a_execution_summary.json`
+   - result: `overall_pass=true`, `blocker_count=0`, required handles checked=`51`.
+3. Durable evidence (PASS):
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5a_20260224T182433Z/m5a_handle_closure_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5a_20260224T182433Z/m5a_blocker_register.json`
+4. Invalidated attempt marker:
+   - `runs/dev_substrate/dev_full/m5/m5a_20260224T182348Z/INVALIDATED.txt`
 
 ### M5.B Oracle Source Boundary and Ownership
 Goal:
@@ -302,7 +317,7 @@ Any active `M5-B*` blocker prevents M5 closure.
 14. `m5_execution_summary.json`
 
 ## 9) M5 Completion Checklist
-- [ ] M5.A complete
+- [x] M5.A complete
 - [ ] M5.B complete
 - [ ] M5.C complete
 - [ ] M5.D complete

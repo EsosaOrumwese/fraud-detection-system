@@ -1813,3 +1813,133 @@ Storage action:
 
 Reasoning:
 - Keep-set now preserves one stable authority and one current closure witness while minimizing disk footprint.
+
+### Entry: 2026-02-24 07:24
+
+POPT.2 planning lock (S5 owner lane) before code edits.
+
+Baseline authority for this lane:
+- `run_id=592d82e8d51042128fc32cb4394f1fa2` (clean full-chain `S0 -> S5`).
+- S5 hotspots from perf summary:
+  - `assign_device_roles=641.562s`,
+  - `assign_account_roles=289.578s`,
+  - `assign_ip_roles=50.047s`,
+  - validation checks small but has repeated scan/collect pattern.
+
+Problem interpretation:
+- POPT.2 in the build plan originally targeted validation scan fusion, but observed wall-clock is dominated by role assignment kernels.
+- To achieve meaningful runtime movement, lane must include assignment-path kernel optimization while preserving deterministic role semantics and fail-closed validation behavior.
+
+Alternatives considered:
+1) Validation-only scan fusion.
+   - Rejected as sole action: likely insufficient because validation is not primary hotspot.
+2) Full redesign to join-based role interval lookup tables for all entities.
+   - Deferred: high blast radius for one lane and harder to audit quickly.
+3) Low/medium-blast optimization set:
+   - optimize deterministic hash kernel by removing row-wise struct hashing with repeated literals,
+   - fuse repeated validation collect patterns,
+   - keep role-probability model and fail-closed surfaces unchanged.
+   - Selected.
+
+POPT.2 implementation strategy pinned:
+- Add deterministic per-run seed derivation helper for role/risk streams (manifest/parameter/seed/label mixed once).
+- Replace role hash expressions from multi-field struct hash to id-column hash with derived stream seed.
+- Fuse structural null checks and role-fraction checks into single-collect queries.
+- Preserve:
+  - dataset schemas,
+  - validation payload/check IDs/threshold routing,
+  - idempotent publish behavior.
+
+Execution sequence:
+1) update build plan with expanded `POPT.2.*` DoD structure.
+2) implement `POPT.2.1` + `POPT.2.2` in `s5_fraud_posture/runner.py`.
+3) compile check.
+4) run fresh `S5` witness on new run-id staged from `592...` inputs.
+5) record deltas + phase decision (`UNLOCK_POPT3` or `HOLD_POPT2`).
+
+### Entry: 2026-02-24 07:37
+
+POPT.2.1 + POPT.2.2 implementation completed in `S5`.
+
+Files changed:
+- `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py`
+
+Implemented changes:
+1) Role-hash kernel optimization (`POPT.2.1`)
+- Added deterministic stream-seed derivation helper:
+  - `_derive_stream_seed(base_seed, manifest_fingerprint, parameter_hash, label, salt)`.
+- Added id-only hash-to-unit helper:
+  - `_hash_id_to_unit(id_expr, seed)`.
+- Replaced assignment-path uniform draws from struct-heavy hash inputs (`id + seed + manifest + parameter + label`) to id-only hash with pre-derived stream seeds.
+- Preserved independent deterministic streams per entity and substream (`risk_tier` vs `role` for party/account/merchant/device/ip).
+- Preserved all role probability tables, tier thresholds, fail-closed checks, and output schemas.
+
+Why this helps:
+- Removes repeated per-row struct construction and hashing of constant literals/strings in the hottest assignment kernels.
+- Keeps deterministic stream separation while reducing expression compute overhead.
+
+2) Validation scan/collect fusion (`POPT.2.2`)
+- `_structural_check` now computes null presence across required columns in a single collect instead of per-column collects.
+- Party uniqueness check fused into one collect (`party_count`, `party_unique`) instead of two independent collects.
+- `_role_fraction` upgraded to one collect that returns:
+  - `total`,
+  - `non_clean`,
+  - `fraction`,
+  - `vocab` set.
+- Role vocab taxonomy check now reuses role sets collected during role-fraction checks (removes five duplicate role-table scans).
+
+3) Mapping expression simplification
+- `_map_group_expr` switched from chained `when/then` to `replace_strict` mapping.
+- `_map_role_to_taxonomy_expr` switched from chained `when/then` to `replace_strict` mapping.
+
+Why this helps:
+- Reduces per-row branching overhead in account/device/ip assignment lanes where mapping is deterministic dictionary substitution.
+
+Validation after patch:
+- `python -m py_compile packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py` passed.
+
+Risk and invariant review:
+- No policy/config edits.
+- No schema changes in emitted datasets.
+- Validation check IDs/threshold routing and fail-closed semantics preserved.
+- Deterministic behavior preserved; stream derivation changed implementation path but not deterministic contract.
+
+Next execution gate:
+- Fresh `S5` witness run on new run-id staged from clean baseline inputs (`592...`) to measure per-substep runtime movement.
+
+### Entry: 2026-02-24 18:33
+
+POPT.2 witness execution completed, defect fixed, and lane closed.
+
+Run sequence and outcomes:
+- Candidate run `9ab2b6a324884d97a1bec1f387e99595` (first witness after patch):
+  - major runtime improvement observed,
+  - validation failed on `ROLE_VOCAB_TAXONOMY`.
+- Root cause:
+  - `POPT.2.2` vocab aggregation path emitted a scalar/string-shaped value in one branch;
+    downstream `set(...)` consumed characters instead of role tokens.
+- Corrective patch:
+  - normalize vocab collection to unique-list shape before conversion,
+  - keep one-collect pattern and unchanged validation check contract.
+- Final witness run `94dcc9f10a324d829a0ece6f96eda5f6`:
+  - `S5=70.391s` vs baseline `592...` `S5=1016.250s` (`-93.07%`),
+  - `assign_device_roles=33.719s` (`-94.74%`),
+  - `assign_account_roles=26.813s` (`-90.74%`),
+  - `assign_ip_roles=2.046s` (`-95.91%`),
+  - validation report `overall_status=PASS` with zero required-check failures.
+
+Decision:
+- `POPT.2=UNLOCK_POPT3`.
+- Rationale: runtime target exceeded by large margin with no schema/policy/idempotence regression.
+
+### Entry: 2026-02-24 18:36
+
+POPT.2 retention prune executed.
+
+Storage action:
+- Keep-set retained under `runs/fix-data-engine/segment_6A`:
+  - `2204694f83dc4bc7bfa5d04274b9f211` (`POPT.0` authority),
+  - `592d82e8d51042128fc32cb4394f1fa2` (`POPT.1R2` clean full witness baseline for POPT.2),
+  - `94dcc9f10a324d829a0ece6f96eda5f6` (`POPT.2` final closure witness).
+- Removed superseded failed candidate:
+  - `9ab2b6a324884d97a1bec1f387e99595`.
