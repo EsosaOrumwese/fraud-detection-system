@@ -12,7 +12,8 @@ M5 must prove:
 1. oracle source-of-stream posture is read-only from platform runtime and contract-valid,
 2. required stream-view outputs are present and pass manifest/materialization checks,
 3. ingest edge boundary (health + auth + bus topics + envelope controls) is ready fail-closed,
-4. P3/P4 gate verdicts and M6 handoff are deterministic and auditable.
+4. P3/P4 gate verdicts and M6 handoff are deterministic and auditable,
+5. M5 phase-budget and cost-outcome posture is explicit and pass-gated.
 
 ## 1) Authority Inputs
 Primary:
@@ -71,7 +72,8 @@ M5 is not execution-ready unless these capability lanes are explicit:
 5. MSK topic readiness and bus contract,
 6. ingress envelope controls,
 7. durable evidence publication,
-8. blocker adjudication and M6 handoff.
+8. blocker adjudication and M6 handoff,
+9. phase-budget and cost-outcome gating.
 
 ## 4.2) Capability-Lane Coverage Matrix
 | Capability lane | Primary owner sub-phase | Minimum PASS evidence |
@@ -86,6 +88,7 @@ M5 is not execution-ready unless these capability lanes are explicit:
 | MSK topic readiness | M5.H | topic readiness snapshot pass |
 | Ingress envelope controls | M5.I | envelope conformance snapshot pass |
 | P4 verdict + M6 handoff | M5.J | blocker-free P4 verdict + durable `m6_handoff_pack.json` |
+| Cost-outcome guardrail | M5.J | `phase_budget_envelope.json` + `phase_cost_outcome_receipt.json` pass |
 
 ## 5) Work Breakdown (Orchestration)
 
@@ -238,13 +241,19 @@ Tasks:
 1. build P4 gate rollup matrix.
 2. build P4 blocker register and deterministic verdict artifact.
 3. build `m6_handoff_pack.json` with run-scope and explicit evidence references.
-4. publish M5 closure artifacts locally and durably.
-5. append closure note to master plan + impl map + logbook.
+4. build and validate:
+   - `phase_budget_envelope.json` using `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`,
+   - `phase_cost_outcome_receipt.json` using `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`.
+5. enforce fail-closed cost gate:
+   - if `PHASE_COST_OUTCOME_REQUIRED=true` and receipt is missing/invalid, M5 cannot close.
+6. publish M5 closure artifacts locally and durably.
+7. append closure note to master plan + impl map + logbook.
 
 DoD:
 - [ ] P4 gate rollup is complete and blocker-explicit.
 - [ ] deterministic P4 verdict artifact is committed.
 - [ ] `m6_handoff_pack.json` committed locally and durably.
+- [ ] phase-budget envelope and cost-outcome receipt are committed and valid.
 - [ ] closure notes appended in required docs.
 
 ## 6) P3/P4 Split Deep Plan Routing
@@ -271,6 +280,8 @@ Rule:
 10. `M5-B8`: ingress envelope conformance failure.
 11. `M5-B9`: P4 rollup/verdict inconsistency.
 12. `M5-B10`: M6 handoff artifact missing/invalid/unreadable.
+13. `M5-B11`: phase-budget/cost-outcome artifact missing/invalid.
+14. `M5-B12`: cost-outcome hard-stop violated (`PHASE_COST_HARD_STOP_ON_MISSING_OUTCOME=true`).
 
 Any active `M5-B*` blocker prevents M5 closure.
 
@@ -286,7 +297,9 @@ Any active `M5-B*` blocker prevents M5 closure.
 9. `m5i_ingress_envelope_snapshot.json`
 10. `m5j_p4_gate_verdict.json`
 11. `m6_handoff_pack.json`
-12. `m5_execution_summary.json`
+12. `phase_budget_envelope.json`
+13. `phase_cost_outcome_receipt.json`
+14. `m5_execution_summary.json`
 
 ## 9) M5 Completion Checklist
 - [ ] M5.A complete
@@ -300,6 +313,7 @@ Any active `M5-B*` blocker prevents M5 closure.
 - [ ] M5.I complete
 - [ ] M5.J complete
 - [ ] M5 blockers resolved or explicitly fail-closed
+- [ ] M5 phase-budget and cost-outcome artifacts are valid and accepted
 - [ ] M5 closure note appended in implementation map
 - [ ] M5 action log appended in logbook
 
@@ -308,7 +322,8 @@ M5 can close only when:
 1. all checklist items in Section 9 are complete,
 2. P3 and P4 verdicts are blocker-free and deterministic,
 3. M5 evidence is locally and durably readable,
-4. `m6_handoff_pack.json` is committed and reference-valid.
+4. `m6_handoff_pack.json` is committed and reference-valid,
+5. `phase_budget_envelope.json` and `phase_cost_outcome_receipt.json` are valid and blocker-free.
 
 Handoff posture:
 1. M6 remains blocked until M5 verdict is `ADVANCE_TO_M6`.

@@ -557,6 +557,7 @@ Entry gate:
 
 Planned lanes:
 - oracle contract checks, stream-view checks, topic readiness, IG boundary preflight.
+- phase-budget envelope and cost-outcome receipt (fail-closed for phase advancement).
 
 M5 planning posture:
 - M5 deep plan has been materialized with explicit `P3` and `P4` closure sequencing.
@@ -571,6 +572,7 @@ M5 planning posture:
 DoD anchors:
 - [ ] required oracle outputs/manifest checks pass.
 - [ ] ingress boundary + MSK readiness evidence committed.
+- [ ] M5 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`

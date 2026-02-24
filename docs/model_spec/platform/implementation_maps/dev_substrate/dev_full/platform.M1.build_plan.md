@@ -344,6 +344,7 @@ M1.C execution closure (2026-02-22):
    - `IMAGE_BUILD_DRIVER=github_actions` preserved.
    - attempted dedicated workflow dispatch (`dev_full_m1_packaging.yml`) was blocked by GitHub default-branch workflow discovery posture.
    - fail-closed fallback used: execute default-branch managed workflow (`dev_min_m1_packaging.yml`) against `ref=migrate-dev` with dev_full ECR handles.
+   - naming clarification: `dev_min_m1_packaging.yml` is a shared managed carrier workflow name; dev_full semantics come from `secret_contract_profile=dev_full` and dev_full handle set.
 2. Managed run evidence:
    - failed run (permission blocker): `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22284036943`
    - passing run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22284070905`
@@ -496,6 +497,7 @@ M1.D execution closure (2026-02-22):
 1. Managed execution carrier:
    - workflow id: `dev_min_m1_packaging` (executed on `ref=migrate-dev`).
    - security profile: `secret_contract_profile=dev_full`.
+   - naming clarification: workflow id name is legacy/shared; effective posture is dev_full via profile + handles, not dev_min runtime semantics.
 2. Authoritative pass run:
    - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22284273953`
    - platform run id: `platform_20260222T200115Z`.

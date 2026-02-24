@@ -6148,3 +6148,129 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 ### Rationale
 1. This closure is cost-safe for compute/network runtime accrual while preserving run evidence.
 2. If full-zero residual is later required, perform controlled versioned-object purge on `fraud-platform-dev-full-evidence` and rerun core destroy.
+
+## Entry: 2026-02-24 07:17:08 +00:00 - Rematerialization requested before next phase planning
+
+### Trigger
+1. User returned and requested bringing the stack back up before planning/execution.
+
+### Decision
+1. Rematerialize full `dev_full` substrate in dependency-safe order:
+   - `core -> streaming -> runtime -> data_ml -> ops`.
+2. Use managed Terraform lane with explicit backend config per stack and plan/apply evidence capture.
+3. Keep fail-closed posture:
+   - if any stack init/plan/apply fails, stop phase-start claims and report blocker immediately.
+
+### Why this order
+1. `streaming` reads `core` network/state outputs.
+2. `runtime` depends on `core` and `streaming` surfaces.
+3. `data_ml` and `ops` can be materialized after base substrate without breaking dependency chain.
+
+### Execution evidence path
+1. New run root will be created under:
+   - `runs/dev_substrate/dev_full/rematerialize/<execution_id>/`
+2. Per-stack logs and summary JSON will be emitted there for audit trace.
+
+## Entry: 2026-02-24 16:53:12 +00:00 - Rematerialization blocker encountered and remediation pinned
+
+### Blocker
+1. `core` plan failed before apply:
+   - Terraform could not write plan file when using `terraform -chdir=... plan -out=<workspace-relative path>`.
+2. Error was deterministic:
+   - path resolution occurs relative to module working dir under `-chdir`, so the workspace-relative output path was invalid from that context.
+
+### Decision
+1. Fail-closed and stop stack progression (no partial apply beyond failed stack).
+2. Remediate by forcing absolute planfile/output paths for all stacks in rematerialization runner.
+
+### Why this remediation
+1. Keeps evidence paths stable in workspace while avoiding module-relative path ambiguity.
+2. Preserves single-run auditable logs and deterministic rerun behavior.
+
+## Entry: 2026-02-24 17:06:06 +00:00 - Dev_full rematerialization rerun closed green
+
+### Execution summary
+1. Authoritative rematerialization run:
+   - `runs/dev_substrate/dev_full/rematerialize/rematerialize_20260224T165343Z/`
+2. Overall result:
+   - `overall_pass=true`.
+3. Stack order executed and closed:
+   - `core` PASS,
+   - `streaming` PASS,
+   - `runtime` PASS,
+   - `data_ml` PASS,
+   - `ops` PASS.
+
+### What changed in remediation run
+1. Plan/apply runner switched to absolute artifact paths for:
+   - `*.tfplan`,
+   - log files,
+   - outputs json.
+2. This resolved the initial planfile write failure under `terraform -chdir`.
+
+### Runtime surface verification after apply
+1. EKS:
+   - `fraud-platform-dev-full` present.
+2. MSK:
+   - `fraud-platform-dev-full-msk` active (serverless).
+3. Ingress edge/runtime:
+   - Lambda `fraud-platform-dev-full-ig-handler` present,
+   - API Gateway `fraud-platform-dev-full-ig-edge` present,
+   - DynamoDB `fraud-platform-dev-full-ig-idempotency` active.
+
+### Evidence anchors
+1. Summary:
+   - `runs/dev_substrate/dev_full/rematerialize/rematerialize_20260224T165343Z/rematerialize_summary.json`
+2. Per-stack logs and outputs:
+   - same run root contains `*_init.log`, `*_validate.log`, `*_plan.log`, `*_apply.log`, `*_outputs.json`.
+
+### Closure decision
+1. Substrate is back up and in a valid state for next-phase planning/execution.
+2. No rematerialization blocker remains active.
+
+## Entry: 2026-02-24 18:12:22 +00:00 - M0-M5 production-parity audit and M5 guardrail hardening
+
+### Trigger
+1. User requested a pass over M0-M5 build plans to confirm production-parity posture.
+
+### Audit scope and method
+1. Reviewed:
+   - platform.build_plan.md (M0-M5 summary posture),
+   - platform.M0.build_plan.md through platform.M5.build_plan.md,
+   - platform.M5.P3.build_plan.md, platform.M5.P4.build_plan.md.
+2. Checked parity criteria across each phase:
+   - managed-service-first posture,
+   - fail-closed blocker taxonomy,
+   - deterministic evidence and verdict artifacts,
+   - transition/handoff gate integrity,
+   - cost/budget discipline continuity.
+
+### Findings
+1. M0-M4 already carry explicit production-pattern posture and deterministic fail-closed closure.
+2. M5 functional coverage was solid (P3/P4 lanes explicit) but phase-level cost-outcome gating was not explicitly wired into M5 exit criteria.
+3. M1 had a naming ambiguity risk (dev_min_m1_packaging) that could be misread as semantic dev_min coupling, despite dev_full profile/handles being used.
+
+### Decisions
+1. Harden M5 by making phase-budget envelope and cost-outcome receipt mandatory closure artifacts.
+2. Keep existing shared CI carrier workflow name in M1, but explicitly document that semantics are dev_full via profile+handles.
+
+### Changes applied
+1. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md
+   - M5 planned lanes now include phase-budget/cost-outcome gating.
+   - M5 DoD anchors now include budget/outcome artifact requirement.
+2. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md
+   - Added M5 purpose requirement for phase-budget/cost-outcome posture.
+   - Added anti-cram lane + coverage matrix row for cost-outcome guardrail.
+   - Extended M5.J tasks/DoD with:
+     - phase_budget_envelope.json,
+     - phase_cost_outcome_receipt.json,
+     - hard-stop semantics when required outcome is missing.
+   - Extended blocker taxonomy (M5-B11, M5-B12).
+   - Extended evidence contract, checklist, and exit criteria with budget/cost artifacts.
+3. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M1.build_plan.md
+   - Added explicit clarification that dev_min_m1_packaging is shared workflow naming only; dev_full semantics are enforced by secret_contract_profile=dev_full and dev_full handles.
+
+### Post-change parity posture (M0-M5)
+1. Production-pattern direction remains consistent and explicit.
+2. M5 now has both functional readiness and cost-outcome closure gating for production-parity discipline.
+3. No semantic ambiguity remains on M1 workflow naming posture.
