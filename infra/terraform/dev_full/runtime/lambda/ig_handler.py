@@ -27,7 +27,7 @@ def lambda_handler(event, _context):
         elif path.startswith(f"{stage_prefix}/"):
             path = path[len(stage_prefix) :]
 
-    if method == "GET" and path == "/v1/ops/health":
+    if method == "GET" and path == "/ops/health":
         return _response(
             200,
             {
@@ -38,7 +38,7 @@ def lambda_handler(event, _context):
             },
         )
 
-    if method == "POST" and path == "/v1/ingest/push":
+    if method == "POST" and path == "/ingest/push":
         table = os.getenv("IG_IDEMPOTENCY_TABLE", "unset")
         return _response(
             202,

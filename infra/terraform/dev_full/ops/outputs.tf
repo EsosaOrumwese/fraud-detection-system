@@ -26,6 +26,10 @@ output "ssm_redis_endpoint_path" {
   value = aws_ssm_parameter.redis_endpoint.name
 }
 
+output "cloudwatch_runtime_bootstrap_log_group" {
+  value = aws_cloudwatch_log_group.runtime_bootstrap.name
+}
+
 output "ops_handle_materialization" {
   value = {
     ROLE_MWAA_EXECUTION             = aws_iam_role.mwaa_execution.arn
@@ -35,5 +39,7 @@ output "ops_handle_materialization" {
     SSM_AURORA_USERNAME_PATH        = aws_ssm_parameter.aurora_username.name
     SSM_AURORA_PASSWORD_PATH        = aws_ssm_parameter.aurora_password.name
     SSM_REDIS_ENDPOINT_PATH         = aws_ssm_parameter.redis_endpoint.name
+    CLOUDWATCH_LOG_GROUP_PREFIX     = var.cloudwatch_log_group_prefix
+    CLOUDWATCH_RUNTIME_BOOTSTRAP_LG = aws_cloudwatch_log_group.runtime_bootstrap.name
   }
 }

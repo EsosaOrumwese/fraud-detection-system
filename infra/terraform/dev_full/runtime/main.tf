@@ -332,13 +332,13 @@ resource "aws_apigatewayv2_integration" "ig_lambda" {
 
 resource "aws_apigatewayv2_route" "ig_ingest_push" {
   api_id    = aws_apigatewayv2_api.ig_edge.id
-  route_key = "POST /v1/ingest/push"
+  route_key = "POST /ingest/push"
   target    = "integrations/${aws_apigatewayv2_integration.ig_lambda.id}"
 }
 
 resource "aws_apigatewayv2_route" "ig_health" {
   api_id    = aws_apigatewayv2_api.ig_edge.id
-  route_key = "GET /v1/ops/health"
+  route_key = "GET /ops/health"
   target    = "integrations/${aws_apigatewayv2_integration.ig_lambda.id}"
 }
 

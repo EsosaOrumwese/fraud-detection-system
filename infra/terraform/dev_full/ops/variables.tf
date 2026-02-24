@@ -88,3 +88,13 @@ variable "redis_endpoint_seed" {
   type    = string
   default = "fraud-platform-dev-full-redis.cache.amazonaws.com:6379"
 }
+
+variable "cloudwatch_log_group_prefix" {
+  type    = string
+  default = "/fraud-platform/dev_full"
+}
+
+variable "log_retention_days" {
+  type    = number
+  default = 14
+}

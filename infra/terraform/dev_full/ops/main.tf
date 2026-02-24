@@ -116,3 +116,12 @@ resource "aws_ssm_parameter" "redis_endpoint" {
     fp_resource = "redis_endpoint"
   })
 }
+
+resource "aws_cloudwatch_log_group" "runtime_bootstrap" {
+  name              = "${var.cloudwatch_log_group_prefix}/runtime-bootstrap"
+  retention_in_days = var.log_retention_days
+
+  tags = merge(local.common_tags, {
+    fp_resource = "runtime_bootstrap_log_group"
+  })
+}

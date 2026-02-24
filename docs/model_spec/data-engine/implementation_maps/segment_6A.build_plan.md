@@ -428,41 +428,55 @@ Goal:
 
 ##### POPT.1R.0 - Recovery design lock
 Definition of done:
-- [ ] Recovery scope pinned to `S3` implementation only (no policy/threshold edits).
-- [ ] Candidate edit set ranked by blast radius and expected benefit.
-- [ ] Witness protocol pinned:
+- [x] Recovery scope pinned to `S3` implementation only (no policy/threshold edits).
+- [x] Candidate edit set ranked by blast radius and expected benefit.
+- [x] Witness protocol pinned:
   - quick gate: fresh-lane `S3` witness only,
   - full gate: `S3 -> S4 -> S5` only if quick gate improves.
 
 ##### POPT.1R.1 - Allocation/emit mechanic rollback-to-fast baseline
 Definition of done:
-- [ ] Replace high-overhead `S3` candidate allocation/emit mechanics with lower-overhead deterministic path:
+- [x] Replace high-overhead `S3` candidate allocation/emit mechanics with lower-overhead deterministic path:
   - remove block-slicing scheme-assignment inner path if it is hotspot-regressive,
   - restore compact row-emit mechanics that are known-fast on this workload.
-- [ ] Preserve deterministic ordering, schema, RNG counters/events, and fail-closed checks.
-- [ ] Compile and static checks pass for updated runner.
+- [x] Preserve deterministic ordering, schema, RNG counters/events, and fail-closed checks.
+- [x] Compile and static checks pass for updated runner.
 
 ##### POPT.1R.2 - Quick witness (`S3` only)
 Definition of done:
-- [ ] Fresh run-id staged under `runs/fix-data-engine/segment_6A/` with required `S0/S1/S2` prerequisites.
-- [ ] Execute `S3` only and collect `s3_perf_events_6A.jsonl`.
-- [ ] Gate:
+- [x] Fresh run-id staged under `runs/fix-data-engine/segment_6A/` with required `S0/S1/S2` prerequisites.
+- [x] Execute `S3` only and collect `s3_perf_events_6A.jsonl`.
+- [x] Gate:
   - `S3_total` and `allocate_instruments` must improve vs `POPT.1` failed witness,
   - if no improvement: `HOLD_POPT1R` (stop before `S4/S5`).
 
 ##### POPT.1R.3 - Full witness (`S3 -> S4 -> S5`)
 Definition of done:
-- [ ] Execute downstream chain only after `POPT.1R.2` quick gate passes.
-- [ ] Verify no schema/idempotence regressions on `S4/S5`.
-- [ ] Emit full `perf_summary_6A.json` / `perf_budget_check_6A.json` for candidate run.
+- [x] Execute downstream chain only after `POPT.1R.2` quick gate passes.
+- [x] Verify no schema/idempotence regressions on `S4/S5`.
+- [x] Emit full `perf_summary_6A.json` / `perf_budget_check_6A.json` for candidate run.
 
 ##### POPT.1R.4 - Closure decision
 Definition of done:
-- [ ] Compare candidate vs `POPT.0` witness and primary baseline (`c25`) with explicit deltas.
-- [ ] Decision recorded as one of:
+- [x] Compare candidate vs `POPT.0` witness and primary baseline (`c25`) with explicit deltas.
+- [x] Decision recorded as one of:
   - `UNLOCK_POPT2` (recovery successful),
   - `HOLD_POPT1R` (insufficient improvement),
   - `REVERT_POPT1R` (regression/contract risk).
+
+POPT.1R closure evidence (`run_id=b68127889d454dc4ac0ae496475c99c5`, staged from `2204694f83dc4bc7bfa5d04274b9f211`):
+- Quick gate (`S3` only):
+  - `S3_total=418.172s` vs failed `POPT.1` witness `433.266s` (`-3.48%`),
+  - `S3.allocate_instruments=385.203s` vs failed `400.703s` (`-3.87%`).
+  - Quick gate passed (improved vs failed witness), so full gate executed.
+- Full gate (`S3 -> S4 -> S5`) totals:
+  - `S3=418.172s` vs `POPT.0` `312.109s` (`+33.98%`),
+  - `S4=103.000s` vs `POPT.0` `85.969s` (`+19.81%`),
+  - `S5=1015.500s` vs `POPT.0` `231.391s` (`+338.87%`).
+  - Segment perf budget remains failed (`1536.672s` vs budget `540s`).
+- Decision:
+  - `HOLD_POPT1R` (insufficient recovery; still materially above `POPT.0`/primary baseline).
+  - `POPT.2` remains blocked.
 
 #### POPT.2 - `S5` validation-scan fusion + collect minimization
 Definition of done:

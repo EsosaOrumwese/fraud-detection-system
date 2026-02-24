@@ -468,6 +468,8 @@ M4 planning posture:
 - `M4.A` has been expanded with handle-closure decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M4.B` has been expanded with runtime-path selection decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M4.C` has been expanded with identity/IAM decision-completeness precheck, verification command catalog, blocker taxonomy, and evidence/closure contract.
+- `M4.D` has been expanded with dependency-matrix precheck, probe command catalog, blocker taxonomy, and evidence/closure contract.
+- `M4.E` has been expanded with runtime-health/run-scope precheck, managed-surface health catalog, blocker taxonomy, and evidence/closure contract.
 - `M4.A` execution is now closed (`PASS`):
   - `runs/dev_substrate/dev_full/m4/m4a_20260224T043334Z/m4a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
   - closure snapshot and required-handle matrix published durably.
@@ -484,11 +486,21 @@ M4 planning posture:
   - blocked attempt retained: `m4c_20260224T050409Z` (`M4C-B2/M4C-B4/M4C-B6`).
   - remediation closure run: `runs/dev_substrate/dev_full/m4/m4c_20260224T051711Z/m4c_execution_summary.json` (`overall_pass=true`, blockers=`0`).
   - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4c_20260224T051711Z/`
-- Current phase posture: execution active with `M4.A/M4.B/M4.C` closed green.
+- M4.D execution closure (`PASS`):
+  - blocked attempt retained: `m4d_20260224T054113Z` (`M4D-B3` stale handle drift, `M4D-B5` missing observability surface).
+  - remediation closure run: `runs/dev_substrate/dev_full/m4/m4d_20260224T054449Z/m4d_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4d_20260224T054449Z/`
+- M4.E execution closure (`PASS`):
+  - blocked attempts retained:
+    - `m4e_20260224T055735Z` (`M4E-B2/M4E-B3`, templated ingress base-url drift),
+    - `m4e_20260224T055944Z` (`M4E-B2/M4E-B3`, stage+route double-prefix `/v1/v1` drift).
+  - remediation closure run: `runs/dev_substrate/dev_full/m4/m4e_20260224T060311Z/m4e_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4e_20260224T060311Z/`
+- Current phase posture: execution active with `M4.A/M4.B/M4.C/M4.D/M4.E` closed green.
 
 DoD anchors:
-- [ ] required spine runtime lanes are healthy.
-- [ ] run-scope bindings are validated.
+- [x] required spine runtime lanes are healthy.
+- [x] run-scope bindings are validated.
 - [ ] runtime readiness snapshot committed.
 
 Deep plan:
@@ -498,8 +510,8 @@ M4 sub-phase progress:
 - [x] `M4.A` authority and handle closure.
 - [x] `M4.B` runtime-path pinning and lane manifest freeze.
 - [x] `M4.C` identity/IAM conformance.
-- [ ] `M4.D` network/dependency reachability.
-- [ ] `M4.E` runtime health and run-scope binding.
+- [x] `M4.D` network/dependency reachability.
+- [x] `M4.E` runtime health and run-scope binding.
 - [ ] `M4.F` correlation and telemetry continuity.
 - [ ] `M4.G` failure/recovery/rollback runtime drill.
 - [ ] `M4.H` runtime readiness evidence publication.

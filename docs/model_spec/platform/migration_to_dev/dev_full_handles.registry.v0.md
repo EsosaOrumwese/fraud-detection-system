@@ -254,10 +254,10 @@ Allowed tokens in pattern handles:
 ### 4.1 MSK cluster identity
 
 * `MSK_CLUSTER_NAME = "fraud-platform-dev-full-msk"`
-* `MSK_CLUSTER_ARN = "arn:aws:kafka:eu-west-2:230372904534:cluster/fraud-platform-dev-full-msk/a38adf23-ea5e-4c99-a4cd-109afb1530a8-s3"` (materialized in M2.C)
-* `MSK_BOOTSTRAP_BROKERS_SASL_IAM = "boot-6zhso8cu.c3.kafka-serverless.eu-west-2.amazonaws.com:9098"` (materialized in M2.C)
-* `MSK_CLIENT_SUBNET_IDS = ["subnet-0f78c51075c563f8b","subnet-02a2247be3765e842"]` (materialized in M2.B)
-* `MSK_SECURITY_GROUP_ID = "sg-07b93e3d50bacea7d"` (materialized in M2.B)
+* `MSK_CLUSTER_ARN = "arn:aws:kafka:eu-west-2:230372904534:cluster/fraud-platform-dev-full-msk/c58f0077-4969-4672-8b25-926811fb3605-s2"` (repinned in M4.D remediation from streaming outputs)
+* `MSK_BOOTSTRAP_BROKERS_SASL_IAM = "boot-tej65v2u.c2.kafka-serverless.eu-west-2.amazonaws.com:9098"` (repinned in M4.D remediation from streaming outputs)
+* `MSK_CLIENT_SUBNET_IDS = ["subnet-0b54b3bdcff73c032","subnet-044dda2e0c31f90e8"]` (repinned in M4.D remediation from streaming outputs)
+* `MSK_SECURITY_GROUP_ID = "sg-0d9cec2f73764196f"` (repinned in M4.D remediation from streaming outputs)
 
 ### 4.2 Secret path handles (MSK)
 
@@ -394,7 +394,7 @@ Allowed tokens in pattern handles:
 
 * `IG_EDGE_MODE = "apigw_lambda_ddb"`
 * `APIGW_IG_API_NAME = "fraud-platform-dev-full-ig-edge"`
-* `APIGW_IG_API_ID = "uzseb23517"` (materialized in M2.E)
+* `APIGW_IG_API_ID = "l3f3x3zr2l"` (repinned in M4.D remediation from runtime outputs)
 * `APIGW_IG_STAGE = "v1"`
 * `LAMBDA_IG_HANDLER_NAME = "fraud-platform-dev-full-ig-handler"`
 * `DDB_IG_IDEMPOTENCY_TABLE = "fraud-platform-dev-full-ig-idempotency"`
@@ -434,14 +434,15 @@ Allowed tokens in pattern handles:
 
 ### 7.7 Service discovery and ingress handles
 
-* `IG_BASE_URL = "https://{api_id}.execute-api.eu-west-2.amazonaws.com/v1"`
+* `IG_BASE_URL = "https://l3f3x3zr2l.execute-api.eu-west-2.amazonaws.com/v1"`
 * `IG_BASE_URL_EKS_FALLBACK = "http://ig.fraud-platform-ingress.svc.cluster.local:8080"`
 * `IG_LISTEN_ADDR = "0.0.0.0"`
 * `IG_PORT = 8080`
-* `IG_INGEST_PATH = "/v1/ingest/push"`
-* `IG_HEALTHCHECK_PATH = "/v1/ops/health"`
+* `IG_INGEST_PATH = "/ingest/push"`
+* `IG_HEALTHCHECK_PATH = "/ops/health"`
 * `IG_AUTH_MODE = "api_key"`
 * `IG_AUTH_HEADER_NAME = "X-IG-Api-Key"`
+* `SSM_IG_API_KEY_PATH = "/fraud-platform/dev_full/ig/api_key"`
 
 ### 7.8 Runtime control knobs
 

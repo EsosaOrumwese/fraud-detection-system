@@ -431,25 +431,270 @@ Tasks:
 4. publish dependency conformance snapshot.
 
 DoD:
-- [ ] dependency matrix covers all pinned runtime lanes.
-- [ ] required dependency checks pass.
-- [ ] probe evidence is committed locally and durably.
+- [x] dependency matrix covers all pinned runtime lanes.
+- [x] required dependency checks pass.
+- [x] probe evidence is committed locally and durably.
+
+M4.D planning precheck (decision completeness):
+1. Required upstream dependency:
+   - latest M4.C execution summary is PASS (`m4c_20260224T051711Z`).
+2. Runtime lane/source dependency manifest is fixed:
+   - `runs/dev_substrate/dev_full/m4/m4b_20260224T044454Z/m4b_runtime_path_manifest.json`.
+3. Required dependency handles are explicit and pinned:
+   - stream/control surfaces:
+     - `MSK_CLUSTER_ARN`
+     - `SSM_MSK_BOOTSTRAP_BROKERS_PATH`
+     - `FP_BUS_CONTROL_V1` + RTDL/case/audit topic handles
+   - storage surfaces:
+     - `S3_OBJECT_STORE_BUCKET`
+     - `S3_EVIDENCE_BUCKET`
+     - `S3_ARTIFACTS_BUCKET`
+   - ingress/runtime surfaces:
+     - `APIGW_IG_API_ID`
+     - `LAMBDA_IG_HANDLER_NAME`
+     - `EKS_CLUSTER_ARN`
+   - datastore dependency surfaces:
+     - `SSM_AURORA_ENDPOINT_PATH`
+     - `SSM_AURORA_READER_ENDPOINT_PATH`
+     - `SSM_AURORA_USERNAME_PATH`
+     - `SSM_AURORA_PASSWORD_PATH`
+     - `SSM_REDIS_ENDPOINT_PATH`
+   - observability surfaces:
+     - `CLOUDWATCH_LOG_GROUP_PREFIX`
+     - `OTEL_COLLECTOR_SERVICE`
+4. Probe output hygiene requirement:
+   - secret values are never emitted in cleartext artifacts (metadata-only on secure paths).
+
+M4.D decision pins (closed before execution):
+1. Active-lane-only dependency law:
+   - probe scope is derived from active paths in M4.B; inactive fallbacks are excluded.
+2. Handle-anchored probe law:
+   - dependency probes must target registry-pinned handle surfaces only (no inferred endpoints).
+3. Bounded probe law:
+   - each probe has bounded timeout + deterministic failure classification.
+4. Secret-safe evidence law:
+   - probe artifacts may include path/key references and status only; secret payload values are forbidden.
+5. Deterministic classification law:
+   - each failed probe must map to an explicit blocker code/category; no uncategorized failure states.
+
+M4.D verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M4D-V1-M4C-GATE` | verify `runs/dev_substrate/dev_full/m4/m4c_20260224T051711Z/m4c_execution_summary.json` has `overall_pass=true` | enforces M4.D entry gate |
+| `M4D-V2-DEPENDENCY-MATRIX-BUILD` | derive lane->dependency matrix from M4.B manifest + pinned handles | ensures complete dependency scope before probing |
+| `M4D-V3-STREAM-EDGE-STORAGE-PROBES` | `aws kafka describe-cluster-v2 ...`; `aws s3api head-bucket ...`; `aws apigatewayv2 get-api ...`; `aws lambda get-function ...` | validates stream/edge/storage control-plane reachability |
+| `M4D-V4-DATASTORE-PROBE` | `aws ssm get-parameter --name <aurora/redis paths> --with-decryption` + endpoint sanity checks | validates datastore dependency path readiness without leaking values |
+| `M4D-V5-OBS-PROBE` | `aws logs describe-log-groups --log-group-name-prefix <CLOUDWATCH_LOG_GROUP_PREFIX>` | validates observability dependency surface |
+| `M4D-V6-PUBLISH` | `aws s3 cp <local_snapshot> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m4d_execution_id>/...` | publishes durable M4.D evidence |
+
+M4.D blocker taxonomy (fail-closed):
+1. `M4D-B1`: M4.C gate missing/non-pass.
+2. `M4D-B2`: dependency matrix incomplete/inconsistent with active lane manifest.
+3. `M4D-B3`: stream/edge/storage dependency probe failure.
+4. `M4D-B4`: datastore dependency unresolved/placeholder/non-routable.
+5. `M4D-B5`: observability dependency surface missing/unreadable.
+6. `M4D-B6`: uncategorized probe failure or invalid failure classification.
+7. `M4D-B7`: durable publish/readback failure for M4.D artifacts.
+8. `M4D-B8`: secret/credential value leakage detected in probe artifacts.
+
+M4.D evidence contract (planned):
+1. `m4d_dependency_matrix.json`
+2. `m4d_dependency_probe_snapshot.json`
+3. `m4d_probe_failure_classification.json`
+4. `m4d_execution_summary.json`
+
+M4.D closure rule:
+1. M4.D can close only when:
+   - all `M4D-B*` blockers are resolved,
+   - DoD checks are green,
+   - probe artifacts exist locally and durably,
+   - dependency matrix covers all active lanes and mandatory shared dependencies.
+
+M4.D planning status (historical pre-execution snapshot):
+1. Prerequisite M4.C is closed green.
+2. M4.D is expanded to execution-grade with probe catalog, blocker taxonomy, and evidence contract.
+3. Known likely pre-execution blockers to verify at runtime:
+   - datastore endpoint seeds may still be placeholder/non-routable and can raise `M4D-B4`.
+   - observability surfaces may be partially materialized before runtime-lane start and can raise `M4D-B5`.
+4. Phase posture:
+   - planning expanded (execution status recorded below).
+
+M4.D execution status (2026-02-24):
+1. Attempt #1 (authoritative fail-closed):
+   - execution id: `m4d_20260224T054113Z`
+   - local evidence: `runs/dev_substrate/dev_full/m4/m4d_20260224T054113Z/`
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4d_20260224T054113Z/`
+   - result: `overall_pass=false`, `blockers=[M4D-B3,M4D-B5]`, `next_gate=BLOCKED`.
+   - blocker details:
+     - `M4D-B3`: stale handle drift (`MSK_CLUSTER_ARN`, `APIGW_IG_API_ID`) resolved to deleted resources.
+     - `M4D-B5`: no log groups under `CLOUDWATCH_LOG_GROUP_PREFIX`.
+2. Remediation actions executed:
+   - repinned streaming/ingress handles in registry from current Terraform outputs:
+     - `MSK_CLUSTER_ARN`
+     - `MSK_BOOTSTRAP_BROKERS_SASL_IAM`
+     - `MSK_CLIENT_SUBNET_IDS`
+     - `MSK_SECURITY_GROUP_ID`
+     - `APIGW_IG_API_ID`
+   - materialized observability bootstrap surface via IaC:
+     - added `aws_cloudwatch_log_group.runtime_bootstrap` in `infra/terraform/dev_full/ops/main.tf`
+     - applied ops stack to create `/fraud-platform/dev_full/runtime-bootstrap` with retention `14`.
+3. Attempt #2 (authoritative closure run):
+   - execution id: `m4d_20260224T054449Z`
+   - local evidence: `runs/dev_substrate/dev_full/m4/m4d_20260224T054449Z/`
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4d_20260224T054449Z/`
+   - result: `overall_pass=true`, `blockers=[]`, `next_gate=M4.D_READY`.
+   - key metrics:
+     - `active_lane_count=5`
+     - `matrix_complete_pass=true`
+     - `probe_count=16`
+     - `failed_probe_count=0`
+4. M4.D closure posture:
+   - `M4.D` is closed green.
 
 ### M4.E Runtime Health + Run-Scope Binding
 Goal:
 1. prove required runtime lanes are healthy and run-scope aware.
 
 Tasks:
-1. capture runtime lane health snapshots.
-2. validate run-scope env conformance (`REQUIRED_PLATFORM_RUN_ID` and related fields).
-3. validate singleton/desired-count posture as pinned for M4.
-4. publish runtime health + binding snapshot.
+1. capture runtime lane health snapshots for all active M4.B lanes.
+2. validate run-scope binding conformance against M3 run identity (`platform_run_id`, `scenario_run_id`).
+3. validate runtime stability posture for managed surfaces (no failed-active state at P2).
+4. publish runtime health + binding snapshots locally and durably.
 
 DoD:
-- [ ] required runtime lanes report healthy posture.
-- [ ] run-scope binding checks pass.
-- [ ] no crashloop/unbounded restart remains.
-- [ ] snapshot is durable.
+- [x] required runtime lanes report healthy posture.
+- [x] run-scope binding checks pass.
+- [x] no crashloop/unbounded restart remains.
+- [x] snapshot is durable.
+
+M4.E planning precheck (decision completeness):
+1. Required upstream dependencies:
+   - latest M4.D execution summary is PASS (`m4d_20260224T054449Z`),
+   - M3 handoff pack is readable (`runs/dev_substrate/dev_full/m3/m3f_20260223T224855Z/m4_handoff_pack.json`).
+2. Active lane manifest is fixed by M4.B:
+   - `runs/dev_substrate/dev_full/m4/m4b_20260224T044454Z/m4b_runtime_path_manifest.json`.
+3. Required runtime health handles are explicit and pinned:
+   - stream lane:
+     - `MSK_CLUSTER_ARN`
+     - `SSM_MSK_BOOTSTRAP_BROKERS_PATH`
+     - `ROLE_FLINK_EXECUTION`
+   - ingress edge lane:
+     - `APIGW_IG_API_ID`
+     - `IG_BASE_URL`
+     - `IG_HEALTHCHECK_PATH`
+     - `IG_INGEST_PATH`
+     - `LAMBDA_IG_HANDLER_NAME`
+     - `DDB_IG_IDEMPOTENCY_TABLE`
+     - `SSM_IG_API_KEY_PATH`
+   - differentiating-services lane:
+     - `EKS_CLUSTER_ARN`
+     - `ROLE_EKS_IRSA_IG`
+     - `ROLE_EKS_IRSA_RTDL`
+     - `ROLE_EKS_IRSA_DECISION_LANE`
+     - `ROLE_EKS_IRSA_CASE_LABELS`
+     - `ROLE_EKS_IRSA_OBS_GOV`
+   - orchestration and observability:
+     - `SFN_PLATFORM_RUN_ORCHESTRATOR_V0`
+     - `CLOUDWATCH_LOG_GROUP_PREFIX`
+4. Required run-scope handles are explicit:
+   - `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`
+   - `FIELD_PLATFORM_RUN_ID`
+   - `KAFKA_PARTITION_KEY_CONTROL`
+5. Artifact safety requirement:
+   - no secret/token plaintext values may appear in M4.E artifacts.
+
+M4.E decision pins (closed before execution):
+1. P2 lane-health boundary law:
+   - P2 health proof is control-plane/runtime-surface readiness for active lanes; P6 holds streaming-active proof.
+2. Active-lane-only scope law:
+   - only M4.B active lanes are probed in M4.E.
+3. Run-scope identity law:
+   - run-scope checks are anchored to M3 handoff identity (`platform_run_id`, `scenario_run_id`) and required env-key handle.
+4. Fail-closed drift law:
+   - any non-active/unhealthy managed surface or run-scope mismatch yields explicit M4E blocker.
+5. Secret-safe evidence law:
+   - secure parameters may be checked for existence/use, but values are never emitted.
+
+M4.E verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M4E-V1-M4D-GATE` | verify `runs/dev_substrate/dev_full/m4/m4d_20260224T054449Z/m4d_execution_summary.json` has `overall_pass=true` | enforces M4.E entry gate |
+| `M4E-V2-LANE-HEALTH-PROBE` | `aws kafka describe-cluster-v2`; `aws apigatewayv2 get-api`; `aws lambda get-function`; `aws dynamodb describe-table`; `aws eks describe-cluster`; `aws stepfunctions describe-state-machine`; `aws logs describe-log-groups` | validates lane health surfaces |
+| `M4E-V3-INGRESS-HEALTH-CHECK` | invoke `GET <IG_BASE_URL><IG_HEALTHCHECK_PATH>` with `X-IG-Api-Key` from `SSM_IG_API_KEY_PATH` | proves ingress edge health endpoint |
+| `M4E-V4-RUN-SCOPE-INGEST-BINDING` | invoke `POST <IG_BASE_URL><IG_INGEST_PATH>` with run-scoped payload carrying `platform_run_id` | validates ingress run-scope carriage path |
+| `M4E-V5-RUN-SCOPE-ORCHESTRATOR-BINDING` | start/describe Step Functions execution with run-scoped input | validates run-scope carriage at commit authority boundary |
+| `M4E-V6-RUNTIME-STABILITY` | evaluate managed surface statuses (`ACTIVE`/`Successful`) and classify failures | enforces no unstable runtime posture |
+| `M4E-V7-SNAPSHOT-WRITE` | emit local `m4e_*` artifacts under `runs/dev_substrate/dev_full/m4/<m4e_execution_id>/` | guarantees local audit surfaces |
+| `M4E-V8-DURABLE-PUBLISH` | `aws s3 cp <local_artifacts> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m4e_execution_id>/...` | publishes durable M4.E evidence |
+
+M4.E blocker taxonomy (fail-closed):
+1. `M4E-B1`: M4.D gate missing/non-pass.
+2. `M4E-B2`: required runtime lane health probe failure.
+3. `M4E-B3`: run-scope binding drift/mismatch.
+4. `M4E-B4`: managed runtime instability detected.
+5. `M4E-B5`: durable publish/readback failure for M4.E artifacts.
+6. `M4E-B6`: secret/credential leakage detected in M4.E artifacts.
+
+M4.E evidence contract (planned):
+1. `m4e_lane_health_snapshot.json`
+2. `m4e_run_scope_binding_matrix.json`
+3. `m4e_runtime_health_binding_snapshot.json`
+4. `m4e_execution_summary.json`
+
+M4.E closure rule:
+1. M4.E can close only when:
+   - all `M4E-B*` blockers are resolved,
+   - DoD checks are green,
+   - lane-health + run-scope artifacts exist locally and durably,
+   - active-lane health verdict is deterministic and blocker-free.
+
+M4.E planning status (historical pre-execution snapshot):
+1. Prerequisite M4.D is closed green.
+2. M4.E has been expanded to execution-grade with explicit pins, verification catalog, blocker taxonomy, and evidence contract.
+3. Execution posture:
+   - ready to execute fail-closed.
+
+M4.E execution status (2026-02-24):
+1. Attempt #1 (authoritative fail-closed):
+   - execution id: `m4e_20260224T055735Z`
+   - local evidence: `runs/dev_substrate/dev_full/m4/m4e_20260224T055735Z/`
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4e_20260224T055735Z/`
+   - result: `overall_pass=false`, `blockers=[M4E-B2,M4E-B3]`, `next_gate=BLOCKED`.
+   - blocker detail:
+     - ingress probes failed because `IG_BASE_URL` remained templated (`{api_id}`) and produced invalid probe endpoints.
+2. Remediation #1 applied:
+   - pinned `SSM_IG_API_KEY_PATH` explicitly in handles registry,
+   - repinned `IG_BASE_URL` from template to concrete endpoint.
+3. Attempt #2 (authoritative fail-closed):
+   - execution id: `m4e_20260224T055944Z`
+   - local evidence: `runs/dev_substrate/dev_full/m4/m4e_20260224T055944Z/`
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4e_20260224T055944Z/`
+   - result: `overall_pass=false`, `blockers=[M4E-B2,M4E-B3]`, `next_gate=BLOCKED`.
+   - blocker detail:
+     - ingress paths returned `404` because API stage `v1` plus route keys prefixed with `/v1` caused effective `/v1/v1/...` drift.
+4. Remediation #2 applied (structural, IaC):
+   - runtime route keys changed to stage-safe paths:
+     - `GET /ops/health`
+     - `POST /ingest/push`
+   - IG Lambda route matching aligned to `/ops/health` and `/ingest/push`.
+   - handle contract aligned:
+     - `IG_BASE_URL = https://<api-id>.execute-api.eu-west-2.amazonaws.com/v1`
+     - `IG_HEALTHCHECK_PATH = /ops/health`
+     - `IG_INGEST_PATH = /ingest/push`.
+5. Attempt #3 (authoritative closure run):
+   - execution id: `m4e_20260224T060311Z`
+   - local evidence: `runs/dev_substrate/dev_full/m4/m4e_20260224T060311Z/`
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4e_20260224T060311Z/`
+   - result: `overall_pass=true`, `blockers=[]`, `next_gate=M4.E_READY`.
+   - key metrics:
+     - `active_lane_count=5`
+     - `healthy_lane_count=5`
+     - `probe_count=19`
+     - `failed_probe_count=0`
+     - `run_scope_pass=true`
+     - `runtime_stability_pass=true`.
+6. M4.E closure posture:
+   - `M4.E` is closed green.
 
 ### M4.F Correlation + Telemetry Continuity
 Goal:
@@ -559,8 +804,8 @@ Any active `M4-B*` blocker prevents M4 closure.
 - [x] M4.A complete
 - [x] M4.B complete
 - [x] M4.C complete
-- [ ] M4.D complete
-- [ ] M4.E complete
+- [x] M4.D complete
+- [x] M4.E complete
 - [ ] M4.F complete
 - [ ] M4.G complete
 - [ ] M4.H complete

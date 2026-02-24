@@ -3559,6 +3559,146 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
 3. `docs/logbook/02-2026/2026-02-23.md`
 
+## Entry: 2026-02-24 05:34:32 +00:00 - M4.D planning expanded (network/dependency reachability)
+
+### Problem statement
+1. `M4.D` was still template-level and could not be executed fail-closed without interpretation drift.
+2. After closing `M4.C`, the next material risk is dependency reachability drift across active runtime lanes.
+3. We needed explicit probe scope, dependency ownership boundaries, blocker taxonomy, and evidence contract before runtime execution.
+
+### Planning decisions made
+1. Expanded `M4.D` in `platform.M4.build_plan.md` with:
+   - decision-completeness precheck,
+   - decision pins,
+   - verification command catalog (`M4D-V1..V6`),
+   - fail-closed blocker taxonomy (`M4D-B1..M4D-B8`),
+   - evidence contract and closure rule,
+   - planning status + likely pre-execution blocker callouts.
+2. Pinned scope law:
+   - probe scope is active-lane-only and derived from `M4.B` manifest.
+3. Pinned safety law:
+   - no secret values in evidence; metadata/path/status only.
+4. Pinned determinism law:
+   - every probe failure must map to explicit blocker category; uncategorized failures are blockers.
+
+### Alternatives considered
+1. Keep M4.D lightweight and discover dependency gaps during M4.E health checks:
+   - rejected; mixes dependency drift with runtime health semantics and weakens failure attribution.
+2. Probe all possible fallback paths in the same run:
+   - rejected; violates active-lane-only law and inflates non-actionable failures.
+3. Probe only active-lane dependencies with explicit failure-classification artifact:
+   - accepted.
+
+### Known likely blockers called out at planning time
+1. `M4D-B4`:
+   - datastore endpoints may exist as seeded placeholders and fail routability sanity checks.
+2. `M4D-B5`:
+   - observability surfaces may be partially materialized before runtime-lane start.
+
+### Plan synchronization
+1. `platform.M4.build_plan.md`:
+   - M4.D expanded to execution-grade.
+2. `platform.build_plan.md`:
+   - M4 posture updated to include M4.D planning expansion and likely blockers.
+
+### Next action
+1. Execute `M4.D` with fail-closed posture and publish `m4d_*` evidence locally + durably.
+
+## Entry: 2026-02-24 05:38:39 +00:00 - M4.D execution start (scope lock + probe strategy)
+
+### Execution scope lock
+1. Execute `M4.D` against active runtime paths from `M4.B`:
+   - `stream_engine=msk_flink`
+   - `ingress_edge=apigw_lambda_ddb`
+   - `differentiating_services=selective_eks_custom_services`
+   - `orchestration_commit_authority=step_functions`
+   - `observability_runtime=cloudwatch_otel`
+2. Enforce entry gate:
+   - `M4.C` pass must be true from `m4c_20260224T051711Z`.
+
+### Probe strategy decision (pre-execution)
+1. Adopt **control-plane dependency reachability** for M4.D:
+   - verify existence/readability/discoverability of dependency surfaces via AWS control APIs and pinned handles.
+   - do not perform application-level in-cluster connectivity checks in M4.D (reserved for M4.E runtime health lane).
+2. Why this strategy:
+   - avoids conflating dependency-surface readiness with runtime-pod health semantics.
+   - preserves clear blocker ownership (`M4D` for surfaces; `M4E` for runtime lane health/binding).
+3. Rejected alternative:
+   - force deep socket reachability from local executor to private Aurora/Redis endpoints in M4.D.
+   - rejected due phase-boundary mismatch and false negatives from execution vantage.
+
+### Expected blocker handling policy
+1. If observability dependency surface is absent (`M4D-B5`):
+   - remediate by materializing a canonical bootstrap log-group surface under `CLOUDWATCH_LOG_GROUP_PREFIX` with pinned retention.
+2. If dependency surfaces are present but seed endpoints are syntactically valid only:
+   - accept for M4.D control-plane readiness,
+   - defer runtime-path socket validity to M4.E/EKS lane checks.
+
+## Entry: 2026-02-24 05:42:08 +00:00 - M4.D attempt #1 blocked; remediation decision pinned
+
+### Attempt #1 outcome
+1. Execution id:
+   - `m4d_20260224T054113Z`
+2. Result:
+   - `overall_pass=false`
+   - `blockers=[M4D-B3,M4D-B5]`
+3. Failure details:
+   - `M4D-B3`:
+     - `MSK_CLUSTER_ARN` in registry no longer exists (`kafka:DescribeClusterV2 NotFoundException`).
+     - `APIGW_IG_API_ID` in registry no longer exists (`apigatewayv2:GetApi NotFoundException`).
+   - `M4D-B5`:
+     - no log groups currently present under `CLOUDWATCH_LOG_GROUP_PREFIX=/fraud-platform/dev_full`.
+
+### Decision and remediation sequence
+1. Treat this as real handle drift, not probe noise.
+2. Remediate drift by repinning registry values from current Terraform outputs:
+   - streaming: `MSK_CLUSTER_ARN`, `MSK_BOOTSTRAP_BROKERS_SASL_IAM`, `MSK_CLIENT_SUBNET_IDS`, `MSK_SECURITY_GROUP_ID`.
+   - runtime: `APIGW_IG_API_ID`.
+3. Remediate observability surface via IaC (not ad-hoc CLI):
+   - add/manage canonical bootstrap log group in `infra/terraform/dev_full/ops`.
+4. Rerun M4.D only after both remediations are applied.
+
+## Entry: 2026-02-24 05:46:16 +00:00 - M4.D remediation applied and closure rerun passed
+
+### Remediation actions executed
+1. Registry drift repin:
+   - updated `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` with current values from materialized stacks:
+     - `MSK_CLUSTER_ARN`
+     - `MSK_BOOTSTRAP_BROKERS_SASL_IAM`
+     - `MSK_CLIENT_SUBNET_IDS`
+     - `MSK_SECURITY_GROUP_ID`
+     - `APIGW_IG_API_ID`
+2. Observability surface materialization by IaC:
+   - added `aws_cloudwatch_log_group.runtime_bootstrap` in `infra/terraform/dev_full/ops/main.tf`
+   - added supporting vars/outputs in:
+     - `infra/terraform/dev_full/ops/variables.tf`
+     - `infra/terraform/dev_full/ops/outputs.tf`
+   - applied ops stack and created:
+     - `/fraud-platform/dev_full/runtime-bootstrap` (retention `14`).
+
+### Closure rerun (authoritative)
+1. Execution id:
+   - `m4d_20260224T054449Z`
+2. Local evidence:
+   - `runs/dev_substrate/dev_full/m4/m4d_20260224T054449Z/`
+3. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4d_20260224T054449Z/`
+4. Result:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `next_gate=M4.D_READY`
+5. Key metrics:
+   - `active_lane_count=5`
+   - `matrix_complete_pass=true`
+   - `probe_count=16`
+   - `failed_probe_count=0`
+
+### Closure decision
+1. `M4.D` is closed green.
+2. Plan sync completed:
+   - `platform.M4.build_plan.md` updated with blocked->remediated->pass trail and M4.D DoD closure.
+   - `platform.build_plan.md` updated to mark `M4.D` complete in M4 sub-phase progress.
+
 ## Entry: 2026-02-24 04:54:33 +00:00 - M4.C planning expanded (identity/IAM conformance)
 
 ### Problem statement
@@ -5156,3 +5296,168 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M3.build_plan.md`
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
 3. `docs/logbook/02-2026/2026-02-23.md`
+
+## Entry: 2026-02-24 05:54:41 +00:00 - M4.E planning expanded to execution-grade
+
+### Problem statement
+1. `M4.E` in the dev_full M4 plan was still template-level and not execution-ready.
+2. We needed explicit closure-grade definitions for lane health and run-scope checks that are consistent with managed-first posture and fail-closed discipline.
+
+### Design decisions pinned before execution
+1. P2 health boundary is pinned to managed runtime-surface/control-plane readiness for active lanes; streaming-active proof remains owned by P6.
+2. M4.E scope is active-lane only and derived from authoritative M4.B runtime path manifest.
+3. Run-scope binding checks are anchored to M3 handoff run identity (`platform_run_id`, `scenario_run_id`) and `REQUIRED_PLATFORM_RUN_ID_ENV_KEY` handle.
+4. Any non-active/unhealthy managed surface or run-scope mismatch is blocker-worthy and fail-closed.
+5. M4.E artifacts are secret-safe by construction (no plaintext secret/token values).
+
+### Planned verification surfaces
+1. Runtime lane health probes across stream/ingress/differentiating-services/orchestration/observability surfaces.
+2. Ingress health endpoint probe and run-scoped ingest payload carriage probe.
+3. Step Functions run-scoped input carriage probe.
+4. Managed runtime stability checks (`ACTIVE`/`Successful` style states).
+5. Durable publication/readback of M4.E artifacts.
+
+### Planned blocker taxonomy
+1. `M4E-B1`: M4.D gate missing/non-pass.
+2. `M4E-B2`: required runtime lane health probe failure.
+3. `M4E-B3`: run-scope binding drift/mismatch.
+4. `M4E-B4`: managed runtime instability detected.
+5. `M4E-B5`: durable publish/readback failure for M4.E artifacts.
+6. `M4E-B6`: secret/credential leakage in artifacts.
+
+### Files updated in this planning step
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`.
+
+### Execution posture
+1. M4.E is now execution-ready and will run fail-closed against live AWS surfaces.
+
+## Entry: 2026-02-24 05:55:00 +00:00 - M4.E execution start (pre-run lock)
+
+### Execution objective
+1. Execute M4.E fail-closed and produce authoritative runtime-health + run-scope evidence for dev_full P2.
+
+### Inputs locked before command execution
+1. M4.D PASS anchor: `m4d_20260224T054449Z`.
+2. Active lane manifest anchor: `m4b_20260224T044454Z`.
+3. M3 handoff run identity anchor: `platform_20260223T184232Z` / `scenario_38753050f3b70c666e16f7552016b330`.
+4. Handle authority: `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+
+### Probe strategy pinned
+1. Health probes will use AWS control-plane readbacks for each active lane.
+2. Ingress health and ingest probes will use API Gateway endpoint with API key sourced from pinned SSM path.
+3. Run-scope orchestrator probe will start an ephemeral Step Functions execution carrying run identity input and verify acceptance/completion.
+4. Evidence output will include lane-health rows, run-scope matrix, aggregate snapshot, and execution summary.
+
+### Fail-closed policy
+1. Any lane-health or binding mismatch becomes explicit blocker (`M4E-B*`) and blocks closure.
+2. Durable publish/readback failure is blocker-worthy.
+3. Secret plaintext values are excluded from artifacts.
+
+## Entry: 2026-02-24 05:55:36 +00:00 - M4.E pre-execution pin closure (`SSM_IG_API_KEY_PATH`)
+
+### Drift detected
+1. M4.E precheck required `SSM_IG_API_KEY_PATH`, but the handles registry only listed the raw path in the secret-path list without an explicit handle assignment.
+
+### Decision
+1. Treat this as decision-completeness gap (fail-closed), not as an execution default.
+2. Materialize explicit handle assignment in registry so M4.E verifier reads one canonical key.
+
+### Patch applied
+1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+   - added: `SSM_IG_API_KEY_PATH = "/fraud-platform/dev_full/ig/api_key"`.
+
+### Execution effect
+1. M4.E ingress-health and ingest-binding probes can now resolve API key source deterministically via named handle.
+
+## Entry: 2026-02-24 05:58:27 +00:00 - M4.E attempt #1 blockers and remediation pin
+
+### Attempt #1 outcome
+1. Executed M4.E as `m4e_20260224T055735Z`.
+2. Result: `overall_pass=false`, blockers `M4E-B2` + `M4E-B3`.
+
+### Root cause
+1. Ingress edge URL handle drift:
+   - `IG_BASE_URL` was still templated (`https://{api_id}.execute-api...`) rather than concrete.
+2. Combined with path handles already containing `/v1/...`, runtime probes formed invalid URLs and ingress health/run-scope carriage checks failed.
+
+### Remediation decision
+1. Treat this as handle-materialization drift (not runtime service failure).
+2. Repin `IG_BASE_URL` to concrete endpoint for the active API (`l3f3x3zr2l`) while preserving existing path handles.
+3. Rerun M4.E immediately for authoritative closure.
+
+### Patch applied
+1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+   - `IG_BASE_URL = "https://l3f3x3zr2l.execute-api.eu-west-2.amazonaws.com"`.
+
+## Entry: 2026-02-24 06:01:05 +00:00 - M4.E ingress routing remediation (structural)
+
+### Issue characterization
+1. M4.E rerun (`m4e_20260224T055944Z`) still failed ingress probes with HTTP 404.
+2. Root cause was structural:
+   - API stage name is `v1`,
+   - route keys were also prefixed with `/v1/...`,
+   - effective public path became `/v1/v1/...`.
+
+### Decision and rationale
+1. Do not normalize this by awkward handle values (`/v1/v1/...`), because that would encode accidental routing drift into authority.
+2. Apply canonical stage-safe routing:
+   - route keys should be `/ops/health` and `/ingest/push`,
+   - stage contributes `/v1` prefix externally.
+3. Align Lambda route matching and handle registry to the canonical shape.
+
+### Patches staged
+1. `infra/terraform/dev_full/runtime/main.tf`
+   - route keys changed to `GET /ops/health`, `POST /ingest/push`.
+2. `infra/terraform/dev_full/runtime/lambda/ig_handler.py`
+   - route matches changed to `/ops/health` and `/ingest/push`.
+3. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+   - `IG_BASE_URL` pinned to stage URL (`.../v1`),
+   - `IG_HEALTHCHECK_PATH=/ops/health`,
+   - `IG_INGEST_PATH=/ingest/push`.
+
+### Next action
+1. Apply runtime Terraform to materialize route/Lambda updates.
+2. Rerun M4.E for authoritative closure.
+
+## Entry: 2026-02-24 06:01:38 +00:00 - M4.E remediation materialized (runtime apply)
+
+### Applied remediation
+1. Executed `terraform plan/apply` in `infra/terraform/dev_full/runtime`.
+2. Materialized ingress route and Lambda updates:
+   - route keys now `GET /ops/health`, `POST /ingest/push`,
+   - Lambda handler route matches aligned.
+
+### Why this closes the blocker class
+1. Removes accidental stage+route double-prefix (`/v1/v1`) behavior.
+2. Restores canonical endpoint model (`<base>/v1` + route path) expected by handle contract.
+
+### Next action
+1. Rerun M4.E immediately for authoritative post-remediation verdict.
+
+## Entry: 2026-02-24 06:04:28 +00:00 - M4.E closure run passed after ingress contract remediation
+
+### Execution chain summary
+1. Attempt #1 `m4e_20260224T055735Z` failed (`M4E-B2/M4E-B3`) due templated `IG_BASE_URL` drift.
+2. Attempt #2 `m4e_20260224T055944Z` failed (`M4E-B2/M4E-B3`) due stage+route double-prefix drift (`/v1/v1/...`).
+3. Applied structural remediation in runtime IaC + Lambda matcher and aligned handle contract.
+4. Attempt #3 `m4e_20260224T060311Z` passed with zero blockers.
+
+### Why closure is valid
+1. Active-lane health probes now pass across all five M4.B lanes.
+2. Run-scope carriage checks pass for ingress payload probe and Step Functions input carriage.
+3. Managed runtime stability checks are green (`MSK/Lambda/DDB/EKS/SFN` active/healthy states).
+4. Artifacts were published locally and durably under run-control prefix.
+
+### Authoritative evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m4/m4e_20260224T060311Z/m4e_execution_summary.json`
+   - `runs/dev_substrate/dev_full/m4/m4e_20260224T060311Z/m4e_lane_health_snapshot.json`
+   - `runs/dev_substrate/dev_full/m4/m4e_20260224T060311Z/m4e_run_scope_binding_matrix.json`
+   - `runs/dev_substrate/dev_full/m4/m4e_20260224T060311Z/m4e_runtime_health_binding_snapshot.json`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4e_20260224T060311Z/`
+
+### Plan synchronization completed
+1. Updated M4 deep plan execution trail and marked M4.E DoDs/checklist complete.
+2. Updated master platform plan posture and sub-phase progress (`M4.E` complete).

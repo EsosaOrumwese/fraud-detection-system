@@ -1640,3 +1640,42 @@ Next step:
 - Execute `POPT.1R.2` quick witness (`S3` only) on a fresh run-id and compare against:
   - `POPT.1` failed witness (`run_id=6a29f01be03f4b509959a9237d2aec76`),
   - `POPT.0` witness (`run_id=2204694f83dc4bc7bfa5d04274b9f211`).
+
+### Entry: 2026-02-24 05:42
+
+POPT.1R execution completed; decision `HOLD_POPT1R`.
+
+Run sequence completed:
+1) Fresh staged run created: `b68127889d454dc4ac0ae496475c99c5`.
+2) Quick witness executed: `S3` only.
+3) Because quick gate improved vs failed witness, full chain executed: `S4 -> S5`.
+4) Perf artifacts emitted and compared to both `POPT.1` failed witness and `POPT.0` witness.
+
+Measured deltas:
+- Quick gate (`S3`):
+  - `S3_total=418.172s` vs failed `433.266s` => `-3.48%`.
+  - `allocate_instruments=385.203s` vs failed `400.703s` => `-3.87%`.
+- Full gate vs `POPT.0`:
+  - `S3 +33.98%` (`418.172s` vs `312.109s`),
+  - `S4 +19.81%` (`103.000s` vs `85.969s`),
+  - `S5 +338.87%` (`1015.500s` vs `231.391s`).
+- Budget posture:
+  - segment elapsed `1536.672s` vs budget `540s` => fail.
+
+Interpretation:
+- The rollback recovered only a small portion of the `S3` regression relative to the failed candidate.
+- The lane remains far from baseline and cannot justify promotion.
+- `S5` remains the dominant unresolved runtime issue and appears orthogonal to this `S3`-only recovery attempt.
+
+Decision:
+- `HOLD_POPT1R` (fail-closed).
+- Keep `POPT.2` blocked.
+- Next viable direction is a new `POPT.1R2` lane focused on isolated `S3` owner-state internals only (or explicitly reopen/triage `S5` owner lane if user chooses to prioritize overall segment budget recovery first).
+
+Retention action:
+- Pruned superseded failed run-id folder from `runs/fix-data-engine/segment_6A/` using keep-set retention.
+- Kept:
+  - `2204694f83dc4bc7bfa5d04274b9f211` (POPT.0 authority),
+  - `b68127889d454dc4ac0ae496475c99c5` (current POPT.1R candidate).
+- Removed:
+  - `6a29f01be03f4b509959a9237d2aec76` (superseded failed POPT.1 witness).
