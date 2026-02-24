@@ -466,7 +466,13 @@ M4 planning posture:
 - Deep plan has been created and expanded to execution-grade coverage across `M4.A..M4.J`.
 - Capability lanes are explicit (handles/runtime-path/IAM/network/health/correlation/drills/evidence/rollup/handoff).
 - `M4.A` has been expanded with handle-closure decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
-- Current phase posture: planning expanded; execution not started.
+- `M4.A` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m4/m4a_20260224T043334Z/m4a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - closure snapshot and required-handle matrix published durably.
+  - remediation trail retained for first-attempt checker naming drift (`M4A-B1`) and closure rerun.
+- M4.A durable mirror:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4a_20260224T043334Z/`
+- Current phase posture: planning expanded; execution started (`M4.A` closed green).
 
 DoD anchors:
 - [ ] required spine runtime lanes are healthy.
@@ -477,7 +483,7 @@ Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
 
 M4 sub-phase progress:
-- [ ] `M4.A` authority and handle closure.
+- [x] `M4.A` authority and handle closure.
 - [ ] `M4.B` runtime-path pinning and lane manifest freeze.
 - [ ] `M4.C` identity/IAM conformance.
 - [ ] `M4.D` network/dependency reachability.

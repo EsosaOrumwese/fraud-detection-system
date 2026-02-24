@@ -104,10 +104,10 @@ Tasks:
 4. classify unresolved required handles as blockers.
 
 DoD:
-- [ ] required M4 handle set is explicit and complete.
-- [ ] every required handle has a verification method.
-- [ ] unresolved required handles are blocker-marked.
-- [ ] M4.A closure snapshot exists locally and durably.
+- [x] required M4 handle set is explicit and complete.
+- [x] every required handle has a verification method.
+- [x] unresolved required handles are blocker-marked.
+- [x] M4.A closure snapshot exists locally and durably.
 
 M4.A planning precheck (decision completeness):
 1. Required handle families for P2 are explicit:
@@ -136,7 +136,7 @@ M4.A decision pins (closed before execution):
 M4.A verification command catalog (planned, execution-time):
 | Verify ID | Command template | Purpose |
 | --- | --- | --- |
-| `M4A-V1-HANDLE-PRESENCE` | `rg -n \"PHASE_RUNTIME_PATH_MODE|PHASE_RUNTIME_PATH_PIN_REQUIRED|RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED|FLINK_RUNTIME_MODE|FLINK_APP_|LAMBDA_IG_HANDLER_NAME|RUNTIME_EKS_USE_POLICY|REQUIRED_PLATFORM_RUN_ID_ENV_KEY|CLOUDWATCH_LOG_GROUP_PREFIX|OTEL_ENABLED\" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` | verifies required handle presence |
+| `M4A-V1-HANDLE-PRESENCE` | `rg -n \"PHASE_RUNTIME_PATH_MODE|PHASE_RUNTIME_PATH_PIN_REQUIRED|RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED|RUNTIME_DEFAULT_STREAM_ENGINE|FLINK_RUNTIME_MODE|FLINK_APP_|LAMBDA_IG_HANDLER_NAME|RUNTIME_EKS_USE_POLICY|REQUIRED_PLATFORM_RUN_ID_ENV_KEY|CLOUDWATCH_LOG_GROUP_PREFIX|OTEL_ENABLED\" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` | verifies required handle presence |
 | `M4A-V2-TO_PIN-GUARD` | parse required handle values and fail on `TO_PIN` within required set | blocks unresolved required handles |
 | `M4A-V3-RUNTIME-PATH-LAW` | assert `PHASE_RUNTIME_PATH_MODE=single_active_path_per_phase_run`, `PHASE_RUNTIME_PATH_PIN_REQUIRED=true`, `RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED=false` | enforces runtime-path contract |
 | `M4A-V4-M3-GATE` | verify `runs/dev_substrate/dev_full/m3/m3j_20260223T233827Z/m3_execution_summary.json` has `verdict=ADVANCE_TO_M4` | enforces M4 entry dependency |
@@ -165,9 +165,31 @@ M4.A closure rule:
 M4.A planning status (current):
 1. Prerequisite M3 closure is complete with `ADVANCE_TO_M4`.
 2. M4.A is expanded to execution-grade with explicit blocker taxonomy and evidence contract.
-3. No pre-execution blockers are known at planning time.
+3. Pre-execution blockers were not known at planning time.
 4. Phase posture:
-   - planning expanded; execution not started.
+   - planning expanded; execution closed green.
+
+M4.A execution status (2026-02-24):
+1. Authoritative execution id:
+   - `m4a_20260224T043334Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m4/m4a_20260224T043334Z/`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4a_20260224T043334Z/`
+4. PASS artifacts:
+   - `m4a_handle_closure_snapshot.json`
+   - `m4a_required_handle_matrix.json`
+   - `m4a_execution_summary.json`
+5. Closure results:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M4.A_READY`
+   - required handles: `33/33` resolved
+   - runtime-path contract: `PASS`
+   - M3 gate dependency (`ADVANCE_TO_M4`): `PASS`
+6. Blocker remediation trail retained:
+   - attempt `m4a_20260224T043207Z` raised `M4A-B1` due checker naming drift (`RUNTIME_DEFAULT_STREAM_LANE` vs canonical `RUNTIME_DEFAULT_STREAM_ENGINE`),
+   - rerun with canonical key closed the blocker without registry semantic duplication.
 
 ### M4.B Runtime Path Selection + Lane Manifest Freeze
 Goal:
@@ -336,7 +358,7 @@ Any active `M4-B*` blocker prevents M4 closure.
 10. `m5_handoff_pack.json`
 
 ## 8) M4 Completion Checklist
-- [ ] M4.A complete
+- [x] M4.A complete
 - [ ] M4.B complete
 - [ ] M4.C complete
 - [ ] M4.D complete

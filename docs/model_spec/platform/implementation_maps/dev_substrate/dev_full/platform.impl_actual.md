@@ -3790,6 +3790,115 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 1. M4.A planning is execution-grade.
 2. Runtime execution for M4.A has not started yet.
 
+## Entry: 2026-02-24 04:31:14 +00:00 - M4.A execution start (pre-run decision lock)
+
+### Objective lock
+1. Execute `M4.A` fully by proving required P2 runtime handles are present, materialized, and aligned to single-active-path law.
+2. Emit M4.A closure artifacts locally and durably:
+   - `m4a_handle_closure_snapshot.json`
+   - `m4a_required_handle_matrix.json`
+   - `m4a_execution_summary.json`
+
+### Required handle-set decision (explicit)
+1. I pinned M4.A required-set to P2 runtime boundary only:
+   - runtime-path law handles (`PHASE_RUNTIME_PATH_*`, switch guard),
+   - lane selection handles (stream + ingress + selective EKS policy),
+   - Flink/MSK runtime handles,
+   - ingress edge handles,
+   - required runtime role handles for selected lanes,
+   - run-scope/obs anchors (`REQUIRED_PLATFORM_RUN_ID_ENV_KEY`, `CLOUDWATCH_LOG_GROUP_PREFIX`, `OTEL_*`, correlation fields),
+   - evidence root handles for durable publication.
+2. I intentionally excluded non-P2/future-lane handles (for example learning-lane specifics) from blocker scope to preserve phase-boundary correctness.
+
+### Alternatives considered
+1. Include all registry handles and fail M4.A on any open handle:
+   - rejected; would create false blockers outside P2 scope.
+2. Use a minimal 3-handle runtime-path-only check:
+   - rejected; too weak for M4 lane authority closure.
+3. Use explicit P2 required-set with fail-closed `TO_PIN` guard:
+   - accepted.
+
+### Pre-run checks completed
+1. M3 gate is green and explicit:
+   - `m3_execution_summary.verdict=ADVANCE_TO_M4`.
+2. Evidence bucket handle is present for durable publish.
+
+## Entry: 2026-02-24 04:32:45 +00:00 - M4.A blocker `M4A-B1` observed and remediated
+
+### Blocker observed
+1. Initial M4.A execution attempt `m4a_20260224T043207Z` failed with:
+   - `M4A-B1` (missing required handle).
+2. Missing key in required-set check:
+   - `RUNTIME_DEFAULT_STREAM_LANE`.
+
+### Root cause
+1. Registry canonical key is:
+   - `RUNTIME_DEFAULT_STREAM_ENGINE = "msk_flink"`.
+2. My required-set used `RUNTIME_DEFAULT_STREAM_LANE`, causing a naming-drift false blocker.
+
+### Alternatives considered
+1. Add alias key to registry (`RUNTIME_DEFAULT_STREAM_LANE`) and keep both:
+   - rejected; would introduce duplicate semantics and future drift risk.
+2. Keep required-set unchanged and manually waive blocker:
+   - rejected; violates fail-closed posture.
+3. Correct required-set to canonical registry key (`RUNTIME_DEFAULT_STREAM_ENGINE`) and rerun:
+   - accepted.
+
+### Remediation decision
+1. Treat this as checker naming drift, not platform-runtime drift.
+2. Update execution required-set to canonical key and rerun M4.A closure immediately.
+3. Retain failed attempt artifacts as audit evidence; do not delete.
+
+## Entry: 2026-02-24 04:34:12 +00:00 - M4.A execution closed green after blocker remediation
+
+### Execution path after remediation
+1. Re-ran M4.A using canonical stream runtime handle key:
+   - `RUNTIME_DEFAULT_STREAM_ENGINE`.
+2. Re-evaluated full required P2 handle set:
+   - presence, unresolved `TO_PIN` guard, malformed-value checks.
+3. Revalidated runtime-path law:
+   - `single_active_path_per_phase_run`,
+   - `PHASE_RUNTIME_PATH_PIN_REQUIRED=true`,
+   - `RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED=false`.
+4. Revalidated M3 entry dependency:
+   - `m3_execution_summary.verdict=ADVANCE_TO_M4` and `overall_pass=true`.
+5. Published closure artifacts locally and durably.
+
+### Authoritative result
+1. `phase_execution_id`: `m4a_20260224T043334Z`
+2. `overall_pass=true`
+3. `blockers=[]`
+4. `next_gate=M4.A_READY`
+5. Key metrics:
+   - required handles: `33`,
+   - resolved handles: `33`,
+   - unresolved handles: `0`,
+   - runtime-path contract: `PASS`,
+   - M3 entry gate: `PASS`.
+
+### Audit trail and blocker handling
+1. Failed attempt retained:
+   - `m4a_20260224T043207Z` (`M4A-B1` naming-drift blocker).
+2. Closure attempt:
+   - `m4a_20260224T043334Z` (PASS).
+3. No destructive edits or evidence rewrites were performed between attempts.
+
+### Evidence roots
+1. Local:
+   - `runs/dev_substrate/dev_full/m4/m4a_20260224T043334Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m4a_20260224T043334Z/`
+
+### Plan synchronization
+1. `platform.M4.build_plan.md`:
+   - M4.A DoDs marked complete,
+   - M4.A execution status block appended with blocker-remediation trail,
+   - M4 completion checklist marks M4.A complete.
+2. `platform.build_plan.md`:
+   - M4 posture updated with M4.A PASS evidence + durable mirror,
+   - M4 sub-phase progress marks `M4.A` complete,
+   - phase posture line corrected to `execution started`.
+
 ## Entry: 2026-02-23 23:37:30 +00:00 - M3.J execution start (pre-run decision lock)
 
 ### Objective lock
