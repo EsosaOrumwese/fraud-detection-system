@@ -32,6 +32,7 @@ from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths, resolve_input_path
 from engine.core.time import utc_now_rfc3339_micro
 from engine.core.run_receipt import pick_latest_run_receipt
+from engine.layers.l3.seg_6A.perf import Segment6APerfRecorder
 from engine.layers.l1.seg_1A.s1_hurdle.rng import (
     add_u128,
     low64,
@@ -703,7 +704,17 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
     logger.info(
         "S2: objective=build account base; gated inputs (S0 receipt + sealed inputs + S1 party base + priors/taxonomy) -> outputs s2_account_base_6A + s2_party_product_holdings_6A + optional summary + rng logs"
     )
+    perf = Segment6APerfRecorder(
+        run_paths=run_paths,
+        run_id=run_id_value,
+        seed=int(seed),
+        parameter_hash=parameter_hash,
+        manifest_fingerprint=manifest_fingerprint,
+        state=STATE,
+        logger=logger,
+    )
 
+    step_started = time.monotonic()
     source = ContractSource(config.contracts_root, config.contracts_layout)
     dict_6a_path, dictionary_6a = load_dataset_dictionary(source, "6A")
     reg_6a_path, registry_6a = load_artefact_registry(source, "6A")
@@ -950,6 +961,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         logger.info("S2: product_eligibility_config_6A loaded (lean mode: no additional constraints applied)")
 
     timer.info("S2: priors and taxonomy loaded + schema-validated")
+    perf.record_elapsed("load_contracts_inputs", step_started)
 
     merchant_mode = product_mix.get("merchant_mode") or {}
     if bool(merchant_mode.get("enabled")):
@@ -961,6 +973,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             manifest_fingerprint,
         )
 
+    step_started = time.monotonic()
     party_entry = find_dataset_entry(dictionary_6a, "s1_party_base_6A").entry
     party_path = _resolve_dataset_path(party_entry, run_paths, config.external_roots, tokens)
     party_files = _list_parquet_files(party_path)
@@ -1054,7 +1067,9 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
 
     base_cells = sorted(cell_parties.keys())
     logger.info("S2: loaded party base (total_parties=%d, base_cells=%d)", total_parties, len(base_cells))
+    perf.record_elapsed("load_party_base", step_started)
 
+    step_started = time.monotonic()
     segment_profiles = {
         profile.get("segment_id"): profile
         for profile in segmentation_priors.get("segment_profiles", [])
@@ -1543,6 +1558,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             },
         }
     ]
+    perf.record_elapsed("allocate_accounts", step_started)
 
     account_entry = find_dataset_entry(dictionary_6a, "s2_account_base_6A").entry
     holdings_entry = find_dataset_entry(dictionary_6a, "s2_party_product_holdings_6A").entry
@@ -1568,6 +1584,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
 
     account_id = 1
     account_tracker = _ProgressTracker(total_accounts, logger, "S2: emit s2_account_base_6A")
+    step_started = time.monotonic()
 
     def _flush_account_buffer() -> None:
         nonlocal account_buffer_rows, account_writer
@@ -1648,6 +1665,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         "6A.S2.IO_WRITE_CONFLICT",
         "6A.S2.IO_WRITE_FAILED",
     )
+    perf.record_elapsed("emit_account_base", step_started)
 
     holdings_schema = _schema_from_pack(
         schema_6a,
@@ -1660,6 +1678,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
     holdings_buffer_rows = 0
     holdings_writer = None
     holdings_frames: list[pl.DataFrame] = []
+    step_started = time.monotonic()
 
     holdings_tracker = _ProgressTracker(holdings_rows_total, logger, "S2: emit s2_party_product_holdings_6A")
 
@@ -1711,7 +1730,9 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         "6A.S2.IO_WRITE_CONFLICT",
         "6A.S2.IO_WRITE_FAILED",
     )
+    perf.record_elapsed("emit_holdings", step_started)
 
+    step_started = time.monotonic()
     summary_counts: dict[tuple[str, str, str, str], int] = {}
     for pid in range(1, max_party_id + 1):
         country = party_country[pid]
@@ -1758,11 +1779,13 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         summary_final_path = summary_path
     else:
         logger.warning("S2: summary rows empty; skipping s2_account_summary_6A output")
+    perf.record_elapsed("emit_summary", step_started)
 
     merchant_base_path = None
     if bool(merchant_entry.get("status") == "optional"):
         logger.info("S2: merchant account base not produced (merchant_mode disabled)")
 
+    step_started = time.monotonic()
     rng_audit_entry = {
         "ts_utc": utc_now_rfc3339_micro(),
         "run_id": run_id_value,
@@ -1854,6 +1877,8 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         "6A.S2.IO_WRITE_CONFLICT",
         "6A.S2.IO_WRITE_FAILED",
     )
+    perf.record_elapsed("rng_publish", step_started)
+    perf.write_events(raise_on_error=True)
 
     timer.info("S2: account base generation complete")
     return S2Result(

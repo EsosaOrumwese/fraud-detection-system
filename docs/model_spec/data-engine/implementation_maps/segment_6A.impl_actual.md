@@ -1263,3 +1263,103 @@ Planned `POPT.0` expansion content:
 
 Scope note:
 - This step is planning/docs only; no runtime/algorithm code edits.
+
+### Entry: 2026-02-23 23:12
+
+POPT.0 execution design lock (before code edits).
+
+Problem and blocker:
+- `POPT.0` requires fresh run evidence under `runs/fix-data-engine/segment_6A/<run_id>`.
+- 6A contracts resolve many upstream inputs via run-root-relative `data/layer1/*` and `data/layer2/*` paths.
+- A brand-new fix run root has no upstream artifacts by default, so `S0` would fail input resolution unless we stage or link these surfaces.
+
+Alternatives considered:
+- Run directly in `runs/local_full_run-5`.
+  - Rejected for this lane because POPT witness is explicitly pinned to fix-data-engine run roots.
+- Physically copy full upstream `data/layer1` and `data/layer2`.
+  - Rejected due storage cost and avoidable I/O overhead.
+- Selective file copy of only required datasets.
+  - Viable, but still incurs repeated copy cost and maintenance drift.
+- Link/junction upstream layer roots from baseline run into fresh fix run.
+  - Chosen: lowest storage overhead, deterministic read-only posture, and fast setup for repeated POPT witness runs.
+
+Instrumentation architecture decision:
+- Add shared helper module for Segment 6A performance evidence:
+  - `packages/engine/src/engine/layers/l3/seg_6A/perf.py`
+- Why shared helper:
+  - avoids duplicated per-runner timing/event/file logic,
+  - keeps event schema and artifact paths consistent across `S2/S3/S4/S5`,
+  - centralizes summary + budget-check generation.
+
+Planned instrumentation points:
+- `S2`: `load_contracts_inputs`, `load_party_base`, `allocate_accounts`, `emit_account_base`, `emit_holdings`, `emit_summary`, `rng_publish`.
+- `S3`: `load_contracts_inputs`, `load_account_base`, `plan_counts`, `allocate_instruments`, `emit_instrument_base_links`, `rng_publish`.
+- `S4`: `load_contracts_inputs`, `load_party_base`, `plan_device_counts`, `plan_ip_counts`, `emit_ip_base`, `emit_regions`, `merge_parts`, `rng_publish`.
+- `S5`: `load_contracts_inputs`, `assign_party_roles`, `assign_account_roles`, `assign_merchant_roles`, `assign_device_roles`, `assign_ip_roles`, `validation_checks`, `bundle_publish`, `rng_publish`.
+
+Artifact contract to implement:
+- Per-state events:
+  - `reports/layer3/6A/perf/seed={seed}/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/run_id={run_id}/s{state}_perf_events_6A.jsonl`
+- Aggregate outputs (written in `S5`):
+  - `perf_summary_6A.json`
+  - `perf_budget_check_6A.json`
+
+Runtime budget contract embedded in code:
+- State budgets: `S2=120s`, `S3=180s`, `S4=90s`, `S5=120s`.
+- Segment budget: `540s`.
+
+Execution sequence after code edits:
+1) create fresh run-id under `runs/fix-data-engine/segment_6A/` with run receipt.
+2) stage/link upstream layer roots from `c25` baseline into fresh run.
+3) run `segment6a-s0` -> `segment6a-s5` on this run-id.
+4) verify perf artifacts exist + parse + gate outcome.
+5) update build plan checkboxes and decision (`UNLOCK_POPT1` or `HOLD_POPT0`).
+
+### Entry: 2026-02-23 23:22
+
+POPT.0 implementation pre-edit lock (instrumentation + witness protocol).
+
+Execution intent:
+- Complete POPT.0 fully as an instrumentation-only lane with no policy/algorithm changes.
+- Emit deterministic, machine-readable perf artifacts for S2/S3/S4/S5 under run-scoped `reports/layer3/6A/perf/...`.
+
+Detailed coding decision (final):
+- Introduce shared helper `packages/engine/src/engine/layers/l3/seg_6A/perf.py` to avoid repeated timer/event logic across four runners.
+- Use a single event schema for all states:
+  - run identity: `run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`
+  - step identity: `segment`, `state`, `step`, `sequence`
+  - measurement: `elapsed_s`, `status`, `captured_utc`
+- Record required substeps exactly as pinned in build plan:
+  - S2: `load_contracts_inputs`, `load_party_base`, `allocate_accounts`, `emit_account_base`, `emit_holdings`, `emit_summary`, `rng_publish`
+  - S3: `load_contracts_inputs`, `load_account_base`, `plan_counts`, `allocate_instruments`, `emit_instrument_base_links`, `rng_publish`
+  - S4: `load_contracts_inputs`, `load_party_base`, `plan_device_counts`, `plan_ip_counts`, `emit_ip_base`, `emit_regions`, `merge_parts`, `rng_publish`
+  - S5: `load_contracts_inputs`, `assign_party_roles`, `assign_account_roles`, `assign_merchant_roles`, `assign_device_roles`, `assign_ip_roles`, `validation_checks`, `bundle_publish`, `rng_publish`
+
+Artifact contract implementation:
+- Per-state events:
+  - `.../s2_perf_events_6A.jsonl`
+  - `.../s3_perf_events_6A.jsonl`
+  - `.../s4_perf_events_6A.jsonl`
+  - `.../s5_perf_events_6A.jsonl`
+- Aggregate artifacts (emitted after S5 perf event flush):
+  - `perf_summary_6A.json`
+  - `perf_budget_check_6A.json`
+- Budget constants embedded in helper (POPT.0 gate contract):
+  - state: `S2=120s`, `S3=180s`, `S4=90s`, `S5=120s`
+  - segment: `540s`
+
+Alternative considered and rejected:
+- Add ad-hoc `time.monotonic()` blocks directly in each runner without shared module.
+- Rejected due high drift risk in event field names, output paths, and budget math.
+
+Risk controls:
+- Keep instrumentation isolated to `reports/.../perf` so contract-bound data outputs and validation bundles are unchanged.
+- Leave existing timer/log messages intact; perf events are additive only.
+- Do not modify policy/config thresholds in POPT.0.
+
+Witness execution plan after patch:
+1) fresh run-id under `runs/fix-data-engine/segment_6A/`.
+2) stage upstream layer data roots from baseline `c25` into the fresh run root.
+3) execute `segment6a-s0 -> s5` on the fresh run-id.
+4) verify event + summary + budget artifacts, compare timings to `c25` and `fd0` baselines.
+5) close POPT.0 as `UNLOCK_POPT1` or hold with explicit blocker.

@@ -32,6 +32,7 @@ from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths, resolve_input_path
 from engine.core.time import utc_now_rfc3339_micro
 from engine.core.run_receipt import pick_latest_run_receipt
+from engine.layers.l3.seg_6A.perf import Segment6APerfRecorder
 from engine.layers.l1.seg_1A.s1_hurdle.rng import (
     add_u128,
     low64,
@@ -694,7 +695,17 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     logger.info(
         "S3: objective=build instrument base; gated inputs (S0 receipt + sealed inputs + S1 party base + S2 account base + instrument priors/taxonomy) -> outputs s3_instrument_base_6A + s3_account_instrument_links_6A + rng logs"
     )
+    perf = Segment6APerfRecorder(
+        run_paths=run_paths,
+        run_id=run_id_value,
+        seed=int(seed),
+        parameter_hash=parameter_hash,
+        manifest_fingerprint=manifest_fingerprint,
+        state=STATE,
+        logger=logger,
+    )
 
+    step_started = time.monotonic()
     source = ContractSource(config.contracts_root, config.contracts_layout)
     dict_6a_path, dictionary_6a = load_dataset_dictionary(source, "6A")
     reg_6a_path, registry_6a = load_artefact_registry(source, "6A")
@@ -904,7 +915,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         logger.warning("S3: segment/region tilts ignored in lean mode")
     if instrument_per.get("segment_feature_tilts"):
         logger.warning("S3: per-account segment feature tilts ignored in lean mode")
+    perf.record_elapsed("load_contracts_inputs", step_started)
 
+    step_started = time.monotonic()
     account_base_entry = find_dataset_entry(dictionary_6a, "s2_account_base_6A").entry
     account_base_path = _resolve_dataset_path(account_base_entry, run_paths, config.external_roots, tokens)
     if not account_base_path.exists():
@@ -981,7 +994,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         total_accounts,
         len(account_cells),
     )
+    perf.record_elapsed("load_account_base", step_started)
 
+    step_started = time.monotonic()
     domain_entries = instrument_mix.get("instrument_domain_model", {}).get("allowed_instrument_types") or []
     domain_map: dict[tuple[str, str], list[str]] = {}
     for entry in domain_entries:
@@ -1123,7 +1138,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
     total_instruments = sum(instrument_counts.values())
     logger.info("S3: planned instrument counts (total_instruments=%s)", total_instruments)
+    perf.record_elapsed("plan_counts", step_started)
 
+    step_started = time.monotonic()
     rng_alloc_stream = _RngStream("instrument_allocation_sampling", manifest_fingerprint, parameter_hash, int(seed))
     rng_attr_stream = _RngStream("instrument_attribute_sampling", manifest_fingerprint, parameter_hash, int(seed))
 
@@ -1464,6 +1481,8 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
         alloc_tracker.update(1)
 
+    perf.record_elapsed("allocate_instruments", step_started)
+    step_started = time.monotonic()
     _flush_buffers()
 
     if instrument_writer is not None:
@@ -1512,7 +1531,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     )
 
     logger.info("S3: optional outputs skipped (holdings_path=%s summary_path=%s)", holdings_path, summary_path)
+    perf.record_elapsed("emit_instrument_base_links", step_started)
 
+    step_started = time.monotonic()
     rng_audit_entry = {
         "ts_utc": utc_now_rfc3339_micro(),
         "run_id": run_id_value,
@@ -1604,6 +1625,8 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         "6A.S3.IO_WRITE_CONFLICT",
         "6A.S3.IO_WRITE_FAILED",
     )
+    perf.record_elapsed("rng_publish", step_started)
+    perf.write_events(raise_on_error=True)
 
     timer.info("S3: instrument base generation complete")
     return S3Result(

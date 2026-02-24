@@ -34,6 +34,7 @@ from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths, resolve_input_path
 from engine.core.time import utc_now_rfc3339_micro
 from engine.core.run_receipt import pick_latest_run_receipt
+from engine.layers.l3.seg_6A.perf import Segment6APerfRecorder
 from engine.layers.l1.seg_1A.s1_hurdle.rng import (
     add_u128,
     low64,
@@ -1317,7 +1318,17 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     logger.info(
         "S4: objective=build device/IP graph; gated inputs (S0 receipt + sealed inputs + S1/S2/S3 bases + priors/taxonomies) -> outputs s4_device_base_6A + s4_ip_base_6A + s4_device_links_6A + s4_ip_links_6A + rng logs"
     )
+    perf = Segment6APerfRecorder(
+        run_paths=run_paths,
+        run_id=run_id_value,
+        seed=int(seed),
+        parameter_hash=parameter_hash,
+        manifest_fingerprint=manifest_fingerprint,
+        state=STATE,
+        logger=logger,
+    )
 
+    step_started = time.monotonic()
     source = ContractSource(config.contracts_root, config.contracts_layout)
     dict_6a_path, dictionary_6a = load_dataset_dictionary(source, "6A")
     reg_6a_path, registry_6a = load_artefact_registry(source, "6A")
@@ -1713,7 +1724,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     max_ips_per_device = int(ip_constraints.get("max_ips_per_device") or 0)
     if max_ips_per_device <= 0:
         max_ips_per_device = 40
+    perf.record_elapsed("load_contracts_inputs", step_started)
 
+    step_started = time.monotonic()
     party_entry = find_dataset_entry(dictionary_6a, "s1_party_base_6A").entry
     party_base_path = _resolve_dataset_path(party_entry, run_paths, config.external_roots, tokens)
     if not party_base_path.exists():
@@ -1840,7 +1853,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         len(party_cells),
         len({key[0] for key in party_cells}),
     )
+    perf.record_elapsed("load_party_base", step_started)
 
+    step_started = time.monotonic()
     rng_device_count = _RngStream("device_count_realisation", manifest_fingerprint, parameter_hash, int(seed))
     rng_device_alloc = _RngStream("device_allocation_sampling", manifest_fingerprint, parameter_hash, int(seed))
     rng_device_attr = _RngStream("device_attribute_sampling", manifest_fingerprint, parameter_hash, int(seed))
@@ -1942,7 +1957,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
     total_devices = sum(device_counts_by_cell.values())
     logger.info("S4: planned device counts (total_devices=%s)", total_devices)
+    perf.record_elapsed("plan_device_counts", step_started)
 
+    step_started = time.monotonic()
     ip_counts_by_cell: dict[tuple[str, str, str], int] = {}
     ip_cell_weights_by_region: dict[str, list[tuple[str, str, float]]] = {}
 
@@ -2048,7 +2065,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
     total_ips = sum(ip_counts_by_cell.values())
     logger.info("S4: planned IP counts (total_ips=%s)", total_ips)
+    perf.record_elapsed("plan_ip_counts", step_started)
 
+    step_started = time.monotonic()
     device_base_entry = find_dataset_entry(dictionary_6a, "s4_device_base_6A").entry
     ip_base_entry = find_dataset_entry(dictionary_6a, "s4_ip_base_6A").entry
     device_links_entry = find_dataset_entry(dictionary_6a, "s4_device_links_6A").entry
@@ -2168,7 +2187,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             ).write_parquet(tmp_ip, compression="zstd")
     else:
         ip_writer.close()
+    perf.record_elapsed("emit_ip_base", step_started)
 
+    step_started = time.monotonic()
     group_to_types: dict[str, list[str]] = {}
     for device_type, group_id in device_type_to_group.items():
         group_to_types.setdefault(group_id, []).append(device_type)
@@ -2276,7 +2297,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     ip_links_schema,
                 )
             )
+    perf.record_elapsed("emit_regions", step_started)
 
+    step_started = time.monotonic()
     if not results:
         pl.DataFrame(
             [],
@@ -2403,7 +2426,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     neighbourhoods_path = None
     summary_path = None
     logger.info("S4: optional outputs skipped (neighbourhoods_path=%s summary_path=%s)", neighbourhoods_path, summary_path)
+    perf.record_elapsed("merge_parts", step_started)
 
+    step_started = time.monotonic()
     rng_audit_entry = {
         "ts_utc": utc_now_rfc3339_micro(),
         "run_id": run_id_value,
@@ -2615,6 +2640,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         "6A.S4.IO_WRITE_CONFLICT",
         "6A.S4.IO_WRITE_FAILED",
     )
+    perf.record_elapsed("rng_publish", step_started)
+    perf.write_events(raise_on_error=True)
 
     timer.info("S4: device/IP graph generation complete")
     return S4Result(

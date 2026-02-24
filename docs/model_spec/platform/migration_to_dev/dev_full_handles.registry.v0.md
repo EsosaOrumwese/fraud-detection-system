@@ -649,9 +649,14 @@ Allowed tokens in pattern handles:
 
 ### 13.1 Cost capture scope
 
-* `COST_CAPTURE_SCOPE = "aws_plus_databricks"`
+* `COST_CAPTURE_SCOPE = "aws_only_pre_m11_databricks_cost_deferred"`
 * `AWS_COST_CAPTURE_ENABLED = true`
-* `DATABRICKS_COST_CAPTURE_ENABLED = true`
+* `DATABRICKS_COST_CAPTURE_ENABLED = false`
+* `DATABRICKS_COST_CAPTURE_DEFER_REASON = "databricks_billing_source_not_materialized_before_m11"`
+* `DATABRICKS_COST_CAPTURE_REENABLE_GATE = "M11.D"`
+* `M3H_DATABRICKS_COST_SOURCE_MODE = "deferred_not_enabled"`
+* `M3H_DATABRICKS_COST_SOURCE_URI = "deferred_until_m11"`
+* `M3H_DATABRICKS_COST_SOURCE_CURRENCY = "USD"`
 
 ### 13.2 Budget resources
 

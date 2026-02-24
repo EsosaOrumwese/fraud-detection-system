@@ -3559,6 +3559,240 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
 3. `docs/logbook/02-2026/2026-02-23.md`
 
+## Entry: 2026-02-23 23:28:13 +00:00 - M3.I planning expanded (gate rollup + blocker adjudication)
+
+### Why this planning expansion was required
+1. `M3.I` was still template-level and not execution-grade.
+2. `M3.J` cannot produce a trustworthy M3 verdict without a deterministic rollup/adjudication contract from M3.I.
+
+### Planning decisions made
+1. Added an explicit decision-completeness precheck for M3.I:
+   - mandatory upstream summaries (`M3.A..M3.H`) must be present/readable and green.
+2. Pinned verdict vocabulary for deterministic adjudication:
+   - `ADVANCE_TO_M3J`, `HOLD_REMEDIATE`, `NO_GO_RESET_REQUIRED`.
+3. Pinned blocker severity rules:
+   - `S1` -> hard no-go,
+   - `S2` -> hold/remediate only.
+4. Added command-level verification catalog (`M3I-V1..V7`) and explicit `M3I-B*` blocker taxonomy.
+5. Added concrete evidence contract and closure rule for durable proof.
+
+### Alternatives considered
+1. Keep M3.I minimal and do blocker adjudication inside M3.J:
+   - rejected; creates ambiguous closure path and weak auditability.
+2. Use only aggregated `overall_pass` booleans from prior phases:
+   - rejected; does not expose unresolved-set reasoning and severity mapping.
+3. Expand M3.I as explicit adjudication lane:
+   - accepted.
+
+### Current posture after planning
+1. M3.I is now execution-grade.
+2. No pre-execution blockers are known at planning time.
+3. Execution remains not started in this step.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M3.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+3. `docs/logbook/02-2026/2026-02-23.md`
+
+## Entry: 2026-02-23 23:30:44 +00:00 - M3.I execution start (pre-run decision lock)
+
+### Objective lock
+1. Execute `M3.I` as deterministic rollup/adjudication lane over `M3.A..M3.H`.
+2. Produce canonical rollup artifacts required for `M3.J` entry:
+   - `m3i_gate_rollup_matrix.json`
+   - `m3i_blocker_register.json`
+   - `m3i_p1_verdict.json`
+   - `m3i_execution_summary.json`
+
+### Pre-run checks completed
+1. Upstream summaries are present and green:
+   - `M3.A..M3.H` all `overall_pass=true`, `blocker_count=0`.
+2. AWS identity/evidence publish surface is available for durable mirror.
+
+### Execution decisions pinned
+1. Verdict mapping:
+   - unresolved `S1` blocker -> `NO_GO_RESET_REQUIRED`
+   - unresolved `S2` blocker (and no `S1`) -> `HOLD_REMEDIATE`
+   - no unresolved blockers + complete matrix -> `ADVANCE_TO_M3J`
+2. Severity mapping for this lane:
+   - missing evidence/inconsistent matrix/determinism failure -> `S1`
+   - upstream non-green with explicit evidence -> `S2`
+3. Determinism rule:
+   - verdict payload is generated from sorted, explicit source set (`M3.A..M3.H` summaries only) with no ambient state reads.
+
+### Alternatives considered
+1. Re-open all upstream subphases and recompute proofs:
+   - rejected; unnecessary blast radius and violates bounded execution for adjudication lane.
+2. Use only prior manual notes for rollup:
+   - rejected; non-deterministic and non-auditable.
+3. Source rollup strictly from committed summary artifacts and publish durable proof:
+   - accepted.
+
+## Entry: 2026-02-23 23:32:09 +00:00 - M3.I execution closure (gate rollup + blocker adjudication)
+
+### Execution path taken
+1. Loaded authoritative summaries for `M3.A..M3.H` from committed local evidence roots.
+2. Enforced completeness-first rule:
+   - any missing summary would raise `M3I-B1 (S1)` and block advance.
+3. Built rollup matrix deterministically from sorted phase list only.
+4. Built blocker register explicitly (resolved/ unresolved lists), with severity mapping pinned in pre-run entry.
+5. Generated verdict from blocker severity set with fixed mapping:
+   - `S1 -> NO_GO_RESET_REQUIRED`,
+   - `S2 -> HOLD_REMEDIATE`,
+   - none -> `ADVANCE_TO_M3J`.
+6. Published all artifacts to durable run-control prefix and verified visibility.
+
+### Decisions made while executing
+1. Kept severity posture strict:
+   - missing artifact/inconsistent matrix stays `S1` (hard no-go).
+2. Did not infer unresolved blockers from narrative docs:
+   - used summary artifacts as sole adjudication input to preserve determinism.
+3. Preserved bounded scope:
+   - no upstream reruns were triggered because all required inputs were already green.
+
+### Authoritative result
+1. `phase_execution_id`: `m3i_20260223T233139Z`
+2. Result:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `next_gate=M3.I_READY`
+   - verdict=`ADVANCE_TO_M3J`
+3. Rollup integrity metrics:
+   - required upstream phases=`8`,
+   - observed upstream phases=`8`,
+   - green upstream phases=`8`.
+
+### Evidence roots
+1. Local:
+   - `runs/dev_substrate/dev_full/m3/m3i_20260223T233139Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3i_20260223T233139Z/`
+
+### Plan synchronization
+1. `platform.M3.build_plan.md`:
+   - M3.I DoDs checked complete,
+   - M3.I execution status block appended,
+   - M3 completion checklist marks M3.I complete.
+2. `platform.build_plan.md`:
+   - M3 posture updated with M3.I PASS evidence and durable mirror,
+   - sub-phase progress marks `M3.I` complete.
+
+## Entry: 2026-02-23 23:34:52 +00:00 - M3.J planning expanded (final M3 verdict + M4 entry marker)
+
+### Why this expansion is required
+1. `M3.J` is the closure gate for M3 and the only allowed transition marker into M4.
+2. Without explicit M3.J adjudication/transition rules, M4 entry could drift from M3.I verdict and blocker posture.
+
+### Planning decisions made
+1. Added decision-completeness precheck tied to:
+   - M3.I verdict artifacts,
+   - full M3.A..M3.I summary chain,
+   - M3.F `m4_handoff_pack` dependency.
+2. Pinned transition verdict vocabulary:
+   - `ADVANCE_TO_M4`, `HOLD_REMEDIATE`, `NO_GO_RESET_REQUIRED`.
+3. Pinned consistency laws:
+   - M3 summary must match unresolved blocker set,
+   - `ADVANCE_TO_M4` forbidden when unresolved blockers exist.
+4. Added execution verification catalog (`M3J-V1..V6`) and blocker taxonomy (`M3J-B1..M3J-B8`).
+5. Added explicit evidence contract and closure rule for durable proof.
+
+### Alternatives considered
+1. Keep M3.J as a light note-only closure:
+   - rejected; weak auditability and high transition ambiguity risk.
+2. Fold M3.J logic back into M3.I:
+   - rejected; collapses adjudication and transition concerns into one lane and weakens traceability.
+3. Keep M3.J as dedicated transition lane with explicit controls:
+   - accepted.
+
+### Current planning posture
+1. Prerequisite `M3.I` is green with verdict `ADVANCE_TO_M3J`.
+2. M3.J is now execution-grade.
+3. No pre-execution blockers known at planning time.
+
+## Entry: 2026-02-23 23:17:03 +00:00 - M3H-B4 closure strategy pinned before M3.H execution
+
+### Problem
+1. `M3.H` was execution-blocked by `M3H-B4` because Databricks cost capture was enabled while no concrete Databricks billing source contract was pinned.
+
+### Alternatives considered
+1. Force Databricks billing integration immediately:
+   - rejected for this phase; requires additional external billing contract/materialization not yet available and would stall M3 progression.
+2. Keep Databricks enabled and use a placeholder URI:
+   - rejected; violates fail-closed integrity and creates fake proof.
+3. Explicitly defer Databricks cost capture until learning-plane materialization gate:
+   - accepted.
+
+### Decision pinned
+1. Updated cost scope to:
+   - `COST_CAPTURE_SCOPE = aws_only_pre_m11_databricks_cost_deferred`
+   - `DATABRICKS_COST_CAPTURE_ENABLED = false`
+2. Added explicit deferral contract in registry:
+   - `DATABRICKS_COST_CAPTURE_DEFER_REASON`
+   - `DATABRICKS_COST_CAPTURE_REENABLE_GATE = M11.D`
+   - `M3H_DATABRICKS_COST_SOURCE_MODE = deferred_not_enabled`
+3. Updated M3.H planning status to mark `M3H-B4` closed for current phase under explicit defer posture.
+
+### Why this is correct
+1. Keeps M3.H truthful: no fabricated Databricks cost source.
+2. Preserves production intent by hard-pinning re-enable gate (`M11.D`) rather than silent removal.
+3. Maintains decision-completeness law before execution.
+
+## Entry: 2026-02-23 23:18:57 +00:00 - M3.H execution closed green after M3H-B4 remediation
+
+### Execution objective lock
+1. Execute M3.H end-to-end with:
+   - explicit phase budget envelope,
+   - accepted cost-to-outcome receipt,
+   - durable evidence publication,
+   - fail-closed blocker adjudication.
+
+### Runtime decisions made during execution
+1. Source-of-truth choice for this lane:
+   - AWS Cost Explorer (`us-east-1`) used as active cost source.
+2. Databricks capture handling:
+   - enforced deferred contract from registry (`DATABRICKS_COST_CAPTURE_ENABLED=false`),
+   - no synthetic Databricks spend inserted.
+3. Upstream dependency validation:
+   - required all upstream summaries `M3.A..M3.G` to remain `overall_pass=true` before closure.
+4. Artifact schema discipline:
+   - emitted both envelope and outcome receipts before summary adjudication.
+
+### Alternatives considered at execution time
+1. Stop M3.H until live Databricks billing integration is built:
+   - rejected; explicit defer contract exists and is auditable.
+2. Set Databricks spend to hardcoded zero while still enabled:
+   - rejected; would be non-truthful and violate fail-closed intent.
+3. Proceed with AWS-only capture under explicit deferred scope:
+   - accepted.
+
+### Authoritative run outputs
+1. `phase_execution_id`: `m3h_20260223T231857Z`
+2. Local root:
+   - `runs/dev_substrate/dev_full/m3/m3h_20260223T231857Z/`
+3. Durable root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3h_20260223T231857Z/`
+4. Key metric snapshot:
+   - AWS MTD spend captured: `48.7292066582 USD`
+   - upstream green count: `7/7`
+   - Databricks capture status: `DEFERRED`
+
+### Blocker adjudication result
+1. `M3H-B4` closed by prior handle pinning (explicit defer + re-enable gate).
+2. No new `M3H-B*` blockers remained in authoritative run.
+3. Final result:
+   - `overall_pass=true`
+   - `next_gate=M3.H_READY`
+
+### Documentation sync applied
+1. `platform.M3.build_plan.md`:
+   - M3.H DoDs marked complete,
+   - M3.H execution status block appended,
+   - M3 completion checklist marks M3.H complete.
+2. `platform.build_plan.md`:
+   - M3 posture updated with M3.H PASS evidence and durable mirror.
+3. `docs/logbook/02-2026/2026-02-23.md`:
+   - detailed execution action log appended.
+
 ## Entry: 2026-02-23 22:58:15 +00:00 - M3.G full execution closure (rerun/reset discipline)
 
 ### Objective lock before execution

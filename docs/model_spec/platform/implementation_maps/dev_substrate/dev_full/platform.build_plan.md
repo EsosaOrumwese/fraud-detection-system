@@ -358,6 +358,8 @@ M3 planning posture:
 - `M3.F` has been expanded with runtime-scope export and M4 handoff decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.G` has been expanded with rerun/reset fail-closed decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.H` has been expanded with phase-budget/cost-outcome decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
+- `M3.I` has been expanded with gate-rollup/blocker-adjudication decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
+- `M3.J` has been expanded with final-verdict/M4-entry decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M3.A` execution is now closed (`PASS`):
   - `runs/dev_substrate/dev_full/m3/m3a_20260223T174307Z/m3a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
 - `M3.A` blocker remediation closed:
@@ -408,7 +410,19 @@ M3 planning posture:
 - M3.G durable mirror:
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3g_20260223T225607Z/`
 - M3.H planning note:
-  - pre-execution decision-completeness blocker remains explicit until Databricks cost-source URI/handle is pinned while `DATABRICKS_COST_CAPTURE_ENABLED=true`.
+  - Databricks cost capture is explicitly deferred pre-M11 with re-enable gate `M11.D`; this closes `M3H-B4` for M3.H.
+- `M3.H` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m3/m3h_20260223T231857Z/m3h_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - phase budget envelope + cost-outcome receipt published and durable.
+  - spend-without-proof hard-stop verified; upstream chain `M3.A..M3.G` remained green.
+- M3.H durable mirror:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3h_20260223T231857Z/`
+- `M3.I` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m3/m3i_20260223T233139Z/m3i_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - gate rollup matrix + blocker register + deterministic verdict published and durable.
+  - adjudication verdict: `ADVANCE_TO_M3J`.
+- M3.I durable mirror:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3i_20260223T233139Z/`
 
 DoD anchors:
 - [x] run pin artifact committed.
@@ -426,8 +440,8 @@ M3 sub-phase progress:
 - [x] `M3.E` durable run evidence publication.
 - [x] `M3.F` runtime scope export and M4 handoff pack.
 - [x] `M3.G` rerun/reset discipline.
-- [ ] `M3.H` phase budget and cost-outcome receipt.
-- [ ] `M3.I` gate rollup and blocker adjudication.
+- [x] `M3.H` phase budget and cost-outcome receipt.
+- [x] `M3.I` gate rollup and blocker adjudication.
 - [ ] `M3.J` verdict and M4 entry marker.
 
 ## M4 - Spine Runtime-Lane Readiness (Managed-First)

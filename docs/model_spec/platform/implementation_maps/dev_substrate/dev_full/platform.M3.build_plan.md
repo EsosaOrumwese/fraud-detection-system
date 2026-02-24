@@ -911,9 +911,9 @@ Tasks:
 4. prove spend-without-proof hard-stop posture for M3 gate advancement.
 
 DoD:
-- [ ] phase budget envelope is committed.
-- [ ] cost-to-outcome receipt is committed.
-- [ ] spend-without-proof is fail-closed.
+- [x] phase budget envelope is committed.
+- [x] cost-to-outcome receipt is committed.
+- [x] spend-without-proof is fail-closed.
 
 M3.H planning precheck (decision completeness):
 1. Required handles are pinned for this lane:
@@ -926,7 +926,7 @@ M3.H planning precheck (decision completeness):
    - M3.A..M3.G authoritative summaries must remain `overall_pass=true`.
 3. Required source posture:
    - AWS billing source must be queryable in billing region (`us-east-1`) for the active M3 window.
-   - Databricks billing source must be explicitly pinned when `DATABRICKS_COST_CAPTURE_ENABLED=true`.
+   - Databricks billing source must be explicitly pinned when `DATABRICKS_COST_CAPTURE_ENABLED=true`; if disabled, defer contract must be explicit in registry.
 
 M3.H decision pins (closed before execution):
 1. Envelope-first law:
@@ -982,10 +982,33 @@ M3.H closure rule:
 M3.H planning status (current):
 1. Prerequisite lanes `M3.A`..`M3.G` are closed green.
 2. M3.H is expanded to execution-grade with explicit fail-closed blockers and evidence contract.
-3. Pre-execution open blocker to close before runtime execution:
-   - `M3H-B4` remains possible until a concrete Databricks billing source URI/handle is pinned for the active window while `DATABRICKS_COST_CAPTURE_ENABLED=true`.
+3. Pre-execution blocker closure:
+   - `M3H-B4` closed via explicit pre-M11 Databricks defer contract (`DATABRICKS_COST_CAPTURE_ENABLED=false`, re-enable gate `M11.D`).
 4. Phase posture:
-   - planning expanded; execution not started.
+   - planning expanded; execution closed green.
+5. `M3H-B4` closure pin:
+   - registry defers Databricks cost capture for pre-M11 with explicit re-enable gate `M11.D`; no fabricated Databricks source allowed.
+
+M3.H execution status (2026-02-23):
+1. Authoritative execution id:
+   - `m3h_20260223T231857Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3h_20260223T231857Z/`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3h_20260223T231857Z/`
+4. PASS artifacts:
+   - `m3h_phase_budget_envelope.json`
+   - `m3h_phase_cost_outcome_receipt.json`
+   - `m3h_daily_cost_posture.json`
+   - `m3h_cost_source_receipts.json`
+   - `m3h_execution_summary.json`
+5. Closure results:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M3.H_READY`
+   - upstream chain check: `7/7` green (`M3.A..M3.G`)
+   - AWS source spend captured: `48.7292066582 USD`
+   - Databricks source posture: `DEFERRED` (pre-M11 contract, explicit re-enable gate)
 
 ### M3.I Gate Rollup and Blocker Adjudication
 Goal:
@@ -995,11 +1018,97 @@ Tasks:
 1. collect lane evidence and verify completeness.
 2. evaluate blockers severity and closure status.
 3. publish M3 gate rollup matrix and blocker register.
+4. emit deterministic P1 adjudication output for M3.J input.
 
 DoD:
-- [ ] rollup matrix is complete.
-- [ ] unresolved blocker set is explicit.
-- [ ] P1 verdict is deterministic.
+- [x] rollup matrix is complete.
+- [x] unresolved blocker set is explicit.
+- [x] P1 verdict is deterministic.
+
+M3.I planning precheck (decision completeness):
+1. Upstream evidence must be present and readable:
+   - M3.A..M3.H `m3*_execution_summary.json` artifacts.
+2. Rollup policy source must be explicit:
+   - M3 blocker taxonomy in Section 6 is authoritative for phase-level adjudication.
+3. Verdict vocabulary must be pinned before execution:
+   - `ADVANCE_TO_M3J`, `HOLD_REMEDIATE`, `NO_GO_RESET_REQUIRED`.
+4. Fail-closed posture:
+   - missing evidence, inconsistent blocker states, or ambiguous severity must produce non-advance verdict.
+
+M3.I decision pins (closed before execution):
+1. Completeness-first law:
+   - no adjudication if any required M3.A..M3.H summary/evidence artifact is missing.
+2. Blocker severity law:
+   - `S1` blockers are hard no-go for M3 closure.
+   - `S2` blockers allow only hold/remediate posture, never direct advance.
+3. Chain integrity law:
+   - each subphase must report `overall_pass=true` for advance path.
+4. Deterministic verdict law:
+   - given identical input artifacts, verdict output must be byte-deterministic.
+5. Explicit unresolved-set law:
+   - unresolved blockers must be enumerated (no implicit/empty inference).
+6. Durable publish law:
+   - rollup artifacts must exist locally and in run-control durable mirror before closure.
+
+M3.I verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3I-V1-UPSTREAM-SUMMARIES` | verify presence/readability of M3.A..M3.H execution summaries under `runs/dev_substrate/dev_full/m3/<execution_id>/` | proves required source evidence exists |
+| `M3I-V2-UPSTREAM-GREEN` | parse summaries and assert `overall_pass=true` for all required subphases | validates green chain integrity |
+| `M3I-V3-BLOCKER-ROLLUP` | aggregate blockers from all subphase summaries and classify by severity | produces adjudication input set |
+| `M3I-V4-MATRIX-BUILD` | build `m3i_gate_rollup_matrix.json` with phase/DoD/blocker status | creates canonical rollup matrix |
+| `M3I-V5-REGISTER-BUILD` | build `m3i_blocker_register.json` with unresolved/closed sets and rationale | creates explicit blocker ledger |
+| `M3I-V6-VERDICT-BUILD` | build `m3i_p1_verdict.json` from matrix + blocker register | emits deterministic rollup verdict |
+| `M3I-V7-DURABLE-PUBLISH` | `aws s3 cp <local_artifact> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m3i_execution_id>/...` | publishes durable M3.I evidence |
+
+M3.I blocker taxonomy (fail-closed):
+1. `M3I-B1`: one or more required upstream artifacts missing/unreadable.
+2. `M3I-B2`: one or more upstream phases not green.
+3. `M3I-B3`: blocker severity classification ambiguous/incomplete.
+4. `M3I-B4`: rollup matrix missing required sections or inconsistent with source summaries.
+5. `M3I-B5`: blocker register unresolved set missing/implicit.
+6. `M3I-B6`: deterministic verdict build failed or non-repeatable.
+7. `M3I-B7`: durable publish/readback failed for M3.I artifacts.
+8. `M3I-B8`: verdict indicates unresolved blockers but advance path still emitted.
+
+M3.I evidence contract (planned):
+1. `m3i_gate_rollup_matrix.json`
+2. `m3i_blocker_register.json`
+3. `m3i_p1_verdict.json`
+4. `m3i_execution_summary.json`
+
+M3.I closure rule:
+1. M3.I can close only when:
+   - all `M3I-B*` blockers are resolved,
+   - DoD checks are green,
+   - rollup matrix + blocker register + verdict artifacts are present locally and durably,
+   - verdict is deterministic and consistent with blocker register.
+
+M3.I planning status (current):
+1. Prerequisite lanes `M3.A`..`M3.H` are closed green.
+2. M3.I is expanded to execution-grade with explicit blocker taxonomy and evidence contract.
+3. No pre-execution blockers are known at planning time.
+4. Phase posture:
+   - planning expanded; execution closed green.
+
+M3.I execution status (2026-02-23):
+1. Authoritative execution id:
+   - `m3i_20260223T233139Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3i_20260223T233139Z/`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3i_20260223T233139Z/`
+4. PASS artifacts:
+   - `m3i_gate_rollup_matrix.json`
+   - `m3i_blocker_register.json`
+   - `m3i_p1_verdict.json`
+   - `m3i_execution_summary.json`
+5. Closure results:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M3.I_READY`
+   - verdict: `ADVANCE_TO_M3J`
+   - upstream chain rollup: `8/8` green (`M3.A..M3.H`)
 
 ### M3.J Phase Verdict and M4 Entry Marker
 Goal:
@@ -1009,11 +1118,77 @@ Tasks:
 1. publish `m3_execution_summary.json`.
 2. publish `m4_entry_readiness_receipt.json`.
 3. append closure note to master plan, impl map, and logbook.
+4. emit deterministic M3->M4 transition verdict aligned to M3.I adjudication.
 
 DoD:
 - [ ] M3 summary artifact committed.
 - [ ] M4 entry readiness marker committed (if green).
 - [ ] closure notes are appended to required docs.
+
+M3.J planning precheck (decision completeness):
+1. Required upstream closure artifacts must exist and be readable:
+   - `m3i_p1_verdict.json` with verdict outcome from M3.I.
+   - `m3i_execution_summary.json` (`overall_pass=true`).
+   - M3.A..M3.I execution summaries.
+2. M4 handoff dependency must remain valid:
+   - `m4_handoff_pack.json` from M3.F must be present and readable.
+3. Verdict vocabulary and transition law must be explicit:
+   - `ADVANCE_TO_M4`, `HOLD_REMEDIATE`, `NO_GO_RESET_REQUIRED`.
+4. Fail-closed posture:
+   - if any M3 blocker remains unresolved, M3.J must not emit `ADVANCE_TO_M4`.
+
+M3.J decision pins (closed before execution):
+1. Adjudication inheritance law:
+   - M3.J must inherit M3.I adjudication as the primary gate input.
+2. Closure consistency law:
+   - `m3_execution_summary.json` verdict must be consistent with unresolved blocker register.
+3. Transition law:
+   - `ADVANCE_TO_M4` only when M3.A..M3.I are green and unresolved blockers are empty.
+4. Handoff readiness law:
+   - `m4_entry_readiness_receipt.json` must include references to M3.I verdict and M3.F handoff pack.
+5. Determinism law:
+   - M3 verdict payload built from explicit source set only (no ambient state inference).
+6. Durable closure law:
+   - closure artifacts must exist locally and durably before phase close.
+
+M3.J verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M3J-V1-M3I-VERDICT` | verify `m3i_p1_verdict.json` exists and verdict is in allowed vocabulary | ensures adjudication input is valid |
+| `M3J-V2-UPSTREAM-CHAIN` | verify M3.A..M3.I summaries are readable and green where required | validates closure chain integrity |
+| `M3J-V3-HANDOFF-REF` | verify `m4_handoff_pack.json` exists/readable and matches run scope | validates M4 dependency integrity |
+| `M3J-V4-M3-SUMMARY-BUILD` | build `m3_execution_summary.json` from source summaries + adjudication result | emits canonical M3 closure summary |
+| `M3J-V5-M4-ENTRY-BUILD` | build `m4_entry_readiness_receipt.json` with refs to M3.I verdict + M3.F handoff | emits M4 transition marker |
+| `M3J-V6-DURABLE-PUBLISH` | `aws s3 cp <local_artifact> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m3j_execution_id>/...` | publishes durable M3.J evidence |
+
+M3.J blocker taxonomy (fail-closed):
+1. `M3J-B1`: M3.I verdict artifact missing/unreadable/invalid.
+2. `M3J-B2`: upstream M3 chain incomplete or non-green.
+3. `M3J-B3`: unresolved M3 blocker set non-empty at closure attempt.
+4. `M3J-B4`: M4 handoff dependency missing/inconsistent (`m4_handoff_pack` unreadable or drifted).
+5. `M3J-B5`: `m3_execution_summary.json` missing/invalid/inconsistent with source adjudication.
+6. `M3J-B6`: `m4_entry_readiness_receipt.json` missing required references/fields.
+7. `M3J-B7`: durable publish/readback failure for closure artifacts.
+8. `M3J-B8`: transition verdict emitted as `ADVANCE_TO_M4` despite unresolved blockers.
+
+M3.J evidence contract (planned):
+1. `m3_execution_summary.json`
+2. `m4_entry_readiness_receipt.json`
+3. `m3j_execution_summary.json`
+
+M3.J closure rule:
+1. M3.J can close only when:
+   - all `M3J-B*` blockers are resolved,
+   - DoD checks are green,
+   - closure artifacts exist locally and durably,
+   - transition verdict is deterministic and blocker-consistent.
+
+M3.J planning status (current):
+1. Prerequisite lane `M3.I` is closed green with verdict `ADVANCE_TO_M3J`.
+2. M3.J is expanded to execution-grade with explicit transition/blocker controls.
+3. No pre-execution blockers are known at planning time.
+4. Phase posture:
+   - planning expanded; execution not started.
 
 ## 6) M3 Blocker Taxonomy (Fail-Closed)
 - `M3-B0`: runtime orchestrator surface unavailable at phase start.
@@ -1038,8 +1213,8 @@ Any active `M3-B*` blocker prevents M3 closure.
 - [x] M3.E complete.
 - [x] M3.F complete.
 - [x] M3.G complete.
-- [ ] M3.H complete.
-- [ ] M3.I complete.
+- [x] M3.H complete.
+- [x] M3.I complete.
 - [ ] M3.J complete.
 - [ ] M3 blockers resolved or explicitly fail-closed.
 - [ ] M3 closure note appended in implementation map.

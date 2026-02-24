@@ -27,6 +27,10 @@ from engine.core.logging import add_file_handler, get_logger
 from engine.core.paths import RunPaths, resolve_input_path
 from engine.core.time import utc_now_rfc3339_micro
 from engine.core.run_receipt import pick_latest_run_receipt
+from engine.layers.l3.seg_6A.perf import (
+    Segment6APerfRecorder,
+    write_segment6a_perf_summary_and_budget,
+)
 
 
 MODULE_NAME = "6A.s5_fraud_posture"
@@ -757,7 +761,17 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     logger.info(
         "S5: objective=assign fraud roles + emit validation bundle; gated inputs (S0 receipt + sealed inputs + S1-S4 bases + priors/taxonomy/policy) -> outputs s5_*_fraud_roles_6A + validation_bundle_6A/_passed.flag"
     )
+    perf = Segment6APerfRecorder(
+        run_paths=run_paths,
+        run_id=run_id_value,
+        seed=int(seed),
+        parameter_hash=parameter_hash,
+        manifest_fingerprint=manifest_fingerprint,
+        state=STATE,
+        logger=logger,
+    )
 
+    step_started = time.monotonic()
     source = ContractSource(config.contracts_root, config.contracts_layout)
     dict_6a_path, dictionary_6a = load_dataset_dictionary(source, "6A")
     reg_6a_path, registry_6a = load_artefact_registry(source, "6A")
@@ -1017,6 +1031,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 manifest_fingerprint,
             )
     timer.info("S5: required S1-S4 inputs confirmed on disk")
+    perf.record_elapsed("load_contracts_inputs", step_started)
 
     taxonomy_roles = {}
     for role_set in taxonomy.get("role_sets", []) or []:
@@ -1042,6 +1057,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     )
     ip_roles_path = _select_dataset_path(dictionary_6a, "s5_ip_fraud_roles_6A", run_paths, config.external_roots, tokens)
 
+    step_started = time.monotonic()
     if _reuse_existing_parquet(
         party_roles_path,
         party_validator,
@@ -1122,7 +1138,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             "6A.S5.IO_WRITE_CONFLICT",
             "6A.S5.IO_WRITE_FAILED",
         )
+    perf.record_elapsed("assign_party_roles", step_started)
 
+    step_started = time.monotonic()
     if _reuse_existing_parquet(
         account_roles_path,
         account_validator,
@@ -1202,7 +1220,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             "6A.S5.IO_WRITE_CONFLICT",
             "6A.S5.IO_WRITE_FAILED",
         )
+    perf.record_elapsed("assign_account_roles", step_started)
 
+    step_started = time.monotonic()
     if _reuse_existing_parquet(
         merchant_roles_path,
         merchant_validator,
@@ -1297,7 +1317,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             "6A.S5.IO_WRITE_CONFLICT",
             "6A.S5.IO_WRITE_FAILED",
         )
+    perf.record_elapsed("assign_merchant_roles", step_started)
 
+    step_started = time.monotonic()
     if _reuse_existing_parquet(
         device_roles_path,
         device_validator,
@@ -1384,7 +1406,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             "6A.S5.IO_WRITE_CONFLICT",
             "6A.S5.IO_WRITE_FAILED",
         )
+    perf.record_elapsed("assign_device_roles", step_started)
 
+    step_started = time.monotonic()
     if _reuse_existing_parquet(
         ip_roles_path,
         ip_validator,
@@ -1490,9 +1514,11 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             "6A.S5.IO_WRITE_CONFLICT",
             "6A.S5.IO_WRITE_FAILED",
         )
+    perf.record_elapsed("assign_ip_roles", step_started)
 
     timer.info("S5: fraud-role tables published")
 
+    step_started = time.monotonic()
     checks: list[dict] = []
     issues: list[dict] = []
     issue_counter = 0
@@ -1901,7 +1927,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         manifest_fingerprint,
         {"stage": "report_payload"},
     )
+    perf.record_elapsed("validation_checks", step_started)
 
+    step_started = time.monotonic()
     validation_root = _select_dataset_path(dictionary_6a, "validation_bundle_6A", run_paths, config.external_roots, tokens)
     index_path = _select_dataset_path(dictionary_6a, "validation_bundle_index_6A", run_paths, config.external_roots, tokens)
     report_path = _select_dataset_path(dictionary_6a, "s5_validation_report_6A", run_paths, config.external_roots, tokens)
@@ -2037,7 +2065,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         else:
             logger.info("S5: overall_status=%s; passed flag not emitted", overall_status)
         timer.info("S5: validation bundle published (digest=%s)", bundle_digest)
+    perf.record_elapsed("bundle_publish", step_started)
 
+    step_started = time.monotonic()
     rng_audit_entry = {
         "ts_utc": utc_now_rfc3339_micro(),
         "run_id": run_id_value,
@@ -2166,6 +2196,16 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             "6A.S5.IO_WRITE_CONFLICT",
             "6A.S5.IO_WRITE_FAILED",
         )
+    perf.record_elapsed("rng_publish", step_started)
+    perf.write_events(raise_on_error=True)
+    write_segment6a_perf_summary_and_budget(
+        run_paths=run_paths,
+        run_id=run_id_value,
+        seed=int(seed),
+        parameter_hash=parameter_hash,
+        manifest_fingerprint=manifest_fingerprint,
+        logger=logger,
+    )
 
     timer.info("S5: fraud posture + validation bundle complete")
     return S5Result(
