@@ -3709,6 +3709,170 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 2. M3.J is now execution-grade.
 3. No pre-execution blockers known at planning time.
 
+## Entry: 2026-02-24 04:22:57 +00:00 - M4 planning bootstrap and deep-plan materialization
+
+### Problem statement
+1. `M4` needed planning start immediately after M3 closure.
+2. `dev_full/platform.M4.build_plan.md` did not exist, which was a fail-closed planning gap for phase execution.
+
+### Decisions made
+1. Create a dedicated deep plan file:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
+2. Use the same explicit phase doctrine applied in M3:
+   - authority inputs,
+   - scope boundary,
+   - anti-cram capability matrix,
+   - `M4.A..M4.J` decomposition,
+   - blocker taxonomy,
+   - evidence contract,
+   - completion checklist and exit criteria.
+3. Align M4 lanes to dev_full managed-first runtime truth:
+   - Flink/API edge/selective EKS runtime lane posture,
+   - runtime-path single-active law,
+   - run-scope + correlation continuity requirements.
+4. Update master plan M4 posture from `NOT_STARTED` to `IN_PROGRESS` (planning active, execution not started).
+
+### Alternatives considered
+1. Keep M4 only in master-plan one-paragraph form:
+   - rejected; violates anti-cram law and does not expose capability-lane closure paths.
+2. Clone dev_min M4 plan verbatim:
+   - rejected; would carry substrate-specific assumptions that are not dev_full managed-first aligned.
+3. Materialize new dev_full-specific M4 deep plan:
+   - accepted.
+
+### Files updated in this planning step
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md` (new)
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md` (M4 posture + subphase tracking)
+3. `docs/logbook/02-2026/2026-02-24.md` (action log entry)
+
+### Current posture after this step
+1. M4 planning is now execution-grade at phase level.
+2. No runtime execution was performed in this step.
+3. Next move is planning/expanding `M4.A` before execution.
+
+## Entry: 2026-02-24 04:27:48 +00:00 - M4.A planning expanded (authority + handle closure)
+
+### Problem statement
+1. M4 deep plan existed, but M4.A was still at template depth and not execution-grade.
+2. We needed explicit precheck/pins/verification/blocker evidence so M4.A can run fail-closed without interpretation drift.
+
+### Planning decisions made
+1. Expanded M4.A with:
+   - planning precheck (decision completeness),
+   - decision pins,
+   - command-level verification catalog,
+   - fail-closed blocker taxonomy (`M4A-B1..M4A-B6`),
+   - evidence contract,
+   - closure rule,
+   - planning status.
+2. Pinned boundary law for this lane:
+   - M4.A blocks on unresolved required **P2 runtime** handles only.
+   - non-P2 handles remain tracked but non-blocking for M4.A.
+3. Pinned materialization law:
+   - required-handle value `TO_PIN` is blocker-worthy in M4.A.
+4. Added explicit M3 gate dependency check:
+   - `m3_execution_summary` must retain `ADVANCE_TO_M4`.
+
+### Alternatives considered
+1. Execute M4.A with implicit handle set:
+   - rejected; violates decision-completeness and anti-cram laws.
+2. Block M4.A on all open registry handles (including future-phase handles):
+   - rejected; would violate phase-boundary discipline and cause false blockers.
+3. Expand M4.A with explicit P2 handle boundary and fail-closed blockers:
+   - accepted.
+
+### Files updated in this step
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+3. `docs/logbook/02-2026/2026-02-24.md`
+
+### Current posture
+1. M4.A planning is execution-grade.
+2. Runtime execution for M4.A has not started yet.
+
+## Entry: 2026-02-23 23:37:30 +00:00 - M3.J execution start (pre-run decision lock)
+
+### Objective lock
+1. Close M3 by producing:
+   - `m3_execution_summary.json`
+   - `m4_entry_readiness_receipt.json`
+   - `m3j_execution_summary.json`
+2. Enforce transition law:
+   - emit `ADVANCE_TO_M4` only if M3.A..M3.I are green and unresolved blocker set is empty.
+
+### Pre-run checks completed
+1. M3.A..M3.I summaries are present/readable and all green.
+2. M3.I verdict is present and explicit: `ADVANCE_TO_M3J`.
+3. M3.F handoff dependency (`m4_handoff_pack.json`) is present/readable.
+
+### Decisions pinned before execution
+1. M3.J inherits M3.I adjudication as primary input; no re-interpretation of prior phases.
+2. Closure artifacts will reference exact source execution IDs for auditable traceability.
+3. Durable publication is mandatory for closure; local-only artifacts cannot close M3.
+
+### Alternatives considered
+1. Recompute rollup from raw lane artifacts again:
+   - rejected; M3.I already produced deterministic adjudication.
+2. Mark M3 done from plan checkboxes only:
+   - rejected; closure requires concrete summary + entry receipt artifacts.
+3. Build closure directly from M3.I verdict + upstream summaries + M3.F handoff:
+   - accepted.
+
+## Entry: 2026-02-23 23:39:40 +00:00 - M3.J execution closure and M3 final closeout
+
+### Execution path taken
+1. Loaded M3.I adjudication artifacts:
+   - `m3i_p1_verdict.json`,
+   - `m3i_execution_summary.json`,
+   - `m3i_blocker_register.json`.
+2. Validated closure chain integrity:
+   - M3.A..M3.I summaries present and all green.
+3. Validated handoff dependency:
+   - `m4_handoff_pack.json` from M3.F is present/readable.
+4. Built closure artifacts deterministically:
+   - `m3_execution_summary.json`,
+   - `m4_entry_readiness_receipt.json`,
+   - `m3j_execution_summary.json`.
+5. Published artifacts durably to run-control prefix and verified mirror visibility.
+
+### Decisions made during execution
+1. Transition verdict policy:
+   - used explicit unresolved-set + severity mapping only, no narrative inference.
+2. Closure consistency:
+   - enforced `ADVANCE_TO_M4` only when unresolved blocker set is empty.
+3. Provenance posture:
+   - receipt references include M3.I verdict and M3.F handoff paths for audit trace.
+
+### Authoritative result
+1. `phase_execution_id`: `m3j_20260223T233827Z`
+2. Closure:
+   - `overall_pass=true`
+   - `blockers=[]`
+   - `next_gate=M3.J_READY`
+   - final verdict: `ADVANCE_TO_M4`
+   - M4 entry readiness: `true`
+3. M3 phase closeout:
+   - M3 is fully closed and unblocked for M4 entry.
+
+### Evidence roots
+1. Local:
+   - `runs/dev_substrate/dev_full/m3/m3j_20260223T233827Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3j_20260223T233827Z/`
+
+### Plan/doc synchronization
+1. `platform.M3.build_plan.md`:
+   - M3.J DoDs checked complete,
+   - M3.J execution status block appended,
+   - M3 completion checklist final closure items checked,
+   - handoff posture annotated as unblocked.
+2. `platform.build_plan.md`:
+   - M3 status set to `DONE`,
+   - M3.J PASS evidence + durable mirror appended,
+   - M3 sub-phase progress marks M3.J complete.
+3. `docs/logbook/02-2026/2026-02-23.md`:
+   - M3.J closure execution trail appended.
+
 ## Entry: 2026-02-23 23:17:03 +00:00 - M3H-B4 closure strategy pinned before M3.H execution
 
 ### Problem

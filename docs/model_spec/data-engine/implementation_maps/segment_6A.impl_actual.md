@@ -1363,3 +1363,186 @@ Witness execution plan after patch:
 3) execute `segment6a-s0 -> s5` on the fresh run-id.
 4) verify event + summary + budget artifacts, compare timings to `c25` and `fd0` baselines.
 5) close POPT.0 as `UNLOCK_POPT1` or hold with explicit blocker.
+
+### Entry: 2026-02-23 23:46
+
+POPT.0 implementation + witness execution completed (Segment 6A).
+
+What was implemented (code lane):
+- Added shared perf helper:
+  - `packages/engine/src/engine/layers/l3/seg_6A/perf.py`
+- Updated owner-state runners to emit deterministic machine-readable perf events:
+  - `packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py`
+  - `packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py`
+  - `packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py`
+  - `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py`
+
+Implementation details:
+- Introduced `Segment6APerfRecorder` with:
+  - `record_elapsed(step_name, started_monotonic, status, error_type)`
+  - stable event schema fields (`segment`, `state`, `step`, `sequence`, `elapsed_s`, `status`, run identity tuple, `captured_utc`)
+  - atomic event file writes.
+- Added aggregate writer `write_segment6a_perf_summary_and_budget(...)` in helper:
+  - scans `s2/s3/s4/s5` event files,
+  - computes per-state and per-substep totals,
+  - emits hotspot ranking,
+  - evaluates budget gates (`S2=120s`, `S3=180s`, `S4=90s`, `S5=120s`, segment `540s`).
+- S5 now writes aggregate artifacts after its own event flush so summary includes all owner states.
+
+Substep coverage achieved:
+- S2: `load_contracts_inputs`, `load_party_base`, `allocate_accounts`, `emit_account_base`, `emit_holdings`, `emit_summary`, `rng_publish`.
+- S3: `load_contracts_inputs`, `load_account_base`, `plan_counts`, `allocate_instruments`, `emit_instrument_base_links`, `rng_publish`.
+- S4: `load_contracts_inputs`, `load_party_base`, `plan_device_counts`, `plan_ip_counts`, `emit_ip_base`, `emit_regions`, `merge_parts`, `rng_publish`.
+- S5: `load_contracts_inputs`, `assign_party_roles`, `assign_account_roles`, `assign_merchant_roles`, `assign_device_roles`, `assign_ip_roles`, `validation_checks`, `bundle_publish`, `rng_publish`.
+
+Execution blocker encountered and closed:
+- Fresh witness run (`runs/fix-data-engine/segment_6A/2204694f83dc4bc7bfa5d04274b9f211`) failed at `S0` due upstream `validation_bundle_2A` index coverage mismatch after staging from `c25`.
+- Root cause:
+  - run-local copied `2A` bundle `index.json` listed only 3 files while bundle directory held 6 non-flag artifacts; `6A.S0` fail-closed index coverage check rejected.
+- Remediation (run-local only, no contract/policy edits):
+  - rebuilt `runs/fix-data-engine/segment_6A/2204694f83dc4bc7bfa5d04274b9f211/data/layer1/2A/validation/manifest_fingerprint=.../index.json` to include full file list with `sha256_hex`,
+  - recomputed `_passed.flag` digest using the same `6A.S0` bundle-digest law (sorted index paths, raw-bytes concat, sha256),
+  - reran `segment6a-s0` and continued `S1->S5` successfully.
+
+Witness run and artifacts:
+- Fresh run-id: `2204694f83dc4bc7bfa5d04274b9f211`
+- Perf artifact root:
+  - `runs/fix-data-engine/segment_6A/2204694f83dc4bc7bfa5d04274b9f211/reports/layer3/6A/perf/seed=42/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8/run_id=2204694f83dc4bc7bfa5d04274b9f211/`
+- Emitted files verified:
+  - `s2_perf_events_6A.jsonl`
+  - `s3_perf_events_6A.jsonl`
+  - `s4_perf_events_6A.jsonl`
+  - `s5_perf_events_6A.jsonl`
+  - `perf_summary_6A.json`
+  - `perf_budget_check_6A.json`
+
+Measured timings (cold witness):
+- `S2=191.125s`, `S3=312.109s`, `S4=85.969s`, `S5=231.391s`, `S2-S5 total=820.594s`.
+- Comparison vs pinned baselines:
+  - vs `c25`: `S2 +10.91%`, `S3 +4.97%`, `S4 +7.81%`, `S5 +10.65%`.
+  - vs `fd0`: `S2 -22.60%`, `S3 -23.01%`, `S4 -50.41%`, `S5 -20.20%`.
+
+POPT.0 closure decision:
+- Criteria met:
+  - instrumentation-only lane completed,
+  - full owner-state substep evidence emitted + parseable,
+  - perf summary/budget artifacts emitted in run-scoped location,
+  - blocker closed and witness rerun completed.
+- Decision: `UNLOCK_POPT1`.
+
+### Entry: 2026-02-24 04:24
+
+POPT.1 planning expansion completed (S3 primary hotspot lane).
+
+Why expansion was needed:
+- Existing `POPT.1` was closure-level only (4 bullets) and not execution-grade.
+- After POPT.0 witness, hotspot evidence is explicit: `S3` remains primary bottleneck and needs a subphase plan with deterministic gates before implementation.
+
+Planning decisions added to build plan:
+- Reframed `POPT.1` with explicit goal + phased DoD sections:
+  - `POPT.1.1` kernel design lock,
+  - `POPT.1.2` account ingest + cell index refactor,
+  - `POPT.1.3` allocation kernel vectorization,
+  - `POPT.1.4` emit-path batch rewrite,
+  - `POPT.1.5` witness + determinism closure.
+
+Design rationale pinned in plan:
+- Preserve fail-closed and deterministic behavior as first-class invariants.
+- Reduce Python hot-loop overhead by shifting to contiguous vectors, one-time ordering, and batch materialization.
+- Keep RNG semantics and output schemas unchanged.
+
+Alternatives considered (and rejected):
+- full numba/cython rewrite in one pass (high blast radius + rollback complexity),
+- full-frame explode/cross-join style materialization (memory amplification risk).
+
+Closure criteria pinned for POPT.1:
+- cold-lane `S3` reduction target retained at `>=30%` vs primary baseline,
+- downstream `S4/S5` no-regression requirement,
+- explicit decision output: `UNLOCK_POPT2` or `HOLD_POPT1`.
+
+Scope control:
+- planning-only step; no runtime code changes in this entry.
+
+### Entry: 2026-02-24 04:28
+
+POPT.1 execution design lock (pre-code, fail-closed).
+
+Problem statement from POPT.0 evidence:
+- `S3` is the primary hotspot (`312.109s` on witness run `2204694f83dc4bc7bfa5d04274b9f211`).
+- Hot loop shape in current implementation:
+  - repeated `sorted(accounts)` inside per-instrument-type allocation loop,
+  - repeated `account_id -> owner_party_id` hash lookup in tight emit loop,
+  - per-row scheme queue depletion checks (`while` guard each emitted row),
+  - duplicate row buffering (`instrument_buffer` + `link_buffer`) for same rows.
+
+Invariants pinned before implementation:
+- Output schemas unchanged:
+  - `s3_instrument_base_6A` columns/order unchanged.
+  - `s3_account_instrument_links_6A` columns/order unchanged.
+- RNG semantic contract unchanged:
+  - keep same three streams (`instrument_count_realisation`, `instrument_allocation_sampling`, `instrument_attribute_sampling`),
+  - keep existing `draws/blocks/counter` accounting and event emission.
+- Fail-closed behavior unchanged:
+  - duplicate account detection remains hard fail,
+  - allocation-cap overflow remains hard fail,
+  - scheme coverage/exhaustion remains hard fail.
+
+Complexity and data-layout decisions:
+- Account ingest/index lane:
+  - Build deterministic per-cell contiguous vectors once after load:
+    - `cell_account_ids[(party_type, account_type)]` sorted once.
+    - `cell_owner_ids[(party_type, account_type)]` aligned positional vector.
+  - This removes repeated sort cost from `O(K * n_cell log n_cell)` to `O(n_cell log n_cell)` one-time per cell.
+- Allocation/emission lane:
+  - Replace per-row scheme queue decrement with block assignment:
+    - prebuild `scheme_blocks` from `scheme_counts` once per `(party_type, account_type, instrument_type)`,
+    - slice blocks per account using prefix offsets.
+  - Replace tuple-by-tuple dual-buffer appends with columnar batch buffers for instrument rows, then derive link frame from instrument frame at flush.
+  - Preserve deterministic row order and id monotonicity.
+
+Alternatives considered and rejected:
+- Full RNG hash redesign (derive zero-gate + weight from shared digest): rejected for semantic drift risk in probability model.
+- Numba/Cython lane in POPT.1: rejected due blast radius; keep pure-Python deterministic refactor first.
+- Full eager dataframe explode/cross-join: rejected for memory amplification risk.
+
+Execution sequence pinned:
+1) implement `POPT.1.2` account ingest/index refactor.
+2) implement `POPT.1.3` allocation block/vector mechanics.
+3) implement `POPT.1.4` batch emit rewrite with link derivation from instrument frame.
+4) run compile check + fresh-lane witness (`S3 -> S4 -> S5` with run-id containing `S0/S1/S2`).
+5) close `POPT.1` as `UNLOCK_POPT2` or `HOLD_POPT1` based on measured evidence.
+
+### Entry: 2026-02-24 04:35
+
+POPT.1.2 + POPT.1.3 + POPT.1.4 implementation completed in `S3`.
+
+Code path changed:
+- `packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py`
+
+Implemented decisions:
+1) Account ingest/index refactor (`POPT.1.2`)
+- Replaced cell storage from `list[account_id] + account_owner dict lookup` to contiguous per-cell vectors of `(account_id, owner_party_id)`.
+- Duplicate-account detection preserved via `account_id_seen` hard-fail set.
+- Added one-time deterministic sort per cell immediately after ingest (`rows.sort(key=account_id)`), removing repeated per-loop sorting.
+
+2) Allocation kernel refactor (`POPT.1.3`)
+- Allocation core still uses same count generation and cap enforcement primitives (`_largest_remainder_list` + `_apply_caps`) to preserve semantics.
+- Replaced per-row scheme queue decrement with prefix-sum block model:
+  - build `scheme_blocks = [(scheme_id, cumulative_end)]`,
+  - consume by account count via block slicing arithmetic (`scheme_consumed`, `scheme_block_idx`),
+  - hard-fail if coverage is inconsistent (`scheme_total != n_instr` or exhaustion).
+- Removed hash lookup of owner id inside hot allocation/emit loop by carrying aligned owner vectors from ingest.
+
+3) Emit-path batch rewrite (`POPT.1.4`)
+- Replaced row-tuple dual buffering (`instrument_buffer` + `link_buffer`) with columnar `instrument_buffer` dict.
+- `s3_account_instrument_links_6A` now derived from `instrument_frame.select(...)` during flush, eliminating duplicate row append work.
+- Constant fields (`seed`, `manifest_fingerprint`, `parameter_hash`) now attached as literal columns at flush time, not repeated per-row appends.
+- Existing parquet writer behavior, schema validation checks, and idempotent publish flow preserved.
+
+Validation after patch:
+- `python -m py_compile packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py` passed.
+
+Risk review:
+- Memory posture remains bounded by existing flush threshold (`_DEFAULT_BATCH_ROWS`) and is safer than fully materializing scheme arrays at state scope.
+- No policy/config edits were made in this lane.
+- Next gate is witness execution for measured runtime and downstream no-regression (`S3 -> S4 -> S5`).

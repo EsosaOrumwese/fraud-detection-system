@@ -313,46 +313,93 @@ Goal:
 
 ##### POPT.0.1 - Scope lock and invariants
 Definition of done:
-- [ ] `POPT.0` is explicitly instrumentation-only (no policy threshold edits, no algorithmic behavior edits).
-- [ ] Determinism contract pinned: no changes to idempotent publish behavior, output schemas, or RNG audit/trace semantics.
-- [ ] Run lane pinned to fresh roots under `runs/fix-data-engine/segment_6A/<run_id>`.
+- [x] `POPT.0` is explicitly instrumentation-only (no policy threshold edits, no algorithmic behavior edits).
+- [x] Determinism contract pinned: no changes to idempotent publish behavior, output schemas, or RNG audit/trace semantics.
+- [x] Run lane pinned to fresh roots under `runs/fix-data-engine/segment_6A/<run_id>`.
 
 ##### POPT.0.2 - Substep timing map (owner states)
 Definition of done:
-- [ ] `S2` emits substep timings at minimum for: `load_contracts_inputs`, `load_party_base`, `allocate_accounts`, `emit_account_base`, `emit_holdings`, `emit_summary`, `rng_publish`.
-- [ ] `S3` emits substep timings at minimum for: `load_contracts_inputs`, `load_account_base`, `plan_counts`, `allocate_instruments`, `emit_instrument_base_links`, `rng_publish`.
-- [ ] `S4` emits substep timings at minimum for: `load_contracts_inputs`, `load_party_base`, `plan_device_counts`, `plan_ip_counts`, `emit_ip_base`, `emit_regions`, `merge_parts`, `rng_publish`.
-- [ ] `S5` emits substep timings at minimum for: `load_contracts_inputs`, `assign_party_roles`, `assign_account_roles`, `assign_merchant_roles`, `assign_device_roles`, `assign_ip_roles`, `validation_checks`, `bundle_publish`, `rng_publish`.
-- [ ] Timing emission uses stable machine-readable keys (no free-form-only logs).
+- [x] `S2` emits substep timings at minimum for: `load_contracts_inputs`, `load_party_base`, `allocate_accounts`, `emit_account_base`, `emit_holdings`, `emit_summary`, `rng_publish`.
+- [x] `S3` emits substep timings at minimum for: `load_contracts_inputs`, `load_account_base`, `plan_counts`, `allocate_instruments`, `emit_instrument_base_links`, `rng_publish`.
+- [x] `S4` emits substep timings at minimum for: `load_contracts_inputs`, `load_party_base`, `plan_device_counts`, `plan_ip_counts`, `emit_ip_base`, `emit_regions`, `merge_parts`, `rng_publish`.
+- [x] `S5` emits substep timings at minimum for: `load_contracts_inputs`, `assign_party_roles`, `assign_account_roles`, `assign_merchant_roles`, `assign_device_roles`, `assign_ip_roles`, `validation_checks`, `bundle_publish`, `rng_publish`.
+- [x] Timing emission uses stable machine-readable keys (no free-form-only logs).
 
 ##### POPT.0.3 - Perf artifact contract
 Definition of done:
-- [ ] Emit `perf_events_6A.jsonl` with one row per timed substep.
-- [ ] Emit `perf_summary_6A.json` with per-state totals, per-substep totals, and hotspot ranking.
-- [ ] Emit `perf_budget_check_6A.json` with state budget pass/fail and segment budget pass/fail.
-- [ ] Artifact root pinned to `reports/layer3/6A/perf/` under run-scoped partitioning (`seed/parameter_hash/manifest_fingerprint`).
+- [x] Emit `perf_events_6A.jsonl` with one row per timed substep.
+- [x] Emit `perf_summary_6A.json` with per-state totals, per-substep totals, and hotspot ranking.
+- [x] Emit `perf_budget_check_6A.json` with state budget pass/fail and segment budget pass/fail.
+- [x] Artifact root pinned to `reports/layer3/6A/perf/` under run-scoped partitioning (`seed/parameter_hash/manifest_fingerprint`).
 
 ##### POPT.0.4 - Baseline witness protocol
 Definition of done:
-- [ ] Cold-run witness executed once from `S0 -> S5` on a fresh `runs/fix-data-engine/segment_6A/<run_id>`.
-- [ ] Baseline comparison included against pinned authorities:
+- [x] Cold-run witness executed once from `S0 -> S5` on a fresh `runs/fix-data-engine/segment_6A/<run_id>`.
+- [x] Baseline comparison included against pinned authorities:
   - `c25a2675fbfbacd952b13bb594880e92` (primary),
   - `fd0a6cc8d887f06793ea9195f207138b` (variance reference).
-- [ ] Evidence clearly separates cold-run from rerun/warm-path measurements.
+- [x] Evidence clearly separates cold-run from rerun/warm-path measurements.
 
 ##### POPT.0.5 - Closure gates
 Definition of done:
-- [ ] All four owner states (`S2/S3/S4/S5`) produce complete substep timing evidence.
-- [ ] Perf artifact files are reproducible and parseable (no missing required fields).
-- [ ] Instrumentation overhead is bounded and documented (no material unexplained runtime regression).
-- [ ] Decision recorded as `UNLOCK_POPT1` or `HOLD_POPT0` with blocker reasons if held.
+- [x] All four owner states (`S2/S3/S4/S5`) produce complete substep timing evidence.
+- [x] Perf artifact files are reproducible and parseable (no missing required fields).
+- [x] Instrumentation overhead is bounded and documented (no material unexplained runtime regression).
+- [x] Decision recorded as `UNLOCK_POPT1` or `HOLD_POPT0` with blocker reasons if held.
+
+POPT.0 closure evidence (`run_id=2204694f83dc4bc7bfa5d04274b9f211`, cold lane):
+- `S2=191.125s`, `S3=312.109s`, `S4=85.969s`, `S5=231.391s`, `S2-S5 total=820.594s`.
+- Comparison vs primary baseline `c25`: `S2 +10.91%`, `S3 +4.97%`, `S4 +7.81%`, `S5 +10.65%` (instrumentation overhead bounded; no state semantics change).
+- Comparison vs variance baseline `fd0`: `S2 -22.60%`, `S3 -23.01%`, `S4 -50.41%`, `S5 -20.20%`.
+- Blocker closed in-lane: stale copied `2A` validation bundle `index.json` coverage mismatch was repaired run-locally (index+flag recomputed) before witness continuation.
+- Decision: `UNLOCK_POPT1`.
 
 #### POPT.1 - `S3` allocation+emit vectorization (primary hotspot)
+Goal:
+- reduce `S3` primary hotspot (`allocate_instruments`) through data-layout and emit-path refactor while preserving deterministic output surfaces.
+
+##### POPT.1.1 - Kernel design lock (pre-code, fail-closed)
 Definition of done:
-- [ ] Replace Python-heavy per-account/per-instrument loops with array/batch-oriented allocation and emit path.
-- [ ] Remove repeated sort/lookup overhead inside allocation cells.
-- [ ] Preserve idempotence + determinism (same seed/parameter/manifest -> same outputs and RNG receipts).
-- [ ] `S3` wall-clock reduced by at least `30%` from baseline on cold-run witness.
+- [ ] Input/output invariants pinned for `S3`:
+  - identical schema columns for `s3_instrument_base_6A` and `s3_account_instrument_links_6A`,
+  - unchanged RNG trace/audit/event semantic contract (same substream labels + counters law),
+  - unchanged fail-closed checks (`duplicate_account_id`, allocation-cap and scheme-coverage failures).
+- [ ] Data-layout decision pinned:
+  - contiguous account vectors per `(party_type, account_type)` cell with one-time sorted order,
+  - owner lookup upgraded from hash-heavy lookup pattern to cache-friendly contiguous lookup.
+- [ ] Scheme assignment strategy pinned:
+  - prefix-sum/block assignment plan replaces per-row queue depletion checks in tight loops.
+- [ ] Rejected alternatives documented:
+  - whole-state `numba/cython` rewrite (high blast radius),
+  - full-frame explode/cross joins (memory amplification risk).
+
+##### POPT.1.2 - Account ingest + cell index refactor
+Definition of done:
+- [ ] `S3` account-load path builds deterministic per-cell account vectors once and reuses them in allocation/emit.
+- [ ] Repeated per-cell `sorted(accounts)` and repeated owner hash lookups are removed from hot loop.
+- [ ] Duplicate-account fail-closed behavior remains unchanged.
+- [ ] `load_account_base` substep timing is measured and retained in perf events.
+
+##### POPT.1.3 - Allocation kernel vectorization
+Definition of done:
+- [ ] Replace row-by-row Python allocation mechanics with chunk-aware/vector-like allocation for `n_instr` by cell.
+- [ ] Cap enforcement (`hard_max_per_account`) remains deterministic and fail-closed with explicit overflow handling.
+- [ ] Allocation result is represented as per-account counts ready for batched emit (not immediate per-row append).
+- [ ] `allocate_instruments` hotspot shows clear elapsed reduction versus POPT.0 witness.
+
+##### POPT.1.4 - Emit-path batch rewrite
+Definition of done:
+- [ ] Instrument/link row materialization uses batched chunk construction from count vectors.
+- [ ] Scheme assignment mapping is generated in blocks and consumed without per-row queue-guard churn.
+- [ ] Parquet publish/idempotence behavior remains unchanged.
+- [ ] `emit_instrument_base_links` + total `S3` elapsed improve without memory-risk spikes.
+
+##### POPT.1.5 - Witness, determinism, and closure gate
+Definition of done:
+- [ ] Execute cold witness on fresh run lane (`S3 -> S4 -> S5`, with `S0/S1/S2` already present for run identity).
+- [ ] `S3` wall-clock reduced by at least `30%` versus primary baseline (`c25`) on comparable cold lane.
+- [ ] No schema/idempotence/validation regressions in downstream `S4/S5`.
+- [ ] Decision recorded as `UNLOCK_POPT2` or `HOLD_POPT1` with blocker taxonomy.
 
 #### POPT.2 - `S5` validation-scan fusion + collect minimization
 Definition of done:

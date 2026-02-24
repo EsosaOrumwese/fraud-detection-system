@@ -1121,9 +1121,9 @@ Tasks:
 4. emit deterministic M3->M4 transition verdict aligned to M3.I adjudication.
 
 DoD:
-- [ ] M3 summary artifact committed.
-- [ ] M4 entry readiness marker committed (if green).
-- [ ] closure notes are appended to required docs.
+- [x] M3 summary artifact committed.
+- [x] M4 entry readiness marker committed (if green).
+- [x] closure notes are appended to required docs.
 
 M3.J planning precheck (decision completeness):
 1. Required upstream closure artifacts must exist and be readable:
@@ -1188,7 +1188,26 @@ M3.J planning status (current):
 2. M3.J is expanded to execution-grade with explicit transition/blocker controls.
 3. No pre-execution blockers are known at planning time.
 4. Phase posture:
-   - planning expanded; execution not started.
+   - planning expanded; execution closed green.
+
+M3.J execution status (2026-02-23):
+1. Authoritative execution id:
+   - `m3j_20260223T233827Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m3/m3j_20260223T233827Z/`
+3. Durable evidence mirror:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3j_20260223T233827Z/`
+4. PASS artifacts:
+   - `m3_execution_summary.json`
+   - `m4_entry_readiness_receipt.json`
+   - `m3j_execution_summary.json`
+5. Closure results:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M3.J_READY`
+   - M3 verdict: `ADVANCE_TO_M4`
+   - M4 entry readiness: `true`
+   - upstream chain closure: `9/9` green (`M3.A..M3.I`)
 
 ## 6) M3 Blocker Taxonomy (Fail-Closed)
 - `M3-B0`: runtime orchestrator surface unavailable at phase start.
@@ -1215,10 +1234,10 @@ Any active `M3-B*` blocker prevents M3 closure.
 - [x] M3.G complete.
 - [x] M3.H complete.
 - [x] M3.I complete.
-- [ ] M3.J complete.
-- [ ] M3 blockers resolved or explicitly fail-closed.
-- [ ] M3 closure note appended in implementation map.
-- [ ] M3 action log appended in logbook.
+- [x] M3.J complete.
+- [x] M3 blockers resolved or explicitly fail-closed.
+- [x] M3 closure note appended in implementation map.
+- [x] M3 action log appended in logbook.
 
 ## 8) Exit Criteria and Handoff
 M3 can close only when:
@@ -1229,3 +1248,4 @@ M3 can close only when:
 
 Handoff posture:
 1. M4 remains blocked until M3 verdict is `ADVANCE_TO_M4`.
+2. Authoritative closure achieved at `m3j_20260223T233827Z` with verdict `ADVANCE_TO_M4`; M4 entry is now unblocked.

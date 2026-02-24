@@ -336,7 +336,7 @@ M2 sub-phase progress:
 - [x] `M2.J` P0 gate rollup and verdict.
 
 ## M3 - Run Pinning and Orchestrator Readiness
-Status: `IN_PROGRESS`
+Status: `DONE`
 
 Objective:
 - close `P1` with deterministic run pinning and orchestration entry integrity.
@@ -423,6 +423,12 @@ M3 planning posture:
   - adjudication verdict: `ADVANCE_TO_M3J`.
 - M3.I durable mirror:
   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3i_20260223T233139Z/`
+- `M3.J` execution is now closed (`PASS`):
+  - `runs/dev_substrate/dev_full/m3/m3j_20260223T233827Z/m3j_execution_summary.json` (`overall_pass=true`, blockers=`0`).
+  - closure artifacts published: `m3_execution_summary.json`, `m4_entry_readiness_receipt.json`.
+  - final M3 verdict: `ADVANCE_TO_M4` (`M4_READY`).
+- M3.J durable mirror:
+  - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m3j_20260223T233827Z/`
 
 DoD anchors:
 - [x] run pin artifact committed.
@@ -442,10 +448,10 @@ M3 sub-phase progress:
 - [x] `M3.G` rerun/reset discipline.
 - [x] `M3.H` phase budget and cost-outcome receipt.
 - [x] `M3.I` gate rollup and blocker adjudication.
-- [ ] `M3.J` verdict and M4 entry marker.
+- [x] `M3.J` verdict and M4 entry marker.
 
 ## M4 - Spine Runtime-Lane Readiness (Managed-First)
-Status: `NOT_STARTED`
+Status: `IN_PROGRESS`
 
 Objective:
 - close `P2` runtime-lane readiness for spine services under managed-first posture.
@@ -456,6 +462,12 @@ Entry gate:
 Planned lanes:
 - lane health (Flink/API edge/selective EKS), env conformance, telemetry heartbeat + correlation continuity.
 
+M4 planning posture:
+- Deep plan has been created and expanded to execution-grade coverage across `M4.A..M4.J`.
+- Capability lanes are explicit (handles/runtime-path/IAM/network/health/correlation/drills/evidence/rollup/handoff).
+- `M4.A` has been expanded with handle-closure decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
+- Current phase posture: planning expanded; execution not started.
+
 DoD anchors:
 - [ ] required spine runtime lanes are healthy.
 - [ ] run-scope bindings are validated.
@@ -463,6 +475,18 @@ DoD anchors:
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
+
+M4 sub-phase progress:
+- [ ] `M4.A` authority and handle closure.
+- [ ] `M4.B` runtime-path pinning and lane manifest freeze.
+- [ ] `M4.C` identity/IAM conformance.
+- [ ] `M4.D` network/dependency reachability.
+- [ ] `M4.E` runtime health and run-scope binding.
+- [ ] `M4.F` correlation and telemetry continuity.
+- [ ] `M4.G` failure/recovery/rollback runtime drill.
+- [ ] `M4.H` runtime readiness evidence publication.
+- [ ] `M4.I` gate rollup and blocker adjudication.
+- [ ] `M4.J` M5 handoff artifact publication.
 
 ## M5 - Oracle Readiness and Ingest Preflight
 Status: `NOT_STARTED`
