@@ -3899,6 +3899,46 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
    - M4 sub-phase progress marks `M4.A` complete,
    - phase posture line corrected to `execution started`.
 
+## Entry: 2026-02-24 04:38:19 +00:00 - M4.B planning expanded (runtime-path selection + manifest freeze)
+
+### Problem statement
+1. M4.B was still template-level and did not yet enforce explicit single-path runtime mapping contracts.
+2. Without deep planning, path selection can drift between managed lanes and selective EKS lanes.
+
+### Planning decisions made
+1. Expanded M4.B with:
+   - planning precheck (M4.A PASS + handle family presence),
+   - decision pins,
+   - command-level verification catalog (`M4B-V1..V5`),
+   - fail-closed blocker taxonomy (`M4B-B1..M4B-B7`),
+   - evidence contract,
+   - closure rule,
+   - planning status.
+2. Pinned path selection laws:
+   - one active runtime path per lane,
+   - no in-phase switching,
+   - managed-first defaults for stream and ingress,
+   - selective EKS only for differentiating lanes per policy.
+3. Pinned explicit exclusion requirement:
+   - inactive/fallback paths must be declared with rationale.
+
+### Alternatives considered
+1. Allow multi-path active manifests and resolve ambiguity in M4.C:
+   - rejected; violates single-active-path law and increases drift risk.
+2. Lock all lanes to one substrate (no selective EKS):
+   - rejected; conflicts with pinned dev_full hybrid allowance for differentiating services.
+3. Use single-active-path manifest with explicit EKS policy conformance:
+   - accepted.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M4.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+3. `docs/logbook/02-2026/2026-02-24.md`
+
+### Current posture
+1. M4.B planning is execution-grade.
+2. Runtime execution for M4.B has not started yet.
+
 ## Entry: 2026-02-23 23:37:30 +00:00 - M3.J execution start (pre-run decision lock)
 
 ### Objective lock

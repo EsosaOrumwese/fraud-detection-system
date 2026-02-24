@@ -207,6 +207,72 @@ DoD:
 - [ ] fallback paths are explicit but inactive.
 - [ ] manifest snapshot is committed locally and durably.
 
+M4.B planning precheck (decision completeness):
+1. Required upstream dependency:
+   - latest M4.A execution summary is PASS (`m4a_20260224T043334Z`).
+2. Runtime-path guardrail handles remain pinned:
+   - `PHASE_RUNTIME_PATH_MODE=single_active_path_per_phase_run`
+   - `PHASE_RUNTIME_PATH_PIN_REQUIRED=true`
+   - `RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED=false`
+3. Runtime path family handles are present:
+   - `RUNTIME_DEFAULT_STREAM_ENGINE`
+   - `RUNTIME_DEFAULT_INGRESS_EDGE`
+   - `RUNTIME_EKS_USE_POLICY`
+4. Lane component handles are present for mapping:
+   - Flink apps (`FLINK_APP_*`),
+   - ingress edge (`IG_EDGE_MODE`, `APIGW_IG_API_ID`, `LAMBDA_IG_HANDLER_NAME`),
+   - selective EKS deployment handles (`K8S_DEPLOY_*`) for differentiating services only.
+
+M4.B decision pins (closed before execution):
+1. Single-active-path law:
+   - exactly one active runtime path per lane in this phase execution.
+2. Managed-first mapping law:
+   - stream-native transforms map to `MSK+Flink`.
+   - ingress edge maps to `API Gateway + Lambda + DynamoDB`.
+3. Selective-EKS law:
+   - EKS path may be active only for differentiating/custom lanes consistent with `RUNTIME_EKS_USE_POLICY`.
+4. No in-phase switching law:
+   - runtime path cannot change after manifest freeze within same `phase_execution_id`.
+5. Exclusion explicitness law:
+   - inactive paths must be listed with rationale (not implied/omitted).
+
+M4.B verification command catalog (planned, execution-time):
+| Verify ID | Command template | Purpose |
+| --- | --- | --- |
+| `M4B-V1-M4A-GATE` | verify `runs/dev_substrate/dev_full/m4/m4a_20260224T043334Z/m4a_execution_summary.json` has `overall_pass=true` | enforces M4.B entry gate |
+| `M4B-V2-HANDLE-PRESENCE` | `rg -n \"RUNTIME_DEFAULT_STREAM_ENGINE|RUNTIME_DEFAULT_INGRESS_EDGE|RUNTIME_EKS_USE_POLICY|FLINK_APP_|IG_EDGE_MODE|K8S_DEPLOY_\" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` | verifies runtime path mapping handles exist |
+| `M4B-V3-SINGLE-ACTIVE-PATH` | evaluate lane manifest and assert one active path per lane | enforces single-path law |
+| `M4B-V4-EKS-POLICY-CONFORMANCE` | assert active EKS lanes are subset of differentiating-service set | enforces selective-EKS policy |
+| `M4B-V5-MANIFEST-PUBLISH` | `aws s3 cp <local_manifest> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m4b_execution_id>/...` | publishes durable M4.B evidence |
+
+M4.B blocker taxonomy (fail-closed):
+1. `M4B-B1`: M4.A gate missing/non-pass.
+2. `M4B-B2`: required mapping handles missing/unresolved.
+3. `M4B-B3`: lane manifest incomplete or malformed.
+4. `M4B-B4`: multiple active paths detected for a lane.
+5. `M4B-B5`: EKS active path violates differentiating-services policy.
+6. `M4B-B6`: inactive/fallback paths not explicitly declared with rationale.
+7. `M4B-B7`: durable publish/readback failure for manifest artifacts.
+
+M4.B evidence contract (planned):
+1. `m4b_runtime_path_manifest.json`
+2. `m4b_lane_path_selection_matrix.json`
+3. `m4b_execution_summary.json`
+
+M4.B closure rule:
+1. M4.B can close only when:
+   - all `M4B-B*` blockers are resolved,
+   - DoD checks are green,
+   - manifest artifacts exist locally and durably,
+   - each lane has one and only one active runtime path.
+
+M4.B planning status (current):
+1. Prerequisite M4.A is closed green.
+2. M4.B is expanded to execution-grade with explicit blocker taxonomy and evidence contract.
+3. No pre-execution blockers are known at planning time.
+4. Phase posture:
+   - planning expanded; execution not started.
+
 ### M4.C Identity/IAM Conformance
 Goal:
 1. prove runtime identities/roles are aligned to pinned contract.

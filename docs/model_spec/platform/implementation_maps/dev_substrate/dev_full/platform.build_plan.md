@@ -466,6 +466,7 @@ M4 planning posture:
 - Deep plan has been created and expanded to execution-grade coverage across `M4.A..M4.J`.
 - Capability lanes are explicit (handles/runtime-path/IAM/network/health/correlation/drills/evidence/rollup/handoff).
 - `M4.A` has been expanded with handle-closure decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
+- `M4.B` has been expanded with runtime-path selection decision pins, verification command catalog, blocker taxonomy, and evidence/closure contract.
 - `M4.A` execution is now closed (`PASS`):
   - `runs/dev_substrate/dev_full/m4/m4a_20260224T043334Z/m4a_execution_summary.json` (`overall_pass=true`, blockers=`0`).
   - closure snapshot and required-handle matrix published durably.
