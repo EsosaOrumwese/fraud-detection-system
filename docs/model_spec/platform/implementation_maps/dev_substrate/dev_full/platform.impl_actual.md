@@ -9148,3 +9148,37 @@ ext_gate=HOLD_REMEDIATE.
 1. Treat the earlier fail-closed runs as historical evidence, superseded by remediation receipts.
 2. Proceed to `M6.J` closure sync as next gate before M7 advancement.
 
+## Entry: 2026-02-25 19:39:19 +00:00 - M6.J planning lock before implementation/execution
+
+### Problem
+1. `M6.H` and `M6.I` are now green, but `M6.J` closure lane is not materialized in managed execution.
+2. M6 deep plan has `M6.J` goals/DoD, but there is no executable script/workflow path that emits:
+   - `m6_execution_summary.json`,
+   - `m6_phase_budget_envelope.json`,
+   - `m6_phase_cost_outcome_receipt.json`.
+3. Until `M6.J` emits those artifacts with fail-closed gating, M6 cannot be formally closed and M7 entry remains documentation-only.
+
+### Decision
+1. Materialize `M6.J` as managed lane in the existing dev_full M6 workflow (`dev_full_m6f_streaming_active.yml`) using `phase_mode=m6j`.
+2. Add `scripts/dev_substrate/m6j_closure_sync.py` to:
+   - verify upstream phase verdict chain (`M6.D`, `M6.G`, `M6.I`),
+   - compute current MTD AWS spend for cost-outcome receipt,
+   - emit deterministic M6 closure artifacts and blocker register,
+   - publish artifacts locally + durable run-control prefix.
+3. Keep fail-closed semantics:
+   - any missing/unreadable upstream artifact, verdict mismatch, or invalid cost capture blocks closure.
+
+### Inputs locked for first execution
+1. `upstream_m6d_execution = m6d_p5c_gate_rollup_20260225T041801Z`
+2. `upstream_m6g_execution = m6g_p6c_gate_rollup_20260225T181523Z`
+3. `upstream_m6i_execution = m6i_p7b_gate_rollup_20260225T191541Z`
+4. `platform_run_id = platform_20260223T184232Z`
+5. `scenario_run_id = scenario_38753050f3b70c666e16f7552016b330`
+6. `evidence_bucket = fraud-platform-dev-full-evidence`
+
+### Planned steps
+1. Expand `M6.J` section in `platform.M6.build_plan.md` to execution-grade detail (tasks, verification, blockers, expected artifacts).
+2. Implement `m6j_closure_sync.py` and workflow `phase_mode=m6j`.
+3. Dispatch managed `m6j` run on `migrate-dev`, capture artifacts, and enforce fail-closed gate in workflow.
+4. Update `platform.M6.build_plan.md`, `platform.build_plan.md`, implementation-map, and logbook with authoritative `M6.J` receipt and closure state.
+

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       phase_mode:
-        description: "Execution mode: m6f (streaming-active lane), m6g (P6 rollup), m6h (P7 ingest-commit), or m6i (P7 rollup)"
+        description: "Execution mode: m6f (streaming-active lane), m6g (P6 rollup), m6h (P7 ingest-commit), m6i (P7 rollup), or m6j (M6 closure sync)"
         required: true
         default: "m6f"
         type: string
@@ -41,6 +41,16 @@ on:
         type: string
       upstream_m6h_execution:
         description: "Upstream M6.H execution id used by M6.I rollup (required when phase_mode=m6i)"
+        required: false
+        default: ""
+        type: string
+      upstream_m6d_execution:
+        description: "Upstream M6.D execution id used by M6.J closure sync (required when phase_mode=m6j)"
+        required: false
+        default: ""
+        type: string
+      upstream_m6i_execution:
+        description: "Upstream M6.I execution id used by M6.J closure sync (required when phase_mode=m6j)"
         required: false
         default: ""
         type: string
@@ -1008,4 +1018,139 @@ jobs:
         with:
           name: m6i-p7-rollup-${{ steps.run_meta_i.outputs.timestamp }}
           path: ${{ steps.run_meta_i.outputs.run_dir }}
+          if-no-files-found: warn
+
+  run_m6j_remote:
+    name: Run M6.J closure sync remotely (GitHub Actions)
+    if: ${{ inputs.phase_mode == 'm6j' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Validate mode-specific inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ inputs.upstream_m6d_execution }}" ]]; then
+            echo "M6.J fail-closed: upstream_m6d_execution input is required when phase_mode=m6j."
+            exit 1
+          fi
+          if [[ -z "${{ inputs.upstream_m6g_execution }}" ]]; then
+            echo "M6.J fail-closed: upstream_m6g_execution input is required when phase_mode=m6j."
+            exit 1
+          fi
+          if [[ -z "${{ inputs.upstream_m6i_execution }}" ]]; then
+            echo "M6.J fail-closed: upstream_m6i_execution input is required when phase_mode=m6j."
+            exit 1
+          fi
+
+      - name: Compute execution metadata
+        id: run_meta_j
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m6_execution_id }}" ]]; then
+            EXEC_ID="${{ inputs.m6_execution_id }}"
+          else
+            EXEC_ID="m6j_m6_closure_sync_${TS}"
+          fi
+          RUN_DIR="runs/dev_substrate/dev_full/m6/${EXEC_ID}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m6_execution_id=${EXEC_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Build M6.J closure artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/m6j_closure_sync.py \
+            --execution-id "${{ steps.run_meta_j.outputs.m6_execution_id }}" \
+            --platform-run-id "${{ inputs.platform_run_id }}" \
+            --scenario-run-id "${{ inputs.scenario_run_id }}" \
+            --upstream-m6d-execution "${{ inputs.upstream_m6d_execution }}" \
+            --upstream-m6g-execution "${{ inputs.upstream_m6g_execution }}" \
+            --upstream-m6i-execution "${{ inputs.upstream_m6i_execution }}" \
+            --evidence-bucket "${{ inputs.evidence_bucket }}" \
+            --region "${{ inputs.aws_region }}" \
+            --billing-region "us-east-1" \
+            --budget-currency "USD" \
+            --monthly-limit-amount "300" \
+            --alert-1-amount "120" \
+            --alert-2-amount "210" \
+            --alert-3-amount "270" \
+            --local-output-root "runs/dev_substrate/dev_full/m6"
+
+      - name: Fail-closed verdict gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUMMARY_PATH="${{ steps.run_meta_j.outputs.run_dir }}/m6j_execution_summary.json"
+          VERDICT_PATH="${{ steps.run_meta_j.outputs.run_dir }}/m6_execution_summary.json"
+          BLOCKER_PATH="${{ steps.run_meta_j.outputs.run_dir }}/m6j_blocker_register.json"
+          export SUMMARY_PATH VERDICT_PATH BLOCKER_PATH
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          summary = json.loads(Path(os.environ["SUMMARY_PATH"]).read_text(encoding="utf-8"))
+          verdict = json.loads(Path(os.environ["VERDICT_PATH"]).read_text(encoding="utf-8"))
+          blockers = json.loads(Path(os.environ["BLOCKER_PATH"]).read_text(encoding="utf-8"))
+          overall_pass = bool(summary.get("overall_pass"))
+          blocker_count = int(blockers.get("blocker_count", 0))
+          verdict_value = str(verdict.get("verdict", "")).strip()
+          next_gate = str(summary.get("next_gate", "")).strip()
+
+          print(json.dumps(
+              {
+                  "overall_pass": overall_pass,
+                  "blocker_count": blocker_count,
+                  "execution_id": summary.get("execution_id"),
+                  "verdict": verdict_value,
+                  "next_gate": next_gate,
+              },
+              ensure_ascii=True,
+          ))
+          if (not overall_pass) or blocker_count != 0:
+              sys.exit(1)
+          if verdict_value != "ADVANCE_TO_M7" or next_gate != "M7_READY":
+              sys.exit(1)
+          PY
+
+      - name: Upload M6.J run artifact set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m6j-closure-sync-${{ steps.run_meta_j.outputs.timestamp }}
+          path: ${{ steps.run_meta_j.outputs.run_dir }}
           if-no-files-found: warn

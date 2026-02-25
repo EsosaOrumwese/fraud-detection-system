@@ -507,11 +507,30 @@ Tasks:
 1. emit `m6_execution_summary.json`.
 2. emit `m6_phase_budget_envelope.json` and `m6_phase_cost_outcome_receipt.json`.
 3. append closure notes to master plan + impl map + logbook.
+4. fail-closed verify upstream closure chain (`M6.D` + `M6.G` + `M6.I`) before issuing M6 verdict.
 
 DoD:
 - [ ] M6 execution summary committed locally and durably.
 - [ ] phase-budget/cost-outcome artifacts committed and valid.
 - [ ] closure notes appended in required docs.
+- [ ] managed `phase_mode=m6j` execution is green with `verdict=ADVANCE_TO_M7`, `next_gate=M7_READY`.
+
+Execution plan (authoritative lane):
+1. Dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with:
+   - `phase_mode=m6j`,
+   - run scope pins (`platform_run_id`, `scenario_run_id`),
+   - upstream closures:
+     - `upstream_m6d_execution=m6d_p5c_gate_rollup_20260225T041801Z`,
+     - `upstream_m6g_execution=m6g_p6c_gate_rollup_20260225T181523Z`,
+     - `upstream_m6i_execution=m6i_p7b_gate_rollup_20260225T191541Z`.
+2. Require artifact set:
+   - `m6_phase_budget_envelope.json`,
+   - `m6_phase_cost_outcome_receipt.json`,
+   - `m6_execution_summary.json`,
+   - `m6j_blocker_register.json`,
+   - `m6j_execution_summary.json`.
+3. Fail-closed rule:
+   - any unresolved `M6-B*` blocker or verdict mismatch keeps M6 at `HOLD_REMEDIATE`.
 
 ## 6) Split Deep Plan Routing
 1. `P5` detailed lane plan:
