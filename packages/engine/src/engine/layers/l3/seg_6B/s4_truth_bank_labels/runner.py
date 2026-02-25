@@ -54,6 +54,16 @@ class S4Result:
     case_count: int
 
 
+@dataclass(frozen=True)
+class _TruthRule:
+    rule_id: str
+    fraud_pattern_type: str
+    overlay_anomaly_any: Optional[bool]
+    requires_campaign_id: bool
+    truth_label: str
+    truth_subtype: str
+
+
 class _StepTimer:
     def __init__(self, logger) -> None:
         self._logger = logger
@@ -605,28 +615,93 @@ def _load_templates_map(catalogue_config: dict, logger) -> dict[str, str]:
     return mapping
 
 
-def _load_truth_maps(truth_policy: dict, logger) -> tuple[dict[str, str], dict[str, str]]:
-    mapping_label: dict[str, str] = {}
-    mapping_subtype: dict[str, str] = {}
+def _parse_optional_bool(value: object) -> Optional[bool]:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes", "y"}:
+            return True
+        if lowered in {"false", "0", "no", "n"}:
+            return False
+    return None
+
+
+def _load_truth_rules(truth_policy: dict, logger) -> list[_TruthRule]:
+    parsed: list[_TruthRule] = []
     rules = truth_policy.get("direct_pattern_map") if isinstance(truth_policy, dict) else None
     rules = rules if isinstance(rules, list) else []
-    for rule in rules:
+    for index, rule in enumerate(rules):
         if not isinstance(rule, dict):
             continue
         match = rule.get("match") if isinstance(rule, dict) else None
         if not isinstance(match, dict):
             continue
-        pattern = match.get("fraud_pattern_type")
+        pattern = str(match.get("fraud_pattern_type") or "").strip()
         if not pattern:
             continue
-        truth_label = rule.get("truth_label")
-        truth_subtype = rule.get("truth_subtype") or pattern
-        if truth_label:
-            mapping_label[str(pattern)] = str(truth_label)
-            mapping_subtype[str(pattern)] = str(truth_subtype)
-    if not mapping_label:
-        logger.warning("S4: direct_pattern_map missing fraud_pattern_type rules; defaulting to LEGIT")
-    return mapping_label, mapping_subtype
+        truth_label = str(rule.get("truth_label") or "").strip()
+        if not truth_label:
+            continue
+        truth_subtype = str(rule.get("truth_subtype") or pattern).strip()
+        rule_id = str(rule.get("rule_id") or f"rule_{index}").strip()
+        overlay_anomaly_any = _parse_optional_bool(match.get("overlay_anomaly_any"))
+        requires_campaign_id = bool(rule.get("requires_campaign_id"))
+        parsed.append(
+            _TruthRule(
+                rule_id=rule_id,
+                fraud_pattern_type=pattern,
+                overlay_anomaly_any=overlay_anomaly_any,
+                requires_campaign_id=requires_campaign_id,
+                truth_label=truth_label,
+                truth_subtype=truth_subtype,
+            )
+        )
+    if not parsed:
+        logger.warning("S4: direct_pattern_map missing usable rules; defaulting to LEGIT/NONE")
+    return parsed
+
+
+def _truth_rule_condition_expr(rule: _TruthRule) -> pl.Expr:
+    condition = pl.col("campaign_type") == pl.lit(rule.fraud_pattern_type)
+    if rule.overlay_anomaly_any is not None:
+        condition = condition & (pl.col("overlay_anomaly_any") == pl.lit(bool(rule.overlay_anomaly_any)))
+    if rule.requires_campaign_id:
+        condition = condition & pl.col("campaign_id").is_not_null()
+    return condition
+
+
+def _build_truth_rule_exprs(truth_rules: list[_TruthRule]) -> tuple[pl.Expr, pl.Expr, pl.Expr]:
+    if not truth_rules:
+        return (
+            pl.lit("LEGIT"),
+            pl.lit("NONE"),
+            pl.lit(0, dtype=pl.Int64),
+        )
+
+    label_expr = None
+    subtype_expr = None
+    match_count_expr = pl.lit(0, dtype=pl.Int64)
+    for rule in truth_rules:
+        condition = _truth_rule_condition_expr(rule)
+        if label_expr is None:
+            label_expr = pl.when(condition).then(pl.lit(rule.truth_label))
+        else:
+            label_expr = label_expr.when(condition).then(pl.lit(rule.truth_label))
+        if subtype_expr is None:
+            subtype_expr = pl.when(condition).then(pl.lit(rule.truth_subtype))
+        else:
+            subtype_expr = subtype_expr.when(condition).then(pl.lit(rule.truth_subtype))
+        match_count_expr = match_count_expr + pl.when(condition).then(pl.lit(1, dtype=pl.Int64)).otherwise(
+            pl.lit(0, dtype=pl.Int64)
+        )
+    return (
+        label_expr.otherwise(pl.lit("LEGIT")),
+        subtype_expr.otherwise(pl.lit("NONE")),
+        match_count_expr,
+    )
 
 
 def _load_min_delay_seconds(delay_models: dict, logger) -> dict[str, float]:
@@ -1050,8 +1125,9 @@ def run_s4(
     _ = case_policy
 
     template_map = _load_templates_map(catalogue_config, logger)
-    truth_label_map, truth_subtype_map = _load_truth_maps(truth_policy, logger)
+    truth_rules = _load_truth_rules(truth_policy, logger)
     fail_on_unknown = bool((truth_policy.get("constraints") or {}).get("fail_on_unknown_fraud_pattern_type"))
+    logger.info("S4: loaded %s direct truth rules (fail_on_unknown=%s)", len(truth_rules), fail_on_unknown)
 
     auth_choices = _extract_auth_mixture(bank_view_policy)
     detection_model = bank_view_policy.get("detection_model") if isinstance(bank_view_policy, dict) else {}
@@ -1284,12 +1360,14 @@ def run_s4(
             manifest_literal = pl.lit(manifest_fingerprint).cast(pl.Utf8)
             parameter_literal = pl.lit(parameter_hash).cast(pl.Utf8)
             scenario_literal = pl.lit(str(scenario_id)).cast(pl.Utf8)
+            truth_label_expr, truth_subtype_expr, truth_rule_match_expr = _build_truth_rule_exprs(truth_rules)
 
             for flows in _iter_parquet_batches(
                 flow_files,
                 [
                     "flow_id",
                     "campaign_id",
+                    "fraud_flag",
                     "ts_utc",
                 ],
                 batch_rows,
@@ -1297,6 +1375,7 @@ def run_s4(
                 flows = flows.with_columns(
                     pl.col("flow_id").cast(pl.Int64),
                     pl.col("campaign_id").cast(pl.Utf8),
+                    pl.col("fraud_flag").cast(pl.Boolean),
                     pl.col("ts_utc").cast(pl.Utf8),
                 )
 
@@ -1305,13 +1384,85 @@ def run_s4(
                 )
 
                 flows = flows.with_columns(
-                    _map_enum_expr("campaign_type", truth_label_map, "LEGIT").alias("truth_label"),
-                    _map_enum_expr("campaign_type", truth_subtype_map, "NONE").alias("truth_subtype"),
+                    (pl.col("fraud_flag") & pl.col("campaign_id").is_null()).alias("overlay_anomaly_any"),
+                )
+
+                flows = flows.with_columns(
+                    truth_label_expr.alias("truth_label"),
+                    truth_subtype_expr.alias("truth_subtype"),
+                    truth_rule_match_expr.alias("truth_rule_match_count"),
                 )
 
                 flows = flows.with_columns(
                     (pl.col("truth_label") != "LEGIT").alias("is_fraud_truth")
                 )
+
+                rule_guard = flows.select(
+                    pl.len().cast(pl.Int64).alias("flow_rows"),
+                    (pl.col("truth_rule_match_count") == 0).sum().cast(pl.Int64).alias("unmatched_rows"),
+                    (pl.col("truth_rule_match_count") > 1).sum().cast(pl.Int64).alias("collision_rows"),
+                ).to_dicts()[0]
+                unmatched_rows = int(rule_guard["unmatched_rows"])
+                collision_rows = int(rule_guard["collision_rows"])
+                if collision_rows > 0:
+                    collision_examples = (
+                        flows.filter(pl.col("truth_rule_match_count") > 1)
+                        .select(
+                            [
+                                "flow_id",
+                                "campaign_id",
+                                "campaign_type",
+                                "fraud_flag",
+                                "overlay_anomaly_any",
+                                "truth_rule_match_count",
+                            ]
+                        )
+                        .head(5)
+                        .to_dicts()
+                    )
+                    _abort(
+                        "S4_TRUTH_RULE_COLLISION",
+                        "V-01",
+                        "truth_rule_collision_detected",
+                        {
+                            "scenario_id": str(scenario_id),
+                            "collision_rows": collision_rows,
+                            "sample_rows": collision_examples,
+                        },
+                        manifest_fingerprint,
+                    )
+                if unmatched_rows > 0 and fail_on_unknown:
+                    unmatched_examples = (
+                        flows.filter(pl.col("truth_rule_match_count") == 0)
+                        .select(
+                            [
+                                "flow_id",
+                                "campaign_id",
+                                "campaign_type",
+                                "fraud_flag",
+                                "overlay_anomaly_any",
+                            ]
+                        )
+                        .head(5)
+                        .to_dicts()
+                    )
+                    _abort(
+                        "S4_TRUTH_RULE_UNMATCHED",
+                        "V-01",
+                        "truth_rule_unmatched_rows_detected",
+                        {
+                            "scenario_id": str(scenario_id),
+                            "unmatched_rows": unmatched_rows,
+                            "sample_rows": unmatched_examples,
+                        },
+                        manifest_fingerprint,
+                    )
+                if unmatched_rows > 0 and not fail_on_unknown:
+                    logger.warning(
+                        "S4: scenario_id=%s truth-rule unmatched rows=%s; LEGIT/NONE fallback applied",
+                        scenario_id,
+                        unmatched_rows,
+                    )
 
                 auth_decision = pl.when(pl.col("truth_subtype") == "CARD_TESTING").then(pl.lit("DECLINE")).otherwise(auth_choices_expr)
 

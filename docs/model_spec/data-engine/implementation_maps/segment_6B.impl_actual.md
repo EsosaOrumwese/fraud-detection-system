@@ -868,7 +868,9 @@ Validation/testing:
 - Run `make segment6b-s3` and watch ETA; terminate if abnormal.
 \n---\n## 6B.S3 — Implementation notes (2026-01-22 13:14 local)\n- Decision: create s3_fraud_overlay/runner.py as a new file, then write contents in chunks to avoid prior Windows path length/command size errors.\n- Rationale: New-Item succeeds; previous pply_patch/Set-Content attempts failed with Win32 error 206. Chunked Add-Content should avoid command-size/path issues while preserving the new-from-scratch requirement.\n- Action plan: write runner in 4–6 chunks; verify file size; run python -m py_compile on new runner + CLI; then make segment6b-s3.\n
 \n---\n## 6B.S3 — Implementation decisions (2026-01-22 13:26 local)\n- Implemented lean overlay runner at packages/engine/src/engine/layers/l3/seg_6B/s3_fraud_overlay/runner.py with deterministic hash-based campaign assignment (flow_id + campaign_id), no per-row loops.\n- Campaign planning: one instance per template; target_count derived from quota targets_per_day × schedule duration_days; clamped by template min/max and overlay guardrail max_targets_total_per_seed_scenario (scaled down if needed).\n- Overlay mechanics: no new flows/events; inject campaign_id + raud_flag; apply bounded amount upshift to all events for fraud flows using deterministic hash factor in [min,max] capped by guardrail max_amount_multiplier.\n- Filters/tactics: targeting filters from config not enforced (logged); we treat campaigns as deterministic sampling against all flows for speed and reproducibility.\n- Outputs: streaming batch writes for s3_flow_anchor_with_fraud_6B and s3_event_stream_with_fraud_6B, campaign catalogue per scenario, RNG audit/trace + non-consuming RNG event logs.\n- Added CLI packages/engine/src/engine/cli/s3_fraud_overlay_6b.py and make target segment6b-s3 with batch_rows/compression defaults.\n
-\n---\n## 6B.S4 — Lean implementation plan (2026-01-22 13:46 local)\nProblem framing:\n- S4 must label every S3 flow/event and emit case timelines. Spec is heavy (collateral windows, posture joins, stochastic delays, cross-flow case grouping). Goal is fast, deterministic, realistic-enough labels without per-row loops or massive joins.\n\nInputs/authorities to use (contract source must remain switchable):\n- Contracts loaded via ContractSource(layout=ENGINE_CONTRACTS_LAYOUT, root=ENGINE_CONTRACTS_ROOT or repo_root) so dev uses model_spec but can switch to contracts mirror without code changes.\n- Authoritative inputs: s0_gate_receipt_6B, sealed_inputs_6B, s3_flow_anchor_with_fraud_6B, s3_event_stream_with_fraud_6B, plus config packs: 	ruth_labelling_policy_6B, ank_view_policy_6B, delay_models_6B, case_policy_6B, label_rng_policy_6B.\n- Optional posture inputs ignored for now (lean path).\n\nAlternatives considered:\n- Full spec: collateral rules + posture overrides + stochastic delay sampling + cross-flow case grouping. Rejected for time/CPU/memory and likely >15min on large runs.\n- Lean deterministic: campaign-driven truth labels; bank-view probabilities via hash-derived uniforms; fixed delays; 1-case-per-flow. Selected as minimal viable realism with deterministic reproducibility.\n\nDecisions (lean relaxations):\n- Truth labels: derive solely from S3 campaign_id using campaign catalogue + template->campaign_type mapping; map to truth_label via 	ruth_labelling_policy_6B.direct_pattern_map. LEGIT if no campaign. Skip collateral rules and posture overrides.\n- Bank-view: compute auth/detect/dispute/chargeback flags using deterministic hash-uniform draws keyed by (flow_id, decision_id); apply policy probabilities without RNG state. Use simplified auth rule: CARD_TESTING => DECLINE regardless of channel (channel_group not available in flow anchor).\n- Delays: use fixed min_seconds from delay_models_6B for detection/dispute/chargeback/case_close. Apply only when emitting case timeline timestamps.\n- Case grouping: 1-case-per-flow when case_opened; no cross-flow grouping or reopen logic. case_id is deterministic hash of (manifest_fingerprint, seed, flow_id, domain_tag).\n- RNG logs: emit non-consuming ng_event_truth_label + ng_event_bank_view_label envelopes with draws=0; append rng_trace rows for S4 substreams.\n\nAlgorithm/data-flow (per scenario_id):\n1) Validate S0 receipt + sealed_inputs; enforce upstream PASS; verify sealed_inputs digest.\n2) Resolve S3 flow/event outputs and S3 campaign catalogue for scenario_id. Build mapping: campaign_id -> campaign_type (via campaign_label/template_id + config templates). Build mapping: campaign_type -> truth_label (from truth policy).\n3) Stream flows in batches (parquet):\n   - Columns: flow_id, ts_utc, campaign_id, seed, manifest_fingerprint, parameter_hash, scenario_id.\n   - Derive campaign_type, truth_label, is_fraud_truth.\n   - Compute auth_decision, detect_flag, dispute_flag, chargeback_flag, chargeback_outcome with deterministic hash uniforms and policy probabilities.\n   - Compute bank_label via final_label_map rules; set is_fraud_bank_view from bank_label.\n   - Write s4_flow_truth_labels_6B and s4_flow_bank_view_6B parts.\n   - For case_opened flows (detected/review/dispute), emit case timeline rows with fixed delays and ordered case_event_seq.\n4) Stream events in batches: derive truth/bank flags using same deterministic decisions from flow_id + campaign_id; write s4_event_labels_6B parts (no joins).\n5) Publish parts to final output dirs; idempotent publish; write rng logs.\n\nInvariants to enforce:\n- One row per flow/event in S4 outputs; flow_id/event_seq preserved.\n- campaign_id presence -> truth_label != LEGIT.\n- Outputs contain required columns per schema anchors #/s4/flow_truth_labels_6B, #/s4/flow_bank_view_6B, #/s4/event_labels_6B, #/s4/case_timeline_6B.\n- Case timeline events ordered by case_event_seq; case_id deterministic and stable.\n\nLogging points (narrative, state-aware):\n- Story header: objective + gated inputs + outputs.\n- Per-scenario summary: total flows/events, campaigns mapped, label rates (fraud/abuse/legit, bank_view flags).\n- Progress logs for flow/event batches with elapsed, processed/total, rate, ETA (monotonic).\n- Case timeline counts per batch.\n\nResumability/IO:\n- Write to tmp dirs under runs/<run_id>/tmp; clean temp parts before write.\n- Idempotent publish: if final dir exists, skip.\n\nPerformance considerations:\n- Avoid joins by recomputing labels for events via deterministic hashing.\n- Keep polars expressions vectorized; no per-row Python loops.\n- Case timeline generated only for subset flows (case_opened) per batch.\n\nValidation/testing:\n- Validate sample row for each output against schema anchors.\n- python -m py_compile for runner + CLI.\n- Run make segment6b-s4; monitor ETA; terminate if abnormal.\n
+\n---\n## 6B.S4 — Lean implementation plan (2026-01-22 13:46 local)\nProblem framing:\n- S4 must label every S3 flow/event and emit case timelines. Spec is heavy (collateral windows, posture joins, stochastic delays, cross-flow case grouping). Goal is fast, deterministic, realistic-enough labels without per-row loops or massive joins.\n\nInputs/authorities to use (contract source must remain switchable):\n- Contracts loaded via ContractSource(layout=ENGINE_CONTRACTS_LAYOUT, root=ENGINE_CONTRACTS_ROOT or repo_root) so dev uses model_spec but can switch to contracts mirror without code changes.\n- Authoritative inputs: s0_gate_receipt_6B, sealed_inputs_6B, s3_flow_anchor_with_fraud_6B, s3_event_stream_with_fraud_6B, plus config packs: 	ruth_labelling_policy_6B, ank_view_policy_6B, delay_models_6B, case_policy_6B, label_rng_policy_6B.\n- Optional posture inputs ignored for now (lean path).\n\nAlternatives considered:\n- Full spec: collateral rules + posture overrides + stochastic delay sampling + cross-flow case grouping. Rejected for time/CPU/memory and likely >15min on large runs.\n- Lean deterministic: campaign-driven truth labels; bank-view probabilities via hash-derived uniforms; fixed delays; 1-case-per-flow. Selected as minimal viable realism with deterministic reproducibility.\n\nDecisions (lean relaxations):\n- Truth labels: derive solely from S3 campaign_id using campaign catalogue + template->campaign_type mapping; map to truth_label via 	ruth_labelling_policy_6B.direct_pattern_map. LEGIT if no campaign. Skip collateral rules and posture overrides.\n- Bank-view: compute auth/detect/dispute/chargeback flags using deterministic hash-uniform draws keyed by (flow_id, decision_id); apply policy probabilities without RNG state. Use simplified auth rule: CARD_TESTING => DECLINE regardless of channel (channel_group not available in flow anchor).\n- Delays: use fixed min_seconds from delay_models_6B for detection/dispute/chargeback/case_close. Apply only when emitting case timeline timestamps.\n- Case grouping: 1-case-per-flow when case_opened; no cross-flow grouping or reopen logic. case_id is deterministic hash of (manifest_fingerprint, seed, flow_id, domain_tag).\n- RNG logs: emit non-consuming 
+ng_event_truth_label + 
+ng_event_bank_view_label envelopes with draws=0; append rng_trace rows for S4 substreams.\n\nAlgorithm/data-flow (per scenario_id):\n1) Validate S0 receipt + sealed_inputs; enforce upstream PASS; verify sealed_inputs digest.\n2) Resolve S3 flow/event outputs and S3 campaign catalogue for scenario_id. Build mapping: campaign_id -> campaign_type (via campaign_label/template_id + config templates). Build mapping: campaign_type -> truth_label (from truth policy).\n3) Stream flows in batches (parquet):\n   - Columns: flow_id, ts_utc, campaign_id, seed, manifest_fingerprint, parameter_hash, scenario_id.\n   - Derive campaign_type, truth_label, is_fraud_truth.\n   - Compute auth_decision, detect_flag, dispute_flag, chargeback_flag, chargeback_outcome with deterministic hash uniforms and policy probabilities.\n   - Compute bank_label via final_label_map rules; set is_fraud_bank_view from bank_label.\n   - Write s4_flow_truth_labels_6B and s4_flow_bank_view_6B parts.\n   - For case_opened flows (detected/review/dispute), emit case timeline rows with fixed delays and ordered case_event_seq.\n4) Stream events in batches: derive truth/bank flags using same deterministic decisions from flow_id + campaign_id; write s4_event_labels_6B parts (no joins).\n5) Publish parts to final output dirs; idempotent publish; write rng logs.\n\nInvariants to enforce:\n- One row per flow/event in S4 outputs; flow_id/event_seq preserved.\n- campaign_id presence -> truth_label != LEGIT.\n- Outputs contain required columns per schema anchors #/s4/flow_truth_labels_6B, #/s4/flow_bank_view_6B, #/s4/event_labels_6B, #/s4/case_timeline_6B.\n- Case timeline events ordered by case_event_seq; case_id deterministic and stable.\n\nLogging points (narrative, state-aware):\n- Story header: objective + gated inputs + outputs.\n- Per-scenario summary: total flows/events, campaigns mapped, label rates (fraud/abuse/legit, bank_view flags).\n- Progress logs for flow/event batches with elapsed, processed/total, rate, ETA (monotonic).\n- Case timeline counts per batch.\n\nResumability/IO:\n- Write to tmp dirs under runs/<run_id>/tmp; clean temp parts before write.\n- Idempotent publish: if final dir exists, skip.\n\nPerformance considerations:\n- Avoid joins by recomputing labels for events via deterministic hashing.\n- Keep polars expressions vectorized; no per-row Python loops.\n- Case timeline generated only for subset flows (case_opened) per batch.\n\nValidation/testing:\n- Validate sample row for each output against schema anchors.\n- python -m py_compile for runner + CLI.\n- Run make segment6b-s4; monitor ETA; terminate if abnormal.\n
 \n---\n## 6B.S4 — Implementation notes (2026-01-22 13:58 local)\n- Implemented s4_truth_bank_labels/runner.py with deterministic hash-based probabilities for auth/detect/dispute/chargeback; no RNG state consumed.\n- Truth label mapping uses campaign catalogue (campaign_id -> template_id) and fraud_campaign_catalogue_config_6B templates -> campaign_type; then truth_labelling_policy direct_pattern_map to truth_label/subtype. Unknown templates abort if policy constraint fail_on_unknown_fraud_pattern_type=true.\n- Bank-view label computed via simplified final_label_map rules; is_fraud_bank_view true for BANK_CONFIRMED_FRAUD/CHARGEBACK_WRITTEN_OFF.\n- Case timeline is 1-case-per-flow when case_opened (detect OR dispute OR auth_decision review/challenge). Case_id = hash64(domain_tag, manifest_fingerprint, seed, flow_id). Timeline emits ordered events with fixed min delays from delay_models_6B.\n- Event labels recompute truth/bank flags directly from flow_id + campaign_id to avoid joins; ensures deterministic consistency with flow labels.\n- RNG logs emitted as non-consuming envelopes in rng_event_truth_label + rng_event_bank_view_label; rng_trace rows appended for 6B.S4 substreams.\n
 \n---\n## 6B.S4 — Fixups after first run (2026-01-22 14:10 local)\n- Replaced Polars map_dict (not available) with left-join to a campaign_id->campaign_type lookup DataFrame; fill nulls to NONE to keep deterministic defaults.\n- Normalized chargeback outcome probability tables from policy YAML into (label, prob) tuples before feeding into choice_expr.\n- Re-ran make segment6b-s4; completed green with acceptable ETAs.\n
 \n---\n## 6B.S0 — sealed_inputs coverage for S3 outputs (2026-01-22 14:16 local)\nProblem: S4 logs WARN because sealed_inputs_6B lacks entries for S3 outputs (s3_flow_anchor_with_fraud_6B, s3_event_stream_with_fraud_6B, s3_campaign_catalogue_6B). This can break S5 validations expecting sealed coverage.\n\nDecision: Add 6B.S0 to the consumed_by list for these S3 datasets in docs/model_spec/data-engine/layer-3/specs/contracts/6B/dataset_dictionary.layer3.6B.yaml. S0 pulls sealed inputs from dictionary entries consumed_by 6B.S0; for owner_segment=6B it records structural digests only (no existence check), so this is safe pre-run and avoids needing S3 outputs at S0 time.\n\nPlan steps:\n1) Edit dataset dictionary entries for s3_campaign_catalogue_6B, s3_flow_anchor_with_fraud_6B, and s3_event_stream_with_fraud_6B to append 6B.S0 to lineage.consumed_by.\n2) Log action in docs/logbook with local time and reference this entry.\n3) (Optional later) rerun make segment6b-s0 to regenerate sealed_inputs_6B if we want the WARNs gone on this run; otherwise new runs will be clean.\n
@@ -1464,7 +1466,8 @@ Observed blockers from first POPT.2 execution:
 
 Root-cause assessment:
 1) DuckDB event-label join replaced compute with a very large vents x flow_labels join and single-file write, adding ~364s join walltime and forcing extra materialization.
-2) Staged rerun lane reused S0..S3 data without run-id-normalized RNG traces; S5 checks module presence in ng_trace_log at current run-id path.
+2) Staged rerun lane reused S0..S3 data without run-id-normalized RNG traces; S5 checks module presence in 
+ng_trace_log at current run-id path.
 
 Decision (selected):
 - Revert S4 event-label lane to prior deterministic in-state computation path (no DuckDB dependency) to eliminate the measured regression and restore known-good behavior envelope.
@@ -1477,8 +1480,10 @@ Alternatives considered:
 Invariants for this blocker-resolution lane:
 - No schema/path contract change for 6B datasets.
 - No policy semantic change for truth/bank-view labels.
-- uns/local_full_run-5/ remains read-only authority.
-- POPT.2 evidence must come from fresh run-id(s) under uns/fix-data-engine/segment_6B/.
+- 
+uns/local_full_run-5/ remains read-only authority.
+- POPT.2 evidence must come from fresh run-id(s) under 
+uns/fix-data-engine/segment_6B/.
 
 Execution sequence pinned:
 1) Patch S4 runner to remove DuckDB event-join lane and restore deterministic event-label compute.
@@ -1502,7 +1507,8 @@ Code changes:
 2) 	ools/stage_segment6b_popt2_lane.py (new)
 - Added a dedicated staged-lane utility for S4->S5 POPT.2 reruns.
 - Stages immutable S0..S3 prerequisites into a fresh run-id via junction/copy.
-- Seeds ng_trace_log under destination run-id with run-id-normalized rows for required upstream modules 6B.S1/6B.S2/6B.S3.
+- Seeds 
+ng_trace_log under destination run-id with run-id-normalized rows for required upstream modules 6B.S1/6B.S2/6B.S3.
 - Purpose: ensure S5 REQ_RNG_BUDGETS module-presence gate can validate staged reruns without reopening S1-S3 execution.
 
 Validation checks performed:
@@ -2524,6 +2530,76 @@ Final P0 posture remains:
 
 ---
 
+### Entry: 2026-02-25 17:22
+
+P1.1 execution closure (lane pin + rail lock + scorer contract).
+
+Executed scope:
+- implemented `P1.1` only (planning-to-execution lock phase), without touching S4/S5 business logic yet.
+
+Actions:
+1) validated P1.1 prerequisites:
+   - P0 gateboard exists for authority run,
+   - staging utility and scorer entrypoints exist,
+   - runtime authority run root present.
+2) emitted dedicated lane contract artifacts:
+   - `runs/fix-data-engine/segment_6B/reports/segment6b_p1_1_lane_contract_cee903d9ea644ba6a1824aa6b54a1692.json`,
+   - `runs/fix-data-engine/segment_6B/reports/segment6b_p1_1_lane_contract_cee903d9ea644ba6a1824aa6b54a1692.md`.
+3) locked phase scope and rails:
+   - in-scope gates: `T1,T2,T3,T5,T6,T7,T8,T10,T21,T22`,
+   - protected out-of-scope gates: `T11-T20`,
+   - execution lane: `S4 -> S5` only,
+   - runtime rails: `S4<=420s`, `S5<=30s`, fail-closed on regression.
+
+Decision:
+- `P1.1` closed as complete.
+- phase handoff: `UNLOCK_P1.2`.
+
+Rationale:
+- P0 shows failures concentrated in `S4` semantics + `S5` gate governance; restricting execution lane to `S4/S5` preserves attribution clarity and prevents upstream/downstream drift during Wave A.1.
+
+---
+
+### Entry: 2026-02-25 17:12
+
+P1 planning expansion pinned (Wave A.1 execution design before edits).
+
+Planning objective:
+- convert high-level P1 into executable, auditable subphases that align exactly with P0 critical failures and ownership map.
+
+Pinned scope decisions:
+- P1 in-scope gates:
+  - `T1,T2,T3,T5,T6,T7,T8,T10,T21,T22`.
+- P1 protected gates (no owner drift in this phase):
+  - `T11-T20` remain owned by `P2/P3/P4`.
+- execution lane:
+  - `S4 -> S5` only, on fresh staged run-ids sourced from authority witness.
+
+Subphase design pinned in build plan:
+1) `P1.1` lane pin + rail lock:
+   - gate ownership lock, runtime rails, scorer contract pin.
+2) `P1.2` truth-map and collision closure:
+   - targets `T1,T2,T3,T22`.
+3) `P1.3` bank-view stratification recovery:
+   - targets `T5,T6,T7`, with `T4` non-regression hold.
+4) `P1.4` case-timeline closure:
+   - targets `T8,T10`, protects `T9` from regression.
+5) `P1.5` S5 fail-closed governance:
+   - makes critical realism gates promotion-blocking.
+6) `P1.6` integrated witness decision:
+   - `UNLOCK_P2` only on critical-gate closure; else `HOLD_P1_REOPEN`.
+
+Performance posture retained:
+- preserve POPT freeze rail while remediating:
+  - `S4<=420s` non-regression target,
+  - `S5<=30s` non-regression target.
+
+Reasoning notes:
+- P0 shows dominant failures concentrated in `S4` semantics and `S5` gate governance; widening into S2/S3/S1 now would blur attribution.
+- strict phase segmentation reduces churn and keeps fail-closed gate responsibility explicit.
+
+---
+
 ### Entry: 2026-02-25 16:29
 
 P0 pre-implementation design pin (baseline realism lock + owner attribution execution).
@@ -2558,3 +2634,93 @@ Execution plan:
 1) implement scorer with explicit thresholds, pass/fail flags, insuff-evidence semantics, and owner attribution.
 2) run scorer on authority run with external merchant-class fallback from frozen local-full authority surface.
 3) update build plan P0 subphases to executed state and append logbook evidence.
+
+---
+
+### Entry: 2026-02-25 17:43
+
+P1.2 execution closure (`S4` truth-map correction + collision guard).
+
+Code changes applied:
+- `packages/engine/src/engine/layers/l3/seg_6B/s4_truth_bank_labels/runner.py`.
+- Replaced reduced-key truth mapping with ordered `direct_pattern_map` rule evaluation.
+- Added explicit `_TruthRule` parser and vectorized multi-condition matcher:
+  - `fraud_pattern_type` (from `campaign_type`),
+  - `overlay_anomaly_any` (derived as `fraud_flag AND campaign_id IS NULL`),
+  - `requires_campaign_id` enforcement (`true => campaign_id non-null`).
+- Added fail-closed guards:
+  - `S4_TRUTH_RULE_COLLISION` when any flow matches more than one direct rule,
+  - `S4_TRUTH_RULE_UNMATCHED` when unmatched rows exist and `fail_on_unknown_fraud_pattern_type=true`.
+
+Why this design:
+- keeps evaluation order and policy precedence explicit,
+- preserves minute-scale runtime by using Polars expressions (no row-wise Python),
+- closes silent overwrite class from duplicate `fraud_pattern_type=NONE` keys.
+
+Execution evidence:
+- staged run-id: `7725bf4e501341a1a224fccbcb1fb0bc` (authority source `cee903d9ea644ba6a1824aa6b54a1692`).
+- lane run:
+  - `make segment6b-s4 ... ENGINE_6B_S4_BATCH_ROWS=750000 ENGINE_6B_S4_PARQUET_COMPRESSION=snappy`,
+  - `make segment6b-s5 ...`.
+- measured runtime:
+  - `S4=327.62s` (`<=420s` rail PASS),
+  - `S5=21.06s` (`<=30s` rail PASS).
+- scorer run:
+  - `tools/score_segment6b_p0_baseline.py` on candidate run with pinned class+arrival external sources.
+
+Observed gate movement (P1.2 scope):
+- `T1`: `0.0000% -> 99.9941%` (`B FAIL -> PASS`).
+- `T2`: `1.000000 -> 0.000059` (still `B FAIL`, but numerically much closer to `[0.02,0.30]` than baseline).
+- `T3`: `0.0000% -> 100.0000%` (`B FAIL -> PASS`).
+- `T22`: `effective_collision_count=1 -> 0` (`B FAIL -> PASS`).
+
+Artifacts emitted:
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p1_2_truth_lane_7725bf4e501341a1a224fccbcb1fb0bc.json`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p1_2_truth_lane_7725bf4e501341a1a224fccbcb1fb0bc.md`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_7725bf4e501341a1a224fccbcb1fb0bc.json`
+
+Phase decision:
+- `UNLOCK_P1.3`.
+
+
+### Entry: 2026-02-25 17:32
+
+P1.2 pre-implementation design pin (`S4` truth-map correction + collision guard).
+
+Problem diagnosis (authority run `cee903d9ea644ba6a1824aa6b54a1692`):
+- `s4_flow_truth_labels_6B` has no `LEGIT` rows (all `ABUSE/FRAUD`), which keeps `T1/T2/T3` hard-fail.
+- Root cause in `packages/engine/src/engine/layers/l3/seg_6B/s4_truth_bank_labels/runner.py`:
+  - `_load_truth_maps()` reduces `truth_labelling_policy_6B.direct_pattern_map` to dicts keyed only by `fraud_pattern_type`.
+  - policy has two `fraud_pattern_type=NONE` rules separated by `overlay_anomaly_any`; reduced-key mapping overwrites one rule.
+  - runtime then maps by `campaign_type` only, so non-campaign flows collapse to a single label branch.
+- Observed authority S3 shape confirms this is implementation-induced, not source-data induced:
+  - `n=124,724,153` flows,
+  - `campaign_id is null = 124,716,811`,
+  - `campaign_id non-null = 7,342`,
+  - `fraud_flag true = 7,342`.
+
+Decision for P1.2:
+- Replace reduced-key dict mapping with ordered rule evaluation over policy `direct_pattern_map` conditions.
+- Supported match keys in this lane:
+  - `fraud_pattern_type` (mapped from flow `campaign_type`),
+  - `overlay_anomaly_any` (derived from flow context as `fraud_flag AND campaign_id IS NULL`),
+  - rule-level `requires_campaign_id` enforcement (`true => campaign_id non-null`).
+- Keep fallback default (`truth_label=LEGIT`, `truth_subtype=NONE`) for non-matching rows only when policy does not fail-closed.
+- Add hard collision guard in S4 runtime:
+  - abort run on any row matching `>1` direct rules (`S4_TRUTH_RULE_COLLISION`),
+  - abort on unmatched rows when `fail_on_unknown_fraud_pattern_type=true` (`S4_TRUTH_RULE_UNMATCHED`).
+
+Alternatives considered and rejected:
+1) Policy-only patch (remove duplicate `NONE` rows).
+- Rejected: masks engine defect and preserves reduced-key behavior that can silently regress later.
+2) Hotfix default path only (`NONE -> LEGIT`).
+- Rejected: would not restore ordered precedence or close collision class (`T22`).
+3) Row-wise Python evaluator.
+- Rejected: unacceptable runtime cost on 100M+ rows; vectorized Polars expression lane required.
+
+Execution plan (P1.2 lane only):
+1) Patch S4 runner with ordered multi-condition truth rule compiler + vectorized evaluator + collision/unmatched guards.
+2) Recompile touched modules.
+3) Stage fresh `S4->S5` candidate from authority run via `tools/stage_segment6b_popt2_lane.py`.
+4) Execute `segment6b-s4` then `segment6b-s5` on staged run-id.
+5) Score with `tools/score_segment6b_p0_baseline.py` and judge P1.2 movement on `T1/T2/T3/T22` only.

@@ -854,6 +854,109 @@ Definition of done:
 - [ ] `S5` critical realism checks become fail-closed and policy-driven.
 - [ ] critical gates `T1-T10`, `T21`, `T22` show measurable movement toward `B`.
 
+#### P1.1 - Lane pin, rail lock, and closure contract
+Goal:
+- pin exact P1 scope to the `P0` critical-failure set and prevent scope bleed into `P2/P3/P4` owners.
+
+Definition of done:
+- [x] P1 gate ownership lock pinned:
+  - in-scope gates: `T1,T2,T3,T5,T6,T7,T8,T10,T21,T22`,
+  - protected out-of-scope gates: `T11-T20` (no direct tuning in this phase).
+- [x] execution lane pinned to `S4 -> S5` on fresh staged run-ids from authority witness.
+- [x] runtime veto rail pinned:
+  - `S4` non-regression target `<=420s` (from POPT freeze),
+  - `S5` non-regression target `<=30s`.
+- [x] candidate scorer contract pinned for P1 witness comparison vs P0 baseline gateboard.
+
+Execution closure:
+- lane contract artifacts emitted:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p1_1_lane_contract_cee903d9ea644ba6a1824aa6b54a1692.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p1_1_lane_contract_cee903d9ea644ba6a1824aa6b54a1692.md`.
+- pinned in-scope blocked gates from P0:
+  - `T1,T2,T3,T5,T6,T7,T8,T10,T21,T22`.
+- owner-focused execution lock:
+  - `S4,S5` only for `P1` witness lane; no direct tuning on `T11-T20` owners in this phase.
+- phase decision:
+  - `UNLOCK_P1.2`.
+
+#### P1.2 - S4 truth-map correction and collision closure (`T1,T2,T3,T22`)
+Goal:
+- remove truth collapse and close reduced-key collision behavior in truth mapping.
+
+Definition of done:
+- [x] ordered rule evaluation implemented for `direct_pattern_map` multi-condition matches.
+- [x] non-campaign truth default path restored to LEGIT-consistent behavior.
+- [x] explicit collision guard implemented and surfaced to scorer (`T22` hard gate).
+- [x] witness evidence shows movement:
+  - `T1` non-zero LEGIT share,
+  - `T2` in-band movement toward `[0.02,0.30]`,
+  - `T3` towards `>=99%`,
+  - `T22=0`.
+
+Execution closure:
+- candidate run-id: `7725bf4e501341a1a224fccbcb1fb0bc`.
+- closure artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p1_2_truth_lane_7725bf4e501341a1a224fccbcb1fb0bc.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p1_2_truth_lane_7725bf4e501341a1a224fccbcb1fb0bc.md`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_7725bf4e501341a1a224fccbcb1fb0bc.json`.
+- P1.2 gate movement vs authority (`cee903d9ea644ba6a1824aa6b54a1692`):
+  - `T1`: `0.0000%` -> `99.9941%` (`B: FAIL -> PASS`),
+  - `T2`: `1.000000` -> `0.000059` (still `B: FAIL`, but materially closer to `[0.02,0.30]` than baseline),
+  - `T3`: `0.0000%` -> `100.0000%` (`B: FAIL -> PASS`),
+  - `T22`: `effective_collision_count=1` -> `0` (`B: FAIL -> PASS`).
+- runtime rails:
+  - `S4=327.62s` (`<=420s` PASS),
+  - `S5=21.06s` (`<=30s` PASS).
+- phase decision:
+  - `UNLOCK_P1.3`.
+
+#### P1.3 - S4 bank-view stratification recovery (`T5,T6,T7`)
+Goal:
+- recover conditional bank-view sensitivity so bank outcomes are not flat across class/amount.
+
+Definition of done:
+- [ ] bank-view decision path conditioned on restored truth semantics and class/amount-sensitive policy branches.
+- [ ] witness gate movement:
+  - `T5` Cramer's V rises toward `>=0.05`,
+  - `T6` amount effect-size rises toward `>=0.05`,
+  - `T7` class spread rises toward `>=0.03`.
+- [ ] `T4` remains non-regressed (campaign rows remain non-LEGIT mapped).
+
+#### P1.4 - S4 case timeline realism closure (`T8,T10`, protect `T9`)
+Goal:
+- eliminate non-monotonic/negative case gaps and reduce templated case timing artifacts.
+
+Definition of done:
+- [ ] case timestamp generation enforces monotonicity by `case_event_seq`.
+- [ ] delay execution uses stochastic/policy-shaped draws (not fixed-minimum-only path).
+- [ ] witness gate movement:
+  - `T8` negative-gap rate -> `0`,
+  - `T10` non-monotonic case-event rate -> `0`.
+- [ ] `T9` fixed-spike share does not regress versus P0 baseline and trends toward threshold.
+
+#### P1.5 - S5 critical fail-closed promotion (`T21,T22` governance)
+Goal:
+- prevent structural PASS while critical realism gates fail.
+
+Definition of done:
+- [ ] `S5` validation policy elevates critical realism checks from warn-only to fail-closed for P1 gate set.
+- [ ] `S5` report exposes explicit critical realism check outcomes aligned to scorer gates.
+- [ ] `T21` branch coverage posture is measured against live outputs (not inferred from config presence only).
+- [ ] hashgate `_passed.flag` issuance blocked when any critical P1 gate fails.
+
+#### P1.6 - Integrated P1 witness and decision
+Goal:
+- execute integrated `S4 -> S5` witness and lock phase decision from objective evidence.
+
+Definition of done:
+- [ ] at least one fresh P1 witness run scored against P0 baseline gateboard.
+- [ ] critical gate decision table emitted for:
+  - `T1,T2,T3,T5,T6,T7,T8,T10,T21,T22`.
+- [ ] phase decision emitted:
+  - `UNLOCK_P2` only if critical P1 gate set reaches B posture with fail-closed S5 behavior,
+  - otherwise `HOLD_P1_REOPEN` with blocker register.
+- [ ] implementation notes + logbook updated with alternatives considered, chosen knobs, and rejected paths.
+
 ### P2 - Wave A.2 (`S2` amount/timing activation)
 Goal:
 - activate policy-faithful amount and timing behavior to close `T11-T16`.

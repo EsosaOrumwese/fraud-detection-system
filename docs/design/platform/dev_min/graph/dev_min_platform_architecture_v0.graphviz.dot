@@ -1,0 +1,190 @@
+digraph DevMinPlatformArchitectureV0 {
+  graph [
+    label="Dev Min Platform Architecture (As Implemented from M2-M10 Plans)",
+    labelloc=t,
+    fontsize=18,
+    fontname="Helvetica",
+    rankdir=LR,
+    splines=true,
+    pad=0.2,
+    nodesep=0.35,
+    ranksep=0.75
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    fillcolor="#F8FAFC",
+    color="#334155",
+    fontname="Helvetica",
+    fontsize=10,
+    margin="0.08,0.06"
+  ];
+
+  edge [
+    color="#334155",
+    fontname="Helvetica",
+    fontsize=9,
+    arrowsize=0.8
+  ];
+
+  subgraph cluster_delivery {
+    label="Delivery + Phase Control (M1-M10)";
+    color="#CBD5E1";
+    style="rounded";
+
+    gha [label="GitHub Actions\nbuild, deploy, run workflows", fillcolor="#EEF2FF"];
+    tf [label="Terraform Stacks\ncore + confluent + demo", fillcolor="#EEF2FF"];
+    ecr [label="ECR Immutable Image\ngit tag -> digest", shape=folder, fillcolor="#E0E7FF"];
+    runctl [label="Run-Control Snapshots\nphase verdicts + blocker sets\nM2..M10 evidence", shape=folder, fillcolor="#E0E7FF"];
+    teardown [label="Teardown Workflows (M9)\ndestroy demo + confluent\npreserve core evidence", fillcolor="#E2E8F0"];
+  }
+
+  subgraph cluster_identity {
+    label="Run-Scoped Identity Law";
+    color="#CBD5E1";
+    style="rounded";
+
+    rid [label="platform_run_id + scenario_run_id\nREQUIRED_PLATFORM_RUN_ID\nacross all runtime lanes", fillcolor="#F1F5F9"];
+  }
+
+  subgraph cluster_substrate {
+    label="Managed Substrate Backbone (dev_min)";
+    color="#C7D2FE";
+    style="rounded";
+
+    ecs [label="AWS ECS Cluster\nservices + one-shot tasks", shape=cylinder, fillcolor="#ECFEFF"];
+    kafka [label="Confluent Cloud Kafka\ncontrol + spine topics", shape=cylinder, fillcolor="#EDE9FE"];
+    s3obj [label="S3 Object Store\noracle inputs + archive outputs", shape=cylinder, fillcolor="#ECFEFF"];
+    s3evid [label="S3 Evidence Store\nrun-scoped receipts + snapshots", shape=cylinder, fillcolor="#ECFEFF"];
+    rds [label="RDS PostgreSQL\nstate + checkpoints + append truth", shape=cylinder, fillcolor="#ECFEFF"];
+    ssm [label="SSM Parameter Store\nsecret handles only", shape=cylinder, fillcolor="#ECFEFF"];
+    cw [label="CloudWatch Logs\nservice and task evidence", shape=cylinder, fillcolor="#ECFEFF"];
+    budget [label="AWS Budgets\nM9 cost guardrail", shape=cylinder, fillcolor="#ECFEFF"];
+    guard [label="Guardrails\nno NAT, no always-on LB,\nno laptop runtime compute", fillcolor="#E0E7FF"];
+  }
+
+  subgraph cluster_oracle {
+    label="Oracle Boundary (External to Platform Runtime)";
+    color="#99F6E4";
+    style="rounded";
+
+    oracle [label="Oracle stream_view inputs\npre-staged, read-only in dev_min", shape=folder, fillcolor="#CCFBF1"];
+  }
+
+  subgraph cluster_ingress {
+    label="Control + Ingress (P4-P7)";
+    color="#BFDBFE";
+    style="rounded";
+
+    sr [label="SR one-shot task (P5)\npublish READY", fillcolor="#EFF6FF"];
+    wsp [label="WSP one-shot task (P6)\nstream bounded events", fillcolor="#DBEAFE"];
+    ig [label="Ingestion Gate service (P4/P7)\nauth + admit + dedupe", fillcolor="#DBEAFE"];
+    tctrl [label="fp.bus.control.v1\nREADY", shape=component, fillcolor="#DCFCE7"];
+    ting [label="fp.bus.traffic + fp.bus.context\nADMITTED envelopes", shape=component, fillcolor="#DCFCE7"];
+    igrec [label="IG receipts + quarantine\nappend evidence", shape=folder, fillcolor="#E0F2FE"];
+  }
+
+  subgraph cluster_rtdl {
+    label="RTDL + Decision Chain (P8-P9)";
+    color="#FDE68A";
+    style="rounded";
+
+    rtdl [label="RTDL core services\nArchiveWriter, IEG, OFP, CSFB", fillcolor="#FEF9C3"];
+    trtdl [label="fp.bus.rtdl.v1\ndecision chain input", shape=component, fillcolor="#DCFCE7"];
+    dec [label="Decision lane services\nDL, DF, AL, DLA", fillcolor="#FEF3C7"];
+    taudit [label="fp.bus.audit.v1", shape=component, fillcolor="#DCFCE7"];
+    tcase [label="fp.bus.case.triggers.v1", shape=component, fillcolor="#DCFCE7"];
+  }
+
+  subgraph cluster_case {
+    label="Case + Label Plane (P10)";
+    color="#FDBA74";
+    style="rounded";
+
+    casep [label="Case services\ncase_trigger + case_mgmt", fillcolor="#FFEDD5"];
+    labelp [label="Label service\nlabel_store", fillcolor="#FFEDD5"];
+    tlabels [label="fp.bus.labels.events.v1", shape=component, fillcolor="#DCFCE7"];
+  }
+
+  subgraph cluster_obs {
+    label="Obs + Gov Closeout (P11)";
+    color="#A7F3D0";
+    style="rounded";
+
+    conformance [label="Environment conformance service\ncontinuous posture checks", fillcolor="#ECFDF5"];
+    reporter [label="Reporter one-shot task\nsingle-writer closeout", fillcolor="#ECFDF5"];
+    closeout [label="run_report.json\nenvironment_conformance.json\ngovernance/events.jsonl\nrun_completed.json", shape=folder, fillcolor="#F0FDF4"];
+  }
+
+  gha -> ecr [label="build and push"];
+  gha -> tf [label="apply and rollout"];
+  gha -> runctl [label="publish phase snapshots"];
+  gha -> teardown [style=dashed, label="M9 destroy lanes"];
+
+  tf -> ecs [label="provision"];
+  tf -> kafka [label="provision"];
+  tf -> s3obj [label="provision"];
+  tf -> s3evid [label="provision"];
+  tf -> rds [label="provision"];
+  tf -> ssm [label="provision"];
+  tf -> cw [label="provision"];
+  tf -> budget [label="provision"];
+  tf -> guard [label="enforce posture"];
+
+  ecr -> ecs [label="task definitions use image digest"];
+  ssm -> ecs [style=dashed, label="runtime secret injection"];
+  ecs -> cw [style=dashed, label="logs and failures"];
+
+  oracle -> sr [label="required output_id metadata"];
+  oracle -> wsp [label="read stream_view artifacts"];
+
+  sr -> tctrl [label="READY published"];
+  tctrl -> wsp [label="run-scoped start"];
+  wsp -> ig [label="POST /v1/ingest/push"];
+
+  ig -> igrec [label="receipt/quarantine decision"];
+  igrec -> s3evid [label="durable evidence"];
+  ig -> ting [label="publish ADMITTED"];
+
+  ting -> rtdl [label="consume traffic/context"];
+  rtdl -> trtdl [label="publish decision chain input"];
+  trtdl -> dec [label="consume"];
+
+  dec -> taudit [label="publish audit"];
+  dec -> tcase [label="publish case trigger"];
+  tcase -> casep [label="consume"];
+  casep -> labelp [label="label handoff"];
+  labelp -> tlabels [label="publish label events"];
+
+  rtdl -> s3obj [label="archive events"];
+  rtdl -> rds [label="projections and checkpoints"];
+  dec -> s3evid [label="decision/action/audit summaries"];
+  casep -> rds [label="case timeline append"];
+  labelp -> rds [label="label assertion append"];
+  casep -> s3evid [label="case summaries"];
+  labelp -> s3evid [label="label summaries"];
+
+  conformance -> s3evid [label="conformance artifacts"];
+  reporter -> closeout [label="single-writer assembly"];
+  closeout -> s3evid [label="P11 closure evidence"];
+
+  s3evid -> reporter [style=dashed, label="reads phase artifacts"];
+  rds -> reporter [style=dashed, label="reads reconciliation state"];
+  taudit -> rtdl [style=dashed, label="archive intake"];
+  tcase -> rtdl [style=dashed, label="archive intake"];
+  tlabels -> rtdl [style=dashed, label="archive intake"];
+
+  rid -> sr [style=dashed, color="#0F766E", label="run scope required"];
+  rid -> wsp [style=dashed, color="#0F766E"];
+  rid -> ig [style=dashed, color="#0F766E"];
+  rid -> rtdl [style=dashed, color="#0F766E"];
+  rid -> dec [style=dashed, color="#0F766E"];
+  rid -> casep [style=dashed, color="#0F766E"];
+  rid -> labelp [style=dashed, color="#0F766E"];
+  rid -> reporter [style=dashed, color="#0F766E"];
+  rid -> closeout [style=dashed, color="#0F766E"];
+
+  teardown -> tf [style=dashed, label="destroy demo + confluent"];
+  teardown -> budget [style=dashed, label="post-teardown guardrail"];
+}
