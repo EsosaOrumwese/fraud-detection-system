@@ -8850,3 +8850,13 @@ ext_gate=HOLD_REMEDIATE.
    - `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:49eb6cb0c5e33061fae4d1aaceeac2e44600adb5c4250436be9ac8395ed29cb2`.
 2. Add workflow handle input `lane_worker_image_uri` (default pinned to digest above) and wire both fallback job specs to this image.
 3. Keep strict `M6.F` capture semantics unchanged; this is runtime materialization remediation only.
+
+## Entry: 2026-02-25 17:20:00 +00:00 - Dispatch-surface remediation for M6.F fallback image pin
+
+### Issue
+1. Initial attempt to pin fallback worker image via new workflow input (`lane_worker_image_uri`) pushed `workflow_dispatch` inputs above GitHub's hard limit (25) and blocked dispatch (`HTTP 422`).
+
+### Decision
+1. Keep image pin but remove it from dispatch input surface.
+2. Move pinned fallback image to job-level environment variable `LANE_WORKER_IMAGE_URI`.
+3. Reference `${LANE_WORKER_IMAGE_URI}` in fallback job manifests so dispatch remains below the input cap.

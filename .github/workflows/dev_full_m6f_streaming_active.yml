@@ -74,11 +74,6 @@ on:
         required: true
         default: "fraud-platform-dev-full-sr-ready-v0"
         type: string
-      lane_worker_image_uri:
-        description: "Container image used by EKS fallback lane jobs"
-        required: true
-        default: "230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:49eb6cb0c5e33061fae4d1aaceeac2e44600adb5c4250436be9ac8395ed29cb2"
-        type: string
       ig_idempotency_table:
         description: "IG idempotency DynamoDB table name"
         required: true
@@ -148,6 +143,7 @@ jobs:
       IG_INGEST_PATH: "/ingest/push"
       SSM_IG_API_KEY_PATH: "/fraud-platform/dev_full/ig/api_key"
       FLINK_EKS_NAMESPACE: "fraud-platform-rtdl"
+      LANE_WORKER_IMAGE_URI: "230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:49eb6cb0c5e33061fae4d1aaceeac2e44600adb5c4250436be9ac8395ed29cb2"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -282,7 +278,7 @@ jobs:
                 restartPolicy: Never
                 containers:
                 - name: lane
-                  image: ${{ inputs.lane_worker_image_uri }}
+                  image: ${LANE_WORKER_IMAGE_URI}
                   command: ["/bin/sh","-lc"]
                   args:
                   - >
@@ -323,7 +319,7 @@ jobs:
                 restartPolicy: Never
                 containers:
                 - name: lane
-                  image: ${{ inputs.lane_worker_image_uri }}
+                  image: ${LANE_WORKER_IMAGE_URI}
                   command: ["/bin/sh","-lc"]
                   args:
                   - >
