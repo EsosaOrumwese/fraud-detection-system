@@ -298,7 +298,7 @@ For every phase below:
 * Entry gate: active ingestion counters non-zero or explicit empty-run waiver.
 * PASS gate:
   1. admit/quarantine summaries committed,
-  2. offset snapshot committed,
+  2. offset snapshot committed (mode-aware: `KAFKA_TOPIC_PARTITION_OFFSETS` or `IG_ADMISSION_INDEX_PROXY` when `IG_EDGE_MODE=apigw_lambda_ddb`),
   3. dedupe/anomaly checks pass.
 * Commit evidence: receipt summary + quarantine summary + offset proof.
 * Blockers: `DFULL-RUN-B7` (receipt surface missing), `DFULL-RUN-B7.1` (dedupe drift).

@@ -417,6 +417,10 @@ Allowed tokens in pattern handles:
 ### 7.4 Ingress edge handles (API Gateway + Lambda + DynamoDB)
 
 * `IG_EDGE_MODE = "apigw_lambda_ddb"`
+* `P7_OFFSET_PROOF_MODE_BY_IG_EDGE = "apigw_lambda_ddb:IG_ADMISSION_INDEX_PROXY|ig_service_kafka:KAFKA_TOPIC_PARTITION_OFFSETS"`
+* `IG_ADMISSION_PROXY_TOPIC = "ig.edge.admission.proxy.v1"`
+* `IG_ADMISSION_PROXY_PARTITION = 0`
+* `IG_ADMISSION_PROXY_OFFSET_KIND = "admitted_at_epoch"`
 * `APIGW_IG_API_NAME = "fraud-platform-dev-full-ig-edge"`
 * `APIGW_IG_API_ID = "ehwznd2uw7"` (repinned from current runtime rematerialization outputs)
 * `APIGW_IG_STAGE = "v1"`

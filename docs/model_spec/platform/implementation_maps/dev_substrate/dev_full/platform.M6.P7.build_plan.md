@@ -48,7 +48,7 @@ Tasks:
 3. emit/verify:
    - receipt summary,
    - quarantine summary,
-   - Kafka offsets snapshot.
+   - offsets snapshot (`KAFKA_TOPIC_PARTITION_OFFSETS` or `IG_ADMISSION_INDEX_PROXY` for `apigw_lambda_ddb` ingress edge mode).
 4. run dedupe/anomaly checks for fail-closed closure.
 
 DoD:

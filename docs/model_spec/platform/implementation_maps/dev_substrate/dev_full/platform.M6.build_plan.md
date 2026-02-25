@@ -438,7 +438,7 @@ Goal:
 Tasks:
 1. publish/verify receipt summary.
 2. publish/verify quarantine summary.
-3. publish/verify Kafka offset snapshot.
+3. publish/verify offsets snapshot (`KAFKA_TOPIC_PARTITION_OFFSETS` or `IG_ADMISSION_INDEX_PROXY` under `apigw_lambda_ddb` edge mode).
 4. run dedupe/anomaly checks for fail-closed closure.
 
 DoD:

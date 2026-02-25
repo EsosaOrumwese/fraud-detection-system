@@ -61,6 +61,76 @@ def _dedupe_blockers(blockers: list[dict[str, str]]) -> list[dict[str, str]]:
     return out
 
 
+def _safe_int_or_none(value: Any) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_offset_topics_from_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, int, str], list[str]] = {}
+    for row in rows:
+        state = str(row.get("state") or "").strip().upper()
+        if state != "ADMITTED":
+            continue
+        eb_ref = row.get("eb_ref") if isinstance(row.get("eb_ref"), dict) else {}
+        topic = str(row.get("eb_topic") or eb_ref.get("topic") or "").strip()
+        partition = _safe_int_or_none(row.get("eb_partition"))
+        if partition is None:
+            partition = _safe_int_or_none(eb_ref.get("partition"))
+        offset = row.get("eb_offset")
+        if offset is None:
+            offset = eb_ref.get("offset")
+        offset_kind = str(row.get("eb_offset_kind") or eb_ref.get("offset_kind") or "").strip() or "kafka_offset"
+        offset_text = str(offset).strip() if offset is not None else ""
+        if not topic or partition is None or partition < 0 or not offset_text:
+            continue
+        key = (topic, int(partition), offset_kind)
+        grouped.setdefault(key, []).append(offset_text)
+
+    topics: list[dict[str, Any]] = []
+    for key in sorted(grouped.keys()):
+        topic, partition, offset_kind = key
+        offsets = grouped[key]
+        numeric_offsets = [item for item in offsets if item.isdigit()]
+        if len(numeric_offsets) == len(offsets) and len(numeric_offsets) > 0:
+            ordered = sorted(int(item) for item in numeric_offsets)
+            first_offset = str(ordered[0])
+            last_offset = str(ordered[-1])
+        else:
+            ordered_text = sorted(offsets)
+            first_offset = ordered_text[0]
+            last_offset = ordered_text[-1]
+        topics.append(
+            {
+                "topic": topic,
+                "partition": partition,
+                "offset_kind": offset_kind,
+                "first_offset": first_offset,
+                "last_offset": last_offset,
+                "observed_count": len(offsets),
+            }
+        )
+    return topics
+
+
+def _build_proxy_offset_topics(*, admitted_epochs: list[int], admit_count: int) -> list[dict[str, Any]]:
+    if not admitted_epochs or admit_count <= 0:
+        return []
+    ordered = sorted(admitted_epochs)
+    return [
+        {
+            "topic": "ig.edge.admission.proxy.v1",
+            "partition": 0,
+            "offset_kind": "admitted_at_epoch",
+            "first_offset": str(ordered[0]),
+            "last_offset": str(ordered[-1]),
+            "observed_count": int(admit_count),
+        }
+    ]
+
+
 def _av_to_py(value: dict[str, Any] | None) -> Any:
     if not isinstance(value, dict) or not value:
         return None
@@ -276,7 +346,9 @@ def main() -> int:
                 duplicate_dedupe_rows += 1
             dedupe_seen.add(dedupe_key)
         if decision == "ADMIT":
-            admitted_epochs.append(_safe_int(row.get("admitted_at_epoch"), 0))
+            admitted_epoch = _safe_int(row.get("admitted_at_epoch"), 0)
+            if admitted_epoch > 0:
+                admitted_epochs.append(admitted_epoch)
 
     admit_count = _safe_int(decision_counts.get("ADMIT"), 0)
     duplicate_count = _safe_int(decision_counts.get("DUPLICATE"), 0)
@@ -351,31 +423,76 @@ def main() -> int:
     if offset_read_err:
         read_errors.append(offset_read_err)
 
-    offsets_materialized = False
+    existing_topics: list[dict[str, Any]] = []
     if isinstance(existing_offset_snapshot, dict):
-        topics_obj = existing_offset_snapshot.get("topics")
-        if isinstance(topics_obj, list) and len(topics_obj) > 0:
-            offsets_materialized = True
+        candidate_topics = existing_offset_snapshot.get("topics")
+        if isinstance(candidate_topics, list):
+            existing_topics = [item for item in candidate_topics if isinstance(item, dict)]
 
-    kafka_offsets_snapshot = existing_offset_snapshot if isinstance(existing_offset_snapshot, dict) else {
-        "captured_at_utc": captured_at,
-        "phase": "M6.H",
-        "phase_id": "P7.A",
-        "execution_id": args.execution_id,
-        "platform_run_id": args.platform_run_id,
-        "scenario_run_id": args.scenario_run_id,
-        "offset_mode": "IG_ADMISSION_INDEX_PROXY",
-        "kafka_offsets_materialized": False,
-        "topics": [],
-        "admission_proxy": {
-            "admit_count": admit_count,
-            "first_admitted_epoch": min(admitted_epochs) if admitted_epochs else None,
-            "latest_admitted_epoch": max(admitted_epochs) if admitted_epochs else None,
-        },
-        "note": "Kafka topic/partition offsets are not present in current IG edge admission records.",
-    }
-    if "kafka_offsets_materialized" in kafka_offsets_snapshot:
-        offsets_materialized = bool(kafka_offsets_snapshot.get("kafka_offsets_materialized")) or offsets_materialized
+    real_offset_topics = _extract_offset_topics_from_rows(rows)
+    proxy_offset_topics = _build_proxy_offset_topics(admitted_epochs=admitted_epochs, admit_count=admit_count)
+
+    if isinstance(existing_offset_snapshot, dict) and existing_topics:
+        kafka_offsets_snapshot = dict(existing_offset_snapshot)
+        if "offset_mode" not in kafka_offsets_snapshot:
+            kafka_offsets_snapshot["offset_mode"] = "PREEXISTING"
+        kafka_offsets_snapshot["evidence_basis"] = "existing_run_scoped_snapshot"
+    elif real_offset_topics:
+        kafka_offsets_snapshot = {
+            "captured_at_utc": captured_at,
+            "phase": "M6.H",
+            "phase_id": "P7.A",
+            "execution_id": args.execution_id,
+            "platform_run_id": args.platform_run_id,
+            "scenario_run_id": args.scenario_run_id,
+            "offset_mode": "KAFKA_TOPIC_PARTITION_OFFSETS",
+            "evidence_basis": "ig_idempotency_eb_ref_fields",
+            "topics": real_offset_topics,
+            "kafka_offsets_materialized": True,
+        }
+    elif proxy_offset_topics:
+        kafka_offsets_snapshot = {
+            "captured_at_utc": captured_at,
+            "phase": "M6.H",
+            "phase_id": "P7.A",
+            "execution_id": args.execution_id,
+            "platform_run_id": args.platform_run_id,
+            "scenario_run_id": args.scenario_run_id,
+            "offset_mode": "IG_ADMISSION_INDEX_PROXY",
+            "evidence_basis": "admitted_at_epoch_from_run_scoped_idempotency_rows",
+            "topics": proxy_offset_topics,
+            "kafka_offsets_materialized": True,
+            "admission_proxy": {
+                "admit_count": admit_count,
+                "first_admitted_epoch": min(admitted_epochs) if admitted_epochs else None,
+                "latest_admitted_epoch": max(admitted_epochs) if admitted_epochs else None,
+            },
+        }
+    else:
+        kafka_offsets_snapshot = {
+            "captured_at_utc": captured_at,
+            "phase": "M6.H",
+            "phase_id": "P7.A",
+            "execution_id": args.execution_id,
+            "platform_run_id": args.platform_run_id,
+            "scenario_run_id": args.scenario_run_id,
+            "offset_mode": "IG_ADMISSION_INDEX_PROXY",
+            "evidence_basis": "insufficient_admission_rows_for_proxy_offsets",
+            "kafka_offsets_materialized": False,
+            "topics": [],
+            "admission_proxy": {
+                "admit_count": admit_count,
+                "first_admitted_epoch": min(admitted_epochs) if admitted_epochs else None,
+                "latest_admitted_epoch": max(admitted_epochs) if admitted_epochs else None,
+            },
+            "note": "No material run-scoped offset evidence could be derived.",
+        }
+
+    topics_obj = kafka_offsets_snapshot.get("topics")
+    offsets_materialized = bool(kafka_offsets_snapshot.get("kafka_offsets_materialized")) or (
+        isinstance(topics_obj, list) and len(topics_obj) > 0
+    )
+    kafka_offsets_snapshot["kafka_offsets_materialized"] = offsets_materialized
 
     if not offsets_materialized:
         blockers.append(
