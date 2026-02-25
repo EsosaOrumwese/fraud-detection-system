@@ -305,7 +305,7 @@ Refined blocker-closure plan (2026-02-25 live-state adjudication):
      - rerun `M6.F` with fresh `phase_execution_id`,
      - require `B2` clear (`wsp_active>0` and `sr_ready_active>0`), `B3` validation pass (non-zero admission progression), and `B4` clear (`measured_lag <= RTDL_CAUGHT_UP_LAG_MAX`).
 4. Hard stop:
-   - do not mark `M6.F` complete or execute `M6.G` until Lanes A-D are green and new `m6f_*` artifacts are committed locally + durably.
+   - do not mark `M6.F` complete or execute `M6.G` until Lanes A-D are green and new `m6f_*` artifacts are published in workflow artifacts + durable evidence bucket.
 
 Refined remediation DoD (M6.F blocker-closure lane):
 - [x] Lane A complete: required private endpoint surfaces are materialized in IaC and readable (`ec2`, `ecr.api`, `ecr.dkr`, `sts`, `s3` gateway).
@@ -314,24 +314,29 @@ Refined remediation DoD (M6.F blocker-closure lane):
 - [x] Lane D complete: fresh `M6.F` rerun captures `wsp_active>0`, `sr_ready_active>0`, and non-zero admission progression.
 - [x] `M6P6-B2` and `M6P6-B4` are cleared in rerun blocker register.
 - [x] `M6P6-B3` remains clear in rerun validation evidence.
-- [x] rerun `m6f_*` artifacts are committed locally and durably.
+- [x] rerun `m6f_*` artifacts are published in workflow artifacts and durably.
 
 Rerun closure status (2026-02-25):
-1. Fresh execution completed:
+1. Provisional local remediator run completed:
    - `m6f_p6b_streaming_active_20260225T143900Z`,
+   - `overall_pass=true`,
+   - blocker count `0`.
+2. Authoritative no-laptop-compute rerun completed via GitHub Actions:
+   - workflow run id: `22403542013` (`dev_full_m6f_streaming_active.yml`, ref `migrate-dev`),
+   - execution id: `m6f_p6b_streaming_active_20260225T152755Z`,
    - `overall_pass=true`,
    - blocker count `0`,
    - `next_gate=M6.G_READY`.
-2. Key closure evidence:
+3. Key closure evidence from authoritative rerun:
    - `wsp_active_count=1`,
    - `sr_ready_active_count=1`,
    - `ig_idempotency_count=5`,
    - `measured_lag=0` (`within_threshold=true`),
    - `unresolved_publish_ambiguity_count=0`.
-3. Evidence locations:
-   - local: `runs/dev_substrate/dev_full/m6/m6f_p6b_streaming_active_20260225T143900Z/`
-   - durable: `s3://fraud-platform-dev-full-artifacts/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T143900Z/`
-4. Cost control note:
+4. Evidence locations (authoritative rerun):
+   - workflow artifact set: `m6f-streaming-active-20260225T152755Z`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T152755Z/`
+5. Cost control note:
    - temporary EMR lane jobs used for capture window were explicitly cancelled immediately after artifact capture.
 
 ### M6.G `P6` Gate Rollup + Verdict
@@ -474,4 +479,4 @@ Handoff posture:
 6. `M6.C` is closed green (`m6c_p5b_ready_commit_20260225T041702Z`) with `M6.D_READY`.
 7. `M6.D` is closed green (`m6d_p5c_gate_rollup_20260225T041801Z`) with verdict `ADVANCE_TO_P6` and `M6.E_READY`.
 8. `M6.E` is closed green (`m6e_p6a_stream_entry_20260225T120522Z`) with `M6.F_READY`.
-9. `M6.F` fail-closed attempt (`m6f_p6b_streaming_active_20260225T121536Z`) was remediated and rerun closed green as `m6f_p6b_streaming_active_20260225T143900Z` (`blocker_count=0`, `M6.G_READY`).
+9. `M6.F` fail-closed attempt (`m6f_p6b_streaming_active_20260225T121536Z`) was remediated with local provisional rerun `m6f_p6b_streaming_active_20260225T143900Z` and then closed authoritatively on remote rerun `m6f_p6b_streaming_active_20260225T152755Z` (workflow run `22403542013`, `blocker_count=0`, `M6.G_READY`).

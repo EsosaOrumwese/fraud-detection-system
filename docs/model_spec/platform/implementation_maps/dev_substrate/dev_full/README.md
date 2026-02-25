@@ -17,7 +17,7 @@ This folder is reserved for `dev_full` planning and implementation notes.
   - `M6` is `ACTIVE`.
 - Active gate posture:
   - `M6.E` (`P6.A`) is closed green on the EMR-on-EKS runtime path.
-  - `M6.F` (`P6.B`) is now closed green on rerun `m6f_p6b_streaming_active_20260225T143900Z`.
+  - `M6.F` (`P6.B`) is now closed green on authoritative remote rerun `m6f_p6b_streaming_active_20260225T152755Z` (GitHub Actions run `22403542013` on `migrate-dev`).
   - cleared blockers: `M6P6-B2`, `M6P6-B3`, `M6P6-B4`.
 - Next closure step:
   - execute `M6.G` (`P6` rollup + verdict) with `M6.E/M6.F` green authorities.

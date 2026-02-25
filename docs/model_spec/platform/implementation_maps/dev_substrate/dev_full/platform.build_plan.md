@@ -647,11 +647,12 @@ M6 planning posture:
 - `M6.E` is now closed green on the repinned EKS/EMR path (`m6e_p6a_stream_entry_20260225T120522Z`) after materializing:
   - `EMR_EKS_VIRTUAL_CLUSTER_ID=3cfszbpz28ixf1wmmd2roj571`,
   - `EMR_EKS_RELEASE_LABEL=emr-6.15.0-latest`.
-- `M6.F` rerun is now closed green (`m6f_p6b_streaming_active_20260225T143900Z`) after runtime remediation:
-  - node bootstrap endpoints + worker nodegroup are IaC-managed and active,
-  - lane-authentic EMR refs observed active during capture window,
+- `M6.F` authoritative no-laptop-compute closure is now green (`m6f_p6b_streaming_active_20260225T152755Z`) via GitHub Actions run `22403542013` on `migrate-dev`:
+  - OIDC remote-runner execution path is satisfied (no local-control lane used for authority closure),
   - blocker register is zero (`M6P6-B2/B3/B4` cleared),
-  - `next_gate=M6.G_READY`.
+  - `overall_pass=true`, `next_gate=M6.G_READY`,
+  - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T152755Z/`,
+  - prior local rerun `m6f_p6b_streaming_active_20260225T143900Z` is retained as provisional remediation evidence only.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
@@ -827,4 +828,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M6.G` (`P6` gate rollup + verdict) using `m6e_p6a_stream_entry_20260225T120522Z` and `m6f_p6b_streaming_active_20260225T143900Z` as upstream authorities.
+- Execute `M6.G` (`P6` gate rollup + verdict) using `m6e_p6a_stream_entry_20260225T120522Z` and `m6f_p6b_streaming_active_20260225T152755Z` as upstream authorities.

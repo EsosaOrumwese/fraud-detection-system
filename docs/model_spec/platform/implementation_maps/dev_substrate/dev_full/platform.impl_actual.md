@@ -8541,3 +8541,52 @@ odeadm failure on console output); nodes never registered.
 ### Required user decision (branch-governance law)
 1. Approve a branch method to expose the workflow file on default branch (or equivalent approved route), then rerun on `migrate-dev`.
 2. No cross-branch operation executed yet.
+
+## Entry: 2026-02-25 15:39:52 +00:00 - Pre-change lock: correct M6.F authority drift across implementation map and build plans
+
+### Problem statement
+1. Active dev_full docs still reference m6f_p6b_streaming_active_20260225T143900Z as the closure authority for M6.F.
+2. That run was produced from local-control orchestration and was later explicitly downgraded under no-laptop-compute law.
+3. Authoritative closure now exists from remote runner execution (workflow_dispatch on migrate-dev) with execution id m6f_p6b_streaming_active_20260225T152755Z and run id 22403542013.
+
+### Decision
+1. Treat 20260225T152755Z as authoritative M6.F closure evidence for planning posture.
+2. Keep 20260225T143900Z in history as provisional local remediator run only.
+3. Update only status/planning surfaces (platform.build_plan.md, platform.M6.build_plan.md, platform.M6.P6.build_plan.md, dev_full/README.md) without rewriting prior attempt chronology.
+
+### Edit scope
+1. Replace stale "next action" and closure authority references from 143900Z to 152755Z where they represent current gate truth.
+2. Add explicit no-local-compute note in M6/P6 closure sections that remote workflow run 22403542013 is the authority receipt.
+3. Preserve fail-closed gate semantics: M6.G remains next action, not auto-advanced.
+
+### Verification plan
+1. Grep dev_full planning surfaces for stale authoritative references to 143900Z.
+2. Confirm updated files now point to 152755Z + remote-run receipt.
+3. Append post-change implementation-map receipt + logbook action.
+
+## Entry: 2026-02-25 15:41:25 +00:00 - M6.F authority doc-sync applied (remote-runner closure is now canonical)
+
+### Changes applied
+1. Updated docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md:
+   - replaced stale M6.F authority reference from m6f_p6b_streaming_active_20260225T143900Z to remote authoritative m6f_p6b_streaming_active_20260225T152755Z.
+   - pinned remote receipt workflow run id=22403542013.
+   - corrected durable evidence prefix to s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T152755Z/.
+   - kept 143900Z explicitly marked as provisional remediation evidence only.
+2. Updated platform.M6.build_plan.md + platform.M6.P6.build_plan.md:
+   - changed rerun closure status to a two-stage chronology (local provisional rerun then remote authoritative rerun).
+   - repinned closure metrics and 
+ext_gate=M6.G_READY to execution 152755Z under run 22403542013.
+   - updated DoD language from "locally + durably committed" to workflow-artifact + durable-storage posture for no-laptop-compute conformance.
+3. Updated docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/README.md current posture line to the same authoritative rerun.
+
+### Verification receipts
+1. gh run list confirms latest migrate-dev workflow run 22403542013 completed success for .github/workflows/dev_full_m6f_streaming_active.yml.
+2. Downloaded run artifact set m6f-streaming-active-20260225T152755Z and verified:
+   - m6f_execution_summary.json: overall_pass=true, locker_count=0, 
+ext_gate=M6.G_READY.
+   - m6f_blocker_register.json: locker_count=0, blockers empty.
+3. Grep audit confirms planning status + next-action surfaces now reference 152755Z as authority while retaining 143900Z as provisional history only.
+
+### Gate posture after doc-sync
+1. M6.F is now documented consistently as closed under remote-runner authority.
+2. M6.G remains the next blocked-until-executed action; no premature advancement was recorded.
