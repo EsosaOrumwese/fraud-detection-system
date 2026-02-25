@@ -62,6 +62,7 @@ digraph DevFullPlatformPlannedV0 {
     glue [label="Glue Catalog + Iceberg v2\nlearning table authority", shape=cylinder, fillcolor="#ECFEFF"];
     cw [label="CloudWatch\nmetrics, logs, alerts", shape=cylinder, fillcolor="#ECFEFF"];
     sm [label="Secrets Manager + SSM + KMS\nruntime identity + secret handles", shape=cylinder, fillcolor="#ECFEFF"];
+    split [label="Active Runtime Path Split\nFlink lanes: EKS_EMR_ON_EKS (M6P6-B2)\nIG edge: APIGW+Lambda+DDB primary\nIG on EKS: fallback only", fillcolor="#E0E7FF"];
   }
 
   subgraph cluster_oracle {
@@ -77,10 +78,10 @@ digraph DevFullPlatformPlannedV0 {
     color="#BFDBFE";
     style="rounded";
 
-    sr [label="SR READY Lane\nFlink compute + Step Functions commit", fillcolor="#EFF6FF"];
-    wsp [label="WSP Stream Lane\nFlink publication from oracle outputs", fillcolor="#DBEAFE"];
-    apigw [label="API Gateway\nIG public edge", fillcolor="#DBEAFE"];
-    igl [label="IG Lambda Handler\nadmission boundary + envelope checks", fillcolor="#DBEAFE"];
+    sr [label="SR READY Lane\nFlink compute on EKS host path + Step Functions commit", fillcolor="#EFF6FF"];
+    wsp [label="WSP Stream Lane\nFlink publication on EKS host path", fillcolor="#DBEAFE"];
+    apigw [label="API Gateway\nIG public edge (primary)", fillcolor="#DBEAFE"];
+    igl [label="IG Lambda Handler\nadmission boundary + envelope checks (primary)", fillcolor="#DBEAFE"];
     igrec [label="IG Receipts + Quarantine\nappend evidence surfaces", shape=folder, fillcolor="#E0F2FE"];
     tctrl [label="fp.bus.control.v1", shape=component, fillcolor="#DCFCE7"];
     ttraffic [label="fp.bus.traffic.fraud.v1", shape=component, fillcolor="#DCFCE7"];
@@ -96,8 +97,8 @@ digraph DevFullPlatformPlannedV0 {
     color="#FDE68A";
     style="rounded";
 
-    ieg [label="IEG Stream Projection\nFlink lane", fillcolor="#FEF9C3"];
-    ofp [label="OFP Stream Projection\nFlink lane", fillcolor="#FEF9C3"];
+    ieg [label="IEG Stream Projection\nFlink lane on EKS host path", fillcolor="#FEF9C3"];
+    ofp [label="OFP Stream Projection\nFlink lane on EKS host path", fillcolor="#FEF9C3"];
     df [label="Decision Fabric\ncustom differentiating logic (EKS)", fillcolor="#FEF3C7"];
     al [label="Action Layer\noutcome execution (EKS)", fillcolor="#FEF3C7"];
     dla [label="Decision Log & Audit\nappend-only audit truth (EKS)", fillcolor="#FEF3C7"];
@@ -151,10 +152,17 @@ digraph DevFullPlatformPlannedV0 {
   tf -> glue [label="provision"];
   tf -> cw [label="provision"];
   tf -> sm [label="provision"];
+  tf -> split [label="pin runtime path"];
   tf -> mwaa [label="provision"];
   tf -> sfn [label="provision"];
 
   sfn -> runctl [label="phase evidence"];
+  split -> sr [style=dashed, label="active host path"];
+  split -> wsp [style=dashed, label="active host path"];
+  split -> ieg [style=dashed, label="active host path"];
+  split -> ofp [style=dashed, label="active host path"];
+  split -> apigw [style=dashed, label="primary edge path"];
+  split -> igl [style=dashed, label="primary edge path"];
   sfn -> sr [label="P5 READY commit authority"];
   sfn -> rep [label="final verdict orchestration"];
   mwaa -> ofs [label="schedule OFS runs"];

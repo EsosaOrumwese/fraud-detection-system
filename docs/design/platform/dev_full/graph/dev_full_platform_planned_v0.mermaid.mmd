@@ -23,6 +23,7 @@ flowchart LR
     GLUE[(Glue Catalog + Iceberg v2<br/>learning table authority)]
     CW[(CloudWatch<br/>metrics, logs, alerts)]
     SM[(Secrets Manager + SSM + KMS<br/>runtime identity + secret handles)]
+    SPLIT[Active Runtime Path Split<br/>Flink lanes: EKS_EMR_ON_EKS M6P6-B2<br/>IG edge: APIGW + Lambda + DDB primary<br/>IG on EKS: fallback only]
   end
 
   subgraph ORACLE[External Oracle Boundary Read Only]
@@ -30,10 +31,10 @@ flowchart LR
   end
 
   subgraph INGRESS[Control + Ingress Plane Managed First]
-    SR[SR READY Lane<br/>Flink compute + Step Functions commit]
-    WSP[WSP Stream Lane<br/>Flink publication from oracle outputs]
-    APIGW[API Gateway<br/>IG public edge]
-    IGL[IG Lambda Handler<br/>admission boundary + envelope checks]
+    SR[SR READY Lane<br/>Flink compute on EKS host path + Step Functions commit]
+    WSP[WSP Stream Lane<br/>Flink publication on EKS host path]
+    APIGW[API Gateway<br/>IG public edge primary]
+    IGL[IG Lambda Handler<br/>admission boundary + envelope checks primary]
     IGREC[[IG Receipts + Quarantine<br/>append evidence surfaces]]
     TCTRL[[fp.bus.control.v1]]
     TTRAFFIC[[fp.bus.traffic.fraud.v1]]
@@ -45,8 +46,8 @@ flowchart LR
   end
 
   subgraph RTDL[RTDL + Decision Plane Hybrid]
-    IEG[IEG Stream Projection<br/>Flink lane]
-    OFP[OFP Stream Projection<br/>Flink lane]
+    IEG[IEG Stream Projection<br/>Flink lane on EKS host path]
+    OFP[OFP Stream Projection<br/>Flink lane on EKS host path]
     DF[Decision Fabric<br/>custom differentiating logic on EKS]
     AL[Action Layer<br/>outcome execution on EKS]
     DLA[Decision Log and Audit<br/>append-only audit truth on EKS]
@@ -88,10 +89,17 @@ flowchart LR
   TF -->|provision| GLUE
   TF -->|provision| CW
   TF -->|provision| SM
+  TF -->|pin runtime path| SPLIT
   TF -->|provision| MWAA
   TF -->|provision| SFN
 
   SFN -->|phase evidence| RUNCTL
+  SPLIT -. active host path .-> SR
+  SPLIT -. active host path .-> WSP
+  SPLIT -. active host path .-> IEG
+  SPLIT -. active host path .-> OFP
+  SPLIT -. primary edge path .-> APIGW
+  SPLIT -. primary edge path .-> IGL
   SFN -->|P5 READY commit authority| SR
   SFN -->|final verdict orchestration| REP
   MWAA -->|schedule OFS runs| OFS

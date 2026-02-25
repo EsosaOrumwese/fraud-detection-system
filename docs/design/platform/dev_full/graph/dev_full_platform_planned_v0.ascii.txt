@@ -6,6 +6,12 @@ Purpose
 Run the full fraud platform (Spine + Learning/Evolution) on managed runtime,
 with no laptop compute, no ownership drift, and run-scoped evidence closure.
 
+Active runtime split (current pinned posture)
+---------------------------------------------
+- Flink host path is currently EKS_EMR_ON_EKS under blocker window M6P6-B2.
+- IG edge path remains API Gateway + Lambda + DynamoDB as primary.
+- IG service on EKS remains fallback only.
+
 
 LAYER 0: DELIVERY, ORCHESTRATION, IDENTITY
 ------------------------------------------
@@ -48,15 +54,15 @@ LAYER 2: ORACLE BOUNDARY (EXTERNAL)
 
 LAYER 3: CONTROL + INGRESS (MANAGED-FIRST)
 ------------------------------------------
-[SR READY lane, Flink compute + Step Functions commit]
+[SR READY lane, Flink compute on EKS host path + Step Functions commit]
    -> publishes READY to [fp.bus.control.v1]
 
-[WSP stream lane, Flink]
+[WSP stream lane, Flink on EKS host path]
    <- consumes READY from control topic
    <- reads required output_ids from Oracle stream_view
    -> pushes envelopes to [API Gateway]
 
-[API Gateway] -> [IG Lambda handler]
+[API Gateway] -> [IG Lambda handler]  (primary edge path)
   - admission boundary and envelope checks
   - idempotency check in [DynamoDB]
   - append receipts/quarantine evidence
@@ -68,8 +74,8 @@ LAYER 3: CONTROL + INGRESS (MANAGED-FIRST)
 LAYER 4: RTDL + DECISION (HYBRID)
 ---------------------------------
 MSK traffic/context ->
-  [IEG Flink projection] -> Aurora state
-  [OFP Flink projection] -> Redis (low-latency) + Aurora (durable)
+  [IEG Flink projection on EKS host path] -> Aurora state
+  [OFP Flink projection on EKS host path] -> Redis (low-latency) + Aurora (durable)
 
 MSK traffic -> [Decision Fabric, EKS custom lane]
 Decision Fabric ->
