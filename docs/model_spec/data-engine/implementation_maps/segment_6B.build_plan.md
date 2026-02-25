@@ -780,10 +780,68 @@ Goal:
 - lock baseline `T1-T22`, route each failing gate to owner state, and pin veto criteria.
 
 Definition of done:
-- [ ] baseline gateboard emitted (`B` and `B+` status per gate).
-- [ ] failing gates mapped to owner states (`S1/S2/S3/S4/S5`).
-- [ ] promotion veto criteria pinned (critical fail-closed posture).
-- [ ] baseline decision recorded (`HOLD_REMEDIATE` expected from D+ posture).
+- [x] baseline gateboard emitted (`B` and `B+` status per gate).
+- [x] failing gates mapped to owner states (`S1/S2/S3/S4/S5`).
+- [x] promotion veto criteria pinned (critical fail-closed posture).
+- [x] baseline decision recorded (`HOLD_REMEDIATE` expected from D+ posture).
+
+#### P0.1 - Baseline authority pin + scorer contract
+Goal:
+- pin the exact run authority and scoring contract for `T1-T22` so all downstream phases compare against one immutable baseline.
+
+Definition of done:
+- [x] authority run-id pinned (`6B` runtime freeze authority).
+- [x] scorer contract pinned (metric definitions, thresholds, sampled-vs-full posture, insuff-evidence rules).
+- [x] output artifact names pinned:
+  - `segment6b_p0_realism_gateboard_<run_id>.json`,
+  - `segment6b_p0_realism_gateboard_<run_id>.md`.
+
+#### P0.2 - Gateboard execution (`T1-T22`)
+Goal:
+- execute baseline scoring on the pinned authority run and emit full gateboard evidence.
+
+Definition of done:
+- [x] `T1-T22` scored with explicit `B` / `B+` status.
+- [x] critical gates (`T1-T16`, `T21`, `T22`) clearly classified pass/fail/insufficient.
+- [x] sampling disclosures included for heavy surfaces (case-gap and latency lanes).
+- [x] scorer outputs written under `runs/fix-data-engine/segment_6B/reports/`.
+
+#### P0.3 - Owner attribution + veto lock
+Goal:
+- map each failing/insufficient gate to owning remediation lane and lock fail-closed promotion posture.
+
+Definition of done:
+- [x] per-gate owner attribution present (`S1/S2/S3/S4/S5`) with reasoned mapping.
+- [x] remediation wave map emitted (`P1/P2/P3/P4`) from failing gates.
+- [x] veto policy pinned:
+  - no phase unlock when any critical gate remains fail/insufficient,
+  - no silent downgrade of critical gates to warn-only.
+- [x] P0 phase decision recorded (`HOLD_REMEDIATE` or `UNLOCK_P1`).
+
+Execution closure (`run_id=cee903d9ea644ba6a1824aa6b54a1692`):
+- scorer tool added:
+  - `tools/score_segment6b_p0_baseline.py`.
+- gateboard artifacts emitted:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_cee903d9ea644ba6a1824aa6b54a1692.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_cee903d9ea644ba6a1824aa6b54a1692.md`.
+- overall result:
+  - `overall_verdict=FAIL_REALISM`,
+  - `phase_decision=HOLD_REMEDIATE`.
+- hard failures:
+  - `T1,T2,T3,T5,T6,T7,T8,T10,T11,T13,T14,T15,T16,T21,T22`.
+- stretch failures:
+  - `T17,T19` (`T18` passes after explicit arrival-events join evidence).
+- owner failure map:
+  - `S4: T1,T2,T3,T5,T6,T7,T8,T10,T21,T22`,
+  - `S2: T11,T13,T14,T15,T16,T21`,
+  - `S3: T17`,
+  - `S1: T19`,
+  - `S5: T21,T22`.
+- wave routing from P0:
+  - `P1 -> T1,T2,T3,T5,T6,T7,T8,T10,T21,T22`,
+  - `P2 -> T11,T13,T14,T15,T16`,
+  - `P3 -> T17`,
+  - `P4 -> T19`.
 
 ### P1 - Wave A.1 (`S4` truth/case + `S5` gate hardening)
 Goal:

@@ -2402,3 +2402,159 @@ Storage hygiene:
   - freeze witness `20851a5bf54f4e579999b16e7dc92c88`,
   - rollback/reference witness `7d1cd27427eb46189834954360319a89`.
 - action executed: dry-run + `--yes` prune completed under `runs/fix-data-engine/segment_6B`.
+
+---
+
+### Entry: 2026-02-25 16:31
+
+P0 implementation start (`tools/score_segment6b_p0_baseline.py`).
+
+Implemented:
+- new deterministic P0 scorer for Segment 6B:
+  - `tools/score_segment6b_p0_baseline.py`.
+- scorer outputs:
+  - `segment6b_p0_realism_gateboard_<run_id>.json`,
+  - `segment6b_p0_realism_gateboard_<run_id>.md`.
+- scorer contract coverage:
+  - full gateboard emission for `T1-T22`,
+  - explicit `B` / `B+` pass flags,
+  - owner attribution per gate,
+  - wave routing projection (`P1/P2/P3/P4`),
+  - fail-closed phase decision (`HOLD_REMEDIATE` vs `UNLOCK_P1`).
+
+Performance decisions in implementation:
+- DuckDB aggregate-first queries only (no per-row Python loops).
+- deterministic sampling for heavy case/latency lanes:
+  - case gaps: `MOD(ABS(HASH(case_id)), sample_mod)`,
+  - auth latency: `MOD(ABS(HASH(flow_id)), sample_mod)`.
+- optional external joins for non-staged sources (`merchant_class_profile`, `arrival_events`) to avoid forcing full upstream copies into staged run roots.
+
+---
+
+### Entry: 2026-02-25 16:52
+
+P0 execution blocker + fix (query-shape regression caught and corrected).
+
+Observed blocker:
+- first P0 execution attempt timed out.
+- root cause: `T20` query used `FROM by_device, by_ip, by_account` (cross join) over large aggregate tables, creating a multiplicative intermediate.
+
+Decision and fix:
+- rewrote `T20` query to scalar subselects (three independent aggregate branches), removing the accidental cross product.
+- recompiled scorer with `python -m py_compile` before rerun.
+
+Result:
+- corrected run completed in `~125s` on authority lane.
+- this lane now satisfies performance-first posture for P0 baseline scoring.
+
+---
+
+### Entry: 2026-02-25 16:55
+
+P0 execution closure (`run_id=cee903d9ea644ba6a1824aa6b54a1692`).
+
+Invocation:
+- `python tools/score_segment6b_p0_baseline.py --runs-root runs/fix-data-engine/segment_6B --run-id cee903d9ea644ba6a1824aa6b54a1692 --out-root runs/fix-data-engine/segment_6B/reports --merchant-class-glob runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data/layer2/5A/merchant_class_profile/**/*.parquet`.
+
+Emitted artifacts:
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_cee903d9ea644ba6a1824aa6b54a1692.json`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_cee903d9ea644ba6a1824aa6b54a1692.md`
+
+Outcome:
+- `overall_verdict=FAIL_REALISM`.
+- `phase_decision=HOLD_REMEDIATE`.
+- hard failures:
+  - `T1,T2,T3,T5,T6,T7,T8,T10,T11,T13,T14,T15,T16,T21,T22`.
+- stretch failures:
+  - `T17,T18,T19` (`T18` marked insufficient evidence without explicit arrival-events source).
+
+Owner map from scorer:
+- `S4`: `T1,T2,T3,T5,T6,T7,T8,T10,T21,T22`.
+- `S2`: `T11,T13,T14,T15,T16,T21`.
+- `S3`: `T17,T18`.
+- `S1`: `T18,T19`.
+- `S0`: `T18`.
+- `S5`: `T21,T22`.
+
+Wave routing pinned:
+- `P1 -> T1,T2,T3,T5,T6,T7,T8,T10,T21,T22`.
+- `P2 -> T11,T13,T14,T15,T16`.
+- `P3 -> T17,T18`.
+- `P4 -> T19`.
+
+Decision:
+- close P0 as complete and hold progression at remediation posture (`HOLD_REMEDIATE`).
+- next execution lane should open with `P1` (`S4 + S5`) per mapped critical failures.
+
+---
+
+### Entry: 2026-02-25 17:00
+
+P0 evidence-completeness reopen (`T18` corridor lane) and closure refresh.
+
+Reason for reopen:
+- initial P0 run closed with `T18` as insufficient because arrival-events source was not passed.
+- this left an avoidable evidence hole for campaign corridor/geo-depth posture.
+
+Action:
+- reran P0 scorer with explicit arrival-events source:
+  - `--arrival-events-glob runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data/layer2/5B/arrival_events/**/*.parquet`.
+
+Updated outcome:
+- `T18` now scored (no insufficiency):
+  - `tz_corridor_v=0.108057`, `median_tz_per_campaign=64.00`,
+  - `B=PASS`, `B+=PASS`.
+- refreshed stretch failures:
+  - `T17`, `T19` (only).
+- refreshed owner map:
+  - `S4: T1,T2,T3,T5,T6,T7,T8,T10,T21,T22`,
+  - `S2: T11,T13,T14,T15,T16,T21`,
+  - `S3: T17`,
+  - `S1: T19`,
+  - `S5: T21,T22`.
+- wave routing refresh:
+  - `P1 -> T1,T2,T3,T5,T6,T7,T8,T10,T21,T22`,
+  - `P2 -> T11,T13,T14,T15,T16`,
+  - `P3 -> T17`,
+  - `P4 -> T19`.
+
+Final P0 posture remains:
+- `overall_verdict=FAIL_REALISM`,
+- `phase_decision=HOLD_REMEDIATE`.
+
+---
+
+### Entry: 2026-02-25 16:29
+
+P0 pre-implementation design pin (baseline realism lock + owner attribution execution).
+
+Problem:
+- `POPT.4` is closed and `UNLOCK_P0_REMEDIATION` is active, but Segment 6B currently has no dedicated `P0` scorer tool for `T1-T22`.
+- existing S5 validation reports provide structural checks, not the full remediation gateboard required by the build plan.
+
+Decisions:
+- implement a dedicated scorer: `tools/score_segment6b_p0_baseline.py`.
+- score against runtime freeze authority run `cee903d9ea644ba6a1824aa6b54a1692`.
+- emit canonical artifacts under `runs/fix-data-engine/segment_6B/reports/`:
+  - `segment6b_p0_realism_gateboard_<run_id>.json`
+  - `segment6b_p0_realism_gateboard_<run_id>.md`
+- include explicit owner attribution per gate and aggregate wave routing (`P1/P2/P3/P4`) from gate failures.
+
+Performance design (binding):
+- use DuckDB aggregate SQL over parquet globs (vectorized, no row-by-row Python loops).
+- run full-scan only for low-cardinality aggregates; use deterministic modulo samples for heavy case-gap and latency lanes to keep P0 execution minute-scale.
+- avoid materializing large intermediate tables; compute only scalar gate metrics and compact contingency tables.
+- keep data reads in current run root; permit optional external merchant-class source only when not present in staged run.
+
+Alternatives considered:
+1) Manual gateboard from published/remediation report values only.
+- Rejected: not tied to current runtime authority witness and not reproducible for subsequent phase reopens.
+2) Reuse S5 report as direct P0 evidence.
+- Rejected: S5 lacks required realism metrics (`T1-T22`) and owner routing evidence.
+3) Full unsampled case/latency scans over all rows.
+- Rejected for P0 baseline due unnecessary runtime/IO cost; deterministic sampling is sufficient to classify known pathology lanes in this phase.
+
+Execution plan:
+1) implement scorer with explicit thresholds, pass/fail flags, insuff-evidence semantics, and owner attribution.
+2) run scorer on authority run with external merchant-class fallback from frozen local-full authority surface.
+3) update build plan P0 subphases to executed state and append logbook evidence.
