@@ -1765,3 +1765,161 @@ Reasoning:
 - regression magnitude is beyond any acceptable runtime budget.
 - correctness held, but performance-first law blocks progression on this lane.
 - next reopen must avoid high file-amplification carry-surface patterns in S4.
+
+---
+
+### Entry: 2026-02-25 11:23
+
+POPT.2S design pin (safer reopen lane after POPT.2R rejection).
+
+Problem restatement:
+- current best runtime witness remains `S4=570.62s` (`f621ee...`) with required checks PASS.
+- POPT.2R proved that extra carry-surface I/O and redesigned join paths are high blast and can regress badly.
+
+Selected safer lane:
+- optimize source scan width only:
+  - do not read constant metadata columns from S3 flow/event inputs (`seed`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`),
+  - add those fields back as literal constants at projection time for S4 outputs.
+
+Why this is safer:
+- no algorithmic/policy changes to truth/bank/case decision logic.
+- no new temporary datasets or join surfaces.
+- lower decode/cast pressure on high-row-count scans (124M flows, 249M events), which is a direct S4 bottleneck axis.
+
+Alternatives considered:
+- another event-dedupe/join lane: rejected after POPT.2R regression evidence.
+- writer-layout redesign reopen: rejected due prior regression (`7b8cbd...`).
+- do nothing and waive: deferred; user requested to proceed with safer POPT.2 execution first.
+
+Invariants pinned before edits:
+- output schemas and paths unchanged.
+- row cardinality unchanged for `s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B`, `s4_event_labels_6B`, `s4_case_timeline_6B`.
+- RNG traces/audit semantics unchanged.
+- rerun matrix remains `S4 -> S5` with staged fresh run-id under `runs/fix-data-engine/segment_6B/`.
+
+---
+
+### Entry: 2026-02-25 11:25
+
+POPT.2S implementation + execution.
+
+Code changes applied:
+- S4 flow/event batch scans now read only computational fields from S3 surfaces:
+  - flow scan: `flow_id`, `campaign_id`, `ts_utc`,
+  - event scan: `flow_id`, `event_seq`, `campaign_id`.
+- output metadata fields (`seed`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`) are materialized as literals from run/scenario context.
+
+Operational corrective fix during execution:
+- detected residual Makefile arg drift from prior rejected lane:
+  - `segment6b-s4` still passed `--label-carry-shards` while CLI no longer accepts it.
+- removed stale flag wiring from `Makefile` to restore runnable baseline posture.
+
+Execution evidence:
+- staged run-id: `d9269a8788aa42c1957b886095118b63` from source `f621ee01bdb3428f84f7c7c1afde8812`.
+- S4 completed at `579.45s`; S5 completed PASS at `8.23s`.
+- closure scorer decision:
+  - `HOLD_POPT.2_REOPEN`.
+
+---
+
+### Entry: 2026-02-25 11:35
+
+POPT.2S disposition: rejected and rolled back.
+
+Measured outcome:
+- candidate `S4=579.45s` is slower than witness `S4=570.62s`.
+- required checks and warning-metric stability remained PASS/non-regressive.
+
+Decision:
+- reject POPT.2S for runtime posture (no improvement over authority witness).
+- rollback S4 runner edits to pre-POPT.2S implementation immediately.
+- retain `f621ee01bdb3428f84f7c7c1afde8812` as best current S4 runtime witness.
+
+---
+
+### Entry: 2026-02-25 11:41
+
+POPT.2T implementation executed (campaign-map expression lane).
+
+Changes applied:
+- removed per-batch `campaign_map_df` join in both flow and event loops.
+- precomputed per-scenario maps:
+  - `campaign_id -> truth_label`,
+  - `campaign_id -> truth_subtype`.
+- mapped truth fields directly from `campaign_id` via `_map_enum_expr`.
+
+Intent:
+- preserve semantics while reducing repeated batch-join overhead.
+
+---
+
+### Entry: 2026-02-25 11:49
+
+POPT.2T first witness flagged as semantic drift (fail-closed).
+
+Evidence from first candidate (`b2d2624c686e4fe7a602b564930c49b0`):
+- runtime improved to `S4=422.53s`, but
+- flow truth behavior drifted materially:
+  - `fraud_true` collapsed from full-population behavior in authority witness to near-zero,
+  - case volume collapsed sharply.
+
+Root cause:
+- rewrite defaulted unknown/null `campaign_id` to `LEGIT/NONE`.
+- prior behavior defaults through `campaign_type=NONE` mapping from policy, which in this segment maps to non-LEGIT behavior.
+
+Corrective action:
+- updated default mapping in POPT.2T lane to use:
+  - `truth_label_map.get("NONE", "LEGIT")`,
+  - `truth_subtype_map.get("NONE", "NONE")`.
+- reran fresh candidate to validate semantics parity + runtime.
+
+---
+
+### Entry: 2026-02-25 12:02
+
+POPT.2T final outcome: semantics restored, runtime regressed, lane rejected.
+
+Corrected candidate (`e1206e898bdc4bc58db8402f2ffd72a5`) results:
+- semantics restored (case volume returned to witness-equivalent range),
+- `S4=620.19s` (worse than witness `570.62s`),
+- `S5=7.86s`, required checks PASS,
+- closure decision: `HOLD_POPT.2_REOPEN`.
+
+Decision:
+- reject POPT.2T for runtime posture.
+- rollback S4 code to pre-POPT.2T implementation.
+- retain `f621ee01bdb3428f84f7c7c1afde8812` as best runtime authority witness.
+
+---
+
+### Entry: 2026-02-25 11:40
+
+POPT.2T design pin (targeted reopen after POPT.2S rejection).
+
+Problem:
+- POPT.2 correctness is stable but runtime remains above baseline/witness targets.
+- previous broad lanes (POPT.2R) and low-blast scan-prune lane (POPT.2S) did not yield runtime gain.
+
+Targeted hypothesis:
+- per-batch join to `campaign_map_df` in both flow and event loops adds overhead that can be removed without changing semantics because campaign mapping is small and deterministic per scenario.
+
+Chosen change:
+- precompute direct maps once per scenario:
+  - `campaign_id -> truth_label`,
+  - `campaign_id -> truth_subtype`.
+- replace `events/flows join campaign_map_df + map campaign_type -> truth` with direct `_map_enum_expr("campaign_id", ...)`.
+
+Why this is safe:
+- preserves decision semantics exactly for known campaign IDs.
+- unknown IDs still default to `LEGIT/NONE` through default map values.
+- no new temp datasets, no write-path changes, no schema changes.
+
+Alternatives rejected for this lane:
+- reopen writer compaction or carry surfaces: rejected due prior regressions.
+- policy-model rewrites: out-of-scope for targeted performance reopen.
+
+Invariants:
+- output schemas/paths unchanged.
+- row cardinality unchanged.
+- RNG trace/audit posture unchanged.
+- rerun matrix remains `S4 -> S5` with staged run-id from current best witness source.

@@ -7882,3 +7882,114 @@ ext_gate=M6.C_READY.
 1. Decision-completeness is preserved for M6.E rerun.
 2. Remaining blocker set for execution is explicit and pin-driven (no hidden EMR path assumptions).
 
+## Entry: 2026-02-25 11:41:01 +00:00 - M6.E-only execution lock after user correction (materialize two EMR handles first)
+
+### Trigger and scope correction
+1. USER corrected prior instruction: execute `M6.E` only (not total `M6` chain).
+2. Required precondition remains unchanged from repin refinement:
+   - materialize `EMR_EKS_VIRTUAL_CLUSTER_ID`,
+   - materialize `EMR_EKS_RELEASE_LABEL`.
+
+### Decision completeness check
+1. No unresolved policy decision hole blocks this lane:
+   - active runtime path is pinned to `EKS_EMR_ON_EKS`,
+   - fallback authority under `M6P6-B2` is already documented and approved.
+2. Execution blockers are operational only:
+   - dev_full runtime is currently torn down; EKS and EMR surfaces must be rematerialized before `M6.E` rerun.
+
+### Locked execution plan (M6.E only)
+1. Rematerialize required stacks in dependency order for P6 entry checks:
+   - `core -> streaming -> runtime`.
+2. Create or reuse EMR virtual cluster against runtime EKS cluster/namespace.
+3. Pin handle values in registry:
+   - set `EMR_EKS_VIRTUAL_CLUSTER_ID` to materialized VC id,
+   - set `EMR_EKS_RELEASE_LABEL` to selected EMR-on-EKS release label used for P6 lane.
+4. Execute `M6.E` entry/activation precheck and emit:
+   - `m6e_stream_activation_entry_snapshot.json`,
+   - `m6e_blocker_register.json`,
+   - `m6e_execution_summary.json`,
+   both local and durable.
+5. Stop after `M6.E` and report gate result (`PASS` or explicit fail-closed blocker set).
+
+### Alternatives rejected
+1. Running `M6.F/M6.G` in this turn.
+   - Rejected due user scope correction.
+2. Setting EMR handle values without actual control-plane materialization.
+   - Rejected due fail-closed decision-completeness and drift-sentinel laws.
+
+## Entry: 2026-02-25 11:58:44 +00:00 - EMR VC materialization blocker triage (namespace read unauthorized)
+
+### Observed blocker
+1. After rematerializing `core -> streaming -> runtime`, `create-virtual-cluster` failed:
+   - `ValidationException: Unauthorized to perform read namespace on fraud-platform-rtdl`.
+2. Namespace exists and is readable from local kube context (`kubectl`), so failure is on EMR control-plane authorization path, not namespace existence.
+
+### Alternatives considered
+1. Pin handles without creating the virtual cluster.
+   - Rejected: violates fail-closed materialization requirement.
+2. Force custom RBAC manifests against unknown principal mapping.
+   - Rejected initially: higher drift risk without deterministic IAM/EKS access-mode posture.
+3. Normalize EKS access mode and grant EMR service-linked role explicit cluster access, then retry VC creation.
+   - Selected.
+
+### Remediation plan (locked)
+1. Switch EKS auth mode to `API_AND_CONFIG_MAP` (if not already).
+2. Create/verify EKS access entry for:
+   - `arn:aws:iam::230372904534:role/aws-service-role/emr-containers.amazonaws.com/AWSServiceRoleForAmazonEMRContainers`.
+3. Associate cluster-admin access policy for that principal.
+4. Retry `create-virtual-cluster` and only then pin:
+   - `EMR_EKS_VIRTUAL_CLUSTER_ID`,
+   - `EMR_EKS_RELEASE_LABEL`.
+
+## Entry: 2026-02-25 12:00:03 +00:00 - Access-entry constraint adjustment for EMR service-linked role
+
+### New fact discovered during remediation
+1. EKS auth-mode switch to `API_AND_CONFIG_MAP` succeeded.
+2. Creating an access entry for EMR service-linked role failed with:
+   - `InvalidParameterException: caller is not allowed to modify access entries with a principalArn value of a Service Linked Role`.
+
+### Decision update
+1. Use `aws-auth` config-map path (supported under `API_AND_CONFIG_MAP`) to grant EMR service-linked role RBAC instead of EKS access entries.
+2. Keep blast radius bounded:
+   - add only EMR service-linked role mapping required for namespace-read and VC creation,
+   - preserve existing caller access entry posture.
+
+## Entry: 2026-02-25 12:05:53 +00:00 - M6.E rerun execution trail (handles materialized + pass closure)
+
+### Runtime/materialization actions executed
+1. Rematerialized required stacks for this lane:
+   - `core` (no changes),
+   - `streaming` (MSK + Glue + SSM bootstrap parameter created),
+   - `runtime` (APIGW/Lambda/DDB/SFN/EKS + runtime IAM surfaces created).
+2. Created runtime namespace:
+   - `fraud-platform-rtdl`.
+3. Resolved EMR VC authorization blocker:
+   - switched EKS auth mode from `CONFIG_MAP` to `API_AND_CONFIG_MAP`,
+   - service-linked role could not be added via EKS access entry (AWS constraint),
+   - used bounded `aws-auth` RBAC mapping for `AWSServiceRoleForAmazonEMRContainers`.
+4. Successfully materialized EMR virtual cluster:
+   - name `fraud-platform-dev-full-flink-vc`,
+   - id `3cfszbpz28ixf1wmmd2roj571`.
+
+### Handle pin closure
+1. Pinned `EMR_EKS_VIRTUAL_CLUSTER_ID = "3cfszbpz28ixf1wmmd2roj571"`.
+2. Pinned `EMR_EKS_RELEASE_LABEL = "emr-6.15.0-latest"`.
+3. Updated `IG_BASE_URL` to current rematerialized APIGW endpoint:
+   - `https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1`.
+4. Cleared both EMR handles from open fail-closed handle list.
+
+### M6.E execution notes
+1. First rerun attempt (`m6e_p6a_stream_entry_20260225T120431Z`) remained fail-closed on parser-shape mismatch for handle lines that include trailing annotation text.
+2. Corrective action:
+   - tightened handle extraction to capture the first backtick expression (`key = value`) and ignore trailing annotation.
+3. Authoritative rerun:
+   - `m6e_p6a_stream_entry_20260225T120522Z`,
+   - result: `overall_pass=true`, blocker count `0`, `next_gate=M6.F_READY`.
+4. Evidence surfaces:
+   - local: `runs/dev_substrate/dev_full/m6/m6e_p6a_stream_entry_20260225T120522Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T120522Z/`.
+
+### Scope stop condition respected
+1. USER-corrected scope was `M6.E` only.
+2. Execution stopped at `M6.E` closure; no `M6.F/M6.G` advancement in this turn.
+

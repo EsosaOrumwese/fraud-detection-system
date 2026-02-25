@@ -403,9 +403,9 @@ Allowed tokens in pattern handles:
 * `FLINK_EKS_HOSTING_MODE = "EMR_ON_EKS"`
 * `FLINK_EKS_NAMESPACE = "fraud-platform-rtdl"`
 * `EMR_EKS_VIRTUAL_CLUSTER_NAME = "fraud-platform-dev-full-flink-vc"`
-* `EMR_EKS_VIRTUAL_CLUSTER_ID = "TO_PIN"`
+* `EMR_EKS_VIRTUAL_CLUSTER_ID = "3cfszbpz28ixf1wmmd2roj571"`
 * `EMR_EKS_EXECUTION_ROLE_ARN = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution"`
-* `EMR_EKS_RELEASE_LABEL = "TO_PIN"`
+* `EMR_EKS_RELEASE_LABEL = "emr-6.15.0-latest"`
 * `FLINK_EKS_WSP_STREAM_REF = "fraud-platform-dev-full-wsp-stream-v0"` (EKS/EMR-on-EKS job or FlinkDeployment reference)
 * `FLINK_EKS_SR_READY_REF = "fraud-platform-dev-full-sr-ready-v0"` (EKS/EMR-on-EKS job or FlinkDeployment reference)
 * `FLINK_EKS_RTDL_IEG_REF = "fraud-platform-dev-full-rtdl-ieg-v0"` (EKS/EMR-on-EKS job or FlinkDeployment reference)
@@ -458,7 +458,7 @@ Allowed tokens in pattern handles:
 
 ### 7.7 Service discovery and ingress handles
 
-* `IG_BASE_URL = "https://5p7yslq6rc.execute-api.eu-west-2.amazonaws.com/v1"`
+* `IG_BASE_URL = "https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1"`
 * `IG_BASE_URL_EKS_FALLBACK = "http://ig.fraud-platform-ingress.svc.cluster.local:8080"`
 * `IG_LISTEN_ADDR = "0.0.0.0"`
 * `IG_PORT = 8080`
@@ -715,8 +715,6 @@ These are intentionally explicit and must be pinned before first `dev-full-up` e
 1. `ROLE_TERRAFORM_APPLY_DEV_FULL`
 2. `DBX_WORKSPACE_URL`
 3. `AWS_BUDGET_NOTIFICATION_EMAIL`
-4. `EMR_EKS_VIRTUAL_CLUSTER_ID`
-5. `EMR_EKS_RELEASE_LABEL`
 
 ---
 

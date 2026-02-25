@@ -54,38 +54,28 @@ Tasks:
    - `RTDL_CAUGHT_UP_LAG_MAX` (lag threshold anchor for M6 streaming checks until M6-specific lag handle is pinned)
 
 DoD:
-- [ ] entry checks pass with no unresolved required handles.
-- [ ] `m6e_stream_activation_entry_snapshot.json` committed locally and durably.
+- [x] entry checks pass with no unresolved required handles.
+- [x] `m6e_stream_activation_entry_snapshot.json` committed locally and durably.
 
 Execution status (2026-02-25):
-1. Executed:
-   - `m6e_p6a_stream_entry_20260225T044348Z`
-   - local: `runs/dev_substrate/dev_full/m6/m6e_p6a_stream_entry_20260225T044348Z/`
-2. Result:
-   - `overall_pass=false`, `next_gate=HOLD_REMEDIATE`.
-3. Active blockers:
-   - `M6P6-B1`: `REQUIRED_PLATFORM_RUN_ID_ENV_KEY` missing in prior handle-closure artifact surface.
-   - `M6P6-B2`: required Flink runtime references absent for active path (at execution time this was MSF app refs: `fraud-platform-dev-full-wsp-stream-v0`, `fraud-platform-dev-full-sr-ready-v0`).
-4. Durable evidence:
-   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044348Z/m6e_stream_activation_entry_snapshot.json`
-   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044348Z/m6e_blocker_register.json`
-   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044348Z/m6e_execution_summary.json`
-5. Superseding rerun:
-   - `m6e_p6a_stream_entry_20260225T044618Z` narrowed blocker set to only `M6P6-B2` (historical state: missing Flink apps on active MSF path).
-   - `M6P6-B1` was cleared using authoritative registry-backed handle resolution.
-6. Remediation probe status:
-   - direct `kinesisanalyticsv2 create-application` probe failed with account-level `UnsupportedOperationException` requiring AWS account verification for Managed Flink.
-   - `M6P6-B2` remained unresolved for this reason in the MSF-only posture; `P6.B/P6.C` could not run truthfully until account gate cleared or authority repinned.
-   - probe evidence:
-     - `runs/dev_substrate/dev_full/m6/m6e_p6_flink_probe_20260225T045252Z/m6e_flink_create_probe.json`
-     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6_flink_probe_20260225T045252Z/m6e_flink_create_probe.json`
-7. Pause posture:
-   - non-bucket cost-bearing stacks were torn down while waiting for AWS verification:
-     - `runs/dev_substrate/dev_full/teardown/teardown_pause_20260225T055919Z/teardown_summary.json`.
-8. Runtime-path repin posture (2026-02-25):
-   - authority/handles are repinned to allow bounded fallback from `MSF` to EKS-hosted Flink under `M6P6-B2`,
-   - active fallback path is `EKS_EMR_ON_EKS`,
-   - P6 semantics/DoD/evidence remain unchanged; only hosting path is substituted.
+1. Historical fail-closed attempts:
+   - `m6e_p6a_stream_entry_20260225T044348Z` and `m6e_p6a_stream_entry_20260225T044618Z` stopped on `M6P6-B2` under MSF-only posture.
+2. Repin + materialization actions completed:
+   - EKS auth mode moved to `API_AND_CONFIG_MAP`,
+   - EMR virtual cluster created on runtime EKS namespace:
+     - name: `fraud-platform-dev-full-flink-vc`,
+     - id: `3cfszbpz28ixf1wmmd2roj571`,
+   - handles pinned:
+     - `EMR_EKS_VIRTUAL_CLUSTER_ID=3cfszbpz28ixf1wmmd2roj571`,
+     - `EMR_EKS_RELEASE_LABEL=emr-6.15.0-latest`.
+3. Authoritative M6.E closure rerun:
+   - execution: `m6e_p6a_stream_entry_20260225T120522Z`,
+   - local: `runs/dev_substrate/dev_full/m6/m6e_p6a_stream_entry_20260225T120522Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T120522Z/`.
+4. Result:
+   - `overall_pass=true`,
+   - blocker count `0`,
+   - `next_gate=M6.F_READY`.
 
 ### P6.B Streaming Active + Lag + Ambiguity Closure (M6.F)
 Goal:

@@ -644,14 +644,16 @@ M6 planning posture:
 - `M6.B` is now closed green (`m6b_p5a_ready_entry_20260225T024245Z`) after P5 entry/contract precheck and Step Functions authority-surface validation.
 - `M6.C` is now closed green (`m6c_p5b_ready_commit_20260225T041702Z`) after READY publish remediation (ephemeral publisher bundle now includes signer package metadata for MSK IAM auth).
 - `M6.D` is now closed green (`m6d_p5c_gate_rollup_20260225T041801Z`) with deterministic verdict `ADVANCE_TO_P6` and `next_gate=M6.E_READY`.
-- `M6.E` has been executed fail-closed and rerun (`m6e_p6a_stream_entry_20260225T044618Z`); blocker `M6P6-B2` root cause is account-level Managed Flink eligibility gating (`UnsupportedOperationException` on create/update; probe evidence `m6e_p6_flink_probe_20260225T045252Z`). Authority has now been repinned to allow bounded EKS-hosted Flink fallback under this blocker, so next action is `M6.E` rerun on the repinned runtime path.
+- `M6.E` is now closed green on the repinned EKS/EMR path (`m6e_p6a_stream_entry_20260225T120522Z`) after materializing:
+  - `EMR_EKS_VIRTUAL_CLUSTER_ID=3cfszbpz28ixf1wmmd2roj571`,
+  - `EMR_EKS_RELEASE_LABEL=emr-6.15.0-latest`.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
 - [x] `M6.B` `P5` entry/contract precheck.
 - [x] `M6.C` `P5` READY commit authority execution.
 - [x] `M6.D` `P5` gate rollup + verdict.
-- [ ] `M6.E` `P6` entry/stream activation precheck.
+- [x] `M6.E` `P6` entry/stream activation precheck.
 - [ ] `M6.F` `P6` streaming-active + lag + ambiguity closure.
 - [ ] `M6.G` `P6` gate rollup + verdict.
 - [ ] `M6.H` `P7` ingest-commit execution.

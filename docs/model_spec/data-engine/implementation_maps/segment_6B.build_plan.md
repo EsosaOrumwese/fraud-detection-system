@@ -383,6 +383,103 @@ POPT.2R execution status (current authority):
 - decision: `HOLD_POPT.2_REOPEN`.
 - disposition: option bundle rejected for runtime posture and code reverted to pre-POPT.2R implementation.
 
+### POPT.2S - `S4` safer reopen lane (column-pruning + constant materialization)
+Goal:
+- reduce `S4` runtime with low-blast I/O+CPU optimization only, avoiding any new surfaces or join-path redesign.
+
+Definition of done:
+- [x] flow/event parquet batch reads drop redundant constant metadata columns from source scan.
+- [x] output metadata columns (`seed`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`) are materialized from run/scenario constants with unchanged values.
+- [x] no policy or label logic changes for truth/bank/case decisions.
+- [x] fresh staged `S4 -> S5` witness executes and required S5 checks stay PASS.
+- [x] closure scorer emitted and decision recorded (`UNLOCK_POPT.3_CONTINUE` or `HOLD_POPT.2_REOPEN`).
+
+POPT.2S expanded execution plan:
+
+#### POPT.2S.1 - Design pin and invariants
+Definition of done:
+- [x] implementation-map entry added before code edits (problem, alternatives, chosen lane).
+- [x] invariants pinned:
+  - no schema/path changes,
+  - same row cardinalities and label semantics,
+  - same RNG trace/audit posture.
+
+#### POPT.2S.2 - Flow/event source column pruning
+Definition of done:
+- [x] flow scan uses only required computational columns (`flow_id`, `campaign_id`, `ts_utc`).
+- [x] event scan uses only required computational columns (`flow_id`, `event_seq`, `campaign_id`).
+- [x] run/scenario metadata added as literals during output projection.
+
+#### POPT.2S.3 - Witness run and closure scoring
+Definition of done:
+- [x] stage fresh run-id from `f621ee01bdb3428f84f7c7c1afde8812`.
+- [x] run `S4` then `S5`.
+- [x] score with `tools/score_segment6b_popt2_closure.py`.
+- [ ] update disposition:
+  - keep lane if runtime improves with non-regression,
+  - otherwise rollback immediately and keep current witness authority.
+
+POPT.2S execution status (current authority):
+- staged candidate run-id: `d9269a8788aa42c1957b886095118b63` (from source `f621ee01bdb3428f84f7c7c1afde8812`).
+- lane results:
+  - `S4=579.45s` (regression vs current witness `570.62s`),
+  - `S5=8.23s`, required checks all PASS,
+  - warning metrics stable vs witness.
+- closure artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_d9269a8788aa42c1957b886095118b63.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_d9269a8788aa42c1957b886095118b63.md`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_state_elapsed_d9269a8788aa42c1957b886095118b63.csv`.
+- decision: `HOLD_POPT.2_REOPEN`.
+- disposition: safer lane rejected for runtime posture; code rolled back to pre-POPT.2S implementation.
+
+### POPT.2T - `S4` targeted reopen (campaign-map expression lane)
+Goal:
+- remove low-value per-batch join overhead in `S4` by using deterministic expression maps for campaign-to-truth derivation.
+
+Definition of done:
+- [x] flow/event lanes no longer join per batch to `campaign_map_df` for campaign-type derivation.
+- [x] truth label/subtype derivation uses direct deterministic `campaign_id -> truth_*` expressions.
+- [x] no policy semantic drift; output schemas and row cardinalities remain unchanged.
+- [x] staged `S4 -> S5` witness run and closure scorer completed.
+- [x] decision recorded with keep/rollback disposition.
+
+POPT.2T expanded execution plan:
+
+#### POPT.2T.1 - Design pin and invariants
+Definition of done:
+- [x] implementation-map entry appended before code edits.
+- [x] invariants pinned:
+  - no new temp surfaces,
+  - no writer/path changes,
+  - no label semantics drift.
+
+#### POPT.2T.2 - Targeted S4 expression rewrite
+Definition of done:
+- [x] precompute `campaign_id -> truth_label` and `campaign_id -> truth_subtype` maps once per scenario.
+- [x] replace per-batch campaign join with `_map_enum_expr("campaign_id", ...)` in flow and event loops.
+- [x] compile checks pass.
+
+#### POPT.2T.3 - Witness run and closure decision
+Definition of done:
+- [x] stage fresh run-id from `f621ee01bdb3428f84f7c7c1afde8812`.
+- [x] run `S4` then `S5` with bounded knobs (`batch_rows=500000`, `compression=snappy`).
+- [x] closure score emitted.
+- [x] keep if runtime improves and checks stay PASS, else rollback immediately.
+
+POPT.2T execution status (current authority):
+- run `b2d2624c686e4fe7a602b564930c49b0`:
+  - `S4=422.53s` but semantic drift detected (`flow fraud_true` collapsed and case volume collapsed),
+  - rejected immediately as invalid witness for closure.
+- corrective semantic patch applied to preserve `campaign_type=NONE` default behavior, reran as:
+  - `e1206e898bdc4bc58db8402f2ffd72a5`,
+  - `S4=620.19s`, `S5=7.86s`, required checks PASS,
+  - closure decision `HOLD_POPT.2_REOPEN`.
+- closure artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_e1206e898bdc4bc58db8402f2ffd72a5.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_e1206e898bdc4bc58db8402f2ffd72a5.md`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_state_elapsed_e1206e898bdc4bc58db8402f2ffd72a5.csv`.
+- disposition: targeted lane rejected for runtime posture; code rolled back to pre-POPT.2T implementation.
+
 ### POPT.3 - Part-writer and I/O compaction lane
 Goal:
 - reduce write amplification and small-file overhead on S3/S4 heavy outputs.
