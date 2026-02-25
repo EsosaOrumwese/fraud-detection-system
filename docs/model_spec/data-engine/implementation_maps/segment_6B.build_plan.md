@@ -726,10 +726,52 @@ Goal:
 - certify optimization gains with deterministic evidence and freeze runtime posture.
 
 Definition of done:
-- [ ] candidate lane runtime meets target.
-- [ ] witness lane (`2 seeds`) confirms runtime and non-regression.
-- [ ] certification-lane feasibility confirmed against budget.
-- [ ] optimization freeze markers written in build plan and impl notes.
+- [x] candidate lane runtime meets target.
+- [x] witness lane (`2 seeds` target posture) confirms runtime and non-regression.
+- [x] certification-lane feasibility confirmed against budget.
+- [x] optimization freeze markers written in build plan and impl notes.
+
+POPT.4 expanded execution plan:
+
+#### POPT.4.1 - Freeze authority + target pin
+Definition of done:
+- [x] authority run pinned (`cee903d9ea644ba6a1824aa6b54a1692`).
+- [x] freeze runtime target pinned for S4 lane (`<=420s` with required-check PASS + parity/warn stability).
+- [x] non-promotable POPT.3 lane explicitly marked rejected.
+
+#### POPT.4.2 - Witness matrix execution
+Definition of done:
+- [x] stage and execute one fresh `S4 -> S5` witness from authority posture (`750000/snappy`).
+- [x] score witness non-regression against authority using closure scorer artifacts.
+- [x] confirm replay-stable posture across at least two run-ids.
+
+#### POPT.4.3 - Seed feasibility + freeze closure
+Definition of done:
+- [x] adjudicate `2 seeds` requirement:
+  - either execute second seed, or
+  - document blocked posture + bounded deferral lane with runtime/cost estimate.
+- [x] write freeze decision and next-gate handoff (`UNLOCK_P0_REMEDIATION` or `HOLD_POPT.4_REOPEN`).
+- [x] prune superseded witness run folders and retain authority evidence set.
+
+POPT.4 execution status (current authority):
+- freeze target:
+  - `S4<=420s` and `required_checks_pass=true` with parity/warn stability.
+- authority run:
+  - `cee903d9ea644ba6a1824aa6b54a1692` -> `S4=392.64s`, `S5=17.69s`, non-regression PASS.
+- witness runs (`750000/snappy`):
+  - `7d1cd27427eb46189834954360319a89` -> `S4=413.86s`, `S5=19.25s`, runtime_target PASS, non-regression PASS.
+  - `20851a5bf54f4e579999b16e7dc92c88` -> `S4=413.75s`, `S5=20.44s`, runtime_target PASS, non-regression PASS.
+  - `5cdc365c876a4b1091491a5121d59750` -> `S4=438.42s`, `S5=19.95s`, runtime_target FAIL but stretch PASS, non-regression PASS (recorded outlier).
+- seed-feasibility adjudication:
+  - all available staged runs are `seed=42`; true second-seed witness requires upstream reseed lane (`S0-S3`).
+  - bounded estimate from `POPT.0` state timings indicates about `31m` for `S1-S3` + `~7m` for `S4-S5` per new seed (`~38m/seed`, excluding operator overhead).
+  - second-seed execution deferred to remediation certification lane unless explicitly reopened now.
+- phase decision:
+  - `UNLOCK_P0_REMEDIATION`.
+- freeze disposition:
+  - keep optimization authority at `cee903d9ea644ba6a1824aa6b54a1692`,
+  - retain supporting witness `20851a5bf54f4e579999b16e7dc92c88`,
+  - prune superseded outlier witness `5cdc365c876a4b1091491a5121d59750`.
 
 ## 6) Remediation phase stack
 

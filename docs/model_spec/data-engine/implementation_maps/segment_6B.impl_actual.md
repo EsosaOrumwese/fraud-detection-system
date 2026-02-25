@@ -2334,3 +2334,71 @@ Storage hygiene:
 - retained:
   - authority witness `cee903d9ea644ba6a1824aa6b54a1692`,
   - rollback witness `7d1cd27427eb46189834954360319a89`.
+
+---
+
+### Entry: 2026-02-25 15:05
+
+POPT.4 execution plan pin (freeze lane after POPT.3 rejection).
+
+Context:
+- `POPT.3` is closed as rejected due runtime regressions.
+- optimization authority remains `cee903d9ea644ba6a1824aa6b54a1692` (`S4=392.64s`).
+- available staged runs in `runs/fix-data-engine/segment_6B` are all `seed=42`.
+
+Decisions:
+- proceed with `POPT.4` freeze closure now using dual same-seed witnesses (`authority + fresh replay`) to lock optimization posture.
+- preserve strict non-regression checks (required PASS + parity/warn stability) and runtime gate (`S4<=420s`).
+- treat "2 seeds" as a feasibility gate for this phase:
+  - true multi-seed requires upstream reseed lane (`S0-S3`) and is deferred to remediation certification unless explicitly requested now.
+
+Execution steps:
+1) stage one fresh witness from `cee903...` and run `S4 -> S5` at `750000/snappy`.
+2) score closure artifact against authority witness.
+3) if runtime/non-regression holds, mark optimization freeze and unlock remediation `P0`.
+4) retain only authority + freeze witness runs for this pass.
+
+---
+
+### Entry: 2026-02-25 16:08
+
+POPT.4 execution result (runtime freeze closure).
+
+Witness execution lane:
+- staged and executed fresh witnesses from authority `cee903d9ea644ba6a1824aa6b54a1692`:
+  - `5cdc365c876a4b1091491a5121d59750`,
+  - `20851a5bf54f4e579999b16e7dc92c88`.
+- scoring artifacts generated with:
+  - `tools/score_segment6b_popt2_closure.py` (witness=`cee903...`).
+
+Measured posture:
+- authority:
+  - `cee903...` -> `S4=392.64s`, `S5=17.69s`, non-regression PASS.
+- accepted witnesses:
+  - `7d1...` -> `S4=413.86s`, `S5=19.25s`, runtime_target PASS, non-regression PASS.
+  - `2085...` -> `S4=413.75s`, `S5=20.44s`, runtime_target PASS, non-regression PASS.
+- outlier witness:
+  - `5cdc...` -> `S4=438.42s`, `S5=19.95s`, runtime_target FAIL, stretch PASS, non-regression PASS.
+
+Interpretation:
+- optimization lane remains materially improved versus baseline and replay-safe.
+- one high runtime witness exists under host-load variability; retained as evidence but not selected as freeze witness.
+
+Seed-feasibility adjudication:
+- all staged runs currently available are `seed=42`.
+- true multi-seed validation now requires upstream reseed rerun (`S0-S3`) before `S4/S5`.
+- bounded estimate from baseline timings:
+  - `S1-S3 ~31 minutes` + `S4-S5 ~7 minutes` per additional seed (`~38 minutes/seed`).
+- decision: defer second-seed execution to remediation certification lane unless explicitly reopened now.
+
+Final POPT.4 decision:
+- `UNLOCK_P0_REMEDIATION`.
+- freeze optimization posture at authority run `cee903...`.
+
+Storage hygiene:
+- prune superseded outlier witness `5cdc365c876a4b1091491a5121d59750`.
+- retain:
+  - authority `cee903d9ea644ba6a1824aa6b54a1692`,
+  - freeze witness `20851a5bf54f4e579999b16e7dc92c88`,
+  - rollback/reference witness `7d1cd27427eb46189834954360319a89`.
+- action executed: dry-run + `--yes` prune completed under `runs/fix-data-engine/segment_6B`.

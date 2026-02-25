@@ -185,8 +185,23 @@ Tasks:
 3. emit `m6g_p6_gate_verdict.json`.
 
 DoD:
-- [ ] rollup matrix + blocker register committed.
-- [ ] deterministic verdict committed (`ADVANCE_TO_P7`/`HOLD_REMEDIATE`/`NO_GO_RESET_REQUIRED`).
+- [x] rollup matrix + blocker register committed.
+- [x] deterministic verdict committed (`ADVANCE_TO_P7`/`HOLD_REMEDIATE`/`NO_GO_RESET_REQUIRED`).
+
+Execution status (2026-02-25):
+1. Remote authoritative execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m6g`
+   - run id: `22404445249`
+   - execution id: `m6g_p6c_gate_rollup_20260225T155035Z`
+2. Adjudication result:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `verdict=ADVANCE_TO_P7`
+   - `next_gate=M6.H_READY`
+3. Evidence:
+   - workflow artifact set: `m6g-p6-gate-rollup-20260225T155035Z`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T155035Z/`
 
 ## 4) P6 Verification Catalog
 | Verify ID | Command template | Purpose |
@@ -222,7 +237,7 @@ DoD:
 `P6` can close only when:
 1. all `M6P6-B*` blockers are resolved,
 2. all P6 DoDs are green,
-3. P6 evidence exists locally and durably,
+3. P6 evidence exists in workflow artifacts and durably,
 4. verdict is deterministic and blocker-consistent.
 
 Transition:

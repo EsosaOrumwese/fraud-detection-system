@@ -653,6 +653,11 @@ M6 planning posture:
   - `overall_pass=true`, `next_gate=M6.G_READY`,
   - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T152755Z/`,
   - prior local rerun `m6f_p6b_streaming_active_20260225T143900Z` is retained as provisional remediation evidence only.
+- `M6.G` authoritative no-laptop-compute gate rollup is now green (`m6g_p6c_gate_rollup_20260225T155035Z`) via GitHub Actions run `22404445249` on `migrate-dev`:
+  - `overall_pass=true`, `blocker_count=0`,
+  - verdict `ADVANCE_TO_P7`,
+  - `next_gate=M6.H_READY`,
+  - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T155035Z/`.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
@@ -661,7 +666,7 @@ M6 sub-phase progress:
 - [x] `M6.D` `P5` gate rollup + verdict.
 - [x] `M6.E` `P6` entry/stream activation precheck.
 - [x] `M6.F` `P6` streaming-active + lag + ambiguity closure.
-- [ ] `M6.G` `P6` gate rollup + verdict.
+- [x] `M6.G` `P6` gate rollup + verdict.
 - [ ] `M6.H` `P7` ingest-commit execution.
 - [ ] `M6.I` `P7` gate rollup + M6 verdict + M7 handoff.
 - [ ] `M6.J` M6 closure sync (docs/cost-outcome/evidence index).
@@ -828,4 +833,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M6.G` (`P6` gate rollup + verdict) using `m6e_p6a_stream_entry_20260225T120522Z` and `m6f_p6b_streaming_active_20260225T152755Z` as upstream authorities.
+- Execute `M6.H` (`P7` ingest commit closure) using `M6.G` authority `m6g_p6c_gate_rollup_20260225T155035Z` (`ADVANCE_TO_P7`, `M6.H_READY`) as the entry gate.

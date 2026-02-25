@@ -18,7 +18,8 @@ This folder is reserved for `dev_full` planning and implementation notes.
 - Active gate posture:
   - `M6.E` (`P6.A`) is closed green on the EMR-on-EKS runtime path.
   - `M6.F` (`P6.B`) is now closed green on authoritative remote rerun `m6f_p6b_streaming_active_20260225T152755Z` (GitHub Actions run `22403542013` on `migrate-dev`).
-  - cleared blockers: `M6P6-B2`, `M6P6-B3`, `M6P6-B4`.
+  - `M6.G` (`P6.C`) is now closed green on authoritative remote rollup `m6g_p6c_gate_rollup_20260225T155035Z` (GitHub Actions run `22404445249` on `migrate-dev`).
+  - cleared blockers: `M6P6-B2`, `M6P6-B3`, `M6P6-B4`, `M6P6-B6`, `M6P6-B8`.
 - Next closure step:
-  - execute `M6.G` (`P6` rollup + verdict) with `M6.E/M6.F` green authorities.
+  - execute `M6.H` (`P7` ingest commit closure) with `M6.G` verdict `ADVANCE_TO_P7` as entry gate.
 - `dev_min` remains closed and isolated under `../dev_min/`.

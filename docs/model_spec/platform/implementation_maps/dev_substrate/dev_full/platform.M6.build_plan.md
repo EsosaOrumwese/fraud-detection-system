@@ -348,8 +348,23 @@ Tasks:
 2. emit deterministic `P6` verdict artifact.
 
 DoD:
-- [ ] `P6` rollup + blocker register committed.
-- [ ] deterministic `P6` verdict committed.
+- [x] `P6` rollup + blocker register committed.
+- [x] deterministic `P6` verdict committed.
+
+Execution status (2026-02-25):
+1. Remote authoritative execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m6g`
+   - run id: `22404445249`
+   - execution id: `m6g_p6c_gate_rollup_20260225T155035Z`
+2. Result:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `verdict=ADVANCE_TO_P7`
+   - `next_gate=M6.H_READY`
+3. Evidence:
+   - workflow artifact set: `m6g-p6-gate-rollup-20260225T155035Z`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T155035Z/`
 
 ### M6.H `P7` Ingest Commit Closure
 Goal:
@@ -448,7 +463,7 @@ Any active `M6-B*` blocker prevents M6 closure.
 - [x] M6.D complete
 - [x] M6.E complete
 - [x] M6.F complete
-- [ ] M6.G complete
+- [x] M6.G complete
 - [ ] M6.H complete
 - [ ] M6.I complete
 - [ ] M6.J complete
@@ -480,3 +495,4 @@ Handoff posture:
 7. `M6.D` is closed green (`m6d_p5c_gate_rollup_20260225T041801Z`) with verdict `ADVANCE_TO_P6` and `M6.E_READY`.
 8. `M6.E` is closed green (`m6e_p6a_stream_entry_20260225T120522Z`) with `M6.F_READY`.
 9. `M6.F` fail-closed attempt (`m6f_p6b_streaming_active_20260225T121536Z`) was remediated with local provisional rerun `m6f_p6b_streaming_active_20260225T143900Z` and then closed authoritatively on remote rerun `m6f_p6b_streaming_active_20260225T152755Z` (workflow run `22403542013`, `blocker_count=0`, `M6.G_READY`).
+10. `M6.G` is now closed green on remote authoritative rollup `m6g_p6c_gate_rollup_20260225T155035Z` (workflow run `22404445249`) with `blocker_count=0`, verdict `ADVANCE_TO_P7`, and `next_gate=M6.H_READY`.
