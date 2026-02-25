@@ -1,0 +1,321 @@
+name: dev-full-m6f-streaming-active
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region for EMR/EKS/DynamoDB/S3 operations"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      platform_run_id:
+        description: "Pinned platform run id"
+        required: true
+        type: string
+      scenario_run_id:
+        description: "Pinned scenario run id"
+        required: true
+        type: string
+      upstream_m6e_execution:
+        description: "Upstream M6.E execution id used by M6.F capture"
+        required: true
+        type: string
+      m6_execution_id:
+        description: "Optional fixed M6.F execution id (default: m6f_p6b_streaming_active_<timestamp>)"
+        required: false
+        default: ""
+        type: string
+      emr_virtual_cluster_id:
+        description: "EMR on EKS virtual cluster id"
+        required: true
+        default: "3cfszbpz28ixf1wmmd2roj571"
+        type: string
+      emr_execution_role_arn:
+        description: "EMR execution role ARN"
+        required: true
+        default: "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution"
+        type: string
+      emr_release_label:
+        description: "EMR release label"
+        required: true
+        default: "emr-6.15.0-latest"
+        type: string
+      artifacts_bucket:
+        description: "S3 bucket for lane worker script artifact"
+        required: true
+        default: "fraud-platform-dev-full-artifacts"
+        type: string
+      evidence_bucket:
+        description: "S3 bucket for M6.F run-control evidence"
+        required: true
+        default: "fraud-platform-dev-full-evidence"
+        type: string
+      wsp_ref:
+        description: "WSP stream lane ref"
+        required: true
+        default: "fraud-platform-dev-full-wsp-stream-v0"
+        type: string
+      sr_ready_ref:
+        description: "SR ready lane ref"
+        required: true
+        default: "fraud-platform-dev-full-sr-ready-v0"
+        type: string
+      ig_idempotency_table:
+        description: "IG idempotency DynamoDB table name"
+        required: true
+        default: "fraud-platform-dev-full-ig-idempotency"
+        type: string
+      runtime_path:
+        description: "Pinned runtime path for this phase execution"
+        required: true
+        default: "EKS_EMR_ON_EKS"
+        type: string
+      runtime_path_allowed:
+        description: "Allowed runtime path set"
+        required: true
+        default: "MSF_MANAGED|EKS_EMR_ON_EKS|EKS_FLINK_OPERATOR"
+        type: string
+      runtime_path_fallback_blocker:
+        description: "Blocker code that permits fallback"
+        required: true
+        default: "M6P6-B2"
+        type: string
+      lag_threshold:
+        description: "Lag threshold for M6.F capture"
+        required: true
+        default: "10"
+        type: string
+      iterations:
+        description: "Bounded worker iterations for lane refs"
+        required: true
+        default: "600"
+        type: string
+      sleep_seconds:
+        description: "Worker sleep seconds between iterations"
+        required: true
+        default: "1.0"
+        type: string
+      emr_log_group_name:
+        description: "CloudWatch log group for EMR jobs"
+        required: true
+        default: "/emr-eks/fraud-platform-dev-full"
+        type: string
+      eks_cluster_name:
+        description: "EKS cluster name for preflight capacity check"
+        required: true
+        default: "fraud-platform-dev-full"
+        type: string
+      eks_nodegroup_name:
+        description: "EKS nodegroup name for preflight capacity check"
+        required: true
+        default: "fraud-platform-dev-full-m6f-workers"
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-m6f-streaming-active-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_m6f_remote:
+    name: Run M6.F streaming-active lane remotely (GitHub Actions)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m6_execution_id }}" ]]; then
+            EXEC_ID="${{ inputs.m6_execution_id }}"
+          else
+            EXEC_ID="m6f_p6b_streaming_active_${TS}"
+          fi
+          RUN_DIR="runs/dev_substrate/dev_full/m6/${EXEC_ID}"
+          SUBMIT_RECEIPT="${RUN_DIR}/m6f_emr_submit_receipt.json"
+          WORKER_S3_URI="s3://${{ inputs.artifacts_bucket }}/dev_substrate/m6/m6_stream_ref_worker.py"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m6_execution_id=${EXEC_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+          echo "submit_receipt=${SUBMIT_RECEIPT}" >> "$GITHUB_OUTPUT"
+          echo "worker_s3_uri=${WORKER_S3_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Preflight worker-capacity gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATUS="$(aws eks describe-nodegroup \
+            --region "${{ inputs.aws_region }}" \
+            --cluster-name "${{ inputs.eks_cluster_name }}" \
+            --nodegroup-name "${{ inputs.eks_nodegroup_name }}" \
+            --query 'nodegroup.status' \
+            --output text)"
+          echo "Nodegroup status: ${STATUS}"
+          if [[ "${STATUS}" != "ACTIVE" ]]; then
+            echo "M6.F fail-closed: nodegroup is not ACTIVE."
+            exit 1
+          fi
+
+      - name: Upload lane worker script artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 cp \
+            scripts/dev_substrate/m6_stream_ref_worker.py \
+            "${{ steps.run_meta.outputs.worker_s3_uri }}" \
+            --region "${{ inputs.aws_region }}"
+
+      - name: Submit EMR lane refs
+        id: submit
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${{ steps.run_meta.outputs.run_dir }}"
+          python scripts/dev_substrate/m6_submit_emr_refs.py \
+            --region "${{ inputs.aws_region }}" \
+            --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
+            --execution-role-arn "${{ inputs.emr_execution_role_arn }}" \
+            --release-label "${{ inputs.emr_release_label }}" \
+            --script-s3-uri "${{ steps.run_meta.outputs.worker_s3_uri }}" \
+            --platform-run-id "${{ inputs.platform_run_id }}" \
+            --scenario-run-id "${{ inputs.scenario_run_id }}" \
+            --wsp-ref "${{ inputs.wsp_ref }}" \
+            --sr-ready-ref "${{ inputs.sr_ready_ref }}" \
+            --log-group-name "${{ inputs.emr_log_group_name }}" \
+            --iterations "${{ inputs.iterations }}" \
+            --sleep-seconds "${{ inputs.sleep_seconds }}" \
+            --output-json "${{ steps.run_meta.outputs.submit_receipt }}"
+          WSP_JOB_ID="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("${{ steps.run_meta.outputs.submit_receipt }}").read_text(encoding="utf-8"))
+          print(payload.get("wsp_job_id", ""))
+          PY
+          )"
+          SR_JOB_ID="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("${{ steps.run_meta.outputs.submit_receipt }}").read_text(encoding="utf-8"))
+          print(payload.get("sr_ready_job_id", ""))
+          PY
+          )"
+          if [[ -z "${WSP_JOB_ID}" || -z "${SR_JOB_ID}" ]]; then
+            echo "M6.F fail-closed: EMR submission receipt missing job ids."
+            exit 1
+          fi
+          echo "wsp_job_id=${WSP_JOB_ID}" >> "$GITHUB_OUTPUT"
+          echo "sr_job_id=${SR_JOB_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Stabilization wait
+        shell: bash
+        run: |
+          set -euo pipefail
+          sleep 15
+
+      - name: Capture M6.F artifacts
+        id: capture
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/m6f_capture.py \
+            --execution-id "${{ steps.run_meta.outputs.m6_execution_id }}" \
+            --platform-run-id "${{ inputs.platform_run_id }}" \
+            --scenario-run-id "${{ inputs.scenario_run_id }}" \
+            --upstream-m6e-execution "${{ inputs.upstream_m6e_execution }}" \
+            --region "${{ inputs.aws_region }}" \
+            --runtime-path "${{ inputs.runtime_path }}" \
+            --runtime-path-allowed "${{ inputs.runtime_path_allowed }}" \
+            --runtime-path-fallback-blocker "${{ inputs.runtime_path_fallback_blocker }}" \
+            --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
+            --wsp-ref "${{ inputs.wsp_ref }}" \
+            --sr-ready-ref "${{ inputs.sr_ready_ref }}" \
+            --ig-idempotency-table "${{ inputs.ig_idempotency_table }}" \
+            --lag-threshold "${{ inputs.lag_threshold }}" \
+            --evidence-bucket "${{ inputs.evidence_bucket }}" \
+            --local-output-root "runs/dev_substrate/dev_full/m6"
+
+      - name: Fail-closed verdict gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUMMARY_PATH="${{ steps.run_meta.outputs.run_dir }}/m6f_execution_summary.json"
+          BLOCKER_PATH="${{ steps.run_meta.outputs.run_dir }}/m6f_blocker_register.json"
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          summary = json.loads(Path("${SUMMARY_PATH}").read_text(encoding="utf-8"))
+          blockers = json.loads(Path("${BLOCKER_PATH}").read_text(encoding="utf-8"))
+          overall_pass = bool(summary.get("overall_pass"))
+          blocker_count = int(blockers.get("blocker_count", 0))
+
+          print(json.dumps(
+              {
+                  "overall_pass": overall_pass,
+                  "blocker_count": blocker_count,
+                  "execution_id": summary.get("execution_id"),
+                  "next_gate": summary.get("next_gate"),
+              },
+              ensure_ascii=True,
+          ))
+          if (not overall_pass) or blocker_count != 0:
+              sys.exit(1)
+          PY
+
+      - name: Cancel temporary EMR lane refs
+        if: ${{ always() && steps.submit.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/m6_cancel_emr_refs.py \
+            --region "${{ inputs.aws_region }}" \
+            --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
+            --job-id "${{ steps.submit.outputs.wsp_job_id }}" \
+            --job-id "${{ steps.submit.outputs.sr_job_id }}"
+
+      - name: Upload M6.F run artifact set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m6f-streaming-active-${{ steps.run_meta.outputs.timestamp }}
+          path: ${{ steps.run_meta.outputs.run_dir }}
+          if-no-files-found: warn
