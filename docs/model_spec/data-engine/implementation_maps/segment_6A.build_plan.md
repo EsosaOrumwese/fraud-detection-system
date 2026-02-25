@@ -151,28 +151,105 @@ Goal:
 
 #### P1.1 - `S2` algorithm lock
 Definition of done:
-- [ ] `enforce_kmax_per_party_account_type` design pinned (deterministic rank, redistribute, deterministic drop fallback).
-- [ ] `K_max` source pinned to `account_per_party_priors_6A.v1.yaml`.
-- [ ] No warning-only semantics remain for cap invariants.
+- [x] `enforce_kmax_per_party_account_type` design pinned (deterministic rank, redistribute, deterministic drop fallback).
+- [x] `K_max` source pinned to `account_per_party_priors_6A.v1.yaml`.
+- [x] No warning-only semantics remain for cap invariants.
 
 #### P1.2 - `S2` implementation
 Definition of done:
-- [ ] `packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py` updated with final cap pass before writeout.
-- [ ] Post-pass invariant check fails on any remaining overflow.
-- [ ] Counters emitted: `kmax_overflow_rows`, `kmax_redistributed_rows`, `kmax_dropped_rows`, `kmax_postcheck_violations`.
+- [x] `packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py` updated with final cap pass before writeout.
+- [x] Post-pass invariant check fails on any remaining overflow.
+- [x] Counters emitted: `kmax_overflow_rows`, `kmax_redistributed_rows`, `kmax_dropped_rows`, `kmax_postcheck_violations`.
 
 #### P1.3 - Policy hardening
 Definition of done:
-- [ ] `config/layer3/6A/priors/account_per_party_priors_6A.v1.yaml` updated with:
+- [x] `config/layer3/6A/priors/account_per_party_priors_6A.v1.yaml` updated with:
   - `constraints.cap_enforcement_mode: hard_global_postmerge`
   - `constraints.max_allowed_kmax_violations: 0`
-- [ ] Policy/schema validation remains green.
+- [x] Policy/schema validation remains green.
 
 #### P1.4 - Witness and closure
 Definition of done:
-- [ ] `T1-T2` pass at `B` thresholds on candidate lane.
-- [ ] No regression on already-stable non-owner gates.
-- [ ] Decision recorded as one of `UNLOCK_P2` or `HOLD_P1`.
+- [x] `T1-T2` pass at `B` thresholds on candidate lane.
+- [x] No regression on already-stable non-owner gates.
+- [x] Decision recorded as one of `UNLOCK_P2` or `HOLD_P1`.
+
+P1 expanded execution breakdown:
+
+##### P1.1A - Decision-complete algorithm lock (pre-code)
+Definition of done:
+- [x] Pin `K_max` authority lookup path and failure behavior for missing rules.
+- [x] Pin enforcement insertion point (`post-allocation, pre-writeout`) and deterministic invariants.
+- [x] Pin redistribution semantics:
+  - overflow pool per `(region_id, party_type, segment_id, account_type)`,
+  - receiver set = same cell parties under cap,
+  - residual-weighted deterministic reallocation,
+  - deterministic drop fallback when receiver capacity is exhausted.
+- [x] Pin postcheck behavior:
+  - zero remaining overflow required when `max_allowed_kmax_violations=0`.
+
+##### P1.1B - Performance and safety lock
+Definition of done:
+- [x] Keep complexity bounded to linear-ish passes over realised holdings (`O(n)` + bounded redistribution loops).
+- [x] Avoid per-account-row materialization in enforcement path (operate on aggregated holdings counts).
+- [x] Preserve deterministic output ordering and existing schema/idempotent publish behavior.
+
+##### P1.2A - `S2` code implementation (hard cap lane)
+Definition of done:
+- [x] Add post-merge cap enforcement function in `s2_accounts/runner.py`.
+- [x] Apply cap pass to realised holdings map before account/holdings dataset emission.
+- [x] Emit counters:
+  - `kmax_overflow_rows`,
+  - `kmax_redistributed_rows`,
+  - `kmax_dropped_rows`,
+  - `kmax_postcheck_violations`.
+- [x] Rebuild derived emission structures from cap-enforced holdings to prevent stale pre-cap aggregates.
+
+##### P1.2B - Postcheck and fail-closed integration
+Definition of done:
+- [x] Add explicit fail-closed abort on postcheck violations beyond configured allowance.
+- [x] Keep deterministic fallback on exhausted redistribution capacity (drop + counter), no silent overflow.
+
+##### P1.3A - Policy/schema hardening
+Definition of done:
+- [x] Add `constraints.cap_enforcement_mode` and `constraints.max_allowed_kmax_violations` to:
+  - `config/layer3/6A/priors/account_per_party_priors_6A.v1.yaml`.
+- [x] Update `schemas.6A.yaml` prior schema to admit and require the new constraints keys.
+- [x] Prior pack continues to schema-validate at runtime (`S2` contract load path).
+
+##### P1.4A - Witness run and gate closure
+Definition of done:
+- [x] Run fresh candidate lane from changed owner state:
+  - `S2 -> S3 -> S4 -> S5` on one new run-id under `runs/fix-data-engine/segment_6A`.
+- [x] Re-score with `tools/score_segment6a_p0_baseline.py` and capture `T1-T2` movement.
+- [x] Verify non-owner regression posture:
+  - `T3` and `T6` remain PASS,
+  - no unexpected structural regressions in `S5` validation.
+
+##### P1.4B - Phase decision and handoff
+Definition of done:
+- [x] Record one decision only:
+  - `UNLOCK_P2` if `T1-T2` pass and no blocking regressions,
+  - `HOLD_P1` otherwise.
+- [x] Update build plan, impl notes, and logbook with exact metrics + run-id evidence.
+
+P1 closure evidence (`run_id=347bc917cfa444cfb895970574ef95b9`):
+- execution chain:
+  - `S2 -> S3 -> S4 -> S5` executed on fresh candidate run lane.
+- gateboard artifact:
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p0_realism_gateboard_347bc917cfa444cfb895970574ef95b9.json`.
+- closure metrics:
+  - `T1 max_overflow=0`, `total_overflow=0` (`PASS_B` / `PASS_BPLUS`),
+  - `T2 max_p99_over_kmax=0.0`, `max_max_over_kmax=0.0` (`PASS_B` / `PASS_BPLUS`),
+  - `T3 max_abs_error_pp=1.7354` (remains `PASS_B` / `PASS_BPLUS`),
+  - `T6 role_mapping_coverage=100%` (remains `PASS_B` / `PASS_BPLUS`).
+- S2 enforcement counters (witness context):
+  - `kmax_overflow_rows=205800`,
+  - `kmax_redistributed_rows=205800`,
+  - `kmax_dropped_rows=0`,
+  - `kmax_postcheck_violations=0`.
+- phase decision:
+  - `P1=UNLOCK_P2`.
 
 ### P2 - Delta Set B (`S4`) IP realism remediation
 Goal:

@@ -459,6 +459,8 @@ prior:
           required:
             - coverage_mode
             - required_types_min_weighted_coverage
+            - cap_enforcement_mode
+            - max_allowed_kmax_violations
             - K_max_global_upper_bound
             - sigma_global_upper_bound
           properties:
@@ -467,6 +469,12 @@ prior:
               type: object
               additionalProperties:
                 type: number
+            cap_enforcement_mode:
+              type: string
+              enum: [none, hard_global_postmerge]
+            max_allowed_kmax_violations:
+              type: integer
+              minimum: 0
             K_max_global_upper_bound: { type: integer }
             sigma_global_upper_bound: { type: number }
         realism_targets:

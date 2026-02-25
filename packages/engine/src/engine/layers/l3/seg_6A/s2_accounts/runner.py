@@ -846,6 +846,221 @@ def _largest_remainder_list(
     return floors, draw_meta
 
 
+def _allocate_with_caps(
+    total: int,
+    weights: np.ndarray,
+    caps: np.ndarray,
+) -> tuple[np.ndarray, int]:
+    total_i = int(total)
+    caps_arr = np.asarray(caps, dtype=np.int64)
+    if total_i <= 0 or caps_arr.size == 0:
+        return np.zeros(caps_arr.size, dtype=np.int64), max(total_i, 0)
+
+    if np.any(caps_arr < 0):
+        raise ValueError("caps must be nonnegative")
+
+    alloc = np.zeros(caps_arr.size, dtype=np.int64)
+    cap_total = int(caps_arr.sum())
+    assign_total = min(total_i, cap_total)
+    dropped = total_i - assign_total
+    remaining = assign_total
+    if remaining <= 0:
+        return alloc, dropped
+
+    weights_arr = np.asarray(weights, dtype=np.float64)
+    if weights_arr.size != caps_arr.size:
+        raise ValueError("weights and caps shape mismatch")
+    weights_arr = np.where(caps_arr > 0, np.maximum(weights_arr, 0.0), 0.0)
+
+    while remaining > 0:
+        headroom = caps_arr - alloc
+        active = np.flatnonzero(headroom > 0)
+        if active.size == 0:
+            dropped += remaining
+            break
+        active_weights = weights_arr[active]
+        if float(active_weights.sum()) <= 0.0:
+            active_weights = headroom[active].astype(np.float64)
+        targets = remaining * active_weights / float(active_weights.sum())
+        add, _ = _largest_remainder_list(targets, remaining, None)
+        add = np.minimum(add.astype(np.int64), headroom[active])
+        moved = int(add.sum())
+        if moved <= 0:
+            dropped += remaining
+            break
+        alloc[active] += add
+        remaining -= moved
+    return alloc, dropped
+
+
+def _enforce_kmax_postmerge(
+    holdings_counts: dict[str, dict[int, int]],
+    rules_map: dict[tuple[str, str], dict],
+    cell_parties: dict[tuple[str, str, str], list[int]],
+    party_region: list[str] | dict[int, str],
+    party_type: list[str] | dict[int, str],
+    party_segment: list[str] | dict[int, str],
+    deterministic_uniforms: "_DeterministicUniformGenerator",
+    max_allowed_kmax_violations: int,
+    manifest_fingerprint: str,
+) -> dict[str, int]:
+    def _party_value(values: list[str] | dict[int, str], pid: int) -> str | None:
+        if isinstance(values, list):
+            if pid < 0 or pid >= len(values):
+                return None
+            value = values[pid]
+            return str(value) if value is not None else None
+        value = values.get(pid)
+        return str(value) if value is not None else None
+
+    kmax_lookup: dict[tuple[str, str], int] = {}
+    for (ptype, account_type_id), rule in rules_map.items():
+        params = rule.get("params") or {}
+        k_max = int(params.get("K_max") or 0)
+        if k_max <= 0:
+            _abort(
+                "6A.S2.PRIOR_PACK_INVALID",
+                "V-09",
+                "invalid_kmax_rule",
+                {"party_type": ptype, "account_type": account_type_id, "k_max": k_max},
+                manifest_fingerprint,
+            )
+        kmax_lookup[(ptype, account_type_id)] = k_max
+
+    kmax_overflow_rows = 0
+    kmax_redistributed_rows = 0
+    kmax_dropped_rows = 0
+
+    for account_type_id, counts_map in holdings_counts.items():
+        if not counts_map:
+            continue
+        cell_nonzero_parties: dict[tuple[str, str, str, str], list[int]] = {}
+        for pid in counts_map.keys():
+            region_id = _party_value(party_region, int(pid))
+            ptype = _party_value(party_type, int(pid))
+            segment_id = _party_value(party_segment, int(pid))
+            if region_id is None or ptype is None or segment_id is None:
+                _abort(
+                    "6A.S2.ALLOCATION_FAILED",
+                    "V-09",
+                    "party_cell_missing",
+                    {"party_id": int(pid), "account_type": account_type_id},
+                    manifest_fingerprint,
+                )
+            cell_nonzero_parties.setdefault((region_id, ptype, segment_id, account_type_id), []).append(int(pid))
+
+        for region_id, ptype, segment_id, acct_type in sorted(cell_nonzero_parties.keys()):
+            k_max = kmax_lookup.get((ptype, acct_type))
+            if k_max is None:
+                _abort(
+                    "6A.S2.PRIOR_PACK_INVALID",
+                    "V-09",
+                    "account_rule_missing",
+                    {"party_type": ptype, "account_type": acct_type},
+                    manifest_fingerprint,
+                )
+            parties_with_nonzero = cell_nonzero_parties[(region_id, ptype, segment_id, acct_type)]
+            overflow_total = 0
+            for pid in parties_with_nonzero:
+                current = int(counts_map.get(pid, 0))
+                if current > k_max:
+                    overflow = current - k_max
+                    overflow_total += overflow
+                    counts_map[pid] = k_max
+            if overflow_total <= 0:
+                continue
+
+            kmax_overflow_rows += int(overflow_total)
+            parties_all = cell_parties.get((region_id, ptype, segment_id)) or []
+            if not parties_all:
+                _abort(
+                    "6A.S2.ALLOCATION_FAILED",
+                    "V-09",
+                    "cell_parties_missing_kmax_pass",
+                    {
+                        "region_id": region_id,
+                        "party_type": ptype,
+                        "segment_id": segment_id,
+                        "account_type": acct_type,
+                    },
+                    manifest_fingerprint,
+                )
+
+            receiver_ids: list[int] = []
+            deficits: list[int] = []
+            for pid in parties_all:
+                current = int(counts_map.get(pid, 0))
+                deficit = k_max - current
+                if deficit > 0:
+                    receiver_ids.append(int(pid))
+                    deficits.append(int(deficit))
+
+            if not receiver_ids:
+                kmax_dropped_rows += int(overflow_total)
+                continue
+
+            receiver_arr = np.asarray(receiver_ids, dtype=np.int64)
+            deficit_arr = np.asarray(deficits, dtype=np.int64)
+            jitter = deterministic_uniforms.uniforms(receiver_arr, acct_type, "kmax_redistribute_weight")
+            weights = deficit_arr.astype(np.float64) * (0.5 + np.clip(jitter, 0.0, 1.0))
+            add_counts, dropped = _allocate_with_caps(overflow_total, weights, deficit_arr)
+            redistributed = int(add_counts.sum())
+            if redistributed > 0:
+                for pid, add in zip(receiver_ids, add_counts.tolist()):
+                    if int(add) <= 0:
+                        continue
+                    counts_map[pid] = int(counts_map.get(pid, 0)) + int(add)
+            kmax_redistributed_rows += redistributed
+            kmax_dropped_rows += int(dropped)
+
+    kmax_postcheck_violations = 0
+    for account_type_id, counts_map in holdings_counts.items():
+        for pid in list(counts_map.keys()):
+            count = int(counts_map.get(pid, 0))
+            if count <= 0:
+                counts_map.pop(pid, None)
+                continue
+            ptype = _party_value(party_type, int(pid))
+            if ptype is None:
+                _abort(
+                    "6A.S2.ALLOCATION_FAILED",
+                    "V-09",
+                    "party_type_missing_postcheck",
+                    {"party_id": int(pid), "account_type": account_type_id},
+                    manifest_fingerprint,
+                )
+            k_max = kmax_lookup.get((ptype, account_type_id))
+            if k_max is None:
+                _abort(
+                    "6A.S2.PRIOR_PACK_INVALID",
+                    "V-09",
+                    "account_rule_missing_postcheck",
+                    {"party_type": ptype, "account_type": account_type_id},
+                    manifest_fingerprint,
+                )
+            if count > k_max:
+                kmax_postcheck_violations += int(count - k_max)
+
+    if kmax_postcheck_violations > int(max_allowed_kmax_violations):
+        _abort(
+            "6A.S2.KMAX_POSTCHECK_FAILED",
+            "V-09",
+            "kmax_postcheck_violations",
+            {
+                "kmax_postcheck_violations": int(kmax_postcheck_violations),
+                "max_allowed_kmax_violations": int(max_allowed_kmax_violations),
+            },
+            manifest_fingerprint,
+        )
+
+    return {
+        "kmax_overflow_rows": int(kmax_overflow_rows),
+        "kmax_redistributed_rows": int(kmax_redistributed_rows),
+        "kmax_dropped_rows": int(kmax_dropped_rows),
+        "kmax_postcheck_violations": int(kmax_postcheck_violations),
+    }
+
+
 def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
     logger = get_logger("engine.layers.l3.seg_6A.s2_accounts.runner")
     timer = _StepTimer(logger)
@@ -1341,7 +1556,26 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             )
         rules_map[key] = rule
 
-    coverage_mode = (account_per_party.get("constraints") or {}).get("coverage_mode")
+    account_constraints = account_per_party.get("constraints") or {}
+    coverage_mode = account_constraints.get("coverage_mode")
+    cap_enforcement_mode = str(account_constraints.get("cap_enforcement_mode") or "none")
+    max_allowed_kmax_violations = int(account_constraints.get("max_allowed_kmax_violations") or 0)
+    if cap_enforcement_mode not in {"none", "hard_global_postmerge"}:
+        _abort(
+            "6A.S2.PRIOR_PACK_INVALID",
+            "V-07",
+            "invalid_cap_enforcement_mode",
+            {"cap_enforcement_mode": cap_enforcement_mode},
+            manifest_fingerprint,
+        )
+    if max_allowed_kmax_violations < 0:
+        _abort(
+            "6A.S2.PRIOR_PACK_INVALID",
+            "V-07",
+            "invalid_max_allowed_kmax_violations",
+            {"max_allowed_kmax_violations": max_allowed_kmax_violations},
+            manifest_fingerprint,
+        )
     enforce_rule_coverage = coverage_mode == "fail_on_missing_rule"
 
     tag_adjustments_map: dict[tuple[str, str], dict] = {}
@@ -1711,12 +1945,6 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     manifest_fingerprint,
                 )
             counts_map[pid] = int(count)
-            holdings_rows_total += 1
-            country_iso = party_country[pid]
-            country_account_nonzero.setdefault((country_iso, account_type_id), []).append((int(pid), int(count)))
-            party_holdings.setdefault(int(pid), []).append((account_type_id, int(count)))
-            summary_key = (country_iso, party_region[pid], party_type[pid], account_type_id)
-            summary_counts[summary_key] = summary_counts.get(summary_key, 0) + int(count)
 
         rng_event_rows_alloc.append(
             {
@@ -1746,14 +1974,65 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         )
         alloc_tracker.update(1)
 
+    kmax_counters = {
+        "kmax_overflow_rows": 0,
+        "kmax_redistributed_rows": 0,
+        "kmax_dropped_rows": 0,
+        "kmax_postcheck_violations": 0,
+    }
+    if cap_enforcement_mode == "hard_global_postmerge":
+        kmax_counters = _enforce_kmax_postmerge(
+            holdings_counts=holdings_counts,
+            rules_map=rules_map,
+            cell_parties=cell_parties,
+            party_region=party_region,
+            party_type=party_type,
+            party_segment=party_segment,
+            deterministic_uniforms=deterministic_uniforms,
+            max_allowed_kmax_violations=max_allowed_kmax_violations,
+            manifest_fingerprint=manifest_fingerprint,
+        )
+
+    country_account_nonzero = {}
+    party_holdings = {}
+    summary_counts = {}
+    holdings_rows_total = 0
+    total_accounts_postmerge = 0
+    for account_type_id, counts_map in holdings_counts.items():
+        for pid in sorted(counts_map.keys()):
+            count = int(counts_map.get(pid, 0))
+            if count <= 0:
+                continue
+            holdings_rows_total += 1
+            total_accounts_postmerge += count
+            country_iso = party_country[pid]
+            country_account_nonzero.setdefault((country_iso, account_type_id), []).append((int(pid), int(count)))
+            party_holdings.setdefault(int(pid), []).append((account_type_id, int(count)))
+            summary_key = (country_iso, party_region[pid], party_type[pid], account_type_id)
+            summary_counts[summary_key] = summary_counts.get(summary_key, 0) + int(count)
+
+    if total_accounts_postmerge != total_accounts:
+        logger.info(
+            "S2: post-merge account total adjusted by Kmax pass (before=%d after=%d)",
+            total_accounts,
+            total_accounts_postmerge,
+        )
+        total_accounts = total_accounts_postmerge
+
     for rows in country_account_nonzero.values():
         rows.sort(key=lambda item: item[0])
+    for rows in party_holdings.values():
+        rows.sort(key=lambda item: item[0])
     logger.info(
-        "S2: allocation counters (party_evaluations=%d, zero_gate_skips=%d, weight_computations=%d, nonzero_party_account_pairs=%d)",
+        "S2: allocation counters (party_evaluations=%d, zero_gate_skips=%d, weight_computations=%d, nonzero_party_account_pairs=%d, kmax_overflow_rows=%d, kmax_redistributed_rows=%d, kmax_dropped_rows=%d, kmax_postcheck_violations=%d)",
         allocation_party_evaluations,
         allocation_zero_gate_skips,
         allocation_weight_computations,
         holdings_rows_total,
+        int(kmax_counters.get("kmax_overflow_rows") or 0),
+        int(kmax_counters.get("kmax_redistributed_rows") or 0),
+        int(kmax_counters.get("kmax_dropped_rows") or 0),
+        int(kmax_counters.get("kmax_postcheck_violations") or 0),
     )
 
     rng_attr_stream.record_event()
@@ -1775,6 +2054,10 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             "context": {
                 "note": "account attributes not materialized in v1 schema",
                 "total_accounts": total_accounts,
+                "kmax_overflow_rows": int(kmax_counters.get("kmax_overflow_rows") or 0),
+                "kmax_redistributed_rows": int(kmax_counters.get("kmax_redistributed_rows") or 0),
+                "kmax_dropped_rows": int(kmax_counters.get("kmax_dropped_rows") or 0),
+                "kmax_postcheck_violations": int(kmax_counters.get("kmax_postcheck_violations") or 0),
             },
         }
     ]

@@ -98,6 +98,8 @@ constraints:
     RETAIL: 0.90
     BUSINESS: 0.95
     OTHER: 0.80
+  cap_enforcement_mode: hard_global_postmerge
+  max_allowed_kmax_violations: 0
   K_max_global_upper_bound: 8
   sigma_global_upper_bound: 2.0
 

@@ -2754,3 +2754,90 @@ Phase decision:
 - `P0=HOLD_REMEDIATE` confirmed and recorded in build plan.
 - next owner lane to open:
   - `P1 (S2 hard K_max remediation)` because `T1-T2` are hard blockers with large breach mass.
+
+### Entry: 2026-02-25 02:41
+
+P1 expansion + pre-implementation design lock (`S2` hard `K_max` lane).
+
+Trigger:
+- P0 gateboard on authority run `aae194...` failed hard on:
+  - `T1 max_overflow=112`, `total_overflow=205,800`,
+  - `T2 max_p99_over_kmax=3.0`, `max_max_over_kmax=112.0`.
+- Current `S2` code path computes allocation counts using largest-remainder on weighted targets but does not apply `K_max` in realised per-party holdings before writeout.
+
+Root-cause pin (code-path):
+- `S2` allocation loop:
+  - realises `counts_map[party_id]=count` directly from unconstrained allocation output,
+  - builds downstream `country_account_nonzero`, `party_holdings`, and `summary_counts` from those unconstrained counts.
+- `K_max` exists in prior rules but is not enforced post-merge.
+
+Alternatives considered:
+1) hard-cap at target-generation stage (`cell_targets`) only:
+   - rejected because integerization + allocation still allows per-party overflow if cap is not enforced on realised counts.
+2) enforce cap during per-account-row emission:
+   - rejected due high runtime/memory blast (`account_base` can exceed 8M rows); violates performance-first posture.
+3) post-allocation, pre-writeout aggregated cap pass on holdings map:
+   - selected: lowest blast radius while deterministic and efficient.
+
+Selected algorithm:
+- operate on aggregated holdings (`holdings_counts[account_type][party_id]`) after allocation and before emission.
+- per cell key `(region_id, party_type, segment_id, account_type)`:
+  1) clamp parties above `K_max` and move overflow to pool,
+  2) redistribute within same cell to under-cap parties using deterministic residual-weighted allocation,
+  3) if cell capacity is exhausted, deterministically drop residual overflow and count it.
+- run explicit postcheck to compute remaining overflow violations and fail-closed if above configured allowance.
+- rebuild all derived emission aggregates from cap-enforced holdings map so no stale pre-cap counters leak.
+
+Policy/schema decisions:
+- add policy knobs in `account_per_party_priors_6A.v1.yaml` constraints:
+  - `cap_enforcement_mode: hard_global_postmerge`,
+  - `max_allowed_kmax_violations: 0`.
+- update `schemas.6A.yaml` for `#/prior/account_per_party_priors_6A` constraints to require and validate both new keys (schema currently has `additionalProperties: false`).
+
+Performance and determinism decisions:
+- no per-row account-object manipulation in enforcement path,
+- vectorized/numpy distribution for redistribution where possible,
+- deterministic tie/order behavior preserved (stable ordering + deterministic PRF weights),
+- keep publish/idempotence/schema surfaces unchanged.
+
+Execution lock for this lane:
+1) implement cap enforcement + counters in `S2` runner,
+2) update prior config + schema,
+3) run fresh `S2->S5` witness,
+4) rescore via `tools/score_segment6a_p0_baseline.py`,
+5) record `UNLOCK_P2` vs `HOLD_P1` only after metric evidence.
+
+### Entry: 2026-02-25 02:59
+
+P1 execution closure (`S2` hard `K_max`) and phase decision.
+
+Execution lane and evidence:
+- Candidate run-id: `347bc917cfa444cfb895970574ef95b9` under `runs/fix-data-engine/segment_6A`.
+- Executed chain from owner state: `S2 -> S3 -> S4 -> S5`.
+- Re-score artifact:
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p0_realism_gateboard_347bc917cfa444cfb895970574ef95b9.json`.
+
+Observed gate movement (P1-owned):
+- `T1` moved from fail (`max_overflow=112`, `total_overflow=205800`) to pass:
+  - `max_overflow=0`, `total_overflow=0`.
+- `T2` moved from fail (`max_p99_over_kmax=3.0`, `max_max_over_kmax=112.0`) to pass:
+  - `max_p99_over_kmax=0.0`, `max_max_over_kmax=0.0`.
+
+Regression check on non-owner stable gates:
+- `T3` remains pass (`max_abs_error_pp=1.7354`).
+- `T6` remains pass (role mapping coverage full).
+
+S2 enforcement telemetry (witness context):
+- `kmax_overflow_rows=205800`
+- `kmax_redistributed_rows=205800`
+- `kmax_dropped_rows=0`
+- `kmax_postcheck_violations=0`
+
+Decision completeness and rationale:
+- All P1 lock points are now satisfied:
+  - algorithm lock,
+  - implementation lock,
+  - policy/schema hardening,
+  - witness closure.
+- Remaining failing gates (`T4/T5/T7/T8/T9/T10`) are outside P1 owner scope and are routed to later phases per plan.
+- Final phase decision: `P1=UNLOCK_P2`.
