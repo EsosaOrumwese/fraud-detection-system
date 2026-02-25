@@ -19,7 +19,6 @@ def _now_utc() -> str:
 def _start_lane_job(
     *,
     emr_client: Any,
-    region: str,
     virtual_cluster_id: str,
     execution_role_arn: str,
     release_label: str,
@@ -69,12 +68,6 @@ def _start_lane_job(
                 },
             }
         },
-        tags={
-            "env": "dev_full",
-            "fp_phase": "M6.F",
-            "fp_resource": "emr_lane_ref_job",
-            "region": region,
-        },
     )
     job_id = str(response.get("id", "")).strip()
     if not job_id:
@@ -103,7 +96,6 @@ def main() -> int:
 
     wsp_job_id = _start_lane_job(
         emr_client=emr,
-        region=args.region,
         virtual_cluster_id=args.virtual_cluster_id,
         execution_role_arn=args.execution_role_arn,
         release_label=args.release_label,
@@ -119,7 +111,6 @@ def main() -> int:
 
     sr_job_id = _start_lane_job(
         emr_client=emr,
-        region=args.region,
         virtual_cluster_id=args.virtual_cluster_id,
         execution_role_arn=args.execution_role_arn,
         release_label=args.release_label,

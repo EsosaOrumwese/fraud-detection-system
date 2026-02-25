@@ -278,13 +278,15 @@ jobs:
           set -euo pipefail
           SUMMARY_PATH="${{ steps.run_meta.outputs.run_dir }}/m6f_execution_summary.json"
           BLOCKER_PATH="${{ steps.run_meta.outputs.run_dir }}/m6f_blocker_register.json"
+          export SUMMARY_PATH BLOCKER_PATH
           python - <<'PY'
           import json
+          import os
           import sys
           from pathlib import Path
 
-          summary = json.loads(Path("${SUMMARY_PATH}").read_text(encoding="utf-8"))
-          blockers = json.loads(Path("${BLOCKER_PATH}").read_text(encoding="utf-8"))
+          summary = json.loads(Path(os.environ["SUMMARY_PATH"]).read_text(encoding="utf-8"))
+          blockers = json.loads(Path(os.environ["BLOCKER_PATH"]).read_text(encoding="utf-8"))
           overall_pass = bool(summary.get("overall_pass"))
           blocker_count = int(blockers.get("blocker_count", 0))
 
