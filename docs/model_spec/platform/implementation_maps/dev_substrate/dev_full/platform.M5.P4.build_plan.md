@@ -1,6 +1,6 @@
 # Dev Substrate Deep Plan - M5.P4 (P4 INGEST_READY)
 _Parent phase: `platform.M5.build_plan.md`_
-_Last updated: 2026-02-24_
+_Last updated: 2026-02-25_
 
 ## 0) Purpose
 This document carries execution-grade planning for M5 `P4 INGEST_READY`.
@@ -384,14 +384,41 @@ Tasks:
 5. publish all artifacts locally and durably.
 
 DoD:
-- [ ] P4 rollup matrix and blocker register committed.
-- [ ] deterministic P4 verdict artifact committed.
-- [ ] `m6_handoff_pack.json` committed locally and durably.
-- [ ] M5 execution summary committed locally and durably.
+- [x] P4 rollup matrix and blocker register committed.
+- [x] deterministic P4 verdict artifact committed.
+- [x] `m6_handoff_pack.json` committed locally and durably.
+- [x] M5 execution summary committed locally and durably.
 
 P4.E precheck:
 1. P4.A..P4.D artifacts exist and are readable.
 2. unresolved blocker set is explicit before verdict emission.
+
+P4.E execution closure (2026-02-25):
+1. Authoritative green run:
+   - execution id: `m5j_p4e_gate_rollup_20260225T021715Z`
+   - local root: `runs/dev_substrate/dev_full/m5/m5j_p4e_gate_rollup_20260225T021715Z/`
+   - summary: `runs/dev_substrate/dev_full/m5/m5j_p4e_gate_rollup_20260225T021715Z/m5j_execution_summary.json`
+   - result: `overall_pass=true`, blockers `[]`, verdict `ADVANCE_TO_M6`, next gate `M6_READY`.
+2. P4 rollup outcomes:
+   - source lanes: `P4.A..P4.D`,
+   - lane pass count: `4/4`,
+   - unresolved blocker set: none.
+3. Cost-outcome hard-stop closure:
+   - `m5j_phase_budget_envelope.json` emitted,
+   - `m5j_phase_cost_outcome_receipt.json` emitted (`spend_amount=64.835684`, `USD`),
+   - no `M5-B11`/`M5-B12` active blocker.
+4. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5j_p4e_gate_rollup_20260225T021715Z/m5j_p4_gate_rollup_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5j_p4e_gate_rollup_20260225T021715Z/m5j_p4_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5j_p4e_gate_rollup_20260225T021715Z/m5j_p4_gate_verdict.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5j_p4e_gate_rollup_20260225T021715Z/m6_handoff_pack.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5j_p4e_gate_rollup_20260225T021715Z/m5j_phase_budget_envelope.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5j_p4e_gate_rollup_20260225T021715Z/m5j_phase_cost_outcome_receipt.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5j_p4e_gate_rollup_20260225T021715Z/m5_execution_summary.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5j_p4e_gate_rollup_20260225T021715Z/m5j_execution_summary.json`
+5. Gate impact:
+   - P4 is closed green,
+   - M6 entry is unblocked (`ADVANCE_TO_M6`).
 
 ## 3) P4 Verification Catalog
 | Verify ID | Command template | Purpose |

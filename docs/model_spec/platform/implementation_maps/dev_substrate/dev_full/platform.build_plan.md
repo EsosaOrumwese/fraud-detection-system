@@ -56,6 +56,11 @@ Program is complete only when all are true:
 - No spend-only progress: phase spend without material outcome is blocked.
 - Production-pattern law is binding: managed-service-first, no local/toy substitutes for pinned lanes without explicit authority repin.
 - Law reference: `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md` Section `7.6` is mandatory for all `dev_full` phase decisions and closures.
+- Evidence emission law is binding for runtime lanes:
+  - no per-event synchronous object-store evidence writes on hot paths (`P5..P11`) unless explicitly pinned with throughput budget waiver,
+  - phase-gate/closure artifacts remain synchronous and mandatory,
+  - event-level evidence must be async and batched (window/count flush) with deterministic replay-safe keys,
+  - phase closure must include evidence overhead posture (`latency p95`, `bytes/event`, `write-rate`) and confirm overhead stays within budget target.
 
 ## 5) Progressive Elaboration Method
 Rules:
@@ -86,7 +91,7 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M2 | P0 | Substrate readiness (core/streaming/runtime/data_ml/ops) | DONE |
 | M3 | P1 | Run pinning and orchestrator readiness | DONE |
 | M4 | P2 | Spine runtime-lane readiness (managed-first) | DONE |
-| M5 | P3-P4 | Oracle readiness + ingest preflight | IN_PROGRESS |
+| M5 | P3-P4 | Oracle readiness + ingest preflight | DONE |
 | M6 | P5-P7 | Control + Ingress closure | NOT_STARTED |
 | M7 | P8-P10 | RTDL + Case/Labels closure | NOT_STARTED |
 | M8 | P11 | Spine obs/gov closure + non-regression pack | NOT_STARTED |
@@ -547,7 +552,7 @@ M4 sub-phase progress:
 - [x] `M4.J` M5 handoff artifact publication.
 
 ## M5 - Oracle Readiness and Ingest Preflight
-Status: `IN_PROGRESS`
+Status: `DONE`
 
 Objective:
 - close `P3-P4` with oracle/stream-view validation and ingress boundary readiness.
@@ -570,6 +575,7 @@ M5 planning posture:
 - `M5.P4.B` is closed green (`m5g_p4b_boundary_auth_20260225T011324Z`) after IG runtime auth-enforcement remediation.
 - `M5.P4.C` is closed green (`m5h_p4c_msk_topic_readiness_20260225T015352Z`) after MSK handle repin and in-VPC topic-probe hardening.
 - `M5.P4.D` is closed green (`m5i_p4d_ingress_envelope_20260225T020758Z`) after ingress-envelope runtime conformance remediation.
+- `M5.P4.E` is closed green (`m5j_p4e_gate_rollup_20260225T021715Z`) with deterministic verdict `ADVANCE_TO_M6` and durable `m6_handoff_pack.json`.
 - M5 has been split into dedicated subplans to prevent phase cramming:
   - `platform.M5.P3.build_plan.md` (P3 closure),
   - `platform.M5.P4.build_plan.md` (P4 closure).
@@ -580,7 +586,7 @@ M5 planning posture:
 DoD anchors:
 - [x] required oracle outputs/manifest checks pass.
 - [x] ingress boundary + MSK readiness evidence committed.
-- [ ] M5 phase-budget and cost-outcome artifacts are committed and blocker-free.
+- [x] M5 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
 M5 sub-phase progress:
 - [x] `M5.A` authority + handle closure (`m5a_20260224T182433Z`, blocker-free, durable evidence committed).
@@ -592,7 +598,7 @@ M5 sub-phase progress:
 - [x] `M5.G` boundary auth enforcement (`m5g_p4b_boundary_auth_20260225T011324Z`, blocker-free).
 - [x] `M5.H` MSK topic readiness (`m5h_p4c_msk_topic_readiness_20260225T015352Z`, blocker-free after remediation sequence).
 - [x] `M5.I` ingress envelope conformance (`m5i_p4d_ingress_envelope_20260225T020758Z`, blocker-free after runtime envelope materialization).
-- [ ] `M5.J` P4 rollup + M6 handoff.
+- [x] `M5.J` P4 rollup + M6 handoff (`m5j_p4e_gate_rollup_20260225T021715Z`, verdict `ADVANCE_TO_M6`).
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`

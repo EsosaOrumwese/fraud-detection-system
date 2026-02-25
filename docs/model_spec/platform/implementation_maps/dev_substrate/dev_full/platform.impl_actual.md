@@ -7089,3 +7089,119 @@ untime: PASS
 ### Gate decision
 1. `M5.I` / `P4.D` is closed green.
 2. `M5.J` / `P4.E` is now the active next lane.
+
+## Entry: 2026-02-25 02:15:28 +00:00 - M5.J / P4.E planning lock (pre-execution, decision-completeness)
+
+### Trigger
+1. USER requested planning and execution of `P4.E`.
+2. Upstream gate check confirms `M5.I_READY` is true from `m5i_p4d_ingress_envelope_20260225T020758Z`.
+
+### Required inputs assessed
+1. P4 source summaries required for rollup:
+   - `M5.F`: `m5f_p4a_ingress_boundary_health_20260225T010044Z`
+   - `M5.G`: `m5g_p4b_boundary_auth_20260225T011324Z`
+   - `M5.H`: `m5h_p4c_msk_topic_readiness_20260225T015352Z`
+   - `M5.I`: `m5i_p4d_ingress_envelope_20260225T020758Z`
+2. Run-scope continuity source:
+   - `runs/dev_substrate/dev_full/m4/m4j_20260224T064802Z/m5_handoff_pack.json`.
+3. Cost-outcome required handles confirmed:
+   - `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`,
+   - `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`,
+   - `PHASE_COST_OUTCOME_REQUIRED=true`,
+   - `PHASE_COST_HARD_STOP_ON_MISSING_OUTCOME=true`.
+
+### Alternatives considered
+1. Close `P4.E` by docs-only marker without executable rollup artifacts.
+   - Rejected: violates fail-closed gate contract and would not produce `m6_handoff_pack.json`.
+2. Create a new reusable executor under `tools/` first.
+   - Rejected for this lane: unnecessary footprint for a one-shot bounded closure; increases local artifact surface.
+3. Execute bounded inline `m5j` lane, publish deterministic artifacts, and readback-verify durability.
+   - Selected: minimal-surface, auditable, and directly aligned with P4.E DoD.
+
+### Selected execution plan
+1. Build `m5j_p4_gate_rollup_matrix.json` from authoritative P4 lane summaries.
+2. Build `m5j_p4_blocker_register.json` and `m5j_p4_gate_verdict.json`.
+3. Build `m6_handoff_pack.json` with run-scope continuity and P3/P4 evidence refs.
+4. Build `m5j_phase_budget_envelope.json` and `m5j_phase_cost_outcome_receipt.json` (required by M5 hard-stop policy).
+5. Build `m5_execution_summary.json` + `m5j_execution_summary.json`.
+6. Publish all artifacts to run-control durable prefix and verify readability.
+7. Mark `M5.J` and `M5` closure status in build plans if blocker-free.
+
+## Entry: 2026-02-25 02:19:03 +00:00 - M5.J / P4.E execution trail and closure
+
+### Runtime choices during execution
+1. Source-of-truth lane selection:
+   - selected explicitly pinned authoritative P4 summaries (`M5.F..M5.I`) instead of auto-selecting latest timestamped folders to avoid accidentally ingesting invalidated attempts.
+2. Cost-outcome data source:
+   - selected live AWS Cost Explorer (`us-east-1`) MTD pull for `spend_amount`,
+   - selected prior authoritative M3.H budget envelope values (`300/120/210/270`) as budget threshold baseline because AWS Budget resource is not materialized for this track yet.
+3. Artifact naming:
+   - selected `m5j_*` prefix for P4 rollup artifacts and retained canonical `m5_execution_summary.json` + `m6_handoff_pack.json` required by M5 evidence contract.
+4. Durability check:
+   - selected per-artifact upload + `head-object` readback verification to satisfy fail-closed durable publish requirement.
+
+### Execution outputs
+1. Authoritative execution id:
+   - `m5j_p4e_gate_rollup_20260225T021715Z`
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m5/m5j_p4e_gate_rollup_20260225T021715Z/`
+3. Gate result:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `verdict=ADVANCE_TO_M6`
+   - `next_gate=M6_READY`
+4. Determinism anchor:
+   - `m6_handoff_pack_sha256=62629fca3425fcaf564634d3251a0a75f45e08f13226bfe84fd6906450973dc4`
+
+### Cost-outcome closure
+1. Emitted required artifacts:
+   - `m5j_phase_budget_envelope.json`
+   - `m5j_phase_cost_outcome_receipt.json`
+2. Receipt posture:
+   - `spend_amount=64.835684`
+   - `spend_currency=USD`
+   - required receipt fields are complete (`phase_id, phase_execution_id, window_start_utc, window_end_utc, spend_amount, spend_currency, artifacts_emitted, decision_or_risk_retired`).
+3. Hard-stop evaluation:
+   - `PHASE_COST_OUTCOME_REQUIRED=true` satisfied,
+   - no `M5-B11`/`M5-B12` blocker activated.
+
+### Durable publication
+1. Durable root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5j_p4e_gate_rollup_20260225T021715Z/`
+2. Published + readback-verified:
+   - `m5j_p4_gate_rollup_matrix.json`
+   - `m5j_p4_blocker_register.json`
+   - `m5j_p4_gate_verdict.json`
+   - `m6_handoff_pack.json`
+   - `m5j_phase_budget_envelope.json`
+   - `m5j_phase_cost_outcome_receipt.json`
+   - `m5_execution_summary.json`
+   - `m5j_execution_summary.json`
+
+### Phase decision
+1. `P4.E` is closed green.
+2. `M5` is fully closed green (`M5.A..M5.J`).
+3. `M6` entry is unblocked and becomes the next actionable lane.
+
+### Post-doc reconciliation
+1. After build-plan/logbook updates were committed, `m5j_execution_summary.json` was updated:
+   - `dod.closure_notes_required_docs_pending: true -> false`.
+2. Updated summary was re-published to the same durable key:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5j_p4e_gate_rollup_20260225T021715Z/m5j_execution_summary.json`.
+
+## Entry: 2026-02-25 02:23:58 +00:00 - Runtime evidence emission policy pinned in main dev_full build plan
+
+### Trigger
+1. USER asked to pin minimal evidence posture in the main platform build plan before M6+ execution.
+
+### Decision
+1. Pinned a non-negotiable evidence emission law in `platform.build_plan.md` Section `4`:
+   - disallow per-event synchronous object-store evidence writes on hot runtime paths (`P5..P11`) unless explicitly waived with throughput budget,
+   - keep phase-gate artifacts synchronous and mandatory,
+   - require event-level evidence to be async batched and replay-safe,
+   - require evidence overhead posture reporting (`latency p95`, `bytes/event`, `write-rate`) at phase closure.
+
+### Why this was selected
+1. Preserves production auditability while avoiding avoidable throughput collapse from hot-path sync writes.
+2. Aligns with existing architecture split: Obs/Gov run-level truth surfaces remain authoritative without forcing per-event S3 writes.
+3. Creates a hard review gate before M6 streaming activation so evidence strategy is explicit, measurable, and non-hand-wavy.

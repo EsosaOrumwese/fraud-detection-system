@@ -403,11 +403,30 @@ Tasks:
 7. append closure note to master plan + impl map + logbook.
 
 DoD:
-- [ ] P4 gate rollup is complete and blocker-explicit.
-- [ ] deterministic P4 verdict artifact is committed.
-- [ ] `m6_handoff_pack.json` committed locally and durably.
-- [ ] phase-budget envelope and cost-outcome receipt are committed and valid.
-- [ ] closure notes appended in required docs.
+- [x] P4 gate rollup is complete and blocker-explicit.
+- [x] deterministic P4 verdict artifact is committed.
+- [x] `m6_handoff_pack.json` committed locally and durably.
+- [x] phase-budget envelope and cost-outcome receipt are committed and valid.
+- [x] closure notes appended in required docs.
+
+M5.J execution closure (2026-02-25):
+1. Authoritative run:
+   - `runs/dev_substrate/dev_full/m5/m5j_p4e_gate_rollup_20260225T021715Z/m5j_execution_summary.json`
+   - outcome: `overall_pass=true`, blockers=`[]`, verdict=`ADVANCE_TO_M6`, next gate=`M6_READY`.
+2. Rollup integrity:
+   - lane count=`4`, lanes passed=`4` (`P4.A/P4.B/P4.C/P4.D`),
+   - P4 blocker register is empty.
+3. Handoff publication:
+   - local: `runs/dev_substrate/dev_full/m5/m5j_p4e_gate_rollup_20260225T021715Z/m6_handoff_pack.json`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5j_p4e_gate_rollup_20260225T021715Z/m6_handoff_pack.json`
+4. Cost-outcome closure:
+   - `m5j_phase_budget_envelope.json` and `m5j_phase_cost_outcome_receipt.json` emitted locally and durably,
+   - receipt spend posture: `64.835684 USD`,
+   - no `M5-B11`/`M5-B12` active blocker.
+5. Durable evidence root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5j_p4e_gate_rollup_20260225T021715Z/`
+6. Next action:
+   - M5 is complete; advance to `M6` planning/execution.
 
 ## 6) P3/P4 Split Deep Plan Routing
 1. P3 detailed lane plan:
@@ -474,11 +493,11 @@ Any active `M5-B*` blocker prevents M5 closure.
 - [x] M5.G complete
 - [x] M5.H complete
 - [x] M5.I complete
-- [ ] M5.J complete
-- [ ] M5 blockers resolved or explicitly fail-closed
-- [ ] M5 phase-budget and cost-outcome artifacts are valid and accepted
-- [ ] M5 closure note appended in implementation map
-- [ ] M5 action log appended in logbook
+- [x] M5.J complete
+- [x] M5 blockers resolved or explicitly fail-closed
+- [x] M5 phase-budget and cost-outcome artifacts are valid and accepted
+- [x] M5 closure note appended in implementation map
+- [x] M5 action log appended in logbook
 
 ## 10) Exit Criteria
 M5 can close only when:
@@ -510,4 +529,5 @@ Handoff posture:
    - `M5.G` / `P4.B` is closed green (`m5g_p4b_boundary_auth_20260225T011324Z`) after IG runtime auth-enforcement remediation.
    - `M5.H` / `P4.C` is closed green (`m5h_p4c_msk_topic_readiness_20260225T015352Z`) after handle repin + in-VPC probe hardening.
    - `M5.I` / `P4.D` is closed green (`m5i_p4d_ingress_envelope_20260225T020758Z`) after runtime envelope conformance remediation.
-   - next actionable execution lane is `M5.J` (`P4.E` rollup + M6 handoff).
+   - `M5.J` / `P4.E` is closed green (`m5j_p4e_gate_rollup_20260225T021715Z`) with verdict `ADVANCE_TO_M6`.
+   - next actionable execution lane is `M6` (Control + Ingress closure planning/execution).
