@@ -764,6 +764,19 @@ def _map_role_to_taxonomy_expr(role_expr: pl.Expr, mapping: dict[str, str], defa
     return role_expr.replace_strict(mapping, default=default_role)
 
 
+def _collect_role_model_roles(mapping: dict) -> set[str]:
+    out: set[str] = set()
+    for _, tier_map in (mapping or {}).items():
+        if not isinstance(tier_map, dict):
+            continue
+        for _, rows in tier_map.items():
+            for row in rows or []:
+                role_id = str(row.get("role_id") or "").strip()
+                if role_id:
+                    out.add(role_id)
+    return out
+
+
 def _write_json(path: Path, payload: dict) -> None:
     tmp_dir = path.parent / f"_tmp.{uuid.uuid4().hex}"
     tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -1087,6 +1100,61 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             )
     timer.info("S5: required S1-S4 inputs confirmed on disk")
     perf.record_elapsed("load_contracts_inputs", step_started)
+
+    role_mapping_contract = validation_policy.get("role_mapping_contract", {}) or {}
+    require_full_role_mapping = bool(role_mapping_contract.get("require_full_mapping", True))
+    device_taxonomy_map_cfg = (role_mapping_contract.get("device_raw_to_taxonomy") or {}) if role_mapping_contract else {}
+    ip_taxonomy_map_cfg = (role_mapping_contract.get("ip_raw_to_taxonomy") or {}) if role_mapping_contract else {}
+    default_device_taxonomy_map = {
+        "NORMAL_DEVICE": "CLEAN_DEVICE",
+        "RISKY_DEVICE": "HIGH_RISK_DEVICE",
+        "BOT_LIKE_DEVICE": "HIGH_RISK_DEVICE",
+        "SHARED_SUSPICIOUS_DEVICE": "REUSED_DEVICE",
+    }
+    default_ip_taxonomy_map = {
+        "NORMAL_IP": "CLEAN_IP",
+        "CORPORATE_NAT_IP": "SHARED_IP",
+        "MOBILE_CARRIER_IP": "SHARED_IP",
+        "PUBLIC_SHARED_IP": "SHARED_IP",
+        "DATACENTRE_IP": "HIGH_RISK_IP",
+        "PROXY_IP": "HIGH_RISK_IP",
+        "HIGH_RISK_IP": "HIGH_RISK_IP",
+    }
+    device_taxonomy_map = {
+        str(k): str(v)
+        for k, v in (device_taxonomy_map_cfg.items() if device_taxonomy_map_cfg else default_device_taxonomy_map.items())
+    }
+    ip_taxonomy_map = {
+        str(k): str(v)
+        for k, v in (ip_taxonomy_map_cfg.items() if ip_taxonomy_map_cfg else default_ip_taxonomy_map.items())
+    }
+    device_role_model_full = (device_prior.get("role_probability_model") or {}).get("pi_role_by_group_and_tier", {})
+    ip_role_model_full = (ip_prior.get("role_probability_model") or {}).get("pi_role_by_group_and_tier", {})
+    if require_full_role_mapping:
+        missing_device = sorted(_collect_role_model_roles(device_role_model_full) - set(device_taxonomy_map.keys()))
+        if missing_device:
+            _abort(
+                "6A.S5.ROLE_MAPPING_INCOMPLETE",
+                "V-33",
+                "device_role_mapping_incomplete",
+                {"missing_raw_roles": missing_device},
+                manifest_fingerprint,
+            )
+        missing_ip = sorted(_collect_role_model_roles(ip_role_model_full) - set(ip_taxonomy_map.keys()))
+        if missing_ip:
+            _abort(
+                "6A.S5.ROLE_MAPPING_INCOMPLETE",
+                "V-33",
+                "ip_role_mapping_incomplete",
+                {"missing_raw_roles": missing_ip},
+                manifest_fingerprint,
+            )
+    timer.info(
+        "S5: role mapping contract loaded (device_map=%d, ip_map=%d, require_full=%s)",
+        len(device_taxonomy_map),
+        len(ip_taxonomy_map),
+        require_full_role_mapping,
+    )
 
     risk_propagation = validation_policy.get("risk_propagation", {}) or {}
     party_risky_roles = {
@@ -1428,18 +1496,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 device_prop_cfg.get("promote_probability_by_tier", {}) or {},
                 _clamp01(device_prop_cfg.get("default_promote_probability", 0.0)),
             )
-        device_role_model = (device_prior.get("role_probability_model") or {}).get(
-            "pi_role_by_group_and_tier", {}
-        )
+        device_role_model = device_role_model_full
         device_raw_role_expr = _build_role_expr(
             device_role_model, device_group_expr, device_tier_expr, device_u_role, "NORMAL_DEVICE"
         )
-        device_taxonomy_map = {
-            "NORMAL_DEVICE": "CLEAN_DEVICE",
-            "RISKY_DEVICE": "HIGH_RISK_DEVICE",
-            "BOT_LIKE_DEVICE": "HIGH_RISK_DEVICE",
-            "SHARED_SUSPICIOUS_DEVICE": "REUSED_DEVICE",
-        }
         device_role_expr = _map_role_to_taxonomy_expr(device_raw_role_expr, device_taxonomy_map, "CLEAN_DEVICE")
         device_out = (
             device_lf.with_columns(
@@ -1553,17 +1613,8 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 ip_prop_cfg.get("promote_probability_by_tier", {}) or {},
                 _clamp01(ip_prop_cfg.get("default_promote_probability", 0.0)),
             )
-        ip_role_model = (ip_prior.get("role_probability_model") or {}).get("pi_role_by_group_and_tier", {})
+        ip_role_model = ip_role_model_full
         ip_raw_role_expr = _build_role_expr(ip_role_model, ip_group_expr, ip_tier_expr, ip_u_role, "NORMAL_IP")
-        ip_taxonomy_map = {
-            "NORMAL_IP": "CLEAN_IP",
-            "CORPORATE_NAT_IP": "SHARED_IP",
-            "MOBILE_CARRIER_IP": "SHARED_IP",
-            "PUBLIC_SHARED_IP": "SHARED_IP",
-            "DATACENTRE_IP": "HIGH_RISK_IP",
-            "PROXY_IP": "HIGH_RISK_IP",
-            "HIGH_RISK_IP": "HIGH_RISK_IP",
-        }
         ip_role_expr = _map_role_to_taxonomy_expr(ip_raw_role_expr, ip_taxonomy_map, "CLEAN_IP")
         ip_out = (
             ip_lf.with_columns(

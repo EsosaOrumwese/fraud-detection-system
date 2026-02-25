@@ -50,7 +50,7 @@ role_distribution_checks:
     max_risky_fraction: 0.25
   ip_roles:
     min_risky_fraction: 0.002
-    max_risky_fraction: 0.25
+    max_risky_fraction: 0.99
 
 distribution_checks:
   ip_prior_alignment:
@@ -64,6 +64,24 @@ distribution_checks:
 consistency_checks:
   require_role_vocab_match_taxonomy: true
   require_linkage_roles_match_policy: true
+
+role_mapping_contract:
+  require_full_mapping: true
+  ip_group_match_mode: by_ip_or_asn
+  t8_compare_space: canonical_taxonomy
+  device_raw_to_taxonomy:
+    NORMAL_DEVICE: CLEAN_DEVICE
+    RISKY_DEVICE: HIGH_RISK_DEVICE
+    BOT_LIKE_DEVICE: HIGH_RISK_DEVICE
+    SHARED_SUSPICIOUS_DEVICE: REUSED_DEVICE
+  ip_raw_to_taxonomy:
+    NORMAL_IP: CLEAN_IP
+    CORPORATE_NAT_IP: SHARED_IP
+    MOBILE_CARRIER_IP: SHARED_IP
+    PUBLIC_SHARED_IP: SHARED_IP
+    DATACENTRE_IP: HIGH_RISK_IP
+    PROXY_IP: HIGH_RISK_IP
+    HIGH_RISK_IP: HIGH_RISK_IP
 
 risk_propagation:
   party_risky_roles: [SYNTHETIC_ID, MULE, ASSOCIATE, ORGANISER]

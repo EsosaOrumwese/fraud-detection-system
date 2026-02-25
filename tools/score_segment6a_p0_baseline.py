@@ -460,6 +460,8 @@ def score_t8(
     ip_targets: dict[str, dict[str, float]],
     device_priors: dict[str, Any],
     ip_priors: dict[str, Any],
+    fraud_role_taxonomy: dict[str, Any],
+    validation_policy: dict[str, Any],
 ) -> dict[str, Any]:
     s_ip_links = scan(run_root, "s4_ip_links_6A")
     s_ip_base = scan(run_root, "s4_ip_base_6A")
@@ -496,6 +498,37 @@ def score_t8(
                 tgt[i] += w * float(ip_targets.get(region, {}).get(ip, 0.0))
     ip_jsd = jsd(obs, tgt) if total_links > 0 else float("nan")
 
+    role_sets = role_sets_from_taxonomy(fraud_role_taxonomy)
+    role_mapping_contract = validation_policy.get("role_mapping_contract", {}) or {}
+
+    def _normalize_map(raw_map: dict[str, Any]) -> dict[str, str]:
+        return {str(k): str(v) for k, v in (raw_map or {}).items()}
+
+    device_canonical_roles = set(role_sets.get("DEVICE", set())) or {"CLEAN_DEVICE", "REUSED_DEVICE", "HIGH_RISK_DEVICE"}
+    ip_canonical_roles = set(role_sets.get("IP", set())) or {"CLEAN_IP", "SHARED_IP", "HIGH_RISK_IP"}
+    device_map = _normalize_map(
+        role_mapping_contract.get("device_raw_to_taxonomy")
+        or {
+            "NORMAL_DEVICE": "CLEAN_DEVICE",
+            "RISKY_DEVICE": "HIGH_RISK_DEVICE",
+            "BOT_LIKE_DEVICE": "HIGH_RISK_DEVICE",
+            "SHARED_SUSPICIOUS_DEVICE": "REUSED_DEVICE",
+        }
+    )
+    ip_map = _normalize_map(
+        role_mapping_contract.get("ip_raw_to_taxonomy")
+        or {
+            "NORMAL_IP": "CLEAN_IP",
+            "CORPORATE_NAT_IP": "SHARED_IP",
+            "MOBILE_CARRIER_IP": "SHARED_IP",
+            "PUBLIC_SHARED_IP": "SHARED_IP",
+            "DATACENTRE_IP": "HIGH_RISK_IP",
+            "PROXY_IP": "HIGH_RISK_IP",
+            "HIGH_RISK_IP": "HIGH_RISK_IP",
+        }
+    )
+    ip_group_match_mode = str(role_mapping_contract.get("ip_group_match_mode") or "by_ip_or_asn")
+
     dev_group_map = {str(k): str(v) for k, v in ((((device_priors.get("device_groups") or {}).get("device_type_to_group")) or {}).items())}
     dev_probs: dict[tuple[str, str], dict[str, float]] = {}
     for g, tiers in ((((device_priors.get("role_probability_model") or {}).get("pi_role_by_group_and_tier")) or {}).items()):
@@ -503,7 +536,6 @@ def score_t8(
             probs = {str(x.get("role_id")): float(x.get("prob") or 0.0) for x in (rows or [])}
             s = sum(probs.values())
             dev_probs[(str(g), str(t))] = {k: (v / s if s > 0 else 0.0) for k, v in probs.items()}
-    dev_map = {"CLEAN_DEVICE": "NORMAL_DEVICE", "REUSED_DEVICE": "SHARED_SUSPICIOUS_DEVICE", "HIGH_RISK_DEVICE": "RISKY_DEVICE"}
     dev_rows = con.execute(
         f"""
         select d.device_type, r.risk_tier, r.fraud_role_device, count(*)::bigint as n
@@ -512,17 +544,19 @@ def score_t8(
         group by 1,2,3
         """
     ).fetchall()
-    dev_roles = sorted({k for v in dev_probs.values() for k in v.keys()} | set(dev_map.values()))
+    dev_roles = sorted(device_canonical_roles)
     dev_obs = {k: 0.0 for k in dev_roles}
     dev_exp = {k: 0.0 for k in dev_roles}
     for dtyp, tier, raw_role, n in dev_rows:
         n_f = float(int(n or 0))
-        mapped = dev_map.get(str(raw_role))
-        if mapped:
+        mapped = device_map.get(str(raw_role), str(raw_role))
+        if mapped in dev_obs:
             dev_obs[mapped] += n_f
         probs = dev_probs.get((dev_group_map.get(str(dtyp), ""), str(tier)), {})
-        for role_id in dev_roles:
-            dev_exp[role_id] += n_f * float(probs.get(role_id, 0.0))
+        for raw_expected_role, raw_prob in probs.items():
+            mapped_expected = device_map.get(str(raw_expected_role), str(raw_expected_role))
+            if mapped_expected in dev_exp:
+                dev_exp[mapped_expected] += n_f * float(raw_prob)
     dev_jsd = jsd(np.array([dev_obs[k] for k in dev_roles]), np.array([dev_exp[k] for k in dev_roles]))
 
     ip_group_rules: list[tuple[int, str, set[str], set[str]]] = []
@@ -535,7 +569,6 @@ def score_t8(
             probs = {str(x.get("role_id")): float(x.get("prob") or 0.0) for x in (rows or [])}
             s = sum(probs.values())
             ip_probs[(str(g), str(t))] = {k: (v / s if s > 0 else 0.0) for k, v in probs.items()}
-    ip_map = {"CLEAN_IP": "NORMAL_IP", "SHARED_IP": "PUBLIC_SHARED_IP", "HIGH_RISK_IP": "HIGH_RISK_IP"}
     ip_rows = con.execute(
         f"""
         select b.ip_type, b.asn_class, r.risk_tier, r.fraud_role_ip, count(*)::bigint as n
@@ -544,26 +577,32 @@ def score_t8(
         group by 1,2,3,4
         """
     ).fetchall()
-    ip_roles = sorted({k for v in ip_probs.values() for k in v.keys()} | set(ip_map.values()))
+    ip_roles = sorted(ip_canonical_roles)
     ip_obs = {k: 0.0 for k in ip_roles}
     ip_exp = {k: 0.0 for k in ip_roles}
     unresolved_rows = 0
     for ip_type, asn_class, tier, raw_role, n in ip_rows:
         n_f = float(int(n or 0))
-        mapped = ip_map.get(str(raw_role))
-        if mapped:
+        mapped = ip_map.get(str(raw_role), str(raw_role))
+        if mapped in ip_obs:
             ip_obs[mapped] += n_f
         group_id = None
         for _, gid, ip_set, asn_set in ip_group_rules:
-            if str(ip_type) in ip_set and str(asn_class) in asn_set:
+            if ip_group_match_mode == "by_ip_and_asn":
+                matched = str(ip_type) in ip_set and str(asn_class) in asn_set
+            else:
+                matched = str(ip_type) in ip_set or str(asn_class) in asn_set
+            if matched:
                 group_id = gid
                 break
         if group_id is None:
             unresolved_rows += int(n_f)
             continue
         probs = ip_probs.get((group_id, str(tier)), {})
-        for role_id in ip_roles:
-            ip_exp[role_id] += n_f * float(probs.get(role_id, 0.0))
+        for raw_expected_role, raw_prob in probs.items():
+            mapped_expected = ip_map.get(str(raw_expected_role), str(raw_expected_role))
+            if mapped_expected in ip_exp:
+                ip_exp[mapped_expected] += n_f * float(raw_prob)
     ip_role_jsd = jsd(np.array([ip_obs[k] for k in ip_roles]), np.array([ip_exp[k] for k in ip_roles]))
 
     components = {"ip_type_jsd": ip_jsd, "device_role_jsd": dev_jsd, "ip_role_jsd": ip_role_jsd}
@@ -576,7 +615,12 @@ def score_t8(
         "pass_B": bool(worst <= 0.08),
         "pass_Bplus": bool(worst <= 0.05),
         "status": "PASS" if worst <= 0.08 else "FAIL",
-        "details": {"components": components, "ip_unresolved_group_rows": unresolved_rows},
+        "details": {
+            "components": components,
+            "ip_unresolved_group_rows": unresolved_rows,
+            "ip_group_match_mode": ip_group_match_mode,
+            "t8_compare_space": "canonical_taxonomy",
+        },
     }
 
 
@@ -649,6 +693,7 @@ def main() -> None:
     device_role_priors = load_yaml(Path("config/layer3/6A/priors/device_role_priors_6A.v1.yaml"))
     ip_role_priors = load_yaml(Path("config/layer3/6A/priors/ip_role_priors_6A.v1.yaml"))
     fraud_role_taxonomy = load_yaml(Path("config/layer3/6A/taxonomy/fraud_role_taxonomy_6A.v1.yaml"))
+    validation_policy = load_yaml(Path("config/layer3/6A/policy/validation_policy_6A.v1.yaml"))
 
     kmax_rows = parse_kmax(kmax_priors)
     ip_targets = parse_ip_targets(ip_count_priors)
@@ -664,7 +709,15 @@ def main() -> None:
         t3, t4, t5 = score_t3_t4_t5(con, run_root, ip_targets, int(args.bootstrap_reps), rng)
         t6 = score_t6(con, run_root, role_sets_from_taxonomy(fraud_role_taxonomy))
         t7 = score_t7(con, run_root, int(args.bootstrap_reps), rng)
-        t8 = score_t8(con, run_root, ip_targets, device_role_priors, ip_role_priors)
+        t8 = score_t8(
+            con,
+            run_root,
+            ip_targets,
+            device_role_priors,
+            ip_role_priors,
+            fraud_role_taxonomy,
+            validation_policy,
+        )
     finally:
         con.close()
     t9 = score_t9_insufficient()

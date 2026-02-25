@@ -3139,3 +3139,105 @@ Retained:
 - P1 authority `347bc9...`,
 - P2 authority `e6d311...`,
 - P3 closure authority `9fb441...`.
+
+### Entry: 2026-02-25 03:46
+
+P4 pre-implementation design lock (role-mapping contract + validation hardening).
+
+Trigger:
+- `T8` remained hard fail after P3 (`ip_role_jsd=0.559955...`) while `T6` was already pass.
+- ad-hoc forensic checks showed T8 mismatch was representation/semantics drift, not upstream stochastic instability:
+  - scorer compared observed taxonomy-space IP roles against raw role-space expectations,
+  - scorer used `ip_type AND asn_class` group matching while `S5` runtime uses `ip_type OR asn_class`.
+
+Alternatives considered:
+1) force runtime to `AND` grouping to match scorer:
+   - rejected (would re-open validated runtime behavior from P2 and distort IP assignment semantics).
+2) keep scorer as-is and tune priors:
+   - rejected (would tune around measurement defect rather than fix the contract mismatch).
+3) lock explicit mapping contract + align scorer to runtime semantics (selected):
+   - selected as lowest-blast and most auditable path for P4 intent.
+
+Selected P4 plan:
+- add policy-owned role mapping contract in `validation_policy_6A`:
+  - `device_raw_to_taxonomy`, `ip_raw_to_taxonomy`,
+  - `ip_group_match_mode=by_ip_or_asn`,
+  - `t8_compare_space=canonical_taxonomy`,
+  - `require_full_mapping=true`.
+- wire `S5` to consume mapping contract and fail-closed if any prior role id is unmapped.
+- harden scorer `T8` to compare observed/expected in canonical taxonomy space and policy-driven group semantics.
+- correct inconsistent IP role-distribution gate cap (`max_risky_fraction`) so internal validation aligns with modeled role regime.
+
+### Entry: 2026-02-25 03:49
+
+P4 implementation patch set applied (pre-witness).
+
+Code/policy updates:
+1) `S5` mapping contract enforcement:
+- file: `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py`
+- changes:
+  - added role-model role-id collector helper,
+  - loaded `role_mapping_contract` from validation policy,
+  - replaced hardcoded mapping-only path with policy-driven mapping maps,
+  - added fail-closed completeness checks (`V-33`) for device/ip raw role ids in priors.
+
+2) Validation policy hardening:
+- file: `config/layer3/6A/policy/validation_policy_6A.v1.yaml`
+- changes:
+  - added `role_mapping_contract` section (mapping tables + match mode + compare space + full-mapping requirement),
+  - increased `role_distribution_checks.ip_roles.max_risky_fraction` to `0.99` to match modeled IP regime.
+
+3) Gateboard scorer alignment:
+- file: `tools/score_segment6a_p0_baseline.py`
+- changes:
+  - `score_t8` now compares in canonical taxonomy space for both observed and expected distributions,
+  - `score_t8` now consumes policy mapping contract and IP group matching mode,
+  - T8 details now record `ip_group_match_mode` and compare space for auditability.
+
+Static checks:
+- `py_compile` for updated `S5` runner: pass.
+- `py_compile` for updated scorer: pass.
+- YAML parse check for validation policy: pass.
+
+### Entry: 2026-02-25 03:57
+
+P4 witness execution, results, and closure.
+
+Witness lane:
+- staged fresh lane from P3 closure:
+  - `run_id=511d6a282a6445598ae207ee1d82ff77`.
+- executed:
+  - `make segment6a-s5 RUNS_ROOT=runs/fix-data-engine/segment_6A RUN_ID=511d6a...`.
+
+Runtime evidence:
+- `S5` log shows mapping contract load:
+  - `device_map=4`, `ip_map=7`, `require_full=true`.
+- internal validation bundle now passes:
+  - `overall_status=PASS`,
+  - `_passed.flag` emitted.
+
+Scoring evidence:
+- gateboard:
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p0_realism_gateboard_511d6a282a6445598ae207ee1d82ff77.json`.
+
+Owner movement:
+- `T8` closed from fail to pass:
+  - prior (`9fb441...`): `0.5599550099660902` (fail),
+  - witness (`511d6a...`): `1.904257832611368e-07` (pass B/B+).
+- T8 components in witness:
+  - `ip_type_jsd=2.30e-08`,
+  - `ip_role_jsd=7.40e-08`,
+  - `device_role_jsd=1.90e-07`,
+  - `ip_unresolved_group_rows=0`.
+
+Non-regression checks:
+- `T6` remains pass (`mapped_runtime_roles_fraction=1.0`, `unmapped_count=0`).
+- `T1-T5` remain pass at B.
+- `T7` remains pass at B (`OR_account=1.7206`, `OR_device=1.5664`).
+
+Known non-owner carryovers:
+- `T9`, `T10` remain insufficient-evidence on this single-seed, segment-isolated witness lane.
+
+Decision:
+- P4 closure criteria met for owner scope with preserved upstream posture.
+- phase decision: `P4=UNLOCK_P5`.

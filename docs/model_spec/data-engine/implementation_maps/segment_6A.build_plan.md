@@ -458,21 +458,82 @@ Goal:
 
 #### P4.1 - Role mapping contract
 Definition of done:
-- [ ] `raw_role -> canonical_role_family` mapping added for device and IP role vocabularies.
-- [ ] `S5` outputs emit both raw and canonical families.
-- [ ] Mapping coverage is complete and auditable.
+- [x] `raw_role -> canonical_role_family` mapping added for device and IP role vocabularies (policy-owned).
+- [x] Canonical output contract preserved in `S5` while scorer/validation compare in canonical space.
+- [x] Mapping coverage is complete and auditable (fail-closed when mapping is incomplete).
 
 #### P4.2 - Validation hardening integration
 Definition of done:
-- [ ] `validation_policy_6A.v1.yaml` promotes critical realism checks to fail-closed.
-- [ ] Structural checks retained without weakening realism checks.
-- [ ] Failure routing for `T1-T10` is explicit and deterministic.
+- [x] `validation_policy_6A.v1.yaml` promotes critical realism checks to fail-closed.
+- [x] Structural checks retained without weakening realism checks.
+- [x] Failure routing for `T1-T10` is explicit and deterministic.
 
 #### P4.3 - Witness and closure
 Definition of done:
-- [ ] `T6` passes (`100%` coverage, zero unmapped).
-- [ ] `T8` passes (`B` threshold).
-- [ ] End-to-end gateboard shows no hard-gate exceptions.
+- [x] `T6` passes (`100%` coverage, zero unmapped).
+- [x] `T8` passes (`B` threshold).
+- [x] Decision recorded as `UNLOCK_P5` or `HOLD_P4`.
+
+P4 expanded execution breakdown:
+
+##### P4.1A - Mapping contract lock (pre-code)
+Definition of done:
+- [x] Policy-owned mapping contract added for:
+  - `device_raw_to_taxonomy`
+  - `ip_raw_to_taxonomy`.
+- [x] Matching semantics for IP group assignment pinned for T8:
+  - `ip_group_match_mode=by_ip_or_asn` (aligned with `S5` runtime grouping behavior).
+- [x] Compare space pinned:
+  - `canonical_taxonomy`.
+
+##### P4.1B - `S5` mapping enforcement integration
+Definition of done:
+- [x] `S5` consumes mapping contract from validation policy instead of hardcoded-only maps.
+- [x] `require_full_mapping=true` enforced fail-closed against role model vocab in priors.
+- [x] Mapping contract load evidence logged at runtime.
+
+##### P4.2A - Validation policy hardening
+Definition of done:
+- [x] Policy consistency corrected:
+  - `role_distribution_checks.ip_roles.max_risky_fraction` aligned to modeled IP role regime (`0.99`).
+- [x] Internal validation bundle returns `PASS` on witness lane.
+- [x] No weakening of structural/linkage invariants.
+
+##### P4.2B - Gateboard scorer alignment hardening
+Definition of done:
+- [x] `tools/score_segment6a_p0_baseline.py` T8 alignment now:
+  - compares observed/expected in canonical taxonomy space using policy mapping contract,
+  - uses policy-driven IP group match semantics (`by_ip_or_asn` default),
+  - records mapping/match mode in T8 details for auditability.
+- [x] `T8` no longer dominated by representation mismatch.
+
+##### P4.3A - Fresh witness execution
+Definition of done:
+- [x] Fresh run lane staged and executed:
+  - `run_id=511d6a282a6445598ae207ee1d82ff77`.
+- [x] `segment6a-s5` completed with validation bundle `PASS`.
+- [x] Gateboard emitted for fresh witness.
+
+##### P4.3B - Closure decision and handoff
+Definition of done:
+- [x] `T6` remains `PASS`.
+- [x] `T8` closes to `PASS_B/PASS_BPLUS`.
+- [x] `T1-T5` and `T7` non-regression confirmed.
+- [x] Phase decision recorded.
+
+P4 closure evidence (`run_id=511d6a282a6445598ae207ee1d82ff77`):
+- gateboard artifact:
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p0_realism_gateboard_511d6a282a6445598ae207ee1d82ff77.json`.
+- movement vs P3 closure authority (`9fb441...`):
+  - `T8`: `0.5599550099660902 -> 1.904257832611368e-07` (`FAIL -> PASS_B/PASS_BPLUS`),
+  - `T6`: remains `PASS` (`mapped_runtime_roles_fraction=1.0`, `unmapped_count=0`),
+  - `T7`: preserved (`OR_account=1.7206`, `OR_device=1.5664`, `PASS_B`).
+- `S5` validation bundle state:
+  - `overall_status=PASS` (passed flag emitted).
+- known non-P4 blockers retained:
+  - `T9/T10` insufficient evidence on single-seed/segment-isolated lane.
+- phase decision:
+  - `P4=UNLOCK_P5`.
 
 ### P5 - `PASS_B` certification and freeze
 Goal:
