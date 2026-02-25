@@ -93,8 +93,8 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M3 | P1 | Run pinning and orchestrator readiness | DONE |
 | M4 | P2 | Spine runtime-lane readiness (managed-first) | DONE |
 | M5 | P3-P4 | Oracle readiness + ingest preflight | DONE |
-| M6 | P5-P7 | Control + Ingress closure | ACTIVE |
-| M7 | P8-P10 | RTDL + Case/Labels closure | NOT_STARTED |
+| M6 | P5-P7 | Control + Ingress closure | DONE |
+| M7 | P8-P10 | RTDL + Case/Labels closure | ACTIVE |
 | M8 | P11 | Spine obs/gov closure + non-regression pack | NOT_STARTED |
 | M9 | P12 | Learning input readiness | NOT_STARTED |
 | M10 | P13 | OFS dataset closure | NOT_STARTED |
@@ -682,6 +682,10 @@ M6 planning posture:
 - `M6.I` remediation rerun is now green (`m6i_p7b_gate_rollup_20260225T191541Z`, run `22411988277`):
   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M7`, `next_gate=M6.J_READY`,
   - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22411988277/m6i-p7-rollup-20260225T191541Z/`.
+- `M6.J` closure sync is now green (`m6j_m6_closure_sync_20260225T194637Z`, run `22413131251`):
+  - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M7`, `next_gate=M7_READY`,
+  - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22413131251/m6j-closure-sync-20260225T194703Z/`,
+  - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6j_m6_closure_sync_20260225T194637Z/`.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
@@ -693,7 +697,7 @@ M6 sub-phase progress:
 - [x] `M6.G` `P6` gate rollup + verdict.
 - [x] `M6.H` `P7` ingest-commit execution.
 - [x] `M6.I` `P7` gate rollup + M6 verdict + M7 handoff.
-- [ ] `M6.J` M6 closure sync (docs/cost-outcome/evidence index).
+- [x] `M6.J` M6 closure sync (docs/cost-outcome/evidence index).
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md`
@@ -702,7 +706,7 @@ Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P7.build_plan.md`
 
 ## M7 - RTDL and Case/Labels Closure
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 
 Objective:
 - close `P8-P10` for RTDL, decision chain, and case/label append lanes.
@@ -857,4 +861,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M6.J` closure sync now that `M6.H` and `M6.I` are green, then advance to `M7`.
+- Begin `M7` execution from `M7.A` with P8 lane entry checks and fail-closed gate expansion.

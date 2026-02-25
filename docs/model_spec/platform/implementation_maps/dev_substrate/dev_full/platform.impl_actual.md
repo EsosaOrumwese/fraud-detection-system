@@ -9208,3 +9208,42 @@ ext_gate=HOLD_REMEDIATE.
 1. Push remediation commit on `migrate-dev`.
 2. Re-dispatch `M6.J` with pinned upstream chain.
 
+## Entry: 2026-02-25 19:49:40 +00:00 - M6.J executed green and M6 closed
+
+### Execution trail
+1. Dispatched managed lane:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`,
+   - mode: `phase_mode=m6j`,
+   - run id: `22413131251`,
+   - branch/ref: `migrate-dev`.
+2. Dispatch inputs pinned:
+   - `platform_run_id=platform_20260223T184232Z`,
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`,
+   - `upstream_m6d_execution=m6d_p5c_gate_rollup_20260225T041801Z`,
+   - `upstream_m6g_execution=m6g_p6c_gate_rollup_20260225T181523Z`,
+   - `upstream_m6i_execution=m6i_p7b_gate_rollup_20260225T191541Z`.
+3. Workflow job completed successfully with fail-closed gate checks enabled.
+
+### Verified outputs
+1. `m6j_execution_summary.json`:
+   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M7`, `next_gate=M7_READY`.
+2. `m6_execution_summary.json`:
+   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M7`, `next_gate=M7_READY`.
+3. `m6j_blocker_register.json`:
+   - blockers empty, read errors empty, budget errors empty.
+4. Cost artifacts:
+   - `m6_phase_budget_envelope.json` valid (`300/120/210/270` thresholds),
+   - `m6_phase_cost_outcome_receipt.json` published with `spend_amount=78.3708562065 USD`.
+
+### Evidence locations
+1. Workflow run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22413131251`
+2. Local artifact root:
+   - `runs/dev_substrate/dev_full/m6/_gh_run_22413131251/m6j-closure-sync-20260225T194703Z/`.
+3. Durable run-control prefix:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6j_m6_closure_sync_20260225T194637Z/`.
+
+### Decision outcome
+1. `M6.J` is closed green.
+2. `M6` phase closure is now complete and M7 entry is formally unblocked (`next_gate=M7_READY`).
+

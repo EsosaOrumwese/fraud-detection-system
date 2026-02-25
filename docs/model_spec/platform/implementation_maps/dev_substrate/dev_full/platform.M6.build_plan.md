@@ -532,6 +532,30 @@ Execution plan (authoritative lane):
 3. Fail-closed rule:
    - any unresolved `M6-B*` blocker or verdict mismatch keeps M6 at `HOLD_REMEDIATE`.
 
+Execution status (2026-02-25):
+1. Remote authoritative execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m6j`
+   - run id: `22413131251`
+   - execution id: `m6j_m6_closure_sync_20260225T194637Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M7`,
+   - `next_gate=M7_READY`.
+3. Produced artifact set:
+   - `m6_phase_budget_envelope.json`,
+   - `m6_phase_cost_outcome_receipt.json`,
+   - `m6_execution_summary.json`,
+   - `m6j_blocker_register.json`,
+   - `m6j_execution_summary.json`.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m6/_gh_run_22413131251/m6j-closure-sync-20260225T194703Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6j_m6_closure_sync_20260225T194637Z/`.
+5. Cost-outcome receipt:
+   - `spend_amount=78.3708562065 USD`,
+   - decision retired: deterministic M6 closure chain and M7 entry verdict publication.
+
 ## 6) Split Deep Plan Routing
 1. `P5` detailed lane plan:
    - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P5.build_plan.md`
@@ -591,11 +615,11 @@ Any active `M6-B*` blocker prevents M6 closure.
 - [x] M6.G complete
 - [x] M6.H complete
 - [x] M6.I complete
-- [ ] M6.J complete
-- [ ] M6 blockers resolved or explicitly fail-closed
-- [ ] M6 phase-budget and cost-outcome artifacts are valid and accepted
-- [ ] M6 closure note appended in implementation map
-- [ ] M6 action log appended in logbook
+- [x] M6.J complete
+- [x] M6 blockers resolved or explicitly fail-closed
+- [x] M6 phase-budget and cost-outcome artifacts are valid and accepted
+- [x] M6 closure note appended in implementation map
+- [x] M6 action log appended in logbook
 
 ## 10) Exit Criteria
 M6 can close only when:
@@ -641,3 +665,9 @@ Handoff posture:
    - run `22411988277`,
    - execution `m6i_p7b_gate_rollup_20260225T191541Z`,
    - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M7`, `next_gate=M6.J_READY`.
+16. `M6.J` closure sync is closed green:
+   - run `22413131251`,
+   - execution `m6j_m6_closure_sync_20260225T194637Z`,
+   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M7`, `next_gate=M7_READY`,
+   - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6j_m6_closure_sync_20260225T194637Z/`.
+17. M6 phase is now closed green and unblocks M7 entry.
