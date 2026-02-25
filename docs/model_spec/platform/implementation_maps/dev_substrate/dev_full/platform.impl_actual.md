@@ -9113,3 +9113,38 @@ ext_gate=HOLD_REMEDIATE.
    - `phase_mode=m6i` using fresh upstream `m6h` execution id.
 4. Update build-plan, implementation-map, and logbook with execution receipts and final blocker status.
 
+## Entry: 2026-02-25 19:16:30 +00:00 - M6P7-B4 remediated and P7 reruns closed green
+
+### Execution trail
+1. Applied remediation patch in `scripts/dev_substrate/m6h_ingest_commit.py`:
+   - offset evidence now resolves in priority order:
+     - existing run-scoped snapshot when already materialized,
+     - Kafka `eb_ref` offsets from idempotency rows when present,
+     - deterministic `IG_ADMISSION_INDEX_PROXY` snapshot from admitted epochs for `apigw_lambda_ddb`.
+2. Pinned authority updates:
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (edge-mode offset proof rule),
+   - `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md` (P7 mode-aware offset gate),
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P7.build_plan.md`,
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md`.
+3. Committed and pushed on `migrate-dev`:
+   - commit: `e216d1da`
+   - message: `fix: close m6 p7 offset blocker for apigw ingress mode`.
+4. Dispatched managed reruns:
+   - `M6.H` run `22411945101` (`phase_mode=m6h`) -> execution `m6h_p7a_ingest_commit_20260225T191433Z`,
+   - `M6.I` run `22411988277` (`phase_mode=m6i`) -> execution `m6i_p7b_gate_rollup_20260225T191541Z`.
+
+### Outcome
+1. `M6.H` is green:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M6.I_READY`.
+2. `M6.H` offset evidence is explicit and materialized:
+   - `offset_mode=IG_ADMISSION_INDEX_PROXY`,
+   - `kafka_offsets_materialized=true`,
+   - topic record: `ig.edge.admission.proxy.v1`, `partition=0`, `offset_kind=admitted_at_epoch`, observed count `18`.
+3. `M6.I` is green:
+   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M7`, `next_gate=M6.J_READY`.
+4. `M6P7-B4` is cleared and no `M6P7-B*` blockers remain active in current authoritative receipts.
+
+### Decision after closure
+1. Treat the earlier fail-closed runs as historical evidence, superseded by remediation receipts.
+2. Proceed to `M6.J` closure sync as next gate before M7 advancement.
+

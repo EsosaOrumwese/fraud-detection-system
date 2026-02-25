@@ -52,10 +52,10 @@ Tasks:
 4. run dedupe/anomaly checks for fail-closed closure.
 
 DoD:
-- [ ] receipt/quarantine/offset evidence exists and is readable.
-- [ ] dedupe/anomaly checks pass.
-- [ ] `m6h_ingest_commit_snapshot.json` committed locally and durably.
-- [ ] fresh-authority remote execution completed with `overall_pass=true`, `blocker_count=0`, `next_gate=M6.I_READY`.
+- [x] receipt/quarantine/offset evidence exists and is readable.
+- [x] dedupe/anomaly checks pass.
+- [x] `m6h_ingest_commit_snapshot.json` committed locally and durably.
+- [x] fresh-authority remote execution completed with `overall_pass=true`, `blocker_count=0`, `next_gate=M6.I_READY`.
 
 Execution plan (authoritative lane):
 1. Dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with:
@@ -91,6 +91,15 @@ Execution status (2026-02-25):
    - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22410856328_v2/m6h-ingest-commit-20260225T184352Z/`
    - durable run-control prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6h_p7a_ingest_commit_20260225T184352Z/`
    - durable run-scoped ingest prefix: `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/ingest/`
+5. Remediation closure execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m6h`
+   - run id: `22411945101`
+   - execution id: `m6h_p7a_ingest_commit_20260225T191433Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M6.I_READY`
+   - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22411945101/m6h-ingest-commit-20260225T191433Z/`
+   - durable run-control prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6h_p7a_ingest_commit_20260225T191433Z/`
+   - offset evidence mode: `IG_ADMISSION_INDEX_PROXY` (`kafka_offsets_materialized=true`).
 
 ### P7.B P7 Gate Rollup + Verdict + M6 Closure Inputs (M6.I)
 Goal:
@@ -103,10 +112,10 @@ Tasks:
 4. build `m7_handoff_pack.json` (non-secret, run-scope consistent, evidence refs explicit).
 
 DoD:
-- [ ] `P7` rollup matrix + blocker register committed.
-- [ ] deterministic `P7` verdict committed (`ADVANCE_TO_M7`/`HOLD_REMEDIATE`/`NO_GO_RESET_REQUIRED`).
-- [ ] `m7_handoff_pack.json` committed locally and durably.
-- [ ] fresh-authority remote execution completed with verdict `ADVANCE_TO_M7` and `next_gate=M6.J_READY`.
+- [x] `P7` rollup matrix + blocker register committed.
+- [x] deterministic `P7` verdict committed (`ADVANCE_TO_M7`/`HOLD_REMEDIATE`/`NO_GO_RESET_REQUIRED`).
+- [x] `m7_handoff_pack.json` committed locally and durably.
+- [x] fresh-authority remote execution completed with verdict `ADVANCE_TO_M7` and `next_gate=M6.J_READY`.
 
 Execution plan (authoritative lane):
 1. Dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with:
@@ -141,7 +150,16 @@ Execution status (2026-02-25):
    - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22410918552_v1/m6i-p7-rollup-20260225T184535Z/`
    - durable run-control prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6i_p7b_gate_rollup_20260225T184535Z/`
 5. Gate posture:
-   - `P7.B` executed fully but remains fail-closed pending `M6P7-B4` remediation.
+   - initial execution remained fail-closed pending `M6P7-B4` remediation (historical),
+   - remediation rerun is green and unblocked.
+6. Remediation closure execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m6i`
+   - run id: `22411988277`
+   - execution id: `m6i_p7b_gate_rollup_20260225T191541Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M7`, `next_gate=M6.J_READY`
+   - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22411988277/m6i-p7-rollup-20260225T191541Z/`
+   - durable run-control prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6i_p7b_gate_rollup_20260225T191541Z/`
 
 ## 4) P7 Verification Catalog
 | Verify ID | Command template | Purpose |

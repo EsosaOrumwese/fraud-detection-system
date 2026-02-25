@@ -442,8 +442,8 @@ Tasks:
 4. run dedupe/anomaly checks for fail-closed closure.
 
 DoD:
-- [ ] receipt/quarantine/offset evidence is committed and readable.
-- [ ] dedupe/anomaly checks pass.
+- [x] receipt/quarantine/offset evidence is committed and readable.
+- [x] dedupe/anomaly checks pass.
 
 Execution status (2026-02-25):
 1. Remote authoritative execution:
@@ -458,6 +458,12 @@ Execution status (2026-02-25):
 4. Evidence:
    - local: `runs/dev_substrate/dev_full/m6/_gh_run_22410856328_v2/m6h-ingest-commit-20260225T184352Z/`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6h_p7a_ingest_commit_20260225T184352Z/`.
+5. Remediation closure execution:
+   - run `22411945101`,
+   - execution `m6h_p7a_ingest_commit_20260225T191433Z`,
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M6.I_READY`,
+   - local: `runs/dev_substrate/dev_full/m6/_gh_run_22411945101/m6h-ingest-commit-20260225T191433Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6h_p7a_ingest_commit_20260225T191433Z/`.
 
 ### M6.I `P7` Gate Rollup + M6 Verdict + M7 Handoff
 Goal:
@@ -469,8 +475,8 @@ Tasks:
 3. emit `m7_handoff_pack.json` with run-scope continuity and evidence refs.
 
 DoD:
-- [ ] `P7` rollup + verdict committed.
-- [ ] `m7_handoff_pack.json` committed locally and durably.
+- [x] `P7` rollup + verdict committed.
+- [x] `m7_handoff_pack.json` committed locally and durably.
 
 Execution status (2026-02-25):
 1. Remote authoritative execution:
@@ -486,6 +492,12 @@ Execution status (2026-02-25):
 4. Evidence:
    - local: `runs/dev_substrate/dev_full/m6/_gh_run_22410918552_v1/m6i-p7-rollup-20260225T184535Z/`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6i_p7b_gate_rollup_20260225T184535Z/`.
+5. Remediation closure execution:
+   - run `22411988277`,
+   - execution `m6i_p7b_gate_rollup_20260225T191541Z`,
+   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M7`, `next_gate=M6.J_READY`,
+   - local: `runs/dev_substrate/dev_full/m6/_gh_run_22411988277/m6i-p7-rollup-20260225T191541Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6i_p7b_gate_rollup_20260225T191541Z/`.
 
 ### M6.J M6 Closure Sync + Cost-Outcome
 Goal:
@@ -558,8 +570,8 @@ Any active `M6-B*` blocker prevents M6 closure.
 - [x] M6.E complete
 - [x] M6.F complete
 - [x] M6.G complete
-- [ ] M6.H complete
-- [ ] M6.I complete
+- [x] M6.H complete
+- [x] M6.I complete
 - [ ] M6.J complete
 - [ ] M6 blockers resolved or explicitly fail-closed
 - [ ] M6 phase-budget and cost-outcome artifacts are valid and accepted
@@ -602,3 +614,11 @@ Handoff posture:
    - run `22410918552`,
    - execution `m6i_p7b_gate_rollup_20260225T184535Z`,
    - `overall_pass=false`, `verdict=HOLD_REMEDIATE`, blocker `M6P7-B4` propagated.
+14. `M6.H` remediation rerun is closed green:
+   - run `22411945101`,
+   - execution `m6h_p7a_ingest_commit_20260225T191433Z`,
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M6.I_READY`.
+15. `M6.I` remediation rerun is closed green:
+   - run `22411988277`,
+   - execution `m6i_p7b_gate_rollup_20260225T191541Z`,
+   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M7`, `next_gate=M6.J_READY`.

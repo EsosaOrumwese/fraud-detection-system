@@ -675,6 +675,13 @@ M6 planning posture:
   - `overall_pass=false`, `blocker_count=1`, `verdict=HOLD_REMEDIATE`, `next_gate=HOLD_REMEDIATE`,
   - blocker propagation: `M6P7-B4` from upstream `M6.H`,
   - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22410918552_v1/m6i-p7-rollup-20260225T184535Z/`.
+- `M6.H` remediation rerun is now green (`m6h_p7a_ingest_commit_20260225T191433Z`, run `22411945101`):
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=M6.I_READY`,
+  - offset evidence mode: `IG_ADMISSION_INDEX_PROXY` with deterministic topic/partition proxy snapshot,
+  - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22411945101/m6h-ingest-commit-20260225T191433Z/`.
+- `M6.I` remediation rerun is now green (`m6i_p7b_gate_rollup_20260225T191541Z`, run `22411988277`):
+  - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M7`, `next_gate=M6.J_READY`,
+  - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22411988277/m6i-p7-rollup-20260225T191541Z/`.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
@@ -684,8 +691,8 @@ M6 sub-phase progress:
 - [x] `M6.E` `P6` entry/stream activation precheck.
 - [x] `M6.F` `P6` streaming-active + lag + ambiguity closure.
 - [x] `M6.G` `P6` gate rollup + verdict.
-- [ ] `M6.H` `P7` ingest-commit execution.
-- [ ] `M6.I` `P7` gate rollup + M6 verdict + M7 handoff.
+- [x] `M6.H` `P7` ingest-commit execution.
+- [x] `M6.I` `P7` gate rollup + M6 verdict + M7 handoff.
 - [ ] `M6.J` M6 closure sync (docs/cost-outcome/evidence index).
 
 Deep plan:
@@ -850,6 +857,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Remediate `M6P7-B4` by materializing topic/partition Kafka offset evidence for `platform_20260223T184232Z`, then rerun:
-  1. `M6.H` (`phase_mode=m6h`) to clear ingest-commit blocker register.
-  2. `M6.I` (`phase_mode=m6i`) using fresh `M6.H` upstream.
+- Execute `M6.J` closure sync now that `M6.H` and `M6.I` are green, then advance to `M7`.
