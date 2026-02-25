@@ -30,7 +30,34 @@ def _start_lane_job(
     log_prefix: str,
     iterations: int,
     sleep_seconds: float,
+    ig_base_url: str,
+    ig_ingest_path: str,
+    ig_api_key: str,
 ) -> str:
+    entry_point_args = [
+        "--lane-ref",
+        lane_ref,
+        "--platform-run-id",
+        platform_run_id,
+        "--scenario-run-id",
+        scenario_run_id,
+        "--iterations",
+        str(iterations),
+        "--sleep-seconds",
+        str(sleep_seconds),
+    ]
+    if ig_base_url and ig_ingest_path and ig_api_key:
+        entry_point_args.extend(
+            [
+                "--ig-base-url",
+                ig_base_url,
+                "--ig-ingest-path",
+                ig_ingest_path,
+                "--ig-api-key",
+                ig_api_key,
+            ]
+        )
+
     response = emr_client.start_job_run(
         name=lane_ref,
         virtualClusterId=virtual_cluster_id,
@@ -39,18 +66,7 @@ def _start_lane_job(
         jobDriver={
             "sparkSubmitJobDriver": {
                 "entryPoint": script_s3_uri,
-                "entryPointArguments": [
-                    "--lane-ref",
-                    lane_ref,
-                    "--platform-run-id",
-                    platform_run_id,
-                    "--scenario-run-id",
-                    scenario_run_id,
-                    "--iterations",
-                    str(iterations),
-                    "--sleep-seconds",
-                    str(sleep_seconds),
-                ],
+                "entryPointArguments": entry_point_args,
                 "sparkSubmitParameters": (
                     "--conf spark.executor.instances=1 "
                     "--conf spark.executor.cores=1 "
@@ -89,8 +105,12 @@ def main() -> int:
     parser.add_argument("--log-group-name", default="/emr-eks/fraud-platform-dev-full")
     parser.add_argument("--iterations", type=int, default=900)
     parser.add_argument("--sleep-seconds", type=float, default=1.0)
+    parser.add_argument("--ig-base-url", default="")
+    parser.add_argument("--ig-ingest-path", default="/ingest/push")
+    parser.add_argument("--ig-api-key", default="")
     parser.add_argument("--output-json", default="")
     args = parser.parse_args()
+    ig_probe_enabled = bool(args.ig_base_url and args.ig_ingest_path and args.ig_api_key)
 
     emr = boto3.client("emr-containers", region_name=args.region)
 
@@ -107,6 +127,9 @@ def main() -> int:
         log_prefix="wsp-stream",
         iterations=args.iterations,
         sleep_seconds=args.sleep_seconds,
+        ig_base_url=args.ig_base_url,
+        ig_ingest_path=args.ig_ingest_path,
+        ig_api_key=args.ig_api_key,
     )
 
     sr_job_id = _start_lane_job(
@@ -122,10 +145,15 @@ def main() -> int:
         log_prefix="sr-ready",
         iterations=args.iterations,
         sleep_seconds=args.sleep_seconds,
+        ig_base_url=args.ig_base_url,
+        ig_ingest_path=args.ig_ingest_path,
+        ig_api_key=args.ig_api_key,
     )
+    now_epoch = int(datetime.now(timezone.utc).timestamp())
 
     payload: dict[str, Any] = {
         "started_at_utc": _now_utc(),
+        "started_at_epoch": now_epoch,
         "virtual_cluster_id": args.virtual_cluster_id,
         "wsp_ref": args.wsp_ref,
         "wsp_job_id": wsp_job_id,
@@ -134,6 +162,7 @@ def main() -> int:
         "script_s3_uri": args.script_s3_uri,
         "platform_run_id": args.platform_run_id,
         "scenario_run_id": args.scenario_run_id,
+        "ig_probe_enabled": ig_probe_enabled,
     }
 
     if args.output_json:

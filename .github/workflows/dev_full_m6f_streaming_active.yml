@@ -79,6 +79,21 @@ on:
         required: true
         default: "fraud-platform-dev-full-ig-idempotency"
         type: string
+      ig_base_url:
+        description: "IG base URL (for probe posts from stream refs)"
+        required: true
+        default: "https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1"
+        type: string
+      ig_ingest_path:
+        description: "IG ingest path"
+        required: true
+        default: "/ingest/push"
+        type: string
+      ssm_ig_api_key_path:
+        description: "SSM path containing IG API key"
+        required: true
+        default: "/fraud-platform/dev_full/ig/api_key"
+        type: string
       runtime_path:
         description: "Pinned runtime path for this phase execution"
         required: true
@@ -162,6 +177,22 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Resolve IG API key from SSM
+        shell: bash
+        run: |
+          set -euo pipefail
+          IG_API_KEY="$(aws ssm get-parameter \
+            --name "${{ inputs.ssm_ig_api_key_path }}" \
+            --with-decryption \
+            --query 'Parameter.Value' \
+            --output text)"
+          if [[ -z "${IG_API_KEY}" || "${IG_API_KEY}" == "None" ]]; then
+            echo "M6.F fail-closed: unable to resolve IG API key from SSM."
+            exit 1
+          fi
+          echo "::add-mask::${IG_API_KEY}"
+          echo "IG_API_KEY=${IG_API_KEY}" >> "${GITHUB_ENV}"
+
       - name: Install runtime dependencies
         shell: bash
         run: |
@@ -230,6 +261,9 @@ jobs:
             --scenario-run-id "${{ inputs.scenario_run_id }}" \
             --wsp-ref "${{ inputs.wsp_ref }}" \
             --sr-ready-ref "${{ inputs.sr_ready_ref }}" \
+            --ig-base-url "${{ inputs.ig_base_url }}" \
+            --ig-ingest-path "${{ inputs.ig_ingest_path }}" \
+            --ig-api-key "${IG_API_KEY}" \
             --log-group-name "${{ inputs.emr_log_group_name }}" \
             --iterations "${{ inputs.iterations }}" \
             --sleep-seconds "${{ inputs.sleep_seconds }}" \
@@ -252,14 +286,51 @@ jobs:
             echo "M6.F fail-closed: EMR submission receipt missing job ids."
             exit 1
           fi
+          STARTED_AT_UTC="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("${{ steps.run_meta.outputs.submit_receipt }}").read_text(encoding="utf-8"))
+          print(payload.get("started_at_utc", ""))
+          PY
+          )"
+          if [[ -z "${STARTED_AT_UTC}" ]]; then
+            echo "M6.F fail-closed: submission receipt missing started_at_utc."
+            exit 1
+          fi
           echo "wsp_job_id=${WSP_JOB_ID}" >> "$GITHUB_OUTPUT"
           echo "sr_job_id=${SR_JOB_ID}" >> "$GITHUB_OUTPUT"
+          echo "lane_window_start_utc=${STARTED_AT_UTC}" >> "$GITHUB_OUTPUT"
 
-      - name: Stabilization wait
+      - name: Wait for lane refs to reach RUNNING
         shell: bash
         run: |
           set -euo pipefail
-          sleep 15
+          wait_for_running() {
+            local job_id="$1"
+            local attempts=36
+            local sleep_sec=5
+            local idx=1
+            while [[ "${idx}" -le "${attempts}" ]]; do
+              state="$(aws emr-containers describe-job-run \
+                --region "${{ inputs.aws_region }}" \
+                --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
+                --id "${job_id}" \
+                --query 'jobRun.state' \
+                --output text)"
+              echo "job_id=${job_id} state=${state} attempt=${idx}/${attempts}"
+              if [[ "${state}" == "RUNNING" ]]; then
+                return 0
+              fi
+              if [[ "${state}" == "FAILED" || "${state}" == "CANCELLED" || "${state}" == "CANCEL_PENDING" ]]; then
+                return 1
+              fi
+              idx=$((idx + 1))
+              sleep "${sleep_sec}"
+            done
+            return 1
+          }
+          wait_for_running "${{ steps.submit.outputs.wsp_job_id }}"
+          wait_for_running "${{ steps.submit.outputs.sr_job_id }}"
 
       - name: Capture M6.F artifacts
         id: capture
@@ -276,8 +347,11 @@ jobs:
             --runtime-path-allowed "${{ inputs.runtime_path_allowed }}" \
             --runtime-path-fallback-blocker "${{ inputs.runtime_path_fallback_blocker }}" \
             --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
+            --wsp-job-id "${{ steps.submit.outputs.wsp_job_id }}" \
+            --sr-ready-job-id "${{ steps.submit.outputs.sr_job_id }}" \
             --wsp-ref "${{ inputs.wsp_ref }}" \
             --sr-ready-ref "${{ inputs.sr_ready_ref }}" \
+            --lane-window-start-utc "${{ steps.submit.outputs.lane_window_start_utc }}" \
             --ig-idempotency-table "${{ inputs.ig_idempotency_table }}" \
             --lag-threshold "${{ inputs.lag_threshold }}" \
             --evidence-bucket "${{ inputs.evidence_bucket }}" \

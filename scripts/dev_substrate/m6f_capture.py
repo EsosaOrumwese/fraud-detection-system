@@ -13,7 +13,7 @@ import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
 
-ACTIVE_JOB_STATES = {"SUBMITTED", "PENDING", "RUNNING"}
+ACTIVE_JOB_STATES = {"RUNNING"}
 
 
 def _now_utc() -> str:
@@ -25,26 +25,93 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
 
 
-def _list_job_runs(emr_client: Any, virtual_cluster_id: str) -> list[dict[str, Any]]:
-    runs: list[dict[str, Any]] = []
-    token: str | None = None
-    while True:
-        request: dict[str, Any] = {"virtualClusterId": virtual_cluster_id, "maxResults": 50}
-        if token:
-            request["nextToken"] = token
-        response = emr_client.list_job_runs(**request)
-        runs.extend(response.get("jobRuns", []))
-        token = response.get("nextToken")
-        if not token:
-            return runs
+def _parse_utc_to_epoch(value: str) -> int:
+    normalized = value.strip().replace("Z", "+00:00")
+    parsed = datetime.fromisoformat(normalized)
+    return int(parsed.timestamp())
 
 
-def _scan_count(ddb_client: Any, table_name: str) -> tuple[int | None, str | None]:
+def _describe_job_run_state(
+    emr_client: Any,
+    *,
+    virtual_cluster_id: str,
+    job_id: str,
+) -> tuple[str | None, str | None]:
     try:
-        response = ddb_client.scan(TableName=table_name, Select="COUNT")
-        return int(response.get("Count", 0)), None
+        response = emr_client.describe_job_run(
+            virtualClusterId=virtual_cluster_id,
+            id=job_id,
+        )
     except (BotoCoreError, ClientError) as exc:
-        return None, f"dynamodb_scan_failed:{type(exc).__name__}"
+        return None, f"emr_describe_job_run_failed:{type(exc).__name__}"
+    job = response.get("jobRun") if isinstance(response, dict) else None
+    if not isinstance(job, dict):
+        return None, "emr_describe_job_run_missing_jobRun"
+    state = str(job.get("state", "")).strip()
+    if not state:
+        return None, "emr_describe_job_run_missing_state"
+    return state, None
+
+
+def _scan_run_window_metrics(
+    ddb_client: Any,
+    *,
+    table_name: str,
+    platform_run_id: str,
+    lane_window_start_epoch: int,
+    page_limit: int,
+    page_size: int,
+) -> tuple[int | None, int | None, int, str | None]:
+    token: dict[str, Any] | None = None
+    pages_scanned = 0
+    run_window_count = 0
+    latest_admitted_epoch: int | None = None
+    try:
+        while True:
+            request: dict[str, Any] = {
+                "TableName": table_name,
+                "ProjectionExpression": "#pr, #ae",
+                "ExpressionAttributeNames": {
+                    "#pr": "platform_run_id",
+                    "#ae": "admitted_at_epoch",
+                },
+                "ExpressionAttributeValues": {
+                    ":pr": {"S": platform_run_id},
+                    ":window_start": {"N": str(lane_window_start_epoch)},
+                },
+                "FilterExpression": "#pr = :pr AND #ae >= :window_start",
+                "Limit": max(1, page_size),
+            }
+            if token:
+                request["ExclusiveStartKey"] = token
+            response = ddb_client.scan(**request)
+            pages_scanned += 1
+            for item in response.get("Items", []):
+                if not isinstance(item, dict):
+                    continue
+                admitted_attr = item.get("admitted_at_epoch")
+                admitted_raw = (
+                    str(admitted_attr.get("N", "")).strip()
+                    if isinstance(admitted_attr, dict)
+                    else ""
+                )
+                try:
+                    admitted_epoch = int(admitted_raw)
+                except ValueError:
+                    continue
+                run_window_count += 1
+                if latest_admitted_epoch is None or admitted_epoch > latest_admitted_epoch:
+                    latest_admitted_epoch = admitted_epoch
+
+            token = response.get("LastEvaluatedKey")
+            if not token:
+                break
+            if pages_scanned >= max(1, page_limit):
+                return run_window_count, latest_admitted_epoch, pages_scanned, "dynamodb_scan_page_limit_reached"
+
+        return run_window_count, latest_admitted_epoch, pages_scanned, None
+    except (BotoCoreError, ClientError) as exc:
+        return None, None, pages_scanned, f"dynamodb_scan_failed:{type(exc).__name__}"
 
 
 def _scan_publish_ambiguity(
@@ -104,9 +171,14 @@ def main() -> int:
     parser.add_argument("--runtime-path-allowed", default="MSF_MANAGED|EKS_EMR_ON_EKS|EKS_FLINK_OPERATOR")
     parser.add_argument("--runtime-path-fallback-blocker", default="M6P6-B2")
     parser.add_argument("--virtual-cluster-id", required=True)
+    parser.add_argument("--wsp-job-id", required=True)
+    parser.add_argument("--sr-ready-job-id", required=True)
     parser.add_argument("--wsp-ref", required=True)
     parser.add_argument("--sr-ready-ref", required=True)
+    parser.add_argument("--lane-window-start-utc", required=True)
     parser.add_argument("--ig-idempotency-table", required=True)
+    parser.add_argument("--ddb-scan-page-limit", type=int, default=200)
+    parser.add_argument("--ddb-scan-page-size", type=int, default=200)
     parser.add_argument("--lag-threshold", type=int, default=10)
     parser.add_argument("--evidence-bucket", required=True)
     parser.add_argument("--local-output-root", default="runs/dev_substrate/dev_full/m6")
@@ -120,21 +192,33 @@ def main() -> int:
     ddb = boto3.client("dynamodb", region_name=args.region)
     s3 = boto3.client("s3", region_name=args.region)
 
-    emr_list_error: str | None = None
-    job_runs: list[dict[str, Any]] = []
-    try:
-        job_runs = _list_job_runs(emr, args.virtual_cluster_id)
-    except (BotoCoreError, ClientError) as exc:
-        emr_list_error = f"emr_list_job_runs_failed:{type(exc).__name__}"
+    lane_window_start_epoch = _parse_utc_to_epoch(args.lane_window_start_utc)
+    wsp_state, wsp_state_error = _describe_job_run_state(
+        emr,
+        virtual_cluster_id=args.virtual_cluster_id,
+        job_id=args.wsp_job_id,
+    )
+    sr_state, sr_state_error = _describe_job_run_state(
+        emr,
+        virtual_cluster_id=args.virtual_cluster_id,
+        job_id=args.sr_ready_job_id,
+    )
+    wsp_state_upper = str(wsp_state or "").upper()
+    sr_state_upper = str(sr_state or "").upper()
+    wsp_active_count = 1 if wsp_state_upper in ACTIVE_JOB_STATES else 0
+    sr_active_count = 1 if sr_state_upper in ACTIVE_JOB_STATES else 0
 
-    wsp_runs = [run for run in job_runs if str(run.get("name", "")) == args.wsp_ref]
-    sr_runs = [run for run in job_runs if str(run.get("name", "")) == args.sr_ready_ref]
-    wsp_active_count = sum(1 for run in wsp_runs if str(run.get("state", "")).upper() in ACTIVE_JOB_STATES)
-    sr_active_count = sum(1 for run in sr_runs if str(run.get("state", "")).upper() in ACTIVE_JOB_STATES)
-
-    idempotency_count, idempotency_error = _scan_count(ddb, args.ig_idempotency_table)
+    idempotency_count, latest_admitted_epoch, ddb_pages_scanned, idempotency_error = _scan_run_window_metrics(
+        ddb,
+        table_name=args.ig_idempotency_table,
+        platform_run_id=args.platform_run_id,
+        lane_window_start_epoch=lane_window_start_epoch,
+        page_limit=args.ddb_scan_page_limit,
+        page_size=args.ddb_scan_page_size,
+    )
     if idempotency_count is None:
         idempotency_count = 0
+    now_epoch = int(datetime.now(timezone.utc).timestamp())
 
     ambiguity_count, ambiguity_refs, ambiguity_error = _scan_publish_ambiguity(
         s3,
@@ -145,15 +229,15 @@ def main() -> int:
     lag_measured: int | None
     lag_source: str
     lag_within: bool
-    if wsp_active_count > 0 and sr_active_count > 0:
-        # Lane-contract proxy: when both stream refs are active for this run,
-        # treat the capture-window lag as bounded (no unresolved backlog signal).
-        lag_measured = 0
-        lag_source = "active_stream_refs_window_proxy"
+    if idempotency_count > 0 and latest_admitted_epoch is not None:
+        lag_measured = max(0, now_epoch - latest_admitted_epoch)
+        lag_source = "ig_admission_freshness_seconds"
         lag_within = lag_measured <= args.lag_threshold
     else:
         lag_measured = None
-        lag_source = "unavailable_without_active_stream_consumption"
+        lag_source = (
+            "unavailable_ddb_scan_error" if idempotency_error else "unavailable_no_run_window_admissions"
+        )
         lag_within = False
 
     runtime_path_selection = {
@@ -177,16 +261,24 @@ def main() -> int:
         "upstream_m6e_execution": args.upstream_m6e_execution,
         "runtime_path": args.runtime_path,
         "virtual_cluster_id": args.virtual_cluster_id,
-        "emr_list_job_runs_error": emr_list_error,
-        "emr_job_run_count": len(job_runs),
+        "wsp_job_id": args.wsp_job_id,
+        "sr_ready_job_id": args.sr_ready_job_id,
         "wsp_ref": args.wsp_ref,
         "sr_ready_ref": args.sr_ready_ref,
-        "wsp_job_count": len(wsp_runs),
-        "sr_ready_job_count": len(sr_runs),
+        "wsp_state": wsp_state,
+        "wsp_state_error": wsp_state_error,
+        "sr_ready_state": sr_state,
+        "sr_ready_state_error": sr_state_error,
         "wsp_active_count": wsp_active_count,
         "sr_ready_active_count": sr_active_count,
+        "lane_window_start_utc": args.lane_window_start_utc,
+        "lane_window_start_epoch": lane_window_start_epoch,
+        "observation_epoch": now_epoch,
         "ig_idempotency_count": idempotency_count,
         "ig_idempotency_count_error": idempotency_error,
+        "ig_idempotency_scan_pages": ddb_pages_scanned,
+        "ig_idempotency_latest_admitted_epoch": latest_admitted_epoch,
+        "ig_idempotency_scope": "platform_run_id + admitted_at_epoch>=lane_window_start_epoch",
     }
 
     lag_snapshot = {
@@ -219,8 +311,8 @@ def main() -> int:
             {
                 "code": "M6P6-B2",
                 "message": (
-                    f"Required Flink lane refs are not active in VC {args.virtual_cluster_id}: "
-                    f"wsp_active={wsp_active_count}, sr_ready_active={sr_active_count}"
+                    f"Required lane refs are not RUNNING in VC {args.virtual_cluster_id}: "
+                    f"wsp_state={wsp_state or 'unknown'}, sr_ready_state={sr_state or 'unknown'}"
                 ),
             }
         )
@@ -228,7 +320,10 @@ def main() -> int:
         blockers.append(
             {
                 "code": "M6P6-B3",
-                "message": "Streaming counters do not show active flow (IG idempotency count is zero).",
+                "message": (
+                    "Run-window admission progression is zero "
+                    f"(platform_run_id={args.platform_run_id}, lane_window_start_epoch={lane_window_start_epoch})."
+                ),
             }
         )
     if not lag_within:

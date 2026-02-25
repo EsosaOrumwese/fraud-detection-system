@@ -8634,3 +8634,81 @@ ext_gate=M6.G_READY.
 1. Implement scripts/dev_substrate/m6g_rollup.py for deterministic P6 adjudication.
 2. Extend existing workflow .github/workflows/dev_full_m6f_streaming_active.yml with phase_mode and M6.G execution path so dispatch works on migrate-dev under existing default-branch workflow id.
 3. Execute remote phase_mode=m6g run, then update M6 plan/doc surfaces with closure receipts only if blocker-free.
+
+## Entry: 2026-02-25 15:52:04 +00:00 - M6.G / P6.C executed remotely and closed green (`ADVANCE_TO_P7`)
+
+### Remote execution receipts
+1. Added deterministic rollup script `scripts/dev_substrate/m6g_rollup.py` to adjudicate `P6` from authoritative `M6.E + M6.F` artifacts.
+2. Extended existing dispatchable workflow id `.github/workflows/dev_full_m6f_streaming_active.yml` with mode routing:
+   - `phase_mode=m6f` -> existing M6.F lane,
+   - `phase_mode=m6g` -> new M6.G rollup lane.
+3. Dispatched remote run on active branch `migrate-dev` with:
+   - `phase_mode=m6g`,
+   - `upstream_m6e_execution=m6e_p6a_stream_entry_20260225T120522Z`,
+   - `upstream_m6f_execution=m6f_p6b_streaming_active_20260225T152755Z`.
+4. Workflow run receipt:
+   - run id: `22404445249`,
+   - job `Run M6.G P6 gate rollup remotely (GitHub Actions)` passed,
+   - M6.F job path was skipped by mode-gate as intended.
+
+### Produced M6.G artifacts (authoritative)
+1. execution id: `m6g_p6c_gate_rollup_20260225T155035Z`.
+2. artifacts:
+   - `m6g_p6_gate_rollup_matrix.json`,
+   - `m6g_p6_blocker_register.json`,
+   - `m6g_p6_gate_verdict.json`,
+   - `m6g_execution_summary.json`.
+3. adjudication outcome:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_P7`,
+   - `next_gate=M6.H_READY`.
+4. durable evidence prefix:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T155035Z/`.
+
+### Design and gate integrity
+1. No-local-compute authority preserved for closure execution (GitHub Actions + OIDC only).
+2. Fail-closed verdict gate enforces:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_P7`,
+   - `next_gate=M6.H_READY`.
+3. P6->P7 transition is now unblocked by authoritative M6.G verdict.
+
+## Entry: 2026-02-25 16:11:35 +00:00 - M6.F semantic-remediation lock (run-scoped counters + strict active-state + measured lag)
+
+### Problem
+1. Prior M6.F closure semantics were permissive and could false-pass:
+   - active-state accepted SUBMITTED/PENDING,
+   - B3 used table-total idempotency count,
+   - lag used active-ref proxy (measured_lag=0) rather than measured runtime signal,
+   - worker IG probe capability existed but M6 submit lane did not wire IG args.
+2. This leaves P6.B vulnerable to stale-history pass and weak runtime truth.
+
+### Decision (pinned for immediate remediation)
+1. Tighten active-state semantics to RUNNING-only for WSP/SR lane refs.
+2. Replace table-total B3 metric with run-window count keyed by (platform_run_id, dmitted_at_epoch >= lane_window_start_epoch).
+3. Replace proxy lag with measured freshness lag (
+ow_epoch - latest_admitted_at_epoch) from run-window admissions.
+4. Wire IG probe args through the EMR submit lane and resolve IG API key from SSM in workflow.
+5. Add explicit job-state gating in workflow (wait for both lane refs to reach RUNNING before capture).
+
+### Edit scope
+1. scripts/dev_substrate/m6_stream_ref_worker.py
+2. scripts/dev_substrate/m6_submit_emr_refs.py
+3. scripts/dev_substrate/m6f_capture.py
+4. .github/workflows/dev_full_m6f_streaming_active.yml
+
+### Verification plan
+1. Static verification:
+   - python compile checks for modified scripts,
+   - workflow grep confirms new args and RUNNING wait lane.
+2. Runtime verification:
+   - dispatch patched M6.F remote run on migrate-dev,
+   - require new artifacts show:
+     - RUNNING-based active counters,
+     - run-window idempotency scope fields,
+     - measured lag source != legacy proxy.
+3. Closure updates:
+   - update M6 and P6 build plans with new semantics and fresh run receipts,
+   - append logbook action with blocker/decision trail.

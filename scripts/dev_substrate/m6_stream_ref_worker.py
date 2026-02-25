@@ -15,10 +15,22 @@ import urllib.error
 import urllib.request
 
 
-def _post_ingest(*, ig_base_url: str, api_key: str, payload: dict) -> tuple[int, str]:
+def _normalize_ingest_url(*, ig_base_url: str, ig_ingest_path: str) -> str:
+    base = ig_base_url.rstrip("/")
+    path = ig_ingest_path if ig_ingest_path.startswith("/") else f"/{ig_ingest_path}"
+    return f"{base}{path}"
+
+
+def _post_ingest(
+    *,
+    ig_base_url: str,
+    ig_ingest_path: str,
+    api_key: str,
+    payload: dict,
+) -> tuple[int, str]:
     body = json.dumps(payload, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
     req = urllib.request.Request(
-        f"{ig_base_url.rstrip('/')}/v1/ingest/push",
+        _normalize_ingest_url(ig_base_url=ig_base_url, ig_ingest_path=ig_ingest_path),
         data=body,
         method="POST",
         headers={
@@ -44,6 +56,7 @@ def main() -> int:
     parser.add_argument("--iterations", type=int, default=600)
     parser.add_argument("--sleep-seconds", type=float, default=1.0)
     parser.add_argument("--ig-base-url", default="")
+    parser.add_argument("--ig-ingest-path", default="/ingest/push")
     parser.add_argument("--ig-api-key", default="")
     args = parser.parse_args()
 
@@ -65,6 +78,7 @@ def main() -> int:
             }
             status, _ = _post_ingest(
                 ig_base_url=args.ig_base_url,
+                ig_ingest_path=args.ig_ingest_path,
                 api_key=args.ig_api_key,
                 payload=payload,
             )
