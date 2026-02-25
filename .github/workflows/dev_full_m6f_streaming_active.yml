@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       phase_mode:
-        description: "Execution mode: m6f (streaming-active lane), m6g (P6 rollup), m6h (P7 ingest-commit), m6i (P7 rollup), m6j (M6 closure sync), m7a (M7 handle closure), m7b (P8.A entry precheck), m7c (P8.B IEG), m7d (P8.C OFP), or m7e (P8.D ArchiveWriter)"
+        description: "Execution mode: m6f (streaming-active lane), m6g (P6 rollup), m6h (P7 ingest-commit), m6i (P7 rollup), m6j (M6 closure sync), m7a (M7 handle closure), m7b (P8.A entry precheck), m7c (P8.B IEG), m7d (P8.C OFP), m7e (P8.D ArchiveWriter), or m7f (P8.E rollup)"
         required: true
         default: "m6f"
         type: string
@@ -2372,4 +2372,379 @@ jobs:
         with:
           name: p8-component-${{ inputs.phase_mode }}-${{ steps.run_meta_7cde.outputs.timestamp }}
           path: ${{ steps.run_meta_7cde.outputs.run_dir }}
+          if-no-files-found: warn
+
+  run_m7f_remote:
+    name: Run M7.P8.E rollup remotely (GitHub Actions)
+    if: ${{ inputs.phase_mode == 'm7f' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Validate mode-specific inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ inputs.upstream_m6d_execution }}" ]]; then
+            echo "M7.P8.E fail-closed: upstream_m6d_execution (P8.B execution id) is required."
+            exit 1
+          fi
+          if [[ -z "${{ inputs.upstream_m6g_execution }}" ]]; then
+            echo "M7.P8.E fail-closed: upstream_m6g_execution (P8.C execution id) is required."
+            exit 1
+          fi
+          if [[ -z "${{ inputs.upstream_m6h_execution }}" ]]; then
+            echo "M7.P8.E fail-closed: upstream_m6h_execution (P8.D execution id) is required."
+            exit 1
+          fi
+
+      - name: Compute execution metadata
+        id: run_meta_7f
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m6_execution_id }}" ]]; then
+            EXEC_ID="${{ inputs.m6_execution_id }}"
+          else
+            EXEC_ID="m7f_p8e_rollup_${TS}"
+          fi
+          RUN_DIR="runs/dev_substrate/dev_full/m7/${EXEC_ID}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m7_execution_id=${EXEC_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Build P8.E rollup artifacts
+        shell: bash
+        env:
+          EXECUTION_ID: ${{ steps.run_meta_7f.outputs.m7_execution_id }}
+          RUN_DIR: ${{ steps.run_meta_7f.outputs.run_dir }}
+          PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          REGION: ${{ inputs.aws_region }}
+          UPSTREAM_P8B_EXECUTION: ${{ inputs.upstream_m6d_execution }}
+          UPSTREAM_P8C_EXECUTION: ${{ inputs.upstream_m6g_execution }}
+          UPSTREAM_P8D_EXECUTION: ${{ inputs.upstream_m6h_execution }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          import boto3
+          from botocore.exceptions import BotoCoreError, ClientError
+
+          def now_utc():
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          def write_json(path: Path, payload: dict):
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          def s3_get_json(s3_client, bucket: str, key: str):
+              try:
+                  obj = s3_client.get_object(Bucket=bucket, Key=key)
+                  return json.loads(obj["Body"].read().decode("utf-8")), None
+              except (BotoCoreError, ClientError) as exc:
+                  return None, f"s3_read_failed:{type(exc).__name__}:{key}"
+              except json.JSONDecodeError:
+                  return None, f"json_decode_failed:{key}"
+
+          def s3_head(s3_client, bucket: str, key: str):
+              try:
+                  s3_client.head_object(Bucket=bucket, Key=key)
+                  return True, None
+              except (BotoCoreError, ClientError) as exc:
+                  return False, f"s3_head_failed:{type(exc).__name__}:{key}"
+
+          def s3_put_json(s3_client, bucket: str, key: str, payload: dict):
+              try:
+                  s3_client.put_object(
+                      Bucket=bucket,
+                      Key=key,
+                      Body=(json.dumps(payload, indent=2, ensure_ascii=True) + "\n").encode("utf-8"),
+                      ContentType="application/json",
+                  )
+                  s3_client.head_object(Bucket=bucket, Key=key)
+                  return None
+              except (BotoCoreError, ClientError) as exc:
+                  return f"s3_put_or_head_failed:{type(exc).__name__}:{key}"
+
+          execution_id = os.environ["EXECUTION_ID"]
+          run_dir = Path(os.environ["RUN_DIR"])
+          platform_run_id = os.environ["PLATFORM_RUN_ID"]
+          scenario_run_id = os.environ["SCENARIO_RUN_ID"]
+          evidence_bucket = os.environ["EVIDENCE_BUCKET"]
+          region = os.environ["REGION"]
+          captured_at = now_utc()
+
+          upstream_map = {
+              "P8.B": {
+                  "execution_id": os.environ["UPSTREAM_P8B_EXECUTION"],
+                  "summary_key": "p8b_ieg_execution_summary.json",
+                  "blocker_key": "p8b_ieg_blocker_register.json",
+                  "expected_gate": "M7.D_READY",
+              },
+              "P8.C": {
+                  "execution_id": os.environ["UPSTREAM_P8C_EXECUTION"],
+                  "summary_key": "p8c_ofp_execution_summary.json",
+                  "blocker_key": "p8c_ofp_blocker_register.json",
+                  "expected_gate": "M7.E_READY",
+              },
+              "P8.D": {
+                  "execution_id": os.environ["UPSTREAM_P8D_EXECUTION"],
+                  "summary_key": "p8d_archive_writer_execution_summary.json",
+                  "blocker_key": "p8d_archive_writer_blocker_register.json",
+                  "expected_gate": "P8.E_READY",
+              },
+          }
+
+          s3 = boto3.client("s3", region_name=region)
+
+          blockers = []
+          read_errors = []
+          rollup_rows = []
+
+          for phase_name, cfg in upstream_map.items():
+              summary_s3_key = f"evidence/dev_full/run_control/{cfg['execution_id']}/{cfg['summary_key']}"
+              blocker_s3_key = f"evidence/dev_full/run_control/{cfg['execution_id']}/{cfg['blocker_key']}"
+              summary, err_s = s3_get_json(s3, evidence_bucket, summary_s3_key)
+              blocker_reg, err_b = s3_get_json(s3, evidence_bucket, blocker_s3_key)
+              if err_s:
+                  read_errors.append(err_s)
+              if err_b:
+                  read_errors.append(err_b)
+
+              summary_ok = False
+              blocker_ok = False
+              if summary is not None:
+                  summary_ok = bool(summary.get("overall_pass")) and str(summary.get("next_gate", "")).strip() == cfg["expected_gate"]
+              if blocker_reg is not None:
+                  blocker_ok = int(blocker_reg.get("blocker_count", 0)) == 0
+
+              if not summary_ok or not blocker_ok:
+                  blockers.append({
+                      "code": "M7P8-B5",
+                      "message": f"{phase_name} upstream posture invalid for P8 rollup.",
+                  })
+
+              rollup_rows.append({
+                  "phase": phase_name,
+                  "execution_id": cfg["execution_id"],
+                  "summary_s3_key": summary_s3_key,
+                  "blocker_s3_key": blocker_s3_key,
+                  "summary_ok": summary_ok,
+                  "blocker_ok": blocker_ok,
+                  "expected_next_gate": cfg["expected_gate"],
+              })
+
+          registry_text = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md").read_text(encoding="utf-8")
+          matches = re.findall(r"\* `([A-Z0-9_]+)\s*=\s*\"([^\"]*)\"", registry_text)
+          handles = {k: v for k, v in matches}
+          rtdl_pattern = str(handles.get("RTDL_CORE_EVIDENCE_PATH_PATTERN", "evidence/runs/{platform_run_id}/rtdl_core/")).strip()
+          rtdl_prefix = rtdl_pattern.replace("{platform_run_id}", platform_run_id)
+          if not rtdl_prefix.endswith("/"):
+              rtdl_prefix = rtdl_prefix + "/"
+
+          proof_expectations = [
+              "ieg_component_proof.json",
+              "ofp_component_proof.json",
+              "archive_component_proof.json",
+          ]
+          proof_rows = []
+          for proof in proof_expectations:
+              key = f"{rtdl_prefix}{proof}"
+              exists, err = s3_head(s3, evidence_bucket, key)
+              if err:
+                  read_errors.append(err)
+              if not exists:
+                  blockers.append({
+                      "code": "M7P8-B5",
+                      "message": f"Missing RTDL proof artifact for rollup: {proof}.",
+                  })
+              proof_rows.append({"proof_key": key, "exists": exists})
+
+          blockers_unique = []
+          seen = set()
+          for b in blockers:
+              code = b.get("code")
+              msg = b.get("message", "")
+              token = f"{code}|{msg}"
+              if token in seen:
+                  continue
+              seen.add(token)
+              blockers_unique.append({"code": code, "message": msg})
+
+          overall_pass = len(blockers_unique) == 0
+          phase_verdict = "ADVANCE_TO_P9" if overall_pass else "HOLD_REMEDIATE"
+          next_gate = "M7.F_READY" if overall_pass else "HOLD_REMEDIATE"
+
+          rollup_matrix = {
+              "captured_at_utc": captured_at,
+              "phase": "P8.E",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "upstream_rows": rollup_rows,
+              "proof_rows": proof_rows,
+              "overall_pass": overall_pass,
+          }
+          blocker_register = {
+              "captured_at_utc": captured_at,
+              "phase": "P8.E",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "blocker_count": len(blockers_unique),
+              "blockers": blockers_unique,
+              "read_errors": read_errors,
+          }
+          gate_verdict = {
+              "captured_at_utc": captured_at,
+              "phase": "P8.E",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "phase_verdict": phase_verdict,
+              "overall_pass": overall_pass,
+              "next_gate": next_gate,
+          }
+          summary = {
+              "captured_at_utc": captured_at,
+              "phase": "P8.E",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "phase_verdict": phase_verdict,
+              "blocker_count": len(blockers_unique),
+              "next_gate": next_gate,
+          }
+
+          artifacts = {
+              "p8e_rtdl_gate_rollup_matrix.json": rollup_matrix,
+              "p8e_rtdl_blocker_register.json": blocker_register,
+              "p8e_rtdl_gate_verdict.json": gate_verdict,
+              "p8e_execution_summary.json": summary,
+          }
+
+          run_dir.mkdir(parents=True, exist_ok=True)
+          for name, payload in artifacts.items():
+              write_json(run_dir / name, payload)
+
+          prefix = f"evidence/dev_full/run_control/{execution_id}"
+          upload_errors = []
+          for name, payload in artifacts.items():
+              err = s3_put_json(s3, evidence_bucket, f"{prefix}/{name}", payload)
+              if err:
+                  upload_errors.append(err)
+
+          if upload_errors:
+              blocker_register["blockers"].append({
+                  "code": "M7-B15",
+                  "message": "Failed to publish/readback P8.E artifact set to durable run-control prefix.",
+              })
+              blocker_register["blocker_count"] = len(blocker_register["blockers"])
+              blocker_register["upload_errors"] = upload_errors
+              summary["overall_pass"] = False
+              summary["phase_verdict"] = "HOLD_REMEDIATE"
+              summary["blocker_count"] = blocker_register["blocker_count"]
+              summary["next_gate"] = "HOLD_REMEDIATE"
+              gate_verdict["overall_pass"] = False
+              gate_verdict["phase_verdict"] = "HOLD_REMEDIATE"
+              gate_verdict["next_gate"] = "HOLD_REMEDIATE"
+              write_json(run_dir / "p8e_rtdl_blocker_register.json", blocker_register)
+              write_json(run_dir / "p8e_rtdl_gate_verdict.json", gate_verdict)
+              write_json(run_dir / "p8e_execution_summary.json", summary)
+
+          print(json.dumps(
+              {
+                  "execution_id": execution_id,
+                  "overall_pass": summary["overall_pass"],
+                  "phase_verdict": summary["phase_verdict"],
+                  "blocker_count": summary["blocker_count"],
+                  "next_gate": summary["next_gate"],
+                  "run_dir": str(run_dir),
+                  "run_control_prefix": f"s3://{evidence_bucket}/{prefix}/",
+              },
+              ensure_ascii=True,
+          ))
+          PY
+
+      - name: Fail-closed verdict gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUMMARY_PATH="${{ steps.run_meta_7f.outputs.run_dir }}/p8e_execution_summary.json"
+          BLOCKER_PATH="${{ steps.run_meta_7f.outputs.run_dir }}/p8e_rtdl_blocker_register.json"
+          export SUMMARY_PATH BLOCKER_PATH
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          summary = json.loads(Path(os.environ["SUMMARY_PATH"]).read_text(encoding="utf-8"))
+          blockers = json.loads(Path(os.environ["BLOCKER_PATH"]).read_text(encoding="utf-8"))
+          overall_pass = bool(summary.get("overall_pass"))
+          blocker_count = int(blockers.get("blocker_count", 0))
+          phase_verdict = str(summary.get("phase_verdict", "")).strip()
+          next_gate = str(summary.get("next_gate", "")).strip()
+
+          print(json.dumps(
+              {
+                  "overall_pass": overall_pass,
+                  "phase_verdict": phase_verdict,
+                  "blocker_count": blocker_count,
+                  "execution_id": summary.get("execution_id"),
+                  "next_gate": next_gate,
+              },
+              ensure_ascii=True,
+          ))
+          if (not overall_pass) or blocker_count != 0:
+              sys.exit(1)
+          if phase_verdict != "ADVANCE_TO_P9":
+              sys.exit(1)
+          if next_gate != "M7.F_READY":
+              sys.exit(1)
+          PY
+
+      - name: Upload P8.E rollup artifact set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p8-rollup-m7f-${{ steps.run_meta_7f.outputs.timestamp }}
+          path: ${{ steps.run_meta_7f.outputs.run_dir }}
           if-no-files-found: warn
