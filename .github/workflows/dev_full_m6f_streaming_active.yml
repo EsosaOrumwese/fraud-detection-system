@@ -54,16 +54,6 @@ on:
         required: true
         default: "3cfszbpz28ixf1wmmd2roj571"
         type: string
-      emr_execution_role_arn:
-        description: "EMR execution role ARN"
-        required: true
-        default: "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution"
-        type: string
-      emr_release_label:
-        description: "EMR release label"
-        required: true
-        default: "emr-6.15.0-latest"
-        type: string
       artifacts_bucket:
         description: "S3 bucket for lane worker script artifact"
         required: true
@@ -374,8 +364,8 @@ jobs:
             python scripts/dev_substrate/m6_submit_emr_refs.py \
               --region "${{ inputs.aws_region }}" \
               --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
-              --execution-role-arn "${{ inputs.emr_execution_role_arn }}" \
-              --release-label "${{ inputs.emr_release_label }}" \
+              --execution-role-arn "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution" \
+              --release-label "emr-6.15.0-latest" \
               --script-s3-uri "${{ steps.run_meta.outputs.worker_s3_uri }}" \
               --platform-run-id "${{ inputs.platform_run_id }}" \
               --scenario-run-id "${{ inputs.scenario_run_id }}" \
