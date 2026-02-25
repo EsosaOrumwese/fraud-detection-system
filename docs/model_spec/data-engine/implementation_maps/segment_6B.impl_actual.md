@@ -3011,3 +3011,137 @@ Alternatives considered at closure:
 - deferred: viable, but should be explicitly approved as separate lane because it changes dependency posture and blast radius.
 3) proceed directly to `P2` owner lane while preserving current P1 gains.
 - preferred next step if user confirms, since `T21` cannot close without `S2` branch activation.
+
+---
+
+### Entry: 2026-02-25 20:02
+
+P1.R2 planning lock: high-blast S4 redesign lane for `T5` closure.
+
+Why this lane is needed:
+- bounded P1.R1 retunes closed `T2/T6/T7` but saturated on `T5` (`0.027398 < 0.05`).
+- root issue is not only detection calibration; it is insufficient class-conditioned **outcome-mix** differentiation in `bank_view_outcome`.
+- continuing coefficient escalation inside the same proxy-only strategy risks regressions on already closed rails.
+
+Redesign intent (high-blast within P1 owner boundaries):
+1) Replace proxy-primary class conditioning with explicit merchant-class ingestion in S4.
+- use deterministic join keyed by `merchant_id` from authority merchant class surface.
+- keep schema contracts unchanged; class signal is internal to S4 decision engine, not emitted as new output column.
+
+2) Redesign bank-view transition kernel.
+- move from mostly fraud/no-fraud separation toward class-conditioned outcome transitions:
+  - `BANK_CONFIRMED_FRAUD`,
+  - `CUSTOMER_DISPUTE_REJECTED`,
+  - `CHARGEBACK_WRITTEN_OFF`,
+  - `BANK_CONFIRMED_LEGIT` / `NO_CASE_OPENED`.
+- include bounded amount-band multipliers to avoid flat class behavior and preserve realistic tails.
+
+3) Keep deterministic + performance posture explicit.
+- deterministic RNG-family mapping and bounded clips remain mandatory.
+- runtime rails remain strict (`S4<=420s`, `S5<=30s`), with fail-closed veto on overshoot.
+
+Pinned non-regression rails for this redesign:
+- must preserve closure on `T2,T6,T7` and previously closed rails `T1,T3,T4,T8,T9,T10,T22`.
+- no threshold waivers; scorer semantics remain unchanged.
+
+Execution structure pinned in build plan:
+- `P1.R2.0` design pin + blast controls,
+- `P1.R2.1` class-surface integration redesign,
+- `P1.R2.2` outcome-mix transition redesign,
+- `P1.R2.3` guardrail witness scoring,
+- `P1.R2.4` closure decision and owner handoff.
+
+Alternatives considered and rejected for this planning step:
+1) proceed to `P2` immediately and leave `T5` unresolved.
+- rejected for now because `T5` is still an S4-owned critical blocker; lane requested by user is explicit high-blast P1 reopen.
+2) keep proxy-only mod-bucket strategy and continue tuning.
+- rejected due saturation evidence after four reopen witnesses.
+3) threshold relaxation for `T5`.
+- rejected by realism/fail-closed law.
+
+---
+
+### Entry: 2026-02-25 20:12
+
+P1.R2.0 execution start (high-blast S4 redesign for `T5`).
+
+Concrete implementation plan before code:
+1) Add explicit merchant-class ingestion lane in S4.
+- Build a deterministic resolver that searches for `merchant_class_profile` by current `parameter_hash` + `manifest_fingerprint` across:
+  - current run root,
+  - configured external roots,
+  - repo-local `runs/local_full_run-*` fallbacks.
+- Materialize a unique `(merchant_id, primary_demand_class)` map once per run, not per batch.
+- Join this map into each S4 flow batch (`primary_demand_class`, fallback `__UNK__`).
+
+2) Replace proxy-primary class conditioning with class-conditioned multipliers.
+- Keep existing subtype probability maps as baseline.
+- Apply class-conditioned multipliers for:
+  - detect,
+  - dispute,
+  - chargeback,
+  - legit false-positive confirmation.
+- Keep multipliers policy-overridable via permissive `bank_view_policy_6B` model objects (`detection_model/dispute_model/chargeback_model`) so tuning remains auditable.
+
+3) Preserve deterministic + performance rails.
+- all transforms remain vectorized Polars expressions.
+- no per-row Python loops.
+- no output schema changes.
+- runtime gates pinned: `S4<=420s`, `S5<=30s`.
+
+4) Candidate witness strategy (P1.R2.3).
+- run fresh staged `S4 -> S5` witness from current authority (`e9de...`),
+- score with pinned external merchant-class + arrival sources,
+- compare `T5` plus non-regression rail set (`T2,T6,T7,T1,T3,T4,T8,T9,T10,T22`).
+
+Alternatives rejected at execution start:
+- continue bucket-proxy-only calibration: saturated at `T5=0.027398`.
+- open S2 now first: violates requested lane objective (S4-owned blocker first).
+
+---
+
+### Entry: 2026-02-25 20:22
+
+P1.R2.1 implementation completed: explicit class-surface integration + class-conditioned transition controls.
+
+Code changes applied:
+1) `packages/engine/src/engine/layers/l3/seg_6B/s4_truth_bank_labels/runner.py`
+- Added merchant-class profile ingestion helpers:
+  - `_resolve_merchant_class_profile_files(...)`
+  - `_load_merchant_class_profile_df(...)`
+- Added generic class multiplier helpers:
+  - `_float_map_from_policy(...)`
+  - `_class_multiplier_expr(...)`
+- Added runtime class-conditioning wiring in `run_s4(...)`:
+  - reads `detection_model.class_conditioning` from `bank_view_policy_6B`,
+  - loads class profile once per run using manifest/parameter constrained search,
+  - fail-closed on missing profile when policy sets `fail_on_missing_profile=true`.
+- Integrated `primary_demand_class` into flow batch lane:
+  - deterministic left join by `merchant_id`,
+  - explicit fallback `__UNK__`.
+- Replaced proxy-only scaling with class-conditioned scaling for:
+  - detect probability,
+  - dispute probability,
+  - chargeback probability,
+  - legit false-positive confirmation probability.
+
+2) `config/layer3/6B/bank_view_policy_6B.yaml`
+- Added class-conditioning control block under `detection_model`:
+  - `enabled`, `fail_on_missing_profile`, `merchant_class_globs`.
+- Added class multiplier maps:
+  - `detection_model.p_detect_class_multiplier`,
+  - `detection_model.p_legit_fp_class_multiplier`,
+  - `dispute_model.p_dispute_class_multiplier`,
+  - `chargeback_model.p_chargeback_class_multiplier`.
+
+Why this is high-blast vs P1.R1:
+- P1.R1 relied on merchant-id bucket proxies; this lane uses real class ownership surface from layer 2 (`primary_demand_class`) as primary conditioning signal.
+- outcome probabilities are now class-structured by policy maps, enabling explicit bank-view outcome composition separation needed for `T5`.
+
+Guardrails preserved:
+- deterministic hashing/RNG lanes unchanged,
+- no S4 output schema expansion,
+- vectorized batch path retained (no row loops).
+
+Next step pinned:
+- execute fresh staged witness from `e9de...` and evaluate `T5` plus non-regression rail set.

@@ -1028,6 +1028,47 @@ Execution closure:
 - phase decision:
   - `HOLD_P1_REOPEN` (owner blocker remains `T5`; `T21` remains cross-owner).
 
+#### P1.R2 - High-blast S4 redesign lane (target `T5`)
+Goal:
+- close `T5` (`Cramer's V(bank_view_outcome, merchant_class) >= 0.05`) via S4 design-level changes, not coefficient-only retuning.
+
+Definition of done:
+- [ ] redesign authority pinned:
+  - explicit lane objective limited to `T5` closure with non-regression on `T2,T6,T7,T8,T9,T10,T22`,
+  - no threshold waivers.
+- [ ] external merchant-class surface is explicitly integrated into S4 decisioning path (deterministic join), replacing proxy-only class approximation as primary conditioning source.
+- [ ] bank-view outcome generation is redesigned to class-conditioned outcome-mix transitions (not only class-conditioned fraud detection).
+- [ ] unknown/unmatched class handling is explicit and fail-closed auditable (no silent collapse to homogeneous behavior).
+- [ ] witness matrix (fresh staged run-ids) demonstrates:
+  - `T5 >= 0.05` (`B`),
+  - `T2` stays in `[0.02,0.30]`,
+  - `T6 >= 0.05`,
+  - `T7 >= 0.03`,
+  - no regression on already-closed rails (`T1,T3,T4,T8,T9,T10,T22`).
+- [ ] runtime rails hold or improve with explicit evidence (`S4<=420s`, `S5<=30s`); any breach blocks promotion.
+- [ ] phase decision emitted:
+  - `UNLOCK_P2` when `T5` is closed and only cross-owner residual blockers remain (`T21` via `S2`),
+  - else `HOLD_P1_REOPEN` with redesign blocker register.
+
+Planned subphases:
+- `P1.R2.0` Design pin and blast-radius controls
+  - lock authorities (`bank_view_policy_6B`, `truth_labelling_policy_6B`, contracts, scorer gates),
+  - pin veto rails and rollback trigger,
+  - define deterministic idempotent class-join posture.
+- `P1.R2.1` S4 class-surface integration redesign
+  - add deterministic merchant-class ingestion in S4 (primary class signal),
+  - enforce join coverage metrics and explicit fallback bucket for unmatched merchants,
+  - emit structured lane metrics in S4 logs for auditability.
+- `P1.R2.2` Outcome-mix transition redesign
+  - redesign detect/dispute/chargeback/outcome probabilities as class-conditioned transition matrices with amount-band effects,
+  - normalize probabilities with bounded clips and deterministic RNG-family mapping.
+- `P1.R2.3` Guardrail hardening + witness scoring
+  - execute fresh `S4 -> S5` witness set and score each candidate using pinned external authorities,
+  - apply veto gates on any regression of closed rails or runtime overshoot.
+- `P1.R2.4` Closure decision and owner handoff
+  - if `T5` closes: mark P1 closure for S4-owned blockers and hand off `T21` residual to `P2/S2`,
+  - if `T5` remains open: publish saturation evidence and propose next higher-owner reopen options.
+
 ### P2 - Wave A.2 (`S2` amount/timing activation)
 Goal:
 - activate policy-faithful amount and timing behavior to close `T11-T16`.

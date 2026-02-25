@@ -41,6 +41,15 @@ detection_model:
     - { rule_id: DETECT_FRAUD_ABUSE, when: { truth_label_in: [FRAUD, ABUSE] }, eligible: true }
     - { rule_id: DETECT_LEGIT_RARE_FP, when: { truth_label_in: [LEGIT] }, eligible: true }
 
+  class_conditioning:
+    enabled: true
+    fail_on_missing_profile: true
+    merchant_class_globs:
+      - "data/layer2/5A/merchant_class_profile/**/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/**/*.parquet"
+      - "data/layer2/5A/merchant_class_profile/**/manifest_fingerprint={manifest_fingerprint}/**/*.parquet"
+      - "runs/local_full_run-*/**/data/layer2/5A/merchant_class_profile/**/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/**/*.parquet"
+      - "runs/local_full_run-*/**/data/layer2/5A/merchant_class_profile/**/manifest_fingerprint={manifest_fingerprint}/**/*.parquet"
+
   p_detect_by_truth_subtype:
     NONE: 0.002
     CARD_TESTING: 0.60
@@ -48,6 +57,28 @@ detection_model:
     REFUND_ABUSE: 0.20
     FRIENDLY_FRAUD: 0.10
     MERCHANT_COLLUSION: 0.25
+
+  p_detect_class_multiplier:
+    bills_utilities: 0.85
+    consumer_daytime: 0.70
+    evening_weekend: 1.10
+    fuel_convenience: 1.35
+    office_hours: 1.20
+    online_24h: 2.00
+    online_bursty: 2.80
+    travel_hospitality: 1.70
+    __UNK__: 1.00
+
+  p_legit_fp_class_multiplier:
+    bills_utilities: 0.55
+    consumer_daytime: 0.60
+    evening_weekend: 0.90
+    fuel_convenience: 1.15
+    office_hours: 0.95
+    online_24h: 1.70
+    online_bursty: 2.40
+    travel_hospitality: 1.40
+    __UNK__: 1.00
 
   p_detect_at_auth_given_detect:
     CARD_TESTING: 0.60
@@ -73,6 +104,17 @@ dispute_model:
     FRIENDLY_FRAUD: 0.55
     MERCHANT_COLLUSION: 0.12
 
+  p_dispute_class_multiplier:
+    bills_utilities: 0.75
+    consumer_daytime: 0.70
+    evening_weekend: 1.05
+    fuel_convenience: 1.30
+    office_hours: 1.10
+    online_24h: 1.80
+    online_bursty: 2.30
+    travel_hospitality: 2.40
+    __UNK__: 1.00
+
   delay_model_id_for_dispute: DISPUTE_DELAY_V1
   rng_family: rng_event_dispute_delay
   decision_ids: [dispute_flag, dispute_delay]
@@ -89,6 +131,17 @@ chargeback_model:
     FRIENDLY_FRAUD: 0.40
     MERCHANT_COLLUSION: 0.20
     NONE: 0.05
+
+  p_chargeback_class_multiplier:
+    bills_utilities: 0.70
+    consumer_daytime: 0.65
+    evening_weekend: 1.00
+    fuel_convenience: 1.25
+    office_hours: 1.05
+    online_24h: 1.60
+    online_bursty: 2.10
+    travel_hospitality: 1.85
+    __UNK__: 1.00
 
   pi_chargeback_type:
     default:

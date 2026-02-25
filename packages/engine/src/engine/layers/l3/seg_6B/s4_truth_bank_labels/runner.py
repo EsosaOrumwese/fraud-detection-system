@@ -779,6 +779,147 @@ def _prob_map_from_policy(policy: dict, key: str) -> dict[str, float]:
     return mapping
 
 
+def _float_map_from_policy(raw: object) -> dict[str, float]:
+    result: dict[str, float] = {}
+    if not isinstance(raw, dict):
+        return result
+    for key, value in raw.items():
+        try:
+            result[str(key)] = float(value)
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
+def _class_multiplier_expr(class_col: str, mapping: dict[str, float], default: float = 1.0) -> pl.Expr:
+    if not mapping:
+        return pl.lit(float(default))
+    expr = None
+    for class_name, multiplier in mapping.items():
+        if expr is None:
+            expr = pl.when(pl.col(class_col) == pl.lit(str(class_name))).then(pl.lit(float(multiplier)))
+        else:
+            expr = expr.when(pl.col(class_col) == pl.lit(str(class_name))).then(pl.lit(float(multiplier)))
+    if expr is None:
+        return pl.lit(float(default))
+    return expr.otherwise(pl.lit(float(default)))
+
+
+def _resolve_merchant_class_profile_files(
+    run_root: Path,
+    external_roots: Iterable[Path],
+    repo_root: Path,
+    manifest_fingerprint: str,
+    parameter_hash: str,
+    preferred_globs: list[str],
+    logger,
+) -> list[Path]:
+    resolved_patterns: list[str] = []
+    tokenized_globs = preferred_globs or []
+    roots = [run_root, *list(external_roots), repo_root]
+
+    for raw_pattern in tokenized_globs:
+        rendered = (
+            str(raw_pattern)
+            .replace("{manifest_fingerprint}", str(manifest_fingerprint))
+            .replace("{parameter_hash}", str(parameter_hash))
+        )
+        pattern_path = Path(rendered)
+        if pattern_path.is_absolute():
+            resolved_patterns.append(str(pattern_path))
+        else:
+            for root in roots:
+                resolved_patterns.append(str((root / rendered)))
+
+    default_rel_patterns = [
+        f"data/layer2/5A/merchant_class_profile/**/parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/**/*.parquet",
+        f"data/layer2/5A/merchant_class_profile/**/manifest_fingerprint={manifest_fingerprint}/**/*.parquet",
+        (
+            f"runs/local_full_run-*/**/data/layer2/5A/merchant_class_profile/**/"
+            f"parameter_hash={parameter_hash}/manifest_fingerprint={manifest_fingerprint}/**/*.parquet"
+        ),
+        (
+            f"runs/local_full_run-*/**/data/layer2/5A/merchant_class_profile/**/"
+            f"manifest_fingerprint={manifest_fingerprint}/**/*.parquet"
+        ),
+    ]
+    for rel in default_rel_patterns:
+        for root in roots:
+            resolved_patterns.append(str((root / rel)))
+
+    files: list[Path] = []
+    for pattern in resolved_patterns:
+        for matched in glob.glob(pattern, recursive=True):
+            path = Path(matched)
+            if path.is_file() and path.suffix.lower() == ".parquet":
+                files.append(path.resolve())
+
+    seen: set[str] = set()
+    deduped: list[Path] = []
+    for path in sorted(files):
+        key = path.as_posix()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(path)
+
+    logger.info("S4: merchant-class profile candidate files=%s", len(deduped))
+    return deduped
+
+
+def _load_merchant_class_profile_df(
+    run_root: Path,
+    external_roots: Iterable[Path],
+    repo_root: Path,
+    manifest_fingerprint: str,
+    parameter_hash: str,
+    preferred_globs: list[str],
+    logger,
+) -> pl.DataFrame:
+    files = _resolve_merchant_class_profile_files(
+        run_root=run_root,
+        external_roots=external_roots,
+        repo_root=repo_root,
+        manifest_fingerprint=manifest_fingerprint,
+        parameter_hash=parameter_hash,
+        preferred_globs=preferred_globs,
+        logger=logger,
+    )
+    if not files:
+        return pl.DataFrame(schema={"merchant_id": pl.UInt64, "primary_demand_class": pl.Utf8})
+
+    try:
+        class_df = (
+            pl.scan_parquet([path.as_posix() for path in files], hive_partitioning=True)
+            .select(
+                [
+                    pl.col("merchant_id").cast(pl.UInt64, strict=False).alias("merchant_id"),
+                    pl.col("primary_demand_class").cast(pl.Utf8, strict=False).alias("primary_demand_class"),
+                ]
+            )
+            .filter(pl.col("merchant_id").is_not_null())
+            .group_by("merchant_id")
+            .agg(pl.col("primary_demand_class").drop_nulls().first().alias("primary_demand_class"))
+            .with_columns(pl.col("primary_demand_class").fill_null("__UNK__"))
+            .collect()
+        )
+    except Exception as exc:
+        logger.warning("S4: failed loading merchant_class_profile (%s)", exc)
+        return pl.DataFrame(schema={"merchant_id": pl.UInt64, "primary_demand_class": pl.Utf8})
+
+    class_count = (
+        class_df.select(pl.col("primary_demand_class").n_unique().cast(pl.Int64).alias("class_count"))
+        .to_dicts()[0]
+        .get("class_count", 0)
+    )
+    logger.info(
+        "S4: loaded merchant-class profile rows=%s classes=%s",
+        class_df.height,
+        int(class_count),
+    )
+    return class_df
+
+
 def _choice_expr(choices: list[tuple[str, float]], uniform_expr: pl.Expr) -> pl.Expr:
     cumulative = 0.0
     expr = None
@@ -1211,6 +1352,52 @@ def run_s4(
     p_detect_at_auth_map = _prob_map_from_policy(detection_model, "p_detect_at_auth_given_detect")
     p_dispute_map = _prob_map_from_policy(dispute_model, "p_dispute_by_truth_subtype")
     p_chargeback_map = _prob_map_from_policy(chargeback_model, "p_chargeback_given_dispute")
+    class_conditioning = detection_model.get("class_conditioning") if isinstance(detection_model, dict) else {}
+    class_conditioning = class_conditioning if isinstance(class_conditioning, dict) else {}
+    class_conditioning_enabled = bool(class_conditioning.get("enabled", False))
+    class_profile_required = bool(class_conditioning.get("fail_on_missing_profile", False))
+    class_profile_globs_raw = class_conditioning.get("merchant_class_globs")
+    class_profile_globs = (
+        [str(item) for item in class_profile_globs_raw if str(item).strip()]
+        if isinstance(class_profile_globs_raw, list)
+        else []
+    )
+    p_detect_class_multiplier_map = _float_map_from_policy(detection_model.get("p_detect_class_multiplier"))
+    p_dispute_class_multiplier_map = _float_map_from_policy(dispute_model.get("p_dispute_class_multiplier"))
+    p_chargeback_class_multiplier_map = _float_map_from_policy(chargeback_model.get("p_chargeback_class_multiplier"))
+    p_legit_fp_class_multiplier_map = _float_map_from_policy(detection_model.get("p_legit_fp_class_multiplier"))
+    merchant_class_df = pl.DataFrame(schema={"merchant_id": pl.UInt64, "primary_demand_class": pl.Utf8})
+    if class_conditioning_enabled:
+        merchant_class_df = _load_merchant_class_profile_df(
+            run_root=run_paths.run_root,
+            external_roots=config.external_roots,
+            repo_root=config.repo_root,
+            manifest_fingerprint=manifest_fingerprint,
+            parameter_hash=parameter_hash,
+            preferred_globs=class_profile_globs,
+            logger=logger,
+        )
+        if merchant_class_df.height == 0 and class_profile_required:
+            _abort(
+                "S4_PRECONDITION_MERCHANT_CLASS_PROFILE_MISSING",
+                "V-01",
+                "merchant_class_profile_missing",
+                {
+                    "manifest_fingerprint": manifest_fingerprint,
+                    "parameter_hash": parameter_hash,
+                    "globs": class_profile_globs,
+                },
+                manifest_fingerprint,
+            )
+    logger.info(
+        "S4: class conditioning enabled=%s profile_rows=%s detect_multipliers=%s dispute_multipliers=%s chargeback_multipliers=%s legit_fp_multipliers=%s",
+        class_conditioning_enabled,
+        merchant_class_df.height,
+        len(p_detect_class_multiplier_map),
+        len(p_dispute_class_multiplier_map),
+        len(p_chargeback_class_multiplier_map),
+        len(p_legit_fp_class_multiplier_map),
+    )
 
     chargeback_outcome_map = chargeback_model.get("pi_chargeback_outcome") if isinstance(chargeback_model, dict) else {}
     chargeback_outcome_map = chargeback_outcome_map if isinstance(chargeback_outcome_map, dict) else {}
@@ -1463,6 +1650,11 @@ def run_s4(
                 flows = flows.join(campaign_map_df, on="campaign_id", how="left").with_columns(
                     pl.col("campaign_type").fill_null("NONE")
                 )
+                if class_conditioning_enabled and merchant_class_df.height > 0:
+                    flows = flows.join(merchant_class_df, on="merchant_id", how="left")
+                else:
+                    flows = flows.with_columns(pl.lit(None, dtype=pl.Utf8).alias("primary_demand_class"))
+                flows = flows.with_columns(pl.col("primary_demand_class").fill_null("__UNK__"))
 
                 base_overlay_flag = pl.col("fraud_flag") & pl.col("campaign_id").is_null()
                 heuristic_overlay_flag = (
@@ -1558,9 +1750,29 @@ def run_s4(
                 dispute_prob = _map_enum_expr("truth_subtype", p_dispute_map, 0.0)
                 chargeback_prob = _map_enum_expr("truth_subtype", p_chargeback_map, 0.0)
                 merchant_risk_factor = _merchant_risk_factor_expr("merchant_id")
-                detect_prob = (detect_prob * merchant_risk_factor).clip(pl.lit(0.0), pl.lit(0.98))
-                dispute_prob = (dispute_prob * merchant_risk_factor).clip(pl.lit(0.0), pl.lit(0.98))
-                chargeback_prob = (chargeback_prob * merchant_risk_factor).clip(pl.lit(0.0), pl.lit(0.98))
+                detect_class_multiplier = _class_multiplier_expr(
+                    "primary_demand_class",
+                    p_detect_class_multiplier_map,
+                    1.0,
+                )
+                dispute_class_multiplier = _class_multiplier_expr(
+                    "primary_demand_class",
+                    p_dispute_class_multiplier_map,
+                    1.0,
+                )
+                chargeback_class_multiplier = _class_multiplier_expr(
+                    "primary_demand_class",
+                    p_chargeback_class_multiplier_map,
+                    1.0,
+                )
+                legit_fp_class_multiplier = _class_multiplier_expr(
+                    "primary_demand_class",
+                    p_legit_fp_class_multiplier_map,
+                    1.0,
+                )
+                detect_prob = (detect_prob * merchant_risk_factor * detect_class_multiplier).clip(pl.lit(0.0), pl.lit(0.98))
+                dispute_prob = (dispute_prob * merchant_risk_factor * dispute_class_multiplier).clip(pl.lit(0.0), pl.lit(0.98))
+                chargeback_prob = (chargeback_prob * merchant_risk_factor * chargeback_class_multiplier).clip(pl.lit(0.0), pl.lit(0.98))
 
                 detect_flag = _uniform_expr(seed, 111, modulus, pl.col("flow_id"), pl.lit("detect_flag")) < detect_prob
                 detect_at_auth_flag = detect_flag & (
@@ -1573,7 +1785,7 @@ def run_s4(
                 amount_risk_factor = (
                     (pl.col("amount").clip(pl.lit(1.0), pl.lit(5000.0)) / pl.lit(180.0)).sqrt()
                 ).clip(pl.lit(0.5), pl.lit(5.0))
-                legit_fp_prob = (_merchant_legit_fp_prob_expr("merchant_id") * amount_risk_factor).clip(
+                legit_fp_prob = (_merchant_legit_fp_prob_expr("merchant_id") * amount_risk_factor * legit_fp_class_multiplier).clip(
                     pl.lit(0.0002), pl.lit(0.60)
                 )
                 legit_fp_confirm_flag = (
