@@ -492,14 +492,15 @@ jobs:
           import time
           import urllib.error
           import urllib.request
+          import os
           from pathlib import Path
 
-          base_url = "${IG_BASE_URL}".rstrip("/")
-          ingest_path = "${IG_INGEST_PATH}"
+          base_url = os.environ.get("IG_BASE_URL", "").rstrip("/")
+          ingest_path = os.environ.get("IG_INGEST_PATH", "")
           if not ingest_path.startswith("/"):
               ingest_path = "/" + ingest_path
           ingest_url = f"{base_url}{ingest_path}"
-          api_key = "${IG_API_KEY}"
+          api_key = os.environ.get("IG_API_KEY", "")
           platform_run_id = "${{ inputs.platform_run_id }}"
           scenario_run_id = "${{ inputs.scenario_run_id }}"
           phase_id = "P6.B"
