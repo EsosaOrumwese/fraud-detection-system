@@ -1410,6 +1410,7 @@ def run_s4(
                     "merchant_id",
                     "campaign_id",
                     "fraud_flag",
+                    "amount",
                     "ts_utc",
                 ],
                 batch_rows,
@@ -1419,6 +1420,7 @@ def run_s4(
                     pl.col("merchant_id").cast(pl.UInt64),
                     pl.col("campaign_id").cast(pl.Utf8),
                     pl.col("fraud_flag").cast(pl.Boolean),
+                    pl.col("amount").cast(pl.Float64),
                     pl.col("ts_utc").cast(pl.Utf8),
                 )
 
@@ -1522,7 +1524,12 @@ def run_s4(
                 chargeback_flag = dispute_flag & (
                     _uniform_expr(seed, 131, modulus, pl.col("flow_id"), pl.lit("chargeback_flag")) < chargeback_prob
                 )
-                legit_fp_prob = _merchant_legit_fp_prob_expr("merchant_id")
+                amount_risk_factor = (
+                    (pl.col("amount").clip(pl.lit(1.0), pl.lit(2000.0)) / pl.lit(250.0)).sqrt()
+                ).clip(pl.lit(0.6), pl.lit(3.0))
+                legit_fp_prob = (_merchant_legit_fp_prob_expr("merchant_id") * amount_risk_factor).clip(
+                    pl.lit(0.0005), pl.lit(0.20)
+                )
                 legit_fp_confirm_flag = (
                     (pl.col("truth_label") == "LEGIT")
                     & (
@@ -1639,28 +1646,84 @@ def run_s4(
                     )
                     cases = cases.with_columns(case_id_expr.alias("case_id"), base_ts)
 
+                    detect_delay_draw = _uniform_expr(seed, 211, modulus, pl.col("flow_id"), pl.lit("detect_delay"))
+                    dispute_delay_draw = _uniform_expr(seed, 221, modulus, pl.col("flow_id"), pl.lit("dispute_delay"))
+                    chargeback_delay_draw = _uniform_expr(
+                        seed, 231, modulus, pl.col("flow_id"), pl.lit("chargeback_delay")
+                    )
+                    close_delay_draw = _uniform_expr(seed, 241, modulus, pl.col("flow_id"), pl.lit("case_close_delay"))
+                    chargeback_decision_gap_draw = _uniform_expr(
+                        seed, 251, modulus, pl.col("flow_id"), pl.lit("chargeback_decision_gap")
+                    )
+
+                    detect_delay_sample = pl.lit(detect_delay_seconds) + (
+                        detect_delay_draw.pow(1.6) * pl.lit(max(detect_delay_max_seconds - detect_delay_seconds, 0.0))
+                    )
+                    dispute_delay_sample = pl.lit(dispute_delay_seconds) + (
+                        dispute_delay_draw.pow(1.35) * pl.lit(max(dispute_delay_max_seconds - dispute_delay_seconds, 0.0))
+                    )
+                    chargeback_delay_sample = pl.lit(chargeback_delay_seconds) + (
+                        chargeback_delay_draw.pow(1.25)
+                        * pl.lit(max(chargeback_delay_max_seconds - chargeback_delay_seconds, 0.0))
+                    )
+                    close_delay_sample = pl.lit(case_close_delay_seconds) + (
+                        close_delay_draw.pow(1.4) * pl.lit(max(case_close_delay_max_seconds - case_close_delay_seconds, 0.0))
+                    )
+                    chargeback_decision_gap_seconds = pl.lit(1.0) + (chargeback_decision_gap_draw * pl.lit(300.0))
+
                     detect_offset_seconds = (
                         pl.when(pl.col("detect_flag"))
                         .then(
                             pl.when(pl.col("detect_at_auth_flag"))
                             .then(pl.lit(0.0))
-                            .otherwise(pl.lit(detect_delay_seconds))
+                            .otherwise(detect_delay_sample)
                         )
+                        .otherwise(pl.lit(0.0))
+                    )
+                    dispute_offset_raw = (
+                        pl.when(pl.col("dispute_flag"))
+                        .then(dispute_delay_sample)
                         .otherwise(pl.lit(0.0))
                     )
                     dispute_offset_seconds = (
                         pl.when(pl.col("dispute_flag"))
-                        .then(pl.lit(dispute_delay_seconds))
+                        .then(
+                            pl.max_horizontal(
+                                [
+                                    dispute_offset_raw,
+                                    pl.when(pl.col("detect_flag"))
+                                    .then(detect_offset_seconds + pl.lit(1.0))
+                                    .otherwise(pl.lit(0.0)),
+                                ]
+                            )
+                        )
+                        .otherwise(pl.lit(0.0))
+                    )
+                    chargeback_offset_raw = (
+                        pl.when(pl.col("chargeback_flag"))
+                        .then(chargeback_delay_sample)
                         .otherwise(pl.lit(0.0))
                     )
                     chargeback_offset_seconds = (
                         pl.when(pl.col("chargeback_flag"))
-                        .then(pl.lit(chargeback_delay_seconds))
+                        .then(
+                            pl.max_horizontal(
+                                [
+                                    chargeback_offset_raw,
+                                    pl.when(pl.col("dispute_flag"))
+                                    .then(dispute_offset_seconds + pl.lit(1.0))
+                                    .otherwise(pl.lit(0.0)),
+                                    pl.when(pl.col("detect_flag"))
+                                    .then(detect_offset_seconds + pl.lit(1.0))
+                                    .otherwise(pl.lit(0.0)),
+                                ]
+                            )
+                        )
                         .otherwise(pl.lit(0.0))
                     )
                     chargeback_decision_offset_seconds = (
                         pl.when(pl.col("chargeback_flag"))
-                        .then(pl.lit(chargeback_delay_seconds + 1.0))
+                        .then(chargeback_offset_seconds + chargeback_decision_gap_seconds)
                         .otherwise(pl.lit(0.0))
                     )
                     max_case_event_offset = pl.max_horizontal(
@@ -1671,7 +1734,7 @@ def run_s4(
                             chargeback_decision_offset_seconds,
                         ]
                     )
-                    close_offset_seconds = max_case_event_offset + pl.lit(case_close_delay_seconds)
+                    close_offset_seconds = max_case_event_offset + close_delay_sample
 
                     open_ts = pl.when(pl.col("base_ts").is_not_null()).then(
                         pl.col("base_ts").dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")

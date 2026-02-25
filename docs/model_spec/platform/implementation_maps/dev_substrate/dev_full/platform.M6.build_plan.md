@@ -390,6 +390,21 @@ Tasks:
 DoD:
 - [x] `P6` rollup + blocker register committed.
 - [x] deterministic `P6` verdict committed.
+- [x] fresh-authority rerun executed using upstream `M6.F=m6f_p6b_streaming_active_20260225T175655Z`.
+
+Fresh-authority execution plan (current lane):
+1. Dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with:
+   - `phase_mode=m6g`,
+   - `platform_run_id=platform_20260223T184232Z`,
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`,
+   - `upstream_m6e_execution=m6e_p6a_stream_entry_20260225T120522Z`,
+   - `upstream_m6f_execution=m6f_p6b_streaming_active_20260225T175655Z`,
+   - `runtime_path=EKS_FLINK_OPERATOR`.
+2. Require strict pass for closure:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_P7`,
+   - `next_gate=M6.H_READY`.
 
 Execution status (2026-02-25):
 1. Remote authoritative execution:
@@ -405,6 +420,16 @@ Execution status (2026-02-25):
 3. Evidence:
    - workflow artifact set: `m6g-p6-gate-rollup-20260225T155035Z`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T155035Z/`
+4. Gate note:
+   - this run remains historical because it predates latest authoritative `M6.F` execution `m6f_p6b_streaming_active_20260225T175655Z`.
+5. Fresh-authority rerun (current canonical receipt):
+   - run id: `22409841923`
+   - execution id: `m6g_p6c_gate_rollup_20260225T181523Z`
+   - upstreams: `M6.E=m6e_p6a_stream_entry_20260225T120522Z`, `M6.F=m6f_p6b_streaming_active_20260225T175655Z`
+   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_P7`, `next_gate=M6.H_READY`
+   - workflow artifact set: `m6g-p6-gate-rollup-20260225T181523Z`
+   - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22409841923/m6g-p6-gate-rollup-20260225T181523Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T181523Z/`
 
 ### M6.H `P7` Ingest Commit Closure
 Goal:
@@ -503,7 +528,7 @@ Any active `M6-B*` blocker prevents M6 closure.
 - [x] M6.D complete
 - [x] M6.E complete
 - [x] M6.F complete
-- [ ] M6.G complete
+- [x] M6.G complete
 - [ ] M6.H complete
 - [ ] M6.I complete
 - [ ] M6.J complete
@@ -536,4 +561,7 @@ Handoff posture:
 8. `M6.E` is closed green (`m6e_p6a_stream_entry_20260225T120522Z`) with `M6.F_READY`.
 9. `M6.F` historical closure (`m6f_p6b_streaming_active_20260225T152755Z`, run `22403542013`) has been reopened under strict semantics.
 10. Latest strict-semantic/fallback rerun (`m6f_p6b_streaming_active_20260225T175655Z`, run `22409183214`) is green with `blocker_count=0` and `next_gate=M6.G_READY`.
-11. `M6.G` historical rollup (`m6g_p6c_gate_rollup_20260225T155035Z`, run `22404445249`) remains historical; execute fresh `M6.G` against upstream `M6.F=20260225T175655Z` for current authority.
+11. `M6.G` is now closed green under current upstream authority:
+   - run `22409841923`,
+   - execution `m6g_p6c_gate_rollup_20260225T181523Z`,
+   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_P7`, `next_gate=M6.H_READY`.

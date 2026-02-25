@@ -663,7 +663,10 @@ M6 planning posture:
   - `overall_pass=true`, `blocker_count=0`, `next_gate=M6.G_READY`,
   - strict-semantic counters/lag green (`ig_idempotency_count=12`, `measured_lag=2`, `within_threshold=true`),
   - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T175655Z/`.
-- `M6.G` prior green receipt (`m6g_p6c_gate_rollup_20260225T155035Z`, run `22404445249`) remains historical because it predates latest authoritative `M6.F` execution `m6f_p6b_streaming_active_20260225T175655Z`; run fresh `M6.G` for current authority.
+- `M6.G` is now closed green with fresh authority rollup (`m6g_p6c_gate_rollup_20260225T181523Z`, run `22409841923`) against upstream `M6.F=m6f_p6b_streaming_active_20260225T175655Z`:
+  - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_P7`, `next_gate=M6.H_READY`,
+  - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22409841923/m6g-p6-gate-rollup-20260225T181523Z/`,
+  - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T181523Z/`.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
@@ -672,7 +675,7 @@ M6 sub-phase progress:
 - [x] `M6.D` `P5` gate rollup + verdict.
 - [x] `M6.E` `P6` entry/stream activation precheck.
 - [x] `M6.F` `P6` streaming-active + lag + ambiguity closure.
-- [ ] `M6.G` `P6` gate rollup + verdict.
+- [x] `M6.G` `P6` gate rollup + verdict.
 - [ ] `M6.H` `P7` ingest-commit execution.
 - [ ] `M6.I` `P7` gate rollup + M6 verdict + M7 handoff.
 - [ ] `M6.J` M6 closure sync (docs/cost-outcome/evidence index).
@@ -839,4 +842,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute fresh `M6.G` (`phase_mode=m6g`) using upstream `M6.F` execution `m6f_p6b_streaming_active_20260225T175655Z`, then validate `ADVANCE_TO_P7` before any `M6.H` advancement.
+- Begin `M6.H` (`P7` ingest-commit closure) using `M6.G` authoritative upstream receipt `m6g_p6c_gate_rollup_20260225T181523Z` (`ADVANCE_TO_P7`).

@@ -240,8 +240,26 @@ Tasks:
 3. emit `m6g_p6_gate_verdict.json`.
 
 DoD:
-- [ ] rollup matrix + blocker register committed.
-- [ ] deterministic verdict committed (`ADVANCE_TO_P7`/`HOLD_REMEDIATE`/`NO_GO_RESET_REQUIRED`).
+- [x] rollup matrix + blocker register committed.
+- [x] deterministic verdict committed (`ADVANCE_TO_P7`/`HOLD_REMEDIATE`/`NO_GO_RESET_REQUIRED`).
+- [x] fresh-authority rerun executed against upstream `M6.F=m6f_p6b_streaming_active_20260225T175655Z` and result recorded.
+
+Fresh-authority execution plan (current lane):
+1. Dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with:
+   - `phase_mode=m6g`,
+   - `platform_run_id=platform_20260223T184232Z`,
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`,
+   - `upstream_m6e_execution=m6e_p6a_stream_entry_20260225T120522Z`,
+   - `upstream_m6f_execution=m6f_p6b_streaming_active_20260225T175655Z`,
+   - `runtime_path=EKS_FLINK_OPERATOR`.
+2. Require strict pass:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_P7`,
+   - `next_gate=M6.H_READY`.
+3. Publish and retain artifacts:
+   - workflow artifact set `m6g-p6-gate-rollup-<timestamp>`,
+   - durable prefix `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/<m6g_execution_id>/`.
 
 Execution status (2026-02-25):
 1. Remote authoritative execution:
@@ -259,6 +277,16 @@ Execution status (2026-02-25):
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T155035Z/`
 4. Gate note:
    - this rollup remains historical because it predates latest authoritative `M6.F` execution `m6f_p6b_streaming_active_20260225T175655Z`; re-run `M6.G` for current authority.
+5. Fresh-authority rerun (current canonical receipt):
+   - workflow run id: `22409841923`
+   - execution id: `m6g_p6c_gate_rollup_20260225T181523Z`
+   - upstreams: `M6.E=m6e_p6a_stream_entry_20260225T120522Z`, `M6.F=m6f_p6b_streaming_active_20260225T175655Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_P7`, `next_gate=M6.H_READY`
+   - workflow artifact set: `m6g-p6-gate-rollup-20260225T181523Z`
+   - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22409841923/m6g-p6-gate-rollup-20260225T181523Z/`
+   - durable prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T181523Z/`
+6. Gate posture:
+   - `P6.C` is closed green with current upstream authority and `M6.H_READY`.
 
 ## 4) P6 Verification Catalog
 | Verify ID | Command template | Purpose |

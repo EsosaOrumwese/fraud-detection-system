@@ -8927,3 +8927,67 @@ ext_gate=HOLD_REMEDIATE.
 ### Gate consequence
 1. `M6.F` is closed green under strict semantics.
 2. Next authoritative action is fresh `M6.G` rollup using upstream `M6.F=20260225T175655Z`.
+
+
+## Entry: 2026-02-25 18:14:14 +00:00 - M6.G pre-execution lock (P6.C fresh authority rollup)
+
+### Decision context
+1. M6.F latest authoritative closure is m6f_p6b_streaming_active_20260225T175655Z (workflow run 22409183214) on fallback runtime path EKS_FLINK_OPERATOR with strict-semantic blockers cleared.
+2. Existing M6.G receipt m6g_p6c_gate_rollup_20260225T155035Z is explicitly historical because it predates the latest M6.F authority.
+3. P6.C must be re-executed to preserve gate lineage (M6.E -> latest M6.F -> M6.G) before any M6.H movement.
+
+### Alternatives considered
+1. Reuse historical M6.G receipt: rejected due stale upstream chain (fails drift-sentinel fail-closed rule).
+2. Local rollup execution: rejected due no-local-compute authority for dev_full phase closure.
+3. Remote GitHub Actions rollup using existing phase_mode=m6g lane: approved as canonical path.
+
+### Planned execution
+1. Dispatch .github/workflows/dev_full_m6f_streaming_active.yml with:
+   - phase_mode=m6g
+   - platform_run_id=platform_20260223T184232Z
+   - scenario_run_id=scenario_38753050f3b70c666e16f7552016b330
+   - upstream_m6e_execution=m6e_p6a_stream_entry_20260225T120522Z
+   - upstream_m6f_execution=m6f_p6b_streaming_active_20260225T175655Z
+   - runtime_path=EKS_FLINK_OPERATOR
+2. Require output artifacts:
+   - m6g_p6_gate_rollup_matrix.json
+   - m6g_p6_blocker_register.json
+   - m6g_p6_gate_verdict.json
+   - m6g_execution_summary.json
+3. Pass condition:
+   - overall_pass=true, blocker_count=0, verdict=ADVANCE_TO_P7, next_gate=M6.H_READY.
+4. Then sync M6 plan/docs with new authoritative receipt and mark M6.G complete.
+
+
+
+## Entry: 2026-02-25 18:18:03 +00:00 - M6.G executed and closed (P6.C rollup current authority)
+
+### Execution trail
+1. Dispatched remote rollup lane on migrate-dev:
+   - workflow: .github/workflows/dev_full_m6f_streaming_active.yml
+   - phase_mode=m6g
+   - run id=22409841923.
+2. Pinned upstream chain used in dispatch:
+   - M6.E=m6e_p6a_stream_entry_20260225T120522Z
+   - M6.F=m6f_p6b_streaming_active_20260225T175655Z
+   - platform_run_id=platform_20260223T184232Z
+   - scenario_run_id=scenario_38753050f3b70c666e16f7552016b330.
+3. Job completed success in GitHub Actions with only M6.G lane active; M6.F lane skipped by mode gate.
+4. Downloaded artifacts locally to:
+   - runs/dev_substrate/dev_full/m6/_gh_run_22409841923/m6g-p6-gate-rollup-20260225T181523Z/.
+
+### Outcome
+1. execution_id=m6g_p6c_gate_rollup_20260225T181523Z.
+2. m6g_execution_summary.json:
+   - overall_pass=true
+   - blocker_count=0
+   - verdict=ADVANCE_TO_P7
+   - next_gate=M6.H_READY.
+3. m6g_p6_blocker_register.json confirms blockers=[] and read_errors=[].
+4. m6g_p6_gate_rollup_matrix.json confirms all P6 lanes pass and binds upstream artifacts from M6.E and latest M6.F.
+
+### Decision trail after execution
+1. Historical M6.G receipt (155035Z) is retained only as historical evidence; closure authority now moves to 181523Z receipt tied to latest M6.F.
+2. M6/P6 planning docs were synchronized immediately after receipt validation to avoid stale-next-action drift.
+3. Next phase entry is M6.H only (P7 ingest-commit), using this M6.G receipt as upstream gate authority.
+
