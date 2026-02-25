@@ -3059,26 +3059,26 @@ untime: PASS
 
 ### Blocker diagnosis
 1. core destroy failed only on:
-   - raud-platform-dev-full-evidence S3 bucket (BucketNotEmpty, versioned objects present).
+   - fraud-platform-dev-full-evidence S3 bucket (BucketNotEmpty, versioned objects present).
 2. All other core resources destroyed successfully (VPC/subnets/SG/IGW/KMS/IAM roles/bucket controls).
 3. State check confirms only one remaining managed resource in core:
    - ws_s3_bucket.core["evidence"].
 
 ### Residual billing posture
-1. No active compute/runtime surfaces found for raud-platform-dev-full:
+1. No active compute/runtime surfaces found for fraud-platform-dev-full:
    - EKS: none
    - MSK: none
    - Lambda/APIGW/StepFunctions/DynamoDB runtime tables: none
    - RDS/MWAA/Flink apps: none
 2. Remaining retained surfaces:
-   - raud-platform-dev-full-evidence bucket
-   - raud-platform-dev-full-tfstate bucket
-   - raud-platform-dev-full-tf-locks table
+   - fraud-platform-dev-full-evidence bucket
+   - fraud-platform-dev-full-tfstate bucket
+   - fraud-platform-dev-full-tf-locks table
 3. This residual set is storage/control-plane only; primary runtime cost accrual has been torn down.
 
 ### Decision
 1. Accept residual evidence bucket for now (prevents destructive purge of evidence history while user is away).
-2. If full-zero residual is later required, run controlled versioned-object purge on raud-platform-dev-full-evidence then rerun core destroy.
+2. If full-zero residual is later required, run controlled versioned-object purge on fraud-platform-dev-full-evidence then rerun core destroy.
 
 ## Entry: 2026-02-23 17:27:37 +00:00 - M3 planning kickoff (dev_full) with fail-closed prechecks
 
@@ -7419,7 +7419,7 @@ ext_gate=M6.C_READY.
 ### Execution strategy selected
 1. M6.C will run as a bounded authoritative lane:
    - start Step Functions execution for run scope,
-   - publish one READY control message to p.bus.control.v1 from an in-VPC temporary probe publisher,
+   - publish one READY control message to fp.bus.control.v1 from an in-VPC temporary probe publisher,
    - write run-scoped READY commit receipt with Step Functions execution reference,
    - fail-closed duplicate/ambiguity checks against run-scoped receipt surface.
 2. M6.D will derive deterministic P5 rollup/verdict only from authoritative M6.B + M6.C artifacts.
@@ -8124,3 +8124,63 @@ ext_gate=M6.C_READY.
 1. Apply runtime stack to publish new Lambda package.
 2. Execute authenticated ingest probe for active run scope and verify DDB count becomes non-zero.
 3. Proceed to clear M6P6-B2/B4 with active lane refs + lag rerun.
+
+## Entry: 2026-02-25 13:33:14 +00:00 - M6.F blocker remediation trail documented + active wait processes terminated
+
+### Scope request executed
+1. USER requested a detailed implementation-note entry and explicit termination of the process I was running.
+2. Applied both actions immediately.
+
+### Process termination action (explicit)
+1. Identified and terminated lingering long-run CLI processes started by my prior remediation run:
+   - ws eks wait nodegroup-active --cluster-name fraud-platform-dev-full --nodegroup-name fraud-platform-dev-full-m6f-workers
+   - ws emr-containers list-job-runs --virtual-cluster-id 3cfszbpz28ixf1wmmd2roj571 ...
+2. This cleared active wait/list loops from my side; execution is now paused cleanly.
+
+### Remediation execution trail captured (P6.B / M6.F)
+1. Confirmed structural M6P6-B3 issue: IG managed edge returned 202 without persisting idempotency/admission evidence.
+2. Patched infra/terraform/dev_full/runtime/lambda/ig_handler.py to persist DDB idempotency records on successful /ingest/push:
+   - dedupe basis now derived from canonical tuple (platform_run_id, event_class, event_id) and hashed,
+   - writes dedupe_key + TTL (	tl_epoch) + minimal admission metadata,
+   - fail-closed response 503 idempotency_backend_unavailable when DDB write fails.
+3. Deployed patch via targeted runtime apply (ws_lambda_function.ig_handler only) to avoid unrelated Terraform drift in same window.
+4. Runtime verification passed:
+   - authenticated ingest probes admitted with returned dedupe_key,
+   - DDB count moved from   to 5 (fraud-platform-dev-full-ig-idempotency).
+
+### Current blocker state after remediation work
+1. M6P6-B3: structurally remediated (idempotency write path active, counter non-zero).
+2. M6P6-B2/B4: still open due to runtime compute scheduling gap in EKS-backed EMR lane.
+3. Root cause discovered and validated:
+   - EMR job refs were created for both required lane names,
+   - jobs failed with scheduler message 
+o nodes available to schedule pods,
+   - kubectl get nodes returned empty (no schedulable worker nodes).
+
+### Worker capacity remediation attempts and outcomes
+1. Created EKS nodegroup fraud-platform-dev-full-m6f-workers using AL2023_x86_64_STANDARD.
+2. Nodegroup instance launched but cluster bootstrap failed (
+odeadm failure on console output); nodes never registered.
+3. Deleted failed nodegroup.
+4. Attempted AL2_x86_64 replacement and received hard incompatibility (Kubernetes 1.35 supports AL2 only up to <=1.32).
+5. Created replacement nodegroup with BOTTLEROCKET_x86_64:
+   - status currently CREATING,
+   - desired capacity 1,
+   - no health issues surfaced yet,
+   - nodes still not visible at capture time (kubectl get nodes empty).
+
+### Live state snapshot at pause
+1. Nodegroup status:
+   - fraud-platform-dev-full-m6f-workers = CREATING (BOTTLEROCKET_x86_64, desired=1).
+2. EKS nodes:
+   - none currently registered.
+3. EMR lane jobs:
+   - fraud-platform-dev-full-wsp-stream-v0 = FAILED (unschedulable / no nodes),
+   - fraud-platform-dev-full-sr-ready-v0 = FAILED (unschedulable / no nodes).
+4. IG idempotency table count:
+   - 5.
+
+### Decision and pause posture
+1. Did not fake M6.F closure artifacts while runtime compute was unschedulable.
+2. Held fail-closed at M6.F as required.
+3. Session now intentionally paused with no active wait processes from my side.

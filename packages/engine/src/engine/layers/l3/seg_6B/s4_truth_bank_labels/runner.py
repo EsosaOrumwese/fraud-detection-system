@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
+import duckdb
 import polars as pl
 import pyarrow.parquet as pq
 import yaml
@@ -722,6 +723,102 @@ def _normalize_outcome_choices(outcome_map: dict) -> dict[str, list[tuple[str, f
         if choices:
             normalized[str(key)] = choices
     return normalized
+
+
+def _sql_quote(value: str) -> str:
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def _duckdb_parquet_relation(paths: list[Path]) -> str:
+    literals = ", ".join(_sql_quote(path.resolve().as_posix()) for path in paths)
+    return f"read_parquet([{literals}], union_by_name=true)"
+
+
+def _build_event_labels_via_duckdb(
+    event_files: list[Path],
+    flow_truth_files: list[Path],
+    flow_bank_files: list[Path],
+    output_file: Path,
+    parquet_compression: str,
+    seed: int,
+    manifest_fingerprint: str,
+    parameter_hash: str,
+    scenario_id: str,
+    expected_rows: int,
+    logger,
+) -> int:
+    if output_file.exists():
+        output_file.unlink()
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    compression_sql = {
+        "zstd": "zstd",
+        "snappy": "snappy",
+        "lz4": "lz4",
+        "uncompressed": "uncompressed",
+    }.get(str(parquet_compression).lower().strip(), "zstd")
+
+    events_rel = _duckdb_parquet_relation(event_files)
+    flow_truth_rel = _duckdb_parquet_relation(flow_truth_files)
+    flow_bank_rel = _duckdb_parquet_relation(flow_bank_files)
+
+    output_sql = _sql_quote(output_file.resolve().as_posix())
+    manifest_sql = _sql_quote(manifest_fingerprint)
+    parameter_sql = _sql_quote(parameter_hash)
+    scenario_sql = _sql_quote(str(scenario_id))
+
+    query = f"""
+COPY (
+    WITH events AS (
+        SELECT
+            CAST(flow_id AS BIGINT) AS flow_id,
+            CAST(event_seq AS BIGINT) AS event_seq
+        FROM {events_rel}
+    ),
+    flow_truth AS (
+        SELECT
+            CAST(flow_id AS BIGINT) AS flow_id,
+            CAST(is_fraud_truth AS BOOLEAN) AS is_fraud_truth
+        FROM {flow_truth_rel}
+    ),
+    flow_bank AS (
+        SELECT
+            CAST(flow_id AS BIGINT) AS flow_id,
+            CAST(is_fraud_bank_view AS BOOLEAN) AS is_fraud_bank_view
+        FROM {flow_bank_rel}
+    )
+    SELECT
+        e.flow_id,
+        e.event_seq,
+        t.is_fraud_truth,
+        b.is_fraud_bank_view,
+        CAST({int(seed)} AS BIGINT) AS seed,
+        {manifest_sql} AS manifest_fingerprint,
+        {parameter_sql} AS parameter_hash,
+        {scenario_sql} AS scenario_id
+    FROM events e
+    JOIN flow_truth t USING (flow_id)
+    JOIN flow_bank b USING (flow_id)
+) TO {output_sql} (FORMAT PARQUET, COMPRESSION {compression_sql})
+"""
+
+    start = time.monotonic()
+    conn = duckdb.connect(database=":memory:")
+    try:
+        conn.execute("PRAGMA preserve_insertion_order=false")
+        conn.execute(query)
+    finally:
+        conn.close()
+    elapsed = time.monotonic() - start
+    logger.info(
+        "S4: event-label join lane completed scenario_id=%s expected_rows=%s elapsed=%.2fs",
+        scenario_id,
+        expected_rows,
+        elapsed,
+    )
+
+    output_rows = _count_parquet_rows([output_file])
+    return int(output_rows)
 
 
 def run_s4(
@@ -1538,109 +1635,58 @@ def run_s4(
             event_part = event_label_tmp / "part-00000.parquet"
             empty_event_labels.write_parquet(event_part, compression=parquet_compression)
         else:
-            event_progress = _ProgressTracker(
+            logger.info(
+                "S4: scenario_id=%s starting event-label join lane rows=%s",
+                scenario_id,
                 event_rows,
-                logger,
-                f"S4: scenario_id={scenario_id} events_processed",
             )
-            event_part_index = 0
             validated_event = False
-
-            auth_choices_expr = _choice_expr(auth_choices, _uniform_expr(seed, 101, modulus, pl.col("flow_id"), pl.lit("auth_decision")))
-
-            for events in _iter_parquet_batches(
-                event_files,
-                [
-                    "flow_id",
-                    "event_seq",
-                    "campaign_id",
-                    "seed",
-                    "manifest_fingerprint",
-                    "parameter_hash",
-                    "scenario_id",
-                ],
-                batch_rows,
-            ):
-                events = events.with_columns(
-                    pl.col("flow_id").cast(pl.Int64),
-                    pl.col("event_seq").cast(pl.Int64),
-                    pl.col("campaign_id").cast(pl.Utf8),
-                    pl.col("seed").cast(pl.Int64),
-                    pl.col("manifest_fingerprint").cast(pl.Utf8),
-                    pl.col("parameter_hash").cast(pl.Utf8),
-                    pl.col("scenario_id").cast(pl.Utf8),
+            flow_truth_files = sorted(path for path in flow_truth_out_dir.rglob("*.parquet") if path.is_file())
+            flow_bank_files = sorted(path for path in flow_bank_out_dir.rglob("*.parquet") if path.is_file())
+            if not flow_truth_files or not flow_bank_files:
+                _abort(
+                    "S4_EVENT_LABEL_JOIN_INPUT_MISSING",
+                    "V-01",
+                    "event_label_join_inputs_missing",
+                    {
+                        "scenario_id": str(scenario_id),
+                        "flow_truth_parts": len(flow_truth_files),
+                        "flow_bank_parts": len(flow_bank_files),
+                    },
+                    manifest_fingerprint,
+                )
+            event_part = event_label_tmp / "part-00000.parquet"
+            joined_rows = _build_event_labels_via_duckdb(
+                event_files=event_files,
+                flow_truth_files=flow_truth_files,
+                flow_bank_files=flow_bank_files,
+                output_file=event_part,
+                parquet_compression=parquet_compression,
+                seed=seed,
+                manifest_fingerprint=manifest_fingerprint,
+                parameter_hash=parameter_hash,
+                scenario_id=str(scenario_id),
+                expected_rows=int(event_rows),
+                logger=logger,
+            )
+            if int(joined_rows) != int(event_rows):
+                _abort(
+                    "S4_EVENT_LABEL_JOIN_COVERAGE_MISS",
+                    "V-01",
+                    "event_flow_join_rowcount_mismatch",
+                    {
+                        "scenario_id": str(scenario_id),
+                        "event_rows": int(event_rows),
+                        "joined_rows": int(joined_rows),
+                    },
+                    manifest_fingerprint,
                 )
 
-                events = events.join(campaign_map_df, on="campaign_id", how="left").with_columns(
-                    pl.col("campaign_type").fill_null("NONE")
-                )
-                events = events.with_columns(
-                    _map_enum_expr("campaign_type", truth_label_map, "LEGIT").alias("truth_label"),
-                    _map_enum_expr("campaign_type", truth_subtype_map, "NONE").alias("truth_subtype"),
-                )
-
-                events = events.with_columns(
-                    (pl.col("truth_label") != "LEGIT").alias("is_fraud_truth")
-                )
-
-                auth_decision = pl.when(pl.col("truth_subtype") == "CARD_TESTING").then(pl.lit("DECLINE")).otherwise(auth_choices_expr)
-
-                detect_prob = _map_enum_expr("truth_subtype", p_detect_map, 0.0)
-                detect_at_auth_prob = _map_enum_expr("truth_subtype", p_detect_at_auth_map, 0.0)
-                dispute_prob = _map_enum_expr("truth_subtype", p_dispute_map, 0.0)
-                chargeback_prob = _map_enum_expr("truth_subtype", p_chargeback_map, 0.0)
-
-                detect_flag = _uniform_expr(seed, 111, modulus, pl.col("flow_id"), pl.lit("detect_flag")) < detect_prob
-                detect_at_auth_flag = detect_flag & (
-                    _uniform_expr(seed, 112, modulus, pl.col("flow_id"), pl.lit("detect_at_auth")) < detect_at_auth_prob
-                )
-                dispute_flag = _uniform_expr(seed, 121, modulus, pl.col("flow_id"), pl.lit("dispute_flag")) < dispute_prob
-                chargeback_flag = dispute_flag & (
-                    _uniform_expr(seed, 131, modulus, pl.col("flow_id"), pl.lit("chargeback_flag")) < chargeback_prob
-                )
-
-                cb_uniform = _uniform_expr(seed, 141, modulus, pl.col("flow_id"), pl.lit("chargeback_outcome"))
-                cb_fraud = _choice_expr(chargeback_outcome_map.get("FRAUD", [("BANK_LOSS", 1.0)]), cb_uniform)
-                cb_abuse = _choice_expr(chargeback_outcome_map.get("ABUSE", [("BANK_WIN", 1.0)]), cb_uniform)
-                cb_legit = _choice_expr(chargeback_outcome_map.get("LEGIT", [("BANK_WIN", 1.0)]), cb_uniform)
-
-                chargeback_outcome = (
-                    pl.when(chargeback_flag & (pl.col("truth_label") == "FRAUD")).then(cb_fraud)
-                    .when(chargeback_flag & (pl.col("truth_label") == "ABUSE")).then(cb_abuse)
-                    .when(chargeback_flag & (pl.col("truth_label") == "LEGIT")).then(cb_legit)
-                    .otherwise(pl.lit("NONE"))
-                )
-
-                bank_label = (
-                    pl.when(chargeback_outcome == "BANK_LOSS").then(pl.lit("CHARGEBACK_WRITTEN_OFF"))
-                    .when(dispute_flag & chargeback_outcome.is_in(["BANK_WIN", "PARTIAL"]))
-                    .then(pl.lit("CUSTOMER_DISPUTE_REJECTED"))
-                    .when((pl.col("truth_label").is_in(["FRAUD", "ABUSE"])) & detect_flag)
-                    .then(pl.lit("BANK_CONFIRMED_FRAUD"))
-                    .when(pl.col("truth_label") == "LEGIT")
-                    .then(pl.lit("BANK_CONFIRMED_LEGIT"))
-                    .otherwise(pl.lit("NO_CASE_OPENED"))
-                )
-
-                is_fraud_bank_view = bank_label.is_in(["BANK_CONFIRMED_FRAUD", "CHARGEBACK_WRITTEN_OFF"])
-
-                event_labels = events.select(
-                    [
-                        "flow_id",
-                        "event_seq",
-                        "is_fraud_truth",
-                        is_fraud_bank_view.alias("is_fraud_bank_view"),
-                        "seed",
-                        "manifest_fingerprint",
-                        "parameter_hash",
-                        "scenario_id",
-                    ]
-                )
-
-                if not validated_event and event_labels.height > 0:
-                    sample = event_labels.head(1).to_dicts()[0]
+            if not validated_event and joined_rows > 0:
+                sample_rows = pl.read_parquet(event_part, n_rows=1).to_dicts()
+                if sample_rows:
                     _validate_payload(
-                        sample,
+                        sample_rows[0],
                         schema_6b,
                         schema_layer3,
                         "#/s4/event_labels_6B",
@@ -1649,13 +1695,7 @@ def run_s4(
                     )
                     validated_event = True
 
-                event_part = event_label_tmp / f"part-{event_part_index:05d}.parquet"
-                event_labels.write_parquet(event_part, compression=parquet_compression)
-
-                batch_rows_processed = int(event_labels.height)
-                total_events += batch_rows_processed
-                event_part_index += 1
-                event_progress.update(batch_rows_processed)
+            total_events += int(joined_rows)
 
         event_out_dir = _materialize_parquet_path(event_label_path).parent
         _publish_parquet_parts(

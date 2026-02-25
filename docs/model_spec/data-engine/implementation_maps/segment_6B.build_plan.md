@@ -543,6 +543,48 @@ POPT.2R2 execution status (current authority):
 - decision: `HOLD_POPT.2_REOPEN`.
 - disposition: reject `POPT.2R2` lane and retain `f621ee01bdb3428f84f7c7c1afde8812` as runtime authority.
 
+### POPT.2U - `S4` algorithmic event-path reopen (flow-label reuse join)
+Goal:
+- remove duplicate per-event policy recomputation by deriving event labels from already-computed flow labels using a deterministic flow-id join.
+
+Definition of done:
+- [ ] implementation notes pinned before edits with explicit invariants and fallback plan.
+- [ ] `S4` event path no longer recomputes truth/bank policy branches per event row.
+- [ ] event labels are built from:
+  - event identity columns (`flow_id`, `event_seq`),
+  - joined flow booleans (`is_fraud_truth`, `is_fraud_bank_view`),
+  - run/scenario constants for metadata columns.
+- [ ] fail-closed guard present for missing flow-label coverage after join.
+- [ ] fresh staged `S4 -> S5` witness run scored.
+- [ ] decision recorded with keep/rollback.
+
+POPT.2U expanded execution plan:
+
+#### POPT.2U.1 - Design pin + invariants
+Definition of done:
+- [ ] no policy semantic change for flow truth/bank labeling.
+- [ ] no schema/path contract change for `s4_event_labels_6B`.
+- [ ] fail-closed on any join coverage gap (`event rows` without matched flow labels).
+
+#### POPT.2U.2 - Event-path algorithmic rewrite
+Definition of done:
+- [ ] implement event-label build using one join lane against flow labels.
+- [ ] remove event-side recomputation of:
+  - campaign-type mapping,
+  - truth label/subtype derivation,
+  - detect/dispute/chargeback probability branch logic.
+- [ ] keep deterministic ordering and idempotent publish behavior.
+
+#### POPT.2U.3 - Witness + closure
+Definition of done:
+- [ ] stage fresh run-id from `f621ee01bdb3428f84f7c7c1afde8812`.
+- [ ] run `S4 -> S5` with bounded knob posture.
+- [ ] score via `tools/score_segment6b_popt2_closure.py`.
+- [ ] retain only on runtime improvement with non-regression; else rollback and keep authority witness.
+
+POPT.2U execution status (current authority):
+- pending.
+
 ### POPT.3 - Part-writer and I/O compaction lane
 Goal:
 - reduce write amplification and small-file overhead on S3/S4 heavy outputs.

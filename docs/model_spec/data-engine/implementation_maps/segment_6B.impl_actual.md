@@ -2008,3 +2008,75 @@ Action:
 Reasoning:
 - user storage-pressure constraint requires pruning superseded run-id folders promptly.
 - keeping one candidate plus closure artifacts preserves auditability with lower disk impact.
+
+---
+
+### Entry: 2026-02-25 13:07
+
+POPT.2U design pin (algorithmic event-path reopen after POPT.2R2 rejection).
+
+Problem:
+- `POPT.2` runtime blocker remains unresolved after repeated knob-only and low-blast rewrite attempts.
+- current S4 path recomputes full fraud/bank policy branches for every event row, duplicating logic already executed at flow level.
+
+Chosen lane:
+- keep flow-lane policy logic unchanged as source-of-truth.
+- replace event-lane recomputation with deterministic flow-label reuse join:
+  - input events: `flow_id`, `event_seq`,
+  - join against flow outputs (`flow_id -> is_fraud_truth`, `is_fraud_bank_view`),
+  - project metadata columns from run/scenario constants.
+
+Why this lane:
+- directly targets the observed event hot path.
+- removes duplicate RNG/policy expression evaluation on ~249M event rows.
+- preserves semantics because event labels are intended to be flow-truth/bank projections.
+
+Alternatives considered:
+- another batch/compression sweep: rejected (already exhausted in `POPT.2R2`).
+- another campaign-map rewrite: rejected due prior semantic-drift risk and no runtime win after correction.
+- broad writer/path redesign: deferred due high blast and prior regressions.
+
+Invariants pinned:
+- no change to flow truth/bank policy logic.
+- no schema/path changes for `s4_event_labels_6B`.
+- fail-closed if any event row cannot resolve joined flow labels.
+- closure still `S4 -> S5` staged witness with scorer evidence.
+
+---
+
+### Entry: 2026-02-25 13:12
+
+POPT.2U implementation applied in `S4` (event-path flow-label reuse join).
+
+Code changes:
+- `packages/engine/src/engine/layers/l3/seg_6B/s4_truth_bank_labels/runner.py`:
+  - added a dedicated event-label builder `_build_event_labels_via_duckdb(...)`.
+  - event lane now:
+    - reads event identity (`flow_id`, `event_seq`) from event parquet,
+    - joins against already-produced flow outputs (`s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B`) by `flow_id`,
+    - projects metadata columns (`seed`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`) as constants.
+  - removed prior event-side recomputation branch from S4 loop (campaign/type mapping + truth/bank probability chain) for event labels.
+  - added fail-closed row-count guard:
+    - abort if joined event-label row count != source event row count.
+
+Design rationale:
+- avoids duplicate policy/RNG expression work across all event rows.
+- makes flow-lane outputs the single source of label truth for event projection.
+- preserves output schema and idempotent publish flow.
+
+---
+
+### Entry: 2026-02-25 13:18
+
+POPT.2U first witness blocker and corrective decision.
+
+Observed blocker:
+- staged run `56b20e1ef3374f05aa9addcb96fe588c` failed in `S4` with:
+  - `S4_EVENT_LABEL_JOIN_INPUT_MISSING`.
+- root cause:
+  - event join was sourcing flow-label parts from `tmp` directories after `_publish_parquet_parts(...)` had already moved those parts to final output locations.
+
+Corrective decision:
+- keep the POPT.2U algorithmic lane.
+- patch event join input source from `flow_*_tmp` to published output directories (`flow_truth_out_dir`, `flow_bank_out_dir`) so the join reads stable materialized flow-label surfaces.
+- rerun fresh staged witness after patch.
