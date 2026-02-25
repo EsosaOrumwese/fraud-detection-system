@@ -811,106 +811,137 @@ Goal:
 
 ##### POPT.6.0 - Design lock, scale lock, and invariants
 Definition of done:
-- [ ] Baseline pinned to `run_id=59b82090679742c0b2fa3bb3f5dd3150`:
+- [x] Baseline pinned to `run_id=59b82090679742c0b2fa3bb3f5dd3150`:
   - `S3=409.422s`,
   - `allocate_instruments=378.156s`,
   - segment integrated `S2+S3+S4+S5=766.563s`.
-- [ ] Scale surface pinned from authority artifacts:
+- [x] Scale surface pinned from authority artifacts:
   - accounts `=8,725,420`,
   - instruments emitted `=10,701,854`,
   - effective account-scan multiplier in allocation loops `~2.56x`.
-- [ ] Invariants pinned:
+- [x] Invariants pinned:
   - fail-closed contract posture unchanged,
   - idempotent publish unchanged,
   - deterministic replay guarantees preserved,
   - no policy-threshold weakening in realism gates.
 Execution expansion:
-- [ ] Capture exact S3 code hotspots by function/line:
+- [x] Capture exact S3 code hotspots by function/line:
   - deterministic uniform path,
   - largest remainder allocator,
   - emit loop and write path.
-- [ ] Pin comparison authority artifacts and run-ids in impl notes + logbook before edits.
-- [ ] Define gate math to be used post-run:
+- [x] Pin comparison authority artifacts and run-ids in impl notes + logbook before edits.
+- [x] Define gate math to be used post-run:
   - `S3 delta %`,
   - `allocate_instruments delta %`,
   - integrated `S2..S5` delta %.
 
 ##### POPT.6.1 - Emit-path columnar refactor (low blast, high impact)
 Definition of done:
-- [ ] Replace deep per-row tuple append loops with chunked columnar generation (array-first, then DataFrame/Arrow write).
-- [ ] Preserve deterministic `instrument_id` ordering and scheme assignment sequence.
-- [ ] Keep schema validation + idempotent publish path behavior unchanged.
-- [ ] Emit-path counters/logs added to prove reduced Python-row churn.
+- [x] Replace deep per-row tuple append loops with chunked columnar generation (array-first, then DataFrame/Arrow write).
+- [x] Preserve deterministic `instrument_id` ordering and scheme assignment sequence.
+- [x] Keep schema validation + idempotent publish path behavior unchanged.
+- [x] Emit-path counters/logs added to prove reduced Python-row churn.
 Execution expansion:
-- [ ] Replace tuple buffers with column buffers (typed arrays) and chunked DataFrame construction from columns.
-- [ ] Replace nested per-row append loops with block emission using repeated account/owner/scheme vectors.
-- [ ] Keep batch flush boundaries deterministic (`_DEFAULT_BATCH_ROWS`) and preserve row ordering.
+- [x] Replace tuple buffers with column buffers (typed arrays) and chunked DataFrame construction from columns.
+- [x] Replace nested per-row append loops with block emission using repeated account/owner/scheme vectors.
+- [x] Keep batch flush boundaries deterministic (`_DEFAULT_BATCH_ROWS`) and preserve row ordering.
 
 ##### POPT.6.2 - Account-cell prebinding and one-pass allocation preparation
 Definition of done:
-- [ ] Precompute and retain sorted account vectors once per `(party_type, account_type)` cell.
-- [ ] Prebind aligned owner vectors to remove repeated `owner_party_id` map lookups in emit loops.
-- [ ] Remove repeated `sorted(accounts)` + repeated fallback map traversals inside instrument-type loops.
-- [ ] Preserve missing-account/missing-owner fail-closed checks.
+- [x] Precompute and retain sorted account vectors once per `(party_type, account_type)` cell.
+- [x] Prebind aligned owner vectors to remove repeated `owner_party_id` map lookups in emit loops.
+- [x] Remove repeated `sorted(accounts)` + repeated fallback map traversals inside instrument-type loops.
+- [x] Preserve missing-account/missing-owner fail-closed checks.
 Execution expansion:
-- [ ] Build and store sorted `(account_id, owner_party_id)` vectors once per cell at load time.
-- [ ] Replace per-row `account_owner.get(account_id)` in emit path with pre-aligned owner vectors.
-- [ ] Add explicit consistency check ensuring aligned account/owner vector lengths are identical.
+- [x] Build and store sorted `(account_id, owner_party_id)` vectors once per cell at load time.
+- [x] Replace per-row `account_owner.get(account_id)` in emit path with pre-aligned owner vectors.
+- [x] Add explicit consistency check ensuring aligned account/owner vector lengths are identical.
 
 ##### POPT.6.3 - Allocation ranking algorithm rewrite
 Definition of done:
-- [ ] Replace full-range ranking sort in `_largest_remainder_list` with deterministic partial-selection strategy for top-`remaining` allocation.
-- [ ] Preserve tie semantics and deterministic replay surface under same seed/receipt.
-- [ ] Keep `_apply_caps` semantics and hard-cap guarantees unchanged.
-- [ ] Add guardrails for pathological small/large `remaining` regimes.
+- [x] Replace full-range ranking sort in `_largest_remainder_list` with deterministic partial-selection strategy for top-`remaining` allocation.
+- [x] Preserve tie semantics and deterministic replay surface under same seed/receipt.
+- [x] Keep `_apply_caps` semantics and hard-cap guarantees unchanged.
+- [x] Add guardrails for pathological small/large `remaining` regimes.
 Execution expansion:
-- [ ] Implement adaptive ranking:
+- [x] Implement adaptive ranking:
   - partial-selection route for small `k`,
   - fallback deterministic full sort for large `k`.
-- [ ] Preserve tie ordering by `(residual, tie_value, index)` parity with prior semantics.
-- [ ] Add deterministic test-mode self-check path comparing adaptive/full sort on sampled vectors (dev-only guard).
+- [x] Preserve tie ordering by `(residual, tie_value, index)` parity with prior semantics.
+- [x] Add deterministic test-mode self-check path comparing adaptive/full sort on sampled vectors (dev-only guard).
 
 ##### POPT.6.4 - Deterministic PRF redesign for per-account uniforms (high blast)
 Definition of done:
-- [ ] Replace per-account SHA-256 payload hashing in `_deterministic_uniform` with faster deterministic keyed-mixer PRF (single-process safe).
-- [ ] Keep deterministic reproducibility guarantees:
+- [x] Replace per-account SHA-256 payload hashing in `_deterministic_uniform` with faster deterministic keyed-mixer PRF (single-process safe).
+- [x] Keep deterministic reproducibility guarantees:
   - same inputs -> same outputs within the new PRF contract,
   - explicit version pin recorded in implementation notes.
-- [ ] Run dual evidence checks before acceptance:
+- [x] Run dual evidence checks before acceptance:
   - deterministic replay checks (same run inputs, repeated run),
   - distribution sanity checks to ensure no realism collapse from PRF change.
-- [ ] Explicitly mark this as a high-blast closure gate:
+- [x] Explicitly mark this as a high-blast closure gate:
   - no merge without fresh S3 witness evidence + non-regression checks.
 Execution expansion:
-- [ ] Introduce versioned deterministic PRF helper (e.g., `v2`) with keyed 64-bit mixer.
-- [ ] Cache per `(instrument_type, label)` stream keys to avoid repeated hash/payload assembly.
-- [ ] Keep interface-compatible callsites so failure routing remains unchanged.
-- [ ] Emit PRF version marker in logs/impl notes for audit reproducibility.
+- [x] Introduce versioned deterministic PRF helper (e.g., `v2`) with keyed 64-bit mixer.
+- [x] Cache per `(instrument_type, label)` stream keys to avoid repeated hash/payload assembly.
+- [x] Keep interface-compatible callsites so failure routing remains unchanged.
+- [x] Emit PRF version marker in logs/impl notes for audit reproducibility.
 
 ##### POPT.6.5 - Witness, integration check, and decision
 Definition of done:
-- [ ] Execute fresh `S3` owner-lane witness after `POPT.6.1-6.4` on new run-id.
-- [ ] Compare against `POPT.6.0` baseline with substep deltas (`allocate_instruments`, `emit_instrument_base_links`).
-- [ ] Execute bounded integration witness (`S3->S5`) to verify downstream non-regression.
-- [ ] Hard closure gates:
+- [x] Execute fresh `S3` owner-lane witness after `POPT.6.1-6.4` on new run-id.
+- [x] Compare against `POPT.6.0` baseline with substep deltas (`allocate_instruments`, `emit_instrument_base_links`).
+- [x] Execute bounded integration witness (`S3->S5`) to verify downstream non-regression.
+- [x] Hard closure gates:
   - `S3 <= 260s`,
   - `allocate_instruments <= 230s`,
   - no contract/validation regressions.
-- [ ] Stretch closure gates:
+- [x] Stretch closure gates:
   - `S3 <= 180s` (state budget),
   - segment integrated `S2+S3+S4+S5 <= 540s` (segment budget).
-- [ ] Record one decision only:
+- [x] Record one decision only:
   - `UNLOCK_P0_REMEDIATION` if hard gate passes,
   - `HOLD_POPT6` if hard gate fails,
   - `REVERT_POPT6` on regression.
-- [ ] Update keep-set and prune superseded run-id folders after decision.
+- [x] Update keep-set and prune superseded run-id folders after decision.
 Execution expansion:
-- [ ] Run owner-lane chain on fresh run-id:
+- [x] Run owner-lane chain on fresh run-id:
   - `S0 -> S1 -> S2 -> S3` for S3 witness.
-- [ ] Run bounded downstream chain on same run-id:
+  - execution note: direct `S0` rerun on `local_full_run-5/c25...` staged inputs failed on upstream 2A schema gate; owner lane was executed fail-closed by staging authoritative `S0` artifacts from `59b...` and then running fresh `S1 -> S2 -> S3`.
+- [x] Run bounded downstream chain on same run-id:
   - `S4 -> S5` for integration/non-regression witness.
-- [ ] Parse perf and validation artifacts into explicit closure matrix (hard/stretch + residuals).
-- [ ] Append final decision trail in build plan, impl notes, and daily log before pruning.
+- [x] Parse perf and validation artifacts into explicit closure matrix (hard/stretch + residuals).
+- [x] Append final decision trail in build plan, impl notes, and daily log before pruning.
+
+POPT.6 closure evidence (final authority run):
+- Baseline (`run_id=59b82090679742c0b2fa3bb3f5dd3150`):
+  - `S2=189.860s`, `S3=409.422s`, `S4=96.641s`, `S5=70.640s`,
+  - integrated `S2+S3+S4+S5=766.563s`,
+  - `S3.allocate_instruments=378.156s`.
+- Candidate (`run_id=60378ec4875f48fc919bd1f739f92a96`):
+  - `S2=195.703s`, `S3=149.078s`, `S4=95.750s`, `S5=83.547s`,
+  - integrated `S2+S3+S4+S5=524.078s`,
+  - `S3.allocate_instruments=115.703s`.
+- Delta summary:
+  - `S3` improvement `=63.588%` (`409.422s -> 149.078s`),
+  - `allocate_instruments` improvement `=69.404%` (`378.156s -> 115.703s`),
+  - integrated improvement `=31.633%` (`766.563s -> 524.078s`).
+- Gate outcomes:
+  - hard: `PASS` (`S3<=260`, `allocate_instruments<=230`, validation pass/no regressions),
+  - stretch: `PASS` (`S3<=180`, integrated `<=540`).
+- Budget posture:
+  - segment budget now passes (`524.078s <= 540.0s`),
+  - remaining state-budget misses are outside this owner lane (`S2` and `S4` still above individual state budgets).
+- Deterministic replay check (PRF high-blast control):
+  - replay run `b60008a6a3a74e58a330dfe71a0efb1d` executed with identical staged `S0/S1/S2`,
+  - file SHA-256 parity is exact for:
+    - `s3_instrument_base_6A.parquet`,
+    - `s3_account_instrument_links_6A.parquet`.
+- Distribution sanity / downstream compatibility:
+  - `S5` validation report `overall_status=PASS`,
+  - row-count parity vs baseline maintained for `S3`, `S4`, and `S5` published surfaces.
+- Decision:
+  - `POPT.6=UNLOCK_P0_REMEDIATION`.
 
 ### 7.4 Hard constraints for all optimization lanes
 - Determinism lock:
@@ -921,3 +952,60 @@ Execution expansion:
   - no remediation-policy threshold edits are allowed inside `POPT` lanes.
 - Resource lock:
   - prioritize algorithm/data-structure improvements over CPU/RAM scaling; keep memory-safe execution posture.
+
+#### POPT.7 - `S2` + `S4` residual hotspot closure lane
+Goal:
+- reduce the remaining heavy kernels after `POPT.6` closure:
+  - `S2.allocate_accounts` (dominant in `S2`),
+  - `S4.emit_regions` (dominant in `S4`).
+
+Baseline lock (`run_id=60378ec4875f48fc919bd1f739f92a96`):
+- `S2=195.703s`:
+  - `allocate_accounts=148.703s`,
+  - `emit_account_base=33.266s`.
+- `S4=95.750s`:
+  - `emit_regions=71.016s`,
+  - `load_party_base=14.156s`,
+  - `merge_parts=8.468s`.
+
+##### POPT.7.0 - Design lock and invariants
+Definition of done:
+- [ ] Pin hotspot references and code-path authority in impl notes before edits.
+- [ ] Pin accepted scope:
+  - `S2` allocation kernel and local deterministic uniform generation path,
+  - `S4` region emit/allocation kernel and local cap allocator path.
+- [ ] Pin invariants:
+  - fail-closed validation/error codes unchanged,
+  - schema/idempotent publish surfaces unchanged,
+  - no realism-threshold or policy edits.
+
+##### POPT.7.1 - `S2` allocation kernel optimization
+Definition of done:
+- [ ] Replace per-party Python scalar loops in `allocate_accounts` with vectorized array operations for:
+  - zero-gate evaluation,
+  - weight generation,
+  - largest-remainder allocation.
+- [ ] Use deterministic versioned PRF helper for vectorized uniform draws (single-process safe).
+- [ ] Keep output ordering and fail-closed duplicate/allocation guards unchanged.
+- [ ] Keep RNG event artifact shape and coverage unchanged.
+
+##### POPT.7.2 - `S4` emit kernel optimization
+Definition of done:
+- [ ] Rewrite `largest_remainder/cap` allocation helpers to array-backed implementations.
+- [ ] Hoist per-group constants out of per-device loops (no repeated lambda/base/frac recomputation).
+- [ ] Remove per-edge string split overhead in IP cell selection path.
+- [ ] Keep deterministic traversal order and contract schemas unchanged.
+
+##### POPT.7.3 - Witness and decision
+Definition of done:
+- [ ] Execute fresh witness run on new run-id under `runs/fix-data-engine/segment_6A`.
+- [ ] Compare vs `60378...` on:
+  - `S2`, `S2.allocate_accounts`,
+  - `S4`, `S4.emit_regions`.
+- [ ] Gate decisions:
+  - hard pass: `S2 <= 170s` and `S4 <= 85s` without regressions,
+  - stretch: `S2 <= 150s` and `S4 <= 75s`.
+- [ ] Record one decision only:
+  - `UNLOCK_P0_REMEDIATION` if hard pass,
+  - `HOLD_POPT7` if insufficient movement,
+  - `REVERT_POPT7` if regression.

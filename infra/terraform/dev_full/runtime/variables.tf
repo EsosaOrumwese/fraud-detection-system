@@ -144,6 +144,16 @@ variable "ig_api_key_seed_value" {
   sensitive = true
 }
 
+variable "ig_auth_mode" {
+  type    = string
+  default = "api_key"
+}
+
+variable "ig_auth_header_name" {
+  type    = string
+  default = "X-IG-Api-Key"
+}
+
 variable "sfn_platform_run_orchestrator_name" {
   type    = string
   default = "fraud-platform-dev-full-platform-run-v0"

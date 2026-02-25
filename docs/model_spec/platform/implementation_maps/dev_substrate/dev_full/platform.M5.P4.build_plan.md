@@ -108,36 +108,174 @@ Tasks:
    - `IG_AUTH_MODE`,
    - `IG_AUTH_HEADER_NAME`,
    - `SSM_IG_API_KEY_PATH`.
-2. run positive auth probe with valid key.
-3. run negative auth probe without/invalid key and require rejection.
+2. run positive auth probe with valid key for both protected routes:
+   - `GET /ops/health`,
+   - `POST /ingest/push`.
+3. run negative auth probe without key and require `401`.
+4. run negative auth probe with invalid key and require `401`.
 4. emit `m5g_boundary_auth_snapshot.json`.
 
 DoD:
-- [ ] auth handles are consistent and explicit.
-- [ ] positive and negative probes match expected outcomes.
-- [ ] auth snapshot committed locally and durably.
+- [x] auth handles are consistent and explicit.
+- [x] positive and negative probes match expected outcomes for all protected routes.
+- [x] auth snapshot committed locally and durably.
 
 P4.B precheck:
 1. P4.A is green.
 2. auth secret path resolves and key retrieval path is available.
+
+P4.B capability-lane coverage (execution gate):
+| Lane | Required handles/surfaces | Verification posture | Fail-closed condition |
+| --- | --- | --- | --- |
+| Auth handle integrity | `IG_AUTH_MODE`, `IG_AUTH_HEADER_NAME`, `SSM_IG_API_KEY_PATH`, `IG_BASE_URL`, `IG_INGEST_PATH`, `IG_HEALTHCHECK_PATH` | resolve handles and validate non-empty/non-placeholder values | missing/inconsistent handle |
+| Auth secret retrieval | SSM API-key retrieval using `SSM_IG_API_KEY_PATH` | retrieve valid non-empty key before probes | secret retrieval/read failure |
+| Positive probe contract | `GET /ops/health`, `POST /ingest/push` with valid header | require `200` and `202` respectively | valid-key request rejected or malformed contract |
+| Missing-key rejection | same protected routes without auth header | require `401` for both routes | missing key admitted or wrong status |
+| Invalid-key rejection | same protected routes with invalid auth header | require `401` for both routes | invalid key admitted or wrong status |
+| Evidence publication | `S3_EVIDENCE_BUCKET`, `S3_RUN_CONTROL_ROOT_PATTERN` | local snapshot + blocker register + summary, then durable publish/readback | publish/readback failure |
+
+P4.B verification command templates (operator lane):
+1. Handle closure:
+   - `rg -n "IG_AUTH_MODE|IG_AUTH_HEADER_NAME|SSM_IG_API_KEY_PATH|IG_BASE_URL|IG_INGEST_PATH|IG_HEALTHCHECK_PATH" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+2. Auth key retrieval:
+   - `aws ssm get-parameter --name <SSM_IG_API_KEY_PATH> --with-decryption`
+3. Positive probes:
+   - `GET <IG_BASE_URL><IG_HEALTHCHECK_PATH>` with `<IG_AUTH_HEADER_NAME>: <api_key>` -> expect `200`
+   - `POST <IG_BASE_URL><IG_INGEST_PATH>` with `<IG_AUTH_HEADER_NAME>: <api_key>` -> expect `202`
+4. Missing-key negative probes:
+   - `GET <IG_BASE_URL><IG_HEALTHCHECK_PATH>` without auth header -> expect `401`
+   - `POST <IG_BASE_URL><IG_INGEST_PATH>` without auth header -> expect `401`
+5. Invalid-key negative probes:
+   - `GET <IG_BASE_URL><IG_HEALTHCHECK_PATH>` with invalid key -> expect `401`
+   - `POST <IG_BASE_URL><IG_INGEST_PATH>` with invalid key -> expect `401`
+6. Durable publish/readback:
+   - `aws s3 cp <local_m5g_boundary_auth_snapshot.json> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/m5g_boundary_auth_snapshot.json`
+   - `aws s3 ls s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/m5g_boundary_auth_snapshot.json`
+
+P4.B scoped blocker mapping (must be explicit before transition):
+1. `P4B-B1` -> `M5P4-B1`: auth handles missing/inconsistent.
+2. `P4B-B2` -> `M5P4-B3`: positive auth probe failure with valid key.
+3. `P4B-B3` -> `M5P4-B3`: missing-key request was not rejected (`401` expected).
+4. `P4B-B4` -> `M5P4-B3`: invalid-key request was not rejected (`401` expected).
+5. `P4B-B5` -> `M5P4-B8`: durable publish/readback failure.
+6. `P4B-B6` -> `M5P4-B9`: transition attempted with unresolved `P4B-B*`.
+7. `P4B-B7` -> `M5P4-B3`: runtime implementation drift (protected route not auth-guarded).
+
+P4.B exit rule:
+1. auth handles are resolved and consistent with runtime wiring,
+2. valid-key probes pass (`200` health, `202` ingest),
+3. missing-key and invalid-key probes return `401` on all protected routes,
+4. `m5g_boundary_auth_snapshot.json` exists locally and durably,
+5. no active `P4B-B*` blocker remains,
+6. P4.C remains blocked until explicit `P4.B` pass evidence is committed.
+
+P4.B execution closure (2026-02-25):
+1. Drift confirmation before remediation:
+   - live probes admitted requests without auth (`202` on ingest) for missing/invalid API keys.
+   - root cause was missing auth guard in `infra/terraform/dev_full/runtime/lambda/ig_handler.py`.
+2. Remediation implemented:
+   - Lambda auth enforcement added for protected routes (`GET /ops/health`, `POST /ingest/push`),
+   - rejection contract pinned in runtime: missing/invalid key -> `401`,
+   - runtime env wiring pinned via Terraform: `IG_AUTH_MODE`, `IG_AUTH_HEADER_NAME`.
+3. Runtime re-materialization:
+   - `terraform -chdir=infra/terraform/dev_full/runtime apply` updated `aws_lambda_function.ig_handler`,
+   - runtime outputs now include `IG_AUTH_MODE=api_key`, `IG_AUTH_HEADER_NAME=X-IG-Api-Key`.
+4. Authoritative green run:
+   - execution id: `m5g_p4b_boundary_auth_20260225T011324Z`
+   - local root: `runs/dev_substrate/dev_full/m5/m5g_p4b_boundary_auth_20260225T011324Z/`
+   - summary: `runs/dev_substrate/dev_full/m5/m5g_p4b_boundary_auth_20260225T011324Z/m5g_execution_summary.json`
+   - result: `overall_pass=true`, blockers `[]`.
+5. Probe outcomes (authoritative):
+   - positive: health `200`, ingest `202` with valid key,
+   - missing key: health `401`, ingest `401`,
+   - invalid key: health `401`, ingest `401`.
+6. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5g_p4b_boundary_auth_20260225T011324Z/m5g_boundary_auth_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5g_p4b_boundary_auth_20260225T011324Z/m5g_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5g_p4b_boundary_auth_20260225T011324Z/m5g_execution_summary.json`
+7. Gate impact:
+   - P4.B is green; P4.C (`M5.H`) is unblocked.
 
 ### P4.C (M5.H) MSK Topic Readiness
 Goal:
 1. prove required topics are present and reachable for ingress/control flow.
 
 Tasks:
-1. resolve `MSK_*` cluster/bootstrap handles.
-2. verify required topic names and readiness for publish/consume identities.
-3. emit `m5h_msk_topic_readiness_snapshot.json`.
+1. resolve `MSK_*` cluster/bootstrap handles from live streaming outputs and compare against registry pins.
+2. execute in-VPC Kafka admin probe using IAM auth to validate required spine topics are reachable.
+3. if required topics are missing, request topic creation and re-check readiness set.
+4. emit `m5h_msk_topic_readiness_snapshot.json`.
+5. emit `m5h_blocker_register.json` and `m5h_execution_summary.json`.
 
 DoD:
-- [ ] required topics exist and are reachable.
-- [ ] topic ownership/readiness checks pass.
-- [ ] topic readiness snapshot committed locally and durably.
+- [x] required topics exist and are reachable.
+- [x] topic ownership/readiness checks pass.
+- [x] topic readiness snapshot committed locally and durably.
 
 P4.C precheck:
 1. P4.B is green.
 2. MSK connectivity handles are pinned and valid.
+
+P4.C capability-lane coverage (execution gate):
+| Lane | Required handles/surfaces | Verification posture | Fail-closed condition |
+| --- | --- | --- | --- |
+| Handle integrity | `MSK_CLUSTER_ARN`, `MSK_BOOTSTRAP_BROKERS_SASL_IAM`, `MSK_CLIENT_SUBNET_IDS`, `MSK_SECURITY_GROUP_ID` | compare registry pins against `terraform output` for `infra/terraform/dev_full/streaming` and `infra/terraform/dev_full/core` | stale/mismatched handle pin (`M5P4-B1`) |
+| Cluster health | MSK control-plane cluster state | require `State=ACTIVE` from `describe-cluster-v2` | non-active cluster (`M5P4-B4`) |
+| In-VPC topic probe | private-subnet Lambda probe with `kafka-python` + IAM token signer | list required topics and require all to be present/reachable; allow create-and-relist for missing topics | probe error/function error/missing topic (`M5P4-B4`) |
+| Topic contract scope | required P4 spine topics | require 9/9 readiness for `FP_BUS_{CONTROL,TRAFFIC_FRAUD,CONTEXT_*,RTDL,AUDIT,CASE_TRIGGERS,LABELS_EVENTS}` | partial/ambiguous readiness (`M5P4-B4`) |
+| Evidence durability | `S3_EVIDENCE_BUCKET` + run-control prefix | local artifacts + durable upload/readability under `evidence/dev_full/run_control/<m5h_execution_id>/` | missing/unreadable artifacts (`M5P4-B8`) |
+
+P4.C verification command templates (operator lane):
+1. Live handle surfaces:
+   - `terraform -chdir=infra/terraform/dev_full/streaming output -json`
+   - `terraform -chdir=infra/terraform/dev_full/core output -json`
+2. Cluster state:
+   - `aws kafka describe-cluster-v2 --cluster-arn <MSK_CLUSTER_ARN> --region eu-west-2`
+3. In-VPC probe:
+   - temporary Lambda in private subnets with MSK SG, IAM `kafka-cluster:*` scope, `kafka-python` admin probe, then cleanup.
+4. Durable publish:
+   - `aws s3 cp <m5h_artifact> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5h_execution_id>/...`
+
+P4.C scoped blocker mapping (must be explicit before transition):
+1. `P4C-B1` -> `M5P4-B1`: `MSK_CLUSTER_ARN` drift between registry and runtime outputs.
+2. `P4C-B2` -> `M5P4-B1`: `MSK_BOOTSTRAP_BROKERS_SASL_IAM` drift between registry and runtime outputs.
+3. `P4C-B3` -> `M5P4-B4`: in-VPC probe cannot reach required control plane (for example, SSM dependency from private subnet).
+4. `P4C-B4` -> `M5P4-B4`: probe implementation/runtime error (invoke function error, Kafka admin incompatibility).
+5. `P4C-B5` -> `M5P4-B4`: required topics not ready after probe.
+6. `P4C-B6` -> `M5P4-B8`: durable publish/readback failure.
+
+P4.C exit rule:
+1. live `MSK_*` handle pins are aligned (no registry/runtime drift),
+2. in-VPC probe reports 9/9 required topics ready,
+3. `m5h_msk_topic_readiness_snapshot.json`, `m5h_blocker_register.json`, and `m5h_execution_summary.json` exist locally and durably,
+4. no active `P4C-B*` blocker remains,
+5. P4.D remains blocked until explicit P4.C pass evidence is committed.
+
+P4.C execution closure (2026-02-25):
+1. Fail-closed baselines (captured intentionally):
+   - `m5h_p4c_msk_topic_readiness_20260225T013103Z` -> invoke race while Lambda pending + stale MSK handle drift.
+   - `m5h_p4c_msk_topic_readiness_20260225T014014Z` -> private-subnet probe attempted SSM call and timed out (`ConnectTimeout`).
+   - `m5h_p4c_msk_topic_readiness_20260225T014538Z` -> Kafka admin method signature mismatch.
+   - `m5h_p4c_msk_topic_readiness_20260225T014950Z` -> create-topics response handling mismatch.
+2. Remediations applied before authoritative rerun:
+   - repinned `MSK_CLUSTER_ARN`, `MSK_BOOTSTRAP_BROKERS_SASL_IAM`, `MSK_CLIENT_SUBNET_IDS`, and `MSK_SECURITY_GROUP_ID` in `dev_full_handles.registry.v0.md` to current streaming outputs.
+   - removed SSM dependency from in-VPC probe payload; pass bootstrap directly.
+   - corrected Kafka admin probe behavior for `kafka-python` response types (create + relist contract).
+3. Authoritative green run:
+   - execution id: `m5h_p4c_msk_topic_readiness_20260225T015352Z`
+   - local root: `runs/dev_substrate/dev_full/m5/m5h_p4c_msk_topic_readiness_20260225T015352Z/`
+   - summary: `runs/dev_substrate/dev_full/m5/m5h_p4c_msk_topic_readiness_20260225T015352Z/m5h_execution_summary.json`
+   - result: `overall_pass=true`, blockers `[]`, next gate `M5.I_READY`.
+4. Topic readiness outcomes (authoritative):
+   - required topics ready: `9/9`,
+   - probe errors: `0`,
+   - handle drift: none.
+5. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5h_p4c_msk_topic_readiness_20260225T015352Z/m5h_msk_topic_readiness_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5h_p4c_msk_topic_readiness_20260225T015352Z/m5h_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5h_p4c_msk_topic_readiness_20260225T015352Z/m5h_execution_summary.json`
+6. Gate impact:
+   - P4.C is green; P4.D (`M5.I`) is unblocked.
 
 ### P4.D (M5.I) Ingress Envelope Conformance
 Goal:

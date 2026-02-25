@@ -299,6 +299,8 @@ resource "aws_lambda_function" "ig_handler" {
       IG_HASH_KEY          = var.ddb_ig_idempotency_hash_key
       IG_TTL_ATTRIBUTE     = var.ddb_ig_idempotency_ttl_attribute
       IG_API_KEY_PATH      = aws_ssm_parameter.ig_api_key.name
+      IG_AUTH_MODE         = var.ig_auth_mode
+      IG_AUTH_HEADER_NAME  = var.ig_auth_header_name
     }
   }
 

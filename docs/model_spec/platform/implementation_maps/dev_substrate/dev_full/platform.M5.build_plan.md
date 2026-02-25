@@ -284,9 +284,30 @@ Tasks:
 4. publish auth enforcement snapshot.
 
 DoD:
-- [ ] auth contract handles are consistent.
-- [ ] positive and negative auth probes pass expected outcomes.
-- [ ] auth enforcement snapshot committed locally and durably.
+- [x] auth contract handles are consistent.
+- [x] positive and negative auth probes pass expected outcomes.
+- [x] auth enforcement snapshot committed locally and durably.
+
+M5.G execution closure (2026-02-25):
+1. Pre-remediation drift was confirmed:
+   - missing/invalid API-key requests were admitted at IG boundary.
+2. Runtime remediation:
+   - patched `infra/terraform/dev_full/runtime/lambda/ig_handler.py` with fail-closed auth enforcement,
+   - materialized runtime env pins `IG_AUTH_MODE` and `IG_AUTH_HEADER_NAME`,
+   - re-applied runtime Terraform stack (`aws_lambda_function.ig_handler` in-place update).
+3. Authoritative green run:
+   - `runs/dev_substrate/dev_full/m5/m5g_p4b_boundary_auth_20260225T011324Z/m5g_execution_summary.json`
+   - outcome: `overall_pass=true`, blockers=`[]`, `next_gate=M5.H_READY`.
+4. Probe contract outcomes:
+   - valid key: health `200`, ingest `202`,
+   - missing key: health `401`, ingest `401`,
+   - invalid key: health `401`, ingest `401`.
+5. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5g_p4b_boundary_auth_20260225T011324Z/m5g_boundary_auth_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5g_p4b_boundary_auth_20260225T011324Z/m5g_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5g_p4b_boundary_auth_20260225T011324Z/m5g_execution_summary.json`
+6. Next action:
+   - advance to `M5.H` (`P4.C` MSK topic readiness).
 
 ### M5.H MSK Topic Readiness (P4)
 Goal:
@@ -298,9 +319,33 @@ Tasks:
 3. publish topic readiness snapshot.
 
 DoD:
-- [ ] required topics exist and are reachable.
-- [ ] topic ownership/readiness checks pass.
-- [ ] topic readiness snapshot committed locally and durably.
+- [x] required topics exist and are reachable.
+- [x] topic ownership/readiness checks pass.
+- [x] topic readiness snapshot committed locally and durably.
+
+M5.H execution closure (2026-02-25):
+1. Fail-closed baseline attempts were executed and preserved for audit:
+   - `m5h_p4c_msk_topic_readiness_20260225T013103Z` (invoke race + stale MSK handle drift),
+   - `m5h_p4c_msk_topic_readiness_20260225T014014Z` (private-subnet SSM reachability failure),
+   - `m5h_p4c_msk_topic_readiness_20260225T014538Z` (Kafka admin API mismatch),
+   - `m5h_p4c_msk_topic_readiness_20260225T014950Z` (create-topics response handling mismatch).
+2. Remediation closure applied:
+   - repinned stale `MSK_*` handles in registry from live streaming outputs,
+   - removed SSM dependency from in-VPC probe path,
+   - corrected `kafka-python` topic create/relist logic.
+3. Authoritative green run:
+   - `runs/dev_substrate/dev_full/m5/m5h_p4c_msk_topic_readiness_20260225T015352Z/m5h_execution_summary.json`
+   - outcome: `overall_pass=true`, blockers=`[]`, `next_gate=M5.I_READY`.
+4. Topic outcomes:
+   - required topics ready: `9/9`,
+   - probe errors: `0`,
+   - handle drift: none.
+5. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5h_p4c_msk_topic_readiness_20260225T015352Z/m5h_msk_topic_readiness_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5h_p4c_msk_topic_readiness_20260225T015352Z/m5h_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5h_p4c_msk_topic_readiness_20260225T015352Z/m5h_execution_summary.json`
+6. Next action:
+   - advance to `M5.I` (`P4.D` ingress envelope conformance).
 
 ### M5.I Ingress Envelope Conformance (P4)
 Goal:
@@ -403,8 +448,8 @@ Any active `M5-B*` blocker prevents M5 closure.
 - [x] M5.D complete
 - [x] M5.E complete
 - [x] M5.F complete
-- [ ] M5.G complete
-- [ ] M5.H complete
+- [x] M5.G complete
+- [x] M5.H complete
 - [ ] M5.I complete
 - [ ] M5.J complete
 - [ ] M5 blockers resolved or explicitly fail-closed
@@ -439,4 +484,6 @@ Handoff posture:
    - `M5.D` / `P3.C` is closed green (`m5d_p3c_stream_view_contract_20260224T192457Z`).
    - `M5.E` / `P3.D` is closed green (`m5e_p3_gate_rollup_20260225T005034Z`) with verdict `ADVANCE_TO_P4`.
    - `M5.F` / `P4.A` is closed green (`m5f_p4a_ingress_boundary_health_20260225T010044Z`) after IG handle repin remediation.
-   - next actionable execution lane is `M5.G` (`P4.B`).
+   - `M5.G` / `P4.B` is closed green (`m5g_p4b_boundary_auth_20260225T011324Z`) after IG runtime auth-enforcement remediation.
+   - `M5.H` / `P4.C` is closed green (`m5h_p4c_msk_topic_readiness_20260225T015352Z`) after handle repin + in-VPC probe hardening.
+   - next actionable execution lane is `M5.I` (`P4.D`).

@@ -2457,3 +2457,159 @@ Risk controls:
 - preserve deterministic output ordering and idempotent publish surface,
 - preserve all fail-closed `_abort(...)` branches and codes,
 - execute fresh run-id witness after implementation before any phase unlock.
+
+### Entry: 2026-02-25 01:11
+
+POPT.6.1-POPT.6.4 implementation applied in `S3` runner.
+
+File updated:
+- `packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py`
+
+Applied changes by subphase:
+
+`POPT.6.1` emit-path columnar rewrite:
+- removed tuple-buffer row append path in allocation emit loop.
+- introduced chunk writer `_write_chunk(...)` that writes columnar chunks directly (`instrument_id/account_id/owner_party_id/scheme` + scalar columns).
+- kept chunking at `_DEFAULT_BATCH_ROWS` and retained sample validation + idempotent publish behavior.
+- added emit counters: `emit_chunks`, `emit_rows_written`.
+
+`POPT.6.2` account-cell prebinding:
+- introduced `account_cells_raw` + `account_owner_cells_raw` at load time.
+- built sorted numpy vectors once per `(party_type, account_type)` cell using stable `mergesort`.
+- replaced repeated `sorted(accounts)` and per-row owner hash-map lookup with aligned `account/owner` arrays.
+- added fail-closed alignment check (`cell_owner_alignment_invalid`).
+
+`POPT.6.3` ranking rewrite:
+- rewrote `_largest_remainder_list` to numpy-backed implementation.
+- added adaptive selection helpers (`_select_top_indices`, `_select_bottom_indices`) with partial-selection route for large `n`/small `k`.
+- retained deterministic tie behavior with explicit lexicographic ordering fallback.
+- rewrote `_apply_caps` to vectorized numpy operations with deterministic overflow redistribution and target-sum guard.
+
+`POPT.6.4` deterministic PRF redesign:
+- replaced per-row SHA-256 payload hashing path with versioned deterministic generator:
+  - `_DeterministicUniformGenerator`,
+  - splitmix64-based uint64 mixer over cached per `(instrument_type,label)` stream seeds.
+- logged active PRF version marker in `S3` runtime logs:
+  - `_DETERMINISTIC_PRF_VERSION = "6A_S3_PRF_V2_SPLITMIX64"`.
+- preserved fail-closed checks and kept callsite semantics (zero-gate and weight streams).
+
+Additional acceleration:
+- introduced vectorized `_normal_icdf_array(...)` and used it for sigma-weight draws.
+- added allocation-path counters:
+  - `allocation_account_evals`,
+  - `allocation_zero_skips`,
+  - `allocation_weight_evals`.
+
+Validation:
+- compile check passed:
+  - `python -m py_compile packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py`.
+
+Next step:
+- execute fresh `POPT.6.5` witness chain on new run-id (`S0->S1->S2->S3->S4->S5`) and evaluate hard/stretch gates.
+
+### Entry: 2026-02-25 01:42
+
+POPT.6.5 execution, blocker handling, and closure decision.
+
+Execution path taken:
+1) Initial fresh-chain attempts with direct `S0` execution (`run_id=4138...`, `run_id=e50...`) failed due upstream hash-gate issues:
+   - missing staged validation bundles on stale run-junction chain,
+   - then schema mismatch on 2A upstream validation bundle when staged directly from `local_full_run-5/c25...`.
+2) Fail-closed adjustment (documented and constrained to staging only):
+   - staged authoritative `S0` artifacts (`s0_gate_receipt`, `sealed_inputs`) from `run_id=59b...`,
+   - then executed fresh chain `S1 -> S2 -> S3 -> S4 -> S5` on a new run-id.
+3) Final authority run used for closure:
+   - `run_id=60378ec4875f48fc919bd1f739f92a96`.
+
+Final authority timings (from `perf_summary_6A.json`):
+- baseline `run_id=59b...`:
+  - `S2=189.860s`, `S3=409.422s`, `S4=96.641s`, `S5=70.640s`,
+  - integrated `S2+S3+S4+S5=766.563s`,
+  - `S3.allocate_instruments=378.156s`.
+- candidate `run_id=6037...`:
+  - `S2=195.703s`, `S3=149.078s`, `S4=95.750s`, `S5=83.547s`,
+  - integrated `S2+S3+S4+S5=524.078s`,
+  - `S3.allocate_instruments=115.703s`.
+
+Performance movement:
+- `S3` improved `63.588%`.
+- `S3.allocate_instruments` improved `69.404%`.
+- integrated `S2..S5` improved `31.633%`.
+- segment budget flipped to pass: `524.078s <= 540.0s`.
+
+Validation and non-regression:
+- `S5` validation report: `overall_status=PASS`.
+- row-count parity retained vs baseline across critical published surfaces (`S3`, `S4`, `S5`).
+- no `ERROR/CRITICAL/Traceback/FAILED` signatures in final authority run log.
+
+High-blast PRF deterministic replay control:
+- replay witness executed on `run_id=b60008a6a3a74e58a330dfe71a0efb1d` (same staged `S0/S1/S2`, `S3` rerun only).
+- exact SHA-256 match for:
+  - `s3_instrument_base_6A.parquet`,
+  - `s3_account_instrument_links_6A.parquet`.
+
+Phase decision:
+- `POPT.6=UNLOCK_P0_REMEDIATION`.
+
+Residual note:
+- owner-lane objective is closed; remaining per-state budget misses are outside this lane (`S2`, `S4`).
+
+### Entry: 2026-02-25 01:43
+
+POPT.6 post-closure prune executed.
+
+Prune command:
+- `python tools/prune_run_folders_keep_set.py --runs-root runs/fix-data-engine/segment_6A --keep 592d82e8d51042128fc32cb4394f1fa2 --keep 59b82090679742c0b2fa3bb3f5dd3150 --keep 94dcc9f10a324d829a0ece6f96eda5f6 --keep d9e03d8aeac24a21ad2560e649825b97 --keep f388966781f84fd7acd9fa42b469b275 --keep 60378ec4875f48fc919bd1f739f92a96 --keep b60008a6a3a74e58a330dfe71a0efb1d --yes`
+
+Removed superseded run-id folders:
+- `4138bf63f90f48a1b0a5ccbfa0df4212`
+- `60bf12fad2614b70a47e7e38a789c532`
+- `8282b8f7528444d7b818326056de01c1`
+- `9158f27d38614b9cbdbb918b84f0e2b8`
+- `e50a24cfdfe24054b0488bbb8c4a5ccd`
+
+Result:
+- `segment_6A` run-root now contains only baseline, prior-lane witnesses, final POPT.6 authority, and final deterministic replay witness.
+
+### Entry: 2026-02-25 01:52
+
+POPT.7 design lock opened for residual `S2` and `S4` performance bottlenecks.
+
+Trigger context (authority baseline `run_id=60378ec4875f48fc919bd1f739f92a96`):
+- `S2=195.703s` with dominant hotspot:
+  - `allocate_accounts=148.703s` (`~76%` of S2).
+- `S4=95.750s` with dominant hotspot:
+  - `emit_regions=71.016s` (`~74%` of S4).
+
+Code-path diagnosis pinned:
+- `S2`:
+  - per-party scalar loop in allocation (`u0/u1` generation + `_normal_icdf` + list appends),
+  - list-based `_largest_remainder_list` in hot allocation path.
+- `S4`:
+  - list-based `_largest_remainder_list`, `_apply_caps`, `_allocate_with_caps` in region allocation loops,
+  - repeated constant recomputation inside inner device loop (`group_lambda/base_ip/frac`),
+  - per-edge string split (`ip_type|asn`) in IP-cell selection.
+
+Alternatives considered:
+1) `S4`-only patch first.
+   - Rejected: `S2.allocate_accounts` remains the largest unresolved state hotspot.
+2) Broad end-to-end refactor of all emit/write paths.
+   - Rejected for this lane due blast radius and verification cost.
+3) Focused kernel optimization on `S2.allocate_accounts` + `S4.emit_regions` while preserving contracts.
+   - Selected.
+
+Implementation strategy (pre-edit lock):
+- `S2`:
+  - introduce vectorized deterministic uniform generator (version-pinned),
+  - vectorize zero-gate/weight generation and largest-remainder allocation,
+  - preserve fail-closed duplicate/account-allocation guards and artifact surfaces.
+- `S4`:
+  - port array-backed largest-remainder/cap allocator logic,
+  - hoist per-group constants outside inner loops,
+  - remove IP cell string split overhead via typed cumulative cell values.
+
+Invariants pinned:
+- no policy/config threshold changes,
+- no schema/idempotence surface changes,
+- fail-closed validation and error-code behavior must remain intact,
+- determinism required (same code + same seed/inputs => repeatable outputs).

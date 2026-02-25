@@ -258,10 +258,10 @@ Allowed tokens in pattern handles:
 ### 4.1 MSK cluster identity
 
 * `MSK_CLUSTER_NAME = "fraud-platform-dev-full-msk"`
-* `MSK_CLUSTER_ARN = "arn:aws:kafka:eu-west-2:230372904534:cluster/fraud-platform-dev-full-msk/c58f0077-4969-4672-8b25-926811fb3605-s2"` (repinned in M4.D remediation from streaming outputs)
-* `MSK_BOOTSTRAP_BROKERS_SASL_IAM = "boot-tej65v2u.c2.kafka-serverless.eu-west-2.amazonaws.com:9098"` (repinned in M4.D remediation from streaming outputs)
-* `MSK_CLIENT_SUBNET_IDS = ["subnet-0b54b3bdcff73c032","subnet-044dda2e0c31f90e8"]` (repinned in M4.D remediation from streaming outputs)
-* `MSK_SECURITY_GROUP_ID = "sg-0d9cec2f73764196f"` (repinned in M4.D remediation from streaming outputs)
+* `MSK_CLUSTER_ARN = "arn:aws:kafka:eu-west-2:230372904534:cluster/fraud-platform-dev-full-msk/d09c959e-2fe3-4852-a38b-a2f0b72a0fac-s3"` (repinned in M5.H remediation from streaming outputs)
+* `MSK_BOOTSTRAP_BROKERS_SASL_IAM = "boot-xc4btage.c3.kafka-serverless.eu-west-2.amazonaws.com:9098"` (repinned in M5.H remediation from streaming outputs)
+* `MSK_CLIENT_SUBNET_IDS = ["subnet-0a7a35898d0ca31a8","subnet-0e9647425f02e2f27"]` (repinned in M5.H remediation from streaming outputs)
+* `MSK_SECURITY_GROUP_ID = "sg-01bfefedcd75ec4b2"` (repinned in M5.H remediation from streaming outputs)
 
 ### 4.2 Secret path handles (MSK)
 

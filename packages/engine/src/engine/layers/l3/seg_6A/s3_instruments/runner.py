@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
+import numpy as np
 import polars as pl
 import yaml
 from jsonschema import Draft202012Validator
@@ -59,6 +60,9 @@ STATE = "S3"
 _HEX64_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
 _DEFAULT_BATCH_ROWS = 50_000
+_DETERMINISTIC_PRF_VERSION = "6A_S3_PRF_V2_SPLITMIX64"
+_U64_MASK = (1 << 64) - 1
+_INV_2_POW_53 = 1.0 / 9007199254740992.0
 
 
 @dataclass(frozen=True)
@@ -506,24 +510,50 @@ class _RngStream:
         }
 
 
-def _deterministic_uniform(
-    manifest_fingerprint: str,
-    parameter_hash: str,
-    account_id: int,
-    instrument_type: str,
-    label: str,
-) -> float:
-    payload = (
-        uer_string("mlr:6A")
-        + uer_string("s3")
-        + uer_string(label)
-        + uer_string(manifest_fingerprint)
-        + uer_string(parameter_hash)
-        + ser_u64(int(account_id))
-        + uer_string(instrument_type)
-    )
-    digest = hashlib.sha256(payload).digest()
-    return u01(low64(digest))
+def _mix_splitmix64_array(values: np.ndarray) -> np.ndarray:
+    mixed = values.astype(np.uint64, copy=True)
+    with np.errstate(over="ignore"):
+        mixed += np.uint64(0x9E3779B97F4A7C15)
+        mixed = (mixed ^ (mixed >> np.uint64(30))) * np.uint64(0xBF58476D1CE4E5B9)
+        mixed = (mixed ^ (mixed >> np.uint64(27))) * np.uint64(0x94D049BB133111EB)
+        mixed = mixed ^ (mixed >> np.uint64(31))
+    return mixed
+
+
+class _DeterministicUniformGenerator:
+    def __init__(self, manifest_fingerprint: str, parameter_hash: str) -> None:
+        base_digest = hashlib.blake2b(
+            bytes.fromhex(manifest_fingerprint) + bytes.fromhex(parameter_hash),
+            digest_size=16,
+            person=b"6A.S3.PRF",
+        ).digest()
+        self._seed_lo = int.from_bytes(base_digest[:8], "little", signed=False)
+        self._seed_hi = int.from_bytes(base_digest[8:], "little", signed=False)
+        self._stream_cache: dict[tuple[str, str], np.uint64] = {}
+
+    def _stream_seed(self, instrument_type: str, label: str) -> np.uint64:
+        cache_key = (instrument_type, label)
+        cached = self._stream_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        stream_digest = hashlib.blake2b(
+            f"{instrument_type}|{label}".encode("utf-8"),
+            digest_size=8,
+            person=b"6A.S3.STM",
+        ).digest()
+        stream_seed = int.from_bytes(stream_digest, "little", signed=False)
+        rotated_hi = ((self._seed_hi << 1) & _U64_MASK) | (self._seed_hi >> 63)
+        mixed_seed = (stream_seed ^ self._seed_lo ^ rotated_hi ^ 0xD2B74407B1CE6E93) & _U64_MASK
+        seed_value = np.uint64(mixed_seed)
+        self._stream_cache[cache_key] = seed_value
+        return seed_value
+
+    def uniforms(self, account_ids: np.ndarray, instrument_type: str, label: str) -> np.ndarray:
+        if account_ids.size == 0:
+            return np.empty(0, dtype=np.float64)
+        account_u64 = account_ids.astype(np.uint64, copy=False)
+        mixed = _mix_splitmix64_array(account_u64 ^ self._stream_seed(instrument_type, label))
+        return ((mixed >> np.uint64(11)).astype(np.float64)) * _INV_2_POW_53
 
 
 def _normal_icdf(p: float) -> float:
@@ -577,30 +607,202 @@ def _normal_icdf(p: float) -> float:
     )
 
 
-def _largest_remainder_list(
-    targets: list[float],
+def _normal_icdf_array(probabilities: np.ndarray) -> np.ndarray:
+    if probabilities.size == 0:
+        return np.empty(0, dtype=np.float64)
+    if np.any(probabilities <= 0.0) or np.any(probabilities >= 1.0):
+        raise ValueError("p must be in (0,1)")
+    p = probabilities.astype(np.float64, copy=False)
+    out = np.empty_like(p)
+
+    a = np.array(
+        (
+            -3.969683028665376e01,
+            2.209460984245205e02,
+            -2.759285104469687e02,
+            1.383577518672690e02,
+            -3.066479806614716e01,
+            2.506628277459239e00,
+        ),
+        dtype=np.float64,
+    )
+    b = np.array(
+        (
+            -5.447609879822406e01,
+            1.615858368580409e02,
+            -1.556989798598866e02,
+            6.680131188771972e01,
+            -1.328068155288572e01,
+        ),
+        dtype=np.float64,
+    )
+    c = np.array(
+        (
+            -7.784894002430293e-03,
+            -3.223964580411365e-01,
+            -2.400758277161838e00,
+            -2.549732539343734e00,
+            4.374664141464968e00,
+            2.938163982698783e00,
+        ),
+        dtype=np.float64,
+    )
+    d = np.array(
+        (
+            7.784695709041462e-03,
+            3.224671290700398e-01,
+            2.445134137142996e00,
+            3.754408661907416e00,
+        ),
+        dtype=np.float64,
+    )
+
+    plow = 0.02425
+    phigh = 1.0 - plow
+    low = p < plow
+    high = p > phigh
+    mid = ~(low | high)
+
+    if np.any(low):
+        q = np.sqrt(-2.0 * np.log(p[low]))
+        num = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q) + c[5]
+        den = ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q) + 1.0
+        out[low] = num / den
+    if np.any(high):
+        q = np.sqrt(-2.0 * np.log(1.0 - p[high]))
+        num = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q) + c[5]
+        den = ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q) + 1.0
+        out[high] = -(num / den)
+    if np.any(mid):
+        q = p[mid] - 0.5
+        r = q * q
+        num = (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q
+        den = (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r) + 1.0
+        out[mid] = num / den
+    return out
+
+
+def _select_top_indices(
+    residuals: np.ndarray,
+    tie_values: np.ndarray,
+    count: int,
+) -> np.ndarray:
+    if count <= 0:
+        return np.empty(0, dtype=np.int64)
+    n = residuals.size
+    if count >= n:
+        return np.arange(n, dtype=np.int64)
+    if n >= 50_000 and count <= n // 4:
+        cutoff = np.partition(residuals, n - count)[n - count]
+        above = np.flatnonzero(residuals > cutoff)
+        needed = count - above.size
+        if needed <= 0:
+            return above[:count]
+        equal = np.flatnonzero(residuals == cutoff)
+        if equal.size <= needed:
+            return np.concatenate((above, equal))
+        order = np.lexsort((equal, -tie_values[equal]))
+        return np.concatenate((above, equal[order[:needed]]))
+    order = np.lexsort((np.arange(n, dtype=np.int64), -tie_values, -residuals))
+    return order[:count]
+
+
+def _select_bottom_indices(residuals: np.ndarray, count: int) -> np.ndarray:
+    if count <= 0:
+        return np.empty(0, dtype=np.int64)
+    n = residuals.size
+    if count >= n:
+        return np.arange(n, dtype=np.int64)
+    if n >= 50_000 and count <= n // 4:
+        cutoff = np.partition(residuals, count - 1)[count - 1]
+        below = np.flatnonzero(residuals < cutoff)
+        needed = count - below.size
+        if needed <= 0:
+            return below[:count]
+        equal = np.flatnonzero(residuals == cutoff)
+        return np.concatenate((below, np.sort(equal)[:needed]))
+    order = np.lexsort((np.arange(n, dtype=np.int64), residuals))
+    return order[:count]
+
+
+def _largest_remainder_fullsort_reference(
+    targets: np.ndarray,
     total: int,
-    tie_stream: Optional[_RngStream] = None,
-) -> list[int]:
-    floors = [int(math.floor(value)) for value in targets]
-    residuals = [float(target - floor) for target, floor in zip(targets, floors)]
-    base_total = sum(floors)
-    remaining = total - base_total
+    tie_values: np.ndarray,
+) -> np.ndarray:
+    floors = np.floor(targets).astype(np.int64)
+    residuals = targets - floors
+    remaining = int(total) - int(floors.sum())
     if remaining > 0:
-        tie_values = [0.0] * len(targets)
-        if tie_stream is not None:
-            tie_values, _, _, _, _, _, _ = tie_stream.draw_uniforms(len(targets))
         ranked = sorted(
-            range(len(targets)),
-            key=lambda idx: (residuals[idx], tie_values[idx]),
+            range(targets.size),
+            key=lambda idx: (float(residuals[idx]), float(tie_values[idx])),
             reverse=True,
         )
         for idx in ranked[:remaining]:
             floors[idx] += 1
     elif remaining < 0:
-        ranked = sorted(range(len(targets)), key=lambda idx: (residuals[idx], idx))
-        for idx in ranked[: abs(remaining)]:
-            floors[idx] = max(floors[idx] - 1, 0)
+        ranked = sorted(range(targets.size), key=lambda idx: (float(residuals[idx]), int(idx)))
+        need = abs(remaining)
+        for idx in ranked:
+            if need <= 0:
+                break
+            if floors[idx] > 0:
+                floors[idx] -= 1
+                need -= 1
+    return floors
+
+
+def _largest_remainder_list(
+    targets: list[float] | np.ndarray,
+    total: int,
+    tie_stream: Optional[_RngStream] = None,
+) -> np.ndarray:
+    targets_arr = np.asarray(targets, dtype=np.float64)
+    if targets_arr.size == 0:
+        return np.empty(0, dtype=np.int64)
+    floors = np.floor(targets_arr).astype(np.int64)
+    residuals = targets_arr - floors
+    base_total = int(floors.sum())
+    remaining = int(total) - base_total
+    tie_values = np.zeros(targets_arr.size, dtype=np.float64)
+    tie_values_drawn = False
+    if remaining > 0:
+        if tie_stream is not None:
+            tie_draws, _, _, _, _, _, _ = tie_stream.draw_uniforms(targets_arr.size)
+            tie_values = np.asarray(tie_draws, dtype=np.float64)
+            tie_values_drawn = True
+        selected = _select_top_indices(residuals, tie_values, remaining)
+        floors[selected] += 1
+    elif remaining < 0:
+        selected = _select_bottom_indices(residuals, abs(remaining))
+        floors[selected] = np.maximum(floors[selected] - 1, 0)
+    delta = int(total) - int(floors.sum())
+    if delta > 0:
+        if tie_stream is not None and not tie_values_drawn:
+            tie_draws, _, _, _, _, _, _ = tie_stream.draw_uniforms(targets_arr.size)
+            tie_values = np.asarray(tie_draws, dtype=np.float64)
+            tie_values_drawn = True
+        selected = _select_top_indices(residuals, tie_values, delta)
+        floors[selected] += 1
+    elif delta < 0:
+        remaining = abs(delta)
+        while remaining > 0:
+            positive_idx = np.flatnonzero(floors > 0)
+            if positive_idx.size == 0:
+                break
+            if positive_idx.size <= remaining:
+                floors[positive_idx] -= 1
+                remaining -= positive_idx.size
+                continue
+            order = np.lexsort((positive_idx, residuals[positive_idx]))
+            selected = positive_idx[order[:remaining]]
+            floors[selected] -= 1
+            remaining = 0
+    if os.getenv("ENGINE_6A_S3_ALLOC_SELFTEST", "0") == "1" and targets_arr.size <= 200_000:
+        reference = _largest_remainder_fullsort_reference(targets_arr, int(total), tie_values)
+        if int(reference.sum()) != int(floors.sum()):
+            raise ValueError("largest_remainder_selfcheck_failed")
     return floors
 
 
@@ -614,48 +816,47 @@ def _normalize_shares(items: list[tuple[str, float]], logger, label: str) -> lis
 
 
 def _apply_caps(
-    counts: list[int],
-    weights: list[float],
+    counts: list[int] | np.ndarray,
+    weights: list[float] | np.ndarray,
     hard_max: int,
     total_target: int,
     rng_stream: _RngStream,
-) -> list[int]:
-    capped = counts[:]
-    overflow = 0
-    for idx, count in enumerate(capped):
-        if count > hard_max:
-            overflow += count - hard_max
-            capped[idx] = hard_max
+) -> np.ndarray:
+    capped = np.asarray(counts, dtype=np.int64).copy()
+    weights_arr = np.asarray(weights, dtype=np.float64)
+    if capped.size != weights_arr.size:
+        raise ValueError("counts/weights size mismatch")
+    overflow_mask = capped > hard_max
+    overflow = int((capped[overflow_mask] - hard_max).sum())
+    capped[overflow_mask] = hard_max
     if overflow <= 0:
         return capped
     iterations = 0
     remaining = overflow
     while remaining > 0 and iterations < 6:
-        indices = [idx for idx, count in enumerate(capped) if count < hard_max and weights[idx] > 0.0]
-        if not indices:
+        indices = np.flatnonzero((capped < hard_max) & (weights_arr > 0.0))
+        if indices.size == 0:
             break
-        capacity = [hard_max - capped[idx] for idx in indices]
-        total_capacity = sum(capacity)
+        capacity = hard_max - capped[indices]
+        total_capacity = int(capacity.sum())
         if total_capacity < remaining:
             raise ValueError("insufficient capacity to reallocate overflow")
-        target_weights = [weights[idx] for idx in indices]
-        total_weight = sum(target_weights)
+        target_weights = weights_arr[indices]
+        total_weight = float(target_weights.sum())
         if total_weight <= 0:
             raise ValueError("insufficient weight to reallocate overflow")
-        targets = [(remaining * weight) / total_weight for weight in target_weights]
+        targets = (float(remaining) * target_weights) / total_weight
         alloc = _largest_remainder_list(targets, remaining, rng_stream)
-        new_remaining = 0
-        for idx, add in zip(indices, alloc):
-            cap = hard_max - capped[idx]
-            if add > cap:
-                capped[idx] += cap
-                new_remaining += add - cap
-            else:
-                capped[idx] += add
-        remaining = new_remaining
+        if alloc.size != indices.size:
+            raise ValueError("allocation result size mismatch")
+        add = np.minimum(alloc, capacity)
+        capped[indices] += add
+        remaining = int((alloc - add).sum())
         iterations += 1
     if remaining > 0:
         raise ValueError("cap redistribution failed to place all overflow")
+    if int(capped.sum()) != int(total_target):
+        raise ValueError("cap redistribution target mismatch")
     return capped
 
 
@@ -936,7 +1137,8 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     account_validator = Draft202012Validator(account_schema)
 
     account_files = _list_parquet_files(account_base_path)
-    account_cells: dict[tuple[str, str], list[int]] = {}
+    account_cells_raw: dict[tuple[str, str], list[int]] = {}
+    account_owner_cells_raw: dict[tuple[str, str], list[int]] = {}
     account_owner: dict[int, int] = {}
     total_accounts = 0
 
@@ -967,7 +1169,9 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                             manifest_fingerprint,
                         )
                     account_owner[account_id] = owner_id
-                    account_cells.setdefault((party_type, account_type), []).append(account_id)
+                    cell_key = (party_type, account_type)
+                    account_cells_raw.setdefault(cell_key, []).append(account_id)
+                    account_owner_cells_raw.setdefault(cell_key, []).append(owner_id)
                     total_accounts += 1
         else:
             frame = pl.read_parquet(file_path, columns=["account_id", "owner_party_id", "account_type", "party_type"])
@@ -986,8 +1190,31 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                         manifest_fingerprint,
                     )
                 account_owner[account_id] = owner_id
-                account_cells.setdefault((party_type, account_type), []).append(account_id)
+                cell_key = (party_type, account_type)
+                account_cells_raw.setdefault(cell_key, []).append(account_id)
+                account_owner_cells_raw.setdefault(cell_key, []).append(owner_id)
                 total_accounts += 1
+
+    account_cells: dict[tuple[str, str], np.ndarray] = {}
+    account_owner_cells: dict[tuple[str, str], np.ndarray] = {}
+    for cell_key, account_ids in account_cells_raw.items():
+        owner_ids = account_owner_cells_raw.get(cell_key) or []
+        if len(account_ids) != len(owner_ids):
+            _abort(
+                "6A.S3.INPUT_INVALID",
+                "V-06",
+                "cell_owner_alignment_invalid",
+                {"cell": f"{cell_key[0]}::{cell_key[1]}", "accounts": len(account_ids), "owners": len(owner_ids)},
+                manifest_fingerprint,
+            )
+        account_arr = np.asarray(account_ids, dtype=np.int64)
+        owner_arr = np.asarray(owner_ids, dtype=np.int64)
+        if account_arr.size > 1:
+            order = np.argsort(account_arr, kind="mergesort")
+            account_arr = account_arr[order]
+            owner_arr = owner_arr[order]
+        account_cells[cell_key] = account_arr
+        account_owner_cells[cell_key] = owner_arr
 
     logger.info(
         "S3: loaded account base for instrument planning (accounts=%s, cells=%s)",
@@ -1141,8 +1368,10 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     perf.record_elapsed("plan_counts", step_started)
 
     step_started = time.monotonic()
+    logger.info("S3: deterministic uniform PRF active (version=%s)", _DETERMINISTIC_PRF_VERSION)
     rng_alloc_stream = _RngStream("instrument_allocation_sampling", manifest_fingerprint, parameter_hash, int(seed))
     rng_attr_stream = _RngStream("instrument_attribute_sampling", manifest_fingerprint, parameter_hash, int(seed))
+    deterministic_uniforms = _DeterministicUniformGenerator(manifest_fingerprint, parameter_hash)
 
     instrument_entry = find_dataset_entry(dictionary_6a, "s3_instrument_base_6A").entry
     link_entry = find_dataset_entry(dictionary_6a, "s3_account_instrument_links_6A").entry
@@ -1175,20 +1404,42 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     link_writer = None
     instrument_frames: list[pl.DataFrame] = []
     link_frames: list[pl.DataFrame] = []
-    instrument_buffer: list[tuple] = []
-    link_buffer: list[tuple] = []
-    buffered_rows = 0
 
     emit_tracker = _ProgressTracker(total_instruments, logger, "S3: emit s3_instrument_base_6A")
     alloc_tracker = _ProgressTracker(len(instrument_counts), logger, "S3: allocate instruments to accounts")
+    allocation_account_evals = 0
+    allocation_zero_skips = 0
+    allocation_weight_evals = 0
+    emit_chunks = 0
+    emit_rows_written = 0
 
-    def _flush_buffers() -> None:
-        nonlocal buffered_rows, instrument_writer, link_writer
-        if buffered_rows <= 0:
+    def _write_chunk(
+        instrument_ids: np.ndarray,
+        account_ids: np.ndarray,
+        owner_ids: np.ndarray,
+        instrument_type: str,
+        scheme_ids: np.ndarray,
+    ) -> None:
+        nonlocal instrument_writer, link_writer, emit_chunks, emit_rows_written
+        row_count = int(instrument_ids.size)
+        if row_count <= 0:
             return
         instrument_frame = pl.DataFrame(
-            instrument_buffer,
-            schema=[
+            {
+                "instrument_id": instrument_ids,
+                "account_id": account_ids,
+                "owner_party_id": owner_ids,
+                "scheme": scheme_ids,
+            }
+        ).with_columns(
+            [
+                pl.lit(instrument_type).alias("instrument_type"),
+                pl.lit(int(seed)).alias("seed"),
+                pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
+                pl.lit(parameter_hash).alias("parameter_hash"),
+            ]
+        ).select(
+            [
                 "instrument_id",
                 "account_id",
                 "owner_party_id",
@@ -1197,13 +1448,16 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 "seed",
                 "manifest_fingerprint",
                 "parameter_hash",
-            ],
-            orient="row",
+            ]
         )
         link_frame = pl.DataFrame(
-            link_buffer,
-            schema=["account_id", "instrument_id", "instrument_type", "scheme"],
-            orient="row",
+            {
+                "account_id": account_ids,
+                "instrument_id": instrument_ids,
+                "scheme": scheme_ids,
+            }
+        ).with_columns(pl.lit(instrument_type).alias("instrument_type")).select(
+            ["account_id", "instrument_id", "instrument_type", "scheme"]
         )
         _validate_sample_rows(instrument_frame, instrument_validator, manifest_fingerprint, "s3_instrument_base_6A")
         _validate_sample_rows(link_frame, link_validator, manifest_fingerprint, "s3_account_instrument_links_6A")
@@ -1219,9 +1473,8 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         else:
             instrument_frames.append(instrument_frame)
             link_frames.append(link_frame)
-        buffered_rows = 0
-        instrument_buffer.clear()
-        link_buffer.clear()
+        emit_chunks += 1
+        emit_rows_written += row_count
 
     instrument_id = 1
     for key in sorted(instrument_counts.keys()):
@@ -1230,13 +1483,32 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         if n_instr <= 0:
             alloc_tracker.update(1)
             continue
-        accounts = account_cells.get((party_type, account_type)) or []
-        if not accounts:
+        accounts = account_cells.get((party_type, account_type))
+        owner_ids_for_accounts = account_owner_cells.get((party_type, account_type))
+        if (
+            accounts is None
+            or owner_ids_for_accounts is None
+            or accounts.size == 0
+            or owner_ids_for_accounts.size == 0
+        ):
             _abort(
                 "6A.S3.ALLOCATION_FAILED",
                 "V-08",
                 "account_cell_missing",
                 {"party_type": party_type, "account_type": account_type},
+                manifest_fingerprint,
+            )
+        if accounts.size != owner_ids_for_accounts.size:
+            _abort(
+                "6A.S3.INPUT_INVALID",
+                "V-06",
+                "cell_owner_alignment_invalid",
+                {
+                    "party_type": party_type,
+                    "account_type": account_type,
+                    "accounts": int(accounts.size),
+                    "owners": int(owner_ids_for_accounts.size),
+                },
                 manifest_fingerprint,
             )
         rule = rule_map.get((party_type, account_type, instrument_type))
@@ -1270,28 +1542,19 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 manifest_fingerprint,
             )
 
-        eligible_accounts: list[int] = []
-        weights: list[float] = []
-        for account_id in sorted(accounts):
-            u0 = _deterministic_uniform(
-                manifest_fingerprint, parameter_hash, account_id, instrument_type, "zero_gate"
-            )
-            if u0 < p_zero_weight:
-                continue
-            u1 = _deterministic_uniform(
-                manifest_fingerprint, parameter_hash, account_id, instrument_type, "weight"
-            )
-            u1 = min(max(u1, 1.0e-12), 1.0 - 1.0e-12)
-            if sigma > 0:
-                z = _normal_icdf(u1)
-                weight = math.exp(sigma * z - 0.5 * sigma * sigma)
-            else:
-                weight = 1.0
-            weight = max(weight_floor, weight)
-            eligible_accounts.append(account_id)
-            weights.append(weight)
+        allocation_account_evals += int(accounts.size)
+        zero_uniforms = deterministic_uniforms.uniforms(accounts, instrument_type, "zero_gate")
+        if p_zero_weight > 0.0:
+            eligible_mask = zero_uniforms >= p_zero_weight
+        else:
+            eligible_mask = np.ones(accounts.size, dtype=bool)
+        allocation_zero_skips += int(accounts.size - int(eligible_mask.sum()))
 
-        if not eligible_accounts:
+        eligible_accounts = accounts[eligible_mask]
+        eligible_owner_ids = owner_ids_for_accounts[eligible_mask]
+        allocation_weight_evals += int(eligible_accounts.size)
+
+        if eligible_accounts.size == 0:
             _abort(
                 "6A.S3.ALLOCATION_FAILED",
                 "V-08",
@@ -1300,7 +1563,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 manifest_fingerprint,
             )
 
-        total_capacity = hard_max * len(eligible_accounts)
+        total_capacity = hard_max * int(eligible_accounts.size)
         if n_instr > total_capacity:
             _abort(
                 "6A.S3.ALLOCATION_FAILED",
@@ -1309,13 +1572,22 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 {
                     "instrument_type": instrument_type,
                     "hard_max": hard_max,
-                    "eligible_accounts": len(eligible_accounts),
+                    "eligible_accounts": int(eligible_accounts.size),
                     "n_instr": n_instr,
                 },
                 manifest_fingerprint,
             )
 
-        total_weight = sum(weights)
+        weight_uniforms = deterministic_uniforms.uniforms(eligible_accounts, instrument_type, "weight")
+        weight_uniforms = np.clip(weight_uniforms, 1.0e-12, 1.0 - 1.0e-12)
+        if sigma > 0:
+            z = _normal_icdf_array(weight_uniforms)
+            weights = np.exp(sigma * z - 0.5 * sigma * sigma)
+        else:
+            weights = np.ones(eligible_accounts.size, dtype=np.float64)
+        weights = np.maximum(weights, weight_floor)
+
+        total_weight = float(weights.sum())
         if total_weight <= 0:
             _abort(
                 "6A.S3.ALLOCATION_FAILED",
@@ -1325,7 +1597,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                 manifest_fingerprint,
             )
 
-        targets = [(n_instr * weight) / total_weight for weight in weights]
+        targets = (float(n_instr) * weights) / total_weight
         alloc_before_hi = rng_alloc_stream.counter_hi
         alloc_before_lo = rng_alloc_stream.counter_lo
         draws_before = rng_alloc_stream.draws_total
@@ -1365,7 +1637,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
                     "party_type": party_type,
                     "account_type": account_type,
                     "instrument_type": instrument_type,
-                    "eligible_accounts": len(eligible_accounts),
+                    "eligible_accounts": int(eligible_accounts.size),
                     "n_instr": n_instr,
                 },
             }
@@ -1393,7 +1665,7 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
         attr_before_lo = rng_attr_stream.counter_lo
         draws_before = rng_attr_stream.draws_total
         blocks_before = rng_attr_stream.blocks_total
-        scheme_targets = [n_instr * share for _, share in scheme_options]
+        scheme_targets = np.asarray([n_instr * share for _, share in scheme_options], dtype=np.float64)
         scheme_counts = _largest_remainder_list(scheme_targets, n_instr, rng_attr_stream)
         draws = rng_attr_stream.draws_total - draws_before
         blocks = rng_attr_stream.blocks_total - blocks_before
@@ -1423,66 +1695,69 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             }
         )
 
-        scheme_queue = [(scheme_id, int(count)) for (scheme_id, _), count in zip(scheme_options, scheme_counts)]
-        scheme_queue = [(scheme_id, count) for scheme_id, count in scheme_queue if count > 0]
-        scheme_idx = 0
-        if not scheme_queue and n_instr > 0:
+        positive_alloc = alloc_counts > 0
+        alloc_counts_positive = alloc_counts[positive_alloc]
+        eligible_accounts_positive = eligible_accounts[positive_alloc]
+        eligible_owner_positive = eligible_owner_ids[positive_alloc]
+
+        emitted_account_ids = np.repeat(eligible_accounts_positive, alloc_counts_positive)
+        emitted_owner_ids = np.repeat(eligible_owner_positive, alloc_counts_positive)
+        if int(emitted_account_ids.size) != n_instr:
             _abort(
                 "6A.S3.ALLOCATION_FAILED",
                 "V-08",
-                "scheme_allocation_empty",
-                {"instrument_type": instrument_type, "n_instr": n_instr},
+                "allocation_emit_size_mismatch",
+                {
+                    "instrument_type": instrument_type,
+                    "n_instr": n_instr,
+                    "emitted_rows": int(emitted_account_ids.size),
+                },
                 manifest_fingerprint,
             )
-        for account_id, count in zip(eligible_accounts, alloc_counts):
-            if count <= 0:
-                continue
-            owner_id = account_owner.get(account_id)
-            if owner_id is None:
-                _abort(
-                    "6A.S3.INPUT_INVALID",
-                    "V-06",
-                    "owner_party_missing",
-                    {"account_id": account_id},
-                    manifest_fingerprint,
-                )
-            for _ in range(count):
-                while scheme_idx < len(scheme_queue) and scheme_queue[scheme_idx][1] <= 0:
-                    scheme_idx += 1
-                if scheme_idx >= len(scheme_queue):
-                    _abort(
-                        "6A.S3.ALLOCATION_FAILED",
-                        "V-08",
-                        "scheme_queue_exhausted",
-                        {"instrument_type": instrument_type},
-                        manifest_fingerprint,
-                    )
-                scheme_id, remaining = scheme_queue[scheme_idx]
-                scheme_queue[scheme_idx] = (scheme_id, remaining - 1)
-                instrument_buffer.append(
-                    (
-                        instrument_id,
-                        account_id,
-                        owner_id,
-                        instrument_type,
-                        scheme_id,
-                        int(seed),
-                        manifest_fingerprint,
-                        parameter_hash,
-                    )
-                )
-                link_buffer.append((account_id, instrument_id, instrument_type, scheme_id))
-                instrument_id += 1
-                buffered_rows += 1
-                if buffered_rows >= _DEFAULT_BATCH_ROWS:
-                    _flush_buffers()
-            emit_tracker.update(count)
+
+        scheme_labels = np.asarray([scheme_id for scheme_id, _ in scheme_options], dtype=object)
+        positive_schemes = scheme_counts > 0
+        emitted_scheme_ids = np.repeat(scheme_labels[positive_schemes], scheme_counts[positive_schemes])
+        if int(emitted_scheme_ids.size) != n_instr:
+            _abort(
+                "6A.S3.ALLOCATION_FAILED",
+                "V-08",
+                "scheme_queue_exhausted",
+                {
+                    "instrument_type": instrument_type,
+                    "n_instr": n_instr,
+                    "scheme_rows": int(emitted_scheme_ids.size),
+                },
+                manifest_fingerprint,
+            )
+
+        emitted_instrument_ids = np.arange(instrument_id, instrument_id + n_instr, dtype=np.int64)
+        instrument_id += n_instr
+        offset = 0
+        while offset < n_instr:
+            end = min(offset + _DEFAULT_BATCH_ROWS, n_instr)
+            _write_chunk(
+                emitted_instrument_ids[offset:end],
+                emitted_account_ids[offset:end],
+                emitted_owner_ids[offset:end],
+                instrument_type,
+                emitted_scheme_ids[offset:end],
+            )
+            offset = end
+        emit_tracker.update(n_instr)
 
         alloc_tracker.update(1)
 
     perf.record_elapsed("allocate_instruments", step_started)
+    logger.info(
+        "S3: allocation-path counters (account_evals=%s zero_skips=%s weight_evals=%s emit_chunks=%s emitted_rows=%s)",
+        allocation_account_evals,
+        allocation_zero_skips,
+        allocation_weight_evals,
+        emit_chunks,
+        emit_rows_written,
+    )
     step_started = time.monotonic()
-    _flush_buffers()
 
     if instrument_writer is not None:
         instrument_writer.close()

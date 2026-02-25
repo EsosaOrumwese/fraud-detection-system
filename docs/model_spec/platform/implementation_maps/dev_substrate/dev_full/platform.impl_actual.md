@@ -3026,29 +3026,34 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 1. User requested immediate teardown before leaving, with priority on stopping active cost accrual.
 
 ### Decision-completeness check
-1. Scope selected: full dev_full stack destroy for non-backend surfaces (ops, data_ml, untime, streaming, core).
+1. Scope selected: full dev_full stack destroy for non-backend surfaces (ops, data_ml, 
+untime, streaming, core).
 2. Retained by design (not destroyed in this pass): Terraform state bucket/table and existing evidence/oracle artifacts not managed by stack-targeted destroy.
 3. Destroy order pinned to minimize dependency deadlocks:
-   - ops -> data_ml -> untime -> streaming -> core.
+   - ops -> data_ml -> 
+untime -> streaming -> core.
 4. Fail-closed rule:
    - any stack destroy failure is recorded with stack-specific blocker and residual impact.
 
 ### Alternatives considered
 1. Runtime-only stop (leave infra up): rejected because user requested teardown and cost minimization.
-2. Partial destroy (untime/ops only): rejected because residual managed services (MSK/EKS/VPC-linked infra) would continue billing.
+2. Partial destroy (
+untime/ops only): rejected because residual managed services (MSK/EKS/VPC-linked infra) would continue billing.
 3. Full backend-inclusive destroy: rejected to preserve reproducible state/evidence posture.
 
 ## Entry: 2026-02-23 06:29:01 +00:00 - Dev_full teardown execution completed with one accepted residual blocker
 
 ### Execution receipts
 1. Teardown run root:
-   - uns/dev_substrate/dev_full/teardown/teardown_20260223T062217Z/
+   - 
+uns/dev_substrate/dev_full/teardown/teardown_20260223T062217Z/
 2. Summary:
    - 	eardown_summary.json (overall_pass=false because core stack returned exit 1).
 3. Destroy outcomes by stack:
    - ops: PASS
    - data_ml: PASS
-   - untime: PASS
+   - 
+untime: PASS
    - streaming: PASS
    - core: FAIL (single residual bucket blocker)
 
@@ -3057,7 +3062,7 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
    - raud-platform-dev-full-evidence S3 bucket (BucketNotEmpty, versioned objects present).
 2. All other core resources destroyed successfully (VPC/subnets/SG/IGW/KMS/IAM roles/bucket controls).
 3. State check confirms only one remaining managed resource in core:
-   - ws_s3_bucket.core["evidence"].
+   - ws_s3_bucket.core["evidence"].
 
 ### Residual billing posture
 1. No active compute/runtime surfaces found for raud-platform-dev-full:
@@ -6819,3 +6824,193 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 1. Keep compatibility prefix (`m5c_`) but add explicit semantic suffix for readability:
    - `m5c_p3b_required_outputs_<timestamp>`
 2. This prevents operator confusion while preserving phase mapping conventions.
+
+## Entry: 2026-02-25 01:09:55 +00:00 - M5.G / P4.B decision-completeness check and remediation design (pre-implementation)
+
+### Trigger
+1. USER instructed: expand P4.B and execute implementation.
+2. P4.A is green, so P4.B is the active lane.
+
+### Drift assessment (live runtime truth vs pinned design)
+1. Live probes showed auth is not enforced:
+   - POST /ingest/push without X-IG-Api-Key returned 202.
+   - POST /ingest/push with invalid key returned 202.
+2. Pinned contract requires boundary auth fail-closed (IG_AUTH_MODE=api_key, IG_AUTH_HEADER_NAME=X-IG-Api-Key, SSM_IG_API_KEY_PATH configured).
+3. Runtime code root cause found in infra/terraform/dev_full/runtime/lambda/ig_handler.py:
+   - no auth check path is implemented on boundary routes.
+
+### Decision completeness closure before execution
+1. Required decision holes for P4.B are now explicitly pinned for execution:
+   - protected routes for v0: GET /ops/health, POST /ingest/push;
+   - auth mode handling: pi_key only for this lane;
+   - rejection contract: missing/invalid key -> 401;
+   - auth backend failure contract: SSM/path retrieval failure -> 503 fail-closed.
+2. Runtime wiring decision:
+   - materialize IG_AUTH_MODE and IG_AUTH_HEADER_NAME into Lambda env via Terraform variables so runtime behavior is handle-driven (not hidden constants).
+3. Evidence decision:
+   - m5g_boundary_auth_snapshot.json must include positive + negative probes for both protected routes and explicit blocker mapping.
+
+### Implementation plan selected
+1. Expand P4.B in platform.M5.P4.build_plan.md to execution-grade:
+   - capability lanes,
+   - command templates,
+   - blocker mapping,
+   - explicit exit rule.
+2. Patch runtime implementation:
+   - add auth enforcement in ig_handler.py using SSM-backed API key retrieval and fail-closed behavior,
+   - add Terraform runtime vars/env for IG_AUTH_MODE + IG_AUTH_HEADER_NAME,
+   - include these handles in runtime outputs for auditability.
+3. Re-materialize runtime stack (infra/terraform/dev_full/runtime) so Lambda deploys patched handler.
+4. Execute P4.B probes and publish local + durable evidence under m5g_<timestamp>.
+5. If blocker-free, mark M5.G complete and advance to M5.H.
+
+## Entry: 2026-02-25 01:15:12 +00:00 - M5.G / P4.B implementation decisions during execution (runtime auth remediation)
+
+### Mid-execution decision trail
+1. Route-scope decision:
+   - considered guarding only /ingest/push to preserve unauthenticated health checks,
+   - rejected for this lane because P4.B contract is boundary-auth enforcement and probes are explicitly run on both protected routes,
+   - selected guarded set: GET /ops/health, POST /ingest/push.
+2. Runtime configuration decision:
+   - considered hardcoding auth constants in handler,
+   - rejected due hidden drift risk against handle registry,
+   - selected Terraform-env wiring for IG_AUTH_MODE and IG_AUTH_HEADER_NAME with defaults aligned to registry pins.
+3. Auth backend decision:
+   - selected SSM-backed API-key retrieval using IG_API_KEY_PATH with bounded in-memory cache,
+   - fail-closed behavior selected for backend retrieval failures (503) and invalid mode (500) to avoid silent admission.
+4. Security behavior decision:
+   - selected constant-time compare (hmac.compare_digest) for supplied vs expected key,
+   - rejection reasons are explicit (missing_api_key, invalid_api_key) while avoiding key disclosure.
+
+### Files changed in implementation lane
+1. infra/terraform/dev_full/runtime/lambda/ig_handler.py
+2. infra/terraform/dev_full/runtime/main.tf
+3. infra/terraform/dev_full/runtime/variables.tf
+4. infra/terraform/dev_full/runtime/outputs.tf
+5. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.P4.build_plan.md
+
+### Runtime materialization outcome
+1. 	erraform -chdir=infra/terraform/dev_full/runtime plan/apply produced in-place update on ws_lambda_function.ig_handler only.
+2. Runtime outputs now expose:
+   - IG_AUTH_MODE=api_key,
+   - IG_AUTH_HEADER_NAME=X-IG-Api-Key.
+3. No additional runtime resources were added or destroyed in this remediation.
+
+
+## Entry: 2026-02-25 01:16:05 +00:00 - M5.G / P4.B closure evidence and gate decision
+
+### Execution evidence
+1. Authoritative execution id:
+   - `m5g_p4b_boundary_auth_20260225T011324Z`.
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m5/m5g_p4b_boundary_auth_20260225T011324Z/`.
+3. Durable evidence root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5g_p4b_boundary_auth_20260225T011324Z/`.
+
+### Probe results (contract vs observed)
+1. Positive probes with valid key:
+   - `GET /ops/health` -> `200` (expected `200`),
+   - `POST /ingest/push` -> `202` (expected `202`).
+2. Missing-key probes:
+   - `GET /ops/health` -> `401` (expected `401`),
+   - `POST /ingest/push` -> `401` (expected `401`).
+3. Invalid-key probes:
+   - `GET /ops/health` -> `401` (expected `401`),
+   - `POST /ingest/push` -> `401` (expected `401`).
+4. Blocker outcome:
+   - `P4B-B*` blockers = none,
+   - `overall_pass=true`.
+
+### Gate decision
+1. `M5.G` / `P4.B` is closed green.
+2. `P4.C` (`M5.H`) is now unblocked.
+3. Remaining P4 closure sequence is unchanged: `M5.H -> M5.I -> M5.J`.
+
+### Documentation and status updates applied
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.P4.build_plan.md`
+   - expanded P4.B execution lanes,
+   - added P4.B execution closure block,
+   - marked P4.B DoD checks complete.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`
+   - marked M5.G DoDs + checklist complete,
+   - added M5.G closure evidence and next action.
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+   - updated M5 posture to include P4.B closure,
+   - marked `M5.G` complete in sub-phase progress.
+4. `runs/dev_substrate/dev_full/m5/RUN_INDEX.md`
+   - appended M5.G authoritative run entry.
+
+## Entry: 2026-02-25 01:22:41 +00:00 - M5.H / P4.C decision-completeness check and execution plan (pre-implementation)
+
+### Trigger
+1. USER asked to move to planning and full execution of `P4.C`.
+2. `P4.A` and `P4.B` were already green; `M5.H` became the active gate.
+
+### Gap found before execution
+1. `M5.H` was still a thin stub in both `platform.M5.P4.build_plan.md` and `platform.M5.build_plan.md` (no capability matrix, no blocker mapping, no execution contract).
+2. `dev_full` streaming stack materializes MSK cluster + Glue registry, but does not materialize topics directly via Terraform resources.
+3. Local laptop Kafka-admin probe path is non-routable to MSK private brokers (`NoBrokersAvailable`), so direct local readiness probing is invalid.
+
+### Alternatives considered
+1. Treat topic readiness as only naming/handle checks.
+   - Rejected: does not satisfy `P4.C` requirement of live readiness.
+2. Defer `P4.C` readiness to later phases.
+   - Rejected: violates current phase gate contract.
+3. Run probe from inside VPC with short-lived managed compute.
+   - Selected: use temporary Lambda probe in private subnets with MSK SG and IAM auth.
+
+### Selected execution design
+1. Expand `P4.C` into execution-grade contract (lanes, blockers, exit rule).
+2. Execute fail-closed in-VPC probe sequence and preserve baseline failures as evidence.
+3. Remediate discovered drift/errors one by one until a blocker-free authoritative run is produced.
+4. Publish `m5h_*` artifacts locally and durably under run-control prefix.
+
+## Entry: 2026-02-25 01:39:14 +00:00 - M5.H execution trail (baseline failures and remediation path)
+
+### Baseline 1 (`m5h_p4c_msk_topic_readiness_20260225T013103Z`)
+1. In-VPC probe invocation raced Lambda function activation (`Pending` state during invoke).
+2. Result: fail-closed baseline.
+3. Decision: add explicit function-activation wait before invoke.
+
+### Baseline 2 (`m5h_p4c_msk_topic_readiness_20260225T014014Z`)
+1. Probe failed before Kafka due `ConnectTimeout` to SSM endpoint from private subnets.
+2. Root cause: no private-subnet route to SSM endpoint for this temporary probe lane.
+3. Decision: remove SSM dependency from probe runtime and pass bootstrap brokers directly in payload.
+
+### Baseline 3 (`m5h_p4c_msk_topic_readiness_20260225T014538Z`)
+1. Probe reached Kafka path but failed on `kafka-python` admin signature mismatch (`list_topics(timeout=...)` invalid).
+2. Decision: align probe implementation to installed client API (no `timeout` parameter).
+
+### Baseline 4 (`m5h_p4c_msk_topic_readiness_20260225T014950Z`)
+1. Probe failed on topic-create response handling (`CreateTopicsResponse_v3` not dict-like).
+2. Decision: simplify create path to create-and-relist contract (no dict/future assumption).
+
+### Handle drift found during baselines
+1. Registry pins for `MSK_CLUSTER_ARN`, `MSK_BOOTSTRAP_BROKERS_SASL_IAM`, `MSK_CLIENT_SUBNET_IDS`, and `MSK_SECURITY_GROUP_ID` were stale against live streaming outputs.
+2. Decision: repin registry immediately before authoritative rerun; treat drift as `M5P4-B1` blocker until corrected.
+
+## Entry: 2026-02-25 01:57:22 +00:00 - M5.H authoritative closure and gate decision
+
+### Remediation set applied
+1. Repinned stale MSK handle values in `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+2. Hardened in-VPC probe flow:
+   - explicit Lambda activation wait,
+   - bootstrap passed directly in payload,
+   - `kafka-python` create/relist compatibility logic.
+3. Ensured temporary probe function + IAM role are cleaned up after each run.
+
+### Authoritative pass run
+1. Execution id: `m5h_p4c_msk_topic_readiness_20260225T015352Z`.
+2. Local evidence root:
+   - `runs/dev_substrate/dev_full/m5/m5h_p4c_msk_topic_readiness_20260225T015352Z/`
+3. Durable evidence root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5h_p4c_msk_topic_readiness_20260225T015352Z/`
+4. Outcome:
+   - `overall_pass=true`, blocker set empty, next gate `M5.I_READY`.
+5. Topic readiness result:
+   - required spine topics ready `9/9`, probe errors `0`.
+
+### Gate decision
+1. `M5.H` / `P4.C` is closed green.
+2. `P4.D` (`M5.I`) is unblocked as the next execution lane.
+3. Fail-closed baseline runs are retained in run index for audit trail and remediation provenance.

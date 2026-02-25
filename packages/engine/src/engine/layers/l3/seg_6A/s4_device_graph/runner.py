@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
+import numpy as np
 import polars as pl
 import yaml
 from jsonschema import Draft202012Validator
@@ -578,11 +579,11 @@ def _fast_u01(seed: int, key: int, extra: int = 0) -> float:
     return _u01_from_u64(_mix64(mixed))
 
 
-def _build_cumulative(items: list[tuple[str, float]]) -> tuple[list[str], list[float], float]:
+def _build_cumulative(items: list[tuple[object, float]]) -> tuple[list[object], list[float], float]:
     total = sum(weight for _, weight in items)
     if total <= 0:
         return [items[0][0]] if items else [], [1.0] if items else [], 1.0
-    cells: list[str] = []
+    cells: list[object] = []
     cumulative: list[float] = []
     running = 0.0
     for value, weight in items:
@@ -592,7 +593,7 @@ def _build_cumulative(items: list[tuple[str, float]]) -> tuple[list[str], list[f
     return cells, cumulative, total
 
 
-def _pick_from_cumulative(cells: list[str], cumulative: list[float], total: float, u: float) -> str:
+def _pick_from_cumulative(cells: list[object], cumulative: list[float], total: float, u: float) -> object:
     if not cells:
         return ""
     u = min(max(u, 0.0), 1.0 - 1.0e-12)
@@ -654,30 +655,93 @@ def _normal_icdf(p: float) -> float:
     )
 
 
+def _select_top_indices(
+    residuals: np.ndarray,
+    tie_values: np.ndarray,
+    count: int,
+) -> np.ndarray:
+    if count <= 0:
+        return np.empty(0, dtype=np.int64)
+    n = residuals.size
+    if count >= n:
+        return np.arange(n, dtype=np.int64)
+    if n >= 50_000 and count <= n // 4:
+        cutoff = np.partition(residuals, n - count)[n - count]
+        above = np.flatnonzero(residuals > cutoff)
+        needed = count - above.size
+        if needed <= 0:
+            return above[:count]
+        equal = np.flatnonzero(residuals == cutoff)
+        if equal.size <= needed:
+            return np.concatenate((above, equal))
+        order = np.lexsort((equal, -tie_values[equal]))
+        return np.concatenate((above, equal[order[:needed]]))
+    order = np.lexsort((np.arange(n, dtype=np.int64), -tie_values, -residuals))
+    return order[:count]
+
+
+def _select_bottom_indices(residuals: np.ndarray, count: int) -> np.ndarray:
+    if count <= 0:
+        return np.empty(0, dtype=np.int64)
+    n = residuals.size
+    if count >= n:
+        return np.arange(n, dtype=np.int64)
+    if n >= 50_000 and count <= n // 4:
+        cutoff = np.partition(residuals, count - 1)[count - 1]
+        below = np.flatnonzero(residuals < cutoff)
+        needed = count - below.size
+        if needed <= 0:
+            return below[:count]
+        equal = np.flatnonzero(residuals == cutoff)
+        return np.concatenate((below, np.sort(equal)[:needed]))
+    order = np.lexsort((np.arange(n, dtype=np.int64), residuals))
+    return order[:count]
+
+
 def _largest_remainder_list(
-    targets: list[float],
+    targets: list[float] | np.ndarray,
     total: int,
     tie_stream: Optional[_RngStream] = None,
-) -> list[int]:
-    floors = [int(math.floor(value)) for value in targets]
-    residuals = [float(target - floor) for target, floor in zip(targets, floors)]
-    base_total = sum(floors)
-    remaining = total - base_total
+) -> np.ndarray:
+    targets_arr = np.asarray(targets, dtype=np.float64)
+    if targets_arr.size == 0:
+        return np.empty(0, dtype=np.int64)
+    floors = np.floor(targets_arr).astype(np.int64)
+    residuals = targets_arr - floors
+    remaining = int(total) - int(floors.sum())
+    tie_values = np.zeros(targets_arr.size, dtype=np.float64)
+    tie_values_drawn = False
     if remaining > 0:
-        tie_values = [0.0] * len(targets)
         if tie_stream is not None:
-            tie_values, _, _, _, _, _, _ = tie_stream.draw_uniforms(len(targets))
-        ranked = sorted(
-            range(len(targets)),
-            key=lambda idx: (residuals[idx], tie_values[idx]),
-            reverse=True,
-        )
-        for idx in ranked[:remaining]:
-            floors[idx] += 1
+            tie_draws, _, _, _, _, _, _ = tie_stream.draw_uniforms(targets_arr.size)
+            tie_values = np.asarray(tie_draws, dtype=np.float64)
+            tie_values_drawn = True
+        selected = _select_top_indices(residuals, tie_values, remaining)
+        floors[selected] += 1
     elif remaining < 0:
-        ranked = sorted(range(len(targets)), key=lambda idx: (residuals[idx], idx))
-        for idx in ranked[: abs(remaining)]:
-            floors[idx] = max(floors[idx] - 1, 0)
+        selected = _select_bottom_indices(residuals, abs(remaining))
+        floors[selected] = np.maximum(floors[selected] - 1, 0)
+    delta = int(total) - int(floors.sum())
+    if delta > 0:
+        if tie_stream is not None and not tie_values_drawn:
+            tie_draws, _, _, _, _, _, _ = tie_stream.draw_uniforms(targets_arr.size)
+            tie_values = np.asarray(tie_draws, dtype=np.float64)
+        selected = _select_top_indices(residuals, tie_values, delta)
+        floors[selected] += 1
+    elif delta < 0:
+        need = abs(delta)
+        while need > 0:
+            positive_idx = np.flatnonzero(floors > 0)
+            if positive_idx.size == 0:
+                break
+            if positive_idx.size <= need:
+                floors[positive_idx] -= 1
+                need -= positive_idx.size
+                continue
+            order = np.lexsort((positive_idx, residuals[positive_idx]))
+            selected = positive_idx[order[:need]]
+            floors[selected] -= 1
+            need = 0
     return floors
 
 
@@ -707,94 +771,87 @@ def _categorical_pick(items: list[tuple[str, float]], u: float) -> str:
 
 
 def _apply_caps(
-    counts: list[int],
-    weights: list[float],
+    counts: list[int] | np.ndarray,
+    weights: list[float] | np.ndarray,
     hard_max: int,
     total_target: int,
     rng_stream: _RngStream,
-) -> list[int]:
-    capped = counts[:]
-    overflow = 0
-    for idx, count in enumerate(capped):
-        if count > hard_max:
-            overflow += count - hard_max
-            capped[idx] = hard_max
+) -> np.ndarray:
+    capped = np.asarray(counts, dtype=np.int64).copy()
+    weights_arr = np.asarray(weights, dtype=np.float64)
+    if capped.size != weights_arr.size:
+        raise ValueError("counts/weights size mismatch")
+    overflow_mask = capped > hard_max
+    overflow = int((capped[overflow_mask] - hard_max).sum())
+    capped[overflow_mask] = hard_max
     if overflow <= 0:
         return capped
     iterations = 0
     remaining = overflow
     while remaining > 0 and iterations < 6:
-        indices = [idx for idx, count in enumerate(capped) if count < hard_max and weights[idx] > 0.0]
-        if not indices:
+        indices = np.flatnonzero((capped < hard_max) & (weights_arr > 0.0))
+        if indices.size == 0:
             break
-        capacity = [hard_max - capped[idx] for idx in indices]
-        total_capacity = sum(capacity)
+        capacity = hard_max - capped[indices]
+        total_capacity = int(capacity.sum())
         if total_capacity < remaining:
             raise ValueError("insufficient capacity to reallocate overflow")
-        target_weights = [weights[idx] for idx in indices]
-        total_weight = sum(target_weights)
+        target_weights = weights_arr[indices]
+        total_weight = float(target_weights.sum())
         if total_weight <= 0:
             raise ValueError("insufficient weight to reallocate overflow")
-        targets = [(remaining * weight) / total_weight for weight in target_weights]
+        targets = (float(remaining) * target_weights) / total_weight
         alloc = _largest_remainder_list(targets, remaining, rng_stream)
-        new_remaining = 0
-        for idx, add in zip(indices, alloc):
-            cap = hard_max - capped[idx]
-            if add > cap:
-                capped[idx] += cap
-                new_remaining += add - cap
-            else:
-                capped[idx] += add
-        remaining = new_remaining
+        if alloc.size != indices.size:
+            raise ValueError("allocation result size mismatch")
+        add = np.minimum(alloc, capacity)
+        capped[indices] += add
+        remaining = int((alloc - add).sum())
         iterations += 1
     if remaining > 0:
         raise ValueError("cap redistribution failed to place all overflow")
+    if int(capped.sum()) != int(total_target):
+        raise ValueError("cap redistribution target mismatch")
     return capped
 
 
 def _allocate_with_caps(
     total: int,
-    weights: list[float],
-    caps: list[int],
+    weights: list[float] | np.ndarray,
+    caps: list[int] | np.ndarray,
     rng_stream: _RngStream,
-) -> list[int]:
+) -> np.ndarray:
     if total <= 0:
-        return [0] * len(weights)
-    if len(weights) != len(caps):
+        return np.zeros(len(weights), dtype=np.int64)
+    weights_arr = np.asarray(weights, dtype=np.float64)
+    caps_arr = np.asarray(caps, dtype=np.int64)
+    if weights_arr.size != caps_arr.size:
         raise ValueError("weights/caps length mismatch")
-    capacity = sum(caps)
+    capacity = int(caps_arr.sum())
     if capacity < total:
         raise ValueError("insufficient capacity to allocate total")
-    weights_clean = [max(float(weight), 0.0) for weight in weights]
-    if sum(weights_clean) <= 0.0:
+    weights_clean = np.maximum(weights_arr, 0.0)
+    if float(weights_clean.sum()) <= 0.0:
         raise ValueError("allocation weights sum to zero")
 
-    alloc = [0] * len(weights_clean)
+    alloc = np.zeros(weights_clean.size, dtype=np.int64)
     remaining = int(total)
-    active = [idx for idx, cap in enumerate(caps) if cap > 0]
+    active = np.flatnonzero(caps_arr > 0)
     iterations = 0
-    while remaining > 0 and active:
+    while remaining > 0 and active.size > 0:
         iterations += 1
-        active_weights = [weights_clean[idx] for idx in active]
-        weight_sum = sum(active_weights)
+        active_weights = weights_clean[active]
+        weight_sum = float(active_weights.sum())
         if weight_sum <= 0.0:
             raise ValueError("allocation weights sum to zero")
-        targets = [(remaining * weight) / weight_sum for weight in active_weights]
+        targets = (float(remaining) * active_weights) / weight_sum
         alloc_active = _largest_remainder_list(targets, remaining, rng_stream)
-        overflow = 0
-        next_active: list[int] = []
-        for idx, add in zip(active, alloc_active):
-            cap_remaining = caps[idx] - alloc[idx]
-            if add >= cap_remaining:
-                alloc[idx] += cap_remaining
-                overflow += add - cap_remaining
-            else:
-                alloc[idx] += add
-                if cap_remaining - add > 0:
-                    next_active.append(idx)
-        remaining = overflow
-        active = next_active
-        if iterations > len(weights_clean) + 6:
+        cap_remaining = caps_arr[active] - alloc[active]
+        add = np.minimum(alloc_active, cap_remaining)
+        alloc[active] += add
+        remaining = int((alloc_active - add).sum())
+        active = active[(cap_remaining - add) > 0]
+        if iterations > weights_clean.size + 6:
             break
     if remaining > 0:
         raise ValueError("allocation_with_caps failed to place all counts")
@@ -856,6 +913,7 @@ def _emit_region_parts(
     logger = get_logger("engine.layers.l3.seg_6A.s4_device_graph.runner")
     region_label = f"region={region_id}"
     timer = _StepTimer(logger)
+    seed_int = int(seed)
 
     if not party_ids_by_type:
         logger.warning("S4: %s has no parties; emitting empty outputs", region_label)
@@ -1059,7 +1117,7 @@ def _emit_region_parts(
     for device_type, mix in os_mix_by_type.items():
         os_cumulative[device_type] = _build_cumulative(mix)
 
-    ip_cells = [(f"{ip_type}|{asn}", weight) for ip_type, asn, weight in ip_cell_weights]
+    ip_cells = [((str(ip_type), str(asn)), float(weight)) for ip_type, asn, weight in ip_cell_weights]
     ip_cell_values, ip_cell_cumulative, ip_cell_total = _build_cumulative(ip_cells)
 
     party_device_totals: dict[int, int] = {}
@@ -1073,6 +1131,9 @@ def _emit_region_parts(
             weights: list[float] = []
             p_zero = float(p_zero_by_group.get(group_id) or 0.0)
             sigma = float(sigma_by_group.get(group_id) or 0.0)
+            group_lambda = float(lambda_ip_by_group.get(group_id) or 0.0)
+            base_ip = int(math.floor(group_lambda))
+            frac = max(group_lambda - base_ip, 0.0)
             group_hash = _stable_u64_from_str(group_id)
             for party_id in parties:
                 current = party_device_totals.get(party_id, 0)
@@ -1104,7 +1165,7 @@ def _emit_region_parts(
                     f"device_alloc|{region_id}|{party_type}|{group_id}|{device_type}",
                     manifest_fingerprint,
                     parameter_hash,
-                    int(seed),
+                    seed_int,
                 ))
 
                 for party_id, count in zip(eligible_parties, alloc_counts):
@@ -1142,7 +1203,7 @@ def _emit_region_parts(
                                 country_iso,
                                 manifest_fingerprint,
                                 parameter_hash,
-                                int(seed),
+                                seed_int,
                             )
                         )
                         device_links_buffer.append(
@@ -1154,13 +1215,10 @@ def _emit_region_parts(
                                 "PRIMARY_OWNER",
                                 manifest_fingerprint,
                                 parameter_hash,
-                                int(seed),
+                                seed_int,
                             )
                         )
 
-                        group_lambda = float(lambda_ip_by_group.get(group_id) or 0.0)
-                        base_ip = int(math.floor(group_lambda))
-                        frac = max(group_lambda - base_ip, 0.0)
                         k_ip = base_ip
                         if frac > 0:
                             u_ip = _fast_u01(seed_ip_count, device_id)
@@ -1178,7 +1236,7 @@ def _emit_region_parts(
                                 ip_cell_total,
                                 _fast_u01(seed_ip_cell, device_id, edge_idx),
                             )
-                            ip_type, asn_class = cell_key.split("|", 1)
+                            ip_type, asn_class = cell_key
                             cell_range = ip_cell_ranges.get((ip_type, asn_class))
                             if not cell_range:
                                 continue
@@ -1193,7 +1251,7 @@ def _emit_region_parts(
                                     "TYPICAL_DEVICE_IP",
                                     manifest_fingerprint,
                                     parameter_hash,
-                                    int(seed),
+                                    seed_int,
                                 )
                             )
                         total_ip_links_added += k_ip

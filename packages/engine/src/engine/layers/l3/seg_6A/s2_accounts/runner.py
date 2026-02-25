@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
+import numpy as np
 import polars as pl
 import yaml
 from jsonschema import Draft202012Validator
@@ -59,6 +60,9 @@ STATE = "S2"
 _HEX64_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
 _DEFAULT_BATCH_ROWS = 50_000
+_DETERMINISTIC_PRF_VERSION = "6A_S2_PRF_V2_SPLITMIX64"
+_U64_MASK = (1 << 64) - 1
+_INV_2_POW_53 = 1.0 / 9007199254740992.0
 
 
 @dataclass(frozen=True)
@@ -505,47 +509,50 @@ class _RngStream:
         }
 
 
-def _deterministic_uniform(
-    manifest_fingerprint: str,
-    parameter_hash: str,
-    party_id: int,
-    account_type: str,
-    label: str,
-) -> float:
-    payload = (
-        uer_string("mlr:6A")
-        + uer_string("s2")
-        + uer_string(label)
-        + uer_string(manifest_fingerprint)
-        + uer_string(parameter_hash)
-        + ser_u64(int(party_id))
-        + uer_string(account_type)
-    )
-    digest = hashlib.sha256(payload).digest()
-    return u01(low64(digest))
+def _mix_splitmix64_array(values: np.ndarray) -> np.ndarray:
+    mixed = values.astype(np.uint64, copy=True)
+    with np.errstate(over="ignore"):
+        mixed += np.uint64(0x9E3779B97F4A7C15)
+        mixed = (mixed ^ (mixed >> np.uint64(30))) * np.uint64(0xBF58476D1CE4E5B9)
+        mixed = (mixed ^ (mixed >> np.uint64(27))) * np.uint64(0x94D049BB133111EB)
+        mixed = mixed ^ (mixed >> np.uint64(31))
+    return mixed
 
 
-def _build_uniform_template(
-    manifest_fingerprint: str,
-    parameter_hash: str,
-    account_type: str,
-    label: str,
-) -> tuple[object, bytes]:
-    template = hashlib.sha256()
-    template.update(uer_string("mlr:6A"))
-    template.update(uer_string("s2"))
-    template.update(uer_string(label))
-    template.update(uer_string(manifest_fingerprint))
-    template.update(uer_string(parameter_hash))
-    return template, uer_string(account_type)
+class _DeterministicUniformGenerator:
+    def __init__(self, manifest_fingerprint: str, parameter_hash: str) -> None:
+        base_digest = hashlib.blake2b(
+            bytes.fromhex(manifest_fingerprint) + bytes.fromhex(parameter_hash),
+            digest_size=16,
+            person=b"6A.S2.PRF",
+        ).digest()
+        self._seed_lo = int.from_bytes(base_digest[:8], "little", signed=False)
+        self._seed_hi = int.from_bytes(base_digest[8:], "little", signed=False)
+        self._stream_cache: dict[tuple[str, str], np.uint64] = {}
 
+    def _stream_seed(self, account_type: str, label: str) -> np.uint64:
+        cache_key = (account_type, label)
+        cached = self._stream_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        stream_digest = hashlib.blake2b(
+            f"{account_type}|{label}".encode("utf-8"),
+            digest_size=8,
+            person=b"6A.S2.STM",
+        ).digest()
+        stream_seed = int.from_bytes(stream_digest, "little", signed=False)
+        rotated_hi = ((self._seed_hi << 1) & _U64_MASK) | (self._seed_hi >> 63)
+        mixed_seed = (stream_seed ^ self._seed_lo ^ rotated_hi ^ 0xD2B74407B1CE6E93) & _U64_MASK
+        seed_value = np.uint64(mixed_seed)
+        self._stream_cache[cache_key] = seed_value
+        return seed_value
 
-def _deterministic_uniform_from_template(template: object, suffix: bytes, party_id: int) -> float:
-    # `template` is a preseeded hashlib object; copy() avoids repeated prefix hashing.
-    hasher = template.copy()
-    hasher.update(ser_u64(int(party_id)))
-    hasher.update(suffix)
-    return u01(low64(hasher.digest()))
+    def uniforms(self, party_ids: np.ndarray, account_type: str, label: str) -> np.ndarray:
+        if party_ids.size == 0:
+            return np.empty(0, dtype=np.float64)
+        party_u64 = party_ids.astype(np.uint64, copy=False)
+        mixed = _mix_splitmix64_array(party_u64 ^ self._stream_seed(account_type, label))
+        return ((mixed >> np.uint64(11)).astype(np.float64)) * _INV_2_POW_53
 
 
 def _normal_icdf(p: float) -> float:
@@ -599,6 +606,124 @@ def _normal_icdf(p: float) -> float:
     )
 
 
+def _normal_icdf_array(probabilities: np.ndarray) -> np.ndarray:
+    if probabilities.size == 0:
+        return np.empty(0, dtype=np.float64)
+    if np.any(probabilities <= 0.0) or np.any(probabilities >= 1.0):
+        raise ValueError("p must be in (0,1)")
+    p = probabilities.astype(np.float64, copy=False)
+    out = np.empty_like(p)
+
+    a = np.array(
+        (
+            -3.969683028665376e01,
+            2.209460984245205e02,
+            -2.759285104469687e02,
+            1.383577518672690e02,
+            -3.066479806614716e01,
+            2.506628277459239e00,
+        ),
+        dtype=np.float64,
+    )
+    b = np.array(
+        (
+            -5.447609879822406e01,
+            1.615858368580409e02,
+            -1.556989798598866e02,
+            6.680131188771972e01,
+            -1.328068155288572e01,
+        ),
+        dtype=np.float64,
+    )
+    c = np.array(
+        (
+            -7.784894002430293e-03,
+            -3.223964580411365e-01,
+            -2.400758277161838e00,
+            -2.549732539343734e00,
+            4.374664141464968e00,
+            2.938163982698783e00,
+        ),
+        dtype=np.float64,
+    )
+    d = np.array(
+        (
+            7.784695709041462e-03,
+            3.224671290700398e-01,
+            2.445134137142996e00,
+            3.754408661907416e00,
+        ),
+        dtype=np.float64,
+    )
+
+    plow = 0.02425
+    phigh = 1.0 - plow
+    low = p < plow
+    high = p > phigh
+    mid = ~(low | high)
+
+    if np.any(low):
+        q = np.sqrt(-2.0 * np.log(p[low]))
+        num = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q) + c[5]
+        den = ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q) + 1.0
+        out[low] = num / den
+    if np.any(high):
+        q = np.sqrt(-2.0 * np.log(1.0 - p[high]))
+        num = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q) + c[5]
+        den = ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q) + 1.0
+        out[high] = -(num / den)
+    if np.any(mid):
+        q = p[mid] - 0.5
+        r = q * q
+        num = (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q
+        den = (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r) + 1.0
+        out[mid] = num / den
+    return out
+
+
+def _select_top_indices(
+    residuals: np.ndarray,
+    tie_values: np.ndarray,
+    count: int,
+) -> np.ndarray:
+    if count <= 0:
+        return np.empty(0, dtype=np.int64)
+    n = residuals.size
+    if count >= n:
+        return np.arange(n, dtype=np.int64)
+    if n >= 50_000 and count <= n // 4:
+        cutoff = np.partition(residuals, n - count)[n - count]
+        above = np.flatnonzero(residuals > cutoff)
+        needed = count - above.size
+        if needed <= 0:
+            return above[:count]
+        equal = np.flatnonzero(residuals == cutoff)
+        if equal.size <= needed:
+            return np.concatenate((above, equal))
+        order = np.lexsort((equal, -tie_values[equal]))
+        return np.concatenate((above, equal[order[:needed]]))
+    order = np.lexsort((np.arange(n, dtype=np.int64), -tie_values, -residuals))
+    return order[:count]
+
+
+def _select_bottom_indices(residuals: np.ndarray, count: int) -> np.ndarray:
+    if count <= 0:
+        return np.empty(0, dtype=np.int64)
+    n = residuals.size
+    if count >= n:
+        return np.arange(n, dtype=np.int64)
+    if n >= 50_000 and count <= n // 4:
+        cutoff = np.partition(residuals, count - 1)[count - 1]
+        below = np.flatnonzero(residuals < cutoff)
+        needed = count - below.size
+        if needed <= 0:
+            return below[:count]
+        equal = np.flatnonzero(residuals == cutoff)
+        return np.concatenate((below, np.sort(equal)[:needed]))
+    order = np.lexsort((np.arange(n, dtype=np.int64), residuals))
+    return order[:count]
+
+
 def _largest_remainder(
     targets: dict[tuple[str, str, str, str], float],
     total: int,
@@ -647,14 +772,10 @@ def _largest_remainder(
 
 
 def _largest_remainder_list(
-    targets: list[float],
+    targets: list[float] | np.ndarray,
     total: int,
     tie_stream: Optional[_RngStream] = None,
-) -> tuple[list[int], dict]:
-    floors = [int(math.floor(value)) for value in targets]
-    residuals = [float(target - floor) for target, floor in zip(targets, floors)]
-    base_total = sum(floors)
-    remaining = total - base_total
+) -> tuple[np.ndarray, dict]:
     draw_meta = {
         "draws": 0,
         "blocks": 0,
@@ -663,10 +784,17 @@ def _largest_remainder_list(
         "after_hi": None,
         "after_lo": None,
     }
+    targets_arr = np.asarray(targets, dtype=np.float64)
+    if targets_arr.size == 0:
+        return np.empty(0, dtype=np.int64), draw_meta
+    floors = np.floor(targets_arr).astype(np.int64)
+    residuals = targets_arr - floors
+    remaining = int(total) - int(floors.sum())
+    tie_values = np.zeros(targets_arr.size, dtype=np.float64)
+    tie_values_drawn = False
     if remaining > 0:
-        tie_values = [0.0] * len(targets)
         if tie_stream is not None:
-            tie_values, before_hi, before_lo, after_hi, after_lo, draws, blocks = tie_stream.draw_uniforms(len(targets))
+            tie_draws, before_hi, before_lo, after_hi, after_lo, draws, blocks = tie_stream.draw_uniforms(targets_arr.size)
             draw_meta.update(
                 {
                     "draws": draws,
@@ -677,17 +805,44 @@ def _largest_remainder_list(
                     "after_lo": after_lo,
                 }
             )
-        ranked = sorted(
-            range(len(targets)),
-            key=lambda idx: (residuals[idx], tie_values[idx]),
-            reverse=True,
-        )
-        for idx in ranked[:remaining]:
-            floors[idx] += 1
+            tie_values = np.asarray(tie_draws, dtype=np.float64)
+            tie_values_drawn = True
+        selected = _select_top_indices(residuals, tie_values, remaining)
+        floors[selected] += 1
     elif remaining < 0:
-        ranked = sorted(range(len(targets)), key=lambda idx: (residuals[idx], idx))
-        for idx in ranked[: abs(remaining)]:
-            floors[idx] = max(floors[idx] - 1, 0)
+        selected = _select_bottom_indices(residuals, abs(remaining))
+        floors[selected] = np.maximum(floors[selected] - 1, 0)
+    delta = int(total) - int(floors.sum())
+    if delta > 0:
+        if tie_stream is not None and not tie_values_drawn:
+            tie_draws, before_hi, before_lo, after_hi, after_lo, draws, blocks = tie_stream.draw_uniforms(targets_arr.size)
+            draw_meta.update(
+                {
+                    "draws": draws,
+                    "blocks": blocks,
+                    "before_hi": before_hi,
+                    "before_lo": before_lo,
+                    "after_hi": after_hi,
+                    "after_lo": after_lo,
+                }
+            )
+            tie_values = np.asarray(tie_draws, dtype=np.float64)
+        selected = _select_top_indices(residuals, tie_values, delta)
+        floors[selected] += 1
+    elif delta < 0:
+        need = abs(delta)
+        while need > 0:
+            positive_idx = np.flatnonzero(floors > 0)
+            if positive_idx.size == 0:
+                break
+            if positive_idx.size <= need:
+                floors[positive_idx] -= 1
+                need -= positive_idx.size
+                continue
+            order = np.lexsort((positive_idx, residuals[positive_idx]))
+            selected = positive_idx[order[:need]]
+            floors[selected] -= 1
+            need = 0
     return floors, draw_meta
 
 
@@ -1412,21 +1567,8 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
     allocation_weight_computations = 0
     rng_event_rows_alloc: list[dict] = []
     tag_multiplier_cache: dict[tuple[str, str], tuple[float, float]] = {}
-    uniform_templates_zero: dict[str, tuple[object, bytes]] = {}
-    uniform_templates_weight: dict[str, tuple[object, bytes]] = {}
-    for account_type_id in account_types_in_use:
-        uniform_templates_zero[account_type_id] = _build_uniform_template(
-            manifest_fingerprint,
-            parameter_hash,
-            account_type_id,
-            "zero_gate",
-        )
-        uniform_templates_weight[account_type_id] = _build_uniform_template(
-            manifest_fingerprint,
-            parameter_hash,
-            account_type_id,
-            "weight",
-        )
+    deterministic_uniforms = _DeterministicUniformGenerator(manifest_fingerprint, parameter_hash)
+    logger.info("S2: deterministic uniform PRF active (version=%s)", _DETERMINISTIC_PRF_VERSION)
 
     for region_id, party_type_id, segment_id, account_type_id in allocation_cells:
         n_acc = int(cell_counts.get((region_id, party_type_id, segment_id, account_type_id), 0))
@@ -1504,29 +1646,14 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
         if sigma < 0.0:
             sigma = 0.0
 
-        eligible_party_ids: list[int] = []
-        weights: list[float] = []
-        zero_template, type_suffix = uniform_templates_zero[account_type_id]
-        weight_template, _ = uniform_templates_weight[account_type_id]
-        allocation_party_evaluations += len(parties)
-        for pid in parties:
-            u0 = _deterministic_uniform_from_template(zero_template, type_suffix, pid)
-            if u0 < p_zero_weight:
-                allocation_zero_gate_skips += 1
-                continue
-            u1 = _deterministic_uniform_from_template(weight_template, type_suffix, pid)
-            u1 = min(max(u1, 1.0e-12), 1.0 - 1.0e-12)
-            if sigma > 0:
-                z = _normal_icdf(u1)
-                weight = math.exp(sigma * z - 0.5 * sigma * sigma)
-            else:
-                weight = 1.0
-            weight = max(weight_floor, weight)
-            eligible_party_ids.append(pid)
-            weights.append(weight)
-            allocation_weight_computations += 1
+        party_ids = np.asarray(parties, dtype=np.int64)
+        allocation_party_evaluations += int(party_ids.size)
+        zero_uniforms = deterministic_uniforms.uniforms(party_ids, account_type_id, "zero_gate")
+        eligible_mask = zero_uniforms >= p_zero_weight
+        eligible_party_ids = party_ids[eligible_mask]
+        allocation_zero_gate_skips += int(party_ids.size - eligible_party_ids.size)
 
-        if not eligible_party_ids:
+        if eligible_party_ids.size == 0:
             _abort(
                 "6A.S2.ALLOCATION_FAILED",
                 "V-09",
@@ -1540,7 +1667,17 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 manifest_fingerprint,
             )
 
-        total_weight = sum(weights)
+        weight_uniforms = deterministic_uniforms.uniforms(eligible_party_ids, account_type_id, "weight")
+        weight_uniforms = np.clip(weight_uniforms, 1.0e-12, 1.0 - 1.0e-12)
+        if sigma > 0:
+            z = _normal_icdf_array(weight_uniforms)
+            weights = np.exp(sigma * z - 0.5 * sigma * sigma)
+        else:
+            weights = np.ones(eligible_party_ids.size, dtype=np.float64)
+        weights = np.maximum(weights, weight_floor)
+        allocation_weight_computations += int(weights.size)
+
+        total_weight = float(weights.sum())
         if total_weight <= 0:
             _abort(
                 "6A.S2.ALLOCATION_FAILED",
@@ -1550,7 +1687,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 manifest_fingerprint,
             )
 
-        targets = [(n_acc * weight) / total_weight for weight in weights]
+        targets = (float(n_acc) * weights) / total_weight
         alloc_counts, alloc_meta = _largest_remainder_list(targets, n_acc, rng_alloc_stream)
         rng_alloc_stream.record_event()
 
@@ -1559,7 +1696,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             counts_map = {}
             holdings_counts[account_type_id] = counts_map
 
-        for pid, count in zip(eligible_party_ids, alloc_counts):
+        for pid, count in zip(eligible_party_ids.tolist(), alloc_counts.tolist()):
             if count <= 0:
                 continue
             if pid in counts_map:
@@ -1602,7 +1739,7 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     "segment_id": segment_id,
                     "account_type": account_type_id,
                     "party_count": len(parties),
-                    "eligible_party_count": len(eligible_party_ids),
+                    "eligible_party_count": int(eligible_party_ids.size),
                     "n_acc": n_acc,
                 },
             }

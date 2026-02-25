@@ -107,6 +107,8 @@ output "runtime_handle_materialization" {
     SFN_PLATFORM_RUN_ORCHESTRATOR_V0   = aws_sfn_state_machine.platform_run_orchestrator.name
     SR_READY_COMMIT_AUTHORITY          = "step_functions_only"
     SSM_IG_API_KEY_PATH                = aws_ssm_parameter.ig_api_key.name
+    IG_AUTH_MODE                       = var.ig_auth_mode
+    IG_AUTH_HEADER_NAME                = var.ig_auth_header_name
     PHASE_RUNTIME_PATH_MODE            = var.phase_runtime_path_mode
     PHASE_RUNTIME_PATH_EVIDENCE_TARGET = var.phase_runtime_path_evidence_path_pattern
   }
