@@ -8730,3 +8730,25 @@ ow_epoch - latest_admitted_at_epoch) from run-window admissions.
 ### Expected outcome
 1. Workflow becomes dispatchable again without changing P6.B runtime semantics.
 2. Next rerun should produce authoritative artifacts under strict M6.F truth model.
+
+## Entry: 2026-02-25 16:33:47 +00:00 - M6.F runtime diagnostic result and capture-path remediation
+
+### Diagnostic findings
+1. Authoritative rerun 22405369563 failed at RUNNING wait gate with both EMR refs stuck in SUBMITTED for full wait window.
+2. Direct runtime diagnostics reproduced the same state with concrete stateDetails:
+   - Job controller pod is running but spark driver pod does not exist
+   - Neither job controller pod nor spark driver pod exist.
+3. This means strict RUNNING enforcement is valid, but a workflow-level hard stop before capture prevented emission of m6f_* blocker artifacts.
+
+### Decision
+1. Keep strict capture semantics (RUNNING only for active-state pass).
+2. Change workflow pre-capture RUNNING probe to non-blocking so capture always executes and emits fail-closed blocker evidence.
+3. Let fail-closed verdict gate (from m6f_blocker_register) remain the sole closure decision point.
+
+### Patch applied
+1. .github/workflows/dev_full_m6f_streaming_active.yml
+   - Probe lane refs for RUNNING now continue-on-error: true.
+   - reduced probe window (ttempts=12) to cap idle wait spend.
+2. Resulting behavior:
+   - if refs do not reach RUNNING, run still emits m6f_streaming_active_snapshot + blockers,
+   - phase closure remains blocked by verdict gate with explicit blocker set.

@@ -290,13 +290,14 @@ jobs:
           echo "sr_job_id=${SR_JOB_ID}" >> "$GITHUB_OUTPUT"
           echo "lane_window_start_utc=${STARTED_AT_UTC}" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for lane refs to reach RUNNING
+      - name: Probe lane refs for RUNNING (non-blocking pre-capture)
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
           wait_for_running() {
             local job_id="$1"
-            local attempts=36
+            local attempts=12
             local sleep_sec=5
             local idx=1
             while [[ "${idx}" -le "${attempts}" ]]; do
@@ -316,7 +317,7 @@ jobs:
               idx=$((idx + 1))
               sleep "${sleep_sec}"
             done
-            return 1
+            return 0
           }
           wait_for_running "${{ steps.submit.outputs.wsp_job_id }}"
           wait_for_running "${{ steps.submit.outputs.sr_job_id }}"
