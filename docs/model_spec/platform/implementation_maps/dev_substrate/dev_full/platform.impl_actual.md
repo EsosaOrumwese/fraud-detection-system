@@ -7355,3 +7355,150 @@ untime: PASS
    - Rejected: phase scope drift; READY commit execution belongs to `M6.C`.
 3. Execute bounded entry precheck with explicit blocker mapping and durable evidence.
    - Selected.
+
+## Entry: 2026-02-25 02:43:12 +00:00 - M6.B / M6.P5.A execution closure and gate decision
+
+### Execution steps performed
+1. Executed bounded `M6.B` entry-precheck lane:
+   - validated `M6.A` upstream green dependency,
+   - validated `m6_handoff_pack.json` run continuity,
+   - validated required P5 handle set (control topic/partition, READY policy, SR commit authority, WSP controls),
+   - resolved symbolic Step Functions handle chain and validated runtime state machine health.
+2. Published local artifacts and durable copies with readback verification.
+
+### Authoritative output
+1. Execution id:
+   - `m6b_p5a_ready_entry_20260225T024245Z`
+2. Summary:
+   - `runs/dev_substrate/dev_full/m6/m6b_p5a_ready_entry_20260225T024245Z/m6b_execution_summary.json`
+3. Outcome:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M6.C_READY`
+   - verdict=`ADVANCE_TO_M6C`
+
+### Key outcomes
+1. Required P5 handles:
+   - resolved `13/13`.
+2. Step Functions authority surface:
+   - symbolic handle: `SR_READY_COMMIT_STATE_MACHINE -> SFN_PLATFORM_RUN_ORCHESTRATOR_V0`,
+   - resolved name: `fraud-platform-dev-full-platform-run-v0`,
+   - ARN exists and status is `ACTIVE`.
+3. Control-topic contract anchors:
+   - `FP_BUS_CONTROL_V1=fp.bus.control.v1`,
+   - `KAFKA_PARTITION_KEY_CONTROL=platform_run_id`,
+   - `READY_MESSAGE_FILTER` remains run-scoped.
+
+### Durable evidence
+1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6b_p5a_ready_entry_20260225T024245Z/m6b_ready_entry_snapshot.json`
+2. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6b_p5a_ready_entry_20260225T024245Z/m6b_blocker_register.json`
+3. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6b_p5a_ready_entry_20260225T024245Z/m6b_execution_summary.json`
+
+### Phase decision
+1. `M6.B` is closed green.
+2. `M6.C` (`P5.B`) is now the active next lane.
+
+## Entry: 2026-02-25 02:49:52 +00:00 - M6.C / M6.P5.B pre-execution decision lock
+
+### Trigger
+1. USER requested full planning + execution closure for P5.B and P5.C before moving to P6.
+
+### Decision completeness check (pre-run)
+1. Upstream gate is green:
+   - M6.B summary is PASS (m6b_p5a_ready_entry_20260225T024245Z) with 
+ext_gate=M6.C_READY.
+2. Commit authority contract is pinned and explicit:
+   - SR_READY_COMMIT_AUTHORITY=step_functions_only,
+   - SR_READY_COMMIT_STATE_MACHINE=SFN_PLATFORM_RUN_ORCHESTRATOR_V0,
+   - SR_READY_RECEIPT_REQUIRES_SFN_EXECUTION_REF=true.
+3. Control-topic contract is pinned and explicit:
+   - FP_BUS_CONTROL_V1=fp.bus.control.v1,
+   - KAFKA_PARTITION_KEY_CONTROL=platform_run_id,
+   - READY_MESSAGE_FILTER=platform_run_id=={platform_run_id}.
+
+### Execution strategy selected
+1. M6.C will run as a bounded authoritative lane:
+   - start Step Functions execution for run scope,
+   - publish one READY control message to p.bus.control.v1 from an in-VPC temporary probe publisher,
+   - write run-scoped READY commit receipt with Step Functions execution reference,
+   - fail-closed duplicate/ambiguity checks against run-scoped receipt surface.
+2. M6.D will derive deterministic P5 rollup/verdict only from authoritative M6.B + M6.C artifacts.
+3. If any required proof is missing, verdict will fail-closed and block P6.
+
+## Entry: 2026-02-25 04:21:04 +00:00 - M6.C/M6.D remediation and closure trail (P5 READY path)
+
+### Trigger
+1. USER asked to proceed with `M6.P5` execution (`M6.C` then `M6.D`) without moving to `P6` until `P5` is green.
+
+### Initial runtime state at start of this lane
+1. `M6.B` was green (`m6b_p5a_ready_entry_20260225T024245Z`).
+2. Prior `M6.C` attempts were fail-closed on `M6P5-B2` (`READY` publish failure), and prior `M6.D` stayed `HOLD_REMEDIATE`.
+3. Latest blocked signature before remediation: publisher-side Kafka metadata timeout / node-not-ready behavior.
+
+### Problem decomposition and alternatives considered
+1. Alternative A: accept prior `M6.C` failure and push a docs-only rollup update.
+   - Rejected: violates fail-closed lane law; no runtime proof for READY publication.
+2. Alternative B: bypass in-VPC publisher and emit READY from local host.
+   - Rejected: violates managed-runtime posture and weakens production parity.
+3. Alternative C: run bounded in-VPC diagnostic publisher, isolate exact failing surface, then remediate publisher packaging/runtime until READY publish + receipt are both proven.
+   - Selected.
+
+### Diagnostic reasoning path (executed)
+1. Built temporary in-VPC Lambda diagnostic publisher against live dev_full MSK handles.
+2. Observed callback-level signer failure in CloudWatch logs:
+   - `PackageNotFoundError: aws-msk-iam-sasl-signer-python`.
+3. Inference confirmed: Lambda zip contained module directories but omitted signer dist-info metadata needed by token provider user-agent path.
+4. Remediation decision:
+   - keep ephemeral publisher design,
+   - include `aws_msk_iam_sasl_signer_python-*.dist-info` (+ kafka dist-info) in Lambda bundle,
+   - retain strict cleanup of temp Lambda/role/log group after publish.
+
+### M6.C authoritative execution (`P5.B`)
+1. Execution id:
+   - `m6c_p5b_ready_commit_20260225T041702Z`.
+2. Step Functions authority commit:
+   - execution succeeded under `fraud-platform-dev-full-platform-run-v0`:
+   - `arn:aws:states:eu-west-2:230372904534:execution:fraud-platform-dev-full-platform-run-v0:m6c-20260225t041702z-910e84c5`.
+3. READY publish proof:
+   - topic `fp.bus.control.v1`, partition `2`, offset `1`, key `platform_20260223T184232Z`.
+4. READY receipt proof:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/sr/ready_commit_receipt.json`.
+5. Duplicate/ambiguity posture:
+   - `clear` (no unresolved preexisting conflict).
+6. Ephemeral publisher cleanup verified:
+   - lambda deleted,
+   - role deleted,
+   - log group deleted.
+7. Outcome:
+   - `overall_pass=true`, blocker count `0`, `next_gate=M6.D_READY`.
+
+### M6.D authoritative execution (`P5.C`)
+1. Execution id:
+   - `m6d_p5c_gate_rollup_20260225T041801Z`.
+2. Rollup input set:
+   - `M6.B=m6b_p5a_ready_entry_20260225T024245Z`,
+   - `M6.C=m6c_p5b_ready_commit_20260225T041702Z`.
+3. Rollup result:
+   - blocker count `0`,
+   - `verdict=ADVANCE_TO_P6`,
+   - `next_gate=M6.E_READY`.
+
+### Durable evidence (authoritative)
+1. M6.C:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6c_p5b_ready_commit_20260225T041702Z/m6c_ready_commit_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6c_p5b_ready_commit_20260225T041702Z/m6c_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6c_p5b_ready_commit_20260225T041702Z/m6c_execution_summary.json`
+2. M6.D:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6d_p5c_gate_rollup_20260225T041801Z/m6d_p5_gate_rollup_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6d_p5c_gate_rollup_20260225T041801Z/m6d_p5_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6d_p5c_gate_rollup_20260225T041801Z/m6d_p5_gate_verdict.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6d_p5c_gate_rollup_20260225T041801Z/m6d_execution_summary.json`
+
+### Cost-control and hygiene actions in this lane
+1. Deleted all temporary diagnostic resources under `fp-devfull-m6c-diag-*` and `fp-devfull-m6c-diag-role-*` after root-cause confirmation.
+2. Pruned broken intermediate local run folder (`m6c_p5b_ready_commit_20260225T041459Z`) to prevent ambiguous evidence scanning.
+3. No long-lived additional runtime services were left running for this remediation.
+
+### Phase decision
+1. `P5` is now green in dev_full (`M6.C` + `M6.D` closed).
+2. Next actionable lane is `M6.E` (`P6` entry/stream activation precheck).

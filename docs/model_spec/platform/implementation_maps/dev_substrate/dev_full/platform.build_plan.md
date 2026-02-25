@@ -56,6 +56,7 @@ Program is complete only when all are true:
 - No spend-only progress: phase spend without material outcome is blocked.
 - Production-pattern law is binding: managed-service-first, no local/toy substitutes for pinned lanes without explicit authority repin.
 - Law reference: `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md` Section `7.6` is mandatory for all `dev_full` phase decisions and closures.
+- Cost-control law is binding for all phases: no avoidable idle spend, no phase advancement on unattributed spend, and no closure without cost-to-outcome receipt.
 - Evidence emission law is binding for runtime lanes:
   - no per-event synchronous object-store evidence writes on hot paths (`P5..P11`) unless explicitly pinned with throughput budget waiver,
   - phase-gate/closure artifacts remain synchronous and mandatory,
@@ -92,7 +93,7 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M3 | P1 | Run pinning and orchestrator readiness | DONE |
 | M4 | P2 | Spine runtime-lane readiness (managed-first) | DONE |
 | M5 | P3-P4 | Oracle readiness + ingest preflight | DONE |
-| M6 | P5-P7 | Control + Ingress closure | NOT_STARTED |
+| M6 | P5-P7 | Control + Ingress closure | ACTIVE |
 | M7 | P8-P10 | RTDL + Case/Labels closure | NOT_STARTED |
 | M8 | P11 | Spine obs/gov closure + non-regression pack | NOT_STARTED |
 | M9 | P12 | Learning input readiness | NOT_STARTED |
@@ -606,7 +607,7 @@ Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.P4.build_plan.md`
 
 ## M6 - Control and Ingress Closure
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 
 Objective:
 - close `P5-P7` end-to-end ingest streaming and commit semantics.
@@ -639,12 +640,15 @@ M6 planning posture:
   - `M6.J` final closure sync (verdict/cost/handoff notes).
 - M6 execution must fail-closed if any of `DFULL-RUN-B5`, `DFULL-RUN-B6`, `DFULL-RUN-B7` families remain unresolved.
 - `M6.A` is now closed green (`m6a_p5p7_handle_closure_20260225T023522Z`) after pinning missing handoff path handles.
+- `M6.B` is now closed green (`m6b_p5a_ready_entry_20260225T024245Z`) after P5 entry/contract precheck and Step Functions authority-surface validation.
+- `M6.C` is now closed green (`m6c_p5b_ready_commit_20260225T041702Z`) after READY publish remediation (ephemeral publisher bundle now includes signer package metadata for MSK IAM auth).
+- `M6.D` is now closed green (`m6d_p5c_gate_rollup_20260225T041801Z`) with deterministic verdict `ADVANCE_TO_P6` and `next_gate=M6.E_READY`.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
-- [ ] `M6.B` `P5` entry/contract precheck.
-- [ ] `M6.C` `P5` READY commit authority execution.
-- [ ] `M6.D` `P5` gate rollup + verdict.
+- [x] `M6.B` `P5` entry/contract precheck.
+- [x] `M6.C` `P5` READY commit authority execution.
+- [x] `M6.D` `P5` gate rollup + verdict.
 - [ ] `M6.E` `P6` entry/stream activation precheck.
 - [ ] `M6.F` `P6` streaming-active + lag + ambiguity closure.
 - [ ] `M6.G` `P6` gate rollup + verdict.
@@ -798,14 +802,15 @@ DoD anchors:
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M13.build_plan.md`
 
-## 9) Cost-to-Outcome Operating Rule (Execution Binding)
-For every active phase:
+## 9) Cost-Control Law (Execution Binding)
+For every active phase (`M1..M13`):
 1. Publish a phase spend envelope before execution.
-2. Publish phase cost-to-outcome receipt at closure.
-3. Block advancement if spend occurred without material proof/decision outcome.
-4. Maintain daily cross-platform cost posture during active execution windows.
-
-This rule is binding for all phases M1..M13.
+2. Keep non-active lanes idle-safe (`desired_count=0` or equivalent stop posture).
+3. Prefer ephemeral/job execution for non-daemon lanes; justify any always-on posture explicitly.
+4. Publish phase cost-to-outcome receipt at closure.
+5. Block advancement if spend occurred without material proof/decision outcome.
+6. Maintain daily cross-platform cost posture during active execution windows.
+7. Fail closed on unexplained/unattributed spend until remediation evidence is produced.
 
 ## 10) Branch and Change Safety
 - No branch-history operations without explicit USER branch-governance confirmation.

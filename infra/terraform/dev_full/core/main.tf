@@ -138,11 +138,27 @@ resource "aws_security_group" "msk_clients" {
   }
 
   ingress {
+    description = "Kafka over TLS+IAM (self-reference)"
+    from_port   = 9098
+    to_port     = 9098
+    protocol    = "tcp"
+    self        = true
+  }
+
+  ingress {
     description = "Kafka TLS"
     from_port   = 9094
     to_port     = 9094
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "Kafka TLS (self-reference)"
+    from_port   = 9094
+    to_port     = 9094
+    protocol    = "tcp"
+    self        = true
   }
 
   egress {

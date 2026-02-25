@@ -47,8 +47,28 @@ Tasks:
 3. verify Step Functions orchestrator surface is healthy.
 
 DoD:
-- [ ] entry checks pass with no unresolved required handles.
-- [ ] `m6b_ready_entry_snapshot.json` committed locally and durably.
+- [x] entry checks pass with no unresolved required handles.
+- [x] `m6b_ready_entry_snapshot.json` committed locally and durably.
+
+P5.A execution closure (2026-02-25):
+1. Authoritative green run:
+   - execution id: `m6b_p5a_ready_entry_20260225T024245Z`
+   - local root: `runs/dev_substrate/dev_full/m6/m6b_p5a_ready_entry_20260225T024245Z/`
+   - summary: `runs/dev_substrate/dev_full/m6/m6b_p5a_ready_entry_20260225T024245Z/m6b_execution_summary.json`
+   - result: `overall_pass=true`, blockers `[]`, next gate `M6.C_READY`.
+2. Entry precheck outcomes:
+   - upstream dependency: `M6.A` summary is green and `M6.B_READY`,
+   - run continuity: `m6_handoff_pack.json` is green (`m5_verdict=ADVANCE_TO_M6`, `m6_entry_ready=true`),
+   - required P5 handle set: `13/13` resolved,
+   - Step Functions authority surface:
+     - resolved name `fraud-platform-dev-full-platform-run-v0`,
+     - state machine exists and is `ACTIVE`.
+3. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6b_p5a_ready_entry_20260225T024245Z/m6b_ready_entry_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6b_p5a_ready_entry_20260225T024245Z/m6b_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6b_p5a_ready_entry_20260225T024245Z/m6b_execution_summary.json`
+4. Next action:
+   - advance to `P5.B` (`M6.C` READY commit authority execution).
 
 ### P5.B READY Commit Authority Execution (M6.C)
 Goal:
@@ -61,10 +81,32 @@ Tasks:
 4. verify duplicate/ambiguous READY protection (no unresolved READY ambiguity).
 
 DoD:
-- [ ] READY signal proof exists and is run-scoped.
-- [ ] READY receipt includes Step Functions execution reference.
-- [ ] duplicate/ambiguity checks are green.
-- [ ] `m6c_ready_commit_snapshot.json` committed locally and durably.
+- [x] READY signal proof exists and is run-scoped.
+- [x] READY receipt includes Step Functions execution reference.
+- [x] duplicate/ambiguity checks are green.
+- [x] `m6c_ready_commit_snapshot.json` committed locally and durably.
+
+P5.B execution closure (2026-02-25):
+1. Authoritative green run:
+   - execution id: `m6c_p5b_ready_commit_20260225T041702Z`
+   - local root: `runs/dev_substrate/dev_full/m6/m6c_p5b_ready_commit_20260225T041702Z/`
+   - summary: `runs/dev_substrate/dev_full/m6/m6c_p5b_ready_commit_20260225T041702Z/m6c_execution_summary.json`
+   - result: `overall_pass=true`, blockers `[]`, next gate `M6.D_READY`.
+2. READY commit outcomes:
+   - Step Functions execution succeeded:
+     - `arn:aws:states:eu-west-2:230372904534:execution:fraud-platform-dev-full-platform-run-v0:m6c-20260225t041702z-910e84c5`
+   - control-topic READY publish succeeded on `fp.bus.control.v1`:
+     - partition `2`, offset `1`, message key `platform_20260223T184232Z`.
+   - READY receipt committed with Step Functions execution ref:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/sr/ready_commit_receipt.json`.
+   - duplicate/ambiguity posture: `clear`.
+3. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6c_p5b_ready_commit_20260225T041702Z/m6c_ready_commit_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6c_p5b_ready_commit_20260225T041702Z/m6c_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6c_p5b_ready_commit_20260225T041702Z/m6c_execution_summary.json`
+4. Remediation note (closed):
+   - initial `M6P5-B2` root cause was Lambda bundle omission of `aws_msk_iam_sasl_signer_python-*.dist-info`, causing signer token-generation failure in-VPC.
+   - closure lane included dist-info in the ephemeral publisher bundle and revalidated READY publish/receipt path.
 
 ### P5.C P5 Gate Rollup + Verdict (M6.D)
 Goal:
@@ -76,8 +118,23 @@ Tasks:
 3. emit `m6d_p5_gate_verdict.json`.
 
 DoD:
-- [ ] rollup matrix + blocker register committed.
-- [ ] deterministic verdict committed (`ADVANCE_TO_P6`/`HOLD_REMEDIATE`/`NO_GO_RESET_REQUIRED`).
+- [x] rollup matrix + blocker register committed.
+- [x] deterministic verdict committed (`ADVANCE_TO_P6`/`HOLD_REMEDIATE`/`NO_GO_RESET_REQUIRED`).
+
+P5.C execution closure (2026-02-25):
+1. Authoritative green run:
+   - execution id: `m6d_p5c_gate_rollup_20260225T041801Z`
+   - local root: `runs/dev_substrate/dev_full/m6/m6d_p5c_gate_rollup_20260225T041801Z/`
+   - summary: `runs/dev_substrate/dev_full/m6/m6d_p5c_gate_rollup_20260225T041801Z/m6d_execution_summary.json`
+   - result: `overall_pass=true`, blocker count `0`.
+2. Deterministic verdict:
+   - `verdict=ADVANCE_TO_P6`
+   - `next_gate=M6.E_READY`.
+3. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6d_p5c_gate_rollup_20260225T041801Z/m6d_p5_gate_rollup_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6d_p5c_gate_rollup_20260225T041801Z/m6d_p5_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6d_p5c_gate_rollup_20260225T041801Z/m6d_p5_gate_verdict.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6d_p5c_gate_rollup_20260225T041801Z/m6d_execution_summary.json`
 
 ## 4) P5 Verification Catalog
 | Verify ID | Command template | Purpose |
