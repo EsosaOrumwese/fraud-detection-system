@@ -3,6 +3,11 @@ name: dev-full-m6f-streaming-active
 on:
   workflow_dispatch:
     inputs:
+      phase_mode:
+        description: "Execution mode: m6f (streaming-active lane) or m6g (P6 gate rollup)"
+        required: true
+        default: "m6f"
+        type: string
       aws_region:
         description: "AWS region for EMR/EKS/DynamoDB/S3 operations"
         required: true
@@ -23,6 +28,11 @@ on:
       upstream_m6e_execution:
         description: "Upstream M6.E execution id used by M6.F capture"
         required: true
+        type: string
+      upstream_m6f_execution:
+        description: "Upstream M6.F execution id used by M6.G rollup (required when phase_mode=m6g)"
+        required: false
+        default: ""
         type: string
       m6_execution_id:
         description: "Optional fixed M6.F execution id (default: m6f_p6b_streaming_active_<timestamp>)"
@@ -120,12 +130,13 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dev-full-m6f-streaming-active-${{ github.ref_name }}
+  group: dev-full-m6-phase-${{ inputs.phase_mode }}-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   run_m6f_remote:
     name: Run M6.F streaming-active lane remotely (GitHub Actions)
+    if: ${{ inputs.phase_mode != 'm6g' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -320,4 +331,124 @@ jobs:
         with:
           name: m6f-streaming-active-${{ steps.run_meta.outputs.timestamp }}
           path: ${{ steps.run_meta.outputs.run_dir }}
+          if-no-files-found: warn
+
+  run_m6g_remote:
+    name: Run M6.G P6 gate rollup remotely (GitHub Actions)
+    if: ${{ inputs.phase_mode == 'm6g' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Validate mode-specific inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ inputs.upstream_m6f_execution }}" ]]; then
+            echo "M6.G fail-closed: upstream_m6f_execution input is required when phase_mode=m6g."
+            exit 1
+          fi
+
+      - name: Compute execution metadata
+        id: run_meta_g
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m6_execution_id }}" ]]; then
+            EXEC_ID="${{ inputs.m6_execution_id }}"
+          else
+            EXEC_ID="m6g_p6c_gate_rollup_${TS}"
+          fi
+          RUN_DIR="runs/dev_substrate/dev_full/m6/${EXEC_ID}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m6_execution_id=${EXEC_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Build M6.G P6 rollup artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/m6g_rollup.py \
+            --execution-id "${{ steps.run_meta_g.outputs.m6_execution_id }}" \
+            --platform-run-id "${{ inputs.platform_run_id }}" \
+            --scenario-run-id "${{ inputs.scenario_run_id }}" \
+            --upstream-m6e-execution "${{ inputs.upstream_m6e_execution }}" \
+            --upstream-m6f-execution "${{ inputs.upstream_m6f_execution }}" \
+            --evidence-bucket "${{ inputs.evidence_bucket }}" \
+            --region "${{ inputs.aws_region }}" \
+            --local-output-root "runs/dev_substrate/dev_full/m6"
+
+      - name: Fail-closed verdict gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUMMARY_PATH="${{ steps.run_meta_g.outputs.run_dir }}/m6g_execution_summary.json"
+          VERDICT_PATH="${{ steps.run_meta_g.outputs.run_dir }}/m6g_p6_gate_verdict.json"
+          BLOCKER_PATH="${{ steps.run_meta_g.outputs.run_dir }}/m6g_p6_blocker_register.json"
+          export SUMMARY_PATH VERDICT_PATH BLOCKER_PATH
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          summary = json.loads(Path(os.environ["SUMMARY_PATH"]).read_text(encoding="utf-8"))
+          verdict = json.loads(Path(os.environ["VERDICT_PATH"]).read_text(encoding="utf-8"))
+          blockers = json.loads(Path(os.environ["BLOCKER_PATH"]).read_text(encoding="utf-8"))
+          overall_pass = bool(summary.get("overall_pass"))
+          blocker_count = int(blockers.get("blocker_count", 0))
+          verdict_value = str(verdict.get("verdict", "")).strip()
+          next_gate = str(summary.get("next_gate", "")).strip()
+
+          print(json.dumps(
+              {
+                  "overall_pass": overall_pass,
+                  "blocker_count": blocker_count,
+                  "execution_id": summary.get("execution_id"),
+                  "verdict": verdict_value,
+                  "next_gate": next_gate,
+              },
+              ensure_ascii=True,
+          ))
+          if (not overall_pass) or blocker_count != 0:
+              sys.exit(1)
+          if verdict_value != "ADVANCE_TO_P7" or next_gate != "M6.H_READY":
+              sys.exit(1)
+          PY
+
+      - name: Upload M6.G run artifact set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m6g-p6-gate-rollup-${{ steps.run_meta_g.outputs.timestamp }}
+          path: ${{ steps.run_meta_g.outputs.run_dir }}
           if-no-files-found: warn

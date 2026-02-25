@@ -8133,8 +8133,8 @@ ext_gate=M6.C_READY.
 
 ### Process termination action (explicit)
 1. Identified and terminated lingering long-run CLI processes started by my prior remediation run:
-   - ws eks wait nodegroup-active --cluster-name fraud-platform-dev-full --nodegroup-name fraud-platform-dev-full-m6f-workers
-   - ws emr-containers list-job-runs --virtual-cluster-id 3cfszbpz28ixf1wmmd2roj571 ...
+   - aws eks wait nodegroup-active --cluster-name fraud-platform-dev-full --nodegroup-name fraud-platform-dev-full-m6f-workers
+   - aws emr-containers list-job-runs --virtual-cluster-id 3cfszbpz28ixf1wmmd2roj571 ...
 2. This cleared active wait/list loops from my side; execution is now paused cleanly.
 
 ### Remediation execution trail captured (P6.B / M6.F)
@@ -8143,7 +8143,7 @@ ext_gate=M6.C_READY.
    - dedupe basis now derived from canonical tuple (platform_run_id, event_class, event_id) and hashed,
    - writes dedupe_key + TTL (	tl_epoch) + minimal admission metadata,
    - fail-closed response 503 idempotency_backend_unavailable when DDB write fails.
-3. Deployed patch via targeted runtime apply (ws_lambda_function.ig_handler only) to avoid unrelated Terraform drift in same window.
+3. Deployed patch via targeted runtime apply (aws_lambda_function.ig_handler only) to avoid unrelated Terraform drift in same window.
 4. Runtime verification passed:
    - authenticated ingest probes admitted with returned dedupe_key,
    - DDB count moved from   to 5 (fraud-platform-dev-full-ig-idempotency).
@@ -8376,17 +8376,17 @@ odeadm failure on console output); nodes never registered.
 2. Apply partially succeeded before failing on nodegroup create conflict:
    - Created endpoint SG sg-0a12ccc55b0e6746f.
    - Created interface endpoints:
-     - pce-04e56de4aeb2cc69c (c2)
-     - pce-060715f2c76672bc9 (cr.api)
-     - pce-01f112ef0c5833702 (cr.dkr)
-     - pce-0daba6cfb00d83a8e (sts)
-   - Created S3 gateway endpoint pce-00f4102a10e062afa.
+     - vpce-04e56de4aeb2cc69c (ec2)
+     - vpce-060715f2c76672bc9 (ecr.api)
+     - vpce-01f112ef0c5833702 (ecr.dkr)
+     - vpce-0daba6cfb00d83a8e (sts)
+   - Created S3 gateway endpoint vpce-00f4102a10e062afa.
    - Applied Flink execution-role trust/policy updates.
 3. Apply failure detail:
-   - ResourceInUseException: nodegroup raud-platform-dev-full-m6f-workers already exists in EKS, so Terraform create failed.
+   - ResourceInUseException: nodegroup fraud-platform-dev-full-m6f-workers already exists in EKS, so Terraform create failed.
 
 ### Drift/reconciliation truth
-1. ws eks describe-nodegroup shows existing nodegroup status is still CREATE_FAILED with NodeCreationFailure.
+1. aws eks describe-nodegroup shows existing nodegroup status is still CREATE_FAILED with NodeCreationFailure.
 2. kubectl get nodes returns no nodes.
 3. Endpoint lane is now live/available; worker-capacity lane remains blocked until nodegroup state is reconciled.
 
@@ -8398,16 +8398,16 @@ odeadm failure on console output); nodes never registered.
 ## Entry: 2026-02-25 14:37:59 +00:00 - Pre-execution lock: M6.F rerun after worker-capacity restoration
 
 ### Verified preconditions
-1. Runtime endpoint lane is materialized and available (c2, cr.api, cr.dkr, sts, s3 gateway).
-2. EKS nodegroup raud-platform-dev-full-m6f-workers recreated via Terraform and now ACTIVE.
+1. Runtime endpoint lane is materialized and available (ec2, ecr.api, ecr.dkr, sts, s3 gateway).
+2. EKS nodegroup fraud-platform-dev-full-m6f-workers recreated via Terraform and now ACTIVE.
 3. kubectl get nodes shows at least one Ready worker node.
 4. DDB_IG_IDEMPOTENCY_TABLE count is non-zero (5), preserving M6P6-B3 precondition.
 
 ### Rerun execution plan (bounded)
 1. Upload scripts/dev_substrate/m6_stream_ref_worker.py to artifacts bucket and use that URI as EMR job entry point.
 2. Start both lane refs on EMR virtual cluster 3cfszbpz28ixf1wmmd2roj571:
-   - raud-platform-dev-full-wsp-stream-v0
-   - raud-platform-dev-full-sr-ready-v0
+   - fraud-platform-dev-full-wsp-stream-v0
+   - fraud-platform-dev-full-sr-ready-v0
 3. Capture fresh M6.F artifacts with new execution id using scripts/dev_substrate/m6f_capture.py.
 4. Adjudicate blockers from fresh blocker register only (fail-closed).
 
@@ -8590,3 +8590,47 @@ ext_gate=M6.G_READY.
 ### Gate posture after doc-sync
 1. M6.F is now documented consistently as closed under remote-runner authority.
 2. M6.G remains the next blocked-until-executed action; no premature advancement was recorded.
+
+## Entry: 2026-02-25 15:46:59 +00:00 - Pre-implementation lock: M6.G / P6.C gate rollup + verdict remote execution
+
+### Problem
+1. M6.F is now closed under authoritative remote runner execution (m6f_p6b_streaming_active_20260225T152755Z, run 22403542013), but M6.G (P6.C) remains unimplemented and therefore blocked.
+2. No existing script currently emits the required M6.G artifacts:
+   - m6g_p6_gate_rollup_matrix.json
+   - m6g_p6_blocker_register.json
+   - m6g_p6_gate_verdict.json
+   - m6g_execution_summary.json
+3. No workflow path currently executes M6.G remotely; no-laptop-compute authority requires this lane to execute on GitHub Actions, not local shell.
+
+### Capability-lane coverage (phase-coverage law)
+1. authority/handles:
+   - authoritative upstream executions pinned: m6e_p6a_stream_entry_20260225T120522Z, m6f_p6b_streaming_active_20260225T152755Z.
+   - required artifacts resolved from durable evidence bucket prefix evidence/dev_full/run_control/<execution_id>/.
+2. identity/IAM:
+   - GitHub OIDC role lane reused from M6.F workflow (no static keys).
+3. network/data/messaging:
+   - bounded S3 reads/writes only for rollup artifacts; no stream-lane compute submission in M6.G.
+4. secrets:
+   - no secret material emitted; only run ids, blocker states, verdict, and evidence refs.
+5. observability/evidence:
+   - upload full M6.G artifact set to both Actions artifact store and durable S3 prefix.
+6. rollback/rerun:
+   - workflow_dispatch rerunnable with explicit execution id override.
+7. teardown/cost:
+   - no persistent runtime resources; one-shot job only.
+8. budget/perf:
+   - O(1) artifact reads/writes and constant-time adjudication logic; minute-scale budget with negligible compute.
+
+### Performance-first design
+1. Complexity: fixed number of JSON documents (<=10) read + parsed once; O(1) time and memory.
+2. Data structures: deterministic list-based lane matrix + set-based blocker code de-duplication.
+3. I/O model: one-shot S3 get/put operations with explicit key set; no scans over unbounded prefixes.
+4. Rejected alternatives:
+   - local rollup execution then upload: rejected (no-laptop-compute drift).
+   - new workflow file name: rejected for now to avoid default-branch dispatch blocker; reuse existing workflow id with mode gating.
+   - optimistic verdict from M6.F only: rejected (must include M6.E + M6.F deterministic rollup contract).
+
+### Decision
+1. Implement scripts/dev_substrate/m6g_rollup.py for deterministic P6 adjudication.
+2. Extend existing workflow .github/workflows/dev_full_m6f_streaming_active.yml with phase_mode and M6.G execution path so dispatch works on migrate-dev under existing default-branch workflow id.
+3. Execute remote phase_mode=m6g run, then update M6 plan/doc surfaces with closure receipts only if blocker-free.
