@@ -8883,3 +8883,14 @@ ext_gate=HOLD_REMEDIATE.
 ### Gate consequence
 1. `P6` remains fail-closed.
 2. `M6.G` cannot be re-authorized until pod-side ingress reachability is materialized and `M6.F` rerun shows non-zero run-window admissions with measured lag.
+
+## Entry: 2026-02-25 17:26:00 +00:00 - Cost-control cleanup of unsuccessful execute-api VPCE trial
+
+### Action
+1. The diagnostic `execute-api` interface VPCE trial was removed after proving non-remediating for current IG endpoint posture:
+   - deleted `vpce-08197196991a9c378`,
+   - deleted diagnostic security group `sg-07e4119d9847c5836`.
+
+### Reason
+1. The endpoint introduced idle hourly cost and did not restore pod->IG admission path for `M6.F`.
+2. Cost-Control Law requires removing non-effective spend surfaces when not actively delivering closure outcomes.
