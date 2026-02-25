@@ -2080,3 +2080,50 @@ Corrective decision:
 - keep the POPT.2U algorithmic lane.
 - patch event join input source from `flow_*_tmp` to published output directories (`flow_truth_out_dir`, `flow_bank_out_dir`) so the join reads stable materialized flow-label surfaces.
 - rerun fresh staged witness after patch.
+
+---
+
+### Entry: 2026-02-25 13:48
+
+POPT.2U execution closure (best-effort runtime gain retained).
+
+Execution summary (post-fix):
+- `4b0214b471ce4089b7859391985a3957` (`batch_rows=500000`, `snappy`):
+  - `S4=411.66s`, `S5=16.38s`, reduction vs baseline `26.91%`.
+- `ec5c8509cac1405f9403c086fe7799eb` (`batch_rows=500000`, `lz4`):
+  - `S4=413.61s`, `S5=19.02s`, reduction `26.56%`.
+- `97b2b72fbd2648fb852272b7dea50efd` (`batch_rows=750000`, `snappy`):
+  - `S4=403.78s`, `S5=17.36s`, reduction `28.31%` (best).
+- `3af2f6e7a77546c39cc1f19214b53bb0` (`batch_rows=1000000`, `snappy`):
+  - `S4=414.62s`, `S5=18.36s`, reduction `26.38%`.
+
+Validation posture:
+- required S5 checks PASS across all four scored candidates.
+- parity counts stable and warning metrics unchanged vs witness.
+- scorer decision remains `HOLD_POPT.2_REOPEN` because hard reduction gate (`>=30%`) was not crossed.
+
+Decision:
+- retain `POPT.2U` code changes (large non-regressive runtime improvement vs prior witness `570.62s`).
+- promote `97b2b72fbd2648fb852272b7dea50efd` as best runtime authority witness for ongoing `POPT.2` reopen work.
+
+Reasoning:
+- this is a material algorithmic efficiency win while preserving deterministic semantics and validation posture.
+- remaining closure gap to 30% gate is now narrow and should be approached via targeted flow-lane optimization, not by reverting this lane.
+
+---
+
+### Entry: 2026-02-25 13:51
+
+POPT.2U storage hygiene closure.
+
+Action:
+- pruned superseded POPT.2U run-id folders via `tools/prune_run_folders_keep_set.py` (dry-run then `--yes`):
+  - `56b20e1ef3374f05aa9addcb96fe588c` (failed pre-fix witness),
+  - `4b0214b471ce4089b7859391985a3957`,
+  - `ec5c8509cac1405f9403c086fe7799eb`,
+  - `3af2f6e7a77546c39cc1f19214b53bb0`.
+- retained best POPT.2U witness:
+  - `97b2b72fbd2648fb852272b7dea50efd`.
+
+Reasoning:
+- reduces disk footprint while keeping best-run authority plus closure artifacts for audit.

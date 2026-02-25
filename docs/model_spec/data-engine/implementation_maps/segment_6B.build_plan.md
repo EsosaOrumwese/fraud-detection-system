@@ -548,42 +548,63 @@ Goal:
 - remove duplicate per-event policy recomputation by deriving event labels from already-computed flow labels using a deterministic flow-id join.
 
 Definition of done:
-- [ ] implementation notes pinned before edits with explicit invariants and fallback plan.
-- [ ] `S4` event path no longer recomputes truth/bank policy branches per event row.
-- [ ] event labels are built from:
+- [x] implementation notes pinned before edits with explicit invariants and fallback plan.
+- [x] `S4` event path no longer recomputes truth/bank policy branches per event row.
+- [x] event labels are built from:
   - event identity columns (`flow_id`, `event_seq`),
   - joined flow booleans (`is_fraud_truth`, `is_fraud_bank_view`),
   - run/scenario constants for metadata columns.
-- [ ] fail-closed guard present for missing flow-label coverage after join.
-- [ ] fresh staged `S4 -> S5` witness run scored.
-- [ ] decision recorded with keep/rollback.
+- [x] fail-closed guard present for missing flow-label coverage after join.
+- [x] fresh staged `S4 -> S5` witness run scored.
+- [x] decision recorded with keep/rollback.
 
 POPT.2U expanded execution plan:
 
 #### POPT.2U.1 - Design pin + invariants
 Definition of done:
-- [ ] no policy semantic change for flow truth/bank labeling.
-- [ ] no schema/path contract change for `s4_event_labels_6B`.
-- [ ] fail-closed on any join coverage gap (`event rows` without matched flow labels).
+- [x] no policy semantic change for flow truth/bank labeling.
+- [x] no schema/path contract change for `s4_event_labels_6B`.
+- [x] fail-closed on any join coverage gap (`event rows` without matched flow labels).
 
 #### POPT.2U.2 - Event-path algorithmic rewrite
 Definition of done:
-- [ ] implement event-label build using one join lane against flow labels.
-- [ ] remove event-side recomputation of:
+- [x] implement event-label build using one join lane against flow labels.
+- [x] remove event-side recomputation of:
   - campaign-type mapping,
   - truth label/subtype derivation,
   - detect/dispute/chargeback probability branch logic.
-- [ ] keep deterministic ordering and idempotent publish behavior.
+- [x] keep deterministic ordering and idempotent publish behavior.
 
 #### POPT.2U.3 - Witness + closure
 Definition of done:
-- [ ] stage fresh run-id from `f621ee01bdb3428f84f7c7c1afde8812`.
-- [ ] run `S4 -> S5` with bounded knob posture.
-- [ ] score via `tools/score_segment6b_popt2_closure.py`.
-- [ ] retain only on runtime improvement with non-regression; else rollback and keep authority witness.
+- [x] stage fresh run-id from `f621ee01bdb3428f84f7c7c1afde8812`.
+- [x] run `S4 -> S5` with bounded knob posture.
+- [x] score via `tools/score_segment6b_popt2_closure.py`.
+- [x] retain only on runtime improvement with non-regression; else rollback and keep authority witness.
 
 POPT.2U execution status (current authority):
-- pending.
+- first staged run (blocked then fixed):
+  - `56b20e1ef3374f05aa9addcb96fe588c` failed with `S4_EVENT_LABEL_JOIN_INPUT_MISSING`,
+  - corrective patch switched event-join source from tmp parts to published flow output paths.
+- scored witness matrix (all required checks PASS; parity and warn metrics stable):
+  - `4b0214b471ce4089b7859391985a3957` (`500000`, `snappy`) -> `S4=411.66s`, reduction `26.91%`.
+  - `ec5c8509cac1405f9403c086fe7799eb` (`500000`, `lz4`) -> `S4=413.61s`, reduction `26.56%`.
+  - `97b2b72fbd2648fb852272b7dea50efd` (`750000`, `snappy`) -> `S4=403.78s`, reduction `28.31%` (best).
+  - `3af2f6e7a77546c39cc1f19214b53bb0` (`1000000`, `snappy`) -> `S4=414.62s`, reduction `26.38%`.
+- closure artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_4b0214b471ce4089b7859391985a3957.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_ec5c8509cac1405f9403c086fe7799eb.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_97b2b72fbd2648fb852272b7dea50efd.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_3af2f6e7a77546c39cc1f19214b53bb0.json`.
+- pruned superseded POPT.2U run-id folders:
+  - `56b20e1ef3374f05aa9addcb96fe588c`,
+  - `4b0214b471ce4089b7859391985a3957`,
+  - `ec5c8509cac1405f9403c086fe7799eb`,
+  - `3af2f6e7a77546c39cc1f19214b53bb0`.
+- phase decision from scorer: `HOLD_POPT.2_REOPEN` (30% reduction gate miss).
+- disposition:
+  - keep `POPT.2U` code lane (material runtime gain with non-regression),
+  - promote `97b2b72fbd2648fb852272b7dea50efd` as best current runtime authority witness for `POPT.2` reopen context.
 
 ### POPT.3 - Part-writer and I/O compaction lane
 Goal:
