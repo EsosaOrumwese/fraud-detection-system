@@ -251,11 +251,14 @@ Tasks:
 1. execute/run `IEG` lane in managed runtime.
 2. verify run-scoped inlet projection outputs.
 3. verify lag and checkpoint posture.
+4. publish `p8b_ieg_component_snapshot.json`, `p8b_ieg_blocker_register.json`, `p8b_ieg_performance_snapshot.json`, `p8b_ieg_execution_summary.json`.
+5. enforce deterministic lane verdict (`next_gate=M7.D_READY` on success).
 
 DoD:
 - [ ] `IEG` component evidence set is complete.
 - [ ] `IEG` blockers are clear.
 - [ ] `IEG` performance snapshot meets pinned budget.
+- [ ] managed `M7.C/P8.B` lane verdict is green (`overall_pass=true`, `blocker_count=0`, `next_gate=M7.D_READY`).
 
 ### M7.D P8 OFP Lane Closure
 Goal:

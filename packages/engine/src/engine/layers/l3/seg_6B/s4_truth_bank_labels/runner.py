@@ -81,7 +81,7 @@ class _StepTimer:
 
 
 class _ProgressTracker:
-    def __init__(self, total: int, logger, label: str, cadence_seconds: float = 5.0) -> None:
+    def __init__(self, total: int, logger, label: str, cadence_seconds: float = 10.0) -> None:
         self._total = max(int(total), 0)
         self._logger = logger
         self._label = label

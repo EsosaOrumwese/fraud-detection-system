@@ -9469,3 +9469,29 @@ ext_gate=HOLD_REMEDIATE.
 1. `M7.B` is closed green.
 2. M7 progression is unblocked for `M7.C` (`P8.B` IEG component lane closure).
 
+## Entry: 2026-02-25 21:14:00 +00:00 - M7.P8.B planning lock (IEG component lane)
+
+### Problem
+1. `P8.B` was still a thin stub and not execution-grade.
+2. We need explicit preconditions, required handles, artifact contract, and deterministic gateing before execution.
+
+### Decision
+1. Expand `P8.B` in the deep plan with:
+   - entry prerequisites (`P8.A` green, runtime-path allowed, SLO profile continuity),
+   - required handle set for `IEG` lane and checkpoint/lag posture,
+   - managed execution lane contract (`phase_mode=m7c`),
+   - explicit artifact set and fail-closed gate (`next_gate=M7.D_READY`).
+2. Keep parent M7 plan aligned by adding the same artifact contract and deterministic verdict requirement in `M7.C`.
+
+### Planned execution inputs for M7.C
+1. upstream `P8.A` execution id: `m7b_p8a_entry_precheck_20260225T210210Z`
+2. run scope:
+   - `platform_run_id = platform_20260223T184232Z`
+   - `scenario_run_id = scenario_38753050f3b70c666e16f7552016b330`
+3. runtime lane: `FLINK_RUNTIME_PATH_ACTIVE` under `FLINK_RUNTIME_PATH_ALLOWED`
+
+### Planned artifacts for M7.C
+1. `p8b_ieg_component_snapshot.json`
+2. `p8b_ieg_blocker_register.json`
+3. `p8b_ieg_performance_snapshot.json`
+4. `p8b_ieg_execution_summary.json`

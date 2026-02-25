@@ -3,7 +3,7 @@
 ## 1) Claim Statement
 
 ### Primary claim
-I built and operated an auditable container release pipeline in which a CI workflow is the authoritative build workflow, every release publishes immutable image identity (`tag` plus `digest`), and machine-readable provenance and verification gates enforce fail-closed behavior before a release is accepted.
+I built and operated an auditable container release pipeline in which a CI workflow is the authoritative build path, every release publishes immutable image identity (`tag` plus `digest`), and machine-readable provenance and verification gates enforce fail-closed behavior before a release is accepted.
 
 ### In-scope boundary
 This claim covers:
@@ -58,7 +58,7 @@ The outcome is considered achieved only when every criterion below is satisfied 
 - Any intentional input change (code, dependency set, build configuration) is reflected in provenance and release identity.
 
 5. Audit retrieval posture
-- A reviewer can answer, without code archaeology: what was built, from which source state, by which automated lane, with which exact immutable artifact identity, and under which gate results.
+- A reviewer can answer, without code archaeology: what was built, from which source state, by which automated workflow, with which exact immutable artifact identity, and under which gate results.
 
 ### 2.4 Failure conditions (explicit non-success states)
 The workflow is treated as non-compliant for this claim if any of the following occur:
@@ -160,7 +160,7 @@ This release workflow crosses several trust boundaries and therefore requires ex
 ### 3.5 Control philosophy in this context
 The workflow follows three control principles:
 
-1. Single authoritative build workflow
+1. Single authoritative build path
 - one automated control path defines release truth.
 - secondary/manual paths may exist for development, but they do not establish release authority.
 
@@ -177,7 +177,7 @@ The design had to operate under practical constraints:
 - cloud IAM and registry permissions can be partially configured and fail non-obviously,
 - release reliability must hold without relying on human memory,
 - evidence must be inspectable by non-authors (recruiter, auditor, incident responder),
-- the same lane must support both speed (automation) and control (governed acceptance).
+- the same workflow must support both speed (automation) and control (governed acceptance).
 
 ### 3.7 External interfaces and contracts (high level)
 This claim depends on stable interfaces, not internal naming:
@@ -433,7 +433,7 @@ Trade-off accepted:
 
 ### 5.9 Decision H: remediation via immutable rebuild and controlled redeploy, not ad hoc runtime patching
 Decision:
-- When release defects are discovered, patch source/build configuration, produce a new immutable image, and redeploy through the same controlled lane.
+- When release defects are discovered, patch source/build configuration, produce a new immutable image, and redeploy through the same controlled workflow.
 - Do not patch running containers or perform manual runtime "fix in place" for release closure.
 
 Why this decision:
@@ -504,7 +504,7 @@ Effect:
 - control expectations became executable checks instead of documentation-only assumptions.
 
 ### 6.4 Cloud identity and registry authorization remediation
-Live execution exposed two critical control gaps and both were remediated in-workflow:
+Live execution exposed two critical control gaps and both were remediated within the same controlled workflow:
 
 1. Federated identity gap
 - issue: CI could not assume cloud identity because the required identity provider/trust prerequisite was missing.
@@ -578,261 +578,86 @@ Detailed verification and measured outcomes are provided in Sections 8 and 11.
 
 ## 7) Controls and Guardrails (Fail-Closed Posture)
 
-### 7.1 Control model
-The release workflow uses layered controls so one missed check does not silently degrade release integrity.  
-Controls are organized into:
-- preventive controls (stop invalid execution before build/publish),
-- detective controls (detect drift or contract violations during execution),
-- blocking controls (hard-stop acceptance when mandatory conditions are not satisfied),
-- corrective controls (enforce clean remediation path after failure).
+### 7.1 Control architecture
+The release workflow uses four control layers:
+- preventive: stop invalid execution before build/publish,
+- detective: detect workflow or artifact drift during execution,
+- blocking: enforce hard-stop acceptance for mandatory controls,
+- corrective: enforce controlled, repeatable recovery after failure.
 
-This section defines control intent and expected behavior. Evidence of execution appears later.
+This turns release quality into a mechanism, not a convention.
 
-### 7.2 Preventive controls (before artifact acceptance)
-
-1. Authoritative workflow control
-- Rule: only the designated CI workflow can produce accepted release artifacts for this scope.
-- Prevents: split authority and non-auditable manual release paths.
-- Fail action: candidate is not accepted as release truth.
-
-2. Federated identity prerequisite control
-- Rule: CI must authenticate through workload federation and assume the intended cloud role.
-- Prevents: hidden static-credential drift and undocumented credential handoffs.
-- Fail action: stop before registry operations.
-
-3. Least-privilege registry access control
-- Rule: CI role must have exactly required registry capabilities for auth, push, and metadata retrieval.
-- Prevents: permission overreach and late-stage publish failures.
-- Fail action: block publish and mark release attempt failed.
-
-4. Build-context boundary control
-- Rule: image build context is explicitly constrained; unbounded repository copy is not allowed in this workflow.
-- Prevents: accidental payload bloat, leakage of irrelevant content, and non-deterministic image surface growth.
-- Fail action: block release acceptance until context contract is restored.
-
-### 7.3 Detective controls (during execution)
-
-1. Workflow-contract validation control
-- Rule: release workflow is statically checked for required trigger posture, permission posture, output wiring, and guard presence.
-- Detects: configuration drift between intended release contract and actual workflow behavior.
-- Fail action: keep release workflow non-ready until contract validation passes.
-
-2. Identity resolution consistency control
-- Rule: tag and digest outputs must resolve consistently from authoritative publish results.
-- Detects: identity mismatch between build output and registry state.
-- Fail action: block acceptance and require rerun/remediation.
-
-3. Evidence artifact completeness control
-- Rule: required machine-readable artifacts must be present and well-formed.
-- Detects: partial release records and missing audit surfaces.
-- Fail action: candidate is not accepted as valid release.
-
-4. Runtime-dependency drift detection control
-- Rule: runtime import/startup failures after publish are treated as release-control defects, not service-only noise.
-- Detects: curated dependency misalignment not caught by build success alone.
-- Fail action: hold lane in fail state until immutable rebuild closes gap.
-
-### 7.4 Blocking controls (hard acceptance gates)
-Release acceptance is blocked if any of the following holds:
-- CI identity federation cannot be established,
+### 7.2 Mandatory gates (all blocking)
+Release acceptance is blocked if any of these fail:
+- CI cannot establish federated cloud identity,
 - required registry authorization is missing,
-- immutable digest cannot be resolved,
-- mandatory evidence artifacts are missing,
-- identity/provenance cross-check fails,
-- known runtime-critical dependency drift is unresolved.
+- digest cannot be resolved from publish results,
+- required evidence artifacts are missing or malformed,
+- provenance/identity cross-check fails,
+- runtime-critical dependency drift is detected post-publish.
 
-No warning-only downgrade is allowed for these controls in this workflow.
+No warning-only downgrade is allowed for these gates.
 
-### 7.5 Corrective guardrails (how remediation must happen)
+### 7.3 Corrective discipline
+Corrective actions must follow this path:
+- source/config fix,
+- immutable rebuild and republish,
+- controlled redeploy,
+- rerun required validation gates.
 
-1. Immutable remediation rule
-- Defects are remediated via source/config change -> rebuild -> republish -> redeploy.
-- In-place runtime patching is not accepted as closure for this claim.
+In-place runtime patching and side-channel artifact publishing do not count as closure.
+Corrective runs must emit the same minimum evidence bundle to preserve audit continuity.
 
-2. same-workflow remediation rule
-- Remediation must execute through the same authoritative CI workflow.
-- Side-channel artifact publishing does not count as valid closure.
+### 7.4 Governance and ownership
+Ownership split:
+- platform/release engineering: workflow contract and gate logic,
+- platform security: identity and authorization boundary correctness,
+- service/runtime owners: dependency declaration and migration-impact signaling.
 
-3. Evidence-continuity rule
-- Corrective runs must produce the same minimum evidence bundle as first-pass releases.
-- This preserves audit continuity across failure and recovery.
+Review cadence:
+- revalidate controls on every material workflow/dependency-model change,
+- treat incident-triggered control updates as mandatory closure work.
 
-### 7.6 Governance guardrails
-
-1. Positive-proof acceptance rule
-- A release is accepted only with explicit passing evidence.
-- "No visible error" is insufficient for acceptance.
-
-2. Non-claim discipline
-- this workflow controls release artifact integrity and evidence posture.
-- It does not claim full downstream runtime reliability; that is governed by separate operational controls.
-
-3. Sensitive-data hygiene rule
-- Release evidence must be machine-readable and auditable without exposing secrets.
-- Secret-bearing payloads are not valid evidence artifacts for this report track.
-
-### 7.7 Control ownership and review cadence
-
-Control ownership model:
-- platform/release engineering owns workflow contract and gating logic,
-- cloud/platform security posture owns identity and permission boundary correctness,
-- service/runtime owners own dependency declaration accuracy and migration impact signaling.
-
-Review cadence expectation:
-- controls are reviewed at each material workflow or dependency-model change,
-- incident-triggered control updates are treated as mandatory, not optional improvement work.
-
-### 7.8 Why these controls are senior-relevant
-These guardrails demonstrate senior-level platform behavior because they:
-- convert release quality from convention to mechanism,
-- reduce blast radius when failures occur,
-- make incident recovery deterministic,
-- preserve auditability under change pressure,
-- scale across teams by removing hidden operator dependencies.
+### 7.5 Why this is senior-level
+This control model demonstrates senior platform practice because it:
+- reduces blast radius by failing early,
+- makes recovery deterministic,
+- preserves auditability under change pressure,
+- scales beyond individual operator knowledge.
 
 ## 8) Validation Strategy
 
 ### 8.1 Validation objective
-Validation is designed to answer one strict question:
+Validation answers one question:
+"Can this workflow reject unsafe candidates and accept only candidates with immutable identity, complete provenance, and passing mandatory gates?"
 
-"Can this workflow repeatedly reject unsafe release attempts and accept only candidates with immutable identity, complete provenance, and satisfied mandatory controls?"
+### 8.2 Validation design
+Validation is executed in four steps:
+- contract checks before live runs (trigger/permissions/outputs/guard coverage),
+- live negative-path checks (identity/authz/evidence/digest failures must block),
+- positive-path closure (successful publish plus identity/provenance completeness),
+- runtime viability sanity (critical dependency surface must be runnable).
 
-This requires more than a successful build. The strategy validates:
-- control behavior under failure,
-- correctness of acceptance logic,
-- quality of produced evidence,
-- remediation discipline after detected defects.
+### 8.3 Pass/fail rules
+Pass requires all mandatory controls in scope to pass.
+Fail is triggered by any single mandatory control failure.
+There is no majority-pass logic for release acceptance.
 
-### 8.2 Validation layers
-The strategy uses four layers, each with explicit pass/fail semantics.
+### 8.4 Remediation-validation loop
+After failure:
+- classify failure at control boundary,
+- implement source/config fix,
+- rebuild and republish through the same authoritative CI workflow,
+- rerun mandatory validation checks,
+- accept only after full closure.
 
-1. Contract validation (pre-execution)
-- Validate workflow contract before live runs:
-  - trigger posture,
-  - permission posture,
-  - required output wiring,
-  - fail-closed guard presence,
-  - evidence artifact coverage.
-- Purpose: catch release-workflow drift before consuming build/runtime time.
+### 8.5 Evidence capture
+Validation evidence is captured as:
+- run-level execution outcomes,
+- artifact-level identity/provenance outputs,
+- control-level validator and failure/recovery records.
 
-2. Live execution validation (control boundary)
-- Execute release attempts through the authoritative CI workflow.
-- Observe whether mandatory controls block progression when prerequisites are missing.
-- Purpose: prove controls are enforced in real execution, not only in static review.
-
-3. Post-publish identity/provenance validation
-- Confirm both tag and digest are emitted and consistent with publish results.
-- Confirm required machine-readable evidence artifacts are produced and retrievable.
-- Purpose: prove accepted candidates are auditable and promotion-safe.
-
-4. Runtime-viability sanity validation
-- Confirm artifact is at least minimally runnable for required dependency surface.
-- Treat startup/import failures after publish as release-control defects.
-- Purpose: prevent "build success but unusable artifact" acceptance.
-
-### 8.3 Positive-path validation cases
-These cases must pass for a candidate to be considered valid:
-
-1. Authoritative lane execution success
-- CI workflow executes end-to-end under intended identity and authorization model.
-
-2. Immutable identity closure
-- release outputs include tag and digest,
-- digest is resolved from authoritative publish surface,
-- identity can be consumed in digest-safe form.
-
-3. Provenance closure
-- required machine-readable artifacts are present and structurally complete,
-- provenance binds source/build/artifact/gate outcomes.
-
-4. Required guard coverage closure
-- mandated checks execute and report pass,
-- no required check is skipped or downgraded informally.
-
-### 8.4 Negative-path validation cases (must fail closed)
-The strategy intentionally validates expected failure behavior:
-
-1. Missing federated identity prerequisites
-- expected behavior: stop before registry operations.
-
-2. Insufficient registry authorization
-- expected behavior: block publish and return explicit authorization failure.
-
-3. Missing required evidence artifacts
-- expected behavior: candidate is not accepted even if build appears successful.
-
-4. Unresolved digest identity
-- expected behavior: release acceptance blocked.
-
-5. Runtime dependency drift after publish
-- expected behavior: lane remains non-green; corrective immutable rebuild required.
-
-Negative-path validation is considered successful only when the system blocks progression as designed.
-
-### 8.5 Validation matrix (control -> check -> expected result)
-Validation uses a control-mapped matrix:
-
-1. Identity control
-- check: federated CI auth and role assumption path executes.
-- expected result: success on valid configuration; hard fail on missing trust.
-
-2. Authorization control
-- check: registry login/push/metadata operations under scoped role.
-- expected result: success only with required permission scope.
-
-3. Immutability control
-- check: emitted digest exists and matches published artifact identity.
-- expected result: acceptance blocked if digest cannot be resolved or verified.
-
-4. Provenance control
-- check: required evidence artifacts exist and are parseable.
-- expected result: acceptance blocked on missing/incomplete required artifacts.
-
-5. Packaging viability control
-- check: artifact supports required runtime dependency surface.
-- expected result: acceptance blocked or reopened if dependency drift causes runtime failure.
-
-### 8.6 Acceptance and rejection rules in validation
-Acceptance requires all required controls to pass in the same release attempt (or same remediation chain where policy allows staged closure).
-
-Rejection is triggered by any single mandatory control failure.  
-No "majority pass" logic is allowed for mandatory release controls.
-
-### 8.7 Remediation-validation loop
-When a failure is detected:
-- record failure class and control boundary where it occurred,
-- apply source/config remediation,
-- rebuild and republish through the same authoritative lane,
-- rerun required validations,
-- accept only after full control closure.
-
-This loop ensures remediation is verifiable and reproducible.
-
-### 8.8 Evidence capture strategy for validation
-Validation evidence is captured at three levels:
-
-1. Run-level execution evidence
-- CI run status and failure/success progression.
-
-2. Artifact-level evidence
-- immutable image identity outputs,
-- provenance and gate-result artifacts.
-
-3. Control-level evidence
-- contract validator output,
-- failure signatures for blocked runs,
-- rerun closure evidence after remediation.
-
-Evidence is intentionally machine-readable to support repeat audit and interview defensibility.
-
-### 8.9 What this strategy does not claim
-This strategy validates release-workflow integrity and artifact acceptance posture.  
-It does not by itself certify:
-- full production runtime SLO achievement,
-- application-level functional correctness across all features,
-- organization-wide compliance completion.
-
-Those require additional claim-specific validation tracks.
+This keeps validation repeatable, machine-readable, and interview-defensible.
 
 ## 9) Results and Operational Outcome
 
@@ -844,74 +669,43 @@ The implementation delivered the intended control outcome:
 - failure classes were surfaced early and blocked by design,
 - remediation occurred through immutable rebuild discipline rather than ad hoc runtime patching.
 
-### 9.2 Measured closure sequence (failure -> remediation -> success)
-The first full closure of the release workflow followed a controlled three-attempt sequence:
+### 9.2 Measured closure sequence
+First full closure required three attempts:
+- attempt 1 failed at federated identity bootstrap,
+- attempt 2 failed at registry authorization boundary,
+- attempt 3 succeeded with complete evidence outputs.
 
-1. Attempt 1
-- outcome: failed at federated identity bootstrap.
-- control value: prevented unauthorized or partially configured publish path.
+Operational meaning:
+- failures were early and explicit,
+- each failure mapped to a concrete control gap,
+- closure occurred only after source-level remediation.
 
-2. Attempt 2
-- outcome: failed at registry authorization boundary.
-- control value: forced least-privilege policy completion before publish.
+### 9.3 Control effectiveness and artifact quality
+For accepted releases:
+- identity was emitted as tag plus digest,
+- machine-readable evidence was complete and durable,
+- mandatory controls blocked progression on identity/authz/evidence defects.
 
-3. Attempt 3
-- outcome: successful end-to-end build and publish with required evidence outputs.
-- control value: accepted release only after identity and authorization prerequisites were demonstrably correct.
+Result:
+- rollback and promotion decisions can reference exact artifact content,
+- release facts are queryable without reconstructing raw logs,
+- invalid candidates are stopped before they become operational debt.
 
-Operational result:
-- time was spent in controlled failure, not silent drift.
-- each failure exposed a concrete missing control prerequisite and was remediated at source.
+### 9.4 Packaging drift recovery quality
+A runtime dependency omission was detected after publish, traced to curated dependency selection drift, and corrected through immutable rebuild plus controlled redeploy in the same workflow.
 
-### 9.3 Immutable identity outcome
-For successful runs, image identity was emitted in dual form:
-- operator-friendly tag for navigation,
-- immutable digest for exact release truth.
+Result:
+- recovery preserved provenance and control integrity,
+- no side-channel patching was needed.
 
-Operational improvement:
-- promotion and rollback decisions can reference exact artifact content.
-- "same label, different image" ambiguity is removed from accepted release posture.
-
-### 9.4 Evidence completeness outcome
-Successful release runs produced a complete machine-readable evidence pack including:
-- command-surface receipt,
-- packaging provenance record,
-- secret-injection/security check output,
-- CI run output summary.
-
-Operational improvement:
-- release claims are auditable without reconstructing history from raw logs.
-- investigation and handover are faster because required release metadata is normalized.
-
-### 9.5 Control effectiveness outcome
-The workflow demonstrated real fail-closed behavior at critical boundaries:
-- missing identity provider/trust -> hard block,
-- missing registry authorization scope -> hard block,
-- missing required dependency in image contents (later packaging drift incident) -> runtime failure surfaced and release posture held non-green until rebuild remediation.
-
-Operational improvement:
-- invalid releases are stopped before they become hidden operational debt.
-- corrective work becomes explicit, bounded, and reproducible.
-
-### 9.6 Packaging drift resilience outcome
-After a runtime dependency omission was detected in a published image:
-- root cause was traced to curated dependency-selection drift,
-- build configuration was corrected,
-- a new immutable image was rebuilt and published through the same authoritative lane,
-- rollout resumed on the corrected digest.
-
-Operational improvement:
-- the system recovered using the same governed pathway used for normal releases.
-- no side-channel patching was required to regain stability.
-
-### 9.7 Senior-role impact framing
+### 9.5 Senior-role impact framing
 From a Senior MLOps / Platform perspective, the key outcomes are:
 - release workflow moved from "works when setup is right" to "enforces setup correctness by default",
 - security and reliability controls became part of delivery mechanics, not separate afterthoughts,
 - incident response quality improved because release facts are queryable and immutable,
 - remediation path preserved audit integrity under delivery pressure.
 
-### 9.8 Residual gaps and next hardening opportunities
+### 9.6 Residual gaps and next hardening opportunities
 Even with current outcomes, further hardening opportunities remain:
 - stronger runtime smoke checks immediately after publish for critical dependencies,
 - deeper supply-chain controls (for example SBOM/signing) if required by target environment,
@@ -922,7 +716,7 @@ These are optimization opportunities, not blockers to the core claim outcome alr
 ## 10) Limitations and Non-Claims
 
 ### 10.1 Scope limitation (what this report certifies)
-This report certifies release-workflow integrity for container build/publish acceptance:
+This report certifies release workflow integrity for container build/publish acceptance:
 - authoritative automated release path,
 - immutable artifact identity,
 - machine-readable provenance,
@@ -1133,5 +927,6 @@ Portfolio style:
 - concise claim + evidence hooks, with non-claims explicitly stated.
 
 This keeps the message recruiter-readable and technically defensible.
+
 
 

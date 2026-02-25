@@ -131,17 +131,59 @@ Execution status (2026-02-25):
 Goal:
 1. close `IEG` with run-scoped evidence.
 
-Tasks:
-1. execute `IEG` lane in selected managed runtime path.
-2. verify run-scoped inlet projection outputs.
-3. verify lane checkpoint/lag posture for `IEG`.
-4. emit `p8b_ieg_component_snapshot.json`.
+Entry prerequisites (must already be green):
+1. `P8.A` execution summary is green with `next_gate=M7.C_READY`.
+2. active runtime path is pinned and allowed (`FLINK_RUNTIME_PATH_ACTIVE` in `FLINK_RUNTIME_PATH_ALLOWED`).
+3. `IEG` SLO envelope exists from upstream `M7.A` profile.
+
+Required handle set for P8.B:
+1. `FLINK_RUNTIME_PATH_ACTIVE`
+2. `FLINK_RUNTIME_PATH_ALLOWED`
+3. `FLINK_APP_RTDL_IEG_V0`
+4. `FLINK_EKS_RTDL_IEG_REF`
+5. `FLINK_EKS_NAMESPACE`
+6. `K8S_DEPLOY_IEG`
+7. `FP_BUS_TRAFFIC_V1`
+8. `FP_BUS_CONTEXT_V1`
+9. `RTDL_CORE_CONSUMER_GROUP_ID`
+10. `RTDL_CORE_OFFSET_COMMIT_POLICY`
+11. `RTDL_CAUGHT_UP_LAG_MAX`
+12. `FLINK_CHECKPOINT_INTERVAL_MS`
+13. `FLINK_CHECKPOINT_S3_PREFIX_PATTERN`
+
+Pinned IEG performance gate (from M7.A baseline):
+1. `records_per_second_min=200`
+2. `latency_p95_ms_max=500`
+3. `lag_messages_max=1000`
+4. `cpu_p95_pct_max=85`
+5. `memory_p95_pct_max=85`
+6. `error_rate_pct_max=1.0`
+
+Execution plan (managed lane):
+1. materialize `m7c` lane in `.github/workflows/dev_full_m6f_streaming_active.yml` for `P8.B`.
+2. dispatch workflow with:
+   - `phase_mode=m7c`,
+   - upstream `P8.A` execution id,
+   - pinned run scope (`platform_run_id`, `scenario_run_id`).
+3. run lane checks:
+   - required-handle closure for `P8.B`,
+   - `IEG` lane health/status proof from runtime surface,
+   - run-scoped output proof for traffic/context projection lane,
+   - lag/offset/checkpoint posture against pinned thresholds,
+   - IEG performance snapshot against numeric SLO gate.
+4. emit artifacts:
+   - `p8b_ieg_component_snapshot.json`,
+   - `p8b_ieg_blocker_register.json`,
+   - `p8b_ieg_performance_snapshot.json`,
+   - `p8b_ieg_execution_summary.json`.
+5. publish artifacts locally and durably (`evidence/dev_full/run_control/<execution_id>/...`).
 
 DoD:
 - [ ] `IEG` run-scoped output proofs are present.
 - [ ] `IEG` lag/checkpoint checks are green.
 - [ ] `IEG` blocker set is empty.
 - [ ] `p8b_ieg_performance_snapshot.json` is committed and within pinned SLO.
+- [ ] managed `P8.B` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=M7.D_READY`).
 
 ### P8.C OFP Component Lane Closure
 Goal:
