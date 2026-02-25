@@ -8184,3 +8184,127 @@ odeadm failure on console output); nodes never registered.
 1. Did not fake M6.F closure artifacts while runtime compute was unschedulable.
 2. Held fail-closed at M6.F as required.
 3. Session now intentionally paused with no active wait processes from my side.
+
+## Entry: 2026-02-25 13:53:27 +00:00 - Docs drift correction lock (dev_full status surfaces)
+
+### Trigger
+1. USER directed a docs-drift correction pass for dev_full status surfaces.
+
+### Drift identified
+1. platform.build_plan.md next-action pointer still referenced historical M2.F work.
+2. dev_full/README.md current posture still reported early-track initialization (M1 active) instead of current M6 state.
+
+### Decision
+1. Execute a bounded docs-only correction to align status surfaces with current authoritative chronology.
+2. Do not alter phase statuses, blocker verdicts, or runtime evidence references.
+
+### Planned edits
+1. Update platform.build_plan.md section 11) Next Action to the active M6.F remediation/rerun lane.
+2. Update dev_full/README.md current posture to reflect M0..M5 done and M6 active fail-closed at M6.F (M6P6-B2/B4 open, M6P6-B3 structurally remediated).
+
+### Safety posture
+1. Docs-only correction; no infrastructure/runtime mutation.
+
+## Entry: 2026-02-25 13:54:04 +00:00 - Docs drift correction applied (build-plan next action + dev_full README posture)
+
+### Changes applied
+1. Updated docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md:
+   - corrected 11) Next Action from stale M2.F pointer to active M6.F blocker-closure lane (M6P6-B2/B4 -> rerun M6.F -> M6.G only on zero blockers).
+2. Updated docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/README.md:
+   - refreshed As of date,
+   - replaced initialization-era posture with current phase state (M0..M5 DONE, M6 ACTIVE),
+   - pinned active gate facts (M6.E green, M6.F fail-closed, M6P6-B2/B4 open, M6P6-B3 remediated),
+   - pinned immediate closure step for M6.F rerun gating.
+
+### Validation
+1. Confirmed build-plan Next Action now references active M6 lane.
+2. Confirmed README Current posture now matches current chronology from latest platform.impl_actual.md entries.
+
+### Safety posture
+1. Docs-only correction completed.
+2. No runtime, infrastructure, or evidence artifact mutation occurred.
+
+## Entry: 2026-02-25 14:12:35 +00:00 - Pre-change lock: codify M6.F blocker-resolution strategy into active M6 plans
+
+### Trigger
+1. USER requested adding the newly investigated `M6.F` blocker-resolution strategy into active M6 planning surfaces before remediation execution continues.
+
+### Current verified blocker truth
+1. Active blockers to clear are `M6P6-B2` and `M6P6-B4`; `M6P6-B3` is structurally remediated (`DDB_IG_IDEMPOTENCY_TABLE` count is non-zero).
+2. Live AWS posture confirms worker-capacity failure in the EKS-hosted Flink path:
+   - EKS nodegroup `fraud-platform-dev-full-m6f-workers` is `CREATE_FAILED` with `NodeCreationFailure`.
+   - EMR-on-EKS job refs for `wsp-stream` and `sr-ready` failed with `FailedScheduling` (`no nodes available to schedule pods`).
+   - failed worker console output shows Bottlerocket bootstrap stopping at `pluto` timeout retrieving private DNS from EC2.
+3. This indicates a private-subnet worker bootstrap connectivity gap under current no-NAT posture; private route table is local-only and required private endpoint surfaces for node bootstrap/image pull/STS are not yet materialized.
+
+### Decision
+1. Update M6 planning docs to include explicit blocker root-cause adjudication and execution-grade remediation lanes.
+2. Keep fail-closed gate semantics unchanged: no `M6.G` advancement until fresh `M6.F` rerun returns zero blockers.
+3. Add semantic-risk guard that current EMR placeholder jobs (`SparkPi`) cannot be used as final `P6` semantic-closure evidence.
+
+### Planned edits
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md`.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P6.build_plan.md`.
+
+### Safety posture
+1. Docs-only update in this step; no runtime mutation.
+
+## Entry: 2026-02-25 14:14:40 +00:00 - M6 planning docs updated with refined M6.F blocker-closure strategy
+
+### Changes applied
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md` (`M6.F` section):
+   - added live-state blocker delta (`M6P6-B3` structurally remediated; `M6P6-B2/B4` still open),
+   - added root-cause adjudication for `M6P6-B2` (worker-capacity failure chain),
+   - added explicit execution lanes (`A` network connectivity, `B` worker capacity, `C` stream-lane semantic validity, `D` rerun gate),
+   - added hard-stop rule preventing `M6.G` advancement until fresh zero-blocker `M6.F` artifacts exist.
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P6.build_plan.md` (`P6.B` remediation block):
+   - replaced coarse `B2/B3/B4` remediation notes with execution-grade lane sequence,
+   - captured verified root-cause chain and required network/worker IaC closure,
+   - pinned semantic guard against placeholder job drivers,
+   - preserved fail-closed rerun rule (`M6.G` blocked unless rerun blocker count is zero).
+
+### Why this adjustment was required
+1. Previous remediation text captured intent but not the discovered root-cause mechanics (nodegroup bootstrap failure and private-subnet connectivity prerequisites).
+2. The active gate needed explicit anti-false-green controls so "job active" is not accepted when lane semantics are still placeholder-only.
+
+### Validation
+1. Confirmed both planning files now contain a deterministic remediation sequence for `M6P6-B2/B4` with explicit rerun gates.
+2. Confirmed fail-closed transition rule remains unchanged (`M6.G` requires fresh zero-blocker `M6.F`).
+
+### Safety posture
+1. Docs-only updates completed.
+2. No runtime/infrastructure mutation performed in this step.
+
+## Entry: 2026-02-25 14:16:07 +00:00 - Pre-change lock: add DoD checklists for newly added M6.F remediation lanes
+
+### Trigger
+1. USER flagged that newly added M6.F blocker-resolution plan text did not include explicit DoD checkbox surfaces consistent with other deep-plan sections.
+
+### Decision
+1. Add explicit DoD checklists directly under the new remediation-lane sections in:
+   - `platform.M6.build_plan.md`
+   - `platform.M6.P6.build_plan.md`
+2. Keep scope docs-only; no status mutation and no runtime execution.
+
+### Planned DoD additions
+1. Lane-level checkboxes for network endpoint materialization, worker-node availability, lane-job semantic validity, and rerun gate closure.
+2. Explicit blocker-closure checks tied to `M6P6-B2/B4` plus rerun validation of `M6P6-B3`.
+
+### Safety posture
+1. Docs-only patch.
+
+## Entry: 2026-02-25 14:16:44 +00:00 - Applied DoD checklist completion for new M6.F remediation sections
+
+### Changes applied
+1. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md`:
+   - added `Refined remediation DoD (M6.F blocker-closure lane)` checkbox set directly under the newly added refined remediation section.
+2. Updated `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P6.build_plan.md`:
+   - added `Remediation DoD checklist (M6P6-B2/B3/B4 closure lane)` checkbox set under the detailed remediation sequence.
+
+### Result
+1. Newly introduced remediation lanes now have explicit checkbox DoDs, aligned with style/pattern used in other M-phase deep-plan sections.
+2. No phase status values were changed.
+
+### Safety posture
+1. Docs-only update completed.
+2. No runtime or infrastructure mutation performed.

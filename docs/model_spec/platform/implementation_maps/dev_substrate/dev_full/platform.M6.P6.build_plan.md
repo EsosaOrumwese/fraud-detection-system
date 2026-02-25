@@ -117,20 +117,42 @@ Execution status (2026-02-25):
    - `M6.G` remains blocked until `M6P6-B2/B3/B4` are cleared with a fresh `M6.F` rerun.
 
 Remediation plan to clear active blockers (`M6P6-B2/B3/B4`):
-1. `M6P6-B2`:
-   - materialize active stream-lane runtime refs in EMR VC for:
+1. `M6P6-B2` root-cause lock (live-state):
+   - EKS worker capacity is absent because nodegroup `fraud-platform-dev-full-m6f-workers` is `CREATE_FAILED` (`NodeCreationFailure`),
+   - EMR lane refs fail with scheduler error (`no nodes available to schedule pods`),
+   - failed worker console output indicates bootstrap failure (`pluto` timeout retrieving private DNS from EC2),
+   - private route table is local-only and lacks required private endpoint surfaces for worker bootstrap/image pull/token exchange.
+2. Lane A - network bootstrap connectivity via IaC:
+   - add interface VPC endpoints (`ec2`, `ecr.api`, `ecr.dkr`, `sts`) with private DNS enabled in runtime private subnets,
+   - add `s3` gateway endpoint to private route table,
+   - add endpoint security-group surface permitting `443` from private subnet CIDRs.
+3. Lane B - worker capacity via IaC:
+   - materialize managed EKS nodegroup resource for `M6.F` workers in Terraform runtime stack,
+   - require nodegroup `ACTIVE` and `kubectl get nodes` non-empty before EMR rerun.
+4. Lane C - stream-lane semantic validity:
+   - replace placeholder EMR job drivers (`SparkPi`) with lane-authentic job specs for refs:
      - `FLINK_EKS_SR_READY_REF`,
      - `FLINK_EKS_WSP_STREAM_REF`,
-   - require job refs observable as active (`SUBMITTED|PENDING|RUNNING`) during `M6.F` capture window.
-2. `M6P6-B3`:
-   - ensure ingress path persists admissions to `DDB_IG_IDEMPOTENCY_TABLE`,
-   - execute run-scoped stream lane that produces non-zero admissions for active `platform_run_id`.
-3. `M6P6-B4`:
+   - require refs observable as active (`SUBMITTED|PENDING|RUNNING`) during `M6.F` capture window.
+5. `M6P6-B3` validation lane (already structurally remediated):
+   - maintain IG idempotency persistence check,
+   - require non-zero run-scoped admission progression for active `platform_run_id` in rerun artifacts.
+6. `M6P6-B4` lag lane:
    - compute lag only after active stream + non-zero admission proof is present,
    - require `measured_lag <= RTDL_CAUGHT_UP_LAG_MAX`.
-4. Closure:
+7. Closure:
    - rerun `M6.F` with fresh `phase_execution_id`,
-   - do not proceed to `M6.G` unless blocker count is zero.
+   - do not proceed to `M6.G` unless blocker count is zero and new `m6f_*` artifacts are published locally + durably.
+
+Remediation DoD checklist (`M6P6-B2/B3/B4` closure lane):
+- [ ] Root-cause proof retained in execution notes (`NodeCreationFailure` + EMR `FailedScheduling` evidence).
+- [ ] Lane A complete: private endpoint surfaces are materialized and readable (`ec2`, `ecr.api`, `ecr.dkr`, `sts`, `s3` gateway).
+- [ ] Lane B complete: IaC-managed worker nodegroup is `ACTIVE` and cluster has at least one schedulable `Ready` node.
+- [ ] Lane C complete: lane refs (`FLINK_EKS_SR_READY_REF`, `FLINK_EKS_WSP_STREAM_REF`) are executed using lane-authentic specs and observed active in capture window.
+- [ ] `M6P6-B3` validation passes on rerun with non-zero run-scoped admission progression.
+- [ ] `M6P6-B4` validation passes on rerun with `measured_lag <= RTDL_CAUGHT_UP_LAG_MAX`.
+- [ ] fresh rerun `m6f_*` artifacts are committed locally and durably.
+- [ ] `M6.G` remains blocked until checklist above is green and rerun blocker count is zero.
 
 ### P6.C P6 Gate Rollup + Verdict (M6.G)
 Goal:

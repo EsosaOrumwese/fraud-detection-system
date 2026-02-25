@@ -282,6 +282,40 @@ Bounded remediation lane (approved) before rerun:
 3. Generate run-scoped ingress admissions from lane execution (no synthetic non-lane shortcut).
 4. Rerun `M6.F`; only zero-blocker result unlocks `M6.G`.
 
+Refined blocker-closure plan (2026-02-25 live-state adjudication):
+1. Blocker delta:
+   - `M6P6-B3` is structurally remediated (`DDB_IG_IDEMPOTENCY_TABLE` non-zero) and remains a rerun validation check.
+   - active blockers to clear in rerun remain `M6P6-B2` and `M6P6-B4`.
+2. Root-cause findings behind `M6P6-B2`:
+   - EKS worker nodegroup `fraud-platform-dev-full-m6f-workers` is `CREATE_FAILED` (`NodeCreationFailure`).
+   - EMR lane refs `fraud-platform-dev-full-wsp-stream-v0` and `fraud-platform-dev-full-sr-ready-v0` fail with scheduler error (`no nodes available to schedule pods`).
+   - failed Bottlerocket worker console output shows bootstrap failure at `pluto` timeout retrieving private DNS from EC2.
+   - private route table is local-only; required private endpoint surfaces for worker bootstrap/image pull/token exchange are not yet materialized.
+3. Execution-grade remediation lanes before rerun:
+   - Lane A (network bootstrap connectivity via IaC):
+     - add private VPC endpoints for `ec2`, `ecr.api`, `ecr.dkr`, `sts` (interface, private DNS enabled),
+     - add `s3` gateway endpoint on private route table,
+     - attach dedicated endpoint SG (`443`) from private subnet CIDRs.
+   - Lane B (worker capacity via IaC):
+     - codify `M6.F` worker nodegroup in Terraform runtime stack (managed nodegroup, desired >= 1),
+     - replace failed ad-hoc nodegroup path with deterministic apply/destroy lifecycle.
+   - Lane C (stream-lane semantic validity):
+     - replace placeholder EMR job drivers (`SparkPi`) with lane-authentic job specs for `wsp-stream` and `sr-ready` refs before semantic closure claim.
+   - Lane D (gate rerun):
+     - rerun `M6.F` with fresh `phase_execution_id`,
+     - require `B2` clear (`wsp_active>0` and `sr_ready_active>0`), `B3` validation pass (non-zero admission progression), and `B4` clear (`measured_lag <= RTDL_CAUGHT_UP_LAG_MAX`).
+4. Hard stop:
+   - do not mark `M6.F` complete or execute `M6.G` until Lanes A-D are green and new `m6f_*` artifacts are committed locally + durably.
+
+Refined remediation DoD (M6.F blocker-closure lane):
+- [ ] Lane A complete: required private endpoint surfaces are materialized in IaC and readable (`ec2`, `ecr.api`, `ecr.dkr`, `sts`, `s3` gateway).
+- [ ] Lane B complete: worker nodegroup is IaC-managed, reports `ACTIVE`, and at least one node is `Ready`.
+- [ ] Lane C complete: `wsp-stream` and `sr-ready` refs run with lane-authentic specs (no placeholder-only `SparkPi` closure claim).
+- [ ] Lane D complete: fresh `M6.F` rerun captures `wsp_active>0`, `sr_ready_active>0`, and non-zero admission progression.
+- [ ] `M6P6-B2` and `M6P6-B4` are cleared in rerun blocker register.
+- [ ] `M6P6-B3` remains clear in rerun validation evidence.
+- [ ] rerun `m6f_*` artifacts are committed locally and durably.
+
 ### M6.G `P6` Gate Rollup + Verdict
 Goal:
 1. adjudicate `P6` from M6.E..M6.F evidence.

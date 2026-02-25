@@ -1,5 +1,5 @@
 # Dev Full Track Maps
-_As of 2026-02-22_
+_As of 2026-02-25_
 
 This folder is reserved for `dev_full` planning and implementation notes.
 
@@ -12,12 +12,14 @@ This folder is reserved for `dev_full` planning and implementation notes.
 - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (dev_full handle authority)
 
 ## Current posture
-- Initialization complete:
-  - `platform.impl_actual.md` created.
-  - dev_full migration authority created and section pins closed.
-  - dev_full run-process authority created.
-  - dev_full handles registry drafted.
-  - `platform.build_plan.md` created; `M0` closed and `M1` planning active.
-  - `platform.M0.build_plan.md` created for deep M0 planning.
-  - `platform.M1.build_plan.md` created for deep M1 planning.
+- Phase progression:
+  - `M0..M5` are `DONE`.
+  - `M6` is `ACTIVE`.
+- Active gate posture:
+  - `M6.E` (`P6.A`) is closed green on the EMR-on-EKS runtime path.
+  - `M6.F` (`P6.B`) is fail-closed pending blocker clearance.
+  - open blockers: `M6P6-B2`, `M6P6-B4`.
+  - structurally remediated: `M6P6-B3` (IG idempotency persistence path active).
+- Next closure step:
+  - clear `M6P6-B2/B4`, rerun `M6.F`, and proceed to `M6.G` only on zero-blocker verdict.
 - `dev_min` remains closed and isolated under `../dev_min/`.

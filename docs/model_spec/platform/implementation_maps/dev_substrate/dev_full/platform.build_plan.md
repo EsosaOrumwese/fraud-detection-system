@@ -832,4 +832,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Continue active phase `M2` by executing `M2.F` secret path contract and materialization checks.
+- Continue active phase `M6` by clearing `M6P6-B2/B4` and rerunning `M6.F`; advance to `M6.G` only on zero-blocker verdict.

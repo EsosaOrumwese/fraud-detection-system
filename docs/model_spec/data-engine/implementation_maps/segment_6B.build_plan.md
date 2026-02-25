@@ -604,7 +604,61 @@ POPT.2U execution status (current authority):
 - phase decision from scorer: `HOLD_POPT.2_REOPEN` (30% reduction gate miss).
 - disposition:
   - keep `POPT.2U` code lane (material runtime gain with non-regression),
-  - promote `97b2b72fbd2648fb852272b7dea50efd` as best current runtime authority witness for `POPT.2` reopen context.
+  - interim authority during `POPT.2` reopen was `97b2b72fbd2648fb852272b7dea50efd` (later superseded by `POPT.2V`).
+
+### POPT.2V - `S4` flow-lane metadata elision + projection compaction
+Goal:
+- close the remaining runtime gap by reducing flow-lane scan width and per-row payload overhead without touching policy semantics.
+
+Definition of done:
+- [x] flow batch reads stop loading run-constant metadata columns (`seed`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`).
+- [x] flow/case outputs still emit those fields from deterministic run/scenario literals.
+- [x] no semantic drift in flow truth/bank labels or case timeline behavior.
+- [x] staged `S4 -> S5` witness run scored against `POPT.2` closure gates.
+- [x] decision recorded with keep/rollback and prune posture.
+
+POPT.2V expanded execution plan:
+
+#### POPT.2V.1 - Design pin + invariants
+Definition of done:
+- [x] implementation-map entry added before edits.
+- [x] invariants pinned:
+  - no policy-logic changes for label generation,
+  - no schema/path changes,
+  - deterministic constant materialization only.
+
+#### POPT.2V.2 - Flow-lane optimization implementation
+Definition of done:
+- [x] reduce flow read columns to computational set (`flow_id`, `campaign_id`, `ts_utc`).
+- [x] remove per-batch casts for dropped constant metadata columns.
+- [x] materialize metadata fields as literals in:
+  - `s4_flow_truth_labels_6B`,
+  - `s4_flow_bank_view_6B`,
+  - `s4_case_timeline_6B`.
+
+#### POPT.2V.3 - Witness + closure
+Definition of done:
+- [x] stage fresh run-id from `f621ee01bdb3428f84f7c7c1afde8812`.
+- [x] run `S4 -> S5` with tuned batch posture.
+- [x] score via `tools/score_segment6b_popt2_closure.py`.
+- [x] retain only if runtime improves with non-regression; otherwise rollback.
+
+POPT.2V execution status (current authority):
+- staged witness run-id: `cee903d9ea644ba6a1824aa6b54a1692`.
+- run posture: `batch_rows=750000`, `parquet_compression=snappy`.
+- results:
+  - `S4=392.64s`,
+  - `S5=17.69s`,
+  - required checks PASS,
+  - parity/warn non-regression PASS.
+- closure artifact:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_cee903d9ea644ba6a1824aa6b54a1692.json`.
+- phase decision: `UNLOCK_POPT.3_CONTINUE`.
+- disposition:
+  - keep `POPT.2V` code lane,
+  - promote `cee903d9ea644ba6a1824aa6b54a1692` as runtime authority witness.
+- pruning action:
+  - removed superseded interim authority run-id `97b2b72fbd2648fb852272b7dea50efd`.
 
 ### POPT.3 - Part-writer and I/O compaction lane
 Goal:
@@ -615,6 +669,38 @@ Definition of done:
 - [ ] output part counts on primary hot datasets reduced by `>= 50%`.
 - [ ] replay/idempotence invariants preserved.
 - [ ] downstream readers validate unchanged schema and partition contract.
+- [ ] staged witness run scored and retention/prune disposition recorded.
+
+POPT.3 expanded execution plan:
+
+#### POPT.3.1 - Design pin + baseline part-count capture
+Definition of done:
+- [ ] implementation-map entry added before edits.
+- [ ] baseline part counts captured from current authority run `cee903d9ea644ba6a1824aa6b54a1692`:
+  - `s4_flow_truth_labels_6B`,
+  - `s4_flow_bank_view_6B`,
+  - `s4_case_timeline_6B`.
+- [ ] compaction target pinned (`>=50%` reduction on each hot dataset).
+
+#### POPT.3.2 - Rotating writer implementation (S4 outputs)
+Definition of done:
+- [ ] introduce bounded rotating parquet writer in `S4` temp output lane.
+- [ ] apply rotating writer to:
+  - `s4_flow_truth_labels_6B`,
+  - `s4_flow_bank_view_6B`,
+  - `s4_case_timeline_6B`.
+- [ ] keep output schema/path/idempotent publish behavior unchanged.
+- [ ] compile passes.
+
+#### POPT.3.3 - Witness run + compaction closure
+Definition of done:
+- [ ] stage fresh run-id from `cee903d9ea644ba6a1824aa6b54a1692`.
+- [ ] run `S4 -> S5` and score non-regression.
+- [ ] measure candidate part counts and reduction ratios vs baseline.
+- [ ] keep lane only if part-count target met with acceptable runtime/non-regression; else rollback.
+
+POPT.3 execution status (current authority):
+- pending.
 
 ### POPT.4 - Runtime witness and freeze
 Goal:

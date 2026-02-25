@@ -2127,3 +2127,128 @@ Action:
 
 Reasoning:
 - reduces disk footprint while keeping best-run authority plus closure artifacts for audit.
+
+---
+
+### Entry: 2026-02-25 13:55
+
+POPT.2V design pin (flow-lane metadata elision after POPT.2U).
+
+Problem:
+- `POPT.2U` delivered major S4 runtime gain, but closure still misses the `>=30%` reduction gate by a narrow margin.
+- remaining hotspot is flow-lane compute/payload overhead on ~124M rows.
+
+Chosen lane:
+- remove run-constant metadata columns from flow input scan:
+  - stop reading `seed`, `manifest_fingerprint`, `parameter_hash`, `scenario_id` from flow parquet.
+- emit those columns as deterministic literals in flow outputs and case timeline outputs.
+
+Why this lane:
+- low blast (no policy decision logic changes).
+- directly reduces scan bandwidth, cast work, and dataframe width on the dominant flow lane.
+- should preserve exact semantics because dropped columns are run constants, not data-dependent signals.
+
+Alternatives deferred:
+- deeper case-timeline algorithm rewrite: deferred to keep blast low while chasing final ~2% runtime delta.
+- additional batch/compression sweeps only: already tested, insufficient alone.
+
+Invariants pinned:
+- no changes to truth/bank/case policy logic.
+- no schema/path contract changes.
+- deterministic literals must match run receipt and scenario id.
+- fail-closed witness scoring remains mandatory before promotion.
+
+---
+
+### Entry: 2026-02-25 13:58
+
+POPT.2V implementation applied (flow-lane metadata elision).
+
+Code edits in `S4` flow lane:
+- flow batch read columns reduced to computational set only:
+  - kept: `flow_id`, `campaign_id`, `ts_utc`,
+  - removed from scan: `seed`, `manifest_fingerprint`, `parameter_hash`, `scenario_id`.
+- removed associated per-batch casts for dropped columns.
+- introduced deterministic literal expressions per scenario:
+  - `seed_literal`, `manifest_literal`, `parameter_literal`, `scenario_literal`.
+- flow outputs now project metadata from literals:
+  - `s4_flow_truth_labels_6B`,
+  - `s4_flow_bank_view_6B`.
+- case base now injects same literals once and downstream case-event projections continue unchanged.
+
+Expected effect:
+- narrower batch frames and fewer string/int casts on the dominant flow path.
+- unchanged semantics because metadata fields are run constants.
+
+---
+
+### Entry: 2026-02-25 14:04
+
+POPT.2V closure result (gate cleared).
+
+Witness execution:
+- staged run: `cee903d9ea644ba6a1824aa6b54a1692` (from `f621ee01bdb3428f84f7c7c1afde8812`).
+- run posture:
+  - `batch_rows=750000`,
+  - `parquet_compression=snappy`.
+
+Measured outcome:
+- `S4=392.64s` (baseline `563.20s` -> reduction `30.28%`),
+- `S5=17.69s`,
+- required checks PASS,
+- parity counts stable and warning metrics stable.
+
+Decision:
+- scorer emitted `UNLOCK_POPT.3_CONTINUE`.
+- retain POPT.2U+POPT.2V code path and promote `cee903d9ea644ba6a1824aa6b54a1692` as current runtime authority witness.
+
+Why this closes POPT.2 runtime blocker:
+- crossed the hard reduction gate (`>=30%`) while preserving non-regression semantics/contracts.
+
+---
+
+### Entry: 2026-02-25 14:06
+
+POPT.2V storage hygiene update.
+
+Action:
+- pruned superseded interim authority run folder:
+  - `97b2b72fbd2648fb852272b7dea50efd`.
+- retained promoted authority:
+  - `cee903d9ea644ba6a1824aa6b54a1692`.
+
+Reasoning:
+- `97b2...` is superseded after `POPT.2V` gate-clear.
+- keep storage bounded while preserving closure artifacts and current authority run.
+
+---
+
+### Entry: 2026-02-25 14:12
+
+POPT.3 design pin (S4 part-writer compaction lane).
+
+Problem:
+- current authority runtime is closed for POPT.2, but S4 output part counts remain high on hot datasets.
+- measured baseline (authority run `cee903d9ea644ba6a1824aa6b54a1692`):
+  - `s4_flow_truth_labels_6B`: `591` parts,
+  - `s4_flow_bank_view_6B`: `591` parts,
+  - `s4_case_timeline_6B`: `591` parts.
+
+Chosen lane:
+- implement bounded rotating parquet writers for S4 temp outputs.
+- target reduction: `>=50%` part-count drop on each hot dataset while preserving schema and replay semantics.
+
+Why this lane:
+- directly addresses write-amplification/small-file overhead without policy changes.
+- keeps deterministic publish flow and dataset contracts unchanged.
+
+Implementation intent:
+- add reusable rotating writer helper (row-threshold based file rotation).
+- use helper for flow truth, flow bank, and case timeline outputs.
+- keep event labels lane unchanged (already one-part duckdb output).
+
+Invariants pinned:
+- no truth/bank/case policy logic changes.
+- no schema/path changes.
+- idempotent publish behavior preserved.
+- non-regression witness (`S4 -> S5`) required before promotion.
