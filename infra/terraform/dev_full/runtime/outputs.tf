@@ -46,6 +46,25 @@ output "eks_cluster_arn" {
   value = aws_eks_cluster.platform.arn
 }
 
+output "eks_nodegroup_m6f_name" {
+  value = aws_eks_node_group.m6f_workers.node_group_name
+}
+
+output "eks_nodegroup_m6f_status" {
+  value = aws_eks_node_group.m6f_workers.status
+}
+
+output "runtime_interface_vpc_endpoint_ids" {
+  value = {
+    for service, endpoint in aws_vpc_endpoint.runtime_interface :
+    service => endpoint.id
+  }
+}
+
+output "runtime_s3_gateway_vpc_endpoint_id" {
+  value = aws_vpc_endpoint.runtime_s3_gateway.id
+}
+
 output "role_flink_execution_arn" {
   value = aws_iam_role.flink_execution.arn
 }
@@ -98,20 +117,27 @@ output "runtime_path_governance_contract" {
 
 output "runtime_handle_materialization" {
   value = {
-    APIGW_IG_API_ID                    = aws_apigatewayv2_api.ig_edge.id
-    LAMBDA_IG_HANDLER_NAME             = aws_lambda_function.ig_handler.function_name
-    DDB_IG_IDEMPOTENCY_TABLE           = aws_dynamodb_table.ig_idempotency.name
-    ROLE_FLINK_EXECUTION               = aws_iam_role.flink_execution.arn
-    ROLE_LAMBDA_IG_EXECUTION           = aws_iam_role.lambda_ig_execution.arn
-    ROLE_APIGW_IG_INVOKE               = aws_iam_role.apigw_ig_invoke.arn
-    ROLE_DDB_IG_IDEMPOTENCY_RW         = aws_iam_role.ddb_ig_idempotency_rw.arn
-    ROLE_STEP_FUNCTIONS_ORCHESTRATOR   = aws_iam_role.step_functions_orchestrator.arn
-    ROLE_EKS_IRSA_IG                   = aws_iam_role.eks_irsa["ig"].arn
-    ROLE_EKS_IRSA_RTDL                 = aws_iam_role.eks_irsa["rtdl"].arn
-    ROLE_EKS_IRSA_DECISION_LANE        = aws_iam_role.eks_irsa["decision_lane"].arn
-    ROLE_EKS_IRSA_CASE_LABELS          = aws_iam_role.eks_irsa["case_labels"].arn
-    ROLE_EKS_IRSA_OBS_GOV              = aws_iam_role.eks_irsa["obs_gov"].arn
-    EKS_CLUSTER_ARN                    = aws_eks_cluster.platform.arn
+    APIGW_IG_API_ID                  = aws_apigatewayv2_api.ig_edge.id
+    LAMBDA_IG_HANDLER_NAME           = aws_lambda_function.ig_handler.function_name
+    DDB_IG_IDEMPOTENCY_TABLE         = aws_dynamodb_table.ig_idempotency.name
+    ROLE_FLINK_EXECUTION             = aws_iam_role.flink_execution.arn
+    ROLE_LAMBDA_IG_EXECUTION         = aws_iam_role.lambda_ig_execution.arn
+    ROLE_APIGW_IG_INVOKE             = aws_iam_role.apigw_ig_invoke.arn
+    ROLE_DDB_IG_IDEMPOTENCY_RW       = aws_iam_role.ddb_ig_idempotency_rw.arn
+    ROLE_STEP_FUNCTIONS_ORCHESTRATOR = aws_iam_role.step_functions_orchestrator.arn
+    ROLE_EKS_IRSA_IG                 = aws_iam_role.eks_irsa["ig"].arn
+    ROLE_EKS_IRSA_RTDL               = aws_iam_role.eks_irsa["rtdl"].arn
+    ROLE_EKS_IRSA_DECISION_LANE      = aws_iam_role.eks_irsa["decision_lane"].arn
+    ROLE_EKS_IRSA_CASE_LABELS        = aws_iam_role.eks_irsa["case_labels"].arn
+    ROLE_EKS_IRSA_OBS_GOV            = aws_iam_role.eks_irsa["obs_gov"].arn
+    EKS_CLUSTER_ARN                  = aws_eks_cluster.platform.arn
+    EKS_NODEGROUP_M6F_NAME           = aws_eks_node_group.m6f_workers.node_group_name
+    EKS_NODEGROUP_M6F_STATUS         = aws_eks_node_group.m6f_workers.status
+    VPC_ENDPOINT_S3_GATEWAY_ID       = aws_vpc_endpoint.runtime_s3_gateway.id
+    VPC_ENDPOINT_INTERFACE_IDS = {
+      for service, endpoint in aws_vpc_endpoint.runtime_interface :
+      service => endpoint.id
+    }
     SFN_PLATFORM_RUN_ORCHESTRATOR_V0   = aws_sfn_state_machine.platform_run_orchestrator.name
     SR_READY_COMMIT_AUTHORITY          = "step_functions_only"
     SSM_IG_API_KEY_PATH                = aws_ssm_parameter.ig_api_key.name

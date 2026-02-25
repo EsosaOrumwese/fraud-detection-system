@@ -214,6 +214,51 @@ variable "eks_cluster_name" {
   default = "fraud-platform-dev-full"
 }
 
+variable "eks_nodegroup_m6f_name" {
+  type    = string
+  default = "fraud-platform-dev-full-m6f-workers"
+}
+
+variable "eks_nodegroup_instance_types" {
+  type    = list(string)
+  default = ["t3.large"]
+}
+
+variable "eks_nodegroup_ami_type" {
+  type    = string
+  default = "BOTTLEROCKET_x86_64"
+}
+
+variable "eks_nodegroup_capacity_type" {
+  type    = string
+  default = "ON_DEMAND"
+}
+
+variable "eks_nodegroup_disk_size" {
+  type    = number
+  default = 20
+}
+
+variable "eks_nodegroup_desired_size" {
+  type    = number
+  default = 1
+}
+
+variable "eks_nodegroup_min_size" {
+  type    = number
+  default = 1
+}
+
+variable "eks_nodegroup_max_size" {
+  type    = number
+  default = 2
+}
+
+variable "runtime_interface_vpc_endpoint_services" {
+  type    = list(string)
+  default = ["ec2", "ecr.api", "ecr.dkr", "sts"]
+}
+
 variable "eks_namespace_ingress" {
   type    = string
   default = "fraud-platform-ingress"

@@ -4,6 +4,10 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 
+data "aws_iam_role" "github_actions" {
+  name = var.github_actions_role_name
+}
+
 locals {
   common_tags = merge(
     {
@@ -123,5 +127,109 @@ resource "aws_cloudwatch_log_group" "runtime_bootstrap" {
 
   tags = merge(local.common_tags, {
     fp_resource = "runtime_bootstrap_log_group"
+  })
+}
+
+resource "aws_iam_role_policy" "github_actions_m6f_remote" {
+  name = var.github_actions_policy_m6f_name
+  role = data.aws_iam_role.github_actions.name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "M6fEKSDescribeNodegroup"
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeNodegroup"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "M6fEmrContainersControl"
+        Effect = "Allow"
+        Action = [
+          "emr-containers:StartJobRun",
+          "emr-containers:CancelJobRun",
+          "emr-containers:ListJobRuns",
+          "emr-containers:DescribeJobRun"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "M6fPassEmrExecutionRole"
+        Effect = "Allow"
+        Action = [
+          "iam:PassRole"
+        ]
+        Resource = var.github_actions_emr_execution_role_arn
+      },
+      {
+        Sid    = "M6fIgIdempotencyScan"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:Scan"
+        ]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.github_actions_ig_idempotency_table_name}"
+      },
+      {
+        Sid    = "M6fArtifactsBucketList"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = "arn:aws:s3:::${var.github_actions_artifacts_bucket}"
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "dev_substrate/m6",
+              "dev_substrate/m6/*"
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "M6fArtifactsObjectRW"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:AbortMultipartUpload"
+        ]
+        Resource = "arn:aws:s3:::${var.github_actions_artifacts_bucket}/dev_substrate/m6/*"
+      },
+      {
+        Sid    = "M6fEvidenceBucketList"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = "arn:aws:s3:::${var.github_actions_evidence_bucket}"
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "evidence/dev_full/run_control",
+              "evidence/dev_full/run_control/*",
+              "evidence/runs",
+              "evidence/runs/*"
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "M6fEvidenceObjectRW"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:AbortMultipartUpload"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.github_actions_evidence_bucket}/evidence/dev_full/run_control/*",
+          "arn:aws:s3:::${var.github_actions_evidence_bucket}/evidence/runs/*"
+        ]
+      }
+    ]
   })
 }

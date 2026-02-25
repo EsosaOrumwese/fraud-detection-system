@@ -30,6 +30,10 @@ output "cloudwatch_runtime_bootstrap_log_group" {
   value = aws_cloudwatch_log_group.runtime_bootstrap.name
 }
 
+output "github_actions_m6f_policy_name" {
+  value = aws_iam_role_policy.github_actions_m6f_remote.name
+}
+
 output "ops_handle_materialization" {
   value = {
     ROLE_MWAA_EXECUTION             = aws_iam_role.mwaa_execution.arn
@@ -41,5 +45,7 @@ output "ops_handle_materialization" {
     SSM_REDIS_ENDPOINT_PATH         = aws_ssm_parameter.redis_endpoint.name
     CLOUDWATCH_LOG_GROUP_PREFIX     = var.cloudwatch_log_group_prefix
     CLOUDWATCH_RUNTIME_BOOTSTRAP_LG = aws_cloudwatch_log_group.runtime_bootstrap.name
+    ROLE_GITHUB_ACTIONS_OIDC        = data.aws_iam_role.github_actions.arn
+    ROLE_GITHUB_ACTIONS_M6F_POLICY  = aws_iam_role_policy.github_actions_m6f_remote.name
   }
 }

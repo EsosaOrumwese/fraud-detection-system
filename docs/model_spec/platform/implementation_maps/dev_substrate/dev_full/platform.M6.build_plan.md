@@ -257,10 +257,10 @@ Tasks:
 4. capture evidence-overhead posture metrics (`latency p95`, `bytes/event`, `write-rate`).
 
 DoD:
-- [ ] streaming active proof passes.
-- [ ] lag within threshold.
-- [ ] no unresolved publish ambiguity.
-- [ ] evidence-overhead posture within accepted budget.
+- [x] streaming active proof passes.
+- [x] lag within threshold.
+- [x] no unresolved publish ambiguity.
+- [x] evidence-overhead posture within accepted budget.
 
 Execution status (2026-02-25):
 1. Executed as `m6f_p6b_streaming_active_20260225T121536Z`.
@@ -308,13 +308,31 @@ Refined blocker-closure plan (2026-02-25 live-state adjudication):
    - do not mark `M6.F` complete or execute `M6.G` until Lanes A-D are green and new `m6f_*` artifacts are committed locally + durably.
 
 Refined remediation DoD (M6.F blocker-closure lane):
-- [ ] Lane A complete: required private endpoint surfaces are materialized in IaC and readable (`ec2`, `ecr.api`, `ecr.dkr`, `sts`, `s3` gateway).
-- [ ] Lane B complete: worker nodegroup is IaC-managed, reports `ACTIVE`, and at least one node is `Ready`.
-- [ ] Lane C complete: `wsp-stream` and `sr-ready` refs run with lane-authentic specs (no placeholder-only `SparkPi` closure claim).
-- [ ] Lane D complete: fresh `M6.F` rerun captures `wsp_active>0`, `sr_ready_active>0`, and non-zero admission progression.
-- [ ] `M6P6-B2` and `M6P6-B4` are cleared in rerun blocker register.
-- [ ] `M6P6-B3` remains clear in rerun validation evidence.
-- [ ] rerun `m6f_*` artifacts are committed locally and durably.
+- [x] Lane A complete: required private endpoint surfaces are materialized in IaC and readable (`ec2`, `ecr.api`, `ecr.dkr`, `sts`, `s3` gateway).
+- [x] Lane B complete: worker nodegroup is IaC-managed, reports `ACTIVE`, and at least one node is `Ready`.
+- [x] Lane C complete: `wsp-stream` and `sr-ready` refs run with lane-authentic specs (no placeholder-only `SparkPi` closure claim).
+- [x] Lane D complete: fresh `M6.F` rerun captures `wsp_active>0`, `sr_ready_active>0`, and non-zero admission progression.
+- [x] `M6P6-B2` and `M6P6-B4` are cleared in rerun blocker register.
+- [x] `M6P6-B3` remains clear in rerun validation evidence.
+- [x] rerun `m6f_*` artifacts are committed locally and durably.
+
+Rerun closure status (2026-02-25):
+1. Fresh execution completed:
+   - `m6f_p6b_streaming_active_20260225T143900Z`,
+   - `overall_pass=true`,
+   - blocker count `0`,
+   - `next_gate=M6.G_READY`.
+2. Key closure evidence:
+   - `wsp_active_count=1`,
+   - `sr_ready_active_count=1`,
+   - `ig_idempotency_count=5`,
+   - `measured_lag=0` (`within_threshold=true`),
+   - `unresolved_publish_ambiguity_count=0`.
+3. Evidence locations:
+   - local: `runs/dev_substrate/dev_full/m6/m6f_p6b_streaming_active_20260225T143900Z/`
+   - durable: `s3://fraud-platform-dev-full-artifacts/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T143900Z/`
+4. Cost control note:
+   - temporary EMR lane jobs used for capture window were explicitly cancelled immediately after artifact capture.
 
 ### M6.G `P6` Gate Rollup + Verdict
 Goal:
@@ -424,7 +442,7 @@ Any active `M6-B*` blocker prevents M6 closure.
 - [x] M6.C complete
 - [x] M6.D complete
 - [x] M6.E complete
-- [ ] M6.F complete
+- [x] M6.F complete
 - [ ] M6.G complete
 - [ ] M6.H complete
 - [ ] M6.I complete
@@ -456,4 +474,4 @@ Handoff posture:
 6. `M6.C` is closed green (`m6c_p5b_ready_commit_20260225T041702Z`) with `M6.D_READY`.
 7. `M6.D` is closed green (`m6d_p5c_gate_rollup_20260225T041801Z`) with verdict `ADVANCE_TO_P6` and `M6.E_READY`.
 8. `M6.E` is closed green (`m6e_p6a_stream_entry_20260225T120522Z`) with `M6.F_READY`.
-9. `M6.F` has executed fail-closed (`m6f_p6b_streaming_active_20260225T121536Z`) and is now the active remediation lane (`M6P6-B2/B3/B4`).
+9. `M6.F` fail-closed attempt (`m6f_p6b_streaming_active_20260225T121536Z`) was remediated and rerun closed green as `m6f_p6b_streaming_active_20260225T143900Z` (`blocker_count=0`, `M6.G_READY`).

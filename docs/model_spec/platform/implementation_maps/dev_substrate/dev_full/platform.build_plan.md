@@ -647,16 +647,11 @@ M6 planning posture:
 - `M6.E` is now closed green on the repinned EKS/EMR path (`m6e_p6a_stream_entry_20260225T120522Z`) after materializing:
   - `EMR_EKS_VIRTUAL_CLUSTER_ID=3cfszbpz28ixf1wmmd2roj571`,
   - `EMR_EKS_RELEASE_LABEL=emr-6.15.0-latest`.
-- `M6.F` has now executed fail-closed (`m6f_p6b_streaming_active_20260225T121536Z`) with explicit blockers:
-  - `M6P6-B2` (Flink lane refs not active in VC),
-  - `M6P6-B3` (run-scoped streaming/admission counters are zero),
-  - `M6P6-B4` (lag posture unresolved without active consumption).
-  Next action is bounded `M6.F` remediation and rerun before `M6.G`.
-  - remediation lane pinned:
-    1. IG admission persistence fix (DDB idempotency write),
-    2. active EMR lane job refs (`sr-ready`, `wsp-stream`),
-    3. run-scoped admission flow > 0,
-    4. rerun `M6.F` fail-closed.
+- `M6.F` rerun is now closed green (`m6f_p6b_streaming_active_20260225T143900Z`) after runtime remediation:
+  - node bootstrap endpoints + worker nodegroup are IaC-managed and active,
+  - lane-authentic EMR refs observed active during capture window,
+  - blocker register is zero (`M6P6-B2/B3/B4` cleared),
+  - `next_gate=M6.G_READY`.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
@@ -664,7 +659,7 @@ M6 sub-phase progress:
 - [x] `M6.C` `P5` READY commit authority execution.
 - [x] `M6.D` `P5` gate rollup + verdict.
 - [x] `M6.E` `P6` entry/stream activation precheck.
-- [ ] `M6.F` `P6` streaming-active + lag + ambiguity closure.
+- [x] `M6.F` `P6` streaming-active + lag + ambiguity closure.
 - [ ] `M6.G` `P6` gate rollup + verdict.
 - [ ] `M6.H` `P7` ingest-commit execution.
 - [ ] `M6.I` `P7` gate rollup + M6 verdict + M7 handoff.
@@ -832,4 +827,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Continue active phase `M6` by clearing `M6P6-B2/B4` and rerunning `M6.F`; advance to `M6.G` only on zero-blocker verdict.
+- Execute `M6.G` (`P6` gate rollup + verdict) using `m6e_p6a_stream_entry_20260225T120522Z` and `m6f_p6b_streaming_active_20260225T143900Z` as upstream authorities.

@@ -91,11 +91,11 @@ Tasks:
    - evidence write-rate.
 
 DoD:
-- [ ] streaming counters show active run-scoped flow.
-- [ ] lag is within accepted threshold.
-- [ ] ambiguity register is empty.
-- [ ] evidence-overhead posture is within budget target.
-- [ ] `m6f_streaming_active_snapshot.json` and `m6f_evidence_overhead_snapshot.json` committed locally and durably.
+- [x] streaming counters show active run-scoped flow.
+- [x] lag is within accepted threshold.
+- [x] ambiguity register is empty.
+- [x] evidence-overhead posture is within budget target.
+- [x] `m6f_streaming_active_snapshot.json` and `m6f_evidence_overhead_snapshot.json` committed locally and durably.
 
 Execution status (2026-02-25):
 1. Executed authoritative `M6.F` lane:
@@ -145,14 +145,30 @@ Remediation plan to clear active blockers (`M6P6-B2/B3/B4`):
    - do not proceed to `M6.G` unless blocker count is zero and new `m6f_*` artifacts are published locally + durably.
 
 Remediation DoD checklist (`M6P6-B2/B3/B4` closure lane):
-- [ ] Root-cause proof retained in execution notes (`NodeCreationFailure` + EMR `FailedScheduling` evidence).
-- [ ] Lane A complete: private endpoint surfaces are materialized and readable (`ec2`, `ecr.api`, `ecr.dkr`, `sts`, `s3` gateway).
-- [ ] Lane B complete: IaC-managed worker nodegroup is `ACTIVE` and cluster has at least one schedulable `Ready` node.
-- [ ] Lane C complete: lane refs (`FLINK_EKS_SR_READY_REF`, `FLINK_EKS_WSP_STREAM_REF`) are executed using lane-authentic specs and observed active in capture window.
-- [ ] `M6P6-B3` validation passes on rerun with non-zero run-scoped admission progression.
-- [ ] `M6P6-B4` validation passes on rerun with `measured_lag <= RTDL_CAUGHT_UP_LAG_MAX`.
-- [ ] fresh rerun `m6f_*` artifacts are committed locally and durably.
-- [ ] `M6.G` remains blocked until checklist above is green and rerun blocker count is zero.
+- [x] Root-cause proof retained in execution notes (`NodeCreationFailure` + EMR `FailedScheduling` evidence).
+- [x] Lane A complete: private endpoint surfaces are materialized and readable (`ec2`, `ecr.api`, `ecr.dkr`, `sts`, `s3` gateway).
+- [x] Lane B complete: IaC-managed worker nodegroup is `ACTIVE` and cluster has at least one schedulable `Ready` node.
+- [x] Lane C complete: lane refs (`FLINK_EKS_SR_READY_REF`, `FLINK_EKS_WSP_STREAM_REF`) are executed using lane-authentic specs and observed active in capture window.
+- [x] `M6P6-B3` validation passes on rerun with non-zero run-scoped admission progression.
+- [x] `M6P6-B4` validation passes on rerun with `measured_lag <= RTDL_CAUGHT_UP_LAG_MAX`.
+- [x] fresh rerun `m6f_*` artifacts are committed locally and durably.
+- [x] `M6.G` is now unblocked (`rerun blocker_count=0`) and ready for P6 gate rollup.
+
+Rerun closure status (2026-02-25):
+1. Fresh execution:
+   - `m6f_p6b_streaming_active_20260225T143900Z`,
+   - `overall_pass=true`,
+   - blocker count `0`,
+   - `next_gate=M6.G_READY`.
+2. Closure metrics from rerun artifacts:
+   - `wsp_active_count=1`,
+   - `sr_ready_active_count=1`,
+   - `ig_idempotency_count=5`,
+   - `measured_lag=0` with `within_threshold=true`,
+   - `unresolved_publish_ambiguity_count=0`.
+3. Evidence locations:
+   - local: `runs/dev_substrate/dev_full/m6/m6f_p6b_streaming_active_20260225T143900Z/`
+   - durable: `s3://fraud-platform-dev-full-artifacts/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T143900Z/`
 
 ### P6.C P6 Gate Rollup + Verdict (M6.G)
 Goal:

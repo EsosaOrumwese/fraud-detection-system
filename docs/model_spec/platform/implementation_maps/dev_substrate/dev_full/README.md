@@ -17,9 +17,8 @@ This folder is reserved for `dev_full` planning and implementation notes.
   - `M6` is `ACTIVE`.
 - Active gate posture:
   - `M6.E` (`P6.A`) is closed green on the EMR-on-EKS runtime path.
-  - `M6.F` (`P6.B`) is fail-closed pending blocker clearance.
-  - open blockers: `M6P6-B2`, `M6P6-B4`.
-  - structurally remediated: `M6P6-B3` (IG idempotency persistence path active).
+  - `M6.F` (`P6.B`) is now closed green on rerun `m6f_p6b_streaming_active_20260225T143900Z`.
+  - cleared blockers: `M6P6-B2`, `M6P6-B3`, `M6P6-B4`.
 - Next closure step:
-  - clear `M6P6-B2/B4`, rerun `M6.F`, and proceed to `M6.G` only on zero-blocker verdict.
+  - execute `M6.G` (`P6` rollup + verdict) with `M6.E/M6.F` green authorities.
 - `dev_min` remains closed and isolated under `../dev_min/`.

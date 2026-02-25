@@ -261,68 +261,6 @@ def _iter_parquet_batches(
             yield pl.from_arrow(batch)
 
 
-class _RotatingParquetWriter:
-    def __init__(self, tmp_dir: Path, compression: str, target_rows_per_part: int, logger, label: str) -> None:
-        self._tmp_dir = tmp_dir
-        self._compression = compression
-        self._target_rows = max(int(target_rows_per_part), 1)
-        self._logger = logger
-        self._label = label
-        self._writer: Optional[pq.ParquetWriter] = None
-        self._schema = None
-        self._rows_in_part = 0
-        self._rows_total = 0
-        self._part_count = 0
-
-    @property
-    def part_count(self) -> int:
-        return int(self._part_count)
-
-    def _open_part(self, schema) -> None:
-        part_path = self._tmp_dir / f"part-{self._part_count:05d}.parquet"
-        self._writer = pq.ParquetWriter(str(part_path), schema=schema, compression=self._compression)
-        self._rows_in_part = 0
-        self._part_count += 1
-
-    def _close_part(self) -> None:
-        if self._writer is not None:
-            self._writer.close()
-            self._writer = None
-            self._rows_in_part = 0
-
-    def write_df(self, df: pl.DataFrame) -> None:
-        if df.height <= 0:
-            return
-        table = df.to_arrow()
-        if self._schema is None:
-            self._schema = table.schema
-        elif table.schema != self._schema:
-            raise ValueError(f"{self._label}: schema drift detected inside rotating writer.")
-
-        if self._writer is None:
-            self._open_part(self._schema)
-        elif self._rows_in_part >= self._target_rows:
-            self._close_part()
-            self._open_part(self._schema)
-
-        self._writer.write_table(table)
-        self._rows_in_part += int(table.num_rows)
-        self._rows_total += int(table.num_rows)
-
-        if self._rows_in_part >= self._target_rows:
-            self._close_part()
-
-    def close(self) -> None:
-        self._close_part()
-        self._logger.info(
-            "S4: rotating writer closed label=%s parts=%s rows=%s target_rows_per_part=%s",
-            self._label,
-            self._part_count,
-            self._rows_total,
-            self._target_rows,
-        )
-
-
 def _schema_from_pack(schema_pack: dict, anchor: str) -> dict:
     if not anchor.startswith("#/"):
         raise ContractError(f"Invalid schema anchor: {anchor}")
@@ -1167,8 +1105,6 @@ def run_s4(
         chargeback_delay_seconds,
         case_close_delay_seconds,
     )
-    target_rows_per_part = max(int(batch_rows) * 4, 1_000_000)
-    logger.info("S4: rotating writer target_rows_per_part=%s", target_rows_per_part)
 
     flow_entry = find_dataset_entry(dictionary_6b, "s3_flow_anchor_with_fraud_6B").entry
     scenario_ids = _discover_scenario_ids(flow_entry, tokens, run_paths, config.external_roots)
@@ -1336,31 +1272,12 @@ def run_s4(
                 logger,
                 f"S4: scenario_id={scenario_id} flows_processed",
             )
+            flow_part_index = 0
+            case_part_index = 0
             wrote_case_parts = False
             validated_flow_truth = False
             validated_flow_bank = False
             validated_case = False
-            flow_truth_writer = _RotatingParquetWriter(
-                tmp_dir=flow_truth_tmp,
-                compression=parquet_compression,
-                target_rows_per_part=target_rows_per_part,
-                logger=logger,
-                label=f"s4_flow_truth_labels_6B scenario_id={scenario_id}",
-            )
-            flow_bank_writer = _RotatingParquetWriter(
-                tmp_dir=flow_bank_tmp,
-                compression=parquet_compression,
-                target_rows_per_part=target_rows_per_part,
-                logger=logger,
-                label=f"s4_flow_bank_view_6B scenario_id={scenario_id}",
-            )
-            case_writer = _RotatingParquetWriter(
-                tmp_dir=case_tmp,
-                compression=parquet_compression,
-                target_rows_per_part=target_rows_per_part,
-                logger=logger,
-                label=f"s4_case_timeline_6B scenario_id={scenario_id}",
-            )
 
             auth_choices_expr = _choice_expr(auth_choices, _uniform_expr(seed, 101, modulus, pl.col("flow_id"), pl.lit("auth_decision")))
             seed_literal = pl.lit(int(seed)).cast(pl.Int64)
@@ -1498,8 +1415,10 @@ def run_s4(
                     )
                     validated_flow_bank = True
 
-                flow_truth_writer.write_df(flow_truth)
-                flow_bank_writer.write_df(flow_bank)
+                flow_truth_part = flow_truth_tmp / f"part-{flow_part_index:05d}.parquet"
+                flow_bank_part = flow_bank_tmp / f"part-{flow_part_index:05d}.parquet"
+                flow_truth.write_parquet(flow_truth_part, compression=parquet_compression)
+                flow_bank.write_parquet(flow_bank_part, compression=parquet_compression)
 
                 cases = flows.filter(pl.col("case_opened"))
                 if cases.height > 0:
@@ -1666,16 +1585,15 @@ def run_s4(
                         )
                         validated_case = True
 
-                    case_writer.write_df(case_df)
+                    case_part = case_tmp / f"part-{case_part_index:05d}.parquet"
+                    case_df.write_parquet(case_part, compression=parquet_compression)
                     wrote_case_parts = True
+                    case_part_index += 1
 
                 batch_rows_processed = int(flow_truth.height)
                 total_flows += batch_rows_processed
+                flow_part_index += 1
                 flow_progress.update(batch_rows_processed)
-
-            flow_truth_writer.close()
-            flow_bank_writer.close()
-            case_writer.close()
 
             if not wrote_case_parts:
                 case_part = case_tmp / "part-00000.parquet"

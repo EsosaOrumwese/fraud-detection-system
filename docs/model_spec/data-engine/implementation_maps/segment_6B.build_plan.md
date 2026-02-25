@@ -665,42 +665,61 @@ Goal:
 - reduce write amplification and small-file overhead on S3/S4 heavy outputs.
 
 Definition of done:
-- [ ] bounded buffered part-writer strategy implemented for selected datasets.
-- [ ] output part counts on primary hot datasets reduced by `>= 50%`.
-- [ ] replay/idempotence invariants preserved.
-- [ ] downstream readers validate unchanged schema and partition contract.
-- [ ] staged witness run scored and retention/prune disposition recorded.
+- [x] bounded buffered part-writer strategy implemented for selected datasets.
+- [x] output part counts on primary hot datasets reduced by `>= 50%`.
+- [x] replay/idempotence invariants preserved.
+- [x] downstream readers validate unchanged schema and partition contract.
+- [x] staged witness run scored and retention/prune disposition recorded.
 
 POPT.3 expanded execution plan:
 
 #### POPT.3.1 - Design pin + baseline part-count capture
 Definition of done:
-- [ ] implementation-map entry added before edits.
-- [ ] baseline part counts captured from current authority run `cee903d9ea644ba6a1824aa6b54a1692`:
+- [x] implementation-map entry added before edits.
+- [x] baseline part counts captured from current authority run `cee903d9ea644ba6a1824aa6b54a1692`:
   - `s4_flow_truth_labels_6B`,
   - `s4_flow_bank_view_6B`,
   - `s4_case_timeline_6B`.
-- [ ] compaction target pinned (`>=50%` reduction on each hot dataset).
+- [x] compaction target pinned (`>=50%` reduction on each hot dataset).
 
 #### POPT.3.2 - Rotating writer implementation (S4 outputs)
 Definition of done:
-- [ ] introduce bounded rotating parquet writer in `S4` temp output lane.
-- [ ] apply rotating writer to:
+- [x] introduce bounded rotating parquet writer in `S4` temp output lane.
+- [x] apply rotating writer to:
   - `s4_flow_truth_labels_6B`,
   - `s4_flow_bank_view_6B`,
   - `s4_case_timeline_6B`.
-- [ ] keep output schema/path/idempotent publish behavior unchanged.
-- [ ] compile passes.
+- [x] keep output schema/path/idempotent publish behavior unchanged.
+- [x] compile passes.
 
 #### POPT.3.3 - Witness run + compaction closure
 Definition of done:
-- [ ] stage fresh run-id from `cee903d9ea644ba6a1824aa6b54a1692`.
-- [ ] run `S4 -> S5` and score non-regression.
-- [ ] measure candidate part counts and reduction ratios vs baseline.
-- [ ] keep lane only if part-count target met with acceptable runtime/non-regression; else rollback.
+- [x] stage fresh run-id from `cee903d9ea644ba6a1824aa6b54a1692`.
+- [x] run `S4 -> S5` and score non-regression.
+- [x] measure candidate part counts and reduction ratios vs baseline.
+- [x] keep lane only if part-count target met with acceptable runtime/non-regression; else rollback.
 
 POPT.3 execution status (current authority):
-- pending.
+- authority remains `cee903d9ea644ba6a1824aa6b54a1692` (`POPT.2V` witness lock).
+- candidate `053e906524cf46dfb18b4729f0714142` (rotating writer 3.0M target):
+  - part-count reduction vs baseline: `93.06%` / `93.06%` / `85.11%` (`flow_truth` / `flow_bank` / `case_timeline`),
+  - runtime: `S4=565.64s`, `S5=16.09s`,
+  - scorer decision: `HOLD_POPT.2_REOPEN`.
+- candidate `ff1f392b8cb44d3a8db399d74f702adf` (rotating writer 1.5M target):
+  - part-count reduction vs baseline: `86.97%` / `86.97%` / `71.91%`,
+  - runtime: `S4=656.30s`, `S5=14.89s`,
+  - scorer decision: `HOLD_POPT.2_REOPEN`.
+- rollback witness `7d1cd27427eb46189834954360319a89` (rotating writer removed; `POPT.2V` metadata-elision retained):
+  - part-count reduction vs baseline: `0%` / `0%` / `0%`,
+  - runtime: `S4=413.86s`, `S5=19.25s`,
+  - scorer decision: `HOLD_POPT.2_REOPEN`.
+- phase decision: `HOLD_POPT.3_REOPEN`.
+- disposition:
+  - reject `POPT.3` rotating-writer lane for now due runtime regression under this workload posture,
+  - keep non-writer `POPT.2V` lane and preserve promoted authority run `cee903d9ea644ba6a1824aa6b54a1692`.
+- storage hygiene:
+  - pruned superseded `POPT.3` candidates `053e906524cf46dfb18b4729f0714142`, `ff1f392b8cb44d3a8db399d74f702adf`, `9eeff5c5e59048cc930b8bc059066a33`,
+  - retained authority/evidence runs `cee903d9ea644ba6a1824aa6b54a1692` and `7d1cd27427eb46189834954360319a89`.
 
 ### POPT.4 - Runtime witness and freeze
 Goal:

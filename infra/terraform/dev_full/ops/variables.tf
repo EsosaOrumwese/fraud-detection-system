@@ -98,3 +98,33 @@ variable "log_retention_days" {
   type    = number
   default = 14
 }
+
+variable "github_actions_role_name" {
+  type    = string
+  default = "GitHubAction-AssumeRoleWithAction"
+}
+
+variable "github_actions_policy_m6f_name" {
+  type    = string
+  default = "GitHubActionsM6FRemoteDevFull"
+}
+
+variable "github_actions_emr_execution_role_arn" {
+  type    = string
+  default = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution"
+}
+
+variable "github_actions_ig_idempotency_table_name" {
+  type    = string
+  default = "fraud-platform-dev-full-ig-idempotency"
+}
+
+variable "github_actions_artifacts_bucket" {
+  type    = string
+  default = "fraud-platform-dev-full-artifacts"
+}
+
+variable "github_actions_evidence_bucket" {
+  type    = string
+  default = "fraud-platform-dev-full-evidence"
+}

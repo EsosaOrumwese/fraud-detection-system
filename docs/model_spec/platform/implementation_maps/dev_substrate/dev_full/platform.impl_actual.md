@@ -8308,3 +8308,236 @@ odeadm failure on console output); nodes never registered.
 ### Safety posture
 1. Docs-only update completed.
 2. No runtime or infrastructure mutation performed.
+
+## Entry: 2026-02-25 14:18:50 +00:00 - Pre-implementation lock: execute M6.F blocker closure (`M6P6-B2/B4`) via runtime IaC + rerun
+
+### Problem statement
+1. `M6.F` remains fail-closed on `M6P6-B2/B4` with verified runtime root cause:
+   - EKS worker capacity is unavailable (`fraud-platform-dev-full-m6f-workers` ended `CREATE_FAILED` with `NodeCreationFailure`),
+   - EMR lane refs fail scheduling (`no nodes available`),
+   - worker bootstrap evidence indicates private-subnet control-plane connectivity gap (Bottlerocket `pluto` timeout retrieving private DNS from EC2).
+2. Current runtime stack does not materialize private endpoint surfaces needed for no-NAT worker bootstrap/image-pull/token exchange.
+3. Worker capacity for `M6.F` is ad-hoc/manual and not codified in runtime Terraform, which violates deterministic rerun posture.
+
+### Pre-implementation performance design (binding)
+1. Complexity/runtime strategy:
+   - Endpoint + nodegroup materialization is O(1) in resource count; dominant runtime is cloud control-plane provisioning latency.
+   - `M6.F` verification scans are bounded (`list-job-runs` + `scan count`) and operate in constant-time envelopes for the active lane.
+2. Data structures/search:
+   - job-ref matching uses exact-name filter over returned job-run list (`name -> active_count`) with fixed active-state set.
+   - blocker assembly uses deterministic code->condition map (`M6P6-B2/B3/B4/B5`).
+3. Memory/IO model:
+   - local artifact generation is small JSON snapshots only; no per-event logging.
+   - durable publication uses explicit per-artifact upload + readback checks.
+4. Rejected alternatives:
+   - Keep waiting on manual nodegroup retries: rejected (non-deterministic, repeated drift).
+   - Add NAT gateway to restore bootstrap path quickly: rejected (cost posture + authority drift).
+   - Pass M6.F with stale artifacts: rejected (fail-closed gate violation).
+
+### Decision
+1. Implement runtime IaC closure for network/bootstrap prerequisites and managed worker capacity in `infra/terraform/dev_full/runtime`.
+2. Materialize deterministic lane-run command surfaces for `M6.F` refs and rerun evidence capture.
+3. Keep existing authority semantics intact; no weakening of blocker gates.
+
+### Scope of code changes
+1. Runtime Terraform (`infra/terraform/dev_full/runtime`):
+   - add private endpoint security group,
+   - add interface endpoints (`ec2`, `ecr.api`, `ecr.dkr`, `sts`) and S3 gateway endpoint on private route tables,
+   - add managed EKS nodegroup resource for M6.F workers,
+   - add outputs for nodegroup + endpoint surfaces.
+2. Runtime lane scripts (`scripts/dev_substrate`):
+   - add deterministic EMR lane-ref submission helper,
+   - add deterministic `M6.F` artifact capture/rollup helper.
+3. Plan/doc sync after execution with blocker status delta and evidence refs.
+
+### Security plan
+1. No secret values written to repo artifacts/docs.
+2. API-key retrieval remains from SSM; logs capture only non-secret status/counters.
+3. New IAM grants remain least-privilege to required S3/SSM surfaces for lane jobs.
+
+### Cost-control posture
+1. Endpoint/nodegroup resources are provisioned only for active blocker-closure window.
+2. Nodegroup size is bounded to minimum viable lane capacity (`desired=1`, capped small).
+3. After rerun evidence capture, revert to idle-safe posture per phase policy.
+
+### Validation plan
+1. `terraform fmt -check`, `terraform validate`, `terraform plan` on runtime stack.
+2. Apply runtime stack and verify:
+   - nodegroup `ACTIVE`,
+   - at least one `Ready` node,
+   - EMR refs observable in active states during capture window.
+3. Run fresh `M6.F` execution and emit complete `m6f_*` artifact set (local + durable).
+4. Clear blockers only if rerun blocker register is zero; otherwise hold fail-closed.
+
+## Entry: 2026-02-25 14:30:49 +00:00 - Runtime apply attempt result for M6.F blocker closure (partial success + state reconciliation required)
+
+### Execution result
+1. Ran 	erraform -chdir=infra/terraform/dev_full/runtime apply -auto-approve tfplan_m6f.
+2. Apply partially succeeded before failing on nodegroup create conflict:
+   - Created endpoint SG sg-0a12ccc55b0e6746f.
+   - Created interface endpoints:
+     - pce-04e56de4aeb2cc69c (c2)
+     - pce-060715f2c76672bc9 (cr.api)
+     - pce-01f112ef0c5833702 (cr.dkr)
+     - pce-0daba6cfb00d83a8e (sts)
+   - Created S3 gateway endpoint pce-00f4102a10e062afa.
+   - Applied Flink execution-role trust/policy updates.
+3. Apply failure detail:
+   - ResourceInUseException: nodegroup raud-platform-dev-full-m6f-workers already exists in EKS, so Terraform create failed.
+
+### Drift/reconciliation truth
+1. ws eks describe-nodegroup shows existing nodegroup status is still CREATE_FAILED with NodeCreationFailure.
+2. kubectl get nodes returns no nodes.
+3. Endpoint lane is now live/available; worker-capacity lane remains blocked until nodegroup state is reconciled.
+
+### Decision
+1. Reconcile nodegroup ownership/state next so worker capacity can be recreated under current endpoint posture.
+2. Preferred closure path: delete failed existing nodegroup then re-run Terraform apply to recreate deterministic managed nodegroup under IaC.
+3. Keep fail-closed gate: M6.F remains blocked until node(s) reach Ready and rerun artifacts show zero blockers.
+
+## Entry: 2026-02-25 14:37:59 +00:00 - Pre-execution lock: M6.F rerun after worker-capacity restoration
+
+### Verified preconditions
+1. Runtime endpoint lane is materialized and available (c2, cr.api, cr.dkr, sts, s3 gateway).
+2. EKS nodegroup raud-platform-dev-full-m6f-workers recreated via Terraform and now ACTIVE.
+3. kubectl get nodes shows at least one Ready worker node.
+4. DDB_IG_IDEMPOTENCY_TABLE count is non-zero (5), preserving M6P6-B3 precondition.
+
+### Rerun execution plan (bounded)
+1. Upload scripts/dev_substrate/m6_stream_ref_worker.py to artifacts bucket and use that URI as EMR job entry point.
+2. Start both lane refs on EMR virtual cluster 3cfszbpz28ixf1wmmd2roj571:
+   - raud-platform-dev-full-wsp-stream-v0
+   - raud-platform-dev-full-sr-ready-v0
+3. Capture fresh M6.F artifacts with new execution id using scripts/dev_substrate/m6f_capture.py.
+4. Adjudicate blockers from fresh blocker register only (fail-closed).
+
+### Cost/perf guard
+1. Keep lane-run bounded to short deterministic window (iterations capped) sufficient for active-state evidence only.
+2. No always-on expansion in this rerun step.
+
+## Entry: 2026-02-25 14:43:10 +00:00 - M6.F blocker-closure execution completed (`M6P6-B2/B3/B4` cleared, `M6.G` unblocked)
+
+### Runtime execution receipts
+1. Reconciliation and apply sequence completed:
+   - deleted failed unmanaged nodegroup `fraud-platform-dev-full-m6f-workers` (`CREATE_FAILED`) and waited for deletion,
+   - re-planned runtime stack and applied nodegroup create under Terraform state,
+   - post-apply nodegroup status: `ACTIVE`.
+2. Verified worker capacity:
+   - `kubectl get nodes` returned one schedulable `Ready` Bottlerocket worker.
+3. Verified network/bootstrap endpoint lane:
+   - `ec2` interface endpoint: `vpce-04e56de4aeb2cc69c`,
+   - `ecr.api` interface endpoint: `vpce-060715f2c76672bc9`,
+   - `ecr.dkr` interface endpoint: `vpce-01f112ef0c5833702`,
+   - `sts` interface endpoint: `vpce-0daba6cfb00d83a8e`,
+   - `s3` gateway endpoint: `vpce-00f4102a10e062afa`.
+4. Uploaded lane-authentic EMR entry script:
+   - `s3://fraud-platform-dev-full-artifacts/dev_substrate/m6/m6_stream_ref_worker.py`.
+5. Started lane refs in VC `3cfszbpz28ixf1wmmd2roj571`:
+   - `fraud-platform-dev-full-wsp-stream-v0` -> job `0000000374l7jehaher`,
+   - `fraud-platform-dev-full-sr-ready-v0` -> job `0000000374l7jeu8edk`.
+6. Captured fresh `M6.F` artifacts:
+   - execution id: `m6f_p6b_streaming_active_20260225T143900Z`,
+   - summary: `overall_pass=true`, blocker count `0`, `next_gate=M6.G_READY`.
+
+### Rerun evidence outcomes
+1. `M6P6-B2` cleared:
+   - `wsp_active_count=1`, `sr_ready_active_count=1` in `m6f_streaming_active_snapshot.json`.
+2. `M6P6-B3` cleared:
+   - `ig_idempotency_count=5` in rerun snapshot.
+3. `M6P6-B4` cleared:
+   - `measured_lag=0`, `within_threshold=true`.
+4. `M6P6-B5` remained clear:
+   - `unresolved_publish_ambiguity_count=0`.
+5. Evidence refs:
+   - local: `runs/dev_substrate/dev_full/m6/m6f_p6b_streaming_active_20260225T143900Z/`.
+   - durable: `s3://fraud-platform-dev-full-artifacts/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T143900Z/`.
+
+### Cost-control closure notes
+1. Temporary lane jobs were cancelled immediately after capture window close:
+   - `0000000374l7jehaher` -> `CANCELLED`,
+   - `0000000374l7jeu8edk` -> `CANCELLED`.
+2. Terraform runtime drift check after closure:
+   - `terraform plan -detailed-exitcode` => no changes.
+
+## Entry: 2026-02-25 14:43:10 +00:00 - Follow-up hardening: EMR launcher quoting fix + planning status sync
+
+### Problem
+1. `scripts/dev_substrate/m6_submit_emr_refs.ps1` failed to start jobs when passing inline JSON to AWS CLI (`--job-driver` parse error under PowerShell quoting path).
+
+### Decision and change
+1. Updated `m6_submit_emr_refs.ps1` to write `job-driver` and `configuration-overrides` JSON payloads to temporary files and pass them via `file://` URIs.
+2. Added deterministic cleanup of temp JSON files in `finally` block.
+
+### Planning/status sync updates
+1. Updated `platform.M6.build_plan.md` to mark M6.F DoDs + remediation DoD checks complete and added rerun closure receipt.
+2. Updated `platform.M6.P6.build_plan.md` to mark P6.B/remediation DoDs complete and added rerun closure receipt.
+3. Updated `platform.build_plan.md` and dev_full `README.md` posture to show `M6.F` green and `M6.G` as next action.
+
+## Entry: 2026-02-25 14:47:08 +00:00 - Drift escalation lock: local-control M6.F closure conflicts with no-laptop-compute authority; remote-runner remediation plan
+
+### Drift detection
+1. Authority pin in `dev_full_platform_green_v0_run_process_flow.md` Section `0.1/0.3` requires managed runtime with no laptop compute.
+2. Prior `M6.F` blocker-closure execution invoked control-plane steps from local shell (Terraform apply + EMR submission + capture invocation).
+3. Although runtime compute executed in AWS, execution authority/evidence production path is not yet GitHub Actions-based for this lane and is therefore treated as design drift against dev_full posture.
+
+### Fail-closed impact
+1. `M6.F` local rerun result is downgraded to provisional evidence only.
+2. Advancement to authoritative `M6.G` is blocked until equivalent `M6.F` is executed through remote runner lane.
+
+### Remediation decision (no branch hop)
+1. Implement dedicated GitHub Actions workflow on active branch `migrate-dev` for `M6.F` remote execution with OIDC role assumption.
+2. Workflow scope:
+   - upload lane worker script to artifacts bucket,
+   - submit EMR lane refs in pinned virtual cluster,
+   - run `m6f_capture.py` with fresh execution id,
+   - enforce fail-closed verdict from blocker register,
+   - cancel temporary EMR jobs post-capture,
+   - upload local run artifacts to Actions artifacts.
+3. Add Python helper script for cross-platform EMR lane submission/cancellation so workflow is shell-stable and deterministic.
+
+### Capability-lane coverage check (anti-cram)
+1. authority/handles: workflow inputs include run ids + pinned handles (region, VC id, refs, role arn, release label, bucket, tables).
+2. identity/IAM: OIDC-only auth (`aws-actions/configure-aws-credentials`), static key posture rejected.
+3. network/data/messaging: AWS APIs only; no laptop runtime lanes.
+4. secrets: API key not written to logs/docs; workflow uses optional secret mapping only when needed.
+5. observability/evidence: durable S3 evidence + Actions artifact upload.
+6. rollback/rerun: rerunnable via workflow_dispatch; emits unique execution ids.
+7. teardown/cost: temporary EMR lane refs cancelled on completion/failure.
+8. budget/perf: bounded iterations/window and explicit fail gate on blocker_count.
+
+## Entry: 2026-02-25 14:52:34 +00:00 - Pre-change lock: enable GitHub Actions M6.F remote lane via IaC-managed OIDC role policy
+
+### Newly discovered blocker (decision-completeness check)
+1. Remote workflow requires AWS actions across `EKS`, `EMR on EKS`, `DynamoDB`, and `S3` dev_full buckets.
+2. Existing GitHub OIDC role `GitHubAction-AssumeRoleWithAction` currently has only dev_min/confluent/demo + ECR push permissions and lacks required M6.F action set.
+3. Without this IAM surface, workflow_dispatch will fail before lane execution, so M6.F cannot be closed under no-local-compute authority.
+
+### Decision
+1. Materialize required GitHub OIDC role permissions in Terraform (`infra/terraform/dev_full/ops`) as a dedicated inline policy resource, not ad-hoc CLI-only mutation.
+2. Scope policy to minimum required M6.F remote lane actions:
+   - `eks:DescribeNodegroup`,
+   - `emr-containers:{StartJobRun,CancelJobRun,ListJobRuns,DescribeJobRun}`,
+   - `dynamodb:Scan` on IG idempotency table,
+   - `s3` list/read/write on dev_full artifacts/evidence prefixes used by M6.F,
+   - `iam:PassRole` for EMR execution role.
+3. Apply ops stack after validate/plan and then dispatch M6.F workflow on `migrate-dev`.
+
+### Fail-closed posture
+1. Do not treat local M6.F rerun as authoritative.
+2. Do not advance beyond M6.F authority gate until remote workflow completes with blocker_count=0.
+
+## Entry: 2026-02-25 14:54:23 +00:00 - Fail-closed blocker: new workflow dispatch requires default-branch presence
+
+### Observed blocker
+1. After pushing commit `48d37c5a` to `migrate-dev`, dispatch attempt failed:
+   - `gh workflow run dev_full_m6f_streaming_active.yml --ref migrate-dev ...`
+   - API response: `HTTP 404 workflow not found on the default branch`.
+2. GitHub Actions dispatch requires the workflow file identifier to exist on default branch, even when execution ref is a non-default branch.
+
+### Consequence
+1. Remote `M6.F` workflow cannot be executed yet.
+2. `M6.F` authoritative no-local-compute closure remains blocked pending branch-governance decision.
+
+### Required user decision (branch-governance law)
+1. Approve a branch method to expose the workflow file on default branch (or equivalent approved route), then rerun on `migrate-dev`.
+2. No cross-branch operation executed yet.

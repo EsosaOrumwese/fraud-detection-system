@@ -155,7 +155,43 @@ Rule: For managed substrate phases, prefer IaC/workflow/runtime lanes; avoid ad-
 Must do: Use managed controls to prove phase semantics.  
 Fail-closed trigger: Closing managed-lane phase with local-only shortcuts.
 
-## 2) Quick Execution Contract for the Next Chat
+## 2) Branching Principle For Workflow Merges To Main
+This is the preserved branch method that keeps forward merges viable and avoids branch-history damage.
+
+### Canonical path
+1. Start workflow work on `migrate-dev`.
+2. Commit workflow changes on `migrate-dev`.
+3. Merge `migrate-dev` forward into `dev`.
+4. Push `dev` to `origin/dev`.
+5. Open PR `origin/dev -> origin/main` and merge on GitHub.
+6. Sync local `main` from `origin/main` (fast-forward preferred).
+7. Merge `main` back into `dev` (to absorb PR merge commit history).
+8. Merge `dev` back into `migrate-dev` so the chain remains aligned.
+
+### Guardrails
+1. Never push workflow changes directly from `migrate-dev` to `main`.
+2. Never delete `main`, `dev`, or `migrate-dev`.
+3. Never perform branch-hop/rebase/reset/cherry-pick without explicit user confirmation.
+4. If merge conflict or divergence appears, stop and ask user before recovery operations.
+
+### Post-merge verification
+1. Branch topology still supports forward merge: `migrate-dev -> dev -> main`.
+2. Local branches track intended remotes (`origin/migrate-dev`, `origin/dev`, `origin/main`).
+3. No stale temporary remote branches remain after `git fetch --all --prune`.
+
+## 3) Branch State Resolution Snapshot (this handoff)
+1. Local branches present:
+   - `migrate-dev`
+   - `dev`
+   - `main`
+2. Remote branches present:
+   - `origin/migrate-dev`
+   - `origin/dev`
+   - `origin/main`
+3. `git fetch --all --prune` was run and stale `origin/ops/m9g-workflow-only` tracking reference was removed.
+4. Forward-merge route remains intact.
+
+## 4) Quick Execution Contract for the Next Chat
 1. Rehydrate context from AGENTS + active track build plans before making changes.
 2. Ask “what is still unpinned?” before every `proceed`.
 3. Keep branch operations blocked unless user explicitly approves exact sequence.
@@ -164,7 +200,3 @@ Fail-closed trigger: Closing managed-lane phase with local-only shortcuts.
 6. Keep non-active resources down unless explicitly approved to stay up.
 7. Fail closed on drift, ambiguous ownership, or missing evidence.
 
-## 3) Current Session Carryover Notes
-1. `M6P6-B3` structural issue was remediated by patching IG Lambda idempotency persistence.
-2. `M6P6-B2/B4` remain compute-scheduling dependent while EKS node capacity stabilizes.
-3. No lingering long-run CLI wait processes were left active at handoff time.

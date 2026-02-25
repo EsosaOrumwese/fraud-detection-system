@@ -2252,3 +2252,85 @@ Invariants pinned:
 - no schema/path changes.
 - idempotent publish behavior preserved.
 - non-regression witness (`S4 -> S5`) required before promotion.
+
+---
+
+### Entry: 2026-02-25 14:30
+
+POPT.3 rotating-writer execution result (attempt A, 3.0M rows/part target).
+
+Code lane:
+- activated bounded rotating parquet writers for:
+  - `s4_flow_truth_labels_6B`,
+  - `s4_flow_bank_view_6B`,
+  - `s4_case_timeline_6B`.
+- kept event-label join lane unchanged.
+
+Witness:
+- candidate run-id: `053e906524cf46dfb18b4729f0714142`.
+- part-count outcome vs baseline (`cee903...`):
+  - `flow_truth`: `591 -> 41` (`93.06%` reduction),
+  - `flow_bank`: `591 -> 41` (`93.06%` reduction),
+  - `case_timeline`: `591 -> 88` (`85.11%` reduction).
+- runtime outcome:
+  - `S4=565.64s`,
+  - `S5=16.09s`.
+- scorer decision: `HOLD_POPT.2_REOPEN`.
+
+Decision:
+- reject promotion despite strong part compaction because runtime regressed materially versus current authority.
+
+---
+
+### Entry: 2026-02-25 14:43
+
+POPT.3 bounded tuning result (attempt B, 1.5M rows/part target).
+
+Rationale for bounded retune:
+- attempt A showed very strong file-count reduction but runtime regression.
+- reduced target rows/part to decrease row-group append pressure and test whether runtime can recover without losing `>=50%` compaction.
+
+Witness:
+- candidate run-id: `ff1f392b8cb44d3a8db399d74f702adf`.
+- part-count outcome vs baseline:
+  - `flow_truth`: `591 -> 77` (`86.97%` reduction),
+  - `flow_bank`: `591 -> 77` (`86.97%` reduction),
+  - `case_timeline`: `591 -> 166` (`71.91%` reduction).
+- runtime outcome:
+  - `S4=656.30s`,
+  - `S5=14.89s`.
+- scorer decision: `HOLD_POPT.2_REOPEN`.
+
+Decision:
+- tuning worsened runtime further; rotating-writer lane remains rejected.
+
+---
+
+### Entry: 2026-02-25 15:02
+
+POPT.3 rollback closure and authority posture.
+
+Rollback actions:
+- removed rotating-writer lane from `S4`.
+- retained `POPT.2V` metadata-elision mechanics (run-constant metadata projected as literals instead of scanning from flow parquet).
+- recompiled `runner.py` and executed fresh rollback witness.
+
+Rollback witness:
+- run-id: `7d1cd27427eb46189834954360319a89`.
+- outcome:
+  - `S4=413.86s`,
+  - `S5=19.25s`,
+  - scorer decision: `HOLD_POPT.2_REOPEN`.
+
+Final POPT.3 decision:
+- `HOLD_POPT.3_REOPEN`.
+- do not promote rotating-writer compaction; keep `cee903d9ea644ba6a1824aa6b54a1692` as runtime authority witness for this phase boundary.
+
+Storage hygiene:
+- pruned superseded POPT.3 run folders:
+  - `053e906524cf46dfb18b4729f0714142`,
+  - `ff1f392b8cb44d3a8db399d74f702adf`,
+  - `9eeff5c5e59048cc930b8bc059066a33`.
+- retained:
+  - authority witness `cee903d9ea644ba6a1824aa6b54a1692`,
+  - rollback witness `7d1cd27427eb46189834954360319a89`.

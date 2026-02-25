@@ -47,6 +47,14 @@ locals {
   private_subnet_ids = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.private_subnet_ids, []) : []
   vpc_id             = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.vpc_id, "") : ""
   msk_security_group = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.msk_security_group_id, "") : ""
+  private_subnet_cidrs = [
+    for subnet in data.aws_subnet.private :
+    subnet.cidr_block
+  ]
+  private_route_table_ids = distinct([
+    for route_table in data.aws_route_table.private_by_subnet :
+    route_table.id
+  ])
 
   role_eks_runtime_platform_base_arn = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.role_eks_runtime_platform_base_arn, "") : ""
   role_eks_nodegroup_dev_full_arn    = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.role_eks_nodegroup_dev_full_arn, "") : ""
@@ -81,6 +89,101 @@ locals {
       service_account = var.irsa_service_account_obs_gov
     }
   }
+}
+
+data "aws_subnet" "private" {
+  for_each = toset(local.private_subnet_ids)
+  id       = each.value
+}
+
+data "aws_route_table" "private_by_subnet" {
+  for_each  = toset(local.private_subnet_ids)
+  subnet_id = each.value
+}
+
+resource "aws_security_group" "runtime_endpoints" {
+  name        = "${var.name_prefix}-runtime-endpoints-sg"
+  description = "Private interface endpoint ingress for runtime worker bootstrap lanes"
+  vpc_id      = local.vpc_id
+
+  ingress {
+    description = "TLS from runtime private subnets"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = local.private_subnet_cidrs
+  }
+
+  egress {
+    description = "Permit endpoint egress"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(local.vpc_id) != ""
+      error_message = "VPC id is missing from core outputs. M2.B must be applied before runtime endpoint materialization."
+    }
+    precondition {
+      condition     = length(local.private_subnet_ids) >= 2
+      error_message = "Runtime endpoint materialization requires at least two private subnets."
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "runtime_endpoints_sg"
+  })
+}
+
+resource "aws_vpc_endpoint" "runtime_interface" {
+  for_each = toset(var.runtime_interface_vpc_endpoint_services)
+
+  vpc_id              = local.vpc_id
+  service_name        = "com.amazonaws.${var.aws_region}.${each.value}"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+  subnet_ids          = local.private_subnet_ids
+  security_group_ids  = [aws_security_group.runtime_endpoints.id]
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(local.vpc_id) != ""
+      error_message = "VPC id is missing from core outputs. M2.B must be applied before runtime endpoint materialization."
+    }
+    precondition {
+      condition     = length(local.private_subnet_ids) >= 2
+      error_message = "Runtime endpoint materialization requires at least two private subnets."
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "runtime_endpoint_${replace(each.value, ".", "_")}"
+  })
+}
+
+resource "aws_vpc_endpoint" "runtime_s3_gateway" {
+  vpc_id            = local.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = local.private_route_table_ids
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(local.vpc_id) != ""
+      error_message = "VPC id is missing from core outputs. M2.B must be applied before runtime endpoint materialization."
+    }
+    precondition {
+      condition     = length(local.private_route_table_ids) > 0
+      error_message = "No private route table associations resolved from core private subnets."
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    fp_resource = "runtime_endpoint_s3_gateway"
+  })
 }
 
 data "aws_iam_policy_document" "assume_role_lambda" {
@@ -121,6 +224,26 @@ data "aws_iam_policy_document" "assume_role_flink" {
       identifiers = ["kinesisanalytics.amazonaws.com"]
     }
   }
+
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.eks.arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_eks_cluster.platform.identity[0].oidc[0].issuer, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+    condition {
+      test     = "StringLike"
+      variable = "${replace(aws_eks_cluster.platform.identity[0].oidc[0].issuer, "https://", "")}:sub"
+      values = [
+        "system:serviceaccount:${var.eks_namespace_rtdl}:emr-containers-sa-*"
+      ]
+    }
+  }
 }
 
 resource "aws_iam_role" "flink_execution" {
@@ -153,6 +276,20 @@ resource "aws_iam_role_policy" "flink_execution" {
           "ssm:GetParameter"
         ]
         Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_msk_bootstrap_brokers_path}"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = "arn:aws:s3:::fraud-platform-dev-full-artifacts/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = "arn:aws:s3:::fraud-platform-dev-full-artifacts"
       }
     ]
   })
@@ -440,6 +577,48 @@ resource "aws_eks_cluster" "platform" {
 
   tags = merge(local.common_tags, {
     fp_resource = "eks_cluster"
+  })
+}
+
+resource "aws_eks_node_group" "m6f_workers" {
+  cluster_name    = aws_eks_cluster.platform.name
+  node_group_name = var.eks_nodegroup_m6f_name
+  node_role_arn   = local.role_eks_nodegroup_dev_full_arn
+  subnet_ids      = local.private_subnet_ids
+  ami_type        = var.eks_nodegroup_ami_type
+  capacity_type   = var.eks_nodegroup_capacity_type
+  instance_types  = var.eks_nodegroup_instance_types
+  disk_size       = var.eks_nodegroup_disk_size
+
+  scaling_config {
+    desired_size = var.eks_nodegroup_desired_size
+    min_size     = var.eks_nodegroup_min_size
+    max_size     = var.eks_nodegroup_max_size
+  }
+
+  update_config {
+    max_unavailable = 1
+  }
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(local.role_eks_nodegroup_dev_full_arn) != ""
+      error_message = "ROLE_EKS_NODEGROUP_DEV_FULL is missing from core outputs. M2.B must be applied before M6 worker lane."
+    }
+    precondition {
+      condition     = length(local.private_subnet_ids) >= 2
+      error_message = "M6 worker nodegroup requires at least two private subnets."
+    }
+  }
+
+  depends_on = [
+    aws_vpc_endpoint.runtime_interface,
+    aws_vpc_endpoint.runtime_s3_gateway,
+  ]
+
+  tags = merge(local.common_tags, {
+    fp_resource = "eks_nodegroup_m6f_workers"
+    fp_phase    = "M6.F"
   })
 }
 
