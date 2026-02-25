@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       phase_mode:
-        description: "Execution mode: m6f (streaming-active lane) or m6g (P6 gate rollup)"
+        description: "Execution mode: m6f (streaming-active lane), m6g (P6 rollup), m6h (P7 ingest-commit), or m6i (P7 rollup)"
         required: true
         default: "m6f"
         type: string
@@ -31,6 +31,11 @@ on:
         type: string
       upstream_m6f_execution:
         description: "Upstream M6.F execution id used by M6.G rollup (required when phase_mode=m6g)"
+        required: false
+        default: ""
+        type: string
+      upstream_m6h_execution:
+        description: "Upstream M6.H execution id used by M6.I rollup (required when phase_mode=m6i)"
         required: false
         default: ""
         type: string
@@ -78,6 +83,36 @@ on:
         description: "IG idempotency DynamoDB table name"
         required: true
         default: "fraud-platform-dev-full-ig-idempotency"
+        type: string
+      idempotency_ttl_field:
+        description: "TTL field in IG idempotency table"
+        required: true
+        default: "ttl_epoch"
+        type: string
+      idempotency_ttl_seconds:
+        description: "IG idempotency TTL seconds"
+        required: true
+        default: "259200"
+        type: string
+      allow_empty_run_waiver:
+        description: "Allow empty-run waiver for P7 entry (true/false)"
+        required: true
+        default: "false"
+        type: string
+      receipt_summary_path_pattern:
+        description: "Run-scoped receipt summary path pattern"
+        required: true
+        default: "evidence/runs/{platform_run_id}/ingest/receipt_summary.json"
+        type: string
+      quarantine_summary_path_pattern:
+        description: "Run-scoped quarantine summary path pattern"
+        required: true
+        default: "evidence/runs/{platform_run_id}/ingest/quarantine_summary.json"
+        type: string
+      offsets_snapshot_path_pattern:
+        description: "Run-scoped offsets snapshot path pattern"
+        required: true
+        default: "evidence/runs/{platform_run_id}/ingest/kafka_offsets_snapshot.json"
         type: string
       runtime_path:
         description: "Pinned runtime path for this phase execution"
@@ -136,7 +171,7 @@ concurrency:
 jobs:
   run_m6f_remote:
     name: Run M6.F streaming-active lane remotely (GitHub Actions)
-    if: ${{ inputs.phase_mode != 'm6g' }}
+    if: ${{ inputs.phase_mode == 'm6f' }}
     runs-on: ubuntu-latest
     env:
       IG_BASE_URL: "https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1"
@@ -775,4 +810,237 @@ jobs:
         with:
           name: m6g-p6-gate-rollup-${{ steps.run_meta_g.outputs.timestamp }}
           path: ${{ steps.run_meta_g.outputs.run_dir }}
+          if-no-files-found: warn
+
+  run_m6h_remote:
+    name: Run M6.H P7.A ingest-commit remotely (GitHub Actions)
+    if: ${{ inputs.phase_mode == 'm6h' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Compute execution metadata
+        id: run_meta_h
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m6_execution_id }}" ]]; then
+            EXEC_ID="${{ inputs.m6_execution_id }}"
+          else
+            EXEC_ID="m6h_p7a_ingest_commit_${TS}"
+          fi
+          RUN_DIR="runs/dev_substrate/dev_full/m6/${EXEC_ID}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m6_execution_id=${EXEC_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Build M6.H ingest-commit artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/m6h_ingest_commit.py \
+            --execution-id "${{ steps.run_meta_h.outputs.m6_execution_id }}" \
+            --platform-run-id "${{ inputs.platform_run_id }}" \
+            --scenario-run-id "${{ inputs.scenario_run_id }}" \
+            --upstream-m6g-execution "${{ inputs.upstream_m6g_execution }}" \
+            --evidence-bucket "${{ inputs.evidence_bucket }}" \
+            --region "${{ inputs.aws_region }}" \
+            --ig-idempotency-table "${{ inputs.ig_idempotency_table }}" \
+            --idempotency-ttl-field "${{ inputs.idempotency_ttl_field }}" \
+            --idempotency-ttl-seconds "${{ inputs.idempotency_ttl_seconds }}" \
+            --allow-empty-run-waiver "${{ inputs.allow_empty_run_waiver }}" \
+            --receipt-summary-path-pattern "${{ inputs.receipt_summary_path_pattern }}" \
+            --quarantine-summary-path-pattern "${{ inputs.quarantine_summary_path_pattern }}" \
+            --offsets-snapshot-path-pattern "${{ inputs.offsets_snapshot_path_pattern }}" \
+            --local-output-root "runs/dev_substrate/dev_full/m6"
+
+      - name: Fail-closed verdict gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUMMARY_PATH="${{ steps.run_meta_h.outputs.run_dir }}/m6h_execution_summary.json"
+          BLOCKER_PATH="${{ steps.run_meta_h.outputs.run_dir }}/m6h_blocker_register.json"
+          export SUMMARY_PATH BLOCKER_PATH
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          summary = json.loads(Path(os.environ["SUMMARY_PATH"]).read_text(encoding="utf-8"))
+          blockers = json.loads(Path(os.environ["BLOCKER_PATH"]).read_text(encoding="utf-8"))
+          overall_pass = bool(summary.get("overall_pass"))
+          blocker_count = int(blockers.get("blocker_count", 0))
+          next_gate = str(summary.get("next_gate", "")).strip()
+
+          print(json.dumps(
+              {
+                  "overall_pass": overall_pass,
+                  "blocker_count": blocker_count,
+                  "execution_id": summary.get("execution_id"),
+                  "next_gate": next_gate,
+              },
+              ensure_ascii=True,
+          ))
+          if (not overall_pass) or blocker_count != 0:
+              sys.exit(1)
+          if next_gate != "M6.I_READY":
+              sys.exit(1)
+          PY
+
+      - name: Upload M6.H run artifact set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m6h-ingest-commit-${{ steps.run_meta_h.outputs.timestamp }}
+          path: ${{ steps.run_meta_h.outputs.run_dir }}
+          if-no-files-found: warn
+
+  run_m6i_remote:
+    name: Run M6.I P7.B rollup remotely (GitHub Actions)
+    if: ${{ inputs.phase_mode == 'm6i' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Validate mode-specific inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ inputs.upstream_m6h_execution }}" ]]; then
+            echo "M6.I fail-closed: upstream_m6h_execution input is required when phase_mode=m6i."
+            exit 1
+          fi
+
+      - name: Compute execution metadata
+        id: run_meta_i
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m6_execution_id }}" ]]; then
+            EXEC_ID="${{ inputs.m6_execution_id }}"
+          else
+            EXEC_ID="m6i_p7b_gate_rollup_${TS}"
+          fi
+          RUN_DIR="runs/dev_substrate/dev_full/m6/${EXEC_ID}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m6_execution_id=${EXEC_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Build M6.I P7 rollup artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/m6i_rollup.py \
+            --execution-id "${{ steps.run_meta_i.outputs.m6_execution_id }}" \
+            --platform-run-id "${{ inputs.platform_run_id }}" \
+            --scenario-run-id "${{ inputs.scenario_run_id }}" \
+            --upstream-m6g-execution "${{ inputs.upstream_m6g_execution }}" \
+            --upstream-m6h-execution "${{ inputs.upstream_m6h_execution }}" \
+            --evidence-bucket "${{ inputs.evidence_bucket }}" \
+            --region "${{ inputs.aws_region }}" \
+            --local-output-root "runs/dev_substrate/dev_full/m6"
+
+      - name: Fail-closed verdict gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUMMARY_PATH="${{ steps.run_meta_i.outputs.run_dir }}/m6i_execution_summary.json"
+          VERDICT_PATH="${{ steps.run_meta_i.outputs.run_dir }}/m6i_p7_gate_verdict.json"
+          BLOCKER_PATH="${{ steps.run_meta_i.outputs.run_dir }}/m6i_p7_blocker_register.json"
+          export SUMMARY_PATH VERDICT_PATH BLOCKER_PATH
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          summary = json.loads(Path(os.environ["SUMMARY_PATH"]).read_text(encoding="utf-8"))
+          verdict = json.loads(Path(os.environ["VERDICT_PATH"]).read_text(encoding="utf-8"))
+          blockers = json.loads(Path(os.environ["BLOCKER_PATH"]).read_text(encoding="utf-8"))
+          overall_pass = bool(summary.get("overall_pass"))
+          blocker_count = int(blockers.get("blocker_count", 0))
+          verdict_value = str(verdict.get("verdict", "")).strip()
+          next_gate = str(summary.get("next_gate", "")).strip()
+
+          print(json.dumps(
+              {
+                  "overall_pass": overall_pass,
+                  "blocker_count": blocker_count,
+                  "execution_id": summary.get("execution_id"),
+                  "verdict": verdict_value,
+                  "next_gate": next_gate,
+              },
+              ensure_ascii=True,
+          ))
+          if (not overall_pass) or blocker_count != 0:
+              sys.exit(1)
+          if verdict_value != "ADVANCE_TO_M7" or next_gate != "M6.J_READY":
+              sys.exit(1)
+          PY
+
+      - name: Upload M6.I run artifact set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m6i-p7-rollup-${{ steps.run_meta_i.outputs.timestamp }}
+          path: ${{ steps.run_meta_i.outputs.run_dir }}
           if-no-files-found: warn
