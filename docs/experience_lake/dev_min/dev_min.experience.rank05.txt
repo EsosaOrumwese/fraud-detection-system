@@ -1,0 +1,94 @@
+dev_min.experience.rank05.txt
+Title: Designed a cost-safe, repeatable managed dev environment with IaC (remote state/locks + core vs demo separation)
+
+Context (what was at stake, in recruiter terms)
+A “managed environment” only counts as experience if it is:
+- repeatable (someone else can recreate it),
+- controlled (no console drift),
+- safe (doesn’t accidentally destroy the wrong resources),
+- and financially responsible (dev/test is where cloud bills often explode).
+
+So I designed the managed minimal dev environment as something I could operate like a real team would:
+infrastructure as code, explicit separation of persistent foundations from ephemeral demo resources, and guardrails that make teardown safe and cost bounded.
+
+Non-negotiables (environment discipline)
+- IaC first: infrastructure is provisioned and changed through code, not console clicking.
+- Remote state + locking: prevent concurrent apply drift and accidental state corruption.
+- Clear separation of concerns: persistent “core” vs destroyable “demo”.
+- Cost is a design constraint: eliminate known footguns by policy, not by hope.
+- Evidence over vibes: environment readiness is proven with checks, not assumed.
+
+What I built (environment architecture, in recruiter-relevant terms)
+
+1) Core vs demo: durable foundations + destroyable compute layer
+I split the environment into two operational layers:
+- A persistent core that holds the minimum durable foundations (state backend, evidence storage, baseline IAM scaffolding, budget/guardrails).
+- A demo layer that contains cost-bearing runtime resources and can be destroyed after a demo session without losing the run evidence.
+
+Why this matters:
+This design makes “demo→destroy” operationally safe.
+It also means the environment can be reused without rebuilding everything from scratch, while still keeping costs under control.
+
+2) Remote state + locking: treating IaC state as a real system asset
+I treated Terraform state as sensitive and operationally critical:
+- Remote state with versioning enables rollback and auditing.
+- Locking prevents concurrent apply races.
+- Public access is blocked and encryption is enabled.
+
+Why this matters:
+This is a senior baseline. Without proper state hygiene, “IaC” turns into “risk as code.”
+
+3) Guardrails that prevent common cost traps
+I didn’t rely on discipline alone; I designed guardrails into the environment:
+- explicit prohibitions against the usual dev cost footguns (e.g., NAT gateways, always-on load balancers, fleets),
+- and a budget posture that makes runaway spend visible early.
+
+Why this matters:
+Cost control is operational maturity. Most candidates ignore it until it becomes painful.
+
+4) Eliminating manual substrate drift by pulling managed Kafka lifecycle into IaC
+A key “senior judgment” moment in this environment was recognizing that:
+if you manually create/rotate managed Kafka resources (clusters, keys) outside IaC, you get drift and repeated setup debt.
+
+So I moved the managed Kafka lifecycle into a dedicated IaC layer so that:
+- topics and access patterns are reproducible,
+- secrets are materialized into a controlled secret store,
+- and demo teardown doesn’t leave orphaned identities behind.
+
+Why this matters:
+Recruiters care about this because it shows you understand that “managed services” still need engineering discipline to stay operable.
+
+What this enables (the operational capability you gained)
+- Safe reruns of infrastructure provisioning without fear of destroying durable truth.
+- Predictable environment bring-up and teardown.
+- A cost-bounded managed dev sandbox that is usable for demos and iterative development.
+- Reduced “setup thrash” because the substrate is reproducible instead of hand-crafted each time.
+
+Before → After (explicit outcome)
+Before: “managed dev environment” could have meant an ad-hoc collection of resources that works once and then becomes too expensive or too fragile to touch.
+After: the environment behaves like a real platform rung:
+- reproducible via IaC,
+- stable and safe due to remote state + locking,
+- cost-bounded through structural guardrails,
+- and teardown-friendly because core truth is separated from ephemeral runtime.
+
+Prevention (what this stops from happening again)
+- Stops console drift and “snowflake environments”.
+- Stops accidental concurrent applies and state corruption.
+- Stops expensive dev environments that quietly accumulate cost footguns.
+- Stops manual managed-service drift (keys/topics/identities) that breaks repeatability.
+- Stops losing proof after teardown (evidence survives because it lives in core storage).
+
+Why this experience is strong for Senior Platform + Senior MLOps screens
+Platform engineers are expected to make environments safe, reproducible, and governable.
+MLOps engineers are expected to keep ML infrastructure repeatable and cost-safe (ML systems are cost traps).
+
+This work demonstrates:
+- IaC maturity,
+- environment architecture thinking,
+- and cost/governance posture — all core senior signals.
+
+What it does NOT claim yet
+This proves environment design and IaC discipline for a managed minimal dev environment.
+It does not claim production multi-team adoption or production SLO ownership.
+But it is credible proof of senior-grade environment engineering for a managed dev rung.

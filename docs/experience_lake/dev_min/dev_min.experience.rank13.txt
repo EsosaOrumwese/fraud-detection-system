@@ -1,0 +1,91 @@
+dev_min.experience.rank13.txt
+Title: Engineered cost-safe cloud operation (demo→destroy, guardrails, and teardown as a verified correctness phase)
+
+Context (what was at stake, in recruiter terms)
+Cloud environments become expensive and messy when:
+- demo/test resources accumulate,
+- teardown is informal (“I’ll clean it up later”),
+- and the system depends on resources that should be ephemeral.
+
+For platform and MLOps work, cost safety is not a finance detail — it’s an engineering constraint.
+So I designed the managed minimal dev environment to be:
+- usable enough to run the platform end-to-end,
+- but structurally resistant to runaway spend,
+- and verifiably teardown-safe.
+
+Non-negotiables (cost + teardown discipline)
+- Dev is not allowed to become “mini-prod” by accident.
+- Cost-bearing resources must be destroyable after demos.
+- Teardown is part of correctness, not optional cleanup.
+- Known cost footguns are prohibited by design (not by discipline).
+- Evidence and truth must survive teardown (so proof does not depend on keeping compute alive).
+
+What I built (cost-safe operations, in recruiter-relevant signals)
+
+1) Demo→destroy operational model
+I structured the environment and run process around a clear operational posture:
+- run the platform in a managed dev sandbox,
+- then destroy the demo layer after the demo window.
+
+Why recruiters care:
+This is how mature teams run dev/test systems safely, especially for expensive data/ML workloads.
+
+2) Guardrails against common cloud cost traps
+I didn’t just “try to be careful.”
+I put hard guardrails in place by prohibiting typical cost multipliers such as:
+- NAT gateways,
+- always-on load balancers,
+- always-on fleets.
+
+Why this matters:
+It demonstrates cost-aware engineering and environment governance — a senior signal.
+
+3) Core truth survives teardown (durable evidence is not tied to compute)
+A key design choice was separating:
+- durable truth/evidence storage (kept in a minimal core),
+from
+- cost-bearing runtime resources (demo layer).
+
+Why recruiters care:
+It means you can tear down safely without losing the proof needed for audit, debugging, or replay.
+
+4) Teardown as a verified phase (billing-safe end state)
+Teardown isn’t “delete a few resources.”
+It’s a verified phase with proof:
+- resources that must be gone are checked,
+- demo-scoped secrets are cleaned up,
+- and the environment reaches a billing-safe end state.
+
+Why this matters:
+This is a very practical operational maturity signal. Many engineers don’t treat teardown with this seriousness.
+
+5) Secrets lifecycle is included in teardown hygiene
+Credential cleanup is part of cost-safe operation:
+- demo-scoped secrets must not remain in the environment after teardown.
+This reduces risk of stale credentials, accidental re-use, and secret sprawl.
+
+Before → After (explicit outcome)
+Before: running managed environments for a portfolio project could easily become either:
+- too expensive to maintain, or
+- too risky to touch because teardown is uncertain.
+After: the environment is intentionally designed to be operated responsibly:
+- demo resources can be created and destroyed safely,
+- cost footguns are structurally avoided,
+- durable evidence persists after teardown,
+- and teardown is verified as part of run correctness.
+
+Prevention (what this stops from happening again)
+- Stops runaway cloud spend from forgotten demo resources.
+- Stops environments that can’t be safely torn down (fear-driven “leave it running”).
+- Stops losing proof because teardown deletes the only copy of truth.
+- Stops stale secrets lingering after demos.
+- Stops dev/test accidentally accumulating production-grade cost structures.
+
+Why this experience is strong for Senior Platform + Senior MLOps screens
+Platform recruiters care because environment governance and teardown discipline are essential for operating shared infrastructure safely.
+MLOps recruiters care because ML environments are notorious cost traps (GPU, big data, always-on services), and responsible operation is a real senior differentiator.
+
+What it does NOT claim yet
+This proves cost-safe engineering and verified teardown discipline in a managed dev environment.
+It does not claim ownership of an enterprise FinOps program or production multi-team budget governance.
+But it does prove the core senior behavior: you engineer for cost safety and teardown correctness, not just feature delivery.

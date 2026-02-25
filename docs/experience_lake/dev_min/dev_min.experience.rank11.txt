@@ -1,0 +1,107 @@
+dev_min.experience.rank11.txt
+Title: Built human-loop foundations for ML (case management + label truth on managed DB, append-only semantics, and operational closure)
+
+Context (what was at stake, in recruiter terms)
+To move from “a decisioning platform” to “an ML platform,” you need a reliable feedback loop:
+- cases for investigation/triage,
+- labels as durable truth,
+- and the ability to answer “what did we know when?” (labels-as-of-time).
+
+Many projects skip this entirely or treat labels as informal files.
+I treated the human loop as a governed subsystem that must run on managed infrastructure and produce durable proof artifacts — because without that, model lifecycle claims (training, evaluation, monitoring) don’t stand on solid ground.
+
+Non-negotiables (human-loop posture)
+- Labels and cases are production data, not debug artifacts.
+- History is append-only (no rewriting of past truth).
+- Idempotency matters (duplicates/replays don’t double-append).
+- Identity keys are explicit and non-placeholder (you can’t govern truth without stable keys).
+- The subsystem must operate on managed infrastructure (managed DB + managed compute).
+- Closure is evidence-backed: the lane is not “done” unless readiness + commit proofs exist.
+
+What I built (case + label store readiness, in recruiter-relevant signals)
+
+1) Managed persistence for the human loop (no laptop DB)
+I operationalized case management and label storage on managed persistence, so the system:
+- survives teardown of compute,
+- supports replay and audit,
+- and behaves like a production subsystem rather than a notebook or local database.
+
+Why recruiters care:
+It’s a strong signal that you’re building platform primitives, not just pipeline code.
+
+2) Append-only truth for cases and labels (governable history)
+I treated cases and labels as append-only records:
+- updates are new events/records, not edits that erase history.
+- this supports auditability and enables correct “as-of” semantics later (critical for evaluation and drift analysis).
+
+Why this matters:
+Append-only truth is a core requirement in regulated domains and in any system that wants reproducible learning.
+
+3) Idempotent commits (safe under retries/replays)
+Because the platform is replay-safe end-to-end, the human-loop subsystem also needs replay safety:
+- repeated writes for the same logical update must not create duplicated truth entries.
+
+Why recruiters care:
+This is a subtle but important senior signal — it shows you consistently apply production semantics across subsystems.
+
+4) Explicit subject identity keys (no placeholders)
+A key maturity point is refusing to operate on placeholders:
+- the system requires explicit, pinned subject identity fields so cases and labels can be attributed and joined correctly.
+- if identity is ambiguous, the lane fails closed.
+
+Why this matters:
+Identity is the backbone of governance and lineage. Without stable keys, the human loop can’t support trustworthy training/evaluation.
+
+5) Operational readiness + migrations as real, provable steps
+The subsystem isn’t “ready” because the code exists.
+Readiness requires:
+- a working managed DB,
+- schema/migrations applied,
+- and services running as real workers (not stubs).
+If these aren’t true, closure blocks.
+
+Why recruiters care:
+This is exactly what production work looks like — you have to operationalize persistence, migrations, and readiness, not just implement features.
+
+What actually happened (the “work experience” realism)
+A strong senior signal here is that readiness initially failed for real reasons:
+- parts of the lane were still in stub posture (sleep-loop instead of real worker behavior),
+- migrations weren’t operationally real,
+- and identity keys needed to be concretely pinned.
+
+The work wasn’t “write more code.”
+It was to operationalize:
+- pin identity fields,
+- rematerialize services into real worker posture,
+- make migrations a real one-shot job,
+- and then re-run readiness until the lane could be credibly closed.
+
+Before → After (explicit outcome)
+Before: the platform could make decisions, but the “human loop” (cases + labels) was not yet a governed, operable subsystem.
+After: the platform gained a credible learning foundation:
+- cases and labels are stored durably on managed persistence,
+- truth is append-only and replay-safe,
+- identity keys are explicit,
+- and closure is backed by readiness + commit evidence.
+
+This turns “we can detect fraud” into “we can learn from it” — in a way that is auditable.
+
+Prevention (what this stops from happening again)
+- Stops labels being stored informally (files/manual edits) with no lineage.
+- Stops rewriting history and losing auditability.
+- Stops duplicate truth records under retries/replays.
+- Stops ambiguous identity making labels unusable for learning.
+- Stops “looks deployed” subsystems that are operationally non-functional (stub posture, missing migrations).
+
+Why this experience is strong for Senior Platform + Senior MLOps screens
+Platform recruiters care because this proves you can run governed subsystems on managed infrastructure with operational closure.
+MLOps recruiters care because labels and human feedback are the foundation of:
+- model training datasets,
+- evaluation correctness (“as-of” labels),
+- monitoring with delayed labels,
+- and end-to-end ML lifecycle governance.
+
+What it does NOT claim yet
+This proves the human-loop foundation (cases + labels) with governance-grade semantics and managed operations.
+It does not claim full model registry promotion/rollback or drift monitoring.
+But it creates the durable truth surface those later MLOps controls require.

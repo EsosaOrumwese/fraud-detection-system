@@ -1,0 +1,111 @@
+dev_min.experience.rank04.txt
+Title: Built streaming correctness under at-least-once delivery (idempotency, replay safety, anomaly quarantine, and fail-closed ambiguity)
+
+Context (what was at stake, in recruiter terms)
+In real streaming platforms, “events arrive once” is a lie.
+You get duplicates, retries, partial failures, unknown publish outcomes, and replays. If your ingestion boundary isn’t designed for that reality, you either:
+- double-process and double-act, or
+- silently corrupt truth, or
+- end up afraid to rerun anything because you can’t trust what will happen.
+
+So for the managed minimal dev environment, I treated streaming correctness as a first-class product:
+an explicit ingestion boundary where correctness rules are pinned, and where the platform can be rerun safely without mutating history.
+
+Non-negotiables (correctness posture)
+- At-least-once is assumed: duplicates and retries are normal.
+- Identity is deterministic: event identity must be stable across reruns.
+- Admission is idempotent: duplicates do not create double effects.
+- Integrity drift is never overwritten: mismatches become anomalies/quarantine.
+- Publish uncertainty is modeled explicitly (fail-closed), not guessed.
+- Downstream work is gated on admission proof (“no proof → no proceed”).
+
+What I built (streaming safety, expressed in recruiter-relevant signals)
+
+1) A hard ingestion boundary with deterministic identity
+I anchored idempotency on a canonical identity that ties events to:
+- the run context,
+- the event class/type, and
+- the event’s deterministic ID.
+
+Why this matters:
+This is the backbone for replay safety. Without deterministic identity, reruns are inherently unsafe because the system can’t reliably tell “same event” from “new event”.
+
+2) Idempotent admission: duplicates are absorbed, not amplified
+I made the ingestion boundary behave predictably under duplicates:
+- If the platform replays the same event (same identity + same payload), it is treated as a duplicate and does not double-produce side effects.
+
+Why this matters:
+This is the difference between a streaming demo and a production system. Real event systems must tolerate retries without multiplying actions.
+
+3) Integrity policy: mismatches don’t overwrite truth — they become anomalies
+I made the ingestion boundary explicitly protect integrity:
+- If an event arrives with the same identity but a different payload, that is treated as an anomaly.
+- The system does not overwrite earlier truth.
+- The event is quarantined for inspection.
+
+Why this matters:
+This prevents silent corruption, and it creates an operational lane for “something is wrong” rather than burying errors in logs.
+
+4) Publish ambiguity is modeled and treated as a blocker
+In production you often can’t tell if a publish succeeded (timeouts, transient failures).
+I treated “unknown publish outcome” as its own explicit state, and I blocked green closure until it’s reconciled.
+
+Why this matters:
+This is a subtle senior signal.
+Most systems accidentally turn this into “maybe it published, maybe it didn’t, let’s move on.”
+That destroys trust and makes audit/replay impossible.
+
+5) Streaming safety produces durable, human-auditable receipts
+Streaming correctness isn’t credible if it exists only in ephemeral logs.
+So I made admission produce durable evidence surfaces that summarize:
+- what was admitted,
+- what was duplicate,
+- what was quarantined,
+- and what offset boundaries were advanced for this run window.
+
+Why this matters:
+This creates a “trust surface” that a reviewer can inspect without reading code, and it turns streaming correctness into something you can prove.
+
+6) Downstream gating: “no PASS → no read”
+I explicitly gated downstream consumption:
+- downstream components aren’t allowed to treat data as admitted truth until admission proof exists and is coherent.
+- this prevents the system from building further decisions/actions on uncertain foundations.
+
+Why this matters:
+This is how you avoid “garbage in, expensive garbage out” in real systems.
+
+What this enables (the operational capability you gained)
+With these rules, reruns stop being scary:
+- Replaying WSP output is safe because duplicates are absorbed.
+- Mid-run failures can be recovered by rerunning after fixing the cause, without mutating upstream truth.
+- Quarantine provides a controlled path for “integrity drift” instead of corrupting history.
+- Closure uses receipts and offsets evidence, so “what happened” and “what was processed” remains inspectable.
+
+Before → After (explicit outcome)
+Before: streaming runs could appear green while being fragile under retry/duplicate/unknown publish outcomes (making reruns risky and audit weak).
+After: the system is designed to tolerate real streaming failure modes:
+- duplicates do not double-act,
+- mismatches don’t overwrite truth (they quarantine),
+- unknown publish outcomes block closure until reconciled,
+- and downstream only proceeds when admission proof exists.
+
+Prevention (what this stops from happening again)
+- Stops “double-processing” under retries (idempotent admission).
+- Stops silent data corruption (mismatch → quarantine, no overwrite).
+- Stops unprovable runs (publish ambiguity blocks green).
+- Stops downstream building on uncertain inputs (gated admission proof).
+- Stops rerun fear (deterministic IDs + receipts + replay anchors make reprocessing controlled).
+
+Why this experience is strong for Senior Platform + Senior MLOps screens
+This is one of the clearest signals that you understand distributed systems in production:
+- at-least-once delivery is normal,
+- correctness must be engineered, not assumed,
+- and replay safety must be provable.
+
+For MLOps, this matters because model training and monitoring are only as trustworthy as the data ingestion and lineage.
+A replay-unsafe platform can’t support reproducible learning.
+
+What it does NOT claim yet
+This proves streaming correctness foundations (idempotency, replay safety, quarantine/anomaly handling, fail-closed ambiguity).
+It does not claim model registry promotion/rollback or drift monitoring (dev_full/prod_target proofs).
+But it lays the data integrity groundwork those later MLOps controls depend on.

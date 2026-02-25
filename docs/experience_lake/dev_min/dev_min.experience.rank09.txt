@@ -1,0 +1,97 @@
+dev_min.experience.rank09.txt
+Title: Built a production-shaped batch/data lane (one-shot jobs, receipts, PASS gates, and targeted reruns)
+
+Context (what was at stake, in recruiter terms)
+In a platform that mixes streaming with large data products, you need batch/data lanes that behave like production:
+- rerunnable without fear,
+- auditable without reading code,
+- and fail-closed when the data product is not certified.
+
+Most projects either treat batch processing as “scripts” or they run it once and call it done.
+I treated it as a first-class operational lane with explicit contracts and evidence.
+
+Non-negotiables (batch/data discipline)
+- Batch work runs as one-shot jobs (not ad-hoc commands on a laptop).
+- Outputs are treated as data products with quality gates (“No PASS → no read”).
+- Every job produces durable receipts/manifests so you can prove what happened.
+- Recovery must be engineered: reruns are targeted when possible, not “rerun the world”.
+- Correctness is preserved even under scale pressure (no skipping checks to get green).
+
+What I built (batch/data lane discipline, in recruiter-relevant signals)
+
+1) One-shot job model for data product materialization
+I structured the core batch step as managed one-shot jobs:
+- a job produces a normalized data product (stream-view / consumable output),
+- and a checker validates it and emits an explicit PASS/FAIL signal.
+
+Why recruiters care:
+This is the standard “data platform” posture: jobs produce artifacts; checkers certify them.
+
+2) Fail-closed quality gate: “No PASS → no read”
+Downstream streaming components are not allowed to consume the data product unless:
+- the data product exists,
+- the checker has certified it,
+- and the certification proof is recorded.
+
+Why this matters:
+It prevents pipelines from silently consuming partial or invalid outputs — a common real-world failure mode.
+
+3) Durable receipts/manifests as proof surfaces
+I required each job run to leave behind durable evidence that answers:
+- what inputs were used,
+- what outputs were produced,
+- whether the checker passed,
+- and what run identity it belongs to.
+
+Why recruiters care:
+This is how you operate batch pipelines at scale without relying on tribal knowledge.
+
+4) Targeted reruns (per-output recovery, not brute force)
+I designed recovery so that failures don’t require reprocessing everything:
+- if one output fails, rerun only that output’s job and checker,
+- preserve already-certified outputs,
+- avoid expensive full reruns unless explicitly required.
+
+Why this is a senior signal:
+Rerun strategy is often what separates mature batch systems from fragile ones.
+It also shows cost and time awareness.
+
+5) Integration with the streaming spine (batch is not isolated)
+This lane isn’t a disconnected “data task”.
+It is integrated into the system’s end-to-end correctness:
+- streaming consumers read from certified data products, not raw outputs,
+- and the run’s closure evidence incorporates batch certification state.
+
+Why this matters:
+It shows you’re building a cohesive platform, not a collection of unrelated scripts.
+
+Before → After (explicit outcome)
+Before: batch processing could have been an ad-hoc step — hard to replay, hard to audit, and easy to accidentally consume invalid outputs.
+After: batch/data processing became an operable lane:
+- jobs are one-shot and managed,
+- outputs are certified by an explicit checker,
+- evidence exists as receipts/manifests,
+- and failures are recoverable with targeted reruns instead of full reruns.
+
+Prevention (what this stops from happening again)
+- Stops silent consumption of invalid/partial batch outputs (fail-closed checker gate).
+- Stops “we ran it once and hope it’s fine” (receipts and certification proof exist).
+- Stops expensive recovery by brute force (targeted reruns).
+- Stops coupling batch validity to a developer’s local environment (managed jobs + durable evidence).
+- Stops downstream decisions being built on uncertified data products.
+
+Why this experience is strong for Senior Platform + Senior MLOps screens
+Platform recruiters care because batch lanes are where correctness and operability get tested:
+reruns, recovery, evidence, and quality gates.
+
+MLOps recruiters care because the same pattern applies directly to:
+- feature generation pipelines,
+- training data materialization,
+- batch inference jobs,
+- and offline evaluation pipelines.
+
+This experience proves you can build batch pipelines that behave like production systems.
+
+What it does NOT claim yet
+This proves batch/data operability and quality gating on managed substrate.
+It does not claim model training/registry promotion/rollback yet, but it establishes the exact kind of data product discipline MLOps teams rely on.

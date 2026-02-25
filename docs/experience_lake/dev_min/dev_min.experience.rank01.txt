@@ -1,0 +1,116 @@
+dev_min.experience.rank01.txt
+Title: Unblocked managed-substrate execution under real failure modes (CI/IAM + managed Kafka + runtime drift + packaging drift + data-plane IAM)
+
+Context (what was at stake, in recruiter terms)
+I was migrating a local-parity, production-shaped streaming spine to a managed minimal dev environment where the laptop is only an operator console. The system must run on managed infrastructure with evidence-first gates: if a phase can’t be proven, it doesn’t count as done. This immediately moves the failure surface from “my code works” to “my system operates” — CI auth, IAM, managed messaging, runtime wiring, artifact integrity, and data-plane permissions.
+
+Non-negotiables I held during remediation (the discipline that makes this ‘senior’)
+- Fail-closed: if there’s ambiguity or missing proof, the run stays red.
+- No local bypass: I wouldn’t “just publish from my laptop” to force progress.
+- No secret sprawl: fixes must not introduce leaked credentials or hidden state.
+- Immutable artifact identity: whatever runs in managed compute must be traceable (build identity, digest).
+- Fix the right layer: don’t patch symptoms in application code when the root cause is IAM, runtime wiring, or release integrity.
+
+What happened (the actual incident set, and why it looks like real work)
+
+Incident A — CI packaging was blocked before runtime could even start
+Production reality:
+The first blocker wasn’t ML logic or application logic — it was the release plane. The authoritative build lane (CI) couldn’t reliably produce the artifact that managed runtime would execute. This is a real-world gating point: if you can’t produce a trusted artifact, everything downstream is untrustworthy.
+
+Failure pattern:
+- CI could not assume the cloud role via OIDC (identity boundary misconfigured).
+- After fixing the auth boundary, CI still couldn’t perform required registry actions because least-privilege permissions weren’t sufficient.
+
+Why this matters:
+This is the difference between “I can build locally” and “I can ship”. Senior platform/MLOps work is often blocked here.
+
+Senior move:
+- Treated CI auth + registry permissions as correctness surfaces, not setup noise.
+- Remediated the OIDC trust boundary and then tightened permissions so CI can push artifacts without using broad admin keys.
+- Kept the pipeline fail-closed until it produced a verifiable, immutable artifact identity (not “it built”).
+
+Believable proof surface:
+- CI run history showing fail → remediation → pass.
+- A build output that can be referenced immutably (digest/provenance record).
+
+Incident B — Managed Kafka “works in theory” but failed in practice (multi-cause chain)
+Production reality:
+Once the system moved into managed substrate, the messaging plane became the main blocker. This is where “real platform work” shows up: you can have the right design and still fail due to identity mismatches, credential lifecycle, and client compatibility.
+
+Failure sequence (why it was hard):
+- Runtime wiring drift: an upstream publisher was targeting the wrong endpoint (a classic “works locally, breaks in managed” integration issue).
+- Auth failed with a principal mismatch (401): correct-looking credentials but wrong identity context.
+- SASL auth failures persisted until credentials were rotated and reseeded properly.
+- Even after credentials were valid and services redeployed, publishing still failed due to client compatibility (the Kafka client couldn’t reliably negotiate/identify broker version in this managed setup).
+
+Why this matters:
+This is exactly what recruiters mean by “production experience”: failures span wiring + identity + managed service behavior + client ecosystem constraints.
+
+Senior move:
+- Ran a structured narrowing loop rather than thrashing:
+  1) confirm secret material exists and is injected into runtime correctly,
+  2) rotate/reseed credentials via a controlled mechanism,
+  3) redeploy services so rotation actually takes effect,
+  4) isolate what remains (compatibility), instead of re-fixing auth repeatedly.
+- Made a constrained decision: choose a compatibility-safe Kafka client path rather than bypassing Kafka or weakening ingestion gates.
+
+Believable proof surface:
+- A repeatable readiness check that proves “the messaging plane is actually usable under runtime credentials” (not “it worked once”).
+- A post-change smoke proving metadata access/publish viability under the managed setup.
+
+Incident C — “Fixed it, but prod still crashed”: packaging drift after the Kafka remediation
+Production reality:
+This is a very common senior failure mode: you can implement the right fix and still fail because the runtime artifact doesn’t actually contain what you think it contains. CI can produce a “valid” image that is operationally broken if your packaging contract is wrong.
+
+Failure pattern:
+- After the messaging fix, services crash-looped because the runtime artifact was missing a required dependency. The deployment was “successful” (in the sense that it rolled out), but the runtime was broken.
+
+Why this matters:
+This is the gap between “build succeeds” and “release is correct”. Senior engineers treat the packaging contract as a first-class part of system correctness.
+
+Senior move:
+- Diagnosed the failure as artifact-content drift (not “ECS is flaky”, not “Kafka is broken again”).
+- Tightened the packaging contract and reran the authoritative CI lane to produce a new immutable digest.
+- Managed regression risk carefully: avoided changes that would overwrite known-good runtime credentials during infra applies while fixing packaging (no collateral damage during incident response).
+
+Believable proof surface:
+- CI evidence showing a new immutable artifact identity produced after the fix.
+- Runtime stabilization after redeploy (no crash-loop) as the functional confirmation.
+
+Incident D — Oracle job execution failed due to IAM data-plane gap (S3 AccessDenied)
+Production reality:
+Even when compute and code are correct, data jobs fail if the runtime role can’t access required inputs. This is the “IAM is part of the product” reality.
+
+Failure pattern:
+- One-shot managed job failed because the runtime identity lacked data-plane permission to read required objects (AccessDenied).
+
+Why this matters:
+Senior platform/MLOps work routinely involves diagnosing whether a failure is code vs substrate permissions vs wrong role attachment.
+
+Senior move:
+- Classified it correctly as a substrate IAM gap (not “job logic bug”).
+- Kept the lane fail-closed: no green closure without the right data-plane permission and rerun proof.
+- Used operational logs as evidence to tie the failure to identity + permission, rather than speculating.
+
+Believable proof surface:
+- Job log evidence showing AccessDenied and the identity context used.
+- Post-fix rerun evidence once permission is corrected (closure depends on that).
+
+Before → After (explicit outcome)
+Before: Managed-substrate runs could not proceed through semantic closure because the release plane (CI artifact identity) and the messaging plane (managed Kafka viability) weren’t trustworthy, and data jobs hit permission blockers.
+After: The managed environment reached a state where the platform could progress through spine execution under the same fail-closed rules — i.e., forward progress was restored without weakening correctness, and key blockers were converted into verifiable checks.
+
+Prevention (what I added so this doesn’t become recurring “hero work”)
+- I anchored a repeatable “messaging plane readiness” check that validates managed Kafka usability under runtime credentials before attempting full runs. That prevents rediscovering the same auth/compatibility problems deep into a run.
+- I codified the operational reality that “credential rotation requires redeploy” — so future rotations aren’t false fixes where the runtime keeps using old values.
+- I treated packaging as a contract: build outputs are only considered valid when they match the runtime dependency requirements, which prevents “successful deploy, broken runtime” regressions.
+
+Why this experience is strong for Senior Platform + Senior MLOps screens (without overselling)
+This single cluster of incidents demonstrates:
+- release discipline (build/auth/identity boundaries),
+- managed services debugging (Kafka + IAM + runtime),
+- operational rigor (fail-closed, evidence-first),
+- and prevention habits (turning incidents into checks/contracts).
+
+What it does NOT claim yet
+This experience proves platform/ops maturity on managed substrate. It does not claim full “senior MLOps lifecycle closure” (model registry promotion/rollback, drift monitoring, CT pipelines) — those belong to dev_full/prod_target, and should be proven separately.

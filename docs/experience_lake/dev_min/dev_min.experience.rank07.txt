@@ -1,0 +1,102 @@
+dev_min.experience.rank07.txt
+Title: Operated the platform on managed compute with stability gates (services + one-shot jobs, start/stop discipline, crashloop handling)
+
+Context (what was at stake, in recruiter terms)
+A key credibility shift in this project was moving from “it runs locally” to “it runs as a managed system”.
+That means:
+- long-running components run as managed services,
+- batch/closure work runs as one-shot jobs,
+- and the system must be brought up, stabilized, and torn down deliberately.
+
+In production-shaped work, the job isn’t just writing the service — it’s making it operationally stable:
+detecting crashloops, diagnosing wiring drift, ensuring dependencies exist, and proving readiness before moving on.
+
+Non-negotiables (runtime discipline)
+- The laptop is not the runtime; it’s only the control surface.
+- Managed services must stabilize before downstream phases proceed.
+- Crashloops are blockers, not “noise”.
+- Bring-up is deliberate and verifiable (not “start everything and hope”).
+- Cost posture matters: services can exist in a sleeping state and be activated only when needed.
+
+What I built (managed runtime operations, in recruiter-relevant signals)
+
+1) A managed runtime model: services for daemons, one-shot jobs for batch/closure
+I structured execution so that:
+- long-running platform components operate as managed services (stable, restartable, observable),
+- and batch tasks (sorting, checks, migrations, reporting) run as one-shot jobs.
+
+Why recruiters care:
+This is the operational shape of real platforms — and it enables reliable automation, reruns, and controlled failure recovery.
+
+2) Bring-up and stabilization as a gate, not a suggestion
+I treated “services are running” as insufficient.
+Bring-up includes:
+- ensuring the required runtime definitions exist,
+- starting the correct services intentionally,
+- waiting for stabilization,
+- and blocking progression if stability isn’t reached.
+
+Why this matters:
+Most projects skip this and then struggle to explain reliability. Senior engineers build the stabilization gate.
+
+3) Crashloop detection and “broken but running” awareness
+In managed environments, failures often show up as:
+- repeated restarts,
+- partial readiness (the process is alive but not functionally able to do its job),
+- or silent dependency failures.
+
+I treated those as explicit blockers:
+- if a service is restarting or can’t reach required dependencies, the run is not allowed to proceed.
+
+Why recruiters care:
+This is real operational maturity — you don’t confuse “task exists” with “system is healthy”.
+
+4) Cost-aware lifecycle: default sleeping services + deliberate activation
+For a managed minimal dev environment, always-on services are a cost trap.
+So I aligned runtime to the demo→destroy posture:
+- services can be provisioned but remain idle by default,
+- then scaled up for a run,
+- then scaled back down.
+
+Why this matters:
+This is a senior habit: operational control includes spend control.
+
+5) Reality: fixing runtime gaps is part of platform work
+A major “work experience” signal here is that managed runtime surfaced real integration gaps:
+- missing runtime definitions / incomplete infrastructure,
+- miswired endpoints (service discovery assumptions),
+- and missing dependencies.
+
+The senior move is that these weren’t treated as “annoying setup issues”.
+They were treated as first-class blockers:
+materialize what’s missing, fix wiring, and then re-verify stabilization.
+
+Before → After (explicit outcome)
+Before: the system could run locally, but managed execution could fail in ways local runs never reveal (missing definitions, crashloops, endpoint drift, incomplete infra).
+After: the system has an operational runtime posture:
+- components run as managed services and managed one-shot jobs,
+- bring-up includes stabilization checks,
+- crashloops and wiring drift are handled as blockers,
+- and runtime can be started/stopped intentionally in a cost-aware way.
+
+Prevention (what this stops from happening again)
+- Stops “it runs locally but breaks in managed”.
+- Stops progressing through phases on unstable services.
+- Stops hidden crashloops and partial readiness from silently invalidating runs.
+- Stops uncontrolled always-on spend.
+- Stops recurring “missing runtime definition” surprises by making runtime completeness a prerequisite gate.
+
+Why this experience is strong for Senior Platform + Senior MLOps screens
+Platform engineers are evaluated on whether they can run systems, not just write them.
+MLOps engineers are evaluated on whether ML services/pipelines can run reliably on managed compute.
+
+This experience demonstrates:
+- managed runtime thinking,
+- stability gating,
+- failure detection,
+- and controlled lifecycle — all core “senior” signals.
+
+What it does NOT claim yet
+This proves managed runtime operations discipline in a managed dev environment.
+It does not claim Kubernetes-specific ops (although the operational principles transfer), and it doesn’t claim production on-call at org scale.
+But it does prove you can move from “local” to “managed runtime” and make it operable.

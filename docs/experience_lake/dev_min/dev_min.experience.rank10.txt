@@ -1,0 +1,94 @@
+dev_min.experience.rank10.txt
+Title: Built governed decisioning with audit-grade proof (idempotent actions + append-only audit + run-scoped summaries)
+
+Context (what was at stake, in recruiter terms)
+In production, “a model made a prediction” is not enough.
+If you’re building a decisioning platform (especially in fraud/fintech-like domains), you need:
+- idempotent side effects (duplicates/replays must not double-act),
+- an append-only audit trail (no rewriting history),
+- and proof artifacts that let you answer “what happened and why?” without digging through raw logs.
+
+So I treated the decisioning lane as a governed subsystem:
+it must be accountable, replay-safe, and auditable in a way that survives teardown and supports later learning.
+
+Non-negotiables (governance posture)
+- Side effects must be idempotent (retries/duplicates don’t cause double action).
+- Audit must be append-only (history is never silently rewritten).
+- Decisions must be attributable to run identity (run-scoped proofs).
+- Closure is fail-closed: if outputs don’t match admitted basis, the run is not green.
+- “Seems fine” is not a proof; summaries and snapshots are required.
+
+What I built (decisioning + audit trail, in recruiter-relevant signals)
+
+1) Idempotent action semantics (“no double act”)
+I treated action execution as a correctness surface:
+- the system must tolerate duplicates and replays without producing duplicate side effects.
+- this is essential in any event-driven decisioning system where delivery is at-least-once.
+
+Why recruiters care:
+This is one of the most common real-world causes of incidents: actions firing twice due to retries.
+Building in idempotency is a senior signal.
+
+2) Append-only audit truth (governable history)
+I enforced an append-only audit posture:
+- decisions/actions are recorded as immutable history,
+- any corrections or changes are new records, not edits to the past.
+
+Why this matters:
+This is the baseline for auditability and for later learning (“what did we know then?”).
+
+3) Run-scoped proof artifacts: “decision chain committed”
+Rather than treating the decision lane as “it ran,” I required durable proof outputs that summarize:
+- how many decisions were produced,
+- how many actions were committed,
+- what audit records were written,
+- and that the lane was coherent with the admitted basis for the run.
+
+Why recruiters care:
+This is how production systems make themselves auditable without requiring engineers to dig into raw data.
+
+4) Fail-closed reality check: basis vs outputs must reconcile
+A key realism moment here is that the lane did not get “green” just because it executed.
+When the admitted input basis was non-zero but the decision/audit outputs were zero, the system was treated as not committed.
+That triggered remediation and rerun until the lane could be proven coherent.
+
+Why this matters:
+This is the “don’t let the system lie” posture that senior engineers bring.
+It prevents silent correctness failures that only show up later as business incidents.
+
+5) Evidence supports both operations and learning-readiness
+By producing decision summaries and audit artifacts as durable run-scoped outputs:
+- operations can verify what happened,
+- governance/audit can inspect outcomes,
+- and the learning loop later has a reliable ground truth surface to reference.
+
+Before → After (explicit outcome)
+Before: a decision lane could appear “successful” while still being operationally ambiguous:
+- unclear if actions were idempotent,
+- unclear if audit was complete,
+- and hard to reconcile decisions with admitted inputs.
+After: the decision lane became governed and provable:
+- idempotent action behavior is required,
+- audit is append-only,
+- and commit is defined by run-scoped summaries and reconciliation with admitted basis (fail-closed when mismatched).
+
+Prevention (what this stops from happening again)
+- Stops double actions under retries/duplicates (idempotent semantics).
+- Stops “audit by log scraping” (explicit audit summaries exist).
+- Stops silent lane failures (basis/output mismatch blocks green).
+- Stops rewriting history (append-only truth makes changes explicit).
+- Stops later learning being built on ambiguous decision history.
+
+Why this experience is strong for Senior Platform + Senior MLOps screens
+Platform recruiters care because governed decisioning is hard to do correctly under streaming semantics.
+MLOps recruiters care because auditability and replay safety are prerequisites for trustworthy ML in regulated environments.
+
+This experience signals:
+- operational correctness under retries,
+- governance maturity (append-only audit),
+- and evidence-first accountability.
+
+What it does NOT claim yet
+This proves governed decisioning and audit proof surfaces in a managed dev environment.
+It does not claim model registry promotion/rollback or drift monitoring.
+But it establishes the decision/audit foundation that those MLOps controls rely on to be credible.
