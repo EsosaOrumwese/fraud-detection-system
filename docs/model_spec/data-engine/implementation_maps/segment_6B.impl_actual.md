@@ -3324,3 +3324,44 @@ Next step:
 - execute integrated P2 witness chain on fresh staged run-id from `5459...`:
   - `S2 -> S3 -> S4 -> S5`,
   - score gateboard and evaluate `T11,T13,T14,T15,T16,T21` with non-regression set.
+
+---
+
+### Entry: 2026-02-25 20:56
+
+P2 integrated witness executed and scored; quality lane closed, performance gate failed closed.
+
+Witness lane:
+- source authority run: `5459d5b68a1344d9870f608a41624448`
+- staged witness run: `9a609826341e423aa61aed6a1ce5d84d`
+- execution chain completed:
+  - `S2` PASS (`elapsed=297.92s`)
+  - `S3` PASS (`elapsed=422.19s`)
+  - `S4` PASS (`elapsed=481.95s`)
+  - `S5` PASS (`elapsed=21.05s`)
+
+Scored gateboard receipt:
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_9a609826341e423aa61aed6a1ce5d84d.json`
+- verdict: `PASS_HARD_ONLY`
+- phase decision from scorer: `UNLOCK_P1` (gateboard script baseline semantics)
+
+P2-owned target gates (`5459... -> 9a60...`):
+- `T11`: `8 -> 52294` (`B: FAIL -> PASS`, `B+: FAIL -> PASS`)
+- `T13`: `1.000000 -> 0.321261` (`B: FAIL -> PASS`, `B+: FAIL -> PASS`)
+- `T14`: `0.000000s -> 3.005000s` (`B: FAIL -> PASS`, `B+: FAIL -> PASS`)
+- `T15`: `0.000000s -> 48.980780s` (`B: FAIL -> PASS`, `B+: FAIL -> PASS`)
+- `T16`: `100.0000% -> 0.0000%` (`B: FAIL -> PASS`, `B+: FAIL -> PASS`)
+- `T21`: `1/3 -> 3/3` (`B: FAIL -> PASS`, `B+: FAIL -> PASS`)
+
+Non-regression check on previously closed rails:
+- stable PASS maintained on `T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T22`.
+- residual stretch-only fails remain unchanged and correctly routed:
+  - `T17` (`S3` owner),
+  - `T19` (`S1` owner).
+
+Decision:
+- statistical realism objective for P2 (S2 amount/timing activation) is achieved.
+- fail-closed phase posture remains `HOLD_P2_REOPEN_PERF` under Performance-First law because runtime rails are breached:
+  - target rails: `S2<=120s` (`<=150s` stretch), `S3<=380s`, `S4<=420s`, `S5<=30s`
+  - observed: `S2=297.92s`, `S3=422.19s`, `S4=481.95s`, `S5=21.05s`.
+- next required lane before `UNLOCK_P3`: P2 runtime reopen on `S2/S3/S4` hotspot budgets without changing closed statistical gates.
