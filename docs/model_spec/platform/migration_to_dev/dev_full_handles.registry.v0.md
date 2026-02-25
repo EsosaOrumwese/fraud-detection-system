@@ -391,11 +391,25 @@ Allowed tokens in pattern handles:
 
 ### 7.3 Flink runtime handles (MSK-integrated stream lanes)
 
-* `FLINK_RUNTIME_MODE = "MSK_MANAGED_FLINK"`
-* `FLINK_APP_WSP_STREAM_V0 = "fraud-platform-dev-full-wsp-stream-v0"`
-* `FLINK_APP_SR_READY_V0 = "fraud-platform-dev-full-sr-ready-v0"`
-* `FLINK_APP_RTDL_IEG_V0 = "fraud-platform-dev-full-rtdl-ieg-v0"`
-* `FLINK_APP_RTDL_OFP_V0 = "fraud-platform-dev-full-rtdl-ofp-v0"`
+* `FLINK_RUNTIME_MODE = "MSK_FLINK_RUNTIME_PATH_SELECT"`
+* `FLINK_RUNTIME_PATH_ALLOWED = "MSF_MANAGED|EKS_EMR_ON_EKS|EKS_FLINK_OPERATOR"`
+* `FLINK_RUNTIME_PATH_DEFAULT = "MSF_MANAGED"`
+* `FLINK_RUNTIME_PATH_FALLBACK_BLOCKER = "M6P6-B2"`
+* `FLINK_RUNTIME_PATH_ACTIVE = "EKS_EMR_ON_EKS"` (repinned for current `M6P6-B2` unblock window; managed substitution proof required once MSF eligibility clears)
+* `FLINK_APP_WSP_STREAM_V0 = "fraud-platform-dev-full-wsp-stream-v0"` (MSF application name / logical stream lane id)
+* `FLINK_APP_SR_READY_V0 = "fraud-platform-dev-full-sr-ready-v0"` (MSF application name / logical stream lane id)
+* `FLINK_APP_RTDL_IEG_V0 = "fraud-platform-dev-full-rtdl-ieg-v0"` (MSF application name / logical stream lane id)
+* `FLINK_APP_RTDL_OFP_V0 = "fraud-platform-dev-full-rtdl-ofp-v0"` (MSF application name / logical stream lane id)
+* `FLINK_EKS_HOSTING_MODE = "EMR_ON_EKS"`
+* `FLINK_EKS_NAMESPACE = "fraud-platform-rtdl"`
+* `EMR_EKS_VIRTUAL_CLUSTER_NAME = "fraud-platform-dev-full-flink-vc"`
+* `EMR_EKS_VIRTUAL_CLUSTER_ID = "TO_PIN"`
+* `EMR_EKS_EXECUTION_ROLE_ARN = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution"`
+* `EMR_EKS_RELEASE_LABEL = "TO_PIN"`
+* `FLINK_EKS_WSP_STREAM_REF = "fraud-platform-dev-full-wsp-stream-v0"` (EKS/EMR-on-EKS job or FlinkDeployment reference)
+* `FLINK_EKS_SR_READY_REF = "fraud-platform-dev-full-sr-ready-v0"` (EKS/EMR-on-EKS job or FlinkDeployment reference)
+* `FLINK_EKS_RTDL_IEG_REF = "fraud-platform-dev-full-rtdl-ieg-v0"` (EKS/EMR-on-EKS job or FlinkDeployment reference)
+* `FLINK_EKS_RTDL_OFP_REF = "fraud-platform-dev-full-rtdl-ofp-v0"` (EKS/EMR-on-EKS job or FlinkDeployment reference)
 * `FLINK_PARALLELISM_DEFAULT = 2`
 * `FLINK_CHECKPOINT_INTERVAL_MS = 60000`
 * `FLINK_CHECKPOINT_S3_PREFIX_PATTERN = "state/flink/{application_name}/"`
@@ -701,6 +715,8 @@ These are intentionally explicit and must be pinned before first `dev-full-up` e
 1. `ROLE_TERRAFORM_APPLY_DEV_FULL`
 2. `DBX_WORKSPACE_URL`
 3. `AWS_BUDGET_NOTIFICATION_EMAIL`
+4. `EMR_EKS_VIRTUAL_CLUSTER_ID`
+5. `EMR_EKS_RELEASE_LABEL`
 
 ---
 

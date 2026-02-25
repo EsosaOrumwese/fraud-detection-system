@@ -57,7 +57,7 @@
 
 ### 1.3 Substrate and tooling pins
 
-1. Runtime strategy: managed-first with hybrid fallback only for differentiating services (`MSK+Flink`, API Gateway/Lambda/DynamoDB, selective EKS custom services).
+1. Runtime strategy: managed-first with hybrid fallback only for differentiating services (`MSK+Flink`, API Gateway/Lambda/DynamoDB, selective EKS custom services); for `P6` stream lanes, hosting may switch from MSF to EKS-hosted Flink only under blocker `M6P6-B2`.
 2. Event bus: `AWS MSK Serverless` (`SASL_IAM`, `MSK_REGION=eu-west-2`)
 3. Durable object store/evidence/archive: `S3`
 4. Runtime relational state: `Aurora PostgreSQL Serverless v2 Multi-AZ`
@@ -93,7 +93,7 @@ Unchanged from local-parity/dev_min:
 ### 1.6 Runtime-path and correlation laws (pinned)
 
 1. **Single-path per phase/run:** each phase execution must select exactly one active runtime path; in-phase switching is prohibited.
-2. **Fallback activation rule:** fallback path use is fail-closed and requires blocker adjudication, explicit approval, and a new `phase_execution_id`.
+2. **Fallback activation rule:** fallback path use is fail-closed and requires blocker adjudication, explicit approval, and a new `phase_execution_id`; `P6` Flink hosting fallback is valid only for `M6P6-B2` while preserving unchanged P6 DoDs/evidence.
 3. **SR commit authority rule:** Flink may compute READY surfaces, but `P5` closure is valid only when Step Functions commits READY and receipt evidence carries the orchestrator execution reference.
 4. **Cross-runtime correlation rule:** required fields `platform_run_id,scenario_run_id,phase_id,event_id,runtime_lane,trace_id` must be preserved across API edge, stream lanes, orchestrator transitions, and evidence emission.
 
@@ -187,7 +187,7 @@ Phase advancement is fail-closed if spend is consumed without material proof out
 | P3 | ORACLE_READY | S3 + stream-view validation | oracle + stream-view contract valid |
 | P4 | INGEST_READY | ingress edge + MSK preflight | writer-boundary + bus ready |
 | P5 | READY_PUBLISHED | SR lane + control topic | READY signal + receipt committed |
-| P6 | STREAMING_ACTIVE | Flink stream lanes + ingress edge + MSK | ingest streaming active + lag bounded |
+| P6 | STREAMING_ACTIVE | Flink stream lanes (MSF or EKS-hosted fallback) + ingress edge + MSK | ingest streaming active + lag bounded |
 | P7 | INGEST_COMMITTED | IG receipts/quarantine | admit/quarantine/offset evidence complete |
 | P8 | RTDL_CAUGHT_UP | Flink RTDL transforms + Redis/Aurora + hybrid services | inlet/projection closure committed |
 | P9 | DECISION_CHAIN_COMMITTED | hybrid DF/AL/DLA lanes | decision/action/audit closure committed |
@@ -287,11 +287,11 @@ For every phase below:
 
 * Entry gate: WSP source roots pinned for run.
 * PASS gate:
-  1. Flink-driven stream publication and ingress admission active,
+  1. Flink-driven stream publication and ingress admission active (runtime path may be `MSF` or `EKS-hosted Flink` under approved `M6P6-B2` fallback),
   2. lag within threshold,
   3. no unresolved publish ambiguity.
 * Commit evidence: streaming counters snapshot + lag posture evidence.
-* Blockers: `DFULL-RUN-B6` (streaming stall), `DFULL-RUN-B6.1` (publish unknown unresolved).
+* Blockers: `DFULL-RUN-B6` (streaming stall), `DFULL-RUN-B6.1` (publish unknown unresolved), `DFULL-RUN-B6.2` (runtime-path evidence missing or path not authorized for this phase execution).
 
 ### P7 INGEST_COMMITTED
 

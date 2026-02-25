@@ -94,7 +94,7 @@ Goal:
 
 Tasks:
 1. resolve `P5` required handles (`FP_BUS_CONTROL_V1`, `SR_READY_COMMIT_*`, `READY_MESSAGE_FILTER`, `WSP_*`).
-2. resolve `P6` required handles (Flink app IDs, lag threshold handles, publish-ambiguity controls).
+2. resolve `P6` required handles (Flink runtime-path references, EMR-on-EKS control-plane handles when active path is `EKS_EMR_ON_EKS`, lag threshold handles, publish-ambiguity controls).
 3. resolve `P7` required handles (`RECEIPT_SUMMARY_PATH_PATTERN`, `QUARANTINE_SUMMARY_PATH_PATTERN`, `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`, idempotency handles).
 4. close missing handoff handle gap by pinning:
    - `M6_HANDOFF_PACK_PATH_PATTERN`,
@@ -235,16 +235,20 @@ Execution status (2026-02-25):
 2. Result is fail-closed (`overall_pass=false`, `next_gate=HOLD_REMEDIATE`).
 3. Active blockers:
    - `M6P6-B1` (`REQUIRED_PLATFORM_RUN_ID_ENV_KEY` missing in prior handle-closure artifact surface),
-   - `M6P6-B2` (required Flink apps missing).
+   - `M6P6-B2` (required Flink runtime references missing for the then-active MSF path).
 4. Evidence:
    - local: `runs/dev_substrate/dev_full/m6/m6e_p6a_stream_entry_20260225T044348Z/`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044348Z/`
 5. Superseding rerun:
    - `m6e_p6a_stream_entry_20260225T044618Z` cleared `M6P6-B1`.
-   - `M6.E` remains blocked only on `M6P6-B2` (Flink runtime lane not materialized).
+   - `M6.E` remained blocked only on `M6P6-B2` (Flink runtime lane not materialized on the then-active MSF path).
 6. Root cause for `M6P6-B2` currently confirmed:
    - AWS returns `UnsupportedOperationException` on Managed Flink create/update in this account pending account verification.
    - probe evidence: `runs/dev_substrate/dev_full/m6/m6e_p6_flink_probe_20260225T045252Z/m6e_flink_create_probe.json`.
+7. Repin posture (2026-02-25):
+   - `P6` Flink hosting fallback is now approved for `M6P6-B2` under single-path law,
+   - active runtime path is repinned to EKS-hosted Flink (`EKS_EMR_ON_EKS`),
+   - `M6.E` must be rerun on this path before advancing to `M6.F`.
 
 ### M6.F `P6` Streaming Active + Lag + Ambiguity Closure
 Goal:

@@ -7798,3 +7798,87 @@ ext_gate=M6.C_READY.
 1. This decision unblocks continuation of `M6` without waiting on external verification SLA.
 2. Drift risk is controlled because stream semantics stay constant and only hosting substrate changes.
 3. Additional operational complexity (EKS-hosted Flink management) is accepted as bounded tradeoff to meet delivery window.
+
+## Entry: 2026-02-25 11:22:04 +00:00 - Pre-implementation patch plan for M6P6-B2 runtime-path repin (MSF -> bounded EKS-hosted Flink fallback)
+
+### Problem
+1. M6P6-B2 blocks P6 because Managed Flink app create/update is account-gated.
+2. Current authority/build wording is too narrow (MSF app IDs), preventing execution of equivalent MSK+Flink semantics on an alternate managed hosting path.
+
+### Patch objective
+1. Preserve semantic contract (MSK + Flink, same P6 evidence and fail-closed gates).
+2. Repin hosting abstraction from MSF-only to MSF OR EKS-hosted Flink under explicit blocker condition.
+3. Keep blast radius minimal: authority + handles + run-process + M6/M6.P6 plan wording only.
+
+### Files to patch
+1. docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md
+2. docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md
+3. docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md
+4. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md
+5. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P6.build_plan.md
+6. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md
+
+### Invariants to enforce
+1. No laptop fallback; managed runtime only.
+2. Event bus remains MSK Serverless.
+3. Stream engine remains Flink; only hosting changes.
+4. P5 commit authority remains Step Functions.
+5. P6 DoD/evidence contract remains unchanged.
+
+### Alternatives rejected in this patch phase
+1. Cross-vendor runtime switch (e.g., Decodable) -> rejected due larger semantic/ops drift.
+2. Wait-only posture -> rejected due timeline risk.
+
+### Execution notes
+1. Add explicit fallback gate: allowed only when blocker condition is M6P6-B2.
+2. Add explicit exit condition: run managed-substitution parity proof once AWS unblocks MSF.
+3. Update handle model to runtime reference abstraction (MSF_APP_NAME or EKS_FLINKDEPLOYMENT_REF).
+
+## Entry: 2026-02-25 11:24:47 +00:00 - Authority/plan repin applied for M6P6-B2 unblock (MSK+Flink preserved, hosting path generalized)
+
+### What was changed
+1. Repinned dev_full authority so P6 stream lane remains MSK+Flink but hosting is no longer MSF-only under blocker M6P6-B2.
+2. Introduced runtime-path abstraction in handles:
+   - allowed paths: MSF_MANAGED|EKS_EMR_ON_EKS|EKS_FLINK_OPERATOR,
+   - active path pinned to EKS_EMR_ON_EKS for the current unblock window,
+   - fallback blocker condition pinned to M6P6-B2.
+3. Updated run-process and M6/M6.P6 plans to require same unchanged P6 DoDs/evidence regardless of hosting path.
+
+### Files patched
+1. docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md
+2. docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md
+3. docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md
+4. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md
+5. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P6.build_plan.md
+6. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md
+
+### Drift/risk assessment
+1. Semantic drift is controlled: event bus and stream engine semantics are unchanged (MSK+Flink).
+2. Scope of change is hosting-path policy only; no pass-gate weakening introduced.
+3. New blocker guard added in run-process (DFULL-RUN-B6.2) for runtime-path evidence/authorization mismatch.
+
+### Next executable step
+1. Rematerialize runtime/streaming surfaces for EKS-hosted Flink path.
+2. Rerun M6.E on repinned path and require blocker-free entry snapshot before M6.F.
+
+## Entry: 2026-02-25 11:25:57 +00:00 - Repin refinement: EMR-on-EKS handle completeness for M6.E fail-closed precheck
+
+### Why this refinement was needed
+1. After runtime-path repin, active path was set to EKS_EMR_ON_EKS but registry lacked explicit EMR control-plane handles required for deterministic precheck.
+2. Without these handles, M6.E would fail later with implicit runtime-materialization ambiguity instead of explicit handle blockers.
+
+### What was added
+1. Handles registry additions:
+   - EMR_EKS_VIRTUAL_CLUSTER_NAME,
+   - EMR_EKS_VIRTUAL_CLUSTER_ID,
+   - EMR_EKS_EXECUTION_ROLE_ARN,
+   - EMR_EKS_RELEASE_LABEL.
+2. Fail-closed open-handle list updated with:
+   - EMR_EKS_VIRTUAL_CLUSTER_ID,
+   - EMR_EKS_RELEASE_LABEL.
+3. M6.P6 precheck tasks updated to require these handles when runtime path is EKS_EMR_ON_EKS.
+
+### Effect
+1. Decision-completeness is preserved for M6.E rerun.
+2. Remaining blocker set for execution is explicit and pin-driven (no hidden EMR path assumptions).
+

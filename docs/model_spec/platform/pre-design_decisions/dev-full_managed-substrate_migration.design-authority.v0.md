@@ -182,7 +182,7 @@ Multi-region resilience, tighter compliance, higher SLO rigor, and enterprise go
 
 1. **Runtime strategy:** managed-first and replace-by-default. Custom services are retained only where they carry differentiating business logic or stricter semantic contracts that managed primitives cannot satisfy.
 2. **Event bus:** AWS MSK Serverless is the primary managed streaming substrate.
-3. **Stream processing lane:** MSK-integrated Flink is the primary runtime for stream-native transformations and joins (WSP/SR stream surfaces and RTDL ingress/context lanes).
+3. **Stream processing lane:** MSK-integrated Flink is the primary runtime for stream-native transformations and joins (WSP/SR stream surfaces and RTDL ingress/context lanes); hosting is managed-first (`MSF` preferred) with bounded EKS-hosted fallback when account-level MSF eligibility blocks execution.
 4. **Ingress edge:** API Gateway + Lambda + DynamoDB idempotency store is the default IG runtime posture; custom IG service runtime is permitted only if a pinned contract cannot be satisfied otherwise.
 5. **Durable object store:** AWS S3 remains durable truth/evidence/archive substrate.
 6. **Operational relational store:** Aurora PostgreSQL is the managed primary runtime relational store.
@@ -199,6 +199,7 @@ Multi-region resilience, tighter compliance, higher SLO rigor, and enterprise go
 15. **Secrets and encryption:** IAM + KMS + Secrets Manager/SSM, no plain-text credentials in repo/runtime manifests.
 16. **Lakehouse table format:** Apache Iceberg (v2) on S3 with AWS Glue Data Catalog is the default tabular format for OFS/MF learning datasets; Delta is not the v0 default.
 17. **Oracle source-of-stream bucket policy:** dev_full must read from a canonical external oracle bucket (shared track allowed), while dev_full object-store remains platform-owned for archive/quarantine/evidence-adjacent platform surfaces; duplicate cross-bucket oracle copies are prohibited by default.
+18. **Flink hosting fallback policy (bounded):** when blocker `M6P6-B2` is active (account-level MSF create/update unsupported), `P6` may run on EKS-hosted Flink (`EMR on EKS` preferred, `Flink Operator on EKS` secondary) with unchanged `MSK+Flink` semantics and unchanged `P6` evidence contract.
 
 #### 5.1.1 Sectional pin closure set (2026-02-22)
 
@@ -244,6 +245,9 @@ The following values are now explicitly pinned for v0 execution:
      - `DFULL-SFN-B5 = COST_GUARDRAIL_BREACH`
 8. **Managed-first runtime placement policy**
    * `STREAM_ENGINE_MODE = "MSK_FLINK_DEFAULT"`
+   * `STREAM_ENGINE_HOSTING_MODE_DEFAULT = "MSF_MANAGED"`
+   * `STREAM_ENGINE_HOSTING_MODE_ALLOWED = "MSF_MANAGED|EKS_EMR_ON_EKS|EKS_FLINK_OPERATOR"`
+   * `STREAM_ENGINE_HOSTING_FALLBACK_BLOCKER = "M6P6-B2"`
    * `INGRESS_EDGE_MODE = "APIGW_LAMBDA_DDB_DEFAULT"`
    * `EKS_USE_POLICY = "DIFFERENTIATING_SERVICES_ONLY"`
    * Any EKS placement for non-differentiating lanes requires explicit pin and rationale.
@@ -252,6 +256,7 @@ The following values are now explicitly pinned for v0 execution:
    * `PHASE_RUNTIME_PATH_PIN_REQUIRED = true`
    * `RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED = false`
    * fallback activation requires explicit blocker adjudication and a new `phase_execution_id`.
+   * fallback activation must emit runtime-path evidence and preserve phase semantics/DoDs.
 10. **SR READY commit authority**
    * `SR_READY_COMPUTE_MODE = "FLINK_ALLOWED"`
    * `SR_READY_COMMIT_AUTHORITY = "STEP_FUNCTIONS_ONLY"`
@@ -716,6 +721,7 @@ After every full run, perform semantic drift and ownership-boundary audit before
 2. `dev_full` runtime has zero laptop compute posture.
 3. Primary stack is managed-first: AWS MSK + Flink + API Gateway/Lambda/DynamoDB + S3 + Aurora + Redis + Databricks + MLflow + SageMaker + Airflow + Step Functions + OTel + Terraform + GitHub Actions, with EKS reserved for differentiating custom services.
 4. Per-lane proof obligations include deploy/monitor/fail/recover/rollback/cost-control evidence.
+5. Bounded `M6P6-B2` exception is closed: Flink hosting may switch to EKS-hosted Flink for `P6` only when MSF account eligibility is externally blocked; semantic/evidence contracts remain unchanged.
 
 ### 17.2 Sectional closure pins (2026-02-22)
 
@@ -751,10 +757,10 @@ This pass closes the initial open set and repins them as executable defaults:
 | Plane/Layer | Component | local_parity | dev_min | dev_full (pinned target) | prod_target |
 | --- | --- | --- | --- | --- | --- |
 | World Builder | Oracle store | MinIO | S3 | S3 | S3 + Object Lock/WORM |
-| World Builder | SR/WSP | local compose | ECS ephemeral | MSK + Flink jobs (Step Functions-gated) | Flink hardened autoscale + checkpoint governance |
+| World Builder | SR/WSP | local compose | ECS ephemeral | MSK + Flink jobs (MSF preferred; EKS-hosted fallback under `M6P6-B2`, Step Functions-gated) | Flink hardened autoscale + checkpoint governance |
 | Control/Ingress | Event bus | Redpanda/LocalStack | Confluent Basic | AWS MSK Serverless | Kafka multi-AZ/tiered |
 | Control/Ingress | IG | local service | ECS service | API Gateway + Lambda + DynamoDB idempotency (EKS fallback only if required) | Hardened private ingress + WAF + zero-trust service boundaries |
-| RTDL | IEG/OFP (stream transforms) | local workers | ECS workers/services | MSK + Flink stream processing | Flink hardened autoscale + state/checkpoint DR |
+| RTDL | IEG/OFP (stream transforms) | local workers | ECS workers/services | MSK + Flink stream processing (MSF preferred; EKS-hosted fallback under `M6P6-B2`) | Flink hardened autoscale + state/checkpoint DR |
 | RTDL | DF/AL/DLA (ownership logic) | local workers | ECS workers/services | Hybrid managed integrations + selective EKS custom services | Policy-governed mixed runtime with strict SLO evidence |
 | Case/Labels | CM/LS | local services/db | ECS + managed runtime db | Hybrid managed workflows/events + Aurora (selective EKS where boundary semantics require) | Enterprise governance + audited workflow controls |
 | Learning/Evolution | OFS | local job | optional | Databricks jobs | Databricks/Snowflake scale |
