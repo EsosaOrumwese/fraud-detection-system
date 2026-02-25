@@ -55,6 +55,24 @@ DoD:
 - [ ] receipt/quarantine/offset evidence exists and is readable.
 - [ ] dedupe/anomaly checks pass.
 - [ ] `m6h_ingest_commit_snapshot.json` committed locally and durably.
+- [ ] fresh-authority remote execution completed with `overall_pass=true`, `blocker_count=0`, `next_gate=M6.I_READY`.
+
+Execution plan (authoritative lane):
+1. Dispatch `.github/workflows/dev_full_m6h_ingest_commit.yml` with:
+   - `phase_mode=m6h`,
+   - `platform_run_id=platform_20260223T184232Z`,
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`,
+   - `upstream_m6g_execution=m6g_p6c_gate_rollup_20260225T181523Z`,
+   - `ig_idempotency_table=fraud-platform-dev-full-ig-idempotency`.
+2. Require artifact set:
+   - `receipt_summary.json`,
+   - `quarantine_summary.json`,
+   - `kafka_offsets_snapshot.json`,
+   - `m6h_ingest_commit_snapshot.json`,
+   - `m6h_blocker_register.json`,
+   - `m6h_execution_summary.json`.
+3. Fail-closed gate:
+   - any `M6P7-B*` blocker prevents `M6.I` advancement.
 
 ### P7.B P7 Gate Rollup + Verdict + M6 Closure Inputs (M6.I)
 Goal:
@@ -70,6 +88,22 @@ DoD:
 - [ ] `P7` rollup matrix + blocker register committed.
 - [ ] deterministic `P7` verdict committed (`ADVANCE_TO_M7`/`HOLD_REMEDIATE`/`NO_GO_RESET_REQUIRED`).
 - [ ] `m7_handoff_pack.json` committed locally and durably.
+- [ ] fresh-authority remote execution completed with verdict `ADVANCE_TO_M7` and `next_gate=M6.J_READY`.
+
+Execution plan (authoritative lane):
+1. Dispatch `.github/workflows/dev_full_m6h_ingest_commit.yml` with:
+   - `phase_mode=m6i`,
+   - same run scope pins as `P7.A`,
+   - `upstream_m6g_execution=m6g_p6c_gate_rollup_20260225T181523Z`,
+   - `upstream_m6h_execution=<authoritative M6.H execution id>`.
+2. Require artifact set:
+   - `m6i_p7_gate_rollup_matrix.json`,
+   - `m6i_p7_blocker_register.json`,
+   - `m6i_p7_gate_verdict.json`,
+   - `m7_handoff_pack.json`,
+   - `m6i_execution_summary.json`.
+3. Fail-closed gate:
+   - any `M6P7-B*` blocker prevents M6 final closure advancement.
 
 ## 4) P7 Verification Catalog
 | Verify ID | Command template | Purpose |
