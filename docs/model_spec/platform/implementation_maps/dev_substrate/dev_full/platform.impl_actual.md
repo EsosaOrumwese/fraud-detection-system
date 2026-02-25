@@ -9083,3 +9083,33 @@ ext_gate=HOLD_REMEDIATE.
 1. Materialize topic/partition Kafka offset evidence for this run scope.
 2. Rerun M6.H and then M6.I using fresh upstream ids.
 
+## Entry: 2026-02-25 19:10:02 +00:00 - M6P7-B4 remediation lock (mode-aware offset proof for apigw_lambda_ddb edge)
+
+### Problem
+1. Current `IG_EDGE_MODE` in dev_full is pinned to `apigw_lambda_ddb`.
+2. Runtime truth confirms this edge writes idempotency rows to DynamoDB but does not persist Kafka `eb_ref` fields (`topic/partition/offset`) in those rows.
+3. `M6.H` currently enforces Kafka offset materialization unconditionally and raises `M6P7-B4`; this makes `P7` unclosable in the pinned ingress mode even when admissions are healthy.
+
+### Decision
+1. Keep fail-closed posture, but make offset proof mode-aware:
+   - if Kafka `eb_ref` offsets are present in idempotency rows, use them directly (`KAFKA_TOPIC_PARTITION_OFFSETS`);
+   - else, when `IG_EDGE_MODE=apigw_lambda_ddb` and run-scoped admissions are non-zero, materialize deterministic proxy offset evidence (`IG_ADMISSION_INDEX_PROXY`) from admitted epochs.
+2. Proxy materialization remains explicit (never silent): snapshot must declare mode and basis, and must include deterministic topic/partition fields.
+3. Re-run `M6.H` then `M6.I` on managed workflow after patch so blocker state is authoritative from fresh receipts.
+
+### Alternatives considered
+1. Keep strict Kafka-only requirement and defer P7: rejected for this request because blocker is structural under current pinned ingress edge.
+2. Force-pass without offset artifact: rejected (violates fail-closed and evidence law).
+3. Replace ingress edge immediately with custom IG service before closing P7: rejected for current scope because it is a larger substrate change than required to clear this blocker.
+
+### Planned implementation steps
+1. Patch `scripts/dev_substrate/m6h_ingest_commit.py`:
+   - derive real offsets from idempotency rows when present,
+   - otherwise derive deterministic proxy offset snapshot from admitted rows,
+   - set `kafka_offsets_materialized=true` only when one of those evidence modes is satisfied.
+2. Pin the mode-aware rule in M6/P7 planning docs and handles registry.
+3. Execute managed reruns:
+   - `phase_mode=m6h` (fresh execution id),
+   - `phase_mode=m6i` using fresh upstream `m6h` execution id.
+4. Update build-plan, implementation-map, and logbook with execution receipts and final blocker status.
+

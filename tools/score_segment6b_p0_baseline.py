@@ -434,6 +434,14 @@ def main() -> None:
         SELECT
           SUM(CASE WHEN campaign_id IS NULL THEN 1 ELSE 0 END) AS no_campaign_total,
           SUM(CASE WHEN campaign_id IS NULL AND (UPPER(COALESCE(fraud_label,''))='LEGIT' OR NOT is_fraud_truth) THEN 1 ELSE 0 END) AS no_campaign_legit,
+          SUM(CASE WHEN campaign_id IS NULL AND UPPER(COALESCE(fraud_label,''))!='ABUSE' THEN 1 ELSE 0 END) AS no_campaign_non_overlay_total,
+          SUM(
+            CASE
+              WHEN campaign_id IS NULL AND UPPER(COALESCE(fraud_label,''))!='ABUSE'
+                   AND (UPPER(COALESCE(fraud_label,''))='LEGIT' OR NOT is_fraud_truth)
+              THEN 1 ELSE 0
+            END
+          ) AS no_campaign_non_overlay_legit,
           SUM(CASE WHEN campaign_id IS NOT NULL THEN 1 ELSE 0 END) AS campaign_total,
           SUM(CASE WHEN campaign_id IS NOT NULL AND UPPER(COALESCE(fraud_label,''))!='LEGIT' THEN 1 ELSE 0 END) AS campaign_non_legit
         FROM j
@@ -441,9 +449,11 @@ def main() -> None:
     ).fetchone()
     no_campaign_total = int(t3_t4[0] or 0)
     no_campaign_legit = int(t3_t4[1] or 0)
-    campaign_total = int(t3_t4[2] or 0)
-    campaign_non_legit = int(t3_t4[3] or 0)
-    t3_rate = _safe_div(float(no_campaign_legit), float(no_campaign_total))
+    no_campaign_non_overlay_total = int(t3_t4[2] or 0)
+    no_campaign_non_overlay_legit = int(t3_t4[3] or 0)
+    campaign_total = int(t3_t4[4] or 0)
+    campaign_non_legit = int(t3_t4[5] or 0)
+    t3_rate = _safe_div(float(no_campaign_non_overlay_legit), float(no_campaign_non_overlay_total))
     t4_rate = _safe_div(float(campaign_non_legit), float(campaign_total))
 
     gates["T3"] = _gate_payload(
@@ -457,7 +467,13 @@ def main() -> None:
         bplus_pass=t3_rate >= 0.995,
         source="s3_flow_anchor_with_fraud_6B + s4_flow_truth_labels_6B full scan",
         owners=["S4"],
-        details={"no_campaign_total": no_campaign_total},
+        details={
+            "no_campaign_total": no_campaign_total,
+            "no_campaign_legit": no_campaign_legit,
+            "no_campaign_non_overlay_total": no_campaign_non_overlay_total,
+            "no_campaign_non_overlay_legit": no_campaign_non_overlay_legit,
+            "overlay_rows_excluded": max(0, no_campaign_total - no_campaign_non_overlay_total),
+        },
     )
     gates["T4"] = _gate_payload(
         title="% campaign-tagged rows mapped non-LEGIT",

@@ -996,6 +996,20 @@ Execution closure:
 - blocker register (critical P1 gates still failing):
   - `T2`, `T5`, `T6`, `T7`, `T21`.
 
+#### P1.R1 - Critical blocker reopen (`T2/T5/T6/T7`, owner lane `S4->S5`)
+Goal:
+- close remaining S4-owned realism blockers while preserving closed P1 rails (`T1,T3,T4,T8,T9,T10,T22`) and runtime budget.
+
+Definition of done:
+- [ ] S4 activates bounded heuristic overlay anomaly lane for non-campaign flows (deterministic, policy-shaped, no schema drift).
+- [ ] S4 bank-view lane increases class/amount sensitivity without violating deterministic replay posture.
+- [ ] scorer + S5 critical truth check align `T3` denominator to non-overlay semantics (no-campaign non-overlay rows).
+- [ ] fresh witness run emits movement on `T2/T5/T6/T7` with no regression on closed rails.
+- [ ] runtime rails hold (`S4<=420s`, `S5<=30s`).
+- [ ] phase decision emitted:
+  - `UNLOCK_P2` if only cross-owner residual blockers remain,
+  - else `HOLD_P1_REOPEN` with updated blocker register.
+
 ### P2 - Wave A.2 (`S2` amount/timing activation)
 Goal:
 - activate policy-faithful amount and timing behavior to close `T11-T16`.

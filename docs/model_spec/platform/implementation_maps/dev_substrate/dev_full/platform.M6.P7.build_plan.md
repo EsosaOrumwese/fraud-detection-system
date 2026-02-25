@@ -58,7 +58,7 @@ DoD:
 - [ ] fresh-authority remote execution completed with `overall_pass=true`, `blocker_count=0`, `next_gate=M6.I_READY`.
 
 Execution plan (authoritative lane):
-1. Dispatch `.github/workflows/dev_full_m6h_ingest_commit.yml` with:
+1. Dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with:
    - `phase_mode=m6h`,
    - `platform_run_id=platform_20260223T184232Z`,
    - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`,
@@ -109,7 +109,7 @@ DoD:
 - [ ] fresh-authority remote execution completed with verdict `ADVANCE_TO_M7` and `next_gate=M6.J_READY`.
 
 Execution plan (authoritative lane):
-1. Dispatch `.github/workflows/dev_full_m6h_ingest_commit.yml` with:
+1. Dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with:
    - `phase_mode=m6i`,
    - same run scope pins as `P7.A`,
    - `upstream_m6g_execution=m6g_p6c_gate_rollup_20260225T181523Z`,

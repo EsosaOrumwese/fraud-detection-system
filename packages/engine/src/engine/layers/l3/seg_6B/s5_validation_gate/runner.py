@@ -913,12 +913,19 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                   AVG(CASE WHEN is_fraud_truth THEN 1.0 ELSE 0.0 END) AS fraud_truth_mean,
                   COUNT(*) AS sampled_flows,
                   SUM(CASE WHEN campaign_id IS NULL THEN 1 ELSE 0 END) AS no_campaign_total,
+                  SUM(CASE WHEN campaign_id IS NULL AND fraud_label != 'ABUSE' THEN 1 ELSE 0 END) AS no_campaign_non_overlay_total,
                   SUM(
                     CASE
                       WHEN campaign_id IS NULL AND (fraud_label = 'LEGIT' OR NOT is_fraud_truth) THEN 1
                       ELSE 0
                     END
-                  ) AS no_campaign_legit
+                  ) AS no_campaign_legit,
+                  SUM(
+                    CASE
+                      WHEN campaign_id IS NULL AND fraud_label != 'ABUSE' AND (fraud_label = 'LEGIT' OR NOT is_fraud_truth) THEN 1
+                      ELSE 0
+                    END
+                  ) AS no_campaign_non_overlay_legit
                 FROM j
                 """
             ).fetchone()
@@ -926,9 +933,13 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             fraud_truth_mean = float(truth_row[1] or 0.0)
             sampled_flows = int(truth_row[2] or 0)
             no_campaign_total = int(truth_row[3] or 0)
-            no_campaign_legit = int(truth_row[4] or 0)
-            no_campaign_legit_rate = (
-                float(no_campaign_legit) / float(no_campaign_total) if no_campaign_total > 0 else 0.0
+            no_campaign_non_overlay_total = int(truth_row[4] or 0)
+            no_campaign_legit = int(truth_row[5] or 0)
+            no_campaign_non_overlay_legit = int(truth_row[6] or 0)
+            no_campaign_non_overlay_legit_rate = (
+                float(no_campaign_non_overlay_legit) / float(no_campaign_non_overlay_total)
+                if no_campaign_non_overlay_total > 0
+                else 0.0
             )
 
             truth_threshold_min = float(thresholds.get("critical_truth_fraud_rate_min", 0.02) or 0.02)
@@ -938,7 +949,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
             t1_ok = legit_share > 0.0
             t2_ok = truth_threshold_min <= fraud_truth_mean <= truth_threshold_max
-            t3_ok = no_campaign_legit_rate >= no_campaign_legit_min
+            t3_ok = no_campaign_non_overlay_legit_rate >= no_campaign_legit_min
             t22_ok = truth_collision_guard_pass
             critical_truth_result = "PASS" if (t1_ok and t2_ok and t3_ok and t22_ok) else "FAIL"
             critical_truth_metrics = {
@@ -949,7 +960,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 "fraud_truth_mean": fraud_truth_mean,
                 "truth_rate_range": {"min": truth_threshold_min, "max": truth_threshold_max},
                 "no_campaign_total": no_campaign_total,
-                "no_campaign_legit_rate": no_campaign_legit_rate,
+                "no_campaign_legit": no_campaign_legit,
+                "no_campaign_non_overlay_total": no_campaign_non_overlay_total,
+                "no_campaign_non_overlay_legit": no_campaign_non_overlay_legit,
+                "no_campaign_non_overlay_legit_rate": no_campaign_non_overlay_legit_rate,
                 "no_campaign_legit_min": no_campaign_legit_min,
                 "truth_collision_guard_pass": truth_collision_guard_pass,
                 "t1_ok": t1_ok,

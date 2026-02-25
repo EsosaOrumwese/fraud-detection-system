@@ -797,13 +797,34 @@ def _merchant_legit_fp_prob_expr(merchant_id_col: str = "merchant_id") -> pl.Exp
     merchant_bucket = (pl.col(merchant_id_col).cast(pl.UInt64) % pl.lit(10, dtype=pl.UInt64)).cast(pl.Int64)
     return (
         pl.when(merchant_bucket.is_in([0, 1]))
-        .then(pl.lit(0.003))
+        .then(pl.lit(0.002))
         .when(merchant_bucket.is_in([2, 3]))
-        .then(pl.lit(0.009))
-        .when(merchant_bucket.is_in([4, 5, 6]))
+        .then(pl.lit(0.008))
+        .when(merchant_bucket.is_in([4, 5]))
         .then(pl.lit(0.018))
-        .otherwise(pl.lit(0.045))
+        .when(merchant_bucket.is_in([6, 7]))
+        .then(pl.lit(0.040))
+        .otherwise(pl.lit(0.075))
     )
+
+
+def _overlay_anomaly_prob_expr(merchant_id_col: str = "merchant_id", amount_col: str = "amount") -> pl.Expr:
+    merchant_bucket = (pl.col(merchant_id_col).cast(pl.UInt64) % pl.lit(16, dtype=pl.UInt64)).cast(pl.Int64)
+    base_prob = (
+        pl.when(merchant_bucket.is_in([0, 1, 2]))
+        .then(pl.lit(0.004))
+        .when(merchant_bucket.is_in([3, 4, 5]))
+        .then(pl.lit(0.010))
+        .when(merchant_bucket.is_in([6, 7, 8, 9]))
+        .then(pl.lit(0.018))
+        .when(merchant_bucket.is_in([10, 11, 12]))
+        .then(pl.lit(0.028))
+        .otherwise(pl.lit(0.040))
+    )
+    amount_factor = ((pl.col(amount_col).clip(pl.lit(5.0), pl.lit(3500.0)) / pl.lit(200.0)).sqrt()).clip(
+        pl.lit(0.7), pl.lit(2.8)
+    )
+    return (base_prob * amount_factor).clip(pl.lit(0.002), pl.lit(0.12))
 
 
 def _ts_plus_seconds_expr(ts_expr: pl.Expr, seconds_expr: pl.Expr) -> pl.Expr:
@@ -1428,9 +1449,15 @@ def run_s4(
                     pl.col("campaign_type").fill_null("NONE")
                 )
 
-                flows = flows.with_columns(
-                    (pl.col("fraud_flag") & pl.col("campaign_id").is_null()).alias("overlay_anomaly_any"),
+                base_overlay_flag = pl.col("fraud_flag") & pl.col("campaign_id").is_null()
+                heuristic_overlay_flag = (
+                    pl.col("campaign_id").is_null()
+                    & (
+                        _uniform_expr(seed, 109, modulus, pl.col("flow_id"), pl.lit("overlay_anomaly"))
+                        < _overlay_anomaly_prob_expr("merchant_id", "amount")
+                    )
                 )
+                flows = flows.with_columns((base_overlay_flag | heuristic_overlay_flag).alias("overlay_anomaly_any"))
 
                 flows = flows.with_columns(
                     truth_label_expr.alias("truth_label"),

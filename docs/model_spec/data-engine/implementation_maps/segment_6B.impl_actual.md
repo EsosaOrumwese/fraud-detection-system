@@ -2843,3 +2843,59 @@ Reasoning trail for closure decision:
 - We did not proceed into `S2/S3/S1` adjustments despite residual fails because those are owner lanes for `P2/P3/P4`; crossing owner lanes in P1 would destroy attribution.
 - We accepted `T6` normalization drop from prior outlier (`0.858`) because that prior value behaved as unstable over-amplification; integrated witness stabilized it above P0 baseline while preserving timeline truth closure.
 - We kept fail-closed posture even though it blocks PASS because this is a hard governance requirement: structural validity cannot override critical realism failure.
+
+---
+
+### Entry: 2026-02-25 19:06
+
+P1 reopen design pin (`P1.R1`) before implementation.
+
+Problem evidence from integrated witness `b5bf984b6819472690bf9a7f50d8c692`:
+- `T2/T5/T6/T7/T21` remain blocked.
+- measured root-cause diagnostic on staged authority data:
+  - `campaign_rate = 0.000059`,
+  - `fraud_flag_rate = 0.000059`,
+  - `overlay_like_rate (campaign_id null AND fraud_flag) = 0.0`.
+- implication:
+  - current S4 truth lane has effectively zero non-campaign overlay activation,
+  - `T2` cannot reach `[0.02,0.30]` using existing semantics without explicit heuristic overlay generation.
+
+Design conflict resolved:
+- prior scorer/S5 critical truth check used `campaign_id IS NULL` denominator for `T3`.
+- documented gate intent is **non-overlay NONE rows mapped LEGIT**.
+- with explicit overlay activation, `campaign_id IS NULL` denominator is too broad and conflates overlay rows with non-overlay rows.
+
+Decision for reopen lane:
+1) S4 owner change:
+- activate bounded heuristic overlay-anomaly generation for `campaign_id IS NULL` flows using deterministic hash-uniform draws conditioned by merchant bucket + amount.
+- keep overlay generation policy-faithful to `HEURISTIC_ONLY` path by mapping these rows through existing `RULE_OVERLAY_ANOMALY_NO_CAMPAIGN -> ABUSE/FRIENDLY_FRAUD`.
+- strengthen bank-view heterogeneity through richer merchant/amount conditioning on LEGIT FP lane (still deterministic and vectorized).
+
+2) Scorer + S5 truth-gate alignment:
+- redefine `T3` denominator to **no-campaign non-overlay** posture by excluding overlay-labeled non-campaign rows (`fraud_label='ABUSE'`) from the denominator.
+- keep `T1/T2/T22` semantics unchanged.
+- keep fail-closed governance unchanged.
+
+3) Ownership and phase law:
+- reopen stays in `S4/S5` only.
+- if `T21` remains blocked after this reopen, lock owner handoff explicitly to `P2 (S2)` because `T21` branch activation depends on `T11-T16` as well as `T8-T10`.
+
+Performance design:
+- no new cross-state joins; all S4 additions remain in-column vectorized expressions.
+- no schema expansion (contracts for `s4_flow_truth_labels_6B` and `s4_flow_bank_view_6B` remain unchanged).
+- preserve runtime rails: `S4<=420s`, `S5<=30s`.
+
+Alternatives considered and rejected:
+1) Reopen `S3` immediately to increase campaign prevalence.
+- rejected for this lane; violates current phase owner boundary and attribution clarity.
+2) Threshold waiver for `T2`.
+- rejected; violates fail-closed realism law and does not fix generation defect.
+3) Add new columns to S4 outputs to carry overlay flags.
+- rejected in this lane due strict contract schemas (`additionalProperties: false`) and avoidable blast radius.
+
+Execution plan (P1.R1):
+1) patch S4 overlay + bank-risk expressions.
+2) patch scorer and S5 critical truth gate denominator semantics for non-overlay.
+3) stage fresh run-id from `b5bf...` and execute `segment6b-s4`, then `segment6b-s5`.
+4) score with merchant-class source pinned to authority local-full run.
+5) emit closure artifact + update build plan and logbook with decision.

@@ -1,47 +1,46 @@
-%%{init: {'securityLevel':'loose','flowchart':{'htmlLabels':true,'curve':'basis'}}}%%
-%% Dev Full Terraform Infrastructure (Icon Label Variant)
+%% Dev Full Terraform Infrastructure (Stack Topology + Key Resources)
 flowchart LR
 
-  GHA["<img src='../../assets/icons/tools/github_actions.svg' width='20'/><br/><b>GitHub Actions / Operator CLI</b><br/>terraform init, plan, apply by stack"]
+  GHA[GitHub Actions / Operator CLI<br/>terraform init plan apply by stack]
 
-  subgraph CORE[Stack: dev_full/core]
-    CORE_NET["<img src='../../assets/icons/aws/vpc.svg' width='20'/><br/><b>Network Baseline</b><br/>VPC, public/private subnets, route tables, IGW"]
-    CORE_SG["<img src='../../assets/icons/aws/iam.svg' width='20'/><br/><b>MSK Client Security Group</b>"]
-    CORE_KMS["<img src='../../assets/icons/aws/kms.svg' width='20'/><br/><b>KMS Key + Alias</b><br/>platform encryption root"]
-    CORE_S3["<img src='../../assets/icons/aws/s3.svg' width='20'/><br/><b>S3 Buckets</b><br/>object_store, evidence, artifacts"]
-    CORE_IAM["<img src='../../assets/icons/aws/iam.svg' width='20'/><br/><b>IAM Baseline</b><br/>EKS nodegroup + runtime base roles"]
-    CORE_STATE["<img src='../../assets/icons/tools/tfstate.svg' width='20'/><br/><b>State Key</b><br/>dev_full/core/terraform.tfstate"]
+  subgraph CORE[Stack dev_full/core]
+    CORE_NET[(Network baseline<br/>VPC public/private subnets route tables IGW)]
+    CORE_SG[MSK client security group]
+    CORE_KMS[KMS key + alias<br/>platform encryption root]
+    CORE_S3[(S3 buckets<br/>object_store evidence artifacts)]
+    CORE_IAM[IAM baseline<br/>EKS nodegroup + runtime base roles]
+    CORE_STATE[[state key<br/>dev_full/core/terraform.tfstate]]
   end
 
-  subgraph STREAMING[Stack: dev_full/streaming]
-    STREAM_MSK["<img src='../../assets/icons/aws/msk.svg' width='20'/><br/><b>MSK Serverless</b><br/>SASL IAM posture"]
-    STREAM_GLUE["<img src='../../assets/icons/aws/glue.svg' width='20'/><br/><b>Glue Registry</b><br/>anchor schema + compatibility mode"]
-    STREAM_SSM["<img src='../../assets/icons/aws/ssm.svg' width='20'/><br/><b>SSM Parameter</b><br/>MSK bootstrap brokers"]
-    STREAM_STATE["<img src='../../assets/icons/tools/tfstate.svg' width='20'/><br/><b>State Key</b><br/>dev_full/streaming/terraform.tfstate"]
+  subgraph STREAMING[Stack dev_full/streaming]
+    STREAM_MSK[(MSK Serverless cluster<br/>SASL IAM posture)]
+    STREAM_GLUE[(Glue registry + anchor schema<br/>compatibility mode)]
+    STREAM_SSM[(SSM parameter<br/>MSK bootstrap brokers)]
+    STREAM_STATE[[state key<br/>dev_full/streaming/terraform.tfstate]]
   end
 
-  subgraph RUNTIME[Stack: dev_full/runtime]
-    RT_EDGE["<img src='../../assets/icons/aws/apigateway.svg' width='20'/><br/><b>IG Edge Plane</b><br/>API Gateway + Lambda + DynamoDB idempotency + SQS DLQ"]
-    RT_SFN["<img src='../../assets/icons/aws/stepfunctions.svg' width='20'/><br/><b>Step Functions</b><br/>platform_run_orchestrator"]
-    RT_EKS["<img src='../../assets/icons/aws/eks.svg' width='20'/><br/><b>EKS Runtime Plane</b><br/>cluster + m6f node group + OIDC/IRSA"]
-    RT_EP["<img src='../../assets/icons/aws/vpc.svg' width='20'/><br/><b>Private Endpoints</b><br/>ec2, ecr.api, ecr.dkr, sts, s3 gateway"]
-    RT_IAM["<img src='../../assets/icons/aws/iam.svg' width='20'/><br/><b>Runtime IAM Roles</b><br/>flink, lambda_ig, apigw_invoke, ddb_rw, step_functions"]
-    RT_SSM["<img src='../../assets/icons/aws/ssm.svg' width='20'/><br/><b>SSM Parameter</b><br/>ig_api_key"]
-    RT_STATE["<img src='../../assets/icons/tools/tfstate.svg' width='20'/><br/><b>State Key</b><br/>dev_full/runtime/terraform.tfstate"]
+  subgraph RUNTIME[Stack dev_full/runtime]
+    RT_EDGE[(IG edge plane<br/>API Gateway v2 + Lambda +<br/>DynamoDB idempotency + SQS DLQ)]
+    RT_SFN[Step Functions<br/>platform_run_orchestrator]
+    RT_EKS[(EKS runtime plane<br/>cluster + m6f node group<br/>OIDC + IRSA roles)]
+    RT_EP[Private subnet endpoints<br/>ec2 ecr.api ecr.dkr sts + s3 gateway]
+    RT_IAM[Runtime IAM roles<br/>flink lambda_ig apigw_invoke ddb_rw step_functions]
+    RT_SSM[(SSM parameter<br/>ig_api_key)]
+    RT_STATE[[state key<br/>dev_full/runtime/terraform.tfstate]]
   end
 
-  subgraph DATAML[Stack: dev_full/data_ml]
-    DML_ROLES["<img src='../../assets/icons/aws/sagemaker.svg' width='20'/><br/><b>Data/ML IAM Roles</b><br/>sagemaker_execution + databricks_cross_account_access"]
-    DML_SSM["<img src='../../assets/icons/aws/ssm.svg' width='20'/><br/><b>SSM Parameters</b><br/>databricks URL/token, mlflow URI, sagemaker role arn"]
-    DML_STATE["<img src='../../assets/icons/tools/tfstate.svg' width='20'/><br/><b>State Key</b><br/>dev_full/data_ml/terraform.tfstate"]
+  subgraph DATAML[Stack dev_full/data_ml]
+    DML_ROLES[IAM roles<br/>sagemaker_execution<br/>databricks_cross_account_access]
+    DML_SSM[(SSM parameters<br/>databricks URL/token<br/>mlflow URI sagemaker role arn)]
+    DML_STATE[[state key<br/>dev_full/data_ml/terraform.tfstate]]
   end
 
-  subgraph OPS[Stack: dev_full/ops]
-    OPS_ROLE["<img src='../../assets/icons/aws/mwaa.svg' width='20'/><br/><b>IAM Role</b><br/>mwaa_execution"]
-    OPS_SSM["<img src='../../assets/icons/aws/ssm.svg' width='20'/><br/><b>SSM Parameters</b><br/>mwaa webserver, aurora endpoints/creds, redis endpoint"]
-    OPS_CW["<img src='../../assets/icons/aws/cloudwatch.svg' width='20'/><br/><b>CloudWatch Log Group</b><br/>runtime_bootstrap"]
-    OPS_GHA["<img src='../../assets/icons/tools/github_actions.svg' width='20'/><br/><b>GitHub Actions Remote Policy</b><br/>github_actions_m6f_remote"]
-    OPS_STATE["<img src='../../assets/icons/tools/tfstate.svg' width='20'/><br/><b>State Key</b><br/>dev_full/ops/terraform.tfstate"]
+  subgraph OPS[Stack dev_full/ops]
+    OPS_ROLE[IAM role<br/>mwaa_execution]
+    OPS_SSM[(SSM parameters<br/>mwaa webserver aurora endpoints/creds redis endpoint)]
+    OPS_CW[(CloudWatch log group<br/>runtime_bootstrap)]
+    OPS_GHA[GitHub Actions remote policy<br/>github_actions_m6f_remote]
+    OPS_STATE[[state key<br/>dev_full/ops/terraform.tfstate]]
   end
 
   GHA -->|apply core| CORE_NET
