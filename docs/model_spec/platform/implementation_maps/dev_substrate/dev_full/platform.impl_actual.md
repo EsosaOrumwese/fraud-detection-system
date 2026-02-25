@@ -8824,3 +8824,29 @@ ext_gate=HOLD_REMEDIATE.
    - existing `platform_run_id/scenario_run_id`.
 3. Validate fail-closed verdict from emitted artifacts.
 4. Update `platform.M6.P6.build_plan.md`, `platform.M6.build_plan.md`, and `platform.build_plan.md` based on outcome.
+
+## Entry: 2026-02-25 17:16:30 +00:00 - M6.F fallback execution diagnostics (`EKS_FLINK_OPERATOR`) and runtime-image remediation
+
+### Execution trail and observed blockers
+1. First fallback run (`22407300111`) failed at submit due IAM:
+   - OIDC role lacked `eks:DescribeCluster` needed by `aws eks update-kubeconfig`.
+2. IAM remediated on role `GitHubAction-AssumeRoleWithAction` by extending inline policy `GitHubActionsM6FRemoteDevFull` to include `eks:DescribeCluster`.
+3. Second fallback run (`22407391500`) failed at submit due Kubernetes auth:
+   - role not mapped in cluster auth config, kubectl returned `server has asked for credentials`.
+4. Cluster auth remediated by adding role mapping in `kube-system/aws-auth`:
+   - `arn:aws:iam::230372904534:role/GitHubAction-AssumeRoleWithAction` -> `system:masters` (dev_full operational unblock).
+5. Third fallback run (`22407468477`) executed end-to-end and emitted full `m6f_*` artifacts, but fail-closed verdict stayed red:
+   - blockers: `M6P6-B2/B3/B4`,
+   - lane states stayed `Pending` for full probe window.
+
+### Root cause analysis for `Pending`
+1. Direct cluster diagnostics with equivalent job spec showed pods reach `ImagePullBackOff`:
+   - attempted image: `python:3.12-slim` from Docker Hub,
+   - error: timeout reaching `registry-1.docker.io` from private worker node posture.
+2. This explains why fallback jobs stayed `Pending` during workflow probe and produced no run-window admissions.
+
+### Decision and remediation
+1. Replace Docker Hub image in fallback jobs with pinned dev_full ECR image (private, endpoint-reachable):
+   - `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:49eb6cb0c5e33061fae4d1aaceeac2e44600adb5c4250436be9ac8395ed29cb2`.
+2. Add workflow handle input `lane_worker_image_uri` (default pinned to digest above) and wire both fallback job specs to this image.
+3. Keep strict `M6.F` capture semantics unchanged; this is runtime materialization remediation only.
