@@ -647,17 +647,14 @@ M6 planning posture:
 - `M6.E` is now closed green on the repinned EKS/EMR path (`m6e_p6a_stream_entry_20260225T120522Z`) after materializing:
   - `EMR_EKS_VIRTUAL_CLUSTER_ID=3cfszbpz28ixf1wmmd2roj571`,
   - `EMR_EKS_RELEASE_LABEL=emr-6.15.0-latest`.
-- `M6.F` authoritative no-laptop-compute closure is now green (`m6f_p6b_streaming_active_20260225T152755Z`) via GitHub Actions run `22403542013` on `migrate-dev`:
-  - OIDC remote-runner execution path is satisfied (no local-control lane used for authority closure),
-  - blocker register is zero (`M6P6-B2/B3/B4` cleared),
-  - `overall_pass=true`, `next_gate=M6.G_READY`,
-  - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T152755Z/`,
-  - prior local rerun `m6f_p6b_streaming_active_20260225T143900Z` is retained as provisional remediation evidence only.
-- `M6.G` authoritative no-laptop-compute gate rollup is now green (`m6g_p6c_gate_rollup_20260225T155035Z`) via GitHub Actions run `22404445249` on `migrate-dev`:
-  - `overall_pass=true`, `blocker_count=0`,
-  - verdict `ADVANCE_TO_P7`,
-  - `next_gate=M6.H_READY`,
-  - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T155035Z/`.
+- Strict-semantic rerun reopened `M6.F` fail-closed (`m6f_p6b_streaming_active_20260225T163455Z`, run `22406210783`):
+  - `RUNNING`-only active check now enforced,
+  - run-window admission progression now enforced,
+  - measured lag source now enforced (no legacy proxy),
+  - blockers active: `M6P6-B2/B3/B4`,
+  - `overall_pass=false`, `next_gate=HOLD_REMEDIATE`,
+  - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T163455Z/`.
+- `M6.G` prior green receipt (`m6g_p6c_gate_rollup_20260225T155035Z`, run `22404445249`) is now historical only until strict-semantic `M6.F` returns zero blockers.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
@@ -665,8 +662,8 @@ M6 sub-phase progress:
 - [x] `M6.C` `P5` READY commit authority execution.
 - [x] `M6.D` `P5` gate rollup + verdict.
 - [x] `M6.E` `P6` entry/stream activation precheck.
-- [x] `M6.F` `P6` streaming-active + lag + ambiguity closure.
-- [x] `M6.G` `P6` gate rollup + verdict.
+- [ ] `M6.F` `P6` streaming-active + lag + ambiguity closure.
+- [ ] `M6.G` `P6` gate rollup + verdict.
 - [ ] `M6.H` `P7` ingest-commit execution.
 - [ ] `M6.I` `P7` gate rollup + M6 verdict + M7 handoff.
 - [ ] `M6.J` M6 closure sync (docs/cost-outcome/evidence index).
@@ -833,4 +830,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M6.H` (`P7` ingest commit closure) using `M6.G` authority `m6g_p6c_gate_rollup_20260225T155035Z` (`ADVANCE_TO_P7`, `M6.H_READY`) as the entry gate.
+- Resolve strict-semantic `M6.F` blockers (`M6P6-B2/B3/B4`) from execution `m6f_p6b_streaming_active_20260225T163455Z` and rerun `M6.F` to zero-blocker before any `M6.G/M6.H` advancement.

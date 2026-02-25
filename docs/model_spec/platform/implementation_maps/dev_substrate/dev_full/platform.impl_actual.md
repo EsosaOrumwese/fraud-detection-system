@@ -8752,3 +8752,42 @@ ow_epoch - latest_admitted_at_epoch) from run-window admissions.
 2. Resulting behavior:
    - if refs do not reach RUNNING, run still emits m6f_streaming_active_snapshot + blockers,
    - phase closure remains blocked by verdict gate with explicit blocker set.
+
+## Entry: 2026-02-25 16:40:21 +00:00 - M6.F strict-semantic rerun executed; phase reopened fail-closed
+
+### Remote execution receipt
+1. Workflow: .github/workflows/dev_full_m6f_streaming_active.yml
+2. Run id: 22406210783 (ref migrate-dev)
+3. Execution id: m6f_p6b_streaming_active_20260225T163455Z
+4. Outcome: overall_pass=false, locker_count=3, 
+ext_gate=HOLD_REMEDIATE.
+
+### Produced artifact proof (strict semantics)
+1. m6f_streaming_active_snapshot.json now carries strict surfaces:
+   - wsp_state=SUBMITTED, sr_ready_state=SUBMITTED,
+   - wsp_active_count=0, sr_ready_active_count=0 (RUNNING-only gate),
+   - ig_idempotency_scope=platform_run_id + admitted_at_epoch>=lane_window_start_epoch.
+2. m6f_streaming_lag_posture.json now reports measured-source posture:
+   - measurement_source=unavailable_no_run_window_admissions,
+   - measured_lag=null, within_threshold=false.
+3. m6f_blocker_register.json blockers:
+   - M6P6-B2 refs not RUNNING,
+   - M6P6-B3 run-window progression zero,
+   - M6P6-B4 lag unresolved without admissions.
+
+### Runtime diagnostics captured during remediation
+1. Direct EMR diagnostics (manual bounded submits) repeatedly showed SUBMITTED with state details:
+   - Job controller pod is running but spark driver pod does not exist,
+   - Neither job controller pod nor spark driver pod exist.
+2. Diagnostic cluster checks:
+   - EKS nodegroup was tested at desired=2 (temporary) and still reproduced missing driver-pod behavior.
+   - This ruled out simple single-node capacity as sole cause.
+3. Cost-control cleanup performed:
+   - all diagnostic EMR runs cancelled,
+   - nodegroup returned to baseline scaling (min=1,max=2,desired=1),
+   - no RUNNING/PENDING/SUBMITTED EMR jobs remain on VC after cleanup check.
+
+### Gate decision
+1. M6.F is reopened and fail-closed under strict semantics.
+2. Prior M6.F/M6.G green receipts remain historical only and cannot be used as active authority for M6.H entry.
+3. Next remediation target is root-cause resolution for missing spark driver pod materialization in EMR-on-EKS lane.

@@ -316,6 +316,22 @@ Refined remediation DoD (M6.F blocker-closure lane):
 - [x] `M6P6-B3` remains clear in rerun validation evidence.
 - [x] rerun `m6f_*` artifacts are published in workflow artifacts and durably.
 
+Strict-semantic rerun status (2026-02-25, supersedes closure claim above):
+1. Remote rerun (workflow run `22406210783`, execution `m6f_p6b_streaming_active_20260225T163455Z`) executed with:
+   - `RUNNING`-only active-state semantics,
+   - run-window-scoped admission progression,
+   - measured lag source from admissions (not active-ref proxy).
+2. Result:
+   - `overall_pass=false`,
+   - `blocker_count=3`,
+   - `next_gate=HOLD_REMEDIATE`.
+3. Active blockers:
+   - `M6P6-B2` refs stayed `SUBMITTED`,
+   - `M6P6-B3` run-window progression `0`,
+   - `M6P6-B4` lag unavailable without admissions.
+4. Gate posture:
+   - `M6.F` is reopened fail-closed; prior zero-blocker run remains historical/provisional under weaker semantics.
+
 Rerun closure status (2026-02-25):
 1. Provisional local remediator run completed:
    - `m6f_p6b_streaming_active_20260225T143900Z`,
@@ -462,8 +478,8 @@ Any active `M6-B*` blocker prevents M6 closure.
 - [x] M6.C complete
 - [x] M6.D complete
 - [x] M6.E complete
-- [x] M6.F complete
-- [x] M6.G complete
+- [ ] M6.F complete
+- [ ] M6.G complete
 - [ ] M6.H complete
 - [ ] M6.I complete
 - [ ] M6.J complete
@@ -494,5 +510,5 @@ Handoff posture:
 6. `M6.C` is closed green (`m6c_p5b_ready_commit_20260225T041702Z`) with `M6.D_READY`.
 7. `M6.D` is closed green (`m6d_p5c_gate_rollup_20260225T041801Z`) with verdict `ADVANCE_TO_P6` and `M6.E_READY`.
 8. `M6.E` is closed green (`m6e_p6a_stream_entry_20260225T120522Z`) with `M6.F_READY`.
-9. `M6.F` fail-closed attempt (`m6f_p6b_streaming_active_20260225T121536Z`) was remediated with local provisional rerun `m6f_p6b_streaming_active_20260225T143900Z` and then closed authoritatively on remote rerun `m6f_p6b_streaming_active_20260225T152755Z` (workflow run `22403542013`, `blocker_count=0`, `M6.G_READY`).
-10. `M6.G` is now closed green on remote authoritative rollup `m6g_p6c_gate_rollup_20260225T155035Z` (workflow run `22404445249`) with `blocker_count=0`, verdict `ADVANCE_TO_P7`, and `next_gate=M6.H_READY`.
+9. `M6.F` historical closure (`m6f_p6b_streaming_active_20260225T152755Z`, run `22403542013`) has been reopened under strict-semantic rerun `m6f_p6b_streaming_active_20260225T163455Z` (run `22406210783`) with fail-closed blockers `M6P6-B2/B3/B4`.
+10. `M6.G` historical rollup (`m6g_p6c_gate_rollup_20260225T155035Z`, run `22404445249`) is not current authority while strict-semantic `M6.F` remains blocker-open.

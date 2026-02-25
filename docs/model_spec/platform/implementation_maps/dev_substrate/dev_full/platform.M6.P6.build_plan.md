@@ -91,11 +91,11 @@ Tasks:
    - evidence write-rate.
 
 DoD:
-- [x] streaming counters show active run-scoped flow.
-- [x] lag is within accepted threshold.
-- [x] ambiguity register is empty.
-- [x] evidence-overhead posture is within budget target.
-- [x] `m6f_streaming_active_snapshot.json` and `m6f_evidence_overhead_snapshot.json` are present in workflow artifacts and durable evidence storage.
+- [ ] streaming counters show active run-scoped flow.
+- [ ] lag is within accepted threshold.
+- [ ] ambiguity register is empty.
+- [ ] evidence-overhead posture is within budget target.
+- [ ] `m6f_streaming_active_snapshot.json` and `m6f_evidence_overhead_snapshot.json` are present in workflow artifacts and durable evidence storage.
 
 Execution status (2026-02-25):
 1. Executed authoritative `M6.F` lane:
@@ -175,6 +175,25 @@ Rerun closure status (2026-02-25):
    - workflow artifact set: `m6f-streaming-active-20260225T152755Z`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T152755Z/`
 
+Strict-semantic rerun status (2026-02-25, supersedes closure claim above):
+1. Remote rerun (workflow run `22406210783`, execution `m6f_p6b_streaming_active_20260225T163455Z`) executed with:
+   - `RUNNING`-only active-state check,
+   - run-window-scoped admission progression (`platform_run_id + admitted_at_epoch window`),
+   - measured lag source (`ig_admission_freshness_seconds` or explicit unavailable reason), not legacy proxy.
+2. Result:
+   - `overall_pass=false`,
+   - `blocker_count=3`,
+   - `next_gate=HOLD_REMEDIATE`.
+3. Active blockers:
+   - `M6P6-B2`: refs stayed `SUBMITTED` (`wsp_state=SUBMITTED`, `sr_ready_state=SUBMITTED`),
+   - `M6P6-B3`: run-window admission progression `0`,
+   - `M6P6-B4`: lag unavailable due no run-window admissions.
+4. Evidence:
+   - workflow artifact set: `m6f-streaming-active-20260225T163455Z`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T163455Z/`.
+5. Gate posture:
+   - `P6` is fail-closed and reopened; do not execute/claim `M6.G` as active authority until strict-semantic `M6.F` rerun is blocker-free.
+
 ### P6.C P6 Gate Rollup + Verdict (M6.G)
 Goal:
 1. adjudicate `P6` from P6.A/P6.B evidence.
@@ -185,8 +204,8 @@ Tasks:
 3. emit `m6g_p6_gate_verdict.json`.
 
 DoD:
-- [x] rollup matrix + blocker register committed.
-- [x] deterministic verdict committed (`ADVANCE_TO_P7`/`HOLD_REMEDIATE`/`NO_GO_RESET_REQUIRED`).
+- [ ] rollup matrix + blocker register committed.
+- [ ] deterministic verdict committed (`ADVANCE_TO_P7`/`HOLD_REMEDIATE`/`NO_GO_RESET_REQUIRED`).
 
 Execution status (2026-02-25):
 1. Remote authoritative execution:
@@ -202,6 +221,8 @@ Execution status (2026-02-25):
 3. Evidence:
    - workflow artifact set: `m6g-p6-gate-rollup-20260225T155035Z`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T155035Z/`
+4. Gate note:
+   - this rollup remains historical only after strict-semantic `M6.F` reopened fail-closed on run `22406210783`.
 
 ## 4) P6 Verification Catalog
 | Verify ID | Command template | Purpose |
