@@ -1033,20 +1033,20 @@ Goal:
 - close `T5` (`Cramer's V(bank_view_outcome, merchant_class) >= 0.05`) via S4 design-level changes, not coefficient-only retuning.
 
 Definition of done:
-- [ ] redesign authority pinned:
+- [x] redesign authority pinned:
   - explicit lane objective limited to `T5` closure with non-regression on `T2,T6,T7,T8,T9,T10,T22`,
   - no threshold waivers.
-- [ ] external merchant-class surface is explicitly integrated into S4 decisioning path (deterministic join), replacing proxy-only class approximation as primary conditioning source.
-- [ ] bank-view outcome generation is redesigned to class-conditioned outcome-mix transitions (not only class-conditioned fraud detection).
-- [ ] unknown/unmatched class handling is explicit and fail-closed auditable (no silent collapse to homogeneous behavior).
-- [ ] witness matrix (fresh staged run-ids) demonstrates:
+- [x] external merchant-class surface is explicitly integrated into S4 decisioning path (deterministic join), replacing proxy-only class approximation as primary conditioning source.
+- [x] bank-view outcome generation is redesigned to class-conditioned outcome-mix transitions (not only class-conditioned fraud detection).
+- [x] unknown/unmatched class handling is explicit and fail-closed auditable (no silent collapse to homogeneous behavior).
+- [x] witness matrix (fresh staged run-ids) demonstrates:
   - `T5 >= 0.05` (`B`),
   - `T2` stays in `[0.02,0.30]`,
   - `T6 >= 0.05`,
   - `T7 >= 0.03`,
   - no regression on already-closed rails (`T1,T3,T4,T8,T9,T10,T22`).
-- [ ] runtime rails hold or improve with explicit evidence (`S4<=420s`, `S5<=30s`); any breach blocks promotion.
-- [ ] phase decision emitted:
+- [x] runtime rails hold or improve with explicit evidence (`S4<=420s`, `S5<=30s`); any breach blocks promotion.
+- [x] phase decision emitted:
   - `UNLOCK_P2` when `T5` is closed and only cross-owner residual blockers remain (`T21` via `S2`),
   - else `HOLD_P1_REOPEN` with redesign blocker register.
 
@@ -1068,6 +1068,24 @@ Planned subphases:
 - `P1.R2.4` Closure decision and owner handoff
   - if `T5` closes: mark P1 closure for S4-owned blockers and hand off `T21` residual to `P2/S2`,
   - if `T5` remains open: publish saturation evidence and propose next higher-owner reopen options.
+
+Execution closure:
+- witness run-id: `5459d5b68a1344d9870f608a41624448` (staged from `e9de4f7c7f514ed1a1dc0d29b08f1d4f`).
+- closure artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p1_r2_closure_5459d5b68a1344d9870f608a41624448.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p1_r2_closure_5459d5b68a1344d9870f608a41624448.md`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_5459d5b68a1344d9870f608a41624448.json`.
+- scorer posture (vs prior `e9de...`):
+  - `T5`: `0.027398` -> `0.067973` (`FAIL -> PASS`),
+  - `T7`: `0.039255` -> `0.068842` (`PASS -> PASS`, improved),
+  - `T6`: `0.120539` -> `0.118064` (`PASS`, non-regressed),
+  - `T2`: `0.022420` -> `0.022420` (`PASS`, stable),
+  - closed rails hold: `T1,T3,T4,T8,T9,T10,T22` all `PASS`.
+- runtime rails:
+  - `S4=416.14s` (`<=420s` PASS),
+  - `S5=20.28s` (`<=30s` PASS).
+- phase decision:
+  - `UNLOCK_P2` (`S4` owner blocker `T5` closed; residual hard blockers are `S2`-owned plus cross-owner `T21`).
 
 ### P2 - Wave A.2 (`S2` amount/timing activation)
 Goal:

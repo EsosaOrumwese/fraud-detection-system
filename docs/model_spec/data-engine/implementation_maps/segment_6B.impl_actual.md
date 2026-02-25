@@ -3145,3 +3145,52 @@ Guardrails preserved:
 
 Next step pinned:
 - execute fresh staged witness from `e9de...` and evaluate `T5` plus non-regression rail set.
+
+---
+
+### Entry: 2026-02-25 20:28
+
+P1.R2.2/P1.R2.3 execution and witness closure.
+
+Run lane:
+- staged fresh witness run-id `5459d5b68a1344d9870f608a41624448` from authority `e9de4f7c7f514ed1a1dc0d29b08f1d4f`.
+- executed `S4` then `S5`, then scored with pinned external sources.
+
+Issue encountered and resolved in-lane:
+- first S4 attempt failed fail-closed (`S4_PRECONDITION_MERCHANT_CLASS_PROFILE_MISSING`).
+- root cause: class-profile glob patterns required `parameter_hash` partition that `merchant_class_profile_5A` does not carry in local-full path.
+- remediation:
+  - widened resolver + policy globs to include manifest-only merchant class profile paths.
+- rerun succeeded immediately after patch.
+
+Witness evidence (`5459...`):
+- `T5=0.067973` (`PASS`, target `>=0.05`) [from `0.027398` in `e9de...`].
+- `T7=0.068842` (`PASS`, improved from `0.039255`).
+- `T6=0.118064` (`PASS`, slight decrease vs `0.120539`, still above gate).
+- `T2=0.022420` (`PASS`, unchanged).
+- closed rails preserved:
+  - `T1,T3,T4,T8,T9,T10,T22` all remain `PASS`.
+- residual hard failures after redesign:
+  - `T11,T13,T14,T15,T16,T21` (owner lanes `S2` + cross-owner branch coverage).
+
+Runtime evidence:
+- `S4=416.14s` (`<=420s`, pass but close to rail).
+- `S5=20.28s` (`<=30s`, pass).
+
+P1.R2 phase decision:
+- `UNLOCK_P2`.
+- rationale: S4-owned blocker `T5` is closed; remaining critical blockers are outside S4 primary ownership.
+
+Operational note:
+- class profile load logged `rows=886, classes=8`, indicating source profile is sparse in current authority surface.
+- despite sparsity, explicit class-conditioning achieved required `T5` association closure.
+
+### Entry: 2026-02-25 20:33
+
+P1.R2 closure artifacts emitted.
+
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p1_r2_closure_5459d5b68a1344d9870f608a41624448.json`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p1_r2_closure_5459d5b68a1344d9870f608a41624448.md`
+
+Purpose:
+- provide a compact phase-level receipt linking redesigned S4 witness (`5459...`) to prior baseline (`e9de...`) with gate deltas and `UNLOCK_P2` decision.
