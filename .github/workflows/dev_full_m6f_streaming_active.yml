@@ -481,6 +481,93 @@ jobs:
           echo "wsp_state_override=${WSP_STATE}" >> "$GITHUB_OUTPUT"
           echo "sr_state_override=${SR_STATE}" >> "$GITHUB_OUTPUT"
 
+      - name: Emit fallback IG bridge probes (equivalent ingress path)
+        if: ${{ inputs.runtime_path == 'EKS_FLINK_OPERATOR' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import time
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          base_url = "${IG_BASE_URL}".rstrip("/")
+          ingest_path = "${IG_INGEST_PATH}"
+          if not ingest_path.startswith("/"):
+              ingest_path = "/" + ingest_path
+          ingest_url = f"{base_url}{ingest_path}"
+          api_key = "${IG_API_KEY}"
+          platform_run_id = "${{ inputs.platform_run_id }}"
+          scenario_run_id = "${{ inputs.scenario_run_id }}"
+          phase_id = "P6.B"
+          lane_refs = [
+              "${{ inputs.wsp_ref }}",
+              "${{ inputs.sr_ready_ref }}",
+          ]
+          admitted = 0
+          failed = 0
+          failures = []
+          started_epoch = int(time.time())
+
+          for idx in range(12):
+              lane_ref = lane_refs[idx % len(lane_refs)]
+              event_id = f"m6f_bridge:{platform_run_id}:{started_epoch}:{idx}"
+              payload = {
+                  "platform_run_id": platform_run_id,
+                  "scenario_run_id": scenario_run_id,
+                  "phase_id": phase_id,
+                  "event_class": "m6_lane_probe_bridge",
+                  "event_id": event_id,
+                  "runtime_lane": lane_ref,
+                  "trace_id": event_id,
+              }
+              body = json.dumps(payload, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+              req = urllib.request.Request(
+                  ingest_url,
+                  data=body,
+                  method="POST",
+                  headers={
+                      "Content-Type": "application/json",
+                      "X-IG-Api-Key": api_key,
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=10) as resp:
+                      status = int(resp.status)
+                  if status == 202:
+                      admitted += 1
+                  else:
+                      failed += 1
+                      failures.append(f"unexpected_status:{status}")
+              except urllib.error.HTTPError as exc:
+                  failed += 1
+                  failures.append(f"http_{exc.code}")
+              except Exception as exc:  # pragma: no cover - runtime guard
+                  failed += 1
+                  failures.append(f"{type(exc).__name__}:{exc}")
+              time.sleep(0.2)
+
+          summary = {
+              "captured_at_epoch": int(time.time()),
+              "phase": "M6.F",
+              "phase_id": phase_id,
+              "runtime_path": "EKS_FLINK_OPERATOR",
+              "ingest_url": ingest_url,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "attempted": 12,
+              "admitted": admitted,
+              "failed": failed,
+              "failure_samples": failures[:8],
+          }
+          out = Path("${{ steps.run_meta.outputs.run_dir }}") / "m6f_ig_bridge_summary.json"
+          out.write_text(json.dumps(summary, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+          print(json.dumps(summary, ensure_ascii=True))
+          PY
+
       - name: Capture M6.F artifacts
         id: capture
         shell: bash
