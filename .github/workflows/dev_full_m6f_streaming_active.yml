@@ -34,6 +34,11 @@ on:
         required: false
         default: ""
         type: string
+      upstream_m6g_execution:
+        description: "Upstream M6.G execution id used by M6.H/M6.I lanes"
+        required: false
+        default: ""
+        type: string
       upstream_m6h_execution:
         description: "Upstream M6.H execution id used by M6.I rollup (required when phase_mode=m6i)"
         required: false
