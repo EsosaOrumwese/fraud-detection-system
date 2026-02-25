@@ -99,6 +99,21 @@ This is a hard law for all implementation work (platform services, pipelines, jo
 
 ---
 
+## 2.7) Cost-Control Law (binding, platformwide)
+This is a hard law for all platform implementation and execution work. "Green" is invalid if spend discipline is missing.
+
+- **Cost efficiency is a first-class acceptance criterion:** success means "works correctly" and "works without avoidable spend."
+- **Cost-to-outcome proof is mandatory per phase:** each active phase must publish a spend envelope before execution and a closure receipt that maps spend to concrete proof/decision outcomes.
+- **Default idle-safe posture is mandatory:** non-active runtime lanes must remain stopped (`desired_count=0` or equivalent).
+- **Ephemeral execution over always-on is default:** use one-shot/job posture for non-daemon lanes unless explicit always-on justification is pinned.
+- **Auto-teardown is mandatory for dev windows:** idle environments must have bounded lifetime and deterministic teardown path.
+- **Right-sizing is mandatory:** CPU/memory/storage must be tuned from observed usage (p95/p99 posture), not generous static defaults.
+- **Cross-platform billing visibility is mandatory:** daily posture must include all active cost surfaces for the track (at minimum AWS; plus Confluent/Databricks when in scope).
+- **Fail-closed on unattributed or unexplained spend:** if cost appears without a mapped lane/outcome, stop phase advancement and remediate before proceeding.
+- **Cost exceptions require explicit USER approval:** any temporary cost waiver must be time-bounded, reasoned, and recorded in build plan + implementation map + logbook.
+
+---
+
 ## Platform implementation maps (mandatory, detail-first)
 - For any platform component work, create/append a component implementation map at:
   `docs\model_spec\platform\implementation_maps\dev_substrate\{TRACK}\{COMP}.impl_actual.md`.
