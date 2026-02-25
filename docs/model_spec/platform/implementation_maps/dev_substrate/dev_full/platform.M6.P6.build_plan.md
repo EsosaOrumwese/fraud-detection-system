@@ -97,6 +97,25 @@ DoD:
 - [ ] evidence-overhead posture is within budget target.
 - [ ] `m6f_streaming_active_snapshot.json` and `m6f_evidence_overhead_snapshot.json` committed locally and durably.
 
+Execution status (2026-02-25):
+1. Executed authoritative `M6.F` lane:
+   - `m6f_p6b_streaming_active_20260225T121536Z`,
+   - local: `runs/dev_substrate/dev_full/m6/m6f_p6b_streaming_active_20260225T121536Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T121536Z/`.
+2. Result:
+   - `overall_pass=false`,
+   - blocker count `3`,
+   - `next_gate=HOLD_REMEDIATE`.
+3. Blockers:
+   - `M6P6-B2`: required Flink lane refs not active in EMR VC (`wsp_active=0`, `sr_ready_active=0`),
+   - `M6P6-B3`: streaming/admission counters show no active flow (`IG idempotency count=0`),
+   - `M6P6-B4`: lag posture unresolved because active stream consumption is absent.
+4. Non-blocking checks:
+   - `M6P6-B5` clear (`unresolved_publish_ambiguity_count=0`),
+   - evidence-overhead budget posture passed (`m6f_evidence_overhead_snapshot.json`).
+5. Remediation gate:
+   - `M6.G` remains blocked until `M6P6-B2/B3/B4` are cleared with a fresh `M6.F` rerun.
+
 ### P6.C P6 Gate Rollup + Verdict (M6.G)
 Goal:
 1. adjudicate `P6` from P6.A/P6.B evidence.

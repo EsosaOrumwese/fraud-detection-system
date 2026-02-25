@@ -1923,3 +1923,34 @@ Invariants:
 - row cardinality unchanged.
 - RNG trace/audit posture unchanged.
 - rerun matrix remains `S4 -> S5` with staged run-id from current best witness source.
+
+---
+
+### Entry: 2026-02-25 12:10
+
+POPT.2R2 design pin (targeted bounded-knob reopen after POPT.2T rejection).
+
+Problem:
+- correctness is stable, but runtime closure for `POPT.2` remains unresolved.
+- previous code-change lanes (`POPT.2R`, `POPT.2S`, `POPT.2T`) failed closure due either severe runtime regression or semantic drift risk.
+
+Chosen lane:
+- reopen with execution knobs only:
+  - `ENGINE_6B_S4_BATCH_ROWS` sweep,
+  - `ENGINE_6B_S4_PARQUET_COMPRESSION` sweep.
+- keep current S4 implementation code unchanged.
+
+Why this lane now:
+- lowest blast radius available.
+- lets us probe whether remaining runtime gap is mostly batching/compression overhead rather than algorithmic path cost.
+- preserves deterministic semantics/contracts by construction (no policy/logic edits).
+
+Alternatives rejected for this pass:
+- new S4 logic rewrites: deferred because recent targeted rewrite produced semantic drift on first attempt and regressed after correction.
+- opening POPT.3 early: rejected by phase law while `POPT.2` blocker is still open.
+
+Invariants pinned:
+- no source-code edits in S4 for this lane.
+- no schema/path/writer changes.
+- only fresh staged runs under `runs/fix-data-engine/segment_6B`.
+- fail-closed on any required S5 check failure.

@@ -7993,3 +7993,86 @@ ext_gate=M6.C_READY.
 1. USER-corrected scope was `M6.E` only.
 2. Execution stopped at `M6.E` closure; no `M6.F/M6.G` advancement in this turn.
 
+## Entry: 2026-02-25 12:14:14 +00:00 - M6.F pre-execution decision lock (P6.B streaming-active closure)
+
+### Runtime truth at entry
+1. `M6.E` is green and gates to `M6.F_READY` (`m6e_p6a_stream_entry_20260225T120522Z`).
+2. EMR virtual cluster is running on `fraud-platform-rtdl`.
+3. Current stream activity surfaces are empty for active run scope:
+   - EMR job runs in VC: `[]`,
+   - IG idempotency table count: `0`,
+   - run-scoped ingest evidence (receipt/quarantine/offset) not yet materialized.
+
+### M6.F contract to enforce
+1. Run-scoped streaming counters must show active flow.
+2. Lag must be measured and bounded by pinned threshold.
+3. Publish ambiguity register must be empty.
+4. Evidence-overhead posture must be captured (`latency p95`, `bytes/event`, `write-rate`).
+
+### Alternatives considered
+1. Declare pass from `M6.E` readiness alone.
+   - Rejected: violates `P6.B` semantics; no active-flow proof.
+2. Inject local synthetic events directly into IG to force non-zero counters.
+   - Rejected: does not prove Flink-driven stream lane posture and risks design drift.
+3. Execute `M6.F` now with fail-closed blocker capture, publishing full artifact set.
+   - Selected.
+
+### Planned outputs
+1. `m6f_streaming_active_snapshot.json`
+2. `m6f_streaming_lag_posture.json`
+3. `m6f_publish_ambiguity_register.json`
+4. `m6f_evidence_overhead_snapshot.json`
+5. `m6f_blocker_register.json`
+6. `m6f_execution_summary.json`
+
+### Blocker expectation
+1. `M6P6-B2` if stream lane runtime refs are not materialized as active jobs.
+2. `M6P6-B3` if run-scoped counters remain zero.
+3. Additional blockers only if lag/ambiguity/evidence publication checks themselves fail.
+
+## Entry: 2026-02-25 12:16:36 +00:00 - M6.F executed fail-closed with explicit P6.B blockers
+
+### Execution summary
+1. Executed `M6.F` as:
+   - `m6f_p6b_streaming_active_20260225T121536Z`.
+2. Result:
+   - `overall_pass=false`,
+   - blocker count `3`,
+   - `next_gate=HOLD_REMEDIATE`.
+
+### Evidence emitted
+1. Local:
+   - `runs/dev_substrate/dev_full/m6/m6f_p6b_streaming_active_20260225T121536Z/`.
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T121536Z/`.
+3. Artifacts emitted as planned:
+   - `m6f_streaming_active_snapshot.json`,
+   - `m6f_streaming_lag_posture.json`,
+   - `m6f_publish_ambiguity_register.json`,
+   - `m6f_evidence_overhead_snapshot.json`,
+   - `m6f_blocker_register.json`,
+   - `m6f_execution_summary.json`,
+   - `runtime_path_selection.json`.
+
+### Blockers captured
+1. `M6P6-B2`:
+   - no active runtime job refs for `FLINK_EKS_WSP_STREAM_REF` and `FLINK_EKS_SR_READY_REF` in EMR VC `3cfszbpz28ixf1wmmd2roj571`.
+2. `M6P6-B3`:
+   - streaming/admission counters are zero (`DDB_IG_IDEMPOTENCY_TABLE` count `0`).
+3. `M6P6-B4`:
+   - lag posture unresolved because active stream consumption is absent.
+
+### Non-blocking checks
+1. Publish ambiguity check passed:
+   - unresolved ambiguity count `0`.
+2. Evidence-overhead budget check passed:
+   - snapshot-level writes only, no per-event overhead.
+
+### Decision trail and next step
+1. Did not force synthetic non-Flink ingress to fake active-flow proof.
+2. M6 remains fail-closed at `M6.F`.
+3. Required remediation before rerun:
+   - materialize active Flink lane jobs (or FlinkDeployment equivalents) for `wsp-stream` and `sr-ready`,
+   - produce non-zero run-scoped admission progression,
+   - rerun `M6.F` and require `M6P6-B2/B3/B4` to clear.
+

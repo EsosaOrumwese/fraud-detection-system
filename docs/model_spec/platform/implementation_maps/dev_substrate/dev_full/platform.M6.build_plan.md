@@ -262,6 +262,20 @@ DoD:
 - [ ] no unresolved publish ambiguity.
 - [ ] evidence-overhead posture within accepted budget.
 
+Execution status (2026-02-25):
+1. Executed as `m6f_p6b_streaming_active_20260225T121536Z`.
+2. Result is fail-closed:
+   - `overall_pass=false`,
+   - blocker count `3`,
+   - `next_gate=HOLD_REMEDIATE`.
+3. Active blockers:
+   - `M6P6-B2`: required Flink lane refs not active in the EMR virtual cluster,
+   - `M6P6-B3`: run-scoped streaming/admission counters remain zero,
+   - `M6P6-B4`: lag posture unresolved without active stream consumption.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m6/m6f_p6b_streaming_active_20260225T121536Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T121536Z/`
+
 ### M6.G `P6` Gate Rollup + Verdict
 Goal:
 1. adjudicate `P6` from M6.E..M6.F evidence.
@@ -401,4 +415,5 @@ Handoff posture:
 5. `M6.B` is closed green (`m6b_p5a_ready_entry_20260225T024245Z`) with `M6.C_READY`.
 6. `M6.C` is closed green (`m6c_p5b_ready_commit_20260225T041702Z`) with `M6.D_READY`.
 7. `M6.D` is closed green (`m6d_p5c_gate_rollup_20260225T041801Z`) with verdict `ADVANCE_TO_P6` and `M6.E_READY`.
-8. First actionable execution lane is now `M6.E`.
+8. `M6.E` is closed green (`m6e_p6a_stream_entry_20260225T120522Z`) with `M6.F_READY`.
+9. `M6.F` has executed fail-closed (`m6f_p6b_streaming_active_20260225T121536Z`) and is now the active remediation lane (`M6P6-B2/B3/B4`).

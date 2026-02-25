@@ -418,7 +418,7 @@ Allowed tokens in pattern handles:
 
 * `IG_EDGE_MODE = "apigw_lambda_ddb"`
 * `APIGW_IG_API_NAME = "fraud-platform-dev-full-ig-edge"`
-* `APIGW_IG_API_ID = "5p7yslq6rc"` (repinned in M5.F remediation from live runtime outputs)
+* `APIGW_IG_API_ID = "ehwznd2uw7"` (repinned from current runtime rematerialization outputs)
 * `APIGW_IG_STAGE = "v1"`
 * `LAMBDA_IG_HANDLER_NAME = "fraud-platform-dev-full-ig-handler"`
 * `DDB_IG_IDEMPOTENCY_TABLE = "fraud-platform-dev-full-ig-idempotency"`

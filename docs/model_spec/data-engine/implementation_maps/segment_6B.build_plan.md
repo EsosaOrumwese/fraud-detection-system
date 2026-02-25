@@ -480,6 +480,49 @@ POPT.2T execution status (current authority):
   - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_state_elapsed_e1206e898bdc4bc58db8402f2ffd72a5.csv`.
 - disposition: targeted lane rejected for runtime posture; code rolled back to pre-POPT.2T implementation.
 
+### POPT.2R2 - `S4` runtime recovery lane (bounded knobs only)
+Goal:
+- recover `S4` runtime through low-blast execution knob tuning only (`batch_rows`, parquet compression), with zero semantic/code-path edits.
+
+Definition of done:
+- [ ] fresh staged run-id(s) created from current authority source run.
+- [ ] bounded candidate matrix executed:
+  - `batch_rows` sweep (`500000`, `750000`, `1000000`),
+  - compression sweep (`snappy`, `lz4`) with at most one alternative per batch setting.
+- [ ] each candidate runs `S4 -> S5` and passes required S5 checks.
+- [ ] closure scored with `tools/score_segment6b_popt2_closure.py`.
+- [ ] decision recorded:
+  - keep only if runtime improves vs current witness (`S4=570.62s`) with non-regression,
+  - else reject lane and retain current witness authority.
+
+POPT.2R2 expanded execution plan:
+
+#### POPT.2R2.1 - Lane pin and constraints
+Definition of done:
+- [ ] implementation-map entry appended before execution.
+- [ ] constraints pinned:
+  - no changes to `S4` policy logic, label logic, writer semantics, schema, or paths,
+  - no new temp surfaces or carry datasets,
+  - fail-closed on any required-check failure.
+
+#### POPT.2R2.2 - Staged witness matrix execution
+Definition of done:
+- [ ] stage at least one fresh run-id from `f621ee01bdb3428f84f7c7c1afde8812`.
+- [ ] execute bounded candidate matrix on staged run-id(s):
+  - `ENGINE_6B_S4_BATCH_ROWS=<candidate>`,
+  - `ENGINE_6B_S4_PARQUET_COMPRESSION=<candidate>`,
+  - run `make segment6b-s4 segment6b-s5`.
+- [ ] capture elapsed and required-check posture per candidate.
+
+#### POPT.2R2.3 - Closure scoring and disposition
+Definition of done:
+- [ ] run closure scorer for best candidate.
+- [ ] record decision with explicit keep/rollback retention.
+- [ ] prune superseded run-id folders for rejected candidates.
+
+POPT.2R2 execution status (current authority):
+- pending.
+
 ### POPT.3 - Part-writer and I/O compaction lane
 Goal:
 - reduce write amplification and small-file overhead on S3/S4 heavy outputs.

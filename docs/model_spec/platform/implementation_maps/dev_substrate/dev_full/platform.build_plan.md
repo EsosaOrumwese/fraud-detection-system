@@ -647,6 +647,11 @@ M6 planning posture:
 - `M6.E` is now closed green on the repinned EKS/EMR path (`m6e_p6a_stream_entry_20260225T120522Z`) after materializing:
   - `EMR_EKS_VIRTUAL_CLUSTER_ID=3cfszbpz28ixf1wmmd2roj571`,
   - `EMR_EKS_RELEASE_LABEL=emr-6.15.0-latest`.
+- `M6.F` has now executed fail-closed (`m6f_p6b_streaming_active_20260225T121536Z`) with explicit blockers:
+  - `M6P6-B2` (Flink lane refs not active in VC),
+  - `M6P6-B3` (run-scoped streaming/admission counters are zero),
+  - `M6P6-B4` (lag posture unresolved without active consumption).
+  Next action is bounded `M6.F` remediation and rerun before `M6.G`.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
