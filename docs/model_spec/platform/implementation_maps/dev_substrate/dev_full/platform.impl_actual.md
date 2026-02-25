@@ -7205,3 +7205,58 @@ untime: PASS
 1. Preserves production auditability while avoiding avoidable throughput collapse from hot-path sync writes.
 2. Aligns with existing architecture split: Obs/Gov run-level truth surfaces remain authoritative without forcing per-event S3 writes.
 3. Creates a hard review gate before M6 streaming activation so evidence strategy is explicit, measurable, and non-hand-wavy.
+
+## Entry: 2026-02-25 02:28:31 +00:00 - M6 planning structure decision (pre-implementation)
+
+### Trigger
+1. USER requested planning for M6 as the next phase.
+2. USER explicitly asked whether `P5/P6/P7` should have separate deep-plan docs.
+
+### Planning alternatives considered
+1. Keep a single `platform.M6.build_plan.md` only.
+   - Rejected: high cram risk across three distinct gates (`READY`, `streaming`, `ingest commit`) with different runtime mechanics and blocker families.
+2. Create one deep plan plus separate runbook notes (non-build-plan) for P5/P6/P7.
+   - Rejected: weak status/DoD traceability and inconsistent with prior deep-plan posture.
+3. Create one orchestration deep plan + three gate-specific deep plans.
+   - Selected: `platform.M6.build_plan.md` + `platform.M6.P5.build_plan.md` + `platform.M6.P6.build_plan.md` + `platform.M6.P7.build_plan.md`.
+
+### Selected structure
+1. Main `platform.build_plan.md` M6 section will be expanded with:
+   - explicit lane coverage,
+   - subphase sequence,
+   - split deep-plan routing.
+2. `platform.M6.build_plan.md` will own:
+   - orchestration-level gates, taxonomy, cross-gate rollup, and M7 handoff contract.
+3. `platform.M6.P5.build_plan.md` will own:
+   - READY commit authority (Step Functions), duplicate/ambiguity fail-closed checks, READY receipt evidence.
+4. `platform.M6.P6.build_plan.md` will own:
+   - streaming activation, lag posture, unresolved publish ambiguity closure, evidence-overhead budget checks.
+5. `platform.M6.P7.build_plan.md` will own:
+   - receipt/quarantine/offset closure, dedupe/anomaly checks, ingest commit evidence closure.
+
+## Entry: 2026-02-25 02:31:58 +00:00 - M6 planning expansion applied (main + split deep plans)
+
+### Files updated/created
+1. Updated:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+     - expanded M6 section with explicit lanes, DoD anchors, `M6.A..M6.J` progression, and split deep-plan routing.
+2. Created:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P5.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P6.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P7.build_plan.md`
+
+### Planning outcomes
+1. M6 now has explicit anti-cram lane coverage across `P5/P6/P7`.
+2. Gate ownership is explicit:
+   - `M6.B/C/D` -> `P5`,
+   - `M6.E/F/G` -> `P6`,
+   - `M6.H/I` -> `P7`,
+   - `M6.J` -> M6 closure sync and cost-outcome closure.
+3. Hot-path evidence policy is integrated into M6 planning (evidence-overhead lane in `P6` and orchestration DoDs).
+
+### Explicit unresolved planning item (left fail-closed by design)
+1. Registry currently does not contain:
+   - `M6_HANDOFF_PACK_PATH_PATTERN`,
+   - `M7_HANDOFF_PACK_PATH_PATTERN`.
+2. This is intentionally pinned as `M6.A` handle-closure work; M6 execution must not proceed past `M6.A` until closed.

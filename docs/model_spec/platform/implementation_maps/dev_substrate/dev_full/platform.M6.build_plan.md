@@ -1,0 +1,311 @@
+# Dev Substrate Deep Plan - M6 (P5 READY_PUBLISHED + P6 STREAMING_ACTIVE + P7 INGEST_COMMITTED)
+_Status source of truth: `platform.build_plan.md`_
+_This document provides orchestration-level deep planning detail for M6._
+_Last updated: 2026-02-25_
+
+## 0) Purpose
+M6 closes:
+1. `P5 READY_PUBLISHED`.
+2. `P6 STREAMING_ACTIVE`.
+3. `P7 INGEST_COMMITTED`.
+
+M6 must prove:
+1. READY is committed with Step Functions authority and duplicate ambiguity is fail-closed.
+2. Streaming is active with bounded lag and no unresolved publish ambiguity.
+3. Ingest commit evidence (receipt/quarantine/offset + dedupe posture) is complete and deterministic.
+4. Runtime evidence policy is honored on hot paths (no per-event sync object-store writes without explicit waiver).
+5. `M7` entry handoff is deterministic and auditable.
+
+## 1) Authority Inputs
+Primary:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md` (`P5`, `P6`, `P7` sections)
+3. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+4. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
+
+Supporting:
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.P4.build_plan.md`
+3. `runs/dev_substrate/dev_full/m5/m5j_p4e_gate_rollup_20260225T021715Z/m6_handoff_pack.json`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.impl_actual.md`
+
+## 2) Scope Boundary for M6
+In scope:
+1. `P5` READY publication closure.
+2. `P6` streaming activation closure.
+3. `P7` ingest commit closure.
+4. M6 phase verdict + `M7` handoff artifact.
+5. M6 phase-budget + cost-outcome closure.
+
+Out of scope:
+1. `P8+` RTDL/case-label/obs-gov closures (`M7+`).
+2. Learning/evolution closures (`M9+`).
+
+## 3) Deliverables
+1. `P5` gate verdict artifacts.
+2. `P6` gate verdict artifacts.
+3. `P7` gate verdict artifacts.
+4. `m7_handoff_pack.json`.
+5. `m6_execution_summary.json`.
+6. `m6_phase_budget_envelope.json` and `m6_phase_cost_outcome_receipt.json`.
+
+## 4) Entry Gate and Current Posture
+Entry gate for M6:
+1. `M5` is `DONE` with verdict `ADVANCE_TO_M6`.
+
+Current posture:
+1. `M5` closure is complete (`m5j_p4e_gate_rollup_20260225T021715Z`).
+2. M6 planning is being expanded before execution.
+
+Initial pre-execution blockers (fail-closed, planning stage):
+1. `M6-B0`: M6 deep plan/capability-lane incompleteness.
+2. `M6-B0.1`: `P5/P6/P7` split planning not explicit.
+
+## 4.1) Anti-Cram Law (Binding for M6)
+M6 is not execution-ready unless these capability lanes are explicit:
+1. authority and handle closure across `P5..P7`,
+2. READY commit authority and duplicate-ambiguity controls,
+3. streaming activation/lag posture and publish-ambiguity closure,
+4. ingest commit evidence and dedupe/anomaly closure,
+5. evidence-overhead conformance on hot paths,
+6. durable evidence publication,
+7. gate rollups + M6 verdict + `M7` handoff,
+8. phase-budget and cost-outcome gating.
+
+## 4.2) Capability-Lane Coverage Matrix
+| Capability lane | Primary owner sub-phase | Minimum PASS evidence |
+| --- | --- | --- |
+| Authority + handle closure (`P5..P7`) | M6.A | no unresolved required handles |
+| READY entry + contract precheck | M6.B | READY entry snapshot pass |
+| READY commit authority execution | M6.C | READY commit snapshot + receipt pass |
+| `P5` gate rollup + verdict | M6.D | blocker-free `P5` verdict |
+| Streaming entry/activation precheck | M6.E | streaming entry snapshot pass |
+| Streaming active + lag + ambiguity closure | M6.F | streaming snapshot + lag posture pass |
+| `P6` gate rollup + verdict | M6.G | blocker-free `P6` verdict |
+| Ingest commit closure | M6.H | receipt/quarantine/offset snapshot pass |
+| `P7` rollup + M6 verdict + `M7` handoff | M6.I | blocker-free `P7` verdict + durable `m7_handoff_pack.json` |
+| M6 closure sync + cost-outcome | M6.J | `m6_execution_summary.json` + cost artifacts pass |
+
+## 5) Work Breakdown (Orchestration)
+
+### M6.A Authority + Handle Closure (`P5..P7`)
+Goal:
+1. close required `M6` handles before runtime execution.
+
+Tasks:
+1. resolve `P5` required handles (`FP_BUS_CONTROL_V1`, `SR_READY_COMMIT_*`, `READY_MESSAGE_FILTER`, `WSP_*`).
+2. resolve `P6` required handles (Flink app IDs, lag threshold handles, publish-ambiguity controls).
+3. resolve `P7` required handles (`RECEIPT_SUMMARY_PATH_PATTERN`, `QUARANTINE_SUMMARY_PATH_PATTERN`, `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`, idempotency handles).
+4. close missing handoff handle gap by pinning:
+   - `M6_HANDOFF_PACK_PATH_PATTERN`,
+   - `M7_HANDOFF_PACK_PATH_PATTERN`.
+
+DoD:
+- [ ] required handle set is explicit and complete.
+- [ ] unresolved required handles are blocker-marked.
+- [ ] M6.A closure snapshot exists locally and durably.
+
+### M6.B `P5` READY Entry + Contract Precheck
+Goal:
+1. prove `P5` entry is valid before READY commit.
+
+Tasks:
+1. verify SR prerequisites and run-scope alignment.
+2. verify control topic path and partitioning contracts.
+3. verify READY filter and duplicate controls are loaded.
+
+DoD:
+- [ ] `P5` entry precheck passes.
+- [ ] blocker set is explicit if any precheck fails.
+
+### M6.C `P5` READY Commit Authority Execution
+Goal:
+1. commit READY with Step Functions authority and deterministic receipt.
+
+Tasks:
+1. emit READY signal to `fp.bus.control.v1`.
+2. require READY receipt with Step Functions execution reference.
+3. fail-closed on duplicate/ambiguous READY outcomes.
+
+DoD:
+- [ ] READY emitted and observable.
+- [ ] receipt includes Step Functions commit authority reference.
+- [ ] no unresolved duplicate/ambiguity remains.
+
+### M6.D `P5` Gate Rollup + Verdict
+Goal:
+1. adjudicate `P5` from M6.B..M6.C evidence.
+
+Tasks:
+1. build `P5` rollup matrix and blocker register.
+2. emit deterministic `P5` verdict artifact.
+
+DoD:
+- [ ] `P5` rollup + blocker register committed.
+- [ ] deterministic `P5` verdict committed.
+
+### M6.E `P6` Entry + Streaming Activation Precheck
+Goal:
+1. verify streaming activation entry contracts.
+
+Tasks:
+1. verify WSP source roots pinned for run.
+2. verify required Flink lanes and ingress edge are healthy.
+3. verify publish ambiguity controls are active fail-closed.
+
+DoD:
+- [ ] `P6` entry precheck passes.
+- [ ] unresolved precheck blockers are explicit.
+
+### M6.F `P6` Streaming Active + Lag + Ambiguity Closure
+Goal:
+1. prove active streaming posture and bounded lag.
+
+Tasks:
+1. capture streaming counters and activation proofs.
+2. measure lag against pinned threshold.
+3. require no unresolved publish ambiguity.
+4. capture evidence-overhead posture metrics (`latency p95`, `bytes/event`, `write-rate`).
+
+DoD:
+- [ ] streaming active proof passes.
+- [ ] lag within threshold.
+- [ ] no unresolved publish ambiguity.
+- [ ] evidence-overhead posture within accepted budget.
+
+### M6.G `P6` Gate Rollup + Verdict
+Goal:
+1. adjudicate `P6` from M6.E..M6.F evidence.
+
+Tasks:
+1. build `P6` rollup matrix and blocker register.
+2. emit deterministic `P6` verdict artifact.
+
+DoD:
+- [ ] `P6` rollup + blocker register committed.
+- [ ] deterministic `P6` verdict committed.
+
+### M6.H `P7` Ingest Commit Closure
+Goal:
+1. prove ingest commit evidence is complete.
+
+Tasks:
+1. publish/verify receipt summary.
+2. publish/verify quarantine summary.
+3. publish/verify Kafka offset snapshot.
+4. run dedupe/anomaly checks for fail-closed closure.
+
+DoD:
+- [ ] receipt/quarantine/offset evidence is committed and readable.
+- [ ] dedupe/anomaly checks pass.
+
+### M6.I `P7` Gate Rollup + M6 Verdict + M7 Handoff
+Goal:
+1. adjudicate `P7` and emit M6 phase verdict/handoff.
+
+Tasks:
+1. build `P7` rollup matrix + blocker register.
+2. emit deterministic `P7` verdict.
+3. emit `m7_handoff_pack.json` with run-scope continuity and evidence refs.
+
+DoD:
+- [ ] `P7` rollup + verdict committed.
+- [ ] `m7_handoff_pack.json` committed locally and durably.
+
+### M6.J M6 Closure Sync + Cost-Outcome
+Goal:
+1. finalize M6 closure artifacts and logs.
+
+Tasks:
+1. emit `m6_execution_summary.json`.
+2. emit `m6_phase_budget_envelope.json` and `m6_phase_cost_outcome_receipt.json`.
+3. append closure notes to master plan + impl map + logbook.
+
+DoD:
+- [ ] M6 execution summary committed locally and durably.
+- [ ] phase-budget/cost-outcome artifacts committed and valid.
+- [ ] closure notes appended in required docs.
+
+## 6) Split Deep Plan Routing
+1. `P5` detailed lane plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P5.build_plan.md`
+2. `P6` detailed lane plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P6.build_plan.md`
+3. `P7` detailed lane plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P7.build_plan.md`
+
+Rule:
+1. M6 execution follows:
+   - `M6.A -> M6.B -> M6.C -> M6.D -> M6.E -> M6.F -> M6.G -> M6.H -> M6.I -> M6.J`.
+2. `P6` execution cannot start until `P5` verdict is `ADVANCE_TO_P6`.
+3. `P7` execution cannot start until `P6` verdict is `ADVANCE_TO_P7`.
+
+## 7) M6 Blocker Taxonomy (Fail-Closed)
+1. `M6-B0`: deep plan/capability-lane incompleteness.
+2. `M6-B0.1`: `P5/P6/P7` split plan incompleteness.
+3. `M6-B1`: required handle missing/inconsistent.
+4. `M6-B2`: READY commit authority failure.
+5. `M6-B3`: duplicate/ambiguous READY unresolved.
+6. `M6-B4`: streaming activation failure/stall.
+7. `M6-B5`: lag threshold breach.
+8. `M6-B6`: unresolved publish ambiguity.
+9. `M6-B7`: ingest evidence surface missing/unreadable.
+10. `M6-B8`: dedupe/anomaly drift.
+11. `M6-B9`: evidence-overhead budget breach.
+12. `M6-B10`: rollup/verdict inconsistency.
+13. `M6-B11`: `m7_handoff_pack.json` missing/invalid/unreadable.
+14. `M6-B12`: phase-budget/cost-outcome artifact missing/invalid.
+15. `M6-B13`: cost-outcome hard-stop violated.
+
+Any active `M6-B*` blocker prevents M6 closure.
+
+## 8) M6 Evidence Contract (Pinned for Planning)
+1. `m6a_handle_closure_snapshot.json`
+2. `m6b_ready_entry_snapshot.json`
+3. `m6c_ready_commit_snapshot.json`
+4. `m6d_p5_gate_verdict.json`
+5. `m6e_stream_activation_entry_snapshot.json`
+6. `m6f_streaming_active_snapshot.json`
+7. `m6f_evidence_overhead_snapshot.json`
+8. `m6g_p6_gate_verdict.json`
+9. `m6h_ingest_commit_snapshot.json`
+10. `m6i_p7_gate_verdict.json`
+11. `m7_handoff_pack.json`
+12. `m6_phase_budget_envelope.json`
+13. `m6_phase_cost_outcome_receipt.json`
+14. `m6_execution_summary.json`
+
+## 9) M6 Completion Checklist
+- [ ] M6.A complete
+- [ ] M6.B complete
+- [ ] M6.C complete
+- [ ] M6.D complete
+- [ ] M6.E complete
+- [ ] M6.F complete
+- [ ] M6.G complete
+- [ ] M6.H complete
+- [ ] M6.I complete
+- [ ] M6.J complete
+- [ ] M6 blockers resolved or explicitly fail-closed
+- [ ] M6 phase-budget and cost-outcome artifacts are valid and accepted
+- [ ] M6 closure note appended in implementation map
+- [ ] M6 action log appended in logbook
+
+## 10) Exit Criteria
+M6 can close only when:
+1. all checklist items in Section 9 are complete,
+2. `P5`, `P6`, and `P7` verdicts are blocker-free and deterministic,
+3. M6 evidence is locally and durably readable,
+4. `m7_handoff_pack.json` is committed and reference-valid,
+5. phase-budget and cost-outcome artifacts are valid and blocker-free.
+
+Handoff posture:
+1. M7 remains blocked until M6 verdict is `ADVANCE_TO_M7`.
+
+## 11) Planning Status (Current)
+1. M5 dependency is closed green (`ADVANCE_TO_M6`).
+2. M6 orchestration plan is expanded to execution-grade with split `P5/P6/P7` ownership.
+3. Initial planning blockers resolved:
+   - `M6-B0` resolved,
+   - `M6-B0.1` resolved.
+4. Execution has not started yet; first actionable lane is `M6.A`.

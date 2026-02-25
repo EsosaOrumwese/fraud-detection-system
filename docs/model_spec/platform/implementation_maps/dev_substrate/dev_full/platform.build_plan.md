@@ -615,15 +615,47 @@ Entry gate:
 - M5 is `DONE`.
 
 Planned lanes:
-- READY publication, WSP streaming, receipt/quarantine/offset closure.
+- READY publication with Step Functions commit authority.
+- streaming activation with bounded lag and publish-ambiguity closure.
+- ingest commit closure (receipt/quarantine/offset + dedupe/anomaly).
+- evidence-overhead conformance under hot-path evidence law.
+- deterministic M6 verdict + M7 handoff + phase-budget/cost-outcome closure.
 
 DoD anchors:
 - [ ] READY receipt committed.
 - [ ] streaming active with bounded lag.
 - [ ] ingest commit evidence complete.
+- [ ] evidence-overhead posture within budget (`latency p95`, `bytes/event`, `write-rate`).
+- [ ] deterministic M6 verdict + `m7_handoff_pack.json` committed locally and durably.
+- [ ] M6 phase-budget and cost-outcome artifacts are committed and blocker-free.
+
+M6 planning posture:
+- M6 planning is split into orchestration + gate-specific deep plans to avoid anti-cram drift.
+- Execution sequence is pinned:
+  - `M6.A` authority/handle closure,
+  - `M6.B -> M6.D` for `P5`,
+  - `M6.E -> M6.G` for `P6`,
+  - `M6.H -> M6.I` for `P7`,
+  - `M6.J` final closure sync (verdict/cost/handoff notes).
+- M6 execution must fail-closed if any of `DFULL-RUN-B5`, `DFULL-RUN-B6`, `DFULL-RUN-B7` families remain unresolved.
+
+M6 sub-phase progress:
+- [ ] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
+- [ ] `M6.B` `P5` entry/contract precheck.
+- [ ] `M6.C` `P5` READY commit authority execution.
+- [ ] `M6.D` `P5` gate rollup + verdict.
+- [ ] `M6.E` `P6` entry/stream activation precheck.
+- [ ] `M6.F` `P6` streaming-active + lag + ambiguity closure.
+- [ ] `M6.G` `P6` gate rollup + verdict.
+- [ ] `M6.H` `P7` ingest-commit execution.
+- [ ] `M6.I` `P7` gate rollup + M6 verdict + M7 handoff.
+- [ ] `M6.J` M6 closure sync (docs/cost-outcome/evidence index).
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P5.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P6.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P7.build_plan.md`
 
 ## M7 - RTDL and Case/Labels Closure
 Status: `NOT_STARTED`
