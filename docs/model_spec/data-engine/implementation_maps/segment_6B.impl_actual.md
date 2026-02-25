@@ -3236,3 +3236,91 @@ Alternatives considered and rejected during planning:
 - rejected: violates realism law and would mask deterministic generation defects.
 3) split amount and timing into separate phases across segments.
 - rejected: both defects are in S2 and should close together to avoid repeated downstream reruns.
+
+---
+
+### Entry: 2026-02-25 20:53
+
+P2.1/P2.2 implementation design before code edits (S2 owner lane).
+
+Verified implementation defects in `6B.S2`:
+- Amount generation currently uses only fixed `price_points_minor` index lookup (`8` values), no tail execution.
+- Event timing currently emits `AUTH_REQUEST` and `AUTH_RESPONSE` with identical `ts_utc`.
+- `timing_policy_6B` is loaded but not used in event timestamp synthesis.
+
+Chosen implementation strategy:
+1) Amount lane (`T11/T13`, protect `T12`)
+- Parse amount model family distribution (starting with PURCHASE default family in current S2 baseline context).
+- Implement deterministic blended sampler:
+  - point-mass path from configured `price_points_minor` using hash-derived index,
+  - tail path from configured tail distribution using hash-derived Box-Muller normal draws.
+- Support tail dist IDs used in current policy (`LOGNORMAL_V1`; plus robust handling for `LOGNORMAL_MIX_V1` and `GAMMA_V1` fallback approximation).
+- Apply guardrail clipping (`min/max_amount_minor_by_currency.DEFAULT`) and convert to major units.
+
+2) Timing lane (`T14/T15/T16`)
+- Parse `timing_policy_6B.offset_models.delta_auth_response_seconds`.
+- Generate deterministic per-flow latency seconds from hash uniforms and policy dist parameters.
+- Enforce strictly positive lower bound via `time_units.min_positive_offset_seconds` and model min/cap.
+- Emit `AUTH_RESPONSE.ts_utc = AUTH_REQUEST.ts_utc + latency_seconds` (formatted RFC3339 with microseconds).
+
+3) Determinism and performance posture
+- Keep vectorized batch processing with NumPy/Polars; no per-row loops.
+- Keep output schemas unchanged.
+- Preserve current staging/replay semantics and downstream compatibility.
+
+Out-of-scope in this pass:
+- no scorer threshold changes,
+- no S3/S4 retunes,
+- no contract schema mutations.
+
+Success criteria for first P2 witness:
+- `T11>=20`, `T13<=0.85`, `T14 in [0.3,8]`, `T15>30`, `T16<=0.20`.
+- no regression on closed P1 rails.
+
+---
+
+### Entry: 2026-02-25 21:02
+
+P2.1/P2.2 code implementation completed in S2.
+
+Files changed:
+- `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline_flow/runner.py`
+- `config/layer3/6B/timing_policy_6B.yaml`
+
+Implemented mechanics:
+1) Amount generation redesign (policy-driven, deterministic):
+- Added amount distribution extraction and guardrail parsing:
+  - `_extract_purchase_amount_distribution`,
+  - `_extract_amount_guardrails`.
+- Added deterministic sampling primitives:
+  - `_hash_index_to_unit_interval`,
+  - `_normal_from_uniforms`,
+  - `_sample_amount_tail_minor`,
+  - `_sample_amount_minor_batch`.
+- S2 batch flow now derives multiple hash-uniform streams and executes:
+  - point-mass path for configured discrete price points,
+  - tail path from configured distribution (`LOGNORMAL_V1` and robust support for mix/gamma),
+  - clipped/rounded `amount_minor` then `amount` major units.
+
+2) Auth-response timing redesign (policy-driven, deterministic):
+- Added timing model extraction and sampler:
+  - `_extract_auth_response_timing_model`,
+  - `_sample_latency_seconds`.
+- Added `_ts_plus_seconds_expr` for vectorized timestamp offset formatting.
+- S2 now computes per-flow `auth_response_latency_seconds` and emits `AUTH_RESPONSE.ts_utc = AUTH_REQUEST.ts_utc + latency`.
+
+3) Policy retune for auth-response realism gate compatibility:
+- Updated `timing_policy_6B.yaml` `delta_auth_response_seconds` from low-cap (`10s`) posture to heavier-tail lane:
+  - `mu_log=1.10`, `sigma_log=1.20`, `min_seconds=0.05`, `cap_seconds=180.0`.
+- Rationale: previous policy cap could not satisfy scorer `T15 > 30s` by construction.
+
+Determinism/perf checks:
+- no schema changes in S2 output datasets,
+- no per-row Python loops introduced,
+- `python -m compileall` passed for S2 runner,
+- YAML parse check passed for timing policy.
+
+Next step:
+- execute integrated P2 witness chain on fresh staged run-id from `5459...`:
+  - `S2 -> S3 -> S4 -> S5`,
+  - score gateboard and evaluate `T11,T13,T14,T15,T16,T21` with non-regression set.

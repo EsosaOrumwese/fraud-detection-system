@@ -731,6 +731,12 @@ Planned lanes:
   - LS writer-boundary lane,
   - case/labels rollup.
 
+Current M7 execution posture:
+- `M7.A` is closed green on managed run:
+  - workflow run `22415198816`,
+  - execution `m7a_p8p10_handle_closure_20260225T204520Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=M7.B_READY`.
+
 DoD anchors:
 - [ ] RTDL core closure evidence is green.
 - [ ] decision/action/audit triplet closure is green.

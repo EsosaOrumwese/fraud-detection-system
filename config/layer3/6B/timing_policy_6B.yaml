@@ -32,10 +32,10 @@ anchor_rules:
 offset_models:
   delta_auth_response_seconds:
     dist_id: LOGNORMAL_V1
-    mu_log: -0.35
-    sigma_log: 0.50
-    min_seconds: 0.02
-    cap_seconds: 10.0
+    mu_log: 1.10
+    sigma_log: 1.20
+    min_seconds: 0.05
+    cap_seconds: 180.0
     rng_family: rng_event_event_timing
 
   delta_step_up_start_seconds:

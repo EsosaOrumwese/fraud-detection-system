@@ -9325,3 +9325,75 @@ ext_gate=HOLD_REMEDIATE.
 1. M7 planning now blocks closure if any component is functionally green but performance-red.
 2. Bottleneck risk is explicitly surfaced as a blocker rather than discovered late during rollups.
 
+## Entry: 2026-02-25 20:33:00 +00:00 - M7.A execution lock (authority + handle closure)
+
+### Problem
+1. `M7` is active but `M7.A` has not yet produced authoritative closure artifacts.
+2. We need a managed execution lane for `M7.A` that verifies:
+   - M6->M7 continuity,
+   - required M7 handle coverage,
+   - per-component numeric performance SLO pin set.
+
+### Decision
+1. Execute `M7.A` via GitHub Actions (managed lane), not local closure scripts.
+2. Implement workflow-only lane with inline Python so commit scope remains workflow-only.
+3. Emit deterministic `m7a_*` artifacts to local workflow artifact set and durable run-control S3 prefix.
+
+### Inputs locked for first M7.A execution
+1. `upstream_m6_execution = m6j_m6_closure_sync_20260225T194637Z`
+2. `platform_run_id = platform_20260223T184232Z`
+3. `scenario_run_id = scenario_38753050f3b70c666e16f7552016b330`
+4. `evidence_bucket = fraud-platform-dev-full-evidence`
+5. `aws_region = eu-west-2`
+
+### Planned artifacts
+1. `m7a_handle_closure_snapshot.json`
+2. `m7a_component_slo_profile.json`
+3. `m7a_blocker_register.json`
+4. `m7a_execution_summary.json`
+
+## Entry: 2026-02-25 20:46:00 +00:00 - M7.A executed green (managed lane)
+
+### Dispatch-path remediation
+1. Initial plan created a dedicated workflow file (`dev_full_m7a_handle_closure.yml`), but GitHub CLI dispatch returned 404 because non-default-branch workflow files are not dispatchable by workflow id until present on default branch.
+2. Remediation:
+   - integrated `phase_mode=m7a` into existing registered workflow `.github/workflows/dev_full_m6f_streaming_active.yml`,
+   - reused existing input surface (`upstream_m6i_execution` carries M6 closure execution id for M7.A continuity check).
+3. This preserved workflow-only commit scope and unblocked managed execution immediately.
+
+### Authoritative execution
+1. Workflow run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22415198816`
+2. Lane:
+   - `Run M7.A handle closure remotely (GitHub Actions)`
+3. Execution id:
+   - `m7a_p8p10_handle_closure_20260225T204520Z`
+4. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M7.B_READY`.
+
+### Verified outputs
+1. `m7a_handle_closure_snapshot.json`:
+   - upstream M6 continuity `true`,
+   - required handles `25/25` resolved,
+   - missing handles `[]`,
+   - placeholder handles `[]`.
+2. `m7a_component_slo_profile.json`:
+   - component count `9` (`IEG/OFP/ArchiveWriter/DF/AL/DLA/CaseTriggerBridge/CM/LS`),
+   - pinned numeric SLO envelope persisted.
+3. `m7a_blocker_register.json`:
+   - blocker count `0`, blockers `[]`.
+4. `m7a_execution_summary.json`:
+   - `overall_pass=true`, `next_gate=M7.B_READY`.
+
+### Evidence locations
+1. Local:
+   - `runs/dev_substrate/dev_full/m7/_gh_run_22415198816/m7a-handle-closure-20260225T204546Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7a_p8p10_handle_closure_20260225T204520Z/`.
+
+### Decision outcome
+1. `M7.A` is closed green.
+2. M7 progression is unblocked for `M7.B` planning/execution.
+

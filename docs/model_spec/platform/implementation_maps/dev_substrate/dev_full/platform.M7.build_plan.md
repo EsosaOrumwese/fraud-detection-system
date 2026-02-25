@@ -78,11 +78,143 @@ Tasks:
    - `DF`, `AL`, `DLA`,
    - `CaseTrigger bridge`, `CM`, `LS`.
 
+Required handle set for M7.A closure:
+1. continuity/runtime path:
+   - `FLINK_RUNTIME_PATH_ACTIVE`
+   - `FLINK_RUNTIME_PATH_ALLOWED`
+   - `PHASE_RUNTIME_PATH_MODE`
+   - `RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED`
+2. RTDL/P8:
+   - `FLINK_APP_RTDL_IEG_V0`
+   - `FLINK_APP_RTDL_OFP_V0`
+   - `FLINK_EKS_RTDL_IEG_REF`
+   - `FLINK_EKS_RTDL_OFP_REF`
+   - `K8S_DEPLOY_ARCHIVE_WRITER`
+   - `S3_ARCHIVE_RUN_PREFIX_PATTERN`
+   - `S3_ARCHIVE_EVENTS_PREFIX_PATTERN`
+3. decision chain/P9:
+   - `K8S_DEPLOY_DF`
+   - `K8S_DEPLOY_AL`
+   - `K8S_DEPLOY_DLA`
+   - `FP_BUS_RTDL_V1`
+   - `FP_BUS_AUDIT_V1`
+4. case-labels/P10:
+   - `K8S_DEPLOY_CM`
+   - `K8S_DEPLOY_LS`
+   - `FP_BUS_CASE_TRIGGERS_V1`
+   - `FP_BUS_LABELS_EVENTS_V1`
+5. state and runtime prerequisites:
+   - `AURORA_CLUSTER_IDENTIFIER`
+   - `AURORA_MODE`
+   - `SSM_AURORA_ENDPOINT_PATH`
+   - `SSM_AURORA_USERNAME_PATH`
+   - `SSM_AURORA_PASSWORD_PATH`
+
+Pinned initial performance SLO envelope (M7.A baseline):
+1. `IEG`:
+   - `records_per_second_min=200`
+   - `latency_p95_ms_max=500`
+   - `lag_messages_max=1000`
+   - `cpu_p95_pct_max=85`
+   - `memory_p95_pct_max=85`
+   - `error_rate_pct_max=1.0`
+2. `OFP`:
+   - `records_per_second_min=200`
+   - `latency_p95_ms_max=500`
+   - `lag_messages_max=1000`
+   - `cpu_p95_pct_max=85`
+   - `memory_p95_pct_max=85`
+   - `error_rate_pct_max=1.0`
+3. `ArchiveWriter`:
+   - `objects_per_minute_min=50`
+   - `commit_latency_p95_ms_max=1200`
+   - `backpressure_seconds_max=30`
+   - `cpu_p95_pct_max=85`
+   - `memory_p95_pct_max=85`
+   - `write_error_rate_pct_max=0.5`
+4. `DF`:
+   - `decisions_per_second_min=150`
+   - `decision_latency_p95_ms_max=800`
+   - `input_lag_messages_max=1000`
+   - `cpu_p95_pct_max=85`
+   - `memory_p95_pct_max=85`
+   - `error_rate_pct_max=1.0`
+5. `AL`:
+   - `actions_per_second_min=150`
+   - `action_latency_p95_ms_max=800`
+   - `retry_ratio_pct_max=5.0`
+   - `backpressure_seconds_max=30`
+   - `cpu_p95_pct_max=85`
+   - `memory_p95_pct_max=85`
+   - `error_rate_pct_max=1.0`
+6. `DLA`:
+   - `audit_appends_per_second_min=150`
+   - `append_latency_p95_ms_max=1000`
+   - `queue_depth_max=1000`
+   - `cpu_p95_pct_max=85`
+   - `memory_p95_pct_max=85`
+   - `error_rate_pct_max=0.5`
+7. `CaseTrigger bridge`:
+   - `events_per_second_min=100`
+   - `bridge_latency_p95_ms_max=700`
+   - `queue_depth_max=1000`
+   - `cpu_p95_pct_max=85`
+   - `memory_p95_pct_max=85`
+   - `error_rate_pct_max=1.0`
+8. `CM`:
+   - `case_writes_per_second_min=100`
+   - `case_write_latency_p95_ms_max=900`
+   - `queue_depth_max=1000`
+   - `cpu_p95_pct_max=85`
+   - `memory_p95_pct_max=85`
+   - `error_rate_pct_max=1.0`
+9. `LS`:
+   - `label_writes_per_second_min=100`
+   - `commit_latency_p95_ms_max=900`
+   - `writer_wait_seconds_max=20`
+   - `cpu_p95_pct_max=85`
+   - `memory_p95_pct_max=85`
+   - `error_rate_pct_max=1.0`
+
+Execution plan (managed lane):
+1. dispatch workflow `.github/workflows/dev_full_m7a_handle_closure.yml`.
+2. require M6 continuity:
+   - upstream `m6_execution_summary.json` is readable,
+   - verdict is `ADVANCE_TO_M7`.
+3. verify required handle set above in `dev_full_handles.registry.v0.md`.
+4. emit artifacts:
+   - `m7a_handle_closure_snapshot.json`
+   - `m7a_blocker_register.json`
+   - `m7a_component_slo_profile.json`
+   - `m7a_execution_summary.json`.
+5. publish artifacts locally + durable run-control prefix.
+
 DoD:
-- [ ] required-handle matrix for all M7 components is explicit.
-- [ ] unresolved required handles are blocker-marked.
-- [ ] `m7a_*` evidence is committed locally and durably.
-- [ ] per-component numeric performance SLO pins are complete.
+- [x] required-handle matrix for all M7 components is explicit.
+- [x] unresolved required handles are blocker-marked.
+- [x] `m7a_*` evidence is committed locally and durably.
+- [x] per-component numeric performance SLO pins are complete.
+- [x] managed `M7.A` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=M7.B_READY`).
+
+Execution status (2026-02-25):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7a`
+   - run id: `22415198816`
+   - execution id: `m7a_p8p10_handle_closure_20260225T204520Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M7.B_READY`.
+3. Verification outcomes:
+   - upstream continuity `M6->M7`: `ok`,
+   - required handles resolved: `25/25`,
+   - missing handles: `0`,
+   - placeholder handles: `0`,
+   - per-component SLO profile pinned for `9` components.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_gh_run_22415198816/m7a-handle-closure-20260225T204546Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7a_p8p10_handle_closure_20260225T204520Z/`.
 
 ### M7.B P8 Entry + RTDL Core Precheck
 Goal:
@@ -240,7 +372,7 @@ DoD:
 17. `M7-B17`: component performance budget breach (throughput/latency/lag/resource/stability).
 
 ## 8) M7 Completion Checklist
-- [ ] M7.A complete
+- [x] M7.A complete
 - [ ] M7.B complete
 - [ ] M7.C complete
 - [ ] M7.D complete
@@ -255,4 +387,5 @@ DoD:
 ## 9) Planning Status
 1. M7 deep-plan scaffold created.
 2. P8/P9/P10 deep plans are split and referenced.
-3. No M7 execution has started in this document yet.
+3. `M7.A` is closed green (`m7a_p8p10_handle_closure_20260225T204520Z`).
+4. Next step is `M7.B` (P8 entry + RTDL core precheck).
