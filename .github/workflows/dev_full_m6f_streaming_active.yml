@@ -79,21 +79,6 @@ on:
         required: true
         default: "fraud-platform-dev-full-ig-idempotency"
         type: string
-      ig_base_url:
-        description: "IG base URL (for probe posts from stream refs)"
-        required: true
-        default: "https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1"
-        type: string
-      ig_ingest_path:
-        description: "IG ingest path"
-        required: true
-        default: "/ingest/push"
-        type: string
-      ssm_ig_api_key_path:
-        description: "SSM path containing IG API key"
-        required: true
-        default: "/fraud-platform/dev_full/ig/api_key"
-        type: string
       runtime_path:
         description: "Pinned runtime path for this phase execution"
         required: true
@@ -153,6 +138,10 @@ jobs:
     name: Run M6.F streaming-active lane remotely (GitHub Actions)
     if: ${{ inputs.phase_mode != 'm6g' }}
     runs-on: ubuntu-latest
+    env:
+      IG_BASE_URL: "https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1"
+      IG_INGEST_PATH: "/ingest/push"
+      SSM_IG_API_KEY_PATH: "/fraud-platform/dev_full/ig/api_key"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -182,7 +171,7 @@ jobs:
         run: |
           set -euo pipefail
           IG_API_KEY="$(aws ssm get-parameter \
-            --name "${{ inputs.ssm_ig_api_key_path }}" \
+            --name "${SSM_IG_API_KEY_PATH}" \
             --with-decryption \
             --query 'Parameter.Value' \
             --output text)"
@@ -261,8 +250,8 @@ jobs:
             --scenario-run-id "${{ inputs.scenario_run_id }}" \
             --wsp-ref "${{ inputs.wsp_ref }}" \
             --sr-ready-ref "${{ inputs.sr_ready_ref }}" \
-            --ig-base-url "${{ inputs.ig_base_url }}" \
-            --ig-ingest-path "${{ inputs.ig_ingest_path }}" \
+            --ig-base-url "${IG_BASE_URL}" \
+            --ig-ingest-path "${IG_INGEST_PATH}" \
             --ig-api-key "${IG_API_KEY}" \
             --log-group-name "${{ inputs.emr_log_group_name }}" \
             --iterations "${{ inputs.iterations }}" \

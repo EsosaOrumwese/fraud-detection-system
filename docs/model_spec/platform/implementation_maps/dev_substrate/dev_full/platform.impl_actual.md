@@ -8712,3 +8712,21 @@ ow_epoch - latest_admitted_at_epoch) from run-window admissions.
 3. Closure updates:
    - update M6 and P6 build plans with new semantics and fresh run receipts,
    - append logbook action with blocker/decision trail.
+
+## Entry: 2026-02-25 16:12:36 +00:00 - M6.F workflow dispatch blocker GH_INPUT_LIMIT remediated
+
+### Issue observed
+1. Remote dispatch failed with HTTP 422: workflow exceeded GitHub workflow_dispatch input limit (max 25).
+2. Root cause: three newly added IG inputs pushed workflow above platform limit.
+
+### Decision
+1. Keep semantic remediation logic intact.
+2. Remove added workflow_dispatch inputs and move IG values to fixed job nv defaults:
+   - IG_BASE_URL,
+   - IG_INGEST_PATH,
+   - SSM_IG_API_KEY_PATH.
+3. Preserve OIDC + SSM key retrieval path and EMR submit wiring; only dispatch surface is reduced.
+
+### Expected outcome
+1. Workflow becomes dispatchable again without changing P6.B runtime semantics.
+2. Next rerun should produce authoritative artifacts under strict M6.F truth model.
