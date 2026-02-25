@@ -9182,3 +9182,29 @@ ext_gate=HOLD_REMEDIATE.
 3. Dispatch managed `m6j` run on `migrate-dev`, capture artifacts, and enforce fail-closed gate in workflow.
 4. Update `platform.M6.build_plan.md`, `platform.build_plan.md`, implementation-map, and logbook with authoritative `M6.J` receipt and closure state.
 
+## Entry: 2026-02-25 19:47:30 +00:00 - M6.J dispatch-surface blocker and bounded remediation
+
+### Problem
+1. First `M6.J` dispatch attempt returned GitHub workflow parse error:
+   - `you may only define up to 25 inputs for a workflow_dispatch event`.
+2. After adding `upstream_m6d_execution` and `upstream_m6i_execution`, the workflow had `27` dispatch inputs.
+3. M6.J execution could not proceed until dispatch input count was reduced.
+
+### Decision
+1. Preserve runtime behavior and reduce only dispatch surface.
+2. Remove two non-essential dispatch knobs:
+   - `runtime_path_allowed`,
+   - `runtime_path_fallback_blocker`.
+3. Pin both values inline in the `M6.F` capture call:
+   - `MSF_MANAGED|EKS_EMR_ON_EKS|EKS_FLINK_OPERATOR`,
+   - `M6P6-B2`.
+
+### Why this is safe
+1. These two values are policy constants, not per-run operator decisions.
+2. They are only consumed by the `m6f` lane and do not change `m6j` closure semantics.
+3. Input count becomes `25` exactly, restoring dispatch validity.
+
+### Next action
+1. Push remediation commit on `migrate-dev`.
+2. Re-dispatch `M6.J` with pinned upstream chain.
+

@@ -94,16 +94,6 @@ on:
         required: true
         default: "EKS_EMR_ON_EKS"
         type: string
-      runtime_path_allowed:
-        description: "Allowed runtime path set"
-        required: true
-        default: "MSF_MANAGED|EKS_EMR_ON_EKS|EKS_FLINK_OPERATOR"
-        type: string
-      runtime_path_fallback_blocker:
-        description: "Blocker code that permits fallback"
-        required: true
-        default: "M6P6-B2"
-        type: string
       lag_threshold:
         description: "Lag threshold for M6.F capture"
         required: true
@@ -591,8 +581,8 @@ jobs:
             --upstream-m6e-execution "${{ inputs.upstream_m6e_execution }}" \
             --region "${{ inputs.aws_region }}" \
             --runtime-path "${{ inputs.runtime_path }}" \
-            --runtime-path-allowed "${{ inputs.runtime_path_allowed }}" \
-            --runtime-path-fallback-blocker "${{ inputs.runtime_path_fallback_blocker }}" \
+            --runtime-path-allowed "MSF_MANAGED|EKS_EMR_ON_EKS|EKS_FLINK_OPERATOR" \
+            --runtime-path-fallback-blocker "M6P6-B2" \
             --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
             --wsp-job-id "${{ steps.submit.outputs.wsp_job_id }}" \
             --sr-ready-job-id "${{ steps.submit.outputs.sr_job_id }}" \
