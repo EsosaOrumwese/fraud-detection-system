@@ -1,0 +1,398 @@
+name: dev-full-m7a-handle-closure
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region for run-control evidence operations"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      platform_run_id:
+        description: "Pinned platform run id"
+        required: true
+        type: string
+      scenario_run_id:
+        description: "Pinned scenario run id"
+        required: true
+        type: string
+      upstream_m6_execution:
+        description: "Upstream M6 closure execution id (m6j)"
+        required: true
+        type: string
+      evidence_bucket:
+        description: "S3 bucket for M7 run-control evidence"
+        required: true
+        default: "fraud-platform-dev-full-evidence"
+        type: string
+      m7_execution_id:
+        description: "Optional fixed M7.A execution id (default: m7a_p8p10_handle_closure_<timestamp>)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-m7a-handle-closure-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_m7a_remote:
+    name: Run M7.A handle closure remotely (GitHub Actions)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m7_execution_id }}" ]]; then
+            EXEC_ID="${{ inputs.m7_execution_id }}"
+          else
+            EXEC_ID="m7a_p8p10_handle_closure_${TS}"
+          fi
+          RUN_DIR="runs/dev_substrate/dev_full/m7/${EXEC_ID}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m7_execution_id=${EXEC_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Build M7.A closure artifacts
+        shell: bash
+        env:
+          EXECUTION_ID: ${{ steps.run_meta.outputs.m7_execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          REGION: ${{ inputs.aws_region }}
+          UPSTREAM_M6_EXECUTION: ${{ inputs.upstream_m6_execution }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          import boto3
+          from botocore.exceptions import BotoCoreError, ClientError
+
+          def now_utc():
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          def write_json(path: Path, payload: dict):
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          def s3_get_json(s3_client, bucket: str, key: str):
+              try:
+                  obj = s3_client.get_object(Bucket=bucket, Key=key)
+                  return json.loads(obj["Body"].read().decode("utf-8")), None
+              except (BotoCoreError, ClientError) as exc:
+                  return None, f"s3_read_failed:{type(exc).__name__}:{key}"
+              except json.JSONDecodeError:
+                  return None, f"json_decode_failed:{key}"
+
+          def s3_put_json(s3_client, bucket: str, key: str, payload: dict):
+              try:
+                  s3_client.put_object(
+                      Bucket=bucket,
+                      Key=key,
+                      Body=(json.dumps(payload, indent=2, ensure_ascii=True) + "\n").encode("utf-8"),
+                      ContentType="application/json",
+                  )
+                  s3_client.head_object(Bucket=bucket, Key=key)
+                  return None
+              except (BotoCoreError, ClientError) as exc:
+                  return f"s3_put_or_head_failed:{type(exc).__name__}:{key}"
+
+          execution_id = os.environ["EXECUTION_ID"]
+          run_dir = Path(os.environ["RUN_DIR"])
+          platform_run_id = os.environ["PLATFORM_RUN_ID"]
+          scenario_run_id = os.environ["SCENARIO_RUN_ID"]
+          evidence_bucket = os.environ["EVIDENCE_BUCKET"]
+          region = os.environ["REGION"]
+          upstream_m6_execution = os.environ["UPSTREAM_M6_EXECUTION"]
+
+          captured_at = now_utc()
+          s3 = boto3.client("s3", region_name=region)
+
+          blockers = []
+          read_errors = []
+
+          # 1) Upstream M6 continuity check.
+          upstream_key = f"evidence/dev_full/run_control/{upstream_m6_execution}/m6_execution_summary.json"
+          upstream_summary, err = s3_get_json(s3, evidence_bucket, upstream_key)
+          if err:
+              read_errors.append(err)
+              blockers.append(
+                  {
+                      "code": "M7-B2",
+                      "message": "M6->M7 continuity evidence is missing or unreadable.",
+                  }
+              )
+              upstream_ok = False
+          else:
+              upstream_ok = bool(upstream_summary.get("overall_pass")) and str(upstream_summary.get("verdict", "")).strip() == "ADVANCE_TO_M7"
+              if not upstream_ok:
+                  blockers.append(
+                      {
+                          "code": "M7-B2",
+                          "message": "Upstream M6 summary is not in ADVANCE_TO_M7 posture.",
+                      }
+                  )
+
+          # 2) Required handle closure from dev_full registry.
+          registry_path = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
+          registry_text = registry_path.read_text(encoding="utf-8")
+          quoted = re.findall(r"\* `([A-Z0-9_]+)\s*=\s*\"([^\"]*)\"", registry_text)
+          boolish = re.findall(r"\* `([A-Z0-9_]+)\s*=\s*(true|false)`", registry_text, flags=re.IGNORECASE)
+          numish = re.findall(r"\* `([A-Z0-9_]+)\s*=\s*([0-9]+(?:\.[0-9]+)?)`", registry_text)
+          handles = {k: v for k, v in quoted}
+          handles.update({k: v.lower() for k, v in boolish})
+          handles.update({k: v for k, v in numish})
+
+          required_handles = [
+              "FLINK_RUNTIME_PATH_ACTIVE",
+              "FLINK_RUNTIME_PATH_ALLOWED",
+              "PHASE_RUNTIME_PATH_MODE",
+              "RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED",
+              "FLINK_APP_RTDL_IEG_V0",
+              "FLINK_APP_RTDL_OFP_V0",
+              "FLINK_EKS_RTDL_IEG_REF",
+              "FLINK_EKS_RTDL_OFP_REF",
+              "K8S_DEPLOY_ARCHIVE_WRITER",
+              "S3_ARCHIVE_RUN_PREFIX_PATTERN",
+              "S3_ARCHIVE_EVENTS_PREFIX_PATTERN",
+              "K8S_DEPLOY_DF",
+              "K8S_DEPLOY_AL",
+              "K8S_DEPLOY_DLA",
+              "FP_BUS_RTDL_V1",
+              "FP_BUS_AUDIT_V1",
+              "K8S_DEPLOY_CM",
+              "K8S_DEPLOY_LS",
+              "FP_BUS_CASE_TRIGGERS_V1",
+              "FP_BUS_LABELS_EVENTS_V1",
+              "AURORA_CLUSTER_IDENTIFIER",
+              "AURORA_MODE",
+              "SSM_AURORA_ENDPOINT_PATH",
+              "SSM_AURORA_USERNAME_PATH",
+              "SSM_AURORA_PASSWORD_PATH",
+          ]
+
+          missing_handles = []
+          placeholder_handles = []
+          for key in required_handles:
+              value = handles.get(key, "")
+              if not value:
+                  missing_handles.append(key)
+                  continue
+              value_norm = str(value).strip()
+              if ("TO_PIN" in value_norm) or ("<" in value_norm) or ("TBD" in value_norm):
+                  placeholder_handles.append(key)
+
+          if missing_handles or placeholder_handles:
+              blockers.append(
+                  {
+                      "code": "M7-B1",
+                      "message": "Required M7 handles are missing or placeholder-valued.",
+                  }
+              )
+
+          # 3) Pin initial per-component SLO profile.
+          slo_profile = {
+              "IEG": {"records_per_second_min": 200, "latency_p95_ms_max": 500, "lag_messages_max": 1000, "cpu_p95_pct_max": 85, "memory_p95_pct_max": 85, "error_rate_pct_max": 1.0},
+              "OFP": {"records_per_second_min": 200, "latency_p95_ms_max": 500, "lag_messages_max": 1000, "cpu_p95_pct_max": 85, "memory_p95_pct_max": 85, "error_rate_pct_max": 1.0},
+              "ArchiveWriter": {"objects_per_minute_min": 50, "commit_latency_p95_ms_max": 1200, "backpressure_seconds_max": 30, "cpu_p95_pct_max": 85, "memory_p95_pct_max": 85, "write_error_rate_pct_max": 0.5},
+              "DF": {"decisions_per_second_min": 150, "decision_latency_p95_ms_max": 800, "input_lag_messages_max": 1000, "cpu_p95_pct_max": 85, "memory_p95_pct_max": 85, "error_rate_pct_max": 1.0},
+              "AL": {"actions_per_second_min": 150, "action_latency_p95_ms_max": 800, "retry_ratio_pct_max": 5.0, "backpressure_seconds_max": 30, "cpu_p95_pct_max": 85, "memory_p95_pct_max": 85, "error_rate_pct_max": 1.0},
+              "DLA": {"audit_appends_per_second_min": 150, "append_latency_p95_ms_max": 1000, "queue_depth_max": 1000, "cpu_p95_pct_max": 85, "memory_p95_pct_max": 85, "error_rate_pct_max": 0.5},
+              "CaseTriggerBridge": {"events_per_second_min": 100, "bridge_latency_p95_ms_max": 700, "queue_depth_max": 1000, "cpu_p95_pct_max": 85, "memory_p95_pct_max": 85, "error_rate_pct_max": 1.0},
+              "CM": {"case_writes_per_second_min": 100, "case_write_latency_p95_ms_max": 900, "queue_depth_max": 1000, "cpu_p95_pct_max": 85, "memory_p95_pct_max": 85, "error_rate_pct_max": 1.0},
+              "LS": {"label_writes_per_second_min": 100, "commit_latency_p95_ms_max": 900, "writer_wait_seconds_max": 20, "cpu_p95_pct_max": 85, "memory_p95_pct_max": 85, "error_rate_pct_max": 1.0},
+          }
+          if not slo_profile:
+              blockers.append(
+                  {
+                      "code": "M7-B16",
+                      "message": "Per-component performance SLO profile is not pinned.",
+                  }
+              )
+
+          # Build artifacts.
+          blockers_unique = []
+          seen = set()
+          for b in blockers:
+              code = b.get("code")
+              if code and code not in seen:
+                  seen.add(code)
+                  blockers_unique.append({"code": code, "message": b.get("message", "")})
+
+          overall_pass = len(blockers_unique) == 0
+          next_gate = "M7.B_READY" if overall_pass else "HOLD_REMEDIATE"
+
+          m7a_snapshot = {
+              "captured_at_utc": captured_at,
+              "phase": "M7.A",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "upstream_m6_execution": upstream_m6_execution,
+              "upstream_continuity_ok": upstream_ok,
+              "required_handle_count": len(required_handles),
+              "resolved_handle_count": len(required_handles) - len(missing_handles),
+              "missing_handles": missing_handles,
+              "placeholder_handles": placeholder_handles,
+              "overall_pass": overall_pass,
+          }
+
+          m7a_slo = {
+              "captured_at_utc": captured_at,
+              "phase": "M7.A",
+              "execution_id": execution_id,
+              "component_slo_profile": slo_profile,
+              "overall_pass": overall_pass,
+          }
+
+          blocker_register = {
+              "captured_at_utc": captured_at,
+              "phase": "M7.A",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "blocker_count": len(blockers_unique),
+              "blockers": blockers_unique,
+              "read_errors": read_errors,
+          }
+
+          summary = {
+              "captured_at_utc": captured_at,
+              "phase": "M7.A",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers_unique),
+              "next_gate": next_gate,
+          }
+
+          artifacts = {
+              "m7a_handle_closure_snapshot.json": m7a_snapshot,
+              "m7a_component_slo_profile.json": m7a_slo,
+              "m7a_blocker_register.json": blocker_register,
+              "m7a_execution_summary.json": summary,
+          }
+
+          run_dir = run_dir
+          run_dir.mkdir(parents=True, exist_ok=True)
+          for name, payload in artifacts.items():
+              write_json(run_dir / name, payload)
+
+          prefix = f"evidence/dev_full/run_control/{execution_id}"
+          upload_errors = []
+          for name, payload in artifacts.items():
+              err = s3_put_json(s3, evidence_bucket, f"{prefix}/{name}", payload)
+              if err:
+                  upload_errors.append(err)
+
+          if upload_errors:
+              blockers_unique.append(
+                  {
+                      "code": "M7-B15",
+                      "message": "Failed to publish/readback M7.A artifact set to durable run-control prefix.",
+                  }
+              )
+              overall_pass = False
+              next_gate = "HOLD_REMEDIATE"
+              blocker_register["blockers"] = blockers_unique
+              blocker_register["blocker_count"] = len(blockers_unique)
+              blocker_register["upload_errors"] = upload_errors
+              summary["overall_pass"] = overall_pass
+              summary["blocker_count"] = len(blockers_unique)
+              summary["next_gate"] = next_gate
+              write_json(run_dir / "m7a_blocker_register.json", blocker_register)
+              write_json(run_dir / "m7a_execution_summary.json", summary)
+
+          print(json.dumps({"execution_id": execution_id, "overall_pass": summary["overall_pass"], "blocker_count": summary["blocker_count"], "next_gate": summary["next_gate"], "run_dir": str(run_dir), "run_control_prefix": f"s3://{evidence_bucket}/{prefix}/"}, ensure_ascii=True))
+          PY
+
+      - name: Fail-closed verdict gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUMMARY_PATH="${{ steps.run_meta.outputs.run_dir }}/m7a_execution_summary.json"
+          BLOCKER_PATH="${{ steps.run_meta.outputs.run_dir }}/m7a_blocker_register.json"
+          export SUMMARY_PATH BLOCKER_PATH
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          summary = json.loads(Path(os.environ["SUMMARY_PATH"]).read_text(encoding="utf-8"))
+          blockers = json.loads(Path(os.environ["BLOCKER_PATH"]).read_text(encoding="utf-8"))
+          overall_pass = bool(summary.get("overall_pass"))
+          blocker_count = int(blockers.get("blocker_count", 0))
+          next_gate = str(summary.get("next_gate", "")).strip()
+
+          print(json.dumps(
+              {
+                  "overall_pass": overall_pass,
+                  "blocker_count": blocker_count,
+                  "execution_id": summary.get("execution_id"),
+                  "next_gate": next_gate,
+              },
+              ensure_ascii=True,
+          ))
+          if (not overall_pass) or blocker_count != 0:
+              sys.exit(1)
+          if next_gate != "M7.B_READY":
+              sys.exit(1)
+          PY
+
+      - name: Upload M7.A run artifact set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m7a-handle-closure-${{ steps.run_meta.outputs.timestamp }}
+          path: ${{ steps.run_meta.outputs.run_dir }}
+          if-no-files-found: warn
