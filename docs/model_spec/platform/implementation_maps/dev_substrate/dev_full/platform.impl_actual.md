@@ -6575,6 +6575,116 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 2. Added operator-facing run index:
    - `runs/dev_substrate/dev_full/m5/RUN_INDEX.md`.
 
+## Entry: 2026-02-24 19:21:54 +00:00 - Pre-implementation planning for M5.D / P3.C
+
+### Trigger
+1. User requested planning + execution of `P3.C`.
+
+### Decision completeness check
+1. Upstream dependency is satisfied:
+   - `P3.B` is green (`m5c_p3b_required_outputs_20260224T191554Z`).
+2. Required P3.C handles are pinned:
+   - `ORACLE_REQUIRED_OUTPUT_IDS`,
+   - `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
+   - `ORACLE_SORT_KEY_ACTIVE_SCOPE`,
+   - `ORACLE_STORE_BUCKET`,
+   - `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN`,
+   - `S3_EVIDENCE_BUCKET`,
+   - `S3_RUN_CONTROL_ROOT_PATTERN`.
+
+### Execution approach selected
+1. Validate active sort-key contract using required outputs only (active scope law).
+2. Validate manifest sort-key conformance:
+   - required sort key must appear in manifest `sort_keys`,
+   - required sort key should be leading key for active scope outputs.
+3. Validate materialization completeness:
+   - required output prefixes contain parquet parts.
+4. Validate schema/readability with bounded sampling:
+   - read one sampled parquet part per required output,
+   - assert required sort-key columns exist,
+   - check sampled non-decreasing order on required key.
+5. Emit + publish:
+   - `m5d_stream_view_contract_snapshot.json`,
+   - `m5d_blocker_register.json`,
+   - `m5d_execution_summary.json`.
+
+### Performance posture
+1. Use bounded sampling instead of full parquet scans to keep verification minute-scale.
+2. Avoid hashing every object; rely on manifest + targeted readability checks for this gate.
+
+## Entry: 2026-02-24 19:23:38 +00:00 - P3.C first execution failure and bounded remediation
+
+### Failure observed
+1. First P3.C execution attempt failed before artifact emission due a Windows temp-file cleanup handle lock:
+   - `PermissionError [WinError 32]` while deleting sampled parquet temp file.
+2. The created run folder was empty:
+   - `runs/dev_substrate/dev_full/m5/m5d_p3c_stream_view_contract_20260224T192312Z/`.
+
+### Decision
+1. Treat as execution-instrumentation defect (not a platform contract blocker).
+2. Remediate verifier runtime only:
+   - switch to stable temp file with explicit close semantics,
+   - avoid `TemporaryDirectory` cleanup race for parquet handle.
+3. Prune empty non-authoritative run folder and rerun full P3.C.
+
+## Entry: 2026-02-24 19:26:20 +00:00 - M5.D / P3.C closure (green)
+
+### Authoritative run
+1. Execution id:
+   - `m5d_p3c_stream_view_contract_20260224T192457Z`
+2. Local summary:
+   - `runs/dev_substrate/dev_full/m5/m5d_p3c_stream_view_contract_20260224T192457Z/m5d_execution_summary.json`
+3. Outcome:
+   - `overall_pass=true`
+   - blocker count: `0`
+   - outputs with materialization: `4/4`
+   - outputs with manifest primary sort-key match: `4/4`
+   - outputs passing sampled schema/readability/order checks: `4/4`
+
+### Durable evidence
+1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5d_p3c_stream_view_contract_20260224T192457Z/m5d_stream_view_contract_snapshot.json`
+2. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5d_p3c_stream_view_contract_20260224T192457Z/m5d_blocker_register.json`
+3. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5d_p3c_stream_view_contract_20260224T192457Z/m5d_execution_summary.json`
+
+### Closure decision
+1. `M5.D` / `P3.C` is closed green.
+2. Next phase lane is `M5.E` / `P3.D` (P3 gate rollup + verdict).
+
+## Entry: 2026-02-25 00:48:53 +00:00 - Pre-implementation planning for M5.E / P3.D
+
+### Trigger
+1. User requested planning + execution of `P3.D`.
+
+### Decision completeness check
+1. Upstream dependency is satisfied:
+   - `P3.A` green: `m5b_20260224T185046Z`,
+   - `P3.B` green: `m5c_p3b_required_outputs_20260224T191554Z`,
+   - `P3.C` green: `m5d_p3c_stream_view_contract_20260224T192457Z`.
+2. Required evidence publication handles are pinned:
+   - `S3_EVIDENCE_BUCKET`,
+   - `S3_RUN_CONTROL_ROOT_PATTERN`.
+
+### Execution approach selected
+1. Resolve authoritative upstream P3 summaries from local run folder.
+2. Build deterministic P3 gate rollup matrix with explicit source refs:
+   - lane status for `P3.A/P3.B/P3.C`,
+   - propagated upstream blocker visibility.
+3. Build deterministic verdict:
+   - `ADVANCE_TO_P4` only if rollup blocker set is empty.
+4. Emit + publish:
+   - `m5e_p3_gate_rollup_matrix.json`,
+   - `m5e_p3_blocker_register.json`,
+   - `m5e_p3_gate_verdict.json`,
+   - `m5e_execution_summary.json`.
+
+### Risk and mitigation
+1. Risk:
+   - stale/non-authoritative upstream summary selected by mistake.
+2. Mitigation:
+   - filter for `overall_pass=true`,
+   - choose latest pass artifact per lane,
+   - include upstream artifact paths explicitly in rollup matrix.
+
 ## Entry: 2026-02-24 19:12:26 +00:00 - P3.B blocker remediation plan (source-approved copy lane)
 
 ### Problem

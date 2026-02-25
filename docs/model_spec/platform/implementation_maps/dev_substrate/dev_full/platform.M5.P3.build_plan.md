@@ -187,13 +187,76 @@ Tasks:
 4. emit `m5d_stream_view_contract_snapshot.json`.
 
 DoD:
-- [ ] sort-key and active-scope checks pass.
-- [ ] materialization checks pass.
-- [ ] contract snapshot committed locally and durably.
+- [x] sort-key and active-scope checks pass.
+- [x] materialization checks pass.
+- [x] contract snapshot committed locally and durably.
 
 P3.C precheck:
 1. P3.B required-output matrix is green.
 2. sort-key map is pinned for all required outputs.
+
+P3.C capability-lane coverage (execution gate):
+| Lane | Required handles/surfaces | Verification posture | Fail-closed condition |
+| --- | --- | --- | --- |
+| Active sort-key contract integrity | `ORACLE_SORT_KEY_BY_OUTPUT_ID`, `ORACLE_SORT_KEY_ACTIVE_SCOPE`, `ORACLE_REQUIRED_OUTPUT_IDS` | resolve active required outputs and required sort key per output | missing active sort-key mapping for any required output |
+| Manifest sort-key conformance | `_stream_view_manifest.json` per required output | verify required sort key exists in manifest `sort_keys` and is leading key for active scope | manifest sort key absent/mismatched |
+| Materialization completeness | stream-view output prefix parquet parts | verify each required output has at least one parquet part | empty/missing parquet materialization |
+| Schema/readability contract | sampled parquet parts per required output | verify parquet readable, required sort-key columns exist, and sampled ordering is non-decreasing on active sort key | unreadable parquet, missing key columns, or sample ordering violation |
+| Contract snapshot + blocker register consistency | `m5d_stream_view_contract_snapshot.json`, `m5d_blocker_register.json` | emit per-output checks and explicit blockers | unresolved failure without blocker mapping |
+| Evidence publication | `S3_EVIDENCE_BUCKET`, `S3_RUN_CONTROL_ROOT_PATTERN` | local + durable publish/readback | durable publish/readback failure |
+
+P3.C verification command templates (operator lane):
+1. Active sort-key mapping:
+   - `rg -n "ORACLE_REQUIRED_OUTPUT_IDS|ORACLE_SORT_KEY_BY_OUTPUT_ID|ORACLE_SORT_KEY_ACTIVE_SCOPE" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+2. Materialization surface:
+   - `aws s3api list-objects-v2 --bucket <ORACLE_STORE_BUCKET> --prefix <resolved_output_prefix> --max-keys 5`
+3. Manifest sort-key check:
+   - `aws s3 cp s3://<ORACLE_STORE_BUCKET>/<resolved_manifest_key> -`
+4. Sample readability check:
+   - read sampled parquet parts and validate key-column presence + sampled non-decreasing order for active sort key.
+5. Durable snapshot publish:
+   - `aws s3 cp <local_m5d_stream_view_contract_snapshot.json> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/m5d_stream_view_contract_snapshot.json`
+   - `aws s3 ls s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/m5d_stream_view_contract_snapshot.json`
+
+P3.C scoped blocker mapping (must be explicit before transition):
+1. `P3C-B1` -> `M5P3-B1`: required sort-key handles missing/inconsistent.
+2. `P3C-B2` -> `M5P3-B4`: manifest sort-key contract mismatch.
+3. `P3C-B3` -> `M5P3-B4`: stream-view materialization missing/empty.
+4. `P3C-B4` -> `M5P3-B4`: sampled schema/readability/order contract failure.
+5. `P3C-B5` -> `M5P3-B7`: durable publish/readback failure.
+6. `P3C-B6` -> `M5P3-B8`: transition attempted with unresolved `P3C-B*`.
+
+P3.C exit rule:
+1. active sort-key checks pass for all required outputs,
+2. materialization completeness checks pass for all required outputs,
+3. sampled readability/order checks pass for all required outputs,
+4. `m5d_stream_view_contract_snapshot.json` exists locally and durably,
+5. no active `P3C-B*` blocker remains,
+6. P3.D remains blocked until P3.C pass is explicit in rollup evidence.
+
+P3.C execution closure (2026-02-24):
+1. First attempt:
+   - failed due Windows temp-file handle lock during sampled parquet cleanup (`WinError 32`);
+   - no authoritative artifacts emitted; empty run folder pruned.
+2. Remediation:
+   - switched sampled parquet handling to explicit temp-file close/delete strategy,
+   - reran full P3.C end-to-end.
+3. Authoritative run:
+   - execution id: `m5d_p3c_stream_view_contract_20260224T192457Z`
+   - local root: `runs/dev_substrate/dev_full/m5/m5d_p3c_stream_view_contract_20260224T192457Z/`
+   - summary: `runs/dev_substrate/dev_full/m5/m5d_p3c_stream_view_contract_20260224T192457Z/m5d_execution_summary.json`
+4. Result:
+   - `overall_pass=true`
+   - blockers: `[]`
+   - outputs with materialization: `4/4`
+   - outputs with manifest primary sort-key match: `4/4`
+   - outputs with sampled schema/readability/order contract pass: `4/4`
+5. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5d_p3c_stream_view_contract_20260224T192457Z/m5d_stream_view_contract_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5d_p3c_stream_view_contract_20260224T192457Z/m5d_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5d_p3c_stream_view_contract_20260224T192457Z/m5d_execution_summary.json`
+6. Gate impact:
+   - P3.C is green; P3.D (`M5.E`) is unblocked.
 
 ### P3.D (M5.E) P3 Gate Rollup + Verdict
 Goal:
@@ -214,6 +277,41 @@ DoD:
 P3.D precheck:
 1. P3.A..P3.C artifacts exist and are readable.
 2. blocker taxonomy is pinned and explicit.
+
+P3.D capability-lane coverage (execution gate):
+| Lane | Required handles/surfaces | Verification posture | Fail-closed condition |
+| --- | --- | --- | --- |
+| Upstream artifact closure | `m5b_execution_summary.json`, `m5c_execution_summary.json`, `m5d_execution_summary.json` | resolve authoritative upstream summaries and confirm readability | missing/unreadable upstream summary artifact |
+| Upstream blocker closure | upstream `active_blocker_codes` from P3.A..P3.C | require all upstream lanes `overall_pass=true` and blocker-free | unresolved upstream blocker in any P3 lane |
+| Rollup matrix consistency | `m5e_p3_gate_rollup_matrix.json` | emit deterministic lane matrix with source refs and pass/fail adjudication | matrix missing lane or inconsistent with source summaries |
+| Verdict determinism | `m5e_p3_gate_verdict.json` | derive verdict from blocker-consistent rule (`ADVANCE_TO_P4` only when blocker-free) | verdict contradicts blocker state |
+| Evidence publication | `S3_EVIDENCE_BUCKET`, `S3_RUN_CONTROL_ROOT_PATTERN` | local + durable publish/readback of rollup artifacts | durable publish/readback failure |
+
+P3.D verification command templates (operator lane):
+1. Upstream summaries:
+   - `cat runs/dev_substrate/dev_full/m5/<m5b_id>/m5b_execution_summary.json`
+   - `cat runs/dev_substrate/dev_full/m5/<m5c_id>/m5c_execution_summary.json`
+   - `cat runs/dev_substrate/dev_full/m5/<m5d_id>/m5d_execution_summary.json`
+2. Verdict consistency check:
+   - require `ADVANCE_TO_P4` iff blocker set is empty.
+3. Durable publish/readback:
+   - `aws s3 cp <local_m5e_p3_gate_verdict.json> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/m5e_p3_gate_verdict.json`
+   - `aws s3 ls s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/m5e_p3_gate_verdict.json`
+
+P3.D scoped blocker mapping (must be explicit before transition):
+1. `P3D-B1` -> `M5P3-B5`: upstream P3 artifact missing/unreadable.
+2. `P3D-B2` -> `M5P3-B5`: unresolved upstream blocker propagated into rollup.
+3. `P3D-B3` -> `M5P3-B6`: deterministic verdict build failure.
+4. `P3D-B4` -> `M5P3-B7`: durable publish/readback failure.
+5. `P3D-B5` -> `M5P3-B8`: transition attempted with unresolved `P3D-B*`.
+
+P3.D exit rule:
+1. P3.A..P3.C upstream summaries are resolved and blocker-free,
+2. `m5e_p3_gate_rollup_matrix.json` exists and is source-consistent,
+3. `m5e_p3_gate_verdict.json` is deterministic and blocker-consistent,
+4. P3 rollup artifacts exist locally and durably,
+5. no active `P3D-B*` blocker remains,
+6. P4 remains blocked until verdict is explicitly `ADVANCE_TO_P4`.
 
 ## 3) P3 Verification Catalog
 | Verify ID | Command template | Purpose |

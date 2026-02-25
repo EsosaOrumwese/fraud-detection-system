@@ -2306,3 +2306,95 @@ Removed superseded `POPT.4` candidates:
 - `f29bae549afc42f4a78d10c285358dd6`,
 - `96804e13231b4c388299c1e376c4ccae`,
 - `2f204ebdc5714787bb5f2fb4fcad0c7f`.
+
+### Entry: 2026-02-24 19:34
+
+POPT.5 planning lock and execution strategy.
+
+Objective:
+- run integrated `S1->S5` on a fresh run-id and quantify closure-grade performance movement vs full-chain authority baseline.
+
+Baseline pinned:
+- `run_id=592d82e8d51042128fc32cb4394f1fa2`.
+- `S2+S3+S4+S5=1794.047s` (authority comparison surface for this lane).
+
+Alternatives considered:
+1) Reuse existing state-specific witness artifacts to infer integrated closure.
+   - Rejected: phase requires an end-to-end integrated witness on a single run-id.
+2) Re-run only `S2->S5` with staged `S1`.
+   - Rejected: lower confidence; misses fresh `S1` execution and full-chain orchestration evidence.
+3) Full sequential chain `S0,S1,S2,S3,S4,S5` on a new run-id with stable upstream links.
+   - Selected.
+
+Execution plan:
+1) create fresh run folder and run_receipt (seed/manifest/parameter preserved from baseline),
+2) mount `data/layer1` + `data/layer2` from authority run for immutable upstream inputs,
+3) execute `S0 -> S5` CLIs sequentially on same run-id,
+4) parse perf and validation artifacts,
+5) compare integrated runtime vs baseline and decide `UNLOCK_P0` vs `HOLD_POPT5`,
+6) prune superseded run folders with keep-set discipline.
+
+Invariants:
+- no code edits in this lane unless a blocker occurs,
+- no policy/config changes,
+- deterministic contracts and validation fail-closed posture preserved.
+
+### Entry: 2026-02-24 19:40
+
+POPT.5 integrated witness closure and phase decision.
+
+Execution completed on fresh run-id:
+- `run_id=59b82090679742c0b2fa3bb3f5dd3150`,
+- sequential chain executed on same run-id: `S0 -> S1 -> S2 -> S3 -> S4 -> S5`.
+
+Authority artifacts reviewed:
+- perf summary:
+  - `runs/fix-data-engine/segment_6A/59b82090679742c0b2fa3bb3f5dd3150/reports/layer3/6A/perf/seed=42/parameter_hash=56d45126eaabedd083a1d8428a763e0278c89efec5023cfd6cf3cab7fc8dd2d7/manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8/run_id=59b82090679742c0b2fa3bb3f5dd3150/perf_summary_6A.json`
+- validation:
+  - `runs/fix-data-engine/segment_6A/59b82090679742c0b2fa3bb3f5dd3150/data/layer3/6A/validation/manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8/s5_validation_report_6A.json`
+  - `_passed.flag` present in same validation folder.
+
+Measured integrated movement (`S2..S5`) against baseline `run_id=592d82e8d51042128fc32cb4394f1fa2`:
+- baseline:
+  - `S2=265.516s`, `S3=409.797s`, `S4=102.484s`, `S5=1016.250s`,
+  - integrated `1794.047s`.
+- candidate:
+  - `S2=189.860s`, `S3=409.422s`, `S4=96.641s`, `S5=70.640s`,
+  - integrated `766.563s`.
+- delta:
+  - absolute `-1027.484s`,
+  - relative improvement `57.272%`.
+
+Gate evaluation:
+- hard gate (`>=35%` integrated improvement): `PASS`.
+- stretch gate (`>=50%` integrated improvement): `PASS`.
+- regression sweep:
+  - no `ERROR/CRITICAL/Traceback/FAILED` signatures found in run log tree,
+  - validation posture remains pass-closed (`overall_status=PASS`).
+- residual budget posture:
+  - `perf_budget_check_6A.json` remains red at segment level (`766.563s > 540.0s`),
+  - dominant remaining hotspot is `S3.allocate_instruments` (`378.156s`).
+
+Decision:
+- `POPT.5=UNLOCK_P0`.
+
+Run-retention action:
+- keep-set updated to:
+  - `592d82e8d51042128fc32cb4394f1fa2` (full-chain baseline),
+  - `94dcc9f10a324d829a0ece6f96eda5f6` (`POPT.2` witness),
+  - `d9e03d8aeac24a21ad2560e649825b97` (`POPT.3` witness),
+  - `f388966781f84fd7acd9fa42b469b275` (`POPT.4` best witness),
+  - `59b82090679742c0b2fa3bb3f5dd3150` (`POPT.5` integrated authority).
+
+### Entry: 2026-02-24 19:41
+
+POPT.5 prune execution completed.
+
+Executed:
+- `python tools/prune_run_folders_keep_set.py --runs-root runs/fix-data-engine/segment_6A --keep 592d82e8d51042128fc32cb4394f1fa2 --keep 94dcc9f10a324d829a0ece6f96eda5f6 --keep d9e03d8aeac24a21ad2560e649825b97 --keep f388966781f84fd7acd9fa42b469b275 --keep 59b82090679742c0b2fa3bb3f5dd3150 --yes`
+
+Removed as superseded:
+- `2204694f83dc4bc7bfa5d04274b9f211`.
+
+Result:
+- active run-folder set now matches POPT.5 closure keep-set exactly.

@@ -745,10 +745,65 @@ POPT.4 closure evidence:
   - `HOLD_POPT4`.
 
 #### POPT.5 - Integration closure for performance lane
+Goal:
+- verify integrated runtime gains from `POPT.1-POPT.4` on a fresh full `S1->S5` chain and close performance lane with a deterministic evidence pack.
+
+##### POPT.5.0 - Integration baseline lock
 Definition of done:
-- [ ] End-to-end `S1-S5` cold-run executed on `runs/fix-data-engine/segment_6A/<run_id>`.
-- [ ] Runtime budget movement verified vs pinned baseline (`c25` and/or `fd0`).
-- [ ] No schema/idempotence/contract regressions; realism gate calculations remain reproducible.
+- [x] Baseline authority pinned to full-chain run `592d82e8d51042128fc32cb4394f1fa2`.
+- [x] Baseline totals pinned for comparison:
+  - `S2=265.516s`,
+  - `S3=409.797s`,
+  - `S4=102.484s`,
+  - `S5=1016.250s`,
+  - integrated `S2+S3+S4+S5=1794.047s`.
+- [x] Integration gate thresholds pinned:
+  - hard: integrated `S2..S5` improvement `>=35%`,
+  - stretch: integrated `S2..S5` improvement `>=50%`.
+
+##### POPT.5.1 - Fresh full-chain execution (`S1->S5`)
+Definition of done:
+- [x] Fresh run-id created under `runs/fix-data-engine/segment_6A`.
+- [x] `S0`, `S1`, `S2`, `S3`, `S4`, `S5` executed sequentially on same run-id.
+- [x] Perf artifacts emitted (`s*_perf_events_6A.jsonl`, `perf_summary_6A.json`).
+
+##### POPT.5.2 - Integration validation and regression checks
+Definition of done:
+- [x] `S5` validation report `overall_status=PASS`.
+- [x] No schema/idempotence/publish-surface regressions detected on `S2-S5`.
+- [x] Upstream gate posture remains pass-closed (`S0` receipt + sealed inputs consistent).
+
+##### POPT.5.3 - Decision and freeze routing
+Definition of done:
+- [x] Compare integrated totals and per-state deltas vs baseline.
+- [x] Record one decision:
+  - `UNLOCK_P0` if hard gate passes with no regressions,
+  - `HOLD_POPT5` if hard gate fails,
+  - `REVERT_POPT5` on regression.
+- [x] Update keep-set and prune superseded run-id folders.
+
+POPT.5 closure evidence:
+- Baseline authority (`run_id=592d82e8d51042128fc32cb4394f1fa2`):
+  - `S2=265.516s`, `S3=409.797s`, `S4=102.484s`, `S5=1016.250s`,
+  - integrated `S2+S3+S4+S5=1794.047s`.
+- Fresh integrated witness (`run_id=59b82090679742c0b2fa3bb3f5dd3150`):
+  - `S2=189.860s`, `S3=409.422s`, `S4=96.641s`, `S5=70.640s`,
+  - integrated `S2+S3+S4+S5=766.563s`.
+- Integrated delta:
+  - absolute gain `=1027.484s`,
+  - improvement `=57.272%` vs baseline.
+- Gate outcome:
+  - hard gate (`>=35%`) `PASS`,
+  - stretch gate (`>=50%`) `PASS`.
+- Validation/regression evidence:
+  - `s5_validation_report_6A.json` => `overall_status=PASS`,
+  - `_passed.flag` emitted for `S5`,
+  - no `ERROR/CRITICAL/Traceback/FAILED` signatures found in run logs.
+- Residual budget posture (non-blocking for POPT.5 gate):
+  - `perf_budget_check_6A.json` reports segment budget miss (`766.563s > 540.0s`),
+  - remaining minute-scale hotspot is `S3.allocate_instruments` (`378.156s`).
+- Decision:
+  - `POPT.5=UNLOCK_P0`.
 
 ### 7.4 Hard constraints for all optimization lanes
 - Determinism lock:

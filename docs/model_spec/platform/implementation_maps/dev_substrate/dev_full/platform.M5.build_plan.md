@@ -191,9 +191,25 @@ Tasks:
 4. publish stream-view contract snapshot.
 
 DoD:
-- [ ] stream-view contract checks pass.
-- [ ] materialization completeness checks pass.
-- [ ] stream-view contract snapshot committed locally and durably.
+- [x] stream-view contract checks pass.
+- [x] materialization completeness checks pass.
+- [x] stream-view contract snapshot committed locally and durably.
+
+M5.D execution closure (2026-02-24):
+1. First attempt failed due verifier temp-file handle cleanup issue on Windows (`WinError 32`); empty folder pruned.
+2. Authoritative rerun:
+   - `runs/dev_substrate/dev_full/m5/m5d_p3c_stream_view_contract_20260224T192457Z/m5d_execution_summary.json`
+   - outcome: `overall_pass=true`, blockers=`[]`.
+3. Contract outcomes:
+   - materialization: `4/4` required outputs have parquet parts,
+   - manifest primary sort-key match: `4/4`,
+   - sampled schema/readability/order contract pass: `4/4`.
+4. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5d_p3c_stream_view_contract_20260224T192457Z/m5d_stream_view_contract_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5d_p3c_stream_view_contract_20260224T192457Z/m5d_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5d_p3c_stream_view_contract_20260224T192457Z/m5d_execution_summary.json`
+5. Next action:
+   - advance to `M5.E` (`P3.D`) rollup/verdict execution.
 
 ### M5.E P3 Gate Rollup + Verdict
 Goal:
@@ -352,7 +368,7 @@ Any active `M5-B*` blocker prevents M5 closure.
 - [x] M5.A complete
 - [x] M5.B complete
 - [x] M5.C complete
-- [ ] M5.D complete
+- [x] M5.D complete
 - [ ] M5.E complete
 - [ ] M5.F complete
 - [ ] M5.G complete
@@ -388,4 +404,5 @@ Handoff posture:
    - `M5.A` is closed green (`m5a_20260224T182433Z`).
    - `M5.B` / `P3.A` is closed green (`m5b_20260224T185046Z`).
    - `M5.C` / `P3.B` is closed green (`m5c_p3b_required_outputs_20260224T191554Z`) after oracle materialization remediation.
-   - next actionable execution lane is `M5.D` (`P3.C`).
+   - `M5.D` / `P3.C` is closed green (`m5d_p3c_stream_view_contract_20260224T192457Z`).
+   - next actionable execution lane is `M5.E` (`P3.D`).

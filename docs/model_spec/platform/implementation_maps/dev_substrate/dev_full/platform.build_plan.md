@@ -564,6 +564,7 @@ M5 planning posture:
 - Capability lanes are explicit (authority/handles, oracle boundary, stream-view contract, IG health/auth, MSK readiness, envelope conformance, rollup/handoff).
 - `M5.P3.A` (oracle boundary/ownership) has been expanded to execution-grade capability-lane checks, blocker mapping, and exit rule.
 - `M5.P3.B` was remediated and closed green (`m5c_p3b_required_outputs_20260224T191554Z`) with durable evidence; baseline fail run retained as blocker trail.
+- `M5.P3.C` is closed green (`m5d_p3c_stream_view_contract_20260224T192457Z`) with stream-view contract/materialization evidence.
 - M5 has been split into dedicated subplans to prevent phase cramming:
   - `platform.M5.P3.build_plan.md` (P3 closure),
   - `platform.M5.P4.build_plan.md` (P4 closure).
@@ -580,7 +581,7 @@ M5 sub-phase progress:
 - [x] `M5.A` authority + handle closure (`m5a_20260224T182433Z`, blocker-free, durable evidence committed).
 - [x] `M5.B` oracle source boundary + ownership (`m5b_20260224T185046Z`, blocker-free, durable evidence committed).
 - [x] `M5.C` required outputs + manifest readability (`m5c_p3b_required_outputs_20260224T191554Z`, blocker-free after oracle materialization remediation).
-- [ ] `M5.D` stream-view contract + materialization.
+- [x] `M5.D` stream-view contract + materialization (`m5d_p3c_stream_view_contract_20260224T192457Z`, blocker-free).
 - [ ] `M5.E` P3 rollup + verdict.
 - [ ] `M5.F` ingress boundary health.
 - [ ] `M5.G` boundary auth enforcement.
