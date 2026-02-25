@@ -363,30 +363,94 @@ Goal:
 
 #### P3.1 - Propagation model lock
 Definition of done:
-- [ ] Conditional uplift design pinned:
+- [x] Conditional uplift design pinned:
   - party-risk -> account-risk
   - party-risk -> device-risk
   - risky asset/high-sharing context -> IP risk uplift
-- [ ] Log-odds clamp bounds pinned to avoid over-separability.
+- [x] Bounded uplift controls pinned to avoid over-separability.
 
 #### P3.2 - `S5` implementation
 Definition of done:
-- [ ] `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py` updated with pre-draw conditional uplift layer.
-- [ ] Deterministic tie-break and overflow behavior preserved.
-- [ ] Evidence counters/diagnostics emitted for uplift effects.
+- [x] `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py` updated with pre-draw conditional uplift layer.
+- [x] Deterministic tie-break and overflow behavior preserved.
+- [x] Evidence diagnostics emitted for propagation activation (`risk_propagation` enabled flags in run log).
 
 #### P3.3 - New coefficients policy
 Definition of done:
-- [ ] Added `config/layer3/6A/policy/risk_propagation_coeffs_6A.v1.yaml`.
-- [ ] Initial targets encoded for `B`:
+- [x] Added `risk_propagation` coefficients block in `config/layer3/6A/policy/validation_policy_6A.v1.yaml`.
+- [x] Initial targets encoded for `B`:
   - `OR_account` and `OR_device` bands aligned to remediation guidance.
-- [ ] Schema/loader compatibility confirmed.
+- [x] Schema/loader compatibility confirmed (validation policy schema for 6A is open-object; loader validation passes).
 
 #### P3.4 - Witness and closure
 Definition of done:
-- [ ] `T7` passes at `B` thresholds.
-- [ ] `T3-T5` remain green after propagation coupling.
-- [ ] Decision recorded as `UNLOCK_P4` or `HOLD_P3`.
+- [x] `T7` passes at `B` thresholds.
+- [x] `T3-T5` remain green after propagation coupling.
+- [x] Decision recorded as `UNLOCK_P4` or `HOLD_P3`.
+
+P3 expanded execution breakdown:
+
+##### P3.1A - Owner-coupling model lock (pre-code)
+Definition of done:
+- [x] Coupling mechanism pinned to deterministic tier-promotion (not stochastic post-role rewrites):
+  - `party risk -> account tier promotion`
+  - `party risk -> device tier promotion`
+  - `IP sharing context -> IP tier promotion` (bounded, optional lane)
+- [x] Risk-role set for owner signal pinned to scorer-compatible set:
+  - `SYNTHETIC_ID`, `MULE`, `ASSOCIATE`, `ORGANISER`.
+- [x] Promotion probabilities bounded to `[0,1]` with explicit defaults to avoid over-separability.
+
+##### P3.2A - `S5` implementation integration
+Definition of done:
+- [x] `runner.py` wires owner/shared-context joins and deterministic promotion streams before role draw.
+- [x] Existing role vocab/schema contracts preserved (`s5_*_fraud_roles_6A` unchanged).
+- [x] Idempotent publish path and fail-closed validation flow remain unchanged.
+
+##### P3.3A - Policy coefficients + diagnostics wiring
+Definition of done:
+- [x] `validation_policy_6A.v1.yaml` contains `risk_propagation` controls:
+  - risky party role set,
+  - account/device promotion probabilities by tier,
+  - IP sharing threshold + promotion probabilities.
+- [x] Runtime logs include propagation-policy activation evidence (enabled flags + key parameters).
+
+##### P3.4A - Fresh witness run + realism scoring
+Definition of done:
+- [x] Fresh run lane created under `runs/fix-data-engine/segment_6A/<run_id>` staged from P2 authority inputs.
+- [x] `segment6a-s5` executed on fresh lane.
+- [x] `tools/score_segment6a_p0_baseline.py` gateboard emitted for witness run.
+
+##### P3.4B - Closure decision and handoff
+Definition of done:
+- [x] Owner gate target:
+  - `T7` moves to `PASS_B` (or `PASS_BPLUS`).
+- [x] Non-owner guardrails unchanged:
+  - `T1-T5` remain `PASS_B`.
+- [x] Phase decision explicitly recorded:
+  - `UNLOCK_P4` if owner + non-regression criteria hold,
+  - `HOLD_P3` otherwise (with blocker metrics).
+
+P3 closure evidence (`run_id=9fb441c656b54387a0ed6cac8142da22`):
+- gateboard artifact:
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p0_realism_gateboard_9fb441c656b54387a0ed6cac8142da22.json`.
+- owner-gate movement:
+  - baseline (`e6d311...`) -> closure (`9fb441...`):
+    - `OR_account 1.0110 -> 1.7206`,
+    - `OR_device 0.9759 -> 1.5664`.
+  - `T7 OR_account=1.7206`, `OR_device=1.5664`, both CI lows `>1.0` (`PASS_B`).
+- non-owner guardrails:
+  - `T1` PASS (`max_overflow=0`, `total_overflow=0`),
+  - `T2` PASS (`max_p99_over_kmax=0`, `max_max_over_kmax=0`),
+  - `T3` PASS (`max_abs_error_pp=0.0450`),
+  - `T4` PASS (`coverage=1.0000`),
+  - `T5` PASS_B (`p99=93`, `max=147`).
+- known non-P3 blockers retained:
+  - `T8` still FAIL (dominated by `ip_role_jsd`),
+  - `T9/T10` insufficient-evidence on single-seed isolated lane.
+- superseded witness notes:
+  - `dc290948...` captured same T7 movement but was superseded after bounded IP-lane correction.
+- phase decision:
+  - `P3=UNLOCK_P4`.
 
 ### P4 - Delta Sets D/E role mapping + validation hardening
 Goal:

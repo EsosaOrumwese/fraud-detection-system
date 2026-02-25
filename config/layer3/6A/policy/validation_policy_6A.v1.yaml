@@ -65,6 +65,34 @@ consistency_checks:
   require_role_vocab_match_taxonomy: true
   require_linkage_roles_match_policy: true
 
+risk_propagation:
+  party_risky_roles: [SYNTHETIC_ID, MULE, ASSOCIATE, ORGANISER]
+  account_owner_propagation:
+    enabled: true
+    default_promote_probability: 0.0
+    promote_probability_by_tier:
+      LOW: 0.80
+      STANDARD: 0.75
+      ELEVATED: 0.65
+      HIGH: 0.0
+  device_owner_propagation:
+    enabled: true
+    default_promote_probability: 0.0
+    promote_probability_by_tier:
+      LOW: 0.70
+      STANDARD: 0.65
+      ELEVATED: 0.55
+      HIGH: 0.0
+  ip_sharing_propagation:
+    enabled: false
+    shared_degree_threshold: 40
+    default_promote_probability: 0.0
+    promote_probability_by_tier:
+      LOW: 0.45
+      STANDARD: 0.35
+      ELEVATED: 0.25
+      HIGH: 0.0
+
 failure_policy:
   mode: fail_closed
   max_warnings: 0

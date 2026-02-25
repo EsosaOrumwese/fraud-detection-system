@@ -38,6 +38,7 @@ SEGMENT = "6A"
 STATE = "S5"
 _HEX64_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 _HASH_SEED = 0x6A5F001
+_DEFAULT_PARTY_RISKY_ROLES = {"SYNTHETIC_ID", "MULE", "ASSOCIATE", "ORGANISER"}
 
 
 @dataclass(frozen=True)
@@ -676,6 +677,58 @@ def _risk_tier_expr(thresholds: dict, u_expr: pl.Expr) -> pl.Expr:
     )
 
 
+def _clamp01(value: object, default: float = 0.0) -> float:
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return float(default)
+    if v < 0.0:
+        return 0.0
+    if v > 1.0:
+        return 1.0
+    return v
+
+
+def _tier_probability_expr(promotion_by_tier: dict[str, object], tier_expr: pl.Expr, default_prob: float) -> pl.Expr:
+    expr = None
+    for tier_id in ("LOW", "STANDARD", "ELEVATED", "HIGH"):
+        prob = _clamp01(promotion_by_tier.get(tier_id), default_prob)
+        condition = tier_expr == pl.lit(tier_id)
+        if expr is None:
+            expr = pl.when(condition).then(pl.lit(prob))
+        else:
+            expr = expr.when(condition).then(pl.lit(prob))
+    if expr is None:
+        return pl.lit(_clamp01(default_prob))
+    return expr.otherwise(pl.lit(_clamp01(default_prob)))
+
+
+def _promote_tier_one_step_expr(tier_expr: pl.Expr) -> pl.Expr:
+    return (
+        pl.when(tier_expr == pl.lit("LOW"))
+        .then(pl.lit("STANDARD"))
+        .when(tier_expr == pl.lit("STANDARD"))
+        .then(pl.lit("ELEVATED"))
+        .when(tier_expr == pl.lit("ELEVATED"))
+        .then(pl.lit("HIGH"))
+        .otherwise(pl.lit("HIGH"))
+    )
+
+
+def _conditional_tier_promotion_expr(
+    base_tier_expr: pl.Expr,
+    trigger_expr: pl.Expr,
+    u_expr: pl.Expr,
+    promotion_by_tier: dict[str, object],
+    default_prob: float = 0.0,
+) -> pl.Expr:
+    promote_prob = _tier_probability_expr(promotion_by_tier, base_tier_expr, default_prob)
+    promoted_tier = _promote_tier_one_step_expr(base_tier_expr)
+    trigger = trigger_expr.cast(pl.Int8, strict=False).fill_null(0) > pl.lit(0)
+    promote = trigger & (u_expr <= promote_prob)
+    return pl.when(promote).then(promoted_tier).otherwise(base_tier_expr)
+
+
 def _build_role_expr(
     mapping: dict,
     group_expr: pl.Expr,
@@ -1035,6 +1088,28 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     timer.info("S5: required S1-S4 inputs confirmed on disk")
     perf.record_elapsed("load_contracts_inputs", step_started)
 
+    risk_propagation = validation_policy.get("risk_propagation", {}) or {}
+    party_risky_roles = {
+        str(role).upper()
+        for role in (risk_propagation.get("party_risky_roles") or sorted(_DEFAULT_PARTY_RISKY_ROLES))
+        if str(role).strip()
+    }
+    if not party_risky_roles:
+        party_risky_roles = set(_DEFAULT_PARTY_RISKY_ROLES)
+    account_prop_cfg = risk_propagation.get("account_owner_propagation", {}) or {}
+    device_prop_cfg = risk_propagation.get("device_owner_propagation", {}) or {}
+    ip_prop_cfg = risk_propagation.get("ip_sharing_propagation", {}) or {}
+    account_prop_enabled = bool(account_prop_cfg.get("enabled", True))
+    device_prop_enabled = bool(device_prop_cfg.get("enabled", True))
+    ip_prop_enabled = bool(ip_prop_cfg.get("enabled", False))
+    timer.info(
+        "S5: risk propagation config loaded (party_risky_roles=%d, account_enabled=%s, device_enabled=%s, ip_enabled=%s)",
+        len(party_risky_roles),
+        account_prop_enabled,
+        device_prop_enabled,
+        ip_prop_enabled,
+    )
+
     run_seed = int(seed)
     stream_seeds = {
         "party_risk_tier": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "party_risk_tier", _HASH_SEED),
@@ -1047,6 +1122,15 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         "device_role": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "device_role", _HASH_SEED + 7),
         "ip_risk_tier": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "ip_risk_tier", _HASH_SEED + 8),
         "ip_role": _derive_stream_seed(run_seed, manifest_fingerprint, parameter_hash, "ip_role", _HASH_SEED + 9),
+        "account_owner_promo": _derive_stream_seed(
+            run_seed, manifest_fingerprint, parameter_hash, "account_owner_promo", _HASH_SEED + 10
+        ),
+        "device_owner_promo": _derive_stream_seed(
+            run_seed, manifest_fingerprint, parameter_hash, "device_owner_promo", _HASH_SEED + 11
+        ),
+        "ip_sharing_promo": _derive_stream_seed(
+            run_seed, manifest_fingerprint, parameter_hash, "ip_sharing_promo", _HASH_SEED + 12
+        ),
     }
 
     taxonomy_roles = {}
@@ -1137,6 +1221,16 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             "6A.S5.IO_WRITE_FAILED",
         )
     perf.record_elapsed("assign_party_roles", step_started)
+    party_risk_lf = pl.scan_parquet(str(party_roles_path)).select(
+        [
+            pl.col("party_id"),
+            pl.col("fraud_role_party")
+            .str.to_uppercase()
+            .is_in(sorted(party_risky_roles))
+            .cast(pl.Int8)
+            .alias("party_risk_flag"),
+        ]
+    )
 
     step_started = time.monotonic()
     if _reuse_existing_parquet(
@@ -1150,13 +1244,30 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     else:
         logger.info("S5: assigning account fraud roles (inputs=%s)", account_base_path)
         account_lf = pl.scan_parquet(str(account_base_path))
+        if account_prop_enabled:
+            account_lf = (
+                account_lf.join(party_risk_lf, left_on="owner_party_id", right_on="party_id", how="left")
+                .with_columns(pl.col("party_risk_flag").fill_null(0).cast(pl.Int8))
+            )
+        else:
+            account_lf = account_lf.with_columns(pl.lit(0).cast(pl.Int8).alias("party_risk_flag"))
         account_groups = (account_prior.get("cell_definition") or {}).get("account_groups", {})
         default_account_group = account_groups.get("OTHER_CURRENT_BASIC") or next(iter(account_groups.values()), "OTHER")
         account_group_expr = _map_group_expr("account_type", account_groups, default_account_group)
         account_u_risk = _hash_id_to_unit(pl.col("account_id"), stream_seeds["account_risk_tier"])
         account_u_role = _hash_id_to_unit(pl.col("account_id"), stream_seeds["account_role"])
+        account_u_owner_promo = _hash_id_to_unit(pl.col("account_id"), stream_seeds["account_owner_promo"])
         account_thresholds = (account_prior.get("risk_tier_thresholds") or {}).get("thresholds", {})
-        account_tier_expr = _risk_tier_expr(account_thresholds, account_u_risk)
+        account_tier_base_expr = _risk_tier_expr(account_thresholds, account_u_risk)
+        account_tier_expr = account_tier_base_expr
+        if account_prop_enabled:
+            account_tier_expr = _conditional_tier_promotion_expr(
+                account_tier_base_expr,
+                pl.col("party_risk_flag"),
+                account_u_owner_promo,
+                account_prop_cfg.get("promote_probability_by_tier", {}) or {},
+                _clamp01(account_prop_cfg.get("default_promote_probability", 0.0)),
+            )
         account_role_model = (account_prior.get("role_probability_model") or {}).get(
             "pi_role_by_group_and_tier", {}
         )
@@ -1293,13 +1404,30 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     else:
         logger.info("S5: assigning device fraud roles (inputs=%s)", device_base_path)
         device_lf = pl.scan_parquet(str(device_base_path))
+        if device_prop_enabled:
+            device_lf = (
+                device_lf.join(party_risk_lf, left_on="primary_party_id", right_on="party_id", how="left")
+                .with_columns(pl.col("party_risk_flag").fill_null(0).cast(pl.Int8))
+            )
+        else:
+            device_lf = device_lf.with_columns(pl.lit(0).cast(pl.Int8).alias("party_risk_flag"))
         device_group_map = (device_prior.get("device_groups") or {}).get("device_type_to_group", {})
         default_device_group = next(iter(device_group_map.values()), "CONSUMER_PERSONAL")
         device_group_expr = _map_group_expr("device_type", device_group_map, default_device_group)
         device_u_risk = _hash_id_to_unit(pl.col("device_id"), stream_seeds["device_risk_tier"])
         device_u_role = _hash_id_to_unit(pl.col("device_id"), stream_seeds["device_role"])
+        device_u_owner_promo = _hash_id_to_unit(pl.col("device_id"), stream_seeds["device_owner_promo"])
         device_thresholds = (device_prior.get("risk_tier_thresholds") or {}).get("thresholds", {})
-        device_tier_expr = _risk_tier_expr(device_thresholds, device_u_risk)
+        device_tier_base_expr = _risk_tier_expr(device_thresholds, device_u_risk)
+        device_tier_expr = device_tier_base_expr
+        if device_prop_enabled:
+            device_tier_expr = _conditional_tier_promotion_expr(
+                device_tier_base_expr,
+                pl.col("party_risk_flag"),
+                device_u_owner_promo,
+                device_prop_cfg.get("promote_probability_by_tier", {}) or {},
+                _clamp01(device_prop_cfg.get("default_promote_probability", 0.0)),
+            )
         device_role_model = (device_prior.get("role_probability_model") or {}).get(
             "pi_role_by_group_and_tier", {}
         )
@@ -1364,6 +1492,30 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
     else:
         logger.info("S5: assigning IP fraud roles (inputs=%s)", ip_base_path)
         ip_lf = pl.scan_parquet(str(ip_base_path))
+        if ip_prop_enabled:
+            shared_degree_threshold = max(int(ip_prop_cfg.get("shared_degree_threshold", 0) or 0), 0)
+            if shared_degree_threshold > 0:
+                ip_shared_lf = (
+                    pl.scan_parquet(str(ip_links_path))
+                    .group_by("ip_id")
+                    .agg(pl.n_unique("device_id").alias("devices_per_ip"))
+                    .select(
+                        [
+                            pl.col("ip_id"),
+                            (pl.col("devices_per_ip") >= pl.lit(shared_degree_threshold))
+                            .cast(pl.Int8)
+                            .alias("ip_sharing_risk_flag"),
+                        ]
+                    )
+                )
+                ip_lf = (
+                    ip_lf.join(ip_shared_lf, on="ip_id", how="left")
+                    .with_columns(pl.col("ip_sharing_risk_flag").fill_null(0).cast(pl.Int8))
+                )
+            else:
+                ip_lf = ip_lf.with_columns(pl.lit(0).cast(pl.Int8).alias("ip_sharing_risk_flag"))
+        else:
+            ip_lf = ip_lf.with_columns(pl.lit(0).cast(pl.Int8).alias("ip_sharing_risk_flag"))
         ip_groups = (ip_prior.get("ip_groups") or {}).get("groups", [])
         ip_groups_sorted = sorted(
             ip_groups,
@@ -1389,8 +1541,18 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             ip_group_expr = ip_group_expr.otherwise(pl.lit("RESIDENTIAL"))
         ip_u_risk = _hash_id_to_unit(pl.col("ip_id"), stream_seeds["ip_risk_tier"])
         ip_u_role = _hash_id_to_unit(pl.col("ip_id"), stream_seeds["ip_role"])
+        ip_u_sharing_promo = _hash_id_to_unit(pl.col("ip_id"), stream_seeds["ip_sharing_promo"])
         ip_thresholds = (ip_prior.get("risk_tier_thresholds") or {}).get("thresholds", {})
-        ip_tier_expr = _risk_tier_expr(ip_thresholds, ip_u_risk)
+        ip_tier_base_expr = _risk_tier_expr(ip_thresholds, ip_u_risk)
+        ip_tier_expr = ip_tier_base_expr
+        if ip_prop_enabled:
+            ip_tier_expr = _conditional_tier_promotion_expr(
+                ip_tier_base_expr,
+                pl.col("ip_sharing_risk_flag"),
+                ip_u_sharing_promo,
+                ip_prop_cfg.get("promote_probability_by_tier", {}) or {},
+                _clamp01(ip_prop_cfg.get("default_promote_probability", 0.0)),
+            )
         ip_role_model = (ip_prior.get("role_probability_model") or {}).get("pi_role_by_group_and_tier", {})
         ip_raw_role_expr = _build_role_expr(ip_role_model, ip_group_expr, ip_tier_expr, ip_u_role, "NORMAL_IP")
         ip_taxonomy_map = {

@@ -2994,3 +2994,148 @@ Post-P2 storage hygiene:
   - P1 authority `347bc917...`,
   - P2 closure `e6d311ac...`,
   - baseline authority `aae194b6...`.
+
+### Entry: 2026-02-25 03:27
+
+P3 pre-implementation design lock (`S5` propagation coupling).
+
+Trigger:
+- P2 closure gateboard is green on `T1-T5`, but `T7` remains the explicit owner blocker for P3.
+- Scorer definition for `T7` measures odds-ratio lift of risky account/device outcomes conditioned on risky party ownership.
+
+Root-cause pin in current `S5`:
+- party/account/device role draws are mostly independent by entity-local priors (`group,tier,u`) with no explicit owner-driven coupling.
+- consequence: observed `OR_account` and `OR_device` stay near unity, failing propagation realism intent.
+
+Alternatives considered:
+1) post-draw role flipping (clean->risky rewrite):
+   - rejected as high drift risk against role prior alignment (especially `T8`) and harder to reason about determinism.
+2) direct probability table rewrite by owner-risk:
+   - rejected for high blast radius in schema/policy surfaces and larger calibration/search burden.
+3) deterministic risk-tier promotion before role draw (selected):
+   - selected because it reuses existing role probability models,
+   - preserves vocabulary/contracts and idempotent write surfaces,
+   - gives explicit bounded knobs to control uplift intensity.
+
+Selected P3 mechanism:
+- derive `party_risk_flag` from `s5_party_fraud_roles_6A` with scorer-aligned risky set:
+  - `SYNTHETIC_ID`, `MULE`, `ASSOCIATE`, `ORGANISER`.
+- join flags into:
+  - `s2_account_base_6A` via `owner_party_id`,
+  - `s4_device_base_6A` via `primary_party_id`.
+- apply deterministic one-step tier promotion (`LOW->STANDARD->ELEVATED->HIGH`) using hash-driven promotion streams and bounded per-tier probabilities.
+- optionally apply IP tier promotion from sharing context (`devices_per_ip` threshold), also deterministic and bounded.
+
+Safety and invariants:
+- no schema changes to emitted `s5_*_fraud_roles_6A` parquet outputs.
+- idempotent publish flow and validation bundle generation unchanged.
+- fail-closed posture preserved.
+
+### Entry: 2026-02-25 03:31
+
+P3 code/policy patch applied (pre-witness).
+
+Code updates:
+- `packages/engine/src/engine/layers/l3/seg_6A/s5_fraud_posture/runner.py`
+  - added bounded helper utilities:
+    - `_clamp01`,
+    - `_tier_probability_expr`,
+    - `_promote_tier_one_step_expr`,
+    - `_conditional_tier_promotion_expr`.
+  - loaded `risk_propagation` policy block from `validation_policy_6A`.
+  - added deterministic propagation streams:
+    - `account_owner_promo`,
+    - `device_owner_promo`,
+    - `ip_sharing_promo`.
+  - added owner-risk join path:
+    - party-risk map built from `s5_party_fraud_roles_6A`,
+    - joined to account/device bases before tier/role assignment.
+  - added optional IP sharing-context join:
+    - degree computed from `s4_ip_links_6A`,
+    - threshold-based flag drives bounded tier promotion.
+
+Policy updates:
+- `config/layer3/6A/policy/validation_policy_6A.v1.yaml`
+  - added `risk_propagation` section with:
+    - risky party role set,
+    - per-tier promotion probabilities for account/device,
+    - IP sharing threshold and per-tier promotion probabilities.
+
+Validation before witness:
+- `python -m py_compile .../s5_fraud_posture/runner.py` passed.
+- YAML parse check for updated validation policy passed.
+
+Next pinned step:
+- run fresh P3 witness lane (`S5` only on staged `S0..S4` authority artifacts), score via `tools/score_segment6a_p0_baseline.py`, then close `UNLOCK_P4` vs `HOLD_P3`.
+
+### Entry: 2026-02-25 03:34
+
+P3 witness execution issue + correction (run-id staging semantics).
+
+What happened:
+- first staged candidate used folder `dc290948...` but copied `run_receipt.json` still had `run_id=e6d311...`.
+- `S5` resolves runtime root from `run_receipt.run_id`, so execution pointed back to `e6d...` and reused existing outputs.
+
+Impact:
+- no new P3 witness outputs were produced on the intended fresh lane.
+- evidence not usable for closure.
+
+Corrective action:
+- updated staged `run_receipt.json` to set `run_id=dc290948...`.
+- reran `S5`; this produced true fresh outputs under `dc290948...`.
+- fixed one implementation bug discovered in the first true run:
+  - removed invalid `.drop('party_id')` calls after owner joins in `S5` account/device paths.
+  - compile check rerun passed.
+
+### Entry: 2026-02-25 03:39
+
+P3 witness results + bounded correction + final closure.
+
+First true witness (`run_id=dc290948...`):
+- scorer movement:
+  - `T7` improved to pass at `B`:
+    - `OR_account=1.7206`,
+    - `OR_device=1.5664`,
+    - both CI lows `>1.0`.
+- guardrails:
+  - `T1-T5` remained `PASS_B`.
+- observed side effect:
+  - internal `S5` validation `ROLE_DISTRIBUTION_IP` failed at very high risky-IP fraction.
+  - investigation showed same IP-role check was already failing in prior authority lane `e6d...`, but IP propagation was still deemed unnecessarily high-blast for P3 owner scope.
+
+Bounded correction:
+- disabled `risk_propagation.ip_sharing_propagation.enabled` in validation policy (kept account/device owner propagation intact).
+- staged new clean witness lane `run_id=9fb441c656b54387a0ed6cac8142da22` and reran `S5`.
+
+Final closure evidence (`run_id=9fb441c656b54387a0ed6cac8142da22`):
+- `T7` remains `PASS_B`:
+  - `OR_account=1.7206`,
+  - `OR_device=1.5664`,
+  - CI lows above `1.0`.
+- non-owner guardrails unchanged:
+  - `T1` PASS,
+  - `T2` PASS,
+  - `T3` PASS,
+  - `T4` PASS,
+  - `T5` PASS_B.
+- retained non-P3 blockers:
+  - `T8` fail (`ip_role_jsd` dominated),
+  - `T9/T10` insufficient on single-seed isolated lane.
+
+Decision:
+- P3 owner criteria satisfied with non-regression preserved.
+- phase decision: `P3=UNLOCK_P4`.
+
+### Entry: 2026-02-25 03:40
+
+P3 storage hygiene after closure.
+
+Action:
+- pruned superseded intermediate witness folder:
+  - `runs/fix-data-engine/segment_6A/dc290948219a4e69903785c6b06dce6d`.
+
+Retained:
+- baseline authority `aae194...`,
+- P1 authority `347bc9...`,
+- P2 authority `e6d311...`,
+- P3 closure authority `9fb441...`.
