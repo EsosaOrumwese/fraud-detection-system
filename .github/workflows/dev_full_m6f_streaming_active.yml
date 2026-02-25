@@ -89,36 +89,6 @@ on:
         required: true
         default: "fraud-platform-dev-full-ig-idempotency"
         type: string
-      idempotency_ttl_field:
-        description: "TTL field in IG idempotency table"
-        required: true
-        default: "ttl_epoch"
-        type: string
-      idempotency_ttl_seconds:
-        description: "IG idempotency TTL seconds"
-        required: true
-        default: "259200"
-        type: string
-      allow_empty_run_waiver:
-        description: "Allow empty-run waiver for P7 entry (true/false)"
-        required: true
-        default: "false"
-        type: string
-      receipt_summary_path_pattern:
-        description: "Run-scoped receipt summary path pattern"
-        required: true
-        default: "evidence/runs/{platform_run_id}/ingest/receipt_summary.json"
-        type: string
-      quarantine_summary_path_pattern:
-        description: "Run-scoped quarantine summary path pattern"
-        required: true
-        default: "evidence/runs/{platform_run_id}/ingest/quarantine_summary.json"
-        type: string
-      offsets_snapshot_path_pattern:
-        description: "Run-scoped offsets snapshot path pattern"
-        required: true
-        default: "evidence/runs/{platform_run_id}/ingest/kafka_offsets_snapshot.json"
-        type: string
       runtime_path:
         description: "Pinned runtime path for this phase execution"
         required: true
@@ -880,12 +850,12 @@ jobs:
             --evidence-bucket "${{ inputs.evidence_bucket }}" \
             --region "${{ inputs.aws_region }}" \
             --ig-idempotency-table "${{ inputs.ig_idempotency_table }}" \
-            --idempotency-ttl-field "${{ inputs.idempotency_ttl_field }}" \
-            --idempotency-ttl-seconds "${{ inputs.idempotency_ttl_seconds }}" \
-            --allow-empty-run-waiver "${{ inputs.allow_empty_run_waiver }}" \
-            --receipt-summary-path-pattern "${{ inputs.receipt_summary_path_pattern }}" \
-            --quarantine-summary-path-pattern "${{ inputs.quarantine_summary_path_pattern }}" \
-            --offsets-snapshot-path-pattern "${{ inputs.offsets_snapshot_path_pattern }}" \
+            --idempotency-ttl-field "ttl_epoch" \
+            --idempotency-ttl-seconds "259200" \
+            --allow-empty-run-waiver "false" \
+            --receipt-summary-path-pattern "evidence/runs/{platform_run_id}/ingest/receipt_summary.json" \
+            --quarantine-summary-path-pattern "evidence/runs/{platform_run_id}/ingest/quarantine_summary.json" \
+            --offsets-snapshot-path-pattern "evidence/runs/{platform_run_id}/ingest/kafka_offsets_snapshot.json" \
             --local-output-root "runs/dev_substrate/dev_full/m6"
 
       - name: Fail-closed verdict gate
