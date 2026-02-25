@@ -198,6 +198,7 @@ Multi-region resilience, tighter compliance, higher SLO rigor, and enterprise go
 14. **Delivery and IaC:** Terraform + GitHub Actions are mandatory for reproducible provision/deploy flows.
 15. **Secrets and encryption:** IAM + KMS + Secrets Manager/SSM, no plain-text credentials in repo/runtime manifests.
 16. **Lakehouse table format:** Apache Iceberg (v2) on S3 with AWS Glue Data Catalog is the default tabular format for OFS/MF learning datasets; Delta is not the v0 default.
+17. **Oracle source-of-stream bucket policy:** dev_full must read from a canonical external oracle bucket (shared track allowed), while dev_full object-store remains platform-owned for archive/quarantine/evidence-adjacent platform surfaces; duplicate cross-bucket oracle copies are prohibited by default.
 
 #### 5.1.1 Sectional pin closure set (2026-02-22)
 
@@ -346,6 +347,7 @@ Every full run MUST emit a durable run bundle containing:
 * Oracle truth remains in S3.
 * Oracle Store seating is a warm source-of-stream zone under object-store governance (`oracle-store/` boundary), separate from evidence/archive roots.
 * Platform access to Oracle Store is read-only; data-engine (or upstream producer) remains write owner.
+* For current migration baseline, dev_full reads oracle source-of-stream from the canonical shared oracle bucket handle; this is intentional and not a naming error.
 * SR/WSP stream lanes run on MSK-integrated Flink jobs; orchestration and gate commits remain Step Functions-controlled.
 * READY/control remains Kafka-backed, orchestrated via Step Functions run-state controls.
 * SR READY closure authority is Step Functions commit evidence (Flink output is compute evidence only).

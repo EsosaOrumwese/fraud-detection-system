@@ -61,6 +61,7 @@ P3.A verification command templates (operator lane):
    - `aws s3api list-objects-v2 --bucket <S3_EVIDENCE_BUCKET> --prefix <S3_EVIDENCE_ROOT_PREFIX> --max-items 10`
 3. Overlap/drift check:
    - assert oracle root does not start with any evidence/archive/quarantine root token.
+   - assert `ORACLE_STORE_BUCKET` is the canonical external oracle bucket for the track and is not an ad-hoc duplicate copy target.
 4. Ownership/read-only check:
    - assert `ORACLE_STORE_PLATFORM_ACCESS_MODE == read_only`.
    - assert `ORACLE_STORE_WRITE_OWNER != platform_runtime`.

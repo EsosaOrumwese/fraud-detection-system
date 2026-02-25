@@ -143,6 +143,7 @@
 * `S3_OBJECT_STORE_BUCKET = "fraud-platform-dev-full-object-store"`
 * `S3_EVIDENCE_BUCKET = "fraud-platform-dev-full-evidence"`
 * `S3_ARTIFACTS_BUCKET = "fraud-platform-dev-full-artifacts"`
+* `S3_OBJECT_STORE_OWNERSHIP_SCOPE = "platform_owned_archive_quarantine_only"`
 
 ### 3.2 Bucket posture
 
@@ -165,10 +166,13 @@ Allowed tokens in pattern handles:
 
 ### 3.4 Oracle store (external input boundary)
 
-* `ORACLE_STORE_BUCKET = "fraud-platform-dev-full-object-store"`
+* `ORACLE_STORE_BUCKET = "fraud-platform-dev-min-object-store"`
 * `ORACLE_STORE_ZONE = "warm_source_of_stream"`
 * `ORACLE_STORE_PLATFORM_ACCESS_MODE = "read_only"`
 * `ORACLE_STORE_WRITE_OWNER = "data_engine_or_upstream_producer"`
+* `ORACLE_STORE_CANONICAL_TRACK = "dev_min_shared_oracle_source"`
+* `ORACLE_STORE_DUPLICATION_POLICY = "no_copy_reuse_canonical_source"`
+* `ORACLE_STORE_BUCKET_RENAME_POLICY = "not_supported_repin_handles_instead"`
 * `ORACLE_ACTIVE_STORAGE_CLASS = "STANDARD"`
 * `ORACLE_SOURCE_NAMESPACE = "local_full_run-5"`
 * `ORACLE_ENGINE_RUN_ID = "c25a2675fbfbacd952b13bb594880e92"`

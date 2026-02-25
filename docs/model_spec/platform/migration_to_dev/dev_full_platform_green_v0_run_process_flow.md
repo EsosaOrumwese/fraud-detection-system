@@ -70,7 +70,7 @@
 11. Telemetry baseline: `OpenTelemetry` + CloudWatch-backed operational signals
 12. Learning tabular format: `Apache Iceberg v2` on S3 with `AWS Glue Data Catalog` (Delta is not default in v0).
 13. S3 lifecycle posture: regular S3 for active windows with transition policy to IA/Glacier IR by age.
-14. Oracle Store posture: warm source-of-stream S3 zone (`oracle-store/`), platform read-only, producer write-owned.
+14. Oracle Store posture: warm source-of-stream S3 zone (`oracle-store/`), platform read-only, producer write-owned, and sourced from a canonical external bucket that may be shared across tracks (no duplicate copy policy).
 15. Production-pattern law: managed-service-first execution; no local/toy substitutes in pinned dev_full lanes.
 
 ### 1.4 Budget and teardown posture
@@ -256,7 +256,8 @@ For every phase below:
 * PASS gate:
   1. required outputs present,
   2. stream-view materialization checks pass,
-  3. manifest/contract checks pass fail-closed.
+  3. manifest/contract checks pass fail-closed,
+  4. oracle source bucket binding resolves to canonical external source (not an ad-hoc duplicated copy).
 * Commit evidence: oracle readiness snapshot + required-output matrix.
 * Blockers: `DFULL-RUN-B3` (missing output), `DFULL-RUN-B3.1` (stream-view contract failure).
 

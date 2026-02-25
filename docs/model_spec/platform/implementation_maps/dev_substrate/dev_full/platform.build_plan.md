@@ -568,6 +568,7 @@ Planned lanes:
 M5 planning posture:
 - M5 deep plan has been materialized with explicit `P3` and `P4` closure sequencing.
 - Capability lanes are explicit (authority/handles, oracle boundary, stream-view contract, IG health/auth, MSK readiness, envelope conformance, rollup/handoff).
+- Oracle source-of-stream is pinned to a canonical external bucket handle (shared oracle source allowed); dev_full object-store remains platform-owned and is not the authoritative oracle source bucket.
 - `M5.P3.A` (oracle boundary/ownership) has been expanded to execution-grade capability-lane checks, blocker mapping, and exit rule.
 - `M5.P3.B` was remediated and closed green (`m5c_p3b_required_outputs_20260224T191554Z`) with durable evidence; baseline fail run retained as blocker trail.
 - `M5.P3.C` is closed green (`m5d_p3c_stream_view_contract_20260224T192457Z`) with stream-view contract/materialization evidence.

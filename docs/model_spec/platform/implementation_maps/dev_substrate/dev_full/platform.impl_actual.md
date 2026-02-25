@@ -7679,3 +7679,69 @@ ext_gate=M6.C_READY.
 ### Intentional retained surfaces
 1. `core` stack retained to preserve bucket surfaces and baseline foundation for fast restart.
 2. Buckets remain intact by user request.
+
+## Entry: 2026-02-25 09:46:03 +00:00 - Oracle canonical-bucket repin to remove dev_full/dev_min duplication drift
+
+### Trigger
+1. USER flagged that current oracle posture is confusing and semantically wrong when dev_full appears to hold a partial oracle copy while dev_min holds the full engine output scope.
+2. USER requested a no-duplication approach and asked to proceed.
+
+### Runtime/data reality validated
+1. `fraud-platform-dev-full-object-store` currently contains a smaller oracle surface (stream-view subset).
+2. `fraud-platform-dev-min-object-store` contains the full oracle store footprint (engine outputs + stream_view) and is the practical canonical source at this stage.
+3. S3 bucket rename is not supported, so "rename dev_min bucket to dev_full" is not technically possible.
+
+### Alternatives considered
+1. Copy full oracle from dev_min bucket into dev_full bucket and keep separate per-track duplicates.
+   - Rejected: unnecessary storage duplication, higher cost, and repeat drift risk.
+2. Keep current split without clarifying authority (allow both to act as oracle source candidates).
+   - Rejected: ambiguous truth source and migration confusion.
+3. Repin dev_full oracle source handle to canonical external shared bucket, retain dev_full object-store for platform-owned surfaces only.
+   - Selected.
+
+### Decision (pinned)
+1. `ORACLE_STORE_BUCKET` for dev_full is now explicitly pinned to `fraud-platform-dev-min-object-store` as canonical external oracle source.
+2. `S3_OBJECT_STORE_BUCKET` for dev_full remains `fraud-platform-dev-full-object-store` and is scoped to platform-owned archive/quarantine/platform artifacts.
+3. Duplicate cross-bucket oracle-copy posture is prohibited by default unless explicitly repinned.
+
+### Authority/docs updated
+1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+   - repinned oracle bucket and added explicit no-duplication/shared-canonical policy handles.
+2. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
+   - added non-negotiable oracle source bucket policy pin.
+3. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`
+   - run-process now explicitly requires canonical oracle bucket binding for `P3`.
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`
+6. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.P3.build_plan.md`
+
+### Consequence for future execution
+1. Any upcoming `P3`/oracle-boundary rerun must resolve and verify against the repinned canonical oracle bucket handle.
+2. Historical P3 evidence remains as historical trace, but forward execution contract is now aligned to the canonical shared bucket policy.
+
+## Entry: 2026-02-25 09:49:48 +00:00 - Oracle no-duplication runtime cleanup enforced (dev_full stale prefix removed)
+
+### Trigger
+1. After authority repin to canonical external oracle bucket (`fraud-platform-dev-min-object-store`), stale duplicate oracle data still existed under `fraud-platform-dev-full-object-store`.
+2. Keeping both copies would violate the pinned `ORACLE_STORE_DUPLICATION_POLICY=no_copy_reuse_canonical_source`.
+
+### Runtime verification before cleanup
+1. Canonical bucket footprint (prefix-scoped):
+   - bucket: `fraud-platform-dev-min-object-store`
+   - prefix: `oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/`
+   - summary: `Total Objects=8294`, `Total Size=43504771065`.
+2. Stale duplicate footprint:
+   - bucket: `fraud-platform-dev-full-object-store`
+   - same prefix
+   - summary: `Total Objects=368`, `Total Size=689782418`.
+
+### Action taken
+1. Executed cleanup:
+   - `aws s3 rm s3://fraud-platform-dev-full-object-store/oracle-store/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/ --recursive`
+2. Post-cleanup validation:
+   - `Total Objects=0`, `Total Size=0` under removed dev_full oracle prefix.
+
+### Decision posture
+1. Canonical source-of-stream for dev_full remains external/shared oracle bucket (`fraud-platform-dev-min-object-store`).
+2. Dev_full object-store remains reserved for platform-owned surfaces only (archive/quarantine/platform artifacts), not oracle duplication.
+3. This closes data-surface drift between runtime and newly pinned authority.

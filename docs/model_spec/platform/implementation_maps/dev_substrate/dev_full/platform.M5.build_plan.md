@@ -136,7 +136,10 @@ Tasks:
 1. validate oracle source namespace/run-id handles and active prefixes.
 2. validate platform runtime write-deny posture for oracle source paths.
 3. validate oracle inlet mode boundary (`external_pre_staged`) and ownership.
-4. publish oracle boundary posture snapshot.
+4. validate oracle bucket binding posture:
+   - `ORACLE_STORE_BUCKET` resolves to canonical external oracle source bucket,
+   - dev_full platform object-store is not used as a duplicate oracle copy lane.
+5. publish oracle boundary posture snapshot.
 
 DoD:
 - [x] oracle boundary posture is explicit and read-only.
