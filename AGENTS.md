@@ -81,6 +81,9 @@ These are the intended design flow of the platform as well as pinned decisions. 
   - If confirmation is not explicit, execution remains blocked (fail-closed). No improvisation, no branch hopping, and no "best-effort" recovery is allowed.
   - If the USER is actively working with another agent/project, the AGENT MUST assume cross-branch operations are unsafe and remain blocked until USER confirms a safe sequence.
   - Default posture: stay on the active branch and avoid cross-branch operations unless the above protocol is completed.
+  - **Commit-scope law (hard bound):** The AGENT MUST NOT create commits except for GitHub Actions workflow files (for example under `.github/workflows/`) unless the USER gives explicit one-time approval for a broader commit scope.
+  - If a commit is required for workflow execution, the AGENT MUST stage only the workflow file(s) and explicitly exclude all non-workflow files.
+  - If non-workflow files are modified during implementation, the AGENT MUST leave them uncommitted and hand them to the USER for review/commit unless explicit approval is provided.
 ---
 
 ## 2.6) Performance-First Law (binding, platformwide)
