@@ -3424,3 +3424,22 @@ Retained active P5 authority set:
 - `cb16c3202c7544bb978e7ec1895fee49` (seed 101),
 - `7d10987769fa4212b878178956f6b64c` (seed 202),
 - baseline + prior phase closure run-ids.
+
+### Entry: 2026-02-25 05:12
+
+6A freeze decision locked before opening 6B remediation.
+
+Freeze posture:
+- Segment `6A` is frozen at `PASS_B` closure authority (`P5` closed).
+- Authority closure artifacts:
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p5_closure_20260225T044554Z.json`
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p5_closure_20260225T044554Z.md`
+- Frozen witness run-set retained for audit/replay:
+  - `511d6a282a6445598ae207ee1d82ff77`,
+  - `4adf00cedb564db4a8217e54b3743810`,
+  - `cb16c3202c7544bb978e7ec1895fee49`,
+  - `7d10987769fa4212b878178956f6b64c`.
+
+Execution law for handoff:
+- 6A is now read-only input for 6B.
+- no 6A owner-state reopen is permitted unless explicitly directed by USER and documented as a new lane.

@@ -1406,3 +1406,17 @@ POPT.7 closure evidence:
   - staged witness lane could not close `S5` because layer-1 merchant source artifacts were not staged in this run-id; this does not block performance evidence for `S2/S4`.
 - Decision:
   - `POPT.7=UNLOCK_P0_REMEDIATION`.
+
+## 8) Freeze posture (2026-02-25)
+- Segment `6A` is frozen at `PASS_B` and treated as an upstream authority input for Segment `6B`.
+- Freeze authority artifacts:
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p5_closure_20260225T044554Z.json`
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p5_closure_20260225T044554Z.md`
+- Active frozen witness run-set:
+  - `511d6a282a6445598ae207ee1d82ff77` (seed 42)
+  - `4adf00cedb564db4a8217e54b3743810` (seed 7)
+  - `cb16c3202c7544bb978e7ec1895fee49` (seed 101)
+  - `7d10987769fa4212b878178956f6b64c` (seed 202)
+- Operational rule:
+  - no further 6A policy/code tuning is allowed unless explicitly reopened with a new owner-lane decision.
+  - 6A may be consumed read-only by downstream Segment `6B` remediation/testing lanes.
