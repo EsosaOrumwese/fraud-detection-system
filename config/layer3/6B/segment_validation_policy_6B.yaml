@@ -64,6 +64,22 @@ checks:
     method: flow_truth_and_bankview_cover_all_flows_exactly_once
     fail_message: "Truth/bank view coverage mismatch for flows."
 
+  - check_id: REQ_CRITICAL_TRUTH_REALISM
+    group_id: BEHAVIOURAL_REALISM
+    severity: REQUIRED
+    applies_to: [S4]
+    expected_scope: seed_scenario
+    method: critical_truth_realism_gates
+    fail_message: "Critical truth realism gates failed (T1/T2/T3/T22)."
+
+  - check_id: REQ_CRITICAL_CASE_TIMELINE
+    group_id: CASE_TIMELINE_REALISM
+    severity: REQUIRED
+    applies_to: [S4]
+    expected_scope: seed_scenario
+    method: critical_case_timeline_monotonicity
+    fail_message: "Critical case timeline monotonicity failed (T8/T10)."
+
   - check_id: REQ_RNG_BUDGETS
     group_id: RNG_ACCOUNTING
     severity: REQUIRED
@@ -133,6 +149,9 @@ thresholds:
   time_monotonicity_violation_max: 0
   scenario_oob_timestamp_max: 0
   max_missing_fraction: 0.001
+  critical_truth_fraud_rate_min: 0.02
+  critical_truth_fraud_rate_max: 0.30
+  critical_truth_no_campaign_legit_min: 0.99
 
 rng_accounting:
   rng_policies_required:

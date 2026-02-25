@@ -659,7 +659,11 @@ M6 planning posture:
   - blockers now narrowed to `M6P6-B3/B4`,
   - `overall_pass=false`, `next_gate=HOLD_REMEDIATE`,
   - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T171938Z/`.
-- `M6.G` prior green receipt (`m6g_p6c_gate_rollup_20260225T155035Z`, run `22404445249`) is now historical only until strict-semantic `M6.F` returns zero blockers.
+- Final fallback rerun (`m6f_p6b_streaming_active_20260225T175655Z`, run `22409183214`) on `EKS_FLINK_OPERATOR`:
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=M6.G_READY`,
+  - strict-semantic counters/lag green (`ig_idempotency_count=12`, `measured_lag=2`, `within_threshold=true`),
+  - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T175655Z/`.
+- `M6.G` prior green receipt (`m6g_p6c_gate_rollup_20260225T155035Z`, run `22404445249`) remains historical because it predates latest authoritative `M6.F` execution `m6f_p6b_streaming_active_20260225T175655Z`; run fresh `M6.G` for current authority.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
@@ -667,7 +671,7 @@ M6 sub-phase progress:
 - [x] `M6.C` `P5` READY commit authority execution.
 - [x] `M6.D` `P5` gate rollup + verdict.
 - [x] `M6.E` `P6` entry/stream activation precheck.
-- [ ] `M6.F` `P6` streaming-active + lag + ambiguity closure.
+- [x] `M6.F` `P6` streaming-active + lag + ambiguity closure.
 - [ ] `M6.G` `P6` gate rollup + verdict.
 - [ ] `M6.H` `P7` ingest-commit execution.
 - [ ] `M6.I` `P7` gate rollup + M6 verdict + M7 handoff.
@@ -835,4 +839,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Resolve remaining strict-semantic `M6.F` blockers (`M6P6-B3/B4`) from execution `m6f_p6b_streaming_active_20260225T171938Z` by materializing pod-to-IG network path (or equivalent approved ingress path), then rerun `M6.F` to zero-blocker before any `M6.G/M6.H` advancement.
+- Execute fresh `M6.G` (`phase_mode=m6g`) using upstream `M6.F` execution `m6f_p6b_streaming_active_20260225T175655Z`, then validate `ADVANCE_TO_P7` before any `M6.H` advancement.

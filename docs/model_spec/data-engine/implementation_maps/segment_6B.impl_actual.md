@@ -2724,3 +2724,49 @@ Execution plan (P1.2 lane only):
 3) Stage fresh `S4->S5` candidate from authority run via `tools/stage_segment6b_popt2_lane.py`.
 4) Execute `segment6b-s4` then `segment6b-s5` on staged run-id.
 5) Score with `tools/score_segment6b_p0_baseline.py` and judge P1.2 movement on `T1/T2/T3/T22` only.
+
+
+---
+
+### Entry: 2026-02-25 17:53
+
+P1 continuation design pin (`P1.3 + P1.4 + P1.5` integrated execution lane).
+
+Post-P1.2 posture (candidate `7725bf4e501341a1a224fccbcb1fb0bc`):
+- closed: `T1`, `T3`, `T22`.
+- still failing in P1 scope: `T2`, `T5`, `T7`, `T8`, `T10`, `T21`.
+- runtime rails healthy: `S4=327.62s`, `S5=21.06s`.
+
+Root-cause assessment:
+1) `T8/T10` failure source is in S4 case timeline construction:
+- `close_ts` is anchored to fixed `case_close_delay_seconds` from base timestamp,
+- while `chargeback_ts` can be much later,
+- resulting in negative gaps/non-monotone case sequences whenever chargeback events exist.
+2) `T5/T7` are low because bank-fraud labeling is nearly class-invariant at tiny rates.
+- Current S4 logic maps almost all LEGIT flows to `BANK_CONFIRMED_LEGIT` with minimal class-conditioned variation.
+3) `T21` remains red because delay branch (`T8/T10`) is red and S5 still allows structural PASS when realism lanes fail.
+
+Decisions for this P1 execution wave:
+- P1.3 (`T5/T7` movement):
+  - add deterministic merchant-conditioned LEGIT false-positive confirmation lane in S4,
+  - keep it vectorized (no row loops), keyed by `merchant_id` buckets with deterministic uniform draw,
+  - objective is measurable class-conditioned bank-view differentiation without contract changes.
+- P1.4 (`T8/T10` closure):
+  - make `close_ts` strictly post-dominate all emitted case events for each flow,
+  - preserve deterministic construction while removing negative-gap possibility.
+- P1.5 (fail-closed governance):
+  - add required critical realism checks in S5 for truth + case monotonic lanes,
+  - block PASS flag when these required critical checks fail (via existing required-check fail-closed semantics).
+
+Performance design:
+- keep all transforms in Polars/DuckDB vectorized paths.
+- avoid additional broad joins in S4 hot loop beyond adding `merchant_id` column already present in S3 flow anchor.
+- preserve `S4<=420s`, `S5<=30s` as hard rails for this wave.
+
+Alternatives considered and rejected:
+1) Push all remaining gates to P2/P3.
+- Rejected: violates P1 owner boundaries for `S4/S5` critical fixes.
+2) Policy-only threshold edits (score contract relaxation) to mark pass.
+- Rejected: would not fix implementation defects; realism movement must be implementation-driven.
+3) Full probabilistic delay-model engine rewrite now.
+- Rejected in P1 scope due blast radius; monotonic closure first, richer delay-shape tuning can follow if needed.

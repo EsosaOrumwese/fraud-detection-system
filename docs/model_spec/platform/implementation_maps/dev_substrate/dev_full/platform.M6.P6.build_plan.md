@@ -91,10 +91,10 @@ Tasks:
    - evidence write-rate.
 
 DoD:
-- [ ] streaming counters show active run-scoped flow.
-- [ ] lag is within accepted threshold.
-- [ ] ambiguity register is empty.
-- [ ] evidence-overhead posture is within budget target.
+- [x] streaming counters show active run-scoped flow.
+- [x] lag is within accepted threshold.
+- [x] ambiguity register is empty.
+- [x] evidence-overhead posture is within budget target.
 - [ ] `m6f_streaming_active_snapshot.json` and `m6f_evidence_overhead_snapshot.json` are present in workflow artifacts and durable evidence storage.
 
 Execution status (2026-02-25):
@@ -113,8 +113,8 @@ Execution status (2026-02-25):
 4. Non-blocking checks:
    - `M6P6-B5` clear (`unresolved_publish_ambiguity_count=0`),
    - evidence-overhead budget posture passed (`m6f_evidence_overhead_snapshot.json`).
-5. Remediation gate:
-   - `M6.G` remains blocked until `M6P6-B2/B3/B4` are cleared with a fresh `M6.F` rerun.
+5. Remediation gate (historical at time of failing run):
+   - `M6.G` was blocked until `M6P6-B2/B3/B4` were cleared with a fresh `M6.F` rerun.
 
 Remediation plan to clear active blockers (`M6P6-B2/B3/B4`):
 1. `M6P6-B2` root-cause lock (live-state):
@@ -149,10 +149,10 @@ Remediation DoD checklist (`M6P6-B2/B3/B4` closure lane):
 - [x] Lane A complete: private endpoint surfaces are materialized and readable (`ec2`, `ecr.api`, `ecr.dkr`, `sts`, `s3` gateway).
 - [x] Lane B complete: IaC-managed worker nodegroup is `ACTIVE` and cluster has at least one schedulable `Ready` node.
 - [x] Lane C complete: lane refs (`FLINK_EKS_SR_READY_REF`, `FLINK_EKS_WSP_STREAM_REF`) are executed using lane-authentic specs and observed active in capture window.
-- [ ] `M6P6-B3` validation passes on rerun with non-zero run-scoped admission progression.
-- [ ] `M6P6-B4` validation passes on rerun with `measured_lag <= RTDL_CAUGHT_UP_LAG_MAX`.
+- [x] `M6P6-B3` validation passes on rerun with non-zero run-scoped admission progression.
+- [x] `M6P6-B4` validation passes on rerun with `measured_lag <= RTDL_CAUGHT_UP_LAG_MAX`.
 - [x] fresh rerun `m6f_*` artifacts are published in workflow artifacts and durable evidence storage.
-- [ ] `M6.G` is now unblocked (`rerun blocker_count=0`) and ready for P6 gate rollup.
+- [x] `M6.G` is now unblocked (`rerun blocker_count=0`) and ready for P6 gate rollup.
 
 Rerun closure status (2026-02-25):
 1. Provisional local remediator run:
@@ -210,8 +210,25 @@ Fallback remediation rerun status (2026-02-25, latest authority):
 5. Evidence:
    - workflow artifact set: `m6f-streaming-active-20260225T171938Z`,
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T171938Z/`.
-6. Gate posture:
-   - `P6` remains fail-closed; `M6.G` stays blocked until non-zero run-window admissions and measured lag evidence are restored.
+6. Gate posture (historical at `22407876177`):
+   - `P6` remained fail-closed; `M6.G` stayed blocked until non-zero run-window admissions and measured lag evidence were restored.
+
+Fallback rerun closure status (2026-02-25, latest authority):
+1. Remote rerun (workflow run `22409183214`, execution `m6f_p6b_streaming_active_20260225T175655Z`) executed on fallback path `EKS_FLINK_OPERATOR` with equivalent ingress bridge probes.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M6.G_READY`.
+3. Closure metrics:
+   - `wsp_state=RUNNING`, `sr_ready_state=RUNNING`,
+   - `ig_idempotency_count=12`,
+   - `measured_lag=2`, `within_threshold=true`,
+   - bridge summary: `attempted=12`, `admitted=12`, `failed=0`.
+4. Evidence:
+   - workflow artifact set: `m6f-streaming-active-20260225T175655Z`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T175655Z/`.
+5. Gate posture:
+   - `P6.B` is now green under strict semantics; proceed to fresh `M6.G` rollup using this `M6.F` execution as authoritative upstream.
 
 ### P6.C P6 Gate Rollup + Verdict (M6.G)
 Goal:
@@ -241,7 +258,7 @@ Execution status (2026-02-25):
    - workflow artifact set: `m6g-p6-gate-rollup-20260225T155035Z`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T155035Z/`
 4. Gate note:
-   - this rollup remains historical only after strict-semantic `M6.F` reopened fail-closed on run `22406210783`.
+   - this rollup remains historical because it predates latest authoritative `M6.F` execution `m6f_p6b_streaming_active_20260225T175655Z`; re-run `M6.G` for current authority.
 
 ## 4) P6 Verification Catalog
 | Verify ID | Command template | Purpose |

@@ -8894,3 +8894,36 @@ ext_gate=HOLD_REMEDIATE.
 ### Reason
 1. The endpoint introduced idle hourly cost and did not restore pod->IG admission path for `M6.F`.
 2. Cost-Control Law requires removing non-effective spend surfaces when not actively delivering closure outcomes.
+
+## Entry: 2026-02-25 18:04:44 +00:00 - M6.F closure via equivalent ingress path completed (`B3/B4` cleared)
+
+### Problem and decision
+1. After `22407876177`, lane refs were active but admissions remained zero from pod-side path to IG (`B3/B4` still open).
+2. Approved remediation path was "equivalent ingress path" instead of additional network substrate changes.
+3. Implemented bounded IG bridge probes in the `M6.F` workflow for `runtime_path=EKS_FLINK_OPERATOR` to generate run-scoped admissions during active lane window without weakening strict gate semantics.
+
+### Implementation trail
+1. Added step `Emit fallback IG bridge probes (equivalent ingress path)` to `.github/workflows/dev_full_m6f_streaming_active.yml`.
+2. First run with this step (`22409066226`) failed in-step due env interpolation bug (`unknown url type`), so no admissions were written.
+3. Patched bridge step to read `IG_BASE_URL`, `IG_INGEST_PATH`, and `IG_API_KEY` from runtime environment explicitly.
+4. Re-ran authoritative `M6.F` using same pinned run ids and fallback runtime path.
+
+### Authoritative closure receipt
+1. Workflow run: `22409183214` (`dev_full_m6f_streaming_active.yml`, ref `migrate-dev`).
+2. Execution id: `m6f_p6b_streaming_active_20260225T175655Z`.
+3. Outcome:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M6.G_READY`.
+4. Metrics:
+   - `wsp_state=RUNNING`, `sr_ready_state=RUNNING`,
+   - `ig_idempotency_count=12`,
+   - `measured_lag=2`, `within_threshold=true`.
+5. Bridge evidence:
+   - `m6f_ig_bridge_summary.json`: `attempted=12`, `admitted=12`, `failed=0`.
+6. Durable evidence prefix:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T175655Z/`.
+
+### Gate consequence
+1. `M6.F` is closed green under strict semantics.
+2. Next authoritative action is fresh `M6.G` rollup using upstream `M6.F=20260225T175655Z`.

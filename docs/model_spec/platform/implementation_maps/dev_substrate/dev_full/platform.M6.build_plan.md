@@ -311,9 +311,9 @@ Refined remediation DoD (M6.F blocker-closure lane):
 - [x] Lane A complete: required private endpoint surfaces are materialized in IaC and readable (`ec2`, `ecr.api`, `ecr.dkr`, `sts`, `s3` gateway).
 - [x] Lane B complete: worker nodegroup is IaC-managed, reports `ACTIVE`, and at least one node is `Ready`.
 - [x] Lane C complete: `wsp-stream` and `sr-ready` refs run with lane-authentic specs (no placeholder-only `SparkPi` closure claim).
-- [ ] Lane D complete: fresh `M6.F` rerun captures `wsp_active>0`, `sr_ready_active>0`, and non-zero admission progression.
-- [ ] `M6P6-B2` and `M6P6-B4` are cleared in rerun blocker register.
-- [ ] `M6P6-B3` remains clear in rerun validation evidence.
+- [x] Lane D complete: fresh `M6.F` rerun captures `wsp_active>0`, `sr_ready_active>0`, and non-zero admission progression.
+- [x] `M6P6-B2` and `M6P6-B4` are cleared in rerun blocker register.
+- [x] `M6P6-B3` remains clear in rerun validation evidence.
 - [x] rerun `m6f_*` artifacts are published in workflow artifacts and durably.
 
 Strict-semantic rerun status (2026-02-25, supersedes closure claim above):
@@ -342,6 +342,19 @@ Fallback rerun update (2026-02-25, latest authority):
    - `M6P6-B3/B4` remain open.
 3. Root-cause signal for remaining blockers:
    - lane workers in EKS private runtime timed out calling IG managed edge endpoint, so run-window admissions did not advance.
+
+Final fallback closure rerun (2026-02-25, latest authority):
+1. Remote rerun (workflow run `22409183214`, execution `m6f_p6b_streaming_active_20260225T175655Z`) using equivalent ingress bridge probes produced:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M6.G_READY`.
+2. Closure metrics:
+   - `wsp_state=RUNNING`, `sr_ready_state=RUNNING`,
+   - `ig_idempotency_count=12`,
+   - `measured_lag=2`, `within_threshold=true`.
+3. Evidence:
+   - workflow artifact set: `m6f-streaming-active-20260225T175655Z`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T175655Z/`.
 
 Rerun closure status (2026-02-25):
 1. Provisional local remediator run completed:
@@ -489,7 +502,7 @@ Any active `M6-B*` blocker prevents M6 closure.
 - [x] M6.C complete
 - [x] M6.D complete
 - [x] M6.E complete
-- [ ] M6.F complete
+- [x] M6.F complete
 - [ ] M6.G complete
 - [ ] M6.H complete
 - [ ] M6.I complete
@@ -522,5 +535,5 @@ Handoff posture:
 7. `M6.D` is closed green (`m6d_p5c_gate_rollup_20260225T041801Z`) with verdict `ADVANCE_TO_P6` and `M6.E_READY`.
 8. `M6.E` is closed green (`m6e_p6a_stream_entry_20260225T120522Z`) with `M6.F_READY`.
 9. `M6.F` historical closure (`m6f_p6b_streaming_active_20260225T152755Z`, run `22403542013`) has been reopened under strict semantics.
-10. Latest fallback rerun (`m6f_p6b_streaming_active_20260225T171938Z`, run `22407876177`) cleared `M6P6-B2` (lane refs active) but remains fail-closed on `M6P6-B3/B4` (no run-window admissions, lag unresolved).
-11. `M6.G` historical rollup (`m6g_p6c_gate_rollup_20260225T155035Z`, run `22404445249`) is not current authority while strict-semantic `M6.F` remains blocker-open.
+10. Latest strict-semantic/fallback rerun (`m6f_p6b_streaming_active_20260225T175655Z`, run `22409183214`) is green with `blocker_count=0` and `next_gate=M6.G_READY`.
+11. `M6.G` historical rollup (`m6g_p6c_gate_rollup_20260225T155035Z`, run `22404445249`) remains historical; execute fresh `M6.G` against upstream `M6.F=20260225T175655Z` for current authority.

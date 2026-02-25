@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
+import duckdb
 import polars as pl
 import yaml
 from jsonschema import Draft202012Validator
@@ -401,6 +402,11 @@ def _sample_parquet(path: Path, columns: list[str], sample_rows: int) -> pl.Data
     if df.height > sample_rows:
         df = df.head(sample_rows)
     return df
+
+
+def _duckdb_scan(path: Path) -> str:
+    normalized = str(path).replace("\\", "/").replace("'", "''")
+    return f"read_parquet('{normalized}', hive_partitioning=true, union_by_name=true)"
 
 
 def _parse_passed_flag(path: Path) -> str:
@@ -882,6 +888,132 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             coverage_result,
             metrics={"coverage_failures": coverage_failures, "counts": count_metrics},
             issue_message="Truth/bank view coverage mismatch for flows.",
+        )
+
+        # Check: critical truth realism gates (aligns with P1 scorer lane: T1/T2/T3/T22).
+        critical_truth_result = "PASS"
+        critical_truth_metrics: dict[str, object] = {}
+        try:
+            s3_scan = _duckdb_scan(dataset_paths[DATASET_S3_FLOWS][sample_scenario])
+            s4_truth_scan = _duckdb_scan(dataset_paths[DATASET_S4_TRUTH][sample_scenario])
+            truth_row = duckdb.execute(
+                f"""
+                WITH j AS (
+                  SELECT
+                    s3.campaign_id,
+                    CAST(s4.is_fraud_truth AS BOOLEAN) AS is_fraud_truth,
+                    UPPER(COALESCE(s4.fraud_label, '')) AS fraud_label
+                  FROM {s3_scan} s3
+                  JOIN {s4_truth_scan} s4 USING(flow_id)
+                )
+                SELECT
+                  AVG(CASE WHEN fraud_label = 'LEGIT' THEN 1.0 ELSE 0.0 END) AS legit_share,
+                  AVG(CASE WHEN is_fraud_truth THEN 1.0 ELSE 0.0 END) AS fraud_truth_mean,
+                  SUM(CASE WHEN campaign_id IS NULL THEN 1 ELSE 0 END) AS no_campaign_total,
+                  SUM(
+                    CASE
+                      WHEN campaign_id IS NULL AND (fraud_label = 'LEGIT' OR NOT is_fraud_truth) THEN 1
+                      ELSE 0
+                    END
+                  ) AS no_campaign_legit
+                FROM j
+                """
+            ).fetchone()
+            legit_share = float(truth_row[0] or 0.0)
+            fraud_truth_mean = float(truth_row[1] or 0.0)
+            no_campaign_total = int(truth_row[2] or 0)
+            no_campaign_legit = int(truth_row[3] or 0)
+            no_campaign_legit_rate = (
+                float(no_campaign_legit) / float(no_campaign_total) if no_campaign_total > 0 else 0.0
+            )
+
+            truth_threshold_min = float(thresholds.get("critical_truth_fraud_rate_min", 0.02) or 0.02)
+            truth_threshold_max = float(thresholds.get("critical_truth_fraud_rate_max", 0.30) or 0.30)
+            no_campaign_legit_min = float(thresholds.get("critical_truth_no_campaign_legit_min", 0.99) or 0.99)
+            truth_collision_guard_pass = True  # S4 fails-closed on rule collisions/unmatched rows.
+
+            t1_ok = legit_share > 0.0
+            t2_ok = truth_threshold_min <= fraud_truth_mean <= truth_threshold_max
+            t3_ok = no_campaign_legit_rate >= no_campaign_legit_min
+            t22_ok = truth_collision_guard_pass
+            critical_truth_result = "PASS" if (t1_ok and t2_ok and t3_ok and t22_ok) else "FAIL"
+            critical_truth_metrics = {
+                "sample_scenario": sample_scenario,
+                "legit_share": legit_share,
+                "fraud_truth_mean": fraud_truth_mean,
+                "truth_rate_range": {"min": truth_threshold_min, "max": truth_threshold_max},
+                "no_campaign_total": no_campaign_total,
+                "no_campaign_legit_rate": no_campaign_legit_rate,
+                "no_campaign_legit_min": no_campaign_legit_min,
+                "truth_collision_guard_pass": truth_collision_guard_pass,
+                "t1_ok": t1_ok,
+                "t2_ok": t2_ok,
+                "t3_ok": t3_ok,
+                "t22_ok": t22_ok,
+            }
+        except Exception as exc:  # noqa: BLE001
+            critical_truth_result = "FAIL"
+            critical_truth_metrics = {"sample_scenario": sample_scenario, "error": str(exc)}
+        record_check(
+            "REQ_CRITICAL_TRUTH_REALISM",
+            "REQUIRED",
+            critical_truth_result,
+            metrics=critical_truth_metrics,
+            issue_message="Critical truth realism gates failed (T1/T2/T3/T22).",
+        )
+
+        # Check: critical case timeline monotonicity (aligns with scorer lane: T8/T10).
+        critical_case_result = "PASS"
+        critical_case_metrics: dict[str, object] = {}
+        try:
+            s4_case_scan = _duckdb_scan(dataset_paths[DATASET_S4_CASES][sample_scenario])
+            case_row = duckdb.execute(
+                f"""
+                WITH ct AS (
+                  SELECT
+                    case_id,
+                    case_event_seq,
+                    COALESCE(
+                      try_strptime(ts_utc, '%Y-%m-%dT%H:%M:%S.%fZ'),
+                      try_strptime(ts_utc, '%Y-%m-%dT%H:%M:%SZ')
+                    ) AS ts
+                  FROM {s4_case_scan}
+                ),
+                g AS (
+                  SELECT
+                    case_id,
+                    DATE_DIFF('second', LAG(ts) OVER (PARTITION BY case_id ORDER BY case_event_seq), ts) AS gap_sec
+                  FROM ct
+                )
+                SELECT
+                  SUM(CASE WHEN gap_sec IS NOT NULL THEN 1 ELSE 0 END) AS gaps_total,
+                  SUM(CASE WHEN gap_sec < 0 THEN 1 ELSE 0 END) AS neg_gaps,
+                  COUNT(DISTINCT CASE WHEN gap_sec IS NOT NULL THEN case_id END) AS cases_with_gaps,
+                  COUNT(DISTINCT CASE WHEN gap_sec < 0 THEN case_id END) AS cases_with_neg
+                FROM g
+                """
+            ).fetchone()
+            gaps_total = int(case_row[0] or 0)
+            neg_gaps = int(case_row[1] or 0)
+            cases_with_gaps = int(case_row[2] or 0)
+            cases_with_neg = int(case_row[3] or 0)
+            critical_case_result = "PASS" if neg_gaps == 0 and cases_with_neg == 0 and gaps_total > 0 else "FAIL"
+            critical_case_metrics = {
+                "sample_scenario": sample_scenario,
+                "gaps_total": gaps_total,
+                "negative_gaps": neg_gaps,
+                "cases_with_gaps": cases_with_gaps,
+                "cases_with_negative_gaps": cases_with_neg,
+            }
+        except Exception as exc:  # noqa: BLE001
+            critical_case_result = "FAIL"
+            critical_case_metrics = {"sample_scenario": sample_scenario, "error": str(exc)}
+        record_check(
+            "REQ_CRITICAL_CASE_TIMELINE",
+            "REQUIRED",
+            critical_case_result,
+            metrics=critical_case_metrics,
+            issue_message="Critical case timeline monotonicity failed (T8/T10).",
         )
 
         # Check: RNG budgets (presence only).

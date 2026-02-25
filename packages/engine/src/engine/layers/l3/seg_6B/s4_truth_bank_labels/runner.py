@@ -722,6 +722,24 @@ def _load_min_delay_seconds(delay_models: dict, logger) -> dict[str, float]:
     return result
 
 
+def _load_max_delay_seconds(delay_models: dict, logger) -> dict[str, float]:
+    models = delay_models.get("delay_models") if isinstance(delay_models, dict) else None
+    models = models if isinstance(models, list) else []
+    result: dict[str, float] = {}
+    for model in models:
+        if not isinstance(model, dict):
+            continue
+        model_id = str(model.get("delay_model_id") or "").strip()
+        if not model_id:
+            continue
+        value = model.get("max_seconds")
+        try:
+            result[model_id] = float(value)
+        except (TypeError, ValueError):
+            logger.warning("S4: invalid max_seconds for delay_model_id=%s", model_id)
+    return result
+
+
 def _extract_auth_mixture(bank_view_policy: dict) -> list[tuple[str, float]]:
     model = bank_view_policy.get("auth_decision_model") if isinstance(bank_view_policy, dict) else None
     rules = model.get("rules") if isinstance(model, dict) else None
@@ -773,6 +791,24 @@ def _choice_expr(choices: list[tuple[str, float]], uniform_expr: pl.Expr) -> pl.
     if expr is None:
         return pl.lit(choices[-1][0] if choices else "APPROVE")
     return expr.otherwise(pl.lit(choices[-1][0]))
+
+
+def _merchant_legit_fp_prob_expr(merchant_id_col: str = "merchant_id") -> pl.Expr:
+    merchant_bucket = (pl.col(merchant_id_col).cast(pl.UInt64) % pl.lit(10, dtype=pl.UInt64)).cast(pl.Int64)
+    return (
+        pl.when(merchant_bucket.is_in([0, 1]))
+        .then(pl.lit(0.003))
+        .when(merchant_bucket.is_in([2, 3]))
+        .then(pl.lit(0.009))
+        .when(merchant_bucket.is_in([4, 5, 6]))
+        .then(pl.lit(0.018))
+        .otherwise(pl.lit(0.045))
+    )
+
+
+def _ts_plus_seconds_expr(ts_expr: pl.Expr, seconds_expr: pl.Expr) -> pl.Expr:
+    milliseconds_expr = (seconds_expr * pl.lit(1000.0)).round(0).cast(pl.Int64)
+    return (ts_expr + pl.duration(milliseconds=milliseconds_expr)).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
 
 
 def _normalize_outcome_choices(outcome_map: dict) -> dict[str, list[tuple[str, float]]]:
@@ -1145,6 +1181,7 @@ def run_s4(
     chargeback_outcome_map = _normalize_outcome_choices(chargeback_outcome_map)
 
     delay_min = _load_min_delay_seconds(delay_models, logger)
+    delay_max = _load_max_delay_seconds(delay_models, logger)
     detect_delay_id = detection_model.get("delay_model_id_for_post_auth_detection")
     dispute_delay_id = dispute_model.get("delay_model_id_for_dispute")
     chargeback_delay_id = chargeback_model.get("delay_model_id_for_chargeback")
@@ -1154,6 +1191,10 @@ def run_s4(
     dispute_delay_seconds = float(delay_min.get(str(dispute_delay_id), 3600.0))
     chargeback_delay_seconds = float(delay_min.get(str(chargeback_delay_id), 86400.0))
     case_close_delay_seconds = float(delay_min.get(str(case_close_delay_id), 3600.0))
+    detect_delay_max_seconds = float(delay_max.get(str(detect_delay_id), detect_delay_seconds))
+    dispute_delay_max_seconds = float(delay_max.get(str(dispute_delay_id), dispute_delay_seconds))
+    chargeback_delay_max_seconds = float(delay_max.get(str(chargeback_delay_id), chargeback_delay_seconds))
+    case_close_delay_max_seconds = float(delay_max.get(str(case_close_delay_id), case_close_delay_seconds))
 
     compression_map = {
         "zstd": "zstd",
@@ -1366,6 +1407,7 @@ def run_s4(
                 flow_files,
                 [
                     "flow_id",
+                    "merchant_id",
                     "campaign_id",
                     "fraud_flag",
                     "ts_utc",
@@ -1374,6 +1416,7 @@ def run_s4(
             ):
                 flows = flows.with_columns(
                     pl.col("flow_id").cast(pl.Int64),
+                    pl.col("merchant_id").cast(pl.UInt64),
                     pl.col("campaign_id").cast(pl.Utf8),
                     pl.col("fraud_flag").cast(pl.Boolean),
                     pl.col("ts_utc").cast(pl.Utf8),
@@ -1479,6 +1522,14 @@ def run_s4(
                 chargeback_flag = dispute_flag & (
                     _uniform_expr(seed, 131, modulus, pl.col("flow_id"), pl.lit("chargeback_flag")) < chargeback_prob
                 )
+                legit_fp_prob = _merchant_legit_fp_prob_expr("merchant_id")
+                legit_fp_confirm_flag = (
+                    (pl.col("truth_label") == "LEGIT")
+                    & (
+                        _uniform_expr(seed, 151, modulus, pl.col("flow_id"), pl.lit("legit_fp_confirm"))
+                        < legit_fp_prob
+                    )
+                )
 
                 cb_uniform = _uniform_expr(seed, 141, modulus, pl.col("flow_id"), pl.lit("chargeback_outcome"))
                 cb_fraud = _choice_expr(chargeback_outcome_map.get("FRAUD", [("BANK_LOSS", 1.0)]), cb_uniform)
@@ -1498,13 +1549,15 @@ def run_s4(
                     .then(pl.lit("CUSTOMER_DISPUTE_REJECTED"))
                     .when((pl.col("truth_label").is_in(["FRAUD", "ABUSE"])) & detect_flag)
                     .then(pl.lit("BANK_CONFIRMED_FRAUD"))
+                    .when(legit_fp_confirm_flag)
+                    .then(pl.lit("BANK_CONFIRMED_FRAUD"))
                     .when(pl.col("truth_label") == "LEGIT")
                     .then(pl.lit("BANK_CONFIRMED_LEGIT"))
                     .otherwise(pl.lit("NO_CASE_OPENED"))
                 )
 
                 is_fraud_bank_view = bank_label.is_in(["BANK_CONFIRMED_FRAUD", "CHARGEBACK_WRITTEN_OFF"])
-                case_opened = detect_flag | dispute_flag | auth_decision.is_in(["REVIEW", "CHALLENGE"])
+                case_opened = detect_flag | dispute_flag | auth_decision.is_in(["REVIEW", "CHALLENGE"]) | legit_fp_confirm_flag
 
                 flows = flows.with_columns(
                     auth_decision.alias("auth_decision"),
@@ -1586,23 +1639,57 @@ def run_s4(
                     )
                     cases = cases.with_columns(case_id_expr.alias("case_id"), base_ts)
 
+                    detect_offset_seconds = (
+                        pl.when(pl.col("detect_flag"))
+                        .then(
+                            pl.when(pl.col("detect_at_auth_flag"))
+                            .then(pl.lit(0.0))
+                            .otherwise(pl.lit(detect_delay_seconds))
+                        )
+                        .otherwise(pl.lit(0.0))
+                    )
+                    dispute_offset_seconds = (
+                        pl.when(pl.col("dispute_flag"))
+                        .then(pl.lit(dispute_delay_seconds))
+                        .otherwise(pl.lit(0.0))
+                    )
+                    chargeback_offset_seconds = (
+                        pl.when(pl.col("chargeback_flag"))
+                        .then(pl.lit(chargeback_delay_seconds))
+                        .otherwise(pl.lit(0.0))
+                    )
+                    chargeback_decision_offset_seconds = (
+                        pl.when(pl.col("chargeback_flag"))
+                        .then(pl.lit(chargeback_delay_seconds + 1.0))
+                        .otherwise(pl.lit(0.0))
+                    )
+                    max_case_event_offset = pl.max_horizontal(
+                        [
+                            detect_offset_seconds,
+                            dispute_offset_seconds,
+                            chargeback_offset_seconds,
+                            chargeback_decision_offset_seconds,
+                        ]
+                    )
+                    close_offset_seconds = max_case_event_offset + pl.lit(case_close_delay_seconds)
+
                     open_ts = pl.when(pl.col("base_ts").is_not_null()).then(
                         pl.col("base_ts").dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
                     ).otherwise(pl.col("ts_utc"))
                     detect_ts = pl.when(pl.col("base_ts").is_not_null()).then(
-                        (pl.col("base_ts") + pl.duration(seconds=detect_delay_seconds)).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
+                        _ts_plus_seconds_expr(pl.col("base_ts"), detect_offset_seconds)
                     ).otherwise(pl.col("ts_utc"))
                     dispute_ts = pl.when(pl.col("base_ts").is_not_null()).then(
-                        (pl.col("base_ts") + pl.duration(seconds=dispute_delay_seconds)).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
+                        _ts_plus_seconds_expr(pl.col("base_ts"), dispute_offset_seconds)
                     ).otherwise(pl.col("ts_utc"))
                     chargeback_ts = pl.when(pl.col("base_ts").is_not_null()).then(
-                        (pl.col("base_ts") + pl.duration(seconds=chargeback_delay_seconds)).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
+                        _ts_plus_seconds_expr(pl.col("base_ts"), chargeback_offset_seconds)
                     ).otherwise(pl.col("ts_utc"))
                     chargeback_decision_ts = pl.when(pl.col("base_ts").is_not_null()).then(
-                        (pl.col("base_ts") + pl.duration(seconds=chargeback_delay_seconds + 1.0)).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
+                        _ts_plus_seconds_expr(pl.col("base_ts"), chargeback_decision_offset_seconds)
                     ).otherwise(pl.col("ts_utc"))
                     close_ts = pl.when(pl.col("base_ts").is_not_null()).then(
-                        (pl.col("base_ts") + pl.duration(seconds=case_close_delay_seconds)).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
+                        _ts_plus_seconds_expr(pl.col("base_ts"), close_offset_seconds)
                     ).otherwise(pl.col("ts_utc"))
 
                     case_base = cases.select(
@@ -1610,6 +1697,7 @@ def run_s4(
                             "case_id",
                             "flow_id",
                             "detect_flag",
+                            "detect_at_auth_flag",
                             "dispute_flag",
                             "chargeback_flag",
                             "ts_utc",
