@@ -270,9 +270,9 @@ Tasks:
 4. emit P3 execution summary artifact.
 
 DoD:
-- [ ] P3 rollup matrix committed.
-- [ ] unresolved blockers explicit.
-- [ ] deterministic verdict artifact committed locally and durably.
+- [x] P3 rollup matrix committed.
+- [x] unresolved blockers explicit.
+- [x] deterministic verdict artifact committed locally and durably.
 
 P3.D precheck:
 1. P3.A..P3.C artifacts exist and are readable.
@@ -312,6 +312,26 @@ P3.D exit rule:
 4. P3 rollup artifacts exist locally and durably,
 5. no active `P3D-B*` blocker remains,
 6. P4 remains blocked until verdict is explicitly `ADVANCE_TO_P4`.
+
+P3.D execution closure (2026-02-25):
+1. Authoritative run:
+   - execution id: `m5e_p3_gate_rollup_20260225T005034Z`
+   - local root: `runs/dev_substrate/dev_full/m5/m5e_p3_gate_rollup_20260225T005034Z/`
+   - summary: `runs/dev_substrate/dev_full/m5/m5e_p3_gate_rollup_20260225T005034Z/m5e_execution_summary.json`
+2. Rollup outcome:
+   - `overall_pass=true`
+   - `lane_count=3`, `lanes_passed=3`
+   - blocker codes: `[]`
+3. Verdict:
+   - `ADVANCE_TO_P4`
+   - next gate: `P4_READY`
+4. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5e_p3_gate_rollup_20260225T005034Z/m5e_p3_gate_rollup_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5e_p3_gate_rollup_20260225T005034Z/m5e_p3_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5e_p3_gate_rollup_20260225T005034Z/m5e_p3_gate_verdict.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5e_p3_gate_rollup_20260225T005034Z/m5e_execution_summary.json`
+5. Gate impact:
+   - P3 is closed green and P4 (`M5.F+`) is unblocked.
 
 ## 3) P3 Verification Catalog
 | Verify ID | Command template | Purpose |

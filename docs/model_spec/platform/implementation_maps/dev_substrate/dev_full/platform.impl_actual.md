@@ -6685,6 +6685,40 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
    - choose latest pass artifact per lane,
    - include upstream artifact paths explicitly in rollup matrix.
 
+## Entry: 2026-02-25 00:51:10 +00:00 - M5.E / P3.D closure (green)
+
+### Authoritative run
+1. Execution id:
+   - `m5e_p3_gate_rollup_20260225T005034Z`
+2. Local summary:
+   - `runs/dev_substrate/dev_full/m5/m5e_p3_gate_rollup_20260225T005034Z/m5e_execution_summary.json`
+3. Outcome:
+   - `overall_pass=true`
+   - blockers: `[]`
+   - lanes passed: `3/3`
+   - verdict: `ADVANCE_TO_P4`
+
+### Rollup logic actually used
+1. Upstream authoritative pass summaries selected by lane:
+   - `P3.A`: latest `m5b_*` pass summary,
+   - `P3.B`: latest `m5c_*` pass summary,
+   - `P3.C`: latest `m5d_*` pass summary.
+2. Verdict rule:
+   - emit `ADVANCE_TO_P4` only when no active rollup blocker exists,
+   - otherwise emit `HOLD_REMEDIATE` or `NO_GO_RESET_REQUIRED` by blocker class.
+3. Transition guard:
+   - if verdict ever evaluates to `ADVANCE_TO_P4` while blockers exist, force downgrade and raise transition blocker.
+
+### Durable evidence
+1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5e_p3_gate_rollup_20260225T005034Z/m5e_p3_gate_rollup_matrix.json`
+2. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5e_p3_gate_rollup_20260225T005034Z/m5e_p3_blocker_register.json`
+3. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5e_p3_gate_rollup_20260225T005034Z/m5e_p3_gate_verdict.json`
+4. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5e_p3_gate_rollup_20260225T005034Z/m5e_execution_summary.json`
+
+### Closure decision
+1. `M5.E` / `P3.D` is closed green.
+2. `P4` execution lanes (`M5.F+`) are now unblocked.
+
 ## Entry: 2026-02-24 19:12:26 +00:00 - P3.B blocker remediation plan (source-approved copy lane)
 
 ### Problem

@@ -222,9 +222,23 @@ Tasks:
 4. publish P3 artifacts locally and durably.
 
 DoD:
-- [ ] P3 rollup matrix is complete.
-- [ ] unresolved blocker set is explicit.
-- [ ] deterministic P3 verdict artifact is committed.
+- [x] P3 rollup matrix is complete.
+- [x] unresolved blocker set is explicit.
+- [x] deterministic P3 verdict artifact is committed.
+
+M5.E execution closure (2026-02-25):
+1. Authoritative run:
+   - `runs/dev_substrate/dev_full/m5/m5e_p3_gate_rollup_20260225T005034Z/m5e_execution_summary.json`
+   - outcome: `overall_pass=true`, blockers=`[]`, verdict=`ADVANCE_TO_P4`.
+2. Rollup integrity:
+   - lane count=`3`, lanes passed=`3` (`P3.A/P3.B/P3.C`).
+3. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5e_p3_gate_rollup_20260225T005034Z/m5e_p3_gate_rollup_matrix.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5e_p3_gate_rollup_20260225T005034Z/m5e_p3_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5e_p3_gate_rollup_20260225T005034Z/m5e_p3_gate_verdict.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5e_p3_gate_rollup_20260225T005034Z/m5e_execution_summary.json`
+4. Next action:
+   - advance to `M5.F` (`P4` ingress boundary health preflight).
 
 ### M5.F IG Boundary Health Preflight (P4)
 Goal:
@@ -369,7 +383,7 @@ Any active `M5-B*` blocker prevents M5 closure.
 - [x] M5.B complete
 - [x] M5.C complete
 - [x] M5.D complete
-- [ ] M5.E complete
+- [x] M5.E complete
 - [ ] M5.F complete
 - [ ] M5.G complete
 - [ ] M5.H complete
@@ -405,4 +419,5 @@ Handoff posture:
    - `M5.B` / `P3.A` is closed green (`m5b_20260224T185046Z`).
    - `M5.C` / `P3.B` is closed green (`m5c_p3b_required_outputs_20260224T191554Z`) after oracle materialization remediation.
    - `M5.D` / `P3.C` is closed green (`m5d_p3c_stream_view_contract_20260224T192457Z`).
-   - next actionable execution lane is `M5.E` (`P3.D`).
+    - `M5.E` / `P3.D` is closed green (`m5e_p3_gate_rollup_20260225T005034Z`) with verdict `ADVANCE_TO_P4`.
+   - next actionable execution lane is `M5.F` (`P4`).
