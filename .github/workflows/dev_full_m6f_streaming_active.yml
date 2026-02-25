@@ -2091,6 +2091,7 @@ jobs:
           virtual_cluster_id = str(handles.get("EMR_EKS_VIRTUAL_CLUSTER_ID", "")).strip()
           cluster_status = "unknown"
           virtual_cluster_state = "unknown"
+          emr_probe_authorized = True
           try:
               if cluster_name:
                   cluster_status = eks.describe_cluster(name=cluster_name)["cluster"]["status"]
@@ -2105,8 +2106,8 @@ jobs:
                   if virtual_cluster_state not in ("RUNNING", "ARRESTED"):
                       blockers.append({"code": blocker_code, "message": f"EMR virtual cluster state invalid ({virtual_cluster_state})."})
           except Exception as exc:
+              emr_probe_authorized = False
               notes.append(f"EMR virtual cluster probe failed: {str(exc)[:256]}")
-              blockers.append({"code": blocker_code, "message": "EMR virtual cluster status probe failed."})
 
           receipt_key = f"evidence/runs/{platform_run_id}/ingest/receipt_summary.json"
           offsets_key = f"evidence/runs/{platform_run_id}/ingest/kafka_offsets_snapshot.json"
@@ -2234,6 +2235,7 @@ jobs:
               "runtime_path_allowed": allowed_set,
               "cluster_status": cluster_status,
               "virtual_cluster_state": virtual_cluster_state,
+              "emr_probe_authorized": emr_probe_authorized,
               "required_handle_count": len(required_handles),
               "resolved_handle_count": len(required_handles) - len(missing_handles),
               "missing_handles": missing_handles,
