@@ -624,12 +624,12 @@ Planned lanes:
 - deterministic M6 verdict + M7 handoff + phase-budget/cost-outcome closure.
 
 DoD anchors:
-- [ ] READY receipt committed.
-- [ ] streaming active with bounded lag.
-- [ ] ingest commit evidence complete.
-- [ ] evidence-overhead posture within budget (`latency p95`, `bytes/event`, `write-rate`).
-- [ ] deterministic M6 verdict + `m7_handoff_pack.json` committed locally and durably.
-- [ ] M6 phase-budget and cost-outcome artifacts are committed and blocker-free.
+- [x] READY receipt committed.
+- [x] streaming active with bounded lag.
+- [x] ingest commit evidence complete.
+- [x] evidence-overhead posture within budget (`latency p95`, `bytes/event`, `write-rate`).
+- [x] deterministic M6 verdict + `m7_handoff_pack.json` committed locally and durably.
+- [x] M6 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
 M6 planning posture:
 - M6 planning is split into orchestration + gate-specific deep plans to avoid anti-cram drift.
@@ -709,21 +709,39 @@ Deep plan:
 Status: `ACTIVE`
 
 Objective:
-- close `P8-P10` for RTDL, decision chain, and case/label append lanes.
+- close `P8-P10` for RTDL, decision chain, and case/label append lanes with component-level verification (no bundled closure claims).
 
 Entry gate:
 - M6 is `DONE`.
 
 Planned lanes:
-- RTDL caught-up proof, decision/action/audit proof, case/label writer-boundary proof.
+- `P8` RTDL core:
+  - IEG inlet projection lane,
+  - OFP context projection lane,
+  - archive writer lane,
+  - RTDL caught-up rollup.
+- `P9` decision chain:
+  - DF decision lane,
+  - AL action lane,
+  - DLA audit append lane,
+  - decision-chain rollup.
+- `P10` case/labels:
+  - case-trigger bridge lane,
+  - CM case management lane,
+  - LS writer-boundary lane,
+  - case/labels rollup.
 
 DoD anchors:
 - [ ] RTDL core closure evidence is green.
 - [ ] decision/action/audit triplet closure is green.
 - [ ] case/label append closure is green.
+- [ ] M7 rollup verdict is deterministic with blocker-free handoff to M8.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P8.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P9.build_plan.md`
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P10.build_plan.md`
 
 ## M8 - Spine Obs/Gov Closure
 Status: `NOT_STARTED`

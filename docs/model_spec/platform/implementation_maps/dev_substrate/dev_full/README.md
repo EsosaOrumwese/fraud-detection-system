@@ -14,12 +14,15 @@ This folder is reserved for `dev_full` planning and implementation notes.
 ## Current posture
 - Phase progression:
   - `M0..M5` are `DONE`.
-  - `M6` is `ACTIVE`.
+  - `M6` is `DONE`.
+  - `M7` is `ACTIVE`.
 - Active gate posture:
-  - `M6.E` (`P6.A`) is closed green on the EMR-on-EKS runtime path.
-  - `M6.F` (`P6.B`) is now closed green on authoritative remote rerun `m6f_p6b_streaming_active_20260225T152755Z` (GitHub Actions run `22403542013` on `migrate-dev`).
-  - `M6.G` (`P6.C`) is now closed green on authoritative remote rollup `m6g_p6c_gate_rollup_20260225T155035Z` (GitHub Actions run `22404445249` on `migrate-dev`).
-  - cleared blockers: `M6P6-B2`, `M6P6-B3`, `M6P6-B4`, `M6P6-B6`, `M6P6-B8`.
+  - `M6.J` is closed green on authoritative remote run `m6j_m6_closure_sync_20260225T194637Z` (GitHub Actions run `22413131251` on `migrate-dev`).
+  - `M7` deep planning is now split into:
+    - `platform.M7.build_plan.md`,
+    - `platform.M7.P8.build_plan.md`,
+    - `platform.M7.P9.build_plan.md`,
+    - `platform.M7.P10.build_plan.md`.
 - Next closure step:
-  - execute `M6.H` (`P7` ingest commit closure) with `M6.G` verdict `ADVANCE_TO_P7` as entry gate.
+  - execute `M7.A` handle/entry closure and begin component-level `P8` execution.
 - `dev_min` remains closed and isolated under `../dev_min/`.

@@ -9247,3 +9247,46 @@ ext_gate=HOLD_REMEDIATE.
 1. `M6.J` is closed green.
 2. `M6` phase closure is now complete and M7 entry is formally unblocked (`next_gate=M7_READY`).
 
+## Entry: 2026-02-25 20:12:00 +00:00 - M7 planning expansion with component-granular closure lanes
+
+### Trigger
+1. USER requested M7 planning expansion into:
+   - `platform.M7.build_plan.md`,
+   - `platform.M7.P8.build_plan.md`,
+   - `platform.M7.P9.build_plan.md`,
+   - `platform.M7.P10.build_plan.md`.
+2. USER required anti-lump planning posture so `IEG/OFP/DF/AL/DLA/CM/LS` are not treated as one closure unit.
+
+### Problem
+1. `platform.build_plan.md` marked `M7` as active but deep M7 planning files did not exist.
+2. Without split deep plans, execution would likely drift into bundled closure claims.
+
+### Design decision
+1. Create a parent M7 orchestration plan plus three canonical phase deep plans (`P8/P9/P10`).
+2. Encode explicit anti-lump closure law in M7 docs:
+   - each component lane gets independent tasks, DoDs, blockers, and evidence artifacts.
+3. Keep M7 status owner unchanged (`platform.build_plan.md`), while deep docs own execution detail.
+
+### Implemented planning artifacts
+1. Created:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P8.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P9.build_plan.md`
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P10.build_plan.md`
+2. Updated M7 section in:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+   - added component-level planned lanes and deep-plan references.
+3. Updated track README posture:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/README.md`
+   - M6 marked done, M7 marked active, next step set to M7.A.
+
+### Component-level closure map now pinned
+1. P8 (`RTDL_CAUGHT_UP`): `IEG`, `OFP`, `ArchiveWriter`, then P8 rollup.
+2. P9 (`DECISION_CHAIN_COMMITTED`): `DF`, `AL`, `DLA`, then P9 rollup.
+3. P10 (`CASE_LABELS_COMMITTED`): `CaseTrigger bridge`, `CM`, `LS`, then P10 rollup.
+
+### Why this is the correct posture
+1. It prevents silent drift from aggregate/throughput-only “green” claims.
+2. It aligns with runbook ownership boundaries while keeping execution auditable per component.
+3. It gives deterministic blocker surfaces when one component fails but siblings pass.
+
