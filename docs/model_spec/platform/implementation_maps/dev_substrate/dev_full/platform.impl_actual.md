@@ -9290,3 +9290,38 @@ ext_gate=HOLD_REMEDIATE.
 2. It aligns with runbook ownership boundaries while keeping execution auditable per component.
 3. It gives deterministic blocker surfaces when one component fails but siblings pass.
 
+## Entry: 2026-02-25 20:24:00 +00:00 - M7 performance/throughput gates pinned per component lane
+
+### Trigger
+1. USER required explicit confirmation that serviceized M7 components are planned to avoid becoming throughput bottlenecks.
+2. Existing M7 docs had functional closure gates but insufficient explicit per-component performance budget gates.
+
+### Decision
+1. Treat performance as a first-class acceptance criterion for every M7 component lane.
+2. Add fail-closed requirement that numeric SLO budgets must be pinned before lane execution (`M7.A`, `P8.A`, `P9.A`, `P10.A`).
+3. Require per-lane performance snapshots as mandatory artifacts for closure, covering:
+   - throughput,
+   - latency,
+   - lag/backlog,
+   - resource posture,
+   - stability/error rate.
+
+### Applied doc updates
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.build_plan.md`
+   - added M7-wide Performance-First gate (`Section 3.1`),
+   - added SLO pinning DoD at M7.A,
+   - added component-level performance DoDs and global blocker codes (`M7-B16`, `M7-B17`).
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P8.build_plan.md`
+   - added P8 performance contract for `IEG/OFP/ArchiveWriter`,
+   - added required performance snapshots and blockers (`M7P8-B6/B7`).
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P9.build_plan.md`
+   - added P9 performance contract for `DF/AL/DLA`,
+   - added required performance snapshots and blockers (`M7P9-B6/B7`).
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P10.build_plan.md`
+   - added P10 performance contract for `CaseTrigger/CM/LS`,
+   - added required performance snapshots and blockers (`M7P10-B6/B7`).
+
+### Outcome
+1. M7 planning now blocks closure if any component is functionally green but performance-red.
+2. Bottleneck risk is explicitly surfaced as a blocker rather than discovered late during rollups.
+

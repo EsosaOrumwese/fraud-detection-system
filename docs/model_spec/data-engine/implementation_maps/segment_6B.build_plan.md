@@ -1089,13 +1089,82 @@ Execution closure:
 
 ### P2 - Wave A.2 (`S2` amount/timing activation)
 Goal:
-- activate policy-faithful amount and timing behavior to close `T11-T16`.
+- redesign S2 amount and auth timing generation so data shape is realistic (not degenerate), closing `T11,T13,T14,T15,T16` and unlocking `T21`.
 
 Definition of done:
-- [ ] `S2` timing policy offsets are executed (non-degenerate auth latency).
-- [ ] amount model uses configured family/tail behavior, not fixed-point-only hash pick.
-- [ ] `T11-T16` meet `B` thresholds on candidate seed.
-- [ ] no regression on already closed Wave A.1 critical gates.
+- [ ] S2 executes amount generation from `amount_model_6B` distribution families (point-mass + tail), not fixed-only price-point lookup.
+- [ ] S2 executes timing offsets from `timing_policy_6B` for `AUTH_REQUEST -> AUTH_RESPONSE` (strictly positive and bounded).
+- [ ] `T11,T13,T14,T15,T16` reach `B` on witness run.
+- [ ] `T21` reaches `>=2/3` by activating amount-tail + timing branches (delay branch already active).
+- [ ] no regression on closed rails (`T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T22`).
+- [ ] runtime rails hold:
+  - `S2<=120s` target (stretch `<=150s`),
+  - downstream rerun rails preserved (`S3<=380s`, `S4<=420s`, `S5<=30s`).
+
+#### P2.0 - Root-cause pin and redesign contract
+Goal:
+- lock exact S2 defects and pin redesign invariants before code changes.
+
+Definition of done:
+- [ ] root-cause map pinned from live evidence:
+  - `T11=8` and `T13=100%` caused by single-path discrete amount index selection,
+  - `T14=T15=0`, `T16=100%` caused by identical `AUTH_REQUEST` and `AUTH_RESPONSE` timestamps.
+- [ ] touched surfaces pinned:
+  - `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline_flow/runner.py`,
+  - `config/layer3/6B/amount_model_6B.yaml` (if parameter retune needed),
+  - `config/layer3/6B/timing_policy_6B.yaml` (if parameter retune needed).
+- [ ] deterministic invariant pinned:
+  - no stochastic global state, hash/RNG-key deterministic by existing IDs only,
+  - no schema expansion on S2 outputs.
+
+#### P2.1 - Amount-lane redesign (`T11,T13`, protect `T12`)
+Goal:
+- restore realistic amount support/cardinality and concentration profile.
+
+Definition of done:
+- [ ] implement amount sampler in S2 honoring policy family structure:
+  - configurable point-mass path (round price points),
+  - configurable heavy-tail path (lognormal-style draw with bounds/rounding),
+  - deterministic blend probability from policy (`point_mass_total`).
+- [ ] family assignment is policy-faithful by event/channel context (purchase/cash-withdrawal/transfer mapping).
+- [ ] `T11>=20` and `T13<=0.85` on candidate witness while `T12` remains passing.
+- [ ] amount generation remains vectorized (no row loops).
+
+#### P2.2 - Timing-lane redesign (`T14,T15,T16`)
+Goal:
+- restore non-degenerate auth latency behavior with realistic tail.
+
+Definition of done:
+- [ ] implement `AUTH_RESPONSE` offset generation from `timing_policy_6B.offset_models.delta_auth_response_seconds`.
+- [ ] enforce strict positive latency with composition epsilon (`>=0.001s`) and cap guardrails.
+- [ ] event timestamps remain monotone by `(flow_id,event_seq)` and parseable.
+- [ ] witness gates:
+  - `T14` median in `[0.3s, 8s]`,
+  - `T15` `p99 > 30s`,
+  - `T16` exact-zero share `<=0.20`.
+
+#### P2.3 - Cross-gate closure and branch-coverage lock (`T21`)
+Goal:
+- convert S2 realism movement into explicit branch coverage closure.
+
+Definition of done:
+- [ ] amount-tail branch activation verified from scored outputs (`amount_tail_branch=true`).
+- [ ] timing branch activation verified from scored outputs (`timing_branch=true`).
+- [ ] `T21` reaches `>=2/3` without altering S4/S5 critical gate semantics.
+- [ ] residual blocker ownership updated explicitly if `T21` remains below threshold.
+
+#### P2.4 - Integrated witness and phase decision
+Goal:
+- close P2 with a full owner-lane witness and decision receipt.
+
+Definition of done:
+- [ ] staged witness run-id created from current authority (`5459d5b68a1344d9870f608a41624448`).
+- [ ] execution sequence run in full owner chain:
+  - `S2 -> S3 -> S4 -> S5`.
+- [ ] scorer receipts emitted for witness run.
+- [ ] phase decision emitted:
+  - `UNLOCK_P3` if `T11,T13,T14,T15,T16,T21` are closed with no P1 regression,
+  - else `HOLD_P2_REOPEN` with blocker register and prioritized reopen lane.
 
 ### P3 - Wave B (`S3` campaign depth)
 Goal:

@@ -10,6 +10,7 @@ This document carries execution-grade planning for `P9 DECISION_CHAIN_COMMITTED`
 2. `AL` commits actions/outcomes with duplicate-safe semantics.
 3. `DLA` commits append-only audit truth with durable readback.
 4. P9 rollup verdict is deterministic from component-level proofs.
+5. `DF/AL/DLA` meet pinned throughput and latency budgets.
 
 ## 1) Authority Inputs
 1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.build_plan.md`
@@ -35,6 +36,28 @@ Out of scope:
 2. A green decision chain requires all three components to be green.
 3. High-level throughput/latency summaries do not replace per-component commit proofs.
 
+## 3.1) P9 Performance Contract (binding)
+Each component lane must publish `*_performance_snapshot.json` for the lane run window and pass pinned numeric SLOs:
+1. `DF`:
+   - decision throughput (`df_decisions_per_second`),
+   - decision latency (`df_decision_latency_p95_ms`),
+   - backlog/lag (`df_input_lag_messages`),
+   - resource posture (`df_cpu_p95_pct`, `df_memory_p95_pct`),
+   - stability (`df_error_rate_pct`).
+2. `AL`:
+   - action throughput (`al_actions_per_second`),
+   - action latency (`al_action_latency_p95_ms`),
+   - retry/backpressure (`al_retry_ratio_pct`, `al_backpressure_seconds`),
+   - resource posture (`al_cpu_p95_pct`, `al_memory_p95_pct`),
+   - stability (`al_error_rate_pct`).
+3. `DLA`:
+   - audit append throughput (`dla_audit_appends_per_second`),
+   - append latency (`dla_append_latency_p95_ms`),
+   - backlog/queue depth (`dla_queue_depth`),
+   - resource posture (`dla_cpu_p95_pct`, `dla_memory_p95_pct`),
+   - stability (`dla_error_rate_pct`).
+4. Numeric thresholds are mandatory and must be pinned during `P9.A`; missing pins are fail-closed.
+
 ## 4) Work Breakdown
 
 ### P9.A Entry + Handle Closure
@@ -50,6 +73,7 @@ DoD:
 - [ ] P9 required-handle set is complete.
 - [ ] unresolved required handles are blocker-marked.
 - [ ] P9 entry snapshot is committed locally and durably.
+- [ ] per-component P9 performance SLO targets are pinned.
 
 ### P9.B DF Component Lane Closure
 Goal:
@@ -65,6 +89,7 @@ DoD:
 - [ ] decision commits are run-scoped and deterministic.
 - [ ] DF idempotency and fail-closed checks pass.
 - [ ] DF blocker set is empty.
+- [ ] `p9b_df_performance_snapshot.json` is committed and within pinned SLO.
 
 ### P9.C AL Component Lane Closure
 Goal:
@@ -80,6 +105,7 @@ DoD:
 - [ ] action/outcome commits are run-scoped and deterministic.
 - [ ] duplicate-safe side-effect checks pass.
 - [ ] AL blocker set is empty.
+- [ ] `p9c_al_performance_snapshot.json` is committed and within pinned SLO.
 
 ### P9.D DLA Component Lane Closure
 Goal:
@@ -95,6 +121,7 @@ DoD:
 - [ ] append-only audit evidence is committed and readable.
 - [ ] append-only invariants pass.
 - [ ] DLA blocker set is empty.
+- [ ] `p9d_dla_performance_snapshot.json` is committed and within pinned SLO.
 
 ### P9.E P9 Rollup + Verdict
 Goal:
@@ -124,6 +151,8 @@ DoD:
 3. `M7P9-B3`: AL component lane failure.
 4. `M7P9-B4`: DLA component lane failure.
 5. `M7P9-B5`: P9 rollup/verdict inconsistency.
+6. `M7P9-B6`: missing P9 component performance SLO pins.
+7. `M7P9-B7`: P9 component performance budget breach.
 
 ## 7) P9 Evidence Contract
 1. `p9a_entry_snapshot.json`
@@ -133,6 +162,9 @@ DoD:
 5. `p9e_decision_chain_rollup_matrix.json`
 6. `p9e_decision_chain_blocker_register.json`
 7. `p9e_decision_chain_verdict.json`
+8. `p9b_df_performance_snapshot.json`
+9. `p9c_al_performance_snapshot.json`
+10. `p9d_dla_performance_snapshot.json`
 
 ## 8) Exit Rule for P9
 `P9` can close only when:

@@ -13,6 +13,7 @@ _Last updated: 2026-02-25_
 2. Decision/action/audit chain is append-safe and replay-safe.
 3. Case/label boundaries are deterministic with single-writer label semantics.
 4. Closure is component-granular, not service-bundle inferred.
+5. Each component lane meets pinned performance/throughput budgets, not just functional correctness.
 
 ## 1) Authority Inputs
 1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
@@ -38,6 +39,17 @@ Out of scope:
 3. Any component with missing evidence is a blocker, even if sibling components are green.
 4. Rollups (`P8/P9/P10/M7`) can only aggregate already-closed component lanes.
 
+## 3.1) Performance-First Gate for M7 (binding)
+1. Each component lane must publish a performance snapshot for its run window.
+2. Per-component numeric SLO budgets are mandatory and must be pinned in `M7.A` before executing component lanes.
+3. Required metric families per component:
+   - throughput (`records_per_second` or equivalent),
+   - latency (`p95`/`p99` processing latency),
+   - backlog/lag (queue/topic lag or checkpoint delay),
+   - resource efficiency (`cpu_p95`, `memory_p95`),
+   - stability (`error_rate`, retry/backpressure posture).
+4. Any missing SLO pin or budget breach is fail-closed and blocks phase advancement.
+
 ## 4) Component Inventory and Lane Ownership
 | Canonical phase | Component | Lane owner | Minimum closure proof |
 | --- | --- | --- | --- |
@@ -61,11 +73,16 @@ Tasks:
 1. enumerate required handles per component lane.
 2. fail-closed any missing required handle (`M7-B1`).
 3. publish `m7a_handle_closure_snapshot.json` and blocker register.
+4. pin per-component performance SLO targets for:
+   - `IEG`, `OFP`, `ArchiveWriter`,
+   - `DF`, `AL`, `DLA`,
+   - `CaseTrigger bridge`, `CM`, `LS`.
 
 DoD:
 - [ ] required-handle matrix for all M7 components is explicit.
 - [ ] unresolved required handles are blocker-marked.
 - [ ] `m7a_*` evidence is committed locally and durably.
+- [ ] per-component numeric performance SLO pins are complete.
 
 ### M7.B P8 Entry + RTDL Core Precheck
 Goal:
@@ -92,6 +109,7 @@ Tasks:
 DoD:
 - [ ] `IEG` component evidence set is complete.
 - [ ] `IEG` blockers are clear.
+- [ ] `IEG` performance snapshot meets pinned budget.
 
 ### M7.D P8 OFP Lane Closure
 Goal:
@@ -105,6 +123,7 @@ Tasks:
 DoD:
 - [ ] `OFP` component evidence set is complete.
 - [ ] `OFP` blockers are clear.
+- [ ] `OFP` performance snapshot meets pinned budget.
 
 ### M7.E P8 ArchiveWriter + P8 Rollup
 Goal:
@@ -118,6 +137,7 @@ Tasks:
 DoD:
 - [ ] archive writer closure evidence is complete.
 - [ ] `P8` verdict is deterministic and blocker-consistent.
+- [ ] `ArchiveWriter` performance snapshot meets pinned budget.
 
 ### M7.F P9 DF Lane Closure
 Goal:
@@ -131,6 +151,7 @@ Tasks:
 DoD:
 - [ ] `DF` component evidence is complete.
 - [ ] `DF` blockers are clear.
+- [ ] `DF` performance snapshot meets pinned budget.
 
 ### M7.G P9 AL Lane Closure
 Goal:
@@ -144,6 +165,7 @@ Tasks:
 DoD:
 - [ ] `AL` component evidence is complete.
 - [ ] `AL` blockers are clear.
+- [ ] `AL` performance snapshot meets pinned budget.
 
 ### M7.H P9 DLA Lane + P9 Rollup
 Goal:
@@ -157,6 +179,7 @@ Tasks:
 DoD:
 - [ ] `DLA` component evidence is complete.
 - [ ] `P9` verdict is deterministic and blocker-consistent.
+- [ ] `DLA` performance snapshot meets pinned budget.
 
 ### M7.I P10 CaseTrigger/CM/LS + P10 Rollup
 Goal:
@@ -173,6 +196,9 @@ DoD:
 - [ ] `CM` closure evidence is complete.
 - [ ] `LS` writer-boundary evidence is complete.
 - [ ] `P10` verdict is deterministic and blocker-consistent.
+- [ ] `CaseTrigger bridge` performance snapshot meets pinned budget.
+- [ ] `CM` performance snapshot meets pinned budget.
+- [ ] `LS` performance snapshot meets pinned budget.
 
 ### M7.J M7 Gate Rollup + M8 Handoff
 Goal:
@@ -210,6 +236,8 @@ DoD:
 13. `M7-B13`: LS writer-boundary closure failure.
 14. `M7-B14`: P10 rollup/verdict inconsistency.
 15. `M7-B15`: M7 handoff/cost-outcome artifact failure.
+16. `M7-B16`: missing per-component performance SLO pins for active lane.
+17. `M7-B17`: component performance budget breach (throughput/latency/lag/resource/stability).
 
 ## 8) M7 Completion Checklist
 - [ ] M7.A complete

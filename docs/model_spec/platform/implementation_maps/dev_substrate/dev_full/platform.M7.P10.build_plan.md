@@ -10,6 +10,7 @@ This document carries execution-grade planning for `P10 CASE_LABELS_COMMITTED`.
 2. `CM` commits case records deterministically.
 3. `LS` commits labels via explicit writer-boundary semantics with single-writer posture.
 4. P10 rollup verdict is deterministic from component-level proofs.
+5. `CaseTrigger/CM/LS` meet pinned throughput and latency budgets.
 
 ## 1) Authority Inputs
 1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.build_plan.md`
@@ -37,6 +38,28 @@ Out of scope:
 2. `LS` cannot be inferred green from CM results; writer-boundary proof is mandatory.
 3. P10 cannot close while any case/label component is unresolved.
 
+## 3.1) P10 Performance Contract (binding)
+Each component lane must publish `*_performance_snapshot.json` for the lane run window and pass pinned numeric SLOs:
+1. `CaseTrigger bridge`:
+   - trigger throughput (`case_trigger_events_per_second`),
+   - bridge latency (`case_trigger_bridge_latency_p95_ms`),
+   - backlog/queue (`case_trigger_queue_depth`),
+   - resource posture (`case_trigger_cpu_p95_pct`, `case_trigger_memory_p95_pct`),
+   - stability (`case_trigger_error_rate_pct`).
+2. `CM`:
+   - case-write throughput (`cm_case_writes_per_second`),
+   - case-write latency (`cm_case_write_latency_p95_ms`),
+   - queue/backlog (`cm_queue_depth`),
+   - resource posture (`cm_cpu_p95_pct`, `cm_memory_p95_pct`),
+   - stability (`cm_error_rate_pct`).
+3. `LS`:
+   - label-write throughput (`ls_label_writes_per_second`),
+   - writer-boundary commit latency (`ls_commit_latency_p95_ms`),
+   - writer wait/backpressure (`ls_writer_wait_seconds`),
+   - resource posture (`ls_cpu_p95_pct`, `ls_memory_p95_pct`),
+   - stability (`ls_error_rate_pct`).
+4. Numeric thresholds are mandatory and must be pinned during `P10.A`; missing pins are fail-closed.
+
 ## 4) Work Breakdown
 
 ### P10.A Entry + Handle Closure
@@ -52,6 +75,7 @@ DoD:
 - [ ] P10 required-handle set is complete.
 - [ ] unresolved required handles are blocker-marked.
 - [ ] P10 entry snapshot is committed locally and durably.
+- [ ] per-component P10 performance SLO targets are pinned.
 
 ### P10.B CaseTrigger Bridge Lane Closure
 Goal:
@@ -67,6 +91,7 @@ DoD:
 - [ ] run-scoped case-trigger bridge evidence is present.
 - [ ] duplicate-safe trigger semantics pass.
 - [ ] CaseTrigger blocker set is empty.
+- [ ] `p10b_case_trigger_performance_snapshot.json` is committed and within pinned SLO.
 
 ### P10.C CM Component Lane Closure
 Goal:
@@ -82,6 +107,7 @@ DoD:
 - [ ] deterministic case-write evidence is present.
 - [ ] case append/readback checks pass.
 - [ ] CM blocker set is empty.
+- [ ] `p10c_cm_performance_snapshot.json` is committed and within pinned SLO.
 
 ### P10.D LS Component Lane Closure
 Goal:
@@ -100,6 +126,7 @@ DoD:
 - [ ] LS writer-boundary protocol evidence is complete.
 - [ ] single-writer checks pass.
 - [ ] LS blocker set is empty.
+- [ ] `p10d_ls_performance_snapshot.json` is committed and within pinned SLO.
 
 ### P10.E P10 Rollup + Verdict
 Goal:
@@ -129,6 +156,8 @@ DoD:
 3. `M7P10-B3`: CM component lane failure.
 4. `M7P10-B4`: LS component lane failure.
 5. `M7P10-B5`: P10 rollup/verdict inconsistency.
+6. `M7P10-B6`: missing P10 component performance SLO pins.
+7. `M7P10-B7`: P10 component performance budget breach.
 
 ## 7) P10 Evidence Contract
 1. `p10a_entry_snapshot.json`
@@ -138,6 +167,9 @@ DoD:
 5. `p10e_case_labels_rollup_matrix.json`
 6. `p10e_case_labels_blocker_register.json`
 7. `p10e_case_labels_verdict.json`
+8. `p10b_case_trigger_performance_snapshot.json`
+9. `p10c_cm_performance_snapshot.json`
+10. `p10d_ls_performance_snapshot.json`
 
 ## 8) Exit Rule for P10
 `P10` can close only when:

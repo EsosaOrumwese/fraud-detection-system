@@ -3194,3 +3194,45 @@ P1.R2 closure artifacts emitted.
 
 Purpose:
 - provide a compact phase-level receipt linking redesigned S4 witness (`5459...`) to prior baseline (`e9de...`) with gate deltas and `UNLOCK_P2` decision.
+
+---
+
+### Entry: 2026-02-25 20:44
+
+P2 planning lock (post-P1.R2 closure).
+
+Current authoritative posture from witness `5459d5b68a1344d9870f608a41624448`:
+- closed in P1: `T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T22`.
+- open for P2 ownership: `T11,T13,T14,T15,T16`.
+- cross-owner residual: `T21=1/3` with amount/timing branches inactive.
+
+Root-cause map for P2 owner defects:
+1) Amount lane is structurally degenerate in S2.
+- current implementation samples from fixed `price_points_minor` only, causing very low support (`T11=8`) and extreme concentration (`T13=100%`).
+- policy (`amount_model_6B`) already defines point-mass + tail families, but S2 is not executing the tail path.
+
+2) Timing lane is structurally degenerate in S2.
+- current implementation emits `AUTH_REQUEST` and `AUTH_RESPONSE` at identical `ts_utc`.
+- `timing_policy_6B` models are loaded but not executed in event timestamp synthesis.
+- this directly explains `T14=0`, `T15=0`, `T16=100%`.
+
+P2 design decisions locked:
+- implement P2 as S2-owner redesign, not scorer/threshold waiver.
+- preserve deterministic data generation and schema contracts.
+- run full owner chain after S2 changes (`S2 -> S3 -> S4 -> S5`) for truthful downstream validation.
+- keep strict runtime budget: `S2<=120s` target (`<=150s` stretch), while preserving downstream rails.
+
+P2 subphase structure pinned in build plan:
+- `P2.0` root-cause pin + invariants,
+- `P2.1` amount-lane redesign (`T11,T13`, protect `T12`),
+- `P2.2` timing-lane redesign (`T14,T15,T16`),
+- `P2.3` branch-coverage closure (`T21`),
+- `P2.4` integrated witness + phase decision.
+
+Alternatives considered and rejected during planning:
+1) reopen S4 further for `T21`.
+- rejected: current residual `T21` is blocked by S2 amount/timing branch inactivity; S4 lane alone cannot close it.
+2) adjust scorer sampling thresholds.
+- rejected: violates realism law and would mask deterministic generation defects.
+3) split amount and timing into separate phases across segments.
+- rejected: both defects are in S2 and should close together to avoid repeated downstream reruns.

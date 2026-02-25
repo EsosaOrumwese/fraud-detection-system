@@ -10,6 +10,7 @@ This document carries execution-grade planning for `P8 RTDL_CAUGHT_UP`.
 2. `OFP` context projection lane is run-scoped and healthy.
 3. `ArchiveWriter` persists durable archive evidence with append/readback guarantees.
 4. `P8` rollup verdict is deterministic from component-level proofs.
+5. `IEG/OFP/ArchiveWriter` meet pinned throughput and latency budgets.
 
 ## 1) Authority Inputs
 1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.build_plan.md`
@@ -35,6 +36,28 @@ Out of scope:
 2. `P8` cannot be green if any one lane lacks explicit evidence.
 3. Shared RTDL lag metrics cannot substitute component evidence.
 
+## 3.1) P8 Performance Contract (binding)
+Each component lane must publish `*_performance_snapshot.json` for the lane run window and pass pinned numeric SLOs:
+1. `IEG`:
+   - throughput (`ieg_records_per_second`),
+   - processing latency (`ieg_processing_latency_p95_ms`),
+   - lag/backlog (`ieg_lag_messages`),
+   - resource posture (`ieg_cpu_p95_pct`, `ieg_memory_p95_pct`),
+   - stability (`ieg_error_rate_pct`).
+2. `OFP`:
+   - throughput (`ofp_records_per_second`),
+   - processing latency (`ofp_processing_latency_p95_ms`),
+   - lag/backlog (`ofp_lag_messages`),
+   - resource posture (`ofp_cpu_p95_pct`, `ofp_memory_p95_pct`),
+   - stability (`ofp_error_rate_pct`).
+3. `ArchiveWriter`:
+   - write throughput (`archive_objects_per_minute`),
+   - commit latency (`archive_commit_latency_p95_ms`),
+   - queue depth/backpressure (`archive_backpressure_seconds`),
+   - resource posture (`archive_cpu_p95_pct`, `archive_memory_p95_pct`),
+   - stability (`archive_write_error_rate_pct`).
+4. Numeric thresholds are mandatory and must be pinned during `P8.A`; missing pins are fail-closed.
+
 ## 4) Work Breakdown
 
 ### P8.A Entry + Handle Closure
@@ -50,6 +73,7 @@ DoD:
 - [ ] P8 required-handle set is complete.
 - [ ] unresolved required handles are blocker-marked.
 - [ ] P8 entry snapshot is committed locally and durably.
+- [ ] per-component P8 performance SLO targets are pinned.
 
 ### P8.B IEG Component Lane Closure
 Goal:
@@ -65,6 +89,7 @@ DoD:
 - [ ] `IEG` run-scoped output proofs are present.
 - [ ] `IEG` lag/checkpoint checks are green.
 - [ ] `IEG` blocker set is empty.
+- [ ] `p8b_ieg_performance_snapshot.json` is committed and within pinned SLO.
 
 ### P8.C OFP Component Lane Closure
 Goal:
@@ -80,6 +105,7 @@ DoD:
 - [ ] `OFP` run-scoped output proofs are present.
 - [ ] `OFP` lag/checkpoint checks are green.
 - [ ] `OFP` blocker set is empty.
+- [ ] `p8c_ofp_performance_snapshot.json` is committed and within pinned SLO.
 
 ### P8.D ArchiveWriter Component Lane Closure
 Goal:
@@ -95,6 +121,7 @@ DoD:
 - [ ] archive object existence/readback proof is present.
 - [ ] append-only/archive-ledger invariants pass.
 - [ ] `ArchiveWriter` blocker set is empty.
+- [ ] `p8d_archive_writer_performance_snapshot.json` is committed and within pinned SLO.
 
 ### P8.E P8 Rollup + Verdict
 Goal:
@@ -124,6 +151,8 @@ DoD:
 3. `M7P8-B3`: OFP component lane failure.
 4. `M7P8-B4`: ArchiveWriter component lane failure.
 5. `M7P8-B5`: P8 rollup/verdict inconsistency.
+6. `M7P8-B6`: missing P8 component performance SLO pins.
+7. `M7P8-B7`: P8 component performance budget breach.
 
 ## 7) P8 Evidence Contract
 1. `p8a_entry_snapshot.json`
@@ -133,6 +162,9 @@ DoD:
 5. `p8e_rtdl_gate_rollup_matrix.json`
 6. `p8e_rtdl_blocker_register.json`
 7. `p8e_rtdl_gate_verdict.json`
+8. `p8b_ieg_performance_snapshot.json`
+9. `p8c_ofp_performance_snapshot.json`
+10. `p8d_archive_writer_performance_snapshot.json`
 
 ## 8) Exit Rule for P8
 `P8` can close only when:
