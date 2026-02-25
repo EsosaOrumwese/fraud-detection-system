@@ -8791,3 +8791,36 @@ ext_gate=HOLD_REMEDIATE.
 1. M6.F is reopened and fail-closed under strict semantics.
 2. Prior M6.F/M6.G green receipts remain historical only and cannot be used as active authority for M6.H entry.
 3. Next remediation target is root-cause resolution for missing spark driver pod materialization in EMR-on-EKS lane.
+
+## Entry: 2026-02-25 16:58:00 +00:00 - M6.F fallback runtime remediation lock (`EKS_FLINK_OPERATOR`) and execution plan
+
+### Problem
+1. `M6.F` is reopened fail-closed under strict semantics (`m6f_p6b_streaming_active_20260225T163455Z`) because lane refs remained `SUBMITTED`, run-window admissions stayed zero, and lag could not be measured from active admissions.
+2. EMR-on-EKS diagnostics repeatedly returned driver-pod materialization failure (`spark driver pod does not exist`), so active-state closure cannot currently be proven on `EKS_EMR_ON_EKS`.
+3. We still need no-laptop-compute closure evidence for `P6.B` to unblock `M6.G/M6.H`.
+
+### Decision (approved fallback posture)
+1. Keep strict `M6.F` semantics unchanged (RUNNING-only active check, run-window admission progression, measured lag from admissions).
+2. Execute `M6.F` on explicitly pinned fallback runtime path `EKS_FLINK_OPERATOR` while preserving the same artifact contract and blocker taxonomy.
+3. Do not relax gate criteria; fallback only changes runtime execution lane, not acceptance standards.
+
+### Design details for remediation implementation
+1. Workflow split by runtime path in `.github/workflows/dev_full_m6f_streaming_active.yml`:
+   - `EKS_EMR_ON_EKS`: existing submit/probe/cancel behavior.
+   - `EKS_FLINK_OPERATOR`: submit run-scoped Kubernetes Jobs (WSP + SR refs), probe pod state, and pass state overrides into `m6f_capture.py`.
+2. Capture logic extension in `scripts/dev_substrate/m6f_capture.py`:
+   - added `--wsp-state-override` and `--sr-ready-state-override`;
+   - when both are supplied, state evidence is sourced from runtime probe results; strict active-state gating still applies.
+3. Correctness fixes before execution:
+   - ensure fallback submit receipt writes actual job ids/timestamps (not literal placeholders),
+   - ensure EMR probe logs do not contaminate returned state override values.
+
+### Execution plan
+1. Push patched workflow/capture files to `migrate-dev`.
+2. Dispatch remote `M6.F` run with:
+   - `phase_mode=m6f`,
+   - `runtime_path=EKS_FLINK_OPERATOR`,
+   - upstream `M6.E` execution pinned,
+   - existing `platform_run_id/scenario_run_id`.
+3. Validate fail-closed verdict from emitted artifacts.
+4. Update `platform.M6.P6.build_plan.md`, `platform.M6.build_plan.md`, and `platform.build_plan.md` based on outcome.

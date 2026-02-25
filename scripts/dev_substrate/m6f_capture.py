@@ -173,6 +173,8 @@ def main() -> int:
     parser.add_argument("--virtual-cluster-id", required=True)
     parser.add_argument("--wsp-job-id", required=True)
     parser.add_argument("--sr-ready-job-id", required=True)
+    parser.add_argument("--wsp-state-override", default="")
+    parser.add_argument("--sr-ready-state-override", default="")
     parser.add_argument("--wsp-ref", required=True)
     parser.add_argument("--sr-ready-ref", required=True)
     parser.add_argument("--lane-window-start-utc", required=True)
@@ -193,16 +195,24 @@ def main() -> int:
     s3 = boto3.client("s3", region_name=args.region)
 
     lane_window_start_epoch = _parse_utc_to_epoch(args.lane_window_start_utc)
-    wsp_state, wsp_state_error = _describe_job_run_state(
-        emr,
-        virtual_cluster_id=args.virtual_cluster_id,
-        job_id=args.wsp_job_id,
-    )
-    sr_state, sr_state_error = _describe_job_run_state(
-        emr,
-        virtual_cluster_id=args.virtual_cluster_id,
-        job_id=args.sr_ready_job_id,
-    )
+    wsp_state_override = str(args.wsp_state_override or "").strip()
+    sr_state_override = str(args.sr_ready_state_override or "").strip()
+    if wsp_state_override and sr_state_override:
+        wsp_state = wsp_state_override
+        sr_state = sr_state_override
+        wsp_state_error = None
+        sr_state_error = None
+    else:
+        wsp_state, wsp_state_error = _describe_job_run_state(
+            emr,
+            virtual_cluster_id=args.virtual_cluster_id,
+            job_id=args.wsp_job_id,
+        )
+        sr_state, sr_state_error = _describe_job_run_state(
+            emr,
+            virtual_cluster_id=args.virtual_cluster_id,
+            job_id=args.sr_ready_job_id,
+        )
     wsp_state_upper = str(wsp_state or "").upper()
     sr_state_upper = str(sr_state or "").upper()
     wsp_active_count = 1 if wsp_state_upper in ACTIVE_JOB_STATES else 0

@@ -142,6 +142,7 @@ jobs:
       IG_BASE_URL: "https://ehwznd2uw7.execute-api.eu-west-2.amazonaws.com/v1"
       IG_INGEST_PATH: "/ingest/push"
       SSM_IG_API_KEY_PATH: "/fraud-platform/dev_full/ig/api_key"
+      FLINK_EKS_NAMESPACE: "fraud-platform-rtdl"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -234,29 +235,150 @@ jobs:
             "${{ steps.run_meta.outputs.worker_s3_uri }}" \
             --region "${{ inputs.aws_region }}"
 
-      - name: Submit EMR lane refs
+      - name: Submit lane refs (runtime-path aware)
         id: submit
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "${{ steps.run_meta.outputs.run_dir }}"
-          python scripts/dev_substrate/m6_submit_emr_refs.py \
-            --region "${{ inputs.aws_region }}" \
-            --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
-            --execution-role-arn "${{ inputs.emr_execution_role_arn }}" \
-            --release-label "${{ inputs.emr_release_label }}" \
-            --script-s3-uri "${{ steps.run_meta.outputs.worker_s3_uri }}" \
-            --platform-run-id "${{ inputs.platform_run_id }}" \
-            --scenario-run-id "${{ inputs.scenario_run_id }}" \
-            --wsp-ref "${{ inputs.wsp_ref }}" \
-            --sr-ready-ref "${{ inputs.sr_ready_ref }}" \
-            --ig-base-url "${IG_BASE_URL}" \
-            --ig-ingest-path "${IG_INGEST_PATH}" \
-            --ig-api-key "${IG_API_KEY}" \
-            --log-group-name "${{ inputs.emr_log_group_name }}" \
-            --iterations "${{ inputs.iterations }}" \
-            --sleep-seconds "${{ inputs.sleep_seconds }}" \
-            --output-json "${{ steps.run_meta.outputs.submit_receipt }}"
+          if [[ "${{ inputs.runtime_path }}" == "EKS_FLINK_OPERATOR" ]]; then
+            aws eks update-kubeconfig \
+              --region "${{ inputs.aws_region }}" \
+              --name "${{ inputs.eks_cluster_name }}" >/dev/null
+            NS="${FLINK_EKS_NAMESPACE}"
+            kubectl get namespace "${NS}" >/dev/null
+            EXEC_SAFE="$(echo "${{ steps.run_meta.outputs.m6_execution_id }}" | tr '[:upper:]_' '[:lower:]-' | sed -E 's/[^a-z0-9-]//g' | cut -c1-24)"
+            if [[ -z "${EXEC_SAFE}" ]]; then
+              EXEC_SAFE="m6f"
+            fi
+            CM_NAME="m6f-worker-${EXEC_SAFE}"
+            WSP_JOB_ID="m6f-wsp-${EXEC_SAFE}"
+            SR_JOB_ID="m6f-sr-${EXEC_SAFE}"
+            STARTED_AT_UTC="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            kubectl -n "${NS}" create configmap "${CM_NAME}" \
+              --from-file=m6_stream_ref_worker.py=scripts/dev_substrate/m6_stream_ref_worker.py \
+              --dry-run=client -o yaml | kubectl apply -f -
+            cat <<EOF | kubectl apply -f -
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: ${WSP_JOB_ID}
+            namespace: ${NS}
+            labels:
+              fp.phase: M6.F
+              fp.runtime_path: EKS_FLINK_OPERATOR
+          spec:
+            ttlSecondsAfterFinished: 600
+            template:
+              metadata:
+                labels:
+                  fp.phase: M6.F
+              spec:
+                restartPolicy: Never
+                containers:
+                - name: lane
+                  image: python:3.12-slim
+                  command: ["/bin/sh","-lc"]
+                  args:
+                  - >
+                    python /opt/worker/m6_stream_ref_worker.py
+                    --lane-ref "${{ inputs.wsp_ref }}"
+                    --platform-run-id "${{ inputs.platform_run_id }}"
+                    --scenario-run-id "${{ inputs.scenario_run_id }}"
+                    --phase-id "P6.B"
+                    --iterations "${{ inputs.iterations }}"
+                    --sleep-seconds "${{ inputs.sleep_seconds }}"
+                    --ig-base-url "${IG_BASE_URL}"
+                    --ig-ingest-path "${IG_INGEST_PATH}"
+                    --ig-api-key "${IG_API_KEY}"
+                  volumeMounts:
+                  - name: worker-script
+                    mountPath: /opt/worker
+                volumes:
+                - name: worker-script
+                  configMap:
+                    name: ${CM_NAME}
+          EOF
+            cat <<EOF | kubectl apply -f -
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: ${SR_JOB_ID}
+            namespace: ${NS}
+            labels:
+              fp.phase: M6.F
+              fp.runtime_path: EKS_FLINK_OPERATOR
+          spec:
+            ttlSecondsAfterFinished: 600
+            template:
+              metadata:
+                labels:
+                  fp.phase: M6.F
+              spec:
+                restartPolicy: Never
+                containers:
+                - name: lane
+                  image: python:3.12-slim
+                  command: ["/bin/sh","-lc"]
+                  args:
+                  - >
+                    python /opt/worker/m6_stream_ref_worker.py
+                    --lane-ref "${{ inputs.sr_ready_ref }}"
+                    --platform-run-id "${{ inputs.platform_run_id }}"
+                    --scenario-run-id "${{ inputs.scenario_run_id }}"
+                    --phase-id "P6.B"
+                    --iterations "${{ inputs.iterations }}"
+                    --sleep-seconds "${{ inputs.sleep_seconds }}"
+                    --ig-base-url "${IG_BASE_URL}"
+                    --ig-ingest-path "${IG_INGEST_PATH}"
+                    --ig-api-key "${IG_API_KEY}"
+                  volumeMounts:
+                  - name: worker-script
+                    mountPath: /opt/worker
+                volumes:
+                - name: worker-script
+                  configMap:
+                    name: ${CM_NAME}
+          EOF
+            export STARTED_AT_UTC WSP_JOB_ID SR_JOB_ID CM_NAME
+            python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          Path("${{ steps.run_meta.outputs.submit_receipt }}").write_text(json.dumps({
+              "started_at_utc": os.environ.get("STARTED_AT_UTC", ""),
+              "virtual_cluster_id": "${{ inputs.emr_virtual_cluster_id }}",
+              "wsp_ref": "${{ inputs.wsp_ref }}",
+              "wsp_job_id": os.environ.get("WSP_JOB_ID", ""),
+              "sr_ready_ref": "${{ inputs.sr_ready_ref }}",
+              "sr_ready_job_id": os.environ.get("SR_JOB_ID", ""),
+              "platform_run_id": "${{ inputs.platform_run_id }}",
+              "scenario_run_id": "${{ inputs.scenario_run_id }}",
+              "runtime_path": "EKS_FLINK_OPERATOR",
+              "configmap_name": os.environ.get("CM_NAME", ""),
+          }, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+          PY
+            echo "configmap_name=${CM_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/dev_substrate/m6_submit_emr_refs.py \
+              --region "${{ inputs.aws_region }}" \
+              --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
+              --execution-role-arn "${{ inputs.emr_execution_role_arn }}" \
+              --release-label "${{ inputs.emr_release_label }}" \
+              --script-s3-uri "${{ steps.run_meta.outputs.worker_s3_uri }}" \
+              --platform-run-id "${{ inputs.platform_run_id }}" \
+              --scenario-run-id "${{ inputs.scenario_run_id }}" \
+              --wsp-ref "${{ inputs.wsp_ref }}" \
+              --sr-ready-ref "${{ inputs.sr_ready_ref }}" \
+              --ig-base-url "${IG_BASE_URL}" \
+              --ig-ingest-path "${IG_INGEST_PATH}" \
+              --ig-api-key "${IG_API_KEY}" \
+              --log-group-name "${{ inputs.emr_log_group_name }}" \
+              --iterations "${{ inputs.iterations }}" \
+              --sleep-seconds "${{ inputs.sleep_seconds }}" \
+              --output-json "${{ steps.run_meta.outputs.submit_receipt }}"
+            echo "configmap_name=" >> "$GITHUB_OUTPUT"
+          fi
           WSP_JOB_ID="$(python - <<'PY'
           import json
           from pathlib import Path
@@ -272,7 +394,7 @@ jobs:
           PY
           )"
           if [[ -z "${WSP_JOB_ID}" || -z "${SR_JOB_ID}" ]]; then
-            echo "M6.F fail-closed: EMR submission receipt missing job ids."
+            echo "M6.F fail-closed: lane submission receipt missing job ids."
             exit 1
           fi
           STARTED_AT_UTC="$(python - <<'PY'
@@ -291,36 +413,72 @@ jobs:
           echo "lane_window_start_utc=${STARTED_AT_UTC}" >> "$GITHUB_OUTPUT"
 
       - name: Probe lane refs for RUNNING (non-blocking pre-capture)
+        id: probe
         continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
-          wait_for_running() {
-            local job_id="$1"
-            local attempts=12
-            local sleep_sec=5
-            local idx=1
-            while [[ "${idx}" -le "${attempts}" ]]; do
-              state="$(aws emr-containers describe-job-run \
-                --region "${{ inputs.aws_region }}" \
-                --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
-                --id "${job_id}" \
-                --query 'jobRun.state' \
-                --output text)"
-              echo "job_id=${job_id} state=${state} attempt=${idx}/${attempts}"
-              if [[ "${state}" == "RUNNING" ]]; then
+          WSP_STATE="UNKNOWN"
+          SR_STATE="UNKNOWN"
+          if [[ "${{ inputs.runtime_path }}" == "EKS_FLINK_OPERATOR" ]]; then
+            aws eks update-kubeconfig \
+              --region "${{ inputs.aws_region }}" \
+              --name "${{ inputs.eks_cluster_name }}" >/dev/null
+            get_phase() {
+              local job_name="$1"
+              local pod_name=""
+              pod_name="$(kubectl get pods -n "${FLINK_EKS_NAMESPACE}" -l "job-name=${job_name}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
+              if [[ -z "${pod_name}" ]]; then
+                echo "SUBMITTED"
                 return 0
               fi
-              if [[ "${state}" == "FAILED" || "${state}" == "CANCELLED" || "${state}" == "CANCEL_PENDING" ]]; then
-                return 1
+              kubectl get pod "${pod_name}" -n "${FLINK_EKS_NAMESPACE}" -o jsonpath='{.status.phase}' 2>/dev/null || echo "UNKNOWN"
+            }
+            for i in $(seq 1 12); do
+              WSP_STATE="$(get_phase "${{ steps.submit.outputs.wsp_job_id }}")"
+              SR_STATE="$(get_phase "${{ steps.submit.outputs.sr_job_id }}")"
+              echo "attempt=${i}/12 wsp_state=${WSP_STATE} sr_state=${SR_STATE}"
+              if [[ "${WSP_STATE}" == "Running" && "${SR_STATE}" == "Running" ]]; then
+                break
               fi
-              idx=$((idx + 1))
-              sleep "${sleep_sec}"
+              sleep 5
             done
-            return 0
-          }
-          wait_for_running "${{ steps.submit.outputs.wsp_job_id }}"
-          wait_for_running "${{ steps.submit.outputs.sr_job_id }}"
+            [[ "${WSP_STATE}" == "Running" ]] && WSP_STATE="RUNNING"
+            [[ "${SR_STATE}" == "Running" ]] && SR_STATE="RUNNING"
+          else
+            wait_for_running() {
+              local job_id="$1"
+              local attempts=12
+              local sleep_sec=5
+              local idx=1
+              local state="UNKNOWN"
+              while [[ "${idx}" -le "${attempts}" ]]; do
+                state="$(aws emr-containers describe-job-run \
+                  --region "${{ inputs.aws_region }}" \
+                  --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
+                  --id "${job_id}" \
+                  --query 'jobRun.state' \
+                  --output text)"
+                echo "job_id=${job_id} state=${state} attempt=${idx}/${attempts}" >&2
+                if [[ "${state}" == "RUNNING" ]]; then
+                  echo "${state}"
+                  return 0
+                fi
+                if [[ "${state}" == "FAILED" || "${state}" == "CANCELLED" || "${state}" == "CANCEL_PENDING" ]]; then
+                  echo "${state}"
+                  return 0
+                fi
+                idx=$((idx + 1))
+                sleep "${sleep_sec}"
+              done
+              echo "${state}"
+              return 0
+            }
+            WSP_STATE="$(wait_for_running "${{ steps.submit.outputs.wsp_job_id }}")"
+            SR_STATE="$(wait_for_running "${{ steps.submit.outputs.sr_job_id }}")"
+          fi
+          echo "wsp_state_override=${WSP_STATE}" >> "$GITHUB_OUTPUT"
+          echo "sr_state_override=${SR_STATE}" >> "$GITHUB_OUTPUT"
 
       - name: Capture M6.F artifacts
         id: capture
@@ -339,6 +497,8 @@ jobs:
             --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
             --wsp-job-id "${{ steps.submit.outputs.wsp_job_id }}" \
             --sr-ready-job-id "${{ steps.submit.outputs.sr_job_id }}" \
+            --wsp-state-override "${{ steps.probe.outputs.wsp_state_override }}" \
+            --sr-ready-state-override "${{ steps.probe.outputs.sr_state_override }}" \
             --wsp-ref "${{ inputs.wsp_ref }}" \
             --sr-ready-ref "${{ inputs.sr_ready_ref }}" \
             --lane-window-start-utc "${{ steps.submit.outputs.lane_window_start_utc }}" \
@@ -383,11 +543,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/dev_substrate/m6_cancel_emr_refs.py \
-            --region "${{ inputs.aws_region }}" \
-            --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
-            --job-id "${{ steps.submit.outputs.wsp_job_id }}" \
-            --job-id "${{ steps.submit.outputs.sr_job_id }}"
+          if [[ "${{ inputs.runtime_path }}" == "EKS_FLINK_OPERATOR" ]]; then
+            aws eks update-kubeconfig \
+              --region "${{ inputs.aws_region }}" \
+              --name "${{ inputs.eks_cluster_name }}" >/dev/null
+            kubectl delete job "${{ steps.submit.outputs.wsp_job_id }}" -n "${FLINK_EKS_NAMESPACE}" --ignore-not-found=true
+            kubectl delete job "${{ steps.submit.outputs.sr_job_id }}" -n "${FLINK_EKS_NAMESPACE}" --ignore-not-found=true
+            if [[ -n "${{ steps.submit.outputs.configmap_name }}" ]]; then
+              kubectl delete configmap "${{ steps.submit.outputs.configmap_name }}" -n "${FLINK_EKS_NAMESPACE}" --ignore-not-found=true
+            fi
+          else
+            python scripts/dev_substrate/m6_cancel_emr_refs.py \
+              --region "${{ inputs.aws_region }}" \
+              --virtual-cluster-id "${{ inputs.emr_virtual_cluster_id }}" \
+              --job-id "${{ steps.submit.outputs.wsp_job_id }}" \
+              --job-id "${{ steps.submit.outputs.sr_job_id }}"
+          fi
 
       - name: Upload M6.F run artifact set
         if: always()
