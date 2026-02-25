@@ -7014,3 +7014,78 @@ untime: PASS
 1. `M5.H` / `P4.C` is closed green.
 2. `P4.D` (`M5.I`) is unblocked as the next execution lane.
 3. Fail-closed baseline runs are retained in run index for audit trail and remediation provenance.
+
+## Entry: 2026-02-25 02:00:18 +00:00 - M5.I / P4.D decision-completeness check and remediation design (pre-implementation)
+
+### Trigger
+1. USER requested planning + execution of `P4.D`.
+2. `P4.C` was already green (`M5.H_READY`), so envelope conformance became the active gate.
+
+### Drift/gap findings before execution
+1. Registry had envelope pins, but runtime materialization was partial:
+   - no DLQ resource for IG boundary,
+   - no explicit API Gateway stage throttles,
+   - no end-to-end materialization of all `IG_*` envelope handles into runtime outputs/evidence.
+2. IG runtime did not fail-close oversized ingest payloads at boundary contract level.
+3. P4.D could not be considered green on handle presence alone; runtime + behavior parity were required.
+
+### Alternatives considered
+1. Evidence-only closure from registry pins.
+   - Rejected: does not prove runtime conformance and violates fail-closed gate intent.
+2. Defer envelope materialization to M6.
+   - Rejected: phase ordering drift; P4.D explicitly owns ingress envelope conformance.
+3. Remediate runtime now, then execute conformance probes.
+   - Selected: closes P4.D with deterministic runtime behavior and operator-visible evidence.
+
+### Selected remediation plan
+1. Extend runtime Terraform with explicit `IG_*` envelope variables.
+2. Materialize DLQ queue and wire queue URL/name into IG runtime env.
+3. Bind API Gateway integration timeout and stage throttles to pinned handles.
+4. Add IG fail-closed oversized payload behavior (`413 payload_too_large`).
+5. Re-apply runtime stack, then execute P4.D conformance verifier and publish `m5i_*` evidence.
+
+## Entry: 2026-02-25 02:07:58 +00:00 - M5.I / P4.D execution trail and closure
+
+### Runtime implementation decisions during execution
+1. API timeout law:
+   - selected `min(30000, IG_REQUEST_TIMEOUT_SECONDS*1000)` to respect API Gateway integration hard limit while preserving handle-driven contract.
+2. DLQ posture:
+   - selected dedicated queue (`fraud-platform-dev-full-ig-dlq`) over deferred/no-op wiring so `IG_DLQ_*` is materially testable now.
+3. Envelope observability:
+   - selected exposing envelope in `/ops/health` response for direct conformance probes and operator visibility.
+4. Probe contract:
+   - selected dual-behavior checks (small payload pass + oversized payload fail-close) rather than config-only checks.
+
+### Files changed (runtime + plans)
+1. `infra/terraform/dev_full/runtime/variables.tf`
+2. `infra/terraform/dev_full/runtime/main.tf`
+3. `infra/terraform/dev_full/runtime/outputs.tf`
+4. `infra/terraform/dev_full/runtime/lambda/ig_handler.py`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.P4.build_plan.md`
+6. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`
+7. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+
+### Execution notes
+1. Terraform runtime apply completed with bounded change set:
+   - 1 add (`aws_sqs_queue.ig_dlq`), 4 change (Lambda/API stage/integration/outputs), 0 destroy.
+2. First verifier attempt failed due API Gateway CLI argument casing (`apiId/stageName`); corrected and rerun immediately.
+3. Authoritative closure run:
+   - `runs/dev_substrate/dev_full/m5/m5i_p4d_ingress_envelope_20260225T020758Z/m5i_execution_summary.json`
+   - outcome: `overall_pass=true`, blockers=`[]`, next gate=`M5.J_READY`.
+
+### Conformance outcomes
+1. Valid key + small payload -> `202`.
+2. Valid key + oversized payload -> `413` with `payload_too_large`.
+3. Integration timeout materialized at `30000ms`.
+4. Stage throttles materialized at `rps=200`, `burst=400`.
+5. Idempotency TTL enabled on DDB table (`ttl_epoch`).
+6. DLQ queue exists and is runtime-wired.
+
+### Durable evidence
+1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5i_p4d_ingress_envelope_20260225T020758Z/m5i_ingress_envelope_snapshot.json`
+2. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5i_p4d_ingress_envelope_20260225T020758Z/m5i_blocker_register.json`
+3. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5i_p4d_ingress_envelope_20260225T020758Z/m5i_execution_summary.json`
+
+### Gate decision
+1. `M5.I` / `P4.D` is closed green.
+2. `M5.J` / `P4.E` is now the active next lane.

@@ -3,6 +3,7 @@ import logging
 import os
 import time
 import hmac
+import base64
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -47,6 +48,13 @@ def _safe_int(value: str, default: int) -> int:
         return default
 
 
+def _safe_float(value: str, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _auth_mode() -> str:
     mode = os.getenv("IG_AUTH_MODE", "api_key").strip().lower()
     return mode or "api_key"
@@ -59,6 +67,49 @@ def _auth_header_name() -> str:
 
 def _api_key_cache_ttl_seconds() -> int:
     return _safe_int(os.getenv("IG_API_KEY_CACHE_SECONDS", "300"), 300)
+
+
+def _max_request_bytes() -> int:
+    return _safe_int(os.getenv("IG_MAX_REQUEST_BYTES", "1048576"), 1048576)
+
+
+def _configured_envelope() -> dict:
+    return {
+        "max_request_bytes": _max_request_bytes(),
+        "request_timeout_seconds": _safe_int(
+            os.getenv("IG_REQUEST_TIMEOUT_SECONDS", "30"), 30
+        ),
+        "internal_retry_max_attempts": _safe_int(
+            os.getenv("IG_INTERNAL_RETRY_MAX_ATTEMPTS", "3"), 3
+        ),
+        "internal_retry_backoff_ms": _safe_int(
+            os.getenv("IG_INTERNAL_RETRY_BACKOFF_MS", "250"), 250
+        ),
+        "idempotency_ttl_seconds": _safe_int(
+            os.getenv("IG_IDEMPOTENCY_TTL_SECONDS", "259200"), 259200
+        ),
+        "dlq_mode": os.getenv("IG_DLQ_MODE", "sqs"),
+        "dlq_queue_name": os.getenv("IG_DLQ_QUEUE_NAME", ""),
+        "replay_mode": os.getenv("IG_REPLAY_MODE", "dlq_replay_workflow"),
+        "rate_limit_rps": _safe_float(os.getenv("IG_RATE_LIMIT_RPS", "200"), 200.0),
+        "rate_limit_burst": _safe_int(os.getenv("IG_RATE_LIMIT_BURST", "400"), 400),
+    }
+
+
+def _body_size_bytes(event: dict) -> int:
+    raw = event.get("body")
+    if raw is None:
+        return 0
+    if isinstance(raw, dict):
+        return len(json.dumps(raw, separators=(",", ":")).encode("utf-8"))
+    if isinstance(raw, str):
+        if bool(event.get("isBase64Encoded")):
+            try:
+                return len(base64.b64decode(raw.encode("utf-8"), validate=False))
+            except Exception:
+                return len(raw.encode("utf-8"))
+        return len(raw.encode("utf-8"))
+    return len(str(raw).encode("utf-8"))
 
 
 def _load_expected_api_key() -> tuple[str | None, str | None]:
@@ -181,10 +232,23 @@ def lambda_handler(event, _context):
                 "service": "ig-edge",
                 "mode": "apigw_lambda_ddb",
                 "timestamp_epoch": int(time.time()),
+                "envelope": _configured_envelope(),
             },
         )
 
     if method == "POST" and path == "/ingest/push":
+        body_size = _body_size_bytes(event if isinstance(event, dict) else {})
+        max_bytes = _max_request_bytes()
+        if body_size > max_bytes:
+            return _response(
+                413,
+                {
+                    "error": "payload_too_large",
+                    "body_size_bytes": body_size,
+                    "max_request_bytes": max_bytes,
+                },
+            )
+
         table = os.getenv("IG_IDEMPOTENCY_TABLE", "unset")
         payload = _parse_body(event if isinstance(event, dict) else {})
         correlation_echo = {k: payload.get(k) for k in CORRELATION_FIELDS}
@@ -206,6 +270,7 @@ def lambda_handler(event, _context):
                 "admitted": True,
                 "ingress_mode": "managed_edge",
                 "idempotency_table": table,
+                "body_size_bytes": body_size,
                 "correlation_echo": correlation_echo,
                 "note": "runtime-surface validation handler",
             },

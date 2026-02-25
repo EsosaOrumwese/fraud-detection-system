@@ -1,7 +1,7 @@
 # Dev Substrate Deep Plan - M5 (P3 ORACLE_READY + P4 INGEST_READY)
 _Status source of truth: `platform.build_plan.md`_
 _This document provides orchestration-level deep planning detail for M5._
-_Last updated: 2026-02-24_
+_Last updated: 2026-02-25_
 
 ## 0) Purpose
 M5 closes:
@@ -359,9 +359,32 @@ Tasks:
 5. publish envelope conformance snapshot.
 
 DoD:
-- [ ] payload/timeout/retry/idempotency controls conform to pinned handles.
-- [ ] DLQ/replay/rate-limit controls conform to pinned handles.
-- [ ] envelope conformance snapshot committed locally and durably.
+- [x] payload/timeout/retry/idempotency controls conform to pinned handles.
+- [x] DLQ/replay/rate-limit controls conform to pinned handles.
+- [x] envelope conformance snapshot committed locally and durably.
+
+M5.I execution closure (2026-02-25):
+1. Runtime conformance remediation (pre-run):
+   - materialized pinned ingress-envelope handles into runtime Terraform variables and Lambda env surfaces,
+   - added SQS DLQ resource (`fraud-platform-dev-full-ig-dlq`) and runtime wiring,
+   - bound API Gateway integration timeout + stage throttles to pinned handle values,
+   - added fail-closed oversized payload handling in IG runtime (`413 payload_too_large`).
+2. Authoritative green run:
+   - `runs/dev_substrate/dev_full/m5/m5i_p4d_ingress_envelope_20260225T020758Z/m5i_execution_summary.json`
+   - outcome: `overall_pass=true`, blockers=`[]`, `next_gate=M5.J_READY`.
+3. Contract outcomes:
+   - valid-key small ingest returns `202`,
+   - valid-key oversized ingest returns `413` with `payload_too_large`,
+   - API Gateway integration timeout is `30000ms` (`IG_REQUEST_TIMEOUT_SECONDS=30`),
+   - stage throttles match pins (`rps=200`, `burst=400`),
+   - DDB TTL is enabled on `ttl_epoch`,
+   - DLQ queue is present and queryable.
+4. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5i_p4d_ingress_envelope_20260225T020758Z/m5i_ingress_envelope_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5i_p4d_ingress_envelope_20260225T020758Z/m5i_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5i_p4d_ingress_envelope_20260225T020758Z/m5i_execution_summary.json`
+5. Next action:
+   - advance to `M5.J` (`P4.E` rollup + M6 handoff).
 
 ### M5.J P4 Gate Rollup + M6 Handoff
 Goal:
@@ -450,7 +473,7 @@ Any active `M5-B*` blocker prevents M5 closure.
 - [x] M5.F complete
 - [x] M5.G complete
 - [x] M5.H complete
-- [ ] M5.I complete
+- [x] M5.I complete
 - [ ] M5.J complete
 - [ ] M5 blockers resolved or explicitly fail-closed
 - [ ] M5 phase-budget and cost-outcome artifacts are valid and accepted
@@ -486,4 +509,5 @@ Handoff posture:
    - `M5.F` / `P4.A` is closed green (`m5f_p4a_ingress_boundary_health_20260225T010044Z`) after IG handle repin remediation.
    - `M5.G` / `P4.B` is closed green (`m5g_p4b_boundary_auth_20260225T011324Z`) after IG runtime auth-enforcement remediation.
    - `M5.H` / `P4.C` is closed green (`m5h_p4c_msk_topic_readiness_20260225T015352Z`) after handle repin + in-VPC probe hardening.
-   - next actionable execution lane is `M5.I` (`P4.D`).
+   - `M5.I` / `P4.D` is closed green (`m5i_p4d_ingress_envelope_20260225T020758Z`) after runtime envelope conformance remediation.
+   - next actionable execution lane is `M5.J` (`P4.E` rollup + M6 handoff).

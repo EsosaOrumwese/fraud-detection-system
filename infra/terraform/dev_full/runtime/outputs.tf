@@ -22,6 +22,14 @@ output "ddb_ig_idempotency_table_arn" {
   value = aws_dynamodb_table.ig_idempotency.arn
 }
 
+output "ig_dlq_queue_name" {
+  value = aws_sqs_queue.ig_dlq.name
+}
+
+output "ig_dlq_queue_url" {
+  value = aws_sqs_queue.ig_dlq.url
+}
+
 output "ssm_ig_api_key_path" {
   value = aws_ssm_parameter.ig_api_key.name
 }
@@ -109,6 +117,20 @@ output "runtime_handle_materialization" {
     SSM_IG_API_KEY_PATH                = aws_ssm_parameter.ig_api_key.name
     IG_AUTH_MODE                       = var.ig_auth_mode
     IG_AUTH_HEADER_NAME                = var.ig_auth_header_name
+    IG_MAX_REQUEST_BYTES               = var.ig_max_request_bytes
+    IG_REQUEST_TIMEOUT_SECONDS         = var.ig_request_timeout_seconds
+    IG_INTERNAL_RETRY_MAX_ATTEMPTS     = var.ig_internal_retry_max_attempts
+    IG_INTERNAL_RETRY_BACKOFF_MS       = var.ig_internal_retry_backoff_ms
+    IG_IDEMPOTENCY_TTL_SECONDS         = var.ig_idempotency_ttl_seconds
+    IG_DLQ_MODE                        = var.ig_dlq_mode
+    IG_DLQ_QUEUE_NAME                  = aws_sqs_queue.ig_dlq.name
+    IG_DLQ_URL                         = aws_sqs_queue.ig_dlq.url
+    IG_REPLAY_MODE                     = var.ig_replay_mode
+    IG_RATE_LIMIT_RPS                  = var.ig_rate_limit_rps
+    IG_RATE_LIMIT_BURST                = var.ig_rate_limit_burst
+    APIGW_IG_STAGE_THROTTLE_RPS        = aws_apigatewayv2_stage.ig_v1.default_route_settings[0].throttling_rate_limit
+    APIGW_IG_STAGE_THROTTLE_BURST      = aws_apigatewayv2_stage.ig_v1.default_route_settings[0].throttling_burst_limit
+    APIGW_IG_INTEGRATION_TIMEOUT_MS    = aws_apigatewayv2_integration.ig_lambda.timeout_milliseconds
     PHASE_RUNTIME_PATH_MODE            = var.phase_runtime_path_mode
     PHASE_RUNTIME_PATH_EVIDENCE_TARGET = var.phase_runtime_path_evidence_path_pattern
   }

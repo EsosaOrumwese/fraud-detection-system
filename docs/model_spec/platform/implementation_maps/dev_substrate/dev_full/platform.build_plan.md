@@ -1,6 +1,6 @@
 # Dev Substrate Build Plan (dev_full)
 _Track: dev_min certified baseline -> dev_full full-platform managed substrate_
-_Last updated: 2026-02-23_
+_Last updated: 2026-02-25_
 
 ## 0) Purpose
 This is the active execution plan for building `dev_full` from the certified `dev_min` baseline into a full-platform managed stack with:
@@ -569,6 +569,7 @@ M5 planning posture:
 - `M5.P4.A` is closed green (`m5f_p4a_ingress_boundary_health_20260225T010044Z`) after IG API handle repin remediation.
 - `M5.P4.B` is closed green (`m5g_p4b_boundary_auth_20260225T011324Z`) after IG runtime auth-enforcement remediation.
 - `M5.P4.C` is closed green (`m5h_p4c_msk_topic_readiness_20260225T015352Z`) after MSK handle repin and in-VPC topic-probe hardening.
+- `M5.P4.D` is closed green (`m5i_p4d_ingress_envelope_20260225T020758Z`) after ingress-envelope runtime conformance remediation.
 - M5 has been split into dedicated subplans to prevent phase cramming:
   - `platform.M5.P3.build_plan.md` (P3 closure),
   - `platform.M5.P4.build_plan.md` (P4 closure).
@@ -577,7 +578,7 @@ M5 planning posture:
   - M6 entry remains blocked until M5 verdict is `ADVANCE_TO_M6`.
 
 DoD anchors:
-- [ ] required oracle outputs/manifest checks pass.
+- [x] required oracle outputs/manifest checks pass.
 - [x] ingress boundary + MSK readiness evidence committed.
 - [ ] M5 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
@@ -590,7 +591,7 @@ M5 sub-phase progress:
 - [x] `M5.F` ingress boundary health (`m5f_p4a_ingress_boundary_health_20260225T010044Z`, blocker-free after handle repin).
 - [x] `M5.G` boundary auth enforcement (`m5g_p4b_boundary_auth_20260225T011324Z`, blocker-free).
 - [x] `M5.H` MSK topic readiness (`m5h_p4c_msk_topic_readiness_20260225T015352Z`, blocker-free after remediation sequence).
-- [ ] `M5.I` ingress envelope conformance.
+- [x] `M5.I` ingress envelope conformance (`m5i_p4d_ingress_envelope_20260225T020758Z`, blocker-free after runtime envelope materialization).
 - [ ] `M5.J` P4 rollup + M6 handoff.
 
 Deep plan:

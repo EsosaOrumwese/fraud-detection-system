@@ -154,6 +154,56 @@ variable "ig_auth_header_name" {
   default = "X-IG-Api-Key"
 }
 
+variable "ig_max_request_bytes" {
+  type    = number
+  default = 1048576
+}
+
+variable "ig_request_timeout_seconds" {
+  type    = number
+  default = 30
+}
+
+variable "ig_internal_retry_max_attempts" {
+  type    = number
+  default = 3
+}
+
+variable "ig_internal_retry_backoff_ms" {
+  type    = number
+  default = 250
+}
+
+variable "ig_idempotency_ttl_seconds" {
+  type    = number
+  default = 259200
+}
+
+variable "ig_dlq_mode" {
+  type    = string
+  default = "sqs"
+}
+
+variable "ig_dlq_queue_name" {
+  type    = string
+  default = "fraud-platform-dev-full-ig-dlq"
+}
+
+variable "ig_replay_mode" {
+  type    = string
+  default = "dlq_replay_workflow"
+}
+
+variable "ig_rate_limit_rps" {
+  type    = number
+  default = 200
+}
+
+variable "ig_rate_limit_burst" {
+  type    = number
+  default = 400
+}
+
 variable "sfn_platform_run_orchestrator_name" {
   type    = string
   default = "fraud-platform-dev-full-platform-run-v0"

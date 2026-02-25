@@ -970,42 +970,78 @@ Baseline lock (`run_id=60378ec4875f48fc919bd1f739f92a96`):
 
 ##### POPT.7.0 - Design lock and invariants
 Definition of done:
-- [ ] Pin hotspot references and code-path authority in impl notes before edits.
-- [ ] Pin accepted scope:
+- [x] Pin hotspot references and code-path authority in impl notes before edits.
+- [x] Pin accepted scope:
   - `S2` allocation kernel and local deterministic uniform generation path,
   - `S4` region emit/allocation kernel and local cap allocator path.
-- [ ] Pin invariants:
+- [x] Pin invariants:
   - fail-closed validation/error codes unchanged,
   - schema/idempotent publish surfaces unchanged,
   - no realism-threshold or policy edits.
 
 ##### POPT.7.1 - `S2` allocation kernel optimization
 Definition of done:
-- [ ] Replace per-party Python scalar loops in `allocate_accounts` with vectorized array operations for:
+- [x] Replace per-party Python scalar loops in `allocate_accounts` with vectorized array operations for:
   - zero-gate evaluation,
   - weight generation,
   - largest-remainder allocation.
-- [ ] Use deterministic versioned PRF helper for vectorized uniform draws (single-process safe).
-- [ ] Keep output ordering and fail-closed duplicate/allocation guards unchanged.
-- [ ] Keep RNG event artifact shape and coverage unchanged.
+- [x] Use deterministic versioned PRF helper for vectorized uniform draws (single-process safe).
+- [x] Keep output ordering and fail-closed duplicate/allocation guards unchanged.
+- [x] Keep RNG event artifact shape and coverage unchanged.
 
 ##### POPT.7.2 - `S4` emit kernel optimization
 Definition of done:
-- [ ] Rewrite `largest_remainder/cap` allocation helpers to array-backed implementations.
-- [ ] Hoist per-group constants out of per-device loops (no repeated lambda/base/frac recomputation).
-- [ ] Remove per-edge string split overhead in IP cell selection path.
-- [ ] Keep deterministic traversal order and contract schemas unchanged.
+- [x] Rewrite `largest_remainder/cap` allocation helpers to array-backed implementations.
+- [x] Hoist per-group constants out of per-device loops (no repeated lambda/base/frac recomputation).
+- [x] Remove per-edge string split overhead in IP cell selection path.
+- [x] Keep deterministic traversal order and contract schemas unchanged.
 
 ##### POPT.7.3 - Witness and decision
 Definition of done:
-- [ ] Execute fresh witness run on new run-id under `runs/fix-data-engine/segment_6A`.
-- [ ] Compare vs `60378...` on:
+- [x] Execute fresh witness run on new run-id under `runs/fix-data-engine/segment_6A`.
+- [x] Compare vs `60378...` on:
   - `S2`, `S2.allocate_accounts`,
   - `S4`, `S4.emit_regions`.
-- [ ] Gate decisions:
+- [x] Gate decisions:
   - hard pass: `S2 <= 170s` and `S4 <= 85s` without regressions,
   - stretch: `S2 <= 150s` and `S4 <= 75s`.
-- [ ] Record one decision only:
+- [x] Record one decision only:
   - `UNLOCK_P0_REMEDIATION` if hard pass,
   - `HOLD_POPT7` if insufficient movement,
   - `REVERT_POPT7` if regression.
+
+POPT.7 closure evidence:
+- Baseline authority (`run_id=60378ec4875f48fc919bd1f739f92a96`):
+  - `S2=195.703s`:
+    - `allocate_accounts=148.703s`,
+    - `emit_account_base=33.266s`,
+    - `emit_holdings=10.453s`.
+  - `S4=95.750s`:
+    - `emit_regions=71.016s`,
+    - `load_party_base=14.156s`,
+    - `merge_parts=8.468s`.
+- Candidate witnesses:
+  - `S2` witness (`run_id=ed45d78ee15547caaff229f79f8adec7`, staged lane):
+    - `S2=82.109s`,
+    - `allocate_accounts=43.312s`,
+    - `emit_account_base=28.063s`,
+    - `emit_holdings=7.828s`.
+  - `S4` apples-to-apples witness (`run_id=ee0633a99760406ea28c892cca0dc7e8`, `workers=5` to match baseline posture):
+    - `S4=69.438s`,
+    - `emit_regions=49.016s`,
+    - `load_party_base=10.782s`,
+    - `merge_parts=8.015s`.
+- Delta summary:
+  - `S2` total improvement `=58.044%`.
+  - `S2.allocate_accounts` improvement `=70.873%`.
+  - `S4` total improvement `=27.480%`.
+  - `S4.emit_regions` improvement `=30.979%`.
+- Gate outcomes:
+  - hard gate: `PASS` (`S2<=170`, `S4<=85`).
+  - stretch gate: `PASS` (`S2<=150`, `S4<=75`).
+- Compatibility notes from witness lane:
+  - `S4` row-count parity vs baseline is exact on all published surfaces.
+  - `S2` account-base row count is unchanged; holdings pair surface moved by `-1,434` rows on this PRF lane and must be validated in subsequent realism/gate closure.
+  - staged witness lane could not close `S5` because layer-1 merchant source artifacts were not staged in this run-id; this does not block performance evidence for `S2/S4`.
+- Decision:
+  - `POPT.7=UNLOCK_P0_REMEDIATION`.

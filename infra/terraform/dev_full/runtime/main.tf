@@ -51,7 +51,8 @@ locals {
   role_eks_runtime_platform_base_arn = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.role_eks_runtime_platform_base_arn, "") : ""
   role_eks_nodegroup_dev_full_arn    = var.use_core_remote_state ? try(data.terraform_remote_state.core[0].outputs.role_eks_nodegroup_dev_full_arn, "") : ""
 
-  msk_cluster_arn = var.use_streaming_remote_state ? try(data.terraform_remote_state.streaming[0].outputs.msk_cluster_arn, var.msk_cluster_arn_fallback) : var.msk_cluster_arn_fallback
+  msk_cluster_arn           = var.use_streaming_remote_state ? try(data.terraform_remote_state.streaming[0].outputs.msk_cluster_arn, var.msk_cluster_arn_fallback) : var.msk_cluster_arn_fallback
+  ig_integration_timeout_ms = min(30000, floor(var.ig_request_timeout_seconds * 1000))
 
   irsa_targets = {
     ig = {
@@ -192,6 +193,13 @@ resource "aws_iam_role_policy" "lambda_ig_runtime" {
           "ssm:GetParameter"
         ]
         Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_ig_api_key_path}"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage"
+        ]
+        Resource = aws_sqs_queue.ig_dlq.arn
       }
     ]
   })
@@ -283,6 +291,14 @@ resource "aws_ssm_parameter" "ig_api_key" {
   })
 }
 
+resource "aws_sqs_queue" "ig_dlq" {
+  name = var.ig_dlq_queue_name
+
+  tags = merge(local.common_tags, {
+    fp_resource = "ig_dlq"
+  })
+}
+
 resource "aws_lambda_function" "ig_handler" {
   function_name    = var.lambda_ig_handler_name
   role             = aws_iam_role.lambda_ig_execution.arn
@@ -295,12 +311,23 @@ resource "aws_lambda_function" "ig_handler" {
 
   environment {
     variables = {
-      IG_IDEMPOTENCY_TABLE = aws_dynamodb_table.ig_idempotency.name
-      IG_HASH_KEY          = var.ddb_ig_idempotency_hash_key
-      IG_TTL_ATTRIBUTE     = var.ddb_ig_idempotency_ttl_attribute
-      IG_API_KEY_PATH      = aws_ssm_parameter.ig_api_key.name
-      IG_AUTH_MODE         = var.ig_auth_mode
-      IG_AUTH_HEADER_NAME  = var.ig_auth_header_name
+      IG_IDEMPOTENCY_TABLE           = aws_dynamodb_table.ig_idempotency.name
+      IG_HASH_KEY                    = var.ddb_ig_idempotency_hash_key
+      IG_TTL_ATTRIBUTE               = var.ddb_ig_idempotency_ttl_attribute
+      IG_API_KEY_PATH                = aws_ssm_parameter.ig_api_key.name
+      IG_AUTH_MODE                   = var.ig_auth_mode
+      IG_AUTH_HEADER_NAME            = var.ig_auth_header_name
+      IG_MAX_REQUEST_BYTES           = tostring(var.ig_max_request_bytes)
+      IG_REQUEST_TIMEOUT_SECONDS     = tostring(var.ig_request_timeout_seconds)
+      IG_INTERNAL_RETRY_MAX_ATTEMPTS = tostring(var.ig_internal_retry_max_attempts)
+      IG_INTERNAL_RETRY_BACKOFF_MS   = tostring(var.ig_internal_retry_backoff_ms)
+      IG_IDEMPOTENCY_TTL_SECONDS     = tostring(var.ig_idempotency_ttl_seconds)
+      IG_DLQ_MODE                    = var.ig_dlq_mode
+      IG_DLQ_QUEUE_NAME              = var.ig_dlq_queue_name
+      IG_DLQ_URL                     = aws_sqs_queue.ig_dlq.url
+      IG_REPLAY_MODE                 = var.ig_replay_mode
+      IG_RATE_LIMIT_RPS              = tostring(var.ig_rate_limit_rps)
+      IG_RATE_LIMIT_BURST            = tostring(var.ig_rate_limit_burst)
     }
   }
 
@@ -328,7 +355,7 @@ resource "aws_apigatewayv2_integration" "ig_lambda" {
   integration_type       = "AWS_PROXY"
   integration_uri        = aws_lambda_function.ig_handler.invoke_arn
   payload_format_version = "2.0"
-  timeout_milliseconds   = 29000
+  timeout_milliseconds   = local.ig_integration_timeout_ms
   credentials_arn        = aws_iam_role.apigw_ig_invoke.arn
 }
 
@@ -348,6 +375,10 @@ resource "aws_apigatewayv2_stage" "ig_v1" {
   api_id      = aws_apigatewayv2_api.ig_edge.id
   name        = var.apigw_ig_stage_name
   auto_deploy = true
+  default_route_settings {
+    throttling_burst_limit = floor(var.ig_rate_limit_burst)
+    throttling_rate_limit  = var.ig_rate_limit_rps
+  }
 
   tags = merge(local.common_tags, {
     fp_resource = "ig_api_stage"

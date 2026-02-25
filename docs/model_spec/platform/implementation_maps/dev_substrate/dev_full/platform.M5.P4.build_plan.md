@@ -296,14 +296,77 @@ Tasks:
 4. emit `m5i_ingress_envelope_snapshot.json`.
 
 DoD:
-- [ ] payload/timeout controls conform.
-- [ ] retry/idempotency controls conform.
-- [ ] DLQ/replay/rate controls conform.
-- [ ] envelope snapshot committed locally and durably.
+- [x] payload/timeout controls conform.
+- [x] retry/idempotency controls conform.
+- [x] DLQ/replay/rate controls conform.
+- [x] envelope snapshot committed locally and durably.
 
 P4.D precheck:
 1. P4.C is green.
 2. envelope control handles are pinned and non-placeholder.
+
+P4.D capability-lane coverage (execution gate):
+| Lane | Required handles/surfaces | Verification posture | Fail-closed condition |
+| --- | --- | --- | --- |
+| Handle integrity | `IG_MAX_REQUEST_BYTES`, `IG_REQUEST_TIMEOUT_SECONDS`, `IG_INTERNAL_RETRY_MAX_ATTEMPTS`, `IG_INTERNAL_RETRY_BACKOFF_MS`, `IG_IDEMPOTENCY_TTL_SECONDS`, `IG_DLQ_MODE`, `IG_DLQ_QUEUE_NAME`, `IG_REPLAY_MODE`, `IG_RATE_LIMIT_RPS`, `IG_RATE_LIMIT_BURST` | validate all required envelope handles are pinned and non-placeholder in registry | missing/placeholder handle (`M5P4-B5`) |
+| Runtime materialization | Lambda env + API Gateway integration/stage + DDB TTL + SQS DLQ | require runtime surfaces to match pinned values (timeout, throttle, retry/backoff, TTL, DLQ/replay wiring) | runtime/handle drift (`M5P4-B5`) |
+| Behavioral probes | authenticated ingest + health probes | require normal payload `202` and oversized payload `413 payload_too_large`; health includes envelope surface | probe mismatch (`M5P4-B5`) |
+| Evidence durability | run-control prefix in evidence bucket | local + durable artifacts readable (`m5i_*`) | publish/readback failure (`M5P4-B8`) |
+
+P4.D verification command templates (operator lane):
+1. Runtime apply/outputs:
+   - `terraform -chdir=infra/terraform/dev_full/runtime plan`
+   - `terraform -chdir=infra/terraform/dev_full/runtime apply`
+   - `terraform -chdir=infra/terraform/dev_full/runtime output -json`
+2. Runtime surfaces:
+   - `aws lambda get-function-configuration --function-name fraud-platform-dev-full-ig-handler --region eu-west-2`
+   - `aws apigatewayv2 get-integrations --api-id <APIGW_IG_API_ID> --region eu-west-2`
+   - `aws apigatewayv2 get-stage --api-id <APIGW_IG_API_ID> --stage-name v1 --region eu-west-2`
+   - `aws dynamodb describe-time-to-live --table-name <DDB_IG_IDEMPOTENCY_TABLE> --region eu-west-2`
+   - `aws sqs get-queue-url --queue-name <IG_DLQ_QUEUE_NAME> --region eu-west-2`
+3. Behavioral probes:
+   - `POST <IG_BASE_URL><IG_INGEST_PATH>` with valid key and small payload -> `202`
+   - `POST <IG_BASE_URL><IG_INGEST_PATH>` with valid key and oversized payload -> `413`
+   - `GET <IG_BASE_URL><IG_HEALTHCHECK_PATH>` with valid key -> `200` and envelope contract fields
+
+P4.D scoped blocker mapping (must be explicit before transition):
+1. `P4D-B1` -> `M5P4-B5`: required envelope handles missing/unpinned.
+2. `P4D-B2` -> `M5P4-B5`: runtime materialization drift vs pinned envelope handles.
+3. `P4D-B3` -> `M5P4-B5`: behavioral envelope probe mismatch.
+4. `P4D-B4` -> `M5P4-B8`: durable artifact publish/readback failure.
+
+P4.D exit rule:
+1. required envelope handles are pinned and resolved,
+2. runtime materialization matches pinned envelope values,
+3. behavioral probes satisfy small/large payload contract,
+4. `m5i_ingress_envelope_snapshot.json`, `m5i_blocker_register.json`, and `m5i_execution_summary.json` exist locally and durably,
+5. no active `P4D-B*` blocker remains,
+6. P4.E remains blocked until explicit P4.D pass evidence is committed.
+
+P4.D execution closure (2026-02-25):
+1. Runtime conformance remediation applied before authoritative run:
+   - materialized IG envelope controls into runtime stack (`IG_*` env surfaces),
+   - added DLQ queue resource and wiring (`fraud-platform-dev-full-ig-dlq`),
+   - applied API Gateway stage throttling and integration timeout from pinned handles,
+   - added IG payload-size fail-closed behavior (`413` on oversize payload).
+2. Authoritative green run:
+   - execution id: `m5i_p4d_ingress_envelope_20260225T020758Z`
+   - local root: `runs/dev_substrate/dev_full/m5/m5i_p4d_ingress_envelope_20260225T020758Z/`
+   - summary: `runs/dev_substrate/dev_full/m5/m5i_p4d_ingress_envelope_20260225T020758Z/m5i_execution_summary.json`
+   - result: `overall_pass=true`, blockers `[]`, next gate `M5.J_READY`.
+3. Contract outcomes (authoritative):
+   - normal ingest with valid key: `202`,
+   - oversized ingest with valid key: `413` + `payload_too_large`,
+   - integration timeout: `30000ms` (`IG_REQUEST_TIMEOUT_SECONDS=30`),
+   - stage throttles: `rps=200`, `burst=400`,
+   - DDB TTL enabled on `ttl_epoch`,
+   - DLQ queue exists and wired.
+4. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5i_p4d_ingress_envelope_20260225T020758Z/m5i_ingress_envelope_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5i_p4d_ingress_envelope_20260225T020758Z/m5i_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5i_p4d_ingress_envelope_20260225T020758Z/m5i_execution_summary.json`
+5. Gate impact:
+   - P4.D is green; P4.E (`M5.J`) is unblocked.
 
 ### P4.E (M5.J) P4 Gate Rollup + M6 Handoff
 Goal:

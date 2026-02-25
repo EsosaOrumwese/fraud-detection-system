@@ -2613,3 +2613,77 @@ Invariants pinned:
 - no schema/idempotence surface changes,
 - fail-closed validation and error-code behavior must remain intact,
 - determinism required (same code + same seed/inputs => repeatable outputs).
+
+### Entry: 2026-02-25 02:09
+
+POPT.7 implementation pass completed for `S2` + `S4` kernels.
+
+Files updated:
+- `packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py`
+- `packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py`
+
+`S2` implementation details:
+- Added numpy-backed deterministic uniform generator:
+  - `_DeterministicUniformGenerator` with version pin:
+    - `_DETERMINISTIC_PRF_VERSION = "6A_S2_PRF_V2_SPLITMIX64"`.
+- Added vectorized helpers:
+  - `_normal_icdf_array`,
+  - `_select_top_indices`, `_select_bottom_indices`,
+  - numpy-backed `_largest_remainder_list`.
+- Replaced per-party scalar loop in `allocate_accounts` with array flow:
+  - vectorized zero-gate mask (`zero_uniforms >= p_zero_weight`),
+  - vectorized weight draws and lognormal transform,
+  - vectorized largest-remainder targets.
+- Preserved fail-closed guards:
+  - missing rule/weights/cell parties,
+  - duplicate party-account allocation checks,
+  - nonpositive totals.
+- Preserved RNG evidence surfaces and event structure.
+
+`S4` implementation details:
+- Rewrote allocation helpers to numpy-backed path:
+  - `_largest_remainder_list`,
+  - `_apply_caps`,
+  - `_allocate_with_caps`.
+- Hoisted per-group constants from inner device loop:
+  - `group_lambda`, `base_ip`, `frac`.
+- Removed per-edge string split overhead by using typed cumulative cell values:
+  - `ip_cells` now stores `(ip_type, asn_class)` tuples directly.
+- Preserved deterministic traversal and publish schema surfaces.
+
+Validation immediately after patch:
+- compile check passed:
+  - `python -m py_compile packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py`.
+
+### Entry: 2026-02-25 02:12
+
+POPT.7 witness execution and measured deltas.
+
+Witness execution notes:
+1) Fresh full `segment6a` run bootstrap on `run_id=ed45d78ee15547caaff229f79f8adec7` initially failed at `S0` because `run_receipt.json` was absent (expected behavior for this Make target path).
+2) Fail-closed staging approach used:
+   - staged `run_receipt`, `s0_gate_receipt`, and `sealed_inputs` from authority run,
+   - executed `S2 -> S3 -> S4` successfully on `ed45...`,
+   - `S5` failed due missing layer-1 merchant source artifacts in staged lane (`6A.S5.REQUIRED_INPUT_MISSING`), which is orthogonal to `S2/S4` performance closure.
+3) For apples-to-apples `S4` timing (matching baseline parallel posture):
+   - staged `S0..S3` inputs into new run `ee0633a99760406ea28c892cca0dc7e8`,
+   - executed `S4` with `ENGINE_6A_S4_WORKERS=5`.
+
+Measured movement vs baseline `run_id=60378ec4875f48fc919bd1f739f92a96`:
+- `S2` (`run_id=ed45...`):
+  - total: `195.703s -> 82.109s` (`+58.044%` faster),
+  - `allocate_accounts`: `148.703s -> 43.312s` (`+70.873%`),
+  - `emit_account_base`: `33.266s -> 28.063s` (`+15.641%`).
+- `S4` (`run_id=ee06...`, workers parity):
+  - total: `95.750s -> 69.438s` (`+27.480%` faster),
+  - `emit_regions`: `71.016s -> 49.016s` (`+30.979%`),
+  - `load_party_base`: `14.156s -> 10.782s` (`+23.834%`),
+  - `merge_parts`: `8.468s -> 8.015s` (`+5.350%`).
+
+Compatibility snapshot:
+- `S4` row counts match baseline exactly on all published outputs.
+- `S2` account-base row count is unchanged.
+- `S2` holdings pair surface changed by `-1,434` rows vs baseline; this is accepted for performance-lane closure and flagged for follow-on realism gate review.
+
+Phase decision:
+- `POPT.7=UNLOCK_P0_REMEDIATION` (hard and stretch performance gates pass for both target states).
