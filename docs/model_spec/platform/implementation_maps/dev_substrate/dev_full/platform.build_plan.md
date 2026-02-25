@@ -652,6 +652,11 @@ M6 planning posture:
   - `M6P6-B3` (run-scoped streaming/admission counters are zero),
   - `M6P6-B4` (lag posture unresolved without active consumption).
   Next action is bounded `M6.F` remediation and rerun before `M6.G`.
+  - remediation lane pinned:
+    1. IG admission persistence fix (DDB idempotency write),
+    2. active EMR lane job refs (`sr-ready`, `wsp-stream`),
+    3. run-scoped admission flow > 0,
+    4. rerun `M6.F` fail-closed.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).

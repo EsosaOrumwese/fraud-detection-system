@@ -485,13 +485,13 @@ Goal:
 - recover `S4` runtime through low-blast execution knob tuning only (`batch_rows`, parquet compression), with zero semantic/code-path edits.
 
 Definition of done:
-- [ ] fresh staged run-id(s) created from current authority source run.
-- [ ] bounded candidate matrix executed:
+- [x] fresh staged run-id(s) created from current authority source run.
+- [x] bounded candidate matrix executed:
   - `batch_rows` sweep (`500000`, `750000`, `1000000`),
   - compression sweep (`snappy`, `lz4`) with at most one alternative per batch setting.
-- [ ] each candidate runs `S4 -> S5` and passes required S5 checks.
-- [ ] closure scored with `tools/score_segment6b_popt2_closure.py`.
-- [ ] decision recorded:
+- [x] each candidate runs `S4 -> S5` and passes required S5 checks.
+- [x] closure scored with `tools/score_segment6b_popt2_closure.py`.
+- [x] decision recorded:
   - keep only if runtime improves vs current witness (`S4=570.62s`) with non-regression,
   - else reject lane and retain current witness authority.
 
@@ -499,29 +499,49 @@ POPT.2R2 expanded execution plan:
 
 #### POPT.2R2.1 - Lane pin and constraints
 Definition of done:
-- [ ] implementation-map entry appended before execution.
-- [ ] constraints pinned:
+- [x] implementation-map entry appended before execution.
+- [x] constraints pinned:
   - no changes to `S4` policy logic, label logic, writer semantics, schema, or paths,
   - no new temp surfaces or carry datasets,
   - fail-closed on any required-check failure.
 
 #### POPT.2R2.2 - Staged witness matrix execution
 Definition of done:
-- [ ] stage at least one fresh run-id from `f621ee01bdb3428f84f7c7c1afde8812`.
-- [ ] execute bounded candidate matrix on staged run-id(s):
+- [x] stage at least one fresh run-id from `f621ee01bdb3428f84f7c7c1afde8812`.
+- [x] execute bounded candidate matrix on staged run-id(s):
   - `ENGINE_6B_S4_BATCH_ROWS=<candidate>`,
   - `ENGINE_6B_S4_PARQUET_COMPRESSION=<candidate>`,
   - run `make segment6b-s4 segment6b-s5`.
-- [ ] capture elapsed and required-check posture per candidate.
+- [x] capture elapsed and required-check posture per candidate.
 
 #### POPT.2R2.3 - Closure scoring and disposition
 Definition of done:
-- [ ] run closure scorer for best candidate.
-- [ ] record decision with explicit keep/rollback retention.
-- [ ] prune superseded run-id folders for rejected candidates.
+- [x] run closure scorer for best candidate.
+- [x] record decision with explicit keep/rollback retention.
+- [x] prune superseded run-id folders for rejected candidates.
 
 POPT.2R2 execution status (current authority):
-- pending.
+- source authority run-id: `f621ee01bdb3428f84f7c7c1afde8812` (`S4=570.62s`).
+- staged candidates:
+  - `6748b78b535e41a0838eb0ddb6f0e68f` (`batch_rows=500000`, `compression=snappy`) -> `S4=633.64s`, `S5=9.64s`, required checks PASS.
+  - `723b5dcb53494ebca816b84cc9375ac4` (`batch_rows=750000`, `compression=snappy`) -> `S4=694.56s`, `S5=10.20s`, required checks PASS.
+  - `a49febe17a574f4387de91b99fa5f3e1` (`batch_rows=1000000`, `compression=snappy`) -> `S4=653.20s`, `S5=9.59s`, required checks PASS.
+  - `4e4cde10d4b14741badeb817e0362e63` (`batch_rows=750000`, `compression=lz4`) -> `S4=647.67s`, `S5=9.33s`, required checks PASS.
+- non-regression posture:
+  - parity counts stable across candidates,
+  - warning metrics stable across candidates.
+- best candidate by S4 elapsed: `6748b78b535e41a0838eb0ddb6f0e68f` at `633.64s` (still regressive vs authority witness).
+- closure artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_6748b78b535e41a0838eb0ddb6f0e68f.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_723b5dcb53494ebca816b84cc9375ac4.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_a49febe17a574f4387de91b99fa5f3e1.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_4e4cde10d4b14741badeb817e0362e63.json`.
+- pruned superseded run-id folders:
+  - `723b5dcb53494ebca816b84cc9375ac4`,
+  - `a49febe17a574f4387de91b99fa5f3e1`,
+  - `4e4cde10d4b14741badeb817e0362e63`.
+- decision: `HOLD_POPT.2_REOPEN`.
+- disposition: reject `POPT.2R2` lane and retain `f621ee01bdb3428f84f7c7c1afde8812` as runtime authority.
 
 ### POPT.3 - Part-writer and I/O compaction lane
 Goal:

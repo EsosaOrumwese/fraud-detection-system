@@ -276,6 +276,12 @@ Execution status (2026-02-25):
    - local: `runs/dev_substrate/dev_full/m6/m6f_p6b_streaming_active_20260225T121536Z/`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T121536Z/`
 
+Bounded remediation lane (approved) before rerun:
+1. Patch IG runtime boundary so successful `/ingest/push` admissions persist idempotency records to DynamoDB.
+2. Materialize active EMR lane jobs for `sr-ready` and `wsp-stream` refs in the pinned VC.
+3. Generate run-scoped ingress admissions from lane execution (no synthetic non-lane shortcut).
+4. Rerun `M6.F`; only zero-blocker result unlocks `M6.G`.
+
 ### M6.G `P6` Gate Rollup + Verdict
 Goal:
 1. adjudicate `P6` from M6.E..M6.F evidence.

@@ -8076,3 +8076,51 @@ ext_gate=M6.C_READY.
    - produce non-zero run-scoped admission progression,
    - rerun `M6.F` and require `M6P6-B2/B3/B4` to clear.
 
+## Entry: 2026-02-25 12:27:50 +00:00 - M6.F blocker-closure remediation plan locked and approved
+
+### USER direction
+1. USER requested adding the blocker-closure lane to plans and proceeding with recommended implementation to clear blockers.
+
+### Execution plan locked
+1. Apply IG runtime fix so admitted ingress writes idempotency records into DynamoDB (clears structural blocker behind `M6P6-B3`).
+2. Materialize active EMR lane jobs for both refs:
+   - `fraud-platform-dev-full-sr-ready-v0`,
+   - `fraud-platform-dev-full-wsp-stream-v0`.
+3. Ensure lane-run produces run-scoped, non-zero admission progression for active `platform_run_id`.
+4. Rerun `M6.F` and require:
+   - active refs present (`B2` clear),
+   - non-zero counters (`B3` clear),
+   - lag posture resolved within threshold (`B4` clear).
+
+### Guardrails
+1. No non-lane synthetic shortcut for counters.
+2. No advancement to `M6.G` unless blocker count is zero.
+
+
+## Entry: 2026-02-25 12:33:30 +00:00 - M6.F remediation execution started: IG idempotency persistence patch
+
+### Why this patch is required now
+1. M6P6-B3 is structural in current runtime: /ingest/push returns 202 but does not persist any run-scoped admission/idempotency record.
+2. M6.F counters include DDB_IG_IDEMPOTENCY_TABLE progression; without a write path, the counter remains zero regardless of lane activity.
+3. Authority/handle posture already pins DDB idempotency table and TTL (dedupe_key, 	tl_epoch, IG_IDEMPOTENCY_TTL_SECONDS), so runtime behavior must conform.
+
+### Alternatives considered
+1. Force counters by direct DDB seed writes.
+   - Rejected: bypasses IG boundary and would not prove ingress runtime semantics.
+2. Accept M6P6-B3 as non-blocking until later phases.
+   - Rejected: violates fail-closed gate contract for P6.B.
+3. Patch IG Lambda ingress path to persist idempotency on successful admission.
+   - Selected.
+
+### Implementation details applied
+1. Updated infra/terraform/dev_full/runtime/lambda/ig_handler.py:
+   - computes canonical dedupe basis using (platform_run_id, event_class, event_id) with deterministic SHA-256 key,
+   - writes DynamoDB item keyed by IG_HASH_KEY (dedupe_key) with TTL field IG_TTL_ATTRIBUTE (	tl_epoch),
+   - stores minimal admission metadata (state, run/event class/id, payload hash, admitted timestamp),
+   - fail-closes ingress with 503 idempotency_backend_unavailable when DDB write fails.
+2. Validation completed: python -m py_compile infra/terraform/dev_full/runtime/lambda/ig_handler.py.
+
+### Next locked sequence
+1. Apply runtime stack to publish new Lambda package.
+2. Execute authenticated ingest probe for active run scope and verify DDB count becomes non-zero.
+3. Proceed to clear M6P6-B2/B4 with active lane refs + lag rerun.

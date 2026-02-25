@@ -116,6 +116,22 @@ Execution status (2026-02-25):
 5. Remediation gate:
    - `M6.G` remains blocked until `M6P6-B2/B3/B4` are cleared with a fresh `M6.F` rerun.
 
+Remediation plan to clear active blockers (`M6P6-B2/B3/B4`):
+1. `M6P6-B2`:
+   - materialize active stream-lane runtime refs in EMR VC for:
+     - `FLINK_EKS_SR_READY_REF`,
+     - `FLINK_EKS_WSP_STREAM_REF`,
+   - require job refs observable as active (`SUBMITTED|PENDING|RUNNING`) during `M6.F` capture window.
+2. `M6P6-B3`:
+   - ensure ingress path persists admissions to `DDB_IG_IDEMPOTENCY_TABLE`,
+   - execute run-scoped stream lane that produces non-zero admissions for active `platform_run_id`.
+3. `M6P6-B4`:
+   - compute lag only after active stream + non-zero admission proof is present,
+   - require `measured_lag <= RTDL_CAUGHT_UP_LAG_MAX`.
+4. Closure:
+   - rerun `M6.F` with fresh `phase_execution_id`,
+   - do not proceed to `M6.G` unless blocker count is zero.
+
 ### P6.C P6 Gate Rollup + Verdict (M6.G)
 Goal:
 1. adjudicate `P6` from P6.A/P6.B evidence.

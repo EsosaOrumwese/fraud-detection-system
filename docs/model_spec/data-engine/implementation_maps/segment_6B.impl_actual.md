@@ -1954,3 +1954,57 @@ Invariants pinned:
 - no schema/path/writer changes.
 - only fresh staged runs under `runs/fix-data-engine/segment_6B`.
 - fail-closed on any required S5 check failure.
+
+---
+
+### Entry: 2026-02-25 12:57
+
+POPT.2R2 execution outcome (bounded knobs matrix) and closure decision.
+
+Execution matrix (all staged from `f621ee01bdb3428f84f7c7c1afde8812`):
+- `6748b78b535e41a0838eb0ddb6f0e68f`: `batch_rows=500000`, `compression=snappy`.
+- `723b5dcb53494ebca816b84cc9375ac4`: `batch_rows=750000`, `compression=snappy`.
+- `a49febe17a574f4387de91b99fa5f3e1`: `batch_rows=1000000`, `compression=snappy`.
+- `4e4cde10d4b14741badeb817e0362e63`: `batch_rows=750000`, `compression=lz4`.
+
+Measured runtime:
+- best candidate: `6748...` with `S4=633.64s`, `S5=9.64s`.
+- other candidates:
+  - `723b...`: `S4=694.56s`, `S5=10.20s`,
+  - `a49f...`: `S4=653.20s`, `S5=9.59s`,
+  - `4e4c...`: `S4=647.67s`, `S5=9.33s`.
+- current authority witness remains `f621...` at `S4=570.62s`.
+
+Correctness/non-regression:
+- required S5 checks PASS for all candidates.
+- parity counts stable and warning metrics stable vs witness.
+
+Decision:
+- reject `POPT.2R2` for runtime posture.
+- closure remains `HOLD_POPT.2_REOPEN`.
+- retain `f621ee01bdb3428f84f7c7c1afde8812` as runtime authority witness.
+
+Reasoning:
+- this confirms the remaining gap is not resolved by batching/compression knobs alone on the current machine/workload posture.
+- next reopen must target an algorithmic hot path with strict semantic parity guards, not further knob sweeps.
+
+---
+
+### Entry: 2026-02-25 13:01
+
+POPT.2R2 storage hygiene closure (superseded run pruning).
+
+Action:
+- used `tools/prune_run_folders_keep_set.py` to prune only superseded rejected candidates after dry-run confirmation.
+- removed run folders:
+  - `723b5dcb53494ebca816b84cc9375ac4`,
+  - `a49febe17a574f4387de91b99fa5f3e1`,
+  - `4e4cde10d4b14741badeb817e0362e63`.
+- retained:
+  - authority witness `f621ee01bdb3428f84f7c7c1afde8812`,
+  - best candidate from this lane `6748b78b535e41a0838eb0ddb6f0e68f`,
+  - prior lane evidence run-ids still referenced in plan history.
+
+Reasoning:
+- user storage-pressure constraint requires pruning superseded run-id folders promptly.
+- keeping one candidate plus closure artifacts preserves auditability with lower disk impact.

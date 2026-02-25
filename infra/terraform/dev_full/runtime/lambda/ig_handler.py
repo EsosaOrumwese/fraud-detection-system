@@ -4,6 +4,7 @@ import os
 import time
 import hmac
 import base64
+import hashlib
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -34,6 +35,7 @@ PROTECTED_ROUTES = {
 }
 
 _SSM_CLIENT = boto3.client("ssm")
+_DDB_CLIENT = boto3.client("dynamodb")
 _API_KEY_CACHE = {
     "path": None,
     "value": None,
@@ -201,6 +203,79 @@ def _extract_headers(event: dict) -> dict:
     return {k: normalized.get(k) for k in CORRELATION_HEADERS}
 
 
+def _normalize_event_class(payload: dict) -> str:
+    for key in ("event_class", "event_type", "type"):
+        value = payload.get(key)
+        text = str(value or "").strip()
+        if text:
+            return text
+    return "unknown_event_class"
+
+
+def _normalize_event_id(payload: dict) -> str:
+    for key in ("event_id", "id", "message_id"):
+        value = payload.get(key)
+        text = str(value or "").strip()
+        if text:
+            return text
+    return f"missing_event_id:{int(time.time() * 1000)}"
+
+
+def _normalize_platform_run_id(payload: dict, headers: dict) -> str:
+    payload_value = str(payload.get("platform_run_id") or "").strip()
+    if payload_value:
+        return payload_value
+    header_value = str(headers.get("x-fp-platform-run-id") or "").strip()
+    if header_value:
+        return header_value
+    return "missing_platform_run_id"
+
+
+def _sha256_hex(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _upsert_idempotency_record(
+    *,
+    payload: dict,
+    headers: dict,
+    table_name: str,
+) -> tuple[str | None, str | None]:
+    if not table_name or table_name == "unset":
+        return None, "ig_idempotency_table_unset"
+
+    hash_key_name = os.getenv("IG_HASH_KEY", "dedupe_key").strip() or "dedupe_key"
+    ttl_attr_name = os.getenv("IG_TTL_ATTRIBUTE", "ttl_epoch").strip() or "ttl_epoch"
+    ttl_seconds = _safe_int(os.getenv("IG_IDEMPOTENCY_TTL_SECONDS", "259200"), 259200)
+    now_epoch = int(time.time())
+
+    platform_run_id = _normalize_platform_run_id(payload, headers)
+    event_class = _normalize_event_class(payload)
+    event_id = _normalize_event_id(payload)
+    dedupe_basis = f"{platform_run_id}:{event_class}:{event_id}"
+    dedupe = _sha256_hex(dedupe_basis)
+    payload_hash = _sha256_hex(
+        json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+    )
+
+    item = {
+        hash_key_name: {"S": dedupe},
+        ttl_attr_name: {"N": str(now_epoch + max(60, ttl_seconds))},
+        "state": {"S": "ADMITTED"},
+        "platform_run_id": {"S": platform_run_id},
+        "event_class": {"S": event_class},
+        "event_id": {"S": event_id},
+        "payload_hash": {"S": payload_hash},
+        "admitted_at_epoch": {"N": str(now_epoch)},
+    }
+
+    try:
+        _DDB_CLIENT.put_item(TableName=table_name, Item=item)
+    except (BotoCoreError, ClientError) as exc:
+        return None, f"dynamodb_put_item_failed:{type(exc).__name__}"
+    return dedupe, None
+
+
 def lambda_handler(event, _context):
     request_context = event.get("requestContext", {}) if isinstance(event, dict) else {}
     http = request_context.get("http", {}) if isinstance(request_context, dict) else {}
@@ -253,6 +328,20 @@ def lambda_handler(event, _context):
         payload = _parse_body(event if isinstance(event, dict) else {})
         correlation_echo = {k: payload.get(k) for k in CORRELATION_FIELDS}
         correlation_headers = _extract_headers(event if isinstance(event, dict) else {})
+        dedupe_key, idempotency_error = _upsert_idempotency_record(
+            payload=payload,
+            headers=correlation_headers,
+            table_name=table,
+        )
+        if idempotency_error:
+            return _response(
+                503,
+                {
+                    "error": "idempotency_backend_unavailable",
+                    "reason": idempotency_error,
+                    "idempotency_table": table,
+                },
+            )
         # Log correlation-only envelope for audit; never log full payload.
         LOGGER.info(
             json.dumps(
@@ -261,6 +350,7 @@ def lambda_handler(event, _context):
                     "timestamp_epoch": int(time.time()),
                     "correlation_echo": correlation_echo,
                     "correlation_headers": correlation_headers,
+                    "dedupe_key": dedupe_key,
                 }
             )
         )
@@ -270,6 +360,7 @@ def lambda_handler(event, _context):
                 "admitted": True,
                 "ingress_mode": "managed_edge",
                 "idempotency_table": table,
+                "dedupe_key": dedupe_key,
                 "body_size_bytes": body_size,
                 "correlation_echo": correlation_echo,
                 "note": "runtime-surface validation handler",
