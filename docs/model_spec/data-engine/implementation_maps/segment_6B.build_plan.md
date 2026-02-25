@@ -328,6 +328,61 @@ POPT.2 execution status (current authority):
   - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_state_elapsed_f621ee01bdb3428f84f7c7c1afde8812.csv`.
 - phase decision: `HOLD_POPT.2_REOPEN` (runtime gate miss only).
 
+### POPT.2R - `S4` runtime recovery lane (options 1/2/3)
+Goal:
+- clear the remaining `S4` runtime blocker using bounded-memory compute-path redesign without changing output contracts or policy semantics.
+
+Definition of done:
+- [x] option 1 implemented: partitioned flow-label carry lane replaces event-side full policy recomputation.
+- [x] option 2 implemented: event lane rewritten to boolean-only projection from carried flow labels (string-heavy derivation removed from event path).
+- [x] option 3 implemented: case timeline emission compacted to a single vectorized expansion lane (no repeated per-flag filter/concat scans).
+- [x] fresh staged `S4 -> S5` witness run passes all required S5 checks.
+- [ ] `S4` elapsed improves versus current POPT.2 witness (`570.62s`) with no realism regression in S5 warning metrics.
+- [x] phase decision emitted: `UNLOCK_POPT.3_CONTINUE` or `HOLD_POPT.2_REOPEN`.
+
+POPT.2R expanded execution plan:
+
+#### POPT.2R.1 - Option 1: partitioned label-carry lane
+Definition of done:
+- [x] during flow processing, emit a compact carry surface per scenario with only:
+  - `flow_id`, `is_fraud_truth`, `is_fraud_bank_view`, and deterministic shard key.
+- [x] carry surface is partitioned into bounded shard count and stored under run-local temp only.
+- [x] event lane consumes carry partitions by shard, avoiding full in-memory label maps.
+- [x] fail-closed guard added: missing carried labels for any event row raises a state failure.
+
+#### POPT.2R.2 - Option 2: event-lane boolean rewrite
+Definition of done:
+- [x] remove event-side campaign/truth/bank string derivation path.
+- [x] event output built from carried booleans + event identity columns only.
+- [x] row-count parity preserved against `s3_event_stream_with_fraud_6B`.
+- [x] deterministic replay invariants preserved (`run_id`, `seed`, hashes, scenario partition continuity).
+
+#### POPT.2R.3 - Option 3: case-lane compaction
+Definition of done:
+- [x] replace repeated conditional dataframe filters with a compact vectorized case-event expansion lane.
+- [x] preserve event ordering (`CASE_OPENED -> ... -> CASE_CLOSED`) and timestamp monotonic intent.
+- [x] preserve `s4_case_timeline_6B` schema and deterministic case cardinality logic.
+
+#### POPT.2R.4 - Witness run, score, and closure decision
+Definition of done:
+- [x] stage fresh run-id from last-good prerequisites using `tools/stage_segment6b_popt2_lane.py`.
+- [x] run `S4` then `S5` only on staged run-id.
+- [x] score closure via `tools/score_segment6b_popt2_closure.py`.
+- [ ] emit decision and retention/prune action for superseded candidate runs.
+
+POPT.2R execution status (current authority):
+- staged candidate run-id: `54192649481242ba8611d710d80fd0b7` (from source `f621ee01bdb3428f84f7c7c1afde8812`).
+- lane results:
+  - `S4=4070.62s` (hard regression vs baseline `563.20s` and current witness `570.62s`),
+  - `S5=60.69s`, required checks all PASS,
+  - warning metrics stable vs witness (no realism regression signal in S5 warnings).
+- closure artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_54192649481242ba8611d710d80fd0b7.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_closure_54192649481242ba8611d710d80fd0b7.md`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt2_state_elapsed_54192649481242ba8611d710d80fd0b7.csv`.
+- decision: `HOLD_POPT.2_REOPEN`.
+- disposition: option bundle rejected for runtime posture and code reverted to pre-POPT.2R implementation.
+
 ### POPT.3 - Part-writer and I/O compaction lane
 Goal:
 - reduce write amplification and small-file overhead on S3/S4 heavy outputs.

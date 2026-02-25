@@ -1690,3 +1690,78 @@ Decision:
 Current blocker status:
 - POPT.2 runtime gate still unresolved; phase remains HOLD_POPT.2_REOPEN.
 - do not advance to POPT.3 until blocker posture is explicitly resolved/waived.
+
+---
+
+### Entry: 2026-02-25 10:01
+
+POPT.2R design pin (options 1/2/3 combined execution lane for S4 runtime closure).
+
+Problem restatement:
+- POPT.2 correctness blockers are closed, but runtime blocker remains (`best S4=570.62s` vs baseline `563.20s`, closure decision `HOLD_POPT.2_REOPEN`).
+- prior attempts that increased write complexity or partial case-lane rewrites regressed runtime.
+
+Selected execution strategy (combined, same lane):
+- Option 1: build a partitioned flow-label carry surface per scenario during flow processing (`flow_id`, `is_fraud_truth`, `is_fraud_bank_view`, shard key) and reuse it in event labelling.
+- Option 2: remove event-side campaign/truth/bank recomputation and switch event path to boolean projection from carried labels.
+- Option 3: compact case timeline emission into a single vectorized expansion lane to avoid repeated `filter + select + concat` scans.
+
+Why this lane:
+- removes duplicated high-cost policy execution on event path (largest avoidable compute in current S4),
+- keeps memory bounded by shard-partitioned carry reads (no full global flow-label map required),
+- preserves schema and policy semantics while reducing dataframe materialization churn.
+
+Alternatives considered and rejected:
+- global in-memory flow label map: rejected due memory-risk on large scenarios.
+- open POPT.3 first: rejected by phase law (POPT.2 blocker must be resolved first).
+- further batch/compression-only knobs: already measured; insufficient to clear closure.
+
+Invariants pinned before code edits:
+- no changes to S4 output schemas or dataset contracts,
+- no policy semantic drift for truth/bank/case decisions,
+- fail-closed if any event row cannot resolve carried flow labels,
+- rerun matrix remains `S4 -> S5` on fresh staged run-id.
+
+---
+
+### Entry: 2026-02-25 10:05
+
+POPT.2R implementation applied (options 1/2/3 executed in one lane).
+
+Implemented changes:
+- Option 1 (partitioned carry lane):
+  - emitted run-local carry parts keyed by deterministic shard from flow lane:
+    - columns: `flow_id`, `is_fraud_truth`, `is_fraud_bank_view`.
+  - event lane loads carry partitions by shard with in-process cache and join-on-`flow_id`.
+  - fail-closed guard added for missing carried labels (`S4_LABEL_CARRY_COVERAGE_MISS`).
+- Option 2 (event boolean rewrite):
+  - removed event-side campaign/truth/bank recomputation path.
+  - event output projected directly from carried booleans + event identity fields.
+- Option 3 (case compaction):
+  - replaced repeated conditional filter/concat assembly with template-driven vectorized expansion for case events.
+
+Execution lane:
+- staged candidate run-id `54192649481242ba8611d710d80fd0b7` from source `f621ee01bdb3428f84f7c7c1afde8812`.
+- ran `S4 -> S5` and scored closure using existing POPT.2 closure tooling.
+
+---
+
+### Entry: 2026-02-25 11:16
+
+POPT.2R outcome: rejected and rolled back due severe runtime regression.
+
+Measured outcome:
+- `S4=4070.62s` (regressed from witness `570.62s`; baseline `563.20s`).
+- `S5=60.69s`, required checks all PASS.
+- warning metrics remained stable vs witness (no S5 warning-regression signal).
+- closure decision from scorer:
+  - `HOLD_POPT.2_REOPEN`.
+
+Decision:
+- reject combined options 1/2/3 lane for this workload.
+- rollback `S4` implementation files to pre-POPT.2R code path immediately to preserve best-known runtime posture.
+
+Reasoning:
+- regression magnitude is beyond any acceptable runtime budget.
+- correctness held, but performance-first law blocks progression on this lane.
+- next reopen must avoid high file-amplification carry-surface patterns in S4.

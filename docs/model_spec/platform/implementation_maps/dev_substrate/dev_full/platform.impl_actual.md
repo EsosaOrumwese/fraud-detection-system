@@ -7745,3 +7745,56 @@ ext_gate=M6.C_READY.
 1. Canonical source-of-stream for dev_full remains external/shared oracle bucket (`fraud-platform-dev-min-object-store`).
 2. Dev_full object-store remains reserved for platform-owned surfaces only (archive/quarantine/platform artifacts), not oracle duplication.
 3. This closes data-surface drift between runtime and newly pinned authority.
+
+## Entry: 2026-02-25 11:18:58 +00:00 - M6P6-B2 strategy decision: preserve `MSK + Flink` semantics, change Flink hosting path to clear account gate
+
+### Trigger
+1. USER confirmed timeline cannot absorb indefinite AWS account-verification wait for Managed Service for Apache Flink (`kinesisanalyticsv2`).
+2. USER requested reading `scratch_files/scratch.md` and recording full decision before any authority/plan repin edits.
+
+### Current blocker reality (verified)
+1. Active blocker remains `M6P6-B2` under `M6.E` (`P6.A`).
+2. Probe evidence shows account-level service eligibility gate, not code/IAM drift:
+   - `runs/dev_substrate/dev_full/m6/m6e_p6_flink_probe_20260225T045252Z/m6e_flink_create_probe.json`
+   - AWS response: `UnsupportedOperationException` requiring account verification for Managed Flink create/update.
+3. Under current fail-closed gates, `M6.F/M6.G` cannot close and `P7` cannot advance while this remains unresolved.
+
+### Decision objective
+1. Clear external-cloud gating risk without downgrading stream-processing semantics.
+2. Preserve design-intent and evidence contracts for `P6` so closure remains meaningful and auditable.
+3. Avoid introducing a large cross-vendor rewrite mid-phase.
+
+### Options evaluated
+1. Wait-only posture for AWS verification.
+   - Rejected as primary path due timeline risk; acceptable only as parallel background path.
+2. Switch stream runtime to non-Flink vendor/runtime (e.g., Decodable lane) for immediate closure.
+   - Rejected for now: higher repin blast-radius (authority, handles, runbook, observability, cost controls, skill surface) and increased drift risk relative to current pinned `MSK + Flink` semantics.
+3. Keep `MSK + Flink`, but host Flink on EKS as bounded fallback when MSF is account-blocked.
+   - Selected.
+
+### Selected strategy (approved for repin phase)
+1. Maintain architectural truth: event bus remains `MSK`, stream engine remains `Flink`.
+2. Change only runtime-hosting mode for `P6` from `MSF-only` to bounded dual-path:
+   - preferred: Managed Flink (MSF) when available,
+   - fallback: EKS-hosted Flink (EMR on EKS first, Flink Operator on EKS as secondary).
+3. Keep `P6` acceptance/evidence contracts unchanged:
+   - streaming-active counters,
+   - bounded lag,
+   - publish-ambiguity fail-closed,
+   - evidence-overhead budget conformance.
+
+### Guardrails (non-negotiable)
+1. Fallback is permitted only under explicit blocker condition `M6P6-B2` (account-level Managed Flink unavailability).
+2. This is runtime-hosting substitution only; not a semantic substitution.
+3. No phase advance allowed unless `P6` artifacts satisfy existing deterministic DoDs.
+4. Managed Flink support case remains open in parallel; once unblocked, run managed-substitution parity proof before final hardening closure.
+
+### Expected repin surface (next step, not yet applied in this entry)
+1. `dev-full_managed-substrate_migration.design-authority.v0.md`: add bounded fallback rule for Flink hosting under `M6P6-B2`.
+2. `dev_full_handles.registry.v0.md`: introduce runtime-path handles supporting MSF or EKS-hosted Flink references.
+3. `dev_full_platform_green_v0_run_process_flow.md` and `platform.M6.P6.build_plan.md`: update wording from MSF-app-only identifiers to Flink-runtime reference abstraction while preserving same pass evidence.
+
+### Consequence and risk posture
+1. This decision unblocks continuation of `M6` without waiting on external verification SLA.
+2. Drift risk is controlled because stream semantics stay constant and only hosting substrate changes.
+3. Additional operational complexity (EKS-hosted Flink management) is accepted as bounded tradeoff to meet delivery window.
