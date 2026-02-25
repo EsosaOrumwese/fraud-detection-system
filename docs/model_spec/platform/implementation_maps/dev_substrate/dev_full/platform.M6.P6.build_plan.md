@@ -149,10 +149,10 @@ Remediation DoD checklist (`M6P6-B2/B3/B4` closure lane):
 - [x] Lane A complete: private endpoint surfaces are materialized and readable (`ec2`, `ecr.api`, `ecr.dkr`, `sts`, `s3` gateway).
 - [x] Lane B complete: IaC-managed worker nodegroup is `ACTIVE` and cluster has at least one schedulable `Ready` node.
 - [x] Lane C complete: lane refs (`FLINK_EKS_SR_READY_REF`, `FLINK_EKS_WSP_STREAM_REF`) are executed using lane-authentic specs and observed active in capture window.
-- [x] `M6P6-B3` validation passes on rerun with non-zero run-scoped admission progression.
-- [x] `M6P6-B4` validation passes on rerun with `measured_lag <= RTDL_CAUGHT_UP_LAG_MAX`.
+- [ ] `M6P6-B3` validation passes on rerun with non-zero run-scoped admission progression.
+- [ ] `M6P6-B4` validation passes on rerun with `measured_lag <= RTDL_CAUGHT_UP_LAG_MAX`.
 - [x] fresh rerun `m6f_*` artifacts are published in workflow artifacts and durable evidence storage.
-- [x] `M6.G` is now unblocked (`rerun blocker_count=0`) and ready for P6 gate rollup.
+- [ ] `M6.G` is now unblocked (`rerun blocker_count=0`) and ready for P6 gate rollup.
 
 Rerun closure status (2026-02-25):
 1. Provisional local remediator run:
@@ -193,6 +193,25 @@ Strict-semantic rerun status (2026-02-25, supersedes closure claim above):
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T163455Z/`.
 5. Gate posture:
    - `P6` is fail-closed and reopened; do not execute/claim `M6.G` as active authority until strict-semantic `M6.F` rerun is blocker-free.
+
+Fallback remediation rerun status (2026-02-25, latest authority):
+1. Remote rerun (workflow run `22407876177`, execution `m6f_p6b_streaming_active_20260225T171938Z`) executed on fallback path `EKS_FLINK_OPERATOR`.
+2. Result:
+   - `overall_pass=false`,
+   - `blocker_count=2`,
+   - `next_gate=HOLD_REMEDIATE`.
+3. Blocker transition:
+   - `M6P6-B2` is now cleared (`wsp_state=RUNNING`, `sr_ready_state=RUNNING`),
+   - active blockers are `M6P6-B3` and `M6P6-B4`.
+4. Root-cause evidence for remaining blockers:
+   - pod-level IG POST attempts from EKS runtime timed out (`URLError timed out`),
+   - diagnostic pod showed no run-window admission progression while lane refs remained active,
+   - this indicates private-runtime egress/path to IG managed edge is not yet materialized for lane workers.
+5. Evidence:
+   - workflow artifact set: `m6f-streaming-active-20260225T171938Z`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T171938Z/`.
+6. Gate posture:
+   - `P6` remains fail-closed; `M6.G` stays blocked until non-zero run-window admissions and measured lag evidence are restored.
 
 ### P6.C P6 Gate Rollup + Verdict (M6.G)
 Goal:

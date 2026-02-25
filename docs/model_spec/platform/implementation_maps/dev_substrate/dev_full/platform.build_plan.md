@@ -654,6 +654,11 @@ M6 planning posture:
   - blockers active: `M6P6-B2/B3/B4`,
   - `overall_pass=false`, `next_gate=HOLD_REMEDIATE`,
   - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T163455Z/`.
+- Latest fallback rerun (`m6f_p6b_streaming_active_20260225T171938Z`, run `22407876177`) on `EKS_FLINK_OPERATOR`:
+  - `M6P6-B2` is cleared (`wsp_state=RUNNING`, `sr_ready_state=RUNNING`),
+  - blockers now narrowed to `M6P6-B3/B4`,
+  - `overall_pass=false`, `next_gate=HOLD_REMEDIATE`,
+  - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6f_p6b_streaming_active_20260225T171938Z/`.
 - `M6.G` prior green receipt (`m6g_p6c_gate_rollup_20260225T155035Z`, run `22404445249`) is now historical only until strict-semantic `M6.F` returns zero blockers.
 
 M6 sub-phase progress:
@@ -830,4 +835,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Resolve strict-semantic `M6.F` blockers (`M6P6-B2/B3/B4`) from execution `m6f_p6b_streaming_active_20260225T163455Z` and rerun `M6.F` to zero-blocker before any `M6.G/M6.H` advancement.
+- Resolve remaining strict-semantic `M6.F` blockers (`M6P6-B3/B4`) from execution `m6f_p6b_streaming_active_20260225T171938Z` by materializing pod-to-IG network path (or equivalent approved ingress path), then rerun `M6.F` to zero-blocker before any `M6.G/M6.H` advancement.

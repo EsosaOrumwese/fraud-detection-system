@@ -8860,3 +8860,26 @@ ext_gate=HOLD_REMEDIATE.
 1. Keep image pin but remove it from dispatch input surface.
 2. Move pinned fallback image to job-level environment variable `LANE_WORKER_IMAGE_URI`.
 3. Reference `${LANE_WORKER_IMAGE_URI}` in fallback job manifests so dispatch remains below the input cap.
+
+## Entry: 2026-02-25 17:22:00 +00:00 - M6.F fallback rerun result (`B2` cleared, `B3/B4` remain)
+
+### Authoritative rerun receipt
+1. Workflow run: `22407876177` (`dev_full_m6f_streaming_active.yml`, ref `migrate-dev`).
+2. Execution id: `m6f_p6b_streaming_active_20260225T171938Z`.
+3. Outcome:
+   - `overall_pass=false`,
+   - `blocker_count=2`,
+   - `next_gate=HOLD_REMEDIATE`.
+4. Blocker transition:
+   - `M6P6-B2` cleared (`wsp_state=RUNNING`, `sr_ready_state=RUNNING`),
+   - remaining blockers: `M6P6-B3` (run-window admissions zero), `M6P6-B4` (lag unresolved).
+
+### Additional diagnostics for remaining blockers
+1. Local direct POST to IG managed edge with same payload/API key returns `202` from operator shell.
+2. Same POST executed from EKS pod runtime times out (`URLError timed out`), indicating runtime-network path mismatch between private lane workers and IG managed edge endpoint.
+3. Diagnostic worker in cluster shows `admitted=0`, `failed>0` progression, consistent with timeout/non-admission posture.
+4. Added `execute-api` interface VPC endpoint (`vpce-08197196991a9c378`) and verified it became `available`, but pod-to-IG timeout persisted for current IG endpoint shape.
+
+### Gate consequence
+1. `P6` remains fail-closed.
+2. `M6.G` cannot be re-authorized until pod-side ingress reachability is materialized and `M6.F` rerun shows non-zero run-window admissions with measured lag.
