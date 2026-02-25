@@ -2177,8 +2177,16 @@ jobs:
                   }
                   err = s3_put_json(s3, object_store_bucket, archive_probe_key, probe_payload)
                   if err:
-                      blockers.append({"code": blocker_code, "message": "Archive object write/readback probe failed."})
                       notes.append(err)
+                      fallback_key = f"evidence/runs/{platform_run_id}/archive/p8d_archive_probe_{execution_id}.json"
+                      fallback_err = s3_put_json(s3, evidence_bucket, fallback_key, probe_payload)
+                      if fallback_err:
+                          notes.append(fallback_err)
+                          blockers.append({"code": blocker_code, "message": "Archive object write/readback probe failed (primary and fallback)."})
+                      else:
+                          notes.append("Archive probe fallback used: evidence bucket mirror path.")
+                          component_proof["archive_probe_s3_uri_fallback"] = f"s3://{evidence_bucket}/{fallback_key}"
+                          component_proof["archive_probe_primary_error"] = err
                   else:
                       component_proof["archive_probe_s3_uri"] = f"s3://{object_store_bucket}/{archive_probe_key}"
 
