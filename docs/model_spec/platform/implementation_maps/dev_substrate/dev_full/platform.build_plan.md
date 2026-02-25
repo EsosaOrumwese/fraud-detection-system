@@ -638,9 +638,10 @@ M6 planning posture:
   - `M6.H -> M6.I` for `P7`,
   - `M6.J` final closure sync (verdict/cost/handoff notes).
 - M6 execution must fail-closed if any of `DFULL-RUN-B5`, `DFULL-RUN-B6`, `DFULL-RUN-B7` families remain unresolved.
+- `M6.A` is now closed green (`m6a_p5p7_handle_closure_20260225T023522Z`) after pinning missing handoff path handles.
 
 M6 sub-phase progress:
-- [ ] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
+- [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
 - [ ] `M6.B` `P5` entry/contract precheck.
 - [ ] `M6.C` `P5` READY commit authority execution.
 - [ ] `M6.D` `P5` gate rollup + verdict.

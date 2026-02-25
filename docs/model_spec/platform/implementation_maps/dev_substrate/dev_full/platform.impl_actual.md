@@ -7260,3 +7260,98 @@ untime: PASS
    - `M6_HANDOFF_PACK_PATH_PATTERN`,
    - `M7_HANDOFF_PACK_PATH_PATTERN`.
 2. This is intentionally pinned as `M6.A` handle-closure work; M6 execution must not proceed past `M6.A` until closed.
+
+## Entry: 2026-02-25 02:34:25 +00:00 - M6.A execution start (decision-completeness precheck)
+
+### Trigger
+1. USER requested planning and execution of `M6.A`.
+
+### Pre-execution decision closure
+1. `M6.A` scope confirmed:
+   - close required handle set for `P5..P7`,
+   - clear unresolved handoff handle gap,
+   - emit authoritative `m6a_*` artifacts and durable evidence.
+2. Known unresolved items before runtime execution:
+   - `M6_HANDOFF_PACK_PATH_PATTERN` missing,
+   - `M7_HANDOFF_PACK_PATH_PATTERN` missing.
+3. Selected remediation order:
+   - patch handle registry first,
+   - run fail-closed M6.A handle-closure evidence builder,
+   - publish local + durable artifacts,
+   - only then update M6/main plans if blocker-free.
+
+### Alternatives considered
+1. Execute M6.A using temporary implicit defaults for handoff paths.
+   - Rejected: violates decision-completeness law.
+2. Run M6.A without registry patch and keep blockers open.
+   - Rejected for this request because USER asked for execution/closure.
+3. Pin missing handles then execute authoritative run.
+   - Selected: deterministic and compliant with fail-closed policy.
+
+## Entry: 2026-02-25 02:35:22 +00:00 - M6.A execution closure and gate decision
+
+### Changes made during execution
+1. Updated handle registry to close explicit gap identified in planning:
+   - `M6_HANDOFF_PACK_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/m6_handoff_pack.json"`
+   - `M7_HANDOFF_PACK_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/m7_handoff_pack.json"`
+2. Executed bounded `M6.A` handle-closure lane:
+   - required-handle matrix build for `P5/P6/P7` surfaces,
+   - upstream dependency validation against `M5` authoritative verdict,
+   - blocker register + execution summary publication,
+   - durable publish/readback verification.
+
+### Execution outputs
+1. Authoritative run:
+   - `runs/dev_substrate/dev_full/m6/m6a_p5p7_handle_closure_20260225T023522Z/m6a_execution_summary.json`
+2. Outcome:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M6.B_READY`,
+   - verdict=`ADVANCE_TO_M6B`.
+3. Handle matrix:
+   - required handles checked=`25`,
+   - resolved handles=`25`,
+   - unresolved required handles=`0`.
+
+### Durable evidence
+1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6a_p5p7_handle_closure_20260225T023522Z/m6a_handle_closure_snapshot.json`
+2. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6a_p5p7_handle_closure_20260225T023522Z/m6a_blocker_register.json`
+3. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6a_p5p7_handle_closure_20260225T023522Z/m6a_execution_summary.json`
+
+### Phase decision
+1. `M6.A` is closed green.
+2. `M6.B` (`P5` entry + contract precheck) is now the active next lane.
+
+## Entry: 2026-02-25 02:41:35 +00:00 - M6.B / M6.P5.A pre-execution decision lock
+
+### Trigger
+1. USER requested planning and execution of `M6.P5.A` (`M6.B`).
+
+### Pre-execution checks selected
+1. Upstream gate dependency:
+   - `M6.A` must be green (`M6.B_READY`).
+2. Run continuity dependency:
+   - `m6_handoff_pack.json` must be present with `m5_verdict=ADVANCE_TO_M6` and `m6_entry_ready=true`.
+3. P5 handle closure:
+   - `FP_BUS_CONTROL_V1`,
+   - `SR_READY_COMMIT_AUTHORITY`,
+   - `SR_READY_COMMIT_STATE_MACHINE`,
+   - `SR_READY_RECEIPT_REQUIRES_SFN_EXECUTION_REF`,
+   - `SR_READY_COMMIT_RECEIPT_PATH_PATTERN`,
+   - `READY_MESSAGE_FILTER`,
+   - `WSP_MAX_INFLIGHT`,
+   - `WSP_RETRY_MAX_ATTEMPTS`,
+   - `WSP_RETRY_BACKOFF_MS`,
+   - `WSP_STOP_ON_NONRETRYABLE`,
+   - `KAFKA_PARTITION_KEY_CONTROL`.
+4. Step Functions authority surface:
+   - resolve symbolic handle chain `SR_READY_COMMIT_STATE_MACHINE -> SFN_PLATFORM_RUN_ORCHESTRATOR_V0 -> concrete state machine name`,
+   - verify state machine exists and is `ACTIVE`.
+
+### Alternatives considered
+1. Treat state machine authority as handle-only check.
+   - Rejected: insufficient for runtime readiness; existence/health must be proven.
+2. Execute full READY commit in M6.B.
+   - Rejected: phase scope drift; READY commit execution belongs to `M6.C`.
+3. Execute bounded entry precheck with explicit blocker mapping and durable evidence.
+   - Selected.

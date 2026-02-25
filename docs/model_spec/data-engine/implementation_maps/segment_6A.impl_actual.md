@@ -2687,3 +2687,70 @@ Compatibility snapshot:
 
 Phase decision:
 - `POPT.7=UNLOCK_P0_REMEDIATION` (hard and stretch performance gates pass for both target states).
+
+### Entry: 2026-02-25 02:28
+
+P0 baseline lock execution started after complete-lane closure.
+
+Context and decision:
+- Complete lane authority run is now `run_id=aae194b630b741d0a12e1e063103c839` under `runs/fix-data-engine/segment_6A`.
+- Existing `tools/` inventory had no 6A scorer for remediation gates `T1-T10`, so P0 could not close with machine-readable evidence.
+- Chosen path:
+  - implement a dedicated scorer for 6A P0, then emit one fail-closed gateboard from the new authority run.
+- Rejected alternatives:
+  1) Manual markdown-only baseline capture:
+     - rejected because P0.2 requires machine-readable per-gate evidence with explicit `PASS/FAIL`.
+  2) Reusing 5A/5B scorer directly:
+     - rejected because gate definitions and owner metrics differ materially for 6A (`K_max`, IP reuse tails, propagation OR).
+
+Implementation details:
+- Added tooling:
+  - `tools/score_segment6a_p0_baseline.py`.
+- Scorer mechanics pinned:
+  - `T1-T2`: computed from `s2_account_base_6A` against `K_max` from `config/layer3/6A/priors/account_per_party_priors_6A.v1.yaml`.
+  - `T3-T5`: computed from `s4_ip_links_6A + s4_ip_base_6A + s4_device_base_6A` against `ip_count_priors_6A`.
+  - `T6`: computed as fail-closed role coverage against `fraud_role_taxonomy_6A`.
+  - `T7`: OR-account and OR-device computed from S5 role outputs with bootstrap CIs.
+  - `T8`: JSD suite computed for:
+    - IP type alignment,
+    - device-role mapped-vs-policy distribution,
+    - IP-role mapped-vs-policy distribution.
+  - `T9`: explicit `INSUFFICIENT_EVIDENCE` (single-seed lane only), fail-closed.
+  - `T10`: explicit `INSUFFICIENT_EVIDENCE` when no 6B validation artifact under same run-id, fail-closed.
+
+Validation of tooling:
+- compile check:
+  - `python -m py_compile tools/score_segment6a_p0_baseline.py` -> PASS.
+
+Gateboard emission:
+- command:
+  - `python tools/score_segment6a_p0_baseline.py --run-id aae194b630b741d0a12e1e063103c839`.
+- output artifact:
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p0_realism_gateboard_aae194b630b741d0a12e1e063103c839.json`.
+
+Observed baseline (single-seed authority lane):
+- decision summary:
+  - `eligible_grade=below_B`,
+  - `decision=HOLD_REMEDIATE`.
+- gates passing:
+  - `T3`, `T6`.
+- gates failing:
+  - `T1`, `T2`, `T4`, `T5`, `T7`, `T8`.
+- gates insufficient-evidence (fail-closed):
+  - `T9`, `T10`.
+
+Pinned metric values for owner routing:
+- `S2` owner (`T1-T2`):
+  - `T1 max_overflow=112`, `total_overflow=205,800`,
+  - `T2 max_p99_over_kmax=3.0`, `max_max_over_kmax=112.0`.
+- `S4` owner (`T4-T5`):
+  - `T4 coverage=0.14816` (below `0.25` B threshold),
+  - `T5 p99=172`, `max=6114` (above `120/600` B thresholds).
+- `S5` owner (`T7-T8`):
+  - `T7 OR_account=0.9915`, `OR_device=0.9759` (directionally wrong vs required uplift),
+  - `T8 worst_jsd=0.5786` with dominant component `ip_role_jsd`.
+
+Phase decision:
+- `P0=HOLD_REMEDIATE` confirmed and recorded in build plan.
+- next owner lane to open:
+  - `P1 (S2 hard K_max remediation)` because `T1-T2` are hard blockers with large breach mass.

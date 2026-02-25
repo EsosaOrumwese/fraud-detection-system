@@ -95,28 +95,55 @@ Goal:
 
 #### P0.1 - Authority and baseline run lock
 Definition of done:
-- [ ] Baseline run-id pinned under `runs/fix-data-engine/segment_6A/`.
-- [ ] Published/remediation grade baseline fields copied into a machine-readable gateboard.
-- [ ] Frozen upstream posture recorded.
+- [x] Baseline run-id pinned under `runs/fix-data-engine/segment_6A/`.
+- [x] Published/remediation grade baseline fields copied into a machine-readable gateboard.
+- [x] Frozen upstream posture recorded.
 
 #### P0.2 - Baseline gateboard emission
 Definition of done:
-- [ ] `T1-T10` baseline values computed on the pinned run-id.
-- [ ] Each metric tagged `PASS/FAIL` for `B` and `B+`.
-- [ ] No missing metric silently defaulted.
+- [x] `T1-T10` baseline values computed on the pinned run-id.
+- [x] Each metric tagged `PASS/FAIL` for `B` and `B+`.
+- [x] No missing metric silently defaulted.
 
 #### P0.3 - Owner-state attribution lock
 Definition of done:
-- [ ] `S2` is pinned as owner for `T1-T2`.
-- [ ] `S4` is pinned as owner for `T3-T5`.
-- [ ] `S5` is pinned as owner for `T6-T8`.
-- [ ] `T9-T10` owner dependencies and routing are pinned.
+- [x] `S2` is pinned as owner for `T1-T2`.
+- [x] `S4` is pinned as owner for `T3-T5`.
+- [x] `S5` is pinned as owner for `T6-T8`.
+- [x] `T9-T10` owner dependencies and routing are pinned.
 
 #### P0.4 - Candidate and promotion protocol lock
 Definition of done:
-- [ ] Candidate lane protocol pinned (single-seed then witness seeds).
-- [ ] Promotion veto criteria pinned (hard fail-closed).
-- [ ] Output artifacts and paths for scoring evidence pinned.
+- [x] Candidate lane protocol pinned (single-seed then witness seeds).
+- [x] Promotion veto criteria pinned (hard fail-closed).
+- [x] Output artifacts and paths for scoring evidence pinned.
+
+P0 closure evidence (`run_id=aae194b630b741d0a12e1e063103c839`):
+- gateboard artifact:
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p0_realism_gateboard_aae194b630b741d0a12e1e063103c839.json`.
+- scorer/tooling pinned:
+  - `tools/score_segment6a_p0_baseline.py`.
+- baseline decision:
+  - `eligible_grade=below_B`,
+  - `decision=HOLD_REMEDIATE`.
+- gate outcomes (`B`):
+  - `PASS`: `T3`, `T6`,
+  - `FAIL`: `T1`, `T2`, `T4`, `T5`, `T7`, `T8`,
+  - `INSUFFICIENT_EVIDENCE` (fail-closed): `T9`, `T10`.
+- key baseline metrics:
+  - `T1 max_overflow=112`, `total_overflow=205,800`,
+  - `T2 max_p99_over_kmax=3.0`, `max_max_over_kmax=112.0`,
+  - `T3 max_abs_error_pp=1.735`,
+  - `T4 linked_device_fraction=0.14816`,
+  - `T5 p99_devices_per_ip=172`, `max_devices_per_ip=6114`,
+  - `T7 OR_account=0.9915`, `OR_device=0.9759`,
+  - `T8 worst_jsd=0.5786` (dominated by `ip_role_jsd`).
+- phase decision:
+  - `P0=HOLD_REMEDIATE` with owner routing:
+    - `S2`: `T1-T2`,
+    - `S4`: `T4-T5`,
+    - `S5`: `T7-T8`,
+    - multi-seed/downstream: `T9-T10` blocked pending later certification lanes.
 
 ### P1 - Delta Set A (`S2`) hard `K_max` remediation
 Goal:

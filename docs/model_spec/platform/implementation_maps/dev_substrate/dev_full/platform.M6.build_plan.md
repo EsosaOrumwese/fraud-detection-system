@@ -101,9 +101,29 @@ Tasks:
    - `M7_HANDOFF_PACK_PATH_PATTERN`.
 
 DoD:
-- [ ] required handle set is explicit and complete.
-- [ ] unresolved required handles are blocker-marked.
-- [ ] M6.A closure snapshot exists locally and durably.
+- [x] required handle set is explicit and complete.
+- [x] unresolved required handles are blocker-marked.
+- [x] M6.A closure snapshot exists locally and durably.
+
+M6.A execution closure (2026-02-25):
+1. Registry pin remediation applied:
+   - added `M6_HANDOFF_PACK_PATH_PATTERN`,
+   - added `M7_HANDOFF_PACK_PATH_PATTERN`.
+2. Authoritative green run:
+   - execution id: `m6a_p5p7_handle_closure_20260225T023522Z`
+   - local root: `runs/dev_substrate/dev_full/m6/m6a_p5p7_handle_closure_20260225T023522Z/`
+   - summary: `runs/dev_substrate/dev_full/m6/m6a_p5p7_handle_closure_20260225T023522Z/m6a_execution_summary.json`
+   - result: `overall_pass=true`, blockers `[]`, next gate `M6.B_READY`.
+3. Handle-closure outcomes:
+   - required handles checked: `25`,
+   - resolved handles: `25`,
+   - unresolved handle blockers: none.
+4. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6a_p5p7_handle_closure_20260225T023522Z/m6a_handle_closure_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6a_p5p7_handle_closure_20260225T023522Z/m6a_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6a_p5p7_handle_closure_20260225T023522Z/m6a_execution_summary.json`
+5. Next action:
+   - advance to `M6.B` (`P5` entry + contract precheck).
 
 ### M6.B `P5` READY Entry + Contract Precheck
 Goal:
@@ -276,7 +296,7 @@ Any active `M6-B*` blocker prevents M6 closure.
 14. `m6_execution_summary.json`
 
 ## 9) M6 Completion Checklist
-- [ ] M6.A complete
+- [x] M6.A complete
 - [ ] M6.B complete
 - [ ] M6.C complete
 - [ ] M6.D complete
@@ -308,4 +328,5 @@ Handoff posture:
 3. Initial planning blockers resolved:
    - `M6-B0` resolved,
    - `M6-B0.1` resolved.
-4. Execution has not started yet; first actionable lane is `M6.A`.
+4. `M6.A` is closed green (`m6a_p5p7_handle_closure_20260225T023522Z`) after handoff-handle pin remediation.
+5. First actionable execution lane is now `M6.B`.

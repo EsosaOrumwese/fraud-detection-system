@@ -209,6 +209,8 @@ Allowed tokens in pattern handles:
 * `P2_RUNTIME_BINDING_MATRIX_PATH_PATTERN = "evidence/runs/{platform_run_id}/operate/runtime_binding_matrix.json"`
 * `M4_EXECUTION_SUMMARY_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/m4_execution_summary.json"`
 * `M5_HANDOFF_PACK_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/m5_handoff_pack.json"`
+* `M6_HANDOFF_PACK_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/m6_handoff_pack.json"`
+* `M7_HANDOFF_PACK_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/m7_handoff_pack.json"`
 * `RECEIPT_SUMMARY_PATH_PATTERN = "evidence/runs/{platform_run_id}/ingest/receipt_summary.json"`
 * `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN = "evidence/runs/{platform_run_id}/ingest/kafka_offsets_snapshot.json"`
 * `QUARANTINE_SUMMARY_PATH_PATTERN = "evidence/runs/{platform_run_id}/ingest/quarantine_summary.json"`
