@@ -566,6 +566,7 @@ M5 planning posture:
 - `M5.P3.B` was remediated and closed green (`m5c_p3b_required_outputs_20260224T191554Z`) with durable evidence; baseline fail run retained as blocker trail.
 - `M5.P3.C` is closed green (`m5d_p3c_stream_view_contract_20260224T192457Z`) with stream-view contract/materialization evidence.
 - `M5.P3.D` is closed green (`m5e_p3_gate_rollup_20260225T005034Z`) with deterministic verdict `ADVANCE_TO_P4`.
+- `M5.P4.A` is closed green (`m5f_p4a_ingress_boundary_health_20260225T010044Z`) after IG API handle repin remediation.
 - M5 has been split into dedicated subplans to prevent phase cramming:
   - `platform.M5.P3.build_plan.md` (P3 closure),
   - `platform.M5.P4.build_plan.md` (P4 closure).
@@ -584,7 +585,7 @@ M5 sub-phase progress:
 - [x] `M5.C` required outputs + manifest readability (`m5c_p3b_required_outputs_20260224T191554Z`, blocker-free after oracle materialization remediation).
 - [x] `M5.D` stream-view contract + materialization (`m5d_p3c_stream_view_contract_20260224T192457Z`, blocker-free).
 - [x] `M5.E` P3 rollup + verdict (`m5e_p3_gate_rollup_20260225T005034Z`, verdict `ADVANCE_TO_P4`).
-- [ ] `M5.F` ingress boundary health.
+- [x] `M5.F` ingress boundary health (`m5f_p4a_ingress_boundary_health_20260225T010044Z`, blocker-free after handle repin).
 - [ ] `M5.G` boundary auth enforcement.
 - [ ] `M5.H` MSK topic readiness.
 - [ ] `M5.I` ingress envelope conformance.

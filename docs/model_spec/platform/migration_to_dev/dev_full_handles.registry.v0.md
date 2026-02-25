@@ -398,7 +398,7 @@ Allowed tokens in pattern handles:
 
 * `IG_EDGE_MODE = "apigw_lambda_ddb"`
 * `APIGW_IG_API_NAME = "fraud-platform-dev-full-ig-edge"`
-* `APIGW_IG_API_ID = "l3f3x3zr2l"` (repinned in M4.D remediation from runtime outputs)
+* `APIGW_IG_API_ID = "5p7yslq6rc"` (repinned in M5.F remediation from live runtime outputs)
 * `APIGW_IG_STAGE = "v1"`
 * `LAMBDA_IG_HANDLER_NAME = "fraud-platform-dev-full-ig-handler"`
 * `DDB_IG_IDEMPOTENCY_TABLE = "fraud-platform-dev-full-ig-idempotency"`
@@ -438,7 +438,7 @@ Allowed tokens in pattern handles:
 
 ### 7.7 Service discovery and ingress handles
 
-* `IG_BASE_URL = "https://l3f3x3zr2l.execute-api.eu-west-2.amazonaws.com/v1"`
+* `IG_BASE_URL = "https://5p7yslq6rc.execute-api.eu-west-2.amazonaws.com/v1"`
 * `IG_BASE_URL_EKS_FALLBACK = "http://ig.fraud-platform-ingress.svc.cluster.local:8080"`
 * `IG_LISTEN_ADDR = "0.0.0.0"`
 * `IG_PORT = 8080`

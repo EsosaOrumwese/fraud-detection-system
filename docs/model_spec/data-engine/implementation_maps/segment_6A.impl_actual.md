@@ -2398,3 +2398,62 @@ Removed as superseded:
 
 Result:
 - active run-folder set now matches POPT.5 closure keep-set exactly.
+
+### Entry: 2026-02-25 01:01
+
+POPT.6 planning lock opened for `S3.allocate_instruments` (all-cards lane).
+
+Context that triggered reopen:
+- `POPT.5` closed green on integrated delta, but residual budget miss remains:
+  - segment integrated `S2+S3+S4+S5=766.563s` vs budget `540s`,
+  - dominant hotspot is `S3.allocate_instruments=378.156s`.
+- Realized scale from latest authority run (`59b82090679742c0b2fa3bb3f5dd3150`):
+  - accounts `8,725,420`,
+  - instruments emitted `10,701,854`,
+  - allocation path repeatedly scans account-cell vectors across instrument-type loops (`~2.56x` effective scan multiplier).
+
+Code-path diagnosis pinned:
+- per-account deterministic uniform currently uses per-call SHA-256 payload hashing in tight loops (`_deterministic_uniform`).
+- full-sort ranking in `_largest_remainder_list` is used even when only top-`k` remainder indices are needed.
+- emit path still uses nested Python row loops for very high row counts.
+
+Decision taken:
+- add a dedicated `POPT.6` redesign lane in build plan and include all four optimization cards in-scope:
+  1) emit-path columnar refactor,
+  2) account-cell prebinding/one-pass prep,
+  3) partial-selection allocator ranking rewrite,
+  4) deterministic PRF redesign (high blast, explicit gates).
+
+Governance posture for high-blast step:
+- PRF redesign is explicitly marked high-blast and blocked behind fresh S3 witness + downstream non-regression evidence before acceptance.
+- No realism-policy threshold loosening is allowed in this lane.
+
+### Entry: 2026-02-25 01:05
+
+POPT.6 execution-order lock and implementation strategy before code edits.
+
+Subphase execution order (binding for this lane):
+1) `POPT.6.0` baseline + hotspot line lock,
+2) `POPT.6.1` emit-path columnar rewrite,
+3) `POPT.6.2` account-cell prebinding,
+4) `POPT.6.3` adaptive ranking rewrite,
+5) `POPT.6.4` deterministic PRF redesign,
+6) `POPT.6.5` fresh witness chain + closure decision.
+
+Alternatives considered:
+1) PRF-only rewrite first.
+   - Rejected: high-blast change first would obscure whether row-emission and allocation-structure improvements alone could close the gap.
+2) Emit rewrite only, defer allocator changes.
+   - Rejected: expected gain is meaningful but insufficient at current scale (`10.7M` output rows + repeated multi-type account scans).
+3) All-cards integrated lane with strict fail-closed witness gates.
+   - Selected.
+
+Pinned hotspot references for implementation:
+- deterministic uniform hashing path: `_deterministic_uniform` in `s3_instruments/runner.py`,
+- ranking path: `_largest_remainder_list`,
+- allocation/emit nested loops under `allocate_instruments`.
+
+Risk controls:
+- preserve deterministic output ordering and idempotent publish surface,
+- preserve all fail-closed `_abort(...)` branches and codes,
+- execute fresh run-id witness after implementation before any phase unlock.

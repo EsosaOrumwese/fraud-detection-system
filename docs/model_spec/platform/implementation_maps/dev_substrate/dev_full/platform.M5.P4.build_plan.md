@@ -34,13 +34,70 @@ Tasks:
 4. emit `m5f_ingress_boundary_health_snapshot.json`.
 
 DoD:
-- [ ] ops and ingest surfaces are healthy.
-- [ ] response posture is contract-valid.
-- [ ] health snapshot committed locally and durably.
+- [x] ops and ingest surfaces are healthy.
+- [x] response posture is contract-valid.
+- [x] health snapshot committed locally and durably.
 
 P4.A precheck:
 1. P3 verdict is `ADVANCE_TO_P4`.
 2. boundary endpoint handles are pinned and non-empty.
+
+P4.A capability-lane coverage (execution gate):
+| Lane | Required handles/surfaces | Verification posture | Fail-closed condition |
+| --- | --- | --- | --- |
+| Boundary handle integrity | `IG_BASE_URL`, `IG_INGEST_PATH`, `IG_HEALTHCHECK_PATH`, `IG_AUTH_HEADER_NAME`, `SSM_IG_API_KEY_PATH` | resolve handles and validate non-empty/non-placeholder values | missing/inconsistent boundary handle |
+| Health endpoint probe | `GET <IG_BASE_URL><IG_HEALTHCHECK_PATH>` | require HTTP `200` and minimal response contract (`status`, `service`, `mode`) | non-200 or malformed health contract |
+| Ingest preflight probe | `POST <IG_BASE_URL><IG_INGEST_PATH>` | require HTTP `202` and minimal ingest acceptance contract (`admitted`, `ingress_mode`) | non-202 or malformed ingest contract |
+| Boundary auth path availability | SSM API-key retrieval using `SSM_IG_API_KEY_PATH` | retrieve key and use configured auth header during probes | key retrieval failure or auth header mismatch |
+| Evidence publication | `S3_EVIDENCE_BUCKET`, `S3_RUN_CONTROL_ROOT_PATTERN` | local snapshot + blocker register + summary, then durable publish/readback | publish/readback failure |
+
+P4.A verification command templates (operator lane):
+1. Handle closure:
+   - `rg -n "IG_BASE_URL|IG_INGEST_PATH|IG_HEALTHCHECK_PATH|IG_AUTH_HEADER_NAME|SSM_IG_API_KEY_PATH" docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+2. Auth key retrieval:
+   - `aws ssm get-parameter --name <SSM_IG_API_KEY_PATH> --with-decryption`
+3. Health probe:
+   - `GET <IG_BASE_URL><IG_HEALTHCHECK_PATH>` with `<IG_AUTH_HEADER_NAME>: <api_key>`
+4. Ingest probe:
+   - `POST <IG_BASE_URL><IG_INGEST_PATH>` with `<IG_AUTH_HEADER_NAME>: <api_key>` and run-scoped probe payload.
+5. Durable publish/readback:
+   - `aws s3 cp <local_m5f_ingress_boundary_health_snapshot.json> s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/m5f_ingress_boundary_health_snapshot.json`
+   - `aws s3 ls s3://<S3_EVIDENCE_BUCKET>/evidence/dev_full/run_control/<m5x_execution_id>/m5f_ingress_boundary_health_snapshot.json`
+
+P4.A scoped blocker mapping (must be explicit before transition):
+1. `P4A-B1` -> `M5P4-B1`: boundary handle missing/inconsistent.
+2. `P4A-B2` -> `M5P4-B2`: ops/ingest health probe failure.
+3. `P4A-B3` -> `M5P4-B2`: response posture contract invalid.
+4. `P4A-B4` -> `M5P4-B3`: auth/key retrieval path unavailable for probes.
+5. `P4A-B5` -> `M5P4-B8`: durable publish/readback failure.
+6. `P4A-B6` -> `M5P4-B9`: transition attempted with unresolved `P4A-B*`.
+
+P4.A exit rule:
+1. ops and ingest boundary probes are healthy (`200/202`),
+2. response posture contracts are valid,
+3. `m5f_ingress_boundary_health_snapshot.json` exists locally and durably,
+4. no active `P4A-B*` blocker remains,
+5. P4.B remains blocked until P4.A pass is explicit in rollup evidence.
+
+P4.A execution closure (2026-02-25):
+1. Initial run (fail-closed baseline):
+   - execution id: `m5f_p4a_ingress_boundary_health_20260225T005845Z`
+   - result: `overall_pass=false`, blockers `P4A-B2/P4A-B3`.
+2. Root cause:
+   - stale IG API handle drift (`l3f3x3zr2l` deleted); endpoint resolution failed.
+3. Remediation:
+   - repinned `APIGW_IG_API_ID` and `IG_BASE_URL` in handle registry to live API `5p7yslq6rc`.
+4. Authoritative green run:
+   - execution id: `m5f_p4a_ingress_boundary_health_20260225T010044Z`
+   - local root: `runs/dev_substrate/dev_full/m5/m5f_p4a_ingress_boundary_health_20260225T010044Z/`
+   - summary: `runs/dev_substrate/dev_full/m5/m5f_p4a_ingress_boundary_health_20260225T010044Z/m5f_execution_summary.json`
+   - result: `overall_pass=true`, blockers `[]`, ops status `200`, ingest status `202`.
+5. Durable evidence (authoritative pass):
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5f_p4a_ingress_boundary_health_20260225T010044Z/m5f_ingress_boundary_health_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5f_p4a_ingress_boundary_health_20260225T010044Z/m5f_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5f_p4a_ingress_boundary_health_20260225T010044Z/m5f_execution_summary.json`
+6. Gate impact:
+   - P4.A is green; P4.B (`M5.G`) is unblocked.
 
 ### P4.B (M5.G) Boundary Auth Enforcement
 Goal:

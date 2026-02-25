@@ -251,9 +251,27 @@ Tasks:
 4. publish ingress boundary health snapshot.
 
 DoD:
-- [ ] ingest and ops health endpoints are healthy.
-- [ ] boundary response contracts are readable and valid.
-- [ ] ingress boundary health snapshot committed locally and durably.
+- [x] ingest and ops health endpoints are healthy.
+- [x] boundary response contracts are readable and valid.
+- [x] ingress boundary health snapshot committed locally and durably.
+
+M5.F execution closure (2026-02-25):
+1. Initial fail-closed run:
+   - `runs/dev_substrate/dev_full/m5/m5f_p4a_ingress_boundary_health_20260225T005845Z/m5f_execution_summary.json`
+   - outcome: `overall_pass=false`, blockers=`P4A-B2,P4A-B3`.
+2. Root cause:
+   - stale IG API handles (`APIGW_IG_API_ID/IG_BASE_URL`) pointed to deleted API edge.
+3. Remediation:
+   - repinned IG API handles in `dev_full_handles.registry.v0.md` to live API `5p7yslq6rc`.
+4. Authoritative green run:
+   - `runs/dev_substrate/dev_full/m5/m5f_p4a_ingress_boundary_health_20260225T010044Z/m5f_execution_summary.json`
+   - outcome: `overall_pass=true`, blockers=`[]`, ops=`200`, ingest=`202`.
+5. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5f_p4a_ingress_boundary_health_20260225T010044Z/m5f_ingress_boundary_health_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5f_p4a_ingress_boundary_health_20260225T010044Z/m5f_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5f_p4a_ingress_boundary_health_20260225T010044Z/m5f_execution_summary.json`
+6. Next action:
+   - advance to `M5.G` (`P4.B` boundary auth enforcement).
 
 ### M5.G Boundary Auth Enforcement (P4)
 Goal:
@@ -384,7 +402,7 @@ Any active `M5-B*` blocker prevents M5 closure.
 - [x] M5.C complete
 - [x] M5.D complete
 - [x] M5.E complete
-- [ ] M5.F complete
+- [x] M5.F complete
 - [ ] M5.G complete
 - [ ] M5.H complete
 - [ ] M5.I complete
@@ -419,5 +437,6 @@ Handoff posture:
    - `M5.B` / `P3.A` is closed green (`m5b_20260224T185046Z`).
    - `M5.C` / `P3.B` is closed green (`m5c_p3b_required_outputs_20260224T191554Z`) after oracle materialization remediation.
    - `M5.D` / `P3.C` is closed green (`m5d_p3c_stream_view_contract_20260224T192457Z`).
-    - `M5.E` / `P3.D` is closed green (`m5e_p3_gate_rollup_20260225T005034Z`) with verdict `ADVANCE_TO_P4`.
-   - next actionable execution lane is `M5.F` (`P4`).
+   - `M5.E` / `P3.D` is closed green (`m5e_p3_gate_rollup_20260225T005034Z`) with verdict `ADVANCE_TO_P4`.
+   - `M5.F` / `P4.A` is closed green (`m5f_p4a_ingress_boundary_health_20260225T010044Z`) after IG handle repin remediation.
+   - next actionable execution lane is `M5.G` (`P4.B`).

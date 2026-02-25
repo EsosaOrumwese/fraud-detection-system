@@ -6719,6 +6719,81 @@ elease_metadata_receipt, provenance_consistency_checks) using CI outputs + AWS E
 1. `M5.E` / `P3.D` is closed green.
 2. `P4` execution lanes (`M5.F+`) are now unblocked.
 
+## Entry: 2026-02-25 00:48:53 +00:00 - Pre-implementation planning for M5.F / P4.A
+
+### Trigger
+1. User requested planning + execution of `P4.A`.
+
+### Decision completeness check
+1. Upstream dependency is satisfied:
+   - `P3` is closed with verdict `ADVANCE_TO_P4` (`m5e_p3_gate_rollup_20260225T005034Z`).
+2. Required P4.A handles are pinned:
+   - `IG_BASE_URL`,
+   - `IG_INGEST_PATH`,
+   - `IG_HEALTHCHECK_PATH`,
+   - `IG_AUTH_HEADER_NAME`,
+   - `SSM_IG_API_KEY_PATH`,
+   - `S3_EVIDENCE_BUCKET`,
+   - `S3_RUN_CONTROL_ROOT_PATTERN`.
+
+### Execution approach selected
+1. Resolve endpoint and auth handles from registry.
+2. Retrieve IG API key from SSM and use configured auth header.
+3. Probe ops health endpoint and ingest preflight endpoint.
+4. Validate minimal response contract:
+   - ops: `status`, `service`, `mode`,
+   - ingest: `admitted`, `ingress_mode`.
+5. Emit + publish:
+   - `m5f_ingress_boundary_health_snapshot.json`,
+   - `m5f_blocker_register.json`,
+   - `m5f_execution_summary.json`.
+
+### Drift guard
+1. Use registry paths exactly (`/ops/health`, `/ingest/push`) to avoid path-doubling regressions observed in earlier API-edge probes.
+
+## Entry: 2026-02-25 01:00:35 +00:00 - P4.A blocker root-cause and handle repin
+
+### Failure diagnosis
+1. Initial `P4.A` run (`m5f_p4a_ingress_boundary_health_20260225T005845Z`) failed with:
+   - DNS/endpoint resolution error on both probes:
+     - `<urlopen error [Errno 11001] getaddrinfo failed>`.
+2. Root cause:
+   - pinned IG API handles were stale:
+     - `APIGW_IG_API_ID=l3f3x3zr2l` no longer exists,
+     - `IG_BASE_URL` pointed to deleted API edge.
+3. Live runtime probe:
+   - `aws apigatewayv2 get-apis` returned active IG API:
+     - `fraud-platform-dev-full-ig-edge`,
+     - `ApiId=5p7yslq6rc`.
+
+### Remediation decision
+1. Repin handle registry to live runtime truth:
+   - `APIGW_IG_API_ID=5p7yslq6rc`,
+   - `IG_BASE_URL=https://5p7yslq6rc.execute-api.eu-west-2.amazonaws.com/v1`.
+2. Rerun `P4.A` after repin without changing probe contract.
+
+## Entry: 2026-02-25 01:01:10 +00:00 - M5.F / P4.A closure (green)
+
+### Authoritative run
+1. Execution id:
+   - `m5f_p4a_ingress_boundary_health_20260225T010044Z`
+2. Local summary:
+   - `runs/dev_substrate/dev_full/m5/m5f_p4a_ingress_boundary_health_20260225T010044Z/m5f_execution_summary.json`
+3. Outcome:
+   - `overall_pass=true`
+   - blockers: `[]`
+   - ops status code: `200`
+   - ingest status code: `202`
+
+### Durable evidence
+1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5f_p4a_ingress_boundary_health_20260225T010044Z/m5f_ingress_boundary_health_snapshot.json`
+2. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5f_p4a_ingress_boundary_health_20260225T010044Z/m5f_blocker_register.json`
+3. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m5f_p4a_ingress_boundary_health_20260225T010044Z/m5f_execution_summary.json`
+
+### Closure decision
+1. `M5.F` / `P4.A` is closed green.
+2. Next actionable lane is `M5.G` / `P4.B` (boundary auth enforcement).
+
 ## Entry: 2026-02-24 19:12:26 +00:00 - P3.B blocker remediation plan (source-approved copy lane)
 
 ### Problem
