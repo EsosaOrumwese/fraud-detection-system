@@ -561,62 +561,35 @@ def _parquet_writer_compression(parquet_compression: str) -> Optional[str]:
     return parquet_compression
 
 
+def _write_session_summary_buckets(
+    session_summary: pl.DataFrame,
+    bucket_root: Path,
+    bucket_count: int,
+    part_stem: str,
+    parquet_compression: str,
+) -> None:
+    if session_summary.height == 0:
+        return
+    bucketed = session_summary.with_columns(
+        (((pl.col("session_id") % bucket_count) + bucket_count) % bucket_count)
+        .cast(pl.Int32)
+        .alias("bucket_id")
+    )
+    for bucket_key, bucket_df in bucketed.group_by("bucket_id", maintain_order=False):
+        bucket_value = bucket_key[0] if isinstance(bucket_key, tuple) else bucket_key
+        bucket_dir = bucket_root / f"bucket={int(bucket_value):04d}"
+        bucket_dir.mkdir(parents=True, exist_ok=True)
+        bucket_path = bucket_dir / f"{part_stem}.parquet"
+        bucket_df.drop("bucket_id").write_parquet(bucket_path, compression=parquet_compression)
+
+
 def _consolidate_session_index_bucketed(
-    session_tmp_dir: Path,
     bucket_root: Path,
     session_tmp: Path,
     empty_session_index: pl.DataFrame,
-    bucket_count: int,
     parquet_compression: str,
     logger,
 ) -> tuple[int, Optional[dict]]:
-    part_paths = sorted(session_tmp_dir.glob("part-*.parquet"))
-    if not part_paths:
-        empty_session_index.write_parquet(session_tmp, compression=parquet_compression)
-        return 0, None
-
-    if bucket_root.exists():
-        shutil.rmtree(bucket_root)
-    bucket_root.mkdir(parents=True, exist_ok=True)
-
-    logger.info(
-        "S1: session_index bucketization start parts=%s buckets=%s compression=%s",
-        len(part_paths),
-        bucket_count,
-        parquet_compression,
-    )
-    bucket_start = time.monotonic()
-    bucket_last = bucket_start
-    for idx, part_path in enumerate(part_paths, start=1):
-        part_df = pl.read_parquet(part_path)
-        if part_df.height > 0:
-            part_df = part_df.with_columns(
-                (((pl.col("session_id") % bucket_count) + bucket_count) % bucket_count)
-                .cast(pl.Int32)
-                .alias("bucket_id")
-            )
-            for bucket_key, bucket_df in part_df.group_by("bucket_id", maintain_order=False):
-                bucket_value = bucket_key[0] if isinstance(bucket_key, tuple) else bucket_key
-                bucket_dir = bucket_root / f"bucket={int(bucket_value):04d}"
-                bucket_dir.mkdir(parents=True, exist_ok=True)
-                bucket_path = bucket_dir / f"{part_path.stem}.parquet"
-                bucket_df.drop("bucket_id").write_parquet(bucket_path, compression=parquet_compression)
-
-        now = time.monotonic()
-        if idx == len(part_paths) or (now - bucket_last) >= 5.0:
-            elapsed = now - bucket_start
-            rate = idx / elapsed if elapsed > 0 else 0.0
-            eta = (len(part_paths) - idx) / rate if rate > 0 else 0.0
-            logger.info(
-                "S1: session_index bucketization parts_processed=%s/%s (elapsed=%.2fs, rate=%.2f parts/s, eta=%.2fs)",
-                idx,
-                len(part_paths),
-                elapsed,
-                rate,
-                eta,
-            )
-            bucket_last = now
-
     bucket_dirs = sorted(bucket_root.glob("bucket=*"))
     if not bucket_dirs:
         empty_session_index.write_parquet(session_tmp, compression=parquet_compression)
@@ -1024,48 +997,56 @@ def run_s1(
     ip_links = ip_links.drop_nulls(["device_id", "ip_id", "party_id"])
 
     device_links = device_links.join(ip_links.select("device_id").unique(), on="device_id", how="inner")
-    device_links = device_links.sort(["party_id", "device_id"]).with_columns(
-        (pl.col("device_id").cum_count().over("party_id") - 1).alias("device_index"),
-        pl.len().over("party_id").alias("device_count"),
+    account_instrument_counts = account_instruments.group_by("account_id").agg(
+        pl.len().alias("instrument_count")
+    )
+    account_base = account_base.join(account_instrument_counts, on="account_id", how="inner")
+
+    party_account_vectors = (
+        account_base.select(["owner_party_id", "account_id"])
+        .sort(["owner_party_id", "account_id"])
+        .group_by("owner_party_id")
+        .agg(
+            pl.col("account_id").alias("account_ids"),
+            pl.len().alias("account_count"),
+        )
+        .rename({"owner_party_id": "party_id"})
+    )
+    account_instrument_vectors = (
+        account_instruments.select(["account_id", "instrument_id"])
+        .sort(["account_id", "instrument_id"])
+        .group_by("account_id")
+        .agg(
+            pl.col("instrument_id").alias("instrument_ids"),
+            pl.len().alias("instrument_count"),
+        )
+    )
+    party_device_vectors = (
+        device_links.select(["party_id", "device_id"])
+        .sort(["party_id", "device_id"])
+        .group_by("party_id")
+        .agg(
+            pl.col("device_id").alias("device_ids"),
+            pl.len().alias("device_count"),
+        )
+    )
+    device_ip_vectors = (
+        ip_links.select(["device_id", "ip_id"])
+        .sort(["device_id", "ip_id"])
+        .group_by("device_id")
+        .agg(
+            pl.col("ip_id").alias("ip_ids"),
+            pl.len().alias("ip_count"),
+        )
     )
 
-    account_instruments = account_instruments.sort(["account_id", "instrument_id"]).with_columns(
-        (pl.col("instrument_id").cum_count().over("account_id") - 1).alias("instrument_index"),
-        pl.len().over("account_id").alias("instrument_count"),
+    party_candidates = party_account_vectors.select(["party_id", "account_count"]).join(
+        party_device_vectors.select(["party_id", "device_count"]),
+        on="party_id",
+        how="inner",
     )
-
-    instrument_counts = account_instruments.select(["account_id", "instrument_count"]).unique()
-    account_base = account_base.join(instrument_counts, on="account_id", how="inner")
-    account_base = account_base.sort(["owner_party_id", "account_id"]).with_columns(
-        (pl.col("account_id").cum_count().over("owner_party_id") - 1).alias("account_index"),
-        pl.len().over("owner_party_id").alias("account_count"),
-    )
-
-    ip_links = ip_links.sort(["device_id", "ip_id"]).with_columns(
-        (pl.col("ip_id").cum_count().over("device_id") - 1).alias("ip_index"),
-        pl.len().over("device_id").alias("ip_count"),
-    )
-
-    party_accounts = account_base.select(["owner_party_id", "account_count"]).unique().rename(
-        {"owner_party_id": "party_id"}
-    )
-    party_devices = device_links.select(["party_id", "device_count"]).unique()
-    party_candidates = party_accounts.join(party_devices, on="party_id", how="inner")
     party_candidates = party_candidates.join(party_base.select(["party_id"]).unique(), on="party_id", how="inner")
     party_candidates = party_candidates.sort("party_id").with_row_count("party_index")
-
-    account_counts = account_base.select(["owner_party_id", "account_count"]).unique().rename(
-        {"owner_party_id": "party_id"}
-    )
-    account_index_df = account_base.select(["owner_party_id", "account_index", "account_id"]).rename(
-        {"owner_party_id": "party_id"}
-    )
-    instrument_counts = account_instruments.select(["account_id", "instrument_count"]).unique()
-    instrument_index_df = account_instruments.select(["account_id", "instrument_index", "instrument_id"])
-    device_counts = device_links.select(["party_id", "device_count"]).unique()
-    device_index_df = device_links.select(["party_id", "device_index", "device_id"])
-    ip_counts = ip_links.select(["device_id", "ip_count"]).unique()
-    ip_index_df = ip_links.select(["device_id", "ip_index", "ip_id"])
 
     party_count = party_candidates.height
     if party_count == 0:
@@ -1178,13 +1159,15 @@ def run_s1(
         tmp_root = run_paths.tmp_root
         tmp_root.mkdir(parents=True, exist_ok=True)
         arrival_tmp_dir = tmp_root / f"s1_arrival_entities_6B_{scenario_id}"
-        session_tmp_dir = tmp_root / f"s1_session_index_6B_{scenario_id}_summaries"
+        session_tmp = tmp_root / f"s1_session_index_6B_{scenario_id}.parquet"
+        bucket_root = tmp_root / f"s1_session_index_6B_{scenario_id}_buckets"
         arrival_tmp_dir.mkdir(parents=True, exist_ok=True)
-        session_tmp_dir.mkdir(parents=True, exist_ok=True)
+        if bucket_root.exists():
+            shutil.rmtree(bucket_root)
+        bucket_root.mkdir(parents=True, exist_ok=True)
         for existing in arrival_tmp_dir.glob("part-*.parquet"):
             existing.unlink()
-        for existing in session_tmp_dir.glob("part-*.parquet"):
-            existing.unlink()
+        session_tmp.unlink(missing_ok=True)
 
         empty_arrival_entities = pl.DataFrame(
             schema={
@@ -1226,7 +1209,7 @@ def run_s1(
             )
             arrival_part = arrival_tmp_dir / "part-00000.parquet"
             empty_arrival_entities.write_parquet(arrival_part, compression=parquet_compression)
-            session_index = empty_session_index
+            empty_session_index.write_parquet(session_tmp, compression=parquet_compression)
         else:
             total_rows = _count_parquet_rows(arrivals_files)
             logger.info(
@@ -1331,7 +1314,11 @@ def run_s1(
                         manifest_fingerprint,
                     )
 
-                arrivals = arrivals.join(account_counts, on="party_id", how="left")
+                arrivals = arrivals.join(
+                    party_account_vectors.select(["party_id", "account_ids", "account_count"]),
+                    on="party_id",
+                    how="left",
+                )
                 if arrivals.get_column("account_count").null_count() > 0:
                     _abort(
                         "S1_ENTITY_REFERENCE_INVALID",
@@ -1358,7 +1345,9 @@ def run_s1(
                     .cast(pl.Int64)
                     .alias("account_index")
                 )
-                arrivals = arrivals.join(account_index_df, on=["party_id", "account_index"], how="left")
+                arrivals = arrivals.with_columns(
+                    pl.col("account_ids").list.get(pl.col("account_index")).cast(pl.Int64).alias("account_id")
+                ).drop(["account_ids", "account_index"])
                 if arrivals.get_column("account_id").null_count() > 0:
                     _abort(
                         "S1_ENTITY_REFERENCE_INVALID",
@@ -1367,8 +1356,11 @@ def run_s1(
                         {"scenario_id": scenario_id},
                         manifest_fingerprint,
                     )
-
-                arrivals = arrivals.join(instrument_counts, on="account_id", how="left")
+                arrivals = arrivals.join(
+                    account_instrument_vectors.select(["account_id", "instrument_ids", "instrument_count"]),
+                    on="account_id",
+                    how="left",
+                )
                 if arrivals.get_column("instrument_count").null_count() > 0:
                     _abort(
                         "S1_ENTITY_REFERENCE_INVALID",
@@ -1395,7 +1387,9 @@ def run_s1(
                     .cast(pl.Int64)
                     .alias("instrument_index")
                 )
-                arrivals = arrivals.join(instrument_index_df, on=["account_id", "instrument_index"], how="left")
+                arrivals = arrivals.with_columns(
+                    pl.col("instrument_ids").list.get(pl.col("instrument_index")).cast(pl.Int64).alias("instrument_id")
+                ).drop(["instrument_ids", "instrument_index"])
                 if arrivals.get_column("instrument_id").null_count() > 0:
                     _abort(
                         "S1_ENTITY_REFERENCE_INVALID",
@@ -1404,8 +1398,11 @@ def run_s1(
                         {"scenario_id": scenario_id},
                         manifest_fingerprint,
                     )
-
-                arrivals = arrivals.join(device_counts, on="party_id", how="left")
+                arrivals = arrivals.join(
+                    party_device_vectors.select(["party_id", "device_ids", "device_count"]),
+                    on="party_id",
+                    how="left",
+                )
                 if arrivals.get_column("device_count").null_count() > 0:
                     _abort(
                         "S1_ENTITY_REFERENCE_INVALID",
@@ -1432,7 +1429,9 @@ def run_s1(
                     .cast(pl.Int64)
                     .alias("device_index")
                 )
-                arrivals = arrivals.join(device_index_df, on=["party_id", "device_index"], how="left")
+                arrivals = arrivals.with_columns(
+                    pl.col("device_ids").list.get(pl.col("device_index")).cast(pl.Int64).alias("device_id")
+                ).drop(["device_ids", "device_index"])
                 if arrivals.get_column("device_id").null_count() > 0:
                     _abort(
                         "S1_ENTITY_REFERENCE_INVALID",
@@ -1441,8 +1440,11 @@ def run_s1(
                         {"scenario_id": scenario_id},
                         manifest_fingerprint,
                     )
-
-                arrivals = arrivals.join(ip_counts, on="device_id", how="left")
+                arrivals = arrivals.join(
+                    device_ip_vectors.select(["device_id", "ip_ids", "ip_count"]),
+                    on="device_id",
+                    how="left",
+                )
                 if arrivals.get_column("ip_count").null_count() > 0:
                     _abort(
                         "S1_ENTITY_REFERENCE_INVALID",
@@ -1469,7 +1471,9 @@ def run_s1(
                     .cast(pl.Int64)
                     .alias("ip_index")
                 )
-                arrivals = arrivals.join(ip_index_df, on=["device_id", "ip_index"], how="left")
+                arrivals = arrivals.with_columns(
+                    pl.col("ip_ids").list.get(pl.col("ip_index")).cast(pl.Int64).alias("ip_id")
+                ).drop(["ip_ids", "ip_index"])
                 if arrivals.get_column("ip_id").null_count() > 0:
                     _abort(
                         "S1_ENTITY_REFERENCE_INVALID",
@@ -1554,8 +1558,13 @@ def run_s1(
                     pl.first("instrument_id").alias("instrument_id"),
                     pl.first("merchant_id").alias("merchant_id"),
                 )
-                session_part = session_tmp_dir / f"part-{part_index:05d}.parquet"
-                session_summary.write_parquet(session_part, compression=parquet_compression)
+                _write_session_summary_buckets(
+                    session_summary=session_summary,
+                    bucket_root=bucket_root,
+                    bucket_count=bucket_count,
+                    part_stem=f"part-{part_index:05d}",
+                    parquet_compression=parquet_compression,
+                )
 
                 part_index += 1
                 progress.update(batch_count)
@@ -1563,7 +1572,6 @@ def run_s1(
             if part_index == 0:
                 arrival_part = arrival_tmp_dir / "part-00000.parquet"
                 empty_arrival_entities.write_parquet(arrival_part, compression=parquet_compression)
-                session_tmp = tmp_root / f"s1_session_index_6B_{scenario_id}.parquet"
                 empty_session_index.write_parquet(session_tmp, compression=parquet_compression)
                 session_index_height = 0
                 session_index_sample = None
@@ -1578,29 +1586,25 @@ def run_s1(
                         {"scenario_id": scenario_id},
                     )
 
-                session_tmp = tmp_root / f"s1_session_index_6B_{scenario_id}.parquet"
-                bucket_root = tmp_root / f"s1_session_index_6B_{scenario_id}_buckets"
                 try:
                     session_index_height, session_index_sample = _consolidate_session_index_bucketed(
-                        session_tmp_dir,
                         bucket_root,
                         session_tmp,
                         empty_session_index,
-                        bucket_count,
                         parquet_compression,
                         logger,
                     )
                 except Exception as exc:
                     logger.exception(
-                        "S1: session_index consolidation failed (scenario_id=%s, buckets=%s)",
+                        "S1: session_index consolidation failed (scenario_id=%s, bucket_root=%s)",
                         scenario_id,
-                        bucket_count,
+                        bucket_root,
                     )
                     _abort(
                         "6B.S1.SESSION_INDEX_FAILED",
                         "V-01",
                         "session_index_consolidation_failed",
-                        {"scenario_id": scenario_id, "bucket_count": bucket_count, "error": str(exc)},
+                        {"scenario_id": scenario_id, "bucket_root": str(bucket_root), "error": str(exc)},
                         manifest_fingerprint,
                     )
 

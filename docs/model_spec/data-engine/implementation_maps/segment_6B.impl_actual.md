@@ -1093,3 +1093,600 @@ Actions taken:
 Expected outcome:
 - Latest receipt selection stable under mtime changes.
 - JSON outputs are less likely to be left partial on crash.
+
+---
+
+### Entry: 2026-02-25 06:19
+
+6B runtime hotspot analysis from full-chain authority run (`run_id=c25a2675fbfbacd952b13bb594880e92`) and code-path review before any new remediation edits.
+
+Authority evidence read:
+- runtime log:
+  - `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/run_log_c25a2675fbfbacd952b13bb594880e92.log`
+- code lanes:
+  - `packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py`
+  - `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline_flow/runner.py`
+  - `packages/engine/src/engine/layers/l3/seg_6B/s3_fraud_overlay/runner.py`
+  - `packages/engine/src/engine/layers/l3/seg_6B/s4_truth_bank_labels/runner.py`
+
+Measured runtime profile (from log):
+- `S1=1333.75s` (`~55.2%` of 6B runtime).
+- `S2=142.45s`.
+- `S3=371.67s` (`~15.4%`).
+- `S4=563.20s` (`~23.3%`).
+- `S5=5.20s`.
+- 6B total (`S0..S5`) is dominated by `S1 + S4` (`~78.5%`).
+
+Measured scale surface (from c25 outputs):
+- arrivals/flows: `124,724,153`.
+- events: `249,448,306`.
+- cases: `75,728,141` with `s4_case_timeline_6B rows=287,408,588`.
+- session index rows: `124,647,685`.
+
+Measured storage/part-shape posture:
+- high small-file pressure on event/label lanes:
+  - `s3_event_stream_with_fraud_6B`: `1090` files, avg `3.68 MB`.
+  - `s4_event_labels_6B`: `1090` files, avg `1.73 MB`.
+  - `s4_flow_truth_labels_6B`: `591` files, avg `1.61 MB`.
+  - `s4_flow_bank_view_6B`: `591` files, avg `1.67 MB`.
+- this confirms write amplification and metadata overhead, especially in S3/S4.
+
+Root bottlenecks identified:
+1) `S1` attachment join chain + session consolidation:
+- attachment loop performs repeated joins per arrival batch (party/account/instrument/device/ip candidate expansions).
+- session index uses a two-pass bucketization flow:
+  - first pass re-reads all temp summary parts and rewrites bucket shards,
+  - second pass re-reads bucket shards and aggregates.
+- log evidence for consolidation alone:
+  - bucketization `~239s`,
+  - bucket aggregation `~125s`,
+  - combined `~364s` overhead inside `S1`.
+
+2) `S4` duplicated label computation over both flow and event planes:
+- flow loop computes truth/bank/case state over `124M` rows.
+- event loop recomputes near-identical truth/bank logic over `249M` rows.
+- case timeline generation emits very large row volume (`287M`) with per-batch multi-frame concat/write.
+
+3) `S3/S4` part-emission strategy writes one output part per input batch fragment:
+- causes many small parts and high filesystem/parquet metadata churn.
+
+Pre-implementation optimization decision (best-impact sequence):
+- `POPT.1 (S1 first, highest impact)`:
+  - replace repeated join-driven attachment path with pre-indexed vector gather path (party->account->instrument and party->device->ip).
+  - remove S1 two-pass session bucketization; aggregate session index in single pass using deterministic bucket writers/mergers.
+  - target: cut `S1` by at least `40-55%` in first lane.
+- `POPT.2 (S4 second)`:
+  - compute flow-level truth/bank once; derive event labels from flow-level labels using deterministic key carry-through instead of full policy recomputation per event row.
+  - refactor case timeline emission to a lower-copy build path (reduce repeated concat/filter materializations).
+  - target: cut `S4` by at least `30-45%` in first lane.
+- `POPT.3 (cross-state writer lane)`:
+  - introduce bounded buffered part writers with target part-size/row-group policy to reduce tiny files and write amplification.
+  - apply to S3/S4 event/label surfaces first.
+  - target: `>=50%` reduction in output part counts for those datasets with no schema/idempotence drift.
+
+Hard invariants for this optimization lane:
+- no contract/schema changes to dataset surfaces.
+- deterministic replay preserved for fixed `(run_id, seed, manifest_fingerprint, parameter_hash)`.
+- no statistical-policy weakening for remediation thresholds.
+- no parallelism requirement; single-process fast baseline remains primary design goal.
+
+---
+
+### Entry: 2026-02-25 06:28
+
+6B build-plan architecture pinned for optimization-first remediation closure (`PASS_B` then `PASS_BPLUS`).
+
+Decision:
+- Create dedicated plan file:
+  - `docs/model_spec/data-engine/implementation_maps/segment_6B.build_plan.md`.
+- Use a two-stack phase model:
+  - `POPT` stack (runtime-first closure),
+  - remediation stack (`P0 -> P5`) aligned to remediation report Wave A/B/C.
+
+Why this structure:
+- Segment 6B currently has severe dual failure modes:
+  - statistical realism collapse (`T1-T22` critical/high fails from authority report),
+  - major runtime inefficiency (S1/S4 dominant hotspots from c25 authority run).
+- A single remediation stack without explicit `POPT` would violate performance-first law and create impractical iteration cycles.
+
+Pinned phase ownership:
+- `POPT.1`: `S1` join/session redesign.
+- `POPT.2`: `S4` label/timeline compute-path redesign.
+- `POPT.3`: cross-state writer compaction for S3/S4 outputs.
+- `POPT.4`: runtime witness + optimization freeze.
+- `P1`: Wave A.1 (`S4` truth/case + `S5` fail-closed gate hardening).
+- `P2`: Wave A.2 (`S2` timing/amount realism activation).
+- `P3`: Wave B (`S3` campaign depth).
+- `P4`: Wave C (`S1` context/session realism closure).
+- `P5`: integrated certification and freeze.
+
+Run-governance posture pinned in plan:
+- Active run root:
+  - `runs/fix-data-engine/segment_6B/`.
+- `runs/local_full_run-5/` is read-only authority evidence only.
+- keep-set and prune rules are mandatory before expensive reruns.
+- sequential rerun matrix is explicit (`S1` change implies full downstream rerun through `S5`).
+
+Gate posture pinned:
+- hard realism gates (`B`) and stretch (`B+`) are defined from remediation authority (`T1-T22`),
+- runtime budgets and candidate/witness/certification lane budgets are pinned with baseline evidence.
+
+---
+
+### Entry: 2026-02-25 06:35
+
+POPT.0 planning and execution completed for Segment 6B (baseline lock + hotspot decomposition + part-shape evidence + budget pin).
+
+Planning decision (pre-execution):
+- Avoid full rerun for POPT.0 and reuse clean full-chain authority run (`c25...`) as baseline evidence to prevent storage churn and redundant compute.
+- Materialize reproducible POPT.0 artifacts from run-log + data-plane metadata using a dedicated scorer script so later POPT phases can diff against a stable baseline.
+
+Implementation:
+- Added scorer tool:
+  - `tools/score_segment6b_popt0_baseline.py`.
+- Script responsibilities:
+  - parse `run_log_c25...` for `S0..S5` completion elapsed,
+  - emit state elapsed CSV and baseline lock markdown,
+  - compute hotspot ranking and lane decomposition,
+  - compute dataset part-shape (file counts, avg part size, metadata row counts),
+  - emit budget-pin JSON with explicit handoff decision.
+
+Execution command:
+- `python tools/score_segment6b_popt0_baseline.py --runs-root runs/local_full_run-5 --run-id c25a2675fbfbacd952b13bb594880e92 --out-root runs/fix-data-engine/segment_6B/reports`
+
+Authority pin:
+- `runs/fix-data-engine/segment_6B/POPT0_BASELINE_RUN_ID.txt`:
+  - `c25a2675fbfbacd952b13bb594880e92`.
+
+POPT.0 artifacts emitted:
+- `runs/fix-data-engine/segment_6B/reports/segment6b_popt0_baseline_lock_c25a2675fbfbacd952b13bb594880e92.md`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_popt0_state_elapsed_c25a2675fbfbacd952b13bb594880e92.csv`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_popt0_hotspot_map_c25a2675fbfbacd952b13bb594880e92.json`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_popt0_hotspot_map_c25a2675fbfbacd952b13bb594880e92.md`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_popt0_part_shape_c25a2675fbfbacd952b13bb594880e92.json`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_popt0_budget_pin_c25a2675fbfbacd952b13bb594880e92.json`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_popt0_baseline_c25a2675fbfbacd952b13bb594880e92.json`
+
+Observed runtime posture (locked):
+- `S1=1333.75s` (`55.16%` share),
+- `S4=563.20s` (`23.29%` share),
+- `S3=371.67s` (`15.37%` share),
+- total `S0..S5 = 2417.91s` (`00:40:18`), candidate-lane status `RED`.
+
+Observed structural hotspot posture (locked):
+- Session consolidation overhead in `S1` quantified from log:
+  - bucketization `239.11s`,
+  - aggregation `124.97s`,
+  - combined `364.08s`.
+- Small-file pressure locked from part-shape artifact:
+  - `s4_event_labels_6B` (`1090` files, avg `1.73 MB`),
+  - `s3_event_stream_with_fraud_6B` (`1090` files, avg `3.68 MB`),
+  - `s4_flow_truth_labels_6B` (`591` files, avg `1.61 MB`),
+  - `s4_flow_bank_view_6B` (`591` files, avg `1.67 MB`).
+
+POPT.0 decision:
+- `GO_POPT.1` with ordered owner lane:
+  - `S1 -> S4 -> S3 -> S2 -> S5`.
+
+---
+
+### Entry: 2026-02-25 06:39
+
+POPT.1 pre-implementation design pin (S1 hotspot closure lane), captured before any code changes.
+
+Objective:
+- close the dominant `S1` hotspot (`1333.75s`, `55.16%` share) by attacking:
+  1) repeated attachment join chain,
+  2) two-pass session index bucketization + aggregation lane.
+
+Authority evidence used:
+- baseline lock and hotspot artifacts from `POPT.0`:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt0_baseline_c25a2675fbfbacd952b13bb594880e92.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt0_hotspot_map_c25a2675fbfbacd952b13bb594880e92.md`.
+- S1 implementation:
+  - `packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py`.
+
+Alternatives considered (and disposition):
+1) Keep existing join chain and tune only `batch_rows`.
+- Rejected: does not remove structural join overhead, likely insufficient to hit `>=40%` reduction.
+2) Pre-index list-gather lane (selected).
+- Decision: precompute compact per-key candidate vectors and use deterministic `list.get(index)` gathers in-batch.
+- Why: removes multiple heavy joins per batch while preserving deterministic index sampling.
+3) Python dictionary/UDF map lane.
+- Rejected: introduces Python-row overhead and risks non-vectorized slowdown at 100M+ scale.
+
+POPT.1 implementation decisions (pinned):
+- Attachment lane:
+  - replace repeated `counts + index-table` joins with list-gather joins:
+    - party -> account vector,
+    - account -> instrument vector,
+    - party -> device vector,
+    - device -> ip vector.
+  - keep existing hash seeds/domain tags and index formula so attachment determinism stays stable.
+- Session lane:
+  - remove extra temp-summary pass;
+  - write per-batch session summaries directly to deterministic bucket shard dirs;
+  - keep one final bucket aggregation pass to produce `s1_session_index_6B`.
+
+Invariants (must hold):
+- no schema changes for `s1_arrival_entities_6B` / `s1_session_index_6B`.
+- deterministic IDs and RNG trace/audit semantics preserved.
+- sequential rerun policy enforced (`S1 -> S2 -> S3 -> S4 -> S5`) for closure claim.
+- `runs/local_full_run-5/` remains read-only authority.
+
+Planned closure evidence:
+- fresh candidate run in `runs/fix-data-engine/segment_6B/<new_run_id>`,
+- runtime delta artifact vs baseline (`S1` and lane elapsed),
+- deterministic/structural parity checks and explicit phase decision (`UNLOCK_POPT.2_CONTINUE` or `HOLD_POPT.1_REOPEN`).
+
+---
+
+### Entry: 2026-02-25 07:33
+
+POPT.1 implementation and execution completed (S1 redesign + full changed-state witness lane), followed by replay witness capture.
+
+Code implementation completed:
+- `packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py`:
+  - attachment redesign:
+    - replaced repeated `count join -> index join` chain with pre-index list-gather joins:
+      - `party_account_vectors`,
+      - `account_instrument_vectors`,
+      - `party_device_vectors`,
+      - `device_ip_vectors`.
+    - sampling remains hash-driven and index-based; null guard fail-closed checks retained.
+  - session redesign:
+    - removed separate session-summary temp-shard stage and subsequent bucketization pass,
+    - added direct per-batch bucket-shard emission (`_write_session_summary_buckets`),
+    - retained single aggregation pass (`_consolidate_session_index_bucketed`) to final session index output.
+  - I/O cleanup:
+    - explicit `session_tmp` initialization per scenario, including empty-surface path.
+
+New tooling added:
+- `tools/score_segment6b_popt1_closure.py`:
+  - baseline-vs-candidate runtime closure,
+  - S1 and lane delta scoring,
+  - structural parity checks for S1 outputs,
+  - phase decision emission.
+- `tools/score_segment6b_popt1_replay_witness.py`:
+  - candidate vs replay witness comparison for S1 outputs,
+  - byte-level digest checks + semantic parity signature for session index.
+
+Execution runs:
+1) Candidate closure lane (`S0 -> S1 -> S2 -> S3 -> S4 -> S5`):
+- run-id: `51496f8e24244f24a44077c57217b1ab`.
+- staging posture:
+  - run-local junction staging for `data/layer1`, `data/layer2`, and `data/layer3/6A` from authority `c25...`,
+  - external roots set to authority run root + repo root for config resolution.
+- runtime observed:
+  - `S1=787.47s` (baseline `1333.75s`, reduction `40.96%`),
+  - `S2=148.25s`,
+  - `S3=383.98s`,
+  - `S4=581.45s`,
+  - `S5=7.31s`,
+  - lane `S1..S5=1908.46s` (baseline `2416.27s`, lane reduction `21.02%`).
+- closure artifact:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt1_closure_51496f8e24244f24a44077c57217b1ab.json`
+  - decision: `UNLOCK_POPT.2_CONTINUE`.
+
+2) Replay witness lane (`S0 -> S1`):
+- run-id: `4ab118c87b614ee2b1384f17cd8a167b`.
+- `S1=762.19s`.
+- replay witness artifact:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_popt1_replay_witness_51496f8e24244f24a44077c57217b1ab_vs_4ab118c87b614ee2b1384f17cd8a167b.json`
+  - decision: `PASS_REPLAY_SEMANTIC`.
+
+Determinism/structure outcome:
+- `s1_arrival_entities_6B`:
+  - byte-identical candidate vs replay (`591` files).
+- `s1_session_index_6B`:
+  - byte-level digest differs across runs (`1` file each), but semantic signature matches exactly on:
+    - row count,
+    - session-id sums/min/max,
+    - arrival-count sums/min/max,
+    - entity-id aggregate sums.
+- interpretation:
+  - structural and semantic replay invariants hold;
+  - residual byte-level instability is confined to session-index serialization order, not content.
+
+POPT.1 phase decision:
+- `UNLOCK_POPT.2_CONTINUE` accepted.
+- rationale:
+  - target runtime gate met (`<=800s`),
+  - required reduction gate met (`>=40%`),
+  - schema + row-count parity preserved on S1 outputs,
+  - replay witness demonstrates semantic determinism.
+
+---
+
+### Entry: 2026-02-25 07:45
+
+POPT.2 pre-implementation design pin (`S4` label/timeline compute redesign), captured before code edits.
+
+Objective:
+- close the second hotspot (`S4`) by:
+  1) removing duplicated truth/bank recomputation in event lane,
+  2) reducing case timeline materialization overhead in flow lane.
+
+Authority used:
+- POPT.0 baseline runtime lock:
+  - `S4=563.20s` (baseline authority run `c25a2675fbfbacd952b13bb594880e92`).
+- POPT.1 candidate witness:
+  - `S4=581.45s` in run `51496f8e24244f24a44077c57217b1ab`.
+- current S4 implementation:
+  - `packages/engine/src/engine/layers/l3/seg_6B/s4_truth_bank_labels/runner.py`.
+- run-log decomposition shows:
+  - flow lane `~365.86s`,
+  - event lane `~213.03s`,
+  - total `~581s`.
+
+Alternatives considered:
+1) Keep duplicate event truth/bank logic and tune `batch_rows` only.
+- Rejected: does not remove duplicated policy execution and is unlikely to deliver required `>=30%` S4 reduction.
+2) Full in-memory flow-label map (all flow_ids) for event join.
+- Rejected: high memory pressure risk on laptop-constrained environment for 124M+ flows.
+3) Streamed flow-label propagation with bounded memory (selected).
+- Decision:
+  - compute truth/bank once in flow lane (as already required for S4 outputs),
+  - materialize compact flow-label parts once,
+  - feed event labelling by streaming join against compact flow-label chunks (no duplicate policy recomputation).
+
+Case timeline optimization decision:
+- replace repeated per-event-type `filter + select + concat` assembly with vectorized long-form expansion (`explode`) over precomputed timestamp vectors.
+- rationale: lower repeated dataframe materialization/copy while preserving deterministic case sequence semantics.
+
+Hard invariants pinned:
+- no schema/path contract change for:
+  - `s4_flow_truth_labels_6B`,
+  - `s4_flow_bank_view_6B`,
+  - `s4_event_labels_6B`,
+  - `s4_case_timeline_6B`.
+- no policy semantic change for truth/bank outcome formulas (only computation-path dedupe).
+- rerun scope remains `S4 -> S5` on a fresh run-id staged from last-good `S0..S3`.
+- `runs/local_full_run-5/` remains read-only.
+
+Planned closure evidence:
+- fresh candidate run under `runs/fix-data-engine/segment_6B/<new_run_id>`.
+- POPT.2 closure artifacts with:
+  - baseline-vs-candidate S4 elapsed deltas,
+  - lane `S4..S5` elapsed,
+  - required S5 check non-regression summary,
+  - phase decision (`UNLOCK_POPT.3_CONTINUE` or `HOLD_POPT.2_REOPEN`).
+
+---
+
+### Entry: 2026-02-25 08:18
+
+POPT.2 blocker-resolution pin before further edits.
+
+Observed blockers from first POPT.2 execution:
+- Runtime regression: S4 moved to 769.67s (candidate 2425601ca0114630891d91aed8133845) versus baseline 563.20s and POPT.1 witness 581.45s.
+- Validation blocker on staged lane: S5 failed REQ_RNG_BUDGETS because required modules 6B.S1/6B.S2/6B.S3 were missing under the staged run-id path; only 6B.S4 was present after S4 wrote its own trace rows.
+
+Root-cause assessment:
+1) DuckDB event-label join replaced compute with a very large vents x flow_labels join and single-file write, adding ~364s join walltime and forcing extra materialization.
+2) Staged rerun lane reused S0..S3 data without run-id-normalized RNG traces; S5 checks module presence in ng_trace_log at current run-id path.
+
+Decision (selected):
+- Revert S4 event-label lane to prior deterministic in-state computation path (no DuckDB dependency) to eliminate the measured regression and restore known-good behavior envelope.
+- Add a dedicated POPT.2 staging utility that creates a fresh run root and carries forward S0..S3 prerequisites plus normalized RNG logs into the new run-id location for S5 module-presence gates.
+
+Alternatives considered:
+- Keep DuckDB join and tune pragmas/partitioning: rejected for now because first-pass walltime is already materially above budget and likely I/O-bound on this machine.
+- Relax S5 RNG validator for staged lanes: rejected because it weakens a required gate instead of fixing staged evidence completeness.
+
+Invariants for this blocker-resolution lane:
+- No schema/path contract change for 6B datasets.
+- No policy semantic change for truth/bank-view labels.
+- uns/local_full_run-5/ remains read-only authority.
+- POPT.2 evidence must come from fresh run-id(s) under uns/fix-data-engine/segment_6B/.
+
+Execution sequence pinned:
+1) Patch S4 runner to remove DuckDB event-join lane and restore deterministic event-label compute.
+2) Add staging helper for S4->S5 with run-id-normalized RNG carry-forward (S1/S2/S3) before S4 appends S4 rows.
+3) Execute fresh staged candidate (S4 then S5), score with 	ools/score_segment6b_popt2_closure.py, and record phase decision.
+
+---
+
+### Entry: 2026-02-25 08:21
+
+POPT.2 blocker-resolution implementation completed before fresh candidate rerun.
+
+Code changes:
+1) packages/engine/src/engine/layers/l3/seg_6B/s4_truth_bank_labels/runner.py
+- Removed the experimental DuckDB event-label join lane by restoring the deterministic pre-POPT.2 event-label computation path.
+- Resulting posture:
+  - no optional duckdb dependency in S4 runtime path,
+  - event labels computed in-batch from campaign/policy maps as in prior witness,
+  - existing contract/schema semantics preserved.
+
+2) 	ools/stage_segment6b_popt2_lane.py (new)
+- Added a dedicated staged-lane utility for S4->S5 POPT.2 reruns.
+- Stages immutable S0..S3 prerequisites into a fresh run-id via junction/copy.
+- Seeds ng_trace_log under destination run-id with run-id-normalized rows for required upstream modules 6B.S1/6B.S2/6B.S3.
+- Purpose: ensure S5 REQ_RNG_BUDGETS module-presence gate can validate staged reruns without reopening S1-S3 execution.
+
+Validation checks performed:
+- python -m py_compile packages/engine/src/engine/layers/l3/seg_6B/s4_truth_bank_labels/runner.py -> PASS.
+- python -m py_compile tools/stage_segment6b_popt2_lane.py -> PASS.
+
+Next execution step pinned:
+- create fresh staged run-id from last-good source (51496f8e24244f24a44077c57217b1ab),
+- run S4 then S5,
+- score closure with 	ools/score_segment6b_popt2_closure.py.
+
+---
+
+### Entry: 2026-02-25 08:33
+
+POPT.2 staged-lane blocker update after first rerun attempt.
+
+Observed from candidate c32a6b3d20064b37b559902ad5738398:
+- S4 completed at 642.91s (still above baseline/witness budgets).
+- S5 now passes REQ_RNG_BUDGETS (module seeding fix worked).
+- S5 fails REQ_UPSTREAM_HASHGATES because staged run-id lacked upstream validation flag paths (1A..6A) under destination run root.
+
+Corrective decisions implemented:
+1) 	ools/stage_segment6b_popt2_lane.py
+- expanded staged surfaces to include upstream validation directories required by hashgates:
+  - data/layer1/{1A,1B,2A,2B,3A,3B}/validation,
+  - data/layer2/{5A,5B}/validation,
+  - data/layer3/6A/validation.
+2) 	ools/score_segment6b_popt2_closure.py
+- hardened elapsed extraction to support failed-state runs by falling back to latest state log line containing lapsed= when no explicit completed line is present.
+- purpose: always emit closure artifact with explicit HOLD decision instead of crashing on failed S5 completion line absence.
+
+Next step pinned:
+- rerun staging with updated helper, execute S4->S5, then score closure and record decision.
+
+---
+
+### Entry: 2026-02-25 08:45
+
+POPT.2 execution outcome recorded (post blocker fixes).
+
+Execution sequence:
+1) staged lane candidate c32a6b3d20064b37b559902ad5738398 from source 51496f8e24244f24a44077c57217b1ab.
+2) observed S5 hashgate failure due unstaged upstream validation flags; patched staging helper.
+3) staged lane candidate 7f80bd1057dd4e47956d7b94ba03dc09 with updated helper and reran S4 -> S5.
+
+Authority results (7f80bd...):
+- S4 elapsed: 641.33s.
+- S5 elapsed: 8.03s.
+- required checks in S5 report: all PASS (REQ_UPSTREAM_HASHGATES, REQ_RNG_BUDGETS, parity, coverage, PK, monotone, OOB).
+- closure scorer output:
+  - segment6b_popt2_closure_7f80bd1057dd4e47956d7b94ba03dc09.json/.md,
+  - decision HOLD_POPT.2_REOPEN.
+
+Quantified gate outcome:
+- baseline S4=563.20s vs candidate S4=641.33s => reduction -13.87% (regression).
+- runtime gates failed:
+  - hard reduction gate >=30%: FAIL,
+  - target gate <=420s: FAIL,
+  - stretch gate <=500s: FAIL.
+- non-regression gate: PASS.
+
+Interpretation:
+- blocker-remediation for staged S4->S5 correctness is now working (required checks pass).
+- performance objective for POPT.2 remains unresolved; current lane is execution-correct but slower than baseline/witness.
+- POPT.2 stays open; next closure attempt should shift to S4 algorithmic redesign lanes instead of additional staging/debug passes.
+
+---
+
+### Entry: 2026-02-25 08:49
+
+POPT.2 blocker-resolution experiment plan (runtime-only lane before POPT.3).
+
+Current blocker status:
+- correctness gates are now green in latest candidate (7f80bd...), including REQ_UPSTREAM_HASHGATES and REQ_RNG_BUDGETS.
+- unresolved blocker is runtime gate only (S4=641.33s, decision HOLD_POPT.2_REOPEN).
+
+Decision for immediate bounded experiment:
+- run one fresh staged S4->S5 witness with runtime knobs only:
+  - increase S4 batch size (ENGINE_6B_S4_BATCH_ROWS=500000),
+  - reduce write-compression CPU overhead (ENGINE_6B_S4_PARQUET_COMPRESSION=snappy).
+
+Rationale:
+- no schema/path/policy changes,
+- deterministic semantics preserved,
+- fastest way to test whether runtime blocker can be cleared without opening broader redesign scope.
+
+Acceptance criterion for this bounded lane:
+- if closure scorer reaches UNLOCK_POPT.3_CONTINUE, proceed to POPT.3.
+- else keep POPT.2 open and continue blocker-resolution (algorithmic S4 redesign lanes).
+
+---
+
+### Entry: 2026-02-25 09:01
+
+POPT.2 blocker still open after bounded runtime knob lane; moving to code-level write-path optimization.
+
+Observed after bounded run (621ee...):
+- S4 improved to 570.62s from 641.33s,
+- all required S5 checks remain PASS,
+- closure still HOLD_POPT.2_REOPEN because runtime gates remain unmet.
+
+Next decision (selected):
+- optimize S4 write amplification in-code by switching from per-batch many part-*.parquet writes to row-group append writers per output dataset (part-00000.parquet per scenario/output).
+
+Why this lane now:
+- S4 is I/O-heavy (low_truth, low_bank, vent_labels, case_timeline) with many part files.
+- reducing open/close/metadata churn is a direct, low-risk runtime optimization that preserves dataset semantics and schema.
+
+Alternatives considered:
+- open POPT.3 directly: rejected due user instruction to clear POPT.2 blockers first.
+- deeper policy/logic rewrites in S4 before write-path compaction: deferred until this lower-risk gain is measured.
+
+Invariants pinned:
+- no schema changes,
+- same row counts and deterministic content semantics,
+- same path contracts (part-*.parquet pattern still valid with single part-00000.parquet output).
+
+---
+
+### Entry: 2026-02-25 09:17
+
+POPT.2 write-path redesign attempt result and rollback.
+
+Attempted change:
+- switched S4 per-batch parquet writes to row-group append writers (part-00000.parquet) for flow/bank/event/case outputs.
+
+Witness result (run-id 7b8cbd9c59644d3ea17eeb62b41f496a, with atch_rows=500000, compression=snappy):
+- severe runtime regression:
+  - S4=869.47s (vs prior best 570.62s on 621ee...).
+- observed decomposition from log:
+  - flow lane expanded to ~563s (previously ~344s),
+  - event lane expanded to ~304s (previously ~223s).
+
+Decision:
+- reject row-group append writer lane for POPT.2 (regressive on this workload/runtime posture).
+- rollback S4 runner to pre-attempt implementation immediately.
+- retain 621ee... as current best-known POPT.2 runtime witness.
+
+Current blocker posture after rollback:
+- required checks remain green on best witness (621ee...),
+- runtime closure blocker remains open (HOLD_POPT.2_REOPEN) since S4=570.62s still misses target/reduction gates.
+
+---
+
+### Entry: 2026-02-25 09:19
+
+POPT.2 algorithmic lane: case-timeline timestamp computation pruning in S4.
+
+Change implemented:
+- removed eager materialization of all delay timestamps (detect/dispute/chargeback/chargeback_decision) for every case row.
+- now computes these timestamp expressions only on the relevant flagged subsets:
+  - detect events on detect_flag subset,
+  - dispute events on dispute_flag subset,
+  - chargeback + decision events on chargeback_flag subset.
+- CASE_OPENED and CASE_CLOSED timestamps remain computed for full case set.
+
+Reasoning:
+- previous path performed unnecessary datetime arithmetic for many rows that never emitted corresponding event types.
+- this keeps semantics unchanged while cutting avoidable compute in the flow/case lane.
+
+Validation:
+- S4 runner compiles cleanly after patch.
+- next step: fresh staged S4->S5 witness and closure scoring.
+
+---
+
+### Entry: 2026-02-25 09:31
+
+POPT.2 case-timestamp pruning lane outcome and rollback.
+
+Attempted lane:
+- compute detect/dispute/chargeback timestamp expressions only on flagged case subsets.
+
+Witness result ( a997a2d51fb4b0a8def9f89aa2483f2, atch_rows=500000, compression=snappy):
+- regression to S4=685.38s.
+- decomposition from run log:
+  - flow lane ~461.86s,
+  - event lane ~220.78s.
+
+Decision:
+- reject this lane for POPT.2 and rollback S4 runner to pre-attempt implementation.
+- keep 621ee01bdb3428f84f7c7c1afde8812 as current best runtime witness (S4=570.62s, required checks PASS).
+
+Current blocker status:
+- POPT.2 runtime gate still unresolved; phase remains HOLD_POPT.2_REOPEN.
+- do not advance to POPT.3 until blocker posture is explicitly resolved/waived.
