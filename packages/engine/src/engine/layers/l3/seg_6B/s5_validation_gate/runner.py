@@ -723,6 +723,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         current_phase = "checks"
         thresholds = validation_policy.get("thresholds") or {}
         realism = validation_policy.get("realism_corridors") or {}
+        critical_sample_mod = max(1, int(thresholds.get("critical_realism_sample_mod", 128) or 128))
 
         # Check: upstream hashgates (lean presence + status).
         upstream_segments = s0_receipt.get("upstream_segments") or {}
@@ -905,10 +906,12 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                     UPPER(COALESCE(s4.fraud_label, '')) AS fraud_label
                   FROM {s3_scan} s3
                   JOIN {s4_truth_scan} s4 USING(flow_id)
+                  WHERE MOD(ABS(HASH(s4.flow_id)), {critical_sample_mod}) = 0
                 )
                 SELECT
                   AVG(CASE WHEN fraud_label = 'LEGIT' THEN 1.0 ELSE 0.0 END) AS legit_share,
                   AVG(CASE WHEN is_fraud_truth THEN 1.0 ELSE 0.0 END) AS fraud_truth_mean,
+                  COUNT(*) AS sampled_flows,
                   SUM(CASE WHEN campaign_id IS NULL THEN 1 ELSE 0 END) AS no_campaign_total,
                   SUM(
                     CASE
@@ -921,8 +924,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             ).fetchone()
             legit_share = float(truth_row[0] or 0.0)
             fraud_truth_mean = float(truth_row[1] or 0.0)
-            no_campaign_total = int(truth_row[2] or 0)
-            no_campaign_legit = int(truth_row[3] or 0)
+            sampled_flows = int(truth_row[2] or 0)
+            no_campaign_total = int(truth_row[3] or 0)
+            no_campaign_legit = int(truth_row[4] or 0)
             no_campaign_legit_rate = (
                 float(no_campaign_legit) / float(no_campaign_total) if no_campaign_total > 0 else 0.0
             )
@@ -939,6 +943,8 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             critical_truth_result = "PASS" if (t1_ok and t2_ok and t3_ok and t22_ok) else "FAIL"
             critical_truth_metrics = {
                 "sample_scenario": sample_scenario,
+                "sample_mod": critical_sample_mod,
+                "sampled_flows": sampled_flows,
                 "legit_share": legit_share,
                 "fraud_truth_mean": fraud_truth_mean,
                 "truth_rate_range": {"min": truth_threshold_min, "max": truth_threshold_max},
@@ -978,6 +984,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                       try_strptime(ts_utc, '%Y-%m-%dT%H:%M:%SZ')
                     ) AS ts
                   FROM {s4_case_scan}
+                  WHERE MOD(ABS(HASH(case_id)), {critical_sample_mod}) = 0
                 ),
                 g AS (
                   SELECT
@@ -1000,6 +1007,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             critical_case_result = "PASS" if neg_gaps == 0 and cases_with_neg == 0 and gaps_total > 0 else "FAIL"
             critical_case_metrics = {
                 "sample_scenario": sample_scenario,
+                "sample_mod": critical_sample_mod,
                 "gaps_total": gaps_total,
                 "negative_gaps": neg_gaps,
                 "cases_with_gaps": cases_with_gaps,

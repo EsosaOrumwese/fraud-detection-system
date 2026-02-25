@@ -2770,3 +2770,76 @@ Alternatives considered and rejected:
 - Rejected: would not fix implementation defects; realism movement must be implementation-driven.
 3) Full probabilistic delay-model engine rewrite now.
 - Rejected in P1 scope due blast radius; monotonic closure first, richer delay-shape tuning can follow if needed.
+
+---
+
+### Entry: 2026-02-25 18:46
+
+P1.3/P1.4/P1.5/P1.6 execution closure (`S4` truth/bank/timeline + `S5` fail-closed gate hardening).
+
+Execution scope completed:
+- `P1.3` bank-view stratification movement (`T5,T6,T7`).
+- `P1.4` case timeline monotonicity and delay-shape realism closure (`T8,T10`, protect `T9`).
+- `P1.5` S5 critical fail-closed promotion (`T21,T22` governance posture).
+- `P1.6` integrated witness scoring + phase decision lock.
+
+Code edits executed:
+1) `packages/engine/src/engine/layers/l3/seg_6B/s4_truth_bank_labels/runner.py`
+- Added deterministic merchant-conditioned LEGIT false-positive bank-confirm lane:
+  - `_merchant_legit_fp_prob_expr(...)` to create stable per-merchant probability tiers,
+  - amount-sensitive multiplier to avoid flat class-independent response.
+- Added stochastic delay support from policy bounds:
+  - `_load_max_delay_seconds(...)`,
+  - deterministic hash-uniform remap into policy min/max delay windows.
+- Enforced case-event monotonic timeline construction:
+  - `detect <= dispute <= chargeback <= chargeback_decision <= close`.
+- Included `merchant_id` and `amount` in S4 flow batch selection for class/amount-aware decisions without extra broad joins.
+
+2) `packages/engine/src/engine/layers/l3/seg_6B/s5_validation_gate/runner.py`
+- Added required critical checks:
+  - `REQ_CRITICAL_TRUTH_REALISM`,
+  - `REQ_CRITICAL_CASE_TIMELINE`.
+- Added deterministic sampled evaluation for heavy critical checks to keep S5 within runtime rail:
+  - `critical_realism_sample_mod`.
+- Kept required-check semantics fail-closed so `_passed.flag` is blocked whenever critical truth/timeline checks fail.
+
+3) `config/layer3/6B/segment_validation_policy_6B.yaml`
+- Added policy checks + thresholds consumed by S5 critical gate lane:
+  - `critical_realism_sample_mod: 128`,
+  - `critical_truth_fraud_rate_min/max`,
+  - `critical_truth_no_campaign_legit_min`.
+
+Run and runtime evidence:
+- integrated witness run-id: `b5bf984b6819472690bf9a7f50d8c692`.
+- earlier candidate calibrations in same wave:
+  - `57d6538d2a0c46adb128e1f7c3cf7264`,
+  - `e450410c84024a2087a95cf2d9da5038`,
+  - `ee1707f82042424ba895e19d8b4a8899`.
+- measured rails on integrated witness:
+  - `S4=358.62s` (`<=420s` PASS),
+  - `S5=23.09s` (`<=30s` PASS).
+
+Observed gate posture (integrated witness `b5bf...`):
+- PASS: `T1,T3,T4,T8,T9,T10,T22`.
+- FAIL: `T2,T5,T6,T7,T21`.
+- `T21` moved from `0/3` to `1/3`, but still below `>=2/3`.
+
+S5 governance outcome:
+- validation report `overall_status=FAIL` on `b5bf...` due critical truth check fail.
+- required critical timeline check passes.
+- `_passed.flag` intentionally withheld, confirming fail-closed promotion works.
+
+Artifacts emitted:
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p1_integrated_closure_b5bf984b6819472690bf9a7f50d8c692.json`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p1_integrated_closure_b5bf984b6819472690bf9a7f50d8c692.md`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_b5bf984b6819472690bf9a7f50d8c692.json`
+
+Decision:
+- `P1` execution is complete.
+- phase decision locked to `HOLD_P1_REOPEN` because critical P1 blockers remain:
+  - `T2`, `T5`, `T6`, `T7`, `T21`.
+
+Reasoning trail for closure decision:
+- We did not proceed into `S2/S3/S1` adjustments despite residual fails because those are owner lanes for `P2/P3/P4`; crossing owner lanes in P1 would destroy attribution.
+- We accepted `T6` normalization drop from prior outlier (`0.858`) because that prior value behaved as unstable over-amplification; integrated witness stabilized it above P0 baseline while preserving timeline truth closure.
+- We kept fail-closed posture even though it blocks PASS because this is a hard governance requirement: structural validity cannot override critical realism failure.

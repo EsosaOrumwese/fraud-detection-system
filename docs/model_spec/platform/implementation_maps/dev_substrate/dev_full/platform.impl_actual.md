@@ -8991,3 +8991,95 @@ ext_gate=HOLD_REMEDIATE.
 2. M6/P6 planning docs were synchronized immediately after receipt validation to avoid stale-next-action drift.
 3. Next phase entry is M6.H only (P7 ingest-commit), using this M6.G receipt as upstream gate authority.
 
+
+
+## Entry: 2026-02-25 18:31:50 +00:00 - P7 execution strategy lock (M6.H/M6.I lane materialization before run)
+
+### Problem
+1. P7 deep plan exists but there is no managed execution surface (no workflow, no m6h/m6i scripts) in dev_full track.
+2. Current authoritative run scope (platform_20260223T184232Z) has no ingest evidence artifacts under evidence/runs/<platform_run_id>/ingest/ yet.
+3. Current IG edge runtime (apigw_lambda_ddb) persists admissions in DynamoDB but does not emit Kafka topic/partition offsets in stored idempotency records.
+
+### Decision
+1. Implement managed lanes for P7 now:
+   - M6.H script: build and publish receipt/quarantine/offset snapshot + ingest-commit snapshot from authoritative run scope.
+   - M6.I script: roll up P7 gates from M6.G + M6.H, emit verdict + m7_handoff_pack.json.
+   - GitHub Actions workflow to run both lanes remotely (phase_mode=m6h|m6i) with OIDC credentials.
+2. Preserve fail-closed semantics for offset proof:
+   - if Kafka partition offsets are not materially available in this runtime posture, emit explicit blocker M6P7-B4 instead of fabricating topic offsets.
+3. Execute both lanes end-to-end after plan expansion; update plan/impl/log docs from resulting authoritative receipts.
+
+### Alternatives considered
+1. Claim P7 pass from DDB admissions alone: rejected (would silently weaken runbook offset-evidence gate).
+2. Run lanes locally from operator shell: rejected (no-local-compute authority for phase closure).
+3. Defer P7 until future runtime repin: rejected for this request; we can execute now and let blockers state the exact unresolved substrate truth.
+
+### Pre-implementation budget posture
+1. New lanes are control-plane heavy (S3 + DDB + JSON rollup) and do not introduce long-lived runtime compute.
+2. No additional always-on service is introduced; execution remains workflow-ephemeral.
+
+## Entry: 2026-02-25 18:44:10 +00:00 - M6.H executed fail-closed with explicit offset-materialization blocker
+
+### Execution trail
+1. Dispatched remote P7.A lane on migrate-dev:
+   - workflow: .github/workflows/dev_full_m6f_streaming_active.yml
+   - phase_mode=m6h
+   - run id=22410856328.
+2. Execution id: m6h_p7a_ingest_commit_20260225T184352Z.
+3. Artifact set produced and downloaded:
+   - runs/dev_substrate/dev_full/m6/_gh_run_22410856328_v2/m6h-ingest-commit-20260225T184352Z/
+   - receipt_summary.json
+   - quarantine_summary.json
+   - kafka_offsets_snapshot.json
+   - m6h_ingest_commit_snapshot.json
+   - m6h_blocker_register.json
+   - m6h_execution_summary.json.
+
+### Result and blocker
+1. m6h_execution_summary.json:
+   - overall_pass=false
+   - blocker_count=1
+   - next_gate=HOLD_REMEDIATE.
+2. Active blocker:
+   - M6P7-B4: kafka offsets snapshot is not materially populated with topic/partition offsets.
+3. Evidence confirms the current snapshot is proxy-only:
+   - offset_mode=IG_ADMISSION_INDEX_PROXY
+   - kafka_offsets_materialized=false
+   - admit_count=18.
+
+### Decision after M6.H
+1. Do not force-pass P7.A from admission proxy alone.
+2. Carry M6P7-B4 fail-closed into M6.I rollup for explicit upstream propagation.
+
+## Entry: 2026-02-25 18:46:00 +00:00 - M6.I executed fail-closed with propagated P7 blocker
+
+### Execution trail
+1. Dispatched remote P7.B lane on migrate-dev:
+   - workflow: .github/workflows/dev_full_m6f_streaming_active.yml
+   - phase_mode=m6i
+   - run id=22410918552.
+2. Execution id: m6i_p7b_gate_rollup_20260225T184535Z.
+3. Artifact set produced and downloaded:
+   - runs/dev_substrate/dev_full/m6/_gh_run_22410918552_v1/m6i-p7-rollup-20260225T184535Z/
+   - m6i_p7_gate_rollup_matrix.json
+   - m6i_p7_blocker_register.json
+   - m6i_p7_gate_verdict.json
+   - m7_handoff_pack.json
+   - m6i_execution_summary.json.
+
+### Result and gate consequence
+1. m6i_execution_summary.json:
+   - overall_pass=false
+   - blocker_count=1
+   - verdict=HOLD_REMEDIATE
+   - next_gate=HOLD_REMEDIATE.
+2. Blocker register shows propagated upstream blocker:
+   - M6P7-B4.
+3. m7_handoff_pack.json is emitted but:
+   - eligible_for_m7=false
+   - p7_verdict=HOLD_REMEDIATE.
+
+### Next remediation requirement
+1. Materialize topic/partition Kafka offset evidence for this run scope.
+2. Rerun M6.H and then M6.I using fresh upstream ids.
+

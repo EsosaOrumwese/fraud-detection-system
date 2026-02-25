@@ -74,6 +74,24 @@ Execution plan (authoritative lane):
 3. Fail-closed gate:
    - any `M6P7-B*` blocker prevents `M6.I` advancement.
 
+Execution status (2026-02-25):
+1. Remote authoritative execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m6h`
+   - run id: `22410856328`
+   - execution id: `m6h_p7a_ingest_commit_20260225T184352Z`
+2. Result:
+   - `overall_pass=false`
+   - `blocker_count=1`
+   - `next_gate=HOLD_REMEDIATE`
+3. Active blocker:
+   - `M6P7-B4` (`kafka_offsets_snapshot` not materially populated with topic/partition offsets).
+4. Evidence:
+   - workflow artifact set: `m6h-ingest-commit-20260225T184352Z`
+   - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22410856328_v2/m6h-ingest-commit-20260225T184352Z/`
+   - durable run-control prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6h_p7a_ingest_commit_20260225T184352Z/`
+   - durable run-scoped ingest prefix: `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/ingest/`
+
 ### P7.B P7 Gate Rollup + Verdict + M6 Closure Inputs (M6.I)
 Goal:
 1. adjudicate `P7` and produce closure inputs for M6 verdict/handoff.
@@ -104,6 +122,26 @@ Execution plan (authoritative lane):
    - `m6i_execution_summary.json`.
 3. Fail-closed gate:
    - any `M6P7-B*` blocker prevents M6 final closure advancement.
+
+Execution status (2026-02-25):
+1. Remote authoritative execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m6i`
+   - run id: `22410918552`
+   - execution id: `m6i_p7b_gate_rollup_20260225T184535Z`
+2. Result:
+   - `overall_pass=false`
+   - `blocker_count=1`
+   - `verdict=HOLD_REMEDIATE`
+   - `next_gate=HOLD_REMEDIATE`
+3. Active blocker:
+   - `M6P7-B4` propagated from upstream `M6.H` blocker register.
+4. Evidence:
+   - workflow artifact set: `m6i-p7-rollup-20260225T184535Z`
+   - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22410918552_v1/m6i-p7-rollup-20260225T184535Z/`
+   - durable run-control prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6i_p7b_gate_rollup_20260225T184535Z/`
+5. Gate posture:
+   - `P7.B` executed fully but remains fail-closed pending `M6P7-B4` remediation.
 
 ## 4) P7 Verification Catalog
 | Verify ID | Command template | Purpose |

@@ -445,6 +445,20 @@ DoD:
 - [ ] receipt/quarantine/offset evidence is committed and readable.
 - [ ] dedupe/anomaly checks pass.
 
+Execution status (2026-02-25):
+1. Remote authoritative execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m6h`
+   - run id: `22410856328`
+   - execution id: `m6h_p7a_ingest_commit_20260225T184352Z`
+2. Result:
+   - `overall_pass=false`, `blocker_count=1`, `next_gate=HOLD_REMEDIATE`.
+3. Active blocker:
+   - `M6P7-B4` (`kafka_offsets_snapshot` not materially populated).
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m6/_gh_run_22410856328_v2/m6h-ingest-commit-20260225T184352Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6h_p7a_ingest_commit_20260225T184352Z/`.
+
 ### M6.I `P7` Gate Rollup + M6 Verdict + M7 Handoff
 Goal:
 1. adjudicate `P7` and emit M6 phase verdict/handoff.
@@ -457,6 +471,21 @@ Tasks:
 DoD:
 - [ ] `P7` rollup + verdict committed.
 - [ ] `m7_handoff_pack.json` committed locally and durably.
+
+Execution status (2026-02-25):
+1. Remote authoritative execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m6i`
+   - run id: `22410918552`
+   - execution id: `m6i_p7b_gate_rollup_20260225T184535Z`
+2. Result:
+   - `overall_pass=false`, `blocker_count=1`,
+   - `verdict=HOLD_REMEDIATE`, `next_gate=HOLD_REMEDIATE`.
+3. Active blocker:
+   - `M6P7-B4` propagated from upstream `M6.H`.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m6/_gh_run_22410918552_v1/m6i-p7-rollup-20260225T184535Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6i_p7b_gate_rollup_20260225T184535Z/`.
 
 ### M6.J M6 Closure Sync + Cost-Outcome
 Goal:
@@ -565,3 +594,11 @@ Handoff posture:
    - run `22409841923`,
    - execution `m6g_p6c_gate_rollup_20260225T181523Z`,
    - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_P7`, `next_gate=M6.H_READY`.
+12. `M6.H` executed fail-closed:
+   - run `22410856328`,
+   - execution `m6h_p7a_ingest_commit_20260225T184352Z`,
+   - `overall_pass=false`, blocker `M6P7-B4` (`kafka_offsets_snapshot` not materially populated).
+13. `M6.I` executed fail-closed:
+   - run `22410918552`,
+   - execution `m6i_p7b_gate_rollup_20260225T184535Z`,
+   - `overall_pass=false`, `verdict=HOLD_REMEDIATE`, blocker `M6P7-B4` propagated.

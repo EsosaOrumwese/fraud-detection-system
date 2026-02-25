@@ -915,47 +915,86 @@ Goal:
 - recover conditional bank-view sensitivity so bank outcomes are not flat across class/amount.
 
 Definition of done:
-- [ ] bank-view decision path conditioned on restored truth semantics and class/amount-sensitive policy branches.
-- [ ] witness gate movement:
+- [x] bank-view decision path conditioned on restored truth semantics and class/amount-sensitive policy branches.
+- [x] witness gate movement:
   - `T5` Cramer's V rises toward `>=0.05`,
   - `T6` amount effect-size rises toward `>=0.05`,
   - `T7` class spread rises toward `>=0.03`.
-- [ ] `T4` remains non-regressed (campaign rows remain non-LEGIT mapped).
+- [x] `T4` remains non-regressed (campaign rows remain non-LEGIT mapped).
+
+Execution closure:
+- candidate run-id (integrated witness authority): `b5bf984b6819472690bf9a7f50d8c692`.
+- movement vs P1.2 witness (`7725bf4e501341a1a224fccbcb1fb0bc`):
+  - `T5`: `0.000233` -> `0.014575` (up, still below `0.05`),
+  - `T6`: `0.858081` -> `0.016210` (down from P1.2 outlier, but up vs P0 baseline `0.000141`),
+  - `T7`: `0.000011` -> `0.012705` (up, still below `0.03`).
+- non-regression hold:
+  - `T4` remains `100.0000%` (`B PASS`).
 
 #### P1.4 - S4 case timeline realism closure (`T8,T10`, protect `T9`)
 Goal:
 - eliminate non-monotonic/negative case gaps and reduce templated case timing artifacts.
 
 Definition of done:
-- [ ] case timestamp generation enforces monotonicity by `case_event_seq`.
-- [ ] delay execution uses stochastic/policy-shaped draws (not fixed-minimum-only path).
-- [ ] witness gate movement:
+- [x] case timestamp generation enforces monotonicity by `case_event_seq`.
+- [x] delay execution uses stochastic/policy-shaped draws (not fixed-minimum-only path).
+- [x] witness gate movement:
   - `T8` negative-gap rate -> `0`,
   - `T10` non-monotonic case-event rate -> `0`.
-- [ ] `T9` fixed-spike share does not regress versus P0 baseline and trends toward threshold.
+- [x] `T9` fixed-spike share does not regress versus P0 baseline and trends toward threshold.
+
+Execution closure:
+- monotonic timeline lane established in S4 (`detect <= dispute <= chargeback <= decision <= close` with deterministic sampled delays).
+- integrated witness (`b5bf984b6819472690bf9a7f50d8c692`) scored:
+  - `T8`: `12.9673%` (P0) -> `0.0000%` (`B PASS`),
+  - `T10`: `36.2503%` (P0) -> `0.0000%` (`B PASS`),
+  - `T9`: `29.8824%` (P0, PASS) -> `0.0003%` (PASS, improved).
 
 #### P1.5 - S5 critical fail-closed promotion (`T21,T22` governance)
 Goal:
 - prevent structural PASS while critical realism gates fail.
 
 Definition of done:
-- [ ] `S5` validation policy elevates critical realism checks from warn-only to fail-closed for P1 gate set.
-- [ ] `S5` report exposes explicit critical realism check outcomes aligned to scorer gates.
-- [ ] `T21` branch coverage posture is measured against live outputs (not inferred from config presence only).
-- [ ] hashgate `_passed.flag` issuance blocked when any critical P1 gate fails.
+- [x] `S5` validation policy elevates critical realism checks from warn-only to fail-closed for P1 gate set.
+- [x] `S5` report exposes explicit critical realism check outcomes aligned to scorer gates.
+- [x] `T21` branch coverage posture is measured against live outputs (not inferred from config presence only).
+- [x] hashgate `_passed.flag` issuance blocked when any critical P1 gate fails.
+
+Execution closure:
+- new required checks implemented in S5 runner:
+  - `REQ_CRITICAL_TRUTH_REALISM` (`T1/T2/T3/T22` aligned),
+  - `REQ_CRITICAL_CASE_TIMELINE` (`T8/T10` aligned).
+- runtime optimization for new checks:
+  - deterministic sampled evaluation (`critical_realism_sample_mod=128`) to preserve S5 rail.
+- integrated witness (`b5bf984b6819472690bf9a7f50d8c692`):
+  - `S5` bundle elapsed `23.09s` (`<=30s` rail PASS),
+  - `overall_status=FAIL` as intended fail-closed while critical truth gate fails,
+  - `_passed.flag` not emitted.
+- scorer branch posture:
+  - `T21`: `1/3 (0.333333)` (up from `0/3`, still below required `>=2/3`).
 
 #### P1.6 - Integrated P1 witness and decision
 Goal:
 - execute integrated `S4 -> S5` witness and lock phase decision from objective evidence.
 
 Definition of done:
-- [ ] at least one fresh P1 witness run scored against P0 baseline gateboard.
-- [ ] critical gate decision table emitted for:
+- [x] at least one fresh P1 witness run scored against P0 baseline gateboard.
+- [x] critical gate decision table emitted for:
   - `T1,T2,T3,T5,T6,T7,T8,T10,T21,T22`.
-- [ ] phase decision emitted:
+- [x] phase decision emitted:
   - `UNLOCK_P2` only if critical P1 gate set reaches B posture with fail-closed S5 behavior,
   - otherwise `HOLD_P1_REOPEN` with blocker register.
-- [ ] implementation notes + logbook updated with alternatives considered, chosen knobs, and rejected paths.
+- [x] implementation notes + logbook updated with alternatives considered, chosen knobs, and rejected paths.
+
+Execution closure:
+- integrated witness artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p1_integrated_closure_b5bf984b6819472690bf9a7f50d8c692.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p1_integrated_closure_b5bf984b6819472690bf9a7f50d8c692.md`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_b5bf984b6819472690bf9a7f50d8c692.json`.
+- phase decision:
+  - `HOLD_P1_REOPEN`.
+- blocker register (critical P1 gates still failing):
+  - `T2`, `T5`, `T6`, `T7`, `T21`.
 
 ### P2 - Wave A.2 (`S2` amount/timing activation)
 Goal:

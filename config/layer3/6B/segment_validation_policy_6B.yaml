@@ -149,6 +149,7 @@ thresholds:
   time_monotonicity_violation_max: 0
   scenario_oob_timestamp_max: 0
   max_missing_fraction: 0.001
+  critical_realism_sample_mod: 128
   critical_truth_fraud_rate_min: 0.02
   critical_truth_fraud_rate_max: 0.30
   critical_truth_no_campaign_legit_min: 0.99

@@ -1,0 +1,151 @@
+DEV_FULL TERRAFORM INFRASTRUCTURE (STACK TOPOLOGY + KEY RESOURCES)
+==================================================================
+
+Stacks
+------
+1) dev_full/core
+2) dev_full/streaming
+3) dev_full/runtime
+4) dev_full/data_ml
+5) dev_full/ops
+
+State keys
+----------
+- dev_full/core/terraform.tfstate
+- dev_full/streaming/terraform.tfstate
+- dev_full/runtime/terraform.tfstate
+- dev_full/data_ml/terraform.tfstate
+- dev_full/ops/terraform.tfstate
+
+
+FLOW OVERVIEW
+-------------
+[GitHub Actions / Operator CLI]
+  -> apply core
+  -> apply streaming
+  -> apply runtime
+  -> apply data_ml
+  -> apply ops
+
+
+STACK: dev_full/core
+--------------------
+Major resources:
+- Network baseline:
+  - aws_vpc.core
+  - aws_subnet.public/private
+  - aws_route_table + associations
+  - aws_internet_gateway.core
+- Security group:
+  - aws_security_group.msk_clients
+- Encryption:
+  - aws_kms_key.platform
+  - aws_kms_alias.platform
+- Core storage:
+  - aws_s3_bucket.core (object_store, evidence, artifacts)
+  - public access block + versioning + SSE + ownership controls
+- IAM baseline:
+  - aws_iam_role.eks_nodegroup_dev_full
+  - aws_iam_role.eks_runtime_platform_base
+  - policy attachments for node/runtime posture
+
+Role in topology:
+- foundational network, storage, encryption, and baseline IAM handles.
+
+
+STACK: dev_full/streaming
+-------------------------
+Major resources:
+- aws_msk_serverless_cluster.streaming
+- data.aws_msk_bootstrap_brokers.streaming
+- aws_ssm_parameter.msk_bootstrap_brokers
+- aws_glue_registry.streaming
+- aws_glue_schema.anchor_control
+
+Remote-state dependency:
+- reads dev_full/core for network + SG handles.
+
+Role in topology:
+- managed stream substrate and schema-registry baseline.
+
+
+STACK: dev_full/runtime
+-----------------------
+Major resources:
+- IG edge plane:
+  - aws_apigatewayv2_api/integration/routes/stage
+  - aws_lambda_function.ig_handler
+  - aws_dynamodb_table.ig_idempotency
+  - aws_sqs_queue.ig_dlq
+  - aws_ssm_parameter.ig_api_key
+- Orchestration:
+  - aws_sfn_state_machine.platform_run_orchestrator
+- Runtime IAM:
+  - roles/policies for flink, lambda_ig, apigw invoke, ddb rw, step_functions
+- EKS runtime path:
+  - aws_eks_cluster.platform
+  - aws_eks_node_group.m6f_workers
+  - aws_iam_openid_connect_provider.eks
+  - aws_iam_role.eks_irsa + policy
+- No-NAT bootstrap:
+  - aws_vpc_endpoint.runtime_interface
+  - aws_vpc_endpoint.runtime_s3_gateway
+
+Remote-state dependencies:
+- reads dev_full/core
+- reads dev_full/streaming
+
+Role in topology:
+- runtime-critical managed path for ingress + orchestration + selective EKS lanes.
+
+
+STACK: dev_full/data_ml
+-----------------------
+Major resources:
+- IAM roles:
+  - aws_iam_role.sagemaker_execution
+  - aws_iam_role.databricks_cross_account_access
+- SSM parameters:
+  - databricks workspace URL/token
+  - mlflow tracking URI
+  - sagemaker model exec role arn
+
+Role in topology:
+- control-surface materialization for learning/ML integrations.
+
+
+STACK: dev_full/ops
+-------------------
+Major resources:
+- aws_iam_role.mwaa_execution
+- aws_iam_role_policy.mwaa_ssm_read
+- SSM parameters for:
+  - mwaa webserver
+  - aurora endpoint/reader/username/password
+  - redis endpoint
+- aws_cloudwatch_log_group.runtime_bootstrap
+- aws_iam_role_policy.github_actions_m6f_remote
+
+Role in topology:
+- operations/control-surface handles and CI remote policy bridge.
+
+
+CROSS-STACK DEPENDENCY MAP
+--------------------------
+1) core -> streaming
+- streaming consumes core network + security-group handles via remote state.
+
+2) core + streaming -> runtime
+- runtime consumes:
+  - core VPC/subnets/role/storage baseline
+  - streaming MSK/bootstrap/schema handles
+
+3) ops + data_ml -> runtime control surfaces
+- ops/data_ml materialize SSM/role handles consumed by downstream runtime/learning lanes.
+
+
+INFRA TRUTH NOTES
+-----------------
+- This visualization reflects Terraform resources declared in:
+  - dev_full/core|streaming|runtime|data_ml|ops main.tf
+- It is infrastructure topology only, not end-to-end application data semantics.

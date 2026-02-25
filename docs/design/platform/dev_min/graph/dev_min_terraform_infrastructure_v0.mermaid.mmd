@@ -1,0 +1,79 @@
+%%{init: {'securityLevel':'loose','flowchart':{'htmlLabels':true,'curve':'basis'}}}%%
+%% Dev Min Terraform Infrastructure (Icon Label Variant)
+flowchart LR
+
+  GHA["<img src='../../assets/icons/tools/github_actions.svg' width='20'/><br/><b>GitHub Actions / Operator CLI</b><br/>terraform init, plan, apply, destroy"]
+
+  subgraph CORE[Stack: dev_min/core]
+    CORE_ROOT["<img src='../../assets/icons/tools/terraform.svg' width='20'/><br/><b>Root Module</b><br/>module.core"]
+    CORE_S3["<img src='../../assets/icons/aws/s3.svg' width='20'/><br/><b>S3 Buckets</b><br/>object-store, evidence, quarantine, archive, tfstate"]
+    CORE_DDB["<img src='../../assets/icons/aws/dynamodb.svg' width='20'/><br/><b>DynamoDB</b><br/>control_runs, ig_admission_state, ig_publish_state, tf_lock"]
+    CORE_BUDGET["<img src='../../assets/icons/aws/budgets.svg' width='20'/><br/><b>AWS Budget</b><br/>dev_min_monthly + alert thresholds"]
+  end
+
+  subgraph CONFLUENT[Stack: dev_min/confluent]
+    CONF_ROOT["<img src='../../assets/icons/tools/terraform.svg' width='20'/><br/><b>Root Module</b><br/>module.confluent"]
+    CONF_CC["<img src='../../assets/icons/tools/confluent.svg' width='20'/><br/><b>Confluent Cloud</b><br/>env, cluster, topics, service accounts, ACLs, API keys"]
+    CONF_SSM["<img src='../../assets/icons/aws/ssm.svg' width='20'/><br/><b>SSM Parameters</b><br/>bootstrap, api_key, api_secret"]
+    CONF_CATALOG["<img src='../../assets/icons/aws/s3.svg' width='20'/><br/><b>Topic Catalog Artifact</b><br/>aws_s3_object.topic_catalog"]
+  end
+
+  subgraph DEMO[Stack: dev_min/demo]
+    DEMO_ROOT["<img src='../../assets/icons/tools/terraform.svg' width='20'/><br/><b>Root Module</b><br/>module.demo (remote_state optional)"]
+    DEMO_NET["<img src='../../assets/icons/aws/vpc.svg' width='20'/><br/><b>Network</b><br/>VPC, public subnets, route table, IGW, app/db SG"]
+    DEMO_ECS["<img src='../../assets/icons/aws/ecs.svg' width='20'/><br/><b>ECS</b><br/>cluster + daemon services (13 mapped lanes)"]
+    DEMO_TASKS["<img src='../../assets/icons/aws/ecs.svg' width='20'/><br/><b>Task Definitions</b><br/>runtime_probe, db_migrations, daemon, oracle_job, control_job, reporter"]
+    DEMO_BUS["<img src='../../assets/icons/aws/kinesis.svg' width='20'/><br/><b>Event Bus</b><br/>aws_kinesis_stream.ig_event_bus"]
+    DEMO_DB["<img src='../../assets/icons/aws/rds.svg' width='20'/><br/><b>RDS</b><br/>instance + db subnet group"]
+    DEMO_IAM["<img src='../../assets/icons/aws/iam.svg' width='20'/><br/><b>IAM</b><br/>execution role, app role, lane roles + policies"]
+    DEMO_SSM["<img src='../../assets/icons/aws/ssm.svg' width='20'/><br/><b>SSM Parameters</b><br/>confluent creds, db creds/dsn, ig_api_key, heartbeat"]
+    DEMO_ART["<img src='../../assets/icons/aws/s3.svg' width='20'/><br/><b>Artifacts</b><br/>manifest + topic_catalog objects"]
+  end
+
+  subgraph STATE[Terraform State + Handle Dependencies]
+    STATE_CORE["<img src='../../assets/icons/tools/tfstate.svg' width='20'/><br/><b>State Key</b><br/>dev_min/core/terraform.tfstate"]
+    STATE_CONF["<img src='../../assets/icons/tools/tfstate.svg' width='20'/><br/><b>State Key</b><br/>dev_min/confluent/terraform.tfstate"]
+    STATE_DEMO["<img src='../../assets/icons/tools/tfstate.svg' width='20'/><br/><b>State Key</b><br/>dev_min/demo/terraform.tfstate"]
+  end
+
+  GHA -->|apply| CORE_ROOT
+  GHA -->|apply| CONF_ROOT
+  GHA -->|apply| DEMO_ROOT
+
+  CORE_ROOT --> CORE_S3
+  CORE_ROOT --> CORE_DDB
+  CORE_ROOT --> CORE_BUDGET
+
+  CONF_ROOT --> CONF_CC
+  CONF_CC -->|materialize runtime credentials| CONF_SSM
+  CONF_CC -->|publish topic map| CONF_CATALOG
+
+  DEMO_ROOT --> DEMO_NET
+  DEMO_ROOT --> DEMO_ECS
+  DEMO_ROOT --> DEMO_TASKS
+  DEMO_ROOT --> DEMO_BUS
+  DEMO_ROOT --> DEMO_DB
+  DEMO_ROOT --> DEMO_IAM
+  DEMO_ROOT --> DEMO_SSM
+  DEMO_ROOT --> DEMO_ART
+
+  CORE_ROOT -. writes state .-> STATE_CORE
+  CONF_ROOT -. writes state .-> STATE_CONF
+  DEMO_ROOT -. writes state .-> STATE_DEMO
+  STATE_CONF -. remote_state input<br/>confluent_credentials_source=remote_state .-> DEMO_ROOT
+
+  CORE_S3 -. catalog target bucket .-> CONF_CATALOG
+  CORE_S3 -. manifest/catalog target .-> DEMO_ART
+  CORE_S3 -. evidence/object roots consumed by runtime .-> DEMO_TASKS
+
+  CONF_SSM -. shared handle surface .-> DEMO_SSM
+  CONF_SSM -. runtime secret injection .-> DEMO_TASKS
+  DEMO_SSM -. runtime secret injection .-> DEMO_TASKS
+
+  DEMO_ECS -->|runs tasks/services| DEMO_TASKS
+  DEMO_TASKS -->|publish/consume control path| DEMO_BUS
+  DEMO_TASKS -->|app + checkpoint data plane| DEMO_DB
+  DEMO_TASKS -->|object/evidence read-write| CORE_S3
+  DEMO_TASKS -. control/admission surfaces .-> CORE_DDB
+
+  CORE_BUDGET -. cost guardrail feedback .-> GHA

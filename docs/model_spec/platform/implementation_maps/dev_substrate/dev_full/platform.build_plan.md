@@ -667,6 +667,14 @@ M6 planning posture:
   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_P7`, `next_gate=M6.H_READY`,
   - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22409841923/m6g-p6-gate-rollup-20260225T181523Z/`,
   - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T181523Z/`.
+- `M6.H` executed fail-closed (`m6h_p7a_ingest_commit_20260225T184352Z`, run `22410856328`):
+  - `overall_pass=false`, `blocker_count=1`, `next_gate=HOLD_REMEDIATE`,
+  - active blocker: `M6P7-B4` (`kafka_offsets_snapshot` not materially populated with topic/partition offsets),
+  - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22410856328_v2/m6h-ingest-commit-20260225T184352Z/`.
+- `M6.I` executed fail-closed (`m6i_p7b_gate_rollup_20260225T184535Z`, run `22410918552`):
+  - `overall_pass=false`, `blocker_count=1`, `verdict=HOLD_REMEDIATE`, `next_gate=HOLD_REMEDIATE`,
+  - blocker propagation: `M6P7-B4` from upstream `M6.H`,
+  - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22410918552_v1/m6i-p7-rollup-20260225T184535Z/`.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
@@ -842,4 +850,6 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Begin `M6.H` (`P7` ingest-commit closure) using `M6.G` authoritative upstream receipt `m6g_p6c_gate_rollup_20260225T181523Z` (`ADVANCE_TO_P7`).
+- Remediate `M6P7-B4` by materializing topic/partition Kafka offset evidence for `platform_20260223T184232Z`, then rerun:
+  1. `M6.H` (`phase_mode=m6h`) to clear ingest-commit blocker register.
+  2. `M6.I` (`phase_mode=m6i`) using fresh `M6.H` upstream.
