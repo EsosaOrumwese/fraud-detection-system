@@ -2841,3 +2841,156 @@ Decision completeness and rationale:
   - witness closure.
 - Remaining failing gates (`T4/T5/T7/T8/T9/T10`) are outside P1 owner scope and are routed to later phases per plan.
 - Final phase decision: `P1=UNLOCK_P2`.
+
+### Entry: 2026-02-25 03:06
+
+P2 pre-implementation design lock (`S4` IP realism controls) before code edits.
+
+Trigger evidence from P1 witness gateboard (`run_id=347bc917...`):
+- `T4` fail: coverage `0.14816` (target `>=0.25`).
+- `T5` fail: `p99_devices_per_ip=172`, `max_devices_per_ip=6114` (targets `<=120`, `<=600`).
+- `T3` is already pass and must be preserved.
+
+Root cause pin (code + priors):
+1) Device-group mismatch in IP demand path:
+- `S4` computes `group_id` from `device_count_priors_6A` groups for per-device edge demand,
+- but `lambda_ip_per_device_by_group` is authored in `ip_count_priors_6A` with a different group namespace.
+- Result: most device types receive zero/near-zero lambda in practice, suppressing linkage coverage (`T4`).
+
+2) Tail control missing at assignment:
+- IP id assignment is unconstrained uniform selection inside cell ranges.
+- Existing `max_devices_per_ip` prior field is not actively enforced during assignment.
+- Result: shared-IP concentration can exceed realism envelope (`T5`).
+
+3) Missing-region `ip_type_mix` fallback is permissive:
+- code currently falls back to first available region mix when region key is missing.
+- remediation authority requires fail-closed behavior.
+
+Alternatives considered:
+A) Policy-only tuning (mu/lambda edits) without code fixes:
+- rejected as insufficient; does not close deterministic fail-closed/fallback defects and can re-open with seed drift.
+B) Hard cap only in validation (post-hoc reject):
+- rejected; does not prevent malformed generation and wastes full reruns.
+C) Code-level deterministic controls + bounded prior retune:
+- selected as lowest-risk route to close `T4/T5` while preserving `T3`.
+
+Selected P2 implementation strategy:
+1) S4 fail-closed + mapping correctness:
+- remove region-mix permissive fallback; abort on missing region mix.
+- build explicit `device_type -> ip_demand_group` map from `ip_count_priors_6A.device_groups.groups` and use it for IP demand planning and per-device edge counts.
+
+2) Explicit linkage coverage control (deterministic):
+- add a per-region minimum linked-device coverage control (`min_device_ip_coverage`) so sparse-link regimes are prevented.
+- use deterministic forced-link behavior near tail of region loop to guarantee target closure when feasible.
+
+3) Bounded reuse tail control (deterministic):
+- enforce hard `max_devices_per_ip` during edge assignment via bounded deterministic probing/backoff per cell.
+- if assignment cannot place edge under cap, drop edge deterministically and count evidence.
+
+4) Policy alignment updates:
+- lower `ip_count_priors_6A.constraints.max_devices_per_ip` to remediation bound,
+- retune extreme `mu_dev_per_ip` values to avoid over-concentrated shared-IP cells while preserving ip_type share alignment.
+
+5) Validation policy hardening (P2.3):
+- set `linkage_checks.ip_links.max_devices_per_ip=600`.
+- set `role_distribution_checks.ip_roles.max_risky_fraction=0.25`.
+- add explicit `distribution_checks` thresholds for `T3-T5` as fail-closed guidance.
+
+Execution lane after edits:
+- rerun from changed owner state only: `S4 -> S5` on fresh run-id under `runs/fix-data-engine/segment_6A`.
+- rescore with `tools/score_segment6a_p0_baseline.py` and decide `UNLOCK_P3` vs `HOLD_P2`.
+
+### Entry: 2026-02-25 03:12
+
+P2 implementation lane applied (`S4` + policy packs), pre-witness execution.
+
+Code changes in `S4` runner:
+1) Fail-closed missing region `ip_type_mix`:
+- Removed fallback-to-first-region behavior.
+- Missing region mix now aborts with explicit context (`ip_type_mix_missing_region`).
+
+2) Corrected device->IP demand mapping:
+- Added `device_type -> ip_demand_group` mapping from `ip_count_priors_6A.device_groups.groups`.
+- IP edge demand now uses this mapping for both region-level edge targets and per-device `k_ip` generation.
+- Added fail-closed checks for missing/zero lambdas on used device types.
+
+3) Explicit linkage coverage control:
+- Added per-region minimum linked-device control (`min_device_ip_coverage`, sourced from validation policy when present; default `0.25`).
+- Added deterministic forced-link behavior near tail of region emit loop to prevent sparse-link closure failure.
+
+4) Deterministic reuse-tail clamp:
+- Added hard per-IP assignment cap (`max_devices_per_ip`) at link assignment time.
+- Assignment now uses deterministic bounded probing/backoff and deterministic drop when capacity exhausted.
+- Added region telemetry in emit result and run log:
+  - requested/assigned/dropped IP links,
+  - linked-device count and coverage fraction.
+
+5) Runtime policy/prior alignment:
+- `validation_policy_6A.v1.yaml`:
+  - `linkage_checks.ip_links.max_devices_per_ip=600`
+  - `role_distribution_checks.ip_roles.max_risky_fraction=0.25`
+  - added `distribution_checks` for `ip_prior_alignment`, `device_ip_coverage`, `ip_degree_tail`.
+- `ip_count_priors_6A.v1.yaml`:
+  - reduced extreme `mu_dev_per_ip` entries,
+  - set `constraints.max_devices_per_ip=600`,
+  - tightened `realism_targets.mu_dev_per_ip_range_by_ip_type`.
+
+Validation status before run:
+- `python -m py_compile packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py` -> PASS.
+
+Next step pinned:
+- execute fresh P2 candidate lane from owner state (`S4 -> S5`) and re-score `T3-T5`.
+
+### Entry: 2026-02-25 03:18
+
+P2 witness execution and closure decision.
+
+Run-lane chronology:
+1) First staged run `59e8e8c8...` failed at S4 gate due staging path mismatch:
+   - staged `s0_gate_receipt_6A` / `sealed_inputs_6A` directories,
+   - runtime expects `s0_gate_receipt` / `sealed_inputs` dataset paths.
+   - action: discard this lane, restage correctly.
+
+2) Restaged fresh run `e6d311acfbb0440fbb16493cd0fbde23`:
+   - copied `s0_gate_receipt`, `sealed_inputs`, `S1..S3` artefacts,
+   - executed `S4` successfully after one bug-fix rerun.
+
+3) Mid-lane code fix during S4 execution:
+   - initial S4 run on `e6d...` failed with `_fast_u01` arity mismatch inside capped IP assignment probe.
+   - patched deterministic stride seed composition (`stride_key = device_id ^ stride_seed`) and reran S4.
+
+4) S5 dependency closure for scoring surface:
+   - first `S5` attempt failed `merchant_source_missing` because `data/layer1/1A/outlet_catalogue` was not staged.
+   - copied outlet catalogue from the authority lane and reran `S5` to completion.
+
+Scoring evidence:
+- gateboard:
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p0_realism_gateboard_e6d311acfbb0440fbb16493cd0fbde23.json`.
+
+P2-owned gates (`T3-T5`) after remediation:
+- `T3`: `max_abs_error_pp=0.0450` -> PASS (`B` and `B+`).
+- `T4`: `linked_device_fraction=1.0000` -> PASS (`B` and `B+`).
+- `T5`: `p99_devices_per_ip=93`, `max_devices_per_ip=147` -> PASS (`B`), not `B+` on p99.
+
+Upstream lock regression check:
+- `T1` remains PASS (`max_overflow=0`, `total_overflow=0`).
+- `T2` remains PASS (`max_p99_over_kmax=0.0`, `max_max_over_kmax=0.0`).
+
+S4 runtime linkage telemetry (summary line):
+- coverage `1.000000` vs target `0.250000`.
+- `ip_requested=28,279,383`, `ip_assigned=28,279,383`, `ip_dropped_cap=0`.
+- enforced `max_devices_per_ip=600`.
+
+Phase decision:
+- P2 closure criteria met for owner gates and upstream lock checks.
+- Final decision: `P2=UNLOCK_P3`.
+
+### Entry: 2026-02-25 03:19
+
+Post-P2 storage hygiene:
+- pruned superseded failed staging lane:
+  - `runs/fix-data-engine/segment_6A/59e8e8c8c13544eb99be5ee92767608f`.
+- retained closure evidence lanes:
+  - P1 authority `347bc917...`,
+  - P2 closure `e6d311ac...`,
+  - baseline authority `aae194b6...`.

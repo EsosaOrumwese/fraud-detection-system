@@ -257,32 +257,105 @@ Goal:
 
 #### P2.1 - `S4` design lock
 Definition of done:
-- [ ] Missing-region `ip_type_mix` fallback removed; fail-closed behavior pinned.
-- [ ] Per-region IP type quota/assignment strategy pinned.
-- [ ] Tail clamp strategy pinned with deterministic backoff.
+- [x] Missing-region `ip_type_mix` fallback removed; fail-closed behavior pinned.
+- [x] Per-region IP type quota/assignment strategy pinned.
+- [x] Tail clamp strategy pinned with deterministic backoff.
 
 #### P2.2 - `S4` implementation
 Definition of done:
-- [ ] `packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py` updated for:
+- [x] `packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py` updated for:
   - fail-closed missing-mix handling,
   - constrained per-region `ip_type` assignment,
   - explicit linkage coverage control,
   - bounded reuse/tail controls.
-- [ ] New controls are deterministic and reproducible by seed.
+- [x] New controls are deterministic and reproducible by seed.
 
 #### P2.3 - Validation policy hardening (S4-owned checks)
 Definition of done:
-- [ ] `config/layer3/6A/policy/validation_policy_6A.v1.yaml` updated:
+- [x] `config/layer3/6A/policy/validation_policy_6A.v1.yaml` updated:
   - `linkage_checks.ip_links.max_devices_per_ip: 600`
   - `role_distribution_checks.ip_roles.max_risky_fraction: 0.25`
   - new fail-closed checks for `T3-T5` thresholds.
-- [ ] Gate checks integrated as hard fail-closed, not warnings.
+- [x] Gate checks integrated as hard fail-closed, not warnings.
 
 #### P2.4 - Witness and closure
 Definition of done:
-- [ ] `T3-T5` pass at `B` thresholds on candidate lane.
-- [ ] `S2` hard-cap gates remain green.
-- [ ] Decision recorded as `UNLOCK_P3` or `HOLD_P2`.
+- [x] `T3-T5` pass at `B` thresholds on candidate lane.
+- [x] `S2` hard-cap gates remain green.
+- [x] Decision recorded as `UNLOCK_P3` or `HOLD_P2`.
+
+P2 expanded execution breakdown:
+
+##### P2.1A - Device/IP demand mapping lock (pre-code)
+Definition of done:
+- [x] Pin `device_type -> ip_demand_group` mapping authority to `ip_count_priors_6A.device_groups.groups`.
+- [x] Remove reliance on mismatched device-group namespaces for `lambda_ip_per_device_by_group`.
+- [x] Fail-closed on missing mapping for any emitted device type.
+
+##### P2.1B - Missing-region mix fail-closed lock
+Definition of done:
+- [x] Remove permissive `ip_type_mix` fallback to first available region.
+- [x] Abort on missing `region_id` mix with explicit `ip_type_mix_missing_region` error context.
+
+##### P2.2A - Deterministic linkage coverage control
+Definition of done:
+- [x] Implement explicit per-region minimum linked-device coverage control (`min_device_ip_coverage`).
+- [x] Enforce deterministic forced-link behavior when needed near loop tail to prevent sparse-link regimes.
+- [x] Emit telemetry counters for requested/assigned/dropped IP edges and linked-device counts.
+
+##### P2.2B - Deterministic reuse-tail clamp
+Definition of done:
+- [x] Enforce hard `max_devices_per_ip` during IP edge assignment with bounded deterministic backoff/probing.
+- [x] Prevent cap overruns (`devices_per_ip`) by construction; if infeasible, deterministically drop edge and count evidence.
+- [x] Preserve deterministic output for fixed `(manifest_fingerprint, parameter_hash, seed)`.
+
+##### P2.3A - Validation policy hardening
+Definition of done:
+- [x] Update `config/layer3/6A/policy/validation_policy_6A.v1.yaml`:
+  - `linkage_checks.ip_links.max_devices_per_ip: 600`,
+  - `role_distribution_checks.ip_roles.max_risky_fraction: 0.25`,
+  - add explicit fail-closed `distribution_checks` thresholds for `T3-T5`.
+- [x] Policy remains loadable by runtime validation path.
+
+##### P2.3B - S4 prior-tail calibration
+Definition of done:
+- [x] Update `config/layer3/6A/priors/ip_count_priors_6A.v1.yaml` to align tail regime with bounded sharing targets.
+- [x] Keep `pi(ip_type|region)` authority intact so `T3` remains stable while `T4/T5` move.
+- [x] Ensure constraints remain schema-valid.
+
+##### P2.4A - Witness run and scoring
+Definition of done:
+- [x] Fresh candidate run-id created under `runs/fix-data-engine/segment_6A`.
+- [x] Execute rerun chain from changed owner state: `S4 -> S5`.
+- [x] Re-score via `tools/score_segment6a_p0_baseline.py` and capture `T3-T5` movement.
+
+##### P2.4B - Phase decision and handoff
+Definition of done:
+- [x] Record exactly one decision:
+  - `UNLOCK_P3` if `T3-T5` pass at `B` and no blocking regressions,
+  - `HOLD_P2` otherwise.
+- [x] Update build plan, impl notes, and logbook with exact metrics + run-id evidence.
+
+P2 closure evidence (`run_id=e6d311acfbb0440fbb16493cd0fbde23`):
+- execution chain:
+  - `S4` executed on fresh P2 lane, then `S5` rerun for consistency/scoring surfaces.
+- gateboard artifact:
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p0_realism_gateboard_e6d311acfbb0440fbb16493cd0fbde23.json`.
+- P2-owned gate movement (B thresholds):
+  - `T3 max_abs_error_pp=0.0450` (`PASS_B` / `PASS_BPLUS`),
+  - `T4 linked_device_fraction=1.0000` (`PASS_B` / `PASS_BPLUS`),
+  - `T5 p99_devices_per_ip=93`, `max_devices_per_ip=147` (`PASS_B`, `B+` still short on `p99<=80`).
+- preserved upstream lock checks:
+  - `T1` remains `PASS` (`max_overflow=0`, `total_overflow=0`),
+  - `T2` remains `PASS` (`max_p99_over_kmax=0`, `max_max_over_kmax=0`).
+- runtime linkage evidence (S4 summary log):
+  - `linked=7,263,186 / total_devices=7,263,186` (`coverage=1.0`),
+  - `ip_requested=28,279,383`,
+  - `ip_assigned=28,279,383`,
+  - `ip_dropped_cap=0`,
+  - `max_devices_per_ip_enforced=600`.
+- phase decision:
+  - `P2=UNLOCK_P3`.
 
 ### P3 - Delta Set C (`S5`) propagation coupling remediation
 Goal:

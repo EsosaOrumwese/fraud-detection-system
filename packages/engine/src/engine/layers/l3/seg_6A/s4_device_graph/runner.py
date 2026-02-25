@@ -888,6 +888,7 @@ def _emit_region_parts(
     party_country_by_id: dict[int, str],
     device_counts_by_party_type: dict[str, dict[str, int]],
     device_type_to_group: dict[str, str],
+    ip_demand_group_by_device_type: dict[str, str],
     group_to_types: dict[str, list[str]],
     os_mix_by_type: dict[str, list[tuple[str, float]]],
     p_zero_by_group: dict[str, float],
@@ -899,6 +900,8 @@ def _emit_region_parts(
     ip_cell_ranges: dict[tuple[str, str], tuple[int, int]],
     lambda_ip_by_group: dict[str, float],
     max_ips_per_device: int,
+    max_devices_per_ip: int,
+    min_device_ip_coverage: float,
     manifest_fingerprint: str,
     parameter_hash: str,
     seed: int,
@@ -1081,8 +1084,17 @@ def _emit_region_parts(
     estimated_ip_links = 0
     for party_type, type_counts in device_counts_by_party_type.items():
         for device_type, count in type_counts.items():
-            group_id = device_type_to_group.get(device_type, "")
-            estimated_ip_links += int(round(count * float(lambda_ip_by_group.get(group_id) or 0.0)))
+            ip_group_id = ip_demand_group_by_device_type.get(device_type)
+            if not ip_group_id:
+                raise ValueError(f"Missing IP demand group mapping for device_type={device_type}")
+            lambda_group = float(lambda_ip_by_group.get(ip_group_id) or 0.0)
+            if lambda_group <= 0.0:
+                raise ValueError(f"Non-positive lambda_ip_per_device for ip_group={ip_group_id}")
+            estimated_ip_links += int(round(count * lambda_group))
+
+    ip_cap = max(int(max_devices_per_ip), 1)
+    coverage_target = min(max(float(min_device_ip_coverage), 0.0), 1.0)
+    target_linked_devices = int(math.ceil(float(total_devices_region) * coverage_target)) if total_devices_region > 0 else 0
 
     alloc_total = max(
         sum(len(types) for types in group_to_types.values()) * max(len(party_ids_by_type), 1),
@@ -1119,8 +1131,63 @@ def _emit_region_parts(
 
     ip_cells = [((str(ip_type), str(asn)), float(weight)) for ip_type, asn, weight in ip_cell_weights]
     ip_cell_values, ip_cell_cumulative, ip_cell_total = _build_cumulative(ip_cells)
+    ip_cell_loads: dict[tuple[str, str], np.ndarray] = {}
+    for cell_key, cell_range in ip_cell_ranges.items():
+        start_id, end_id = cell_range
+        span = int(end_id) - int(start_id)
+        if span <= 0:
+            continue
+        ip_cell_loads[(str(cell_key[0]), str(cell_key[1]))] = np.zeros(span, dtype=np.int32)
+
+    def _assign_ip_with_cap(
+        cell_key: tuple[str, str],
+        device_id: int,
+        edge_idx: int,
+        used_ip_ids: set[int],
+    ) -> Optional[int]:
+        cell_range = ip_cell_ranges.get(cell_key)
+        cell_load = ip_cell_loads.get(cell_key)
+        if not cell_range or cell_load is None:
+            return None
+        start_id, end_id = cell_range
+        span = int(end_id) - int(start_id)
+        if span <= 0:
+            return None
+        primary = int(_fast_u01(seed_ip_id, device_id, edge_idx) * span)
+        stride_seed = _stable_u64_from_str(f"{cell_key[0]}|{cell_key[1]}")
+        stride_key = int(device_id) ^ int(stride_seed)
+        stride = int(_fast_u01(seed_ip_id, stride_key, edge_idx) * max(span - 1, 1)) + 1
+        if stride % 2 == 0:
+            stride += 1
+        probe_budget = min(span, 64)
+        for attempt in range(probe_budget):
+            offset = (primary + attempt * stride) % span
+            if int(cell_load[offset]) >= ip_cap:
+                continue
+            ip_id = int(start_id) + int(offset)
+            if ip_id in used_ip_ids:
+                continue
+            cell_load[offset] += 1
+            used_ip_ids.add(ip_id)
+            return ip_id
+        if span <= 4096:
+            for offset in range(span):
+                if int(cell_load[offset]) >= ip_cap:
+                    continue
+                ip_id = int(start_id) + int(offset)
+                if ip_id in used_ip_ids:
+                    continue
+                cell_load[offset] += 1
+                used_ip_ids.add(ip_id)
+                return ip_id
+        return None
 
     party_device_totals: dict[int, int] = {}
+    devices_seen = 0
+    linked_devices_region = 0
+    ip_links_requested_region = 0
+    ip_links_assigned_region = 0
+    ip_links_dropped_cap_region = 0
 
     for party_type in sorted(party_ids_by_type.keys()):
         parties = sorted(party_ids_by_type[party_type])
@@ -1131,9 +1198,6 @@ def _emit_region_parts(
             weights: list[float] = []
             p_zero = float(p_zero_by_group.get(group_id) or 0.0)
             sigma = float(sigma_by_group.get(group_id) or 0.0)
-            group_lambda = float(lambda_ip_by_group.get(group_id) or 0.0)
-            base_ip = int(math.floor(group_lambda))
-            frac = max(group_lambda - base_ip, 0.0)
             group_hash = _stable_u64_from_str(group_id)
             for party_id in parties:
                 current = party_device_totals.get(party_id, 0)
@@ -1158,6 +1222,16 @@ def _emit_region_parts(
                 if n_devices <= 0:
                     alloc_tracker.update(1)
                     continue
+                ip_group_id = ip_demand_group_by_device_type.get(device_type)
+                if not ip_group_id:
+                    raise ValueError(f"Missing IP demand group mapping for device_type={device_type}")
+                group_lambda = float(lambda_ip_by_group.get(ip_group_id) or 0.0)
+                if group_lambda <= 0.0:
+                    raise ValueError(
+                        f"Non-positive lambda_ip_per_device for device_type={device_type}, ip_group={ip_group_id}"
+                    )
+                base_ip = int(math.floor(group_lambda))
+                frac = max(group_lambda - base_ip, 0.0)
                 if not eligible_parties:
                     raise ValueError(f"No eligible parties for {region_id}/{party_type}/{device_type}")
                 caps = [max_devices_per_party - party_device_totals.get(pid, 0) for pid in eligible_parties]
@@ -1187,6 +1261,7 @@ def _emit_region_parts(
                     base_device_id = party_id * device_id_stride
                     for idx in range(start_idx + 1, end_idx + 1):
                         device_id = base_device_id + idx
+                        devices_seen += 1
                         os_family = _pick_from_cumulative(
                             os_values,
                             os_cum,
@@ -1226,10 +1301,17 @@ def _emit_region_parts(
                                 k_ip += 1
                         if max_ips_per_device > 0:
                             k_ip = min(k_ip, max_ips_per_device)
+                        remaining_devices = max(total_devices_region - devices_seen, 0)
+                        required_remaining = max(target_linked_devices - linked_devices_region, 0)
+                        if required_remaining > remaining_devices and k_ip <= 0 and ip_cell_values:
+                            k_ip = 1
 
+                        assigned_for_device = 0
+                        used_ip_ids: set[int] = set()
                         for edge_idx in range(k_ip):
                             if not ip_cell_values:
                                 break
+                            ip_links_requested_region += 1
                             cell_key = _pick_from_cumulative(
                                 ip_cell_values,
                                 ip_cell_cumulative,
@@ -1237,12 +1319,10 @@ def _emit_region_parts(
                                 _fast_u01(seed_ip_cell, device_id, edge_idx),
                             )
                             ip_type, asn_class = cell_key
-                            cell_range = ip_cell_ranges.get((ip_type, asn_class))
-                            if not cell_range:
+                            ip_id = _assign_ip_with_cap((ip_type, asn_class), device_id, edge_idx, used_ip_ids)
+                            if ip_id is None:
+                                ip_links_dropped_cap_region += 1
                                 continue
-                            start_id, end_id = cell_range
-                            span = max(end_id - start_id, 1)
-                            ip_id = start_id + int(_fast_u01(seed_ip_id, device_id, edge_idx) * span)
                             ip_links_buffer.append(
                                 (
                                     ip_id,
@@ -1254,7 +1334,44 @@ def _emit_region_parts(
                                     seed_int,
                                 )
                             )
-                        total_ip_links_added += k_ip
+                            assigned_for_device += 1
+                            ip_links_assigned_region += 1
+                        if assigned_for_device <= 0 and ip_cell_values and required_remaining > remaining_devices:
+                            for fallback_idx in range(8):
+                                ip_links_requested_region += 1
+                                cell_key = _pick_from_cumulative(
+                                    ip_cell_values,
+                                    ip_cell_cumulative,
+                                    ip_cell_total,
+                                    _fast_u01(seed_ip_cell, device_id, k_ip + fallback_idx + 1024),
+                                )
+                                ip_type, asn_class = cell_key
+                                ip_id = _assign_ip_with_cap(
+                                    (ip_type, asn_class),
+                                    device_id,
+                                    k_ip + fallback_idx + 1024,
+                                    used_ip_ids,
+                                )
+                                if ip_id is None:
+                                    ip_links_dropped_cap_region += 1
+                                    continue
+                                ip_links_buffer.append(
+                                    (
+                                        ip_id,
+                                        device_id,
+                                        party_id,
+                                        "TYPICAL_DEVICE_IP",
+                                        manifest_fingerprint,
+                                        parameter_hash,
+                                        seed_int,
+                                    )
+                                )
+                                assigned_for_device += 1
+                                ip_links_assigned_region += 1
+                                break
+                        if assigned_for_device > 0:
+                            linked_devices_region += 1
+                        total_ip_links_added += assigned_for_device
                         if len(device_buffer) >= buffer_max_rows or len(device_links_buffer) >= buffer_max_rows:
                             _flush_device_buffers()
                         if len(ip_links_buffer) >= buffer_max_rows:
@@ -1328,6 +1445,12 @@ def _emit_region_parts(
                     "seed",
                 ],
             ).write_parquet(ip_links_part, compression="zstd")
+    linked_fraction = (float(linked_devices_region) / float(total_devices_region)) if total_devices_region > 0 else 0.0
+    if linked_fraction + 1.0e-12 < coverage_target:
+        raise ValueError(
+            f"device_ip_coverage_below_target region={region_id} linked_fraction={linked_fraction:.6f}"
+            f" target={coverage_target:.6f}"
+        )
     timer.info("S4: region emit complete (%s)", region_label)
     return {
         "region_id": region_id,
@@ -1335,6 +1458,11 @@ def _emit_region_parts(
         "device_links_part": str(device_links_part),
         "ip_links_part": str(ip_links_part),
         "total_devices": total_devices_region,
+        "linked_devices": linked_devices_region,
+        "linked_fraction": linked_fraction,
+        "ip_links_requested": ip_links_requested_region,
+        "ip_links_assigned": ip_links_assigned_region,
+        "ip_links_dropped_cap": ip_links_dropped_cap_region,
     }
 
 
@@ -1746,6 +1874,14 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
 
     ip_edge_model = ip_counts.get("ip_edge_demand_model") or {}
     lambda_ip_by_group = ip_edge_model.get("lambda_ip_per_device_by_group") or {}
+    ip_device_groups = (ip_counts.get("device_groups") or {}).get("groups") or []
+    ip_demand_group_by_device_type: dict[str, str] = {}
+    for group in ip_device_groups:
+        group_id = str(group.get("group_id") or "")
+        if not group_id:
+            continue
+        for device_type in group.get("device_types") or []:
+            ip_demand_group_by_device_type[str(device_type)] = group_id
 
     ip_type_mix_model = ip_counts.get("ip_type_mix_model") or {}
     pi_ip_type_by_region = ip_type_mix_model.get("pi_ip_type_by_region") or []
@@ -1784,6 +1920,28 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
     max_ips_per_device = int(ip_constraints.get("max_ips_per_device") or 0)
     if max_ips_per_device <= 0:
         max_ips_per_device = 40
+    max_devices_per_ip = int(ip_constraints.get("max_devices_per_ip") or 0)
+    if max_devices_per_ip <= 0:
+        _abort(
+            "6A.S4.PRIOR_PACK_INVALID",
+            "V-06",
+            "invalid_max_devices_per_ip",
+            {"max_devices_per_ip": max_devices_per_ip},
+            manifest_fingerprint,
+        )
+    min_device_ip_coverage = 0.25
+    try:
+        validation_policy_entry = find_dataset_entry(dictionary_6a, "validation_policy_6A").entry
+        validation_policy_path = _resolve_dataset_path(validation_policy_entry, run_paths, config.external_roots, tokens)
+        if validation_policy_path.exists():
+            validation_policy = _load_yaml(validation_policy_path)
+            distribution_checks = validation_policy.get("distribution_checks") or {}
+            coverage_cfg = distribution_checks.get("device_ip_coverage") or {}
+            coverage_value = coverage_cfg.get("min_fraction")
+            if coverage_value is not None:
+                min_device_ip_coverage = min(max(float(coverage_value), 0.0), 1.0)
+    except Exception:
+        logger.warning("S4: validation_policy_6A coverage target not resolved; using default min_fraction=0.25")
     perf.record_elapsed("load_contracts_inputs", step_started)
 
     step_started = time.monotonic()
@@ -2008,11 +2166,27 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     manifest_fingerprint,
                 )
             device_counts_by_cell[(region_id, party_type, device_type)] = int(count)
-            group_id = device_type_to_group.get(device_type, "")
-            if group_id:
-                device_counts_by_group_region[(region_id, group_id)] = (
-                    device_counts_by_group_region.get((region_id, group_id), 0) + int(count)
+            ip_group_id = ip_demand_group_by_device_type.get(device_type)
+            if not ip_group_id:
+                _abort(
+                    "6A.S4.PRIOR_PACK_INVALID",
+                    "V-06",
+                    "ip_demand_group_missing_for_device_type",
+                    {"device_type": device_type},
+                    manifest_fingerprint,
                 )
+            lambda_group = float(lambda_ip_by_group.get(ip_group_id) or 0.0)
+            if lambda_group <= 0.0:
+                _abort(
+                    "6A.S4.PRIOR_PACK_INVALID",
+                    "V-06",
+                    "lambda_ip_per_device_missing_or_nonpositive",
+                    {"device_type": device_type, "ip_group_id": ip_group_id, "lambda_ip_per_device": lambda_group},
+                    manifest_fingerprint,
+                )
+            device_counts_by_group_region[(region_id, ip_group_id)] = (
+                device_counts_by_group_region.get((region_id, ip_group_id), 0) + int(count)
+            )
         count_tracker.update(1)
 
     total_devices = sum(device_counts_by_cell.values())
@@ -2034,8 +2208,13 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             continue
         ip_type_mix = ip_type_mix_map.get(region_id)
         if not ip_type_mix:
-            ip_type_mix = next(iter(ip_type_mix_map.values()))
-            logger.warning("S4: ip_type mix missing for %s; using fallback", region_id)
+            _abort(
+                "6A.S4.PRIOR_PACK_INVALID",
+                "V-06",
+                "ip_type_mix_missing_region",
+                {"region_id": region_id},
+                manifest_fingerprint,
+            )
         cell_targets: list[tuple[tuple[str, str], float]] = []
         for ip_type, share_type in ip_type_mix:
             if ip_type not in ip_type_ids:
@@ -2322,6 +2501,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         region_party_country_by_id.get(region_id, {}),
                         device_counts_by_region.get(region_id, {}),
                         device_type_to_group,
+                        ip_demand_group_by_device_type,
                         group_to_types,
                         os_mix_by_type,
                         p_zero_by_group,
@@ -2333,6 +2513,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         ip_cell_ranges_by_region.get(region_id, {}),
                         lambda_ip_by_group,
                         max_ips_per_device,
+                        max_devices_per_ip,
+                        min_device_ip_coverage,
                         manifest_fingerprint,
                         parameter_hash,
                         int(seed),
@@ -2355,6 +2537,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     region_party_country_by_id.get(region_id, {}),
                     device_counts_by_region.get(region_id, {}),
                     device_type_to_group,
+                    ip_demand_group_by_device_type,
                     group_to_types,
                     os_mix_by_type,
                     p_zero_by_group,
@@ -2366,6 +2549,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     ip_cell_ranges_by_region.get(region_id, {}),
                     lambda_ip_by_group,
                     max_ips_per_device,
+                    max_devices_per_ip,
+                    min_device_ip_coverage,
                     manifest_fingerprint,
                     parameter_hash,
                     int(seed),
@@ -2378,6 +2563,26 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 )
             )
     perf.record_elapsed("emit_regions", step_started)
+    if results:
+        total_devices_linkage = int(sum(int(result.get("total_devices", 0)) for result in results))
+        linked_devices_linkage = int(sum(int(result.get("linked_devices", 0)) for result in results))
+        linked_fraction_linkage = (
+            float(linked_devices_linkage) / float(total_devices_linkage) if total_devices_linkage > 0 else 0.0
+        )
+        ip_requested = int(sum(int(result.get("ip_links_requested", 0)) for result in results))
+        ip_assigned = int(sum(int(result.get("ip_links_assigned", 0)) for result in results))
+        ip_dropped_cap = int(sum(int(result.get("ip_links_dropped_cap", 0)) for result in results))
+        logger.info(
+            "S4: linkage summary (coverage=%.6f target=%.6f linked=%s total_devices=%s ip_requested=%s ip_assigned=%s ip_dropped_cap=%s max_devices_per_ip=%s)",
+            linked_fraction_linkage,
+            min_device_ip_coverage,
+            linked_devices_linkage,
+            total_devices_linkage,
+            ip_requested,
+            ip_assigned,
+            ip_dropped_cap,
+            max_devices_per_ip,
+        )
 
     step_started = time.monotonic()
     if not results:

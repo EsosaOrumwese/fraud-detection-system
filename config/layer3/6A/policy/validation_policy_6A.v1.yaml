@@ -31,7 +31,7 @@ linkage_checks:
     require_owner_link_present: true
   ip_links:
     max_ips_per_device: 25
-    max_devices_per_ip: 20000
+    max_devices_per_ip: 600
   account_instrument_links:
     max_instruments_per_account: 16
 
@@ -50,7 +50,16 @@ role_distribution_checks:
     max_risky_fraction: 0.25
   ip_roles:
     min_risky_fraction: 0.002
-    max_risky_fraction: 0.99
+    max_risky_fraction: 0.25
+
+distribution_checks:
+  ip_prior_alignment:
+    max_abs_error_pp: 15
+  device_ip_coverage:
+    min_fraction: 0.25
+  ip_degree_tail:
+    p99_max: 120
+    max_max: 600
 
 consistency_checks:
   require_role_vocab_match_taxonomy: true
