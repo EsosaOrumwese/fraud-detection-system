@@ -75,6 +75,9 @@ Execution status (2026-02-25):
    - probe evidence:
      - `runs/dev_substrate/dev_full/m6/m6e_p6_flink_probe_20260225T045252Z/m6e_flink_create_probe.json`
      - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6_flink_probe_20260225T045252Z/m6e_flink_create_probe.json`
+7. Pause posture:
+   - non-bucket cost-bearing stacks were torn down while waiting for AWS verification:
+     - `runs/dev_substrate/dev_full/teardown/teardown_pause_20260225T055919Z/teardown_summary.json`.
 
 ### P6.B Streaming Active + Lag + Ambiguity Closure (M6.F)
 Goal:

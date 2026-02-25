@@ -7655,3 +7655,27 @@ ext_gate=M6.C_READY.
 ### Unblock options
 1. Preferred: complete AWS Account Verification request for Managed Flink (account-level enablement), then materialize pinned apps and rerun `M6.E -> M6.F -> M6.G`.
 2. Alternative (requires explicit authority repin): revise `P6` runtime contract away from Managed Flink for dev_full and adopt another managed stream lane.
+
+## Entry: 2026-02-25 06:05:22 +00:00 - Pause posture applied: cost-bearing dev_full stacks torn down
+
+### Trigger
+1. USER requested pausing work while AWS support resolves Managed Flink account verification and asked to stop/tear down any cost-bearing services (buckets retained).
+
+### Action taken
+1. Executed targeted teardown for non-bucket dev_full stacks in safe order:
+   - `runtime -> streaming -> ops -> data_ml`.
+2. Authoritative teardown run:
+   - `runs/dev_substrate/dev_full/teardown/teardown_pause_20260225T055919Z/teardown_summary.json`.
+3. Deleted residual lambda log groups matching `/aws/lambda/fraud-platform-dev-full*` to reduce storage tail-cost.
+
+### Verified pause state
+1. No active EKS clusters.
+2. No active MSK clusters.
+3. No Managed Flink applications.
+4. No API Gateway v2 APIs for dev_full IG edge.
+5. No dev_full lambda functions, Step Functions state machines, SQS queues, or RTDL/learning runtime services.
+6. No NAT gateways and no in-use EC2 compute/network interfaces tagged for `project=fraud-platform`, `env=dev_full`.
+
+### Intentional retained surfaces
+1. `core` stack retained to preserve bucket surfaces and baseline foundation for fast restart.
+2. Buckets remain intact by user request.
