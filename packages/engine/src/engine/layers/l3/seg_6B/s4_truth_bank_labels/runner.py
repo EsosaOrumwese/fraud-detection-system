@@ -794,37 +794,52 @@ def _choice_expr(choices: list[tuple[str, float]], uniform_expr: pl.Expr) -> pl.
 
 
 def _merchant_legit_fp_prob_expr(merchant_id_col: str = "merchant_id") -> pl.Expr:
-    merchant_bucket = (pl.col(merchant_id_col).cast(pl.UInt64) % pl.lit(10, dtype=pl.UInt64)).cast(pl.Int64)
+    merchant_bucket = (pl.col(merchant_id_col).cast(pl.UInt64) % pl.lit(128, dtype=pl.UInt64)).cast(pl.Int64)
     return (
-        pl.when(merchant_bucket.is_in([0, 1]))
+        pl.when(merchant_bucket < 16)
+        .then(pl.lit(0.0002))
+        .when(merchant_bucket < 48)
         .then(pl.lit(0.002))
-        .when(merchant_bucket.is_in([2, 3]))
-        .then(pl.lit(0.008))
-        .when(merchant_bucket.is_in([4, 5]))
-        .then(pl.lit(0.018))
-        .when(merchant_bucket.is_in([6, 7]))
-        .then(pl.lit(0.040))
-        .otherwise(pl.lit(0.075))
+        .when(merchant_bucket < 96)
+        .then(pl.lit(0.030))
+        .when(merchant_bucket < 120)
+        .then(pl.lit(0.150))
+        .otherwise(pl.lit(0.450))
     )
 
 
 def _overlay_anomaly_prob_expr(merchant_id_col: str = "merchant_id", amount_col: str = "amount") -> pl.Expr:
-    merchant_bucket = (pl.col(merchant_id_col).cast(pl.UInt64) % pl.lit(16, dtype=pl.UInt64)).cast(pl.Int64)
+    merchant_bucket = (pl.col(merchant_id_col).cast(pl.UInt64) % pl.lit(128, dtype=pl.UInt64)).cast(pl.Int64)
     base_prob = (
-        pl.when(merchant_bucket.is_in([0, 1, 2]))
-        .then(pl.lit(0.004))
-        .when(merchant_bucket.is_in([3, 4, 5]))
-        .then(pl.lit(0.010))
-        .when(merchant_bucket.is_in([6, 7, 8, 9]))
-        .then(pl.lit(0.018))
-        .when(merchant_bucket.is_in([10, 11, 12]))
-        .then(pl.lit(0.028))
-        .otherwise(pl.lit(0.040))
+        pl.when(merchant_bucket < 16)
+        .then(pl.lit(0.007))
+        .when(merchant_bucket < 48)
+        .then(pl.lit(0.016))
+        .when(merchant_bucket < 96)
+        .then(pl.lit(0.030))
+        .when(merchant_bucket < 120)
+        .then(pl.lit(0.050))
+        .otherwise(pl.lit(0.090))
     )
-    amount_factor = ((pl.col(amount_col).clip(pl.lit(5.0), pl.lit(3500.0)) / pl.lit(200.0)).sqrt()).clip(
-        pl.lit(0.7), pl.lit(2.8)
+    amount_factor = ((pl.col(amount_col).clip(pl.lit(5.0), pl.lit(5000.0)) / pl.lit(160.0)).sqrt()).clip(
+        pl.lit(0.8), pl.lit(3.0)
     )
-    return (base_prob * amount_factor).clip(pl.lit(0.002), pl.lit(0.12))
+    return (base_prob * amount_factor).clip(pl.lit(0.003), pl.lit(0.20))
+
+
+def _merchant_risk_factor_expr(merchant_id_col: str = "merchant_id") -> pl.Expr:
+    merchant_bucket = (pl.col(merchant_id_col).cast(pl.UInt64) % pl.lit(128, dtype=pl.UInt64)).cast(pl.Int64)
+    return (
+        pl.when(merchant_bucket < 16)
+        .then(pl.lit(0.30))
+        .when(merchant_bucket < 48)
+        .then(pl.lit(0.60))
+        .when(merchant_bucket < 96)
+        .then(pl.lit(1.20))
+        .when(merchant_bucket < 120)
+        .then(pl.lit(2.00))
+        .otherwise(pl.lit(3.50))
+    )
 
 
 def _ts_plus_seconds_expr(ts_expr: pl.Expr, seconds_expr: pl.Expr) -> pl.Expr:
@@ -1542,6 +1557,10 @@ def run_s4(
                 detect_at_auth_prob = _map_enum_expr("truth_subtype", p_detect_at_auth_map, 0.0)
                 dispute_prob = _map_enum_expr("truth_subtype", p_dispute_map, 0.0)
                 chargeback_prob = _map_enum_expr("truth_subtype", p_chargeback_map, 0.0)
+                merchant_risk_factor = _merchant_risk_factor_expr("merchant_id")
+                detect_prob = (detect_prob * merchant_risk_factor).clip(pl.lit(0.0), pl.lit(0.98))
+                dispute_prob = (dispute_prob * merchant_risk_factor).clip(pl.lit(0.0), pl.lit(0.98))
+                chargeback_prob = (chargeback_prob * merchant_risk_factor).clip(pl.lit(0.0), pl.lit(0.98))
 
                 detect_flag = _uniform_expr(seed, 111, modulus, pl.col("flow_id"), pl.lit("detect_flag")) < detect_prob
                 detect_at_auth_flag = detect_flag & (
@@ -1552,10 +1571,10 @@ def run_s4(
                     _uniform_expr(seed, 131, modulus, pl.col("flow_id"), pl.lit("chargeback_flag")) < chargeback_prob
                 )
                 amount_risk_factor = (
-                    (pl.col("amount").clip(pl.lit(1.0), pl.lit(2000.0)) / pl.lit(250.0)).sqrt()
-                ).clip(pl.lit(0.6), pl.lit(3.0))
+                    (pl.col("amount").clip(pl.lit(1.0), pl.lit(5000.0)) / pl.lit(180.0)).sqrt()
+                ).clip(pl.lit(0.5), pl.lit(5.0))
                 legit_fp_prob = (_merchant_legit_fp_prob_expr("merchant_id") * amount_risk_factor).clip(
-                    pl.lit(0.0005), pl.lit(0.20)
+                    pl.lit(0.0002), pl.lit(0.60)
                 )
                 legit_fp_confirm_flag = (
                     (pl.col("truth_label") == "LEGIT")

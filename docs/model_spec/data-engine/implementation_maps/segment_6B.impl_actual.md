@@ -2899,3 +2899,115 @@ Execution plan (P1.R1):
 3) stage fresh run-id from `b5bf...` and execute `segment6b-s4`, then `segment6b-s5`.
 4) score with merchant-class source pinned to authority local-full run.
 5) emit closure artifact + update build plan and logbook with decision.
+
+---
+
+### Entry: 2026-02-25 19:15
+
+P1.R1 tuning decision update after first reopen witness (`9dd913d4e0814b2d9169c140cbbeb726`).
+
+Observed first-reopen movement:
+- `T2`: improved from `0.000059` to `0.013905` but still below `0.02`.
+- `T3`: holds `100%` under non-overlay denominator alignment.
+- `T5/T6/T7`: remain below B (`0.015044 / 0.013744 / 0.011547`).
+- rails hold (`S4=353.52s`, `S5=19.28s` with expected fail-closed status).
+
+Additional diagnostic performed:
+- tested deterministic merchant-id bucket proxies against authority merchant class profile.
+- `merchant_id % 128` showed strong association (Cramer's V ~`0.3768`) versus weaker small-mod buckets.
+- conclusion: `mod128` is the strongest no-join deterministic proxy available in this lane for class-conditioned differentiation.
+
+Decision:
+- reopen S4 one more time with `mod128`-based risk stratification:
+  - increase heuristic overlay activation (bounded) to push `T2` above `0.02`,
+  - shift bank-view LEGIT-FP conditioning from `mod10` to `mod128` risk bands,
+  - preserve deterministic vectorized posture and schema invariants.
+
+Rejected alternatives in this step:
+1) immediate upstream reopen of `S3`.
+- deferred; we still have a viable low-blast deterministic lane in `S4`.
+2) external merchant-class join inside S4.
+- rejected in this lane due staged-run dependency complexity and avoidable IO coupling; kept for higher-blast reopen only if `mod128` lane fails.
+
+---
+
+### Entry: 2026-02-25 19:31
+
+P1.R1 final bounded retune decision (after `b9530bd36fb34431bd7864136945ae74` witness).
+
+Observed posture:
+- `T2=0.019723` (just below `0.02` floor).
+- `T5=0.015041`, `T6=0.016205`, `T7=0.015487` (still below B).
+- diagnostic decomposition:
+  - bucket-level bank-fraud spread (`merchant_id % 128`) is already strong (~`0.081`),
+  - class-level spread remains diluted (~`0.0155`).
+
+Interpretation:
+- class differentiation is present but under-amplified at bank-view decision boundary.
+- we need stronger high/low risk separation in LEGIT-FP and a slight overlay uplift to clear `T2`.
+
+Decision:
+- apply one final bounded increase in:
+  - overlay base probabilities (small uplift) to clear `T2` floor,
+  - LEGIT-FP high-risk bucket probabilities (large uplift) to amplify class-conditioned spread and amount effect-size.
+- keep same deterministic `mod128` proxy and no schema changes.
+- if `T5/T6/T7` still fail after this pass, mark `P1` owner lane as saturated and escalate to higher-blast reopen requiring upstream owner and/or external class surface ingestion.
+
+---
+
+### Entry: 2026-02-25 19:40
+
+P1.R1 post-retune checkpoint (`0b3b37118c97400b8f6c0198a76173fd`) and final T5 closure attempt.
+
+Checkpoint posture:
+- `T2` closed (`0.022420` PASS).
+- `T6` closed (`0.125888` PASS).
+- `T7` closed (`0.036243` PASS).
+- `T5` remains open (`0.025195`, target `>=0.05`).
+- `T21` remains open (`1/3`) with known cross-owner dependency on `S2` (`T11-T16`).
+
+Inference:
+- class-conditioned bank-fraud spread is now sufficient (`T7` PASS), but full bank-outcome association (`T5`) remains underpowered.
+- this points to insufficient class-conditioned differentiation in the *outcome mix* (not only fraud-vs-nonfraud split).
+
+Final bounded action:
+- keep established overlay/LEGIT-FP risk lane.
+- add deterministic merchant-risk scaling into detect/dispute/chargeback probability lanes so outcome category composition (confirmed fraud vs dispute rejected vs chargeback written off vs legit) separates further by class-proxy bands.
+- keep bounded clips and preserve deterministic/vectorized execution.
+
+---
+
+### Entry: 2026-02-25 19:52
+
+P1.R1 final witness execution and closure decision (`e9de4f7c7f514ed1a1dc0d29b08f1d4f`).
+
+Execution completed:
+- resumed interrupted lane and ran `S5` on staged witness `e9de...` after completed `S4` retune.
+- rescored witness with pinned external authorities:
+  - `--merchant-class-glob runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data/layer2/5A/merchant_class_profile/**/*.parquet`
+  - `--arrival-events-glob runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data/layer2/5B/arrival_events/**/*.parquet`.
+
+Observed final P1.R1 posture (vs prior best `0b3b...`):
+- `T2`: `0.022420` -> `0.022420` (holds PASS).
+- `T5`: `0.025195` -> `0.027398` (improves, remains below `0.05`).
+- `T6`: `0.125888` -> `0.120539` (minor drop, still PASS).
+- `T7`: `0.036243` -> `0.039255` (improves, PASS).
+- `T21`: remains `1/3` (`FAIL`, expected cross-owner dependency on `S2` timing/amount branches).
+
+Runtime and validation rails:
+- `S4=377.88s` (`<=420s` PASS).
+- `S5=20.84s` (`<=30s` PASS).
+- `S5` required checks pass; overall report status remains `WARN` due warn-only realism checks.
+
+Decision:
+- mark P1.R1 bounded retune lane as saturated for current low-blast `S4` edits.
+- keep phase at `HOLD_P1_REOPEN` because S4-owned `T5` remains below B threshold.
+- keep `T21` explicitly tagged as cross-owner (`S2/S4/S5`) with primary recovery expected in `P2 (S2)`.
+
+Alternatives considered at closure:
+1) continue unbounded S4 coefficient escalation to force `T5>=0.05`.
+- rejected: high risk of destabilizing already-closed rails (`T2/T6/T7`) and distorting bank-view realism.
+2) open high-blast S4 redesign with external class ingestion now.
+- deferred: viable, but should be explicitly approved as separate lane because it changes dependency posture and blast radius.
+3) proceed directly to `P2` owner lane while preserving current P1 gains.
+- preferred next step if user confirms, since `T21` cannot close without `S2` branch activation.

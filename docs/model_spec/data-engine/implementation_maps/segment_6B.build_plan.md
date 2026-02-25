@@ -1001,14 +1001,32 @@ Goal:
 - close remaining S4-owned realism blockers while preserving closed P1 rails (`T1,T3,T4,T8,T9,T10,T22`) and runtime budget.
 
 Definition of done:
-- [ ] S4 activates bounded heuristic overlay anomaly lane for non-campaign flows (deterministic, policy-shaped, no schema drift).
-- [ ] S4 bank-view lane increases class/amount sensitivity without violating deterministic replay posture.
-- [ ] scorer + S5 critical truth check align `T3` denominator to non-overlay semantics (no-campaign non-overlay rows).
-- [ ] fresh witness run emits movement on `T2/T5/T6/T7` with no regression on closed rails.
-- [ ] runtime rails hold (`S4<=420s`, `S5<=30s`).
-- [ ] phase decision emitted:
+- [x] S4 activates bounded heuristic overlay anomaly lane for non-campaign flows (deterministic, policy-shaped, no schema drift).
+- [x] S4 bank-view lane increases class/amount sensitivity without violating deterministic replay posture.
+- [x] scorer + S5 critical truth check align `T3` denominator to non-overlay semantics (no-campaign non-overlay rows).
+- [x] fresh witness run emits movement on `T2/T5/T6/T7` with no regression on closed rails.
+- [x] runtime rails hold (`S4<=420s`, `S5<=30s`).
+- [x] phase decision emitted:
   - `UNLOCK_P2` if only cross-owner residual blockers remain,
   - else `HOLD_P1_REOPEN` with updated blocker register.
+
+Execution closure:
+- reopen witness sequence:
+  - `9dd913d4e0814b2d9169c140cbbeb726`,
+  - `b9530bd36fb34431bd7864136945ae74`,
+  - `0b3b37118c97400b8f6c0198a76173fd`,
+  - `e9de4f7c7f514ed1a1dc0d29b08f1d4f`.
+- final witness (`e9de...`) scorer posture:
+  - `T2=0.022420` (`PASS`),
+  - `T6=0.120539` (`PASS`),
+  - `T7=0.039255` (`PASS`),
+  - `T5=0.027398` (`FAIL`, target `>=0.05`),
+  - `T21=1/3` (`FAIL`; cross-owner dependency on `S2` timing/amount branches).
+- S4/S5 runtime rails on final witness:
+  - `S4=377.88s` (`<=420s` PASS),
+  - `S5=20.84s` (`<=30s` PASS).
+- phase decision:
+  - `HOLD_P1_REOPEN` (owner blocker remains `T5`; `T21` remains cross-owner).
 
 ### P2 - Wave A.2 (`S2` amount/timing activation)
 Goal:
