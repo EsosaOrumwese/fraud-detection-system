@@ -3365,3 +3365,39 @@ Decision:
   - target rails: `S2<=120s` (`<=150s` stretch), `S3<=380s`, `S4<=420s`, `S5<=30s`
   - observed: `S2=297.92s`, `S3=422.19s`, `S4=481.95s`, `S5=21.05s`.
 - next required lane before `UNLOCK_P3`: P2 runtime reopen on `S2/S3/S4` hotspot budgets without changing closed statistical gates.
+
+---
+
+### Entry: 2026-02-25 21:08
+
+P2 performance-reopen design lock before implementation.
+
+Hotspot diagnosis pinned from `9a609826341e423aa61aed6a1ce5d84d`:
+- `S2` is the largest breach (`297.92s`) and currently does repeated hash materialization for multiple random streams:
+  - `amount_u_kind_i`, `amount_u_point_i`, `amount_u_tail_1_i`, `amount_u_tail_2_i`, `amount_u_tail_3_i`, `latency_u_1_i`, `latency_u_2_i`.
+- each stream incurs extra Polars hash expressions + NumPy extraction; this duplicates work over `124M+` rows.
+- `S3` (`422.19s`) and `S4` (`481.95s`) are near rail and appear throughput bound (batch/io/compression) rather than correctness bound.
+
+Alternatives considered:
+1) high-blast S4 algorithm redesign (truth/case lane split, custom kernels).
+- rejected for this reopen: high risk to closed truth/bank-view rails and larger test surface.
+2) scorer budget waiver.
+- rejected: violates fail-closed performance law.
+3) low-blast throughput + deterministic stream optimization.
+- selected: best cost/benefit with bounded blast radius.
+
+Chosen P2.R implementation lane:
+1) `S2` deterministic splitmix stream derivation.
+- keep existing deterministic `flow_id` hash generation.
+- derive amount/timing uniforms from `flow_id` using vectorized splitmix64 mixing (NumPy), removing 7 extra hash-stream columns.
+- preserve policy semantics and schema outputs.
+
+2) `S3/S4` throughput tuning.
+- raise segment-6B batch defaults to a safe higher batch size.
+- switch segment-6B parquet codec defaults from `zstd` to faster `snappy` for remediation runtime lane.
+- retain contract/schema identity (codec is storage-level; data semantics unchanged).
+
+Guardrails:
+- no changes to gate thresholds or scoring logic.
+- no schema column additions/removals.
+- phase only closes if runtime rails improve and closed realism gates remain PASS.

@@ -9397,3 +9397,75 @@ ext_gate=HOLD_REMEDIATE.
 1. `M7.A` is closed green.
 2. M7 progression is unblocked for `M7.B` planning/execution.
 
+## Entry: 2026-02-25 20:52:00 +00:00 - P8.A execution lock (M7.B lane)
+
+### Problem
+1. M7.A is closed, but `P8.A` entry gate is not yet executed as a standalone authoritative lane.
+2. We need explicit P8 entry closure artifacts before executing `IEG/OFP/ArchiveWriter` component lanes.
+
+### Decision
+1. Execute `P8.A` through managed workflow lane `phase_mode=m7b` inside existing registered workflow (`dev_full_m6f_streaming_active.yml`).
+2. Reuse existing input surface to avoid dispatch-cap regressions:
+   - map `inputs.upstream_m6d_execution` to carry upstream `M7.A` execution id for this lane.
+3. Lane must fail-closed on:
+   - upstream M7.A continuity mismatch,
+   - missing/placeholder required P8 handles,
+   - missing P8 component SLO profile entries.
+
+### Inputs locked for first P8.A execution
+1. `upstream_m7a_execution = m7a_p8p10_handle_closure_20260225T204520Z`
+2. `platform_run_id = platform_20260223T184232Z`
+3. `scenario_run_id = scenario_38753050f3b70c666e16f7552016b330`
+4. `evidence_bucket = fraud-platform-dev-full-evidence`
+
+### Planned artifacts
+1. `p8a_entry_snapshot.json`
+2. `p8a_blocker_register.json`
+3. `p8a_execution_summary.json`
+
+## Entry: 2026-02-25 21:03:00 +00:00 - M7.B (P8.A) executed green on managed lane
+
+### Problem
+1. `P8.A` needed authoritative execution evidence before any component lane (`IEG/OFP/ArchiveWriter`) can start.
+2. Closure had to prove upstream continuity from `M7.A`, full required-handle resolution, runtime-path validity, and SLO-profile continuity.
+
+### Decision
+1. Execute managed lane using existing workflow `.github/workflows/dev_full_m6f_streaming_active.yml` with `phase_mode=m7b`.
+2. Pass upstream `M7.A` execution id via `upstream_m6d_execution` (intentional input-surface reuse) and enforce fail-closed verdict gate (`next_gate=M7.C_READY` only).
+3. Treat any missing/placeholder P8 handles or unreadable upstream artifacts as blockers.
+
+### Authoritative execution
+1. Workflow run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22415762548`
+2. Lane:
+   - `Run M7.P8.A entry precheck remotely (GitHub Actions)`
+3. Execution id:
+   - `m7b_p8a_entry_precheck_20260225T210210Z`
+4. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M7.C_READY`.
+
+### Verified outputs
+1. `p8a_entry_snapshot.json`:
+   - upstream continuity `true`,
+   - runtime path `EKS_EMR_ON_EKS` and included in allowed set,
+   - required handles resolved `12/12`,
+   - missing handles `[]`,
+   - placeholder handles `[]`,
+   - SLO profile continuity `true` for `IEG/OFP/ArchiveWriter`.
+2. `p8a_blocker_register.json`:
+   - blocker count `0`, blockers `[]`, read errors `[]`.
+3. `p8a_execution_summary.json`:
+   - `overall_pass=true`, `next_gate=M7.C_READY`.
+
+### Evidence locations
+1. Local:
+   - `runs/dev_substrate/dev_full/m7/_gh_run_22415762548_artifacts/p8a-entry-precheck-20260225T210210Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7b_p8a_entry_precheck_20260225T210210Z/`.
+
+### Decision outcome
+1. `M7.B` is closed green.
+2. M7 progression is unblocked for `M7.C` (`P8.B` IEG component lane closure).
+

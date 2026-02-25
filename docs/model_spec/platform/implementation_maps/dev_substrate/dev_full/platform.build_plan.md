@@ -736,6 +736,10 @@ Current M7 execution posture:
   - workflow run `22415198816`,
   - execution `m7a_p8p10_handle_closure_20260225T204520Z`,
   - `overall_pass=true`, `blocker_count=0`, `next_gate=M7.B_READY`.
+- `M7.B` is closed green on managed run:
+  - workflow run `22415762548`,
+  - execution `m7b_p8a_entry_precheck_20260225T210210Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=M7.C_READY`.
 
 DoD anchors:
 - [ ] RTDL core closure evidence is green.

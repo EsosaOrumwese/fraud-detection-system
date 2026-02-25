@@ -1167,6 +1167,58 @@ Definition of done:
   - quality closure achieved for `T11,T13,T14,T15,T16,T21` with no P1 regression (`PASS_HARD_ONLY`),
   - fail-closed decision: `HOLD_P2_REOPEN_PERF` due runtime-rail breaches (`S2/S3/S4` above budget); reopen lane remains `P2` owner scope before `UNLOCK_P3`.
 
+#### P2.R - Performance Reopen (`S2/S3/S4` runtime closure)
+Goal:
+- close runtime rails without regressing closed realism gates.
+
+Definition of done:
+- [ ] `S2<=150s` stretch (`<=120s` target) on fresh witness lane.
+- [ ] `S3<=380s` and `S4<=420s` on same witness lane.
+- [ ] `T11,T13,T14,T15,T16,T21` remain PASS and closed rails (`T1-T10,T22`) remain non-regressed.
+- [ ] reopen decision emitted:
+  - `UNLOCK_P3` only if performance + realism both pass,
+  - else `HOLD_P2_REOPEN_PERF` with next bottleneck owner explicitly pinned.
+
+##### P2.R0 - Hotspot pin + bounded strategy lock
+Goal:
+- pin bottlenecks and lock highest-yield low-risk optimization set.
+
+Definition of done:
+- [ ] hotspot evidence pinned from run `9a609826341e423aa61aed6a1ce5d84d`.
+- [ ] chosen lane locked:
+  - `S2`: replace repeated hash-stream columns with deterministic splitmix lane derived from `flow_id`.
+  - `S3/S4`: throughput tuning via larger safe batch size + faster parquet compression for remediation lane.
+- [ ] rejected alternatives logged (high-blast redesign deferred).
+
+##### P2.R1 - `S2` deterministic random-stream vectorization
+Goal:
+- remove avoidable hash/materialization overhead in amount/timing draws.
+
+Definition of done:
+- [ ] `S2` computes one `flow_id` hash per row and derives all uniforms from splitmix vector ops (no extra hash columns).
+- [ ] amount/timing statistical closure preserved (`T11,T13,T14,T15,T16` PASS).
+- [ ] `S2` runtime improves materially vs `297.92s` baseline.
+
+##### P2.R2 - `S3/S4` throughput tuning lane
+Goal:
+- close near-miss runtime rails on overlay/label states with low-risk knobs.
+
+Definition of done:
+- [ ] segment-6B make defaults tuned for remediation lane:
+  - `ENGINE_6B_S3_BATCH_ROWS`, `ENGINE_6B_S4_BATCH_ROWS` raised to safe higher values,
+  - compression moved to faster codec for `S3/S4` witness lane.
+- [ ] `S3` and `S4` runtime reduce vs `422.19s` / `481.95s` baseline without schema drift.
+
+##### P2.R3 - Integrated witness + closure decision
+Goal:
+- validate performance and realism together on fresh staged run.
+
+Definition of done:
+- [ ] fresh run staged from latest authority witness.
+- [ ] full chain executed: `S2 -> S3 -> S4 -> S5`.
+- [ ] scorer receipt generated and compared to `9a609826...` for non-regression.
+- [ ] phase decision written with explicit next owner if still blocked.
+
 ### P3 - Wave B (`S3` campaign depth)
 Goal:
 - deepen campaign realism and improve contextual stratification without breaking Wave A closure.

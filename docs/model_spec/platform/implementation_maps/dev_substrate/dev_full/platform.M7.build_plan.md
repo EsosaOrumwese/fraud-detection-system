@@ -226,8 +226,22 @@ Tasks:
 3. verify archive writer prerequisites and target prefixes.
 
 DoD:
-- [ ] P8 entry precheck passes.
-- [ ] unresolved precheck failures are explicit blockers.
+- [x] P8 entry precheck passes.
+- [x] unresolved precheck failures are explicit blockers.
+
+Execution status (2026-02-25):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7b`
+   - run id: `22415762548`
+   - execution id: `m7b_p8a_entry_precheck_20260225T210210Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M7.C_READY`.
+3. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_gh_run_22415762548_artifacts/p8a-entry-precheck-20260225T210210Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7b_p8a_entry_precheck_20260225T210210Z/`.
 
 ### M7.C P8 IEG Lane Closure
 Goal:
@@ -373,7 +387,7 @@ DoD:
 
 ## 8) M7 Completion Checklist
 - [x] M7.A complete
-- [ ] M7.B complete
+- [x] M7.B complete
 - [ ] M7.C complete
 - [ ] M7.D complete
 - [ ] M7.E complete
@@ -388,4 +402,5 @@ DoD:
 1. M7 deep-plan scaffold created.
 2. P8/P9/P10 deep plans are split and referenced.
 3. `M7.A` is closed green (`m7a_p8p10_handle_closure_20260225T204520Z`).
-4. Next step is `M7.B` (P8 entry + RTDL core precheck).
+4. `M7.B` is closed green (`m7b_p8a_entry_precheck_20260225T210210Z`).
+5. Next step is `M7.C` (P8 IEG component lane closure).

@@ -609,8 +609,21 @@ def _extract_amount_guardrails(amount_model: dict) -> tuple[int, int]:
     return min_minor, max_minor
 
 
-def _hash_index_to_unit_interval(indices: np.ndarray, modulus: int) -> np.ndarray:
-    return (indices.astype(np.float64) + 0.5) / float(modulus)
+def _uint64_to_unit_interval(values: np.ndarray) -> np.ndarray:
+    # Convert uint64 to deterministic [0,1) uniforms using high-quality 53-bit mantissa extraction.
+    mantissa = values.astype(np.uint64, copy=False) >> np.uint64(11)
+    return (mantissa.astype(np.float64) + 0.5) / float(1 << 53)
+
+
+def _splitmix64(values: np.ndarray, stream: int) -> np.ndarray:
+    z = values.astype(np.uint64, copy=False) + np.uint64(stream) + np.uint64(0x9E3779B97F4A7C15)
+    z = (z ^ (z >> np.uint64(30))) * np.uint64(0xBF58476D1CE4E5B9)
+    z = (z ^ (z >> np.uint64(27))) * np.uint64(0x94D049BB133111EB)
+    return z ^ (z >> np.uint64(31))
+
+
+def _flow_id_stream_uniform(flow_ids: np.ndarray, stream: int) -> np.ndarray:
+    return _uint64_to_unit_interval(_splitmix64(flow_ids, stream))
 
 
 def _normal_from_uniforms(u1: np.ndarray, u2: np.ndarray) -> np.ndarray:
@@ -1131,8 +1144,6 @@ def run_s2(
         min_positive_offset_seconds,
     )
 
-    hash_modulus = 1_000_003
-
     processed_scenarios: list[str] = []
     total_flows = 0
     total_events = 0
@@ -1286,118 +1297,13 @@ def run_s2(
                             ],
                             seed=seed,
                         ).alias("flow_id"),
-                        _hash_to_index(
-                            [
-                                pl.lit(manifest_fingerprint),
-                                pl.lit(parameter_hash),
-                                pl.lit(seed),
-                                pl.lit(scenario_id),
-                                pl.col("merchant_id"),
-                                pl.col("arrival_seq"),
-                                pl.lit("AMOUNT_KIND"),
-                            ],
-                            seed=seed + 991,
-                            modulus=hash_modulus,
-                        ).alias("amount_u_kind_i"),
-                        _hash_to_index(
-                            [
-                                pl.lit(manifest_fingerprint),
-                                pl.lit(parameter_hash),
-                                pl.lit(seed),
-                                pl.lit(scenario_id),
-                                pl.col("merchant_id"),
-                                pl.col("arrival_seq"),
-                                pl.lit("AMOUNT_POINT"),
-                            ],
-                            seed=seed + 992,
-                            modulus=hash_modulus,
-                        ).alias("amount_u_point_i"),
-                        _hash_to_index(
-                            [
-                                pl.lit(manifest_fingerprint),
-                                pl.lit(parameter_hash),
-                                pl.lit(seed),
-                                pl.lit(scenario_id),
-                                pl.col("merchant_id"),
-                                pl.col("arrival_seq"),
-                                pl.lit("AMOUNT_TAIL_1"),
-                            ],
-                            seed=seed + 993,
-                            modulus=hash_modulus,
-                        ).alias("amount_u_tail_1_i"),
-                        _hash_to_index(
-                            [
-                                pl.lit(manifest_fingerprint),
-                                pl.lit(parameter_hash),
-                                pl.lit(seed),
-                                pl.lit(scenario_id),
-                                pl.col("merchant_id"),
-                                pl.col("arrival_seq"),
-                                pl.lit("AMOUNT_TAIL_2"),
-                            ],
-                            seed=seed + 994,
-                            modulus=hash_modulus,
-                        ).alias("amount_u_tail_2_i"),
-                        _hash_to_index(
-                            [
-                                pl.lit(manifest_fingerprint),
-                                pl.lit(parameter_hash),
-                                pl.lit(seed),
-                                pl.lit(scenario_id),
-                                pl.col("merchant_id"),
-                                pl.col("arrival_seq"),
-                                pl.lit("AMOUNT_TAIL_3"),
-                            ],
-                            seed=seed + 995,
-                            modulus=hash_modulus,
-                        ).alias("amount_u_tail_3_i"),
-                        _hash_to_index(
-                            [
-                                pl.lit(manifest_fingerprint),
-                                pl.lit(parameter_hash),
-                                pl.lit(seed),
-                                pl.lit(scenario_id),
-                                pl.col("merchant_id"),
-                                pl.col("arrival_seq"),
-                                pl.lit("AUTH_LATENCY_1"),
-                            ],
-                            seed=seed + 996,
-                            modulus=hash_modulus,
-                        ).alias("latency_u_1_i"),
-                        _hash_to_index(
-                            [
-                                pl.lit(manifest_fingerprint),
-                                pl.lit(parameter_hash),
-                                pl.lit(seed),
-                                pl.lit(scenario_id),
-                                pl.col("merchant_id"),
-                                pl.col("arrival_seq"),
-                                pl.lit("AUTH_LATENCY_2"),
-                            ],
-                            seed=seed + 997,
-                            modulus=hash_modulus,
-                        ).alias("latency_u_2_i"),
                     )
-                    amount_u_kind = _hash_index_to_unit_interval(
-                        arrivals.get_column("amount_u_kind_i").to_numpy(),
-                        hash_modulus,
-                    )
-                    amount_u_point = _hash_index_to_unit_interval(
-                        arrivals.get_column("amount_u_point_i").to_numpy(),
-                        hash_modulus,
-                    )
-                    amount_u_tail_1 = _hash_index_to_unit_interval(
-                        arrivals.get_column("amount_u_tail_1_i").to_numpy(),
-                        hash_modulus,
-                    )
-                    amount_u_tail_2 = _hash_index_to_unit_interval(
-                        arrivals.get_column("amount_u_tail_2_i").to_numpy(),
-                        hash_modulus,
-                    )
-                    amount_u_tail_3 = _hash_index_to_unit_interval(
-                        arrivals.get_column("amount_u_tail_3_i").to_numpy(),
-                        hash_modulus,
-                    )
+                    flow_ids_u64 = arrivals.get_column("flow_id").to_numpy().astype(np.uint64, copy=False)
+                    amount_u_kind = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE001)
+                    amount_u_point = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE002)
+                    amount_u_tail_1 = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE003)
+                    amount_u_tail_2 = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE004)
+                    amount_u_tail_3 = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE005)
                     amount_minor = _sample_amount_minor_batch(
                         amount_dist_cfg=amount_dist_cfg,
                         price_points_fallback=price_points,
@@ -1410,14 +1316,8 @@ def run_s2(
                         max_minor=amount_max_minor,
                     )
                     amount_major = amount_minor / 100.0
-                    latency_u_1 = _hash_index_to_unit_interval(
-                        arrivals.get_column("latency_u_1_i").to_numpy(),
-                        hash_modulus,
-                    )
-                    latency_u_2 = _hash_index_to_unit_interval(
-                        arrivals.get_column("latency_u_2_i").to_numpy(),
-                        hash_modulus,
-                    )
+                    latency_u_1 = _flow_id_stream_uniform(flow_ids_u64, 0x1A7E11C1)
+                    latency_u_2 = _flow_id_stream_uniform(flow_ids_u64, 0x1A7E11C2)
                     auth_response_latency_seconds = _sample_latency_seconds(
                         model=auth_timing_model,
                         u1=latency_u_1,

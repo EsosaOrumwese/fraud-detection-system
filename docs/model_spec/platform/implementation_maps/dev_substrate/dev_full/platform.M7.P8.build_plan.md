@@ -69,11 +69,63 @@ Tasks:
 2. verify required handles for `IEG`, `OFP`, and archive surfaces.
 3. emit `p8a_entry_snapshot.json` and blocker register.
 
+Required handle set for P8.A:
+1. runtime path and scope:
+   - `FLINK_RUNTIME_PATH_ACTIVE`
+   - `FLINK_RUNTIME_PATH_ALLOWED`
+   - `PHASE_RUNTIME_PATH_MODE`
+2. IEG/OFP lane refs:
+   - `FLINK_APP_RTDL_IEG_V0`
+   - `FLINK_APP_RTDL_OFP_V0`
+   - `FLINK_EKS_RTDL_IEG_REF`
+   - `FLINK_EKS_RTDL_OFP_REF`
+   - `FLINK_EKS_NAMESPACE`
+3. archive prerequisites:
+   - `K8S_DEPLOY_ARCHIVE_WRITER`
+   - `S3_ARCHIVE_RUN_PREFIX_PATTERN`
+   - `S3_ARCHIVE_EVENTS_PREFIX_PATTERN`
+4. RTDL lag threshold anchor:
+   - `RTDL_CAUGHT_UP_LAG_MAX`.
+
+Execution plan (managed lane):
+1. dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with `phase_mode=m7b`.
+2. require upstream M7.A closure summary (`m7a_execution_summary.json`) from run-control S3 prefix.
+3. verify:
+   - upstream `M7.A` is green (`overall_pass=true`, `next_gate=M7.B_READY`),
+   - required handle set above is fully resolved (no missing/placeholders),
+   - P8 component SLO profile exists for `IEG/OFP/ArchiveWriter`.
+4. emit artifacts:
+   - `p8a_entry_snapshot.json`
+   - `p8a_blocker_register.json`
+   - `p8a_execution_summary.json`.
+5. publish artifacts locally and durably (`evidence/dev_full/run_control/<execution_id>/...`).
+
 DoD:
-- [ ] P8 required-handle set is complete.
-- [ ] unresolved required handles are blocker-marked.
-- [ ] P8 entry snapshot is committed locally and durably.
-- [ ] per-component P8 performance SLO targets are pinned.
+- [x] P8 required-handle set is complete.
+- [x] unresolved required handles are blocker-marked.
+- [x] P8 entry snapshot is committed locally and durably.
+- [x] per-component P8 performance SLO targets are pinned.
+- [x] managed `P8.A` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=M7.C_READY`).
+
+Execution status (2026-02-25):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7b`
+   - run id: `22415762548`
+   - execution id: `m7b_p8a_entry_precheck_20260225T210210Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M7.C_READY`.
+3. Verification outcomes:
+   - upstream continuity `M7.A -> P8.A`: `ok`,
+   - required handles resolved: `12/12`,
+   - missing handles: `0`,
+   - placeholder handles: `0`,
+   - SLO profile continuity for `IEG/OFP/ArchiveWriter`: `ok`.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_gh_run_22415762548_artifacts/p8a-entry-precheck-20260225T210210Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7b_p8a_entry_precheck_20260225T210210Z/`.
 
 ### P8.B IEG Component Lane Closure
 Goal:
