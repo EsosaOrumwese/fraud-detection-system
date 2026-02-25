@@ -230,6 +230,19 @@ DoD:
 - [ ] `P6` entry precheck passes.
 - [ ] unresolved precheck blockers are explicit.
 
+Execution status (2026-02-25):
+1. `M6.E` executed as `m6e_p6a_stream_entry_20260225T044348Z`.
+2. Result is fail-closed (`overall_pass=false`, `next_gate=HOLD_REMEDIATE`).
+3. Active blockers:
+   - `M6P6-B1` (`REQUIRED_PLATFORM_RUN_ID_ENV_KEY` missing in prior handle-closure artifact surface),
+   - `M6P6-B2` (required Flink apps missing).
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m6/m6e_p6a_stream_entry_20260225T044348Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044348Z/`
+5. Superseding rerun:
+   - `m6e_p6a_stream_entry_20260225T044618Z` cleared `M6P6-B1`.
+   - `M6.E` remains blocked only on `M6P6-B2` (Flink runtime lane not materialized).
+
 ### M6.F `P6` Streaming Active + Lag + Ambiguity Closure
 Goal:
 1. prove active streaming posture and bounded lag.

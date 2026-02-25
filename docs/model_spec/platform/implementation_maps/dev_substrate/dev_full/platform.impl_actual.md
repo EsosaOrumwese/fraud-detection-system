@@ -7502,3 +7502,124 @@ ext_gate=M6.C_READY.
 ### Phase decision
 1. `P5` is now green in dev_full (`M6.C` + `M6.D` closed).
 2. Next actionable lane is `M6.E` (`P6` entry/stream activation precheck).
+
+## Entry: 2026-02-25 04:34:52 +00:00 - M6.P6 execution protocol lock (P6.A->P6.C) before implementation
+
+### Trigger
+1. USER requested full sequential closure of `P6` (`P6.A`, `P6.B`, `P6.C`) with implementation and closure evidence.
+
+### Immediate runtime assessment
+1. `M6.D` is green and correctly hands off to `M6.E` (`next_gate=M6.E_READY`).
+2. Active runtime substrate check shows critical lane surfaces are currently down:
+   - `kinesisanalyticsv2:list-applications` returns no applications.
+   - direct `describe-application` for pinned `FLINK_APP_WSP_STREAM_V0` and `FLINK_APP_SR_READY_V0` returns `ResourceNotFoundException`.
+3. IG ingress edge remains reachable and healthy on pinned API edge, but this alone cannot satisfy `P6` because `P6` requires active Flink-driven stream publication + bounded lag.
+
+### Decision-completeness and anti-cram check for P6 execution
+1. Required decisions for this scope are pinned and sufficient:
+   - gate contract source: `platform.M6.P6.build_plan.md`,
+   - run-process authority: `dev_full_platform_green_v0_run_process_flow.md` (`P6 STREAMING_ACTIVE`),
+   - handle authority: `dev_full_handles.registry.v0.md`.
+2. No unresolved decision holes block execution design.
+3. Runtime absence is not a decision hole; it is an execution blocker and must be remediated first.
+
+### Alternatives considered
+1. Execute `M6.E/F/G` against historical artifacts only.
+   - Rejected: violates fail-closed runtime truth requirement; would be docs-only closure.
+2. Treat missing Flink apps as acceptable for `P6` based on ingress-only activity.
+   - Rejected: contradicts pinned `P6` pass gate (`Flink-driven stream publication and ingress admission active`).
+3. Rematerialize substrate first, then execute `M6.E/F/G` with fresh runtime evidence.
+   - Selected.
+
+### Locked execution sequence
+1. Rematerialize dev_full stacks in dependency-safe order (`core -> streaming -> runtime -> data_ml -> ops`) using pinned backend configs.
+2. Run `M6.E` (`P6.A`) to verify entry handles + activation precheck and emit:
+   - `m6e_stream_activation_entry_snapshot.json`,
+   - `m6e_blocker_register.json`,
+   - `m6e_execution_summary.json`.
+3. Run `M6.F` (`P6.B`) to prove streaming-active/lag/ambiguity/evidence-overhead and emit:
+   - `m6f_streaming_active_snapshot.json`,
+   - `m6f_streaming_lag_posture.json`,
+   - `m6f_publish_ambiguity_register.json`,
+   - `m6f_evidence_overhead_snapshot.json`,
+   - `m6f_blocker_register.json`,
+   - `m6f_execution_summary.json`.
+4. Run `M6.G` (`P6.C`) rollup + deterministic verdict and emit:
+   - `m6g_p6_gate_rollup_matrix.json`,
+   - `m6g_p6_blocker_register.json`,
+   - `m6g_p6_gate_verdict.json`,
+   - `m6g_execution_summary.json`.
+5. Publish all artifacts locally and durably under pinned `S3_RUN_CONTROL_ROOT_PATTERN`.
+
+### Fail-closed guard for this lane
+1. If Flink activation cannot be proven post-rematerialization, stop at `M6.E` with explicit `M6P6-B2`.
+2. If lag/ambiguity/evidence-overhead checks fail, stop at `M6.F` with explicit blocker set.
+3. Do not emit `ADVANCE_TO_P7` unless `M6.E` and `M6.F` both pass with zero unresolved blockers.
+
+## Entry: 2026-02-25 04:43:48 +00:00 - M6.P6 runtime rematerialization + M6.E fail-closed execution
+
+### Execution progress
+1. Rematerialized dev_full substrate in dependency order:
+   - `core -> streaming -> runtime -> data_ml -> ops`.
+2. Authoritative rematerialize execution:
+   - `runs/dev_substrate/dev_full/rematerialize/rematerialize_20260225T043824Z/rematerialize_summary.json`
+   - result: all stacks init/validate/plan/apply/output succeeded; `plan_exit_code=0` for all stacks.
+
+### Post-rematerialization runtime truth
+1. Streaming stack is healthy for currently-declared resources (MSK + Glue registry), but does not materialize managed Flink applications.
+2. Runtime verification:
+   - `kinesisanalyticsv2:list-applications` returned empty list.
+   - `describe-application` for:
+     - `fraud-platform-dev-full-wsp-stream-v0`,
+     - `fraud-platform-dev-full-sr-ready-v0`,
+     returned `ResourceNotFoundException`.
+3. Ingress edge remained healthy/auth-valid via API key check.
+
+### M6.E execution (`P6.A`) with explicit blocker capture
+1. Executed fail-closed entry precheck lane:
+   - execution id: `m6e_p6a_stream_entry_20260225T044348Z`
+   - local root: `runs/dev_substrate/dev_full/m6/m6e_p6a_stream_entry_20260225T044348Z/`
+2. Result:
+   - `overall_pass=false`,
+   - blocker count `2`,
+   - `next_gate=HOLD_REMEDIATE`.
+3. Blockers:
+   - `M6P6-B1`: required-handle closure artifact missing `REQUIRED_PLATFORM_RUN_ID_ENV_KEY` in prior handle matrix surface.
+   - `M6P6-B2`: required Flink apps absent (`wsp-stream`, `sr-ready`).
+
+### Durable evidence committed
+1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044348Z/m6e_stream_activation_entry_snapshot.json`
+2. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044348Z/m6e_blocker_register.json`
+3. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044348Z/m6e_execution_summary.json`
+
+### Decision point opened (blocked for user direction)
+1. `P6` cannot be closed under current pinned contract because streaming runtime implementation for Flink lanes is absent.
+2. Valid remediation paths:
+   - implement managed Flink lane materialization (preferred for contract fidelity),
+   - or repin P6 runtime contract away from Flink (lower fidelity; requires explicit authority repin before continuing).
+
+## Entry: 2026-02-25 04:46:20 +00:00 - M6.E rerun narrowed blocker set (B1 closed, B2 remains)
+
+### Rerun intent
+1. Remove non-material artifact-only blocker noise from first `M6.E` attempt by resolving handles via authoritative registry fallback when absent in prior `M6.A` matrix surface.
+
+### Rerun execution
+1. Executed:
+   - `m6e_p6a_stream_entry_20260225T044618Z`
+   - local: `runs/dev_substrate/dev_full/m6/m6e_p6a_stream_entry_20260225T044618Z/`
+2. Outcome:
+   - `overall_pass=false`,
+   - blocker count `1`,
+   - `next_gate=HOLD_REMEDIATE`.
+
+### Blocker status delta
+1. `M6P6-B1` cleared in rerun by authoritative registry resolution for `REQUIRED_PLATFORM_RUN_ID_ENV_KEY`.
+2. Remaining blocker:
+   - `M6P6-B2`: required Flink applications are absent:
+     - `fraud-platform-dev-full-wsp-stream-v0`,
+     - `fraud-platform-dev-full-sr-ready-v0`.
+
+### Durable evidence (authoritative rerun)
+1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044618Z/m6e_stream_activation_entry_snapshot.json`
+2. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044618Z/m6e_blocker_register.json`
+3. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044618Z/m6e_execution_summary.json`

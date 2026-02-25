@@ -53,6 +53,23 @@ DoD:
 - [ ] entry checks pass with no unresolved required handles.
 - [ ] `m6e_stream_activation_entry_snapshot.json` committed locally and durably.
 
+Execution status (2026-02-25):
+1. Executed:
+   - `m6e_p6a_stream_entry_20260225T044348Z`
+   - local: `runs/dev_substrate/dev_full/m6/m6e_p6a_stream_entry_20260225T044348Z/`
+2. Result:
+   - `overall_pass=false`, `next_gate=HOLD_REMEDIATE`.
+3. Active blockers:
+   - `M6P6-B1`: `REQUIRED_PLATFORM_RUN_ID_ENV_KEY` missing in prior handle-closure artifact surface.
+   - `M6P6-B2`: required Flink apps absent (`fraud-platform-dev-full-wsp-stream-v0`, `fraud-platform-dev-full-sr-ready-v0`).
+4. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044348Z/m6e_stream_activation_entry_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044348Z/m6e_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044348Z/m6e_execution_summary.json`
+5. Superseding rerun:
+   - `m6e_p6a_stream_entry_20260225T044618Z` narrowed blocker set to only `M6P6-B2` (missing Flink apps).
+   - `M6P6-B1` was cleared using authoritative registry-backed handle resolution.
+
 ### P6.B Streaming Active + Lag + Ambiguity Closure (M6.F)
 Goal:
 1. prove active streaming and bounded lag without unresolved ambiguity.

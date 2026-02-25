@@ -541,15 +541,74 @@ Goal:
 
 #### P5.1 - Multi-seed witness execution
 Definition of done:
-- [ ] Required seeds `{42, 7, 101, 202}` executed for relevant rerun chain.
-- [ ] `T1-T10` evaluated per seed and pooled.
-- [ ] Stability metric `T9` computed and recorded.
+- [x] Required seeds `{42, 7, 101, 202}` executed for relevant rerun chain.
+- [x] `T1-T10` evaluated per seed and pooled.
+- [x] Stability metric `T9` computed and recorded.
 
 #### P5.2 - Certification decision
 Definition of done:
-- [ ] Decision emitted as one of `PASS_B`, `PASS_BPLUS`, `HOLD_REMEDIATE`.
-- [ ] Freeze artifacts emitted for accepted posture.
-- [ ] Superseded run-ids pruned after freeze update.
+- [x] Decision emitted as one of `PASS_B`, `PASS_BPLUS`, `HOLD_REMEDIATE`.
+- [x] Freeze artifacts emitted for accepted posture.
+- [x] Superseded run-ids pruned after freeze update.
+
+P5 expanded execution breakdown:
+
+##### P5.1A - Certification protocol lock
+Definition of done:
+- [x] Required seed set pinned: `{42,7,101,202}`.
+- [x] Frozen upstream posture pinned:
+  - reuse `S1-S4` closure authority surfaces from P4 (`S5` owner-only cross-seed lane).
+- [x] T9 definition pinned:
+  - cross-seed CV on seed-level realism vector
+    (`T3`, `T4`, `T5_p99`, `T5_max`, `T7_or_account`, `T7_or_device`, `T8`).
+- [x] T10 evidence source pinned:
+  - downstream `6B` validation witness report:
+    - `runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data/layer3/6B/validation/manifest_fingerprint=c8fd43cd60ce0ede0c63d2ceb4610f167c9b107e1d59b9b8c7d7b8d0028b05c8/s5_validation_report_6B.json`.
+  - fail-closed interpretation:
+    - `B`: all `severity=REQUIRED` checks must be `PASS`,
+    - `B+`: `overall_status == PASS`.
+
+##### P5.1B - Multi-seed runset execution
+Definition of done:
+- [x] Seed `42` authority run selected from P4 closure lane.
+- [x] Seeds `7/101/202` staged as replay witness lanes under `runs/fix-data-engine/segment_6A`.
+- [x] `segment6a-s5` executed for each seed lane.
+- [x] Per-seed P0 gateboards emitted.
+
+##### P5.1C - Certification scorer implementation
+Definition of done:
+- [x] Added `tools/score_segment6a_p5_certification.py`.
+- [x] Scorer ingests seed->run map and computes:
+  - seed-level hard gate posture (`T1-T8`),
+  - pooled `T9` stability class (`B`/`B+`),
+  - `T10` downstream compatibility status.
+- [x] Scorer emits JSON + markdown certification artifacts.
+
+##### P5.2A - Decision and freeze handoff
+Definition of done:
+- [x] Final decision emitted:
+  - `PASS_BPLUS`, `PASS_B`, or `HOLD_P5_REMEDIATE`.
+- [x] Selected seed->run authority map pinned in artifact.
+- [x] Superseded seed replay lanes pruned; keep-set retained.
+
+P5 closure evidence (`decision=PASS_B`):
+- seed authority map:
+  - `42 -> 511d6a282a6445598ae207ee1d82ff77`,
+  - `7 -> 4adf00cedb564db4a8217e54b3743810`,
+  - `101 -> cb16c3202c7544bb978e7ec1895fee49`,
+  - `202 -> 7d10987769fa4212b878178956f6b64c`.
+- certification artifacts:
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p5_seed_gateboard_20260225T044554Z.json`,
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p5_t9_stability_20260225T044554Z.json`,
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p5_closure_20260225T044554Z.json`,
+  - `runs/fix-data-engine/segment_6A/reports/segment6a_p5_closure_20260225T044554Z.md`.
+- closure summary:
+  - all seed hard gates (`T1-T8`) pass at `B`,
+  - `T9` pooled stability pass (`t9_overall_cv=0.00804`, `B/B+` pass),
+  - `T10` pass at `B` (all required `6B` checks pass on pinned downstream witness),
+  - `B+` not awarded due seed-level stretch misses (`T5/T7`) and downstream `overall_status=WARN` on `6B`.
+- phase decision:
+  - `P5=PASS_B`.
 
 ### P6 - Phase-2 `B+` extension (only after `PASS_B`)
 Goal:
