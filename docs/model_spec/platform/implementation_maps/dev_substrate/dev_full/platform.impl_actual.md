@@ -7623,3 +7623,35 @@ ext_gate=M6.C_READY.
 1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044618Z/m6e_stream_activation_entry_snapshot.json`
 2. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044618Z/m6e_blocker_register.json`
 3. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6a_stream_entry_20260225T044618Z/m6e_execution_summary.json`
+
+## Entry: 2026-02-25 04:48:57 +00:00 - M6P6-B2 remediation probe failed on AWS account gating
+
+### Objective
+1. Clear `M6P6-B2` by materializing required managed Flink applications:
+   - `fraud-platform-dev-full-wsp-stream-v0`
+   - `fraud-platform-dev-full-sr-ready-v0`
+
+### Probe executed
+1. Attempted direct `kinesisanalyticsv2 create-application` with:
+   - runtime `FLINK-1_18`,
+   - mode `INTERACTIVE`,
+   - service execution role from current runtime outputs (`ROLE_FLINK_EXECUTION`),
+   - ephemeral probe name to avoid mutation of pinned handles.
+2. Probe artifact captured:
+   - local: `runs/dev_substrate/dev_full/m6/m6e_p6_flink_probe_20260225T045252Z/m6e_flink_create_probe.json`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6_flink_probe_20260225T045252Z/m6e_flink_create_probe.json`
+
+### Observed result
+1. AWS API rejected create call with:
+   - `UnsupportedOperationException`
+   - message: account requires additional verification before creating/updating Managed Flink applications.
+2. This confirms `M6P6-B2` is not a Terraform drift-only issue; it is currently blocked by account-level service eligibility.
+
+### Decision and impact
+1. `P6` cannot advance to `M6.F`/`M6.G` under current authority because required Flink lane cannot be materialized in this account state.
+2. Fail-closed posture retained:
+   - `M6.E` remains the active gate with blocker `M6P6-B2`.
+
+### Unblock options
+1. Preferred: complete AWS Account Verification request for Managed Flink (account-level enablement), then materialize pinned apps and rerun `M6.E -> M6.F -> M6.G`.
+2. Alternative (requires explicit authority repin): revise `P6` runtime contract away from Managed Flink for dev_full and adopt another managed stream lane.

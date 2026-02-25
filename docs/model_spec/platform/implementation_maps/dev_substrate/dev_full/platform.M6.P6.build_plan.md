@@ -69,6 +69,12 @@ Execution status (2026-02-25):
 5. Superseding rerun:
    - `m6e_p6a_stream_entry_20260225T044618Z` narrowed blocker set to only `M6P6-B2` (missing Flink apps).
    - `M6P6-B1` was cleared using authoritative registry-backed handle resolution.
+6. Remediation probe status:
+   - direct `kinesisanalyticsv2 create-application` probe failed with account-level `UnsupportedOperationException` requiring AWS account verification for Managed Flink.
+   - `M6P6-B2` remains unresolved for this reason; `P6.B/P6.C` cannot run truthfully until this account gate is cleared or authority is repinned.
+   - probe evidence:
+     - `runs/dev_substrate/dev_full/m6/m6e_p6_flink_probe_20260225T045252Z/m6e_flink_create_probe.json`
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6e_p6_flink_probe_20260225T045252Z/m6e_flink_create_probe.json`
 
 ### P6.B Streaming Active + Lag + Ambiguity Closure (M6.F)
 Goal:

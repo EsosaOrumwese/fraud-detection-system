@@ -242,6 +242,9 @@ Execution status (2026-02-25):
 5. Superseding rerun:
    - `m6e_p6a_stream_entry_20260225T044618Z` cleared `M6P6-B1`.
    - `M6.E` remains blocked only on `M6P6-B2` (Flink runtime lane not materialized).
+6. Root cause for `M6P6-B2` currently confirmed:
+   - AWS returns `UnsupportedOperationException` on Managed Flink create/update in this account pending account verification.
+   - probe evidence: `runs/dev_substrate/dev_full/m6/m6e_p6_flink_probe_20260225T045252Z/m6e_flink_create_probe.json`.
 
 ### M6.F `P6` Streaming Active + Lag + Ambiguity Closure
 Goal:
