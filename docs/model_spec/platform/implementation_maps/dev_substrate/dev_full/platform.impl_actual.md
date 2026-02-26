@@ -14254,3 +14254,128 @@ ext_gate=M10.D_READY
    - M10A-I green,
    - active gate head: `M11_READY` from M10.I,
    - remaining closure lane: M10.J.
+
+## Entry: 2026-02-26 16:32:11 +00:00 - M10.I closure finalized and execution head advanced
+1. M10.I is now treated as closed-green authority evidence from run `22451131126`.
+2. M10 deep/master plans synchronized to reflect:
+   - `M10.I` complete,
+   - deterministic `P13` verdict + `m11_handoff_pack` DoD anchor complete,
+   - next execution head moved to `M10.J`.
+3. M10 blocker surface after closure:
+   - no active `M10-B*` blockers through `M10.I`.
+4. Remaining M10 lane before phase close:
+   - `M10.J` cost-outcome + closure sync.
+
+## Entry: 2026-02-26 16:35:30 +00:00 - M10.J execution strategy pinned before edits
+1. M10.J will mirror the proven M9.I/M9.J closure pattern with M10-specific contract surfaces.
+2. Entry gate pinned:
+   - `M10.I` must be pass posture with `verdict=ADVANCE_TO_P14`, `next_gate=M11_READY`, and blocker count `0`.
+3. Cost capture strategy pinned from handles:
+   - `COST_CAPTURE_SCOPE=aws_only_pre_m11_databricks_cost_deferred`,
+   - capture AWS MTD cost from Cost Explorer billing region,
+   - record Databricks capture mode as deferred-disabled in receipt (not silently omitted).
+4. Deterministic outputs pinned for M10.J:
+   - `m10_phase_budget_envelope.json`,
+   - `m10_phase_cost_outcome_receipt.json`,
+   - `m10j_blocker_register.json`,
+   - `m10j_execution_summary.json`,
+   - `m10_execution_summary.json`.
+5. Blocker mapping pinned:
+   - `M10-B11` for cost-outcome closure failure,
+   - `M10-B12` for artifact publication/readback parity failures.
+6. Final M10 closure posture pinned:
+   - `verdict=ADVANCE_TO_M11`,
+   - `next_gate=M11_READY`.
+7. Execution route pinned:
+   - extend managed workflow `.github/workflows/dev_full_m10_d_managed.yml` with `Execute M10.J (managed)` stage and fixed execution-id support.
+
+## Entry: 2026-02-26 16:39:58 +00:00 - Managed M10.J workflow lane implemented
+1. Updated `.github/workflows/dev_full_m10_d_managed.yml` to add M10.J support:
+   - new dispatch input: `m10j_execution_id`,
+   - metadata outputs: `m10j_execution_id`, `m10j_run_dir`,
+   - new stage: `Execute M10.J (managed)` after M10.I.
+2. M10.J stage behavior implemented:
+   - validates `M10.I` entry posture from run-control artifacts,
+   - captures AWS MTD cost from Cost Explorer billing endpoint,
+   - validates budget threshold ordering,
+   - emits cost+closure artifacts:
+     - `m10_phase_budget_envelope.json`,
+     - `m10_phase_cost_outcome_receipt.json`,
+     - `m10j_blocker_register.json`,
+     - `m10j_execution_summary.json`,
+     - `m10_execution_summary.json`,
+   - enforces fail-closed blockers:
+     - `M10-B11` (cost/closure contract failure),
+     - `M10-B12` (publication parity failure),
+   - success posture:
+     - `verdict=ADVANCE_TO_M11`, `next_gate=M11_READY`.
+3. Upload bundle expanded to include M10.J run dir (`m10-defghij-managed-*`).
+4. YAML parse check passed after patch (`YAML_OK`).
+
+## Entry: 2026-02-26 16:39:25 +00:00 - M10.D..J managed run dispatched for M10.J closure
+1. Workflow dispatched after M10.J schema push:
+   - run id: `22451634912`
+   - url: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22451634912`
+   - commit: `d35f439b`
+2. Fixed execution ids:
+   - `m10d_ofs_build_20260226T164103Z`
+   - `m10e_quality_gate_20260226T164103Z`
+   - `m10f_iceberg_commit_20260226T164103Z`
+   - `m10g_manifest_fingerprint_20260226T164103Z`
+   - `m10h_rollback_recipe_20260226T164103Z`
+   - `m10i_p13_gate_rollup_20260226T164103Z`
+   - `m10j_closure_sync_20260226T164103Z`
+3. Runtime account role ARN pinned:
+   - `arn:aws:iam::230372904534:role/GitHubAction-AssumeRoleWithAction`.
+4. Monitoring this run to terminal and applying fail-closed blocker remediation if needed.
+
+## Entry: 2026-02-26 16:41:52 +00:00 - M10.J summary parity drift detected and remediated
+1. Post-run artifact audit found closure-quality drift:
+   - `m10j_execution_summary.json` had stale `contract_parity` (`published_outputs=0`, `all_required_available=false`) despite blocker-free pass.
+2. Root cause:
+   - parity fields were computed after initial local write + durable publish; updated fields were not persisted.
+3. Remediation implemented in workflow stage `Execute M10.J (managed)`:
+   - after publish-count computation, explicitly rewrite local artifacts,
+   - republish `m10j_execution_summary.json`, `m10j_blocker_register.json`, and `m10_execution_summary.json` with updated parity fields.
+4. Closure requirement:
+   - rerun M10.D..J managed lane and validate corrected parity values in M10.J summary before declaring M10 closed.
+
+## Entry: 2026-02-26 16:43:04 +00:00 - M10.D..J rerun dispatched after parity persistence fix
+1. Rerun dispatched on workflow head `711d2351` to validate M10.J parity remediation.
+2. Fixed execution ids:
+   - `m10d_ofs_build_20260226T164304Z`
+   - `m10e_quality_gate_20260226T164304Z`
+   - `m10f_iceberg_commit_20260226T164304Z`
+   - `m10g_manifest_fingerprint_20260226T164304Z`
+   - `m10h_rollback_recipe_20260226T164304Z`
+   - `m10i_p13_gate_rollup_20260226T164304Z`
+   - `m10j_closure_sync_20260226T164304Z`
+3. Validation target:
+   - `m10j_execution_summary.contract_parity.published_outputs` equals required outputs count,
+   - `all_required_available=true` in final published summary.
+
+## Entry: 2026-02-26 16:45:37 +00:00 - M10.J closure finalized green and M10 marked DONE
+1. Authoritative M10.J closure run:
+   - run id: `22451750315`
+   - execution id: `m10j_closure_sync_20260226T164304Z`
+   - verdict: `ADVANCE_TO_M11`
+   - next gate: `M11_READY`
+   - blocker posture: `blocker_count=0`, `blockers=[]`.
+2. Cost-outcome closure outputs validated (local + durable):
+   - `m10_phase_budget_envelope.json`,
+   - `m10_phase_cost_outcome_receipt.json`,
+   - `m10j_blocker_register.json`,
+   - `m10j_execution_summary.json`,
+   - `m10_execution_summary.json`.
+3. Contract parity closure values (post-remediation rerun):
+   - `required_upstream_artifacts=5`, `readable_upstream_artifacts=5`,
+   - `required_outputs=5`, `published_outputs=5`,
+   - `all_required_available=true`.
+4. Cost posture captured in receipt:
+   - `budget_currency=USD`,
+   - budget thresholds `120/210/270` over monthly limit `300`,
+   - AWS MTD cost `89.2979244404 USD`,
+   - capture scope `aws_only_pre_m11_databricks_cost_deferred`.
+5. Plan synchronization completed:
+   - `platform.M10.build_plan.md` now marks `M10.J` complete and all `M10-B*` blockers resolved through M10.J,
+   - `platform.build_plan.md` now marks M10 status `DONE`, closes M10 DoD cost anchor, and sets next action to `M11.A`.

@@ -539,40 +539,97 @@ The objective was not just to collect more outputs.
 The objective was to make progression decisions computable, repeatable, and challenge-defensible.
 
 ### 6.2 Gate snapshot contract implemented
-Each adjudicated lane was implemented to emit machine-readable snapshots with consistent closure semantics:
+Each adjudicated lane emits a machine-readable snapshot with consistent closure semantics:
 - explicit pass posture (`overall_pass`),
 - explicit blocker rollup (`blockers`),
-- runtime timing and budget context where required,
-- local-path and durable-reference continuity fields in key snapshots.
+- runtime timing and budget context where mandated,
+- lane-specific proof fields (readiness probes, integrity deltas, and rollup outputs).
 
-During implementation, snapshot schemas were hardened where ambiguity existed so equivalent lanes did not drift in field meaning.
-This was especially important for readiness and rollup lanes where source references are reused by downstream verdict generation.
+During implementation, snapshot schemas were hardened where ambiguity existed so equivalent lanes did not drift in field meaning. This matters most for readiness and rollup lanes where source references are reused by downstream verdict generation.
+
+#### Representative witnesses (proves the contract is real, not aspirational)
+
+**M6 ingest readiness (data-plane fidelity)**
+- FAIL witness — `2026-02-15T07:18:07Z` (`m6_20260215T071807Z`)
+  - `overall_pass=false`, `blockers=[M6C-B4]`
+  - `runtime_preflight.managed_runtime_preflight_pass=false`
+  - `runtime_preflight.forces_file_bus=true`
+  - `runtime_preflight.forces_local_runs_store=true`
+  - probes were not executed (`kafka_publish_smoke=null`, `durable_receipt_write_smoke=null`)
+- PASS witness — `2026-02-15T12:43:31Z` (`m6_20260215T124328Z`)
+  - `overall_pass=true`, `blockers=[]`
+  - `probes.health_probe.status=200`
+  - `runtime_preflight.managed_runtime_preflight_pass=true`
+  - `probes.kafka_publish_smoke.stream_readback_found=true`
+  - `probes.durable_receipt_write_smoke.receipt_s3_exists=true`
+
+**M8 closure-input integrity**
+- FAIL witness — `2026-02-19T08:27:34Z` (`m8_20260219T082518Z`)
+  - `overall_pass=false`, `blockers=[M8C-B5,M8C-B3]`
+  - `source_m8b_snapshot_uri=""`, `rendered_evidence_root=""`
+  - offset semantics unusable: `offset_range_count=0` (ingest and RTDL)
+- PASS witness — `2026-02-19T08:30:06Z` (`m8_20260219T082913Z`)
+  - `overall_pass=true`, `blockers=[]`
+  - readability checks converge: `head_ok=true`, `json_ok=true` across required inputs
+  - offset semantics restored: `offset_range_count=12` (ingest and RTDL)
+  - durable publication confirmed: `durable_upload_ok=true`
+
+**M10.D incident drill (corrective control)**
+- FAIL witness — `2026-02-20T05:47:09Z` (`m10_20260220T054251Z`)
+  - `overall_pass=false`, `blockers=[M10D-B2]`
+  - `delta_extracts.duplicate_delta=0`
+  - safety constraints were already true: `no_double_actions=true`, `no_duplicate_case_records=true`
+- PASS witness — `2026-02-20T06:08:51Z` (same drill rerun)
+  - `overall_pass=true`, `blockers=[]`
+  - `delta_extracts.duplicate_delta=320`
+  - safety constraints preserved: `no_double_actions=true`, `no_duplicate_case_records=true`
+  - `semantic_safety_checks.publish_ambiguous_absent=true`
+  - runtime budget pass: `elapsed_seconds=1542` (`budget_seconds=3600`)
+
+**Final rollup (integrated closure)**
+- PASS witness — `2026-02-22T08:10:48Z` (`m10_20260222T081047Z`)
+  - `verdict=ADVANCE_CERTIFIED_DEV_MIN`
+  - `overall_pass=true`, `blockers=[]`, `blocker_union=[]`
+  - runtime budget pass: `elapsed_seconds=1.617` (`budget_seconds=1800`)
+  - bundle integrity pass: `integrity_pass=true`, `missing_refs=[]`
 
 ### 6.3 Dual-publish evidence mechanics implemented
-Evidence publication was implemented as a two-surface write pattern:
+Evidence publication follows a two-surface write pattern:
 - local run artifacts for fast triage and rerun work,
 - durable object-store mirrors for authoritative review.
 
-In practice, readiness and gate snapshots were published under run-control prefixes in durable storage while preserving local copies for operator loops.
-This created stable proof continuity from lane execution to final certification without relying on ephemeral log state.
+The key point is that durability is not “assumed”; it is surfaced as fields inside the lane snapshots. This makes durability part of adjudication, not a separate human trust step.
+
+Representative durability proof fields observed in closure:
+- M6 readiness PASS includes `probes.durable_receipt_write_smoke.receipt_s3_exists=true`
+- M8 integrity PASS includes `durable_upload_ok=true`
+- Final rollup PASS includes bundle integrity fields (`integrity_pass=true`, `missing_refs=[]`)
+
+Operational effect:
+- “PASS” is intrinsically coupled to durable publication being true in the snapshot contract, so closure cannot be declared without durable evidence existence.
 
 ### 6.4 Data-plane readiness stack implemented
-Readiness was implemented as layered checks with control-plane prerequisites and data-plane viability probes:
+Readiness is implemented as layered checks that explicitly reject “control-plane prerequisites” as sufficient.
 
-1. Prerequisite checks
+1) Prerequisite checks
 - required handles/configuration materialization,
 - identity/access boundary checks needed to attempt runtime work.
 
-2. Data-plane viability checks
-- messaging-plane readiness validation,
+2) Data-plane viability checks (must move real data)
 - ingestion boundary reachability and response viability,
-- runtime path checks that detect protocol/client/endpoint mismatches before full semantic progression.
+- messaging-plane publish + readback proof,
+- durable receipt existence proof (object-store write path),
+- runtime posture preflight that blocks shim postures that invalidate managed proof.
 
-3. Probe outputs as gate inputs
+3) Probe outputs as gate inputs
 - readiness probes emit machine-readable snapshots consumed by subsequent gate adjudication.
 - lanes do not progress on metadata visibility alone.
 
-This implementation replaced "administrative reachability equals readiness" with runtime-surface evidence.
+Representative proof that readiness is data-plane decisive:
+- Readiness failed closed when runtime posture drift was present (`forces_file_bus=true`, `forces_local_runs_store=true`), with probes intentionally not executed (M6 FAIL: `M6C-B4`).
+- Readiness closed only when a single snapshot proved: `status=200`, `managed_runtime_preflight_pass=true`, `stream_readback_found=true`, and `receipt_s3_exists=true` (M6 PASS).
+
+This replaces “administrative reachability equals readiness” with runtime-surface evidence.
 
 ### 6.5 Fail-closed adjudication and blocker progression implemented
 Gate execution was implemented with explicit blocker semantics:
@@ -587,13 +644,39 @@ The remediation loop was implemented and exercised repeatedly:
 1. run lane,
 2. capture fail-closed blocker state,
 3. apply bounded fix to the failing surface,
-4. rerun same lane,
+4. rerun the same lane,
 5. require blocker retirement before progression.
 
-This was applied to real classes including:
-- readiness false-negatives from probe interpretation/schema mismatches,
-- data-plane viability defects discovered after control-plane prerequisites passed,
-- source-basis and snapshot-shape issues that initially prevented clean rollup.
+This loop was applied to real failure classes (observed), not hypothetical ones:
+
+#### M6 ingest readiness — data-plane fidelity closure
+- **M6C-B4 meaning:** runtime posture drift (ingestion still on file-bus/local-store shim; managed Kafka/S3 proof is invalid).
+  - **Retire action:** rematerialized ingestion runtime to managed event bus + durable object-store posture, then converged via infrastructure apply so runtime matched declared state.
+- **M6C-B1 meaning:** Kafka smoke publish/read verification failed (transition instability and/or QUARANTINE when ADMIT proof expected).
+  - **Retire action:** stabilized service window and corrected smoke envelope path to produce valid ADMIT evidence before readback verification.
+- **M6C-B5 meaning:** topic-offset/readback verification was unavailable or non-deterministic for the selected smoke topic.
+  - **Retire action:** updated readback/offset verification surface; rerun showed `stream_readback_found=true` with managed offset evidence.
+
+Time-to-recovery (M6):
+- first FAIL → first PASS: **1h 13m 22s**
+- first FAIL → post-convergence PASS: **5h 25m 24s**
+
+#### M8 closure-input integrity — artifact and semantics closure
+- **Mismatch:** probe initially accepted only `start_offset/end_offset`, while runtime artifacts used `run_start_offset/run_end_offset`.
+- **Retire actions:**
+  - fixed prerequisite/source resolution and evidence root rendering (retired `M8C-B5`),
+  - widened parser/probe to accept runtime offset field shape and retain deterministic non-empty range checks (retired `M8C-B3`).
+
+Time-to-recovery (M8):
+- first FAIL → PASS: **2m 33s**
+
+#### M10.D incident drill — corrective control closure
+- **Cause of FAIL (`duplicate_delta=0`):** READY replay path deduped candidate events (`SKIPPED_DUPLICATE`), so the duplicate drill effect was not materialized.
+- **Retire action:** used direct managed stream injection (no local compute path) and reran drill + reporter update to refresh counts.
+- **Safety verification:** enforced via `no_double_actions=true` and zero side-effect deltas (`action_intent_delta=0`, `action_outcome_delta=0`, `case_trigger_delta=0`).
+
+Time-to-recovery (M10.D):
+- first FAIL → PASS: **21m 42s**
 
 The key implementation rule was preserved: no cross-lane substitution for unresolved blockers in the originally failing lane.
 
@@ -838,66 +921,88 @@ Outcome:
 - this lane is where the credential-correct-but-still-failing transport class was resolved and revalidated, reinforcing why readiness adjudication requires both runtime preflight and data-plane readback signals.
 
 ### 9.3 Evidence-integrity result: closure-input readiness fail -> pass
-Representative evidence-gate outcome:
+This lane proves that closure depends on **artifact integrity and semantic coherence**, not just artifact existence.
 
-1. Initial fail-closed snapshot
-- execution: `m8_20260219T082518Z`,
-- artifact: `runs/dev_substrate/m8/m8_20260219T082518Z/m8_c_input_readiness_snapshot.json`,
-- result: `overall_pass=false`,
-- blockers: `["M8C-B5","M8C-B3"]`,
-- offset semantics failed (`offset_range_count=0` for required snapshots).
+#### Attempt chronology (FAIL → CHANGE → PASS)
+- **2026-02-19T08:27:34Z** — FAIL (`M8C-B5`, `M8C-B3`)
+  - Observed: `source_m8b_snapshot_uri=""`, `rendered_evidence_root=""`
+  - Offsets unusable: `offset_range_count=0` for ingest and RTDL snapshots
+  - **Remediation:** fixed prerequisite/source resolution and evidence root rendering.
 
-2. Corrective rerun closure
-- execution: `m8_20260219T082913Z`,
-- artifact: `runs/dev_substrate/m8/m8_20260219T082913Z/m8_c_input_readiness_snapshot.json`,
-- result: `overall_pass=true`, `blockers=[]`,
-- integrity evidence included:
-  - required evidence URI set rendered and readable,
-  - per-artifact readability checks `head_ok=true` and `json_ok=true`,
-  - run-scope checks present for all required summaries,
-  - offset semantics restored (`offset_range_count=12` for ingest and real-time decision loop snapshots),
-  - `durable_upload_ok=true`.
+- **2026-02-19T08:28:50Z** — FAIL (`M8C-B3`)
+  - Observed: readability checks already true but offsets still `offset_range_count=0`
+  - **Mismatch:** probe accepted only `start_offset/end_offset`, while runtime artifacts used `run_start_offset/run_end_offset`.
+  - **Remediation:** widened offset-shape parsing to accept runtime fields while retaining deterministic non-empty range checks.
+
+- **2026-02-19T08:30:06Z** — PASS
+  - Closure fields satisfied:
+    - `source_m8b_snapshot_uri` resolved (non-empty)
+    - readability checks converge: `head_ok=true`, `json_ok=true`
+    - offsets restored: `offset_range_count=12` (ingest and RTDL)
+    - durable publication confirmed: `durable_upload_ok=true`
+
+#### Time-to-recovery (M8)
+- first FAIL → PASS: **2m 33s**
 
 Outcome:
-- closure-input adjudication became schema-stable and source-coherent.
+- closure-input adjudication became schema-stable, readable, run-scoped, offset-coherent, and durably published.
 
 ### 9.4 Fail-to-fix-to-pass drill result (proof of corrective control)
-Incident-drill lane produced explicit failure then bounded closure:
+The incident drill demonstrates fail-closed corrective control: failure is recorded, remediation is bounded, and closure requires rerun proof.
 
-1. Failing incident snapshot
-- artifact: `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot_attempt1_fail.json`,
-- result: `overall_pass=false`,
-- blocker: `M10D-B2`,
-- drill delta did not meet expectation (`duplicate_delta=0`).
+#### FAIL witness (attempt 1)
+- Timestamp: **2026-02-20T05:47:09Z**
+- Outcome: FAIL
+- Blocker: `M10D-B2`
+- Key observed fields:
+  - `delta_extracts.duplicate_delta=0`
+  - `drill_outcome_checks.duplicate_receipts_present=false`
+  - safety constraints already true: `no_double_actions=true`, `no_duplicate_case_records=true`
+- Cause:
+  - READY replay path deduped candidate events (`SKIPPED_DUPLICATE`), so the duplicate drill effect was not materialized.
 
-2. Rerun pass snapshot
-- artifact: `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot.json`,
-- result: `overall_pass=true`, `blockers=[]`,
-- corrected outcome:
-  - `duplicate_delta=320`,
-  - `no_double_actions=true`,
-  - `publish_ambiguous_absent=true`,
-  - runtime budget pass (`elapsed_seconds=1542`, `budget_seconds=3600`).
+#### Remediation (bounded change)
+- Switched to **direct managed stream injection** (no local compute path),
+- reran drill + reporter update to refresh counts from canonical receipts.
+
+#### PASS witness (rerun)
+- Timestamp: **2026-02-20T06:08:51Z**
+- Outcome: PASS
+- Blockers: `[]`
+- Key observed fields:
+  - `delta_extracts.duplicate_delta=320` (target `>=100`)
+  - safety constraints preserved: `no_double_actions=true`, `no_duplicate_case_records=true`
+  - `semantic_safety_checks.publish_ambiguous_absent=true`
+  - runtime budget pass: `elapsed_seconds=1542` (`budget_seconds=3600`)
+
+#### Time-to-recovery (M10.D)
+- first FAIL → PASS: **21m 42s**
 
 Outcome:
-- corrective loop was proven with same-lane rerun evidence, not narrative override.
+- corrective control is proven by same-lane rerun evidence, and closure is achieved without violating side-effect safety.
 
 ### 9.5 Integrated adjudication result: final verdict and bundle closure
-Final closure of the assurance system was recorded in:
-- verdict: `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`,
-- bundle index: `runs/dev_substrate/m10/m10_20260222T081047Z/m10_certification_bundle_index.json`.
+Final closure is deterministic over a source-lane matrix and bundle-integrity checks.
 
-Key outcome fields:
-- `verdict=ADVANCE_CERTIFIED_DEV_MIN`,
-- `overall_pass=true`,
-- `blockers=[]`,
-- `blocker_union=[]`,
-- all source lanes in the matrix reported pass with empty blockers,
-- runtime budget pass at verdict lane (`elapsed_seconds=1.617`, `budget_seconds=1800`),
-- bundle integrity closed (`integrity_pass=true`, `missing_refs=[]`).
+#### PASS witness (final rollup)
+- Timestamp: **2026-02-22T08:10:48Z**
+- Execution: `m10_20260222T081047Z`
+- Verdict: `ADVANCE_CERTIFIED_DEV_MIN`
+- Key observed fields:
+  - `overall_pass=true`
+  - `blockers=[]`
+  - `blocker_union=[]` (source blocker union count: **0**)
+  - runtime budget pass: `elapsed_seconds=1.617`, `budget_seconds=1800`, `budget_pass=true`
+  - bundle integrity: `integrity_pass=true`, missing refs count **0**
+
+#### Source matrix closure (counts)
+- Required source lanes: **9**
+- Lane IDs: `[M10.A, M10.B, M10.C, M10.D, M10.E, M10.F, M10.G, M10.H, M10.I]`
+- Total lane snapshot refs indexed: **9**
+- Missing refs: **0**
 
 Outcome:
-- progression decision was fully backed by source-lane continuity and integrity-checked evidence family indexing.
+- progression decision is backed by an integrity-checked evidence family index and an empty blocker union across the full source matrix, not operator judgment.
 
 ### 9.6 Operational interpretation
 The operational effect of these results is clear:
@@ -930,13 +1035,16 @@ This claim does not state that:
 The claim is about decision-correct runtime assurance, not universal platform completeness.
 
 ### 10.3 Evidence boundary limitation
-The report intentionally references machine-readable artifacts and proof hooks instead of embedding:
+This report embeds the key proof facts directly (verdicts, blocker codes, observed probe fields, bounded remediation steps, and measured time-to-recovery), so it stands on its own as a technical report.
+
+It intentionally does not embed:
 - raw full-log exports,
 - full configuration payload dumps,
 - secret-bearing runtime materials.
 
 Reason:
-- keep the report readable and security-safe while preserving challenge-ready verification routes.
+- keep the report readable and security-safe while still providing challenge-ready verification within the report body.
+- raw logs and credential-bearing payloads are not required to verify closure; the machine-readable snapshots and rollup fields described in Sections 6 and 9 are sufficient.
 
 ### 10.4 Transferability limitation
 The control pattern is transferable:
@@ -963,11 +1071,21 @@ Correct interpretation:
 Incorrect interpretation:
 - "The engineer claims complete, permanent reliability closure for all workloads and environments."
 
-## 11) Proof Hooks
+## 11) Appendix: Retrieval Hooks (Optional)
 
-### 11.1 How to use this section
-Use these anchors to defend the claim under technical challenge.
-The recommended order is:
+### 11.1 How to use this appendix
+This appendix is **optional**.
+
+The report body (Sections **6** and **9**) already embeds the proof facts needed to validate the claim:
+- fail-closed outcomes (blockers),
+- bounded remediation description,
+- rerun-to-pass closure,
+- time-to-recovery,
+- final verdict and integrity closure.
+
+Use the retrieval hooks below only when a reviewer wants to inspect the underlying **machine-readable snapshots** directly (e.g., interview deep-dive, audit-style challenge, or independent verification). These hooks do not introduce new claims; they are an inspection aid.
+
+Recommended order (if used):
 1. show a fail-closed readiness failure and the rerun pass,
 2. show an evidence-gate failure and rerun pass,
 3. show a fail-to-fix-to-pass incident drill,

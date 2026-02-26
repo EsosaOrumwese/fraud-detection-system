@@ -1135,7 +1135,7 @@ Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M9.build_plan.md`
 
 ## M10 - OFS Dataset Closure
-Status: `ACTIVE`
+Status: `DONE`
 
 Objective:
 - close `P13` with Databricks-driven OFS dataset closure under Iceberg governance and rollback safety.
@@ -1275,6 +1275,22 @@ M10 execution status:
      - prior dispatch `22450977548` failed pre-phase at OIDC due wrong account role ARN; corrected dispatch used dev_full role in account `230372904534`,
    - durable run-control evidence:
      - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10i_p13_gate_rollup_20260226T162737Z/`.
+13. `M10.J` M10 cost-outcome + closure sync is green in managed lane:
+   - workflow: `.github/workflows/dev_full_m10_d_managed.yml`,
+   - Actions run: `22451750315` (`migrate-dev`, commit `711d2351`),
+   - execution: `m10j_closure_sync_20260226T164304Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M11`, `next_gate=M11_READY`,
+   - cost posture:
+     - `budget_currency=USD`,
+     - thresholds `120/210/270` over `monthly_limit=300`,
+     - captured AWS MTD `89.2979244404 USD`,
+     - capture scope `aws_only_pre_m11_databricks_cost_deferred` with Databricks deferred to `M11.D`,
+   - contract parity:
+     - required upstream artifacts `5`, readable `5`,
+     - required outputs `5`, published `5`,
+     - `all_required_available=true`,
+   - durable run-control evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10j_closure_sync_20260226T164304Z/`.
 
 DoD anchors:
 - [x] OFS manifest committed.
@@ -1283,7 +1299,7 @@ DoD anchors:
 - [x] OFS rollback recipe committed.
 - [x] OFS time-bound/leakage audit is committed and green.
 - [x] deterministic `P13` verdict and `m11_handoff_pack.json` are committed.
-- [ ] M10 phase-budget and cost-outcome artifacts are committed and blocker-free.
+- [x] M10 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M10.build_plan.md`
@@ -1407,4 +1423,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M10.J` (M10 closure sync + cost-outcome) using `M10.I` green closure (`m10i_p13_gate_rollup_20260226T162737Z`) as entry basis.
+- Expand and execute `M11.A` (authority + handle closure for `P14`) using M10 `DONE` posture (`m10j_closure_sync_20260226T164304Z`) as entry basis.

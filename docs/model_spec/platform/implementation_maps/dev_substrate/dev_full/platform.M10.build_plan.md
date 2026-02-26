@@ -57,7 +57,9 @@ Out of scope:
 13. `m11_handoff_pack.json`
 14. `m10_phase_budget_envelope.json`
 15. `m10_phase_cost_outcome_receipt.json`
-16. `m10_execution_summary.json`
+16. `m10j_blocker_register.json`
+17. `m10j_execution_summary.json`
+18. `m10_execution_summary.json`
 
 ## 4) Entry Gate and Current Posture
 Entry gate for M10:
@@ -755,15 +757,76 @@ Execution status:
 Goal:
 1. close M10 with cost-outcome and summary parity.
 
+Entry conditions:
+1. `M10.I` is green with:
+   - `verdict=ADVANCE_TO_P14`,
+   - `next_gate=M11_READY`,
+   - blocker count `0`.
+2. all M10 lane summaries (`M10.A..M10.I`) are readable from run-control surfaces.
+3. active run scope remains single-valued across `M10.A..M10.I`.
+4. M10 contract artifacts are readable and parity-checkable:
+   - `m10a..m10i` lane artifacts,
+   - `m11_handoff_pack.json`,
+   - run-scoped OFS artifacts (`manifest/fingerprint/time_bound_audit/rollback_recipe/rollback_drill`).
+5. cost handles are pinned and parseable:
+   - `DEV_FULL_MONTHLY_BUDGET_LIMIT_USD`,
+   - `DEV_FULL_BUDGET_ALERT_1_USD`,
+   - `DEV_FULL_BUDGET_ALERT_2_USD`,
+   - `DEV_FULL_BUDGET_ALERT_3_USD`,
+   - `BUDGET_CURRENCY`,
+   - `COST_CAPTURE_SCOPE`,
+   - `AWS_COST_CAPTURE_ENABLED`,
+   - `DATABRICKS_COST_CAPTURE_ENABLED`.
+
 Tasks:
 1. emit `m10_phase_budget_envelope.json`.
 2. emit `m10_phase_cost_outcome_receipt.json`.
-3. emit `m10_execution_summary.json`.
+3. emit `m10j_blocker_register.json` + `m10j_execution_summary.json`.
+4. emit authoritative `m10_execution_summary.json`.
+5. verify local+durable parity for all M10.J outputs.
+6. emit deterministic closure posture:
+   - `verdict=ADVANCE_TO_M11`,
+   - `next_gate=M11_READY`,
+   - otherwise fail closed to `HOLD_REMEDIATE`.
+7. classify blockers:
+   - `M10-B11` for cost-outcome closure failure,
+   - `M10-B12` for summary/evidence publication parity failure.
+
+Runtime budget:
+1. target <= 10 minutes wall clock.
 
 DoD:
-- [ ] budget + receipt artifacts committed locally and durably.
-- [ ] summary parity checks pass.
-- [ ] M10 closure sync passes with no unresolved blocker.
+- [x] budget + receipt artifacts committed locally and durably.
+- [x] summary parity checks pass.
+- [x] M10 closure sync passes with no unresolved blocker.
+
+Execution status:
+1. Closure execution:
+   - execution id: `m10j_closure_sync_20260226T164304Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M11`, `next_gate=M11_READY`.
+2. Cost posture:
+   - `budget_currency=USD`,
+   - threshold envelope: `120/210/270` over `monthly_limit=300`,
+   - captured AWS MTD spend: `89.2979244404 USD`,
+   - capture scope: `aws_only_pre_m11_databricks_cost_deferred`,
+   - Databricks capture mode: `deferred` (`DATABRICKS_COST_CAPTURE_ENABLED=false`).
+3. Contract parity:
+   - required upstream artifacts: `5`,
+   - readable upstream artifacts: `5`,
+   - required M10.J outputs: `5`,
+   - published M10.J outputs: `5`,
+   - `all_required_available=true`.
+4. M10 closure posture:
+   - `verdict=ADVANCE_TO_M11` and `next_gate=M11_READY` when blocker-free.
+5. Evidence:
+   - local: `runs/dev_substrate/m10/gh_run_22451750315/m10-defghij-managed-20260226T164250Z/m10j_closure_sync_20260226T164304Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10j_closure_sync_20260226T164304Z/`.
+6. Managed run reference:
+   - Actions run: `22451750315` (`migrate-dev`, commit `711d2351`)
+   - Workflow: `.github/workflows/dev_full_m10_d_managed.yml`
+7. Remediation note:
+   - initial run `22451634912` was blocker-free but had stale `contract_parity` fields in `m10j_execution_summary.json` due post-publish update ordering,
+   - workflow fix persisted parity fields post-publish, and rerun `22451750315` confirmed `published_outputs=5` and `all_required_available=true`.
 
 ## 6) Blocker Taxonomy (Fail-Closed)
 1. `M10-B1`: authority/handle closure failure.
@@ -795,7 +858,9 @@ DoD:
 13. `m11_handoff_pack.json`
 14. `m10_phase_budget_envelope.json`
 15. `m10_phase_cost_outcome_receipt.json`
-16. `m10_execution_summary.json`
+16. `m10j_blocker_register.json`
+17. `m10j_execution_summary.json`
+18. `m10_execution_summary.json`
 
 ## 8) Completion Checklist
 - [x] `M10.A` complete
@@ -807,13 +872,13 @@ DoD:
 - [x] `M10.G` complete
 - [x] `M10.H` complete
 - [x] `M10.I` complete
-- [ ] `M10.J` complete
-- [x] all active `M10-B*` blockers resolved (current active set through `M10.I`)
+- [x] `M10.J` complete
+- [x] all active `M10-B*` blockers resolved (current active set through `M10.J`)
 
 ## 9) Planning Status
 1. M10 planning is expanded and execution-grade.
 2. M9 closure gate is green (`M9 DONE`, `next_gate=M10_READY`).
-3. `M11` handoff contract remains an in-phase closure requirement under `M10.I`.
+3. `M11` handoff contract is now closed and published via `M10.I` + `M10.J` authoritative summaries.
 4. `M10.A` and `M10.B` are both closed green in managed execution (`22442631941`).
 5. Managed remediation/closure lanes are active:
    - `.github/workflows/dev_full_m10_ab_managed.yml`
@@ -823,4 +888,5 @@ DoD:
 8. `M10.G` is closed green in managed execution (`22449853059`) with blocker-free `M10.H_READY`.
 9. `M10.H` is closed green in managed execution (`22450488594`) with blocker-free `M10.I_READY`.
 10. `M10.I` is closed green in managed execution (`22451131126`) with `verdict=ADVANCE_TO_P14` and `next_gate=M11_READY`.
-11. Next action is `M10.J` expansion and execution.
+11. `M10.J` is closed green in managed execution (`22451750315`) with `verdict=ADVANCE_TO_M11` and `next_gate=M11_READY`.
+12. Next action is `M11.A` expansion and execution.
