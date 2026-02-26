@@ -1195,6 +1195,16 @@ M10 execution status:
    - blocker registers:
      - `m10a_blocker_register.json` -> `blocker_count=0`,
      - `m10b_blocker_register.json` -> `blocker_count=0`.
+5. `M10.C` input binding + immutability closure is green:
+   - execution: `m10c_input_binding_20260226T131152Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M10.D_READY`,
+   - durable evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10c_input_binding_20260226T131152Z/`.
+   - latest revalidation:
+     - execution: `m10c_input_binding_20260226T131441Z`,
+     - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M10.D_READY`,
+     - durable evidence:
+       - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10c_input_binding_20260226T131441Z/`.
 
 DoD anchors:
 - [ ] OFS manifest committed.
@@ -1327,4 +1337,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M10.C` using `M10.B` managed green closure (`m10b_databricks_readiness_20260226T124457Z`) as entry basis.
+- Expand and execute `M10.D` (OFS dataset build execution) using `M10.C` green closure (`m10c_input_binding_20260226T131152Z`) as entry basis.

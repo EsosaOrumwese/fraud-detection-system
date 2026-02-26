@@ -13436,3 +13436,59 @@ ext_gate=M10.D_READY.
    - blocker families: M10-B3 and publication parity M10-B12.
    - outputs: m10c_input_binding_snapshot.json, m10c_blocker_register.json, m10c_execution_summary.json (local + durable run-control).
 5. Next step: execute M10.C script and remediate blockers to closure.
+
+## Entry: 2026-02-26 13:12:57 +00:00 - M10.C executed to green and closed
+1. Executed scripts/dev_substrate/m10c_input_binding.py with:
+   - M10C_EXECUTION_ID=m10c_input_binding_20260226T131152Z
+   - UPSTREAM_M10B_EXECUTION=m10b_databricks_readiness_20260226T124457Z
+   - UPSTREAM_M9_EXECUTION=m9j_closure_sync_20260226T083701Z
+   - UPSTREAM_M9H_EXECUTION=m9h_p12_gate_rollup_20260226T082548Z
+   - EVIDENCE_BUCKET=fraud-platform-dev-full-evidence
+   - AWS_REGION=eu-west-2
+2. Runtime result:
+   - overall_pass=true
+   - locker_count=0
+   - 
+ext_gate=M10.D_READY
+3. Validated closure artifacts:
+   - local: uns/dev_substrate/dev_full/m10/m10c_input_binding_20260226T131152Z/
+   - durable: s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10c_input_binding_20260226T131152Z/
+   - blocker register confirms no read/upload errors.
+4. Drift/contract posture check:
+   - run-scope continuity preserved across M10.B, M9 closure, M9.H handoff, and run-scoped learning inputs,
+   - replay-basis/as-of/maturity/leakage/separation surfaces remained coherent and immutable for the bound run scope.
+5. Documentation sync performed:
+   - marked M10.C DoDs complete in platform.M10.build_plan.md,
+   - marked M10.C complete in M10 checklist,
+   - advanced next action to M10.D in both deep and master build plans.
+
+## Entry: 2026-02-26 13:14:10 +00:00 - M10.C revalidation decision trail (user-requested fresh execution)
+1. Trigger:
+   - user requested M10.C expansion plus full execution with real-time documentation and blocker clearance.
+2. Pre-run decision:
+   - keep M10.C algorithm unchanged (already fail-closed and authority-aligned),
+   - run a fresh execution against same pinned upstreams to produce a current closure receipt.
+3. Chosen upstream basis for deterministic revalidation:
+   - M10.B: m10b_databricks_readiness_20260226T124457Z,
+   - M9: m9j_closure_sync_20260226T083701Z,
+   - M9.H: m9h_p12_gate_rollup_20260226T082548Z.
+4. Runtime posture:
+   - control-plane checker only (no new data-plane compute materialization),
+   - explicit budget target retained (<= 10 minutes).
+
+## Entry: 2026-02-26 13:14:49 +00:00 - M10.C revalidation executed and synced
+1. Executed:
+   - scripts/dev_substrate/m10c_input_binding.py
+   - M10C_EXECUTION_ID=m10c_input_binding_20260226T131441Z
+   - EVIDENCE_BUCKET=fraud-platform-dev-full-evidence
+   - AWS_REGION=eu-west-2
+2. Result:
+   - overall_pass=true
+   - blocker_count=0
+   - next_gate=M10.D_READY
+3. Evidence:
+   - local: runs/dev_substrate/dev_full/m10/m10c_input_binding_20260226T131441Z/
+   - durable: s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10c_input_binding_20260226T131441Z/
+4. Sync updates applied:
+   - updated M10.C execution status in `platform.M10.build_plan.md` with latest revalidation run,
+   - updated M10 summary section in `platform.build_plan.md` with latest revalidation run.

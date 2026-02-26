@@ -301,14 +301,23 @@ Runtime budget:
 1. target <= 10 minutes wall clock.
 
 DoD:
-- [ ] input binding and immutability checks pass.
-- [ ] run-scope continuity checks pass across all required surfaces.
-- [ ] `m10c_input_binding_snapshot.json` committed locally and durably.
-- [ ] `m10c_blocker_register.json` and `m10c_execution_summary.json` committed locally and durably.
-- [ ] blocker-free pass emits `next_gate=M10.D_READY`.
+- [x] input binding and immutability checks pass.
+- [x] run-scope continuity checks pass across all required surfaces.
+- [x] `m10c_input_binding_snapshot.json` committed locally and durably.
+- [x] `m10c_blocker_register.json` and `m10c_execution_summary.json` committed locally and durably.
+- [x] blocker-free pass emits `next_gate=M10.D_READY`.
 
 Execution status:
-1. pending execution.
+1. Execution id:
+   - `m10c_input_binding_20260226T131152Z`
+2. Result:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M10.D_READY`
+3. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10c_input_binding_20260226T131152Z/`
+4. Latest revalidation run:
+   - execution id: `m10c_input_binding_20260226T131441Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M10.D_READY`
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10c_input_binding_20260226T131441Z/`
 
 ### M10.D OFS Dataset Build Execution
 Goal:
@@ -436,7 +445,7 @@ DoD:
 ## 8) Completion Checklist
 - [x] `M10.A` complete
 - [x] `M10.B` complete
-- [ ] `M10.C` complete
+- [x] `M10.C` complete
 - [ ] `M10.D` complete
 - [ ] `M10.E` complete
 - [ ] `M10.F` complete
@@ -453,4 +462,4 @@ DoD:
 4. `M10.A` and `M10.B` are both closed green in managed execution (`22442631941`).
 5. Managed remediation/closure lane is active:
    - `.github/workflows/dev_full_m10_ab_managed.yml`
-6. Next action is `M10.C` expansion and execution.
+6. Next action is `M10.D` expansion and execution.
