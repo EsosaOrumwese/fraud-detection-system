@@ -9,7 +9,7 @@ What this proves:
 Tech stack:
 - Amazon Web Services Systems Manager Parameter Store `SecureString`, managed workflow rotation path, service redeploy enforcement, machine-readable readiness and cleanup snapshots.
 Top 3 in-report proof exhibits (self-contained):
-- Exhibit A (Section 9.2): Secret surface + IAM boundary fail→fix→pass with measured missing-handle counts and executable access simulation results.
+- Exhibit A (Section 9.2): Secret surface + Identity and Access Management (IAM) boundary fail→fix→pass with measured missing-handle counts and executable access simulation results.
 - Exhibit C+D (Section 9.2): Managed rotation with version/epoch witness + mandatory redeploy across 13 services with post-redeploy protocol verification.
 - Exhibit F (Section 9.2): Teardown cleanup proof (7/7 canonical targets absent, present_targets empty, unknown_targets zero).
 
@@ -20,10 +20,11 @@ Non-claim:
 
 ## Numbers That Matter (measured)
 These numbers are not narrative claims; each is tied to a fail-closed gate and a rerun closure witness.
+Lane identifiers (`M2.E`, `M6.B`, `M9.F`) are internal certification-lane labels.
 
 - Secret surface + access boundary (M2.E): FAIL→PASS in **17.85 minutes** (~17m 51s). Missing handles: **3/6** → **0/6**. IAM simulation became executable and proved least-privilege posture (app allowed **6**, execution allowed **0**).
 - Runtime boundary placeholder remediation (M6.B): FAIL→PASS in **33.03 minutes** (~33m 02s). Placeholder flags cleared and auth boundary behavior verified (unauth **401**, auth **200**).
-- Managed rotation execution: **5.50 minutes** (5m 30s), rotated **3** runtime messaging handles; SSM versions advanced to **2** for all rotated handles; protocol verification PASS with `topics_missing=[]`.
+- Managed rotation execution: **5.50 minutes** (5m 30s), rotated **3** runtime messaging handles; AWS Systems Manager Parameter Store (SSM) versions advanced to **2** for all rotated handles; protocol verification PASS with `topics_missing=[]`.
 - Runtime freshness enforcement: mandatory redeploy at `2026-02-20T01:07:24Z` across **13** daemon services; post-redeploy metadata check PASS (cluster_id `lkc-18rg03`). Rotation-to-freshness: **5.47 minutes** (~5m 28s).
 - Apply regression prevention: apply sourcing pinned to **current decrypted SSM values** (not stale remote-state fields) with a retained guard witness (`terraform_var_guards.ig_api_key=resolved_from_ssm`).
 - Teardown cleanup: scoped targets absent **7/7**, `present_targets=[]`, `unknown_targets_count=0`.
@@ -59,7 +60,7 @@ Many systems close only the first plane. This claim closes both planes and treat
 
 ### In-scope boundary
 This claim covers:
-- encrypted Amazon Web Services Systems Manager (AWS Systems Manager) Parameter Store secret handling for runtime messaging credentials,
+- encrypted AWS Systems Manager (SSM) Parameter Store secret handling for runtime messaging credentials,
 - non-commit posture for secret values (no plaintext credentials in repository content),
 - managed rotation procedure and bounded remediation when credentials are invalid or replaced,
 - explicit service redeploy after rotation to enforce runtime freshness,
@@ -190,7 +191,7 @@ Without this boundary, a platform can appear secure at rest while still running 
 The relevant system has seven components with explicit responsibilities:
 
 1. Encrypted parameter store
-- Amazon Web Services Systems Manager (AWS Systems Manager, SSM) Parameter Store `SecureString` paths hold runtime credential values.
+- AWS Systems Manager (SSM) Parameter Store `SecureString` paths hold runtime credential values.
 - Handles/paths are treated as contract surfaces; values are not embedded in source files.
 
 2. Infrastructure provisioning layer
@@ -799,6 +800,7 @@ This shifted the platform from "secrets configured" to "credentials lifecycle-co
 
 ### 9.2 Measured closure exhibits (proof embedded in-report)
 This section embeds the minimum measured facts required to validate the claim without requiring readers to open artifacts.
+All timestamps in this section are Coordinated Universal Time (UTC).
 
 #### Exhibit A — Secret surface + access boundary (M2.E) FAIL → PASS
 | Attempt | Time (UTC) | Outcome | Blockers | Required | Missing | Access boundary witness | Interpretation |
@@ -822,7 +824,7 @@ This proves “handle exists” is insufficient: placeholder values and placehol
 
 | Attempt | Time (UTC) | Outcome | Key runtime defects observed | Closure witness (PASS) |
 |---|---|---|---|---|
-| FAIL | 2026-02-15T03:32:40Z | FAIL | Placeholder IG API key in SSM, placeholder daemon command, no port mappings, SG ingress absent, auth boundary invalid, health probe failed | — |
+| FAIL | 2026-02-15T03:32:40Z | FAIL | Placeholder Ingestion Gate (IG) API key in SSM, placeholder daemon command, no port mappings, security-group ingress absent, auth boundary invalid, health probe failed | — |
 | PASS | 2026-02-15T04:05:42Z | PASS | — | Health probe `200`; unauth ingest `401`; auth ingest `200`; `auth_boundary_pass=true`; placeholder flags cleared; port mappings present; ingress rule present |
 
 FAIL indicator fields (selected):
@@ -864,7 +866,7 @@ Outcome (non-secret):
 - version/epoch witness: `ssm_versions.bootstrap=2`, `api_key=2`, `api_secret=2`
 
 Protocol-level verification (rotation is not “control-plane only”):
-- check: `kafka_admin_protocol_python_confluent_kafka`
+- check: authenticated Apache Kafka admin metadata-visibility verification (`kafka_admin_protocol_python_confluent_kafka`)
 - timestamp: `2026-02-20T01:01:40Z`
 - PASS, `topics_missing=[]`
 
@@ -1030,14 +1032,14 @@ This appendix is **optional**.
 
 The report body (Sections **4** and **9**) already embeds the proof facts needed to validate the claim:
 - fail-closed witnesses and bounded remediations (M2.E and M6.B),
-- measured timing (TTR and rotation-to-freshness),
+- measured timing (time-to-recovery and rotation-to-freshness),
 - measured closure fields (least-privilege simulation results, placeholder indicators cleared, protocol viability checks),
 - teardown cleanup absence (7/7 absent, present_targets empty, unknown_targets_count=0),
-- explicit non-claim for NOT_RETAINED deployment IDs.
+- explicit non-claim for NOT_RETAINED (not retained) deployment IDs.
 
 Use the retrieval hooks below only if a reviewer wants to inspect the underlying machine-readable snapshots directly (audit-style challenge or interview deep dive). These hooks do not introduce new claims; they are an inspection aid.
 
-### 11.2 Primary fail->fix->pass chain (best single proof path)
+### 11.2 Primary fail-to-fix-to-pass chain (best single proof path)
 Use this sequence first:
 
 1. Secret-surface fail-closed checkpoint
@@ -1138,8 +1140,8 @@ For platform engineering filters, this claim shows:
 Use this claim in interviews in this sequence:
 1. start with the lifecycle gap: "rotation in storage does not guarantee runtime freshness,"
 2. describe the control model: encrypted handles, managed rotation, mandatory redeploy, cleanup verification,
-3. walk through one fail->fix->pass chain (`m2_e` and `m6_b` anchors),
-4. show teardown residue closure (`m9_f_secret_cleanup_snapshot.json`),
+3. walk through one fail-to-fix-to-pass chain (secret-surface and runtime-boundary anchors),
+4. show teardown residue closure (teardown cleanup snapshot),
 5. end with non-claims to show scope discipline.
 
 This sequence presents strong technical judgment and keeps the claim challenge-defensible.
