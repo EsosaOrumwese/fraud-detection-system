@@ -1445,6 +1445,48 @@ Execution outcome (`run_id=dbbcd2e7383a4206b6d16c668b20d4e0`):
   - `HOLD_P3_REOPEN_PERF`.
   - `T17/T18` realism closure is achieved, but `S3` runtime regression blocks `UNLOCK_P4` under performance-first gates.
 
+#### P3.R1 - S3 runtime recovery reopen (keep `T17/T18` closed)
+Goal:
+- recover `S3` runtime rail while preserving the new campaign-depth realism closure achieved in P3.
+
+Definition of done:
+- [ ] `S3` runtime returns to stretch rail (`<=380s`) on fresh witness.
+- [ ] `T17` remains `PASS_B` (and retains practical headroom above `0.03`).
+- [ ] `T18` remains `PASS`.
+- [ ] no hard-gate regression on `T1-T16`, `T21`, `T22`.
+- [ ] closure artifacts emitted and phase decision updated.
+
+P3.R1 expanded execution plan:
+
+##### P3.R1.0 - Hotspot pin + bounded redesign lock
+Definition of done:
+- [ ] runtime regression owner pinned from evidence:
+  - `S3` moved from baseline reference `400.42s` to `851.20s`.
+- [ ] lane decomposition pinned for `S3`:
+  - flow assignment sublane,
+  - event assignment/write sublane.
+- [ ] selected bounded lane avoids schema/contract/policy/scorer changes.
+
+##### P3.R1.1 - Flow assignment cost reduction
+Definition of done:
+- [ ] reduce per-row campaign assignment overhead by avoiding repeated merchant-hash recomputation per campaign.
+- [ ] retain deterministic merchant-cohort targeting behavior for `T17` closure.
+- [ ] preserve first-match semantics and campaign guardrail bounds.
+
+##### P3.R1.2 - Event overlay throughput rewrite
+Definition of done:
+- [ ] replace heavy event-side per-campaign hash assignment lane with a deterministic flow-joined event overlay lane.
+- [ ] preserve required event schema and row-count parity with baseline events.
+- [ ] preserve deterministic campaign attribution and fraud flag semantics.
+
+##### P3.R1.3 - Fresh witness + closure scoring
+Definition of done:
+- [ ] stage fresh run-id and execute `S3 -> S4 -> S5`.
+- [ ] score with `tools/score_segment6b_p0_baseline.py`.
+- [ ] emit `segment6b_p3r1_closure_<run_id>.json/.md` and phase decision:
+  - `UNLOCK_P4` if runtime + realism rails pass,
+  - else `HOLD_P3_REOPEN_PERF` with next owner lane pinned.
+
 ### P4 - Wave C (`S1` context/session realism closure)
 Goal:
 - improve attachment/session realism and conditional context carry-through for durable `B+`.

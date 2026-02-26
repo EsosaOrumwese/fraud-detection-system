@@ -10912,3 +10912,33 @@ un_m7k_cert_remote (m7s).
    - `m7r_m7k_entry_20260226T000002Z`
    - `m7s_m7k_cert_20260226T000002Z`
 2. Once workflow-only merge to default branch is approved, the same lane can be run by pure workflow dispatch.
+## Entry: 2026-02-26 04:40:58 +00:00 - M7.K per-run cost artifacts wired and validated
+
+### Why this was added now
+1. `M7.K` had throughput certification artifacts but lacked an explicit per-run cost envelope/receipt pair.
+2. Cost-Control Law requires phase-level cost-to-outcome proof; relying only on monthly (`M7.J`) receipt is insufficient for lane-level auditability.
+
+### Implementation decisions and reasoning
+1. Added `us-east-1` Cost Explorer snapshot calls directly into `scripts/dev_substrate/m7k_throughput_cert.py`.
+2. Chosen posture: capture `pre` and `post` MTD cost snapshots around each run and compute `estimated_delta=post-pre`.
+3. Accepted caveat: AWS billing latency means delta may be zero immediately after run; receipt records this explicitly instead of guessing.
+4. Kept fail-open on billing-read failures for `entry` smoke mode but surfaced `capture_status/errors` in receipt so cost visibility is explicit.
+
+### What was changed
+1. Script now emits two new artifacts in both `entry` and `cert` modes:
+   - `m7k_phase_budget_envelope.json`
+   - `m7k_phase_cost_outcome_receipt.json`
+2. `platform.M7.build_plan.md` artifact contract and DoD were updated to require those two files locally + durably.
+
+### Validation performed
+1. Executed smoke entry run:
+   - execution id: `m7r_m7k_entry_costsmoke_20260226T000003Z`
+   - result: `overall_pass=true`, `blocker_count=0`
+2. Verified local artifact set includes both cost files under:
+   - `runs/dev_substrate/dev_full/m7/m7r_m7k_entry_costsmoke_20260226T000003Z/`
+3. Verified durable copies under:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7r_m7k_entry_costsmoke_20260226T000003Z/`
+4. Receipt values observed in run:
+   - `aws_mtd_pre_amount=78.3708562065 USD`
+   - `aws_mtd_post_amount=78.3708562065 USD`
+   - `spend_amount_estimated=0E-10` (expected possible due billing-latency window).

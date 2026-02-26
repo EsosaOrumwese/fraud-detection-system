@@ -582,7 +582,9 @@ Tasks:
    - `m7k_throughput_cert_blocker_register.json`
    - `m7k_throughput_cert_verdict.json`
    - `m7k_throughput_cert_execution_summary.json`
-   - `m7k_control_ingress_sentinel_snapshot.json`.
+   - `m7k_control_ingress_sentinel_snapshot.json`
+   - `m7k_phase_budget_envelope.json`
+   - `m7k_phase_cost_outcome_receipt.json`.
 
 Execution plan:
 1. `M7.K.A` entry + handle closure:
@@ -633,6 +635,7 @@ Sub-lane DoD checks:
 5. `M7.K.E`:
 - [x] rollup aggregates B/C/D + C+I sentinel evidence.
 - [x] `m7k_throughput_cert_verdict.json` + `m7k_throughput_cert_execution_summary.json` are committed locally and durably.
+- [x] `m7k_phase_budget_envelope.json` + `m7k_phase_cost_outcome_receipt.json` are committed locally and durably.
 - [x] deterministic gate closes green (`overall_pass=true`, `verdict=THROUGHPUT_CERTIFIED`, `blocker_count=0`).
 
 M7.K phase DoD:
@@ -661,7 +664,9 @@ Certification artifacts contract (`M7.K`):
 5. `m7k_throughput_cert_blocker_register.json`
 6. `m7k_control_ingress_sentinel_snapshot.json`
 7. `m7k_throughput_cert_verdict.json`
-8. `m7k_throughput_cert_execution_summary.json`.
+8. `m7k_throughput_cert_execution_summary.json`
+9. `m7k_phase_budget_envelope.json`
+10. `m7k_phase_cost_outcome_receipt.json`.
 
 Execution status (2026-02-26):
 1. `M7.K.A` first attempt (`m7r_m7k_entry_20260226T000001Z`) failed fail-closed on `M7-B18`:

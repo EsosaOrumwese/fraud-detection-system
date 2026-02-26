@@ -3827,3 +3827,41 @@ Artifacts:
 - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_dbbcd2e7383a4206b6d16c668b20d4e0.md`,
 - `runs/fix-data-engine/segment_6B/reports/segment6b_p3_closure_dbbcd2e7383a4206b6d16c668b20d4e0.json`,
 - `runs/fix-data-engine/segment_6B/reports/segment6b_p3_closure_dbbcd2e7383a4206b6d16c668b20d4e0.md`.
+
+---
+
+### Entry: 2026-02-26 06:02
+
+P3.R1 design lock before performance reopen code edits.
+
+Problem statement:
+- P3 statistical closure succeeded, but runtime rail failed:
+  - `S3` regressed from reference `400.42s` to `851.20s` on `dbbcd2...`.
+- this blocks `UNLOCK_P4` under performance-first phase gates.
+
+Hotspot hypothesis from run-log evidence:
+1) flow lane owner:
+- merchant-cohort targeting currently computes merchant hash expressions per campaign, increasing assignment cost materially.
+2) event lane owner:
+- event overlay still executes per-campaign assignment on the full event surface (`~249M` rows), which is expensive and no longer necessary once flow campaign attribution is already available.
+
+Alternatives considered:
+1) rollback P3.2 completely.
+- rejected: loses the `T17` closure gain and returns phase to statistical fail.
+2) tune batch/compression knobs only.
+- rejected: unlikely to recover a >2x regression and does not address algorithmic overhead.
+3) bounded algorithmic reopen (selected):
+- flow: reduce assignment cost by precomputing shared merchant bucket once per batch (campaign windows stay deterministic).
+- event: replace campaign-hash assignment lane with flow-joined event overlay lane via DuckDB (deterministic, schema-stable, parity-checked).
+
+Boundaries and invariants:
+- no schema/dataset id changes (`s3_flow_anchor_with_fraud_6B`, `s3_event_stream_with_fraud_6B`, `s3_campaign_catalogue_6B` unchanged).
+- no policy/scorer threshold changes.
+- deterministic behavior retained for fixed run identity tuple.
+- rerun matrix remains `S3 -> S4 -> S5`.
+
+Success targets for this reopen:
+- runtime:
+  - `S3<=380s` stretch rail.
+- realism:
+  - keep `T17` pass, keep `T18` pass, no hard-gate regression.

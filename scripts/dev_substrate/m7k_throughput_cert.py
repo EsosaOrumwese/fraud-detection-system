@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -81,6 +81,146 @@ def dedupe_blockers(blockers: list[dict[str, str]]) -> list[dict[str, str]]:
         seen.add(sig)
         out.append({"code": sig[0], "message": sig[1]})
     return out
+
+
+def month_start_utc(now_dt: datetime) -> str:
+    return now_dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d")
+
+
+def tomorrow_utc(now_dt: datetime) -> str:
+    return (now_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+
+
+def fetch_aws_mtd_cost(ce: Any) -> dict[str, Any]:
+    now_dt = datetime.now(timezone.utc)
+    result: dict[str, Any] = {
+        "captured_at_utc": now_dt.isoformat().replace("+00:00", "Z"),
+        "ok": False,
+        "amount": None,
+        "currency": "USD",
+        "error": None,
+    }
+    try:
+        payload = ce.get_cost_and_usage(
+            TimePeriod={"Start": month_start_utc(now_dt), "End": tomorrow_utc(now_dt)},
+            Granularity="MONTHLY",
+            Metrics=["UnblendedCost"],
+        )
+        rows = payload.get("ResultsByTime", [])
+        if rows:
+            total = rows[0].get("Total", {}).get("UnblendedCost", {})
+            amount = str(total.get("Amount", "")).strip()
+            currency = str(total.get("Unit", "USD")).strip() or "USD"
+            if amount:
+                result["amount"] = Decimal(amount)
+                result["currency"] = currency
+                result["ok"] = True
+            else:
+                result["error"] = "ce_amount_missing"
+        else:
+            result["error"] = "ce_results_empty"
+    except Exception as exc:
+        result["error"] = f"ce_get_cost_and_usage_failed:{type(exc).__name__}"
+    return result
+
+
+def as_decimal(value: Any, default: Decimal) -> Decimal:
+    try:
+        return Decimal(str(value))
+    except Exception:
+        return default
+
+
+def build_cost_artifacts(
+    *,
+    handles: dict[str, Any],
+    mode: str,
+    execution_id: str,
+    platform_run_id: str,
+    scenario_run_id: str,
+    phase_start_utc: str,
+    phase_end_utc: str,
+    pre_cost: dict[str, Any],
+    post_cost: dict[str, Any],
+    artifacts_emitted: list[str],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    currency = str(handles.get("BUDGET_CURRENCY", "USD")).strip() or "USD"
+    monthly_limit = as_decimal(handles.get("DEV_FULL_MONTHLY_BUDGET_LIMIT_USD", "0"), Decimal("0"))
+    alert_1 = as_decimal(handles.get("DEV_FULL_BUDGET_ALERT_1_USD", "0"), Decimal("0"))
+    alert_2 = as_decimal(handles.get("DEV_FULL_BUDGET_ALERT_2_USD", "0"), Decimal("0"))
+    alert_3 = as_decimal(handles.get("DEV_FULL_BUDGET_ALERT_3_USD", "0"), Decimal("0"))
+    aws_cost_capture_enabled = bool(handles.get("AWS_COST_CAPTURE_ENABLED", True))
+    databricks_cost_capture_enabled = bool(handles.get("DATABRICKS_COST_CAPTURE_ENABLED", False))
+    cost_capture_scope = str(handles.get("COST_CAPTURE_SCOPE", "aws_only_pre_m11_databricks_cost_deferred")).strip()
+    phase_name = "M7.K.A" if mode == "entry" else "M7.K"
+
+    pre_amount = pre_cost.get("amount")
+    post_amount = post_cost.get("amount")
+    delta_amount = None
+    if isinstance(pre_amount, Decimal) and isinstance(post_amount, Decimal):
+        delta_amount = post_amount - pre_amount
+        currency = str(post_cost.get("currency", currency)).strip() or currency
+
+    capture_errors: list[str] = []
+    if pre_cost.get("error"):
+        capture_errors.append(f"pre:{pre_cost['error']}")
+    if post_cost.get("error"):
+        capture_errors.append(f"post:{post_cost['error']}")
+
+    budget_envelope = {
+        "phase": phase_name,
+        "phase_id": "M7",
+        "phase_execution_id": execution_id,
+        "captured_at_utc": phase_end_utc,
+        "platform_run_id": platform_run_id,
+        "scenario_run_id": scenario_run_id,
+        "budget_currency": currency,
+        "monthly_limit_amount": str(monthly_limit),
+        "alert_1_amount": str(alert_1),
+        "alert_2_amount": str(alert_2),
+        "alert_3_amount": str(alert_3),
+        "cost_capture_scope": cost_capture_scope,
+        "aws_cost_capture_enabled": aws_cost_capture_enabled,
+        "databricks_cost_capture_enabled": databricks_cost_capture_enabled,
+        "phase_window": {
+            "start_utc": phase_start_utc,
+            "end_utc": phase_end_utc,
+        },
+        "aws_mtd_pre_amount": str(pre_amount) if isinstance(pre_amount, Decimal) else None,
+        "aws_mtd_post_amount": str(post_amount) if isinstance(post_amount, Decimal) else None,
+        "aws_mtd_delta_amount": str(delta_amount) if isinstance(delta_amount, Decimal) else None,
+        "capture_errors": capture_errors,
+    }
+
+    phase_cost_outcome_receipt = {
+        "phase_id": "M7",
+        "phase_execution_id": execution_id,
+        "phase": phase_name,
+        "window_start_utc": phase_start_utc,
+        "window_end_utc": phase_end_utc,
+        "spend_amount_estimated": str(delta_amount) if isinstance(delta_amount, Decimal) else None,
+        "spend_currency": currency,
+        "aws_mtd_pre_amount": str(pre_amount) if isinstance(pre_amount, Decimal) else None,
+        "aws_mtd_post_amount": str(post_amount) if isinstance(post_amount, Decimal) else None,
+        "artifacts_emitted": artifacts_emitted,
+        "decision_or_risk_retired": (
+            "M7.K throughput cert entry gate validated."
+            if mode == "entry"
+            else "M7.K throughput certification verdict emitted from bounded non-waived cert run."
+        ),
+        "source_components": {
+            "aws_cost_capture_enabled": aws_cost_capture_enabled,
+            "aws_ce_pre_capture_ok": bool(pre_cost.get("ok")),
+            "aws_ce_post_capture_ok": bool(post_cost.get("ok")),
+            "aws_ce_pre_error": pre_cost.get("error"),
+            "aws_ce_post_error": post_cost.get("error"),
+            "databricks_cost_capture_enabled": databricks_cost_capture_enabled,
+            "databricks_capture_mode": "DEFERRED",
+            "capture_scope": cost_capture_scope,
+        },
+        "note": "Per-run spend estimate is MTD post minus MTD pre and may lag due AWS billing latency.",
+    }
+    return budget_envelope, phase_cost_outcome_receipt
 
 
 def scan_recent_admissions(ddb: Any, table_name: str, platform_run_id: str, window_minutes: int) -> dict[str, Any]:
@@ -521,10 +661,13 @@ def main() -> int:
     if not bucket:
         raise SystemExit("EVIDENCE_BUCKET is required.")
 
+    phase_start_utc = now_utc()
     handles = parse_handles(HANDLES_PATH)
     s3 = boto3.client("s3")
     ddb = boto3.client("dynamodb")
+    ce = boto3.client("ce", region_name="us-east-1")
     prefix = f"evidence/dev_full/run_control/{execution_id}"
+    pre_cost = fetch_aws_mtd_cost(ce)
 
     if mode == "entry":
         snapshot, register, summary = entry_mode(env, handles, s3, ddb)
@@ -545,6 +688,23 @@ def main() -> int:
             "m7k_throughput_cert_verdict.json": verdict,
             "m7k_throughput_cert_execution_summary.json": summary,
         }
+
+    phase_end_utc = now_utc()
+    post_cost = fetch_aws_mtd_cost(ce)
+    budget_envelope, phase_cost_outcome_receipt = build_cost_artifacts(
+        handles=handles,
+        mode=mode,
+        execution_id=execution_id,
+        platform_run_id=env["PLATFORM_RUN_ID"],
+        scenario_run_id=env["SCENARIO_RUN_ID"],
+        phase_start_utc=phase_start_utc,
+        phase_end_utc=phase_end_utc,
+        pre_cost=pre_cost,
+        post_cost=post_cost,
+        artifacts_emitted=list(artifacts.keys()) + ["m7k_phase_budget_envelope.json", "m7k_phase_cost_outcome_receipt.json"],
+    )
+    artifacts["m7k_phase_budget_envelope.json"] = budget_envelope
+    artifacts["m7k_phase_cost_outcome_receipt.json"] = phase_cost_outcome_receipt
 
     write_local_artifacts(run_dir, artifacts)
     upload_errors = []
