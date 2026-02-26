@@ -13898,3 +13898,8 @@ ext_gate=M10.D_READY
 7. Plan sync completed:
    - deep plan `platform.M10.build_plan.md` updated: M10.F DoDs checked + execution status populated,
    - master plan `platform.build_plan.md` updated: M10.F green + next action moved to M10.G.
+
+## Entry: 2026-02-26 15:36:47 +00:00 - M10 checklist consistency cleanup
+1. Adjusted deep-plan completion checklist wording from `through M10.D` to `through M10.F`.
+2. Reason:
+   - prevent stale blocker-scope wording after M10.F closure.

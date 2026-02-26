@@ -605,7 +605,7 @@ DoD:
 - [ ] `M10.H` complete
 - [ ] `M10.I` complete
 - [ ] `M10.J` complete
-- [x] all active `M10-B*` blockers resolved (current active set through `M10.D`)
+- [x] all active `M10-B*` blockers resolved (current active set through `M10.F`)
 
 ## 9) Planning Status
 1. M10 planning is expanded and execution-grade.
