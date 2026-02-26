@@ -203,6 +203,7 @@ jobs:
           captured_at = now_utc()
           blockers: list[dict[str, str]] = []
           read_errors: list[dict[str, str]] = []
+          advisories: list[dict[str, str]] = []
           upload_errors: list[dict[str, str]] = []
 
           s3 = boto3.client("s3", region_name=region)
@@ -352,8 +353,13 @@ jobs:
               except ClientError as exc:
                   err_code = str(exc.response.get("Error", {}).get("Code", ""))
                   err_msg = str(exc.response.get("Error", {}).get("Message", ""))
-                  err_msg_lower = err_msg.lower()
-                  if err_code in {"ValidationException", "ResourceNotFound"}:
+                  if err_code == "AccessDeniedException":
+                      sm_probe["model_package_group_status"] = "deferred_m11g_owner_access_boundary"
+                      advisories.append({
+                          "code": "M11-B2-ADVISORY",
+                          "message": "Package-group describe/create is access-boundary deferred to M11.G owner lane.",
+                      })
+                  elif err_code in {"ValidationException", "ResourceNotFound"}:
                       try:
                           sm.create_model_package_group(
                               ModelPackageGroupName=model_package_group_name,
@@ -373,6 +379,12 @@ jobs:
                           if create_code == "ValidationException" and ("exists" in create_msg_lower or "already" in create_msg_lower):
                               sm.describe_model_package_group(ModelPackageGroupName=model_package_group_name)
                               sm_probe["model_package_group_status"] = "exists"
+                          elif create_code == "AccessDeniedException":
+                              sm_probe["model_package_group_status"] = "deferred_m11g_owner_access_boundary"
+                              advisories.append({
+                                  "code": "M11-B2-ADVISORY",
+                                  "message": "Package-group create is access-boundary deferred to M11.G owner lane.",
+                              })
                           else:
                               read_errors.append({"surface": f"sagemaker:model_package_group:{model_package_group_name}", "error": create_code or type(create_exc).__name__})
                               blockers.append({"code": "M11-B2", "message": "Model package group readiness failed."})
@@ -424,6 +436,7 @@ jobs:
               },
               "iam_checks": iam_check,
               "sagemaker_probes": sm_probe,
+              "advisories": advisories,
               "overall_pass": overall_pass,
               "blocker_count": len(blockers),
               "next_gate": next_gate,
@@ -437,6 +450,7 @@ jobs:
               "blocker_count": len(blockers),
               "blockers": blockers,
               "read_errors": read_errors,
+              "advisories": advisories,
               "upload_errors": upload_errors,
           }
 
