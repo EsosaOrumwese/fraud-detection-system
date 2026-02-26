@@ -284,10 +284,31 @@ jobs:
                   if not isinstance(spark_python_task, dict):
                       continue
                   python_file = str(spark_python_task.get("python_file", "")).strip()
-                  if python_file.startswith("dbfs:/"):
+                  if python_file and python_file != job_python_ref:
                       spark_python_task["python_file"] = job_python_ref
                       changed = True
               return settings, changed
+
+
+          def resolve_current_user(base_url: str, token: str) -> str:
+              paths = ["/api/2.0/current-user", "/api/2.0/preview/scim/v2/Me"]
+              for path in paths:
+                  try:
+                      payload = dbx_request_json(base_url, token, "GET", path)
+                  except Exception:
+                      continue
+                  user_name = str(payload.get("userName") or payload.get("user_name") or "").strip()
+                  if user_name:
+                      return user_name
+                  emails = payload.get("emails")
+                  if isinstance(emails, list):
+                      for row in emails:
+                          if not isinstance(row, dict):
+                              continue
+                          value = str(row.get("value", "")).strip()
+                          if value:
+                              return value
+              return ""
 
 
           def ensure_workspace_python_file(base_url: str, token: str, workspace_dir: str, workspace_file: str) -> None:
@@ -444,17 +465,7 @@ jobs:
 
           if not blockers and dbx_workspace and dbx_token:
               try:
-                  current_user_payload = dbx_request_json(
-                      dbx_workspace,
-                      dbx_token,
-                      "GET",
-                      "/api/2.0/current-user",
-                  )
-                  dbx_current_user = str(
-                      current_user_payload.get("userName")
-                      or current_user_payload.get("user_name")
-                      or ""
-                  ).strip()
+                  dbx_current_user = resolve_current_user(dbx_workspace, dbx_token)
                   if dbx_current_user:
                       workspace_build_dir = f"/Users/{dbx_current_user}/fraud-platform/dev_full"
                       workspace_build_file = f"{workspace_build_dir}/ofs_build_v0.py"
