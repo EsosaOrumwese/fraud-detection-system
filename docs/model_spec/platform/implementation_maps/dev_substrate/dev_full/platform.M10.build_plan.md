@@ -253,16 +253,62 @@ Execution status:
 
 ### M10.C M9 Input Binding + Immutability
 Goal:
-1. bind OFS build inputs to M9 replay/as-of closure.
+1. bind OFS build inputs to M9 replay/as-of/maturity closure with immutable run-scoped references.
 
-Tasks:
-1. verify replay-basis and leakage reports from M9.
-2. verify input references are immutable and run-scoped.
-3. emit `m10c_input_binding_snapshot.json`.
+Required upstream basis:
+1. `M10.B` pass summary (`overall_pass=true`, `next_gate=M10.C_READY`).
+2. `M9` closure summary (`overall_pass=true`, `verdict=ADVANCE_TO_M10`, `next_gate=M10_READY`).
+3. `M9.H` handoff pack (`p12_verdict=ADVANCE_TO_P13`, `m10_entry_gate.next_gate=M10_READY`).
+4. run-scoped learning input surfaces:
+   - `learning/input/replay_basis_receipt.json`,
+   - `learning/input/leakage_guardrail_report.json`,
+   - `learning/input/readiness_snapshot.json`.
+5. control-plane policy artifacts:
+   - `m9d_asof_maturity_policy_snapshot.json`,
+   - `m9f_surface_separation_snapshot.json`.
+
+Deterministic verification algorithm (M10.C):
+1. load and validate upstream `M10.B` summary pass posture.
+2. load `M9` summary and `M9.H` handoff pack; validate verdict/next-gate posture.
+3. enforce run-scope single-valued continuity (`platform_run_id`, `scenario_run_id`) across:
+   - M10.B summary,
+   - M9 summary,
+   - M9.H handoff,
+   - run-scoped learning input artifacts.
+4. resolve required evidence references from handoff and fail closed if any reference is:
+   - missing,
+   - unreadable,
+   - outside `evidence/runs/{platform_run_id}/learning/input/` for run-scoped learning inputs.
+5. validate replay-basis immutability:
+   - `replay_basis_fingerprint` is present and unchanged across control/run-scoped references,
+   - `origin_offset_ranges` are non-empty and parseable.
+6. validate as-of/maturity policy continuity:
+   - feature and label as-of required flags remain true,
+   - maturity-days policy is positive and consistent with upstream policy snapshot.
+7. validate leakage + separation continuity:
+   - leakage report is pass posture,
+   - runtime/learning separation snapshot is pass posture with no leaked forbidden outputs.
+8. emit artifacts:
+   - `m10c_input_binding_snapshot.json`,
+   - `m10c_blocker_register.json`,
+   - `m10c_execution_summary.json`.
+9. publish locally + durably with readback parity.
+10. emit deterministic next gate:
+   - `M10.D_READY` when blocker count is `0`,
+   - otherwise `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 10 minutes wall clock.
 
 DoD:
 - [ ] input binding and immutability checks pass.
-- [ ] snapshot committed locally and durably.
+- [ ] run-scope continuity checks pass across all required surfaces.
+- [ ] `m10c_input_binding_snapshot.json` committed locally and durably.
+- [ ] `m10c_blocker_register.json` and `m10c_execution_summary.json` committed locally and durably.
+- [ ] blocker-free pass emits `next_gate=M10.D_READY`.
+
+Execution status:
+1. pending execution.
 
 ### M10.D OFS Dataset Build Execution
 Goal:

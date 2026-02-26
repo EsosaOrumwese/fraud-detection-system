@@ -13362,3 +13362,77 @@ ext_gate=M10.B_READY.
    - m10b_databricks_readiness_20260226T124457Z: overall_pass=true, locker_count=0, 
 ext_gate=M10.C_READY.
 6. Gate decision: M10.A and M10.B are closed green; entry to M10.C is open.
+
+## Entry: 2026-02-26 13:06:38 +00:00 - M10.C expansion + execution kickoff (pre-change, fail-closed)
+1. User requested immediate M10.C expansion and full execution with live documentation during implementation.
+2. Active authority confirmed:
+   - docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md
+   - docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M10.build_plan.md
+   - docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md
+3. Entry posture confirmed from managed closure run 22442631941:
+   - M10.A pass (
+ext_gate=M10.B_READY),
+   - M10.B pass (
+ext_gate=M10.C_READY),
+   - blocker_count=0 for both A and B.
+4. M10.C objective pinned for this implementation pass:
+   - prove OFS input binding to M9 replay/as-of/maturity closure,
+   - enforce immutable run-scoped references,
+   - publish blocker-free m10c_input_binding_snapshot.json + register + summary locally and durably.
+5. Planned fail-closed checks (initial set, subject to authority fit during script review):
+   - upstream M10.B summary readable, pass, and 
+ext_gate=M10.C_READY,
+   - upstream M9 summary readable, pass, and erdict=ADVANCE_TO_M10,
+   - run-scope single-valued and equal across upstream surfaces,
+   - required M9 learning surfaces exist and are readable (replay basis, as-of maturity, leakage guardrail, runtime separation),
+   - all required refs are immutable URI surfaces (s3://...) and no placeholder/wildcard values remain.
+6. Runtime + cost posture:
+   - target <= 10 minutes wall time for M10.C closure check,
+   - no long-lived runtime materialization, no additional compute lanes, evidence-only AWS reads/writes.
+7. Alternative considered:
+   - defer M10.C until a larger managed workflow refactor including M10.D+.
+   - rejected for now: user requested M10.C execution now and entry gate is open.
+8. Next immediate steps:
+   - expand M10.C section in deep plan with explicit entry conditions/tasks/DoD/blockers,
+   - implement scripts/dev_substrate/m10c_input_binding.py,
+   - execute M10.C and clear blockers before closure marking.
+
+## Entry: 2026-02-26 13:09:02 +00:00 - M10.C design closure before edit (authority-grounded)
+1. Reviewed live upstream payloads from evidence bucket to avoid template drift:
+   - m9_execution_summary.json (m9j_closure_sync_20260226T083701Z),
+   - m10_handoff_pack.json (m9h_p12_gate_rollup_20260226T082548Z),
+   - run-scoped learning input surfaces under vidence/runs/platform_20260223T184232Z/learning/input/.
+2. Confirmed canonical input surfaces for M10.C binding proof:
+   - replay basis receipt,
+   - leakage guardrail report,
+   - readiness snapshot,
+   - as-of/maturity policy snapshot,
+   - runtime-learning separation snapshot.
+3. Decided M10.C closure script contract:
+   - blocker code family: M10-B3 for semantic/input-binding failures,
+   - blocker code M10-B12 for output publication/readback parity failures,
+   - success gate: 
+ext_gate=M10.D_READY.
+4. Chosen execution posture for this step:
+   - run control-plane binding checker against managed evidence surfaces,
+   - no heavy runtime lane materialization,
+   - durable publication to run-control prefix for deterministic handoff.
+5. Immediate edits to apply:
+   - expand ### M10.C in deep plan to execution-grade,
+   - add scripts/dev_substrate/m10c_input_binding.py with fail-closed checks and durable artifacts.
+
+## Entry: 2026-02-26 13:11:38 +00:00 - M10.C planning expansion + script implementation applied
+1. Expanded ### M10.C in platform.M10.build_plan.md from skeletal to execution-grade.
+2. Added explicit M10.C sections:
+   - required upstream basis,
+   - deterministic verification algorithm,
+   - runtime budget,
+   - DoD anchors including blocker-free 
+ext_gate=M10.D_READY.
+3. Implemented scripts/dev_substrate/m10c_input_binding.py.
+4. Script contract implemented:
+   - inputs: M10C_EXECUTION_ID, M10C_RUN_DIR, EVIDENCE_BUCKET, UPSTREAM_M10B_EXECUTION, UPSTREAM_M9_EXECUTION, UPSTREAM_M9H_EXECUTION, AWS_REGION.
+   - checks: upstream pass posture, run-scope continuity, immutable run-scoped refs, replay-basis fingerprint continuity, as-of/maturity continuity, leakage + separation continuity.
+   - blocker families: M10-B3 and publication parity M10-B12.
+   - outputs: m10c_input_binding_snapshot.json, m10c_blocker_register.json, m10c_execution_summary.json (local + durable run-control).
+5. Next step: execute M10.C script and remediate blockers to closure.
