@@ -14379,3 +14379,25 @@ ext_gate=M10.D_READY
 5. Plan synchronization completed:
    - `platform.M10.build_plan.md` now marks `M10.J` complete and all `M10-B*` blockers resolved through M10.J,
    - `platform.build_plan.md` now marks M10 status `DONE`, closes M10 DoD cost anchor, and sets next action to `M11.A`.
+
+## Entry: 2026-02-26 17:01:14 +00:00 - M11 planning expansion hardened to execution-grade
+1. Scope handled in this step was planning-only, not runtime execution. Objective was to remove residual ambiguity in M11 before starting implementation.
+2. Master plan patch (`platform.build_plan.md`) updated the M11 section with explicit:
+   - planning posture constraints,
+   - fail-closed blocker taxonomy (`M11-B1..M11-B12`),
+   - immutable M10 entry evidence anchors,
+   - strict sub-phase sequencing posture.
+3. Deep plan rewrite (`platform.M11.build_plan.md`) replaced generic lane text with execution-grade contracts for `M11.A..M11.J`:
+   - explicit entry and pass-next-gate chain,
+   - required handle set in `M11.A`,
+   - managed-only execution posture,
+   - deterministic artifact contract,
+   - sub-phase runtime budgets,
+   - concrete fail-closed blocker mapping.
+4. Decision rationale:
+   - M11 includes expensive and high-risk learning lanes, so ambiguity at this stage creates avoidable runtime drift and cost burn.
+   - Added budgets and cost-outcome hooks directly in `M11.D` and `M11.J` to satisfy binding performance/cost laws before execution starts.
+   - Anchored M11 entry to concrete M10 durable artifacts so gate entry cannot drift to implicit assumptions.
+5. Current phase posture after patch:
+   - `M11` remains `NOT_STARTED` in master plan,
+   - deep plan is now execution-grade and ready for `M11.A` expansion/execution flow.

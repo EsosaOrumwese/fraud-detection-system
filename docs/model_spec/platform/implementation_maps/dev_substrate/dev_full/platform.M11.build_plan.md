@@ -1,23 +1,21 @@
 # Dev Substrate Deep Plan - M11 (P14 MF_EVAL_COMMITTED)
 _Status source of truth: `platform.build_plan.md`_
-_This document provides orchestration-level deep planning detail for M11._
+_Track: `dev_full`_
 _Last updated: 2026-02-26_
 
 ## 0) Purpose
-M11 closes:
-1. `P14 MF_EVAL_COMMITTED`.
-
-M11 must prove:
-1. training/evaluation consume immutable M10 dataset inputs.
-2. MF eval passes compatibility, performance, and leakage gates.
-3. MLflow lineage and provenance are complete and auditable.
-4. candidate bundle is published with safe-disable/rollback posture.
-5. deterministic `P14` verdict and M12 handoff are committed.
+M11 closes `P14 MF_EVAL_COMMITTED` with deterministic, reproducible model-factory train/eval proof. A green M11 means:
+1. Inputs are immutable and anchored to M10 closure artifacts.
+2. Train/eval execution is managed-only and reproducible.
+3. Evaluation gates (performance, stability, leakage) are explicit and fail-closed.
+4. MLflow lineage and provenance are complete and auditable.
+5. Candidate bundle publication + safe-disable/rollback evidence is complete.
+6. Deterministic `P14` verdict and `M12` handoff are emitted.
 
 ## 1) Authority Inputs
 Primary:
 1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
-2. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md` (`P14`)
+2. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`
 3. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
 4. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
 
@@ -26,22 +24,33 @@ Supporting:
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M10.build_plan.md`
 3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.impl_actual.md`
 
-## 2) Scope Boundary for M11
-In scope:
-1. MF authority/handle closure.
-2. SageMaker runtime readiness for train/eval.
-3. immutable input binding to M10 output set.
-4. train/eval execution and metric/leakage gates.
-5. MLflow lineage and provenance closure.
-6. candidate bundle publication.
-7. safe-disable/rollback path publication.
-8. deterministic P14 verdict + M12 handoff + cost-outcome closure.
+## 2) Entry Contract
+M11 cannot execute unless all are true:
+1. `M10` status is `DONE` in `platform.build_plan.md`.
+2. `m10j_closure_sync_20260226T164304Z` artifacts are readable from durable evidence.
+3. M10 closure verdict is `ADVANCE_TO_M11` and `next_gate=M11_READY`.
+4. No active unresolved `M10-B*` blocker remains in master/deep plans.
 
-Out of scope:
-1. promotion and rollback corridor operations (`M12`).
-2. final full-platform verdict and teardown (`M13`).
+Entry evidence anchors:
+1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10j_closure_sync_20260226T164304Z/m10_execution_summary.json`
+2. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10j_closure_sync_20260226T164304Z/m10j_execution_summary.json`
+3. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10i_p13_gate_rollup_20260226T162737Z/m11_handoff_pack.json`
 
-## 3) Deliverables
+## 3) Global M11 Guardrails
+1. No local runtime compute for authoritative M11 closure.
+2. Managed-first execution only (GitHub Actions + pinned managed resources).
+3. Fail-closed on any unresolved required handle.
+4. Fail-closed on any missing or inconsistent upstream artifact.
+5. Cost-control law is binding:
+- pre-compute budget envelope before heavy run lane,
+- closure cost-outcome receipt at M11.J,
+- no advance on unattributed spend.
+6. Performance-first law is binding:
+- explicit runtime budgets per sub-phase,
+- no silent long-run acceptance without analysis and remediation trail.
+
+## 4) Deliverables and Artifact Contract
+M11 artifacts (local run folder + durable mirror) must include:
 1. `m11a_handle_closure_snapshot.json`
 2. `m11b_sagemaker_readiness_snapshot.json`
 3. `m11c_input_immutability_snapshot.json`
@@ -55,51 +64,33 @@ Out of scope:
 11. `m11_phase_budget_envelope.json`
 12. `m11_phase_cost_outcome_receipt.json`
 13. `m11_execution_summary.json`
+14. `m11_blocker_register.json`
 
-## 4) Entry Gate and Current Posture
-Entry gate for M11:
-1. `M10` is `DONE`.
-2. `P13` verdict is `ADVANCE_TO_P14`.
-3. M10 blockers are resolved.
+Run folder convention:
+1. `runs/dev_substrate/dev_full/m11/<execution_id>/...`
+2. Durable mirror: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/<execution_id>/...`
 
-Current posture:
-1. M11 planning is expanded and execution-grade.
-2. Execution has not started.
+## 5) Execution Order and Gate Chain
+| Sub-phase | Phase gate objective | Entry gate | PASS next gate | Primary blockers |
+| --- | --- | --- | --- | --- |
+| M11.A | authority + handles closure | M10 done + M11 ready | M11.B_READY | M11-B1 |
+| M11.B | SageMaker runtime readiness | M11.A pass | M11.C_READY | M11-B2 |
+| M11.C | immutable input binding | M11.B pass | M11.D_READY | M11-B3 |
+| M11.D | train/eval execution | M11.C pass + budget envelope present | M11.E_READY | M11-B4 |
+| M11.E | eval gate adjudication | M11.D pass | M11.F_READY | M11-B5 |
+| M11.F | MLflow lineage closure | M11.E pass | M11.G_READY | M11-B6 |
+| M11.G | candidate bundle publication | M11.F pass | M11.H_READY | M11-B7 |
+| M11.H | safe-disable/rollback closure | M11.G pass | M11.I_READY | M11-B8 |
+| M11.I | P14 rollup + verdict + handoff | M11.H pass | M11.J_READY | M11-B9, M11-B10 |
+| M11.J | cost-outcome + closure sync | M11.I pass | M12_READY | M11-B11, M11-B12 |
 
-## 4.1) Anti-Cram Law (Binding for M11)
-M11 is not execution-ready unless these capability lanes are explicit:
-1. authority + handles.
-2. SageMaker runtime readiness.
-3. input immutability.
-4. train/eval execution.
-5. eval/leakage/stability gates.
-6. MLflow lineage + provenance.
-7. candidate bundle publication.
-8. safe-disable/rollback closure.
-9. deterministic verdict + handoff.
-10. cost-outcome closure.
+## 6) Sub-Phase Execution Contracts
 
-## 4.2) Capability-Lane Coverage Matrix
-| Capability lane | Primary owner sub-phase | Minimum PASS evidence |
-| --- | --- | --- |
-| Authority + handle closure | M11.A | no unresolved required P14 handles |
-| SageMaker readiness | M11.B | runtime role and endpoint/training surfaces pass |
-| Input immutability | M11.C | M10 dataset binding checks pass |
-| Train/eval execution | M11.D | execution snapshot pass |
-| Eval gate closure | M11.E | metrics/leakage/stability checks pass |
-| MLflow lineage closure | M11.F | lineage/provenance snapshot pass |
-| Candidate bundle publication | M11.G | candidate bundle snapshot pass |
-| Safe-disable/rollback closure | M11.H | rollback/safe-disable checks pass |
-| P14 verdict + handoff | M11.I | `ADVANCE_TO_P15` + `m12_handoff_pack.json` |
-| Cost-outcome + closure sync | M11.J | summary + budget + cost receipt pass |
-
-## 5) Work Breakdown (Orchestration)
-
-### M11.A P14 Authority + Handle Closure
+### M11.A - Authority + Handle Closure
 Goal:
-1. close required P14 handles before train/eval execution.
+1. Resolve all required P14 handles and fail-closed on unresolved items.
 
-Required handle set:
+Required handles:
 1. `SM_TRAINING_JOB_NAME_PREFIX`
 2. `SM_BATCH_TRANSFORM_JOB_NAME_PREFIX`
 3. `SM_MODEL_PACKAGE_GROUP_NAME`
@@ -112,131 +103,180 @@ Required handle set:
 10. `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`
 11. `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`
 
-DoD:
-- [ ] required handle matrix explicit and complete.
-- [ ] unresolved handles are blocker-marked.
-- [ ] `m11a_handle_closure_snapshot.json` committed locally and durably.
+Execution notes:
+1. Produce explicit resolved/unresolved matrix.
+2. Map unresolved required handles to `M11-B1`.
+3. Emit `m11a_handle_closure_snapshot.json` and `m11_blocker_register.json`.
 
-### M11.B SageMaker Runtime Readiness
+Runtime budget:
+1. Target <= 5 minutes.
+
+DoD:
+- [ ] all required handles resolved or explicitly blocker-marked.
+- [ ] `m11a_handle_closure_snapshot.json` published local + durable.
+- [ ] `M11.B_READY` asserted on blocker-free pass.
+
+### M11.B - SageMaker Runtime Readiness
 Goal:
-1. prove SageMaker runtime and identity surfaces are executable.
+1. Prove train/eval runtime identity and APIs are ready.
 
-Tasks:
-1. validate role/endpoint/training job surfaces.
-2. validate required secret/path dependencies.
-3. emit `m11b_sagemaker_readiness_snapshot.json`.
+Execution notes:
+1. Validate IAM role assumptions and execution permissions.
+2. Validate required runtime surfaces for training/evaluation operations.
+3. Emit `m11b_sagemaker_readiness_snapshot.json`.
+
+Runtime budget:
+1. Target <= 8 minutes.
 
 DoD:
-- [ ] SageMaker readiness checks pass.
-- [ ] readiness snapshot committed locally and durably.
+- [ ] readiness checks pass with no open `M11-B2`.
+- [ ] snapshot published local + durable.
+- [ ] `M11.C_READY` asserted.
 
-### M11.C Input Immutability Binding
+### M11.C - Immutable Input Binding
 Goal:
-1. prove training inputs are immutable and bound to M10 outputs.
+1. Bind M11 execution to immutable M10 output contract.
 
-Tasks:
-1. validate M10 manifest/fingerprint references.
-2. validate as-of/replay/provenance closure references.
-3. emit `m11c_input_immutability_snapshot.json`.
+Execution notes:
+1. Resolve M10 manifest/fingerprint references.
+2. Validate immutability contract (fingerprint + run-scoped identity).
+3. Emit `m11c_input_immutability_snapshot.json`.
+
+Runtime budget:
+1. Target <= 8 minutes.
 
 DoD:
-- [ ] immutable input checks pass.
-- [ ] snapshot committed locally and durably.
+- [ ] immutable binding checks pass with no open `M11-B3`.
+- [ ] snapshot published local + durable.
+- [ ] `M11.D_READY` asserted.
 
-### M11.D Train/Eval Execution
+### M11.D - Train/Eval Execution
 Goal:
-1. execute training/evaluation runs with deterministic inputs.
+1. Run managed train/eval jobs with deterministic inputs and pinned config.
 
-Tasks:
-1. run training and evaluation jobs.
-2. capture job refs and completion states.
-3. emit `m11d_train_eval_execution_snapshot.json`.
+Execution notes:
+1. Emit `m11_phase_budget_envelope.json` before job launch.
+2. Execute training and evaluation jobs.
+3. Capture job refs/status/runtime and emit `m11d_train_eval_execution_snapshot.json`.
+4. Mark failures as `M11-B4` with explicit surface details.
+
+Runtime budget:
+1. Target <= 45 minutes.
+2. Hard alert if > 60 minutes without explicit approved waiver.
 
 DoD:
-- [ ] train/eval execution completes.
-- [ ] execution snapshot committed locally and durably.
+- [ ] train/eval jobs complete successfully.
+- [ ] execution snapshot published local + durable.
+- [ ] budget envelope published.
+- [ ] `M11.E_READY` asserted.
 
-### M11.E Eval Gate Closure
+### M11.E - Eval Gate Adjudication
 Goal:
-1. adjudicate metric, leakage, and stability gates.
+1. Adjudicate metric/performance/stability/leakage gates deterministically.
 
-Tasks:
-1. validate thresholds and gate outcomes.
-2. fail-closed on gate failures.
-3. emit `m11e_eval_gate_snapshot.json`.
+Execution notes:
+1. Evaluate thresholds from pinned policy surfaces.
+2. Fail-closed on any gate miss (`M11-B5`).
+3. Emit `m11e_eval_gate_snapshot.json`.
+
+Runtime budget:
+1. Target <= 10 minutes.
 
 DoD:
-- [ ] evaluation gates pass.
-- [ ] snapshot committed locally and durably.
+- [ ] all eval gates pass.
+- [ ] snapshot published local + durable.
+- [ ] `M11.F_READY` asserted.
 
-### M11.F MLflow Lineage + Provenance Closure
+### M11.F - MLflow Lineage + Provenance Closure
 Goal:
-1. prove full lineage and provenance references.
+1. Prove full lineage from immutable input through evaluation outputs.
 
-Tasks:
-1. verify MLflow experiment/run/model refs.
-2. verify provenance fields include dataset fingerprint and replay/as-of controls.
-3. emit `m11f_mlflow_lineage_snapshot.json`.
+Execution notes:
+1. Validate experiment/run identifiers.
+2. Validate provenance fields include run pins and dataset fingerprint references.
+3. Emit `m11f_mlflow_lineage_snapshot.json`.
+
+Runtime budget:
+1. Target <= 10 minutes.
 
 DoD:
-- [ ] lineage/provenance checks pass.
-- [ ] snapshot committed locally and durably.
+- [ ] lineage/provenance checks pass with no open `M11-B6`.
+- [ ] snapshot published local + durable.
+- [ ] `M11.G_READY` asserted.
 
-### M11.G Candidate Bundle Publication
+### M11.G - Candidate Bundle + Provenance Publication
 Goal:
-1. publish candidate bundle with compatibility metadata.
+1. Publish candidate bundle package and provenance metadata.
 
-Tasks:
-1. emit candidate bundle artifact and metadata.
-2. validate required compatibility fields.
-3. emit `m11g_candidate_bundle_snapshot.json`.
+Execution notes:
+1. Publish candidate bundle to pinned artifact surface.
+2. Validate required provenance keys.
+3. Emit `m11g_candidate_bundle_snapshot.json`.
+
+Runtime budget:
+1. Target <= 8 minutes.
 
 DoD:
-- [ ] candidate bundle publication checks pass.
-- [ ] snapshot committed locally and durably.
+- [ ] bundle publish + provenance checks pass.
+- [ ] snapshot published local + durable.
+- [ ] `M11.H_READY` asserted.
 
-### M11.H Safe-Disable/Rollback Closure
+### M11.H - Safe-Disable/Rollback Closure
 Goal:
-1. close safe-disable and rollback evidence for MF.
+1. Prove safe-disable and rollback posture for the candidate bundle.
 
-Tasks:
-1. publish safe-disable posture for candidate.
-2. validate rollback strategy and evidence refs.
-3. emit `m11h_safe_disable_rollback_snapshot.json`.
+Execution notes:
+1. Emit rollback path references and safe-disable controls.
+2. Validate rollback artifact readability.
+3. Emit `m11h_safe_disable_rollback_snapshot.json`.
+
+Runtime budget:
+1. Target <= 8 minutes.
 
 DoD:
-- [ ] safe-disable/rollback checks pass.
-- [ ] snapshot committed locally and durably.
+- [ ] safe-disable/rollback closure passes with no open `M11-B8`.
+- [ ] snapshot published local + durable.
+- [ ] `M11.I_READY` asserted.
 
-### M11.I P14 Gate Rollup + M12 Handoff
+### M11.I - P14 Gate Rollup + M12 Handoff
 Goal:
-1. produce deterministic `P14` verdict and handoff.
+1. Roll up M11.A..H and emit deterministic P14 verdict.
 
-Tasks:
-1. roll up M11A-H outcomes in fixed order.
-2. emit `m11i_p14_gate_verdict.json`.
-3. emit `m12_handoff_pack.json`.
+Execution notes:
+1. Construct deterministic gate matrix across M11.A..H.
+2. Emit `m11i_p14_gate_verdict.json`.
+3. Emit `m12_handoff_pack.json`.
+4. Fail-closed with `M11-B9` or `M11-B10` on mismatch/publication failure.
+
+Runtime budget:
+1. Target <= 8 minutes.
 
 DoD:
-- [ ] deterministic verdict is emitted.
-- [ ] pass posture requires `ADVANCE_TO_P15` + `next_gate=M12_READY`.
-- [ ] handoff pack committed locally and durably.
+- [ ] verdict is `ADVANCE_TO_P15`.
+- [ ] `next_gate=M12_READY`.
+- [ ] handoff pack published local + durable.
+- [ ] `M11.J_READY` asserted.
 
-### M11.J M11 Cost-Outcome + Closure Sync
+### M11.J - Cost-Outcome + Closure Sync
 Goal:
-1. close M11 with cost-outcome and summary parity.
+1. Close M11 with cost/outcome proof and summary parity.
 
-Tasks:
-1. emit `m11_phase_budget_envelope.json`.
-2. emit `m11_phase_cost_outcome_receipt.json`.
-3. emit `m11_execution_summary.json`.
+Execution notes:
+1. Emit `m11_phase_cost_outcome_receipt.json`.
+2. Emit `m11_execution_summary.json` + `m11_blocker_register.json`.
+3. Validate artifact parity (required vs published).
+4. Fail-closed on `M11-B11` or `M11-B12`.
+
+Runtime budget:
+1. Target <= 8 minutes.
 
 DoD:
-- [ ] budget + receipt artifacts committed locally and durably.
-- [ ] summary parity checks pass.
-- [ ] M11 closure sync passes with no unresolved blocker.
+- [ ] cost-outcome receipt published local + durable.
+- [ ] summary parity passes (`all_required_available=true`).
+- [ ] no active blockers remain.
+- [ ] phase closure verdict ready for M12 entry.
 
-## 6) Blocker Taxonomy (Fail-Closed)
+## 7) Blocker Taxonomy (Fail-Closed)
 1. `M11-B1`: authority/handle closure failure.
 2. `M11-B2`: SageMaker readiness failure.
 3. `M11-B3`: input immutability failure.
@@ -244,26 +284,11 @@ DoD:
 5. `M11-B5`: eval gate failure.
 6. `M11-B6`: MLflow lineage/provenance failure.
 7. `M11-B7`: candidate bundle publication failure.
-8. `M11-B8`: safe-disable/rollback closure failure.
+8. `M11-B8`: safe-disable/rollback failure.
 9. `M11-B9`: P14 rollup/verdict inconsistency.
 10. `M11-B10`: handoff publication failure.
-11. `M11-B11`: phase cost-outcome closure failure.
-12. `M11-B12`: summary/evidence publication parity failure.
-
-## 7) Artifact Contract (M11)
-1. `m11a_handle_closure_snapshot.json`
-2. `m11b_sagemaker_readiness_snapshot.json`
-3. `m11c_input_immutability_snapshot.json`
-4. `m11d_train_eval_execution_snapshot.json`
-5. `m11e_eval_gate_snapshot.json`
-6. `m11f_mlflow_lineage_snapshot.json`
-7. `m11g_candidate_bundle_snapshot.json`
-8. `m11h_safe_disable_rollback_snapshot.json`
-9. `m11i_p14_gate_verdict.json`
-10. `m12_handoff_pack.json`
-11. `m11_phase_budget_envelope.json`
-12. `m11_phase_cost_outcome_receipt.json`
-13. `m11_execution_summary.json`
+11. `M11-B11`: cost-outcome closure failure.
+12. `M11-B12`: summary/evidence parity failure.
 
 ## 8) Completion Checklist
 - [ ] `M11.A` complete
@@ -276,8 +301,10 @@ DoD:
 - [ ] `M11.H` complete
 - [ ] `M11.I` complete
 - [ ] `M11.J` complete
-- [ ] all active `M11-B*` blockers resolved
+- [ ] no unresolved `M11-B*` blocker remains
+- [ ] all M11 artifacts published local + durable
 
 ## 9) Planning Status
-1. M11 planning is expanded and execution-grade.
-2. Execution is blocked until M10 closure is green and handoff is committed.
+1. M11 planning is expanded to execution-grade depth.
+2. M11 execution remains `NOT_STARTED`.
+3. Next actionable lane is `M11.A`.

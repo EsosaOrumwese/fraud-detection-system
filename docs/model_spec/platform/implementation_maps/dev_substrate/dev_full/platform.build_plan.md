@@ -1323,6 +1323,33 @@ Planned lanes:
 - safe-disable/rollback path publication.
 - deterministic P14 verdict + M12 handoff + cost-outcome closure.
 
+M11 planning posture:
+- M11 is expanded to execution-grade planning in deep plan `platform.M11.build_plan.md`.
+- M11 is strictly sequenced as `M11.A -> M11.B -> ... -> M11.J`; no phase skipping is permitted.
+- M11 operates fail-closed: any `M11-B*` blocker halts advancement until cleared.
+- M11 inherits M10 closure contract as immutable entry basis:
+  - `M10` must be `DONE`,
+  - `m10j_closure_sync_20260226T164304Z` must remain readable on durable evidence store,
+  - `M11_READY` must remain the active next gate from M10 closure artifacts.
+- M11 cost discipline is mandatory:
+  - phase-budget envelope emitted before heavy compute lane (`M11.D`),
+  - phase cost-outcome receipt emitted at closure (`M11.J`),
+  - no progression on unattributed spend.
+
+M11 blocker families (fail-closed):
+- `M11-B1` authority/handle closure failure.
+- `M11-B2` SageMaker readiness failure.
+- `M11-B3` immutable input binding failure.
+- `M11-B4` train/eval execution failure.
+- `M11-B5` eval gate failure (performance/stability/leakage).
+- `M11-B6` MLflow lineage/provenance failure.
+- `M11-B7` candidate publication/provenance failure.
+- `M11-B8` safe-disable/rollback closure failure.
+- `M11-B9` P14 rollup/verdict inconsistency.
+- `M11-B10` handoff publication failure.
+- `M11-B11` phase cost-outcome closure failure.
+- `M11-B12` summary/artifact parity failure.
+
 M11 sub-phase plan:
 1. `M11.A` authority + handle closure (`P14`).
 2. `M11.B` SageMaker runtime readiness.
@@ -1345,6 +1372,11 @@ DoD anchors:
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M11.build_plan.md`
+
+M11 entry evidence anchors:
+- `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10j_closure_sync_20260226T164304Z/m10_execution_summary.json`
+- `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10j_closure_sync_20260226T164304Z/m10j_execution_summary.json`
+- `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10i_p13_gate_rollup_20260226T162737Z/m11_handoff_pack.json`
 
 ## M12 - MPR Promotion/Rollback Closure
 Status: `NOT_STARTED`
