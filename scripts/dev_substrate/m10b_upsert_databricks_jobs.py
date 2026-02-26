@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import os
 import re
@@ -128,7 +130,7 @@ def build_job_settings(
     *,
     job_name: str,
     task_key: str,
-    python_file: str,
+    notebook_path: str,
     spark_version: str,
     node_type_id: str,
     min_workers: int,
@@ -142,9 +144,9 @@ def build_job_settings(
             {
                 "task_key": task_key,
                 "job_cluster_key": "main_cluster",
-                "spark_python_task": {
-                    "python_file": python_file,
-                    "parameters": [],
+                "notebook_task": {
+                    "notebook_path": notebook_path,
+                    "source": "WORKSPACE",
                 },
                 "timeout_seconds": 7200,
             }
@@ -170,7 +172,7 @@ def build_serverless_job_settings(
     *,
     job_name: str,
     task_key: str,
-    python_file: str,
+    notebook_path: str,
 ) -> dict[str, Any]:
     return {
         "name": job_name,
@@ -178,9 +180,9 @@ def build_serverless_job_settings(
         "tasks": [
             {
                 "task_key": task_key,
-                "spark_python_task": {
-                    "python_file": python_file,
-                    "parameters": [],
+                "notebook_task": {
+                    "notebook_path": notebook_path,
+                    "source": "WORKSPACE",
                 },
                 "environment_key": "default",
                 "timeout_seconds": 7200,
@@ -207,6 +209,50 @@ def _workspace_serverless_only(exc: urllib.error.HTTPError) -> bool:
     return bool(re.search(r"only\s+serverless\s+compute\s+is\s+supported", message, re.IGNORECASE))
 
 
+def sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def workspace_import_python_source(
+    base_url: str,
+    token: str,
+    *,
+    workspace_root: str,
+    workspace_notebook_path: str,
+    source_text: str,
+) -> None:
+    dbx_request(
+        base_url,
+        token,
+        "POST",
+        "/api/2.0/workspace/mkdirs",
+        payload={"path": workspace_root},
+    )
+    encoded = base64.b64encode(source_text.encode("utf-8")).decode("ascii")
+    dbx_request(
+        base_url,
+        token,
+        "POST",
+        "/api/2.0/workspace/import",
+        payload={
+            "path": workspace_notebook_path,
+            "format": "SOURCE",
+            "language": "PYTHON",
+            "content": encoded,
+            "overwrite": True,
+        },
+    )
+
+
+def load_source_file(path: Path) -> str:
+    if not path.exists():
+        raise RuntimeError(f"source_missing:{path}")
+    source = path.read_text(encoding="utf-8").strip()
+    if not source:
+        raise RuntimeError(f"source_empty:{path}")
+    return source + "\n"
+
+
 def main() -> int:
     workspace_url = os.environ.get("DBX_WORKSPACE_URL", "").strip()
     token = os.environ.get("DBX_TOKEN", "").strip()
@@ -215,6 +261,9 @@ def main() -> int:
     autoscale = os.environ.get("DBX_AUTOSCALE_WORKERS", "1-8").strip()
     auto_terminate = int(os.environ.get("DBX_AUTO_TERMINATE_MINUTES", "20").strip())
     receipt_path = Path(os.environ.get("M10B_DBX_JOB_UPSERT_RECEIPT_PATH", "").strip())
+    workspace_root = os.environ.get("DBX_WORKSPACE_PROJECT_ROOT", "/Shared/fraud-platform/dev_full").strip().rstrip("/")
+    build_source_path = Path(os.environ.get("OFS_BUILD_SOURCE_PATH", "platform/databricks/dev_full/ofs_build_v0.py").strip())
+    quality_source_path = Path(os.environ.get("OFS_QUALITY_SOURCE_PATH", "platform/databricks/dev_full/ofs_quality_v0.py").strip())
 
     if not workspace_url:
         raise SystemExit("DBX_WORKSPACE_URL is required.")
@@ -224,6 +273,8 @@ def main() -> int:
         raise SystemExit("DBX required job names are missing.")
     if not receipt_path:
         raise SystemExit("M10B_DBX_JOB_UPSERT_RECEIPT_PATH is required.")
+    if not workspace_root.startswith("/"):
+        raise SystemExit("DBX_WORKSPACE_PROJECT_ROOT must be an absolute workspace path.")
 
     if "-" not in autoscale:
         raise SystemExit("DBX_AUTOSCALE_WORKERS must be in min-max format.")
@@ -234,16 +285,49 @@ def main() -> int:
         raise SystemExit("Invalid autoscale range.")
 
     captured_at = now_utc()
+    build_workspace_notebook = f"{workspace_root}/ofs_build_v0"
+    quality_workspace_notebook = f"{workspace_root}/ofs_quality_v0"
     outcome: dict[str, Any] = {
         "captured_at_utc": captured_at,
         "overall_pass": False,
         "workspace_url": workspace_url,
+        "workspace_root": workspace_root,
         "compute_mode": "job_clusters",
         "jobs": [],
         "errors": [],
+        "source_provenance": {},
     }
 
     try:
+        build_source = load_source_file(build_source_path)
+        quality_source = load_source_file(quality_source_path)
+        workspace_import_python_source(
+            workspace_url,
+            token,
+            workspace_root=workspace_root,
+            workspace_notebook_path=build_workspace_notebook,
+            source_text=build_source,
+        )
+        workspace_import_python_source(
+            workspace_url,
+            token,
+            workspace_root=workspace_root,
+            workspace_notebook_path=quality_workspace_notebook,
+            source_text=quality_source,
+        )
+        outcome["source_provenance"] = {
+            "build": {
+                "repo_source_path": str(build_source_path).replace("\\", "/"),
+                "workspace_notebook_path": build_workspace_notebook,
+                "source_sha256": sha256_text(build_source),
+            },
+            "quality": {
+                "repo_source_path": str(quality_source_path).replace("\\", "/"),
+                "workspace_notebook_path": quality_workspace_notebook,
+                "source_sha256": sha256_text(quality_source),
+            },
+        }
+
         spark_version = select_spark_version(workspace_url, token)
         node_type = select_node_type(workspace_url, token)
         existing = list_jobs(workspace_url, token)
@@ -254,7 +338,7 @@ def main() -> int:
                 "settings": build_job_settings(
                     job_name=build_job_name,
                     task_key="ofs_build",
-                    python_file="dbfs:/fraud-platform/dev_full/ofs_build_v0.py",
+                    notebook_path=build_workspace_notebook,
                     spark_version=spark_version,
                     node_type_id=node_type,
                     min_workers=min_workers,
@@ -267,7 +351,7 @@ def main() -> int:
                 "settings": build_job_settings(
                     job_name=quality_job_name,
                     task_key="ofs_quality",
-                    python_file="dbfs:/fraud-platform/dev_full/ofs_quality_v0.py",
+                    notebook_path=quality_workspace_notebook,
                     spark_version=spark_version,
                     node_type_id=node_type,
                     min_workers=min_workers,
@@ -318,7 +402,7 @@ def main() -> int:
                     "settings": build_serverless_job_settings(
                         job_name=build_job_name,
                         task_key="ofs_build",
-                        python_file="dbfs:/fraud-platform/dev_full/ofs_build_v0.py",
+                        notebook_path=build_workspace_notebook,
                     ),
                 },
                 {
@@ -326,7 +410,7 @@ def main() -> int:
                     "settings": build_serverless_job_settings(
                         job_name=quality_job_name,
                         task_key="ofs_quality",
-                        python_file="dbfs:/fraud-platform/dev_full/ofs_quality_v0.py",
+                        notebook_path=quality_workspace_notebook,
                     ),
                 },
             ]

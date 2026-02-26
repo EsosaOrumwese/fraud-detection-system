@@ -193,7 +193,7 @@ jobs:
           import json
           import os
           import base64
-          import textwrap
+          import hashlib
           import re
           import time
           import urllib.parse
@@ -207,20 +207,7 @@ jobs:
 
 
           HANDLES_PATH = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
-          WORKSPACE_BUILD_SOURCE = """
-          from __future__ import annotations
-
-          import json
-          import sys
-          from datetime import datetime, timezone
-
-          print("m10d_ofs_build_bootstrap_start", datetime.now(timezone.utc).isoformat())
-          print(json.dumps({
-              "argv": sys.argv[1:],
-              "utc": datetime.now(timezone.utc).isoformat(),
-          }, ensure_ascii=True))
-          print("m10d_ofs_build_bootstrap_complete")
-          """
+          LOCAL_BUILD_SOURCE_PATH = Path("platform/databricks/dev_full/ofs_build_v0.py")
 
 
           def now_utc() -> str:
@@ -372,28 +359,16 @@ jobs:
               return settings, changed
 
 
-          def resolve_current_user(base_url: str, token: str) -> str:
-              paths = ["/api/2.0/current-user", "/api/2.0/preview/scim/v2/Me"]
-              for path in paths:
-                  try:
-                      payload = dbx_request_json(base_url, token, "GET", path)
-                  except Exception:
-                      continue
-                  user_name = str(payload.get("userName") or payload.get("user_name") or "").strip()
-                  if user_name:
-                      return user_name
-                  emails = payload.get("emails")
-                  if isinstance(emails, list):
-                      for row in emails:
-                          if not isinstance(row, dict):
-                              continue
-                          value = str(row.get("value", "")).strip()
-                          if value:
-                              return value
-              return ""
+          def load_repo_source(source_path: Path) -> str:
+              if not source_path.exists():
+                  raise FileNotFoundError(str(source_path))
+              content = source_path.read_text(encoding="utf-8").strip()
+              if not content:
+                  raise ValueError(f"empty_source:{source_path}")
+              return content + "\n"
 
 
-          def ensure_workspace_python_file(base_url: str, token: str, workspace_dir: str, workspace_file: str) -> None:
+          def ensure_workspace_python_file(base_url: str, token: str, workspace_dir: str, workspace_file: str, source_text: str) -> None:
               dbx_request_json(
                   base_url,
                   token,
@@ -401,8 +376,7 @@ jobs:
                   "/api/2.0/workspace/mkdirs",
                   payload={"path": workspace_dir},
               )
-              source = textwrap.dedent(WORKSPACE_BUILD_SOURCE).strip() + "\n"
-              encoded = base64.b64encode(source.encode("utf-8")).decode("ascii")
+              encoded = base64.b64encode(source_text.encode("utf-8")).decode("ascii")
               dbx_request_json(
                   base_url,
                   token,
@@ -523,10 +497,14 @@ jobs:
 
           dbx_workspace = ""
           dbx_token = ""
-          dbx_current_user = ""
           workspace_build_dir = "/Shared/fraud-platform/dev_full"
           workspace_build_file = "/Shared/fraud-platform/dev_full/ofs_build_v0"
           workspace_build_file_job_ref = "/Shared/fraud-platform/dev_full/ofs_build_v0"
+          repo_build_source_path = str(LOCAL_BUILD_SOURCE_PATH).replace("\\", "/")
+          repo_build_source_sha256 = ""
+          repo_build_source_text = ""
+          workspace_python_patch_applied = False
+          serverless_client_patch_applied = False
 
           if ssm_workspace_path:
               try:
@@ -547,13 +525,19 @@ jobs:
 
           if not blockers and dbx_workspace and dbx_token:
               try:
-                  dbx_current_user = resolve_current_user(dbx_workspace, dbx_token)
-                  if dbx_current_user:
-                      workspace_build_dir = f"/Users/{dbx_current_user}/fraud-platform/dev_full"
-                      workspace_build_file = f"{workspace_build_dir}/ofs_build_v0"
-                      workspace_build_file_job_ref = workspace_build_file
+                  repo_build_source_text = load_repo_source(LOCAL_BUILD_SOURCE_PATH)
+                  repo_build_source_sha256 = hashlib.sha256(repo_build_source_text.encode("utf-8")).hexdigest()
+                  ensure_workspace_python_file(
+                      dbx_workspace,
+                      dbx_token,
+                      workspace_build_dir,
+                      workspace_build_file,
+                      repo_build_source_text,
+                  )
+                  workspace_python_patch_applied = True
               except Exception as exc:
-                  read_errors.append({"surface": "databricks.current-user", "error": type(exc).__name__})
+                  read_errors.append({"surface": repo_build_source_path, "error": type(exc).__name__})
+                  blockers.append({"code": "M10-B4", "message": "Repo OFS build source file is unreadable."})
 
           job_id = None
           run_id = None
@@ -565,8 +549,6 @@ jobs:
           run_end_time_utc = ""
           elapsed_seconds = None
           poll_attempts = 0
-          serverless_client_patch_applied = False
-          workspace_python_patch_applied = False
 
           if not blockers and dbx_workspace and dbx_token and dbx_job_name:
               try:
@@ -593,9 +575,6 @@ jobs:
                   if isinstance(settings, dict):
                       normalized_settings, changed = normalize_serverless_client(settings)
                       normalized_settings, python_changed = normalize_job_python_entry(normalized_settings, workspace_build_file_job_ref)
-                      if python_changed:
-                          ensure_workspace_python_file(dbx_workspace, dbx_token, workspace_build_dir, workspace_build_file)
-                          workspace_python_patch_applied = True
                       if changed:
                           serverless_client_patch_applied = True
                       if changed or python_changed:
@@ -715,7 +694,8 @@ jobs:
                   "workspace_python_patch_applied": workspace_python_patch_applied,
                   "workspace_python_file": workspace_build_file_job_ref,
                   "workspace_python_file_import_path": workspace_build_file,
-                  "current_user": dbx_current_user,
+                  "repo_source_path": repo_build_source_path,
+                  "repo_source_sha256": repo_build_source_sha256,
               },
               "overall_pass": overall_pass,
               "blocker_count": len(blockers),

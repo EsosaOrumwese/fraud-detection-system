@@ -173,6 +173,9 @@ jobs:
           DBX_JOB_OFS_QUALITY_GATES_V0: "fraud-platform-dev-full-ofs-quality-v0"
           DBX_AUTOSCALE_WORKERS: "1-8"
           DBX_AUTO_TERMINATE_MINUTES: "20"
+          DBX_WORKSPACE_PROJECT_ROOT: "/Shared/fraud-platform/dev_full"
+          OFS_BUILD_SOURCE_PATH: "platform/databricks/dev_full/ofs_build_v0.py"
+          OFS_QUALITY_SOURCE_PATH: "platform/databricks/dev_full/ofs_quality_v0.py"
           M10B_DBX_JOB_UPSERT_RECEIPT_PATH: ${{ steps.run_meta.outputs.job_receipt_path }}
         run: |
           set -euo pipefail
@@ -198,6 +201,7 @@ jobs:
           M10B_RUN_DIR: ${{ steps.run_meta.outputs.m10b_run_dir }}
           EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
           UPSTREAM_M10A_EXECUTION: ${{ steps.run_meta.outputs.m10a_execution_id }}
+          M10B_DBX_JOB_UPSERT_RECEIPT_PATH: ${{ steps.run_meta.outputs.job_receipt_path }}
           AWS_REGION: ${{ inputs.aws_region }}
         run: |
           set -euo pipefail

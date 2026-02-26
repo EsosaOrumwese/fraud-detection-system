@@ -14401,3 +14401,43 @@ ext_gate=M10.D_READY
 5. Current phase posture after patch:
    - `M11` remains `NOT_STARTED` in master plan,
    - deep plan is now execution-grade and ready for `M11.A` expansion/execution flow.
+
+## Entry: 2026-02-26 17:16:19 +00:00 - Databricks code provenance remediation (M10->M11 bridge hardening)
+1. Trigger: identified design drift where M10 lane could close with Databricks runtime orchestration green but without repo-owned workload source provenance.
+2. Root issue captured:
+   - `M10.B` upsert job lane previously referenced DBFS script paths without guaranteeing repo source publication.
+   - `M10.D` workflow embedded an inline bootstrap source (`WORKSPACE_BUILD_SOURCE`) and could run even when repo Databricks source files were not authoritative.
+3. Decision taken (production-pattern aligned):
+   - make repo-managed Databricks source files first-class artifacts,
+   - materialize those files into Databricks workspace during managed workflow,
+   - capture sha256 provenance in run artifacts and fail-closed if source provenance is missing.
+4. Implemented code surfaces:
+   - added repo-managed Databricks workload stubs:
+     - `platform/databricks/dev_full/ofs_build_v0.py`
+     - `platform/databricks/dev_full/ofs_quality_v0.py`
+   - upgraded `scripts/dev_substrate/m10b_upsert_databricks_jobs.py`:
+     - publishes repo files to workspace via `/api/2.0/workspace/import`,
+     - computes/stores sha256 per source,
+     - upserts jobs to `notebook_task` against workspace paths,
+     - writes source provenance into upsert receipt.
+   - upgraded `scripts/dev_substrate/m10b_databricks_readiness.py`:
+     - consumes `M10B_DBX_JOB_UPSERT_RECEIPT_PATH`,
+     - fail-closed checks receipt readability/pass posture,
+     - fail-closed checks source provenance completeness (`build` + `quality` rows with path + workspace path + sha256).
+   - upgraded workflows:
+     - `.github/workflows/dev_full_m10_ab_managed.yml`
+       - exports workspace/source path env vars for deterministic job upsert.
+       - passes upsert receipt path into M10.B readiness execution.
+     - `.github/workflows/dev_full_m10_d_managed.yml`
+       - removed inline `WORKSPACE_BUILD_SOURCE` injection path,
+       - imports repo file `platform/databricks/dev_full/ofs_build_v0.py` into workspace each run,
+       - captures repo source sha256 in `m10d_ofs_build_execution_snapshot.json`.
+5. Documentation hardening:
+   - updated `platform.M10.build_plan.md` to explicitly require:
+     - M10.B upsert-receipt provenance checks,
+     - M10.D repo-source import + sha capture.
+6. Validation completed:
+   - Python syntax check passed for updated scripts and new Databricks source files (`py_compile`).
+   - workflow YAML parse passed for both updated workflows (`YAML_OK`).
+7. Residual action after this remediation:
+   - rerun managed `M10.A/M10.B` then `M10.D` to refresh durable evidence under new provenance contract before declaring this drift fully closed at runtime.

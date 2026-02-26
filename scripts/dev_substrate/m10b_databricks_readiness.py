@@ -191,6 +191,7 @@ def main() -> int:
     run_dir_raw = env.get("M10B_RUN_DIR", "").strip()
     evidence_bucket = env.get("EVIDENCE_BUCKET", "").strip()
     upstream_m10a_execution = env.get("UPSTREAM_M10A_EXECUTION", "").strip()
+    upsert_receipt_path_raw = env.get("M10B_DBX_JOB_UPSERT_RECEIPT_PATH", "").strip()
     aws_region = env.get("AWS_REGION", "eu-west-2").strip() or "eu-west-2"
 
     if not execution_id:
@@ -207,6 +208,7 @@ def main() -> int:
     handles = parse_handles(HANDLES_PATH)
     s3 = boto3.client("s3", region_name=aws_region)
     ssm = boto3.client("ssm", region_name=aws_region)
+    upsert_receipt_path = Path(upsert_receipt_path_raw) if upsert_receipt_path_raw else None
 
     blockers: list[dict[str, str]] = []
     read_errors: list[dict[str, str]] = []
@@ -437,6 +439,54 @@ def main() -> int:
         if nonconformant:
             blockers.append({"code": "M10-B2", "message": "Databricks compute policy conformance failed for required jobs."})
 
+    upsert_receipt: dict[str, Any] | None = None
+    upsert_receipt_checks = {
+        "path": str(upsert_receipt_path).replace("\\", "/") if upsert_receipt_path else "",
+        "readable": False,
+        "overall_pass": False,
+        "repo_source_provenance_complete": False,
+    }
+    if upsert_receipt_path is not None:
+        try:
+            payload = json.loads(upsert_receipt_path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                upsert_receipt = payload
+                upsert_receipt_checks["readable"] = True
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            read_errors.append({"surface": str(upsert_receipt_path), "error": type(exc).__name__})
+            blockers.append({"code": "M10-B2", "message": "Databricks upsert receipt unreadable."})
+    else:
+        blockers.append({"code": "M10-B2", "message": "Databricks upsert receipt path not provided."})
+
+    if upsert_receipt is not None:
+        if bool(upsert_receipt.get("overall_pass")):
+            upsert_receipt_checks["overall_pass"] = True
+        else:
+            blockers.append({"code": "M10-B2", "message": "Databricks upsert receipt is not pass posture."})
+
+        src = upsert_receipt.get("source_provenance", {})
+        source_ok = True
+        for lane in ("build", "quality"):
+            row = src.get(lane) if isinstance(src, dict) else None
+            if not isinstance(row, dict):
+                source_ok = False
+                break
+            source_hash = str(row.get("source_sha256", "")).strip().lower()
+            workspace_notebook = str(row.get("workspace_notebook_path", "")).strip()
+            repo_source = str(row.get("repo_source_path", "")).strip()
+            if not re.fullmatch(r"[a-f0-9]{64}", source_hash):
+                source_ok = False
+                break
+            if not workspace_notebook.startswith("/"):
+                source_ok = False
+                break
+            if not repo_source:
+                source_ok = False
+                break
+        upsert_receipt_checks["repo_source_provenance_complete"] = source_ok
+        if not source_ok:
+            blockers.append({"code": "M10-B2", "message": "Databricks repo source provenance is incomplete in upsert receipt."})
+
     blockers = dedupe_blockers(blockers)
     overall_pass = len(blockers) == 0
     next_gate = "M10.C_READY" if overall_pass else "HOLD_REMEDIATE"
@@ -468,6 +518,7 @@ def main() -> int:
         "missing_jobs": missing_jobs,
         "job_policy_rows": job_policy_rows,
         "compute_policy_expected": compute_policy,
+        "upsert_receipt_checks": upsert_receipt_checks,
         "overall_pass": overall_pass,
     }
 

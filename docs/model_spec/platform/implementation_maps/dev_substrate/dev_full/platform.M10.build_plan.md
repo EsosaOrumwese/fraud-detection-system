@@ -217,7 +217,11 @@ Deterministic verification algorithm (M10.B):
 6. validate required jobs exist by handle name:
    - `DBX_JOB_OFS_BUILD_V0`,
    - `DBX_JOB_OFS_QUALITY_GATES_V0`.
-7. validate compute policy conformance for required jobs:
+7. validate upsert receipt provenance from managed job materialization:
+   - `m10b_databricks_job_upsert_receipt.json` is readable,
+   - receipt is pass posture,
+   - both build and quality source-provenance rows include repo path + workspace notebook path + `sha256`.
+8. validate compute policy conformance for required jobs:
    - no task uses `existing_cluster_id` when `DBX_COMPUTE_POLICY=job-clusters-only`,
    - autoscale range conforms to `DBX_AUTOSCALE_WORKERS`,
    - auto-termination conforms to `DBX_AUTO_TERMINATE_MINUTES`.
@@ -238,6 +242,7 @@ DoD:
 - [x] `m10b_databricks_readiness_snapshot.json` committed locally and durably.
 - [x] `m10b_blocker_register.json` and `m10b_execution_summary.json` committed locally and durably.
 - [x] blocker-free pass emits `next_gate=M10.C_READY`.
+- [ ] job upsert receipt proves repo-managed Databricks source provenance (`build` + `quality`, sha256 present).
 
 Execution status:
 1. Execution id:
@@ -343,19 +348,21 @@ Deterministic execution algorithm (M10.D):
 2. fail closed unless `overall_pass=true` and `next_gate=M10.D_READY`.
 3. parse handles registry and fail closed on missing/placeholder handle values.
 4. resolve Databricks workspace URL + token from SSM and fail closed on read errors.
-5. resolve OFS build job id by exact name (`DBX_JOB_OFS_BUILD_V0`) using Jobs API.
-6. start build run (`jobs/run-now`) with run tags/parameters containing:
+5. load repo-managed Databricks build source (`platform/databricks/dev_full/ofs_build_v0.py`) and compute `sha256`.
+6. import repo build source into Databricks workspace notebook path and fail closed on import/readback errors.
+7. resolve OFS build job id by exact name (`DBX_JOB_OFS_BUILD_V0`) using Jobs API.
+8. start build run (`jobs/run-now`) with run tags/parameters containing:
    - `platform_run_id`,
    - `scenario_run_id`,
    - `m10_execution_id`.
-7. poll run state (`jobs/runs/get`) at fixed cadence until terminal state or timeout.
-8. fail closed unless terminal lifecycle is `TERMINATED` and result state is `SUCCESS`.
-9. emit artifacts:
+9. poll run state (`jobs/runs/get`) at fixed cadence until terminal state or timeout.
+10. fail closed unless terminal lifecycle is `TERMINATED` and result state is `SUCCESS`.
+11. emit artifacts:
    - `m10d_ofs_build_execution_snapshot.json`,
    - `m10d_blocker_register.json`,
    - `m10d_execution_summary.json`.
-10. publish artifacts locally + durably with readback parity.
-11. emit deterministic next gate:
+12. publish artifacts locally + durably with readback parity.
+13. emit deterministic next gate:
     - `M10.E_READY` when blocker count is `0`,
     - otherwise `HOLD_REMEDIATE`.
 
@@ -368,6 +375,7 @@ DoD:
 - [x] `m10d_ofs_build_execution_snapshot.json` committed locally and durably.
 - [x] `m10d_blocker_register.json` and `m10d_execution_summary.json` committed locally and durably.
 - [x] blocker-free pass emits `next_gate=M10.E_READY`.
+- [ ] M10.D snapshot includes repo-source provenance for OFS build notebook (`repo_source_path`, `repo_source_sha256`).
 
 Execution status:
 1. Execution id:
