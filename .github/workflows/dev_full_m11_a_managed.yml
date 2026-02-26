@@ -1,0 +1,438 @@
+name: dev-full-m11-a-managed
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region for S3/SSM operations"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      evidence_bucket:
+        description: "S3 bucket for run-control evidence"
+        required: true
+        default: "fraud-platform-dev-full-evidence"
+        type: string
+      upstream_m10j_execution:
+        description: "Upstream M10.J execution id"
+        required: true
+        default: "m10j_closure_sync_20260226T164304Z"
+        type: string
+      upstream_m10i_execution:
+        description: "Upstream M10.I execution id"
+        required: true
+        default: "m10i_p13_gate_rollup_20260226T162737Z"
+        type: string
+      m11a_execution_id:
+        description: "Optional fixed M11.A execution id"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-m11-a-managed-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_m11_a_managed:
+    name: Run M11.A authority+handle closure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m11a_execution_id }}" ]]; then
+            M11A_EXEC="${{ inputs.m11a_execution_id }}"
+          else
+            M11A_EXEC="m11a_handle_closure_${TS}"
+          fi
+          M11A_RUN_DIR="runs/dev_substrate/dev_full/m11/${M11A_EXEC}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m11a_execution_id=${M11A_EXEC}" >> "$GITHUB_OUTPUT"
+          echo "m11a_run_dir=${M11A_RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Execute M11.A (managed)
+        shell: bash
+        env:
+          M11A_EXECUTION_ID: ${{ steps.run_meta.outputs.m11a_execution_id }}
+          M11A_RUN_DIR: ${{ steps.run_meta.outputs.m11a_run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          UPSTREAM_M10J_EXECUTION: ${{ inputs.upstream_m10j_execution }}
+          UPSTREAM_M10I_EXECUTION: ${{ inputs.upstream_m10i_execution }}
+          AWS_REGION: ${{ inputs.aws_region }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import re
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from typing import Any
+
+          import boto3
+          from botocore.exceptions import BotoCoreError, ClientError
+
+
+          HANDLES_PATH = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
+          REQUIRED_HANDLES = [
+              "SM_TRAINING_JOB_NAME_PREFIX",
+              "SM_BATCH_TRANSFORM_JOB_NAME_PREFIX",
+              "SM_MODEL_PACKAGE_GROUP_NAME",
+              "SM_ENDPOINT_NAME",
+              "MF_EVAL_REPORT_PATH_PATTERN",
+              "MF_CANDIDATE_BUNDLE_PATH_PATTERN",
+              "MF_LEAKAGE_PROVENANCE_CHECK_PATH_PATTERN",
+              "MLFLOW_HOSTING_MODE",
+              "MLFLOW_EXPERIMENT_PATH",
+              "PHASE_BUDGET_ENVELOPE_PATH_PATTERN",
+              "PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN",
+          ]
+
+
+          def now_utc() -> str:
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+          def parse_handles(path: Path) -> dict[str, Any]:
+              out: dict[str, Any] = {}
+              rx = re.compile(r"^\* `([^`=]+?)\s*=\s*([^`]+)`")
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  m = rx.match(line.strip())
+                  if not m:
+                      continue
+                  key = m.group(1).strip()
+                  raw = m.group(2).strip()
+                  if raw.startswith('"') and raw.endswith('"'):
+                      out[key] = raw[1:-1]
+                  elif raw.lower() == "true":
+                      out[key] = True
+                  elif raw.lower() == "false":
+                      out[key] = False
+                  else:
+                      out[key] = raw
+              return out
+
+
+          def is_placeholder(value: Any) -> bool:
+              s = str(value).strip()
+              s_lower = s.lower()
+              if not s:
+                  return True
+              if s_lower in {"tbd", "todo", "none", "null", "unset", "na", "n/a"}:
+                  return True
+              if "to_pin" in s_lower or "placeholder" in s_lower:
+                  return True
+              if "<" in s and ">" in s:
+                  return True
+              return False
+
+
+          def is_wildcard(value: Any) -> bool:
+              s = str(value).strip()
+              if not s:
+                  return False
+              return "*" in s
+
+
+          def s3_get_json(s3: Any, bucket: str, key: str) -> dict[str, Any]:
+              payload = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+              obj = json.loads(payload)
+              if not isinstance(obj, dict):
+                  raise ValueError("json_not_object")
+              return obj
+
+
+          def s3_put_json(s3: Any, bucket: str, key: str, payload: dict[str, Any]) -> None:
+              body = json.dumps(payload, indent=2, ensure_ascii=True).encode("utf-8")
+              s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="application/json")
+              s3.head_object(Bucket=bucket, Key=key)
+
+
+          def write_local(run_dir: Path, artifacts: dict[str, dict[str, Any]]) -> None:
+              run_dir.mkdir(parents=True, exist_ok=True)
+              for name, payload in artifacts.items():
+                  (run_dir / name).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+
+          execution_id = os.environ["M11A_EXECUTION_ID"]
+          run_dir = Path(os.environ["M11A_RUN_DIR"])
+          evidence_bucket = os.environ["EVIDENCE_BUCKET"]
+          region = os.environ["AWS_REGION"]
+          upstream_m10j = os.environ["UPSTREAM_M10J_EXECUTION"]
+          upstream_m10i = os.environ["UPSTREAM_M10I_EXECUTION"]
+
+          captured_at = now_utc()
+          blockers: list[dict[str, str]] = []
+          read_errors: list[dict[str, str]] = []
+          upload_errors: list[dict[str, str]] = []
+
+          s3 = boto3.client("s3", region_name=region)
+
+          m10_summary_key = f"evidence/dev_full/run_control/{upstream_m10j}/m10_execution_summary.json"
+          m10j_summary_key = f"evidence/dev_full/run_control/{upstream_m10j}/m10j_execution_summary.json"
+          m11_handoff_key = f"evidence/dev_full/run_control/{upstream_m10i}/m11_handoff_pack.json"
+
+          m10_summary: dict[str, Any] = {}
+          m10j_summary: dict[str, Any] = {}
+          m11_handoff: dict[str, Any] = {}
+
+          for key in (m10_summary_key, m10j_summary_key, m11_handoff_key):
+              try:
+                  payload = s3_get_json(s3, evidence_bucket, key)
+                  if key == m10_summary_key:
+                      m10_summary = payload
+                  elif key == m10j_summary_key:
+                      m10j_summary = payload
+                  else:
+                      m11_handoff = payload
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": key, "error": type(exc).__name__})
+                  blockers.append({
+                      "code": "M11-B1",
+                      "message": f"Required upstream artifact unreadable: {key}",
+                  })
+
+          if m10_summary and not bool(m10_summary.get("overall_pass", False)):
+              blockers.append({"code": "M11-B1", "message": "M10 overall_pass is not true."})
+
+          if m10j_summary:
+              if not bool(m10j_summary.get("overall_pass", False)):
+                  blockers.append({"code": "M11-B1", "message": "M10.J overall_pass is not true."})
+              if str(m10j_summary.get("verdict", "")).strip() != "ADVANCE_TO_M11":
+                  blockers.append({"code": "M11-B1", "message": "M10.J verdict is not ADVANCE_TO_M11."})
+              if str(m10j_summary.get("next_gate", "")).strip() != "M11_READY":
+                  blockers.append({"code": "M11-B1", "message": "M10.J next_gate is not M11_READY."})
+
+          platform_run_id = str(m11_handoff.get("platform_run_id", "")).strip() if m11_handoff else ""
+          scenario_run_id = str(m11_handoff.get("scenario_run_id", "")).strip() if m11_handoff else ""
+          if not platform_run_id:
+              blockers.append({"code": "M11-B1", "message": "platform_run_id unresolved from M11 handoff."})
+          if not scenario_run_id:
+              blockers.append({"code": "M11-B1", "message": "scenario_run_id unresolved from M11 handoff."})
+
+          if m11_handoff:
+              if not bool(m11_handoff.get("m11_entry_ready", False)):
+                  blockers.append({"code": "M11-B1", "message": "M11 handoff entry flag is not ready."})
+              if str(m11_handoff.get("next_gate", "")).strip() != "M11_READY":
+                  blockers.append({"code": "M11-B1", "message": "M11 handoff next_gate is not M11_READY."})
+              if str(m11_handoff.get("p13_verdict", "")).strip() != "ADVANCE_TO_P14":
+                  blockers.append({"code": "M11-B1", "message": "M11 handoff p13_verdict is not ADVANCE_TO_P14."})
+
+          handle_rows: list[dict[str, str]] = []
+          unresolved_handles: list[str] = []
+          handle_values: dict[str, Any] = {}
+
+          try:
+              handle_values = parse_handles(HANDLES_PATH)
+          except Exception as exc:  # noqa: BLE001
+              blockers.append({"code": "M11-B1", "message": f"Handle registry unreadable: {type(exc).__name__}"})
+
+          for key in REQUIRED_HANDLES:
+              if key not in handle_values:
+                  status = "missing"
+                  value_out = ""
+                  unresolved_handles.append(key)
+              else:
+                  value = handle_values.get(key)
+                  value_out = str(value)
+                  if is_placeholder(value):
+                      status = "placeholder"
+                      unresolved_handles.append(key)
+                  elif is_wildcard(value):
+                      status = "wildcard"
+                      unresolved_handles.append(key)
+                  else:
+                      status = "resolved"
+              handle_rows.append({"handle": key, "status": status, "value": value_out})
+
+          if unresolved_handles:
+              blockers.append({
+                  "code": "M11-B1",
+                  "message": "One or more required M11.A handles are unresolved.",
+              })
+
+          dedup: list[dict[str, str]] = []
+          seen = set()
+          for b in blockers:
+              item = {"code": str(b.get("code", "")).strip(), "message": str(b.get("message", "")).strip()}
+              key = (item["code"], item["message"])
+              if key in seen:
+                  continue
+              seen.add(key)
+              dedup.append(item)
+          blockers = dedup
+
+          overall_pass = len(blockers) == 0
+          next_gate = "M11.B_READY" if overall_pass else "HOLD_REMEDIATE"
+          verdict = "ADVANCE_TO_M11_B" if overall_pass else "HOLD_REMEDIATE"
+
+          handle_snapshot = {
+              "captured_at_utc": captured_at,
+              "phase": "M11.A",
+              "phase_id": "P14",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "entry_surfaces": {
+                  "m10_summary": f"s3://{evidence_bucket}/{m10_summary_key}",
+                  "m10j_summary": f"s3://{evidence_bucket}/{m10j_summary_key}",
+                  "m11_handoff": f"s3://{evidence_bucket}/{m11_handoff_key}",
+              },
+              "entry_posture": {
+                  "m10_overall_pass": bool(m10_summary.get("overall_pass", False)),
+                  "m10j_overall_pass": bool(m10j_summary.get("overall_pass", False)),
+                  "m10j_verdict": str(m10j_summary.get("verdict", "")).strip(),
+                  "m10j_next_gate": str(m10j_summary.get("next_gate", "")).strip(),
+                  "m11_entry_ready": bool(m11_handoff.get("m11_entry_ready", False)),
+                  "m11_handoff_next_gate": str(m11_handoff.get("next_gate", "")).strip(),
+                  "m11_handoff_p13_verdict": str(m11_handoff.get("p13_verdict", "")).strip(),
+              },
+              "required_handles": REQUIRED_HANDLES,
+              "handle_matrix": handle_rows,
+              "unresolved_handles": sorted(unresolved_handles),
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "next_gate": next_gate,
+          }
+
+          blocker_register = {
+              "captured_at_utc": captured_at,
+              "phase": "M11.A",
+              "phase_id": "P14",
+              "execution_id": execution_id,
+              "blocker_count": len(blockers),
+              "blockers": blockers,
+              "read_errors": read_errors,
+              "upload_errors": upload_errors,
+          }
+
+          summary = {
+              "captured_at_utc": captured_at,
+              "phase": "M11.A",
+              "phase_id": "P14",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "upstream_refs": {
+                  "m10j_execution_id": upstream_m10j,
+                  "m10i_execution_id": upstream_m10i,
+              },
+              "artifact_keys": {
+                  "m11a_handle_closure_snapshot": f"evidence/dev_full/run_control/{execution_id}/m11a_handle_closure_snapshot.json",
+                  "m11_blocker_register": f"evidence/dev_full/run_control/{execution_id}/m11_blocker_register.json",
+                  "m11a_execution_summary": f"evidence/dev_full/run_control/{execution_id}/m11a_execution_summary.json",
+              },
+          }
+
+          artifacts = {
+              "m11a_handle_closure_snapshot.json": handle_snapshot,
+              "m11_blocker_register.json": blocker_register,
+              "m11a_execution_summary.json": summary,
+          }
+          write_local(run_dir, artifacts)
+
+          run_control_prefix = f"evidence/dev_full/run_control/{execution_id}/"
+          for name, payload in artifacts.items():
+              key = f"{run_control_prefix}{name}"
+              try:
+                  s3_put_json(s3, evidence_bucket, key, payload)
+              except (BotoCoreError, ClientError, ValueError) as exc:
+                  upload_errors.append({"surface": key, "error": type(exc).__name__})
+
+          if upload_errors:
+              blockers.append({"code": "M11-B1", "message": "Failed to publish/readback one or more M11.A artifacts."})
+              dedup = []
+              seen = set()
+              for b in blockers:
+                  item = {"code": str(b.get("code", "")).strip(), "message": str(b.get("message", "")).strip()}
+                  key = (item["code"], item["message"])
+                  if key in seen:
+                      continue
+                  seen.add(key)
+                  dedup.append(item)
+              blockers = dedup
+              overall_pass = False
+              next_gate = "HOLD_REMEDIATE"
+              verdict = "HOLD_REMEDIATE"
+              handle_snapshot["overall_pass"] = False
+              handle_snapshot["blocker_count"] = len(blockers)
+              handle_snapshot["next_gate"] = next_gate
+              blocker_register["blocker_count"] = len(blockers)
+              blocker_register["blockers"] = blockers
+              blocker_register["upload_errors"] = upload_errors
+              summary["overall_pass"] = False
+              summary["blocker_count"] = len(blockers)
+              summary["verdict"] = verdict
+              summary["next_gate"] = next_gate
+              write_local(run_dir, artifacts)
+
+          print(json.dumps({
+              "execution_id": execution_id,
+              "overall_pass": summary["overall_pass"],
+              "blocker_count": summary["blocker_count"],
+              "verdict": summary["verdict"],
+              "next_gate": summary["next_gate"],
+              "run_dir": str(run_dir),
+              "run_control_prefix": f"s3://{evidence_bucket}/{run_control_prefix}",
+          }, ensure_ascii=True))
+
+          if not summary["overall_pass"]:
+              raise SystemExit(1)
+          PY
+
+      - name: Upload M11.A managed artifact set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m11-a-managed-${{ steps.run_meta.outputs.timestamp }}
+          path: |
+            ${{ steps.run_meta.outputs.m11a_run_dir }}
+          if-no-files-found: warn
