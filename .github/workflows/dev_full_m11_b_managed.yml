@@ -352,7 +352,8 @@ jobs:
               except ClientError as exc:
                   err_code = str(exc.response.get("Error", {}).get("Code", ""))
                   err_msg = str(exc.response.get("Error", {}).get("Message", ""))
-                  if err_code in {"ValidationException", "ResourceNotFound"} and "Could not find" in err_msg:
+                  err_msg_lower = err_msg.lower()
+                  if err_code in {"ValidationException", "ResourceNotFound"}:
                       try:
                           sm.create_model_package_group(
                               ModelPackageGroupName=model_package_group_name,
@@ -365,7 +366,17 @@ jobs:
                           )
                           sm.describe_model_package_group(ModelPackageGroupName=model_package_group_name)
                           sm_probe["model_package_group_status"] = "created"
-                      except (BotoCoreError, ClientError) as create_exc:
+                      except ClientError as create_exc:
+                          create_code = str(create_exc.response.get("Error", {}).get("Code", ""))
+                          create_msg = str(create_exc.response.get("Error", {}).get("Message", ""))
+                          create_msg_lower = create_msg.lower()
+                          if create_code == "ValidationException" and ("exists" in create_msg_lower or "already" in create_msg_lower):
+                              sm.describe_model_package_group(ModelPackageGroupName=model_package_group_name)
+                              sm_probe["model_package_group_status"] = "exists"
+                          else:
+                              read_errors.append({"surface": f"sagemaker:model_package_group:{model_package_group_name}", "error": create_code or type(create_exc).__name__})
+                              blockers.append({"code": "M11-B2", "message": "Model package group readiness failed."})
+                      except BotoCoreError as create_exc:
                           read_errors.append({"surface": f"sagemaker:model_package_group:{model_package_group_name}", "error": type(create_exc).__name__})
                           blockers.append({"code": "M11-B2", "message": "Model package group readiness failed."})
                   else:
