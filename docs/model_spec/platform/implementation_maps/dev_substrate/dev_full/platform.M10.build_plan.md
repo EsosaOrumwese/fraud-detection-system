@@ -597,28 +597,150 @@ Execution status:
 Goal:
 1. prove rollback recipe exists and is executable.
 
-Tasks:
-1. publish rollback recipe contract.
-2. validate rollback preconditions and references.
-3. emit `m10h_rollback_recipe_snapshot.json`.
+Required upstream basis:
+1. `M10.G` pass summary (`overall_pass=true`, `next_gate=M10.H_READY`).
+2. `M10.G` snapshot and blocker register are readable.
+3. run-scoped OFS artifacts from `M10.G` are readable:
+   - manifest,
+   - dataset fingerprint,
+   - time-bound audit.
+4. transitive commit surface from `M10.F` remains readable:
+   - Glue database/table,
+   - S3 warehouse marker object.
+
+Deterministic execution algorithm (M10.H):
+1. validate upstream `M10.G` pass posture from durable run-control.
+2. load run-scoped OFS artifacts and fail closed on unreadable lineage surfaces.
+3. derive deterministic OFS rollback targets:
+   - target table identity from manifest/table surface,
+   - target commit marker from `M10.F` snapshot,
+   - target manifest/fingerprint/audit refs from `M10.G` summary.
+4. synthesize rollback recipe contract:
+   - rollback objective and blast-radius declaration,
+   - preconditions list (must-pass checks before rollback),
+   - ordered rollback steps (metadata-pointer rollback and validation),
+   - idempotency key (`platform_run_id` + `m10h_execution_id`),
+   - explicit operator stop gates.
+5. execute a non-destructive rollback drill (readiness proof):
+   - verify all preconditions against live surfaces,
+   - validate referenced rollback targets exist and are readable,
+   - produce deterministic drill verdict (`drill_pass=true|false`) without mutating dataset state.
+6. publish run-scoped rollback artifacts:
+   - `learning/ofs/rollback_recipe.json`,
+   - `learning/ofs/rollback_drill_report.json`.
+7. emit run-control artifacts:
+   - `m10h_rollback_recipe_snapshot.json`,
+   - `m10h_blocker_register.json`,
+   - `m10h_execution_summary.json`.
+8. publish artifacts locally + durably with readback parity.
+9. emit deterministic next gate:
+   - `M10.I_READY` when blocker count is `0`,
+   - otherwise `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 20 minutes wall clock.
 
 DoD:
-- [ ] rollback recipe checks pass.
-- [ ] snapshot committed locally and durably.
+- [x] upstream `M10.G` gate validated (`M10.H_READY`).
+- [x] run-scoped rollback recipe committed durably.
+- [x] run-scoped rollback drill report committed durably.
+- [x] rollback drill verdict is pass posture (`drill_pass=true`).
+- [x] `m10h_rollback_recipe_snapshot.json` committed locally and durably.
+- [x] `m10h_blocker_register.json` and `m10h_execution_summary.json` committed locally and durably.
+- [x] blocker-free pass emits `next_gate=M10.I_READY`.
+
+Execution status:
+1. Execution id:
+   - `m10h_rollback_recipe_20260226T161023Z`
+2. Result:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M10.I_READY`
+3. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10h_rollback_recipe_20260226T161023Z/`
+4. Managed run reference:
+   - Actions run: `22450488594` (`migrate-dev`, commit `33d34ff9`)
+   - Workflow: `.github/workflows/dev_full_m10_d_managed.yml`
+5. Run-scoped rollback artifacts committed:
+   - rollback recipe:
+     - `evidence/runs/platform_20260223T184232Z/learning/ofs/rollback_recipe.json`
+   - rollback drill report:
+     - `evidence/runs/platform_20260223T184232Z/learning/ofs/rollback_drill_report.json`
+6. Closure values:
+   - `drill_pass=true`
+   - `upstream_m10g_execution=m10g_manifest_fingerprint_20260226T161023Z`
+   - `rollback_target.database_name=fraud_platform_dev_full_ofs`
+   - `rollback_target.table_name=ofs_platform_20260223t184232z`
 
 ### M10.I P13 Gate Rollup + M11 Handoff
 Goal:
 1. produce deterministic `P13` verdict and handoff.
 
+Entry conditions:
+1. `M10.A..M10.H` summaries are all readable from run-control surfaces.
+2. `M10.H` closure posture is pass with `next_gate=M10.I_READY`.
+3. active run scope is single-valued across all M10 source summaries.
+4. required handles for durable publication are pinned and non-placeholder:
+   - `S3_EVIDENCE_BUCKET`,
+   - `S3_RUN_CONTROL_ROOT_PATTERN`.
+
 Tasks:
 1. roll up M10A-H outcomes in fixed order.
-2. emit `m10i_p13_gate_verdict.json`.
-3. emit `m11_handoff_pack.json`.
+2. validate gate-chain continuity:
+   - `M10.A -> M10.B_READY`,
+   - `M10.B -> M10.C_READY`,
+   - `M10.C -> M10.D_READY`,
+   - `M10.D -> M10.E_READY`,
+   - `M10.E -> M10.F_READY`,
+   - `M10.F -> M10.G_READY`,
+   - `M10.G -> M10.H_READY`,
+   - `M10.H -> M10.I_READY`.
+3. compute deterministic pass-matrix for `P13` source phases and run-scope continuity assertions.
+4. emit deterministic artifacts:
+   - `m10i_p13_rollup_matrix.json`,
+   - `m10i_p13_gate_verdict.json`,
+   - `m11_handoff_pack.json`,
+   - `m10i_execution_summary.json`,
+   - `m10i_blocker_register.json`.
+5. classify blockers:
+   - `M10-B9` for rollup/verdict inconsistency,
+   - `M10-B10` for handoff publication/contract failure,
+   - `M10-B12` for artifact publication/readback parity failures.
+6. emit deterministic pass posture:
+   - `verdict=ADVANCE_TO_P14`,
+   - `next_gate=M11_READY`,
+   - otherwise fail closed to `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 10 minutes wall clock.
 
 DoD:
 - [ ] deterministic verdict is emitted.
 - [ ] pass posture requires `ADVANCE_TO_P14` + `next_gate=M11_READY`.
 - [ ] handoff pack committed locally and durably.
+- [ ] rollup matrix + execution summary + blocker register committed locally and durably.
+
+Execution status:
+1. Closure execution:
+   - execution id: `[pending]`
+   - result: `[pending]`
+2. Source gate-chain rollup:
+   - `M10.A`: `[pending]`,
+   - `M10.B`: `[pending]`,
+   - `M10.C`: `[pending]`,
+   - `M10.D`: `[pending]`,
+   - `M10.E`: `[pending]`,
+   - `M10.F`: `[pending]`,
+   - `M10.G`: `[pending]`,
+   - `M10.H`: `[pending]`.
+3. Run scope continuity:
+   - `platform_run_id`: `[pending]`,
+   - `scenario_run_id`: `[pending]`.
+4. Handoff pack:
+   - `m11_handoff_pack.json` emitted with required refs for M11 entry,
+   - `m11_entry_gate.required_verdict=ADVANCE_TO_P14`,
+   - `m11_entry_gate.next_gate=M11_READY`.
+5. Evidence:
+   - local: `[pending]`,
+   - durable: `[pending]`.
 
 ### M10.J M10 Cost-Outcome + Closure Sync
 Goal:
@@ -671,10 +793,10 @@ DoD:
 - [x] `M10.E` complete
 - [x] `M10.F` complete
 - [x] `M10.G` complete
-- [ ] `M10.H` complete
+- [x] `M10.H` complete
 - [ ] `M10.I` complete
 - [ ] `M10.J` complete
-- [x] all active `M10-B*` blockers resolved (current active set through `M10.G`)
+- [x] all active `M10-B*` blockers resolved (current active set through `M10.H`)
 
 ## 9) Planning Status
 1. M10 planning is expanded and execution-grade.
@@ -687,4 +809,5 @@ DoD:
 6. `M10.E` is closed green in managed execution (`22447779212`).
 7. `M10.F` is closed green in managed execution (`22448956775`) after IAM remediation of `M10-B6`.
 8. `M10.G` is closed green in managed execution (`22449853059`) with blocker-free `M10.H_READY`.
-9. Next action is `M10.H` expansion and execution.
+9. `M10.H` is closed green in managed execution (`22450488594`) with blocker-free `M10.I_READY`.
+10. Next action is `M10.I` expansion and execution.

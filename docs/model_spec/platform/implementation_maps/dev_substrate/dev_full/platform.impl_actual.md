@@ -14009,3 +14009,125 @@ ext_gate=M10.D_READY
 8. Plan sync completed:
    - deep plan marks M10.G complete and sets next action M10.H,
    - master plan marks manifest/fingerprint/time-bound DoD anchors complete and points next action to M10.H.
+
+## Entry: 2026-02-26 16:06:33 +00:00 - M10.H deep-plan expansion completed before implementation
+1. Expanded M10.H from skeletal to execution-grade lane:
+   - required upstream basis,
+   - deterministic rollback recipe algorithm,
+   - non-destructive rollback drill semantics,
+   - run-scoped + run-control artifact contract,
+   - fail-closed DoDs and next-gate semantics.
+2. Critical implementation decision pinned:
+   - M10.H executes rollback readiness proof (non-destructive), not destructive rollback mutation,
+   - this preserves current P13 committed dataset state while proving rollback operability.
+3. Deterministic next gate pinned:
+   - pass => M10.I_READY,
+   - fail => HOLD_REMEDIATE.
+4. Next action:
+   - implement managed M10.H stage in workflow and execute.
+
+## Entry: 2026-02-26 16:09:34 +00:00 - M10.H managed implementation applied (live)
+1. Patched `.github/workflows/dev_full_m10_d_managed.yml` for M10.H execution lane:
+   - added dispatch input `m10h_execution_id`,
+   - added metadata outputs `m10h_execution_id` and `m10h_run_dir`,
+   - added `Execute M10.H (managed)` stage after M10.G,
+   - expanded upload bundle to include M10.H run dir (`m10-defgh-managed-*`).
+2. M10.H managed stage behavior implemented:
+   - validates upstream M10.G pass and gate (`M10.H_READY`),
+   - loads run-scoped manifest/fingerprint/time-bound audit,
+   - validates rollback targets via M10.F commit surface (Glue table + marker),
+   - synthesizes run-scoped rollback recipe + rollback drill report (non-destructive),
+   - emits run-control artifacts:
+     - m10h_rollback_recipe_snapshot.json,
+     - m10h_blocker_register.json,
+     - m10h_execution_summary.json,
+   - fail-closed blockers:
+     - M10-B8 for rollback recipe/drill failures,
+     - M10-B12 for publication parity failures,
+   - next gate semantics:
+     - pass => M10.I_READY,
+     - fail => HOLD_REMEDIATE.
+3. Sanity validation:
+   - YAML parse check passed (`YAML_OK`) after patch.
+4. Next action:
+   - workflow-only commit/push, then managed dispatch for full runtime closure proof.
+
+## Entry: 2026-02-26 16:11:03 +00:00 - M10.D/E/F/G/H managed run active (corrected run id)
+1. Dispatch created a new managed run on head `33d34ff9`:
+   - run id: 22450488594
+   - url: https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22450488594
+2. Fixed execution ids for this run:
+   - m10d_ofs_build_20260226T161023Z
+   - m10e_quality_gate_20260226T161023Z
+   - m10f_iceberg_commit_20260226T161023Z
+   - m10g_manifest_fingerprint_20260226T161023Z
+   - m10h_rollback_recipe_20260226T161023Z
+3. Initial list query returned prior completed run id due ordering/timing race; corrected by explicit top-5 run list check.
+4. Monitoring this run to terminal state and will remediate blockers fail-closed if any.
+
+## Entry: 2026-02-26 16:12:02 +00:00 - M10.H managed closure reached green (live)
+1. Managed run reached terminal success with M10.H stage included:
+   - run id: `22450488594`
+   - workflow: `.github/workflows/dev_full_m10_d_managed.yml`
+   - branch/ref: `migrate-dev`
+   - commit: `33d34ff9`
+2. Fixed execution ids used in this closure run:
+   - `m10d_ofs_build_20260226T161023Z`
+   - `m10e_quality_gate_20260226T161023Z`
+   - `m10f_iceberg_commit_20260226T161023Z`
+   - `m10g_manifest_fingerprint_20260226T161023Z`
+   - `m10h_rollback_recipe_20260226T161023Z`
+3. M10.H terminal verdict from run-control summary:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M10.I_READY`
+4. M10.H blocker posture from blocker register:
+   - `blockers=[]`
+   - `read_errors=[]`
+   - `upload_errors=[]`
+5. Run-scoped rollback closure artifacts confirmed in payload:
+   - `evidence/runs/platform_20260223T184232Z/learning/ofs/rollback_recipe.json`
+   - `evidence/runs/platform_20260223T184232Z/learning/ofs/rollback_drill_report.json`
+6. Deterministic rollback drill closure values captured:
+   - `drill_pass=true`
+   - rollback target table: `fraud_platform_dev_full_ofs.ofs_platform_20260223t184232z`
+   - rollback marker: `s3://fraud-platform-dev-full-object-store/learning/ofs/iceberg/warehouse/ofs_platform_20260223t184232z/_m10f_commit_marker.json`
+7. Durable run-control evidence prefix:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10h_rollback_recipe_20260226T161023Z/`
+
+## Entry: 2026-02-26 16:14:05 +00:00 - M10.H plan synchronization completed after green closure
+1. Updated deep M10 plan in `platform.M10.build_plan.md`:
+   - checked all M10.H DoD items,
+   - populated execution status with run id/execution id/evidence refs,
+   - marked `M10.H` complete in completion checklist,
+   - advanced planning status next action to `M10.I`.
+2. Updated master platform plan in `platform.build_plan.md`:
+   - added M10.H green execution record in M10 execution status block,
+   - checked DoD anchor `OFS rollback recipe committed`,
+   - moved global next action to `M10.I` with concrete upstream execution id.
+3. Closure posture now:
+   - M10A-H are green,
+   - active gate head is `M10.I_READY`.
+
+## Entry: 2026-02-26 16:16:20 +00:00 - M10.I execution design pinned before implementation
+1. Scope accepted from user: expand `M10.I` plan and execute fully with fail-closed blocker remediation.
+2. Entry basis pinned:
+   - upstream M10.H pass summary must be green with `next_gate=M10.I_READY`.
+3. Deterministic rollup contract selected (mirrors proven M9.H style):
+   - source chain: `M10.A -> M10.B_READY`, `M10.B -> M10.C_READY`, `M10.C -> M10.D_READY`, `M10.D -> M10.E_READY`, `M10.E -> M10.F_READY`, `M10.F -> M10.G_READY`, `M10.G -> M10.H_READY`, `M10.H -> M10.I_READY`.
+   - run scope must be single-valued across `M10.A..M10.H` summaries.
+4. M10.I outputs selected:
+   - `m10i_p13_rollup_matrix.json`,
+   - `m10i_p13_gate_verdict.json`,
+   - `m11_handoff_pack.json`,
+   - `m10i_execution_summary.json`,
+   - `m10i_blocker_register.json`.
+5. Fail-closed blocker mapping chosen:
+   - `M10-B9` for rollup/verdict inconsistency,
+   - `M10-B10` for handoff publication/contract failure,
+   - `M10-B12` for artifact publication/readback parity failures.
+6. Deterministic success posture pinned:
+   - `verdict=ADVANCE_TO_P14`,
+   - `next_gate=M11_READY`.
+7. Implementation route pinned:
+   - extend existing managed workflow `.github/workflows/dev_full_m10_d_managed.yml` with an `Execute M10.I (managed)` stage to preserve no-local-compute authoritative closure.

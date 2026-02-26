@@ -1249,12 +1249,25 @@ M10 execution status:
      - `evidence/runs/platform_20260223T184232Z/learning/ofs/time_bound_audit.json`,
    - durable run-control evidence:
      - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10g_manifest_fingerprint_20260226T155434Z/`.
+11. `M10.H` rollback recipe closure is green in managed lane:
+   - workflow: `.github/workflows/dev_full_m10_d_managed.yml`,
+   - Actions run: `22450488594` (`migrate-dev`, commit `33d34ff9`),
+   - execution: `m10h_rollback_recipe_20260226T161023Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M10.I_READY`,
+   - run-scoped outputs:
+     - `evidence/runs/platform_20260223T184232Z/learning/ofs/rollback_recipe.json`,
+     - `evidence/runs/platform_20260223T184232Z/learning/ofs/rollback_drill_report.json`,
+   - drill posture:
+     - `drill_pass=true`,
+     - rollback target table: `fraud_platform_dev_full_ofs.ofs_platform_20260223t184232z`,
+   - durable run-control evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10h_rollback_recipe_20260226T161023Z/`.
 
 DoD anchors:
 - [x] OFS manifest committed.
 - [x] dataset fingerprint committed.
 - [x] Iceberg table/metadata commit receipt committed.
-- [ ] OFS rollback recipe committed.
+- [x] OFS rollback recipe committed.
 - [x] OFS time-bound/leakage audit is committed and green.
 - [ ] deterministic `P13` verdict and `m11_handoff_pack.json` are committed.
 - [ ] M10 phase-budget and cost-outcome artifacts are committed and blocker-free.
@@ -1381,4 +1394,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M10.H` (rollback recipe closure) using `M10.G` green closure (`m10g_manifest_fingerprint_20260226T155434Z`) as entry basis.
+- Expand and execute `M10.I` (P13 gate rollup + M11 handoff) using `M10.H` green closure (`m10h_rollback_recipe_20260226T161023Z`) as entry basis.
