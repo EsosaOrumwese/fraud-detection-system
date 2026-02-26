@@ -64,7 +64,8 @@ Locked claim:
 - Designed and executed a machine-adjudicated certification program for a distributed fraud platform in a managed cloud environment, where closure required semantic correctness, incident resilience, scale behavior, recovery performance, and reproducibility to pass explicit Service Level Objective thresholds under fail-closed blocker semantics.
 
 Status:
-- Active top-priority claim (primary claim; draft not started).
+- Active top-priority claim.
+- Stage status: Stage 0 (scope lock) closed, Stage 1 (evidence extraction) next.
 
 ### Claim A - CI/CD and Release Engineering (Merged)
 Target file:
