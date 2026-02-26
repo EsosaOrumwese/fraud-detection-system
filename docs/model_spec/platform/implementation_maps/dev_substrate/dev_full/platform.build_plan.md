@@ -802,8 +802,10 @@ Current M7 execution posture:
   - `overall_pass=true`, `verdict=ADVANCE_TO_M8`, `blocker_count=0`, `next_gate=M8_READY`.
 - `M7` is functionally closed green and has emitted deterministic `M8` handoff artifacts, but remains `ACTIVE` until `M7.K` closes.
 - `M7.K` throughput certification is now an explicit active lane (non-waived, mandatory for production-readiness claim):
-  - scope: `P8/P9` lanes currently in low-sample guarded mode (`throughput_gate_mode=waived_low_sample`),
+  - scope: `P8/P9/P10` lanes currently in low-sample guarded mode (`throughput_gate_mode=waived_low_sample`),
+  - with Control/Ingress sentinel checks to detect upstream bottlenecks before attributing failures to downstream lanes,
   - target profile: `134,000,000 events/hour` (`~37,223 events/sec` sustained for 60 minutes),
+  - execution sequence: `M7.K.A` entry+handles, `M7.K.B` bounded non-soak, `M7.K.C` ramp, `M7.K.D` soak, `M7.K.E` rollup/verdict,
   - closure requirement: bounded non-soak + staged high-volume + bounded soak evidence with deterministic verdict.
 
 DoD anchors:
@@ -811,7 +813,7 @@ DoD anchors:
 - [x] decision/action/audit triplet closure is green.
 - [x] case/label append closure is green.
 - [x] M7 rollup verdict is deterministic with blocker-free handoff to M8.
-- [ ] non-waived `P8/P9` throughput certification (`M7.K`) is closed green.
+- [ ] non-waived `P8/P9/P10` throughput certification (`M7.K`) is closed green with Control/Ingress sentinel clear.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.build_plan.md`
@@ -826,7 +828,7 @@ Objective:
 - close `P11` and publish spine non-regression pack.
 
 Entry gate:
-- M7 is `DONE` including `M7.K` throughput certification closure.
+- M7 is `DONE` including `M7.K` throughput certification closure and Control/Ingress sentinel clearance.
 
 Planned lanes:
 - run report/reconciliation, governance append closure, non-regression anchors.

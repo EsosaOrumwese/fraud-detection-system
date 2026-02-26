@@ -28,7 +28,7 @@ In scope:
 2. P9 component closures: `DF`, `AL`, `DLA`, decision-chain rollup.
 3. P10 component closures: `CaseTrigger bridge`, `CM`, `LS`, case-label rollup.
 4. M7 phase rollup and M8 entry handoff.
-5. Non-waived throughput certification for `P8+P9` (`M7.K`).
+5. Non-waived throughput certification for `P8+P9+P10` (`M7.K`) with Control/Ingress sentinel checks.
 
 Out of scope:
 1. P11 obs/gov closure (`M8`).
@@ -53,14 +53,19 @@ Out of scope:
 
 ## 3.2) Throughput Certification Plan (`M7.K`, mandatory)
 1. A component lane with `throughput_gate_mode=waived_low_sample` is provisional and cannot be used as final production-scale proof.
-2. Non-waived throughput certification for `P8+P9` is a mandatory M7 lane (`M7.K`) executed immediately after `M7.J`.
+2. Non-waived throughput certification for `P8+P9+P10` is a mandatory M7 lane (`M7.K`) executed immediately after `M7.J`.
 3. Certification sequence:
    - bounded non-soak validation,
    - staged high-volume certification,
    - bounded soak with sustained-rate evidence.
 4. Certification target profile remains pinned by registry:
    - `THROUGHPUT_CERT_TARGET_EVENTS_PER_HOUR=134000000` (about `37223` events/sec sustained for 60 minutes).
-5. `M8` entry is blocked until `M7.K` closes green.
+5. Control/Ingress sentinel checks are mandatory during `M7.K` to detect upstream bottlenecks:
+   - ingestion admission progression,
+   - receipt publish consistency,
+   - idempotency drift posture,
+   - control-topic lag/consumer progression.
+6. `M8` entry is blocked until `M7.K` closes green.
 
 ## 4) Component Inventory and Lane Ownership
 | Canonical phase | Component | Lane owner | Minimum closure proof |
@@ -532,9 +537,10 @@ Execution status (2026-02-26):
    - local: `runs/dev_substrate/dev_full/m7/_tmp_run_22426311129/`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7q_m7_rollup_sync_20260226T031710Z/`.
 
-### M7.K P8+P9 Throughput Certification (Non-Waived)
+### M7.K P8+P9+P10 Throughput Certification (Non-Waived)
 Goal:
-1. close `M7-B18` by producing non-waived throughput certification for `P8+P9`.
+1. close `M7-B18` by producing non-waived throughput certification for `P8+P9+P10`.
+2. close `M7-B19` by proving no Control/Ingress bottleneck is driving downstream throughput posture.
 
 Entry prerequisites:
 1. `M7.J` summary is green with:
@@ -542,30 +548,120 @@ Entry prerequisites:
    - `verdict=ADVANCE_TO_M8`,
    - `next_gate=M8_READY`.
 2. runtime substrate is materialized with production-like scaling posture and cost guardrails active.
+3. run scope (`platform_run_id`, `scenario_run_id`) is unchanged from `M7.J`.
+
+Required handle set for M7.K:
+1. throughput certification pins:
+   - `THROUGHPUT_CERT_REQUIRED`
+   - `THROUGHPUT_CERT_ALLOW_WAIVER`
+   - `THROUGHPUT_CERT_MIN_SAMPLE_EVENTS`
+   - `THROUGHPUT_CERT_TARGET_EVENTS_PER_HOUR`
+   - `THROUGHPUT_CERT_TARGET_EVENTS_PER_SECOND`
+   - `THROUGHPUT_CERT_WINDOW_MINUTES`
+   - `THROUGHPUT_CERT_MAX_ERROR_RATE_PCT`
+   - `THROUGHPUT_CERT_MAX_RETRY_RATIO_PCT`
+   - `THROUGHPUT_CERT_EVIDENCE_PATH_PATTERN`
+   - `THROUGHPUT_CERT_RAMP_PROFILE`
+2. Control/Ingress sentinel surfaces:
+   - `RECEIPT_SUMMARY_PATH_PATTERN`
+   - `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`
+   - `QUARANTINE_SUMMARY_PATH_PATTERN`
+   - `FP_BUS_CONTROL_V1`
+   - `DDB_IG_IDEMPOTENCY_TABLE`
+   - `IG_EDGE_MODE`
+   - `P7_OFFSET_PROOF_MODE_BY_IG_EDGE`.
 
 Tasks:
-1. run bounded non-soak throughput validation for `P8+P9` lanes with non-waived assertions.
+1. run bounded non-soak throughput validation for `P8+P9+P10` lanes with non-waived assertions.
 2. run staged high-volume throughput certification against pinned profile windows.
 3. run bounded soak window and publish sustained-rate stability evidence.
-4. emit certification artifacts:
+4. run Control/Ingress sentinel checks alongside certification windows and capture root-cause diagnostics.
+5. emit certification artifacts:
    - `m7k_throughput_cert_plan.json`
    - `m7k_throughput_cert_snapshot.json`
    - `m7k_throughput_cert_blocker_register.json`
    - `m7k_throughput_cert_verdict.json`
-   - `m7k_throughput_cert_execution_summary.json`.
+   - `m7k_throughput_cert_execution_summary.json`
+   - `m7k_control_ingress_sentinel_snapshot.json`.
 
 Execution plan:
-1. expand lane-level plan and dispatch managed certification workflow for `M7.K`.
-2. require deterministic success gate:
+1. `M7.K.A` entry + handle closure:
+   - validate required handle set and run-scope continuity,
+   - validate throughput-cert pins are non-placeholder and internally consistent (`target/hour`, `target/sec`, `window`, ramp profile ordering),
+   - validate C+I sentinel source surfaces are readable for active run scope,
+   - publish `m7k_entry_snapshot.json` + `m7k_entry_blocker_register.json`.
+2. `M7.K.B` bounded non-soak run:
+   - execute non-waived checks on first certification window,
+   - enforce non-waived assertion mode (`THROUGHPUT_CERT_ALLOW_WAIVER=false`),
+   - fail-closed if sample size is below `THROUGHPUT_CERT_MIN_SAMPLE_EVENTS`,
+   - capture first-window C+I sentinel posture for ingress/control continuity.
+3. `M7.K.C` staged high-volume ramp:
+   - execute ramp windows from `THROUGHPUT_CERT_RAMP_PROFILE`,
+   - enforce throughput, error-rate, retry-ratio, and backlog drift gates at each stage,
+   - fail-closed on first stage breach with root-cause attribution (`M7-B18` vs `M7-B19`).
+4. `M7.K.D` bounded soak:
+   - run sustained-rate soak at certified profile,
+   - enforce stability/liveness and backlog non-divergence checks,
+   - enforce C+I sentinel stability (no ingress flatline, no control-topic stall) during soak window.
+5. `M7.K.E` rollup + verdict:
+   - aggregate B/C/D + Control/Ingress sentinel posture,
+   - emit certification verdict and execution summary,
+   - emit blocker register with explicit root-cause classification.
+6. deterministic success gate:
    - `overall_pass=true`
    - `verdict=THROUGHPUT_CERTIFIED`
    - `blocker_count=0`.
 
-DoD:
-- [ ] non-waived throughput assertions are evaluated for `P8+P9`.
+Sub-lane DoD checks:
+1. `M7.K.A`:
+- [ ] required handles are fully resolved and non-placeholder.
+- [ ] run-scope continuity to `M7.J` is proven.
+- [ ] throughput-cert pin consistency checks pass.
+- [ ] `m7k_entry_snapshot.json` + `m7k_entry_blocker_register.json` are committed locally and durably.
+2. `M7.K.B`:
+- [ ] non-waived assertions executed on bounded window.
+- [ ] sample-size gate meets/exceeds `THROUGHPUT_CERT_MIN_SAMPLE_EVENTS`.
+- [ ] first-window C+I sentinel snapshot is committed.
+3. `M7.K.C`:
+- [ ] all ramp stages in `THROUGHPUT_CERT_RAMP_PROFILE` executed with explicit per-stage verdicts.
+- [ ] throughput/error/retry/backlog gates pass for each stage.
+- [ ] any breach is classified to `M7-B18` or `M7-B19` with evidence.
+4. `M7.K.D`:
+- [ ] soak window executed at certified target profile.
+- [ ] stability/liveness and backlog non-divergence checks pass.
+- [ ] C+I sentinel remains stable during soak.
+5. `M7.K.E`:
+- [ ] rollup aggregates B/C/D + C+I sentinel evidence.
+- [ ] `m7k_throughput_cert_verdict.json` + `m7k_throughput_cert_execution_summary.json` are committed locally and durably.
+- [ ] deterministic gate closes green (`overall_pass=true`, `verdict=THROUGHPUT_CERTIFIED`, `blocker_count=0`).
+
+M7.K phase DoD:
+- [ ] non-waived throughput assertions are evaluated for `P8+P9+P10`.
 - [ ] staged high-volume + soak evidence is committed locally and durably.
+- [ ] Control/Ingress sentinel is green with no root-cause blocker propagated to downstream lanes.
 - [ ] certification verdict is `THROUGHPUT_CERTIFIED` with blocker_count `0`.
 - [ ] `M7-B18` is retired.
+- [ ] `M7-B19` is retired.
+
+Control/Ingress sentinel checks (mandatory in `M7.K`):
+1. admission progression:
+   - ingress receipts advance monotonically with no unexplained flatline during active ramps.
+2. receipt/publish consistency:
+   - admitted receipts align with downstream admission-visible evidence within pinned tolerance.
+3. idempotency drift posture:
+   - duplicate ratio stays within expected replay bounds; no cross-run key contamination.
+4. control-bus progression:
+   - control topic offsets and consumer progression remain healthy (no stalled consumer group posture).
+
+Certification artifacts contract (`M7.K`):
+1. `m7k_entry_snapshot.json`
+2. `m7k_entry_blocker_register.json`
+3. `m7k_throughput_cert_plan.json`
+4. `m7k_throughput_cert_snapshot.json`
+5. `m7k_throughput_cert_blocker_register.json`
+6. `m7k_control_ingress_sentinel_snapshot.json`
+7. `m7k_throughput_cert_verdict.json`
+8. `m7k_throughput_cert_execution_summary.json`.
 
 ## 6) Deep Phase Routing
 1. `P8` detailed plan: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P8.build_plan.md`
@@ -590,7 +686,8 @@ DoD:
 15. `M7-B15`: M7 handoff/cost-outcome artifact failure.
 16. `M7-B16`: missing per-component performance SLO pins for active lane.
 17. `M7-B17`: component performance budget breach (throughput/latency/lag/resource/stability).
-18. `M7-B18`: `M7.K` throughput certification unresolved/failing for `P8+P9`.
+18. `M7-B18`: `M7.K` throughput certification unresolved/failing for `P8+P9+P10`.
+19. `M7-B19`: Control/Ingress sentinel failure during `M7.K` (upstream bottleneck/root-cause unresolved).
 
 ## 8) M7 Completion Checklist
 - [x] M7.A complete
@@ -619,11 +716,11 @@ DoD:
 10. `M7.G` is closed green (`m7i_p9c_al_component_20260226T015350Z`), throughput proof provisional.
 11. `M7.H` DLA component lane is green (`m7j_p9d_dla_component_20260226T015553Z`), throughput proof provisional.
 12. `M7.H` rollup is now closed green (`m7k_p9e_rollup_20260226T023154Z`) with `phase_verdict=ADVANCE_TO_P10`.
-13. Non-waived throughput certification for `P8+P9` is now tracked as mandatory `M7.K` (`M7-B18` until closed).
+13. Non-waived throughput certification for `P8+P9+P10` is now tracked as mandatory `M7.K` (`M7-B18/M7-B19` until closed).
 14. `M7.I` entry is closed green (`m7l_p10a_entry_precheck_20260226T023945Z`) with `next_gate=P10.B_READY`.
 15. `P10.B` CaseTrigger lane is closed green (`m7m_p10b_case_trigger_component_20260226T024750Z`).
 16. `P10.C` CM lane is closed green (`m7n_p10c_cm_component_20260226T024847Z`).
 17. `P10.D` LS lane is closed green (`m7o_p10d_ls_component_20260226T024940Z`).
 18. `P10.E` rollup/verdict is closed green (`m7p_p10e_rollup_20260226T030607Z`) with `next_gate=M7.J_READY`.
 19. `M7.J` rollup/handoff is closed green (`m7q_m7_rollup_sync_20260226T031710Z`) with `next_gate=M8_READY`.
-20. `M7` remains active until `M7.K` throughput certification closes and retires `M7-B18`.
+20. `M7` remains active until `M7.K` throughput certification closes and retires `M7-B18/M7-B19`.

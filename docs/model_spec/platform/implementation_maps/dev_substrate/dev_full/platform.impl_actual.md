@@ -10664,3 +10664,91 @@ ext_gate=HOLD_REMEDIATE.
    - `M7` active,
    - `M7.K` mandatory,
    - `M8` blocked on `M7.K` closure.
+
+## Entry: 2026-02-26 04:28:00 +00:00 - Expanded M7.K scope to include P10 and C+I sentinel
+
+### Request-driven adjustment
+1. Throughput certification scope must include `P10` in addition to `P8/P9`.
+2. Certification must include awareness of potential Control/Ingress bottlenecks, because upstream degradation can manifest as downstream throughput failure.
+
+### Decision
+1. Update `M7.K` scope from `P8+P9` to `P8+P9+P10`.
+2. Add explicit C+I sentinel checks inside `M7.K`:
+   - ingress admission progression,
+   - receipt publish consistency,
+   - idempotency drift posture,
+   - control-topic lag and consumer progression.
+3. Keep `M7.K` as the gating lane before M8, but classify C+I sentinel failures separately so remediation can target root cause quickly.
+
+### Expected outcome
+1. Throughput claim covers RTDL + Decision chain + Case/Labels together.
+2. Plan now explicitly prevents false attribution of bottlenecks to P8/P9/P10 when root cause is upstream ingest/control path.
+
+## Entry: 2026-02-26 04:33:00 +00:00 - Finalized M7.K scope repin to include P10 and C+I sentinel
+
+### Patch outcomes
+1. `M7.K` now explicitly certifies `P8+P9+P10` throughput, not just `P8+P9`.
+2. Control/Ingress sentinel checks are now part of the M7.K contract and DoD.
+3. Blocker taxonomy expanded with `M7-B19` for upstream C+I bottleneck failures during certification.
+4. Top-level plan now mirrors this scope and gating in M7 section and M8 entry gate.
+
+### Execution impact
+1. Next throughput-cert implementation must emit both throughput artifacts and C+I sentinel evidence.
+2. M8 cannot start until both throughput certification and C+I sentinel are green.
+
+## Entry: 2026-02-26 04:36:00 +00:00 - Cleaned M7.K closure references (B18/B19)
+
+### Final consistency fix
+1. Updated planning-status lines to retire both throughput blocker families:
+   - `M7-B18` (throughput cert unresolved),
+   - `M7-B19` (Control/Ingress sentinel unresolved).
+2. This prevents partial-closure ambiguity in M7.K completion criteria.
+
+## Entry: 2026-02-26 04:44:00 +00:00 - M7.K planning expanded to execution-grade
+
+### Expansion completed
+1. Converted `M7.K` from high-level lane to execution-grade plan with explicit sub-lanes:
+   - `M7.K.A` entry + handle closure,
+   - `M7.K.B` bounded non-soak run,
+   - `M7.K.C` staged ramp run,
+   - `M7.K.D` bounded soak,
+   - `M7.K.E` rollup + verdict.
+2. Added required handle set for throughput pins and Control/Ingress sentinel surfaces.
+3. Added explicit sentinel checks and certification artifact contract.
+4. Added DoD anchors for lane-level closure and blocker retirement (`M7-B18`, `M7-B19`).
+
+### Practical execution impact
+1. Next command can move directly to `M7.K.A` implementation without ambiguity.
+2. Throughput failures can now be diagnosed as either downstream lane limits (`M7-B18`) or upstream C+I root-cause (`M7-B19`).
+
+## Entry: 2026-02-26 04:52:00 +00:00 - Planning expansion request for M7.K execution lane
+
+### Request received
+1. Expand `M7.K` execution plan around line 588 with concrete DoD checks.
+
+### Planned edit
+1. Replace coarse `M7.K.A..K.E` bullets with execution-grade checklists per sub-lane.
+2. Add per-sub-lane DoD check sections (`K.A` through `K.E`) so closure can be validated incrementally before full `M7.K` verdict.
+3. Keep existing top-level M7.K DoD and blocker taxonomy intact to preserve phase gate semantics.
+
+### Why this shape
+1. Avoids ambiguity during execution and blocker triage.
+2. Preserves anti-cram posture by making each certification stage independently auditable.
+
+## Entry: 2026-02-26 04:58:00 +00:00 - Expanded M7.K execution plan with sub-lane DoD checks
+
+### Change summary
+1. Expanded execution details at `M7.K` (`K.A..K.E`) beyond high-level bullets.
+2. Added explicit pass criteria per sub-lane:
+   - handle/pin consistency,
+   - sample-size gate,
+   - per-ramp-stage gates,
+   - soak stability,
+   - deterministic rollup verdict.
+3. Added structured DoD sections:
+   - `Sub-lane DoD checks` for `K.A..K.E`.
+   - retained/clarified top-level `M7.K phase DoD` tied to blocker retirement (`M7-B18`, `M7-B19`).
+
+### Why this improves execution quality
+1. Enables checkpointed closure by sub-lane instead of monolithic pass/fail.
+2. Makes blocker classification deterministic and reviewable during execution.
