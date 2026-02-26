@@ -14703,3 +14703,39 @@ ext_gate=M11.B_READY and locker_count=0.
    - add managed workflow `.github/workflows/dev_full_m11_c_managed.yml`,
    - emit three artifacts (`snapshot`, `blocker_register`, `execution_summary`) local + durable,
    - gate output `M11.D_READY` on zero blockers else `HOLD_REMEDIATE`.
+
+## Entry: 2026-02-26 18:41:05 +00:00 - M11.C workflow implementation details
+1. Implemented workflow:
+   - `.github/workflows/dev_full_m11_c_managed.yml`.
+2. Execution model:
+   - managed lane only (`workflow_dispatch` + OIDC role),
+   - no local authoritative closure path,
+   - deterministic execution id default `m11c_input_immutability_<UTC>`.
+3. Verification coverage implemented:
+   - required handle resolution (`S3_EVIDENCE_BUCKET`, `S3_RUN_CONTROL_ROOT_PATTERN`),
+   - strict upstream chain resolution (`M11.B -> M11.A -> M10.I handoff`),
+   - fixed required-ref read order,
+   - run-scope parity checks across all loaded refs,
+   - canonical fingerprint recomputation (`required_fields_order` + `required_field_values`) and digest equality check,
+   - manifest/time-bound/gate-verdict coherence checks.
+4. Artifact contract implemented:
+   - `m11c_input_immutability_snapshot.json`,
+   - `m11c_blocker_register.json`,
+   - `m11c_execution_summary.json`,
+   - publish local run dir and durable S3 run-control prefix.
+5. Gate semantics:
+   - pass => `verdict=ADVANCE_TO_M11_D`, `next_gate=M11.D_READY`,
+   - fail => `verdict=HOLD_REMEDIATE`, `next_gate=HOLD_REMEDIATE`,
+   - blocker family: `M11-B3`.
+
+## Entry: 2026-02-26 18:42:38 +00:00 - M11.C managed dispatch blocker (default-branch visibility)
+1. Attempted managed dispatch:
+   - `gh workflow run dev_full_m11_c_managed.yml --ref migrate-dev ...`
+2. Result:
+   - GitHub API returned `HTTP 404 workflow ... not found on the default branch`.
+3. Interpretation:
+   - `workflow_dispatch` invocation requires workflow definition visibility on default branch before dispatch, even when targeting `--ref migrate-dev`.
+4. Fail-closed posture applied:
+   - no local authoritative fallback used for M11.C closure.
+5. Required unblock:
+   - publish workflow file to default branch via approved workflow-only PR path, then rerun M11.C managed lane.

@@ -1497,4 +1497,5 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M11.C` (immutable input binding) using `M11.B` green posture (`m11b_sagemaker_readiness_20260226T182038Z`) as entry basis.
+- Execute `M11.C` (immutable input binding) using `M11.B` green posture (`m11b_sagemaker_readiness_20260226T182038Z`) as entry basis.
+- Active blocker before managed dispatch: `M11C-B0` (`dev_full_m11_c_managed.yml` must be visible on default branch to clear GitHub HTTP 404 on workflow dispatch).

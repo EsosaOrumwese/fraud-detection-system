@@ -9,9 +9,9 @@ What this proves:
 Tech stack:
 - Managed Kafka transport, admission boundary with canonical deduplication identity and mismatch controls, durable receipt/evidence surfaces in object storage.
 Top 3 proof hooks:
-- Proof 1: Incident lane showed fail-to-fix-to-pass closure in the same execution scope, demonstrating fail-closed remediation discipline. Artifacts: `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot_attempt1_fail.json` and `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot.json`.
+- Proof 1: Duplicate-replay incident drill closed fail-to-fix-to-pass in one execution scope, demonstrating fail-closed remediation discipline. Artifacts: `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot_attempt1_fail.json` and `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot.json`.
 - Proof 2: Bounded semantic closure passed at the 200-event gate with clean ambiguity posture. Artifact: `runs/dev_substrate/m10/m10_20260220T045637Z/m10_c_semantic_200_snapshot.json`.
-- Proof 3: Integrated final certification closed across semantic, incident, and scale lanes. Artifact: `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`.
+- Proof 3: Integrated final certification closed across semantic run, incident drill, and scale validation. Artifact: `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`.
 Non-claim:
 - This does not claim exactly-once semantics for every downstream side effect.
 
@@ -55,6 +55,16 @@ Most streaming systems fail when these planes are blurred. This claim closes bot
 5. Topic semantics
 - Topic map, keying, and partitioning rules are intentionally designed to preserve ordering/affinity where required and to control fan-out behavior.
 - Retention policy is treated as operational replay window configuration, not as durability policy.
+
+6. Evidence notation and abbreviations
+- Execution identifiers like `m10_...` are internal run IDs used as evidence anchors, not external product terminology.
+- IG = Ingestion Gate.
+- WSP = World Stream Producer.
+- SR = Scenario Runner.
+- RTDL = Real-Time Decision Loop.
+- DLA = Decision Log Audit.
+- OFP = Online Feature Plane.
+- ECS = Elastic Container Service.
 
 ### In-scope boundary
 This claim covers:

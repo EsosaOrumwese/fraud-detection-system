@@ -371,6 +371,8 @@ Managed execution binding:
 - `evidence/dev_full/run_control/{m11c_execution_id}/m11c_input_immutability_snapshot.json`
 - `evidence/dev_full/run_control/{m11c_execution_id}/m11c_blocker_register.json`
 - `evidence/dev_full/run_control/{m11c_execution_id}/m11c_execution_summary.json`
+6. Current dispatch blocker (2026-02-26):
+- `M11C-B0`: workflow is not yet visible on default branch; GitHub returns HTTP 404 on dispatch from `migrate-dev` until workflow-only publication is completed.
 
 DoD:
 - [ ] immutable binding checks pass with no open `M11-B3`.
