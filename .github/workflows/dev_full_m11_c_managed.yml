@@ -1,0 +1,567 @@
+name: dev-full-m11-c-managed
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region for S3 operations"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      evidence_bucket:
+        description: "S3 bucket for run-control evidence"
+        required: true
+        default: "fraud-platform-dev-full-evidence"
+        type: string
+      upstream_m11b_execution:
+        description: "Upstream M11.B execution id"
+        required: true
+        default: "m11b_sagemaker_readiness_20260226T182038Z"
+        type: string
+      m11c_execution_id:
+        description: "Optional fixed M11.C execution id"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-m11-c-managed-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_m11_c_managed:
+    name: Run M11.C immutable input binding
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m11c_execution_id }}" ]]; then
+            M11C_EXEC="${{ inputs.m11c_execution_id }}"
+          else
+            M11C_EXEC="m11c_input_immutability_${TS}"
+          fi
+          M11C_RUN_DIR="runs/dev_substrate/dev_full/m11/${M11C_EXEC}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m11c_execution_id=${M11C_EXEC}" >> "$GITHUB_OUTPUT"
+          echo "m11c_run_dir=${M11C_RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Execute M11.C (managed)
+        shell: bash
+        env:
+          M11C_EXECUTION_ID: ${{ steps.run_meta.outputs.m11c_execution_id }}
+          M11C_RUN_DIR: ${{ steps.run_meta.outputs.m11c_run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          UPSTREAM_M11B_EXECUTION: ${{ inputs.upstream_m11b_execution }}
+          AWS_REGION: ${{ inputs.aws_region }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import os
+          import re
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from typing import Any
+
+          import boto3
+          from botocore.exceptions import BotoCoreError, ClientError
+
+
+          HANDLES_PATH = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
+          REQUIRED_HANDLES = [
+              "S3_EVIDENCE_BUCKET",
+              "S3_RUN_CONTROL_ROOT_PATTERN",
+          ]
+          REQUIRED_REFS_ORDER = [
+              "m10i_gate_verdict_ref",
+              "m10g_manifest_ref",
+              "m10g_fingerprint_ref",
+              "m10g_time_bound_audit_ref",
+              "m10h_rollback_recipe_ref",
+              "m10h_rollback_drill_ref",
+          ]
+
+
+          def now_utc() -> str:
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+          def parse_handles(path: Path) -> dict[str, Any]:
+              out: dict[str, Any] = {}
+              rx = re.compile(r"^\* `([^`=]+?)\s*=\s*([^`]+)`")
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  m = rx.match(line.strip())
+                  if not m:
+                      continue
+                  key = m.group(1).strip()
+                  raw = m.group(2).strip()
+                  if raw.startswith('"') and raw.endswith('"'):
+                      out[key] = raw[1:-1]
+                  elif raw.lower() == "true":
+                      out[key] = True
+                  elif raw.lower() == "false":
+                      out[key] = False
+                  else:
+                      out[key] = raw
+              return out
+
+
+          def is_placeholder(value: Any) -> bool:
+              s = str(value).strip()
+              s_lower = s.lower()
+              if not s:
+                  return True
+              if s_lower in {"tbd", "todo", "none", "null", "unset", "na", "n/a"}:
+                  return True
+              if "to_pin" in s_lower or "placeholder" in s_lower:
+                  return True
+              if "<" in s and ">" in s:
+                  return True
+              return False
+
+
+          def is_wildcard(value: Any) -> bool:
+              s = str(value).strip()
+              return bool(s and "*" in s)
+
+
+          def parse_s3_uri(uri: str) -> tuple[str, str]:
+              payload = uri.strip()
+              if not payload.startswith("s3://"):
+                  raise ValueError("not_s3_uri")
+              remainder = payload[5:]
+              parts = remainder.split("/", 1)
+              if len(parts) != 2 or not parts[0] or not parts[1]:
+                  raise ValueError("invalid_s3_uri")
+              return parts[0], parts[1]
+
+
+          def normalize_ref_to_s3_uri(ref: str, default_bucket: str) -> str:
+              raw = str(ref).strip()
+              if raw.startswith("s3://"):
+                  bucket, key = parse_s3_uri(raw)
+                  return f"s3://{bucket}/{key}"
+              key = raw.lstrip("/")
+              return f"s3://{default_bucket}/{key}"
+
+
+          def s3_ref_to_bucket_key(ref: str, default_bucket: str) -> tuple[str, str]:
+              raw = str(ref).strip()
+              if raw.startswith("s3://"):
+                  return parse_s3_uri(raw)
+              return default_bucket, raw.lstrip("/")
+
+
+          def s3_get_json(s3: Any, bucket: str, key: str) -> dict[str, Any]:
+              payload = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+              obj = json.loads(payload)
+              if not isinstance(obj, dict):
+                  raise ValueError("json_not_object")
+              return obj
+
+
+          def s3_put_json(s3: Any, bucket: str, key: str, payload: dict[str, Any]) -> None:
+              body = json.dumps(payload, indent=2, ensure_ascii=True).encode("utf-8")
+              s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="application/json")
+              s3.head_object(Bucket=bucket, Key=key)
+
+
+          def write_local(run_dir: Path, artifacts: dict[str, dict[str, Any]]) -> None:
+              run_dir.mkdir(parents=True, exist_ok=True)
+              for name, payload in artifacts.items():
+                  (run_dir / name).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+
+          def push_blocker(blockers: list[dict[str, str]], message: str, surface: str = "") -> None:
+              row = {"code": "M11-B3", "message": message}
+              if surface:
+                  row["surface"] = surface
+              blockers.append(row)
+
+
+          execution_id = os.environ["M11C_EXECUTION_ID"]
+          run_dir = Path(os.environ["M11C_RUN_DIR"])
+          evidence_bucket = os.environ["EVIDENCE_BUCKET"]
+          region = os.environ["AWS_REGION"]
+          upstream_m11b = os.environ["UPSTREAM_M11B_EXECUTION"]
+
+          captured_at = now_utc()
+          blockers: list[dict[str, str]] = []
+          read_errors: list[dict[str, str]] = []
+          unresolved_handles: list[str] = []
+          handle_rows: list[dict[str, str]] = []
+          loaded_refs: dict[str, str] = {}
+          run_scope_checks: list[dict[str, Any]] = []
+          upload_errors: list[dict[str, str]] = []
+
+          s3 = boto3.client("s3", region_name=region)
+
+          handle_values: dict[str, Any] = {}
+          try:
+              handle_values = parse_handles(HANDLES_PATH)
+          except Exception as exc:  # noqa: BLE001
+              push_blocker(blockers, f"Handle registry unreadable: {type(exc).__name__}", str(HANDLES_PATH))
+
+          for key in REQUIRED_HANDLES:
+              if key not in handle_values:
+                  status = "missing"
+                  value_out = ""
+                  unresolved_handles.append(key)
+              else:
+                  value = handle_values.get(key)
+                  value_out = str(value)
+                  if is_placeholder(value):
+                      status = "placeholder"
+                      unresolved_handles.append(key)
+                  elif is_wildcard(value):
+                      status = "wildcard"
+                      unresolved_handles.append(key)
+                  else:
+                      status = "resolved"
+              handle_rows.append({"handle": key, "status": status, "value": value_out})
+
+          if unresolved_handles:
+              push_blocker(blockers, "One or more required M11.C handles are unresolved.", "handle_registry")
+
+          handle_bucket = str(handle_values.get("S3_EVIDENCE_BUCKET", "")).strip()
+          if handle_bucket and not is_placeholder(handle_bucket) and handle_bucket != evidence_bucket:
+              push_blocker(
+                  blockers,
+                  "Dispatch evidence bucket does not match S3_EVIDENCE_BUCKET handle.",
+                  "S3_EVIDENCE_BUCKET",
+              )
+
+          m11b_summary_key = f"evidence/dev_full/run_control/{upstream_m11b}/m11b_execution_summary.json"
+
+          m11b_summary: dict[str, Any] = {}
+          m11a_summary: dict[str, Any] = {}
+          m11_handoff: dict[str, Any] = {}
+          required_ref_payloads: dict[str, dict[str, Any]] = {}
+
+          try:
+              m11b_summary = s3_get_json(s3, evidence_bucket, m11b_summary_key)
+          except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+              read_errors.append({"surface": m11b_summary_key, "error": type(exc).__name__})
+              push_blocker(blockers, "M11.B summary unreadable.", m11b_summary_key)
+
+          platform_run_id = str(m11b_summary.get("platform_run_id", "")).strip() if m11b_summary else ""
+          scenario_run_id = str(m11b_summary.get("scenario_run_id", "")).strip() if m11b_summary else ""
+
+          if m11b_summary:
+              if not bool(m11b_summary.get("overall_pass", False)):
+                  push_blocker(blockers, "M11.B overall_pass is not true.", m11b_summary_key)
+              if str(m11b_summary.get("next_gate", "")).strip() != "M11.C_READY":
+                  push_blocker(blockers, "M11.B next_gate is not M11.C_READY.", m11b_summary_key)
+
+          if not platform_run_id:
+              push_blocker(blockers, "platform_run_id unresolved from M11.B summary.", m11b_summary_key)
+          if not scenario_run_id:
+              push_blocker(blockers, "scenario_run_id unresolved from M11.B summary.", m11b_summary_key)
+
+          m11a_execution = str(m11b_summary.get("upstream_refs", {}).get("m11a_execution_id", "")).strip() if m11b_summary else ""
+          if not m11a_execution:
+              push_blocker(blockers, "M11.B upstream m11a_execution_id missing.", m11b_summary_key)
+          else:
+              m11a_summary_key = f"evidence/dev_full/run_control/{m11a_execution}/m11a_execution_summary.json"
+              try:
+                  m11a_summary = s3_get_json(s3, evidence_bucket, m11a_summary_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": m11a_summary_key, "error": type(exc).__name__})
+                  push_blocker(blockers, "M11.A summary unreadable.", m11a_summary_key)
+
+              if m11a_summary:
+                  if not bool(m11a_summary.get("overall_pass", False)):
+                      push_blocker(blockers, "M11.A overall_pass is not true.", m11a_summary_key)
+                  if str(m11a_summary.get("next_gate", "")).strip() != "M11.B_READY":
+                      push_blocker(blockers, "M11.A next_gate is not M11.B_READY.", m11a_summary_key)
+
+                  if platform_run_id and str(m11a_summary.get("platform_run_id", "")).strip() != platform_run_id:
+                      push_blocker(blockers, "platform_run_id mismatch between M11.B and M11.A.", m11a_summary_key)
+                  if scenario_run_id and str(m11a_summary.get("scenario_run_id", "")).strip() != scenario_run_id:
+                      push_blocker(blockers, "scenario_run_id mismatch between M11.B and M11.A.", m11a_summary_key)
+
+          m10i_execution = str(m11a_summary.get("upstream_refs", {}).get("m10i_execution_id", "")).strip() if m11a_summary else ""
+          if not m10i_execution:
+              push_blocker(blockers, "M11.A upstream m10i_execution_id missing.", "m11a_summary")
+          else:
+              m11_handoff_key = f"evidence/dev_full/run_control/{m10i_execution}/m11_handoff_pack.json"
+              try:
+                  m11_handoff = s3_get_json(s3, evidence_bucket, m11_handoff_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": m11_handoff_key, "error": type(exc).__name__})
+                  push_blocker(blockers, "M11 handoff pack unreadable.", m11_handoff_key)
+
+              if m11_handoff:
+                  if not bool(m11_handoff.get("m11_entry_ready", False)):
+                      push_blocker(blockers, "M11 handoff entry flag is not ready.", m11_handoff_key)
+                  if str(m11_handoff.get("next_gate", "")).strip() != "M11_READY":
+                      push_blocker(blockers, "M11 handoff next_gate is not M11_READY.", m11_handoff_key)
+
+                  if platform_run_id and str(m11_handoff.get("platform_run_id", "")).strip() != platform_run_id:
+                      push_blocker(blockers, "platform_run_id mismatch between M11.B and handoff.", m11_handoff_key)
+                  if scenario_run_id and str(m11_handoff.get("scenario_run_id", "")).strip() != scenario_run_id:
+                      push_blocker(blockers, "scenario_run_id mismatch between M11.B and handoff.", m11_handoff_key)
+
+          required_refs = m11_handoff.get("required_refs", {}) if m11_handoff else {}
+          if m11_handoff and not isinstance(required_refs, dict):
+              push_blocker(blockers, "M11 handoff required_refs is not an object.", "required_refs")
+              required_refs = {}
+
+          for ref_name in REQUIRED_REFS_ORDER:
+              raw_ref = str(required_refs.get(ref_name, "")).strip()
+              if not raw_ref:
+                  push_blocker(blockers, f"Missing required immutable ref: {ref_name}", "required_refs")
+                  continue
+              try:
+                  bucket, key = s3_ref_to_bucket_key(raw_ref, evidence_bucket)
+                  ref_obj = s3_get_json(s3, bucket, key)
+                  required_ref_payloads[ref_name] = ref_obj
+                  loaded_refs[ref_name] = f"s3://{bucket}/{key}"
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": raw_ref, "error": type(exc).__name__})
+                  push_blocker(blockers, f"Unreadable immutable ref: {ref_name}", raw_ref)
+
+          for ref_name, payload in required_ref_payloads.items():
+              payload_platform = str(payload.get("platform_run_id", "")).strip()
+              payload_scenario = str(payload.get("scenario_run_id", "")).strip()
+              run_scope_checks.append(
+                  {
+                      "ref": ref_name,
+                      "platform_run_id": payload_platform,
+                      "scenario_run_id": payload_scenario,
+                  }
+              )
+              if payload_platform and platform_run_id and payload_platform != platform_run_id:
+                  push_blocker(blockers, f"platform_run_id mismatch in {ref_name}.", ref_name)
+              if payload_scenario and scenario_run_id and payload_scenario != scenario_run_id:
+                  push_blocker(blockers, f"scenario_run_id mismatch in {ref_name}.", ref_name)
+
+          gate_verdict = required_ref_payloads.get("m10i_gate_verdict_ref", {})
+          manifest = required_ref_payloads.get("m10g_manifest_ref", {})
+          fingerprint = required_ref_payloads.get("m10g_fingerprint_ref", {})
+          time_bound = required_ref_payloads.get("m10g_time_bound_audit_ref", {})
+
+          if gate_verdict:
+              if not bool(gate_verdict.get("overall_pass", False)):
+                  push_blocker(blockers, "M10.I gate verdict overall_pass is not true.", "m10i_gate_verdict_ref")
+              if str(gate_verdict.get("verdict", "")).strip() != "ADVANCE_TO_P14":
+                  push_blocker(blockers, "M10.I gate verdict is not ADVANCE_TO_P14.", "m10i_gate_verdict_ref")
+              if str(gate_verdict.get("next_gate", "")).strip() != "M11_READY":
+                  push_blocker(blockers, "M10.I next_gate is not M11_READY.", "m10i_gate_verdict_ref")
+
+          fingerprint_ref_expected = loaded_refs.get("m10g_fingerprint_ref", "")
+          time_bound_ref_expected = loaded_refs.get("m10g_time_bound_audit_ref", "")
+          if manifest:
+              manifest_fingerprint_ref = normalize_ref_to_s3_uri(manifest.get("fingerprint_ref", ""), evidence_bucket)
+              manifest_time_bound_ref = normalize_ref_to_s3_uri(manifest.get("time_bound_audit_ref", ""), evidence_bucket)
+              if manifest_fingerprint_ref != fingerprint_ref_expected:
+                  push_blocker(blockers, "Manifest fingerprint_ref does not match resolved fingerprint ref.", "m10g_manifest_ref")
+              if manifest_time_bound_ref != time_bound_ref_expected:
+                  push_blocker(blockers, "Manifest time_bound_audit_ref does not match resolved time-bound ref.", "m10g_manifest_ref")
+              if str(manifest.get("status", "")).strip() != "COMMITTED":
+                  push_blocker(blockers, "Manifest status is not COMMITTED.", "m10g_manifest_ref")
+
+          computed_fingerprint = ""
+          canonical_input = ""
+          if fingerprint:
+              if str(fingerprint.get("status", "")).strip() != "COMMITTED":
+                  push_blocker(blockers, "Fingerprint status is not COMMITTED.", "m10g_fingerprint_ref")
+
+              order = fingerprint.get("required_fields_order")
+              values = fingerprint.get("required_field_values")
+              if not isinstance(order, list) or not isinstance(values, dict):
+                  push_blocker(blockers, "Fingerprint fields order/value surfaces are invalid.", "m10g_fingerprint_ref")
+              else:
+                  lines: list[str] = []
+                  for key in order:
+                      key_s = str(key)
+                      if key_s not in values:
+                          push_blocker(blockers, f"Fingerprint value missing for key '{key_s}'.", "m10g_fingerprint_ref")
+                          continue
+                      lines.append(f"{key_s}={values[key_s]}")
+                  canonical_input = "\n".join(lines)
+                  computed_fingerprint = hashlib.sha256(canonical_input.encode("utf-8")).hexdigest()
+                  declared_fingerprint = str(fingerprint.get("fingerprint_sha256", "")).strip()
+                  if not declared_fingerprint:
+                      push_blocker(blockers, "fingerprint_sha256 missing from fingerprint surface.", "m10g_fingerprint_ref")
+                  elif declared_fingerprint != computed_fingerprint:
+                      push_blocker(blockers, "Fingerprint digest mismatch against recomputed canonical input.", "m10g_fingerprint_ref")
+
+          if time_bound:
+              if not bool(time_bound.get("overall_pass", False)):
+                  push_blocker(blockers, "Time-bound audit overall_pass is not true.", "m10g_time_bound_audit_ref")
+              if str(time_bound.get("status", "")).strip() != "COMMITTED":
+                  push_blocker(blockers, "Time-bound audit status is not COMMITTED.", "m10g_time_bound_audit_ref")
+
+          overall_pass = len(blockers) == 0
+          next_gate = "M11.D_READY" if overall_pass else "HOLD_REMEDIATE"
+          verdict = "ADVANCE_TO_M11_D" if overall_pass else "HOLD_REMEDIATE"
+
+          immutable_snapshot = {
+              "captured_at_utc": captured_at,
+              "phase": "M11.C",
+              "phase_id": "P14",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "upstream_refs": {
+                  "m11b_execution_id": upstream_m11b,
+                  "m11a_execution_id": m11a_execution,
+                  "m10i_execution_id": m10i_execution,
+                  "m11b_summary_key": m11b_summary_key,
+              },
+              "required_ref_order": REQUIRED_REFS_ORDER,
+              "resolved_refs": loaded_refs,
+              "run_scope_checks": run_scope_checks,
+              "fingerprint_verification": {
+                  "computed_sha256": computed_fingerprint,
+                  "declared_sha256": str(fingerprint.get("fingerprint_sha256", "")).strip() if fingerprint else "",
+                  "canonical_input": canonical_input,
+                  "match": bool(computed_fingerprint and fingerprint and computed_fingerprint == str(fingerprint.get("fingerprint_sha256", "")).strip()),
+              },
+              "coherence_checks": {
+                  "manifest_status": str(manifest.get("status", "")).strip() if manifest else "",
+                  "fingerprint_status": str(fingerprint.get("status", "")).strip() if fingerprint else "",
+                  "time_bound_status": str(time_bound.get("status", "")).strip() if time_bound else "",
+                  "time_bound_overall_pass": bool(time_bound.get("overall_pass", False)) if time_bound else False,
+                  "m10i_gate_verdict": str(gate_verdict.get("verdict", "")).strip() if gate_verdict else "",
+                  "m10i_gate_next_gate": str(gate_verdict.get("next_gate", "")).strip() if gate_verdict else "",
+              },
+              "handle_matrix": handle_rows,
+              "unresolved_handles": unresolved_handles,
+              "read_errors": read_errors,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "next_gate": next_gate,
+          }
+
+          blocker_register = {
+              "captured_at_utc": captured_at,
+              "phase": "M11.C",
+              "phase_id": "P14",
+              "execution_id": execution_id,
+              "blocker_count": len(blockers),
+              "blockers": blockers,
+              "overall_pass": overall_pass,
+          }
+
+          execution_summary = {
+              "captured_at_utc": captured_at,
+              "phase": "M11.C",
+              "phase_id": "P14",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "upstream_refs": {
+                  "m11b_execution_id": upstream_m11b,
+                  "m11a_execution_id": m11a_execution,
+                  "m10i_execution_id": m10i_execution,
+              },
+              "artifact_keys": {
+                  "m11c_input_immutability_snapshot": f"evidence/dev_full/run_control/{execution_id}/m11c_input_immutability_snapshot.json",
+                  "m11c_blocker_register": f"evidence/dev_full/run_control/{execution_id}/m11c_blocker_register.json",
+                  "m11c_execution_summary": f"evidence/dev_full/run_control/{execution_id}/m11c_execution_summary.json",
+              },
+          }
+
+          artifacts = {
+              "m11c_input_immutability_snapshot.json": immutable_snapshot,
+              "m11c_blocker_register.json": blocker_register,
+              "m11c_execution_summary.json": execution_summary,
+          }
+          write_local(run_dir, artifacts)
+
+          s3_prefix = f"evidence/dev_full/run_control/{execution_id}/"
+          for file_name, payload in artifacts.items():
+              try:
+                  s3_put_json(s3, evidence_bucket, f"{s3_prefix}{file_name}", payload)
+              except (BotoCoreError, ClientError) as exc:
+                  upload_errors.append({"surface": f"{s3_prefix}{file_name}", "error": type(exc).__name__})
+
+          if upload_errors:
+              execution_summary["overall_pass"] = False
+              execution_summary["verdict"] = "HOLD_REMEDIATE"
+              execution_summary["next_gate"] = "HOLD_REMEDIATE"
+              execution_summary["blocker_count"] = execution_summary.get("blocker_count", 0) + len(upload_errors)
+              blocker_register["overall_pass"] = False
+              blocker_register["blocker_count"] = blocker_register.get("blocker_count", 0) + len(upload_errors)
+              for err in upload_errors:
+                  push_blocker(blockers, f"Durable publish failed: {err['surface']}", err["surface"])
+              blocker_register["blockers"] = blockers
+              blocker_register["blocker_count"] = len(blockers)
+              try:
+                  s3_put_json(s3, evidence_bucket, f"{s3_prefix}m11c_blocker_register.json", blocker_register)
+                  s3_put_json(s3, evidence_bucket, f"{s3_prefix}m11c_execution_summary.json", execution_summary)
+              except (BotoCoreError, ClientError):
+                  pass
+
+          run_summary = {
+              "execution_id": execution_id,
+              "overall_pass": execution_summary["overall_pass"],
+              "blocker_count": execution_summary["blocker_count"],
+              "next_gate": execution_summary["next_gate"],
+              "verdict": execution_summary["verdict"],
+              "evidence_prefix": f"s3://{evidence_bucket}/{s3_prefix}",
+          }
+          print(json.dumps(run_summary, indent=2, ensure_ascii=True))
+
+          if not execution_summary["overall_pass"]:
+              raise SystemExit(1)
+          PY
+
+      - name: Upload local run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-full-m11-c-${{ steps.run_meta.outputs.m11c_execution_id }}
+          path: ${{ steps.run_meta.outputs.m11c_run_dir }}
+          if-no-files-found: warn
