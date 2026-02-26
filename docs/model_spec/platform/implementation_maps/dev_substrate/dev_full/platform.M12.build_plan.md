@@ -53,6 +53,8 @@ Out of scope:
 10. `m12_phase_budget_envelope.json`
 11. `m12_phase_cost_outcome_receipt.json`
 12. `m12_execution_summary.json`
+13. `m12_post_promotion_observation_snapshot.json`
+14. `m12_operability_acceptance_report.json`
 
 ## 4) Entry Gate and Current Posture
 Entry gate for M12:
@@ -87,6 +89,19 @@ M12 is not execution-ready unless these capability lanes are explicit:
 | P15 verdict + M13 handoff | M12.H | `ADVANCE_TO_P16` + `m13_handoff_pack.json` |
 | Cost-outcome closure | M12.I | budget + receipt pass |
 | Closure sync | M12.J | `m12_execution_summary.json` committed |
+
+## 4.3) Non-Gate Acceptance Objectives (Mandatory)
+M12 cannot close on gate-chain pass alone. All items below are required:
+1. Promotion safety acceptance:
+- promotion includes explicit blast-radius posture and reversible control surface.
+2. Operational trust acceptance:
+- post-promotion observation window is captured with explicit health/drift/error posture.
+3. Rollback realism acceptance:
+- rollback drill proves practical operator recoverability with bounded restore objective evidence.
+4. Governance completeness acceptance:
+- approval, promotion, and rollback rationale is append-only and audit-complete.
+5. Runtime continuity acceptance:
+- ACTIVE resolution remains coherent with serving/runtime contract without hidden compatibility waivers.
 
 ## 5) Work Breakdown (Orchestration)
 
@@ -155,10 +170,12 @@ Goal:
 Tasks:
 1. run rollback drill scenario.
 2. capture drill outputs and outcome state.
-3. emit `m12e_rollback_drill_snapshot.json`.
+3. capture bounded restore objective evidence and operator runbook viability notes.
+4. emit `m12e_rollback_drill_snapshot.json`.
 
 DoD:
 - [ ] rollback drill passes.
+- [ ] rollback drill includes bounded restore objective evidence.
 - [ ] snapshot committed locally and durably.
 
 ### M12.F ACTIVE Resolution Checks
@@ -168,10 +185,12 @@ Goal:
 Tasks:
 1. validate one-active-per-scope resolution.
 2. validate runtime compatibility checks on resolved ACTIVE bundle.
-3. emit `m12f_active_resolution_snapshot.json`.
+3. emit `m12_post_promotion_observation_snapshot.json`.
+4. emit `m12f_active_resolution_snapshot.json`.
 
 DoD:
 - [ ] ACTIVE resolution checks pass.
+- [ ] post-promotion observation snapshot is pass posture.
 - [ ] snapshot committed locally and durably.
 
 ### M12.G Governance Append Closure
@@ -181,10 +200,12 @@ Goal:
 Tasks:
 1. validate append ordering and required event set.
 2. validate promotion and rollback evidence refs.
-3. emit `m12g_governance_append_snapshot.json`.
+3. emit `m12_operability_acceptance_report.json`.
+4. emit `m12g_governance_append_snapshot.json`.
 
 DoD:
 - [ ] governance append checks pass.
+- [ ] operability/governance acceptance report is published and pass posture.
 - [ ] snapshot committed locally and durably.
 
 ### M12.H P15 Gate Rollup + M13 Handoff
@@ -237,6 +258,7 @@ DoD:
 9. `M12-B9`: handoff publication failure.
 10. `M12-B10`: phase cost-outcome closure failure.
 11. `M12-B11`: summary/evidence publication parity failure.
+12. `M12-B12`: non-gate acceptance failure (promotion safety/observation/rollback realism/governance completeness).
 
 ## 7) Artifact Contract (M12)
 1. `m12a_handle_closure_snapshot.json`
@@ -251,6 +273,8 @@ DoD:
 10. `m12_phase_budget_envelope.json`
 11. `m12_phase_cost_outcome_receipt.json`
 12. `m12_execution_summary.json`
+13. `m12_post_promotion_observation_snapshot.json`
+14. `m12_operability_acceptance_report.json`
 
 ## 8) Completion Checklist
 - [ ] `M12.A` complete
@@ -264,6 +288,7 @@ DoD:
 - [ ] `M12.I` complete
 - [ ] `M12.J` complete
 - [ ] all active `M12-B*` blockers resolved
+- [ ] non-gate acceptance artifacts (`post_promotion_observation`, `operability_acceptance`) are pass posture
 
 ## 9) Planning Status
 1. M12 planning is expanded and execution-grade.

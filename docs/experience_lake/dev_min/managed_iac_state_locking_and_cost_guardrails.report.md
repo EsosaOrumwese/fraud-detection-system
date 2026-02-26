@@ -328,27 +328,14 @@ Before hardening, there were four practical reliability gaps:
 In senior platform terms, this is an operations-governance problem: how to make infrastructure lifecycle decisions mechanically correct and auditable, not personality-driven.
 
 ### 4.2 Observed failure progression (real execution history)
-The platform hit real failure classes that validated this claim's necessity.
+The platform hit real failure classes that validated this claim's necessity. The important point is not that failures occurred, but that each failure produced a fail-closed witness, a bounded remediation, and a rerun closure.
 
-1. Budget materialization mismatch at runtime
-- Failure class: budget object/notification alignment did not initially satisfy closure posture.
-- What changed to close it: budget object and thresholds were remediated with provider-aligned unit handling (United States dollars (USD) in runtime lane) and rerun to pass.
-- Why this mattered: cost guardrails are invalid if units/thresholds are policy-level only and not provider-executable.
-
-2. Teardown viability preflight instability
-- Failure class: destroy preflight evidence lane was not initially robust because JavaScript Object Notation (JSON) preflight depended on an execution-context detail.
-- What changed to close it: preflight was fixed by running `terraform show` from initialized demo stack context and rerun with demo-scoped destroy-set verification.
-- Why this mattered: without deterministic preflight, a destroy lane can be technically available but operationally unsafe.
-
-3. Post-teardown cost read failure in live guardrail lane
-- Failure class: cost guardrail run failed closed on malformed Cost Explorer time-period argument (`ValidationException: Start time is invalid`).
-- What changed to close it: argument quoting was corrected, then full lane reran under the same gates and passed with blocker-free snapshot.
-- Why this mattered: this proved the guardrail lane was genuinely fail-closed; it did not mask telemetry-read defects.
-
-4. Scope uplift revealing hidden cross-platform blind spot
-- Failure class: an AWS-only pass was not accepted after policy uplift to combined AWS+managed-Kafka cost scope.
-- What changed to close it: lane was reopened and rerun with cross-platform cost capture requirement, preventing false closure.
-- Why this mattered: cost posture can be misrepresented if cross-provider spend surfaces are excluded.
+| Failure class | Witness (what actually failed) | What changed to close it | Why this mattered |
+|---|---|---|---|
+| Budget materialization mismatch at runtime (M2.I) | `InvalidParameterException: supported unit set [USD]` observed when attempting non-supported unit (GBP) in runtime enforcement. Blocker class: `M2I-B2`. | Repinned budget enforcement to USD, then materialized budget + notification ladder as executable provider objects (thresholds `10/20/28`). | A budget policy is meaningless if the provider refuses the unit. Guardrails must be provider-executable, not only documented. |
+| Teardown viability preflight instability (M2.I) | Preflight failed with `teardown_viability_snapshot.preflight.plan_json_error="terraform show failed"`. Blocker: `M2I-B4`. | Ran `terraform show` from an initialized demo stack context (provider schema loaded), then reran teardown preflight to closure. | Destroy lanes are unsafe if preflight depends on fragile context. Preflight must be deterministic to prevent accidental blast radius. |
+| Post-teardown cost read failure (M9.G) | Guardrail run failed closed with `ValidationException (Start time is invalid)` due to malformed Cost Explorer `--time-period` argument; follow-on shape failure: `Cannot index into a null array.` Blocker: `M9G-B1`. | Corrected quoting: `--time-period "Start=<yyyy-mm-dd>,End=<yyyy-mm-dd>"`, then reran the same lane to blocker-free PASS. | Proves the lane is genuinely fail-closed: it does not green itself when telemetry is unreadable. |
+| Scope uplift revealed cross-platform blind spot | AWS-only closure was intentionally downgraded when policy required combined AWS + Confluent Cloud monthly exposure. | Lane reopened and re-closed only after combined-cost capture passed (AWS + Confluent). | Cost posture can be misrepresented if cross-provider spend is excluded; governance must reopen closure when scope tightens. |
 
 ### 4.3 Why this is a high-risk platform failure class
 These failures are high risk because they target control-plane truth, not only feature behavior.
@@ -836,45 +823,120 @@ The implementation delivered the intended operating posture:
 
 This moved the environment from "can provision resources" to "can run infrastructure operations with deterministic safety and auditable closure."
 
-### 9.2 Measured closure anchors
-The claim closed with concrete pass artifacts across the core lanes:
+### 9.2 Measured closure exhibits (proof embedded in-report)
+This section embeds the minimum measured facts required to validate the claim without requiring readers to open artifacts.
 
-1. Budget and teardown-viability baseline closure
-- execution: `m2_20260213T201427Z`
-- outcome: pass-closed budget guardrail and teardown-viability snapshots
-- key facts: budget aligned to `30 USD`, thresholds `10/20/28` present.
+#### Exhibit A - Terraform backend integrity + locking readiness (mutation safety)
+| Control | Expected | Observed (dev_min) | Outcome |
+|---|---|---|---|
+| State bucket exists | Present, correct region | `fraud-platform-dev-min-tfstate` in `eu-west-2` | PASS |
+| Versioning | Enabled | `true` | PASS |
+| Encryption | Enabled | `AES256` | PASS |
+| Public access block | All protections true | `block_public_acls=true`, `ignore_public_acls=true`, `block_public_policy=true`, `restrict_public_buckets=true` | PASS |
+| Partitioned state keys | Distinct keys per stack | `dev_min/core/terraform.tfstate`, `dev_min/confluent/terraform.tfstate`, `dev_min/demo/terraform.tfstate` | PASS |
+| Lock table exists | Present, ACTIVE | `fraud-platform-dev-min-tf-locks` in `eu-west-2`, `status=ACTIVE` | PASS |
+| Lock key + billing posture | Deterministic key, low-ops cost | `LockID`, `PAY_PER_REQUEST` | PASS |
 
-2. Post-teardown cost guardrail fail->fix->pass chain
-- fail anchor: `m9_20260219T160439Z` (`overall_pass=false`, blocker raised on malformed cost-query input)
-- remediation pass anchor: `m9_20260219T160549Z` (`overall_pass=true`, blockers empty).
+Non-claim (explicit): a concurrent lock contention experiment (proving a second apply blocks behind an active lock) is not retained in dev_min evidence, so it is not claimed here.
 
-3. Cross-platform cost-scope confirmation (post-hardening)
-- managed rerun pass anchor: `m9_20260219T185951Z`
-- outcome: pass-closed with both cost-guardrail and managed billing evidence artifacts.
+Interpretation:
+- This closes the state corruption / split-brain applies failure mode by design: backend integrity is enforced and state keys are structurally partitioned.
 
-4. Teardown-proof publication closure
-- execution: `m9_20260219T181800Z`
-- outcome: `teardown_proof.json` published with pass posture and source-lane references.
+#### Exhibit B - Stack separation by state key (blast-radius boundary)
+| Stack root | Lifecycle posture | State key |
+|---|---|---|
+| `core` | persistent control surfaces | `dev_min/core/terraform.tfstate` |
+| `confluent` | managed messaging substrate | `dev_min/confluent/terraform.tfstate` |
+| `demo` | ephemeral runtime substrate | `dev_min/demo/terraform.tfstate` |
 
-### 9.3 Cost and residual-risk outcomes
-From pass-closed guardrail snapshots:
-- budget object remained aligned to expected handle/cap,
-- threshold posture remained aligned (`10/20/28` ladder),
-- AWS-side utilization was recorded in-policy at closure time,
-- post-teardown high-cost default indicators were clear (no non-deleted NAT, no demo-scoped LB residual, no non-zero Amazon Elastic Container Service (Amazon ECS) desired-count residual, runtime DB reported absent after teardown).
+Interpretation:
+- Demo/confluent destroy targets are scoped to their own state keys, while core state controls remain in preserve-set. This prevents demo teardown from mutating core state.
+
+#### Exhibit C - Cost guardrail lane (AWS scope) fail -> fix -> pass (M9.G)
+| Attempt | Time (UTC) | Outcome | Blocker | Witness (what was measured / observed) | Fix delta |
+|---|---|---|---|---|---|
+| FAIL | 2026-02-19T16:04:52Z | FAIL (fail-closed) | `M9G-B1` | `ValidationException: Start time is invalid` due to malformed Cost Explorer time-period argument; follow-on: `Cannot index into a null array.` | Quote the composite arg: `--time-period "Start=...,End=..."` |
+| PASS | 2026-02-19T16:06:02Z | PASS | - | `mtd_cost_usd=17.8956072585` (about $17.90), `utilization_pct=59.6520`, thresholds present `10/20/28`, `critical_threshold_breached=false` | - |
+
+Post-teardown residual indicators at PASS:
+- `nat_non_deleted_count=0`
+- `lb_demo_scoped_residual_count=0`
+- `ecs_desired_gt_zero_count=0`
+- `runtime_db_state=not_found`
+- `log_retention_drift_count=0`
+
+Time-to-recovery (measured): 70.3 seconds from first FAIL to PASS.
+
+Interpretation:
+- This proves the guardrail lane is fail-closed and telemetry-sensitive: it blocks on unreadable cost surfaces and only advances once the cost posture is measurable and within the threshold ladder.
+
+#### Exhibit D - Cross-platform monthly exposure (AWS + Confluent Cloud) pass closure
+| Scope | Monthly-to-date cost (USD) | Note |
+|---|---:|---|
+| AWS | 17.8956072585 | primary spend |
+| Confluent Cloud | -0.0003 | can appear as a small negative credit |
+| Combined | 17.8953072585 | used for utilization and threshold checks |
+
+Guardrail posture (combined):
+- `combined_utilization_pct=59.65102419500`
+- thresholds present `10/20/28`
+- `critical_threshold_breached=false` (combined < 28)
+
+Interpretation:
+- Governance is scope-truthful: AWS-only closure was reopened, and the claim only re-closed once combined spend was measured and bounded.
+
+#### Exhibit E - Teardown proof (destroy-set protected by preserve-set, residuals checked)
+| Field | Observed |
+|---|---|
+| Destroy-set | 2 stack targets (`confluent` + `demo`) |
+| Preserve-set | 3 groups (`core_bucket_targets`, `state_control_targets`, `budget_targets`) |
+| Overlap detected | `false` (`overlap_targets=[]`) |
+| Destroy outcome | `success` (confluent=success, demo=success, overall=success) |
+| Post-destroy residuals | `nat_non_deleted_count=0`, `lb_demo_scoped_residual_count=0`, `ecs_desired_gt_zero_count=0`, `runtime_db_state=not_found`, `log_retention_drift_count=0` |
+| Destroy duration | `1.307s` |
+
+Interpretation:
+- Teardown is not just "it destroyed"; teardown is destroy bounded by preserve-set plus residual proof. This closes cost leakage and blast-radius risk after demos.
+
+### 9.3 Cost and residual-risk outcomes (interpretation of Exhibits C-E)
+Cost governance is treated as a gate with explicit failure semantics, not a monthly after-action dashboard.
+
+Measured cost posture at closure:
+- Monthly cap enforced in executable unit: USD (provider-supported).
+- AWS MTD at closure: `17.8956072585` (about $17.90), utilization `59.6520%`.
+- Cross-platform combined MTD (AWS + Confluent): `17.8953072585`, utilization `59.6510%`.
+- Threshold ladder present: `10/20/28`; critical threshold not breached (`< 28`).
+
+Residual risk indicators (post-teardown):
+- NAT residuals: `0`
+- demo-scoped load balancer residuals: `0`
+- Amazon Elastic Container Service desired-count residuals: `0`
+- runtime DB absent after teardown: `not_found` (expected/desirable for demo destroy posture)
+- log-retention drift: `0`
 
 Operational meaning:
-- cost governance was not inferred from "few resources"; it was proven by explicit guardrail evaluation and blocker semantics.
+- The environment is safe to run repeatedly because cost posture and high-cost defaults are verified as part of closure, not assumed.
 
-### 9.4 Teardown safety outcomes
-Teardown outcomes were closure-grade, not best-effort:
-- destroy target and preserve target sets were explicitly separated,
-- destroy/preserve overlap and scope violations were treated as blockers by design,
-- managed teardown workflow enforced fail-closed exit when destroy/post-state checks were not clean,
-- final teardown proof artifact carried lane continuity references instead of standalone pass messaging.
+### 9.4 Teardown safety outcomes (destroy bounded by preserve-set)
+Teardown outcomes are closure-grade, not best-effort.
 
-Operational meaning:
-- destructive operations became replayable and bounded, reducing accidental blast radius.
+Destroy/preserve separation (measured):
+- Destroy-set: `confluent` + `demo` (2 stack targets)
+- Preserve-set: core/state/budget control surfaces (3 preserved groups)
+- Overlap detection: `false` (empty overlap set)
+- Destroy outcome: success (confluent=success, demo=success)
+
+Residual checks (measured):
+- `nat_non_deleted_count=0`
+- `lb_demo_scoped_residual_count=0`
+- `ecs_desired_gt_zero_count=0`
+- `runtime_db_state=not_found`
+- `log_retention_drift_count=0`
+
+Interpretation:
+- This prevents two common failure modes in dev environments:
+- hidden cost leakage after demos,
+- accidental mutation or deletion of preserved control surfaces during teardown.
 
 ### 9.5 Reliability and governance outcomes
 The strongest reliability signal was not the first pass; it was the governance behavior under change:
@@ -922,14 +984,17 @@ This claim does not state that:
 This report is scoped to reproducible and cost-bounded managed development operations.
 
 ### 10.3 Evidence boundary limitation
-The report intentionally references machine-readable snapshots and run anchors rather than embedding:
+This report embeds the key proof facts directly (measured backend/locking posture, partitioned state keys, fail->fix->pass cost chronology, combined-cost scope closure, teardown proof with residual checks), so it stands on its own as a technical report.
+
+It intentionally does not embed:
 - full Terraform state content,
 - raw cloud billing exports,
 - full workflow log dumps,
 - full policy payloads.
 
 Reason:
-- keep the report readable and security-safe while preserving challenge-ready verification paths.
+- keep the report readable and security-safe while still providing challenge-ready verification in the report body.
+- raw logs and full state payloads are not required to validate the claim; the measured exhibits in Section 9 are sufficient.
 
 ### 10.4 Environment and transferability limitation
 The engineering pattern is transferable:
@@ -956,11 +1021,19 @@ Correct interpretation:
 Incorrect interpretation:
 - "candidate claims to have completed all platform reliability, security, and FinOps work for every environment."
 
-## 11) Proof Hooks
+## 11) Appendix: Retrieval Hooks (Optional)
 
 ### 11.1 How to use this section
-These hooks are challenge-ready anchors.
-Each hook maps one claim element to concrete artifacts so a reviewer can validate failure, remediation, and closure without reading raw logs end-to-end.
+This appendix is optional.
+
+The report body (Sections 4 and 9) already embeds the proof facts needed to validate the claim:
+- the observed failure signatures and bounded remediations,
+- measured backend and locking posture,
+- measured cost guardrail fail->fix->pass chronology,
+- cross-platform combined-cost closure,
+- teardown proof with preserve-set protection and residual checks.
+
+Use the retrieval hooks below only if a reviewer wants to inspect the underlying machine-readable snapshots directly (audit-style challenge or interview deep dive). These hooks do not introduce new claims; they are an inspection aid.
 
 ### 11.2 Primary fail->fix->pass chain (best single proof path)
 Use this sequence first:

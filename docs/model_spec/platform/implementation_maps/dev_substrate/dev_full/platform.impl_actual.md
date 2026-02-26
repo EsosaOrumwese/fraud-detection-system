@@ -14479,3 +14479,34 @@ ext_gate=M10.D_READY
 7. Documentation synchronization completed in:
    - `platform.M10.build_plan.md` (DoD checks and rerun evidence rows),
    - `platform.build_plan.md` (M10 execution status post-remediation rerun note).
+
+## Entry: 2026-02-26 17:31:00 +00:00 - M11/M12 objective-hardening: gate pass is necessary, not sufficient
+1. Trigger: USER required assurance that M11 and M12 do not collapse into gate-chain closure-only behavior.
+2. Design decision pinned:
+   - M11/M12 closure now requires explicit non-gate acceptance outcomes in addition to deterministic gate-chain pass.
+3. M11 hardening implemented:
+   - added non-gate acceptance section covering utility, reproducibility, operability, auditability, and decision quality.
+   - added mandatory artifacts:
+     - `m11_eval_vs_baseline_report.json`,
+     - `m11_reproducibility_check.json`,
+     - `m11_model_operability_report.json`.
+   - wired these into sub-phase DoDs (`M11.E`, `M11.G`, `M11.H`) and completion checklist.
+   - added blocker family `M11-B13` for non-gate acceptance failure.
+4. M12 hardening implemented:
+   - added non-gate acceptance section covering promotion safety, post-promotion trust window, rollback realism, governance completeness, and runtime continuity.
+   - added mandatory artifacts:
+     - `m12_post_promotion_observation_snapshot.json`,
+     - `m12_operability_acceptance_report.json`.
+   - wired these into sub-phase DoDs (`M12.E`, `M12.F`, `M12.G`) and completion checklist.
+   - added blocker family `M12-B12` for non-gate acceptance failure.
+5. Master-plan sync:
+   - updated `platform.build_plan.md` M11/M12 stubs so DoD anchors include non-gate acceptance outputs.
+6. Quality cleanup:
+   - fixed numbering inconsistencies introduced during patching in M11/M12 execution-note/task lists.
+7. Outcome:
+   - phase closure logic now explicitly blocks “green-by-gates-only” for M11 and M12.
+
+## Entry: 2026-02-26 17:35:12 +00:00 - Timestamp correction note
+1. The immediately prior M11/M12 hardening entry used static planning timestamp text.
+2. This note records actual append time for audit precision.
+3. No content change to decisions; timestamp correction only.

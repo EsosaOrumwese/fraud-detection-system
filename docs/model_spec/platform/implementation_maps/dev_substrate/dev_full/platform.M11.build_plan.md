@@ -49,6 +49,20 @@ Entry evidence anchors:
 - explicit runtime budgets per sub-phase,
 - no silent long-run acceptance without analysis and remediation trail.
 
+## 3.1) Non-Gate Acceptance Objectives (Mandatory)
+M11 is not complete on gate-chain pass alone. All items below are required:
+1. Model utility acceptance:
+- candidate must outperform or match pinned baseline/champion thresholds from authority handles,
+- metric deltas must be explicitly reported, not inferred.
+2. Reproducibility acceptance:
+- bounded rerun with identical pinned inputs/config must produce stable evaluation posture within pinned tolerance.
+3. Operational-readiness acceptance:
+- candidate bundle must include runtime-operable metadata (model/package id, feature contract ref, lineage refs, rollback pointers).
+4. Auditability acceptance:
+- MLflow lineage and provenance must be complete enough for deterministic reconstruction of the train/eval run.
+5. Decision quality acceptance:
+- promotion-readiness rationale must be explicit (why this candidate is safe/useful), not just `PASS` by chain mechanics.
+
 ## 4) Deliverables and Artifact Contract
 M11 artifacts (local run folder + durable mirror) must include:
 1. `m11a_handle_closure_snapshot.json`
@@ -65,6 +79,9 @@ M11 artifacts (local run folder + durable mirror) must include:
 12. `m11_phase_cost_outcome_receipt.json`
 13. `m11_execution_summary.json`
 14. `m11_blocker_register.json`
+15. `m11_eval_vs_baseline_report.json`
+16. `m11_reproducibility_check.json`
+17. `m11_model_operability_report.json`
 
 Run folder convention:
 1. `runs/dev_substrate/dev_full/m11/<execution_id>/...`
@@ -177,13 +194,15 @@ Goal:
 Execution notes:
 1. Evaluate thresholds from pinned policy surfaces.
 2. Fail-closed on any gate miss (`M11-B5`).
-3. Emit `m11e_eval_gate_snapshot.json`.
+3. Emit explicit baseline/champion comparison artifact (`m11_eval_vs_baseline_report.json`).
+4. Emit `m11e_eval_gate_snapshot.json`.
 
 Runtime budget:
 1. Target <= 10 minutes.
 
 DoD:
 - [ ] all eval gates pass.
+- [ ] baseline/champion comparison report is published and meets pinned thresholds.
 - [ ] snapshot published local + durable.
 - [ ] `M11.F_READY` asserted.
 
@@ -211,13 +230,15 @@ Goal:
 Execution notes:
 1. Publish candidate bundle to pinned artifact surface.
 2. Validate required provenance keys.
-3. Emit `m11g_candidate_bundle_snapshot.json`.
+3. Emit model operability report (`m11_model_operability_report.json`) proving the bundle is runnable by downstream promotion/runtime surfaces.
+4. Emit `m11g_candidate_bundle_snapshot.json`.
 
 Runtime budget:
 1. Target <= 8 minutes.
 
 DoD:
 - [ ] bundle publish + provenance checks pass.
+- [ ] operability report is published and marked pass.
 - [ ] snapshot published local + durable.
 - [ ] `M11.H_READY` asserted.
 
@@ -228,13 +249,15 @@ Goal:
 Execution notes:
 1. Emit rollback path references and safe-disable controls.
 2. Validate rollback artifact readability.
-3. Emit `m11h_safe_disable_rollback_snapshot.json`.
+3. Execute bounded reproducibility check and emit `m11_reproducibility_check.json`.
+4. Emit `m11h_safe_disable_rollback_snapshot.json`.
 
 Runtime budget:
 1. Target <= 8 minutes.
 
 DoD:
 - [ ] safe-disable/rollback closure passes with no open `M11-B8`.
+- [ ] reproducibility check report is published and pass posture.
 - [ ] snapshot published local + durable.
 - [ ] `M11.I_READY` asserted.
 
@@ -289,6 +312,7 @@ DoD:
 10. `M11-B10`: handoff publication failure.
 11. `M11-B11`: cost-outcome closure failure.
 12. `M11-B12`: summary/evidence parity failure.
+13. `M11-B13`: non-gate acceptance failure (utility/reproducibility/operability/auditability).
 
 ## 8) Completion Checklist
 - [ ] `M11.A` complete
@@ -303,6 +327,7 @@ DoD:
 - [ ] `M11.J` complete
 - [ ] no unresolved `M11-B*` blocker remains
 - [ ] all M11 artifacts published local + durable
+- [ ] non-gate acceptance artifacts (`eval_vs_baseline`, `reproducibility`, `model_operability`) are pass posture
 
 ## 9) Planning Status
 1. M11 planning is expanded to execution-grade depth.

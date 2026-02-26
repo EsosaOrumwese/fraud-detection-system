@@ -1341,6 +1341,10 @@ M11 planning posture:
 - M11 is expanded to execution-grade planning in deep plan `platform.M11.build_plan.md`.
 - M11 is strictly sequenced as `M11.A -> M11.B -> ... -> M11.J`; no phase skipping is permitted.
 - M11 operates fail-closed: any `M11-B*` blocker halts advancement until cleared.
+- M11 closure requires non-gate acceptance objectives, not only gate-chain pass:
+  - candidate utility vs baseline/champion,
+  - reproducibility on rerun with pinned inputs,
+  - bundle operability and audit-complete lineage/provenance.
 - M11 inherits M10 closure contract as immutable entry basis:
   - `M10` must be `DONE`,
   - `m10j_closure_sync_20260226T164304Z` must remain readable on durable evidence store,
@@ -1378,8 +1382,11 @@ M11 sub-phase plan:
 
 DoD anchors:
 - [ ] MF eval report committed.
+- [ ] eval-vs-baseline acceptance report committed and pass.
 - [ ] candidate bundle receipt committed.
+- [ ] reproducibility check report committed and pass.
 - [ ] rollback/safe-disable evidence committed.
+- [ ] model-operability report committed and pass.
 - [ ] leakage/provenance checks are committed and green.
 - [ ] deterministic `P14` verdict and `m12_handoff_pack.json` are committed.
 - [ ] M11 phase-budget and cost-outcome artifacts are committed and blocker-free.
@@ -1408,6 +1415,7 @@ Planned lanes:
 - rollback drill execution and validation.
 - ACTIVE bundle resolution and runtime compatibility checks.
 - governance append and evidence closure.
+- post-promotion observation and operability acceptance checks.
 - deterministic P15 verdict + M13 handoff + cost-outcome closure.
 
 M12 sub-phase plan:
@@ -1425,8 +1433,11 @@ M12 sub-phase plan:
 DoD anchors:
 - [ ] promotion receipt committed.
 - [ ] rollback drill report committed.
+- [ ] rollback bounded-restore objective evidence committed.
 - [ ] active-bundle compatibility checks green.
+- [ ] post-promotion observation snapshot committed and pass.
 - [ ] governance append evidence is committed and coherent.
+- [ ] operability/governance acceptance report committed and pass.
 - [ ] deterministic `P15` verdict and `m13_handoff_pack.json` are committed.
 - [ ] M12 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
