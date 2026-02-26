@@ -79,7 +79,7 @@ Status:
 - Complete (hardening + recruiter-trim done).
 
 ### Claim C - Managed IaC Foundation and Cost Guardrails
-Planned file:
+File:
 - `docs/experience_lake/dev_min/managed_iac_state_locking_and_cost_guardrails.report.md`
 
 Locked claim:
@@ -96,7 +96,36 @@ Out of scope:
 - Organization-level multi-account policy programs.
 
 Status:
-- Active (Scope Lock complete; Draft Core next).
+- Complete (hardening + recruiter-trim done).
+
+### Claim D - Managed Secret Lifecycle and Runtime Credential Freshness
+Planned file:
+- `docs/experience_lake/dev_min/managed_secret_lifecycle_and_runtime_credential_freshness.report.md`
+
+Locked claim:
+- Implemented a managed secret lifecycle for messaging credentials using encrypted parameter storage (no plaintext source-control exposure), controlled rotation, and teardown-aligned disposal, and enforced service redeploy after rotation so running workloads actually consume new credentials rather than stale in-memory values.
+
+In scope:
+- Secret material storage in encrypted parameter store and non-commit posture.
+- Rotation workflow and bounded operational sequence for credential updates.
+- Runtime freshness enforcement through post-rotation service redeploy.
+- Teardown-aligned secret disposal to avoid stale credential residue.
+- Failure class and remediation for the gap between rotation and runtime consumption.
+
+Out of scope:
+- Full enterprise key-management architecture across all environments.
+- Full organization-wide secrets governance/compliance policy.
+- Runtime business-metric outcomes unrelated to credential lifecycle control.
+
+Execution plan (report workflow states):
+- Scope Lock: complete.
+- Draft Core: next (Sections 1-8).
+- Outcome Lock: pending (Sections 9-10).
+- Proof Lock: pending (Sections 11-12).
+- Hardening Pass: pending.
+
+Priority:
+- Next active claim for section-by-section drafting.
 
 ## 8) Backlog Source
 Candidate claims are sourced from:
