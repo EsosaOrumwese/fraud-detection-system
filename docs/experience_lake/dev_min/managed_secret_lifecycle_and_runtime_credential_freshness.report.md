@@ -358,7 +358,7 @@ From these failures, the design had to enforce the following requirements:
 5. Teardown must include metadata-only secret cleanup verification with blocker semantics.
 6. Closure claims must be artifact-verdict based across storage, runtime freshness, and cleanup lanes.
 
-## 5) Design Decision and Trade-offs
+## 5) Design Decisions and Trade-offs
 
 ### 5.1 Decision framework used
 Design choices were accepted only when they satisfied all four tests:
@@ -912,7 +912,7 @@ Primary rotation freshness anchors:
 - managed rotation run reference: workflow run `22206773359` (runtime messaging credential rotation and republish path),
 - decision trail showing forced redeploy after rotation:
   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
-  - entry context includes explicit note that daemon services were redeployed to load refreshed parameter values.
+  - entry: `2026-02-20 01:07:24 +00:00` (explicit note that daemon services were redeployed to load refreshed parameter values).
 
 What this proves:
 - rotation was executed in managed lane,
@@ -921,7 +921,7 @@ What this proves:
 ### 11.4 Stale-input regression prevention hook
 Apply-time regression control anchor:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
-- entry context documenting apply posture that sources credential fields from current trusted parameter values to avoid stale overwrite.
+- entry: `2026-02-20 10:24:00 +00:00` documenting apply posture that sources credential fields from current trusted parameter values to avoid stale overwrite.
 
 What this proves:
 - infrastructure updates included explicit protection against credential-state regression.
@@ -963,7 +963,7 @@ This packet is enough to defend the merged claim end-to-end without dumping sens
 
 ## 12) Recruiter Relevance
 
-### 12.1 Senior MLOps capability signals demonstrated
+### 12.1 Senior machine learning operations (MLOps) capability signals demonstrated
 This claim demonstrates senior machine learning operations capability in:
 - treating secret handling as an end-to-end operational control, not a static configuration task,
 - enforcing runtime credential freshness after rotation through mandatory workload reload,
@@ -990,7 +990,7 @@ Use this claim in interviews in this sequence:
 
 This sequence presents strong technical judgment and keeps the claim challenge-defensible.
 
-### 12.5 Role-fit keyword map (for downstream CV/LinkedIn extraction)
+### 12.5 Role-fit keyword map (for downstream Curriculum Vitae (CV)/LinkedIn extraction)
 - Secret lifecycle management
 - Runtime credential freshness
 - Fail-closed control design
