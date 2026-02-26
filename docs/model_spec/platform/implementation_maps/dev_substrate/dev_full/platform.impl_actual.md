@@ -10360,3 +10360,130 @@ ext_gate=HOLD_REMEDIATE.
    - status lines added for `m7m/m7n/m7o`.
 3. `platform.build_plan.md`:
    - current M7 posture updated with `P10.B/C/D` green managed runs.
+
+## Entry: 2026-02-26 03:15:00 +00:00 - P10.E closure contract pinned before workflow implementation
+
+### Why this decision is required now
+1. `P10.A/P10.B/P10.C/P10.D` are green, but `P10.E` was still a placeholder and therefore not executable in a deterministic fail-closed posture.
+2. `M7.I` cannot close until `P10.E` emits a rollup verdict that is blocker-consistent and references component proof continuity.
+
+### Pinned execution contract for P10.E
+1. Upstream continuity is explicit and mandatory:
+   - `P10.B` summary must be green with `next_gate=P10.C_READY`.
+   - `P10.C` summary must be green with `next_gate=P10.D_READY`.
+   - `P10.D` summary must be green with `next_gate=P10.E_READY`.
+2. Required evidence proof triplet is explicit and mandatory under `CASE_LABELS_EVIDENCE_PATH_PATTERN`:
+   - `case_trigger_component_proof.json`
+   - `cm_component_proof.json`
+   - `ls_component_proof.json`.
+3. Managed lane mapping is pinned:
+   - `phase_mode=m7p` in `.github/workflows/dev_full_m6f_streaming_active.yml`.
+   - upstream execution ids mapped via `upstream_m6d/m6g/m6h`.
+4. Deterministic success contract is pinned:
+   - `overall_pass=true`
+   - `phase_verdict=ADVANCE_TO_M7`
+   - `blocker_count=0`
+   - `next_gate=M7.J_READY`.
+
+### Artifact contract pinned
+1. `p10e_case_labels_rollup_matrix.json`
+2. `p10e_case_labels_blocker_register.json`
+3. `p10e_case_labels_verdict.json`
+4. `p10e_execution_summary.json`
+
+### Reasoning for this shape
+1. Reusing the existing managed workflow keeps execution surface consistent with `M6/M7` lanes and avoids spawning a second orchestration path.
+2. Proof-triplet verification in rollup is the minimum needed to prevent false-green where component summaries pass but durable cross-component evidence is absent.
+3. `M7.J_READY` as next gate keeps M7 sequencing intact (`M7.I` closes, then `M7.J` global rollup/handoff).
+
+## Entry: 2026-02-26 03:18:00 +00:00 - P10.E handle gap closure before execution
+
+### Gap found
+1. The newly pinned `P10.E` contract referenced two handles not yet present in the registry:
+   - `P10_ROLLUP_REQUIRED_PROOFS`
+   - `M7_ROLLUP_READY_GATE`.
+
+### Decision
+1. Pin both handles in `dev_full_handles.registry.v0.md` before workflow implementation to preserve fail-closed decision-completeness.
+2. Values pinned:
+   - `P10_ROLLUP_REQUIRED_PROOFS = "case_trigger_component_proof.json|cm_component_proof.json|ls_component_proof.json"`
+   - `M7_ROLLUP_READY_GATE = "M7.J_READY"`.
+
+### Why this is necessary
+1. Without these pins, `P10.E` rollup either silently defaults or fails late in runtime checks, both of which violate deterministic lane contracts.
+2. Explicit handle pinning keeps runbook authority and workflow behavior aligned.
+
+## Entry: 2026-02-26 03:24:00 +00:00 - Refined P10.E implementation to honor workflow-only commit constraint
+
+### Constraint applied
+1. User law: commits are allowed for workflow files only.
+2. Initial P10.E design referenced two new registry handles; that would have required a non-workflow commit before managed execution.
+
+### Decision refinement
+1. Keep `m7p` fail-closed but remove dependency on newly introduced registry keys.
+2. P10.E workflow now requires only already-pinned handles:
+   - `FLINK_RUNTIME_PATH_ACTIVE`
+   - `FLINK_RUNTIME_PATH_ALLOWED`
+   - `CASE_LABELS_EVIDENCE_PATH_PATTERN`.
+3. Pin rollup proof triplet and success gate directly in lane logic:
+   - proofs: `case_trigger_component_proof.json`, `cm_component_proof.json`, `ls_component_proof.json`
+   - success gate: `next_gate=M7.J_READY`.
+
+### Why this is the chosen path
+1. Preserves deterministic fail-closed behavior for execution now.
+2. Avoids violating the workflow-only commit rule.
+3. Keeps docs expandable locally while execution remains unblocked.
+
+## Entry: 2026-02-26 03:32:00 +00:00 - Implemented and executed P10.E managed rollup lane (`m7p`)
+
+### Implementation decisions
+1. Added new managed lane `m7p` inside `.github/workflows/dev_full_m6f_streaming_active.yml`.
+2. Reused existing upstream execution input channels:
+   - `upstream_m6d_execution` -> `P10.B`
+   - `upstream_m6g_execution` -> `P10.C`
+   - `upstream_m6h_execution` -> `P10.D`.
+3. P10.E rollup lane checks are fail-closed:
+   - all three upstream summaries must be green with expected `next_gate` values,
+   - all three upstream blocker registers must have `blocker_count=0`,
+   - case-label proof triplet must exist under `CASE_LABELS_EVIDENCE_PATH_PATTERN`.
+4. Artifacts emitted by lane:
+   - `p10e_case_labels_rollup_matrix.json`
+   - `p10e_case_labels_blocker_register.json`
+   - `p10e_case_labels_verdict.json`
+   - `p10e_execution_summary.json`.
+5. Success verdict contract enforced by gate step:
+   - `overall_pass=true`
+   - `phase_verdict=ADVANCE_TO_M7`
+   - `blocker_count=0`
+   - `next_gate=M7.J_READY`.
+
+### Managed execution details
+1. Workflow dispatch:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7p`
+   - run id: `22426064165`
+   - execution id: `m7p_p10e_rollup_20260226T030607Z`.
+2. Upstream execution ids used:
+   - `m7m_p10b_case_trigger_component_20260226T024750Z`
+   - `m7n_p10c_cm_component_20260226T024847Z`
+   - `m7o_p10d_ls_component_20260226T024940Z`.
+
+### Result
+1. `overall_pass=true`
+2. `phase_verdict=ADVANCE_TO_M7`
+3. `blocker_count=0`
+4. `next_gate=M7.J_READY`
+
+### Evidence surfaces
+1. local:
+   - `runs/dev_substrate/dev_full/m7/_tmp_run_22426064165/`
+2. durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7p_p10e_rollup_20260226T030607Z/`
+
+### Plan synchronization completed
+1. `platform.M7.P10.build_plan.md`
+   - `P10.E` expanded and marked complete with run/evidence details.
+2. `platform.M7.build_plan.md`
+   - `M7.I` DoDs updated and marked closed green.
+3. `platform.build_plan.md`
+   - M7 posture updated with `P10.E` closure; `M7.J` identified as next lane.

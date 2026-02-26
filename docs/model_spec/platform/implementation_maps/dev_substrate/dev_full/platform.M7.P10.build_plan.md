@@ -1,6 +1,6 @@
 # Dev Substrate Deep Plan - M7.P10 (P10 CASE_LABELS_COMMITTED)
 _Parent orchestration phase: `platform.M7.build_plan.md`_
-_Last updated: 2026-02-25_
+_Last updated: 2026-02-26_
 
 ## 0) Purpose
 This document carries execution-grade planning for `P10 CASE_LABELS_COMMITTED`.
@@ -374,14 +374,78 @@ Execution status (2026-02-26):
 Goal:
 1. adjudicate P10 from `P10.B/P10.C/P10.D`.
 
+Entry prerequisites:
+1. `P10.B` execution summary is green with:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=P10.C_READY`.
+2. `P10.C` execution summary is green with:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=P10.D_READY`.
+3. `P10.D` execution summary is green with:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=P10.E_READY`.
+4. run scope (`platform_run_id`, `scenario_run_id`) matches across upstream `P10.B/P10.C/P10.D`.
+
+Required handle set for P10.E:
+1. `FLINK_RUNTIME_PATH_ACTIVE`
+2. `FLINK_RUNTIME_PATH_ALLOWED`
+3. `CASE_LABELS_EVIDENCE_PATH_PATTERN`
+
 Tasks:
-1. build `p10e_case_labels_rollup_matrix.json`.
-2. build `p10e_case_labels_blocker_register.json`.
-3. emit `p10e_case_labels_verdict.json`.
+1. resolve and validate upstream summaries + blocker registers for `P10.B/P10.C/P10.D`.
+2. verify required proof triplet exists under case-label evidence path:
+   - `case_trigger_component_proof.json`
+   - `cm_component_proof.json`
+   - `ls_component_proof.json`.
+3. build `p10e_case_labels_rollup_matrix.json`.
+4. build `p10e_case_labels_blocker_register.json`.
+5. emit `p10e_case_labels_verdict.json`.
+6. emit `p10e_execution_summary.json`.
+
+Execution plan (managed lane):
+1. dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with `phase_mode=m7p`.
+2. pass upstream execution ids:
+   - `upstream_m6d_execution=<P10.B execution id>`
+   - `upstream_m6g_execution=<P10.C execution id>`
+   - `upstream_m6h_execution=<P10.D execution id>`.
+3. require deterministic success gate:
+   - `overall_pass=true`
+   - `phase_verdict=ADVANCE_TO_M7`
+   - `blocker_count=0`
+   - `next_gate=M7.J_READY`.
 
 DoD:
-- [ ] rollup matrix and blocker register committed.
-- [ ] deterministic verdict committed (`ADVANCE_TO_M7`/`ADVANCE_TO_M8` or fail-closed hold as pinned by orchestration gate).
+- [x] rollup matrix and blocker register committed locally and durably.
+- [x] proof triplet exists and is referenced by rollup matrix.
+- [x] deterministic verdict committed (`ADVANCE_TO_M7` on pass; otherwise fail-closed hold).
+- [x] managed `P10.E` run is green (`overall_pass=true`, `phase_verdict=ADVANCE_TO_M7`, `blocker_count=0`, `next_gate=M7.J_READY`).
+
+Execution status (2026-02-26):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7p`
+   - run id: `22426064165`
+   - execution id: `m7p_p10e_rollup_20260226T030607Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `phase_verdict=ADVANCE_TO_M7`,
+   - `blocker_count=0`,
+   - `next_gate=M7.J_READY`.
+3. Verification outcomes:
+   - upstream `P10.B/P10.C/P10.D` continuity accepted from:
+     - `m7m_p10b_case_trigger_component_20260226T024750Z`
+     - `m7n_p10c_cm_component_20260226T024847Z`
+     - `m7o_p10d_ls_component_20260226T024940Z`
+   - required proof triplet validated under case-label evidence prefix:
+     - `case_trigger_component_proof.json`
+     - `cm_component_proof.json`
+     - `ls_component_proof.json`.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_tmp_run_22426064165/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7p_p10e_rollup_20260226T030607Z/`.
 
 ## 5) P10 Verification Catalog
 | Verify ID | Purpose |
@@ -422,9 +486,10 @@ DoD:
 18. `p10e_case_labels_rollup_matrix.json`
 19. `p10e_case_labels_blocker_register.json`
 20. `p10e_case_labels_verdict.json`
-21. `p10b_case_trigger_performance_snapshot.json`
-22. `p10c_cm_performance_snapshot.json`
-23. `p10d_ls_performance_snapshot.json`
+21. `p10e_execution_summary.json`
+22. `p10b_case_trigger_performance_snapshot.json`
+23. `p10c_cm_performance_snapshot.json`
+24. `p10d_ls_performance_snapshot.json`
 
 ## 8) Exit Rule for P10
 `P10` can close only when:
