@@ -1,6 +1,6 @@
 # Dev Substrate Deep Plan - M7 (P8 RTDL_CAUGHT_UP + P9 DECISION_CHAIN_COMMITTED + P10 CASE_LABELS_COMMITTED)
 _Status owner: `platform.build_plan.md`_
-_Last updated: 2026-02-25_
+_Last updated: 2026-02-26_
 
 ## 0) Purpose
 `M7` closes spine runtime truth for:
@@ -452,16 +452,83 @@ Execution status (2026-02-26):
 Goal:
 1. finalize M7 verdict and publish M8 entry pack.
 
+Entry prerequisites:
+1. `P8.E` summary is green with:
+   - `overall_pass=true`,
+   - `phase_verdict=ADVANCE_TO_P9`,
+   - `next_gate=M7.F_READY`.
+2. `P9.E` summary is green with:
+   - `overall_pass=true`,
+   - `phase_verdict=ADVANCE_TO_P10`,
+   - `next_gate=M7.I_READY`.
+3. `P10.E` summary is green with:
+   - `overall_pass=true`,
+   - `phase_verdict=ADVANCE_TO_M7`,
+   - `next_gate=M7.J_READY`.
+4. run scope (`platform_run_id`, `scenario_run_id`) matches across all upstream rollups.
+
+Required handle set for M7.J:
+1. `DEV_FULL_MONTHLY_BUDGET_LIMIT_USD`
+2. `DEV_FULL_BUDGET_ALERT_1_USD`
+3. `DEV_FULL_BUDGET_ALERT_2_USD`
+4. `DEV_FULL_BUDGET_ALERT_3_USD`
+5. `BUDGET_CURRENCY`
+6. `COST_CAPTURE_SCOPE`
+7. `AWS_COST_CAPTURE_ENABLED`
+8. `DATABRICKS_COST_CAPTURE_ENABLED`
+9. `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`
+10. `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`
+11. `M7_HANDOFF_PACK_PATH_PATTERN`.
+
 Tasks:
 1. aggregate `P8/P9/P10` verdict chain.
-2. emit `m8_handoff_pack.json`.
-3. emit M7 phase budget envelope + cost-outcome receipt.
+2. emit `m7_rollup_matrix.json` + `m7_blocker_register.json`.
+3. emit `m8_handoff_pack.json`.
+4. emit M7 phase budget envelope + cost-outcome receipt.
+5. emit deterministic closure summaries:
+   - `m7_execution_summary.json`
+   - `m7j_execution_summary.json`.
+
+Execution plan (managed lane):
+1. dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with `phase_mode=m7q`.
+2. pass upstream execution ids:
+   - `upstream_m6d_execution=<P8.E execution id>`
+   - `upstream_m6g_execution=<P9.E execution id>`
+   - `upstream_m6h_execution=<P10.E execution id>`.
+3. require deterministic success gate:
+   - `overall_pass=true`
+   - `verdict=ADVANCE_TO_M8`
+   - `blocker_count=0`
+   - `next_gate=M8_READY`.
 
 DoD:
-- [ ] `m7_execution_summary.json` committed locally and durably.
-- [ ] `m8_handoff_pack.json` committed locally and durably.
-- [ ] M7 cost-outcome artifacts are valid and blocker-free.
-- [ ] M7 verdict is `ADVANCE_TO_M8` with `next_gate=M8_READY`.
+- [x] `m7_execution_summary.json` committed locally and durably.
+- [x] `m8_handoff_pack.json` committed locally and durably.
+- [x] M7 cost-outcome artifacts are valid and blocker-free.
+- [x] M7 verdict is `ADVANCE_TO_M8` with `next_gate=M8_READY`.
+
+Execution status (2026-02-26):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7q`
+   - run id: `22426311129`
+   - execution id: `m7q_m7_rollup_sync_20260226T031710Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_M8`,
+   - `blocker_count=0`,
+   - `next_gate=M8_READY`.
+3. Verification outcomes:
+   - upstream rollup continuity accepted from:
+     - `m7f_p8e_rollup_20260225T214307Z`
+     - `m7k_p9e_rollup_20260226T023154Z`
+     - `m7p_p10e_rollup_20260226T030607Z`
+   - cost-outcome posture is valid:
+     - `spend_amount=78.3708562065 USD`
+     - `alert_3=270 USD` (hard-stop not reached).
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_tmp_run_22426311129/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7q_m7_rollup_sync_20260226T031710Z/`.
 
 ## 6) Deep Phase Routing
 1. `P8` detailed plan: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P8.build_plan.md`
@@ -498,8 +565,8 @@ DoD:
 - [x] M7.G complete
 - [x] M7.H complete
 - [x] M7.I complete
-- [ ] M7.J complete
-- [ ] all active `M7-B*` blockers resolved
+- [x] M7.J complete
+- [x] all active `M7-B*` blockers resolved
 
 ## 9) Planning Status
 1. M7 deep-plan scaffold created.
@@ -520,4 +587,5 @@ DoD:
 16. `P10.C` CM lane is closed green (`m7n_p10c_cm_component_20260226T024847Z`).
 17. `P10.D` LS lane is closed green (`m7o_p10d_ls_component_20260226T024940Z`).
 18. `P10.E` rollup/verdict is closed green (`m7p_p10e_rollup_20260226T030607Z`) with `next_gate=M7.J_READY`.
-19. Next step is `M7.J` rollup/handoff lane; throughput-cert executes after M7 closure.
+19. `M7.J` rollup/handoff is closed green (`m7q_m7_rollup_sync_20260226T031710Z`) with `next_gate=M8_READY`.
+20. `M7` is functionally closed green; non-waived `P8+P9` throughput certification remains deferred under `M7-D18`.

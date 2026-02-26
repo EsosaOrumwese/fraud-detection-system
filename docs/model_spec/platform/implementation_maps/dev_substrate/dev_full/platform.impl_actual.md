@@ -10487,3 +10487,131 @@ ext_gate=HOLD_REMEDIATE.
    - `M7.I` DoDs updated and marked closed green.
 3. `platform.build_plan.md`
    - M7 posture updated with `P10.E` closure; `M7.J` identified as next lane.
+
+## Entry: 2026-02-26 03:45:00 +00:00 - M7.J closure strategy pinned before implementation
+
+### Why M7.J needs a dedicated managed lane
+1. `M7.I` is green (`P10.E` complete), but there is no executable workflow lane that finalizes M7 verdict + M8 handoff.
+2. Without a dedicated lane, M7 closure would be manual and non-deterministic, violating fail-closed phase law.
+
+### Decision
+1. Add `phase_mode=m7q` to `.github/workflows/dev_full_m6f_streaming_active.yml` for `M7.J`.
+2. Use existing upstream input channels to preserve workflow surface:
+   - `upstream_m6d_execution` -> `P8.E` execution id (`m7f...`),
+   - `upstream_m6g_execution` -> `P9.E` execution id (`m7k...`),
+   - `upstream_m6h_execution` -> `P10.E` execution id (`m7p...`).
+3. Lane responsibilities:
+   - validate upstream `P8.E/P9.E/P10.E` summaries and blocker registers,
+   - enforce verdict continuity (`ADVANCE_TO_P9`, `ADVANCE_TO_P10`, `ADVANCE_TO_M7`),
+   - emit deterministic closure artifacts:
+     - `m7_rollup_matrix.json`
+     - `m7_blocker_register.json`
+     - `m7_phase_budget_envelope.json`
+     - `m7_phase_cost_outcome_receipt.json`
+     - `m8_handoff_pack.json`
+     - `m7_execution_summary.json`
+     - `m7j_execution_summary.json`.
+4. Success gate:
+   - `overall_pass=true`
+   - `verdict=ADVANCE_TO_M8`
+   - `blocker_count=0`
+   - `next_gate=M8_READY`.
+
+### Required handle set for M7.J execution
+1. `DEV_FULL_MONTHLY_BUDGET_LIMIT_USD`
+2. `DEV_FULL_BUDGET_ALERT_1_USD`
+3. `DEV_FULL_BUDGET_ALERT_2_USD`
+4. `DEV_FULL_BUDGET_ALERT_3_USD`
+5. `BUDGET_CURRENCY`
+6. `COST_CAPTURE_SCOPE`
+7. `AWS_COST_CAPTURE_ENABLED`
+8. `DATABRICKS_COST_CAPTURE_ENABLED`
+9. `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`
+10. `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`
+11. `M7_HANDOFF_PACK_PATH_PATTERN`.
+
+### Cost-outcome posture for this lane
+1. Use AWS Cost Explorer monthly-to-date read in `us-east-1`.
+2. Databricks cost capture remains deferred per pinned handle posture (`aws_only_pre_m11_databricks_cost_deferred`).
+3. Hard-stop if MTD cost is at or above alert-3 threshold.
+
+## Entry: 2026-02-26 03:56:00 +00:00 - Implemented managed `m7q` lane for M7.J closure
+
+### Implementation shape chosen
+1. Added `phase_mode=m7q` to existing workflow `dev_full_m6f_streaming_active.yml` instead of creating a new workflow file.
+2. Reused existing upstream input channels (`upstream_m6d/m6g/m6h`) to avoid expanding workflow dispatch surface.
+3. Implemented inline fail-closed rollup logic in lane:
+   - verifies upstream `P8.E/P9.E/P10.E` summary + blocker artifacts,
+   - verifies expected verdict/gate chain (`ADVANCE_TO_P9`, `ADVANCE_TO_P10`, `ADVANCE_TO_M7`),
+   - verifies M7 budget handles + captures AWS MTD spend,
+   - emits M7 closure + M8 handoff artifacts,
+   - blocks on cost hard-stop and artifact publish failures.
+
+### Artifact set emitted by lane
+1. `m7_rollup_matrix.json`
+2. `m7_blocker_register.json`
+3. `m7_phase_budget_envelope.json`
+4. `m7_phase_cost_outcome_receipt.json`
+5. `m8_handoff_pack.json`
+6. `m7_handoff_pack.json` (compatibility alias)
+7. `m7_execution_summary.json`
+8. `m7j_execution_summary.json`
+
+### Why this shape
+1. Keeps execution deterministic in one managed lane.
+2. Preserves backward compatibility with existing `M7_HANDOFF_PACK_PATH_PATTERN` while providing explicit `m8_handoff_pack.json` expected by `M7.J` DoD.
+3. Keeps M7 closure contract auditable from one run-control prefix.
+
+## Entry: 2026-02-26 04:02:00 +00:00 - Executed M7.J (`m7q`) and closed M7
+
+### Execution inputs
+1. Workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+2. Mode: `phase_mode=m7q`
+3. Run id: `22426311129`
+4. Execution id: `m7q_m7_rollup_sync_20260226T031710Z`
+5. Upstream rollup ids:
+   - `P8.E`: `m7f_p8e_rollup_20260225T214307Z`
+   - `P9.E`: `m7k_p9e_rollup_20260226T023154Z`
+   - `P10.E`: `m7p_p10e_rollup_20260226T030607Z`.
+
+### Fail-closed checks performed by lane
+1. Upstream chain checks:
+   - summary + blocker register availability from durable run-control prefix,
+   - expected verdict and gate continuity per phase,
+   - blocker_count must be zero per upstream phase.
+2. Handle closure checks:
+   - budget, cost-capture, and phase-cost artifact handle set pinned and non-placeholder.
+3. Cost guardrail checks:
+   - AWS Cost Explorer MTD capture in billing region,
+   - threshold order validation,
+   - hard-stop check at alert-3.
+4. Artifact durability checks:
+   - put + head verification for all emitted artifacts.
+
+### Output artifact set
+1. `m7_rollup_matrix.json`
+2. `m7_blocker_register.json`
+3. `m7_phase_budget_envelope.json`
+4. `m7_phase_cost_outcome_receipt.json`
+5. `m8_handoff_pack.json`
+6. `m7_handoff_pack.json` (compatibility alias)
+7. `m7_execution_summary.json`
+8. `m7j_execution_summary.json`.
+
+### Result and closure posture
+1. `overall_pass=true`
+2. `verdict=ADVANCE_TO_M8`
+3. `blocker_count=0`
+4. `next_gate=M8_READY`
+5. Cost posture captured and below hard-stop:
+   - `spend_amount=78.3708562065 USD`
+   - `alert_3=270 USD`.
+
+### Why closure is accepted
+1. M7 verdict is now derived from fully-green rollups (`P8.E/P9.E/P10.E`) with explicit chain continuity.
+2. Cost-outcome artifacts are present and valid with no blocker propagation.
+3. Deterministic M8 handoff artifact is emitted and durable.
+
+### Evidence surfaces
+1. local: `runs/dev_substrate/dev_full/m7/_tmp_run_22426311129/`
+2. durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7q_m7_rollup_sync_20260226T031710Z/`.

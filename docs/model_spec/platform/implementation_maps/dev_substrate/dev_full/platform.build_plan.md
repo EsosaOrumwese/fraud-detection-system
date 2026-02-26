@@ -1,6 +1,6 @@
 # Dev Substrate Build Plan (dev_full)
 _Track: dev_min certified baseline -> dev_full full-platform managed substrate_
-_Last updated: 2026-02-25_
+_Last updated: 2026-02-26_
 
 ## 0) Purpose
 This is the active execution plan for building `dev_full` from the certified `dev_min` baseline into a full-platform managed stack with:
@@ -94,7 +94,7 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M4 | P2 | Spine runtime-lane readiness (managed-first) | DONE |
 | M5 | P3-P4 | Oracle readiness + ingest preflight | DONE |
 | M6 | P5-P7 | Control + Ingress closure | DONE |
-| M7 | P8-P10 | RTDL + Case/Labels closure | ACTIVE |
+| M7 | P8-P10 | RTDL + Case/Labels closure | DONE |
 | M8 | P11 | Spine obs/gov closure + non-regression pack | NOT_STARTED |
 | M9 | P12 | Learning input readiness | NOT_STARTED |
 | M10 | P13 | OFS dataset closure | NOT_STARTED |
@@ -706,7 +706,7 @@ Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P7.build_plan.md`
 
 ## M7 - RTDL and Case/Labels Closure
-Status: `ACTIVE`
+Status: `DONE`
 
 Objective:
 - close `P8-P10` for RTDL, decision chain, and case/label append lanes with component-level verification (no bundled closure claims).
@@ -796,7 +796,11 @@ Current M7 execution posture:
   - workflow run `22426064165`,
   - execution `m7p_p10e_rollup_20260226T030607Z`,
   - `overall_pass=true`, `phase_verdict=ADVANCE_TO_M7`, `blocker_count=0`, `next_gate=M7.J_READY`.
-- `M7.I` is now closed green; `M7.J` rollup/handoff is next.
+- `M7.J` M7 rollup/handoff is closed green on managed run:
+  - workflow run `22426311129`,
+  - execution `m7q_m7_rollup_sync_20260226T031710Z`,
+  - `overall_pass=true`, `verdict=ADVANCE_TO_M8`, `blocker_count=0`, `next_gate=M8_READY`.
+- `M7` is now functionally closed green and has emitted deterministic `M8` handoff artifacts.
 - Post-M7 throughput certification caveat (deferred):
   - `P8/P9` throughput checks are currently in low-sample guarded mode (`throughput_gate_mode=waived_low_sample`).
   - non-waived throughput certification remains mandatory and is scheduled immediately after `M7` closure using the pinned target profile (`134,000,000 events/hour`).
@@ -805,7 +809,7 @@ DoD anchors:
 - [x] RTDL core closure evidence is green.
 - [x] decision/action/audit triplet closure is green.
 - [x] case/label append closure is green.
-- [ ] M7 rollup verdict is deterministic with blocker-free handoff to M8.
+- [x] M7 rollup verdict is deterministic with blocker-free handoff to M8.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.build_plan.md`
