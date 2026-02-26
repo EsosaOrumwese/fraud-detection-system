@@ -3185,6 +3185,53 @@ Operational note:
 - class profile load logged `rows=886, classes=8`, indicating source profile is sparse in current authority surface.
 - despite sparsity, explicit class-conditioning achieved required `T5` association closure.
 
+---
+
+### Entry: 2026-02-26 13:05
+
+P6 design lock for `T5 -> B+` recovery (post-`PASS_B` freeze reopen).
+
+Problem statement:
+- segment `6B` is frozen at `PASS_B`; blocker to `B+` is isolated to `T5` (`Cramer's V(bank_view_outcome, merchant_class)`), currently stable at ~`0.0674` across required seeds against `B+` threshold `0.08`.
+- cross-seed stability is already passing `B+` CV posture, so the remaining gap is outcome-mix separability, not seed volatility.
+
+Observed saturation evidence:
+- existing required seeds (`42,7,101,202`) are near-identical on `T5`, indicating a structural cap in current `S4` bank-view conditioning.
+- `T6/T7` are already `B+` on required seeds, which constrains safe tuning bandwidth (avoid breaking already-closed rails).
+
+Alternatives considered:
+1) scorer/threshold relaxation for `T5`.
+- rejected; violates fail-closed realism policy.
+2) immediate high-blast `S4` code redesign.
+- rejected for first pass; unnecessary blast radius before exhausting policy lane.
+3) policy-only class outcome-mix widening in `S4` (selected first).
+- selected as minimal-change owner-consistent lane with deterministic semantics preserved.
+
+Chosen execution lane (`P6`):
+1) append explicit `P6` phase in build plan with DoD and veto rails.
+2) tune `config/layer3/6B/bank_view_policy_6B.yaml` class multipliers only:
+   - `p_detect_class_multiplier`,
+   - `p_legit_fp_class_multiplier`,
+   - `p_dispute_class_multiplier`,
+   - `p_chargeback_class_multiplier`.
+3) run fresh staged witness (`seed=42`) with `S4->S5` only and score.
+4) if positive/no-regression, execute required-seed matrix (`42,7,101,202`) and refresh certification artifacts.
+5) close as `PASS_BPLUS_ROBUST` only if all required `B+` gates hold; else keep `PASS_B` with blocker evidence.
+
+Invariants pinned:
+- no schema or dataset-id change.
+- no scorer threshold edits.
+- no writes to `runs/local_full_run-5/`.
+- maintain runtime rails (`S4<=420s`, `S5<=30s`) and hard non-regression set (`T1-T4,T6-T10,T22`).
+
+Tuning decision (`P6.1` first pass, policy-only):
+- updated `config/layer3/6B/bank_view_policy_6B.yaml` class multipliers to widen high-vs-low class separation across all main bank-view pathways:
+  - detection: increase high-risk classes (`online_bursty`, `online_24h`, `fuel_convenience`, `travel_hospitality`) and decrease low-risk classes (`consumer_daytime`, `bills_utilities`, `evening_weekend`),
+  - legit false-positive confirmation lane: same direction, stronger spread to affect `BANK_CONFIRMED_FRAUD` on legit strata,
+  - dispute and chargeback: same direction to increase class-conditioned outcome-mix spread (not only fraud/no-fraud split).
+- rationale: sampled contingency analysis showed `T5` requires multi-outcome polarization to cross `0.08`; fraud-only amplification was insufficient.
+- blast-radius control: no code-path changes and no threshold edits in this pass.
+
 ### Entry: 2026-02-25 20:33
 
 P1.R2 closure artifacts emitted.

@@ -577,27 +577,12 @@ The release lane is governed by one non-negotiable rule:
 This means a candidate is accepted only when required controls are satisfied and required machine-readable evidence is present. Human confidence or partial success is insufficient.
 
 ### 7.2 Mandatory gate set
-The gate set for acceptance is:
-
-1. Federated authentication gate
-- CI must successfully assume cloud role through OpenID Connect trust.
-- failure outcome: stop before registry operations.
-
-2. Registry authorization gate
-- assumed role must have required registry action scope, including token retrieval and publish/read actions.
-- failure outcome: publish blocked.
-
-3. Build-surface policy gate
-- build context must satisfy explicit include/exclude rules and bounded dependency policy.
-- failure outcome: candidate rejected.
-
-4. Immutable identity gate
-- successful publish must emit both tag and digest; digest is required for acceptance.
-- failure outcome: candidate rejected even if image push technically occurred.
-
-5. Provenance completeness gate
-- machine-readable provenance must bind source, run context, artifact identity, and gate outcomes.
-- failure outcome: candidate rejected.
+Acceptance requires all five gates:
+- `AUTHN`: OpenID Connect role assumption succeeds.
+- `AUTHZ`: required Amazon Elastic Container Registry actions are available (including `ecr:GetAuthorizationToken`).
+- `BUILD_SURFACE`: include/exclude and dependency-surface rules pass.
+- `IDENTITY`: both tag and digest are emitted; digest is canonical.
+- `PROVENANCE`: machine-readable provenance is complete and coherent.
 
 ### 7.3 Blocker taxonomy used in operation
 To keep remediation deterministic, blockers are classified by control plane:
@@ -642,22 +627,13 @@ Controls that remain active after initial closure:
 These controls convert incident learnings into standing release policy.
 
 ### 7.7 Auditability guardrail
-Every accepted release must support challenge-response verification:
-- what was built,
-- from which source revision,
-- under which authenticated and authorized cloud identity path,
-- with which immutable digest,
-- with which provenance and gate outcomes.
-
-If any of these answers is missing, release acceptance is invalid under this control model.
-
-### 7.8 Closure standard for this section
-This section is considered satisfied only if:
-- controls are executable (not advisory),
-- blockers are mechanically classifiable,
-- partial-success states fail closed,
-- rerun verification is mandatory after remediation,
-- non-regression controls persist beyond incident closure.
+For any accepted release, a reviewer must be able to answer five questions from artifacts alone:
+- what artifact was built,
+- from what source revision,
+- under what CI-to-cloud identity path,
+- with what digest,
+- with what gate results and provenance.
+If any answer is missing, acceptance is invalid.
 
 ## 8) Validation Strategy
 
@@ -666,46 +642,19 @@ Validation was designed to prove control closure, not just functional success. T
 - can this release lane reject unsafe candidates and accept only candidates that satisfy security, identity, provenance, and determinism requirements under real failure conditions?
 
 ### 8.2 Validation model
-The validation model has three layers:
-
-1. Negative-path validation
-- intentionally observe and classify failure at each critical control boundary.
-
-2. Positive-path validation
-- after remediation, rerun same lane and require full gate closure.
-
-3. Regression validation
-- verify the same controls still hold when packaging changes are introduced and remediated.
-
-No single green run is treated as sufficient evidence.
+Three-layer model:
+- `NEGATIVE_PATH`: observe and classify failure at each control boundary.
+- `POSITIVE_PATH`: remediate and rerun the same lane to full closure.
+- `REGRESSION`: verify controls still hold during packaging changes.
+One green run is insufficient without negative-path and regression evidence.
 
 ### 8.3 Gate-to-test mapping
-Each mandatory gate has a corresponding validation check:
-
-1. Federated authentication gate
-- check: workflow can assume cloud role through OpenID Connect.
-- expected fail signal: role-assumption/bootstrap failure before registry operations.
-- expected pass signal: role assumption succeeds and execution advances to registry stage.
-
-2. Registry authorization gate
-- check: assumed role can complete required registry operations, including token retrieval.
-- expected fail signal: login/publish blocked due to missing action scope.
-- expected pass signal: publish stage proceeds under least-privilege scope.
-
-3. Build-surface policy gate
-- check: build context and dependency-surface constraints are enforced.
-- expected fail signal: policy violation or missing required runtime dependency.
-- expected pass signal: image built from bounded context with required runtime modules.
-
-4. Immutable identity gate
-- check: successful publish emits both tag and digest.
-- expected fail signal: push without canonical digest identity output.
-- expected pass signal: digest present and usable as canonical reference.
-
-5. Provenance completeness gate
-- check: machine-readable provenance binds source, run context, artifact identity, and gate outcomes.
-- expected fail signal: missing/incomplete provenance or broken linkage.
-- expected pass signal: provenance artifact present and internally coherent.
+Validation checks map one-to-one with gates:
+- `AUTHN`: fail before registry if role assumption cannot bootstrap.
+- `AUTHZ`: fail publish when action scope is incomplete.
+- `BUILD_SURFACE`: fail on include/exclude or dependency-surface violations.
+- `IDENTITY`: fail if digest output is missing or inconsistent.
+- `PROVENANCE`: fail if machine-readable provenance is missing or incoherent.
 
 ### 8.4 Sequence validation (fail/fail/pass)
 The primary validation sequence for this claim is intentionally ordered:
@@ -717,13 +666,11 @@ The primary validation sequence for this claim is intentionally ordered:
 This sequence proves independent gate behavior and prevents conflating root causes.
 
 ### 8.5 Remediation validation rule
-For every blocker class, closure must satisfy:
-- code or policy fix applied at the owning control surface,
-- rerun through the authoritative lane,
-- same gate set evaluated,
-- blocker state transitions to closed only after rerun evidence confirms closure.
-
-This rule ensures remediation remains reproducible and auditable.
+For every blocker:
+- fix at the owning control surface,
+- rerun the authoritative lane,
+- evaluate the same gate set,
+- close blocker only after rerun evidence confirms pass.
 
 ### 8.6 Packaging-drift validation branch
 A separate validation branch covers packaging determinism:
@@ -734,22 +681,13 @@ A separate validation branch covers packaging determinism:
 
 This confirms that determinism controls are operational under change, not static documentation.
 
-### 8.7 Evidence coherence checks
-Validation requires coherence across outputs, not mere presence:
-- workflow execution evidence aligns with cloud access outcome class,
-- published digest aligns with release identity outputs,
-- provenance links to the same source revision and artifact identity,
-- failure classification aligns with gate that blocked progression.
-
-Incoherent evidence is treated as a failed validation state.
-
-### 8.8 Acceptance criteria for validation completion
-Validation is complete for this claim only when all are true:
-- negative-path failures were observed at intended boundaries,
-- remediations were applied and verified through same-lane reruns,
-- full gate set closed on successful run(s),
-- packaging-drift remediation also closed through immutable rebuild path,
-- evidence is machine-readable and challenge-ready.
+### 8.7 Validation completion criteria
+Validation is complete only when:
+- negative-path failures are observed at intended boundaries,
+- remediations are verified through same-lane reruns,
+- full gate set closes on successful runs,
+- packaging-drift remediation closes through immutable rebuild,
+- evidence is machine-readable and coherent.
 
 Section 9 provides the concrete results from executing this strategy.
 
@@ -805,7 +743,7 @@ Operational significance:
 - remediation preserved chain-of-custody and did not rely on out-of-band image mutation.
 
 ### 9.5 What changed operationally after closure
-After closure, release behavior changed in four meaningful ways:
+After closure, release behavior changed in four material ways:
 - CI cloud access became federated and gate-verified instead of assumed.
 - Registry publish became permission-scoped and fail-closed instead of permissive.
 - Release identity became immutable and challenge-ready instead of tag-led.
@@ -946,7 +884,7 @@ Evidence is referenced by stable path/run anchors so claims stay challengeable w
 ## 12) Recruiter Relevance
 
 ### 12.1 Why this claim is high-signal for senior MLOps and platform roles
-This claim demonstrates capability in release engineering where most production incidents start:
+This claim demonstrates release-engineering capability at common production failure boundaries:
 - secure CI-to-cloud federation,
 - least-privilege authorization discipline under failure,
 - immutable artifact identity and provenance for promotion safety,
@@ -974,7 +912,7 @@ The report demonstrates the following competencies in challengeable form:
 - can enforce fail-closed behavior, blocker transitions, and same-lane remediation standards.
 
 ### 12.3 What makes this non-junior
-The differentiator is not tool usage. It is control architecture and closure discipline:
+The differentiator is control architecture plus closure discipline:
 - failures were not patched with broad grants or manual publish shortcuts,
 - remediation preserved chain-of-custody,
 - outcomes are evidenced with machine-readable artifacts and immutable identities,

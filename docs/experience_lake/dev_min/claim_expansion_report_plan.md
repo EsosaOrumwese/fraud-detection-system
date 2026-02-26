@@ -73,15 +73,8 @@ Out of scope:
 - Full software supply-chain attestation program across all services.
 - Runtime reliability outcomes after image publish (owned by runtime claims).
 
-Execution plan (report workflow states):
-- Scope Lock: complete.
-- Draft Core: next (Sections 1-8).
-- Outcome Lock: pending (Sections 9-10).
-- Proof Lock: pending (Sections 11-12).
-- Hardening Pass: pending.
-
-Priority:
-- Current active claim for section-by-section drafting.
+Status:
+- Complete (hardening + recruiter-readability trim done).
 
 ### Claim C - Managed IaC Foundation and Cost Guardrails
 File:

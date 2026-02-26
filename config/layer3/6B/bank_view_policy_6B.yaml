@@ -59,25 +59,25 @@ detection_model:
     MERCHANT_COLLUSION: 0.25
 
   p_detect_class_multiplier:
-    bills_utilities: 0.85
-    consumer_daytime: 0.70
-    evening_weekend: 1.10
-    fuel_convenience: 1.35
-    office_hours: 1.20
-    online_24h: 2.00
-    online_bursty: 2.80
-    travel_hospitality: 1.70
+    bills_utilities: 0.65
+    consumer_daytime: 0.50
+    evening_weekend: 0.90
+    fuel_convenience: 1.65
+    office_hours: 1.30
+    online_24h: 2.60
+    online_bursty: 3.80
+    travel_hospitality: 2.20
     __UNK__: 1.00
 
   p_legit_fp_class_multiplier:
-    bills_utilities: 0.55
-    consumer_daytime: 0.60
-    evening_weekend: 0.90
-    fuel_convenience: 1.15
-    office_hours: 0.95
-    online_24h: 1.70
-    online_bursty: 2.40
-    travel_hospitality: 1.40
+    bills_utilities: 0.40
+    consumer_daytime: 0.45
+    evening_weekend: 0.80
+    fuel_convenience: 1.30
+    office_hours: 1.05
+    online_24h: 2.20
+    online_bursty: 3.30
+    travel_hospitality: 1.90
     __UNK__: 1.00
 
   p_detect_at_auth_given_detect:
@@ -105,14 +105,14 @@ dispute_model:
     MERCHANT_COLLUSION: 0.12
 
   p_dispute_class_multiplier:
-    bills_utilities: 0.75
-    consumer_daytime: 0.70
-    evening_weekend: 1.05
-    fuel_convenience: 1.30
-    office_hours: 1.10
-    online_24h: 1.80
-    online_bursty: 2.30
-    travel_hospitality: 2.40
+    bills_utilities: 0.60
+    consumer_daytime: 0.55
+    evening_weekend: 0.90
+    fuel_convenience: 1.55
+    office_hours: 1.20
+    online_24h: 2.30
+    online_bursty: 3.00
+    travel_hospitality: 2.90
     __UNK__: 1.00
 
   delay_model_id_for_dispute: DISPUTE_DELAY_V1
@@ -133,14 +133,14 @@ chargeback_model:
     NONE: 0.05
 
   p_chargeback_class_multiplier:
-    bills_utilities: 0.70
-    consumer_daytime: 0.65
-    evening_weekend: 1.00
-    fuel_convenience: 1.25
-    office_hours: 1.05
-    online_24h: 1.60
-    online_bursty: 2.10
-    travel_hospitality: 1.85
+    bills_utilities: 0.55
+    consumer_daytime: 0.50
+    evening_weekend: 0.88
+    fuel_convenience: 1.45
+    office_hours: 1.15
+    online_24h: 2.05
+    online_bursty: 2.80
+    travel_hospitality: 2.35
     __UNK__: 1.00
 
   pi_chargeback_type:

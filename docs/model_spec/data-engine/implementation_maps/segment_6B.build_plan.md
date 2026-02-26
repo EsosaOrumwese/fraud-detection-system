@@ -1798,3 +1798,56 @@ P5 execution status (closure authority):
 - No threshold waivers without explicit documented policy re-baseline.
 - Runtime regressions beyond budget are blockers; run bottleneck analysis before more tuning.
 - Performance optimization cannot degrade determinism, schema contracts, or validation governance.
+
+### P6 - B+ recovery lane (`T5` owner reopen, frozen `PASS_B` rails)
+Goal:
+- lift `T5` from current `~0.0674` plateau to `>=0.08` (`B+`) without reopening non-`S4` owners or regressing closed `PASS_B` posture.
+
+Definition of done:
+- [ ] `T5` reaches `B+` threshold (`>=0.08`) on required seeds (`42,7,101,202`).
+- [ ] `T1-T4,T6-T10,T22` remain non-regressed on all required seeds.
+- [ ] no threshold policy/scorer relaxation.
+- [ ] closure artifacts emitted for witness lane + refreshed certification decision.
+
+P6 execution plan:
+
+#### P6.0 - Design lock and blast-radius controls
+Definition of done:
+- [x] authority frozen at `P5 PASS_B` seed map and artifacts.
+- [x] owner boundary pinned to `S4` bank-view policy/class-conditioning lane only.
+- [x] no code-path redesign in first pass (policy-only lane first).
+- [x] veto rails pinned:
+  - hard non-regression: `T1-T4,T6-T10,T22`,
+  - runtime rails: `S4<=420s`, `S5<=30s`.
+
+#### P6.1 - Policy-only class outcome-mix widening (`S4`)
+Definition of done:
+- [ ] strengthen class-conditioned outcome-mix separation in:
+  - `detection_model.p_detect_class_multiplier`,
+  - `detection_model.p_legit_fp_class_multiplier`,
+  - `dispute_model.p_dispute_class_multiplier`,
+  - `chargeback_model.p_chargeback_class_multiplier`.
+- [ ] no schema changes, no scorer changes, no threshold edits.
+- [ ] deterministic replay semantics preserved.
+
+#### P6.2 - Single-seed witness gate (`seed=42`)
+Definition of done:
+- [ ] fresh staged run-id created under `runs/fix-data-engine/segment_6B/`.
+- [ ] execute `S4 -> S5` only on staged lane.
+- [ ] score with `tools/score_segment6b_p0_baseline.py`.
+- [ ] move lane to required-seed matrix only if:
+  - `T5` moves upward materially toward/above `0.08`,
+  - no veto rail regression.
+
+#### P6.3 - Required-seed matrix and certification refresh
+Definition of done:
+- [ ] execute fresh staged `S4 -> S5` witnesses for seeds `42,7,101,202`.
+- [ ] emit refreshed per-seed gateboards and P5 certification artifacts.
+- [ ] decision emitted:
+  - `PASS_BPLUS_ROBUST` if all required `B+` + stability pass,
+  - `PASS_B` otherwise (with blocker evidence).
+
+#### P6.4 - Closure + freeze update
+Definition of done:
+- [ ] build plan + implementation notes + logbook updated with closure evidence.
+- [ ] superseded `segment_6B` run-id folders pruned with explicit keep-set.
