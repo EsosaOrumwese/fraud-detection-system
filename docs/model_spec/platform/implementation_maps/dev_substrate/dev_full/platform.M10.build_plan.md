@@ -563,21 +563,35 @@ Runtime budget:
 1. target <= 20 minutes wall clock.
 
 DoD:
-- [ ] upstream `M10.F` gate validated (`M10.G_READY`).
-- [ ] run-scoped OFS manifest committed durably.
-- [ ] run-scoped dataset fingerprint committed durably.
-- [ ] run-scoped time-bound audit committed durably and pass.
-- [ ] `m10g_manifest_fingerprint_snapshot.json` committed locally and durably.
-- [ ] `m10g_blocker_register.json` and `m10g_execution_summary.json` committed locally and durably.
-- [ ] blocker-free pass emits `next_gate=M10.H_READY`.
+- [x] upstream `M10.F` gate validated (`M10.G_READY`).
+- [x] run-scoped OFS manifest committed durably.
+- [x] run-scoped dataset fingerprint committed durably.
+- [x] run-scoped time-bound audit committed durably and pass.
+- [x] `m10g_manifest_fingerprint_snapshot.json` committed locally and durably.
+- [x] `m10g_blocker_register.json` and `m10g_execution_summary.json` committed locally and durably.
+- [x] blocker-free pass emits `next_gate=M10.H_READY`.
 
 Execution status:
 1. Execution id:
-   - `[pending]`
+   - `m10g_manifest_fingerprint_20260226T155434Z`
 2. Result:
-   - `[pending]`
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M10.H_READY`
 3. Durable evidence:
-   - `[pending]`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10g_manifest_fingerprint_20260226T155434Z/`
+4. Managed run reference:
+   - Actions run: `22449853059` (`migrate-dev`, commit `2f950186`)
+   - Workflow: `.github/workflows/dev_full_m10_d_managed.yml`
+5. Run-scoped OFS artifacts committed:
+   - manifest:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/ofs/dataset_manifest.json`
+   - fingerprint:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/ofs/dataset_fingerprint.json`
+   - time-bound audit:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/ofs/time_bound_audit.json`
+6. Fingerprint and audit closure values:
+   - `fingerprint_sha256=f26a46ec2e655f8f0ac521b7f1b429a6dd15cf21f65c3b8eef79b2909ee407ed`,
+   - `time_bound_audit.overall_pass=true`,
+   - `time_bound_audit.leakage_future_breach_count=0`.
 
 ### M10.H Rollback Recipe Closure
 Goal:
@@ -656,11 +670,11 @@ DoD:
 - [x] `M10.D` complete
 - [x] `M10.E` complete
 - [x] `M10.F` complete
-- [ ] `M10.G` complete
+- [x] `M10.G` complete
 - [ ] `M10.H` complete
 - [ ] `M10.I` complete
 - [ ] `M10.J` complete
-- [x] all active `M10-B*` blockers resolved (current active set through `M10.F`)
+- [x] all active `M10-B*` blockers resolved (current active set through `M10.G`)
 
 ## 9) Planning Status
 1. M10 planning is expanded and execution-grade.
@@ -672,4 +686,5 @@ DoD:
    - `.github/workflows/dev_full_m10_d_managed.yml`
 6. `M10.E` is closed green in managed execution (`22447779212`).
 7. `M10.F` is closed green in managed execution (`22448956775`) after IAM remediation of `M10-B6`.
-8. Next action is `M10.G` expansion and execution.
+8. `M10.G` is closed green in managed execution (`22449853059`) with blocker-free `M10.H_READY`.
+9. Next action is `M10.H` expansion and execution.

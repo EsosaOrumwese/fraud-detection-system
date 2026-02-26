@@ -13965,3 +13965,47 @@ ext_gate=M10.D_READY
    - ensure remote workflow schema contains `m10g_execution_id` and M10.G stage before managed dispatch.
 4. Next action:
    - dispatch managed run with fixed `m10d/m10e/m10f/m10g` execution ids and monitor to closure.
+
+## Entry: 2026-02-26 15:55:00 +00:00 - M10.D/E/F/G managed run dispatched for M10.G closure
+1. Run dispatched:
+   - run id: 22449853059
+   - url: https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22449853059
+   - head sha: 2f9501861c41621d1dfd3c7e1efe3a6be13c464e
+2. Fixed execution ids:
+   - m10d_ofs_build_20260226T155434Z
+   - m10e_quality_gate_20260226T155434Z
+   - m10f_iceberg_commit_20260226T155434Z
+   - m10g_manifest_fingerprint_20260226T155434Z
+3. Target closure condition:
+   - M10.G emits `overall_pass=true`, `blocker_count=0`, `next_gate=M10.H_READY`.
+4. Monitoring live to terminal state with blocker remediation on failure.
+
+## Entry: 2026-02-26 15:57:28 +00:00 - M10.G closure reached green (live)
+1. Managed run completed green:
+   - run id: 22449853059
+   - workflow: .github/workflows/dev_full_m10_d_managed.yml
+   - commit: 2f950186
+2. Execution ids:
+   - m10d_ofs_build_20260226T155434Z
+   - m10e_quality_gate_20260226T155434Z
+   - m10f_iceberg_commit_20260226T155434Z
+   - m10g_manifest_fingerprint_20260226T155434Z
+3. M10.G terminal verdict:
+   - overall_pass=true
+   - blocker_count=0
+   - next_gate=M10.H_READY
+4. Durable run-control evidence:
+   - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10g_manifest_fingerprint_20260226T155434Z/
+5. Run-scoped OFS artifacts committed and readback-validated:
+   - manifest: evidence/runs/platform_20260223T184232Z/learning/ofs/dataset_manifest.json
+   - fingerprint: evidence/runs/platform_20260223T184232Z/learning/ofs/dataset_fingerprint.json
+   - time-bound audit: evidence/runs/platform_20260223T184232Z/learning/ofs/time_bound_audit.json
+6. Deterministic synthesis outcomes captured:
+   - fingerprint_sha256=f26a46ec2e655f8f0ac521b7f1b429a6dd15cf21f65c3b8eef79b2909ee407ed
+   - transitive lineage chain resolved: M10.F -> M10.E -> M10.D -> M10.C
+   - time-bound/leakage audit pass with future breach count 0.
+7. Blocker posture:
+   - no active M10-G blockers (`M10-B7`/`M10-B12` clear).
+8. Plan sync completed:
+   - deep plan marks M10.G complete and sets next action M10.H,
+   - master plan marks manifest/fingerprint/time-bound DoD anchors complete and points next action to M10.H.

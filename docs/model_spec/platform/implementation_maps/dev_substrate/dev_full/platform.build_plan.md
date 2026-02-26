@@ -1238,13 +1238,24 @@ M10 execution status:
    - first pass failed with `M10-B6` (`Glue AccessDenied`) in run `22448721513`,
    - remediated via Terraform targeted update to `infra/terraform/dev_full/ops` policy `aws_iam_role_policy.github_actions_m6f_remote`,
    - rerun cleared blocker with `next_gate=M10.G_READY`.
+10. `M10.G` manifest/fingerprint/time-bound closure is green in managed lane:
+   - workflow: `.github/workflows/dev_full_m10_d_managed.yml`,
+   - Actions run: `22449853059` (`migrate-dev`, commit `2f950186`),
+   - execution: `m10g_manifest_fingerprint_20260226T155434Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M10.H_READY`,
+   - run-scoped outputs:
+     - `evidence/runs/platform_20260223T184232Z/learning/ofs/dataset_manifest.json`,
+     - `evidence/runs/platform_20260223T184232Z/learning/ofs/dataset_fingerprint.json`,
+     - `evidence/runs/platform_20260223T184232Z/learning/ofs/time_bound_audit.json`,
+   - durable run-control evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10g_manifest_fingerprint_20260226T155434Z/`.
 
 DoD anchors:
-- [ ] OFS manifest committed.
-- [ ] dataset fingerprint committed.
-- [ ] Iceberg table/metadata commit receipt committed.
+- [x] OFS manifest committed.
+- [x] dataset fingerprint committed.
+- [x] Iceberg table/metadata commit receipt committed.
 - [ ] OFS rollback recipe committed.
-- [ ] OFS time-bound/leakage audit is committed and green.
+- [x] OFS time-bound/leakage audit is committed and green.
 - [ ] deterministic `P13` verdict and `m11_handoff_pack.json` are committed.
 - [ ] M10 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
@@ -1370,4 +1381,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M10.G` (manifest + fingerprint + time-bound audit) using `M10.F` green closure (`m10f_iceberg_commit_20260226T153247Z`) as entry basis.
+- Expand and execute `M10.H` (rollback recipe closure) using `M10.G` green closure (`m10g_manifest_fingerprint_20260226T155434Z`) as entry basis.

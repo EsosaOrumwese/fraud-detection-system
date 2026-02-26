@@ -53,6 +53,19 @@ Exit rule: a claim is done only when all five workflow steps are complete.
 
 ## 7) Active Claim Queue
 
+### Claim 0 - Service-Level Objective-Gated Managed Platform Certification (Primary)
+Plan file:
+- `docs/experience_lake/dev_min/managed_slo_gated_platform_certification.report_plan.md`
+
+Target report file:
+- `docs/experience_lake/dev_min/managed_slo_gated_platform_certification.report.md`
+
+Locked claim:
+- Designed and executed a machine-adjudicated certification program for a distributed fraud platform in a managed cloud environment, where closure required semantic correctness, incident resilience, scale behavior, recovery performance, and reproducibility to pass explicit Service Level Objective thresholds under fail-closed blocker semantics.
+
+Status:
+- Active top-priority claim (primary claim; draft not started).
+
 ### Claim A - CI/CD and Release Engineering (Merged)
 Target file:
 - `docs/experience_lake/dev_min/cicd_release_engineering_secure_auditable_immutable.report.md`
