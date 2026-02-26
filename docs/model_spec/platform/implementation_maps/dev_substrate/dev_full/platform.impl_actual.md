@@ -10016,3 +10016,56 @@ ext_gate=HOLD_REMEDIATE.
 
 ### Sequencing decision
 1. Advance to `P9.D` (`m7j`) using `m7i_p9c_al_component_20260226T015350Z` as upstream continuity source.
+
+## Entry: 2026-02-26 02:08:00 +00:00 - P9.D execution start (`m7j`)
+
+### Execution intent
+1. Run `m7j` as final component lane in `P9` before `P9.E` rollup.
+2. Upstream continuity source:
+   - `m7i_p9c_al_component_20260226T015350Z` (`next_gate=M7.H_READY`).
+3. Expected success gate:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=P9.E_READY`.
+
+### Blocker handling posture
+1. If `M7P9-B4` appears:
+   - inspect upstream proof chain + append-only probe + required handle closure,
+   - remediate and rerun `m7j`.
+2. If `M7P9-B7` appears:
+   - inspect low-sample performance gates and threshold source continuity.
+
+## Entry: 2026-02-26 01:56:00 +00:00 - P9.D executed green (`m7j`)
+
+### Authoritative execution
+1. Workflow run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22424458740`
+2. Lane:
+   - `Run M7 P9 component lane remotely (GitHub Actions)` (`phase_mode=m7j`)
+3. Execution id:
+   - `m7j_p9d_dla_component_20260226T015553Z`
+
+### Result
+1. `overall_pass=true`
+2. `blocker_count=0`
+3. `next_gate=P9.E_READY`
+
+### Notable evaluation posture
+1. Throughput assertion was waived due low sample size (`<200` receipts).
+2. Upstream continuity and proof chain checks passed:
+   - upstream `m7i` summary gate accepted,
+   - `df_component_proof.json` + `al_component_proof.json` dependencies present.
+3. DLA append-only probe write/readback succeeded:
+   - `audit_append_probe_m7j_p9d_dla_component_20260226T015553Z.json`.
+4. DLA component proof was published:
+   - `evidence/runs/platform_20260223T184232Z/decision_lane/dla_component_proof.json`.
+
+### Evidence surfaces
+1. Local:
+   - `runs/dev_substrate/dev_full/m7/_gh_run_22424458740_artifacts/p9-component-m7j-20260226T015553Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7j_p9d_dla_component_20260226T015553Z/`
+
+### Sequencing decision
+1. `P9.B/P9.C/P9.D` component lanes are now all green.
+2. Next required lane for full `P9` closure is `P9.E` rollup/verdict.

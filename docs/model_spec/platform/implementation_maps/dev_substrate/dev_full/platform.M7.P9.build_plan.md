@@ -358,11 +358,39 @@ Execution plan (managed lane):
    - `next_gate=P9.E_READY`.
 
 DoD:
-- [ ] append-only audit evidence is committed and readable.
-- [ ] append-only invariants pass.
-- [ ] DLA blocker set is empty.
-- [ ] `p9d_dla_performance_snapshot.json` is committed and within pinned SLO.
-- [ ] managed `P9.D` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=P9.E_READY`).
+- [x] append-only audit evidence is committed and readable.
+- [x] append-only invariants pass.
+- [x] DLA blocker set is empty.
+- [x] `p9d_dla_performance_snapshot.json` is committed and within pinned SLO.
+- [x] managed `P9.D` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=P9.E_READY`).
+
+Execution status (2026-02-26):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7j`
+   - run id: `22424458740`
+   - execution id: `m7j_p9d_dla_component_20260226T015553Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=P9.E_READY`.
+3. Verification outcomes:
+   - upstream `P9.C` continuity accepted from `m7i_p9c_al_component_20260226T015350Z`,
+   - required handles resolved with no missing/placeholder values,
+   - upstream proof chain dependencies present:
+     - `df_component_proof.json`
+     - `al_component_proof.json`
+   - append-only audit probe write/readback passed:
+     - `audit_append_probe_m7j_p9d_dla_component_20260226T015553Z.json`
+   - decision-lane DLA proof published:
+     - `evidence/runs/platform_20260223T184232Z/decision_lane/dla_component_proof.json`.
+4. Performance posture:
+   - low-sample guarded mode applied (`total_receipts=18`),
+   - throughput assertion waived (`<200` sample),
+   - lag/error gate posture passed.
+5. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_gh_run_22424458740_artifacts/p9-component-m7j-20260226T015553Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7j_p9d_dla_component_20260226T015553Z/`.
 
 ### P9.E P9 Rollup + Verdict
 Goal:

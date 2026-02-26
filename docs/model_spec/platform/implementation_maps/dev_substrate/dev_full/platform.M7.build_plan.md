@@ -372,9 +372,16 @@ Tasks:
 3. emit `P9` rollup matrix/blocker register/verdict.
 
 DoD:
-- [ ] `DLA` component evidence is complete.
+- [x] `DLA` component evidence is complete.
 - [ ] `P9` verdict is deterministic and blocker-consistent.
-- [ ] `DLA` performance snapshot meets pinned budget.
+- [x] `DLA` performance snapshot meets pinned budget.
+
+Execution status (2026-02-26):
+1. `P9.D` DLA lane is closed green:
+   - workflow run: `22424458740` (`phase_mode=m7j`)
+   - execution id: `m7j_p9d_dla_component_20260226T015553Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=P9.E_READY`.
+2. `M7.H` remains open until `P9.E` rollup/verdict is produced and validated.
 
 ### M7.I P10 CaseTrigger/CM/LS + P10 Rollup
 Goal:
@@ -456,4 +463,7 @@ DoD:
 6. `M7.D` is closed green (`m7d_p8c_ofp_component_20260225T213059Z`).
 7. `P8.D` component lane is closed green (`m7e_p8d_archive_component_20260225T213458Z`).
 8. `M7.E` is closed green (`m7f_p8e_rollup_20260225T214307Z`) with `phase_verdict=ADVANCE_TO_P9`.
-9. Next step is `M7.F` (P9 DF lane closure).
+9. `M7.F` is closed green (`m7h_p9b_df_component_20260226T015122Z`).
+10. `M7.G` is closed green (`m7i_p9c_al_component_20260226T015350Z`).
+11. `M7.H` DLA component lane is green (`m7j_p9d_dla_component_20260226T015553Z`); `P9.E` rollup remains open.
+12. Next step is `M7.H` rollup closure (`P9.E` verdict lane).

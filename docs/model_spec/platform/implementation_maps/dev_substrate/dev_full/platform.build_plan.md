@@ -760,6 +760,18 @@ Current M7 execution posture:
   - workflow run `22423991265`,
   - execution `m7g_p9a_entry_precheck_20260226T013600Z`,
   - `overall_pass=true`, `blocker_count=0`, `next_gate=M7.F_READY`.
+- `M7.F` DF lane (`P9.B`) is closed green on managed run:
+  - workflow run `22424352180`,
+  - execution `m7h_p9b_df_component_20260226T015122Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=M7.G_READY`.
+- `M7.G` AL lane (`P9.C`) is closed green on managed run:
+  - workflow run `22424410762`,
+  - execution `m7i_p9c_al_component_20260226T015350Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=M7.H_READY`.
+- `M7.H` DLA component lane (`P9.D`) is closed green on managed run:
+  - workflow run `22424458740`,
+  - execution `m7j_p9d_dla_component_20260226T015553Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=P9.E_READY`.
 
 DoD anchors:
 - [ ] RTDL core closure evidence is green.
