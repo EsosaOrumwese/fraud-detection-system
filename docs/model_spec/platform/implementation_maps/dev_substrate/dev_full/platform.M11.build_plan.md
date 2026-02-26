@@ -296,13 +296,81 @@ Closure snapshot (2026-02-26):
 Goal:
 1. Bind M11 execution to immutable M10 output contract.
 
+Required handles:
+1. `S3_EVIDENCE_BUCKET`
+2. `S3_RUN_CONTROL_ROOT_PATTERN`
+
+Entry conditions:
+1. `M11.B` summary is readable and pass posture:
+- `m11b_execution_summary.json` with `overall_pass=true`,
+- `next_gate=M11.C_READY`.
+2. `M11.B` run-scope is present and single-valued:
+- one `platform_run_id`,
+- one `scenario_run_id`.
+3. Upstream chain surfaces are readable:
+- `M11.A` summary using `upstream_refs.m11a_execution_id`,
+- `M10.I` handoff pack using `M11.A` upstream refs,
+- all required refs inside `m11_handoff_pack.required_refs`.
+
 Execution notes:
-1. Resolve M10 manifest/fingerprint references.
-2. Validate immutability contract (fingerprint + run-scoped identity).
-3. Emit `m11c_input_immutability_snapshot.json`.
+1. Resolve upstream chain:
+- `M11.B` summary -> `M11.A` execution id,
+- `M11.A` summary -> `M10.I` execution id,
+- `M10.I` handoff pack -> required immutable input refs.
+2. Resolve and validate required immutable input refs in fixed order:
+- `m10i_gate_verdict_ref`
+- `m10g_manifest_ref`
+- `m10g_fingerprint_ref`
+- `m10g_time_bound_audit_ref`
+- `m10h_rollback_recipe_ref`
+- `m10h_rollback_drill_ref`
+3. Enforce run-scope parity across all loaded artifacts:
+- every artifact carrying run pins must match single-valued `platform_run_id` + `scenario_run_id`.
+4. Recompute fingerprint digest deterministically from `required_fields_order` + `required_field_values` and compare to `fingerprint_sha256`.
+5. Validate immutable contract coherence:
+- `dataset_manifest.fingerprint_ref` equals resolved fingerprint ref,
+- `dataset_manifest.time_bound_audit_ref` equals resolved time-bound ref,
+- `dataset_manifest.status=COMMITTED`,
+- `dataset_fingerprint.status=COMMITTED`,
+- `time_bound_audit.overall_pass=true`,
+- `m10i_gate_verdict.verdict=ADVANCE_TO_P14` and `next_gate=M11_READY`.
+6. Emit artifacts:
+- `m11c_input_immutability_snapshot.json`,
+- `m11c_blocker_register.json`,
+- `m11c_execution_summary.json`.
+
+Deterministic verification algorithm (M11.C):
+1. load `M11.B` summary from durable run-control and fail closed unless pass + next gate matches.
+2. resolve upstream `M11.A` summary and validate run-scope parity with `M11.B`.
+3. resolve upstream `M10.I` handoff pack and validate `m11_entry_ready=true`.
+4. load `required_refs` in fixed order and fail closed on unreadable/invalid JSON.
+5. enforce run-scope parity across resolved artifact surfaces.
+6. build canonical fingerprint input string using ordered key list from `required_fields_order` and values from `required_field_values` with exact `key=value` + newline join.
+7. compute `sha256(canonical_input)` and compare to `fingerprint_sha256`.
+8. verify manifest/fingerprint/time-bound and gate-verdict coherence assertions.
+9. emit deterministic artifacts and publish local + durable with readback parity.
+10. emit deterministic next gate:
+- `M11.D_READY` when blocker count is `0`,
+- otherwise `HOLD_REMEDIATE`.
 
 Runtime budget:
 1. Target <= 8 minutes.
+
+Managed execution binding:
+1. Authoritative runner: `.github/workflows/dev_full_m11_c_managed.yml`.
+2. Required dispatch inputs:
+- `aws_region`
+- `aws_role_to_assume`
+- `evidence_bucket`
+- `upstream_m11b_execution`
+3. Optional dispatch input:
+- `m11c_execution_id` (fixed execution id override for deterministic rerun).
+4. Required upstream evidence key:
+- `evidence/dev_full/run_control/{upstream_m11b_execution}/m11b_execution_summary.json`
+5. Required M11.C publication keys:
+- `evidence/dev_full/run_control/{m11c_execution_id}/m11c_input_immutability_snapshot.json`
+- `evidence/dev_full/run_control/{m11c_execution_id}/m11c_blocker_register.json`
+- `evidence/dev_full/run_control/{m11c_execution_id}/m11c_execution_summary.json`
 
 DoD:
 - [ ] immutable binding checks pass with no open `M11-B3`.

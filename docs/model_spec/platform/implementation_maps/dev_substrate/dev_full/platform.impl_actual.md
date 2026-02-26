@@ -14684,3 +14684,22 @@ ext_gate=M11.B_READY and locker_count=0.
 5. Plan sync:
    - M11.B DoD set complete in deep plan,
    - master plan next action moved to M11.C.
+
+## Entry: 2026-02-26 18:38:52 +00:00 - M11.C design plan before implementation
+1. Objective in this lane:
+   - close `M11.C` (immutable input binding) with managed execution only and explicit fail-closed `M11-B3` blockers.
+2. Data/authority surfaces selected for deterministic binding:
+   - upstream gate summary: `M11.B` summary (`overall_pass=true`, `next_gate=M11.C_READY`),
+   - chain resolver: `M11.B -> M11.A -> M10.I handoff`,
+   - immutable refs from `m11_handoff_pack.required_refs`: gate verdict + manifest + fingerprint + time-bound audit + rollback recipe + rollback drill.
+3. Verification strategy selected:
+   - enforce single-valued run scope across all loaded artifacts (`platform_run_id`, `scenario_run_id`),
+   - recompute dataset fingerprint from `required_fields_order` + `required_field_values` and compare to declared `fingerprint_sha256`,
+   - validate coherence assertions across manifest/fingerprint/time-bound/gate-verdict.
+4. Alternatives considered:
+   - trust-only by reference (no digest recomputation) -> rejected as insufficient against silent immutability drift.
+   - full object-content hashing for every linked artifact -> rejected for unnecessary runtime/cost overhead at this gate.
+5. Selected lane shape:
+   - add managed workflow `.github/workflows/dev_full_m11_c_managed.yml`,
+   - emit three artifacts (`snapshot`, `blocker_register`, `execution_summary`) local + durable,
+   - gate output `M11.D_READY` on zero blockers else `HOLD_REMEDIATE`.

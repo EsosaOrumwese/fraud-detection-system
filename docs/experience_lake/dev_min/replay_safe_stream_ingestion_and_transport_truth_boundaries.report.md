@@ -553,18 +553,20 @@ In managed profile posture, checkpoint configuration is explicitly pinned to Pos
 This reduces duplicate-heavy replay windows caused by ephemeral one-shot task state loss.
 
 ### 6.8 Managed-promotion hardening actions that affected this boundary
-During managed-environment promotion, three critical implementation hardening actions were applied:
+During managed-environment promotion, this boundary hit a real production-class failure: **credentials could be correct and yet the transport client could still be incompatible**. This matters because replay safety is meaningless if publish/read cannot be trusted.
 
-1. Kafka client compatibility correction
-- after credential/authentication blockers were removed, ingestion still failed due to broker/client incompatibility; the adapter was migrated from `kafka-python` to `confluent-kafka` to restore stable metadata, publish, and read behavior.
+#### Exhibit: Kafka client compatibility correction (before -> change -> after)
+| Phase | Witness | Interpretation |
+|---|---|---|
+| Before (blocked) | Ingestion boundary persisted `KafkaConnectionError: Unable to determine broker version`. Earlier readiness class also captured `IncompatibleBrokerVersion (MetadataRequest_v0)` under the `kafka-python` adapter path. | Transport viability was not satisfied; publish/read correctness could not be interpreted safely. |
+| Change (bounded remediation) | Migrated event-bus adapter from `kafka-python` to `confluent-kafka` (librdkafka-backed) while preserving adapter interfaces; rebuilt and rolled managed runtime. Dependency pins during migration: `kafka-python>=2.2.15,<3.0.0` and `confluent-kafka>=2.13.0,<3.0.0`. | Fix was narrow and correctness-preserving: swap the client implementation, not the semantics. |
+| After (closed) | Adapter smoke PASS within 2.57 minutes of the compatibility blocker pivot: `metadata_fetch_pass=true`. Managed topic readiness witness closed with `topics_missing=[]`. Downstream semantic lanes closed with blocker-free verdicts. | Transport plane became stable enough for replay and dedupe semantics to be interpreted as real evidence. |
 
-2. Topic contract canonicalization
-- case-trigger topic naming was normalized across runtime consumers and writer configuration to remove semantic drift.
+Measured time-to-recovery:
+- 2.57 minutes from blocker pivot (`2026-02-20T01:07:24Z`) to adapter smoke PASS (`2026-02-20T01:09:58Z`).
 
-3. Run-scope execution discipline
-- bounded semantic runs were executed on fresh run scope when needed to avoid replay-contaminated duplicate-only windows.
-
-These actions were not cosmetic; they directly protected correctness interpretation for idempotency and replay evidence.
+#### Other promotion actions (scope notes)
+- Topic contract canonicalization and run-scope discipline were enforced as part of managed promotion; this report treats those as **covered by transport contract closure** (Section 9.2 Exhibit B) and by the absence of ambiguity (`publish_ambiguous_count=0` across representative runs), rather than as separate standalone claims.
 
 ### 6.9 Implementation completion posture before formal validation
 Implementation was considered complete for this claim when:
@@ -748,23 +750,20 @@ Replay-safety is validated through explicit duplicate/replay pressure, not infer
 - expected result: checkpoints accelerate progress but admission evidence remains canonical.
 
 ### 8.6 Negative and adversarial validation drills
-Negative and adversarial checks are part of the validation design for this boundary.
-For this certification cycle, duplicate-replay incident behavior was the primary executed incident profile; mismatch and ambiguity controls remained enforced through runtime gates and code-path checks.
+Negative/adversarial checks are part of the boundary's design. In this certification cycle, the **executed incident profile** focused on duplicate replay behavior; mismatch and publish-ambiguity controls were enforced as fail-closed laws but were not executed as retained injected drills.
 
-1. Payload mismatch drill
-- same canonical identity with changed payload.
-- expected result: fail-closed anomaly, no overwrite.
+#### Executed versus not-executed drills (this cycle)
+| Drill | Executed? | What was proven (or not claimed) |
+|---|---:|---|
+| Duplicate replay incident drill | YES | Closed with fail->fix->pass and safety preserved (Section 9.3). |
+| Payload mismatch injection | NO | **Non-claim:** mismatch injection was not executed as a retained dev_min certification drill. The enforced admission law is still fail-closed: same identity with different `payload_hash` is routed to anomaly/quarantine and never overwritten/admitted. |
+| Publish ambiguity injection | NO | **Non-claim:** ambiguity injection was not executed in retained dev_min evidence. Observed `publish_ambiguous_count=0` across representative runs (see Section 9.2). Expected behavior if it occurs: admission state persists as `PUBLISH_AMBIGUOUS` and closure gates remain blocked until reconciliation resolves the state. |
+| Topic-contract drift drill | NO (as an induced drill) | Drift was not induced, but the **positive control** (topic readiness contract) closed with `topics_expected_count=9` and `topics_missing=[]` (Section 9.2 Exhibit B). Expected behavior if drift occurs: closure blocked until canonical alignment and rerun. |
 
-2. Publish uncertainty drill
-- induce or capture publish uncertainty path.
-- expected result: `PUBLISH_AMBIGUOUS` persisted with blocker posture until resolved.
-
-3. Topic-contract drift drill
-- detect mismatch between configured and runtime-consumed topic contracts.
-- expected result: closure blocked until canonical alignment and rerun.
-
-This adversarial layer ensures the system fails safely under real defect classes.
-
+What would surface these failures (if executed):
+- payload mismatch would surface via anomaly/quarantine receipts and mismatch reason codes (fail-closed contradiction),
+- publish ambiguity would surface via persisted `PUBLISH_AMBIGUOUS` state and blocked closure gates,
+- topic drift would surface as readiness failure (`topics_missing!=[]`) or canonical alignment failure before semantic runs proceed.
 ### 8.7 Pass/fail adjudication rules
 Validation pass requires all of the following:
 - required pre-run gates pass,
@@ -798,48 +797,74 @@ This evidence standard is what supports Sections 9 to 11 without narrative infla
 ## 9) Results and Operational Outcome
 
 ### 9.1 Outcome summary
-The implemented boundary achieved closure-grade results across the full streaming reliability chain:
-- semantic admission closure at bounded 20-event and 200-event gates,
-- incident drill closure for duplicate replay behavior with no double side effects,
-- representative window scale closure under deterministic run scope,
-- burst and soak stability closure under explicit lag and budget constraints,
-- recovery-under-load and reproducibility closure with invariant preservation,
-- final integrated certification verdict with all source lanes pass and blocker union empty.
+This boundary achieved closure-grade results on the primary executed certification profile: **replay-safe admission + duplicate replay safety under managed transport**, with durable truth separated from broker retention.
 
-Certification-cycle note:
-- executed incident profile focused on duplicate replay behavior; mismatch and publish-ambiguity controls were enforced as fail-closed boundary laws throughout the same cycle.
+#### Executive results (measured)
+| Evidence slice | Witness (measured) | Interpretation |
+|---|---|---|
+| Replay-safe admission (semantic lane) | `platform_run_id=platform_20260219T234150Z`, semantic snapshot `m10_20260220T045637Z`: total receipts=340 with admit=260, duplicate=80, quarantine=0, mismatch=0, publish_ambiguous=0; runtime=418s | Admission is idempotent and replay-safe: duplicates converge without double-admit, and ambiguity is held at zero in executed runs. |
+| Duplicate replay incident drill | Drill snapshot `m10_20260220T054251Z`: duplicate_delta=320 (target >=100), no_double_actions=true, no_duplicate_case_records=true, action deltas 0, audit append-only preserved; budget pass (1542/3600s) | Replay pressure produces duplicate receipts without duplicating side effects. |
+| Transport contract + truth boundary | Topic readiness closed with topics_expected_count=9 and topics_missing=[]; traffic retention 1 day; durable truth is IG receipts/quarantine/admission-state persisted outside broker retention | Broker is treated as transport rail; canonical truth lives in durable evidence/state surfaces. |
+| Non-claims (this cycle) | Payload mismatch injection and ambiguity injection were not executed as retained drills | Report remains credible by separating "enforced laws" from "executed injected drills." |
 
-This confirms the claim as an operationally verified capability, not a design-only posture.
+Representative "no ambiguity" observation:
+- `publish_ambiguous_count=0` across `m10_20260220T032146Z`, `m10_20260220T045637Z`, `m10_20260220T054251Z`.
 
 ### 9.2 Bounded semantic closure results
-Initial semantic closure runs on run scope `platform_20260219T234150Z` were successful:
+Semantic closure for run scope `platform_20260219T234150Z` closed pass on bounded lanes, with measured receipt conservation and explicit ambiguity-free posture.
 
-1. Bounded semantic gate (20-event certification lane)
-- snapshot: `m10_20260220T032146Z`,
-- result: `overall_pass=true`, `blockers=[]`,
-- ingress extract: `admit=260`, `duplicate=80`, `publish_ambiguous=0`, `quarantine=0`.
+#### Exhibit A - Replay-safe admission (semantic lane witness)
+Witness run:
+- snapshot: `m10_20260220T045637Z` (platform_run_id `platform_20260219T234150Z`)
+- runtime: `418s` (budget `3600s`, budget_pass=true)
 
-2. Bounded semantic gate (200-event certification lane)
-- snapshot: `m10_20260220T045637Z`,
-- result: `overall_pass=true`, `blockers=[]`,
-- runtime budget: `elapsed_seconds=418`, `budget_seconds=3600`, `budget_pass=true`,
-- numeric extract: `receipt_admit=260`, `receipt_duplicate=80`, `receipt_total=340`, `publish_ambiguous=0`.
+Measured receipt outcomes:
+- total published receipts: **340**
+- admitted: **260**
+- duplicates: **80**
+- quarantine: **0**
+- payload mismatch: **0**
+- publish ambiguous: **0**
+
+Invariant (receipt conservation):
+- **admit(260) + duplicate(80) + quarantine(0) = 340 total receipts**
 
 Interpretation:
-- bounded semantic closure passed with explicit ambiguity-free posture and blocker-free verdicts.
-- closure followed transport-compatibility correction after credential closure, reinforcing that transport viability is a first-class correctness condition for this boundary.
+- The boundary demonstrates idempotent convergence: duplicates are recorded as duplicates (not re-admitted), and no ambiguity/quarantine outcomes occurred in this run scope.
+
+#### Exhibit B - Transport contract + durable truth boundary (witness)
+Topic readiness witness (managed contract):
+- topics_expected_count: **9**
+- topics_missing: `[]` (none missing)
+
+Canonical topic examples (subset):
+- traffic: `fp.bus.traffic.fraud.v1`
+- control: `fp.bus.control.v1`
+- context: `fp.bus.context.arrival_events.v1`, `fp.bus.context.arrival_entities.v1`, `fp.bus.context.flow_anchor.fraud.v1`
+- quarantine note: no dedicated quarantine topic in this retained contract; anomaly/quarantine truth is persisted via durable IG quarantine/receipt surfaces.
+
+Retention and truth boundary:
+- traffic retention default (dev_min): **86400000 ms (1 day)**
+- durable truth posture: Kafka is transport; canonical admission truth is durable receipts/quarantine/admission-state evidence in object store and indexed state surfaces.
+
+Interpretation:
+- This closes the "Kafka as database" risk: transport retention is short by design, while canonical truth is persisted durably outside broker retention.
 
 ### 9.3 Incident drill result (duplicate replay safety)
-Duplicate incident drill lane closed pass after bounded remediation:
-- snapshot: `m10_20260220T054251Z`,
-- result: `overall_pass=true`, `blockers=[]`,
-- runtime budget: `elapsed_seconds=1542`, `budget_seconds=3600`, `budget_pass=true`,
-- drill profile: duplicate target `100` with same identity and identical payload hash mode,
-- delta result: `duplicate_delta=320` (target exceeded),
-- safety checks: `no_double_actions=true`, `no_duplicate_case_records=true`, `audit_append_only_preserved=true`, `publish_ambiguous_absent=true`.
+The executed incident profile for this certification cycle was duplicate replay pressure. Closure required fail->fix->pass, and PASS required safety preservation (no double side effects).
+
+#### Exhibit: Duplicate drill fail -> fix -> pass
+| Attempt | Outcome | Key witness | Interpretation |
+|---|---|---|---|
+| Attempt 1 | FAIL (blocked) | duplicate_delta=0 and duplicate_receipts_present=false | Drill ran but did not materialize the expected duplicate signal. |
+| Remediation | - | Moved from READY replay lane to direct managed WSP stream injection; reran reporter + verifier | Fix was bounded to the drill materialization path (not a semantics rewrite). |
+| Rerun | PASS | duplicate_delta=320 (target >=100); `no_double_actions=true`; `no_duplicate_case_records=true`; `action_intent_delta=0`; `action_outcome_delta=0`; `audit_append_only_preserved=true`; `publish_ambiguous_absent=true`; budget pass (1542/3600s) | Duplicate convergence achieved while preserving side-effect safety and ambiguity-free posture. |
+
+Measured time-to-recovery:
+- 21.70 minutes from first fail witness to rerun PASS.
 
 Interpretation:
-- replay pressure produced duplicate convergence behavior without side-effect duplication or fail-open ambiguity.
+- Replay pressure produced duplicate convergence behavior without duplicating side effects or drifting into ambiguity.
 
 ### 9.4 Scale and stability results
 Representative and stress-like lanes also closed pass:
@@ -921,11 +946,14 @@ This claim does not state that:
 - this boundary alone constitutes full enterprise streaming governance.
 
 ### 10.3 Evidence-model limitations (what is known and how it is handled)
-Some closure lanes include evidence-surface caveats that were handled explicitly rather than hidden:
-- certain run-report component summaries were informationally sparse in early semantic lanes while service-health and required closure artifacts were present,
-- one scale lane carried explicit optimization debt: elapsed time ran close to the gate budget while still passing the adjudicated runtime-budget contract.
+This report embeds the key proof facts directly in Section 9 (measured admission outcomes, drill outcomes, transport contract witness, and explicit non-claims).
 
-These caveats were recorded in machine-readable snapshots and notes; they were not used to bypass blockers.
+Limits handled explicitly (not hidden):
+- Payload mismatch injection was **not executed** as a retained certification drill in dev_min evidence; the report treats mismatch handling as an enforced fail-closed law, not an executed injected drill.
+- Publish ambiguity injection was **not executed**; observed `publish_ambiguous_count=0` across representative runs is reported, and expected behavior is stated as a non-claim.
+- One validation profile was prioritized (duplicate replay) as the primary executed incident class for this cycle.
+
+These limitations are recorded to improve credibility: the report distinguishes between "enforced boundary laws" and "executed injected drills," and does not claim the latter where it was not retained.
 
 ### 10.4 Operational limitations still relevant for future hardening
 The current certified posture still leaves future hardening headroom:
@@ -941,15 +969,18 @@ For senior-role evaluation, explicit non-claims are a strength:
 - they prevent overreach into unverified capability,
 - they make the certified capability challenge-defensible under technical interrogation.
 
-## 11) Proof Hooks
+## 11) Appendix: Retrieval Hooks (Optional)
 
-### 11.1 How to use this section
-These hooks are challenge-ready anchors for technical review.
-Use them to prove:
-- a real failure was observed,
-- a bounded remediation was applied,
-- the same lane reran to pass with blocker clearance,
-- final certification consumed all required source lanes.
+### 11.1 How to use this appendix
+This appendix is **optional**.
+
+The report body (Sections **6**, **8**, and **9**) already embeds the proof facts needed to validate the claim:
+- measured admission outcomes (receipt conservation and ambiguity-free posture),
+- fail->fix->pass incident drill closure with safety preservation,
+- transport contract witness (topics_expected_count and topics_missing),
+- explicit non-claims for drills not executed in retained evidence.
+
+Use the retrieval hooks below only if a reviewer wants to inspect underlying snapshots directly (audit-style challenge or interview deep dive). These hooks do not introduce new claims; they are an inspection aid.
 
 ### 11.2 Primary fail -> fix -> pass chain (best single story)
 Use this sequence first when challenged:
@@ -1133,3 +1164,4 @@ This sequence signals strong engineering judgment and avoids overclaiming.
 - Incident remediation with rerun closure
 - Streaming reliability engineering
 - Audit-ready evidence design
+
