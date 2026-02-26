@@ -238,6 +238,24 @@ jobs:
               return out
 
 
+          def normalize_serverless_client(settings: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+              changed = False
+              environments = settings.get("environments")
+              if not isinstance(environments, list):
+                  return settings, changed
+              for env_row in environments:
+                  if not isinstance(env_row, dict):
+                      continue
+                  spec = env_row.get("spec")
+                  if not isinstance(spec, dict):
+                      continue
+                  client = str(spec.get("client", "")).strip()
+                  if client == "1":
+                      spec["client"] = "2"
+                      changed = True
+              return settings, changed
+
+
           def write_local_artifacts(run_dir: Path, artifacts: dict[str, dict[str, Any]]) -> None:
               run_dir.mkdir(parents=True, exist_ok=True)
               for name, payload in artifacts.items():
@@ -371,6 +389,7 @@ jobs:
           run_end_time_utc = ""
           elapsed_seconds = None
           poll_attempts = 0
+          serverless_client_patch_applied = False
 
           if not blockers and dbx_workspace and dbx_token and dbx_job_name:
               try:
@@ -383,6 +402,31 @@ jobs:
               except Exception as exc:
                   read_errors.append({"surface": "databricks.jobs.list", "error": type(exc).__name__})
                   blockers.append({"code": "M10-B4", "message": "Databricks job listing failed for OFS build resolution."})
+
+          if not blockers and job_id is not None:
+              try:
+                  job_payload = dbx_request_json(
+                      dbx_workspace,
+                      dbx_token,
+                      "GET",
+                      "/api/2.1/jobs/get",
+                      query={"job_id": int(job_id)},
+                  )
+                  settings = job_payload.get("settings")
+                  if isinstance(settings, dict):
+                      normalized_settings, changed = normalize_serverless_client(settings)
+                      if changed:
+                          dbx_request_json(
+                              dbx_workspace,
+                              dbx_token,
+                              "POST",
+                              "/api/2.1/jobs/reset",
+                              payload={"job_id": int(job_id), "new_settings": normalized_settings},
+                          )
+                          serverless_client_patch_applied = True
+              except Exception as exc:
+                  read_errors.append({"surface": "databricks.jobs.reset", "error": type(exc).__name__})
+                  blockers.append({"code": "M10-B4", "message": "Databricks job settings normalization failed before run launch."})
 
           if not blockers and job_id is not None:
               try:
@@ -485,6 +529,7 @@ jobs:
                   "poll_attempts": poll_attempts,
                   "poll_timeout_minutes": poll_timeout_minutes,
                   "poll_interval_seconds": poll_interval_seconds,
+                  "serverless_client_patch_applied": serverless_client_patch_applied,
               },
               "overall_pass": overall_pass,
               "blocker_count": len(blockers),
