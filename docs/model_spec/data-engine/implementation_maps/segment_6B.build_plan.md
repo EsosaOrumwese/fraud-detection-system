@@ -1257,26 +1257,47 @@ Goal:
 - close remaining `S2` runtime gap by optimizing the two dominant measured hotspots from `P2.R4` (`ts_build`, `parquet_write`) while keeping realism and schema rails locked.
 
 Definition of done:
-- [ ] design lock recorded with alternatives and bounded blast radius (no policy/scorer/schema changes).
-- [ ] timestamp lane optimization implemented in `6B.S2`:
+- [x] design lock recorded with alternatives and bounded blast radius (no policy/scorer/schema changes).
+- [x] timestamp lane optimization implemented in `6B.S2`:
   - replace flexible parse path with fixed-format parse/format contract (`%Y-%m-%dT%H:%M:%S%.6fZ`) for response timestamp build.
-- [ ] parquet write lane optimization implemented in `6B.S2`:
+- [x] parquet write lane optimization implemented in `6B.S2`:
   - reduce per-part write overhead via explicit writer settings tuned for throughput (without changing dataset schema/paths).
-- [ ] fresh witness run-id executed `S2 -> S3 -> S4 -> S5` on `runs/fix-data-engine/segment_6B/<new_run_id>`.
+- [x] fresh witness run-id executed `S2 -> S3 -> S4 -> S5` on `runs/fix-data-engine/segment_6B/<new_run_id>`.
 - [ ] runtime evidence:
   - `S2` improves materially vs `bbbe...` (`238.09s`) and vs `49582...` (`232.08s`),
   - `S3<=380s`, `S4<=420s`, `S5<=30s` re-verified on same witness.
-- [ ] realism non-regression evidence:
+- [x] realism non-regression evidence:
   - `PASS_HARD_ONLY` or better,
   - `T11,T13,T14,T15,T16,T21` unchanged or improved,
   - no regression on closed rails `T1-T10,T22`.
-- [ ] closure artifacts emitted:
+- [x] closure artifacts emitted:
   - `segment6b_p2r5_closure_<run_id>.json`,
   - `segment6b_p2r5_closure_<run_id>.md`,
   - updated gateboard `segment6b_p0_realism_gateboard_<run_id>.json`.
-- [ ] phase decision emitted:
+- [x] phase decision emitted:
   - `UNLOCK_P3` only if runtime + realism rails pass,
   - else `HOLD_P2_REOPEN_PERF` with next S2 owner lane pinned.
+
+Execution outcome (`run_id=ac712b0b5e3f4ae5b5fd1a2af1662d4b`):
+- first full witness pass:
+  - `S2=227.36s` (improved vs `bbbe...=238.09s` and `49582...=232.08s`, still FAIL vs `<=150s` stretch rail),
+  - `S3=400.42s` (FAIL vs `<=380s` rail),
+  - `S4=405.50s` (PASS vs `<=420s` rail),
+  - `S5=19.83s` (PASS vs `<=30s` rail).
+- repeat-check (`S3->S4->S5` on same run-id) showed rail variance:
+  - `S3=360.64s` (PASS),
+  - `S4=460.44s` (FAIL),
+  - `S5=30.49s` (FAIL by margin).
+- S2 hotspot evidence moved in right direction but insufficient:
+  - `ts_build`: `87.68s -> 85.98s`,
+  - `parquet_write`: `72.81s -> 69.30s`.
+- realism: scorer remains `PASS_HARD_ONLY`; `T11,T13,T14,T15,T16,T21` non-regressed.
+- closure artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_ac712b0b5e3f4ae5b5fd1a2af1662d4b.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p2r5_closure_ac712b0b5e3f4ae5b5fd1a2af1662d4b.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p2r5_closure_ac712b0b5e3f4ae5b5fd1a2af1662d4b.md`.
+- phase decision:
+  - `HOLD_P2_REOPEN_PERF` (S2 runtime rail still open; cross-state runtime stability not yet reliable for unlock).
 
 ### P3 - Wave B (`S3` campaign depth)
 Goal:

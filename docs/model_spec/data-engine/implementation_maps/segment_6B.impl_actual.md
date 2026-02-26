@@ -3573,3 +3573,56 @@ Execution guardrails:
 - no changes to policies, thresholds, scorer, dataset names, partitioning, or schema columns.
 - determinism preserved for fixed `(seed, manifest_fingerprint, parameter_hash, scenario_id, arrival_seq)`.
 - validate by fresh witness run under `runs/fix-data-engine/segment_6B/<new_run_id>` and scorer non-regression check.
+
+---
+
+### Entry: 2026-02-26 03:16
+
+P2.R5 implementation + witness execution closure (`run_id=ac712b0b5e3f4ae5b5fd1a2af1662d4b`).
+
+Implementation applied in `packages/engine/src/engine/layers/l3/seg_6B/s2_baseline_flow/runner.py`:
+1) Timestamp path optimization:
+- `_ts_plus_seconds_expr` now uses fixed-format strict parse:
+  - `str.strptime(..., format=\"%Y-%m-%dT%H:%M:%S%.6fZ\", strict=True, exact=True)`.
+- output remains same format (`%Y-%m-%dT%H:%M:%S%.6fZ`).
+
+2) Parquet write optimization:
+- `write_parquet(..., statistics=False)` for S2 outputs (including empty-output paths).
+- explicit row-group sizing:
+  - flow parts: `row_group_size=batch_rows`,
+  - event parts: `row_group_size=batch_rows * 2`.
+- removed one redundant post-concat `.select(...)` pass on event stream.
+
+Witness lane setup:
+- source authority: `bbbe8850af334fa097d5770da339d713`.
+- staged fresh lane under `runs/fix-data-engine/segment_6B` with minimal prerequisites (`S0/S1` + upstream validations), plus seeded `6B.S1` rng-trace rows for S5 requirements.
+- full run executed: `S2 -> S3 -> S4 -> S5`.
+
+Runtime results (first full pass):
+- `S2=227.36s` (improved vs `238.09s` and `232.08s`, still above `<=150s` stretch rail).
+- `S3=400.42s` (rail fail).
+- `S4=405.50s` (rail pass).
+- `S5=19.83s` (rail pass).
+
+S2 hotspot movement:
+- prior (`49582...`) stage totals:
+  - `ts_build=87.68s`, `parquet_write=72.81s`.
+- P2.R5 witness:
+  - `ts_build=85.98s`, `parquet_write=69.30s`.
+- improvement exists but is not sufficient to close the S2 rail.
+
+Stability recheck:
+- immediate rerun of `S3->S4->S5` on same run-id:
+  - `S3=360.64s` (pass),
+  - `S4=460.44s` (fail),
+  - `S5=30.49s` (borderline fail).
+- interpretation: runtime posture remains sensitive/unstable across repeated passes under current machine load.
+
+Realism:
+- scored gateboard for `ac712...` remains `PASS_HARD_ONLY`.
+- `T11,T13,T14,T15,T16,T21` remain non-regressed vs `bbbe...`.
+
+Decision:
+- `P2.R5` closes as an evidence-producing optimization pass, not a phase-unlock pass.
+- phase posture remains `HOLD_P2_REOPEN_PERF`.
+- next owner lane remains S2 runtime closure (second-order redesign) with isolated-load witness protocol before any `UNLOCK_P3` decision.
