@@ -13870,3 +13870,31 @@ ext_gate=M10.D_READY
 3. Expected closure condition:
    - M10.F emits `overall_pass=true`, `blocker_count=0`, `next_gate=M10.G_READY`.
 4. Monitoring to terminal state; if fail-closed persists, extract blocker register and patch immediately.
+
+## Entry: 2026-02-26 15:35:13 +00:00 - M10.F closure reached green after fail-closed remediation
+1. Managed rerun succeeded:
+   - run id: 22448956775
+   - workflow: .github/workflows/dev_full_m10_d_managed.yml
+   - commit: 9ffd1108
+2. Execution ids:
+   - m10d_ofs_build_20260226T153247Z
+   - m10e_quality_gate_20260226T153247Z
+   - m10f_iceberg_commit_20260226T153247Z
+3. M10.F terminal result:
+   - overall_pass=true
+   - blocker_count=0
+   - next_gate=M10.G_READY
+4. Durable evidence:
+   - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10f_iceberg_commit_20260226T153247Z/
+5. Commit-surface materialization/verification output:
+   - Glue database: fraud_platform_dev_full_ofs (created/readback OK),
+   - Glue table: ofs_platform_20260223t184232z (created/readback OK),
+   - S3 marker object:
+     s3://fraud-platform-dev-full-object-store/learning/ofs/iceberg/warehouse/ofs_platform_20260223t184232z/_m10f_commit_marker.json (write/readback OK).
+6. Full blocker chain summary:
+   - initial failure run 22448721513 with M10-B6 (Glue AccessDenied),
+   - IAM remediation through Terraform targeted apply in dev_full/ops,
+   - post-remediation rerun reached blocker-free closure.
+7. Plan sync completed:
+   - deep plan `platform.M10.build_plan.md` updated: M10.F DoDs checked + execution status populated,
+   - master plan `platform.build_plan.md` updated: M10.F green + next action moved to M10.G.
