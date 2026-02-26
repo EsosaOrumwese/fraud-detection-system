@@ -10752,3 +10752,28 @@ ext_gate=HOLD_REMEDIATE.
 ### Why this improves execution quality
 1. Enables checkpointed closure by sub-lane instead of monolithic pass/fail.
 2. Makes blocker classification deterministic and reviewable during execution.
+
+## Entry: 2026-02-26 03:54:48 +00:00 - M7.K execution strategy pinned before implementation
+
+### Problem framing
+1. M7.K is now mandatory for phase closure (M7-B18/M7-B19), but current managed workflow modes stop at m7q (M7.J).
+2. Existing phase_mode=m7k is already assigned to P9.E rollup, so reusing m7k for M7.K would create ambiguous execution semantics.
+3. Current per-component gates are in low-sample guarded mode (	hroughput_gate_mode=waived_low_sample), so certification requires a dedicated non-waived lane.
+
+### Decision
+1. Add a dedicated managed M7.K execution lane to .github/workflows/dev_full_m6f_streaming_active.yml using new explicit modes:
+   - m7r -> M7.K.A entry + handle/sentinel closure.
+   - m7s -> M7.K.B/C/D/E consolidated certification pass (bounded+staged+soak+rollup) with deterministic verdict.
+2. Keep run entirely managed in GitHub Actions (no local daemon scripts or local compute fallback).
+3. Use existing durable evidence surfaces and run-control prefix discipline to preserve deterministic audit trail.
+
+### Why this shape
+1. It resolves mode-name conflict without rewriting previously closed M7 lanes.
+2. It minimizes churn in workflow graph and reduces cost by avoiding redundant orchestration jobs.
+3. It enforces fail-closed certification semantics in a single auditable lane while preserving explicit K.A gate.
+
+### Immediate execution plan
+1. Patch workflow inputs to advertise m7r/m7s modes.
+2. Implement un_m7k_entry_remote (m7r) and un_m7k_cert_remote (m7s).
+3. Dispatch m7r, validate outputs, then dispatch m7s.
+4. If blockers appear, remediate fail-closed and rerun until THROUGHPUT_CERTIFIED with locker_count=0.

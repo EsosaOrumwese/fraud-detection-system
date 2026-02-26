@@ -3690,3 +3690,14 @@ Fail-closed decision:
 - mark lane `ROLLBACK_P2R6`.
 - revert S2 writer topology back to pre-R6 per-batch `write_parquet(part-k)` path.
 - keep phase posture `HOLD_P2_REOPEN_PERF`; next lane must target S2 bottlenecks without repeating writer-topology regression.
+
+Rollback verification:
+- staged fresh S2-only verify run: `e49c2370a1154be9aa5c8cf227fc2fa2`.
+- observed `S2=234.66s` with stage profile:
+  - `cast_hash=4.77s`, `sampling=48.78s`, `ts_build=87.43s`, `frame_build=3.72s`, `parquet_write=72.13s`.
+- confirms rollback restored prior runtime class (close to pre-R6 `~227-232s`, far from R6 regression `350.58s`).
+
+Storage control:
+- after evidence extraction, pruned superseded run folders:
+  - `runs/fix-data-engine/segment_6B/b60080a948784e3a971339149528fd8d`,
+  - `runs/fix-data-engine/segment_6B/e49c2370a1154be9aa5c8cf227fc2fa2`.

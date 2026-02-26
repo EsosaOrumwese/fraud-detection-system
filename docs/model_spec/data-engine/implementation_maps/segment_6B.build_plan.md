@@ -1342,6 +1342,10 @@ Execution outcome (`run_id=b60080a948784e3a971339149528fd8d`):
 - phase decision:
   - `ROLLBACK_P2R6` and retain `HOLD_P2_REOPEN_PERF`.
   - S2 code path reverted to pre-R6 writer topology.
+- rollback verification:
+  - fresh S2-only verify run `e49c2370a1154be9aa5c8cf227fc2fa2` completed at `S2=234.66s` with stage profile `parquet_write=72.13s`, confirming restoration to pre-R6 posture.
+- storage hygiene:
+  - pruned superseded run folders `b60080a948784e3a971339149528fd8d` and `e49c2370a1154be9aa5c8cf227fc2fa2` after extracting evidence.
 
 ### P3 - Wave B (`S3` campaign depth)
 Goal:
