@@ -51,7 +51,7 @@ Many systems close only the first plane. This claim closes both planes and treat
 
 ### In-scope boundary
 This claim covers:
-- encrypted parameter-store secret handling for runtime messaging credentials,
+- encrypted Amazon Web Services Systems Manager (AWS Systems Manager) Parameter Store secret handling for runtime messaging credentials,
 - non-commit posture for secret values (no plaintext credentials in repository content),
 - managed rotation procedure and bounded remediation when credentials are invalid or replaced,
 - explicit service redeploy after rotation to enforce runtime freshness,
@@ -297,6 +297,7 @@ In senior platform terms, this is a lifecycle-consistency problem across securit
 
 ### 4.2 Observed failure progression (real execution history)
 The implementation history surfaced concrete failure classes that required this claim:
+Execution IDs seen in artifact paths (for example `m2_e`, `m6_b`, and `m9_f`) are run-control labels used for traceability.
 
 1. Placeholder credential value at runtime boundary
 - Failure class: ingestion authentication material existed by path but was placeholder-valued.
@@ -311,7 +312,7 @@ The implementation history surfaced concrete failure classes that required this 
 3. Credential regression risk during infrastructure updates
 - Failure class: infrastructure apply could overwrite current working credentials with stale values if input source was not pinned to current runtime truth.
 - Operational effect: previously valid runtime posture could regress after an otherwise routine apply.
-- Corrective posture: use current parameter-store values as apply-time source for credential fields and verify post-apply continuity.
+- Corrective posture: use current AWS Systems Manager Parameter Store values as apply-time source for credential fields and verify post-apply continuity.
 
 4. Teardown residue risk
 - Failure class: environment destruction without explicit secret cleanup verification could leave scoped credentials active.
@@ -788,8 +789,9 @@ Implementation delivered the intended operating posture:
 
 This shifted the platform from "secrets configured" to "credentials lifecycle-controlled with runtime-proof closure."
 
-### 9.2 Measured closure anchors
+### 9.2 Measured closure evidence
 The claim closed through concrete fail-to-fix-to-pass anchors:
+Execution IDs embedded in file paths (for example `m2_e` and `m6_b`) are internal run-control identifiers; the bullets below are the plain-language interpretation.
 
 1. Secret-surface fail then pass
 - initial fail anchor: secret-surface check identified missing required secret paths and missing runtime role boundary closure (`overall_pass=false`).
@@ -800,7 +802,7 @@ The claim closed through concrete fail-to-fix-to-pass anchors:
 - post-remediation pass anchor: `runs/dev_substrate/m6/20260215T040527Z/m6_b_ig_readiness_snapshot.json` (`overall_pass=true` after replacing placeholder credential material and rematerializing runtime boundary).
 
 3. Rotation plus runtime freshness closure
-- managed rotation anchor: workflow run `22206773359` rotated runtime messaging credentials and republished parameter-store values.
+- managed rotation anchor: workflow run `22206773359` rotated runtime messaging credentials and republished AWS Systems Manager Parameter Store values.
 - freshness enforcement anchor: affected daemon services were explicitly redeployed so running tasks loaded rotated values.
 - diagnostic boundary result: credential-plane blockers were removed, and the remaining ingestion failure was traced to transport-client compatibility rather than stale credentials.
 
