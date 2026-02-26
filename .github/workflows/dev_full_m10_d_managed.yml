@@ -1,0 +1,567 @@
+name: dev-full-m10-d-managed
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region for SSM/S3 operations"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      evidence_bucket:
+        description: "S3 bucket for M10 run-control evidence"
+        required: true
+        default: "fraud-platform-dev-full-evidence"
+        type: string
+      upstream_m10c_execution:
+        description: "Upstream M10.C execution id"
+        required: true
+        default: "m10c_input_binding_20260226T131441Z"
+        type: string
+      m10d_execution_id:
+        description: "Optional fixed M10.D execution id"
+        required: false
+        default: ""
+        type: string
+      poll_timeout_minutes:
+        description: "Databricks run timeout in minutes"
+        required: true
+        default: "75"
+        type: string
+      poll_interval_seconds:
+        description: "Databricks run poll interval seconds"
+        required: true
+        default: "20"
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-m10-d-managed-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_m10_d_managed:
+    name: Run M10.D OFS build via managed lane
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m10d_execution_id }}" ]]; then
+            M10D_EXEC="${{ inputs.m10d_execution_id }}"
+          else
+            M10D_EXEC="m10d_ofs_build_${TS}"
+          fi
+          M10D_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10D_EXEC}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m10d_execution_id=${M10D_EXEC}" >> "$GITHUB_OUTPUT"
+          echo "m10d_run_dir=${M10D_RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Execute M10.D (managed)
+        shell: bash
+        env:
+          M10D_EXECUTION_ID: ${{ steps.run_meta.outputs.m10d_execution_id }}
+          M10D_RUN_DIR: ${{ steps.run_meta.outputs.m10d_run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          UPSTREAM_M10C_EXECUTION: ${{ inputs.upstream_m10c_execution }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          POLL_TIMEOUT_MINUTES: ${{ inputs.poll_timeout_minutes }}
+          POLL_INTERVAL_SECONDS: ${{ inputs.poll_interval_seconds }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import re
+          import time
+          import urllib.parse
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from typing import Any
+
+          import boto3
+          from botocore.exceptions import BotoCoreError, ClientError
+
+
+          HANDLES_PATH = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
+
+
+          def now_utc() -> str:
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+          def parse_handles(path: Path) -> dict[str, Any]:
+              out: dict[str, Any] = {}
+              rx = re.compile(r"^\* `([^`=]+?)\s*=\s*([^`]+)`")
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  m = rx.match(line.strip())
+                  if not m:
+                      continue
+                  key = m.group(1).strip()
+                  raw = m.group(2).strip()
+                  if raw.startswith('"') and raw.endswith('"'):
+                      value: Any = raw[1:-1]
+                  elif raw.lower() == "true":
+                      value = True
+                  elif raw.lower() == "false":
+                      value = False
+                  else:
+                      try:
+                          value = int(raw) if "." not in raw else float(raw)
+                      except ValueError:
+                          value = raw
+                  out[key] = value
+              return out
+
+
+          def is_placeholder(value: Any) -> bool:
+              s = str(value).strip()
+              s_lower = s.lower()
+              if not s:
+                  return True
+              if s_lower in {"tbd", "todo", "none", "null", "unset"}:
+                  return True
+              if "to_pin" in s_lower or "placeholder" in s_lower:
+                  return True
+              if "<" in s and ">" in s:
+                  return True
+              if "*" in s:
+                  return True
+              return False
+
+
+          def s3_get_json(s3_client: Any, bucket: str, key: str) -> dict[str, Any]:
+              body = s3_client.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+              payload = json.loads(body)
+              if not isinstance(payload, dict):
+                  raise ValueError("json_not_object")
+              return payload
+
+
+          def s3_put_json(s3_client: Any, bucket: str, key: str, payload: dict[str, Any]) -> None:
+              body = json.dumps(payload, indent=2, ensure_ascii=True).encode("utf-8")
+              s3_client.put_object(Bucket=bucket, Key=key, Body=body, ContentType="application/json")
+              s3_client.head_object(Bucket=bucket, Key=key)
+
+
+          def dbx_request_json(base_url: str, token: str, method: str, path: str, payload: dict[str, Any] | None = None, query: dict[str, Any] | None = None) -> dict[str, Any]:
+              q = ""
+              if query:
+                  q = "?" + urllib.parse.urlencode(query, doseq=True)
+              url = f"{base_url.rstrip('/')}{path}{q}"
+              body = None
+              if payload is not None:
+                  body = json.dumps(payload, ensure_ascii=True).encode("utf-8")
+              req = urllib.request.Request(
+                  url=url,
+                  method=method,
+                  data=body,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Content-Type": "application/json",
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=60) as resp:
+                  raw = resp.read().decode("utf-8")
+              parsed = json.loads(raw) if raw else {}
+              if not isinstance(parsed, dict):
+                  raise ValueError("json_not_object")
+              return parsed
+
+
+          def list_jobs_by_name(base_url: str, token: str) -> dict[str, dict[str, Any]]:
+              out: dict[str, dict[str, Any]] = {}
+              page_token = None
+              while True:
+                  query: dict[str, Any] = {"limit": 100}
+                  if page_token:
+                      query["page_token"] = page_token
+                  payload = dbx_request_json(base_url, token, "GET", "/api/2.1/jobs/list", query=query)
+                  jobs = payload.get("jobs", [])
+                  if isinstance(jobs, list):
+                      for job in jobs:
+                          if not isinstance(job, dict):
+                              continue
+                          settings = job.get("settings", {})
+                          if not isinstance(settings, dict):
+                              continue
+                          name = str(settings.get("name", "")).strip()
+                          if name:
+                              out[name] = job
+                  nxt = payload.get("next_page_token")
+                  if not nxt:
+                      break
+                  page_token = str(nxt)
+              return out
+
+
+          def write_local_artifacts(run_dir: Path, artifacts: dict[str, dict[str, Any]]) -> None:
+              run_dir.mkdir(parents=True, exist_ok=True)
+              for name, payload in artifacts.items():
+                  (run_dir / name).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+
+          def dedupe_blockers(items: list[dict[str, str]]) -> list[dict[str, str]]:
+              out: list[dict[str, str]] = []
+              seen: set[tuple[str, str]] = set()
+              for b in items:
+                  code = str(b.get("code", "")).strip()
+                  msg = str(b.get("message", "")).strip()
+                  sig = (code, msg)
+                  if sig in seen:
+                      continue
+                  seen.add(sig)
+                  out.append({"code": code, "message": msg})
+              return out
+
+
+          env = dict(os.environ)
+          execution_id = env.get("M10D_EXECUTION_ID", "").strip()
+          run_dir_raw = env.get("M10D_RUN_DIR", "").strip()
+          evidence_bucket = env.get("EVIDENCE_BUCKET", "").strip()
+          upstream_m10c_execution = env.get("UPSTREAM_M10C_EXECUTION", "").strip()
+          aws_region = env.get("AWS_REGION", "eu-west-2").strip() or "eu-west-2"
+          poll_timeout_minutes_raw = env.get("POLL_TIMEOUT_MINUTES", "75").strip()
+          poll_interval_seconds_raw = env.get("POLL_INTERVAL_SECONDS", "20").strip()
+
+          if not execution_id:
+              raise SystemExit("M10D_EXECUTION_ID is required.")
+          if not run_dir_raw:
+              raise SystemExit("M10D_RUN_DIR is required.")
+          if not evidence_bucket:
+              raise SystemExit("EVIDENCE_BUCKET is required.")
+          if not upstream_m10c_execution:
+              raise SystemExit("UPSTREAM_M10C_EXECUTION is required.")
+
+          try:
+              poll_timeout_minutes = int(poll_timeout_minutes_raw)
+              poll_interval_seconds = int(poll_interval_seconds_raw)
+          except ValueError as exc:
+              raise SystemExit(f"Invalid polling input: {exc}")
+          if poll_timeout_minutes <= 0 or poll_interval_seconds <= 0:
+              raise SystemExit("Polling inputs must be positive integers.")
+
+          run_dir = Path(run_dir_raw)
+          captured_at = now_utc()
+          handles = parse_handles(HANDLES_PATH)
+          s3 = boto3.client("s3", region_name=aws_region)
+          ssm = boto3.client("ssm", region_name=aws_region)
+
+          blockers: list[dict[str, str]] = []
+          read_errors: list[dict[str, str]] = []
+          upload_errors: list[dict[str, str]] = []
+
+          m10c_summary_key = f"evidence/dev_full/run_control/{upstream_m10c_execution}/m10c_execution_summary.json"
+          m10c_summary: dict[str, Any] | None = None
+          platform_run_id = ""
+          scenario_run_id = ""
+
+          try:
+              m10c_summary = s3_get_json(s3, evidence_bucket, m10c_summary_key)
+          except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+              read_errors.append({"surface": m10c_summary_key, "error": type(exc).__name__})
+              blockers.append({"code": "M10-B4", "message": "M10.C summary unreadable for M10.D entry gate."})
+
+          if m10c_summary:
+              if not bool(m10c_summary.get("overall_pass")):
+                  blockers.append({"code": "M10-B4", "message": "M10.C is not pass posture."})
+              if str(m10c_summary.get("next_gate", "")).strip() != "M10.D_READY":
+                  blockers.append({"code": "M10-B4", "message": "M10.C next_gate is not M10.D_READY."})
+              platform_run_id = str(m10c_summary.get("platform_run_id", "")).strip()
+              scenario_run_id = str(m10c_summary.get("scenario_run_id", "")).strip()
+
+          required_handles = [
+              "DBX_WORKSPACE_URL",
+              "DBX_JOB_OFS_BUILD_V0",
+              "SSM_DATABRICKS_WORKSPACE_URL_PATH",
+              "SSM_DATABRICKS_TOKEN_PATH",
+              "S3_EVIDENCE_BUCKET",
+          ]
+          missing_handles: list[str] = []
+          placeholder_handles: list[str] = []
+          for key in required_handles:
+              value = handles.get(key)
+              if value is None:
+                  missing_handles.append(key)
+              elif is_placeholder(value):
+                  placeholder_handles.append(key)
+
+          if missing_handles or placeholder_handles:
+              blockers.append({"code": "M10-B4", "message": "Required M10.D handles are missing or placeholder-valued."})
+
+          expected_bucket = str(handles.get("S3_EVIDENCE_BUCKET", "")).strip()
+          if expected_bucket and expected_bucket != evidence_bucket:
+              blockers.append({"code": "M10-B4", "message": "EVIDENCE_BUCKET does not match S3_EVIDENCE_BUCKET handle."})
+
+          dbx_workspace_handle = str(handles.get("DBX_WORKSPACE_URL", "")).strip()
+          dbx_job_name = str(handles.get("DBX_JOB_OFS_BUILD_V0", "")).strip()
+          ssm_workspace_path = str(handles.get("SSM_DATABRICKS_WORKSPACE_URL_PATH", "")).strip()
+          ssm_token_path = str(handles.get("SSM_DATABRICKS_TOKEN_PATH", "")).strip()
+
+          dbx_workspace = ""
+          dbx_token = ""
+
+          if ssm_workspace_path:
+              try:
+                  dbx_workspace = ssm.get_parameter(Name=ssm_workspace_path)["Parameter"]["Value"].strip()
+              except (BotoCoreError, ClientError, KeyError) as exc:
+                  read_errors.append({"surface": ssm_workspace_path, "error": type(exc).__name__})
+                  blockers.append({"code": "M10-B4", "message": "Databricks workspace URL unreadable from SSM."})
+
+          if ssm_token_path:
+              try:
+                  dbx_token = ssm.get_parameter(Name=ssm_token_path, WithDecryption=True)["Parameter"]["Value"].strip()
+              except (BotoCoreError, ClientError, KeyError) as exc:
+                  read_errors.append({"surface": ssm_token_path, "error": type(exc).__name__})
+                  blockers.append({"code": "M10-B4", "message": "Databricks token unreadable from SSM."})
+
+          if dbx_workspace_handle and dbx_workspace and dbx_workspace_handle.rstrip("/") != dbx_workspace.rstrip("/"):
+              blockers.append({"code": "M10-B4", "message": "Workspace URL mismatch between handle and SSM materialization."})
+
+          job_id = None
+          run_id = None
+          run_page_url = ""
+          life_cycle_state = ""
+          result_state = ""
+          state_message = ""
+          run_start_time_utc = ""
+          run_end_time_utc = ""
+          elapsed_seconds = None
+          poll_attempts = 0
+
+          if not blockers and dbx_workspace and dbx_token and dbx_job_name:
+              try:
+                  jobs = list_jobs_by_name(dbx_workspace, dbx_token)
+                  job = jobs.get(dbx_job_name)
+                  if not job:
+                      blockers.append({"code": "M10-B4", "message": f"Databricks OFS build job not found: {dbx_job_name}."})
+                  else:
+                      job_id = job.get("job_id")
+              except Exception as exc:
+                  read_errors.append({"surface": "databricks.jobs.list", "error": type(exc).__name__})
+                  blockers.append({"code": "M10-B4", "message": "Databricks job listing failed for OFS build resolution."})
+
+          if not blockers and job_id is not None:
+              try:
+                  started = dbx_request_json(
+                      dbx_workspace,
+                      dbx_token,
+                      "POST",
+                      "/api/2.1/jobs/run-now",
+                      payload={
+                          "job_id": int(job_id),
+                          "idempotency_token": execution_id,
+                          "job_parameters": {
+                              "platform_run_id": platform_run_id,
+                              "scenario_run_id": scenario_run_id,
+                              "m10_execution_id": execution_id,
+                          },
+                      },
+                  )
+                  run_id = started.get("run_id")
+                  if run_id is None:
+                      blockers.append({"code": "M10-B4", "message": "Databricks run-now returned no run_id."})
+              except Exception as exc:
+                  read_errors.append({"surface": "databricks.jobs.run-now", "error": type(exc).__name__})
+                  blockers.append({"code": "M10-B4", "message": "Databricks OFS build run launch failed."})
+
+          deadline = time.time() + (poll_timeout_minutes * 60)
+          last_state_payload: dict[str, Any] | None = None
+
+          while not blockers and run_id is not None:
+              poll_attempts += 1
+              try:
+                  state_payload = dbx_request_json(
+                      dbx_workspace,
+                      dbx_token,
+                      "GET",
+                      "/api/2.1/jobs/runs/get",
+                      query={"run_id": int(run_id)},
+                  )
+              except Exception as exc:
+                  read_errors.append({"surface": "databricks.jobs.runs.get", "error": type(exc).__name__})
+                  blockers.append({"code": "M10-B4", "message": "Databricks run status polling failed."})
+                  break
+
+              last_state_payload = state_payload
+              run_page_url = str(state_payload.get("run_page_url", "")).strip()
+              state = state_payload.get("state", {})
+              if not isinstance(state, dict):
+                  state = {}
+              life_cycle_state = str(state.get("life_cycle_state", "")).strip()
+              result_state = str(state.get("result_state", "")).strip()
+              state_message = str(state.get("state_message", "")).strip()
+
+              start_ms = state_payload.get("start_time")
+              end_ms = state_payload.get("end_time")
+              if isinstance(start_ms, (int, float)) and start_ms > 0:
+                  run_start_time_utc = datetime.fromtimestamp(float(start_ms) / 1000.0, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+              if isinstance(end_ms, (int, float)) and end_ms > 0:
+                  run_end_time_utc = datetime.fromtimestamp(float(end_ms) / 1000.0, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+              if isinstance(start_ms, (int, float)) and isinstance(end_ms, (int, float)) and end_ms >= start_ms:
+                  elapsed_seconds = int((float(end_ms) - float(start_ms)) / 1000.0)
+
+              if life_cycle_state in {"TERMINATED", "SKIPPED", "INTERNAL_ERROR"}:
+                  break
+              if time.time() >= deadline:
+                  blockers.append({"code": "M10-B4", "message": "Databricks OFS build run timed out before terminal state."})
+                  break
+              time.sleep(poll_interval_seconds)
+
+          if not blockers:
+              if life_cycle_state != "TERMINATED" or result_state != "SUCCESS":
+                  blockers.append({
+                      "code": "M10-B4",
+                      "message": f"Databricks OFS build terminal state not success (life_cycle={life_cycle_state}, result={result_state}).",
+                  })
+
+          blockers = dedupe_blockers(blockers)
+          overall_pass = len(blockers) == 0
+          next_gate = "M10.E_READY" if overall_pass else "HOLD_REMEDIATE"
+
+          snapshot = {
+              "captured_at_utc": captured_at,
+              "phase": "M10.D",
+              "phase_id": "P13",
+              "execution_id": execution_id,
+              "upstream_m10c_execution": upstream_m10c_execution,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "databricks": {
+                  "workspace_url": dbx_workspace,
+                  "job_name": dbx_job_name,
+                  "job_id": job_id,
+                  "run_id": run_id,
+                  "run_page_url": run_page_url,
+                  "life_cycle_state": life_cycle_state,
+                  "result_state": result_state,
+                  "state_message": state_message,
+                  "run_start_time_utc": run_start_time_utc,
+                  "run_end_time_utc": run_end_time_utc,
+                  "elapsed_seconds": elapsed_seconds,
+                  "poll_attempts": poll_attempts,
+                  "poll_timeout_minutes": poll_timeout_minutes,
+                  "poll_interval_seconds": poll_interval_seconds,
+              },
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "next_gate": next_gate,
+          }
+
+          blocker_register = {
+              "captured_at_utc": captured_at,
+              "phase": "M10.D",
+              "execution_id": execution_id,
+              "blocker_count": len(blockers),
+              "blockers": blockers,
+              "read_errors": read_errors,
+              "upload_errors": upload_errors,
+          }
+
+          summary = {
+              "captured_at_utc": captured_at,
+              "phase": "M10.D",
+              "phase_id": "P13",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "next_gate": next_gate,
+          }
+
+          artifacts = {
+              "m10d_ofs_build_execution_snapshot.json": snapshot,
+              "m10d_blocker_register.json": blocker_register,
+              "m10d_execution_summary.json": summary,
+          }
+          write_local_artifacts(run_dir, artifacts)
+
+          run_control_prefix = f"evidence/dev_full/run_control/{execution_id}/"
+          for name, payload in artifacts.items():
+              key = f"{run_control_prefix}{name}"
+              try:
+                  s3_put_json(s3, evidence_bucket, key, payload)
+              except (BotoCoreError, ClientError, ValueError) as exc:
+                  upload_errors.append({"surface": key, "error": type(exc).__name__})
+
+          if upload_errors:
+              blockers.append({"code": "M10-B12", "message": "Failed to publish/readback one or more M10.D artifacts."})
+              blockers = dedupe_blockers(blockers)
+              overall_pass = False
+              next_gate = "HOLD_REMEDIATE"
+              snapshot["overall_pass"] = False
+              snapshot["blocker_count"] = len(blockers)
+              snapshot["next_gate"] = next_gate
+              blocker_register["blocker_count"] = len(blockers)
+              blocker_register["blockers"] = blockers
+              blocker_register["upload_errors"] = upload_errors
+              summary["overall_pass"] = False
+              summary["blocker_count"] = len(blockers)
+              summary["next_gate"] = next_gate
+              write_local_artifacts(run_dir, artifacts)
+
+          print(json.dumps({
+              "execution_id": execution_id,
+              "overall_pass": summary["overall_pass"],
+              "blocker_count": summary["blocker_count"],
+              "next_gate": summary["next_gate"],
+              "run_dir": str(run_dir),
+              "run_control_prefix": f"s3://{evidence_bucket}/{run_control_prefix}",
+          }, ensure_ascii=True))
+
+          if not summary["overall_pass"]:
+              raise SystemExit(1)
+          PY
+
+      - name: Upload M10.D managed artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m10-d-managed-${{ steps.run_meta.outputs.timestamp }}
+          path: |
+            ${{ steps.run_meta.outputs.m10d_run_dir }}
+          if-no-files-found: warn
