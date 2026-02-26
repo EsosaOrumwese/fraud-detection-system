@@ -539,7 +539,7 @@ Allowed tokens in pattern handles:
 ### 9.1 Databricks handles
 
 * `DBX_WORKSPACE_NAME = "fraud-platform-dev-full"`
-* `DBX_WORKSPACE_URL = "TO_PIN"`
+* `DBX_WORKSPACE_URL = "https://dbc-d0b53c09-b6fa.cloud.databricks.com"`
 * `DBX_COMPUTE_POLICY = "job-clusters-only"`
 * `DBX_AUTOSCALE_WORKERS = "1-8"`
 * `DBX_AUTO_TERMINATE_MINUTES = 20`
@@ -745,8 +745,7 @@ Allowed tokens in pattern handles:
 These are intentionally explicit and must be pinned before first `dev-full-up` execution.
 
 1. `ROLE_TERRAFORM_APPLY_DEV_FULL`
-2. `DBX_WORKSPACE_URL`
-3. `AWS_BUDGET_NOTIFICATION_EMAIL`
+2. `AWS_BUDGET_NOTIFICATION_EMAIL`
 
 ---
 

@@ -13121,3 +13121,52 @@ ext_gate=M10_READY.
 ### Rationale
 1. M9.J has already emitted green closure (ADVANCE_TO_M10, M10_READY), so keeping M9 as ACTIVE is inconsistent and risks execution drift.
 2. M10 should now be treated as active for planned expansion/execution sequencing.
+
+## Entry: 2026-02-26 08:56:28 +00:00 - M10.A planning kickoff
+
+### Scope lock
+1. Active lane is M10.A (planning expansion only).
+2. Objective is to convert M10.A from skeletal outline to execution-grade contract.
+
+### Planning intent
+1. Add explicit entry conditions anchored on M9 closure.
+2. Add deterministic handle-closure algorithm (presence, placeholder/wildcard detection, closure matrix emission).
+3. Add blocker mapping + runtime budget + DoD checklist with publication/parity requirements.
+4. Keep execution out of scope for this step.
+
+## Entry: 2026-02-26 08:57:01 +00:00 - M10.A planning expansion completed
+
+### What was expanded
+1. Added explicit M10.A entry conditions tied to M9 closure posture and run-scope continuity.
+2. Added fail-closed preparation checks for required handle resolution (missing/placeholder/wildcard).
+3. Added deterministic verification algorithm and publication contract for:
+   - m10a_handle_closure_snapshot.json,
+   - m10a_blocker_register.json,
+   - m10a_execution_summary.json.
+4. Added blocker-free next-gate requirement (M10.B_READY) and runtime budget.
+5. Recorded known pre-execution blocker posture explicitly:
+   - DBX_WORKSPACE_URL currently TO_PIN.
+
+### Outcome
+1. M10.A is now execution-grade at planning level.
+2. Execution remains pending user go-ahead.
+
+## Entry: 2026-02-26 09:00:36 +00:00 - DBX_WORKSPACE_URL materialization input received
+
+### Input received from USER
+1. DBX_WORKSPACE_URL = https://dbc-d0b53c09-b6fa.cloud.databricks.com/.
+
+### Planned immediate updates
+1. Pin DBX_WORKSPACE_URL in dev_full_handles.registry.v0.md.
+2. Remove DBX_WORKSPACE_URL from the open-materialization handles list.
+3. Keep execution locked to planning/handle-closure state until M10.A execution step is explicitly started.
+
+## Entry: 2026-02-26 09:00:59 +00:00 - DBX_WORKSPACE_URL pinned in dev_full registry
+
+### Completed updates
+1. Set DBX_WORKSPACE_URL to https://dbc-d0b53c09-b6fa.cloud.databricks.com in dev_full handles registry.
+2. Removed DBX_WORKSPACE_URL from section 14 open-materialization handles list.
+
+### Immediate effect
+1. M10.A no longer fail-closes on missing Databricks workspace URL handle.
+2. Remaining known open handle in section 14 is now AWS_BUDGET_NOTIFICATION_EMAIL (plus role policy pin).

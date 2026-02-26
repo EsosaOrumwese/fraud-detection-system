@@ -112,10 +112,57 @@ Required handle set:
 11. `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`
 12. `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`
 
+Entry conditions:
+1. `M9` is `DONE` and `m9_execution_summary.json` is readable with:
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_M10`,
+   - `next_gate=M10_READY`.
+2. `M9.H` handoff artifact is readable:
+   - `m10_handoff_pack.json` from M9 run-control surface.
+3. active run scope is single-valued from M9 closure:
+   - one `platform_run_id`,
+   - one `scenario_run_id`.
+4. handle registry path is readable and parseable:
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+
+Preparation checks (fail-closed):
+1. validate all required handles are present in the registry.
+2. classify unresolved values:
+   - missing,
+   - placeholder (`TO_PIN`, `TBD`, `unset`, etc.),
+   - wildcard patterns.
+3. enforce no execution advancement on unresolved required handles.
+4. validate run-control publication prefix for this execution id.
+
+Deterministic verification algorithm (M10.A):
+1. read and validate M9 closure summary gate posture.
+2. resolve required handle set in fixed order (`1..12` above).
+3. produce deterministic handle-closure matrix with one row per handle:
+   - key,
+   - raw value,
+   - resolution state (`resolved`/`missing`/`placeholder`/`wildcard`),
+   - blocker projection.
+4. emit deterministic artifacts:
+   - `m10a_handle_closure_snapshot.json`,
+   - `m10a_blocker_register.json`,
+   - `m10a_execution_summary.json`.
+5. publish locally + durably to run-control prefix with readback parity.
+6. emit deterministic next gate:
+   - `M10.B_READY` when blocker count is `0`,
+   - otherwise `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 8 minutes wall clock.
+
+Known pre-execution posture:
+1. `DBX_WORKSPACE_URL` is currently `TO_PIN` in the handle registry and will fail-closed `M10.A` until materialized.
+
 DoD:
 - [ ] required handle matrix explicit and complete.
 - [ ] unresolved handles are blocker-marked.
 - [ ] `m10a_handle_closure_snapshot.json` committed locally and durably.
+- [ ] `m10a_blocker_register.json` and `m10a_execution_summary.json` committed locally and durably.
+- [ ] blocker-free pass emits `next_gate=M10.B_READY`.
 
 ### M10.B Databricks Runtime Readiness
 Goal:
@@ -283,3 +330,4 @@ DoD:
 1. M10 planning is expanded and execution-grade.
 2. M9 closure gate is now green (`M9 DONE`, `next_gate=M10_READY`), so M10 can start at `M10.A`.
 3. `M11` handoff contract remains an in-phase closure requirement under `M10.I`.
+4. `M10.A` is expanded to execution-grade and ready for execution.
