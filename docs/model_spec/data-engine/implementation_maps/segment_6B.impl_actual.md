@@ -4190,3 +4190,65 @@ Decision:
 Scope:
 - documentation-only correction in build plan.
 - no runtime/code/policy/schema changes.
+
+---
+
+### Entry: 2026-02-26 06:49
+
+P4 pre-implementation design lock (`S1` context/session realism closure).
+
+Authority posture entering P4:
+- `P3.R3` is closed and pinned (`run_id=08db6e3060674203af415b389d5a9cbd`).
+- hard gates are closed (`PASS_HARD_ONLY` posture), with residual `P4` owner blocker:
+  - `T19` singleton-session share `99.9388%` (`FAIL_B/B+`),
+  - `T20` attachment richness already `PASS_B+`.
+
+Problem statement:
+- `S1` sessionization remains near-identity, producing mostly single-arrival sessions.
+- we need to reduce singleton-session pressure (`T19`) without opening non-`S1` lanes or regressing runtime/hard gates.
+
+Alternatives considered:
+1) immediate `S1` code redesign to full boundary-aware stateful sessionization.
+- deferred: higher blast radius and higher runtime risk before validating low-blast policy levers.
+2) policy-first calibration (session key granularity + timeout window), then full witness rerun (selected).
+- selected: lowest-risk owner-local change that can materially move `T19`.
+3) scorer threshold relaxation.
+- rejected: violates realism authority and fail-closed gate posture.
+
+Chosen lane for P4:
+1) expand `P4` in build plan with explicit `P4.0..P4.3` subphases and blocker reopen lane `P4.R1`.
+2) apply bounded `S1` policy calibration in `sessionisation_policy_6B.yaml`.
+3) execute full required rerun matrix for `S1` owner changes: `S1 -> S2 -> S3 -> S4 -> S5`.
+4) score and decide `UNLOCK_P5` vs `HOLD_P4_REOPEN`.
+5) if blocked, open one bounded reopen lane (`R1A` policy recalibration first, then `R1B` code-level boundary semantics only if needed).
+
+Invariants:
+- no schema/dataset-id changes for `s1_arrival_entities_6B` and `s1_session_index_6B`.
+- no scorer threshold edits.
+- no non-`S1` policy/code changes unless explicitly required by blocker ownership.
+- runtime non-regression rails remain binding (`S1<=800s` target, `<=900s` stretch).
+
+---
+
+### Entry: 2026-02-26 06:50
+
+P4.1 implementation decision (`S1` policy-first calibration).
+
+Applied policy delta:
+- file: `config/layer3/6B/sessionisation_policy_6B.yaml`
+- `policy_version: v1 -> v2`
+- session key fields:
+  - from `[party_id, device_id, merchant_id, channel_group, scenario_id]`
+  - to `[party_id, scenario_id]`
+- boundary window:
+  - `hard_timeout_seconds: 1200 -> 86400`
+  - `hard_break_seconds: 10800 -> 172800` (currently informational for existing runner path).
+
+Rationale:
+- `T19` failure is caused by extreme key fragmentation under narrow 20-minute buckets.
+- party-level daily window is the lowest-blast lane that materially increases multi-arrival sessions without changing schemas or non-`S1` owners.
+- this keeps deterministic session-id mechanics intact (`anchored_hash64_v1` over configured key + bucket).
+
+Risk controls:
+- full rerun matrix `S1 -> S2 -> S3 -> S4 -> S5` required before any closure claim.
+- if `T19` remains open or hard/runtime regressions appear, open `P4.R1` with bounded single-owner reopen sequencing.

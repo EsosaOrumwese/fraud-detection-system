@@ -11928,3 +11928,20 @@ ext_gate=M9_READY).
 - Learning P12..P15 replay/as-of/maturity and leakage fail-closed pinned.
 - Added handles for replay/leakage evidence surfaces and runtime guardrails.
 
+
+## Entry: 2026-02-26 07:34:31 +00:00 - Planning expansion kickoff for M9..M12
+- Scope: expand master plan sections for M9/M10/M11/M12 and create deep plans for each phase.
+- Constraint: align to dev_full authority/run-flow/handles with temporal realism and no-future-leakage contract.
+- Output target: execution-grade phase plans (capability lanes, blocker taxonomy, artifacts, DoDs, handoff criteria).
+
+
+## Entry: 2026-02-26 07:38:22 +00:00 - Completed M9..M12 planning expansion and deep-plan creation
+- Expanded platform.build_plan.md sections for M9/M10/M11/M12 from overview to execution-grade phase framing.
+- Added explicit sub-phase ladders (A..J), capability lanes, and strengthened DoD anchors for each phase.
+- Created deep plan docs:
+  - platform.M9.build_plan.md (P12 learning input readiness)
+  - platform.M10.build_plan.md (P13 OFS dataset closure)
+  - platform.M11.build_plan.md (P14 MF train/eval closure)
+  - platform.M12.build_plan.md (P15 MPR promotion/rollback closure)
+- Ensured deep plans include: authority inputs, scope boundaries, deliverables, anti-cram capability matrix, fail-closed blocker taxonomy, artifact contracts, completion checklists, and planning status.
+

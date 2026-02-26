@@ -1,9 +1,9 @@
 schema_version: 1
 policy_id: sessionisation_policy_6B
-policy_version: v1
+policy_version: v2
 
 session_key:
-  fields: [party_id, device_id, merchant_id, channel_group, scenario_id]
+  fields: [party_id, scenario_id]
   normalisation:
     channel_group: UPPERCASE_ASCII
   encoding:
@@ -11,8 +11,8 @@ session_key:
     null_token: "__NULL__"
 
 boundary_rules:
-  hard_timeout_seconds: 1200
-  hard_break_seconds: 10800
+  hard_timeout_seconds: 86400
+  hard_break_seconds: 172800
   break_on_day_boundary: false
 
 stochastic_boundary:

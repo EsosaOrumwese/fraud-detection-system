@@ -974,17 +974,45 @@ M8 execution status (2026-02-26):
 Status: `NOT_STARTED`
 
 Objective:
-- close `P12` with anti-leakage and replay-basis pinning.
+- close `P12` with production-realistic learning-input closure:
+  - replay basis pinned to offset ranges,
+  - strict as-of/maturity controls,
+  - fail-closed no-future-leakage posture.
 
 Entry gate:
 - M8 is `DONE`.
 
 Planned lanes:
-- learning input contract, as-of label policy, replay basis checks.
+- authority + handle closure for learning-input surfaces.
+- M8->M9 handoff and run-scope continuity.
+- replay-basis closure (`origin_offset` ranges) and manifest binding.
+- feature/label as-of boundary enforcement.
+- label maturity policy closure and coverage checks.
+- runtime-vs-learning surface separation (truth products forbidden in live lanes).
+- leakage guardrail evidence + readiness snapshot publication.
+- deterministic P12 verdict + M10 handoff + cost-outcome closure.
+
+M9 sub-phase plan:
+1. `M9.A` authority + handle closure (`P12`).
+2. `M9.B` handoff continuity and run-scope lock.
+3. `M9.C` replay-basis receipt closure.
+4. `M9.D` as-of + maturity policy closure.
+5. `M9.E` leakage guardrail evaluation.
+6. `M9.F` runtime/learning surface separation checks.
+7. `M9.G` readiness snapshot + blocker register publication.
+8. `M9.H` P12 gate rollup + verdict.
+9. `M9.I` phase budget + cost-outcome closure.
+10. `M9.J` M9 closure sync + M10 handoff.
 
 DoD anchors:
-- [ ] anti-leakage checks pass.
-- [ ] learning input readiness snapshot committed.
+- [ ] replay basis is committed as offset ranges with deterministic receipt.
+- [ ] as-of and maturity policies are pinned and evidence-backed.
+- [ ] leakage guardrail is green (`future timestamp` boundary checks pass).
+- [ ] runtime/learning surface separation checks are green.
+- [ ] learning input readiness snapshot + blocker register are committed.
+- [ ] deterministic `P12` verdict is committed with blocker-free next gate.
+- [ ] `m10_handoff_pack.json` is committed locally and durably.
+- [ ] M9 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M9.build_plan.md`
@@ -993,19 +1021,41 @@ Deep plan:
 Status: `NOT_STARTED`
 
 Objective:
-- close `P13` with immutable dataset manifest, fingerprint, and Iceberg table-commit evidence.
+- close `P13` with Databricks-driven OFS dataset closure under Iceberg governance and rollback safety.
 
 Entry gate:
 - M9 is `DONE`.
 
 Planned lanes:
-- Databricks dataset build, Iceberg (Glue catalog) table commit, quality gates, rollback recipe.
+- authority + handle closure for OFS build/evidence surfaces.
+- Databricks workspace/job readiness and identity checks.
+- OFS input binding to M9 replay/as-of/maturity closure.
+- dataset build execution and quality gates.
+- Iceberg write + Glue catalog commit verification.
+- manifest/fingerprint/time-bound audit publication.
+- rollback recipe authoring + execution check.
+- deterministic P13 verdict + M11 handoff + cost-outcome closure.
+
+M10 sub-phase plan:
+1. `M10.A` authority + handle closure (`P13`).
+2. `M10.B` Databricks runtime readiness.
+3. `M10.C` M9 input binding and immutability checks.
+4. `M10.D` OFS dataset build execution.
+5. `M10.E` quality-gate adjudication.
+6. `M10.F` Iceberg/Glue commit verification.
+7. `M10.G` manifest/fingerprint/time-bound audit publication.
+8. `M10.H` rollback recipe closure.
+9. `M10.I` P13 gate rollup + verdict.
+10. `M10.J` M10 closure sync + M11 handoff.
 
 DoD anchors:
 - [ ] OFS manifest committed.
 - [ ] dataset fingerprint committed.
 - [ ] Iceberg table/metadata commit receipt committed.
 - [ ] OFS rollback recipe committed.
+- [ ] OFS time-bound/leakage audit is committed and green.
+- [ ] deterministic `P13` verdict and `m11_handoff_pack.json` are committed.
+- [ ] M10 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M10.build_plan.md`
@@ -1014,18 +1064,40 @@ Deep plan:
 Status: `NOT_STARTED`
 
 Objective:
-- close `P14` with reproducible training/evaluation and candidate bundle evidence.
+- close `P14` with reproducible MF train/eval closure, MLflow lineage, and provenance-complete candidate bundle evidence.
 
 Entry gate:
 - M10 is `DONE`.
 
 Planned lanes:
-- SageMaker runs, MLflow lineage, eval gates, rollback/safe-disable path.
+- authority + handle closure for MF training/eval surfaces.
+- SageMaker training/eval runtime readiness.
+- training dataset immutability and input contract closure.
+- evaluation metrics/leakage/stability gates.
+- MLflow lineage closure and traceability checks.
+- candidate bundle publication with provenance.
+- safe-disable/rollback path publication.
+- deterministic P14 verdict + M12 handoff + cost-outcome closure.
+
+M11 sub-phase plan:
+1. `M11.A` authority + handle closure (`P14`).
+2. `M11.B` SageMaker runtime readiness.
+3. `M11.C` immutable input binding from M10 outputs.
+4. `M11.D` train/eval execution.
+5. `M11.E` leakage/stability/performance gates.
+6. `M11.F` MLflow lineage and evidence closure.
+7. `M11.G` candidate bundle + provenance publication.
+8. `M11.H` safe-disable/rollback closure.
+9. `M11.I` P14 gate rollup + verdict.
+10. `M11.J` M11 closure sync + M12 handoff.
 
 DoD anchors:
 - [ ] MF eval report committed.
 - [ ] candidate bundle receipt committed.
 - [ ] rollback/safe-disable evidence committed.
+- [ ] leakage/provenance checks are committed and green.
+- [ ] deterministic `P14` verdict and `m12_handoff_pack.json` are committed.
+- [ ] M11 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M11.build_plan.md`
@@ -1034,18 +1106,39 @@ Deep plan:
 Status: `NOT_STARTED`
 
 Objective:
-- close `P15` promotion corridor with rollback drill evidence.
+- close `P15` promotion corridor with compatibility-safe activation and non-optional rollback drill proof.
 
 Entry gate:
 - M11 is `DONE`.
 
 Planned lanes:
-- promotion gate checks, rollback drill, active-bundle compatibility checks.
+- authority + handle closure for promotion/registry surfaces.
+- candidate eligibility and compatibility prechecks.
+- promotion corridor event commit and registry append checks.
+- rollback drill execution and validation.
+- ACTIVE bundle resolution and runtime compatibility checks.
+- governance append and evidence closure.
+- deterministic P15 verdict + M13 handoff + cost-outcome closure.
+
+M12 sub-phase plan:
+1. `M12.A` authority + handle closure (`P15`).
+2. `M12.B` candidate eligibility precheck.
+3. `M12.C` compatibility gate checks.
+4. `M12.D` promotion event commit.
+5. `M12.E` rollback drill execution.
+6. `M12.F` ACTIVE resolution checks.
+7. `M12.G` governance append closure.
+8. `M12.H` P15 gate rollup + verdict.
+9. `M12.I` phase budget + cost-outcome closure.
+10. `M12.J` M12 closure sync + M13 handoff.
 
 DoD anchors:
 - [ ] promotion receipt committed.
 - [ ] rollback drill report committed.
 - [ ] active-bundle compatibility checks green.
+- [ ] governance append evidence is committed and coherent.
+- [ ] deterministic `P15` verdict and `m13_handoff_pack.json` are committed.
+- [ ] M12 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M12.build_plan.md`
