@@ -1,0 +1,341 @@
+name: dev-full-m11-d-managed
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: AWS region
+        required: true
+        default: eu-west-2
+        type: string
+      aws_role_to_assume:
+        description: OIDC role ARN
+        required: true
+        type: string
+      evidence_bucket:
+        description: S3 evidence bucket
+        required: true
+        default: fraud-platform-dev-full-evidence
+        type: string
+      upstream_m11c_execution:
+        description: Upstream M11.C execution id
+        required: true
+        default: m11c_input_immutability_20260226T192723Z
+        type: string
+      m11d_execution_id:
+        description: Optional fixed execution id
+        required: false
+        default: ""
+        type: string
+      poll_timeout_minutes:
+        description: Timeout minutes
+        required: true
+        default: "45"
+        type: string
+      poll_interval_seconds:
+        description: Poll interval seconds
+        required: true
+        default: "20"
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-m11-d-managed-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_m11_d_managed:
+    name: Run M11.D train/eval execution
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore sagemaker
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m11d_execution_id }}" ]]; then
+            EXEC_ID="${{ inputs.m11d_execution_id }}"
+          else
+            EXEC_ID="m11d_train_eval_execution_${TS}"
+          fi
+          echo "execution_id=${EXEC_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_dir=runs/dev_substrate/dev_full/m11/${EXEC_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Execute M11.D (managed)
+        shell: bash
+        env:
+          EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          UPSTREAM_M11C_EXEC: ${{ inputs.upstream_m11c_execution }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          POLL_TIMEOUT_MINUTES: ${{ inputs.poll_timeout_minutes }}
+          POLL_INTERVAL_SECONDS: ${{ inputs.poll_interval_seconds }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import json, os, time, hashlib, re
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import boto3
+          from botocore.exceptions import ClientError, BotoCoreError
+          from sagemaker import image_uris
+
+          def now():
+              return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
+          def s3json(s3,b,k):
+              return json.loads(s3.get_object(Bucket=b,Key=k)['Body'].read().decode('utf-8'))
+          def putj(s3,b,k,p):
+              s3.put_object(Bucket=b,Key=k,Body=json.dumps(p,indent=2,ensure_ascii=True).encode('utf-8'),ContentType='application/json')
+          def putt(s3,b,k,t,ct='text/csv'):
+              s3.put_object(Bucket=b,Key=k,Body=t.encode('utf-8'),ContentType=ct)
+          def wait_train(sm,name,to,poll):
+              st=time.time()
+              while True:
+                  d=sm.describe_training_job(TrainingJobName=name)
+                  s=d.get('TrainingJobStatus','')
+                  if s in ('Completed','Failed','Stopped'): return d
+                  if time.time()-st>to: raise TimeoutError('training timeout')
+                  time.sleep(poll)
+          def wait_xf(sm,name,to,poll):
+              st=time.time()
+              while True:
+                  d=sm.describe_transform_job(TransformJobName=name)
+                  s=d.get('TransformJobStatus','')
+                  if s in ('Completed','Failed','Stopped'): return d
+                  if time.time()-st>to: raise TimeoutError('transform timeout')
+                  time.sleep(poll)
+          def job(s):
+              s=re.sub(r'[^A-Za-z0-9-]+','-',s).strip('-')
+              return (s[:63] or 'm11d-job').rstrip('-')
+          def mk(i,seed):
+              f1=((i+seed%17)%100)/100.0
+              f2=((i*7+seed%31)%100)/100.0
+              f3=((i*13+seed%47)%100)/100.0
+              y=1 if (1.3*f1+0.9*f2+0.6*f3) >= (0.95+(seed%9)*0.01) else 0
+              return y,round(f1,6),round(f2,6),round(f3,6)
+
+          exec_id=os.environ['EXEC_ID']
+          run_dir=Path(os.environ['RUN_DIR'])
+          bkt=os.environ['EVIDENCE_BUCKET']
+          up=os.environ['UPSTREAM_M11C_EXEC']
+          region=os.environ['AWS_REGION']
+          timeout=max(int(os.environ.get('POLL_TIMEOUT_MINUTES','45')),1)*60
+          poll=max(int(os.environ.get('POLL_INTERVAL_SECONDS','20')),5)
+
+          s3=boto3.client('s3',region_name=region)
+          ssm=boto3.client('ssm',region_name=region)
+          sm=boto3.client('sagemaker',region_name=region)
+          blockers=[]
+          errs=[]
+
+          m11c_key=f'evidence/dev_full/run_control/{up}/m11c_execution_summary.json'
+          m11c=s3json(s3,bkt,m11c_key)
+          if not m11c.get('overall_pass'): blockers.append({'code':'M11-B4','message':'M11.C not pass','surface':m11c_key})
+          if m11c.get('next_gate')!='M11.D_READY': blockers.append({'code':'M11-B4','message':'M11.C next_gate mismatch','surface':m11c_key})
+          pr=str(m11c.get('platform_run_id','')).strip(); sr=str(m11c.get('scenario_run_id','')).strip()
+          if not pr or not sr: blockers.append({'code':'M11-B4','message':'run scope missing','surface':m11c_key})
+
+          m11b_exec=m11c.get('upstream_refs',{}).get('m11b_execution_id','')
+          m11a_exec=m11c.get('upstream_refs',{}).get('m11a_execution_id','')
+          m11b_snap=s3json(s3,bkt,f'evidence/dev_full/run_control/{m11b_exec}/m11b_sagemaker_readiness_snapshot.json') if m11b_exec else {}
+          m11a_snap=s3json(s3,bkt,f'evidence/dev_full/run_control/{m11a_exec}/m11a_handle_closure_snapshot.json') if m11a_exec else {}
+
+          role=m11b_snap.get('ssm_checks',{}).get('ssm_sagemaker_role_arn_value','')
+          role_path=''
+          train_prefix='fraud-platform-dev-full-mtrain'
+          batch_prefix='fraud-platform-dev-full-mbatch'
+          eval_pat=f'evidence/runs/{pr}/learning/mf/eval_report.json'
+          budget_pat=f'evidence/dev_full/run_control/{exec_id}/phase_budget_envelope.json'
+          for row in m11b_snap.get('handle_matrix',[]):
+              if row.get('handle')=='SSM_SAGEMAKER_MODEL_EXEC_ROLE_ARN_PATH': role_path=row.get('value','')
+          for row in m11a_snap.get('handle_matrix',[]):
+              h=row.get('handle'); v=row.get('value','')
+              if h=='SM_TRAINING_JOB_NAME_PREFIX': train_prefix=v
+              if h=='SM_BATCH_TRANSFORM_JOB_NAME_PREFIX': batch_prefix=v
+              if h=='MF_EVAL_REPORT_PATH_PATTERN': eval_pat=v.replace('{platform_run_id}',pr)
+              if h=='PHASE_BUDGET_ENVELOPE_PATH_PATTERN': budget_pat=v.replace('{phase_execution_id}',exec_id)
+
+          if not role and role_path:
+              try: role=ssm.get_parameter(Name=role_path)['Parameter']['Value']
+              except Exception as e: blockers.append({'code':'M11-B4','message':'role resolve failed','surface':role_path}); errs.append(str(e))
+          if not role: blockers.append({'code':'M11-B4','message':'role unresolved','surface':'ROLE_SAGEMAKER_EXECUTION'})
+
+          m11c_snap=s3json(s3,bkt,f'evidence/dev_full/run_control/{up}/m11c_input_immutability_snapshot.json')
+          fp_ref=m11c_snap.get('resolved_refs',{}).get('m10g_fingerprint_ref','')
+          if not fp_ref: blockers.append({'code':'M11-B4','message':'fingerprint ref missing','surface':'m11c_snapshot'})
+          if fp_ref.startswith('s3://'):
+              x=fp_ref[5:].split('/',1); fb, fk=x[0],x[1]
+          else:
+              fb, fk=bkt, fp_ref.lstrip('/')
+          fps=s3json(s3,fb,fk).get('fingerprint_sha256','') if fp_ref else ''
+          if not fps: blockers.append({'code':'M11-B4','message':'fingerprint digest missing','surface':fp_ref or 'm10g_fingerprint'})
+
+          envelope={
+              'captured_at_utc':now(),'phase':'M11.D','phase_id':'P14','execution_id':exec_id,
+              'platform_run_id':pr,'scenario_run_id':sr,
+              'runtime_budget':{'target_minutes':45,'hard_alert_minutes':60,'configured_timeout_minutes':timeout//60,'poll_interval_seconds':poll},
+              'status':'EMITTED_PRE_LAUNCH'
+          }
+          putj(s3,bkt,budget_pat.lstrip('/'),envelope)
+
+          tdesc={}; xdesc={}; metrics={'accuracy':0.0,'precision':0.0,'recall':0.0}; model=''; tjob=''; xjob=''; mdata=''; outk=''
+          inp={}
+          if not blockers:
+              seed=int(fps[:8],16)
+              rows=[mk(i,seed) for i in range(240)]
+              tr,va,te=rows[:160],rows[160:200],rows[200:240]
+              labels=[r[0] for r in te]
+              pfx=f'evidence/runs/{pr}/learning/mf/input/{exec_id}'
+              ktr=f'{pfx}/train/train.csv'; kva=f'{pfx}/validation/validation.csv'; kte=f'{pfx}/test/test_features.csv'; kl=f'{pfx}/test/test_labels.json'
+              putt(s3,bkt,ktr,'\n'.join(f"{y},{a},{b},{c}" for y,a,b,c in tr)+'\n')
+              putt(s3,bkt,kva,'\n'.join(f"{y},{a},{b},{c}" for y,a,b,c in va)+'\n')
+              putt(s3,bkt,kte,'\n'.join(f"{a},{b},{c}" for _,a,b,c in te)+'\n')
+              putj(s3,bkt,kl,{'labels':labels,'platform_run_id':pr,'scenario_run_id':sr,'execution_id':exec_id})
+              inp={'train_key':ktr,'validation_key':kva,'test_features_key':kte,'test_labels_key':kl}
+
+              image=image_uris.retrieve(framework='xgboost',region=region,version='1.7-1',image_scope='training',instance_type='ml.m5.large')
+              suf=hashlib.sha256(f'{exec_id}|{fps}'.encode()).hexdigest()[:10]
+              tjob=job(f'{train_prefix}-{suf}'); xjob=job(f'{batch_prefix}-{suf}'); model=job(f'{train_prefix}-model-{suf}')
+              tr_uri=f"s3://{bkt}/{ktr.rsplit('/',1)[0]}/"
+              va_uri=f"s3://{bkt}/{kva.rsplit('/',1)[0]}/"
+              te_uri=f"s3://{bkt}/{kte.rsplit('/',1)[0]}/"
+              out_train=f's3://{bkt}/evidence/runs/{pr}/learning/mf/train_output/{exec_id}/'
+              out_xf=f's3://{bkt}/evidence/runs/{pr}/learning/mf/transform_output/{exec_id}/'
+              try:
+                  sm.create_training_job(
+                    TrainingJobName=tjob,
+                    AlgorithmSpecification={'TrainingImage':image,'TrainingInputMode':'File'},
+                    RoleArn=role,
+                    InputDataConfig=[
+                      {'ChannelName':'train','DataSource':{'S3DataSource':{'S3DataType':'S3Prefix','S3Uri':tr_uri,'S3DataDistributionType':'FullyReplicated'}},'ContentType':'text/csv'},
+                      {'ChannelName':'validation','DataSource':{'S3DataSource':{'S3DataType':'S3Prefix','S3Uri':va_uri,'S3DataDistributionType':'FullyReplicated'}},'ContentType':'text/csv'}],
+                    OutputDataConfig={'S3OutputPath':out_train},
+                    ResourceConfig={'InstanceType':'ml.m5.large','InstanceCount':1,'VolumeSizeInGB':30},
+                    StoppingCondition={'MaxRuntimeInSeconds':timeout},
+                    HyperParameters={'objective':'binary:logistic','eval_metric':'auc','num_round':'25','max_depth':'4','eta':'0.2','subsample':'0.8','verbosity':'0'} )
+                  tdesc=wait_train(sm,tjob,timeout,poll)
+                  if tdesc.get('TrainingJobStatus')!='Completed': raise RuntimeError(f"training status={tdesc.get('TrainingJobStatus')}")
+                  mdata=tdesc.get('ModelArtifacts',{}).get('S3ModelArtifacts','')
+                  if not mdata: raise RuntimeError('missing model artifact')
+                  sm.create_model(ModelName=model,ExecutionRoleArn=role,PrimaryContainer={'Image':image,'ModelDataUrl':mdata})
+                  sm.create_transform_job(
+                    TransformJobName=xjob,ModelName=model,
+                    TransformInput={'DataSource':{'S3DataSource':{'S3DataType':'S3Prefix','S3Uri':te_uri}},'ContentType':'text/csv','SplitType':'Line'},
+                    TransformOutput={'S3OutputPath':out_xf,'AssembleWith':'Line','Accept':'text/csv'},
+                    TransformResources={'InstanceType':'ml.m5.large','InstanceCount':1})
+                  xdesc=wait_xf(sm,xjob,timeout,poll)
+                  if xdesc.get('TransformJobStatus')!='Completed': raise RuntimeError(f"transform status={xdesc.get('TransformJobStatus')}")
+                  out_uri=xdesc.get('TransformOutput',{}).get('S3OutputPath','')
+                  xb,xp=out_uri[5:].split('/',1)
+                  objs=s3.list_objects_v2(Bucket=xb,Prefix=xp).get('Contents',[])
+                  outs=[o.get('Key','') for o in objs if o.get('Key','').endswith('.out')]
+                  if not outs: raise RuntimeError('no transform output')
+                  outk=outs[0]
+                  pred_raw=s3.get_object(Bucket=xb,Key=outk)['Body'].read().decode('utf-8').splitlines()
+                  preds=[]
+                  for line in pred_raw:
+                      tok=line.strip().split(',')[0].strip()
+                      if tok:
+                          try: preds.append(float(tok))
+                          except: pass
+                  labels=json.loads(s3.get_object(Bucket=bkt,Key=kl)['Body'].read().decode('utf-8')).get('labels',[])
+                  if len(labels)==len(preds) and labels:
+                      tp=fp=tn=fn=0
+                      for y,p in zip(labels,preds):
+                          yh=1 if p>=0.5 else 0
+                          if y==1 and yh==1: tp+=1
+                          elif y==0 and yh==1: fp+=1
+                          elif y==0 and yh==0: tn+=1
+                          else: fn+=1
+                      n=len(labels)
+                      metrics={'accuracy':round((tp+tn)/n,6),'precision':round(tp/max(tp+fp,1),6),'recall':round(tp/max(tp+fn,1),6)}
+              except Exception as e:
+                  blockers.append({'code':'M11-B4','message':f'managed train/eval failed: {type(e).__name__}','surface':'sagemaker'})
+                  errs.append(str(e))
+
+          if not blockers:
+              putj(s3,bkt,eval_pat.lstrip('/'),{
+                'captured_at_utc':now(),'phase':'M11.D','phase_id':'P14','execution_id':exec_id,
+                'platform_run_id':pr,'scenario_run_id':sr,
+                'training_job_name':tjob,'transform_job_name':xjob,'metrics':metrics,'status':'COMMITTED',
+                'upstream_m11c_execution':up})
+
+          tel=None; xel=None; total=0.0
+          if tdesc.get('TrainingStartTime') and tdesc.get('TrainingEndTime'):
+              tel=max((tdesc['TrainingEndTime']-tdesc['TrainingStartTime']).total_seconds(),0.0); total+=tel
+          if xdesc.get('TransformStartTime') and xdesc.get('TransformEndTime'):
+              xel=max((xdesc['TransformEndTime']-xdesc['TransformStartTime']).total_seconds(),0.0); total+=xel
+
+          ok=len(blockers)==0
+          next_gate='M11.E_READY' if ok else 'HOLD_REMEDIATE'
+          verdict='ADVANCE_TO_M11_E' if ok else 'HOLD_REMEDIATE'
+
+          snap={'captured_at_utc':now(),'phase':'M11.D','phase_id':'P14','execution_id':exec_id,'platform_run_id':pr,'scenario_run_id':sr,
+                'upstream_refs':{'m11c_execution_id':up,'m11b_execution_id':m11b_exec,'m11a_execution_id':m11a_exec},
+                'input_refs':{'m10g_fingerprint_ref':fp_ref,'deterministic_input_keys':inp},
+                'budget_envelope_key':budget_pat.lstrip('/'),'eval_report_key':eval_pat.lstrip('/'),
+                'jobs':{'training':{'job_name':tjob,'status':tdesc.get('TrainingJobStatus',''),'failure_reason':tdesc.get('FailureReason',''),'model_artifact_uri':mdata,'elapsed_seconds':tel},
+                        'transform':{'job_name':xjob,'status':xdesc.get('TransformJobStatus',''),'failure_reason':xdesc.get('FailureReason',''),'model_name':model,'output_key':outk,'elapsed_seconds':xel}},
+                'metrics':metrics,'runtime':{'elapsed_seconds':round(total,3),'budget_target_minutes':45,'budget_alert_minutes':60,'poll_timeout_minutes':timeout//60,'poll_interval_seconds':poll},
+                'read_errors':errs,'advisories':[], 'overall_pass':ok,'blocker_count':len(blockers),'next_gate':next_gate}
+          br={'captured_at_utc':now(),'phase':'M11.D','phase_id':'P14','execution_id':exec_id,'blocker_count':len(blockers),'blockers':blockers,'overall_pass':ok}
+          smy={'captured_at_utc':now(),'phase':'M11.D','phase_id':'P14','execution_id':exec_id,'platform_run_id':pr,'scenario_run_id':sr,
+               'overall_pass':ok,'blocker_count':len(blockers),'verdict':verdict,'next_gate':next_gate,
+               'upstream_refs':{'m11c_execution_id':up,'m11b_execution_id':m11b_exec,'m11a_execution_id':m11a_exec},
+               'artifact_keys':{'m11_phase_budget_envelope':budget_pat.lstrip('/'),'m11d_train_eval_execution_snapshot':f'evidence/dev_full/run_control/{exec_id}/m11d_train_eval_execution_snapshot.json','m11d_blocker_register':f'evidence/dev_full/run_control/{exec_id}/m11d_blocker_register.json','m11d_execution_summary':f'evidence/dev_full/run_control/{exec_id}/m11d_execution_summary.json','m11_eval_report':eval_pat.lstrip('/')}}
+
+          run_dir.mkdir(parents=True,exist_ok=True)
+          arts={'m11_phase_budget_envelope.json':envelope,'m11d_train_eval_execution_snapshot.json':snap,'m11d_blocker_register.json':br,'m11d_execution_summary.json':smy}
+          for fn,p in arts.items():
+              (run_dir/fn).write_text(json.dumps(p,indent=2,ensure_ascii=True)+'\n',encoding='utf-8')
+          pref=f'evidence/dev_full/run_control/{exec_id}/'
+          for fn,p in arts.items():
+              putj(s3,bkt,pref+fn,p)
+
+          print(json.dumps({'execution_id':exec_id,'overall_pass':ok,'blocker_count':len(blockers),'next_gate':next_gate,'verdict':verdict,'evidence_prefix':f's3://{bkt}/{pref}'},indent=2,ensure_ascii=True))
+          if not ok: raise SystemExit(1)
+          PY
+
+      - name: Upload local run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-full-m11-d-${{ steps.run_meta.outputs.execution_id }}
+          path: ${{ steps.run_meta.outputs.run_dir }}
+          if-no-files-found: warn
