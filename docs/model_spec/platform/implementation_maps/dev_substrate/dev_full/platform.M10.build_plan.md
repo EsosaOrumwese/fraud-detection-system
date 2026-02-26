@@ -480,20 +480,35 @@ Runtime budget:
 1. target <= 20 minutes wall clock.
 
 DoD:
-- [ ] upstream `M10.E` gate validated (`M10.F_READY`).
-- [ ] deterministic Glue database + table commit surface resolved.
-- [ ] deterministic S3 warehouse marker surface resolved.
-- [ ] `m10f_iceberg_commit_snapshot.json` committed locally and durably.
-- [ ] `m10f_blocker_register.json` and `m10f_execution_summary.json` committed locally and durably.
-- [ ] blocker-free pass emits `next_gate=M10.G_READY`.
+- [x] upstream `M10.E` gate validated (`M10.F_READY`).
+- [x] deterministic Glue database + table commit surface resolved.
+- [x] deterministic S3 warehouse marker surface resolved.
+- [x] `m10f_iceberg_commit_snapshot.json` committed locally and durably.
+- [x] `m10f_blocker_register.json` and `m10f_execution_summary.json` committed locally and durably.
+- [x] blocker-free pass emits `next_gate=M10.G_READY`.
 
 Execution status:
 1. Execution id:
-   - `[pending]`
+   - `m10f_iceberg_commit_20260226T153247Z`
 2. Result:
-   - `[pending]`
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M10.G_READY`
 3. Durable evidence:
-   - `[pending]`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10f_iceberg_commit_20260226T153247Z/`
+4. Managed run reference:
+   - Actions run: `22448956775` (`migrate-dev`, commit `9ffd1108`)
+   - Workflow: `.github/workflows/dev_full_m10_d_managed.yml`
+5. Commit-surface readback (as executed):
+   - Glue database:
+     - `fraud_platform_dev_full_ofs`
+   - Glue table:
+     - `ofs_platform_20260223t184232z`
+   - S3 marker object:
+     - `s3://fraud-platform-dev-full-object-store/learning/ofs/iceberg/warehouse/ofs_platform_20260223t184232z/_m10f_commit_marker.json`
+6. Blocker remediation trail (M10-B6):
+   - first run failed due Glue AccessDenied under GitHub OIDC role:
+     - run `22448721513`, execution `m10f_iceberg_commit_20260226T152706Z`.
+   - remediated via Terraform targeted apply on `infra/terraform/dev_full/ops` policy `aws_iam_role_policy.github_actions_m6f_remote`.
+   - rerun reached blocker-free closure (`M10.G_READY`).
 
 ### M10.G Manifest + Fingerprint + Time-Bound Audit
 Goal:
@@ -585,7 +600,7 @@ DoD:
 - [x] `M10.C` complete
 - [x] `M10.D` complete
 - [x] `M10.E` complete
-- [ ] `M10.F` complete
+- [x] `M10.F` complete
 - [ ] `M10.G` complete
 - [ ] `M10.H` complete
 - [ ] `M10.I` complete
@@ -601,4 +616,5 @@ DoD:
    - `.github/workflows/dev_full_m10_ab_managed.yml`
    - `.github/workflows/dev_full_m10_d_managed.yml`
 6. `M10.E` is closed green in managed execution (`22447779212`).
-7. Next action is `M10.F` expansion and execution.
+7. `M10.F` is closed green in managed execution (`22448956775`) after IAM remediation of `M10-B6`.
+8. Next action is `M10.G` expansion and execution.

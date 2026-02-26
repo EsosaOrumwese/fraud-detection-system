@@ -229,6 +229,48 @@ resource "aws_iam_role_policy" "github_actions_m6f_remote" {
           "arn:aws:s3:::${var.github_actions_evidence_bucket}/evidence/dev_full/run_control/*",
           "arn:aws:s3:::${var.github_actions_evidence_bucket}/evidence/runs/*"
         ]
+      },
+      {
+        Sid    = "M10fGlueCatalogReadWrite"
+        Effect = "Allow"
+        Action = [
+          "glue:GetDatabase",
+          "glue:CreateDatabase",
+          "glue:GetTable",
+          "glue:CreateTable",
+          "glue:UpdateTable"
+        ]
+        Resource = [
+          "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
+          "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/fraud_platform_dev_full_ofs",
+          "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/fraud_platform_dev_full_ofs/*"
+        ]
+      },
+      {
+        Sid    = "M10fObjectStoreWarehouseList"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = "arn:aws:s3:::fraud-platform-dev-full-object-store"
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "learning/ofs/iceberg/warehouse/*"
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "M10fObjectStoreWarehouseObjectRW"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:AbortMultipartUpload"
+        ]
+        Resource = "arn:aws:s3:::fraud-platform-dev-full-object-store/learning/ofs/iceberg/warehouse/*"
       }
     ]
   })

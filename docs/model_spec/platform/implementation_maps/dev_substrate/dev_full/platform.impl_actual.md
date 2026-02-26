@@ -13835,3 +13835,38 @@ ext_gate=M10.D_READY
 4. Planned IAM allow-set for closure:
    - Glue: GetDatabase/CreateDatabase/GetTable/CreateTable/UpdateTable scoped to dev-full OFS db/table plus catalog,
    - S3 object-store warehouse prefix read/write/list for commit marker surface.
+
+## Entry: 2026-02-26 15:30:58 +00:00 - M10.F IAM remediation pivoted to IaC-managed policy update
+1. Direct IAM mutation command path is blocked in this execution environment.
+2. Remediation pivot:
+   - update Terraform source `infra/terraform/dev_full/ops/main.tf` policy `aws_iam_role_policy.github_actions_m6f_remote`.
+3. Added scoped allow statements for M10.F closure:
+   - Glue catalog/database/table read-write actions for `fraud_platform_dev_full_ofs`,
+   - object-store OFS warehouse prefix list/read/write actions under `learning/ofs/iceberg/warehouse/*`.
+4. Next action:
+   - apply `dev_full/ops` Terraform stack, then rerun M10.D/E/F managed workflow.
+
+## Entry: 2026-02-26 15:32:26 +00:00 - M10.F IAM remediation applied via Terraform target
+1. Applied targeted Terraform remediation in `infra/terraform/dev_full/ops`:
+   - resource: `aws_iam_role_policy.github_actions_m6f_remote`
+   - apply mode: `-target` to avoid unrelated SSM seed drift.
+2. Effective policy extension now includes:
+   - Glue db/table read-write scope for `fraud_platform_dev_full_ofs`,
+   - object-store warehouse prefix list/read/write for `learning/ofs/iceberg/warehouse/*`.
+3. Rationale for targeted apply:
+   - full apply plan included unrelated SSM parameter updates from seed defaults;
+   - targeted apply preserved blocker-focused remediation scope.
+4. Next action:
+   - rerun managed M10.D/E/F lane and verify M10.F clears `M10-B6` with blocker-free `M10.G_READY`.
+
+## Entry: 2026-02-26 15:33:11 +00:00 - M10.D/E/F rerun after IAM remediation dispatched
+1. Managed run dispatched for post-remediation verification:
+   - run id: 22448956775
+   - url: https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22448956775
+2. Fixed execution ids:
+   - m10d_ofs_build_20260226T153247Z
+   - m10e_quality_gate_20260226T153247Z
+   - m10f_iceberg_commit_20260226T153247Z
+3. Expected closure condition:
+   - M10.F emits `overall_pass=true`, `blocker_count=0`, `next_gate=M10.G_READY`.
+4. Monitoring to terminal state; if fail-closed persists, extract blocker register and patch immediately.

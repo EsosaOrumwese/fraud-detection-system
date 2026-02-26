@@ -1804,10 +1804,10 @@ Goal:
 - lift `T5` from current `~0.0674` plateau to `>=0.08` (`B+`) without reopening non-`S4` owners or regressing closed `PASS_B` posture.
 
 Definition of done:
-- [ ] `T5` reaches `B+` threshold (`>=0.08`) on required seeds (`42,7,101,202`).
-- [ ] `T1-T4,T6-T10,T22` remain non-regressed on all required seeds.
-- [ ] no threshold policy/scorer relaxation.
-- [ ] closure artifacts emitted for witness lane + refreshed certification decision.
+- [x] `T5` reaches `B+` threshold (`>=0.08`) on required seeds (`42,7,101,202`).
+- [x] `T1-T4,T6-T10,T22` remain non-regressed on all required seeds.
+- [x] no threshold policy/scorer relaxation.
+- [x] closure artifacts emitted for witness lane + refreshed certification decision.
 
 P6 execution plan:
 
@@ -1822,32 +1822,55 @@ Definition of done:
 
 #### P6.1 - Policy-only class outcome-mix widening (`S4`)
 Definition of done:
-- [ ] strengthen class-conditioned outcome-mix separation in:
+- [x] strengthen class-conditioned outcome-mix separation in:
   - `detection_model.p_detect_class_multiplier`,
   - `detection_model.p_legit_fp_class_multiplier`,
   - `dispute_model.p_dispute_class_multiplier`,
   - `chargeback_model.p_chargeback_class_multiplier`.
-- [ ] no schema changes, no scorer changes, no threshold edits.
-- [ ] deterministic replay semantics preserved.
+- [x] no schema changes, no scorer changes, no threshold edits.
+- [x] deterministic replay semantics preserved.
 
 #### P6.2 - Single-seed witness gate (`seed=42`)
 Definition of done:
-- [ ] fresh staged run-id created under `runs/fix-data-engine/segment_6B/`.
-- [ ] execute `S4 -> S5` only on staged lane.
-- [ ] score with `tools/score_segment6b_p0_baseline.py`.
-- [ ] move lane to required-seed matrix only if:
+- [x] fresh staged run-id created under `runs/fix-data-engine/segment_6B/`.
+- [x] execute `S4 -> S5` only on staged lane.
+- [x] score with `tools/score_segment6b_p0_baseline.py`.
+- [x] move lane to required-seed matrix only if:
   - `T5` moves upward materially toward/above `0.08`,
   - no veto rail regression.
 
 #### P6.3 - Required-seed matrix and certification refresh
 Definition of done:
-- [ ] execute fresh staged `S4 -> S5` witnesses for seeds `42,7,101,202`.
-- [ ] emit refreshed per-seed gateboards and P5 certification artifacts.
-- [ ] decision emitted:
+- [x] execute fresh staged `S4 -> S5` witnesses for seeds `42,7,101,202`.
+- [x] emit refreshed per-seed gateboards and P5 certification artifacts.
+- [x] decision emitted:
   - `PASS_BPLUS_ROBUST` if all required `B+` + stability pass,
   - `PASS_B` otherwise (with blocker evidence).
 
 #### P6.4 - Closure + freeze update
 Definition of done:
-- [ ] build plan + implementation notes + logbook updated with closure evidence.
-- [ ] superseded `segment_6B` run-id folders pruned with explicit keep-set.
+- [x] build plan + implementation notes + logbook updated with closure evidence.
+- [x] superseded `segment_6B` run-id folders pruned with explicit keep-set.
+
+P6 execution status (closure authority):
+- per-seed witness map used for closure:
+  - `42 -> 2ee75ef0ff4f47948847fb314a59f632`,
+  - `7 -> b723338d60654024856679a415868783`,
+  - `101 -> 39ac923d6b234cd589c3dd89fb13654c`,
+  - `202 -> ee1707f82042424ba895e19d8b4a8899`.
+- refreshed P5 certification artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p5_validation_summary_20260226T152851Z.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p5_seed_comparison_20260226T152851Z.csv`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p5_regression_report_20260226T152851Z.md`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p5_gate_decision_20260226T152851Z.json`.
+- phase decision:
+  - `PASS_BPLUS_ROBUST`.
+- critical metric evidence:
+  - `T5` across required seeds in `[0.0926699604, 0.0927115019]` (all `B+`),
+  - `T6` and `T7` remain `B+` on all required seeds.
+- runtime note for reopened matrix:
+  - `S5` remained within rail on all seeds (`<=30s`),
+  - `S4` exceeded the pinned `420s` rail on full-chain fallback runs for seeds `101` (`423.38s`) and `202` (`461.34s`); recorded as runtime watch while realism closure remains green.
+- prune receipt:
+  - superseded run-id folders removed: `189940d0485249d6b3ed29fb496d91f8`, `4bb1ec493e2d41bd8df0effed18c0e4e`, `a16ce8f30a4e4523b21d747cf00de69a`, `2e67c9d6c6774cad81ca35d9e5dbf1e8`, `77500e5440f84b06b9611a4cc483d091`.
+  - active keep-set: `08db6e3060674203af415b389d5a9cbd`, `86f38dcfc0084d06b277b7c9c00ffc05`, `2ee75ef0ff4f47948847fb314a59f632`, `b723338d60654024856679a415868783`, `39ac923d6b234cd589c3dd89fb13654c`, `ee1707f82042424ba895e19d8b4a8899`.

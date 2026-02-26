@@ -1223,6 +1223,21 @@ M10 execution status:
      - `leakage_future_breach_count=0`,
    - durable evidence:
      - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10e_quality_gate_20260226T150339Z/`.
+8. `M10.F` Iceberg + Glue commit verification is now green in managed lane:
+   - workflow: `.github/workflows/dev_full_m10_d_managed.yml`,
+   - Actions run: `22448956775` (`migrate-dev`, commit `9ffd1108`),
+   - execution: `m10f_iceberg_commit_20260226T153247Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M10.G_READY`,
+   - commit-surface readback:
+     - Glue database: `fraud_platform_dev_full_ofs`,
+     - Glue table: `ofs_platform_20260223t184232z`,
+     - S3 marker: `s3://fraud-platform-dev-full-object-store/learning/ofs/iceberg/warehouse/ofs_platform_20260223t184232z/_m10f_commit_marker.json`,
+   - durable evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10f_iceberg_commit_20260226T153247Z/`.
+9. `M10.F` blocker remediation (fail-closed) is closed:
+   - first pass failed with `M10-B6` (`Glue AccessDenied`) in run `22448721513`,
+   - remediated via Terraform targeted update to `infra/terraform/dev_full/ops` policy `aws_iam_role_policy.github_actions_m6f_remote`,
+   - rerun cleared blocker with `next_gate=M10.G_READY`.
 
 DoD anchors:
 - [ ] OFS manifest committed.
@@ -1355,4 +1370,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M10.F` (Iceberg + Glue commit verification) using `M10.E` green closure (`m10e_quality_gate_20260226T150339Z`) as entry basis.
+- Expand and execute `M10.G` (manifest + fingerprint + time-bound audit) using `M10.F` green closure (`m10f_iceberg_commit_20260226T153247Z`) as entry basis.
