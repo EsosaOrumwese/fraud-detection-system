@@ -1,0 +1,178 @@
+name: dev-full-m7k-throughput-cert
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "entry (M7.K.A) or cert (M7.K.B-E)"
+        required: true
+        default: "entry"
+        type: choice
+        options:
+          - entry
+          - cert
+      aws_region:
+        description: "AWS region"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN"
+        required: true
+        type: string
+      platform_run_id:
+        description: "Pinned platform run id"
+        required: true
+        type: string
+      scenario_run_id:
+        description: "Pinned scenario run id"
+        required: true
+        type: string
+      upstream_m7j_execution:
+        description: "Upstream M7.J execution id"
+        required: true
+        type: string
+      upstream_m7k_entry_execution:
+        description: "Upstream M7.K.A execution id (required when mode=cert)"
+        required: false
+        default: ""
+        type: string
+      evidence_bucket:
+        description: "S3 evidence bucket"
+        required: true
+        default: "fraud-platform-dev-full-evidence"
+        type: string
+      m7k_execution_id:
+        description: "Optional fixed execution id"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-m7k-${{ inputs.mode }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_m7k:
+    name: Run M7.K lane
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m7k_execution_id }}" ]]; then
+            EXEC_ID="${{ inputs.m7k_execution_id }}"
+          else
+            if [[ "${{ inputs.mode }}" == "entry" ]]; then
+              EXEC_ID="m7r_m7k_entry_${TS}"
+            else
+              EXEC_ID="m7s_m7k_cert_${TS}"
+            fi
+          fi
+          RUN_DIR="runs/dev_substrate/dev_full/m7/${EXEC_ID}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "execution_id=${EXEC_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Execute M7.K lane
+        shell: bash
+        env:
+          M7K_MODE: ${{ inputs.mode }}
+          M7K_EXECUTION_ID: ${{ steps.run_meta.outputs.execution_id }}
+          M7K_RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+          UPSTREAM_M7J_EXECUTION: ${{ inputs.upstream_m7j_execution }}
+          UPSTREAM_M7K_ENTRY_EXECUTION: ${{ inputs.upstream_m7k_entry_execution }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/m7k_throughput_cert.py
+
+      - name: Fail-closed verdict gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.mode }}" == "entry" ]]; then
+            SUMMARY_PATH="${{ steps.run_meta.outputs.run_dir }}/m7k_entry_execution_summary.json"
+            EXPECTED_VERDICT="ENTRY_READY"
+            EXPECTED_GATE="M7.K.B_READY"
+          else
+            SUMMARY_PATH="${{ steps.run_meta.outputs.run_dir }}/m7k_throughput_cert_execution_summary.json"
+            BLOCKER_PATH="${{ steps.run_meta.outputs.run_dir }}/m7k_throughput_cert_blocker_register.json"
+            export BLOCKER_PATH
+            EXPECTED_VERDICT="THROUGHPUT_CERTIFIED"
+            EXPECTED_GATE="M8_READY"
+          fi
+          export SUMMARY_PATH EXPECTED_VERDICT EXPECTED_GATE
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          summary = json.loads(Path(os.environ["SUMMARY_PATH"]).read_text(encoding="utf-8"))
+          blocker_count = int(summary.get("blocker_count", 0))
+          blocker_path = os.environ.get("BLOCKER_PATH", "")
+          if blocker_path:
+              blockers = json.loads(Path(blocker_path).read_text(encoding="utf-8"))
+              blocker_count = int(blockers.get("blocker_count", blocker_count))
+          print(json.dumps({
+              "execution_id": summary.get("execution_id"),
+              "overall_pass": summary.get("overall_pass"),
+              "verdict": summary.get("verdict"),
+              "next_gate": summary.get("next_gate"),
+              "blocker_count": blocker_count,
+          }, ensure_ascii=True))
+          if (not bool(summary.get("overall_pass"))) or blocker_count != 0:
+              sys.exit(1)
+          if str(summary.get("verdict", "")).strip() != os.environ["EXPECTED_VERDICT"]:
+              sys.exit(1)
+          if str(summary.get("next_gate", "")).strip() != os.environ["EXPECTED_GATE"]:
+              sys.exit(1)
+          PY
+
+      - name: Upload M7.K artifact set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m7k-${{ inputs.mode }}-${{ steps.run_meta.outputs.timestamp }}
+          path: ${{ steps.run_meta.outputs.run_dir }}
+          if-no-files-found: warn
