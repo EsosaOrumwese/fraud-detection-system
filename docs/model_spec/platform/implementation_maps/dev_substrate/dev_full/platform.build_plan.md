@@ -94,7 +94,7 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M4 | P2 | Spine runtime-lane readiness (managed-first) | DONE |
 | M5 | P3-P4 | Oracle readiness + ingest preflight | DONE |
 | M6 | P5-P7 | Control + Ingress closure | DONE |
-| M7 | P8-P10 | RTDL + Case/Labels closure | DONE |
+| M7 | P8-P10 | RTDL + Case/Labels closure | ACTIVE |
 | M8 | P11 | Spine obs/gov closure + non-regression pack | NOT_STARTED |
 | M9 | P12 | Learning input readiness | NOT_STARTED |
 | M10 | P13 | OFS dataset closure | NOT_STARTED |
@@ -706,10 +706,10 @@ Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P7.build_plan.md`
 
 ## M7 - RTDL and Case/Labels Closure
-Status: `DONE`
+Status: `ACTIVE`
 
 Objective:
-- close `P8-P10` for RTDL, decision chain, and case/label append lanes with component-level verification (no bundled closure claims).
+- close `P8-P10` for RTDL, decision chain, and case/label append lanes with component-level verification (no bundled closure claims), then close `M7.K` non-waived throughput certification.
 
 Entry gate:
 - M6 is `DONE`.
@@ -800,16 +800,18 @@ Current M7 execution posture:
   - workflow run `22426311129`,
   - execution `m7q_m7_rollup_sync_20260226T031710Z`,
   - `overall_pass=true`, `verdict=ADVANCE_TO_M8`, `blocker_count=0`, `next_gate=M8_READY`.
-- `M7` is now functionally closed green and has emitted deterministic `M8` handoff artifacts.
-- Post-M7 throughput certification caveat (deferred):
-  - `P8/P9` throughput checks are currently in low-sample guarded mode (`throughput_gate_mode=waived_low_sample`).
-  - non-waived throughput certification remains mandatory and is scheduled immediately after `M7` closure using the pinned target profile (`134,000,000 events/hour`).
+- `M7` is functionally closed green and has emitted deterministic `M8` handoff artifacts, but remains `ACTIVE` until `M7.K` closes.
+- `M7.K` throughput certification is now an explicit active lane (non-waived, mandatory for production-readiness claim):
+  - scope: `P8/P9` lanes currently in low-sample guarded mode (`throughput_gate_mode=waived_low_sample`),
+  - target profile: `134,000,000 events/hour` (`~37,223 events/sec` sustained for 60 minutes),
+  - closure requirement: bounded non-soak + staged high-volume + bounded soak evidence with deterministic verdict.
 
 DoD anchors:
 - [x] RTDL core closure evidence is green.
 - [x] decision/action/audit triplet closure is green.
 - [x] case/label append closure is green.
 - [x] M7 rollup verdict is deterministic with blocker-free handoff to M8.
+- [ ] non-waived `P8/P9` throughput certification (`M7.K`) is closed green.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.build_plan.md`
@@ -824,7 +826,7 @@ Objective:
 - close `P11` and publish spine non-regression pack.
 
 Entry gate:
-- M7 is `DONE`.
+- M7 is `DONE` including `M7.K` throughput certification closure.
 
 Planned lanes:
 - run report/reconciliation, governance append closure, non-regression anchors.

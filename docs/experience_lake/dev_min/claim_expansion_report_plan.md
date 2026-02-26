@@ -99,7 +99,7 @@ Status:
 - Complete (hardening + recruiter-trim done).
 
 ### Claim D - Managed Secret Lifecycle and Runtime Credential Freshness
-Planned file:
+File:
 - `docs/experience_lake/dev_min/managed_secret_lifecycle_and_runtime_credential_freshness.report.md`
 
 Locked claim:
@@ -116,6 +116,29 @@ Out of scope:
 - Full enterprise key-management architecture across all environments.
 - Full organization-wide secrets governance/compliance policy.
 - Runtime business-metric outcomes unrelated to credential lifecycle control.
+
+Status:
+- Complete (hardening + recruiter-trim done).
+
+### Claim E - Streaming Ingestion Reliability and Transport Truth Boundaries
+Planned file:
+- `docs/experience_lake/dev_min/replay_safe_stream_ingestion_and_transport_truth_boundaries.report.md`
+
+Locked claim (merged):
+- Built a production-style streaming ingestion boundary that is idempotent, replay-safe, and fail-closed (canonical dedupe identity, mismatch-as-anomaly, no silent overwrite), while enforcing clear truth ownership by treating Kafka as an ephemeral transport layer (with pinned topic/partition semantics) and durable state/evidence in object storage.
+
+In scope:
+- Canonical dedupe identity and replay-safe ingest behavior.
+- Fail-closed mismatch handling (anomaly/quarantine posture vs overwrite).
+- Topic map and partitioning semantics as intentional transport design.
+- Kafka retention posture as ephemeral transport, not durable source of truth.
+- Durable truth/evidence surfaces outside broker retention.
+- One real incident/remediation chain that demonstrates these controls under failure.
+
+Out of scope:
+- Exactly-once end-to-end semantics across every downstream side effect.
+- Broker replacement strategy or multi-region disaster recovery architecture.
+- Organization-wide streaming governance beyond this platform boundary.
 
 Execution plan (report workflow states):
 - Scope Lock: complete.

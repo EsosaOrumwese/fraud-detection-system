@@ -1256,7 +1256,6 @@ def run_s2(
                     logger,
                     f"S2: scenario_id={scenario_id} arrivals_processed",
                 )
-                part_index = 0
                 validated_flow_schema = False
                 validated_event_schema = False
                 batch_stage_cast_hash_s = 0.0
@@ -1264,191 +1263,204 @@ def run_s2(
                 batch_stage_ts_s = 0.0
                 batch_stage_frame_build_s = 0.0
                 batch_stage_write_s = 0.0
+                flow_part = flow_tmp_dir / "part-00000.parquet"
+                event_part = event_tmp_dir / "part-00000.parquet"
+                flow_writer: Optional[pq.ParquetWriter] = None
+                event_writer: Optional[pq.ParquetWriter] = None
 
-                for arrivals in _iter_parquet_batches(
-                    arrivals_files,
-                    [
-                        "scenario_id",
-                        "arrival_seq",
-                        "merchant_id",
-                        "ts_utc",
-                        "party_id",
-                        "account_id",
-                        "instrument_id",
-                        "device_id",
-                        "ip_id",
-                    ],
-                    batch_rows,
-                ):
-                    stage_t0 = time.perf_counter()
-                    arrivals = arrivals.with_columns(
-                        pl.col("arrival_seq").cast(pl.Int64),
-                        pl.col("merchant_id").cast(pl.UInt64),
-                        pl.col("party_id").cast(pl.Int64),
-                        pl.col("account_id").cast(pl.Int64),
-                        pl.col("instrument_id").cast(pl.Int64),
-                        pl.col("device_id").cast(pl.Int64),
-                        pl.col("ip_id").cast(pl.Int64),
-                        pl.col("ts_utc").cast(pl.Utf8),
-                    )
-
-                    arrivals = arrivals.with_columns(
-                        _hash_to_id64(
-                            [
-                                pl.lit(manifest_fingerprint),
-                                pl.lit(parameter_hash),
-                                pl.lit(seed),
-                                pl.lit(scenario_id),
-                                pl.col("merchant_id"),
-                                pl.col("arrival_seq"),
-                            ],
-                            seed=seed,
-                        ).alias("flow_id"),
-                    )
-                    batch_stage_cast_hash_s += time.perf_counter() - stage_t0
-
-                    stage_t0 = time.perf_counter()
-                    flow_ids_u64 = arrivals.get_column("flow_id").to_numpy().astype(np.uint64, copy=False)
-                    amount_u_kind = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE001)
-                    amount_u_point = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE002)
-                    amount_u_tail_1 = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE003)
-                    amount_u_tail_2 = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE004)
-                    amount_u_tail_3 = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE005)
-                    amount_minor = _sample_amount_minor_batch(
-                        amount_dist_cfg=amount_dist_cfg,
-                        price_points_fallback=price_points,
-                        u_kind=amount_u_kind,
-                        u_point=amount_u_point,
-                        u_tail_1=amount_u_tail_1,
-                        u_tail_2=amount_u_tail_2,
-                        u_tail_3=amount_u_tail_3,
-                        min_minor=amount_min_minor,
-                        max_minor=amount_max_minor,
-                    )
-                    amount_major = amount_minor / 100.0
-                    latency_u_1 = _flow_id_stream_uniform(flow_ids_u64, 0x1A7E11C1)
-                    latency_u_2 = _flow_id_stream_uniform(flow_ids_u64, 0x1A7E11C2)
-                    auth_response_latency_seconds = _sample_latency_seconds(
-                        model=auth_timing_model,
-                        u1=latency_u_1,
-                        u2=latency_u_2,
-                    )
-                    arrivals = arrivals.with_columns(
-                        pl.Series("amount_minor", amount_minor),
-                        pl.Series("amount", amount_major),
-                        pl.Series("auth_response_latency_seconds", auth_response_latency_seconds),
-                        pl.lit(seed).cast(pl.Int64).alias("seed"),
-                        pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
-                        pl.lit(parameter_hash).alias("parameter_hash"),
-                        pl.lit(scenario_id).alias("scenario_id"),
-                    )
-                    batch_stage_sampling_s += time.perf_counter() - stage_t0
-
-                    stage_t0 = time.perf_counter()
-                    flow_anchor = arrivals.select(
+                try:
+                    for arrivals in _iter_parquet_batches(
+                        arrivals_files,
                         [
-                            "flow_id",
+                            "scenario_id",
                             "arrival_seq",
                             "merchant_id",
+                            "ts_utc",
                             "party_id",
                             "account_id",
                             "instrument_id",
                             "device_id",
                             "ip_id",
-                            "ts_utc",
-                            "amount",
-                            "seed",
-                            "manifest_fingerprint",
-                            "parameter_hash",
-                            "scenario_id",
-                        ]
-                    )
-                    batch_stage_frame_build_s += time.perf_counter() - stage_t0
-
-                    stage_t0 = time.perf_counter()
-                    event_request = arrivals.select(
-                        [
-                            "flow_id",
-                            pl.lit(0).cast(pl.Int64).alias("event_seq"),
-                            pl.lit("AUTH_REQUEST").alias("event_type"),
-                            "ts_utc",
-                            "amount",
-                            "seed",
-                            "manifest_fingerprint",
-                            "parameter_hash",
-                            "scenario_id",
-                        ]
-                    )
-                    batch_stage_frame_build_s += time.perf_counter() - stage_t0
-
-                    stage_t0 = time.perf_counter()
-                    event_response = arrivals.with_columns(
-                        _ts_plus_seconds_expr("ts_utc", "auth_response_latency_seconds").alias("auth_response_ts_utc"),
-                    ).select(
-                        [
-                            "flow_id",
-                            pl.lit(1).cast(pl.Int64).alias("event_seq"),
-                            pl.lit("AUTH_RESPONSE").alias("event_type"),
-                            pl.col("auth_response_ts_utc").alias("ts_utc"),
-                            "amount",
-                            "seed",
-                            "manifest_fingerprint",
-                            "parameter_hash",
-                            "scenario_id",
-                        ]
-                    )
-                    batch_stage_ts_s += time.perf_counter() - stage_t0
-
-                    stage_t0 = time.perf_counter()
-                    event_stream = pl.concat([event_request, event_response], how="vertical")
-                    batch_stage_frame_build_s += time.perf_counter() - stage_t0
-
-                    if not validated_flow_schema and flow_anchor.height > 0:
-                        sample = flow_anchor.head(1).to_dicts()[0]
-                        _validate_payload(
-                            sample,
-                            schema_6b,
-                            schema_layer3,
-                            "#/s2/flow_anchor_baseline_6B",
-                            manifest_fingerprint,
-                            {"scenario_id": scenario_id},
+                        ],
+                        batch_rows,
+                    ):
+                        stage_t0 = time.perf_counter()
+                        arrivals = arrivals.with_columns(
+                            pl.col("arrival_seq").cast(pl.Int64),
+                            pl.col("merchant_id").cast(pl.UInt64),
+                            pl.col("party_id").cast(pl.Int64),
+                            pl.col("account_id").cast(pl.Int64),
+                            pl.col("instrument_id").cast(pl.Int64),
+                            pl.col("device_id").cast(pl.Int64),
+                            pl.col("ip_id").cast(pl.Int64),
+                            pl.col("ts_utc").cast(pl.Utf8),
                         )
-                        validated_flow_schema = True
 
-                    if not validated_event_schema and event_stream.height > 0:
-                        sample = event_stream.head(1).to_dicts()[0]
-                        _validate_payload(
-                            sample,
-                            schema_6b,
-                            schema_layer3,
-                            "#/s2/event_stream_baseline_6B",
-                            manifest_fingerprint,
-                            {"scenario_id": scenario_id},
+                        arrivals = arrivals.with_columns(
+                            _hash_to_id64(
+                                [
+                                    pl.lit(manifest_fingerprint),
+                                    pl.lit(parameter_hash),
+                                    pl.lit(seed),
+                                    pl.lit(scenario_id),
+                                    pl.col("merchant_id"),
+                                    pl.col("arrival_seq"),
+                                ],
+                                seed=seed,
+                            ).alias("flow_id"),
                         )
-                        validated_event_schema = True
+                        batch_stage_cast_hash_s += time.perf_counter() - stage_t0
 
-                    stage_t0 = time.perf_counter()
-                    flow_part = flow_tmp_dir / f"part-{part_index:05d}.parquet"
-                    event_part = event_tmp_dir / f"part-{part_index:05d}.parquet"
-                    flow_anchor.write_parquet(
-                        flow_part,
-                        compression=parquet_compression,
-                        statistics=False,
-                        row_group_size=batch_rows,
-                    )
-                    event_stream.write_parquet(
-                        event_part,
-                        compression=parquet_compression,
-                        statistics=False,
-                        row_group_size=batch_rows * 2,
-                    )
-                    batch_stage_write_s += time.perf_counter() - stage_t0
+                        stage_t0 = time.perf_counter()
+                        flow_ids_u64 = arrivals.get_column("flow_id").to_numpy().astype(np.uint64, copy=False)
+                        amount_u_kind = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE001)
+                        amount_u_point = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE002)
+                        amount_u_tail_1 = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE003)
+                        amount_u_tail_2 = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE004)
+                        amount_u_tail_3 = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE005)
+                        amount_minor = _sample_amount_minor_batch(
+                            amount_dist_cfg=amount_dist_cfg,
+                            price_points_fallback=price_points,
+                            u_kind=amount_u_kind,
+                            u_point=amount_u_point,
+                            u_tail_1=amount_u_tail_1,
+                            u_tail_2=amount_u_tail_2,
+                            u_tail_3=amount_u_tail_3,
+                            min_minor=amount_min_minor,
+                            max_minor=amount_max_minor,
+                        )
+                        amount_major = amount_minor / 100.0
+                        latency_u_1 = _flow_id_stream_uniform(flow_ids_u64, 0x1A7E11C1)
+                        latency_u_2 = _flow_id_stream_uniform(flow_ids_u64, 0x1A7E11C2)
+                        auth_response_latency_seconds = _sample_latency_seconds(
+                            model=auth_timing_model,
+                            u1=latency_u_1,
+                            u2=latency_u_2,
+                        )
+                        arrivals = arrivals.with_columns(
+                            pl.Series("amount_minor", amount_minor),
+                            pl.Series("amount", amount_major),
+                            pl.Series("auth_response_latency_seconds", auth_response_latency_seconds),
+                            pl.lit(seed).cast(pl.Int64).alias("seed"),
+                            pl.lit(manifest_fingerprint).alias("manifest_fingerprint"),
+                            pl.lit(parameter_hash).alias("parameter_hash"),
+                            pl.lit(scenario_id).alias("scenario_id"),
+                        )
+                        batch_stage_sampling_s += time.perf_counter() - stage_t0
 
-                    batch_rows_processed = int(flow_anchor.height)
-                    total_flows += batch_rows_processed
-                    total_events += int(event_stream.height)
-                    part_index += 1
-                    progress.update(batch_rows_processed)
+                        stage_t0 = time.perf_counter()
+                        flow_anchor = arrivals.select(
+                            [
+                                "flow_id",
+                                "arrival_seq",
+                                "merchant_id",
+                                "party_id",
+                                "account_id",
+                                "instrument_id",
+                                "device_id",
+                                "ip_id",
+                                "ts_utc",
+                                "amount",
+                                "seed",
+                                "manifest_fingerprint",
+                                "parameter_hash",
+                                "scenario_id",
+                            ]
+                        )
+                        batch_stage_frame_build_s += time.perf_counter() - stage_t0
+
+                        stage_t0 = time.perf_counter()
+                        event_request = arrivals.select(
+                            [
+                                "flow_id",
+                                pl.lit(0).cast(pl.Int64).alias("event_seq"),
+                                pl.lit("AUTH_REQUEST").alias("event_type"),
+                                "ts_utc",
+                                "amount",
+                                "seed",
+                                "manifest_fingerprint",
+                                "parameter_hash",
+                                "scenario_id",
+                            ]
+                        )
+                        batch_stage_frame_build_s += time.perf_counter() - stage_t0
+
+                        stage_t0 = time.perf_counter()
+                        event_response = arrivals.with_columns(
+                            _ts_plus_seconds_expr("ts_utc", "auth_response_latency_seconds").alias("auth_response_ts_utc"),
+                        ).select(
+                            [
+                                "flow_id",
+                                pl.lit(1).cast(pl.Int64).alias("event_seq"),
+                                pl.lit("AUTH_RESPONSE").alias("event_type"),
+                                pl.col("auth_response_ts_utc").alias("ts_utc"),
+                                "amount",
+                                "seed",
+                                "manifest_fingerprint",
+                                "parameter_hash",
+                                "scenario_id",
+                            ]
+                        )
+                        batch_stage_ts_s += time.perf_counter() - stage_t0
+
+                        stage_t0 = time.perf_counter()
+                        event_stream = pl.concat([event_request, event_response], how="vertical")
+                        batch_stage_frame_build_s += time.perf_counter() - stage_t0
+
+                        if not validated_flow_schema and flow_anchor.height > 0:
+                            sample = flow_anchor.head(1).to_dicts()[0]
+                            _validate_payload(
+                                sample,
+                                schema_6b,
+                                schema_layer3,
+                                "#/s2/flow_anchor_baseline_6B",
+                                manifest_fingerprint,
+                                {"scenario_id": scenario_id},
+                            )
+                            validated_flow_schema = True
+
+                        if not validated_event_schema and event_stream.height > 0:
+                            sample = event_stream.head(1).to_dicts()[0]
+                            _validate_payload(
+                                sample,
+                                schema_6b,
+                                schema_layer3,
+                                "#/s2/event_stream_baseline_6B",
+                                manifest_fingerprint,
+                                {"scenario_id": scenario_id},
+                            )
+                            validated_event_schema = True
+
+                        stage_t0 = time.perf_counter()
+                        flow_table = flow_anchor.to_arrow()
+                        event_table = event_stream.to_arrow()
+                        if flow_writer is None:
+                            flow_writer = pq.ParquetWriter(
+                                flow_part,
+                                flow_table.schema,
+                                compression=parquet_compression,
+                                write_statistics=False,
+                            )
+                        if event_writer is None:
+                            event_writer = pq.ParquetWriter(
+                                event_part,
+                                event_table.schema,
+                                compression=parquet_compression,
+                                write_statistics=False,
+                            )
+                        flow_writer.write_table(flow_table, row_group_size=batch_rows)
+                        event_writer.write_table(event_table, row_group_size=batch_rows * 2)
+                        batch_stage_write_s += time.perf_counter() - stage_t0
+
+                        batch_rows_processed = int(flow_anchor.height)
+                        total_flows += batch_rows_processed
+                        total_events += int(event_stream.height)
+                        progress.update(batch_rows_processed)
+                finally:
+                    if flow_writer is not None:
+                        flow_writer.close()
+                    if event_writer is not None:
+                        event_writer.close()
 
                 logger.info(
                     "S2: scenario_id=%s batch_stage_seconds cast_hash=%.2f sampling=%.2f ts_build=%.2f frame_build=%.2f parquet_write=%.2f",

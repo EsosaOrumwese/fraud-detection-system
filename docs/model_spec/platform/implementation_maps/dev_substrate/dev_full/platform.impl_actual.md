@@ -10615,3 +10615,52 @@ ext_gate=HOLD_REMEDIATE.
 ### Evidence surfaces
 1. local: `runs/dev_substrate/dev_full/m7/_tmp_run_22426311129/`
 2. durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7q_m7_rollup_sync_20260226T031710Z/`.
+
+## Entry: 2026-02-26 04:10:00 +00:00 - Reframed throughput certification from deferred caveat to explicit M7 lane
+
+### Problem
+1. Current plans mention throughput certification as deferred (`M7-D18`) while M7 is marked `DONE`.
+2. This weakens execution clarity and allows M8 progression ambiguity.
+
+### Decision
+1. Promote throughput certification into an explicit `M7.K` lane in both platform and deep M7 plans.
+2. Reopen M7 status to `ACTIVE` until `M7.K` closes.
+3. Make `M8` entry gate explicitly depend on:
+   - M7 functional rollup closure (`M7.J`) and
+   - `M7.K` non-waived throughput certification closure.
+
+### Why this is the right shape
+1. It removes the contradictory state of "M7 done but critical cert deferred".
+2. It preserves fail-closed phase discipline and keeps production-readiness claims auditable.
+3. It aligns with your request to run throughput certification now, not later.
+
+## Entry: 2026-02-26 04:16:00 +00:00 - Plan patch completed for explicit M7 throughput lane
+
+### What changed
+1. `platform.M7.build_plan.md`
+   - converted throughput from deferred note to mandatory `M7.K` lane,
+   - added `M7.K` goal/entry/tasks/DoD,
+   - converted deferred taxonomy code to active blocker `M7-B18`,
+   - reopened completion checklist (`M7.K` pending).
+2. `platform.build_plan.md`
+   - changed roadmap + M7 section status to `ACTIVE`,
+   - added explicit `M7.K` lane and DoD anchor,
+   - updated M8 entry gate to require `M7.K` closure.
+
+### Outcome
+1. Plan now clearly shows that throughput certification is not optional and is the current gating work before M8 execution.
+
+## Entry: 2026-02-26 04:20:00 +00:00 - Consistency pass after M7.K plan insertion
+
+### Consistency fixes applied
+1. Replaced residual wording that implied throughput remains merely deferred.
+2. Updated P9 lane throughput posture notes to point to active `M7.K` closure lane.
+3. Clarified top-level M7 posture wording:
+   - M7 is functionally green after `M7.J`,
+   - but phase status remains `ACTIVE` until `M7.K` closes.
+
+### Result
+1. Plan is now internally consistent about phase state and gating:
+   - `M7` active,
+   - `M7.K` mandatory,
+   - `M8` blocked on `M7.K` closure.

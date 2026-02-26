@@ -28,6 +28,7 @@ In scope:
 2. P9 component closures: `DF`, `AL`, `DLA`, decision-chain rollup.
 3. P10 component closures: `CaseTrigger bridge`, `CM`, `LS`, case-label rollup.
 4. M7 phase rollup and M8 entry handoff.
+5. Non-waived throughput certification for `P8+P9` (`M7.K`).
 
 Out of scope:
 1. P11 obs/gov closure (`M8`).
@@ -50,15 +51,16 @@ Out of scope:
    - stability (`error_rate`, retry/backpressure posture).
 4. Any missing SLO pin or budget breach is fail-closed and blocks phase advancement.
 
-## 3.2) Post-M7 Throughput Certification Plan (deferred)
+## 3.2) Throughput Certification Plan (`M7.K`, mandatory)
 1. A component lane with `throughput_gate_mode=waived_low_sample` is provisional and cannot be used as final production-scale proof.
-2. Non-waived throughput certification for `P8+P9` is deferred until after `M7` functional closure.
-3. Post-M7 sequence:
-   - first run bounded non-soak validation,
-   - then run staged high-volume certification and soak.
+2. Non-waived throughput certification for `P8+P9` is a mandatory M7 lane (`M7.K`) executed immediately after `M7.J`.
+3. Certification sequence:
+   - bounded non-soak validation,
+   - staged high-volume certification,
+   - bounded soak with sustained-rate evidence.
 4. Certification target profile remains pinned by registry:
    - `THROUGHPUT_CERT_TARGET_EVENTS_PER_HOUR=134000000` (about `37223` events/sec sustained for 60 minutes).
-5. This does not block `M7` functional closure; it blocks production-scale throughput claim until completed.
+5. `M8` entry is blocked until `M7.K` closes green.
 
 ## 4) Component Inventory and Lane Ownership
 | Canonical phase | Component | Lane owner | Minimum closure proof |
@@ -352,7 +354,7 @@ Execution status (2026-02-26):
    - execution id: `m7h_p9b_df_component_20260226T015122Z`
    - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M7.G_READY`.
 3. Throughput posture:
-   - `throughput_gate_mode=waived_low_sample`; production-scale throughput certification deferred post-M7.
+   - `throughput_gate_mode=waived_low_sample`; non-waived certification is pending `M7.K`.
 
 ### M7.G P9 AL Lane Closure
 Goal:
@@ -374,7 +376,7 @@ Execution status (2026-02-26):
    - execution id: `m7i_p9c_al_component_20260226T015350Z`
    - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M7.H_READY`.
 2. Throughput posture:
-   - `throughput_gate_mode=waived_low_sample`; production-scale throughput certification deferred post-M7.
+   - `throughput_gate_mode=waived_low_sample`; non-waived certification is pending `M7.K`.
 
 ### M7.H P9 DLA Lane + P9 Rollup
 Goal:
@@ -397,7 +399,7 @@ Execution status (2026-02-26):
    - execution id: `m7j_p9d_dla_component_20260226T015553Z`
    - result: `overall_pass=true`, `blocker_count=0`, `next_gate=P9.E_READY`.
 2. Throughput posture:
-   - `throughput_gate_mode=waived_low_sample`; production-scale throughput certification deferred post-M7.
+   - `throughput_gate_mode=waived_low_sample`; non-waived certification is pending `M7.K`.
 3. `M7.H` rollup dependency (`P9.E`) is satisfied and validated.
 4. `P9.E` rollup/verdict is now closed green:
    - workflow run: `22425281848` (`phase_mode=m7k`)
@@ -530,12 +532,47 @@ Execution status (2026-02-26):
    - local: `runs/dev_substrate/dev_full/m7/_tmp_run_22426311129/`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7q_m7_rollup_sync_20260226T031710Z/`.
 
+### M7.K P8+P9 Throughput Certification (Non-Waived)
+Goal:
+1. close `M7-B18` by producing non-waived throughput certification for `P8+P9`.
+
+Entry prerequisites:
+1. `M7.J` summary is green with:
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_M8`,
+   - `next_gate=M8_READY`.
+2. runtime substrate is materialized with production-like scaling posture and cost guardrails active.
+
+Tasks:
+1. run bounded non-soak throughput validation for `P8+P9` lanes with non-waived assertions.
+2. run staged high-volume throughput certification against pinned profile windows.
+3. run bounded soak window and publish sustained-rate stability evidence.
+4. emit certification artifacts:
+   - `m7k_throughput_cert_plan.json`
+   - `m7k_throughput_cert_snapshot.json`
+   - `m7k_throughput_cert_blocker_register.json`
+   - `m7k_throughput_cert_verdict.json`
+   - `m7k_throughput_cert_execution_summary.json`.
+
+Execution plan:
+1. expand lane-level plan and dispatch managed certification workflow for `M7.K`.
+2. require deterministic success gate:
+   - `overall_pass=true`
+   - `verdict=THROUGHPUT_CERTIFIED`
+   - `blocker_count=0`.
+
+DoD:
+- [ ] non-waived throughput assertions are evaluated for `P8+P9`.
+- [ ] staged high-volume + soak evidence is committed locally and durably.
+- [ ] certification verdict is `THROUGHPUT_CERTIFIED` with blocker_count `0`.
+- [ ] `M7-B18` is retired.
+
 ## 6) Deep Phase Routing
 1. `P8` detailed plan: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P8.build_plan.md`
 2. `P9` detailed plan: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P9.build_plan.md`
 3. `P10` detailed plan: `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P10.build_plan.md`
 
-## 7) M7 Blocker and Deferred Taxonomy (Fail-Closed)
+## 7) M7 Blocker Taxonomy (Fail-Closed)
 1. `M7-B1`: required handles missing/inconsistent.
 2. `M7-B2`: P8 entry contract failure.
 3. `M7-B3`: IEG lane closure failure.
@@ -553,7 +590,7 @@ Execution status (2026-02-26):
 15. `M7-B15`: M7 handoff/cost-outcome artifact failure.
 16. `M7-B16`: missing per-component performance SLO pins for active lane.
 17. `M7-B17`: component performance budget breach (throughput/latency/lag/resource/stability).
-18. `M7-D18`: post-M7 throughput certification pending for `P8+P9` production-readiness claim (deferred, non-blocking for M7 functional closure).
+18. `M7-B18`: `M7.K` throughput certification unresolved/failing for `P8+P9`.
 
 ## 8) M7 Completion Checklist
 - [x] M7.A complete
@@ -566,7 +603,8 @@ Execution status (2026-02-26):
 - [x] M7.H complete
 - [x] M7.I complete
 - [x] M7.J complete
-- [x] all active `M7-B*` blockers resolved
+- [ ] M7.K complete
+- [ ] all active `M7-B*` blockers resolved
 
 ## 9) Planning Status
 1. M7 deep-plan scaffold created.
@@ -581,11 +619,11 @@ Execution status (2026-02-26):
 10. `M7.G` is closed green (`m7i_p9c_al_component_20260226T015350Z`), throughput proof provisional.
 11. `M7.H` DLA component lane is green (`m7j_p9d_dla_component_20260226T015553Z`), throughput proof provisional.
 12. `M7.H` rollup is now closed green (`m7k_p9e_rollup_20260226T023154Z`) with `phase_verdict=ADVANCE_TO_P10`.
-13. Non-waived throughput certification for `P8+P9` is pinned as deferred post-M7 lane (`M7-D18`).
+13. Non-waived throughput certification for `P8+P9` is now tracked as mandatory `M7.K` (`M7-B18` until closed).
 14. `M7.I` entry is closed green (`m7l_p10a_entry_precheck_20260226T023945Z`) with `next_gate=P10.B_READY`.
 15. `P10.B` CaseTrigger lane is closed green (`m7m_p10b_case_trigger_component_20260226T024750Z`).
 16. `P10.C` CM lane is closed green (`m7n_p10c_cm_component_20260226T024847Z`).
 17. `P10.D` LS lane is closed green (`m7o_p10d_ls_component_20260226T024940Z`).
 18. `P10.E` rollup/verdict is closed green (`m7p_p10e_rollup_20260226T030607Z`) with `next_gate=M7.J_READY`.
 19. `M7.J` rollup/handoff is closed green (`m7q_m7_rollup_sync_20260226T031710Z`) with `next_gate=M8_READY`.
-20. `M7` is functionally closed green; non-waived `P8+P9` throughput certification remains deferred under `M7-D18`.
+20. `M7` remains active until `M7.K` throughput certification closes and retires `M7-B18`.

@@ -1299,6 +1299,32 @@ Execution outcome (`run_id=ac712b0b5e3f4ae5b5fd1a2af1662d4b`):
 - phase decision:
   - `HOLD_P2_REOPEN_PERF` (S2 runtime rail still open; cross-state runtime stability not yet reliable for unlock).
 
+##### P2.R6 - `S2` writer topology redesign (row-group streaming)
+Goal:
+- materially reduce `S2` parquet-write overhead by redesigning output writing topology from many per-batch part files to single-part streaming writers, while preserving schemas and deterministic row ordering.
+
+Definition of done:
+- [ ] implementation design pinned with blast-radius controls and rollback path.
+- [ ] `S2` write path refactored:
+  - per scenario, open one flow writer + one event writer (`part-00000.parquet`),
+  - append each batch as parquet row-groups (no per-batch new part creation),
+  - keep schema columns/order and publish paths unchanged.
+- [ ] fresh witness run executed on `runs/fix-data-engine/segment_6B/<new_run_id>`:
+  - `S2 -> S3 -> S4 -> S5`.
+- [ ] runtime evidence:
+  - `S2` improves vs `ac712...` (`227.36s`) and vs `bbbe...` (`238.09s`),
+  - rail check repeated with one immediate `S3->S5` rerun to assess stability.
+- [ ] realism non-regression evidence:
+  - scorer remains `PASS_HARD_ONLY` or better,
+  - `T11,T13,T14,T15,T16,T21` non-regressed.
+- [ ] closure artifacts emitted:
+  - `segment6b_p2r6_closure_<run_id>.json`,
+  - `segment6b_p2r6_closure_<run_id>.md`,
+  - updated gateboard `segment6b_p0_realism_gateboard_<run_id>.json`.
+- [ ] phase decision:
+  - `UNLOCK_P3` only if runtime rails + realism pass together,
+  - else remain `HOLD_P2_REOPEN_PERF` with next owner lane pinned.
+
 ### P3 - Wave B (`S3` campaign depth)
 Goal:
 - deepen campaign realism and improve contextual stratification without breaking Wave A closure.

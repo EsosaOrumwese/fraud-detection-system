@@ -3626,3 +3626,40 @@ Decision:
 - `P2.R5` closes as an evidence-producing optimization pass, not a phase-unlock pass.
 - phase posture remains `HOLD_P2_REOPEN_PERF`.
 - next owner lane remains S2 runtime closure (second-order redesign) with isolated-load witness protocol before any `UNLOCK_P3` decision.
+
+---
+
+### Entry: 2026-02-26 03:24
+
+P2.R6 design lock (`S2` writer-topology redesign: row-group streaming).
+
+Problem carried from P2.R5:
+- S2 improved but remains far from rail (`227.36s` vs `<=150s` stretch).
+- stage profile still shows large `parquet_write` share (`69.30s`) and high end-to-end sensitivity.
+
+Root-cause hypothesis:
+- S2 still opens/writes/closes one parquet file per batch per output surface (`flow`, `event`), causing repeated writer setup/finalize overhead and many filesystem operations.
+- with `~124.7M` flows and batch `300k`, this implies hundreds of part files and repeated metadata work.
+
+Alternatives considered:
+1) increase batch size again.
+- partially useful but constrained by memory-risk posture and does not remove file-topology overhead.
+2) change compression codec aggressively (e.g., none/lz4) only.
+- may help marginally but does not solve per-part writer lifecycle overhead.
+3) writer-topology refactor (selected).
+- open one parquet writer per output per scenario and append each batch as row-groups into `part-00000.parquet`.
+
+Chosen implementation:
+- keep S2 dataflow/policy/scoring unchanged.
+- replace per-batch `DataFrame.write_parquet(part-k)` with:
+  - lazy initialization of `pq.ParquetWriter` on first batch for flow/event,
+  - `write_table(..., row_group_size=...)` per batch,
+  - close writers after batch loop.
+- preserve:
+  - schema columns and order,
+  - deterministic row order (same batch traversal),
+  - output publish paths and dataset contracts.
+
+Guardrails:
+- no policy, threshold, scorer, or schema changes.
+- if writer path errors or runtime regresses materially, rollback to prior per-batch writer topology.
