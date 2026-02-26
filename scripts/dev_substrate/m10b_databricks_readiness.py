@@ -128,6 +128,14 @@ def dbx_request_json(base_url: str, token: str, path: str, query: dict[str, Any]
     return payload
 
 
+def dbx_get_job(base_url: str, token: str, job_id: Any) -> dict[str, Any]:
+    try:
+        normalized = int(job_id)
+    except (TypeError, ValueError):
+        raise ValueError("job_id_invalid")
+    return dbx_request_json(base_url, token, "/api/2.1/jobs/get", {"job_id": normalized})
+
+
 def collect_cluster_specs(job_payload: dict[str, Any]) -> list[dict[str, Any]]:
     specs: list[dict[str, Any]] = []
     settings = job_payload.get("settings", {})
@@ -336,7 +344,14 @@ def main() -> int:
             continue
 
         job_id = job.get("job_id")
-        settings = job.get("settings", {})
+        job_for_policy = job
+        if workspace_url and ssm_token_value and dbx_probe.get("jobs_list_probe_ok"):
+            try:
+                job_for_policy = dbx_get_job(workspace_url, ssm_token_value, job_id)
+            except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
+                read_errors.append({"surface": f"databricks_jobs_get:{job_id}", "error": type(exc).__name__})
+                blockers.append({"code": "M10-B2", "message": "Databricks jobs/get probe failed."})
+        settings = job_for_policy.get("settings", {})
         policy_row: dict[str, Any] = {
             "job_name": name,
             "job_id": job_id,
@@ -355,7 +370,7 @@ def main() -> int:
             continue
 
         if "serverless" in compute_policy:
-            if not job_uses_serverless_shape(job):
+            if not job_uses_serverless_shape(job_for_policy):
                 policy_row["serverless_shape_ok"] = False
                 policy_row["issues"].append("serverless_shape_invalid")
             policy_row["all_tasks_job_cluster_only"] = False

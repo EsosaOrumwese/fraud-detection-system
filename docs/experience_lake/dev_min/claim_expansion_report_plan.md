@@ -53,30 +53,35 @@ Exit rule: a claim is done only when all five workflow steps are complete.
 
 ## 7) Active Claim Queue
 
-### Claim A - Release Workflow Integrity
-File:
-- `docs/experience_lake/dev_min/auditable_release_pipeline_immutable_images.report.md`
+### Claim A - CI/CD and Release Engineering (Merged)
+Target file:
+- `docs/experience_lake/dev_min/cicd_release_engineering_secure_auditable_immutable.report.md`
 
-Scope:
-- Auditable CI release lane.
-- Immutable image identity (tag + digest).
-- Provenance output.
-- Deterministic build surface controls (include/exclude, bounded dependency selection).
+Locked claim (merged):
+- Built and operated a secure, auditable CI/CD release lane where GitHub Actions is the authoritative build path, releases are accepted only with immutable artifact identity (tag plus digest) and machine-readable provenance, cloud access is enforced through OpenID Connect role assumption plus least-privilege Elastic Container Registry permissions (including explicit `ecr:GetAuthorizationToken` closure), and image contents are kept deterministic through explicit include/exclude build-context controls in a large monorepo.
 
-Status:
-- Complete (hardening + recruiter-trim done).
+In scope:
+- Authoritative CI build/publish lane and fail-closed release gates.
+- Immutable container identity (tag plus digest) and machine-readable provenance.
+- Authentication and authorization plane separation for CI-to-cloud access.
+- OpenID Connect trust/provider closure and least-privilege Elastic Container Registry scope closure.
+- Deterministic image-content controls (explicit include/exclude, no repository-wide copy, bounded dependency surface).
+- Real failure chain coverage (authentication failure -> authorization failure -> successful closure).
 
-### Claim B - Secure CI Federation and Registry Authorization
-File:
-- `docs/experience_lake/dev_min/secure_ci_oidc_and_least_privilege_registry_auth.report.md`
+Out of scope:
+- Organization-wide identity and access management programs outside this CI release lane.
+- Full software supply-chain attestation program across all services.
+- Runtime reliability outcomes after image publish (owned by runtime claims).
 
-Scope:
-- OIDC role assumption for CI.
-- Separation of authentication vs authorization failure classes.
-- Least-privilege registry permissions with fail-closed remediation.
+Execution plan (report workflow states):
+- Scope Lock: complete.
+- Draft Core: next (Sections 1-8).
+- Outcome Lock: pending (Sections 9-10).
+- Proof Lock: pending (Sections 11-12).
+- Hardening Pass: pending.
 
-Status:
-- Complete (hardening + recruiter-trim done).
+Priority:
+- Current active claim for section-by-section drafting.
 
 ### Claim C - Managed IaC Foundation and Cost Guardrails
 File:
