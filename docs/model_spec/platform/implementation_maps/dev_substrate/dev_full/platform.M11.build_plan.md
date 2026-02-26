@@ -394,15 +394,79 @@ Closure snapshot (2026-02-26):
 Goal:
 1. Run managed train/eval jobs with deterministic inputs and pinned config.
 
+Required handles:
+1. `SM_TRAINING_JOB_NAME_PREFIX`
+2. `SM_BATCH_TRANSFORM_JOB_NAME_PREFIX`
+3. `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`
+4. `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`
+5. `MF_EVAL_REPORT_PATH_PATTERN`
+6. `MF_CANDIDATE_BUNDLE_PATH_PATTERN`
+
+Entry conditions:
+1. `M11.C` summary is readable and pass posture:
+- `m11c_execution_summary.json` with `overall_pass=true`,
+- `next_gate=M11.D_READY`.
+2. `M11.C` run-scope is present and single-valued:
+- one `platform_run_id`,
+- one `scenario_run_id`.
+3. Upstream runtime readiness is readable and pass posture:
+- `M11.B` summary + snapshot (`overall_pass=true`),
+- resolved SageMaker execution role ARN is present.
+4. Deterministic immutable refs from `M11.C` are readable:
+- `m10g_manifest_ref`,
+- `m10g_fingerprint_ref`,
+- `m10g_time_bound_audit_ref`,
+- `m10h_rollback_recipe_ref`.
+
 Execution notes:
 1. Emit `m11_phase_budget_envelope.json` before job launch.
-2. Execute training and evaluation jobs.
-3. Capture job refs/status/runtime and emit `m11d_train_eval_execution_snapshot.json`.
-4. Mark failures as `M11-B4` with explicit surface details.
+2. Build deterministic train/validation/test payloads anchored to `M11.C` fingerprint digest (seeded, repeatable split).
+3. Execute managed SageMaker training job.
+4. Execute managed SageMaker batch-transform evaluation job.
+5. Compute bounded evaluation metrics (accuracy/precision/recall) from transform outputs.
+6. Capture job refs/status/runtime and emit:
+- `m11d_train_eval_execution_snapshot.json`,
+- `m11d_blocker_register.json`,
+- `m11d_execution_summary.json`.
+7. Mark failures as `M11-B4` with explicit surface details.
+
+Deterministic verification algorithm (M11.D):
+1. load `M11.C` summary from durable run-control and fail closed unless pass + next gate matches.
+2. resolve upstream `M11.B` and `M11.A` artifacts and enforce run-scope parity.
+3. resolve required handles from `M11.A` handle matrix and fail closed if unresolved.
+4. derive deterministic dataset seed from `M11.C` fingerprint and generate bounded train/validation/test splits.
+5. publish input payload refs under run-scoped evidence surface before training launch.
+6. emit and publish `m11_phase_budget_envelope.json` prior to compute launch.
+7. launch training job + poll to terminal state; fail closed on non-success.
+8. launch batch-transform job + poll to terminal state; fail closed on non-success.
+9. parse transform outputs and compute deterministic evaluation metrics.
+10. emit deterministic artifacts and publish local + durable with readback parity.
+11. emit deterministic next gate:
+- `M11.E_READY` when blocker count is `0`,
+- otherwise `HOLD_REMEDIATE`.
 
 Runtime budget:
 1. Target <= 45 minutes.
 2. Hard alert if > 60 minutes without explicit approved waiver.
+
+Managed execution binding:
+1. Authoritative runner: `.github/workflows/dev_full_m11_d_managed.yml`.
+2. Required dispatch inputs:
+- `aws_region`
+- `aws_role_to_assume`
+- `evidence_bucket`
+- `upstream_m11c_execution`
+3. Optional dispatch inputs:
+- `m11d_execution_id` (fixed execution id override for deterministic rerun),
+- `poll_timeout_minutes`,
+- `poll_interval_seconds`.
+4. Required upstream evidence key:
+- `evidence/dev_full/run_control/{upstream_m11c_execution}/m11c_execution_summary.json`
+5. Required M11.D publication keys:
+- `evidence/dev_full/run_control/{m11d_execution_id}/m11_phase_budget_envelope.json`
+- `evidence/dev_full/run_control/{m11d_execution_id}/m11d_train_eval_execution_snapshot.json`
+- `evidence/dev_full/run_control/{m11d_execution_id}/m11d_blocker_register.json`
+- `evidence/dev_full/run_control/{m11d_execution_id}/m11d_execution_summary.json`
 
 DoD:
 - [ ] train/eval jobs complete successfully.

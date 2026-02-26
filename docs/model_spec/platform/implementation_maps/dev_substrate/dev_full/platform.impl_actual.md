@@ -14773,3 +14773,26 @@ ext_gate=M11.B_READY and locker_count=0.
 7. Decision rationale kept for audit:
    - M11.C is an immutable-input gate; only immutability/coherence failures remain blocking.
    - carry-through handle rows are useful telemetry but not gate-critical in this lane.
+
+## Entry: 2026-02-26 19:38:56 +00:00 - M11.D design expansion before implementation
+1. Objective:
+   - close `M11.D` with managed train/eval execution, deterministic run evidence, and `M11.E_READY` gate output.
+2. Entry surfaces selected:
+   - `M11.C` execution summary and immutable snapshot,
+   - `M11.B` readiness summary/snapshot (execution role + SageMaker control-plane readiness),
+   - `M11.A` handle closure snapshot (budget/eval/output path patterns).
+3. Decision taken on execution lane:
+   - use managed SageMaker training + batch transform in a single authoritative workflow lane,
+   - avoid local authoritative execution fallback.
+4. Data strategy decision:
+   - construct deterministic train/validation/test payloads seeded from `M11.C` fingerprint digest to preserve reproducibility and run-scope anchoring for this lane.
+   - rationale: current M10 OFS surface is bootstrap-grade and does not yet expose a full feature/label schema contract for direct MF training extraction.
+5. Alternatives considered:
+   - direct training on OFS table export from M10 outputs -> rejected for this lane due missing explicit schema/label contract in committed artifacts.
+   - no-op placeholder execution without managed jobs -> rejected because M11.D requires managed train/eval runtime proof.
+6. Planned artifact set for M11.D:
+   - `m11_phase_budget_envelope.json`,
+   - `m11d_train_eval_execution_snapshot.json`,
+   - `m11d_blocker_register.json`,
+   - `m11d_execution_summary.json`,
+   - run-scoped eval report at `MF_EVAL_REPORT_PATH_PATTERN`.
