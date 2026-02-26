@@ -1423,6 +1423,11 @@ M11 progression snapshot:
   - authoritative M11.C run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22457735414`,
   - execution id: `m11c_input_immutability_20260226T192723Z`,
   - `overall_pass=true`, `blocker_count=0`, `next_gate=M11.D_READY`.
+- M11.D remediation lane executed and closed green:
+  - authoritative M11.D run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22461137374`,
+  - execution id: `m11d_train_eval_execution_20260226T210509Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=M11.E_READY`,
+  - explicit advisory retained: `M11D-AD1` (`eval_mode=fallback_local_model_eval` while transform quota remains unavailable).
 
 ## M12 - MPR Promotion/Rollback Closure
 Status: `NOT_STARTED`
@@ -1505,4 +1510,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M11.D` (train/eval execution) using `M11.C` green posture (`m11c_input_immutability_20260226T192723Z`) as entry basis.
+- Expand and execute `M11.E` (eval gate adjudication) using `M11.D` green posture (`m11d_train_eval_execution_20260226T210509Z`) as entry basis.

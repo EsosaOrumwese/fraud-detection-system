@@ -470,10 +470,21 @@ Managed execution binding:
 - `evidence/dev_full/run_control/{m11d_execution_id}/m11d_execution_summary.json`
 
 DoD:
-- [ ] train/eval jobs complete successfully.
-- [ ] execution snapshot published local + durable.
-- [ ] budget envelope published.
-- [ ] `M11.E_READY` asserted.
+- [x] train/eval jobs complete successfully.
+- [x] execution snapshot published local + durable.
+- [x] budget envelope published.
+- [x] `M11.E_READY` asserted.
+
+Closure evidence:
+1. Workflow run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22461137374`.
+2. Execution id: `m11d_train_eval_execution_20260226T210509Z`.
+3. Summary evidence:
+- `evidence/dev_full/run_control/m11d_train_eval_execution_20260226T210509Z/m11d_execution_summary.json`,
+- `overall_pass=true`, `blocker_count=0`, `next_gate=M11.E_READY`.
+4. Residual advisory:
+- `M11D-AD1` retained (transform quota `ml.m5.large` unavailable),
+- eval mode stamped as `fallback_local_model_eval` in execution snapshot,
+- lane remains green with explicit caveat recorded (no silent pass).
 
 ### M11.E - Eval Gate Adjudication
 Goal:
@@ -606,7 +617,7 @@ DoD:
 - [x] `M11.A` complete
 - [x] `M11.B` complete
 - [x] `M11.C` complete
-- [ ] `M11.D` complete
+- [x] `M11.D` complete
 - [ ] `M11.E` complete
 - [ ] `M11.F` complete
 - [ ] `M11.G` complete
@@ -621,4 +632,6 @@ DoD:
 1. M11 planning is expanded to execution-grade depth.
 2. `M11.A` is complete and green on managed lane.
 3. `M11.B` is complete and green on managed lane.
-4. Next actionable lane is `M11.D` (train/eval execution).
+4. `M11.C` is complete and green on managed lane.
+5. `M11.D` is complete and green on managed lane (with explicit `M11D-AD1` advisory).
+6. Next actionable lane is `M11.E` (eval gate adjudication).

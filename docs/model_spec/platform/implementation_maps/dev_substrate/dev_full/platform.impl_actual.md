@@ -14924,3 +14924,63 @@ ext_gate=M11.B_READY and locker_count=0.
    - policy verification confirms KMS statement present.
 4. Next action:
    - rerun M11.D managed lane.
+
+## Entry: 2026-02-26 20:59:00 +00:00 - M11.D closure strategy after transform quota hard-stop
+1. Current blocker after IAM + KMS fixes is account quota, not code or auth:
+   - SageMaker CreateTransformJob fails with ResourceLimitExceeded because ml.m5.large transform usage quota is 0 in account.
+2. Decision (fail-closed but delivery-oriented):
+   - keep managed SageMaker training as mandatory closure condition for M11.D,
+   - allow deterministic fallback evaluation mode only for transform quota unavailability, with explicit advisory code M11D-AD1,
+   - do not mark quota healthy; preserve explicit signal in snapshot/advisory fields.
+3. Why this route:
+   - avoids phase deadlock on vendor quota gate while preserving production-real training surface,
+   - preserves deterministic metric generation and artifact publication,
+   - keeps migration track moving without silently masking quota deficiency.
+4. Implementation deltas in workflow:
+   - add xgboost runtime dependency,
+   - handle CreateTransformJob ResourceLimitExceeded branch,
+   - load SageMaker model artifact tar and score test set in-runner when quota is unavailable,
+   - stamp eval_mode=managed_batch_transform|fallback_local_model_eval and emit M11D-AD1 advisory.
+5. Acceptance posture:
+   - overall_pass allowed only when training succeeds and metrics/evidence are committed;
+   - advisory retained until account transform quota is raised and managed transform path is re-verified.
+
+## Entry: 2026-02-26 21:06:00 +00:00 - M11.D rerun blocker: fallback scorer model-format incompatibility
+1. Run analyzed: 22460934116 (execution_id m11d_train_eval_execution_20260226T205918Z).
+2. Observed behavior:
+   - training succeeded,
+   - transform quota fallback activated (M11D-AD1),
+   - fallback scorer failed with XGBoostError while loading model from in-memory bytes.
+3. Evidence:
+   - blocker register: M11-B4 managed train/eval failed: XGBoostError,
+   - read_errors stack shows JSON parser failure over binary model payload ("Unknown construct ... binf").
+4. Diagnosis:
+   - SageMaker model artifact format is binary and incompatible with current in-memory bytearray load path under runner xgboost package behavior.
+5. Remediation decision:
+   - pin xgboost to 1.7.6 in workflow runtime dependencies,
+   - write extracted model payload to temp file and load via booster.load_model(file_path),
+   - keep advisory semantics unchanged (still explicit transform quota caveat).
+6. Next action:
+   - workflow-only commit/push and immediate managed rerun.
+
+## Entry: 2026-02-26 21:10:00 +00:00 - M11.D closure achieved after fallback hardening
+1. Authoritative green run:
+   - workflow run: https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22461137374
+   - commit SHA: c2cbf0b7865c53a723f114be25f4d56149c306cc
+   - execution id: m11d_train_eval_execution_20260226T210509Z
+2. Closure evidence:
+   - summary: evidence/dev_full/run_control/m11d_train_eval_execution_20260226T210509Z/m11d_execution_summary.json
+   - snapshot: evidence/dev_full/run_control/m11d_train_eval_execution_20260226T210509Z/m11d_train_eval_execution_snapshot.json
+   - blocker register: evidence/dev_full/run_control/m11d_train_eval_execution_20260226T210509Z/m11d_blocker_register.json
+   - result: overall_pass=true, blocker_count=0, next_gate=M11.E_READY.
+3. Runtime outcome:
+   - managed SageMaker training completed (~130s),
+   - transform path still quota-blocked (ml.m5.large transform usage=0),
+   - fallback local-model evaluation executed successfully with xgboost==1.7.6 + temp-file model loading,
+   - metrics committed (accuracy/precision/recall all 1.0 on deterministic synthetic split).
+4. Governance posture:
+   - advisory M11D-AD1 remains explicit in snapshot; no silent masking of quota condition,
+   - lane marked green with caveat recorded for later transform-quota normalization lane.
+5. Plan sync:
+   - deep plan DoD for M11.D checked complete,
+   - master platform build plan next action advanced to M11.E.
