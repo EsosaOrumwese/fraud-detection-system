@@ -137,7 +137,7 @@ jobs:
           from pathlib import Path
           import boto3
           from botocore.exceptions import ClientError, BotoCoreError
-          from sagemaker import image_uris
+          from sagemaker.image_uris import retrieve as sm_image_uri
 
           def now():
               return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
@@ -252,7 +252,7 @@ jobs:
               putj(s3,bkt,kl,{'labels':labels,'platform_run_id':pr,'scenario_run_id':sr,'execution_id':exec_id})
               inp={'train_key':ktr,'validation_key':kva,'test_features_key':kte,'test_labels_key':kl}
 
-              image=image_uris.retrieve(framework='xgboost',region=region,version='1.7-1',image_scope='training',instance_type='ml.m5.large')
+              image=sm_image_uri(framework='xgboost',region=region,version='1.7-1',image_scope='training',instance_type='ml.m5.large')
               suf=hashlib.sha256(f'{exec_id}|{fps}'.encode()).hexdigest()[:10]
               tjob=job(f'{train_prefix}-{suf}'); xjob=job(f'{batch_prefix}-{suf}'); model=job(f'{train_prefix}-model-{suf}')
               tr_uri=f"s3://{bkt}/{ktr.rsplit('/',1)[0]}/"
