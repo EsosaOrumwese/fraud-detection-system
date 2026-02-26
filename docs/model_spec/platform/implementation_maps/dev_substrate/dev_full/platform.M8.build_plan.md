@@ -886,29 +886,165 @@ Required handoff fields (`m9_handoff_pack.json`):
 7. `non_secret_policy` declaration.
 
 DoD:
-- [ ] verdict is deterministic with explicit next gate.
-- [ ] if blocker-free, verdict is `ADVANCE_TO_M9` with `next_gate=M9_READY`.
-- [ ] `m9_handoff_pack.json` is non-secret and committed locally and durably.
-- [ ] `m8i_p11_rollup_matrix.json` + `m8i_p11_verdict.json` + blocker register + summary are committed locally and durably.
+- [x] verdict is deterministic with explicit next gate.
+- [x] if blocker-free, verdict is `ADVANCE_TO_M9` with `next_gate=M9_READY`.
+- [x] `m9_handoff_pack.json` is non-secret and committed locally and durably.
+- [x] `m8i_p11_rollup_matrix.json` + `m8i_p11_verdict.json` + blocker register + summary are committed locally and durably.
 
 Runtime budget:
 1. `M8.I` target budget: <= 10 minutes wall clock.
 2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
 
+Execution closure (2026-02-26):
+1. fail-first execution:
+   - `m8i_p11_rollup_verdict_20260226T064242Z` -> `HOLD_M8` with blockers:
+     - `M8-B9` (`run_report_ref`, `reconciliation_ref` unreadable at evidence path),
+     - `M8-B10` (handoff non-secret false-positive from policy metadata).
+2. remediation:
+   - patched `m8i` script to project missing `run_report/reconciliation` refs from object-store source truth to evidence-path contracts,
+   - hardened non-secret scanner to ignore policy metadata list values (`non_secret_policy.blocked_patterns`).
+3. closure execution:
+   - `m8i_p11_rollup_verdict_20260226T064405Z`,
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_M9`,
+   - `blocker_count=0`,
+   - `next_gate=M9_READY`.
+4. evidence:
+   - local: `runs/dev_substrate/dev_full/m8/m8i_p11_rollup_verdict_20260226T064405Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8i_p11_rollup_verdict_20260226T064405Z/`.
+5. emitted artifacts:
+   - `m8i_p11_rollup_matrix.json`,
+   - `m8i_p11_verdict.json`,
+   - `m9_handoff_pack.json`,
+   - `m8i_blocker_register.json`,
+   - `m8i_execution_summary.json`.
+
 ### M8.J M8 Closure Sync + Cost-Outcome Receipt
 Goal:
 1. close M8 with required summary and cost-to-outcome artifacts.
 
+Entry conditions:
+1. `M8.I` is pass with blockers empty:
+   - local: `runs/dev_substrate/dev_full/m8/m8i_p11_rollup_verdict_20260226T064405Z/m8i_execution_summary.json`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8i_p11_rollup_verdict_20260226T064405Z/m8i_execution_summary.json`.
+2. Active run scope is unchanged from M8 chain:
+   - `platform_run_id=platform_20260223T184232Z`.
+3. No unresolved blockers remain from `M8.A..M8.I`.
+
+Required inputs:
+1. Green `M8.I` source summary:
+   - `m8i_p11_rollup_verdict_20260226T064405Z`.
+2. Upstream M8 execution ids for parity closure:
+   - `m8a_p11_handle_closure_20260226T050813Z`
+   - `m8b_p11_runtime_lock_readiness_20260226T052700Z`
+   - `m8c_p11_closure_input_readiness_20260226T053157Z`
+   - `m8d_p11_single_writer_probe_20260226T062710Z`
+   - `m8e_p11_reporter_one_shot_20260226T062735Z`
+   - `m8f_p11_closure_bundle_20260226T062814Z`
+   - `m8g_p11_non_regression_20260226T062919Z`
+   - `m8h_p11_governance_close_marker_20260226T063647Z`
+   - `m8i_p11_rollup_verdict_20260226T064405Z`.
+3. Cost envelope inputs:
+   - `budget_currency=USD`
+   - `monthly_limit_amount=300`
+   - `alert_1_amount=120`
+   - `alert_2_amount=210`
+   - `alert_3_amount=270`.
+4. Durable publication target:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/<m8j_execution_id>/`.
+
+Preparation checks (fail-closed):
+1. Validate `M8.I` summary is readable/parseable and has:
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_M9`,
+   - `next_gate=M9_READY`.
+2. Validate all required upstream `M8.A..M8.I` artifact contract objects are readable in durable run-control prefixes.
+3. Validate budget inputs are parseable positive decimals and satisfy:
+   - `alert_1 < alert_2 < alert_3 <= monthly_limit`.
+4. Validate no publication target prefix conflict for the active `m8j_execution_id`.
+
+Deterministic verification algorithm (M8.J):
+1. Read green `M8.I` summary and enforce gate posture; failure -> `M8-B11`.
+2. Build fixed-order required M8 artifact matrix (`14` artifacts from the M8 contract) and verify durable readback.
+3. Capture AWS MTD cost (`month_start..tomorrow`) in billing region (`us-east-1`) and attach capture errors explicitly.
+4. Build `m8_phase_budget_envelope.json`:
+   - budget thresholds,
+   - capture scope,
+   - phase window,
+   - blocker projection.
+5. Build `m8_phase_cost_outcome_receipt.json`:
+   - spend amount/currency,
+   - emitted artifacts,
+   - decision outcome retired (`M8 complete, M9 entry unlocked`).
+6. Build authoritative `m8_execution_summary.json`:
+   - `overall_pass`, `blockers`, `verdict`, `next_gate`,
+   - upstream chain and parity matrix summary.
+7. Emit + readback:
+   - `m8_phase_budget_envelope.json`
+   - `m8_phase_cost_outcome_receipt.json`
+   - `m8_execution_summary.json`
+   - `m8j_blocker_register.json`
+   - `m8j_execution_summary.json`
+   locally and durably.
+8. Return `overall_pass=true` only when blockers are empty and publication/readback parity passes.
+
 Tasks:
-1. emit `m8_phase_budget_envelope.json`.
-2. emit `m8_phase_cost_outcome_receipt.json`.
-3. emit `m8_execution_summary.json`.
-4. validate local + durable artifact parity for all M8 outputs.
+1. build and validate M8 artifact parity matrix from `M8.A..M8.I`.
+2. emit `m8_phase_budget_envelope.json`.
+3. emit `m8_phase_cost_outcome_receipt.json`.
+4. emit authoritative `m8_execution_summary.json`.
+5. validate local + durable publication parity for all `M8.J` outputs.
+
+Required snapshot fields (`m8_phase_budget_envelope.json`):
+1. `phase`, `phase_execution_id`, `captured_at_utc`.
+2. `budget_currency`, `monthly_limit_amount`, `alert_1_amount`, `alert_2_amount`, `alert_3_amount`.
+3. `cost_capture_scope`, `aws_cost_capture_enabled`, `databricks_cost_capture_enabled`.
+4. `phase_window`.
+5. `overall_pass`, `blockers`.
+
+Required receipt fields (`m8_phase_cost_outcome_receipt.json`):
+1. `phase_id`, `phase`, `phase_execution_id`.
+2. `window_start_utc`, `window_end_utc`.
+3. `spend_amount`, `spend_currency`.
+4. `artifacts_emitted`.
+5. `decision_or_risk_retired`.
+6. `source_components`.
+
+Required summary fields (`m8_execution_summary.json`):
+1. `phase`, `phase_id`, `phase_execution_id`.
+2. `platform_run_id`, `scenario_run_id`.
+3. `overall_pass`, `blockers`, `blocker_count`.
+4. `verdict`, `next_gate`.
+5. `upstream_refs`, `m8_contract_parity`.
 
 DoD:
-- [ ] budget envelope + cost-outcome receipt committed locally and durably.
-- [ ] `m8_execution_summary.json` committed locally and durably.
-- [ ] M8 closure sync passes with no unresolved blocker.
+- [x] budget envelope + cost-outcome receipt committed locally and durably.
+- [x] `m8_execution_summary.json` committed locally and durably.
+- [x] all required M8 contract artifacts pass parity/readback.
+- [x] M8 closure sync passes with no unresolved blocker.
+
+Runtime budget:
+1. `M8.J` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
+
+Execution closure (2026-02-26):
+1. execution id:
+   - `m8j_p11_closure_sync_20260226T065141Z`.
+2. result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M9`,
+   - `next_gate=M9_READY`.
+3. contract parity:
+   - required `14/14` M8 artifacts readable/published,
+   - upstream contract artifacts `11/11` readable,
+   - M8.J output artifacts `3/3` published with readback parity.
+4. cost closure:
+   - `m8_phase_budget_envelope.json` emitted with thresholds `120/210/270` over monthly limit `300` (`USD`),
+   - `m8_phase_cost_outcome_receipt.json` emitted with `spend_amount=89.2979244404 USD`.
+5. evidence:
+   - local: `runs/dev_substrate/dev_full/m8/m8j_p11_closure_sync_20260226T065141Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8j_p11_closure_sync_20260226T065141Z/`.
 
 ## 6) Blocker Taxonomy (Fail-Closed)
 1. `M8-B1`: authority/handle closure failure.
@@ -949,8 +1085,8 @@ DoD:
 - [x] `M8.F` complete
 - [x] `M8.G` complete
 - [x] `M8.H` complete
-- [ ] `M8.I` complete
-- [ ] `M8.J` complete
+- [x] `M8.I` complete
+- [x] `M8.J` complete
 - [x] all active `M8-B*` blockers resolved
 
 ## 9) Planning Status
@@ -963,4 +1099,6 @@ DoD:
 7. `M8.F` closure-bundle completeness validation is closed green.
 8. `M8.G` spine non-regression pack generation + validation is closed green.
 9. `M8.H` governance append + closure-marker verification is closed green.
-10. Next action is `M8.I` P11 rollup verdict + `m9_handoff_pack`.
+10. `M8.I` P11 rollup verdict + `m9_handoff_pack` is closed green.
+11. `M8.J` M8 closure sync + cost-outcome receipt validation is closed green.
+12. M8 is fully closed and ready for M9 entry.

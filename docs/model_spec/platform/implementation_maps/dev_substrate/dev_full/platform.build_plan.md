@@ -95,7 +95,7 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M5 | P3-P4 | Oracle readiness + ingest preflight | DONE |
 | M6 | P5-P7 | Control + Ingress closure | DONE |
 | M7 | P8-P10 | RTDL + Case/Labels closure | DONE |
-| M8 | P11 | Spine obs/gov closure + non-regression pack | ACTIVE |
+| M8 | P11 | Spine obs/gov closure + non-regression pack | DONE |
 | M9 | P12 | Learning input readiness | NOT_STARTED |
 | M10 | P13 | OFS dataset closure | NOT_STARTED |
 | M11 | P14 | MF train/eval closure | NOT_STARTED |
@@ -825,7 +825,7 @@ Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P10.build_plan.md`
 
 ## M8 - Spine Obs/Gov Closure
-Status: `ACTIVE`
+Status: `DONE`
 
 Objective:
 1. close `P11 SPINE_OBS_GOV_CLOSED` with deterministic run-closeout evidence.
@@ -868,14 +868,14 @@ M8 sub-phase plan:
 10. `M8.J` M8 closure sync + cost-outcome receipt validation.
 
 DoD anchors:
-- [ ] `M8.A..M8.J` all close green with no active `M8-B*` blocker.
-- [ ] run report + reconciliation are committed locally and durably.
-- [ ] governance append log + closure marker are committed and append-safe.
-- [ ] spine non-regression pack is committed and pass-verdict.
-- [ ] deterministic `P11` verdict is `ADVANCE_TO_M9` with `next_gate=M9_READY`.
-- [ ] `m9_handoff_pack.json` is committed locally and durably.
-- [ ] `m8_phase_budget_envelope.json` + `m8_phase_cost_outcome_receipt.json` are valid and blocker-free.
-- [ ] `m8_execution_summary.json` is committed locally and durably.
+- [x] `M8.A..M8.J` all close green with no active `M8-B*` blocker.
+- [x] run report + reconciliation are committed locally and durably.
+- [x] governance append log + closure marker are committed and append-safe.
+- [x] spine non-regression pack is committed and pass-verdict.
+- [x] deterministic `P11` verdict is `ADVANCE_TO_M9` with `next_gate=M9_READY`.
+- [x] `m9_handoff_pack.json` is committed locally and durably.
+- [x] `m8_phase_budget_envelope.json` + `m8_phase_cost_outcome_receipt.json` are valid and blocker-free.
+- [x] `m8_execution_summary.json` is committed locally and durably.
 
 Blocker taxonomy (fail-closed reference):
 1. `M8-B1` authority/handle closure failure.
@@ -903,8 +903,8 @@ M8 sub-phase progress:
 - [x] `M8.F` closure-bundle completeness validation.
 - [x] `M8.G` spine non-regression pack generation + validation.
 - [x] `M8.H` governance append/closure-marker verification.
-- [ ] `M8.I` `P11` rollup verdict + `m9_handoff_pack.json`.
-- [ ] `M8.J` M8 closure sync + cost-outcome receipt validation.
+- [x] `M8.I` `P11` rollup verdict + `m9_handoff_pack.json`.
+- [x] `M8.J` M8 closure sync + cost-outcome receipt validation.
 
 M8 execution status (2026-02-26):
 1. `M8.A` is closed green:
@@ -956,6 +956,19 @@ M8 execution status (2026-02-26):
    - governance projection outputs:
      - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/governance/append_log.jsonl`,
      - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/governance/closure_marker.json`.
+9. `M8.I` is closed green after bounded fail-first remediation:
+   - fail-first execution: `m8i_p11_rollup_verdict_20260226T064242Z` (`M8-B9` ref-surface unreadable + `M8-B10` non-secret false-positive),
+   - remediation: deterministic run_report/reconciliation projection from object-store source truth to evidence contract refs + scanner hardening for policy metadata list,
+   - closure execution: `m8i_p11_rollup_verdict_20260226T064405Z`,
+   - result: `overall_pass=true`, `verdict=ADVANCE_TO_M9`, `blocker_count=0`, `next_gate=M9_READY`,
+   - durable run-control evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8i_p11_rollup_verdict_20260226T064405Z/`,
+   - handoff artifact: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8i_p11_rollup_verdict_20260226T064405Z/m9_handoff_pack.json`.
+10. `M8.J` is closed green:
+   - execution: `m8j_p11_closure_sync_20260226T065141Z`,
+   - result: `overall_pass=true`, `verdict=ADVANCE_TO_M9`, `blocker_count=0`, `next_gate=M9_READY`,
+   - contract parity: required `14/14` M8 artifacts present (`11/11` upstream + `3/3` M8.J outputs),
+   - cost closure: `m8_phase_budget_envelope.json` + `m8_phase_cost_outcome_receipt.json` emitted (AWS MTD `89.2979244404 USD`),
+   - durable run-control evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8j_p11_closure_sync_20260226T065141Z/`.
 
 ## M9 - Learning Input Readiness
 Status: `NOT_STARTED`
@@ -1073,4 +1086,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M8.I` P11 rollup verdict + `m9_handoff_pack` with fail-closed blocker remediation and local+durable artifact publication.
+- Expand and execute `M9.A` for `P12` learning-input readiness entry checks.

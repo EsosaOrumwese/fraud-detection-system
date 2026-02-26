@@ -16,7 +16,7 @@ This folder is reserved for `dev_full` planning and implementation notes.
   - `M0..M5` are `DONE`.
   - `M6` is `DONE`.
   - `M7` is `DONE`.
-  - `M8` is `ACTIVE` (`M8.A..M8.H` closed green).
+  - `M8` is `DONE` (`M8.A..M8.J` closed green).
 - Active gate posture:
   - `M7.J` is closed green on authoritative managed run `m7q_m7_rollup_sync_20260226T031710Z` with `next_gate=M8_READY`.
   - `M7.K` throughput certification is closed green on `m7s_m7k_cert_20260226T000002Z`.
@@ -28,5 +28,5 @@ This folder is reserved for `dev_full` planning and implementation notes.
   - `M8` deep planning now exists in:
     - `platform.M8.build_plan.md`.
 - Next closure step:
-  - execute `M8.I` P11 rollup verdict + `m9_handoff_pack` for `P11`.
+  - begin `M9.A` planning/execution for `P12` learning-input readiness.
 - `dev_min` remains closed and isolated under `../dev_min/`.

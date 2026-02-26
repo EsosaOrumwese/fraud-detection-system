@@ -11807,3 +11807,118 @@ ext_gate=M8.G_READY.
    - `runs/dev_substrate/dev_full/m8/m8i_p11_rollup_verdict_20260226T064405Z/`.
 2. Durable run-control:
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8i_p11_rollup_verdict_20260226T064405Z/`.
+## Entry: 2026-02-26 06:56:00 +00:00 - M8.I status synchronization completed
+
+### Documentation sync
+1. Updated `platform.M8.build_plan.md`:
+   - M8.I DoDs marked complete,
+   - M8.I fail-first + remediation closure notes added,
+   - completion checklist marks `M8.I` complete,
+   - next action advanced to `M8.J`.
+2. Updated `platform.build_plan.md`:
+   - M8 sub-phase progress marks `M8.I` complete,
+   - M8 execution status includes M8.I closure evidence,
+   - global next action advanced to `M8.J`.
+3. Updated `dev_full/README.md`:
+   - active M8 posture now `M8.A..M8.I` closed green,
+   - next closure step now `M8.J`.
+## Entry: 2026-02-26 06:48:10 +00:00 - M8.J execution start and lane lock
+
+### Scope lock
+1. M8.J is the only active lane; M8.A..M8.I are treated as immutable upstream inputs.
+2. Canonical upstream gate source is m8i_p11_rollup_verdict_20260226T064405Z (overall_pass=true, erdict=ADVANCE_TO_M9, 
+ext_gate=M9_READY).
+3. Canonical run scope is fixed to platform_20260223T184232Z / scenario_38753050f3b70c666e16f7552016b330.
+
+### Decision before implementation
+1. Expand M8.J from stub to execution-grade contract before adding executor code.
+2. Implement a dedicated m8j closure script (no ad-hoc shell path) to preserve deterministic artifact schema and rerun parity.
+3. Fail-closed blocker mapping for this lane remains:
+   - M8-B11 cost-outcome closure failure,
+   - M8-B12 publication/readback parity failure.
+## Entry: 2026-02-26 06:48:59 +00:00 - M8.J deep-plan expansion completed
+
+### What was expanded
+1. Replaced M8.J stub with full execution contract in platform.M8.build_plan.md.
+2. Added explicit entry conditions, required inputs, preparation checks, deterministic algorithm, output schemas, DoD anchors, and runtime budget.
+3. Locked fail-closed mapping for closure lane risks:
+   - M8-B11 cost-outcome closure failure,
+   - M8-B12 publication/readback parity failure.
+
+### Implementation intent from this expansion
+1. Build a deterministic closure executor script (m8j) that consumes the pinned M8.I verdict and M8 contract parity matrix.
+2. Emit authoritative M8 closure artifacts and only mark M8 done if blockers are empty.
+## Entry: 2026-02-26 06:49:29 +00:00 - M8.J algorithm design before coding
+
+### Alternatives considered
+1. Reuse m6j_closure_sync.py directly via parameter overload.
+2. Build one-off shell commands to emit M8 closure files.
+3. Create dedicated m8j executor with fixed M8 contract checks.
+
+### Decision
+1. Selected option 3 (dedicated m8j script).
+2. Reason: M8 requires contract-parity validation across M8.A..M8.I artifacts, which is phase-specific and should remain deterministic/replay-safe.
+3. Kept common mechanics from m6j only for cost capture and durable publish/readback primitives.
+
+### Locked verification rules
+1. Gate posture rule: M8.I must be green with ADVANCE_TO_M9 and M9_READY.
+2. Contract parity rule: all 14 required M8 artifacts must be readable in durable storage.
+3. Cost closure rule: valid budget ordering + successful AWS MTD capture + no hard-stop threshold breach.
+4. Publication parity rule: all M8.J outputs must pass put+head on S3.
+## Entry: 2026-02-26 06:51:28 +00:00 - Implemented M8.J executor
+
+### File added
+1. `scripts/dev_substrate/m8j_closure_sync.py`.
+
+### Mechanics implemented
+1. Reads contract artifacts for `M8.A..M8.I` from durable run-control prefixes.
+2. Enforces M8.I green gate posture (`ADVANCE_TO_M9`, `M9_READY`) and run-scope continuity.
+3. Captures AWS MTD cost (billing region `us-east-1`) and enforces budget ordering + hard-stop threshold.
+4. Emits closure artifacts:
+   - `m8_phase_budget_envelope.json`
+   - `m8_phase_cost_outcome_receipt.json`
+   - `m8_execution_summary.json`
+   - `m8j_blocker_register.json`
+   - `m8j_execution_summary.json`
+5. Publishes artifacts durably with put+head readback parity checks.
+## Entry: 2026-02-26 06:53:26 +00:00 - M8.J execution result and closure decision
+
+### Execution
+1. Ran `m8j_closure_sync.py` with execution id `m8j_p11_closure_sync_20260226T065141Z`.
+2. Run scope used:
+   - `platform_run_id=platform_20260223T184232Z`
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`.
+3. Upstream chain fixed to canonical green `M8.A..M8.I` execution ids.
+
+### Outcome
+1. `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M9`, `next_gate=M9_READY`.
+2. Contract parity passed:
+   - required M8 artifacts `14/14` available,
+   - upstream artifacts `11/11` readable,
+   - M8.J outputs `3/3` published/readback.
+3. Cost closure emitted:
+   - `m8_phase_budget_envelope.json` (`USD` thresholds `120/210/270` over monthly `300`),
+   - `m8_phase_cost_outcome_receipt.json` (`spend_amount=89.2979244404 USD`).
+4. Durable evidence root:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8j_p11_closure_sync_20260226T065141Z/`.
+
+### Decision
+1. `M8.J` is closure-green and M8 can be marked `DONE`.
+2. Next program action should move to `M9.A` planning/execution.
+## Entry: 2026-02-26 06:53:59 +00:00 - M8 closure status synchronization
+
+### Files synchronized after M8.J green
+1. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M8.build_plan.md
+   - marked M8.J DoDs complete,
+   - added M8.J execution closure evidence,
+   - marked M8.J complete in checklist,
+   - planning status now states M8 fully closed.
+2. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md
+   - set M8 status to DONE (table + section),
+   - marked M8 DoD anchors complete,
+   - marked M8.J progress complete,
+   - added M8.J execution status block,
+   - advanced global next action to M9.A.
+3. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/README.md
+   - posture updated to M8 DONE (M8.A..M8.J green),
+   - next closure step moved to M9.A.
