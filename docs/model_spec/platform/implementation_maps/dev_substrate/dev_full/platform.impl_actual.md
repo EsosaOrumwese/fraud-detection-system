@@ -14131,3 +14131,58 @@ ext_gate=M10.D_READY
    - `next_gate=M11_READY`.
 7. Implementation route pinned:
    - extend existing managed workflow `.github/workflows/dev_full_m10_d_managed.yml` with an `Execute M10.I (managed)` stage to preserve no-local-compute authoritative closure.
+
+## Entry: 2026-02-26 16:19:48 +00:00 - M10.I deep-plan expanded to execution-grade
+1. Expanded `M10.I` section in `platform.M10.build_plan.md` from skeletal tasks into closure-grade contract:
+   - explicit entry conditions,
+   - gate-chain continuity checks (`M10.A..M10.H`),
+   - deterministic artifact set,
+   - blocker taxonomy (`M10-B9/M10-B10/M10-B12`),
+   - runtime budget and execution-status scaffold.
+2. Added explicit DoD requirement for rollup matrix + execution summary + blocker register durable publication.
+3. Kept pass posture strict:
+   - `verdict=ADVANCE_TO_P14`,
+   - `next_gate=M11_READY`.
+
+## Entry: 2026-02-26 16:25:06 +00:00 - Managed M10.I workflow lane implemented
+1. Updated `.github/workflows/dev_full_m10_d_managed.yml` to add M10.I support:
+   - new dispatch input: `m10i_execution_id`,
+   - metadata outputs: `m10i_execution_id`, `m10i_run_dir`,
+   - new stage: `Execute M10.I (managed)`.
+2. M10.I managed stage implementation details:
+   - validates handle closure for `S3_EVIDENCE_BUCKET` + `S3_RUN_CONTROL_ROOT_PATTERN`,
+   - resolves `M10.A/M10.B` lineage via `M10.C` snapshot + `M10.B` snapshot,
+   - rolls up gate continuity across `M10.A..M10.H`,
+   - enforces single-valued run scope across source summaries,
+   - emits artifacts:
+     - `m10i_p13_rollup_matrix.json`,
+     - `m10i_p13_gate_verdict.json`,
+     - `m11_handoff_pack.json`,
+     - `m10i_execution_summary.json`,
+     - `m10i_blocker_register.json`,
+   - fail-closed blockers:
+     - `M10-B9` (rollup/verdict inconsistency),
+     - `M10-B10` (handoff publication/contract failure),
+     - `M10-B12` (artifact publication parity failure),
+   - success gate:
+     - `verdict=ADVANCE_TO_P14`, `next_gate=M11_READY`.
+3. Upload bundle expanded to include M10.I run dir (`m10-defghi-managed-*`).
+4. YAML parse check passed (`YAML_OK`) after patch.
+
+## Entry: 2026-02-26 16:22:49 +00:00 - M10.D..I managed run dispatched for M10.I closure
+1. Workflow dispatch completed after workflow-only push:
+   - run id: `22450977548`
+   - url: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22450977548`
+   - commit: `63feb853`
+2. Fixed execution ids pinned for deterministic chain:
+   - `m10d_ofs_build_20260226T162241Z`
+   - `m10e_quality_gate_20260226T162241Z`
+   - `m10f_iceberg_commit_20260226T162241Z`
+   - `m10g_manifest_fingerprint_20260226T162241Z`
+   - `m10h_rollback_recipe_20260226T162241Z`
+   - `m10i_p13_gate_rollup_20260226T162241Z`
+3. Upstream M10.C basis pinned:
+   - `m10c_input_binding_20260226T131441Z`.
+4. Monitoring posture:
+   - wait to terminal state,
+   - if blocker appears, remediate fail-closed before plan closure updates.

@@ -1,5 +1,33 @@
 # Managed Service-Level Objective-Gated Platform Certification in a Managed Cloud Environment
 
+## Front Card (Recruiter Entry)
+Claim:
+- Built and executed a blocker-driven Service Level Objective certification program for a distributed fraud platform in a managed cloud environment, and advanced certification only after semantic, incident, scale, recovery, and reproducibility lanes all closed.
+
+What this proves:
+- I can run distributed platform operations against explicit reliability objectives, not just ship components.
+- I can demonstrate fail-first detection, targeted remediation, and rerun closure under controlled failure conditions.
+- I can make platform pass/fail decisions machine-adjudicated and auditable.
+
+Tech stack:
+- Managed cloud runtime, managed event transport, run-scoped evidence artifacts, and machine-readable certification snapshots.
+
+Top 3 proof hooks:
+- Proof 1: Final certification closed blocker-free with deterministic verdict. Artifact: `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`.
+- Proof 2: Incident and soak lanes both showed fail-to-fix-to-pass closure in the same certification cycle. Artifacts: `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot_attempt1_fail.json`, `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot.json`, `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_soak_snapshot.json`, `runs/dev_substrate/m10/m10_20260221T234738Z/m10_g_soak_snapshot.json`.
+- Proof 3: Recovery-under-load and reproducibility both passed with measured thresholds. Artifacts: `runs/dev_substrate/m10/m10_20260222T015122Z/m10_h_recovery_snapshot.json`, `runs/dev_substrate/m10/m10_20260222T064333Z/m10_i_reproducibility_snapshot.json`.
+
+Non-claim:
+- This certifies managed production-like operation, not live customer production traffic.
+
+## Numbers That Matter
+- Final certification verdict: `ADVANCE_CERTIFIED_DEV_MIN`, `overall_pass=true`, `blockers=[]`, `blocker_union=[]`.
+- Semantic baseline objective: `418` seconds elapsed against `3600`-second budget.
+- Incident closure: fail snapshot (`M10D-B2`) to pass snapshot with `duplicate_delta=320` and no double-action drift.
+- Scale outcomes: `50,100` admitted in representative window (target `>=50,000`), burst multiplier `3.1277` (target `3.0`).
+- Recovery under load: `172.162` seconds restart-to-stable against `600`-second threshold.
+- Reproducibility: `anchor_keyset_match=true`, `duplicate_share_delta=0.00059848`, `quarantine_share_delta=0.00132463`.
+
 ## 1) Claim Statement
 
 ### Primary claim
@@ -64,7 +92,7 @@ A correct reviewer interpretation is:
 - "The engineer can run a distributed platform under explicit Service Level Objectives, force failures to validate controls, recover deterministically, and close certification through machine-readable evidence."
 
 An incorrect reviewer interpretation is:
-- "The engineer only executed internal phases and reported a green summary."
+- "The engineer only executed internal stages and reported a narrative pass summary."
 
 ## 2) Outcome Target
 
@@ -760,8 +788,9 @@ Scale behavior closed across representative window, burst, and soak:
 - admitted events: `50100` (target `>=50000`),
 - semantic safety: `publish_ambiguous=0`, `quarantine=0`,
 - runtime budget primary evaluation: pass (`elapsed_seconds=7180`, `budget_seconds=7200`).
-Additional truth note:
-- strict end-to-end elapsed including remediation was recorded as `9474` seconds (`strict_budget_pass=false`) and retained as optimization debt visibility.
+Budget interpretation note:
+- the lane gate used the primary window budget evaluation (`7180/7200`, pass).
+- strict end-to-end elapsed including remediation (`9474`) is retained as optimization debt visibility, not hidden.
 
 2. Burst:
 - overall pass: `true`,
@@ -792,7 +821,7 @@ Operational meaning:
 Recovery lane closed with explicit recovery-time and stabilization success:
 1. overall pass: `true`,
 2. blockers: empty,
-3. prerequisite gate: pass (`h0_pass=true`),
+3. reporter prerequisite gate: pass,
 4. restart-to-stable: `172.162` seconds (threshold `600`),
 5. post-recovery lag stability: pass (`max_lag_window=4`, threshold `10`),
 6. semantic stability: pass (`semantic_pass=true`, `max_publish_ambiguous=0`, `max_fail_open=0`),
