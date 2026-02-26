@@ -14186,3 +14186,71 @@ ext_gate=M10.D_READY
 4. Monitoring posture:
    - wait to terminal state,
    - if blocker appears, remediate fail-closed before plan closure updates.
+
+## Entry: 2026-02-26 16:25:44 +00:00 - M10.I execution blocker encountered and remediated (fail-closed)
+1. First M10.D..I dispatch failed at OIDC step before phase execution:
+   - run id: `22450977548`
+   - failing step: `Configure AWS credentials via OIDC`
+   - error: `No OpenIDConnect provider found in your account for https://token.actions.githubusercontent.com`.
+2. Root cause:
+   - workflow dispatch used wrong AWS account role ARN (`arn:aws:iam::975050217133:role/GitHubAction-AssumeRoleWithAction`) from dev_min posture.
+   - dev_full runtime account is `230372904534` per pinned handles/terraform surfaces.
+3. Fail-closed decision:
+   - do not treat this run as phase evidence,
+   - rerun with dev_full OIDC role ARN in account `230372904534`.
+4. Remediation plan:
+   - dispatch same workflow with identical execution-id set and corrected role ARN `arn:aws:iam::230372904534:role/GitHubAction-AssumeRoleWithAction`.
+
+## Entry: 2026-02-26 16:26:37 +00:00 - M10.D..I rerun dispatched with corrected dev_full OIDC role
+1. Rerun dispatch executed with corrected role ARN:
+   - `arn:aws:iam::230372904534:role/GitHubAction-AssumeRoleWithAction`.
+2. Active run:
+   - run id: `22451131126`
+   - url: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22451131126`
+3. Fixed execution ids for this authoritative pass:
+   - `m10d_ofs_build_20260226T162737Z`
+   - `m10e_quality_gate_20260226T162737Z`
+   - `m10f_iceberg_commit_20260226T162737Z`
+   - `m10g_manifest_fingerprint_20260226T162737Z`
+   - `m10h_rollback_recipe_20260226T162737Z`
+   - `m10i_p13_gate_rollup_20260226T162737Z`
+4. Monitoring to terminal; M10.I closure updates will be based only on this corrected run.
+
+## Entry: 2026-02-26 16:28:04 +00:00 - M10.I managed closure reached green on corrected run
+1. Corrected managed run reached terminal success:
+   - run id: `22451131126`
+   - workflow: `.github/workflows/dev_full_m10_d_managed.yml`
+   - commit: `5b05a11c`
+2. M10.I execution id:
+   - `m10i_p13_gate_rollup_20260226T162737Z`
+3. M10.I terminal verdict:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `verdict=ADVANCE_TO_P14`
+   - `next_gate=M11_READY`
+4. Blocker posture:
+   - `m10i_blocker_register.json` reports `blockers=[]`, `read_errors=[]`, `upload_errors=[]`.
+5. Deterministic rollup continuity confirmed:
+   - source chain `M10.A..M10.H` all row-pass in `m10i_p13_rollup_matrix.json`.
+6. Durable evidence prefix:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10i_p13_gate_rollup_20260226T162737Z/`.
+7. Handoff artifact emitted:
+   - `evidence/dev_full/run_control/m10i_p13_gate_rollup_20260226T162737Z/m11_handoff_pack.json`
+   - contains `m11_entry_gate.required_verdict=ADVANCE_TO_P14` and `m11_entry_gate.next_gate=M11_READY`.
+
+## Entry: 2026-02-26 16:30:21 +00:00 - M10.I documentation synchronization completed
+1. Deep plan updates (`platform.M10.build_plan.md`):
+   - marked M10.I DoDs complete,
+   - populated execution status with concrete run/execution/evidence details,
+   - marked `M10.I` complete in checklist,
+   - advanced next action to `M10.J`.
+2. Master plan updates (`platform.build_plan.md`):
+   - added M10.I green execution record,
+   - checked DoD anchor for deterministic P13 verdict + M11 handoff,
+   - moved global next action to `M10.J`.
+3. Artifact contract consistency patch:
+   - added explicit M10.I artifacts (`rollup_matrix`, `blocker_register`, `execution_summary`) to M10 deliverables + artifact contract list.
+4. Current M10 posture:
+   - M10A-I green,
+   - active gate head: `M11_READY` from M10.I,
+   - remaining closure lane: M10.J.

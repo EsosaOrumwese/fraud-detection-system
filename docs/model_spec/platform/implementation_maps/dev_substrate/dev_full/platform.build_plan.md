@@ -1262,6 +1262,19 @@ M10 execution status:
      - rollback target table: `fraud_platform_dev_full_ofs.ofs_platform_20260223t184232z`,
    - durable run-control evidence:
      - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10h_rollback_recipe_20260226T161023Z/`.
+12. `M10.I` P13 gate rollup + M11 handoff is green in managed lane:
+   - workflow: `.github/workflows/dev_full_m10_d_managed.yml`,
+   - Actions run: `22451131126` (`migrate-dev`, commit `5b05a11c`),
+   - execution: `m10i_p13_gate_rollup_20260226T162737Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_P14`, `next_gate=M11_READY`,
+   - source chain continuity:
+     - `M10.A..M10.H` all row-pass in `m10i_p13_rollup_matrix.json`,
+   - handoff output:
+     - `evidence/dev_full/run_control/m10i_p13_gate_rollup_20260226T162737Z/m11_handoff_pack.json`,
+   - remediation note:
+     - prior dispatch `22450977548` failed pre-phase at OIDC due wrong account role ARN; corrected dispatch used dev_full role in account `230372904534`,
+   - durable run-control evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10i_p13_gate_rollup_20260226T162737Z/`.
 
 DoD anchors:
 - [x] OFS manifest committed.
@@ -1269,7 +1282,7 @@ DoD anchors:
 - [x] Iceberg table/metadata commit receipt committed.
 - [x] OFS rollback recipe committed.
 - [x] OFS time-bound/leakage audit is committed and green.
-- [ ] deterministic `P13` verdict and `m11_handoff_pack.json` are committed.
+- [x] deterministic `P13` verdict and `m11_handoff_pack.json` are committed.
 - [ ] M10 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
 Deep plan:
@@ -1394,4 +1407,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M10.I` (P13 gate rollup + M11 handoff) using `M10.H` green closure (`m10h_rollback_recipe_20260226T161023Z`) as entry basis.
+- Expand and execute `M10.J` (M10 closure sync + cost-outcome) using `M10.I` green closure (`m10i_p13_gate_rollup_20260226T162737Z`) as entry basis.

@@ -21,12 +21,12 @@ Non-claim:
 - This certifies managed production-like operation, not live customer production traffic.
 
 ## Numbers That Matter
-- Final certification verdict: `ADVANCE_CERTIFIED_DEV_MIN`, `overall_pass=true`, `blockers=[]`, `blocker_union=[]`.
+- Final certification posture: certification advanced with an explicit pass verdict, no open lane blockers, and an empty cross-lane blocker rollup.
 - Semantic baseline objective: `418` seconds elapsed against `3600`-second budget.
-- Incident closure: fail snapshot (`M10D-B2`) to pass snapshot with `duplicate_delta=320` and no double-action drift.
+- Incident closure: initial non-pass snapshot to pass snapshot with `duplicate_delta=320` and no double-action drift.
 - Scale outcomes: `50,100` admitted in representative window (target `>=50,000`), burst multiplier `3.1277` (target `3.0`).
 - Recovery under load: `172.162` seconds restart-to-stable against `600`-second threshold.
-- Reproducibility: `anchor_keyset_match=true`, `duplicate_share_delta=0.00059848`, `quarantine_share_delta=0.00132463`.
+- Reproducibility: replay-anchor keyset matched, `duplicate_share_delta=0.00059848`, `quarantine_share_delta=0.00132463`.
 
 ## 1) Claim Statement
 
@@ -122,8 +122,8 @@ This report must demonstrate the following measurable objectives:
 1. semantic baseline objective:
 - 200-event semantic certification completes within budget (`elapsed_seconds=418`, `budget_seconds=3600`, `budget_pass=true`).
 2. incident resilience objective:
-- fail-first evidence exists (`overall_pass=false`),
-- remediation rerun closes (`overall_pass=true`, blockers empty),
+- fail-first evidence exists (lane non-pass),
+- remediation rerun closes (lane pass with no open blockers),
 - duplicate-safe behavior changes without unsafe downstream duplication (`duplicate_delta=320`).
 3. scale objectives:
 - representative window admitted movement reaches `50100`,
@@ -479,8 +479,8 @@ Each lane snapshot was implemented as structured data with common closure fields
 3. objective target block (thresholds and budget),
 4. gate-check matrix (boolean checks with explicit names),
 5. runtime budget block (`budget_seconds`, `elapsed_seconds`, `budget_pass`),
-6. blockers array,
-7. final lane pass flag (`overall_pass`).
+6. blocker list,
+7. final lane pass indicator.
 
 This contract enabled cross-lane comparison and deterministic final synthesis.
 
@@ -733,10 +733,10 @@ Section 9 presents the measured outcomes produced by executing this strategy.
 
 ### 9.1 Final certification outcome
 The certification cycle closed with deterministic advance posture:
-1. verdict: `ADVANCE_CERTIFIED_DEV_MIN`,
-2. overall pass: `true`,
-3. blockers: `[]`,
-4. blocker union: `[]`,
+1. verdict: certification advanced,
+2. final adjudication pass: yes,
+3. open lane blockers: none,
+4. cross-lane blocker rollup: empty,
 5. certification synthesis runtime budget: pass (`elapsed_seconds=1.617`, `budget_seconds=1800`).
 
 Operational meaning:
@@ -745,16 +745,16 @@ Operational meaning:
 ### 9.2 Semantic correctness outcomes
 Semantic closure passed at both bounded certification depths:
 1. semantic lightweight lane:
-- overall pass: `true`,
-- blockers: empty,
-- run scope coherence: `true`,
-- required evidence exists: `true`,
-- ambiguity-safe posture: `publish_ambiguous_absent=true`.
+- lane pass: yes,
+- open blockers: none,
+- run scope coherence: yes,
+- required evidence exists: yes,
+- ambiguity-safe posture: no unresolved publish ambiguity.
 2. semantic baseline-depth lane:
-- overall pass: `true`,
-- blockers: empty,
+- lane pass: yes,
+- open blockers: none,
 - runtime budget: pass (`elapsed_seconds=418`, `budget_seconds=3600`),
-- key checks: `admit_at_least_target=true`, `publish_ambiguous_absent=true`, `obs_gov_closure_present=true`, `run_scope_coherent=true`.
+- key checks: admit target met, no unresolved publish ambiguity, observability and governance closure present, run scope coherent.
 
 Operational meaning:
 - semantic movement and safety posture remained compatible with certification thresholds at both certification depths.
@@ -762,12 +762,12 @@ Operational meaning:
 ### 9.3 Incident resilience outcome (fail-to-fix-to-pass)
 Incident lane demonstrated required fail-first and remediation closure:
 1. initial attempt:
-- overall pass: `false`,
-- blocker: `M10D-B2`,
+- lane pass: no,
+- blocker: present on first attempt,
 - elapsed: `241` seconds.
 2. remediation rerun:
-- overall pass: `true`,
-- blockers: empty,
+- lane pass: yes,
+- open blockers: none,
 - elapsed: `1542` seconds.
 3. post-remediation correctness deltas:
 - `duplicate_delta=320`,
@@ -783,8 +783,8 @@ Operational meaning:
 Scale behavior closed across representative window, burst, and soak:
 
 1. Representative window:
-- overall pass: `true`,
-- blockers: empty,
+- lane pass: yes,
+- open blockers: none,
 - admitted events: `50100` (target `>=50000`),
 - semantic safety: `publish_ambiguous=0`, `quarantine=0`,
 - runtime budget primary evaluation: pass (`elapsed_seconds=7180`, `budget_seconds=7200`).
@@ -793,8 +793,8 @@ Budget interpretation note:
 - strict end-to-end elapsed including remediation (`9474`) is retained as optimization debt visibility, not hidden.
 
 2. Burst:
-- overall pass: `true`,
-- blockers: empty,
+- lane pass: yes,
+- open blockers: none,
 - achieved multiplier: `3.1277317850811373` (target `3.0`),
 - admit-ratio target: pass,
 - semantic drift checks: `publish_ambiguous_absent=true`, `side_effect_drift_detected=false`,
@@ -802,13 +802,13 @@ Budget interpretation note:
 
 3. Soak (fail-to-fix-to-pass):
 - initial soak attempt:
-  - overall pass: `false`,
-  - blocker: `M10G-B2`,
+  - lane pass: no,
+  - blocker: present on first attempt,
   - lag check failure: `max_lag_window=310` (lag pass false),
   - elapsed: `6064.398` seconds.
 - remediation soak rerun:
-  - overall pass: `true`,
-  - blockers: empty,
+  - lane pass: yes,
+  - open blockers: none,
   - lag stabilized: `max_lag_window=3`,
   - `checkpoint_monotonic=true`,
   - semantic safety remained clean (`max_publish_ambiguous=0`, `fail_open_detected=false`),
@@ -819,8 +819,8 @@ Operational meaning:
 
 ### 9.5 Recovery-under-load outcome
 Recovery lane closed with explicit recovery-time and stabilization success:
-1. overall pass: `true`,
-2. blockers: empty,
+1. lane pass: yes,
+2. open blockers: none,
 3. reporter prerequisite gate: pass,
 4. restart-to-stable: `172.162` seconds (threshold `600`),
 5. post-recovery lag stability: pass (`max_lag_window=4`, threshold `10`),
@@ -832,8 +832,8 @@ Operational meaning:
 
 ### 9.6 Reproducibility outcome
 Reproducibility lane closed on fresh-run comparison:
-1. overall pass: `true`,
-2. blockers: empty,
+1. lane pass: yes,
+2. open blockers: none,
 3. coherence checks:
 - `anchor_keyset_match=true`,
 - `profile_match=true`,
@@ -950,7 +950,7 @@ Key fields to check:
 - `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot.json`
 
 Key fields to check:
-1. fail blocker presence (`M10D-B2`),
+1. fail blocker presence (captured in fail snapshot),
 2. pass with empty blockers,
 3. `delta_extracts.duplicate_delta`,
 4. no-double-action and no-duplicate-case checks.
@@ -1054,7 +1054,7 @@ That difference is usually the boundary between implementation familiarity and o
 3. "I use machine-readable blocker adjudication so platform pass/fail decisions are deterministic and auditable."
 
 ### 12.6 Interview extraction lines (challenge mode)
-1. "The certification verdict was blocker-driven (`ADVANCE_CERTIFIED_DEV_MIN`, `overall_pass=true`, `blockers=[]`)."
+1. "The certification verdict was blocker-driven with a pass adjudication and no open blockers."
 2. "Incident and soak lanes both demonstrated fail-to-fix-to-pass behavior with measured before/after values."
 3. "Recovery passed under load (`172.162s` vs `600s` threshold), and reproducibility passed on a fresh run with bounded drift."
 

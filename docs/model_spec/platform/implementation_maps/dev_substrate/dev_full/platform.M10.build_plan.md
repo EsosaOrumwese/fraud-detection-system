@@ -50,11 +50,14 @@ Out of scope:
 6. `m10f_iceberg_commit_snapshot.json`
 7. `m10g_manifest_fingerprint_snapshot.json`
 8. `m10h_rollback_recipe_snapshot.json`
-9. `m10i_p13_gate_verdict.json`
-10. `m11_handoff_pack.json`
-11. `m10_phase_budget_envelope.json`
-12. `m10_phase_cost_outcome_receipt.json`
-13. `m10_execution_summary.json`
+9. `m10i_p13_rollup_matrix.json`
+10. `m10i_p13_gate_verdict.json`
+11. `m10i_blocker_register.json`
+12. `m10i_execution_summary.json`
+13. `m11_handoff_pack.json`
+14. `m10_phase_budget_envelope.json`
+15. `m10_phase_cost_outcome_receipt.json`
+16. `m10_execution_summary.json`
 
 ## 4) Entry Gate and Current Posture
 Entry gate for M10:
@@ -713,34 +716,40 @@ Runtime budget:
 1. target <= 10 minutes wall clock.
 
 DoD:
-- [ ] deterministic verdict is emitted.
-- [ ] pass posture requires `ADVANCE_TO_P14` + `next_gate=M11_READY`.
-- [ ] handoff pack committed locally and durably.
-- [ ] rollup matrix + execution summary + blocker register committed locally and durably.
+- [x] deterministic verdict is emitted.
+- [x] pass posture requires `ADVANCE_TO_P14` + `next_gate=M11_READY`.
+- [x] handoff pack committed locally and durably.
+- [x] rollup matrix + execution summary + blocker register committed locally and durably.
 
 Execution status:
 1. Closure execution:
-   - execution id: `[pending]`
-   - result: `[pending]`
+   - execution id: `m10i_p13_gate_rollup_20260226T162737Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_P14`, `next_gate=M11_READY`.
 2. Source gate-chain rollup:
-   - `M10.A`: `[pending]`,
-   - `M10.B`: `[pending]`,
-   - `M10.C`: `[pending]`,
-   - `M10.D`: `[pending]`,
-   - `M10.E`: `[pending]`,
-   - `M10.F`: `[pending]`,
-   - `M10.G`: `[pending]`,
-   - `M10.H`: `[pending]`.
+   - `M10.A`: pass + `M10.B_READY`,
+   - `M10.B`: pass + `M10.C_READY`,
+   - `M10.C`: pass + `M10.D_READY`,
+   - `M10.D`: pass + `M10.E_READY`,
+   - `M10.E`: pass + `M10.F_READY`,
+   - `M10.F`: pass + `M10.G_READY`,
+   - `M10.G`: pass + `M10.H_READY`,
+   - `M10.H`: pass + `M10.I_READY`.
 3. Run scope continuity:
-   - `platform_run_id`: `[pending]`,
-   - `scenario_run_id`: `[pending]`.
+   - `platform_run_id`: `platform_20260223T184232Z` (single value),
+   - `scenario_run_id`: `scenario_38753050f3b70c666e16f7552016b330` (single value).
 4. Handoff pack:
    - `m11_handoff_pack.json` emitted with required refs for M11 entry,
    - `m11_entry_gate.required_verdict=ADVANCE_TO_P14`,
    - `m11_entry_gate.next_gate=M11_READY`.
 5. Evidence:
-   - local: `[pending]`,
-   - durable: `[pending]`.
+   - local: `runs/dev_substrate/m10/gh_run_22451131126/m10-defghi-managed-20260226T162658Z/m10i_p13_gate_rollup_20260226T162737Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10i_p13_gate_rollup_20260226T162737Z/`.
+6. Managed run reference:
+   - Actions run: `22451131126` (`migrate-dev`, commit `5b05a11c`)
+   - Workflow: `.github/workflows/dev_full_m10_d_managed.yml`
+7. Pre-closure remediation note:
+   - first dispatch `22450977548` failed before phase execution at OIDC credential step due wrong account role ARN (`975...` dev_min posture),
+   - rerun used corrected dev_full role ARN in account `230372904534` and reached blocker-free closure.
 
 ### M10.J M10 Cost-Outcome + Closure Sync
 Goal:
@@ -779,11 +788,14 @@ DoD:
 6. `m10f_iceberg_commit_snapshot.json`
 7. `m10g_manifest_fingerprint_snapshot.json`
 8. `m10h_rollback_recipe_snapshot.json`
-9. `m10i_p13_gate_verdict.json`
-10. `m11_handoff_pack.json`
-11. `m10_phase_budget_envelope.json`
-12. `m10_phase_cost_outcome_receipt.json`
-13. `m10_execution_summary.json`
+9. `m10i_p13_rollup_matrix.json`
+10. `m10i_p13_gate_verdict.json`
+11. `m10i_blocker_register.json`
+12. `m10i_execution_summary.json`
+13. `m11_handoff_pack.json`
+14. `m10_phase_budget_envelope.json`
+15. `m10_phase_cost_outcome_receipt.json`
+16. `m10_execution_summary.json`
 
 ## 8) Completion Checklist
 - [x] `M10.A` complete
@@ -794,9 +806,9 @@ DoD:
 - [x] `M10.F` complete
 - [x] `M10.G` complete
 - [x] `M10.H` complete
-- [ ] `M10.I` complete
+- [x] `M10.I` complete
 - [ ] `M10.J` complete
-- [x] all active `M10-B*` blockers resolved (current active set through `M10.H`)
+- [x] all active `M10-B*` blockers resolved (current active set through `M10.I`)
 
 ## 9) Planning Status
 1. M10 planning is expanded and execution-grade.
@@ -810,4 +822,5 @@ DoD:
 7. `M10.F` is closed green in managed execution (`22448956775`) after IAM remediation of `M10-B6`.
 8. `M10.G` is closed green in managed execution (`22449853059`) with blocker-free `M10.H_READY`.
 9. `M10.H` is closed green in managed execution (`22450488594`) with blocker-free `M10.I_READY`.
-10. Next action is `M10.I` expansion and execution.
+10. `M10.I` is closed green in managed execution (`22451131126`) with `verdict=ADVANCE_TO_P14` and `next_gate=M11_READY`.
+11. Next action is `M10.J` expansion and execution.
