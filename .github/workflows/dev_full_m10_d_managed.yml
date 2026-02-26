@@ -52,6 +52,11 @@ on:
         required: false
         default: ""
         type: string
+      m10j_execution_id:
+        description: "Optional fixed M10.J execution id"
+        required: false
+        default: ""
+        type: string
       poll_timeout_minutes:
         description: "Databricks run timeout in minutes"
         required: true
@@ -142,12 +147,18 @@ jobs:
           else
             M10I_EXEC="m10i_p13_gate_rollup_${TS}"
           fi
+          if [[ -n "${{ inputs.m10j_execution_id }}" ]]; then
+            M10J_EXEC="${{ inputs.m10j_execution_id }}"
+          else
+            M10J_EXEC="m10j_closure_sync_${TS}"
+          fi
           M10D_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10D_EXEC}"
           M10E_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10E_EXEC}"
           M10F_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10F_EXEC}"
           M10G_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10G_EXEC}"
           M10H_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10H_EXEC}"
           M10I_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10I_EXEC}"
+          M10J_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10J_EXEC}"
           echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
           echo "m10d_execution_id=${M10D_EXEC}" >> "$GITHUB_OUTPUT"
           echo "m10d_run_dir=${M10D_RUN_DIR}" >> "$GITHUB_OUTPUT"
@@ -161,6 +172,8 @@ jobs:
           echo "m10h_run_dir=${M10H_RUN_DIR}" >> "$GITHUB_OUTPUT"
           echo "m10i_execution_id=${M10I_EXEC}" >> "$GITHUB_OUTPUT"
           echo "m10i_run_dir=${M10I_RUN_DIR}" >> "$GITHUB_OUTPUT"
+          echo "m10j_execution_id=${M10J_EXEC}" >> "$GITHUB_OUTPUT"
+          echo "m10j_run_dir=${M10J_RUN_DIR}" >> "$GITHUB_OUTPUT"
 
       - name: Execute M10.D (managed)
         shell: bash
@@ -2668,11 +2681,404 @@ jobs:
               raise SystemExit(1)
           PY
 
+      - name: Execute M10.J (managed)
+        shell: bash
+        env:
+          M10J_EXECUTION_ID: ${{ steps.run_meta.outputs.m10j_execution_id }}
+          M10J_RUN_DIR: ${{ steps.run_meta.outputs.m10j_run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          UPSTREAM_M10I_EXECUTION: ${{ steps.run_meta.outputs.m10i_execution_id }}
+          AWS_REGION: ${{ inputs.aws_region }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import re
+          from datetime import date, datetime, timedelta, timezone
+          from decimal import Decimal, InvalidOperation
+          from pathlib import Path
+          from typing import Any
+
+          import boto3
+          from botocore.exceptions import BotoCoreError, ClientError
+
+          HANDLES_PATH = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
+
+          def now_utc() -> str:
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          def parse_handles(path: Path) -> dict[str, Any]:
+              out: dict[str, Any] = {}
+              rx = re.compile(r"^\* `([^`=]+?)\s*=\s*([^`]+)`")
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  m = rx.match(line.strip())
+                  if not m:
+                      continue
+                  key = m.group(1).strip()
+                  raw = m.group(2).strip()
+                  if raw.startswith('"') and raw.endswith('"'):
+                      out[key] = raw[1:-1]
+                  elif raw.lower() == "true":
+                      out[key] = True
+                  elif raw.lower() == "false":
+                      out[key] = False
+                  else:
+                      out[key] = raw
+              return out
+
+          def is_placeholder(value: Any) -> bool:
+              s = str(value).strip()
+              s_lower = s.lower()
+              if not s:
+                  return True
+              if s_lower in {"tbd", "todo", "none", "null", "unset"}:
+                  return True
+              if "to_pin" in s_lower or "placeholder" in s_lower:
+                  return True
+              if "<" in s and ">" in s:
+                  return True
+              return False
+
+          def to_decimal(value: Any) -> Decimal:
+              return Decimal(str(value))
+
+          def s3_get_json(s3: Any, bucket: str, key: str) -> dict[str, Any]:
+              body = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+              payload = json.loads(body)
+              if not isinstance(payload, dict):
+                  raise ValueError("json_not_object")
+              return payload
+
+          def s3_put_json(s3: Any, bucket: str, key: str, payload: dict[str, Any]) -> None:
+              body = json.dumps(payload, indent=2, ensure_ascii=True).encode("utf-8")
+              s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="application/json")
+              s3.head_object(Bucket=bucket, Key=key)
+
+          def write_local(run_dir: Path, artifacts: dict[str, dict[str, Any]]) -> None:
+              run_dir.mkdir(parents=True, exist_ok=True)
+              for name, payload in artifacts.items():
+                  (run_dir / name).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          def dedupe_blockers(items: list[dict[str, str]]) -> list[dict[str, str]]:
+              out: list[dict[str, str]] = []
+              seen: set[tuple[str, str]] = set()
+              for b in items:
+                  code = str(b.get("code", "")).strip()
+                  msg = str(b.get("message", "")).strip()
+                  sig = (code, msg)
+                  if sig in seen:
+                      continue
+                  seen.add(sig)
+                  out.append({"code": code, "message": msg})
+              return out
+
+          env = dict(os.environ)
+          execution_id = env.get("M10J_EXECUTION_ID", "").strip()
+          run_dir_raw = env.get("M10J_RUN_DIR", "").strip()
+          evidence_bucket = env.get("EVIDENCE_BUCKET", "").strip()
+          upstream_m10i_execution = env.get("UPSTREAM_M10I_EXECUTION", "").strip()
+          aws_region = env.get("AWS_REGION", "eu-west-2").strip() or "eu-west-2"
+          if not execution_id or not run_dir_raw or not evidence_bucket or not upstream_m10i_execution:
+              raise SystemExit("M10.J required env is missing.")
+
+          run_dir = Path(run_dir_raw)
+          s3 = boto3.client("s3", region_name=aws_region)
+          ce = boto3.client("ce", region_name="us-east-1")
+          handles = parse_handles(HANDLES_PATH)
+          captured_at = now_utc()
+          blockers: list[dict[str, str]] = []
+          read_errors: list[dict[str, str]] = []
+          upload_errors: list[dict[str, str]] = []
+
+          required_handle_keys = [
+              "S3_EVIDENCE_BUCKET",
+              "S3_RUN_CONTROL_ROOT_PATTERN",
+              "DEV_FULL_MONTHLY_BUDGET_LIMIT_USD",
+              "DEV_FULL_BUDGET_ALERT_1_USD",
+              "DEV_FULL_BUDGET_ALERT_2_USD",
+              "DEV_FULL_BUDGET_ALERT_3_USD",
+              "BUDGET_CURRENCY",
+              "COST_CAPTURE_SCOPE",
+              "AWS_COST_CAPTURE_ENABLED",
+              "DATABRICKS_COST_CAPTURE_ENABLED",
+          ]
+          for key in required_handle_keys:
+              if key not in handles or is_placeholder(handles.get(key)):
+                  blockers.append({"code": "M10-B11", "message": f"{key} unresolved for M10.J."})
+
+          expected_bucket = str(handles.get("S3_EVIDENCE_BUCKET", "")).strip()
+          if expected_bucket and expected_bucket != evidence_bucket:
+              blockers.append({"code": "M10-B11", "message": "EVIDENCE_BUCKET does not match S3_EVIDENCE_BUCKET handle."})
+
+          m10i_summary_key = f"evidence/dev_full/run_control/{upstream_m10i_execution}/m10i_execution_summary.json"
+          m10i_verdict_key = f"evidence/dev_full/run_control/{upstream_m10i_execution}/m10i_p13_gate_verdict.json"
+          m10i_rollup_key = f"evidence/dev_full/run_control/{upstream_m10i_execution}/m10i_p13_rollup_matrix.json"
+          m10i_blocker_key = f"evidence/dev_full/run_control/{upstream_m10i_execution}/m10i_blocker_register.json"
+          m11_handoff_key = f"evidence/dev_full/run_control/{upstream_m10i_execution}/m11_handoff_pack.json"
+
+          required_upstream_keys = [m10i_summary_key, m10i_verdict_key, m10i_rollup_key, m10i_blocker_key, m11_handoff_key]
+          readable_upstream = 0
+          m10i_summary: dict[str, Any] = {}
+          m10i_rollup: dict[str, Any] = {}
+          m10i_verdict: dict[str, Any] = {}
+          m11_handoff: dict[str, Any] = {}
+          for key in required_upstream_keys:
+              try:
+                  payload = s3_get_json(s3, evidence_bucket, key)
+                  readable_upstream += 1
+                  if key == m10i_summary_key:
+                      m10i_summary = payload
+                  elif key == m10i_rollup_key:
+                      m10i_rollup = payload
+                  elif key == m10i_verdict_key:
+                      m10i_verdict = payload
+                  elif key == m11_handoff_key:
+                      m11_handoff = payload
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": key, "error": type(exc).__name__})
+                  blockers.append({"code": "M10-B11", "message": f"Required upstream artifact unreadable: {key}."})
+
+          if m10i_summary:
+              if not bool(m10i_summary.get("overall_pass")):
+                  blockers.append({"code": "M10-B11", "message": "M10.I summary is not pass posture."})
+              if str(m10i_summary.get("verdict", "")).strip() != "ADVANCE_TO_P14":
+                  blockers.append({"code": "M10-B11", "message": "M10.I verdict is not ADVANCE_TO_P14."})
+              if str(m10i_summary.get("next_gate", "")).strip() != "M11_READY":
+                  blockers.append({"code": "M10-B11", "message": "M10.I next_gate is not M11_READY."})
+
+          source_chain = (m11_handoff.get("source_chain", []) if isinstance(m11_handoff, dict) else []) or []
+          if source_chain:
+              all_row_pass = all(bool(row.get("row_pass")) for row in source_chain if isinstance(row, dict))
+              if not all_row_pass:
+                  blockers.append({"code": "M10-B11", "message": "M10.I source chain contains non-pass rows."})
+
+          platform_run_id = str(m10i_summary.get("platform_run_id", "")).strip()
+          scenario_run_id = str(m10i_summary.get("scenario_run_id", "")).strip()
+          if not platform_run_id or not scenario_run_id:
+              blockers.append({"code": "M10-B11", "message": "M10.I summary missing run-scope values."})
+
+          monthly_limit = Decimal("0")
+          alert_1 = Decimal("0")
+          alert_2 = Decimal("0")
+          alert_3 = Decimal("0")
+          budget_currency = str(handles.get("BUDGET_CURRENCY", "USD")).strip() or "USD"
+          capture_scope = str(handles.get("COST_CAPTURE_SCOPE", "")).strip()
+          aws_capture_enabled = bool(handles.get("AWS_COST_CAPTURE_ENABLED", False))
+          databricks_capture_enabled = bool(handles.get("DATABRICKS_COST_CAPTURE_ENABLED", False))
+          databricks_defer_reason = str(handles.get("DATABRICKS_COST_CAPTURE_DEFER_REASON", "")).strip()
+          databricks_reenable_gate = str(handles.get("DATABRICKS_COST_CAPTURE_REENABLE_GATE", "")).strip()
+          try:
+              monthly_limit = to_decimal(handles.get("DEV_FULL_MONTHLY_BUDGET_LIMIT_USD"))
+              alert_1 = to_decimal(handles.get("DEV_FULL_BUDGET_ALERT_1_USD"))
+              alert_2 = to_decimal(handles.get("DEV_FULL_BUDGET_ALERT_2_USD"))
+              alert_3 = to_decimal(handles.get("DEV_FULL_BUDGET_ALERT_3_USD"))
+          except (InvalidOperation, ValueError, TypeError):
+              blockers.append({"code": "M10-B11", "message": "Budget thresholds are not parseable decimals."})
+
+          if not (alert_1 < alert_2 < alert_3 <= monthly_limit):
+              blockers.append({"code": "M10-B11", "message": "Budget threshold ordering invalid (require a1 < a2 < a3 <= monthly_limit)."})
+
+          aws_mtd_cost: Decimal | None = None
+          aws_cost_unit = budget_currency
+          ce_surface_error = ""
+          if aws_capture_enabled:
+              try:
+                  today = date.today()
+                  month_start = today.replace(day=1).isoformat()
+                  tomorrow = (today + timedelta(days=1)).isoformat()
+                  ce_payload = ce.get_cost_and_usage(
+                      TimePeriod={"Start": month_start, "End": tomorrow},
+                      Granularity="MONTHLY",
+                      Metrics=["UnblendedCost"],
+                  )
+                  groups = (((ce_payload.get("ResultsByTime", []) or [{}])[0]).get("Total", {}) or {}).get("UnblendedCost", {}) or {}
+                  aws_mtd_cost = Decimal(str(groups.get("Amount", "0")))
+                  aws_cost_unit = str(groups.get("Unit", budget_currency)).strip() or budget_currency
+              except (BotoCoreError, ClientError, InvalidOperation, ValueError, TypeError) as exc:
+                  ce_surface_error = type(exc).__name__
+                  blockers.append({"code": "M10-B11", "message": "AWS cost capture failed for M10.J."})
+          else:
+              blockers.append({"code": "M10-B11", "message": "AWS_COST_CAPTURE_ENABLED is false; M10.J requires AWS cost capture."})
+
+          utilization_pct: str | None = None
+          if aws_mtd_cost is not None and monthly_limit > 0:
+              utilization_pct = str((aws_mtd_cost / monthly_limit) * Decimal("100"))
+
+          budget_envelope = {
+              "captured_at_utc": captured_at,
+              "phase": "M10.J",
+              "phase_id": "P13",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "budget_currency": budget_currency,
+              "monthly_limit_amount": str(monthly_limit),
+              "alert_thresholds": {
+                  "alert_1_amount": str(alert_1),
+                  "alert_2_amount": str(alert_2),
+                  "alert_3_amount": str(alert_3),
+              },
+              "threshold_order_valid": bool(alert_1 < alert_2 < alert_3 <= monthly_limit),
+              "cost_capture_scope": capture_scope,
+              "aws_cost_capture_enabled": aws_capture_enabled,
+              "databricks_cost_capture_enabled": databricks_capture_enabled,
+              "databricks_defer_reason": databricks_defer_reason,
+              "databricks_reenable_gate": databricks_reenable_gate,
+          }
+
+          cost_receipt = {
+              "captured_at_utc": captured_at,
+              "phase": "M10.J",
+              "phase_id": "P13",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "cost_capture_scope": capture_scope,
+              "aws_mtd_cost_amount": str(aws_mtd_cost) if aws_mtd_cost is not None else None,
+              "aws_cost_unit": aws_cost_unit,
+              "budget_currency": budget_currency,
+              "budget_monthly_limit_amount": str(monthly_limit),
+              "utilization_pct": utilization_pct,
+              "databricks_capture_mode": "enabled" if databricks_capture_enabled else "deferred",
+              "databricks_defer_reason": databricks_defer_reason if not databricks_capture_enabled else "",
+              "databricks_reenable_gate": databricks_reenable_gate if not databricks_capture_enabled else "",
+              "ce_surface_error": ce_surface_error,
+          }
+
+          required_output_names = [
+              "m10_phase_budget_envelope.json",
+              "m10_phase_cost_outcome_receipt.json",
+              "m10j_blocker_register.json",
+              "m10j_execution_summary.json",
+              "m10_execution_summary.json",
+          ]
+
+          blockers = dedupe_blockers(blockers)
+          overall_pass = len(blockers) == 0
+          verdict = "ADVANCE_TO_M11" if overall_pass else "HOLD_REMEDIATE"
+          next_gate = "M11_READY" if overall_pass else "HOLD_REMEDIATE"
+
+          blocker_register = {
+              "captured_at_utc": captured_at,
+              "phase": "M10.J",
+              "execution_id": execution_id,
+              "blocker_count": len(blockers),
+              "blockers": blockers,
+              "read_errors": read_errors,
+              "upload_errors": upload_errors,
+          }
+
+          m10j_summary = {
+              "captured_at_utc": captured_at,
+              "phase": "M10.J",
+              "phase_id": "P13",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "contract_parity": {
+                  "required_upstream_artifacts": len(required_upstream_keys),
+                  "readable_upstream_artifacts": readable_upstream,
+                  "required_outputs": len(required_output_names),
+                  "published_outputs": 0,
+                  "all_required_available": False,
+              },
+          }
+
+          m10_summary = {
+              "captured_at_utc": captured_at,
+              "phase": "M10",
+              "phase_id": "P13",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "upstream_refs": {
+                  "m10i_execution_id": upstream_m10i_execution,
+                  "m11_handoff_key": f"evidence/dev_full/run_control/{upstream_m10i_execution}/m11_handoff_pack.json",
+              },
+          }
+
+          run_control_artifacts = {
+              "m10_phase_budget_envelope.json": budget_envelope,
+              "m10_phase_cost_outcome_receipt.json": cost_receipt,
+              "m10j_blocker_register.json": blocker_register,
+              "m10j_execution_summary.json": m10j_summary,
+              "m10_execution_summary.json": m10_summary,
+          }
+          write_local(run_dir, run_control_artifacts)
+
+          run_control_prefix = f"evidence/dev_full/run_control/{execution_id}/"
+          published_count = 0
+          for name, payload in run_control_artifacts.items():
+              key = f"{run_control_prefix}{name}"
+              try:
+                  s3_put_json(s3, evidence_bucket, key, payload)
+                  published_count += 1
+              except (BotoCoreError, ClientError, ValueError) as exc:
+                  upload_errors.append({"surface": key, "error": type(exc).__name__})
+
+          all_required_available = readable_upstream == len(required_upstream_keys) and published_count == len(required_output_names)
+          m10j_summary["contract_parity"]["published_outputs"] = published_count
+          m10j_summary["contract_parity"]["all_required_available"] = all_required_available
+          if not all_required_available:
+              blockers.append({"code": "M10-B11", "message": "M10.J contract parity check failed."})
+
+          if upload_errors:
+              blockers.append({"code": "M10-B12", "message": "Failed to publish/readback one or more M10.J artifacts."})
+
+          blockers = dedupe_blockers(blockers)
+          if blockers:
+              overall_pass = False
+              verdict = "HOLD_REMEDIATE"
+              next_gate = "HOLD_REMEDIATE"
+              blocker_register["blocker_count"] = len(blockers)
+              blocker_register["blockers"] = blockers
+              blocker_register["upload_errors"] = upload_errors
+              m10j_summary["overall_pass"] = False
+              m10j_summary["blocker_count"] = len(blockers)
+              m10j_summary["verdict"] = verdict
+              m10j_summary["next_gate"] = next_gate
+              m10_summary["overall_pass"] = False
+              m10_summary["blocker_count"] = len(blockers)
+              m10_summary["verdict"] = verdict
+              m10_summary["next_gate"] = next_gate
+              write_local(run_dir, run_control_artifacts)
+              for name, payload in run_control_artifacts.items():
+                  key = f"{run_control_prefix}{name}"
+                  try:
+                      s3_put_json(s3, evidence_bucket, key, payload)
+                  except (BotoCoreError, ClientError, ValueError):
+                      pass
+
+          print(json.dumps({
+              "execution_id": execution_id,
+              "overall_pass": m10j_summary["overall_pass"],
+              "blocker_count": m10j_summary["blocker_count"],
+              "verdict": m10j_summary["verdict"],
+              "next_gate": m10j_summary["next_gate"],
+              "run_dir": str(run_dir),
+              "run_control_prefix": f"s3://{evidence_bucket}/{run_control_prefix}",
+          }, ensure_ascii=True))
+
+          if not m10j_summary["overall_pass"]:
+              raise SystemExit(1)
+          PY
+
       - name: Upload M10.D managed artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: m10-defghi-managed-${{ steps.run_meta.outputs.timestamp }}
+          name: m10-defghij-managed-${{ steps.run_meta.outputs.timestamp }}
           path: |
             ${{ steps.run_meta.outputs.m10d_run_dir }}
             ${{ steps.run_meta.outputs.m10e_run_dir }}
@@ -2680,4 +3086,5 @@ jobs:
             ${{ steps.run_meta.outputs.m10g_run_dir }}
             ${{ steps.run_meta.outputs.m10h_run_dir }}
             ${{ steps.run_meta.outputs.m10i_run_dir }}
+            ${{ steps.run_meta.outputs.m10j_run_dir }}
           if-no-files-found: warn
