@@ -675,6 +675,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
 
         parquet_files_cache: dict[str, list[Path]] = {}
         parquet_count_cache: dict[str, Optional[int]] = {}
+        parquet_sample_cache: dict[tuple[str, tuple[str, ...], int], pl.DataFrame] = {}
 
         def _cache_key(path: Path) -> str:
             return str(path.resolve()) if path.exists() else str(path)
@@ -701,10 +702,28 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         def _sample_parquet_cached(path: Path, columns: list[str], sample_rows_local: int) -> pl.DataFrame:
             files = _resolve_parquet_files_cached(path)
             sample_file = files[0]
-            df = pl.read_parquet(sample_file, columns=columns)
-            if df.height > sample_rows_local:
-                df = df.head(sample_rows_local)
-            return df
+            cols = tuple(columns)
+            rows = max(int(sample_rows_local), 1)
+            cache_key = (_cache_key(sample_file), cols, rows)
+            cached_df = parquet_sample_cache.get(cache_key)
+            if cached_df is not None:
+                return cached_df
+
+            if pq is not None:
+                parquet_file = pq.ParquetFile(sample_file)
+                first_batch = None
+                for batch in parquet_file.iter_batches(batch_size=rows, columns=list(cols)):
+                    first_batch = batch
+                    break
+                if first_batch is None:
+                    sampled = pl.DataFrame({name: [] for name in cols})
+                else:
+                    sampled = pl.from_arrow(first_batch)
+            else:
+                sampled = pl.scan_parquet(str(sample_file)).select([pl.col(c) for c in cols]).limit(rows).collect()
+
+            parquet_sample_cache[cache_key] = sampled
+            return sampled
 
         def _dataset_missing(dataset_id: str) -> bool:
             return any(item.startswith(f"{dataset_id}:") for item in missing_paths)
@@ -757,8 +776,14 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         thresholds = validation_policy.get("thresholds") or {}
         realism = validation_policy.get("realism_corridors") or {}
         critical_sample_mod = max(1, int(thresholds.get("critical_realism_sample_mod", 128) or 128))
+        checks_phase_started = time.monotonic()
+        check_runtime_seconds: dict[str, float] = {}
+
+        def _profile_check(name: str, started: float) -> None:
+            check_runtime_seconds[name] = round(time.monotonic() - started, 6)
 
         # Check: upstream hashgates (lean presence + status).
+        check_started = time.monotonic()
         upstream_segments = s0_receipt.get("upstream_segments") or {}
         missing_upstream = [seg for seg, payload in upstream_segments.items() if payload.get("status") != "PASS"]
         flag_rows = [
@@ -798,8 +823,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             },
             issue_message="Upstream HashGate verification failed or missing.",
         )
+        _profile_check("REQ_UPSTREAM_HASHGATES", check_started)
 
         # Check: sealed inputs present (policy + upstream gates + output paths).
+        check_started = time.monotonic()
         missing_sealed_inputs: list[str] = []
         missing_required_paths = list(missing_paths)
         for dataset_id in REQUIRED_OUTPUTS:
@@ -819,8 +846,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             },
             issue_message="Required sealed inputs or output paths missing.",
         )
+        _profile_check("REQ_SEALED_INPUTS_PRESENT", check_started)
 
         # Row counts (metadata only).
+        row_count_started = time.monotonic()
         count_metrics: dict[str, dict[str, Optional[int]]] = {}
         for dataset_id in [
             DATASET_S2_FLOWS,
@@ -840,8 +869,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 except InputResolutionError:
                     dataset_counts[scenario_id] = None
             count_metrics[dataset_id] = dataset_counts
+        _profile_check("ROW_COUNT_METADATA_SCAN", row_count_started)
 
         # Check: PK uniqueness (sample only).
+        check_started = time.monotonic()
         pk_failures: list[str] = []
         pk_duplicates = 0
         sample_scenario = scenario_ids[0]
@@ -876,8 +907,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             thresholds={"max_duplicate_pk_count": pk_threshold},
             issue_message="Duplicate primary keys detected in sample.",
         )
+        _profile_check("REQ_PK_UNIQUENESS", check_started)
 
         # Check: flow/event parity (metadata counts).
+        check_started = time.monotonic()
         parity_failures: list[str] = []
         for scenario_id in scenario_ids:
             f2 = count_metrics[DATASET_S2_FLOWS].get(scenario_id)
@@ -901,8 +934,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             metrics={"parity_failures": parity_failures, "counts": count_metrics},
             issue_message="Flow/event parity mismatch across stages.",
         )
+        _profile_check("REQ_FLOW_EVENT_PARITY", check_started)
 
         # Check: flow label coverage.
+        check_started = time.monotonic()
         coverage_failures: list[str] = []
         for scenario_id in scenario_ids:
             f3 = count_metrics[DATASET_S3_FLOWS].get(scenario_id)
@@ -921,8 +956,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             metrics={"coverage_failures": coverage_failures, "counts": count_metrics},
             issue_message="Truth/bank view coverage mismatch for flows.",
         )
+        _profile_check("REQ_FLOW_LABEL_COVERAGE", check_started)
 
         # Check: critical truth realism gates (aligns with P1 scorer lane: T1/T2/T3/T22).
+        check_started = time.monotonic()
         critical_truth_result = "PASS"
         critical_truth_metrics: dict[str, object] = {}
         try:
@@ -1024,8 +1061,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             metrics=critical_truth_metrics,
             issue_message="Critical truth realism gates failed (T1/T2/T3/T22).",
         )
+        _profile_check("REQ_CRITICAL_TRUTH_REALISM", check_started)
 
         # Check: critical case timeline monotonicity (aligns with scorer lane: T8/T10).
+        check_started = time.monotonic()
         critical_case_result = "PASS"
         critical_case_metrics: dict[str, object] = {}
         try:
@@ -1036,24 +1075,22 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                   SELECT
                     case_id,
                     case_event_seq,
-                    COALESCE(
-                      try_strptime(ts_utc, '%Y-%m-%dT%H:%M:%S.%fZ'),
-                      try_strptime(ts_utc, '%Y-%m-%dT%H:%M:%SZ')
-                    ) AS ts
+                    ts_utc
                   FROM {s4_case_scan}
                   WHERE MOD(ABS(HASH(case_id)), {critical_sample_mod}) = 0
                 ),
                 g AS (
                   SELECT
                     case_id,
-                    DATE_DIFF('second', LAG(ts) OVER (PARTITION BY case_id ORDER BY case_event_seq), ts) AS gap_sec
+                    ts_utc,
+                    LAG(ts_utc) OVER (PARTITION BY case_id ORDER BY case_event_seq) AS prev_ts
                   FROM ct
                 )
                 SELECT
-                  SUM(CASE WHEN gap_sec IS NOT NULL THEN 1 ELSE 0 END) AS gaps_total,
-                  SUM(CASE WHEN gap_sec < 0 THEN 1 ELSE 0 END) AS neg_gaps,
-                  COUNT(DISTINCT CASE WHEN gap_sec IS NOT NULL THEN case_id END) AS cases_with_gaps,
-                  COUNT(DISTINCT CASE WHEN gap_sec < 0 THEN case_id END) AS cases_with_neg
+                  SUM(CASE WHEN prev_ts IS NOT NULL THEN 1 ELSE 0 END) AS gaps_total,
+                  SUM(CASE WHEN prev_ts IS NOT NULL AND ts_utc IS NOT NULL AND ts_utc < prev_ts THEN 1 ELSE 0 END) AS neg_gaps,
+                  COUNT(DISTINCT CASE WHEN prev_ts IS NOT NULL THEN case_id END) AS cases_with_gaps,
+                  COUNT(DISTINCT CASE WHEN prev_ts IS NOT NULL AND ts_utc IS NOT NULL AND ts_utc < prev_ts THEN case_id END) AS cases_with_neg
                 FROM g
                 """
             ).fetchone()
@@ -1080,8 +1117,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             metrics=critical_case_metrics,
             issue_message="Critical case timeline monotonicity failed (T8/T10).",
         )
+        _profile_check("REQ_CRITICAL_CASE_TIMELINE", check_started)
 
         # Check: RNG budgets (presence only).
+        check_started = time.monotonic()
         rng_trace_path = _resolve_dataset_path(
             find_dataset_entry(dictionary_6b, DATASET_RNG_TRACE).entry,
             run_paths,
@@ -1134,8 +1173,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             thresholds={"rng_budget_violation_max": thresholds.get("rng_budget_violation_max")},
             issue_message="RNG budgets/families do not match policy.",
         )
+        _profile_check("REQ_RNG_BUDGETS", check_started)
 
         # Check: time monotone (sample S2 events).
+        check_started = time.monotonic()
         monotone_failures = 0
         time_sample_errors: list[str] = []
         try:
@@ -1172,8 +1213,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             thresholds={"time_monotonicity_violation_max": mono_threshold},
             issue_message="Event timestamps are not monotone per flow.",
         )
+        _profile_check("REQ_TIME_MONOTONE", check_started)
 
         # Check: scenario OOB (parseability only, no horizon config).
+        check_started = time.monotonic()
         oob_failures = 0
         try:
             path = dataset_paths[DATASET_S2_EVENTS][sample_scenario]
@@ -1203,12 +1246,16 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             thresholds={"scenario_oob_timestamp_max": oob_threshold},
             issue_message="Timestamps outside scenario horizon or unparseable.",
         )
+        _profile_check("REQ_SCENARIO_OOB", check_started)
 
         # WARN checks (realism corridors, sample only).
+        check_started = time.monotonic()
         baseline_result = "PASS"
         baseline_metrics: dict = {"note": "event_type corridors not enforced (AUTH_REQUEST/RESPONSE only)"}
         record_check("WARN_BASELINE_REALISM", "WARN_ONLY", baseline_result, metrics=baseline_metrics)
+        _profile_check("WARN_BASELINE_REALISM", check_started)
 
+        check_started = time.monotonic()
         fraud_fraction = None
         fraud_result = "PASS"
         try:
@@ -1231,7 +1278,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             thresholds={"fraud_fraction_range": fraud_range},
             issue_message="Fraud overlay realism corridors violated.",
         )
+        _profile_check("WARN_FRAUD_REALISM", check_started)
 
+        check_started = time.monotonic()
         bank_rate = None
         bank_result = "PASS"
         try:
@@ -1254,7 +1303,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             thresholds={"false_positive_rate_range": bank_range},
             issue_message="Bank view realism corridors violated.",
         )
+        _profile_check("WARN_BANK_VIEW_REALISM", check_started)
 
+        check_started = time.monotonic()
         case_result = "PASS"
         case_rate = None
         case_range = (realism.get("cases") or {}).get("case_involvement_fraction_range") or {}
@@ -1274,6 +1325,8 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             thresholds={"case_involvement_fraction_range": case_range},
             issue_message="Case timeline realism corridors violated.",
         )
+        _profile_check("WARN_CASE_REALISM", check_started)
+        _profile_check("CHECKS_TOTAL", checks_phase_started)
 
         # Aggregate overall status.
         required_failed = any(check["severity"] == "REQUIRED" and check["result"] != "PASS" for check in checks)
@@ -1312,6 +1365,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         _validate_payload(schema_layer3, schema_layer3, "validation/6B/s5_validation_report", report_payload)
 
         current_phase = "bundle_write"
+        bundle_phase_started = time.monotonic()
         bundle_root = _resolve_dataset_path(
             find_dataset_entry(dictionary_6b, DATASET_BUNDLE).entry, run_paths, config.external_roots, tokens_mf
         )
@@ -1397,8 +1451,10 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         if overall_status in {"PASS", "WARN"}:
             flag_text = f"sha256_hex = {bundle_digest}\n"
             (tmp_root / flag_rel).write_text(flag_text, encoding="utf-8")
+        _profile_check("BUNDLE_WRITE_TOTAL", bundle_phase_started)
 
         current_phase = "publish"
+        publish_phase_started = time.monotonic()
         if bundle_root.exists():
             existing_index = bundle_root / index_rel
             if not existing_index.exists():
@@ -1438,6 +1494,30 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             bundle_root.parent.mkdir(parents=True, exist_ok=True)
             tmp_root.replace(bundle_root)
             logger.info("S5: bundle published path=%s", bundle_root)
+        _profile_check("PUBLISH_TOTAL", publish_phase_started)
+
+        profile_payload = {
+            "run_id": run_id_value,
+            "seed": int(seed),
+            "manifest_fingerprint": manifest_fingerprint,
+            "parameter_hash": parameter_hash,
+            "phase": "P3.R3",
+            "runtime_seconds": {
+                **check_runtime_seconds,
+                "TOTAL_ELAPSED": round(time.monotonic() - started_monotonic, 6),
+            },
+            "top_hotspots": [
+                {"name": name, "elapsed_seconds": value}
+                for name, value in sorted(
+                    check_runtime_seconds.items(),
+                    key=lambda item: item[1],
+                    reverse=True,
+                )[:10]
+            ],
+        }
+        profile_path = run_paths.run_root / "reports" / f"s5_runtime_profile_{run_id_value}.json"
+        _write_json(profile_path, profile_payload)
+        logger.info("S5: runtime profile emitted path=%s", profile_path)
 
         status = "PASS" if overall_status in {"PASS", "WARN"} else "FAIL"
         timer.info("S5: bundle complete (entries=%d, digest=%s)", len(entries), bundle_digest)

@@ -898,10 +898,10 @@ M8 sub-phase progress:
 - [x] `M8.A` authority + handle closure.
 - [x] `M8.B` reporter runtime identity + lock readiness.
 - [x] `M8.C` closure-input evidence readiness precheck.
-- [ ] `M8.D` single-writer contention probe.
-- [ ] `M8.E` reporter one-shot execution.
-- [ ] `M8.F` closure-bundle completeness validation.
-- [ ] `M8.G` spine non-regression pack generation + validation.
+- [x] `M8.D` single-writer contention probe.
+- [x] `M8.E` reporter one-shot execution.
+- [x] `M8.F` closure-bundle completeness validation.
+- [x] `M8.G` spine non-regression pack generation + validation.
 - [ ] `M8.H` governance append/closure-marker verification.
 - [ ] `M8.I` `P11` rollup verdict + `m9_handoff_pack.json`.
 - [ ] `M8.J` M8 closure sync + cost-outcome receipt validation.
@@ -919,6 +919,34 @@ M8 execution status (2026-02-26):
    - execution id: `m8c_p11_closure_input_readiness_20260226T053157Z`,
    - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M8.D_READY`,
    - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8c_p11_closure_input_readiness_20260226T053157Z/`.
+4. `M8.D` is closed green after fail-first remediation:
+   - fail-first execution: `m8d_p11_single_writer_probe_20260226T054231Z` (`M8-B4`, seeded/non-routable aurora endpoint),
+   - remediation: concrete aurora lock endpoint materialized and SSM endpoint paths repinned to concrete RDS endpoints,
+   - closure execution: `m8d_p11_single_writer_probe_20260226T055105Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M8.E_READY`,
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8d_p11_single_writer_probe_20260226T055105Z/`,
+   - closure note: IaC codification follow-up for Aurora lock surfaces remains required to prevent apply-time drift.
+5. `M8.E` is closed green after in-lane blocker remediation:
+   - fail-first chain retained: backend compatibility (`aurora_advisory_lock` unsupported in active image), IG table bootstrap gap, IRSA KMS deny on object-store put.
+   - remediation: runtime backend compatibility shim, one-shot Aurora schema bootstrap (`receipts/quarantines/admissions`), Obs/Gov IRSA policy extension for object-store S3 + KMS.
+   - closure execution: `m8e_p11_reporter_one_shot_20260226T061150Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M8.F_READY`,
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8e_p11_reporter_one_shot_20260226T061150Z/`.
+6. `M8.F` is closed green:
+   - execution: `m8f_p11_closure_bundle_20260226T061917Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M8.G_READY`,
+   - closure bundle checks: required targets readable/parseable (`7/7`), run-scope coherent, run_completed closure refs coherent, reconciliation pass/check-map/delta coherent,
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8f_p11_closure_bundle_20260226T061917Z/`.
+7. `M8.G` is closed green after fail-first remediation:
+   - fail-first execution: `m8g_p11_non_regression_20260226T062628Z` (`M8-B7` run-scope mismatch),
+   - remediation chain on canonical run scope (`platform_20260223T184232Z`):
+     - `m8d_p11_single_writer_probe_20260226T062710Z`,
+     - `m8e_p11_reporter_one_shot_20260226T062735Z`,
+     - `m8f_p11_closure_bundle_20260226T062814Z`,
+   - closure execution: `m8g_p11_non_regression_20260226T062919Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M8.H_READY`,
+   - durable run-control evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8g_p11_non_regression_20260226T062919Z/`,
+   - canonical non-regression pack: `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/obs/non_regression_pack.json`.
 
 ## M9 - Learning Input Readiness
 Status: `NOT_STARTED`
@@ -1036,4 +1064,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Begin `M7` execution from `M7.A` with P8 lane entry checks and fail-closed gate expansion.
+- Execute `M8.H` governance append + closure-marker verification with fail-closed blocker remediation and local+durable artifact publication.

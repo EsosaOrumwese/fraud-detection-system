@@ -1565,6 +1565,59 @@ P3.R2 execution status (current authority):
   - `HOLD_P3_REOPEN_PERF`.
   - next owner lane: `S5` runtime profiling + validation-check hotspot closure (file-discovery/count overhead lane still open).
 
+#### P3.R3 - S5 runtime hotspot closure (freeze `S3/T17/T18` and keep `S4` rail closed)
+Goal:
+- close the remaining integrated runtime blocker by reducing `S5` validation elapsed to rail while preserving fail-closed required-check semantics and frozen realism posture.
+
+Definition of done:
+- [x] `S5` runtime closes to rail (`<=30s`) on first pass and immediate recheck on the same witness run.
+- [x] `S4` remains in rail (`<=420s`) and `S3/T17/T18` remain frozen/closed.
+- [x] no hard-gate regressions on `T1-T16`, `T21`, `T22`.
+- [x] closure artifacts emitted and phase decision updated.
+
+P3.R3 expanded execution plan:
+
+##### P3.R3.0 - S5 profile instrumentation + hotspot pin
+Definition of done:
+- [x] add run-local per-check runtime profiling artifact for `S5`.
+- [x] execute witness pass and pin top runtime owners from measured evidence.
+- [x] keep check set, thresholds, and fail-closed semantics unchanged.
+
+##### P3.R3.1 - S5 hotspot optimization pass
+Definition of done:
+- [x] optimize top measured `S5` hotspots (shared sampled surfaces and/or heavy-check query path) without changing check outcomes.
+- [x] preserve deterministic validation artifacts (`report`, `issue_table`, `bundle_index`, `_passed.flag` behavior).
+- [x] keep required/warn check semantics and coverage unchanged.
+
+##### P3.R3.2 - Witness execution + closure scoring
+Definition of done:
+- [x] stage fresh run-id from `P3.R2` authority and execute `S5` (with `S3` frozen and `S4` source retained).
+- [x] rerun `S5` immediately on same run-id for stability check.
+- [x] score with `tools/score_segment6b_p0_baseline.py`.
+- [x] emit `segment6b_p3r3_closure_<run_id>.json/.md` and phase decision:
+  - `UNLOCK_P4` if integrated runtime + realism rails pass,
+  - else `HOLD_P3_REOPEN_PERF` with next owner lane pinned.
+
+P3.R3 execution status (current authority):
+- witness run-id: `08db6e3060674203af415b389d5a9cbd` (staged from `65381edb84e349b8a7e46cba36c1799d`; `S3` frozen).
+- artifacts emitted:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_08db6e3060674203af415b389d5a9cbd.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_08db6e3060674203af415b389d5a9cbd.md`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p3r3_closure_08db6e3060674203af415b389d5a9cbd.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p3r3_closure_08db6e3060674203af415b389d5a9cbd.md`,
+  - `runs/fix-data-engine/segment_6B/08db6e3060674203af415b389d5a9cbd/reports/s5_runtime_profile_08db6e3060674203af415b389d5a9cbd.json`.
+- runtime posture:
+  - `S3` frozen at `372.01s`,
+  - `S4=359.61s` (rail PASS),
+  - `S5=6.05s` first pass (rail PASS),
+  - `S5=3.72s` immediate recheck (rail PASS).
+- realism posture:
+  - overall verdict remains `PASS_HARD_ONLY`,
+  - `T17/T18` unchanged and closed,
+  - no hard-gate regressions.
+- phase decision:
+  - `UNLOCK_P4`.
+
 ### P4 - Wave C (`S1` context/session realism closure)
 Goal:
 - improve attachment/session realism and conditional context carry-through for durable `B+`.

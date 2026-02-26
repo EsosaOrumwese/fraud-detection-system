@@ -4042,3 +4042,117 @@ Artifacts emitted:
 - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_65381edb84e349b8a7e46cba36c1799d.md`,
 - `runs/fix-data-engine/segment_6B/reports/segment6b_p3r2_closure_65381edb84e349b8a7e46cba36c1799d.json`,
 - `runs/fix-data-engine/segment_6B/reports/segment6b_p3r2_closure_65381edb84e349b8a7e46cba36c1799d.md`.
+
+---
+
+### Entry: 2026-02-26 05:40
+
+P3.R3 pre-implementation design lock (`S5` runtime hotspot closure lane).
+
+Authority posture entering P3.R3:
+- from `P3.R2` witness (`65381...`):
+  - `S4=419.91s` (closed),
+  - `S5=47.66s` and recheck `55.39s` (open blocker),
+  - `S3/T17/T18` frozen and closed,
+  - hard-gate realism remains `PASS_HARD_ONLY` without regressions.
+
+Problem statement:
+- integrated unlock to `P4` is blocked solely by `S5` runtime and stability.
+- we need measured hotspot evidence first, then bounded `S5` optimization that preserves fail-closed semantics.
+
+Alternatives considered:
+1) policy-side easing (reduce sample rates / threshold strictness).
+- rejected for this lane: would alter validation semantics and weaken audit posture.
+2) skip immediate recheck and certify on first pass only.
+- rejected: runtime instability is part of current blocker; recheck evidence is required.
+3) measured hotspot closure in `S5` (selected):
+- add per-check runtime profiling artifact,
+- optimize dominant checks while preserving outputs and decisions.
+
+Chosen `P3.R3` implementation lane:
+1) add per-check timers and emit `s5_runtime_profile_<run_id>.json` in run-local reports.
+2) based on hotspot evidence, optimize heavy checks (starting with critical truth/case query path) using shared sampled surfaces and low-overhead query forms.
+3) execute staged witness with immediate `S5` recheck and scorer run.
+
+Invariants:
+- no `S3` changes; `T17/T18` remain frozen.
+- no `S4` logic changes in this lane.
+- no changes to check IDs, severity policy, thresholds, or fail-closed behavior.
+- no schema/dataset-id changes to validation outputs.
+- deterministic idempotence for bundle/index/flag remains required.
+
+Runtime target for closure:
+- `S5 <= 30s` on first pass and immediate recheck on same run-id.
+
+---
+
+### Entry: 2026-02-26 05:47
+
+P3.R3 implementation decisions before witness execution (`S5` owner lane).
+
+Code-path changes selected:
+1) `S5` runtime observability:
+- added per-check runtime timers and run-local profile artifact emission:
+  - `runs/<run_id>/reports/s5_runtime_profile_<run_id>.json`.
+- objective: replace heuristic hotspot assumptions with measured evidence for each required/warn check and bundle/publish phases.
+
+2) `S5` critical-case check optimization:
+- rewrote `REQ_CRITICAL_CASE_TIMELINE` query to avoid per-row datetime parsing (`try_strptime`) and instead use lexical timestamp monotonicity checks on canonical UTC strings.
+- rationale:
+  - `S4` emits fixed ISO-8601 UTC format (`%Y-%m-%dT%H:%M:%S%.6fZ`),
+  - lexicographic ordering is equivalent to chronological ordering for this canonical format,
+  - preserves monotonicity violation detection semantics while reducing compute overhead.
+
+3) retained prior `S5` semantics:
+- no changes to check IDs, check severities, thresholds, or seal rules.
+- no changes to report/index/flag schemas or fail-closed handling.
+- no `S3` or `S4` code changes in this lane.
+
+Execution plan for closure evidence:
+- run `S5` on the current `P3.R2` witness run to capture profile + runtime movement.
+- if still above rail, stage fresh witness from `P3.R2` authority and execute `S4 -> S5` (to keep `S4` rail evidence current), then immediate `S5` recheck.
+- score and issue `P3.R3` decision with explicit next owner if blocked.
+
+---
+
+### Entry: 2026-02-26 05:52
+
+P3.R3 execution closure (`run_id=08db6e3060674203af415b389d5a9cbd`) and phase decision.
+
+Measured hotspot evidence (`P3.R3.0`):
+- first profiled pass on `65381...` after instrumentation:
+  - `TOTAL_ELAPSED=59.765s`,
+  - dominant owner `REQ_PK_UNIQUENESS=53.109s`,
+  - secondary owners `ROW_COUNT_METADATA_SCAN=2.516s`, `REQ_CRITICAL_TRUTH_REALISM=2.016s`.
+- conclusion: PK sample extraction path (full-file sample read pattern) was the primary blocker.
+
+Optimization implemented (`P3.R3.1`):
+1) PK/sample path acceleration:
+- changed sampled parquet reader to fetch only first batch using `pyarrow.parquet.ParquetFile.iter_batches(batch_size=sample_rows, columns=...)` instead of loading full first file then truncating.
+- added sample cache keyed by `(sample_file, columns, sample_rows)` to avoid repeated IO across checks.
+2) retained earlier case-check lexical monotonicity optimization and runtime profile emission.
+
+Verification on existing witness (`65381...`):
+- `S5` dropped to `4.83s` while preserving `PASS` status and identical bundle digest behavior.
+
+Fresh witness closure lane (`P3.R3.2`):
+- staged `08db6e3060674203af415b389d5a9cbd` from `65381...`.
+- executed:
+  - `S4` with bounded runtime knob (`batch_rows=360000`) -> `359.61s` (rail pass),
+  - `S5` first pass -> `6.05s` (rail pass),
+  - `S5` immediate recheck -> `3.72s` (rail pass).
+- scorer verdict on witness remains `PASS_HARD_ONLY`; frozen rails unchanged:
+  - `T17` unchanged (`campaign_count=6`, `class_v=0.226963`),
+  - `T18` unchanged (`tz_corridor_v=0.413332`, `median_tz=39`),
+  - no hard-gate regressions.
+
+Decision:
+- `P3.R3` closes with `UNLOCK_P4`.
+- integrated `P3` runtime blocker is resolved (`S4` + `S5` in rail, `S3` frozen and already in rail).
+
+Artifacts emitted:
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_08db6e3060674203af415b389d5a9cbd.json`,
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_08db6e3060674203af415b389d5a9cbd.md`,
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p3r3_closure_08db6e3060674203af415b389d5a9cbd.json`,
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p3r3_closure_08db6e3060674203af415b389d5a9cbd.md`,
+- `runs/fix-data-engine/segment_6B/08db6e3060674203af415b389d5a9cbd/reports/s5_runtime_profile_08db6e3060674203af415b389d5a9cbd.json`.

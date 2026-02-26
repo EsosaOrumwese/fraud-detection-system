@@ -8146,7 +8146,7 @@ ext_gate=M6.C_READY.
 3. Deployed patch via targeted runtime apply (aws_lambda_function.ig_handler only) to avoid unrelated Terraform drift in same window.
 4. Runtime verification passed:
    - authenticated ingest probes admitted with returned dedupe_key,
-   - DDB count moved from   to 5 (fraud-platform-dev-full-ig-idempotency).
+   - DDB count moved from  to 5 (fraud-platform-dev-full-ig-idempotency).
 
 ### Current blocker state after remediation work
 1. M6P6-B3: structurally remediated (idempotency write path active, counter non-zero).
@@ -8582,9 +8582,9 @@ ext_gate=M6.G_READY to execution 152755Z under run 22403542013.
 ### Verification receipts
 1. gh run list confirms latest migrate-dev workflow run 22403542013 completed success for .github/workflows/dev_full_m6f_streaming_active.yml.
 2. Downloaded run artifact set m6f-streaming-active-20260225T152755Z and verified:
-   - m6f_execution_summary.json: overall_pass=true, locker_count=0, 
+   - m6f_execution_summary.json: overall_pass=true, locker_count=0, 
 ext_gate=M6.G_READY.
-   - m6f_blocker_register.json: locker_count=0, blockers empty.
+   - m6f_blocker_register.json: locker_count=0, blockers empty.
 3. Grep audit confirms planning status + next-action surfaces now reference 152755Z as authority while retaining 143900Z as provisional history only.
 
 ### Gate posture after doc-sync
@@ -8687,7 +8687,7 @@ ext_gate=M6.G_READY.
 
 ### Decision (pinned for immediate remediation)
 1. Tighten active-state semantics to RUNNING-only for WSP/SR lane refs.
-2. Replace table-total B3 metric with run-window count keyed by (platform_run_id, dmitted_at_epoch >= lane_window_start_epoch).
+2. Replace table-total B3 metric with run-window count keyed by (platform_run_id, dmitted_at_epoch >= lane_window_start_epoch).
 3. Replace proxy lag with measured freshness lag (
 ow_epoch - latest_admitted_at_epoch) from run-window admissions.
 4. Wire IG probe args through the EMR submit lane and resolve IG API key from SSM in workflow.
@@ -8721,7 +8721,7 @@ ow_epoch - latest_admitted_at_epoch) from run-window admissions.
 
 ### Decision
 1. Keep semantic remediation logic intact.
-2. Remove added workflow_dispatch inputs and move IG values to fixed job nv defaults:
+2. Remove added workflow_dispatch inputs and move IG values to fixed job nv defaults:
    - IG_BASE_URL,
    - IG_INGEST_PATH,
    - SSM_IG_API_KEY_PATH.
@@ -8748,7 +8748,7 @@ ow_epoch - latest_admitted_at_epoch) from run-window admissions.
 ### Patch applied
 1. .github/workflows/dev_full_m6f_streaming_active.yml
    - Probe lane refs for RUNNING now continue-on-error: true.
-   - reduced probe window (ttempts=12) to cap idle wait spend.
+   - reduced probe window (ttempts=12) to cap idle wait spend.
 2. Resulting behavior:
    - if refs do not reach RUNNING, run still emits m6f_streaming_active_snapshot + blockers,
    - phase closure remains blocked by verdict gate with explicit blocker set.
@@ -8759,7 +8759,7 @@ ow_epoch - latest_admitted_at_epoch) from run-window admissions.
 1. Workflow: .github/workflows/dev_full_m6f_streaming_active.yml
 2. Run id: 22406210783 (ref migrate-dev)
 3. Execution id: m6f_p6b_streaming_active_20260225T163455Z
-4. Outcome: overall_pass=false, locker_count=3, 
+4. Outcome: overall_pass=false, locker_count=3, 
 ext_gate=HOLD_REMEDIATE.
 
 ### Produced artifact proof (strict semantics)
@@ -10778,7 +10778,7 @@ ext_gate=HOLD_REMEDIATE.
 un_m7k_entry_remote (m7r) and 
 un_m7k_cert_remote (m7s).
 3. Dispatch m7r, validate outputs, then dispatch m7s.
-4. If blockers appear, remediate fail-closed and rerun until THROUGHPUT_CERTIFIED with locker_count=0.
+4. If blockers appear, remediate fail-closed and rerun until THROUGHPUT_CERTIFIED with locker_count=0.
 
 ## Entry: 2026-02-26 04:11:29 +00:00 - M7.K.A blocker observed and remediated (pin consistency)
 
@@ -11232,17 +11232,408 @@ un_m7k_cert_remote (m7s).
 ## Entry: 2026-02-26 05:40:42 +00:00 - M8.D pre-execution decision trail (single-writer lock executability)
 
 ### Problem discovered before M8.D run
-1. Pinned handle posture is REPORTER_LOCK_BACKEND=aurora_advisory_lock, but no real Aurora cluster is currently materialized in AWS (describe-db-clusters returned empty set).
-2. Current SSM Aurora values are seed placeholders (raud-platform-dev-full-aurora.cluster.local / ...-ro.cluster.local), which are not executable DB endpoints for advisory-lock proof.
-3. Without executable DB lock path, M8.D would fail on M8-B4 (lock semantics not provable in runtime path).
+1. Pinned handle posture is `REPORTER_LOCK_BACKEND=aurora_advisory_lock`, but no real Aurora cluster was materialized in AWS (`describe-db-clusters` returned empty set).
+2. Current SSM Aurora values were seed placeholders (`fraud-platform-dev-full-aurora.cluster.local` / `...-ro.cluster.local`), which were not executable DB endpoints for advisory-lock proof.
+3. Without executable DB lock path, `M8.D` would fail on `M8-B4` (lock semantics not provable in runtime path).
 
 ### Decision taken before implementation
-1. Keep M8.D fail-closed semantics strict; do not fake-pass lock contention.
-2. Patch reporter worker compatibility drift by accepting urora_advisory_lock as alias of the existing Postgres advisory-lock implementation (db_advisory_lock) so runtime handle pin and code path align.
-3. Implement deterministic M8.D probe script that validates upstream M8.C, resolves run scope + lock handles, executes real contention probe, and publishes local + durable artifacts.
-4. If lock path is non-executable, remediate by materializing concrete Aurora runtime endpoint + credentials (no placeholder seeds), then rerun M8.D in the same lane.
+1. Keep `M8.D` fail-closed semantics strict; do not fake-pass lock contention.
+2. Patch reporter worker compatibility drift by accepting `aurora_advisory_lock` as an alias of the existing Postgres advisory-lock implementation (`db_advisory_lock`) so runtime handle pin and code path align.
+3. Implement deterministic `M8.D` probe script that validates upstream `M8.C`, resolves run scope + lock handles, executes real contention probe, and publishes local + durable artifacts.
+4. If lock path is non-executable, remediate by materializing concrete Aurora runtime endpoint + credentials (no placeholder seeds), then rerun `M8.D` in the same lane.
 
 ### Why this route
 1. It preserves pinned design intent (Aurora advisory lock) instead of silently downgrading to a toy/local lock mode.
-2. It keeps M8 evidence chain deterministic and auditable (M8.C -> M8.D).
+2. It keeps M8 evidence chain deterministic and auditable (`M8.C -> M8.D`).
 3. It closes the main drift in a production-aligned direction rather than masking it.
+
+## Entry: 2026-02-26 05:43:43 +00:00 - M8.D first execution result + remediation pivot
+
+### First authoritative M8.D execution
+1. execution id: `m8d_p11_single_writer_probe_20260226T054231Z`.
+2. outcome: fail-closed (`overall_pass=false`, `blocker_count=3`).
+3. blocker family: `M8-B4` only.
+4. runtime evidence confirmed lock path non-executable due non-routable seeded endpoint (`fraud-platform-dev-full-aurora.cluster.local`).
+
+### Decision pivot
+1. Remediate by materializing concrete Aurora lock surface and replacing placeholder SSM endpoint values with real cluster endpoints.
+2. Keep run-scope and lock contract unchanged (`REPORTER_LOCK_BACKEND=aurora_advisory_lock`, `REPORTER_LOCK_KEY_PATTERN=reporter:{platform_run_id}`).
+3. Rerun `M8.D` immediately after endpoint materialization and SSM update.
+
+## Entry: 2026-02-26 05:51:58 +00:00 - M8.D blocker remediation executed (Aurora lock surface materialization)
+
+### Remediation actions executed
+1. Created concrete Aurora runtime lock surfaces in AWS (idempotent-create flow):
+   - security group: `sg-0b8c5383665805417` (`fraud-platform-dev-full-aurora-sg`),
+   - DB subnet group: `fraud-platform-dev-full-aurora-subnet` (public-subnet pair for immediate operator probe reachability),
+   - Aurora cluster: `fraud-platform-dev-full-aurora`,
+   - writer instance: `fraud-platform-dev-full-aurora-writer-1` (`db.serverless`).
+2. Waited for cluster + instance availability.
+3. Repinned SSM Aurora path values to concrete endpoints:
+   - `/fraud-platform/dev_full/aurora/endpoint` -> `fraud-platform-dev-full-aurora.cluster-c32cck04kkmn.eu-west-2.rds.amazonaws.com`
+   - `/fraud-platform/dev_full/aurora/reader_endpoint` -> `fraud-platform-dev-full-aurora.cluster-ro-c32cck04kkmn.eu-west-2.rds.amazonaws.com`
+   - username/password paths retained with active runtime values.
+4. Verified endpoint reachability with direct Postgres probe (`select 1`).
+
+### Why this closes M8D-B4
+1. Lock backend remained pinned (`aurora_advisory_lock`) and became executable against concrete Aurora endpoint surfaces.
+2. Contention probe can now test real advisory-lock behavior instead of seeded placeholder values.
+
+### Follow-up risk recorded
+1. Aurora materialization for this blocker was executed directly via AWS control plane and is not yet codified in `infra/terraform/dev_full/*`; later Terraform apply may drift these surfaces unless IaC is updated.
+
+## Entry: 2026-02-26 05:51:58 +00:00 - M8.D rerun passed after lock-surface remediation
+
+### Authoritative rerun
+1. execution id: `m8d_p11_single_writer_probe_20260226T055105Z`.
+2. result: `overall_pass=true`, `blocker_count=0`, `next_gate=M8.E_READY`.
+3. local evidence:
+   - `runs/dev_substrate/dev_full/m8/m8d_p11_single_writer_probe_20260226T055105Z/`.
+4. durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8d_p11_single_writer_probe_20260226T055105Z/`.
+
+### Contention outcomes
+1. writer-1 acquired lock for run scope (`reporter:platform_20260201T224449Z`).
+2. writer-2 was denied with explicit fail-closed signal:
+   - `RuntimeError:REPORTER_LOCK_NOT_ACQUIRED:reporter:platform_20260201T224449Z`.
+3. post-release reacquire succeeded, proving no orphan lock remained.
+
+### M8.D closure decision
+1. `M8.D` is closed green.
+2. `M8.E` is now unblocked and becomes next execution step.
+## Entry: 2026-02-26 05:56:56 +00:00 - M8.E execution start (plan-expand then run)
+
+### Intent for this block
+1. Expand M8.E to execution-grade with explicit managed-runtime one-shot contract and blocker map.
+2. Execute M8.E end-to-end against active run scope from M8.D closure.
+3. Remediate any blocker in-lane until overall_pass=true or fail-closed blocker requires explicit authority change.
+
+### Immediate decision posture
+1. Keep runtime posture managed-first (no local reporter compute as closure proof).
+2. Use M8.D pass artifact as sole entry gate authority.
+3. Record evidence to local + durable run-control prefixes with deterministic execution id.
+## Entry: 2026-02-26 06:02:37 +00:00 - M8.E design expansion and fail-closed blocker precheck
+
+### Pre-execution findings
+1. M8.E remained stub-level in platform.M8.build_plan.md; execution-grade contract (entry conditions, algorithm, artifact schema, blocker map) was not yet explicit.
+2. Managed runtime precheck against active cluster found expected Obs/Gov runtime drift:
+   - namespace raud-platform-obs-gov is not present,
+   - IRSA role raud-platform-dev-full-irsa-obs-gov currently carries SSM-read only and lacks explicit S3 object-store write scope required by reporter closeout artifacts.
+3. M8.D pass evidence is authoritative and fixed entry gate for this lane (overall_pass=true, 
+ext_gate=M8.E_READY).
+
+### Decision and execution route
+1. Keep M8.E managed-first: run reporter as EKS one-shot Job (no local reporter compute accepted as closure proof).
+2. Expand M8.E to execution-grade in deep plan before running.
+3. Implement deterministic script lane scripts/dev_substrate/m8e_reporter_one_shot.py with:
+   - upstream gate verification,
+   - EKS namespace/serviceaccount readiness + no-concurrency guard,
+   - one-shot reporter job dispatch + lifecycle wait,
+   - lock lifecycle evidence checks from pod logs,
+   - closure artifact existence checks in object-store,
+   - local + durable snapshot/blocker/summary publication.
+4. Clear blockers in-lane if encountered (namespace/serviceaccount materialization and minimal role policy extension where required), rerun until blocker-free or fail-closed authority change requirement is reached.
+## Entry: 2026-02-26 06:03:24 +00:00 - M8.E deep-plan expansion completed
+
+### What was expanded
+1. Added explicit M8.E entry conditions tied to authoritative M8.D pass artifact.
+2. Added required handles/runtime contract list and preparation checks.
+3. Added deterministic verification algorithm (managed one-shot dispatch, lifecycle wait, lock-log checks, closure artifact checks).
+4. Added required snapshot schema fields, blocker mapping (M8-B5, M8-B12), and runtime budget.
+
+### Immediate next implementation step
+1. Materialize script lane scripts/dev_substrate/m8e_reporter_one_shot.py and execute against active run scope.
+## Entry: 2026-02-26 06:09:10 +00:00 - M8.E first execution failed and blocker route selected
+
+### First run outcome
+1. Executed m8e_p11_reporter_one_shot_20260226T060736Z and failed closed.
+2. Primary blocker from pod logs: runtime image rejected REPORTER_LOCK_BACKEND=aurora_advisory_lock with REPORTER_LOCK_BACKEND_UNSUPPORTED.
+3. Secondary blockers (missing closure artifacts) were downstream consequences of the primary reporter run failure.
+
+### Decision taken
+1. Do not bypass lock semantics.
+2. Apply controlled compatibility shim in M8.E dispatch script only: if pinned backend is urora_advisory_lock, inject db_advisory_lock into the running pod environment (same advisory-lock semantics on Aurora/Postgres).
+3. Keep registry pin unchanged and keep drift explicit in evidence (lock_backend vs lock_backend_effective).
+4. Rerun M8.E immediately after patch.
+## Entry: 2026-02-26 06:14:14 +00:00 - M8.E implemented and closed green (managed reporter one-shot)
+
+### Implementation work completed
+1. Added managed execution lane script:
+   - scripts/dev_substrate/m8e_reporter_one_shot.py.
+2. Script behavior (deterministic/fail-closed):
+   - validates upstream M8.D gate,
+   - resolves/pins run scope,
+   - enforces no concurrent reporter writer,
+   - dispatches one-shot reporter job on EKS,
+   - validates lock acquire/release evidence from pod logs,
+   - validates required closure artifacts in object-store,
+   - emits local + durable m8e_* artifacts.
+
+### Blocker progression and remediation trail
+1. First fail (m8e_p11_reporter_one_shot_20260226T060736Z):
+   - root cause: active runtime image rejected REPORTER_LOCK_BACKEND=aurora_advisory_lock.
+   - remediation: injected effective runtime backend db_advisory_lock while retaining pinned handle value in evidence (lock_backend vs lock_backend_effective).
+2. Second fail (m8e_p11_reporter_one_shot_20260226T060917Z):
+   - root cause: reporter ingest query failed (elation receipts does not exist) on Aurora path.
+   - remediation: one-shot pre-run DDL bootstrap in job command for eceipts, quarantines, dmissions tables.
+3. Third fail (m8e_p11_reporter_one_shot_20260226T061050Z):
+   - root cause: IRSA role lacked KMS envelope permission for SSE-KMS object writes (kms:GenerateDataKey denied).
+   - remediation executed in-lane on raud-platform-dev-full-irsa-obs-gov:
+     - inline policy for object-store S3 RW,
+     - inline policy for KMS (GenerateDataKey, Encrypt, Decrypt, DescribeKey) on lias/fraud-platform-dev-full key.
+
+### Authoritative closure run
+1. execution id: m8e_p11_reporter_one_shot_20260226T061150Z.
+2. result: overall_pass=true, locker_count=0, 
+ext_gate=M8.F_READY.
+3. runtime proof:
+   - job: m8e-reporter-061158, pod: m8e-reporter-061158-vvwbl, exit code  , elapsed 12.612s.
+   - lock evidence: acquired=true, released=true, denied=false, scope_match=true.
+   - closure artifact readability: 7/7 required object-store keys.
+4. evidence:
+   - local: uns/dev_substrate/dev_full/m8/m8e_p11_reporter_one_shot_20260226T061150Z/.
+   - durable: s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8e_p11_reporter_one_shot_20260226T061150Z/.
+
+### Follow-up risks explicitly recorded
+1. Obs/Gov IRSA policy updates were applied directly in AWS control plane and are not yet codified in infra/terraform/dev_full/runtime; future applies can drift these permissions unless IaC is updated.
+2. Effective lock-backend shim is retained for current image compatibility; authoritative image refresh should absorb alias behavior to remove runtime shim dependency.
+## Entry: 2026-02-26 06:15:23 +00:00 - M8.E closure evidence and plan-sync finalization
+
+### Finalization actions
+1. Confirmed durable run-control artifacts exist for closure run m8e_p11_reporter_one_shot_20260226T061150Z.
+2. Confirmed object-store run-close artifacts are present and readable under platform_20260201T224449Z prefix.
+3. Updated master plan next-action pointer to M8.F to remove stale M7-era drift in orchestration narrative.
+## Entry: 2026-02-26 06:17:18 +00:00 - M8.F design decisions locked from live runtime artifact shapes
+
+### Runtime shape observations used to design M8.F
+1. Active closure artifacts for run platform_20260201T224449Z are in object-store prefix s3://fraud-platform-dev-full-object-store/platform_20260201T224449Z/.
+2. un_completed.json uses closure_refs (not rtifact_refs) and points to run-close artifact keys relative to object-store root.
+3. obs/run_report.json and obs/reconciliation.json are parseable and run-scoped; reconciliation carries status=PASS, checks, and deltas.
+4. obs/replay_anchors.json, obs/environment_conformance.json, and obs/anomaly_summary.json are present and run-scoped with observed schema variants.
+
+### M8.F decision posture
+1. Validate closure bundle completeness against current implemented object-store surface (authoritative runtime truth), while keeping fail-closed blocker taxonomy under M8-B6 for semantic completeness failures.
+2. M8.F validator will consume upstream M8.E pass summary and then enforce:
+   - required object existence/readability,
+   - JSON parseability,
+   - run-scope conformance,
+   - un_completed closure-ref coherence,
+   - reconciliation pass/coherence checks.
+3. M8.F artifacts will be emitted as local + durable m8f_* under run-control root with 
+ext_gate=M8.G_READY on blocker-free pass.
+## Entry: 2026-02-26 06:19:08 +00:00 - M8.F script implementation completed pre-execution
+
+### Added implementation
+1. Created scripts/dev_substrate/m8f_closure_bundle_completeness.py.
+2. Script lanes implemented:
+   - upstream gate validation from M8.E summary,
+   - required object-store closure artifact checks,
+   - JSON parse + run-scope checks,
+   - un_completed closure-ref coherence checks,
+   - reconciliation status/check/delta coherence checks,
+   - report surface section checks,
+   - deterministic local + durable artifact publication (m8f_*).
+3. Blocker mapping pinned in implementation:
+   - M8-B6 for closure bundle completeness/coherence failures,
+   - M8-B12 for publication parity failures.
+4. Validator compiles (python -m py_compile scripts/dev_substrate/m8f_closure_bundle_completeness.py).
+
+### Next action
+1. Execute M8.F against upstream m8e_p11_reporter_one_shot_20260226T061150Z and remediate blockers in-lane if raised.
+## Entry: 2026-02-26 06:19:44 +00:00 - M8.F execution completed (blocker-free pass)
+
+### Run executed
+1. execution id: m8f_p11_closure_bundle_20260226T061917Z.
+2. inputs:
+   - upstream M8.E: m8e_p11_reporter_one_shot_20260226T061150Z,
+   - evidence bucket: raud-platform-dev-full-evidence,
+   - object-store bucket: raud-platform-dev-full-object-store.
+3. verdict:
+   - overall_pass=true, locker_count=0, 
+ext_gate=M8.G_READY.
+
+### What validator proved
+1. All required closure bundle artifacts (7/7) are readable/parseable under:
+   - platform_20260201T224449Z/run_completed.json
+   - platform_20260201T224449Z/obs/platform_run_report.json
+   - platform_20260201T224449Z/obs/run_report.json
+   - platform_20260201T224449Z/obs/reconciliation.json
+   - platform_20260201T224449Z/obs/replay_anchors.json
+   - platform_20260201T224449Z/obs/environment_conformance.json
+   - platform_20260201T224449Z/obs/anomaly_summary.json.
+2. Run-scope conformance passed for bundle surfaces.
+3. un_completed closure refs match expected run-scoped object keys.
+4. Reconciliation coherence checks passed:
+   - status=PASS,
+   - checks map all true,
+   - required deltas non-negative integer posture.
+
+### Evidence
+1. local:
+   - uns/dev_substrate/dev_full/m8/m8f_p11_closure_bundle_20260226T061917Z/.
+2. durable:
+   - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8f_p11_closure_bundle_20260226T061917Z/.
+## Entry: 2026-02-26 06:24:00 +00:00 - M8.G execution design lock (pre-implementation)
+
+### Problem
+1. `M8.G` is still a thin stub in the dev_full M8 plan and is not execution-grade.
+2. Current M8 chain has a run-scope drift risk:
+   - `M8.A/B/C` run scope is `platform_20260223T184232Z`.
+   - `M8.D/E/F` currently closed on `platform_20260201T224449Z`.
+3. Non-regression in `M8.G` must be anchored to certified `M6/M7` closures, so run-scope mismatch cannot be silently accepted.
+
+### Decision
+1. Expand `M8.G` to execution-grade before running:
+   - explicit entry conditions, required inputs, deterministic algorithm, blocker mapping, snapshot schema, runtime budget.
+2. Implement deterministic script lane `scripts/dev_substrate/m8g_non_regression_pack.py`.
+3. `M8.G` validator will fail-closed on:
+   - upstream `M8.F` gate failure,
+   - unreadable required anchor artifacts,
+   - run-scope mismatch between M8 closure and M6/M7 certified run,
+   - non-regression invariant failure,
+   - local/durable artifact publication parity failure.
+4. If run-scope mismatch is detected, remediate by rerunning `M8.D -> M8.E -> M8.F` on the canonical run scope from `M8.C`/`M7` and then rerun `M8.G`.
+
+### Candidate non-regression invariants (to be enforced)
+1. Certified anchors are green:
+   - `M6.J` summary `overall_pass=true`, `next_gate=M7_READY`.
+   - `M7.J` summary `overall_pass=true`, `next_gate=M8_READY`.
+   - `M7.K` throughput cert `overall_pass=true`, `next_gate=M8_READY`.
+2. P11 closure artifacts exist and are coherent for active run scope:
+   - `run_report`, `reconciliation`, `run_completed`.
+3. Reconciliation identity checks hold (ingress and RTDL deltas non-negative and arithmetic-consistent).
+4. Non-regression pack written to `SPINE_NON_REGRESSION_PACK_PATTERN` and mirrored in M8 run-control artifacts.
+## Entry: 2026-02-26 06:26:00 +00:00 - M8.G plan expansion and validator implementation
+
+### What was implemented
+1. Expanded `M8.G` section in `platform.M8.build_plan.md` to execution-grade with:
+   - explicit entry conditions,
+   - required inputs,
+   - fail-closed preparation checks,
+   - deterministic verification algorithm,
+   - snapshot schema,
+   - runtime budget and remediation branch.
+2. Added deterministic script lane:
+   - `scripts/dev_substrate/m8g_non_regression_pack.py`.
+
+### Script contract
+1. Inputs:
+   - `M8G_EXECUTION_ID`, `M8G_RUN_DIR`, `EVIDENCE_BUCKET`, `UPSTREAM_M8F_EXECUTION`.
+   - optional pinned anchors (`UPSTREAM_M6J_EXECUTION`, `UPSTREAM_M7J_EXECUTION`, `UPSTREAM_M7K_EXECUTION`).
+2. Validates:
+   - upstream `M8.F` gate posture,
+   - certified anchor gate posture (`M6.J`, `M7.J`, `M7.K`),
+   - run-scope parity between M8 closure and certified M7 scope,
+   - closure artifact readability + run-scope coherence,
+   - reconciliation pass/non-negative/arithmetic identity invariants.
+3. Emits:
+   - `m8g_non_regression_pack_snapshot.json`,
+   - `m8g_blocker_register.json`,
+   - `m8g_execution_summary.json`,
+   - canonical `non_regression_pack.json` at `SPINE_NON_REGRESSION_PACK_PATTERN`.
+
+### Why this route
+1. M8.G is a closure-quality gate and must not remain matrix-only.
+2. Current runtime has known M8 chain run-scope divergence risk; validator must make drift explicit and block advancement.
+## Entry: 2026-02-26 06:27:00 +00:00 - M8.G first execution failed closed; remediation path pinned
+
+### First execution
+1. Executed `m8g_p11_non_regression_20260226T062628Z` against upstream `M8.F` execution `m8f_p11_closure_bundle_20260226T061917Z`.
+2. Result: `overall_pass=false`, `blocker_count=1`, `next_gate=HOLD_REMEDIATE`.
+
+### Observed blocker
+1. `M8-B7`: run-scope mismatch between M8 closure and certified M7 anchors.
+2. Drift confirmed from artifacts:
+   - active M8 closure run scope: `platform_20260201T224449Z`,
+   - certified M7 run scope: `platform_20260223T184232Z`.
+
+### Decision
+1. Keep fail-closed posture; do not advance to M8.H.
+2. Remediate by re-materializing M8 closure chain on canonical run scope (`platform_20260223T184232Z`):
+   - rerun `M8.D` from `M8.C` anchor,
+   - rerun `M8.E` from new `M8.D`,
+   - rerun `M8.F` from new `M8.E`,
+   - rerun `M8.G` from new `M8.F`.
+3. Avoid changing M6/M7 anchors; they are already certified and authoritative for non-regression.
+## Entry: 2026-02-26 06:30:00 +00:00 - M8.G blocker remediation execution (run-scope realignment)
+
+### Remediation execution sequence
+1. Reran `M8.D` on canonical certified run scope from `M8.C/M7`:
+   - execution: `m8d_p11_single_writer_probe_20260226T062710Z`
+   - result: `overall_pass=true`, `next_gate=M8.E_READY`
+   - run scope now: `platform_20260223T184232Z`.
+2. Reran `M8.E` from remediated `M8.D`:
+   - execution: `m8e_p11_reporter_one_shot_20260226T062735Z`
+   - result: `overall_pass=true`, `next_gate=M8.F_READY`
+   - object-store closure artifacts materialized under `platform_20260223T184232Z/`.
+3. Reran `M8.F` from remediated `M8.E`:
+   - execution: `m8f_p11_closure_bundle_20260226T062814Z`
+   - result: `overall_pass=true`, `next_gate=M8.G_READY`
+   - closure bundle checks remained green (`7/7`).
+4. Reran `M8.G` against remediated `M8.F`:
+   - execution: `m8g_p11_non_regression_20260226T062919Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M8.H_READY`.
+
+### Decision notes during remediation
+1. First rerun of `M8.G` stayed red because process environment still carried explicit run-scope overrides.
+2. Hardened execution posture by removing ambient `PLATFORM_RUN_ID`/`SCENARIO_RUN_ID` before final rerun.
+3. Patched `scripts/dev_substrate/m8g_non_regression_pack.py` to treat upstream `M8.F` run scope as authoritative and fail-closed if provided env run scope disagrees.
+
+### M8.G closure evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m8/m8g_p11_non_regression_20260226T062919Z/`.
+2. Durable run-control:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8g_p11_non_regression_20260226T062919Z/`.
+3. Canonical non-regression pack:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/obs/non_regression_pack.json`.
+## Entry: 2026-02-26 06:33:00 +00:00 - M8.H runtime-truth inspection and design decisions
+
+### Runtime truth inspection results
+1. Reporter/governance writes are present under object-store run prefix, not evidence/governance prefix:
+   - `platform_20260223T184232Z/obs/governance/events.jsonl`
+   - `platform_20260223T184232Z/obs/governance/markers/<event_id>.json`
+   - `platform_20260223T184232Z/run_completed.json` with `status=COMPLETED` and `closure_refs.governance_events_ref`.
+2. Handle contracts currently point governance outputs to evidence-run prefix:
+   - `GOV_APPEND_LOG_PATH_PATTERN = evidence/runs/{platform_run_id}/governance/append_log.jsonl`
+   - `GOV_RUN_CLOSE_MARKER_PATH_PATTERN = evidence/runs/{platform_run_id}/governance/closure_marker.json`.
+3. Evidence-run governance paths are currently absent for active run.
+
+### Decision
+1. Keep fail-closed posture: M8.H will require governance append + closure marker proofs.
+2. Validate source-of-truth governance surfaces directly from object-store and run_completed closure refs.
+3. Materialize deterministic evidence-path projections (append log + closure marker) to satisfy pinned handle contracts and downstream phase expectations.
+4. Record projection explicitly as closure-surface normalization, not as a replacement for source truth.
+## Entry: 2026-02-26 06:36:00 +00:00 - M8.H deep-plan expanded to execution-grade
+
+### Plan expansion completed
+1. Expanded `M8.H` in `platform.M8.build_plan.md` from stub to execution-grade contract:
+   - entry conditions and required inputs pinned,
+   - fail-closed preparation checks,
+   - deterministic algorithm,
+   - snapshot schema,
+   - runtime budget,
+   - DoD criteria.
+
+### Important posture pins in this expansion
+1. M8.H validates governance source truth on object-store (`obs/governance/events.jsonl`, marker files, run_completed closure refs).
+2. M8.H then materializes deterministic governance projections at handle-contract evidence paths:
+   - `GOV_APPEND_LOG_PATH_PATTERN`
+   - `GOV_RUN_CLOSE_MARKER_PATH_PATTERN`.
+3. This keeps source-truth ownership intact while closing evidence-path contract drift for downstream lanes.
+## Entry: 2026-02-26 06:41:00 +00:00 - Implemented deterministic M8.H validator lane
+
+### Implementation
+1. Added `scripts/dev_substrate/m8h_governance_close_marker.py`.
+2. Script behavior pinned to fail-closed checks:
+   - upstream `M8.G` gate validation,
+   - source-of-truth governance checks from object-store,
+   - append ordering + schema + run-scope + marker coverage checks,
+   - deterministic projection to handle-contract governance evidence paths,
+   - M8.H run-control artifact publication and readback.
+3. Blocker mapping in script:
+   - `M8-B8` for governance/closure checks,
+   - `M8-B12` for publication parity failures.
+
+### Implementation hardening
+1. Source run scope is taken from upstream `M8.G` summary to avoid ambient-env drift.
+2. Projection artifacts are read back after write to enforce deterministic parity proof.

@@ -130,8 +130,10 @@ def _single_writer_lock(*, profile_path: Path, run_id: str, lock_backend: str, l
         logger.info("platform reporter lock disabled by backend=%s", backend or "empty")
         yield
         return
-    if backend != "db_advisory_lock":
+    if backend not in {"db_advisory_lock", "aurora_advisory_lock"}:
         raise RuntimeError(f"REPORTER_LOCK_BACKEND_UNSUPPORTED:{backend}")
+    if backend == "aurora_advisory_lock":
+        logger.info("platform reporter lock backend alias applied backend=%s -> db_advisory_lock", backend)
 
     dsn = _resolve_lock_dsn(profile_path=profile_path)
     if not dsn:
