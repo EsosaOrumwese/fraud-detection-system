@@ -800,13 +800,6 @@ def _ts_plus_seconds_expr(ts_col: str, seconds_col: str) -> pl.Expr:
         + pl.duration(microseconds=micros_expr)
     ).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
 
-
-def _build_response_ts_utc_numpy(request_ts_utc: np.ndarray, latency_seconds: np.ndarray) -> np.ndarray:
-    request_dt = request_ts_utc.astype("datetime64[us]")
-    latency_us = np.rint(latency_seconds * 1_000_000.0).astype(np.int64, copy=False)
-    response_dt = request_dt + latency_us.astype("timedelta64[us]")
-    return np.datetime_as_string(response_dt, unit="us", timezone="UTC")
-
 def run_s2(
     config: EngineConfig,
     run_id: Optional[str] = None,
@@ -1351,14 +1344,6 @@ def run_s2(
                     batch_stage_sampling_s += time.perf_counter() - stage_t0
 
                     stage_t0 = time.perf_counter()
-                    request_ts_utc = arrivals.get_column("ts_utc").to_numpy()
-                    auth_response_ts_utc = _build_response_ts_utc_numpy(
-                        request_ts_utc=request_ts_utc,
-                        latency_seconds=auth_response_latency_seconds,
-                    )
-                    batch_stage_ts_s += time.perf_counter() - stage_t0
-
-                    stage_t0 = time.perf_counter()
                     flow_anchor = arrivals.select(
                         [
                             "flow_id",
@@ -1377,7 +1362,9 @@ def run_s2(
                             "scenario_id",
                         ]
                     )
+                    batch_stage_frame_build_s += time.perf_counter() - stage_t0
 
+                    stage_t0 = time.perf_counter()
                     event_request = arrivals.select(
                         [
                             "flow_id",
@@ -1391,8 +1378,11 @@ def run_s2(
                             "scenario_id",
                         ]
                     )
+                    batch_stage_frame_build_s += time.perf_counter() - stage_t0
+
+                    stage_t0 = time.perf_counter()
                     event_response = arrivals.with_columns(
-                        pl.Series(name="auth_response_ts_utc", values=auth_response_ts_utc),
+                        _ts_plus_seconds_expr("ts_utc", "auth_response_latency_seconds").alias("auth_response_ts_utc"),
                     ).select(
                         [
                             "flow_id",
@@ -1406,7 +1396,7 @@ def run_s2(
                             "scenario_id",
                         ]
                     )
-                    batch_stage_frame_build_s += time.perf_counter() - stage_t0
+                    batch_stage_ts_s += time.perf_counter() - stage_t0
 
                     if not validated_flow_schema and flow_anchor.height > 0:
                         sample = flow_anchor.head(1).to_dicts()[0]

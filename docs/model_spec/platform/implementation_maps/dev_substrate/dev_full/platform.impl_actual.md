@@ -9862,3 +9862,157 @@ ext_gate=HOLD_REMEDIATE.
 ### Closure decision
 1. `M7.P9.A` is closed green.
 2. `M7.F` can advance to DF component lane closure (`P9.B`).
+
+## Entry: 2026-02-26 01:45:00 +00:00 - P9.B/C/D execution design before implementation
+
+### Problem
+1. User requested sequential closure of `P9.B` -> `P9.C` -> `P9.D` with blockers resolved in-line.
+2. Existing managed workflow only has `P9.A` lane (`m7g`); no execution lanes yet for `DF`, `AL`, `DLA`.
+3. Current run-scoped ingest evidence has low sample volume (`total_receipts=18`), so strict throughput assertions would create false blocker posture.
+
+### Decision
+1. Add three managed lanes in the existing workflow:
+   - `m7h` -> `P9.B` (`DF`),
+   - `m7i` -> `P9.C` (`AL`),
+   - `m7j` -> `P9.D` (`DLA`).
+2. Keep sequential upstream gate continuity:
+   - `m7h` depends on `m7g` summary (`next_gate=M7.F_READY`),
+   - `m7i` depends on `m7h` summary (`next_gate=M7.G_READY`),
+   - `m7j` depends on `m7i` summary (`next_gate=M7.H_READY`).
+3. Emit decision-lane component proofs under `DECISION_LANE_EVIDENCE_PATH_PATTERN`:
+   - `df_component_proof.json`,
+   - `al_component_proof.json`,
+   - `dla_component_proof.json`.
+4. Preserve fail-closed semantics for:
+   - missing/placeholder required handles,
+   - invalid upstream gate posture,
+   - missing run-scoped ingest basis evidence,
+   - missing component-proof chain dependencies,
+   - durable artifact publish/readback failures.
+5. Apply low-sample guarded performance gate:
+   - if sample `<200`, throughput assertion is explicitly waived with note,
+   - lag/error/retry invariants remain asserted,
+   - this mirrors prior `P8` guarded posture and avoids toy pass claims.
+
+### Why this is chosen
+1. It keeps execution fully managed (no local runtime scripts or local compute).
+2. It preserves anti-lump closure by forcing per-component evidence and chained continuity.
+3. It keeps blocker surfaces deterministic and remediation-friendly without hiding low-volume limits.
+
+## Entry: 2026-02-26 01:52:00 +00:00 - Implemented managed P9 component lanes (`m7h/m7i/m7j`)
+
+### What was implemented
+1. Extended `.github/workflows/dev_full_m6f_streaming_active.yml` with:
+   - `phase_mode=m7h` (`P9.B DF`),
+   - `phase_mode=m7i` (`P9.C AL`),
+   - `phase_mode=m7j` (`P9.D DLA`).
+2. Added shared `run_m7hij_remote` managed lane job:
+   - strict upstream execution chaining and expected-gate validation,
+   - required-handle closure checks per component mode,
+   - run-scoped ingest basis checks (`receipt_summary` + `kafka_offsets_snapshot`),
+   - component proof publication under `DECISION_LANE_EVIDENCE_PATH_PATTERN`,
+   - fail-closed summary/blocker artifact publication under run-control prefix.
+3. Added DLA append-only probe behavior:
+   - writes unique `audit_append_probe_<execution_id>.json`,
+   - fails if key pre-exists or write/readback fails.
+4. Added low-sample guarded performance gate for `DF/AL/DLA`:
+   - throughput asserted only when sample `>=200`,
+   - lag/error (and AL retry ratio) remain asserted.
+
+### Validation performed
+1. Workflow YAML parse succeeded (`YAML_OK`) after patch.
+2. Mode references and lane hooks are present for `m7h/m7i/m7j`.
+
+## Entry: 2026-02-26 01:56:00 +00:00 - P9.B execution start (`m7h`)
+
+### Execution intent
+1. Run `m7h` first as the required gate opener for `P9.C`.
+2. Upstream continuity source:
+   - `m7g_p9a_entry_precheck_20260226T013600Z` (`next_gate=M7.F_READY`).
+3. Expected success gate:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M7.G_READY`.
+
+### Blocker handling posture
+1. If blocker is handle/continuity/data-surface related:
+   - remediate immediately and rerun `m7h`.
+2. Do not start `m7i` until `m7h` is green.
+
+## Entry: 2026-02-26 01:52:00 +00:00 - P9.B executed green (`m7h`)
+
+### Authoritative execution
+1. Workflow run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22424352180`
+2. Lane:
+   - `Run M7 P9 component lane remotely (GitHub Actions)` (`phase_mode=m7h`)
+3. Execution id:
+   - `m7h_p9b_df_component_20260226T015122Z`
+
+### Result
+1. `overall_pass=true`
+2. `blocker_count=0`
+3. `next_gate=M7.G_READY`
+
+### Notable evaluation posture
+1. Throughput assertion was waived due low sample size (`<200` receipts).
+2. Fail-closed continuity, handle closure, ingest basis checks, and artifact readback checks all passed.
+3. Decision-lane DF proof was published:
+   - `evidence/runs/platform_20260223T184232Z/decision_lane/df_component_proof.json`
+
+### Evidence surfaces
+1. Local:
+   - `runs/dev_substrate/dev_full/m7/_gh_run_22424352180_artifacts/p9-component-m7h-20260226T015122Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7h_p9b_df_component_20260226T015122Z/`
+
+### Sequencing decision
+1. Advance to `P9.C` (`m7i`) using `m7h_p9b_df_component_20260226T015122Z` as upstream continuity source.
+
+## Entry: 2026-02-26 02:03:00 +00:00 - P9.C execution start (`m7i`)
+
+### Execution intent
+1. Run `m7i` as the second sequential decision-chain lane (`AL`).
+2. Upstream continuity source:
+   - `m7h_p9b_df_component_20260226T015122Z` (`next_gate=M7.G_READY`).
+3. Expected success gate:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M7.H_READY`.
+
+### Blocker handling posture
+1. If `M7P9-B3` or `M7P9-B7` is raised:
+   - inspect continuity + decision-lane proof chain + performance posture,
+   - remediate and rerun `m7i` before advancing.
+
+## Entry: 2026-02-26 01:54:00 +00:00 - P9.C executed green (`m7i`)
+
+### Authoritative execution
+1. Workflow run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22424410762`
+2. Lane:
+   - `Run M7 P9 component lane remotely (GitHub Actions)` (`phase_mode=m7i`)
+3. Execution id:
+   - `m7i_p9c_al_component_20260226T015350Z`
+
+### Result
+1. `overall_pass=true`
+2. `blocker_count=0`
+3. `next_gate=M7.H_READY`
+
+### Notable evaluation posture
+1. Throughput assertion was waived due low sample size (`<200` receipts).
+2. Upstream continuity and proof chain checks passed:
+   - upstream `m7h` summary gate accepted,
+   - `df_component_proof.json` dependency present.
+3. AL component proof was published:
+   - `evidence/runs/platform_20260223T184232Z/decision_lane/al_component_proof.json`
+
+### Evidence surfaces
+1. Local:
+   - `runs/dev_substrate/dev_full/m7/_gh_run_22424410762_artifacts/p9-component-m7i-20260226T015350Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7i_p9c_al_component_20260226T015350Z/`
+
+### Sequencing decision
+1. Advance to `P9.D` (`m7j`) using `m7i_p9c_al_component_20260226T015350Z` as upstream continuity source.

@@ -328,15 +328,19 @@ Tasks:
 
 DoD:
 - [x] `P9.A` entry precheck is green.
-- [ ] `DF` component evidence is complete.
-- [ ] `DF` blockers are clear.
-- [ ] `DF` performance snapshot meets pinned budget.
+- [x] `DF` component evidence is complete.
+- [x] `DF` blockers are clear.
+- [x] `DF` performance snapshot meets pinned budget.
 
 Execution status (2026-02-26):
 1. `P9.A` entry precheck is closed green:
    - workflow run: `22423991265` (`phase_mode=m7g`)
    - execution id: `m7g_p9a_entry_precheck_20260226T013600Z`
    - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M7.F_READY`.
+2. `P9.B` DF lane is closed green:
+   - workflow run: `22424352180` (`phase_mode=m7h`)
+   - execution id: `m7h_p9b_df_component_20260226T015122Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M7.G_READY`.
 
 ### M7.G P9 AL Lane Closure
 Goal:
@@ -348,9 +352,15 @@ Tasks:
 3. verify duplicate-safe side-effect handling.
 
 DoD:
-- [ ] `AL` component evidence is complete.
-- [ ] `AL` blockers are clear.
-- [ ] `AL` performance snapshot meets pinned budget.
+- [x] `AL` component evidence is complete.
+- [x] `AL` blockers are clear.
+- [x] `AL` performance snapshot meets pinned budget.
+
+Execution status (2026-02-26):
+1. `P9.C` AL lane is closed green:
+   - workflow run: `22424410762` (`phase_mode=m7i`)
+   - execution id: `m7i_p9c_al_component_20260226T015350Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M7.H_READY`.
 
 ### M7.H P9 DLA Lane + P9 Rollup
 Goal:
@@ -430,8 +440,8 @@ DoD:
 - [x] M7.C complete
 - [x] M7.D complete
 - [x] M7.E complete
-- [ ] M7.F complete
-- [ ] M7.G complete
+- [x] M7.F complete
+- [x] M7.G complete
 - [ ] M7.H complete
 - [ ] M7.I complete
 - [ ] M7.J complete

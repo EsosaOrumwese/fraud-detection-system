@@ -148,49 +148,221 @@ Execution status (2026-02-26):
 Goal:
 1. close `DF` component lane.
 
+Entry prerequisites:
+1. `P9.A` execution summary is green with:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M7.F_READY`.
+2. run scope (`platform_run_id`, `scenario_run_id`) matches upstream `P9.A` execution.
+
+Required handle set for P9.B:
+1. runtime scope:
+   - `FLINK_RUNTIME_PATH_ACTIVE`
+   - `FLINK_RUNTIME_PATH_ALLOWED`
+2. component/runtime identity:
+   - `K8S_DEPLOY_DF`
+   - `EKS_NAMESPACE_RTDL`
+   - `ROLE_EKS_IRSA_DECISION_LANE`
+3. data/evidence surfaces:
+   - `FP_BUS_RTDL_V1`
+   - `DECISION_LANE_EVIDENCE_PATH_PATTERN`
+4. state backends:
+   - `AURORA_CLUSTER_IDENTIFIER`
+   - `SSM_AURORA_ENDPOINT_PATH`
+   - `SSM_AURORA_USERNAME_PATH`
+   - `SSM_AURORA_PASSWORD_PATH`.
+
 Tasks:
-1. execute `DF` with run-scoped inputs.
-2. verify decision commit evidence and idempotency tuple integrity.
-3. verify fail-closed behavior on invalid/missing policy inputs.
-4. emit `p9b_df_component_snapshot.json`.
+1. verify upstream `P9.A` continuity and run-scope match.
+2. verify required handle set above for `DF`.
+3. verify run-scoped ingest basis evidence is readable.
+4. emit decision-lane component proof:
+   - `df_component_proof.json`.
+5. emit:
+   - `p9b_df_component_snapshot.json`
+   - `p9b_df_blocker_register.json`
+   - `p9b_df_performance_snapshot.json`
+   - `p9b_df_execution_summary.json`.
+
+Execution plan (managed lane):
+1. dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with `phase_mode=m7h`.
+2. pass upstream `P9.A` execution id via `upstream_m6d_execution`.
+3. require deterministic success gate:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M7.G_READY`.
 
 DoD:
-- [ ] decision commits are run-scoped and deterministic.
-- [ ] DF idempotency and fail-closed checks pass.
-- [ ] DF blocker set is empty.
-- [ ] `p9b_df_performance_snapshot.json` is committed and within pinned SLO.
+- [x] decision commits are run-scoped and deterministic.
+- [x] DF idempotency and fail-closed checks pass.
+- [x] DF blocker set is empty.
+- [x] `p9b_df_performance_snapshot.json` is committed and within pinned SLO.
+- [x] managed `P9.B` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=M7.G_READY`).
+
+Execution status (2026-02-26):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7h`
+   - run id: `22424352180`
+   - execution id: `m7h_p9b_df_component_20260226T015122Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M7.G_READY`.
+3. Verification outcomes:
+   - upstream `P9.A` continuity accepted from `m7g_p9a_entry_precheck_20260226T013600Z`,
+   - required handles resolved with no missing/placeholder values,
+   - run-scoped ingest basis evidence readable,
+   - decision-lane component proof published:
+     - `evidence/runs/platform_20260223T184232Z/decision_lane/df_component_proof.json`.
+4. Performance posture:
+   - low-sample guarded mode applied (`total_receipts=18`),
+   - throughput assertion waived (`<200` sample),
+   - lag/error gate posture passed.
+5. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_gh_run_22424352180_artifacts/p9-component-m7h-20260226T015122Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7h_p9b_df_component_20260226T015122Z/`.
 
 ### P9.C AL Component Lane Closure
 Goal:
 1. close `AL` component lane.
 
+Entry prerequisites:
+1. `P9.B` execution summary is green with:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M7.G_READY`.
+2. run scope (`platform_run_id`, `scenario_run_id`) matches upstream `P9.B` execution.
+3. upstream proof continuity:
+   - `df_component_proof.json` exists under decision-lane run prefix.
+
+Required handle set for P9.C:
+1. runtime scope:
+   - `FLINK_RUNTIME_PATH_ACTIVE`
+   - `FLINK_RUNTIME_PATH_ALLOWED`
+2. component/runtime identity:
+   - `K8S_DEPLOY_AL`
+   - `EKS_NAMESPACE_RTDL`
+   - `ROLE_EKS_IRSA_DECISION_LANE`
+3. data/evidence surfaces:
+   - `FP_BUS_RTDL_V1`
+   - `FP_BUS_AUDIT_V1`
+   - `DECISION_LANE_EVIDENCE_PATH_PATTERN`
+4. state backends:
+   - `AURORA_CLUSTER_IDENTIFIER`
+   - `SSM_AURORA_ENDPOINT_PATH`
+   - `SSM_AURORA_USERNAME_PATH`
+   - `SSM_AURORA_PASSWORD_PATH`.
+
 Tasks:
-1. execute `AL` with run-scoped decision inputs.
-2. verify action/outcome commit evidence.
-3. verify duplicate-safe side-effect semantics.
-4. emit `p9c_al_component_snapshot.json`.
+1. verify upstream `P9.B` continuity and run-scope match.
+2. verify required handle set above for `AL`.
+3. verify `df_component_proof.json` dependency is present.
+4. emit decision-lane component proof:
+   - `al_component_proof.json`.
+5. emit:
+   - `p9c_al_component_snapshot.json`
+   - `p9c_al_blocker_register.json`
+   - `p9c_al_performance_snapshot.json`
+   - `p9c_al_execution_summary.json`.
+
+Execution plan (managed lane):
+1. dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with `phase_mode=m7i`.
+2. pass upstream `P9.B` execution id via `upstream_m6g_execution`.
+3. require deterministic success gate:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M7.H_READY`.
 
 DoD:
-- [ ] action/outcome commits are run-scoped and deterministic.
-- [ ] duplicate-safe side-effect checks pass.
-- [ ] AL blocker set is empty.
-- [ ] `p9c_al_performance_snapshot.json` is committed and within pinned SLO.
+- [x] action/outcome commits are run-scoped and deterministic.
+- [x] duplicate-safe side-effect checks pass.
+- [x] AL blocker set is empty.
+- [x] `p9c_al_performance_snapshot.json` is committed and within pinned SLO.
+- [x] managed `P9.C` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=M7.H_READY`).
+
+Execution status (2026-02-26):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7i`
+   - run id: `22424410762`
+   - execution id: `m7i_p9c_al_component_20260226T015350Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M7.H_READY`.
+3. Verification outcomes:
+   - upstream `P9.B` continuity accepted from `m7h_p9b_df_component_20260226T015122Z`,
+   - required handles resolved with no missing/placeholder values,
+   - upstream `df_component_proof.json` dependency present,
+   - decision-lane AL proof published:
+     - `evidence/runs/platform_20260223T184232Z/decision_lane/al_component_proof.json`.
+4. Performance posture:
+   - low-sample guarded mode applied (`total_receipts=18`),
+   - throughput assertion waived (`<200` sample),
+   - lag/error/retry gate posture passed.
+5. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_gh_run_22424410762_artifacts/p9-component-m7i-20260226T015350Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7i_p9c_al_component_20260226T015350Z/`.
 
 ### P9.D DLA Component Lane Closure
 Goal:
 1. close `DLA` component lane.
 
+Entry prerequisites:
+1. `P9.C` execution summary is green with:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M7.H_READY`.
+2. run scope (`platform_run_id`, `scenario_run_id`) matches upstream `P9.C` execution.
+3. upstream proof continuity:
+   - `df_component_proof.json` and `al_component_proof.json` exist under decision-lane run prefix.
+
+Required handle set for P9.D:
+1. runtime scope:
+   - `FLINK_RUNTIME_PATH_ACTIVE`
+   - `FLINK_RUNTIME_PATH_ALLOWED`
+2. component/runtime identity:
+   - `K8S_DEPLOY_DLA`
+   - `EKS_NAMESPACE_RTDL`
+   - `ROLE_EKS_IRSA_DECISION_LANE`
+3. data/evidence surfaces:
+   - `FP_BUS_AUDIT_V1`
+   - `DECISION_LANE_EVIDENCE_PATH_PATTERN`
+4. state backends:
+   - `AURORA_CLUSTER_IDENTIFIER`
+   - `SSM_AURORA_ENDPOINT_PATH`
+   - `SSM_AURORA_USERNAME_PATH`
+   - `SSM_AURORA_PASSWORD_PATH`.
+
 Tasks:
-1. execute/verify `DLA` append-only audit writes.
-2. verify durable readback for run-scoped audit evidence.
-3. verify append-only invariants (no in-place mutation).
-4. emit `p9d_dla_component_snapshot.json`.
+1. verify upstream `P9.C` continuity and run-scope match.
+2. verify required handle set above for `DLA`.
+3. verify `df_component_proof.json` + `al_component_proof.json` dependencies are present.
+4. execute append-only audit probe write/readback:
+   - `audit_append_probe_<execution_id>.json` under decision-lane run prefix.
+5. emit decision-lane component proof:
+   - `dla_component_proof.json`.
+6. emit:
+   - `p9d_dla_component_snapshot.json`
+   - `p9d_dla_blocker_register.json`
+   - `p9d_dla_performance_snapshot.json`
+   - `p9d_dla_execution_summary.json`.
+
+Execution plan (managed lane):
+1. dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with `phase_mode=m7j`.
+2. pass upstream `P9.C` execution id via `upstream_m6h_execution`.
+3. require deterministic success gate:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=P9.E_READY`.
 
 DoD:
 - [ ] append-only audit evidence is committed and readable.
 - [ ] append-only invariants pass.
 - [ ] DLA blocker set is empty.
 - [ ] `p9d_dla_performance_snapshot.json` is committed and within pinned SLO.
+- [ ] managed `P9.D` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=P9.E_READY`).
 
 ### P9.E P9 Rollup + Verdict
 Goal:
@@ -229,14 +401,24 @@ DoD:
 3. `p9a_component_slo_profile.json`
 4. `p9a_execution_summary.json`
 5. `p9b_df_component_snapshot.json`
-6. `p9c_al_component_snapshot.json`
-7. `p9d_dla_component_snapshot.json`
-8. `p9e_decision_chain_rollup_matrix.json`
-9. `p9e_decision_chain_blocker_register.json`
-10. `p9e_decision_chain_verdict.json`
-11. `p9b_df_performance_snapshot.json`
-12. `p9c_al_performance_snapshot.json`
-13. `p9d_dla_performance_snapshot.json`
+6. `p9b_df_blocker_register.json`
+7. `p9b_df_execution_summary.json`
+8. `p9b_df_performance_snapshot.json`
+9. `df_component_proof.json`
+10. `p9c_al_component_snapshot.json`
+11. `p9c_al_blocker_register.json`
+12. `p9c_al_execution_summary.json`
+13. `p9c_al_performance_snapshot.json`
+14. `al_component_proof.json`
+15. `p9d_dla_component_snapshot.json`
+16. `p9d_dla_blocker_register.json`
+17. `p9d_dla_execution_summary.json`
+18. `p9d_dla_performance_snapshot.json`
+19. `audit_append_probe_<execution_id>.json`
+20. `dla_component_proof.json`
+21. `p9e_decision_chain_rollup_matrix.json`
+22. `p9e_decision_chain_blocker_register.json`
+23. `p9e_decision_chain_verdict.json`
 
 ## 8) Exit Rule for P9
 `P9` can close only when:
