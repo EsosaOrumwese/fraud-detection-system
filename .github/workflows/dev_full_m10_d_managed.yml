@@ -47,6 +47,11 @@ on:
         required: false
         default: ""
         type: string
+      m10i_execution_id:
+        description: "Optional fixed M10.I execution id"
+        required: false
+        default: ""
+        type: string
       poll_timeout_minutes:
         description: "Databricks run timeout in minutes"
         required: true
@@ -132,11 +137,17 @@ jobs:
           else
             M10H_EXEC="m10h_rollback_recipe_${TS}"
           fi
+          if [[ -n "${{ inputs.m10i_execution_id }}" ]]; then
+            M10I_EXEC="${{ inputs.m10i_execution_id }}"
+          else
+            M10I_EXEC="m10i_p13_gate_rollup_${TS}"
+          fi
           M10D_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10D_EXEC}"
           M10E_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10E_EXEC}"
           M10F_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10F_EXEC}"
           M10G_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10G_EXEC}"
           M10H_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10H_EXEC}"
+          M10I_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10I_EXEC}"
           echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
           echo "m10d_execution_id=${M10D_EXEC}" >> "$GITHUB_OUTPUT"
           echo "m10d_run_dir=${M10D_RUN_DIR}" >> "$GITHUB_OUTPUT"
@@ -148,6 +159,8 @@ jobs:
           echo "m10g_run_dir=${M10G_RUN_DIR}" >> "$GITHUB_OUTPUT"
           echo "m10h_execution_id=${M10H_EXEC}" >> "$GITHUB_OUTPUT"
           echo "m10h_run_dir=${M10H_RUN_DIR}" >> "$GITHUB_OUTPUT"
+          echo "m10i_execution_id=${M10I_EXEC}" >> "$GITHUB_OUTPUT"
+          echo "m10i_run_dir=${M10I_RUN_DIR}" >> "$GITHUB_OUTPUT"
 
       - name: Execute M10.D (managed)
         shell: bash
@@ -2268,15 +2281,403 @@ jobs:
               raise SystemExit(1)
           PY
 
+      - name: Execute M10.I (managed)
+        shell: bash
+        env:
+          M10I_EXECUTION_ID: ${{ steps.run_meta.outputs.m10i_execution_id }}
+          M10I_RUN_DIR: ${{ steps.run_meta.outputs.m10i_run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          UPSTREAM_M10C_EXECUTION: ${{ inputs.upstream_m10c_execution }}
+          UPSTREAM_M10D_EXECUTION: ${{ steps.run_meta.outputs.m10d_execution_id }}
+          UPSTREAM_M10E_EXECUTION: ${{ steps.run_meta.outputs.m10e_execution_id }}
+          UPSTREAM_M10F_EXECUTION: ${{ steps.run_meta.outputs.m10f_execution_id }}
+          UPSTREAM_M10G_EXECUTION: ${{ steps.run_meta.outputs.m10g_execution_id }}
+          UPSTREAM_M10H_EXECUTION: ${{ steps.run_meta.outputs.m10h_execution_id }}
+          AWS_REGION: ${{ inputs.aws_region }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import re
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from typing import Any
+
+          import boto3
+          from botocore.exceptions import BotoCoreError, ClientError
+
+          HANDLES_PATH = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
+
+
+          def now_utc() -> str:
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+          def parse_handles(path: Path) -> dict[str, Any]:
+              out: dict[str, Any] = {}
+              rx = re.compile(r"^\* `([^`=]+?)\s*=\s*([^`]+)`")
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  m = rx.match(line.strip())
+                  if not m:
+                      continue
+                  key = m.group(1).strip()
+                  raw = m.group(2).strip()
+                  if raw.startswith('"') and raw.endswith('"'):
+                      out[key] = raw[1:-1]
+                  else:
+                      out[key] = raw
+              return out
+
+
+          def is_placeholder(value: Any) -> bool:
+              s = str(value).strip()
+              s_lower = s.lower()
+              if not s:
+                  return True
+              if s_lower in {"tbd", "todo", "none", "null", "unset"}:
+                  return True
+              if "to_pin" in s_lower or "placeholder" in s_lower:
+                  return True
+              if "<" in s and ">" in s:
+                  return True
+              return False
+
+
+          def s3_get_json(s3: Any, bucket: str, key: str) -> dict[str, Any]:
+              body = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+              payload = json.loads(body)
+              if not isinstance(payload, dict):
+                  raise ValueError("json_not_object")
+              return payload
+
+
+          def s3_put_json(s3: Any, bucket: str, key: str, payload: dict[str, Any]) -> None:
+              body = json.dumps(payload, indent=2, ensure_ascii=True).encode("utf-8")
+              s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="application/json")
+              s3.head_object(Bucket=bucket, Key=key)
+
+
+          def write_local(run_dir: Path, artifacts: dict[str, dict[str, Any]]) -> None:
+              run_dir.mkdir(parents=True, exist_ok=True)
+              for name, payload in artifacts.items():
+                  (run_dir / name).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+
+          def dedupe_blockers(items: list[dict[str, str]]) -> list[dict[str, str]]:
+              out: list[dict[str, str]] = []
+              seen: set[tuple[str, str]] = set()
+              for b in items:
+                  code = str(b.get("code", "")).strip()
+                  msg = str(b.get("message", "")).strip()
+                  sig = (code, msg)
+                  if sig in seen:
+                      continue
+                  seen.add(sig)
+                  out.append({"code": code, "message": msg})
+              return out
+
+
+          def execution_from_summary_key(key: str) -> str:
+              m = re.search(r"/run_control/([^/]+)/[^/]+_execution_summary\.json$", key)
+              if not m:
+                  return ""
+              return m.group(1).strip()
+
+
+          env = dict(os.environ)
+          execution_id = env.get("M10I_EXECUTION_ID", "").strip()
+          run_dir_raw = env.get("M10I_RUN_DIR", "").strip()
+          evidence_bucket = env.get("EVIDENCE_BUCKET", "").strip()
+          aws_region = env.get("AWS_REGION", "eu-west-2").strip() or "eu-west-2"
+          upstream_m10c_execution = env.get("UPSTREAM_M10C_EXECUTION", "").strip()
+          upstream_m10d_execution = env.get("UPSTREAM_M10D_EXECUTION", "").strip()
+          upstream_m10e_execution = env.get("UPSTREAM_M10E_EXECUTION", "").strip()
+          upstream_m10f_execution = env.get("UPSTREAM_M10F_EXECUTION", "").strip()
+          upstream_m10g_execution = env.get("UPSTREAM_M10G_EXECUTION", "").strip()
+          upstream_m10h_execution = env.get("UPSTREAM_M10H_EXECUTION", "").strip()
+          if not execution_id or not run_dir_raw or not evidence_bucket:
+              raise SystemExit("M10.I required env is missing.")
+          if not all([upstream_m10c_execution, upstream_m10d_execution, upstream_m10e_execution, upstream_m10f_execution, upstream_m10g_execution, upstream_m10h_execution]):
+              raise SystemExit("M10.I required upstream execution ids are missing.")
+
+          run_dir = Path(run_dir_raw)
+          s3 = boto3.client("s3", region_name=aws_region)
+          handles = parse_handles(HANDLES_PATH)
+          captured_at = now_utc()
+          blockers: list[dict[str, str]] = []
+          read_errors: list[dict[str, str]] = []
+          upload_errors: list[dict[str, str]] = []
+
+          expected_bucket = str(handles.get("S3_EVIDENCE_BUCKET", "")).strip()
+          run_control_pattern = str(handles.get("S3_RUN_CONTROL_ROOT_PATTERN", "")).strip()
+          if is_placeholder(expected_bucket):
+              blockers.append({"code": "M10-B10", "message": "S3_EVIDENCE_BUCKET handle unresolved for M10.I."})
+          if is_placeholder(run_control_pattern) or "{phase_execution_id}" not in run_control_pattern:
+              blockers.append({"code": "M10-B10", "message": "S3_RUN_CONTROL_ROOT_PATTERN handle unresolved for M10.I."})
+          if expected_bucket and expected_bucket != evidence_bucket:
+              blockers.append({"code": "M10-B10", "message": "EVIDENCE_BUCKET does not match S3_EVIDENCE_BUCKET handle."})
+
+          # Resolve M10.A/B execution lineage via M10.C snapshot.
+          m10c_snapshot_key = f"evidence/dev_full/run_control/{upstream_m10c_execution}/m10c_input_binding_snapshot.json"
+          m10c_summary_key = f"evidence/dev_full/run_control/{upstream_m10c_execution}/m10c_execution_summary.json"
+          m10b_execution = ""
+          m10a_execution = ""
+          try:
+              m10c_snapshot = s3_get_json(s3, evidence_bucket, m10c_snapshot_key)
+              m10b_summary_ref = str(((m10c_snapshot.get("upstream_refs", {}) if isinstance(m10c_snapshot, dict) else {}) or {}).get("m10b_summary_ref", "")).strip()
+              m10b_execution = execution_from_summary_key(m10b_summary_ref)
+          except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+              read_errors.append({"surface": m10c_snapshot_key, "error": type(exc).__name__})
+              blockers.append({"code": "M10-B9", "message": "M10.C snapshot unreadable for lineage resolution."})
+
+          if not m10b_execution:
+              blockers.append({"code": "M10-B9", "message": "Unable to resolve upstream M10.B execution id from M10.C snapshot."})
+
+          if not blockers:
+              m10b_snapshot_key = f"evidence/dev_full/run_control/{m10b_execution}/m10b_databricks_readiness_snapshot.json"
+              try:
+                  m10b_snapshot = s3_get_json(s3, evidence_bucket, m10b_snapshot_key)
+                  m10a_execution = str(m10b_snapshot.get("upstream_m10a_execution", "")).strip()
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": m10b_snapshot_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M10-B9", "message": "M10.B snapshot unreadable for lineage resolution."})
+
+          if not m10a_execution:
+              blockers.append({"code": "M10-B9", "message": "Unable to resolve upstream M10.A execution id from M10.B snapshot."})
+
+          expected_chain: list[tuple[str, str, str]] = []
+          if not blockers:
+              expected_chain = [
+                  ("M10.A", m10a_execution, "M10.B_READY"),
+                  ("M10.B", m10b_execution, "M10.C_READY"),
+                  ("M10.C", upstream_m10c_execution, "M10.D_READY"),
+                  ("M10.D", upstream_m10d_execution, "M10.E_READY"),
+                  ("M10.E", upstream_m10e_execution, "M10.F_READY"),
+                  ("M10.F", upstream_m10f_execution, "M10.G_READY"),
+                  ("M10.G", upstream_m10g_execution, "M10.H_READY"),
+                  ("M10.H", upstream_m10h_execution, "M10.I_READY"),
+              ]
+
+          rollup_rows: list[dict[str, Any]] = []
+          platform_values: set[str] = set()
+          scenario_values: set[str] = set()
+
+          for phase_name, phase_execution, expected_next_gate in expected_chain:
+              summary_name = f"{phase_name.lower().replace('.', '')}_execution_summary.json"
+              key = f"evidence/dev_full/run_control/{phase_execution}/{summary_name}"
+              summary_payload: dict[str, Any] | None = None
+              try:
+                  summary_payload = s3_get_json(s3, evidence_bucket, key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": key, "error": type(exc).__name__})
+                  blockers.append({"code": "M10-B9", "message": f"{phase_name} summary unreadable for rollup."})
+
+              overall_pass = bool((summary_payload or {}).get("overall_pass"))
+              next_gate = str((summary_payload or {}).get("next_gate", "")).strip()
+              platform_run_id = str((summary_payload or {}).get("platform_run_id", "")).strip()
+              scenario_run_id = str((summary_payload or {}).get("scenario_run_id", "")).strip()
+              if platform_run_id:
+                  platform_values.add(platform_run_id)
+              if scenario_run_id:
+                  scenario_values.add(scenario_run_id)
+              row_pass = bool(summary_payload) and overall_pass and next_gate == expected_next_gate
+              if not row_pass and summary_payload:
+                  blockers.append({"code": "M10-B9", "message": f"{phase_name} gate continuity failed (expected {expected_next_gate})."})
+              rollup_rows.append({
+                  "phase": phase_name,
+                  "execution_id": phase_execution,
+                  "summary_key": key,
+                  "overall_pass": overall_pass,
+                  "actual_next_gate": next_gate,
+                  "expected_next_gate": expected_next_gate,
+                  "row_pass": row_pass,
+              })
+
+          if len(platform_values) != 1 or len(scenario_values) != 1:
+              blockers.append({"code": "M10-B9", "message": "Run scope continuity failed across M10.A..M10.H summaries."})
+
+          platform_run_id = next(iter(platform_values)) if len(platform_values) == 1 else ""
+          scenario_run_id = next(iter(scenario_values)) if len(scenario_values) == 1 else ""
+
+          m10g_summary_key = f"evidence/dev_full/run_control/{upstream_m10g_execution}/m10g_execution_summary.json"
+          m10h_summary_key = f"evidence/dev_full/run_control/{upstream_m10h_execution}/m10h_execution_summary.json"
+          manifest_key = ""
+          fingerprint_key = ""
+          time_bound_audit_key = ""
+          rollback_recipe_key = ""
+          rollback_drill_key = ""
+          try:
+              m10g_summary = s3_get_json(s3, evidence_bucket, m10g_summary_key)
+              manifest_key = str(m10g_summary.get("manifest_key", "")).strip()
+              fingerprint_key = str(m10g_summary.get("fingerprint_key", "")).strip()
+              time_bound_audit_key = str(m10g_summary.get("time_bound_audit_key", "")).strip()
+          except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+              read_errors.append({"surface": m10g_summary_key, "error": type(exc).__name__})
+              blockers.append({"code": "M10-B10", "message": "M10.G summary unreadable for M11 handoff refs."})
+          try:
+              m10h_summary = s3_get_json(s3, evidence_bucket, m10h_summary_key)
+              rollback_recipe_key = str(m10h_summary.get("rollback_recipe_key", "")).strip()
+              rollback_drill_key = str(m10h_summary.get("rollback_drill_key", "")).strip()
+          except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+              read_errors.append({"surface": m10h_summary_key, "error": type(exc).__name__})
+              blockers.append({"code": "M10-B10", "message": "M10.H summary unreadable for M11 handoff refs."})
+
+          blockers = dedupe_blockers(blockers)
+          overall_pass = len(blockers) == 0
+          verdict = "ADVANCE_TO_P14" if overall_pass else "HOLD_REMEDIATE"
+          next_gate = "M11_READY" if overall_pass else "HOLD_REMEDIATE"
+
+          rollup_matrix = {
+              "captured_at_utc": captured_at,
+              "phase": "M10.I",
+              "phase_id": "P13",
+              "execution_id": execution_id,
+              "source_chain_rows": rollup_rows,
+              "platform_run_scope_values": sorted(platform_values),
+              "scenario_run_scope_values": sorted(scenario_values),
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+          }
+
+          gate_verdict = {
+              "captured_at_utc": captured_at,
+              "phase": "M10.I",
+              "phase_id": "P13",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "upstream_refs": {
+                  "m10a_execution_id": m10a_execution,
+                  "m10b_execution_id": m10b_execution,
+                  "m10c_execution_id": upstream_m10c_execution,
+                  "m10d_execution_id": upstream_m10d_execution,
+                  "m10e_execution_id": upstream_m10e_execution,
+                  "m10f_execution_id": upstream_m10f_execution,
+                  "m10g_execution_id": upstream_m10g_execution,
+                  "m10h_execution_id": upstream_m10h_execution,
+              },
+          }
+
+          m11_handoff_pack = {
+              "captured_at_utc": captured_at,
+              "phase": "M10.I",
+              "phase_id": "P13",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "p13_verdict": verdict,
+              "next_gate": next_gate,
+              "m11_entry_ready": overall_pass,
+              "m11_entry_gate": {
+                  "required_verdict": "ADVANCE_TO_P14",
+                  "next_gate": "M11_READY",
+              },
+              "required_refs": {
+                  "m10i_gate_verdict_ref": f"evidence/dev_full/run_control/{execution_id}/m10i_p13_gate_verdict.json",
+                  "m10g_manifest_ref": f"s3://{evidence_bucket}/{manifest_key}" if manifest_key else "",
+                  "m10g_fingerprint_ref": f"s3://{evidence_bucket}/{fingerprint_key}" if fingerprint_key else "",
+                  "m10g_time_bound_audit_ref": f"s3://{evidence_bucket}/{time_bound_audit_key}" if time_bound_audit_key else "",
+                  "m10h_rollback_recipe_ref": f"s3://{evidence_bucket}/{rollback_recipe_key}" if rollback_recipe_key else "",
+                  "m10h_rollback_drill_ref": f"s3://{evidence_bucket}/{rollback_drill_key}" if rollback_drill_key else "",
+              },
+              "source_chain": [
+                  {"phase": row["phase"], "execution_id": row["execution_id"], "row_pass": row["row_pass"]}
+                  for row in rollup_rows
+              ],
+          }
+
+          blocker_register = {
+              "captured_at_utc": captured_at,
+              "phase": "M10.I",
+              "execution_id": execution_id,
+              "blocker_count": len(blockers),
+              "blockers": blockers,
+              "read_errors": read_errors,
+              "upload_errors": upload_errors,
+          }
+          summary = {
+              "captured_at_utc": captured_at,
+              "phase": "M10.I",
+              "phase_id": "P13",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "m11_handoff_key": f"evidence/dev_full/run_control/{execution_id}/m11_handoff_pack.json",
+          }
+
+          run_control_artifacts = {
+              "m10i_p13_rollup_matrix.json": rollup_matrix,
+              "m10i_p13_gate_verdict.json": gate_verdict,
+              "m11_handoff_pack.json": m11_handoff_pack,
+              "m10i_blocker_register.json": blocker_register,
+              "m10i_execution_summary.json": summary,
+          }
+          write_local(run_dir, run_control_artifacts)
+
+          run_control_prefix = f"evidence/dev_full/run_control/{execution_id}/"
+          for name, payload in run_control_artifacts.items():
+              key = f"{run_control_prefix}{name}"
+              try:
+                  s3_put_json(s3, evidence_bucket, key, payload)
+              except (BotoCoreError, ClientError, ValueError) as exc:
+                  upload_errors.append({"surface": key, "error": type(exc).__name__})
+
+          if upload_errors:
+              blockers.append({"code": "M10-B12", "message": "Failed to publish/readback one or more M10.I artifacts."})
+              blockers = dedupe_blockers(blockers)
+              summary["overall_pass"] = False
+              summary["blocker_count"] = len(blockers)
+              summary["verdict"] = "HOLD_REMEDIATE"
+              summary["next_gate"] = "HOLD_REMEDIATE"
+              blocker_register["blocker_count"] = len(blockers)
+              blocker_register["blockers"] = blockers
+              blocker_register["upload_errors"] = upload_errors
+              rollup_matrix["overall_pass"] = False
+              rollup_matrix["blocker_count"] = len(blockers)
+              gate_verdict["overall_pass"] = False
+              gate_verdict["blocker_count"] = len(blockers)
+              gate_verdict["verdict"] = "HOLD_REMEDIATE"
+              gate_verdict["next_gate"] = "HOLD_REMEDIATE"
+              m11_handoff_pack["p13_verdict"] = "HOLD_REMEDIATE"
+              m11_handoff_pack["next_gate"] = "HOLD_REMEDIATE"
+              m11_handoff_pack["m11_entry_ready"] = False
+              write_local(run_dir, run_control_artifacts)
+
+          print(json.dumps({
+              "execution_id": execution_id,
+              "overall_pass": summary["overall_pass"],
+              "blocker_count": summary["blocker_count"],
+              "verdict": summary["verdict"],
+              "next_gate": summary["next_gate"],
+              "run_dir": str(run_dir),
+              "run_control_prefix": f"s3://{evidence_bucket}/{run_control_prefix}",
+          }, ensure_ascii=True))
+
+          if not summary["overall_pass"]:
+              raise SystemExit(1)
+          PY
+
       - name: Upload M10.D managed artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: m10-defgh-managed-${{ steps.run_meta.outputs.timestamp }}
+          name: m10-defghi-managed-${{ steps.run_meta.outputs.timestamp }}
           path: |
             ${{ steps.run_meta.outputs.m10d_run_dir }}
             ${{ steps.run_meta.outputs.m10e_run_dir }}
             ${{ steps.run_meta.outputs.m10f_run_dir }}
             ${{ steps.run_meta.outputs.m10g_run_dir }}
             ${{ steps.run_meta.outputs.m10h_run_dir }}
+            ${{ steps.run_meta.outputs.m10i_run_dir }}
           if-no-files-found: warn
