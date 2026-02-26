@@ -120,18 +120,86 @@ Required handles:
 10. `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`
 11. `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`
 
+Entry conditions:
+1. `M10` closure summaries are readable and pass posture:
+- `m10_execution_summary.json` with `overall_pass=true`,
+- `m10j_execution_summary.json` with `verdict=ADVANCE_TO_M11` and `next_gate=M11_READY`.
+2. M10 handoff artifact is readable:
+- `m11_handoff_pack.json` from `M10.I`.
+3. Active run scope is single-valued from M10 closure:
+- one `platform_run_id`,
+- one `scenario_run_id`.
+4. Handle registry path is readable and parseable:
+- `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+
 Execution notes:
 1. Produce explicit resolved/unresolved matrix.
 2. Map unresolved required handles to `M11-B1`.
 3. Emit `m11a_handle_closure_snapshot.json` and `m11_blocker_register.json`.
+4. Emit `m11a_execution_summary.json` with deterministic next gate.
+
+Deterministic verification algorithm (M11.A):
+1. load and validate M10 entry artifacts from durable run-control surface.
+2. fail closed unless M10 closure posture is:
+- `overall_pass=true`,
+- `verdict=ADVANCE_TO_M11`,
+- `next_gate=M11_READY`.
+3. resolve required handle set in fixed order (`1..11` above).
+4. classify each handle deterministically:
+- `resolved`,
+- `missing`,
+- `placeholder`,
+- `wildcard`.
+5. project blockers:
+- any `missing/placeholder/wildcard` required handle -> `M11-B1`.
+6. emit deterministic artifacts:
+- `m11a_handle_closure_snapshot.json`,
+- `m11_blocker_register.json`,
+- `m11a_execution_summary.json`.
+7. publish local + durable artifacts with readback parity.
+8. emit deterministic next gate:
+- `M11.B_READY` when blocker count is `0`,
+- otherwise `HOLD_REMEDIATE`.
 
 Runtime budget:
 1. Target <= 5 minutes.
 
+Managed execution binding:
+1. Authoritative runner: `.github/workflows/dev_full_m11_a_managed.yml`.
+2. Required dispatch inputs:
+- `aws_region`
+- `aws_role_to_assume`
+- `evidence_bucket`
+- `upstream_m10j_execution`
+- `upstream_m10i_execution`
+3. Optional dispatch input:
+- `m11a_execution_id` (fixed execution id override for deterministic rerun).
+4. Required upstream evidence keys:
+- `evidence/dev_full/run_control/{upstream_m10j_execution}/m10_execution_summary.json`
+- `evidence/dev_full/run_control/{upstream_m10j_execution}/m10j_execution_summary.json`
+- `evidence/dev_full/run_control/{upstream_m10i_execution}/m11_handoff_pack.json`
+5. Required M11.A publication keys:
+- `evidence/dev_full/run_control/{m11a_execution_id}/m11a_handle_closure_snapshot.json`
+- `evidence/dev_full/run_control/{m11a_execution_id}/m11_blocker_register.json`
+- `evidence/dev_full/run_control/{m11a_execution_id}/m11a_execution_summary.json`
+
 DoD:
-- [ ] all required handles resolved or explicitly blocker-marked.
-- [ ] `m11a_handle_closure_snapshot.json` published local + durable.
-- [ ] `M11.B_READY` asserted on blocker-free pass.
+- [x] all required handles resolved or explicitly blocker-marked.
+- [x] `m11a_handle_closure_snapshot.json` published local + durable.
+- [x] `m11a_execution_summary.json` published local + durable.
+- [x] `M11.B_READY` asserted on blocker-free pass.
+
+Current runtime blocker:
+1. `M11A-B0`: managed workflow dispatch prerequisite not met.
+- observed condition: GitHub returns `workflow not found on default branch` for `.github/workflows/dev_full_m11_a_managed.yml`,
+- clearance action: publish workflow file to default branch, then rerun `M11.A`.
+- resolution status (2026-02-26): cleared.
+  - workflow-only promotion PR merged: `https://github.com/EsosaOrumwese/fraud-detection-system/pull/58`,
+  - authoritative run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22454486097`,
+  - execution id: `m11a_handle_closure_20260226T175701Z`,
+  - verdict: `ADVANCE_TO_M11_B`,
+  - next gate: `M11.B_READY`,
+  - blocker count: `0`.
 
 ### M11.B - SageMaker Runtime Readiness
 Goal:
@@ -315,7 +383,7 @@ DoD:
 13. `M11-B13`: non-gate acceptance failure (utility/reproducibility/operability/auditability).
 
 ## 8) Completion Checklist
-- [ ] `M11.A` complete
+- [x] `M11.A` complete
 - [ ] `M11.B` complete
 - [ ] `M11.C` complete
 - [ ] `M11.D` complete
@@ -331,5 +399,5 @@ DoD:
 
 ## 9) Planning Status
 1. M11 planning is expanded to execution-grade depth.
-2. M11 execution remains `NOT_STARTED`.
-3. Next actionable lane is `M11.A`.
+2. `M11.A` is complete and green on managed lane.
+3. Next actionable lane is `M11.B` (SageMaker runtime readiness).

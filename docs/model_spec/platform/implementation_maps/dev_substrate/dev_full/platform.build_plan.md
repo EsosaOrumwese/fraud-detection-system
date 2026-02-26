@@ -98,7 +98,7 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M8 | P11 | Spine obs/gov closure + non-regression pack | DONE |
 | M9 | P12 | Learning input readiness | ACTIVE |
 | M10 | P13 | OFS dataset closure | NOT_STARTED |
-| M11 | P14 | MF train/eval closure | NOT_STARTED |
+| M11 | P14 | MF train/eval closure | ACTIVE |
 | M12 | P15 | MPR promotion/rollback closure | NOT_STARTED |
 | M13 | P16-P17 | Full-platform verdict + teardown/idle-safe closure | NOT_STARTED |
 
@@ -1319,7 +1319,7 @@ Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M10.build_plan.md`
 
 ## M11 - MF Train/Eval Closure
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 
 Objective:
 - close `P14` with reproducible MF train/eval closure, MLflow lineage, and provenance-complete candidate bundle evidence.
@@ -1398,6 +1398,14 @@ M11 entry evidence anchors:
 - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10j_closure_sync_20260226T164304Z/m10_execution_summary.json`
 - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10j_closure_sync_20260226T164304Z/m10j_execution_summary.json`
 - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10i_p13_gate_rollup_20260226T162737Z/m11_handoff_pack.json`
+
+M11 progression snapshot:
+- `M11A-B0` is cleared.
+- workflow-only promotion PR merged: `https://github.com/EsosaOrumwese/fraud-detection-system/pull/58`.
+- authoritative M11.A run is green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22454486097`,
+  - execution id: `m11a_handle_closure_20260226T175701Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=M11.B_READY`.
 
 ## M12 - MPR Promotion/Rollback Closure
 Status: `NOT_STARTED`
@@ -1480,4 +1488,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M11.A` (authority + handle closure for `P14`) using M10 `DONE` posture (`m10j_closure_sync_20260226T164304Z`) as entry basis.
+- Expand and execute `M11.B` (SageMaker runtime readiness) using `M11.A` green posture (`m11a_handle_closure_20260226T175701Z`) as entry basis.
