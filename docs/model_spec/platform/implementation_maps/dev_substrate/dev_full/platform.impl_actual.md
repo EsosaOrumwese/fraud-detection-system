@@ -11071,3 +11071,161 @@ un_m7k_cert_remote (m7s).
 
 ### Reason
 1. M8.A execution is complete and green; leaving roadmap at `NOT_STARTED` would create status drift against section-level status owner text.
+## Entry: 2026-02-26 05:10:40 +00:00 - M8.B blocker discovered and remediation route selected
+
+### Blocker observed during M8.B preflight
+1. `REPORTER_LOCK_BACKEND=aurora_advisory_lock` requires lock-backend secret paths:
+   - `/fraud-platform/dev_full/aurora/endpoint`
+   - `/fraud-platform/dev_full/aurora/username`
+   - `/fraud-platform/dev_full/aurora/password`
+2. All three paths returned `ParameterNotFound` in `eu-west-2`.
+
+### Decision made before edits/execution
+1. Keep M8.B focused on **runtime identity + lock readiness**.
+2. Keep lock contention/acquire-release proof as mandatory in `M8.D` (single-writer contention lane), not duplicated in M8.B.
+3. Remediate missing lock secret-path surfaces via `dev_full/ops` materialization (Terraform) before M8.B closure run.
+4. Implement deterministic script lane `scripts/dev_substrate/m8b_runtime_lock_readiness.py` for repeatable artifact emission.
+
+### Why this is the correct split
+1. M8.B should prove prerequisites and runtime posture; M8.D is designed for lock contention semantics.
+2. This avoids false closure while preserving strict fail-closed progression.
+3. It reduces duplicated lock logic and keeps evidence lineage clean by lane purpose.
+## Entry: 2026-02-26 05:25:10 +00:00 - M8.B plan expansion applied before execution
+
+### Expansion changes made
+1. Added M8.B entry conditions tied to M8.A closure.
+2. Added explicit required-handle set for identity and aurora lock-readiness surfaces.
+3. Added deterministic verification algorithm and runtime budget.
+4. Updated DoD to keep lock-readiness in M8.B and enforce contention semantics in M8.D.
+
+### Immediate next action
+1. Materialize missing ops SSM lock surfaces for aurora backend.
+2. Execute M8.B lane and publish `m8b_*` artifacts.
+## Entry: 2026-02-26 05:26:30 +00:00 - M8.B blocker remediation step: ops SSM surfaces materialized
+
+### Action executed
+1. Ran Terraform apply in `infra/terraform/dev_full/ops` using remote backend.
+2. Materialized missing SSM surfaces required for aurora lock-readiness:
+   - `/fraud-platform/dev_full/aurora/endpoint`
+   - `/fraud-platform/dev_full/aurora/username`
+   - `/fraud-platform/dev_full/aurora/password`
+3. Verified paths are readable in `eu-west-2`.
+
+### Side effects observed
+1. `ops` apply also created/updated:
+   - MWAA execution role + policy,
+   - runtime bootstrap CloudWatch log group,
+   - GitHub actions M6F policy in-place update.
+2. These are in-stack expected resources for `ops`; no off-plan unmanaged mutation was performed.
+
+### Next action
+1. Execute deterministic `M8.B` readiness lane and verify blocker-free closure.
+## Entry: 2026-02-26 05:27:10 +00:00 - M8.B execution launch
+
+### Launch metadata
+1. Planned execution id prefix: `m8b_p11_runtime_lock_readiness_<timestamp>`.
+2. Upstream source: `m8a_p11_handle_closure_20260226T050813Z`.
+3. Evidence bucket: `fraud-platform-dev-full-evidence`.
+
+### Expected closure artifacts
+1. `m8b_runtime_lock_readiness_snapshot.json`
+2. `m8b_blocker_register.json`
+3. `m8b_execution_summary.json`
+## Entry: 2026-02-26 05:27:50 +00:00 - M8.B executed and closed green
+
+### Execution details
+1. Lane script used: `scripts/dev_substrate/m8b_runtime_lock_readiness.py`.
+2. Execution id: `m8b_p11_runtime_lock_readiness_20260226T052700Z`.
+3. Upstream dependency: `m8a_p11_handle_closure_20260226T050813Z`.
+
+### Outcome
+1. `overall_pass=true`, `blocker_count=0`, `next_gate=M8.C_READY`.
+2. Identity probe pass:
+   - `ROLE_EKS_IRSA_OBS_GOV` readable,
+   - EKS cluster `fraud-platform-dev-full` status `ACTIVE`.
+3. Lock readiness pass:
+   - backend `aurora_advisory_lock` resolved,
+   - SSM aurora paths readable,
+   - deterministic run-scoped lock key rendered.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m8/m8b_p11_runtime_lock_readiness_20260226T052700Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8b_p11_runtime_lock_readiness_20260226T052700Z/`
+
+### Blocker resolution statement
+1. Initial M8.B blocker (missing aurora SSM paths) is resolved by ops stack materialization.
+2. Contention/acquire-release semantics remain intentionally scoped to M8.D and are not claimed by M8.B closure.
+## Entry: 2026-02-26 05:29:10 +00:00 - M8.C plan expansion before execution
+
+### Expansion applied
+1. Added M8.C entry conditions bound to `M8.B` green gate.
+2. Added required source references (M7 handoff, M6 summary, run-scoped P7/P8/P9/P10 evidence paths).
+3. Added deterministic verification algorithm, blocker mapping (`M8-B3`, `M8-B12`), and runtime budget.
+4. Expanded artifact contract to include blocker register and execution summary.
+
+### Execution intention
+1. Implement deterministic lane script `scripts/dev_substrate/m8c_closure_input_readiness.py`.
+2. Execute immediately against active run scope and remediate blockers in-lane.
+## Entry: 2026-02-26 05:31:10 +00:00 - M8.C script implementation start
+
+### Implementation approach selected
+1. Build `scripts/dev_substrate/m8c_closure_input_readiness.py` to verify:
+   - upstream `M8.B` pass posture,
+   - `M7` handoff references for `P8/P9/P10`,
+   - `M6` summary references for `P7`,
+   - run-scoped evidence keys/prefixes from handle patterns.
+2. Fail-closed blockers:
+   - `M8-B3` for any missing/malformed closure-input evidence,
+   - `M8-B12` for publication/readback failure.
+3. Emit deterministic artifact set:
+   - `m8c_closure_input_readiness_snapshot.json`
+   - `m8c_blocker_register.json`
+   - `m8c_execution_summary.json`.
+## Entry: 2026-02-26 05:33:10 +00:00 - M8.C execution launch
+
+### Launch metadata
+1. Execution id prefix: `m8c_p11_closure_input_readiness_<timestamp>`.
+2. Upstream refs:
+   - `M8.B`: `m8b_p11_runtime_lock_readiness_20260226T052700Z`
+   - `M7.J`: `m7q_m7_rollup_sync_20260226T031710Z`
+   - `M6.J`: `m6j_m6_closure_sync_20260225T194637Z`
+   - `M7.K`: `m7s_m7k_cert_20260226T000002Z`.
+3. Target run scope:
+   - `platform_run_id=platform_20260223T184232Z`
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`.
+## Entry: 2026-02-26 05:33:25 +00:00 - M8.C executed and closed green
+
+### Implementation executed
+1. Added deterministic lane script: `scripts/dev_substrate/m8c_closure_input_readiness.py`.
+2. Executed with:
+   - `M8C_EXECUTION_ID=m8c_p11_closure_input_readiness_20260226T053157Z`
+   - `UPSTREAM_M8B_EXECUTION=m8b_p11_runtime_lock_readiness_20260226T052700Z`
+   - `UPSTREAM_M7_EXECUTION=m7q_m7_rollup_sync_20260226T031710Z`
+   - `UPSTREAM_M6_EXECUTION=m6j_m6_closure_sync_20260225T194637Z`
+   - `UPSTREAM_M7K_EXECUTION=m7s_m7k_cert_20260226T000002Z`.
+
+### Verification model used
+1. Upstream continuity checks:
+   - M8.B summary must be green and gate to `M8.C_READY`.
+   - M7 handoff must expose valid `P8/P9/P10` execution refs.
+   - M6 summary must expose valid `P7` execution ref.
+2. Required run-control evidence checks:
+   - P7/P8/P9/P10 rollup files,
+   - M7 rollup files,
+   - M7.K cert files.
+3. Run-scoped evidence checks:
+   - ingest summary files,
+   - non-empty JSON proof prefixes for `rtdl_core`, `decision_lane`, `case_labels`.
+
+### Outcome
+1. `overall_pass=true`, `blocker_count=0`, `next_gate=M8.D_READY`.
+2. Readiness matrix rows verified: `23/23`.
+3. No `M8-B3`/`M8-B12` blockers remained.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m8/m8c_p11_closure_input_readiness_20260226T053157Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8c_p11_closure_input_readiness_20260226T053157Z/`.

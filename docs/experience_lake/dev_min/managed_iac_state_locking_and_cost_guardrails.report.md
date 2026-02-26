@@ -12,6 +12,7 @@ This is not a generic "we used Terraform" statement. The claim is about three co
 - Cost-risk control: budget thresholds and forbidden cost patterns are enforced as gating conditions, not post-hoc observations.
 
 If any one of these surfaces is missing, the platform can still "deploy," but cannot be defended as a reliable or senior-grade operating posture.
+This control posture was intentionally used as a staging discipline for a higher-cost managed target environment, not as an end-state architecture claim for this phase.
 
 ### Definitions (to avoid ambiguity)
 - Remote state locking: infrastructure state stored in a shared backend with an explicit mutual-exclusion lock so two applies/destroys cannot safely race.
@@ -50,6 +51,7 @@ The target outcome is to make managed infrastructure operations behave as a cont
 - safe concurrent team operation without Terraform state corruption or split-brain applies,
 - deterministic infrastructure lifecycle control where destructive actions are scoped to disposable surfaces only,
 - bounded spend posture where cost-risk conditions are treated as progression blockers, not monitoring noise.
+- repeatable demo->destroy cycles that leave no unintended residual compute while preserving closure evidence needed for the next run.
 
 This means "infrastructure is up" is not success on its own. Success requires closure of state safety, lifecycle safety, and spend safety together.
 
@@ -870,6 +872,15 @@ For Senior MLOps / Platform evaluation, this claim demonstrates:
 - cost discipline integrated into platform gates, not delegated to month-end review,
 - incident recovery that preserves audit integrity (fail -> remediate -> rerun -> pass),
 - governance posture strong enough to reopen and re-certify when scope tightens.
+
+### 9.7 Staging outcome for higher-cost environment promotion
+This operating model was used as a transition discipline for the next managed environment stage:
+- demo/runtime cycles were required to close with teardown proof before the next iteration,
+- post-teardown guardrails verified no unintended residual compute in scoped runtime surfaces,
+- evidence continuity was preserved through durable proof artifacts so control conclusions survived reruns.
+
+Operational meaning:
+- cost and teardown controls were not presented as the final objective; they were used to prevent hidden carryover risk while preparing for higher-cost, broader-scope environment phases.
 
 ## 10) Limitations and Non-Claims
 

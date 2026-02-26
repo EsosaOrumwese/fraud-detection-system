@@ -165,6 +165,9 @@ Without this boundary, systems can produce two common failure modes:
 - false-green progression from partial or missing evidence,
 - false-negative or misleading readiness from control-plane-only checks that do not reflect data-plane viability.
 
+Supporting lifecycle context:
+- runs were executed within a bounded demo->destroy operating discipline from the infrastructure-control lane, so readiness and adjudication conclusions were not carried by unintended residual runtime state between cycles.
+
 ### 3.2 Main components and ownership boundaries
 The implemented assurance path uses seven role-separated components:
 
@@ -1045,6 +1048,8 @@ If challenged on where the gate model was defined and enforced, use:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.migration_wrap_up.md`
 - `tools/dev_substrate/verify_m2f_topic_readiness.py`
 - `src/fraud_detection/event_bus/kafka.py` (transport-client compatibility surface used in runtime viability probes)
+- `docs/experience_lake/dev_min/managed_iac_state_locking_and_cost_guardrails.report.md` (supporting demo->destroy control context)
+- `runs/dev_substrate/m9/m9_20260219T181800Z/teardown_proof.json` (supporting teardown-proof artifact from the infrastructure-control lane)
 
 These anchors tie run artifacts to pinned execution contracts and fail-closed progression law.
 

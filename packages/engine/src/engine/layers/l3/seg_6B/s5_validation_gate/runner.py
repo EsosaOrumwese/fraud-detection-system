@@ -930,14 +930,26 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             s4_truth_scan = _duckdb_scan(dataset_paths[DATASET_S4_TRUTH][sample_scenario])
             truth_row = duckdb.execute(
                 f"""
-                WITH j AS (
+                WITH s3_sample AS (
+                  SELECT flow_id, campaign_id
+                  FROM {s3_scan}
+                  WHERE MOD(ABS(HASH(flow_id)), {critical_sample_mod}) = 0
+                ),
+                s4_sample AS (
                   SELECT
-                    s3.campaign_id,
-                    CAST(s4.is_fraud_truth AS BOOLEAN) AS is_fraud_truth,
-                    UPPER(COALESCE(s4.fraud_label, '')) AS fraud_label
-                  FROM {s3_scan} s3
-                  JOIN {s4_truth_scan} s4 USING(flow_id)
-                  WHERE MOD(ABS(HASH(s4.flow_id)), {critical_sample_mod}) = 0
+                    flow_id,
+                    CAST(is_fraud_truth AS BOOLEAN) AS is_fraud_truth,
+                    UPPER(COALESCE(fraud_label, '')) AS fraud_label
+                  FROM {s4_truth_scan}
+                  WHERE MOD(ABS(HASH(flow_id)), {critical_sample_mod}) = 0
+                ),
+                j AS (
+                  SELECT
+                    s3_sample.campaign_id,
+                    s4_sample.is_fraud_truth,
+                    s4_sample.fraud_label
+                  FROM s3_sample
+                  JOIN s4_sample USING(flow_id)
                 )
                 SELECT
                   AVG(CASE WHEN fraud_label = 'LEGIT' THEN 1.0 ELSE 0.0 END) AS legit_share,

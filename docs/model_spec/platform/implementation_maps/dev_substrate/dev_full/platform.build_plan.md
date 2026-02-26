@@ -896,8 +896,8 @@ Deep plan:
 
 M8 sub-phase progress:
 - [x] `M8.A` authority + handle closure.
-- [ ] `M8.B` reporter runtime identity + lock readiness.
-- [ ] `M8.C` closure-input evidence readiness precheck.
+- [x] `M8.B` reporter runtime identity + lock readiness.
+- [x] `M8.C` closure-input evidence readiness precheck.
 - [ ] `M8.D` single-writer contention probe.
 - [ ] `M8.E` reporter one-shot execution.
 - [ ] `M8.F` closure-bundle completeness validation.
@@ -911,6 +911,14 @@ M8 execution status (2026-02-26):
    - execution id: `m8a_p11_handle_closure_20260226T050813Z`,
    - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M8.B_READY`,
    - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8a_p11_handle_closure_20260226T050813Z/`.
+2. `M8.B` is closed green:
+   - execution id: `m8b_p11_runtime_lock_readiness_20260226T052700Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M8.C_READY`,
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8b_p11_runtime_lock_readiness_20260226T052700Z/`.
+3. `M8.C` is closed green:
+   - execution id: `m8c_p11_closure_input_readiness_20260226T053157Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M8.D_READY`,
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8c_p11_closure_input_readiness_20260226T053157Z/`.
 
 ## M9 - Learning Input Readiness
 Status: `NOT_STARTED`

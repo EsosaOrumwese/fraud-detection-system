@@ -3991,3 +3991,54 @@ Invariants and veto rails:
 Runtime targets for this lane:
 - `S4 <= 420s`.
 - `S5 <= 30s`.
+
+---
+
+### Entry: 2026-02-26 05:22
+
+P3.R2 implementation + witness execution (`run_id=65381edb84e349b8a7e46cba36c1799d`).
+
+Implemented changes:
+1) `S4` code/runtime lane:
+- audited `S4` parser path and confirmed fixed-format strict timestamp parsing was already present in baseline (no net code diff required for `S4` file).
+- applied bounded runtime knob on witness execution:
+  - `ENGINE_6B_S4_BATCH_ROWS=360000` (from default `280000`) to reduce batch/part overhead.
+- objective remained runtime closure without changing `S4` semantics, schemas, or deterministic behavior.
+
+2) `S5` code path (`packages/engine/src/engine/layers/l3/seg_6B/s5_validation_gate/runner.py`):
+- audited existing `S5` runtime lanes and confirmed path-cache and strict timestamp parse optimizations were already present in baseline (no net diff needed there).
+- net code change in this pass:
+  - rewrote critical truth check SQL to pre-filter sampled subsets before joining (`s3_sample` + `s4_sample`) to reduce join-surface size.
+
+Compile validation:
+- `python -m compileall` passed for modified `S4` and `S5` runners.
+
+Witness execution lane:
+- staged from frozen `P3.R1` authority (`53524385...`) using:
+  - `python tools/stage_segment6b_popt2_lane.py --runs-root runs/fix-data-engine/segment_6B --src-run-id 53524385b4554006a4d8e5f46cdf9b70 --dst-run-id 65381edb84e349b8a7e46cba36c1799d --mode junction`.
+- executed:
+  - `make segment6b-s4 ... ENGINE_6B_S4_BATCH_ROWS=360000`,
+  - `make segment6b-s5 ...`,
+  - scorer `tools/score_segment6b_p0_baseline.py ...`.
+- repeated `S5` once on same run-id to check runtime stability.
+
+Observed outcomes:
+- runtime:
+  - `S4=419.91s` (rail closed),
+  - `S5=47.66s` first pass, `55.39s` recheck (rail still open; unstable high),
+  - frozen `S3` remains `372.01s`.
+- realism:
+  - `PASS_HARD_ONLY` unchanged,
+  - `T17/T18` unchanged and still closed,
+  - no hard-gate regressions.
+
+Decision:
+- `P3.R2` remains `HOLD_P3_REOPEN_PERF`.
+- `S4` owner is closed for this lane; active blocker is now `S5` runtime.
+- next owner lane is `S5` hotspot profiling and targeted validation-check acceleration without changing required check semantics (including open file-discovery/count overhead lane).
+
+Artifacts emitted:
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_65381edb84e349b8a7e46cba36c1799d.json`,
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_65381edb84e349b8a7e46cba36c1799d.md`,
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p3r2_closure_65381edb84e349b8a7e46cba36c1799d.json`,
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p3r2_closure_65381edb84e349b8a7e46cba36c1799d.md`.

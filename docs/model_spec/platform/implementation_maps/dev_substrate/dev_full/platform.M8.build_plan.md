@@ -149,20 +149,80 @@ Execution status (2026-02-26):
 Goal:
 1. prove reporter runtime identity and lock posture are executable before closeout run.
 
+Entry conditions:
+1. `M8.A` execution summary is green (`overall_pass=true`, `next_gate=M8.B_READY`).
+2. run scope is fixed from M7 handoff (`platform_run_id`, `scenario_run_id`).
+
+Required handles:
+1. `ROLE_EKS_IRSA_OBS_GOV`
+2. `EKS_CLUSTER_NAME`
+3. `EKS_NAMESPACE_OBS_GOV`
+4. `REPORTER_LOCK_BACKEND`
+5. `REPORTER_LOCK_KEY_PATTERN`
+6. `SSM_AURORA_ENDPOINT_PATH` (required when backend is aurora)
+7. `SSM_AURORA_USERNAME_PATH` (required when backend is aurora)
+8. `SSM_AURORA_PASSWORD_PATH` (required when backend is aurora)
+9. `AURORA_DB_NAME` (required when backend is aurora)
+10. reporter entrypoint declaration (`ENTRYPOINT_REPORTER`) must exist in runtime entrypoint contract.
+
 Tasks:
-1. verify runtime identity bindings (IRSA/service account/namespace/permissions).
-2. validate lock backend connectivity (`REPORTER_LOCK_BACKEND`) and run-scoped key rendering.
-3. verify reporter entrypoint contract is runnable under active runtime path.
-4. emit `m8b_runtime_lock_readiness_snapshot.json`.
+1. verify runtime identity bindings:
+   - IRSA role exists and is readable by IAM.
+   - EKS cluster is active for the configured cluster name.
+   - Obs/Gov namespace handle is resolved and non-placeholder.
+2. validate lock backend readiness:
+   - backend handle + key pattern resolved and non-placeholder.
+   - run-scoped lock key renders deterministically from `platform_run_id`.
+   - aurora backend secret paths are readable from SSM.
+3. verify reporter entrypoint declaration exists in handle registry contract.
+4. emit:
+   - `m8b_runtime_lock_readiness_snapshot.json`
+   - `m8b_blocker_register.json`
+   - `m8b_execution_summary.json`.
+
+Deterministic verification algorithm:
+1. read upstream `M8.A` summary and enforce pass posture.
+2. resolve required handles and classify missing/placeholder values.
+3. probe identity surfaces (`iam:GetRole`, `eks:DescribeCluster`).
+4. probe lock-readiness surfaces (SSM path readability + key rendering).
+5. classify blockers (`M8-B2` for readiness failures, `M8-B12` for artifact publication/readback failures).
+6. publish local + durable evidence and return deterministic next gate.
+
+Runtime budget:
+1. target <= 15 minutes wall clock.
 
 DoD:
-- [ ] identity bindings are concrete and non-placeholder.
-- [ ] lock acquire/release probe passes for active run scope.
-- [ ] `m8b_runtime_lock_readiness_snapshot.json` committed locally and durably.
+- [x] identity bindings are concrete and non-placeholder.
+- [x] lock backend readiness probe passes (SSM/backend/key rendering).
+- [x] lock acquire/release contention semantics remain mandatory in `M8.D`.
+- [x] `m8b_runtime_lock_readiness_snapshot.json` committed locally and durably.
+
+Execution status (2026-02-26):
+1. Authoritative execution:
+   - execution id: `m8b_p11_runtime_lock_readiness_20260226T052700Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M8.C_READY`.
+3. Verification outcomes:
+   - upstream continuity from `M8.A` verified.
+   - required handles resolved: `9/9`.
+   - IRSA role exists and readable.
+   - EKS cluster status is `ACTIVE`.
+   - aurora lock backend SSM surfaces readable and run-scoped lock key rendering deterministic.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m8/m8b_p11_runtime_lock_readiness_20260226T052700Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8b_p11_runtime_lock_readiness_20260226T052700Z/`.
+5. Closure note:
+   - lock contention/acquire-release proof is explicitly deferred to `M8.D`; M8.B validates readiness surfaces only.
 
 ### M8.C Closure-Input Evidence Readiness
 Goal:
 1. prove all required upstream closure evidence is readable before reporter execution.
+
+Entry conditions:
+1. `M8.B` execution summary is green (`overall_pass=true`, `next_gate=M8.C_READY`).
+2. run scope is fixed and unchanged from `M8.A/M8.B`.
 
 Required upstream evidence groups:
 1. ingest closure (`P7`) artifacts.
@@ -171,15 +231,58 @@ Required upstream evidence groups:
 4. case-label closure (`P10`) artifacts.
 5. M7 rollup + throughput certification artifacts.
 
+Required source references:
+1. M7 handoff pack (`m8_handoff_pack.json`) for authoritative `P8/P9/P10` execution ids.
+2. M6 execution summary (`m6_execution_summary.json`) for authoritative `P7` rollup execution id.
+3. run-scoped evidence paths rendered from handles:
+   - `RECEIPT_SUMMARY_PATH_PATTERN`
+   - `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`
+   - `QUARANTINE_SUMMARY_PATH_PATTERN`
+   - `RTDL_CORE_EVIDENCE_PATH_PATTERN`
+   - `DECISION_LANE_EVIDENCE_PATH_PATTERN`
+   - `CASE_LABELS_EVIDENCE_PATH_PATTERN`.
+
 Tasks:
 1. resolve expected paths from handle patterns and active run scope.
 2. verify object existence + schema/version markers.
-3. emit `m8c_closure_input_readiness_snapshot.json`.
+3. emit:
+   - `m8c_closure_input_readiness_snapshot.json`
+   - `m8c_blocker_register.json`
+   - `m8c_execution_summary.json`.
+
+Deterministic verification algorithm:
+1. read `M8.B` summary and enforce pass posture.
+2. read M7 handoff and M6 summary references.
+3. resolve P7/P8/P9/P10/M7 required evidence keys and run-scoped prefixes.
+4. verify each required object exists and is parseable (JSON), and required marker fields are present (`phase`, `execution_id`, `overall_pass` for summaries/verdicts).
+5. verify run-scoped folders (`rtdl_core`, `decision_lane`, `case_labels`) contain at least one JSON proof object.
+6. classify blockers:
+   - `M8-B3` for missing/malformed/unreadable upstream evidence,
+   - `M8-B12` for artifact publication/readback failures.
+7. publish local + durable evidence and return deterministic next gate.
+
+Runtime budget:
+1. target <= 20 minutes wall clock.
 
 DoD:
-- [ ] all required closure-input evidence is readable and in-scope.
-- [ ] missing or malformed evidence is blocker-marked.
-- [ ] `m8c_closure_input_readiness_snapshot.json` committed locally and durably.
+- [x] all required closure-input evidence is readable and in-scope.
+- [x] missing or malformed evidence is blocker-marked.
+- [x] `m8c_closure_input_readiness_snapshot.json` committed locally and durably.
+
+Execution status (2026-02-26):
+1. Authoritative execution:
+   - execution id: `m8c_p11_closure_input_readiness_20260226T053157Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M8.D_READY`.
+3. Verification outcomes:
+   - upstream continuity (`M8.B`, `M7`, `M6`, `M7.K`) verified and readable.
+   - run-scoped closure inputs (`ingest`, `rtdl_core`, `decision_lane`, `case_labels`) are readable and non-empty.
+   - readiness matrix rows verified: `23/23`.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m8/m8c_p11_closure_input_readiness_20260226T053157Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8c_p11_closure_input_readiness_20260226T053157Z/`.
 
 ### M8.D Single-Writer Contention Probe
 Goal:
@@ -317,8 +420,8 @@ DoD:
 
 ## 8) Completion Checklist
 - [x] `M8.A` complete
-- [ ] `M8.B` complete
-- [ ] `M8.C` complete
+- [x] `M8.B` complete
+- [x] `M8.C` complete
 - [ ] `M8.D` complete
 - [ ] `M8.E` complete
 - [ ] `M8.F` complete
@@ -331,4 +434,6 @@ DoD:
 ## 9) Planning Status
 1. M8 planning is expanded and execution-grade.
 2. `M8.A` handle/authority closure is closed green.
-3. Next action is `M8.B` reporter runtime identity + lock readiness.
+3. `M8.B` runtime identity + lock readiness is closed green.
+4. `M8.C` closure-input evidence readiness is closed green.
+5. Next action is `M8.D` single-writer contention probe.

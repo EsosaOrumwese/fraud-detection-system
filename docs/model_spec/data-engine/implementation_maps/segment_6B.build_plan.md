@@ -1511,39 +1511,59 @@ Goal:
 - close integrated runtime rails by optimizing `S4` compute/write path and `S5` validation throughput, without reopening `S3` logic or changing closed realism posture.
 
 Definition of done:
-- [ ] `S4` runtime closes to rail (`<=420s`) on fresh witness from frozen `S3`.
+- [x] `S4` runtime closes to rail (`<=420s`) on fresh witness from frozen `S3`.
 - [ ] `S5` runtime closes to rail (`<=30s`) on same witness.
-- [ ] `T17/T18` remain closed and no hard-gate regressions on `T1-T16`, `T21`, `T22`.
-- [ ] closure artifacts emitted and phase decision updated.
+- [x] `T17/T18` remain closed and no hard-gate regressions on `T1-T16`, `T21`, `T22`.
+- [x] closure artifacts emitted and phase decision updated.
 
 P3.R2 expanded execution plan:
 
 ##### P3.R2.0 - Hotspot pin + bounded strategy lock
 Definition of done:
-- [ ] owner hotspots pinned from `P3.R1` witness:
+- [x] owner hotspots pinned from `P3.R1` witness:
   - `S4=444.33s` and `S5=40.23s` while `S3` remains recovered.
-- [ ] selected lane excludes any `S3` code/policy/config changes.
-- [ ] selected lane keeps schemas/contracts/scorer thresholds unchanged.
+- [x] selected lane excludes any `S3` code/policy/config changes.
+- [x] selected lane keeps schemas/contracts/scorer thresholds unchanged.
 
 ##### P3.R2.1 - `S4` flow/case compute throughput optimization
 Definition of done:
-- [ ] reduce per-batch timestamp/case-event compute overhead in `S4` without semantic drift.
-- [ ] retain exact output schemas and deterministic event ordering semantics.
-- [ ] preserve event-label join row-count parity and required validation checks.
+- [x] reduce per-batch timestamp/case-event compute overhead in `S4` without semantic drift.
+- [x] retain exact output schemas and deterministic event ordering semantics.
+- [x] preserve event-label join row-count parity and required validation checks.
 
 ##### P3.R2.2 - `S5` validation throughput optimization
 Definition of done:
 - [ ] eliminate redundant parquet file-discovery/count overhead in `S5` validation checks.
-- [ ] keep required check set, fail-closed behavior, and bundle outputs unchanged.
-- [ ] preserve deterministic bundle/index/flag behavior under idempotent reruns.
+- [x] keep required check set, fail-closed behavior, and bundle outputs unchanged.
+- [x] preserve deterministic bundle/index/flag behavior under idempotent reruns.
 
 ##### P3.R2.3 - Fresh witness + closure scoring (`S4 -> S5` only)
 Definition of done:
-- [ ] stage fresh run-id from `P3.R1` authority and execute `S4 -> S5`.
-- [ ] score with `tools/score_segment6b_p0_baseline.py`.
-- [ ] emit `segment6b_p3r2_closure_<run_id>.json/.md` and phase decision:
+- [x] stage fresh run-id from `P3.R1` authority and execute `S4 -> S5`.
+- [x] score with `tools/score_segment6b_p0_baseline.py`.
+- [x] emit `segment6b_p3r2_closure_<run_id>.json/.md` and phase decision:
   - `UNLOCK_P4` if integrated runtime + realism rails pass,
   - else `HOLD_P3_REOPEN_PERF` with next runtime owner pinned.
+
+P3.R2 execution status (current authority):
+- witness run-id: `65381edb84e349b8a7e46cba36c1799d` (staged from `53524385b4554006a4d8e5f46cdf9b70`; `S3` frozen).
+- artifacts emitted:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_65381edb84e349b8a7e46cba36c1799d.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_65381edb84e349b8a7e46cba36c1799d.md`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p3r2_closure_65381edb84e349b8a7e46cba36c1799d.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p3r2_closure_65381edb84e349b8a7e46cba36c1799d.md`.
+- runtime posture:
+  - `S3` frozen at `372.01s`,
+  - `S4=419.91s` (rail PASS),
+  - `S5=47.66s` (rail FAIL),
+  - `S5` recheck on same run: `55.39s` (still FAIL).
+- realism posture:
+  - overall verdict remains `PASS_HARD_ONLY`,
+  - `T17/T18` stay closed (unchanged),
+  - no hard-gate regressions.
+- phase decision:
+  - `HOLD_P3_REOPEN_PERF`.
+  - next owner lane: `S5` runtime profiling + validation-check hotspot closure (file-discovery/count overhead lane still open).
 
 ### P4 - Wave C (`S1` context/session realism closure)
 Goal:

@@ -28,5 +28,5 @@ This folder is reserved for `dev_full` planning and implementation notes.
   - `M8` deep planning now exists in:
     - `platform.M8.build_plan.md`.
 - Next closure step:
-  - execute `M8.B` reporter runtime identity + lock readiness for `P11`.
+  - execute `M8.D` single-writer contention probe for `P11`.
 - `dev_min` remains closed and isolated under `../dev_min/`.
