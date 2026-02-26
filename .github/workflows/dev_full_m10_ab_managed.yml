@@ -1,0 +1,249 @@
+name: dev-full-m10-ab-managed
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region for SSM/S3/Terraform operations"
+        required: true
+        default: "eu-west-2"
+        type: string
+      aws_role_to_assume:
+        description: "OIDC role ARN used by GitHub Actions"
+        required: true
+        type: string
+      evidence_bucket:
+        description: "S3 bucket for M10 run-control evidence"
+        required: true
+        default: "fraud-platform-dev-full-evidence"
+        type: string
+      upstream_m9_execution:
+        description: "Upstream M9 closure execution id (m9j)"
+        required: true
+        default: "m9j_closure_sync_20260226T083701Z"
+        type: string
+      upstream_m9h_execution:
+        description: "Upstream M9.H execution id (m10 handoff source)"
+        required: true
+        default: "m9h_p12_gate_rollup_20260226T082548Z"
+        type: string
+      m10a_execution_id:
+        description: "Optional fixed M10.A execution id"
+        required: false
+        default: ""
+        type: string
+      m10b_execution_id:
+        description: "Optional fixed M10.B execution id"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-m10-ab-managed-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_m10_ab_managed:
+    name: Run M10.A + M10.B via managed lane
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m10a_execution_id }}" ]]; then
+            M10A_EXEC="${{ inputs.m10a_execution_id }}"
+          else
+            M10A_EXEC="m10a_handle_closure_${TS}"
+          fi
+          if [[ -n "${{ inputs.m10b_execution_id }}" ]]; then
+            M10B_EXEC="${{ inputs.m10b_execution_id }}"
+          else
+            M10B_EXEC="m10b_databricks_readiness_${TS}"
+          fi
+          M10A_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10A_EXEC}"
+          M10B_RUN_DIR="runs/dev_substrate/dev_full/m10/${M10B_EXEC}"
+          JOB_RECEIPT="${M10B_RUN_DIR}/m10b_databricks_job_upsert_receipt.json"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m10a_execution_id=${M10A_EXEC}" >> "$GITHUB_OUTPUT"
+          echo "m10b_execution_id=${M10B_EXEC}" >> "$GITHUB_OUTPUT"
+          echo "m10a_run_dir=${M10A_RUN_DIR}" >> "$GITHUB_OUTPUT"
+          echo "m10b_run_dir=${M10B_RUN_DIR}" >> "$GITHUB_OUTPUT"
+          echo "job_receipt_path=${JOB_RECEIPT}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Databricks seed secrets are present
+        shell: bash
+        env:
+          DBX_TOKEN_SEED: ${{ secrets.TF_VAR_DATABRICKS_TOKEN_SEED }}
+          DBX_WORKSPACE_SEED: ${{ secrets.TF_VAR_DATABRICKS_WORKSPACE_URL_SEED }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${DBX_TOKEN_SEED}" ]]; then
+            echo "Missing repository secret: TF_VAR_DATABRICKS_TOKEN_SEED"
+            exit 1
+          fi
+          if [[ -z "${DBX_WORKSPACE_SEED}" ]]; then
+            echo "Missing repository secret: TF_VAR_DATABRICKS_WORKSPACE_URL_SEED"
+            exit 1
+          fi
+
+      - name: Materialize dev_full data_ml stack (managed)
+        shell: bash
+        env:
+          TF_VAR_databricks_token_seed: ${{ secrets.TF_VAR_DATABRICKS_TOKEN_SEED }}
+          TF_VAR_databricks_workspace_url_seed: ${{ secrets.TF_VAR_DATABRICKS_WORKSPACE_URL_SEED }}
+        run: |
+          set -euo pipefail
+          terraform -chdir=infra/terraform/dev_full/data_ml init -reconfigure -backend-config=backend.hcl.example
+          terraform -chdir=infra/terraform/dev_full/data_ml validate
+          terraform -chdir=infra/terraform/dev_full/data_ml apply -input=false -auto-approve
+
+      - name: Resolve Databricks runtime secrets from SSM
+        shell: bash
+        run: |
+          set -euo pipefail
+          DBX_WORKSPACE_URL="$(aws ssm get-parameter \
+            --region "${{ inputs.aws_region }}" \
+            --name "/fraud-platform/dev_full/databricks/workspace_url" \
+            --query 'Parameter.Value' \
+            --output text)"
+          DBX_TOKEN="$(aws ssm get-parameter \
+            --region "${{ inputs.aws_region }}" \
+            --name "/fraud-platform/dev_full/databricks/token" \
+            --with-decryption \
+            --query 'Parameter.Value' \
+            --output text)"
+          if [[ -z "${DBX_WORKSPACE_URL}" || "${DBX_WORKSPACE_URL}" == "None" ]]; then
+            echo "Databricks workspace URL not materialized in SSM."
+            exit 1
+          fi
+          if [[ -z "${DBX_TOKEN}" || "${DBX_TOKEN}" == "None" ]]; then
+            echo "Databricks token not materialized in SSM."
+            exit 1
+          fi
+          echo "::add-mask::${DBX_TOKEN}"
+          echo "DBX_WORKSPACE_URL=${DBX_WORKSPACE_URL}" >> "$GITHUB_ENV"
+          echo "DBX_TOKEN=${DBX_TOKEN}" >> "$GITHUB_ENV"
+
+      - name: Upsert required Databricks jobs
+        shell: bash
+        env:
+          DBX_JOB_OFS_BUILD_V0: "fraud-platform-dev-full-ofs-build-v0"
+          DBX_JOB_OFS_QUALITY_GATES_V0: "fraud-platform-dev-full-ofs-quality-v0"
+          DBX_AUTOSCALE_WORKERS: "1-8"
+          DBX_AUTO_TERMINATE_MINUTES: "20"
+          M10B_DBX_JOB_UPSERT_RECEIPT_PATH: ${{ steps.run_meta.outputs.job_receipt_path }}
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/m10b_upsert_databricks_jobs.py
+
+      - name: Execute M10.A (managed)
+        shell: bash
+        env:
+          M10A_EXECUTION_ID: ${{ steps.run_meta.outputs.m10a_execution_id }}
+          M10A_RUN_DIR: ${{ steps.run_meta.outputs.m10a_run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          UPSTREAM_M9_EXECUTION: ${{ inputs.upstream_m9_execution }}
+          UPSTREAM_M9H_EXECUTION: ${{ inputs.upstream_m9h_execution }}
+          AWS_REGION: ${{ inputs.aws_region }}
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/m10a_handle_closure.py
+
+      - name: Execute M10.B (managed)
+        shell: bash
+        env:
+          M10B_EXECUTION_ID: ${{ steps.run_meta.outputs.m10b_execution_id }}
+          M10B_RUN_DIR: ${{ steps.run_meta.outputs.m10b_run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          UPSTREAM_M10A_EXECUTION: ${{ steps.run_meta.outputs.m10a_execution_id }}
+          AWS_REGION: ${{ inputs.aws_region }}
+        run: |
+          set -euo pipefail
+          python scripts/dev_substrate/m10b_databricks_readiness.py
+
+      - name: Fail-closed verdict gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          M10A_SUMMARY="${{ steps.run_meta.outputs.m10a_run_dir }}/m10a_execution_summary.json"
+          M10B_SUMMARY="${{ steps.run_meta.outputs.m10b_run_dir }}/m10b_execution_summary.json"
+          M10B_BLOCKERS="${{ steps.run_meta.outputs.m10b_run_dir }}/m10b_blocker_register.json"
+          export M10A_SUMMARY M10B_SUMMARY M10B_BLOCKERS
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          m10a = json.loads(Path(os.environ["M10A_SUMMARY"]).read_text(encoding="utf-8"))
+          m10b = json.loads(Path(os.environ["M10B_SUMMARY"]).read_text(encoding="utf-8"))
+          m10b_blockers = json.loads(Path(os.environ["M10B_BLOCKERS"]).read_text(encoding="utf-8"))
+
+          out = {
+              "m10a_overall_pass": bool(m10a.get("overall_pass")),
+              "m10a_next_gate": m10a.get("next_gate"),
+              "m10b_overall_pass": bool(m10b.get("overall_pass")),
+              "m10b_next_gate": m10b.get("next_gate"),
+              "m10b_blocker_count": int(m10b_blockers.get("blocker_count", 0)),
+          }
+          print(json.dumps(out, ensure_ascii=True))
+
+          if not out["m10a_overall_pass"] or out["m10a_next_gate"] != "M10.B_READY":
+              sys.exit(1)
+          if (not out["m10b_overall_pass"]) or out["m10b_next_gate"] != "M10.C_READY":
+              sys.exit(1)
+          if out["m10b_blocker_count"] != 0:
+              sys.exit(1)
+          PY
+
+      - name: Upload M10 managed artifact set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m10-ab-managed-${{ steps.run_meta.outputs.timestamp }}
+          path: |
+            ${{ steps.run_meta.outputs.m10a_run_dir }}
+            ${{ steps.run_meta.outputs.m10b_run_dir }}
+          if-no-files-found: warn
