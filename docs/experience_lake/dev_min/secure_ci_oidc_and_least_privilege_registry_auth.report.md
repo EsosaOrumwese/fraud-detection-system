@@ -114,11 +114,11 @@ The outcome is non-compliant if any of the following remains true:
 - OIDC trust/provider gaps remain unresolved,
 - registry publishing still fails due to missing required action scope,
 - permission scope is widened without clear least-privilege justification,
-- release acceptance occurs without explicit authn/authz closure.
+- release acceptance occurs without explicit authentication/authorization closure.
 
 ### 2.6 Evidence expectation for this section
 This section defines target outcomes; proof appears later in:
-- implementation and controls sections (how authn/authz were enforced),
+- implementation and controls sections (how authentication/authorization were enforced),
 - results section (failure -> fix -> closure progression),
 - proof hooks section (challenge-ready run and artifact anchors).
 
@@ -153,7 +153,7 @@ The relevant system for this claim has five components:
 - enforces authorization independently from identity establishment.
 
 5. Release evidence surface
-- records failure and success outcomes for authn/authz checks and publish attempts.
+- records failure and success outcomes for authentication/authorization checks and publish attempts.
 - supports post-incident traceability and reviewer verification.
 
 ### 3.3 Authentication and authorization flow
@@ -261,7 +261,7 @@ The observed state created four concrete risks:
 - over-broad policy grants may be introduced as "quick fixes" and then persist.
 
 4. Incident forensics risk
-- without clear authn/authz separation, failure diagnosis and remediation timelines become noisy and slow.
+- without clear authentication/authorization separation, failure diagnosis and remediation timelines become noisy and slow.
 
 ### 4.5 Severity framing
 This risk class is high severity for platform delivery because it:
@@ -363,7 +363,7 @@ Trade-off accepted:
 
 ### 5.5 Decision D: fail-closed release gating over manual override closure
 Decision:
-- block publish progression when authn/authz prerequisites are unmet,
+- block publish progression when authentication/authorization prerequisites are unmet,
 - require rerun closure after remediation.
 
 Why this decision:
@@ -401,13 +401,13 @@ Why alternatives were rejected:
 Trade-off accepted:
 - slightly more documentation work for significantly stronger defensibility.
 
-### 5.7 Decision F: same-workflow remediation rule
+### 5.7 Decision F: same authoritative workflow path remediation rule
 Decision:
 - remediate and rerun in the same authoritative CI workflow.
 - do not close the claim via alternate publishing paths.
 
 Why this decision:
-- same-workflow remediation proves controls are fixed where they failed,
+- remediation in the same workflow path proves controls are fixed where they failed,
 - alternate paths can "pass" while leaving core workflow broken.
 
 Alternatives considered:
@@ -424,7 +424,7 @@ Trade-off accepted:
 ### 5.8 Net design posture
 The final design posture is:
 - federated short-lived CI identity,
-- explicit authn/authz gate separation,
+- explicit authentication/authorization gate separation,
 - least-privilege registry scope,
 - fail-closed progression,
 - evidence-driven closure in the same authoritative workflow.
@@ -446,7 +446,7 @@ At execution time, this established the testable boundary:
 - if OIDC trust/bootstrap is wrong, role assumption fails,
 - if role permissions are incomplete, registry operations fail.
 
-This boundary made authn/authz defects observable early in the release path.
+This boundary made authentication/authorization defects observable early in the release path.
 
 ### 6.3 Live failure-remediation sequence implemented
 Implementation progressed through a controlled sequence:
@@ -461,7 +461,7 @@ Implementation progressed through a controlled sequence:
 
 3. Third release attempt (closure)
 - observed result: successful CI publish sequence.
-- control interpretation: release closure achieved only after authn and authz planes were both corrected.
+- control interpretation: release closure achieved only after authentication and authorization planes were both corrected.
 
 ### 6.4 IAM and policy implementation changes
 Concrete control changes implemented:
@@ -482,8 +482,8 @@ This shifted the workflow from "configuration-fragile" to "control-explicit and 
 
 ### 6.6 Evidence and traceability implementation
 Implementation retained a traceable chronology across all three attempts:
-- failed run (authn gap),
-- failed run (authz gap),
+- failed run (authentication gap),
+- failed run (authorization gap),
 - successful run (post-remediation closure).
 
 Associated release artifacts were persisted for later review, enabling:
@@ -509,138 +509,80 @@ By the end of implementation:
 ## 7) Controls and Guardrails (Fail-Closed Posture)
 
 ### 7.1 Control architecture
-This claim uses a two-plane control architecture with explicit blocking behavior:
-- plane A: federated identity trust/bootstrap control,
-- plane B: registry action authorization control.
+This workflow enforces two independent control planes:
+- authentication plane: OIDC trust and role assumption,
+- authorization plane: required registry actions under scoped role policy.
 
-A release publish can proceed only when both planes pass.
+Publish is blocked unless both planes pass.
 
-### 7.2 Mandatory gates (blocking)
-Release progression is blocked if any gate fails:
+### 7.2 Mandatory blocking gates
+Release progression is blocked when any of the following fails:
+- CI token trust/provider prerequisites,
+- federated role assumption,
+- required registry actions (including token retrieval and publish/read operations),
+- least-privilege scope discipline (no unjustified broad escalation).
 
-1. OIDC trust gate
-- CI token issuer/trust prerequisites must be valid.
-- Failure action: stop before role assumption and registry calls.
-
-2. Role assumption gate
-- CI must successfully assume the intended cloud role via federation.
-- Failure action: mark run failed; no fallback credentials.
-
-3. Registry authorization gate
-- assumed role must have required registry action scope, including auth-token retrieval and repository publish/read operations.
-- Failure action: stop publish; no policy-bypass path.
-
-4. Least-privilege gate
-- permission scope must remain bounded to required behavior.
-- Failure action: reject broad escalation as closure unless explicitly justified and time-bounded.
+No warning-only downgrade is accepted for these gates.
 
 ### 7.3 Corrective discipline
-Corrective actions must follow this order:
+Required remediation sequence:
 - identify failing control plane,
-- apply bounded trust/policy remediation,
-- rerun the same authoritative workflow,
+- apply bounded trust or policy fix,
+- rerun the same authoritative CI workflow,
 - accept closure only after successful rerun.
 
 Not accepted as closure:
 - side-channel publishing,
-- local manual publish with persistent credentials,
+- local manual publishing with persistent credentials,
 - undocumented temporary permission broadening.
 
-### 7.4 Governance guardrails
-1. Positive-proof rule
-- "publish succeeded once" is insufficient without control-plane explanation and remediation trace.
+### 7.4 Governance and ownership
+Ownership:
+- platform/release engineering: gate logic and failure handling,
+- cloud security/IAM: trust and permission boundary correctness.
 
-2. Separation-of-planes rule
-- authentication and authorization failures must be logged and reasoned separately.
+Governance rules:
+- separate authentication vs authorization failure reasoning,
+- require positive proof for closure,
+- keep evidence/security hygiene (no secret-bearing payloads in reports).
 
-3. Security hygiene rule
-- no secrets/tokens/credential material in report narratives or evidence summaries.
-
-### 7.5 Ownership model
-- platform/release engineering owns workflow gate logic and failure handling behavior.
-- cloud security/IAM ownership owns trust and permission boundary correctness.
-- reviewers/auditors validate closure chronology using proof hooks, not narrative claims alone.
-
-### 7.6 Why this control model is senior-relevant
-This model demonstrates senior behavior because it:
-- prevents insecure "just make it pass" fixes,
-- forces clear root-cause isolation across trust vs permission surfaces,
-- yields repeatable recovery under real CI failures,
-- preserves defensible least-privilege posture while maintaining delivery continuity.
+### 7.5 Senior relevance
+This control model shows senior behavior because it:
+- enforces secure defaults under delivery pressure,
+- isolates root cause quickly across trust vs permission domains,
+- makes recovery repeatable and auditable.
 
 ## 8) Validation Strategy
 
 ### 8.1 Validation objective
-Validation for this claim answers one strict question:
-"Can the workflow reliably block publish on trust or permission defects, and then close only after bounded remediations are applied?"
+Validation asks one question:
+"Does the workflow fail closed on trust/permission defects and close only after bounded remediation?"
 
-### 8.2 Validation structure
-Validation is executed in three stages:
+### 8.2 Validation design
+Validation runs in three steps:
+- negative-path authentication check (missing trust/provider must block before registry operations),
+- negative-path authorization check (role assumed but missing action scope must block publish),
+- positive closure rerun (publish succeeds only after both fixes).
 
-1. Authentication-plane validation
-- verify CI federation prerequisites and role assumption behavior.
-- expected negative case: missing trust/provider blocks release before registry operations.
+### 8.3 Pass/fail rules
+Pass requires:
+- traceable fail/fix/fail/fix/success chain,
+- clear boundary classification per failure,
+- final success with both control planes closed.
 
-2. Authorization-plane validation
-- verify registry auth-token retrieval and publish/read operations under assumed role.
-- expected negative case: role assumption succeeds but missing registry action scope blocks publish.
+Fail includes:
+- only one plane validated,
+- success without clear authentication/authorization closure path,
+- unbounded permission broadening used as closure.
 
-3. Closure rerun validation
-- verify successful publish after both planes are remediated.
-- expected positive case: workflow completes with explicit closure evidence.
+### 8.4 Evidence expectations
+Validation evidence must include:
+- attempt-by-attempt run anchors,
+- concise failure reasons and corresponding remediations,
+- final closure run anchor and artifact identity.
 
-### 8.3 Required negative-path checks
-Negative-path checks are mandatory because this claim is failure-driven:
-- trust/provider absence must produce deterministic authentication failure,
-- missing registry action scope must produce deterministic authorization failure,
-- failures must occur at correct boundary (authn vs authz), not as generic workflow noise.
-
-Validation is only considered credible if both negative failure classes are observed and resolved.
-
-### 8.4 Required positive-path checks
-Positive closure requires:
-- successful federated role assumption,
-- successful registry authorization and publish action sequence,
-- evidence outputs present for failure chronology and final success,
-- no fallback to static credentials or side-channel publishing.
-
-### 8.5 Pass/fail rules
-Pass criteria:
-- fail/fix/fail/fix/success sequence is traceable and complete,
-- the final successful run demonstrates both trust and permission closure,
-- remediation is bounded and least-privilege aligned.
-
-Fail criteria:
-- only one control plane is validated,
-- successful publish occurs without clear authn/authz closure path,
-- policy scope is broadened without clear necessity rationale,
-- evidence chain cannot prove progression from failure to closure.
-
-### 8.6 Remediation-validation loop
-After each failed attempt:
-- classify defect to trust or permission plane,
-- apply minimal remediation at that plane,
-- rerun authoritative workflow,
-- continue until both planes pass in the same governed path.
-
-This keeps fixes targeted and prevents over-scoped compensating changes.
-
-### 8.7 Evidence capture expectations
-Validation evidence should include:
-- run-level anchors for each attempt in sequence,
-- concise failure reason per attempt,
-- remediation statement per attempt,
-- final closure run anchor and identity proof.
-
-This provides challenge-ready validation without exposing sensitive policy or credential details.
-
-### 8.8 Non-claims for this validation scope
-This validation strategy does not certify:
-- broad cloud IAM governance outside the release workflow boundary,
-- runtime service correctness after image publish,
-- end-to-end platform functional behavior.
-
-Those require separate claim tracks and validation plans.
+### 8.5 Validation non-claims
+This strategy does not certify runtime service behavior, broader IAM governance maturity, or end-to-end platform function.
 
 ## 9) Results and Operational Outcome
 
@@ -651,53 +593,40 @@ The implemented controls produced the intended result:
 - release progression became fail-closed across both control planes.
 
 ### 9.2 Measured closure sequence
-The closure path required three controlled attempts:
-- attempt 1: failed at OIDC trust/provider boundary (authentication plane),
-- attempt 2: failed at registry authorization boundary after identity was fixed (authorization plane),
-- attempt 3: succeeded after scoped permission remediation.
+Closure required three attempts:
+- attempt 1 failed at trust/provider setup (authentication plane),
+- attempt 2 failed at registry action scope (authorization plane),
+- attempt 3 succeeded after scoped remediation.
 
 Operational meaning:
-- failures were early and diagnostic, not latent,
+- failures were early and diagnosable,
 - each failure mapped to a distinct control plane,
-- closure required both planes to pass, not partial success.
+- closure required both controls, not partial success.
 
-### 9.3 Security posture outcome
-Post-remediation, routine CI release publishing no longer depended on static cloud credentials for this workflow path.
-Cloud access was established through federated role assumption, then constrained by role policy at action scope.
-
-Security impact:
-- reduced long-lived credential exposure in CI,
-- reduced risk of hidden over-privileged access for publish actions.
+### 9.3 Security and governance outcome
+After remediation:
+- routine CI publishing no longer relied on static cloud credentials in this workflow,
+- registry access operated under scoped permissions,
+- no closure claim was accepted without successful post-remediation rerun.
 
 ### 9.4 Reliability and recovery outcome
-The workflow became more reliable under failure because defects were isolated to clear boundaries:
-- trust/bootstrap defects (identity setup),
-- action-scope defects (registry permissions).
+Recovery quality improved because remediation could be targeted by boundary:
+- trust fixes for authentication failures,
+- policy-scope fixes for authorization failures,
+- rerun confirmation for combined closure.
 
-Recovery quality improved because remediation could be targeted:
-- trust fix for authentication failures,
-- policy-scope fix for authorization failures,
-- rerun closure to verify both together.
+This reduced ambiguous CI failures and avoided insecure "just make it pass" behavior.
 
-### 9.5 Governance outcome
-The release process gained stronger governance posture:
-- no publish on missing trust prerequisites,
-- no publish on missing required registry scope,
-- no valid closure claim without a successful post-remediation rerun.
+### 9.5 Senior-role impact and next hardening steps
+This result demonstrates senior capability in:
+- separating authentication and authorization failure domains,
+- enforcing least privilege while preserving delivery continuity,
+- converting real CI failures into durable controls with auditable closure.
 
-This reduced dependence on informal operator judgment during incident pressure.
-
-### 9.6 Senior-role impact framing
-From a senior hiring perspective, this result demonstrates:
-- ability to separate authentication and authorization as independent failure domains,
-- ability to harden least-privilege access without blocking delivery permanently,
-- ability to convert CI failures into durable control improvements with auditable closure.
-
-### 9.7 Residual hardening opportunities
-Remaining improvements (not blockers to this claim):
-- add automated policy-conformance checks earlier in pull-request lifecycle,
-- add a compact authn/authz preflight summary artifact per release run,
-- add periodic least-privilege drift review for CI roles as dependencies evolve.
+Remaining hardening opportunities:
+- earlier policy-conformance checks in pull requests,
+- compact authentication/authorization preflight summary per release run,
+- periodic least-privilege drift review for CI roles.
 
 ## 10) Limitations and Non-Claims
 
@@ -807,7 +736,7 @@ From successful closure:
 - image digest: `sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56`
 
 What this proves:
-- workflow reached a publish-complete state after authn/authz remediation,
+- workflow reached a publish-complete state after authentication/authorization remediation,
 - closure ties control-plane fixes to real artifact publication.
 
 ### 11.6 Minimal interviewer packet
@@ -841,7 +770,7 @@ For platform engineering screens, this claim shows:
 ### 12.4 Interview positioning guidance
 Use this claim in interviews in this sequence:
 1. state the two-plane problem (trust vs permission),
-2. show the failure chronology (attempt 1 authn fail, attempt 2 authz fail),
+2. show the failure chronology (attempt 1 authentication fail, attempt 2 authorization fail),
 3. show bounded remediations,
 4. show successful closure and evidence anchors,
 5. state non-claims clearly.
@@ -870,3 +799,4 @@ Interview use:
 
 Portfolio use:
 - keep this report as the full technical narrative and link to short summary extracts.
+

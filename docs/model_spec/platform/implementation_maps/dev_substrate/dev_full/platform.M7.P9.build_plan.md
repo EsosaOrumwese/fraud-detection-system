@@ -64,16 +64,64 @@ Each component lane must publish `*_performance_snapshot.json` for the lane run 
 Goal:
 1. close required handles and entry gates for decision-chain components.
 
+Entry prerequisites (must already be green):
+1. `P8.E` execution summary is green with:
+   - `overall_pass=true`,
+   - `phase_verdict=ADVANCE_TO_P9`,
+   - `next_gate=M7.F_READY`.
+2. run scope (`platform_run_id`, `scenario_run_id`) matches upstream `P8.E` execution.
+
+Required handle set for P9.A:
+1. runtime path and scope:
+   - `FLINK_RUNTIME_PATH_ACTIVE`
+   - `FLINK_RUNTIME_PATH_ALLOWED`
+   - `PHASE_RUNTIME_PATH_MODE`
+2. component deployment/runtime handles:
+   - `K8S_DEPLOY_DF`
+   - `K8S_DEPLOY_AL`
+   - `K8S_DEPLOY_DLA`
+   - `EKS_NAMESPACE_RTDL`
+   - `ROLE_EKS_IRSA_DECISION_LANE`
+3. data/evidence surfaces:
+   - `FP_BUS_RTDL_V1`
+   - `FP_BUS_AUDIT_V1`
+   - `DECISION_LANE_EVIDENCE_PATH_PATTERN`
+4. runtime state backends:
+   - `AURORA_CLUSTER_IDENTIFIER`
+   - `SSM_AURORA_ENDPOINT_PATH`
+   - `SSM_AURORA_USERNAME_PATH`
+   - `SSM_AURORA_PASSWORD_PATH`.
+
+Pinned P9 component SLO continuity check:
+1. upstream `m7a_component_slo_profile.json` must contain:
+   - `DF`,
+   - `AL`,
+   - `DLA`.
+
 Tasks:
-1. verify `P8` verdict and run-scope continuity.
-2. verify required handles for `DF/AL/DLA`.
-3. emit `p9a_entry_snapshot.json` and blocker register.
+1. verify `P8.E` verdict and run-scope continuity.
+2. verify required handle set above for `DF/AL/DLA`.
+3. verify SLO continuity for `DF/AL/DLA`.
+4. emit:
+   - `p9a_entry_snapshot.json`
+   - `p9a_blocker_register.json`
+   - `p9a_component_slo_profile.json`
+   - `p9a_execution_summary.json`.
+
+Execution plan (managed lane):
+1. dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with `phase_mode=m7g`.
+2. pass upstream `P8.E` execution id via `upstream_m6d_execution`.
+3. require deterministic success gate:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M7.F_READY`.
 
 DoD:
 - [ ] P9 required-handle set is complete.
 - [ ] unresolved required handles are blocker-marked.
 - [ ] P9 entry snapshot is committed locally and durably.
 - [ ] per-component P9 performance SLO targets are pinned.
+- [ ] managed `P9.A` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=M7.F_READY`).
 
 ### P9.B DF Component Lane Closure
 Goal:
@@ -156,15 +204,18 @@ DoD:
 
 ## 7) P9 Evidence Contract
 1. `p9a_entry_snapshot.json`
-2. `p9b_df_component_snapshot.json`
-3. `p9c_al_component_snapshot.json`
-4. `p9d_dla_component_snapshot.json`
-5. `p9e_decision_chain_rollup_matrix.json`
-6. `p9e_decision_chain_blocker_register.json`
-7. `p9e_decision_chain_verdict.json`
-8. `p9b_df_performance_snapshot.json`
-9. `p9c_al_performance_snapshot.json`
-10. `p9d_dla_performance_snapshot.json`
+2. `p9a_blocker_register.json`
+3. `p9a_component_slo_profile.json`
+4. `p9a_execution_summary.json`
+5. `p9b_df_component_snapshot.json`
+6. `p9c_al_component_snapshot.json`
+7. `p9d_dla_component_snapshot.json`
+8. `p9e_decision_chain_rollup_matrix.json`
+9. `p9e_decision_chain_blocker_register.json`
+10. `p9e_decision_chain_verdict.json`
+11. `p9b_df_performance_snapshot.json`
+12. `p9c_al_performance_snapshot.json`
+13. `p9d_dla_performance_snapshot.json`
 
 ## 8) Exit Rule for P9
 `P9` can close only when:

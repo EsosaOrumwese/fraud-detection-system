@@ -9788,3 +9788,33 @@ ext_gate=HOLD_REMEDIATE.
 1. `M7.P8` is closed green (`P8.B`, `P8.C`, `P8.D`, `P8.E` all green).
 2. Parent phase lane `M7.E` is closed green.
 3. Next phase entry gate is `M7.F`.
+## Entry: 2026-02-25 21:55:00 +00:00 - P9.A planning and execution strategy (M7.P9 entry lane)
+
+### Problem
+1. User requested `M7.P9.A` planning and execution.
+2. Current deep P9 doc has only a thin P9.A stub and workflow has no dedicated P9 entry lane.
+3. Need deterministic entry proof from fresh P8 closure before DF/AL/DLA lane execution.
+
+### Decision
+1. Expand `P9.A` with explicit required-handle set, managed execution contract, and deterministic gate.
+2. Implement managed workflow lane `phase_mode=m7g` in existing registered workflow.
+3. `m7g` must fail-closed on:
+   - invalid upstream P8 rollup posture,
+   - missing/placeholder required P9 handles,
+   - missing pinned DF/AL/DLA SLO profile continuity,
+   - upload/readback failures for run-control artifacts.
+4. Success criteria:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M7.F_READY`.
+
+### Planned artifacts
+1. `p9a_entry_snapshot.json`
+2. `p9a_blocker_register.json`
+3. `p9a_component_slo_profile.json`
+4. `p9a_execution_summary.json`
+
+### Inputs pinned for first execution
+1. upstream P8 execution id (`m7f`): `m7f_p8e_rollup_20260225T214307Z`
+2. run scope:
+   - `platform_run_id = platform_20260223T184232Z`
+   - `scenario_run_id = scenario_38753050f3b70c666e16f7552016b330`
+3. evidence bucket: `fraud-platform-dev-full-evidence`

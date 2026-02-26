@@ -321,11 +321,13 @@ Goal:
 1. close `DF` lane with component-level proofs.
 
 Tasks:
-1. execute/run `DF` lane.
-2. verify decision commits and idempotency keys.
-3. verify replay-safe duplicate handling.
+1. require upstream `P9.A` entry summary in green posture (`next_gate=M7.F_READY`).
+2. execute/run `DF` lane.
+3. verify decision commits and idempotency keys.
+4. verify replay-safe duplicate handling.
 
 DoD:
+- [ ] `P9.A` entry precheck is green.
 - [ ] `DF` component evidence is complete.
 - [ ] `DF` blockers are clear.
 - [ ] `DF` performance snapshot meets pinned budget.
