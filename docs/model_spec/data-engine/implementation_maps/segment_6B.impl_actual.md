@@ -3900,3 +3900,46 @@ Risk controls:
 Validation before execution:
 - compile check passed:
   - `python -m compileall packages/engine/src/engine/layers/l3/seg_6B/s3_fraud_overlay/runner.py`.
+
+---
+
+### Entry: 2026-02-26 05:02
+
+P3.R1 full witness execution closure (`run_id=53524385b4554006a4d8e5f46cdf9b70`).
+
+Execution sequence completed:
+1) staged fresh P3.R1 run from `ac712b0b5e3f4ae5b5fd1a2af1662d4b` (`S0/S1/S2` + upstream validation roots + required RNG trace continuity).
+2) executed `S3` with reopened code path:
+- observed `S3=372.01s` (recovered below stretch rail `<=380s`).
+3) executed downstream closure chain:
+- `S4=444.33s`,
+- `S5=40.23s` (`PASS` status but above runtime rail).
+4) scored witness:
+- `python tools/score_segment6b_p0_baseline.py --runs-root runs/fix-data-engine/segment_6B --run-id 53524385b4554006a4d8e5f46cdf9b70 --out-root runs/fix-data-engine/segment_6B/reports --merchant-class-glob runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data/layer2/5A/merchant_class_profile/**/*.parquet --arrival-events-glob runs/local_full_run-5/c25a2675fbfbacd952b13bb594880e92/data/layer2/5B/arrival_events/**/*.parquet`.
+
+Observed realism posture:
+- overall verdict remains `PASS_HARD_ONLY` with no hard-gate regressions.
+- `T17` remains closed with headroom:
+  - `campaign_count=6`,
+  - `class_v=0.226963`.
+- `T18` remains closed:
+  - `tz_corridor_v=0.413332`,
+  - `median_tz_per_campaign=39`.
+- stretch failure map remains `['T19']` (unchanged owner outside P3 lane).
+
+Observed runtime posture versus pinned reference (`ac712...`):
+- `S3`: `400.42s -> 372.01s` (rail recovered).
+- `S4`: `405.50s -> 444.33s` (rail breach vs `<=420s`).
+- `S5`: `19.83s -> 40.23s` (rail breach vs `<=30s`).
+
+Decision and rationale:
+- phase decision stays `HOLD_P3_REOPEN_PERF`.
+- P3 owner objective (`T17/T18`) is still closed and S3 runtime recovery succeeded; however integrated lane unlock to P4 is blocked by downstream runtime rail failures on the same witness.
+- next owner lane is `S4` runtime closure (event-label join throughput + validation runtime path) with explicit constraint:
+  - do not reopen/perturb closed `S3` targeting semantics from P3.R1.
+
+Artifacts emitted:
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_53524385b4554006a4d8e5f46cdf9b70.json`,
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_53524385b4554006a4d8e5f46cdf9b70.md`,
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p3r1_closure_53524385b4554006a4d8e5f46cdf9b70.json`,
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p3r1_closure_53524385b4554006a4d8e5f46cdf9b70.md`.

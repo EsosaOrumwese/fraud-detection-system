@@ -1450,42 +1450,61 @@ Goal:
 - recover `S3` runtime rail while preserving the new campaign-depth realism closure achieved in P3.
 
 Definition of done:
-- [ ] `S3` runtime returns to stretch rail (`<=380s`) on fresh witness.
-- [ ] `T17` remains `PASS_B` (and retains practical headroom above `0.03`).
-- [ ] `T18` remains `PASS`.
-- [ ] no hard-gate regression on `T1-T16`, `T21`, `T22`.
-- [ ] closure artifacts emitted and phase decision updated.
+- [x] `S3` runtime returns to stretch rail (`<=380s`) on fresh witness.
+- [x] `T17` remains `PASS_B` (and retains practical headroom above `0.03`).
+- [x] `T18` remains `PASS`.
+- [x] no hard-gate regression on `T1-T16`, `T21`, `T22`.
+- [x] closure artifacts emitted and phase decision updated.
 
 P3.R1 expanded execution plan:
 
 ##### P3.R1.0 - Hotspot pin + bounded redesign lock
 Definition of done:
-- [ ] runtime regression owner pinned from evidence:
+- [x] runtime regression owner pinned from evidence:
   - `S3` moved from baseline reference `400.42s` to `851.20s`.
-- [ ] lane decomposition pinned for `S3`:
+- [x] lane decomposition pinned for `S3`:
   - flow assignment sublane,
   - event assignment/write sublane.
-- [ ] selected bounded lane avoids schema/contract/policy/scorer changes.
+- [x] selected bounded lane avoids schema/contract/policy/scorer changes.
 
 ##### P3.R1.1 - Flow assignment cost reduction
 Definition of done:
-- [ ] reduce per-row campaign assignment overhead by avoiding repeated merchant-hash recomputation per campaign.
-- [ ] retain deterministic merchant-cohort targeting behavior for `T17` closure.
-- [ ] preserve first-match semantics and campaign guardrail bounds.
+- [x] reduce per-row campaign assignment overhead by avoiding repeated merchant-hash recomputation per campaign.
+- [x] retain deterministic merchant-cohort targeting behavior for `T17` closure.
+- [x] preserve first-match semantics and campaign guardrail bounds.
 
 ##### P3.R1.2 - Event overlay throughput rewrite
 Definition of done:
-- [ ] replace heavy event-side per-campaign hash assignment lane with a deterministic flow-joined event overlay lane.
-- [ ] preserve required event schema and row-count parity with baseline events.
-- [ ] preserve deterministic campaign attribution and fraud flag semantics.
+- [x] replace heavy event-side per-campaign hash assignment lane with a deterministic flow-joined event overlay lane.
+- [x] preserve required event schema and row-count parity with baseline events.
+- [x] preserve deterministic campaign attribution and fraud flag semantics.
 
 ##### P3.R1.3 - Fresh witness + closure scoring
 Definition of done:
-- [ ] stage fresh run-id and execute `S3 -> S4 -> S5`.
-- [ ] score with `tools/score_segment6b_p0_baseline.py`.
-- [ ] emit `segment6b_p3r1_closure_<run_id>.json/.md` and phase decision:
+- [x] stage fresh run-id and execute `S3 -> S4 -> S5`.
+- [x] score with `tools/score_segment6b_p0_baseline.py`.
+- [x] emit `segment6b_p3r1_closure_<run_id>.json/.md` and phase decision:
   - `UNLOCK_P4` if runtime + realism rails pass,
   - else `HOLD_P3_REOPEN_PERF` with next owner lane pinned.
+
+P3.R1 execution status (current authority):
+- witness run-id: `53524385b4554006a4d8e5f46cdf9b70` (staged from `ac712b0b5e3f4ae5b5fd1a2af1662d4b`).
+- artifacts emitted:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_53524385b4554006a4d8e5f46cdf9b70.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_53524385b4554006a4d8e5f46cdf9b70.md`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p3r1_closure_53524385b4554006a4d8e5f46cdf9b70.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p3r1_closure_53524385b4554006a4d8e5f46cdf9b70.md`.
+- realism posture:
+  - overall verdict stays `PASS_HARD_ONLY` with no hard-gate regressions,
+  - `T17` remains closed (`campaigns=6`, `class_v=0.226963`),
+  - `T18` remains closed (`tz_corridor_v=0.413332`, `median_tz=39`).
+- runtime posture versus reference (`ac712...`):
+  - `S3`: `400.42s -> 372.01s` (rail PASS, recovered),
+  - `S4`: `405.50s -> 444.33s` (rail FAIL),
+  - `S5`: `19.83s -> 40.23s` (rail FAIL).
+- phase decision:
+  - `HOLD_P3_REOPEN_PERF`.
+  - next owner lane: `S4` runtime closure (`event-label join throughput + validation runtime`) while preserving `T17/T18` closure.
 
 ### P4 - Wave C (`S1` context/session realism closure)
 Goal:
