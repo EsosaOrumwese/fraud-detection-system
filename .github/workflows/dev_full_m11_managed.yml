@@ -50,6 +50,24 @@ on:
         required: true
         default: "20"
         type: string
+      m11d_training_instance_type:
+        description: SageMaker training instance type
+        required: true
+        default: ml.m5.large
+        type: string
+      m11d_transform_instance_type:
+        description: SageMaker transform instance type
+        required: true
+        default: ml.c4.xlarge
+        type: string
+      m11d_require_managed_transform:
+        description: Fail closed unless managed batch transform completes
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
 
 permissions:
   contents: read
@@ -128,6 +146,9 @@ jobs:
           AWS_REGION: ${{ inputs.aws_region }}
           POLL_TIMEOUT_MINUTES: ${{ inputs.poll_timeout_minutes }}
           POLL_INTERVAL_SECONDS: ${{ inputs.poll_interval_seconds }}
+          TRAINING_INSTANCE_TYPE: ${{ inputs.m11d_training_instance_type }}
+          TRANSFORM_INSTANCE_TYPE: ${{ inputs.m11d_transform_instance_type }}
+          REQUIRE_MANAGED_TRANSFORM: ${{ inputs.m11d_require_managed_transform }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -196,6 +217,9 @@ jobs:
           region=os.environ['AWS_REGION']
           timeout=max(int(os.environ.get('POLL_TIMEOUT_MINUTES','45')),1)*60
           poll=max(int(os.environ.get('POLL_INTERVAL_SECONDS','20')),5)
+          training_instance_type=str(os.environ.get('TRAINING_INSTANCE_TYPE','ml.m5.large')).strip() or 'ml.m5.large'
+          transform_instance_type=str(os.environ.get('TRANSFORM_INSTANCE_TYPE','ml.c4.xlarge')).strip() or 'ml.c4.xlarge'
+          require_managed_transform=str(os.environ.get('REQUIRE_MANAGED_TRANSFORM','true')).strip().lower() == 'true'
 
           s3=boto3.client('s3',region_name=region)
           ssm=boto3.client('ssm',region_name=region)
@@ -270,7 +294,13 @@ jobs:
               putj(s3,bkt,kl,{'labels':labels,'platform_run_id':pr,'scenario_run_id':sr,'execution_id':exec_id})
               inp={'train_key':ktr,'validation_key':kva,'test_features_key':kte,'test_labels_key':kl}
 
-              image=image_uris.retrieve(framework='xgboost',region=region,version='1.7-1',image_scope='training',instance_type='ml.m5.large')
+              image=image_uris.retrieve(
+                  framework='xgboost',
+                  region=region,
+                  version='1.7-1',
+                  image_scope='training',
+                  instance_type=training_instance_type,
+              )
               suf=hashlib.sha256(f'{exec_id}|{fps}'.encode()).hexdigest()[:10]
               tjob=job(f'{train_prefix}-{suf}'); xjob=job(f'{batch_prefix}-{suf}'); model=job(f'{train_prefix}-model-{suf}')
               tr_uri=f"s3://{bkt}/{ktr.rsplit('/',1)[0]}/"
@@ -287,7 +317,7 @@ jobs:
                       {'ChannelName':'train','DataSource':{'S3DataSource':{'S3DataType':'S3Prefix','S3Uri':tr_uri,'S3DataDistributionType':'FullyReplicated'}},'ContentType':'text/csv'},
                       {'ChannelName':'validation','DataSource':{'S3DataSource':{'S3DataType':'S3Prefix','S3Uri':va_uri,'S3DataDistributionType':'FullyReplicated'}},'ContentType':'text/csv'}],
                     OutputDataConfig={'S3OutputPath':out_train},
-                    ResourceConfig={'InstanceType':'ml.m5.large','InstanceCount':1,'VolumeSizeInGB':30},
+                    ResourceConfig={'InstanceType':training_instance_type,'InstanceCount':1,'VolumeSizeInGB':30},
                     StoppingCondition={'MaxRuntimeInSeconds':timeout},
                     HyperParameters={'objective':'binary:logistic','eval_metric':'auc','num_round':'25','max_depth':'4','eta':'0.2','subsample':'0.8','verbosity':'0'} )
                   tdesc=wait_train(sm,tjob,timeout,poll)
@@ -302,7 +332,7 @@ jobs:
                         TransformJobName=xjob,ModelName=model,
                         TransformInput={'DataSource':{'S3DataSource':{'S3DataType':'S3Prefix','S3Uri':te_uri}},'ContentType':'text/csv','SplitType':'Line'},
                         TransformOutput={'S3OutputPath':out_xf,'AssembleWith':'Line','Accept':'text/csv'},
-                        TransformResources={'InstanceType':'ml.m5.large','InstanceCount':1})
+                        TransformResources={'InstanceType':transform_instance_type,'InstanceCount':1})
                       xdesc=wait_xf(sm,xjob,timeout,poll)
                       if xdesc.get('TransformJobStatus')!='Completed': raise RuntimeError(f"transform status={xdesc.get('TransformJobStatus')}")
                       out_uri=xdesc.get('TransformOutput',{}).get('S3OutputPath','')
@@ -320,6 +350,10 @@ jobs:
                   except Exception as transform_exc:
                       msg=str(transform_exc)
                       if 'ResourceLimitExceeded' in msg and 'transform job usage' in msg:
+                          if require_managed_transform:
+                              raise RuntimeError(
+                                  f"managed transform required but unavailable ({transform_instance_type}): {msg}"
+                              )
                           eval_mode='fallback_local_model_eval'
                           xdesc={'TransformJobStatus':'SKIPPED_RESOURCE_LIMIT','FailureReason':msg}
                           advisories.append({
@@ -382,7 +416,16 @@ jobs:
                 'budget_envelope_key':budget_pat.lstrip('/'),'eval_report_key':eval_pat.lstrip('/'),
                 'jobs':{'training':{'job_name':tjob,'status':tdesc.get('TrainingJobStatus',''),'failure_reason':tdesc.get('FailureReason',''),'model_artifact_uri':mdata,'elapsed_seconds':tel},
                         'transform':{'job_name':xjob,'status':xdesc.get('TransformJobStatus',''),'failure_reason':xdesc.get('FailureReason',''),'model_name':model,'output_key':outk,'elapsed_seconds':xel,'eval_mode':eval_mode}},
-                'metrics':metrics,'runtime':{'elapsed_seconds':round(total,3),'budget_target_minutes':45,'budget_alert_minutes':60,'poll_timeout_minutes':timeout//60,'poll_interval_seconds':poll},
+                'metrics':metrics,'runtime':{
+                    'elapsed_seconds':round(total,3),
+                    'budget_target_minutes':45,
+                    'budget_alert_minutes':60,
+                    'poll_timeout_minutes':timeout//60,
+                    'poll_interval_seconds':poll,
+                    'training_instance_type':training_instance_type,
+                    'transform_instance_type':transform_instance_type,
+                    'require_managed_transform':require_managed_transform,
+                },
                 'read_errors':errs,'advisories':advisories, 'overall_pass':ok,'blocker_count':len(blockers),'next_gate':next_gate}
           br={'captured_at_utc':now(),'phase':'M11.D','phase_id':'P14','execution_id':exec_id,'blocker_count':len(blockers),'blockers':blockers,'overall_pass':ok}
           smy={'captured_at_utc':now(),'phase':'M11.D','phase_id':'P14','execution_id':exec_id,'platform_run_id':pr,'scenario_run_id':sr,
