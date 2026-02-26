@@ -114,6 +114,11 @@ variable "github_actions_emr_execution_role_arn" {
   default = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution"
 }
 
+variable "github_actions_sagemaker_execution_role_arn" {
+  type    = string
+  default = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-sagemaker-execution"
+}
+
 variable "github_actions_ig_idempotency_table_name" {
   type    = string
   default = "fraud-platform-dev-full-ig-idempotency"

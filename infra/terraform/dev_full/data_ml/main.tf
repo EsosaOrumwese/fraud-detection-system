@@ -61,6 +61,67 @@ resource "aws_iam_role_policy" "sagemaker_ssm_read" {
   })
 }
 
+resource "aws_iam_role_policy" "sagemaker_data_access" {
+  name = "${var.role_sagemaker_execution_name}-data-access"
+  role = aws_iam_role.sagemaker_execution.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EvidenceBucketList"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = "arn:aws:s3:::${var.sagemaker_evidence_bucket}"
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "evidence/runs/*",
+              "evidence/dev_full/run_control/*"
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "EvidenceObjectRW"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:AbortMultipartUpload"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.sagemaker_evidence_bucket}/evidence/runs/*",
+          "arn:aws:s3:::${var.sagemaker_evidence_bucket}/evidence/dev_full/run_control/*"
+        ]
+      },
+      {
+        Sid    = "SageMakerLogsWrite"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "EvidenceKmsCryptography"
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:Encrypt",
+          "kms:GenerateDataKey",
+          "kms:DescribeKey"
+        ]
+        Resource = var.sagemaker_evidence_kms_key_arn
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role" "databricks_cross_account_access" {
   name               = var.role_databricks_cross_account_access_name
   assume_role_policy = data.aws_iam_policy_document.assume_role_databricks.json

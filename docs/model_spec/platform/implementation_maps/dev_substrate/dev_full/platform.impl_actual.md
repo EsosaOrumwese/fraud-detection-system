@@ -14856,3 +14856,71 @@ ext_gate=M11.B_READY and locker_count=0.
    - patch workflow inline script to import from stable module path sagemaker.image_uris and call etrieve directly.
    - keep lane behavior unchanged (train + transform + evidence publication).
 5. Next action after patch: workflow-only hotfix publish to main, then immediate rerun.
+
+## Entry: 2026-02-26 20:28:21 +00:00 - M11 managed workflow hotfix sequence approved
+1. User approved workflow-only hotfix publish after M11.D import failure.
+2. Scope locked: .github/workflows/dev_full_m11_managed.yml only.
+3. Sequence: ops branch from main -> workflow-only commit -> PR merge -> rerun M11.D.
+
+## Entry: 2026-02-26 20:37:00 +00:00 - M11.D remediation #2 (SageMaker package major-version drift)
+1. Observed failure after import hotfix deploy (run 22460024603):
+   - ModuleNotFoundError: No module named 'sagemaker.image_uris'.
+2. Diagnosis:
+   - workflow installed sagemaker==3.4.1 (major-version drift from expected API surface),
+   - M11.D script expects v2 helper (image_uris.retrieve).
+3. Decision:
+   - pin workflow dependency to sagemaker<3,
+   - use stable v2 import path rom sagemaker import image_uris.
+4. Why this route:
+   - smallest deterministic fix preserving existing train/transform logic and evidence contract,
+   - avoids introducing a separate image-uri mapping system mid-lane.
+5. Next action:
+   - workflow-only hotfix publish to main, rerun M11.D.
+
+## Entry: 2026-02-26 20:42:42 +00:00 - M11.D blocker remediation #3 (IAM execution permissions)
+1. Failure evidence inspected from run 22460272680:
+   - blocker register m11d_train_eval_execution_20260226T203945Z reported M11-B4 with ClientError.
+   - snapshot ead_errors[0] showed explicit denial: sagemaker:CreateTrainingJob not allowed for role GitHubAction-AssumeRoleWithAction.
+2. Terraform remediation applied in infra/terraform/dev_full/ops:
+   - added execution actions under inline policy GitHubActionsM6FRemoteDevFull:
+     - sagemaker:CreateTrainingJob
+     - sagemaker:DescribeTrainingJob
+     - sagemaker:CreateModel
+     - sagemaker:CreateTransformJob
+     - sagemaker:DescribeTransformJob
+   - added pass-role permission for rn:aws:iam::230372904534:role/fraud-platform-dev-full-sagemaker-execution.
+3. Drift-control decision:
+   - full plan included unrelated ws_ssm_parameter.aurora_* updates due seeded defaults.
+   - executed targeted apply only for ws_iam_role_policy.github_actions_m6f_remote to avoid non-M11 drift.
+4. Apply result:
+   - one in-place policy update completed successfully; no destroy/add.
+5. Next action:
+   - rerun managed M11.D to verify gate progression to M11.E_READY.
+
+## Entry: 2026-02-26 20:45:38 +00:00 - M11.D blocker remediation #4 (SageMaker execution role S3/log access)
+1. New blocker surfaced after IAM control-plane fix (run 22460397038):
+   - ValidationException from CreateTrainingJob because SageMaker execution role lacked s3:ListBucket on raud-platform-dev-full-evidence.
+2. Runtime evidence inspected:
+   - snapshot m11d_train_eval_execution_20260226T204320Z/m11d_train_eval_execution_snapshot.json ead_errors[0] provided explicit denied action and bucket ARN.
+3. Terraform remediation in infra/terraform/dev_full/data_ml:
+   - added ws_iam_role_policy.sagemaker_data_access to role raud-platform-dev-full-sagemaker-execution with:
+     - S3 bucket list/get-location scoped to evidence prefixes,
+     - S3 object get/put/abort multipart on run-control + runs evidence prefixes,
+     - CloudWatch Logs write permissions for SageMaker job logging.
+4. Applied targeted change:
+   - 	erraform apply -target=aws_iam_role_policy.sagemaker_data_access.
+   - result: 1 added, 0 changed, 0 destroyed.
+5. Next action:
+   - rerun M11.D managed lane for gate verification.
+
+## Entry: 2026-02-26 20:50:28 +00:00 - M11.D blocker remediation #5 (evidence KMS decrypt)
+1. Latest run blocker (m11d_train_eval_execution_20260226T204616Z) showed training failure reason:
+   - SageMaker execution role denied kms:Decrypt on evidence bucket KMS key rn:aws:kms:eu-west-2:230372904534:key/29a7acf2-da57-4b3f-8dd1-d9172d845a5c.
+2. Remediation in infra/terraform/dev_full/data_ml:
+   - added variable sagemaker_evidence_kms_key_arn.
+   - extended ws_iam_role_policy.sagemaker_data_access with EvidenceKmsCryptography statement (kms:Decrypt,kms:Encrypt,kms:GenerateDataKey,kms:DescribeKey).
+3. Apply details:
+   - first apply attempt was blocked by transient state lock; reattempt succeeded targeted on ws_iam_role_policy.sagemaker_data_access.
+   - policy verification confirms KMS statement present.
+4. Next action:
+   - rerun M11.D managed lane.

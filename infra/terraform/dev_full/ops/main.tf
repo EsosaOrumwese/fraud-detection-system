@@ -282,6 +282,26 @@ resource "aws_iam_role_policy" "github_actions_m6f_remote" {
           "sagemaker:CreateModelPackageGroup"
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "M11dSageMakerExecutionControl"
+        Effect = "Allow"
+        Action = [
+          "sagemaker:CreateTrainingJob",
+          "sagemaker:DescribeTrainingJob",
+          "sagemaker:CreateModel",
+          "sagemaker:CreateTransformJob",
+          "sagemaker:DescribeTransformJob"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "M11dPassSageMakerExecutionRole"
+        Effect = "Allow"
+        Action = [
+          "iam:PassRole"
+        ]
+        Resource = var.github_actions_sagemaker_execution_role_arn
       }
     ]
   })
