@@ -237,10 +237,15 @@ Allowed tokens in pattern handles:
 * `SPINE_RUN_REPORT_PATH_PATTERN = "evidence/runs/{platform_run_id}/obs/run_report.json"`
 * `SPINE_RECONCILIATION_PATH_PATTERN = "evidence/runs/{platform_run_id}/obs/reconciliation.json"`
 * `SPINE_NON_REGRESSION_PACK_PATTERN = "evidence/runs/{platform_run_id}/obs/non_regression_pack.json"`
+* `LEARNING_INPUT_READINESS_PATH_PATTERN = "evidence/runs/{platform_run_id}/learning/input/readiness_snapshot.json"`
+* `LEARNING_REPLAY_BASIS_RECEIPT_PATH_PATTERN = "evidence/runs/{platform_run_id}/learning/input/replay_basis_receipt.json"`
+* `LEARNING_LEAKAGE_GUARDRAIL_REPORT_PATH_PATTERN = "evidence/runs/{platform_run_id}/learning/input/leakage_guardrail_report.json"`
 * `OFS_MANIFEST_PATH_PATTERN = "evidence/runs/{platform_run_id}/learning/ofs/dataset_manifest.json"`
 * `OFS_FINGERPRINT_PATH_PATTERN = "evidence/runs/{platform_run_id}/learning/ofs/dataset_fingerprint.json"`
+* `OFS_TIME_BOUND_AUDIT_PATH_PATTERN = "evidence/runs/{platform_run_id}/learning/ofs/time_bound_audit.json"`
 * `MF_EVAL_REPORT_PATH_PATTERN = "evidence/runs/{platform_run_id}/learning/mf/eval_report.json"`
 * `MF_CANDIDATE_BUNDLE_PATH_PATTERN = "evidence/runs/{platform_run_id}/learning/mf/candidate_bundle.json"`
+* `MF_LEAKAGE_PROVENANCE_CHECK_PATH_PATTERN = "evidence/runs/{platform_run_id}/learning/mf/leakage_provenance_check.json"`
 * `MPR_PROMOTION_RECEIPT_PATH_PATTERN = "evidence/runs/{platform_run_id}/learning/mpr/promotion_receipt.json"`
 * `MPR_ROLLBACK_DRILL_PATH_PATTERN = "evidence/runs/{platform_run_id}/learning/mpr/rollback_drill_report.json"`
 * `FULL_VERDICT_PATH_PATTERN = "evidence/runs/{platform_run_id}/full_platform/final_verdict.json"`
@@ -497,6 +502,9 @@ Allowed tokens in pattern handles:
 * `RTDL_CAUGHT_UP_LAG_MAX = 10`
 * `REPORTER_LOCK_BACKEND = "aurora_advisory_lock"`
 * `REPORTER_LOCK_KEY_PATTERN = "reporter:{platform_run_id}"`
+* `LIVE_RUNTIME_ALLOWED_ORACLE_OUTPUT_IDS = "s3_event_stream_with_fraud_6B,arrival_events_5B,s1_arrival_entities_6B,s3_flow_anchor_with_fraud_6B"`
+* `LIVE_RUNTIME_FORBIDDEN_TRUTH_OUTPUT_IDS = "s4_event_labels_6B,s4_flow_truth_labels_6B,s4_flow_bank_view_6B,s4_case_timeline_6B"`
+* `LIVE_RUNTIME_FORBIDDEN_FUTURE_FIELDS = "session_end_utc,arrival_count"`
 
 ---
 
@@ -571,6 +579,13 @@ Allowed tokens in pattern handles:
 * `OFS_ICEBERG_TABLE_PREFIX = "ofs_"`
 * `OFS_ICEBERG_WAREHOUSE_PREFIX_PATTERN = "learning/ofs/iceberg/warehouse/"`
 * `MF_FEATURE_TABLE_PREFIX = "mf_feature_"`
+* `LEARNING_REPLAY_BASIS_MODE = "origin_offset_ranges"`
+* `LEARNING_FEATURE_ASOF_REQUIRED = true`
+* `LEARNING_LABEL_ASOF_REQUIRED = true`
+* `LEARNING_LABEL_MATURITY_DAYS_DEFAULT = 30`
+* `LEARNING_FUTURE_TIMESTAMP_POLICY = "fail_closed"`
+* `LEARNING_TIMESTAMP_FIELDS = "event_ts_utc,label_observed_ts,feature_asof_utc,label_asof_utc"`
+* `DATASET_FINGERPRINT_REQUIRED_FIELDS = "replay_basis,feature_asof_utc,label_asof_utc,label_maturity_days,feature_def_set,join_scope,cohort_filters,ofs_code_release_id,mf_code_release_id"`
 
 ---
 

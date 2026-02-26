@@ -349,9 +349,11 @@ For every phase below:
 * PASS gate:
   1. label as-of policy pinned,
   2. anti-leakage checks pass,
-  3. learning input window/fingerprint basis committed.
-* Commit evidence: learning input readiness snapshot.
-* Blockers: `DFULL-RUN-B12` (leakage risk), `DFULL-RUN-B12.1` (input basis unresolved).
+  3. replay basis is pinned as `origin_offset` ranges (time windows, if used, are selectors translated to offsets and recorded),
+  4. learning input window/fingerprint basis committed,
+  5. all learning rows satisfy `event_ts_utc <= feature_asof_utc` and `label_observed_ts <= label_asof_utc` with maturity policy applied.
+* Commit evidence: learning input readiness snapshot + replay-basis receipt + leakage guardrail report.
+* Blockers: `DFULL-RUN-B12` (leakage risk), `DFULL-RUN-B12.1` (input basis unresolved), `DFULL-RUN-B12.2` (future timestamp boundary breach).
 
 ### P13 OFS_DATASET_COMMITTED
 
@@ -360,9 +362,11 @@ For every phase below:
   1. OFS dataset build completes,
   2. dataset manifest committed,
   3. dataset fingerprint committed,
-  4. rollback recipe committed.
-* Commit evidence: OFS manifest + quality report + rollback recipe.
-* Blockers: `DFULL-RUN-B13` (dataset build failure), `DFULL-RUN-B13.1` (manifest/fingerprint missing).
+  4. rollback recipe committed,
+  5. dataset manifest encodes replay basis + `feature_asof_utc` + `label_asof_utc` + `label_maturity_days`,
+  6. time-bound/leakage audit is emitted and pass.
+* Commit evidence: OFS manifest + quality report + rollback recipe + time-bound/leakage audit.
+* Blockers: `DFULL-RUN-B13` (dataset build failure), `DFULL-RUN-B13.1` (manifest/fingerprint missing), `DFULL-RUN-B13.2` (time-bound/leakage audit failure).
 
 ### P14 MF_EVAL_COMMITTED
 
@@ -371,9 +375,10 @@ For every phase below:
   1. training/evaluation run completes,
   2. metrics/leakage checks pass,
   3. candidate bundle committed with provenance,
-  4. safe-disable/rollback path committed.
-* Commit evidence: MF eval report + MLflow run refs + candidate bundle receipt.
-* Blockers: `DFULL-RUN-B14` (train/eval failure), `DFULL-RUN-B14.1` (quality gate fail).
+  4. safe-disable/rollback path committed,
+  5. candidate provenance includes upstream dataset fingerprint + replay-basis + as-of controls.
+* Commit evidence: MF eval report + MLflow run refs + candidate bundle receipt + leakage/provenance closure checks.
+* Blockers: `DFULL-RUN-B14` (train/eval failure), `DFULL-RUN-B14.1` (quality gate fail), `DFULL-RUN-B14.2` (leakage/provenance incompleteness).
 
 ### P15 MPR_PROMOTION_COMMITTED
 
@@ -430,6 +435,7 @@ For every phase below:
 3. Any missing required evidence artifact at phase closure.
 4. Any runtime drift from pinned stack substitutions.
 5. Any phase that consumed spend without an accepted cost-to-outcome receipt.
+6. Any detected future-timestamp leakage across runtime or learning lanes.
 
 ---
 

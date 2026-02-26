@@ -385,6 +385,12 @@ Every full run MUST emit a durable run bundle containing:
 * OFS: Databricks jobs build dataset artifacts/manifests against archive + labels truth and publish governed Apache Iceberg tables on S3 via Glue catalog contracts.
 * MF: SageMaker training/eval pipeline with MLflow tracking.
 * MPR: explicit governed promotion/rollback remains activation authority for runtime bundle resolution.
+* **Temporal realism contract (pinned):**
+  1. Oracle store may contain full-horizon synthetic data (`past/present/future`), but platform reads are causal and time-bounded.
+  2. Runtime lanes (`P5..P11`) MUST NOT read truth products (`s4_event_labels_6B`, `s4_flow_truth_labels_6B`, `s4_flow_bank_view_6B`, `s4_case_timeline_6B`) and MUST NOT consume future-derived fields for live decisions.
+  3. Learning lanes (`P12..P15`) may read archive + truth only through explicit replay basis (`origin_offset` ranges), `feature_asof_utc`, `label_asof_utc`, and `label_maturity_days` gates.
+  4. Dataset identity/fingerprint MUST include replay basis + as-of controls + feature-set version; any change yields a new immutable manifest/fingerprint.
+  5. Any future-timestamp leakage detection is fail-closed for phase closure.
 
 ### 6.6 Meta Layers
 
@@ -421,6 +427,14 @@ Every cross-plane output carries policy/bundle/config/release identifiers requir
 2. No local/toy substitute path is allowed for a managed lane once that lane is pinned for `dev_full`.
 3. `M0..M2` must explicitly verify production-pattern conformance before advancing to runtime semantics (`M3+`).
 4. Any deviation from this law is fail-closed and requires authority repin before execution continues.
+
+### 7.7 Temporal-causality and no-future-leakage law
+
+1. Oracle store being full-horizon is allowed; platform reads must remain causal.
+2. Runtime scoring paths may only consume event-time-safe traffic/context surfaces available at decision time.
+3. Learning paths must enforce explicit `feature_asof_utc` and `label_asof_utc` boundaries plus maturity policy.
+4. Any row violating the active as-of boundary must be rejected and recorded in leakage evidence.
+5. No phase in `P12..P14` may close green without replay-basis receipt + leakage guardrail evidence.
 
 ---
 

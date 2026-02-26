@@ -11922,3 +11922,9 @@ ext_gate=M9_READY).
 3. docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/README.md
    - posture updated to M8 DONE (M8.A..M8.J green),
    - next closure step moved to M9.A.
+
+## Entry: 2026-02-26 07:21:04 +00:00 - Authority pin: temporal realism and no-future-leakage
+- Runtime P5..P11 truth/future-field prohibition pinned.
+- Learning P12..P15 replay/as-of/maturity and leakage fail-closed pinned.
+- Added handles for replay/leakage evidence surfaces and runtime guardrails.
+
