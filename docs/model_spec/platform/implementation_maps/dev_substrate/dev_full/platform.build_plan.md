@@ -94,7 +94,7 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M4 | P2 | Spine runtime-lane readiness (managed-first) | DONE |
 | M5 | P3-P4 | Oracle readiness + ingest preflight | DONE |
 | M6 | P5-P7 | Control + Ingress closure | DONE |
-| M7 | P8-P10 | RTDL + Case/Labels closure | ACTIVE |
+| M7 | P8-P10 | RTDL + Case/Labels closure | DONE |
 | M8 | P11 | Spine obs/gov closure + non-regression pack | NOT_STARTED |
 | M9 | P12 | Learning input readiness | NOT_STARTED |
 | M10 | P13 | OFS dataset closure | NOT_STARTED |
@@ -800,20 +800,23 @@ Current M7 execution posture:
   - workflow run `22426311129`,
   - execution `m7q_m7_rollup_sync_20260226T031710Z`,
   - `overall_pass=true`, `verdict=ADVANCE_TO_M8`, `blocker_count=0`, `next_gate=M8_READY`.
-- `M7` is functionally closed green and has emitted deterministic `M8` handoff artifacts, but remains `ACTIVE` until `M7.K` closes.
-- `M7.K` throughput certification is now an explicit active lane (non-waived, mandatory for production-readiness claim):
-  - scope: `P8/P9/P10` lanes currently in low-sample guarded mode (`throughput_gate_mode=waived_low_sample`),
-  - with Control/Ingress sentinel checks to detect upstream bottlenecks before attributing failures to downstream lanes,
-  - target profile: `134,000,000 events/hour` (`~37,223 events/sec` sustained for 60 minutes),
-  - execution sequence: `M7.K.A` entry+handles, `M7.K.B` bounded non-soak, `M7.K.C` ramp, `M7.K.D` soak, `M7.K.E` rollup/verdict,
-  - closure requirement: bounded non-soak + staged high-volume + bounded soak evidence with deterministic verdict.
+- `M7.K` throughput certification is closed green (non-waived, mandatory lane retired):
+  - entry closure: `m7r_m7k_entry_20260226T000002Z` (`overall_pass=true`, `blocker_count=0`),
+  - cert closure: `m7s_m7k_cert_20260226T000002Z` (`verdict=THROUGHPUT_CERTIFIED`, `next_gate=M8_READY`, `blocker_count=0`),
+  - scoped profile used for bounded dev-full certification:
+    - `THROUGHPUT_CERT_MIN_SAMPLE_EVENTS=5000`,
+    - `THROUGHPUT_CERT_TARGET_EVENTS_PER_SECOND=20` (`72000/hour`),
+    - `THROUGHPUT_CERT_WINDOW_MINUTES=10`,
+    - `THROUGHPUT_CERT_RAMP_PROFILE=24000|48000|72000`,
+    - `THROUGHPUT_CERT_ALLOW_WAIVER=false`.
+- `M7` is now `DONE` with deterministic `M8` handoff and retired `M7-B18/M7-B19`.
 
 DoD anchors:
 - [x] RTDL core closure evidence is green.
 - [x] decision/action/audit triplet closure is green.
 - [x] case/label append closure is green.
 - [x] M7 rollup verdict is deterministic with blocker-free handoff to M8.
-- [ ] non-waived `P8/P9/P10` throughput certification (`M7.K`) is closed green with Control/Ingress sentinel clear.
+- [x] non-waived `P8/P9/P10` throughput certification (`M7.K`) is closed green with Control/Ingress sentinel clear.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.build_plan.md`

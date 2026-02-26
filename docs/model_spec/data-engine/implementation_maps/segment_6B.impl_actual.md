@@ -3780,3 +3780,50 @@ Validation:
 Next:
 - stage a fresh run from authority baseline and execute `S3 -> S4 -> S5`,
 - score `T1..T22`, emit P3 closure artifacts, and decide `UNLOCK_P4` vs `HOLD_P3_REOPEN`.
+
+---
+
+### Entry: 2026-02-26 05:47
+
+P3 witness execution complete (`run_id=dbbcd2e7383a4206b6d16c668b20d4e0`), with realism closure and runtime blocker.
+
+Execution lane:
+- staged fresh run from `ac712b0b5e3f4ae5b5fd1a2af1662d4b` using junctioned prerequisites for:
+  - `S0/S1/S2`,
+  - upstream validation bundle roots (`1A..3B`, `5A`, `5B`, `6A`),
+  - seeded upstream RNG trace modules (`6B.S1`, `6B.S2`) for S5 contract checks.
+- executed:
+  - `make segment6b-s3`,
+  - `make segment6b-s4`,
+  - `make segment6b-s5`,
+  - `python tools/score_segment6b_p0_baseline.py ...`.
+
+Statistical outcome:
+- `T17` closed strongly:
+  - baseline `campaign_count=5`, `class_v=0.029388` (FAIL),
+  - candidate `campaign_count=6`, `class_v=0.188837` (PASS_B / PASS_BPLUS).
+- `T18` remained pass and improved:
+  - baseline `tz_corridor_v=0.108057`, `median_tz=64.0`,
+  - candidate `tz_corridor_v=0.343476`, `median_tz=43.5`.
+- hard rails remained stable:
+  - `T1-T16`, `T21`, `T22` all pass,
+  - `S5` required checks pass.
+- stretch failure map moved from `['T17','T19']` to `['T19']`.
+
+Runtime outcome:
+- candidate elapsed:
+  - `S3=851.20s`, `S4=419.12s`, `S5=20.64s`.
+- versus pinned `ac712...` first-pass reference:
+  - `S3=400.42s`, `S4=405.50s`, `S5=19.83s`.
+- blocker:
+  - `S3` materially regressed and breached stretch rail (`<=380s`), while `S4/S5` remained in-rail.
+
+Decision:
+- phase posture is `HOLD_P3_REOPEN_PERF`.
+- realism objective for P3 (`T17/T18`) is achieved, but performance-first gate blocks `UNLOCK_P4` until `S3` runtime is reopened and re-closed.
+
+Artifacts:
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_dbbcd2e7383a4206b6d16c668b20d4e0.json`,
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_dbbcd2e7383a4206b6d16c668b20d4e0.md`,
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p3_closure_dbbcd2e7383a4206b6d16c668b20d4e0.json`,
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p3_closure_dbbcd2e7383a4206b6d16c668b20d4e0.md`.

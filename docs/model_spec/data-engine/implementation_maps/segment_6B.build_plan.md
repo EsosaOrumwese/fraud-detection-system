@@ -1353,9 +1353,9 @@ Goal:
 
 Definition of done:
 - [ ] campaign multiplicity restored (bounded by policy).
-- [ ] targeting depth improved across class/segment/geo/time signatures.
-- [ ] `T17-T18` reach `B` thresholds and push toward `B+`.
-- [ ] `T1-T16`, `T21`, `T22` remain passing.
+- [x] targeting depth improved across class/segment/geo/time signatures.
+- [x] `T17-T18` reach `B` thresholds and push toward `B+`.
+- [x] `T1-T16`, `T21`, `T22` remain passing.
 
 P3 expanded execution plan:
 
@@ -1382,16 +1382,16 @@ Goal:
 - increase campaign-vs-class differentiation by moving flow campaign pick from pure flow-hash overlap to deterministic merchant-cohort targeting with anti-starvation guardrails.
 
 Definition of done:
-- [ ] implement deterministic merchant-cohort targeting in `S3` campaign assignment for flow surface:
+- [x] implement deterministic merchant-cohort targeting in `S3` campaign assignment for flow surface:
   - campaign-specific cohort windows over merchant hash buckets,
   - preserved deterministic run reproducibility for fixed `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
-- [ ] implement anti-starvation threshold floor for positive target campaigns:
+- [x] implement anti-starvation threshold floor for positive target campaigns:
   - campaigns with `target_count > 0` cannot collapse to zero-probability due integer truncation.
-- [ ] preserve existing output schemas and required columns for:
+- [x] preserve existing output schemas and required columns for:
   - `s3_flow_anchor_with_fraud_6B`,
   - `s3_event_stream_with_fraud_6B`,
   - `s3_campaign_catalogue_6B`.
-- [ ] preserve overlay guardrails:
+- [x] preserve overlay guardrails:
   - no uncontrolled fraud explosion,
   - campaign target totals remain bounded by policy guardrails.
 
@@ -1400,12 +1400,12 @@ Goal:
 - execute a fresh `6B` lane with only `S3` owner changes and produce reproducible evidence.
 
 Definition of done:
-- [ ] fresh run-id staged under `runs/fix-data-engine/segment_6B/<new_run_id>` from pinned authority baseline prerequisites.
-- [ ] execute:
+- [x] fresh run-id staged under `runs/fix-data-engine/segment_6B/<new_run_id>` from pinned authority baseline prerequisites.
+- [x] execute:
   - `make segment6b-s3`,
   - `make segment6b-s4`,
   - `make segment6b-s5`.
-- [ ] score gateboard:
+- [x] score gateboard:
   - `tools/score_segment6b_p0_baseline.py` with pinned merchant-class and arrival-events authorities.
 
 #### P3.4 - Closure scoring + decision
@@ -1413,18 +1413,37 @@ Goal:
 - determine whether P3 is closed for `B` and whether `B+` is reachable without reopening upstream owners.
 
 Definition of done:
-- [ ] closure artifacts emitted:
+- [x] closure artifacts emitted:
   - `segment6b_p0_realism_gateboard_<run_id>.json/.md`,
   - `segment6b_p3_closure_<run_id>.json/.md`.
-- [ ] gate outcomes:
+- [x] gate outcomes:
   - `T17` reaches `B` (`campaign_count>=4` and `class_v>=0.03`),
   - `T18` remains `B` `PASS`.
-- [ ] non-regression outcomes:
+- [x] non-regression outcomes:
   - all hard gates stay `PASS`,
   - no new required-check failures in `S5`.
-- [ ] phase decision emitted:
+- [x] phase decision emitted:
   - `UNLOCK_P4` if `P3` closure criteria hold,
   - else `HOLD_P3_REOPEN` with next `S3` lane explicitly pinned.
+
+Execution outcome (`run_id=dbbcd2e7383a4206b6d16c668b20d4e0`):
+- closure artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_dbbcd2e7383a4206b6d16c668b20d4e0.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_dbbcd2e7383a4206b6d16c668b20d4e0.md`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p3_closure_dbbcd2e7383a4206b6d16c668b20d4e0.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p3_closure_dbbcd2e7383a4206b6d16c668b20d4e0.md`.
+- target realism movement:
+  - `T17`: `campaigns=5, class_v=0.029388` -> `campaigns=6, class_v=0.188837` (`FAIL -> PASS_B/B+`),
+  - `T18`: `tz_corridor_v=0.108057, median_tz=64.00` -> `tz_corridor_v=0.343476, median_tz=43.50` (`PASS -> PASS`).
+- hard-gate posture:
+  - `T1-T16`, `T21`, `T22` remain `PASS`; no required-check failures in `S5`.
+- runtime posture versus `ac712...` first-pass reference:
+  - `S3`: `400.42s -> 851.20s` (rail breach),
+  - `S4`: `405.50s -> 419.12s` (within rail),
+  - `S5`: `19.83s -> 20.64s` (within rail).
+- phase decision:
+  - `HOLD_P3_REOPEN_PERF`.
+  - `T17/T18` realism closure is achieved, but `S3` runtime regression blocks `UNLOCK_P4` under performance-first gates.
 
 ### P4 - Wave C (`S1` context/session realism closure)
 Goal:
