@@ -52,8 +52,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  TF_VAR_confluent_cloud_api_key: ${{ secrets.TF_VAR_CONFLUENT_CLOUD_API_KEY }}
-  TF_VAR_confluent_cloud_api_secret: ${{ secrets.TF_VAR_CONFLUENT_CLOUD_API_SECRET }}
   CONFLUENT_CLOUD_API_KEY: ${{ secrets.TF_VAR_CONFLUENT_CLOUD_API_KEY }}
   CONFLUENT_CLOUD_API_SECRET: ${{ secrets.TF_VAR_CONFLUENT_CLOUD_API_SECRET }}
 
@@ -78,11 +76,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "${CONFLUENT_CLOUD_API_KEY:-}" && -z "${TF_VAR_confluent_cloud_api_key:-}" ]]; then
+          if [[ -z "${CONFLUENT_CLOUD_API_KEY:-}" ]]; then
             echo "Missing CONFLUENT_CLOUD_API_KEY mapping from GitHub secret TF_VAR_CONFLUENT_CLOUD_API_KEY."
             exit 1
           fi
-          if [[ -z "${CONFLUENT_CLOUD_API_SECRET:-}" && -z "${TF_VAR_confluent_cloud_api_secret:-}" ]]; then
+          if [[ -z "${CONFLUENT_CLOUD_API_SECRET:-}" ]]; then
             echo "Missing CONFLUENT_CLOUD_API_SECRET mapping from GitHub secret TF_VAR_CONFLUENT_CLOUD_API_SECRET."
             exit 1
           fi
@@ -147,8 +145,8 @@ jobs:
           end_input = os.environ.get("END_DATE_INPUT", "").strip()
           evidence_s3_uri = os.environ.get("EVIDENCE_S3_URI", "")
 
-          api_key = os.environ.get("CONFLUENT_CLOUD_API_KEY", "") or os.environ.get("TF_VAR_confluent_cloud_api_key", "")
-          api_secret = os.environ.get("CONFLUENT_CLOUD_API_SECRET", "") or os.environ.get("TF_VAR_confluent_cloud_api_secret", "")
+          api_key = os.environ.get("CONFLUENT_CLOUD_API_KEY", "")
+          api_secret = os.environ.get("CONFLUENT_CLOUD_API_SECRET", "")
 
           now = datetime.now(UTC)
           start_date = start_input if start_input else now.replace(day=1).strftime("%Y-%m-%d")
@@ -165,23 +163,12 @@ jobs:
               return None
             try:
               return Decimal(str(v))
-            except (InvalidOperation, ValueError, TypeError):
+            except (InvalidOperation, ValueError):
               return None
 
           if not api_key or not api_secret:
             blockers.append("CONFLUENT_BILLING_SECRET_MISSING")
-
-          def parse_ymd(label, value):
-            try:
-              return datetime.strptime(value, "%Y-%m-%d").date()
-            except ValueError as exc:
-              blockers.append("INVALID_BILLING_DATE_FORMAT")
-              errors.append({"surface": f"input.{label}", "error": str(exc), "raw_value": value})
-              return None
-
-          start_date_obj = parse_ymd("start_date", start_date)
-          end_date_obj = parse_ymd("end_date", end_date)
-          if start_date_obj is not None and end_date_obj is not None and start_date_obj > end_date_obj:
+          if start_date > end_date:
             blockers.append("INVALID_BILLING_DATE_RANGE")
 
           url = (
@@ -254,7 +241,7 @@ jobs:
             "lane": "M9.G.confluent_billing_managed",
             "m9_execution_id": m9_execution_id,
             "query_window": {"start_date": start_date, "end_date": end_date},
-            "confluent_mtd_cost_amount": str(total) if overall_pass else None,
+            "confluent_mtd_cost_amount": float(total) if overall_pass else None,
             "billing_currency": currency,
             "line_item_count": len(line_items),
             "page_count": page_count,
@@ -279,7 +266,7 @@ jobs:
             f.write(f"overall_pass={'true' if overall_pass else 'false'}\n")
             f.write(
               "confluent_mtd_cost_amount="
-              + (str(total) if overall_pass else "")
+              + (str(float(total)) if overall_pass else "")
               + "\n"
             )
           PY

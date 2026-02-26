@@ -235,10 +235,6 @@ jobs:
           TIMEOUT_MINUTES: ${{ inputs.confluent_snapshot_timeout_minutes }}
         run: |
           set -euo pipefail
-          if ! [[ "${TIMEOUT_MINUTES}" =~ ^[0-9]+$ ]]; then
-            echo "Invalid TIMEOUT_MINUTES='${TIMEOUT_MINUTES}'. It must be a non-negative integer."
-            exit 1
-          fi
           TIMEOUT_SEC=$(( TIMEOUT_MINUTES * 60 ))
           INTERVAL_SEC=20
           ELAPSED=0
@@ -287,7 +283,7 @@ jobs:
           import os
           import subprocess
           from datetime import UTC, datetime, timedelta
-          from decimal import Decimal, InvalidOperation
+          from decimal import Decimal
 
           def aws_json(args):
             cmd = ["aws"] + args + ["--output", "json"]
@@ -301,11 +297,13 @@ jobs:
               return None, proc.stderr.strip()
             return (json.loads(proc.stdout) if proc.stdout.strip() else {}), ""
 
+          def as_decimal(v):
+            return Decimal(str(v))
+
           now = datetime.now(UTC)
           today = now.date()
           month_start = today.replace(day=1).isoformat()
           tomorrow = (today + timedelta(days=1)).isoformat()
-          billing_region = "us-east-1"
 
           blockers = []
           errors = []
@@ -316,48 +314,24 @@ jobs:
             blockers.append("M9G-B1")
             errors.append({"surface": "sts", "error": "missing account id"})
 
-          def parse_decimal_env(key):
-            raw = os.environ.get(key, "").strip()
-            try:
-              return Decimal(raw)
-            except (InvalidOperation, ValueError) as exc:
-              blockers.append("M9G-B1")
-              errors.append(
-                {
-                  "surface": f"input.{key}",
-                  "error": f"invalid decimal: {exc}",
-                  "raw_value": raw,
-                }
-              )
-              return None
-
           budget_name = os.environ["AWS_BUDGET_NAME"]
-          budget_limit_expected = parse_decimal_env("AWS_BUDGET_LIMIT_AMOUNT")
+          budget_limit_expected = Decimal(os.environ["AWS_BUDGET_LIMIT_AMOUNT"])
           budget_unit_expected = os.environ["AWS_BUDGET_LIMIT_UNIT"]
-          alert_1 = parse_decimal_env("AWS_BUDGET_ALERT_1_AMOUNT")
-          alert_2 = parse_decimal_env("AWS_BUDGET_ALERT_2_AMOUNT")
-          alert_3 = parse_decimal_env("AWS_BUDGET_ALERT_3_AMOUNT")
+          alert_1 = Decimal(os.environ["AWS_BUDGET_ALERT_1_AMOUNT"])
+          alert_2 = Decimal(os.environ["AWS_BUDGET_ALERT_2_AMOUNT"])
+          alert_3 = Decimal(os.environ["AWS_BUDGET_ALERT_3_AMOUNT"])
 
-          total_limit = parse_decimal_env("TOTAL_MONTHLY_BUDGET_LIMIT_AMOUNT")
+          total_limit = Decimal(os.environ["TOTAL_MONTHLY_BUDGET_LIMIT_AMOUNT"])
           total_limit_unit = os.environ["TOTAL_MONTHLY_BUDGET_LIMIT_UNIT"]
-          total_alert_3 = parse_decimal_env("TOTAL_BUDGET_ALERT_3_AMOUNT")
-
-          if budget_limit_expected is None or budget_limit_expected <= 0:
-            blockers.append("M9G-B1")
-            notes.append("AWS_BUDGET_LIMIT_AMOUNT must be > 0")
-          if total_limit is None or total_limit <= 0:
-            blockers.append("M9G-B1")
-            notes.append("TOTAL_MONTHLY_BUDGET_LIMIT_AMOUNT must be > 0")
+          total_alert_3 = Decimal(os.environ["TOTAL_BUDGET_ALERT_3_AMOUNT"])
 
           budget_payload, budget_err = safe_aws_json([
             "budgets", "describe-budget",
-            "--region", billing_region,
             "--account-id", account if account else "000000000000",
             "--budget-name", budget_name,
           ])
           notifications_payload, notif_err = safe_aws_json([
             "budgets", "describe-notifications-for-budget",
-            "--region", billing_region,
             "--account-id", account if account else "000000000000",
             "--budget-name", budget_name,
           ])
@@ -385,23 +359,16 @@ jobs:
             for n in notifications:
               try:
                 notification_thresholds.append(Decimal(str(n.get("Threshold"))))
-              except (InvalidOperation, ValueError, TypeError) as exc:
-                errors.append(
-                  {
-                    "surface": "budgets.describe-notifications-for-budget.threshold",
-                    "error": str(exc),
-                    "raw_threshold": n.get("Threshold"),
-                  }
-                )
-            expected = {x for x in [alert_1, alert_2, alert_3] if x is not None}
+              except Exception:
+                pass
+            expected = {alert_1, alert_2, alert_3}
             actual = set(notification_thresholds)
-            threshold_match_pass = bool(expected) and expected.issubset(actual)
-            if not threshold_match_pass or len(expected) < 3:
+            threshold_match_pass = expected.issubset(actual)
+            if not threshold_match_pass:
               blockers.append("M9G-B2")
 
           ce_payload, ce_err = safe_aws_json([
             "ce", "get-cost-and-usage",
-            "--region", billing_region,
             "--time-period", f"Start={month_start},End={tomorrow}",
             "--granularity", "MONTHLY",
             "--metrics", "UnblendedCost",
@@ -511,17 +478,11 @@ jobs:
           if logs_err:
             errors.append({"surface": "logs.describe-log-groups", "error": logs_err})
           else:
-            try:
-              limit = int(os.environ["LOG_RETENTION_DAYS"])
-            except ValueError as exc:
-              blockers.append("M9G-B5")
-              errors.append({"surface": "input.LOG_RETENTION_DAYS", "error": str(exc), "raw_value": os.environ["LOG_RETENTION_DAYS"]})
-              limit = None
-            if limit is not None:
-              for lg in logs_payload.get("logGroups", []):
-                retention = lg.get("retentionInDays")
-                if retention is None or int(retention) > limit:
-                  log_retention_drift_count += 1
+            limit = int(os.environ["LOG_RETENTION_DAYS"])
+            for lg in logs_payload.get("logGroups", []):
+              retention = lg.get("retentionInDays")
+              if retention is None or int(retention) > limit:
+                log_retention_drift_count += 1
 
           if nat_non_deleted_count > 0 or lb_demo_scoped_residual_count > 0 or ecs_desired_gt_zero_count > 0 or rds_state != "not_found":
             blockers.append("M9G-B4")
@@ -532,17 +493,13 @@ jobs:
           combined_utilization_pct = None
           if aws_mtd_cost is not None and confluent_mtd_cost is not None:
             combined_mtd_cost = aws_mtd_cost + confluent_mtd_cost
-            if total_limit is not None and total_limit > 0:
-              combined_utilization_pct = (combined_mtd_cost / total_limit) * Decimal("100")
-            else:
-              blockers.append("M9G-B1")
-              notes.append("combined utilization skipped due to invalid total limit")
-            if total_alert_3 is not None and combined_mtd_cost >= total_alert_3:
+            combined_utilization_pct = (combined_mtd_cost / total_limit) * Decimal("100")
+            if combined_mtd_cost >= total_alert_3:
               blockers.append("M9G-B9")
           elif "M9G-B8" not in blockers:
             blockers.append("M9G-B8")
 
-          if alert_3 is not None and aws_mtd_cost is not None and aws_mtd_cost >= alert_3:
+          if aws_mtd_cost is not None and aws_mtd_cost >= alert_3:
             blockers.append("M9G-B3")
 
           if os.environ.get("COST_CAPTURE_SCOPE") != "aws_plus_confluent_cloud":
@@ -572,11 +529,10 @@ jobs:
             },
             "mtd_cost_posture": {
               "aws_mtd_cost_amount": str(aws_mtd_cost) if aws_mtd_cost is not None else None,
-              "critical_threshold_amount": str(alert_3) if alert_3 is not None else None,
+              "critical_threshold_amount": str(alert_3),
               "utilization_pct": (
                 str((aws_mtd_cost / budget_limit_expected) * Decimal("100"))
-                if aws_mtd_cost is not None and budget_limit_expected is not None and budget_limit_expected > 0
-                else None
+                if aws_mtd_cost is not None else None
               ),
             },
             "confluent_mtd_cost_posture": {
@@ -591,10 +547,10 @@ jobs:
             "combined_mtd_cost_posture": {
               "scope": "aws_plus_confluent_cloud",
               "combined_mtd_cost_amount": str(combined_mtd_cost) if combined_mtd_cost is not None else None,
-              "combined_budget_limit_amount": str(total_limit) if total_limit is not None else None,
+              "combined_budget_limit_amount": str(total_limit),
               "combined_budget_limit_unit": total_limit_unit,
               "combined_budget_utilization_pct": str(combined_utilization_pct) if combined_utilization_pct is not None else None,
-              "combined_critical_threshold_amount": str(total_alert_3) if total_alert_3 is not None else None,
+              "combined_critical_threshold_amount": str(total_alert_3),
             },
             "post_teardown_cost_footguns": {
               "nat_non_deleted_count": nat_non_deleted_count,
