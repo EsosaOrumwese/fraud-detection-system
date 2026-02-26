@@ -28,6 +28,7 @@ Container delivery usually fails in three practical ways:
 - release identity is mutable or ambiguous (for example tag-only deployment),
 - release evidence is incomplete (build happened but traceability is weak),
 - checks fail but releases still advance due to weak enforcement.
+
 Container delivery also fails when build surface is uncontrolled:
 - repo-wide copy behavior makes image contents nondeterministic,
 - accidental secret/data inclusion risk increases in large mono-repos,
