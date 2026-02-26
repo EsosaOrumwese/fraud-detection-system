@@ -1213,6 +1213,16 @@ M10 execution status:
    - Databricks run id: `1099244903700940` (`TERMINATED/SUCCESS`),
    - durable evidence:
      - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10d_ofs_build_20260226T143036Z/`.
+7. `M10.E` quality-gate adjudication is now green in managed lane:
+   - workflow: `.github/workflows/dev_full_m10_d_managed.yml`,
+   - Actions run: `22447779212` (`migrate-dev`, commit `e0ad20e8`),
+   - execution: `m10e_quality_gate_20260226T150339Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M10.F_READY`,
+   - leakage/time-bound posture:
+     - `leakage_overall_pass=true`,
+     - `leakage_future_breach_count=0`,
+   - durable evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10e_quality_gate_20260226T150339Z/`.
 
 DoD anchors:
 - [ ] OFS manifest committed.
@@ -1345,4 +1355,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M10.E` (quality-gate adjudication) using `M10.D` green closure (`m10d_ofs_build_20260226T143036Z`) as entry basis.
+- Expand and execute `M10.F` (Iceberg + Glue commit verification) using `M10.E` green closure (`m10e_quality_gate_20260226T150339Z`) as entry basis.

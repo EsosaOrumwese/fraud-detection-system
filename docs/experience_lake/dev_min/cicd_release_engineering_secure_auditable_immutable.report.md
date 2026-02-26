@@ -496,51 +496,121 @@ Operational effect:
 - review does not require reconstructing behavior across mixed local and remote paths.
 
 ### 6.3 Federated CI authentication implementation (OpenID Connect)
-Cloud authentication for CI was implemented with role assumption through OpenID Connect trust.
+Cloud authentication for CI was implemented with role assumption through OpenID Connect (OIDC) trust to GitHub Actions. This removes static credentials and makes CI identity challengeable.
 
-Implementation behavior:
-- workflow obtains short-lived cloud credentials via federated trust,
-- if trust/provider prerequisites are missing, execution fails before registry actions.
+**Concrete trust boundary (implemented):**
+- role assumed by CI: `GitHubAction-AssumeRoleWithAction`
+- OIDC provider: `arn:aws:iam::230372904534:oidc-provider/token.actions.githubusercontent.com`
+- audience constraint (`token.actions.githubusercontent.com:aud`): `sts.amazonaws.com`
+- subject constraint (`token.actions.githubusercontent.com:sub`) is restricted to these repo refs:
+  - `repo:EsosaOrumwese/fraud-detection-system:ref:refs/heads/main`
+  - `repo:EsosaOrumwese/fraud-detection-system:ref:refs/heads/dev`
+  - `repo:EsosaOrumwese/fraud-detection-system:ref:refs/heads/migrate-dev`
 
-Failure class that was closed:
-- missing OpenID Connect provider/trust prerequisites caused early run failure,
-- remediation materialized the required trust path and reran the same workflow path.
+**Fail-closed behavior (observed):**
+If the OIDC provider/trust prerequisites are absent, the workflow fails before any registry actions (no publish can occur without identity closure).
+
+**Observed failure signature (Run 1):**
+- run: `21985402789` (triggered `2026-02-13T11:36:26Z`, ref `migrate-dev`, commit `799d398`)
+- failure excerpt:
+  `Could not assume role with OIDC: No OpenIDConnect provider found in your account for https://token.actions.githubusercontent.com`
+
+**Remediation (what changed):**
+- Materialized the missing OIDC provider/trust prerequisites and reran the same authoritative workflow path.
+
+**Closure confirmation (progression evidence):**
+- Run 2 (`21985472266`) progressed past authentication and reached the registry stage, proving the authentication plane was closed independently of registry authorization.
 
 ### 6.4 Least-privilege registry authorization implementation
-After authentication closure, registry authorization was implemented and hardened as a separate control surface.
+After authentication closure, registry authorization was implemented and hardened as a separate control surface. The goal was not “it can push,” but “it can push with bounded, reviewable permissions.”
 
-Implementation behavior:
-- role policy includes only required registry action scope for login and publish behavior,
-- explicit token retrieval closure was required (`ecr:GetAuthorizationToken`),
-- repository push/read scope was bounded to required behavior.
+**Implemented policy scope (least privilege):**
+- policy name: `GitHubActionsEcrPushDevMin`
+- repository scope: `arn:aws:ecr:eu-west-2:230372904534:repository/fraud-platform-dev-min`
+- allowed ECR actions:
+  - `ecr:GetAuthorizationToken` (resource must be `*` by AWS design)
+  - `ecr:BatchCheckLayerAvailability`
+  - `ecr:BatchGetImage`
+  - `ecr:CompleteLayerUpload`
+  - `ecr:DescribeImages`
+  - `ecr:GetDownloadUrlForLayer`
+  - `ecr:InitiateLayerUpload`
+  - `ecr:PutImage`
+  - `ecr:UploadLayerPart`
 
-Failure class that was closed:
-- role assumption succeeded but publish failed because action scope was incomplete,
-- remediation updated policy scope and reran to closure.
+**Fail-closed behavior (observed):**
+If token retrieval and required publish actions are not authorized, the workflow fails at the registry boundary (no “partial publish” state is accepted).
+
+**Observed failure signature (Run 2):**
+- run: `21985472266` (triggered `2026-02-13T11:38:58Z`, ref `dev`, commit `799d398`)
+- failure excerpt:
+  `... is not authorized to perform: ecr:GetAuthorizationToken on resource: * because no identity-based policy allows the ecr:GetAuthorizationToken action`
+
+**Remediation (what changed):**
+- Added `ecr:GetAuthorizationToken` and required publish actions under the bounded repository scope, then reran the same workflow path.
+
+**Closure confirmation (progression evidence):**
+- Run 3 (`21985500168`) passed authorization and published successfully, proving the authorization plane was closed independently after authentication was already closed.
 
 ### 6.5 Deterministic build-surface implementation (monorepo controls)
-Determinism controls were implemented at build-context and dependency-surface boundaries.
+Determinism controls were implemented at the build-context boundary and the dependency-surface boundary. The objective was “bounded and repeatable contents,” not “whatever happens to be in the repo at build time.”
 
-Implementation behavior:
-- image context is governed by explicit include/exclude policy,
-- repository-wide implicit copy posture is rejected,
-- dependency selection is explicit and checked to avoid accidental or missing runtime modules.
+**Build-context policy (implemented via `.dockerignore`):**
+- default deny-all: `**`
+- only an explicit allowlist is re-opened, including:
+  - `Dockerfile`
+  - `pyproject.toml`
+  - `src/fraud_detection/**`
+  - `config/platform/**`
+  - specific contract/schema documents required for runtime
+- therefore excluded-by-policy (examples of broad surfaces intentionally not shipped):
+  - `artefacts/**`, `runs/**`, `infra/**`, `docs/experience_lake/**`, `docs/logbook/**`
+  - scratch/test support surfaces and any other path not explicitly allowlisted
 
 Operational effect:
-- image content is bounded and reproducible under the same source and policy inputs,
-- monorepo noise and accidental file inclusion are reduced materially.
+- prevents accidental shipping of local run outputs, large artefact directories, infra trees, and unrelated docs into runtime images.
+- makes the build context reproducible by policy (not by convention).
+
+**Dependency-surface policy (implemented in Dockerfile):**
+- Dockerfile parses `pyproject.toml` dependencies, filters against an explicit `selected` set, fails the build if required pins are missing, and installs only the selected requirements.
+- this enforces deterministic dependency inclusion and prevents opportunistic “whatever was installed locally” drift.
 
 ### 6.6 Immutable identity and provenance implementation
-Release identity and evidence were wired as mandatory outputs, not optional metadata.
+Release identity and evidence were wired as mandatory outputs, not optional metadata. Acceptance requires both a human-readable tag and an immutable digest, plus a machine-readable provenance payload tying the artifact back to source and build execution.
 
-Implementation behavior:
-- successful publish emits both tag and digest,
-- digest is treated as canonical artifact identity,
-- machine-readable provenance is emitted with source/build/artifact/gate linkage.
+**Immutable identity (implemented):**
+- workflow emits both:
+  - `image_tag` of the form `git-<full_commit_sha>`
+  - `image_digest` (`sha256:...`) treated as canonical identity
+- the workflow prints tag+digest as explicit outputs (not hidden in logs)
+
+**Example published identity (successful closure run):**
+- ECR repo: `230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-min` (region `eu-west-2`)
+- CI run: `21985500168`
+- tag: `git-799d398a7daf34857cf363c9a1a629c40ec25d5e`
+- digest: `sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56`
+
+**Provenance payload (implemented; machine-readable):**
+The provenance object captures (non-secret) linkage across phase/run/source/build/artifact identity. Key fields include:
+- `phase_id`, `platform_run_id`, `written_at_utc`
+- `image_tag`, `image_digest`, `git_sha`, `build_completed_at_utc`, `build_actor`
+- `ecr_repo_uri`, `image_reference_mode`, `dockerfile_path`, `build_path`
+- `oci_digest_algo`, `oci_digest_value`
+
+**Example provenance values (same closure):**
+- `platform_run_id=platform_20260213T114002Z`
+- `written_at_utc=2026-02-13T11:41:03Z`
+- `git_sha=799d398a7daf34857cf363c9a1a629c40ec25d5e`
+- `ci_run_id=21985500168`
+- `image_tag=git-799d398a7daf34857cf363c9a1a629c40ec25d5e`
+- `image_digest=sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56`
+- `ecr_repo_uri=230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-min`
+- `build_completed_at_utc=2026-02-13T11:41:03Z`
+- `build_actor=EsosaOrumwese`
 
 Operational effect:
-- promotion and rollback can target immutable identity,
-- incident analysis can trace exactly what artifact was produced and accepted.
+- promotion/rollback can target immutable digest identity,
+- reviewers can challenge “what ran” with a single compact record (source + build + artifact).
 
 ### 6.7 Fail-closed gate implementation
 Release gates were implemented to block acceptance whenever required controls or evidence were incomplete.
@@ -723,44 +793,59 @@ The merged CI/CD release control objective was achieved:
 This was not a single-pass success. It was a controlled fail/fail/pass closure sequence plus a packaging-drift corrective cycle through the same authoritative workflow path.
 
 ### 9.2 Fail/fail/pass sequence result (identity and authorization planes)
-Observed sequence:
+The closure was a controlled fail/fail/pass sequence demonstrating independent gate isolation (authn vs authz) and fail-closed release acceptance.
 
-1. Run 1 (`21985402789`)
-- result class: fail.
-- blocker class: authentication bootstrap (OpenID Connect trust/provider not fully materialized).
-- operational meaning: publish blocked before registry stage.
-
-2. Run 2 (`21985472266`)
-- result class: fail.
-- blocker class: authorization scope (`ecr:GetAuthorizationToken` and required registry action closure incomplete).
-- operational meaning: authentication progressed, publish still blocked by scoped permissions.
-
-3. Run 3 (`21985500168`)
-- result class: pass.
-- blocker state: closed for both authentication and authorization planes.
-- operational meaning: publish workflow path closed under intended security controls and proceeded with required release outputs.
+| Run ID | Triggered at (UTC) | Ref | Commit | Status | Total | Build+push job | Observed failure excerpt |
+|---:|---|---|---|---|---:|---:|---|
+| 21985402789 | 2026-02-13T11:36:26Z | migrate-dev | 799d398 | FAIL | 81s | 76s | No OpenIDConnect provider found for `token.actions.githubusercontent.com` |
+| 21985472266 | 2026-02-13T11:38:58Z | dev | 799d398 | FAIL | 18s | 14s | Not authorized: `ecr:GetAuthorizationToken` on `*` |
+| 21985500168 | 2026-02-13T11:40:02Z | dev | 799d398 | PASS | 64s | 60s | — |
+| 22207368985 | 2026-02-20T01:21:47Z | migrate-dev | 7e7a77d | PASS | 69s | 64s | — |
 
 Interpretation:
-- the system demonstrated correct gate isolation and deterministic remediation ordering.
+- Run 1 failed before registry stage, proving CI identity closure is a hard prerequisite (fail-closed authentication gate).
+- Run 2 progressed past identity but failed at ECR token retrieval, proving authorization is independently gated (fail-closed authorization gate).
+- Run 3 published successfully after authn+authz remediations, proving the workflow path closes under intended security controls.
+- Run 4 demonstrates the same workflow path can remediate packaging drift without bypassing release controls (see §9.4).
 
 ### 9.3 Immutable release identity outcome
-Successful closure produced immutable artifact identity outputs usable for promotion and rollback.
+Successful closure produced immutable artifact identity usable for promotion and rollback.
 
-Example identity evidence from successful publish path:
-- digest `sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56`
+Identity is emitted as both:
+- `image_tag` (human-readable, source-correlated)
+- `image_digest` (immutable, canonical identity)
+
+Example identity (from successful publish closure, region `eu-west-2`, repo `fraud-platform-dev-min`):
+- tag: `git-799d398a7daf34857cf363c9a1a629c40ec25d5e`
+- digest: `sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56`
 
 Operational significance:
-- release identity moved from mutable tag narrative to digest-anchored control evidence.
+- release identity moved from mutable tag narrative to digest-anchored control evidence,
+- tag remains useful for source correlation, while digest is the immutable “what exactly shipped” anchor.
 
 ### 9.4 Packaging-drift remediation outcome
-A packaging-drift defect was handled without bypassing controls:
-- defect class: required runtime module absent from built image due to dependency-surface drift,
-- remediation posture: fix build/dependency selection, then rebuild and republish through authoritative workflow path,
-- closure marker: `dev-min-m1-packaging` run `22207368985`,
-- post-fix digest: `sha256:ac6e7c42f230f6354c74db7746e0d28d23e10f43e44a3788992aa6ceca3dcd46`.
+A packaging-drift defect was handled without bypassing controls.
+
+**Observed defect (symptom):**
+- `ModuleNotFoundError: No module named 'confluent_kafka'`
+
+**Root cause class:**
+- the deterministic dependency-surface policy intentionally installs only an explicit curated set; `confluent-kafka` was not yet included in that curated selector set.
+
+**Remediation (what changed):**
+- Added `confluent-kafka` to the Dockerfile curated dependency selector,
+- rebuilt and published a new immutable image through the same authoritative workflow path (no out-of-band mutation).
+
+**Time-to-recovery (measured from implementation log timestamps):**
+- ~13 minutes (detection `2026-02-20 10:11:00` → successful CI packaging publication `2026-02-20 10:24:00`)
+
+**Closure marker:**
+- `dev-min-m1-packaging` run `22207368985`
+- post-fix digest: `sha256:ac6e7c42f230f6354c74db7746e0d28d23e10f43e44a3788992aa6ceca3dcd46`
 
 Operational significance:
-- remediation preserved chain-of-custody and did not rely on out-of-band image mutation.
+- remediation preserved chain-of-custody,
+- deterministic build policy did its job: it prevented silent dependency creep and forced explicit, reviewable inclusion.
 
 ### 9.5 What changed operationally after closure
 After closure, release behavior changed in four material ways:

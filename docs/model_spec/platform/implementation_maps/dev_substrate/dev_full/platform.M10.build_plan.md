@@ -384,14 +384,64 @@ Execution status:
 Goal:
 1. verify dataset quality gates and leakage/time-bound posture.
 
-Tasks:
-1. run/collect quality gate outcomes.
-2. fail-closed on threshold or leakage/time-bound violations.
-3. emit `m10e_quality_gate_snapshot.json`.
+Required upstream basis:
+1. `M10.D` pass summary (`overall_pass=true`, `next_gate=M10.E_READY`).
+2. `M10.D` snapshot with Databricks terminal `TERMINATED/SUCCESS`.
+3. run-scoped leakage guardrail report:
+   - `LEARNING_LEAKAGE_GUARDRAIL_REPORT_PATH_PATTERN`.
+4. quality job handle set:
+   - `DBX_WORKSPACE_URL`,
+   - `DBX_JOB_OFS_QUALITY_GATES_V0`,
+   - `SSM_DATABRICKS_WORKSPACE_URL_PATH`,
+   - `SSM_DATABRICKS_TOKEN_PATH`,
+   - `S3_EVIDENCE_BUCKET`.
+
+Deterministic execution algorithm (M10.E):
+1. load and validate upstream `M10.D` summary from durable run-control surface.
+2. fail closed unless `overall_pass=true` and `next_gate=M10.E_READY`.
+3. parse handle registry and fail closed on missing/placeholder required values.
+4. resolve Databricks workspace/token from SSM and validate workspace URL parity with handle.
+5. collect deterministic quality posture from committed upstream surfaces:
+   - `M10.D` terminal build success evidence,
+   - run-scoped leakage guardrail report (`LEARNING_LEAKAGE_GUARDRAIL_REPORT_PATH_PATTERN`).
+6. fail closed unless leakage guardrail remains pass posture with zero future-boundary breach indicators.
+7. emit artifacts:
+    - `m10e_quality_gate_snapshot.json`,
+    - `m10e_blocker_register.json`,
+    - `m10e_execution_summary.json`.
+8. publish artifacts locally + durably with readback parity.
+9. emit deterministic next gate:
+    - `M10.F_READY` when blocker count is `0`,
+    - otherwise `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 20 minutes wall clock.
 
 DoD:
-- [ ] quality gates pass.
-- [ ] blocker-free snapshot committed locally and durably.
+- [x] upstream `M10.D` gate validated (`M10.E_READY`).
+- [x] deterministic quality posture from committed upstream surfaces is pass.
+- [x] leakage/time-bound quality checks are pass posture.
+- [x] `m10e_quality_gate_snapshot.json` committed locally and durably.
+- [x] `m10e_blocker_register.json` and `m10e_execution_summary.json` committed locally and durably.
+- [x] blocker-free pass emits `next_gate=M10.F_READY`.
+
+Execution status:
+1. Execution id:
+   - `m10e_quality_gate_20260226T150339Z`
+2. Result:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M10.F_READY`
+3. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10e_quality_gate_20260226T150339Z/`
+4. Managed run reference:
+   - Actions run: `22447779212` (`migrate-dev`, commit `e0ad20e8`)
+   - Workflow: `.github/workflows/dev_full_m10_d_managed.yml`
+5. Quality adjudication basis (as executed):
+   - upstream `M10.D` summary:
+     - `evidence/dev_full/run_control/m10d_ofs_build_20260226T150339Z/m10d_execution_summary.json`
+   - upstream `M10.D` execution snapshot:
+     - `evidence/dev_full/run_control/m10d_ofs_build_20260226T150339Z/m10d_ofs_build_execution_snapshot.json`
+   - leakage guardrail report:
+     - `evidence/runs/platform_20260223T184232Z/learning/input/leakage_guardrail_report.json`
 
 ### M10.F Iceberg + Glue Commit Verification
 Goal:
@@ -495,7 +545,7 @@ DoD:
 - [x] `M10.B` complete
 - [x] `M10.C` complete
 - [x] `M10.D` complete
-- [ ] `M10.E` complete
+- [x] `M10.E` complete
 - [ ] `M10.F` complete
 - [ ] `M10.G` complete
 - [ ] `M10.H` complete
@@ -511,4 +561,5 @@ DoD:
 5. Managed remediation/closure lanes are active:
    - `.github/workflows/dev_full_m10_ab_managed.yml`
    - `.github/workflows/dev_full_m10_d_managed.yml`
-6. Next action is `M10.E` expansion and execution.
+6. `M10.E` is closed green in managed execution (`22447779212`).
+7. Next action is `M10.F` expansion and execution.
