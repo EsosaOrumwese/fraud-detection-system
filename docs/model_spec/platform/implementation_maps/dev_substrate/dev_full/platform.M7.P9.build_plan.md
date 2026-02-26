@@ -117,11 +117,32 @@ Execution plan (managed lane):
    - `next_gate=M7.F_READY`.
 
 DoD:
-- [ ] P9 required-handle set is complete.
-- [ ] unresolved required handles are blocker-marked.
-- [ ] P9 entry snapshot is committed locally and durably.
-- [ ] per-component P9 performance SLO targets are pinned.
-- [ ] managed `P9.A` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=M7.F_READY`).
+- [x] P9 required-handle set is complete.
+- [x] unresolved required handles are blocker-marked.
+- [x] P9 entry snapshot is committed locally and durably.
+- [x] per-component P9 performance SLO targets are pinned.
+- [x] managed `P9.A` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=M7.F_READY`).
+
+Execution status (2026-02-26):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7g`
+   - run id: `22423991265`
+   - execution id: `m7g_p9a_entry_precheck_20260226T013600Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M7.F_READY`.
+3. Verification outcomes:
+   - upstream `P8.E` continuity accepted from `m7f_p8e_rollup_20260225T214307Z`,
+   - required handles resolved `15/15`,
+   - missing handles `0`,
+   - placeholder handles `0`,
+   - runtime path check passed (`FLINK_RUNTIME_PATH_ACTIVE` in `FLINK_RUNTIME_PATH_ALLOWED`),
+   - upstream SLO continuity for `DF/AL/DLA` present.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_gh_run_22423991265_artifacts/p9a-entry-precheck-20260226T013600Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7g_p9a_entry_precheck_20260226T013600Z/`.
 
 ### P9.B DF Component Lane Closure
 Goal:

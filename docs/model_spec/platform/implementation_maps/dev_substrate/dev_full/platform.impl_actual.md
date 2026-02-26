@@ -9818,3 +9818,47 @@ ext_gate=HOLD_REMEDIATE.
    - `platform_run_id = platform_20260223T184232Z`
    - `scenario_run_id = scenario_38753050f3b70c666e16f7552016b330`
 3. evidence bucket: `fraud-platform-dev-full-evidence`
+
+## Entry: 2026-02-26 01:37:00 +00:00 - P9.A executed green (`m7g`) and M7.F entry gate opened
+
+### Execution
+1. Workflow:
+   - `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7g`
+   - run id: `22423991265`
+   - run URL: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22423991265`
+2. Execution id:
+   - `m7g_p9a_entry_precheck_20260226T013600Z`
+
+### Result
+1. `overall_pass=true`
+2. `blocker_count=0`
+3. `next_gate=M7.F_READY`
+
+### Gate checks passed
+1. Upstream continuity accepted from `P8.E` summary:
+   - upstream execution: `m7f_p8e_rollup_20260225T214307Z`
+   - required posture: `overall_pass=true`, `phase_verdict=ADVANCE_TO_P9`, `next_gate=M7.F_READY`
+2. Required P9 handles resolved:
+   - resolved: `15/15`
+   - missing: `0`
+   - placeholder: `0`
+3. Runtime path posture accepted:
+   - `FLINK_RUNTIME_PATH_ACTIVE` is within `FLINK_RUNTIME_PATH_ALLOWED`.
+4. SLO continuity accepted:
+   - upstream `m7a_component_slo_profile.json` contains `DF/AL/DLA`.
+
+### Evidence
+1. Local artifact set:
+   - `runs/dev_substrate/dev_full/m7/_gh_run_22423991265_artifacts/p9a-entry-precheck-20260226T013600Z/`
+2. Durable artifact set:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7g_p9a_entry_precheck_20260226T013600Z/`
+3. Artifact files:
+   - `p9a_entry_snapshot.json`
+   - `p9a_blocker_register.json`
+   - `p9a_component_slo_profile.json`
+   - `p9a_execution_summary.json`
+
+### Closure decision
+1. `M7.P9.A` is closed green.
+2. `M7.F` can advance to DF component lane closure (`P9.B`).

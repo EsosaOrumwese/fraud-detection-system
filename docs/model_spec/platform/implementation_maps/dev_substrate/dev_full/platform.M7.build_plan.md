@@ -327,10 +327,16 @@ Tasks:
 4. verify replay-safe duplicate handling.
 
 DoD:
-- [ ] `P9.A` entry precheck is green.
+- [x] `P9.A` entry precheck is green.
 - [ ] `DF` component evidence is complete.
 - [ ] `DF` blockers are clear.
 - [ ] `DF` performance snapshot meets pinned budget.
+
+Execution status (2026-02-26):
+1. `P9.A` entry precheck is closed green:
+   - workflow run: `22423991265` (`phase_mode=m7g`)
+   - execution id: `m7g_p9a_entry_precheck_20260226T013600Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M7.F_READY`.
 
 ### M7.G P9 AL Lane Closure
 Goal:

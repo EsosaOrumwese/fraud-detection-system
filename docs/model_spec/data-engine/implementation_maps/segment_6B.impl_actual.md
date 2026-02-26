@@ -3465,3 +3465,39 @@ Phase decision:
   - `S3/S4/S5` runtime rails closed with non-regressed realism.
   - remaining blocker is `S2` runtime only.
 - fail-closed posture remains `HOLD_P2_REOPEN_PERF` with next owner lane pinned to `S2` optimization.
+
+---
+
+### Entry: 2026-02-25 21:41
+
+P2.R4 design lock (`S2`-only reopen: event-path redesign + hotspot profiling).
+
+Observed gap:
+- after P2.R1/P2.R2, `S2=238.09s` remains above stretch rail (`<=150s`), while `S3/S4/S5` are closed.
+
+Root-cause hypothesis for remaining `S2` cost:
+- event-lane path still performs high-cost transforms per batch:
+  - `AUTH_RESPONSE` timestamp via Polars `strptime + duration + strftime`,
+  - `event_request/event_response` materialization followed by `pl.concat` over full batch.
+- these operations likely dominate residual runtime after hash-stream optimization.
+
+Chosen redesign:
+1) add explicit batch-stage profiling in `S2`:
+- timings for:
+  - cast/hash lane,
+  - random sampling lane,
+  - response timestamp construction lane,
+  - flow/event frame build lane,
+  - parquet write lane.
+- emit aggregate summary at state completion for evidence-driven next decisions.
+
+2) event-path structural optimization:
+- replace response timestamp expression path with vectorized NumPy epoch-micro lane from request timestamp strings.
+- eliminate `pl.concat` for event stream:
+  - build request and response frames separately,
+  - write as separate parquet parts per batch (`part-k`, `part-k+1`) to reduce peak memory and concat overhead.
+
+Guardrails:
+- no output schema change.
+- no policy/threshold/scorer change.
+- maintain deterministic values and event semantics (`AUTH_REQUEST` seq `0`, `AUTH_RESPONSE` seq `1`).

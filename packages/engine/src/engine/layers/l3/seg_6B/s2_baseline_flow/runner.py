@@ -800,6 +800,13 @@ def _ts_plus_seconds_expr(ts_col: str, seconds_col: str) -> pl.Expr:
         + pl.duration(microseconds=micros_expr)
     ).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
 
+
+def _build_response_ts_utc_numpy(request_ts_utc: np.ndarray, latency_seconds: np.ndarray) -> np.ndarray:
+    request_dt = request_ts_utc.astype("datetime64[us]")
+    latency_us = np.rint(latency_seconds * 1_000_000.0).astype(np.int64, copy=False)
+    response_dt = request_dt + latency_us.astype("timedelta64[us]")
+    return np.datetime_as_string(response_dt, unit="us", timezone="UTC")
+
 def run_s2(
     config: EngineConfig,
     run_id: Optional[str] = None,
@@ -1258,6 +1265,11 @@ def run_s2(
                 part_index = 0
                 validated_flow_schema = False
                 validated_event_schema = False
+                batch_stage_cast_hash_s = 0.0
+                batch_stage_sampling_s = 0.0
+                batch_stage_ts_s = 0.0
+                batch_stage_frame_build_s = 0.0
+                batch_stage_write_s = 0.0
 
                 for arrivals in _iter_parquet_batches(
                     arrivals_files,
@@ -1274,6 +1286,7 @@ def run_s2(
                     ],
                     batch_rows,
                 ):
+                    stage_t0 = time.perf_counter()
                     arrivals = arrivals.with_columns(
                         pl.col("arrival_seq").cast(pl.Int64),
                         pl.col("merchant_id").cast(pl.UInt64),
@@ -1298,6 +1311,9 @@ def run_s2(
                             seed=seed,
                         ).alias("flow_id"),
                     )
+                    batch_stage_cast_hash_s += time.perf_counter() - stage_t0
+
+                    stage_t0 = time.perf_counter()
                     flow_ids_u64 = arrivals.get_column("flow_id").to_numpy().astype(np.uint64, copy=False)
                     amount_u_kind = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE001)
                     amount_u_point = _flow_id_stream_uniform(flow_ids_u64, 0xA11CE002)
@@ -1332,7 +1348,17 @@ def run_s2(
                         pl.lit(parameter_hash).alias("parameter_hash"),
                         pl.lit(scenario_id).alias("scenario_id"),
                     )
+                    batch_stage_sampling_s += time.perf_counter() - stage_t0
 
+                    stage_t0 = time.perf_counter()
+                    request_ts_utc = arrivals.get_column("ts_utc").to_numpy()
+                    auth_response_ts_utc = _build_response_ts_utc_numpy(
+                        request_ts_utc=request_ts_utc,
+                        latency_seconds=auth_response_latency_seconds,
+                    )
+                    batch_stage_ts_s += time.perf_counter() - stage_t0
+
+                    stage_t0 = time.perf_counter()
                     flow_anchor = arrivals.select(
                         [
                             "flow_id",
@@ -1352,32 +1378,11 @@ def run_s2(
                         ]
                     )
 
-                    event_base = arrivals.select(
+                    event_request = arrivals.select(
                         [
                             "flow_id",
-                            "ts_utc",
-                            "amount",
-                            "auth_response_latency_seconds",
-                            "seed",
-                            "manifest_fingerprint",
-                            "parameter_hash",
-                            "scenario_id",
-                        ]
-                    )
-                    event_request = event_base.with_columns(
-                        pl.lit(0).cast(pl.Int64).alias("event_seq"),
-                        pl.lit("AUTH_REQUEST").alias("event_type"),
-                    )
-                    event_response = event_base.with_columns(
-                        pl.lit(1).cast(pl.Int64).alias("event_seq"),
-                        pl.lit("AUTH_RESPONSE").alias("event_type"),
-                        _ts_plus_seconds_expr("ts_utc", "auth_response_latency_seconds").alias("ts_utc"),
-                    )
-                    event_stream = pl.concat([event_request, event_response], how="vertical").select(
-                        [
-                            "flow_id",
-                            "event_seq",
-                            "event_type",
+                            pl.lit(0).cast(pl.Int64).alias("event_seq"),
+                            pl.lit("AUTH_REQUEST").alias("event_type"),
                             "ts_utc",
                             "amount",
                             "seed",
@@ -1386,6 +1391,22 @@ def run_s2(
                             "scenario_id",
                         ]
                     )
+                    event_response = arrivals.with_columns(
+                        pl.Series(name="auth_response_ts_utc", values=auth_response_ts_utc),
+                    ).select(
+                        [
+                            "flow_id",
+                            pl.lit(1).cast(pl.Int64).alias("event_seq"),
+                            pl.lit("AUTH_RESPONSE").alias("event_type"),
+                            pl.col("auth_response_ts_utc").alias("ts_utc"),
+                            "amount",
+                            "seed",
+                            "manifest_fingerprint",
+                            "parameter_hash",
+                            "scenario_id",
+                        ]
+                    )
+                    batch_stage_frame_build_s += time.perf_counter() - stage_t0
 
                     if not validated_flow_schema and flow_anchor.height > 0:
                         sample = flow_anchor.head(1).to_dicts()[0]
@@ -1399,8 +1420,8 @@ def run_s2(
                         )
                         validated_flow_schema = True
 
-                    if not validated_event_schema and event_stream.height > 0:
-                        sample = event_stream.head(1).to_dicts()[0]
+                    if not validated_event_schema and event_request.height > 0:
+                        sample = event_request.head(1).to_dicts()[0]
                         _validate_payload(
                             sample,
                             schema_6b,
@@ -1411,16 +1432,30 @@ def run_s2(
                         )
                         validated_event_schema = True
 
+                    stage_t0 = time.perf_counter()
                     flow_part = flow_tmp_dir / f"part-{part_index:05d}.parquet"
-                    event_part = event_tmp_dir / f"part-{part_index:05d}.parquet"
+                    event_part_request = event_tmp_dir / f"part-{part_index:05d}.parquet"
+                    event_part_response = event_tmp_dir / f"part-{part_index + 1:05d}.parquet"
                     flow_anchor.write_parquet(flow_part, compression=parquet_compression)
-                    event_stream.write_parquet(event_part, compression=parquet_compression)
+                    event_request.write_parquet(event_part_request, compression=parquet_compression)
+                    event_response.write_parquet(event_part_response, compression=parquet_compression)
+                    batch_stage_write_s += time.perf_counter() - stage_t0
 
                     batch_rows_processed = int(flow_anchor.height)
                     total_flows += batch_rows_processed
-                    total_events += int(event_stream.height)
-                    part_index += 1
+                    total_events += int(event_request.height) + int(event_response.height)
+                    part_index += 2
                     progress.update(batch_rows_processed)
+
+                logger.info(
+                    "S2: scenario_id=%s batch_stage_seconds cast_hash=%.2f sampling=%.2f ts_build=%.2f frame_build=%.2f parquet_write=%.2f",
+                    scenario_id,
+                    batch_stage_cast_hash_s,
+                    batch_stage_sampling_s,
+                    batch_stage_ts_s,
+                    batch_stage_frame_build_s,
+                    batch_stage_write_s,
+                )
 
         flow_out_dir = _materialize_parquet_path(flow_out_path).parent
         event_out_dir = _materialize_parquet_path(event_out_path).parent

@@ -756,6 +756,10 @@ Current M7 execution posture:
   - workflow run `22417222822`,
   - execution `m7f_p8e_rollup_20260225T214307Z`,
   - `overall_pass=true`, `phase_verdict=ADVANCE_TO_P9`, `blocker_count=0`, `next_gate=M7.F_READY`.
+- `M7.F` entry precheck (`P9.A`) is closed green on managed run:
+  - workflow run `22423991265`,
+  - execution `m7g_p9a_entry_precheck_20260226T013600Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=M7.F_READY`.
 
 DoD anchors:
 - [ ] RTDL core closure evidence is green.

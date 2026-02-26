@@ -1223,6 +1223,19 @@ Definition of done:
 - [x] phase decision written with explicit next owner if still blocked.
   - next bottleneck owner: `S2` only (runtime rail miss), while `S3/S4/S5` rails are closed.
 
+##### P2.R4 - `S2` event-path redesign + hotspot profiling
+Goal:
+- close remaining `S2` runtime gap with structural event-lane optimization.
+
+Definition of done:
+- [ ] add explicit `S2` batch-stage timers (sampling, timestamp construction, event build, parquet writes) with aggregate summary.
+- [ ] remove `S2` response timestamp `strptime/strftime` hot path and replace with vectorized epoch-micro lane.
+- [ ] remove event concat hot path by writing request/response batches directly as separate parts.
+- [ ] run one fresh witness lane and compare `S2` against `bbbe...` baseline (`238.09s`) while holding realism gates non-regressed.
+- [ ] phase decision updated:
+  - `UNLOCK_P3` only if `S2` rail closes (`<=150s` stretch),
+  - else keep `HOLD_P2_REOPEN_PERF` with next S2 redesign lane pinned.
+
 ### P3 - Wave B (`S3` campaign depth)
 Goal:
 - deepen campaign realism and improve contextual stratification without breaking Wave A closure.
