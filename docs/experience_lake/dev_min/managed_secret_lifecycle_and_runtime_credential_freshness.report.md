@@ -8,17 +8,25 @@ What this proves:
 - I can run bounded fail-to-fix-to-pass remediation without exposing secret values.
 Tech stack:
 - Amazon Web Services Systems Manager Parameter Store `SecureString`, managed workflow rotation path, service redeploy enforcement, machine-readable readiness and cleanup snapshots.
-Top 3 proof hooks:
-- Proof 1: Secret-surface controls failed closed first and then passed only after remediation of required secret boundaries. Artifacts: `runs/dev_substrate/m2_e/20260213T135629Z/secret_surface_check.json` and `runs/dev_substrate/m2_e/20260213T141419Z/secret_surface_check.json`.
-- Proof 2: Runtime credential freshness required redeploy; pre-redeploy readiness failed and post-redeploy readiness passed. Artifacts: `runs/dev_substrate/m6/20260215T033201Z/m6_b_ig_readiness_snapshot.json` and `runs/dev_substrate/m6/20260215T040527Z/m6_b_ig_readiness_snapshot.json`.
-- Proof 3: Teardown verified credential residue cleanup across scoped targets. Artifact: `runs/dev_substrate/m9/m9_20260219T155120Z/m9_f_secret_cleanup_snapshot.json`.
+Top 3 in-report proof exhibits (self-contained):
+- Exhibit A (Section 9.2): Secret surface + IAM boundary fail→fix→pass with measured missing-handle counts and executable access simulation results.
+- Exhibit C+D (Section 9.2): Managed rotation with version/epoch witness + mandatory redeploy across 13 services with post-redeploy protocol verification.
+- Exhibit F (Section 9.2): Teardown cleanup proof (7/7 canonical targets absent, present_targets empty, unknown_targets zero).
+
+Appendix note:
+- Proof hooks remain available in Section 11 for audit-style inspection, but the report body carries the proof facts directly.
 Non-claim:
 - This does not claim full enterprise key-management completion across all environments.
 
-## Numbers That Matter
-- Secret storage and access closure: one failed secret-surface gate followed by a successful rerun after remediation.
-- Runtime freshness closure: one fail-to-pass cycle in readiness after rotation (pre-redeploy fail -> post-redeploy pass).
-- Cleanup certainty: 7 out of 7 scoped secret targets confirmed absent after teardown, with blockers empty; managed rotation run reference `22206773359`.
+## Numbers That Matter (measured)
+These numbers are not narrative claims; each is tied to a fail-closed gate and a rerun closure witness.
+
+- Secret surface + access boundary (M2.E): FAIL→PASS in **17.85 minutes** (~17m 51s). Missing handles: **3/6** → **0/6**. IAM simulation became executable and proved least-privilege posture (app allowed **6**, execution allowed **0**).
+- Runtime boundary placeholder remediation (M6.B): FAIL→PASS in **33.03 minutes** (~33m 02s). Placeholder flags cleared and auth boundary behavior verified (unauth **401**, auth **200**).
+- Managed rotation execution: **5.50 minutes** (5m 30s), rotated **3** runtime messaging handles; SSM versions advanced to **2** for all rotated handles; protocol verification PASS with `topics_missing=[]`.
+- Runtime freshness enforcement: mandatory redeploy at `2026-02-20T01:07:24Z` across **13** daemon services; post-redeploy metadata check PASS (cluster_id `lkc-18rg03`). Rotation-to-freshness: **5.47 minutes** (~5m 28s).
+- Apply regression prevention: apply sourcing pinned to **current decrypted SSM values** (not stale remote-state fields) with a retained guard witness (`terraform_var_guards.ig_api_key=resolved_from_ssm`).
+- Teardown cleanup: scoped targets absent **7/7**, `present_targets=[]`, `unknown_targets_count=0`.
 
 ## 1) Claim Statement
 
@@ -789,26 +797,137 @@ Implementation delivered the intended operating posture:
 
 This shifted the platform from "secrets configured" to "credentials lifecycle-controlled with runtime-proof closure."
 
-### 9.2 Measured closure evidence
-The claim closed through concrete fail-to-fix-to-pass anchors:
-Execution IDs embedded in file paths (for example `m2_e` and `m6_b`) are internal run-control identifiers; the bullets below are the plain-language interpretation.
+### 9.2 Measured closure exhibits (proof embedded in-report)
+This section embeds the minimum measured facts required to validate the claim without requiring readers to open artifacts.
 
-1. Secret-surface fail then pass
-- initial fail anchor: secret-surface check identified missing required secret paths and missing runtime role boundary closure (`overall_pass=false`).
-- closure pass anchor: `runs/dev_substrate/m2_e/20260213T141419Z/secret_surface_check.json` (`overall_pass=true` posture for required path/role checks).
+#### Exhibit A — Secret surface + access boundary (M2.E) FAIL → PASS
+| Attempt | Time (UTC) | Outcome | Blockers | Required | Missing | Access boundary witness | Interpretation |
+|---|---|---|---|---:|---:|---|---|
+| FAIL | 2026-02-13T13:56:47Z | FAIL | `[M2E-B1, M2E-B2]` | 6 | 3 | runtime roles missing (`NoSuchEntity`) → IAM simulation not executable; access_fail_count=2 | Secret readiness includes *executable access boundary proof*, not only “paths exist”. |
+| PASS | 2026-02-13T14:14:37Z | PASS | `[]` | 6 | 0 | IAM simulation (`ssm:GetParameter`): app allowed count=6; execution allowed count=0 (all implicitDeny) | Least-privilege posture is measurable and closed. |
 
-2. Placeholder credential remediation closure
-- runtime blocker anchor: ingestion boundary detected placeholder credential state.
-- post-remediation pass anchor: `runs/dev_substrate/m6/20260215T040527Z/m6_b_ig_readiness_snapshot.json` (`overall_pass=true` after replacing placeholder credential material and rematerializing runtime boundary).
+Missing handles at FAIL (redacted):
+- `db/user`, `db/password`, `ig/api_key`
 
-3. Rotation plus runtime freshness closure
-- managed rotation anchor: workflow run `22206773359` rotated runtime messaging credentials and republished AWS Systems Manager Parameter Store values.
-- freshness enforcement anchor: affected daemon services were explicitly redeployed so running tasks loaded rotated values.
-- diagnostic boundary result: credential-plane blockers were removed, and the remaining ingestion failure was traced to transport-client compatibility rather than stale credentials.
+Remediation applied:
+- Full demo apply materialized missing SSM paths and runtime IAM roles, then M2.E was rerun.
 
-4. Teardown secret-cleanup closure
-- cleanup pass anchor: `runs/dev_substrate/m9/m9_20260219T155120Z/m9_f_secret_cleanup_snapshot.json`.
-- measured result: canonical scoped secret targets absent `7/7`, `present_targets=[]`, blockers empty, non-secret evidence policy pass.
+Measured time-to-recovery:
+- **17.85 minutes** (~17m 51s)
+
+---
+
+#### Exhibit B — Placeholder credential blocked at runtime boundary (M6.B) FAIL → PASS
+This proves “handle exists” is insufficient: placeholder values and placeholder wiring are treated as hard blockers at the boundary.
+
+| Attempt | Time (UTC) | Outcome | Key runtime defects observed | Closure witness (PASS) |
+|---|---|---|---|---|
+| FAIL | 2026-02-15T03:32:40Z | FAIL | Placeholder IG API key in SSM, placeholder daemon command, no port mappings, SG ingress absent, auth boundary invalid, health probe failed | — |
+| PASS | 2026-02-15T04:05:42Z | PASS | — | Health probe `200`; unauth ingest `401`; auth ingest `200`; `auth_boundary_pass=true`; placeholder flags cleared; port mappings present; ingress rule present |
+
+FAIL indicator fields (selected):
+- `ig_api_key_placeholder_detected=true`
+- `placeholder_daemon_command=true`
+- `has_port_mappings=false`
+- `ingress_rule_count=0`
+- `auth_boundary_pass=false`
+
+PASS indicator fields (selected):
+- `health_probe.status=200`
+- `unauth_ingest_probe.status=401`
+- `auth_ingest_probe.status=200`
+- `auth_boundary_pass=true`
+- `ig_api_key_placeholder_detected=false`
+- `placeholder_daemon_command=false`
+- `has_port_mappings=true`
+- `ingress_rule_count=1`
+
+Remediation applied:
+- Replaced placeholder IG API key in SSM and rematerialized IG runtime boundary (real command, port mapping, ingress rule), then reran readiness.
+
+Measured time-to-recovery:
+- **33.03 minutes** (~33m 02s)
+
+---
+
+#### Exhibit C — Managed rotation execution outcome (workflow 22206773359)
+Rotation window:
+- start: `2026-02-20T00:56:26Z`
+- end: `2026-02-20T01:01:56Z` (duration **5.50 minutes**, 5m 30s)
+
+Rotated handles (count=3):
+- `confluent/bootstrap`, `confluent/api_key`, `confluent/api_secret`
+
+Outcome (non-secret):
+- workflow conclusion: success
+- `overall_pass=true`, `blockers=[]`
+- version/epoch witness: `ssm_versions.bootstrap=2`, `api_key=2`, `api_secret=2`
+
+Protocol-level verification (rotation is not “control-plane only”):
+- check: `kafka_admin_protocol_python_confluent_kafka`
+- timestamp: `2026-02-20T01:01:40Z`
+- PASS, `topics_missing=[]`
+
+Interpretation:
+- Rotation is proven by version advancement plus protocol viability, not by “workflow finished” alone.
+
+---
+
+#### Exhibit D — Runtime freshness enforcement (mandatory redeploy after rotation)
+Redeploy event:
+- timestamp: `2026-02-20T01:07:24Z`
+- services redeployed: **13**
+
+Redeployed services:
+- `env-conformance`, `ig`
+- `rtdl-core-archive-writer`, `rtdl-core-ieg`, `rtdl-core-ofp`, `rtdl-core-csfb`
+- `decision-lane-dl`, `decision-lane-df`, `decision-lane-al`, `decision-lane-dla`
+- `case-trigger`, `case-mgmt`, `label-store`
+
+Freshness witness (post-redeploy protocol viability):
+- check: `confluent-kafka metadata validation`
+- timestamp anchor: `2026-02-20T01:07:24Z`
+- PASS, cluster_id=`lkc-18rg03`
+
+Measured rotation-to-freshness:
+- **5.47 minutes** (~5m 28s) from rotation completion to freshness enforcement witness.
+
+Non-claim (explicit):
+- Per-service deployment IDs for the exact redeploy window were **NOT_RETAINED** as a dedicated snapshot. The retained proof is the redeploy decision record plus post-rotation protocol success.
+
+Interpretation:
+- Credential freshness is a runtime property: storage rotation is not treated as closed until workloads are forced to reload and viability is re-verified.
+
+---
+
+#### Exhibit E — Apply regression prevention (stale overwrite guard)
+Risk:
+- Demo apply could overwrite known-good runtime credentials with stale values if it sourced inputs from stale state instead of current parameter-store values.
+
+Control:
+- Apply posture pinned credential sourcing to **current decrypted SSM values** at execution time (not stale remote-state credential fields).
+
+Witness:
+- Decision timestamp: `2026-02-20 10:24:00Z` (logbook)
+- Concrete field witness: `terraform_var_guards.ig_api_key=resolved_from_ssm`
+
+Interpretation:
+- Fixing secrets once is insufficient; the apply path must be regression-safe or it will reintroduce credential drift.
+
+---
+
+#### Exhibit F — Teardown cleanup verification (M9.F) PASS
+| Time (UTC) | Outcome | Canonical targets | Absent | Present | Unknown | Non-secret policy |
+|---|---|---:|---:|---:|---:|---|
+| 2026-02-19T15:51:32Z | PASS | 7 | 7 | 0 | 0 | PASS |
+
+Canonical target list (count=7):
+- `confluent/api_key`, `confluent/api_secret`, `confluent/bootstrap`
+- `db/dsn`, `db/password`, `db/user`
+- `ig/api_key`
+
+Interpretation:
+- Teardown closure includes residue closure: scoped secret handles do not persist beyond environment lifetime, verified without reading secret values.
 
 ### 9.3 Security and governance outcomes
 After closure:
@@ -867,13 +986,16 @@ This claim does not state that:
 This report is scoped to operationally defensible secret lifecycle controls for the described runtime boundary.
 
 ### 10.3 Evidence boundary limitation
-The report intentionally references verification artifacts rather than embedding:
-- decrypted secret values,
+This report embeds the key proof facts directly (fail→fix→pass secret surface closure, runtime placeholder closure, managed rotation outcomes, mandatory redeploy freshness enforcement, apply regression prevention control, and teardown cleanup absence), so it stands on its own as a technical report.
+
+It intentionally does not embed:
+- decrypted secret plaintext values,
 - raw secret payloads from parameter storage,
 - full operational logs with sensitive environment context.
 
 Reason:
-- keep evidence challenge-ready while preserving strict non-secret handling posture.
+- preserve strict non-secret handling posture while still providing challenge-ready verification inside the report body.
+- machine-readable snapshots exist and can be inspected, but they are not required to validate the claim as presented here.
 
 ### 10.4 Environment and transferability limitation
 The control pattern is transferable:
@@ -901,11 +1023,19 @@ Correct interpretation:
 Incorrect interpretation:
 - "The candidate claims complete, permanent security closure for all secrets across all systems."
 
-## 11) Proof Hooks
+## 11) Appendix: Retrieval Hooks (Optional)
 
-### 11.1 How to use this section
-These hooks are challenge-ready verification anchors.
-Use them to walk a reviewer through failure, remediation, and closure without exposing secret values.
+### 11.1 How to use this appendix
+This appendix is **optional**.
+
+The report body (Sections **4** and **9**) already embeds the proof facts needed to validate the claim:
+- fail-closed witnesses and bounded remediations (M2.E and M6.B),
+- measured timing (TTR and rotation-to-freshness),
+- measured closure fields (least-privilege simulation results, placeholder indicators cleared, protocol viability checks),
+- teardown cleanup absence (7/7 absent, present_targets empty, unknown_targets_count=0),
+- explicit non-claim for NOT_RETAINED deployment IDs.
+
+Use the retrieval hooks below only if a reviewer wants to inspect the underlying machine-readable snapshots directly (audit-style challenge or interview deep dive). These hooks do not introduce new claims; they are an inspection aid.
 
 ### 11.2 Primary fail->fix->pass chain (best single proof path)
 Use this sequence first:

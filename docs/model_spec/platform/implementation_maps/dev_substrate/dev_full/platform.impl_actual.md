@@ -14796,3 +14796,26 @@ ext_gate=M11.B_READY and locker_count=0.
    - `m11d_blocker_register.json`,
    - `m11d_execution_summary.json`,
    - run-scoped eval report at `MF_EVAL_REPORT_PATH_PATTERN`.
+
+## Entry: 2026-02-26 19:48:28 +00:00 - M11.D managed workflow implemented
+1. Added workflow:
+   - `.github/workflows/dev_full_m11_d_managed.yml`.
+2. Implemented lane behavior:
+   - validates `M11.C` pass posture (`overall_pass=true`, `next_gate=M11.D_READY`),
+   - resolves run scope + upstream refs (`M11.B`, `M11.A`) from durable evidence,
+   - resolves SageMaker execution role from `M11.B` snapshot/SSM,
+   - derives deterministic seed from `M10.G` fingerprint ref exposed by `M11.C`,
+   - emits `m11_phase_budget_envelope.json` before compute launch,
+   - runs managed SageMaker training + batch-transform jobs,
+   - computes bounded eval metrics and writes MF eval report.
+3. Artifact publication contract in workflow:
+   - run-control:
+     - `m11_phase_budget_envelope.json`,
+     - `m11d_train_eval_execution_snapshot.json`,
+     - `m11d_blocker_register.json`,
+     - `m11d_execution_summary.json`,
+   - lane output:
+     - eval report to `MF_EVAL_REPORT_PATH_PATTERN`.
+4. Fail-closed posture:
+   - any unresolved scope/runtime dependency or non-success terminal job state maps to `M11-B4`,
+   - gate output is `M11.E_READY` only when blocker count is `0`.
