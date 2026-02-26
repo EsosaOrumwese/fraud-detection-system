@@ -2,23 +2,25 @@
 
 ## Front Card (Recruiter Entry)
 Claim:
-- Built a fail-closed Continuous Integration and Continuous Delivery release workflow path with secure cloud federation, least-privilege registry publish, immutable image identity, and deterministic build surface controls.
+- Built a fail-closed Continuous Integration and Continuous Delivery release workflow path that uses federated cloud authentication, scoped registry publish authorization, immutable image identity, and deterministic build-surface controls.
 What this proves:
-- I can separate and close authentication and authorization failures without broadening permissions.
-- I can preserve release integrity using digest-anchored identity and machine-readable provenance.
+- I can isolate and close independent security gates (authentication then authorization) without broad emergency permissions.
+- I can produce deployment-safe release evidence (commit, workflow run, tag, digest, provenance) from one authoritative workflow path.
+- I can enforce deterministic image contents in a large monorepo (explicit include/exclude and curated dependency surface).
 Tech stack:
 - GitHub Actions, Amazon Web Services OpenID Connect role assumption, Amazon Elastic Container Registry, Docker build context policy.
 Top 3 proof hooks:
-- Proof 1: Authentication and authorization failures were isolated and closed in sequence before final pass. Artifacts: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21985402789`, `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21985472266`, `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21985500168`.
-- Proof 2: Release provenance was emitted as machine-readable evidence, linking source and released artifact identity. Artifact: `runs/dev_substrate/m1_build_go/20260213T114002Z/packaging_provenance.json`.
-- Proof 3: Final release identity was immutable and deployment-safe (tag plus digest). Artifact: `runs/dev_substrate/m1_build_go/20260213T114002Z/ci_m1_outputs.json`.
+- Proof 1: Independent security controls were closed in sequence across three consecutive Continuous Integration runs (cloud identity trust failure, then registry authorization failure, then successful publish). Artifacts: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21985402789`, `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21985472266`, `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21985500168`.
+- Proof 2: Successful releases emit immutable container identity (tag plus digest) and machine-readable provenance linking source revision, workflow execution, and artifact identity. Artifacts: `runs/dev_substrate/m1_build_go/20260213T114002Z/ci_m1_outputs.json`, `runs/dev_substrate/m1_build_go/20260213T114002Z/packaging_provenance.json`.
+- Proof 3: A dependency-packaging defect was corrected through the same governed Continuous Integration and Continuous Delivery path, producing a new immutable digest without manual out-of-band publishing. Artifact: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22207368985`.
 Non-claim:
 - This does not claim full software supply chain maturity across every service.
 
 ## Numbers That Matter
-- Closure pattern: 3 sequential pipeline executions; first 2 failed at different control gates, 3rd passed after bounded fixes.
-- Release identity evidence: immutable digest published (`sha256:d71cbe335ec0...`) for promotion-safe traceability.
-- Packaging-drift recovery: one controlled rebuild (`22207368985`) produced a new immutable digest (`sha256:ac6e7c42f230...`) through the same authoritative workflow path.
+- Time to first secure publish closure: `216 seconds` from first failed Continuous Integration run (`11:36:26Z`) to successful publish (`11:40:02Z`) on `2026-02-13`.
+- Security control isolation: `3 consecutive runs` were required to close cloud identity trust and registry authorization independently.
+- Immutable release evidence: successful publish emitted digest `sha256:d71cbe335ec0...` as the canonical promotion and rollback identity.
+- Packaging incident recovery: `13 minutes` from defect detection to corrected image publication (`sha256:ac6e7c42f230...`) through the same governed release path.
 
 ## 1) Claim Statement
 
@@ -563,7 +565,7 @@ Determinism controls were implemented at the build-context boundary and the depe
   - `src/fraud_detection/**`
   - `config/platform/**`
   - specific contract/schema documents required for runtime
-- therefore excluded-by-policy (examples of broad surfaces intentionally not shipped):
+- therefore implicitly excluded by the default-deny plus allowlist policy (examples of broad surfaces intentionally not shipped):
   - `artefacts/**`, `runs/**`, `infra/**`, `docs/experience_lake/**`, `docs/logbook/**`
   - scratch/test support surfaces and any other path not explicitly allowlisted
 
@@ -597,16 +599,18 @@ The provenance object captures (non-secret) linkage across phase/run/source/buil
 - `ecr_repo_uri`, `image_reference_mode`, `dockerfile_path`, `build_path`
 - `oci_digest_algo`, `oci_digest_value`
 
-**Example provenance values (same closure):**
+**Example values from `packaging_provenance.json` (same closure):**
 - `platform_run_id=platform_20260213T114002Z`
 - `written_at_utc=2026-02-13T11:41:03Z`
 - `git_sha=799d398a7daf34857cf363c9a1a629c40ec25d5e`
-- `ci_run_id=21985500168`
 - `image_tag=git-799d398a7daf34857cf363c9a1a629c40ec25d5e`
 - `image_digest=sha256:d71cbe335ec0ced59a40721f0e1f6016b276ec17f34e52708d3fd02c04d79f56`
 - `ecr_repo_uri=230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-min`
 - `build_completed_at_utc=2026-02-13T11:41:03Z`
 - `build_actor=EsosaOrumwese`
+
+**Linked value from `ci_m1_outputs.json` (same closure):**
+- `ci_run_id=21985500168`
 
 Operational effect:
 - promotion/rollback can target immutable digest identity,
@@ -800,13 +804,12 @@ The closure was a controlled fail/fail/pass sequence demonstrating independent g
 | 21985402789 | 2026-02-13T11:36:26Z | migrate-dev | 799d398 | FAIL | 81s | 76s | No OpenIDConnect provider found for `token.actions.githubusercontent.com` |
 | 21985472266 | 2026-02-13T11:38:58Z | dev | 799d398 | FAIL | 18s | 14s | Not authorized: `ecr:GetAuthorizationToken` on `*` |
 | 21985500168 | 2026-02-13T11:40:02Z | dev | 799d398 | PASS | 64s | 60s | — |
-| 22207368985 | 2026-02-20T01:21:47Z | migrate-dev | 7e7a77d | PASS | 69s | 64s | — |
 
 Interpretation:
 - Run 1 failed before registry stage, proving CI identity closure is a hard prerequisite (fail-closed authentication gate).
 - Run 2 progressed past identity but failed at ECR token retrieval, proving authorization is independently gated (fail-closed authorization gate).
 - Run 3 published successfully after authn+authz remediations, proving the workflow path closes under intended security controls.
-- Run 4 demonstrates the same workflow path can remediate packaging drift without bypassing release controls (see §9.4).
+- Packaging-drift rerun evidence is separated in §9.4 because it is a later incident branch, not part of the identity/authorization fail/fail/pass sequence.
 
 ### 9.3 Immutable release identity outcome
 Successful closure produced immutable artifact identity usable for promotion and rollback.
@@ -835,6 +838,12 @@ A packaging-drift defect was handled without bypassing controls.
 **Remediation (what changed):**
 - Added `confluent-kafka` to the Dockerfile curated dependency selector,
 - rebuilt and published a new immutable image through the same authoritative workflow path (no out-of-band mutation).
+
+**Packaging closure run summary:**
+
+| Run ID | Triggered at (UTC) | Ref | Commit | Status | Total | Build+push job |
+|---:|---|---|---|---|---:|---:|
+| 22207368985 | 2026-02-20T01:21:47Z | migrate-dev | 7e7a77d | PASS | 69s | 64s |
 
 **Time-to-recovery (measured from implementation log timestamps):**
 - ~13 minutes (detection `2026-02-20 10:11:00` → successful CI packaging publication `2026-02-20 10:24:00`)
@@ -966,23 +975,7 @@ The deterministic packaging boundary is anchored in:
 
 These are the fastest evidence surfaces for "explicit include/exclude" and "no repository-wide copy posture."
 
-### 11.5 Challenge-response mapping (question -> best hook)
-1. "Prove authentication and authorization were independently closed."
-- Use the three workflow runs in sequence (`21985402789`, `21985472266`, `21985500168`) plus implementation-map chronology.
-
-2. "Prove immutable identity was actually emitted."
-- Use digest anchors (`sha256:d71cbe...`, `sha256:ac6e7c...`) and `ci_m1_outputs.json`.
-
-3. "Prove provenance is machine-readable, not narrative."
-- Use `packaging_provenance.json` and `build_command_surface_receipt.json`.
-
-4. "Prove packaging drift was corrected through the same controlled workflow path."
-- Use remediation run marker (`22207368985`) and post-fix digest anchor.
-
-5. "Prove deterministic build boundaries are enforced."
-- Use `Dockerfile` and `.dockerignore` as boundary contracts, then show publish closure remained tied to those controls.
-
-### 11.6 Evidence handling rule
+### 11.5 Evidence handling rule
 This proof set intentionally excludes secret material and policy payload dumps.
 Evidence is referenced by stable path/run anchors so claims stay challengeable without exposing credentials or sensitive internals.
 
@@ -1053,5 +1046,3 @@ Do not use this claim as:
 - standalone proof of complete production architecture maturity across all runtime and organizational security domains.
 
 That framing keeps the narrative strong and defensible.
-
-

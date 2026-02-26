@@ -447,14 +447,53 @@ Execution status:
 Goal:
 1. prove table commit and catalog state are coherent.
 
-Tasks:
-1. verify Iceberg metadata and table state.
-2. verify Glue catalog registration and refs.
-3. emit `m10f_iceberg_commit_snapshot.json`.
+Required upstream basis:
+1. `M10.E` pass summary (`overall_pass=true`, `next_gate=M10.F_READY`).
+2. `M10.E` quality snapshot and blocker register are readable.
+3. handle set is resolved and non-placeholder:
+   - `S3_OBJECT_STORE_BUCKET`,
+   - `S3_EVIDENCE_BUCKET`,
+   - `OFS_ICEBERG_DATABASE`,
+   - `OFS_ICEBERG_TABLE_PREFIX`,
+   - `OFS_ICEBERG_WAREHOUSE_PREFIX_PATTERN`.
+
+Deterministic execution algorithm (M10.F):
+1. validate upstream `M10.E` pass posture from durable run-control.
+2. derive deterministic Iceberg commit surface:
+   - `database = OFS_ICEBERG_DATABASE`,
+   - `table_name = OFS_ICEBERG_TABLE_PREFIX + sanitize(platform_run_id)`,
+   - `table_location = s3://S3_OBJECT_STORE_BUCKET/OFS_ICEBERG_WAREHOUSE_PREFIX_PATTERN/{table_name}/`.
+3. ensure Glue database exists with deterministic warehouse root location.
+4. ensure Glue table exists at deterministic location with explicit `table_type=ICEBERG` posture.
+5. ensure S3 warehouse commit marker object exists at table location.
+6. fail closed if readback parity fails for Glue/S3 surfaces.
+7. emit artifacts:
+   - `m10f_iceberg_commit_snapshot.json`,
+   - `m10f_blocker_register.json`,
+   - `m10f_execution_summary.json`.
+8. publish artifacts locally + durably with readback parity.
+9. emit deterministic next gate:
+   - `M10.G_READY` when blocker count is `0`,
+   - otherwise `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 20 minutes wall clock.
 
 DoD:
-- [ ] Iceberg/Glue commit checks pass.
-- [ ] commit snapshot committed locally and durably.
+- [ ] upstream `M10.E` gate validated (`M10.F_READY`).
+- [ ] deterministic Glue database + table commit surface resolved.
+- [ ] deterministic S3 warehouse marker surface resolved.
+- [ ] `m10f_iceberg_commit_snapshot.json` committed locally and durably.
+- [ ] `m10f_blocker_register.json` and `m10f_execution_summary.json` committed locally and durably.
+- [ ] blocker-free pass emits `next_gate=M10.G_READY`.
+
+Execution status:
+1. Execution id:
+   - `[pending]`
+2. Result:
+   - `[pending]`
+3. Durable evidence:
+   - `[pending]`
 
 ### M10.G Manifest + Fingerprint + Time-Bound Audit
 Goal:
