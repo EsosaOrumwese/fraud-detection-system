@@ -3030,6 +3030,14 @@ jobs:
           all_required_available = readable_upstream == len(required_upstream_keys) and published_count == len(required_output_names)
           m10j_summary["contract_parity"]["published_outputs"] = published_count
           m10j_summary["contract_parity"]["all_required_available"] = all_required_available
+          # Persist contract parity fields after publish-count is known.
+          write_local(run_dir, run_control_artifacts)
+          for name in ("m10j_execution_summary.json", "m10j_blocker_register.json", "m10_execution_summary.json"):
+              key = f"{run_control_prefix}{name}"
+              try:
+                  s3_put_json(s3, evidence_bucket, key, run_control_artifacts[name])
+              except (BotoCoreError, ClientError, ValueError) as exc:
+                  upload_errors.append({"surface": key, "error": type(exc).__name__})
           if not all_required_available:
               blockers.append({"code": "M10-B11", "message": "M10.J contract parity check failed."})
 
