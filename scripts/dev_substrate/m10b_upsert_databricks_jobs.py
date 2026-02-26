@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -165,6 +166,47 @@ def build_job_settings(
     }
 
 
+def build_serverless_job_settings(
+    *,
+    job_name: str,
+    task_key: str,
+    python_file: str,
+) -> dict[str, Any]:
+    return {
+        "name": job_name,
+        "max_concurrent_runs": 1,
+        "tasks": [
+            {
+                "task_key": task_key,
+                "spark_python_task": {
+                    "python_file": python_file,
+                    "parameters": [],
+                },
+                "environment_key": "default",
+                "timeout_seconds": 7200,
+            }
+        ],
+        "environments": [
+            {
+                "environment_key": "default",
+                "spec": {
+                    "client": "1",
+                    "dependencies": [],
+                },
+            }
+        ],
+    }
+
+
+def _workspace_serverless_only(exc: urllib.error.HTTPError) -> bool:
+    try:
+        body = exc.read().decode("utf-8", "ignore")
+    except Exception:
+        body = ""
+    message = str(body or exc.reason or "")
+    return bool(re.search(r"only\s+serverless\s+compute\s+is\s+supported", message, re.IGNORECASE))
+
+
 def main() -> int:
     workspace_url = os.environ.get("DBX_WORKSPACE_URL", "").strip()
     token = os.environ.get("DBX_TOKEN", "").strip()
@@ -196,6 +238,7 @@ def main() -> int:
         "captured_at_utc": captured_at,
         "overall_pass": False,
         "workspace_url": workspace_url,
+        "compute_mode": "job_clusters",
         "jobs": [],
         "errors": [],
     }
@@ -265,6 +308,64 @@ def main() -> int:
         outcome["spark_version"] = spark_version
         outcome["node_type_id"] = node_type
         outcome["overall_pass"] = True
+    except urllib.error.HTTPError as exc:
+        if _workspace_serverless_only(exc):
+            outcome["compute_mode"] = "serverless"
+            outcome["jobs"] = []
+            desired = [
+                {
+                    "name": build_job_name,
+                    "settings": build_serverless_job_settings(
+                        job_name=build_job_name,
+                        task_key="ofs_build",
+                        python_file="dbfs:/fraud-platform/dev_full/ofs_build_v0.py",
+                    ),
+                },
+                {
+                    "name": quality_job_name,
+                    "settings": build_serverless_job_settings(
+                        job_name=quality_job_name,
+                        task_key="ofs_quality",
+                        python_file="dbfs:/fraud-platform/dev_full/ofs_quality_v0.py",
+                    ),
+                },
+            ]
+            try:
+                existing = list_jobs(workspace_url, token)
+                for item in desired:
+                    name = item["name"]
+                    settings = item["settings"]
+                    row: dict[str, Any] = {"name": name, "action": "", "job_id": None}
+                    existing_job = existing.get(name)
+                    if existing_job is None:
+                        created = dbx_request(
+                            workspace_url,
+                            token,
+                            "POST",
+                            "/api/2.1/jobs/create",
+                            payload=settings,
+                        )
+                        row["action"] = "created"
+                        row["job_id"] = created.get("job_id")
+                    else:
+                        job_id = existing_job.get("job_id")
+                        row["action"] = "reset"
+                        row["job_id"] = job_id
+                        dbx_request(
+                            workspace_url,
+                            token,
+                            "POST",
+                            "/api/2.1/jobs/reset",
+                            payload={"job_id": job_id, "new_settings": settings},
+                        )
+                    outcome["jobs"].append(row)
+                outcome["overall_pass"] = True
+            except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, ValueError, RuntimeError, KeyError) as retry_exc:
+                outcome["errors"].append({"type": type(retry_exc).__name__, "message": str(retry_exc)})
+                outcome["overall_pass"] = False
+        else:
+            outcome["errors"].append({"type": type(exc).__name__, "message": str(exc)})
+            outcome["overall_pass"] = False
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, ValueError, RuntimeError, KeyError) as exc:
         outcome["errors"].append({"type": type(exc).__name__, "message": str(exc)})
         outcome["overall_pass"] = False

@@ -156,6 +156,27 @@ def collect_cluster_specs(job_payload: dict[str, Any]) -> list[dict[str, Any]]:
     return specs
 
 
+def job_uses_serverless_shape(job_payload: dict[str, Any]) -> bool:
+    settings = job_payload.get("settings", {})
+    if not isinstance(settings, dict):
+        return False
+    tasks = settings.get("tasks", []) or []
+    if not isinstance(tasks, list) or not tasks:
+        return False
+    environments = settings.get("environments", []) or []
+    has_env = isinstance(environments, list) and len(environments) > 0
+    if not has_env:
+        return False
+    for task in tasks:
+        if not isinstance(task, dict):
+            return False
+        if str(task.get("environment_key", "")).strip() == "":
+            return False
+        if task.get("existing_cluster_id") or task.get("new_cluster") or task.get("job_cluster_key"):
+            return False
+    return True
+
+
 def main() -> int:
     env = dict(os.environ)
     execution_id = env.get("M10B_EXECUTION_ID", "").strip()
@@ -302,7 +323,7 @@ def main() -> int:
     missing_jobs: list[str] = []
     job_policy_rows: list[dict[str, Any]] = []
 
-    compute_policy = str(handles.get("DBX_COMPUTE_POLICY", "")).strip()
+    compute_policy = str(handles.get("DBX_COMPUTE_POLICY", "")).strip().lower()
     auto_terminate_cap = int(handles.get("DBX_AUTO_TERMINATE_MINUTES", 20))
     autoscale_range = parse_worker_range(str(handles.get("DBX_AUTOSCALE_WORKERS", "1-8")))
 
@@ -321,6 +342,7 @@ def main() -> int:
             "job_id": job_id,
             "exists": True,
             "all_tasks_job_cluster_only": True,
+            "serverless_shape_ok": True,
             "autoscale_in_range": True,
             "autotermination_in_policy": True,
             "policy_conformance": True,
@@ -332,64 +354,73 @@ def main() -> int:
             job_policy_rows.append(policy_row)
             continue
 
-        cluster_specs = collect_cluster_specs(job)
-        if not cluster_specs:
-            policy_row["policy_conformance"] = False
-            policy_row["issues"].append("no_job_cluster_spec")
+        if "serverless" in compute_policy:
+            if not job_uses_serverless_shape(job):
+                policy_row["serverless_shape_ok"] = False
+                policy_row["issues"].append("serverless_shape_invalid")
+            policy_row["all_tasks_job_cluster_only"] = False
+            policy_row["autoscale_in_range"] = True
+            policy_row["autotermination_in_policy"] = True
+            policy_row["policy_conformance"] = policy_row["serverless_shape_ok"] and len(policy_row["issues"]) == 0
+        else:
+            cluster_specs = collect_cluster_specs(job)
+            if not cluster_specs:
+                policy_row["policy_conformance"] = False
+                policy_row["issues"].append("no_job_cluster_spec")
 
-        tasks = settings.get("tasks", []) or []
-        for task in tasks:
-            if not isinstance(task, dict):
-                continue
-            if task.get("existing_cluster_id"):
-                policy_row["all_tasks_job_cluster_only"] = False
-                policy_row["issues"].append("existing_cluster_id_detected")
-            if not task.get("new_cluster") and not task.get("job_cluster_key"):
-                policy_row["all_tasks_job_cluster_only"] = False
-                policy_row["issues"].append("task_without_job_cluster")
+            tasks = settings.get("tasks", []) or []
+            for task in tasks:
+                if not isinstance(task, dict):
+                    continue
+                if task.get("existing_cluster_id"):
+                    policy_row["all_tasks_job_cluster_only"] = False
+                    policy_row["issues"].append("existing_cluster_id_detected")
+                if not task.get("new_cluster") and not task.get("job_cluster_key"):
+                    policy_row["all_tasks_job_cluster_only"] = False
+                    policy_row["issues"].append("task_without_job_cluster")
 
-        for spec in cluster_specs:
-            if not isinstance(spec, dict):
-                continue
-            if autoscale_range is not None:
-                min_workers, max_workers = autoscale_range
-                auto = spec.get("autoscale")
-                if isinstance(auto, dict):
-                    try:
-                        mn = int(auto.get("min_workers"))
-                        mx = int(auto.get("max_workers"))
-                        if mn < min_workers or mx > max_workers:
+            for spec in cluster_specs:
+                if not isinstance(spec, dict):
+                    continue
+                if autoscale_range is not None:
+                    min_workers, max_workers = autoscale_range
+                    auto = spec.get("autoscale")
+                    if isinstance(auto, dict):
+                        try:
+                            mn = int(auto.get("min_workers"))
+                            mx = int(auto.get("max_workers"))
+                            if mn < min_workers or mx > max_workers:
+                                policy_row["autoscale_in_range"] = False
+                                policy_row["issues"].append("autoscale_out_of_range")
+                        except (TypeError, ValueError):
                             policy_row["autoscale_in_range"] = False
-                            policy_row["issues"].append("autoscale_out_of_range")
-                    except (TypeError, ValueError):
+                            policy_row["issues"].append("autoscale_parse_error")
+                    else:
                         policy_row["autoscale_in_range"] = False
-                        policy_row["issues"].append("autoscale_parse_error")
-                else:
-                    policy_row["autoscale_in_range"] = False
-                    policy_row["issues"].append("autoscale_missing")
-            try:
-                atm = int(spec.get("autotermination_minutes"))
-                if atm > auto_terminate_cap:
+                        policy_row["issues"].append("autoscale_missing")
+                try:
+                    atm = int(spec.get("autotermination_minutes"))
+                    if atm > auto_terminate_cap:
+                        policy_row["autotermination_in_policy"] = False
+                        policy_row["issues"].append("autotermination_exceeds_cap")
+                except (TypeError, ValueError):
                     policy_row["autotermination_in_policy"] = False
-                    policy_row["issues"].append("autotermination_exceeds_cap")
-            except (TypeError, ValueError):
-                policy_row["autotermination_in_policy"] = False
-                policy_row["issues"].append("autotermination_missing_or_invalid")
+                    policy_row["issues"].append("autotermination_missing_or_invalid")
 
-        policy_row["policy_conformance"] = (
-            policy_row["all_tasks_job_cluster_only"]
-            and policy_row["autoscale_in_range"]
-            and policy_row["autotermination_in_policy"]
-            and len(policy_row["issues"]) == 0
-        )
+            policy_row["policy_conformance"] = (
+                policy_row["all_tasks_job_cluster_only"]
+                and policy_row["autoscale_in_range"]
+                and policy_row["autotermination_in_policy"]
+                and len(policy_row["issues"]) == 0
+            )
         job_policy_rows.append(policy_row)
 
     if missing_jobs:
         blockers.append({"code": "M10-B2", "message": "Required Databricks jobs are missing."})
-    if compute_policy == "job-clusters-only":
+    if compute_policy == "job-clusters-only" or "serverless" in compute_policy:
         nonconformant = [row["job_name"] for row in job_policy_rows if not bool(row.get("policy_conformance"))]
         if nonconformant:
-            blockers.append({"code": "M10-B2", "message": "Databricks job cluster policy conformance failed for required jobs."})
+            blockers.append({"code": "M10-B2", "message": "Databricks compute policy conformance failed for required jobs."})
 
     blockers = dedupe_blockers(blockers)
     overall_pass = len(blockers) == 0

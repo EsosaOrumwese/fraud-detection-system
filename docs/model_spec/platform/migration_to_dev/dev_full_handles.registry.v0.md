@@ -540,7 +540,7 @@ Allowed tokens in pattern handles:
 
 * `DBX_WORKSPACE_NAME = "fraud-platform-dev-full"`
 * `DBX_WORKSPACE_URL = "https://dbc-d0b53c09-b6fa.cloud.databricks.com"`
-* `DBX_COMPUTE_POLICY = "job-clusters-only"`
+* `DBX_COMPUTE_POLICY = "serverless-jobs-only"`
 * `DBX_AUTOSCALE_WORKERS = "1-8"`
 * `DBX_AUTO_TERMINATE_MINUTES = 20`
 * `DBX_JOB_OFS_BUILD_V0 = "fraud-platform-dev-full-ofs-build-v0"`
