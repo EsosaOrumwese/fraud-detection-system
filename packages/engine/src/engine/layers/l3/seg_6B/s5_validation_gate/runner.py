@@ -673,6 +673,39 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 elif not path.exists():
                     missing_paths.append(f"{dataset_id}:{scenario_id}")
 
+        parquet_files_cache: dict[str, list[Path]] = {}
+        parquet_count_cache: dict[str, Optional[int]] = {}
+
+        def _cache_key(path: Path) -> str:
+            return str(path.resolve()) if path.exists() else str(path)
+
+        def _resolve_parquet_files_cached(path: Path) -> list[Path]:
+            key = _cache_key(path)
+            cached = parquet_files_cache.get(key)
+            if cached is not None:
+                return cached
+            resolved = _resolve_parquet_files(path)
+            parquet_files_cache[key] = resolved
+            return resolved
+
+        def _count_parquet_rows_cached(path: Path) -> Optional[int]:
+            key = _cache_key(path)
+            cached = parquet_count_cache.get(key)
+            if cached is not None:
+                return cached
+            files = _resolve_parquet_files_cached(path)
+            count = _count_parquet_rows(files)
+            parquet_count_cache[key] = count
+            return count
+
+        def _sample_parquet_cached(path: Path, columns: list[str], sample_rows_local: int) -> pl.DataFrame:
+            files = _resolve_parquet_files_cached(path)
+            sample_file = files[0]
+            df = pl.read_parquet(sample_file, columns=columns)
+            if df.height > sample_rows_local:
+                df = df.head(sample_rows_local)
+            return df
+
         def _dataset_missing(dataset_id: str) -> bool:
             return any(item.startswith(f"{dataset_id}:") for item in missing_paths)
 
@@ -803,11 +836,9 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
             for scenario_id in scenario_ids:
                 path = dataset_paths[dataset_id][scenario_id]
                 try:
-                    files = _resolve_parquet_files(path)
+                    dataset_counts[scenario_id] = _count_parquet_rows_cached(path)
                 except InputResolutionError:
                     dataset_counts[scenario_id] = None
-                    continue
-                dataset_counts[scenario_id] = _count_parquet_rows(files)
             count_metrics[dataset_id] = dataset_counts
 
         # Check: PK uniqueness (sample only).
@@ -821,7 +852,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                 continue
             path = dataset_paths[dataset_id][sample_scenario]
             try:
-                df = _sample_parquet(path, list(pk), sample_rows)
+                df = _sample_parquet_cached(path, list(pk), sample_rows)
             except Exception as exc:  # noqa: BLE001
                 pk_failures.append(f"{dataset_id}:{exc}")
                 continue
@@ -1097,10 +1128,17 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         time_sample_errors: list[str] = []
         try:
             path = dataset_paths[DATASET_S2_EVENTS][sample_scenario]
-            df = _sample_parquet(path, ["flow_id", "event_seq", "ts_utc"], sample_rows)
+            df = _sample_parquet_cached(path, ["flow_id", "event_seq", "ts_utc"], sample_rows)
             if df.height:
                 df = df.with_columns(
-                    pl.col("ts_utc").str.strptime(pl.Datetime, strict=False).alias("ts_dt")
+                    pl.col("ts_utc")
+                    .str.strptime(
+                        pl.Datetime,
+                        format="%Y-%m-%dT%H:%M:%S%.6fZ",
+                        strict=True,
+                        exact=True,
+                    )
+                    .alias("ts_dt")
                 ).sort(["flow_id", "event_seq"])
                 df = df.with_columns(pl.col("ts_dt").shift(1).over("flow_id").alias("ts_prev"))
                 monotone_failures = int(
@@ -1127,9 +1165,18 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         oob_failures = 0
         try:
             path = dataset_paths[DATASET_S2_EVENTS][sample_scenario]
-            df = _sample_parquet(path, ["ts_utc"], sample_rows)
+            df = _sample_parquet_cached(path, ["ts_utc"], sample_rows)
             if df.height:
-                parsed = df.select(pl.col("ts_utc").str.strptime(pl.Datetime, strict=False).alias("ts_dt"))
+                parsed = df.select(
+                    pl.col("ts_utc")
+                    .str.strptime(
+                        pl.Datetime,
+                        format="%Y-%m-%dT%H:%M:%S%.6fZ",
+                        strict=True,
+                        exact=True,
+                    )
+                    .alias("ts_dt")
+                )
                 oob_failures = int(parsed.filter(pl.col("ts_dt").is_null()).height)
         except Exception as exc:  # noqa: BLE001
             oob_failures = sample_rows
@@ -1154,7 +1201,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         fraud_result = "PASS"
         try:
             path = dataset_paths[DATASET_S3_FLOWS][sample_scenario]
-            df = _sample_parquet(path, ["campaign_id"], sample_rows)
+            df = _sample_parquet_cached(path, ["campaign_id"], sample_rows)
             if df.height:
                 fraud_fraction = float((df.get_column("campaign_id").is_not_null().sum()) / df.height)
         except Exception:  # noqa: BLE001
@@ -1177,7 +1224,7 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
         bank_result = "PASS"
         try:
             path = dataset_paths[DATASET_S4_BANK][sample_scenario]
-            df = _sample_parquet(path, ["is_fraud_bank_view"], sample_rows)
+            df = _sample_parquet_cached(path, ["is_fraud_bank_view"], sample_rows)
             if df.height:
                 bank_rate = float((df.get_column("is_fraud_bank_view").sum()) / df.height)
         except Exception:  # noqa: BLE001

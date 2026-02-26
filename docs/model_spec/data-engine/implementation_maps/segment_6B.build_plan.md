@@ -1506,6 +1506,45 @@ P3.R1 execution status (current authority):
   - `HOLD_P3_REOPEN_PERF`.
   - next owner lane: `S4` runtime closure (`event-label join throughput + validation runtime`) while preserving `T17/T18` closure.
 
+#### P3.R2 - S4/S5 runtime reopen (freeze `S3/T17/T18`)
+Goal:
+- close integrated runtime rails by optimizing `S4` compute/write path and `S5` validation throughput, without reopening `S3` logic or changing closed realism posture.
+
+Definition of done:
+- [ ] `S4` runtime closes to rail (`<=420s`) on fresh witness from frozen `S3`.
+- [ ] `S5` runtime closes to rail (`<=30s`) on same witness.
+- [ ] `T17/T18` remain closed and no hard-gate regressions on `T1-T16`, `T21`, `T22`.
+- [ ] closure artifacts emitted and phase decision updated.
+
+P3.R2 expanded execution plan:
+
+##### P3.R2.0 - Hotspot pin + bounded strategy lock
+Definition of done:
+- [ ] owner hotspots pinned from `P3.R1` witness:
+  - `S4=444.33s` and `S5=40.23s` while `S3` remains recovered.
+- [ ] selected lane excludes any `S3` code/policy/config changes.
+- [ ] selected lane keeps schemas/contracts/scorer thresholds unchanged.
+
+##### P3.R2.1 - `S4` flow/case compute throughput optimization
+Definition of done:
+- [ ] reduce per-batch timestamp/case-event compute overhead in `S4` without semantic drift.
+- [ ] retain exact output schemas and deterministic event ordering semantics.
+- [ ] preserve event-label join row-count parity and required validation checks.
+
+##### P3.R2.2 - `S5` validation throughput optimization
+Definition of done:
+- [ ] eliminate redundant parquet file-discovery/count overhead in `S5` validation checks.
+- [ ] keep required check set, fail-closed behavior, and bundle outputs unchanged.
+- [ ] preserve deterministic bundle/index/flag behavior under idempotent reruns.
+
+##### P3.R2.3 - Fresh witness + closure scoring (`S4 -> S5` only)
+Definition of done:
+- [ ] stage fresh run-id from `P3.R1` authority and execute `S4 -> S5`.
+- [ ] score with `tools/score_segment6b_p0_baseline.py`.
+- [ ] emit `segment6b_p3r2_closure_<run_id>.json/.md` and phase decision:
+  - `UNLOCK_P4` if integrated runtime + realism rails pass,
+  - else `HOLD_P3_REOPEN_PERF` with next runtime owner pinned.
+
 ### P4 - Wave C (`S1` context/session realism closure)
 Goal:
 - improve attachment/session realism and conditional context carry-through for durable `B+`.

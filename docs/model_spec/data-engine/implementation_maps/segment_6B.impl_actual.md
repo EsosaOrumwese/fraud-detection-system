@@ -3943,3 +3943,51 @@ Artifacts emitted:
 - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_53524385b4554006a4d8e5f46cdf9b70.md`,
 - `runs/fix-data-engine/segment_6B/reports/segment6b_p3r1_closure_53524385b4554006a4d8e5f46cdf9b70.json`,
 - `runs/fix-data-engine/segment_6B/reports/segment6b_p3r1_closure_53524385b4554006a4d8e5f46cdf9b70.md`.
+
+---
+
+### Entry: 2026-02-26 05:09
+
+P3.R2 pre-implementation design lock (`S4/S5` runtime reopen, freeze `S3/T17/T18`).
+
+Authority posture and blocker:
+- `P3.R1` witness (`53524385...`) confirms:
+  - `S3` recovered (`372.01s`) and `T17/T18` are closed,
+  - integrated runtime still blocked by `S4=444.33s` and `S5=40.23s`.
+- fail-closed requirement: keep `S3` code/policy frozen; optimize only `S4/S5` owner lanes.
+
+Hotspot evidence pinned:
+- `S4`:
+  - flow loop dominates elapsed (`~397s` before event-label join),
+  - event-label join lane is secondary (`~38s`).
+- `S5`:
+  - repeated parquet file discovery and metadata row-count scans across multiple checks,
+  - repeated sample-path resolution on same datasets.
+
+Alternatives considered:
+1) reopen `S3` again to rebalance downstream runtime.
+- rejected; violates freeze boundary and risks reopening already-closed `T17/T18`.
+2) solve with runtime knob-only pass (batch/compression env only).
+- deferred as fallback; does not remove structural overhead in `S4/S5`.
+3) bounded code-path optimization in `S4/S5` only (selected).
+- selected because it can reduce deterministic overhead without changing statistical policy semantics.
+
+Chosen implementation lane:
+1) `S4`:
+- optimize case timestamp parse path using fixed-format strict parser for known `ts_utc` shape (`%Y-%m-%dT%H:%M:%S%.6fZ`),
+- keep case-event generation logic and output schemas unchanged.
+2) `S5`:
+- introduce run-local parquet file list + row-count caching so each dataset path is resolved/scanned once per run,
+- route sample checks to cached file lists to avoid repeated `rglob`/metadata traversal.
+3) witness closure:
+- rerun only `S4 -> S5` on fresh run staged from frozen `P3.R1` authority, then score and issue `P3.R2` decision.
+
+Invariants and veto rails:
+- no modifications to `S3` code/config/policy.
+- no schema/dataset-id changes for any `S4/S5` outputs.
+- no scorer threshold or policy-contract changes.
+- determinism and idempotence semantics remain required.
+
+Runtime targets for this lane:
+- `S4 <= 420s`.
+- `S5 <= 30s`.

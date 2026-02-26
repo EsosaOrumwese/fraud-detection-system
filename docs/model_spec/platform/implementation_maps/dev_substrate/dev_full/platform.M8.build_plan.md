@@ -124,9 +124,26 @@ Tasks:
 3. emit `m8a_handle_closure_snapshot.json`.
 
 DoD:
-- [ ] required handle matrix explicit and complete.
-- [ ] unresolved required handles are blocker-marked.
-- [ ] `m8a_handle_closure_snapshot.json` committed locally and durably.
+- [x] required handle matrix explicit and complete.
+- [x] unresolved required handles are blocker-marked.
+- [x] `m8a_handle_closure_snapshot.json` committed locally and durably.
+
+Execution status (2026-02-26):
+1. Authoritative execution:
+   - execution id: `m8a_p11_handle_closure_20260226T050813Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M8.B_READY`.
+3. Verification outcomes:
+   - M7->M8 handoff continuity read from:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7q_m7_rollup_sync_20260226T031710Z/m8_handoff_pack.json`,
+   - required handles resolved: `14/14`,
+   - missing handles: `0`,
+   - placeholder handles: `0`.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m8/m8a_p11_handle_closure_20260226T050813Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8a_p11_handle_closure_20260226T050813Z/`.
 
 ### M8.B Reporter Runtime Identity + Lock Readiness
 Goal:
@@ -299,7 +316,7 @@ DoD:
 14. `m8_execution_summary.json`
 
 ## 8) Completion Checklist
-- [ ] `M8.A` complete
+- [x] `M8.A` complete
 - [ ] `M8.B` complete
 - [ ] `M8.C` complete
 - [ ] `M8.D` complete
@@ -313,5 +330,5 @@ DoD:
 
 ## 9) Planning Status
 1. M8 planning is expanded and execution-grade.
-2. No M8 execution has started yet.
-3. Next action is `M8.A` handle/authority closure execution.
+2. `M8.A` handle/authority closure is closed green.
+3. Next action is `M8.B` reporter runtime identity + lock readiness.

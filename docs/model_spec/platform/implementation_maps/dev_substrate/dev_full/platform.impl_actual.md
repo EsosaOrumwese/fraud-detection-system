@@ -10989,3 +10989,85 @@ un_m7k_cert_remote (m7s).
 1. Planning-only change set complete.
 2. M8 runtime execution has not started.
 3. Next executable step remains `M8.A`.
+## Entry: 2026-02-26 04:50:40 +00:00 - M8.A execution design (before code)
+
+### Objective for this execution block
+1. Execute `M8.A` end-to-end (not planning only) and produce authoritative closure artifacts locally + durable S3.
+2. Fail closed on any handoff continuity or required-handle resolution drift.
+
+### Decisions before implementation
+1. Implement a dedicated script `scripts/dev_substrate/m8a_handle_closure.py` rather than embedding logic in ad-hoc shell blocks.
+   - reason: deterministic reruns, auditable source control, and reusable blocker adjudication behavior.
+2. Scope for this lane is strict:
+   - consume authoritative M7 handoff (`m8_handoff_pack.json` from `m7q_m7_rollup_sync_20260226T031710Z`),
+   - resolve required P11 handles from `dev_full_handles.registry.v0.md`,
+   - classify blockers under M8 taxonomy,
+   - emit snapshot/register/summary and publish to `evidence/dev_full/run_control/{m8_execution_id}/`.
+3. Parser posture: support handle lines with trailing inline notes after closing backtick (example IRSA role lines), to avoid false unresolved-handle blockers.
+4. Blocker mapping for M8.A:
+   - `M8-B1`: authority/handoff/required-handle closure failure,
+   - `M8-B12`: artifact publication/readback parity failure.
+
+### Execution metadata chosen
+1. `platform_run_id`: from authoritative M7 handoff (`platform_20260223T184232Z`).
+2. `scenario_run_id`: from authoritative M7 handoff (`scenario_38753050f3b70c666e16f7552016b330`).
+3. `m8_execution_id`: generated for this run as `m8a_p11_handle_closure_<timestamp>`.
+
+### Expected artifacts for this lane
+1. `m8a_handle_closure_snapshot.json`
+2. `m8a_blocker_register.json`
+3. `m8a_execution_summary.json`
+## Entry: 2026-02-26 05:08:13 +00:00 - M8.A execution launch
+
+### Pre-run posture check
+1. Using authoritative handoff execution `m7q_m7_rollup_sync_20260226T031710Z`.
+2. Active run scope expected from handoff:
+   - `platform_run_id=platform_20260223T184232Z`
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`.
+3. Evidence bucket target: `fraud-platform-dev-full-evidence`.
+
+### Launch decision
+1. Execute `scripts/dev_substrate/m8a_handle_closure.py` with explicit execution id and run directory.
+2. If blockers arise, remediate immediately and rerun in same M8.A lane before advancing.
+## Entry: 2026-02-26 05:09:21 +00:00 - M8.A executed and closed green
+
+### Implementation steps performed
+1. Added deterministic lane script: `scripts/dev_substrate/m8a_handle_closure.py`.
+2. Executed with:
+   - `M8A_EXECUTION_ID=m8a_p11_handle_closure_20260226T050813Z`
+   - `UPSTREAM_M7_EXECUTION=m7q_m7_rollup_sync_20260226T031710Z`
+   - `EVIDENCE_BUCKET=fraud-platform-dev-full-evidence`.
+3. Validated local and durable artifacts.
+
+### Runtime outcome
+1. Execution summary:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=M8.B_READY`.
+2. Run-scope resolved and validated:
+   - `platform_run_id=platform_20260223T184232Z`
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`.
+3. Required handles:
+   - resolved `14/14`,
+   - missing `0`, placeholder `0`.
+
+### Evidence paths
+1. Local:
+   - `runs/dev_substrate/dev_full/m8/m8a_p11_handle_closure_20260226T050813Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8a_p11_handle_closure_20260226T050813Z/`
+
+### Blocker posture
+1. No `M8-B1` authority/handle blocker.
+2. No `M8-B12` artifact publication blocker.
+3. M8 can advance to `M8.B`.
+
+### Process note
+1. Earlier pre-run log entries were authored with stale timestamps; this entry supersedes with exact run timestamp and authoritative execution ids.
+## Entry: 2026-02-26 05:09:54 +00:00 - M8 status consistency correction
+
+### Correction made
+1. Updated phase roadmap table row for M8 from `NOT_STARTED` to `ACTIVE` in `platform.build_plan.md`.
+
+### Reason
+1. M8.A execution is complete and green; leaving roadmap at `NOT_STARTED` would create status drift against section-level status owner text.

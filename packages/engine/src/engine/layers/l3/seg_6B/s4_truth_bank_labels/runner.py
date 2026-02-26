@@ -1892,7 +1892,16 @@ def run_s4(
                 cases = flows.filter(pl.col("case_opened"))
                 if cases.height > 0:
                     total_cases += int(cases.height)
-                    base_ts = pl.col("ts_utc").str.strptime(pl.Datetime, strict=False).alias("base_ts")
+                    base_ts = (
+                        pl.col("ts_utc")
+                        .str.strptime(
+                            pl.Datetime,
+                            format="%Y-%m-%dT%H:%M:%S%.6fZ",
+                            strict=True,
+                            exact=True,
+                        )
+                        .alias("base_ts")
+                    )
                     case_id_expr = _hash_to_id64(
                         [
                             pl.lit("mlr:6B.case_id.v1"),

@@ -95,7 +95,7 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M5 | P3-P4 | Oracle readiness + ingest preflight | DONE |
 | M6 | P5-P7 | Control + Ingress closure | DONE |
 | M7 | P8-P10 | RTDL + Case/Labels closure | DONE |
-| M8 | P11 | Spine obs/gov closure + non-regression pack | NOT_STARTED |
+| M8 | P11 | Spine obs/gov closure + non-regression pack | ACTIVE |
 | M9 | P12 | Learning input readiness | NOT_STARTED |
 | M10 | P13 | OFS dataset closure | NOT_STARTED |
 | M11 | P14 | MF train/eval closure | NOT_STARTED |
@@ -825,7 +825,7 @@ Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M7.P10.build_plan.md`
 
 ## M8 - Spine Obs/Gov Closure
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 
 Objective:
 1. close `P11 SPINE_OBS_GOV_CLOSED` with deterministic run-closeout evidence.
@@ -893,6 +893,24 @@ Blocker taxonomy (fail-closed reference):
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M8.build_plan.md`
+
+M8 sub-phase progress:
+- [x] `M8.A` authority + handle closure.
+- [ ] `M8.B` reporter runtime identity + lock readiness.
+- [ ] `M8.C` closure-input evidence readiness precheck.
+- [ ] `M8.D` single-writer contention probe.
+- [ ] `M8.E` reporter one-shot execution.
+- [ ] `M8.F` closure-bundle completeness validation.
+- [ ] `M8.G` spine non-regression pack generation + validation.
+- [ ] `M8.H` governance append/closure-marker verification.
+- [ ] `M8.I` `P11` rollup verdict + `m9_handoff_pack.json`.
+- [ ] `M8.J` M8 closure sync + cost-outcome receipt validation.
+
+M8 execution status (2026-02-26):
+1. `M8.A` is closed green:
+   - execution id: `m8a_p11_handle_closure_20260226T050813Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M8.B_READY`,
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8a_p11_handle_closure_20260226T050813Z/`.
 
 ## M9 - Learning Input Readiness
 Status: `NOT_STARTED`
