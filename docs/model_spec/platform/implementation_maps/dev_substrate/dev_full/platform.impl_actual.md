@@ -14819,3 +14819,17 @@ ext_gate=M11.B_READY and locker_count=0.
 4. Fail-closed posture:
    - any unresolved scope/runtime dependency or non-success terminal job state maps to `M11-B4`,
    - gate output is `M11.E_READY` only when blocker count is `0`.
+
+## Entry: 2026-02-26 20:05:11 +00:00 - M11 workflow consolidation approved and applied (single-runner posture)
+1. Trigger condition:
+   - user approved consolidation to avoid one-workflow-per-subphase churn and reduce default-branch workflow noise.
+2. Change applied:
+   - consolidated M11.D runner onto .github/workflows/dev_full_m11_managed.yml and removed reliance on .github/workflows/dev_full_m11_d_managed.yml.
+   - workflow now exposes m11_subphase dispatch input and enforces fail-closed validation; current implemented lane is D.
+3. Guardrail decision:
+   - do not introduce new workflow files for M11.E..J; extend this same runner file lane-by-lane.
+4. Build-plan alignment:
+   - updated M11.D managed binding in platform.M11.build_plan.md to point to .github/workflows/dev_full_m11_managed.yml and require m11_subphase=D.
+5. Rationale:
+   - preserves managed execution posture while reducing branch/PR overhead and workflow sprawl,
+   - keeps deterministic gate closure and audit surfaces unchanged.

@@ -450,11 +450,12 @@ Runtime budget:
 2. Hard alert if > 60 minutes without explicit approved waiver.
 
 Managed execution binding:
-1. Authoritative runner: `.github/workflows/dev_full_m11_d_managed.yml`.
+1. Authoritative runner: `.github/workflows/dev_full_m11_managed.yml` (single-runner lane for M11.D+; subphase input selects lane).
 2. Required dispatch inputs:
 - `aws_region`
 - `aws_role_to_assume`
 - `evidence_bucket`
+- `m11_subphase=D`
 - `upstream_m11c_execution`
 3. Optional dispatch inputs:
 - `m11d_execution_id` (fixed execution id override for deterministic rerun),

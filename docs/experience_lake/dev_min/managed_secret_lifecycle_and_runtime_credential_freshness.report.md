@@ -887,8 +887,9 @@ Redeployed services:
 - `case-trigger`, `case-mgmt`, `label-store`
 
 Freshness witness (post-redeploy protocol viability):
+- After the redeploy event, a protocol-level metadata validation was run to confirm the rotated credentials were usable in the live runtime.
 - check: `confluent-kafka metadata validation`
-- timestamp anchor: `2026-02-20T01:07:24Z`
+- timestamp anchor: `2026-02-20T01:07:24Z` (logbook redeploy pivot entry; protocol PASS recorded after redeploy initiation)
 - PASS, cluster_id=`lkc-18rg03`
 
 Measured rotation-to-freshness:
@@ -911,7 +912,7 @@ Control:
 
 Witness:
 - Decision timestamp: `2026-02-20 10:24:00Z` (logbook)
-- Concrete field witness: `terraform_var_guards.ig_api_key=resolved_from_ssm`
+- Apply-time guard example: `terraform_var_guards.ig_api_key=resolved_from_ssm` (guard computed during the apply/rerun init, not a static config string)
 
 Interpretation:
 - Fixing secrets once is insufficient; the apply path must be regression-safe or it will reintroduce credential drift.
@@ -932,6 +933,8 @@ Interpretation:
 - Teardown closure includes residue closure: scoped secret handles do not persist beyond environment lifetime, verified without reading secret values.
 
 ### 9.3 Security and governance outcomes
+As shown in Exhibits **A** and **B**, readiness is fail-closed on missing handles, missing IAM boundary proof, and placeholder runtime wiring, and it only advances after bounded remediation and rerun closure.
+
 After closure:
 - encrypted secret-handle posture was operational and revalidated under managed lanes,
 - placeholder and unresolved required-handle states were treated as hard blockers,
@@ -942,6 +945,8 @@ Operational meaning:
 - security posture improved without trading away auditability.
 
 ### 9.4 Runtime correctness outcomes
+As shown in Exhibits **C** and **D**, rotation closure is defined as “rotation + mandatory redeploy + post-redeploy protocol verification,” not rotation alone.
+
 The most important runtime outcome was control-plane separation:
 - credential rotation plus redeploy removed stale in-memory credential risk,
 - when downstream failures persisted, they were attributable to non-secret causes rather than ambiguous credential state,
@@ -951,6 +956,8 @@ Operational meaning:
 - runtime credential freshness became a verifiable control, not an assumption.
 
 ### 9.5 Teardown and residue outcomes
+As shown in Exhibits **E** and **F**, lifecycle closure also includes regression prevention (apply-time sourcing pinned to SSM truth) and teardown residue closure (7/7 absent).
+
 Teardown closure included credential residue control:
 - scoped runtime secret targets were explicitly verified absent post-teardown,
 - cleanup verification used metadata-only checks to avoid secret-value exposure,
