@@ -1252,6 +1252,32 @@ Execution outcome (`run_id=49582f7fafa441db97e3db82c6e80238`):
 - phase decision:
   - `HOLD_P2_REOPEN_PERF` (remaining owner blocker `S2` runtime; additionally recheck `S4` rail on an isolated-load witness before declaring `S4` reopened).
 
+##### P2.R5 - `S2` timestamp/parquet hotspot closure
+Goal:
+- close remaining `S2` runtime gap by optimizing the two dominant measured hotspots from `P2.R4` (`ts_build`, `parquet_write`) while keeping realism and schema rails locked.
+
+Definition of done:
+- [ ] design lock recorded with alternatives and bounded blast radius (no policy/scorer/schema changes).
+- [ ] timestamp lane optimization implemented in `6B.S2`:
+  - replace flexible parse path with fixed-format parse/format contract (`%Y-%m-%dT%H:%M:%S%.6fZ`) for response timestamp build.
+- [ ] parquet write lane optimization implemented in `6B.S2`:
+  - reduce per-part write overhead via explicit writer settings tuned for throughput (without changing dataset schema/paths).
+- [ ] fresh witness run-id executed `S2 -> S3 -> S4 -> S5` on `runs/fix-data-engine/segment_6B/<new_run_id>`.
+- [ ] runtime evidence:
+  - `S2` improves materially vs `bbbe...` (`238.09s`) and vs `49582...` (`232.08s`),
+  - `S3<=380s`, `S4<=420s`, `S5<=30s` re-verified on same witness.
+- [ ] realism non-regression evidence:
+  - `PASS_HARD_ONLY` or better,
+  - `T11,T13,T14,T15,T16,T21` unchanged or improved,
+  - no regression on closed rails `T1-T10,T22`.
+- [ ] closure artifacts emitted:
+  - `segment6b_p2r5_closure_<run_id>.json`,
+  - `segment6b_p2r5_closure_<run_id>.md`,
+  - updated gateboard `segment6b_p0_realism_gateboard_<run_id>.json`.
+- [ ] phase decision emitted:
+  - `UNLOCK_P3` only if runtime + realism rails pass,
+  - else `HOLD_P2_REOPEN_PERF` with next S2 owner lane pinned.
+
 ### P3 - Wave B (`S3` campaign depth)
 Goal:
 - deepen campaign realism and improve contextual stratification without breaking Wave A closure.

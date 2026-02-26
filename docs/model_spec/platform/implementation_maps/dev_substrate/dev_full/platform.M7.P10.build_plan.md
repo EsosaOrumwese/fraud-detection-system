@@ -66,16 +66,84 @@ Each component lane must publish `*_performance_snapshot.json` for the lane run 
 Goal:
 1. close required handles and entry gates for case/label components.
 
+Entry prerequisites (must already be green):
+1. `P9.E` execution summary is green with:
+   - `overall_pass=true`,
+   - `phase_verdict=ADVANCE_TO_P10`,
+   - `next_gate=M7.I_READY`.
+2. run scope (`platform_run_id`, `scenario_run_id`) matches upstream `P9.E` execution.
+
+Required handle set for P10.A:
+1. runtime path and scope:
+   - `FLINK_RUNTIME_PATH_ACTIVE`
+   - `FLINK_RUNTIME_PATH_ALLOWED`
+   - `PHASE_RUNTIME_PATH_MODE`
+2. component deployment/runtime handles:
+   - `K8S_DEPLOY_CASE_TRIGGER`
+   - `K8S_DEPLOY_CM`
+   - `K8S_DEPLOY_LS`
+   - `EKS_NAMESPACE_CASE_LABELS`
+   - `ROLE_EKS_IRSA_CASE_LABELS`
+3. data/evidence surfaces:
+   - `FP_BUS_CASE_TRIGGERS_V1`
+   - `FP_BUS_LABELS_EVENTS_V1`
+   - `CASE_LABELS_EVIDENCE_PATH_PATTERN`
+4. runtime state backends:
+   - `AURORA_CLUSTER_IDENTIFIER`
+   - `SSM_AURORA_ENDPOINT_PATH`
+   - `SSM_AURORA_USERNAME_PATH`
+   - `SSM_AURORA_PASSWORD_PATH`.
+
+Pinned P10 component SLO continuity check:
+1. upstream `m7a_component_slo_profile.json` must contain:
+   - `CaseTriggerBridge`,
+   - `CM`,
+   - `LS`.
+
 Tasks:
 1. verify `P9` verdict and run-scope continuity.
 2. verify required handles for case-trigger bridge, CM, LS, and label store boundary.
-3. emit `p10a_entry_snapshot.json` and blocker register.
+3. verify SLO continuity for `CaseTriggerBridge/CM/LS`.
+4. emit:
+   - `p10a_entry_snapshot.json`
+   - `p10a_blocker_register.json`
+   - `p10a_component_slo_profile.json`
+   - `p10a_execution_summary.json`.
+
+Execution plan (managed lane):
+1. dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with `phase_mode=m7l`.
+2. pass upstream `P9.E` execution id via `upstream_m6d_execution`.
+3. require deterministic success gate:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=P10.B_READY`.
 
 DoD:
-- [ ] P10 required-handle set is complete.
-- [ ] unresolved required handles are blocker-marked.
-- [ ] P10 entry snapshot is committed locally and durably.
-- [ ] per-component P10 performance SLO targets are pinned.
+- [x] P10 required-handle set is complete.
+- [x] unresolved required handles are blocker-marked.
+- [x] P10 entry snapshot is committed locally and durably.
+- [x] per-component P10 performance SLO targets are pinned.
+- [x] managed `P10.A` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=P10.B_READY`).
+
+Execution status (2026-02-26):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7l`
+   - run id: `22425458650`
+   - execution id: `m7l_p10a_entry_precheck_20260226T023945Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=P10.B_READY`.
+3. Verification outcomes:
+   - upstream `P9.E` continuity accepted from `m7k_p9e_rollup_20260226T023154Z`,
+   - required handles resolved: `15/15`,
+   - missing handles: `0`,
+   - placeholder handles: `0`,
+   - upstream SLO continuity for `CaseTriggerBridge/CM/LS` is present.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_tmp_run_22425458650/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7l_p10a_entry_precheck_20260226T023945Z/`.
 
 ### P10.B CaseTrigger Bridge Lane Closure
 Goal:
@@ -161,15 +229,18 @@ DoD:
 
 ## 7) P10 Evidence Contract
 1. `p10a_entry_snapshot.json`
-2. `p10b_case_trigger_snapshot.json`
-3. `p10c_cm_component_snapshot.json`
-4. `p10d_ls_component_snapshot.json`
-5. `p10e_case_labels_rollup_matrix.json`
-6. `p10e_case_labels_blocker_register.json`
-7. `p10e_case_labels_verdict.json`
-8. `p10b_case_trigger_performance_snapshot.json`
-9. `p10c_cm_performance_snapshot.json`
-10. `p10d_ls_performance_snapshot.json`
+2. `p10a_blocker_register.json`
+3. `p10a_component_slo_profile.json`
+4. `p10a_execution_summary.json`
+5. `p10b_case_trigger_snapshot.json`
+6. `p10c_cm_component_snapshot.json`
+7. `p10d_ls_component_snapshot.json`
+8. `p10e_case_labels_rollup_matrix.json`
+9. `p10e_case_labels_blocker_register.json`
+10. `p10e_case_labels_verdict.json`
+11. `p10b_case_trigger_performance_snapshot.json`
+12. `p10c_cm_performance_snapshot.json`
+13. `p10d_ls_performance_snapshot.json`
 
 ## 8) Exit Rule for P10
 `P10` can close only when:

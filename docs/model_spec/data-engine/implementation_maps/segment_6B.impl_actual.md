@@ -3538,3 +3538,38 @@ Decision:
 - keep `P2` in `HOLD_P2_REOPEN_PERF`.
 - close only the profiling sub-goal of `P2.R4`; keep structural redesign sub-goals open.
 - next owner lane: S2 timestamp/parquet redesign with bounded blast; rerun S4 rail witness under isolated load before reopening S4 logic.
+
+---
+
+### Entry: 2026-02-26 02:41
+
+P2.R5 design lock (`S2` hotspot closure: timestamp parse path + parquet writer path).
+
+Pinned evidence from P2.R4 witness (`49582f...`):
+- `S2` stage totals: `cast_hash=4.61s`, `sampling=45.27s`, `ts_build=87.68s`, `frame_build=3.76s`, `parquet_write=72.81s`.
+- Two dominant owners are now explicit: `ts_build` and `parquet_write` (`~69%` of S2 elapsed).
+
+Alternatives considered:
+1) reopen high-blast structural event-lane split (request/response separate write parts).
+- rejected: prior witness (`5541cf...`) regressed severely (`S2=366.53s`) and created downstream pressure.
+2) policy-side reductions (fewer events or simplified timing behavior).
+- rejected: violates remediation realism closure and changes statistical contract.
+3) bounded code-path optimization in current topology.
+- selected: keep existing output semantics/topology and optimize parse/write internals only.
+
+Chosen implementation for P2.R5:
+1) timestamp lane:
+- replace flexible datetime parse in `_ts_plus_seconds_expr` (`strict=False`) with fixed-format parser:
+  - input format pinned: `%Y-%m-%dT%H:%M:%S%.6fZ`,
+  - strict parsing to avoid expensive format inference.
+- keep output format unchanged (`%Y-%m-%dT%H:%M:%S%.6fZ`), preserving schema and downstream expectations.
+
+2) parquet write lane:
+- keep same part layout and publish semantics.
+- tune parquet writer invocation for throughput:
+  - explicitly disable per-column statistics generation for S2 outputs (pure runtime optimization, no schema/value drift).
+
+Execution guardrails:
+- no changes to policies, thresholds, scorer, dataset names, partitioning, or schema columns.
+- determinism preserved for fixed `(seed, manifest_fingerprint, parameter_hash, scenario_id, arrival_seq)`.
+- validate by fresh witness run under `runs/fix-data-engine/segment_6B/<new_run_id>` and scorer non-regression check.

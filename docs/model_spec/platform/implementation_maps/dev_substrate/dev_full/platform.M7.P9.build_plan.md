@@ -412,14 +412,64 @@ Execution status (2026-02-26):
 Goal:
 1. adjudicate P9 from `P9.B/P9.C/P9.D`.
 
+Entry prerequisites:
+1. `P9.B` execution summary is green with `next_gate=M7.G_READY`.
+2. `P9.C` execution summary is green with `next_gate=M7.H_READY`.
+3. `P9.D` execution summary is green with `next_gate=P9.E_READY`.
+4. run scope (`platform_run_id`, `scenario_run_id`) matches across all upstream P9 component lanes.
+
+Required handle set for P9.E:
+1. `DECISION_LANE_EVIDENCE_PATH_PATTERN`
+2. `S3_EVIDENCE_URI_PATTERN`
+
 Tasks:
-1. build `p9e_decision_chain_rollup_matrix.json`.
-2. build `p9e_decision_chain_blocker_register.json`.
-3. emit `p9e_decision_chain_verdict.json`.
+1. validate upstream summaries and blocker registers for:
+   - `P9.B` (`p9b_df_execution_summary.json`, `p9b_df_blocker_register.json`),
+   - `P9.C` (`p9c_al_execution_summary.json`, `p9c_al_blocker_register.json`),
+   - `P9.D` (`p9d_dla_execution_summary.json`, `p9d_dla_blocker_register.json`).
+2. verify proof triplet exists under `DECISION_LANE_EVIDENCE_PATH_PATTERN`:
+   - `df_component_proof.json`,
+   - `al_component_proof.json`,
+   - `dla_component_proof.json`.
+3. build `p9e_decision_chain_rollup_matrix.json`.
+4. build `p9e_decision_chain_blocker_register.json`.
+5. emit `p9e_decision_chain_verdict.json`.
+6. emit `p9e_execution_summary.json`.
+
+Execution plan (managed lane):
+1. dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with `phase_mode=m7k`.
+2. pass upstream execution ids:
+   - `upstream_m6d_execution = <p9b_execution_id>`,
+   - `upstream_m6g_execution = <p9c_execution_id>`,
+   - `upstream_m6h_execution = <p9d_execution_id>`.
+3. require deterministic success gate:
+   - `overall_pass=true`,
+   - `phase_verdict=ADVANCE_TO_P10`,
+   - `next_gate=M7.I_READY`.
 
 DoD:
-- [ ] rollup matrix and blocker register committed.
-- [ ] deterministic verdict committed (`ADVANCE_TO_P10` or fail-closed hold).
+- [x] rollup matrix and blocker register committed.
+- [x] deterministic verdict committed (`ADVANCE_TO_P10` or fail-closed hold).
+- [x] managed `P9.E` run is green (`overall_pass=true`, `phase_verdict=ADVANCE_TO_P10`, `next_gate=M7.I_READY`).
+
+Execution status (2026-02-26):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7k`
+   - run id: `22425281848`
+   - execution id: `m7k_p9e_rollup_20260226T023154Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `phase_verdict=ADVANCE_TO_P10`,
+   - `blocker_count=0`,
+   - `next_gate=M7.I_READY`.
+3. Verification outcomes:
+   - upstream posture checks pass for `P9.B/P9.C/P9.D`,
+   - decision-lane proof triplet exists (`df_component_proof.json`, `al_component_proof.json`, `dla_component_proof.json`),
+   - rollup artifacts committed locally and durably.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_tmp_run_22425281848/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7k_p9e_rollup_20260226T023154Z/`.
 
 ## 5) P9 Verification Catalog
 | Verify ID | Purpose |

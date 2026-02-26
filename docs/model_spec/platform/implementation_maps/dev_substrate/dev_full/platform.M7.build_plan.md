@@ -388,7 +388,7 @@ Tasks:
 
 DoD:
 - [x] `DLA` component evidence is complete.
-- [ ] `P9` verdict is deterministic and blocker-consistent.
+- [x] `P9` verdict is deterministic and blocker-consistent.
 - [x] `DLA` performance snapshot meets pinned budget.
 
 Execution status (2026-02-26):
@@ -398,19 +398,25 @@ Execution status (2026-02-26):
    - result: `overall_pass=true`, `blocker_count=0`, `next_gate=P9.E_READY`.
 2. Throughput posture:
    - `throughput_gate_mode=waived_low_sample`; production-scale throughput certification deferred post-M7.
-3. `M7.H` remains open until `P9.E` rollup/verdict is produced and validated.
+3. `M7.H` rollup dependency (`P9.E`) is satisfied and validated.
+4. `P9.E` rollup/verdict is now closed green:
+   - workflow run: `22425281848` (`phase_mode=m7k`)
+   - execution id: `m7k_p9e_rollup_20260226T023154Z`
+   - result: `overall_pass=true`, `phase_verdict=ADVANCE_TO_P10`, `blocker_count=0`, `next_gate=M7.I_READY`.
 
 ### M7.I P10 CaseTrigger/CM/LS + P10 Rollup
 Goal:
 1. close case/label components individually and adjudicate P10.
 
 Tasks:
-1. close `CaseTrigger bridge` ingress contract.
-2. close `CM` case write surface.
-3. close `LS` writer boundary and single-writer semantics.
-4. emit `P10` rollup matrix/blocker register/verdict.
+1. close `P10.A` entry precheck and handle/SLO continuity contract.
+2. close `CaseTrigger bridge` ingress contract.
+3. close `CM` case write surface.
+4. close `LS` writer boundary and single-writer semantics.
+5. emit `P10` rollup matrix/blocker register/verdict.
 
 DoD:
+- [x] `P10.A` entry/handle closure evidence is complete.
 - [ ] `CaseTrigger bridge` closure evidence is complete.
 - [ ] `CM` closure evidence is complete.
 - [ ] `LS` writer-boundary evidence is complete.
@@ -418,6 +424,13 @@ DoD:
 - [ ] `CaseTrigger bridge` performance snapshot meets pinned budget.
 - [ ] `CM` performance snapshot meets pinned budget.
 - [ ] `LS` performance snapshot meets pinned budget.
+
+Execution status (2026-02-26):
+1. `P10.A` entry precheck is closed green:
+   - workflow run: `22425458650` (`phase_mode=m7l`)
+   - execution id: `m7l_p10a_entry_precheck_20260226T023945Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=P10.B_READY`.
+2. `M7.I` remains open for `P10.B/P10.C/P10.D/P10.E` closure.
 
 ### M7.J M7 Gate Rollup + M8 Handoff
 Goal:
@@ -467,7 +480,7 @@ DoD:
 - [x] M7.E complete
 - [x] M7.F complete
 - [x] M7.G complete
-- [ ] M7.H complete
+- [x] M7.H complete
 - [ ] M7.I complete
 - [ ] M7.J complete
 - [ ] all active `M7-B*` blockers resolved
@@ -483,6 +496,8 @@ DoD:
 8. `M7.E` is closed green (`m7f_p8e_rollup_20260225T214307Z`) with `phase_verdict=ADVANCE_TO_P9`.
 9. `M7.F` is closed green (`m7h_p9b_df_component_20260226T015122Z`), throughput proof provisional.
 10. `M7.G` is closed green (`m7i_p9c_al_component_20260226T015350Z`), throughput proof provisional.
-11. `M7.H` DLA component lane is green (`m7j_p9d_dla_component_20260226T015553Z`), throughput proof provisional; `P9.E` rollup remains open.
-12. Non-waived throughput certification for `P8+P9` is pinned as deferred post-M7 lane (`M7-D18`).
-13. Next step is `M7.H` rollup closure (`P9.E` verdict lane); throughput-cert executes after M7 closure.
+11. `M7.H` DLA component lane is green (`m7j_p9d_dla_component_20260226T015553Z`), throughput proof provisional.
+12. `M7.H` rollup is now closed green (`m7k_p9e_rollup_20260226T023154Z`) with `phase_verdict=ADVANCE_TO_P10`.
+13. Non-waived throughput certification for `P8+P9` is pinned as deferred post-M7 lane (`M7-D18`).
+14. `M7.I` entry is closed green (`m7l_p10a_entry_precheck_20260226T023945Z`) with `next_gate=P10.B_READY`.
+15. Next step is `P10.B` (`CaseTrigger bridge` lane); throughput-cert executes after M7 closure.

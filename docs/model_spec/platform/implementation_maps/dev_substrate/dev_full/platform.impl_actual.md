@@ -10143,3 +10143,140 @@ ext_gate=HOLD_REMEDIATE.
 1. M7 can now close based on component + rollup functional truth.
 2. Throughput-cert remains pinned and mandatory, but executes immediately after M7 (non-soak lane) before production-scale claim.
 3. No authority pin for target profile was removed (`THROUGHPUT_CERT_*` remains intact).
+
+## Entry: 2026-02-26 02:34:00 +00:00 - Planned and executed P9.E managed rollup closure
+
+### Problem framing
+1. `P9.B`, `P9.C`, and `P9.D` were already green, but `P9.E` rollup/verdict remained open.
+2. Existing managed workflow `dev_full_m6f_streaming_active.yml` had no `phase_mode` for `P9.E`, so there was no deterministic managed execution path.
+
+### Decision process
+1. Keep `P9.E` on the same managed workflow rail instead of introducing a separate workflow:
+   - preserves single control surface for `M7` lane execution,
+   - avoids introducing a parallel dispatch contract.
+2. Reuse existing upstream input handles (`upstream_m6d_execution`, `upstream_m6g_execution`, `upstream_m6h_execution`) for `P9.B/P9.C/P9.D` lineage:
+   - no new input schema migration needed,
+   - deterministic handoff remains explicit.
+3. Gate semantics pinned for `P9.E`:
+   - pass only if upstream summaries + blocker registers are clean,
+   - pass only if decision-lane proof triplet exists,
+   - verdict must be `ADVANCE_TO_P10` with `next_gate=M7.I_READY`.
+
+### Implemented changes
+1. Workflow update (`.github/workflows/dev_full_m6f_streaming_active.yml`):
+   - added `phase_mode=m7k` description,
+   - added managed job `run_m7k_remote` for `P9.E` rollup,
+   - emits and uploads:
+     - `p9e_decision_chain_rollup_matrix.json`,
+     - `p9e_decision_chain_blocker_register.json`,
+     - `p9e_decision_chain_verdict.json`,
+     - `p9e_execution_summary.json`.
+2. Fail-closed gate in lane enforces:
+   - `overall_pass=true`,
+   - `phase_verdict=ADVANCE_TO_P10`,
+   - `next_gate=M7.I_READY`.
+
+### Managed execution
+1. Dispatched workflow run `22425281848` on `migrate-dev` with:
+   - `phase_mode=m7k`,
+   - upstreams:
+     - `m7h_p9b_df_component_20260226T015122Z`,
+     - `m7i_p9c_al_component_20260226T015350Z`,
+     - `m7j_p9d_dla_component_20260226T015553Z`.
+2. Result:
+   - `execution_id=m7k_p9e_rollup_20260226T023154Z`,
+   - `overall_pass=true`,
+   - `phase_verdict=ADVANCE_TO_P10`,
+   - `blocker_count=0`,
+   - `next_gate=M7.I_READY`.
+
+### Documentation alignment
+1. Updated `platform.M7.P9.build_plan.md` with full `P9.E` execution-grade contract and closure status.
+2. Updated `platform.M7.build_plan.md` to mark `M7.H` complete and reflect `P9.E` closure.
+3. Updated `platform.build_plan.md` M7 posture + DoD progress to include `P9.E` green verdict.
+
+### Notes
+1. Throughput certification posture unchanged: deferred post-`M7` (`M7-D18` / `M7P9-D8`) and still mandatory before production-scale claim.
+
+## Entry: 2026-02-26 02:46:00 +00:00 - P10.A planning and managed-lane design
+
+### Goal
+1. Execute `P10.A` as the first `M7.I` closure gate with deterministic, fail-closed posture.
+2. Keep the same managed workflow control surface used for `M6`/`M7` (`dev_full_m6f_streaming_active.yml`) rather than introducing a parallel runner.
+
+### Gap identified
+1. `platform.M7.P10.build_plan.md` had `P10.A` scaffold and DoDs but no execution-grade lane contract.
+2. Managed workflow supported up to `m7k` (`P9.E`) and lacked a `P10.A` entry mode.
+
+### Decision
+1. Add `phase_mode=m7l` for `P10.A` entry precheck.
+2. Reuse existing upstream link input `upstream_m6d_execution` to carry `P9.E` execution id.
+3. Gate `P10.A` on three checks only:
+   - upstream `P9.E` verdict posture (`ADVANCE_TO_P10`, `M7.I_READY`),
+   - required handle closure for case/labels runtime boundary,
+   - SLO continuity presence for `CaseTriggerBridge`, `CM`, `LS` from `m7a_component_slo_profile`.
+
+### Why this path
+1. It preserves deterministic orchestration semantics and avoids introducing another workflow namespace.
+2. It keeps branch and operational complexity low while maintaining fail-closed safety.
+3. It produces a durable `run_control` artifact set that is directly reusable for `P10.B` entry.
+
+### Planned evidence outputs
+1. `p10a_entry_snapshot.json`
+2. `p10a_blocker_register.json`
+3. `p10a_component_slo_profile.json`
+4. `p10a_execution_summary.json`
+
+### Planned success gate
+1. `overall_pass=true`
+2. `blocker_count=0`
+3. `next_gate=P10.B_READY`
+
+## Entry: 2026-02-26 02:53:00 +00:00 - Executed P10.A managed entry precheck (`m7l`) and closed gate
+
+### Execution intent
+1. Validate that `M7.I` can start from a deterministic, run-scoped, fail-closed entry gate.
+2. Prove P10 entry readiness from already-closed `P9.E` lineage before attempting component lanes.
+
+### Execution details
+1. Workflow lane used:
+   - `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - `phase_mode=m7l`
+2. Upstream linkage:
+   - `upstream_m6d_execution=m7k_p9e_rollup_20260226T023154Z` (`P9.E`).
+3. Managed run:
+   - run id: `22425458650`
+   - execution id: `m7l_p10a_entry_precheck_20260226T023945Z`.
+
+### Gate checks performed
+1. Upstream posture check:
+   - required `overall_pass=true`, `phase_verdict=ADVANCE_TO_P10`, `next_gate=M7.I_READY`.
+2. Required handle closure (`15` handles):
+   - runtime scope/path, case-label deployment/runtime handles, bus surfaces, case-label evidence path, aurora/ssm paths.
+3. SLO continuity check:
+   - source profile resolved from `m7a_component_slo_profile.json`,
+   - required components present: `CaseTriggerBridge`, `CM`, `LS`.
+
+### Result
+1. `overall_pass=true`
+2. `blocker_count=0`
+3. `next_gate=P10.B_READY`
+4. Upstream posture accepted and handle closure complete (`resolved=15/15`, missing `0`, placeholders `0`).
+
+### Evidence surfaces
+1. local: `runs/dev_substrate/dev_full/m7/_tmp_run_22425458650/`
+2. durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7l_p10a_entry_precheck_20260226T023945Z/`
+
+### Planning/document updates synced
+1. `platform.M7.P10.build_plan.md`:
+   - `P10.A` expanded to execution-grade contract,
+   - `P10.A` DoD marked complete,
+   - execution status and evidence captured.
+2. `platform.M7.build_plan.md`:
+   - `M7.I` task list updated with explicit `P10.A` closure step,
+   - `P10.A` execution status recorded.
+3. `platform.build_plan.md`:
+   - `M7` current posture now includes `P10.A` closure snapshot.
+
+### Next step
+1. Advance to `P10.B` (`CaseTrigger bridge` lane) using `P10.B_READY` as entry gate.

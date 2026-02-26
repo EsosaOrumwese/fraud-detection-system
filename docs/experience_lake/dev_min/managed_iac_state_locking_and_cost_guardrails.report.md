@@ -780,8 +780,8 @@ Observed validation chain in practice:
 - cost lane failed (`m9_20260219T160439Z`) and blocked progression,
 - corrected and reran to pass (`m9_20260219T160549Z`),
 - reopened on scope uplift (AWS-only insufficient),
-- reran under cross-platform requirement and closed pass (`m9_20260219T185951Z`),
-- teardown proof closure executed after upstream lanes were pass-closed (`m9_20260219T181800Z`).
+- cross-platform scope was re-closed in managed reruns (post-hardening anchor: `m9_20260219T185951Z`),
+- teardown proof closure run (`m9_20260219T181800Z`) carried upstream source references and remained consistent with later guardrail reruns.
 
 This sequence demonstrates that validation was enforcing behavior, not documenting intention.
 
@@ -826,8 +826,8 @@ The claim closed with concrete pass artifacts across the core lanes:
 - fail anchor: `m9_20260219T160439Z` (`overall_pass=false`, blocker raised on malformed cost-query input)
 - remediation pass anchor: `m9_20260219T160549Z` (`overall_pass=true`, blockers empty).
 
-3. Cross-platform cost-scope closure
-- managed cross-platform pass anchor: `m9_20260219T185951Z`
+3. Cross-platform cost-scope confirmation (post-hardening)
+- managed rerun pass anchor: `m9_20260219T185951Z`
 - outcome: pass-closed with both cost-guardrail and managed billing evidence artifacts.
 
 4. Teardown-proof publication closure
@@ -944,7 +944,7 @@ Use this sequence first:
 - durable: `s3://fraud-platform-dev-min-evidence/evidence/dev_min/run_control/m9_20260219T160549Z/m9_g_cost_guardrail_snapshot.json`
 - expected posture: `overall_pass=true`, blockers empty.
 
-3. Scope-uplift closure under cross-platform requirement
+3. Scope-uplift confirmation under cross-platform requirement (post-hardening)
 - execution id: `m9_20260219T185951Z`
 - local: `runs/dev_substrate/m9/m9_20260219T185951Z/m9_g_cost_guardrail_snapshot.json`
 - local: `runs/dev_substrate/m9/m9_20260219T185951Z/confluent_billing_snapshot.json`
@@ -1023,8 +1023,8 @@ What this proves:
 For a tight deep-dive, show only:
 1. `m2_20260213T201427Z` budget + teardown viability snapshots,
 2. `m9_20260219T160439Z` fail + `m9_20260219T160549Z` pass pair,
-3. `m9_20260219T185951Z` cross-platform closure pair (`m9_g_cost_guardrail_snapshot.json` + `confluent_billing_snapshot.json`),
-4. `m9_20260219T181800Z` `teardown_proof.json`,
+3. `m9_20260219T181800Z` `teardown_proof.json`,
+4. `m9_20260219T185951Z` cross-platform guardrail confirmation pair (`m9_g_cost_guardrail_snapshot.json` + `confluent_billing_snapshot.json`),
 5. teardown workflow file (`.github/workflows/dev_min_confluent_destroy.yml`).
 
 This packet is enough to defend the claim without overloading the interviewer with full infrastructure internals.
@@ -1052,9 +1052,10 @@ For platform engineering filters, this claim shows:
 Use this claim in interviews in this sequence:
 1. start with the platform risk (unsafe mutation + unsafe teardown + silent cost leakage),
 2. describe the control model (state lock, stack split, guardrail blockers, managed teardown lane),
-3. walk through one failure chain and rerun closure (`m9_20260219T160439Z` -> `m9_20260219T160549Z` -> `m9_20260219T185951Z`),
+3. walk through one failure chain and rerun closure (`m9_20260219T160439Z` -> `m9_20260219T160549Z`),
 4. show teardown-proof closure (`m9_20260219T181800Z`),
-5. end with non-claims to demonstrate scope discipline.
+5. show post-hardening cross-platform guardrail confirmation (`m9_20260219T185951Z`),
+6. end with non-claims to demonstrate scope discipline.
 
 This sequence signals senior judgment and operational rigor.
 

@@ -772,13 +772,21 @@ Current M7 execution posture:
   - workflow run `22424458740`,
   - execution `m7j_p9d_dla_component_20260226T015553Z`,
   - `overall_pass=true`, `blocker_count=0`, `next_gate=P9.E_READY`.
+- `M7.H` P9 rollup (`P9.E`) is closed green on managed run:
+  - workflow run `22425281848`,
+  - execution `m7k_p9e_rollup_20260226T023154Z`,
+  - `overall_pass=true`, `phase_verdict=ADVANCE_TO_P10`, `blocker_count=0`, `next_gate=M7.I_READY`.
+- `M7.I` P10 entry precheck (`P10.A`) is closed green on managed run:
+  - workflow run `22425458650`,
+  - execution `m7l_p10a_entry_precheck_20260226T023945Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=P10.B_READY`.
 - Post-M7 throughput certification caveat (deferred):
   - `P8/P9` throughput checks are currently in low-sample guarded mode (`throughput_gate_mode=waived_low_sample`).
   - non-waived throughput certification remains mandatory and is scheduled immediately after `M7` closure using the pinned target profile (`134,000,000 events/hour`).
 
 DoD anchors:
-- [ ] RTDL core closure evidence is green.
-- [ ] decision/action/audit triplet closure is green.
+- [x] RTDL core closure evidence is green.
+- [x] decision/action/audit triplet closure is green.
 - [ ] case/label append closure is green.
 - [ ] M7 rollup verdict is deterministic with blocker-free handoff to M8.
 

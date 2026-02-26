@@ -41,6 +41,7 @@ MODULE_NAME = "6B.s2_baseline_flow"
 SEGMENT = "6B"
 STATE = "S2"
 _HEX64_PATTERN = re.compile(r"^[a-f0-9]{64}$")
+_TS_UTC_FORMAT = "%Y-%m-%dT%H:%M:%S%.6fZ"
 
 
 @dataclass(frozen=True)
@@ -796,9 +797,9 @@ def _sample_latency_seconds(model: dict, u1: np.ndarray, u2: np.ndarray) -> np.n
 def _ts_plus_seconds_expr(ts_col: str, seconds_col: str) -> pl.Expr:
     micros_expr = (pl.col(seconds_col) * pl.lit(1_000_000.0)).round(0).cast(pl.Int64)
     return (
-        pl.col(ts_col).str.strptime(pl.Datetime, strict=False)
+        pl.col(ts_col).str.strptime(pl.Datetime, format=_TS_UTC_FORMAT, strict=True, exact=True)
         + pl.duration(microseconds=micros_expr)
-    ).dt.strftime("%Y-%m-%dT%H:%M:%S%.6fZ")
+    ).dt.strftime(_TS_UTC_FORMAT)
 
 def run_s2(
     config: EngineConfig,
@@ -1232,8 +1233,8 @@ def run_s2(
             logger.info("S2: scenario_id=%s has no arrivals; emitting empty outputs", scenario_id)
             flow_part = flow_tmp_dir / "part-00000.parquet"
             event_part = event_tmp_dir / "part-00000.parquet"
-            empty_flow_anchor.write_parquet(flow_part, compression=parquet_compression)
-            empty_event_stream.write_parquet(event_part, compression=parquet_compression)
+            empty_flow_anchor.write_parquet(flow_part, compression=parquet_compression, statistics=False)
+            empty_event_stream.write_parquet(event_part, compression=parquet_compression, statistics=False)
         else:
             total_rows = _count_parquet_rows(arrivals_files)
             logger.info(
@@ -1247,8 +1248,8 @@ def run_s2(
                 logger.info("S2: scenario_id=%s has zero arrivals; emitting empty outputs", scenario_id)
                 flow_part = flow_tmp_dir / "part-00000.parquet"
                 event_part = event_tmp_dir / "part-00000.parquet"
-                empty_flow_anchor.write_parquet(flow_part, compression=parquet_compression)
-                empty_event_stream.write_parquet(event_part, compression=parquet_compression)
+                empty_flow_anchor.write_parquet(flow_part, compression=parquet_compression, statistics=False)
+                empty_event_stream.write_parquet(event_part, compression=parquet_compression, statistics=False)
             else:
                 progress = _ProgressTracker(
                     total_rows,
@@ -1399,19 +1400,7 @@ def run_s2(
                     batch_stage_ts_s += time.perf_counter() - stage_t0
 
                     stage_t0 = time.perf_counter()
-                    event_stream = pl.concat([event_request, event_response], how="vertical").select(
-                        [
-                            "flow_id",
-                            "event_seq",
-                            "event_type",
-                            "ts_utc",
-                            "amount",
-                            "seed",
-                            "manifest_fingerprint",
-                            "parameter_hash",
-                            "scenario_id",
-                        ]
-                    )
+                    event_stream = pl.concat([event_request, event_response], how="vertical")
                     batch_stage_frame_build_s += time.perf_counter() - stage_t0
 
                     if not validated_flow_schema and flow_anchor.height > 0:
@@ -1441,8 +1430,18 @@ def run_s2(
                     stage_t0 = time.perf_counter()
                     flow_part = flow_tmp_dir / f"part-{part_index:05d}.parquet"
                     event_part = event_tmp_dir / f"part-{part_index:05d}.parquet"
-                    flow_anchor.write_parquet(flow_part, compression=parquet_compression)
-                    event_stream.write_parquet(event_part, compression=parquet_compression)
+                    flow_anchor.write_parquet(
+                        flow_part,
+                        compression=parquet_compression,
+                        statistics=False,
+                        row_group_size=batch_rows,
+                    )
+                    event_stream.write_parquet(
+                        event_part,
+                        compression=parquet_compression,
+                        statistics=False,
+                        row_group_size=batch_rows * 2,
+                    )
                     batch_stage_write_s += time.perf_counter() - stage_t0
 
                     batch_rows_processed = int(flow_anchor.height)
