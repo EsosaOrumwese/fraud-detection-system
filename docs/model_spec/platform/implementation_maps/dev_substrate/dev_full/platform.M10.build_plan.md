@@ -366,11 +366,16 @@ DoD:
 
 Execution status:
 1. Execution id:
-   - `[pending]`
+   - `[blocked_pre_dispatch]`
 2. Result:
-   - `[pending]`
+   - `HOLD_REMEDIATE`
 3. Durable evidence:
-   - `[pending]`
+   - `[pending_managed_dispatch]`
+4. Active blocker:
+   - `M10-B4`: managed workflow dispatch is not available until `.github/workflows/dev_full_m10_d_managed.yml` is present in default-branch workflow inventory.
+   - observed error: `HTTP 404 workflow not found on default branch` during both `gh workflow run` and REST dispatch attempts against `ref=migrate-dev`.
+5. Remediation path:
+   - promote workflow file to default branch through workflow-only lane, then dispatch `dev-full-m10-d-managed` and re-evaluate DoDs.
 
 ### M10.E Quality-Gate Adjudication
 Goal:

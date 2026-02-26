@@ -1,5 +1,25 @@
 # Managed Infrastructure as Code (IaC) Foundation with State Locking and Cost Guardrails
 
+## Front Card (Recruiter Entry)
+Claim:
+- Built a managed Infrastructure as Code operating foundation that is concurrency-safe, teardown-safe, and cost-bounded using remote state locking, stack partitioning, and fail-closed guardrails.
+What this proves:
+- I can prevent unsafe concurrent infrastructure mutation and isolate persistent versus disposable infrastructure lifecycles.
+- I can enforce cost controls as progression gates rather than after-the-fact monitoring.
+Tech stack:
+- Terraform, Amazon Simple Storage Service backend state, Amazon DynamoDB lock table, GitHub Actions managed control-plane workflows, Amazon Web Services budget and cost checks.
+Top 3 proof hooks:
+- Proof 1: Cost guardrail enforcement failed closed first and only allowed progression after corrective rerun. Artifacts: `runs/dev_substrate/m9/m9_20260219T160439Z/m9_g_cost_guardrail_snapshot.json` and `runs/dev_substrate/m9/m9_20260219T160549Z/m9_g_cost_guardrail_snapshot.json`.
+- Proof 2: Teardown was executed with explicit preservation boundaries rather than ad hoc destroy behavior. Artifact: `runs/dev_substrate/m9/m9_20260219T181800Z/teardown_proof.json`.
+- Proof 3: Remote state and lock readiness were verified before infrastructure mutation. Artifact: `runs/dev_substrate/m2_j/20260213T205715Z/m2_b_backend_state_readiness_snapshot.json`.
+Non-claim:
+- This does not claim full production high-availability architecture or enterprise-wide financial operations governance.
+
+## Numbers That Matter
+- Spend control envelope: monthly cap 30 United States dollars with early-warning thresholds at 10, 20, and 28.
+- Guardrail behavior under failure: one failed cost-control run followed by a successful rerun in the same lane after a bounded fix.
+- Operational safety signal: teardown proof published (`m9_20260219T181800Z`) and post-hardening cost rerun still passed (`m9_20260219T185951Z`).
+
 ## 1) Claim Statement
 
 ### Primary claim

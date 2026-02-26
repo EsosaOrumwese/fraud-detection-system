@@ -13522,3 +13522,45 @@ ext_gate=M10.D_READY
    - deterministic next gate (`M10.E_READY` vs `HOLD_REMEDIATE`).
 4. Added runtime budget (`<= 75 minutes`) and DoD list with blocker-free gate condition.
 5. Kept execution status section in pending state until managed run evidence is captured.
+
+## Entry: 2026-02-26 13:25:04 +00:00 - M10.D managed workflow lane implemented
+1. Added workflow:
+   - `.github/workflows/dev_full_m10_d_managed.yml`
+2. Workflow contract:
+   - trigger: `workflow_dispatch`,
+   - posture: OIDC-only AWS auth (static credentials rejected),
+   - execution: managed inline Python verifier/runner (no local authoritative execution path).
+3. Implemented managed `M10.D` behavior:
+   - validates `M10.C` entry gate from durable evidence,
+   - resolves Databricks workspace/token from SSM,
+   - resolves OFS build job by handle name,
+   - triggers Databricks run (`jobs/run-now`) and polls terminal state,
+   - fail-closed unless `TERMINATED/SUCCESS`,
+   - emits and publishes:
+     - `m10d_ofs_build_execution_snapshot.json`,
+     - `m10d_blocker_register.json`,
+     - `m10d_execution_summary.json`,
+   - gates on deterministic `next_gate` (`M10.E_READY` vs `HOLD_REMEDIATE`).
+4. Blocker mapping in lane:
+   - semantic/build failures -> `M10-B4`,
+   - artifact publication/readback parity failures -> `M10-B12`.
+
+## Entry: 2026-02-26 13:29:18 +00:00 - M10.D managed execution blocker surfaced (workflow visibility)
+1. Executed run-dispatch attempts:
+   - `gh workflow run dev_full_m10_d_managed.yml --ref migrate-dev ...`,
+   - direct REST dispatch via `gh api .../actions/workflows/dev_full_m10_d_managed.yml/dispatches` with `ref=migrate-dev`.
+2. Both attempts returned `404 Not Found` because GitHub Actions resolves workflow dispatch definitions from default branch workflow inventory.
+3. Resulting blocker:
+   - managed M10.D lane exists on `origin/migrate-dev` but is not dispatchable until available on default branch.
+4. Decision:
+   - keep phase fail-closed; do not fallback to local authoritative closure.
+   - request workflow-only promotion path to default branch, then rerun M10.D managed execution.
+
+## Entry: 2026-02-26 13:31:06 +00:00 - M10.D plan status synchronized to live blocker
+1. Updated deep plan `M10.D` execution status to `HOLD_REMEDIATE` with explicit blocker details.
+2. Updated master build plan `M10` status with:
+   - managed lane implementation reference,
+   - `M10-B4` blocker statement,
+   - exact remediation path (workflow-only promotion to default branch + rerun).
+3. Preserved fail-closed phase posture:
+   - `M10.D` remains open and not marked complete.

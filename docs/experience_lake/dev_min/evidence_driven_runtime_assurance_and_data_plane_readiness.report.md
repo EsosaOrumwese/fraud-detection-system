@@ -1,5 +1,25 @@
 # Evidence-Driven Runtime Assurance and Data-Plane Readiness
 
+## Front Card (Recruiter Entry)
+Claim:
+- Built a fail-closed runtime assurance model where closure depends on durable machine-readable evidence and data-plane readiness checks, not control-plane proxies.
+What this proves:
+- I can block false-green progression by requiring explicit verdict and blocker artifacts.
+- I can redesign readiness gates to match real runtime failure surfaces and verify closure through rerun evidence.
+Tech stack:
+- Managed run-control snapshots, data-plane readiness probes, blocker-driven adjudication, durable evidence publication in object storage.
+Top 3 proof hooks:
+- Proof 1: Data-plane readiness checks failed before fix and passed after correction, showing probe fidelity to real runtime failure surfaces. Artifacts: `runs/dev_substrate/m6/20260215T071807Z/m6_c_ingest_ready_snapshot.json` and `runs/dev_substrate/m6/20260215T124328Z/m6_c_ingest_ready_snapshot.json`.
+- Proof 2: Incident drill followed fail-to-fix-to-pass closure in the same lane with rerun evidence. Artifacts: `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot_attempt1_fail.json` and `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot.json`.
+- Proof 3: Final certification closed machine-adjudicated runtime assurance with no remaining blockers. Artifact: `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`.
+Non-claim:
+- This does not claim complete enterprise observability ownership across all systems and teams.
+
+## Numbers That Matter
+- Readiness fidelity closure: one data-plane readiness failure was corrected and passed on rerun.
+- Evidence integrity closure: offset evidence moved from unusable to complete for both ingest and real-time decision loop snapshots.
+- Final closure posture: incident drill failure was retired on rerun with 320 duplicate-safe movements, then final certification closed with no remaining blockers.
+
 ## 1) Claim Statement
 
 ### 1.1 Primary claim

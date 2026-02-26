@@ -1205,6 +1205,12 @@ M10 execution status:
      - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M10.D_READY`,
      - durable evidence:
        - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10c_input_binding_20260226T131441Z/`.
+6. `M10.D` managed lane is implemented but currently blocked pre-dispatch:
+   - workflow: `.github/workflows/dev_full_m10_d_managed.yml`,
+   - branch status: present on `origin/migrate-dev` (commit `e474717e`),
+   - blocker: GitHub dispatch visibility returns `404` until workflow is available in default-branch workflow inventory,
+   - blocker code: `M10-B4`,
+   - remediation: promote workflow file to default branch via workflow-only lane, then execute managed M10.D.
 
 DoD anchors:
 - [ ] OFS manifest committed.
@@ -1337,4 +1343,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M10.D` (OFS dataset build execution) using `M10.C` green closure (`m10c_input_binding_20260226T131152Z`) as entry basis.
+- Clear `M10-B4` by promoting `.github/workflows/dev_full_m10_d_managed.yml` to default branch workflow inventory, then execute managed `M10.D` against `m10c_input_binding_20260226T131441Z`.

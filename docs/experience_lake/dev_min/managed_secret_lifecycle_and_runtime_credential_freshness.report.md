@@ -1,5 +1,25 @@
 # Managed Secret Lifecycle and Runtime Credential Freshness Enforcement
 
+## Front Card (Recruiter Entry)
+Claim:
+- Built a fail-closed secret lifecycle with encrypted parameter storage, controlled rotation, mandatory runtime reload, and teardown cleanup verification.
+What this proves:
+- I can close both storage integrity and runtime credential freshness, not only secret-at-rest posture.
+- I can run bounded fail-to-fix-to-pass remediation without exposing secret values.
+Tech stack:
+- Amazon Web Services Systems Manager Parameter Store `SecureString`, managed workflow rotation path, service redeploy enforcement, machine-readable readiness and cleanup snapshots.
+Top 3 proof hooks:
+- Proof 1: Secret-surface controls failed closed first and then passed only after remediation of required secret boundaries. Artifacts: `runs/dev_substrate/m2_e/20260213T135629Z/secret_surface_check.json` and `runs/dev_substrate/m2_e/20260213T141419Z/secret_surface_check.json`.
+- Proof 2: Runtime credential freshness required redeploy; pre-redeploy readiness failed and post-redeploy readiness passed. Artifacts: `runs/dev_substrate/m6/20260215T033201Z/m6_b_ig_readiness_snapshot.json` and `runs/dev_substrate/m6/20260215T040527Z/m6_b_ig_readiness_snapshot.json`.
+- Proof 3: Teardown verified credential residue cleanup across scoped targets. Artifact: `runs/dev_substrate/m9/m9_20260219T155120Z/m9_f_secret_cleanup_snapshot.json`.
+Non-claim:
+- This does not claim full enterprise key-management completion across all environments.
+
+## Numbers That Matter
+- Secret storage and access closure: one failed secret-surface gate followed by a successful rerun after remediation.
+- Runtime freshness closure: one fail-to-pass cycle in readiness after rotation (pre-redeploy fail -> post-redeploy pass).
+- Cleanup certainty: 7 out of 7 scoped secret targets confirmed absent after teardown, with blockers empty; managed rotation run reference `22206773359`.
+
 ## 1) Claim Statement
 
 ### Primary claim

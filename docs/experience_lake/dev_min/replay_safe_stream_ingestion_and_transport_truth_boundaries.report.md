@@ -1,5 +1,25 @@
 # Replay-Safe Streaming Ingestion with Fail-Closed Correctness and Transport/Durable Truth Separation
 
+## Front Card (Recruiter Entry)
+Claim:
+- Built a replay-safe, idempotent ingestion boundary that converges duplicates, quarantines identity collisions, and keeps durable truth outside broker retention.
+What this proves:
+- I can design streaming correctness for at-least-once delivery without silent overwrite behavior.
+- I can separate transport reliability concerns from canonical state and evidence ownership.
+Tech stack:
+- Managed Kafka transport, admission boundary with canonical deduplication identity and mismatch controls, durable receipt/evidence surfaces in object storage.
+Top 3 proof hooks:
+- Proof 1: Incident lane showed fail-to-fix-to-pass closure in the same execution scope, demonstrating fail-closed remediation discipline. Artifacts: `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot_attempt1_fail.json` and `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot.json`.
+- Proof 2: Bounded semantic closure passed at the 200-event gate with clean ambiguity posture. Artifact: `runs/dev_substrate/m10/m10_20260220T045637Z/m10_c_semantic_200_snapshot.json`.
+- Proof 3: Integrated final certification closed across semantic, incident, and scale lanes. Artifact: `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`.
+Non-claim:
+- This does not claim exactly-once semantics for every downstream side effect.
+
+## Numbers That Matter
+- Runtime budget performance: semantic 200-event gate completed in 418 seconds against a 3600-second budget.
+- Correctness under incident replay: rerun changed from zero duplicate-safe movement to 320 duplicate-safe movements after the fix.
+- Scale and stability evidence: 50,100 admitted events in scale window, 3.13x burst handling, and restart-to-stable in 172.162 seconds against a 600-second threshold.
+
 ## 1) Claim Statement
 
 ### Primary claim

@@ -1,5 +1,25 @@
 # Continuous Integration and Continuous Delivery (CI/CD) Release Engineering: Secure Federation, Immutable Artifacts, and Deterministic Build Surface
 
+## Front Card (Recruiter Entry)
+Claim:
+- Built a fail-closed Continuous Integration and Continuous Delivery release workflow path with secure cloud federation, least-privilege registry publish, immutable image identity, and deterministic build surface controls.
+What this proves:
+- I can separate and close authentication and authorization failures without broadening permissions.
+- I can preserve release integrity using digest-anchored identity and machine-readable provenance.
+Tech stack:
+- GitHub Actions, Amazon Web Services OpenID Connect role assumption, Amazon Elastic Container Registry, Docker build context policy.
+Top 3 proof hooks:
+- Proof 1: Authentication and authorization failures were isolated and closed in sequence before final pass. Artifacts: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21985402789`, `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21985472266`, `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/21985500168`.
+- Proof 2: Release provenance was emitted as machine-readable evidence, linking source and released artifact identity. Artifact: `runs/dev_substrate/m1_build_go/20260213T114002Z/packaging_provenance.json`.
+- Proof 3: Final release identity was immutable and deployment-safe (tag plus digest). Artifact: `runs/dev_substrate/m1_build_go/20260213T114002Z/ci_m1_outputs.json`.
+Non-claim:
+- This does not claim full software supply chain maturity across every service.
+
+## Numbers That Matter
+- Closure pattern: 3 sequential pipeline executions; first 2 failed at different control gates, 3rd passed after bounded fixes.
+- Release identity evidence: immutable digest published (`sha256:d71cbe335ec0...`) for promotion-safe traceability.
+- Packaging-drift recovery: one controlled rebuild (`22207368985`) produced a new immutable digest (`sha256:ac6e7c42f230...`) through the same authoritative workflow path.
+
 ## 1) Claim Statement
 
 ### Primary claim
