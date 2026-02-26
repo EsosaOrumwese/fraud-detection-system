@@ -271,6 +271,7 @@ The migration history surfaced concrete failure classes that validated this clai
 - Role and configuration checks could pass while runtime ingest paths still failed.
 - Real failure modes included boundary endpoint mismatch, principal/auth mismatch, and transport-client incompatibility.
 - Operational effect: runs appeared "ready" from management surfaces but could not sustain valid data-plane execution.
+- concrete incident class: credential/authentication defects were remediated first, but ingestion remained blocked until transport-client compatibility was corrected; this validated the readiness law that control-plane success is insufficient without data-plane probe success.
 
 2. Readiness signal mismatch against real failure surface
 - Some early readiness checks over-weighted metadata/administrative visibility instead of runtime protocol viability.
@@ -810,6 +811,7 @@ Representative readiness lane outcome:
 
 Outcome:
 - readiness moved from control-signal ambiguity to proven data-plane viability.
+- supporting incident interpretation: this lane is where the credential-correct-but-still-failing transport class was resolved and revalidated, which is why readiness adjudication requires both runtime preflight and data-plane readback signals.
 
 ### 9.3 Evidence-integrity result: closure-input readiness fail -> pass
 Representative evidence-gate outcome:
@@ -898,7 +900,8 @@ This claim does not state that:
 - every incident class is eliminated from the platform,
 - data-plane readiness guarantees downstream business outcomes by itself,
 - all observability and governance domains are fully solved enterprise-wide,
-- one passing cycle eliminates future drift risk without ongoing guardrail maintenance.
+- one passing cycle eliminates future drift risk without ongoing guardrail maintenance,
+- credential-plane closure alone is sufficient to declare ingestion readiness without protocol/client compatibility proof.
 
 The claim is about decision-correct runtime assurance, not universal platform completeness.
 
@@ -1040,6 +1043,7 @@ If challenged on where the gate model was defined and enforced, use:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.migration_wrap_up.md`
 - `tools/dev_substrate/verify_m2f_topic_readiness.py`
+- `src/fraud_detection/event_bus/kafka.py` (transport-client compatibility surface used in runtime viability probes)
 
 These anchors tie run artifacts to pinned execution contracts and fail-closed progression law.
 

@@ -301,6 +301,7 @@ The risk model was validated by real runtime behavior during managed environment
 - duplicate-heavy windows appeared when replay/checkpoint posture and run scope were not tightly controlled,
 - publish-side uncertainty required explicit ambiguity handling to avoid false admission claims,
 - topic alignment drift created apparent system health while intended semantic flow was incomplete.
+- credential/authentication blockers were closed, but ingestion still failed until transport-client compatibility was corrected, confirming that credential correctness is necessary but not sufficient for transport viability.
 
 These were treated as boundary defects, not tuning noise.
 Remediation was accepted only when the same failure class no longer violated correctness gates under rerun.
@@ -535,7 +536,7 @@ This reduces duplicate-heavy replay windows caused by ephemeral one-shot task st
 During managed-environment promotion, three critical implementation hardening actions were applied:
 
 1. Kafka client compatibility correction
-- adapter path was aligned to Confluent-compatible client behavior to restore reliable metadata/publish/read operations.
+- after credential/authentication blockers were removed, ingestion still failed due to broker/client incompatibility; the adapter was migrated from `kafka-python` to `confluent-kafka` to restore stable metadata, publish, and read behavior.
 
 2. Topic contract canonicalization
 - case-trigger topic naming was normalized across runtime consumers and writer configuration to remove semantic drift.
@@ -806,6 +807,7 @@ Initial semantic closure runs on run scope `platform_20260219T234150Z` were succ
 
 Interpretation:
 - bounded semantic closure passed with explicit ambiguity-free posture and blocker-free verdicts.
+- supporting incident context: this closure came after a transport-compatibility correction where credentials were already valid but ingestion still failed until the client adapter was changed; this is why transport correctness is treated as a first-class part of the claim, not an implementation footnote.
 
 ### 9.3 Incident drill result (duplicate replay safety)
 Duplicate incident drill lane closed pass after bounded remediation:
@@ -1053,6 +1055,10 @@ If challenged on "where this behavior is enforced in code," use:
 - `src/fraud_detection/event_bus/kafka.py`
 - `src/fraud_detection/world_streamer_producer/runner.py`
 - `config/platform/profiles/dev_min.yaml`
+
+Managed Kafka compatibility isolation anchor (supporting this claim):
+- `src/fraud_detection/event_bus/kafka.py` now uses `confluent_kafka` producer/consumer adapters.
+- `runs/dev_substrate/m6/20260215T124328Z/m6_c_ingest_ready_snapshot.json` confirms post-fix data-plane viability (`managed_runtime_preflight_pass=true`, `probes.kafka_publish_smoke.stream_readback_found=true`).
 
 ### 11.7 Minimal proof packet for recruiter/hiring-manager review
 If only four artifacts can be shown, use:

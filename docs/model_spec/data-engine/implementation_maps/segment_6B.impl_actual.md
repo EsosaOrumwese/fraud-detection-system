@@ -3865,3 +3865,38 @@ Success targets for this reopen:
   - `S3<=380s` stretch rail.
 - realism:
   - keep `T17` pass, keep `T18` pass, no hard-gate regression.
+
+---
+
+### Entry: 2026-02-26 06:15
+
+P3.R1 code implementation applied (`6B.S3`) before witness rerun.
+
+File changed:
+- `packages/engine/src/engine/layers/l3/seg_6B/s3_fraud_overlay/runner.py`.
+
+Implemented optimizations:
+1) flow-lane assignment cost reduction:
+- `use_merchant_targeting=True` path now uses a shared merchant-bucket hash expression per batch (`hash(merchant_id)`), instead of recomputing merchant hash with campaign salt for every campaign.
+- campaign cohort windows remain campaign-specific via deterministic `targeting_bucket_start/width`, so targeting-depth semantics stay differentiated while reducing hash workload.
+
+2) event-lane throughput rewrite:
+- replaced event-side per-campaign hash assignment loop with a DuckDB flow-joined overlay lane:
+  - joins baseline S2 events to already-materialized S3 flow overlay by `flow_id`,
+  - assigns `campaign_id`/`fraud_flag` from flow overlay deterministically,
+  - sets event amount from flow overlay amount (`COALESCE(flow_amount, event_amount)`),
+  - writes one scenario-scoped parquet output part.
+- added explicit row-count parity guard against expected S2 event rows.
+
+3) support helpers:
+- added DuckDB scan/copy helpers for multi-file parquet inputs and output write path.
+- retained existing schema validation sample checks on produced event output.
+
+Risk controls:
+- no schema or dataset ID changes.
+- no policy/scorer threshold changes.
+- rerun scope remains `S3 -> S4 -> S5`.
+
+Validation before execution:
+- compile check passed:
+  - `python -m compileall packages/engine/src/engine/layers/l3/seg_6B/s3_fraud_overlay/runner.py`.

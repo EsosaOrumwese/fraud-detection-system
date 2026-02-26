@@ -10942,3 +10942,50 @@ un_m7k_cert_remote (m7s).
    - `aws_mtd_pre_amount=78.3708562065 USD`
    - `aws_mtd_post_amount=78.3708562065 USD`
    - `spend_amount_estimated=0E-10` (expected possible due billing-latency window).
+## Entry: 2026-02-26 04:44:00 +00:00 - M8 expansion planning intent (pre-edit)
+
+### Problem framing
+1. `M8` in `platform.build_plan.md` is still a stub and cannot support execution-grade closure for `P11 SPINE_OBS_GOV_CLOSED`.
+2. `dev_full` deep-plan file `platform.M8.build_plan.md` is missing entirely, which violates progressive elaboration discipline before M8 execution.
+
+### Planning decision (before edits)
+1. Expand `M8` in master plan with explicit sub-phases, DoD anchors, and blocker taxonomy reference.
+2. Create `platform.M8.build_plan.md` as execution-grade deep plan with:
+   - authority/entry continuity from `M7.J` + `M7.K`,
+   - capability-lane coverage (authority, IAM/secrets, locking, evidence inputs, reporter execution, governance append, non-regression pack, rollup/verdict, cost-outcome, handoff),
+   - explicit `M8.A..M8.J` work breakdown and DoDs,
+   - fail-closed blocker taxonomy and artifact contracts.
+3. Keep M8 status as `NOT_STARTED` (planning expansion only).
+
+### Why this shape
+1. It aligns with anti-cram and decision-completeness laws and avoids repeating M1/M2 planning gaps.
+2. It keeps M8 auditable and deterministic before any runtime execution begins.
+3. It preserves strict separation between planning edits and later execution actions.
+## Entry: 2026-02-26 04:48:35 +00:00 - M8 planning expansion completed (master + deep plan)
+
+### What was changed
+1. Expanded M8 section in `platform.build_plan.md` from stub to execution-ready phase contract.
+2. Created new deep-plan file `platform.M8.build_plan.md` with explicit `M8.A..M8.J` sequence.
+3. Updated `dev_full/README.md` posture so track status matches current phase reality.
+
+### Why this structure
+1. `P11` closure has mixed concerns (obs artifacts, governance append semantics, non-regression, and cost closure), so a single bundled step would hide drift risk.
+2. Split `M8.A..M8.J` to enforce anti-cram capability-lane coverage and keep each closure proof independently auditable.
+3. Added blocker taxonomy (`M8-B1..M8-B12`) to preserve fail-closed decisioning and avoid silent advancement.
+
+### Specific planning decisions pinned
+1. M8 entry requires both M7 rollup (`M7.J`) and throughput certification (`M7.K`) to remain green.
+2. Single-writer contention proof is mandatory before reporter closeout execution.
+3. Non-regression pack is a first-class lane (not implicit in reporter output).
+4. M8 cannot close without cost-to-outcome artifacts (`m8_phase_budget_envelope.json`, `m8_phase_cost_outcome_receipt.json`).
+5. `M9` handoff (`m9_handoff_pack.json`) is emitted only after deterministic `P11` verdict.
+
+### Files touched
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M8.build_plan.md` (new)
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/README.md`
+
+### Execution status
+1. Planning-only change set complete.
+2. M8 runtime execution has not started.
+3. Next executable step remains `M8.A`.

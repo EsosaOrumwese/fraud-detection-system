@@ -828,18 +828,68 @@ Deep plan:
 Status: `NOT_STARTED`
 
 Objective:
-- close `P11` and publish spine non-regression pack.
+1. close `P11 SPINE_OBS_GOV_CLOSED` with deterministic run-closeout evidence.
+2. prove run report + reconciliation closure under single-writer governance posture.
+3. emit spine non-regression pack anchored to M6/M7 closure surfaces.
+4. publish deterministic handoff to `M9`.
 
 Entry gate:
-- M7 is `DONE` including `M7.K` throughput certification closure and Control/Ingress sentinel clearance.
+1. M7 is `DONE`.
+2. `M7.J` rollup/handoff is green with `next_gate=M8_READY`.
+3. `M7.K` throughput certification is green with retired `M7-B18/M7-B19`.
+4. run-scope continuity from M7 (`platform_run_id`, `scenario_run_id`) is unchanged.
+
+M8 prerequisite lanes (must be explicit before execution):
+1. authority and required-handle closure for P11.
+2. reporter runtime identity/lock readiness.
+3. closure-input evidence readiness from P5..P10 outputs.
+4. reporter one-shot execution and single-writer contention proof.
+5. closure bundle completeness (run report, reconciliation, governance append/marker).
+6. spine non-regression pack (anchors vs certified M6/M7 posture).
+7. P11 rollup verdict + `m9_handoff_pack.json`.
+8. phase budget envelope + cost-outcome receipt + closure sync.
 
 Planned lanes:
-- run report/reconciliation, governance append closure, non-regression anchors.
+1. run report and reconciliation.
+2. governance append closure and run-close marker.
+3. non-regression anchors against certified spine baseline.
+4. phase-level cost-to-outcome closure and M9 handoff.
+
+M8 sub-phase plan:
+1. `M8.A` authority + handle closure (`P11`).
+2. `M8.B` reporter runtime identity + lock readiness.
+3. `M8.C` closure-input evidence readiness precheck.
+4. `M8.D` single-writer contention probe.
+5. `M8.E` reporter one-shot execution.
+6. `M8.F` closure-bundle completeness validation.
+7. `M8.G` spine non-regression pack generation + validation.
+8. `M8.H` governance append/closure-marker verification.
+9. `M8.I` `P11` rollup verdict + `m9_handoff_pack.json`.
+10. `M8.J` M8 closure sync + cost-outcome receipt validation.
 
 DoD anchors:
-- [ ] spine run report committed.
-- [ ] governance closure marker committed.
-- [ ] non-regression pack committed.
+- [ ] `M8.A..M8.J` all close green with no active `M8-B*` blocker.
+- [ ] run report + reconciliation are committed locally and durably.
+- [ ] governance append log + closure marker are committed and append-safe.
+- [ ] spine non-regression pack is committed and pass-verdict.
+- [ ] deterministic `P11` verdict is `ADVANCE_TO_M9` with `next_gate=M9_READY`.
+- [ ] `m9_handoff_pack.json` is committed locally and durably.
+- [ ] `m8_phase_budget_envelope.json` + `m8_phase_cost_outcome_receipt.json` are valid and blocker-free.
+- [ ] `m8_execution_summary.json` is committed locally and durably.
+
+Blocker taxonomy (fail-closed reference):
+1. `M8-B1` authority/handle closure failure.
+2. `M8-B2` reporter runtime identity/lock readiness failure.
+3. `M8-B3` closure-input evidence readiness failure.
+4. `M8-B4` single-writer contention discipline failure.
+5. `M8-B5` reporter execution failure.
+6. `M8-B6` closure-bundle completeness failure.
+7. `M8-B7` non-regression pack failure.
+8. `M8-B8` governance append/closure-marker failure.
+9. `M8-B9` P11 rollup verdict inconsistency.
+10. `M8-B10` M9 handoff pack failure.
+11. `M8-B11` phase cost-outcome closure failure.
+12. `M8-B12` closure summary/evidence publication failure.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M8.build_plan.md`
