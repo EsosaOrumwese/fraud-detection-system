@@ -272,7 +272,7 @@ jobs:
               return settings, changed
 
 
-          def normalize_job_python_entry(settings: dict[str, Any], job_python_ref: str) -> tuple[dict[str, Any], bool]:
+          def normalize_job_python_entry(settings: dict[str, Any], job_notebook_ref: str) -> tuple[dict[str, Any], bool]:
               changed = False
               tasks = settings.get("tasks")
               if not isinstance(tasks, list):
@@ -280,12 +280,16 @@ jobs:
               for task in tasks:
                   if not isinstance(task, dict):
                       continue
-                  spark_python_task = task.get("spark_python_task")
-                  if not isinstance(spark_python_task, dict):
-                      continue
-                  python_file = str(spark_python_task.get("python_file", "")).strip()
-                  if python_file and python_file != job_python_ref:
-                      spark_python_task["python_file"] = job_python_ref
+                  existing_notebook = task.get("notebook_task")
+                  if (
+                      not isinstance(existing_notebook, dict)
+                      or str(existing_notebook.get("notebook_path", "")).strip() != job_notebook_ref
+                      or str(existing_notebook.get("source", "")).strip() != "WORKSPACE"
+                  ):
+                      task["notebook_task"] = {"notebook_path": job_notebook_ref, "source": "WORKSPACE"}
+                      changed = True
+                  if "spark_python_task" in task:
+                      task.pop("spark_python_task", None)
                       changed = True
               return settings, changed
 
@@ -443,8 +447,8 @@ jobs:
           dbx_token = ""
           dbx_current_user = ""
           workspace_build_dir = "/Shared/fraud-platform/dev_full"
-          workspace_build_file = "/Shared/fraud-platform/dev_full/ofs_build_v0.py"
-          workspace_build_file_job_ref = "/Workspace/Shared/fraud-platform/dev_full/ofs_build_v0.py"
+          workspace_build_file = "/Shared/fraud-platform/dev_full/ofs_build_v0"
+          workspace_build_file_job_ref = "/Shared/fraud-platform/dev_full/ofs_build_v0"
 
           if ssm_workspace_path:
               try:
@@ -468,8 +472,8 @@ jobs:
                   dbx_current_user = resolve_current_user(dbx_workspace, dbx_token)
                   if dbx_current_user:
                       workspace_build_dir = f"/Users/{dbx_current_user}/fraud-platform/dev_full"
-                      workspace_build_file = f"{workspace_build_dir}/ofs_build_v0.py"
-                      workspace_build_file_job_ref = f"/Workspace{workspace_build_file}"
+                      workspace_build_file = f"{workspace_build_dir}/ofs_build_v0"
+                      workspace_build_file_job_ref = workspace_build_file
               except Exception as exc:
                   read_errors.append({"surface": "databricks.current-user", "error": type(exc).__name__})
 
