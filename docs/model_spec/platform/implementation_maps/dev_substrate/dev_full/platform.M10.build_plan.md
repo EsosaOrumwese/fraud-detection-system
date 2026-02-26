@@ -358,24 +358,27 @@ Runtime budget:
 1. target <= 75 minutes wall clock.
 
 DoD:
-- [ ] upstream `M10.C` gate validated (`M10.D_READY`).
-- [ ] OFS Databricks build run is launched and reaches terminal success state.
-- [ ] `m10d_ofs_build_execution_snapshot.json` committed locally and durably.
-- [ ] `m10d_blocker_register.json` and `m10d_execution_summary.json` committed locally and durably.
-- [ ] blocker-free pass emits `next_gate=M10.E_READY`.
+- [x] upstream `M10.C` gate validated (`M10.D_READY`).
+- [x] OFS Databricks build run is launched and reaches terminal success state.
+- [x] `m10d_ofs_build_execution_snapshot.json` committed locally and durably.
+- [x] `m10d_blocker_register.json` and `m10d_execution_summary.json` committed locally and durably.
+- [x] blocker-free pass emits `next_gate=M10.E_READY`.
 
 Execution status:
 1. Execution id:
-   - `[blocked_pre_dispatch]`
+   - `m10d_ofs_build_20260226T143036Z`
 2. Result:
-   - `HOLD_REMEDIATE`
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M10.E_READY`
 3. Durable evidence:
-   - `[pending_managed_dispatch]`
-4. Active blocker:
-   - `M10-B4`: managed workflow dispatch is not available until `.github/workflows/dev_full_m10_d_managed.yml` is present in default-branch workflow inventory.
-   - observed error: `HTTP 404 workflow not found on default branch` during both `gh workflow run` and REST dispatch attempts against `ref=migrate-dev`.
-5. Remediation path:
-   - promote workflow file to default branch through workflow-only lane, then dispatch `dev-full-m10-d-managed` and re-evaluate DoDs.
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10d_ofs_build_20260226T143036Z/`
+4. Managed run reference:
+   - Actions run: `22446480430` (`migrate-dev`, commit `a43a40c9`)
+   - Databricks run id: `1099244903700940`
+5. Blocker resolution trail (M10-B4):
+   - dispatch visibility resolved by workflow-only promotion to default branch (`PR #57`),
+   - Databricks serverless profile drift remediated in workflow lane,
+   - DBFS-disabled workspace path remediated via workspace import + task normalization,
+   - final closure path uses workspace `notebook_task` under user-scoped path.
 
 ### M10.E Quality-Gate Adjudication
 Goal:
@@ -491,20 +494,21 @@ DoD:
 - [x] `M10.A` complete
 - [x] `M10.B` complete
 - [x] `M10.C` complete
-- [ ] `M10.D` complete
+- [x] `M10.D` complete
 - [ ] `M10.E` complete
 - [ ] `M10.F` complete
 - [ ] `M10.G` complete
 - [ ] `M10.H` complete
 - [ ] `M10.I` complete
 - [ ] `M10.J` complete
-- [x] all active `M10-B*` blockers resolved (current active set for `M10.A/M10.B`)
+- [x] all active `M10-B*` blockers resolved (current active set through `M10.D`)
 
 ## 9) Planning Status
 1. M10 planning is expanded and execution-grade.
 2. M9 closure gate is green (`M9 DONE`, `next_gate=M10_READY`).
 3. `M11` handoff contract remains an in-phase closure requirement under `M10.I`.
 4. `M10.A` and `M10.B` are both closed green in managed execution (`22442631941`).
-5. Managed remediation/closure lane is active:
+5. Managed remediation/closure lanes are active:
    - `.github/workflows/dev_full_m10_ab_managed.yml`
-6. Next action is `M10.D` expansion and execution.
+   - `.github/workflows/dev_full_m10_d_managed.yml`
+6. Next action is `M10.E` expansion and execution.

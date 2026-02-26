@@ -13564,3 +13564,107 @@ ext_gate=M10.D_READY
    - exact remediation path (workflow-only promotion to default branch + rerun).
 3. Preserved fail-closed phase posture:
    - `M10.D` remains open and not marked complete.
+
+## Entry: 2026-02-26 14:15:05 +00:00 - M10.D first managed execution result + blocker diagnosis
+1. Workflow promotion + dispatch path executed:
+   - workflow-only PR merged to `main` (`#57`) to satisfy dispatch inventory requirement,
+   - managed run executed: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22445780566`.
+2. Run result:
+   - phase result `overall_pass=false`,
+   - blocker count `1`,
+   - next gate `HOLD_REMEDIATE`,
+   - execution id: `m10d_ofs_build_20260226T141155Z`.
+3. Evidence captured:
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10d_ofs_build_20260226T141155Z/`,
+   - downloaded artifact mirror: `runs/dev_substrate/dev_full/m10/_gha_22445780566/m10-d-managed-20260226T141155Z/`.
+4. Root-cause blocker (M10-B4):
+   - Databricks terminal state `INTERNAL_ERROR/FAILED`,
+   - state message: `Unexpected user error while preparing the cluster for the job. Cause: INVALID_PARAMETER_VALUE: Workspace doesn't support Client-1 channel for REPL.`
+5. Decision:
+   - remediate in managed workflow lane (workflow-only scope) by adding deterministic serverless-environment correction (`client` channel normalization) before launch/rerun.
+   - keep fail-closed posture until rerun emits `M10.E_READY`.
+
+## Entry: 2026-02-26 14:18:12 +00:00 - M10.D remediation implemented for Databricks client-channel mismatch
+1. Patched `.github/workflows/dev_full_m10_d_managed.yml` inline runner:
+   - added `normalize_serverless_client(...)`,
+   - added pre-run `jobs/get` -> `jobs/reset` branch to normalize `environments[].spec.client` from `1` to `2` when present.
+2. Remediation scope is workflow-only (no non-workflow commit scope used).
+3. Expected effect:
+   - avoid workspace `Client-1 channel for REPL` incompatibility for serverless OFS build job profile.
+4. Rerun plan:
+   - dispatch managed workflow again on `migrate-dev`,
+   - require terminal success and blocker-free `M10.E_READY` before closing `M10.D`.
+
+## Entry: 2026-02-26 14:22:11 +00:00 - M10.D second remediation for DBFS-disabled workspace posture
+1. Second run showed different `M10-B4` root cause after client normalization:
+   - Databricks task failed validating `dbfs:/fraud-platform/dev_full/ofs_build_v0.py`,
+   - workspace posture: public DBFS root disabled.
+2. Decision:
+   - keep workflow-only remediation scope,
+   - patch M10.D lane to materialize build script into Databricks workspace files and rewrite job python entry from `dbfs:/...` to `/Workspace/...`.
+3. Implemented in workflow:
+   - `workspace/mkdirs` + `workspace/import` for `/Shared/fraud-platform/dev_full/ofs_build_v0.py`,
+   - job settings normalization for `spark_python_task.python_file`,
+   - snapshot fields added: `workspace_python_patch_applied`, `workspace_python_file`.
+4. Rationale:
+   - aligns with managed workspace security posture (no DBFS root reliance),
+   - removes dependency on disabled storage surface while preserving managed execution.
+
+## Entry: 2026-02-26 14:24:58 +00:00 - M10.D third remediation for workspace-file ACL posture
+1. Second remediation run still failed with:
+   - `Cannot read the python file /Workspace/Shared/...` for run identity `eorumwese@gmail.com`.
+2. Decision:
+   - switch workspace file placement from shared path to user-scoped path derived from Databricks current-user API.
+3. Workflow patch details:
+   - call `/api/2.0/current-user`,
+   - materialize file under `/Users/<current-user>/fraud-platform/dev_full/ofs_build_v0.py`,
+   - rewrite `spark_python_task.python_file` to `/Workspace/Users/<current-user>/...`.
+4. Expected effect:
+   - eliminate workspace ACL mismatch between file owner/scope and job run identity.
+
+## Entry: 2026-02-26 14:27:02 +00:00 - M10.D fourth remediation for idempotent path rewiring
+1. Third run still referenced `/Workspace/Shared/...` because:
+   - previous job state already used shared workspace path,
+   - rewrite logic only triggered for `dbfs:/...`.
+2. Patch applied:
+   - enforce python-file rewrite whenever current task path differs from target path,
+   - add robust user-resolution helper (`/api/2.0/current-user` plus SCIM `/api/2.0/preview/scim/v2/Me` fallback).
+3. Target outcome:
+   - deterministic job settings normalization to user-scoped workspace path in all rerun states, not only DBFS-origin states.
+
+## Entry: 2026-02-26 14:31:10 +00:00 - M10.D fifth remediation (task-type swap to notebook_task)
+1. Repeated failures still came from Databricks reading python file path under workspace.
+2. Decision:
+   - stop using `spark_python_task` for this closure lane,
+   - normalize task shape to `notebook_task` with workspace source and user-scoped notebook path.
+3. Workflow changes:
+   - task normalization now enforces:
+     - `notebook_task.notebook_path = /Users/<current-user>/fraud-platform/dev_full/ofs_build_v0`,
+     - `notebook_task.source = WORKSPACE`,
+     - remove `spark_python_task` from task payload when present.
+4. Why:
+   - removes python-file resolution path that kept failing,
+   - aligns execution with standard Databricks notebook task semantics under workspace ACL posture.
+
+## Entry: 2026-02-26 14:32:12 +00:00 - M10.D closure reached (managed green)
+1. Managed run:
+   - workflow: `.github/workflows/dev_full_m10_d_managed.yml`,
+   - Actions run: `22446480430`,
+   - branch/ref: `migrate-dev`,
+   - execution id: `m10d_ofs_build_20260226T143036Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M10.E_READY`,
+   - Databricks run id: `1099244903700940` with terminal `TERMINATED/SUCCESS`.
+3. Evidence:
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10d_ofs_build_20260226T143036Z/`,
+   - downloaded artifact mirror: `runs/dev_substrate/dev_full/m10/_gha_22446480430/m10-d-managed-20260226T143036Z/`.
+4. Finalized M10.D blocker resolution chain:
+   - dispatch visibility (`404`) remediated via workflow-only promotion to default branch (`PR #57`),
+   - serverless client-channel mismatch remediated,
+   - DBFS-disabled posture remediated by workspace materialization,
+   - workspace ACL/path drift remediated by user-scoped path + task normalization to `notebook_task`.
+5. Plan sync:
+   - deep plan `M10.D` DoDs marked complete,
+   - master plan updated with green execution status and next action `M10.E`.
