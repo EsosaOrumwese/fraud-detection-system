@@ -238,11 +238,11 @@ Runtime budget:
 1. target <= 10 minutes wall clock.
 
 DoD:
-- [ ] Databricks readiness checks pass.
+- [x] Databricks readiness checks pass.
 - [x] `m10b_databricks_readiness_snapshot.json` committed locally and durably.
 - [x] `m10b_blocker_register.json` and `m10b_execution_summary.json` committed locally and durably.
 - [x] blocker-free pass emits `next_gate=M10.C_READY`.
-- [ ] job upsert receipt proves repo-managed Databricks source provenance (`build` + `quality`, sha256 present).
+- [x] job upsert receipt proves repo-managed Databricks source provenance (`build` + `quality`, sha256 present).
 
 Execution status:
 1. Execution id:
@@ -260,6 +260,13 @@ Execution status:
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10b_databricks_readiness_20260226T092606Z/`
 5. Authority note:
    - this run is diagnostic only under current no-local-compute rule; authoritative status must be re-proven by managed lane.
+6. Provenance-remediation rerun (authoritative managed):
+   - Actions run: `22453206699` (`migrate-dev`, commit `425dd745`),
+   - execution id: `m10b_databricks_readiness_20260226T172139Z`,
+   - result: `overall_pass=true`, `next_gate=M10.C_READY`,
+   - upsert receipt includes repo provenance for both build/quality with `sha256` length `64`,
+   - snapshot check:
+     - `upsert_receipt_checks.repo_source_provenance_complete=true`.
 
 ### M10.C M9 Input Binding + Immutability
 Goal:
@@ -375,7 +382,7 @@ DoD:
 - [x] `m10d_ofs_build_execution_snapshot.json` committed locally and durably.
 - [x] `m10d_blocker_register.json` and `m10d_execution_summary.json` committed locally and durably.
 - [x] blocker-free pass emits `next_gate=M10.E_READY`.
-- [ ] M10.D snapshot includes repo-source provenance for OFS build notebook (`repo_source_path`, `repo_source_sha256`).
+- [x] M10.D snapshot includes repo-source provenance for OFS build notebook (`repo_source_path`, `repo_source_sha256`).
 
 Execution status:
 1. Execution id:
@@ -392,6 +399,15 @@ Execution status:
    - Databricks serverless profile drift remediated in workflow lane,
    - DBFS-disabled workspace path remediated via workspace import + task normalization,
    - final closure path uses workspace `notebook_task` under user-scoped path.
+6. Provenance-remediation rerun (authoritative managed):
+   - Actions run: `22453295455` (`migrate-dev`, commit `425dd745`),
+   - execution id: `m10d_ofs_build_20260226T172402Z`,
+   - result: `overall_pass=true`, `next_gate=M10.E_READY`,
+   - Databricks terminal state: `TERMINATED/SUCCESS`,
+   - snapshot provenance fields:
+     - `databricks.repo_source_path=platform/databricks/dev_full/ofs_build_v0.py`,
+     - `databricks.repo_source_sha256` present (`64` hex chars),
+     - `databricks.workspace_python_file=/Shared/fraud-platform/dev_full/ofs_build_v0`.
 
 ### M10.E Quality-Gate Adjudication
 Goal:

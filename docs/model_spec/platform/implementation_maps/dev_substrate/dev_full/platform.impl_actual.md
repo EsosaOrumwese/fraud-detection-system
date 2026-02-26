@@ -14441,3 +14441,41 @@ ext_gate=M10.D_READY
    - workflow YAML parse passed for both updated workflows (`YAML_OK`).
 7. Residual action after this remediation:
    - rerun managed `M10.A/M10.B` then `M10.D` to refresh durable evidence under new provenance contract before declaring this drift fully closed at runtime.
+
+## Entry: 2026-02-26 17:26:29 +00:00 - Managed reruns completed for Databricks provenance remediation
+1. Authoritative reruns executed after remediation commit on `migrate-dev` head `425dd745b63d26dd42f56677c4b4bba304f8e12c`.
+2. Managed AB rerun:
+   - workflow: `dev_full_m10_ab_managed.yml`
+   - Actions run: `22453206699`
+   - result: PASS
+   - execution ids:
+     - `m10a_handle_closure_20260226T172139Z`
+     - `m10b_databricks_readiness_20260226T172139Z`
+3. M10.B provenance gate evidence validated from artifact and run outputs:
+   - `m10b_databricks_job_upsert_receipt.json` is pass posture,
+   - `source_provenance.build.source_sha256` present (`64` hex chars),
+   - `source_provenance.quality.source_sha256` present (`64` hex chars),
+   - readiness snapshot confirms `upsert_receipt_checks.repo_source_provenance_complete=true`.
+4. Managed D rerun:
+   - workflow: `dev_full_m10_d_managed.yml`
+   - Actions run: `22453295455`
+   - result: PASS
+   - execution ids:
+     - `m10d_ofs_build_20260226T172402Z`
+     - `m10e_quality_gate_20260226T172402Z`
+     - `m10f_iceberg_commit_20260226T172402Z`
+     - `m10g_manifest_fingerprint_20260226T172402Z`
+     - `m10h_rollback_recipe_20260226T172402Z`
+     - `m10i_p13_gate_rollup_20260226T172402Z`
+     - `m10j_closure_sync_20260226T172402Z`
+5. M10.D provenance closure validated from artifact outputs:
+   - `m10d_ofs_build_execution_snapshot.json` includes
+     - `databricks.repo_source_path=platform/databricks/dev_full/ofs_build_v0.py`,
+     - `databricks.repo_source_sha256` present (`64` hex chars),
+     - `databricks.workspace_python_file=/Shared/fraud-platform/dev_full/ofs_build_v0`.
+6. Closure posture remains green after remediation:
+   - `M10.D overall_pass=true`, `next_gate=M10.E_READY`,
+   - `M10.J overall_pass=true`, `verdict=ADVANCE_TO_M11`, `next_gate=M11_READY`.
+7. Documentation synchronization completed in:
+   - `platform.M10.build_plan.md` (DoD checks and rerun evidence rows),
+   - `platform.build_plan.md` (M10 execution status post-remediation rerun note).

@@ -1291,6 +1291,20 @@ M10 execution status:
      - `all_required_available=true`,
    - durable run-control evidence:
      - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10j_closure_sync_20260226T164304Z/`.
+14. Post-remediation provenance reruns are green and authoritative:
+   - M10.A/M10.B rerun:
+     - Actions run: `22453206699`,
+     - execution ids:
+       - `m10a_handle_closure_20260226T172139Z`,
+       - `m10b_databricks_readiness_20260226T172139Z`,
+     - `M10.B` upsert receipt confirms repo-managed Databricks source provenance for `build` and `quality` with `sha256` captured and validated.
+   - M10.D..J rerun:
+     - Actions run: `22453295455`,
+     - execution head: `m10d_ofs_build_20260226T172402Z` .. `m10j_closure_sync_20260226T172402Z`,
+     - `M10.D` snapshot now includes repo-source provenance:
+       - `repo_source_path=platform/databricks/dev_full/ofs_build_v0.py`,
+       - `repo_source_sha256` present and validated,
+     - rerun closure remains green with `M10.J -> M11_READY`.
 
 DoD anchors:
 - [x] OFS manifest committed.
