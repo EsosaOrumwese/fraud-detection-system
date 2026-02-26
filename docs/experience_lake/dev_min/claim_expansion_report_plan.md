@@ -72,6 +72,16 @@ A claim report is "ready" only if all are true:
 6. Recruiter gate:
    - explicitly answers "why this matters for a senior role".
 
+## 6.1 Burden-of-Proof Standard (Mandatory)
+Every claim section must prefer explicit mechanics over shorthand.
+
+Required posture:
+- define terms that can be misread,
+- state failure condition -> remediation -> closure,
+- state what was enforced by system behavior (not just operator intent),
+- distinguish "observed fact" from "inference",
+- include at least one challenge-ready proof hook for each major claim branch.
+
 ## 7) Workflow (One Claim at a Time)
 For each claim:
 
@@ -89,6 +99,16 @@ For each claim:
    - derive short versions (CV bullet, interview STAR seed, LinkedIn snippet).
 
 No parallel claim drafting unless explicitly requested.
+
+## 7.1 Incident-First Reporting Pattern (when claim is failure-driven)
+If a claim is based on real CI/runtime failures, use this sequence:
+1. Failure signature(s) observed.
+2. Control gap identified.
+3. Concrete remediation applied.
+4. Re-run and closure result.
+5. Guardrail added to prevent recurrence.
+
+This avoids "we fixed it" narrative drift and keeps recruiter trust high.
 
 ## 8) Evidence Handling Policy
 Do:
@@ -126,4 +146,28 @@ Examples:
 - `Published`: extracted into outward-facing assets.
 
 ## 11) Immediate Next Step
-Start with Claim 1 using this plan and produce the first `Draft` report.
+Use this plan for Claim 2 and produce first draft:
+- `secure_ci_oidc_and_least_privilege_registry_auth.report.md`
+
+## 12) Claim 2 Addendum (CI OIDC + Registry Authorization)
+Target claim:
+- "Implemented secure CI auth via federated OIDC role assumption and hardened least-privilege container-registry permissions after real CI failures exposed missing trust/provider and missing authorization scope."
+
+Claim-2 report emphasis:
+1. Security control clarity:
+   - explain federated identity model and why static credentials were not used.
+2. Authorization boundary clarity:
+   - separate identity success from registry permission success.
+3. Failure chronology:
+   - fail (identity) -> fail (registry auth) -> pass (after scoped remediation).
+4. Least-privilege framing:
+   - permissions were expanded only to required publish/read/auth actions.
+5. Recruiter signal:
+   - demonstrate cloud IAM debugging, release reliability hardening, and security-by-default delivery.
+
+Claim-2 section-level focus notes:
+- Section 4 (Problem/Risk): emphasize "identity and auth are separate failure planes."
+- Section 5 (Design/Trade-offs): include short-lived federated auth vs static key trade-off.
+- Section 7 (Controls): include hard gate: no cloud auth -> no publish; no registry auth -> no publish.
+- Section 8 (Validation): include explicit negative-path validation (expected fail) and closure rerun.
+- Section 11 (Proof Hooks): include the fail/fail/pass CI run sequence and one final identity+artifact proof anchor.

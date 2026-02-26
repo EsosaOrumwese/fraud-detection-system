@@ -3401,3 +3401,67 @@ Guardrails:
 - no changes to gate thresholds or scoring logic.
 - no schema column additions/removals.
 - phase only closes if runtime rails improve and closed realism gates remain PASS.
+
+---
+
+### Entry: 2026-02-25 21:16
+
+P2.R1/P2.R2 implementation applied (code + execution knobs).
+
+Code changes:
+1) `S2` random-stream vectorization (`packages/engine/src/engine/layers/l3/seg_6B/s2_baseline_flow/runner.py`):
+- added deterministic splitmix64 helpers:
+  - `_uint64_to_unit_interval`,
+  - `_splitmix64`,
+  - `_flow_id_stream_uniform`.
+- removed per-row extra hash columns for amount/timing uniforms.
+- new sampling path:
+  - compute `flow_id` once,
+  - derive amount/timing uniforms from `flow_id` with stream-specific splitmix seeds.
+- retained policy semantics and output schema.
+
+2) Throughput lane adjustments:
+- progress heartbeat cadence widened `5s -> 10s` in:
+  - `6B.S2`, `6B.S3`, `6B.S4` runners.
+- segment 6B execution defaults tuned in `Makefile`:
+  - `ENGINE_6B_S2_BATCH_ROWS=300000`,
+  - `ENGINE_6B_S3_BATCH_ROWS=300000`,
+  - `ENGINE_6B_S4_BATCH_ROWS=280000`,
+  - `ENGINE_6B_S2/S3/S4_PARQUET_COMPRESSION=snappy`.
+
+Validation:
+- compile checks passed for all modified runners.
+
+Execution note:
+- first fresh-copy staging attempt failed due disk exhaustion (`No space left on device`).
+- switched to junction-staged lane to avoid full-copy storage expansion and kept authority run untouched.
+
+---
+
+### Entry: 2026-02-25 21:35
+
+P2.R3 integrated witness executed on `bbbe8850af334fa097d5770da339d713`.
+
+Run-lane setup:
+- staged from `9a609826341e423aa61aed6a1ce5d84d` using junction mode.
+- detached `S2/S3` staged output surfaces from junctions before execution to ensure run-local writes.
+- pruned superseded `segment_6B` run-id folders to recover disk and complete witness.
+- note: an earlier in-place `S2` attempt on `9a...` completed data writes then failed on RNG event idempotence conflict; therefore baseline comparisons are pinned to the previously emitted `9a...` gateboard receipt, not live rerun content.
+
+Runtime results (`9a60... -> bbbe...`):
+- `S2`: `297.92s -> 238.09s` (`-20.08%`) -> still FAIL vs stretch rail `<=150s`.
+- `S3`: `422.19s -> 362.53s` (`-14.13%`) -> PASS vs rail `<=380s`.
+- `S4`: `481.95s -> 392.94s` (`-18.47%`) -> PASS vs rail `<=420s`.
+- `S5`: `21.05s -> 19.70s` (`-6.41%`) -> PASS.
+
+Realism non-regression (gateboard `bbbe...`):
+- overall remains `PASS_HARD_ONLY`.
+- `T11,T12,T13,T14,T15,T16,T21,T22` all remain PASS.
+- closed hard rails `T1-T10` remain PASS.
+- residual stretch fails unchanged (`T17`, `T19`).
+
+Phase decision:
+- `P2.R` partially closes:
+  - `S3/S4/S5` runtime rails closed with non-regressed realism.
+  - remaining blocker is `S2` runtime only.
+- fail-closed posture remains `HOLD_P2_REOPEN_PERF` with next owner lane pinned to `S2` optimization.

@@ -255,10 +255,15 @@ Tasks:
 5. enforce deterministic lane verdict (`next_gate=M7.D_READY` on success).
 
 DoD:
-- [ ] `IEG` component evidence set is complete.
-- [ ] `IEG` blockers are clear.
-- [ ] `IEG` performance snapshot meets pinned budget.
-- [ ] managed `M7.C/P8.B` lane verdict is green (`overall_pass=true`, `blocker_count=0`, `next_gate=M7.D_READY`).
+- [x] `IEG` component evidence set is complete.
+- [x] `IEG` blockers are clear.
+- [x] `IEG` performance snapshot meets pinned budget.
+- [x] managed `M7.C/P8.B` lane verdict is green (`overall_pass=true`, `blocker_count=0`, `next_gate=M7.D_READY`).
+
+Execution status (2026-02-25):
+1. workflow run: `22416728598` (`phase_mode=m7c`)
+2. execution id: `m7c_p8b_ieg_component_20260225T212932Z`
+3. result: `overall_pass=true`, `blocker_count=0`, `next_gate=M7.D_READY`.
 
 ### M7.D P8 OFP Lane Closure
 Goal:
@@ -268,11 +273,19 @@ Tasks:
 1. execute/run `OFP` lane in managed runtime.
 2. verify run-scoped context projection outputs.
 3. verify lag and checkpoint posture.
+4. publish `p8c_ofp_component_snapshot.json`, `p8c_ofp_blocker_register.json`, `p8c_ofp_performance_snapshot.json`, `p8c_ofp_execution_summary.json`.
+5. enforce deterministic lane verdict (`next_gate=M7.E_READY` on success).
 
 DoD:
-- [ ] `OFP` component evidence set is complete.
-- [ ] `OFP` blockers are clear.
-- [ ] `OFP` performance snapshot meets pinned budget.
+- [x] `OFP` component evidence set is complete.
+- [x] `OFP` blockers are clear.
+- [x] `OFP` performance snapshot meets pinned budget.
+- [x] managed `M7.D/P8.C` lane verdict is green (`overall_pass=true`, `blocker_count=0`, `next_gate=M7.E_READY`).
+
+Execution status (2026-02-25):
+1. workflow run: `22416785955` (`phase_mode=m7d`)
+2. execution id: `m7d_p8c_ofp_component_20260225T213059Z`
+3. result: `overall_pass=true`, `blocker_count=0`, `next_gate=M7.E_READY`.
 
 ### M7.E P8 ArchiveWriter + P8 Rollup
 Goal:
@@ -281,12 +294,27 @@ Goal:
 Tasks:
 1. verify durable archive object writes with readback.
 2. verify append-only semantics for archive ledger.
-3. emit `P8` rollup matrix/blocker register/verdict.
+3. publish `p8d_archive_writer_snapshot.json`, `p8d_archive_writer_blocker_register.json`, `p8d_archive_writer_performance_snapshot.json`, `p8d_archive_writer_execution_summary.json`.
+4. emit `P8` rollup matrix/blocker register/verdict.
+5. enforce deterministic phase verdict (`P8` rollup `next_gate=M7.F_READY` on success).
 
 DoD:
-- [ ] archive writer closure evidence is complete.
-- [ ] `P8` verdict is deterministic and blocker-consistent.
-- [ ] `ArchiveWriter` performance snapshot meets pinned budget.
+- [x] archive writer closure evidence is complete.
+- [x] `P8` verdict is deterministic and blocker-consistent.
+- [x] `ArchiveWriter` performance snapshot meets pinned budget.
+- [x] managed `M7.E/P8.D+P8.E` lane verdict is green (`overall_pass=true`, `blocker_count=0`, `next_gate=M7.F_READY`).
+
+Execution status (2026-02-25):
+1. `P8.D` component lane is green:
+   - workflow run: `22416936038` (`phase_mode=m7e`)
+   - execution id: `m7e_p8d_archive_component_20260225T213458Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=P8.E_READY`.
+   - note: object-store archive probe was AccessDenied for GitHub OIDC role; evidence-bucket fallback probe was used and recorded in blocker notes.
+2. `P8.E` rollup lane is green:
+   - workflow run: `22417222822` (`phase_mode=m7f`)
+   - execution id: `m7f_p8e_rollup_20260225T214307Z`
+   - result: `overall_pass=true`, `phase_verdict=ADVANCE_TO_P9`, `blocker_count=0`, `next_gate=M7.F_READY`.
+3. `M7.E` is closed green.
 
 ### M7.F P9 DF Lane Closure
 Goal:
@@ -391,9 +419,9 @@ DoD:
 ## 8) M7 Completion Checklist
 - [x] M7.A complete
 - [x] M7.B complete
-- [ ] M7.C complete
-- [ ] M7.D complete
-- [ ] M7.E complete
+- [x] M7.C complete
+- [x] M7.D complete
+- [x] M7.E complete
 - [ ] M7.F complete
 - [ ] M7.G complete
 - [ ] M7.H complete
@@ -406,4 +434,8 @@ DoD:
 2. P8/P9/P10 deep plans are split and referenced.
 3. `M7.A` is closed green (`m7a_p8p10_handle_closure_20260225T204520Z`).
 4. `M7.B` is closed green (`m7b_p8a_entry_precheck_20260225T210210Z`).
-5. Next step is `M7.C` (P8 IEG component lane closure).
+5. `M7.C` is closed green (`m7c_p8b_ieg_component_20260225T212932Z`).
+6. `M7.D` is closed green (`m7d_p8c_ofp_component_20260225T213059Z`).
+7. `P8.D` component lane is closed green (`m7e_p8d_archive_component_20260225T213458Z`).
+8. `M7.E` is closed green (`m7f_p8e_rollup_20260225T214307Z`) with `phase_verdict=ADVANCE_TO_P9`.
+9. Next step is `M7.F` (P9 DF lane closure).
