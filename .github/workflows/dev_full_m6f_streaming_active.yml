@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       phase_mode:
-        description: "Execution mode: m6f (streaming-active lane), m6g (P6 rollup), m6h (P7 ingest-commit), m6i (P7 rollup), m6j (M6 closure sync), m7a (M7 handle closure), m7b (P8.A entry precheck), m7c (P8.B IEG), m7d (P8.C OFP), m7e (P8.D ArchiveWriter), m7f (P8.E rollup), m7g (P9.A entry precheck), m7h (P9.B DF), m7i (P9.C AL), m7j (P9.D DLA), or m7k (P9.E rollup)"
+        description: "Execution mode: m6f (streaming-active lane), m6g (P6 rollup), m6h (P7 ingest-commit), m6i (P7 rollup), m6j (M6 closure sync), m7a (M7 handle closure), m7b (P8.A entry precheck), m7c (P8.B IEG), m7d (P8.C OFP), m7e (P8.D ArchiveWriter), m7f (P8.E rollup), m7g (P9.A entry precheck), m7h (P9.B DF), m7i (P9.C AL), m7j (P9.D DLA), m7k (P9.E rollup), or m7l (P10.A entry precheck)"
         required: true
         default: "m6f"
         type: string
@@ -4112,4 +4112,373 @@ jobs:
         with:
           name: p9-rollup-m7k-${{ steps.run_meta_7k.outputs.timestamp }}
           path: ${{ steps.run_meta_7k.outputs.run_dir }}
+          if-no-files-found: warn
+
+  run_m7l_remote:
+    name: Run M7.P10.A entry precheck remotely (GitHub Actions)
+    if: ${{ inputs.phase_mode == 'm7l' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Validate mode-specific inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ inputs.upstream_m6d_execution }}" ]]; then
+            echo "M7.P10.A fail-closed: upstream_m6d_execution input is required when phase_mode=m7l (use upstream P9.E execution id)."
+            exit 1
+          fi
+
+      - name: Compute execution metadata
+        id: run_meta_7l
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m6_execution_id }}" ]]; then
+            EXEC_ID="${{ inputs.m6_execution_id }}"
+          else
+            EXEC_ID="m7l_p10a_entry_precheck_${TS}"
+          fi
+          RUN_DIR="runs/dev_substrate/dev_full/m7/${EXEC_ID}"
+          echo "timestamp=${TS}" >> "$GITHUB_OUTPUT"
+          echo "m7_execution_id=${EXEC_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_dir=${RUN_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Build P10.A entry artifacts
+        shell: bash
+        env:
+          EXECUTION_ID: ${{ steps.run_meta_7l.outputs.m7_execution_id }}
+          RUN_DIR: ${{ steps.run_meta_7l.outputs.run_dir }}
+          PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          SCENARIO_RUN_ID: ${{ inputs.scenario_run_id }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          REGION: ${{ inputs.aws_region }}
+          UPSTREAM_P9E_EXECUTION: ${{ inputs.upstream_m6d_execution }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          import boto3
+          from botocore.exceptions import BotoCoreError, ClientError
+
+          def now_utc():
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          def write_json(path: Path, payload: dict):
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          def s3_get_json(s3_client, bucket: str, key: str):
+              try:
+                  obj = s3_client.get_object(Bucket=bucket, Key=key)
+                  return json.loads(obj["Body"].read().decode("utf-8")), None
+              except (BotoCoreError, ClientError) as exc:
+                  return None, f"s3_read_failed:{type(exc).__name__}:{key}"
+              except json.JSONDecodeError:
+                  return None, f"json_decode_failed:{key}"
+
+          def s3_put_json(s3_client, bucket: str, key: str, payload: dict):
+              try:
+                  s3_client.put_object(
+                      Bucket=bucket,
+                      Key=key,
+                      Body=(json.dumps(payload, indent=2, ensure_ascii=True) + "\n").encode("utf-8"),
+                      ContentType="application/json",
+                  )
+                  s3_client.head_object(Bucket=bucket, Key=key)
+                  return None
+              except (BotoCoreError, ClientError) as exc:
+                  return f"s3_put_or_head_failed:{type(exc).__name__}:{key}"
+
+          execution_id = os.environ["EXECUTION_ID"]
+          run_dir = Path(os.environ["RUN_DIR"])
+          platform_run_id = os.environ["PLATFORM_RUN_ID"]
+          scenario_run_id = os.environ["SCENARIO_RUN_ID"]
+          evidence_bucket = os.environ["EVIDENCE_BUCKET"]
+          region = os.environ["REGION"]
+          upstream_p9e_execution = os.environ["UPSTREAM_P9E_EXECUTION"]
+          captured_at = now_utc()
+
+          s3 = boto3.client("s3", region_name=region)
+
+          blockers = []
+          read_errors = []
+
+          upstream_summary_key = f"evidence/dev_full/run_control/{upstream_p9e_execution}/p9e_execution_summary.json"
+          upstream_summary, err = s3_get_json(s3, evidence_bucket, upstream_summary_key)
+          if err:
+              read_errors.append(err)
+          upstream_ok = False
+          if upstream_summary is not None:
+              upstream_ok = (
+                  bool(upstream_summary.get("overall_pass"))
+                  and str(upstream_summary.get("phase_verdict", "")).strip() == "ADVANCE_TO_P10"
+                  and str(upstream_summary.get("next_gate", "")).strip() == "M7.I_READY"
+              )
+          if not upstream_ok:
+              blockers.append({
+                  "code": "M7P10-B1",
+                  "message": "Upstream P9.E posture invalid; requires ADVANCE_TO_P10 and M7.I_READY.",
+              })
+
+          registry_text = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md").read_text(encoding="utf-8")
+          matches = re.findall(r"\* `([A-Z0-9_]+)\s*=\s*\"([^\"]*)\"", registry_text)
+          handles = {k: v for k, v in matches}
+          required_handles = [
+              "FLINK_RUNTIME_PATH_ACTIVE",
+              "FLINK_RUNTIME_PATH_ALLOWED",
+              "PHASE_RUNTIME_PATH_MODE",
+              "EKS_NAMESPACE_CASE_LABELS",
+              "ROLE_EKS_IRSA_CASE_LABELS",
+              "K8S_DEPLOY_CASE_TRIGGER",
+              "K8S_DEPLOY_CM",
+              "K8S_DEPLOY_LS",
+              "FP_BUS_CASE_TRIGGERS_V1",
+              "FP_BUS_LABELS_EVENTS_V1",
+              "CASE_LABELS_EVIDENCE_PATH_PATTERN",
+              "AURORA_CLUSTER_IDENTIFIER",
+              "SSM_AURORA_ENDPOINT_PATH",
+              "SSM_AURORA_USERNAME_PATH",
+              "SSM_AURORA_PASSWORD_PATH",
+          ]
+
+          missing = []
+          placeholders = []
+          resolved = {}
+          for key in required_handles:
+              value = str(handles.get(key, "")).strip()
+              if not value:
+                  missing.append(key)
+                  continue
+              upper = value.upper()
+              if ("TO_PIN" in upper) or (upper in {"TBD", "TODO", "REPLACE_ME"}):
+                  placeholders.append(key)
+              resolved[key] = value
+
+          if missing:
+              blockers.append({
+                  "code": "M7P10-B1",
+                  "message": f"Missing required P10 handles: {', '.join(missing)}",
+              })
+          if placeholders:
+              blockers.append({
+                  "code": "M7P10-B1",
+                  "message": f"Placeholder-valued P10 handles: {', '.join(placeholders)}",
+              })
+
+          # Resolve latest m7a component SLO profile artifact for continuity checks.
+          m7a_prefix = "evidence/dev_full/run_control/m7a_"
+          latest_m7a_key = None
+          try:
+              paginator = s3.get_paginator("list_objects_v2")
+              for page in paginator.paginate(Bucket=evidence_bucket, Prefix=m7a_prefix):
+                  for obj in page.get("Contents", []):
+                      key = obj.get("Key", "")
+                      if key.endswith("/m7a_component_slo_profile.json"):
+                          if (latest_m7a_key is None) or (key > latest_m7a_key):
+                              latest_m7a_key = key
+          except (BotoCoreError, ClientError) as exc:
+              read_errors.append(f"s3_list_failed:{type(exc).__name__}:m7a_component_slo_profile")
+
+          slo_profile_payload = None
+          if latest_m7a_key is None:
+              blockers.append({"code": "M7P10-B6", "message": "Could not locate upstream m7a_component_slo_profile artifact."})
+          else:
+              slo_profile_payload, err = s3_get_json(s3, evidence_bucket, latest_m7a_key)
+              if err:
+                  read_errors.append(err)
+                  blockers.append({"code": "M7P10-B6", "message": "Upstream m7a_component_slo_profile is unreadable."})
+
+          p10_components = ["CaseTriggerBridge", "CM", "LS"]
+          p10_slo_subset = {}
+          if slo_profile_payload is not None:
+              profile = slo_profile_payload.get("component_slo_profile", {})
+              for comp in p10_components:
+                  if comp not in profile:
+                      blockers.append({
+                          "code": "M7P10-B6",
+                          "message": f"Missing SLO profile for component {comp}.",
+                      })
+                  else:
+                      p10_slo_subset[comp] = profile[comp]
+
+          blockers_unique = []
+          seen = set()
+          for b in blockers:
+              code = b.get("code")
+              msg = b.get("message", "")
+              token = f"{code}|{msg}"
+              if token in seen:
+                  continue
+              seen.add(token)
+              blockers_unique.append({"code": code, "message": msg})
+
+          overall_pass = len(blockers_unique) == 0
+          next_gate = "P10.B_READY" if overall_pass else "HOLD_REMEDIATE"
+
+          snapshot = {
+              "captured_at_utc": captured_at,
+              "phase": "P10.A",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "upstream_p9e_execution": upstream_p9e_execution,
+              "upstream_summary_s3_key": upstream_summary_key,
+              "upstream_posture_ok": upstream_ok,
+              "required_handle_count": len(required_handles),
+              "resolved_handle_count": len(resolved),
+              "missing_handle_count": len(missing),
+              "placeholder_handle_count": len(placeholders),
+              "source_m7a_slo_profile_key": latest_m7a_key,
+              "overall_pass": overall_pass,
+          }
+          blocker_register = {
+              "captured_at_utc": captured_at,
+              "phase": "P10.A",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "blocker_count": len(blockers_unique),
+              "blockers": blockers_unique,
+              "read_errors": read_errors,
+          }
+          p10_slo = {
+              "captured_at_utc": captured_at,
+              "phase": "P10.A",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "components": p10_slo_subset,
+              "overall_pass": len(p10_slo_subset) == 3,
+          }
+          summary = {
+              "captured_at_utc": captured_at,
+              "phase": "P10.A",
+              "execution_id": execution_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers_unique),
+              "next_gate": next_gate,
+          }
+
+          artifacts = {
+              "p10a_entry_snapshot.json": snapshot,
+              "p10a_blocker_register.json": blocker_register,
+              "p10a_component_slo_profile.json": p10_slo,
+              "p10a_execution_summary.json": summary,
+          }
+
+          run_dir.mkdir(parents=True, exist_ok=True)
+          for name, payload in artifacts.items():
+              write_json(run_dir / name, payload)
+
+          prefix = f"evidence/dev_full/run_control/{execution_id}"
+          upload_errors = []
+          for name, payload in artifacts.items():
+              err = s3_put_json(s3, evidence_bucket, f"{prefix}/{name}", payload)
+              if err:
+                  upload_errors.append(err)
+
+          if upload_errors:
+              blocker_register["blockers"].append({
+                  "code": "M7-B15",
+                  "message": "Failed to publish/readback P10.A artifact set to durable run-control prefix.",
+              })
+              blocker_register["blocker_count"] = len(blocker_register["blockers"])
+              blocker_register["upload_errors"] = upload_errors
+              summary["overall_pass"] = False
+              summary["blocker_count"] = blocker_register["blocker_count"]
+              summary["next_gate"] = "HOLD_REMEDIATE"
+              write_json(run_dir / "p10a_blocker_register.json", blocker_register)
+              write_json(run_dir / "p10a_execution_summary.json", summary)
+
+          print(json.dumps(
+              {
+                  "execution_id": execution_id,
+                  "overall_pass": summary["overall_pass"],
+                  "blocker_count": summary["blocker_count"],
+                  "next_gate": summary["next_gate"],
+                  "run_dir": str(run_dir),
+                  "run_control_prefix": f"s3://{evidence_bucket}/{prefix}/",
+              },
+              ensure_ascii=True,
+          ))
+          PY
+
+      - name: Fail-closed verdict gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUMMARY_PATH="${{ steps.run_meta_7l.outputs.run_dir }}/p10a_execution_summary.json"
+          BLOCKER_PATH="${{ steps.run_meta_7l.outputs.run_dir }}/p10a_blocker_register.json"
+          export SUMMARY_PATH BLOCKER_PATH
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          summary = json.loads(Path(os.environ["SUMMARY_PATH"]).read_text(encoding="utf-8"))
+          blockers = json.loads(Path(os.environ["BLOCKER_PATH"]).read_text(encoding="utf-8"))
+          overall_pass = bool(summary.get("overall_pass"))
+          blocker_count = int(blockers.get("blocker_count", 0))
+          next_gate = str(summary.get("next_gate", "")).strip()
+
+          print(json.dumps(
+              {
+                  "overall_pass": overall_pass,
+                  "blocker_count": blocker_count,
+                  "execution_id": summary.get("execution_id"),
+                  "next_gate": next_gate,
+              },
+              ensure_ascii=True,
+          ))
+          if (not overall_pass) or blocker_count != 0:
+              sys.exit(1)
+          if next_gate != "P10.B_READY":
+              sys.exit(1)
+          PY
+
+      - name: Upload P10.A entry artifact set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p10a-entry-${{ steps.run_meta_7l.outputs.timestamp }}
+          path: ${{ steps.run_meta_7l.outputs.run_dir }}
           if-no-files-found: warn
