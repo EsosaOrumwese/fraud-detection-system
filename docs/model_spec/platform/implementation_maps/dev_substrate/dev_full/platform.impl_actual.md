@@ -11229,3 +11229,20 @@ un_m7k_cert_remote (m7s).
    - `runs/dev_substrate/dev_full/m8/m8c_p11_closure_input_readiness_20260226T053157Z/`
 2. Durable:
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8c_p11_closure_input_readiness_20260226T053157Z/`.
+## Entry: 2026-02-26 05:40:42 +00:00 - M8.D pre-execution decision trail (single-writer lock executability)
+
+### Problem discovered before M8.D run
+1. Pinned handle posture is REPORTER_LOCK_BACKEND=aurora_advisory_lock, but no real Aurora cluster is currently materialized in AWS (describe-db-clusters returned empty set).
+2. Current SSM Aurora values are seed placeholders (raud-platform-dev-full-aurora.cluster.local / ...-ro.cluster.local), which are not executable DB endpoints for advisory-lock proof.
+3. Without executable DB lock path, M8.D would fail on M8-B4 (lock semantics not provable in runtime path).
+
+### Decision taken before implementation
+1. Keep M8.D fail-closed semantics strict; do not fake-pass lock contention.
+2. Patch reporter worker compatibility drift by accepting urora_advisory_lock as alias of the existing Postgres advisory-lock implementation (db_advisory_lock) so runtime handle pin and code path align.
+3. Implement deterministic M8.D probe script that validates upstream M8.C, resolves run scope + lock handles, executes real contention probe, and publishes local + durable artifacts.
+4. If lock path is non-executable, remediate by materializing concrete Aurora runtime endpoint + credentials (no placeholder seeds), then rerun M8.D in the same lane.
+
+### Why this route
+1. It preserves pinned design intent (Aurora advisory lock) instead of silently downgrading to a toy/local lock mode.
+2. It keeps M8 evidence chain deterministic and auditable (M8.C -> M8.D).
+3. It closes the main drift in a production-aligned direction rather than masking it.

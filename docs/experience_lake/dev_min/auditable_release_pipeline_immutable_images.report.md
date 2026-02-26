@@ -183,7 +183,7 @@ This release workflow crosses several trust boundaries and therefore requires ex
 - manual after-the-fact edits are not considered authoritative proof.
 
 ### 3.5 Control philosophy in this context
-The workflow follows three control principles:
+The workflow follows four control principles:
 
 1. Single authoritative build path
 - one automated control path defines release truth.
@@ -703,7 +703,7 @@ Validation answers one question:
 "Can this workflow reject unsafe candidates and accept only candidates with immutable identity, complete provenance, and passing mandatory gates?"
 
 ### 8.2 Validation design
-Validation is executed in four steps:
+Validation is executed in five steps:
 - contract checks before live runs (trigger/permissions/outputs/guard coverage),
 - build-surface checks (include/exclude boundary and dependency-surface policy),
 - live negative-path checks (identity/authorization/evidence/digest failures must block),
