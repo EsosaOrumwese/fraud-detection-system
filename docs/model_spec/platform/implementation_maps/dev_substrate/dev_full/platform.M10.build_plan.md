@@ -323,14 +323,54 @@ Execution status:
 Goal:
 1. execute OFS dataset build on Databricks.
 
-Tasks:
-1. run OFS build job with pinned parameters.
-2. capture run refs and completion status.
-3. emit `m10d_ofs_build_execution_snapshot.json`.
+Required upstream basis:
+1. `M10.C` pass summary (`overall_pass=true`, `next_gate=M10.D_READY`).
+2. `M10.C` blocker register (`blocker_count=0`).
+3. pinned handles for Databricks + evidence publication:
+   - `DBX_JOB_OFS_BUILD_V0`,
+   - `DBX_WORKSPACE_URL`,
+   - `SSM_DATABRICKS_WORKSPACE_URL_PATH`,
+   - `SSM_DATABRICKS_TOKEN_PATH`,
+   - `S3_EVIDENCE_BUCKET`.
+
+Deterministic execution algorithm (M10.D):
+1. load and validate upstream `M10.C` summary from evidence bucket.
+2. fail closed unless `overall_pass=true` and `next_gate=M10.D_READY`.
+3. parse handles registry and fail closed on missing/placeholder handle values.
+4. resolve Databricks workspace URL + token from SSM and fail closed on read errors.
+5. resolve OFS build job id by exact name (`DBX_JOB_OFS_BUILD_V0`) using Jobs API.
+6. start build run (`jobs/run-now`) with run tags/parameters containing:
+   - `platform_run_id`,
+   - `scenario_run_id`,
+   - `m10_execution_id`.
+7. poll run state (`jobs/runs/get`) at fixed cadence until terminal state or timeout.
+8. fail closed unless terminal lifecycle is `TERMINATED` and result state is `SUCCESS`.
+9. emit artifacts:
+   - `m10d_ofs_build_execution_snapshot.json`,
+   - `m10d_blocker_register.json`,
+   - `m10d_execution_summary.json`.
+10. publish artifacts locally + durably with readback parity.
+11. emit deterministic next gate:
+    - `M10.E_READY` when blocker count is `0`,
+    - otherwise `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 75 minutes wall clock.
 
 DoD:
-- [ ] OFS build completes with pass posture.
-- [ ] execution snapshot committed locally and durably.
+- [ ] upstream `M10.C` gate validated (`M10.D_READY`).
+- [ ] OFS Databricks build run is launched and reaches terminal success state.
+- [ ] `m10d_ofs_build_execution_snapshot.json` committed locally and durably.
+- [ ] `m10d_blocker_register.json` and `m10d_execution_summary.json` committed locally and durably.
+- [ ] blocker-free pass emits `next_gate=M10.E_READY`.
+
+Execution status:
+1. Execution id:
+   - `[pending]`
+2. Result:
+   - `[pending]`
+3. Durable evidence:
+   - `[pending]`
 
 ### M10.E Quality-Gate Adjudication
 Goal:

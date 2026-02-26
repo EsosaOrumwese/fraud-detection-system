@@ -13492,3 +13492,33 @@ ext_gate=M10.D_READY
 4. Sync updates applied:
    - updated M10.C execution status in `platform.M10.build_plan.md` with latest revalidation run,
    - updated M10 summary section in `platform.build_plan.md` with latest revalidation run.
+
+## Entry: 2026-02-26 13:17:40 +00:00 - M10.D execution strategy pinned before implementation
+1. Trigger:
+   - user requested M10.D expansion + full execution with live decision trail documentation.
+2. Drift/perimeter check:
+   - no local compute is allowed for authoritative phase closure in dev_full.
+   - existing managed lane covers only `M10.A/M10.B`; there is no managed `M10.D` lane yet.
+3. Decision:
+   - implement `M10.D` as a managed GitHub Actions workflow run, not local script execution.
+4. Why this decision:
+   - preserves no-local-compute posture,
+   - keeps closure evidence in managed execution context,
+   - avoids local runner drift and keeps repeatability with workflow-dispatch inputs.
+5. Planned implementation steps:
+   - expand `M10.D` section in deep plan to execution-grade contract,
+   - add managed workflow `.github/workflows/dev_full_m10_d_managed.yml`,
+   - dispatch workflow with pinned upstream `M10.C` execution,
+   - capture run id + output artifacts and clear blockers fail-closed.
+
+## Entry: 2026-02-26 13:20:02 +00:00 - M10.D deep-plan expansion completed
+1. Expanded `### M10.D OFS Dataset Build Execution` to closure-grade detail.
+2. Added explicit upstream basis (`M10.C` pass posture + required handles).
+3. Pinned deterministic algorithm:
+   - upstream gate validation,
+   - handle/secret resolution,
+   - Databricks job resolution + run-now + terminal-state polling,
+   - artifact publication parity checks,
+   - deterministic next gate (`M10.E_READY` vs `HOLD_REMEDIATE`).
+4. Added runtime budget (`<= 75 minutes`) and DoD list with blocker-free gate condition.
+5. Kept execution status section in pending state until managed run evidence is captured.
