@@ -3663,3 +3663,30 @@ Chosen implementation:
 Guardrails:
 - no policy, threshold, scorer, or schema changes.
 - if writer path errors or runtime regresses materially, rollback to prior per-batch writer topology.
+
+---
+
+### Entry: 2026-02-26 03:46
+
+P2.R6 execution closure (`run_id=b60080a948784e3a971339149528fd8d`) with immediate rollback.
+
+Implementation attempted:
+- S2 write topology switched to per-scenario streaming writers (`pq.ParquetWriter`) with row-group appends into single `part-00000.parquet` files for flow and event surfaces.
+
+Witness results:
+- `S2=350.58s` (regressed from `227.36s`),
+- `S3=393.44s` (still above rail),
+- `S4=488.42s` (regressed from `405.50s`),
+- `S5=93.39s` (regressed from `19.83s`).
+
+S2 hotspot evidence:
+- `parquet_write` exploded to `191.97s` (from `69.30s`), indicating row-group streaming with this workload/shape is materially worse than per-batch part writes in this environment.
+
+Realism:
+- scorer remained `PASS_HARD_ONLY` and key gates (`T11,T13,T14,T15,T16,T21`) were non-regressed.
+- no quality benefit offsets the runtime regression.
+
+Fail-closed decision:
+- mark lane `ROLLBACK_P2R6`.
+- revert S2 writer topology back to pre-R6 per-batch `write_parquet(part-k)` path.
+- keep phase posture `HOLD_P2_REOPEN_PERF`; next lane must target S2 bottlenecks without repeating writer-topology regression.

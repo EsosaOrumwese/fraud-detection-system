@@ -1304,26 +1304,44 @@ Goal:
 - materially reduce `S2` parquet-write overhead by redesigning output writing topology from many per-batch part files to single-part streaming writers, while preserving schemas and deterministic row ordering.
 
 Definition of done:
-- [ ] implementation design pinned with blast-radius controls and rollback path.
-- [ ] `S2` write path refactored:
+- [x] implementation design pinned with blast-radius controls and rollback path.
+- [x] `S2` write path refactored:
   - per scenario, open one flow writer + one event writer (`part-00000.parquet`),
   - append each batch as parquet row-groups (no per-batch new part creation),
   - keep schema columns/order and publish paths unchanged.
-- [ ] fresh witness run executed on `runs/fix-data-engine/segment_6B/<new_run_id>`:
+- [x] fresh witness run executed on `runs/fix-data-engine/segment_6B/<new_run_id>`:
   - `S2 -> S3 -> S4 -> S5`.
-- [ ] runtime evidence:
+- [x] runtime evidence:
   - `S2` improves vs `ac712...` (`227.36s`) and vs `bbbe...` (`238.09s`),
   - rail check repeated with one immediate `S3->S5` rerun to assess stability.
-- [ ] realism non-regression evidence:
+- [x] realism non-regression evidence:
   - scorer remains `PASS_HARD_ONLY` or better,
   - `T11,T13,T14,T15,T16,T21` non-regressed.
-- [ ] closure artifacts emitted:
+- [x] closure artifacts emitted:
   - `segment6b_p2r6_closure_<run_id>.json`,
   - `segment6b_p2r6_closure_<run_id>.md`,
   - updated gateboard `segment6b_p0_realism_gateboard_<run_id>.json`.
-- [ ] phase decision:
+- [x] phase decision:
   - `UNLOCK_P3` only if runtime rails + realism pass together,
   - else remain `HOLD_P2_REOPEN_PERF` with next owner lane pinned.
+
+Execution outcome (`run_id=b60080a948784e3a971339149528fd8d`):
+- observed runtime vs baseline `ac712...`:
+  - `S2`: `350.58s` vs `227.36s` (severe regression),
+  - `S3`: `393.44s` vs `400.42s` (minor improvement, still over rail),
+  - `S4`: `488.42s` vs `405.50s` (severe regression),
+  - `S5`: `93.39s` vs `19.83s` (severe regression).
+- S2 stage profile confirms writer-path failure:
+  - `parquet_write=191.97s` (vs `69.30s` on `ac712...`).
+- realism:
+  - scorer verdict remains `PASS_HARD_ONLY`; `T11,T13,T14,T15,T16,T21` non-regressed.
+- closure artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_b60080a948784e3a971339149528fd8d.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p2r6_closure_b60080a948784e3a971339149528fd8d.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p2r6_closure_b60080a948784e3a971339149528fd8d.md`.
+- phase decision:
+  - `ROLLBACK_P2R6` and retain `HOLD_P2_REOPEN_PERF`.
+  - S2 code path reverted to pre-R6 writer topology.
 
 ### P3 - Wave B (`S3` campaign depth)
 Goal:
