@@ -13341,3 +13341,24 @@ ext_gate=M10_READY.
    - Rejected: violates fail-closed readiness semantics and would create false green.
 2. Skip M10.B until later.
    - Rejected: USER requested explicit execution now.
+
+## Entry: 2026-02-26 12:48:09 +00:00 - M10.A/M10.B managed closure remediations and final PASS
+1. Executed managed workflow reruns for .github/workflows/dev_full_m10_ab_managed.yml until blocker-free verdict.
+2. Rerun sequence:
+   - 22442096053 failed at data_ml tfstate backend access (403).
+   - 22442174983 failed at Databricks upsert (HTTP 400, serverless-only workspace).
+   - 22442495141 failed at verdict gate due evidence S3/KMS access and incomplete jobs conformance signal from jobs/list.
+   - 22442631941 passed full lane.
+3. IAM remediations (role: GitHubAction-AssumeRoleWithAction):
+   - Added inline policy GitHubActionsM10ABDataMLStateDevFull for raud-platform-dev-full-tfstate key dev_full/data_ml/* + lock table raud-platform-dev-full-tf-locks.
+   - Added inline policy GitHubActionsM10ABEvidenceKmsDevFull for evidence bucket prefix access plus KMS use on key 29a7acf2-da57-4b3f-8dd1-d9172d845a5c.
+4. Databricks remediation decisions:
+   - Workspace is serverless-only; job-cluster posture is invalid in this workspace.
+   - Upsert logic must auto-switch to serverless task+environment shape when job-cluster create/reset returns serverless-only constraint.
+   - Readiness conformance must use jobs/get for full task settings; jobs/list payload is insufficient for task-level policy validation.
+5. Final closure evidence from run 22442631941:
+   - m10a_handle_closure_20260226T124457Z: overall_pass=true, locker_count=0, 
+ext_gate=M10.B_READY.
+   - m10b_databricks_readiness_20260226T124457Z: overall_pass=true, locker_count=0, 
+ext_gate=M10.C_READY.
+6. Gate decision: M10.A and M10.B are closed green; entry to M10.C is open.

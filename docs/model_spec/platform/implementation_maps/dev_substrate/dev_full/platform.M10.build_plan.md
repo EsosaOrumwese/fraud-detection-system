@@ -67,8 +67,12 @@ Current posture:
 2. Local M10 execution artifacts exist for diagnostics:
    - `M10.A` local run `m10a_handle_closure_20260226T092606Z`,
    - `M10.B` local run `m10b_databricks_readiness_20260226T092606Z`.
-3. No-local-compute rule is now explicit for this lane; authoritative closure requires managed execution via GitHub Actions.
-4. Active blocker family remains `M10-B2` until managed rerun closes it.
+3. Managed closure run succeeded and is authoritative:
+   - workflow run: `22442631941`,
+   - `M10.A`: `m10a_handle_closure_20260226T124457Z`, `overall_pass=true`, `next_gate=M10.B_READY`,
+   - `M10.B`: `m10b_databricks_readiness_20260226T124457Z`, `overall_pass=true`, `next_gate=M10.C_READY`,
+   - blocker registers for both are zero-count.
+4. No-local-compute rule is satisfied for authoritative closure.
 
 ## 4.1) Anti-Cram Law (Binding for M10)
 M10 is not execution-ready unless these capability lanes are explicit:
@@ -228,7 +232,7 @@ DoD:
 - [ ] Databricks readiness checks pass.
 - [x] `m10b_databricks_readiness_snapshot.json` committed locally and durably.
 - [x] `m10b_blocker_register.json` and `m10b_execution_summary.json` committed locally and durably.
-- [ ] blocker-free pass emits `next_gate=M10.C_READY`.
+- [x] blocker-free pass emits `next_gate=M10.C_READY`.
 
 Execution status:
 1. Execution id:
@@ -384,8 +388,8 @@ DoD:
 13. `m10_execution_summary.json`
 
 ## 8) Completion Checklist
-- [ ] `M10.A` complete
-- [ ] `M10.B` complete
+- [x] `M10.A` complete
+- [x] `M10.B` complete
 - [ ] `M10.C` complete
 - [ ] `M10.D` complete
 - [ ] `M10.E` complete
@@ -394,13 +398,13 @@ DoD:
 - [ ] `M10.H` complete
 - [ ] `M10.I` complete
 - [ ] `M10.J` complete
-- [ ] all active `M10-B*` blockers resolved
+- [x] all active `M10-B*` blockers resolved (current active set for `M10.A/M10.B`)
 
 ## 9) Planning Status
 1. M10 planning is expanded and execution-grade.
 2. M9 closure gate is green (`M9 DONE`, `next_gate=M10_READY`).
 3. `M11` handoff contract remains an in-phase closure requirement under `M10.I`.
-4. `M10.A` is closed green and `M10.B` has been executed fail-closed.
-5. Managed remediation/closure lane is now added:
+4. `M10.A` and `M10.B` are both closed green in managed execution (`22442631941`).
+5. Managed remediation/closure lane is active:
    - `.github/workflows/dev_full_m10_ab_managed.yml`
-6. Next action is managed execution of M10.A+M10.B and closure of `M10-B2`.
+6. Next action is `M10.C` expansion and execution.

@@ -1186,6 +1186,15 @@ M10 execution status:
      - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10b_databricks_readiness_20260226T092606Z/`.
 3. Authoritative closure path is managed-only:
    - workflow: `.github/workflows/dev_full_m10_ab_managed.yml`.
+4. Managed closure run is green:
+   - Actions run: `22442631941` (`migrate-dev`),
+   - `M10.A` execution: `m10a_handle_closure_20260226T124457Z`,
+     - `overall_pass=true`, `blocker_count=0`, `next_gate=M10.B_READY`,
+   - `M10.B` execution: `m10b_databricks_readiness_20260226T124457Z`,
+     - `overall_pass=true`, `blocker_count=0`, `next_gate=M10.C_READY`,
+   - blocker registers:
+     - `m10a_blocker_register.json` -> `blocker_count=0`,
+     - `m10b_blocker_register.json` -> `blocker_count=0`.
 
 DoD anchors:
 - [ ] OFS manifest committed.
@@ -1318,4 +1327,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Run managed workflow `.github/workflows/dev_full_m10_ab_managed.yml` to materialize Databricks surfaces/jobs and execute M10.A+M10.B with no local compute.
+- Expand and execute `M10.C` using `M10.B` managed green closure (`m10b_databricks_readiness_20260226T124457Z`) as entry basis.
