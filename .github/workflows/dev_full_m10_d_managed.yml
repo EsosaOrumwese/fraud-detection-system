@@ -129,9 +129,6 @@ jobs:
 
 
           HANDLES_PATH = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
-          WORKSPACE_BUILD_DIR = "/Shared/fraud-platform/dev_full"
-          WORKSPACE_BUILD_FILE = "/Shared/fraud-platform/dev_full/ofs_build_v0.py"
-          WORKSPACE_BUILD_FILE_JOB_REF = "/Workspace/Shared/fraud-platform/dev_full/ofs_build_v0.py"
           WORKSPACE_BUILD_SOURCE = """
           from __future__ import annotations
 
@@ -275,7 +272,7 @@ jobs:
               return settings, changed
 
 
-          def normalize_job_python_entry(settings: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+          def normalize_job_python_entry(settings: dict[str, Any], job_python_ref: str) -> tuple[dict[str, Any], bool]:
               changed = False
               tasks = settings.get("tasks")
               if not isinstance(tasks, list):
@@ -288,18 +285,18 @@ jobs:
                       continue
                   python_file = str(spark_python_task.get("python_file", "")).strip()
                   if python_file.startswith("dbfs:/"):
-                      spark_python_task["python_file"] = WORKSPACE_BUILD_FILE_JOB_REF
+                      spark_python_task["python_file"] = job_python_ref
                       changed = True
               return settings, changed
 
 
-          def ensure_workspace_python_file(base_url: str, token: str) -> None:
+          def ensure_workspace_python_file(base_url: str, token: str, workspace_dir: str, workspace_file: str) -> None:
               dbx_request_json(
                   base_url,
                   token,
                   "POST",
                   "/api/2.0/workspace/mkdirs",
-                  payload={"path": WORKSPACE_BUILD_DIR},
+                  payload={"path": workspace_dir},
               )
               source = textwrap.dedent(WORKSPACE_BUILD_SOURCE).strip() + "\n"
               encoded = base64.b64encode(source.encode("utf-8")).decode("ascii")
@@ -309,7 +306,7 @@ jobs:
                   "POST",
                   "/api/2.0/workspace/import",
                   payload={
-                      "path": WORKSPACE_BUILD_FILE,
+                      "path": workspace_file,
                       "format": "SOURCE",
                       "language": "PYTHON",
                       "content": encoded,
@@ -423,6 +420,10 @@ jobs:
 
           dbx_workspace = ""
           dbx_token = ""
+          dbx_current_user = ""
+          workspace_build_dir = "/Shared/fraud-platform/dev_full"
+          workspace_build_file = "/Shared/fraud-platform/dev_full/ofs_build_v0.py"
+          workspace_build_file_job_ref = "/Workspace/Shared/fraud-platform/dev_full/ofs_build_v0.py"
 
           if ssm_workspace_path:
               try:
@@ -440,6 +441,26 @@ jobs:
 
           if dbx_workspace_handle and dbx_workspace and dbx_workspace_handle.rstrip("/") != dbx_workspace.rstrip("/"):
               blockers.append({"code": "M10-B4", "message": "Workspace URL mismatch between handle and SSM materialization."})
+
+          if not blockers and dbx_workspace and dbx_token:
+              try:
+                  current_user_payload = dbx_request_json(
+                      dbx_workspace,
+                      dbx_token,
+                      "GET",
+                      "/api/2.0/current-user",
+                  )
+                  dbx_current_user = str(
+                      current_user_payload.get("userName")
+                      or current_user_payload.get("user_name")
+                      or ""
+                  ).strip()
+                  if dbx_current_user:
+                      workspace_build_dir = f"/Users/{dbx_current_user}/fraud-platform/dev_full"
+                      workspace_build_file = f"{workspace_build_dir}/ofs_build_v0.py"
+                      workspace_build_file_job_ref = f"/Workspace{workspace_build_file}"
+              except Exception as exc:
+                  read_errors.append({"surface": "databricks.current-user", "error": type(exc).__name__})
 
           job_id = None
           run_id = None
@@ -478,9 +499,9 @@ jobs:
                   settings = job_payload.get("settings")
                   if isinstance(settings, dict):
                       normalized_settings, changed = normalize_serverless_client(settings)
-                      normalized_settings, python_changed = normalize_job_python_entry(normalized_settings)
+                      normalized_settings, python_changed = normalize_job_python_entry(normalized_settings, workspace_build_file_job_ref)
                       if python_changed:
-                          ensure_workspace_python_file(dbx_workspace, dbx_token)
+                          ensure_workspace_python_file(dbx_workspace, dbx_token, workspace_build_dir, workspace_build_file)
                           workspace_python_patch_applied = True
                       if changed:
                           serverless_client_patch_applied = True
@@ -599,7 +620,9 @@ jobs:
                   "poll_interval_seconds": poll_interval_seconds,
                   "serverless_client_patch_applied": serverless_client_patch_applied,
                   "workspace_python_patch_applied": workspace_python_patch_applied,
-                  "workspace_python_file": WORKSPACE_BUILD_FILE_JOB_REF,
+                  "workspace_python_file": workspace_build_file_job_ref,
+                  "workspace_python_file_import_path": workspace_build_file,
+                  "current_user": dbx_current_user,
               },
               "overall_pass": overall_pass,
               "blocker_count": len(blockers),
