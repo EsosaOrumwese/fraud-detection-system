@@ -30,5 +30,13 @@ This folder is reserved for `dev_full` planning and implementation notes.
 - Next closure step:
   - `M9.A` closed green for `P12` authority/handle closure.
   - `M9.B` closed green for handoff continuity and run-scope lock.
-  - next active step is `M9.C` replay-basis receipt closure.
+  - `M9.C` closed green for replay-basis receipt closure.
+  - `M9.D` closed green for as-of + maturity policy closure.
+  - `M9.E` closed green for leakage guardrail evaluation.
+  - `M9.F` closed green for runtime-vs-learning surface separation.
+  - `M9.G` closed green for learning-input readiness snapshot publication.
+  - `M9.H` closed green for deterministic P12 verdict + M10 handoff publication.
+  - `M9.I` closed green for phase budget + cost-outcome closure.
+  - `M9.J` closed green for full M9 closure sync.
+  - next active step is `M10.A` authority + handle closure.
 - `dev_min` remains closed and isolated under `../dev_min/`.

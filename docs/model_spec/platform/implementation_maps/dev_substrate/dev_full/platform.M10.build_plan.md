@@ -281,4 +281,5 @@ DoD:
 
 ## 9) Planning Status
 1. M10 planning is expanded and execution-grade.
-2. Execution is blocked until M9 closure is green and `M11` handoff contract is defined from M10 verdict path.
+2. M9 closure gate is now green (`M9 DONE`, `next_gate=M10_READY`), so M10 can start at `M10.A`.
+3. `M11` handoff contract remains an in-phase closure requirement under `M10.I`.

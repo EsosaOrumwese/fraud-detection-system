@@ -326,96 +326,506 @@ Execution status:
 Goal:
 1. prove temporal boundaries are pinned before dataset build.
 
+Entry conditions:
+1. `M9.C` summary is green (`overall_pass=true`, `next_gate=M9.D_READY`).
+2. replay-basis receipt from `M9.C` is readable and immutable.
+
+Required upstream surfaces:
+1. `evidence/dev_full/run_control/{m9c_execution_id}/m9c_execution_summary.json`
+2. `evidence/dev_full/run_control/{m9c_execution_id}/m9c_replay_basis_receipt.json`
+3. run-scoped replay-basis receipt key from `M9.C` summary.
+
+Required handle set:
+1. `LEARNING_FEATURE_ASOF_REQUIRED`
+2. `LEARNING_LABEL_ASOF_REQUIRED`
+3. `LEARNING_LABEL_MATURITY_DAYS_DEFAULT`
+4. `LEARNING_FUTURE_TIMESTAMP_POLICY`
+
 Tasks:
 1. validate `feature_asof_utc`, `label_asof_utc`, and maturity policy input.
 2. fail-closed if as-of or maturity controls are missing/invalid.
-3. emit `m9d_asof_maturity_policy_snapshot.json`.
+3. emit:
+   - `m9d_asof_maturity_policy_snapshot.json`
+   - `m9d_blocker_register.json`
+   - `m9d_execution_summary.json`.
+
+Deterministic verification algorithm:
+1. read `M9.C` summary and enforce pass posture.
+2. read replay-basis receipt from run-control and run-scoped receipt key and enforce fingerprint parity.
+3. validate required handles are concrete and non-placeholder.
+4. derive temporal anchors:
+   - compute `feature_asof_utc` from max replay offset epoch,
+   - set `label_asof_utc` at strict parity with `feature_asof_utc`,
+   - derive `label_maturity_cutoff_utc = label_asof_utc - label_maturity_days`.
+5. enforce temporal invariants:
+   - as-of values are parseable UTC timestamps,
+   - as-of values are not in the future relative to capture time,
+   - maturity days is positive.
+6. classify blockers:
+   - `M9-B4` for as-of/maturity policy failures,
+   - `M9-B11` for artifact publication/readback parity failures.
+7. emit deterministic next gate:
+   - `M9.E_READY` when blocker count is `0`,
+   - otherwise `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 10 minutes wall clock.
 
 DoD:
-- [ ] as-of and maturity controls are explicit.
-- [ ] boundary values are coherent and auditable.
-- [ ] `m9d_asof_maturity_policy_snapshot.json` committed locally and durably.
+- [x] as-of and maturity controls are explicit.
+- [x] boundary values are coherent and auditable.
+- [x] `m9d_asof_maturity_policy_snapshot.json` committed locally and durably.
+- [x] `m9d_blocker_register.json` and `m9d_execution_summary.json` committed locally and durably.
+- [x] `M9.E_READY` emitted with blocker count `0`.
+
+Execution status:
+1. Closure execution:
+   - execution id: `m9d_p12_asof_maturity_20260226T080452Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M9.E_READY`.
+2. Temporal policy closure:
+   - `feature_asof_utc=2026-02-25T17:57:26Z`,
+   - `label_asof_utc=2026-02-25T17:57:26Z`,
+   - `label_maturity_days=30`,
+   - `label_maturity_cutoff_utc=2026-01-26T17:57:26Z`.
+3. Policy checks:
+   - `LEARNING_FEATURE_ASOF_REQUIRED=true`,
+   - `LEARNING_LABEL_ASOF_REQUIRED=true`,
+   - `LEARNING_FUTURE_TIMESTAMP_POLICY=fail_closed`.
+4. Invariant checks:
+   - as-of timestamps are not future-valued,
+   - maturity cutoff is not after label as-of,
+   - replay receipt fingerprint parity (run-control vs run-scoped) passes.
+5. Evidence:
+   - local: `runs/dev_substrate/dev_full/m9/m9d_p12_asof_maturity_20260226T080452Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9d_p12_asof_maturity_20260226T080452Z/`.
 
 ### M9.E Leakage Guardrail Evaluation
 Goal:
 1. detect and block any future timestamp leakage.
 
+Entry conditions:
+1. `M9.D` summary is green (`overall_pass=true`, `next_gate=M9.E_READY`).
+2. as-of + maturity snapshot is readable and policy-complete.
+
+Required upstream surfaces:
+1. `evidence/dev_full/run_control/{m9d_execution_id}/m9d_execution_summary.json`
+2. `evidence/dev_full/run_control/{m9d_execution_id}/m9d_asof_maturity_policy_snapshot.json`
+3. `evidence/dev_full/run_control/{m9c_execution_id}/m9c_replay_basis_receipt.json`
+
+Required handle set:
+1. `LEARNING_LEAKAGE_GUARDRAIL_REPORT_PATH_PATTERN`
+2. `LEARNING_FUTURE_TIMESTAMP_POLICY`
+3. `LIVE_RUNTIME_FORBIDDEN_FUTURE_FIELDS`
+4. `LIVE_RUNTIME_FORBIDDEN_TRUTH_OUTPUT_IDS`
+5. oracle stream-view location handles (`ORACLE_STORE_BUCKET`, `ORACLE_SOURCE_NAMESPACE`, `ORACLE_ENGINE_RUN_ID`, `S3_STREAM_VIEW_PREFIX_PATTERN`)
+
 Tasks:
 1. run timestamp boundary checks against configured fields.
 2. record violations with row/sample references.
-3. emit `m9e_leakage_guardrail_report.json`.
+3. emit:
+   - `m9e_leakage_guardrail_report.json`
+   - `m9e_blocker_register.json`
+   - `m9e_execution_summary.json`.
+
+Deterministic verification algorithm:
+1. read M9.D summary/snapshot and enforce pass posture and fail-closed future policy.
+2. read M9.C replay-basis receipt and evaluate each origin-offset row against:
+   - `last_offset_epoch <= feature_asof_utc_epoch`
+   - `last_offset_epoch <= label_asof_utc_epoch`.
+3. materialize row-level check samples (topic/partition/offset/as-of bounds).
+4. evaluate truth-surface leakage guardrail:
+   - list active stream-view `output_id=*` prefixes under oracle stream-view root,
+   - fail-closed if any active output intersects `LIVE_RUNTIME_FORBIDDEN_TRUTH_OUTPUT_IDS`.
+5. evaluate guardrail config completeness:
+   - forbidden future-field list must be concrete and non-empty.
+6. classify blockers:
+   - `M9-B5` for leakage/future-boundary violations (including `DFULL-RUN-B12.2` posture),
+   - `M9-B11` for artifact publication/readback parity failures.
+7. publish leakage report to:
+   - run-scope evidence path (`LEARNING_LEAKAGE_GUARDRAIL_REPORT_PATH_PATTERN`),
+   - run-control execution path (`m9e_leakage_guardrail_report.json`).
+8. emit deterministic next gate:
+   - `M9.F_READY` when blocker count is `0`,
+   - otherwise `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 12 minutes wall clock.
 
 DoD:
-- [ ] no unresolved leakage violation remains.
-- [ ] boundary breach emits blocker `DFULL-RUN-B12.2` fail-closed.
-- [ ] `m9e_leakage_guardrail_report.json` committed locally and durably.
+- [x] no unresolved leakage violation remains.
+- [x] boundary breach emits blocker `DFULL-RUN-B12.2` fail-closed.
+- [x] `m9e_leakage_guardrail_report.json` committed locally and durably.
+- [x] `m9e_blocker_register.json` and `m9e_execution_summary.json` committed locally and durably.
+- [x] `M9.F_READY` emitted with blocker count `0`.
+
+Execution status:
+1. Closure execution:
+   - execution id: `m9e_p12_leakage_guardrail_20260226T080940Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M9.F_READY`.
+2. Temporal leakage checks:
+   - rows checked: `1`,
+   - violation count: `0`,
+   - boundary sample confirms `last_offset_epoch <= feature/label as-of epochs`.
+3. Truth-surface leakage checks:
+   - active stream-view outputs:
+     - `arrival_events_5B`,
+     - `s1_arrival_entities_6B`,
+     - `s3_event_stream_with_fraud_6B`,
+     - `s3_flow_anchor_with_fraud_6B`,
+   - forbidden truth-output intersection: none.
+4. Policy checks:
+   - future policy enforced: `fail_closed`,
+   - forbidden future-field and truth-output lists are concrete/non-empty.
+5. Evidence:
+   - local: `runs/dev_substrate/dev_full/m9/m9e_p12_leakage_guardrail_20260226T080940Z/`,
+   - durable run-control: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9e_p12_leakage_guardrail_20260226T080940Z/`,
+   - durable run-scoped report:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/input/leakage_guardrail_report.json`.
 
 ### M9.F Runtime-vs-Learning Surface Separation
 Goal:
 1. prove runtime lanes are isolated from offline truth surfaces.
 
+Entry conditions:
+1. `M9.E` summary is green (`overall_pass=true`, `next_gate=M9.F_READY`).
+2. leakage guardrail report is readable and blocker-free.
+
+Required upstream surfaces:
+1. `evidence/dev_full/run_control/{m9e_execution_id}/m9e_execution_summary.json`
+2. `evidence/dev_full/run_control/{m9e_execution_id}/m9e_leakage_guardrail_report.json`
+3. `evidence/dev_full/run_control/{m9b_execution_id}/m9b_handoff_scope_snapshot.json` (for runtime evidence refs scope check)
+4. interface boundary contract:
+   - `docs/model_spec/data-engine/interface_pack/data_engine_interface.md`
+
+Required handle set:
+1. `LIVE_RUNTIME_FORBIDDEN_TRUTH_OUTPUT_IDS`
+2. `LIVE_RUNTIME_FORBIDDEN_FUTURE_FIELDS`
+3. `ORACLE_STORE_BUCKET`
+4. `ORACLE_SOURCE_NAMESPACE`
+5. `ORACLE_ENGINE_RUN_ID`
+6. `S3_STREAM_VIEW_PREFIX_PATTERN`
+
 Tasks:
 1. validate live-runtime forbid set (`s4_*` + future-derived fields).
 2. verify learning-only access boundaries for truth products.
-3. emit `m9f_surface_separation_snapshot.json`.
+3. emit:
+   - `m9f_surface_separation_snapshot.json`
+   - `m9f_blocker_register.json`
+   - `m9f_execution_summary.json`.
+
+Deterministic verification algorithm:
+1. read M9.E summary/report and enforce pass posture.
+2. resolve required handles and forbidden sets.
+3. enumerate active runtime stream-view `output_id=*` prefixes from oracle stream-view root.
+4. evaluate truth-surface separation:
+   - fail if active outputs intersect `LIVE_RUNTIME_FORBIDDEN_TRUTH_OUTPUT_IDS`,
+   - fail if active outputs intersect interface-declared `truth_products`.
+5. evaluate future-derived surface separation:
+   - derive output ids associated with forbidden future fields from interface contract notes,
+   - fail if any derived output id appears in active runtime outputs.
+6. evaluate runtime-vs-learning boundary refs:
+   - runtime evidence refs from M9.B must not point to learning/truth-product surfaces.
+7. classify blockers:
+   - `M9-B6` for separation failures,
+   - `M9-B11` for artifact publication/readback parity failures.
+8. emit deterministic next gate:
+   - `M9.G_READY` when blocker count is `0`,
+   - otherwise `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 12 minutes wall clock.
 
 DoD:
-- [ ] runtime truth-surface violations are absent.
-- [ ] separation checks are explicit and evidence-backed.
-- [ ] `m9f_surface_separation_snapshot.json` committed locally and durably.
+- [x] runtime truth-surface violations are absent.
+- [x] separation checks are explicit and evidence-backed.
+- [x] `m9f_surface_separation_snapshot.json` committed locally and durably.
+- [x] `m9f_blocker_register.json` and `m9f_execution_summary.json` committed locally and durably.
+- [x] `M9.G_READY` emitted with blocker count `0`.
+
+Execution status:
+1. Closure execution:
+   - execution id: `m9f_p12_surface_sep_20260226T081356Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M9.G_READY`.
+2. Runtime output surface:
+   - active outputs:
+     - `arrival_events_5B`,
+     - `s1_arrival_entities_6B`,
+     - `s3_event_stream_with_fraud_6B`,
+     - `s3_flow_anchor_with_fraud_6B`.
+3. Separation results:
+   - forbidden truth-output intersection: none,
+   - interface truth-product intersection: none,
+   - future-derived output intersection: none,
+   - runtime evidence-ref leakage: none.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m9/m9f_p12_surface_sep_20260226T081356Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9f_p12_surface_sep_20260226T081356Z/`.
 
 ### M9.G Learning Input Readiness Snapshot
 Goal:
 1. publish consolidated readiness evidence for P12 closure.
 
+Entry conditions:
+1. `M9.C`, `M9.D`, `M9.E`, and `M9.F` summaries are all green at pinned execution ids.
+2. run-control artifacts for each upstream lane are readable from `S3_EVIDENCE_BUCKET`.
+3. run-scoped learning artifacts from prior lanes are readable:
+   - replay basis receipt (`M9.C`),
+   - leakage guardrail report (`M9.E`).
+4. required handles are pinned and non-placeholder:
+   - `S3_EVIDENCE_BUCKET`,
+   - `LEARNING_INPUT_READINESS_PATH_PATTERN`,
+   - `S3_RUN_CONTROL_ROOT_PATTERN`.
+
 Tasks:
-1. aggregate outputs from `M9.C..M9.F`.
-2. emit `m9g_learning_input_readiness_snapshot.json` + blocker register.
+1. aggregate outputs from `M9.C..M9.F` in fixed order.
+2. validate deterministic gate chain:
+   - `M9.C -> M9.D_READY`,
+   - `M9.D -> M9.E_READY`,
+   - `M9.E -> M9.F_READY`,
+   - `M9.F -> M9.G_READY`.
+3. validate run-scope coherence across upstream summaries:
+   - single `platform_run_id`,
+   - single `scenario_run_id`.
+4. validate run-scoped learning evidence reachability:
+   - `m9c_replay_basis_receipt` key exists,
+   - `m9e_leakage_guardrail_report` key exists.
+5. emit deterministic artifacts:
+   - `m9g_learning_input_readiness_snapshot.json`,
+   - `m9g_blocker_register.json`,
+   - `m9g_execution_summary.json`.
+6. publish snapshot to run-control and run-scoped learning path via `LEARNING_INPUT_READINESS_PATH_PATTERN`.
+7. classify blockers:
+   - `M9-B7` for readiness incompleteness/inconsistency,
+   - `M9-B11` for artifact publication/readback parity failures.
+8. emit deterministic next gate:
+   - `M9.H_READY` when blocker count is `0`,
+   - otherwise `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 10 minutes wall clock.
 
 DoD:
-- [ ] readiness snapshot is complete and parseable.
-- [ ] blocker register is coherent with prior checks.
-- [ ] snapshot artifacts committed locally and durably.
+- [x] readiness snapshot is complete and parseable.
+- [x] blocker register is coherent with prior checks.
+- [x] run-scope continuity across `M9.C..M9.F` is explicitly proven.
+- [x] `m9g_learning_input_readiness_snapshot.json` committed locally and durably.
+- [x] `m9g_blocker_register.json` and `m9g_execution_summary.json` committed locally and durably.
+- [x] `M9.H_READY` emitted with blocker count `0`.
+
+Execution status:
+1. Closure execution:
+   - execution id: `m9g_p12_learning_input_readiness_20260226T081947Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M9.H_READY`.
+2. Upstream gate-chain rollup:
+   - `M9.C`: pass + `M9.D_READY`,
+   - `M9.D`: pass + `M9.E_READY`,
+   - `M9.E`: pass + `M9.F_READY`,
+   - `M9.F`: pass + `M9.G_READY`.
+3. Run-scope continuity:
+   - `platform_run_id`: `platform_20260223T184232Z` (single value),
+   - `scenario_run_id`: `scenario_38753050f3b70c666e16f7552016b330` (single value).
+4. Run-scoped learning artifacts:
+   - replay-basis receipt exists:
+     - `evidence/runs/platform_20260223T184232Z/learning/input/replay_basis_receipt.json`,
+   - leakage-guardrail report exists:
+     - `evidence/runs/platform_20260223T184232Z/learning/input/leakage_guardrail_report.json`.
+5. Readiness snapshot publish targets:
+   - run-control: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9g_p12_learning_input_readiness_20260226T081947Z/`,
+   - run-scoped: `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/input/readiness_snapshot.json`.
+6. Evidence:
+   - local: `runs/dev_substrate/dev_full/m9/m9g_p12_learning_input_readiness_20260226T081947Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9g_p12_learning_input_readiness_20260226T081947Z/`.
 
 ### M9.H P12 Gate Rollup + M10 Handoff
 Goal:
 1. produce deterministic P12 verdict and handoff.
 
+Entry conditions:
+1. `M9.A..M9.G` summaries are all green and readable from run-control surfaces.
+2. `M9.G` closure posture is pass with `next_gate=M9.H_READY`.
+3. active run scope is single-valued across all M9 source summaries.
+4. required handles for durable publication are pinned and non-placeholder:
+   - `S3_EVIDENCE_BUCKET`,
+   - `S3_RUN_CONTROL_ROOT_PATTERN`.
+
 Tasks:
 1. roll up M9A-G outcomes in fixed order.
-2. emit `m9h_p12_gate_verdict.json`.
-3. emit `m10_handoff_pack.json`.
+2. validate gate-chain continuity:
+   - `M9.A -> M9.B_READY`,
+   - `M9.B -> M9.C_READY`,
+   - `M9.C -> M9.D_READY`,
+   - `M9.D -> M9.E_READY`,
+   - `M9.E -> M9.F_READY`,
+   - `M9.F -> M9.G_READY`,
+   - `M9.G -> M9.H_READY`.
+3. compute deterministic pass-matrix for P12 source phases and run-scope continuity assertions.
+4. emit deterministic artifacts:
+   - `m9h_p12_rollup_matrix.json`,
+   - `m9h_p12_gate_verdict.json`,
+   - `m10_handoff_pack.json`,
+   - `m9h_execution_summary.json`.
+5. classify blockers:
+   - `M9-B8` for rollup/verdict inconsistency,
+   - `M9-B9` for handoff publication/contract failure,
+   - `M9-B11` for artifact publication/readback parity failures.
+6. emit deterministic pass posture:
+   - `verdict=ADVANCE_TO_P13`,
+   - `next_gate=M10_READY`,
+   - otherwise fail closed to `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 10 minutes wall clock.
 
 DoD:
-- [ ] deterministic verdict is emitted.
-- [ ] pass posture requires `ADVANCE_TO_P13` and `next_gate=M10_READY`.
-- [ ] handoff pack committed locally and durably.
+- [x] deterministic verdict is emitted.
+- [x] pass posture requires `ADVANCE_TO_P13` and `next_gate=M10_READY`.
+- [x] handoff pack committed locally and durably.
+- [x] rollup matrix + execution summary committed locally and durably.
+
+Execution status:
+1. Closure execution:
+   - execution id: `m9h_p12_gate_rollup_20260226T082548Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_P13`, `next_gate=M10_READY`.
+2. Source gate-chain rollup:
+   - `M9.A`: pass + `M9.B_READY`,
+   - `M9.B`: pass + `M9.C_READY`,
+   - `M9.C`: pass + `M9.D_READY`,
+   - `M9.D`: pass + `M9.E_READY`,
+   - `M9.E`: pass + `M9.F_READY`,
+   - `M9.F`: pass + `M9.G_READY`,
+   - `M9.G`: pass + `M9.H_READY`.
+3. Run scope continuity:
+   - `platform_run_id`: `platform_20260223T184232Z` (single value),
+   - `scenario_run_id`: `scenario_38753050f3b70c666e16f7552016b330` (single value).
+4. Handoff pack:
+   - `m10_handoff_pack.json` emitted with required refs for M10 entry,
+   - `m10_entry_gate.required_verdict=ADVANCE_TO_P13`,
+   - `m10_entry_gate.next_gate=M10_READY`.
+5. Evidence:
+   - local: `runs/dev_substrate/dev_full/m9/m9h_p12_gate_rollup_20260226T082548Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9h_p12_gate_rollup_20260226T082548Z/`.
 
 ### M9.I M9 Phase Budget + Cost-Outcome Closure
 Goal:
 1. publish cost-to-outcome artifacts for M9.
 
+Entry conditions:
+1. `M9.H` is green with:
+   - `verdict=ADVANCE_TO_P13`,
+   - `next_gate=M10_READY`,
+   - blocker count `0`.
+2. `M9.A..M9.H` summaries and contract artifacts are readable from run-control surfaces.
+3. active run scope remains single-valued across `M9.A..M9.H`.
+4. cost handles are pinned and parseable:
+   - `DEV_FULL_MONTHLY_BUDGET_LIMIT_USD`,
+   - `DEV_FULL_BUDGET_ALERT_1_USD`,
+   - `DEV_FULL_BUDGET_ALERT_2_USD`,
+   - `DEV_FULL_BUDGET_ALERT_3_USD`,
+   - `BUDGET_CURRENCY`,
+   - `COST_CAPTURE_SCOPE`,
+   - `AWS_COST_CAPTURE_ENABLED`.
+
 Tasks:
-1. emit `m9_phase_budget_envelope.json`.
-2. emit `m9_phase_cost_outcome_receipt.json`.
+1. validate M9 upstream closure matrix (`M9.A..M9.H`) and run-scope continuity.
+2. capture AWS MTD cost (`month_start..tomorrow`) from billing region.
+3. validate budget threshold ordering:
+   - `alert_1 < alert_2 < alert_3 <= monthly_limit`.
+4. emit deterministic artifacts:
+   - `m9_phase_budget_envelope.json`,
+   - `m9_phase_cost_outcome_receipt.json`,
+   - `m9i_blocker_register.json`,
+   - `m9i_execution_summary.json`.
+5. classify blockers:
+   - `M9-B10` for cost-outcome closure failures,
+   - `M9-B11` for artifact publication/readback parity failures.
+6. emit deterministic next gate:
+   - `M9.J_READY` when blocker count is `0`,
+   - otherwise `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 10 minutes wall clock.
 
 DoD:
-- [ ] budget envelope is valid and parseable.
-- [ ] cost-outcome receipt is coherent with emitted artifacts.
-- [ ] both artifacts committed locally and durably.
+- [x] budget envelope is valid and parseable.
+- [x] cost-outcome receipt is coherent with emitted artifacts.
+- [x] `m9_phase_budget_envelope.json` and `m9_phase_cost_outcome_receipt.json` committed locally and durably.
+- [x] `m9i_execution_summary.json` committed locally and durably with `next_gate=M9.J_READY` when blocker-free.
+
+Execution status:
+1. Closure execution:
+   - execution id: `m9i_phase_cost_closure_20260226T083151Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M9J`, `next_gate=M9.J_READY`.
+2. Cost posture:
+   - `budget_currency=USD`,
+   - threshold envelope: `120/210/270` over `monthly_limit=300`,
+   - captured AWS MTD spend: `89.2979244404 USD`,
+   - capture scope: `aws_only_pre_m11_databricks_cost_deferred`,
+   - Databricks capture mode: `DEFERRED` (disabled in this lane).
+3. Contract parity:
+   - required upstream artifacts: `18`,
+   - readable upstream artifacts: `18`,
+   - required M9.I outputs: `2`,
+   - published M9.I outputs: `2`,
+   - `all_required_available=true`.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m9/m9i_phase_cost_closure_20260226T083151Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9i_phase_cost_closure_20260226T083151Z/`.
 
 ### M9.J M9 Closure Sync
 Goal:
 1. close M9 and publish authoritative summary.
 
+Entry conditions:
+1. `M9.I` is green with:
+   - `verdict=ADVANCE_TO_M9J`,
+   - `next_gate=M9.J_READY`,
+   - blocker count `0`.
+2. all M9 lane summaries (`M9.A..M9.I`) are readable from run-control surfaces.
+3. active run scope remains single-valued across `M9.A..M9.I`.
+4. M9 contract artifacts are readable and parity-checkable:
+   - `m9a..m9h` lane artifacts,
+   - `m10_handoff_pack.json`,
+   - `m9_phase_budget_envelope.json`,
+   - `m9_phase_cost_outcome_receipt.json`.
+
 Tasks:
 1. emit `m9_execution_summary.json`.
 2. verify local+durable parity of M9 outputs.
 3. update M9 closure status and next gate readiness.
+4. emit deterministic closure posture:
+   - `verdict=ADVANCE_TO_M10`,
+   - `next_gate=M10_READY`,
+   - otherwise fail closed to `HOLD_REMEDIATE`.
+5. classify blockers:
+   - `M9-B10` for closure-sync completeness failure,
+   - `M9-B11` for summary/evidence publication parity failure.
+
+Runtime budget:
+1. target <= 10 minutes wall clock.
 
 DoD:
-- [ ] `m9_execution_summary.json` committed locally and durably.
-- [ ] M9 closure sync passes with no unresolved blocker.
+- [x] `m9_execution_summary.json` committed locally and durably.
+- [x] M9 closure sync passes with no unresolved blocker.
+
+Execution status:
+1. Closure execution:
+   - execution id: `m9j_closure_sync_20260226T083701Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M10`, `next_gate=M10_READY`.
+2. Summary-chain closure:
+   - `M9.A..M9.I` all readable and green with expected next-gate continuity.
+3. Contract parity:
+   - required upstream artifacts: `20`,
+   - readable upstream artifacts: `20`,
+   - required M9.J outputs: `1`,
+   - published M9.J outputs: `1`,
+   - `all_required_available=true`.
+4. Entry posture for M10:
+   - `p12_verdict=ADVANCE_TO_P13` retained from M9.H,
+   - `m10_handoff_pack.json` reference preserved in `m9_execution_summary.json`,
+   - phase closure verdict now `ADVANCE_TO_M10`.
+5. Evidence:
+   - local: `runs/dev_substrate/dev_full/m9/m9j_closure_sync_20260226T083701Z/`,
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9j_closure_sync_20260226T083701Z/`.
 
 ## 6) Blocker Taxonomy (Fail-Closed)
 1. `M9-B1`: authority/handle closure failure.
@@ -448,18 +858,26 @@ DoD:
 - [x] `M9.A` complete
 - [x] `M9.B` complete
 - [x] `M9.C` complete
-- [ ] `M9.D` complete
-- [ ] `M9.E` complete
-- [ ] `M9.F` complete
-- [ ] `M9.G` complete
-- [ ] `M9.H` complete
-- [ ] `M9.I` complete
-- [ ] `M9.J` complete
-- [ ] all active `M9-B*` blockers resolved
+- [x] `M9.D` complete
+- [x] `M9.E` complete
+- [x] `M9.F` complete
+- [x] `M9.G` complete
+- [x] `M9.H` complete
+- [x] `M9.I` complete
+- [x] `M9.J` complete
+- [x] all active `M9-B*` blockers resolved
 
 ## 9) Planning Status
 1. M9 planning is expanded and execution-grade.
 2. `M9.A` is closed green with `next_gate=M9.B_READY`.
 3. `M9.B` is closed green with `next_gate=M9.C_READY`.
 4. `M9.C` is closed green with `next_gate=M9.D_READY`.
-5. Next action is `M9.D` as-of + maturity policy closure.
+5. `M9.D` is closed green with `next_gate=M9.E_READY`.
+6. `M9.E` is closed green with `next_gate=M9.F_READY`.
+7. `M9.F` is closed green with `next_gate=M9.G_READY`.
+8. `M9.G` is closed green with `next_gate=M9.H_READY`.
+9. `M9.H` is closed green with `verdict=ADVANCE_TO_P13` and `next_gate=M10_READY`.
+10. `M9.I` is closed green with `next_gate=M9.J_READY`.
+11. `M9.J` is closed green with `verdict=ADVANCE_TO_M10` and `next_gate=M10_READY`.
+12. M9 is `DONE`.
+13. Next action is `M10.A` authority + handle closure.

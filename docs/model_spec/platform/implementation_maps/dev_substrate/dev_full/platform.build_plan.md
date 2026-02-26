@@ -971,7 +971,7 @@ M8 execution status (2026-02-26):
    - durable run-control evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8j_p11_closure_sync_20260226T065141Z/`.
 
 ## M9 - Learning Input Readiness
-Status: `ACTIVE`
+Status: `DONE`
 
 Objective:
 - close `P12` with production-realistic learning-input closure:
@@ -1021,22 +1021,121 @@ M9 execution status:
      - `92dff0c910630d96a7dd80fcf79c6de37d52370d841979f6f055dc254b63cd70`,
    - durable evidence:
      - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9b_p12_scope_lock_20260226T075421Z/`.
+3. `M9.C` is closed green:
+   - execution: `m9c_p12_replay_basis_20260226T075941Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M9.D_READY`,
+   - replay basis mode: `origin_offset_ranges`,
+   - replay range rows: `1` (`ig.edge.admission.proxy.v1`, partition `0`, offsets `1772022980..1772042246`),
+   - replay basis fingerprint:
+     - `2bb3d8acc862cf7ea5e67ff78be849e9717111d617d5159a5aafb83a0ad384c3`,
+   - durable run-control evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9c_p12_replay_basis_20260226T075941Z/`,
+   - durable run-scoped receipt:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/input/replay_basis_receipt.json`.
+4. `M9.D` is closed green:
+   - execution: `m9d_p12_asof_maturity_20260226T080452Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M9.E_READY`,
+   - derived policy anchors:
+     - `feature_asof_utc=2026-02-25T17:57:26Z`,
+     - `label_asof_utc=2026-02-25T17:57:26Z`,
+     - `label_maturity_cutoff_utc=2026-01-26T17:57:26Z`,
+   - policy posture:
+     - `LEARNING_FEATURE_ASOF_REQUIRED=true`,
+     - `LEARNING_LABEL_ASOF_REQUIRED=true`,
+     - `LEARNING_FUTURE_TIMESTAMP_POLICY=fail_closed`,
+   - durable evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9d_p12_asof_maturity_20260226T080452Z/`.
+5. `M9.E` is closed green:
+   - execution: `m9e_p12_leakage_guardrail_20260226T080940Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M9.F_READY`,
+   - temporal leakage posture:
+     - rows checked `1`, boundary violations `0`,
+   - truth-surface posture:
+     - active stream-view outputs do not intersect forbidden truth-output set,
+   - durable run-control evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9e_p12_leakage_guardrail_20260226T080940Z/`,
+   - durable run-scoped report:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/input/leakage_guardrail_report.json`.
+6. `M9.F` is closed green:
+   - execution: `m9f_p12_surface_sep_20260226T081356Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M9.G_READY`,
+   - active runtime outputs:
+     - `arrival_events_5B`, `s1_arrival_entities_6B`, `s3_event_stream_with_fraud_6B`, `s3_flow_anchor_with_fraud_6B`,
+   - separation checks:
+     - forbidden truth-output intersection: none,
+     - interface truth-product intersection: none,
+     - future-derived output intersection: none,
+     - runtime evidence-ref leakage: none,
+   - durable run-control evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9f_p12_surface_sep_20260226T081356Z/`.
+7. `M9.G` is closed green:
+   - execution: `m9g_p12_learning_input_readiness_20260226T081947Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M9.H_READY`,
+   - gate-chain rollup:
+     - `M9.C -> M9.D_READY`,
+     - `M9.D -> M9.E_READY`,
+     - `M9.E -> M9.F_READY`,
+     - `M9.F -> M9.G_READY`,
+   - run-scope continuity:
+     - `platform_run_id=platform_20260223T184232Z` (single),
+     - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330` (single),
+   - run-scoped readiness snapshot:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/input/readiness_snapshot.json`,
+   - durable run-control evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9g_p12_learning_input_readiness_20260226T081947Z/`.
+8. `M9.H` is closed green:
+   - execution: `m9h_p12_gate_rollup_20260226T082548Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_P13`, `next_gate=M10_READY`,
+   - source gate-chain rollup:
+     - `M9.A -> M9.B_READY`,
+     - `M9.B -> M9.C_READY`,
+     - `M9.C -> M9.D_READY`,
+     - `M9.D -> M9.E_READY`,
+     - `M9.E -> M9.F_READY`,
+     - `M9.F -> M9.G_READY`,
+     - `M9.G -> M9.H_READY`,
+   - M10 handoff emitted:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9h_p12_gate_rollup_20260226T082548Z/m10_handoff_pack.json`,
+   - durable run-control evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9h_p12_gate_rollup_20260226T082548Z/`.
+9. `M9.I` is closed green:
+   - execution: `m9i_phase_cost_closure_20260226T083151Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M9J`, `next_gate=M9.J_READY`,
+   - budget envelope:
+     - `budget_currency=USD`,
+     - thresholds `120/210/270` over monthly limit `300`,
+   - MTD spend capture:
+     - `aws_mtd_cost=89.2979244404 USD`,
+     - capture scope `aws_only_pre_m11_databricks_cost_deferred`,
+   - durable run-control evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9i_phase_cost_closure_20260226T083151Z/`.
+10. `M9.J` is closed green:
+   - execution: `m9j_closure_sync_20260226T083701Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M10`, `next_gate=M10_READY`,
+   - M9 closure summary emitted:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9j_closure_sync_20260226T083701Z/m9_execution_summary.json`,
+   - contract parity:
+     - required upstream artifacts `20`, readable `20`,
+     - required M9.J outputs `1`, published `1`,
+   - durable run-control evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9j_closure_sync_20260226T083701Z/`.
 
 DoD anchors:
-- [ ] replay basis is committed as offset ranges with deterministic receipt.
-- [ ] as-of and maturity policies are pinned and evidence-backed.
-- [ ] leakage guardrail is green (`future timestamp` boundary checks pass).
-- [ ] runtime/learning surface separation checks are green.
-- [ ] learning input readiness snapshot + blocker register are committed.
-- [ ] deterministic `P12` verdict is committed with blocker-free next gate.
-- [ ] `m10_handoff_pack.json` is committed locally and durably.
-- [ ] M9 phase-budget and cost-outcome artifacts are committed and blocker-free.
+- [x] replay basis is committed as offset ranges with deterministic receipt.
+- [x] as-of and maturity policies are pinned and evidence-backed.
+- [x] leakage guardrail is green (`future timestamp` boundary checks pass).
+- [x] runtime/learning surface separation checks are green.
+- [x] learning input readiness snapshot + blocker register are committed.
+- [x] deterministic `P12` verdict is committed with blocker-free next gate.
+- [x] `m10_handoff_pack.json` is committed locally and durably.
+- [x] M9 phase-budget and cost-outcome artifacts are committed and blocker-free.
+- [x] `m9_execution_summary.json` is committed locally and durably with `next_gate=M10_READY`.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M9.build_plan.md`
 
 ## M10 - OFS Dataset Closure
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 
 Objective:
 - close `P13` with Databricks-driven OFS dataset closure under Iceberg governance and rollback safety.
@@ -1197,4 +1296,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M9.C` for replay-basis receipt closure.
+- Expand and execute `M10.A` for P13 authority + handle closure.

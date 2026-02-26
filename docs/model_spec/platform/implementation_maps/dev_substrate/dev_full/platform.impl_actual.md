@@ -12308,3 +12308,816 @@ ext_gate=M9_READY).
 ### Decision
 1. M9.C is closure-green with no active blockers.
 2. Next lane can advance to `M9.D`.
+
+## Entry: 2026-02-26 09:18:00 +00:00 - M9.C docs/status synchronization completed
+
+### Files updated
+1. `platform.M9.build_plan.md`:
+   - M9.C DoDs marked green,
+   - execution status filled with concrete replay-range and fingerprint evidence,
+   - completion checklist marks `M9.C` complete,
+   - planning status advanced to `M9.D`.
+2. `platform.build_plan.md`:
+   - M9 execution status now includes M9.C closure evidence,
+   - global next action moved to `M9.D`.
+3. `dev_full/README.md`:
+   - posture updated to show `M9.C` closed green,
+   - next active step now `M9.D`.
+
+### Closure assertion
+1. M9.C has no active blockers.
+2. Lane is closure-complete and ready to advance.
+
+## Entry: 2026-02-26 09:24:00 +00:00 - M9.D design-basis pinned before implementation
+
+### Data basis decision
+1. M9.D will use `M9.C` replay receipt as the canonical upstream source for temporal boundaries.
+2. As-of anchor derivation policy:
+   - derive epoch range from `origin_offset_ranges.last_offset` (IG admission proxy epoch basis),
+   - set `feature_asof_utc` from max replay offset epoch,
+   - set `label_asof_utc` equal to `feature_asof_utc` for strict causality baseline at this phase.
+3. Maturity policy derivation:
+   - `label_maturity_days` from `LEARNING_LABEL_MATURITY_DAYS_DEFAULT`,
+   - derive `label_maturity_cutoff_utc = label_asof_utc - label_maturity_days`.
+
+### Validation invariants (fail-closed)
+1. Required handles must be concrete:
+   - `LEARNING_FEATURE_ASOF_REQUIRED`
+   - `LEARNING_LABEL_ASOF_REQUIRED`
+   - `LEARNING_LABEL_MATURITY_DAYS_DEFAULT`
+   - `LEARNING_FUTURE_TIMESTAMP_POLICY`.
+2. `LEARNING_FUTURE_TIMESTAMP_POLICY` must remain `fail_closed`.
+3. `feature_asof_utc` and `label_asof_utc` must not be in the future relative to capture time.
+4. replay basis rows must be non-empty and parseable.
+
+### Blocker mapping for M9.D
+1. `M9-B4` for as-of/maturity closure failures.
+2. `M9-B11` for artifact publication/readback parity failures.
+
+## Entry: 2026-02-26 09:29:00 +00:00 - M9.D deep-plan expansion completed
+
+### Expansion highlights
+1. Added explicit M9.D entry conditions tied to M9.C pass posture.
+2. Added required upstream source surfaces (M9.C summary + replay receipt in run-control and run-scoped paths).
+3. Added explicit required handle set for temporal controls.
+4. Added deterministic temporal derivation + validation algorithm, including fingerprint parity check for run-control vs run-scoped replay receipt.
+5. Added fail-closed blocker mapping (`M9-B4`, `M9-B11`) and next-gate contract (`M9.E_READY`).
+
+### Reasoning
+1. Temporal policy closure should be based on the immutable replay basis already committed in M9.C.
+2. Fingerprint parity between run-control and run-scoped receipt prevents hidden drift in replay basis prior to dataset build.
+
+## Entry: 2026-02-26 09:35:00 +00:00 - Implemented M9.D as-of+maturity executor
+
+### File added
+1. `scripts/dev_substrate/m9d_asof_maturity_policy.py`.
+
+### Implemented checks
+1. Upstream continuity:
+   - M9.C summary pass posture and run scope.
+2. Replay receipt parity:
+   - compares run-control and run-scoped replay receipt fingerprints.
+3. Handle enforcement:
+   - feature/label as-of required flags,
+   - maturity days positive,
+   - future timestamp policy pinned to `fail_closed`.
+4. Temporal derivation:
+   - derive `feature_asof_utc` from max replay `last_offset` epoch,
+   - set `label_asof_utc` equal to feature as-of,
+   - derive `label_maturity_cutoff_utc` by subtracting maturity days.
+5. Temporal invariants:
+   - as-of timestamps must not be future relative to capture timestamp,
+   - maturity cutoff must be <= label as-of,
+   - feature/label as-of parity enforced.
+6. Local+durable publication of:
+   - `m9d_asof_maturity_policy_snapshot.json`
+   - `m9d_blocker_register.json`
+   - `m9d_execution_summary.json`.
+
+### Blocker mapping
+1. `M9-B4` for as-of/maturity policy closure failures.
+2. `M9-B11` for publication parity failures.
+
+### Next step
+1. compile and execute M9.D against `M9.C` closure execution.
+
+## Entry: 2026-02-26 09:41:00 +00:00 - M9.D execution result and closure decision
+
+### Execution
+1. Ran `m9d_p12_asof_maturity_20260226T080452Z`.
+2. Inputs:
+   - `UPSTREAM_M9C_EXECUTION=m9c_p12_replay_basis_20260226T075941Z`
+   - `EVIDENCE_BUCKET=fraud-platform-dev-full-evidence`.
+
+### Outcome
+1. `overall_pass=true`, `blocker_count=0`, `next_gate=M9.E_READY`.
+2. Handle policy checks passed:
+   - `LEARNING_FEATURE_ASOF_REQUIRED=true`
+   - `LEARNING_LABEL_ASOF_REQUIRED=true`
+   - `LEARNING_LABEL_MATURITY_DAYS_DEFAULT=30`
+   - `LEARNING_FUTURE_TIMESTAMP_POLICY=fail_closed`.
+3. Derived temporal boundaries:
+   - `feature_asof_utc=2026-02-25T17:57:26Z`
+   - `label_asof_utc=2026-02-25T17:57:26Z`
+   - `label_maturity_cutoff_utc=2026-01-26T17:57:26Z`.
+4. Temporal invariants all passed:
+   - as-of timestamps not future,
+   - maturity cutoff <= label as-of,
+   - feature/label as-of parity.
+5. Replay parity check passed:
+   - run-control and run-scoped replay receipt fingerprint matched.
+
+### Evidence
+1. Local: `runs/dev_substrate/dev_full/m9/m9d_p12_asof_maturity_20260226T080452Z/`.
+2. Durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9d_p12_asof_maturity_20260226T080452Z/`.
+
+### Decision
+1. M9.D is closure-green and blocker-free.
+2. Next lane can advance to `M9.E`.
+
+## Entry: 2026-02-26 09:45:00 +00:00 - M9.D docs/status synchronization completed
+
+### Files synchronized
+1. `platform.M9.build_plan.md`:
+   - M9.D DoDs checked green,
+   - execution status populated with concrete as-of/maturity evidence,
+   - completion checklist marks `M9.D` complete,
+   - planning status advanced to `M9.E`.
+2. `platform.build_plan.md`:
+   - M9 execution status now includes M9.D closure details,
+   - global next action moved to M9.E.
+3. `dev_full/README.md`:
+   - posture updated to show M9.D closed,
+   - next active step now M9.E.
+
+### Closure assertion
+1. M9.D has no active blockers and is closure-green.
+2. M9 remains active overall with next lane `M9.E`.
+
+## Entry: 2026-02-26 09:52:00 +00:00 - M9.E deep-plan expansion completed
+
+### Expansion highlights
+1. Added explicit entry conditions from M9.D closure.
+2. Added full required surface/handle set including leakage-path and oracle stream-view discovery handles.
+3. Added deterministic algorithm for:
+   - replay-offset vs as-of boundary checks,
+   - truth-surface leakage detection via active stream-view output ids,
+   - config completeness checks for forbidden future fields.
+4. Added dual publication contract (run-control + run-scoped leakage report).
+5. Added fail-closed blockers:
+   - `M9-B5` for leakage violations (`DFULL-RUN-B12.2` posture),
+   - `M9-B11` for publication parity failures.
+
+### Reasoning
+1. Timestamp checks alone are insufficient; active output-surface checks are needed to catch truth-output leakage pathways early.
+2. This keeps P12 leakage posture concrete before M10 dataset build.
+
+## Entry: 2026-02-26 10:01:00 +00:00 - Implemented M9.E leakage guardrail executor
+
+### File added
+1. `scripts/dev_substrate/m9e_leakage_guardrail.py`.
+
+### Implemented checks
+1. Upstream posture checks:
+   - M9.D summary pass + next gate.
+2. Handle closure checks:
+   - leakage report path,
+   - future timestamp policy,
+   - forbidden future fields list,
+   - forbidden truth-output list,
+   - oracle stream-view location handles.
+3. Temporal leakage checks:
+   - evaluates each replay-row `last_offset_epoch` against `feature_asof` and `label_asof` epochs.
+4. Output-surface leakage checks:
+   - enumerates active stream-view `output_id=*` directories in oracle store,
+   - checks for intersection with forbidden truth outputs (`s4_*` set).
+5. Guardrail report publication:
+   - run-control and run-scoped leakage report paths,
+   - register + execution summary in run-control.
+
+### Blocker mapping
+1. `M9-B5` for leakage violations (including `DFULL-RUN-B12.2` boundary posture).
+2. `M9-B11` for artifact publication parity failures.
+
+### Next step
+1. compile and execute M9.E against M9.D closure execution.
+
+## Entry: 2026-02-26 10:10:00 +00:00 - M9.E execution result and closure decision
+
+### Execution
+1. Ran `m9e_p12_leakage_guardrail_20260226T080940Z`.
+2. Inputs:
+   - `UPSTREAM_M9D_EXECUTION=m9d_p12_asof_maturity_20260226T080452Z`
+   - `EVIDENCE_BUCKET=fraud-platform-dev-full-evidence`.
+
+### Outcome
+1. `overall_pass=true`, `blocker_count=0`, `next_gate=M9.F_READY`.
+2. Temporal leakage boundary checks:
+   - rows checked: `1`,
+   - violations: `0`,
+   - last_offset epoch equals as-of epoch (`1772042246`), boundary holds.
+3. Truth-surface leakage checks:
+   - active stream-view outputs: `arrival_events_5B`, `s1_arrival_entities_6B`, `s3_event_stream_with_fraud_6B`, `s3_flow_anchor_with_fraud_6B`,
+   - forbidden truth-output intersection: empty.
+4. Policy checks:
+   - `LEARNING_FUTURE_TIMESTAMP_POLICY=fail_closed`,
+   - forbidden future fields list and forbidden truth output list both non-empty and parseable.
+
+### Evidence
+1. Run-control:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9e_p12_leakage_guardrail_20260226T080940Z/`.
+2. Run-scoped:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/input/leakage_guardrail_report.json`.
+
+### Decision
+1. M9.E is closure-green and blocker-free.
+2. Next lane can advance to `M9.F`.
+
+## Entry: 2026-02-26 10:15:00 +00:00 - M9.E docs/status synchronization completed
+
+### Files synchronized
+1. `platform.M9.build_plan.md`:
+   - M9.E DoDs marked green,
+   - execution status populated with leakage-check evidence,
+   - completion checklist marks `M9.E` complete,
+   - planning status advanced to `M9.F`.
+2. `platform.build_plan.md`:
+   - M9 execution status includes M9.E closure outcome and evidence links,
+   - global next action moved to `M9.F`.
+3. `dev_full/README.md`:
+   - posture updated to show M9.E closed green,
+   - next active step now M9.F.
+
+### Closure assertion
+1. M9.E has no active blockers and is closure-green.
+2. M9 remains active overall with next lane `M9.F`.
+
+## Entry: 2026-02-26 10:24:00 +00:00 - M9.F kickoff and execution lock
+
+### Scope lock
+1. Active lane is `M9.F` only.
+2. Upstream dependencies pinned to:
+   - `M9.E` closure execution: `m9e_p12_leakage_guardrail_20260226T080940Z`.
+
+### Execution intent
+1. Expand M9.F section to execution-grade contract before coding.
+2. Implement a dedicated runner (`m9f_runtime_learning_surface_separation.py`) that proves runtime-vs-learning boundary separation.
+3. Validate both dimensions:
+   - no forbidden truth outputs in active runtime stream-view surface,
+   - no active runtime output set containing the future-derived runtime-forbidden field surface.
+4. Emit deterministic artifacts:
+   - `m9f_surface_separation_snapshot.json`
+   - `m9f_blocker_register.json`
+   - `m9f_execution_summary.json`.
+
+### Blocker mapping
+1. `M9-B6` for surface-separation failures.
+2. `M9-B11` for artifact publication/readback parity failures.
+
+## Entry: 2026-02-26 10:29:00 +00:00 - M9.F deep-plan expansion completed
+
+### Expansion highlights
+1. Added explicit M9.F entry conditions from M9.E closure posture.
+2. Added required upstream surfaces and required handle set for separation proof.
+3. Added deterministic algorithm across three separation vectors:
+   - forbidden truth-output intersection checks,
+   - future-derived output surface checks,
+   - runtime evidence-ref boundary checks against learning surfaces.
+4. Added fail-closed blockers:
+   - `M9-B6` for separation failures,
+   - `M9-B11` for publication parity failures.
+5. Added runtime budget and DoD anchors including explicit `M9.G_READY` gate.
+
+### Reasoning
+1. M9.F needs to assert structural separation, not only timestamp safety already checked in M9.E.
+2. Bringing interface-contract truth-product semantics into this lane makes the separation proof auditable against declared data ownership boundaries.
+
+## Entry: 2026-02-26 10:37:00 +00:00 - Implemented M9.F separation executor
+
+### File added
+1. `scripts/dev_substrate/m9f_runtime_learning_surface_separation.py`.
+
+### Implemented checks
+1. Upstream gate checks:
+   - M9.E summary pass posture (`M9.F_READY`),
+   - M9.E report readability,
+   - M9.B scope snapshot readability.
+2. Handle closure checks:
+   - forbidden truth-output list,
+   - forbidden future-field list,
+   - oracle stream-view location handles.
+3. Active runtime output-surface checks:
+   - enumerate `output_id=*` prefixes under active stream-view root.
+4. Interface-contract separation checks:
+   - parse `truth_products` from interface contract,
+   - derive outputs associated with forbidden future fields from interface narrative lines.
+5. Boundary leak checks:
+   - fail if active outputs intersect forbidden truth sets,
+   - fail if active outputs intersect future-derived output set,
+   - fail if runtime evidence refs leak into `/learning/` or truth-product surfaces.
+6. Artifact publication:
+   - `m9f_surface_separation_snapshot.json`
+   - `m9f_blocker_register.json`
+   - `m9f_execution_summary.json`.
+
+### Blocker mapping
+1. `M9-B6` for runtime-vs-learning separation failures.
+2. `M9-B11` for publish/readback parity failures.
+
+### Next step
+1. compile and execute M9.F against M9.E closure execution.
+
+## Entry: 2026-02-26 10:44:00 +00:00 - M9.F execution result and closure decision
+
+### Execution
+1. Ran `m9f_p12_surface_sep_20260226T081356Z`.
+2. Inputs:
+   - `UPSTREAM_M9E_EXECUTION=m9e_p12_leakage_guardrail_20260226T080940Z`
+   - `UPSTREAM_M9B_EXECUTION=m9b_p12_scope_lock_20260226T075421Z`
+   - `EVIDENCE_BUCKET=fraud-platform-dev-full-evidence`.
+
+### Outcome
+1. `overall_pass=true`, `blocker_count=0`, `next_gate=M9.G_READY`.
+2. Active runtime outputs discovered:
+   - `arrival_events_5B`,
+   - `s1_arrival_entities_6B`,
+   - `s3_event_stream_with_fraud_6B`,
+   - `s3_flow_anchor_with_fraud_6B`.
+3. Surface-separation checks passed:
+   - forbidden-truth intersection: empty,
+   - interface truth-product intersection: empty,
+   - future-derived output intersection: empty,
+   - runtime evidence-ref leak set: empty.
+4. Interface-derived future-field output mapping resolved:
+   - forbidden future fields (`session_end_utc`, `arrival_count`) map to `s1_session_index_6B` in contract notes,
+   - active outputs do not include `s1_session_index_6B`.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m9/m9f_p12_surface_sep_20260226T081356Z/`.
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9f_p12_surface_sep_20260226T081356Z/`.
+
+### Decision
+1. M9.F is closure-green and blocker-free.
+2. Next lane can advance to `M9.G`.
+
+## Entry: 2026-02-26 10:49:00 +00:00 - M9.F docs/status synchronization completed
+
+### Files synchronized
+1. `platform.M9.build_plan.md`:
+   - M9.F DoDs checked green,
+   - execution-status section populated with active-output and separation-check evidence,
+   - completion checklist marks `M9.F` complete,
+   - planning status advanced to `M9.G`.
+2. `platform.build_plan.md`:
+   - M9 execution status includes M9.F closure outcome,
+   - global next action moved to `M9.G`.
+3. `dev_full/README.md`:
+   - posture updated to show M9.F closed green,
+   - next active step now M9.G.
+
+### Closure assertion
+1. M9.F has no active blockers and is closure-green.
+2. M9 remains active overall with next lane `M9.G`.
+
+## Entry: 2026-02-26 11:02:00 +00:00 - M9.G kickoff and execution lock
+
+### Scope lock
+1. Active lane is `M9.G` only.
+2. Upstream chain pinned to green executions:
+   - `M9.C`: `m9c_p12_replay_basis_20260226T075941Z`
+   - `M9.D`: `m9d_p12_asof_maturity_20260226T080452Z`
+   - `M9.E`: `m9e_p12_leakage_guardrail_20260226T080940Z`
+   - `M9.F`: `m9f_p12_surface_sep_20260226T081356Z`
+
+### Execution intent
+1. Expand M9.G to execution-grade contract before coding.
+2. Implement a deterministic rollup runner (`m9g_learning_input_readiness.py`) to aggregate C..F evidence.
+3. Emit and publish:
+   - `m9g_learning_input_readiness_snapshot.json`
+   - `m9g_blocker_register.json`
+   - `m9g_execution_summary.json`
+4. Fail-closed blocker mapping:
+   - `M9-B7` for readiness incompleteness/inconsistency,
+   - `M9-B11` for publication parity failures.
+
+## Entry: 2026-02-26 08:18:01 +00:00 - M9.G deep-plan expansion started
+
+### Decision trail (live)
+1. M9.G remains open with only skeletal tasks/DoD, which violates phase-coverage law for execution.
+2. Upstream M9.C..M9.F executions are already pinned and green, so M9.G can be built as a deterministic rollup lane without rerunning upstream phases.
+3. I will expand M9.G first with explicit entry gates, required surfaces, deterministic aggregation algorithm, blocker mapping, and runtime budget before coding.
+4. Blocker mapping for this lane is pinned to:
+   - M9-B7: readiness snapshot incompleteness/inconsistency,
+   - M9-B11: publication/readback parity failures.
+
+## Entry: 2026-02-26 08:18:25 +00:00 - M9.G deep-plan expanded to execution-grade
+
+### Expansion details
+1. Added explicit entry conditions (upstream green posture, run-control readability, run-scoped learning artifact readability).
+2. Added deterministic rollup algorithm for gate-chain validation and run-scope coherence across M9.C..M9.F.
+3. Added explicit publish contract for three M9.G artifacts and run-scoped readiness snapshot write.
+4. Added fail-closed blocker mapping:
+   - M9-B7 for readiness incompleteness/inconsistency,
+   - M9-B11 for publication parity failures.
+5. Added runtime budget (<=10 minutes) and expanded DoDs including explicit M9.H_READY gate emission.
+
+### Next step
+1. Implement scripts/dev_substrate/m9g_learning_input_readiness.py and execute with pinned upstream execution ids.
+
+## Entry: 2026-02-26 08:19:38 +00:00 - Implemented M9.G readiness runner
+
+### File added
+1. scripts/dev_substrate/m9g_learning_input_readiness.py.
+
+### Implemented mechanics
+1. Reads upstream summaries for M9.C..M9.F from run-control paths and validates pass + expected next-gate chain.
+2. Enforces run-scope continuity across upstream lanes (platform_run_id, scenario_run_id).
+3. Validates run-scoped learning evidence reachability from upstream refs:
+   - replay-basis receipt from M9.C,
+   - leakage-guardrail report from M9.E.
+4. Emits deterministic artifacts:
+   - m9g_learning_input_readiness_snapshot.json,
+   - m9g_blocker_register.json,
+   - m9g_execution_summary.json.
+5. Publishes artifacts to run-control and run-scoped readiness path (LEARNING_INPUT_READINESS_PATH_PATTERN).
+6. Fail-closed blocker mapping enforced:
+   - M9-B7 for readiness incompleteness/inconsistency,
+   - M9-B11 for publish/readback parity failures.
+
+### Next step
+1. Execute M9.G with pinned upstream execution ids and close blockers in-lane.
+
+## Entry: 2026-02-26 08:21:47 +00:00 - M9.G executed green and closed
+
+### Execution
+1. Ran m9g_p12_learning_input_readiness_20260226T081947Z.
+2. Inputs:
+   - UPSTREAM_M9C_EXECUTION=m9c_p12_replay_basis_20260226T075941Z
+   - UPSTREAM_M9D_EXECUTION=m9d_p12_asof_maturity_20260226T080452Z
+   - UPSTREAM_M9E_EXECUTION=m9e_p12_leakage_guardrail_20260226T080940Z
+   - UPSTREAM_M9F_EXECUTION=m9f_p12_surface_sep_20260226T081356Z
+   - EVIDENCE_BUCKET=fraud-platform-dev-full-evidence
+
+### Outcome
+1. overall_pass=true, locker_count=0, 
+ext_gate=M9.H_READY.
+2. Gate-chain checks passed:
+   - M9.C -> M9.D_READY
+   - M9.D -> M9.E_READY
+   - M9.E -> M9.F_READY
+   - M9.F -> M9.G_READY
+3. Run-scope continuity passed:
+   - platform_run_id=platform_20260223T184232Z
+   - scenario_run_id=scenario_38753050f3b70c666e16f7552016b330
+4. Run-scoped learning artifact reachability passed:
+   - replay basis receipt exists,
+   - leakage guardrail report exists.
+
+### Evidence
+1. Local:
+   - uns/dev_substrate/dev_full/m9/m9g_p12_learning_input_readiness_20260226T081947Z/.
+2. Durable run-control:
+   - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9g_p12_learning_input_readiness_20260226T081947Z/.
+3. Durable run-scoped readiness snapshot:
+   - s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/input/readiness_snapshot.json.
+
+### Closure decision
+1. M9.G is closure-green and blocker-free.
+2. Next lane can advance to M9.H.
+
+## Entry: 2026-02-26 08:21:47 +00:00 - M9.G status synchronized across plans
+
+### Files synchronized
+1. platform.M9.build_plan.md:
+   - M9.G DoDs marked green,
+   - M9.G execution-status block added,
+   - completion checklist marks M9.G complete,
+   - planning status advanced to M9.H.
+2. platform.build_plan.md:
+   - M9 execution status includes M9.G closure,
+   - M9 DoD anchors updated through readiness snapshot closure,
+   - global next action moved to M9.H.
+3. dev_full/README.md:
+   - posture updated to show M9.G closed green,
+   - next active step now M9.H.
+
+## Entry: 2026-02-26 08:22:39 +00:00 - M9.H kickoff and execution lock
+
+### Scope lock
+1. Active lane is M9.H only.
+2. Upstream for rollup pinned to green M9.A..M9.G executions, with latest M9.G closure:
+   - m9g_p12_learning_input_readiness_20260226T081947Z.
+
+### Execution intent
+1. Expand M9.H deep-plan section to execution-grade before coding.
+2. Implement deterministic P12 rollup runner that consumes M9.A..M9.G summaries in fixed order.
+3. Emit m9h_p12_gate_verdict.json and m10_handoff_pack.json with fail-closed blocker mapping.
+4. Publish artifacts locally and durably; verify readback parity.
+
+## Entry: 2026-02-26 08:24:16 +00:00 - M9.H deep-plan expanded to execution-grade
+
+### Expansion details
+1. Added explicit entry conditions requiring green/readable M9.A..M9.G summaries and M9.G 
+ext_gate=M9.H_READY.
+2. Added deterministic gate-chain continuity checks for full P12 pre-verdict path.
+3. Added explicit artifact contract for this lane:
+   - m9h_p12_rollup_matrix.json,
+   - m9h_p12_gate_verdict.json,
+   - m10_handoff_pack.json,
+   - m9h_execution_summary.json.
+4. Added fail-closed blocker mapping:
+   - M9-B8 rollup/verdict inconsistency,
+   - M9-B9 handoff publication/contract failure,
+   - M9-B11 artifact publication parity failure.
+5. Added runtime budget (<=10 minutes) and expanded DoDs.
+
+### Next step
+1. Implement scripts/dev_substrate/m9h_p12_rollup_handoff.py and execute with pinned M9.A..M9.G executions.
+
+## Entry: 2026-02-26 08:25:36 +00:00 - Implemented M9.H rollup/handoff runner
+
+### File added
+1. scripts/dev_substrate/m9h_p12_rollup_handoff.py.
+
+### Implemented mechanics
+1. Reads M9.A..M9.G summaries from run-control paths and enforces deterministic gate-chain continuity.
+2. Enforces run-scope continuity across all source summaries (platform_run_id, scenario_run_id).
+3. Validates required handoff references are resolved and readable in durable evidence.
+4. Emits deterministic artifacts:
+   - m9h_p12_rollup_matrix.json,
+   - m9h_p12_gate_verdict.json,
+   - m10_handoff_pack.json,
+   - m9h_execution_summary.json.
+5. Enforces fail-closed posture:
+   - verdict ADVANCE_TO_P13 / next_gate M10_READY only when blocker-free,
+   - otherwise HOLD_P12 / HOLD_REMEDIATE.
+6. Enforces non-secret policy screening on handoff payload.
+7. Publishes all artifacts to run-control durable path with readback checks.
+
+### Blocker mapping
+1. M9-B8: rollup/verdict inconsistency.
+2. M9-B9: handoff contract/publication failure.
+3. M9-B11: artifact publish/readback parity failure.
+
+### Next step
+1. Compile and execute M9.H with pinned upstream execution ids.
+
+## Entry: 2026-02-26 08:27:51 +00:00 - M9.H status synchronized across plans
+
+### Files synchronized
+1. platform.M9.build_plan.md:
+   - M9.H DoDs checked green,
+   - execution-status block populated with verdict/handoff evidence,
+   - completion checklist marks M9.H complete,
+   - planning status advanced to M9.I.
+2. platform.build_plan.md:
+   - M9 execution status includes M9.H closure,
+   - P12 verdict + M10 handoff DoD anchors set green,
+   - global next action moved to M9.I.
+3. dev_full/README.md:
+   - posture updated to show M9.H closed green,
+   - next active step now M9.I.
+nput_readiness_20260226T081947Z
+
+### Outcome
+1. overall_pass=true, locker_count=0.
+2. Deterministic pass posture emitted:
+   - erdict=ADVANCE_TO_P13
+   - 
+ext_gate=M10_READY
+3. Source gate-chain rollup passed across M9.A..M9.G with run-scope continuity intact.
+4. m10_handoff_pack.json emitted with required evidence refs for M10 entry.
+
+### Evidence
+1. Local:
+   - uns/dev_substrate/dev_full/m9/m9h_p12_gate_rollup_20260226T082548Z/.
+2. Durable:
+   - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9h_p12_gate_rollup_20260226T082548Z/.
+
+### Closure decision
+1. M9.H is closure-green and blocker-free.
+2. Next lane can advance to M9.I.
+
+## Entry: 2026-02-26 08:28:34 +00:00 - M9.I kickoff and execution lock
+
+### Scope lock
+1. Active lane is M9.I only.
+2. Upstream gate/verdict pinned to M9.H green closure execution m9h_p12_gate_rollup_20260226T082548Z.
+
+### Execution intent
+1. Expand M9.I to execution-grade contract before coding.
+2. Implement deterministic M9 cost-closure runner for:
+   - m9_phase_budget_envelope.json,
+   - m9_phase_cost_outcome_receipt.json.
+3. Fail-closed blocker mapping for this lane:
+   - M9-B10 for cost-outcome closure failure,
+   - M9-B11 for artifact publication/readback parity failure.
+
+## Entry: 2026-02-26 08:29:53 +00:00 - M9.I deep-plan expanded to execution-grade
+
+### Expansion details
+1. Added entry conditions anchored on M9.H green verdict (ADVANCE_TO_P13, M10_READY).
+2. Added deterministic tasks for upstream closure matrix validation, AWS MTD capture, threshold checks, and artifact emission.
+3. Added fail-closed blocker mapping:
+   - M9-B10 for cost-outcome closure failures,
+   - M9-B11 for publish/readback parity failures.
+4. Added runtime budget and explicit DoD anchors, including m9i_execution_summary next-gate requirement.
+
+### Next step
+1. Implement scripts/dev_substrate/m9i_phase_cost_closure.py and execute using pinned M9.A..M9.H executions.
+
+## Entry: 2026-02-26 08:31:42 +00:00 - Implemented M9.I phase cost-closure runner
+
+### File added
+1. scripts/dev_substrate/m9i_phase_cost_closure.py.
+
+### Implemented mechanics
+1. Enforces M9 upstream closure continuity across M9.A..M9.H summaries (pass + expected next gate + run-scope consistency).
+2. Verifies M9 contract artifact readability from run-control surfaces.
+3. Resolves budget/cost handles from registry and validates threshold ordering.
+4. Captures AWS MTD cost (month_start..tomorrow) via Cost Explorer billing region.
+5. Emits deterministic artifacts:
+   - m9_phase_budget_envelope.json,
+   - m9_phase_cost_outcome_receipt.json,
+   - m9i_blocker_register.json,
+   - m9i_execution_summary.json.
+6. Enforces fail-closed blockers:
+   - M9-B10 for closure/economic contract failures,
+   - M9-B11 for publish/readback parity failures.
+7. Emits next gate M9.J_READY only when blocker-free.
+
+### Next step
+1. compile and execute M9.I with pinned M9.A..M9.H executions.
+
+## Entry: 2026-02-26 08:33:55 +00:00 - M9.I status synchronized across plans
+
+### Files synchronized
+1. platform.M9.build_plan.md:
+   - M9.I DoDs marked green,
+   - M9.I execution-status block added,
+   - completion checklist marks M9.I complete,
+   - planning status advanced to M9.J.
+2. platform.build_plan.md:
+   - M9 execution status includes M9.I closure,
+   - M9 cost-outcome DoD anchor set green,
+   - global next action moved to M9.J.
+3. dev_full/README.md:
+   - posture updated to show M9.I closed green,
+   - next active step now M9.J.
+
+## Entry: 2026-02-26 08:33:55 +00:00 - M9.I executed green and closed
+
+### Execution
+1. Ran m9i_phase_cost_closure_20260226T083151Z.
+2. Inputs:
+   - UPSTREAM_M9A_EXECUTION=m9a_p12_handle_closure_20260226T074906Z
+   - UPSTREAM_M9B_EXECUTION=m9b_p12_scope_lock_20260226T075421Z
+   - UPSTREAM_M9C_EXECUTION=m9c_p12_replay_basis_20260226T075941Z
+   - UPSTREAM_M9D_EXECUTION=m9d_p12_asof_maturity_20260226T080452Z
+   - UPSTREAM_M9E_EXECUTION=m9e_p12_leakage_guardrail_20260226T080940Z
+   - UPSTREAM_M9F_EXECUTION=m9f_p12_surface_sep_20260226T081356Z
+   - UPSTREAM_M9G_EXECUTION=m9g_p12_learning_input_readiness_20260226T081947Z
+   - UPSTREAM_M9H_EXECUTION=m9h_p12_gate_rollup_20260226T082548Z
+
+### Outcome
+1. overall_pass=true, locker_count=0, erdict=ADVANCE_TO_M9J, 
+ext_gate=M9.J_READY.
+2. Budget and threshold posture:
+   - currency: USD,
+   - monthly limit: 300,
+   - alert thresholds: 120/210/270.
+3. Cost capture outcome:
+   - AWS MTD spend: 89.2979244404 USD,
+   - cost_capture_scope=aws_only_pre_m11_databricks_cost_deferred,
+   - Databricks capture mode remains deferred in this lane.
+4. Contract parity:
+   - required upstream artifacts: 18, readable: 18,
+   - required M9.I outputs: 2, published: 2,
+   - ll_required_available=true.
+
+### Evidence
+1. Local:
+   - uns/dev_substrate/dev_full/m9/m9i_phase_cost_closure_20260226T083151Z/.
+2. Durable:
+   - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9i_phase_cost_closure_20260226T083151Z/.
+
+### Closure decision
+1. M9.I is closure-green and blocker-free.
+2. Next lane can advance to M9.J.
+
+## Entry: 2026-02-26 08:34:32 +00:00 - M9.J kickoff and execution lock
+
+### Scope lock
+1. Active lane is M9.J only.
+2. Upstream closure posture pinned to M9.I green execution m9i_phase_cost_closure_20260226T083151Z.
+
+### Execution intent
+1. Expand M9.J deep-plan section to execution-grade before coding.
+2. Implement deterministic closure-sync runner to emit m9_execution_summary.json.
+3. Validate local+durable parity for M9 artifact contract before closing the phase.
+4. Fail-closed blocker mapping for this lane:
+   - M9-B11 for summary/evidence publication parity failure,
+   - M9-B10 for closure-sync completeness failure.
+
+## Entry: 2026-02-26 08:35:17 +00:00 - M9.J deep-plan expanded to execution-grade
+
+### Expansion details
+1. Added explicit entry conditions anchored on M9.I green closure (ADVANCE_TO_M9J, M9.J_READY).
+2. Added explicit contract-readability requirements for all M9 closure artifacts including M10 handoff and M9 cost outputs.
+3. Added deterministic closure posture requirements (ADVANCE_TO_M10, M10_READY) and fail-closed blocker mapping.
+4. Added runtime budget (<=10 minutes) and retained strict DoD anchors.
+
+### Next step
+1. Implement scripts/dev_substrate/m9j_closure_sync.py and execute with pinned M9.A..M9.I executions.
+
+## Entry: 2026-02-26 08:36:52 +00:00 - Implemented M9.J closure-sync runner
+
+### File added
+1. scripts/dev_substrate/m9j_closure_sync.py.
+
+### Implemented mechanics
+1. Validates summary-chain continuity for M9.A..M9.I (pass posture, expected next gates, run-scope continuity).
+2. Validates explicit M9 contract artifact readability (including m10_handoff_pack, and M9.I cost artifacts).
+3. Emits deterministic closure artifacts:
+   - m9_execution_summary.json,
+   - m9j_blocker_register.json,
+   - m9j_execution_summary.json.
+4. Enforces closure posture:
+   - pass => erdict=ADVANCE_TO_M10, 
+ext_gate=M10_READY,
+   - fail => HOLD_REMEDIATE.
+5. Enforces fail-closed blockers:
+   - M9-B10 for closure completeness and contract parity failures,
+   - M9-B11 for publish/readback parity failures.
+
+### Next step
+1. Compile and execute M9.J with pinned M9.A..M9.I execution ids.
+
+## Entry: 2026-02-26 08:39:16 +00:00 - M9.J status synchronized across plans
+
+### Files synchronized
+1. platform.M9.build_plan.md:
+   - M9.J DoDs marked green,
+   - M9.J execution-status block added,
+   - completion checklist marks M9 fully complete,
+   - planning status marks M9 DONE and next action M10.A.
+2. platform.build_plan.md:
+   - M9 execution status includes M9.J closure,
+   - M9 DoD anchors fully green,
+   - global next action moved to M10.A.
+3. dev_full/README.md:
+   - posture updated to show M9.J closed green,
+   - next active step now M10.A.
+
+## Entry: 2026-02-26 08:39:16 +00:00 - M9.J executed green and M9 closed
+
+### Execution
+1. Ran m9j_closure_sync_20260226T083701Z.
+2. Inputs:
+   - UPSTREAM_M9A_EXECUTION=m9a_p12_handle_closure_20260226T074906Z
+   - UPSTREAM_M9B_EXECUTION=m9b_p12_scope_lock_20260226T075421Z
+   - UPSTREAM_M9C_EXECUTION=m9c_p12_replay_basis_20260226T075941Z
+   - UPSTREAM_M9D_EXECUTION=m9d_p12_asof_maturity_20260226T080452Z
+   - UPSTREAM_M9E_EXECUTION=m9e_p12_leakage_guardrail_20260226T080940Z
+   - UPSTREAM_M9F_EXECUTION=m9f_p12_surface_sep_20260226T081356Z
+   - UPSTREAM_M9G_EXECUTION=m9g_p12_learning_input_readiness_20260226T081947Z
+   - UPSTREAM_M9H_EXECUTION=m9h_p12_gate_rollup_20260226T082548Z
+   - UPSTREAM_M9I_EXECUTION=m9i_phase_cost_closure_20260226T083151Z
+
+### Outcome
+1. overall_pass=true, locker_count=0, erdict=ADVANCE_TO_M10, 
+ext_gate=M10_READY.
+2. M9 closure summary emitted (m9_execution_summary.json) with deterministic upstream references and parity metrics.
+3. Contract parity passed:
+   - required upstream artifacts 20, readable 20,
+   - required M9.J outputs 1, published 1,
+   - ll_required_available=true.
+4. P12 verdict continuity retained:
+   - p12_verdict=ADVANCE_TO_P13,
+   - M10 handoff ref preserved in final summary.
+
+### Evidence
+1. Local:
+   - uns/dev_substrate/dev_full/m9/m9j_closure_sync_20260226T083701Z/.
+2. Durable:
+   - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9j_closure_sync_20260226T083701Z/.
+
+### Closure decision
+1. M9 is fully closed green and marked DONE.
+2. Next phase entry is M10.A.
+
+## Entry: 2026-02-26 08:40:42 +00:00 - M9 closure state finalized and M10 phase activation synced
+
+### State-sync actions
+1. Updated master build plan state:
+   - M9 status -> DONE.
+   - M10 status -> ACTIVE.
+2. Updated M10 deep-plan planning status:
+   - removed stale "blocked on M9" note,
+   - marked M10 entry as unblocked with M11 handoff contract retained as M10.I closure requirement.
+
+### Rationale
+1. M9.J has already emitted green closure (ADVANCE_TO_M10, M10_READY), so keeping M9 as ACTIVE is inconsistent and risks execution drift.
+2. M10 should now be treated as active for planned expansion/execution sequencing.
