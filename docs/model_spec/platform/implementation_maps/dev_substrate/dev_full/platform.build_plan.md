@@ -1415,6 +1415,14 @@ M11 progression snapshot:
   - execution id: `m11b_sagemaker_readiness_20260226T182038Z`,
   - `overall_pass=true`, `blocker_count=0`, `next_gate=M11.C_READY`,
   - non-blocking advisory carried: package-group materialization access boundary is deferred to `M11.G` owner lane.
+- M11.C remediation lane executed and closed green:
+  - workflow publication PRs:
+    - `https://github.com/EsosaOrumwese/fraud-detection-system/pull/62`,
+    - `https://github.com/EsosaOrumwese/fraud-detection-system/pull/63`,
+    - `https://github.com/EsosaOrumwese/fraud-detection-system/pull/64`,
+  - authoritative M11.C run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22457735414`,
+  - execution id: `m11c_input_immutability_20260226T192723Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=M11.D_READY`.
 
 ## M12 - MPR Promotion/Rollback Closure
 Status: `NOT_STARTED`
@@ -1497,5 +1505,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M11.C` (immutable input binding) using `M11.B` green posture (`m11b_sagemaker_readiness_20260226T182038Z`) as entry basis.
-- Active blocker before managed dispatch: `M11C-B0` (`dev_full_m11_c_managed.yml` must be visible on default branch to clear GitHub HTTP 404 on workflow dispatch).
+- Expand and execute `M11.D` (train/eval execution) using `M11.C` green posture (`m11c_input_immutability_20260226T192723Z`) as entry basis.

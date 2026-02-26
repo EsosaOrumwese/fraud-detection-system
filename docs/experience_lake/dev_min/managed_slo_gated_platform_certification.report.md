@@ -27,7 +27,7 @@ Non-claim:
 These numbers are not marketing stats; each is tied to a lane objective and is enforced by machine-adjudicated pass/fail.
 Lane identifiers (`M10.*`) are certification lane IDs from the same managed certification cycle.
 
-- Final certification (M10.J synthesis): `verdict=ADVANCE_CERTIFIED_DEV_MIN`, `overall_pass=true`, `blocker_union=[]`, `missing_refs_count=0`, synthesis budget pass (`1.617/1800s`).
+- Final certification (M10.J synthesis): `verdict=ADVANCE_CERTIFIED_DEV_MIN` (internal verdict token for certification advance), `overall_pass=true`, `blocker_union=[]`, `missing_refs_count=0`, synthesis budget pass (`1.617/1800s`).
 - Semantic baseline (M10.C): runtime budget `418/3600s` (pass) with `publish_ambiguous=0`.
 - Incident resilience (M10.D): fail-to-fix-to-pass achieved; `duplicate_delta=320` (target `>=100`), `no_double_actions=true`, runtime budget `1542/3600s` (pass), time-to-recovery `21.70 min`.
 - Representative window (M10.E): `50100` admitted (target `>=50000`), primary window budget `7180/7200s` (pass).
@@ -750,7 +750,7 @@ Final rollup witness (measured):
 - source lane count: `9` (`M10.A..M10.I`)
 - `missing_refs_count=0`
 - synthesis runtime budget: `elapsed_seconds=1.617`, `budget_seconds=1800`, `pass=true`
-- no-override witness: verdict is computed from lane snapshots and blocker-union synthesis; no manual override field/path exists in the v0 snapshot contract.
+- no-override witness: verdict is computed from lane snapshots and blocker-union synthesis; no manual override field/path exists in the current snapshot contract (version 0).
 
 Exhibit A - Lane matrix summary (what was required, what passed, what it proved):
 Note: source matrix counts 9 lanes (`M10.A..M10.I`). The table below summarizes the primary Service Level Objective-bearing lanes (`M10.B..M10.I`). `M10.A` is an entry/conformance lane required by the source matrix and is included in the rollup count.
@@ -793,7 +793,7 @@ Exhibit B - Incident drill fail -> remediation -> pass:
 | Phase | Time (Coordinated Universal Time, UTC) | Status | Blocker | Objective | Observed | Interpretation |
 |---|---|---|---|---|---|---|
 | Fail-first attempt | 2026-02-20T05:47:09Z | FAIL | `M10D-B2` | duplicate_delta >= 100 | duplicate_delta=0 (duplicate_receipts_present=false) | Drill executed but did not materialize duplicate receipts; lane remained fail-closed. |
-| Bounded remediation | - | - | - | - | - | Switched from READY replay path to direct managed World Streamer Producer stream injection; reran reporter and lane verifier on the same run scope. |
+| Bounded remediation | - | - | - | - | - | Switched from control-stream replay path to direct managed World Streamer Producer stream injection; reran reporter and lane verifier on the same run scope. |
 | Rerun closure | 2026-02-20T06:08:51Z | PASS | - | duplicate_delta >= 100 | duplicate_delta=320 | Objective achieved under rerun with safety preserved. |
 
 Safety preservation (PASS requirements met):
@@ -836,7 +836,7 @@ Exhibit C - Soak lane fail -> remediation -> pass:
 | Phase | Time (Coordinated Universal Time, UTC) | Status | Blocker | Objective | Observed | Interpretation |
 |---|---|---|---|---|---|---|
 | Fail-first attempt | 2026-02-21T23:12:37Z | FAIL | `M10G-B2` | max_lag_window <= 10 | max_lag_window=310 | Semantic safety held but lag stability breached, so lane remained blocked. |
-| Bounded remediation | - | - | - | - | - | Reran soak on fresh run scope with authoritative lag adjudication (database admissions offsets vs Kafka end offsets), using temporary narrow database ingress to restore direct sampler access. |
+| Bounded remediation | - | - | - | - | - | Reran soak on fresh run scope with authoritative lag adjudication (database admissions offsets versus Apache Kafka end offsets), using temporary narrow database ingress to restore direct sampler access. |
 | Rerun closure | 2026-02-22T01:34:28Z | PASS | - | max_lag_window <= 10 | max_lag_window=3 | Stability restored with checkpoint monotonicity preserved. |
 
 PASS posture fields:
@@ -857,7 +857,7 @@ Operational meaning:
 Recovery claims must specify "restart of what" and "what stable means," not only a single duration number.
 
 Restart target:
-- `fraud-platform-dev-min-ig` (Ingestion Gate service)
+- `fraud-platform-dev-min-ig` (internal service identifier for the Ingestion Gate service)
 
 Restart timing definition:
 - restart start is `restart_started_at_utc` recorded when restart injection begins for the target service.
@@ -887,7 +887,7 @@ Run pairing:
 - candidate run_id: `platform_20260222T064333Z` (timestamp `2026-02-22T07:26:07Z`)
 
 Population definition (what was compared):
-- Compared baseline and candidate reproducibility vectors built from the same lane surface family (`obs/run_report`, `obs/replay_anchors`, `ingest/receipt_summary`, `ingest/kafka_offsets`) and the same anchor keyset contract.
+- Compared baseline and candidate reproducibility vectors built from the same lane surface family (observability run report, replay anchors, ingest receipt summary, and ingest transport offsets) and the same anchor keyset contract.
 
 Measured reproducibility outcomes:
 - coherence: `anchor_keyset_match=true`, `profile_match=true`, `semantic_invariant_pass=true`
@@ -933,7 +933,7 @@ The claim is fail-closed, replay-safe, idempotent platform behavior under the ce
 This report does not claim:
 1. enterprise-wide observability governance across all teams,
 2. organization-wide security/compliance program completion,
-3. enterprise-wide FinOps optimization maturity.
+3. enterprise-wide Financial Operations (FinOps) optimization maturity.
 
 It claims a certification-grade operating model for this platform scope.
 
@@ -976,6 +976,9 @@ The report body (Section 9) already embeds the proof facts needed to validate th
 - final rollup witness with empty blocker union and no override path.
 
 Use the hooks below only if a reviewer wants to inspect machine-readable snapshots directly (audit-style challenge or interview deep dive). These hooks do not introduce new claims; they are an inspection aid.
+Naming note:
+- `M10.*` identifiers are certification lane IDs.
+- `m10_...` identifiers are lane execution artifact IDs.
 
 ### 11.2 Semantic lane proof hooks
 1. 20-event semantic closure:
@@ -1107,7 +1110,7 @@ That difference is usually the boundary between implementation familiarity and o
 ### 12.7 Honest portfolio framing
 Use this report as:
 1. primary evidence of managed production-like platform operations capability.
-2. strongest claim in the dev-min experience set.
+2. strongest claim in the managed staging experience set.
 
 Do not use this report as:
 1. claim of live customer production traffic operation.
