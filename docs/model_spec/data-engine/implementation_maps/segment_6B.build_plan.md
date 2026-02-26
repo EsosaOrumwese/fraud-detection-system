@@ -1352,7 +1352,7 @@ Goal:
 - deepen campaign realism and improve contextual stratification without breaking Wave A closure.
 
 Definition of done:
-- [ ] campaign multiplicity restored (bounded by policy).
+- [x] campaign multiplicity restored (bounded by policy).
 - [x] targeting depth improved across class/segment/geo/time signatures.
 - [x] `T17-T18` reach `B` thresholds and push toward `B+`.
 - [x] `T1-T16`, `T21`, `T22` remain passing.
@@ -1512,7 +1512,7 @@ Goal:
 
 Definition of done:
 - [x] `S4` runtime closes to rail (`<=420s`) on fresh witness from frozen `S3`.
-- [ ] `S5` runtime closes to rail (`<=30s`) on same witness.
+- [x] `S5` runtime closes to rail (`<=30s`) on same witness (superseded/closed by `P3.R3` witness `08db6e3060674203af415b389d5a9cbd`: `6.05s` + `3.72s` recheck).
 - [x] `T17/T18` remain closed and no hard-gate regressions on `T1-T16`, `T21`, `T22`.
 - [x] closure artifacts emitted and phase decision updated.
 
@@ -1533,7 +1533,7 @@ Definition of done:
 
 ##### P3.R2.2 - `S5` validation throughput optimization
 Definition of done:
-- [ ] eliminate redundant parquet file-discovery/count overhead in `S5` validation checks.
+- [x] eliminate redundant parquet file-discovery/count overhead in `S5` validation checks (superseded/closed by `P3.R3` sample-path optimization lane and profile evidence).
 - [x] keep required check set, fail-closed behavior, and bundle outputs unchanged.
 - [x] preserve deterministic bundle/index/flag behavior under idempotent reruns.
 
@@ -1562,8 +1562,8 @@ P3.R2 execution status (current authority):
   - `T17/T18` stay closed (unchanged),
   - no hard-gate regressions.
 - phase decision:
-  - `HOLD_P3_REOPEN_PERF`.
-  - next owner lane: `S5` runtime profiling + validation-check hotspot closure (file-discovery/count overhead lane still open).
+  - `HOLD_P3_REOPEN_PERF` (historical at `P3.R2`; superseded by `P3.R3` closure).
+  - next owner lane at the time was `S5` runtime profiling + validation-check hotspot closure; this lane is now closed by `P3.R3` witness `08db6e3060674203af415b389d5a9cbd`.
 
 #### P3.R3 - S5 runtime hotspot closure (freeze `S3/T17/T18` and keep `S4` rail closed)
 Goal:

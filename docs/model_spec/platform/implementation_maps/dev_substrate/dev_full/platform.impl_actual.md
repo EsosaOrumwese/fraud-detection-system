@@ -11637,3 +11637,173 @@ ext_gate=M8.G_READY.
 ### Implementation hardening
 1. Source run scope is taken from upstream `M8.G` summary to avoid ambient-env drift.
 2. Projection artifacts are read back after write to enforce deterministic parity proof.
+## Entry: 2026-02-26 06:38:00 +00:00 - M8.H execution completed (green) with governance projection closure
+
+### Execution
+1. Ran `m8h_p11_governance_close_marker_20260226T063647Z` with upstream `M8.G` summary:
+   - `m8g_p11_non_regression_20260226T062919Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M8.I_READY`.
+
+### Source-of-truth verification outcomes
+1. `run_completed` readable, run-scoped, `status=COMPLETED`, `closure_refs.governance_events_ref` present and coherent.
+2. Governance append (`events.jsonl`) checks passed:
+   - parseable rows,
+   - required fields present,
+   - run-scoped pins,
+   - includes `RUN_REPORT_GENERATED`.
+3. Governance marker coverage checks passed:
+   - marker count `1`, event-id count `1`, coverage OK.
+4. Append ordering check passed (`ts_utc` non-decreasing).
+
+### Projection outcomes (handle-contract closure)
+1. Materialized append-log projection:
+   - `evidence/runs/platform_20260223T184232Z/governance/append_log.jsonl`.
+2. Materialized closure-marker projection:
+   - `evidence/runs/platform_20260223T184232Z/governance/closure_marker.json`.
+3. Both projection writes had readback parity.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m8/m8h_p11_governance_close_marker_20260226T063647Z/`.
+2. Durable run-control:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8h_p11_governance_close_marker_20260226T063647Z/`.
+3. Governance projection surfaces:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/governance/append_log.jsonl`
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/governance/closure_marker.json`.
+## Entry: 2026-02-26 06:44:00 +00:00 - M8.H status synchronization completed
+
+### Documentation sync
+1. Updated `platform.M8.build_plan.md`:
+   - M8.H DoD checks marked complete,
+   - M8.H execution closure block added,
+   - completion checklist marks `M8.H` complete,
+   - planning status next action advanced to `M8.I`.
+2. Updated `platform.build_plan.md`:
+   - M8 sub-phase progress marks `M8.H` complete,
+   - M8 execution status includes M8.H closure evidence,
+   - global next action advanced to `M8.I`.
+3. Updated `dev_full/README.md`:
+   - active M8 posture now `M8.A..M8.H` closed green,
+   - next closure step now `M8.I`.
+## Entry: 2026-02-26 06:47:00 +00:00 - M8.I input lock and execution strategy
+
+### Input lock for M8.I
+1. Locked canonical source summaries (all green, same run scope):
+   - `M8.A` `m8a_p11_handle_closure_20260226T050813Z`
+   - `M8.B` `m8b_p11_runtime_lock_readiness_20260226T052700Z`
+   - `M8.C` `m8c_p11_closure_input_readiness_20260226T053157Z`
+   - `M8.D` `m8d_p11_single_writer_probe_20260226T062710Z`
+   - `M8.E` `m8e_p11_reporter_one_shot_20260226T062735Z`
+   - `M8.F` `m8f_p11_closure_bundle_20260226T062814Z`
+   - `M8.G` `m8g_p11_non_regression_20260226T062919Z`
+   - `M8.H` `m8h_p11_governance_close_marker_20260226T063647Z`.
+2. Canonical run scope for verdict: `platform_20260223T184232Z` / `scenario_38753050f3b70c666e16f7552016b330`.
+
+### Decision
+1. Expand `M8.I` to execution-grade before implementation.
+2. Implement deterministic `M8.I` script to:
+   - aggregate M8.A..M8.H summaries,
+   - build fixed-order rollup matrix,
+   - compute fail-closed verdict (`ADVANCE_TO_M9` or `HOLD_M8`),
+   - emit `m8i_p11_rollup_matrix.json`, `m8i_p11_verdict.json`, `m9_handoff_pack.json`,
+   - enforce non-secret handoff policy.
+## Entry: 2026-02-26 06:51:00 +00:00 - M8.I deep-plan expanded to execution-grade
+
+### Expansion completed
+1. Replaced M8.I stub with execution-grade contract in `platform.M8.build_plan.md`:
+   - entry conditions, required inputs, preparation checks,
+   - deterministic algorithm,
+   - snapshot/verdict/handoff schema,
+   - DoD and runtime budget.
+2. Locked source summary set to canonical green `M8.A..M8.H` execution IDs.
+3. Pinned M8.I failure mapping to:
+   - `M8-B9` (rollup/verdict inconsistency),
+   - `M8-B10` (handoff pack failure/non-secret violation),
+   - `M8-B12` (artifact publication parity failure).
+## Entry: 2026-02-26 06:55:00 +00:00 - Implemented M8.I verdict/handoff script
+
+### Implementation
+1. Added `scripts/dev_substrate/m8i_p11_rollup_handoff.py`.
+2. Script behavior:
+   - loads `M8.A..M8.H` source summaries from run-control,
+   - enforces run-scope and expected next-gate continuity,
+   - validates M9 entry required evidence refs,
+   - computes deterministic verdict (`ADVANCE_TO_M9` vs `HOLD_M8`),
+   - emits rollup/verdict/handoff/register/summary artifacts,
+   - enforces non-secret payload policy on handoff output.
+3. Failure mapping:
+   - `M8-B9` rollup/verdict inconsistency,
+   - `M8-B10` handoff non-secret violation,
+   - `M8-B12` artifact publication parity failure.
+## Entry: 2026-02-26 06:45:00 +00:00 - M8.I fail-first blocker diagnosis and remediation decision
+
+### First-run blockers
+1. `M8-B9`: unreadable M9 entry refs for:
+   - `run_report_ref`
+   - `reconciliation_ref`.
+2. `M8-B10`: handoff payload non-secret violation.
+
+### Root causes
+1. Ref unreadable blockers are due to surface drift:
+   - run_report/reconciliation source truth currently sits under object-store run prefix,
+   - handle-contract entry refs expect evidence-run prefix.
+2. Non-secret violation is false-positive from policy metadata:
+   - `non_secret_policy.blocked_patterns` contains literal `AKIA`, which triggered value scanner.
+
+### Remediation decision
+1. In `M8.I` lane, add deterministic projection/rematerialization for missing entry refs:
+   - if `run_report_ref` / `reconciliation_ref` missing in evidence prefix, copy from source truth object-store to expected evidence keys and readback.
+2. Harden non-secret scanner to ignore policy-metadata list values (`blocked_patterns`) while keeping strict checks on operational payload content.
+3. Rerun M8.I after patch; hold fail-closed until blockers clear.
+## Entry: 2026-02-26 06:46:00 +00:00 - Applied M8.I remediation patch before rerun
+
+### Patch details
+1. Updated `scripts/dev_substrate/m8i_p11_rollup_handoff.py`:
+   - Added deterministic projection path for missing M9 entry refs:
+     - `run_report_ref` and `reconciliation_ref` are copied from object-store source truth to evidence-path keys when absent.
+   - Added `S3_OBJECT_STORE_BUCKET` handle requirement for projection source resolution.
+   - Hardened non-secret scanner to ignore policy metadata list (`non_secret_policy.blocked_patterns`) to prevent false-positive trigger.
+
+### Expected effect
+1. `M8-B9` run_report/reconciliation unreadable blockers should clear via controlled projection.
+2. `M8-B10` false-positive should clear while maintaining strict checks for real secret leakage.
+## Entry: 2026-02-26 06:49:00 +00:00 - M8.I execution closure with fail-first remediation
+
+### First execution (fail-closed)
+1. Execution: `m8i_p11_rollup_verdict_20260226T064242Z`.
+2. Result: `overall_pass=false`, `verdict=HOLD_M8`, blockers `3`.
+3. Blockers:
+   - `M8-B9` unreadable `run_report_ref` and `reconciliation_ref` at evidence path.
+   - `M8-B10` handoff non-secret policy false-positive.
+
+### Remediation applied
+1. Added deterministic projection path in M8.I for missing entry refs:
+   - source truth: object-store `platform_<run>/obs/{run_report,reconciliation}.json`,
+   - target: evidence-path refs from handle contract.
+2. Hardened non-secret scanner to ignore `non_secret_policy.blocked_patterns` metadata values.
+
+### Rerun closure
+1. Execution: `m8i_p11_rollup_verdict_20260226T064405Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_M9`,
+   - `blocker_count=0`,
+   - `next_gate=M9_READY`.
+3. Produced artifacts:
+   - `m8i_p11_rollup_matrix.json`
+   - `m8i_p11_verdict.json`
+   - `m9_handoff_pack.json`
+   - `m8i_blocker_register.json`
+   - `m8i_execution_summary.json`.
+4. Projection side-effect (intentional contract closure):
+   - `evidence/runs/platform_20260223T184232Z/obs/run_report.json`
+   - `evidence/runs/platform_20260223T184232Z/obs/reconciliation.json`.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m8/m8i_p11_rollup_verdict_20260226T064405Z/`.
+2. Durable run-control:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8i_p11_rollup_verdict_20260226T064405Z/`.

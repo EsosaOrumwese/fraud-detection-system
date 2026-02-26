@@ -756,29 +756,144 @@ Required snapshot fields (`m8h_governance_close_marker_snapshot.json`):
 6. `blockers`, `overall_pass`, `next_gate`, `elapsed_seconds`.
 
 DoD:
-- [ ] governance append and closure marker are committed and readable.
-- [ ] source-truth governance checks pass (schema/run-scope/order/marker coverage).
-- [ ] handle-contract governance projection exists and is run-scoped.
-- [ ] `m8h_governance_close_marker_snapshot.json` + blocker register + summary committed locally and durably.
+- [x] governance append and closure marker are committed and readable.
+- [x] source-truth governance checks pass (schema/run-scope/order/marker coverage).
+- [x] handle-contract governance projection exists and is run-scoped.
+- [x] `m8h_governance_close_marker_snapshot.json` + blocker register + summary committed locally and durably.
 
 Runtime budget:
 1. `M8.H` target budget: <= 10 minutes wall clock.
 2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
 
+Execution closure (2026-02-26):
+1. execution id: `m8h_p11_governance_close_marker_20260226T063647Z`.
+2. result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M8.I_READY`.
+3. source-truth checks passed:
+   - `run_completed` status/scope/closure-ref coherence,
+   - governance append schema + run-scope checks,
+   - append ordering monotonic by `ts_utc`,
+   - marker coverage parity with append event ids.
+4. governance projection outputs (handle-contract closure):
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/governance/append_log.jsonl`
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/governance/closure_marker.json`.
+5. evidence:
+   - local: `runs/dev_substrate/dev_full/m8/m8h_p11_governance_close_marker_20260226T063647Z/`,
+   - durable run-control: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8h_p11_governance_close_marker_20260226T063647Z/`.
+
 ### M8.I P11 Rollup Verdict + M9 Handoff
 Goal:
 1. adjudicate M8 and publish deterministic handoff to M9.
 
+Entry conditions:
+1. `M8.H` is pass with blockers empty:
+   - local: `runs/dev_substrate/dev_full/m8/m8h_p11_governance_close_marker_20260226T063647Z/m8h_execution_summary.json`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8h_p11_governance_close_marker_20260226T063647Z/m8h_execution_summary.json`.
+2. Active run scope is pinned to:
+   - `platform_run_id=platform_20260223T184232Z`.
+3. No unresolved blockers remain from `M8.H`.
+
+Required inputs:
+1. Pass summaries for `M8.A..M8.H`:
+   - `m8a_p11_handle_closure_20260226T050813Z`
+   - `m8b_p11_runtime_lock_readiness_20260226T052700Z`
+   - `m8c_p11_closure_input_readiness_20260226T053157Z`
+   - `m8d_p11_single_writer_probe_20260226T062710Z`
+   - `m8e_p11_reporter_one_shot_20260226T062735Z`
+   - `m8f_p11_closure_bundle_20260226T062814Z`
+   - `m8g_p11_non_regression_20260226T062919Z`
+   - `m8h_p11_governance_close_marker_20260226T063647Z`.
+2. Durable run-control evidence root for:
+   - `m8i_p11_rollup_matrix.json`
+   - `m8i_p11_verdict.json`
+   - `m9_handoff_pack.json`
+   - `m8i_blocker_register.json`
+   - `m8i_execution_summary.json`.
+3. Required closure refs for M9 entry surface:
+   - `evidence/runs/<platform_run_id>/obs/run_report.json`
+   - `evidence/runs/<platform_run_id>/obs/reconciliation.json`
+   - `evidence/runs/<platform_run_id>/obs/non_regression_pack.json`
+   - `evidence/runs/<platform_run_id>/governance/append_log.jsonl`
+   - `evidence/runs/<platform_run_id>/governance/closure_marker.json`.
+
+Preparation checks (fail-closed):
+1. Validate all source summaries above are readable and parseable.
+2. Validate source summaries are run-scoped to active `platform_run_id`.
+3. Validate every source summary has `overall_pass=true`.
+4. Validate required closure refs for M9 entry are readable.
+5. Enforce non-secret output policy for handoff payload.
+
+Deterministic verification algorithm (M8.I):
+1. Load `M8.A..M8.H` source summaries in fixed phase order; any missing/unreadable/parse failure -> `M8-B9`.
+2. Enforce run-scope conformance across all source summaries; mismatch -> `M8-B9`.
+3. Build fixed-order rollup matrix (`M8.A`..`M8.H`) including:
+   - execution id,
+   - summary key,
+   - `overall_pass`,
+   - `next_gate`,
+   - run-scope status.
+4. Roll up source blocker posture:
+   - if any source summary not pass -> `M8-B9`.
+5. Compute deterministic verdict:
+   - if all source checks pass and entry refs are readable -> `ADVANCE_TO_M9`, `next_gate=M9_READY`,
+   - else -> `HOLD_M8`, `next_gate=HOLD_REMEDIATE`.
+6. Build `m9_handoff_pack.json` with:
+   - verdict posture,
+   - source execution refs,
+   - required M9 entry refs,
+   - non-secret policy declaration.
+7. Enforce non-secret handoff checks:
+   - fail on secret-bearing keys/values (`secret`, `password`, `token`, `AKIA`, private-key markers) -> `M8-B10`.
+8. Emit:
+   - `m8i_p11_rollup_matrix.json`
+   - `m8i_p11_verdict.json`
+   - `m9_handoff_pack.json`
+   - `m8i_blocker_register.json`
+   - `m8i_execution_summary.json`
+   locally and durably.
+9. Return `overall_pass=true` only when blockers are empty and verdict is `ADVANCE_TO_M9`.
+
 Tasks:
-1. aggregate M8.A..M8.H outcomes into rollup matrix.
-2. emit `m8i_p11_rollup_matrix.json` + blocker register.
-3. emit deterministic verdict artifact `m8i_p11_verdict.json`.
-4. emit `m9_handoff_pack.json`.
+1. Aggregate `M8.A..M8.H` outcomes into deterministic rollup matrix.
+2. Compute deterministic verdict and next gate.
+3. Emit `m8i_p11_verdict.json` and `m9_handoff_pack.json`.
+4. Validate non-secret handoff contract.
+5. Publish local + durable artifacts with readback parity.
+
+Required snapshot fields (`m8i_p11_rollup_matrix.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `scenario_run_id`, `m8_execution_id`.
+2. `source_phase_matrix` (`M8.A..M8.H` fixed order).
+3. `source_refs`.
+4. `entry_surface_checks`.
+5. `blockers`, `overall_pass`, `next_gate`, `elapsed_seconds`.
+
+Required verdict fields (`m8i_p11_verdict.json`):
+1. `phase`, `phase_id`, `platform_run_id`, `scenario_run_id`, `m8_execution_id`.
+2. `verdict`.
+3. `next_gate`.
+4. `source_rollup_ref`.
+5. `blockers`, `overall_pass`.
+
+Required handoff fields (`m9_handoff_pack.json`):
+1. `handoff_id`, `generated_at_utc`, `platform_run_id`, `scenario_run_id`.
+2. `m8_verdict`, `m8_overall_pass`, `m8_execution_id`.
+3. `source_verdict_ref`.
+4. `phase_pass_matrix` (`M8.A..M8.H`).
+5. `required_evidence_refs` for M9 entry.
+6. `m9_entry_gate` (`required_verdict=ADVANCE_TO_M9`, `required_overall_pass=true`, `next_gate=M9_READY`).
+7. `non_secret_policy` declaration.
 
 DoD:
 - [ ] verdict is deterministic with explicit next gate.
 - [ ] if blocker-free, verdict is `ADVANCE_TO_M9` with `next_gate=M9_READY`.
-- [ ] `m9_handoff_pack.json` committed locally and durably.
+- [ ] `m9_handoff_pack.json` is non-secret and committed locally and durably.
+- [ ] `m8i_p11_rollup_matrix.json` + `m8i_p11_verdict.json` + blocker register + summary are committed locally and durably.
+
+Runtime budget:
+1. `M8.I` target budget: <= 10 minutes wall clock.
+2. Over-budget execution remains fail-closed unless USER waiver is explicitly recorded.
 
 ### M8.J M8 Closure Sync + Cost-Outcome Receipt
 Goal:
@@ -833,7 +948,7 @@ DoD:
 - [x] `M8.E` complete
 - [x] `M8.F` complete
 - [x] `M8.G` complete
-- [ ] `M8.H` complete
+- [x] `M8.H` complete
 - [ ] `M8.I` complete
 - [ ] `M8.J` complete
 - [x] all active `M8-B*` blockers resolved
@@ -847,4 +962,5 @@ DoD:
 6. `M8.E` reporter one-shot execution is closed green.
 7. `M8.F` closure-bundle completeness validation is closed green.
 8. `M8.G` spine non-regression pack generation + validation is closed green.
-9. Next action is `M8.H` governance append + closure-marker verification.
+9. `M8.H` governance append + closure-marker verification is closed green.
+10. Next action is `M8.I` P11 rollup verdict + `m9_handoff_pack`.

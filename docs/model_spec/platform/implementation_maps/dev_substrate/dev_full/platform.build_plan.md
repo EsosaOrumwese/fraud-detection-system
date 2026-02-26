@@ -902,7 +902,7 @@ M8 sub-phase progress:
 - [x] `M8.E` reporter one-shot execution.
 - [x] `M8.F` closure-bundle completeness validation.
 - [x] `M8.G` spine non-regression pack generation + validation.
-- [ ] `M8.H` governance append/closure-marker verification.
+- [x] `M8.H` governance append/closure-marker verification.
 - [ ] `M8.I` `P11` rollup verdict + `m9_handoff_pack.json`.
 - [ ] `M8.J` M8 closure sync + cost-outcome receipt validation.
 
@@ -947,6 +947,15 @@ M8 execution status (2026-02-26):
    - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M8.H_READY`,
    - durable run-control evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8g_p11_non_regression_20260226T062919Z/`,
    - canonical non-regression pack: `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/obs/non_regression_pack.json`.
+8. `M8.H` is closed green:
+   - execution: `m8h_p11_governance_close_marker_20260226T063647Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M8.I_READY`,
+   - source-truth verification: object-store governance append + marker surfaces and run_completed closure refs passed schema/run-scope/order coverage checks,
+   - handle-contract projection: governance append + closure marker materialized under evidence run scope,
+   - durable run-control evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8h_p11_governance_close_marker_20260226T063647Z/`,
+   - governance projection outputs:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/governance/append_log.jsonl`,
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/governance/closure_marker.json`.
 
 ## M9 - Learning Input Readiness
 Status: `NOT_STARTED`
@@ -1064,4 +1073,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M8.H` governance append + closure-marker verification with fail-closed blocker remediation and local+durable artifact publication.
+- Execute `M8.I` P11 rollup verdict + `m9_handoff_pack` with fail-closed blocker remediation and local+durable artifact publication.

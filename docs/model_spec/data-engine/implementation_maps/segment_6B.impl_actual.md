@@ -4156,3 +4156,37 @@ Artifacts emitted:
 - `runs/fix-data-engine/segment_6B/reports/segment6b_p3r3_closure_08db6e3060674203af415b389d5a9cbd.json`,
 - `runs/fix-data-engine/segment_6B/reports/segment6b_p3r3_closure_08db6e3060674203af415b389d5a9cbd.md`,
 - `runs/fix-data-engine/segment_6B/08db6e3060674203af415b389d5a9cbd/reports/s5_runtime_profile_08db6e3060674203af415b389d5a9cbd.json`.
+
+---
+
+### Entry: 2026-02-26 06:40
+
+P3 checklist hygiene correction (documentation drift fix).
+
+Observed mismatch:
+- `P3` DoD line "campaign multiplicity restored (bounded by policy)" remained unchecked while closure evidence already shows multiplicity recovery:
+  - `campaign_count` moved from `5` to `6` and remained stable through `P3.R1/R2/R3`.
+
+Decision:
+- mark the DoD line as complete to align plan state with emitted closure artifacts and avoid false-open interpretation of `P3`.
+
+Scope:
+- documentation-only correction in build plan.
+- no code, policy, or runtime artifact changes.
+
+---
+
+### Entry: 2026-02-26 06:44
+
+P3.R2 superseded-line closure correction (plan consistency fix).
+
+Observed mismatch:
+- `P3.R2` had already been functionally superseded by `P3.R3` closure, but a remaining status line still read like an active open owner lane.
+
+Decision:
+- mark the `P3.R2` status decision line as historical and explicitly superseded by `P3.R3` witness `08db6e3060674203af415b389d5a9cbd`.
+- keep `P3.R2` historical evidence intact while removing ambiguity about current closure posture.
+
+Scope:
+- documentation-only correction in build plan.
+- no runtime/code/policy/schema changes.
