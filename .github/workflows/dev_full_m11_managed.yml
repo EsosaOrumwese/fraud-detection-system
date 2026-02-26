@@ -1,4 +1,4 @@
-name: dev-full-m11-d-managed
+name: dev-full-m11-managed
 
 on:
   workflow_dispatch:
@@ -17,6 +17,19 @@ on:
         required: true
         default: fraud-platform-dev-full-evidence
         type: string
+      m11_subphase:
+        description: "M11 subphase to execute (single-runner lane)"
+        required: true
+        default: D
+        type: choice
+        options:
+          - D
+          - E
+          - F
+          - G
+          - H
+          - I
+          - J
       upstream_m11c_execution:
         description: Upstream M11.C execution id
         required: true
@@ -43,16 +56,26 @@ permissions:
   id-token: write
 
 concurrency:
-  group: dev-full-m11-d-managed-${{ github.ref_name }}
+  group: dev-full-m11-managed-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
-  run_m11_d_managed:
-    name: Run M11.D train/eval execution
+  run_m11_managed:
+    name: Run M11.${{ inputs.m11_subphase }} managed lane
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate subphase support
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.m11_subphase }}" != "D" ]]; then
+            echo "Unsupported m11_subphase='${{ inputs.m11_subphase }}'."
+            echo "This single-runner workflow is active for M11.D now; E..J wire into this same file next."
+            exit 1
+          fi
 
       - name: Reject static AWS credential posture
         shell: bash
@@ -114,7 +137,7 @@ jobs:
           from pathlib import Path
           import boto3
           from botocore.exceptions import ClientError, BotoCoreError
-          from sagemaker import image_uris
+          from sagemaker.image_uris import retrieve as sm_image_uri
 
           def now():
               return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
@@ -229,7 +252,7 @@ jobs:
               putj(s3,bkt,kl,{'labels':labels,'platform_run_id':pr,'scenario_run_id':sr,'execution_id':exec_id})
               inp={'train_key':ktr,'validation_key':kva,'test_features_key':kte,'test_labels_key':kl}
 
-              image=image_uris.retrieve(framework='xgboost',region=region,version='1.7-1',image_scope='training',instance_type='ml.m5.large')
+              image=sm_image_uri(framework='xgboost',region=region,version='1.7-1',image_scope='training',instance_type='ml.m5.large')
               suf=hashlib.sha256(f'{exec_id}|{fps}'.encode()).hexdigest()[:10]
               tjob=job(f'{train_prefix}-{suf}'); xjob=job(f'{batch_prefix}-{suf}'); model=job(f'{train_prefix}-model-{suf}')
               tr_uri=f"s3://{bkt}/{ktr.rsplit('/',1)[0]}/"

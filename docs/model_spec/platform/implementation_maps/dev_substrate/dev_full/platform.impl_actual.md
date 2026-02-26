@@ -14833,3 +14833,26 @@ ext_gate=M11.B_READY and locker_count=0.
 5. Rationale:
    - preserves managed execution posture while reducing branch/PR overhead and workflow sprawl,
    - keeps deterministic gate closure and audit surfaces unchanged.
+
+## Entry: 2026-02-26 20:12:52 +00:00 - Final workflow-only promotion for M11 managed runner
+1. User approved one final workflow-only branch operation to avoid repeated merge overhead.
+2. Scope locked to .github/workflows/dev_full_m11_managed.yml only.
+3. Planned sequence (approved): create ops/m11-workflow-only from main, commit workflow only, PR to main, merge, delete ops branch, return to migrate-dev, execute M11.D from managed workflow.
+4. Guardrail: no non-workflow files staged/committed in this branch operation.
+
+## Entry: 2026-02-26 20:17:05 +00:00 - Workflow-only promotion executed for M11 managed lane
+1. Executed approved workflow-only sequence with isolated worktree to protect active migrate-dev tree.
+2. Opened PR #65 (ops/m11-workflow-only-20260226-test -> main) containing only .github/workflows/dev_full_m11_managed.yml.
+3. PR merged at 2026-02-26T20:16:04Z (merge commit 1b45bdb4828289954bf40ded20b3852e2d987d76).
+4. Cleaned up ops branch/worktree after merge; no persistent ops branch retained.
+5. Next action: dispatch M11.D via consolidated workflow on default branch.
+
+## Entry: 2026-02-26 20:21:07 +00:00 - M11.D managed run failure diagnosis (run 22459513953)
+1. Dispatch target: dev-full-m11-managed on main, m11_subphase=D.
+2. Failure surface: step Execute M11.D (managed).
+3. Root cause:
+   - ImportError: cannot import name 'image_uris' from 'sagemaker'.
+4. Decision:
+   - patch workflow inline script to import from stable module path sagemaker.image_uris and call etrieve directly.
+   - keep lane behavior unchanged (train + transform + evidence publication).
+5. Next action after patch: workflow-only hotfix publish to main, then immediate rerun.
