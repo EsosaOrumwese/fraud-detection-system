@@ -271,7 +271,8 @@ The migration history surfaced concrete failure classes that validated this clai
 - Role and configuration checks could pass while runtime ingest paths still failed.
 - Real failure modes included boundary endpoint mismatch, principal/auth mismatch, and transport-client incompatibility.
 - Operational effect: runs appeared "ready" from management surfaces but could not sustain valid data-plane execution.
-- concrete incident class: credential/authentication defects were remediated first, but ingestion remained blocked until transport-client compatibility was corrected; this validated the readiness law that control-plane success is insufficient without data-plane probe success.
+- concrete incident class: credential/authentication defects were remediated first, but ingestion remained blocked until transport-client compatibility was corrected.
+- implication: control-plane success was necessary but not sufficient; readiness had to include data-plane probe success.
 
 2. Readiness signal mismatch against real failure surface
 - Some early readiness checks over-weighted metadata/administrative visibility instead of runtime protocol viability.
@@ -811,7 +812,7 @@ Representative readiness lane outcome:
 
 Outcome:
 - readiness moved from control-signal ambiguity to proven data-plane viability.
-- supporting incident interpretation: this lane is where the credential-correct-but-still-failing transport class was resolved and revalidated, which is why readiness adjudication requires both runtime preflight and data-plane readback signals.
+- this lane is where the credential-correct-but-still-failing transport class was resolved and revalidated, reinforcing why readiness adjudication requires both runtime preflight and data-plane readback signals.
 
 ### 9.3 Evidence-integrity result: closure-input readiness fail -> pass
 Representative evidence-gate outcome:

@@ -782,8 +782,7 @@ The claim closed through concrete fail-to-fix-to-pass anchors:
 3. Rotation plus runtime freshness closure
 - managed rotation anchor: workflow run `22206773359` rotated runtime messaging credentials and republished parameter-store values.
 - freshness enforcement anchor: affected daemon services were explicitly redeployed so running tasks loaded rotated values.
-- diagnostic outcome: credential-plane blockers were removed; ingestion still failed in a separate transport-client compatibility plane until the Kafka adapter was corrected.
-- diagnostic value to this claim: the control succeeded because it cleanly separated credential freshness from non-credential runtime defects, preventing repeated "rotate again" misdiagnosis loops.
+- diagnostic boundary result: credential-plane blockers were removed, and the remaining ingestion failure was traced to transport-client compatibility rather than stale credentials.
 
 4. Teardown secret-cleanup closure
 - cleanup pass anchor: `runs/dev_substrate/m9/m9_20260219T155120Z/m9_f_secret_cleanup_snapshot.json`.
@@ -919,7 +918,7 @@ Primary rotation freshness anchors:
 What this proves:
 - rotation was executed in managed lane,
 - runtime freshness was enforced through redeploy rather than assumed.
-- when runtime failures persisted, they were attributable to a non-secret transport compatibility defect rather than stale credentials (separation evidence for root-cause isolation quality).
+- root-cause separation was preserved: when failures persisted, they were attributable to a non-secret transport compatibility defect rather than stale credentials.
 
 ### 11.4 Stale-input regression prevention hook
 Apply-time regression control anchor:
