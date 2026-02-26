@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from fraud_detection.archive_writer.worker import ArchiveWriterWorker, load_worker_config
+from fraud_detection.archive_writer.worker import ArchiveWriterWorker, _unwrap_envelope, load_worker_config
 from fraud_detection.platform_runtime import RUNS_ROOT
 
 
@@ -15,6 +15,28 @@ def test_archive_writer_worker_archives_file_bus_event(tmp_path, monkeypatch) ->
     run_root = RUNS_ROOT / run_id
     if run_root.exists():
         shutil.rmtree(run_root)
+
+
+def test_unwrap_envelope_preserves_canonical_metadata() -> None:
+    envelope = {
+        "platform_run_id": "platform_123",
+        "scenario_run_id": "scenario_123",
+        "manifest_fingerprint": "m" * 64,
+        "parameter_hash": "p" * 64,
+        "scenario_id": "baseline_v1",
+        "event_id": "evt_123",
+        "event_type": "traffic_fraud",
+        "ts_utc": "2026-02-26T00:00:00Z",
+        "payload": {"amount": 10},
+    }
+
+    direct = _unwrap_envelope(envelope)
+    assert direct["event_id"] == "evt_123"
+    assert direct["platform_run_id"] == "platform_123"
+
+    wrapped = _unwrap_envelope({"payload": envelope})
+    assert wrapped["event_id"] == "evt_123"
+    assert wrapped["platform_run_id"] == "platform_123"
 
 
 def test_archive_writer_worker_kafka_dispatch_does_not_fallback_to_file_reader(tmp_path, monkeypatch) -> None:

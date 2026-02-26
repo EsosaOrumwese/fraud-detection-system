@@ -433,10 +433,30 @@ def _unwrap_envelope(value: Any) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         return {}
     payload = dict(value)
+    if _looks_like_canonical_envelope(payload):
+        return payload
     nested = payload.get("payload")
-    if isinstance(nested, Mapping):
+    if isinstance(nested, Mapping) and _looks_like_canonical_envelope(nested):
         return dict(nested)
     return payload
+
+
+def _looks_like_canonical_envelope(value: Mapping[str, Any]) -> bool:
+    required = (
+        "platform_run_id",
+        "scenario_run_id",
+        "manifest_fingerprint",
+        "parameter_hash",
+        "scenario_id",
+        "event_id",
+        "event_type",
+        "ts_utc",
+    )
+    for key in required:
+        token = str(value.get(key) or "").strip()
+        if not token:
+            return False
+    return True
 
 
 def _locator(value: Any, suffix: str) -> str:
