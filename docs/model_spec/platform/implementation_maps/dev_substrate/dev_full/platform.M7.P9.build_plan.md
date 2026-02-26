@@ -58,6 +58,16 @@ Each component lane must publish `*_performance_snapshot.json` for the lane run 
    - stability (`dla_error_rate_pct`).
 4. Numeric thresholds are mandatory and must be pinned during `P9.A`; missing pins are fail-closed.
 
+## 3.2) P9 Throughput Certification Plan (deferred post-M7)
+1. `throughput_gate_mode=waived_low_sample` is provisional evidence, not final throughput proof.
+2. `P9` functional closure is allowed with waived-low-sample posture when all non-throughput gates are green.
+3. Non-waived throughput certification remains mandatory as a post-`M7` non-soak lane before any production-scale throughput claim.
+4. Certification profile follows registry pins:
+   - `THROUGHPUT_CERT_TARGET_EVENTS_PER_HOUR=134000000`,
+   - `THROUGHPUT_CERT_TARGET_EVENTS_PER_SECOND=37223`,
+   - `THROUGHPUT_CERT_WINDOW_MINUTES=60`.
+5. Deferred tracking key for this phase: `M7P9-D8` (deferred certification item, not a functional-closure blocker).
+
 ## 4) Work Breakdown
 
 ### P9.A Entry + Handle Closure
@@ -219,7 +229,9 @@ Execution status (2026-02-26):
    - low-sample guarded mode applied (`total_receipts=18`),
    - throughput assertion waived (`<200` sample),
    - lag/error gate posture passed.
-5. Evidence:
+5. Certification posture:
+   - status is provisional for throughput; post-`M7` non-waived certification remains required (`M7P9-D8`).
+6. Evidence:
    - local: `runs/dev_substrate/dev_full/m7/_gh_run_22424352180_artifacts/p9-component-m7h-20260226T015122Z/`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7h_p9b_df_component_20260226T015122Z/`.
 
@@ -301,7 +313,9 @@ Execution status (2026-02-26):
    - low-sample guarded mode applied (`total_receipts=18`),
    - throughput assertion waived (`<200` sample),
    - lag/error/retry gate posture passed.
-5. Evidence:
+5. Certification posture:
+   - status is provisional for throughput; post-`M7` non-waived certification remains required (`M7P9-D8`).
+6. Evidence:
    - local: `runs/dev_substrate/dev_full/m7/_gh_run_22424410762_artifacts/p9-component-m7i-20260226T015350Z/`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7i_p9c_al_component_20260226T015350Z/`.
 
@@ -388,7 +402,9 @@ Execution status (2026-02-26):
    - low-sample guarded mode applied (`total_receipts=18`),
    - throughput assertion waived (`<200` sample),
    - lag/error gate posture passed.
-5. Evidence:
+5. Certification posture:
+   - status is provisional for throughput; post-`M7` non-waived certification remains required (`M7P9-D8`).
+6. Evidence:
    - local: `runs/dev_substrate/dev_full/m7/_gh_run_22424458740_artifacts/p9-component-m7j-20260226T015553Z/`
    - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7j_p9d_dla_component_20260226T015553Z/`.
 
@@ -414,7 +430,7 @@ DoD:
 | `P9-V4-DLA` | validate DLA append-only audit evidence + readback |
 | `P9-V5-ROLLUP` | validate P9 rollup and deterministic verdict |
 
-## 6) P9 Blocker Taxonomy
+## 6) P9 Blocker and Deferred Taxonomy
 1. `M7P9-B1`: P9 entry/handle closure failure.
 2. `M7P9-B2`: DF component lane failure.
 3. `M7P9-B3`: AL component lane failure.
@@ -422,6 +438,7 @@ DoD:
 5. `M7P9-B5`: P9 rollup/verdict inconsistency.
 6. `M7P9-B6`: missing P9 component performance SLO pins.
 7. `M7P9-B7`: P9 component performance budget breach.
+8. `M7P9-D8`: post-M7 throughput certification pending (deferred item; non-blocking for P9 functional closure).
 
 ## 7) P9 Evidence Contract
 1. `p9a_entry_snapshot.json`
@@ -453,7 +470,8 @@ DoD:
 1. all `M7P9-B*` blockers are clear,
 2. all P9 DoDs are green,
 3. component evidence exists locally and durably,
-4. rollup verdict is deterministic and blocker-consistent.
+4. rollup verdict is deterministic and blocker-consistent,
+5. if throughput posture is `waived_low_sample`, deferred item `M7P9-D8` is recorded for post-M7 non-soak certification.
 
 Transition:
 1. `P10` is blocked until `P9` verdict is `ADVANCE_TO_P10`.

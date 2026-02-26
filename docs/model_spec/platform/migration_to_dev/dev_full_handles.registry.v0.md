@@ -101,6 +101,19 @@
 * `RUNTIME_FALLBACK_REQUIRES_NEW_PHASE_EXECUTION_ID = true`
 * `PHASE_RUNTIME_PATH_EVIDENCE_PATH_PATTERN = "evidence/dev_full/run_control/{phase_execution_id}/runtime_path_selection.json"`
 
+### 1.10 Throughput certification pins (production-readiness, non-waived)
+
+* `THROUGHPUT_CERT_REQUIRED = true`
+* `THROUGHPUT_CERT_ALLOW_WAIVER = false`
+* `THROUGHPUT_CERT_MIN_SAMPLE_EVENTS = 1000000`
+* `THROUGHPUT_CERT_TARGET_EVENTS_PER_HOUR = 134000000`
+* `THROUGHPUT_CERT_TARGET_EVENTS_PER_SECOND = 37223`
+* `THROUGHPUT_CERT_WINDOW_MINUTES = 60`
+* `THROUGHPUT_CERT_MAX_ERROR_RATE_PCT = 1.0`
+* `THROUGHPUT_CERT_MAX_RETRY_RATIO_PCT = 5.0`
+* `THROUGHPUT_CERT_EVIDENCE_PATH_PATTERN = "evidence/runs/{platform_run_id}/perf/throughput_cert/"`
+* `THROUGHPUT_CERT_RAMP_PROFILE = "1000000|10000000|50000000|134000000"`
+
 ---
 
 ## 2. Terraform State and Stack Handles

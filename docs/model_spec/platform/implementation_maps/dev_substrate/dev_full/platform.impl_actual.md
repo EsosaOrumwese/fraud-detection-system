@@ -10069,3 +10069,77 @@ ext_gate=HOLD_REMEDIATE.
 ### Sequencing decision
 1. `P9.B/P9.C/P9.D` component lanes are now all green.
 2. Next required lane for full `P9` closure is `P9.E` rollup/verdict.
+
+## Entry: 2026-02-26 02:12:00 +00:00 - Production-throughput requirement pinned (P8/P9 non-waived gate)
+
+### User requirement accepted
+1. Platform must be validated for production-grade flow, not only low-sample lane health.
+2. User target profile is based on current data volume:
+   - `134,000,000` events for ~3 months of stream,
+   - desired stress posture includes potential one-hour replay window.
+
+### Decision
+1. Added a hard non-waived throughput certification gate for `P8+P9`.
+2. Current `P8/P9` lane results remain valid for functional continuity but are explicitly tagged provisional for throughput because they used low-sample waiver mode.
+3. `M7` cannot claim production-grade closure until throughput certification artifacts are present with:
+   - `throughput_assertion_applied=true`,
+   - no waiver notes,
+   - sample and target profile satisfied.
+
+### Pins materialized
+1. Added registry pins:
+   - `THROUGHPUT_CERT_REQUIRED=true`
+   - `THROUGHPUT_CERT_ALLOW_WAIVER=false`
+   - `THROUGHPUT_CERT_MIN_SAMPLE_EVENTS=1000000`
+   - `THROUGHPUT_CERT_TARGET_EVENTS_PER_HOUR=134000000`
+   - `THROUGHPUT_CERT_TARGET_EVENTS_PER_SECOND=37223`
+   - `THROUGHPUT_CERT_WINDOW_MINUTES=60`
+   - `THROUGHPUT_CERT_RAMP_PROFILE=1000000|10000000|50000000|134000000`
+2. Added fail-closed blockers:
+   - `M7-B18` (M7-level throughput certification missing/waived),
+   - `M7P8-B8` (P8 throughput certification pending/waived),
+   - `M7P9-B8` (P9 throughput certification pending/waived).
+
+### Implementation consequence
+1. Next execution work must add and run a throughput-cert lane for `P8+P9` before finalizing `M7` production readiness.
+
+## Entry: 2026-02-26 02:29:00 +00:00 - Throughput-cert gating realignment (defer until after M7)
+
+### Trigger
+1. User direction was explicit: keep M7 focused on functional wiring closure (`Control+Ingress + RTDL + Case/Labels`) and run non-soak throughput certification after M7 is complete.
+2. Existing plan state had drifted into treating throughput-cert as an active M7 blocker (`M7-B18`, `M7P8-B8`, `M7P9-B8`) which contradicted the requested sequence.
+
+### Decision
+1. Preserve throughput-cert as mandatory, but move it to a deferred post-M7 lane.
+2. Keep current low-sample results as functional evidence only.
+3. Prevent false closure claims by explicitly separating:
+   - functional closure (`M7`),
+   - production-scale throughput claim (post-M7 non-soak cert).
+
+### Alternatives considered
+1. Keep throughput-cert as hard M7 blocker:
+   - rejected because it violates the approved sequencing and delays wiring closure.
+2. Drop throughput-cert entirely:
+   - rejected because it weakens production-readiness posture and removes quantitative guardrails.
+
+### Implementation updates
+1. `platform.M7.P8.build_plan.md`:
+   - converted throughput section to deferred post-M7 plan,
+   - converted `M7P8-B8` into deferred item `M7P8-D8`,
+   - updated execution/certification notes and exit rule language.
+2. `platform.M7.P9.build_plan.md`:
+   - converted throughput section to deferred post-M7 plan,
+   - converted `M7P9-B8` into deferred item `M7P9-D8`,
+   - updated execution/certification notes and exit rule language.
+3. `platform.M7.build_plan.md`:
+   - removed active M7 blocking semantics for throughput-cert,
+   - repinned `M7-B18` to deferred item `M7-D18`,
+   - updated M7.H tasks/DoDs/planning notes to keep throughput-cert post-M7.
+4. `platform.build_plan.md`:
+   - changed M7 caveat from fail-closed blocker to deferred post-M7 mandatory lane,
+   - removed non-waived throughput checkbox from M7 DoD anchors.
+
+### Resulting posture
+1. M7 can now close based on component + rollup functional truth.
+2. Throughput-cert remains pinned and mandatory, but executes immediately after M7 (non-soak lane) before production-scale claim.
+3. No authority pin for target profile was removed (`THROUGHPUT_CERT_*` remains intact).

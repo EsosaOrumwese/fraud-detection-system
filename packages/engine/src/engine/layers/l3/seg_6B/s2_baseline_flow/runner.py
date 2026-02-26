@@ -1398,6 +1398,22 @@ def run_s2(
                     )
                     batch_stage_ts_s += time.perf_counter() - stage_t0
 
+                    stage_t0 = time.perf_counter()
+                    event_stream = pl.concat([event_request, event_response], how="vertical").select(
+                        [
+                            "flow_id",
+                            "event_seq",
+                            "event_type",
+                            "ts_utc",
+                            "amount",
+                            "seed",
+                            "manifest_fingerprint",
+                            "parameter_hash",
+                            "scenario_id",
+                        ]
+                    )
+                    batch_stage_frame_build_s += time.perf_counter() - stage_t0
+
                     if not validated_flow_schema and flow_anchor.height > 0:
                         sample = flow_anchor.head(1).to_dicts()[0]
                         _validate_payload(
@@ -1410,8 +1426,8 @@ def run_s2(
                         )
                         validated_flow_schema = True
 
-                    if not validated_event_schema and event_request.height > 0:
-                        sample = event_request.head(1).to_dicts()[0]
+                    if not validated_event_schema and event_stream.height > 0:
+                        sample = event_stream.head(1).to_dicts()[0]
                         _validate_payload(
                             sample,
                             schema_6b,
@@ -1424,17 +1440,15 @@ def run_s2(
 
                     stage_t0 = time.perf_counter()
                     flow_part = flow_tmp_dir / f"part-{part_index:05d}.parquet"
-                    event_part_request = event_tmp_dir / f"part-{part_index:05d}.parquet"
-                    event_part_response = event_tmp_dir / f"part-{part_index + 1:05d}.parquet"
+                    event_part = event_tmp_dir / f"part-{part_index:05d}.parquet"
                     flow_anchor.write_parquet(flow_part, compression=parquet_compression)
-                    event_request.write_parquet(event_part_request, compression=parquet_compression)
-                    event_response.write_parquet(event_part_response, compression=parquet_compression)
+                    event_stream.write_parquet(event_part, compression=parquet_compression)
                     batch_stage_write_s += time.perf_counter() - stage_t0
 
                     batch_rows_processed = int(flow_anchor.height)
                     total_flows += batch_rows_processed
-                    total_events += int(event_request.height) + int(event_response.height)
-                    part_index += 2
+                    total_events += int(event_stream.height)
+                    part_index += 1
                     progress.update(batch_rows_processed)
 
                 logger.info(

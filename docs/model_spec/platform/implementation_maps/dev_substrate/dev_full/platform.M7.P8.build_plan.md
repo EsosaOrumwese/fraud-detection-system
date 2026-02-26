@@ -58,6 +58,16 @@ Each component lane must publish `*_performance_snapshot.json` for the lane run 
    - stability (`archive_write_error_rate_pct`).
 4. Numeric thresholds are mandatory and must be pinned during `P8.A`; missing pins are fail-closed.
 
+## 3.2) P8 Throughput Certification Plan (deferred post-M7)
+1. `throughput_gate_mode=waived_low_sample` is provisional evidence and not final throughput proof.
+2. `P8` functional closure is allowed with waived-low-sample posture when all non-throughput gates are green.
+3. Non-waived throughput certification remains mandatory as a post-`M7` non-soak lane before any production-scale throughput claim.
+4. Certification profile follows registry pins:
+   - `THROUGHPUT_CERT_TARGET_EVENTS_PER_HOUR=134000000`,
+   - `THROUGHPUT_CERT_TARGET_EVENTS_PER_SECOND=37223`,
+   - `THROUGHPUT_CERT_WINDOW_MINUTES=60`.
+5. Deferred tracking key for this phase: `M7P8-D8` (deferred certification item, not a functional-closure blocker).
+
 ## 4) Work Breakdown
 
 ### P8.A Entry + Handle Closure
@@ -201,7 +211,9 @@ Execution status (2026-02-25):
    - placeholder handles: `0`,
    - RTDL component proof materialized: `evidence/runs/platform_20260223T184232Z/rtdl_core/ieg_component_proof.json`,
    - throughput gate posture: `waived_low_sample` (sample size `18`), lag/error gates pass.
-4. Evidence:
+4. Certification posture:
+   - status is provisional for throughput; post-`M7` non-waived certification remains required (`M7P8-D8`).
+5. Evidence:
    - local: `runs/dev_substrate/dev_full/m7/_gh_run_22416728598_artifacts/p8-component-m7c-20260225T212932Z/`
    - durable run-control: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7c_p8b_ieg_component_20260225T212932Z/`.
 
@@ -279,7 +291,9 @@ Execution status (2026-02-25):
    - placeholder handles: `0`,
    - RTDL component proof materialized: `evidence/runs/platform_20260223T184232Z/rtdl_core/ofp_component_proof.json`,
    - throughput gate posture: `waived_low_sample` (sample size `18`), lag/error gates pass.
-4. Evidence:
+4. Certification posture:
+   - status is provisional for throughput; post-`M7` non-waived certification remains required (`M7P8-D8`).
+5. Evidence:
    - local: `runs/dev_substrate/dev_full/m7/_gh_run_22416785955_artifacts/p8-component-m7d-20260225T213059Z/`
    - durable run-control: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7d_p8c_ofp_component_20260225T213059Z/`.
 
@@ -352,8 +366,11 @@ Execution status (2026-02-25):
    - missing handles: `0`,
    - placeholder handles: `0`,
    - RTDL component proof materialized: `evidence/runs/platform_20260223T184232Z/rtdl_core/archive_component_proof.json`,
-   - archive durability probe: primary object-store path denied by IAM; fallback mirror probe in evidence bucket succeeded and is explicitly recorded in blocker notes.
-4. Evidence:
+   - archive durability probe: primary object-store path denied by IAM; fallback mirror probe in evidence bucket succeeded and is explicitly recorded in blocker notes,
+   - throughput gate posture: `waived_low_sample` (sample size `18`), lag/error gates pass.
+4. Certification posture:
+   - status is provisional for throughput; post-`M7` non-waived certification remains required (`M7P8-D8`).
+5. Evidence:
    - local: `runs/dev_substrate/dev_full/m7/_gh_run_22416936038_artifacts/p8-component-m7e-20260225T213458Z/`
    - durable run-control: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7e_p8d_archive_component_20260225T213458Z/`
    - archive probe fallback object: `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/archive/p8d_archive_probe_m7e_p8d_archive_component_20260225T213458Z.json`.
@@ -421,7 +438,7 @@ Execution status (2026-02-25):
 | `P8-V4-ARCHIVE` | validate archive writer durable object + append/readback posture |
 | `P8-V5-ROLLUP` | validate P8 rollup and deterministic verdict |
 
-## 6) P8 Blocker Taxonomy
+## 6) P8 Blocker and Deferred Taxonomy
 1. `M7P8-B1`: P8 entry/handle closure failure.
 2. `M7P8-B2`: IEG component lane failure.
 3. `M7P8-B3`: OFP component lane failure.
@@ -429,6 +446,7 @@ Execution status (2026-02-25):
 5. `M7P8-B5`: P8 rollup/verdict inconsistency.
 6. `M7P8-B6`: missing P8 component performance SLO pins.
 7. `M7P8-B7`: P8 component performance budget breach.
+8. `M7P8-D8`: post-M7 throughput certification pending (deferred item; non-blocking for P8 functional closure).
 
 ## 7) P8 Evidence Contract
 1. `p8a_entry_snapshot.json`
@@ -456,7 +474,8 @@ Execution status (2026-02-25):
 1. all `M7P8-B*` blockers are clear,
 2. all P8 DoDs are green,
 3. component evidence exists locally and durably,
-4. rollup verdict is deterministic and blocker-consistent.
+4. rollup verdict is deterministic and blocker-consistent,
+5. if throughput posture is `waived_low_sample`, deferred item `M7P8-D8` is recorded for post-M7 non-soak certification.
 
 Transition:
 1. `P9` is blocked until `P8` verdict is `ADVANCE_TO_P9` with `next_gate=M7.F_READY`.

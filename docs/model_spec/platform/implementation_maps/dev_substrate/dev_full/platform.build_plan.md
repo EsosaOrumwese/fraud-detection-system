@@ -772,6 +772,9 @@ Current M7 execution posture:
   - workflow run `22424458740`,
   - execution `m7j_p9d_dla_component_20260226T015553Z`,
   - `overall_pass=true`, `blocker_count=0`, `next_gate=P9.E_READY`.
+- Post-M7 throughput certification caveat (deferred):
+  - `P8/P9` throughput checks are currently in low-sample guarded mode (`throughput_gate_mode=waived_low_sample`).
+  - non-waived throughput certification remains mandatory and is scheduled immediately after `M7` closure using the pinned target profile (`134,000,000 events/hour`).
 
 DoD anchors:
 - [ ] RTDL core closure evidence is green.
