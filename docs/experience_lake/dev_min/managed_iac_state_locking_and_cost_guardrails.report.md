@@ -14,9 +14,11 @@ Top 3 proof hooks:
 - Proof 3: Remote state and lock readiness were verified before infrastructure mutation. Artifact: `runs/dev_substrate/m2_j/20260213T205715Z/m2_b_backend_state_readiness_snapshot.json`.
 Non-claim:
 - This does not claim full production high-availability architecture or enterprise-wide financial operations governance.
+Environment profile note:
+- `dev_min` is the internal name for this managed development-environment profile (persistent core controls plus disposable runtime surfaces).
 
 ## Numbers That Matter
-- Spend control envelope: monthly cap 30 United States dollars with early-warning thresholds at 10, 20, and 28.
+- Spend control envelope: monthly cap 30 United States dollars (USD) with early-warning thresholds at 10, 20, and 28.
 - Guardrail behavior under failure: one failed cost-control run followed by a successful rerun in the same lane after a bounded fix.
 - Operational safety signal: teardown proof published (`m9_20260219T181800Z`) and post-hardening cost rerun still passed (`m9_20260219T185951Z`).
 
@@ -329,6 +331,8 @@ In senior platform terms, this is an operations-governance problem: how to make 
 
 ### 4.2 Observed failure progression (real execution history)
 The platform hit real failure classes that validated this claim's necessity. The important point is not that failures occurred, but that each failure produced a fail-closed witness, a bounded remediation, and a rerun closure.
+Internal label note:
+- Lane labels like `M2.I` and blocker codes like `M9G-B1` are internal execution identifiers for specific gated validation lanes and fail-closed blocker classes.
 
 | Failure class | Witness (what actually failed) | What changed to close it | Why this mattered |
 |---|---|---|---|
@@ -810,7 +814,7 @@ For this claim, core validation anchors include:
 This strategy does not certify:
 - application fraud-detection quality,
 - full enterprise FinOps governance maturity,
-- production HA/SRE readiness beyond the scoped development platform controls in this claim.
+- production high-availability/site reliability engineering (HA/SRE) readiness beyond the scoped development platform controls in this claim.
 
 ## 9) Results and Operational Outcome
 
@@ -827,7 +831,7 @@ This moved the environment from "can provision resources" to "can run infrastruc
 This section embeds the minimum measured facts required to validate the claim without requiring readers to open artifacts.
 
 #### Exhibit A - Terraform backend integrity + locking readiness (mutation safety)
-| Control | Expected | Observed (dev_min) | Outcome |
+| Control | Expected | Observed (dev_min managed profile) | Outcome |
 |---|---|---|---|
 | State bucket exists | Present, correct region | `fraud-platform-dev-min-tfstate` in `eu-west-2` | PASS |
 | Versioning | Enabled | `true` | PASS |
@@ -853,6 +857,9 @@ Interpretation:
 - Demo/confluent destroy targets are scoped to their own state keys, while core state controls remain in preserve-set. This prevents demo teardown from mutating core state.
 
 #### Exhibit C - Cost guardrail lane (AWS scope) fail -> fix -> pass (M9.G)
+Time reference note:
+- All times in this exhibit are Coordinated Universal Time (UTC).
+
 | Attempt | Time (UTC) | Outcome | Blocker | Witness (what was measured / observed) | Fix delta |
 |---|---|---|---|---|---|
 | FAIL | 2026-02-19T16:04:52Z | FAIL (fail-closed) | `M9G-B1` | `ValidationException: Start time is invalid` due to malformed Cost Explorer time-period argument; follow-on: `Cannot index into a null array.` | Quote the composite arg: `--time-period "Start=...,End=..."` |
@@ -903,7 +910,7 @@ Cost governance is treated as a gate with explicit failure semantics, not a mont
 
 Measured cost posture at closure:
 - Monthly cap enforced in executable unit: USD (provider-supported).
-- AWS MTD at closure: `17.8956072585` (about $17.90), utilization `59.6520%`.
+- AWS month-to-date (MTD) at closure: `17.8956072585` (about $17.90), utilization `59.6520%`.
 - Cross-platform combined MTD (AWS + Confluent): `17.8953072585`, utilization `59.6510%`.
 - Threshold ladder present: `10/20/28`; critical threshold not breached (`< 28`).
 
@@ -948,7 +955,7 @@ Operational meaning:
 - pass status remained truthful under evolving requirements, which is a core senior-platform behavior.
 
 ### 9.6 Senior-role impact framing
-For Senior MLOps / Platform evaluation, this claim demonstrates:
+For Senior machine learning operations (MLOps) / platform evaluation, this claim demonstrates:
 - infrastructure safety engineered as executable controls, not conventions,
 - controlled destructive operations with explicit blast-radius boundaries,
 - cost discipline integrated into platform gates, not delegated to month-end review,
@@ -979,7 +986,7 @@ This claim does not state that:
 - enterprise-wide FinOps governance is fully solved,
 - all cloud accounts/environments use the same guardrail depth,
 - every possible infrastructure cost anomaly is prevented by this design alone,
-- this environment is a production HA/SRE reference architecture.
+- this environment is a production high-availability/site reliability engineering (HA/SRE) reference architecture.
 
 This report is scoped to reproducible and cost-bounded managed development operations.
 
@@ -1034,6 +1041,8 @@ The report body (Sections 4 and 9) already embeds the proof facts needed to vali
 - teardown proof with preserve-set protection and residual checks.
 
 Use the retrieval hooks below only if a reviewer wants to inspect the underlying machine-readable snapshots directly (audit-style challenge or interview deep dive). These hooks do not introduce new claims; they are an inspection aid.
+Identifier note:
+- execution IDs (for example `m9_20260219T160549Z`) are timestamped internal run identifiers for a specific lane execution.
 
 ### 11.2 Primary fail->fix->pass chain (best single proof path)
 Use this sequence first:
@@ -1172,11 +1181,11 @@ This claim is strong evidence for:
 - `Teardown and lifecycle safety`: strong
 
 This claim is partial evidence for:
-- `Application runtime SLO ownership`: partial (covered by other claims)
+- `Application runtime service level objective (SLO) ownership`: partial (covered by other claims)
 - `Enterprise-wide FinOps/compliance program ownership`: partial (outside this claim scope)
 
 ### 12.6 Outward-asset extraction guidance
-CV usage:
+Curriculum vitae (CV) usage:
 - one bullet for mutation/lifecycle safety design,
 - one bullet for cost-guardrail fail->rerun closure.
 
