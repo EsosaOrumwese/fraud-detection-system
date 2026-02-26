@@ -102,7 +102,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
-          python -m pip install boto3 botocore "sagemaker<3"
+          python -m pip install boto3 botocore "sagemaker<3" xgboost
 
       - name: Compute execution metadata
         id: run_meta
@@ -132,7 +132,7 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from __future__ import annotations
-          import json, os, time, hashlib, re
+          import io, json, os, tarfile, time, hashlib, re
           from datetime import datetime, timezone
           from pathlib import Path
           import boto3
@@ -172,6 +172,22 @@ jobs:
               f3=((i*13+seed%47)%100)/100.0
               y=1 if (1.3*f1+0.9*f2+0.6*f3) >= (0.95+(seed%9)*0.01) else 0
               return y,round(f1,6),round(f2,6),round(f3,6)
+          def metric_pack(labels,preds):
+              if not labels or len(labels)!=len(preds):
+                  return {'accuracy':0.0,'precision':0.0,'recall':0.0}
+              tp=fp=tn=fn=0
+              for y,p in zip(labels,preds):
+                  yh=1 if p>=0.5 else 0
+                  if y==1 and yh==1: tp+=1
+                  elif y==0 and yh==1: fp+=1
+                  elif y==0 and yh==0: tn+=1
+                  else: fn+=1
+              n=len(labels)
+              return {
+                  'accuracy':round((tp+tn)/n,6),
+                  'precision':round(tp/max(tp+fp,1),6),
+                  'recall':round(tp/max(tp+fn,1),6),
+              }
 
           exec_id=os.environ['EXEC_ID']
           run_dir=Path(os.environ['RUN_DIR'])
@@ -186,6 +202,7 @@ jobs:
           sm=boto3.client('sagemaker',region_name=region)
           blockers=[]
           errs=[]
+          advisories=[]
 
           m11c_key=f'evidence/dev_full/run_control/{up}/m11c_execution_summary.json'
           m11c=s3json(s3,bkt,m11c_key)
@@ -238,6 +255,7 @@ jobs:
           putj(s3,bkt,budget_pat.lstrip('/'),envelope)
 
           tdesc={}; xdesc={}; metrics={'accuracy':0.0,'precision':0.0,'recall':0.0}; model=''; tjob=''; xjob=''; mdata=''; outk=''
+          eval_mode='managed_batch_transform'
           inp={}
           if not blockers:
               seed=int(fps[:8],16)
@@ -276,38 +294,64 @@ jobs:
                   if tdesc.get('TrainingJobStatus')!='Completed': raise RuntimeError(f"training status={tdesc.get('TrainingJobStatus')}")
                   mdata=tdesc.get('ModelArtifacts',{}).get('S3ModelArtifacts','')
                   if not mdata: raise RuntimeError('missing model artifact')
-                  sm.create_model(ModelName=model,ExecutionRoleArn=role,PrimaryContainer={'Image':image,'ModelDataUrl':mdata})
-                  sm.create_transform_job(
-                    TransformJobName=xjob,ModelName=model,
-                    TransformInput={'DataSource':{'S3DataSource':{'S3DataType':'S3Prefix','S3Uri':te_uri}},'ContentType':'text/csv','SplitType':'Line'},
-                    TransformOutput={'S3OutputPath':out_xf,'AssembleWith':'Line','Accept':'text/csv'},
-                    TransformResources={'InstanceType':'ml.m5.large','InstanceCount':1})
-                  xdesc=wait_xf(sm,xjob,timeout,poll)
-                  if xdesc.get('TransformJobStatus')!='Completed': raise RuntimeError(f"transform status={xdesc.get('TransformJobStatus')}")
-                  out_uri=xdesc.get('TransformOutput',{}).get('S3OutputPath','')
-                  xb,xp=out_uri[5:].split('/',1)
-                  objs=s3.list_objects_v2(Bucket=xb,Prefix=xp).get('Contents',[])
-                  outs=[o.get('Key','') for o in objs if o.get('Key','').endswith('.out')]
-                  if not outs: raise RuntimeError('no transform output')
-                  outk=outs[0]
-                  pred_raw=s3.get_object(Bucket=xb,Key=outk)['Body'].read().decode('utf-8').splitlines()
                   preds=[]
-                  for line in pred_raw:
-                      tok=line.strip().split(',')[0].strip()
-                      if tok:
-                          try: preds.append(float(tok))
-                          except: pass
                   labels=json.loads(s3.get_object(Bucket=bkt,Key=kl)['Body'].read().decode('utf-8')).get('labels',[])
-                  if len(labels)==len(preds) and labels:
-                      tp=fp=tn=fn=0
-                      for y,p in zip(labels,preds):
-                          yh=1 if p>=0.5 else 0
-                          if y==1 and yh==1: tp+=1
-                          elif y==0 and yh==1: fp+=1
-                          elif y==0 and yh==0: tn+=1
-                          else: fn+=1
-                      n=len(labels)
-                      metrics={'accuracy':round((tp+tn)/n,6),'precision':round(tp/max(tp+fp,1),6),'recall':round(tp/max(tp+fn,1),6)}
+                  try:
+                      sm.create_model(ModelName=model,ExecutionRoleArn=role,PrimaryContainer={'Image':image,'ModelDataUrl':mdata})
+                      sm.create_transform_job(
+                        TransformJobName=xjob,ModelName=model,
+                        TransformInput={'DataSource':{'S3DataSource':{'S3DataType':'S3Prefix','S3Uri':te_uri}},'ContentType':'text/csv','SplitType':'Line'},
+                        TransformOutput={'S3OutputPath':out_xf,'AssembleWith':'Line','Accept':'text/csv'},
+                        TransformResources={'InstanceType':'ml.m5.large','InstanceCount':1})
+                      xdesc=wait_xf(sm,xjob,timeout,poll)
+                      if xdesc.get('TransformJobStatus')!='Completed': raise RuntimeError(f"transform status={xdesc.get('TransformJobStatus')}")
+                      out_uri=xdesc.get('TransformOutput',{}).get('S3OutputPath','')
+                      xb,xp=out_uri[5:].split('/',1)
+                      objs=s3.list_objects_v2(Bucket=xb,Prefix=xp).get('Contents',[])
+                      outs=[o.get('Key','') for o in objs if o.get('Key','').endswith('.out')]
+                      if not outs: raise RuntimeError('no transform output')
+                      outk=outs[0]
+                      pred_raw=s3.get_object(Bucket=xb,Key=outk)['Body'].read().decode('utf-8').splitlines()
+                      for line in pred_raw:
+                          tok=line.strip().split(',')[0].strip()
+                          if tok:
+                              try: preds.append(float(tok))
+                              except Exception: pass
+                  except Exception as transform_exc:
+                      msg=str(transform_exc)
+                      if 'ResourceLimitExceeded' in msg and 'transform job usage' in msg:
+                          eval_mode='fallback_local_model_eval'
+                          xdesc={'TransformJobStatus':'SKIPPED_RESOURCE_LIMIT','FailureReason':msg}
+                          advisories.append({
+                              'code':'M11D-AD1',
+                              'message':'Batch transform quota unavailable; using local model-artifact evaluation fallback.',
+                              'surface':'sagemaker_transform_quota',
+                          })
+                          import xgboost as xgb
+                          mb,mk=mdata[5:].split('/',1)
+                          blob=s3.get_object(Bucket=mb,Key=mk)['Body'].read()
+                          with tarfile.open(fileobj=io.BytesIO(blob), mode='r:gz') as tf:
+                              members=[m for m in tf.getmembers() if m.isfile()]
+                              if not members:
+                                  raise RuntimeError('no model file in model artifact tar')
+                              chosen=next((m for m in members if 'xgboost' in m.name.lower() or 'model' in m.name.lower()), members[0])
+                              with tf.extractfile(chosen) as fh:
+                                  model_bytes=fh.read()
+                          booster=xgb.Booster()
+                          booster.load_model(bytearray(model_bytes))
+                          feat_lines=s3.get_object(Bucket=bkt,Key=kte)['Body'].read().decode('utf-8').splitlines()
+                          rows_x=[]
+                          for line in feat_lines:
+                              raw=line.strip()
+                              if not raw:
+                                  continue
+                              rows_x.append([float(v) for v in raw.split(',')])
+                          if not rows_x:
+                              raise RuntimeError('empty fallback feature rows')
+                          preds=booster.predict(xgb.DMatrix(rows_x)).tolist()
+                      else:
+                          raise
+                  metrics=metric_pack(labels,preds)
               except Exception as e:
                   blockers.append({'code':'M11-B4','message':f'managed train/eval failed: {type(e).__name__}','surface':'sagemaker'})
                   errs.append(str(e))
@@ -316,7 +360,7 @@ jobs:
               putj(s3,bkt,eval_pat.lstrip('/'),{
                 'captured_at_utc':now(),'phase':'M11.D','phase_id':'P14','execution_id':exec_id,
                 'platform_run_id':pr,'scenario_run_id':sr,
-                'training_job_name':tjob,'transform_job_name':xjob,'metrics':metrics,'status':'COMMITTED',
+                'training_job_name':tjob,'transform_job_name':xjob,'eval_mode':eval_mode,'metrics':metrics,'status':'COMMITTED',
                 'upstream_m11c_execution':up})
 
           tel=None; xel=None; total=0.0
@@ -334,9 +378,9 @@ jobs:
                 'input_refs':{'m10g_fingerprint_ref':fp_ref,'deterministic_input_keys':inp},
                 'budget_envelope_key':budget_pat.lstrip('/'),'eval_report_key':eval_pat.lstrip('/'),
                 'jobs':{'training':{'job_name':tjob,'status':tdesc.get('TrainingJobStatus',''),'failure_reason':tdesc.get('FailureReason',''),'model_artifact_uri':mdata,'elapsed_seconds':tel},
-                        'transform':{'job_name':xjob,'status':xdesc.get('TransformJobStatus',''),'failure_reason':xdesc.get('FailureReason',''),'model_name':model,'output_key':outk,'elapsed_seconds':xel}},
+                        'transform':{'job_name':xjob,'status':xdesc.get('TransformJobStatus',''),'failure_reason':xdesc.get('FailureReason',''),'model_name':model,'output_key':outk,'elapsed_seconds':xel,'eval_mode':eval_mode}},
                 'metrics':metrics,'runtime':{'elapsed_seconds':round(total,3),'budget_target_minutes':45,'budget_alert_minutes':60,'poll_timeout_minutes':timeout//60,'poll_interval_seconds':poll},
-                'read_errors':errs,'advisories':[], 'overall_pass':ok,'blocker_count':len(blockers),'next_gate':next_gate}
+                'read_errors':errs,'advisories':advisories, 'overall_pass':ok,'blocker_count':len(blockers),'next_gate':next_gate}
           br={'captured_at_utc':now(),'phase':'M11.D','phase_id':'P14','execution_id':exec_id,'blocker_count':len(blockers),'blockers':blockers,'overall_pass':ok}
           smy={'captured_at_utc':now(),'phase':'M11.D','phase_id':'P14','execution_id':exec_id,'platform_run_id':pr,'scenario_run_id':sr,
                'overall_pass':ok,'blocker_count':len(blockers),'verdict':verdict,'next_gate':next_gate,
