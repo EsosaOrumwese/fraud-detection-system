@@ -102,7 +102,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
-          python -m pip install boto3 botocore "sagemaker<3" xgboost
+          python -m pip install boto3 botocore "sagemaker<3" "xgboost==1.7.6"
 
       - name: Compute execution metadata
         id: run_meta
@@ -132,7 +132,7 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from __future__ import annotations
-          import io, json, os, tarfile, time, hashlib, re
+          import io, json, os, tarfile, time, hashlib, re, tempfile
           from datetime import datetime, timezone
           from pathlib import Path
           import boto3
@@ -337,8 +337,11 @@ jobs:
                               chosen=next((m for m in members if 'xgboost' in m.name.lower() or 'model' in m.name.lower()), members[0])
                               with tf.extractfile(chosen) as fh:
                                   model_bytes=fh.read()
-                          booster=xgb.Booster()
-                          booster.load_model(bytearray(model_bytes))
+                          with tempfile.NamedTemporaryFile(suffix='.model') as model_file:
+                              model_file.write(model_bytes)
+                              model_file.flush()
+                              booster=xgb.Booster()
+                              booster.load_model(model_file.name)
                           feat_lines=s3.get_object(Bucket=bkt,Key=kte)['Body'].read().decode('utf-8').splitlines()
                           rows_x=[]
                           for line in feat_lines:
