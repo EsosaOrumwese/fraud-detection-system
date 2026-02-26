@@ -1165,6 +1165,28 @@ M10 sub-phase plan:
 9. `M10.I` P13 gate rollup + verdict.
 10. `M10.J` M10 closure sync + M11 handoff.
 
+M10 execution status:
+1. Diagnostic local runs were executed for visibility but are non-authoritative under no-local-compute rule:
+   - execution: `m10a_handle_closure_20260226T092606Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M10.B_READY`,
+   - durable evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10a_handle_closure_20260226T092606Z/`.
+2. `M10.B` diagnostic local run executed fail-closed:
+   - execution: `m10b_databricks_readiness_20260226T092606Z`,
+   - result: `overall_pass=false`, `blocker_count=7`, `next_gate=HOLD_REMEDIATE`,
+   - active blocker family: `M10-B2` (Databricks readiness),
+   - primary causes:
+     - missing SSM parameters:
+       - `/fraud-platform/dev_full/databricks/workspace_url`,
+       - `/fraud-platform/dev_full/databricks/token`,
+     - required Databricks jobs not materialized:
+       - `fraud-platform-dev-full-ofs-build-v0`,
+       - `fraud-platform-dev-full-ofs-quality-v0`,
+   - durable evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10b_databricks_readiness_20260226T092606Z/`.
+3. Authoritative closure path is managed-only:
+   - workflow: `.github/workflows/dev_full_m10_ab_managed.yml`.
+
 DoD anchors:
 - [ ] OFS manifest committed.
 - [ ] dataset fingerprint committed.
@@ -1296,4 +1318,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M10.A` for P13 authority + handle closure.
+- Run managed workflow `.github/workflows/dev_full_m10_ab_managed.yml` to materialize Databricks surfaces/jobs and execute M10.A+M10.B with no local compute.

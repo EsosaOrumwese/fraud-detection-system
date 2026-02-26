@@ -4327,3 +4327,147 @@ Decision:
 Closure artifacts:
 - `runs/fix-data-engine/segment_6B/reports/segment6b_p4_closure_86f38dcfc0084d06b277b7c9c00ffc05.json`
 - `runs/fix-data-engine/segment_6B/reports/segment6b_p4_closure_86f38dcfc0084d06b277b7c9c00ffc05.md`
+
+---
+
+### Entry: 2026-02-26 09:30
+
+P5 pre-implementation design lock (integrated certification + freeze lane).
+
+Authority posture entering P5:
+- `P4` is closed with `UNLOCK_P5` on run-id `86f38dcfc0084d06b277b7c9c00ffc05`.
+- current realized grade on active authority run is `PASS_B` (hard gates + stretch `T19/T20` closed).
+- current retained run set under `runs/fix-data-engine/segment_6B/` is sparse (no explicit required-seed run map yet).
+
+Problem statement:
+- `P5` is still placeholder-level in build plan and has no dedicated 6B certification scorer.
+- certification closure requires a deterministic gate decision over required seeds (`42,7,101,202`) with explicit blocker classification if evidence is incomplete.
+
+Alternatives considered:
+1) use `score_segment6b_p0_baseline.py` only and manually inspect outputs.
+- rejected: not auditable for P5 closure; missing multi-seed aggregation and explicit decision artifact set.
+2) clone `6A` P5 cert scorer pattern for 6B, mapped to `T1..T22` gateboard structure (selected).
+- selected: lowest risk, deterministic, and consistent with existing segment certification posture.
+3) force `PASS_B` on single-seed evidence.
+- rejected: violates required-seed gate law in 6B build plan and fail-closed posture.
+
+Chosen P5 execution lane:
+1) expand build plan `P5` into executable subphases with DoD and blocker routing.
+2) implement `tools/score_segment6b_p5_certification.py` that:
+   - consumes per-seed `segment6b_p0_realism_gateboard_<run_id>.json`,
+   - verifies run-receipt seed alignment,
+   - aggregates hard/stretch gate pass posture and cross-seed stability CV,
+   - emits required artifacts (`validation_summary.json`, `seed_comparison.csv`, `regression_report.md`, `gate_decision.json`).
+3) execute scorer on available run map first; if missing seeds block closure, fail closed and open/execute seed-evidence resolver lane.
+4) attempt seed-evidence resolver via staged fresh seed runs under `runs/fix-data-engine/segment_6B/` without touching `runs/local_full_run-5/`.
+5) publish final P5 decision:
+   - `PASS_BPLUS_ROBUST`, `PASS_B`, or `HOLD_REMEDIATE`.
+
+Invariants:
+- no threshold relaxation in P5 scorer.
+- no modifications to published/remediation authority docs.
+- no writes to `runs/local_full_run-5/`.
+- run pruning keep-set enforced before any expensive reruns.
+
+---
+
+### Entry: 2026-02-26 09:33
+
+P5.1 implementation completed (certification scorer + seed-lane stager).
+
+Implemented tooling:
+- `tools/score_segment6b_p5_certification.py`
+  - consumes per-seed `segment6b_p0_realism_gateboard_<run_id>.json`,
+  - validates receipt-seed consistency and `S5` required-check posture,
+  - computes hard/stretch pass posture across required seeds,
+  - computes cross-seed CV posture on explicit 6B realism vectors,
+  - emits required artifacts:
+    - `segment6b_p5_validation_summary_<stamp>.json`,
+    - `segment6b_p5_seed_comparison_<stamp>.csv`,
+    - `segment6b_p5_regression_report_<stamp>.md`,
+    - `segment6b_p5_gate_decision_<stamp>.json`.
+- `tools/stage_segment6b_seed_run.py`
+  - stages fresh seed runs under `runs/fix-data-engine/segment_6B/`,
+  - keeps `runs/local_full_run-5/` untouched,
+  - links non-seed authority surfaces (`S0`, sealed inputs, upstream validations),
+  - maps target `seed=<n>` required upstream surfaces via seed-folder junctions from authority `seed=42` inputs.
+
+Rationale:
+- 6B had no P5 cert scorer and no dedicated multi-seed seed-lane stager.
+- implementing both was the minimal deterministic path to close `P5-B1` (missing required seeds) without changing state logic or threshold policy.
+
+---
+
+### Entry: 2026-02-26 09:34
+
+P5.2 first certification pass and blocker detection.
+
+Execution:
+- ran `tools/score_segment6b_p5_certification.py` on available run map.
+
+Outcome:
+- decision: `HOLD_REMEDIATE`.
+- blocker `P5-B1`: missing required seeds `7,101,202`.
+- evidence:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p5_gate_decision_20260226T093404Z.json`.
+
+Decision:
+- open `P5.3` resolver lane immediately and close missing seed evidence by fresh seeded runs (`S1 -> S2 -> S3 -> S4 -> S5`) per seed.
+
+---
+
+### Entry: 2026-02-26 11:16
+
+P5.3 resolver executed and closed.
+
+Resolver run-set executed:
+- seed `7` run-id `4bb1ec493e2d41bd8df0effed18c0e4e`,
+- seed `101` run-id `a16ce8f30a4e4523b21d747cf00de69a`,
+- seed `202` run-id `2e67c9d6c6774cad81ca35d9e5dbf1e8`.
+
+Per-seed execution lane:
+- staged run with `tools/stage_segment6b_seed_run.py` from authority `86f38dcfc0084d06b277b7c9c00ffc05`,
+- executed `make segment6b-s1/s2/s3/s4/s5`,
+- emitted per-seed gateboard via `tools/score_segment6b_p0_baseline.py`.
+
+Observed runtime envelope (completion lines from run logs):
+- seed `7`: `S1=842.69s`, `S2=235.58s`, `S3=401.09s`, `S4=437.83s`, `S5=5.92s`.
+- seed `101`: `S1=835.52s`, `S2=235.95s`, `S3=362.89s`, `S4=450.33s`, `S5=5.94s`.
+- seed `202`: `S1=832.94s`, `S2=239.58s`, `S3=397.83s`, `S4=440.81s`, `S5=5.81s`.
+
+Storage-control decisions during resolver:
+- after each seed gateboard emission, pruned heavy per-seed `S1..S4` output surfaces (and RNG event logs) for resolver runs.
+- retained run receipts + validation artifacts + gateboards to keep certification auditable while protecting disk headroom.
+
+---
+
+### Entry: 2026-02-26 11:18
+
+P5.4/P5.5 closure decision and freeze lock.
+
+Final certification execution:
+- reran scorer with explicit required seed map:
+  - `42:86f38dcfc0084d06b277b7c9c00ffc05`,
+  - `7:4bb1ec493e2d41bd8df0effed18c0e4e`,
+  - `101:a16ce8f30a4e4523b21d747cf00de69a`,
+  - `202:2e67c9d6c6774cad81ca35d9e5dbf1e8`.
+
+Final artifacts:
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p5_validation_summary_20260226T111812Z.json`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p5_seed_comparison_20260226T111812Z.csv`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p5_regression_report_20260226T111812Z.md`
+- `runs/fix-data-engine/segment_6B/reports/segment6b_p5_gate_decision_20260226T111812Z.json`
+
+Decision:
+- `PASS_B` (all required seeds pass `B`; no unresolved blockers).
+- `PASS_BPLUS_ROBUST` not achieved because `T5` remains below `B+` threshold across seeds.
+- stability posture: `cv_overall=0.109452` (passes both B/B+ CV thresholds).
+
+Freeze posture:
+- 6B frozen at `PASS_B`.
+- keep-set retained:
+  - `08db6e3060674203af415b389d5a9cbd`,
+  - `86f38dcfc0084d06b277b7c9c00ffc05`,
+  - `4bb1ec493e2d41bd8df0effed18c0e4e`,
+  - `a16ce8f30a4e4523b21d747cf00de69a`,
+  - `2e67c9d6c6774cad81ca35d9e5dbf1e8`.

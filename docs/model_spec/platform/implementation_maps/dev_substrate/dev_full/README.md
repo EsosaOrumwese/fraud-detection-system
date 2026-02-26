@@ -38,5 +38,9 @@ This folder is reserved for `dev_full` planning and implementation notes.
   - `M9.H` closed green for deterministic P12 verdict + M10 handoff publication.
   - `M9.I` closed green for phase budget + cost-outcome closure.
   - `M9.J` closed green for full M9 closure sync.
-  - next active step is `M10.A` authority + handle closure.
+  - `M10.A` closed green for P13 authority/handle closure.
+  - `M10.B` executed fail-closed with active `M10-B2` blockers (Databricks readiness/materialization).
+  - local M10 runs are diagnostic only under no-local-compute rule.
+  - next active step is managed workflow execution:
+    - `.github/workflows/dev_full_m10_ab_managed.yml`
 - `dev_min` remains closed and isolated under `../dev_min/`.

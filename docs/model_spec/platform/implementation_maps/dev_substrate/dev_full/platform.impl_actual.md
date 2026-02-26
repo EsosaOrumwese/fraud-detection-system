@@ -13170,3 +13170,174 @@ ext_gate=M10_READY.
 ### Immediate effect
 1. M10.A no longer fail-closes on missing Databricks workspace URL handle.
 2. Remaining known open handle in section 14 is now AWS_BUDGET_NOTIFICATION_EMAIL (plus role policy pin).
+
+## Entry: 2026-02-26 09:12:11 +00:00 - M10.A/M10.B execution kickoff and preflight blocker discovery
+
+### Scope lock
+1. Active lane is M10.A then M10.B only.
+2. Execution authority remains `platform.M10.build_plan.md` and `dev_full_handles.registry.v0.md`.
+
+### Preflight findings (before coding)
+1. AWS identity is valid (`arn:aws:iam::230372904534:user/fraud-dev`).
+2. Databricks secret-path surfaces are not currently materialized in SSM:
+   - `/fraud-platform/dev_full/databricks/workspace_url` -> `ParameterNotFound`
+   - `/fraud-platform/dev_full/databricks/token` -> `ParameterNotFound`
+3. This is a direct M10.B readiness risk; M10.B must fail closed if unremediated.
+
+### Decision
+1. Proceed with M10.A execution now (authority/handle closure is independent of SSM runtime materialization).
+2. Expand M10.B from skeletal to execution-grade checks and execute it immediately.
+3. Enforce fail-closed blocker taxonomy:
+   - `M10-B1` for M10.A authority/handle closure issues.
+   - `M10-B2` for Databricks readiness/materialization/connectivity/job-policy issues.
+   - `M10-B12` for artifact publication/readback parity failures.
+
+### Alternatives considered
+1. Directly seed SSM with placeholder token to force pass posture.
+   - Rejected: violates fail-closed readiness semantics and would create false green.
+2. Skip M10.B until later.
+   - Rejected: USER requested explicit execution now.
+
+## Entry: 2026-02-26 09:18:42 +00:00 - M10.B planning expansion to execution-grade
+
+### Why expansion was required
+1. M10.B was previously skeletal and did not encode deterministic readiness checks.
+2. USER explicitly requested M10.B planning then execution in the same lane progression.
+
+### Expansion decisions
+1. Added explicit entry gate on `M10.A` pass posture (`next_gate=M10.B_READY`).
+2. Added deterministic algorithm for SSM materialization checks, Databricks API probe checks, required-job existence checks, and compute-policy conformance checks.
+3. Added explicit artifacts for lane auditability:
+   - `m10b_databricks_readiness_snapshot.json`,
+   - `m10b_blocker_register.json`,
+   - `m10b_execution_summary.json`.
+4. Added explicit blocker-free gate requirement:
+   - pass => `M10.C_READY`,
+   - fail => `HOLD_REMEDIATE`.
+
+## Entry: 2026-02-26 09:24:58 +00:00 - M10.A/M10.B runner implementation
+
+### Implemented files
+1. `scripts/dev_substrate/m10a_handle_closure.py`
+2. `scripts/dev_substrate/m10b_databricks_readiness.py`
+
+### Implementation choices
+1. Reused deterministic lane pattern from M8/M9:
+   - fixed execution id,
+   - fixed artifact names,
+   - local + durable publication with readback.
+2. M10.A logic enforces:
+   - M9 closure posture (`ADVANCE_TO_M10`, `M10_READY`),
+   - M10 handoff posture from M9.H,
+   - 12-handle closure matrix with missing/placeholder/wildcard classification.
+3. M10.B logic enforces:
+   - M10.A pass posture (`M10.B_READY`),
+   - SSM materialization for Databricks workspace/token paths,
+   - Databricks API probes (`/Me`, `/jobs/list`),
+   - required job presence by pinned names,
+   - compute-policy conformance checks for `job-clusters-only`.
+4. Both scripts fail closed and emit blocker registers.
+
+## Entry: 2026-02-26 09:26:07 +00:00 - M10.A executed green
+
+### Execution
+1. `execution_id = m10a_handle_closure_20260226T092606Z`.
+2. Upstreams:
+   - `m9j_closure_sync_20260226T083701Z` (M9 closure summary),
+   - `m9h_p12_gate_rollup_20260226T082548Z` (M10 handoff pack).
+
+### Outcome
+1. `overall_pass=true`, `blocker_count=0`, `next_gate=M10.B_READY`.
+2. Required handle closure:
+   - count `12/12` resolved,
+   - missing `0`, placeholder `0`, wildcard `0`.
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m10/m10a_handle_closure_20260226T092606Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10a_handle_closure_20260226T092606Z/`
+
+## Entry: 2026-02-26 09:26:17 +00:00 - M10.B executed fail-closed (expected)
+
+### Execution
+1. `execution_id = m10b_databricks_readiness_20260226T092606Z`.
+2. Upstream:
+   - `m10a_handle_closure_20260226T092606Z`.
+
+### Outcome
+1. `overall_pass=false`, `blocker_count=7`, `next_gate=HOLD_REMEDIATE`.
+2. Blocker family: `M10-B2` only.
+3. Runtime truth:
+   - Databricks SSM parameters not found:
+     - `/fraud-platform/dev_full/databricks/workspace_url`
+     - `/fraud-platform/dev_full/databricks/token`
+   - Databricks probes skipped due missing token materialization.
+   - Required jobs not found:
+     - `fraud-platform-dev-full-ofs-build-v0`
+     - `fraud-platform-dev-full-ofs-quality-v0`
+
+### Evidence
+1. Local:
+   - `runs/dev_substrate/dev_full/m10/m10b_databricks_readiness_20260226T092606Z/`
+2. Durable:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10b_databricks_readiness_20260226T092606Z/`
+
+### Remediation lane (pinned before any M10.C work)
+1. Materialize Databricks SSM paths with real values (not placeholders):
+   - `/fraud-platform/dev_full/databricks/workspace_url`
+   - `/fraud-platform/dev_full/databricks/token`
+2. Create required Databricks jobs with pinned names and job-cluster policy posture.
+3. Rerun M10.B until `overall_pass=true` and `next_gate=M10.C_READY`.
+
+## Entry: 2026-02-26 09:41:33 +00:00 - No-local-compute remediation: managed M10.A/M10.B lane added
+
+### Trigger
+1. USER explicitly rejected local-compute closure posture for this lane.
+2. Requirement is now strict: M10 authority/readiness closure must run via managed runner only.
+
+### Implemented solution
+1. Added managed workflow:
+   - `.github/workflows/dev_full_m10_ab_managed.yml`
+2. Workflow responsibilities:
+   - assume AWS via OIDC role,
+   - apply `infra/terraform/dev_full/data_ml` using repo secrets mapped to Terraform vars,
+   - read Databricks workspace/token from SSM,
+   - upsert required Databricks jobs (`ofs-build`, `ofs-quality`),
+   - execute `scripts/dev_substrate/m10a_handle_closure.py`,
+   - execute `scripts/dev_substrate/m10b_databricks_readiness.py`,
+   - fail closed unless `M10.A` and `M10.B` both pass.
+3. Added Databricks job materialization helper:
+   - `scripts/dev_substrate/m10b_upsert_databricks_jobs.py`
+
+### Documentation repin
+1. M10 deep plan now treats local runs as diagnostic only under no-local-compute rule.
+2. Authoritative closure is repinned to managed workflow execution.
+3. Next action in master plan is updated to run managed lane, not local rerun.
+
+## Entry: 2026-02-26 09:22:38 +00:00 - M10.A/M10.B execution kickoff and preflight blocker discovery
+
+### Scope lock
+1. Active lane is M10.A then M10.B only.
+2. Execution authority remains platform.M10.build_plan.md and dev_full_handles.registry.v0.md.
+
+### Preflight findings (before coding)
+1. AWS identity is valid (rn:aws:iam::230372904534:user/fraud-dev).
+2. Databricks secret-path surfaces are **not currently materialized** in SSM:
+   - /fraud-platform/dev_full/databricks/workspace_url -> ParameterNotFound
+   - /fraud-platform/dev_full/databricks/token -> ParameterNotFound
+3. This is a direct M10.B readiness risk; M10.B must fail closed if unremediated.
+
+### Decision
+1. Proceed with M10.A execution now (authority/handle closure is independent of SSM runtime materialization).
+2. Expand M10.B from skeletal to execution-grade checks and execute it immediately.
+3. Enforce fail-closed blocker taxonomy:
+   - M10-B1 for M10.A authority/handle closure issues.
+   - M10-B2 for Databricks readiness/materialization/connectivity/job-policy issues.
+   - M10-B12 for artifact publication/readback parity failures.
+
+### Alternatives considered
+1. Directly seed SSM with placeholder token to force pass posture.
+   - Rejected: violates fail-closed readiness semantics and would create false green.
+2. Skip M10.B until later.
+   - Rejected: USER requested explicit execution now.

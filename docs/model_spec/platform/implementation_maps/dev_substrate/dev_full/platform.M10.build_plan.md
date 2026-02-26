@@ -64,7 +64,11 @@ Entry gate for M10:
 
 Current posture:
 1. M10 planning is expanded to execution-grade.
-2. Execution has not started.
+2. Local M10 execution artifacts exist for diagnostics:
+   - `M10.A` local run `m10a_handle_closure_20260226T092606Z`,
+   - `M10.B` local run `m10b_databricks_readiness_20260226T092606Z`.
+3. No-local-compute rule is now explicit for this lane; authoritative closure requires managed execution via GitHub Actions.
+4. Active blocker family remains `M10-B2` until managed rerun closes it.
 
 ## 4.1) Anti-Cram Law (Binding for M10)
 M10 is not execution-ready unless these capability lanes are explicit:
@@ -154,28 +158,94 @@ Deterministic verification algorithm (M10.A):
 Runtime budget:
 1. target <= 8 minutes wall clock.
 
-Known pre-execution posture:
-1. `DBX_WORKSPACE_URL` is currently `TO_PIN` in the handle registry and will fail-closed `M10.A` until materialized.
-
 DoD:
-- [ ] required handle matrix explicit and complete.
-- [ ] unresolved handles are blocker-marked.
-- [ ] `m10a_handle_closure_snapshot.json` committed locally and durably.
-- [ ] `m10a_blocker_register.json` and `m10a_execution_summary.json` committed locally and durably.
-- [ ] blocker-free pass emits `next_gate=M10.B_READY`.
+- [x] required handle matrix explicit and complete.
+- [x] unresolved handles are blocker-marked.
+- [x] `m10a_handle_closure_snapshot.json` committed locally and durably.
+- [x] `m10a_blocker_register.json` and `m10a_execution_summary.json` committed locally and durably.
+- [x] blocker-free pass emits `next_gate=M10.B_READY`.
+
+Execution status:
+1. Execution id:
+   - `m10a_handle_closure_20260226T092606Z`
+2. Result:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M10.B_READY`
+3. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10a_handle_closure_20260226T092606Z/`
+4. Authority note:
+   - this run is diagnostic only under current no-local-compute rule; authoritative status must be re-proven by managed lane.
 
 ### M10.B Databricks Runtime Readiness
 Goal:
 1. prove workspace/job/identity surfaces are executable.
 
-Tasks:
-1. validate workspace URL/token access surfaces.
-2. validate job definitions and expected compute policy.
-3. emit `m10b_databricks_readiness_snapshot.json`.
+Entry conditions:
+1. `M10.A` summary is pass posture with `next_gate=M10.B_READY`.
+2. run scope is fixed:
+   - one `platform_run_id`,
+   - one `scenario_run_id`.
+3. Databricks control handles are resolved and non-placeholder:
+   - `DBX_WORKSPACE_URL`,
+   - `DBX_JOB_OFS_BUILD_V0`,
+   - `DBX_JOB_OFS_QUALITY_GATES_V0`,
+   - `DBX_COMPUTE_POLICY`,
+   - `DBX_AUTOSCALE_WORKERS`,
+   - `DBX_AUTO_TERMINATE_MINUTES`,
+   - `SSM_DATABRICKS_WORKSPACE_URL_PATH`,
+   - `SSM_DATABRICKS_TOKEN_PATH`.
+
+Deterministic verification algorithm (M10.B):
+1. load and validate `M10.A` summary entry posture.
+2. resolve Databricks workspace/token from SSM paths with fail-closed on read errors.
+3. verify SSM workspace URL equals `DBX_WORKSPACE_URL` handle.
+4. enforce token readiness posture:
+   - token exists,
+   - token is non-placeholder,
+   - token length meets minimum readiness threshold.
+5. perform Databricks API probes:
+   - workspace identity probe (`/api/2.0/preview/scim/v2/Me`),
+   - jobs list probe (`/api/2.1/jobs/list`).
+6. validate required jobs exist by handle name:
+   - `DBX_JOB_OFS_BUILD_V0`,
+   - `DBX_JOB_OFS_QUALITY_GATES_V0`.
+7. validate compute policy conformance for required jobs:
+   - no task uses `existing_cluster_id` when `DBX_COMPUTE_POLICY=job-clusters-only`,
+   - autoscale range conforms to `DBX_AUTOSCALE_WORKERS`,
+   - auto-termination conforms to `DBX_AUTO_TERMINATE_MINUTES`.
+8. emit deterministic artifacts:
+   - `m10b_databricks_readiness_snapshot.json`,
+   - `m10b_blocker_register.json`,
+   - `m10b_execution_summary.json`.
+9. publish locally + durably with readback parity.
+10. emit deterministic next gate:
+   - `M10.C_READY` when blocker count is `0`,
+   - otherwise `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 10 minutes wall clock.
 
 DoD:
 - [ ] Databricks readiness checks pass.
-- [ ] readiness snapshot committed locally and durably.
+- [x] `m10b_databricks_readiness_snapshot.json` committed locally and durably.
+- [x] `m10b_blocker_register.json` and `m10b_execution_summary.json` committed locally and durably.
+- [ ] blocker-free pass emits `next_gate=M10.C_READY`.
+
+Execution status:
+1. Execution id:
+   - `m10b_databricks_readiness_20260226T092606Z`
+2. Result:
+   - `overall_pass=false`, `blocker_count=7`, `next_gate=HOLD_REMEDIATE`
+3. Active blockers:
+   - `M10-B2` Databricks readiness failure:
+     - SSM parameter missing: `/fraud-platform/dev_full/databricks/workspace_url`
+     - SSM parameter missing: `/fraud-platform/dev_full/databricks/token`
+     - required Databricks jobs missing:
+       - `fraud-platform-dev-full-ofs-build-v0`
+       - `fraud-platform-dev-full-ofs-quality-v0`
+4. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10b_databricks_readiness_20260226T092606Z/`
+5. Authority note:
+   - this run is diagnostic only under current no-local-compute rule; authoritative status must be re-proven by managed lane.
 
 ### M10.C M9 Input Binding + Immutability
 Goal:
@@ -328,6 +398,9 @@ DoD:
 
 ## 9) Planning Status
 1. M10 planning is expanded and execution-grade.
-2. M9 closure gate is now green (`M9 DONE`, `next_gate=M10_READY`), so M10 can start at `M10.A`.
+2. M9 closure gate is green (`M9 DONE`, `next_gate=M10_READY`).
 3. `M11` handoff contract remains an in-phase closure requirement under `M10.I`.
-4. `M10.A` is expanded to execution-grade and ready for execution.
+4. `M10.A` is closed green and `M10.B` has been executed fail-closed.
+5. Managed remediation/closure lane is now added:
+   - `.github/workflows/dev_full_m10_ab_managed.yml`
+6. Next action is managed execution of M10.A+M10.B and closure of `M10-B2`.

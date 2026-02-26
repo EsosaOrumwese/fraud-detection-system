@@ -1712,17 +1712,86 @@ Goal:
 - complete cross-seed certification, publish final decision, and freeze segment 6B.
 
 Definition of done:
-- [ ] full `T1-T22` suite executed on required seeds.
-- [ ] certification artifacts produced:
-  - `validation_summary.json`,
-  - `seed_comparison.csv`,
-  - `regression_report.md`,
-  - `gate_decision.json`.
-- [ ] grade decision locked as one of:
+- [x] full `T1-T22` suite executed on required seeds (`42, 7, 101, 202`) with explicit seed->run mapping.
+- [x] required certification artifacts emitted under `runs/fix-data-engine/segment_6B/reports/`:
+  - `segment6b_p5_validation_summary_<stamp>.json`,
+  - `segment6b_p5_seed_comparison_<stamp>.csv`,
+  - `segment6b_p5_regression_report_<stamp>.md`,
+  - `segment6b_p5_gate_decision_<stamp>.json`.
+- [x] cross-seed stability posture computed and recorded (`critical gates`, `stretch gates`, `CV posture`).
+- [x] grade decision locked as one of:
   - `PASS_BPLUS_ROBUST`,
   - `PASS_B`,
   - `HOLD_REMEDIATE`.
-- [ ] freeze note appended to build plan + implementation notes + logbook.
+- [x] freeze note appended to build plan + implementation notes + logbook.
+
+P5 expanded execution plan:
+
+#### P5.0 - Entry lock and seed map authority
+Definition of done:
+- [x] `P4` authority run pinned as certification anchor (`86f38dcfc0084d06b277b7c9c00ffc05`).
+- [x] required seed set pinned (`42,7,101,202`) and selected seed->run map recorded.
+- [x] any missing required seeds are classified as fail-closed blocker before decisioning.
+
+#### P5.1 - Certification scorer lane implementation (`S5` evidence owner)
+Definition of done:
+- [x] dedicated scorer exists for 6B P5 (`tools/score_segment6b_p5_certification.py`).
+- [x] scorer validates:
+  - run receipt seed alignment,
+  - per-seed gateboard presence,
+  - hard/stress gate pass posture,
+  - cross-seed stability CV posture.
+- [x] scorer emits the four required P5 artifacts with deterministic schema.
+
+#### P5.2 - Candidate certification execution (available runs)
+Definition of done:
+- [x] scorer run executed on currently available seed->run map.
+- [x] `segment6b_p5_gate_decision_<stamp>.json` emitted with explicit `decision` and `blocker_register`.
+- [x] if missing seeds remain, decision is fail-closed (`HOLD_REMEDIATE`) with actionable resolver plan.
+
+#### P5.3 - Seed-evidence resolver lane (conditional reopen)
+Definition of done:
+- [x] if P5.2 has missing required seeds, open resolver lane that creates fresh runs under `runs/fix-data-engine/segment_6B/` only.
+- [x] resolver lane executes required owner matrix per fresh seed (`S1 -> S2 -> S3 -> S4 -> S5`).
+- [x] each resolver run emits `segment6b_p0_realism_gateboard_<run_id>.json` and validates `s5_validation_report_6B`.
+- [x] no writes occur in `runs/local_full_run-5/`.
+
+#### P5.4 - Final certification replay and verdict lock
+Definition of done:
+- [x] scorer rerun on complete required seed map (or explicit unresolved blocker posture if still incomplete).
+- [x] final gate decision locked:
+  - `PASS_BPLUS_ROBUST` when hard + stretch + stability satisfy `B+`,
+  - `PASS_B` when hard + required stretch + stability satisfy `B`,
+  - `HOLD_REMEDIATE` otherwise.
+- [x] non-regression note includes active runtime watch (`S3`) status.
+
+#### P5.5 - Freeze handoff closure
+Definition of done:
+- [x] build plan updated with final P5 decision and artifact references.
+- [x] implementation map appended with executed commands, alternatives, blockers, and closure logic.
+- [x] logbook appended with timestamped P5 closure receipt.
+- [x] run-folder keep-set refreshed and superseded run-id folders pruned.
+
+P5 execution status (closure authority):
+- candidate certification (pre-resolver) artifact:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p5_gate_decision_20260226T093404Z.json` (`HOLD_REMEDIATE`; blocker `P5-B1` missing seeds `7,101,202`).
+- resolver run-set (required seeds):
+  - `42 -> 86f38dcfc0084d06b277b7c9c00ffc05`,
+  - `7 -> 4bb1ec493e2d41bd8df0effed18c0e4e`,
+  - `101 -> a16ce8f30a4e4523b21d747cf00de69a`,
+  - `202 -> 2e67c9d6c6774cad81ca35d9e5dbf1e8`.
+- final certification artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p5_validation_summary_20260226T111812Z.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p5_seed_comparison_20260226T111812Z.csv`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p5_regression_report_20260226T111812Z.md`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p5_gate_decision_20260226T111812Z.json`.
+- final decision:
+  - `PASS_B` (all required seeds pass `B`; `B+` not achieved due `T5` remaining below `B+` threshold across seeds).
+- runtime watch (carried, non-blocking for `PASS_B`):
+  - `S3` remains above the `380s` watch line in this certification set.
+- freeze posture:
+  - keep-set retained: `08db6e3060674203af415b389d5a9cbd`, `86f38dcfc0084d06b277b7c9c00ffc05`, `4bb1ec493e2d41bd8df0effed18c0e4e`, `a16ce8f30a4e4523b21d747cf00de69a`, `2e67c9d6c6774cad81ca35d9e5dbf1e8`.
+  - heavy per-seed `S1..S4` outputs pruned for resolver seeds after gateboard emission to protect storage.
 
 ## 7) Decision policy and fail-closed rules
 - If any critical gate fails in a wave, stop and reopen only owning lanes before any downstream phase.
