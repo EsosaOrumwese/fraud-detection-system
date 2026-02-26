@@ -12,21 +12,29 @@ What this proves:
 Tech stack:
 - Managed cloud runtime, managed event transport, run-scoped evidence artifacts, and machine-readable certification snapshots.
 
-Top 3 proof hooks:
-- Proof 1: Final certification closed blocker-free with deterministic verdict. Artifact: `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`.
-- Proof 2: Incident and soak lanes both showed fail-to-fix-to-pass closure in the same certification cycle. Artifacts: `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot_attempt1_fail.json`, `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot.json`, `runs/dev_substrate/m10/m10_20260221T212100Z/m10_g_soak_snapshot.json`, `runs/dev_substrate/m10/m10_20260221T234738Z/m10_g_soak_snapshot.json`.
-- Proof 3: Recovery-under-load and reproducibility both passed with measured thresholds. Artifacts: `runs/dev_substrate/m10/m10_20260222T015122Z/m10_h_recovery_snapshot.json`, `runs/dev_substrate/m10/m10_20260222T064333Z/m10_i_reproducibility_snapshot.json`.
+Top 3 in-report proof exhibits (self-contained):
+- Exhibit 1 (Section 9.1): Lane matrix plus deterministic final rollup (all required lanes closed, empty blocker union, no override path).
+- Exhibit 2 (Sections 9.3 and 9.4): Two fail-to-fix-to-pass demonstrations in the same certification cycle (incident drill and soak lane), including bounded remediation and time-to-recovery.
+- Exhibit 3 (Sections 9.5 and 9.6): Recovery-under-load and reproducibility closure with measured thresholds and explicit run pairing.
+
+Appendix note:
+- Raw artifact retrieval hooks remain available in Section 11 for audit-style inspection, but the report body carries the proof facts directly.
 
 Non-claim:
 - This certifies managed production-like operation, not live customer production traffic.
 
-## Numbers That Matter
-- Final certification posture: certification advanced with an explicit pass verdict, no open lane blockers, and an empty cross-lane blocker rollup.
-- Semantic baseline objective: `418` seconds elapsed against `3600`-second budget.
-- Incident closure: initial non-pass snapshot to pass snapshot with `duplicate_delta=320` and no double-action drift.
-- Scale outcomes: `50,100` admitted in representative window (target `>=50,000`), burst multiplier `3.1277` (target `3.0`).
-- Recovery under load: `172.162` seconds restart-to-stable against `600`-second threshold.
-- Reproducibility: replay-anchor keyset matched, `duplicate_share_delta=0.00059848`, `quarantine_share_delta=0.00132463`.
+## Numbers That Matter (mapped to certification lanes)
+These numbers are not marketing stats; each is tied to a lane objective and is enforced by machine-adjudicated pass/fail.
+Lane identifiers (`M10.*`) are certification lane IDs from the same managed certification cycle.
+
+- Final certification (M10.J synthesis): `verdict=ADVANCE_CERTIFIED_DEV_MIN`, `overall_pass=true`, `blocker_union=[]`, `missing_refs_count=0`, synthesis budget pass (`1.617/1800s`).
+- Semantic baseline (M10.C): runtime budget `418/3600s` (pass) with `publish_ambiguous=0`.
+- Incident resilience (M10.D): fail-to-fix-to-pass achieved; `duplicate_delta=320` (target `>=100`), `no_double_actions=true`, runtime budget `1542/3600s` (pass), time-to-recovery `21.70 min`.
+- Representative window (M10.E): `50100` admitted (target `>=50000`), primary window budget `7180/7200s` (pass).
+- Burst (M10.F): ingest multiplier `3.1277` (target `>=3.0`), admit ratio `1.0` (target `>=0.995`).
+- Soak (M10.G): fail-to-fix-to-pass achieved; lag corrected from `max_lag_window=310` (fail) to `3` (pass), time-to-recovery `141.85 min`.
+- Recovery under load (M10.H): restart-to-stable `172.162s` (target `<=600s`) with post-recovery lag `max_lag_window=4` (target `<=10`).
+- Reproducibility (M10.I): `anchor_keyset_match=true`, `duplicate_share_delta=0.00059848`, `quarantine_share_delta=0.00132463` (bounded drift posture), `semantic_invariant_pass=true`.
 
 ## 1) Claim Statement
 
@@ -731,16 +739,35 @@ Section 9 presents the measured outcomes produced by executing this strategy.
 
 ## 9) Results and Operational Outcome
 
-### 9.1 Final certification outcome
-The certification cycle closed with deterministic advance posture:
-1. verdict: certification advanced,
-2. final adjudication pass: yes,
-3. open lane blockers: none,
-4. cross-lane blocker rollup: empty,
-5. certification synthesis runtime budget: pass (`elapsed_seconds=1.617`, `budget_seconds=1800`).
+### 9.1 Final certification outcome (rollup witness plus lane matrix)
+This certification cycle closed with deterministic advance posture and an explicit "no override" governance model.
 
-Operational meaning:
-- platform closure was achieved by objective adjudication across all required lanes, not by narrative exception handling.
+Final rollup witness (measured):
+- timestamp: `2026-02-22T08:10:48.865097Z`
+- verdict: `ADVANCE_CERTIFIED_DEV_MIN`
+- `overall_pass=true`
+- `blocker_union=[]`
+- source lane count: `9` (`M10.A..M10.I`)
+- `missing_refs_count=0`
+- synthesis runtime budget: `elapsed_seconds=1.617`, `budget_seconds=1800`, `pass=true`
+- no-override witness: verdict is computed from lane snapshots and blocker-union synthesis; no manual override field/path exists in the v0 snapshot contract.
+
+Exhibit A - Lane matrix summary (what was required, what passed, what it proved):
+Note: source matrix counts 9 lanes (`M10.A..M10.I`). The table below summarizes the primary Service Level Objective-bearing lanes (`M10.B..M10.I`). `M10.A` is an entry/conformance lane required by the source matrix and is included in the rollup count.
+
+| Lane | Attempts | Objective (threshold) | Observed | Final |
+|---|---|---|---|---|
+| M10.B Semantic (20) | 1 pass | admitted >= 20; publish_ambiguous = 0 | admitted=260; publish_ambiguous=0 | PASS |
+| M10.C Semantic (200) | 1 pass | admitted >= 200; runtime <= 3600s | admitted=260; runtime=418s | PASS |
+| M10.D Incident drill | 1 fail + 1 pass | duplicate_delta >= 100; no_double_actions=true | duplicate_delta=320; no_double_actions=true | PASS |
+| M10.E Representative window | 1 pass (in-lane top-up) | admitted >= 50000; window budget <= 7200s | admitted=50100; window budget=7180s | PASS |
+| M10.F Burst | 1 pass | ingest multiplier >= 3.0; admit ratio >= 0.995 | multiplier=3.1277; admit ratio=1.0 | PASS |
+| M10.G Soak | 1 fail + 1 pass | max_lag_window <= 10; checkpoint_monotonic=true | max_lag_window=3; checkpoint_monotonic=true | PASS |
+| M10.H Recovery | 1 pass | restart_to_stable <= 600s; post-recovery lag <= 10 | 172.162s; max_lag_window=4 | PASS |
+| M10.I Reproducibility | 1 pass | keyset match true; semantic invariant pass; bounded drift | keyset_match=true; invariants=true; deltas small | PASS |
+
+Interpretation:
+- This is a platform-certification result, not a "single run succeeded" result: each major risk class (semantic, incident, scale, recovery, reproducibility) had an explicit lane with pinned objectives, and certification advanced only when the blocker union was empty.
 
 ### 9.2 Semantic correctness outcomes
 Semantic closure passed at both bounded certification depths:
@@ -759,25 +786,27 @@ Semantic closure passed at both bounded certification depths:
 Operational meaning:
 - semantic movement and safety posture remained compatible with certification thresholds at both certification depths.
 
-### 9.3 Incident resilience outcome (fail-to-fix-to-pass)
-Incident lane demonstrated required fail-first and remediation closure:
-1. initial attempt:
-- lane pass: no,
-- blocker: present on first attempt,
-- elapsed: `241` seconds.
-2. remediation rerun:
-- lane pass: yes,
-- open blockers: none,
-- elapsed: `1542` seconds.
-3. post-remediation correctness deltas:
-- `duplicate_delta=320`,
-- `no_double_actions=true`,
-- `no_duplicate_case_records=true`,
-- `audit_append_only_preserved=true`,
-- `publish_ambiguous_absent=true`.
+### 9.3 Incident resilience outcome (fail-to-fix-to-pass with time-to-recovery)
+Incident resilience is only claimed when both fail-first evidence and post-remediation closure exist in the same certification cycle.
 
-Operational meaning:
-- incident controls were not only present; they were exercised under failure and proven to close without unsafe side effects.
+Exhibit B - Incident drill fail -> remediation -> pass:
+| Phase | Time (Coordinated Universal Time, UTC) | Status | Blocker | Objective | Observed | Interpretation |
+|---|---|---|---|---|---|---|
+| Fail-first attempt | 2026-02-20T05:47:09Z | FAIL | `M10D-B2` | duplicate_delta >= 100 | duplicate_delta=0 (duplicate_receipts_present=false) | Drill executed but did not materialize duplicate receipts; lane remained fail-closed. |
+| Bounded remediation | - | - | - | - | - | Switched from READY replay path to direct managed World Streamer Producer stream injection; reran reporter and lane verifier on the same run scope. |
+| Rerun closure | 2026-02-20T06:08:51Z | PASS | - | duplicate_delta >= 100 | duplicate_delta=320 | Objective achieved under rerun with safety preserved. |
+
+Safety preservation (PASS requirements met):
+- `no_double_actions=true`
+- `no_duplicate_case_records=true`
+- `action_intent_delta=0`, `action_outcome_delta=0`
+- runtime budget pass: `1542/3600s`
+
+Measured time-to-recovery:
+- `21.70 minutes` from fail witness to rerun PASS.
+
+Interpretation:
+- This proves incident controls are not "configured"; they are exercised: fail-first capture exists, remediation is bounded, and rerun closure is enforced with side-effect safety guarantees.
 
 ### 9.4 Scale outcomes
 Scale behavior closed across representative window, burst, and soak:
@@ -801,54 +830,73 @@ Budget interpretation note:
 - runtime budget: pass (`elapsed_seconds=1035.812`, `budget_seconds=5400`).
 
 3. Soak (fail-to-fix-to-pass):
-- initial soak attempt:
-  - lane pass: no,
-  - blocker: present on first attempt,
-  - lag check failure: `max_lag_window=310` (lag pass false),
-  - elapsed: `6064.398` seconds.
-- remediation soak rerun:
-  - lane pass: yes,
-  - open blockers: none,
-  - lag stabilized: `max_lag_window=3`,
-  - `checkpoint_monotonic=true`,
-  - semantic safety remained clean (`max_publish_ambiguous=0`, `fail_open_detected=false`),
-  - runtime budget: pass (`elapsed_seconds=5711.067287`, `budget_seconds=10800`).
+This lane proves long-window stability. It is designed to fail-closed on lag instability even when short-window metrics look healthy.
+
+Exhibit C - Soak lane fail -> remediation -> pass:
+| Phase | Time (Coordinated Universal Time, UTC) | Status | Blocker | Objective | Observed | Interpretation |
+|---|---|---|---|---|---|---|
+| Fail-first attempt | 2026-02-21T23:12:37Z | FAIL | `M10G-B2` | max_lag_window <= 10 | max_lag_window=310 | Semantic safety held but lag stability breached, so lane remained blocked. |
+| Bounded remediation | - | - | - | - | - | Reran soak on fresh run scope with authoritative lag adjudication (database admissions offsets vs Kafka end offsets), using temporary narrow database ingress to restore direct sampler access. |
+| Rerun closure | 2026-02-22T01:34:28Z | PASS | - | max_lag_window <= 10 | max_lag_window=3 | Stability restored with checkpoint monotonicity preserved. |
+
+PASS posture fields:
+- `checkpoint_monotonic=true`
+- runtime budget pass: `5711.067287/10800s`
+- semantic safety clean: `max_publish_ambiguous=0`, `fail_open_detected=false`
+
+Measured time-to-recovery:
+- `141.85 minutes` from fail window end to pass window end.
+
+Interpretation:
+- This is exactly why soak exists: it surfaces long-horizon instability (lag accumulation) that window/burst tests can miss, and it forces remediation to be proven by rerun closure.
 
 Operational meaning:
 - scale readiness was proven across three load behaviors, including resolution of an observed long-window instability.
 
-### 9.5 Recovery-under-load outcome
-Recovery lane closed with explicit recovery-time and stabilization success:
-1. lane pass: yes,
-2. open blockers: none,
-3. reporter prerequisite gate: pass,
-4. restart-to-stable: `172.162` seconds (threshold `600`),
-5. post-recovery lag stability: pass (`max_lag_window=4`, threshold `10`),
-6. semantic stability: pass (`semantic_pass=true`, `max_publish_ambiguous=0`, `max_fail_open=0`),
-7. runtime budget: pass (`elapsed_seconds=4823.044`, `budget_seconds=7200`).
+### 9.5 Recovery-under-load outcome (restart target plus stable definition)
+Recovery claims must specify "restart of what" and "what stable means," not only a single duration number.
 
-Operational meaning:
-- the platform met its recovery objective under active load with preserved semantic safety.
+Restart target:
+- `fraud-platform-dev-min-ig` (Ingestion Gate service)
 
-### 9.6 Reproducibility outcome
-Reproducibility lane closed on fresh-run comparison:
-1. lane pass: yes,
-2. open blockers: none,
-3. coherence checks:
-- `anchor_keyset_match=true`,
-- `profile_match=true`,
-- `missing_required_surfaces_count=0`.
-4. bounded drift checks:
-- `duplicate_share_delta=0.00059848`,
-- `quarantine_share_delta=0.00132463`.
-5. semantic invariants:
-- `semantic_invariant_pass=true`,
-- `lag_pass=true`.
-6. runtime budget:
-- pass (`elapsed_seconds=2554.005`, `budget_seconds=5400`).
+Restart timing definition:
+- restart start is `restart_started_at_utc` recorded when restart injection begins for the target service.
 
-Operational meaning:
-- certification behavior was repeatable across a second managed run with bounded divergence and preserved safety invariants.
+Stable definition:
+- Stable means replacement tasks are observed and post-restart stabilization checks pass (lag within threshold, checkpoint monotonic, and semantic safety clean) over the observation window.
+
+Measured recovery result:
+- restart_start_timestamp: `2026-02-22T02:27:53.5784435Z`
+- stable_timestamp: `2026-02-22T02:30:45.7400861Z`
+- time_to_stable_seconds: `172.162` (threshold <= 600)
+
+Stable metrics at closure:
+- `max_lag_window=4` (threshold <= 10)
+- `checkpoint_monotonic=true`
+- `max_publish_ambiguous=0`
+- `sample_count=7`
+
+Interpretation:
+- This is a recovery-under-load claim, not a "process restarted" claim: stabilization is measured and coupled to semantic safety, and it passes under the pinned recovery objective.
+
+### 9.6 Reproducibility outcome (explicit run pairing plus bounded drift)
+Reproducibility is proven by pairing a baseline run with a fresh-run candidate and comparing them over a pinned population definition.
+
+Run pairing:
+- baseline run_id: `platform_20260222T015122Z` (baseline surfaces consumed by the reproducibility lane)
+- candidate run_id: `platform_20260222T064333Z` (timestamp `2026-02-22T07:26:07Z`)
+
+Population definition (what was compared):
+- Compared baseline and candidate reproducibility vectors built from the same lane surface family (`obs/run_report`, `obs/replay_anchors`, `ingest/receipt_summary`, `ingest/kafka_offsets`) and the same anchor keyset contract.
+
+Measured reproducibility outcomes:
+- coherence: `anchor_keyset_match=true`, `profile_match=true`, `semantic_invariant_pass=true`
+- drift posture: bounded drift required (lane PASS), observed:
+  - `duplicate_share_delta=0.00059848`
+  - `quarantine_share_delta=0.00132463`
+
+Interpretation:
+- This closes the "one run succeeded" risk: the platform remains coherent on a fresh managed run scope, and divergence remains bounded without semantic safety regressions.
 
 ### 9.7 Aggregated operational outcome
 Across required lanes, the implemented certification model produced:
@@ -915,21 +963,19 @@ Defensible interview framing:
 Non-defensible framing:
 - "This alone proves complete production readiness for every operational dimension."
 
-## 11) Proof Hooks
+## 11) Appendix: Retrieval Hooks (Optional)
 
-### 11.1 Minimum proof pack (fastest verification path)
-If challenged, start with these three artifacts:
-1. final verdict artifact:
-- `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_certification_verdict_snapshot.json`
-2. source-lane matrix artifact:
-- `runs/dev_substrate/m10/m10_20260222T081047Z/m10_j_source_matrix_snapshot.json`
-3. certification summary artifact:
-- `runs/dev_substrate/m10/m10_20260222T081047Z/m10_certified_dev_min_summary.json`
+### 11.1 How to use this appendix
+This appendix is optional.
 
-What this immediately proves:
-1. certification verdict and overall pass posture,
-2. blocker-free source-lane rollup,
-3. lane-family coverage (semantic, incident, scale, reproducibility).
+The report body (Section 9) already embeds the proof facts needed to validate the claim:
+- lane matrix closure against pinned objectives,
+- two fail-to-fix-to-pass demonstrations (incident and soak) with bounded remediation and time-to-recovery,
+- recovery-under-load with restart subject and stability definition,
+- reproducibility with explicit run pairing and population definition,
+- final rollup witness with empty blocker union and no override path.
+
+Use the hooks below only if a reviewer wants to inspect machine-readable snapshots directly (audit-style challenge or interview deep dive). These hooks do not introduce new claims; they are an inspection aid.
 
 ### 11.2 Semantic lane proof hooks
 1. 20-event semantic closure:
