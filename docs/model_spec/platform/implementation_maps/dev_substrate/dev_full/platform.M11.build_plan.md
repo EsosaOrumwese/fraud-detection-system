@@ -67,21 +67,23 @@ M11 is not complete on gate-chain pass alone. All items below are required:
 M11 artifacts (local run folder + durable mirror) must include:
 1. `m11a_handle_closure_snapshot.json`
 2. `m11b_sagemaker_readiness_snapshot.json`
-3. `m11c_input_immutability_snapshot.json`
-4. `m11d_train_eval_execution_snapshot.json`
-5. `m11e_eval_gate_snapshot.json`
-6. `m11f_mlflow_lineage_snapshot.json`
-7. `m11g_candidate_bundle_snapshot.json`
-8. `m11h_safe_disable_rollback_snapshot.json`
-9. `m11i_p14_gate_verdict.json`
-10. `m12_handoff_pack.json`
-11. `m11_phase_budget_envelope.json`
-12. `m11_phase_cost_outcome_receipt.json`
-13. `m11_execution_summary.json`
-14. `m11_blocker_register.json`
-15. `m11_eval_vs_baseline_report.json`
-16. `m11_reproducibility_check.json`
-17. `m11_model_operability_report.json`
+3. `m11b_blocker_register.json`
+4. `m11b_execution_summary.json`
+5. `m11c_input_immutability_snapshot.json`
+6. `m11d_train_eval_execution_snapshot.json`
+7. `m11e_eval_gate_snapshot.json`
+8. `m11f_mlflow_lineage_snapshot.json`
+9. `m11g_candidate_bundle_snapshot.json`
+10. `m11h_safe_disable_rollback_snapshot.json`
+11. `m11i_p14_gate_verdict.json`
+12. `m12_handoff_pack.json`
+13. `m11_phase_budget_envelope.json`
+14. `m11_phase_cost_outcome_receipt.json`
+15. `m11_execution_summary.json`
+16. `m11_blocker_register.json`
+17. `m11_eval_vs_baseline_report.json`
+18. `m11_reproducibility_check.json`
+19. `m11_model_operability_report.json`
 
 Run folder convention:
 1. `runs/dev_substrate/dev_full/m11/<execution_id>/...`
@@ -205,18 +207,90 @@ Current runtime blocker:
 Goal:
 1. Prove train/eval runtime identity and APIs are ready.
 
+Required handles:
+1. `ROLE_SAGEMAKER_EXECUTION`
+2. `SSM_SAGEMAKER_MODEL_EXEC_ROLE_ARN_PATH`
+3. `SSM_MLFLOW_TRACKING_URI_PATH`
+4. `SM_TRAINING_JOB_NAME_PREFIX`
+5. `SM_BATCH_TRANSFORM_JOB_NAME_PREFIX`
+6. `SM_MODEL_PACKAGE_GROUP_NAME`
+7. `SM_ENDPOINT_NAME`
+8. `SM_ENDPOINT_COUNT_V0`
+9. `SM_SERVING_MODE`
+
+Entry conditions:
+1. `M11.A` summary is readable and pass posture:
+- `m11a_execution_summary.json` with `overall_pass=true`,
+- `next_gate=M11.B_READY`.
+2. `M11.A` run-scope is present and single-valued:
+- one `platform_run_id`,
+- one `scenario_run_id`.
+3. Handle registry path is readable and parseable:
+- `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+
 Execution notes:
-1. Validate IAM role assumptions and execution permissions.
-2. Validate required runtime surfaces for training/evaluation operations.
-3. Emit `m11b_sagemaker_readiness_snapshot.json`.
+1. Validate IAM role existence and trust for `sagemaker.amazonaws.com`.
+2. Validate SSM parameter surfaces:
+- role ARN path readability and value parity with `ROLE_SAGEMAKER_EXECUTION`,
+- MLflow tracking URI path readability.
+3. Validate SageMaker control-plane reachability (`list_training_jobs`, `list_model_package_groups`).
+4. Ensure package-group readiness:
+- `describe_model_package_group` for `SM_MODEL_PACKAGE_GROUP_NAME`,
+- create group if absent when permissions allow,
+- if package-group describe/create is blocked by access boundary but control-plane probes are green, record advisory and defer package-group materialization to `M11.G` (bundle publication owner lane).
+5. Emit artifacts:
+- `m11b_sagemaker_readiness_snapshot.json`,
+- `m11b_blocker_register.json`,
+- `m11b_execution_summary.json`.
+
+Deterministic verification algorithm (M11.B):
+1. load `M11.A` summary from durable run-control and fail closed unless pass + next gate matches.
+2. resolve required handle set in fixed order (`1..9` above).
+3. classify handles (`resolved|missing|placeholder|wildcard`) and map unresolved to `M11-B2`.
+4. read SSM role-arn parameter and compare value to `ROLE_SAGEMAKER_EXECUTION`.
+5. read SSM MLflow URI parameter and fail closed on empty/placeholder value.
+6. verify IAM role exists and trust includes `sagemaker.amazonaws.com`.
+7. execute control-plane probes:
+- `list_training_jobs(MaxResults=1)`,
+- `list_model_package_groups(MaxResults=1)`.
+8. describe-or-create model package group for pinned handle name.
+9. treat `AccessDenied` on package-group describe/create as non-gating advisory for M11.B and carry the deferred action into M11.G.
+10. emit deterministic artifacts and publish local + durable with readback parity.
+11. emit deterministic next gate:
+- `M11.C_READY` when blocker count is `0`,
+- otherwise `HOLD_REMEDIATE`.
 
 Runtime budget:
 1. Target <= 8 minutes.
 
+Managed execution binding:
+1. Authoritative runner: `.github/workflows/dev_full_m11_b_managed.yml`.
+2. Required dispatch inputs:
+- `aws_region`
+- `aws_role_to_assume`
+- `evidence_bucket`
+- `upstream_m11a_execution`
+3. Optional dispatch input:
+- `m11b_execution_id` (fixed execution id override for deterministic rerun).
+4. Required upstream evidence key:
+- `evidence/dev_full/run_control/{upstream_m11a_execution}/m11a_execution_summary.json`
+5. Required M11.B publication keys:
+- `evidence/dev_full/run_control/{m11b_execution_id}/m11b_sagemaker_readiness_snapshot.json`
+- `evidence/dev_full/run_control/{m11b_execution_id}/m11b_blocker_register.json`
+- `evidence/dev_full/run_control/{m11b_execution_id}/m11b_execution_summary.json`
+
 DoD:
-- [ ] readiness checks pass with no open `M11-B2`.
-- [ ] snapshot published local + durable.
-- [ ] `M11.C_READY` asserted.
+- [x] readiness checks pass with no open `M11-B2`.
+- [x] snapshot published local + durable.
+- [x] `M11.C_READY` asserted.
+
+Closure snapshot (2026-02-26):
+1. Authoritative run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22455349242`.
+2. Execution id: `m11b_sagemaker_readiness_20260226T182038Z`.
+3. Verdict: `ADVANCE_TO_M11_C`.
+4. Next gate: `M11.C_READY`.
+5. Blockers: `0`.
+6. Advisory carried forward (non-blocking): package-group materialization access boundary deferred to `M11.G` owner lane.
 
 ### M11.C - Immutable Input Binding
 Goal:
@@ -384,7 +458,7 @@ DoD:
 
 ## 8) Completion Checklist
 - [x] `M11.A` complete
-- [ ] `M11.B` complete
+- [x] `M11.B` complete
 - [ ] `M11.C` complete
 - [ ] `M11.D` complete
 - [ ] `M11.E` complete
@@ -400,4 +474,5 @@ DoD:
 ## 9) Planning Status
 1. M11 planning is expanded to execution-grade depth.
 2. `M11.A` is complete and green on managed lane.
-3. Next actionable lane is `M11.B` (SageMaker runtime readiness).
+3. `M11.B` is complete and green on managed lane.
+4. Next actionable lane is `M11.C` (immutable input binding).

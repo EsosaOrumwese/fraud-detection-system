@@ -271,6 +271,17 @@ resource "aws_iam_role_policy" "github_actions_m6f_remote" {
           "s3:AbortMultipartUpload"
         ]
         Resource = "arn:aws:s3:::fraud-platform-dev-full-object-store/learning/ofs/iceberg/warehouse/*"
+      },
+      {
+        Sid    = "M11bSageMakerReadinessControl"
+        Effect = "Allow"
+        Action = [
+          "sagemaker:ListTrainingJobs",
+          "sagemaker:ListModelPackageGroups",
+          "sagemaker:DescribeModelPackageGroup",
+          "sagemaker:CreateModelPackageGroup"
+        ]
+        Resource = "*"
       }
     ]
   })
