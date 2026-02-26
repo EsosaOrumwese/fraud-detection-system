@@ -1228,13 +1228,29 @@ Goal:
 - close remaining `S2` runtime gap with structural event-lane optimization.
 
 Definition of done:
-- [ ] add explicit `S2` batch-stage timers (sampling, timestamp construction, event build, parquet writes) with aggregate summary.
+- [x] add explicit `S2` batch-stage timers (sampling, timestamp construction, event build, parquet writes) with aggregate summary.
 - [ ] remove `S2` response timestamp `strptime/strftime` hot path and replace with vectorized epoch-micro lane.
 - [ ] remove event concat hot path by writing request/response batches directly as separate parts.
-- [ ] run one fresh witness lane and compare `S2` against `bbbe...` baseline (`238.09s`) while holding realism gates non-regressed.
-- [ ] phase decision updated:
+- [x] run one fresh witness lane and compare `S2` against `bbbe...` baseline (`238.09s`) while holding realism gates non-regressed.
+- [x] phase decision updated:
   - `UNLOCK_P3` only if `S2` rail closes (`<=150s` stretch),
   - else keep `HOLD_P2_REOPEN_PERF` with next S2 redesign lane pinned.
+
+Execution outcome (`run_id=49582f7fafa441db97e3db82c6e80238`):
+- runtime witness vs baseline `bbbe...`:
+  - `S2`: `232.08s` vs `238.09s` (improved, still FAIL vs `<=150s` stretch rail),
+  - `S3`: `368.06s` vs `362.53s` (PASS vs `<=380s` rail),
+  - `S4`: `482.50s` vs `392.94s` (FAIL vs `<=420s` rail on this witness),
+  - `S5`: `21.05s` vs `19.70s` (PASS vs `<=30s` rail).
+- realism witness:
+  - scorer verdict stays `PASS_HARD_ONLY`,
+  - `T11,T13,T14,T15,T16,T21` unchanged/non-regressed.
+- closure artifacts:
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p0_realism_gateboard_49582f7fafa441db97e3db82c6e80238.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p2r4_closure_49582f7fafa441db97e3db82c6e80238.json`,
+  - `runs/fix-data-engine/segment_6B/reports/segment6b_p2r4_closure_49582f7fafa441db97e3db82c6e80238.md`.
+- phase decision:
+  - `HOLD_P2_REOPEN_PERF` (remaining owner blocker `S2` runtime; additionally recheck `S4` rail on an isolated-load witness before declaring `S4` reopened).
 
 ### P3 - Wave B (`S3` campaign depth)
 Goal:

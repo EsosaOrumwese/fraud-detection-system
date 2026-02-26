@@ -3501,3 +3501,40 @@ Guardrails:
 - no output schema change.
 - no policy/threshold/scorer change.
 - maintain deterministic values and event semantics (`AUTH_REQUEST` seq `0`, `AUTH_RESPONSE` seq `1`).
+
+---
+
+### Entry: 2026-02-26 02:27
+
+P2.R4 execution + rollback closure (`run_id=49582f7fafa441db97e3db82c6e80238`).
+
+Implementation sequence:
+1) Added `S2` stage timers in `6B.S2` runner and emitted aggregate stage totals at completion:
+- `cast_hash`, `sampling`, `ts_build`, `frame_build`, `parquet_write`.
+2) Tried high-impact event-path redesign:
+- replaced response timestamp lane with NumPy timestamp reconstruction path,
+- wrote request/response event frames as separate parts to remove concat.
+3) Witness result on staged run `5541cf...` showed severe regression (`S2=366.53s`) and downstream pressure; this design was rejected.
+4) Rolled back the high-blast event-path redesign while keeping stage profiling instrumentation.
+5) Re-ran fresh witness lane (`49582f...`) to confirm retained effects and no realism drift.
+
+Observed runtime (candidate `49582f...`):
+- `S2=232.08s`, `S3=368.06s`, `S4=482.50s`, `S5=21.05s`.
+- vs baseline `bbbe...`:
+  - `S2` improved (`-6.01s`) but still above stretch rail (`<=150s`),
+  - `S3` remains within rail,
+  - `S4` exceeded rail on this witness (`>420s`),
+  - `S5` remains within rail.
+
+S2 stage profile evidence (candidate witness):
+- `cast_hash=4.61s`, `sampling=45.27s`, `ts_build=87.68s`, `frame_build=3.76s`, `parquet_write=72.81s`.
+- dominant residual costs are `ts_build` and `parquet_write`; both now pinned as next optimization owners.
+
+Realism posture:
+- `tools/score_segment6b_p0_baseline.py` on `49582f...` remains `PASS_HARD_ONLY`.
+- `T11,T13,T14,T15,T16,T21` values are unchanged from `bbbe...` (no regression).
+
+Decision:
+- keep `P2` in `HOLD_P2_REOPEN_PERF`.
+- close only the profiling sub-goal of `P2.R4`; keep structural redesign sub-goals open.
+- next owner lane: S2 timestamp/parquet redesign with bounded blast; rerun S4 rail witness under isolated load before reopening S4 logic.
