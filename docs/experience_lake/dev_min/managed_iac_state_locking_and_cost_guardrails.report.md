@@ -1,4 +1,4 @@
-# Managed IaC Foundation with State Locking and Cost Guardrails
+# Managed Infrastructure as Code (IaC) Foundation with State Locking and Cost Guardrails
 
 ## 1) Claim Statement
 
@@ -18,7 +18,7 @@ If any one of these surfaces is missing, the platform can still "deploy," but ca
 - Persistent core stack: low-churn foundational resources that should outlive individual runtime demonstrations and reruns.
 - Ephemeral demo stack: run-supporting resources designed for rapid create/destroy cycles with teardown as a first-class operational path.
 - Cost guardrail: an explicit budget envelope with threshold alerts and prohibited high-burn infrastructure patterns.
-- Forbidden high-cost default configurations: infrastructure choices known to create disproportionate baseline spend for a small development environment (for example always-on NAT gateways or unnecessary always-on load balancers).
+- Forbidden high-cost default configurations: infrastructure choices known to create disproportionate baseline spend for a small development environment (for example always-on network address translation (NAT) gateways or unnecessary always-on load balancers).
 
 ### In-scope boundary
 This report covers:
@@ -30,14 +30,14 @@ This report covers:
 
 ### Non-claim boundary
 This report does not claim:
-- Enterprise-wide FinOps maturity or organizational chargeback governance.
+- Enterprise-wide financial operations (FinOps) maturity or organizational chargeback governance.
 - Multi-account landing zone governance across an entire company.
 - Full production high-availability architecture (the target is a controlled development substrate).
 - Cost optimization across all business workloads; scope is this platform environment and its lifecycle controls.
 
 ### Expected reviewer interpretation
 A technical recruiter or hiring manager should be able to read this claim as:
-- The engineer can design IaC beyond "apply works" by controlling mutation safety, ownership boundaries, and teardown behavior.
+- The engineer can design Infrastructure as Code (IaC) beyond "apply works" by controlling mutation safety, ownership boundaries, and teardown behavior.
 - The engineer understands that spend discipline is a design constraint, not a finance afterthought.
 - The engineer can convert platform risk into explicit gates and operational rules that prevent silent drift.
 
@@ -172,7 +172,7 @@ The relevant system has eight components with distinct ownership and responsibil
 1. IaC stack roots (core, messaging, demo/runtime)
 - `core` provisions persistent control surfaces (for example state bucket, lock table, budget object, and shared storage/control primitives).
 - `messaging` provisions managed Kafka substrate and runtime credential surfaces.
-- `demo/runtime` provisions disposable execution surfaces (network, cluster, task definitions/services, runtime DB, and related runtime parameters).
+- `demo/runtime` provisions disposable execution surfaces (network, cluster, task definitions/services, runtime database (DB), and related runtime parameters).
 
 2. Remote Terraform backend surface
 - Shared object backend stores Terraform state.
@@ -188,11 +188,11 @@ The relevant system has eight components with distinct ownership and responsibil
 
 5. Managed control-plane execution lane
 - GitHub Actions workflow_dispatch lanes execute init/apply/destroy in automation context.
-- OIDC role assumption is used for cloud access; static AWS credential posture is explicitly rejected.
+- OpenID Connect (OIDC) role assumption is used for cloud access; static Amazon Web Services (AWS) credential posture is explicitly rejected.
 
 6. Cost guardrail surface
 - Budget object and threshold notifications provide bounded spend envelope.
-- Guardrail policies classify forbidden high-burn patterns (for this profile: NAT gateway and always-on LB/fleet posture).
+- Guardrail policies classify forbidden high-burn patterns (for this profile: network address translation (NAT) gateway and always-on load balancer (LB)/fleet posture).
 
 7. Teardown governance surface
 - A single stack-targeted teardown workflow executes destructive actions.
@@ -246,7 +246,7 @@ Key engineering posture:
 ### 3.5 Trust boundaries and failure surfaces
 This context crosses five trust/failure boundaries:
 
-1. Identity boundary (CI -> cloud)
+1. Identity boundary (continuous integration (CI) -> cloud)
 - Failure mode: execution lane cannot assume role or uses unsafe credential posture.
 - Impact: no trustworthy infrastructure mutation path.
 
@@ -299,7 +299,7 @@ The core problem was not "can Terraform create resources." The real problem was 
 
 Before hardening, there were four practical reliability gaps:
 - mutation safety could be undermined by backend/lock misconfiguration or ambiguous stack ownership,
-- cost controls could exist on paper but fail at runtime due provider/API or query-surface errors,
+- cost controls could exist on paper but fail at runtime due provider/application programming interface (API) or query-surface errors,
 - teardown posture could appear valid while still being operationally unsafe or context-fragile,
 - pass/fail decisions could drift if closure depended on narrative interpretation rather than explicit blocker semantics.
 
@@ -310,11 +310,11 @@ The platform hit real failure classes that validated this claim's necessity.
 
 1. Budget materialization mismatch at runtime
 - Failure class: budget object/notification alignment did not initially satisfy closure posture.
-- What changed to close it: budget object and thresholds were remediated with provider-aligned unit handling (`USD` in runtime lane) and rerun to pass.
+- What changed to close it: budget object and thresholds were remediated with provider-aligned unit handling (United States dollars (USD) in runtime lane) and rerun to pass.
 - Why this mattered: cost guardrails are invalid if units/thresholds are policy-level only and not provider-executable.
 
 2. Teardown viability preflight instability
-- Failure class: destroy preflight evidence lane was not initially robust because JSON preflight depended on an execution-context detail.
+- Failure class: destroy preflight evidence lane was not initially robust because JavaScript Object Notation (JSON) preflight depended on an execution-context detail.
 - What changed to close it: preflight was fixed by running `terraform show` from initialized demo stack context and rerun with demo-scoped destroy-set verification.
 - Why this mattered: without deterministic preflight, a destroy lane can be technically available but operationally unsafe.
 
@@ -534,7 +534,7 @@ Why this matters:
 
 ### 6.3 Remote backend and lock discipline implemented
 For each stack, Terraform backend configuration was standardized with:
-- shared S3 backend posture,
+- shared Amazon Simple Storage Service (Amazon S3) backend posture,
 - shared DynamoDB lock table for mutual exclusion,
 - explicit key-per-stack partition.
 
@@ -703,7 +703,7 @@ Scope changes are also corrective events:
 ### 7.4 Governance and ownership
 Ownership boundaries are explicit:
 - platform infrastructure engineering owns stack topology, backend/lock model, and guardrail logic,
-- cloud security/IAM owners govern control-plane execution identity and policy posture,
+- cloud security and Identity and Access Management (IAM) owners govern control-plane execution identity and policy posture,
 - cost governance lane owns budget and forbidden-infra policy checks,
 - teardown lane owners govern destroy safety, preserve-set rules, and residual verification.
 
@@ -839,7 +839,7 @@ From pass-closed guardrail snapshots:
 - budget object remained aligned to expected handle/cap,
 - threshold posture remained aligned (`10/20/28` ladder),
 - AWS-side utilization was recorded in-policy at closure time,
-- post-teardown high-cost default indicators were clear (no non-deleted NAT, no demo-scoped LB residual, no non-zero ECS desired-count residual, runtime DB reported absent after teardown).
+- post-teardown high-cost default indicators were clear (no non-deleted NAT, no demo-scoped LB residual, no non-zero Amazon Elastic Container Service (Amazon ECS) desired-count residual, runtime DB reported absent after teardown).
 
 Operational meaning:
 - cost governance was not inferred from "few resources"; it was proven by explicit guardrail evaluation and blocker semantics.

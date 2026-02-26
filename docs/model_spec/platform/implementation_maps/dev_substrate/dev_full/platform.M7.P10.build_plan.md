@@ -149,37 +149,170 @@ Execution status (2026-02-26):
 Goal:
 1. close case-trigger bridge lane.
 
+Entry prerequisites:
+1. `P10.A` execution summary is green with:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=P10.B_READY`.
+2. run scope (`platform_run_id`, `scenario_run_id`) matches upstream `P10.A` execution.
+
+Required handle set for P10.B:
+1. `FLINK_RUNTIME_PATH_ACTIVE`
+2. `FLINK_RUNTIME_PATH_ALLOWED`
+3. `K8S_DEPLOY_CASE_TRIGGER`
+4. `EKS_NAMESPACE_CASE_LABELS`
+5. `ROLE_EKS_IRSA_CASE_LABELS`
+6. `FP_BUS_CASE_TRIGGERS_V1`
+7. `CASE_LABELS_EVIDENCE_PATH_PATTERN`
+8. `AURORA_CLUSTER_IDENTIFIER`
+9. `SSM_AURORA_ENDPOINT_PATH`
+10. `SSM_AURORA_USERNAME_PATH`
+11. `SSM_AURORA_PASSWORD_PATH`
+
 Tasks:
 1. verify case-trigger input filtering is run-scoped.
 2. verify trigger-to-CM bridge contract and delivery receipts.
 3. verify duplicate-safe trigger semantics.
-4. emit `p10b_case_trigger_snapshot.json`.
+4. emit case-label component proof:
+   - `case_trigger_component_proof.json`.
+5. emit:
+   - `p10b_case_trigger_snapshot.json`
+   - `p10b_case_trigger_blocker_register.json`
+   - `p10b_case_trigger_performance_snapshot.json`
+   - `p10b_case_trigger_execution_summary.json`.
+
+Execution plan (managed lane):
+1. dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with `phase_mode=m7m`.
+2. pass upstream `P10.A` execution id via `upstream_m6d_execution`.
+3. require deterministic success gate:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=P10.C_READY`.
 
 DoD:
-- [ ] run-scoped case-trigger bridge evidence is present.
-- [ ] duplicate-safe trigger semantics pass.
-- [ ] CaseTrigger blocker set is empty.
-- [ ] `p10b_case_trigger_performance_snapshot.json` is committed and within pinned SLO.
+- [x] run-scoped case-trigger bridge evidence is present.
+- [x] duplicate-safe trigger semantics pass.
+- [x] CaseTrigger blocker set is empty.
+- [x] `p10b_case_trigger_performance_snapshot.json` is committed and within pinned SLO.
+- [x] managed `P10.B` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=P10.C_READY`).
+
+Execution status (2026-02-26):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7m`
+   - run id: `22425642619`
+   - execution id: `m7m_p10b_case_trigger_component_20260226T024750Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=P10.C_READY`.
+3. Verification outcomes:
+   - upstream `P10.A` continuity accepted from `m7l_p10a_entry_precheck_20260226T023945Z`,
+   - required handles resolved with no missing/placeholder values,
+   - case-trigger component proof published:
+     - `evidence/runs/platform_20260223T184232Z/case_labels/case_trigger_component_proof.json`.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_tmp_run_22425642619/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7m_p10b_case_trigger_component_20260226T024750Z/`.
 
 ### P10.C CM Component Lane Closure
 Goal:
 1. close `CM` case-management lane.
 
+Entry prerequisites:
+1. `P10.B` execution summary is green with:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=P10.C_READY`.
+2. run scope (`platform_run_id`, `scenario_run_id`) matches upstream `P10.B` execution.
+3. upstream proof continuity:
+   - `case_trigger_component_proof.json` exists under case-label evidence prefix.
+
+Required handle set for P10.C:
+1. `FLINK_RUNTIME_PATH_ACTIVE`
+2. `FLINK_RUNTIME_PATH_ALLOWED`
+3. `K8S_DEPLOY_CM`
+4. `EKS_NAMESPACE_CASE_LABELS`
+5. `ROLE_EKS_IRSA_CASE_LABELS`
+6. `FP_BUS_CASE_TRIGGERS_V1`
+7. `CASE_LABELS_EVIDENCE_PATH_PATTERN`
+8. `AURORA_CLUSTER_IDENTIFIER`
+9. `SSM_AURORA_ENDPOINT_PATH`
+10. `SSM_AURORA_USERNAME_PATH`
+11. `SSM_AURORA_PASSWORD_PATH`
+
 Tasks:
 1. execute `CM` case writes from run-scoped trigger inputs.
 2. verify deterministic case identity and write commits.
 3. verify append/readback posture for case evidence.
-4. emit `p10c_cm_component_snapshot.json`.
+4. emit case-label component proof:
+   - `cm_component_proof.json`.
+5. emit:
+   - `p10c_cm_snapshot.json`
+   - `p10c_cm_blocker_register.json`
+   - `p10c_cm_performance_snapshot.json`
+   - `p10c_cm_execution_summary.json`.
+
+Execution plan (managed lane):
+1. dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with `phase_mode=m7n`.
+2. pass upstream `P10.B` execution id via `upstream_m6g_execution`.
+3. require deterministic success gate:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=P10.D_READY`.
 
 DoD:
-- [ ] deterministic case-write evidence is present.
-- [ ] case append/readback checks pass.
-- [ ] CM blocker set is empty.
-- [ ] `p10c_cm_performance_snapshot.json` is committed and within pinned SLO.
+- [x] deterministic case-write evidence is present.
+- [x] case append/readback checks pass.
+- [x] CM blocker set is empty.
+- [x] `p10c_cm_performance_snapshot.json` is committed and within pinned SLO.
+- [x] managed `P10.C` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=P10.D_READY`).
+
+Execution status (2026-02-26):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7n`
+   - run id: `22425663658`
+   - execution id: `m7n_p10c_cm_component_20260226T024847Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=P10.D_READY`.
+3. Verification outcomes:
+   - upstream `P10.B` continuity accepted from `m7m_p10b_case_trigger_component_20260226T024750Z`,
+   - required handles resolved with no missing/placeholder values,
+   - upstream `case_trigger_component_proof.json` dependency present,
+   - CM component proof published:
+     - `evidence/runs/platform_20260223T184232Z/case_labels/cm_component_proof.json`.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_tmp_run_22425663658/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7n_p10c_cm_component_20260226T024847Z/`.
 
 ### P10.D LS Component Lane Closure
 Goal:
 1. close `LS` writer-boundary lane.
+
+Entry prerequisites:
+1. `P10.C` execution summary is green with:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=P10.D_READY`.
+2. run scope (`platform_run_id`, `scenario_run_id`) matches upstream `P10.C` execution.
+3. upstream proof continuity:
+   - `case_trigger_component_proof.json` and `cm_component_proof.json` exist under case-label evidence prefix.
+
+Required handle set for P10.D:
+1. `FLINK_RUNTIME_PATH_ACTIVE`
+2. `FLINK_RUNTIME_PATH_ALLOWED`
+3. `K8S_DEPLOY_LS`
+4. `EKS_NAMESPACE_CASE_LABELS`
+5. `ROLE_EKS_IRSA_CASE_LABELS`
+6. `FP_BUS_LABELS_EVENTS_V1`
+7. `CASE_LABELS_EVIDENCE_PATH_PATTERN`
+8. `AURORA_CLUSTER_IDENTIFIER`
+9. `SSM_AURORA_ENDPOINT_PATH`
+10. `SSM_AURORA_USERNAME_PATH`
+11. `SSM_AURORA_PASSWORD_PATH`
 
 Tasks:
 1. execute `LS` label writes for run-scoped case outcomes.
@@ -188,13 +321,54 @@ Tasks:
    - commit semantics,
    - idempotency key usage.
 3. verify single-writer posture for label append surface.
-4. emit `p10d_ls_component_snapshot.json`.
+4. emit writer-boundary probe:
+   - `ls_writer_boundary_probe_<execution_id>.json`.
+5. emit case-label component proof:
+   - `ls_component_proof.json`.
+6. emit:
+   - `p10d_ls_snapshot.json`
+   - `p10d_ls_blocker_register.json`
+   - `p10d_ls_performance_snapshot.json`
+   - `p10d_ls_execution_summary.json`.
+
+Execution plan (managed lane):
+1. dispatch `.github/workflows/dev_full_m6f_streaming_active.yml` with `phase_mode=m7o`.
+2. pass upstream `P10.C` execution id via `upstream_m6h_execution`.
+3. require deterministic success gate:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `next_gate=P10.E_READY`.
 
 DoD:
-- [ ] LS writer-boundary protocol evidence is complete.
-- [ ] single-writer checks pass.
-- [ ] LS blocker set is empty.
-- [ ] `p10d_ls_performance_snapshot.json` is committed and within pinned SLO.
+- [x] LS writer-boundary protocol evidence is complete.
+- [x] single-writer checks pass.
+- [x] LS blocker set is empty.
+- [x] `p10d_ls_performance_snapshot.json` is committed and within pinned SLO.
+- [x] managed `P10.D` run is green (`overall_pass=true`, `blocker_count=0`, `next_gate=P10.E_READY`).
+
+Execution status (2026-02-26):
+1. Authoritative managed execution:
+   - workflow: `.github/workflows/dev_full_m6f_streaming_active.yml`
+   - mode: `phase_mode=m7o`
+   - run id: `22425682637`
+   - execution id: `m7o_p10d_ls_component_20260226T024940Z`.
+2. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=P10.E_READY`.
+3. Verification outcomes:
+   - upstream `P10.C` continuity accepted from `m7n_p10c_cm_component_20260226T024847Z`,
+   - required handles resolved with no missing/placeholder values,
+   - upstream proof-chain dependencies present:
+     - `case_trigger_component_proof.json`
+     - `cm_component_proof.json`
+   - LS writer-boundary probe write/readback passed:
+     - `ls_writer_boundary_probe_m7o_p10d_ls_component_20260226T024940Z.json`
+   - LS component proof published:
+     - `evidence/runs/platform_20260223T184232Z/case_labels/ls_component_proof.json`.
+4. Evidence:
+   - local: `runs/dev_substrate/dev_full/m7/_tmp_run_22425682637/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m7o_p10d_ls_component_20260226T024940Z/`.
 
 ### P10.E P10 Rollup + Verdict
 Goal:
@@ -233,14 +407,24 @@ DoD:
 3. `p10a_component_slo_profile.json`
 4. `p10a_execution_summary.json`
 5. `p10b_case_trigger_snapshot.json`
-6. `p10c_cm_component_snapshot.json`
-7. `p10d_ls_component_snapshot.json`
-8. `p10e_case_labels_rollup_matrix.json`
-9. `p10e_case_labels_blocker_register.json`
-10. `p10e_case_labels_verdict.json`
-11. `p10b_case_trigger_performance_snapshot.json`
-12. `p10c_cm_performance_snapshot.json`
-13. `p10d_ls_performance_snapshot.json`
+6. `p10b_case_trigger_blocker_register.json`
+7. `p10b_case_trigger_execution_summary.json`
+8. `case_trigger_component_proof.json`
+9. `p10c_cm_snapshot.json`
+10. `p10c_cm_blocker_register.json`
+11. `p10c_cm_execution_summary.json`
+12. `cm_component_proof.json`
+13. `p10d_ls_snapshot.json`
+14. `p10d_ls_blocker_register.json`
+15. `p10d_ls_execution_summary.json`
+16. `ls_component_proof.json`
+17. `ls_writer_boundary_probe_<execution_id>.json`
+18. `p10e_case_labels_rollup_matrix.json`
+19. `p10e_case_labels_blocker_register.json`
+20. `p10e_case_labels_verdict.json`
+21. `p10b_case_trigger_performance_snapshot.json`
+22. `p10c_cm_performance_snapshot.json`
+23. `p10d_ls_performance_snapshot.json`
 
 ## 8) Exit Rule for P10
 `P10` can close only when:

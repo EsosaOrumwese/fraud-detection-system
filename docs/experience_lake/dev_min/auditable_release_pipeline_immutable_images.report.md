@@ -3,7 +3,7 @@
 ## 1) Claim Statement
 
 ### Primary claim
-I built and operated an auditable container release pipeline in which a CI workflow is the authoritative build path, every release publishes immutable image identity (`tag` plus `digest`), and deterministic build-surface controls (no repo-wide copy, explicit include/exclude, bounded dependency selection) plus machine-readable provenance and fail-closed gates are required before release acceptance.
+I built and operated an auditable container release pipeline in which a continuous integration (CI) workflow is the authoritative build path, every release publishes immutable image identity (`tag` plus `digest`), and deterministic build-surface controls (no repo-wide copy, explicit include/exclude, bounded dependency selection) plus machine-readable provenance and fail-closed gates are required before release acceptance.
 
 ### In-scope boundary
 This claim covers:
@@ -18,7 +18,7 @@ This claim covers:
 This claim does not assert:
 - organization-wide production rollout governance beyond this release workflow,
 - complete mono-repo governance beyond container build-surface controls in this workflow,
-- complete software supply-chain attestation maturity (for example full signing/SBOM enforcement across all services),
+- complete software supply-chain attestation maturity (for example full signing/software bill of materials (SBOM) enforcement across all services),
 - runtime incident-free operation of downstream services (that belongs to separate reliability and operations claims).
 
 ## 2) Outcome Target
@@ -203,7 +203,7 @@ The workflow follows three control principles:
 
 ### 3.6 Environmental constraints that shaped design
 The design had to operate under practical constraints:
-- cloud IAM and registry permissions can be partially configured and fail non-obviously,
+- cloud Identity and Access Management (IAM) and registry permissions can be partially configured and fail non-obviously,
 - release reliability must hold without relying on human memory,
 - evidence must be inspectable by non-authors (recruiter, auditor, incident responder),
 - the same workflow must support both speed (automation) and control (governed acceptance).
@@ -247,7 +247,7 @@ It was how to guarantee that a release candidate is both:
 The failure modes were observed as a progression of real breakpoints, not theoretical risks:
 
 1. Federated CI identity bootstrap failure
-- CI execution failed before release actions because cloud-side OIDC identity provider/trust prerequisites were incomplete.
+- CI execution failed before release actions because cloud-side OpenID Connect (OIDC) identity provider/trust prerequisites were incomplete.
 - Operational effect: no authoritative automated release was possible.
 
 2. Registry authorization failure after identity fix
@@ -1033,7 +1033,7 @@ This sequence shows senior decision quality, not tool memorization.
 
 ### 12.5 Role-fit coverage matrix (quick screen)
 This single claim provides direct evidence for:
-- `CI/CD ownership`: strong
+- `Continuous integration and continuous delivery (CI/CD) ownership`: strong
 - `Cloud IAM + registry authorization`: strong
 - `Artifact immutability + provenance`: strong
 - `Fail-closed governance`: strong

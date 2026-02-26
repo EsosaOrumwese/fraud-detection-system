@@ -1,9 +1,9 @@
-# Secure CI Federation and Least-Privilege Registry Authorization
+# Secure Continuous Integration Federation and Least-Privilege Registry Authorization
 
 ## 1) Claim Statement
 
 ### Primary claim
-I implemented secure CI-to-cloud authentication through federated OIDC role assumption and hardened least-privilege container-registry authorization after real CI failures exposed two separate control gaps: missing OIDC trust/provider setup and missing registry authorization scope (`GetAuthorizationToken` plus required repository actions).
+I implemented secure continuous integration (CI)-to-cloud authentication through federated OpenID Connect (OIDC) role assumption and hardened least-privilege container-registry authorization after real CI failures exposed two separate control gaps: missing OIDC trust/provider setup and missing registry authorization scope (`GetAuthorizationToken` plus required repository actions).
 
 ### Why this claim is technically distinct
 This claim is not "CI failed, then permissions were added."
@@ -14,8 +14,8 @@ It is a security-and-reliability control claim with two separate planes:
 The implementation proved both planes had to be correct before release publishing could be considered valid.
 
 ### Definitions (to avoid ambiguous interpretation)
-1. Federated OIDC authentication
-- CI obtains short-lived cloud access via trust between CI identity provider and cloud IAM role assumption.
+1. Federated OpenID Connect (OIDC) authentication
+- CI obtains short-lived cloud access via trust between CI identity provider and cloud Identity and Access Management (IAM) role assumption.
 - This replaces static long-lived cloud keys in the release workflow.
 
 2. Least-privilege registry authorization
@@ -148,7 +148,7 @@ The relevant system for this claim has five components:
 - converts trusted federated identity into short-lived cloud credentials.
 - constrains identity to a defined permission policy.
 
-4. Container registry API surface
+4. Container registry application programming interface (API) surface
 - receives login/auth token request and image push/read calls.
 - enforces authorization independently from identity establishment.
 
@@ -230,7 +230,7 @@ The failure sequence showed two separate control gaps:
 - Impact: no cloud-authenticated release actions could begin.
 
 2. Authorization-plane failure (after authentication remediation)
-- Once OIDC trust was fixed and role assumption succeeded, registry login/publish still failed due to missing required permission scope (including `ecr:GetAuthorizationToken`).
+- Once OIDC trust was fixed and role assumption succeeded, registry login/publish still failed due to missing required Elastic Container Registry (ECR) permission scope (including `ecr:GetAuthorizationToken`).
 - Impact: CI identity existed, but registry operations remained blocked.
 
 3. Closure condition
@@ -649,7 +649,7 @@ This claim does not state that:
 
 ### 10.3 Evidence boundary limitation
 The report intentionally references proof anchors rather than embedding:
-- full IAM policy JSON documents,
+- full IAM policy JavaScript Object Notation (JSON) documents,
 - raw token/trust documents,
 - full CI log dumps.
 
@@ -752,7 +752,7 @@ This is enough to defend the claim without policy/credential over-sharing.
 
 ### 12.1 Senior MLOps signals demonstrated
 This claim directly demonstrates core senior MLOps competencies:
-- secure CI/CD delivery controls (federated auth instead of static keys),
+- secure continuous integration and continuous delivery (CI/CD) controls (federated authentication instead of static keys),
 - release reliability under real failure pressure (fail/fail/pass with controlled remediation),
 - evidence-backed operational ownership (traceable closure chain),
 - governance discipline (fail-closed gating, no ad hoc bypass).
@@ -779,7 +779,7 @@ This presentation signals senior judgment, not tool memorization.
 
 ### 12.5 Role-fit quick matrix
 This claim is strong evidence for:
-- `CI/CD security posture`: strong
+- `Continuous integration and continuous delivery (CI/CD) security posture`: strong
 - `Cloud IAM troubleshooting`: strong
 - `Least-privilege implementation`: strong
 - `Failure-driven hardening`: strong

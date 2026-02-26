@@ -780,6 +780,18 @@ Current M7 execution posture:
   - workflow run `22425458650`,
   - execution `m7l_p10a_entry_precheck_20260226T023945Z`,
   - `overall_pass=true`, `blocker_count=0`, `next_gate=P10.B_READY`.
+- `M7.I` P10 CaseTrigger lane (`P10.B`) is closed green on managed run:
+  - workflow run `22425642619`,
+  - execution `m7m_p10b_case_trigger_component_20260226T024750Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=P10.C_READY`.
+- `M7.I` P10 CM lane (`P10.C`) is closed green on managed run:
+  - workflow run `22425663658`,
+  - execution `m7n_p10c_cm_component_20260226T024847Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=P10.D_READY`.
+- `M7.I` P10 LS lane (`P10.D`) is closed green on managed run:
+  - workflow run `22425682637`,
+  - execution `m7o_p10d_ls_component_20260226T024940Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=P10.E_READY`.
 - Post-M7 throughput certification caveat (deferred):
   - `P8/P9` throughput checks are currently in low-sample guarded mode (`throughput_gate_mode=waived_low_sample`).
   - non-waived throughput certification remains mandatory and is scheduled immediately after `M7` closure using the pinned target profile (`134,000,000 events/hour`).

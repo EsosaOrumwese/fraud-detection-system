@@ -10280,3 +10280,83 @@ ext_gate=HOLD_REMEDIATE.
 
 ### Next step
 1. Advance to `P10.B` (`CaseTrigger bridge` lane) using `P10.B_READY` as entry gate.
+
+## Entry: 2026-02-26 03:02:00 +00:00 - Expanded P10.B/C/D contracts before execution
+
+### Why this expansion was required
+1. `P10.B/C/D` sections were still high-level and did not pin managed-lane execution contracts.
+2. User requirement is sequential execution with blocker remediation, so lane-level prerequisites/handles/verdict gates had to be explicit before running.
+
+### Planning decisions
+1. Keep sequential chain and gate mapping:
+   - `P10.A -> P10.B_READY`
+   - `P10.B -> P10.C_READY`
+   - `P10.C -> P10.D_READY`
+   - `P10.D -> P10.E_READY`
+2. Keep all lanes under the same managed workflow control surface (`dev_full_m6f_streaming_active.yml`) to preserve deterministic dispatch and evidence structure.
+3. Pin proof continuity per lane:
+   - `P10.C` requires `case_trigger_component_proof.json`.
+   - `P10.D` requires `case_trigger_component_proof.json` + `cm_component_proof.json`.
+4. Pin LS-specific writer-boundary evidence:
+   - `ls_writer_boundary_probe_<execution_id>.json` is mandatory in `P10.D`.
+
+### Contract surfaces added to plan
+1. Entry prerequisites per lane.
+2. Required-handle sets per lane.
+3. Managed execution contract (`phase_mode`, upstream mapping, expected next gate).
+4. DoD anchors including managed lane success condition.
+5. Evidence-contract update to include blocker/execution summaries and component proofs.
+
+## Entry: 2026-02-26 03:08:00 +00:00 - Executed P10.B -> P10.C -> P10.D sequentially with managed chaining
+
+### Sequential execution contract
+1. Ran strict sequence with upstream-gate chaining and no lane overlap:
+   - `m7m` (`P10.B` CaseTrigger) from `m7l` (`P10.A`),
+   - `m7n` (`P10.C` CM) from `m7m`,
+   - `m7o` (`P10.D` LS) from `m7n`.
+2. Each lane required deterministic success (`overall_pass=true`, `blocker_count=0`, expected `next_gate`) before advancing.
+
+### Why no parallelization here
+1. `P10.C` depends on `case_trigger_component_proof.json` from `P10.B`.
+2. `P10.D` depends on both `case_trigger_component_proof.json` and `cm_component_proof.json`.
+3. Parallel execution would invalidate proof-chain guarantees and violate anti-lump sequencing.
+
+### Lane results
+1. `P10.B` (`phase_mode=m7m`)
+   - run id: `22425642619`
+   - execution id: `m7m_p10b_case_trigger_component_20260226T024750Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=P10.C_READY`.
+2. `P10.C` (`phase_mode=m7n`)
+   - run id: `22425663658`
+   - execution id: `m7n_p10c_cm_component_20260226T024847Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=P10.D_READY`.
+3. `P10.D` (`phase_mode=m7o`)
+   - run id: `22425682637`
+   - execution id: `m7o_p10d_ls_component_20260226T024940Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=P10.E_READY`.
+
+### Blocker handling and remediation
+1. No execution blockers were raised (`M7P10-B2/B3/B4/B7` all clear across runs).
+2. Minor operator error during artifact retrieval (wrong artifact timestamp literal) was corrected immediately by pulling exact artifact name from run metadata before summary extraction.
+
+### Evidence and gate continuity
+1. Component proof artifacts published under case-label evidence prefix:
+   - `case_trigger_component_proof.json`
+   - `cm_component_proof.json`
+   - `ls_component_proof.json`
+2. LS writer-boundary probe written/readable:
+   - `ls_writer_boundary_probe_m7o_p10d_ls_component_20260226T024940Z.json`.
+3. Durable run-control prefixes:
+   - `.../m7m_p10b_case_trigger_component_20260226T024750Z/`
+   - `.../m7n_p10c_cm_component_20260226T024847Z/`
+   - `.../m7o_p10d_ls_component_20260226T024940Z/`.
+
+### Plan alignment updates
+1. `platform.M7.P10.build_plan.md`:
+   - `P10.B/C/D` DoDs marked green,
+   - execution status + evidence pointers added.
+2. `platform.M7.build_plan.md`:
+   - `M7.I` DoD items for CaseTrigger/CM/LS closure + performance marked green,
+   - status lines added for `m7m/m7n/m7o`.
+3. `platform.build_plan.md`:
+   - current M7 posture updated with `P10.B/C/D` green managed runs.

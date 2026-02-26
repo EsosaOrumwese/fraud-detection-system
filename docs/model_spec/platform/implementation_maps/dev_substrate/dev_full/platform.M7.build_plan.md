@@ -417,20 +417,33 @@ Tasks:
 
 DoD:
 - [x] `P10.A` entry/handle closure evidence is complete.
-- [ ] `CaseTrigger bridge` closure evidence is complete.
-- [ ] `CM` closure evidence is complete.
-- [ ] `LS` writer-boundary evidence is complete.
+- [x] `CaseTrigger bridge` closure evidence is complete.
+- [x] `CM` closure evidence is complete.
+- [x] `LS` writer-boundary evidence is complete.
 - [ ] `P10` verdict is deterministic and blocker-consistent.
-- [ ] `CaseTrigger bridge` performance snapshot meets pinned budget.
-- [ ] `CM` performance snapshot meets pinned budget.
-- [ ] `LS` performance snapshot meets pinned budget.
+- [x] `CaseTrigger bridge` performance snapshot meets pinned budget.
+- [x] `CM` performance snapshot meets pinned budget.
+- [x] `LS` performance snapshot meets pinned budget.
 
 Execution status (2026-02-26):
 1. `P10.A` entry precheck is closed green:
    - workflow run: `22425458650` (`phase_mode=m7l`)
    - execution id: `m7l_p10a_entry_precheck_20260226T023945Z`
    - result: `overall_pass=true`, `blocker_count=0`, `next_gate=P10.B_READY`.
-2. `M7.I` remains open for `P10.B/P10.C/P10.D/P10.E` closure.
+2. `M7.I` remains open for `P10.E` rollup/verdict closure.
+3. `P10.B` CaseTrigger lane is closed green:
+   - workflow run: `22425642619` (`phase_mode=m7m`)
+   - execution id: `m7m_p10b_case_trigger_component_20260226T024750Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=P10.C_READY`.
+4. `P10.C` CM lane is closed green:
+   - workflow run: `22425663658` (`phase_mode=m7n`)
+   - execution id: `m7n_p10c_cm_component_20260226T024847Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=P10.D_READY`.
+5. `P10.D` LS lane is closed green:
+   - workflow run: `22425682637` (`phase_mode=m7o`)
+   - execution id: `m7o_p10d_ls_component_20260226T024940Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=P10.E_READY`.
+6. `M7.I` remains open for `P10.E` rollup/verdict closure.
 
 ### M7.J M7 Gate Rollup + M8 Handoff
 Goal:
@@ -500,4 +513,7 @@ DoD:
 12. `M7.H` rollup is now closed green (`m7k_p9e_rollup_20260226T023154Z`) with `phase_verdict=ADVANCE_TO_P10`.
 13. Non-waived throughput certification for `P8+P9` is pinned as deferred post-M7 lane (`M7-D18`).
 14. `M7.I` entry is closed green (`m7l_p10a_entry_precheck_20260226T023945Z`) with `next_gate=P10.B_READY`.
-15. Next step is `P10.B` (`CaseTrigger bridge` lane); throughput-cert executes after M7 closure.
+15. `P10.B` CaseTrigger lane is closed green (`m7m_p10b_case_trigger_component_20260226T024750Z`).
+16. `P10.C` CM lane is closed green (`m7n_p10c_cm_component_20260226T024847Z`).
+17. `P10.D` LS lane is closed green (`m7o_p10d_ls_component_20260226T024940Z`).
+18. Next step is `P10.E` rollup/verdict lane; throughput-cert executes after M7 closure.
