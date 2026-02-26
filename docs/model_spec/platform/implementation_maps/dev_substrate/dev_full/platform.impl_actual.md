@@ -11945,3 +11945,366 @@ ext_gate=M9_READY).
   - platform.M12.build_plan.md (P15 MPR promotion/rollback closure)
 - Ensured deep plans include: authority inputs, scope boundaries, deliverables, anti-cram capability matrix, fail-closed blocker taxonomy, artifact contracts, completion checklists, and planning status.
 
+
+## Entry: 2026-02-26 08:06:00 +00:00 - M9.A kickoff and execution strategy lock
+
+### Scope lock
+1. Active lane is `M9.A` only (`P12` authority + handle closure).
+2. M8 closure source is fixed to `m8j_p11_closure_sync_20260226T065141Z` unless fail-closed evidence proves drift.
+3. Run scope will be inherited from M8 handoff evidence; no manual override unless handoff missing.
+
+### Decision before implementation
+1. Expand `M9.A` from high-level to execution-grade contract before running code.
+2. Implement dedicated `scripts/dev_substrate/m9a_handle_closure.py` using the proven M8A pattern.
+3. Enforce fail-closed checks for:
+   - M8->M9 handoff readability/posture,
+   - required `P12` handle presence,
+   - placeholder/wildcard handle values,
+   - local+durable artifact publication parity.
+4. Emit deterministic artifacts:
+   - `m9a_handle_closure_snapshot.json`
+   - `m9a_blocker_register.json`
+   - `m9a_execution_summary.json`
+
+### Runtime and quality posture
+1. Keep lane bounded to metadata validation only (no heavy data scan, no per-event work).
+2. Target runtime budget <= 10 minutes; expected completion < 2 minutes.
+3. Blocker mapping for this lane is fixed to `M9-B1` and publication parity `M9-B11`.
+
+## Entry: 2026-02-26 08:10:00 +00:00 - M9.A deep-plan expansion completed
+
+### What was added
+1. Added explicit M9.A entry conditions tied to M8 closure handoff contract.
+2. Added deterministic verification algorithm with fixed pass/fail transitions.
+3. Added blocker mapping and fail-closed behavior:
+   - `M9-B1` for authority/handoff/handle closure failures,
+   - `M9-B11` for publish/readback parity failures.
+4. Added runtime budget target and expanded DoD anchors to include register/summary artifacts and explicit next-gate posture.
+
+### Why this matters
+1. Execution is now contract-driven, not ad-hoc.
+2. M9.A output schema and next-gate semantics are pinned before script execution, reducing interpretation drift.
+
+## Entry: 2026-02-26 08:13:00 +00:00 - Implemented M9.A executor
+
+### File added
+1. `scripts/dev_substrate/m9a_handle_closure.py`.
+
+### Implemented checks
+1. M8->M9 handoff readability and posture check from:
+   - `evidence/dev_full/run_control/{UPSTREAM_M8_EXECUTION}/m9_handoff_pack.json`.
+2. P12 required handle closure across 12 pinned keys.
+3. fail-closed classification for:
+   - missing handles,
+   - placeholder values,
+   - wildcard values.
+4. local + durable publication of `m9a_*` artifacts with S3 put+head parity check.
+
+### Blocker mapping implemented
+1. `M9-B1` for handoff/handle closure failures.
+2. `M9-B11` for durable publication/readback parity failures.
+
+### Next step
+1. Compile and execute `m9a` against canonical M8 closure execution and remediate blockers in-lane.
+
+## Entry: 2026-02-26 08:16:00 +00:00 - M9.A first-run blocker diagnosis
+
+### First-run result
+1. Execution id: `m9a_p12_handle_closure_20260226T074802Z`.
+2. Result: `overall_pass=false`, blockers `2`, `next_gate=HOLD_REMEDIATE`.
+
+### Diagnosis
+1. `M9-B1` due to unresolved handoff path:
+   - script assumed `m9_handoff_pack.json` at M8.J run-control root,
+   - actual handoff artifact is published under M8.I execution root.
+2. Secondary `M9-B1` from unresolved run scope because handoff payload was unreadable.
+
+### Remediation decision
+1. Patch script to resolve handoff key via `m8_execution_summary.json` first:
+   - read upstream `m8_execution_summary.json`,
+   - derive `m8i_execution_id` from `upstream_refs`,
+   - load `m9_handoff_pack.json` from the derived M8.I run-control prefix.
+2. Remove ambient env contamination risk by not pre-seeding run scope from stale shell env values.
+3. Rerun M9.A immediately after patch.
+
+## Entry: 2026-02-26 08:22:00 +00:00 - M9.A closure execution and blocker remediation
+
+### Execution trail
+1. First execution:
+   - `m9a_p12_handle_closure_20260226T074802Z`
+   - outcome: `overall_pass=false`, `blocker_count=2`, `next_gate=HOLD_REMEDIATE`.
+2. Blocker root cause:
+   - handoff lookup path assumed `m9_handoff_pack` under M8.J run-control root,
+   - actual artifact is published under M8.I execution root (referenced by M8 summary upstream refs).
+3. Remediation:
+   - patched M9.A executor to read `m8_execution_summary.json` first,
+   - derive `m8i_execution_id` from `upstream_refs`,
+   - resolve handoff key via derived M8.I root,
+   - removed ambient env run-scope pre-seeding.
+4. Rerun execution:
+   - `m9a_p12_handle_closure_20260226T074906Z`
+   - outcome: `overall_pass=true`, `blocker_count=0`, `next_gate=M9.B_READY`.
+
+### Closure proof
+1. Handle closure:
+   - required handles `12/12` resolved,
+   - missing `0`, placeholder `0`, wildcard `0`.
+2. Run scope continuity:
+   - `platform_run_id=platform_20260223T184232Z`,
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`.
+3. Artifact publication:
+   - local: `runs/dev_substrate/dev_full/m9/m9a_p12_handle_closure_20260226T074906Z/`
+   - durable: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9a_p12_handle_closure_20260226T074906Z/`.
+
+### Documentation synchronization
+1. Updated `platform.M9.build_plan.md`:
+   - M9.A DoDs checked,
+   - execution-status section includes fail-first + remediation + closure run details,
+   - completion checklist marks `M9.A` complete,
+   - planning status advanced to `M9.B`.
+2. Updated `platform.build_plan.md`:
+   - M9 status switched to `ACTIVE`,
+   - M9 execution status includes M9.A closure,
+   - next action moved to `M9.B`.
+
+## Entry: 2026-02-26 08:25:00 +00:00 - M9.A durable publication parity check
+
+### Verification performed
+1. Listed durable run-control prefix:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9a_p12_handle_closure_20260226T074906Z/`.
+2. Verified expected artifact set exists:
+   - `m9a_handle_closure_snapshot.json`
+   - `m9a_blocker_register.json`
+   - `m9a_execution_summary.json`.
+
+### Closure decision
+1. M9.A publication parity is confirmed for local->durable artifact set.
+2. Lane can advance to `M9.B` without unresolved M9.A blockers.
+
+## Entry: 2026-02-26 08:27:00 +00:00 - M9.A plan/runtime drift correction
+
+### Drift found
+1. M9.A entry text still implied direct handoff lookup at M8 run-control root.
+2. Runtime truth requires derived lookup via M8 summary -> M8.I execution root.
+
+### Correction applied
+1. Updated M9.A entry conditions and deterministic algorithm text to match implemented resolver path.
+2. This closes documentation drift and preserves replayability for subsequent operators.
+
+## Entry: 2026-02-26 08:28:00 +00:00 - Readme posture sync after M9.A closure
+
+### Update
+1. Updated `dev_full/README.md` to reflect current phase posture:
+   - `M9.A` closed green,
+   - next step is `M9.B`.
+
+### Reason
+1. Prevent operator drift caused by stale next-step guidance.
+
+## Entry: 2026-02-26 08:36:00 +00:00 - M9.B kickoff and execution design lock
+
+### Scope lock
+1. Active lane is `M9.B` only.
+2. Upstream dependencies are fixed to:
+   - `M8` closure execution: `m8j_p11_closure_sync_20260226T065141Z`,
+   - `M9.A` closure execution: `m9a_p12_handle_closure_20260226T074906Z`.
+
+### M9.B intent interpretation (authority-aligned)
+1. Validate continuity between M8 handoff artifacts and M9.A closure scope.
+2. Assert one canonical run scope (`platform_run_id`, `scenario_run_id`) for all remaining M9 sub-phases.
+3. Emit deterministic scope-lock artifact that downstream M9 lanes can consume.
+
+### Decision before implementation
+1. Expand M9.B deep-plan section to execution-grade contract first.
+2. Implement dedicated `scripts/dev_substrate/m9b_handoff_scope_lock.py`.
+3. Emit three artifacts (local+durable):
+   - `m9b_handoff_scope_snapshot.json`
+   - `m9b_blocker_register.json`
+   - `m9b_execution_summary.json`
+4. Blocker mapping:
+   - `M9-B2` for handoff/run-scope continuity failures,
+   - `M9-B11` for publication/readback parity failures.
+
+### Runtime/performance posture
+1. Metadata-only lane; no event scan and no data-frame processing.
+2. Runtime budget <= 10 minutes, expected < 2 minutes.
+
+## Entry: 2026-02-26 08:40:00 +00:00 - M9.B deep-plan expansion completed
+
+### Expansion details
+1. Added explicit M9.B entry conditions tied to M9.A and M8 closure posture.
+2. Added required upstream surfaces list (M8 summary, derived M8.I handoff pack, M9.A summary/snapshot).
+3. Added deterministic verification algorithm:
+   - derive M8.I execution id from M8 summary,
+   - enforce run-scope continuity invariants,
+   - emit deterministic scope-lock matrix for M9.B..M9.J.
+4. Added fail-closed blocker mapping:
+   - `M9-B2` for continuity/scope-lock failures,
+   - `M9-B11` for publication parity failures.
+5. Added runtime budget and expanded DoD anchors with next-gate expectation (`M9.C_READY`).
+
+### Why this is required
+1. M9.B now has explicit mechanical acceptance criteria, preventing hand-wavy scope-lock claims.
+2. Downstream M9 lanes can rely on a deterministic run-scope lock artifact instead of implicit assumptions.
+
+## Entry: 2026-02-26 08:45:00 +00:00 - Implemented M9.B executor
+
+### File added
+1. `scripts/dev_substrate/m9b_handoff_scope_lock.py`.
+
+### Implemented mechanics
+1. Reads and validates upstream artifacts:
+   - `m8_execution_summary.json` from M8 closure,
+   - derived `m9_handoff_pack.json` from M8.I execution id,
+   - `m9a_execution_summary.json` and `m9a_handle_closure_snapshot.json`.
+2. Enforces posture continuity:
+   - M8 must be `ADVANCE_TO_M9`/`M9_READY`,
+   - M9.A must be pass with `M9.B_READY`.
+3. Enforces scope continuity:
+   - canonical `platform_run_id` and `scenario_run_id` must match across all upstream surfaces.
+4. Builds deterministic scope lock for `M9.B..M9.J` and emits `scope_lock_hash`.
+5. Publishes local+durable artifacts with readback parity checks.
+
+### Blocker mapping implemented
+1. `M9-B2` for continuity/scope-lock failures.
+2. `M9-B11` for artifact publication parity failures.
+
+### Next step
+1. Compile and execute M9.B against canonical upstream execution ids and clear blockers in-lane.
+
+## Entry: 2026-02-26 08:50:00 +00:00 - M9.B execution result and closure decision
+
+### Execution
+1. Ran `m9b_p12_scope_lock_20260226T075421Z`.
+2. Inputs:
+   - `UPSTREAM_M8_EXECUTION=m8j_p11_closure_sync_20260226T065141Z`
+   - `UPSTREAM_M9A_EXECUTION=m9a_p12_handle_closure_20260226T074906Z`
+   - `EVIDENCE_BUCKET=fraud-platform-dev-full-evidence`.
+
+### Outcome
+1. `overall_pass=true`, `blocker_count=0`, `next_gate=M9.C_READY`.
+2. Canonical run scope continuity holds across all checked surfaces:
+   - `platform_run_id=platform_20260223T184232Z`
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`.
+3. Deterministic scope lock emitted for `M9.B..M9.J`:
+   - `locked_subphase_count=9`
+   - `scope_lock_hash=92dff0c910630d96a7dd80fcf79c6de37d52370d841979f6f055dc254b63cd70`.
+4. Required handoff evidence references are present and parseable.
+
+### Publication parity
+1. Local artifacts:
+   - `runs/dev_substrate/dev_full/m9/m9b_p12_scope_lock_20260226T075421Z/`.
+2. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9b_p12_scope_lock_20260226T075421Z/`.
+3. Durable set verified:
+   - `m9b_handoff_scope_snapshot.json`
+   - `m9b_blocker_register.json`
+   - `m9b_execution_summary.json`.
+
+### Decision
+1. M9.B is closure-green and can be marked complete.
+2. Next lane can advance to `M9.C`.
+
+## Entry: 2026-02-26 08:54:00 +00:00 - M9.B docs/status synchronization completed
+
+### Files updated
+1. `platform.M9.build_plan.md`:
+   - M9.B DoDs checked green,
+   - M9.B execution status block populated with execution/evidence/scope-lock hash,
+   - completion checklist marks M9.B complete,
+   - planning status advanced to M9.C.
+2. `platform.build_plan.md`:
+   - M9 execution status now includes M9.B closure evidence,
+   - global next action moved to M9.C.
+3. `dev_full/README.md`:
+   - posture updated to show M9.A and M9.B closed green,
+   - next active step now M9.C.
+
+### Closure assertion
+1. M9.B has no active blockers and is closed.
+2. M9 remains active overall with next lane `M9.C`.
+
+## Entry: 2026-02-26 09:01:00 +00:00 - M9.C deep-plan expansion completed
+
+### What was added
+1. Added explicit M9.C entry gates tied to M9.B pass posture and replay-mode pin.
+2. Added required source surfaces:
+   - M9.B artifacts,
+   - run-scoped ingest offsets/receipt surfaces,
+   - closure refs carried from M8 handoff.
+3. Added deterministic algorithm for origin-offset extraction and validation.
+4. Added dual publication contract for receipt:
+   - run-scope evidence path,
+   - run-control execution path.
+5. Added fail-closed blocker mapping:
+   - `M9-B3` (replay-basis closure),
+   - `M9-B11` (publication parity).
+
+### Design choice
+1. Chose `kafka_offsets_snapshot.json` as canonical replay-basis source because it already carries deterministic first/last offsets and run-scoped provenance from P7 ingest closure.
+2. Treat `receipt_summary.json` as consistency context, not the offset authority surface.
+
+## Entry: 2026-02-26 09:07:00 +00:00 - Implemented M9.C replay-basis executor
+
+### File added
+1. `scripts/dev_substrate/m9c_replay_basis_receipt.py`.
+
+### Implemented checks
+1. Upstream gate continuity checks:
+   - M9.B summary (`overall_pass=true`, `next_gate=M9.C_READY`),
+   - M9.B scope-lock snapshot readability and run-scope continuity.
+2. Handle enforcement checks:
+   - `LEARNING_REPLAY_BASIS_MODE`,
+   - `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`,
+   - `RECEIPT_SUMMARY_PATH_PATTERN`,
+   - `LEARNING_REPLAY_BASIS_RECEIPT_PATH_PATTERN`.
+3. Replay-basis validation checks:
+   - parse `kafka_offsets_snapshot.topics[]`,
+   - ensure required tuple (`topic, partition, first_offset, last_offset, observed_count`),
+   - enforce `first_offset <= last_offset` and `observed_count > 0`.
+4. Immutable receipt generation:
+   - builds `origin_offset_ranges`,
+   - computes deterministic `replay_basis_fingerprint` hash.
+5. Publication contract:
+   - run-control artifacts (`m9c_*`),
+   - run-scoped receipt at `LEARNING_REPLAY_BASIS_RECEIPT_PATH_PATTERN`.
+
+### Blocker mapping implemented
+1. `M9-B3` for replay-basis/readability/validation failures.
+2. `M9-B11` for publish/readback parity failures.
+
+### Next step
+1. Compile and execute M9.C against canonical M9.B closure.
+
+## Entry: 2026-02-26 09:12:00 +00:00 - M9.C execution result and closure decision
+
+### Execution
+1. Ran `m9c_p12_replay_basis_20260226T075941Z`.
+2. Inputs:
+   - `UPSTREAM_M9B_EXECUTION=m9b_p12_scope_lock_20260226T075421Z`
+   - `EVIDENCE_BUCKET=fraud-platform-dev-full-evidence`.
+
+### Outcome
+1. `overall_pass=true`, `blocker_count=0`, `next_gate=M9.D_READY`.
+2. Replay mode enforcement passed:
+   - `LEARNING_REPLAY_BASIS_MODE=origin_offset_ranges`.
+3. Replay basis receipt was materialized from run-scoped ingest offsets:
+   - topic-partition ranges: `1` row,
+   - source topic: `ig.edge.admission.proxy.v1` partition `0`,
+   - first/last offsets: `1772022980 -> 1772042246`,
+   - observed_count: `18`.
+4. Deterministic receipt fingerprint emitted:
+   - `2bb3d8acc862cf7ea5e67ff78be849e9717111d617d5159a5aafb83a0ad384c3`.
+
+### Publication parity
+1. Run-control artifacts:
+   - `m9c_replay_basis_receipt.json`
+   - `m9c_blocker_register.json`
+   - `m9c_execution_summary.json`
+   under `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9c_p12_replay_basis_20260226T075941Z/`.
+2. Run-scoped receipt artifact:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/input/replay_basis_receipt.json`.
+
+### Decision
+1. M9.C is closure-green with no active blockers.
+2. Next lane can advance to `M9.D`.

@@ -96,7 +96,7 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M6 | P5-P7 | Control + Ingress closure | DONE |
 | M7 | P8-P10 | RTDL + Case/Labels closure | DONE |
 | M8 | P11 | Spine obs/gov closure + non-regression pack | DONE |
-| M9 | P12 | Learning input readiness | NOT_STARTED |
+| M9 | P12 | Learning input readiness | ACTIVE |
 | M10 | P13 | OFS dataset closure | NOT_STARTED |
 | M11 | P14 | MF train/eval closure | NOT_STARTED |
 | M12 | P15 | MPR promotion/rollback closure | NOT_STARTED |
@@ -971,7 +971,7 @@ M8 execution status (2026-02-26):
    - durable run-control evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8j_p11_closure_sync_20260226T065141Z/`.
 
 ## M9 - Learning Input Readiness
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 
 Objective:
 - close `P12` with production-realistic learning-input closure:
@@ -1003,6 +1003,24 @@ M9 sub-phase plan:
 8. `M9.H` P12 gate rollup + verdict.
 9. `M9.I` phase budget + cost-outcome closure.
 10. `M9.J` M9 closure sync + M10 handoff.
+
+M9 execution status:
+1. `M9.A` is closed green:
+   - first run fail-closed: `m9a_p12_handle_closure_20260226T074802Z` (`M9-B1`, handoff key mismatch),
+   - remediation: resolve `m9_handoff_pack` via upstream `m8_execution_summary -> upstream_refs.m8i_execution_id`,
+   - closure run: `m9a_p12_handle_closure_20260226T074906Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M9.B_READY`,
+   - durable evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9a_p12_handle_closure_20260226T074906Z/`.
+2. `M9.B` is closed green:
+   - execution: `m9b_p12_scope_lock_20260226T075421Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M9.C_READY`,
+   - run-scope lock confirmed for `M9.B..M9.J`:
+     - `platform_run_id=platform_20260223T184232Z`,
+     - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`,
+   - scope lock hash:
+     - `92dff0c910630d96a7dd80fcf79c6de37d52370d841979f6f055dc254b63cd70`,
+   - durable evidence:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9b_p12_scope_lock_20260226T075421Z/`.
 
 DoD anchors:
 - [ ] replay basis is committed as offset ranges with deterministic receipt.
@@ -1179,4 +1197,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M9.A` for `P12` learning-input readiness entry checks.
+- Expand and execute `M9.C` for replay-basis receipt closure.

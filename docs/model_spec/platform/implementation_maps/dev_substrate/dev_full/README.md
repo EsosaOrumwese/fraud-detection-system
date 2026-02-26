@@ -28,5 +28,7 @@ This folder is reserved for `dev_full` planning and implementation notes.
   - `M8` deep planning now exists in:
     - `platform.M8.build_plan.md`.
 - Next closure step:
-  - begin `M9.A` planning/execution for `P12` learning-input readiness.
+  - `M9.A` closed green for `P12` authority/handle closure.
+  - `M9.B` closed green for handoff continuity and run-scope lock.
+  - next active step is `M9.C` replay-basis receipt closure.
 - `dev_min` remains closed and isolated under `../dev_min/`.
