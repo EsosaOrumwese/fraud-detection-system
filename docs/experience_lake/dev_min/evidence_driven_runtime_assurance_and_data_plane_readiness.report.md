@@ -489,7 +489,7 @@ Alternatives rejected:
 - rejected because sensitive material exposure risk increases materially.
 
 Trade-off accepted:
-- some forensic depth requires controlled internal access, but routine challenge defense remains complete.
+- some forensic depth requires controlled internal access, but routine challenge defense remains sufficient and reproducible.
 
 ### 5.9 Net design posture
 The final design posture is intentionally strict:
@@ -951,6 +951,7 @@ If asked for one strongest story, use the incident-drill chain:
 
 1. Failing snapshot
 - local: `runs/dev_substrate/m10/m10_20260220T054251Z/m10_d_incident_drill_snapshot_attempt1_fail.json`
+- durable note: first-attempt fail artifact was retained locally; closure defense relies on local fail artifact plus local-and-durable rerun pass artifact.
 - key fields:
   - `overall_pass=false`
   - `blockers=["M10D-B2"]`

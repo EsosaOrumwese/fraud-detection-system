@@ -3701,3 +3701,82 @@ Storage control:
 - after evidence extraction, pruned superseded run folders:
   - `runs/fix-data-engine/segment_6B/b60080a948784e3a971339149528fd8d`,
   - `runs/fix-data-engine/segment_6B/e49c2370a1154be9aa5c8cf227fc2fa2`.
+
+---
+
+### Entry: 2026-02-26 05:12
+
+P3 design lock before code edits (`S3` owner lane, target `T17`).
+
+Authority posture pinned:
+- current scored witness (`ac712b0b5e3f4ae5b5fd1a2af1662d4b`) has:
+  - `T17`: `campaign_count=5`, `class_v=0.029388` (just below `B` floor `0.03`),
+  - `T18`: already `PASS_BPLUS` (`tz_corridor_v=0.108057`, `median_tz=64`).
+- hard gates are currently green (`PASS_HARD_ONLY` posture overall), so P3 lane must be non-regressive.
+
+Root-cause focus for P3:
+- S3 campaign assignment currently uses overlapping, campaign-local hash picks with first-match precedence.
+- this can starve late campaigns and produces weak campaign-vs-class differentiation because targeting is mostly flow-hash driven rather than cohort-aware.
+
+Alternatives considered:
+1) only lift campaign multiplicity (`instances`) first.
+- rejected as primary first move for this lane; raises fraud volume/global posture with weaker direct control over `T17 class_v`.
+2) full event-lane refactor to force event campaign assignment from flow join.
+- deferred for now; higher blast radius and runtime risk, not required for `T17` owner closure.
+3) low-blast flow-lane targeting-depth refactor with deterministic merchant cohorts plus anti-starvation threshold floor.
+- selected; directly targets `T17` while preserving schema contracts and rerun scope `S3 -> S4 -> S5`.
+
+Chosen implementation lane:
+- in `6B.S3`, refactor flow campaign assignment expression to:
+  - use campaign-specific deterministic merchant cohort windows (bucketed by merchant hash),
+  - keep campaign quotas bounded via adjusted pick thresholds,
+  - retain deterministic first-match semantics,
+  - add threshold floor for positive-target campaigns to reduce accidental zero-realisation collapse.
+- keep output schema and policy/scorer thresholds unchanged.
+- execute fresh staged witness (`S3 -> S4 -> S5`) and score `T17/T18` with hard-gate veto rails.
+
+---
+
+### Entry: 2026-02-26 05:24
+
+P3.2 implementation applied in `6B.S3` (targeting-depth refactor, bounded blast).
+
+Files changed:
+- `packages/engine/src/engine/layers/l3/seg_6B/s3_fraud_overlay/runner.py`.
+
+Implemented mechanics:
+1) campaign-plan targeting metadata:
+- each realised campaign now carries deterministic targeting window metadata:
+  - `targeting_bucket_mod`,
+  - `targeting_width`,
+  - `targeting_bucket_start`.
+- width is derived from `filters_id` class:
+  - `F_MERCHANT_RISK -> 1`,
+  - `F_ACCOUNT_DIGITAL -> 2`,
+  - `F_ECOM_CARDLIKE -> 3`,
+  - `F_CARDLIKE_ANY -> 4`,
+  - default `3`.
+- `targeting_bucket_start` is deterministic via SHA256 over campaign identity tuple.
+
+2) anti-starvation threshold floor:
+- for campaigns with `target_count > 0`, if integer threshold truncates to zero, threshold is forced to `1`.
+- intent: prevent positive-target campaigns from disappearing due quantization.
+
+3) flow-lane campaign assignment redesign:
+- `_assign_campaign_expr` now supports owner-scoped targeting mode.
+- flow assignment uses merchant-cohort gating + adjusted threshold:
+  - merchant cohort selected by deterministic hash buckets,
+  - pick threshold scaled by cohort width to preserve bounded prevalence.
+- first-match semantics and deterministic hash policy remain unchanged.
+
+4) event-lane compatibility posture:
+- event assignment keeps flow-hash-only mode (`use_merchant_targeting=False`) to avoid widening blast radius with a large flow-event join refactor in this pass.
+- this preserves schema/throughput posture for current P3 lane while targeting `T17` owner metric on flow surface.
+
+Validation:
+- compile check passed:
+  - `python -m compileall packages/engine/src/engine/layers/l3/seg_6B/s3_fraud_overlay/runner.py`.
+
+Next:
+- stage a fresh run from authority baseline and execute `S3 -> S4 -> S5`,
+- score `T1..T22`, emit P3 closure artifacts, and decide `UNLOCK_P4` vs `HOLD_P3_REOPEN`.

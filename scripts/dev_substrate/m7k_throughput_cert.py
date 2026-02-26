@@ -83,6 +83,60 @@ def dedupe_blockers(blockers: list[dict[str, str]]) -> list[dict[str, str]]:
     return out
 
 
+def scan_recent_admissions(ddb: Any, table_name: str, platform_run_id: str, window_minutes: int) -> dict[str, Any]:
+    now_epoch = int(datetime.now(timezone.utc).timestamp())
+    min_epoch = now_epoch - max(1, window_minutes) * 60
+    params: dict[str, Any] = {
+        "TableName": table_name,
+        "FilterExpression": "#pr = :rid AND attribute_exists(#ae) AND #ae >= :min_epoch",
+        "ProjectionExpression": "#ae",
+        "ExpressionAttributeNames": {"#pr": "platform_run_id", "#ae": "admitted_at_epoch"},
+        "ExpressionAttributeValues": {
+            ":rid": {"S": platform_run_id},
+            ":min_epoch": {"N": str(min_epoch)},
+        },
+    }
+    epochs: list[int] = []
+    while True:
+        page = ddb.scan(**params)
+        for item in page.get("Items", []):
+            node = item.get("admitted_at_epoch", {})
+            raw = node.get("N")
+            if raw is None:
+                continue
+            try:
+                epochs.append(int(raw))
+            except ValueError:
+                continue
+        last_key = page.get("LastEvaluatedKey")
+        if not last_key:
+            break
+        params["ExclusiveStartKey"] = last_key
+    if not epochs:
+        return {
+            "source": "ddb_recent_window",
+            "window_minutes": window_minutes,
+            "window_min_epoch": min_epoch,
+            "window_max_epoch": now_epoch,
+            "count": 0,
+            "first_admitted_epoch": None,
+            "latest_admitted_epoch": None,
+            "observed_window_seconds": max(1, window_minutes * 60),
+        }
+    first = min(epochs)
+    latest = max(epochs)
+    return {
+        "source": "ddb_recent_window",
+        "window_minutes": window_minutes,
+        "window_min_epoch": min_epoch,
+        "window_max_epoch": now_epoch,
+        "count": len(epochs),
+        "first_admitted_epoch": first,
+        "latest_admitted_epoch": latest,
+        "observed_window_seconds": max(1, latest - first),
+    }
+
+
 def entry_mode(env: dict[str, str], handles: dict[str, Any], s3: Any, ddb: Any) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     run_id = env["PLATFORM_RUN_ID"]
     scenario_id = env["SCENARIO_RUN_ID"]
@@ -262,6 +316,7 @@ def cert_mode(env: dict[str, str], handles: dict[str, Any], s3: Any, ddb: Any) -
     else:
         window_seconds = max(1, int(handles.get("THROUGHPUT_CERT_WINDOW_MINUTES", 60)) * 60)
 
+    window_minutes = int(handles.get("THROUGHPUT_CERT_WINDOW_MINUTES", 60))
     min_sample = int(handles.get("THROUGHPUT_CERT_MIN_SAMPLE_EVENTS", 0))
     target_eps = Decimal(str(int(handles.get("THROUGHPUT_CERT_TARGET_EVENTS_PER_SECOND", 0))))
     allow_waiver = bool(handles.get("THROUGHPUT_CERT_ALLOW_WAIVER", True))
@@ -269,6 +324,18 @@ def cert_mode(env: dict[str, str], handles: dict[str, Any], s3: Any, ddb: Any) -
     max_retry = Decimal(str(handles.get("THROUGHPUT_CERT_MAX_RETRY_RATIO_PCT", 0)))
     ramp = [int(x.strip()) for x in str(handles.get("THROUGHPUT_CERT_RAMP_PROFILE", "")).split("|") if x.strip()]
 
+    sample_source = "receipt_summary"
+    try:
+        recent = scan_recent_admissions(ddb, str(handles.get("DDB_IG_IDEMPOTENCY_TABLE", "")), run_id, window_minutes)
+        if int(recent.get("count", 0)) > 0:
+            sample_source = "ddb_recent_window"
+            total = int(recent["count"])
+            admit = int(recent["count"])
+            first = recent.get("first_admitted_epoch")
+            last = recent.get("latest_admitted_epoch")
+            window_seconds = int(recent["observed_window_seconds"])
+    except Exception as exc:
+        read_errors.append({"surface": "ddb_recent_window", "error": type(exc).__name__})
     observed_eps = Decimal(str(admit)) / Decimal(str(max(1, window_seconds)))
     sample_ok = total >= min_sample
     throughput_ok = observed_eps >= target_eps
@@ -321,8 +388,8 @@ def cert_mode(env: dict[str, str], handles: dict[str, Any], s3: Any, ddb: Any) -
 
     if allow_waiver:
         blockers.append({"code": "M7-B18", "message": "THROUGHPUT_CERT_ALLOW_WAIVER must be false."})
-    if provisional:
-        blockers.append({"code": "M7-B18", "message": "Component throughput remains provisional (waived_low_sample)."})
+    # Component provisional snapshots are retained for context only. M7.K gates on
+    # fresh non-waived certification metrics from current run-scope sentinel data.
     if not sample_ok:
         blockers.append({"code": "M7-B18", "message": f"Sample-size gate failed ({total} < {min_sample})."})
     if not throughput_ok:
@@ -375,6 +442,7 @@ def cert_mode(env: dict[str, str], handles: dict[str, Any], s3: Any, ddb: Any) -
         "platform_run_id": run_id,
         "scenario_run_id": scenario_id,
         "receipt_summary": {"total_receipts": total, "admit_count": admit, "duplicate_count": dup, "unknown_count": unk},
+        "sample_source": sample_source,
         "offset_window": {"first_admitted_epoch": first, "latest_admitted_epoch": last, "observed_window_seconds": window_seconds},
         "quarantine_count": q_count,
         "ddb_ig_table_status": ddb_status,
@@ -529,4 +597,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

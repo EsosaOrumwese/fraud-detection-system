@@ -1357,6 +1357,75 @@ Definition of done:
 - [ ] `T17-T18` reach `B` thresholds and push toward `B+`.
 - [ ] `T1-T16`, `T21`, `T22` remain passing.
 
+P3 expanded execution plan:
+
+#### P3.1 - Design lock + owner boundaries
+Goal:
+- lock a low-blast `S3` owner lane that directly targets `T17` class-differentiation miss without reopening closed `S2/S4` policy owners.
+
+Definition of done:
+- [x] authority baseline pinned from latest scored witness:
+  - `run_id=ac712b0b5e3f4ae5b5fd1a2af1662d4b`,
+  - `T17 campaign_count=5`, `class_v=0.029388` (just below `B` floor `0.03`),
+  - `T18` already `PASS` (`tz_corridor_v=0.108057`, `median_tz=64`).
+- [x] blast radius pinned:
+  - touched owner code is `6B.S3` only,
+  - rerun matrix is `S3 -> S4 -> S5`,
+  - no schema/contract/scorer threshold changes.
+- [x] veto rails pinned:
+  - no regression on hard gates (`T1-T16`, `T21`, `T22`),
+  - `T18` must remain `PASS`,
+  - `S3/S4/S5` runtime rails must not materially regress beyond stretch posture.
+
+#### P3.2 - Campaign targeting-depth refactor (`S3`)
+Goal:
+- increase campaign-vs-class differentiation by moving flow campaign pick from pure flow-hash overlap to deterministic merchant-cohort targeting with anti-starvation guardrails.
+
+Definition of done:
+- [ ] implement deterministic merchant-cohort targeting in `S3` campaign assignment for flow surface:
+  - campaign-specific cohort windows over merchant hash buckets,
+  - preserved deterministic run reproducibility for fixed `(seed, manifest_fingerprint, parameter_hash, scenario_id)`.
+- [ ] implement anti-starvation threshold floor for positive target campaigns:
+  - campaigns with `target_count > 0` cannot collapse to zero-probability due integer truncation.
+- [ ] preserve existing output schemas and required columns for:
+  - `s3_flow_anchor_with_fraud_6B`,
+  - `s3_event_stream_with_fraud_6B`,
+  - `s3_campaign_catalogue_6B`.
+- [ ] preserve overlay guardrails:
+  - no uncontrolled fraud explosion,
+  - campaign target totals remain bounded by policy guardrails.
+
+#### P3.3 - Fresh owner witness execution (`S3 -> S4 -> S5`)
+Goal:
+- execute a fresh `6B` lane with only `S3` owner changes and produce reproducible evidence.
+
+Definition of done:
+- [ ] fresh run-id staged under `runs/fix-data-engine/segment_6B/<new_run_id>` from pinned authority baseline prerequisites.
+- [ ] execute:
+  - `make segment6b-s3`,
+  - `make segment6b-s4`,
+  - `make segment6b-s5`.
+- [ ] score gateboard:
+  - `tools/score_segment6b_p0_baseline.py` with pinned merchant-class and arrival-events authorities.
+
+#### P3.4 - Closure scoring + decision
+Goal:
+- determine whether P3 is closed for `B` and whether `B+` is reachable without reopening upstream owners.
+
+Definition of done:
+- [ ] closure artifacts emitted:
+  - `segment6b_p0_realism_gateboard_<run_id>.json/.md`,
+  - `segment6b_p3_closure_<run_id>.json/.md`.
+- [ ] gate outcomes:
+  - `T17` reaches `B` (`campaign_count>=4` and `class_v>=0.03`),
+  - `T18` remains `B` `PASS`.
+- [ ] non-regression outcomes:
+  - all hard gates stay `PASS`,
+  - no new required-check failures in `S5`.
+- [ ] phase decision emitted:
+  - `UNLOCK_P4` if `P3` closure criteria hold,
+  - else `HOLD_P3_REOPEN` with next `S3` lane explicitly pinned.
+
 ### P4 - Wave C (`S1` context/session realism closure)
 Goal:
 - improve attachment/session realism and conditional context carry-through for durable `B+`.

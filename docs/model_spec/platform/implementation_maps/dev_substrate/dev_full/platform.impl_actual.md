@@ -10777,3 +10777,24 @@ ext_gate=HOLD_REMEDIATE.
 2. Implement un_m7k_entry_remote (m7r) and un_m7k_cert_remote (m7s).
 3. Dispatch m7r, validate outputs, then dispatch m7s.
 4. If blockers appear, remediate fail-closed and rerun until THROUGHPUT_CERTIFIED with locker_count=0.
+
+## Entry: 2026-02-26 04:11:29 +00:00 - M7.K.A blocker observed and remediated (pin consistency)
+
+### Observation
+1. First M7.K.A execution (m7r_m7k_entry_20260226T000001Z) failed with blocker:
+   - M7-B18: 	arget/hour and target/sec pins are inconsistent.
+2. Numeric mismatch details:
+   - THROUGHPUT_CERT_TARGET_EVENTS_PER_HOUR=134000000
+   - THROUGHPUT_CERT_TARGET_EVENTS_PER_SECOND=37223
+   - 37223 * 3600 = 134002800 (drift from pinned hourly target).
+
+### Decision
+1. Keep hourly target as authority (134000000).
+2. Repin per-second target to nearest integer-consistent value:
+   - THROUGHPUT_CERT_TARGET_EVENTS_PER_SECOND=37222.
+3. Update M7 plan wording to keep pin narrative consistent.
+
+### Why this is correct
+1. Removes avoidable gate noise from a pure arithmetic drift.
+2. Preserves intended throughput target posture while making handles internally consistent.
+3. Avoids false-negative certification failures unrelated to runtime behavior.

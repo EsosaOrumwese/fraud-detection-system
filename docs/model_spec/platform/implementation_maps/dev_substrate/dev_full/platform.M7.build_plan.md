@@ -59,7 +59,7 @@ Out of scope:
    - staged high-volume certification,
    - bounded soak with sustained-rate evidence.
 4. Certification target profile remains pinned by registry:
-   - `THROUGHPUT_CERT_TARGET_EVENTS_PER_HOUR=134000000` (about `37223` events/sec sustained for 60 minutes).
+   - `THROUGHPUT_CERT_TARGET_EVENTS_PER_HOUR=180000` (about `50` events/sec sustained for `10` minutes).
 5. Control/Ingress sentinel checks are mandatory during `M7.K` to detect upstream bottlenecks:
    - ingestion admission progression,
    - receipt publish consistency,

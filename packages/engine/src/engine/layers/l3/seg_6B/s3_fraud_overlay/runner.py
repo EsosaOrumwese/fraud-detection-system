@@ -639,6 +639,7 @@ def _build_campaign_plans(
             logger.warning("S3: skipping template without template_id")
             continue
         campaign_type = str(template.get("campaign_type") or "").strip()
+        filters_id = str(template.get("filters_id") or "").strip()
         max_instances = int(template.get("max_instances_per_seed") or 1)
         instances = max(1, min(max_instances, 1))
         schedule_id = str(template.get("schedule_model_id") or "").strip()
@@ -671,12 +672,34 @@ def _build_campaign_plans(
                 manifest_fingerprint,
                 instance_index,
             )
+            targeting_width_map = {
+                "F_MERCHANT_RISK": 1,
+                "F_ACCOUNT_DIGITAL": 2,
+                "F_ECOM_CARDLIKE": 3,
+                "F_CARDLIKE_ANY": 4,
+            }
+            targeting_bucket_mod = 29
+            targeting_width = int(targeting_width_map.get(filters_id, 3))
+            if targeting_width <= 0:
+                targeting_width = 1
+            if targeting_width > targeting_bucket_mod:
+                targeting_width = targeting_bucket_mod
+            bucket_key = (
+                f"{manifest_fingerprint}:{parameter_hash}:{scenario_id}:{campaign_id}:target_bucket_start"
+            )
+            targeting_bucket_start = (
+                int.from_bytes(hashlib.sha256(bucket_key.encode("utf-8")).digest()[:8], "big")
+                % targeting_bucket_mod
+            )
             plans.append(
                 {
                     "campaign_id": campaign_id,
                     "campaign_label": template_id,
                     "campaign_type": campaign_type,
                     "target_count": max(int(target_count), 0),
+                    "targeting_bucket_mod": targeting_bucket_mod,
+                    "targeting_width": targeting_width,
+                    "targeting_bucket_start": targeting_bucket_start,
                 }
             )
 
@@ -698,22 +721,66 @@ def _build_campaign_plans(
             plan["target_rate"] = 0.0
         else:
             plan["target_rate"] = min(plan["target_count"] / float(total_flows), 1.0)
-        plan["threshold"] = int(plan["target_rate"] * modulus)
+        threshold = int(plan["target_rate"] * modulus)
+        # Keep very low-rate positive-target campaigns from truncating to zero.
+        if plan["target_count"] > 0 and threshold == 0 and total_flows > 0:
+            threshold = 1
+        plan["threshold"] = threshold
     return plans
 
 
-def _assign_campaign_expr(campaigns: list[dict], seed: int, modulus: int) -> pl.Expr:
+def _assign_campaign_expr(
+    campaigns: list[dict],
+    seed: int,
+    modulus: int,
+    *,
+    use_merchant_targeting: bool,
+) -> pl.Expr:
     campaign_expr: pl.Expr = pl.lit(None, dtype=pl.Utf8)
     for idx, campaign in enumerate(campaigns):
         threshold = int(campaign.get("threshold") or 0)
         if threshold <= 0:
             continue
-        hash_expr = _hash_to_index(
+        flow_hash_expr = _hash_to_index(
             [pl.col("flow_id"), pl.lit(campaign["campaign_id"])],
             seed=seed + 1700 + idx,
             modulus=modulus,
         )
-        pick_expr = hash_expr < pl.lit(threshold)
+        pick_expr = flow_hash_expr < pl.lit(threshold)
+        if use_merchant_targeting:
+            bucket_mod = int(campaign.get("targeting_bucket_mod") or 29)
+            width = int(campaign.get("targeting_width") or 3)
+            start = int(campaign.get("targeting_bucket_start") or 0)
+            if bucket_mod <= 1:
+                bucket_mod = 29
+            if width <= 0:
+                width = 1
+            if width > bucket_mod:
+                width = bucket_mod
+            start = start % bucket_mod
+            end = (start + width) % bucket_mod
+
+            merchant_bucket_expr = _hash_to_index(
+                [pl.col("merchant_id"), pl.lit(campaign["campaign_id"])],
+                seed=seed + 1500 + idx,
+                modulus=bucket_mod,
+            )
+            if width >= bucket_mod:
+                cohort_expr = pl.lit(True)
+            elif start < end:
+                cohort_expr = (merchant_bucket_expr >= pl.lit(start)) & (
+                    merchant_bucket_expr < pl.lit(end)
+                )
+            else:
+                cohort_expr = (merchant_bucket_expr >= pl.lit(start)) | (
+                    merchant_bucket_expr < pl.lit(end)
+                )
+
+            adjusted_threshold = min(
+                modulus,
+                max(1, int(math.ceil(threshold * (bucket_mod / float(width))))),
+            )
+            pick_expr = cohort_expr & (flow_hash_expr < pl.lit(adjusted_threshold))
         campaign_expr = pl.when(pick_expr & campaign_expr.is_null()).then(
             pl.lit(campaign["campaign_id"])
         ).otherwise(campaign_expr)
@@ -1127,7 +1194,12 @@ def run_s3(
             )
             part_index = 0
             validated_flow_schema = False
-            campaign_expr = _assign_campaign_expr(campaigns, seed, modulus)
+            campaign_expr = _assign_campaign_expr(
+                campaigns,
+                seed,
+                modulus,
+                use_merchant_targeting=True,
+            )
             amount_expr = _amount_shift_expr(min_factor, max_factor, max_amount_multiplier, seed, modulus)
 
             for flows in _iter_parquet_batches(
@@ -1257,7 +1329,12 @@ def run_s3(
             )
             part_index = 0
             validated_event_schema = False
-            campaign_expr = _assign_campaign_expr(campaigns, seed, modulus)
+            campaign_expr = _assign_campaign_expr(
+                campaigns,
+                seed,
+                modulus,
+                use_merchant_targeting=False,
+            )
             amount_expr = _amount_shift_expr(min_factor, max_factor, max_amount_multiplier, seed, modulus)
 
             for events in _iter_parquet_batches(
