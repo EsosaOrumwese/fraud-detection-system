@@ -121,7 +121,7 @@ Status:
 - Complete (hardening + recruiter-trim done).
 
 ### Claim E - Streaming Ingestion Reliability and Transport Truth Boundaries
-Planned file:
+File:
 - `docs/experience_lake/dev_min/replay_safe_stream_ingestion_and_transport_truth_boundaries.report.md`
 
 Locked claim (merged):
@@ -139,6 +139,28 @@ Out of scope:
 - Exactly-once end-to-end semantics across every downstream side effect.
 - Broker replacement strategy or multi-region disaster recovery architecture.
 - Organization-wide streaming governance beyond this platform boundary.
+
+Status:
+- Complete (hardening + recruiter-trim done).
+
+### Claim F - Evidence-Driven Runtime Assurance and Data-Plane Readiness
+Planned file:
+- `docs/experience_lake/dev_min/evidence_driven_runtime_assurance_and_data_plane_readiness.report.md`
+
+Locked claim (merged):
+- Built an evidence-driven runtime assurance model where each run publishes durable, machine-readable proof artifacts and closure fails closed when required evidence is missing, then hardened preflight and readiness probes against data-plane failure surfaces (not control-plane proxies) to reduce false negatives and force controlled drift remediation.
+
+In scope:
+- Durable run evidence bundle model (including CI provenance surfaces where relevant to runtime adjudication).
+- Artifact-presence and artifact-integrity gates as closure blockers.
+- Preflight and readiness probes mapped to actual data-plane risks (messaging reachability/compatibility, boundary readiness, and end-to-end semantic viability).
+- Fail-to-fix-to-pass incident chain proving probe redesign and controlled remediation.
+- Clear separation of operator summaries vs machine-readable adjudication artifacts.
+
+Out of scope:
+- Full enterprise observability program across all environments and teams.
+- End-to-end business key performance indicator ownership beyond runtime assurance controls.
+- Generic health-check catalogs that are not tied to adjudicated runtime risk surfaces.
 
 Execution plan (report workflow states):
 - Scope Lock: complete.
