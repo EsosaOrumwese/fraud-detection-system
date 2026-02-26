@@ -145,29 +145,105 @@ Examples:
 - `Certified`: passes all quality gates.
 - `Published`: extracted into outward-facing assets.
 
-## 11) Immediate Next Step
-Use this plan for Claim 2 and produce first draft:
+## 11) Staged Execution Plan (Mandatory)
+Work every claim in explicit stages. Do not skip stages.
+
+### Stage 0 - Claim Scope Lock
+Objective:
+- define claim boundary in one sentence,
+- define in-scope and non-claims,
+- identify overlap with existing claims.
+
+Exit criteria:
+- overlap decision is explicit: `merge` or `standalone`.
+
+### Stage 1 - Structural Draft
+Objective:
+- complete Sections 1-3 for framing and context.
+
+Exit criteria:
+- a reviewer can understand the claim without repository context.
+
+### Stage 2 - Technical Core
+Objective:
+- complete Sections 4-8 with mechanism-level detail.
+
+Exit criteria:
+- failure -> decision -> implementation -> controls -> validation chain is explicit.
+
+### Stage 3 - Outcome and Boundaries
+Objective:
+- complete Sections 9-10 with measured outcomes and strict non-claims.
+
+Exit criteria:
+- no over-claiming language; outcomes are concrete and bounded.
+
+### Stage 4 - Proof and Hiring Signal
+Objective:
+- complete Sections 11-12 with challenge-ready proof hooks and recruiter mapping.
+
+Exit criteria:
+- interviewer can challenge any major claim branch and receive a concrete anchor.
+
+### Stage 5 - Hardening and Trim
+Objective:
+- remove jargon and redundancy,
+- tighten recruiter readability without losing technical depth.
+
+Exit criteria:
+- language is external-facing,
+- duplicated statements are collapsed,
+- core proof chain remains intact.
+
+## 12) De-duplication and Merge Rules
+To avoid weak/repetitive reports:
+
+1. If a new claim shares the same control surface and same proof anchors as an existing claim:
+   - merge into existing claim as a named sub-capability.
+2. If a new claim has distinct failure planes and distinct closure evidence:
+   - keep as standalone report.
+3. If uncertain:
+   - default to merge-first, then split only when proof anchors diverge clearly.
+
+Merge implementation rule:
+- update Sections 4-9 in the parent claim so the merged capability is visible end-to-end (not just added as a bullet).
+
+## 13) Current Working Plan (Staged)
+### 13.1 Claim 1 hardening merge
+Parent report:
+- `auditable_release_pipeline_immutable_images.report.md`
+
+Merged sub-capability:
+- deterministic image build surface (`no repo-wide copy`, explicit include/exclude, bounded dependency selection).
+
+Stage 0 scope lock decision (`COMPLETE`):
+- Overlap decision: `merge` into Claim 1 (not standalone).
+- Why: same control surface (release packaging/publish path) and shared proof anchors (build command surface, packaging provenance, security/injection checks).
+- Parent claim boundary (one-line): release workflow integrity includes immutable artifact identity, auditable provenance, fail-closed gates, and deterministic build-surface controls.
+- In-scope for merged sub-capability:
+  - explicit build context include/exclude controls,
+  - prevention of repo-wide copy behavior,
+  - bounded dependency-surface control for runtime image contents,
+  - secret/data leakage risk reduction at build-surface boundary.
+- Non-claims for merged sub-capability:
+  - full SBOM/signing attestation maturity,
+  - complete runtime secret posture for all services,
+  - organization-wide mono-repo governance outside release image packaging boundary.
+- De-duplication rule for execution:
+  - Claim 2 remains authentication/authorization focused only; no deterministic-build-surface narrative is duplicated there.
+
+Execution stages:
+1. Stage 0: confirm merge decision and boundary lock. (`DONE`)  
+2. Stage 1: update Sections 1-3 to lock merged capability framing/boundaries in parent claim. (`DONE`)  
+3. Stage 2 update set: extend Sections 4-8 with deterministic-build-surface risk/design/implementation/controls/validation. (`DONE`)  
+4. Stage 3 update set: add measured/defensible outcomes in Section 9; no speculative metrics. (`DONE`)  
+5. Stage 4 update set: add proof hooks for include/exclude policy and secret-surface checks in Section 11. (`DONE`)  
+6. Stage 5: run final hardening + recruiter trim. (`DONE`)
+
+### 13.2 Claim 2 progression
+Report:
 - `secure_ci_oidc_and_least_privilege_registry_auth.report.md`
 
-## 12) Claim 2 Addendum (CI OIDC + Registry Authorization)
-Target claim:
-- "Implemented secure CI auth via federated OIDC role assumption and hardened least-privilege container-registry permissions after real CI failures exposed missing trust/provider and missing authorization scope."
-
-Claim-2 report emphasis:
-1. Security control clarity:
-   - explain federated identity model and why static credentials were not used.
-2. Authorization boundary clarity:
-   - separate identity success from registry permission success.
-3. Failure chronology:
-   - fail (identity) -> fail (registry auth) -> pass (after scoped remediation).
-4. Least-privilege framing:
-   - permissions were expanded only to required publish/read/auth actions.
-5. Recruiter signal:
-   - demonstrate cloud IAM debugging, release reliability hardening, and security-by-default delivery.
-
-Claim-2 section-level focus notes:
-- Section 4 (Problem/Risk): emphasize "identity and auth are separate failure planes."
-- Section 5 (Design/Trade-offs): include short-lived federated auth vs static key trade-off.
-- Section 7 (Controls): include hard gate: no cloud auth -> no publish; no registry auth -> no publish.
-- Section 8 (Validation): include explicit negative-path validation (expected fail) and closure rerun.
-- Section 11 (Proof Hooks): include the fail/fail/pass CI run sequence and one final identity+artifact proof anchor.
+Current status:
+- Draft complete through Sections 1-12.
+- Stage 5 hardening + trim: completed.

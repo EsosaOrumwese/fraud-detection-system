@@ -1,20 +1,23 @@
-# Auditable Container Release Pipeline with Immutable Image Identity
+# Auditable Container Release Pipeline with Immutable Identity and Deterministic Build Surface
 
 ## 1) Claim Statement
 
 ### Primary claim
-I built and operated an auditable container release pipeline in which a CI workflow is the authoritative build path, every release publishes immutable image identity (`tag` plus `digest`), and machine-readable provenance and verification gates enforce fail-closed behavior before a release is accepted.
+I built and operated an auditable container release pipeline in which a CI workflow is the authoritative build path, every release publishes immutable image identity (`tag` plus `digest`), and deterministic build-surface controls (no repo-wide copy, explicit include/exclude, bounded dependency selection) plus machine-readable provenance and fail-closed gates are required before release acceptance.
 
 ### In-scope boundary
 This claim covers:
 - deterministic container build and publish flow from CI to registry,
 - immutable release identity and promotion-safe referencing by digest,
+- deterministic image contents via explicit build-context boundaries (no repo-wide copy),
+- explicit include/exclude posture for build inputs and bounded dependency surface,
 - provenance artifacts that capture build inputs, release identity, and verification outcomes,
 - fail-closed release checks that block progression when required evidence or validations are missing.
 
 ### Non-claim boundary
 This claim does not assert:
 - organization-wide production rollout governance beyond this release workflow,
+- complete mono-repo governance beyond container build-surface controls in this workflow,
 - complete software supply-chain attestation maturity (for example full signing/SBOM enforcement across all services),
 - runtime incident-free operation of downstream services (that belongs to separate reliability and operations claims).
 
@@ -25,12 +28,17 @@ Container delivery usually fails in three practical ways:
 - release identity is mutable or ambiguous (for example tag-only deployment),
 - release evidence is incomplete (build happened but traceability is weak),
 - checks fail but releases still advance due to weak enforcement.
+Container delivery also fails when build surface is uncontrolled:
+- repo-wide copy behavior makes image contents nondeterministic,
+- accidental secret/data inclusion risk increases in large mono-repos,
+- oversized build context creates avoidable build cost and drift.
 
-The target outcome of this work is to remove those three failure classes from the delivery path used for platform runtime images.
+The target outcome of this work is to remove these failure classes from the delivery path used for platform runtime images.
 
 ### 2.2 Engineering outcome definition (what "success" means)
 Success means the release workflow behaves as a controlled system with explicit acceptance conditions, not as a best-effort script. For every accepted release:
 - artifact identity is immutable and unambiguous,
+- image contents are deterministic within an explicit build-context contract,
 - provenance is machine-readable and sufficient for audit and reproduction,
 - failed or missing checks stop progression by default,
 - accepted artifacts can be referenced and promoted safely without identity drift.
@@ -60,12 +68,19 @@ The outcome is considered achieved only when every criterion below is satisfied 
 5. Audit retrieval posture
 - A reviewer can answer, without code archaeology: what was built, from which source state, by which automated workflow, with which exact immutable artifact identity, and under which gate results.
 
+6. Build-surface determinism posture
+- Build context follows explicit include/exclude boundaries rather than repo-wide copy.
+- Required runtime dependencies are intentionally selected and trackable.
+- Build-surface policy violations are treated as release-control defects, not convenience exceptions.
+
 ### 2.4 Failure conditions (explicit non-success states)
 The workflow is treated as non-compliant for this claim if any of the following occur:
 - release artifact is promoted by tag without digest lock,
 - provenance artifact is absent, partial, or manually fabricated,
 - required checks are bypassed or downgraded informally,
 - build succeeds but identity/provenance cross-check fails,
+- build context is broadened implicitly (for example repo-wide copy) without explicit policy acceptance,
+- image contents drift due to uncontrolled include/exclude or dependency-selection changes,
 - evidence exists but cannot be mapped to the released artifact deterministically.
 
 ### 2.5 Risk reduction objective (why this matters to a senior role)
@@ -73,6 +88,8 @@ This outcome directly reduces operational and hiring-relevant risk:
 - rollback risk: immutable digest identity prevents "same tag, different image" ambiguity,
 - incident response risk: provenance shortens triage because release facts are queryable,
 - governance risk: fail-closed gates prevent silent drift in release hygiene,
+- security risk: explicit build boundaries reduce accidental secret/data leakage into images,
+- delivery-efficiency risk: bounded build context reduces avoidable build noise and packaging drift,
 - team scaling risk: release safety no longer depends on tribal memory.
 
 ### 2.6 Evidence expectation for this section
@@ -85,15 +102,16 @@ This section defines target outcomes; proof details are provided later in:
 ## 3) System Context
 
 ### 3.1 System purpose within the platform
-This release workflow exists to solve a platform-level control problem: runtime services must run artifacts that are traceable, immutable, and policy-validated. Without this workflow, deployment quality depends on manual process discipline and cannot be audited reliably.
+This release workflow exists to solve a platform-level control problem: runtime services must run artifacts that are traceable, immutable, policy-validated, and built from deterministic input surfaces. Without this workflow, deployment quality depends on manual process discipline and cannot be audited reliably.
 
 This system is therefore not "just CI." It is a release-control boundary between:
 - source changes (code and build configuration),
+- build-surface policy (what is allowed into image context and what is excluded),
 - runtime artifact creation (container image),
 - runtime execution eligibility (only validated, traceable artifacts should progress).
 
 ### 3.2 Main actors and ownership model
-The workflow is modeled as four actors with explicit ownership:
+The workflow is modeled as five actors with explicit ownership:
 
 1. Source owner
 - owns application code and build context.
@@ -104,11 +122,16 @@ The workflow is modeled as four actors with explicit ownership:
 - computes and emits immutable artifact identity.
 - evaluates required checks and decides pass/fail progression.
 
-3. Artifact registry
+3. Build-surface policy owner
+- defines allowed build context include/exclude rules.
+- governs dependency-selection boundaries for runtime image contents.
+- treats uncontrolled context expansion as a release-control defect.
+
+4. Artifact registry
 - stores built image artifacts.
 - is the source of truth for published tag and digest mapping at release time.
 
-4. Evidence and audit surface
+5. Evidence and audit surface
 - stores machine-readable release/provenance records and gate outcomes.
 - provides queryable audit material for later review, incident response, or rollback decisions.
 
@@ -121,6 +144,8 @@ At a high level, each release candidate follows this sequence:
 
 2. Build
 - container image is built from the declared source state and build configuration.
+- build context is constrained by explicit include/exclude policy (no repo-wide copy posture).
+- dependency surface is intentionally selected to keep image contents bounded and reproducible.
 - build process emits a candidate image artifact.
 
 3. Publish
@@ -172,6 +197,10 @@ The workflow follows three control principles:
 - missing or failing required checks block progression by default.
 - acceptance requires positive evidence, not absence of visible errors.
 
+4. Deterministic build-surface boundaries
+- image contents are governed by explicit input boundaries, not implicit repository sprawl.
+- policy violations in build context/dependency surface block release acceptance.
+
 ### 3.6 Environmental constraints that shaped design
 The design had to operate under practical constraints:
 - cloud IAM and registry permissions can be partially configured and fail non-obviously,
@@ -182,6 +211,8 @@ The design had to operate under practical constraints:
 ### 3.7 External interfaces and contracts (high level)
 This claim depends on stable interfaces, not internal naming:
 - CI trigger and execution contract,
+- build-context include/exclude policy contract,
+- dependency-selection policy contract,
 - registry push/read contract,
 - provenance artifact schema contract,
 - release gate contract (required checks and required evidence),
@@ -190,6 +221,7 @@ This claim depends on stable interfaces, not internal naming:
 ### 3.8 Scope exclusions for context clarity
 To prevent over-claiming, this context intentionally excludes:
 - service runtime behavior after deployment,
+- full mono-repo governance beyond image build-surface controls used by this workflow,
 - data-plane correctness of streaming and storage systems,
 - organization-wide compliance program maturity,
 - full deployment orchestration logic across every environment.
@@ -202,6 +234,7 @@ Those are separate claims with their own controls and proof surfaces.
 Before this release workflow was hardened, "build and publish a usable runtime image" was not a guaranteed property of the system. In practice, success depended on several hidden prerequisites:
 - correct federated CI identity setup in cloud IAM,
 - complete registry authorization scope for automation roles,
+- explicit build-surface boundaries (no repo-wide copy posture),
 - packaging rules that actually included newly introduced runtime dependencies,
 - consistent identity and evidence capture after publish.
 
@@ -225,7 +258,11 @@ The failure modes were observed as a progression of real breakpoints, not theore
 - A later image built and published successfully, but runtime import failed because a newly required dependency was omitted from curated image dependency selection.
 - Operational effect: "build success" did not imply "runtime-usable artifact."
 
-These three classes exposed a common truth: build execution alone is not a valid release acceptance signal.
+4. Build-surface governance gap before authoritative execution
+- Preflight surfaced missing pinned build-surface artifacts (`Dockerfile`/`.dockerignore`) needed to enforce bounded image context.
+- Operational effect: release packaging boundary was not yet enforceable by policy and had to be corrected before reliable closure.
+
+These failure classes exposed a common truth: build execution alone is not a valid release acceptance signal.
 
 ### 4.3 Risk taxonomy (what could go wrong if untreated)
 The untreated state created specific platform risks:
@@ -250,6 +287,10 @@ The untreated state created specific platform risks:
 - If correctness depends on operator memory or manual checking, release quality degrades as system complexity grows.
 - Consequence: non-repeatable outcomes and brittle handovers.
 
+6. Build-surface leakage risk
+- If image context boundaries are uncontrolled in a large monorepo, accidental secret/data inclusion and noisy image drift become likely.
+- Consequence: security exposure risk and unstable build reproducibility.
+
 ### 4.4 Severity framing (senior engineering lens)
 From an operating-platform perspective, these are high-severity control risks:
 - they block release continuity,
@@ -264,6 +305,7 @@ The release path had to satisfy multiple constraints simultaneously:
 - keep delivery automated (speed),
 - enforce safety gates (control),
 - preserve immutable artifact identity (reliability),
+- keep image build surface bounded and deterministic in a large monorepo,
 - produce machine-readable proof (auditability),
 - avoid manual release exceptions becoming the norm (scalability of operations).
 
@@ -278,6 +320,8 @@ From the failure evidence and risk model, the design requirements were:
 4. Provenance must be machine-generated and bound to release identity.
 5. Required checks must block acceptance when failing or missing (fail-closed).
 6. "Build succeeded" must not be sufficient; runtime-viability and release-proof criteria must be part of acceptance.
+7. Build context must be governed by explicit include/exclude policy; repo-wide copy behavior must be treated as a control defect.
+8. Dependency-surface changes must be explicit and validated to prevent runtime drift.
 
 ## 5) Design Decision and Trade-offs
 
@@ -431,7 +475,27 @@ Why alternatives were rejected:
 Trade-off accepted:
 - Ongoing maintenance of curated dependency surface for stronger image control.
 
-### 5.9 Decision H: remediation via immutable rebuild and controlled redeploy, not ad hoc runtime patching
+### 5.9 Decision H: enforce explicit build-context boundaries (no repo-wide copy)
+Decision:
+- Enforce explicit include/exclude policy for container build context.
+- Disallow implicit repository-wide copy as default behavior.
+
+Why this decision:
+- Large monorepo context increases accidental image-content drift and leakage risk.
+- Deterministic image content requires an explicit input boundary, not implicit filesystem scope.
+
+Alternatives considered:
+1. Use broad `COPY . .` and rely on conventions.
+2. Allow flexible context expansion during incident pressure.
+
+Why alternatives were rejected:
+- Broad copy weakens determinism and increases accidental inclusion risk.
+- Flexible expansion under pressure creates long-term drift that is hard to detect.
+
+Trade-off accepted:
+- More deliberate maintenance of include/exclude rules in exchange for reproducible, bounded image surface.
+
+### 5.10 Decision I: remediation via immutable rebuild and controlled redeploy, not ad hoc runtime patching
 Decision:
 - When release defects are discovered, patch source/build configuration, produce a new immutable image, and redeploy through the same controlled workflow.
 - Do not patch running containers or perform manual runtime "fix in place" for release closure.
@@ -451,11 +515,12 @@ Why alternatives were rejected:
 Trade-off accepted:
 - Slightly longer remediation path in exchange for audit integrity and deterministic recovery.
 
-### 5.10 Net design posture
+### 5.11 Net design posture
 The final design is intentionally conservative:
 - single authoritative release workflow,
 - federated identity + least privilege,
 - immutable artifact identity,
+- deterministic build-surface boundaries,
 - machine-readable provenance,
 - fail-closed acceptance gates,
 - immutable rebuild remediation model.
@@ -468,7 +533,7 @@ This posture prioritizes controlled delivery and operational trustworthiness ove
 Implementation converted the Section 5 decisions into executable controls across four planes:
 - CI workflow behavior,
 - cloud identity and authorization,
-- image packaging behavior,
+- image packaging behavior and build-surface boundaries,
 - evidence and verification outputs.
 
 The goal was not to "have a workflow file."  
@@ -481,6 +546,7 @@ What was implemented in that workflow:
 - explicit operator-triggered release invocation,
 - federated cloud authentication step,
 - deterministic build and registry publish steps,
+- pinned Dockerfile path checks and bounded build-context posture,
 - immutable identity resolution (tag plus digest),
 - structured output export for downstream evidence consumption,
 - hard stop behavior when required prerequisites or checks fail.
@@ -489,7 +555,7 @@ Effect:
 - release truth moved from ad hoc operator action to one observable automated path.
 
 ### 6.3 Release contract hardening before live execution
-Before executing The workflow as authoritative, implementation added contract checks to prevent silent drift between intended release controls and actual workflow behavior.
+Before executing the workflow as authoritative, implementation added contract checks to prevent silent drift between intended release controls and actual workflow behavior.
 
 Concrete hardening implemented:
 - added/updated machine-readable release outputs required for audit,
@@ -536,6 +602,7 @@ Effect:
 ### 6.6 Build-context and packaging controls
 Implemented packaging controls to reduce accidental context leakage and runtime drift:
 - explicit build context boundary posture (avoid unbounded repo copy into image),
+- explicit Dockerfile and `.dockerignore` boundary artifacts to enforce include/exclude behavior,
 - curated dependency selection model retained for image control,
 - hardening updates to keep curated dependency set aligned with runtime requirements.
 
@@ -561,6 +628,7 @@ Why this matters:
 The implementation enforces stop conditions at multiple points:
 - missing federated identity prerequisite -> release blocked,
 - insufficient registry permission scope -> release blocked,
+- missing or invalid build-context boundary artifacts -> release not accepted,
 - missing required evidence output -> release not accepted,
 - unresolved immutable digest -> release not accepted.
 
@@ -570,6 +638,7 @@ This prevented "green by assumption" outcomes and forced defects to be corrected
 By the end of implementation:
 - authoritative CI release workflow was operational,
 - federated identity and registry authorization controls were functioning,
+- deterministic build-surface controls were enforceable and explicit,
 - immutable artifact identity and machine-readable provenance were emitted,
 - packaging drift class was remediated through immutable rebuild discipline,
 - fail-closed behavior was exercised on real failures before successful closure.
@@ -591,6 +660,8 @@ This turns release quality into a mechanism, not a convention.
 Release acceptance is blocked if any of these fail:
 - CI cannot establish federated cloud identity,
 - required registry authorization is missing,
+- build-context boundary policy is missing or violated,
+- dependency-surface alignment for required runtime packages is unresolved,
 - digest cannot be resolved from publish results,
 - required evidence artifacts are missing or malformed,
 - provenance/identity cross-check fails,
@@ -634,7 +705,8 @@ Validation answers one question:
 ### 8.2 Validation design
 Validation is executed in four steps:
 - contract checks before live runs (trigger/permissions/outputs/guard coverage),
-- live negative-path checks (identity/authz/evidence/digest failures must block),
+- build-surface checks (include/exclude boundary and dependency-surface policy),
+- live negative-path checks (identity/authorization/evidence/digest failures must block),
 - positive-path closure (successful publish plus identity/provenance completeness),
 - runtime viability sanity (critical dependency surface must be runnable).
 
@@ -642,11 +714,12 @@ Validation is executed in four steps:
 Pass requires all mandatory controls in scope to pass.
 Fail is triggered by any single mandatory control failure.
 There is no majority-pass logic for release acceptance.
+Build-surface boundary violations are treated as mandatory failures, not warnings.
 
 ### 8.4 Remediation-validation loop
 After failure:
 - classify failure at control boundary,
-- implement source/config fix,
+- implement source/config/build-surface fix,
 - rebuild and republish through the same authoritative CI workflow,
 - rerun mandatory validation checks,
 - accept only after full closure.
@@ -665,47 +738,58 @@ This keeps validation repeatable, machine-readable, and interview-defensible.
 The implementation delivered the intended control outcome:
 - release authority was centralized to one CI workflow,
 - immutable image identity became a required release output,
+- deterministic build-surface controls became an explicit acceptance condition,
 - evidence generation became structured and repeatable,
 - failure classes were surfaced early and blocked by design,
 - remediation occurred through immutable rebuild discipline rather than ad hoc runtime patching.
 
 ### 9.2 Measured closure sequence
 First full closure required three attempts:
-- attempt 1 failed at federated identity bootstrap,
-- attempt 2 failed at registry authorization boundary,
-- attempt 3 succeeded with complete evidence outputs.
+- attempt 1 failed at federated identity bootstrap (`21985402789`),
+- attempt 2 failed at registry authorization boundary (`21985472266`),
+- attempt 3 succeeded with complete evidence outputs (`21985500168`).
 
 Operational meaning:
 - failures were early and explicit,
 - each failure mapped to a concrete control gap,
 - closure occurred only after source-level remediation.
 
-### 9.3 Control effectiveness and artifact quality
+### 9.3 Deterministic build-surface outcome
+Before authoritative closure, preflight surfaced missing pinned build-surface artifacts (`Dockerfile` and `.dockerignore`) required for bounded context enforcement.
+After correction, the release workflow operated with explicit include/exclude boundaries instead of implicit repository-wide context expansion.
+
+Operational meaning:
+- build context policy moved from implicit convention to enforced control,
+- image-content drift risk from uncontrolled mono-repo scope became governable,
+- secret/data leakage exposure from broad context was reduced by boundary enforcement.
+
+### 9.4 Control effectiveness and artifact quality
 For accepted releases:
 - identity was emitted as tag plus digest,
 - machine-readable evidence was complete and durable,
-- mandatory controls blocked progression on identity/authz/evidence defects.
+- mandatory controls blocked progression on identity/authorization/evidence/build-surface defects.
 
 Result:
 - rollback and promotion decisions can reference exact artifact content,
 - release facts are queryable without reconstructing raw logs,
 - invalid candidates are stopped before they become operational debt.
 
-### 9.4 Packaging drift recovery quality
+### 9.5 Packaging drift recovery quality
 A runtime dependency omission was detected after publish, traced to curated dependency selection drift, and corrected through immutable rebuild plus controlled redeploy in the same workflow.
 
 Result:
 - recovery preserved provenance and control integrity,
 - no side-channel patching was needed.
 
-### 9.5 Senior-role impact framing
+### 9.6 Senior-role impact framing
 From a Senior MLOps / Platform perspective, the key outcomes are:
 - release workflow moved from "works when setup is right" to "enforces setup correctness by default",
 - security and reliability controls became part of delivery mechanics, not separate afterthoughts,
+- deterministic build-surface boundaries became a first-class release control, not a best-effort coding style,
 - incident response quality improved because release facts are queryable and immutable,
 - remediation path preserved audit integrity under delivery pressure.
 
-### 9.6 Residual gaps and next hardening opportunities
+### 9.7 Residual gaps and next hardening opportunities
 Even with current outcomes, further hardening opportunities remain:
 - stronger runtime smoke checks immediately after publish for critical dependencies,
 - deeper supply-chain controls (for example SBOM/signing) if required by target environment,
@@ -719,6 +803,7 @@ These are optimization opportunities, not blockers to the core claim outcome alr
 This report certifies release workflow integrity for container build/publish acceptance:
 - authoritative automated release path,
 - immutable artifact identity,
+- deterministic build-surface boundaries (include/exclude and dependency-surface controls),
 - machine-readable provenance,
 - fail-closed gate behavior,
 - controlled remediation through immutable rebuild.
@@ -750,6 +835,7 @@ Transfer to a different cloud/runtime stack is expected to preserve the control 
 
 ### 10.5 Residual operational risks still requiring ongoing control
 Even with this claim achieved, the following risks still require active management:
+- build-context policy drift in a large monorepo,
 - curated dependency-model drift reappearing during future migrations,
 - policy drift in CI-to-cloud role mappings,
 - evidence schema drift if release outputs change without contract updates.
@@ -817,7 +903,37 @@ What this proves:
 - workflow control contract was validated explicitly,
 - required outputs/guards were checked before authoritative execution.
 
-### 11.6 Identity and authorization remediation hook
+### 11.6 Build include/exclude policy hook (deterministic context boundary)
+Source anchors:
+- `Dockerfile`
+- `.dockerignore`
+- `.github/workflows/dev_min_m1_packaging.yml` (`IMAGE_DOCKERFILE_PATH` precheck and fail-closed behavior)
+
+Decision-trail anchors:
+- `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
+  - entry timestamp: `2026-02-13 9:10AM` (missing pinned Dockerfile artifact detected)
+  - entry timestamps around `10:56AM` and `11:35AM` (Dockerfile/.dockerignore boundary correction before authoritative execution)
+
+What this proves:
+- build context boundary was explicitly governed, not implicit,
+- repo-wide copy posture was not accepted as default,
+- include/exclude policy became an enforced release control.
+
+### 11.7 Secret-surface and injection check hook
+Primary artifact:
+- `security_secret_injection_checks.json`
+  - local: `runs/dev_substrate/m1_build_go/20260213T114002Z/security_secret_injection_checks.json`
+  - durable: `s3://fraud-platform-dev-min-evidence/evidence/runs/platform_20260213T114002Z/P(-1)/security_secret_injection_checks.json`
+
+Workflow and validator anchors:
+- `.github/workflows/dev_min_m1_packaging.yml` (artifact emission + artifact presence gate)
+- `tools/dev_substrate/validate_m1_ci_workflow_contract.py` (required evidence artifact contract includes `security_secret_injection_checks.json`)
+
+What this proves:
+- secret-surface checks were part of the required release evidence contract,
+- release closure required security-check artifact presence, not optional narrative.
+
+### 11.8 Identity and authorization remediation hook
 Primary decision trail anchor:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
   - entry timestamp: `2026-02-13 11:42AM` (three-attempt build-go closure sequence)
@@ -827,7 +943,7 @@ What this proves:
 - registry authorization scope was missing and fixed,
 - least-privilege policy posture was applied before successful publish.
 
-### 11.7 Packaging drift incident hook (resilience under change)
+### 11.9 Packaging drift incident hook (resilience under change)
 Incident trail anchor:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_min/platform.impl_actual.md`
   - entry timestamp: `2026-02-20 10:11:00 +00:00` (runtime import failure and root cause)
@@ -841,13 +957,14 @@ What this proves:
 - corrective action preserved immutable rebuild discipline,
 - recovery used the same governed release workflow.
 
-### 11.8 Minimal interviewer proof packet (recommended)
+### 11.10 Minimal interviewer proof packet (recommended)
 For a fast technical deep-dive, show only:
 1. the three CI runs (fail/fail/pass),
-2. one evidence bundle root with required files,
-3. one immutable tag+digest pair,
-4. one packaging-drift remediation run/digest,
-5. one implementation-note entry timestamp for narrative integrity.
+2. one build include/exclude anchor (`Dockerfile` + `.dockerignore` + Dockerfile precheck reference),
+3. one security-check artifact (`security_secret_injection_checks.json`),
+4. one immutable tag+digest pair,
+5. one packaging-drift remediation run/digest,
+6. one implementation-note entry timestamp for narrative integrity.
 
 This keeps proof concise while preserving audit depth.
 
@@ -868,7 +985,11 @@ This claim maps to core senior MLOps expectations:
 - Implemented fail-closed acceptance at identity, authorization, and evidence boundaries.
 - Demonstrates prevention-oriented engineering under real failure pressure.
 
-4. Incident-to-control maturity
+4. Build-surface governance maturity
+- Enforced deterministic image content boundaries (explicit include/exclude, bounded dependency surface) in a large monorepo context.
+- Demonstrates practical control of leakage/drift risk at packaging time.
+
+5. Incident-to-control maturity
 - Converted runtime and pipeline failures into control improvements, not one-off fixes.
 - Demonstrates systematic remediation and hardening behavior expected at senior level.
 
@@ -876,18 +997,22 @@ This claim maps to core senior MLOps expectations:
 This claim also maps to senior platform engineering hiring filters:
 
 1. Platform as product posture
-- release workflow is defined as a control boundary with contracts and gates.
+- Release workflow is defined as a control boundary with contracts and gates.
 - Shows internal-platform thinking: stable path for teams, not heroics by individuals.
 
 2. Security by default
 - Federated CI identity and least-privilege registry access are part of delivery path.
 - Shows practical cloud security integration into platform workflows.
 
-3. Governance without delivery paralysis
+3. Deterministic platform packaging behavior
+- Build-surface policy is explicit and enforceable, not convention-driven.
+- Shows ability to standardize artifact quality across a large repository surface.
+
+4. Governance without delivery paralysis
 - Controls are strict but operationally executable through automation.
 - Shows ability to balance speed and control in real systems.
 
-4. Cross-functional reliability value
+5. Cross-functional reliability value
 - Release evidence supports engineering, operations, and audit stakeholders.
 - Shows capability to build systems usable beyond the original implementer.
 
