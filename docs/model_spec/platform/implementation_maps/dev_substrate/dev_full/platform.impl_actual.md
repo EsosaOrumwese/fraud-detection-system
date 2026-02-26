@@ -13903,3 +13903,65 @@ ext_gate=M10.D_READY
 1. Adjusted deep-plan completion checklist wording from `through M10.D` to `through M10.F`.
 2. Reason:
    - prevent stale blocker-scope wording after M10.F closure.
+
+## Entry: 2026-02-26 15:50:49 +00:00 - M10.G pre-implementation design pin (live)
+1. Scope accepted:
+   - expand M10.G to execution-grade and execute fully with fail-closed blocker remediation.
+2. Upstream chain pinned for deterministic M10.G synthesis:
+   - M10.F summary/snapshot -> upstream M10.E execution id,
+   - M10.E snapshot -> upstream M10.D execution id,
+   - M10.D snapshot -> upstream M10.C execution id,
+   - M10.C snapshot -> references to replay basis + leakage + as-of policy artifacts.
+3. M10.G output surfaces to publish (run-scoped):
+   - OFS manifest path (`OFS_MANIFEST_PATH_PATTERN`),
+   - dataset fingerprint path (`OFS_FINGERPRINT_PATH_PATTERN`),
+   - time-bound audit path (`OFS_TIME_BOUND_AUDIT_PATH_PATTERN`).
+4. Fingerprint contract decision:
+   - parse `DATASET_FINGERPRINT_REQUIRED_FIELDS` from handles and fail closed on missing values,
+   - compute canonical sha256 over ordered required-field value map,
+   - include explicit values for all required fields (no implicit defaults).
+5. Required field value sourcing (deterministic):
+   - `replay_basis` from run-scoped replay receipt fingerprint,
+   - `feature_asof_utc`, `label_asof_utc`, `label_maturity_days` from M9.D policy snapshot ref carried by M10.C,
+   - `feature_def_set` from M10.D Databricks build job identity,
+   - `join_scope` from run-scope tuple (`platform_run_id`, `scenario_run_id`, replay mode),
+   - `cohort_filters` explicit literal `none`,
+   - `ofs_code_release_id` from `GITHUB_SHA`,
+   - `mf_code_release_id` explicit `P14_NOT_BUILT` for P13 phase boundary.
+6. Gate semantics pinned:
+   - pass => `M10.H_READY`, fail => `HOLD_REMEDIATE`.
+7. Blocker families expected:
+   - `M10-B7` for manifest/fingerprint/time-bound audit synthesis or quality failures,
+   - `M10-B12` for publication/readback parity failures.
+
+## Entry: 2026-02-26 15:53:40 +00:00 - M10.G implementation applied in managed workflow (live)
+1. Workflow `.github/workflows/dev_full_m10_d_managed.yml` extended with M10.G lane wiring:
+   - new dispatch input: `m10g_execution_id`,
+   - metadata outputs: `m10g_execution_id`, `m10g_run_dir`,
+   - upload artifact bundle expanded to include M10.G run dir (`m10-defg-managed-*`).
+2. Added `Execute M10.G (managed)` stage after `M10.F`:
+   - validates upstream M10.F gate (`M10.G_READY`),
+   - traverses lineage (`M10.F -> M10.E -> M10.D -> M10.C`),
+   - resolves run-scoped publish targets from handle patterns,
+   - synthesizes OFS manifest/fingerprint/time-bound audit,
+   - computes deterministic fingerprint digest (`sha256`) from required fields,
+   - publishes run-scoped artifacts and run-control artifacts with readback parity,
+   - fail-closed blocker semantics:
+     - `M10-B7` for synthesis/quality/lineage failures,
+     - `M10-B12` for publication parity failures,
+   - next gate semantics:
+     - pass -> `M10.H_READY`,
+     - fail -> `HOLD_REMEDIATE`.
+3. Deep-plan `M10.G` section already expanded before this code edit, so implementation now maps 1:1 with declared lane algorithm.
+4. Next action: commit workflow-only change, dispatch managed run, and close runtime blockers.
+
+## Entry: 2026-02-26 15:54:22 +00:00 - Workflow-only commit/push for M10.G dispatch schema
+1. Commit created and pushed on active branch `migrate-dev`:
+   - commit: `2f950186`
+   - message: `ci: add managed m10g manifest fingerprint audit stage`
+2. Commit scope respected:
+   - only `.github/workflows/dev_full_m10_d_managed.yml` staged/committed.
+3. Purpose:
+   - ensure remote workflow schema contains `m10g_execution_id` and M10.G stage before managed dispatch.
+4. Next action:
+   - dispatch managed run with fixed `m10d/m10e/m10f/m10g` execution ids and monitor to closure.

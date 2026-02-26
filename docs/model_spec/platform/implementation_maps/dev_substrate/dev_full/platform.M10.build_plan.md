@@ -514,15 +514,70 @@ Execution status:
 Goal:
 1. publish immutable OFS manifest/fingerprint and time-bound audit.
 
-Tasks:
-1. emit manifest and fingerprint artifacts.
-2. emit time-bound/leakage audit artifact.
-3. emit `m10g_manifest_fingerprint_snapshot.json`.
+Required upstream basis:
+1. `M10.F` pass summary (`overall_pass=true`, `next_gate=M10.G_READY`).
+2. `M10.F` snapshot is readable with deterministic commit surface fields.
+3. transitive lineage chain is readable:
+   - `M10.E` snapshot (from `M10.F.upstream_m10e_execution`),
+   - `M10.D` snapshot (from `M10.E.upstream_m10d_execution`),
+   - `M10.C` snapshot (from `M10.D.upstream_m10c_execution`).
+4. required learning inputs are readable from run-scoped references carried by `M10.C`:
+   - replay basis receipt,
+   - leakage guardrail report,
+   - as-of/maturity policy snapshot.
+5. required handle set is non-placeholder:
+   - `OFS_MANIFEST_PATH_PATTERN`,
+   - `OFS_FINGERPRINT_PATH_PATTERN`,
+   - `OFS_TIME_BOUND_AUDIT_PATH_PATTERN`,
+   - `DATASET_FINGERPRINT_REQUIRED_FIELDS`,
+   - `S3_EVIDENCE_BUCKET`.
+
+Deterministic execution algorithm (M10.G):
+1. validate upstream `M10.F` pass posture from durable run-control.
+2. resolve transitive upstream chain (`M10.E` -> `M10.D` -> `M10.C`) and fail closed on unreadable lineage.
+3. resolve run-scoped OFS target paths from handle patterns + `platform_run_id`.
+4. synthesize OFS manifest from deterministic sources:
+   - platform/scope identity,
+   - upstream execution lineage,
+   - Iceberg commit surface (`database/table/location`),
+   - replay/as-of/maturity references.
+5. synthesize dataset fingerprint:
+   - parse `DATASET_FINGERPRINT_REQUIRED_FIELDS`,
+   - build required field map with explicit values,
+   - compute canonical `sha256` fingerprint digest over ordered field map.
+6. synthesize time-bound audit from leakage + as-of policy surfaces and fail closed on future-boundary breach posture.
+7. publish run-scoped artifacts:
+   - OFS manifest,
+   - dataset fingerprint,
+   - time-bound audit.
+8. emit run-control artifacts:
+   - `m10g_manifest_fingerprint_snapshot.json`,
+   - `m10g_blocker_register.json`,
+   - `m10g_execution_summary.json`.
+9. publish artifacts locally + durably with readback parity.
+10. emit deterministic next gate:
+   - `M10.H_READY` when blocker count is `0`,
+   - otherwise `HOLD_REMEDIATE`.
+
+Runtime budget:
+1. target <= 20 minutes wall clock.
 
 DoD:
-- [ ] manifest + fingerprint committed.
-- [ ] time-bound audit committed and green.
-- [ ] snapshot committed locally and durably.
+- [ ] upstream `M10.F` gate validated (`M10.G_READY`).
+- [ ] run-scoped OFS manifest committed durably.
+- [ ] run-scoped dataset fingerprint committed durably.
+- [ ] run-scoped time-bound audit committed durably and pass.
+- [ ] `m10g_manifest_fingerprint_snapshot.json` committed locally and durably.
+- [ ] `m10g_blocker_register.json` and `m10g_execution_summary.json` committed locally and durably.
+- [ ] blocker-free pass emits `next_gate=M10.H_READY`.
+
+Execution status:
+1. Execution id:
+   - `[pending]`
+2. Result:
+   - `[pending]`
+3. Durable evidence:
+   - `[pending]`
 
 ### M10.H Rollback Recipe Closure
 Goal:
