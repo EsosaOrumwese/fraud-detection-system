@@ -632,7 +632,7 @@ The implementation enforces stop conditions at multiple points:
 - missing required evidence output -> release not accepted,
 - unresolved immutable digest -> release not accepted.
 
-This prevented "green by assumption" outcomes and forced defects to be corrected at the control boundary.
+This prevented "pass by assumption" outcomes and forced defects to be corrected at the control boundary.
 
 ### 6.9 Implementation outcomes achieved in this section
 By the end of implementation:

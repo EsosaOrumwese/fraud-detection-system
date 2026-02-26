@@ -18,7 +18,7 @@ If any one of these surfaces is missing, the platform can still "deploy," but ca
 - Persistent core stack: low-churn foundational resources that should outlive individual runtime demonstrations and reruns.
 - Ephemeral demo stack: run-supporting resources designed for rapid create/destroy cycles with teardown as a first-class operational path.
 - Cost guardrail: an explicit budget envelope with threshold alerts and prohibited high-burn infrastructure patterns.
-- Forbidden cost footguns: infrastructure choices known to create disproportionate baseline spend for a small development environment (for example always-on NAT gateways or unnecessary always-on load balancers).
+- Forbidden high-cost default configurations: infrastructure choices known to create disproportionate baseline spend for a small development environment (for example always-on NAT gateways or unnecessary always-on load balancers).
 
 ### In-scope boundary
 This report covers:
@@ -332,7 +332,7 @@ The platform hit real failure classes that validated this claim's necessity.
 These failures are high risk because they target control-plane truth, not only feature behavior.
 
 If unaddressed, they create:
-- false-green infrastructure closure (environment seems safe but is not),
+- false-positive infrastructure closure (environment appears safe but is not),
 - hidden cost leakage after demos and soak runs,
 - unsafe destroy posture that can threaten preserved control surfaces,
 - weak incident response because pass/fail reasoning is not deterministic.
@@ -366,13 +366,13 @@ The failure classes map to a concrete risk model:
 Severity here is operational and compounding:
 - A state governance error can invalidate all downstream environment claims.
 - A teardown safety error can cause accidental destruction of foundational controls or prolonged cost burn.
-- A cost guardrail blind spot can undermine the viability of a managed development program even when runtime functionality appears green.
+- A cost guardrail blind spot can undermine the viability of a managed development program even when runtime functionality appears to be passing.
 
 This means the severity is not tied to one incident timestamp. It is tied to whether infrastructure decisions are trustworthy under repeat execution.
 
 ### 4.6 Constraints that shaped remediation
 Remediation had to satisfy strict constraints simultaneously:
-- no relaxation of fail-closed posture to "get green faster,"
+- no relaxation of fail-closed posture to "force a pass faster,"
 - no static credential fallback for managed mutation/destroy lanes,
 - no redesign that erased persistent-versus-ephemeral boundaries,
 - no budget posture claims without runtime-readable provider evidence,
@@ -401,7 +401,7 @@ From the failures above, the design had to enforce these non-negotiable requirem
 6. Scope changes must re-open gates by design
 - When governance scope expands (for example to cross-platform cost), prior pass status must be revalidated under the new contract.
 
-## 5) Design Decisions and Trade-offs
+## 5) Design Decision and Trade-offs
 
 ### 5.1 Decision framework used
 Each design decision was accepted only if it satisfied all four tests:
@@ -491,7 +491,7 @@ Decision:
 - Reopen previously passed lanes when governance scope changes (for example AWS-only to AWS+managed-Kafka cost capture).
 
 Alternatives considered and rejected:
-- narrative closure after "mostly green" checks: rejected because ambiguity accumulates and is hard to audit.
+- narrative closure after "mostly passing" checks: rejected because ambiguity accumulates and is hard to audit.
 - grandfathering earlier passes after requirement changes: rejected because it creates false confidence and stale compliance.
 
 Trade-off accepted:
@@ -504,7 +504,7 @@ The final design is intentionally conservative:
 - cost posture is treated as a runtime gate,
 - and closure claims are artifact-verdict driven.
 
-This is the posture expected from a senior platform engineer: optimize for safe repeatability and controlled cost, not for fastest first green.
+This is the posture expected from a senior platform engineer: optimize for safe repeatability and controlled cost, not for the fastest initial pass.
 
 ## 6) Implementation Summary
 
@@ -675,7 +675,7 @@ Infrastructure progression is blocked when any of the following gates fail:
 4. Cost guardrail gates
 - budget object or threshold ladder is missing/mismatched,
 - critical budget-stop posture is active and unresolved,
-- forbidden cost-footgun posture is detected (for this profile: NAT, always-on LB/fleet).
+- forbidden high-cost default posture is detected (for this profile: NAT, always-on LB/fleet).
 
 5. Evidence integrity gates
 - required guardrail or teardown snapshots are missing,
@@ -736,7 +736,7 @@ Validation was executed as a staged matrix rather than a single end-state check.
 
 2. Topology and forbidden-infra validation
 - Validate network/resource posture against low-cost policy.
-- Confirm forbidden cost-footgun surfaces are absent in scope.
+- Confirm forbidden high-cost default surfaces are absent in scope.
 
 3. Budget and teardown viability validation
 - Validate budget object, cap, threshold ladder, and notification posture.
@@ -793,7 +793,7 @@ Validation evidence must provide all of the following:
 - teardown proof artifact that references upstream closure artifacts.
 
 For this claim, core validation anchors include:
-- budget and teardown viability snapshots from M2 closure,
+- budget and teardown viability snapshots from the baseline infrastructure closure run (`m2_20260213T201427Z`),
 - post-teardown cost guardrail snapshots (including fail and rerun closure),
 - teardown proof snapshot with source-lane continuity.
 
@@ -839,7 +839,7 @@ From pass-closed guardrail snapshots:
 - budget object remained aligned to expected handle/cap,
 - threshold posture remained aligned (`10/20/28` ladder),
 - AWS-side utilization was recorded in-policy at closure time,
-- post-teardown footgun indicators were clear (no non-deleted NAT, no demo-scoped LB residual, no non-zero ECS desired-count residual, runtime DB reported absent after teardown).
+- post-teardown high-cost default indicators were clear (no non-deleted NAT, no demo-scoped LB residual, no non-zero ECS desired-count residual, runtime DB reported absent after teardown).
 
 Operational meaning:
 - cost governance was not inferred from "few resources"; it was proven by explicit guardrail evaluation and blocker semantics.
@@ -900,7 +900,7 @@ The report intentionally references machine-readable snapshots and run anchors r
 Reason:
 - keep the report readable and security-safe while preserving challenge-ready verification paths.
 
-### 10.4 Transferability limitation
+### 10.4 Environment and transferability limitation
 The engineering pattern is transferable:
 - remote state + lock as hard mutation gates,
 - lifecycle partitioning for safe teardown,
@@ -918,7 +918,7 @@ Even with this claim closed, the following risks remain active and require ongoi
 
 These are controlled residual risks, not unbounded unknowns.
 
-### 10.6 Interview interpretation guardrail
+### 10.6 Interpretation guardrail for recruiters/interviewers
 Correct interpretation:
 - "candidate can design and operate fail-closed infrastructure controls that keep managed development environments reproducible, teardown-safe, and cost-bounded."
 
@@ -955,7 +955,7 @@ Use this sequence first:
 Why this is strong:
 - it proves fail-closed behavior,
 - it proves bounded remediation,
-- it proves reopened-scope governance instead of false-green grandfathering.
+- it proves reopened-scope governance instead of false-positive pass grandfathering.
 
 ### 11.3 State/backend/lock closure hook
 Primary backend-readiness artifact:
@@ -964,7 +964,7 @@ Primary backend-readiness artifact:
 
 What this proves:
 - backend and lock posture were revalidated at closure-grade stage,
-- stack-partitioned state contract stayed explicit through M2 closeout.
+- stack-partitioned state contract stayed explicit through baseline infrastructure closeout.
 
 ### 11.4 Forbidden-infra and network posture hook
 Primary no-NAT artifact:
@@ -1045,8 +1045,8 @@ For platform engineering filters, this claim shows:
 - teardown blast-radius control through explicit destroy/preserve contracts,
 - governance maturity to reopen previously passed lanes when requirement scope tightens.
 
-### 12.3 Recruiter-style one-line summary
-"I converted managed infrastructure from ad hoc provisioning into a fail-closed, cost-bounded operating system with remote-state locking, lifecycle-safe teardown boundaries, and evidence-backed closure under real failure and rerun conditions."
+### 12.3 Recruiter-style summary statement
+"I converted ad hoc managed infrastructure operations into a fail-closed, cost-bounded platform workflow with remote-state locking, lifecycle-safe teardown boundaries, and evidence-backed closure under real failure and rerun conditions."
 
 ### 12.4 Interview positioning guidance
 Use this claim in interviews in this sequence:
