@@ -44,6 +44,7 @@ on:
           - source_matrix_closure
           - six_proof_closure
           - final_verdict_closure
+          - teardown_plan_closure
       upstream_m12j_execution:
         description: Upstream M12.J execution id (required for M13 entry check)
         required: true
@@ -68,6 +69,11 @@ on:
         description: Upstream M13.C execution id (required for M13.D final verdict mode)
         required: false
         default: m13c_six_proof_matrix_20260227T232813Z
+        type: string
+      upstream_m13d_execution:
+        description: Upstream M13.D execution id (required for M13.E teardown plan mode)
+        required: false
+        default: m13d_final_verdict_20260227T234010Z
         type: string
       m13_execution_id:
         description: Optional fixed execution id override
@@ -125,6 +131,12 @@ jobs:
             final_verdict_closure)
               if [[ "${{ inputs.m13_subphase }}" != "D" ]]; then
                 echo "final_verdict_closure mode is only valid for m13_subphase=D"
+                exit 1
+              fi
+              ;;
+            teardown_plan_closure)
+              if [[ "${{ inputs.m13_subphase }}" != "E" ]]; then
+                echo "teardown_plan_closure mode is only valid for m13_subphase=E"
                 exit 1
               fi
               ;;
@@ -187,7 +199,7 @@ jobs:
           echo "run_dir=runs/dev_substrate/dev_full/m13/${EXEC_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Execute M13 managed lane
-        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' || inputs.execution_mode == 'six_proof_closure' || inputs.execution_mode == 'final_verdict_closure' }}
+        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' || inputs.execution_mode == 'six_proof_closure' || inputs.execution_mode == 'final_verdict_closure' || inputs.execution_mode == 'teardown_plan_closure' }}
         shell: bash
         env:
           EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
@@ -201,6 +213,7 @@ jobs:
           UPSTREAM_M13A_EXEC: ${{ inputs.upstream_m13a_execution }}
           UPSTREAM_M13B_EXEC: ${{ inputs.upstream_m13b_execution }}
           UPSTREAM_M13C_EXEC: ${{ inputs.upstream_m13c_execution }}
+          UPSTREAM_M13D_EXEC: ${{ inputs.upstream_m13d_execution }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -310,6 +323,7 @@ jobs:
           upstream_m13a = os.environ.get("UPSTREAM_M13A_EXEC", "").strip()
           upstream_m13b = os.environ.get("UPSTREAM_M13B_EXEC", "").strip()
           upstream_m13c = os.environ.get("UPSTREAM_M13C_EXEC", "").strip()
+          upstream_m13d = os.environ.get("UPSTREAM_M13D_EXEC", "").strip()
           handles_registry_path = Path(
               "docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"
           )
@@ -326,6 +340,7 @@ jobs:
               "source_matrix_closure",
               "six_proof_closure",
               "final_verdict_closure",
+              "teardown_plan_closure",
           ]
           blocker_code_by_mode = {
               "materialization_check": "M13-B0",
@@ -333,6 +348,7 @@ jobs:
               "source_matrix_closure": "M13-B2",
               "six_proof_closure": "M13-B3",
               "final_verdict_closure": "M13-B4",
+              "teardown_plan_closure": "M13-B5",
           }
           phase_name_by_mode = {
               "materialization_check": "M13.B0",
@@ -340,6 +356,7 @@ jobs:
               "source_matrix_closure": "M13.B",
               "six_proof_closure": "M13.C",
               "final_verdict_closure": "M13.D",
+              "teardown_plan_closure": "M13.E",
           }
           blocker_code = blocker_code_by_mode.get(mode, "M13-B0")
           phase_name = phase_name_by_mode.get(mode, "M13.B0")
@@ -361,6 +378,10 @@ jobs:
           if mode == "final_verdict_closure" and subphase != "D":
               blockers.append(
                   {"code": "M13-B4", "message": "final_verdict_closure mode requires m13_subphase=D."}
+              )
+          if mode == "teardown_plan_closure" and subphase != "E":
+              blockers.append(
+                  {"code": "M13-B5", "message": "teardown_plan_closure mode requires m13_subphase=E."}
               )
 
           routing_map = {
@@ -1409,6 +1430,258 @@ jobs:
                       )
               else:
                   blockers.append({"code": "M13-B4", "message": "Resolved full verdict path is empty."})
+          elif mode == "teardown_plan_closure":
+              blocker_register_name = "m13e_blocker_register.json"
+              execution_summary_name = "m13e_execution_summary.json"
+              verdict_on_pass = "ADVANCE_TO_M13_F"
+              next_gate_on_pass = "M13.F_READY"
+
+              upstream_m13d_key = (
+                  f"evidence/dev_full/run_control/{upstream_m13d}/m13d_execution_summary.json"
+              )
+              upstream_m13d_summary: dict[str, Any] = {}
+              try:
+                  upstream_m13d_summary = s3_get_json(s3, bucket, upstream_m13d_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": upstream_m13d_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B5", "message": "Unreadable M13.D upstream summary."})
+
+              if upstream_m13d_summary:
+                  check_summary(
+                      summary=upstream_m13d_summary,
+                      expected_verdict="ADVANCE_TO_M13_E",
+                      expected_next_gate="M13.E_READY",
+                      blocker_code="M13-B5",
+                      label="M13.D upstream",
+                      blockers=blockers,
+                  )
+
+              handles: dict[str, str] = {}
+              try:
+                  handles = parse_handles_registry(handles_registry_path)
+              except Exception as exc:
+                  read_errors.append({"surface": str(handles_registry_path), "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B5", "message": "Unreadable dev_full handles registry."})
+
+              required_handles = [
+                  "TEARDOWN_NON_ESSENTIAL_DEFAULT",
+                  "TEARDOWN_BLOCK_ON_RESIDUAL_RISK",
+                  "TEARDOWN_RESIDUAL_SCAN_PATH_PATTERN",
+                  "TEARDOWN_COST_SNAPSHOT_PATH_PATTERN",
+                  "FULL_VERDICT_PATH_PATTERN",
+              ]
+              placeholder_rules = {
+                  "TEARDOWN_RESIDUAL_SCAN_PATH_PATTERN": "{platform_run_id}",
+                  "TEARDOWN_COST_SNAPSHOT_PATH_PATTERN": "{platform_run_id}",
+                  "FULL_VERDICT_PATH_PATTERN": "{platform_run_id}",
+              }
+              bool_handles = {"TEARDOWN_BLOCK_ON_RESIDUAL_RISK"}
+              allowed_defaults = {"scale_to_zero_or_destroy", "scale_to_zero_then_destroy_idle_window"}
+
+              handle_matrix: dict[str, dict[str, Any]] = {}
+              for handle in required_handles:
+                  raw = handles.get(handle)
+                  present = raw is not None
+                  raw_text = "" if raw is None else str(raw).strip()
+                  non_placeholder = bool(raw_text) and raw_text.upper() not in {"TBD", "TODO", "UNSET"}
+                  parsed_value: str | bool = ""
+                  parsed_type = "missing"
+                  if present:
+                      parsed_value, parsed_type = parse_scalar(raw_text)
+
+                  row: dict[str, Any] = {
+                      "present": present,
+                      "raw_value": raw_text,
+                      "parsed_type": parsed_type,
+                      "parsed_value": parsed_value,
+                      "checks": {},
+                  }
+                  if not present:
+                      blockers.append({"code": "M13-B5", "message": f"Missing required handle {handle}."})
+                  elif not non_placeholder:
+                      blockers.append({"code": "M13-B5", "message": f"Handle {handle} is placeholder/empty."})
+
+                  if handle in placeholder_rules and present:
+                      placeholder = placeholder_rules[handle]
+                      value_text = parsed_value if isinstance(parsed_value, str) else str(parsed_value)
+                      has_placeholder = placeholder in value_text
+                      row["checks"]["placeholder_required"] = placeholder
+                      row["checks"]["placeholder_present"] = has_placeholder
+                      if not has_placeholder:
+                          blockers.append(
+                              {
+                                  "code": "M13-B5",
+                                  "message": f"Handle {handle} missing placeholder {placeholder}.",
+                              }
+                          )
+
+                  if handle in bool_handles and present:
+                      is_bool = isinstance(parsed_value, bool)
+                      row["checks"]["is_bool"] = is_bool
+                      if not is_bool:
+                          blockers.append({"code": "M13-B5", "message": f"Handle {handle} must be boolean."})
+
+                  if handle == "TEARDOWN_NON_ESSENTIAL_DEFAULT" and present:
+                      value_text = parsed_value if isinstance(parsed_value, str) else str(parsed_value)
+                      in_allowed = value_text in allowed_defaults
+                      row["checks"]["allowed_values"] = sorted(allowed_defaults)
+                      row["checks"]["value_in_allowed_set"] = in_allowed
+                      if not in_allowed:
+                          blockers.append(
+                              {
+                                  "code": "M13-B5",
+                                  "message": "Handle TEARDOWN_NON_ESSENTIAL_DEFAULT is not in allowed set.",
+                              }
+                          )
+                  handle_matrix[handle] = row
+
+              platform_run_id = str(upstream_summary.get("platform_run_id", "") or "").strip()
+              scenario_run_id = str(upstream_summary.get("scenario_run_id", "") or "").strip()
+              if not platform_run_id and upstream_m13d_summary:
+                  platform_run_id = str(upstream_m13d_summary.get("platform_run_id", "") or "").strip()
+              if not scenario_run_id and upstream_m13d_summary:
+                  scenario_run_id = str(upstream_m13d_summary.get("scenario_run_id", "") or "").strip()
+              if not platform_run_id:
+                  blockers.append({"code": "M13-B5", "message": "Missing platform_run_id for teardown plan rendering."})
+              if not scenario_run_id:
+                  blockers.append({"code": "M13-B5", "message": "Missing scenario_run_id for teardown plan rendering."})
+
+              def render_path_pattern(handle_name: str) -> str:
+                  raw = handles.get(handle_name)
+                  if raw is None:
+                      return ""
+                  parsed_value, parsed_type = parse_scalar(str(raw).strip())
+                  if parsed_type != "string":
+                      return ""
+                  return str(parsed_value).replace("{platform_run_id}", platform_run_id)
+
+              full_verdict_ref = render_path_pattern("FULL_VERDICT_PATH_PATTERN")
+              teardown_residual_ref = render_path_pattern("TEARDOWN_RESIDUAL_SCAN_PATH_PATTERN")
+              teardown_cost_ref = render_path_pattern("TEARDOWN_COST_SNAPSHOT_PATH_PATTERN")
+              if not full_verdict_ref:
+                  blockers.append({"code": "M13-B5", "message": "Rendered full verdict path is empty."})
+              if not teardown_residual_ref:
+                  blockers.append({"code": "M13-B5", "message": "Rendered teardown residual path is empty."})
+              if not teardown_cost_ref:
+                  blockers.append({"code": "M13-B5", "message": "Rendered teardown cost path is empty."})
+
+              full_verdict_payload: dict[str, Any] = {}
+              if full_verdict_ref:
+                  try:
+                      fv_bucket, fv_key = parse_s3_uri(f"s3://{bucket}/{full_verdict_ref}")
+                      full_verdict_payload = s3_get_json(s3, fv_bucket, fv_key)
+                  except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                      read_errors.append({"surface": full_verdict_ref, "error": type(exc).__name__})
+                      blockers.append({"code": "M13-B5", "message": "Unreadable run-scoped full verdict object."})
+
+              if full_verdict_payload:
+                  if not bool(full_verdict_payload.get("scope_complete", False)):
+                      blockers.append({"code": "M13-B5", "message": "Full verdict scope_complete is false."})
+                  if str(full_verdict_payload.get("deterministic_verdict", "")).strip() != "ADVANCE_TO_M13_E":
+                      blockers.append(
+                          {
+                              "code": "M13-B5",
+                              "message": "Full verdict deterministic_verdict is not ADVANCE_TO_M13_E.",
+                          }
+                      )
+                  if str(full_verdict_payload.get("deterministic_next_gate", "")).strip() != "M13.E_READY":
+                      blockers.append(
+                          {
+                              "code": "M13-B5",
+                              "message": "Full verdict deterministic_next_gate is not M13.E_READY.",
+                          }
+                      )
+
+              teardown_default = str(
+                  handle_matrix.get("TEARDOWN_NON_ESSENTIAL_DEFAULT", {}).get("parsed_value", "")
+              )
+              block_on_residual = bool(
+                  handle_matrix.get("TEARDOWN_BLOCK_ON_RESIDUAL_RISK", {}).get("parsed_value", False)
+              )
+
+              target_matrix = [
+                  {
+                      "lane": "control_ingress_runtime",
+                      "target_selector": "dev-full control/ingress runtime workloads",
+                      "action": teardown_default,
+                      "rationale": "non-essential after M13 final verdict closure",
+                  },
+                  {
+                      "lane": "rtdl_runtime",
+                      "target_selector": "dev-full RTDL runtime workloads",
+                      "action": teardown_default,
+                      "rationale": "non-essential after M13 final verdict closure",
+                  },
+                  {
+                      "lane": "case_labels_runtime",
+                      "target_selector": "dev-full case+labels runtime workloads",
+                      "action": teardown_default,
+                      "rationale": "non-essential after M13 final verdict closure",
+                  },
+                  {
+                      "lane": "learning_evolution_runtime",
+                      "target_selector": "dev-full OFS/MF/MPR runtime workloads",
+                      "action": teardown_default,
+                      "rationale": "non-essential after M13 final verdict closure",
+                  },
+                  {
+                      "lane": "orchestration_observability_runtime",
+                      "target_selector": "dev-full orchestrator/reporter/aux runtime workloads",
+                      "action": teardown_default,
+                      "rationale": "non-essential after M13 final verdict closure",
+                  },
+              ]
+              retained_surfaces = [
+                  {
+                      "surface": f"s3://{bucket}/evidence/dev_full/run_control/",
+                      "retention_policy": "retain",
+                      "reason": "authoritative phase evidence",
+                  },
+                  {
+                      "surface": f"s3://{bucket}/evidence/runs/{platform_run_id}/",
+                      "retention_policy": "retain",
+                      "reason": "run-scoped verdict/audit/evidence truth",
+                  },
+              ]
+              oracle_root = str(handles.get("ORACLE_ROOT", "") or "").strip()
+              if oracle_root:
+                  retained_surfaces.append(
+                      {
+                          "surface": oracle_root,
+                          "retention_policy": "retain",
+                          "reason": "oracle truth store must remain intact",
+                      }
+                  )
+
+              if len(target_matrix) == 0:
+                  blockers.append({"code": "M13-B5", "message": "Teardown target matrix is empty."})
+              if len(retained_surfaces) == 0:
+                  blockers.append({"code": "M13-B5", "message": "Retained/protected surface set is empty."})
+
+              snapshot = {
+                  "captured_at_utc": now(),
+                  "phase": "M13.E",
+                  "execution_id": exec_id,
+                  "mode": mode,
+                  "requested_subphase": subphase,
+                  "upstream_m13d_execution": upstream_m13d,
+                  "upstream_m13d_summary_key": upstream_m13d_key,
+                  "platform_run_id": platform_run_id,
+                  "scenario_run_id": scenario_run_id,
+                  "teardown_non_essential_default": teardown_default,
+                  "teardown_block_on_residual_risk": block_on_residual,
+                  "rendered_output_refs": {
+                      "full_verdict_ref": f"s3://{bucket}/{full_verdict_ref}" if full_verdict_ref else "",
+                      "teardown_residual_scan_ref": f"s3://{bucket}/{teardown_residual_ref}" if teardown_residual_ref else "",
+                      "teardown_cost_snapshot_ref": f"s3://{bucket}/{teardown_cost_ref}" if teardown_cost_ref else "",
+                  },
+                  "required_handle_matrix": handle_matrix,
+                  "target_matrix_count": len(target_matrix),
+                  "target_matrix": target_matrix,
+                  "retained_surface_count": len(retained_surfaces),
+                  "retained_surfaces": retained_surfaces,
+              }
+              artifacts = {"m13e_teardown_plan_snapshot.json": snapshot}
           else:
               blockers.append({"code": blocker_code, "message": f"Unhandled execution mode '{mode}'."})
 
