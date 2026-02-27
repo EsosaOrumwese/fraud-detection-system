@@ -49,6 +49,7 @@ on:
           - m12g_execute
           - m12h_execute
           - m12i_execute
+          - m12j_execute
       upstream_m11j_execution:
         description: Upstream M11.J execution id (entry readiness ref)
         required: true
@@ -94,6 +95,11 @@ on:
         required: true
         default: m12h_p15_gate_rollup_20260227T181932Z
         type: string
+      upstream_m12i_execution:
+        description: Upstream M12.I execution id (M12.J entry readiness ref)
+        required: true
+        default: m12i_phase_cost_outcome_20260227T183804Z
+        type: string
       m12_execution_id:
         description: Optional fixed execution id override
         required: false
@@ -127,7 +133,7 @@ jobs:
               exit 1
               ;;
           esac
-          if [[ "${{ inputs.execution_mode }}" != "materialization_check" && "${{ inputs.execution_mode }}" != "m12a_execute" && "${{ inputs.execution_mode }}" != "m12b_execute" && "${{ inputs.execution_mode }}" != "m12c_execute" && "${{ inputs.execution_mode }}" != "m12d_execute" && "${{ inputs.execution_mode }}" != "m12e_execute" && "${{ inputs.execution_mode }}" != "m12f_execute" && "${{ inputs.execution_mode }}" != "m12g_execute" && "${{ inputs.execution_mode }}" != "m12h_execute" && "${{ inputs.execution_mode }}" != "m12i_execute" ]]; then
+          if [[ "${{ inputs.execution_mode }}" != "materialization_check" && "${{ inputs.execution_mode }}" != "m12a_execute" && "${{ inputs.execution_mode }}" != "m12b_execute" && "${{ inputs.execution_mode }}" != "m12c_execute" && "${{ inputs.execution_mode }}" != "m12d_execute" && "${{ inputs.execution_mode }}" != "m12e_execute" && "${{ inputs.execution_mode }}" != "m12f_execute" && "${{ inputs.execution_mode }}" != "m12g_execute" && "${{ inputs.execution_mode }}" != "m12h_execute" && "${{ inputs.execution_mode }}" != "m12i_execute" && "${{ inputs.execution_mode }}" != "m12j_execute" ]]; then
             echo "Unsupported execution_mode='${{ inputs.execution_mode }}'"
             exit 1
           fi
@@ -165,6 +171,10 @@ jobs:
           fi
           if [[ "${{ inputs.execution_mode }}" == "m12i_execute" && "${{ inputs.m12_subphase }}" != "I" ]]; then
             echo "execution_mode='m12i_execute' currently supports only m12_subphase='I'."
+            exit 1
+          fi
+          if [[ "${{ inputs.execution_mode }}" == "m12j_execute" && "${{ inputs.m12_subphase }}" != "J" ]]; then
+            echo "execution_mode='m12j_execute' currently supports only m12_subphase='J'."
             exit 1
           fi
 
@@ -4471,6 +4481,358 @@ jobs:
               "next_gate": next_gate,
               "aws_mtd_cost_amount": str(aws_mtd_cost),
               "aws_mtd_cost_currency": aws_ce_currency or budget_currency,
+              "evidence_prefix": f"s3://{bucket}/{prefix}",
+          }, indent=2, ensure_ascii=True))
+          if not overall_pass:
+              raise SystemExit(1)
+          PY
+
+      - name: Execute M12.J closure sync + M13 handoff readiness (managed)
+        if: ${{ inputs.execution_mode == 'm12j_execute' && inputs.m12_subphase == 'J' }}
+        shell: bash
+        env:
+          EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          UPSTREAM_M12A_EXEC: ${{ inputs.upstream_m12a_execution }}
+          UPSTREAM_M12B_EXEC: ${{ inputs.upstream_m12b_execution }}
+          UPSTREAM_M12C_EXEC: ${{ inputs.upstream_m12c_execution }}
+          UPSTREAM_M12D_EXEC: ${{ inputs.upstream_m12d_execution }}
+          UPSTREAM_M12E_EXEC: ${{ inputs.upstream_m12e_execution }}
+          UPSTREAM_M12F_EXEC: ${{ inputs.upstream_m12f_execution }}
+          UPSTREAM_M12G_EXEC: ${{ inputs.upstream_m12g_execution }}
+          UPSTREAM_M12H_EXEC: ${{ inputs.upstream_m12h_execution }}
+          UPSTREAM_M12I_EXEC: ${{ inputs.upstream_m12i_execution }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          import os
+          import re
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import boto3
+
+          def now() -> str:
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          def get_json(s3, bucket: str, key: str) -> dict:
+              raw = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+              payload = json.loads(raw)
+              if not isinstance(payload, dict):
+                  raise ValueError("json_not_object")
+              return payload
+
+          def put_json(s3, bucket: str, key: str, payload: dict) -> None:
+              body = (json.dumps(payload, indent=2, ensure_ascii=True) + "\n").encode("utf-8")
+              s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="application/json")
+              s3.head_object(Bucket=bucket, Key=key)
+
+          def truthy(v) -> bool:
+              if isinstance(v, bool):
+                  return v
+              if isinstance(v, str):
+                  return v.strip().lower() == "true"
+              return bool(v)
+
+          def dedupe(blockers: list[dict[str, str]]) -> list[dict[str, str]]:
+              out: list[dict[str, str]] = []
+              seen: set[tuple[str, str]] = set()
+              for b in blockers:
+                  code = str(b.get("code", "")).strip()
+                  msg = str(b.get("message", "")).strip()
+                  sig = (code, msg)
+                  if sig in seen:
+                      continue
+                  seen.add(sig)
+                  out.append({"code": code, "message": msg})
+              return out
+
+          def parse_handles(path: Path) -> dict[str, object]:
+              out: dict[str, object] = {}
+              rx = re.compile(r"^\*\s+`([A-Z0-9_]+)\s*=\s*(.+)`\s*$")
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  m = rx.match(line.strip())
+                  if not m:
+                      continue
+                  key = m.group(1).strip()
+                  raw = m.group(2).strip()
+                  if (raw.startswith('"') and raw.endswith('"')) or (raw.startswith("'") and raw.endswith("'")):
+                      out[key] = raw[1:-1]
+                  elif raw.lower() == "true":
+                      out[key] = True
+                  elif raw.lower() == "false":
+                      out[key] = False
+                  else:
+                      out[key] = raw
+              return out
+
+          exec_id = os.environ["EXEC_ID"].strip()
+          run_dir = Path(os.environ["RUN_DIR"].strip())
+          bucket = os.environ["EVIDENCE_BUCKET"].strip()
+          region = (os.environ.get("AWS_REGION", "eu-west-2").strip() or "eu-west-2")
+          s3 = boto3.client("s3", region_name=region)
+
+          upstream = {
+              "A": os.environ["UPSTREAM_M12A_EXEC"].strip(),
+              "B": os.environ["UPSTREAM_M12B_EXEC"].strip(),
+              "C": os.environ["UPSTREAM_M12C_EXEC"].strip(),
+              "D": os.environ["UPSTREAM_M12D_EXEC"].strip(),
+              "E": os.environ["UPSTREAM_M12E_EXEC"].strip(),
+              "F": os.environ["UPSTREAM_M12F_EXEC"].strip(),
+              "G": os.environ["UPSTREAM_M12G_EXEC"].strip(),
+              "H": os.environ["UPSTREAM_M12H_EXEC"].strip(),
+              "I": os.environ["UPSTREAM_M12I_EXEC"].strip(),
+          }
+          expected_next = {
+              "A": "M12.B_READY",
+              "B": "M12.C_READY",
+              "C": "M12.D_READY",
+              "D": "M12.E_READY",
+              "E": "M12.F_READY",
+              "F": "M12.G_READY",
+              "G": "M12.H_READY",
+              "H": "M12.I_READY",
+              "I": "M12.J_READY",
+          }
+
+          blockers: list[dict[str, str]] = []
+          read_errors: list[dict[str, str]] = []
+          upload_errors: list[dict[str, str]] = []
+          matrix_rows: list[dict] = []
+          platform_run_id = ""
+          scenario_run_id = ""
+
+          # A..I summary closure matrix
+          for phase in ["A", "B", "C", "D", "E", "F", "G", "H", "I"]:
+              up = upstream.get(phase, "")
+              if not up:
+                  blockers.append({"code": "M12-B11", "message": f"Missing upstream execution id for M12.{phase}."})
+                  continue
+              key = f"evidence/dev_full/run_control/{up}/m12{phase.lower()}_execution_summary.json"
+              summary = None
+              try:
+                  summary = get_json(s3, bucket, key)
+              except Exception as exc:
+                  read_errors.append({"surface": key, "error": type(exc).__name__})
+                  blockers.append({"code": "M12-B11", "message": f"Unreadable M12.{phase} execution summary."})
+              row_pass = False
+              actual_next = ""
+              if summary:
+                  pid = str(summary.get("platform_run_id", "")).strip()
+                  sid = str(summary.get("scenario_run_id", "")).strip()
+                  if phase == "A":
+                      platform_run_id = pid
+                      scenario_run_id = sid
+                  else:
+                      if platform_run_id and pid and pid != platform_run_id:
+                          blockers.append({"code": "M12-B11", "message": f"M12.{phase} platform_run_id drift."})
+                      if scenario_run_id and sid and sid != scenario_run_id:
+                          blockers.append({"code": "M12-B11", "message": f"M12.{phase} scenario_run_id drift."})
+                  overall = truthy(summary.get("overall_pass", False))
+                  bc = int(summary.get("blocker_count", 0))
+                  actual_next = str(summary.get("next_gate", "")).strip()
+                  row_pass = overall and bc == 0 and actual_next == expected_next[phase]
+                  if not overall:
+                      blockers.append({"code": "M12-B11", "message": f"M12.{phase} summary overall_pass is false."})
+                  if bc != 0:
+                      blockers.append({"code": "M12-B11", "message": f"M12.{phase} summary blocker_count is non-zero."})
+                  if actual_next != expected_next[phase]:
+                      blockers.append({"code": "M12-B11", "message": f"M12.{phase} next_gate mismatch (expected {expected_next[phase]} got {actual_next})."})
+                  if phase == "H":
+                      if str(summary.get("p15_verdict", "")).strip() != "ADVANCE_TO_P16":
+                          blockers.append({"code": "M12-B11", "message": "M12.H p15_verdict is not ADVANCE_TO_P16."})
+                      if str(summary.get("p15_next_gate", "")).strip() != "M13_READY":
+                          blockers.append({"code": "M12-B11", "message": "M12.H p15_next_gate is not M13_READY."})
+                  if phase == "I":
+                      if str(summary.get("verdict", "")).strip() != "ADVANCE_TO_M12_J":
+                          blockers.append({"code": "M12-B11", "message": "M12.I verdict is not ADVANCE_TO_M12_J."})
+              matrix_rows.append({
+                  "phase": phase,
+                  "execution_id": up,
+                  "summary_key": key,
+                  "expected_next_gate": expected_next[phase],
+                  "actual_next_gate": actual_next,
+                  "row_pass": row_pass,
+              })
+
+          # Non-gate acceptance closure
+          obs_key = f"evidence/dev_full/run_control/{upstream['F']}/m12_post_promotion_observation_snapshot.json"
+          op_key = f"evidence/dev_full/run_control/{upstream['G']}/m12_operability_acceptance_report.json"
+          obs_payload = op_payload = None
+          try:
+              obs_payload = get_json(s3, bucket, obs_key)
+          except Exception as exc:
+              read_errors.append({"surface": obs_key, "error": type(exc).__name__})
+              blockers.append({"code": "M12-B11", "message": "Unreadable M12.F post-promotion observation snapshot."})
+          try:
+              op_payload = get_json(s3, bucket, op_key)
+          except Exception as exc:
+              read_errors.append({"surface": op_key, "error": type(exc).__name__})
+              blockers.append({"code": "M12-B11", "message": "Unreadable M12.G operability acceptance report."})
+          if obs_payload and not truthy(obs_payload.get("overall_pass", False)):
+              blockers.append({"code": "M12-B12", "message": "M12.F post-promotion observation is not pass posture."})
+          if op_payload and not truthy(op_payload.get("overall_pass", False)):
+              blockers.append({"code": "M12-B12", "message": "M12.G operability acceptance is not pass posture."})
+
+          # Handoff + cost artifacts readability
+          m13_handoff_key = f"evidence/dev_full/run_control/{upstream['H']}/m13_handoff_pack.json"
+          m13_handoff = None
+          try:
+              m13_handoff = get_json(s3, bucket, m13_handoff_key)
+          except Exception as exc:
+              read_errors.append({"surface": m13_handoff_key, "error": type(exc).__name__})
+              blockers.append({"code": "M12-B11", "message": "Unreadable M13 handoff pack from M12.H."})
+          if m13_handoff:
+              if str(m13_handoff.get("p15_verdict", "")).strip() != "ADVANCE_TO_P16":
+                  blockers.append({"code": "M12-B11", "message": "M13 handoff p15_verdict mismatch."})
+              if str(m13_handoff.get("next_gate", "")).strip() != "M13_READY":
+                  blockers.append({"code": "M12-B11", "message": "M13 handoff next_gate mismatch."})
+              if not truthy(m13_handoff.get("m13_entry_ready", False)):
+                  blockers.append({"code": "M12-B11", "message": "M13 handoff entry-ready is false."})
+
+          budget_key = f"evidence/dev_full/run_control/{upstream['I']}/m12_phase_budget_envelope.json"
+          receipt_key = f"evidence/dev_full/run_control/{upstream['I']}/m12_phase_cost_outcome_receipt.json"
+          budget_payload = receipt_payload = None
+          try:
+              budget_payload = get_json(s3, bucket, budget_key)
+          except Exception as exc:
+              read_errors.append({"surface": budget_key, "error": type(exc).__name__})
+              blockers.append({"code": "M12-B11", "message": "Unreadable M12.I phase budget envelope."})
+          try:
+              receipt_payload = get_json(s3, bucket, receipt_key)
+          except Exception as exc:
+              read_errors.append({"surface": receipt_key, "error": type(exc).__name__})
+              blockers.append({"code": "M12-B11", "message": "Unreadable M12.I phase cost-outcome receipt."})
+
+          handles = {}
+          try:
+              handles = parse_handles(Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"))
+          except Exception as exc:
+              blockers.append({"code": "M12-B11", "message": f"Failed to parse handles registry: {type(exc).__name__}."})
+          required_receipt_fields = [x.strip() for x in str(handles.get("COST_OUTCOME_RECEIPT_REQUIRED_FIELDS", "")).split(",") if x.strip()]
+          if receipt_payload and required_receipt_fields:
+              missing = [f for f in required_receipt_fields if f not in receipt_payload]
+              if missing:
+                  blockers.append({"code": "M12-B11", "message": "M12.I receipt missing required fields: " + ",".join(missing)})
+
+          matrix_pass = len(matrix_rows) == 9 and all(bool(r.get("row_pass")) for r in matrix_rows)
+          if not matrix_pass:
+              blockers.append({"code": "M12-B11", "message": "M12 source matrix closure check failed."})
+          if not platform_run_id or not scenario_run_id:
+              blockers.append({"code": "M12-B11", "message": "Run-scope unresolved in M12 closure sync."})
+
+          blockers = dedupe(blockers)
+          overall_pass = len(blockers) == 0
+          verdict = "ADVANCE_TO_M13" if overall_pass else "HOLD_REMEDIATE"
+          next_gate = "M13_READY" if overall_pass else "HOLD_REMEDIATE"
+
+          evidence_index = {
+              "m12a_execution_summary": f"evidence/dev_full/run_control/{upstream['A']}/m12a_execution_summary.json",
+              "m12b_execution_summary": f"evidence/dev_full/run_control/{upstream['B']}/m12b_execution_summary.json",
+              "m12c_execution_summary": f"evidence/dev_full/run_control/{upstream['C']}/m12c_execution_summary.json",
+              "m12d_execution_summary": f"evidence/dev_full/run_control/{upstream['D']}/m12d_execution_summary.json",
+              "m12e_execution_summary": f"evidence/dev_full/run_control/{upstream['E']}/m12e_execution_summary.json",
+              "m12f_execution_summary": f"evidence/dev_full/run_control/{upstream['F']}/m12f_execution_summary.json",
+              "m12g_execution_summary": f"evidence/dev_full/run_control/{upstream['G']}/m12g_execution_summary.json",
+              "m12h_execution_summary": f"evidence/dev_full/run_control/{upstream['H']}/m12h_execution_summary.json",
+              "m12i_execution_summary": f"evidence/dev_full/run_control/{upstream['I']}/m12i_execution_summary.json",
+              "m12_post_promotion_observation_snapshot": obs_key,
+              "m12_operability_acceptance_report": op_key,
+              "m13_handoff_pack": m13_handoff_key,
+              "m12_phase_budget_envelope": budget_key,
+              "m12_phase_cost_outcome_receipt": receipt_key,
+          }
+
+          blocker_register = {
+              "captured_at_utc": now(),
+              "phase": "M12.J",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "blocker_count": len(blockers),
+              "blockers": blockers,
+              "overall_pass": overall_pass,
+          }
+          execution_summary = {
+              "captured_at_utc": now(),
+              "phase": "M12.J",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "upstream_refs": {
+                  "m12a_execution_id": upstream["A"],
+                  "m12b_execution_id": upstream["B"],
+                  "m12c_execution_id": upstream["C"],
+                  "m12d_execution_id": upstream["D"],
+                  "m12e_execution_id": upstream["E"],
+                  "m12f_execution_id": upstream["F"],
+                  "m12g_execution_id": upstream["G"],
+                  "m12h_execution_id": upstream["H"],
+                  "m12i_execution_id": upstream["I"],
+              },
+              "source_matrix_rows": matrix_rows,
+              "non_gate_acceptance": {
+                  "post_promotion_observation_pass": bool(obs_payload and truthy(obs_payload.get("overall_pass", False))),
+                  "operability_acceptance_pass": bool(op_payload and truthy(op_payload.get("overall_pass", False))),
+              },
+              "evidence_index": evidence_index,
+              "read_errors": read_errors,
+              "upload_errors": upload_errors,
+              "artifact_keys": {
+                  "m12_execution_summary": f"evidence/dev_full/run_control/{exec_id}/m12_execution_summary.json",
+                  "m12_blocker_register": f"evidence/dev_full/run_control/{exec_id}/m12_blocker_register.json",
+              },
+          }
+
+          run_dir.mkdir(parents=True, exist_ok=True)
+          artifacts = {
+              "m12_execution_summary.json": execution_summary,
+              "m12_blocker_register.json": blocker_register,
+          }
+          for fname, payload in artifacts.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          prefix = f"evidence/dev_full/run_control/{exec_id}/"
+          for fname, payload in artifacts.items():
+              try:
+                  put_json(s3, bucket, prefix + fname, payload)
+              except Exception as exc:
+                  upload_errors.append({"surface": prefix + fname, "error": type(exc).__name__})
+                  blockers.append({"code": "M12-B11", "message": f"Failed to publish {fname}."})
+
+          blockers = dedupe(blockers)
+          overall_pass = len(blockers) == 0
+          verdict = "ADVANCE_TO_M13" if overall_pass else "HOLD_REMEDIATE"
+          next_gate = "M13_READY" if overall_pass else "HOLD_REMEDIATE"
+          blocker_register["blocker_count"] = len(blockers)
+          blocker_register["blockers"] = blockers
+          blocker_register["overall_pass"] = overall_pass
+          execution_summary["overall_pass"] = overall_pass
+          execution_summary["blocker_count"] = len(blockers)
+          execution_summary["verdict"] = verdict
+          execution_summary["next_gate"] = next_gate
+          execution_summary["upload_errors"] = upload_errors
+
+          for fname, payload in artifacts.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+              try:
+                  put_json(s3, bucket, prefix + fname, payload)
+              except Exception:
+                  pass
+
+          print(json.dumps({
+              "execution_id": exec_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "verdict": verdict,
+              "next_gate": next_gate,
               "evidence_prefix": f"s3://{bucket}/{prefix}",
           }, indent=2, ensure_ascii=True))
           if not overall_pass:
