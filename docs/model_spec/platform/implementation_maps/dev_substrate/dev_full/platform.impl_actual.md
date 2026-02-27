@@ -15063,3 +15063,26 @@ ext_gate=M11.B_READY and locker_count=0.
    - transform consumes only CSV features,
    - labels JSON remains side input for metric computation only,
    - advisory-clearance can complete if no further runtime drifts.
+
+## Entry: 2026-02-27 05:34:00 +00:00 - M11D-AD1 cleared (strict managed-transform proof)
+1. Quota confirmation:
+   - API confirmed non-zero quotas in `eu-west-2` before rerun:
+     - `ml.c5.xlarge for transform job usage = 8`,
+     - `ml.c5.xlarge for training job usage = 20`,
+     - `ml.c4.xlarge for transform job usage = 8`.
+2. Strict rerun dispatch:
+   - workflow run: https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22473966183
+   - execution id: `m11d_train_eval_execution_20260227T052312Z`
+   - inputs: `m11d_training_instance_type=ml.c5.xlarge`, `m11d_transform_instance_type=ml.c5.xlarge`, `m11d_require_managed_transform=true`.
+3. First strict c5 rerun failure root cause (same run family):
+   - transform consumed test prefix containing `test_features.csv` + `test_labels.json`,
+   - container attempted CSV parse on JSON labels file and failed.
+4. Remediation shipped (workflow-only commit `2f16b689`):
+   - transform input URI switched from test directory prefix to exact object key for `test_features.csv`.
+5. Final strict rerun result (authoritative):
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M11.E_READY`,
+   - training status `Completed`, transform status `Completed`,
+   - `eval_mode=managed_batch_transform`, advisories `[]`.
+6. Closure decision:
+   - advisory `M11D-AD1` is cleared,
+   - M11 next actionable lane returns to `M11.E`.

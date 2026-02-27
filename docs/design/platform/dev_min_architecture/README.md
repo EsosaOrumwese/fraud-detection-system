@@ -10,6 +10,7 @@ Each set includes three views:
 1. Executive view
 2. Engineering view
 3. Audit/Governance view
+4. Network topology view (VPC, subnets, routes, security groups, ECS placement, DB subnet/RDS path)
 
 Each view is provided in:
 

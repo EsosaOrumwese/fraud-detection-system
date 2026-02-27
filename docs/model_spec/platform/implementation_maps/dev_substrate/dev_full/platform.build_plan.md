@@ -1437,6 +1437,13 @@ M11 progression snapshot:
     - `require_managed_transform=true`, `transform_instance_type=ml.c4.xlarge`,
     - blocker: `M11-B4` (`ResourceLimitExceeded`, transform quota still 0),
     - quota request opened: `be88a3fa50a141a4b67a79538a9cedd4kWCjEenD` (case `177214283200667`).
+  - strict advisory-clearance rerun executed and passed:
+    - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22473966183`,
+    - execution id: `m11d_train_eval_execution_20260227T052312Z`,
+    - `require_managed_transform=true`, `training_instance_type=ml.c5.xlarge`, `transform_instance_type=ml.c5.xlarge`,
+    - transform status `Completed`, `eval_mode=managed_batch_transform`,
+    - advisories empty, `overall_pass=true`, `blocker_count=0`, `next_gate=M11.E_READY`,
+    - `M11D-AD1` cleared.
 
 ## M12 - MPR Promotion/Rollback Closure
 Status: `NOT_STARTED`
@@ -1519,4 +1526,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Poll quota request `be88a3fa50a141a4b67a79538a9cedd4kWCjEenD` to approval, rerun strict `M11.D` advisory-clearance (`require_managed_transform=true`), and only after advisory-free managed-transform success proceed to `M11.E`.
+- Expand and execute `M11.E` (eval gate adjudication) using advisory-cleared `M11.D` posture (`m11d_train_eval_execution_20260227T052312Z`) as entry basis.

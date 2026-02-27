@@ -509,6 +509,13 @@ M11D-AD1 clearance contract (mandatory before M11 phase closure):
 - `require_managed_transform=true`, `transform_instance_type=ml.c4.xlarge`,
 - outcome: `overall_pass=false`, blocker `M11-B4` due `ResourceLimitExceeded` on transform quota still `0`,
 - quota request currently `CASE_OPENED`: `be88a3fa50a141a4b67a79538a9cedd4kWCjEenD` (case `177214283200667`).
+7. Advisory-clearance success state:
+- strict rerun executed on workflow run `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22473966183`,
+- execution id `m11d_train_eval_execution_20260227T052312Z`,
+- `require_managed_transform=true`, `training_instance_type=ml.c5.xlarge`, `transform_instance_type=ml.c5.xlarge`,
+- transform status `Completed`, `eval_mode=managed_batch_transform`,
+- advisories `[]`, `overall_pass=true`, `blocker_count=0`, `next_gate=M11.E_READY`,
+- `M11D-AD1` is cleared.
 
 ### M11.E - Eval Gate Adjudication
 Goal:
@@ -651,12 +658,12 @@ DoD:
 - [ ] no unresolved `M11-B*` blocker remains
 - [ ] all M11 artifacts published local + durable
 - [ ] non-gate acceptance artifacts (`eval_vs_baseline`, `reproducibility`, `model_operability`) are pass posture
-- [ ] `M11D-AD1` cleared by advisory-free managed-transform rerun evidence
+- [x] `M11D-AD1` cleared by advisory-free managed-transform rerun evidence
 
 ## 9) Planning Status
 1. M11 planning is expanded to execution-grade depth.
 2. `M11.A` is complete and green on managed lane.
 3. `M11.B` is complete and green on managed lane.
 4. `M11.C` is complete and green on managed lane.
-5. `M11.D` is complete and green on managed lane (with explicit `M11D-AD1` advisory).
-6. Next actionable lane is `M11.D` advisory-clearance rerun (managed transform parity restore), then `M11.E`.
+5. `M11.D` is complete and green on strict managed lane with advisory-free transform evidence.
+6. Next actionable lane is `M11.E` (eval gate adjudication).

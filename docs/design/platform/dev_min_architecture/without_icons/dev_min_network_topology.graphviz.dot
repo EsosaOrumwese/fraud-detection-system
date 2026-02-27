@@ -1,0 +1,65 @@
+digraph DevMinNetworkNoIcons {
+  graph [rankdir=LR, fontname="Helvetica", fontsize=11, label="Dev_min Network Topology (No Icons)", labelloc=t, labeljust=l, pad="0.2", splines=true];
+  node  [shape=box, style="rounded,filled", fillcolor="#F8FAFC", color="#CBD5E1", fontname="Helvetica", fontsize=9];
+  edge  [color="#334155", penwidth=1.1, arrowsize=0.75, fontname="Helvetica", fontsize=8];
+
+  subgraph cluster_internet {
+    label="Internet Edge";
+    color="#64748B"; style="rounded,dashed";
+    internet [label="Public internet\n0.0.0.0/0"];
+  }
+
+  subgraph cluster_vpc {
+    label="VPC (aws_vpc.demo)";
+    color="#2563EB"; style="rounded,dashed";
+    vpc [label="VPC CIDR\nvar.vpc_cidr"];
+    igw [label="Internet gateway\naws_internet_gateway.demo"];
+    rt_public [label="Public route table\naws_route_table.public"];
+    route_default [label="Default route\n0.0.0.0/0 -> IGW\naws_route.internet"];
+    subnet_a [label="Public subnet A\naws_subnet.public[0]"];
+    subnet_b [label="Public subnet B\naws_subnet.public[1]"];
+    rta [label="Route table associations\naws_route_table_association.public[*]"];
+
+    sg_app [label="App security group\nIngress: tcp/8080 from 0.0.0.0/0\nEgress: all"];
+    sg_db [label="DB security group\nIngress: tcp/var.db_port from App SG\nEgress: all"];
+
+    ecs_probe [label="ECS runtime-probe service\nassign_public_ip=true\nsubnets=public[*]\nsg=app"];
+    ecs_daemons [label="ECS daemon services\nassign_public_ip=true\nsubnets=public[*]\nsg=app"];
+
+    db_subnet_group [label="DB subnet group\naws_db_subnet_group.demo\nsubnets=public[*]"];
+    rds [label="RDS postgres\naws_db_instance.runtime\nsg=db\npublicly_accessible=var.db_publicly_accessible"];
+
+    note_no_nat [label="No NAT gateway provisioned\n(cost posture)", shape=note, fillcolor="#FEF3C7", color="#D97706"];
+    note_no_lb [label="No ALB/NLB provisioned\n(service tasks are directly networked)", shape=note, fillcolor="#FEF3C7", color="#D97706"];
+  }
+
+  internet -> igw [label="internet edge"];
+  vpc -> igw;
+  vpc -> rt_public;
+  rt_public -> route_default;
+  route_default -> igw;
+  vpc -> subnet_a;
+  vpc -> subnet_b;
+  rta -> subnet_a;
+  rta -> subnet_b;
+  rta -> rt_public;
+
+  vpc -> sg_app;
+  vpc -> sg_db;
+
+  subnet_a -> ecs_probe;
+  subnet_b -> ecs_probe;
+  subnet_a -> ecs_daemons;
+  subnet_b -> ecs_daemons;
+  sg_app -> ecs_probe;
+  sg_app -> ecs_daemons;
+
+  sg_app -> sg_db [label="db port access path"];
+  sg_db -> rds;
+  subnet_a -> db_subnet_group;
+  subnet_b -> db_subnet_group;
+  db_subnet_group -> rds;
+
+  ecs_probe -> internet [style=dashed, label="egress allowed"];
+  ecs_daemons -> internet [style=dashed, label="egress allowed"];
+}
