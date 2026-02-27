@@ -15759,3 +15759,56 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 1. Validation scan detected stale `M11` status in `platform.build_plan.md` still set to `ACTIVE`.
 2. Corrected M11 status to `DONE` to keep M12 entry truth consistent with already-closed M11 evidence.
 3. No execution-side behavior changed; this is documentation truth-alignment only.
+
+## Entry: 2026-02-27 11:35:10 +00:00 - M12-B0 managed lane materialization wiring
+1. Implemented single managed workflow lane `.github/workflows/dev_full_m12_managed.yml` to satisfy `M12-B0` prerequisite.
+2. Workflow scope intentionally constrained to `execution_mode=materialization_check` to avoid accidental subphase execution before explicit M12.A start.
+3. Deterministic routing is materialized for all `M12.A..M12.J` through a fixed execution-id naming map:
+   - `m12a_handle_closure_<ts>` ... `m12j_closure_sync_<ts>`.
+4. Fail-closed readiness checks in the B0 lane:
+   - validates requested subphase against `A..J`,
+   - validates upstream M11.J summary readability and gate posture (`overall_pass=true`, `next_gate=M12_READY`),
+   - publishes materialization evidence and blocker/summary artifacts to local + durable run-control.
+5. B0 output contract from workflow:
+   - `m12_managed_lane_materialization_snapshot.json`,
+   - `m12_subphase_dispatchability_snapshot.json`,
+   - `m12b0_blocker_register.json`,
+   - `m12b0_execution_summary.json`.
+6. Next step: workflow-only commit/push + dispatch materialization proof run and close/update M12-B0 in plan docs if green.
+
+## Entry: 2026-02-27 11:38:42 +00:00 - M12-B0 dispatch blocker on default-branch workflow visibility
+1. Workflow-only commit was created and pushed on `migrate-dev`:
+   - commit: `68374ea03`,
+   - file: `.github/workflows/dev_full_m12_managed.yml`.
+2. Attempted managed dispatch with:
+   - `m12_subphase=A`,
+   - `execution_mode=materialization_check`,
+   - `upstream_m11j_execution=m11j_closure_sync_20260227T104756Z`.
+3. Dispatch failed with `HTTP 404 workflow ... not found on the default branch`.
+4. Interpretation:
+   - this repo currently requires workflow presence on default branch for dispatch API discovery.
+5. Fail-closed decision:
+   - `M12-B0` cannot be marked green yet.
+   - branch-governance confirmation is required for workflow-only promotion path to default branch before rerun.
+
+## Entry: 2026-02-27 11:59:20 +00:00 - M12-B0 closed green via workflow-only promotion to main
+1. Branch-governed workflow-only promotion executed in temporary worktree from `origin/main`:
+   - created branch `ops/m12-workflow-only`,
+   - cherry-picked workflow-only commit `68374ea03`,
+   - pushed branch and opened PR `#68`,
+   - enabled auto-merge and PR merged to `main`.
+2. M12 managed workflow became dispatchable from default branch:
+   - workflow: `dev_full_m12_managed.yml`.
+3. Materialization proof run executed on `main`:
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22485281434`,
+   - execution id: `m12a_handle_closure_20260227T115823Z`,
+   - mode: `materialization_check`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.A_READY`, `verdict=ADVANCE_TO_M12_A`.
+4. B0 evidence published:
+   - `m12_managed_lane_materialization_snapshot.json`,
+   - `m12_subphase_dispatchability_snapshot.json`,
+   - `m12b0_blocker_register.json`,
+   - `m12b0_execution_summary.json`.
+5. Planning updates applied:
+   - deep plan now marks `M12-B0` closed with PR/run evidence,
+   - main platform build plan progression/next action updated to start `M12.A`.

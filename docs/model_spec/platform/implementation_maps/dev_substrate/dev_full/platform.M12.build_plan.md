@@ -83,6 +83,20 @@ Closure expectation for this prerequisite:
 2. deterministic execution-id routing per subphase,
 3. no local fallback marked as authoritative.
 
+Closure evidence (green):
+1. Workflow file on default branch:
+   - `.github/workflows/dev_full_m12_managed.yml`
+2. Workflow promotion PR:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/pull/68`
+3. Materialization proof run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22485281434`
+   - execution id: `m12a_handle_closure_20260227T115823Z`
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.A_READY`, `verdict=ADVANCE_TO_M12_A`
+4. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12a_handle_closure_20260227T115823Z/m12_managed_lane_materialization_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12a_handle_closure_20260227T115823Z/m12_subphase_dispatchability_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12a_handle_closure_20260227T115823Z/m12b0_execution_summary.json`
+
 ## 4.2) Capability-Lane Coverage Matrix
 | Capability lane | Primary subphase | Minimum PASS evidence |
 | --- | --- | --- |
@@ -409,5 +423,6 @@ DoD:
 ## 9) Planning Status
 1. M12 planning is execution-grade and aligned to P15 authority.
 2. M11 closure entry requirements are already satisfied.
-3. M12 execution has not started yet.
-4. Next action: materialize managed M12 execution lane and execute `M12.A`.
+3. `M12-B0` is closed green (managed lane materialized + dispatchability proven).
+4. M12 execution has not started beyond B0 prerequisite closure.
+5. Next action: execute `M12.A` on the managed lane.

@@ -1594,7 +1594,12 @@ M12 progression snapshot:
   - `m11j_execution_summary.json`,
   - `m11_execution_summary.json`,
   - `m12_handoff_pack.json` from M11.I.
-- execution has not started yet.
+- `M12-B0` was closed green:
+  - workflow PR merged to main: `https://github.com/EsosaOrumwese/fraud-detection-system/pull/68`,
+  - proof run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22485281434`,
+  - execution id: `m12a_handle_closure_20260227T115823Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.A_READY`, `verdict=ADVANCE_TO_M12_A`.
+- M12 subphase execution starts at `M12.A`.
 
 ## M13 - Final Verdict and Teardown Closure
 Status: `NOT_STARTED`
@@ -1632,4 +1637,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Materialize managed M12 execution lane (`M12-B0` closure), then execute `M12.A` using M11 closure evidence `m11j_closure_sync_20260227T104756Z`.
+- Execute `M12.A` (promotion authority + handle closure) on managed lane using M11 closure evidence `m11j_closure_sync_20260227T104756Z`.
