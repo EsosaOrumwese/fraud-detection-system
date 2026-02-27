@@ -16632,3 +16632,26 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 7. Progression impact:
    - `M12-B11` and `M12-B12` cleared.
    - M12 is now `DONE`; next actionable phase is `M13`.
+
+## Entry: 2026-02-27 18:53:28 +00:00 - M13 planning expansion and deep-plan materialization
+1. Scope accepted: plan out M13 (P16-P17) before execution.
+2. Gap discovered and resolved:
+   - master plan already referenced `platform.M13.build_plan.md`, but file did not exist.
+   - created `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M13.build_plan.md`.
+3. Deep-plan structure materialized to execution-grade:
+   - purpose, authority inputs, fail-closed entry contract from M12.J,
+   - capability-lane matrix,
+   - full artifact contract,
+   - explicit subphases `M13.A..M13.J` with entry checks, blockers, runtime budgets, and DoDs,
+   - blocker taxonomy `M13-B0..M13-B12`,
+   - completion checklist and planning status.
+4. Design decisions pinned for M13:
+   - M13 is strictly sequenced `A -> ... -> J` (no phase skipping),
+   - P16 closure requires source-matrix + six-proof matrix + deterministic final verdict,
+   - P17 closure requires teardown execution + residual-risk/readability closure + cost closure,
+   - M13 remains fail-closed unless managed lane (`M13-B0`) is materialized.
+5. Master plan alignment updates:
+   - expanded M13 section in `platform.build_plan.md` with subphase plan, blocker families, and stronger DoD anchors,
+   - updated next action to:
+     - materialize managed M13 lane (`M13-B0` closure),
+     - then execute `M13.A`.

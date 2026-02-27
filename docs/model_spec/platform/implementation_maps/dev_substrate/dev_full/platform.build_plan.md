@@ -1694,12 +1694,49 @@ Entry gate:
 - M12 is `DONE`.
 
 Planned lanes:
-- full source matrix aggregation, six-proof matrix check, teardown residual scan, cost closure.
+- M13 is strictly sequenced as `M13.A -> M13.B -> ... -> M13.J`; no phase skipping.
+- fail-closed closure over:
+  - full source matrix aggregation (`M13.B`),
+  - six-proof matrix completeness (`M13.C`),
+  - deterministic final verdict publication (`M13.D`),
+  - teardown plan/execution/residual/readability closure (`M13.E..M13.G`),
+  - post-teardown cost guardrail and phase cost-outcome closure (`M13.H..M13.I`),
+  - final closure sync + parity (`M13.J`).
+
+M13 sub-phase plan:
+1. `M13.A` authority + handle closure (`P16/P17` handles).
+2. `M13.B` full source matrix closure.
+3. `M13.C` six-proof matrix closure.
+4. `M13.D` final verdict publication.
+5. `M13.E` teardown plan closure.
+6. `M13.F` teardown execution closure.
+7. `M13.G` residual risk + post-teardown readability closure.
+8. `M13.H` post-teardown cost guardrail closure.
+9. `M13.I` phase budget + cost-outcome closure.
+10. `M13.J` final closure sync.
+
+M13 blocker families (fail-closed):
+- `M13-B0` managed M13 lane not materialized.
+- `M13-B1` authority/handle closure failure.
+- `M13-B2` full source matrix failure.
+- `M13-B3` six-proof matrix incompleteness.
+- `M13-B4` final verdict inconsistency/publication failure.
+- `M13-B5` teardown plan failure.
+- `M13-B6` teardown execution failure.
+- `M13-B7` residual risk.
+- `M13-B8` post-teardown evidence unreadable.
+- `M13-B9` post-teardown cost guardrail failure.
+- `M13-B10` M13 phase cost-outcome closure failure.
+- `M13-B11` summary/evidence parity failure.
+- `M13-B12` non-gate acceptance failure.
 
 DoD anchors:
-- [ ] final verdict bundle committed.
+- [ ] final verdict bundle committed and readable at run-scoped truth surface.
+- [ ] six-proof matrix complete for all required lanes.
 - [ ] teardown residual scan clean or accepted with explicit waiver.
-- [ ] cost-to-outcome receipt and cost snapshot committed.
+- [ ] post-teardown evidence readability closure is pass.
+- [ ] M13 phase budget + cost-outcome artifacts are committed and blocker-free.
+- [ ] `m13_execution_summary.json` + `m13_blocker_register.json` are parity-verified.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M13.build_plan.md`
@@ -1720,4 +1757,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Begin `M13` planning and execution on managed lane.
+- Materialize managed M13 lane (`M13-B0` closure), then execute `M13.A`.
