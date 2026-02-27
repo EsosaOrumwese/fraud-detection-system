@@ -569,7 +569,7 @@ Allowed tokens in pattern handles:
 ### 9.3 MLflow handles
 
 * `MLFLOW_HOSTING_MODE = "databricks_managed"`
-* `MLFLOW_EXPERIMENT_PATH = "/Shared/fraud-platform/dev_full"`
+* `MLFLOW_EXPERIMENT_PATH = "/Shared/fraud-platform/dev_full/mlflow_exp_v0"`
 * `MLFLOW_MODEL_NAME = "fraud-platform-dev-full"`
 
 ### 9.4 Secret path handles (Databricks/MLflow/SageMaker)
