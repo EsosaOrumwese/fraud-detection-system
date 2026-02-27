@@ -42,6 +42,7 @@ on:
           - materialization_check
           - handle_closure
           - source_matrix_closure
+          - six_proof_closure
       upstream_m12j_execution:
         description: Upstream M12.J execution id (required for M13 entry check)
         required: true
@@ -56,6 +57,11 @@ on:
         description: Upstream M13.A execution id (required for M13.B source matrix mode)
         required: false
         default: m13a_handle_closure_20260227T224800Z
+        type: string
+      upstream_m13b_execution:
+        description: Upstream M13.B execution id (required for M13.C six-proof mode)
+        required: false
+        default: m13b_source_matrix_20260227T230519Z
         type: string
       m13_execution_id:
         description: Optional fixed execution id override
@@ -101,6 +107,12 @@ jobs:
             source_matrix_closure)
               if [[ "${{ inputs.m13_subphase }}" != "B" ]]; then
                 echo "source_matrix_closure mode is only valid for m13_subphase=B"
+                exit 1
+              fi
+              ;;
+            six_proof_closure)
+              if [[ "${{ inputs.m13_subphase }}" != "C" ]]; then
+                echo "six_proof_closure mode is only valid for m13_subphase=C"
                 exit 1
               fi
               ;;
@@ -163,7 +175,7 @@ jobs:
           echo "run_dir=runs/dev_substrate/dev_full/m13/${EXEC_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Execute M13 managed lane
-        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' }}
+        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' || inputs.execution_mode == 'six_proof_closure' }}
         shell: bash
         env:
           EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
@@ -175,6 +187,7 @@ jobs:
           UPSTREAM_M12J_EXEC: ${{ inputs.upstream_m12j_execution }}
           UPSTREAM_M13B0_EXEC: ${{ inputs.upstream_m13b0_execution }}
           UPSTREAM_M13A_EXEC: ${{ inputs.upstream_m13a_execution }}
+          UPSTREAM_M13B_EXEC: ${{ inputs.upstream_m13b_execution }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -270,6 +283,7 @@ jobs:
           upstream_m12j = os.environ["UPSTREAM_M12J_EXEC"].strip()
           upstream_m13b0 = os.environ.get("UPSTREAM_M13B0_EXEC", "").strip()
           upstream_m13a = os.environ.get("UPSTREAM_M13A_EXEC", "").strip()
+          upstream_m13b = os.environ.get("UPSTREAM_M13B_EXEC", "").strip()
           handles_registry_path = Path(
               "docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"
           )
@@ -280,16 +294,18 @@ jobs:
           upload_errors: list[dict[str, str]] = []
 
           supported_subphases = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
-          supported_modes = ["materialization_check", "handle_closure", "source_matrix_closure"]
+          supported_modes = ["materialization_check", "handle_closure", "source_matrix_closure", "six_proof_closure"]
           blocker_code_by_mode = {
               "materialization_check": "M13-B0",
               "handle_closure": "M13-B1",
               "source_matrix_closure": "M13-B2",
+              "six_proof_closure": "M13-B3",
           }
           phase_name_by_mode = {
               "materialization_check": "M13.B0",
               "handle_closure": "M13.A",
               "source_matrix_closure": "M13.B",
+              "six_proof_closure": "M13.C",
           }
           blocker_code = blocker_code_by_mode.get(mode, "M13-B0")
           phase_name = phase_name_by_mode.get(mode, "M13.B0")
@@ -303,6 +319,10 @@ jobs:
           if mode == "source_matrix_closure" and subphase != "B":
               blockers.append(
                   {"code": "M13-B2", "message": "source_matrix_closure mode requires m13_subphase=B."}
+              )
+          if mode == "six_proof_closure" and subphase != "C":
+              blockers.append(
+                  {"code": "M13-B3", "message": "six_proof_closure mode requires m13_subphase=C."}
               )
 
           routing_map = {
@@ -519,7 +539,7 @@ jobs:
                   "upstream_m13b0_summary_key": upstream_m13b0_key,
               }
               artifacts = {"m13a_handle_closure_snapshot.json": snapshot}
-          else:
+          elif mode == "source_matrix_closure":
               blocker_register_name = "m13b_blocker_register.json"
               execution_summary_name = "m13b_execution_summary.json"
               verdict_on_pass = "ADVANCE_TO_M13_C"
@@ -905,6 +925,150 @@ jobs:
                   },
               }
               artifacts = {"m13b_source_matrix_snapshot.json": snapshot}
+          else:
+              blocker_register_name = "m13c_blocker_register.json"
+              execution_summary_name = "m13c_execution_summary.json"
+              verdict_on_pass = "ADVANCE_TO_M13_D"
+              next_gate_on_pass = "M13.D_READY"
+
+              upstream_m13b_key = (
+                  f"evidence/dev_full/run_control/{upstream_m13b}/m13b_execution_summary.json"
+              )
+              upstream_m13b_summary: dict[str, Any] = {}
+              try:
+                  upstream_m13b_summary = s3_get_json(s3, bucket, upstream_m13b_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": upstream_m13b_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B3", "message": "Unreadable M13.B upstream summary."})
+
+              if upstream_m13b_summary:
+                  check_summary(
+                      summary=upstream_m13b_summary,
+                      expected_verdict="ADVANCE_TO_M13_C",
+                      expected_next_gate="M13.C_READY",
+                      blocker_code="M13-B3",
+                      label="M13.B upstream",
+                      blockers=blockers,
+                  )
+
+              six_proof_matrix: dict[str, dict[str, str]] = {
+                  "spine": {
+                      "deploy": "evidence/dev_full/run_control/m6d_p5c_gate_rollup_20260225T041801Z/m6d_p5_gate_verdict.json",
+                      "monitor": "evidence/dev_full/run_control/m8g_p11_non_regression_20260226T062919Z/m8g_non_regression_pack_snapshot.json",
+                      "failure_drill": "evidence/dev_full/run_control/m6g_p6c_gate_rollup_20260225T181523Z/m6g_p6_gate_rollup_matrix.json",
+                      "recovery": "evidence/dev_full/run_control/m6i_p7b_gate_rollup_20260225T191541Z/m6i_p7_gate_rollup_matrix.json",
+                      "rollback": "evidence/dev_full/run_control/m7q_m7_rollup_sync_20260226T031710Z/m7_rollup_matrix.json",
+                      "cost_control": "evidence/dev_full/run_control/m8j_p11_closure_sync_20260226T065141Z/m8_phase_cost_outcome_receipt.json",
+                  },
+                  "ofs": {
+                      "deploy": "evidence/dev_full/run_control/m10d_ofs_build_20260226T172402Z/m10d_execution_summary.json",
+                      "monitor": "evidence/dev_full/run_control/m10e_quality_gate_20260226T172402Z/m10e_execution_summary.json",
+                      "failure_drill": "evidence/dev_full/run_control/m10h_rollback_recipe_20260226T172402Z/m10h_rollback_recipe_snapshot.json",
+                      "recovery": "evidence/dev_full/run_control/m10h_rollback_recipe_20260226T172402Z/m10h_execution_summary.json",
+                      "rollback": "evidence/dev_full/run_control/m10h_rollback_recipe_20260226T172402Z/m10h_rollback_recipe_snapshot.json",
+                      "cost_control": "evidence/dev_full/run_control/m10j_closure_sync_20260226T172402Z/m10_phase_cost_outcome_receipt.json",
+                  },
+                  "mf": {
+                      "deploy": "evidence/dev_full/run_control/m11d_train_eval_execution_20260227T052312Z/m11d_execution_summary.json",
+                      "monitor": "evidence/dev_full/run_control/m11e_eval_gate_20260227T061316Z/m11e_execution_summary.json",
+                      "failure_drill": "evidence/dev_full/run_control/m11h_safe_disable_rollback_20260227T085223Z/m11h_safe_disable_rollback_snapshot.json",
+                      "recovery": "evidence/dev_full/run_control/m11h_safe_disable_rollback_20260227T085223Z/m11_reproducibility_check.json",
+                      "rollback": "evidence/dev_full/run_control/m11h_safe_disable_rollback_20260227T085223Z/m11h_execution_summary.json",
+                      "cost_control": "evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11_phase_cost_outcome_receipt.json",
+                  },
+                  "mpr": {
+                      "deploy": "evidence/dev_full/run_control/m12d_promotion_commit_20260227T144832Z/m12d_execution_summary.json",
+                      "monitor": "evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12f_execution_summary.json",
+                      "failure_drill": "evidence/dev_full/run_control/m12e_rollback_drill_20260227T165747Z/m12e_rollback_drill_snapshot.json",
+                      "recovery": "evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12f_active_resolution_snapshot.json",
+                      "rollback": "evidence/dev_full/run_control/m12e_rollback_drill_20260227T165747Z/m12e_execution_summary.json",
+                      "cost_control": "evidence/dev_full/run_control/m12i_phase_cost_outcome_20260227T183804Z/m12_phase_cost_outcome_receipt.json",
+                  },
+                  "teardown": {
+                      "deploy": "evidence/dev_full/run_control/m2i_20260223T061220Z/m2i_rehearsal_scope_snapshot.json",
+                      "monitor": "evidence/dev_full/run_control/m2i_20260223T061220Z/m2i_residual_scan_snapshot.json",
+                      "failure_drill": "evidence/dev_full/run_control/m2i_20260223T061220Z/m2i_destroy_apply_receipts.json",
+                      "recovery": "evidence/dev_full/run_control/m2i_20260223T061220Z/m2i_recover_apply_receipts.json",
+                      "rollback": "evidence/dev_full/run_control/m2i_20260223T061220Z/m2i_post_recovery_integrity_snapshot.json",
+                      "cost_control": "evidence/dev_full/run_control/m2i_20260223T061220Z/m2i_cost_posture_snapshot.json",
+                  },
+              }
+
+              required_proofs = ["deploy", "monitor", "failure_drill", "recovery", "rollback", "cost_control"]
+              lane_rows: list[dict[str, Any]] = []
+              for lane_name, lane_map in six_proof_matrix.items():
+                  proof_cells: dict[str, dict[str, Any]] = {}
+                  lane_pass = True
+                  lane_blockers: list[str] = []
+                  for proof_name in required_proofs:
+                      key = str(lane_map.get(proof_name, "") or "").strip()
+                      readable = False
+                      cell_error = ""
+                      if not key:
+                          lane_pass = False
+                          lane_blockers.append(f"MISSING_{proof_name.upper()}_REF")
+                          blockers.append(
+                              {
+                                  "code": "M13-B3",
+                                  "message": f"{lane_name} proof cell '{proof_name}' has no reference.",
+                              }
+                          )
+                      else:
+                          try:
+                              s3_get_json(s3, bucket, key)
+                              readable = True
+                          except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                              lane_pass = False
+                              cell_error = type(exc).__name__
+                              lane_blockers.append(f"UNREADABLE_{proof_name.upper()}_REF")
+                              blockers.append(
+                                  {
+                                      "code": "M13-B3",
+                                      "message": (
+                                          f"{lane_name} proof cell '{proof_name}' is unreadable: s3://{bucket}/{key}."
+                                      ),
+                                  }
+                              )
+                              read_errors.append(
+                                  {"surface": f"s3://{bucket}/{key}", "error": type(exc).__name__}
+                              )
+                      proof_cells[proof_name] = {
+                          "proof_ref": f"s3://{bucket}/{key}" if key else "",
+                          "readable": readable,
+                          "read_error": cell_error,
+                      }
+
+                  lane_rows.append(
+                      {
+                          "lane": lane_name,
+                          "required_proof_count": len(required_proofs),
+                          "present_proof_count": sum(
+                              1 for p in required_proofs if bool(str(lane_map.get(p, "") or "").strip())
+                          ),
+                          "readable_proof_count": sum(
+                              1 for p in required_proofs if bool(proof_cells[p]["readable"])
+                          ),
+                          "lane_pass": lane_pass,
+                          "lane_blockers": lane_blockers,
+                          "proofs": proof_cells,
+                      }
+                  )
+
+              snapshot = {
+                  "captured_at_utc": now(),
+                  "phase": "M13.C",
+                  "execution_id": exec_id,
+                  "mode": mode,
+                  "requested_subphase": subphase,
+                  "upstream_m13b_execution": upstream_m13b,
+                  "upstream_m13b_summary_key": upstream_m13b_key,
+                  "required_lanes": sorted(list(six_proof_matrix.keys())),
+                  "required_proofs": required_proofs,
+                  "lane_count": len(lane_rows),
+                  "lane_pass_count": sum(1 for row in lane_rows if bool(row.get("lane_pass", False))),
+                  "lanes": lane_rows,
+              }
+              artifacts = {"m13c_six_proof_matrix_snapshot.json": snapshot}
 
           blocker_register = {
               "captured_at_utc": now(),
