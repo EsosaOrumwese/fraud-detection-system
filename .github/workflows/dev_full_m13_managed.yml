@@ -43,6 +43,7 @@ on:
           - handle_closure
           - source_matrix_closure
           - six_proof_closure
+          - final_verdict_closure
       upstream_m12j_execution:
         description: Upstream M12.J execution id (required for M13 entry check)
         required: true
@@ -62,6 +63,11 @@ on:
         description: Upstream M13.B execution id (required for M13.C six-proof mode)
         required: false
         default: m13b_source_matrix_20260227T230519Z
+        type: string
+      upstream_m13c_execution:
+        description: Upstream M13.C execution id (required for M13.D final verdict mode)
+        required: false
+        default: m13c_six_proof_matrix_20260227T232813Z
         type: string
       m13_execution_id:
         description: Optional fixed execution id override
@@ -113,6 +119,12 @@ jobs:
             six_proof_closure)
               if [[ "${{ inputs.m13_subphase }}" != "C" ]]; then
                 echo "six_proof_closure mode is only valid for m13_subphase=C"
+                exit 1
+              fi
+              ;;
+            final_verdict_closure)
+              if [[ "${{ inputs.m13_subphase }}" != "D" ]]; then
+                echo "final_verdict_closure mode is only valid for m13_subphase=D"
                 exit 1
               fi
               ;;
@@ -175,7 +187,7 @@ jobs:
           echo "run_dir=runs/dev_substrate/dev_full/m13/${EXEC_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Execute M13 managed lane
-        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' || inputs.execution_mode == 'six_proof_closure' }}
+        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' || inputs.execution_mode == 'six_proof_closure' || inputs.execution_mode == 'final_verdict_closure' }}
         shell: bash
         env:
           EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
@@ -188,6 +200,7 @@ jobs:
           UPSTREAM_M13B0_EXEC: ${{ inputs.upstream_m13b0_execution }}
           UPSTREAM_M13A_EXEC: ${{ inputs.upstream_m13a_execution }}
           UPSTREAM_M13B_EXEC: ${{ inputs.upstream_m13b_execution }}
+          UPSTREAM_M13C_EXEC: ${{ inputs.upstream_m13c_execution }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -253,6 +266,18 @@ jobs:
                   mapping[key] = value
               return mapping
 
+          def parse_s3_uri(uri: str) -> tuple[str, str]:
+              text = uri.strip()
+              if not text.startswith("s3://"):
+                  raise ValueError("not_s3_uri")
+              body = text[5:]
+              if "/" not in body:
+                  raise ValueError("missing_key")
+              bucket_name, key = body.split("/", 1)
+              if not bucket_name or not key:
+                  raise ValueError("invalid_s3_uri")
+              return bucket_name, key
+
           def check_summary(
               summary: dict[str, Any],
               expected_verdict: str,
@@ -284,6 +309,7 @@ jobs:
           upstream_m13b0 = os.environ.get("UPSTREAM_M13B0_EXEC", "").strip()
           upstream_m13a = os.environ.get("UPSTREAM_M13A_EXEC", "").strip()
           upstream_m13b = os.environ.get("UPSTREAM_M13B_EXEC", "").strip()
+          upstream_m13c = os.environ.get("UPSTREAM_M13C_EXEC", "").strip()
           handles_registry_path = Path(
               "docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"
           )
@@ -294,18 +320,26 @@ jobs:
           upload_errors: list[dict[str, str]] = []
 
           supported_subphases = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
-          supported_modes = ["materialization_check", "handle_closure", "source_matrix_closure", "six_proof_closure"]
+          supported_modes = [
+              "materialization_check",
+              "handle_closure",
+              "source_matrix_closure",
+              "six_proof_closure",
+              "final_verdict_closure",
+          ]
           blocker_code_by_mode = {
               "materialization_check": "M13-B0",
               "handle_closure": "M13-B1",
               "source_matrix_closure": "M13-B2",
               "six_proof_closure": "M13-B3",
+              "final_verdict_closure": "M13-B4",
           }
           phase_name_by_mode = {
               "materialization_check": "M13.B0",
               "handle_closure": "M13.A",
               "source_matrix_closure": "M13.B",
               "six_proof_closure": "M13.C",
+              "final_verdict_closure": "M13.D",
           }
           blocker_code = blocker_code_by_mode.get(mode, "M13-B0")
           phase_name = phase_name_by_mode.get(mode, "M13.B0")
@@ -323,6 +357,10 @@ jobs:
           if mode == "six_proof_closure" and subphase != "C":
               blockers.append(
                   {"code": "M13-B3", "message": "six_proof_closure mode requires m13_subphase=C."}
+              )
+          if mode == "final_verdict_closure" and subphase != "D":
+              blockers.append(
+                  {"code": "M13-B4", "message": "final_verdict_closure mode requires m13_subphase=D."}
               )
 
           routing_map = {
@@ -925,7 +963,7 @@ jobs:
                   },
               }
               artifacts = {"m13b_source_matrix_snapshot.json": snapshot}
-          else:
+          elif mode == "six_proof_closure":
               blocker_register_name = "m13c_blocker_register.json"
               execution_summary_name = "m13c_execution_summary.json"
               verdict_on_pass = "ADVANCE_TO_M13_D"
@@ -1070,6 +1108,284 @@ jobs:
                   "lanes": lane_rows,
               }
               artifacts = {"m13c_six_proof_matrix_snapshot.json": snapshot}
+          elif mode == "final_verdict_closure":
+              blocker_register_name = "m13d_blocker_register.json"
+              execution_summary_name = "m13d_execution_summary.json"
+              verdict_on_pass = "ADVANCE_TO_M13_E"
+              next_gate_on_pass = "M13.E_READY"
+
+              upstream_m13c_key = (
+                  f"evidence/dev_full/run_control/{upstream_m13c}/m13c_execution_summary.json"
+              )
+              upstream_m13c_summary: dict[str, Any] = {}
+              try:
+                  upstream_m13c_summary = s3_get_json(s3, bucket, upstream_m13c_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": upstream_m13c_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B4", "message": "Unreadable M13.C upstream summary."})
+
+              if upstream_m13c_summary:
+                  check_summary(
+                      summary=upstream_m13c_summary,
+                      expected_verdict="ADVANCE_TO_M13_D",
+                      expected_next_gate="M13.D_READY",
+                      blocker_code="M13-B4",
+                      label="M13.C upstream",
+                      blockers=blockers,
+                  )
+
+              handles: dict[str, str] = {}
+              try:
+                  handles = parse_handles_registry(handles_registry_path)
+              except Exception as exc:
+                  read_errors.append({"surface": str(handles_registry_path), "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B4", "message": "Unreadable dev_full handles registry."})
+
+              full_verdict_pattern = ""
+              raw_full_verdict_pattern = handles.get("FULL_VERDICT_PATH_PATTERN")
+              if raw_full_verdict_pattern is None:
+                  blockers.append({"code": "M13-B4", "message": "Missing handle FULL_VERDICT_PATH_PATTERN."})
+              else:
+                  parsed_value, parsed_type = parse_scalar(str(raw_full_verdict_pattern).strip())
+                  if parsed_type != "string":
+                      blockers.append(
+                          {"code": "M13-B4", "message": "FULL_VERDICT_PATH_PATTERN must resolve to string."}
+                      )
+                  else:
+                      full_verdict_pattern = str(parsed_value).strip()
+                      if not full_verdict_pattern or full_verdict_pattern.upper() in {"TBD", "TODO", "UNSET"}:
+                          blockers.append(
+                              {"code": "M13-B4", "message": "FULL_VERDICT_PATH_PATTERN is placeholder/empty."}
+                          )
+                      if "{platform_run_id}" not in full_verdict_pattern:
+                          blockers.append(
+                              {
+                                  "code": "M13-B4",
+                                  "message": "FULL_VERDICT_PATH_PATTERN missing {platform_run_id}.",
+                              }
+                          )
+
+              m13b_source_snapshot_key = (
+                  f"evidence/dev_full/run_control/{upstream_m13b}/m13b_source_matrix_snapshot.json"
+              )
+              m13b_source_snapshot: dict[str, Any] = {}
+              try:
+                  m13b_source_snapshot = s3_get_json(s3, bucket, m13b_source_snapshot_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": m13b_source_snapshot_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B4", "message": "Unreadable M13.B source matrix snapshot."})
+
+              row_specs: list[dict[str, Any]] = []
+              source_rows = m13b_source_snapshot.get("rows", []) if isinstance(m13b_source_snapshot, dict) else []
+              if not isinstance(source_rows, list) or not source_rows:
+                  blockers.append({"code": "M13-B4", "message": "M13.B source matrix rows missing."})
+              else:
+                  for row in source_rows:
+                      if not isinstance(row, dict):
+                          blockers.append({"code": "M13-B4", "message": "Invalid row in M13.B source matrix."})
+                          continue
+                      row_specs.append(
+                          {
+                              "phase": str(row.get("phase", "")).strip(),
+                              "summary_ref": str(row.get("summary_ref", "")).strip(),
+                              "expected_verdict": str(row.get("expected_verdict", "")).strip(),
+                              "expected_next_gate": str(row.get("expected_next_gate", "")).strip(),
+                          }
+                      )
+
+              required_m1_m12 = {f"M{i}" for i in range(1, 13)}
+              present_m1_m12 = {row.get("phase", "") for row in row_specs if str(row.get("phase", "")).startswith("M")}
+              if not required_m1_m12.issubset(present_m1_m12):
+                  missing = sorted(list(required_m1_m12 - present_m1_m12))
+                  blockers.append(
+                      {
+                          "code": "M13-B4",
+                          "message": f"M13.B source matrix missing required phases: {', '.join(missing)}.",
+                      }
+                  )
+
+              row_specs.extend(
+                  [
+                      {
+                          "phase": "M13.A",
+                          "summary_ref": f"s3://{bucket}/evidence/dev_full/run_control/{upstream_m13a}/m13a_execution_summary.json",
+                          "expected_verdict": "ADVANCE_TO_M13_B",
+                          "expected_next_gate": "M13.B_READY",
+                      },
+                      {
+                          "phase": "M13.B",
+                          "summary_ref": f"s3://{bucket}/evidence/dev_full/run_control/{upstream_m13b}/m13b_execution_summary.json",
+                          "expected_verdict": "ADVANCE_TO_M13_C",
+                          "expected_next_gate": "M13.C_READY",
+                      },
+                      {
+                          "phase": "M13.C",
+                          "summary_ref": f"s3://{bucket}/evidence/dev_full/run_control/{upstream_m13c}/m13c_execution_summary.json",
+                          "expected_verdict": "ADVANCE_TO_M13_D",
+                          "expected_next_gate": "M13.D_READY",
+                      },
+                  ]
+              )
+
+              scope_rows: list[dict[str, Any]] = []
+              for row in row_specs:
+                  phase = str(row.get("phase", "") or "").strip()
+                  summary_ref = str(row.get("summary_ref", "") or "").strip()
+                  expected_verdict = str(row.get("expected_verdict", "") or "").strip()
+                  expected_next_gate = str(row.get("expected_next_gate", "") or "").strip()
+                  row_pass = True
+                  row_blockers: list[str] = []
+                  row_errors: list[str] = []
+                  summary: dict[str, Any] = {}
+                  summary_key = ""
+                  summary_bucket = bucket
+
+                  if not summary_ref:
+                      row_pass = False
+                      row_blockers.append("MISSING_SUMMARY_REF")
+                      blockers.append({"code": "M13-B4", "message": f"{phase} summary_ref is empty."})
+                  else:
+                      try:
+                          if summary_ref.startswith("s3://"):
+                              summary_bucket, summary_key = parse_s3_uri(summary_ref)
+                          else:
+                              summary_key = summary_ref
+                          summary = s3_get_json(s3, summary_bucket, summary_key)
+                      except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                          row_pass = False
+                          row_errors.append(type(exc).__name__)
+                          row_blockers.append("UNREADABLE_SUMMARY")
+                          blockers.append(
+                              {
+                                  "code": "M13-B4",
+                                  "message": f"{phase} summary unreadable: {summary_ref}.",
+                              }
+                          )
+                          read_errors.append({"surface": summary_ref, "error": type(exc).__name__})
+
+                  if summary:
+                      if not bool(summary.get("overall_pass", False)):
+                          row_pass = False
+                          row_blockers.append("OVERALL_PASS_FALSE")
+                          blockers.append({"code": "M13-B4", "message": f"{phase} overall_pass is false."})
+
+                      blocker_count_raw = summary.get("blocker_count")
+                      try:
+                          if blocker_count_raw is not None and int(blocker_count_raw) != 0:
+                              row_pass = False
+                              row_blockers.append("BLOCKER_COUNT_NONZERO")
+                              blockers.append({"code": "M13-B4", "message": f"{phase} blocker_count is not zero."})
+                      except (TypeError, ValueError):
+                          row_pass = False
+                          row_blockers.append("BLOCKER_COUNT_NON_NUMERIC")
+                          blockers.append({"code": "M13-B4", "message": f"{phase} blocker_count is non-numeric."})
+
+                      if expected_verdict:
+                          actual_verdict = str(summary.get("verdict", "") or "").strip()
+                          if actual_verdict != expected_verdict:
+                              row_pass = False
+                              row_blockers.append("VERDICT_MISMATCH")
+                              blockers.append(
+                                  {
+                                      "code": "M13-B4",
+                                      "message": (
+                                          f"{phase} verdict mismatch: expected {expected_verdict}, got {actual_verdict or '<empty>'}."
+                                      ),
+                                  }
+                              )
+
+                      if expected_next_gate:
+                          actual_next_gate = str(summary.get("next_gate", "") or "").strip()
+                          if actual_next_gate != expected_next_gate:
+                              row_pass = False
+                              row_blockers.append("NEXT_GATE_MISMATCH")
+                              blockers.append(
+                                  {
+                                      "code": "M13-B4",
+                                      "message": (
+                                          f"{phase} next_gate mismatch: expected {expected_next_gate}, got {actual_next_gate or '<empty>'}."
+                                      ),
+                                  }
+                              )
+
+                  scope_rows.append(
+                      {
+                          "phase": phase,
+                          "summary_ref": summary_ref,
+                          "expected_verdict": expected_verdict,
+                          "expected_next_gate": expected_next_gate,
+                          "actual_verdict": str(summary.get("verdict", "") if summary else ""),
+                          "actual_next_gate": str(summary.get("next_gate", "") if summary else ""),
+                          "platform_run_id": str(summary.get("platform_run_id", "") if summary else ""),
+                          "scenario_run_id": str(summary.get("scenario_run_id", "") if summary else ""),
+                          "row_pass": row_pass,
+                          "row_blockers": row_blockers,
+                          "row_errors": row_errors,
+                      }
+                  )
+
+              platform_run_id = str(upstream_summary.get("platform_run_id", "") or "").strip()
+              scenario_run_id = str(upstream_summary.get("scenario_run_id", "") or "").strip()
+              if not platform_run_id:
+                  blockers.append({"code": "M13-B4", "message": "Missing platform_run_id from M12.J upstream summary."})
+              if not scenario_run_id:
+                  blockers.append({"code": "M13-B4", "message": "Missing scenario_run_id from M12.J upstream summary."})
+
+              full_verdict_bucket = bucket
+              full_verdict_key = ""
+              if full_verdict_pattern and platform_run_id:
+                  rendered = full_verdict_pattern.replace("{platform_run_id}", platform_run_id)
+                  if rendered.startswith("s3://"):
+                      try:
+                          full_verdict_bucket, full_verdict_key = parse_s3_uri(rendered)
+                      except ValueError:
+                          blockers.append(
+                              {"code": "M13-B4", "message": "FULL_VERDICT_PATH_PATTERN rendered invalid s3 uri."}
+                          )
+                  else:
+                      full_verdict_key = rendered
+
+              scope_complete = all(bool(row.get("row_pass", False)) for row in scope_rows)
+              final_verdict_bundle = {
+                  "captured_at_utc": now(),
+                  "phase": "M13.D",
+                  "execution_id": exec_id,
+                  "mode": mode,
+                  "requested_subphase": subphase,
+                  "upstream_m12j_execution": upstream_m12j,
+                  "upstream_m13a_execution": upstream_m13a,
+                  "upstream_m13b_execution": upstream_m13b,
+                  "upstream_m13c_execution": upstream_m13c,
+                  "upstream_m13c_summary_key": upstream_m13c_key,
+                  "platform_run_id": platform_run_id,
+                  "scenario_run_id": scenario_run_id,
+                  "scope_phase_count": len(scope_rows),
+                  "scope_complete": scope_complete,
+                  "scope_rows": scope_rows,
+                  "full_verdict_ref": (
+                      f"s3://{full_verdict_bucket}/{full_verdict_key}" if full_verdict_key else ""
+                  ),
+                  "deterministic_verdict": "ADVANCE_TO_M13_E" if scope_complete else "HOLD_REMEDIATE",
+                  "deterministic_next_gate": "M13.E_READY" if scope_complete else "HOLD_REMEDIATE",
+              }
+              artifacts = {"m13d_final_verdict_bundle.json": final_verdict_bundle}
+
+              if full_verdict_key:
+                  try:
+                      s3_put_json(s3, full_verdict_bucket, full_verdict_key, final_verdict_bundle)
+                      readback = s3_get_json(s3, full_verdict_bucket, full_verdict_key)
+                      if str(readback.get("execution_id", "")).strip() != exec_id:
+                          blockers.append(
+                              {"code": "M13-B4", "message": "Published full verdict readback execution_id mismatch."}
+                          )
+                  except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError):
+                      blockers.append(
+                          {"code": "M13-B4", "message": "Published full verdict path unreadable after write."}
+                      )
+              else:
+                  blockers.append({"code": "M13-B4", "message": "Resolved full verdict path is empty."})
+          else:
+              blockers.append({"code": blocker_code, "message": f"Unhandled execution mode '{mode}'."})
 
           blocker_register = {
               "captured_at_utc": now(),
