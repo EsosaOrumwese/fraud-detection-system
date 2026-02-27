@@ -591,6 +591,8 @@ Execution lanes (sequential, fail-closed):
   - `SSM_DATABRICKS_WORKSPACE_URL_PATH`,
   - `SSM_DATABRICKS_TOKEN_PATH`.
 - fail closed on missing/placeholder values.
+- strict conformance rule (no runtime fallback allowed):
+  - `MLFLOW_EXPERIMENT_PATH` must resolve as exact canonical path `/Shared/fraud-platform/dev_full/mlflow_exp_v0`.
 2. `M11.F.B` upstream evidence integrity gate:
 - load authoritative M11.E summary + snapshot and require pass posture (`next_gate=M11.F_READY`),
 - load referenced M11.D summary/snapshot and eval/leakage artifacts,
@@ -621,10 +623,45 @@ Runtime budget:
 3. `M11.F.C/D` managed commit + publication <= 7 minutes.
 
 DoD:
-- [ ] lineage/provenance checks pass with no open `M11-B6`.
-- [ ] managed MLflow experiment/run identifiers are committed and recorded.
-- [ ] snapshot + blocker register + execution summary published local + durable.
-- [ ] `M11.G_READY` asserted.
+- [x] lineage/provenance checks pass with no open `M11-B6`.
+- [x] managed MLflow experiment/run identifiers are committed and recorded.
+- [x] snapshot + blocker register + execution summary published local + durable.
+- [x] `M11.G_READY` asserted.
+
+Closure evidence:
+1. Managed run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22475770850`
+2. Execution id: `m11f_mlflow_lineage_20260227T063855Z`
+3. Summary: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11f_mlflow_lineage_20260227T063855Z/m11f_execution_summary.json`
+4. Snapshot: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11f_mlflow_lineage_20260227T063855Z/m11f_mlflow_lineage_snapshot.json`
+5. Blockers: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11f_mlflow_lineage_20260227T063855Z/m11f_blocker_register.json` (`blocker_count=0`)
+6. MLflow proof:
+   - experiment path used: `/Shared/fraud-platform/dev_full/mlflow_exp_v0`,
+   - experiment id: `2974219164213255`,
+   - run id: `f8f23e9286744e4188992d5d929d477f`,
+   - run status: `FINISHED`.
+
+Strict revalidation status (2026-02-27):
+1. Strict no-fallback workflow patch applied and dispatched:
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22477445213`,
+   - execution id: `m11f_mlflow_lineage_20260227T074421Z`.
+2. Result failed closed:
+   - `overall_pass=false`,
+   - blocker: `M11-B6.4` (`Managed MLflow lineage commit failed`),
+   - `api_error=RuntimeError:experiment_id_missing`,
+   - run used stale remote handle value `MLFLOW_EXPERIMENT_PATH=/Shared/fraud-platform/dev_full`.
+3. Required remediation before declaring M11.F green:
+   - publish canonical handle pin in registry (`MLFLOW_EXPERIMENT_PATH=/Shared/fraud-platform/dev_full/mlflow_exp_v0`) to remote branch,
+   - rerun M11.F strict lane and require `next_gate=M11.G_READY`.
+4. Remediation executed and closure achieved:
+   - canonical handle pin committed/pushed in `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`,
+   - strict rerun: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22477775337`,
+   - execution id: `m11f_mlflow_lineage_20260227T075634Z`,
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M11.G_READY`, `verdict=ADVANCE_TO_M11_G`,
+   - MLflow proof:
+     - experiment path: `/Shared/fraud-platform/dev_full/mlflow_exp_v0`,
+     - experiment id: `2974219164213255`,
+     - run id: `446edf03415548d0944b689e03168795`,
+     - run status: `FINISHED`.
 
 ### M11.G - Candidate Bundle + Provenance Publication
 Goal:
@@ -723,7 +760,7 @@ DoD:
 - [x] `M11.C` complete
 - [x] `M11.D` complete
 - [x] `M11.E` complete
-- [ ] `M11.F` complete
+- [x] `M11.F` complete
 - [ ] `M11.G` complete
 - [ ] `M11.H` complete
 - [ ] `M11.I` complete
@@ -739,4 +776,4 @@ DoD:
 3. `M11.B` is complete and green on managed lane.
 4. `M11.C` is complete and green on managed lane.
 5. `M11.D` is complete and green on strict managed lane with advisory-free transform evidence.
-6. Next actionable lane is `M11.F` (MLflow lineage + provenance closure).
+6. Next actionable lane is `M11.G` (candidate bundle + provenance publication).

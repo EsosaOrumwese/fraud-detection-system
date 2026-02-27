@@ -1444,6 +1444,34 @@ M11 progression snapshot:
     - transform status `Completed`, `eval_mode=managed_batch_transform`,
     - advisories empty, `overall_pass=true`, `blocker_count=0`, `next_gate=M11.E_READY`,
     - `M11D-AD1` cleared.
+- M11.E managed lane executed and closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22475130190`,
+  - execution id: `m11e_eval_gate_20260227T061316Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=M11.F_READY`.
+- M11.F initial managed lane closed green with runtime fallback path:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22475770850`,
+  - execution id: `m11f_mlflow_lineage_20260227T063855Z`,
+  - `overall_pass=true`, `blocker_count=0`, `next_gate=M11.G_READY`,
+  - caveat: used fallback experiment path `/Shared/fraud-platform/dev_full/mlflow_exp_v0` while registry still pinned `/Shared/fraud-platform/dev_full`.
+- M11.F strict no-fallback revalidation is now active and currently failed closed:
+  - strict run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22477445213`,
+  - execution id: `m11f_mlflow_lineage_20260227T074421Z`,
+  - result: `overall_pass=false`, `blocker_count=1`, `next_gate=HOLD_REMEDIATE`,
+  - blocker: `M11-B6.4` with `api_error=RuntimeError:experiment_id_missing`,
+  - root cause: remote registry handle is still stale (`MLFLOW_EXPERIMENT_PATH=/Shared/fraud-platform/dev_full`).
+  - closure requirement: publish canonical handle pin `/Shared/fraud-platform/dev_full/mlflow_exp_v0` and rerun M11.F strict lane.
+- M11.F strict no-fallback revalidation remediation is closed green:
+  - canonical handle pin committed and pushed:
+    - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`,
+    - commit: `7dd77599` (`docs: pin canonical mlflow experiment path for m11f strict closure`).
+  - strict rerun: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22477775337`,
+  - execution id: `m11f_mlflow_lineage_20260227T075634Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M11.G_READY`, `verdict=ADVANCE_TO_M11_G`,
+  - lineage proof:
+    - experiment path `/Shared/fraud-platform/dev_full/mlflow_exp_v0`,
+    - experiment id `2974219164213255`,
+    - run id `446edf03415548d0944b689e03168795`,
+    - run status `FINISHED`.
 
 ## M12 - MPR Promotion/Rollback Closure
 Status: `NOT_STARTED`
@@ -1452,7 +1480,7 @@ Objective:
 - close `P15` promotion corridor with compatibility-safe activation and non-optional rollback drill proof.
 
 Entry gate:
-- M11 is `DONE`.
+- M11 is `NOT_DONE` (`M11.F` strict revalidation pending closure).
 
 Planned lanes:
 - authority + handle closure for promotion/registry surfaces.
@@ -1526,4 +1554,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M11.F` (MLflow lineage + provenance closure) using M11.E pass posture from `m11e_eval_gate_20260227T061316Z` as entry basis.
+- Expand and execute `M11.G` (candidate bundle + provenance publication) using strict-closure M11.F evidence `m11f_mlflow_lineage_20260227T075634Z`.

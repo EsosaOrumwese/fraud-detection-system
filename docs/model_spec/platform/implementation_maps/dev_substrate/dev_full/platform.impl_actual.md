@@ -15242,3 +15242,155 @@ ext_gate=M11.B_READY and locker_count=0.
    - prefer managed MLflow commit over local/synthetic lineage to keep M11.F production-shaped and auditable.
 6. Next step:
    - dispatch M11.F against `m11e_eval_gate_20260227T061316Z` and close lane on `next_gate=M11.G_READY`.
+
+## Entry: 2026-02-27 06:49:00 +00:00 - M11.F blocker M11-B6.4 diagnosis and remediation plan
+1. First managed M11.F run failed on `M11-B6.4` with `api_error=HTTPError 404` from Databricks MLflow REST path.
+2. Failure details from snapshot `m11f_mlflow_lineage_20260227T062240Z`:
+   - all upstream evidence checks passed,
+   - tracking/workspace/token resolved,
+   - MLflow commit failed before experiment/run creation due endpoint path mismatch.
+3. Root-cause hypothesis:
+   - workspace currently responds on preview MLflow route while standard `/api/2.0/mlflow/*` returns 404.
+4. Remediation decision:
+   - keep managed MLflow commit lane,
+   - add deterministic endpoint fallback order in workflow:
+     1) `/api/2.0/mlflow/*`,
+     2) `/api/2.0/preview/mlflow/*` on 404 only.
+5. Guardrail:
+   - non-404 HTTP failures still fail closed (no silent downgrade).
+6. Next action:
+   - publish workflow patch and rerun M11.F against same upstream M11.E execution.
+
+## Entry: 2026-02-27 06:57:00 +00:00 - M11.F root-cause confirmed (experiment lookup semantics)
+1. Direct diagnostics confirmed Databricks workspace/token are valid:
+   - workspace and clusters APIs return 200.
+2. MLflow surface behavior confirmed:
+   - `experiments/get-by-name` returns 404 when experiment does not exist,
+   - `experiments/create` returns 200,
+   - `runs/create` returns 200 when experiment id exists.
+3. Root cause for M11.F failures:
+   - workflow treated `get-by-name` 404 as fatal API failure instead of "not found" branch.
+4. Remediation applied:
+   - M11.F lane now catches `HTTP 404` on experiment lookup and continues to create experiment.
+5. Expected outcome:
+   - managed run commit should proceed, enabling closure of `M11-B6.4`.
+
+## Entry: 2026-02-27 07:03:00 +00:00 - M11.F second remediation (experiment resolution strategy)
+1. Second M11.F rerun still failed with `HTTP 400` during MLflow commit.
+2. Analysis:
+   - direct workspace probes show MLflow experiment endpoints are live,
+   - `get-by-name` behavior is unreliable for this workspace path,
+   - likely branch: experiment already exists while lookup route returns 404, causing create to throw 400.
+3. Remediation applied in workflow:
+   - experiment resolution now uses layered strategy:
+     1) try `get-by-name`,
+     2) fallback `experiments/search` and exact-name match,
+     3) create only when unresolved,
+     4) on create failure, re-search to resolve existing experiment id.
+4. Expected effect:
+   - remove lookup/create race and recover deterministic `experiment_id` before run creation.
+
+## Entry: 2026-02-27 07:09:00 +00:00 - M11.F third remediation (paginated experiment search)
+1. Third M11.F rerun failed with `experiment_id_missing`.
+2. Diagnosis:
+   - single-page experiment search can miss existing experiment when catalog has >200 experiments.
+3. Remediation:
+   - added paginated MLflow experiment search helper in workflow (`max_results=200`, `next_page_token` traversal up to 50 pages),
+   - used helper before create and after create-failure retry.
+4. Expected result:
+   - deterministic experiment resolution regardless of pagination depth.
+
+## Entry: 2026-02-27 07:16:00 +00:00 - M11.F fourth remediation (invalid primary experiment path)
+1. Empirical API check proved pinned primary path `/Shared/fraud-platform/dev_full` is not creatable as MLflow experiment (HTTP 400).
+2. Confirmed valid child experiment path exists and is creatable: `/Shared/fraud-platform/dev_full/mlflow_exp_v0`.
+3. Workflow remediation:
+   - introduce deterministic experiment path candidate resolution in M11.F:
+     - primary handle path first,
+     - fallback child path `<primary>/mlflow_exp_v0`.
+   - maintain fail-closed if neither path resolves/creates.
+   - stamp selected experiment path in MLflow tags and lineage snapshot for audit transparency.
+4. This keeps lane executable while preserving explicit note of handle-path drift in artifacts.
+
+## Entry: 2026-02-27 06:40:00 +00:00 - M11.F managed closure achieved (green)
+1. Authoritative run:
+   - workflow: `dev-full-m11-managed`,
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22475770850`,
+   - execution id: `m11f_mlflow_lineage_20260227T063855Z`.
+2. Final gate outcome:
+   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M11_G`, `next_gate=M11.G_READY`.
+3. Durable evidence:
+   - summary: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11f_mlflow_lineage_20260227T063855Z/m11f_execution_summary.json`,
+   - snapshot: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11f_mlflow_lineage_20260227T063855Z/m11f_mlflow_lineage_snapshot.json`,
+   - blocker register: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11f_mlflow_lineage_20260227T063855Z/m11f_blocker_register.json`.
+4. MLflow lineage proof captured:
+   - experiment path: `/Shared/fraud-platform/dev_full/mlflow_exp_v0`,
+   - experiment id: `2974219164213255`,
+   - run id: `f8f23e9286744e4188992d5d929d477f`,
+   - run status: `FINISHED`,
+   - logged metrics: accuracy/precision/recall = `1.0/1.0/1.0`,
+   - required lineage tags present (`platform_run_id`, `scenario_run_id`, `m11d/m11e/m11f execution ids`, `m10g_fingerprint_ref`, `leakage_provenance_ref`, `mf_model_name`).
+5. Explicit caveat recorded in artifact notes:
+   - primary pinned handle path `/Shared/fraud-platform/dev_full` is not creatable/resolvable as experiment in this workspace,
+   - fallback experiment path `/Shared/fraud-platform/dev_full/mlflow_exp_v0` was used deterministically and logged.
+6. Planning sync:
+   - M11 deep plan updated to mark M11.F complete,
+   - master platform plan next action advanced to M11.G.
+
+## Entry: 2026-02-27 07:43:00 +00:00 - M11.F strict no-fallback posture activation
+1. Objective update accepted: remove runtime experiment-path fallback and enforce strict single-path MLflow experiment resolution for M11.F.
+2. Implemented workflow patch in `.github/workflows/dev_full_m11_managed.yml`:
+   - removed candidate-path fallback branch (`<primary>/mlflow_exp_v0`),
+   - retained fail-closed behavior when experiment id cannot be resolved/created on the pinned path,
+   - ensured lineage tag and snapshot always emit the exact pinned experiment path used.
+3. Local authority pin prepared in registry:
+   - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+   - `MLFLOW_EXPERIMENT_PATH = "/Shared/fraud-platform/dev_full/mlflow_exp_v0"`.
+4. Commit scope respected:
+   - committed workflow-only change for managed rerun (`ci: enforce strict m11f experiment-path resolution`, `576d13ed`),
+   - registry pin remains local (uncommitted) pending explicit non-workflow commit authorization.
+5. Decision rationale:
+   - strict posture prevents silent drift between intended canonical experiment path and runtime-selected path,
+   - fail-closed semantics make unresolved handle drift immediately visible as `M11-B6.4`.
+
+## Entry: 2026-02-27 07:45:00 +00:00 - M11.F strict rerun result (failed closed, blocker confirmed)
+1. Dispatched managed strict rerun:
+   - workflow: `dev-full-m11-managed`, subphase `F`, ref `migrate-dev`,
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22477445213`,
+   - execution id: `m11f_mlflow_lineage_20260227T074421Z`.
+2. Outcome:
+   - `overall_pass=false`, `blocker_count=1`, `next_gate=HOLD_REMEDIATE`,
+   - blocker register shows `M11-B6.4` (`Managed MLflow lineage commit failed`).
+3. Root cause evidenced from published snapshot:
+   - `experiment_path` used was `/Shared/fraud-platform/dev_full` (stale remote handle value),
+   - `api_error=RuntimeError:experiment_id_missing` under strict no-fallback resolver.
+4. Durable evidence (authoritative):
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11f_mlflow_lineage_20260227T074421Z/m11f_execution_summary.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11f_mlflow_lineage_20260227T074421Z/m11f_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11f_mlflow_lineage_20260227T074421Z/m11f_mlflow_lineage_snapshot.json`.
+5. Remediation decision (fail-closed):
+   - re-open M11.F,
+   - publish canonical registry handle pin (`/Shared/fraud-platform/dev_full/mlflow_exp_v0`) to remote branch,
+   - rerun strict M11.F and require `overall_pass=true` with `next_gate=M11.G_READY` before advancing to M11.G.
+
+## Entry: 2026-02-27 07:56:00 +00:00 - M11.F strict revalidation closed green after canonical handle pin
+1. Applied explicit non-workflow remediation approved by user:
+   - committed/pushed canonical registry pin in `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`.
+   - commit: `7dd77599` (`docs: pin canonical mlflow experiment path for m11f strict closure`).
+2. Rerun behavior note:
+   - first post-push dispatch (`22477731001`) still bound to prior workflow head (`576d13ed`) and failed with stale-handle posture,
+   - second dispatch bound to `headSha=7dd77599` and executed authoritative strict closure.
+3. Authoritative strict closure run:
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22477775337`,
+   - execution id: `m11f_mlflow_lineage_20260227T075634Z`.
+4. Gate result:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M11.G_READY`, `verdict=ADVANCE_TO_M11_G`.
+5. MLflow lineage proof from durable snapshot:
+   - experiment path: `/Shared/fraud-platform/dev_full/mlflow_exp_v0`,
+   - experiment id: `2974219164213255`,
+   - run id: `446edf03415548d0944b689e03168795`,
+   - run status: `FINISHED`,
+   - `api_error` empty.
+6. Decision closure:
+   - strict no-fallback M11.F contract is now satisfied,
+   - lane reopened earlier is re-closed green,
+   - advance target restored to `M11.G`.
