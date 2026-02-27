@@ -1,23 +1,24 @@
 # Dev Substrate Deep Plan - M12 (P15 MPR_PROMOTION_COMMITTED)
 _Status source of truth: `platform.build_plan.md`_
-_This document provides orchestration-level deep planning detail for M12._
-_Last updated: 2026-02-26_
+_Track: `dev_full`_
+_Last updated: 2026-02-27_
 
 ## 0) Purpose
-M12 closes:
-1. `P15 MPR_PROMOTION_COMMITTED`.
+M12 closes `P15 MPR_PROMOTION_COMMITTED`.
 
-M12 must prove:
-1. promotion eligibility and compatibility checks are fail-closed.
-2. promotion event commit is append-only and deterministic.
-3. rollback drill is executed and evidence-backed.
-4. ACTIVE bundle resolution remains compatibility-safe for runtime.
-5. deterministic `P15` verdict and M13 handoff are committed.
+M12 is green only when all of the following are true:
+1. Promotion eligibility and compatibility checks are explicit and fail-closed.
+2. Promotion commit is append-only, deterministic, and evidenced.
+3. Rollback drill is executed and recorded with bounded restore objective evidence.
+4. ACTIVE bundle resolution is coherent with runtime compatibility contracts.
+5. Governance append trail is complete and audit-reconstructable.
+6. Deterministic P15 verdict and M13 handoff are emitted.
+7. Phase budget envelope and cost-outcome receipt are emitted and blocker-free.
 
 ## 1) Authority Inputs
 Primary:
 1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
-2. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md` (`P15`)
+2. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`
 3. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
 4. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
 
@@ -26,21 +27,103 @@ Supporting:
 2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M11.build_plan.md`
 3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.impl_actual.md`
 
-## 2) Scope Boundary for M12
+## 2) Entry Contract (Fail-Closed)
+M12 cannot execute unless all are true:
+1. `M11` is `DONE` in `platform.build_plan.md`.
+2. `M11.J` summary is pass:
+   - `overall_pass=true`
+   - `blocker_count=0`
+   - `verdict=ADVANCE_TO_M12`
+   - `next_gate=M12_READY`
+3. M11 closure artifacts are readable from durable evidence:
+   - `m11j_execution_summary.json`
+   - `m11_execution_summary.json`
+   - `m11_phase_cost_outcome_receipt.json`
+4. M11 handoff basis remains readable:
+   - `m12_handoff_pack.json` from `m11i_p14_gate_rollup_20260227T094100Z`.
+
+Entry evidence anchors:
+1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11j_execution_summary.json`
+2. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11_execution_summary.json`
+3. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11_phase_cost_outcome_receipt.json`
+4. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11i_p14_gate_rollup_20260227T094100Z/m12_handoff_pack.json`
+
+## 3) Scope Boundary for M12
 In scope:
-1. MPR authority/handle closure.
-2. candidate eligibility and compatibility prechecks.
-3. promotion event commit and governance append checks.
-4. rollback drill execution and closure.
-5. ACTIVE bundle resolution checks against runtime compatibility.
-6. deterministic P15 verdict + M13 handoff.
-7. phase budget envelope and cost-outcome closure.
+1. MPR authority and handle closure.
+2. Candidate eligibility and compatibility prechecks.
+3. Promotion event commit and learning-registry event publication checks.
+4. Rollback drill execution and bounded restore objective evidence.
+5. ACTIVE resolution checks against runtime compatibility contracts.
+6. Governance append closure for promotion and rollback evidence.
+7. Deterministic P15 verdict and M13 handoff.
+8. M12 phase budget + cost-outcome closure.
 
 Out of scope:
-1. full-platform final verdict and teardown (`M13`).
-2. additional model retraining cycles beyond the selected candidate.
+1. Full-platform final verdict and teardown (`M13`).
+2. Additional retraining loops beyond chosen candidate.
 
-## 3) Deliverables
+## 4) Global M12 Guardrails
+1. No local authoritative compute for M12 closure.
+2. Managed-first execution path only (GitHub Actions + managed services).
+3. Any unresolved required handle blocks execution.
+4. Any unreadable required upstream artifact blocks execution.
+5. Promotion cannot close without rollback drill evidence.
+6. ACTIVE resolution cannot close with hidden compatibility waivers.
+7. Cost-control and performance laws are mandatory for every M12 subphase.
+
+## 4.1) Managed Execution Prerequisite
+M12 execution requires an authoritative managed lane.
+
+Prerequisite blocker:
+1. `M12-B0` if managed M12 workflow lane is not materialized and dispatchable.
+
+Closure expectation for this prerequisite:
+1. single managed workflow lane supports `M12.A..M12.J`,
+2. deterministic execution-id routing per subphase,
+3. no local fallback marked as authoritative.
+
+## 4.2) Capability-Lane Coverage Matrix
+| Capability lane | Primary subphase | Minimum PASS evidence |
+| --- | --- | --- |
+| Authority + handle closure | M12.A | no unresolved required P15 handles |
+| Candidate eligibility | M12.B | eligibility snapshot pass |
+| Compatibility prechecks | M12.C | compatibility precheck snapshot pass |
+| Promotion commit | M12.D | promotion receipt + registry event checks pass |
+| Rollback drill | M12.E | rollback drill snapshot + bounded restore evidence pass |
+| ACTIVE resolution | M12.F | active-resolution snapshot + compatibility checks pass |
+| Governance append closure | M12.G | append snapshot + operability acceptance report pass |
+| P15 verdict + M13 handoff | M12.H | `ADVANCE_TO_P16` + `m13_handoff_pack.json` |
+| Cost-outcome closure | M12.I | budget envelope + cost-outcome receipt pass |
+| M12 closure sync | M12.J | `m12_execution_summary.json` pass and parity-verified |
+
+## 4.3) Non-Gate Acceptance Objectives (Mandatory)
+M12 cannot close on gate-chain pass alone. All are mandatory:
+1. Promotion safety acceptance:
+   - blast radius and disable posture explicitly evidenced.
+2. Operational trust acceptance:
+   - post-promotion observation captures service health, error posture, and drift posture.
+3. Rollback realism acceptance:
+   - rollback drill demonstrates practical operator recoverability with bounded objective evidence.
+4. Governance completeness acceptance:
+   - promotion and rollback rationale is append-only and audit-complete.
+5. Runtime continuity acceptance:
+   - ACTIVE resolution remains coherent with runtime/serving contract.
+
+## 5) Artifact Contract and Path Conventions
+M12 artifacts must be emitted locally and durably.
+
+Local run folder:
+1. `runs/dev_substrate/dev_full/m12/<execution_id>/...`
+
+Durable run-control mirror:
+1. `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/<execution_id>/...`
+
+Run-scoped learning governance evidence:
+1. `MPR_PROMOTION_RECEIPT_PATH_PATTERN = evidence/runs/{platform_run_id}/learning/mpr/promotion_receipt.json`
+2. `MPR_ROLLBACK_DRILL_PATH_PATTERN = evidence/runs/{platform_run_id}/learning/mpr/rollback_drill_report.json`
+
+Expected M12 artifacts:
 1. `m12a_handle_closure_snapshot.json`
 2. `m12b_candidate_eligibility_snapshot.json`
 3. `m12c_compatibility_precheck_snapshot.json`
@@ -52,64 +135,22 @@ Out of scope:
 9. `m13_handoff_pack.json`
 10. `m12_phase_budget_envelope.json`
 11. `m12_phase_cost_outcome_receipt.json`
-12. `m12_execution_summary.json`
-13. `m12_post_promotion_observation_snapshot.json`
-14. `m12_operability_acceptance_report.json`
+12. `m12_post_promotion_observation_snapshot.json`
+13. `m12_operability_acceptance_report.json`
+14. `m12_execution_summary.json`
+15. `m12_blocker_register.json`
 
-## 4) Entry Gate and Current Posture
-Entry gate for M12:
-1. `M11` is `DONE`.
-2. `P14` verdict is `ADVANCE_TO_P15`.
-3. M11 blockers are resolved.
+## 6) Subphase Execution Contracts
 
-Current posture:
-1. M12 planning is expanded and execution-grade.
-2. Execution has not started.
-
-## 4.1) Anti-Cram Law (Binding for M12)
-M12 is not execution-ready unless these capability lanes are explicit:
-1. authority + handles.
-2. candidate eligibility and compatibility prechecks.
-3. promotion commit and append-only governance checks.
-4. rollback drill execution.
-5. ACTIVE resolution and runtime compatibility checks.
-6. deterministic verdict + M13 handoff.
-7. cost-outcome closure.
-
-## 4.2) Capability-Lane Coverage Matrix
-| Capability lane | Primary owner sub-phase | Minimum PASS evidence |
-| --- | --- | --- |
-| Authority + handle closure | M12.A | no unresolved required P15 handles |
-| Candidate eligibility | M12.B | eligibility snapshot pass |
-| Compatibility prechecks | M12.C | compatibility checks pass |
-| Promotion commit | M12.D | promotion commit snapshot pass |
-| Rollback drill | M12.E | rollback drill snapshot pass |
-| ACTIVE resolution | M12.F | active-resolution snapshot pass |
-| Governance append closure | M12.G | append checks pass |
-| P15 verdict + M13 handoff | M12.H | `ADVANCE_TO_P16` + `m13_handoff_pack.json` |
-| Cost-outcome closure | M12.I | budget + receipt pass |
-| Closure sync | M12.J | `m12_execution_summary.json` committed |
-
-## 4.3) Non-Gate Acceptance Objectives (Mandatory)
-M12 cannot close on gate-chain pass alone. All items below are required:
-1. Promotion safety acceptance:
-- promotion includes explicit blast-radius posture and reversible control surface.
-2. Operational trust acceptance:
-- post-promotion observation window is captured with explicit health/drift/error posture.
-3. Rollback realism acceptance:
-- rollback drill proves practical operator recoverability with bounded restore objective evidence.
-4. Governance completeness acceptance:
-- approval, promotion, and rollback rationale is append-only and audit-complete.
-5. Runtime continuity acceptance:
-- ACTIVE resolution remains coherent with serving/runtime contract without hidden compatibility waivers.
-
-## 5) Work Breakdown (Orchestration)
-
-### M12.A P15 Authority + Handle Closure
+### M12.A - Authority + Handle Closure
 Goal:
-1. close required P15 handles before promotion corridor execution.
+1. Close required P15 handles before promotion corridor execution.
 
-Required handle set:
+Entry conditions:
+1. M12 entry contract (Section 2) is satisfied.
+2. `platform_run_id` and `scenario_run_id` are available from M11 closure summary.
+
+Required handles:
 1. `MPR_PROMOTION_RECEIPT_PATH_PATTERN`
 2. `MPR_ROLLBACK_DRILL_PATH_PATTERN`
 3. `FP_BUS_LEARNING_REGISTRY_EVENTS_V1`
@@ -119,162 +160,237 @@ Required handle set:
 7. `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`
 8. `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`
 
-DoD:
-- [ ] required handle matrix explicit and complete.
-- [ ] unresolved handles are blocker-marked.
-- [ ] `m12a_handle_closure_snapshot.json` committed locally and durably.
+Blockers:
+1. `M12-B1` if required handles unresolved, malformed, or contradictory.
 
-### M12.B Candidate Eligibility Precheck
-Goal:
-1. prove candidate bundle is eligible for promotion corridor.
-
-Tasks:
-1. validate candidate bundle refs and provenance completeness.
-2. validate gating prerequisites from M11.
-3. emit `m12b_candidate_eligibility_snapshot.json`.
+Runtime budget:
+1. Target <= 5 minutes.
 
 DoD:
-- [ ] eligibility checks pass.
-- [ ] snapshot committed locally and durably.
+1. required handle matrix explicit and complete.
+2. unresolved handles are blocker-marked.
+3. `m12a_handle_closure_snapshot.json` committed locally and durably.
 
-### M12.C Compatibility Prechecks
+### M12.B - Candidate Eligibility Precheck
 Goal:
-1. fail-closed on compatibility mismatch before promotion.
+1. Prove candidate bundle is eligible for promotion.
 
-Tasks:
-1. validate feature-set and input contract compatibility.
-2. validate required capability and degrade-mask compatibility.
-3. emit `m12c_compatibility_precheck_snapshot.json`.
+Entry conditions:
+1. `M12.A` pass.
+2. candidate bundle ref from M11 is readable and run-scoped.
+
+Execution checks:
+1. candidate bundle provenance completeness.
+2. required M11 evaluation/gating artifacts are readable.
+3. run-scope parity (`platform_run_id`, `scenario_run_id`).
+
+Blockers:
+1. `M12-B2` on eligibility/provenance/readability failure.
+
+Runtime budget:
+1. Target <= 6 minutes.
 
 DoD:
-- [ ] compatibility prechecks pass.
-- [ ] snapshot committed locally and durably.
+1. eligibility checks pass.
+2. `m12b_candidate_eligibility_snapshot.json` committed locally and durably.
 
-### M12.D Promotion Event Commit
+### M12.C - Compatibility Prechecks
 Goal:
-1. commit promotion event with append-only semantics.
+1. Fail-closed on compatibility mismatch before promotion.
 
-Tasks:
-1. perform promotion commit action.
-2. verify append-only event emission and receipt path.
-3. emit `m12d_promotion_commit_snapshot.json`.
+Entry conditions:
+1. `M12.B` pass.
+
+Execution checks:
+1. feature/input contract compatibility.
+2. policy/degrade compatibility.
+3. schema compatibility posture for learning-registry event envelope.
+
+Blockers:
+1. `M12-B3` on compatibility failure.
+
+Runtime budget:
+1. Target <= 6 minutes.
 
 DoD:
-- [ ] promotion event commit passes.
-- [ ] snapshot committed locally and durably.
+1. compatibility prechecks pass.
+2. `m12c_compatibility_precheck_snapshot.json` committed locally and durably.
 
-### M12.E Rollback Drill Execution
+### M12.D - Promotion Event Commit
 Goal:
-1. execute and verify rollback drill for promoted candidate.
+1. Commit promotion event with append-only semantics.
 
-Tasks:
-1. run rollback drill scenario.
-2. capture drill outputs and outcome state.
-3. capture bounded restore objective evidence and operator runbook viability notes.
-4. emit `m12e_rollback_drill_snapshot.json`.
+Entry conditions:
+1. `M12.C` pass.
+
+Execution checks:
+1. promotion receipt is written to run-scoped MPR path.
+2. learning-registry event publication to `FP_BUS_LEARNING_REGISTRY_EVENTS_V1`.
+3. event payload carries required run/provenance identifiers.
+
+Blockers:
+1. `M12-B4` on promotion commit/publish/readback failure.
+
+Runtime budget:
+1. Target <= 8 minutes.
 
 DoD:
-- [ ] rollback drill passes.
-- [ ] rollback drill includes bounded restore objective evidence.
-- [ ] snapshot committed locally and durably.
+1. promotion receipt exists and is readable.
+2. `m12d_promotion_commit_snapshot.json` committed locally and durably.
 
-### M12.F ACTIVE Resolution Checks
+### M12.E - Rollback Drill Execution
 Goal:
-1. verify ACTIVE bundle resolution remains deterministic and safe.
+1. Execute rollback drill for the promoted candidate and prove recoverability.
 
-Tasks:
-1. validate one-active-per-scope resolution.
-2. validate runtime compatibility checks on resolved ACTIVE bundle.
-3. emit `m12_post_promotion_observation_snapshot.json`.
-4. emit `m12f_active_resolution_snapshot.json`.
+Entry conditions:
+1. `M12.D` pass.
+
+Execution checks:
+1. rollback drill completes.
+2. rollback drill report is written to run-scoped MPR path.
+3. bounded restore objective evidence is emitted.
+
+Blockers:
+1. `M12-B5` on rollback drill failure or missing restore evidence.
+
+Runtime budget:
+1. Target <= 12 minutes.
 
 DoD:
-- [ ] ACTIVE resolution checks pass.
-- [ ] post-promotion observation snapshot is pass posture.
-- [ ] snapshot committed locally and durably.
+1. rollback drill passes.
+2. bounded restore objective evidence is present.
+3. `m12e_rollback_drill_snapshot.json` committed locally and durably.
 
-### M12.G Governance Append Closure
+### M12.F - ACTIVE Resolution Checks
 Goal:
-1. prove governance append evidence is complete and coherent.
+1. Verify ACTIVE resolution remains deterministic and runtime-compatible.
 
-Tasks:
-1. validate append ordering and required event set.
-2. validate promotion and rollback evidence refs.
-3. emit `m12_operability_acceptance_report.json`.
-4. emit `m12g_governance_append_snapshot.json`.
+Entry conditions:
+1. `M12.E` pass.
+
+Execution checks:
+1. one-active-per-scope resolution.
+2. runtime compatibility checks on resolved ACTIVE bundle.
+3. post-promotion observation snapshot emitted.
+
+Blockers:
+1. `M12-B6` on ACTIVE resolution mismatch or runtime compatibility failure.
+
+Runtime budget:
+1. Target <= 8 minutes.
 
 DoD:
-- [ ] governance append checks pass.
-- [ ] operability/governance acceptance report is published and pass posture.
-- [ ] snapshot committed locally and durably.
+1. ACTIVE resolution checks pass.
+2. `m12_post_promotion_observation_snapshot.json` committed and pass posture.
+3. `m12f_active_resolution_snapshot.json` committed locally and durably.
 
-### M12.H P15 Gate Rollup + M13 Handoff
+### M12.G - Governance Append Closure
 Goal:
-1. produce deterministic P15 verdict and handoff.
+1. Prove governance append trail is complete and coherent.
 
-Tasks:
-1. roll up M12A-G outcomes in fixed order.
-2. emit `m12h_p15_gate_verdict.json`.
-3. emit `m13_handoff_pack.json`.
+Entry conditions:
+1. `M12.F` pass.
+
+Execution checks:
+1. append ordering and required event set.
+2. promotion/rollback evidence refs are present and readable.
+3. operability acceptance report is emitted.
+
+Blockers:
+1. `M12-B7` on governance append inconsistency or missing mandatory refs.
+
+Runtime budget:
+1. Target <= 8 minutes.
 
 DoD:
-- [ ] deterministic verdict is emitted.
-- [ ] pass posture requires `ADVANCE_TO_P16` + `next_gate=M13_READY`.
-- [ ] handoff pack committed locally and durably.
+1. governance append checks pass.
+2. `m12_operability_acceptance_report.json` is published and pass posture.
+3. `m12g_governance_append_snapshot.json` committed locally and durably.
 
-### M12.I M12 Phase Budget + Cost-Outcome Closure
+### M12.H - P15 Gate Rollup + M13 Handoff
 Goal:
-1. publish M12 cost-to-outcome artifacts.
+1. Produce deterministic P15 verdict and M13 handoff.
 
-Tasks:
+Entry conditions:
+1. `M12.A..M12.G` pass.
+
+Execution checks:
+1. fixed-order rollup over subphase outputs A..G.
+2. deterministic verdict generation.
+3. handoff pack emitted for M13.
+
+Blockers:
+1. `M12-B8` on rollup/verdict inconsistency.
+2. `M12-B9` on handoff publication failure.
+
+Runtime budget:
+1. Target <= 7 minutes.
+
+DoD:
+1. `m12h_p15_gate_verdict.json` emitted.
+2. PASS posture requires `ADVANCE_TO_P16` and `next_gate=M13_READY`.
+3. `m13_handoff_pack.json` committed locally and durably.
+
+### M12.I - Phase Budget + Cost-Outcome Closure
+Goal:
+1. Publish M12 cost-to-outcome artifacts.
+
+Entry conditions:
+1. `M12.H` pass.
+
+Execution checks:
 1. emit `m12_phase_budget_envelope.json`.
 2. emit `m12_phase_cost_outcome_receipt.json`.
+3. cost artifacts map spend to concrete M12 closure outcomes.
+
+Blockers:
+1. `M12-B10` on cost-outcome closure failure.
+
+Runtime budget:
+1. Target <= 6 minutes.
 
 DoD:
-- [ ] budget + receipt artifacts committed locally and durably.
-- [ ] artifacts are coherent with emitted outcomes.
+1. budget and receipt committed locally and durably.
+2. artifacts are coherent with emitted outcomes.
 
-### M12.J M12 Closure Sync
+### M12.J - M12 Closure Sync
 Goal:
-1. close M12 and publish authoritative summary.
+1. Close M12 and publish authoritative summary.
 
-Tasks:
+Entry conditions:
+1. `M12.I` pass.
+
+Execution checks:
 1. emit `m12_execution_summary.json`.
-2. validate local + durable parity of M12 outputs.
+2. emit `m12_blocker_register.json`.
+3. validate local and durable parity for required M12 outputs.
+
+Blockers:
+1. `M12-B11` on summary/evidence publication parity failure.
+2. `M12-B12` on non-gate acceptance failure.
+
+Runtime budget:
+1. Target <= 6 minutes.
 
 DoD:
-- [ ] `m12_execution_summary.json` committed locally and durably.
-- [ ] M12 closure sync passes with no unresolved blocker.
+1. `m12_execution_summary.json` committed locally and durably.
+2. `m12_blocker_register.json` committed locally and durably.
+3. M12 closure sync passes with no unresolved blocker.
 
-## 6) Blocker Taxonomy (Fail-Closed)
-1. `M12-B1`: authority/handle closure failure.
-2. `M12-B2`: candidate eligibility failure.
-3. `M12-B3`: compatibility precheck failure.
-4. `M12-B4`: promotion commit failure.
-5. `M12-B5`: rollback drill failure.
-6. `M12-B6`: ACTIVE resolution failure.
-7. `M12-B7`: governance append failure.
-8. `M12-B8`: P15 rollup/verdict inconsistency.
-9. `M12-B9`: handoff publication failure.
-10. `M12-B10`: phase cost-outcome closure failure.
-11. `M12-B11`: summary/evidence publication parity failure.
-12. `M12-B12`: non-gate acceptance failure (promotion safety/observation/rollback realism/governance completeness).
-
-## 7) Artifact Contract (M12)
-1. `m12a_handle_closure_snapshot.json`
-2. `m12b_candidate_eligibility_snapshot.json`
-3. `m12c_compatibility_precheck_snapshot.json`
-4. `m12d_promotion_commit_snapshot.json`
-5. `m12e_rollback_drill_snapshot.json`
-6. `m12f_active_resolution_snapshot.json`
-7. `m12g_governance_append_snapshot.json`
-8. `m12h_p15_gate_verdict.json`
-9. `m13_handoff_pack.json`
-10. `m12_phase_budget_envelope.json`
-11. `m12_phase_cost_outcome_receipt.json`
-12. `m12_execution_summary.json`
-13. `m12_post_promotion_observation_snapshot.json`
-14. `m12_operability_acceptance_report.json`
+## 7) Blocker Taxonomy (Fail-Closed)
+1. `M12-B0`: managed M12 execution lane not materialized.
+2. `M12-B1`: authority/handle closure failure.
+3. `M12-B2`: candidate eligibility failure.
+4. `M12-B3`: compatibility precheck failure.
+5. `M12-B4`: promotion commit failure.
+6. `M12-B5`: rollback drill or bounded-restore evidence failure.
+7. `M12-B6`: ACTIVE resolution failure.
+8. `M12-B7`: governance append closure failure.
+9. `M12-B8`: P15 rollup/verdict inconsistency.
+10. `M12-B9`: M13 handoff publication failure.
+11. `M12-B10`: phase cost-outcome closure failure.
+12. `M12-B11`: summary/evidence publication parity failure.
+13. `M12-B12`: non-gate acceptance failure.
 
 ## 8) Completion Checklist
 - [ ] `M12.A` complete
@@ -291,5 +407,7 @@ DoD:
 - [ ] non-gate acceptance artifacts (`post_promotion_observation`, `operability_acceptance`) are pass posture
 
 ## 9) Planning Status
-1. M12 planning is expanded and execution-grade.
-2. Execution is blocked until M11 closure is green and handoff is committed.
+1. M12 planning is execution-grade and aligned to P15 authority.
+2. M11 closure entry requirements are already satisfied.
+3. M12 execution has not started yet.
+4. Next action: materialize managed M12 execution lane and execute `M12.A`.

@@ -15720,3 +15720,42 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 5. Planning closure updates applied:
    - `platform.M11.build_plan.md`: M11.J DoDs checked, closure evidence block added, completion checklist marked green.
    - `platform.build_plan.md`: M11 status set to `DONE`, M11 cost-outcome DoD anchor checked, M12 entry gate unlocked (`M12_READY`), next action moved to `M12.A`.
+
+## Entry: 2026-02-27 11:14:20 +00:00 - M12 planning expansion lock before edits
+1. Scope accepted from user request: expand `M12` in main platform plan and harden deep plan `platform.M12.build_plan.md` before execution.
+2. Current-state gaps observed from existing M12 docs:
+   - deep plan still carries stale posture text (`execution blocked until M11 closure`) even though M11 is already closed green,
+   - deep plan lacks explicit execution-vehicle declaration and managed-lane prerequisite for M12,
+   - per-subphase contracts are present but too thin on fail-closed entry checks, blocker mapping, runtime budgets, and evidence path precision.
+3. Authority alignment captured before patching:
+   - P15 run-process contract requires promotion event, rollback drill, active-resolution checks, and compatibility fail-closed checks,
+   - handles registry already pins promotion/rollback evidence paths and learning-registry topic handles used by M12.
+4. Patch intent (planning-only, no runtime execution):
+   - main plan: promote M12 section to execution-grade posture with explicit blocker families, lane expectations, and next-action alignment,
+   - deep plan: add explicit entry contract from M11.J evidence, add managed execution posture + prerequisites, add runtime budget table and stronger DoDs per subphase, and remove stale gating language.
+5. Decision posture:
+   - no branch operations,
+   - no workflow dispatch,
+   - no local authoritative compute paths introduced.
+
+## Entry: 2026-02-27 11:23:10 +00:00 - M12 planning expansion completed (main + deep plan)
+1. Main plan expansion completed in `platform.build_plan.md`:
+   - M12 status moved to `ACTIVE` to reflect planning phase entry,
+   - added explicit M12 planning posture, fail-closed blocker families (`M12-B0..M12-B12`), and progression snapshot,
+   - updated next action to close `M12-B0` (managed lane materialization) before executing `M12.A`.
+2. Deep plan `platform.M12.build_plan.md` was rewritten to execution-grade depth:
+   - added fail-closed entry contract pinned to concrete M11 closure evidence,
+   - added managed execution prerequisite section and explicit `M12-B0` blocker,
+   - expanded subphase contracts (`M12.A..M12.J`) with entry conditions, execution checks, blocker mapping, runtime budget, and DoD,
+   - aligned artifact contract and path conventions to pinned handles (`MPR_PROMOTION_RECEIPT_PATH_PATTERN`, `MPR_ROLLBACK_DRILL_PATH_PATTERN`, run-control paths).
+3. Stale posture removed:
+   - replaced outdated text that implied M12 was blocked on M11 closure; M11 is already green and M12 entry is now explicitly ready.
+4. Execution boundary maintained:
+   - no M12 runtime execution performed in this step,
+   - no workflow dispatch performed,
+   - planning artifacts only.
+
+## Entry: 2026-02-27 11:26:05 +00:00 - M11 status drift correction during M12 planning pass
+1. Validation scan detected stale `M11` status in `platform.build_plan.md` still set to `ACTIVE`.
+2. Corrected M11 status to `DONE` to keep M12 entry truth consistent with already-closed M11 evidence.
+3. No execution-side behavior changed; this is documentation truth-alignment only.

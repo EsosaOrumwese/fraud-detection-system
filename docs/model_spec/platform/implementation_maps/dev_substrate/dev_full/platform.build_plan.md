@@ -1319,7 +1319,7 @@ Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M10.build_plan.md`
 
 ## M11 - MF Train/Eval Closure
-Status: `ACTIVE`
+Status: `DONE`
 
 Objective:
 - close `P14` with reproducible MF train/eval closure, MLflow lineage, and provenance-complete candidate bundle evidence.
@@ -1512,7 +1512,7 @@ M11 progression snapshot:
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11_execution_summary.json`.
 
 ## M12 - MPR Promotion/Rollback Closure
-Status: `NOT_STARTED`
+Status: `ACTIVE`
 
 Objective:
 - close `P15` promotion corridor with compatibility-safe activation and non-optional rollback drill proof.
@@ -1542,6 +1542,38 @@ M12 sub-phase plan:
 9. `M12.I` phase budget + cost-outcome closure.
 10. `M12.J` M12 closure sync + M13 handoff.
 
+M12 planning posture:
+- M12 is expanded to execution-grade depth in deep plan `platform.M12.build_plan.md`.
+- M12 is strictly sequenced as `M12.A -> M12.B -> ... -> M12.J`; no phase skipping.
+- M12 operates fail-closed: any active `M12-B*` blocker halts advancement.
+- M12 closure requires non-gate acceptance objectives, not only gate-chain pass:
+  - promotion safety and rollback realism evidence,
+  - post-promotion observation and runtime continuity,
+  - governance completeness and operability acceptance.
+- M12 inherits M11 closure contract as immutable entry basis:
+  - `M11` must remain `DONE`,
+  - `m11j_closure_sync_20260227T104756Z` artifacts must remain readable,
+  - `M12_READY` remains active next gate from M11 closure artifacts.
+- M12 cost discipline is mandatory:
+  - phase-budget envelope emitted before closure sync,
+  - phase cost-outcome receipt emitted before M12 closure verdict,
+  - no progression on unattributed spend.
+
+M12 blocker families (fail-closed):
+- `M12-B0` managed M12 execution lane not materialized.
+- `M12-B1` authority/handle closure failure.
+- `M12-B2` candidate eligibility failure.
+- `M12-B3` compatibility precheck failure.
+- `M12-B4` promotion commit failure.
+- `M12-B5` rollback drill or bounded-restore evidence failure.
+- `M12-B6` ACTIVE resolution failure.
+- `M12-B7` governance append failure.
+- `M12-B8` P15 rollup/verdict inconsistency.
+- `M12-B9` handoff publication failure.
+- `M12-B10` phase cost-outcome closure failure.
+- `M12-B11` summary/evidence parity failure.
+- `M12-B12` non-gate acceptance failure.
+
 DoD anchors:
 - [ ] promotion receipt committed.
 - [ ] rollback drill report committed.
@@ -1555,6 +1587,14 @@ DoD anchors:
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M12.build_plan.md`
+
+M12 progression snapshot:
+- deep plan was expanded to closure-grade execution contracts for `M12.A..M12.J`.
+- entry contract is now pinned to M11 closure evidence:
+  - `m11j_execution_summary.json`,
+  - `m11_execution_summary.json`,
+  - `m12_handoff_pack.json` from M11.I.
+- execution has not started yet.
 
 ## M13 - Final Verdict and Teardown Closure
 Status: `NOT_STARTED`
@@ -1592,4 +1632,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M12.A` (promotion authority + handle closure) using M11 closure evidence `m11j_closure_sync_20260227T104756Z`.
+- Materialize managed M12 execution lane (`M12-B0` closure), then execute `M12.A` using M11 closure evidence `m11j_closure_sync_20260227T104756Z`.
