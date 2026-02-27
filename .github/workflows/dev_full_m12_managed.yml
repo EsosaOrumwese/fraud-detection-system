@@ -1349,6 +1349,466 @@ jobs:
               raise SystemExit(1)
           PY
 
+      - name: Generate M12.D strict broker transport proof (MSK ACK + consumer readback)
+        if: ${{ inputs.execution_mode == 'm12d_execute' && inputs.m12_subphase == 'D' }}
+        shell: bash
+        env:
+          EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          UPSTREAM_M12C_EXEC: ${{ inputs.upstream_m12c_execution }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUN_DIR}"
+          python -m pip install --quiet aws-msk-iam-sasl-signer-python
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib
+          import json
+          import os
+          import random
+          import re
+          import string
+          import subprocess
+          import tempfile
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from typing import Any
+
+          import boto3
+          from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
+          from botocore.exceptions import BotoCoreError, ClientError
+
+          def now() -> str:
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          def s3_get_json(s3: Any, bucket: str, key: str) -> dict[str, Any]:
+              raw = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+              payload = json.loads(raw)
+              if not isinstance(payload, dict):
+                  raise ValueError("json_not_object")
+              return payload
+
+          def s3_parse_uri(uri: str) -> tuple[str, str]:
+              if not uri.startswith("s3://"):
+                  raise ValueError("not_s3_uri")
+              tail = uri[5:]
+              if "/" not in tail:
+                  raise ValueError("missing_key")
+              b, k = tail.split("/", 1)
+              if not b or not k:
+                  raise ValueError("incomplete_s3_uri")
+              return b, k
+
+          def parse_handles(path: Path) -> dict[str, str]:
+              rx = re.compile(r"^\*\s+`([A-Z0-9_]+)\s*=\s*(.+)`\s*$")
+              out: dict[str, str] = {}
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  m = rx.match(line.strip())
+                  if not m:
+                      continue
+                  key = m.group(1).strip()
+                  raw = m.group(2).strip()
+                  if (raw.startswith('"') and raw.endswith('"')) or (raw.startswith("'") and raw.endswith("'")):
+                      out[key] = raw[1:-1]
+                  else:
+                      out[key] = raw
+              return out
+
+          def sh(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
+              return subprocess.run(cmd, check=check, text=True, capture_output=True)
+
+          def rand_suffix(n: int = 8) -> str:
+              alpha = string.ascii_lowercase + string.digits
+              return "".join(random.choice(alpha) for _ in range(n))
+
+          exec_id = os.environ["EXEC_ID"].strip()
+          run_dir = Path(os.environ["RUN_DIR"].strip())
+          default_bucket = os.environ["EVIDENCE_BUCKET"].strip()
+          region = os.environ.get("AWS_REGION", "eu-west-2").strip() or "eu-west-2"
+          upstream_m12c = os.environ["UPSTREAM_M12C_EXEC"].strip()
+
+          run_dir.mkdir(parents=True, exist_ok=True)
+          proof_path = run_dir / "m12d_broker_transport_proof.json"
+          event_path = run_dir / "m12d_transport_event.json"
+          context_path = run_dir / "m12d_transport_context.json"
+          probe_log_path = run_dir / "m12d_broker_transport_probe.log"
+
+          s3 = boto3.client("s3", region_name=region)
+          msk = boto3.client("kafka", region_name=region)
+
+          proof: dict[str, Any] = {
+              "captured_at_utc": now(),
+              "phase": "M12.D",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "overall_pass": False,
+              "reason": "UNINITIALIZED",
+              "registry_event_id": "",
+              "event_sha256": "",
+              "produced": {},
+              "consumed": {},
+              "runtime": {},
+              "errors": [],
+          }
+
+          context: dict[str, Any] = {}
+          try:
+              m12c_summary_key = f"evidence/dev_full/run_control/{upstream_m12c}/m12c_execution_summary.json"
+              m12c_snapshot_key = f"evidence/dev_full/run_control/{upstream_m12c}/m12c_compatibility_precheck_snapshot.json"
+              m12c_summary = s3_get_json(s3, default_bucket, m12c_summary_key)
+              m12c_snapshot = s3_get_json(s3, default_bucket, m12c_snapshot_key)
+              platform_run_id = str(m12c_summary.get("platform_run_id", "")).strip()
+              scenario_run_id = str(m12c_summary.get("scenario_run_id", "")).strip()
+              upstream_m12b = str((m12c_snapshot.get("upstream_refs") or {}).get("m12b_execution_id", "")).strip()
+              upstream_m11i = str((m12c_snapshot.get("upstream_refs") or {}).get("m11i_execution_id", "")).strip()
+              if not platform_run_id or not scenario_run_id:
+                  raise RuntimeError("M12D_TRANSPORT_CONTEXT_MISSING_RUN_SCOPE")
+
+              m12b_snapshot_key = f"evidence/dev_full/run_control/{upstream_m12b}/m12b_candidate_eligibility_snapshot.json"
+              m12b_snapshot = s3_get_json(s3, default_bucket, m12b_snapshot_key)
+              m12_handoff_pack_key = f"evidence/dev_full/run_control/{upstream_m11i}/m12_handoff_pack.json"
+              m12_handoff_pack = s3_get_json(s3, default_bucket, m12_handoff_pack_key)
+
+              candidate_ref = ""
+              required_refs = m12_handoff_pack.get("required_refs") if isinstance(m12_handoff_pack.get("required_refs"), dict) else {}
+              if required_refs:
+                  candidate_ref = str(required_refs.get("mf_candidate_bundle_ref", "")).strip()
+              if not candidate_ref and isinstance(m12b_snapshot.get("readable_ref_report"), dict):
+                  candidate_ref = str((m12b_snapshot.get("readable_ref_report") or {}).get("mf_candidate_bundle_ref", {}).get("ref", "")).strip()
+              if not candidate_ref:
+                  raise RuntimeError("M12D_TRANSPORT_CONTEXT_CANDIDATE_REF_MISSING")
+
+              candidate_bucket, candidate_key = s3_parse_uri(candidate_ref)
+              candidate_bundle = s3_get_json(s3, candidate_bucket, candidate_key)
+              bundle_id = str(candidate_bundle.get("bundle_id", "")).strip()
+              if not bundle_id:
+                  raise RuntimeError("M12D_TRANSPORT_CONTEXT_BUNDLE_ID_MISSING")
+
+              handles = parse_handles(Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"))
+              topic = str(handles.get("FP_BUS_LEARNING_REGISTRY_EVENTS_V1", "")).strip()
+              msk_cluster_name = str(handles.get("MSK_CLUSTER_NAME", "")).strip()
+              eks_cluster_name = str(handles.get("EKS_CLUSTER_NAME", "")).strip()
+              eks_namespace = str(handles.get("EKS_NAMESPACE_LEARNING", "")).strip() or "fraud-platform-learning"
+              if not topic or not msk_cluster_name or not eks_cluster_name:
+                  raise RuntimeError("M12D_TRANSPORT_CONTEXT_REQUIRED_HANDLE_MISSING")
+
+              clusters = msk.list_clusters_v2().get("ClusterInfoList", [])
+              matched = [c for c in clusters if str(c.get("ClusterName", "")).strip() == msk_cluster_name and str(c.get("State", "")).strip() == "ACTIVE"]
+              if not matched:
+                  raise RuntimeError("M12D_TRANSPORT_MSK_CLUSTER_NOT_ACTIVE")
+              msk_cluster_arn = str(matched[0].get("ClusterArn", "")).strip()
+              if not msk_cluster_arn:
+                  raise RuntimeError("M12D_TRANSPORT_MSK_CLUSTER_ARN_MISSING")
+              bootstrap = str(msk.get_bootstrap_brokers(ClusterArn=msk_cluster_arn).get("BootstrapBrokerStringSaslIam", "")).strip()
+              if not bootstrap:
+                  raise RuntimeError("M12D_TRANSPORT_BOOTSTRAP_UNRESOLVED")
+
+              registry_event_seed = f"{platform_run_id}|{scenario_run_id}|{bundle_id}|{exec_id}|BUNDLE_PROMOTED_ACTIVE"
+              registry_event_id = hashlib.sha256(registry_event_seed.encode("utf-8")).hexdigest()
+              candidate_bundle_s3_uri = f"s3://{candidate_bucket}/{candidate_key}"
+
+              lifecycle_event = {
+                  "schema_version": "learning.registry_lifecycle.v0",
+                  "registry_event_id": registry_event_id,
+                  "event_type": "BUNDLE_PROMOTED_ACTIVE",
+                  "scope_key": {
+                      "environment": "dev_full",
+                      "mode": "managed",
+                      "bundle_slot": "active",
+                      "tenant_id": f"{platform_run_id}:{scenario_run_id}",
+                  },
+                  "bundle_ref": {
+                      "bundle_id": bundle_id,
+                      "bundle_version": str(candidate_bundle.get("execution_id", "")).strip() or "v0",
+                      "registry_ref": candidate_bundle_s3_uri,
+                  },
+                  "actor": {
+                      "actor_id": "SYSTEM::m12d_managed_lane",
+                      "source_type": "SYSTEM",
+                  },
+                  "ts_utc": now(),
+                  "evidence_refs": [
+                      {"ref_type": "m12c_execution_summary", "ref_id": m12c_summary_key},
+                      {"ref_type": "m12c_snapshot", "ref_id": m12c_snapshot_key},
+                      {"ref_type": "m12b_snapshot", "ref_id": m12b_snapshot_key},
+                      {"ref_type": "m12_handoff_pack", "ref_id": m12_handoff_pack_key},
+                      {"ref_type": "candidate_bundle", "ref_id": candidate_bundle_s3_uri},
+                  ],
+              }
+
+              event_sha256 = hashlib.sha256(json.dumps(lifecycle_event, sort_keys=True, ensure_ascii=True).encode("utf-8")).hexdigest()
+              event_path.write_text(json.dumps(lifecycle_event, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+              token, expiry_ms = MSKAuthTokenProvider.generate_auth_token(region)
+              if not token:
+                  raise RuntimeError("M12D_TRANSPORT_TOKEN_GENERATION_FAILED")
+
+              context = {
+                  "captured_at_utc": now(),
+                  "execution_id": exec_id,
+                  "platform_run_id": platform_run_id,
+                  "scenario_run_id": scenario_run_id,
+                  "topic": topic,
+                  "msk_cluster_name": msk_cluster_name,
+                  "msk_cluster_arn": msk_cluster_arn,
+                  "bootstrap_brokers_sasl_iam": bootstrap,
+                  "eks_cluster_name": eks_cluster_name,
+                  "eks_namespace": eks_namespace,
+                  "registry_event_id": registry_event_id,
+                  "event_sha256": event_sha256,
+                  "token_expiry_ms": int(expiry_ms),
+              }
+              context_path.write_text(json.dumps(context, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+              sh(["aws", "eks", "update-kubeconfig", "--region", region, "--name", eks_cluster_name], check=True)
+              sh(["kubectl", "get", "namespace", eks_namespace], check=False)
+              sh(["kubectl", "create", "namespace", eks_namespace], check=False)
+
+              suffix = rand_suffix()
+              cm_name = f"m12d-transport-{suffix}"
+              secret_name = f"m12d-transport-token-{suffix}"
+              job_name = f"m12d-transport-{suffix}"
+
+              probe_script = (
+                  "import json\n"
+                  "import os\n"
+                  "import time\n"
+                  "import hashlib\n"
+                  "from kafka import KafkaProducer, KafkaConsumer, TopicPartition\n"
+                  "from kafka.sasl.oauth import AbstractTokenProvider\n"
+                  "\n"
+                  "class StaticTokenProvider(AbstractTokenProvider):\n"
+                  "    def token(self):\n"
+                  "        return os.environ['MSK_OAUTH_TOKEN']\n"
+                  "\n"
+                  "def main():\n"
+                  "    event = json.loads(open('/work/event.json', 'r', encoding='utf-8').read())\n"
+                  "    topic = os.environ['KAFKA_TOPIC']\n"
+                  "    bootstrap = os.environ['MSK_BOOTSTRAP_BROKERS']\n"
+                  "    exec_id = os.environ['M12D_EXEC_ID']\n"
+                  "    key_text = str(event.get('registry_event_id', '')).strip()\n"
+                  "    payload_bytes = json.dumps(event, sort_keys=True, ensure_ascii=True).encode('utf-8')\n"
+                  "    payload_hash = hashlib.sha256(payload_bytes).hexdigest()\n"
+                  "    token_provider = StaticTokenProvider()\n"
+                  "\n"
+                  "    producer = KafkaProducer(\n"
+                  "        bootstrap_servers=[bootstrap],\n"
+                  "        security_protocol='SASL_SSL',\n"
+                  "        sasl_mechanism='OAUTHBEARER',\n"
+                  "        sasl_oauth_token_provider=token_provider,\n"
+                  "        acks='all',\n"
+                  "        retries=3,\n"
+                  "        linger_ms=0,\n"
+                  "        key_serializer=lambda v: v.encode('utf-8'),\n"
+                  "        value_serializer=lambda v: v,\n"
+                  "    )\n"
+                  "    md = producer.send(topic, key=key_text, value=payload_bytes).get(timeout=30)\n"
+                  "    producer.flush(timeout=10)\n"
+                  "    producer.close(timeout=10)\n"
+                  "\n"
+                  "    group_id = f'm12d-proof-{exec_id}'\n"
+                  "    consumer = KafkaConsumer(\n"
+                  "        bootstrap_servers=[bootstrap],\n"
+                  "        security_protocol='SASL_SSL',\n"
+                  "        sasl_mechanism='OAUTHBEARER',\n"
+                  "        sasl_oauth_token_provider=token_provider,\n"
+                  "        group_id=group_id,\n"
+                  "        enable_auto_commit=False,\n"
+                  "        auto_offset_reset='latest',\n"
+                  "        consumer_timeout_ms=1000,\n"
+                  "        key_deserializer=lambda b: b.decode('utf-8') if b else '',\n"
+                  "        value_deserializer=lambda b: b if b else b'',\n"
+                  "    )\n"
+                  "    tp = TopicPartition(topic, int(md.partition))\n"
+                  "    consumer.assign([tp])\n"
+                  "    consumer.seek(tp, int(md.offset))\n"
+                  "    found = None\n"
+                  "    deadline = time.time() + 60\n"
+                  "    while time.time() < deadline:\n"
+                  "        polled = consumer.poll(timeout_ms=1000, max_records=20)\n"
+                  "        if not polled:\n"
+                  "            continue\n"
+                  "        rows = polled.get(tp, [])\n"
+                  "        for rec in rows:\n"
+                  "            if int(rec.offset) != int(md.offset):\n"
+                  "                continue\n"
+                  "            rec_hash = hashlib.sha256(rec.value or b'').hexdigest()\n"
+                  "            found = {\n"
+                  "                'topic': rec.topic,\n"
+                  "                'partition': int(rec.partition),\n"
+                  "                'offset': int(rec.offset),\n"
+                  "                'key': rec.key,\n"
+                  "                'payload_hash': rec_hash,\n"
+                  "                'payload_hash_match': rec_hash == payload_hash,\n"
+                  "            }\n"
+                  "            break\n"
+                  "        if found:\n"
+                  "            break\n"
+                  "    consumer.close()\n"
+                  "\n"
+                  "    out = {\n"
+                  "        'overall_pass': bool(found and found.get('payload_hash_match', False)),\n"
+                  "        'reason': 'BROKER_ACK_AND_READBACK_PASS' if (found and found.get('payload_hash_match', False)) else 'BROKER_READBACK_NOT_CONFIRMED',\n"
+                  "        'registry_event_id': key_text,\n"
+                  "        'event_sha256': payload_hash,\n"
+                  "        'produced': {\n"
+                  "            'topic': topic,\n"
+                  "            'partition': int(md.partition),\n"
+                  "            'offset': int(md.offset),\n"
+                  "        },\n"
+                  "        'consumed': found or {},\n"
+                  "    }\n"
+                  "    print(json.dumps(out, ensure_ascii=True))\n"
+                  "\n"
+                  "if __name__ == '__main__':\n"
+                  "    try:\n"
+                  "        main()\n"
+                  "    except Exception as exc:\n"
+                  "        print(json.dumps({\n"
+                  "            'overall_pass': False,\n"
+                  "            'reason': f'EXCEPTION:{type(exc).__name__}',\n"
+                  "            'error': str(exc),\n"
+                  "            'produced': {},\n"
+                  "            'consumed': {},\n"
+                  "        }, ensure_ascii=True))\n"
+              )
+              with tempfile.TemporaryDirectory() as td:
+                  td_path = Path(td)
+                  probe_py = td_path / "probe.py"
+                  event_json = td_path / "event.json"
+                  probe_py.write_text(probe_script, encoding="utf-8")
+                  event_json.write_text(event_path.read_text(encoding="utf-8"), encoding="utf-8")
+
+                  cm_yaml = sh(["kubectl", "-n", eks_namespace, "create", "configmap", cm_name, "--from-file", f"probe.py={probe_py}", "--from-file", f"event.json={event_json}", "--dry-run=client", "-o", "yaml"], check=True).stdout
+                  subprocess.run(["kubectl", "apply", "-f", "-"], input=cm_yaml, text=True, check=True, capture_output=True)
+
+              secret_yaml = sh(["kubectl", "-n", eks_namespace, "create", "secret", "generic", secret_name, "--from-literal", f"MSK_OAUTH_TOKEN={token}", "--dry-run=client", "-o", "yaml"], check=True).stdout
+              subprocess.run(["kubectl", "apply", "-f", "-"], input=secret_yaml, text=True, check=True, capture_output=True)
+
+              job_yaml = (
+                  "apiVersion: batch/v1\n"
+                  "kind: Job\n"
+                  "metadata:\n"
+                  f"  name: {job_name}\n"
+                  f"  namespace: {eks_namespace}\n"
+                  "spec:\n"
+                  "  ttlSecondsAfterFinished: 600\n"
+                  "  backoffLimit: 0\n"
+                  "  template:\n"
+                  "    spec:\n"
+                  "      restartPolicy: Never\n"
+                  "      containers:\n"
+                  "        - name: probe\n"
+                  "          image: python:3.12-slim\n"
+                  "          command: [\"/bin/bash\", \"-lc\"]\n"
+                  "          args:\n"
+                  "            - |\n"
+                  "              set -euo pipefail\n"
+                  "              python -m pip install --quiet kafka-python==2.0.2\n"
+                  "              python /work/probe.py\n"
+                  "          env:\n"
+                  "            - name: KAFKA_TOPIC\n"
+                  f"              value: \"{topic}\"\n"
+                  "            - name: MSK_BOOTSTRAP_BROKERS\n"
+                  f"              value: \"{bootstrap}\"\n"
+                  "            - name: M12D_EXEC_ID\n"
+                  f"              value: \"{exec_id}\"\n"
+                  "          envFrom:\n"
+                  "            - secretRef:\n"
+                  f"                name: {secret_name}\n"
+                  "          volumeMounts:\n"
+                  "            - name: work\n"
+                  "              mountPath: /work\n"
+                  "      volumes:\n"
+                  "        - name: work\n"
+                  "          configMap:\n"
+                  f"            name: {cm_name}\n"
+              )
+              subprocess.run(["kubectl", "apply", "-f", "-"], input=job_yaml, text=True, check=True, capture_output=True)
+              wait_proc = subprocess.run(["kubectl", "-n", eks_namespace, "wait", "--for=condition=complete", f"job/{job_name}", "--timeout=240s"], text=True, capture_output=True)
+              logs_proc = subprocess.run(["kubectl", "-n", eks_namespace, "logs", f"job/{job_name}"], text=True, capture_output=True)
+              probe_log = (logs_proc.stdout or "") + ("\n" + logs_proc.stderr if logs_proc.stderr else "")
+              probe_log_path.write_text(probe_log, encoding="utf-8")
+
+              parsed: dict[str, Any] = {}
+              for line in reversed(probe_log.splitlines()):
+                  raw = line.strip()
+                  if not (raw.startswith("{") and raw.endswith("}")):
+                      continue
+                  try:
+                      payload = json.loads(raw)
+                  except Exception:
+                      continue
+                  if isinstance(payload, dict) and "overall_pass" in payload:
+                      parsed = payload
+                      break
+
+              if not parsed:
+                  parsed = {
+                      "overall_pass": False,
+                      "reason": "PROBE_JSON_NOT_FOUND",
+                      "produced": {},
+                      "consumed": {},
+                  }
+
+              proof.update(
+                  {
+                      "captured_at_utc": now(),
+                      "registry_event_id": str(parsed.get("registry_event_id", context.get("registry_event_id", ""))).strip(),
+                      "event_sha256": str(parsed.get("event_sha256", context.get("event_sha256", ""))).strip(),
+                      "overall_pass": bool(parsed.get("overall_pass", False)),
+                      "reason": str(parsed.get("reason", "UNKNOWN")).strip(),
+                      "produced": parsed.get("produced", {}) if isinstance(parsed.get("produced"), dict) else {},
+                      "consumed": parsed.get("consumed", {}) if isinstance(parsed.get("consumed"), dict) else {},
+                      "runtime": {
+                          "eks_cluster_name": eks_cluster_name,
+                          "eks_namespace": eks_namespace,
+                          "job_name": job_name,
+                          "msk_cluster_name": msk_cluster_name,
+                          "msk_cluster_arn": msk_cluster_arn,
+                          "bootstrap_brokers": bootstrap,
+                          "wait_exit_code": int(wait_proc.returncode),
+                      },
+                  }
+              )
+              if wait_proc.returncode != 0:
+                  proof["overall_pass"] = False
+                  proof["errors"].append({"surface": "kubectl.wait", "error": (wait_proc.stderr or wait_proc.stdout or "wait_failed").strip()})
+              if proof.get("registry_event_id") != context.get("registry_event_id"):
+                  proof["overall_pass"] = False
+                  proof["errors"].append({"surface": "registry_event_id", "error": "mismatch_with_context"})
+              if proof.get("event_sha256") != context.get("event_sha256"):
+                  proof["overall_pass"] = False
+                  proof["errors"].append({"surface": "event_sha256", "error": "mismatch_with_context"})
+
+              for cmd in [
+                  ["kubectl", "-n", eks_namespace, "delete", "job", job_name, "--ignore-not-found=true"],
+                  ["kubectl", "-n", eks_namespace, "delete", "configmap", cm_name, "--ignore-not-found=true"],
+                  ["kubectl", "-n", eks_namespace, "delete", "secret", secret_name, "--ignore-not-found=true"],
+              ]:
+                  subprocess.run(cmd, text=True, capture_output=True)
+
+          except Exception as exc:
+              proof["overall_pass"] = False
+              proof["reason"] = f"TRANSPORT_PROOF_EXCEPTION:{type(exc).__name__}"
+              proof["errors"].append({"surface": "transport_proof", "error": str(exc)})
+              if not event_path.exists():
+                  event_path.write_text(json.dumps({}, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+              if not context_path.exists():
+                  context_path.write_text(json.dumps(context, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          proof_path.write_text(json.dumps(proof, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+          print(json.dumps({
+              "execution_id": exec_id,
+              "transport_proof_path": str(proof_path),
+              "transport_event_path": str(event_path),
+              "overall_pass": bool(proof.get("overall_pass", False)),
+              "reason": str(proof.get("reason", "")),
+          }, ensure_ascii=True))
+          PY
+
       - name: Execute M12.D promotion event commit (managed)
         if: ${{ inputs.execution_mode == 'm12d_execute' && inputs.m12_subphase == 'D' }}
         shell: bash
@@ -1438,6 +1898,34 @@ jobs:
           read_errors: list[dict[str, str]] = []
           upload_errors: list[dict[str, str]] = []
           notes: list[str] = []
+          transport_event: dict[str, Any] = {}
+          transport_proof: dict[str, Any] = {}
+          transport_event_path = run_dir / "m12d_transport_event.json"
+          transport_proof_path = run_dir / "m12d_broker_transport_proof.json"
+          if transport_event_path.exists():
+              try:
+                  maybe_event = json.loads(transport_event_path.read_text(encoding="utf-8"))
+                  if isinstance(maybe_event, dict):
+                      transport_event = maybe_event
+                  else:
+                      blockers.append({"code": "M12-B4", "message": "Transport event payload is not a JSON object."})
+              except Exception as exc:
+                  read_errors.append({"surface": str(transport_event_path), "error": type(exc).__name__})
+                  blockers.append({"code": "M12-B4", "message": "Unable to read transport event payload."})
+          else:
+              blockers.append({"code": "M12-B4", "message": "Strict transport event payload missing from M12.D lane."})
+          if transport_proof_path.exists():
+              try:
+                  maybe_proof = json.loads(transport_proof_path.read_text(encoding="utf-8"))
+                  if isinstance(maybe_proof, dict):
+                      transport_proof = maybe_proof
+                  else:
+                      blockers.append({"code": "M12-B4", "message": "Broker transport proof payload is not a JSON object."})
+              except Exception as exc:
+                  read_errors.append({"surface": str(transport_proof_path), "error": type(exc).__name__})
+                  blockers.append({"code": "M12-B4", "message": "Unable to read broker transport proof payload."})
+          else:
+              blockers.append({"code": "M12-B4", "message": "Strict broker transport proof missing from M12.D lane."})
 
           m12c_summary_key = f"evidence/dev_full/run_control/{upstream_m12c}/m12c_execution_summary.json"
           m12c_snapshot_key = f"evidence/dev_full/run_control/{upstream_m12c}/m12c_compatibility_precheck_snapshot.json"
@@ -1562,34 +2050,39 @@ jobs:
           registry_event_id = hashlib.sha256(registry_event_seed.encode("utf-8")).hexdigest()
           candidate_bundle_s3_uri = f"s3://{candidate_bucket}/{candidate_key}" if candidate_key else ""
 
-          lifecycle_event = {
-              "schema_version": "learning.registry_lifecycle.v0",
-              "registry_event_id": registry_event_id,
-              "event_type": "BUNDLE_PROMOTED_ACTIVE",
-              "scope_key": {
-                  "environment": "dev_full",
-                  "mode": "managed",
-                  "bundle_slot": "active",
-                  "tenant_id": f"{platform_run_id}:{scenario_run_id}",
-              },
-              "bundle_ref": {
-                  "bundle_id": bundle_id,
-                  "bundle_version": str(candidate_bundle.get("execution_id", "")).strip() or "v0",
-                  "registry_ref": candidate_bundle_s3_uri or f"s3://{default_bucket}/{promotion_key}",
-              },
-              "actor": {
-                  "actor_id": "SYSTEM::m12d_managed_lane",
-                  "source_type": "SYSTEM",
-              },
-              "ts_utc": now(),
-              "evidence_refs": [
-                  {"ref_type": "m12c_execution_summary", "ref_id": m12c_summary_key},
-                  {"ref_type": "m12c_snapshot", "ref_id": m12c_snapshot_key},
-                  {"ref_type": "m12b_snapshot", "ref_id": m12b_snapshot_key},
-                  {"ref_type": "m12_handoff_pack", "ref_id": m12_handoff_pack_key},
-                  {"ref_type": "candidate_bundle", "ref_id": candidate_bundle_s3_uri},
-              ],
-          }
+          if transport_event:
+              lifecycle_event = dict(transport_event)
+              registry_event_id = str(lifecycle_event.get("registry_event_id", "")).strip() or registry_event_id
+          else:
+              lifecycle_event = {
+                  "schema_version": "learning.registry_lifecycle.v0",
+                  "registry_event_id": registry_event_id,
+                  "event_type": "BUNDLE_PROMOTED_ACTIVE",
+                  "scope_key": {
+                      "environment": "dev_full",
+                      "mode": "managed",
+                      "bundle_slot": "active",
+                      "tenant_id": f"{platform_run_id}:{scenario_run_id}",
+                  },
+                  "bundle_ref": {
+                      "bundle_id": bundle_id,
+                      "bundle_version": str(candidate_bundle.get("execution_id", "")).strip() or "v0",
+                      "registry_ref": candidate_bundle_s3_uri or f"s3://{default_bucket}/{promotion_key}",
+                  },
+                  "actor": {
+                      "actor_id": "SYSTEM::m12d_managed_lane",
+                      "source_type": "SYSTEM",
+                  },
+                  "ts_utc": now(),
+                  "evidence_refs": [
+                      {"ref_type": "m12c_execution_summary", "ref_id": m12c_summary_key},
+                      {"ref_type": "m12c_snapshot", "ref_id": m12c_snapshot_key},
+                      {"ref_type": "m12b_snapshot", "ref_id": m12b_snapshot_key},
+                      {"ref_type": "m12_handoff_pack", "ref_id": m12_handoff_pack_key},
+                      {"ref_type": "candidate_bundle", "ref_id": candidate_bundle_s3_uri},
+                  ],
+              }
+          lifecycle_event_sha256 = hashlib.sha256(json.dumps(lifecycle_event, sort_keys=True, ensure_ascii=True).encode("utf-8")).hexdigest()
 
           lifecycle_required = [
               "schema_version",
@@ -1617,6 +2110,44 @@ jobs:
           if not all(bool(str(lifecycle_actor.get(k, "")).strip()) for k in ["actor_id", "source_type"]):
               blockers.append({"code": "M12-B4", "message": "Lifecycle payload actor is incomplete."})
 
+          transport_overall_pass = bool(transport_proof.get("overall_pass", False))
+          transport_reason = str(transport_proof.get("reason", "")).strip()
+          transport_registry_event_id = str(transport_proof.get("registry_event_id", "")).strip()
+          transport_event_sha256 = str(transport_proof.get("event_sha256", "")).strip()
+          transport_produced = transport_proof.get("produced") if isinstance(transport_proof.get("produced"), dict) else {}
+          transport_consumed = transport_proof.get("consumed") if isinstance(transport_proof.get("consumed"), dict) else {}
+          if not transport_overall_pass:
+              blockers.append({"code": "M12-B4", "message": f"Broker transport proof failed: {transport_reason or 'unknown_reason'}."})
+          if transport_registry_event_id != registry_event_id:
+              blockers.append({"code": "M12-B4", "message": "Broker transport proof registry_event_id mismatch."})
+          if transport_event_sha256 != lifecycle_event_sha256:
+              blockers.append({"code": "M12-B4", "message": "Broker transport proof payload hash mismatch."})
+          produced_topic = str(transport_produced.get("topic", "")).strip()
+          produced_partition_raw = transport_produced.get("partition")
+          produced_offset_raw = transport_produced.get("offset")
+          try:
+              produced_partition = int(produced_partition_raw)
+          except Exception:
+              produced_partition = -1
+          try:
+              produced_offset = int(produced_offset_raw)
+          except Exception:
+              produced_offset = -1
+          if produced_topic != topic_handle:
+              blockers.append({"code": "M12-B4", "message": "Broker transport proof topic mismatch."})
+          if produced_partition < 0 or produced_offset < 0:
+              blockers.append({"code": "M12-B4", "message": "Broker transport proof missing valid partition/offset."})
+          consumed_match = bool(transport_consumed.get("payload_hash_match", False))
+          consumed_offset_raw = transport_consumed.get("offset")
+          try:
+              consumed_offset = int(consumed_offset_raw)
+          except Exception:
+              consumed_offset = -1
+          if not consumed_match:
+              blockers.append({"code": "M12-B4", "message": "Consumer readback payload hash does not match produced event."})
+          if consumed_offset != produced_offset:
+              blockers.append({"code": "M12-B4", "message": "Consumer readback offset mismatch against produced ACK offset."})
+
           promotion_receipt = {
               "captured_at_utc": now(),
               "phase": "M12.D",
@@ -1634,10 +2165,19 @@ jobs:
               "registry_event": lifecycle_event,
               "publication": {
                   "topic": topic_handle,
-                  "publication_mode": "RUN_SCOPED_PUBLICATION_RECEIPT",
-                  "event_sha256": hashlib.sha256(json.dumps(lifecycle_event, sort_keys=True, ensure_ascii=True).encode("utf-8")).hexdigest(),
-                  "status": "COMMITTED_WITH_READBACK",
-                  "note": "Managed lane confirms publication receipt + readback artifact without claiming broker offset.",
+                  "publication_mode": "MSK_BROKER_ACK_AND_CONSUMER_READBACK",
+                  "event_sha256": lifecycle_event_sha256,
+                  "status": "BROKER_ACK_CONFIRMED",
+                  "broker_ack": {
+                      "topic": produced_topic,
+                      "partition": produced_partition,
+                      "offset": produced_offset,
+                  },
+                  "consumer_readback": {
+                      "payload_hash_match": consumed_match,
+                      "offset": consumed_offset,
+                  },
+                  "note": "Strict transport gate: broker ACK + consumer readback required for PASS.",
               },
               "provenance": {
                   "upstream_m12c_execution_id": upstream_m12c,
@@ -1655,12 +2195,20 @@ jobs:
               "scenario_run_id": scenario_run_id,
               "topic": topic_handle,
               "registry_event_id": registry_event_id,
-              "publication_mode": "RUN_SCOPED_PUBLICATION_RECEIPT",
-              "publication_status": "COMMITTED_WITH_READBACK",
+              "publication_mode": "MSK_BROKER_ACK_AND_CONSUMER_READBACK",
+              "publication_status": "BROKER_ACK_CONFIRMED",
+              "broker_ack": {
+                  "topic": produced_topic,
+                  "partition": produced_partition,
+                  "offset": produced_offset,
+              },
               "transport_readback": {
-                  "source": "s3_run_scoped_receipt",
+                  "source": "kafka_consumer_group_readback",
                   "receipt_key": promotion_key,
-                  "broker_offset_claimed": False,
+                  "consumer_group": f"m12d-proof-{exec_id}",
+                  "read_offset": consumed_offset,
+                  "payload_hash_match": consumed_match,
+                  "broker_offset_claimed": True,
               },
           }
 
@@ -1731,7 +2279,11 @@ jobs:
                   "topic_handle_valid": topic_handle.startswith("fp.bus.learning.registry."),
                   "publication_mode": publication_receipt["publication_mode"],
                   "publication_status": publication_receipt["publication_status"],
-                  "broker_offset_claimed": False,
+                  "broker_offset_claimed": True,
+                  "produced_partition": produced_partition,
+                  "produced_offset": produced_offset,
+                  "consumed_offset": consumed_offset,
+                  "payload_hash_match": consumed_match,
               },
               "notes": notes,
           }
@@ -1767,6 +2319,7 @@ jobs:
 
           artifacts = {
               "m12d_registry_lifecycle_event.json": lifecycle_event,
+              "m12d_broker_transport_proof.json": transport_proof,
               "m12d_learning_registry_publication_receipt.json": publication_receipt,
               "m12d_promotion_commit_snapshot.json": promotion_snapshot,
               "m12d_blocker_register.json": blocker_register,
@@ -1798,6 +2351,7 @@ jobs:
           execution_summary["next_gate"] = next_gate
           execution_summary["artifact_keys"] = {
               "m12d_registry_lifecycle_event": run_control_prefix + "m12d_registry_lifecycle_event.json",
+              "m12d_broker_transport_proof": run_control_prefix + "m12d_broker_transport_proof.json",
               "m12d_learning_registry_publication_receipt": run_control_prefix + "m12d_learning_registry_publication_receipt.json",
               "m12d_promotion_commit_snapshot": run_control_prefix + "m12d_promotion_commit_snapshot.json",
               "m12d_blocker_register": run_control_prefix + "m12d_blocker_register.json",
