@@ -20,6 +20,33 @@ Each view is provided in:
 - Mermaid SVG/PNG render: `*.svg`, `*.png`
 - ASCII narrative diagram: `*.ascii.txt`
 
+## One-command renderer (all views)
+
+From repo root:
+
+```powershell
+pwsh ./scripts/design/render_dev_min_architecture.ps1
+```
+
+This renders both sets (`with_icons`, `without_icons`) to SVG and PNG for:
+- Graphviz sources (`*.graphviz.dot`)
+- Mermaid sources (`*.mmd`)
+
+### Use ELK (adaptive) Mermaid layout
+
+```powershell
+pwsh ./scripts/design/render_dev_min_architecture.ps1 -MermaidLayout elk
+```
+
+### Common options
+
+- `-Set all|with_icons|without_icons`
+- `-MermaidLayout dagre|elk`
+- `-GraphvizEngine dot|neato|fdp|sfdp|twopi|circo`
+- `-MermaidTheme default|neutral|forest|dark`
+- `-SkipGraphviz`
+- `-SkipMermaid`
+
 ## Render commands used
 
 Graphviz (DOT -> SVG/PNG):
