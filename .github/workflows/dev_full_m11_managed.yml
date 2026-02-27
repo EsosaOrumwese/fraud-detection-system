@@ -1204,12 +1204,18 @@ jobs:
           if not blockers:
               try:
                   exp_name_q = urllib.parse.quote(mlflow_experiment_path, safe="")
-                  exp_resp = dbx_mlflow_json(
-                      base_url=workspace_url,
-                      token=dbx_token,
-                      method="GET",
-                      path=f"/api/2.0/mlflow/experiments/get-by-name?experiment_name={exp_name_q}",
-                  )
+                  try:
+                      exp_resp = dbx_mlflow_json(
+                          base_url=workspace_url,
+                          token=dbx_token,
+                          method="GET",
+                          path=f"/api/2.0/mlflow/experiments/get-by-name?experiment_name={exp_name_q}",
+                      )
+                  except urllib.error.HTTPError as exc:
+                      if exc.code == 404:
+                          exp_resp = {}
+                      else:
+                          raise
                   experiment = exp_resp.get("experiment")
                   if not isinstance(experiment, dict):
                       create_resp = dbx_mlflow_json(
