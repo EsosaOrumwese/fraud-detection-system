@@ -1,7 +1,7 @@
 # Dev Substrate Deep Plan - M11 (P14 MF_EVAL_COMMITTED)
 _Status source of truth: `platform.build_plan.md`_
 _Track: `dev_full`_
-_Last updated: 2026-02-26_
+_Last updated: 2026-02-27_
 
 ## 0) Purpose
 M11 closes `P14 MF_EVAL_COMMITTED` with deterministic, reproducible model-factory train/eval proof. A green M11 means:
@@ -868,20 +868,67 @@ Closure evidence:
 Goal:
 1. Close M11 with cost/outcome proof and summary parity.
 
-Execution notes:
-1. Emit `m11_phase_cost_outcome_receipt.json`.
-2. Emit `m11_execution_summary.json` + `m11_blocker_register.json`.
-3. Validate artifact parity (required vs published).
-4. Fail-closed on `M11-B11` or `M11-B12`.
+Execution lanes (sequential, fail-closed):
+1. `M11.J.A` entry + handle closure:
+- require M11.I pass posture:
+  - `overall_pass=true`,
+  - `blocker_count=0`,
+  - `verdict=ADVANCE_TO_P15`,
+  - `next_gate=M11.J_READY`,
+- require cost handles pinned:
+  - `DEV_FULL_MONTHLY_BUDGET_LIMIT_USD`,
+  - `DEV_FULL_BUDGET_ALERT_1_USD`,
+  - `DEV_FULL_BUDGET_ALERT_2_USD`,
+  - `DEV_FULL_BUDGET_ALERT_3_USD`,
+  - `BUDGET_CURRENCY`,
+  - `COST_CAPTURE_SCOPE`,
+  - `AWS_COST_CAPTURE_ENABLED`,
+  - `DATABRICKS_COST_CAPTURE_ENABLED`.
+2. `M11.J.B` budget + cost receipt:
+- emit `m11_phase_budget_envelope.json`,
+- emit `m11_phase_cost_outcome_receipt.json` using AWS CE MTD capture and pinned threshold posture.
+3. `M11.J.C` closure summary + blocker register:
+- emit `m11j_blocker_register.json`,
+- emit `m11j_execution_summary.json`,
+- emit `m11_execution_summary.json`.
+4. `M11.J.D` contract parity validation:
+- require upstream readable count == expected,
+- require published output count == expected,
+- require `all_required_available=true`,
+- PASS only when `overall_pass=true`, blocker count `0`.
+
+Blocker semantics:
+1. `M11-B11`: entry/cost/parity failure.
+2. `M11-B12`: publication/readback failure.
 
 Runtime budget:
 1. Target <= 8 minutes.
+2. `M11.J.A/B` <= 4 minutes.
+3. `M11.J.C/D` <= 4 minutes.
 
 DoD:
-- [ ] cost-outcome receipt published local + durable.
-- [ ] summary parity passes (`all_required_available=true`).
-- [ ] no active blockers remain.
-- [ ] phase closure verdict ready for M12 entry.
+- [x] cost-outcome receipt published local + durable.
+- [x] summary parity passes (`all_required_available=true`).
+- [x] no active blockers remain.
+- [x] phase closure verdict ready for M12 entry.
+
+Closure evidence (managed):
+1. Run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22483128692`
+2. Execution:
+   - `m11j_closure_sync_20260227T104756Z`
+3. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M12`,
+   - `next_gate=M12_READY`,
+   - `all_required_available=true`.
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11_phase_budget_envelope.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11_phase_cost_outcome_receipt.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11j_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11j_execution_summary.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11_execution_summary.json`
 
 ## 7) Blocker Taxonomy (Fail-Closed)
 1. `M11-B1`: authority/handle closure failure.
@@ -908,10 +955,10 @@ DoD:
 - [x] `M11.G` complete
 - [x] `M11.H` complete
 - [x] `M11.I` complete
-- [ ] `M11.J` complete
-- [ ] no unresolved `M11-B*` blocker remains
-- [ ] all M11 artifacts published local + durable
-- [ ] non-gate acceptance artifacts (`eval_vs_baseline`, `reproducibility`, `model_operability`) are pass posture
+- [x] `M11.J` complete
+- [x] no unresolved `M11-B*` blocker remains
+- [x] all M11 artifacts published local + durable
+- [x] non-gate acceptance artifacts (`eval_vs_baseline`, `reproducibility`, `model_operability`) are pass posture
 - [x] `M11D-AD1` cleared by advisory-free managed-transform rerun evidence
 
 ## 9) Planning Status
@@ -923,4 +970,5 @@ DoD:
 6. `M11.G` is complete and green on managed lane with operability pass and candidate bundle publication.
 7. `M11.H` is complete and green on managed lane with safe-disable/rollback closure.
 8. `M11.I` is complete and green on managed lane with deterministic P14 verdict + M12 handoff publication.
-9. Next actionable lane is `M11.J` (cost-outcome + closure sync).
+9. `M11.J` is complete and green on managed lane with phase cost-outcome closure and M12 entry verdict.
+10. Next actionable lane is `M12.A` (promotion authority + handle closure).

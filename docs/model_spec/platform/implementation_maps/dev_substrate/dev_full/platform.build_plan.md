@@ -608,7 +608,7 @@ Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.P4.build_plan.md`
 
 ## M6 - Control and Ingress Closure
-Status: `ACTIVE`
+Status: `DONE`
 
 Objective:
 - close `P5-P7` end-to-end ingest streaming and commit semantics.
@@ -1389,7 +1389,7 @@ DoD anchors:
 - [x] model-operability report committed and pass.
 - [x] leakage/provenance checks are committed and green.
 - [x] deterministic `P14` verdict and `m12_handoff_pack.json` are committed.
-- [ ] M11 phase-budget and cost-outcome artifacts are committed and blocker-free.
+- [x] M11 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M11.build_plan.md`
@@ -1501,6 +1501,15 @@ M11 progression snapshot:
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11i_p14_gate_rollup_20260227T094100Z/m11i_p14_gate_verdict.json`,
   - M12 handoff pack:
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11i_p14_gate_rollup_20260227T094100Z/m12_handoff_pack.json`.
+- M11.J closure-sync + cost-outcome lane executed and closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22483128692`,
+  - execution id: `m11j_closure_sync_20260227T104756Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `all_required_available=true`, `next_gate=M12_READY`, `verdict=ADVANCE_TO_M12`,
+  - cost-outcome receipt:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11_phase_cost_outcome_receipt.json`,
+  - M11 closure summaries:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11j_execution_summary.json`,
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11_execution_summary.json`.
 
 ## M12 - MPR Promotion/Rollback Closure
 Status: `NOT_STARTED`
@@ -1509,7 +1518,7 @@ Objective:
 - close `P15` promotion corridor with compatibility-safe activation and non-optional rollback drill proof.
 
 Entry gate:
-- M11 is `NOT_DONE` (`M11.J` pending closure).
+- M11 is `DONE` with `M12_READY` closure verdict from `m11j_closure_sync_20260227T104756Z`.
 
 Planned lanes:
 - authority + handle closure for promotion/registry surfaces.
@@ -1583,4 +1592,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M11.J` (cost-outcome + closure sync) using M11.I pass evidence `m11i_p14_gate_rollup_20260227T094100Z`.
+- Expand and execute `M12.A` (promotion authority + handle closure) using M11 closure evidence `m11j_closure_sync_20260227T104756Z`.

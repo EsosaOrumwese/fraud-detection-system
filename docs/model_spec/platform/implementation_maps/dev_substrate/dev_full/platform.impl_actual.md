@@ -11374,8 +11374,10 @@ ext_gate=M8.E_READY).
    - root cause: active runtime image rejected REPORTER_LOCK_BACKEND=aurora_advisory_lock.
    - remediation: injected effective runtime backend db_advisory_lock while retaining pinned handle value in evidence (lock_backend vs lock_backend_effective).
 2. Second fail (m8e_p11_reporter_one_shot_20260226T060917Z):
-   - root cause: reporter ingest query failed (elation receipts does not exist) on Aurora path.
-   - remediation: one-shot pre-run DDL bootstrap in job command for eceipts, quarantines, dmissions tables.
+   - root cause: reporter ingest query failed (
+elation receipts does not exist) on Aurora path.
+   - remediation: one-shot pre-run DDL bootstrap in job command for 
+eceipts, quarantines, dmissions tables.
 3. Third fail (m8e_p11_reporter_one_shot_20260226T061050Z):
    - root cause: IRSA role lacked KMS envelope permission for SSE-KMS object writes (kms:GenerateDataKey denied).
    - remediation executed in-lane on raud-platform-dev-full-irsa-obs-gov:
@@ -11391,7 +11393,8 @@ ext_gate=M8.F_READY.
    - lock evidence: acquired=true, released=true, denied=false, scope_match=true.
    - closure artifact readability: 7/7 required object-store keys.
 4. evidence:
-   - local: uns/dev_substrate/dev_full/m8/m8e_p11_reporter_one_shot_20260226T061150Z/.
+   - local: 
+uns/dev_substrate/dev_full/m8/m8e_p11_reporter_one_shot_20260226T061150Z/.
    - durable: s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8e_p11_reporter_one_shot_20260226T061150Z/.
 
 ### Follow-up risks explicitly recorded
@@ -11407,7 +11410,8 @@ ext_gate=M8.F_READY.
 
 ### Runtime shape observations used to design M8.F
 1. Active closure artifacts for run platform_20260201T224449Z are in object-store prefix s3://fraud-platform-dev-full-object-store/platform_20260201T224449Z/.
-2. un_completed.json uses closure_refs (not rtifact_refs) and points to run-close artifact keys relative to object-store root.
+2. 
+un_completed.json uses closure_refs (not rtifact_refs) and points to run-close artifact keys relative to object-store root.
 3. obs/run_report.json and obs/reconciliation.json are parseable and run-scoped; reconciliation carries status=PASS, checks, and deltas.
 4. obs/replay_anchors.json, obs/environment_conformance.json, and obs/anomaly_summary.json are present and run-scoped with observed schema variants.
 
@@ -11417,7 +11421,8 @@ ext_gate=M8.F_READY.
    - required object existence/readability,
    - JSON parseability,
    - run-scope conformance,
-   - un_completed closure-ref coherence,
+   - 
+un_completed closure-ref coherence,
    - reconciliation pass/coherence checks.
 3. M8.F artifacts will be emitted as local + durable m8f_* under run-control root with 
 ext_gate=M8.G_READY on blocker-free pass.
@@ -11429,7 +11434,8 @@ ext_gate=M8.G_READY on blocker-free pass.
    - upstream gate validation from M8.E summary,
    - required object-store closure artifact checks,
    - JSON parse + run-scope checks,
-   - un_completed closure-ref coherence checks,
+   - 
+un_completed closure-ref coherence checks,
    - reconciliation status/check/delta coherence checks,
    - report surface section checks,
    - deterministic local + durable artifact publication (m8f_*).
@@ -11462,7 +11468,8 @@ ext_gate=M8.G_READY.
    - platform_20260201T224449Z/obs/environment_conformance.json
    - platform_20260201T224449Z/obs/anomaly_summary.json.
 2. Run-scope conformance passed for bundle surfaces.
-3. un_completed closure refs match expected run-scoped object keys.
+3. 
+un_completed closure refs match expected run-scoped object keys.
 4. Reconciliation coherence checks passed:
    - status=PASS,
    - checks map all true,
@@ -11470,7 +11477,8 @@ ext_gate=M8.G_READY.
 
 ### Evidence
 1. local:
-   - uns/dev_substrate/dev_full/m8/m8f_p11_closure_bundle_20260226T061917Z/.
+   - 
+uns/dev_substrate/dev_full/m8/m8f_p11_closure_bundle_20260226T061917Z/.
 2. durable:
    - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8f_p11_closure_bundle_20260226T061917Z/.
 ## Entry: 2026-02-26 06:24:00 +00:00 - M8.G execution design lock (pre-implementation)
@@ -12777,7 +12785,8 @@ ext_gate=M9.H_READY.
 
 ### Evidence
 1. Local:
-   - uns/dev_substrate/dev_full/m9/m9g_p12_learning_input_readiness_20260226T081947Z/.
+   - 
+uns/dev_substrate/dev_full/m9/m9g_p12_learning_input_readiness_20260226T081947Z/.
 2. Durable run-control:
    - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9g_p12_learning_input_readiness_20260226T081947Z/.
 3. Durable run-scoped readiness snapshot:
@@ -12892,7 +12901,8 @@ ext_gate=M10_READY
 
 ### Evidence
 1. Local:
-   - uns/dev_substrate/dev_full/m9/m9h_p12_gate_rollup_20260226T082548Z/.
+   - 
+uns/dev_substrate/dev_full/m9/m9h_p12_gate_rollup_20260226T082548Z/.
 2. Durable:
    - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9h_p12_gate_rollup_20260226T082548Z/.
 
@@ -12999,7 +13009,8 @@ ext_gate=M9.J_READY.
 
 ### Evidence
 1. Local:
-   - uns/dev_substrate/dev_full/m9/m9i_phase_cost_closure_20260226T083151Z/.
+   - 
+uns/dev_substrate/dev_full/m9/m9i_phase_cost_closure_20260226T083151Z/.
 2. Durable:
    - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9i_phase_cost_closure_20260226T083151Z/.
 
@@ -13100,7 +13111,8 @@ ext_gate=M10_READY.
 
 ### Evidence
 1. Local:
-   - uns/dev_substrate/dev_full/m9/m9j_closure_sync_20260226T083701Z/.
+   - 
+uns/dev_substrate/dev_full/m9/m9j_closure_sync_20260226T083701Z/.
 2. Durable:
    - s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9j_closure_sync_20260226T083701Z/.
 
@@ -13451,7 +13463,8 @@ ext_gate=M10.D_READY.
    - 
 ext_gate=M10.D_READY
 3. Validated closure artifacts:
-   - local: uns/dev_substrate/dev_full/m10/m10c_input_binding_20260226T131152Z/
+   - local: 
+uns/dev_substrate/dev_full/m10/m10c_input_binding_20260226T131152Z/
    - durable: s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m10c_input_binding_20260226T131152Z/
    - blocker register confirms no read/upload errors.
 4. Drift/contract posture check:
@@ -14519,7 +14532,8 @@ ext_gate=M10.D_READY
 3. Selected option B to preserve no-local-authoritative-compute posture for gate closure and align with dev_full managed-execution law.
 4. M11.A contract tightened in deep plan before run dispatch:
    - entry artifact set from M10 (m10_execution_summary, m10j_execution_summary, m11_handoff_pack),
-   - deterministic handle classification (esolved|missing|placeholder|wildcard),
+   - deterministic handle classification (
+esolved|missing|placeholder|wildcard),
    - fail-closed blocker mapping (M11-B1),
    - explicit managed workflow binding (dev_full_m11_a_managed.yml).
 5. Workflow implementation decisions:
@@ -14853,7 +14867,8 @@ ext_gate=M11.B_READY and locker_count=0.
 3. Root cause:
    - ImportError: cannot import name 'image_uris' from 'sagemaker'.
 4. Decision:
-   - patch workflow inline script to import from stable module path sagemaker.image_uris and call etrieve directly.
+   - patch workflow inline script to import from stable module path sagemaker.image_uris and call 
+etrieve directly.
    - keep lane behavior unchanged (train + transform + evidence publication).
 5. Next action after patch: workflow-only hotfix publish to main, then immediate rerun.
 
@@ -14880,7 +14895,8 @@ ext_gate=M11.B_READY and locker_count=0.
 ## Entry: 2026-02-26 20:42:42 +00:00 - M11.D blocker remediation #3 (IAM execution permissions)
 1. Failure evidence inspected from run 22460272680:
    - blocker register m11d_train_eval_execution_20260226T203945Z reported M11-B4 with ClientError.
-   - snapshot ead_errors[0] showed explicit denial: sagemaker:CreateTrainingJob not allowed for role GitHubAction-AssumeRoleWithAction.
+   - snapshot 
+ead_errors[0] showed explicit denial: sagemaker:CreateTrainingJob not allowed for role GitHubAction-AssumeRoleWithAction.
 2. Terraform remediation applied in infra/terraform/dev_full/ops:
    - added execution actions under inline policy GitHubActionsM6FRemoteDevFull:
      - sagemaker:CreateTrainingJob
@@ -14901,7 +14917,8 @@ ext_gate=M11.B_READY and locker_count=0.
 1. New blocker surfaced after IAM control-plane fix (run 22460397038):
    - ValidationException from CreateTrainingJob because SageMaker execution role lacked s3:ListBucket on raud-platform-dev-full-evidence.
 2. Runtime evidence inspected:
-   - snapshot m11d_train_eval_execution_20260226T204320Z/m11d_train_eval_execution_snapshot.json ead_errors[0] provided explicit denied action and bucket ARN.
+   - snapshot m11d_train_eval_execution_20260226T204320Z/m11d_train_eval_execution_snapshot.json 
+ead_errors[0] provided explicit denied action and bucket ARN.
 3. Terraform remediation in infra/terraform/dev_full/data_ml:
    - added ws_iam_role_policy.sagemaker_data_access to role raud-platform-dev-full-sagemaker-execution with:
      - S3 bucket list/get-location scoped to evidence prefixes,
@@ -15139,7 +15156,8 @@ ext_gate=M11.B_READY and locker_count=0.
    - absolute metric minima + baseline delta floors + stability tolerance pinned as handles,
    - no hidden defaults permitted in execution path.
 5. Evidence contract for this run:
-   - local run folder uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
+   - local run folder 
+uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
    - durable mirror s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/<m11e_execution_id>/....
 
 ## Entry: 2026-02-27 06:21:00 +00:00 - M11.E managed-lane wiring decision and implementation
@@ -15626,3 +15644,79 @@ ext_gate=M11.B_READY and locker_count=0.
    - deep plan M11.I DoD + closure evidence marked green,
    - platform plan progression + DoD anchors updated,
    - M11 next actionable lane advanced to `M11.J`.
+
+## Entry: 2026-02-27 10:42:03 +00:00 - M11.J planning closure before implementation
+1. Scope accepted: execute `M11.J` (cost-outcome + closure sync) immediately after `M11.I` green closure `m11i_p14_gate_rollup_20260227T094100Z`.
+2. Entry contract pinned:
+   - `M11.I` summary must be pass (`overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_P15`, `next_gate=M11.J_READY`),
+   - `m11i_p14_gate_verdict.json`, `m11i_blocker_register.json`, and `m12_handoff_pack.json` must be readable.
+3. M11.J output contract pinned:
+   - `m11_phase_budget_envelope.json`,
+   - `m11_phase_cost_outcome_receipt.json`,
+   - `m11j_blocker_register.json`,
+   - `m11j_execution_summary.json`,
+   - `m11_execution_summary.json`.
+4. Contract parity rule pinned:
+   - required upstream artifacts readable count equals expected count,
+   - required output artifacts published count equals expected count,
+   - `all_required_available=true` required for PASS.
+5. Cost capture strategy pinned:
+   - use AWS Cost Explorer MTD capture (`us-east-1`) under existing handle budget thresholds,
+   - Databricks capture remains deferred per pinned handle posture.
+6. Blocker semantics pinned:
+   - `M11-B11` for entry/cost/parity failures,
+   - `M11-B12` for publication/readback failures.
+7. Final gate target pinned:
+   - PASS -> `verdict=ADVANCE_TO_M12`, `next_gate=M12_READY`.
+
+## Entry: 2026-02-27 10:56:40 +00:00 - M11.J managed workflow wiring implemented
+1. Implemented `M11.J` support directly in `.github/workflows/dev_full_m11_managed.yml` (single managed lane, no local authoritative compute).
+2. Input surface pinned for deterministic entry:
+   - `upstream_m11i_execution` (required reference when subphase=`J`),
+   - `m11j_execution_id` (optional fixed id),
+   - subphase validator now accepts `J`,
+   - execution-id router now emits default `m11j_closure_sync_<ts>`.
+3. Managed `Execute M11.J` lane added with fail-closed contracts:
+   - reads upstream `M11.I` artifacts (`m11i_execution_summary`, `m11i_p14_gate_verdict`, `m11i_blocker_register`, `m12_handoff_pack`),
+   - enforces entry gate (`ADVANCE_TO_P15`, `M11.J_READY`, blocker_count=0),
+   - parses budget/cost handles from `dev_full_handles.registry.v0.md`,
+   - captures AWS MTD cost via Cost Explorer (`us-east-1`),
+   - emits closure artifacts:
+     - `m11_phase_budget_envelope.json`,
+     - `m11_phase_cost_outcome_receipt.json`,
+     - `m11j_blocker_register.json`,
+     - `m11j_execution_summary.json`,
+     - `m11_execution_summary.json`.
+4. Parity semantics implemented exactly as pinned:
+   - upstream artifact availability is counted and enforced,
+   - published artifact availability is counted and enforced,
+   - `all_required_available=true` is required for PASS.
+5. Blocker mapping preserved:
+   - `M11-B11`: entry/cost/parity failures,
+   - `M11-B12`: durable publication/readback failures.
+6. Next step: run managed subphase `J`, verify artifacts in S3 + run artifacts, then close M11.J DoDs in `platform.M11.build_plan.md` and phase rollup in `platform.build_plan.md`.
+
+## Entry: 2026-02-27 10:58:15 +00:00 - M11.J managed execution and M11 closure
+1. Managed authoritative run executed:
+   - workflow: `dev-full-m11-managed` (`m11_subphase=J`),
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22483128692`,
+   - head sha: `1961e3de`,
+   - execution id: `m11j_closure_sync_20260227T104756Z`,
+   - upstream entry: `m11i_p14_gate_rollup_20260227T094100Z`.
+2. Result posture is green:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `all_required_available=true`,
+   - `verdict=ADVANCE_TO_M12`,
+   - `next_gate=M12_READY`.
+3. Cost-outcome closure emitted and verified via run artifact:
+   - `m11_phase_budget_envelope.json`,
+   - `m11_phase_cost_outcome_receipt.json` (`spend_amount=134.5162173637`, currency `USD`, utilization `44.83873912123333333333333333`),
+   - `m11j_blocker_register.json`,
+   - `m11j_execution_summary.json`,
+   - `m11_execution_summary.json`.
+4. Durable evidence prefix:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/`.
+5. Planning closure updates applied:
+   - `platform.M11.build_plan.md`: M11.J DoDs checked, closure evidence block added, completion checklist marked green.
+   - `platform.build_plan.md`: M11 status set to `DONE`, M11 cost-outcome DoD anchor checked, M12 entry gate unlocked (`M12_READY`), next action moved to `M12.A`.
