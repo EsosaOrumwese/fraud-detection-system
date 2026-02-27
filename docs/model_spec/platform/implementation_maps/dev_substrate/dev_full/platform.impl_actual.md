@@ -16368,3 +16368,65 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 5. M12 progression:
    - `M12-B6` closed,
    - next actionable lane is `M12.G`.
+
+## Entry: 2026-02-27 17:49:30 +00:00 - M12.G pre-execution contract lock (governance append closure)
+1. Scope accepted: expand and execute M12.G fully on managed lane.
+2. Entry contract pinned:
+   - upstream M12.F summary must be pass with `next_gate=M12.G_READY` and zero blockers.
+3. Required handles for lane closure:
+   - GOV_APPEND_LOG_PATH_PATTERN,
+   - GOV_RUN_CLOSE_MARKER_PATH_PATTERN,
+   - MPR_PROMOTION_RECEIPT_PATH_PATTERN,
+   - MPR_ROLLBACK_DRILL_PATH_PATTERN.
+4. Governance append closure checks pinned:
+   - append log readable and parseable JSONL,
+   - required M12 governance event set is present (promotion commit, rollback drill pass, active-resolution pass),
+   - append ordering non-decreasing by `ts_utc`, no duplicate `event_id`, run-scope consistency,
+   - required evidence refs are readable,
+   - existing append events preserved when adding M12 events.
+5. Operability acceptance report contract:
+   - emit `m12_operability_acceptance_report.json` with check-level pass/fail details and source refs.
+6. Fail-closed mapping:
+   - any append/reference/ordering inconsistency maps to `M12-B7`.
+7. Pass posture pinned:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M12.H_READY`, `verdict=ADVANCE_TO_M12_H`.
+   - required artifacts: `m12g_governance_append_snapshot.json`, `m12_operability_acceptance_report.json`, `m12g_blocker_register.json`, `m12g_execution_summary.json`.
+
+## Entry: 2026-02-27 17:58:08 +00:00 - M12.G execution, evidence capture, and closure
+1. Workflow lane materialization finalization:
+   - added `m12g_execute` to `.github/workflows/dev_full_m12_managed.yml`,
+   - added guarded input `upstream_m12f_execution` and strict subphase/mode guard (`G` only),
+   - materialized managed step `Execute M12.G governance append closure (managed)` with fail-closed blocker family `M12-B7`.
+2. Execution command posture:
+   - dispatched `dev_full_m12_managed.yml` with:
+     - `m12_subphase=G`,
+     - `execution_mode=m12g_execute`,
+     - `upstream_m12f_execution=m12f_active_resolution_20260227T174035Z`,
+     - OIDC role `arn:aws:iam::230372904534:role/GitHubAction-AssumeRoleWithAction`,
+     - evidence bucket `fraud-platform-dev-full-evidence`.
+3. Authoritative run and result:
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22497579073`,
+   - execution id: `m12g_governance_append_20260227T175530Z`,
+   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.H_READY`, `verdict=ADVANCE_TO_M12_H`.
+4. Decision trail (in-flight):
+   - validated upstream M12.F summary gate first (`M12.G_READY`, zero blockers) before writing governance append.
+   - required handle closure was re-checked at runtime (`GOV_APPEND_LOG_PATH_PATTERN`, `GOV_RUN_CLOSE_MARKER_PATH_PATTERN`, `MPR_PROMOTION_RECEIPT_PATH_PATTERN`, `MPR_ROLLBACK_DRILL_PATH_PATTERN`).
+   - append publication strategy chosen: preserve all existing JSONL lines, append only missing required M12 events, then readback and verify both new-event presence and pre-existing-event preservation.
+5. Operability and integrity proof (all pass):
+   - upstream M12.F pass,
+   - existing append integrity (ordering/scope/duplicate-free),
+   - required M12 event set present,
+   - combined append integrity preserved,
+   - write/readback parity pass,
+   - preserve-existing-events pass,
+   - closure-marker run-scope pass.
+6. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12g_governance_append_20260227T175530Z/m12g_governance_append_snapshot.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12g_governance_append_20260227T175530Z/m12_operability_acceptance_report.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12g_governance_append_20260227T175530Z/m12g_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12g_governance_append_20260227T175530Z/m12g_execution_summary.json`,
+   - governance append target:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/governance/append_log.jsonl`.
+7. Progression impact:
+   - `M12-B7` closed.
+   - next actionable lane is `M12.H`.

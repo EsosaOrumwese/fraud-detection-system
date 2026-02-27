@@ -455,10 +455,31 @@ Blockers:
 Runtime budget:
 1. Target <= 8 minutes.
 
+Expanded execution contract:
+1. `M12.G.A` entry closure:
+- enforce upstream `M12.F` pass from durable run-control summary with `next_gate=M12.G_READY`.
+2. `M12.G.B` governance append integrity:
+- resolve `GOV_APPEND_LOG_PATH_PATTERN` for run scope and validate JSONL readability/parseability;
+- enforce append ordering non-decreasing by `ts_utc`, uniqueness by `event_id`, and run-scope consistency.
+3. `M12.G.C` required event-set closure:
+- ensure governance append includes required M12 event families:
+  - promotion committed,
+  - rollback drill passed,
+  - active resolution confirmed;
+- ensure referenced artifacts are readable and stable.
+4. `M12.G.D` append-safe publication:
+- append required M12 governance events without deleting prior append history;
+- verify pre-existing event-id set is preserved after write/readback.
+5. `M12.G.E` operability acceptance closure:
+- emit `m12_operability_acceptance_report.json` with check-level pass/fail + source refs.
+6. `M12.G.F` run-control closure:
+- emit `m12g_governance_append_snapshot.json`, `m12g_blocker_register.json`, `m12g_execution_summary.json`;
+- fail-closed on any mismatch as `M12-B7`.
+
 DoD:
-- [ ] governance append checks pass.
-- [ ] `m12_operability_acceptance_report.json` is published and pass posture.
-- [ ] `m12g_governance_append_snapshot.json` committed locally and durably.
+- [x] governance append checks pass.
+- [x] `m12_operability_acceptance_report.json` is published and pass posture.
+- [x] `m12g_governance_append_snapshot.json` committed locally and durably.
 
 ### M12.H - P15 Gate Rollup + M13 Handoff
 Goal:
@@ -552,12 +573,12 @@ DoD:
 - [x] `M12.D` complete
 - [x] `M12.E` complete
 - [x] `M12.F` complete
-- [ ] `M12.G` complete
+- [x] `M12.G` complete
 - [ ] `M12.H` complete
 - [ ] `M12.I` complete
 - [ ] `M12.J` complete
 - [ ] all active `M12-B*` blockers resolved
-- [ ] non-gate acceptance artifacts (`post_promotion_observation`, `operability_acceptance`) are pass posture
+- [x] non-gate acceptance artifacts (`post_promotion_observation`, `operability_acceptance`) are pass posture
 
 ## 9) Planning Status
 1. M12 planning is execution-grade and aligned to P15 authority.
@@ -569,4 +590,5 @@ DoD:
 7. `M12.D` strict transport-proof rerun is complete and green (`22490894460`, execution `m12d_promotion_commit_20260227T144832Z`) with `M12-B4` cleared.
 8. `M12.E` rollback drill execution is complete and green (`22495589600`, execution `m12e_rollback_drill_20260227T165747Z`) with `M12-B5` cleared.
 9. `M12.F` ACTIVE resolution checks are complete and green (`22497074608`, execution `m12f_active_resolution_20260227T174035Z`) with `M12-B6` cleared.
-10. Next action: proceed to `M12.G` governance append closure.
+10. `M12.G` governance append closure is complete and green (`22497579073`, execution `m12g_governance_append_20260227T175530Z`) with `M12-B7` cleared.
+11. Next action: proceed to `M12.H` P15 gate rollup + M13 handoff.

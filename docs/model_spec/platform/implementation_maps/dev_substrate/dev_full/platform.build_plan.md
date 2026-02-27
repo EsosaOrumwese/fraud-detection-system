@@ -1645,7 +1645,17 @@ M12 progression snapshot:
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12f_active_resolution_snapshot.json`,
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12_post_promotion_observation_snapshot.json`,
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12f_execution_summary.json`.
-- M12 next actionable subphase is `M12.G`.
+- M12.G governance append closure is now closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22497579073`,
+  - execution id: `m12g_governance_append_20260227T175530Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.H_READY`, `verdict=ADVANCE_TO_M12_H`,
+  - run-control artifacts:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12g_governance_append_20260227T175530Z/m12g_governance_append_snapshot.json`,
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12g_governance_append_20260227T175530Z/m12_operability_acceptance_report.json`,
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12g_governance_append_20260227T175530Z/m12g_execution_summary.json`,
+  - governance append target:
+    - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/governance/append_log.jsonl`.
+- M12 next actionable subphase is `M12.H`.
 
 ## M13 - Final Verdict and Teardown Closure
 Status: `NOT_STARTED`
@@ -1683,4 +1693,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M12.G` (governance append closure) on managed lane.
+- Execute `M12.H` (P15 gate rollup + M13 handoff) on managed lane.

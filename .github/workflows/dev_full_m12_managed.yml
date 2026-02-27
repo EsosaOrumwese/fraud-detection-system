@@ -47,6 +47,7 @@ on:
           - m12e_execute
           - m12f_execute
           - m12g_execute
+          - m12h_execute
       upstream_m11j_execution:
         description: Upstream M11.J execution id (entry readiness ref)
         required: true
@@ -82,6 +83,11 @@ on:
         required: true
         default: m12f_active_resolution_20260227T174035Z
         type: string
+      upstream_m12g_execution:
+        description: Upstream M12.G execution id (M12.H entry readiness ref)
+        required: true
+        default: m12g_governance_append_20260227T175530Z
+        type: string
       m12_execution_id:
         description: Optional fixed execution id override
         required: false
@@ -115,7 +121,7 @@ jobs:
               exit 1
               ;;
           esac
-          if [[ "${{ inputs.execution_mode }}" != "materialization_check" && "${{ inputs.execution_mode }}" != "m12a_execute" && "${{ inputs.execution_mode }}" != "m12b_execute" && "${{ inputs.execution_mode }}" != "m12c_execute" && "${{ inputs.execution_mode }}" != "m12d_execute" && "${{ inputs.execution_mode }}" != "m12e_execute" && "${{ inputs.execution_mode }}" != "m12f_execute" && "${{ inputs.execution_mode }}" != "m12g_execute" ]]; then
+          if [[ "${{ inputs.execution_mode }}" != "materialization_check" && "${{ inputs.execution_mode }}" != "m12a_execute" && "${{ inputs.execution_mode }}" != "m12b_execute" && "${{ inputs.execution_mode }}" != "m12c_execute" && "${{ inputs.execution_mode }}" != "m12d_execute" && "${{ inputs.execution_mode }}" != "m12e_execute" && "${{ inputs.execution_mode }}" != "m12f_execute" && "${{ inputs.execution_mode }}" != "m12g_execute" && "${{ inputs.execution_mode }}" != "m12h_execute" ]]; then
             echo "Unsupported execution_mode='${{ inputs.execution_mode }}'"
             exit 1
           fi
@@ -145,6 +151,10 @@ jobs:
           fi
           if [[ "${{ inputs.execution_mode }}" == "m12g_execute" && "${{ inputs.m12_subphase }}" != "G" ]]; then
             echo "execution_mode='m12g_execute' currently supports only m12_subphase='G'."
+            exit 1
+          fi
+          if [[ "${{ inputs.execution_mode }}" == "m12h_execute" && "${{ inputs.m12_subphase }}" != "H" ]]; then
+            echo "execution_mode='m12h_execute' currently supports only m12_subphase='H'."
             exit 1
           fi
 
@@ -3800,6 +3810,307 @@ jobs:
               "execution_id": exec_id, "upstream_m12f_execution": upstream, "overall_pass": overall_pass, "blocker_count": len(blockers),
               "next_gate": next_gate, "verdict": verdict, "governance_append_log_s3_uri": f"s3://{bucket}/{gov_key}" if gov_key else "",
               "evidence_prefix": f"s3://{bucket}/{pref}",
+          }, indent=2, ensure_ascii=True))
+          if not overall_pass:
+              raise SystemExit(1)
+          PY
+
+      - name: Execute M12.H P15 gate rollup + M13 handoff (managed)
+        if: ${{ inputs.execution_mode == 'm12h_execute' && inputs.m12_subphase == 'H' }}
+        shell: bash
+        env:
+          EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          UPSTREAM_M12A_EXEC: ${{ inputs.upstream_m12a_execution }}
+          UPSTREAM_M12B_EXEC: ${{ inputs.upstream_m12b_execution }}
+          UPSTREAM_M12C_EXEC: ${{ inputs.upstream_m12c_execution }}
+          UPSTREAM_M12D_EXEC: ${{ inputs.upstream_m12d_execution }}
+          UPSTREAM_M12E_EXEC: ${{ inputs.upstream_m12e_execution }}
+          UPSTREAM_M12F_EXEC: ${{ inputs.upstream_m12f_execution }}
+          UPSTREAM_M12G_EXEC: ${{ inputs.upstream_m12g_execution }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import boto3
+
+          def now() -> str:
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          def get_json(s3, bucket: str, key: str) -> dict:
+              body = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+              payload = json.loads(body)
+              if not isinstance(payload, dict):
+                  raise ValueError("json_not_object")
+              return payload
+
+          def put_json(s3, bucket: str, key: str, payload: dict) -> None:
+              body = (json.dumps(payload, indent=2, ensure_ascii=True) + "\n").encode("utf-8")
+              s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="application/json")
+              s3.head_object(Bucket=bucket, Key=key)
+
+          def dedupe(blockers: list[dict[str, str]]) -> list[dict[str, str]]:
+              out: list[dict[str, str]] = []
+              seen: set[tuple[str, str]] = set()
+              for b in blockers:
+                  code = str(b.get("code", "")).strip()
+                  msg = str(b.get("message", "")).strip()
+                  sig = (code, msg)
+                  if sig in seen:
+                      continue
+                  seen.add(sig)
+                  out.append({"code": code, "message": msg})
+              return out
+
+          exec_id = os.environ["EXEC_ID"].strip()
+          run_dir = Path(os.environ["RUN_DIR"].strip())
+          bucket = os.environ["EVIDENCE_BUCKET"].strip()
+          region = (os.environ.get("AWS_REGION", "eu-west-2").strip() or "eu-west-2")
+          s3 = boto3.client("s3", region_name=region)
+
+          upstream = {
+              "A": os.environ["UPSTREAM_M12A_EXEC"].strip(),
+              "B": os.environ["UPSTREAM_M12B_EXEC"].strip(),
+              "C": os.environ["UPSTREAM_M12C_EXEC"].strip(),
+              "D": os.environ["UPSTREAM_M12D_EXEC"].strip(),
+              "E": os.environ["UPSTREAM_M12E_EXEC"].strip(),
+              "F": os.environ["UPSTREAM_M12F_EXEC"].strip(),
+              "G": os.environ["UPSTREAM_M12G_EXEC"].strip(),
+          }
+          expected_next_gate = {
+              "A": "M12.B_READY",
+              "B": "M12.C_READY",
+              "C": "M12.D_READY",
+              "D": "M12.E_READY",
+              "E": "M12.F_READY",
+              "F": "M12.G_READY",
+              "G": "M12.H_READY",
+          }
+
+          blockers: list[dict[str, str]] = []
+          read_errors: list[dict[str, str]] = []
+          upload_errors: list[dict[str, str]] = []
+          rows: list[dict] = []
+          platform_run_id = ""
+          scenario_run_id = ""
+
+          for phase in ["A", "B", "C", "D", "E", "F", "G"]:
+              up = upstream.get(phase, "")
+              if not up:
+                  blockers.append({"code": "M12-B8", "message": f"Missing upstream execution id for M12.{phase}."})
+                  rows.append({
+                      "phase": phase,
+                      "execution_id": "",
+                      "expected_next_gate": expected_next_gate[phase],
+                      "actual_next_gate": "",
+                      "overall_pass": False,
+                      "blocker_count": None,
+                      "row_pass": False,
+                      "summary_key": "",
+                  })
+                  continue
+
+              key = f"evidence/dev_full/run_control/{up}/m12{phase.lower()}_execution_summary.json"
+              summary = None
+              try:
+                  summary = get_json(s3, bucket, key)
+              except Exception as exc:
+                  read_errors.append({"surface": key, "error": type(exc).__name__})
+                  blockers.append({"code": "M12-B8", "message": f"Unreadable M12.{phase} summary."})
+
+              actual_next = ""
+              row_overall = False
+              row_blocker_count = None
+              row_pass = False
+              if summary:
+                  row_overall = bool(summary.get("overall_pass"))
+                  row_blocker_count = int(summary.get("blocker_count", 0))
+                  actual_next = str(summary.get("next_gate", "")).strip()
+                  row_pass = row_overall and row_blocker_count == 0 and actual_next == expected_next_gate[phase]
+
+                  if phase == "A":
+                      platform_run_id = str(summary.get("platform_run_id", "")).strip()
+                      scenario_run_id = str(summary.get("scenario_run_id", "")).strip()
+                  else:
+                      pid = str(summary.get("platform_run_id", "")).strip()
+                      sid = str(summary.get("scenario_run_id", "")).strip()
+                      if platform_run_id and pid and pid != platform_run_id:
+                          blockers.append({"code": "M12-B8", "message": f"M12.{phase} platform_run_id drift in rollup."})
+                      if scenario_run_id and sid and sid != scenario_run_id:
+                          blockers.append({"code": "M12-B8", "message": f"M12.{phase} scenario_run_id drift in rollup."})
+
+                  if not row_overall:
+                      blockers.append({"code": "M12-B8", "message": f"M12.{phase} summary overall_pass is false."})
+                  if row_blocker_count != 0:
+                      blockers.append({"code": "M12-B8", "message": f"M12.{phase} summary blocker_count is non-zero."})
+                  if actual_next != expected_next_gate[phase]:
+                      blockers.append({"code": "M12-B8", "message": f"M12.{phase} next_gate mismatch (expected {expected_next_gate[phase]} got {actual_next})."})
+
+              rows.append({
+                  "phase": phase,
+                  "execution_id": up,
+                  "expected_next_gate": expected_next_gate[phase],
+                  "actual_next_gate": actual_next,
+                  "overall_pass": row_overall,
+                  "blocker_count": row_blocker_count,
+                  "row_pass": row_pass,
+                  "summary_key": key,
+              })
+
+          rollup_pass = all(bool(r.get("row_pass")) for r in rows) and len(rows) == 7
+          if not rollup_pass:
+              blockers.append({"code": "M12-B8", "message": "Fixed-order M12 A..G rollup failed."})
+          if not platform_run_id or not scenario_run_id:
+              blockers.append({"code": "M12-B8", "message": "Run-scope could not be resolved from M12 summaries."})
+
+          blockers = dedupe(blockers)
+          overall_pass = len(blockers) == 0
+          p15_verdict = "ADVANCE_TO_P16" if overall_pass else "HOLD_REMEDIATE"
+          p15_next_gate = "M13_READY" if overall_pass else "HOLD_REMEDIATE"
+          verdict = "ADVANCE_TO_M12_I" if overall_pass else "HOLD_REMEDIATE"
+          next_gate = "M12.I_READY" if overall_pass else "HOLD_REMEDIATE"
+
+          p15_gate_verdict = {
+              "captured_at_utc": now(),
+              "phase": "M12.H",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "verdict": p15_verdict,
+              "next_gate": p15_next_gate,
+              "rollup_rows": rows,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+          }
+          m13_handoff = {
+              "captured_at_utc": now(),
+              "handoff_from": "M12.H",
+              "handoff_to": "M13",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "p15_verdict": p15_verdict,
+              "next_gate": p15_next_gate,
+              "m13_entry_ready": overall_pass,
+              "m13_entry_gate": {
+                  "required_verdict": "ADVANCE_TO_P16",
+                  "next_gate": "M13_READY",
+              },
+              "refs": {
+                  "m12h_p15_gate_verdict": f"evidence/dev_full/run_control/{exec_id}/m12h_p15_gate_verdict.json",
+                  "m12g_execution_summary": f"evidence/dev_full/run_control/{upstream['G']}/m12g_execution_summary.json" if upstream.get("G") else "",
+              },
+              "blockers": blockers,
+          }
+          blocker_register = {
+              "captured_at_utc": now(),
+              "phase": "M12.H",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "blocker_count": len(blockers),
+              "blockers": blockers,
+              "overall_pass": overall_pass,
+          }
+          execution_summary = {
+              "captured_at_utc": now(),
+              "phase": "M12.H",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "p15_verdict": p15_verdict,
+              "p15_next_gate": p15_next_gate,
+              "upstream_refs": {
+                  "m12a_execution_id": upstream["A"],
+                  "m12b_execution_id": upstream["B"],
+                  "m12c_execution_id": upstream["C"],
+                  "m12d_execution_id": upstream["D"],
+                  "m12e_execution_id": upstream["E"],
+                  "m12f_execution_id": upstream["F"],
+                  "m12g_execution_id": upstream["G"],
+              },
+              "artifact_keys": {
+                  "m12h_p15_gate_verdict": f"evidence/dev_full/run_control/{exec_id}/m12h_p15_gate_verdict.json",
+                  "m13_handoff_pack": f"evidence/dev_full/run_control/{exec_id}/m13_handoff_pack.json",
+                  "m12h_blocker_register": f"evidence/dev_full/run_control/{exec_id}/m12h_blocker_register.json",
+                  "m12h_execution_summary": f"evidence/dev_full/run_control/{exec_id}/m12h_execution_summary.json",
+              },
+              "read_errors": read_errors,
+              "upload_errors": upload_errors,
+          }
+
+          run_dir.mkdir(parents=True, exist_ok=True)
+          artifacts = {
+              "m12h_p15_gate_verdict.json": p15_gate_verdict,
+              "m13_handoff_pack.json": m13_handoff,
+              "m12h_blocker_register.json": blocker_register,
+              "m12h_execution_summary.json": execution_summary,
+          }
+          for fname, payload in artifacts.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          prefix = f"evidence/dev_full/run_control/{exec_id}/"
+          for fname, payload in artifacts.items():
+              try:
+                  put_json(s3, bucket, prefix + fname, payload)
+              except Exception as exc:
+                  upload_errors.append({"surface": prefix + fname, "error": type(exc).__name__})
+                  blockers.append({"code": "M12-B9", "message": f"Failed to publish {fname}."})
+
+          blockers = dedupe(blockers)
+          overall_pass = len(blockers) == 0
+          p15_verdict = "ADVANCE_TO_P16" if overall_pass else "HOLD_REMEDIATE"
+          p15_next_gate = "M13_READY" if overall_pass else "HOLD_REMEDIATE"
+          verdict = "ADVANCE_TO_M12_I" if overall_pass else "HOLD_REMEDIATE"
+          next_gate = "M12.I_READY" if overall_pass else "HOLD_REMEDIATE"
+
+          p15_gate_verdict["verdict"] = p15_verdict
+          p15_gate_verdict["next_gate"] = p15_next_gate
+          p15_gate_verdict["overall_pass"] = overall_pass
+          p15_gate_verdict["blocker_count"] = len(blockers)
+          m13_handoff["p15_verdict"] = p15_verdict
+          m13_handoff["next_gate"] = p15_next_gate
+          m13_handoff["m13_entry_ready"] = overall_pass
+          m13_handoff["blockers"] = blockers
+          blocker_register["blocker_count"] = len(blockers)
+          blocker_register["blockers"] = blockers
+          blocker_register["overall_pass"] = overall_pass
+          execution_summary["overall_pass"] = overall_pass
+          execution_summary["blocker_count"] = len(blockers)
+          execution_summary["verdict"] = verdict
+          execution_summary["next_gate"] = next_gate
+          execution_summary["p15_verdict"] = p15_verdict
+          execution_summary["p15_next_gate"] = p15_next_gate
+          execution_summary["upload_errors"] = upload_errors
+
+          for fname, payload in artifacts.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+              try:
+                  put_json(s3, bucket, prefix + fname, payload)
+              except Exception:
+                  pass
+
+          print(json.dumps({
+              "execution_id": exec_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "p15_verdict": p15_verdict,
+              "p15_next_gate": p15_next_gate,
+              "evidence_prefix": f"s3://{bucket}/{prefix}",
           }, indent=2, ensure_ascii=True))
           if not overall_pass:
               raise SystemExit(1)
