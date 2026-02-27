@@ -1,0 +1,32 @@
+flowchart LR
+  subgraph Core["Core Stack (Persistent Control Surfaces)"]
+    CoreS3@{ icon: "simple-icons:amazons3", form: "rounded", label: "S3 buckets", pos: "b", h: 58 }
+    CoreDDB@{ icon: "simple-icons:amazondynamodb", form: "rounded", label: "DynamoDB state tables", pos: "b", h: 58 }
+    CoreBudget@{ icon: "mdi:cash-multiple", form: "rounded", label: "Budget guardrail", pos: "b", h: 58 }
+  end
+
+  subgraph Confluent["Confluent Stack (Managed Streaming)"]
+    CCluster@{ icon: "simple-icons:apachekafka", form: "rounded", label: "Kafka cluster", pos: "b", h: 58 }
+    CTopics@{ icon: "simple-icons:apachekafka", form: "rounded", label: "Platform topics", pos: "b", h: 58 }
+    CCreds@{ icon: "mdi:key", form: "rounded", label: "Runtime kafka credentials", pos: "b", h: 58 }
+    CCatalog@{ icon: "mdi:file-document-check", form: "rounded", label: "Topic catalog artifact", pos: "b", h: 58 }
+  end
+
+  subgraph Demo["Demo Stack (Ephemeral Runtime)"]
+    DECS@{ icon: "simple-icons:amazonecs", form: "rounded", label: "ECS runtime", pos: "b", h: 58 }
+    DRDS@{ icon: "simple-icons:postgresql", form: "rounded", label: "RDS postgres truth store", pos: "b", h: 58 }
+    DKinesis@{ icon: "mdi:waves", form: "rounded", label: "Kinesis control bus", pos: "b", h: 58 }
+    DSSM@{ icon: "mdi:key", form: "rounded", label: "SSM runtime parameters", pos: "b", h: 58 }
+  end
+
+  CCluster -->|hosts| CTopics
+  CTopics -->|managed stream transport| DECS
+  CCreds -->|credential materialization| DSSM
+  CCatalog -->|catalog evidence| CoreS3
+  DSSM -->|runtime config and auth| DECS
+  DECS -->|read/write operational truth| DRDS
+  DECS -->|control plane publish/read| DKinesis
+  DECS -->|object/evidence/archive writes| CoreS3
+  DECS -->|state ownership surfaces| CoreDDB
+  CoreBudget -.->|cost governance scope| DECS
+  CoreBudget -.->|cost governance scope| CCluster

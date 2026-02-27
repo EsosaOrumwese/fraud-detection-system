@@ -1,0 +1,46 @@
+digraph DevMinExecutiveIcons {
+  graph [rankdir=LR, fontname="Helvetica", fontsize=11, label="Dev_min Architecture - Executive View (Icons)", labelloc=t, labeljust=l, pad="0.2"];
+  node  [shape=box, style="rounded,filled", fillcolor="#F8FAFC", color="#CBD5E1", fontname="Helvetica", fontsize=10];
+  edge  [color="#475569", penwidth=1.2, arrowsize=0.8, fontname="Helvetica", fontsize=9];
+
+  subgraph cluster_core {
+    label="Core Stack (Persistent Control Surfaces)";
+    color="#1D4ED8"; style="rounded,dashed";
+    core_s3 [label="[S3] S3 Buckets\nobject-store, evidence,\nquarantine, archive, tfstate"];
+    core_ddb [label="[DDB] DynamoDB Tables\ncontrol-runs,\nig admission/publish state,\nterraform lock"];
+    core_budget [label="[BUDGET] Budget Guardrail\nmonthly threshold ladder"];
+  }
+
+  subgraph cluster_confluent {
+    label="Confluent Stack (Managed Streaming)";
+    color="#7C3AED"; style="rounded,dashed";
+    conf_cluster [label="[CLOUD] Confluent Kafka Cluster"];
+    conf_topics [label="[KAFKA] Platform Topics\ntraffic, control, context"];
+    conf_runtime_creds [label="[KEY] Runtime Kafka Credentials"];
+    conf_catalog [label="[ARTIFACT] Topic Catalog Artifact"];
+  }
+
+  subgraph cluster_demo {
+    label="Demo Stack (Ephemeral Runtime)";
+    color="#059669"; style="rounded,dashed";
+    demo_ecs [label="[ECS] ECS Runtime\nservices + one-shot jobs"];
+    demo_rds [label="[RDS] RDS PostgreSQL\nruntime truth store"];
+    demo_kinesis [label="[KINESIS] Kinesis Control Bus"];
+    demo_ssm [label="[SSM] SSM Runtime Parameters\nkafka + db + ingest key"];
+  }
+
+  conf_cluster -> conf_topics [label="hosts"];
+  conf_topics -> demo_ecs [label="managed stream transport"];
+  conf_runtime_creds -> demo_ssm [label="credential materialization"];
+  conf_catalog -> core_s3 [label="catalog evidence"];
+
+  demo_ssm -> demo_ecs [label="runtime config + auth"];
+  demo_ecs -> demo_rds [label="read/write operational truth"];
+  demo_ecs -> demo_kinesis [label="control-plane publish/read"];
+  demo_ecs -> core_s3 [label="object + evidence + archive writes"];
+  demo_ecs -> core_ddb [label="state ownership surfaces"];
+
+  core_budget -> demo_ecs [style=dashed, color="#F97316", label="cost governance scope"];
+  core_budget -> conf_cluster [style=dashed, color="#F97316", label="cost governance scope"];
+}
+

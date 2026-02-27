@@ -14984,3 +14984,61 @@ ext_gate=M11.B_READY and locker_count=0.
 5. Plan sync:
    - deep plan DoD for M11.D checked complete,
    - master platform build plan next action advanced to M11.E.
+
+## Entry: 2026-02-26 21:18:00 +00:00 - M11.D advisory-clearance decision pin (quota reality + option matrix)
+1. User requested explicit note-down before further planning/execution and required that `M11D-AD1` be cleared, not ignored.
+2. Quota facts captured from AWS Service Quotas (`eu-west-2`) for `ml.m5.large` family:
+   - transform job usage = 0 (direct cause of `CreateTransformJob` failure),
+   - endpoint usage = 4 (available managed inference capacity),
+   - training job usage = 0 (explicitly tracked; current managed lane still completed training in observed runs).
+3. Option matrix documented:
+   - Primary (authoritative clearance): raise transform quota and rerun M11.D until `eval_mode=managed_batch_transform` and no advisory.
+   - Continuity option A: use alternate transform instance type with available quota.
+   - Continuity option B: temporary managed endpoint inference path (`CreateEndpoint`/`InvokeEndpoint`/teardown).
+4. Clearance semantics pinned:
+   - continuity options can keep progress moving,
+   - `M11D-AD1` is considered closed only by advisory-free managed-transform evidence.
+5. Plan/doc updates applied:
+   - deep M11 plan now contains mandatory advisory-clearance contract,
+   - platform build plan next action changed from M11.E to M11.D advisory-clearance rerun first.
+
+## Entry: 2026-02-26 21:56:00 +00:00 - M11D-AD1 clearance execution lane started (quota + strict transform mode)
+1. Quota discovery executed against AWS Service Quotas API (`eu-west-2`) under account 230372904534.
+2. Observed transform quota posture from API:
+   - total transform job quotas returned: 7,
+   - non-zero transform job quotas: 0.
+3. Submitted quota increase request programmatically:
+   - service: SageMaker,
+   - quota: `ml.c4.xlarge for transform job usage` (`L-E3C0D615`),
+   - desired value: 1,
+   - request id: `be88a3fa50a141a4b67a79538a9cedd4kWCjEenD`,
+   - status at submission: `PENDING`.
+4. Workflow execution hardening applied in `.github/workflows/dev_full_m11_managed.yml`:
+   - added inputs: `m11d_training_instance_type`, `m11d_transform_instance_type`, `m11d_require_managed_transform`,
+   - added strict fail-closed branch: when `m11d_require_managed_transform=true`, transform quota failure now raises hard blocker instead of fallback,
+   - runtime snapshot now records selected instance types and strictness flag for audit.
+5. Execution intent:
+   - rerun M11.D with `m11d_transform_instance_type=ml.c4.xlarge` and strict mode `true`,
+   - advisory clears only if managed transform succeeds (`eval_mode=managed_batch_transform`) and advisories are empty.
+
+## Entry: 2026-02-26 22:04:00 +00:00 - M11D-AD1 strict clearance attempt executed (fail-closed as designed)
+1. Workflow hardening commit published:
+   - commit: `666a82a1`,
+   - change: M11.D workflow now accepts training/transform instance inputs and strict transform requirement flag.
+2. Strict clearance dispatch:
+   - run: https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22462948967
+   - execution id: `m11d_train_eval_execution_20260226T215805Z`
+   - inputs: `m11d_training_instance_type=ml.m5.large`, `m11d_transform_instance_type=ml.c4.xlarge`, `m11d_require_managed_transform=true`.
+3. Runtime outcome:
+   - training completed successfully (`fraud-platform-dev-full-mtrain-8065f3c823`, elapsed ~135s),
+   - transform launch failed with `ResourceLimitExceeded` for `ml.c4.xlarge for transform job usage` still at 0,
+   - strict mode correctly blocked fallback and emitted `M11-B4` hard blocker.
+4. Artifact evidence:
+   - blocker register: `evidence/dev_full/run_control/m11d_train_eval_execution_20260226T215805Z/m11d_blocker_register.json`,
+   - snapshot: `evidence/dev_full/run_control/m11d_train_eval_execution_20260226T215805Z/m11d_train_eval_execution_snapshot.json`,
+   - key `read_errors[0]` contains exact quota rejection string.
+5. Quota remediation state:
+   - request id `be88a3fa50a141a4b67a79538a9cedd4kWCjEenD`, case `177214283200667`, status `CASE_OPENED`.
+6. Decision:
+   - keep strict mode active for advisory-clearance reruns,
+   - do not advance to M11.E until advisory-free managed transform evidence is produced.

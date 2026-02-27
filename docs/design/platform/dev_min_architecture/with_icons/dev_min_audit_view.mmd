@@ -1,0 +1,48 @@
+flowchart LR
+  subgraph Authority["Authority Surfaces"]
+    AConfig@{ icon: "simple-icons:terraform", form: "rounded", label: "Terraform roots", pos: "b", h: 54 }
+    AState@{ icon: "simple-icons:amazons3", form: "rounded", label: "Terraform state bucket", pos: "b", h: 54 }
+    ALock@{ icon: "simple-icons:amazondynamodb", form: "rounded", label: "Terraform lock table", pos: "b", h: 54 }
+  end
+
+  subgraph Truth["Runtime Truth Surfaces"]
+    TRds@{ icon: "simple-icons:postgresql", form: "rounded", label: "RDS runtime state", pos: "b", h: 54 }
+    TAdm@{ icon: "simple-icons:amazondynamodb", form: "rounded", label: "DynamoDB admission", pos: "b", h: 54 }
+    TPub@{ icon: "simple-icons:amazondynamodb", form: "rounded", label: "DynamoDB publish", pos: "b", h: 54 }
+    TRun@{ icon: "simple-icons:amazondynamodb", form: "rounded", label: "DynamoDB run control", pos: "b", h: 54 }
+    TEv@{ icon: "simple-icons:amazons3", form: "rounded", label: "S3 evidence bundle", pos: "b", h: 54 }
+    TObject@{ icon: "simple-icons:amazons3", form: "rounded", label: "S3 object-store outputs", pos: "b", h: 54 }
+    TQu@{ icon: "simple-icons:amazons3", form: "rounded", label: "S3 quarantine artifacts", pos: "b", h: 54 }
+    TAr@{ icon: "simple-icons:amazons3", form: "rounded", label: "S3 archive artifacts", pos: "b", h: 54 }
+  end
+
+  subgraph Transport["Transport Surfaces (Not Source of Truth)"]
+    Tkafka@{ icon: "simple-icons:apachekafka", form: "rounded", label: "Confluent Kafka topics", pos: "b", h: 54 }
+    Tkin@{ icon: "mdi:waves", form: "rounded", label: "Kinesis control bus", pos: "b", h: 54 }
+    Tssm@{ icon: "mdi:key", form: "rounded", label: "SSM runtime credentials", pos: "b", h: 54 }
+  end
+
+  subgraph Gates["Fail-Closed Certification Gates"]
+    GReady@{ icon: "mdi:shield-check", form: "rounded", label: "Readiness gate", pos: "b", h: 54 }
+    GIntegrity@{ icon: "mdi:scale-balance", form: "rounded", label: "Closure integrity gate", pos: "b", h: 54 }
+    GCert@{ icon: "mdi:clipboard-check", form: "rounded", label: "Certification matrix gate", pos: "b", h: 54 }
+    GOutcome@{ icon: "mdi:flag-checkered", form: "rounded", label: "Outcome (advance if blockers empty)", pos: "b", h: 54 }
+  end
+
+  AConfig --> AState --> ALock
+  Tssm -.-> Tkafka
+  Tssm -.-> TRds
+  Tkafka --> GReady
+  Tkin --> GReady
+  TEv --> GIntegrity
+  TObject --> GIntegrity
+  TQu --> GIntegrity
+  TRun --> GIntegrity
+  TRds --> GCert
+  TAdm --> GCert
+  TPub --> GCert
+  TEv --> GCert
+  GReady --> GCert
+  GIntegrity --> GCert
+  GCert --> GOutcome
+  GOutcome -.-> TEv

@@ -1,0 +1,32 @@
+flowchart LR
+  subgraph Core["Core Stack (Persistent Control Surfaces)"]
+    CoreS3["S3 Buckets<br/>object-store, evidence, quarantine, archive, tfstate"]
+    CoreDDB["DynamoDB Tables<br/>control-runs, admission/publish state, terraform lock"]
+    CoreBudget["Budget Guardrail<br/>monthly threshold ladder"]
+  end
+
+  subgraph Confluent["Confluent Stack (Managed Streaming)"]
+    CCluster["Confluent Kafka Cluster"]
+    CTopics["Platform Topics<br/>traffic, control, context"]
+    CCreds["Runtime Kafka Credentials"]
+    CCatalog["Topic Catalog Artifact"]
+  end
+
+  subgraph Demo["Demo Stack (Ephemeral Runtime)"]
+    DECS["ECS Runtime<br/>services + one-shot jobs"]
+    DRDS["RDS PostgreSQL<br/>runtime truth store"]
+    DKinesis["Kinesis Control Bus"]
+    DSSM["SSM Runtime Parameters<br/>kafka + db + ingest key"]
+  end
+
+  CCluster --> CTopics
+  CTopics --> DECS
+  CCreds --> DSSM
+  CCatalog --> CoreS3
+  DSSM --> DECS
+  DECS --> DRDS
+  DECS --> DKinesis
+  DECS --> CoreS3
+  DECS --> CoreDDB
+  CoreBudget -.-> DECS
+  CoreBudget -.-> CCluster

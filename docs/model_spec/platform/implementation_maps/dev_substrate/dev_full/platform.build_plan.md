@@ -1428,6 +1428,15 @@ M11 progression snapshot:
   - execution id: `m11d_train_eval_execution_20260226T210509Z`,
   - `overall_pass=true`, `blocker_count=0`, `next_gate=M11.E_READY`,
   - explicit advisory retained: `M11D-AD1` (`eval_mode=fallback_local_model_eval` while transform quota remains unavailable).
+  - advisory-clearance requirement pinned:
+    - `M11D-AD1` is not considered cleared until an advisory-free rerun shows `eval_mode=managed_batch_transform`.
+    - current AWS quota fact driving the advisory: `ml.m5.large for transform job usage = 0` in `eu-west-2`.
+  - strict clearance attempt executed and failed closed as designed:
+    - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22462948967`,
+    - execution id: `m11d_train_eval_execution_20260226T215805Z`,
+    - `require_managed_transform=true`, `transform_instance_type=ml.c4.xlarge`,
+    - blocker: `M11-B4` (`ResourceLimitExceeded`, transform quota still 0),
+    - quota request opened: `be88a3fa50a141a4b67a79538a9cedd4kWCjEenD` (case `177214283200667`).
 
 ## M12 - MPR Promotion/Rollback Closure
 Status: `NOT_STARTED`
@@ -1510,4 +1519,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M11.E` (eval gate adjudication) using `M11.D` green posture (`m11d_train_eval_execution_20260226T210509Z`) as entry basis.
+- Poll quota request `be88a3fa50a141a4b67a79538a9cedd4kWCjEenD` to approval, rerun strict `M11.D` advisory-clearance (`require_managed_transform=true`), and only after advisory-free managed-transform success proceed to `M11.E`.

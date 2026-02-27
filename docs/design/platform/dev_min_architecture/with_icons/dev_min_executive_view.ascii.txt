@@ -1,0 +1,16 @@
+DEV_MIN EXECUTIVE VIEW (ICONS)
+
+[[CLOUD] Confluent Managed Streaming]
+  Kafka Cluster -> [KAFKA] Topics
+           |         |
+           |         +--> [ECS] Demo ECS Runtime
+           +--> [KEY] Credentials --> [SSM] Demo SSM Parameters
+
+[[ECS] Demo ECS Runtime] --> [[RDS] RDS Runtime Truth]
+[[ECS] Demo ECS Runtime] --> [[KINESIS] Kinesis Control Bus]
+[[ECS] Demo ECS Runtime] --> [[S3] Core S3: object/evidence/quarantine/archive]
+[[ECS] Demo ECS Runtime] --> [[DDB] Core DynamoDB: control + admission/publish]
+
+[[BUDGET] Core Budget Guardrail] --(scope)--> [[ECS] Demo ECS Runtime]
+[[BUDGET] Core Budget Guardrail] --(scope)--> [[CLOUD] Confluent Kafka Cluster]
+

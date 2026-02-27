@@ -1,0 +1,69 @@
+flowchart LR
+  subgraph Core["Core Terraform Root"]
+    CS3Obj@{ icon: "simple-icons:amazons3", form: "rounded", label: "S3 object-store", pos: "b", h: 52 }
+    CS3Ev@{ icon: "simple-icons:amazons3", form: "rounded", label: "S3 evidence", pos: "b", h: 52 }
+    CS3Qu@{ icon: "simple-icons:amazons3", form: "rounded", label: "S3 quarantine", pos: "b", h: 52 }
+    CS3Ar@{ icon: "simple-icons:amazons3", form: "rounded", label: "S3 archive", pos: "b", h: 52 }
+    CRun@{ icon: "simple-icons:amazondynamodb", form: "rounded", label: "DynamoDB control-runs", pos: "b", h: 52 }
+    CAdm@{ icon: "simple-icons:amazondynamodb", form: "rounded", label: "DynamoDB admission", pos: "b", h: 52 }
+    CPub@{ icon: "simple-icons:amazondynamodb", form: "rounded", label: "DynamoDB publish", pos: "b", h: 52 }
+    CLock@{ icon: "simple-icons:amazondynamodb", form: "rounded", label: "DynamoDB tf-lock", pos: "b", h: 52 }
+    CBudget@{ icon: "mdi:cash-multiple", form: "rounded", label: "AWS budget", pos: "b", h: 52 }
+  end
+
+  subgraph Confluent["Confluent Terraform Root"]
+    CEnv@{ icon: "simple-icons:amazonwebservices", form: "rounded", label: "Confluent environment", pos: "b", h: 52 }
+    CClu@{ icon: "simple-icons:apachekafka", form: "rounded", label: "Confluent kafka cluster", pos: "b", h: 52 }
+    CTop@{ icon: "simple-icons:apachekafka", form: "rounded", label: "Confluent topics", pos: "b", h: 52 }
+    CApi@{ icon: "mdi:key", form: "rounded", label: "Runtime kafka api key/secret", pos: "b", h: 52 }
+    CSSM@{ icon: "mdi:key", form: "rounded", label: "SSM confluent runtime params", pos: "b", h: 52 }
+    CCat@{ icon: "mdi:file-document-check", form: "rounded", label: "topic_catalog.json", pos: "b", h: 52 }
+  end
+
+  subgraph Demo["Demo Terraform Root"]
+    DRS["terraform_remote_state.confluent"]
+    DVpc@{ icon: "simple-icons:amazonwebservices", form: "rounded", label: "VPC + subnets + routing", pos: "b", h: 52 }
+    DEcs@{ icon: "simple-icons:amazonecs", form: "rounded", label: "ECS cluster", pos: "b", h: 52 }
+    DServices["Daemon services<br/>ig, rtdl-core, decision-lane,<br/>case-trigger, case-mgmt,<br/>label-store, env-conformance"]
+    DJobs["One-shot jobs<br/>scenario-runner, world-stream-producer,<br/>oracle-stream-sort, oracle-checker, reporter,<br/>db-migrations"]
+    DKin@{ icon: "mdi:waves", form: "rounded", label: "Kinesis ig_event_bus", pos: "b", h: 52 }
+    DRds@{ icon: "simple-icons:postgresql", form: "rounded", label: "RDS runtime postgres", pos: "b", h: 52 }
+    DSSM@{ icon: "mdi:key", form: "rounded", label: "SSM runtime credentials", pos: "b", h: 52 }
+    DManifest@{ icon: "mdi:file-document-check", form: "rounded", label: "demo manifest + topic catalog", pos: "b", h: 52 }
+    DLogs@{ icon: "mdi:chart-line", form: "rounded", label: "CloudWatch log group", pos: "b", h: 52 }
+  end
+
+  CEnv --> CClu --> CTop
+  CApi --> CSSM
+  CTop --> CCat --> CS3Ev
+  CClu --> DRS
+  CTop --> DRS
+  DRS --> DSSM
+
+  DVpc --> DEcs
+  DVpc --> DRds
+  DEcs --> DServices
+  DEcs --> DJobs
+  DServices --> DLogs
+  DJobs --> DLogs
+  DSSM --> DServices
+  DSSM --> DJobs
+  DServices --> DKin
+  DJobs --> DKin
+  DServices --> DRds
+  DJobs --> DRds
+  DServices --> CClu
+  DJobs --> CClu
+  DServices --> CS3Obj
+  DServices --> CS3Ar
+  DServices --> CS3Qu
+  DJobs --> CS3Obj
+  DJobs --> CS3Ev
+  DManifest --> CS3Ev
+  DServices --> CAdm
+  DServices --> CPub
+  DJobs --> CRun
+  CLock --- CRun
+  CBudget -.-> DEcs
+  CBudget -.-> CClu
+

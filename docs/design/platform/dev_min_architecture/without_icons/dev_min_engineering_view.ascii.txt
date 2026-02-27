@@ -1,0 +1,24 @@
+DEV_MIN ENGINEERING VIEW (NO ICONS)
+
+Core Root:
+  - S3: object-store, evidence, quarantine, archive, tfstate
+  - DynamoDB: control-runs, ig-admission-state, ig-publish-state, tf-lock
+  - Budget guardrail
+
+Confluent Root:
+  - Confluent environment + Kafka cluster + topics
+  - Runtime and topic-manager service accounts + API keys
+  - Materializes SSM parameters for bootstrap/api_key/api_secret
+  - Writes topic_catalog.json to core evidence bucket
+
+Demo Root:
+  - Network: VPC, subnets, routing, SG app/db
+  - Compute: ECS cluster with daemon services + one-shot jobs
+  - Datastores: RDS PostgreSQL, Kinesis control bus
+  - Parameters: SSM kafka/db/ingest credentials
+  - Artifacts: manifest + topic catalog to evidence bucket
+
+Cross-stack flows:
+  - Demo resolves Confluent outputs via terraform_remote_state (or direct vars)
+  - ECS services/jobs consume SSM credentials and write to RDS/S3/DynamoDB
+  - Runtime uses Confluent Kafka for stream transport
