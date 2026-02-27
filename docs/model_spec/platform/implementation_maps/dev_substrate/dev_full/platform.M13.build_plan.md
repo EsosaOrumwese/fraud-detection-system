@@ -383,5 +383,10 @@ DoD:
 ## 9) Planning Status
 1. M13 deep plan is now execution-grade and aligned to P16/P17 authority.
 2. M12 closure entry requirements are satisfied.
-3. `M13-B0` remains open until managed M13 execution lane is materialized and dispatchable.
-4. Next action: materialize managed M13 lane and execute `M13.A`.
+3. Managed workflow file `.github/workflows/dev_full_m13_managed.yml` is materialized and merged to default branch `main` via workflow-only PR `#70`.
+4. `M13-B0` is closed green from run `22500308645` (`dev-full-m13-managed`, `m13_subphase=A`):
+   - `overall_pass=true`
+   - `verdict=ADVANCE_TO_M13_A`
+   - `next_gate=M13.A_READY`
+   - evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13a_handle_closure_20260227T191722Z/`
+5. Next action: expand and execute `M13.A` against the now-materialized managed lane.

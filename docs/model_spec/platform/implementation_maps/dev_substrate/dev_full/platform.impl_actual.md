@@ -16655,3 +16655,70 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
    - updated next action to:
      - materialize managed M13 lane (`M13-B0` closure),
      - then execute `M13.A`.
+
+## Entry: 2026-02-27 19:02:05 +00:00 - M13-B0 execution design lock (managed lane materialization)
+1. Scope accepted: close `M13-B0` only (no M13 functional subphase execution yet).
+2. Lane decision:
+   - materialize dedicated workflow `.github/workflows/dev_full_m13_managed.yml`,
+   - keep `execution_mode=materialization_check` only for now to avoid false dispatch of unimplemented subphases.
+3. Entry contract enforced in B0 lane:
+   - upstream M12.J summary must be pass with:
+     - `overall_pass=true`,
+     - `blocker_count=0`,
+     - `verdict=ADVANCE_TO_M13`,
+     - `next_gate=M13_READY`.
+4. Deterministic dispatchability pinned:
+   - subphase routing map for `M13.A..M13.J` execution-id naming is emitted in snapshot,
+   - workflow accepts `m13_subphase` choice `A..J`,
+   - managed path is explicit (`authoritative_path=managed_only`).
+5. B0 artifacts pinned:
+   - `m13_managed_lane_materialization_snapshot.json`,
+   - `m13_subphase_dispatchability_snapshot.json`,
+   - `m13b0_blocker_register.json`,
+   - `m13b0_execution_summary.json`.
+6. Pass posture pinned:
+   - `verdict=ADVANCE_TO_M13_A`,
+   - `next_gate=M13.A_READY`.
+
+## Entry: 2026-02-27 19:03:01 +00:00 - M13-B0 dispatch blocker (default-branch workflow availability)
+1. Implemented and committed workflow lane:
+   - `.github/workflows/dev_full_m13_managed.yml`
+   - commit: `6c4fe89c5` (`ci: add managed M13 materialization lane`).
+2. Dispatch attempt (managed-only) failed:
+   - command: `gh workflow run dev_full_m13_managed.yml --ref migrate-dev ...`
+   - GitHub response: `HTTP 404 workflow ... not found on the default branch`.
+3. Interpretation:
+   - workflow dispatch API requires workflow file availability on default branch before invocation.
+   - `M13-B0` cannot be closed from `migrate-dev` alone.
+4. Decision:
+   - keep fail-closed posture: no local fallback and no false B0 closure.
+   - mark `M13-B0` as blocked pending workflow-only publish to default branch.
+5. Next required step:
+   - perform workflow-only publish to default branch under user branch-governance method,
+   - rerun M13 materialization dispatch and close B0 only on green evidence.
+
+## Entry: 2026-02-27 19:19:23 +00:00 - M13-B0 closed green (managed lane on default branch)
+1. Branch-governance sequence executed (workflow-only):
+   - created isolated branch `ops/m13-workflow-only` from `origin/main` in a separate worktree,
+   - cherry-picked workflow commit `6c4fe89c5` only,
+   - opened and merged workflow-only PR `#70` to `main`.
+2. Managed dispatch executed after merge:
+   - workflow: `dev-full-m13-managed`,
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22500308645`,
+   - inputs: `m13_subphase=A`, `execution_mode=materialization_check`,
+   - upstream gate: `upstream_m12j_execution=m12j_closure_sync_20260227T184452Z`.
+3. Authoritative result (from `m13b0_execution_summary.json`):
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M13_A`,
+   - `next_gate=M13.A_READY`.
+4. Durable evidence prefix:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13a_handle_closure_20260227T191722Z/`
+   - includes:
+     - `m13_managed_lane_materialization_snapshot.json`,
+     - `m13_subphase_dispatchability_snapshot.json`,
+     - `m13b0_blocker_register.json`,
+     - `m13b0_execution_summary.json`.
+5. Decision:
+   - `M13-B0` is closed green,
+   - next actionable step is `M13.A` execution using the now-materialized managed lane.

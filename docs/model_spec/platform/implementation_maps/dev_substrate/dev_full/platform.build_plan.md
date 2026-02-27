@@ -1757,4 +1757,5 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Materialize managed M13 lane (`M13-B0` closure), then execute `M13.A`.
+- `M13-B0` is now closed green (`run_id=22500308645`, `verdict=ADVANCE_TO_M13_A`, `next_gate=M13.A_READY`).
+- Next: expand and execute `M13.A` on `dev-full-m13-managed` with fail-closed blocker handling.
