@@ -16022,3 +16022,63 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 6. Planning progression updates applied:
    - deep M12 plan marks `M12.C` complete,
    - main platform plan advances next action to `M12.D`.
+
+## Entry: 2026-02-27 13:20:10 +00:00 - M12.D execution design lock before workflow patch
+1. Scope accepted: plan and execute `M12.D` fully on the managed lane.
+2. Decision-completeness check before execution:
+   - upstream closure pinned: `M12.C` summary `m12c_compatibility_precheck_20260227T130306Z`,
+   - required authority pinned: deep M12 plan + dev_full handles registry + M11 handoff references,
+   - unresolved decision identified: transport-level topic publish is not proven by current lane if broker offset is required.
+3. Chosen execution stance for this lane (explicit, non-pretend):
+   - keep M12.D fail-closed on promotion commit truth surfaces,
+   - materialize lifecycle event payload and publication receipt with readback,
+   - do not claim broker offsets or direct MSK write if not observed.
+4. Workflow extension plan pinned:
+   - add `execution_mode=m12d_execute` constrained to `m12_subphase=D`,
+   - add input `upstream_m12c_execution` for deterministic entry binding,
+   - implement blocker family `M12-B4` only for this lane.
+5. M12.D checks locked before implementation:
+   - `M12.C` pass posture (`overall_pass=true`, `blocker_count=0`, `next_gate=M12.D_READY`),
+   - candidate bundle readability + `CANDIDATE` status + run-scope parity,
+   - required handles resolved:
+     - `MPR_PROMOTION_RECEIPT_PATH_PATTERN`,
+     - `FP_BUS_LEARNING_REGISTRY_EVENTS_V1`,
+     - `SCHEMA_REGISTRY_MODE`,
+     - `GLUE_SCHEMA_REGISTRY_NAME`,
+     - `GLUE_SCHEMA_COMPATIBILITY_MODE`,
+   - promotion receipt write + readback at run-scoped MPR path,
+   - lifecycle payload completeness checks (`learning.registry_lifecycle.v0`, `BUNDLE_PROMOTED_ACTIVE`, scope/bundle/actor completeness),
+   - publication receipt + readback artifact emitted with explicit `broker_offset_claimed=false`.
+6. Planned pass posture:
+   - `next_gate=M12.E_READY`,
+   - `verdict=ADVANCE_TO_M12_E`.
+
+## Entry: 2026-02-27 13:27:05 +00:00 - M12.D executed and closed green on managed lane
+1. Workflow-only patch committed and pushed on active branch:
+   - commit: `012a3754e` (`ci: add managed M12.D promotion commit lane`),
+   - file scope: `.github/workflows/dev_full_m12_managed.yml` only.
+2. Managed execution dispatched and completed:
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22488067476`,
+   - mode: `m12_subphase=D`, `execution_mode=m12d_execute`,
+   - upstream: `m12c_compatibility_precheck_20260227T130306Z`.
+3. Lane outcome:
+   - execution id: `m12d_promotion_commit_20260227T132637Z`,
+   - `overall_pass=true`, `blocker_count=0`,
+   - `next_gate=M12.E_READY`,
+   - `verdict=ADVANCE_TO_M12_E`.
+4. Durable M12.D artifacts published and verified:
+   - run-control summary:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T132637Z/m12d_execution_summary.json`,
+   - promotion snapshot:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T132637Z/m12d_promotion_commit_snapshot.json`,
+   - publication receipt:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T132637Z/m12d_learning_registry_publication_receipt.json`,
+   - run-scoped promotion receipt:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/promotion_receipt.json`.
+5. Runtime truth recorded for publication evidence:
+   - `publication_mode=RUN_SCOPED_PUBLICATION_RECEIPT`,
+   - `publication_status=COMMITTED_WITH_READBACK`,
+   - `broker_offset_claimed=false` (explicitly no broker-offset assertion in this lane evidence).
+6. Plan/docs progression updates applied:
+   - `platform.M12.build_plan.md`: M12.D marked complete with closure evidence block,
+   - `platform.build_plan.md`: M12 DoD anchor `promotion receipt committed` checked, progression updated with M12.D closure, next action advanced to M12.E.

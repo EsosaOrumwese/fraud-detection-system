@@ -297,6 +297,22 @@ DoD:
 1. promotion receipt exists and is readable.
 2. `m12d_promotion_commit_snapshot.json` committed locally and durably.
 
+Closure evidence (managed):
+1. Run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22488067476`
+2. Execution:
+   - `m12d_promotion_commit_20260227T132637Z`
+3. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M12.E_READY`,
+   - `verdict=ADVANCE_TO_M12_E`.
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T132637Z/m12d_promotion_commit_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T132637Z/m12d_learning_registry_publication_receipt.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T132637Z/m12d_execution_summary.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/promotion_receipt.json`
+
 ### M12.E - Rollback Drill Execution
 Goal:
 1. Execute rollback drill for the promoted candidate and prove recoverability.
@@ -455,7 +471,7 @@ DoD:
 - [x] `M12.A` complete
 - [x] `M12.B` complete
 - [x] `M12.C` complete
-- [ ] `M12.D` complete
+- [x] `M12.D` complete
 - [ ] `M12.E` complete
 - [ ] `M12.F` complete
 - [ ] `M12.G` complete
@@ -472,4 +488,5 @@ DoD:
 4. `M12.A` is complete and green on managed lane with `M12-B1` cleared.
 5. `M12.B` is complete and green on managed lane with `M12-B2` cleared.
 6. `M12.C` is complete and green on managed lane with `M12-B3` cleared.
-7. Next action: execute `M12.D` on the managed lane.
+7. `M12.D` is complete and green on managed lane with `M12-B4` cleared.
+8. Next action: execute `M12.E` on the managed lane.

@@ -1575,7 +1575,7 @@ M12 blocker families (fail-closed):
 - `M12-B12` non-gate acceptance failure.
 
 DoD anchors:
-- [ ] promotion receipt committed.
+- [x] promotion receipt committed.
 - [ ] rollback drill report committed.
 - [ ] rollback bounded-restore objective evidence committed.
 - [ ] active-bundle compatibility checks green.
@@ -1614,7 +1614,13 @@ M12 progression snapshot:
   - execution id: `m12c_compatibility_precheck_20260227T130306Z`,
   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.D_READY`, `verdict=ADVANCE_TO_M12_D`,
   - summary: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12c_compatibility_precheck_20260227T130306Z/m12c_execution_summary.json`.
-- M12 next actionable subphase is `M12.D`.
+- `M12.D` promotion event commit was executed and closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22488067476`,
+  - execution id: `m12d_promotion_commit_20260227T132637Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.E_READY`, `verdict=ADVANCE_TO_M12_E`,
+  - summary: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T132637Z/m12d_execution_summary.json`,
+  - run-scoped promotion receipt: `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/promotion_receipt.json`.
+- M12 next actionable subphase is `M12.E`.
 
 ## M13 - Final Verdict and Teardown Closure
 Status: `NOT_STARTED`
@@ -1652,4 +1658,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M12.D` (promotion event commit) on managed lane using M12.C closure evidence `m12c_compatibility_precheck_20260227T130306Z`.
+- Execute `M12.E` (rollback drill execution) on managed lane using M12.D closure evidence `m12d_promotion_commit_20260227T132637Z`.
