@@ -1,0 +1,355 @@
+name: dev-full-m12-managed
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: AWS region
+        required: true
+        default: eu-west-2
+        type: string
+      aws_role_to_assume:
+        description: OIDC role ARN
+        required: true
+        type: string
+      evidence_bucket:
+        description: S3 evidence bucket
+        required: true
+        default: fraud-platform-dev-full-evidence
+        type: string
+      m12_subphase:
+        description: "M12 subphase target (single managed lane)"
+        required: true
+        default: A
+        type: choice
+        options:
+          - A
+          - B
+          - C
+          - D
+          - E
+          - F
+          - G
+          - H
+          - I
+          - J
+      execution_mode:
+        description: "Execution mode"
+        required: true
+        default: materialization_check
+        type: choice
+        options:
+          - materialization_check
+      upstream_m11j_execution:
+        description: Upstream M11.J execution id (entry readiness ref)
+        required: true
+        default: m11j_closure_sync_20260227T104756Z
+        type: string
+      m12_execution_id:
+        description: Optional fixed execution id override
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dev-full-m12-managed-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  run_m12_managed:
+    name: Run M12.${{ inputs.m12_subphase }} managed lane
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate supported mode and subphase
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ inputs.m12_subphase }}" in
+            A|B|C|D|E|F|G|H|I|J) ;;
+            *)
+              echo "Unsupported m12_subphase='${{ inputs.m12_subphase }}'"
+              exit 1
+              ;;
+          esac
+          if [[ "${{ inputs.execution_mode }}" != "materialization_check" ]]; then
+            echo "Unsupported execution_mode='${{ inputs.execution_mode }}'"
+            exit 1
+          fi
+
+      - name: Reject static AWS credential posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${AWS_ACCESS_KEY_ID:-}" || -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+            echo "Static AWS credentials are forbidden; use OIDC role assumption."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install boto3 botocore
+
+      - name: Compute execution metadata
+        id: run_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TS="$(date -u +'%Y%m%dT%H%M%SZ')"
+          if [[ -n "${{ inputs.m12_execution_id }}" ]]; then
+            EXEC_ID="${{ inputs.m12_execution_id }}"
+          else
+            case "${{ inputs.m12_subphase }}" in
+              A) EXEC_ID="m12a_handle_closure_${TS}" ;;
+              B) EXEC_ID="m12b_candidate_eligibility_${TS}" ;;
+              C) EXEC_ID="m12c_compatibility_precheck_${TS}" ;;
+              D) EXEC_ID="m12d_promotion_commit_${TS}" ;;
+              E) EXEC_ID="m12e_rollback_drill_${TS}" ;;
+              F) EXEC_ID="m12f_active_resolution_${TS}" ;;
+              G) EXEC_ID="m12g_governance_append_${TS}" ;;
+              H) EXEC_ID="m12h_p15_gate_rollup_${TS}" ;;
+              I) EXEC_ID="m12i_phase_cost_outcome_${TS}" ;;
+              J) EXEC_ID="m12j_closure_sync_${TS}" ;;
+            esac
+          fi
+          echo "execution_id=${EXEC_ID}" >> "$GITHUB_OUTPUT"
+          echo "run_dir=runs/dev_substrate/dev_full/m12/${EXEC_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Execute M12-B0 managed lane materialization check
+        if: ${{ inputs.execution_mode == 'materialization_check' }}
+        shell: bash
+        env:
+          EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          M12_SUBPHASE: ${{ inputs.m12_subphase }}
+          EXECUTION_MODE: ${{ inputs.execution_mode }}
+          UPSTREAM_M11J_EXEC: ${{ inputs.upstream_m11j_execution }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from typing import Any
+
+          import boto3
+          from botocore.exceptions import BotoCoreError, ClientError
+
+          def now() -> str:
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          def s3_get_json(s3: Any, bucket: str, key: str) -> dict[str, Any]:
+              raw = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+              payload = json.loads(raw)
+              if not isinstance(payload, dict):
+                  raise ValueError("json_not_object")
+              return payload
+
+          def s3_put_json(s3: Any, bucket: str, key: str, payload: dict[str, Any]) -> None:
+              body = (json.dumps(payload, indent=2, ensure_ascii=True) + "\n").encode("utf-8")
+              s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="application/json")
+              s3.head_object(Bucket=bucket, Key=key)
+
+          def dedupe(blockers: list[dict[str, str]]) -> list[dict[str, str]]:
+              out: list[dict[str, str]] = []
+              seen: set[tuple[str, str]] = set()
+              for b in blockers:
+                  code = str(b.get("code", "")).strip()
+                  msg = str(b.get("message", "")).strip()
+                  sig = (code, msg)
+                  if sig in seen:
+                      continue
+                  seen.add(sig)
+                  out.append({"code": code, "message": msg})
+              return out
+
+          exec_id = os.environ["EXEC_ID"].strip()
+          run_dir = Path(os.environ["RUN_DIR"].strip())
+          bucket = os.environ["EVIDENCE_BUCKET"].strip()
+          region = os.environ.get("AWS_REGION", "eu-west-2").strip() or "eu-west-2"
+          subphase = os.environ["M12_SUBPHASE"].strip()
+          mode = os.environ["EXECUTION_MODE"].strip()
+          upstream_m11j = os.environ["UPSTREAM_M11J_EXEC"].strip()
+
+          s3 = boto3.client("s3", region_name=region)
+          blockers: list[dict[str, str]] = []
+          read_errors: list[dict[str, str]] = []
+          upload_errors: list[dict[str, str]] = []
+
+          supported_subphases = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
+          if subphase not in supported_subphases:
+              blockers.append({"code": "M12-B0", "message": f"Unsupported subphase '{subphase}'."})
+          if mode != "materialization_check":
+              blockers.append({"code": "M12-B0", "message": f"Unsupported execution mode '{mode}'."})
+
+          routing_map = {
+              "A": "m12a_handle_closure_<ts>",
+              "B": "m12b_candidate_eligibility_<ts>",
+              "C": "m12c_compatibility_precheck_<ts>",
+              "D": "m12d_promotion_commit_<ts>",
+              "E": "m12e_rollback_drill_<ts>",
+              "F": "m12f_active_resolution_<ts>",
+              "G": "m12g_governance_append_<ts>",
+              "H": "m12h_p15_gate_rollup_<ts>",
+              "I": "m12i_phase_cost_outcome_<ts>",
+              "J": "m12j_closure_sync_<ts>",
+          }
+
+          upstream_summary_key = f"evidence/dev_full/run_control/{upstream_m11j}/m11j_execution_summary.json"
+          upstream_summary: dict[str, Any] = {}
+          try:
+              upstream_summary = s3_get_json(s3, bucket, upstream_summary_key)
+          except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+              read_errors.append({"surface": upstream_summary_key, "error": type(exc).__name__})
+              blockers.append({"code": "M12-B0", "message": "Unreadable M11.J upstream summary."})
+
+          if upstream_summary:
+              if not bool(upstream_summary.get("overall_pass", False)):
+                  blockers.append({"code": "M12-B0", "message": "M11.J upstream summary overall_pass is false."})
+              if str(upstream_summary.get("next_gate", "")).strip() != "M12_READY":
+                  blockers.append({"code": "M12-B0", "message": "M11.J upstream summary next_gate is not M12_READY."})
+
+          snapshot = {
+              "captured_at_utc": now(),
+              "phase": "M12.B0",
+              "execution_id": exec_id,
+              "mode": mode,
+              "requested_subphase": subphase,
+              "supported_subphases": supported_subphases,
+              "deterministic_execution_routing": routing_map,
+              "upstream_m11j_execution": upstream_m11j,
+              "upstream_m11j_summary_key": upstream_summary_key,
+              "entry_ready": bool(upstream_summary.get("overall_pass", False)) and str(upstream_summary.get("next_gate", "")).strip() == "M12_READY",
+              "managed_lane_materialized": True,
+          }
+
+          dispatchability = {
+              "captured_at_utc": now(),
+              "phase": "M12.B0",
+              "execution_id": exec_id,
+              "requested_subphase": subphase,
+              "dispatchable": True,
+              "single_workflow_lane": "dev-full-m12-managed",
+              "authoritative_path": "managed_only",
+          }
+
+          blocker_register = {
+              "captured_at_utc": now(),
+              "phase": "M12.B0",
+              "execution_id": exec_id,
+              "blocker_count": 0,
+              "blockers": [],
+              "overall_pass": False,
+          }
+
+          execution_summary = {
+              "captured_at_utc": now(),
+              "phase": "M12.B0",
+              "execution_id": exec_id,
+              "requested_subphase": subphase,
+              "overall_pass": False,
+              "blocker_count": 0,
+              "verdict": "HOLD_REMEDIATE",
+              "next_gate": "HOLD_REMEDIATE",
+              "artifact_keys": {},
+          }
+
+          artifacts = {
+              "m12_managed_lane_materialization_snapshot.json": snapshot,
+              "m12_subphase_dispatchability_snapshot.json": dispatchability,
+              "m12b0_blocker_register.json": blocker_register,
+              "m12b0_execution_summary.json": execution_summary,
+          }
+
+          run_dir.mkdir(parents=True, exist_ok=True)
+          for fname, payload in artifacts.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          run_control_prefix = f"evidence/dev_full/run_control/{exec_id}/"
+          for fname, payload in artifacts.items():
+              try:
+                  s3_put_json(s3, bucket, run_control_prefix + fname, payload)
+              except (BotoCoreError, ClientError) as exc:
+                  upload_errors.append({"surface": run_control_prefix + fname, "error": type(exc).__name__})
+                  blockers.append({"code": "M12-B0", "message": f"Failed to publish {fname}."})
+
+          blockers = dedupe(blockers)
+          overall_pass = len(blockers) == 0
+          verdict = "ADVANCE_TO_M12_A" if overall_pass else "HOLD_REMEDIATE"
+          next_gate = "M12.A_READY" if overall_pass else "HOLD_REMEDIATE"
+          blocker_register["blocker_count"] = len(blockers)
+          blocker_register["blockers"] = blockers
+          blocker_register["overall_pass"] = overall_pass
+          execution_summary["overall_pass"] = overall_pass
+          execution_summary["blocker_count"] = len(blockers)
+          execution_summary["verdict"] = verdict
+          execution_summary["next_gate"] = next_gate
+          execution_summary["artifact_keys"] = {
+              "m12_managed_lane_materialization_snapshot": run_control_prefix + "m12_managed_lane_materialization_snapshot.json",
+              "m12_subphase_dispatchability_snapshot": run_control_prefix + "m12_subphase_dispatchability_snapshot.json",
+              "m12b0_blocker_register": run_control_prefix + "m12b0_blocker_register.json",
+              "m12b0_execution_summary": run_control_prefix + "m12b0_execution_summary.json",
+          }
+          execution_summary["read_errors"] = read_errors
+          execution_summary["upload_errors"] = upload_errors
+
+          for fname, payload in {
+              "m12b0_blocker_register.json": blocker_register,
+              "m12b0_execution_summary.json": execution_summary,
+          }.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+              try:
+                  s3_put_json(s3, bucket, run_control_prefix + fname, payload)
+              except Exception:
+                  pass
+
+          print(
+              json.dumps(
+                  {
+                      "execution_id": exec_id,
+                      "requested_subphase": subphase,
+                      "overall_pass": overall_pass,
+                      "blocker_count": len(blockers),
+                      "next_gate": next_gate,
+                      "verdict": verdict,
+                      "evidence_prefix": f"s3://{bucket}/{run_control_prefix}",
+                  },
+                  indent=2,
+                  ensure_ascii=True,
+              )
+          )
+          if not overall_pass:
+              raise SystemExit(1)
+          PY
+
+      - name: Upload local run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-full-m12-${{ inputs.m12_subphase }}-${{ steps.run_meta.outputs.execution_id }}
+          path: ${{ steps.run_meta.outputs.run_dir }}
+          if-no-files-found: warn
