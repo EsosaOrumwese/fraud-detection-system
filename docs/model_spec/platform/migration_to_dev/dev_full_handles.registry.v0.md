@@ -251,6 +251,17 @@ Allowed tokens in pattern handles:
 * `FULL_VERDICT_PATH_PATTERN = "evidence/runs/{platform_run_id}/full_platform/final_verdict.json"`
 * `TEARDOWN_COST_SNAPSHOT_PATH_PATTERN = "evidence/runs/{platform_run_id}/teardown/cost_guardrail_snapshot.json"`
 
+### 3.8.1 Learning eval gate policy handles (M11.E)
+
+* `MF_EVAL_ACCURACY_MIN = "0.8500"`
+* `MF_EVAL_PRECISION_MIN = "0.8500"`
+* `MF_EVAL_RECALL_MIN = "0.8500"`
+* `MF_EVAL_BASELINE_DELTA_ACCURACY_MIN = "0.0000"`
+* `MF_EVAL_BASELINE_DELTA_PRECISION_MIN = "0.0000"`
+* `MF_EVAL_BASELINE_DELTA_RECALL_MIN = "0.0000"`
+* `MF_EVAL_LEAKAGE_HARD_FAIL = "true"`
+* `MF_EVAL_STABILITY_MAX_DELTA_PCT = "5.0000"`
+
 ### 3.9 Retention handles
 
 * `RETENTION_EVIDENCE_DAYS = 365`

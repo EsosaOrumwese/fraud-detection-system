@@ -35,8 +35,18 @@ on:
         required: true
         default: m11c_input_immutability_20260226T192723Z
         type: string
+      upstream_m11d_execution:
+        description: Upstream M11.D execution id (required for M11.E)
+        required: false
+        default: m11d_train_eval_execution_20260227T052312Z
+        type: string
       m11d_execution_id:
         description: Optional fixed execution id
+        required: false
+        default: ""
+        type: string
+      m11e_execution_id:
+        description: Optional fixed execution id for M11.E
         required: false
         default: ""
         type: string
@@ -89,9 +99,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ inputs.m11_subphase }}" != "D" ]]; then
+          if [[ "${{ inputs.m11_subphase }}" != "D" && "${{ inputs.m11_subphase }}" != "E" ]]; then
             echo "Unsupported m11_subphase='${{ inputs.m11_subphase }}'."
-            echo "This single-runner workflow is active for M11.D now; E..J wire into this same file next."
+            echo "Supported subphases for this workflow: D, E."
             exit 1
           fi
 
@@ -128,15 +138,24 @@ jobs:
         run: |
           set -euo pipefail
           TS="$(date -u +'%Y%m%dT%H%M%SZ')"
-          if [[ -n "${{ inputs.m11d_execution_id }}" ]]; then
-            EXEC_ID="${{ inputs.m11d_execution_id }}"
+          if [[ "${{ inputs.m11_subphase }}" == "D" ]]; then
+            if [[ -n "${{ inputs.m11d_execution_id }}" ]]; then
+              EXEC_ID="${{ inputs.m11d_execution_id }}"
+            else
+              EXEC_ID="m11d_train_eval_execution_${TS}"
+            fi
           else
-            EXEC_ID="m11d_train_eval_execution_${TS}"
+            if [[ -n "${{ inputs.m11e_execution_id }}" ]]; then
+              EXEC_ID="${{ inputs.m11e_execution_id }}"
+            else
+              EXEC_ID="m11e_eval_gate_${TS}"
+            fi
           fi
           echo "execution_id=${EXEC_ID}" >> "$GITHUB_OUTPUT"
           echo "run_dir=runs/dev_substrate/dev_full/m11/${EXEC_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Execute M11.D (managed)
+        if: ${{ inputs.m11_subphase == 'D' }}
         shell: bash
         env:
           EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
@@ -446,10 +465,474 @@ jobs:
           if not ok: raise SystemExit(1)
           PY
 
+      - name: Execute M11.E (managed)
+        if: ${{ inputs.m11_subphase == 'E' }}
+        shell: bash
+        env:
+          EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          UPSTREAM_M11D_EXEC: ${{ inputs.upstream_m11d_execution }}
+          AWS_REGION: ${{ inputs.aws_region }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import json, os, re
+          from decimal import Decimal, InvalidOperation
+          from pathlib import Path
+          from datetime import datetime, timezone
+          import boto3
+          from botocore.exceptions import BotoCoreError, ClientError
+
+          HANDLES_PATH = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
+
+          def now() -> str:
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          def parse_handles(path: Path) -> dict[str, object]:
+              out: dict[str, object] = {}
+              rx = re.compile(r"^\* `([^`=]+?)\s*=\s*([^`]+)`")
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  m = rx.match(line.strip())
+                  if not m:
+                      continue
+                  key = m.group(1).strip()
+                  raw = m.group(2).strip()
+                  if raw.startswith('"') and raw.endswith('"'):
+                      value: object = raw[1:-1]
+                  elif raw.lower() == "true":
+                      value = True
+                  elif raw.lower() == "false":
+                      value = False
+                  else:
+                      try:
+                          value = int(raw) if "." not in raw else float(raw)
+                      except ValueError:
+                          value = raw
+                  out[key] = value
+              return out
+
+          def is_placeholder(value: object) -> bool:
+              s = str(value).strip()
+              sl = s.lower()
+              if not s:
+                  return True
+              if sl in {"tbd", "todo", "none", "null", "unset"}:
+                  return True
+              if "placeholder" in sl or "to_pin" in sl:
+                  return True
+              if "<" in s and ">" in s:
+                  return True
+              return False
+
+          def as_decimal(value: object, key: str) -> Decimal:
+              try:
+                  return Decimal(str(value).strip())
+              except (InvalidOperation, ValueError) as exc:
+                  raise ValueError(f"invalid_decimal:{key}:{value}") from exc
+
+          def s3_get_json(s3: object, bucket: str, key: str) -> dict[str, object]:
+              body = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+              payload = json.loads(body)
+              if not isinstance(payload, dict):
+                  raise ValueError("json_not_object")
+              return payload
+
+          def s3_put_json(s3: object, bucket: str, key: str, payload: dict[str, object]) -> None:
+              body = (json.dumps(payload, indent=2, ensure_ascii=True) + "\n").encode("utf-8")
+              s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="application/json")
+              s3.head_object(Bucket=bucket, Key=key)
+
+          def dedupe(blockers: list[dict[str, str]]) -> list[dict[str, str]]:
+              out: list[dict[str, str]] = []
+              seen: set[tuple[str, str]] = set()
+              for b in blockers:
+                  code = str(b.get("code", "")).strip()
+                  msg = str(b.get("message", "")).strip()
+                  sig = (code, msg)
+                  if sig in seen:
+                      continue
+                  seen.add(sig)
+                  out.append({"code": code, "message": msg})
+              return out
+
+          exec_id = os.environ["EXEC_ID"].strip()
+          run_dir = Path(os.environ["RUN_DIR"].strip())
+          bucket = os.environ["EVIDENCE_BUCKET"].strip()
+          upstream = os.environ["UPSTREAM_M11D_EXEC"].strip()
+          region = os.environ.get("AWS_REGION", "eu-west-2").strip() or "eu-west-2"
+
+          if not upstream:
+              raise SystemExit("UPSTREAM_M11D_EXEC is required for M11.E.")
+
+          s3 = boto3.client("s3", region_name=region)
+          handles = parse_handles(HANDLES_PATH)
+          blockers: list[dict[str, str]] = []
+          read_errors: list[dict[str, str]] = []
+          upload_errors: list[dict[str, str]] = []
+          notes: list[str] = []
+
+          required_handle_keys = [
+              "MF_EVAL_ACCURACY_MIN",
+              "MF_EVAL_PRECISION_MIN",
+              "MF_EVAL_RECALL_MIN",
+              "MF_EVAL_BASELINE_DELTA_ACCURACY_MIN",
+              "MF_EVAL_BASELINE_DELTA_PRECISION_MIN",
+              "MF_EVAL_BASELINE_DELTA_RECALL_MIN",
+              "MF_EVAL_LEAKAGE_HARD_FAIL",
+              "MF_EVAL_STABILITY_MAX_DELTA_PCT",
+              "MF_EVAL_REPORT_PATH_PATTERN",
+              "MF_LEAKAGE_PROVENANCE_CHECK_PATH_PATTERN",
+              "LEARNING_LEAKAGE_GUARDRAIL_REPORT_PATH_PATTERN",
+          ]
+          missing_handles = [k for k in required_handle_keys if k not in handles]
+          placeholder_handles = [k for k in required_handle_keys if k in handles and is_placeholder(handles.get(k))]
+          if missing_handles or placeholder_handles:
+              blockers.append({
+                  "code": "M11-B5.1",
+                  "message": "Required M11.E handles unresolved: "
+                  + ",".join(sorted(missing_handles + placeholder_handles)),
+              })
+
+          m11d_summary_key = f"evidence/dev_full/run_control/{upstream}/m11d_execution_summary.json"
+          m11d_snapshot_key = f"evidence/dev_full/run_control/{upstream}/m11d_train_eval_execution_snapshot.json"
+          m11d_summary: dict[str, object] | None = None
+          m11d_snapshot: dict[str, object] | None = None
+          try:
+              m11d_summary = s3_get_json(s3, bucket, m11d_summary_key)
+              m11d_snapshot = s3_get_json(s3, bucket, m11d_snapshot_key)
+          except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+              read_errors.append({"surface": "m11d_summary_or_snapshot", "error": type(exc).__name__})
+              blockers.append({"code": "M11-B5.2", "message": "Authoritative M11.D evidence unreadable."})
+
+          platform_run_id = ""
+          scenario_run_id = ""
+          eval_report_key = ""
+          leakage_guardrail_key = ""
+          leakage_prov_key = ""
+          eval_report: dict[str, object] | None = None
+          leakage_guardrail: dict[str, object] | None = None
+
+          if m11d_summary and m11d_snapshot:
+              if not bool(m11d_summary.get("overall_pass")):
+                  blockers.append({"code": "M11-B5.2", "message": "M11.D summary not pass posture."})
+              if str(m11d_summary.get("next_gate", "")).strip() != "M11.E_READY":
+                  blockers.append({"code": "M11-B5.2", "message": "M11.D next_gate is not M11.E_READY."})
+              if str(m11d_snapshot.get("next_gate", "")).strip() != "M11.E_READY":
+                  blockers.append({"code": "M11-B5.2", "message": "M11.D snapshot next_gate is not M11.E_READY."})
+              platform_run_id = str(m11d_summary.get("platform_run_id", "")).strip()
+              scenario_run_id = str(m11d_summary.get("scenario_run_id", "")).strip()
+              if not platform_run_id or not scenario_run_id:
+                  blockers.append({"code": "M11-B5.2", "message": "Run scope unresolved from M11.D summary."})
+
+          if platform_run_id:
+              eval_report_pat = str(handles.get("MF_EVAL_REPORT_PATH_PATTERN", "")).strip()
+              leakage_guardrail_pat = str(handles.get("LEARNING_LEAKAGE_GUARDRAIL_REPORT_PATH_PATTERN", "")).strip()
+              leakage_prov_pat = str(handles.get("MF_LEAKAGE_PROVENANCE_CHECK_PATH_PATTERN", "")).strip()
+              eval_report_key = eval_report_pat.replace("{platform_run_id}", platform_run_id)
+              leakage_guardrail_key = leakage_guardrail_pat.replace("{platform_run_id}", platform_run_id)
+              leakage_prov_key = leakage_prov_pat.replace("{platform_run_id}", platform_run_id)
+              try:
+                  eval_report = s3_get_json(s3, bucket, eval_report_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": eval_report_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M11-B5.2", "message": "MF eval report unreadable."})
+              try:
+                  leakage_guardrail = s3_get_json(s3, bucket, leakage_guardrail_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": leakage_guardrail_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M11-B5.3", "message": "Learning leakage guardrail report unreadable."})
+
+          policy = {}
+          for k in required_handle_keys:
+              if k in handles:
+                  policy[k] = handles[k]
+
+          metric_min = {}
+          delta_min = {}
+          try:
+              metric_min = {
+                  "accuracy": as_decimal(handles.get("MF_EVAL_ACCURACY_MIN", "0"), "MF_EVAL_ACCURACY_MIN"),
+                  "precision": as_decimal(handles.get("MF_EVAL_PRECISION_MIN", "0"), "MF_EVAL_PRECISION_MIN"),
+                  "recall": as_decimal(handles.get("MF_EVAL_RECALL_MIN", "0"), "MF_EVAL_RECALL_MIN"),
+              }
+              delta_min = {
+                  "accuracy": as_decimal(handles.get("MF_EVAL_BASELINE_DELTA_ACCURACY_MIN", "0"), "MF_EVAL_BASELINE_DELTA_ACCURACY_MIN"),
+                  "precision": as_decimal(handles.get("MF_EVAL_BASELINE_DELTA_PRECISION_MIN", "0"), "MF_EVAL_BASELINE_DELTA_PRECISION_MIN"),
+                  "recall": as_decimal(handles.get("MF_EVAL_BASELINE_DELTA_RECALL_MIN", "0"), "MF_EVAL_BASELINE_DELTA_RECALL_MIN"),
+              }
+              stability_max_delta_pct = as_decimal(
+                  handles.get("MF_EVAL_STABILITY_MAX_DELTA_PCT", "0"),
+                  "MF_EVAL_STABILITY_MAX_DELTA_PCT",
+              )
+          except ValueError as exc:
+              blockers.append({"code": "M11-B5.1", "message": str(exc)})
+              metric_min = {"accuracy": Decimal("0"), "precision": Decimal("0"), "recall": Decimal("0")}
+              delta_min = {"accuracy": Decimal("0"), "precision": Decimal("0"), "recall": Decimal("0")}
+              stability_max_delta_pct = Decimal("0")
+
+          leakage_hard_fail = str(handles.get("MF_EVAL_LEAKAGE_HARD_FAIL", "true")).strip().lower() == "true"
+
+          candidate_metrics_dec = {"accuracy": Decimal("0"), "precision": Decimal("0"), "recall": Decimal("0")}
+          performance_gate_rows: list[dict[str, object]] = []
+          leakage_gate_pass = True
+          stability_gate_pass = True
+          stability_delta_pct = Decimal("0")
+
+          if eval_report:
+              metrics_obj = eval_report.get("metrics", {})
+              if not isinstance(metrics_obj, dict):
+                  blockers.append({"code": "M11-B5.2", "message": "Eval report metrics missing/non-object."})
+              else:
+                  for metric_name in ("accuracy", "precision", "recall"):
+                      if metric_name not in metrics_obj:
+                          blockers.append({"code": "M11-B5.2", "message": f"Eval report metric missing: {metric_name}."})
+                          continue
+                      try:
+                          candidate_metrics_dec[metric_name] = as_decimal(metrics_obj.get(metric_name), metric_name)
+                      except ValueError as exc:
+                          blockers.append({"code": "M11-B5.2", "message": str(exc)})
+
+          if leakage_guardrail:
+              leakage_guardrail_pass = bool(leakage_guardrail.get("overall_pass", False))
+              if leakage_hard_fail and not leakage_guardrail_pass:
+                  leakage_gate_pass = False
+                  blockers.append({"code": "M11-B5.3", "message": "Leakage guardrail failed under hard-fail policy."})
+          else:
+              if leakage_hard_fail:
+                  leakage_gate_pass = False
+                  blockers.append({"code": "M11-B5.3", "message": "Leakage hard-fail policy enabled but guardrail evidence missing."})
+              else:
+                  notes.append("Leakage hard-fail disabled; missing guardrail evidence tolerated.")
+
+          for metric_name in ("accuracy", "precision", "recall"):
+              candidate = candidate_metrics_dec.get(metric_name, Decimal("0"))
+              floor = metric_min.get(metric_name, Decimal("0"))
+              delta = candidate - floor
+              floor_ok = candidate >= floor
+              delta_ok = delta >= delta_min.get(metric_name, Decimal("0"))
+              row = {
+                  "metric": metric_name,
+                  "candidate": float(candidate),
+                  "baseline_policy_floor": float(floor),
+                  "delta_vs_floor": float(delta),
+                  "required_delta_floor": float(delta_min.get(metric_name, Decimal("0"))),
+                  "floor_ok": floor_ok,
+                  "delta_ok": delta_ok,
+                  "pass": bool(floor_ok and delta_ok),
+              }
+              performance_gate_rows.append(row)
+              if not row["pass"]:
+                  blockers.append({"code": "M11-B5.4", "message": f"Performance gate failed for {metric_name}."})
+
+          if eval_report:
+              raw_stability = eval_report.get("stability_delta_pct")
+              if raw_stability is None:
+                  stability_delta_pct = Decimal("0")
+                  notes.append("stability_delta_pct absent in eval report; using deterministic single-run delta=0 for M11.E.")
+              else:
+                  try:
+                      stability_delta_pct = as_decimal(raw_stability, "stability_delta_pct")
+                  except ValueError:
+                      stability_delta_pct = Decimal("9999")
+              stability_gate_pass = stability_delta_pct <= stability_max_delta_pct
+              if not stability_gate_pass:
+                  blockers.append({"code": "M11-B5.5", "message": "Stability tolerance exceeded."})
+
+          leakage_provenance_check = {
+              "captured_at_utc": now(),
+              "phase": "M11.E",
+              "phase_id": "P14",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "upstream_m11d_execution": upstream,
+              "source_refs": {
+                  "m11d_summary": f"s3://{bucket}/{m11d_summary_key}",
+                  "m11d_snapshot": f"s3://{bucket}/{m11d_snapshot_key}",
+                  "mf_eval_report": f"s3://{bucket}/{eval_report_key}" if eval_report_key else None,
+                  "learning_leakage_guardrail_report": f"s3://{bucket}/{leakage_guardrail_key}" if leakage_guardrail_key else None,
+              },
+              "checks": {
+                  "run_scope_present": bool(platform_run_id and scenario_run_id),
+                  "eval_report_readable": bool(eval_report is not None),
+                  "leakage_guardrail_readable": bool(leakage_guardrail is not None),
+                  "leakage_hard_fail_enabled": leakage_hard_fail,
+                  "leakage_gate_pass": leakage_gate_pass,
+              },
+              "overall_pass": len(blockers) == 0,
+          }
+
+          baseline_report = {
+              "captured_at_utc": now(),
+              "phase": "M11.E",
+              "phase_id": "P14",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "baseline_mode": "policy_floor",
+              "policy": {
+                  "metric_minima": {k: float(v) for k, v in metric_min.items()},
+                  "baseline_delta_floors": {k: float(v) for k, v in delta_min.items()},
+                  "leakage_hard_fail": leakage_hard_fail,
+                  "stability_max_delta_pct": float(stability_max_delta_pct),
+              },
+              "candidate_metrics": {k: float(v) for k, v in candidate_metrics_dec.items()},
+              "metric_comparisons": performance_gate_rows,
+              "stability": {
+                  "observed_delta_pct": float(stability_delta_pct),
+                  "max_allowed_delta_pct": float(stability_max_delta_pct),
+                  "pass": stability_gate_pass,
+              },
+              "leakage": {
+                  "hard_fail_enabled": leakage_hard_fail,
+                  "pass": leakage_gate_pass,
+              },
+              "overall_pass": len(blockers) == 0,
+          }
+
+          blockers = dedupe(blockers)
+          overall_pass = len(blockers) == 0
+          next_gate = "M11.F_READY" if overall_pass else "HOLD_REMEDIATE"
+          verdict = "ADVANCE_TO_M11_F" if overall_pass else "HOLD_REMEDIATE"
+
+          snapshot = {
+              "captured_at_utc": now(),
+              "phase": "M11.E",
+              "phase_id": "P14",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "upstream_refs": {"m11d_execution_id": upstream},
+              "resolved_policy_handles": policy,
+              "source_refs": {
+                  "m11d_summary_key": m11d_summary_key,
+                  "m11d_snapshot_key": m11d_snapshot_key,
+                  "mf_eval_report_key": eval_report_key,
+                  "learning_leakage_guardrail_key": leakage_guardrail_key,
+                  "mf_leakage_provenance_check_key": leakage_prov_key,
+              },
+              "gate_results": {
+                  "compatibility": bool(eval_report is not None),
+                  "leakage": leakage_gate_pass,
+                  "performance": all(bool(r.get("pass")) for r in performance_gate_rows),
+                  "stability": stability_gate_pass,
+              },
+              "read_errors": read_errors,
+              "upload_errors": upload_errors,
+              "notes": notes,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "next_gate": next_gate,
+          }
+          blocker_register = {
+              "captured_at_utc": now(),
+              "phase": "M11.E",
+              "phase_id": "P14",
+              "execution_id": exec_id,
+              "blocker_count": len(blockers),
+              "blockers": blockers,
+              "overall_pass": overall_pass,
+          }
+          summary = {
+              "captured_at_utc": now(),
+              "phase": "M11.E",
+              "phase_id": "P14",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "upstream_refs": {"m11d_execution_id": upstream},
+              "artifact_keys": {
+                  "m11_eval_vs_baseline_report": f"evidence/dev_full/run_control/{exec_id}/m11_eval_vs_baseline_report.json",
+                  "m11e_eval_gate_snapshot": f"evidence/dev_full/run_control/{exec_id}/m11e_eval_gate_snapshot.json",
+                  "m11e_blocker_register": f"evidence/dev_full/run_control/{exec_id}/m11e_blocker_register.json",
+                  "m11e_execution_summary": f"evidence/dev_full/run_control/{exec_id}/m11e_execution_summary.json",
+                  "mf_leakage_provenance_check": leakage_prov_key,
+              },
+          }
+
+          run_dir.mkdir(parents=True, exist_ok=True)
+          artifacts = {
+              "m11_eval_vs_baseline_report.json": baseline_report,
+              "m11_leakage_provenance_check.json": leakage_provenance_check,
+              "m11e_eval_gate_snapshot.json": snapshot,
+              "m11e_blocker_register.json": blocker_register,
+              "m11e_execution_summary.json": summary,
+          }
+          for fname, payload in artifacts.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          run_control_prefix = f"evidence/dev_full/run_control/{exec_id}/"
+          for fname, payload in artifacts.items():
+              try:
+                  s3_put_json(s3, bucket, run_control_prefix + fname, payload)
+              except (BotoCoreError, ClientError) as exc:
+                  upload_errors.append({"surface": run_control_prefix + fname, "error": type(exc).__name__})
+                  blockers.append({"code": "M11-B5.6", "message": f"Failed to upload {fname}."})
+
+          if leakage_prov_key:
+              try:
+                  s3_put_json(s3, bucket, leakage_prov_key.lstrip("/"), leakage_provenance_check)
+              except (BotoCoreError, ClientError) as exc:
+                  upload_errors.append({"surface": leakage_prov_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M11-B5.6", "message": "Failed to publish leakage provenance check."})
+
+          blockers = dedupe(blockers)
+          overall_pass = len(blockers) == 0
+          next_gate = "M11.F_READY" if overall_pass else "HOLD_REMEDIATE"
+          verdict = "ADVANCE_TO_M11_F" if overall_pass else "HOLD_REMEDIATE"
+          snapshot["upload_errors"] = upload_errors
+          snapshot["overall_pass"] = overall_pass
+          snapshot["blocker_count"] = len(blockers)
+          snapshot["next_gate"] = next_gate
+          blocker_register["blocker_count"] = len(blockers)
+          blocker_register["blockers"] = blockers
+          blocker_register["overall_pass"] = overall_pass
+          summary["overall_pass"] = overall_pass
+          summary["blocker_count"] = len(blockers)
+          summary["verdict"] = verdict
+          summary["next_gate"] = next_gate
+
+          # Rewrite local and durable summaries with final status after upload attempts.
+          for fname, payload in {
+              "m11e_eval_gate_snapshot.json": snapshot,
+              "m11e_blocker_register.json": blocker_register,
+              "m11e_execution_summary.json": summary,
+          }.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+              try:
+                  s3_put_json(s3, bucket, run_control_prefix + fname, payload)
+              except Exception:
+                  pass
+
+          print(
+              json.dumps(
+                  {
+                      "execution_id": exec_id,
+                      "upstream_m11d_execution": upstream,
+                      "overall_pass": overall_pass,
+                      "blocker_count": len(blockers),
+                      "next_gate": next_gate,
+                      "verdict": verdict,
+                      "evidence_prefix": f"s3://{bucket}/{run_control_prefix}",
+                  },
+                  indent=2,
+                  ensure_ascii=True,
+              )
+          )
+          if not overall_pass:
+              raise SystemExit(1)
+          PY
+
       - name: Upload local run artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dev-full-m11-d-${{ steps.run_meta.outputs.execution_id }}
+          name: dev-full-m11-${{ inputs.m11_subphase }}-${{ steps.run_meta.outputs.execution_id }}
           path: ${{ steps.run_meta.outputs.run_dir }}
           if-no-files-found: warn
