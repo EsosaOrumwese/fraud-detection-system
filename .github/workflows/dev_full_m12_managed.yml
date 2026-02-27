@@ -1358,6 +1358,7 @@ jobs:
           EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
           AWS_REGION: ${{ inputs.aws_region }}
           UPSTREAM_M12C_EXEC: ${{ inputs.upstream_m12c_execution }}
+          M12D_PROBE_IMAGE_URI: "230372904534.dkr.ecr.eu-west-2.amazonaws.com/fraud-platform-dev-full@sha256:49eb6cb0c5e33061fae4d1aaceeac2e44600adb5c4250436be9ac8395ed29cb2"
         run: |
           set -euo pipefail
           mkdir -p "${RUN_DIR}"
@@ -1691,6 +1692,7 @@ jobs:
               secret_yaml = sh(["kubectl", "-n", eks_namespace, "create", "secret", "generic", secret_name, "--from-literal", f"MSK_OAUTH_TOKEN={token}", "--dry-run=client", "-o", "yaml"], check=True).stdout
               subprocess.run(["kubectl", "apply", "-f", "-"], input=secret_yaml, text=True, check=True, capture_output=True)
 
+              probe_image = os.environ.get("M12D_PROBE_IMAGE_URI", "").strip() or "python:3.12-slim"
               job_yaml = (
                   "apiVersion: batch/v1\n"
                   "kind: Job\n"
@@ -1705,12 +1707,11 @@ jobs:
                   "      restartPolicy: Never\n"
                   "      containers:\n"
                   "        - name: probe\n"
-                  "          image: python:3.12-slim\n"
+                  f"          image: {probe_image}\n"
                   "          command: [\"/bin/bash\", \"-lc\"]\n"
                   "          args:\n"
                   "            - |\n"
                   "              set -euo pipefail\n"
-                  "              python -m pip install --quiet kafka-python==2.0.2\n"
                   "              python /work/probe.py\n"
                   "          env:\n"
                   "            - name: KAFKA_TOPIC\n"
