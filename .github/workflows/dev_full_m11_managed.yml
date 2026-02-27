@@ -1217,17 +1217,47 @@ jobs:
                       else:
                           raise
                   experiment = exp_resp.get("experiment")
-                  if not isinstance(experiment, dict):
-                      create_resp = dbx_mlflow_json(
+                  if isinstance(experiment, dict):
+                      experiment_id = str(experiment.get("experiment_id", "")).strip()
+                  if not experiment_id:
+                      search_resp = dbx_mlflow_json(
                           base_url=workspace_url,
                           token=dbx_token,
                           method="POST",
-                          path="/api/2.0/mlflow/experiments/create",
-                          payload={"name": mlflow_experiment_path},
+                          path="/api/2.0/mlflow/experiments/search",
+                          payload={"max_results": 200},
                       )
-                      experiment_id = str(create_resp.get("experiment_id", "")).strip()
-                  else:
-                      experiment_id = str(experiment.get("experiment_id", "")).strip()
+                      for row in search_resp.get("experiments", []):
+                          if not isinstance(row, dict):
+                              continue
+                          if str(row.get("name", "")).strip() == mlflow_experiment_path:
+                              experiment_id = str(row.get("experiment_id", "")).strip()
+                              break
+                  if not experiment_id:
+                      try:
+                          create_resp = dbx_mlflow_json(
+                              base_url=workspace_url,
+                              token=dbx_token,
+                              method="POST",
+                              path="/api/2.0/mlflow/experiments/create",
+                              payload={"name": mlflow_experiment_path},
+                          )
+                          experiment_id = str(create_resp.get("experiment_id", "")).strip()
+                      except Exception:
+                          # Resolve RESOURCE_ALREADY_EXISTS race/drift by re-searching.
+                          search_resp = dbx_mlflow_json(
+                              base_url=workspace_url,
+                              token=dbx_token,
+                              method="POST",
+                              path="/api/2.0/mlflow/experiments/search",
+                              payload={"max_results": 200},
+                          )
+                          for row in search_resp.get("experiments", []):
+                              if not isinstance(row, dict):
+                                  continue
+                              if str(row.get("name", "")).strip() == mlflow_experiment_path:
+                                  experiment_id = str(row.get("experiment_id", "")).strip()
+                                  break
                   if not experiment_id:
                       raise RuntimeError("experiment_id_missing")
 
