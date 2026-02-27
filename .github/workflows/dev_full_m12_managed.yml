@@ -3047,6 +3047,12 @@ jobs:
           candidate_bundle_ref = ""
           candidate_bundle_key = ""
           m12d_snapshot: dict[str, Any] | None = None
+          m12d_summary: dict[str, Any] | None = None
+          m12d_lifecycle_event: dict[str, Any] | None = None
+          m12d_publication_receipt: dict[str, Any] | None = None
+          m12d_summary_key = ""
+          m12d_lifecycle_key = ""
+          m12d_publication_receipt_key = ""
           candidate_bundle: dict[str, Any] | None = None
           promotion_receipt: dict[str, Any] | None = None
           rollback_report: dict[str, Any] | None = None
@@ -3070,10 +3076,13 @@ jobs:
               upstream_refs = m12e_snapshot.get("upstream_refs") if isinstance(m12e_snapshot.get("upstream_refs"), dict) else {}
               target_refs = m12e_snapshot.get("target_refs") if isinstance(m12e_snapshot.get("target_refs"), dict) else {}
               m12d_execution_id = str(upstream_refs.get("m12d_execution_id", "")).strip()
+              m12d_summary_key = str(upstream_refs.get("m12d_summary_key", "")).strip()
               m12d_snapshot_key = str(upstream_refs.get("m12d_snapshot_key", "")).strip()
               promotion_receipt_key = str(target_refs.get("promotion_receipt_key", "")).strip()
               rollback_drill_key = str(target_refs.get("mpr_rollback_drill_key", "")).strip()
               candidate_bundle_ref = str(target_refs.get("candidate_bundle_ref", "")).strip()
+              if not m12d_summary_key and m12d_execution_id:
+                  m12d_summary_key = f"evidence/dev_full/run_control/{m12d_execution_id}/m12d_execution_summary.json"
               if not promotion_receipt_key and platform_run_id:
                   promotion_receipt_key = str(handles.get("MPR_PROMOTION_RECEIPT_PATH_PATTERN", "")).replace("{platform_run_id}", platform_run_id)
               if not rollback_drill_key and platform_run_id:
@@ -3090,6 +3099,25 @@ jobs:
                   except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
                       read_errors.append({"surface": m12d_snapshot_key, "error": type(exc).__name__})
                       blockers.append({"code": "M12-B6", "message": "M12.D promotion snapshot unreadable."})
+              if not m12d_summary_key:
+                  blockers.append({"code": "M12-B6", "message": "M12.D summary key unresolved for ACTIVE checks."})
+              else:
+                  try:
+                      m12d_summary = s3_get_json(s3, bucket, m12d_summary_key)
+                      artifact_keys = m12d_summary.get("artifact_keys") if isinstance(m12d_summary.get("artifact_keys"), dict) else {}
+                      m12d_lifecycle_key = str(artifact_keys.get("m12d_registry_lifecycle_event", "")).strip()
+                      m12d_publication_receipt_key = str(artifact_keys.get("m12d_learning_registry_publication_receipt", "")).strip()
+                      if not m12d_lifecycle_key and m12d_execution_id:
+                          m12d_lifecycle_key = f"evidence/dev_full/run_control/{m12d_execution_id}/m12d_registry_lifecycle_event.json"
+                      if not m12d_publication_receipt_key and m12d_execution_id:
+                          m12d_publication_receipt_key = f"evidence/dev_full/run_control/{m12d_execution_id}/m12d_learning_registry_publication_receipt.json"
+                      if m12d_lifecycle_key:
+                          m12d_lifecycle_event = s3_get_json(s3, bucket, m12d_lifecycle_key)
+                      if m12d_publication_receipt_key:
+                          m12d_publication_receipt = s3_get_json(s3, bucket, m12d_publication_receipt_key)
+                  except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                      read_errors.append({"surface": m12d_summary_key, "error": type(exc).__name__})
+                      blockers.append({"code": "M12-B6", "message": "M12.D summary/lifecycle/publication evidence unreadable."})
 
               for key_name, key_value, msg in [
                   ("promotion_receipt_key", promotion_receipt_key, "Promotion receipt key unresolved."),
@@ -3158,17 +3186,32 @@ jobs:
               bo = rollback_report.get("bounded_restore_objective") if isinstance(rollback_report.get("bounded_restore_objective"), dict) else {}
               rollback_status_ok = rollback_status_ok and bool(bo.get("overall_pass"))
 
-          if m12d_snapshot:
-              promotion = m12d_snapshot.get("promotion") if isinstance(m12d_snapshot.get("promotion"), dict) else {}
-              promoted_ref_from_m12d = str(promotion.get("candidate_bundle_ref", "")).strip()
-              promoted_status_ok = str(promotion.get("bundle_status_after", "")).strip() == "PROMOTED_ACTIVE"
-              reg = m12d_snapshot.get("registry_event") if isinstance(m12d_snapshot.get("registry_event"), dict) else {}
-              scope = reg.get("scope_key") if isinstance(reg.get("scope_key"), dict) else {}
+          if m12d_lifecycle_event:
+              bundle_ref = m12d_lifecycle_event.get("bundle_ref") if isinstance(m12d_lifecycle_event.get("bundle_ref"), dict) else {}
+              promoted_ref_from_m12d = str(bundle_ref.get("registry_ref", "")).strip()
+              promoted_status_ok = str(m12d_lifecycle_event.get("event_type", "")).strip() == "BUNDLE_PROMOTED_ACTIVE"
+              scope = m12d_lifecycle_event.get("scope_key") if isinstance(m12d_lifecycle_event.get("scope_key"), dict) else {}
               tenant_scope = str(scope.get("tenant_id", "")).strip()
               bundle_slot = str(scope.get("bundle_slot", "")).strip()
-              registry_event_type = str(reg.get("event_type", "")).strip()
-              publication = m12d_snapshot.get("publication") if isinstance(m12d_snapshot.get("publication"), dict) else {}
-              topic_match = str(publication.get("topic", "")).strip() == str(handles.get("FP_BUS_LEARNING_REGISTRY_EVENTS_V1", "")).strip()
+              registry_event_type = str(m12d_lifecycle_event.get("event_type", "")).strip()
+
+          if m12d_publication_receipt:
+              topic_match = str(m12d_publication_receipt.get("topic", "")).strip() == str(handles.get("FP_BUS_LEARNING_REGISTRY_EVENTS_V1", "")).strip()
+
+          if m12d_snapshot:
+              reg = m12d_snapshot.get("registry_event") if isinstance(m12d_snapshot.get("registry_event"), dict) else {}
+              scope = reg.get("scope_key") if isinstance(reg.get("scope_key"), dict) else {}
+              if not tenant_scope:
+                  tenant_scope = str(scope.get("tenant_id", "")).strip()
+              if not bundle_slot:
+                  bundle_slot = str(scope.get("bundle_slot", "")).strip()
+              if not registry_event_type:
+                  registry_event_type = str(reg.get("event_type", "")).strip()
+              if not promoted_ref_from_m12d:
+                  promoted_ref_from_m12d = str(m12d_snapshot.get("candidate_bundle_ref", "")).strip()
+              publication_checks = m12d_snapshot.get("publication_checks") if isinstance(m12d_snapshot.get("publication_checks"), dict) else {}
+              if not topic_match:
+                  topic_match = str(publication_checks.get("topic_handle", "")).strip() == str(handles.get("FP_BUS_LEARNING_REGISTRY_EVENTS_V1", "")).strip()
 
           if candidate_bundle:
               run_scope_match = (
@@ -3241,6 +3284,9 @@ jobs:
                   "m12e_execution_id": upstream_m12e,
                   "m12e_summary_key": m12e_summary_key,
                   "m12e_snapshot_key": m12e_snapshot_key,
+                  "m12d_summary_key": m12d_summary_key,
+                  "m12d_lifecycle_key": m12d_lifecycle_key,
+                  "m12d_publication_receipt_key": m12d_publication_receipt_key,
                   "promotion_receipt_key": promotion_receipt_key,
                   "rollback_drill_key": rollback_drill_key,
                   "candidate_bundle_ref": candidate_bundle_ref,
