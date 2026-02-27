@@ -1381,13 +1381,13 @@ M11 sub-phase plan:
 10. `M11.J` M11 closure sync + M12 handoff.
 
 DoD anchors:
-- [ ] MF eval report committed.
-- [ ] eval-vs-baseline acceptance report committed and pass.
-- [ ] candidate bundle receipt committed.
-- [ ] reproducibility check report committed and pass.
-- [ ] rollback/safe-disable evidence committed.
-- [ ] model-operability report committed and pass.
-- [ ] leakage/provenance checks are committed and green.
+- [x] MF eval report committed.
+- [x] eval-vs-baseline acceptance report committed and pass.
+- [x] candidate bundle receipt committed.
+- [x] reproducibility check report committed and pass.
+- [x] rollback/safe-disable evidence committed.
+- [x] model-operability report committed and pass.
+- [x] leakage/provenance checks are committed and green.
 - [ ] deterministic `P14` verdict and `m12_handoff_pack.json` are committed.
 - [ ] M11 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
@@ -1483,6 +1483,16 @@ M11 progression snapshot:
     - `overall_pass=true`, no failed checks,
   - package-group closure:
     - `fraud-platform-dev-full-models` materialized with status `Completed`.
+- M11.H safe-disable/rollback lane executed and closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22479412631`,
+  - execution id: `m11h_safe_disable_rollback_20260227T085223Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M11.I_READY`, `verdict=ADVANCE_TO_M11_I`,
+  - reproducibility check:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11h_safe_disable_rollback_20260227T085223Z/m11_reproducibility_check.json` (`overall_pass=true`),
+  - safe-disable snapshot:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11h_safe_disable_rollback_20260227T085223Z/m11h_safe_disable_rollback_snapshot.json`,
+  - rollback publication:
+    - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/rollback_drill_report.json`.
 
 ## M12 - MPR Promotion/Rollback Closure
 Status: `NOT_STARTED`
@@ -1491,7 +1501,7 @@ Objective:
 - close `P15` promotion corridor with compatibility-safe activation and non-optional rollback drill proof.
 
 Entry gate:
-- M11 is `NOT_DONE` (`M11.F` strict revalidation pending closure).
+- M11 is `NOT_DONE` (`M11.I` and `M11.J` pending closure).
 
 Planned lanes:
 - authority + handle closure for promotion/registry surfaces.
@@ -1565,4 +1575,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M11.H` (safe-disable/rollback closure) using M11.G pass evidence `m11g_candidate_bundle_20260227T081200Z`.
+- Expand and execute `M11.I` (P14 gate rollup + M12 handoff) using M11.H pass evidence `m11h_safe_disable_rollback_20260227T085223Z`.

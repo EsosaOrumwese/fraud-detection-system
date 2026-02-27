@@ -15489,3 +15489,81 @@ ext_gate=M11.B_READY and locker_count=0.
 7. Decision outcome:
    - M11.G is closed green with production-shaped candidate publication and operability evidence,
    - advance lane moved to M11.H.
+
+## Entry: 2026-02-27 08:16:00 +00:00 - M11.H planning closure before implementation
+1. Scope: execute `M11.H` immediately after M11.G green closure `m11g_candidate_bundle_20260227T081200Z`.
+2. Entry gate contract (fail-closed):
+   - M11.G summary must be pass (`overall_pass=true`, `next_gate=M11.H_READY`, `blocker_count=0`),
+   - candidate bundle artifact from M11.G must be readable.
+3. Planned M11.H outputs:
+   - `m11_reproducibility_check.json`,
+   - `m11h_safe_disable_rollback_snapshot.json`,
+   - `m11h_blocker_register.json`,
+   - `m11h_execution_summary.json`,
+   - run-scoped rollback drill publication to `MPR_ROLLBACK_DRILL_PATH_PATTERN`.
+4. Planned safe-disable/rollback checks:
+   - validate rollback refs are readable (`learning/ofs/rollback_recipe.json`, `learning/ofs/rollback_drill_report.json`),
+   - validate serving/model handles used by candidate for safe-disable posture,
+   - publish explicit rollback drill payload for MPR path with run pins and references.
+5. Planned bounded reproducibility check:
+   - read candidate bundle twice and compare deterministic SHA256,
+   - verify run-scope + lineage refs are stable and non-empty,
+   - require check report pass before `M11.I_READY`.
+6. Blocker mapping for implementation (`M11-B8.*`):
+   - B8.1 handle closure unresolved,
+   - B8.2 upstream M11.G evidence unreadable/inconsistent,
+   - B8.3 rollback ref/readability failure,
+   - B8.4 reproducibility check failure,
+   - B8.5 run-control or rollback publication failure.
+7. Runtime budget target: <= 8 minutes (bounded checks only; no heavy compute).
+
+## Entry: 2026-02-27 08:50:54 +00:00 - M11.H managed workflow implementation wiring
+1. Expanded `.github/workflows/dev_full_m11_managed.yml` to fully implement subphase `H` (safe-disable/rollback closure) without local compute.
+2. Input/runtime wiring completed:
+   - added upstream handle input `upstream_m11g_execution`,
+   - added optional fixed execution id `m11h_execution_id`,
+   - execution-id router now emits `m11h_safe_disable_rollback_<ts>` default.
+3. Implemented new managed step `Execute M11.H (managed)` with fail-closed checks and blocker taxonomy `M11-B8.1..B8.5`:
+   - validates required handles (`MPR_ROLLBACK_DRILL_PATH_PATTERN`, `MF_CANDIDATE_BUNDLE_PATH_PATTERN`, `SM_ENDPOINT_NAME`, `SM_SERVING_MODE`),
+   - enforces M11.G pass-entry contract (`overall_pass=true`, `blocker_count=0`, `next_gate=M11.H_READY`),
+   - reads candidate bundle twice and verifies deterministic SHA256 stability,
+   - validates run-scope + lineage continuity,
+   - verifies OFS rollback refs are readable,
+   - publishes run-scoped MPR rollback drill artifact.
+4. M11.H artifact contract implemented:
+   - `m11_reproducibility_check.json`,
+   - `m11h_safe_disable_rollback_snapshot.json`,
+   - `m11h_blocker_register.json`,
+   - `m11h_execution_summary.json`,
+   - run-scoped rollback drill publication at `MPR_ROLLBACK_DRILL_PATH_PATTERN`.
+5. Next execution action pinned: push workflow-only diff, dispatch `m11_subphase=H`, then clear blockers fail-closed until `M11.I_READY`.
+
+## Entry: 2026-02-27 08:55:33 +00:00 - M11.H managed execution and closure
+1. Authoritative run executed on managed lane:
+   - workflow: `dev-full-m11-managed` (`m11_subphase=H`),
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22479412631`,
+   - head sha: `90937361`,
+   - execution id: `m11h_safe_disable_rollback_20260227T085223Z`.
+2. Entry contract passed from upstream `M11.G`:
+   - `upstream_m11g_execution=m11g_candidate_bundle_20260227T081200Z`,
+   - summary/operability pass posture remained valid,
+   - candidate bundle key resolved to `evidence/runs/platform_20260223T184232Z/learning/mf/candidate_bundle.json`.
+3. M11.H checks executed and passed:
+   - handle closure checks for rollback + serving handles,
+   - candidate bundle reproducibility (double-read SHA256 stable),
+   - run-scope continuity (`platform_run_id`, `scenario_run_id`),
+   - lineage continuity (`m11d/m11e/m11f/mlflow_run_id` present),
+   - OFS rollback refs readable (`learning/ofs/rollback_recipe.json`, `learning/ofs/rollback_drill_report.json`).
+4. Publication closure achieved:
+   - run-scoped rollback drill published via `MPR_ROLLBACK_DRILL_PATH_PATTERN`:
+     - `evidence/runs/platform_20260223T184232Z/learning/mpr/rollback_drill_report.json`.
+   - run-control artifacts published:
+     - `m11_reproducibility_check.json`,
+     - `m11h_safe_disable_rollback_snapshot.json`,
+     - `m11h_blocker_register.json`,
+     - `m11h_execution_summary.json`.
+5. Final gate verdict:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M11.I_READY`, `verdict=ADVANCE_TO_M11_I`.
+6. Post-closure docs alignment:
+   - deep plan (`platform.M11.build_plan.md`) updated with M11.H closure evidence and DoD checks,
+   - main plan (`platform.build_plan.md`) updated with M11.H progression snapshot and next-action advancement to M11.I.

@@ -745,20 +745,66 @@ Closure evidence:
 Goal:
 1. Prove safe-disable and rollback posture for the candidate bundle.
 
-Execution notes:
-1. Emit rollback path references and safe-disable controls.
-2. Validate rollback artifact readability.
-3. Execute bounded reproducibility check and emit `m11_reproducibility_check.json`.
-4. Emit `m11h_safe_disable_rollback_snapshot.json`.
+Execution lanes (sequential, fail-closed):
+1. `M11.H.A` handle + entry closure:
+- required handles:
+  - `MPR_ROLLBACK_DRILL_PATH_PATTERN`,
+  - `MF_CANDIDATE_BUNDLE_PATH_PATTERN`,
+  - `SM_ENDPOINT_NAME`,
+  - `SM_SERVING_MODE`.
+- entry evidence must be M11.G pass:
+  - `overall_pass=true`,
+  - `next_gate=M11.H_READY`,
+  - `blocker_count=0`.
+2. `M11.H.B` upstream integrity + rollback refs:
+- load M11.G summary/snapshot + operability report and require pass posture,
+- resolve candidate bundle key and verify candidate artifact readability,
+- verify rollback refs readable:
+  - `evidence/runs/{platform_run_id}/learning/ofs/rollback_recipe.json`,
+  - `evidence/runs/{platform_run_id}/learning/ofs/rollback_drill_report.json`.
+3. `M11.H.C` bounded reproducibility check:
+- read candidate bundle twice and compare deterministic SHA256 hash,
+- verify run-scope and lineage refs remain stable/non-empty,
+- emit `m11_reproducibility_check.json` with explicit pass/fail checks.
+4. `M11.H.D` safe-disable/rollback publication:
+- publish run-scoped rollback drill artifact to `MPR_ROLLBACK_DRILL_PATH_PATTERN`,
+- publish `m11h_safe_disable_rollback_snapshot.json` with safe-disable controls and source refs.
+5. `M11.H.E` run-control closure:
+- publish `m11h_blocker_register.json` + `m11h_execution_summary.json`,
+- assert `M11.I_READY` only with `overall_pass=true` and blocker count `0`.
+
+Blocker semantics (`M11-B8` subcodes):
+1. `M11-B8.1`: handle closure unresolved.
+2. `M11-B8.2`: M11.G upstream evidence unreadable/inconsistent.
+3. `M11-B8.3`: rollback reference/readability failure.
+4. `M11-B8.4`: reproducibility check failed.
+5. `M11-B8.5`: rollback/run-control artifact publication failure.
 
 Runtime budget:
 1. Target <= 8 minutes.
+2. `M11.H.A/B` <= 3 minutes.
+3. `M11.H.C/D/E` <= 5 minutes.
 
 DoD:
-- [ ] safe-disable/rollback closure passes with no open `M11-B8`.
-- [ ] reproducibility check report is published and pass posture.
-- [ ] snapshot published local + durable.
-- [ ] `M11.I_READY` asserted.
+- [x] safe-disable/rollback closure passes with no open `M11-B8`.
+- [x] reproducibility check report is published and pass posture.
+- [x] snapshot published local + durable.
+- [x] `M11.I_READY` asserted.
+
+Closure evidence:
+1. Managed run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22479412631`
+2. Execution id: `m11h_safe_disable_rollback_20260227T085223Z`
+3. Summary: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11h_safe_disable_rollback_20260227T085223Z/m11h_execution_summary.json`
+4. Snapshot: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11h_safe_disable_rollback_20260227T085223Z/m11h_safe_disable_rollback_snapshot.json`
+5. Blockers: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11h_safe_disable_rollback_20260227T085223Z/m11h_blocker_register.json` (`blocker_count=0`)
+6. Reproducibility report:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11h_safe_disable_rollback_20260227T085223Z/m11_reproducibility_check.json` (`overall_pass=true`)
+7. Run-scoped rollback publication:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/rollback_drill_report.json`
+8. Key closure proof:
+   - `overall_pass=true`,
+   - `next_gate=M11.I_READY`,
+   - `verdict=ADVANCE_TO_M11_I`.
 
 ### M11.I - P14 Gate Rollup + M12 Handoff
 Goal:
@@ -821,7 +867,7 @@ DoD:
 - [x] `M11.E` complete
 - [x] `M11.F` complete
 - [x] `M11.G` complete
-- [ ] `M11.H` complete
+- [x] `M11.H` complete
 - [ ] `M11.I` complete
 - [ ] `M11.J` complete
 - [ ] no unresolved `M11-B*` blocker remains
@@ -836,4 +882,5 @@ DoD:
 4. `M11.C` is complete and green on managed lane.
 5. `M11.D` is complete and green on strict managed lane with advisory-free transform evidence.
 6. `M11.G` is complete and green on managed lane with operability pass and candidate bundle publication.
-7. Next actionable lane is `M11.H` (safe-disable/rollback closure).
+7. `M11.H` is complete and green on managed lane with safe-disable/rollback closure.
+8. Next actionable lane is `M11.I` (P14 gate rollup + M12 handoff).
