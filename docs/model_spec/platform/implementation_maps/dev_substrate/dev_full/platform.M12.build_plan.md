@@ -181,9 +181,9 @@ Runtime budget:
 1. Target <= 5 minutes.
 
 DoD:
-1. required handle matrix explicit and complete.
-2. unresolved handles are blocker-marked.
-3. `m12a_handle_closure_snapshot.json` committed locally and durably.
+- [x] required handle matrix explicit and complete.
+- [x] unresolved handles are blocker-marked.
+- [x] `m12a_handle_closure_snapshot.json` committed locally and durably.
 
 Closure evidence (managed):
 1. Run:
@@ -220,8 +220,8 @@ Runtime budget:
 1. Target <= 6 minutes.
 
 DoD:
-1. eligibility checks pass.
-2. `m12b_candidate_eligibility_snapshot.json` committed locally and durably.
+- [x] eligibility checks pass.
+- [x] `m12b_candidate_eligibility_snapshot.json` committed locally and durably.
 
 Closure evidence (managed):
 1. Run:
@@ -257,8 +257,8 @@ Runtime budget:
 1. Target <= 6 minutes.
 
 DoD:
-1. compatibility prechecks pass.
-2. `m12c_compatibility_precheck_snapshot.json` committed locally and durably.
+- [x] compatibility prechecks pass.
+- [x] `m12c_compatibility_precheck_snapshot.json` committed locally and durably.
 
 Closure evidence (managed):
 1. Run:
@@ -295,9 +295,9 @@ Runtime budget:
 1. Target <= 8 minutes.
 
 DoD:
-1. promotion receipt exists and is readable.
-2. broker transport proof is committed and readable (`m12d_broker_transport_proof.json`).
-3. `m12d_promotion_commit_snapshot.json` committed locally and durably.
+- [x] promotion receipt exists and is readable.
+- [x] broker transport proof is committed and readable (`m12d_broker_transport_proof.json`).
+- [x] `m12d_promotion_commit_snapshot.json` committed locally and durably.
 
 Closure evidence (managed, pre-strict-repin run):
 1. Run:
@@ -356,9 +356,9 @@ Runtime budget:
 1. Target <= 12 minutes.
 
 DoD:
-1. rollback drill passes.
-2. bounded restore objective evidence is present.
-3. `m12e_rollback_drill_snapshot.json` committed locally and durably.
+- [x] rollback drill passes.
+- [x] bounded restore objective evidence is present.
+- [x] `m12e_rollback_drill_snapshot.json` committed locally and durably.
 
 Closure evidence (2026-02-27):
 1. Run:
@@ -397,9 +397,9 @@ Runtime budget:
 1. Target <= 8 minutes.
 
 DoD:
-1. ACTIVE resolution checks pass.
-2. `m12_post_promotion_observation_snapshot.json` committed and pass posture.
-3. `m12f_active_resolution_snapshot.json` committed locally and durably.
+- [ ] ACTIVE resolution checks pass.
+- [ ] `m12_post_promotion_observation_snapshot.json` committed and pass posture.
+- [ ] `m12f_active_resolution_snapshot.json` committed locally and durably.
 
 ### M12.G - Governance Append Closure
 Goal:
@@ -420,9 +420,9 @@ Runtime budget:
 1. Target <= 8 minutes.
 
 DoD:
-1. governance append checks pass.
-2. `m12_operability_acceptance_report.json` is published and pass posture.
-3. `m12g_governance_append_snapshot.json` committed locally and durably.
+- [ ] governance append checks pass.
+- [ ] `m12_operability_acceptance_report.json` is published and pass posture.
+- [ ] `m12g_governance_append_snapshot.json` committed locally and durably.
 
 ### M12.H - P15 Gate Rollup + M13 Handoff
 Goal:
@@ -444,9 +444,9 @@ Runtime budget:
 1. Target <= 7 minutes.
 
 DoD:
-1. `m12h_p15_gate_verdict.json` emitted.
-2. PASS posture requires `ADVANCE_TO_P16` and `next_gate=M13_READY`.
-3. `m13_handoff_pack.json` committed locally and durably.
+- [ ] `m12h_p15_gate_verdict.json` emitted.
+- [ ] PASS posture requires `ADVANCE_TO_P16` and `next_gate=M13_READY`.
+- [ ] `m13_handoff_pack.json` committed locally and durably.
 
 ### M12.I - Phase Budget + Cost-Outcome Closure
 Goal:
@@ -467,8 +467,8 @@ Runtime budget:
 1. Target <= 6 minutes.
 
 DoD:
-1. budget and receipt committed locally and durably.
-2. artifacts are coherent with emitted outcomes.
+- [ ] budget and receipt committed locally and durably.
+- [ ] artifacts are coherent with emitted outcomes.
 
 ### M12.J - M12 Closure Sync
 Goal:
@@ -490,9 +490,9 @@ Runtime budget:
 1. Target <= 6 minutes.
 
 DoD:
-1. `m12_execution_summary.json` committed locally and durably.
-2. `m12_blocker_register.json` committed locally and durably.
-3. M12 closure sync passes with no unresolved blocker.
+- [ ] `m12_execution_summary.json` committed locally and durably.
+- [ ] `m12_blocker_register.json` committed locally and durably.
+- [ ] M12 closure sync passes with no unresolved blocker.
 
 ## 7) Blocker Taxonomy (Fail-Closed)
 1. `M12-B0`: managed M12 execution lane not materialized.

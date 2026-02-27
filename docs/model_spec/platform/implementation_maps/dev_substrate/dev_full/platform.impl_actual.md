@@ -16284,3 +16284,12 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 6. Progression impact:
    - `M12-B5` closed,
    - M12 progression advanced to `M12.F`.
+
+## Entry: 2026-02-27 17:06:12 +00:00 - M12 DoD checkbox normalization
+1. User identified visibility gap: M12 subphase DoD sections were narrative-only and not checkbox-auditable.
+2. Applied doc-only remediation in platform.M12.build_plan.md:
+   - converted DoD lines for M12.A..M12.J into explicit checkbox format.
+   - marked completed lanes A-E as checked.
+   - left pending lanes F-J unchecked.
+3. Intent: make subphase-local DoD state explicit without relying only on global completion checklist.
+4. No runtime/workflow behavior changed; this is documentation clarity and auditability hardening only.
