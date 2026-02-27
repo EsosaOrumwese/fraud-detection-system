@@ -1578,109 +1578,137 @@ jobs:
               secret_name = f"m12d-transport-token-{suffix}"
               job_name = f"m12d-transport-{suffix}"
 
-              probe_script = (
-                  "import json\n"
-                  "import os\n"
-                  "import time\n"
-                  "import hashlib\n"
-                  "from kafka import KafkaProducer, KafkaConsumer, TopicPartition\n"
-                  "from kafka.sasl.oauth import AbstractTokenProvider\n"
-                  "\n"
-                  "class StaticTokenProvider(AbstractTokenProvider):\n"
-                  "    def token(self):\n"
-                  "        return os.environ['MSK_OAUTH_TOKEN']\n"
-                  "\n"
-                  "def main():\n"
-                  "    event = json.loads(open('/work/event.json', 'r', encoding='utf-8').read())\n"
-                  "    topic = os.environ['KAFKA_TOPIC']\n"
-                  "    bootstrap = os.environ['MSK_BOOTSTRAP_BROKERS']\n"
-                  "    exec_id = os.environ['M12D_EXEC_ID']\n"
-                  "    key_text = str(event.get('registry_event_id', '')).strip()\n"
-                  "    payload_bytes = json.dumps(event, sort_keys=True, ensure_ascii=True).encode('utf-8')\n"
-                  "    payload_hash = hashlib.sha256(payload_bytes).hexdigest()\n"
-                  "    token_provider = StaticTokenProvider()\n"
-                  "\n"
-                  "    producer = KafkaProducer(\n"
-                  "        bootstrap_servers=[bootstrap],\n"
-                  "        security_protocol='SASL_SSL',\n"
-                  "        sasl_mechanism='OAUTHBEARER',\n"
-                  "        sasl_oauth_token_provider=token_provider,\n"
-                  "        acks='all',\n"
-                  "        retries=3,\n"
-                  "        linger_ms=0,\n"
-                  "        key_serializer=lambda v: v.encode('utf-8'),\n"
-                  "        value_serializer=lambda v: v,\n"
-                  "    )\n"
-                  "    md = producer.send(topic, key=key_text, value=payload_bytes).get(timeout=30)\n"
-                  "    producer.flush(timeout=10)\n"
-                  "    producer.close(timeout=10)\n"
-                  "\n"
-                  "    group_id = f'm12d-proof-{exec_id}'\n"
-                  "    consumer = KafkaConsumer(\n"
-                  "        bootstrap_servers=[bootstrap],\n"
-                  "        security_protocol='SASL_SSL',\n"
-                  "        sasl_mechanism='OAUTHBEARER',\n"
-                  "        sasl_oauth_token_provider=token_provider,\n"
-                  "        group_id=group_id,\n"
-                  "        enable_auto_commit=False,\n"
-                  "        auto_offset_reset='latest',\n"
-                  "        consumer_timeout_ms=1000,\n"
-                  "        key_deserializer=lambda b: b.decode('utf-8') if b else '',\n"
-                  "        value_deserializer=lambda b: b if b else b'',\n"
-                  "    )\n"
-                  "    tp = TopicPartition(topic, int(md.partition))\n"
-                  "    consumer.assign([tp])\n"
-                  "    consumer.seek(tp, int(md.offset))\n"
-                  "    found = None\n"
-                  "    deadline = time.time() + 60\n"
-                  "    while time.time() < deadline:\n"
-                  "        polled = consumer.poll(timeout_ms=1000, max_records=20)\n"
-                  "        if not polled:\n"
-                  "            continue\n"
-                  "        rows = polled.get(tp, [])\n"
-                  "        for rec in rows:\n"
-                  "            if int(rec.offset) != int(md.offset):\n"
-                  "                continue\n"
-                  "            rec_hash = hashlib.sha256(rec.value or b'').hexdigest()\n"
-                  "            found = {\n"
-                  "                'topic': rec.topic,\n"
-                  "                'partition': int(rec.partition),\n"
-                  "                'offset': int(rec.offset),\n"
-                  "                'key': rec.key,\n"
-                  "                'payload_hash': rec_hash,\n"
-                  "                'payload_hash_match': rec_hash == payload_hash,\n"
-                  "            }\n"
-                  "            break\n"
-                  "        if found:\n"
-                  "            break\n"
-                  "    consumer.close()\n"
-                  "\n"
-                  "    out = {\n"
-                  "        'overall_pass': bool(found and found.get('payload_hash_match', False)),\n"
-                  "        'reason': 'BROKER_ACK_AND_READBACK_PASS' if (found and found.get('payload_hash_match', False)) else 'BROKER_READBACK_NOT_CONFIRMED',\n"
-                  "        'registry_event_id': key_text,\n"
-                  "        'event_sha256': payload_hash,\n"
-                  "        'produced': {\n"
-                  "            'topic': topic,\n"
-                  "            'partition': int(md.partition),\n"
-                  "            'offset': int(md.offset),\n"
-                  "        },\n"
-                  "        'consumed': found or {},\n"
-                  "    }\n"
-                  "    print(json.dumps(out, ensure_ascii=True))\n"
-                  "\n"
-                  "if __name__ == '__main__':\n"
-                  "    try:\n"
-                  "        main()\n"
-                  "    except Exception as exc:\n"
-                  "        print(json.dumps({\n"
-                  "            'overall_pass': False,\n"
-                  "            'reason': f'EXCEPTION:{type(exc).__name__}',\n"
-                  "            'error': str(exc),\n"
-                  "            'produced': {},\n"
-                  "            'consumed': {},\n"
-                  "        }, ensure_ascii=True))\n"
-              )
+              import textwrap
+              probe_script = textwrap.dedent(
+                  """
+                  import hashlib
+                  import json
+                  import os
+                  import time
+
+                  from confluent_kafka import Consumer, Producer, TopicPartition
+
+
+                  def oauth_cb(_config):
+                      return os.environ["MSK_OAUTH_TOKEN"], int(time.time()) + 600
+
+
+                  def main():
+                      event = json.loads(open("/work/event.json", "r", encoding="utf-8").read())
+                      topic = os.environ["KAFKA_TOPIC"]
+                      bootstrap = os.environ["MSK_BOOTSTRAP_BROKERS"]
+                      exec_id = os.environ["M12D_EXEC_ID"]
+                      key_text = str(event.get("registry_event_id", "")).strip()
+                      payload_bytes = json.dumps(event, sort_keys=True, ensure_ascii=True).encode("utf-8")
+                      payload_hash = hashlib.sha256(payload_bytes).hexdigest()
+
+                      producer = Producer(
+                          {
+                              "bootstrap.servers": bootstrap,
+                              "security.protocol": "SASL_SSL",
+                              "sasl.mechanism": "OAUTHBEARER",
+                              "oauth_cb": oauth_cb,
+                              "enable.idempotence": True,
+                              "request.timeout.ms": 30000,
+                              "message.timeout.ms": 30000,
+                              "retries": 3,
+                              "acks": "all",
+                          }
+                      )
+                      delivery = {"msg": None, "err": None}
+
+                      def on_delivery(err, msg):
+                          delivery["msg"] = msg
+                          delivery["err"] = err
+
+                      producer.produce(topic=topic, key=key_text.encode("utf-8"), value=payload_bytes, on_delivery=on_delivery)
+                      deadline = time.time() + 45
+                      while time.time() < deadline and delivery["msg"] is None and delivery["err"] is None:
+                          producer.poll(0.2)
+                      producer.flush(5.0)
+                      if delivery["err"] is not None:
+                          raise RuntimeError(f"produce_failed:{delivery['err']}")
+                      if delivery["msg"] is None:
+                          raise RuntimeError("produce_timeout_no_delivery")
+
+                      md = delivery["msg"]
+                      partition = int(md.partition())
+                      offset = int(md.offset())
+
+                      group_id = f"m12d-proof-{exec_id}"
+                      consumer = Consumer(
+                          {
+                              "bootstrap.servers": bootstrap,
+                              "security.protocol": "SASL_SSL",
+                              "sasl.mechanism": "OAUTHBEARER",
+                              "oauth_cb": oauth_cb,
+                              "group.id": group_id,
+                              "enable.auto.commit": False,
+                              "auto.offset.reset": "latest",
+                              "session.timeout.ms": 10000,
+                          }
+                      )
+                      tp = TopicPartition(topic, partition, offset)
+                      consumer.assign([tp])
+                      found = None
+                      deadline = time.time() + 60
+                      while time.time() < deadline:
+                          msg = consumer.poll(1.0)
+                          if msg is None:
+                              continue
+                          if msg.error():
+                              continue
+                          if int(msg.offset()) != offset:
+                              continue
+                          rec_payload = msg.value() or b""
+                          rec_hash = hashlib.sha256(rec_payload).hexdigest()
+                          rec_key = msg.key() or b""
+                          found = {
+                              "topic": msg.topic(),
+                              "partition": int(msg.partition()),
+                              "offset": int(msg.offset()),
+                              "key": rec_key.decode("utf-8", errors="replace"),
+                              "payload_hash": rec_hash,
+                              "payload_hash_match": rec_hash == payload_hash,
+                          }
+                          break
+                      consumer.close()
+
+                      out = {
+                          "overall_pass": bool(found and found.get("payload_hash_match", False)),
+                          "reason": "BROKER_ACK_AND_READBACK_PASS"
+                          if (found and found.get("payload_hash_match", False))
+                          else "BROKER_READBACK_NOT_CONFIRMED",
+                          "registry_event_id": key_text,
+                          "event_sha256": payload_hash,
+                          "produced": {
+                              "topic": topic,
+                              "partition": partition,
+                              "offset": offset,
+                          },
+                          "consumed": found or {},
+                      }
+                      print(json.dumps(out, ensure_ascii=True))
+
+
+                  if __name__ == "__main__":
+                      try:
+                          main()
+                      except Exception as exc:
+                          print(
+                              json.dumps(
+                                  {
+                                      "overall_pass": False,
+                                      "reason": f"EXCEPTION:{type(exc).__name__}",
+                                      "error": str(exc),
+                                      "produced": {},
+                                      "consumed": {},
+                                  },
+                                  ensure_ascii=True,
+                              )
+                          )
+                  """
+              ).lstrip()
               with tempfile.TemporaryDirectory() as td:
                   td_path = Path(td)
                   probe_py = td_path / "probe.py"
