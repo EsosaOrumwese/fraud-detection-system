@@ -1,3 +1,13 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "fontFamily": "Inter, Segoe UI, Arial",
+    "primaryTextColor": "#0F172A",
+    "lineColor": "#334155",
+    "tertiaryColor": "#F8FAFC",
+    "background": "#FFFFFF"
+  }
+}}%%
 flowchart LR
   subgraph Core["Core Stack (Persistent Control Surfaces)"]
     CoreS3@{ icon: "simple-icons:amazons3", form: "rounded", label: "S3 buckets", pos: "b", h: 58 }
@@ -30,3 +40,25 @@ flowchart LR
   DECS -->|state ownership surfaces| CoreDDB
   CoreBudget -.->|cost governance scope| DECS
   CoreBudget -.->|cost governance scope| CCluster
+
+  style Core fill:#EFF6FF,stroke:#2563EB,stroke-width:2px
+  style Confluent fill:#FDF4FF,stroke:#9333EA,stroke-width:2px
+  style Demo fill:#ECFDF5,stroke:#10B981,stroke-width:2px
+
+  class CoreS3,CoreDDB awsdata
+  class CoreBudget budget
+  class CCluster,CTopics stream
+  class CCreds,DSSM security
+  class CCatalog artifact
+  class DECS runtime
+  class DRDS datastore
+  class DKinesis bus
+
+  classDef awsdata fill:#DBEAFE,stroke:#2563EB,stroke-width:1.6px,color:#0F172A;
+  classDef budget fill:#FEF3C7,stroke:#D97706,stroke-width:1.8px,color:#7C2D12;
+  classDef stream fill:#F3E8FF,stroke:#7E22CE,stroke-width:1.6px,color:#3B0764;
+  classDef security fill:#E0F2FE,stroke:#0284C7,stroke-width:1.6px,color:#0C4A6E;
+  classDef artifact fill:#F1F5F9,stroke:#64748B,stroke-width:1.4px,color:#0F172A;
+  classDef runtime fill:#DCFCE7,stroke:#16A34A,stroke-width:1.8px,color:#14532D;
+  classDef datastore fill:#FFE4E6,stroke:#E11D48,stroke-width:1.6px,color:#881337;
+  classDef bus fill:#CCFBF1,stroke:#0F766E,stroke-width:1.6px,color:#134E4A;

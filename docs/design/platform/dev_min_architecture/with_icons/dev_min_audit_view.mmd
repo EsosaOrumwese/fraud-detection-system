@@ -1,3 +1,13 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "fontFamily": "Inter, Segoe UI, Arial",
+    "primaryTextColor": "#0F172A",
+    "lineColor": "#334155",
+    "tertiaryColor": "#F8FAFC",
+    "background": "#FFFFFF"
+  }
+}}%%
 flowchart LR
   subgraph Authority["Authority Surfaces"]
     AConfig@{ icon: "simple-icons:terraform", form: "rounded", label: "Terraform roots", pos: "b", h: 54 }
@@ -46,3 +56,20 @@ flowchart LR
   GIntegrity --> GCert
   GCert --> GOutcome
   GOutcome -.-> TEv
+
+  style Authority fill:#EFF6FF,stroke:#2563EB,stroke-width:2px
+  style Truth fill:#ECFDF5,stroke:#10B981,stroke-width:2px
+  style Transport fill:#F5F3FF,stroke:#7C3AED,stroke-width:2px
+  style Gates fill:#FFF7ED,stroke:#EA580C,stroke-width:2px
+
+  class AConfig,AState,ALock authority
+  class TRds,TAdm,TPub,TRun,TEv,TObject,TQu,TAr truth
+  class Tkafka,Tkin,Tssm transport
+  class GReady,GIntegrity,GCert gate
+  class GOutcome outcome
+
+  classDef authority fill:#DBEAFE,stroke:#2563EB,stroke-width:1.4px,color:#1E3A8A;
+  classDef truth fill:#DCFCE7,stroke:#16A34A,stroke-width:1.4px,color:#14532D;
+  classDef transport fill:#EDE9FE,stroke:#7C3AED,stroke-width:1.4px,color:#4C1D95;
+  classDef gate fill:#FFEDD5,stroke:#EA580C,stroke-width:1.8px,color:#7C2D12;
+  classDef outcome fill:#FEE2E2,stroke:#DC2626,stroke-width:2px,color:#7F1D1D;

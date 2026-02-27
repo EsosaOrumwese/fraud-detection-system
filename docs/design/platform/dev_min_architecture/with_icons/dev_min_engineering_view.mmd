@@ -1,3 +1,13 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "fontFamily": "Inter, Segoe UI, Arial",
+    "primaryTextColor": "#0F172A",
+    "lineColor": "#334155",
+    "tertiaryColor": "#F8FAFC",
+    "background": "#FFFFFF"
+  }
+}}%%
 flowchart LR
   subgraph Core["Core Terraform Root"]
     CS3Obj@{ icon: "simple-icons:amazons3", form: "rounded", label: "S3 object-store", pos: "b", h: 52 }
@@ -66,4 +76,34 @@ flowchart LR
   CLock --- CRun
   CBudget -.-> DEcs
   CBudget -.-> CClu
+
+  style Core fill:#EFF6FF,stroke:#2563EB,stroke-width:2px
+  style Confluent fill:#FDF4FF,stroke:#9333EA,stroke-width:2px
+  style Demo fill:#ECFDF5,stroke:#10B981,stroke-width:2px
+
+  class CS3Obj,CS3Ev,CS3Qu,CS3Ar awsdata
+  class CRun,CAdm,CPub,CLock awsdynamo
+  class CBudget budget
+  class CClu,CTop stream
+  class CApi,CSSM,DSSM security
+  class CEnv,DVpc infra
+  class CCat,DManifest artifact
+  class DEcs,DServices,DJobs runtime
+  class DKin bus
+  class DRds datastore
+  class DLogs observability
+  class DRS statewire
+
+  classDef awsdata fill:#DBEAFE,stroke:#2563EB,stroke-width:1.4px,color:#0F172A;
+  classDef awsdynamo fill:#E0E7FF,stroke:#4F46E5,stroke-width:1.4px,color:#1E1B4B;
+  classDef budget fill:#FEF3C7,stroke:#D97706,stroke-width:1.8px,color:#7C2D12;
+  classDef stream fill:#F3E8FF,stroke:#7E22CE,stroke-width:1.6px,color:#3B0764;
+  classDef security fill:#E0F2FE,stroke:#0284C7,stroke-width:1.4px,color:#0C4A6E;
+  classDef infra fill:#F8FAFC,stroke:#64748B,stroke-width:1.3px,color:#0F172A;
+  classDef artifact fill:#F1F5F9,stroke:#475569,stroke-width:1.3px,color:#0F172A;
+  classDef runtime fill:#DCFCE7,stroke:#16A34A,stroke-width:1.6px,color:#14532D;
+  classDef bus fill:#CCFBF1,stroke:#0F766E,stroke-width:1.4px,color:#134E4A;
+  classDef datastore fill:#FFE4E6,stroke:#E11D48,stroke-width:1.5px,color:#881337;
+  classDef observability fill:#FFEDD5,stroke:#EA580C,stroke-width:1.4px,color:#7C2D12;
+  classDef statewire fill:#E2E8F0,stroke:#475569,stroke-width:1.2px,color:#0F172A,stroke-dasharray: 3 3;
 

@@ -15042,3 +15042,24 @@ ext_gate=M11.B_READY and locker_count=0.
 6. Decision:
    - keep strict mode active for advisory-clearance reruns,
    - do not advance to M11.E until advisory-free managed transform evidence is produced.
+
+## Entry: 2026-02-27 05:23:00 +00:00 - M11.D strict rerun failure root cause + remediation
+1. Strict rerun analyzed:
+   - run: https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22473716913
+   - execution id: `m11d_train_eval_execution_20260227T051149Z`
+   - runtime: training succeeded; transform launched and failed (`ClientError`).
+2. Root cause isolated from `/aws/sagemaker/TransformJobs` logs:
+   - transform input prefix pointed to `.../test/`, which contained both:
+     - `test/test_features.csv` (valid inference input),
+     - `test/test_labels.json` (non-CSV labels artifact).
+   - SageMaker batch transform attempted to parse `test_labels.json` as CSV and returned 415 / parse failure.
+3. Decision:
+   - keep strict managed-transform requirement enabled,
+   - patch transform input URI from test directory prefix to exact features object key.
+4. Workflow remediation applied:
+   - `.github/workflows/dev_full_m11_managed.yml`
+   - `te_uri` changed from folder URI to object URI (`s3://<bucket>/<...>/test_features.csv`).
+5. Expected result on next strict rerun:
+   - transform consumes only CSV features,
+   - labels JSON remains side input for metric computation only,
+   - advisory-clearance can complete if no further runtime drifts.
