@@ -15394,3 +15394,98 @@ ext_gate=M11.B_READY and locker_count=0.
    - strict no-fallback M11.F contract is now satisfied,
    - lane reopened earlier is re-closed green,
    - advance target restored to `M11.G`.
+
+## Entry: 2026-02-27 08:00:00 +00:00 - M11.G planning closure before implementation
+1. Scope accepted: plan + execute `M11.G` (candidate bundle + provenance publication) immediately after strict `M11.F` pass.
+2. Entry gate chosen (fail-closed):
+   - upstream execution must be strict M11.F pass posture,
+   - authoritative upstream execution id target: `m11f_mlflow_lineage_20260227T075634Z`,
+   - required checks: `overall_pass=true`, `next_gate=M11.G_READY`, `blocker_count=0`.
+3. Managed-lane implementation decision:
+   - extend existing managed workflow `.github/workflows/dev_full_m11_managed.yml` to support subphase `G`,
+   - keep all execution in GitHub Actions + AWS APIs (no local runtime closure path).
+4. M11.G output contract to implement:
+   - publish candidate bundle to `MF_CANDIDATE_BUNDLE_PATH_PATTERN` (run-scoped durable path),
+   - publish run-control closure artifacts:
+     - `m11g_candidate_bundle_snapshot.json`,
+     - `m11_model_operability_report.json`,
+     - `m11g_blocker_register.json`,
+     - `m11g_execution_summary.json`.
+5. Required handles for M11.G lane:
+   - `MF_CANDIDATE_BUNDLE_PATH_PATTERN`,
+   - `MF_EVAL_REPORT_PATH_PATTERN`,
+   - `MF_LEAKAGE_PROVENANCE_CHECK_PATH_PATTERN`,
+   - `SM_MODEL_PACKAGE_GROUP_NAME`,
+   - `SM_ENDPOINT_NAME`,
+   - `SM_SERVING_MODE`,
+   - `MLFLOW_MODEL_NAME`.
+6. Operability checks selected (production-minded, bounded):
+   - model artifact URI present + object readable,
+   - training/transform completed in upstream M11.D,
+   - SageMaker model package group resolvable (describe/create if absent),
+   - serving handles pinned (`SM_ENDPOINT_NAME`, `SM_SERVING_MODE`),
+   - lineage refs complete (M10 fingerprint + M11.D/E/F refs).
+7. Rejected alternative:
+   - local synthetic candidate bundle without package-group/materialization checks.
+   - rejection reason: hides production coupling and weakens M11.G as promotion-grade lane.
+8. Blocker strategy for this lane (`M11-B7`):
+   - B7.1 handle closure unresolved,
+   - B7.2 upstream evidence unreadable/inconsistent,
+   - B7.3 candidate bundle publish failure,
+   - B7.4 package-group/operability failure,
+   - B7.5 run-control artifact publication failure.
+9. Runtime budget pinned for implementation:
+   - target <= 8 minutes end-to-end, fail-closed if closure artifacts not published.
+
+## Entry: 2026-02-27 08:08:00 +00:00 - M11.G implementation wiring in managed workflow
+1. Implemented workflow expansion in `.github/workflows/dev_full_m11_managed.yml` to support subphase `G`.
+2. Input surface additions:
+   - `upstream_m11f_execution` (entry evidence id for M11.G),
+   - `m11g_execution_id` (optional fixed execution id).
+3. Execution metadata router updated:
+   - `m11g_candidate_bundle_<ts>` default execution id for subphase G.
+4. New managed step `Execute M11.G (managed)` added with fail-closed posture:
+   - validates required candidate-bundle handles,
+   - enforces upstream M11.F strict pass gate,
+   - loads M11.D/M11.E evidence for continuity checks,
+   - builds/publishes candidate bundle to `MF_CANDIDATE_BUNDLE_PATH_PATTERN`,
+   - runs model operability checks (artifact readability, train/transform completion, package-group materialization, serving handle pinning, lineage completeness),
+   - publishes run-control artifacts:
+     - `m11g_candidate_bundle_snapshot.json`,
+     - `m11_model_operability_report.json`,
+     - `m11g_blocker_register.json`,
+     - `m11g_execution_summary.json`.
+5. Blocker taxonomy implemented in code under `M11-B7.*` subcodes.
+6. Planning doc expanded before execution to match lane-level closure (`M11.G.A..E`, runtime budget split, blocker subcodes).
+7. Next action: commit workflow-only, dispatch M11.G, clear any `M11-B7.*` blockers fail-closed until `M11.H_READY`.
+
+## Entry: 2026-02-27 08:12:00 +00:00 - M11.G managed execution and closure
+1. Authoritative dispatch:
+   - workflow: `dev-full-m11-managed`, subphase `G`,
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22478216340`,
+   - head commit: `274c9ac1`,
+   - execution id: `m11g_candidate_bundle_20260227T081200Z`.
+2. Entry gate validation observed in lane logs:
+   - consumed upstream M11.F execution `m11f_mlflow_lineage_20260227T075634Z`,
+   - required strict pass checks succeeded (`overall_pass=true`, `next_gate=M11.G_READY`).
+3. Candidate bundle publication:
+   - published bundle to run-scoped learning path:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mf/candidate_bundle.json`.
+   - bundle carries deterministic id `40d27a4c62e2438e` and lineage refs to M11.D/E/F + M10 fingerprint.
+4. Operability closure outcomes:
+   - all checks passed (`overall_pass=true`), including:
+     - model artifact readability,
+     - train/transform completion posture,
+     - serving handle pinning,
+     - lineage completeness and run-scope consistency.
+   - package-group check materialized `fraud-platform-dev-full-models` during closure (status `Completed`).
+5. Run-control artifacts published:
+   - `m11g_candidate_bundle_snapshot.json`,
+   - `m11_model_operability_report.json`,
+   - `m11g_blocker_register.json`,
+   - `m11g_execution_summary.json`.
+6. Final gate result:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M11.H_READY`, `verdict=ADVANCE_TO_M11_H`.
+7. Decision outcome:
+   - M11.G is closed green with production-shaped candidate publication and operability evidence,
+   - advance lane moved to M11.H.

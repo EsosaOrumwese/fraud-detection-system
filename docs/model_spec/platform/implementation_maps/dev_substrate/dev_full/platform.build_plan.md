@@ -1472,6 +1472,17 @@ M11 progression snapshot:
     - experiment id `2974219164213255`,
     - run id `446edf03415548d0944b689e03168795`,
     - run status `FINISHED`.
+- M11.G candidate-bundle lane executed and closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22478216340`,
+  - execution id: `m11g_candidate_bundle_20260227T081200Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M11.H_READY`, `verdict=ADVANCE_TO_M11_H`,
+  - candidate bundle:
+    - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mf/candidate_bundle.json`,
+  - model operability report:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11g_candidate_bundle_20260227T081200Z/m11_model_operability_report.json`,
+    - `overall_pass=true`, no failed checks,
+  - package-group closure:
+    - `fraud-platform-dev-full-models` materialized with status `Completed`.
 
 ## M12 - MPR Promotion/Rollback Closure
 Status: `NOT_STARTED`
@@ -1554,4 +1565,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M11.G` (candidate bundle + provenance publication) using strict-closure M11.F evidence `m11f_mlflow_lineage_20260227T075634Z`.
+- Expand and execute `M11.H` (safe-disable/rollback closure) using M11.G pass evidence `m11g_candidate_bundle_20260227T081200Z`.

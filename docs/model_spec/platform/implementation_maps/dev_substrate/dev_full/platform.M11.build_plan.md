@@ -667,20 +667,79 @@ Strict revalidation status (2026-02-27):
 Goal:
 1. Publish candidate bundle package and provenance metadata.
 
-Execution notes:
-1. Publish candidate bundle to pinned artifact surface.
-2. Validate required provenance keys.
-3. Emit model operability report (`m11_model_operability_report.json`) proving the bundle is runnable by downstream promotion/runtime surfaces.
-4. Emit `m11g_candidate_bundle_snapshot.json`.
+Execution lanes (sequential, fail-closed):
+1. `M11.G.A` handle + entry closure:
+- required handles:
+  - `MF_CANDIDATE_BUNDLE_PATH_PATTERN`,
+  - `MF_EVAL_REPORT_PATH_PATTERN`,
+  - `MF_LEAKAGE_PROVENANCE_CHECK_PATH_PATTERN`,
+  - `SM_MODEL_PACKAGE_GROUP_NAME`,
+  - `SM_ENDPOINT_NAME`,
+  - `SM_SERVING_MODE`,
+  - `MLFLOW_MODEL_NAME`.
+- entry evidence must be strict M11.F pass:
+  - `overall_pass=true`,
+  - `next_gate=M11.G_READY`,
+  - `blocker_count=0`.
+2. `M11.G.B` upstream evidence integrity:
+- load M11.F summary/snapshot and resolve:
+  - `platform_run_id`, `scenario_run_id`, `m11d_execution_id`, `m11e_execution_id`,
+  - MLflow lineage refs (`experiment_id`, `run_id`, `run_status`),
+  - provenance refs (`m10g_fingerprint_ref`, eval/leakage artifacts).
+- load M11.D + M11.E snapshots and require gate continuity:
+  - M11.D `next_gate=M11.E_READY`,
+  - M11.E `next_gate=M11.F_READY`.
+3. `M11.G.C` candidate bundle publication:
+- construct deterministic `bundle_id` from run-scope + upstream execution refs,
+- build candidate bundle payload with:
+  - model artifact pointers,
+  - train/transform refs,
+  - metrics + gate refs,
+  - lineage + rollback pointers,
+- publish to `MF_CANDIDATE_BUNDLE_PATH_PATTERN`.
+4. `M11.G.D` model operability + package-group closure:
+- verify model artifact readability at source URI,
+- verify train/transform completion posture,
+- materialize/resolve `SM_MODEL_PACKAGE_GROUP_NAME` (describe/create),
+- verify serving handles (`SM_ENDPOINT_NAME`, `SM_SERVING_MODE`) are pinned,
+- emit `m11_model_operability_report.json`.
+5. `M11.G.E` run-control publication:
+- emit `m11g_candidate_bundle_snapshot.json`,
+- emit `m11g_blocker_register.json`,
+- emit `m11g_execution_summary.json`,
+- assert `M11.H_READY` only when `overall_pass=true` and blocker count `0`.
+
+Blocker semantics (`M11-B7` subcodes):
+1. `M11-B7.1`: handle closure unresolved / unresolved path tokens.
+2. `M11-B7.2`: upstream evidence unreadable or gate-chain inconsistent.
+3. `M11-B7.3`: candidate bundle publication failure.
+4. `M11-B7.4`: operability/package-group checks failed.
+5. `M11-B7.5`: run-control artifact publication failure.
 
 Runtime budget:
 1. Target <= 8 minutes.
+2. `M11.G.A/B` <= 3 minutes.
+3. `M11.G.C/D/E` <= 5 minutes.
 
 DoD:
-- [ ] bundle publish + provenance checks pass.
-- [ ] operability report is published and marked pass.
-- [ ] snapshot published local + durable.
-- [ ] `M11.H_READY` asserted.
+- [x] bundle publish + provenance checks pass.
+- [x] operability report is published and marked pass.
+- [x] snapshot published local + durable.
+- [x] `M11.H_READY` asserted.
+
+Closure evidence:
+1. Managed run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22478216340`
+2. Execution id: `m11g_candidate_bundle_20260227T081200Z`
+3. Summary: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11g_candidate_bundle_20260227T081200Z/m11g_execution_summary.json`
+4. Snapshot: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11g_candidate_bundle_20260227T081200Z/m11g_candidate_bundle_snapshot.json`
+5. Operability report: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11g_candidate_bundle_20260227T081200Z/m11_model_operability_report.json`
+6. Blockers: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11g_candidate_bundle_20260227T081200Z/m11g_blocker_register.json` (`blocker_count=0`)
+7. Candidate bundle artifact:
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mf/candidate_bundle.json`
+8. Key closure proof:
+   - `overall_pass=true`,
+   - `next_gate=M11.H_READY`,
+   - package group materialized: `fraud-platform-dev-full-models` (`Completed`).
 
 ### M11.H - Safe-Disable/Rollback Closure
 Goal:
@@ -761,7 +820,7 @@ DoD:
 - [x] `M11.D` complete
 - [x] `M11.E` complete
 - [x] `M11.F` complete
-- [ ] `M11.G` complete
+- [x] `M11.G` complete
 - [ ] `M11.H` complete
 - [ ] `M11.I` complete
 - [ ] `M11.J` complete
@@ -776,4 +835,5 @@ DoD:
 3. `M11.B` is complete and green on managed lane.
 4. `M11.C` is complete and green on managed lane.
 5. `M11.D` is complete and green on strict managed lane with advisory-free transform evidence.
-6. Next actionable lane is `M11.G` (candidate bundle + provenance publication).
+6. `M11.G` is complete and green on managed lane with operability pass and candidate bundle publication.
+7. Next actionable lane is `M11.H` (safe-disable/rollback closure).
