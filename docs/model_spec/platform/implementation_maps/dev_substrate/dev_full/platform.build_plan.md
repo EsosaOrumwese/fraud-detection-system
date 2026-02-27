@@ -1583,7 +1583,7 @@ DoD anchors:
 - [ ] governance append evidence is committed and coherent.
 - [ ] operability/governance acceptance report committed and pass.
 - [x] deterministic `P15` verdict and `m13_handoff_pack.json` are committed.
-- [ ] M12 phase-budget and cost-outcome artifacts are committed and blocker-free.
+- [x] M12 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M12.build_plan.md`
@@ -1664,7 +1664,18 @@ M12 progression snapshot:
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12h_p15_gate_rollup_20260227T181932Z/m12h_p15_gate_verdict.json`,
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12h_p15_gate_rollup_20260227T181932Z/m13_handoff_pack.json`,
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12h_p15_gate_rollup_20260227T181932Z/m12h_execution_summary.json`.
-- M12 next actionable subphase is `M12.I`.
+- M12.I phase budget + cost-outcome closure is now closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22499012547`,
+  - execution id: `m12i_phase_cost_outcome_20260227T183804Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M12_J`, `next_gate=M12.J_READY`,
+  - cost posture:
+    - `aws_mtd_cost_amount=134.5162173637`,
+    - `aws_mtd_cost_currency=USD`,
+  - run-control artifacts:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12i_phase_cost_outcome_20260227T183804Z/m12_phase_budget_envelope.json`,
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12i_phase_cost_outcome_20260227T183804Z/m12_phase_cost_outcome_receipt.json`,
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12i_phase_cost_outcome_20260227T183804Z/m12i_execution_summary.json`.
+- M12 next actionable subphase is `M12.J`.
 
 ## M13 - Final Verdict and Teardown Closure
 Status: `NOT_STARTED`
@@ -1702,4 +1713,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M12.I` (phase budget + cost-outcome closure) on managed lane.
+- Execute `M12.J` (M12 closure sync + M13 handoff) on managed lane.

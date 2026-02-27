@@ -16504,3 +16504,76 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 5. Progression impact:
    - `M12-B8` and `M12-B9` cleared on this execution,
    - next actionable lane is `M12.I`.
+
+## Entry: 2026-02-27 18:35:18 +00:00 - M12.I pre-execution contract lock (phase budget + cost-outcome)
+1. Scope accepted: expand and execute M12.I end-to-end on managed lane.
+2. Entry contract pinned:
+   - upstream `M12.H` summary must be pass with:
+     - `overall_pass=true`,
+     - `blocker_count=0`,
+     - `next_gate=M12.I_READY`,
+     - `p15_verdict=ADVANCE_TO_P16`.
+3. Required handle closure pinned:
+   - budget + cost-capture controls:
+     - `DEV_FULL_MONTHLY_BUDGET_LIMIT_USD`,
+     - `DEV_FULL_BUDGET_ALERT_1_USD`,
+     - `DEV_FULL_BUDGET_ALERT_2_USD`,
+     - `DEV_FULL_BUDGET_ALERT_3_USD`,
+     - `BUDGET_CURRENCY`,
+     - `COST_CAPTURE_SCOPE`,
+     - `AWS_COST_CAPTURE_ENABLED`,
+   - cost-outcome contract controls:
+     - `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`,
+     - `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`,
+     - `PHASE_COST_OUTCOME_REQUIRED`,
+     - `PHASE_ENVELOPE_REQUIRED`,
+     - `COST_OUTCOME_RECEIPT_REQUIRED_FIELDS`.
+4. Cost-capture decision for this lane:
+   - reuse proven M11.J semantics for AWS MTD capture via Cost Explorer to avoid schema drift,
+   - keep Databricks cost capture posture advisory/deferred per current handle registry.
+5. Artifact contract pinned:
+   - `m12_phase_budget_envelope.json`,
+   - `m12_phase_cost_outcome_receipt.json`,
+   - `m12i_blocker_register.json`,
+   - `m12i_execution_summary.json`.
+6. Fail-closed mapping pinned:
+   - any entry/handle/cost-capture/receipt/publication mismatch maps to `M12-B10`.
+7. Pass posture pinned:
+   - `overall_pass=true`, `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M12_J`,
+   - `next_gate=M12.J_READY`.
+
+## Entry: 2026-02-27 18:39:10 +00:00 - M12.I workflow materialization and green execution
+1. Workflow lane materialization:
+   - added `m12i_execute` mode to `.github/workflows/dev_full_m12_managed.yml`,
+   - added `upstream_m12h_execution` input and strict mode/subphase guard (`m12i_execute` only for subphase `I`),
+   - added managed step `Execute M12.I phase budget + cost-outcome closure (managed)`.
+2. Runtime logic pinned in lane:
+   - enforce upstream M12.H pass posture (`next_gate=M12.I_READY`, `p15_verdict=ADVANCE_TO_P16`),
+   - parse budget/cost handles from `dev_full_handles.registry.v0.md`,
+   - enforce alert ladder validity and required receipt-field contract,
+   - capture AWS MTD spend via Cost Explorer,
+   - emit:
+     - `m12_phase_budget_envelope.json`,
+     - `m12_phase_cost_outcome_receipt.json`,
+     - `m12i_blocker_register.json`,
+     - `m12i_execution_summary.json`,
+   - map failures fail-closed to `M12-B10`.
+3. Authoritative run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22499012547`
+   - execution id: `m12i_phase_cost_outcome_20260227T183804Z`.
+4. Result:
+   - `overall_pass=true`, `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M12_J`,
+   - `next_gate=M12.J_READY`.
+5. Cost-outcome snapshot:
+   - `aws_mtd_cost_amount=134.5162173637`,
+   - `aws_mtd_cost_currency=USD`.
+6. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12i_phase_cost_outcome_20260227T183804Z/m12_phase_budget_envelope.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12i_phase_cost_outcome_20260227T183804Z/m12_phase_cost_outcome_receipt.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12i_phase_cost_outcome_20260227T183804Z/m12i_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12i_phase_cost_outcome_20260227T183804Z/m12i_execution_summary.json`.
+7. Progression impact:
+   - `M12-B10` cleared.
+   - next actionable lane is `M12.J`.

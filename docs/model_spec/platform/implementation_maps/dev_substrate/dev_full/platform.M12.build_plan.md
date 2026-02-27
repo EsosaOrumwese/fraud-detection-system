@@ -552,9 +552,46 @@ Blockers:
 Runtime budget:
 1. Target <= 6 minutes.
 
+Expanded execution contract:
+1. `M12.I.A` entry closure:
+- require `M12.H` pass summary with:
+  - `overall_pass=true`,
+  - `blocker_count=0`,
+  - `next_gate=M12.I_READY`,
+  - `p15_verdict=ADVANCE_TO_P16`.
+2. `M12.I.B` handle + budget conformance:
+- require resolved handles:
+  - `DEV_FULL_MONTHLY_BUDGET_LIMIT_USD`,
+  - `DEV_FULL_BUDGET_ALERT_1_USD`,
+  - `DEV_FULL_BUDGET_ALERT_2_USD`,
+  - `DEV_FULL_BUDGET_ALERT_3_USD`,
+  - `BUDGET_CURRENCY`,
+  - `COST_CAPTURE_SCOPE`,
+  - `AWS_COST_CAPTURE_ENABLED`,
+  - `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`,
+  - `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`,
+  - `PHASE_COST_OUTCOME_REQUIRED`,
+  - `PHASE_ENVELOPE_REQUIRED`,
+  - `COST_OUTCOME_RECEIPT_REQUIRED_FIELDS`;
+- enforce budget numeric/ordering validity (`0 < alert1 < alert2 < alert3 <= limit`).
+3. `M12.I.C` cost capture:
+- capture AWS MTD spend via Cost Explorer (global endpoint semantics),
+- fail closed on cost capture failure when `AWS_COST_CAPTURE_ENABLED=true`.
+4. `M12.I.D` artifact emission:
+- emit:
+  - `m12_phase_budget_envelope.json`,
+  - `m12_phase_cost_outcome_receipt.json`,
+  - `m12i_blocker_register.json`,
+  - `m12i_execution_summary.json`;
+- enforce required receipt fields from `COST_OUTCOME_RECEIPT_REQUIRED_FIELDS`.
+5. `M12.I.E` run-control closure:
+- on pass: `verdict=ADVANCE_TO_M12_J`, `next_gate=M12.J_READY`;
+- on failure: `verdict=HOLD_REMEDIATE`, `next_gate=HOLD_REMEDIATE`;
+- all mismatches map to `M12-B10`.
+
 DoD:
-- [ ] budget and receipt committed locally and durably.
-- [ ] artifacts are coherent with emitted outcomes.
+- [x] budget and receipt committed locally and durably.
+- [x] artifacts are coherent with emitted outcomes.
 
 ### M12.J - M12 Closure Sync
 Goal:
@@ -604,7 +641,7 @@ DoD:
 - [x] `M12.F` complete
 - [x] `M12.G` complete
 - [x] `M12.H` complete
-- [ ] `M12.I` complete
+- [x] `M12.I` complete
 - [ ] `M12.J` complete
 - [ ] all active `M12-B*` blockers resolved
 - [x] non-gate acceptance artifacts (`post_promotion_observation`, `operability_acceptance`) are pass posture
@@ -621,4 +658,5 @@ DoD:
 9. `M12.F` ACTIVE resolution checks are complete and green (`22497074608`, execution `m12f_active_resolution_20260227T174035Z`) with `M12-B6` cleared.
 10. `M12.G` governance append closure is complete and green (`22497579073`, execution `m12g_governance_append_20260227T175530Z`) with `M12-B7` cleared.
 11. `M12.H` P15 gate rollup + M13 handoff is complete and green (`22498398890`, execution `m12h_p15_gate_rollup_20260227T181932Z`) with `M12-B8`/`M12-B9` cleared.
-12. Next action: proceed to `M12.I` phase budget + cost-outcome closure.
+12. `M12.I` phase budget + cost-outcome closure is complete and green (`22499012547`, execution `m12i_phase_cost_outcome_20260227T183804Z`) with `M12-B10` cleared.
+13. Next action: proceed to `M12.J` closure sync.
