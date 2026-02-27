@@ -581,17 +581,49 @@ Closure evidence:
 Goal:
 1. Prove full lineage from immutable input through evaluation outputs.
 
-Execution notes:
-1. Validate experiment/run identifiers.
-2. Validate provenance fields include run pins and dataset fingerprint references.
-3. Emit `m11f_mlflow_lineage_snapshot.json`.
+Execution lanes (sequential, fail-closed):
+1. `M11.F.A` lineage-policy and handle closure:
+- verify required handles are pinned/readable:
+  - `MLFLOW_HOSTING_MODE`,
+  - `MLFLOW_EXPERIMENT_PATH`,
+  - `MLFLOW_MODEL_NAME`,
+  - `SSM_MLFLOW_TRACKING_URI_PATH`,
+  - `SSM_DATABRICKS_WORKSPACE_URL_PATH`,
+  - `SSM_DATABRICKS_TOKEN_PATH`.
+- fail closed on missing/placeholder values.
+2. `M11.F.B` upstream evidence integrity gate:
+- load authoritative M11.E summary + snapshot and require pass posture (`next_gate=M11.F_READY`),
+- load referenced M11.D summary/snapshot and eval/leakage artifacts,
+- verify run-scope consistency across M11.D -> M11.E evidence chain.
+3. `M11.F.C` managed MLflow lineage commit:
+- resolve tracking URI from SSM handle,
+- open/create experiment by pinned experiment path,
+- create managed run and log:
+  - run pins (`platform_run_id`, `scenario_run_id`, execution refs),
+  - metric set from M11.D/M11.E surfaces,
+  - provenance refs including `m10g_fingerprint_ref` and leakage evidence refs.
+4. `M11.F.D` lineage closure publication:
+- publish `m11f_mlflow_lineage_snapshot.json` with experiment/run identifiers, source refs, and closure checks,
+- publish `m11f_blocker_register.json` + `m11f_execution_summary.json`,
+- assert `M11.G_READY` only with `overall_pass=true` and blocker count `0`.
+
+Blocker semantics (`M11-B6` subcodes):
+1. `M11-B6.1`: handle closure failure.
+2. `M11-B6.2`: upstream evidence unreadable/inconsistent.
+3. `M11-B6.3`: tracking URI or secret resolution failure.
+4. `M11-B6.4`: managed MLflow API commit failure.
+5. `M11-B6.5`: provenance/run-pin mismatch in lineage graph.
+6. `M11-B6.6`: snapshot/summary publication failure.
 
 Runtime budget:
-1. Target <= 10 minutes.
+1. Target <= 10 minutes total.
+2. `M11.F.A/B` prechecks <= 3 minutes.
+3. `M11.F.C/D` managed commit + publication <= 7 minutes.
 
 DoD:
 - [ ] lineage/provenance checks pass with no open `M11-B6`.
-- [ ] snapshot published local + durable.
+- [ ] managed MLflow experiment/run identifiers are committed and recorded.
+- [ ] snapshot + blocker register + execution summary published local + durable.
 - [ ] `M11.G_READY` asserted.
 
 ### M11.G - Candidate Bundle + Provenance Publication

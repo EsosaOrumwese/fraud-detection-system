@@ -14,7 +14,7 @@ param(
   [int]$MermaidWidth = 2400,
   [int]$MermaidHeight = 1600,
 
-  [string]$InputRoot = "docs/design/platform/dev_min_architecture",
+  [string]$InputRoot = "docs/design/platform/dev_min/architecture",
   [switch]$SkipGraphviz,
   [switch]$SkipMermaid
 )

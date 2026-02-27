@@ -2,7 +2,7 @@ param(
     [ValidateSet("all", "core", "confluent", "demo")]
     [string]$Target = "all",
     [string]$Image = "patrickchugh/terravision:latest",
-    [string]$OutputRoot = "docs/design/platform/terraform/dev_min",
+    [string]$OutputRoot = "docs/design/platform/dev_min/terraform",
     [string[]]$Formats = @("svg", "png"),
     [string]$Workspace = "default",
     [switch]$PullImage,

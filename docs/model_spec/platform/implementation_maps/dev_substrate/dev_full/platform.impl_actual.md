@@ -15201,3 +15201,44 @@ ext_gate=M11.B_READY and locker_count=0.
 7. Planning state sync:
    - M11 deep plan updated: M11.E DoD checked complete and closure evidence inserted,
    - master platform plan next action advanced to M11.F.
+
+## Entry: 2026-02-27 06:33:00 +00:00 - M11.F planning closure (MLflow lineage lane)
+1. Planning objective:
+   - move M11.F from high-level notes to execution-grade fail-closed lane before implementation.
+2. Gap addressed:
+   - prior M11.F section did not define exact handle closure, managed MLflow commit mechanics, or blocker subcodes.
+3. Design decision:
+   - split M11.F into four sequential lanes:
+     - `M11.F.A` handle closure,
+     - `M11.F.B` upstream evidence integrity,
+     - `M11.F.C` managed MLflow lineage commit,
+     - `M11.F.D` closure publication.
+4. Required handle set pinned in plan:
+   - `MLFLOW_HOSTING_MODE`, `MLFLOW_EXPERIMENT_PATH`, `MLFLOW_MODEL_NAME`,
+   - `SSM_MLFLOW_TRACKING_URI_PATH`, `SSM_DATABRICKS_WORKSPACE_URL_PATH`, `SSM_DATABRICKS_TOKEN_PATH`.
+5. Execution posture:
+   - managed-only lane (GitHub Actions + AWS/Databricks APIs), no local fallback.
+6. Fail-closed taxonomy added:
+   - `M11-B6.1..M11-B6.6` covers handle closure, upstream evidence integrity, tracking/secret resolution, MLflow API commit, provenance mismatch, and publication failures.
+7. DoD tightened:
+   - requires committed MLflow experiment/run identifiers plus closure artifacts and `next_gate=M11.G_READY`.
+
+## Entry: 2026-02-27 06:43:00 +00:00 - M11.F managed lane implementation (workflow)
+1. Added managed subphase `F` support in `.github/workflows/dev_full_m11_managed.yml`.
+2. Input surface additions:
+   - `upstream_m11e_execution` (entry evidence for M11.F),
+   - `m11f_execution_id` (optional fixed run id).
+3. Routing changes:
+   - subphase validation now allows `D|E|F`,
+   - execution id generation now phase-aware for `m11f_mlflow_lineage_<ts>`.
+4. M11.F managed execution logic added:
+   - handle closure checks for MLflow/Databricks/SSM surfaces,
+   - upstream M11.E (and referenced M11.D) evidence integrity checks,
+   - Databricks-managed MLflow experiment/run commit using workspace token,
+   - lineage tags and metric logging from evaluation artifacts,
+   - fail-closed blocker taxonomy `M11-B6.1..M11-B6.6`,
+   - publication of `m11f_mlflow_lineage_snapshot.json`, `m11f_blocker_register.json`, `m11f_execution_summary.json`.
+5. Decision rationale:
+   - prefer managed MLflow commit over local/synthetic lineage to keep M11.F production-shaped and auditable.
+6. Next step:
+   - dispatch M11.F against `m11e_eval_gate_20260227T061316Z` and close lane on `next_gate=M11.G_READY`.

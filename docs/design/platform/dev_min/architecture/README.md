@@ -3,9 +3,9 @@
 This folder contains two complete sets of dev_min architecture views:
 
 - `without_icons`
-- `with_icons` (portable badge-style icons like `[S3]`, `[ECS]`, `[KAFKA]`)
+- `with_icons` (Mermaid icon-pack logos via Iconify)
 
-Each set includes three views:
+Each set includes four views:
 
 1. Executive view
 2. Engineering view
