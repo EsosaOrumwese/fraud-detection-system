@@ -15949,3 +15949,76 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 6. Planning state updates applied:
    - deep M12 plan marks `M12.B` complete and references closure artifacts,
    - main platform plan progression/next-action advanced to `M12.C`.
+
+## Entry: 2026-02-27 13:00:14 +00:00 - M12.C planning lock before workflow implementation
+1. Requested scope: plan and execute `M12.C` fully.
+2. Decision-completeness check performed:
+   - upstream closure evidence pinned: `M12.B` execution summary (`m12b_candidate_eligibility_20260227T123135Z`),
+   - compatibility authority sources pinned: M12 deep plan + dev_full handles registry + M11/M10 artifacts referenced by M12 handoff.
+3. `M12.C` managed-lane design decision:
+   - extend `.github/workflows/dev_full_m12_managed.yml` with `execution_mode=m12c_execute` constrained to `m12_subphase=C`,
+   - add input `upstream_m12b_execution` for deterministic entry binding.
+4. `M12.C` fail-closed checks to implement (`M12-B3` blocker family only):
+   - Entry readiness:
+     - read `m12b_execution_summary.json` and require `overall_pass=true`, `blocker_count=0`, `next_gate=M12.C_READY`, run-scope present.
+   - Feature/input contract compatibility:
+     - read candidate bundle from M12 handoff refs,
+     - read OFS dataset fingerprint (`m10g_fingerprint_ref`) and require mandatory fields (`replay_basis`, `feature_asof_utc`, `label_asof_utc`, `feature_def_set`) present,
+     - require fingerprint join scope includes current `platform_run_id` and `scenario_run_id`.
+   - Policy/degrade compatibility:
+     - require M11.E eval gate snapshot compatibility=true,
+     - require candidate `metrics.eval_gate_results.compatibility=true`,
+     - require required-vs-degrade capability relation is non-conflicting when those fields are present (if required capabilities declared, they must be satisfiable by declared degrade mask).
+   - Learning-registry schema compatibility posture:
+     - parse handles and require non-empty/non-TO_PIN values for:
+       - `SCHEMA_REGISTRY_MODE`
+       - `GLUE_SCHEMA_REGISTRY_NAME`
+       - `GLUE_SCHEMA_COMPATIBILITY_MODE`
+       - `FP_BUS_LEARNING_REGISTRY_EVENTS_V1`
+     - require `SCHEMA_REGISTRY_MODE=AWS_GLUE_SCHEMA_REGISTRY`,
+     - require `GLUE_SCHEMA_COMPATIBILITY_MODE` in `{BACKWARD,FORWARD,FULL}` and pinned currently to `BACKWARD`.
+5. Artifact contract to emit:
+   - `m12c_compatibility_precheck_snapshot.json`,
+   - `m12c_blocker_register.json`,
+   - `m12c_execution_summary.json`.
+6. Pass posture:
+   - `overall_pass=true`, `blocker_count=0`,
+   - `next_gate=M12.D_READY`,
+   - `verdict=ADVANCE_TO_M12_D`.
+7. Runtime/cost posture:
+   - metadata/readability checks only, no heavy compute; target <= 6 minutes.
+
+## Entry: 2026-02-27 13:04:27 +00:00 - M12.C execution, blocker posture, and closure
+1. Workflow-only lane patch committed + pushed on active branch:
+   - commit: `9fdbffec0` (`ci: add managed M12.C compatibility precheck lane`),
+   - file scope: `.github/workflows/dev_full_m12_managed.yml` only.
+2. Managed execution dispatched and completed:
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22487307083`,
+   - execution id: `m12c_compatibility_precheck_20260227T130306Z`,
+   - mode: `m12_subphase=C`, `execution_mode=m12c_execute`,
+   - upstream: `m12b_candidate_eligibility_20260227T123135Z`.
+3. Outcome:
+   - `overall_pass=true`, `blocker_count=0`,
+   - `next_gate=M12.D_READY`,
+   - `verdict=ADVANCE_TO_M12_D`.
+4. Compatibility surfaces validated green:
+   - feature/input contract:
+     - candidate lineage fingerprint ref present + readable,
+     - required fingerprint fields present (`replay_basis`, `feature_asof_utc`, `label_asof_utc`, `feature_def_set`),
+     - fingerprint `join_scope` includes current `platform_run_id` and `scenario_run_id`.
+   - policy/degrade:
+     - M11.E compatibility gate true,
+     - candidate eval compatibility gate true,
+     - required-vs-degrade capability relation non-conflicting.
+   - learning-registry schema/event envelope posture:
+     - handles resolved and non-placeholder,
+     - `SCHEMA_REGISTRY_MODE=AWS_GLUE_SCHEMA_REGISTRY`,
+     - `GLUE_SCHEMA_COMPATIBILITY_MODE=BACKWARD` (valid set),
+     - topic handle valid (`fp.bus.learning.registry.events.v1`).
+5. Durable evidence published and verified:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12c_compatibility_precheck_20260227T130306Z/m12c_compatibility_precheck_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12c_compatibility_precheck_20260227T130306Z/m12c_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12c_compatibility_precheck_20260227T130306Z/m12c_execution_summary.json`
+6. Planning progression updates applied:
+   - deep M12 plan marks `M12.C` complete,
+   - main platform plan advances next action to `M12.D`.

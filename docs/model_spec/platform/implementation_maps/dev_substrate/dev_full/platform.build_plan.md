@@ -1609,7 +1609,12 @@ M12 progression snapshot:
   - execution id: `m12b_candidate_eligibility_20260227T123135Z`,
   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.C_READY`, `verdict=ADVANCE_TO_M12_C`,
   - summary: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12b_candidate_eligibility_20260227T123135Z/m12b_execution_summary.json`.
-- M12 next actionable subphase is `M12.C`.
+- `M12.C` compatibility precheck was executed and closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22487307083`,
+  - execution id: `m12c_compatibility_precheck_20260227T130306Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.D_READY`, `verdict=ADVANCE_TO_M12_D`,
+  - summary: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12c_compatibility_precheck_20260227T130306Z/m12c_execution_summary.json`.
+- M12 next actionable subphase is `M12.D`.
 
 ## M13 - Final Verdict and Teardown Closure
 Status: `NOT_STARTED`
@@ -1647,4 +1652,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M12.C` (compatibility prechecks) on managed lane using M12.B closure evidence `m12b_candidate_eligibility_20260227T123135Z`.
+- Execute `M12.D` (promotion event commit) on managed lane using M12.C closure evidence `m12c_compatibility_precheck_20260227T130306Z`.

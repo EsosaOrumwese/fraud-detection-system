@@ -260,6 +260,21 @@ DoD:
 1. compatibility prechecks pass.
 2. `m12c_compatibility_precheck_snapshot.json` committed locally and durably.
 
+Closure evidence (managed):
+1. Run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22487307083`
+2. Execution:
+   - `m12c_compatibility_precheck_20260227T130306Z`
+3. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M12.D_READY`,
+   - `verdict=ADVANCE_TO_M12_D`.
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12c_compatibility_precheck_20260227T130306Z/m12c_compatibility_precheck_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12c_compatibility_precheck_20260227T130306Z/m12c_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12c_compatibility_precheck_20260227T130306Z/m12c_execution_summary.json`
+
 ### M12.D - Promotion Event Commit
 Goal:
 1. Commit promotion event with append-only semantics.
@@ -439,7 +454,7 @@ DoD:
 ## 8) Completion Checklist
 - [x] `M12.A` complete
 - [x] `M12.B` complete
-- [ ] `M12.C` complete
+- [x] `M12.C` complete
 - [ ] `M12.D` complete
 - [ ] `M12.E` complete
 - [ ] `M12.F` complete
@@ -456,4 +471,5 @@ DoD:
 3. `M12-B0` is closed green (managed lane materialized + dispatchability proven).
 4. `M12.A` is complete and green on managed lane with `M12-B1` cleared.
 5. `M12.B` is complete and green on managed lane with `M12-B2` cleared.
-6. Next action: execute `M12.C` on the managed lane.
+6. `M12.C` is complete and green on managed lane with `M12-B3` cleared.
+7. Next action: execute `M12.D` on the managed lane.
