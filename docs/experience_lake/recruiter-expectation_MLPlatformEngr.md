@@ -6,6 +6,9 @@ A **Senior ML Platform Engineer** is a platform-as-a-product engineer who builds
 
 What makes them “senior” is turning ambiguous needs into **clear platform APIs, guardrails, and acceptance criteria**, designing for failure modes (retries, replay/backfills, schema drift, partial outages), and driving adoption through strong developer experience (templates, SDKs, documentation, self-serve workflows). Their impact is proven through concrete artifacts—**golden-path templates, CI/CD gates, policy and promotion controls, audit trails, operational playbooks**—and measurable outcomes like **faster time-to-production, lower change failure rate, improved MTTR, higher paved-road adoption, stronger compliance posture, and predictable cost/performance at scale**.
 
+### One-liner
+A **Senior ML Platform Engineer** is an infrastructure/product engineer who **owns the “paved road” that lets teams ship and operate ML safely**. They design and run the shared platform for **data/feature reliability, training pipelines, model registry, deployment, monitoring, and governance**, so models move from idea → production → iteration with **SLO-grade reliability and auditability**. They’re “senior” because they **turn ambiguity into clear platform contracts and guardrails**, anticipate failure modes, and drive measurable outcomes like faster releases, fewer incidents, and easier self-serve adoption across teams.
+
 ---
 
 ## 2) Detailed responsibilities and expectations (Senior ML Platform Engineer)
