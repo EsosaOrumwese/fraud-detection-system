@@ -1620,6 +1620,15 @@ M12 progression snapshot:
   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.E_READY`, `verdict=ADVANCE_TO_M12_E`,
   - summary: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T132637Z/m12d_execution_summary.json`,
   - run-scoped promotion receipt: `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/promotion_receipt.json`.
+- M12.D strict transport repin (new hard gate):
+  - lane must include broker ACK (`topic/partition/offset`) plus consumer readback payload-hash match before pass.
+  - prior M12.D closure remains historical evidence but is not sufficient for advancement under the stricter pin.
+- M12.D strict rerun is now closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22490894460`,
+  - execution id: `m12d_promotion_commit_20260227T144832Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.E_READY`, `verdict=ADVANCE_TO_M12_E`,
+  - strict proof receipt:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T144832Z/m12d_broker_transport_proof.json`.
 - M12 next actionable subphase is `M12.E`.
 
 ## M13 - Final Verdict and Teardown Closure
@@ -1658,4 +1667,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M12.E` (rollback drill execution) on managed lane using M12.D closure evidence `m12d_promotion_commit_20260227T132637Z`.
+- Execute `M12.E` (rollback drill execution) on managed lane.

@@ -284,8 +284,9 @@ Entry conditions:
 
 Execution checks:
 1. promotion receipt is written to run-scoped MPR path.
-2. learning-registry event publication to `FP_BUS_LEARNING_REGISTRY_EVENTS_V1`.
-3. event payload carries required run/provenance identifiers.
+2. learning-registry event publication to `FP_BUS_LEARNING_REGISTRY_EVENTS_V1` has broker ACK evidence (`topic`, `partition`, `offset`).
+3. consumer-group readback confirms the same event (`registry_event_id` + payload hash match) from broker transport.
+4. event payload carries required run/provenance identifiers.
 
 Blockers:
 1. `M12-B4` on promotion commit/publish/readback failure.
@@ -295,9 +296,10 @@ Runtime budget:
 
 DoD:
 1. promotion receipt exists and is readable.
-2. `m12d_promotion_commit_snapshot.json` committed locally and durably.
+2. broker transport proof is committed and readable (`m12d_broker_transport_proof.json`).
+3. `m12d_promotion_commit_snapshot.json` committed locally and durably.
 
-Closure evidence (managed):
+Closure evidence (managed, pre-strict-repin run):
 1. Run:
    - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22488067476`
 2. Execution:
@@ -311,6 +313,28 @@ Closure evidence (managed):
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T132637Z/m12d_promotion_commit_snapshot.json`
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T132637Z/m12d_learning_registry_publication_receipt.json`
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T132637Z/m12d_execution_summary.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/promotion_receipt.json`
+5. Note:
+   - this closure run is retained as evidence history, but M12.D is repinned to require broker ACK + consumer readback transport proof before advancing.
+
+Strict closure evidence (managed, post-repin run):
+1. Run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22490894460`
+2. Execution:
+   - `m12d_promotion_commit_20260227T144832Z`
+3. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M12.E_READY`,
+   - `verdict=ADVANCE_TO_M12_E`.
+4. Strict transport proof:
+   - `reason=BROKER_ACK_AND_READBACK_PASS`,
+   - produced ACK: topic `fp.bus.learning.registry.events.v1`, partition `0`, offset `0`,
+   - consumer readback: offset `0`, `payload_hash_match=true`.
+5. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T144832Z/m12d_broker_transport_proof.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T144832Z/m12d_learning_registry_publication_receipt.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T144832Z/m12d_execution_summary.json`
    - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/promotion_receipt.json`
 
 ### M12.E - Rollback Drill Execution
@@ -488,5 +512,5 @@ DoD:
 4. `M12.A` is complete and green on managed lane with `M12-B1` cleared.
 5. `M12.B` is complete and green on managed lane with `M12-B2` cleared.
 6. `M12.C` is complete and green on managed lane with `M12-B3` cleared.
-7. `M12.D` is complete and green on managed lane with `M12-B4` cleared.
-8. Next action: execute `M12.E` on the managed lane.
+7. `M12.D` strict transport-proof rerun is complete and green (`22490894460`, execution `m12d_promotion_commit_20260227T144832Z`) with `M12-B4` cleared.
+8. Next action: proceed to `M12.E` rollback drill execution.
