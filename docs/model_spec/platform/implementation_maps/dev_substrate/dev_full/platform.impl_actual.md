@@ -16317,3 +16317,54 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 6. Pass posture pinned:
    - overall_pass=true, blocker_count=0, next_gate=M12.G_READY, verdict=ADVANCE_TO_M12_G,
    - durable artifacts: m12f_active_resolution_snapshot.json, m12_post_promotion_observation_snapshot.json, m12f_blocker_register.json, m12f_execution_summary.json.
+
+## Entry: 2026-02-27 17:39:10 +00:00 - M12.F first run failure diagnosis (M12-B6) and remediation pin
+1. First managed M12.F run failed:
+   - run: https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22496926142
+   - execution: m12f_active_resolution_20260227T173623Z
+   - blockers: M12-B6 on one-active-per-scope and runtime compatibility.
+2. Root cause analysis from lane artifact:
+   - M12.F code incorrectly assumed `m12d_promotion_commit_snapshot.json` used rich fields (`promotion`, `registry_event`, `publication`) from an older shape.
+   - Current strict M12.D snapshot shape instead exposes:
+     - `candidate_bundle_ref` at top level,
+     - `publication_checks` block,
+     - no full lifecycle event object in this file.
+   - Tenant scope and promoted-state checks therefore read empty values, causing false negatives.
+3. Remediation decision:
+   - keep active-resolution gates strict; fix source-of-truth wiring.
+   - read `m12d_execution_summary.json` -> resolve artifact keys for:
+     - `m12d_registry_lifecycle_event.json` (authoritative scope/event_type),
+     - `m12d_learning_registry_publication_receipt.json` (authoritative topic publication).
+   - keep `m12d_promotion_commit_snapshot.json` only as fallback/reference for candidate ref/publication checks.
+4. Implementation patch applied in workflow lane:
+   - added m12d summary/lifecycle/publication key resolution and reads,
+   - switched one-active-per-scope proof to lifecycle-event scope (`tenant_id`, `bundle_slot`, event_type),
+   - switched topic compatibility check to publication receipt topic (fallback to snapshot publication_checks),
+   - retained fail-closed M12-B6 mapping.
+5. Next action:
+   - rerun M12.F on managed lane with same upstream M12.E execution and close B6 if all checks pass.
+
+## Entry: 2026-02-27 17:44:30 +00:00 - M12.F executed and closed green after B6 remediation
+1. Workflow lane expansion and execution sequence:
+   - first run (failed): `22496926142`, execution `m12f_active_resolution_20260227T173623Z`, blockers `M12-B6` (false negatives from wrong M12.D evidence shape assumptions),
+   - remediation patch: align ACTIVE checks to M12.D strict evidence (`m12d_execution_summary` -> lifecycle/publication artifact keys),
+   - closure run (green): `22497074608`, execution `m12f_active_resolution_20260227T174035Z`.
+2. Closure result:
+   - `overall_pass=true`, `blocker_count=0`,
+   - `next_gate=M12.G_READY`,
+   - `verdict=ADVANCE_TO_M12_G`.
+3. Proof surfaces (durable):
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12f_active_resolution_snapshot.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12_post_promotion_observation_snapshot.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12f_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12f_execution_summary.json`.
+4. Verified passing checks in closure snapshot:
+   - one-active-per-scope deterministic (`tenant_scope=platform_20260223T184232Z:scenario_38753050f3b70c666e16f7552016b330`, `bundle_slot=active`),
+   - promoted lifecycle status and run-scope parity,
+   - candidate bundle hash stability,
+   - serving endpoint/mode alignment to handles,
+   - topic/schema compatibility alignment,
+   - model artifact readability.
+5. M12 progression:
+   - `M12-B6` closed,
+   - next actionable lane is `M12.G`.

@@ -413,9 +413,29 @@ Expanded execution contract:
 - fail-closed on any mismatch as `M12-B6`.
 
 DoD:
-- [ ] ACTIVE resolution checks pass.
-- [ ] `m12_post_promotion_observation_snapshot.json` committed and pass posture.
-- [ ] `m12f_active_resolution_snapshot.json` committed locally and durably.
+- [x] ACTIVE resolution checks pass.
+- [x] `m12_post_promotion_observation_snapshot.json` committed and pass posture.
+- [x] `m12f_active_resolution_snapshot.json` committed locally and durably.
+
+Closure evidence (2026-02-27):
+1. Run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22497074608`
+2. Execution:
+   - `m12f_active_resolution_20260227T174035Z`
+3. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M12.G_READY`,
+   - `verdict=ADVANCE_TO_M12_G`.
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12f_active_resolution_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12_post_promotion_observation_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12f_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12f_execution_summary.json`
+5. Active-resolution + compatibility posture:
+   - one-active-per-scope deterministic checks pass,
+   - serving/topic/schema compatibility checks pass,
+   - model artifact readability and run-scope parity checks pass.
 
 ### M12.G - Governance Append Closure
 Goal:
@@ -531,7 +551,7 @@ DoD:
 - [x] `M12.C` complete
 - [x] `M12.D` complete
 - [x] `M12.E` complete
-- [ ] `M12.F` complete
+- [x] `M12.F` complete
 - [ ] `M12.G` complete
 - [ ] `M12.H` complete
 - [ ] `M12.I` complete
@@ -548,4 +568,5 @@ DoD:
 6. `M12.C` is complete and green on managed lane with `M12-B3` cleared.
 7. `M12.D` strict transport-proof rerun is complete and green (`22490894460`, execution `m12d_promotion_commit_20260227T144832Z`) with `M12-B4` cleared.
 8. `M12.E` rollback drill execution is complete and green (`22495589600`, execution `m12e_rollback_drill_20260227T165747Z`) with `M12-B5` cleared.
-9. Next action: proceed to `M12.F` ACTIVE resolution checks.
+9. `M12.F` ACTIVE resolution checks are complete and green (`22497074608`, execution `m12f_active_resolution_20260227T174035Z`) with `M12-B6` cleared.
+10. Next action: proceed to `M12.G` governance append closure.

@@ -1578,8 +1578,8 @@ DoD anchors:
 - [x] promotion receipt committed.
 - [x] rollback drill report committed.
 - [x] rollback bounded-restore objective evidence committed.
-- [ ] active-bundle compatibility checks green.
-- [ ] post-promotion observation snapshot committed and pass.
+- [x] active-bundle compatibility checks green.
+- [x] post-promotion observation snapshot committed and pass.
 - [ ] governance append evidence is committed and coherent.
 - [ ] operability/governance acceptance report committed and pass.
 - [ ] deterministic `P15` verdict and `m13_handoff_pack.json` are committed.
@@ -1637,7 +1637,15 @@ M12 progression snapshot:
     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/rollback_drill_report.json`,
   - run-control summary:
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12e_rollback_drill_20260227T165747Z/m12e_execution_summary.json`.
-- M12 next actionable subphase is `M12.F`.
+- M12.F ACTIVE resolution checks are now closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22497074608`,
+  - execution id: `m12f_active_resolution_20260227T174035Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.G_READY`, `verdict=ADVANCE_TO_M12_G`,
+  - run-control artifacts:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12f_active_resolution_snapshot.json`,
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12_post_promotion_observation_snapshot.json`,
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12f_active_resolution_20260227T174035Z/m12f_execution_summary.json`.
+- M12 next actionable subphase is `M12.G`.
 
 ## M13 - Final Verdict and Teardown Closure
 Status: `NOT_STARTED`
@@ -1675,4 +1683,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M12.F` (ACTIVE resolution checks) on managed lane.
+- Execute `M12.G` (governance append closure) on managed lane.
