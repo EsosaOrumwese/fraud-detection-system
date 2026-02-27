@@ -16293,3 +16293,27 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
    - left pending lanes F-J unchecked.
 3. Intent: make subphase-local DoD state explicit without relying only on global completion checklist.
 4. No runtime/workflow behavior changed; this is documentation clarity and auditability hardening only.
+
+## Entry: 2026-02-27 17:10:40 +00:00 - M12.F pre-execution contract lock (ACTIVE resolution)
+1. Scope accepted: expand and execute M12.F end-to-end on managed lane.
+2. Entry and upstream contract pinned:
+   - upstream execution: m12e_rollback_drill_20260227T165747Z,
+   - required pass posture: overall_pass=true, blocker_count=0, next_gate=M12.F_READY.
+3. Required handles for this lane:
+   - MF_CANDIDATE_BUNDLE_PATH_PATTERN,
+   - MPR_PROMOTION_RECEIPT_PATH_PATTERN,
+   - MPR_ROLLBACK_DRILL_PATH_PATTERN,
+   - SM_ENDPOINT_NAME,
+   - SM_SERVING_MODE,
+   - FP_BUS_LEARNING_REGISTRY_EVENTS_V1,
+   - GLUE_SCHEMA_REGISTRY_NAME,
+   - GLUE_SCHEMA_COMPATIBILITY_MODE.
+4. M12.F check surfaces pinned:
+   - one-active-per-scope determinism: promotion receipt, strict M12.D promotion snapshot, and M12.E rollback report must resolve to one candidate ref under one tenant scope,
+   - runtime compatibility: candidate bundle serving endpoint/mode align with handles; package status and model artifact readability pass,
+   - post-promotion observation: emit dedicated observation artifact with pass/fail checks and source refs.
+5. Fail-closed mapping:
+   - all failures in this lane map to blocker family M12-B6.
+6. Pass posture pinned:
+   - overall_pass=true, blocker_count=0, next_gate=M12.G_READY, verdict=ADVANCE_TO_M12_G,
+   - durable artifacts: m12f_active_resolution_snapshot.json, m12_post_promotion_observation_snapshot.json, m12f_blocker_register.json, m12f_execution_summary.json.

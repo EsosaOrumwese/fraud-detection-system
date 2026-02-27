@@ -396,6 +396,22 @@ Blockers:
 Runtime budget:
 1. Target <= 8 minutes.
 
+Expanded execution contract:
+1. `M12.F.A` entry closure:
+- enforce upstream `M12.E` pass from durable run-control summary with `next_gate=M12.F_READY`.
+2. `M12.F.B` one-active-per-scope determinism:
+- resolve promotion receipt, strict promotion snapshot, rollback drill report, and candidate bundle reference;
+- require one candidate reference for one tenant scope (`platform_run_id:scenario_run_id`) with no conflicting resolution.
+3. `M12.F.C` runtime compatibility checks:
+- candidate serving endpoint/mode must align with `SM_ENDPOINT_NAME` and `SM_SERVING_MODE`;
+- registry/schema handles (`FP_BUS_LEARNING_REGISTRY_EVENTS_V1`, `GLUE_SCHEMA_REGISTRY_NAME`, `GLUE_SCHEMA_COMPATIBILITY_MODE`) must be non-placeholder and valid;
+- candidate package/model artifact posture must be readable and compatible.
+4. `M12.F.D` observation evidence:
+- emit `m12_post_promotion_observation_snapshot.json` with check-level pass/fail and source refs.
+5. `M12.F.E` closure sync:
+- emit `m12f_active_resolution_snapshot.json`, `m12f_blocker_register.json`, and `m12f_execution_summary.json`;
+- fail-closed on any mismatch as `M12-B6`.
+
 DoD:
 - [ ] ACTIVE resolution checks pass.
 - [ ] `m12_post_promotion_observation_snapshot.json` committed and pass posture.
