@@ -962,6 +962,7 @@ jobs:
           import os
           import re
           import time
+          import urllib.error
           import urllib.parse
           import urllib.request
           from datetime import datetime, timezone
@@ -1050,6 +1051,23 @@ jobs:
               with urllib.request.urlopen(req, timeout=60) as resp:
                   body = resp.read().decode("utf-8")
                   return json.loads(body) if body.strip() else {}
+
+          def dbx_mlflow_json(base_url: str, token: str, method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+              candidates = [path]
+              if path.startswith("/api/2.0/mlflow/"):
+                  candidates.append(path.replace("/api/2.0/mlflow/", "/api/2.0/preview/mlflow/", 1))
+              last_404: Exception | None = None
+              for p in candidates:
+                  try:
+                      return dbx_json(base_url=base_url, token=token, method=method, path=p, payload=payload)
+                  except urllib.error.HTTPError as exc:
+                      if exc.code == 404:
+                          last_404 = exc
+                          continue
+                      raise
+              if last_404 is not None:
+                  raise last_404
+              raise RuntimeError("mlflow_endpoint_resolution_failed")
 
           exec_id = os.environ["EXEC_ID"].strip()
           run_dir = Path(os.environ["RUN_DIR"].strip())
@@ -1186,7 +1204,7 @@ jobs:
           if not blockers:
               try:
                   exp_name_q = urllib.parse.quote(mlflow_experiment_path, safe="")
-                  exp_resp = dbx_json(
+                  exp_resp = dbx_mlflow_json(
                       base_url=workspace_url,
                       token=dbx_token,
                       method="GET",
@@ -1194,7 +1212,7 @@ jobs:
                   )
                   experiment = exp_resp.get("experiment")
                   if not isinstance(experiment, dict):
-                      create_resp = dbx_json(
+                      create_resp = dbx_mlflow_json(
                           base_url=workspace_url,
                           token=dbx_token,
                           method="POST",
@@ -1208,7 +1226,7 @@ jobs:
                       raise RuntimeError("experiment_id_missing")
 
                   run_name = f"{platform_run_id}:{exec_id}"
-                  create_run = dbx_json(
+                  create_run = dbx_mlflow_json(
                       base_url=workspace_url,
                       token=dbx_token,
                       method="POST",
@@ -1251,7 +1269,7 @@ jobs:
                       logged_metrics[mk] = val
                       metric_payload.append({"key": mk, "value": val, "timestamp": ts_ms, "step": 0})
 
-                  dbx_json(
+                  dbx_mlflow_json(
                       base_url=workspace_url,
                       token=dbx_token,
                       method="POST",
@@ -1259,7 +1277,7 @@ jobs:
                       payload={"run_id": run_id, "metrics": metric_payload, "params": [], "tags": []},
                   )
 
-                  dbx_json(
+                  dbx_mlflow_json(
                       base_url=workspace_url,
                       token=dbx_token,
                       method="POST",
@@ -1267,7 +1285,7 @@ jobs:
                       payload={"run_id": run_id, "status": "FINISHED", "end_time": int(time.time() * 1000)},
                   )
 
-                  run_get = dbx_json(
+                  run_get = dbx_mlflow_json(
                       base_url=workspace_url,
                       token=dbx_token,
                       method="GET",
