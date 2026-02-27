@@ -48,6 +48,7 @@ on:
           - m12f_execute
           - m12g_execute
           - m12h_execute
+          - m12i_execute
       upstream_m11j_execution:
         description: Upstream M11.J execution id (entry readiness ref)
         required: true
@@ -88,6 +89,11 @@ on:
         required: true
         default: m12g_governance_append_20260227T175530Z
         type: string
+      upstream_m12h_execution:
+        description: Upstream M12.H execution id (M12.I entry readiness ref)
+        required: true
+        default: m12h_p15_gate_rollup_20260227T181932Z
+        type: string
       m12_execution_id:
         description: Optional fixed execution id override
         required: false
@@ -121,7 +127,7 @@ jobs:
               exit 1
               ;;
           esac
-          if [[ "${{ inputs.execution_mode }}" != "materialization_check" && "${{ inputs.execution_mode }}" != "m12a_execute" && "${{ inputs.execution_mode }}" != "m12b_execute" && "${{ inputs.execution_mode }}" != "m12c_execute" && "${{ inputs.execution_mode }}" != "m12d_execute" && "${{ inputs.execution_mode }}" != "m12e_execute" && "${{ inputs.execution_mode }}" != "m12f_execute" && "${{ inputs.execution_mode }}" != "m12g_execute" && "${{ inputs.execution_mode }}" != "m12h_execute" ]]; then
+          if [[ "${{ inputs.execution_mode }}" != "materialization_check" && "${{ inputs.execution_mode }}" != "m12a_execute" && "${{ inputs.execution_mode }}" != "m12b_execute" && "${{ inputs.execution_mode }}" != "m12c_execute" && "${{ inputs.execution_mode }}" != "m12d_execute" && "${{ inputs.execution_mode }}" != "m12e_execute" && "${{ inputs.execution_mode }}" != "m12f_execute" && "${{ inputs.execution_mode }}" != "m12g_execute" && "${{ inputs.execution_mode }}" != "m12h_execute" && "${{ inputs.execution_mode }}" != "m12i_execute" ]]; then
             echo "Unsupported execution_mode='${{ inputs.execution_mode }}'"
             exit 1
           fi
@@ -155,6 +161,10 @@ jobs:
           fi
           if [[ "${{ inputs.execution_mode }}" == "m12h_execute" && "${{ inputs.m12_subphase }}" != "H" ]]; then
             echo "execution_mode='m12h_execute' currently supports only m12_subphase='H'."
+            exit 1
+          fi
+          if [[ "${{ inputs.execution_mode }}" == "m12i_execute" && "${{ inputs.m12_subphase }}" != "I" ]]; then
+            echo "execution_mode='m12i_execute' currently supports only m12_subphase='I'."
             exit 1
           fi
 
@@ -4110,6 +4120,357 @@ jobs:
               "next_gate": next_gate,
               "p15_verdict": p15_verdict,
               "p15_next_gate": p15_next_gate,
+              "evidence_prefix": f"s3://{bucket}/{prefix}",
+          }, indent=2, ensure_ascii=True))
+          if not overall_pass:
+              raise SystemExit(1)
+          PY
+
+      - name: Execute M12.I phase budget + cost-outcome closure (managed)
+        if: ${{ inputs.execution_mode == 'm12i_execute' && inputs.m12_subphase == 'I' }}
+        shell: bash
+        env:
+          EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          UPSTREAM_M12H_EXEC: ${{ inputs.upstream_m12h_execution }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          import os
+          import re
+          from datetime import datetime, timezone, timedelta
+          from decimal import Decimal, InvalidOperation
+          from pathlib import Path
+          import boto3
+          from botocore.exceptions import BotoCoreError, ClientError
+
+          def now() -> str:
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          def get_json(s3, bucket: str, key: str) -> dict:
+              raw = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+              payload = json.loads(raw)
+              if not isinstance(payload, dict):
+                  raise ValueError("json_not_object")
+              return payload
+
+          def put_json(s3, bucket: str, key: str, payload: dict) -> None:
+              body = (json.dumps(payload, indent=2, ensure_ascii=True) + "\n").encode("utf-8")
+              s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="application/json")
+              s3.head_object(Bucket=bucket, Key=key)
+
+          def truthy(v) -> bool:
+              if isinstance(v, bool):
+                  return v
+              if isinstance(v, str):
+                  return v.strip().lower() == "true"
+              return bool(v)
+
+          def as_decimal(v) -> Decimal:
+              return Decimal(str(v).strip())
+
+          def dedupe(blockers: list[dict[str, str]]) -> list[dict[str, str]]:
+              out: list[dict[str, str]] = []
+              seen: set[tuple[str, str]] = set()
+              for b in blockers:
+                  code = str(b.get("code", "")).strip()
+                  msg = str(b.get("message", "")).strip()
+                  sig = (code, msg)
+                  if sig in seen:
+                      continue
+                  seen.add(sig)
+                  out.append({"code": code, "message": msg})
+              return out
+
+          def parse_handles(path: Path) -> dict[str, object]:
+              out: dict[str, object] = {}
+              rx = re.compile(r"^\*\s+`([A-Z0-9_]+)\s*=\s*(.+)`\s*$")
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  m = rx.match(line.strip())
+                  if not m:
+                      continue
+                  k = m.group(1).strip()
+                  raw = m.group(2).strip()
+                  if (raw.startswith('"') and raw.endswith('"')) or (raw.startswith("'") and raw.endswith("'")):
+                      out[k] = raw[1:-1]
+                  elif raw.lower() == "true":
+                      out[k] = True
+                  elif raw.lower() == "false":
+                      out[k] = False
+                  else:
+                      out[k] = raw
+              return out
+
+          exec_id = os.environ["EXEC_ID"].strip()
+          run_dir = Path(os.environ["RUN_DIR"].strip())
+          bucket = os.environ["EVIDENCE_BUCKET"].strip()
+          region = (os.environ.get("AWS_REGION", "eu-west-2").strip() or "eu-west-2")
+          upstream_h = os.environ["UPSTREAM_M12H_EXEC"].strip()
+          if not upstream_h:
+              raise SystemExit("UPSTREAM_M12H_EXEC is required for M12.I.")
+
+          s3 = boto3.client("s3", region_name=region)
+          ce = boto3.client("ce", region_name="us-east-1")
+          blockers: list[dict[str, str]] = []
+          read_errors: list[dict[str, str]] = []
+          upload_errors: list[dict[str, str]] = []
+          notes: list[str] = []
+
+          # 1) Upstream M12.H pass closure
+          h_summary_key = f"evidence/dev_full/run_control/{upstream_h}/m12h_execution_summary.json"
+          h_summary: dict = {}
+          try:
+              h_summary = get_json(s3, bucket, h_summary_key)
+          except Exception as exc:
+              read_errors.append({"surface": h_summary_key, "error": type(exc).__name__})
+              blockers.append({"code": "M12-B10", "message": "Unreadable M12.H execution summary."})
+
+          platform_run_id = ""
+          scenario_run_id = ""
+          if h_summary:
+              platform_run_id = str(h_summary.get("platform_run_id", "")).strip()
+              scenario_run_id = str(h_summary.get("scenario_run_id", "")).strip()
+              if not truthy(h_summary.get("overall_pass", False)):
+                  blockers.append({"code": "M12-B10", "message": "M12.H overall_pass is false."})
+              if int(h_summary.get("blocker_count", 0)) != 0:
+                  blockers.append({"code": "M12-B10", "message": "M12.H blocker_count is non-zero."})
+              if str(h_summary.get("next_gate", "")).strip() != "M12.I_READY":
+                  blockers.append({"code": "M12-B10", "message": "M12.H next_gate is not M12.I_READY."})
+              if str(h_summary.get("p15_verdict", "")).strip() != "ADVANCE_TO_P16":
+                  blockers.append({"code": "M12-B10", "message": "M12.H p15_verdict is not ADVANCE_TO_P16."})
+              if not platform_run_id or not scenario_run_id:
+                  blockers.append({"code": "M12-B10", "message": "M12.H run-scope fields are incomplete."})
+
+          # 2) Handle closure and budget validity
+          handles_path = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
+          handles: dict[str, object] = {}
+          try:
+              handles = parse_handles(handles_path)
+          except Exception as exc:
+              blockers.append({"code": "M12-B10", "message": f"Unable to parse handles registry: {type(exc).__name__}."})
+
+          required_handles = [
+              "DEV_FULL_MONTHLY_BUDGET_LIMIT_USD",
+              "DEV_FULL_BUDGET_ALERT_1_USD",
+              "DEV_FULL_BUDGET_ALERT_2_USD",
+              "DEV_FULL_BUDGET_ALERT_3_USD",
+              "BUDGET_CURRENCY",
+              "COST_CAPTURE_SCOPE",
+              "AWS_COST_CAPTURE_ENABLED",
+              "PHASE_BUDGET_ENVELOPE_PATH_PATTERN",
+              "PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN",
+              "PHASE_COST_OUTCOME_REQUIRED",
+              "PHASE_ENVELOPE_REQUIRED",
+              "COST_OUTCOME_RECEIPT_REQUIRED_FIELDS",
+          ]
+          for key in required_handles:
+              if key not in handles:
+                  blockers.append({"code": "M12-B10", "message": f"Required handle {key} is missing."})
+
+          budget_limit = Decimal("0")
+          alert_1 = Decimal("0")
+          alert_2 = Decimal("0")
+          alert_3 = Decimal("0")
+          budget_currency = str(handles.get("BUDGET_CURRENCY", "USD")).strip() or "USD"
+          try:
+              budget_limit = as_decimal(handles.get("DEV_FULL_MONTHLY_BUDGET_LIMIT_USD", "0"))
+              alert_1 = as_decimal(handles.get("DEV_FULL_BUDGET_ALERT_1_USD", "0"))
+              alert_2 = as_decimal(handles.get("DEV_FULL_BUDGET_ALERT_2_USD", "0"))
+              alert_3 = as_decimal(handles.get("DEV_FULL_BUDGET_ALERT_3_USD", "0"))
+          except (InvalidOperation, ValueError):
+              blockers.append({"code": "M12-B10", "message": "Budget handle values are non-numeric."})
+
+          if budget_limit <= Decimal("0"):
+              blockers.append({"code": "M12-B10", "message": "Budget limit must be greater than zero."})
+          if not (Decimal("0") < alert_1 < alert_2 < alert_3 <= budget_limit):
+              blockers.append({"code": "M12-B10", "message": "Budget alerts must be strictly increasing and <= budget limit."})
+
+          aws_cost_enabled = truthy(handles.get("AWS_COST_CAPTURE_ENABLED", False))
+          cost_capture_scope = str(handles.get("COST_CAPTURE_SCOPE", "")).strip()
+          phase_cost_required = truthy(handles.get("PHASE_COST_OUTCOME_REQUIRED", False))
+          phase_envelope_required = truthy(handles.get("PHASE_ENVELOPE_REQUIRED", False))
+          required_receipt_fields = [x.strip() for x in str(handles.get("COST_OUTCOME_RECEIPT_REQUIRED_FIELDS", "")).split(",") if x.strip()]
+          if phase_cost_required and not required_receipt_fields:
+              blockers.append({"code": "M12-B10", "message": "Required receipt field contract is empty."})
+          if not aws_cost_enabled:
+              blockers.append({"code": "M12-B10", "message": "AWS_COST_CAPTURE_ENABLED is false; M12.I requires AWS capture."})
+
+          # 3) Cost capture (AWS MTD)
+          month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0).date().isoformat()
+          tomorrow = (datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat()
+          aws_mtd_cost = Decimal("0")
+          aws_ce_currency = budget_currency
+          ce_error = ""
+          if aws_cost_enabled:
+              try:
+                  ce_payload = ce.get_cost_and_usage(
+                      TimePeriod={"Start": month_start, "End": tomorrow},
+                      Granularity="MONTHLY",
+                      Metrics=["UnblendedCost"],
+                  )
+                  rows = ce_payload.get("ResultsByTime", [])
+                  if rows:
+                      total = rows[0].get("Total", {}).get("UnblendedCost", {})
+                      aws_mtd_cost = as_decimal(total.get("Amount", "0"))
+                      aws_ce_currency = str(total.get("Unit", "")).strip() or budget_currency
+              except Exception as exc:
+                  ce_error = type(exc).__name__
+                  blockers.append({"code": "M12-B10", "message": "AWS Cost Explorer capture failed."})
+          if aws_mtd_cost < Decimal("0"):
+              blockers.append({"code": "M12-B10", "message": "AWS MTD cost cannot be negative."})
+
+          utilization_pct = (aws_mtd_cost / budget_limit * Decimal("100")) if budget_limit > Decimal("0") else None
+          if utilization_pct is not None and utilization_pct >= Decimal("100"):
+              blockers.append({"code": "M12-B10", "message": "Current spend reached/exceeded monthly budget limit."})
+          if utilization_pct is not None and utilization_pct >= Decimal("90"):
+              notes.append("Spend is above 90% of monthly budget limit.")
+
+          # 4) Emit artifacts
+          budget_envelope = {
+              "captured_at_utc": now(),
+              "phase": "M12.I",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "window_start_utc": f"{month_start}T00:00:00Z",
+              "window_end_utc": f"{tomorrow}T00:00:00Z",
+              "budget": {
+                  "currency": budget_currency,
+                  "limit_amount": str(budget_limit),
+                  "alert_1_amount": str(alert_1),
+                  "alert_2_amount": str(alert_2),
+                  "alert_3_amount": str(alert_3),
+              },
+              "cost_capture": {
+                  "scope": cost_capture_scope,
+                  "aws_enabled": aws_cost_enabled,
+                  "aws_ce_error": ce_error,
+                  "phase_envelope_required": phase_envelope_required,
+                  "phase_cost_outcome_required": phase_cost_required,
+              },
+              "upstream_refs": {
+                  "m12h_execution_id": upstream_h,
+                  "m12h_execution_summary_key": h_summary_key,
+              },
+          }
+
+          cost_outcome_receipt = {
+              "captured_at_utc": now(),
+              "phase": "M12.I",
+              "phase_id": "P15",
+              "phase_execution_id": exec_id,
+              "window_start_utc": f"{month_start}T00:00:00Z",
+              "window_end_utc": f"{tomorrow}T00:00:00Z",
+              "spend_amount": str(aws_mtd_cost),
+              "spend_currency": aws_ce_currency or budget_currency,
+              "utilization_pct": str(utilization_pct) if utilization_pct is not None else None,
+              "artifacts_emitted": [
+                  "m12_phase_budget_envelope.json",
+                  "m12_phase_cost_outcome_receipt.json",
+                  "m12i_blocker_register.json",
+                  "m12i_execution_summary.json",
+              ],
+              "decision_or_risk_retired": "m12_p15_cost_outcome_closed_before_m12j",
+              "capture_scope": cost_capture_scope,
+              "aws_mtd_cost_amount": str(aws_mtd_cost),
+              "aws_mtd_cost_currency": aws_ce_currency or budget_currency,
+              "upstream_m12h_execution": upstream_h,
+          }
+
+          missing_required_receipt_fields = [f for f in required_receipt_fields if f not in cost_outcome_receipt]
+          if missing_required_receipt_fields:
+              blockers.append({"code": "M12-B10", "message": "Cost-outcome receipt missing required fields: " + ",".join(missing_required_receipt_fields)})
+
+          blockers = dedupe(blockers)
+          overall_pass = len(blockers) == 0
+          verdict = "ADVANCE_TO_M12_J" if overall_pass else "HOLD_REMEDIATE"
+          next_gate = "M12.J_READY" if overall_pass else "HOLD_REMEDIATE"
+
+          blocker_register = {
+              "captured_at_utc": now(),
+              "phase": "M12.I",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "blocker_count": len(blockers),
+              "blockers": blockers,
+              "overall_pass": overall_pass,
+          }
+          execution_summary = {
+              "captured_at_utc": now(),
+              "phase": "M12.I",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "upstream_refs": {"m12h_execution_id": upstream_h},
+              "artifact_keys": {
+                  "m12_phase_budget_envelope": f"evidence/dev_full/run_control/{exec_id}/m12_phase_budget_envelope.json",
+                  "m12_phase_cost_outcome_receipt": f"evidence/dev_full/run_control/{exec_id}/m12_phase_cost_outcome_receipt.json",
+                  "m12i_blocker_register": f"evidence/dev_full/run_control/{exec_id}/m12i_blocker_register.json",
+                  "m12i_execution_summary": f"evidence/dev_full/run_control/{exec_id}/m12i_execution_summary.json",
+              },
+              "required_receipt_fields": required_receipt_fields,
+              "notes": notes,
+              "read_errors": read_errors,
+              "upload_errors": upload_errors,
+          }
+
+          run_dir.mkdir(parents=True, exist_ok=True)
+          artifacts = {
+              "m12_phase_budget_envelope.json": budget_envelope,
+              "m12_phase_cost_outcome_receipt.json": cost_outcome_receipt,
+              "m12i_blocker_register.json": blocker_register,
+              "m12i_execution_summary.json": execution_summary,
+          }
+          for fname, payload in artifacts.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          prefix = f"evidence/dev_full/run_control/{exec_id}/"
+          for fname, payload in artifacts.items():
+              try:
+                  put_json(s3, bucket, prefix + fname, payload)
+              except Exception as exc:
+                  upload_errors.append({"surface": prefix + fname, "error": type(exc).__name__})
+                  blockers.append({"code": "M12-B10", "message": f"Failed to publish {fname}."})
+
+          blockers = dedupe(blockers)
+          overall_pass = len(blockers) == 0
+          verdict = "ADVANCE_TO_M12_J" if overall_pass else "HOLD_REMEDIATE"
+          next_gate = "M12.J_READY" if overall_pass else "HOLD_REMEDIATE"
+          blocker_register["blocker_count"] = len(blockers)
+          blocker_register["blockers"] = blockers
+          blocker_register["overall_pass"] = overall_pass
+          execution_summary["overall_pass"] = overall_pass
+          execution_summary["blocker_count"] = len(blockers)
+          execution_summary["verdict"] = verdict
+          execution_summary["next_gate"] = next_gate
+          execution_summary["upload_errors"] = upload_errors
+
+          for fname, payload in artifacts.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+              try:
+                  put_json(s3, bucket, prefix + fname, payload)
+              except Exception:
+                  pass
+
+          print(json.dumps({
+              "execution_id": exec_id,
+              "upstream_m12h_execution": upstream_h,
+              "overall_pass": overall_pass,
+              "blocker_count": len(blockers),
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "aws_mtd_cost_amount": str(aws_mtd_cost),
+              "aws_mtd_cost_currency": aws_ce_currency or budget_currency,
               "evidence_prefix": f"s3://{bucket}/{prefix}",
           }, indent=2, ensure_ascii=True))
           if not overall_pass:
