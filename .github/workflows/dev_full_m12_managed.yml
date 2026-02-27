@@ -42,6 +42,7 @@ on:
           - materialization_check
           - m12a_execute
           - m12b_execute
+          - m12c_execute
       upstream_m11j_execution:
         description: Upstream M11.J execution id (entry readiness ref)
         required: true
@@ -51,6 +52,11 @@ on:
         description: Upstream M12.A execution id (M12.B entry readiness ref)
         required: true
         default: m12a_handle_closure_20260227T121911Z
+        type: string
+      upstream_m12b_execution:
+        description: Upstream M12.B execution id (M12.C entry readiness ref)
+        required: true
+        default: m12b_candidate_eligibility_20260227T123135Z
         type: string
       m12_execution_id:
         description: Optional fixed execution id override
@@ -85,7 +91,7 @@ jobs:
               exit 1
               ;;
           esac
-          if [[ "${{ inputs.execution_mode }}" != "materialization_check" && "${{ inputs.execution_mode }}" != "m12a_execute" && "${{ inputs.execution_mode }}" != "m12b_execute" ]]; then
+          if [[ "${{ inputs.execution_mode }}" != "materialization_check" && "${{ inputs.execution_mode }}" != "m12a_execute" && "${{ inputs.execution_mode }}" != "m12b_execute" && "${{ inputs.execution_mode }}" != "m12c_execute" ]]; then
             echo "Unsupported execution_mode='${{ inputs.execution_mode }}'"
             exit 1
           fi
@@ -95,6 +101,10 @@ jobs:
           fi
           if [[ "${{ inputs.execution_mode }}" == "m12b_execute" && "${{ inputs.m12_subphase }}" != "B" ]]; then
             echo "execution_mode='m12b_execute' currently supports only m12_subphase='B'."
+            exit 1
+          fi
+          if [[ "${{ inputs.execution_mode }}" == "m12c_execute" && "${{ inputs.m12_subphase }}" != "C" ]]; then
+            echo "execution_mode='m12c_execute' currently supports only m12_subphase='C'."
             exit 1
           fi
 
@@ -914,6 +924,396 @@ jobs:
           for fname, payload in {
               "m12b_blocker_register.json": blocker_register,
               "m12b_execution_summary.json": execution_summary,
+          }.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+              try:
+                  s3_put_json(s3, default_bucket, run_control_prefix + fname, payload)
+              except Exception:
+                  pass
+
+          print(
+              json.dumps(
+                  {
+                      "execution_id": exec_id,
+                      "overall_pass": overall_pass,
+                      "blocker_count": len(blockers),
+                      "next_gate": next_gate,
+                      "verdict": verdict,
+                      "evidence_prefix": f"s3://{default_bucket}/{run_control_prefix}",
+                  },
+                  indent=2,
+                  ensure_ascii=True,
+              )
+          )
+          if not overall_pass:
+              raise SystemExit(1)
+          PY
+
+      - name: Execute M12.C compatibility prechecks (managed)
+        if: ${{ inputs.execution_mode == 'm12c_execute' && inputs.m12_subphase == 'C' }}
+        shell: bash
+        env:
+          EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          UPSTREAM_M12B_EXEC: ${{ inputs.upstream_m12b_execution }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          import os
+          import re
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from typing import Any
+
+          import boto3
+          from botocore.exceptions import BotoCoreError, ClientError
+
+          def now() -> str:
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          def s3_get_json(s3: Any, bucket: str, key: str) -> dict[str, Any]:
+              raw = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+              payload = json.loads(raw)
+              if not isinstance(payload, dict):
+                  raise ValueError("json_not_object")
+              return payload
+
+          def s3_put_json(s3: Any, bucket: str, key: str, payload: dict[str, Any]) -> None:
+              body = (json.dumps(payload, indent=2, ensure_ascii=True) + "\n").encode("utf-8")
+              s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="application/json")
+              s3.head_object(Bucket=bucket, Key=key)
+
+          def s3_parse_uri(uri: str) -> tuple[str, str]:
+              if not uri.startswith("s3://"):
+                  raise ValueError("not_s3_uri")
+              tail = uri[5:]
+              if "/" not in tail:
+                  raise ValueError("missing_key")
+              bucket, key = tail.split("/", 1)
+              if not bucket or not key:
+                  raise ValueError("incomplete_s3_uri")
+              return bucket, key
+
+          def parse_handles(path: Path) -> dict[str, str]:
+              rx = re.compile(r"^\*\s+`([A-Z0-9_]+)\s*=\s*(.+)`\s*$")
+              out: dict[str, str] = {}
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  m = rx.match(line.strip())
+                  if not m:
+                      continue
+                  key = m.group(1).strip()
+                  raw = m.group(2).strip()
+                  if (raw.startswith('"') and raw.endswith('"')) or (raw.startswith("'") and raw.endswith("'")):
+                      out[key] = raw[1:-1]
+                  else:
+                      out[key] = raw
+              return out
+
+          def dedupe(blockers: list[dict[str, str]]) -> list[dict[str, str]]:
+              out: list[dict[str, str]] = []
+              seen: set[tuple[str, str]] = set()
+              for b in blockers:
+                  code = str(b.get("code", "")).strip()
+                  msg = str(b.get("message", "")).strip()
+                  sig = (code, msg)
+                  if sig in seen:
+                      continue
+                  seen.add(sig)
+                  out.append({"code": code, "message": msg})
+              return out
+
+          exec_id = os.environ["EXEC_ID"].strip()
+          run_dir = Path(os.environ["RUN_DIR"].strip())
+          default_bucket = os.environ["EVIDENCE_BUCKET"].strip()
+          region = os.environ.get("AWS_REGION", "eu-west-2").strip() or "eu-west-2"
+          upstream_m12b = os.environ["UPSTREAM_M12B_EXEC"].strip()
+
+          s3 = boto3.client("s3", region_name=region)
+          blockers: list[dict[str, str]] = []
+          read_errors: list[dict[str, str]] = []
+          upload_errors: list[dict[str, str]] = []
+
+          m12b_summary_key = f"evidence/dev_full/run_control/{upstream_m12b}/m12b_execution_summary.json"
+          m12b_snapshot_key = f"evidence/dev_full/run_control/{upstream_m12b}/m12b_candidate_eligibility_snapshot.json"
+          m12b_summary: dict[str, Any] = {}
+          m12b_snapshot: dict[str, Any] = {}
+          try:
+              m12b_summary = s3_get_json(s3, default_bucket, m12b_summary_key)
+          except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+              read_errors.append({"surface": m12b_summary_key, "error": type(exc).__name__})
+              blockers.append({"code": "M12-B3", "message": "Unreadable M12.B execution summary."})
+          try:
+              m12b_snapshot = s3_get_json(s3, default_bucket, m12b_snapshot_key)
+          except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+              read_errors.append({"surface": m12b_snapshot_key, "error": type(exc).__name__})
+              blockers.append({"code": "M12-B3", "message": "Unreadable M12.B eligibility snapshot."})
+
+          platform_run_id = ""
+          scenario_run_id = ""
+          upstream_m11i = ""
+          if m12b_summary:
+              platform_run_id = str(m12b_summary.get("platform_run_id", "")).strip()
+              scenario_run_id = str(m12b_summary.get("scenario_run_id", "")).strip()
+              upstream_m11i = str((m12b_summary.get("upstream_refs") or {}).get("m11i_execution_id", "")).strip()
+              if not bool(m12b_summary.get("overall_pass", False)):
+                  blockers.append({"code": "M12-B3", "message": "M12.B overall_pass is false."})
+              try:
+                  m12b_blocker_count = int(str(m12b_summary.get("blocker_count", "")).strip())
+              except Exception:
+                  m12b_blocker_count = -1
+              if m12b_blocker_count != 0:
+                  blockers.append({"code": "M12-B3", "message": "M12.B blocker_count is not zero."})
+              if str(m12b_summary.get("next_gate", "")).strip() != "M12.C_READY":
+                  blockers.append({"code": "M12-B3", "message": "M12.B next_gate is not M12.C_READY."})
+              if not platform_run_id or not scenario_run_id:
+                  blockers.append({"code": "M12-B3", "message": "M12.B run scope is incomplete."})
+              if not upstream_m11i:
+                  blockers.append({"code": "M12-B3", "message": "M12.B upstream m11i_execution_id is missing."})
+
+          handoff_key = f"evidence/dev_full/run_control/{upstream_m11i}/m12_handoff_pack.json" if upstream_m11i else ""
+          handoff_pack: dict[str, Any] = {}
+          if handoff_key:
+              try:
+                  handoff_pack = s3_get_json(s3, default_bucket, handoff_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": handoff_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M12-B3", "message": "Unreadable M11.I m12_handoff_pack.json."})
+
+          required_refs = handoff_pack.get("required_refs") if isinstance(handoff_pack.get("required_refs"), dict) else {}
+          candidate_ref = str(required_refs.get("mf_candidate_bundle_ref", "")).strip()
+          eval_gate_ref = str(required_refs.get("m11_eval_vs_baseline_report_ref", "")).strip()
+          if not candidate_ref:
+              blockers.append({"code": "M12-B3", "message": "Handoff missing mf_candidate_bundle_ref."})
+          if not eval_gate_ref:
+              blockers.append({"code": "M12-B3", "message": "Handoff missing m11_eval_vs_baseline_report_ref."})
+
+          candidate_bundle: dict[str, Any] = {}
+          if candidate_ref:
+              try:
+                  cb_bucket, cb_key = s3_parse_uri(candidate_ref)
+                  candidate_bundle = s3_get_json(s3, cb_bucket, cb_key)
+              except Exception as exc:
+                  read_errors.append({"surface": candidate_ref, "error": type(exc).__name__})
+                  blockers.append({"code": "M12-B3", "message": "Candidate bundle is unreadable for compatibility checks."})
+
+          feature_contract_checks = {
+              "fingerprint_ref_present": False,
+              "fingerprint_readable": False,
+              "fingerprint_required_fields_present": False,
+              "fingerprint_join_scope_matches_run": False,
+          }
+          fingerprint_required_fields = ["replay_basis", "feature_asof_utc", "label_asof_utc", "feature_def_set"]
+          fingerprint_missing_fields: list[str] = []
+          dataset_fingerprint_ref = ""
+          dataset_fingerprint: dict[str, Any] = {}
+          if candidate_bundle:
+              dataset_fingerprint_ref = str((candidate_bundle.get("lineage") or {}).get("m10g_fingerprint_ref", "")).strip()
+              feature_contract_checks["fingerprint_ref_present"] = bool(dataset_fingerprint_ref)
+              if not dataset_fingerprint_ref:
+                  blockers.append({"code": "M12-B3", "message": "Candidate bundle is missing lineage.m10g_fingerprint_ref."})
+          if dataset_fingerprint_ref:
+              try:
+                  fp_bucket, fp_key = s3_parse_uri(dataset_fingerprint_ref)
+                  dataset_fingerprint = s3_get_json(s3, fp_bucket, fp_key)
+                  feature_contract_checks["fingerprint_readable"] = True
+              except Exception as exc:
+                  read_errors.append({"surface": dataset_fingerprint_ref, "error": type(exc).__name__})
+                  blockers.append({"code": "M12-B3", "message": "Dataset fingerprint is unreadable."})
+          if dataset_fingerprint:
+              req_values = dataset_fingerprint.get("required_field_values") if isinstance(dataset_fingerprint.get("required_field_values"), dict) else {}
+              for k in fingerprint_required_fields:
+                  v = req_values.get(k)
+                  if v is None or (isinstance(v, str) and not v.strip()):
+                      fingerprint_missing_fields.append(k)
+              feature_contract_checks["fingerprint_required_fields_present"] = len(fingerprint_missing_fields) == 0
+              if fingerprint_missing_fields:
+                  blockers.append({"code": "M12-B3", "message": f"Dataset fingerprint missing required_field_values: {', '.join(fingerprint_missing_fields)}."})
+              join_scope = str(req_values.get("join_scope", "")).strip()
+              feature_contract_checks["fingerprint_join_scope_matches_run"] = (
+                  f"platform_run_id={platform_run_id}" in join_scope and f"scenario_run_id={scenario_run_id}" in join_scope
+              )
+              if not feature_contract_checks["fingerprint_join_scope_matches_run"]:
+                  blockers.append({"code": "M12-B3", "message": "Dataset fingerprint join_scope does not match M12 run scope."})
+
+          policy_degrade_checks = {
+              "m11_eval_gate_readable": False,
+              "m11_eval_compatibility_true": False,
+              "candidate_eval_compatibility_true": False,
+              "required_vs_degrade_mask_compatible": True,
+          }
+          m11e_snapshot_key = str((candidate_bundle.get("rollback_pointers") or {}).get("m11e_snapshot_key", "")).strip() if candidate_bundle else ""
+          m11e_snapshot: dict[str, Any] = {}
+          if not m11e_snapshot_key:
+              blockers.append({"code": "M12-B3", "message": "Candidate rollback pointers missing m11e_snapshot_key."})
+          else:
+              try:
+                  m11e_snapshot = s3_get_json(s3, default_bucket, m11e_snapshot_key)
+                  policy_degrade_checks["m11_eval_gate_readable"] = True
+              except Exception as exc:
+                  read_errors.append({"surface": m11e_snapshot_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M12-B3", "message": "M11.E snapshot unreadable from candidate rollback pointers."})
+
+          if m11e_snapshot:
+              gate_results = m11e_snapshot.get("gate_results") if isinstance(m11e_snapshot.get("gate_results"), dict) else {}
+              policy_degrade_checks["m11_eval_compatibility_true"] = bool(gate_results.get("compatibility", False))
+              if not policy_degrade_checks["m11_eval_compatibility_true"]:
+                  blockers.append({"code": "M12-B3", "message": "M11.E compatibility gate is false."})
+
+          if candidate_bundle:
+              c_eval = ((candidate_bundle.get("metrics") or {}).get("eval_gate_results")) if isinstance(candidate_bundle.get("metrics"), dict) else {}
+              policy_degrade_checks["candidate_eval_compatibility_true"] = bool(c_eval.get("compatibility", False))
+              if not policy_degrade_checks["candidate_eval_compatibility_true"]:
+                  blockers.append({"code": "M12-B3", "message": "Candidate eval gate compatibility is false."})
+              required_caps = candidate_bundle.get("required_capabilities")
+              degrade_mask = candidate_bundle.get("degrade_capability_mask")
+              if isinstance(required_caps, list) and required_caps:
+                  if not isinstance(degrade_mask, list):
+                      policy_degrade_checks["required_vs_degrade_mask_compatible"] = False
+                      blockers.append({"code": "M12-B3", "message": "Candidate required_capabilities declared but degrade_capability_mask missing."})
+                  else:
+                      req_set = {str(x).strip() for x in required_caps if str(x).strip()}
+                      deg_set = {str(x).strip() for x in degrade_mask if str(x).strip()}
+                      if not req_set.issubset(deg_set):
+                          policy_degrade_checks["required_vs_degrade_mask_compatible"] = False
+                          blockers.append({"code": "M12-B3", "message": "Candidate required_capabilities not satisfiable by degrade_capability_mask."})
+
+          schema_checks = {
+              "handles_resolved": False,
+              "registry_mode_valid": False,
+              "compatibility_mode_valid": False,
+              "topic_handle_valid": False,
+          }
+          handles_path = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
+          handles: dict[str, str] = {}
+          required_schema_handles = [
+              "SCHEMA_REGISTRY_MODE",
+              "GLUE_SCHEMA_REGISTRY_NAME",
+              "GLUE_SCHEMA_COMPATIBILITY_MODE",
+              "FP_BUS_LEARNING_REGISTRY_EVENTS_V1",
+          ]
+          resolved_schema_handles: dict[str, str] = {}
+          unresolved_schema_handles: list[str] = []
+          try:
+              handles = parse_handles(handles_path)
+          except Exception as exc:
+              blockers.append({"code": "M12-B3", "message": f"Unable to parse handles registry: {type(exc).__name__}."})
+          for h in required_schema_handles:
+              v = str(handles.get(h, "")).strip()
+              resolved_schema_handles[h] = v
+              if (not v) or (v.upper() == "TO_PIN"):
+                  unresolved_schema_handles.append(h)
+          schema_checks["handles_resolved"] = len(unresolved_schema_handles) == 0
+          if unresolved_schema_handles:
+              blockers.append({"code": "M12-B3", "message": f"Unresolved schema/event handles: {', '.join(unresolved_schema_handles)}."})
+          registry_mode = resolved_schema_handles.get("SCHEMA_REGISTRY_MODE", "")
+          schema_checks["registry_mode_valid"] = registry_mode == "AWS_GLUE_SCHEMA_REGISTRY"
+          if not schema_checks["registry_mode_valid"]:
+              blockers.append({"code": "M12-B3", "message": f"SCHEMA_REGISTRY_MODE invalid for M12.C: '{registry_mode}'."})
+          compat_mode = resolved_schema_handles.get("GLUE_SCHEMA_COMPATIBILITY_MODE", "")
+          schema_checks["compatibility_mode_valid"] = compat_mode in {"BACKWARD", "FORWARD", "FULL"}
+          if not schema_checks["compatibility_mode_valid"]:
+              blockers.append({"code": "M12-B3", "message": f"GLUE_SCHEMA_COMPATIBILITY_MODE invalid: '{compat_mode}'."})
+          topic_handle = resolved_schema_handles.get("FP_BUS_LEARNING_REGISTRY_EVENTS_V1", "")
+          schema_checks["topic_handle_valid"] = topic_handle.startswith("fp.bus.learning.registry.")
+          if not schema_checks["topic_handle_valid"]:
+              blockers.append({"code": "M12-B3", "message": f"FP_BUS_LEARNING_REGISTRY_EVENTS_V1 invalid: '{topic_handle}'."})
+
+          compatibility_snapshot = {
+              "captured_at_utc": now(),
+              "phase": "M12.C",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "upstream_refs": {
+                  "m12b_execution_id": upstream_m12b,
+                  "m12b_execution_summary_key": m12b_summary_key,
+                  "m12b_snapshot_key": m12b_snapshot_key,
+                  "m11i_execution_id": upstream_m11i,
+                  "m12_handoff_pack_key": handoff_key,
+                  "dataset_fingerprint_ref": dataset_fingerprint_ref,
+                  "m11e_snapshot_key": m11e_snapshot_key,
+              },
+              "feature_input_contract_checks": feature_contract_checks,
+              "fingerprint_required_fields_checked": fingerprint_required_fields,
+              "fingerprint_missing_fields": fingerprint_missing_fields,
+              "policy_degrade_checks": policy_degrade_checks,
+              "schema_event_envelope_checks": schema_checks,
+              "resolved_schema_handles": resolved_schema_handles,
+          }
+
+          blocker_register = {
+              "captured_at_utc": now(),
+              "phase": "M12.C",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "blocker_count": 0,
+              "blockers": [],
+              "overall_pass": False,
+          }
+
+          execution_summary = {
+              "captured_at_utc": now(),
+              "phase": "M12.C",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "platform_run_id": platform_run_id,
+              "scenario_run_id": scenario_run_id,
+              "overall_pass": False,
+              "blocker_count": 0,
+              "verdict": "HOLD_REMEDIATE",
+              "next_gate": "HOLD_REMEDIATE",
+              "upstream_refs": {
+                  "m12b_execution_id": upstream_m12b,
+                  "m11i_execution_id": upstream_m11i,
+              },
+              "artifact_keys": {},
+          }
+
+          artifacts = {
+              "m12c_compatibility_precheck_snapshot.json": compatibility_snapshot,
+              "m12c_blocker_register.json": blocker_register,
+              "m12c_execution_summary.json": execution_summary,
+          }
+
+          run_dir.mkdir(parents=True, exist_ok=True)
+          for fname, payload in artifacts.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          run_control_prefix = f"evidence/dev_full/run_control/{exec_id}/"
+          for fname, payload in artifacts.items():
+              try:
+                  s3_put_json(s3, default_bucket, run_control_prefix + fname, payload)
+              except (BotoCoreError, ClientError) as exc:
+                  upload_errors.append({"surface": run_control_prefix + fname, "error": type(exc).__name__})
+                  blockers.append({"code": "M12-B3", "message": f"Failed to publish {fname}."})
+
+          blockers = dedupe(blockers)
+          overall_pass = len(blockers) == 0
+          verdict = "ADVANCE_TO_M12_D" if overall_pass else "HOLD_REMEDIATE"
+          next_gate = "M12.D_READY" if overall_pass else "HOLD_REMEDIATE"
+          blocker_register["blocker_count"] = len(blockers)
+          blocker_register["blockers"] = blockers
+          blocker_register["overall_pass"] = overall_pass
+          execution_summary["overall_pass"] = overall_pass
+          execution_summary["blocker_count"] = len(blockers)
+          execution_summary["verdict"] = verdict
+          execution_summary["next_gate"] = next_gate
+          execution_summary["artifact_keys"] = {
+              "m12c_compatibility_precheck_snapshot": run_control_prefix + "m12c_compatibility_precheck_snapshot.json",
+              "m12c_blocker_register": run_control_prefix + "m12c_blocker_register.json",
+              "m12c_execution_summary": run_control_prefix + "m12c_execution_summary.json",
+          }
+          execution_summary["read_errors"] = read_errors
+          execution_summary["upload_errors"] = upload_errors
+
+          for fname, payload in {
+              "m12c_blocker_register.json": blocker_register,
+              "m12c_execution_summary.json": execution_summary,
           }.items():
               (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
               try:
