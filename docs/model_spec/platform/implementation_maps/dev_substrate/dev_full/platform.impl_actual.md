@@ -16222,3 +16222,65 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 6. Phase progression update:
    - `M12.D` is now closed under strict repin,
    - next actionable subphase is `M12.E` rollback drill.
+
+## Entry: 2026-02-27 16:53:11 +00:00 - M12.E pre-execution contract lock (rollback drill lane)
+1. Scope accepted: plan and execute `M12.E` fully on managed lane with fail-closed posture.
+2. Decision-completeness check:
+   - upstream strict closure required: `M12.D` summary must be pass with `next_gate=M12.E_READY`,
+   - required handles must resolve (non-placeholder): `MPR_PROMOTION_RECEIPT_PATH_PATTERN`, `MPR_ROLLBACK_DRILL_PATH_PATTERN`, `MF_CANDIDATE_BUNDLE_PATH_PATTERN`,
+   - run-scope parity must hold (`platform_run_id`, `scenario_run_id`) across M12.D/M12.B candidate lineage.
+3. Chosen implementation posture for rollback drill:
+   - non-destructive bounded-restore drill (no active-serving cutover),
+   - prove recoverability by reloading promotion + candidate refs, validating rollback pointers/readability, and deterministic hash-stability checks,
+   - publish a run-scoped rollback drill report at `MPR_ROLLBACK_DRILL_PATH_PATTERN` and gate on write+readback success.
+4. M12.E blocker mapping (single family for this lane):
+   - `M12-B5` on any upstream mismatch, unresolved handle, rollback-readability failure, bounded-restore evidence failure, or artifact publication failure.
+5. Expected pass posture:
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M12.F_READY`, `verdict=ADVANCE_TO_M12_F`.
+6. Required artifacts for closure:
+   - `m12e_rollback_drill_snapshot.json`,
+   - `m12e_blocker_register.json`,
+   - `m12e_execution_summary.json`,
+   - run-scoped `rollback_drill_report.json` (MPR path).
+
+## Entry: 2026-02-27 16:58:04 +00:00 - M12.E managed lane materialized in workflow
+1. Implemented m12e_execute in .github/workflows/dev_full_m12_managed.yml with strict mode/subphase guard (E only).
+2. Added explicit upstream input binding upstream_m12d_execution for deterministic entry closure.
+3. Implemented fail-closed M12-B5 checks for:
+   - upstream strict M12.D pass posture,
+   - handle closure (MPR_PROMOTION_RECEIPT_PATH_PATTERN, MPR_ROLLBACK_DRILL_PATH_PATTERN, MF_CANDIDATE_BUNDLE_PATH_PATTERN),
+   - candidate/readability/run-scope/hash stability,
+   - OFS rollback recipe + drill readability/pass,
+   - rollback report write/readback parity.
+4. Output posture pinned:
+   - run-scoped MPR rollback report,
+   - run-control artifacts (m12e_rollback_drill_snapshot, m12e_blocker_register, m12e_execution_summary),
+   - pass verdict next_gate=M12.F_READY and verdict=ADVANCE_TO_M12_F.
+
+## Entry: 2026-02-27 17:02:20 +00:00 - M12.E executed and closed green on managed lane
+1. Workflow-only patch was committed/pushed on active branch:
+   - commit: `18a77f122` (`ci: add managed M12.E rollback drill lane`),
+   - file scope: `.github/workflows/dev_full_m12_managed.yml` only.
+2. Managed execution dispatched and completed:
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22495589600`,
+   - mode: `m12_subphase=E`, `execution_mode=m12e_execute`,
+   - upstream strict binding: `m12d_promotion_commit_20260227T144832Z`.
+3. Lane outcome:
+   - execution id: `m12e_rollback_drill_20260227T165747Z`,
+   - `overall_pass=true`, `blocker_count=0`,
+   - `next_gate=M12.F_READY`,
+   - `verdict=ADVANCE_TO_M12_F`.
+4. Rollback-drill proof surfaces (durable):
+   - run-scoped report: `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/rollback_drill_report.json`,
+   - snapshot: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12e_rollback_drill_20260227T165747Z/m12e_rollback_drill_snapshot.json`,
+   - blocker register: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12e_rollback_drill_20260227T165747Z/m12e_blocker_register.json`,
+   - summary: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12e_rollback_drill_20260227T165747Z/m12e_execution_summary.json`.
+5. Bounded-restore objective evidence (all pass):
+   - upstream strict M12.D pass and transport continuity,
+   - promotion receipt readable at run-scoped MPR path,
+   - candidate bundle readable with stable double-read SHA256,
+   - run-scope parity (`platform_run_id`, `scenario_run_id`) holds,
+   - OFS rollback recipe + OFS rollback drill report readable and pass posture.
+6. Progression impact:
+   - `M12-B5` closed,
+   - M12 progression advanced to `M12.F`.

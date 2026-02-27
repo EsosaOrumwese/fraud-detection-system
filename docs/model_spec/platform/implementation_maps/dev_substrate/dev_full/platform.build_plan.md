@@ -1576,8 +1576,8 @@ M12 blocker families (fail-closed):
 
 DoD anchors:
 - [x] promotion receipt committed.
-- [ ] rollback drill report committed.
-- [ ] rollback bounded-restore objective evidence committed.
+- [x] rollback drill report committed.
+- [x] rollback bounded-restore objective evidence committed.
 - [ ] active-bundle compatibility checks green.
 - [ ] post-promotion observation snapshot committed and pass.
 - [ ] governance append evidence is committed and coherent.
@@ -1629,7 +1629,15 @@ M12 progression snapshot:
   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.E_READY`, `verdict=ADVANCE_TO_M12_E`,
   - strict proof receipt:
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12d_promotion_commit_20260227T144832Z/m12d_broker_transport_proof.json`.
-- M12 next actionable subphase is `M12.E`.
+- M12.E rollback drill execution is now closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22495589600`,
+  - execution id: `m12e_rollback_drill_20260227T165747Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.F_READY`, `verdict=ADVANCE_TO_M12_F`,
+  - rollback drill report:
+    - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/rollback_drill_report.json`,
+  - run-control summary:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12e_rollback_drill_20260227T165747Z/m12e_execution_summary.json`.
+- M12 next actionable subphase is `M12.F`.
 
 ## M13 - Final Verdict and Teardown Closure
 Status: `NOT_STARTED`
@@ -1667,4 +1675,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M12.E` (rollback drill execution) on managed lane.
+- Execute `M12.F` (ACTIVE resolution checks) on managed lane.

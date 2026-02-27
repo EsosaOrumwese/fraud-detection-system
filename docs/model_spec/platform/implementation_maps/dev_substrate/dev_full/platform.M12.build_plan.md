@@ -360,6 +360,24 @@ DoD:
 2. bounded restore objective evidence is present.
 3. `m12e_rollback_drill_snapshot.json` committed locally and durably.
 
+Closure evidence (2026-02-27):
+1. Run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22495589600`
+2. Execution:
+   - `m12e_rollback_drill_20260227T165747Z`
+3. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M12.F_READY`,
+   - `verdict=ADVANCE_TO_M12_F`.
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12e_rollback_drill_20260227T165747Z/m12e_rollback_drill_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12e_rollback_drill_20260227T165747Z/m12e_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12e_rollback_drill_20260227T165747Z/m12e_execution_summary.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/rollback_drill_report.json`
+5. Bounded restore objective:
+   - all checks pass, including strict transport proof continuity, promotion receipt readability, candidate hash stability, run-scope match, and OFS rollback-recipe/drill readability.
+
 ### M12.F - ACTIVE Resolution Checks
 Goal:
 1. Verify ACTIVE resolution remains deterministic and runtime-compatible.
@@ -496,7 +514,7 @@ DoD:
 - [x] `M12.B` complete
 - [x] `M12.C` complete
 - [x] `M12.D` complete
-- [ ] `M12.E` complete
+- [x] `M12.E` complete
 - [ ] `M12.F` complete
 - [ ] `M12.G` complete
 - [ ] `M12.H` complete
@@ -513,4 +531,5 @@ DoD:
 5. `M12.B` is complete and green on managed lane with `M12-B2` cleared.
 6. `M12.C` is complete and green on managed lane with `M12-B3` cleared.
 7. `M12.D` strict transport-proof rerun is complete and green (`22490894460`, execution `m12d_promotion_commit_20260227T144832Z`) with `M12-B4` cleared.
-8. Next action: proceed to `M12.E` rollback drill execution.
+8. `M12.E` rollback drill execution is complete and green (`22495589600`, execution `m12e_rollback_drill_20260227T165747Z`) with `M12-B5` cleared.
+9. Next action: proceed to `M12.F` ACTIVE resolution checks.
