@@ -15881,3 +15881,71 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 6. Planning updates applied:
    - `platform.M12.build_plan.md`: M12.A marked complete with closure evidence,
    - `platform.build_plan.md`: M12 progression snapshot updated; next action advanced to M12.B.
+
+## Entry: 2026-02-27 12:29:58 +00:00 - M12.B planning lock and managed-lane design before execution
+1. Requested scope: plan and execute `M12.B` (candidate eligibility precheck) end-to-end.
+2. Current managed-lane gap confirmed:
+   - `.github/workflows/dev_full_m12_managed.yml` previously supported only `materialization_check` (`M12-B0`) and `m12a_execute` (`M12.A`).
+   - `M12.B` had no executable managed lane yet, so execution could not proceed without workflow extension.
+3. Decision taken (fail-closed):
+   - extend the same single managed workflow with `execution_mode=m12b_execute` constrained to `m12_subphase=B`.
+   - keep branch/worktree posture unchanged (no branch hopping) and execute on active `migrate-dev` ref.
+4. Implemented M12.B entry/readiness checks:
+   - require readable/pass `M12.A` summary (`overall_pass=true`, `blocker_count=0`, `next_gate=M12.B_READY`),
+   - require run scope (`platform_run_id`, `scenario_run_id`) and upstream `m11j_execution_id` from `M12.A` summary,
+   - require readable/pass `M11.J` summary (`overall_pass=true`, `next_gate=M12_READY`),
+   - require `m11i_execution_id` and readable `m12_handoff_pack.json`.
+5. Implemented M12.B eligibility checks:
+   - required handoff refs must exist + be readable:
+     - `mf_candidate_bundle_ref`,
+     - `m11_model_operability_report_ref`,
+     - `m11_eval_report_ref`,
+     - `m11_eval_vs_baseline_report_ref`,
+     - `mf_leakage_provenance_check_ref`,
+     - `m11_reproducibility_check_ref`,
+     - `m11f_mlflow_lineage_snapshot_ref`.
+   - candidate bundle must be complete and promotion-eligible:
+     - `bundle_status=CANDIDATE`,
+     - run-scope parity with M12 scope,
+     - required fields present (`bundle_id`, `model`, `metrics`, `lineage`, `rollback_pointers`, etc),
+     - eval gate booleans all true (`compatibility`, `leakage`, `performance`, `stability`),
+     - lineage identifiers present (`m11d/m11e/m11f execution ids`, `mlflow_run_id`).
+6. Blocker semantics and verdict mapping:
+   - all failures map to `M12-B2` for this lane,
+   - pass posture emits `next_gate=M12.C_READY`, `verdict=ADVANCE_TO_M12_C`.
+7. Artifact contract implemented:
+   - `m12b_candidate_eligibility_snapshot.json`,
+   - `m12b_blocker_register.json`,
+   - `m12b_execution_summary.json`,
+   - local + durable publish under `evidence/dev_full/run_control/<execution_id>/...`.
+8. Next execution step:
+   - workflow-only commit and push,
+   - dispatch `dev_full_m12_managed.yml` with `m12_subphase=B`, `execution_mode=m12b_execute`, `upstream_m12a_execution=m12a_handle_closure_20260227T121911Z`.
+
+## Entry: 2026-02-27 12:33:43 +00:00 - M12.B execution and closure evidence
+1. Workflow-only patch committed and pushed on active `migrate-dev` branch:
+   - commit: `6db8b627f` (`ci: add managed M12.B candidate eligibility lane`),
+   - file scope: `.github/workflows/dev_full_m12_managed.yml` only.
+2. Managed dispatch executed on `migrate-dev`:
+   - workflow: `dev_full_m12_managed.yml`,
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22486311059`,
+   - mode: `execution_mode=m12b_execute`, `m12_subphase=B`,
+   - upstream: `m12a_handle_closure_20260227T121911Z`.
+3. Runtime outcome:
+   - execution id: `m12b_candidate_eligibility_20260227T123135Z`,
+   - `overall_pass=true`, `blocker_count=0`,
+   - `next_gate=M12.C_READY`,
+   - `verdict=ADVANCE_TO_M12_C`.
+4. Eligibility checks that passed:
+   - M12.A pass posture and run-scope extraction,
+   - M11.J pass posture and M11.I handoff resolution,
+   - all required handoff refs readable,
+   - candidate bundle status/run-scope/provenance completeness checks all true,
+   - eval gate booleans (`compatibility`, `leakage`, `performance`, `stability`) all true.
+5. Durable evidence published and verified:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12b_candidate_eligibility_20260227T123135Z/m12b_candidate_eligibility_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12b_candidate_eligibility_20260227T123135Z/m12b_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12b_candidate_eligibility_20260227T123135Z/m12b_execution_summary.json`
+6. Planning state updates applied:
+   - deep M12 plan marks `M12.B` complete and references closure artifacts,
+   - main platform plan progression/next-action advanced to `M12.C`.

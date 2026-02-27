@@ -223,6 +223,21 @@ DoD:
 1. eligibility checks pass.
 2. `m12b_candidate_eligibility_snapshot.json` committed locally and durably.
 
+Closure evidence (managed):
+1. Run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22486311059`
+2. Execution:
+   - `m12b_candidate_eligibility_20260227T123135Z`
+3. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M12.C_READY`,
+   - `verdict=ADVANCE_TO_M12_C`.
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12b_candidate_eligibility_20260227T123135Z/m12b_candidate_eligibility_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12b_candidate_eligibility_20260227T123135Z/m12b_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12b_candidate_eligibility_20260227T123135Z/m12b_execution_summary.json`
+
 ### M12.C - Compatibility Prechecks
 Goal:
 1. Fail-closed on compatibility mismatch before promotion.
@@ -423,7 +438,7 @@ DoD:
 
 ## 8) Completion Checklist
 - [x] `M12.A` complete
-- [ ] `M12.B` complete
+- [x] `M12.B` complete
 - [ ] `M12.C` complete
 - [ ] `M12.D` complete
 - [ ] `M12.E` complete
@@ -440,4 +455,5 @@ DoD:
 2. M11 closure entry requirements are already satisfied.
 3. `M12-B0` is closed green (managed lane materialized + dispatchability proven).
 4. `M12.A` is complete and green on managed lane with `M12-B1` cleared.
-5. Next action: execute `M12.B` on the managed lane.
+5. `M12.B` is complete and green on managed lane with `M12-B2` cleared.
+6. Next action: execute `M12.C` on the managed lane.
