@@ -60,6 +60,11 @@ on:
         required: false
         default: m11h_safe_disable_rollback_20260227T085223Z
         type: string
+      upstream_m11i_execution:
+        description: Upstream M11.I execution id (required for M11.J)
+        required: false
+        default: m11i_p14_gate_rollup_20260227T094100Z
+        type: string
       m11d_execution_id:
         description: Optional fixed execution id
         required: false
@@ -87,6 +92,11 @@ on:
         type: string
       m11i_execution_id:
         description: Optional fixed execution id for M11.I
+        required: false
+        default: ""
+        type: string
+      m11j_execution_id:
+        description: Optional fixed execution id for M11.J
         required: false
         default: ""
         type: string
@@ -139,9 +149,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ inputs.m11_subphase }}" != "D" && "${{ inputs.m11_subphase }}" != "E" && "${{ inputs.m11_subphase }}" != "F" && "${{ inputs.m11_subphase }}" != "G" && "${{ inputs.m11_subphase }}" != "H" && "${{ inputs.m11_subphase }}" != "I" ]]; then
+          if [[ "${{ inputs.m11_subphase }}" != "D" && "${{ inputs.m11_subphase }}" != "E" && "${{ inputs.m11_subphase }}" != "F" && "${{ inputs.m11_subphase }}" != "G" && "${{ inputs.m11_subphase }}" != "H" && "${{ inputs.m11_subphase }}" != "I" && "${{ inputs.m11_subphase }}" != "J" ]]; then
             echo "Unsupported m11_subphase='${{ inputs.m11_subphase }}'."
-            echo "Supported subphases for this workflow: D, E, F, G, H, I."
+            echo "Supported subphases for this workflow: D, E, F, G, H, I, J."
             exit 1
           fi
 
@@ -213,6 +223,12 @@ jobs:
               EXEC_ID="${{ inputs.m11i_execution_id }}"
             else
               EXEC_ID="m11i_p14_gate_rollup_${TS}"
+            fi
+          elif [[ "${{ inputs.m11_subphase }}" == "J" ]]; then
+            if [[ -n "${{ inputs.m11j_execution_id }}" ]]; then
+              EXEC_ID="${{ inputs.m11j_execution_id }}"
+            else
+              EXEC_ID="m11j_closure_sync_${TS}"
             fi
           else
             echo "Unsupported m11_subphase='${{ inputs.m11_subphase }}' for execution metadata."
@@ -2926,6 +2942,430 @@ jobs:
                       "next_gate": next_gate,
                       "verdict": p14_verdict,
                       "m12_handoff_s3_uri": f"s3://{bucket}/{run_control_prefix}m12_handoff_pack.json",
+                      "evidence_prefix": f"s3://{bucket}/{run_control_prefix}",
+                  },
+                  indent=2,
+                  ensure_ascii=True,
+              )
+          )
+          if not overall_pass:
+              raise SystemExit(1)
+          PY
+
+      - name: Execute M11.J (managed)
+        if: ${{ inputs.m11_subphase == 'J' }}
+        shell: bash
+        env:
+          EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          UPSTREAM_M11I_EXEC: ${{ inputs.upstream_m11i_execution }}
+          AWS_REGION: ${{ inputs.aws_region }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          import os
+          import re
+          from datetime import datetime, timedelta, timezone
+          from decimal import Decimal, InvalidOperation
+          from pathlib import Path
+          from typing import Any
+
+          import boto3
+          from botocore.exceptions import BotoCoreError, ClientError
+
+          def now() -> str:
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+          def s3_get_json(s3: Any, bucket: str, key: str) -> dict[str, Any]:
+              raw = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+              payload = json.loads(raw)
+              if not isinstance(payload, dict):
+                  raise ValueError("json_not_object")
+              return payload
+
+          def s3_put_json(s3: Any, bucket: str, key: str, payload: dict[str, Any]) -> None:
+              body = (json.dumps(payload, indent=2, ensure_ascii=True) + "\n").encode("utf-8")
+              s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="application/json")
+              s3.head_object(Bucket=bucket, Key=key)
+
+          def dedupe(blockers: list[dict[str, str]]) -> list[dict[str, str]]:
+              out: list[dict[str, str]] = []
+              seen: set[tuple[str, str]] = set()
+              for b in blockers:
+                  code = str(b.get("code", "")).strip()
+                  msg = str(b.get("message", "")).strip()
+                  sig = (code, msg)
+                  if sig in seen:
+                      continue
+                  seen.add(sig)
+                  out.append({"code": code, "message": msg})
+              return out
+
+          def truthy(v: Any) -> bool:
+              if isinstance(v, bool):
+                  return v
+              if isinstance(v, str):
+                  return v.strip().lower() == "true"
+              return bool(v)
+
+          def as_int(v: Any, default: int = -1) -> int:
+              try:
+                  return int(str(v).strip())
+              except Exception:
+                  return default
+
+          def as_decimal(v: Any) -> Decimal:
+              return Decimal(str(v).strip())
+
+          def parse_handles(path: Path) -> dict[str, Any]:
+              out: dict[str, Any] = {}
+              rx = re.compile(r"^\*\s+`([A-Z0-9_]+)\s*=\s*(.+)`\s*$")
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  m = rx.match(line.strip())
+                  if not m:
+                      continue
+                  key = m.group(1).strip()
+                  raw = m.group(2).strip()
+                  if (raw.startswith('"') and raw.endswith('"')) or (raw.startswith("'") and raw.endswith("'")):
+                      out[key] = raw[1:-1]
+                  elif raw.lower() == "true":
+                      out[key] = True
+                  elif raw.lower() == "false":
+                      out[key] = False
+                  else:
+                      out[key] = raw
+              return out
+
+          exec_id = os.environ["EXEC_ID"].strip()
+          run_dir = Path(os.environ["RUN_DIR"].strip())
+          bucket = os.environ["EVIDENCE_BUCKET"].strip()
+          upstream_i = os.environ["UPSTREAM_M11I_EXEC"].strip()
+          region = os.environ.get("AWS_REGION", "eu-west-2").strip() or "eu-west-2"
+          if not upstream_i:
+              raise SystemExit("UPSTREAM_M11I_EXEC is required for M11.J.")
+
+          s3 = boto3.client("s3", region_name=region)
+          ce = boto3.client("ce", region_name="us-east-1")
+          blockers: list[dict[str, str]] = []
+          notes: list[str] = []
+          read_errors: list[dict[str, str]] = []
+          upload_errors: list[dict[str, str]] = []
+          publish_failures: list[str] = []
+
+          upstream_prefix = f"evidence/dev_full/run_control/{upstream_i}/"
+          required_upstream = [
+              "m11i_execution_summary.json",
+              "m11i_p14_gate_verdict.json",
+              "m11i_blocker_register.json",
+              "m12_handoff_pack.json",
+          ]
+          upstream_payloads: dict[str, dict[str, Any]] = {}
+          for name in required_upstream:
+              key = upstream_prefix + name
+              try:
+                  upstream_payloads[name] = s3_get_json(s3, bucket, key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": key, "error": type(exc).__name__})
+                  blockers.append({"code": "M11-B11", "message": f"Unreadable upstream artifact: {name}."})
+
+          i_summary = upstream_payloads.get("m11i_execution_summary.json", {})
+          i_verdict = upstream_payloads.get("m11i_p14_gate_verdict.json", {})
+          i_blockers = upstream_payloads.get("m11i_blocker_register.json", {})
+          handoff = upstream_payloads.get("m12_handoff_pack.json", {})
+          if i_summary:
+              if not truthy(i_summary.get("overall_pass", False)):
+                  blockers.append({"code": "M11-B11", "message": "M11.I summary overall_pass is false."})
+              if as_int(i_summary.get("blocker_count", None)) != 0:
+                  blockers.append({"code": "M11-B11", "message": "M11.I summary blocker_count is not zero."})
+              if str(i_summary.get("verdict", "")).strip() != "ADVANCE_TO_P15":
+                  blockers.append({"code": "M11-B11", "message": "M11.I summary verdict is not ADVANCE_TO_P15."})
+              if str(i_summary.get("next_gate", "")).strip() != "M11.J_READY":
+                  blockers.append({"code": "M11-B11", "message": "M11.I summary next_gate is not M11.J_READY."})
+          if i_verdict and str(i_verdict.get("verdict", "")).strip() != "ADVANCE_TO_P15":
+              blockers.append({"code": "M11-B11", "message": "M11.I gate verdict mismatch."})
+          if i_blockers and as_int(i_blockers.get("blocker_count", None)) != 0:
+              blockers.append({"code": "M11-B11", "message": "M11.I blocker register is non-zero."})
+          if handoff:
+              if str(handoff.get("m12_entry_gate", {}).get("next_gate", "")).strip() != "M12_READY":
+                  blockers.append({"code": "M11-B11", "message": "M12 handoff next_gate is not M12_READY."})
+              if not truthy(handoff.get("m12_entry_ready", False)):
+                  blockers.append({"code": "M11-B11", "message": "M12 handoff marks entry as not ready."})
+
+          handles_path = Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md")
+          handles: dict[str, Any] = {}
+          try:
+              handles = parse_handles(handles_path)
+          except Exception as exc:
+              blockers.append({"code": "M11-B11", "message": f"Unable to parse handles registry: {type(exc).__name__}."})
+
+          required_handles = [
+              "DEV_FULL_MONTHLY_BUDGET_LIMIT_USD",
+              "DEV_FULL_BUDGET_ALERT_1_USD",
+              "DEV_FULL_BUDGET_ALERT_2_USD",
+              "DEV_FULL_BUDGET_ALERT_3_USD",
+              "BUDGET_CURRENCY",
+              "COST_CAPTURE_SCOPE",
+              "AWS_COST_CAPTURE_ENABLED",
+              "DATABRICKS_COST_CAPTURE_ENABLED",
+              "PHASE_BUDGET_ENVELOPE_PATH_PATTERN",
+              "PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN",
+          ]
+          for key in required_handles:
+              if key not in handles:
+                  blockers.append({"code": "M11-B11", "message": f"Required handle {key} is missing."})
+
+          budget_limit = Decimal("0")
+          alert_1 = Decimal("0")
+          alert_2 = Decimal("0")
+          alert_3 = Decimal("0")
+          budget_currency = str(handles.get("BUDGET_CURRENCY", "USD")).strip() or "USD"
+          try:
+              budget_limit = as_decimal(handles.get("DEV_FULL_MONTHLY_BUDGET_LIMIT_USD", "0"))
+              alert_1 = as_decimal(handles.get("DEV_FULL_BUDGET_ALERT_1_USD", "0"))
+              alert_2 = as_decimal(handles.get("DEV_FULL_BUDGET_ALERT_2_USD", "0"))
+              alert_3 = as_decimal(handles.get("DEV_FULL_BUDGET_ALERT_3_USD", "0"))
+          except (InvalidOperation, ValueError):
+              blockers.append({"code": "M11-B11", "message": "Budget handle values are non-numeric."})
+
+          if budget_limit <= Decimal("0"):
+              blockers.append({"code": "M11-B11", "message": "Budget limit must be greater than zero."})
+          if not (Decimal("0") < alert_1 < alert_2 < alert_3 <= budget_limit):
+              blockers.append({"code": "M11-B11", "message": "Budget alerts must be strictly increasing and <= budget limit."})
+
+          aws_cost_capture_enabled = truthy(handles.get("AWS_COST_CAPTURE_ENABLED", False))
+          databricks_cost_capture_enabled = truthy(handles.get("DATABRICKS_COST_CAPTURE_ENABLED", False))
+          cost_capture_scope = str(handles.get("COST_CAPTURE_SCOPE", "")).strip()
+          if not aws_cost_capture_enabled:
+              blockers.append({"code": "M11-B11", "message": "AWS cost capture is disabled; M11.J requires AWS cost capture."})
+          if databricks_cost_capture_enabled:
+              notes.append("Databricks cost capture is enabled; this lane currently records AWS as mandatory and Databricks as advisory.")
+
+          aws_mtd_cost: Decimal | None = None
+          aws_ce_currency = ""
+          ce_error = ""
+          month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0).date().isoformat()
+          tomorrow = (datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat()
+          if aws_cost_capture_enabled:
+              try:
+                  ce_payload = ce.get_cost_and_usage(
+                      TimePeriod={"Start": month_start, "End": tomorrow},
+                      Granularity="MONTHLY",
+                      Metrics=["UnblendedCost"],
+                  )
+                  rows = ce_payload.get("ResultsByTime", [])
+                  if rows:
+                      total = rows[0].get("Total", {}).get("UnblendedCost", {})
+                      aws_mtd_cost = as_decimal(total.get("Amount", "0"))
+                      aws_ce_currency = str(total.get("Unit", "")).strip() or budget_currency
+                  else:
+                      aws_mtd_cost = Decimal("0")
+                      aws_ce_currency = budget_currency
+              except Exception as exc:
+                  ce_error = type(exc).__name__
+                  blockers.append({"code": "M11-B11", "message": "AWS Cost Explorer capture failed."})
+          else:
+              aws_mtd_cost = Decimal("0")
+              aws_ce_currency = budget_currency
+
+          if aws_mtd_cost is not None and aws_mtd_cost < Decimal("0"):
+              blockers.append({"code": "M11-B11", "message": "AWS MTD cost cannot be negative."})
+
+          budget_envelope = {
+              "captured_at_utc": now(),
+              "phase": "M11.J",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "platform_run_id": str(i_summary.get("platform_run_id", "")).strip(),
+              "scenario_run_id": str(i_summary.get("scenario_run_id", "")).strip(),
+              "window_start_utc": f"{month_start}T00:00:00Z",
+              "window_end_utc": f"{tomorrow}T00:00:00Z",
+              "budget": {
+                  "currency": budget_currency,
+                  "limit_amount": str(budget_limit),
+                  "alert_1_amount": str(alert_1),
+                  "alert_2_amount": str(alert_2),
+                  "alert_3_amount": str(alert_3),
+              },
+              "cost_capture": {
+                  "scope": cost_capture_scope,
+                  "aws_enabled": aws_cost_capture_enabled,
+                  "databricks_enabled": databricks_cost_capture_enabled,
+                  "databricks_defer_reason": str(handles.get("DATABRICKS_COST_CAPTURE_DEFER_REASON", "")).strip(),
+                  "aws_ce_error": ce_error,
+              },
+          }
+
+          spend_amount = aws_mtd_cost if aws_mtd_cost is not None else Decimal("0")
+          utilization_pct = (spend_amount / budget_limit * Decimal("100")) if budget_limit > Decimal("0") else None
+          if utilization_pct is not None and utilization_pct >= Decimal("100"):
+              blockers.append({"code": "M11-B11", "message": "Current spend has reached or exceeded monthly budget limit."})
+          if utilization_pct is not None and utilization_pct >= Decimal("90"):
+              notes.append("Spend is above 90% of monthly budget limit.")
+
+          cost_outcome_receipt = {
+              "captured_at_utc": now(),
+              "phase": "M11.J",
+              "phase_id": "P15",
+              "phase_execution_id": exec_id,
+              "window_start_utc": f"{month_start}T00:00:00Z",
+              "window_end_utc": f"{tomorrow}T00:00:00Z",
+              "spend_amount": str(spend_amount),
+              "spend_currency": aws_ce_currency or budget_currency,
+              "utilization_pct": str(utilization_pct) if utilization_pct is not None else None,
+              "artifacts_emitted": [
+                  "m11_phase_budget_envelope.json",
+                  "m11_phase_cost_outcome_receipt.json",
+                  "m11j_blocker_register.json",
+                  "m11j_execution_summary.json",
+                  "m11_execution_summary.json",
+              ],
+              "decision_or_risk_retired": "m11_closure_sync_ready_for_m12",
+              "capture_scope": cost_capture_scope,
+              "aws_mtd_cost_amount": str(spend_amount),
+              "aws_mtd_cost_currency": aws_ce_currency or budget_currency,
+              "databricks_cost_capture_enabled": databricks_cost_capture_enabled,
+              "databricks_cost_deferred_reason": str(handles.get("DATABRICKS_COST_CAPTURE_DEFER_REASON", "")).strip(),
+          }
+
+          required_read_count = len(required_upstream)
+          actual_read_count = len(upstream_payloads)
+          all_upstream_available = actual_read_count == required_read_count
+          if not all_upstream_available:
+              blockers.append(
+                  {
+                      "code": "M11-B11",
+                      "message": f"Upstream artifact availability mismatch ({actual_read_count}/{required_read_count}).",
+                  }
+              )
+
+          blocker_register = {
+              "captured_at_utc": now(),
+              "phase": "M11.J",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "blocker_count": 0,
+              "blockers": [],
+              "overall_pass": False,
+          }
+
+          next_gate = "HOLD_REMEDIATE"
+          verdict = "HOLD_REMEDIATE"
+          execution_summary = {
+              "captured_at_utc": now(),
+              "phase": "M11.J",
+              "phase_id": "P15",
+              "execution_id": exec_id,
+              "platform_run_id": str(i_summary.get("platform_run_id", "")).strip(),
+              "scenario_run_id": str(i_summary.get("scenario_run_id", "")).strip(),
+              "overall_pass": False,
+              "blocker_count": 0,
+              "verdict": verdict,
+              "next_gate": next_gate,
+              "all_required_available": False,
+              "upstream_refs": {"m11i_execution_id": upstream_i},
+              "artifact_keys": {},
+              "notes": notes,
+          }
+
+          m11_execution_summary = {
+              "captured_at_utc": now(),
+              "phase": "M11",
+              "phase_id": "P11-P15",
+              "execution_id": exec_id,
+              "status": "NOT_DONE",
+              "overall_pass": False,
+              "next_gate": next_gate,
+              "verdict": verdict,
+              "upstream_refs": {"m11i_execution_id": upstream_i},
+              "m11_j_execution_summary_ref": "",
+          }
+
+          run_dir.mkdir(parents=True, exist_ok=True)
+          run_control_prefix = f"evidence/dev_full/run_control/{exec_id}/"
+          artifacts = {
+              "m11_phase_budget_envelope.json": budget_envelope,
+              "m11_phase_cost_outcome_receipt.json": cost_outcome_receipt,
+              "m11j_blocker_register.json": blocker_register,
+              "m11j_execution_summary.json": execution_summary,
+              "m11_execution_summary.json": m11_execution_summary,
+          }
+
+          for fname, payload in artifacts.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          for fname, payload in artifacts.items():
+              key = run_control_prefix + fname
+              try:
+                  s3_put_json(s3, bucket, key, payload)
+              except (BotoCoreError, ClientError) as exc:
+                  upload_errors.append({"surface": key, "error": type(exc).__name__})
+                  publish_failures.append(fname)
+                  blockers.append({"code": "M11-B12", "message": f"Failed to publish artifact: {fname}."})
+
+          published_count = len(artifacts) - len(publish_failures)
+          all_published = published_count == len(artifacts)
+          all_required_available = all_upstream_available and all_published
+          if not all_published:
+              blockers.append(
+                  {
+                      "code": "M11-B12",
+                      "message": f"Published artifact availability mismatch ({published_count}/{len(artifacts)}).",
+                  }
+              )
+
+          blockers = dedupe(blockers)
+          overall_pass = len(blockers) == 0 and all_required_available
+          next_gate = "M12_READY" if overall_pass else "HOLD_REMEDIATE"
+          verdict = "ADVANCE_TO_M12" if overall_pass else "HOLD_REMEDIATE"
+          blocker_register["blocker_count"] = len(blockers)
+          blocker_register["blockers"] = blockers
+          blocker_register["overall_pass"] = overall_pass
+          execution_summary["overall_pass"] = overall_pass
+          execution_summary["blocker_count"] = len(blockers)
+          execution_summary["verdict"] = verdict
+          execution_summary["next_gate"] = next_gate
+          execution_summary["all_required_available"] = all_required_available
+          execution_summary["artifact_keys"] = {
+              "m11_phase_budget_envelope": run_control_prefix + "m11_phase_budget_envelope.json",
+              "m11_phase_cost_outcome_receipt": run_control_prefix + "m11_phase_cost_outcome_receipt.json",
+              "m11j_blocker_register": run_control_prefix + "m11j_blocker_register.json",
+              "m11j_execution_summary": run_control_prefix + "m11j_execution_summary.json",
+              "m11_execution_summary": run_control_prefix + "m11_execution_summary.json",
+          }
+          execution_summary["read_errors"] = read_errors
+          execution_summary["upload_errors"] = upload_errors
+          m11_execution_summary["status"] = "DONE" if overall_pass else "NOT_DONE"
+          m11_execution_summary["overall_pass"] = overall_pass
+          m11_execution_summary["next_gate"] = next_gate
+          m11_execution_summary["verdict"] = verdict
+          m11_execution_summary["m11_j_execution_summary_ref"] = f"s3://{bucket}/{run_control_prefix}m11j_execution_summary.json"
+
+          for fname, payload in {
+              "m11j_blocker_register.json": blocker_register,
+              "m11j_execution_summary.json": execution_summary,
+              "m11_execution_summary.json": m11_execution_summary,
+          }.items():
+              (run_dir / fname).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+              try:
+                  s3_put_json(s3, bucket, run_control_prefix + fname, payload)
+              except Exception:
+                  pass
+
+          print(
+              json.dumps(
+                  {
+                      "execution_id": exec_id,
+                      "upstream_m11i_execution": upstream_i,
+                      "overall_pass": overall_pass,
+                      "blocker_count": len(blockers),
+                      "next_gate": next_gate,
+                      "verdict": verdict,
+                      "all_required_available": all_required_available,
+                      "aws_mtd_cost_amount": str(spend_amount),
+                      "aws_mtd_cost_currency": aws_ce_currency or budget_currency,
                       "evidence_prefix": f"s3://{bucket}/{run_control_prefix}",
                   },
                   indent=2,
