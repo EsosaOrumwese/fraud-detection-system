@@ -46,6 +46,7 @@ on:
           - m12d_execute
           - m12e_execute
           - m12f_execute
+          - m12g_execute
       upstream_m11j_execution:
         description: Upstream M11.J execution id (entry readiness ref)
         required: true
@@ -75,6 +76,11 @@ on:
         description: Upstream M12.E execution id (M12.F entry readiness ref)
         required: true
         default: m12e_rollback_drill_20260227T165747Z
+        type: string
+      upstream_m12f_execution:
+        description: Upstream M12.F execution id (M12.G entry readiness ref)
+        required: true
+        default: m12f_active_resolution_20260227T174035Z
         type: string
       m12_execution_id:
         description: Optional fixed execution id override
@@ -109,7 +115,7 @@ jobs:
               exit 1
               ;;
           esac
-          if [[ "${{ inputs.execution_mode }}" != "materialization_check" && "${{ inputs.execution_mode }}" != "m12a_execute" && "${{ inputs.execution_mode }}" != "m12b_execute" && "${{ inputs.execution_mode }}" != "m12c_execute" && "${{ inputs.execution_mode }}" != "m12d_execute" && "${{ inputs.execution_mode }}" != "m12e_execute" && "${{ inputs.execution_mode }}" != "m12f_execute" ]]; then
+          if [[ "${{ inputs.execution_mode }}" != "materialization_check" && "${{ inputs.execution_mode }}" != "m12a_execute" && "${{ inputs.execution_mode }}" != "m12b_execute" && "${{ inputs.execution_mode }}" != "m12c_execute" && "${{ inputs.execution_mode }}" != "m12d_execute" && "${{ inputs.execution_mode }}" != "m12e_execute" && "${{ inputs.execution_mode }}" != "m12f_execute" && "${{ inputs.execution_mode }}" != "m12g_execute" ]]; then
             echo "Unsupported execution_mode='${{ inputs.execution_mode }}'"
             exit 1
           fi
@@ -135,6 +141,10 @@ jobs:
           fi
           if [[ "${{ inputs.execution_mode }}" == "m12f_execute" && "${{ inputs.m12_subphase }}" != "F" ]]; then
             echo "execution_mode='m12f_execute' currently supports only m12_subphase='F'."
+            exit 1
+          fi
+          if [[ "${{ inputs.execution_mode }}" == "m12g_execute" && "${{ inputs.m12_subphase }}" != "G" ]]; then
+            echo "execution_mode='m12g_execute' currently supports only m12_subphase='G'."
             exit 1
           fi
 
@@ -3427,6 +3437,370 @@ jobs:
                   ensure_ascii=True,
               )
           )
+          if not overall_pass:
+              raise SystemExit(1)
+          PY
+
+      - name: Execute M12.G governance append closure (managed)
+        if: ${{ inputs.execution_mode == 'm12g_execute' && inputs.m12_subphase == 'G' }}
+        shell: bash
+        env:
+          EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
+          RUN_DIR: ${{ steps.run_meta.outputs.run_dir }}
+          EVIDENCE_BUCKET: ${{ inputs.evidence_bucket }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          UPSTREAM_M12F_EXEC: ${{ inputs.upstream_m12f_execution }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib, json, os, re
+          from datetime import datetime, timezone, timedelta
+          from pathlib import Path
+          import boto3
+
+          def now():
+              return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+          def pts(v):
+              s = (v or "").strip()
+              if not s:
+                  return None
+              if s.endswith("Z"):
+                  s = s[:-1] + "+00:00"
+              try:
+                  return datetime.fromisoformat(s)
+              except Exception:
+                  return None
+          def phandles(path):
+              rx = re.compile(r"^\*\s+`([A-Z0-9_]+)\s*=\s*(.+)`\s*$")
+              out = {}
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  m = rx.match(line.strip())
+                  if not m:
+                      continue
+                  k, raw = m.group(1).strip(), m.group(2).strip()
+                  if (raw.startswith('"') and raw.endswith('"')) or (raw.startswith("'") and raw.endswith("'")):
+                      out[k] = raw[1:-1]
+                  else:
+                      out[k] = raw
+              return out
+          def placeholder(v):
+              s = str(v or "").strip().lower()
+              return (not s) or s in {"to_pin", "todo", "tbd", "none", "null", "unset"} or ("<" in s and ">" in s)
+          def get_bytes(s3, b, k):
+              return s3.get_object(Bucket=b, Key=k)["Body"].read()
+          def get_text(s3, b, k):
+              return get_bytes(s3, b, k).decode("utf-8")
+          def get_json(s3, b, k):
+              p = json.loads(get_text(s3, b, k))
+              if not isinstance(p, dict):
+                  raise ValueError("json_not_object")
+              return p
+          def put_json(s3, b, k, payload):
+              body = (json.dumps(payload, indent=2, ensure_ascii=True) + "\n").encode("utf-8")
+              s3.put_object(Bucket=b, Key=k, Body=body, ContentType="application/json")
+              s3.head_object(Bucket=b, Key=k)
+          def put_text(s3, b, k, text):
+              s3.put_object(Bucket=b, Key=k, Body=text.encode("utf-8"), ContentType="application/x-ndjson")
+              s3.head_object(Bucket=b, Key=k)
+          def dedupe(bs):
+              out, seen = [], set()
+              for x in bs:
+                  sig = (str(x.get("code","")).strip(), str(x.get("message","")).strip())
+                  if sig in seen:
+                      continue
+                  seen.add(sig)
+                  out.append({"code": sig[0], "message": sig[1]})
+              return out
+
+          exec_id = os.environ["EXEC_ID"].strip()
+          run_dir = Path(os.environ["RUN_DIR"].strip())
+          bucket = os.environ["EVIDENCE_BUCKET"].strip()
+          region = (os.environ.get("AWS_REGION","eu-west-2").strip() or "eu-west-2")
+          upstream = os.environ["UPSTREAM_M12F_EXEC"].strip()
+          if not upstream:
+              raise SystemExit("UPSTREAM_M12F_EXEC is required for M12.G.")
+
+          s3 = boto3.client("s3", region_name=region)
+          h = phandles(Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"))
+
+          blockers, read_errors, upload_errors, notes = [], [], [], []
+          req = ["GOV_APPEND_LOG_PATH_PATTERN","GOV_RUN_CLOSE_MARKER_PATH_PATTERN","MPR_PROMOTION_RECEIPT_PATH_PATTERN","MPR_ROLLBACK_DRILL_PATH_PATTERN"]
+          unresolved = [k for k in req if (k not in h) or placeholder(h.get(k))]
+          if unresolved:
+              blockers.append({"code":"M12-B7","message":"Required M12.G handles unresolved: " + ",".join(sorted(unresolved))})
+
+          m12f_summary_key = f"evidence/dev_full/run_control/{upstream}/m12f_execution_summary.json"
+          m12f_snap_key = f"evidence/dev_full/run_control/{upstream}/m12f_active_resolution_snapshot.json"
+          m12f_obs_key = f"evidence/dev_full/run_control/{upstream}/m12_post_promotion_observation_snapshot.json"
+          m12f_summary = m12f_snap = m12f_obs = None
+          try:
+              m12f_summary = get_json(s3, bucket, m12f_summary_key)
+              m12f_snap = get_json(s3, bucket, m12f_snap_key)
+              m12f_obs = get_json(s3, bucket, m12f_obs_key)
+          except Exception as exc:
+              read_errors.append({"surface":"m12f_bundle","error":type(exc).__name__})
+              blockers.append({"code":"M12-B7","message":"M12.F upstream evidence unreadable."})
+
+          platform_run_id = scenario_run_id = ""
+          m12d_execution_id = m12e_execution_id = ""
+          gov_key = marker_key = promotion_key = rollback_key = ""
+          lifecycle_key = ""
+          if m12f_summary and m12f_snap and m12f_obs:
+              if not bool(m12f_summary.get("overall_pass")) or str(m12f_summary.get("next_gate","")).strip() != "M12.G_READY" or int(m12f_summary.get("blocker_count",0)) != 0:
+                  blockers.append({"code":"M12-B7","message":"M12.F summary not in pass posture for M12.G entry."})
+              platform_run_id = str(m12f_summary.get("platform_run_id","")).strip()
+              scenario_run_id = str(m12f_summary.get("scenario_run_id","")).strip()
+              up = m12f_snap.get("upstream_refs") if isinstance(m12f_snap.get("upstream_refs"), dict) else {}
+              src = m12f_obs.get("source_refs") if isinstance(m12f_obs.get("source_refs"), dict) else {}
+              m12d_execution_id = str(up.get("m12d_execution_id","")).strip()
+              m12e_execution_id = str(up.get("m12e_execution_id","")).strip()
+              lifecycle_key = str(src.get("m12d_lifecycle_key","")).strip()
+              promotion_key = str(src.get("promotion_receipt_key","")).strip() or str(h.get("MPR_PROMOTION_RECEIPT_PATH_PATTERN","")).replace("{platform_run_id}", platform_run_id)
+              rollback_key = str(src.get("rollback_drill_key","")).strip() or str(h.get("MPR_ROLLBACK_DRILL_PATH_PATTERN","")).replace("{platform_run_id}", platform_run_id)
+              gov_key = str(h.get("GOV_APPEND_LOG_PATH_PATTERN","")).replace("{platform_run_id}", platform_run_id)
+              marker_key = str(h.get("GOV_RUN_CLOSE_MARKER_PATH_PATTERN","")).replace("{platform_run_id}", platform_run_id)
+              if not lifecycle_key and m12d_execution_id:
+                  lifecycle_key = f"evidence/dev_full/run_control/{m12d_execution_id}/m12d_registry_lifecycle_event.json"
+              if not all([platform_run_id, scenario_run_id, gov_key, marker_key, promotion_key, rollback_key, lifecycle_key]):
+                  blockers.append({"code":"M12-B7","message":"M12.G key/run-scope resolution incomplete."})
+
+          promotion = rollback = lifecycle = marker = None
+          for name, key in [("promotion",promotion_key),("rollback",rollback_key),("lifecycle",lifecycle_key),("marker",marker_key)]:
+              if not key:
+                  continue
+              try:
+                  p = get_json(s3, bucket, key)
+                  if name == "promotion": promotion = p
+                  if name == "rollback": rollback = p
+                  if name == "lifecycle": lifecycle = p
+                  if name == "marker": marker = p
+              except Exception as exc:
+                  read_errors.append({"surface":key,"error":type(exc).__name__})
+                  blockers.append({"code":"M12-B7","message":f"Required ref unreadable: {name}."})
+
+          existing = []
+          existing_ids = set()
+          existing_order_ok = True
+          existing_scope_ok = True
+          existing_dupe_free = True
+          existing_last_ts = None
+          if gov_key:
+              try:
+                  lines = [ln for ln in get_text(s3, bucket, gov_key).splitlines() if ln.strip()]
+                  prev = None
+                  for ln in lines:
+                      obj = json.loads(ln)
+                      if not isinstance(obj, dict):
+                          raise ValueError("append_line_not_object")
+                      existing.append(obj)
+                      eid = str(obj.get("event_id","")).strip()
+                      if eid in existing_ids:
+                          existing_dupe_free = False
+                      if eid:
+                          existing_ids.add(eid)
+                      pins = obj.get("pins") if isinstance(obj.get("pins"), dict) else {}
+                      if str(pins.get("platform_run_id","")).strip() != platform_run_id:
+                          existing_scope_ok = False
+                      ts = pts(str(obj.get("ts_utc","")).strip())
+                      if ts is None or (prev and ts < prev):
+                          existing_order_ok = False
+                      if ts:
+                          prev = ts
+                  existing_last_ts = prev
+              except Exception as exc:
+                  read_errors.append({"surface":gov_key,"error":type(exc).__name__})
+                  blockers.append({"code":"M12-B7","message":"Governance append log unreadable or invalid JSONL."})
+          if not existing_dupe_free:
+              blockers.append({"code":"M12-B7","message":"Existing governance append has duplicate event_id values."})
+          if not existing_scope_ok:
+              blockers.append({"code":"M12-B7","message":"Existing governance append run-scope mismatch."})
+          if not existing_order_ok:
+              blockers.append({"code":"M12-B7","message":"Existing governance append ordering invalid."})
+
+          candidate_ref = ""
+          if promotion and isinstance(promotion.get("promotion"), dict):
+              candidate_ref = str((promotion.get("promotion") or {}).get("candidate_bundle_ref","")).strip()
+          if not candidate_ref and m12f_snap and isinstance(m12f_snap.get("refs"), dict):
+              candidate_ref = str((m12f_snap.get("refs") or {}).get("candidate_bundle_ref","")).strip()
+
+          base_ts = datetime.now(timezone.utc)
+          if existing_last_ts and existing_last_ts >= base_ts:
+              base_ts = existing_last_ts + timedelta(seconds=1)
+
+          defs = [
+              ("LEARNING_PROMOTION_COMMITTED", f"{platform_run_id}|{scenario_run_id}|promotion|{m12d_execution_id}", {"promotion_receipt_key": promotion_key, "m12d_execution_id": m12d_execution_id}),
+              ("LEARNING_ROLLBACK_DRILL_CONFIRMED", f"{platform_run_id}|{scenario_run_id}|rollback|{m12e_execution_id}", {"rollback_drill_key": rollback_key, "m12e_execution_id": m12e_execution_id}),
+              ("LEARNING_ACTIVE_RESOLUTION_CONFIRMED", f"{platform_run_id}|{scenario_run_id}|active|{upstream}", {"m12f_execution_id": upstream, "m12f_snapshot_key": m12f_snap_key, "m12f_observation_key": m12f_obs_key}),
+          ]
+          req_ids, new_events = [], []
+          for i, (fam, seed, refs) in enumerate(defs):
+              eid = hashlib.sha256(seed.encode("utf-8")).hexdigest()
+              req_ids.append(eid)
+              if eid in existing_ids:
+                  continue
+              ts = (base_ts + timedelta(seconds=i)).isoformat().replace("+00:00","Z")
+              new_events.append({
+                  "event_id": eid,
+                  "event_family": fam,
+                  "ts_utc": ts,
+                  "pins": {"platform_run_id": platform_run_id, "scenario_run_id": scenario_run_id},
+                  "actor": {"actor_id":"SYSTEM::m12g_managed_lane","source_type":"SYSTEM","source_component":"m12_governance_append"},
+                  "provenance": {"environment":"dev_full","run_config_digest":"dev-full-v0","config_revision":"dev-full-v0","service_release_id":"git:dev_full"},
+                  "details": {"execution_id": exec_id, "phase":"M12.G", "phase_id":"P15", "candidate_bundle_ref": candidate_ref, "source_refs": refs},
+              })
+
+          combined = existing + new_events
+          ids = [str(x.get("event_id","")).strip() for x in combined if isinstance(x, dict)]
+          idset = set([x for x in ids if x])
+          req_set_ok = all(eid in idset for eid in req_ids)
+          if not req_set_ok:
+              blockers.append({"code":"M12-B7","message":"Required M12 governance event set missing."})
+
+          comb_dupe_free = len(idset) == len([x for x in ids if x])
+          comb_scope_ok = True
+          comb_order_ok = True
+          prev = None
+          for obj in combined:
+              pins = obj.get("pins") if isinstance(obj.get("pins"), dict) else {}
+              if str(pins.get("platform_run_id","")).strip() != platform_run_id:
+                  comb_scope_ok = False
+              ts = pts(str(obj.get("ts_utc","")).strip())
+              if ts is None or (prev and ts < prev):
+                  comb_order_ok = False
+              if ts:
+                  prev = ts
+          if not comb_dupe_free:
+              blockers.append({"code":"M12-B7","message":"Combined governance append has duplicate event_id values."})
+          if not comb_scope_ok:
+              blockers.append({"code":"M12-B7","message":"Combined governance append run-scope mismatch."})
+          if not comb_order_ok:
+              blockers.append({"code":"M12-B7","message":"Combined governance append ordering invalid."})
+
+          append_rw_ok = False
+          append_preserve_ok = False
+          if not blockers and gov_key:
+              try:
+                  text = "\n".join(json.dumps(x, ensure_ascii=True, sort_keys=True, separators=(",",":")) for x in combined) + "\n"
+                  put_text(s3, bucket, gov_key, text)
+                  rb = [ln for ln in get_text(s3, bucket, gov_key).splitlines() if ln.strip()]
+                  rb_ids = set([str(json.loads(ln).get("event_id","")).strip() for ln in rb])
+                  append_rw_ok = all(eid in rb_ids for eid in req_ids)
+                  append_preserve_ok = all(eid in rb_ids for eid in existing_ids)
+                  if not append_rw_ok:
+                      blockers.append({"code":"M12-B7","message":"Governance append write/readback parity failed."})
+                  if not append_preserve_ok:
+                      blockers.append({"code":"M12-B7","message":"Governance append did not preserve existing events."})
+              except Exception as exc:
+                  upload_errors.append({"surface":gov_key,"error":type(exc).__name__})
+                  blockers.append({"code":"M12-B7","message":"Failed to publish/readback governance append log."})
+
+          marker_ok = bool(marker) and str((marker or {}).get("platform_run_id","")).strip() == platform_run_id and str((marker or {}).get("scenario_run_id","")).strip() == scenario_run_id
+          if not marker_ok:
+              blockers.append({"code":"M12-B7","message":"Governance closure marker missing or run-scope mismatch."})
+
+          checks = [
+              {"name":"upstream_m12f_pass","pass": bool(m12f_summary and bool(m12f_summary.get("overall_pass"))), "detail": f"upstream={upstream}"},
+              {"name":"append_existing_integrity","pass": existing_order_ok and existing_scope_ok and existing_dupe_free, "detail": f"existing_lines={len(existing)}"},
+              {"name":"append_required_event_set","pass": req_set_ok, "detail": f"required_event_ids={req_ids}"},
+              {"name":"append_combined_integrity","pass": comb_order_ok and comb_scope_ok and comb_dupe_free, "detail": f"combined_lines={len(combined)}"},
+              {"name":"append_write_readback_ok","pass": append_rw_ok, "detail": gov_key},
+              {"name":"append_preserve_ok","pass": append_preserve_ok, "detail": f"existing_event_count={len(existing_ids)}"},
+              {"name":"closure_marker_scoped","pass": marker_ok, "detail": marker_key},
+          ]
+          operability_pass = all(bool(c.get("pass")) for c in checks)
+          if not operability_pass:
+              blockers.append({"code":"M12-B7","message":"Operability acceptance checks failed."})
+
+          blockers = dedupe(blockers)
+          overall_pass = len(blockers) == 0
+          next_gate = "M12.H_READY" if overall_pass else "HOLD_REMEDIATE"
+          verdict = "ADVANCE_TO_M12_H" if overall_pass else "HOLD_REMEDIATE"
+
+          operability = {
+              "captured_at_utc": now(), "phase":"M12.G", "phase_id":"P15", "execution_id":exec_id,
+              "platform_run_id": platform_run_id, "scenario_run_id": scenario_run_id,
+              "checks": checks, "overall_pass": bool(operability_pass and overall_pass),
+              "source_refs": {
+                  "m12f_execution_id": upstream, "m12f_summary_key": m12f_summary_key, "m12f_snapshot_key": m12f_snap_key, "m12f_observation_key": m12f_obs_key,
+                  "m12d_lifecycle_key": lifecycle_key, "promotion_receipt_key": promotion_key, "rollback_drill_key": rollback_key,
+                  "governance_append_key": gov_key, "governance_marker_key": marker_key,
+              },
+          }
+          snapshot = {
+              "captured_at_utc": now(), "phase":"M12.G", "phase_id":"P15", "execution_id":exec_id,
+              "platform_run_id": platform_run_id, "scenario_run_id": scenario_run_id,
+              "upstream_refs": {"m12f_execution_id": upstream},
+              "required_handles": req, "resolved_handles": {k: str(h.get(k,"")) for k in req},
+              "append_stats": {"existing_line_count": len(existing), "new_event_count": len(new_events), "combined_line_count": len(combined), "required_event_ids": req_ids},
+              "append_integrity": {
+                  "existing_order_ok": existing_order_ok, "existing_scope_ok": existing_scope_ok, "existing_no_duplicates": existing_dupe_free,
+                  "combined_order_ok": comb_order_ok, "combined_scope_ok": comb_scope_ok, "combined_no_duplicates": comb_dupe_free,
+                  "required_event_set_ok": req_set_ok, "append_write_readback_ok": append_rw_ok, "append_preserve_ok": append_preserve_ok,
+              },
+              "targets": {"governance_append_key": gov_key, "governance_marker_key": marker_key},
+              "notes": notes, "read_errors": read_errors, "upload_errors": upload_errors,
+              "overall_pass": overall_pass, "blocker_count": len(blockers), "next_gate": next_gate,
+          }
+          blocker = {"captured_at_utc": now(), "phase":"M12.G", "phase_id":"P15", "execution_id":exec_id, "blocker_count": len(blockers), "blockers": blockers, "overall_pass": overall_pass}
+          summary = {
+              "captured_at_utc": now(), "phase":"M12.G", "phase_id":"P15", "execution_id":exec_id,
+              "platform_run_id": platform_run_id, "scenario_run_id": scenario_run_id,
+              "overall_pass": overall_pass, "blocker_count": len(blockers), "verdict": verdict, "next_gate": next_gate,
+              "upstream_refs": {"m12f_execution_id": upstream},
+              "artifact_keys": {
+                  "m12g_governance_append_snapshot": f"evidence/dev_full/run_control/{exec_id}/m12g_governance_append_snapshot.json",
+                  "m12_operability_acceptance_report": f"evidence/dev_full/run_control/{exec_id}/m12_operability_acceptance_report.json",
+                  "m12g_blocker_register": f"evidence/dev_full/run_control/{exec_id}/m12g_blocker_register.json",
+                  "m12g_execution_summary": f"evidence/dev_full/run_control/{exec_id}/m12g_execution_summary.json",
+                  "governance_append_log": gov_key,
+              },
+          }
+
+          run_dir.mkdir(parents=True, exist_ok=True)
+          arts = {
+              "m12g_governance_append_snapshot.json": snapshot,
+              "m12_operability_acceptance_report.json": operability,
+              "m12g_blocker_register.json": blocker,
+              "m12g_execution_summary.json": summary,
+          }
+          for f, p in arts.items():
+              (run_dir / f).write_text(json.dumps(p, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+          pref = f"evidence/dev_full/run_control/{exec_id}/"
+          for f, p in arts.items():
+              try:
+                  put_json(s3, bucket, pref + f, p)
+              except Exception as exc:
+                  upload_errors.append({"surface": pref + f, "error": type(exc).__name__})
+                  blockers.append({"code":"M12-B7","message":f"Failed to upload {f}."})
+
+          blockers = dedupe(blockers)
+          overall_pass = len(blockers) == 0
+          next_gate = "M12.H_READY" if overall_pass else "HOLD_REMEDIATE"
+          verdict = "ADVANCE_TO_M12_H" if overall_pass else "HOLD_REMEDIATE"
+          snapshot["upload_errors"] = upload_errors
+          snapshot["overall_pass"] = overall_pass
+          snapshot["blocker_count"] = len(blockers)
+          snapshot["next_gate"] = next_gate
+          blocker["blocker_count"] = len(blockers)
+          blocker["blockers"] = blockers
+          blocker["overall_pass"] = overall_pass
+          summary["overall_pass"] = overall_pass
+          summary["blocker_count"] = len(blockers)
+          summary["next_gate"] = next_gate
+          summary["verdict"] = verdict
+          operability["overall_pass"] = bool(operability_pass and overall_pass)
+          for f, p in arts.items():
+              (run_dir / f).write_text(json.dumps(p, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+              try:
+                  put_json(s3, bucket, pref + f, p)
+              except Exception:
+                  pass
+          print(json.dumps({
+              "execution_id": exec_id, "upstream_m12f_execution": upstream, "overall_pass": overall_pass, "blocker_count": len(blockers),
+              "next_gate": next_gate, "verdict": verdict, "governance_append_log_s3_uri": f"s3://{bucket}/{gov_key}" if gov_key else "",
+              "evidence_prefix": f"s3://{bucket}/{pref}",
+          }, indent=2, ensure_ascii=True))
           if not overall_pass:
               raise SystemExit(1)
           PY
