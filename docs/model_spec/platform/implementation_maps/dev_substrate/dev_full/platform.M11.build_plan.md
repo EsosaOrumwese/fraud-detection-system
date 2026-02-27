@@ -810,20 +810,59 @@ Closure evidence:
 Goal:
 1. Roll up M11.A..H and emit deterministic P14 verdict.
 
-Execution notes:
-1. Construct deterministic gate matrix across M11.A..H.
-2. Emit `m11i_p14_gate_verdict.json`.
-3. Emit `m12_handoff_pack.json`.
-4. Fail-closed with `M11-B9` or `M11-B10` on mismatch/publication failure.
+Execution lanes (sequential, fail-closed):
+1. `M11.I.A` entry + chain resolution:
+- read `M11.H` summary from durable run-control using authoritative upstream execution id,
+- resolve chain ids deterministically from summary refs:
+  - `H -> G -> (F,E,D) -> (C,B,A)`,
+- reject empty or inconsistent chain refs (`M11-B9`).
+2. `M11.I.B` gate matrix rollup:
+- load `m11[a-h]_execution_summary.json` for resolved ids,
+- require for each row:
+  - `overall_pass=true`,
+  - `blocker_count=0`,
+  - expected `next_gate` exact match:
+    - `A:M11.B_READY`, `B:M11.C_READY`, `C:M11.D_READY`,
+    - `D:M11.E_READY`, `E:M11.F_READY`, `F:M11.G_READY`,
+    - `G:M11.H_READY`, `H:M11.I_READY`,
+- require run-scope equality (`platform_run_id`, `scenario_run_id`) across all rows.
+3. `M11.I.C` verdict + handoff publication:
+- emit `m11i_p14_gate_verdict.json` with deterministic matrix and verdict,
+- emit `m12_handoff_pack.json` with entry gate (`ADVANCE_TO_P15`, `M12_READY`) and required refs for M12 entry.
+4. `M11.I.D` run-control closure:
+- emit `m11i_blocker_register.json` + `m11i_execution_summary.json`,
+- assert `M11.J_READY` only when `overall_pass=true` and blocker count `0`.
+
+Blocker semantics:
+1. `M11-B9`: rollup/verdict inconsistency (entry/chain/gate/run-scope mismatch).
+2. `M11-B10`: publication failure (verdict/handoff/run-control artifacts).
 
 Runtime budget:
 1. Target <= 8 minutes.
+2. `M11.I.A/B` <= 4 minutes.
+3. `M11.I.C/D` <= 4 minutes.
 
 DoD:
-- [ ] verdict is `ADVANCE_TO_P15`.
-- [ ] `next_gate=M12_READY`.
-- [ ] handoff pack published local + durable.
-- [ ] `M11.J_READY` asserted.
+- [x] verdict is `ADVANCE_TO_P15`.
+- [x] `next_gate=M11.J_READY`.
+- [x] handoff pack published local + durable.
+- [x] `M11.J_READY` asserted.
+
+Closure evidence:
+1. Managed run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22480969641`
+2. Execution id: `m11i_p14_gate_rollup_20260227T094100Z`
+3. Verdict artifact:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11i_p14_gate_rollup_20260227T094100Z/m11i_p14_gate_verdict.json`
+4. Handoff artifact:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11i_p14_gate_rollup_20260227T094100Z/m12_handoff_pack.json`
+5. Blockers artifact:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11i_p14_gate_rollup_20260227T094100Z/m11i_blocker_register.json` (`blocker_count=0`)
+6. Summary artifact:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11i_p14_gate_rollup_20260227T094100Z/m11i_execution_summary.json`
+7. Key closure proof:
+   - `overall_pass=true`,
+   - `verdict=ADVANCE_TO_P15`,
+   - `next_gate=M11.J_READY`.
 
 ### M11.J - Cost-Outcome + Closure Sync
 Goal:
@@ -868,7 +907,7 @@ DoD:
 - [x] `M11.F` complete
 - [x] `M11.G` complete
 - [x] `M11.H` complete
-- [ ] `M11.I` complete
+- [x] `M11.I` complete
 - [ ] `M11.J` complete
 - [ ] no unresolved `M11-B*` blocker remains
 - [ ] all M11 artifacts published local + durable
@@ -883,4 +922,5 @@ DoD:
 5. `M11.D` is complete and green on strict managed lane with advisory-free transform evidence.
 6. `M11.G` is complete and green on managed lane with operability pass and candidate bundle publication.
 7. `M11.H` is complete and green on managed lane with safe-disable/rollback closure.
-8. Next actionable lane is `M11.I` (P14 gate rollup + M12 handoff).
+8. `M11.I` is complete and green on managed lane with deterministic P14 verdict + M12 handoff publication.
+9. Next actionable lane is `M11.J` (cost-outcome + closure sync).

@@ -15567,3 +15567,62 @@ ext_gate=M11.B_READY and locker_count=0.
 6. Post-closure docs alignment:
    - deep plan (`platform.M11.build_plan.md`) updated with M11.H closure evidence and DoD checks,
    - main plan (`platform.build_plan.md`) updated with M11.H progression snapshot and next-action advancement to M11.I.
+
+## Entry: 2026-02-27 09:35:52 +00:00 - M11.I planning closure before implementation
+1. Scope accepted: execute `M11.I` (P14 rollup + M12 handoff) immediately after `M11.H` green closure `m11h_safe_disable_rollback_20260227T085223Z`.
+2. Deterministic rollup basis chosen:
+   - start from M11.H summary (authoritative entry),
+   - resolve upstream chain H->G->F/E/D->C/B/A using execution refs from durable summaries,
+   - forbid inferred execution ids or "latest" heuristics.
+3. P14 rollup pass contract pinned:
+   - for each phase A..H: `overall_pass=true`, `blocker_count=0`, expected `next_gate` exact match,
+   - run scope (`platform_run_id`, `scenario_run_id`) must be identical across all phase summaries,
+   - upstream chain references must be coherent and non-empty.
+4. M11.I outputs to emit:
+   - `m11i_p14_gate_verdict.json`,
+   - `m12_handoff_pack.json`,
+   - `m11i_blocker_register.json`,
+   - `m11i_execution_summary.json`.
+5. Fail-closed blocker use:
+   - `M11-B9` for rollup/verdict/consistency mismatches,
+   - `M11-B10` for durable publication failures.
+6. Execution vehicle pinned: managed workflow lane (`dev_full_m11_managed.yml`) only; no local authoritative compute path.
+
+## Entry: 2026-02-27 09:39:36 +00:00 - M11.I managed workflow wiring complete
+1. Expanded `.github/workflows/dev_full_m11_managed.yml` to support subphase `I` end-to-end.
+2. Input/runtime additions:
+   - `upstream_m11h_execution` (required entry evidence id for M11.I),
+   - `m11i_execution_id` (optional fixed execution id),
+   - metadata router now emits default `m11i_p14_gate_rollup_<ts>`.
+3. Added managed `Execute M11.I` lane with fail-closed `M11-B9/M11-B10` semantics:
+   - resolves deterministic chain `H->G->F/E/D->C/B/A`,
+   - reads `m11[a-h]_execution_summary.json` from durable run-control,
+   - enforces per-row gate contract (`overall_pass`, `blocker_count`, expected `next_gate`, run-scope parity),
+   - emits and publishes `m11i_p14_gate_verdict.json`, `m12_handoff_pack.json`, `m11i_blocker_register.json`, `m11i_execution_summary.json`.
+4. Planning alignment updated in deep plan:
+   - M11.I expanded into lanes `I.A..I.D`, runtime split, and blocker semantics.
+5. Next action: workflow-only commit/push, dispatch subphase `I`, and clear any residual blockers fail-closed before moving to M11.J.
+
+## Entry: 2026-02-27 09:44:26 +00:00 - M11.I managed execution and closure
+1. Authoritative managed run completed:
+   - workflow: `dev-full-m11-managed` (`m11_subphase=I`),
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22480969641`,
+   - head sha: `6aa77183`,
+   - execution id: `m11i_p14_gate_rollup_20260227T094100Z`.
+2. Entry evidence consumed from `M11.H`:
+   - `upstream_m11h_execution=m11h_safe_disable_rollback_20260227T085223Z`.
+3. Deterministic rollup closure succeeded:
+   - chain resolved as `H->G->F/E/D->C/B/A`,
+   - all `M11.A..H` summary rows passed contract (`overall_pass=true`, `blocker_count=0`, expected `next_gate`),
+   - run-scope parity preserved for `platform_run_id/scenario_run_id`.
+4. Published artifacts:
+   - `m11i_p14_gate_verdict.json`,
+   - `m12_handoff_pack.json`,
+   - `m11i_blocker_register.json`,
+   - `m11i_execution_summary.json`.
+5. Final gate result:
+   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_P15`, `next_gate=M11.J_READY`.
+6. Plan/doc updates applied:
+   - deep plan M11.I DoD + closure evidence marked green,
+   - platform plan progression + DoD anchors updated,
+   - M11 next actionable lane advanced to `M11.J`.

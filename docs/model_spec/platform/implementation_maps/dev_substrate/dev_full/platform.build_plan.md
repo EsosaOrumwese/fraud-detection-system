@@ -1388,7 +1388,7 @@ DoD anchors:
 - [x] rollback/safe-disable evidence committed.
 - [x] model-operability report committed and pass.
 - [x] leakage/provenance checks are committed and green.
-- [ ] deterministic `P14` verdict and `m12_handoff_pack.json` are committed.
+- [x] deterministic `P14` verdict and `m12_handoff_pack.json` are committed.
 - [ ] M11 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
 Deep plan:
@@ -1493,6 +1493,14 @@ M11 progression snapshot:
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11h_safe_disable_rollback_20260227T085223Z/m11h_safe_disable_rollback_snapshot.json`,
   - rollback publication:
     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/rollback_drill_report.json`.
+- M11.I P14 rollup + M12 handoff lane executed and closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22480969641`,
+  - execution id: `m11i_p14_gate_rollup_20260227T094100Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M11.J_READY`, `verdict=ADVANCE_TO_P15`,
+  - deterministic gate verdict:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11i_p14_gate_rollup_20260227T094100Z/m11i_p14_gate_verdict.json`,
+  - M12 handoff pack:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11i_p14_gate_rollup_20260227T094100Z/m12_handoff_pack.json`.
 
 ## M12 - MPR Promotion/Rollback Closure
 Status: `NOT_STARTED`
@@ -1501,7 +1509,7 @@ Objective:
 - close `P15` promotion corridor with compatibility-safe activation and non-optional rollback drill proof.
 
 Entry gate:
-- M11 is `NOT_DONE` (`M11.I` and `M11.J` pending closure).
+- M11 is `NOT_DONE` (`M11.J` pending closure).
 
 Planned lanes:
 - authority + handle closure for promotion/registry surfaces.
@@ -1575,4 +1583,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M11.I` (P14 gate rollup + M12 handoff) using M11.H pass evidence `m11h_safe_disable_rollback_20260227T085223Z`.
+- Expand and execute `M11.J` (cost-outcome + closure sync) using M11.I pass evidence `m11i_p14_gate_rollup_20260227T094100Z`.
