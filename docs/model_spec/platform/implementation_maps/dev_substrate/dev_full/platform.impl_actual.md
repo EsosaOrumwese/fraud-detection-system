@@ -15086,3 +15086,118 @@ ext_gate=M11.B_READY and locker_count=0.
 6. Closure decision:
    - advisory `M11D-AD1` is cleared,
    - M11 next actionable lane returns to `M11.E`.
+
+## Entry: 2026-02-27 06:04:34 +00:00 - M11.E planning closure (deterministic eval adjudication, fail-closed)
+1. Trigger and intent:
+   - User requested to move to M11.E planning.
+   - Objective is to make M11.E execution-grade before any run attempt, not a high-level placeholder.
+2. Gap found in current deep plan:
+   - Existing M11.E section was too thin (generic threshold reference + two artifacts), and did not expose a full decision-completeness gate for metric/stability/leakage policy keys.
+   - This created risk of execution-time improvisation, which violates fail-closed planning laws.
+3. Design decision made:
+   - Restructured M11.E into four explicit sequential lanes:
+     - `M11.E.A` policy-handle closure,
+     - `M11.E.B` evidence ingestion/integrity precheck,
+     - `M11.E.C` deterministic gate adjudication order,
+     - `M11.E.D` publication + handoff assertion.
+   - Added explicit blocker subcodes under `M11-B5` so failures are diagnosable without ambiguity.
+4. Adjudication contract pinned in plan:
+   - Fixed gate order: compatibility -> leakage -> performance -> stability.
+   - Leakage is hard fail in M11.E (no silent waivers).
+   - Performance uses both absolute minima and baseline/champion deltas.
+   - Stability uses bounded variance tolerance from pinned policy surface.
+5. Entry basis pinned for this lane:
+   - Advisory-cleared M11.D execution id remains `m11d_train_eval_execution_20260227T052312Z` and is treated as authoritative input for M11.E precheck.
+6. Runtime discipline pinned:
+   - Total budget <= 10 minutes, with <= 3 minutes policy/evidence precheck and <= 7 minutes adjudication/publication.
+7. Doc surfaces updated:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M11.build_plan.md` (expanded M11.E lanes, blockers, DoD).
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md` (next-action line now includes mandatory policy-handle closure before M11.E execution).
+8. Explicit non-execution posture:
+   - This step is planning-only; no workflow dispatch/run was performed in this entry.
+
+## Entry: 2026-02-27 06:08:00 +00:00 - M11.E policy-handle names pinned in plan
+1. Follow-up refinement applied to remove generic policy-key wording from M11.E planning.
+2. M11.E now names explicit handles to close before execution:
+   - `MF_EVAL_ACCURACY_MIN`, `MF_EVAL_PRECISION_MIN`, `MF_EVAL_RECALL_MIN`,
+   - `MF_EVAL_BASELINE_DELTA_ACCURACY_MIN`, `MF_EVAL_BASELINE_DELTA_PRECISION_MIN`, `MF_EVAL_BASELINE_DELTA_RECALL_MIN`,
+   - `MF_EVAL_LEAKAGE_HARD_FAIL`, `MF_EVAL_STABILITY_MAX_DELTA_PCT`.
+3. Rationale:
+   - avoids interpretive drift during execution,
+   - enforces decision-completeness law with concrete unresolved set.
+
+## Entry: 2026-02-27 06:13:00 +00:00 - M11.E execution plan start (pin handles + managed lane run)
+1. User directive: pin M11.E policy handles in dev_full registry and execute M11.E end-to-end.
+2. Current blocker discovered:
+   - .github/workflows/dev_full_m11_managed.yml only supports subphase D today (hard stop for E).
+3. Implementation decision:
+   - pin explicit MF_EVAL_* handles in docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md first,
+   - extend managed workflow to support subphase E with fail-closed semantics,
+   - execute workflow with m11_subphase=E against authoritative M11.D execution id m11d_train_eval_execution_20260227T052312Z.
+4. Policy posture selected for v0:
+   - leakage hard-fail enabled,
+   - absolute metric minima + baseline delta floors + stability tolerance pinned as handles,
+   - no hidden defaults permitted in execution path.
+5. Evidence contract for this run:
+   - local run folder uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
+   - durable mirror s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/<m11e_execution_id>/....
+
+## Entry: 2026-02-27 06:21:00 +00:00 - M11.E managed-lane wiring decision and implementation
+1. Registry pin closure applied in `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`:
+   - `MF_EVAL_ACCURACY_MIN=0.8500`, `MF_EVAL_PRECISION_MIN=0.8500`, `MF_EVAL_RECALL_MIN=0.8500`,
+   - baseline delta floors set to `0.0000` for accuracy/precision/recall,
+   - `MF_EVAL_LEAKAGE_HARD_FAIL=true`,
+   - `MF_EVAL_STABILITY_MAX_DELTA_PCT=5.0000`.
+2. Execution blocker resolved:
+   - existing managed workflow only supported subphase `D`; added `E` support so M11.E can run on managed infrastructure (no local execution lane).
+3. Workflow implementation details in `.github/workflows/dev_full_m11_managed.yml`:
+   - added `upstream_m11d_execution` + `m11e_execution_id` inputs,
+   - broadened subphase validation to `D|E`,
+   - made run metadata phase-aware (`m11d_*` vs `m11e_*` execution ids),
+   - gated D step to run only when `m11_subphase=D`,
+   - added full M11.E managed step with fail-closed checks:
+     - handle closure (`M11-B5.1`),
+     - upstream M11.D evidence integrity (`M11-B5.2`),
+     - leakage hard-fail contract (`M11-B5.3`),
+     - performance floors/delta gates (`M11-B5.4`),
+     - stability tolerance gate (`M11-B5.5`),
+     - durable publication failures (`M11-B5.6`).
+4. M11.E artifacts emitted by workflow step:
+   - `m11_eval_vs_baseline_report.json`,
+   - `m11_leakage_provenance_check.json`,
+   - `m11e_eval_gate_snapshot.json`,
+   - `m11e_blocker_register.json`,
+   - `m11e_execution_summary.json`,
+   - plus run-scoped leakage provenance publication at `MF_LEAKAGE_PROVENANCE_CHECK_PATH_PATTERN`.
+5. Next action:
+   - run managed workflow for `m11_subphase=E` against upstream `m11d_train_eval_execution_20260227T052312Z`,
+   - verify `overall_pass=true` and `next_gate=M11.F_READY`.
+
+## Entry: 2026-02-27 06:24:00 +00:00 - M11.E executed end-to-end on managed lane (green)
+1. Workflow dispatch:
+   - workflow: `dev-full-m11-managed` (id `239183070`),
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22475130190`,
+   - branch/SHA: `migrate-dev@71216b178b07918d95349a28f07f2f18cba7fef1`,
+   - inputs: `m11_subphase=E`, `upstream_m11d_execution=m11d_train_eval_execution_20260227T052312Z`.
+2. Runtime behavior observed:
+   - `Execute M11.D` step skipped by phase guard,
+   - `Execute M11.E` step completed successfully,
+   - artifact upload completed; job duration ~50s.
+3. Authoritative M11.E execution id:
+   - `m11e_eval_gate_20260227T061316Z`.
+4. Green evidence:
+   - summary: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11e_eval_gate_20260227T061316Z/m11e_execution_summary.json`,
+   - snapshot: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11e_eval_gate_20260227T061316Z/m11e_eval_gate_snapshot.json`,
+   - blocker register: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11e_eval_gate_20260227T061316Z/m11e_blocker_register.json` (`blocker_count=0`),
+   - baseline comparison: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11e_eval_gate_20260227T061316Z/m11_eval_vs_baseline_report.json`,
+   - leakage provenance: `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mf/leakage_provenance_check.json`.
+5. Gate result:
+   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M11_F`, `next_gate=M11.F_READY`.
+6. Policy/eval outcome in report:
+   - minima pinned at 0.85 for accuracy/precision/recall,
+   - candidate metrics were 1.0/1.0/1.0,
+   - stability observed delta 0.0 <= 5.0 tolerance,
+   - leakage hard-fail remained enabled and pass posture held.
+7. Planning state sync:
+   - M11 deep plan updated: M11.E DoD checked complete and closure evidence inserted,
+   - master platform plan next action advanced to M11.F.

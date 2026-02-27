@@ -562,11 +562,20 @@ Runtime budget:
 3. `M11.E.C/D` (adjudication + publication) <= 7 minutes.
 
 DoD:
-- [ ] policy-handle closure completed with zero unresolved keys (or blocked fail-closed).
-- [ ] all eval gates pass (`compatibility`, `leakage`, `performance`, `stability`).
-- [ ] baseline/champion comparison report is published and meets pinned thresholds.
-- [ ] snapshot + blocker register published local + durable.
-- [ ] `M11.F_READY` asserted.
+- [x] policy-handle closure completed with zero unresolved keys (or blocked fail-closed).
+- [x] all eval gates pass (`compatibility`, `leakage`, `performance`, `stability`).
+- [x] baseline/champion comparison report is published and meets pinned thresholds.
+- [x] snapshot + blocker register published local + durable.
+- [x] `M11.F_READY` asserted.
+
+Closure evidence:
+1. Managed run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22475130190`
+2. Execution id: `m11e_eval_gate_20260227T061316Z`
+3. Summary: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11e_eval_gate_20260227T061316Z/m11e_execution_summary.json`
+4. Snapshot: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11e_eval_gate_20260227T061316Z/m11e_eval_gate_snapshot.json`
+5. Blockers: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11e_eval_gate_20260227T061316Z/m11e_blocker_register.json` (`blocker_count=0`)
+6. Baseline comparison: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11e_eval_gate_20260227T061316Z/m11_eval_vs_baseline_report.json`
+7. Leakage provenance check: `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mf/leakage_provenance_check.json`
 
 ### M11.F - MLflow Lineage + Provenance Closure
 Goal:
@@ -681,7 +690,7 @@ DoD:
 - [x] `M11.B` complete
 - [x] `M11.C` complete
 - [x] `M11.D` complete
-- [ ] `M11.E` complete
+- [x] `M11.E` complete
 - [ ] `M11.F` complete
 - [ ] `M11.G` complete
 - [ ] `M11.H` complete
@@ -698,4 +707,4 @@ DoD:
 3. `M11.B` is complete and green on managed lane.
 4. `M11.C` is complete and green on managed lane.
 5. `M11.D` is complete and green on strict managed lane with advisory-free transform evidence.
-6. Next actionable lane is `M11.E` (eval gate adjudication).
+6. Next actionable lane is `M11.F` (MLflow lineage + provenance closure).

@@ -1526,4 +1526,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Expand and execute `M11.E` (eval gate adjudication) using advisory-cleared `M11.D` posture (`m11d_train_eval_execution_20260227T052312Z`) as entry basis.
+- Expand and execute `M11.F` (MLflow lineage + provenance closure) using M11.E pass posture from `m11e_eval_gate_20260227T061316Z` as entry basis.
