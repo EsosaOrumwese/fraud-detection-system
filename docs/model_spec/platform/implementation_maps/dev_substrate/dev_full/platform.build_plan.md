@@ -1599,7 +1599,12 @@ M12 progression snapshot:
   - proof run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22485281434`,
   - execution id: `m12a_handle_closure_20260227T115823Z`,
   - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.A_READY`, `verdict=ADVANCE_TO_M12_A`.
-- M12 subphase execution starts at `M12.A`.
+- `M12.A` authority + handle closure was executed and closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22485927170`,
+  - execution id: `m12a_handle_closure_20260227T121911Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `next_gate=M12.B_READY`, `verdict=ADVANCE_TO_M12_B`,
+  - summary: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12a_handle_closure_20260227T121911Z/m12a_execution_summary.json`.
+- M12 next actionable subphase is `M12.B`.
 
 ## M13 - Final Verdict and Teardown Closure
 Status: `NOT_STARTED`
@@ -1637,4 +1642,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M12.A` (promotion authority + handle closure) on managed lane using M11 closure evidence `m11j_closure_sync_20260227T104756Z`.
+- Execute `M12.B` (candidate eligibility precheck) on managed lane using M12.A closure evidence `m12a_handle_closure_20260227T121911Z`.

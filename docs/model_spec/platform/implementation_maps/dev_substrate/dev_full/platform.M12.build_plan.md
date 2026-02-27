@@ -185,6 +185,21 @@ DoD:
 2. unresolved handles are blocker-marked.
 3. `m12a_handle_closure_snapshot.json` committed locally and durably.
 
+Closure evidence (managed):
+1. Run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22485927170`
+2. Execution:
+   - `m12a_handle_closure_20260227T121911Z`
+3. Result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `next_gate=M12.B_READY`,
+   - `verdict=ADVANCE_TO_M12_B`.
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12a_handle_closure_20260227T121911Z/m12a_handle_closure_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12a_handle_closure_20260227T121911Z/m12a_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12a_handle_closure_20260227T121911Z/m12a_execution_summary.json`
+
 ### M12.B - Candidate Eligibility Precheck
 Goal:
 1. Prove candidate bundle is eligible for promotion.
@@ -407,7 +422,7 @@ DoD:
 13. `M12-B12`: non-gate acceptance failure.
 
 ## 8) Completion Checklist
-- [ ] `M12.A` complete
+- [x] `M12.A` complete
 - [ ] `M12.B` complete
 - [ ] `M12.C` complete
 - [ ] `M12.D` complete
@@ -424,5 +439,5 @@ DoD:
 1. M12 planning is execution-grade and aligned to P15 authority.
 2. M11 closure entry requirements are already satisfied.
 3. `M12-B0` is closed green (managed lane materialized + dispatchability proven).
-4. M12 execution has not started beyond B0 prerequisite closure.
-5. Next action: execute `M12.A` on the managed lane.
+4. `M12.A` is complete and green on managed lane with `M12-B1` cleared.
+5. Next action: execute `M12.B` on the managed lane.

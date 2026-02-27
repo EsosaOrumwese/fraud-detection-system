@@ -15858,3 +15858,26 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
    - `next_gate=M12.B_READY`,
    - `verdict=ADVANCE_TO_M12_B`.
 5. Next step: workflow-only commit/push + dispatch `m12_subphase=A`, `execution_mode=m12a_execute`.
+
+## Entry: 2026-02-27 12:22:10 +00:00 - M12.A execution remediation and green closure
+1. First managed execution attempt on `main` failed:
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22485851113`,
+   - execution id: `m12a_handle_closure_20260227T121637Z`,
+   - result: `overall_pass=false`, `blocker_count=2`.
+2. Failure diagnosis from artifacts:
+   - `M12-B1` parse/read failure: handles registry file missing on `main` (`FileNotFoundError`),
+   - cascading unresolved-handle blocker for all required M12.A handles.
+3. Decision taken:
+   - keep authoritative workflow on `main` (required for dispatch discovery),
+   - execute lane against `migrate-dev` ref where dev_full handles registry is present and current.
+4. Rerun on `migrate-dev` succeeded:
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22485927170`,
+   - execution id: `m12a_handle_closure_20260227T121911Z`,
+   - `overall_pass=true`, `blocker_count=0`, `next_gate=M12.B_READY`, `verdict=ADVANCE_TO_M12_B`.
+5. M12.A closure artifacts published:
+   - `m12a_handle_closure_snapshot.json`,
+   - `m12a_blocker_register.json`,
+   - `m12a_execution_summary.json`.
+6. Planning updates applied:
+   - `platform.M12.build_plan.md`: M12.A marked complete with closure evidence,
+   - `platform.build_plan.md`: M12 progression snapshot updated; next action advanced to M12.B.
