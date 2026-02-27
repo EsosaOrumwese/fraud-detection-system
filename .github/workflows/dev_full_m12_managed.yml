@@ -1505,10 +1505,12 @@ jobs:
                   bootstrap_ssm_path = ""
               if not bootstrap and bootstrap_ssm_path:
                   bootstrap = str(
-                      ssm.get_parameter(Name=bootstrap_ssm_path, WithDecryption=False).get("Parameter", {}).get("Value", "")
+                      ssm.get_parameter(Name=bootstrap_ssm_path, WithDecryption=True).get("Parameter", {}).get("Value", "")
                   ).strip()
               if not bootstrap:
                   raise RuntimeError("M12D_TRANSPORT_BOOTSTRAP_UNRESOLVED")
+              if ":" not in bootstrap:
+                  raise RuntimeError("M12D_TRANSPORT_BOOTSTRAP_INVALID")
 
               registry_event_seed = f"{platform_run_id}|{scenario_run_id}|{bundle_id}|{exec_id}|BUNDLE_PROMOTED_ACTIVE"
               registry_event_id = hashlib.sha256(registry_event_seed.encode("utf-8")).hexdigest()
