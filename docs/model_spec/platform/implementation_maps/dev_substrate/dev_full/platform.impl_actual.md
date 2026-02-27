@@ -15812,3 +15812,49 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 5. Planning updates applied:
    - deep plan now marks `M12-B0` closed with PR/run evidence,
    - main platform build plan progression/next action updated to start `M12.A`.
+
+## Entry: 2026-02-27 12:07:25 +00:00 - M12.A execution plan lock before workflow patch
+1. Requested scope: plan and execute `M12.A` fully.
+2. Verified current blocker: `dev_full_m12_managed.yml` supports only `execution_mode=materialization_check`; no authoritative `M12.A` execution step exists yet.
+3. Decision:
+   - extend the same single managed M12 workflow with a new mode `m12a_execute`,
+   - keep `materialization_check` mode untouched for B0 replay.
+4. `M12.A` fail-closed execution contract to implement:
+   - read upstream `M11.J` summary from durable run-control and require pass posture (`overall_pass=true`, `blocker_count=0`, `next_gate=M12_READY`),
+   - resolve `platform_run_id` and `scenario_run_id` from upstream summary,
+   - parse required handles from `dev_full_handles.registry.v0.md`,
+   - fail on missing, blank, or `TO_PIN` handle values for:
+     - `MPR_PROMOTION_RECEIPT_PATH_PATTERN`
+     - `MPR_ROLLBACK_DRILL_PATH_PATTERN`
+     - `FP_BUS_LEARNING_REGISTRY_EVENTS_V1`
+     - `GOV_APPEND_LOG_PATH_PATTERN`
+     - `GOV_RUN_CLOSE_MARKER_PATH_PATTERN`
+     - `MF_CANDIDATE_BUNDLE_PATH_PATTERN`
+     - `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`
+     - `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN`
+   - emit `m12a_handle_closure_snapshot.json`, `m12a_blocker_register.json`, `m12a_execution_summary.json` local + durable,
+   - pass result must be `next_gate=M12.B_READY`, `verdict=ADVANCE_TO_M12_B`.
+5. Blocker semantics:
+   - map all M12.A closure failures to `M12-B1` only.
+6. Runtime/cost posture:
+   - this lane is metadata/handle validation only (no heavy compute),
+   - target runtime <= 5 minutes.
+7. Next step:
+   - patch workflow, dispatch managed run, capture proof, then mark M12.A complete in M12 deep/main plans.
+
+## Entry: 2026-02-27 12:13:40 +00:00 - M12.A workflow lane wired (pre-dispatch)
+1. Updated `.github/workflows/dev_full_m12_managed.yml` to add `execution_mode=m12a_execute`.
+2. Added guardrail validation:
+   - `m12a_execute` is currently constrained to `m12_subphase=A` (fail-closed on mismatch).
+3. Added managed `M12.A` execution step with fail-closed `M12-B1` mapping:
+   - validates upstream M11.J closure summary (`overall_pass`, `blocker_count`, `next_gate`, run scope),
+   - parses required handle set from `dev_full_handles.registry.v0.md`,
+   - fails on missing/blank/`TO_PIN` handle values,
+   - emits/publishes:
+     - `m12a_handle_closure_snapshot.json`,
+     - `m12a_blocker_register.json`,
+     - `m12a_execution_summary.json`.
+4. Pass posture pinned in code:
+   - `next_gate=M12.B_READY`,
+   - `verdict=ADVANCE_TO_M12_B`.
+5. Next step: workflow-only commit/push + dispatch `m12_subphase=A`, `execution_mode=m12a_execute`.
