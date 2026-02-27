@@ -530,9 +530,9 @@ Expanded execution contract:
 - publish all M12.H artifacts to run-control prefix and verify readback/head parity.
 
 DoD:
-- [ ] `m12h_p15_gate_verdict.json` emitted.
-- [ ] PASS posture requires `ADVANCE_TO_P16` and `next_gate=M13_READY`.
-- [ ] `m13_handoff_pack.json` committed locally and durably.
+- [x] `m12h_p15_gate_verdict.json` emitted.
+- [x] PASS posture requires `ADVANCE_TO_P16` and `next_gate=M13_READY`.
+- [x] `m13_handoff_pack.json` committed locally and durably.
 
 ### M12.I - Phase Budget + Cost-Outcome Closure
 Goal:
@@ -603,7 +603,7 @@ DoD:
 - [x] `M12.E` complete
 - [x] `M12.F` complete
 - [x] `M12.G` complete
-- [ ] `M12.H` complete
+- [x] `M12.H` complete
 - [ ] `M12.I` complete
 - [ ] `M12.J` complete
 - [ ] all active `M12-B*` blockers resolved
@@ -620,4 +620,5 @@ DoD:
 8. `M12.E` rollback drill execution is complete and green (`22495589600`, execution `m12e_rollback_drill_20260227T165747Z`) with `M12-B5` cleared.
 9. `M12.F` ACTIVE resolution checks are complete and green (`22497074608`, execution `m12f_active_resolution_20260227T174035Z`) with `M12-B6` cleared.
 10. `M12.G` governance append closure is complete and green (`22497579073`, execution `m12g_governance_append_20260227T175530Z`) with `M12-B7` cleared.
-11. Next action: proceed to `M12.H` P15 gate rollup + M13 handoff.
+11. `M12.H` P15 gate rollup + M13 handoff is complete and green (`22498398890`, execution `m12h_p15_gate_rollup_20260227T181932Z`) with `M12-B8`/`M12-B9` cleared.
+12. Next action: proceed to `M12.I` phase budget + cost-outcome closure.

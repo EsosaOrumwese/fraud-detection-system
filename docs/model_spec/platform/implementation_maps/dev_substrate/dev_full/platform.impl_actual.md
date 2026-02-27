@@ -16483,3 +16483,24 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
      - lane summary `verdict=ADVANCE_TO_M12_I`, `next_gate=M12.I_READY`.
 4. Next step:
    - commit workflow-only change and dispatch `m12h_execute` on managed lane.
+
+## Entry: 2026-02-27 18:20:05 +00:00 - M12.H executed and closed green
+1. Authoritative run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22498398890`
+   - execution id: `m12h_p15_gate_rollup_20260227T181932Z`.
+2. Result posture:
+   - `overall_pass=true`, `blocker_count=0`,
+   - lane verdict `ADVANCE_TO_M12_I`, `next_gate=M12.I_READY`,
+   - P15 verdict `ADVANCE_TO_P16`, `p15_next_gate=M13_READY`.
+3. Decision flow during execution:
+   - preserved fixed-order A..G rollup contract from M12.H planning and refused out-of-order/partial aggregation,
+   - retained strict expected-next-gate checks to avoid false green on partial upstream posture,
+   - generated handoff pack only after deterministic verdict calculation and zero-blocker check.
+4. Durable artifacts emitted:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12h_p15_gate_rollup_20260227T181932Z/m12h_p15_gate_verdict.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12h_p15_gate_rollup_20260227T181932Z/m13_handoff_pack.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12h_p15_gate_rollup_20260227T181932Z/m12h_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12h_p15_gate_rollup_20260227T181932Z/m12h_execution_summary.json`.
+5. Progression impact:
+   - `M12-B8` and `M12-B9` cleared on this execution,
+   - next actionable lane is `M12.I`.

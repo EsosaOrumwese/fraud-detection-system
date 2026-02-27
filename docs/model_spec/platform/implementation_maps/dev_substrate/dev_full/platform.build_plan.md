@@ -1582,7 +1582,7 @@ DoD anchors:
 - [x] post-promotion observation snapshot committed and pass.
 - [ ] governance append evidence is committed and coherent.
 - [ ] operability/governance acceptance report committed and pass.
-- [ ] deterministic `P15` verdict and `m13_handoff_pack.json` are committed.
+- [x] deterministic `P15` verdict and `m13_handoff_pack.json` are committed.
 - [ ] M12 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
 Deep plan:
@@ -1655,7 +1655,16 @@ M12 progression snapshot:
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12g_governance_append_20260227T175530Z/m12g_execution_summary.json`,
   - governance append target:
     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/governance/append_log.jsonl`.
-- M12 next actionable subphase is `M12.H`.
+- M12.H P15 gate rollup + M13 handoff is now closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22498398890`,
+  - execution id: `m12h_p15_gate_rollup_20260227T181932Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M12_I`, `next_gate=M12.I_READY`,
+  - P15 verdict posture: `p15_verdict=ADVANCE_TO_P16`, `p15_next_gate=M13_READY`,
+  - run-control artifacts:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12h_p15_gate_rollup_20260227T181932Z/m12h_p15_gate_verdict.json`,
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12h_p15_gate_rollup_20260227T181932Z/m13_handoff_pack.json`,
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12h_p15_gate_rollup_20260227T181932Z/m12h_execution_summary.json`.
+- M12 next actionable subphase is `M12.I`.
 
 ## M13 - Final Verdict and Teardown Closure
 Status: `NOT_STARTED`
@@ -1693,4 +1702,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M12.H` (P15 gate rollup + M13 handoff) on managed lane.
+- Execute `M12.I` (phase budget + cost-outcome closure) on managed lane.
