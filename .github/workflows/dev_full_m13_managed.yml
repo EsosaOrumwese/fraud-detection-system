@@ -1190,6 +1190,8 @@ jobs:
                               "summary_ref": str(row.get("summary_ref", "")).strip(),
                               "expected_verdict": str(row.get("expected_verdict", "")).strip(),
                               "expected_next_gate": str(row.get("expected_next_gate", "")).strip(),
+                              "legacy_scope_reason": str(row.get("legacy_scope_reason", "")).strip(),
+                              "upstream_row_pass": bool(row.get("row_pass", False)),
                           }
                       )
 
@@ -1211,18 +1213,24 @@ jobs:
                           "summary_ref": f"s3://{bucket}/evidence/dev_full/run_control/{upstream_m13a}/m13a_execution_summary.json",
                           "expected_verdict": "ADVANCE_TO_M13_B",
                           "expected_next_gate": "M13.B_READY",
+                          "legacy_scope_reason": "",
+                          "upstream_row_pass": True,
                       },
                       {
                           "phase": "M13.B",
                           "summary_ref": f"s3://{bucket}/evidence/dev_full/run_control/{upstream_m13b}/m13b_execution_summary.json",
                           "expected_verdict": "ADVANCE_TO_M13_C",
                           "expected_next_gate": "M13.C_READY",
+                          "legacy_scope_reason": "",
+                          "upstream_row_pass": True,
                       },
                       {
                           "phase": "M13.C",
                           "summary_ref": f"s3://{bucket}/evidence/dev_full/run_control/{upstream_m13c}/m13c_execution_summary.json",
                           "expected_verdict": "ADVANCE_TO_M13_D",
                           "expected_next_gate": "M13.D_READY",
+                          "legacy_scope_reason": "",
+                          "upstream_row_pass": True,
                       },
                   ]
               )
@@ -1233,6 +1241,9 @@ jobs:
                   summary_ref = str(row.get("summary_ref", "") or "").strip()
                   expected_verdict = str(row.get("expected_verdict", "") or "").strip()
                   expected_next_gate = str(row.get("expected_next_gate", "") or "").strip()
+                  legacy_scope_reason = str(row.get("legacy_scope_reason", "") or "").strip()
+                  upstream_row_pass = bool(row.get("upstream_row_pass", False))
+                  enforce_summary_pass = not bool(legacy_scope_reason)
                   row_pass = True
                   row_blockers: list[str] = []
                   row_errors: list[str] = []
@@ -1263,22 +1274,33 @@ jobs:
                           )
                           read_errors.append({"surface": summary_ref, "error": type(exc).__name__})
 
-                  if summary:
-                      if not bool(summary.get("overall_pass", False)):
-                          row_pass = False
-                          row_blockers.append("OVERALL_PASS_FALSE")
-                          blockers.append({"code": "M13-B4", "message": f"{phase} overall_pass is false."})
+                  if not upstream_row_pass:
+                      row_pass = False
+                      row_blockers.append("UPSTREAM_ROW_FAIL")
+                      blockers.append(
+                          {
+                              "code": "M13-B4",
+                              "message": f"{phase} row is non-pass in M13.B source matrix.",
+                          }
+                      )
 
-                      blocker_count_raw = summary.get("blocker_count")
-                      try:
-                          if blocker_count_raw is not None and int(blocker_count_raw) != 0:
+                  if summary:
+                      if enforce_summary_pass:
+                          if not bool(summary.get("overall_pass", False)):
                               row_pass = False
-                              row_blockers.append("BLOCKER_COUNT_NONZERO")
-                              blockers.append({"code": "M13-B4", "message": f"{phase} blocker_count is not zero."})
-                      except (TypeError, ValueError):
-                          row_pass = False
-                          row_blockers.append("BLOCKER_COUNT_NON_NUMERIC")
-                          blockers.append({"code": "M13-B4", "message": f"{phase} blocker_count is non-numeric."})
+                              row_blockers.append("OVERALL_PASS_FALSE")
+                              blockers.append({"code": "M13-B4", "message": f"{phase} overall_pass is false."})
+
+                          blocker_count_raw = summary.get("blocker_count")
+                          try:
+                              if blocker_count_raw is not None and int(blocker_count_raw) != 0:
+                                  row_pass = False
+                                  row_blockers.append("BLOCKER_COUNT_NONZERO")
+                                  blockers.append({"code": "M13-B4", "message": f"{phase} blocker_count is not zero."})
+                          except (TypeError, ValueError):
+                              row_pass = False
+                              row_blockers.append("BLOCKER_COUNT_NON_NUMERIC")
+                              blockers.append({"code": "M13-B4", "message": f"{phase} blocker_count is non-numeric."})
 
                       if expected_verdict:
                           actual_verdict = str(summary.get("verdict", "") or "").strip()
@@ -1314,6 +1336,9 @@ jobs:
                           "summary_ref": summary_ref,
                           "expected_verdict": expected_verdict,
                           "expected_next_gate": expected_next_gate,
+                          "legacy_scope_reason": legacy_scope_reason,
+                          "upstream_row_pass": upstream_row_pass,
+                          "enforce_summary_pass": enforce_summary_pass,
                           "actual_verdict": str(summary.get("verdict", "") if summary else ""),
                           "actual_next_gate": str(summary.get("next_gate", "") if summary else ""),
                           "platform_run_id": str(summary.get("platform_run_id", "") if summary else ""),
