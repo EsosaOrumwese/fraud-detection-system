@@ -1015,7 +1015,8 @@ jobs:
                           )
                       else:
                           try:
-                              s3_get_json(s3, bucket, key)
+                              raw = s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+                              json.loads(raw)
                               readable = True
                           except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
                               lane_pass = False
