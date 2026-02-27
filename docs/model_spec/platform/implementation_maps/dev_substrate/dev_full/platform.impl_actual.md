@@ -16722,3 +16722,177 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 5. Decision:
    - `M13-B0` is closed green,
    - next actionable step is `M13.A` execution using the now-materialized managed lane.
+
+## Entry: 2026-02-27 22:43:30 +00:00 - M13.A implementation plan lock (authority + handle closure)
+1. Scope accepted: expand and execute `M13.A` fully under managed-only posture.
+2. Drift check:
+   - current `dev-full-m13-managed` supports only `execution_mode=materialization_check` (B0 semantics),
+   - `M13.A` DoD requires explicit required-handle closure artifact; current lane cannot satisfy this.
+3. Decision:
+   - extend `.github/workflows/dev_full_m13_managed.yml` with explicit `execution_mode=handle_closure`,
+   - keep `materialization_check` as `M13-B0`,
+   - enforce mode/subphase conformance (`handle_closure` allowed only with `m13_subphase=A`).
+4. `M13.A` runtime contract to implement:
+   - upstream checks:
+     - `M12.J` summary pass posture (`ADVANCE_TO_M13`, `M13_READY`),
+     - `M13-B0` summary pass posture (`ADVANCE_TO_M13_A`, `M13.A_READY`),
+   - parse `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`,
+   - validate required handle set and placeholder conformance,
+   - publish:
+     - `m13a_handle_closure_snapshot.json`,
+     - `m13a_blocker_register.json`,
+     - `m13a_execution_summary.json`.
+5. Blocker policy:
+   - any missing/malformed handle is `M13-B1` and fail-closed,
+   - no local fallback path accepted.
+6. Execution posture:
+   - implement workflow-only change,
+   - dispatch managed run for `M13.A`,
+   - close `M13.A` only on green evidence (`overall_pass=true`, `ADVANCE_TO_M13_B`, `M13.B_READY`).
+
+## Entry: 2026-02-27 22:52:10 +00:00 - M13.A workflow lane implemented (managed-only)
+1. Implemented workflow update in `.github/workflows/dev_full_m13_managed.yml`:
+   - added new mode: `execution_mode=handle_closure`,
+   - added optional input: `upstream_m13b0_execution`,
+   - enforced mode/subphase conformance (`handle_closure` only for `m13_subphase=A`).
+2. Runtime logic expanded from B0-only to dual-lane:
+   - `materialization_check` remains `M13.B0`,
+   - `handle_closure` executes true `M13.A` contract.
+3. `M13.A` contract implemented:
+   - verifies upstream `M12.J` summary pass posture (`ADVANCE_TO_M13`, `M13_READY`),
+   - verifies upstream `M13.B0` summary pass posture (`ADVANCE_TO_M13_A`, `M13.A_READY`),
+   - parses `dev_full_handles.registry.v0.md` and validates required handle set + placeholders + boolean semantics,
+   - emits/publishes:
+     - `m13a_handle_closure_snapshot.json`,
+     - `m13a_blocker_register.json`,
+     - `m13a_execution_summary.json`.
+4. Gate posture pinned in code:
+   - pass => `verdict=ADVANCE_TO_M13_B`, `next_gate=M13.B_READY`,
+   - fail => `HOLD_REMEDIATE` with `M13-B1`.
+5. Validation:
+   - workflow YAML parse check passed (`YAML_OK`).
+
+## Entry: 2026-02-27 22:48:47 +00:00 - M13.A executed and closed green
+1. Workflow commit/publish posture:
+   - committed workflow-only change on `migrate-dev`: `da28d176c` (`ci: add M13.A handle-closure mode to managed workflow`),
+   - pushed to `origin/migrate-dev`,
+   - dispatched workflow using branch ref `migrate-dev` (no cross-branch merge required for this run because workflow id already exists on default branch).
+2. Authoritative run:
+   - workflow: `dev-full-m13-managed`,
+   - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22506814523`,
+   - inputs:
+     - `m13_subphase=A`,
+     - `execution_mode=handle_closure`,
+     - `upstream_m12j_execution=m12j_closure_sync_20260227T184452Z`,
+     - `upstream_m13b0_execution=m13a_handle_closure_20260227T191722Z`.
+3. Runtime result:
+   - execution id: `m13a_handle_closure_20260227T224800Z`,
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M13_B`,
+   - `next_gate=M13.B_READY`.
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13a_handle_closure_20260227T224800Z/m13a_handle_closure_snapshot.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13a_handle_closure_20260227T224800Z/m13a_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13a_handle_closure_20260227T224800Z/m13a_execution_summary.json`.
+5. Decision:
+   - `M13.A` is closed green and `M13-B1` is clear.
+   - progression gate opened to `M13.B`.
+
+## Entry: 2026-02-27 22:53:56 +00:00 - M13.B pre-execution drift assessment and remediation plan
+1. Requested scope: expand + execute `M13.B` fully, and clear any active blockers.
+2. Drift/risk surfaced before execution:
+   - no blockers remain from `M13.A` (`blocker_count=0` verified from durable summary),
+   - `M13.B` required source matrix (`M1..M12`) is not uniformly durable-readable:
+     - `M1` has no run-control durable summary object in S3,
+     - legacy `M3/M4` summary objects at historical run-control keys are currently unreadable due `KMSInvalidStateException` (keys pending deletion),
+     - `M2` closure canonical summary exists in local run evidence (`m2j`) but not in the same durable closure shape as later phases.
+3. Fail-closed decision:
+   - do not claim green via implicit assumptions or doc-only status rows,
+   - implement managed `M13.B` lane with explicit dual-source read policy:
+     - primary: durable S3 summary key,
+     - fallback: repo-anchored phase summary artifact (for known legacy surfaces only),
+   - every fallback use is explicitly recorded per row in source matrix output.
+4. Continuity policy pinned:
+   - anchor continuity on active run-scoped phases (`M5..M12`) with strict `platform_run_id` / `scenario_run_id` conformance,
+   - allow `M1..M3` to be marked `legacy_pre_run_scope` when run IDs are absent by design/history, but still require pass posture checks and explicit reason markers.
+5. Implementation contract for `M13.B` mode:
+   - add `execution_mode=source_matrix_closure` (subphase `B` only),
+   - verify upstream `M13.A` pass (`ADVANCE_TO_M13_B`, `M13.B_READY`),
+   - emit:
+     - `m13b_source_matrix_snapshot.json`,
+     - `m13b_blocker_register.json`,
+     - `m13b_execution_summary.json`,
+   - pass posture:
+     - `overall_pass=true`,
+     - `verdict=ADVANCE_TO_M13_C`,
+     - `next_gate=M13.C_READY`.
+
+## Entry: 2026-02-27 23:00:30 +00:00 - M13.B managed lane implementation (source_matrix_closure)
+1. Implemented `M13.B` execution mode in `.github/workflows/dev_full_m13_managed.yml`:
+   - added mode routing for `source_matrix_closure` (`m13_subphase=B` only),
+   - extended managed execution step condition to include this mode,
+   - pinned blocker/phase mappings: `M13-B2` <-> `M13.B`.
+2. Implemented M13.B runtime behavior (managed-only):
+   - validates upstream `M13.A` summary posture (`ADVANCE_TO_M13_B`, `M13.B_READY`),
+   - builds explicit `M1..M12` source matrix with row-level `source_mode` (`s3_primary` or `repo_fallback`),
+   - applies strict run-scope continuity check on `M5..M12` (`platform_run_id` + `scenario_run_id`),
+   - allows legacy pre-run scope handling for `M1..M3` when IDs are absent with explicit marker.
+3. Source contract pinned in-code:
+   - S3 primary summary keys for `M5..M12` (durable run-control surfaces),
+   - legacy fallback paths for `M1..M4` repo artifacts to absorb historical KMS-inaccessible legacy objects.
+4. M13.B artifacts and gate semantics implemented:
+   - `m13b_source_matrix_snapshot.json`,
+   - `m13b_blocker_register.json`,
+   - `m13b_execution_summary.json`,
+   - pass posture -> `verdict=ADVANCE_TO_M13_C`, `next_gate=M13.C_READY`.
+5. Local verification before dispatch:
+   - extracted embedded workflow Python and ran compile check (`py_compile`) successfully.
+6. Next action:
+   - workflow-only commit + push,
+   - dispatch managed `M13.B` run,
+   - close `M13.B` only on blocker-free authoritative evidence.
+
+## Entry: 2026-02-27 23:04:20 +00:00 - M13.B blocker remediation (legacy row materialization + continuity fix)
+1. First M13.B run failed with `M13-B2` blockers:
+   - missing readable summaries for `M1..M4`,
+   - strict continuity failure on `M11` because `m11_execution_summary.json` omits run IDs.
+2. Root cause confirmed:
+   - repo fallback paths are not available in managed runner workspace,
+   - historical `M3/M4` original run-control objects are KMS-inaccessible (`KMSInvalidStateException`, key pending deletion).
+3. Remediation decision:
+   - materialize explicit legacy matrix fallback summaries under durable run-control using current writable KMS surface:
+     - `evidence/dev_full/run_control/m13b_legacy_matrix_backfill_20260227/m1e_execution_summary.json`
+     - `evidence/dev_full/run_control/m13b_legacy_matrix_backfill_20260227/m2j_execution_summary.json`
+     - `evidence/dev_full/run_control/m13b_legacy_matrix_backfill_20260227/m3_execution_summary.json`
+     - `evidence/dev_full/run_control/m13b_legacy_matrix_backfill_20260227/m4_execution_summary.json`
+   - update M13.B row mapping:
+     - `M1..M4` S3 key candidates now include the backfill keys first,
+     - `M11` row now reads `m11j_execution_summary.json` (contains `platform_run_id`/`scenario_run_id`).
+4. Integrity posture:
+   - no phase result fabrication; backfill objects are direct copies of existing legacy closure summaries.
+5. Next action:
+   - commit workflow-only patch,
+   - rerun `M13.B` and close only on `ADVANCE_TO_M13_C`.
+
+## Entry: 2026-02-27 23:06:10 +00:00 - M13.B executed and closed green (managed lane)
+1. Initial managed run failed as designed (fail-closed):
+   - run: `22507181947`, execution id `m13b_source_matrix_20260227T230154Z`,
+   - blocker register: `blocker_count=5`, code family `M13-B2`.
+2. Observed blockers:
+   - unreadable legacy source rows for `M1..M4` in runner context,
+   - `M11` strict continuity check failed because `m11_execution_summary.json` lacks run IDs.
+3. Remediation executed:
+   - durable backfill summaries uploaded to run-control prefix `m13b_legacy_matrix_backfill_20260227` for `M1..M4`,
+   - workflow row mapping updated to use backfill keys first,
+   - `M11` source switched to `m11j_execution_summary.json`.
+4. Rerun outcome:
+   - run: `22507270736`, execution id `m13b_source_matrix_20260227T230519Z`,
+   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M13_C`, `next_gate=M13.C_READY`.
+5. Durable closure artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13b_source_matrix_20260227T230519Z/m13b_source_matrix_snapshot.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13b_source_matrix_20260227T230519Z/m13b_blocker_register.json`
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13b_source_matrix_20260227T230519Z/m13b_execution_summary.json`
+6. Decision:
+   - `M13.B` is closed green and `M13-B2` is cleared for this gate.
+   - entry to `M13.C` is now open.

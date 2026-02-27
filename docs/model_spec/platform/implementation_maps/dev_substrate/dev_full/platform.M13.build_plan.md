@@ -129,6 +129,10 @@ Goal:
 
 Entry conditions:
 1. M13 entry contract (Section 2) is satisfied.
+2. `M13-B0` closure summary is readable and pass posture:
+   - `overall_pass=true`
+   - `verdict=ADVANCE_TO_M13_A`
+   - `next_gate=M13.A_READY`
 
 Required handles:
 1. `FULL_VERDICT_PATH_PATTERN`
@@ -142,6 +146,22 @@ Required handles:
 9. `PHASE_COST_OUTCOME_REQUIRED`
 10. `PHASE_ENVELOPE_REQUIRED`
 
+Execution checks:
+1. Read upstream `M12.J` summary and fail closed on non-pass posture.
+2. Read upstream `M13-B0` summary and fail closed on non-pass posture.
+3. Parse `dev_full_handles.registry.v0.md` and build explicit required-handle matrix.
+4. Validate each required handle is present and non-placeholder.
+5. Validate path-pattern handles contain required run placeholders:
+   - `FULL_VERDICT_PATH_PATTERN`, `TEARDOWN_COST_SNAPSHOT_PATH_PATTERN`, `TEARDOWN_RESIDUAL_SCAN_PATH_PATTERN` include `{platform_run_id}`.
+   - `COST_GUARDRAIL_SNAPSHOT_PATH_PATTERN`, `PHASE_BUDGET_ENVELOPE_PATH_PATTERN`, `PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN` include `{phase_execution_id}`.
+6. Validate teardown and phase-closure flags are typed/coherent:
+   - `TEARDOWN_BLOCK_ON_RESIDUAL_RISK` is boolean.
+   - `PHASE_COST_OUTCOME_REQUIRED` and `PHASE_ENVELOPE_REQUIRED` are boolean and `true`.
+7. Emit and publish:
+   - `m13a_handle_closure_snapshot.json`
+   - `m13a_blocker_register.json`
+   - `m13a_execution_summary.json`
+
 Blockers:
 1. `M13-B1` on unresolved/malformed required handles.
 
@@ -149,9 +169,10 @@ Runtime budget:
 1. Target <= 5 minutes.
 
 DoD:
-- [ ] required handle matrix explicit and complete.
-- [ ] unresolved handles blocker-marked.
-- [ ] `m13a_handle_closure_snapshot.json` committed locally and durably.
+- [x] required handle matrix explicit and complete.
+- [x] unresolved handles blocker-marked.
+- [x] `m13a_handle_closure_snapshot.json` committed locally and durably.
+- [x] `m13a_execution_summary.json` shows `overall_pass=true`, `verdict=ADVANCE_TO_M13_B`, `next_gate=M13.B_READY`.
 
 ### M13.B - Full Source Matrix Closure
 Goal:
@@ -161,9 +182,21 @@ Entry conditions:
 1. `M13.A` pass.
 
 Execution checks:
-1. every required phase summary is readable.
-2. each phase summary is pass posture.
-3. run-scope continuity is preserved.
+1. Verify upstream `M13.A` pass posture (`ADVANCE_TO_M13_B`, `M13.B_READY`).
+2. Build required source row set for `M1..M12` with explicit source contract:
+   - primary source: durable S3 summary keys,
+   - allowed fallback source (legacy-only rows): durable legacy backfill summaries under run-control.
+3. For each row, assert:
+   - summary is readable from at least one allowed source,
+   - pass posture fields meet per-row criteria (`overall_pass`, verdict/next-gate where applicable),
+   - row includes explicit `source_mode` (`s3_primary` or `repo_fallback`).
+4. Continuity checks:
+   - strict run-scope continuity on `M5..M12` (`platform_run_id` and `scenario_run_id` aligned),
+   - `M1..M3` may be marked `legacy_pre_run_scope` only with explicit reason marker and pass posture evidence.
+5. Emit and publish:
+   - `m13b_source_matrix_snapshot.json`,
+   - `m13b_blocker_register.json`,
+   - `m13b_execution_summary.json`.
 
 Blockers:
 1. `M13-B2` on missing/unreadable/inconsistent matrix row.
@@ -172,9 +205,10 @@ Runtime budget:
 1. Target <= 8 minutes.
 
 DoD:
-- [ ] matrix rows are complete for required sources.
-- [ ] pass posture is explicit for each source row.
-- [ ] `m13b_source_matrix_snapshot.json` committed locally and durably.
+- [x] matrix rows are complete for required sources.
+- [x] pass posture is explicit for each source row.
+- [x] `m13b_source_matrix_snapshot.json` committed locally and durably.
+- [x] `m13b_execution_summary.json` shows `overall_pass=true`, `verdict=ADVANCE_TO_M13_C`, `next_gate=M13.C_READY`.
 
 ### M13.C - Six-Proof Matrix Closure
 Goal:
@@ -367,8 +401,8 @@ DoD:
 13. `M13-B12`: non-gate acceptance failure.
 
 ## 8) Completion Checklist
-- [ ] `M13.A` complete
-- [ ] `M13.B` complete
+- [x] `M13.A` complete
+- [x] `M13.B` complete
 - [ ] `M13.C` complete
 - [ ] `M13.D` complete
 - [ ] `M13.E` complete
@@ -389,4 +423,24 @@ DoD:
    - `verdict=ADVANCE_TO_M13_A`
    - `next_gate=M13.A_READY`
    - evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13a_handle_closure_20260227T191722Z/`
-5. Next action: expand and execute `M13.A` against the now-materialized managed lane.
+5. `M13.A` is closed green from run `22506814523` (`dev-full-m13-managed`, `m13_subphase=A`, `execution_mode=handle_closure`):
+   - `overall_pass=true`
+   - `verdict=ADVANCE_TO_M13_B`
+   - `next_gate=M13.B_READY`
+   - evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13a_handle_closure_20260227T224800Z/`
+6. `M13.B` first attempt failed (`run_id=22507181947`, execution `m13b_source_matrix_20260227T230154Z`) with `M13-B2` on legacy source readability (`M1..M4`) and strict continuity extraction for `M11`.
+7. `M13.B` blocker remediation applied:
+   - durable legacy fallback summaries written to:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13b_legacy_matrix_backfill_20260227/m1e_execution_summary.json`
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13b_legacy_matrix_backfill_20260227/m2j_execution_summary.json`
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13b_legacy_matrix_backfill_20260227/m3_execution_summary.json`
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13b_legacy_matrix_backfill_20260227/m4_execution_summary.json`
+   - M11 matrix row source switched to `m11j_execution_summary.json` for run-scope fields.
+8. `M13.B` is now closed green from run `22507270736` (`dev-full-m13-managed`, `m13_subphase=B`, `execution_mode=source_matrix_closure`):
+   - execution id: `m13b_source_matrix_20260227T230519Z`,
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M13_C`,
+   - `next_gate=M13.C_READY`,
+   - evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13b_source_matrix_20260227T230519Z/`.
+9. Next action: expand and execute `M13.C` (six-proof matrix closure) on managed lane.

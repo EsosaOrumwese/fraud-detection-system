@@ -100,7 +100,7 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M10 | P13 | OFS dataset closure | NOT_STARTED |
 | M11 | P14 | MF train/eval closure | ACTIVE |
 | M12 | P15 | MPR promotion/rollback closure | NOT_STARTED |
-| M13 | P16-P17 | Full-platform verdict + teardown/idle-safe closure | NOT_STARTED |
+| M13 | P16-P17 | Full-platform verdict + teardown/idle-safe closure | IN_PROGRESS |
 
 ---
 
@@ -1757,5 +1757,8 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- `M13-B0` is now closed green (`run_id=22500308645`, `verdict=ADVANCE_TO_M13_A`, `next_gate=M13.A_READY`).
-- Next: expand and execute `M13.A` on `dev-full-m13-managed` with fail-closed blocker handling.
+- `M13.A` is closed green (`run_id=22506814523`, `verdict=ADVANCE_TO_M13_B`, `next_gate=M13.B_READY`).
+- `M13.B` is closed green after one fail-closed remediation cycle:
+  - failed run: `22507181947` (`M13-B2` legacy-source readability + M11 continuity extraction),
+  - green rerun: `22507270736`, execution `m13b_source_matrix_20260227T230519Z`, `verdict=ADVANCE_TO_M13_C`, `next_gate=M13.C_READY`.
+- Next: expand and execute `M13.C` on `dev-full-m13-managed`.
