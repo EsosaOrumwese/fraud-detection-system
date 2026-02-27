@@ -521,19 +521,51 @@ M11D-AD1 clearance contract (mandatory before M11 phase closure):
 Goal:
 1. Adjudicate metric/performance/stability/leakage gates deterministically.
 
-Execution notes:
-1. Evaluate thresholds from pinned policy surfaces.
-2. Fail-closed on any gate miss (`M11-B5`).
-3. Emit explicit baseline/champion comparison artifact (`m11_eval_vs_baseline_report.json`).
-4. Emit `m11e_eval_gate_snapshot.json`.
+Execution lanes (sequential, fail-closed):
+1. `M11.E.A` gate-policy closure (decision-completeness precheck):
+- verify required evaluation policy handles are pinned and readable from authoritative surfaces.
+- required policy handles for this lane:
+  - `MF_EVAL_ACCURACY_MIN`
+  - `MF_EVAL_PRECISION_MIN`
+  - `MF_EVAL_RECALL_MIN`
+  - `MF_EVAL_BASELINE_DELTA_ACCURACY_MIN`
+  - `MF_EVAL_BASELINE_DELTA_PRECISION_MIN`
+  - `MF_EVAL_BASELINE_DELTA_RECALL_MIN`
+  - `MF_EVAL_LEAKAGE_HARD_FAIL`
+  - `MF_EVAL_STABILITY_MAX_DELTA_PCT`
+- if any key is unresolved/missing, stop with `M11-B5` and emit unresolved policy list (no defaults/no assumptions).
+2. `M11.E.B` evidence ingestion and integrity precheck:
+- load `m11d_train_eval_execution_snapshot.json` and `m11d_execution_summary.json` from authoritative M11.D execution id,
+- verify run pins (`platform_run_id`, execution id, code release refs) and artifact checksums,
+- verify required artifacts exist: `eval_report`, leakage/provenance check, and baseline reference surface.
+3. `M11.E.C` deterministic adjudication:
+- compute gate verdicts in fixed order: compatibility -> leakage -> performance -> stability.
+- leakage gate is hard fail (no waivers in M11.E).
+- performance gate compares candidate metrics vs absolute minima and baseline/champion deltas.
+- stability gate checks bounded variance against pinned tolerance.
+4. `M11.E.D` publication and handoff:
+- publish `m11_eval_vs_baseline_report.json` with explicit metric values, thresholds, deltas, and pass/fail by gate.
+- publish `m11e_eval_gate_snapshot.json` with `overall_pass`, blocker list, and `next_gate` contract.
+- assert `M11.F_READY` only when `overall_pass=true` and blocker count is `0`.
+
+Blocker semantics (`M11-B5` subcodes):
+1. `M11-B5.1`: gate-policy handles unresolved/missing.
+2. `M11-B5.2`: authoritative M11.D evidence set incomplete or unreadable.
+3. `M11-B5.3`: leakage gate fail.
+4. `M11-B5.4`: metric/performance gate fail.
+5. `M11-B5.5`: stability gate fail.
+6. `M11-B5.6`: snapshot/report publication failure.
 
 Runtime budget:
-1. Target <= 10 minutes.
+1. Target <= 10 minutes total.
+2. `M11.E.A/B` (policy + evidence precheck) <= 3 minutes.
+3. `M11.E.C/D` (adjudication + publication) <= 7 minutes.
 
 DoD:
-- [ ] all eval gates pass.
+- [ ] policy-handle closure completed with zero unresolved keys (or blocked fail-closed).
+- [ ] all eval gates pass (`compatibility`, `leakage`, `performance`, `stability`).
 - [ ] baseline/champion comparison report is published and meets pinned thresholds.
-- [ ] snapshot published local + durable.
+- [ ] snapshot + blocker register published local + durable.
 - [ ] `M11.F_READY` asserted.
 
 ### M11.F - MLflow Lineage + Provenance Closure
