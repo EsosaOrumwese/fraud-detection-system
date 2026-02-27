@@ -1,56 +1,56 @@
 digraph DevMinEngineeringNoIcons {
   graph [rankdir=LR, fontname="Helvetica", fontsize=11, label="Dev_min Architecture - Engineering View (Icons)", labelloc=t, labeljust=l, pad="0.2", splines=true];
-  node  [shape=box, style="rounded,filled", fillcolor="#F8FAFC", color="#CBD5E1", fontname="Helvetica", fontsize=9];
-  edge  [color="#334155", penwidth=1.1, arrowsize=0.75, fontname="Helvetica", fontsize=8];
+  node [shape=box, style="rounded,filled", fillcolor="#F8FAFC", color="#CBD5E1", fontname="Helvetica", fontsize=9, margin="0.45,0.18"];
+  edge [color="#334155", penwidth=1.1, arrowsize=0.75, fontname="Helvetica", fontsize=8];
 
   subgraph cluster_core {
     label="Core Terraform Root";
     color="#1D4ED8"; style="rounded,dashed";
-    core_s3_object [label="[S3] S3 object-store"];
-    core_s3_evidence [label="[S3] S3 evidence"];
-    core_s3_quarantine [label="[S3] S3 quarantine"];
-    core_s3_archive [label="[S3] S3 archive"];
-    core_s3_tfstate [label="[S3] S3 tfstate backend"];
-    core_ddb_control [label="[DDB] DynamoDB control-runs"];
-    core_ddb_admission [label="[DDB] DynamoDB ig-admission-state"];
-    core_ddb_publish [label="[DDB] DynamoDB ig-publish-state"];
-    core_ddb_lock [label="[DDB] DynamoDB tf-lock"];
-    core_budget [label="[BUDGET] AWS Budget"];
+    core_s3_object [label="S3 object-store", image="/workspace/docs/design/platform/assets/iconpack_professional_18/s3.png", imagescale=true, imagepos="ml", labelloc="b"];
+    core_s3_evidence [label="S3 evidence", image="/workspace/docs/design/platform/assets/iconpack_professional_18/s3.png", imagescale=true, imagepos="ml", labelloc="b"];
+    core_s3_quarantine [label="S3 quarantine", image="/workspace/docs/design/platform/assets/iconpack_professional_18/s3.png", imagescale=true, imagepos="ml", labelloc="b"];
+    core_s3_archive [label="S3 archive", image="/workspace/docs/design/platform/assets/iconpack_professional_18/s3.png", imagescale=true, imagepos="ml", labelloc="b"];
+    core_s3_tfstate [label="S3 tfstate backend", image="/workspace/docs/design/platform/assets/iconpack_professional_18/s3.png", imagescale=true, imagepos="ml", labelloc="b"];
+    core_ddb_control [label="DynamoDB control-runs", image="/workspace/docs/design/platform/assets/iconpack_professional_18/dynamodb.png", imagescale=true, imagepos="ml", labelloc="b"];
+    core_ddb_admission [label="DynamoDB ig-admission-state", image="/workspace/docs/design/platform/assets/iconpack_professional_18/dynamodb.png", imagescale=true, imagepos="ml", labelloc="b"];
+    core_ddb_publish [label="DynamoDB ig-publish-state", image="/workspace/docs/design/platform/assets/iconpack_professional_18/dynamodb.png", imagescale=true, imagepos="ml", labelloc="b"];
+    core_ddb_lock [label="DynamoDB tf-lock", image="/workspace/docs/design/platform/assets/iconpack_professional_18/dynamodb.png", imagescale=true, imagepos="ml", labelloc="b"];
+    core_budget [label="AWS Budget", image="/workspace/docs/design/platform/assets/iconpack_professional_18/budget.png", imagescale=true, imagepos="ml", labelloc="b"];
   }
 
   subgraph cluster_confluent {
     label="Confluent Terraform Root";
     color="#7C3AED"; style="rounded,dashed";
-    cf_env [label="[CLOUD] Confluent environment"];
-    cf_cluster [label="[CLOUD] Confluent kafka cluster"];
-    cf_topics [label="[KAFKA] Confluent topics"];
-    cf_sa_runtime [label="[SA] Service account runtime"];
-    cf_sa_manager [label="[SA] Service account topic-manager"];
-    cf_api_runtime [label="[KEY] Runtime kafka api key"];
-    cf_api_manager [label="[KEY] Topic-manager api key"];
+    cf_env [label="Confluent environment", image="/workspace/docs/design/platform/assets/iconpack_professional_18/kafka.png", imagescale=true, imagepos="ml", labelloc="b"];
+    cf_cluster [label="Confluent kafka cluster", image="/workspace/docs/design/platform/assets/iconpack_professional_18/kafka.png", imagescale=true, imagepos="ml", labelloc="b"];
+    cf_topics [label="Confluent topics", image="/workspace/docs/design/platform/assets/iconpack_professional_18/kafka.png", imagescale=true, imagepos="ml", labelloc="b"];
+    cf_sa_runtime [label="Service account runtime"];
+    cf_sa_manager [label="Service account topic-manager"];
+    cf_api_runtime [label="Runtime kafka api key"];
+    cf_api_manager [label="Topic-manager api key"];
     cf_ssm_bootstrap [label="SSM confluent/bootstrap"];
     cf_ssm_key [label="SSM confluent/api_key"];
     cf_ssm_secret [label="SSM confluent/api_secret"];
-    cf_topic_catalog [label="S3 topic_catalog.json"];
+    cf_topic_catalog [label="S3 topic_catalog.json", image="/workspace/docs/design/platform/assets/iconpack_professional_18/s3.png", imagescale=true, imagepos="ml", labelloc="b"];
   }
 
   subgraph cluster_demo {
     label="Demo Terraform Root";
     color="#059669"; style="rounded,dashed";
     dm_remote_state [label="data.terraform_remote_state.confluent"];
-    dm_vpc [label="[VPC] VPC + subnets + routing"];
-    dm_sg_app [label="[SG] Security group app"];
-    dm_sg_db [label="[SG] Security group db"];
-    dm_logs [label="[LOG] CloudWatch log group"];
-    dm_ecs_cluster [label="[ECS] ECS cluster"];
-    dm_service_probe [label="ECS service runtime-probe"];
-    dm_service_daemons [label="ECS daemon services\nig, rtdl-core, decision-lane,\ncase-trigger, case-mgmt,\nlabel-store, env-conformance"];
+    dm_vpc [label="VPC + subnets + routing", image="/workspace/docs/design/platform/assets/iconpack_professional_18/vpc.png", imagescale=true, imagepos="ml", labelloc="b"];
+    dm_sg_app [label="Security group app", image="/workspace/docs/design/platform/assets/iconpack_professional_18/security.png", imagescale=true, imagepos="ml", labelloc="b"];
+    dm_sg_db [label="Security group db", image="/workspace/docs/design/platform/assets/iconpack_professional_18/security.png", imagescale=true, imagepos="ml", labelloc="b"];
+    dm_logs [label="CloudWatch log group", image="/workspace/docs/design/platform/assets/iconpack_professional_18/cloudwatch.png", imagescale=true, imagepos="ml", labelloc="b"];
+    dm_ecs_cluster [label="ECS cluster", image="/workspace/docs/design/platform/assets/iconpack_professional_18/ecs.png", imagescale=true, imagepos="ml", labelloc="b"];
+    dm_service_probe [label="ECS service runtime-probe", image="/workspace/docs/design/platform/assets/iconpack_professional_18/ecs.png", imagescale=true, imagepos="ml", labelloc="b"];
+    dm_service_daemons [label="ECS daemon services\nig, rtdl-core, decision-lane,\ncase-trigger, case-mgmt,\nlabel-store, env-conformance", image="/workspace/docs/design/platform/assets/iconpack_professional_18/ecs.png", imagescale=true, imagepos="ml", labelloc="b"];
     dm_task_control [label="ECS control tasks\nscenario-runner + world-stream-producer"];
     dm_task_oracle [label="ECS oracle tasks\noracle-stream-sort + oracle-checker"];
     dm_task_reporter [label="ECS reporter task"];
     dm_task_migrations [label="ECS db-migrations task"];
-    dm_kinesis [label="[KINESIS] Kinesis ig_event_bus"];
-    dm_rds [label="[RDS] RDS runtime postgres"];
+    dm_kinesis [label="Kinesis ig_event_bus", image="/workspace/docs/design/platform/assets/iconpack_professional_18/kinesis.png", imagescale=true, imagepos="ml", labelloc="b"];
+    dm_rds [label="RDS runtime postgres", image="/workspace/docs/design/platform/assets/iconpack_professional_18/rds.png", imagescale=true, imagepos="ml", labelloc="b"];
     dm_ssm_bootstrap [label="SSM runtime confluent/bootstrap"];
     dm_ssm_key [label="SSM runtime confluent/api_key"];
     dm_ssm_secret [label="SSM runtime confluent/api_secret"];
@@ -58,8 +58,8 @@ digraph DevMinEngineeringNoIcons {
     dm_ssm_db_password [label="SSM db/password"];
     dm_ssm_db_dsn [label="SSM db/dsn"];
     dm_ssm_ig_api [label="SSM ig/api_key"];
-    dm_manifest [label="[ARTIFACT] S3 demo manifest.json"];
-    dm_catalog [label="[ARTIFACT] S3 demo confluent/topic_catalog.json"];
+    dm_manifest [label="S3 demo manifest.json"];
+    dm_catalog [label="S3 demo confluent/topic_catalog.json"];
   }
 
   cf_env -> cf_cluster;
