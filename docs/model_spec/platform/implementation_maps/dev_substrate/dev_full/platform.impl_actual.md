@@ -16430,3 +16430,56 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 7. Progression impact:
    - `M12-B7` closed.
    - next actionable lane is `M12.H`.
+
+## Entry: 2026-02-27 18:13:03 +00:00 - M12.H pre-execution contract lock (P15 rollup + M13 handoff)
+1. Scope accepted: expand and execute M12.H fully on managed lane.
+2. Entry contract pinned:
+   - upstream `M12.G` summary must be pass with:
+     - `overall_pass=true`,
+     - `blocker_count=0`,
+     - `next_gate=M12.H_READY`,
+     - `verdict=ADVANCE_TO_M12_H`.
+3. Rollup contract pinned (fixed-order, fail-closed):
+   - summaries loaded in strict order `A..G` from durable run-control refs,
+   - expected next-gate ladder:
+     - A=`M12.B_READY`,
+     - B=`M12.C_READY`,
+     - C=`M12.D_READY`,
+     - D=`M12.E_READY`,
+     - E=`M12.F_READY`,
+     - F=`M12.G_READY`,
+     - G=`M12.H_READY`.
+4. Verdict/handoff artifacts pinned:
+   - `m12h_p15_gate_verdict.json` (deterministic `P15` verdict),
+   - `m13_handoff_pack.json` (M13 entry contract),
+   - `m12h_blocker_register.json`,
+   - `m12h_execution_summary.json`.
+5. Fail-closed mapping pinned:
+   - `M12-B8` for rollup/verdict inconsistency,
+   - `M12-B9` for M13 handoff publication/parity failure.
+6. Pass posture pinned:
+   - P15 verdict `ADVANCE_TO_P16`,
+   - M13 handoff gate `M13_READY`,
+   - M12.H summary `next_gate=M12.I_READY`, `verdict=ADVANCE_TO_M12_I`.
+
+## Entry: 2026-02-27 18:17:55 +00:00 - M12.H managed lane materialization (workflow wiring)
+1. Gap confirmed: `dev_full_m12_managed.yml` had no executable `m12h_execute` lane despite M12.H being next actionable phase.
+2. Materialization changes applied:
+   - execution mode options now include `m12h_execute`,
+   - new input pinned: `upstream_m12g_execution` (defaulted to latest green M12.G execution),
+   - validator now enforces subphase guard (`m12h_execute` only for `m12_subphase=H`),
+   - managed step added: `Execute M12.H P15 gate rollup + M13 handoff (managed)`.
+3. Execution behavior pinned in lane:
+   - strict fixed-order rollup over M12.A..G summaries with expected next-gate ladder enforcement,
+   - run-scope parity check across rows (platform/scenario),
+   - deterministic P15 verdict artifact emission (`m12h_p15_gate_verdict.json`),
+   - deterministic M13 handoff publication (`m13_handoff_pack.json`),
+   - fail-closed blockers:
+     - `M12-B8` for rollup/verdict inconsistency,
+     - `M12-B9` for publication parity/upload failures,
+   - pass posture:
+     - `p15_verdict=ADVANCE_TO_P16`,
+     - `p15_next_gate=M13_READY`,
+     - lane summary `verdict=ADVANCE_TO_M12_I`, `next_gate=M12.I_READY`.
+4. Next step:
+   - commit workflow-only change and dispatch `m12h_execute` on managed lane.

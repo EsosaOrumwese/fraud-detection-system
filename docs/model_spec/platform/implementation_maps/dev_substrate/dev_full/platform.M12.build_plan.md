@@ -500,6 +500,35 @@ Blockers:
 Runtime budget:
 1. Target <= 7 minutes.
 
+Expanded execution contract:
+1. `M12.H.A` entry closure:
+- require `M12.G` pass summary with `next_gate=M12.H_READY`, zero blockers.
+2. `M12.H.B` fixed-order rollup:
+- load M12 summaries in strict order `A -> B -> C -> D -> E -> F -> G`;
+- require each summary to be pass posture with expected `next_gate`:
+  - A=`M12.B_READY`,
+  - B=`M12.C_READY`,
+  - C=`M12.D_READY`,
+  - D=`M12.E_READY`,
+  - E=`M12.F_READY`,
+  - F=`M12.G_READY`,
+  - G=`M12.H_READY`.
+3. `M12.H.C` deterministic P15 verdict emission:
+- emit `m12h_p15_gate_verdict.json` with:
+  - `phase_id=P15`,
+  - `verdict=ADVANCE_TO_P16` on pass else `HOLD_REMEDIATE`,
+  - deterministic fixed-order row set for `A..G`.
+4. `M12.H.D` M13 handoff publication:
+- emit `m13_handoff_pack.json` with required M13 entry gate contract:
+  - required verdict `ADVANCE_TO_P16`,
+  - expected next gate `M13_READY`,
+  - references to M12.H verdict + M12.G summary.
+5. `M12.H.E` run-control closure:
+- emit `m12h_blocker_register.json` and `m12h_execution_summary.json`;
+- set `next_gate=M12.I_READY` on pass else `HOLD_REMEDIATE`.
+6. `M12.H.F` durable publication parity:
+- publish all M12.H artifacts to run-control prefix and verify readback/head parity.
+
 DoD:
 - [ ] `m12h_p15_gate_verdict.json` emitted.
 - [ ] PASS posture requires `ADVANCE_TO_P16` and `next_gate=M13_READY`.
