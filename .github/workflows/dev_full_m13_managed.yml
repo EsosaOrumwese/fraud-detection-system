@@ -45,6 +45,7 @@ on:
           - six_proof_closure
           - final_verdict_closure
           - teardown_plan_closure
+          - teardown_execution_closure
       upstream_m12j_execution:
         description: Upstream M12.J execution id (required for M13 entry check)
         required: true
@@ -74,6 +75,11 @@ on:
         description: Upstream M13.D execution id (required for M13.E teardown plan mode)
         required: false
         default: m13d_final_verdict_20260227T234010Z
+        type: string
+      upstream_m13e_execution:
+        description: Upstream M13.E execution id (required for M13.F teardown execution mode)
+        required: false
+        default: m13e_teardown_plan_20260227T234734Z
         type: string
       m13_execution_id:
         description: Optional fixed execution id override
@@ -140,6 +146,12 @@ jobs:
                 exit 1
               fi
               ;;
+            teardown_execution_closure)
+              if [[ "${{ inputs.m13_subphase }}" != "F" ]]; then
+                echo "teardown_execution_closure mode is only valid for m13_subphase=F"
+                exit 1
+              fi
+              ;;
             *)
               echo "Unsupported execution_mode='${{ inputs.execution_mode }}'"
               exit 1
@@ -199,7 +211,7 @@ jobs:
           echo "run_dir=runs/dev_substrate/dev_full/m13/${EXEC_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Execute M13 managed lane
-        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' || inputs.execution_mode == 'six_proof_closure' || inputs.execution_mode == 'final_verdict_closure' || inputs.execution_mode == 'teardown_plan_closure' }}
+        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' || inputs.execution_mode == 'six_proof_closure' || inputs.execution_mode == 'final_verdict_closure' || inputs.execution_mode == 'teardown_plan_closure' || inputs.execution_mode == 'teardown_execution_closure' }}
         shell: bash
         env:
           EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
@@ -214,6 +226,7 @@ jobs:
           UPSTREAM_M13B_EXEC: ${{ inputs.upstream_m13b_execution }}
           UPSTREAM_M13C_EXEC: ${{ inputs.upstream_m13c_execution }}
           UPSTREAM_M13D_EXEC: ${{ inputs.upstream_m13d_execution }}
+          UPSTREAM_M13E_EXEC: ${{ inputs.upstream_m13e_execution }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -221,6 +234,7 @@ jobs:
           import json
           import os
           import re
+          import time
           from datetime import datetime, timezone
           from pathlib import Path
           from typing import Any
@@ -291,6 +305,18 @@ jobs:
                   raise ValueError("invalid_s3_uri")
               return bucket_name, key
 
+          def s3_surface_readable(s3: Any, uri: str) -> tuple[bool, str]:
+              try:
+                  bucket_name, key = parse_s3_uri(uri)
+                  if key.endswith("/"):
+                      payload = s3.list_objects_v2(Bucket=bucket_name, Prefix=key, MaxKeys=1)
+                      payload.get("KeyCount", 0)
+                  else:
+                      s3.head_object(Bucket=bucket_name, Key=key)
+                  return True, ""
+              except Exception as exc:
+                  return False, type(exc).__name__
+
           def check_summary(
               summary: dict[str, Any],
               expected_verdict: str,
@@ -324,6 +350,7 @@ jobs:
           upstream_m13b = os.environ.get("UPSTREAM_M13B_EXEC", "").strip()
           upstream_m13c = os.environ.get("UPSTREAM_M13C_EXEC", "").strip()
           upstream_m13d = os.environ.get("UPSTREAM_M13D_EXEC", "").strip()
+          upstream_m13e = os.environ.get("UPSTREAM_M13E_EXEC", "").strip()
           handles_registry_path = Path(
               "docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"
           )
@@ -341,6 +368,7 @@ jobs:
               "six_proof_closure",
               "final_verdict_closure",
               "teardown_plan_closure",
+              "teardown_execution_closure",
           ]
           blocker_code_by_mode = {
               "materialization_check": "M13-B0",
@@ -349,6 +377,7 @@ jobs:
               "six_proof_closure": "M13-B3",
               "final_verdict_closure": "M13-B4",
               "teardown_plan_closure": "M13-B5",
+              "teardown_execution_closure": "M13-B6",
           }
           phase_name_by_mode = {
               "materialization_check": "M13.B0",
@@ -357,6 +386,7 @@ jobs:
               "six_proof_closure": "M13.C",
               "final_verdict_closure": "M13.D",
               "teardown_plan_closure": "M13.E",
+              "teardown_execution_closure": "M13.F",
           }
           blocker_code = blocker_code_by_mode.get(mode, "M13-B0")
           phase_name = phase_name_by_mode.get(mode, "M13.B0")
@@ -382,6 +412,10 @@ jobs:
           if mode == "teardown_plan_closure" and subphase != "E":
               blockers.append(
                   {"code": "M13-B5", "message": "teardown_plan_closure mode requires m13_subphase=E."}
+              )
+          if mode == "teardown_execution_closure" and subphase != "F":
+              blockers.append(
+                  {"code": "M13-B6", "message": "teardown_execution_closure mode requires m13_subphase=F."}
               )
 
           routing_map = {
@@ -1682,6 +1716,458 @@ jobs:
                   "retained_surfaces": retained_surfaces,
               }
               artifacts = {"m13e_teardown_plan_snapshot.json": snapshot}
+          elif mode == "teardown_execution_closure":
+              blocker_register_name = "m13f_blocker_register.json"
+              execution_summary_name = "m13f_execution_summary.json"
+              verdict_on_pass = "ADVANCE_TO_M13_G"
+              next_gate_on_pass = "M13.G_READY"
+
+              upstream_m13e_key = (
+                  f"evidence/dev_full/run_control/{upstream_m13e}/m13e_execution_summary.json"
+              )
+              upstream_m13e_summary: dict[str, Any] = {}
+              try:
+                  upstream_m13e_summary = s3_get_json(s3, bucket, upstream_m13e_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": upstream_m13e_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B6", "message": "Unreadable M13.E upstream summary."})
+
+              if upstream_m13e_summary:
+                  check_summary(
+                      summary=upstream_m13e_summary,
+                      expected_verdict="ADVANCE_TO_M13_F",
+                      expected_next_gate="M13.F_READY",
+                      blocker_code="M13-B6",
+                      label="M13.E upstream",
+                      blockers=blockers,
+                  )
+
+              upstream_m13e_plan_key = (
+                  f"evidence/dev_full/run_control/{upstream_m13e}/m13e_teardown_plan_snapshot.json"
+              )
+              upstream_m13e_plan: dict[str, Any] = {}
+              try:
+                  upstream_m13e_plan = s3_get_json(s3, bucket, upstream_m13e_plan_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": upstream_m13e_plan_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B6", "message": "Unreadable M13.E teardown plan snapshot."})
+
+              handles: dict[str, str] = {}
+              try:
+                  handles = parse_handles_registry(handles_registry_path)
+              except Exception as exc:
+                  read_errors.append({"surface": str(handles_registry_path), "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B6", "message": "Unreadable dev_full handles registry."})
+
+              def get_handle_string(name: str) -> str:
+                  raw = handles.get(name)
+                  if raw is None:
+                      return ""
+                  value, typ = parse_scalar(str(raw).strip())
+                  if typ != "string":
+                      return ""
+                  text = str(value).strip()
+                  if not text or text.upper() in {"TBD", "TODO", "UNSET"}:
+                      return ""
+                  return text
+
+              action_receipts: list[dict[str, Any]] = []
+              pre_state: dict[str, Any] = {}
+              post_state: dict[str, Any] = {}
+
+              # EKS nodegroup scale-down to zero (primary non-essential runtime cost surface).
+              eks_cluster_name = get_handle_string("EKS_CLUSTER_NAME")
+              if not eks_cluster_name:
+                  blockers.append({"code": "M13-B6", "message": "Missing/invalid EKS_CLUSTER_NAME handle."})
+              else:
+                  eks = boto3.client("eks", region_name=region)
+                  try:
+                      nodegroups = eks.list_nodegroups(clusterName=eks_cluster_name).get("nodegroups", [])
+                  except Exception as exc:
+                      nodegroups = []
+                      blockers.append({"code": "M13-B6", "message": "Failed to list EKS nodegroups."})
+                      read_errors.append({"surface": f"eks:{eks_cluster_name}:list_nodegroups", "error": type(exc).__name__})
+
+                  pre_ng_rows: list[dict[str, Any]] = []
+                  post_ng_rows: list[dict[str, Any]] = []
+                  for nodegroup_name in nodegroups:
+                      try:
+                          ng_before = eks.describe_nodegroup(
+                              clusterName=eks_cluster_name,
+                              nodegroupName=nodegroup_name,
+                          ).get("nodegroup", {})
+                      except Exception as exc:
+                          blockers.append(
+                              {"code": "M13-B6", "message": f"Unreadable nodegroup before state: {nodegroup_name}."}
+                          )
+                          read_errors.append(
+                              {
+                                  "surface": f"eks:{eks_cluster_name}:{nodegroup_name}:describe_before",
+                                  "error": type(exc).__name__,
+                              }
+                          )
+                          continue
+
+                      scaling_before = ng_before.get("scalingConfig", {}) if isinstance(ng_before, dict) else {}
+                      min_before = int(scaling_before.get("minSize", 0))
+                      desired_before = int(scaling_before.get("desiredSize", 0))
+                      max_before = int(scaling_before.get("maxSize", 1))
+                      pre_ng_rows.append(
+                          {
+                              "nodegroup": nodegroup_name,
+                              "min_size": min_before,
+                              "desired_size": desired_before,
+                              "max_size": max_before,
+                          }
+                      )
+
+                      if min_before > 0 or desired_before > 0:
+                          try:
+                              update_resp = eks.update_nodegroup_config(
+                                  clusterName=eks_cluster_name,
+                                  nodegroupName=nodegroup_name,
+                                  scalingConfig={
+                                      "minSize": 0,
+                                      "desiredSize": 0,
+                                      "maxSize": max(max_before, 1),
+                                  },
+                              )
+                              update_id = (
+                                  update_resp.get("update", {}).get("id")
+                                  if isinstance(update_resp, dict)
+                                  else None
+                              )
+                              update_status = "UNKNOWN"
+                              if update_id:
+                                  for _ in range(40):
+                                      upd = eks.describe_update(
+                                          name=eks_cluster_name,
+                                          nodegroupName=nodegroup_name,
+                                          updateId=update_id,
+                                      ).get("update", {})
+                                      update_status = str(upd.get("status", "UNKNOWN")).upper()
+                                      if update_status in {"SUCCESSFUL", "FAILED", "CANCELLED"}:
+                                          break
+                                      time.sleep(10)
+                              action_receipts.append(
+                                  {
+                                      "action": "eks_update_nodegroup_config",
+                                      "cluster": eks_cluster_name,
+                                      "nodegroup": nodegroup_name,
+                                      "requested_scaling": {"minSize": 0, "desiredSize": 0},
+                                      "update_id": update_id,
+                                      "update_status": update_status,
+                                  }
+                              )
+                              if update_status not in {"SUCCESSFUL", "UNKNOWN"}:
+                                  blockers.append(
+                                      {
+                                          "code": "M13-B6",
+                                          "message": f"EKS nodegroup update did not reach SUCCESSFUL: {nodegroup_name}.",
+                                      }
+                                  )
+                          except Exception as exc:
+                              blockers.append(
+                                  {
+                                      "code": "M13-B6",
+                                      "message": f"Failed to scale nodegroup to zero: {nodegroup_name}.",
+                                  }
+                              )
+                              read_errors.append(
+                                  {
+                                      "surface": f"eks:{eks_cluster_name}:{nodegroup_name}:update",
+                                      "error": type(exc).__name__,
+                                  }
+                              )
+
+                      try:
+                          ng_after = eks.describe_nodegroup(
+                              clusterName=eks_cluster_name,
+                              nodegroupName=nodegroup_name,
+                          ).get("nodegroup", {})
+                          scaling_after = ng_after.get("scalingConfig", {}) if isinstance(ng_after, dict) else {}
+                          min_after = int(scaling_after.get("minSize", 0))
+                          desired_after = int(scaling_after.get("desiredSize", 0))
+                          max_after = int(scaling_after.get("maxSize", 1))
+                          post_ng_rows.append(
+                              {
+                                  "nodegroup": nodegroup_name,
+                                  "min_size": min_after,
+                                  "desired_size": desired_after,
+                                  "max_size": max_after,
+                              }
+                          )
+                          if min_after != 0 or desired_after != 0:
+                              blockers.append(
+                                  {
+                                      "code": "M13-B6",
+                                      "message": (
+                                          f"EKS nodegroup still non-zero after teardown action: {nodegroup_name} "
+                                          f"(min={min_after}, desired={desired_after})."
+                                      ),
+                                  }
+                              )
+                      except Exception as exc:
+                          blockers.append(
+                              {"code": "M13-B6", "message": f"Unreadable nodegroup after state: {nodegroup_name}."}
+                          )
+                          read_errors.append(
+                              {
+                                  "surface": f"eks:{eks_cluster_name}:{nodegroup_name}:describe_after",
+                                  "error": type(exc).__name__,
+                              }
+                          )
+
+                  pre_state["eks_nodegroups"] = pre_ng_rows
+                  post_state["eks_nodegroups"] = post_ng_rows
+
+              # ECS service scale-to-zero for dev-full clusters.
+              ecs = boto3.client("ecs", region_name=region)
+              pre_ecs_rows: list[dict[str, Any]] = []
+              post_ecs_rows: list[dict[str, Any]] = []
+              try:
+                  ecs_clusters = ecs.list_clusters().get("clusterArns", [])
+              except Exception as exc:
+                  ecs_clusters = []
+                  read_errors.append({"surface": "ecs:list_clusters", "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B6", "message": "Failed to list ECS clusters."})
+              for cluster_arn in ecs_clusters:
+                  if "fraud-platform-dev-full" not in cluster_arn:
+                      continue
+                  try:
+                      service_arns = ecs.list_services(cluster=cluster_arn).get("serviceArns", [])
+                  except Exception as exc:
+                      read_errors.append(
+                          {"surface": f"ecs:{cluster_arn}:list_services", "error": type(exc).__name__}
+                      )
+                      blockers.append({"code": "M13-B6", "message": f"Failed to list ECS services for {cluster_arn}."})
+                      continue
+                  if not service_arns:
+                      continue
+                  try:
+                      desc_before = ecs.describe_services(cluster=cluster_arn, services=service_arns).get("services", [])
+                  except Exception as exc:
+                      desc_before = []
+                      read_errors.append(
+                          {"surface": f"ecs:{cluster_arn}:describe_before", "error": type(exc).__name__}
+                      )
+                      blockers.append(
+                          {"code": "M13-B6", "message": f"Failed to describe ECS services for {cluster_arn}."}
+                      )
+                  for svc in desc_before:
+                      svc_name = str(svc.get("serviceName", ""))
+                      desired_before = int(svc.get("desiredCount", 0))
+                      pre_ecs_rows.append(
+                          {"cluster": cluster_arn, "service": svc_name, "desired_count": desired_before}
+                      )
+                      if desired_before > 0:
+                          try:
+                              ecs.update_service(cluster=cluster_arn, service=svc_name, desiredCount=0)
+                              action_receipts.append(
+                                  {
+                                      "action": "ecs_update_service",
+                                      "cluster": cluster_arn,
+                                      "service": svc_name,
+                                      "requested_desired_count": 0,
+                                  }
+                              )
+                          except Exception as exc:
+                              blockers.append(
+                                  {
+                                      "code": "M13-B6",
+                                      "message": f"Failed to scale ECS service to zero: {svc_name}.",
+                                  }
+                              )
+                              read_errors.append(
+                                  {
+                                      "surface": f"ecs:{cluster_arn}:{svc_name}:update",
+                                      "error": type(exc).__name__,
+                                  }
+                              )
+                  try:
+                      desc_after = ecs.describe_services(cluster=cluster_arn, services=service_arns).get("services", [])
+                  except Exception as exc:
+                      desc_after = []
+                      read_errors.append(
+                          {"surface": f"ecs:{cluster_arn}:describe_after", "error": type(exc).__name__}
+                      )
+                      blockers.append(
+                          {"code": "M13-B6", "message": f"Failed to describe ECS services after scale for {cluster_arn}."}
+                      )
+                  for svc in desc_after:
+                      svc_name = str(svc.get("serviceName", ""))
+                      desired_after = int(svc.get("desiredCount", 0))
+                      post_ecs_rows.append(
+                          {"cluster": cluster_arn, "service": svc_name, "desired_count": desired_after}
+                      )
+                      if desired_after > 0:
+                          blockers.append(
+                              {
+                                  "code": "M13-B6",
+                                  "message": f"ECS service still non-zero after teardown action: {svc_name}.",
+                              }
+                          )
+              pre_state["ecs_services"] = pre_ecs_rows
+              post_state["ecs_services"] = post_ecs_rows
+
+              # EMR on EKS active job cancellation (if virtual cluster is pinned).
+              emr_vc_id = get_handle_string("EMR_EKS_VIRTUAL_CLUSTER_ID")
+              pre_emr_rows: list[dict[str, Any]] = []
+              post_emr_rows: list[dict[str, Any]] = []
+              if emr_vc_id:
+                  emr = boto3.client("emr-containers", region_name=region)
+                  active_states = ["PENDING", "SUBMITTED", "RUNNING", "CANCEL_PENDING"]
+                  try:
+                      runs_before = emr.list_job_runs(
+                          virtualClusterId=emr_vc_id,
+                          states=active_states,
+                          maxResults=100,
+                      ).get("jobRuns", [])
+                  except Exception as exc:
+                      runs_before = []
+                      blockers.append({"code": "M13-B6", "message": "Failed to list EMR on EKS active job runs."})
+                      read_errors.append({"surface": f"emr-containers:{emr_vc_id}:list_before", "error": type(exc).__name__})
+                  for run in runs_before:
+                      jid = str(run.get("id", ""))
+                      state = str(run.get("state", ""))
+                      pre_emr_rows.append({"job_run_id": jid, "state": state})
+                      if jid:
+                          try:
+                              emr.cancel_job_run(virtualClusterId=emr_vc_id, id=jid)
+                              action_receipts.append(
+                                  {
+                                      "action": "emr_cancel_job_run",
+                                      "virtual_cluster_id": emr_vc_id,
+                                      "job_run_id": jid,
+                                  }
+                              )
+                          except Exception as exc:
+                              blockers.append({"code": "M13-B6", "message": f"Failed to cancel EMR job run {jid}."})
+                              read_errors.append({"surface": f"emr-containers:{emr_vc_id}:{jid}:cancel", "error": type(exc).__name__})
+                  try:
+                      runs_after = emr.list_job_runs(
+                          virtualClusterId=emr_vc_id,
+                          states=active_states,
+                          maxResults=100,
+                      ).get("jobRuns", [])
+                  except Exception as exc:
+                      runs_after = []
+                      blockers.append({"code": "M13-B6", "message": "Failed to list EMR on EKS active job runs after cancel."})
+                      read_errors.append({"surface": f"emr-containers:{emr_vc_id}:list_after", "error": type(exc).__name__})
+                  for run in runs_after:
+                      jid = str(run.get("id", ""))
+                      state = str(run.get("state", ""))
+                      post_emr_rows.append({"job_run_id": jid, "state": state})
+                  if len(runs_after) > 0:
+                      blockers.append(
+                          {
+                              "code": "M13-B6",
+                              "message": f"EMR on EKS still has active job runs ({len(runs_after)}).",
+                          }
+                      )
+              pre_state["emr_eks_active_runs"] = pre_emr_rows
+              post_state["emr_eks_active_runs"] = post_emr_rows
+
+              # Sagemaker endpoint teardown posture.
+              sm = boto3.client("sagemaker", region_name=region)
+              pre_sm_rows: list[dict[str, Any]] = []
+              post_sm_rows: list[dict[str, Any]] = []
+              try:
+                  endpoints_before = sm.list_endpoints(MaxResults=100, NameContains="fraud-platform-dev-full").get("Endpoints", [])
+              except Exception as exc:
+                  endpoints_before = []
+                  blockers.append({"code": "M13-B6", "message": "Failed to list SageMaker endpoints before teardown."})
+                  read_errors.append({"surface": "sagemaker:list_endpoints_before", "error": type(exc).__name__})
+              for ep in endpoints_before:
+                  name = str(ep.get("EndpointName", ""))
+                  status = str(ep.get("EndpointStatus", ""))
+                  pre_sm_rows.append({"endpoint_name": name, "status": status})
+                  if name and status in {"Creating", "Updating", "InService", "SystemUpdating", "RollingBack"}:
+                      try:
+                          sm.delete_endpoint(EndpointName=name)
+                          action_receipts.append(
+                              {"action": "sagemaker_delete_endpoint", "endpoint_name": name}
+                          )
+                      except Exception as exc:
+                          blockers.append({"code": "M13-B6", "message": f"Failed to delete SageMaker endpoint {name}."})
+                          read_errors.append({"surface": f"sagemaker:{name}:delete", "error": type(exc).__name__})
+              try:
+                  endpoints_after = sm.list_endpoints(MaxResults=100, NameContains="fraud-platform-dev-full").get("Endpoints", [])
+              except Exception as exc:
+                  endpoints_after = []
+                  blockers.append({"code": "M13-B6", "message": "Failed to list SageMaker endpoints after teardown."})
+                  read_errors.append({"surface": "sagemaker:list_endpoints_after", "error": type(exc).__name__})
+              for ep in endpoints_after:
+                  name = str(ep.get("EndpointName", ""))
+                  status = str(ep.get("EndpointStatus", ""))
+                  post_sm_rows.append({"endpoint_name": name, "status": status})
+                  if status in {"Creating", "Updating", "InService", "SystemUpdating", "RollingBack"}:
+                      blockers.append(
+                          {
+                              "code": "M13-B6",
+                              "message": f"SageMaker endpoint still active after teardown action: {name} ({status}).",
+                          }
+                      )
+              pre_state["sagemaker_endpoints"] = pre_sm_rows
+              post_state["sagemaker_endpoints"] = post_sm_rows
+
+              retained_surfaces = upstream_m13e_plan.get("retained_surfaces", []) if isinstance(upstream_m13e_plan, dict) else []
+              retained_checks: list[dict[str, Any]] = []
+              if not isinstance(retained_surfaces, list) or len(retained_surfaces) == 0:
+                  blockers.append({"code": "M13-B6", "message": "Retained surfaces list missing from M13.E plan."})
+                  retained_surfaces = []
+              for row in retained_surfaces:
+                  surface = ""
+                  if isinstance(row, dict):
+                      surface = str(row.get("surface", "") or "").strip()
+                  elif isinstance(row, str):
+                      surface = row.strip()
+                  if not surface:
+                      continue
+                  ok, err = s3_surface_readable(s3, surface)
+                  retained_checks.append({"surface": surface, "readable": ok, "read_error": err})
+                  if not ok:
+                      blockers.append(
+                          {
+                              "code": "M13-B6",
+                              "message": f"Retained surface unreadable after teardown execution: {surface}.",
+                          }
+                      )
+
+              full_verdict_ref = (
+                  upstream_m13e_plan.get("rendered_output_refs", {}).get("full_verdict_ref", "")
+                  if isinstance(upstream_m13e_plan, dict)
+                  else ""
+              )
+              full_verdict_readable = False
+              full_verdict_error = ""
+              if isinstance(full_verdict_ref, str) and full_verdict_ref.strip():
+                  full_verdict_readable, full_verdict_error = s3_surface_readable(s3, full_verdict_ref.strip())
+                  if not full_verdict_readable:
+                      blockers.append({"code": "M13-B6", "message": "Full verdict reference unreadable after teardown execution."})
+              else:
+                  blockers.append({"code": "M13-B6", "message": "Missing full verdict reference in M13.E plan snapshot."})
+
+              snapshot = {
+                  "captured_at_utc": now(),
+                  "phase": "M13.F",
+                  "execution_id": exec_id,
+                  "mode": mode,
+                  "requested_subphase": subphase,
+                  "upstream_m13e_execution": upstream_m13e,
+                  "upstream_m13e_summary_key": upstream_m13e_key,
+                  "upstream_m13e_plan_key": upstream_m13e_plan_key,
+                  "teardown_non_essential_default": str(upstream_m13e_plan.get("teardown_non_essential_default", "")),
+                  "teardown_block_on_residual_risk": bool(upstream_m13e_plan.get("teardown_block_on_residual_risk", False)),
+                  "action_receipts": action_receipts,
+                  "pre_state": pre_state,
+                  "post_state": post_state,
+                  "retained_surface_checks": retained_checks,
+                  "full_verdict_ref": str(full_verdict_ref),
+                  "full_verdict_readable": full_verdict_readable,
+                  "full_verdict_read_error": full_verdict_error,
+              }
+              artifacts = {"m13f_teardown_execution_snapshot.json": snapshot}
           else:
               blockers.append({"code": blocker_code, "message": f"Unhandled execution mode '{mode}'."})
 
