@@ -1436,7 +1436,7 @@ jobs:
           probe_log_path = run_dir / "m12d_broker_transport_probe.log"
 
           s3 = boto3.client("s3", region_name=region)
-          msk = boto3.client("kafka", region_name=region)
+          ssm = boto3.client("ssm", region_name=region)
 
           proof: dict[str, Any] = {
               "captured_at_utc": now(),
@@ -1489,19 +1489,23 @@ jobs:
               handles = parse_handles(Path("docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"))
               topic = str(handles.get("FP_BUS_LEARNING_REGISTRY_EVENTS_V1", "")).strip()
               msk_cluster_name = str(handles.get("MSK_CLUSTER_NAME", "")).strip()
+              msk_cluster_arn = str(handles.get("MSK_CLUSTER_ARN", "")).strip()
+              bootstrap = str(handles.get("MSK_BOOTSTRAP_BROKERS_SASL_IAM", "")).strip()
+              bootstrap_ssm_path = str(handles.get("SSM_MSK_BOOTSTRAP_BROKERS_PATH", "")).strip()
               eks_cluster_name = str(handles.get("EKS_CLUSTER_NAME", "")).strip()
               eks_namespace = str(handles.get("EKS_NAMESPACE_LEARNING", "")).strip() or "fraud-platform-learning"
               if not topic or not msk_cluster_name or not eks_cluster_name:
                   raise RuntimeError("M12D_TRANSPORT_CONTEXT_REQUIRED_HANDLE_MISSING")
-
-              clusters = msk.list_clusters_v2().get("ClusterInfoList", [])
-              matched = [c for c in clusters if str(c.get("ClusterName", "")).strip() == msk_cluster_name and str(c.get("State", "")).strip() == "ACTIVE"]
-              if not matched:
-                  raise RuntimeError("M12D_TRANSPORT_MSK_CLUSTER_NOT_ACTIVE")
-              msk_cluster_arn = str(matched[0].get("ClusterArn", "")).strip()
-              if not msk_cluster_arn:
-                  raise RuntimeError("M12D_TRANSPORT_MSK_CLUSTER_ARN_MISSING")
-              bootstrap = str(msk.get_bootstrap_brokers(ClusterArn=msk_cluster_arn).get("BootstrapBrokerStringSaslIam", "")).strip()
+              if msk_cluster_arn.upper() == "TO_PIN":
+                  msk_cluster_arn = ""
+              if bootstrap.upper() == "TO_PIN":
+                  bootstrap = ""
+              if bootstrap_ssm_path.upper() == "TO_PIN":
+                  bootstrap_ssm_path = ""
+              if not bootstrap and bootstrap_ssm_path:
+                  bootstrap = str(
+                      ssm.get_parameter(Name=bootstrap_ssm_path, WithDecryption=False).get("Parameter", {}).get("Value", "")
+                  ).strip()
               if not bootstrap:
                   raise RuntimeError("M12D_TRANSPORT_BOOTSTRAP_UNRESOLVED")
 
