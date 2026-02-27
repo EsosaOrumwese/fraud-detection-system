@@ -16577,3 +16577,58 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 7. Progression impact:
    - `M12-B10` cleared.
    - next actionable lane is `M12.J`.
+
+## Entry: 2026-02-27 18:42:01 +00:00 - M12.J pre-execution contract lock (M12 closure sync)
+1. Scope accepted: expand and execute M12.J fully on managed lane.
+2. Entry contract pinned:
+   - upstream `M12.I` summary must be pass with:
+     - `overall_pass=true`,
+     - `blocker_count=0`,
+     - `verdict=ADVANCE_TO_M12_J`,
+     - `next_gate=M12.J_READY`.
+3. Required source-matrix closure pinned:
+   - readable summary chain for `M12.A..M12.I`,
+   - `M12.H` verdict remains `ADVANCE_TO_P16` + `M13_READY`,
+   - `M12.I` cost-outcome artifacts (`m12_phase_budget_envelope`, `m12_phase_cost_outcome_receipt`) are readable.
+4. Non-gate acceptance closure pinned:
+   - `M12.F` post-promotion observation must be pass,
+   - `M12.G` operability acceptance must be pass,
+   - failures map to `M12-B12`.
+5. Closure artifact contract pinned:
+   - emit `m12_execution_summary.json` and `m12_blocker_register.json` with explicit evidence refs.
+6. Fail-closed mapping pinned:
+   - `M12-B11` for summary/evidence parity/readability failure,
+   - `M12-B12` for non-gate acceptance failure.
+7. Pass posture pinned:
+   - `overall_pass=true`, `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M13`,
+   - `next_gate=M13_READY`.
+
+## Entry: 2026-02-27 18:45:40 +00:00 - M12.J workflow materialization and closure green
+1. Workflow lane materialization:
+   - added `m12j_execute` to `.github/workflows/dev_full_m12_managed.yml`,
+   - added `upstream_m12i_execution` input and strict mode/subphase guard (`J` only),
+   - added managed step `Execute M12.J closure sync + M13 handoff readiness (managed)`.
+2. Runtime closure behavior enforced:
+   - deterministic summary matrix checks over `M12.A..M12.I`,
+   - `M12.H` P15 verdict/next-gate continuity checks (`ADVANCE_TO_P16`, `M13_READY`),
+   - `M12.I` cost-outcome artifact readability + required receipt-field conformance,
+   - non-gate acceptance closure checks:
+     - M12.F post-promotion observation pass,
+     - M12.G operability acceptance pass.
+3. Blocker mapping preserved:
+   - `M12-B11` for source-matrix/readability/parity failures,
+   - `M12-B12` for non-gate acceptance failures.
+4. Authoritative run:
+   - `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22499239297`
+   - execution id: `m12j_closure_sync_20260227T184452Z`.
+5. Result:
+   - `overall_pass=true`, `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M13`,
+   - `next_gate=M13_READY`.
+6. Durable closure artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12j_closure_sync_20260227T184452Z/m12_execution_summary.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12j_closure_sync_20260227T184452Z/m12_blocker_register.json`.
+7. Progression impact:
+   - `M12-B11` and `M12-B12` cleared.
+   - M12 is now `DONE`; next actionable phase is `M13`.

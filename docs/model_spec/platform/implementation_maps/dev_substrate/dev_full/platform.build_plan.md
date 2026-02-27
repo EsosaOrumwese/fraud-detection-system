@@ -1580,8 +1580,8 @@ DoD anchors:
 - [x] rollback bounded-restore objective evidence committed.
 - [x] active-bundle compatibility checks green.
 - [x] post-promotion observation snapshot committed and pass.
-- [ ] governance append evidence is committed and coherent.
-- [ ] operability/governance acceptance report committed and pass.
+- [x] governance append evidence is committed and coherent.
+- [x] operability/governance acceptance report committed and pass.
 - [x] deterministic `P15` verdict and `m13_handoff_pack.json` are committed.
 - [x] M12 phase-budget and cost-outcome artifacts are committed and blocker-free.
 
@@ -1675,7 +1675,14 @@ M12 progression snapshot:
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12i_phase_cost_outcome_20260227T183804Z/m12_phase_budget_envelope.json`,
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12i_phase_cost_outcome_20260227T183804Z/m12_phase_cost_outcome_receipt.json`,
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12i_phase_cost_outcome_20260227T183804Z/m12i_execution_summary.json`.
-- M12 next actionable subphase is `M12.J`.
+- M12.J closure sync + M13 handoff readiness is now closed green:
+  - run: `https://github.com/EsosaOrumwese/fraud-detection-system/actions/runs/22499239297`,
+  - execution id: `m12j_closure_sync_20260227T184452Z`,
+  - result: `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M13`, `next_gate=M13_READY`,
+  - run-control artifacts:
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12j_closure_sync_20260227T184452Z/m12_execution_summary.json`,
+    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12j_closure_sync_20260227T184452Z/m12_blocker_register.json`.
+- M12 is now closed `DONE`; next actionable phase is `M13`.
 
 ## M13 - Final Verdict and Teardown Closure
 Status: `NOT_STARTED`
@@ -1713,4 +1720,4 @@ For every active phase (`M1..M13`):
 - No destructive git commands.
 
 ## 11) Next Action
-- Execute `M12.J` (M12 closure sync + M13 handoff) on managed lane.
+- Begin `M13` planning and execution on managed lane.

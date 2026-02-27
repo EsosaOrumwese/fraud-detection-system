@@ -612,10 +612,37 @@ Blockers:
 Runtime budget:
 1. Target <= 6 minutes.
 
+Expanded execution contract:
+1. `M12.J.A` entry closure:
+- require `M12.I` pass summary with:
+  - `overall_pass=true`,
+  - `blocker_count=0`,
+  - `verdict=ADVANCE_TO_M12_J`,
+  - `next_gate=M12.J_READY`.
+2. `M12.J.B` source matrix parity:
+- verify deterministic run-control availability/readability for M12 `A..I` summary surfaces;
+- require `M12.H` verdict posture remains `ADVANCE_TO_P16` with `M13_READY`;
+- require `M12.I` cost-outcome artifacts readable and coherent.
+3. `M12.J.C` non-gate acceptance closure:
+- enforce `post_promotion_observation` (`M12.F`) pass posture;
+- enforce `operability_acceptance` (`M12.G`) pass posture;
+- any failure maps to `M12-B12`.
+4. `M12.J.D` authoritative closure artifacts:
+- emit:
+  - `m12_execution_summary.json`,
+  - `m12_blocker_register.json`;
+- include evidence index refs for all required M12 outputs.
+5. `M12.J.E` publication parity:
+- publish closure artifacts to run-control prefix and verify durable readback parity;
+- parity/readability failures map to `M12-B11`.
+6. `M12.J.F` progression posture:
+- on pass: `verdict=ADVANCE_TO_M13`, `next_gate=M13_READY`;
+- on failure: `verdict=HOLD_REMEDIATE`, `next_gate=HOLD_REMEDIATE`.
+
 DoD:
-- [ ] `m12_execution_summary.json` committed locally and durably.
-- [ ] `m12_blocker_register.json` committed locally and durably.
-- [ ] M12 closure sync passes with no unresolved blocker.
+- [x] `m12_execution_summary.json` committed locally and durably.
+- [x] `m12_blocker_register.json` committed locally and durably.
+- [x] M12 closure sync passes with no unresolved blocker.
 
 ## 7) Blocker Taxonomy (Fail-Closed)
 1. `M12-B0`: managed M12 execution lane not materialized.
@@ -642,8 +669,8 @@ DoD:
 - [x] `M12.G` complete
 - [x] `M12.H` complete
 - [x] `M12.I` complete
-- [ ] `M12.J` complete
-- [ ] all active `M12-B*` blockers resolved
+- [x] `M12.J` complete
+- [x] all active `M12-B*` blockers resolved
 - [x] non-gate acceptance artifacts (`post_promotion_observation`, `operability_acceptance`) are pass posture
 
 ## 9) Planning Status
@@ -659,4 +686,5 @@ DoD:
 10. `M12.G` governance append closure is complete and green (`22497579073`, execution `m12g_governance_append_20260227T175530Z`) with `M12-B7` cleared.
 11. `M12.H` P15 gate rollup + M13 handoff is complete and green (`22498398890`, execution `m12h_p15_gate_rollup_20260227T181932Z`) with `M12-B8`/`M12-B9` cleared.
 12. `M12.I` phase budget + cost-outcome closure is complete and green (`22499012547`, execution `m12i_phase_cost_outcome_20260227T183804Z`) with `M12-B10` cleared.
-13. Next action: proceed to `M12.J` closure sync.
+13. `M12.J` closure sync is complete and green (`22499239297`, execution `m12j_closure_sync_20260227T184452Z`) with `M12-B11`/`M12-B12` cleared.
+14. M12 is closed `DONE`; next action is M13 entry.
