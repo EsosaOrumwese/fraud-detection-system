@@ -1203,22 +1203,7 @@ jobs:
 
           if not blockers:
               try:
-                  exp_name_q = urllib.parse.quote(mlflow_experiment_path, safe="")
-                  try:
-                      exp_resp = dbx_mlflow_json(
-                          base_url=workspace_url,
-                          token=dbx_token,
-                          method="GET",
-                          path=f"/api/2.0/mlflow/experiments/get-by-name?experiment_name={exp_name_q}",
-                      )
-                  except urllib.error.HTTPError as exc:
-                      if exc.code == 404:
-                          exp_resp = {}
-                      else:
-                          raise
-                  experiment = exp_resp.get("experiment")
-                  if isinstance(experiment, dict):
-                      experiment_id = str(experiment.get("experiment_id", "")).strip()
+                  selected_experiment_path = ""
                   def find_experiment_id(name: str) -> str:
                       page_token = ""
                       for _ in range(50):
@@ -1241,23 +1226,53 @@ jobs:
                           if not page_token:
                               break
                       return ""
-                  if not experiment_id:
-                      experiment_id = find_experiment_id(mlflow_experiment_path)
-                  if not experiment_id:
+                  candidate_paths = [mlflow_experiment_path]
+                  fallback_path = f"{mlflow_experiment_path.rstrip('/')}/mlflow_exp_v0"
+                  if fallback_path not in candidate_paths:
+                      candidate_paths.append(fallback_path)
+                  for exp_path in candidate_paths:
+                      exp_name_q = urllib.parse.quote(exp_path, safe="")
+                      local_experiment_id = ""
                       try:
-                          create_resp = dbx_mlflow_json(
+                          exp_resp = dbx_mlflow_json(
                               base_url=workspace_url,
                               token=dbx_token,
-                              method="POST",
-                              path="/api/2.0/mlflow/experiments/create",
-                              payload={"name": mlflow_experiment_path},
+                              method="GET",
+                              path=f"/api/2.0/mlflow/experiments/get-by-name?experiment_name={exp_name_q}",
                           )
-                          experiment_id = str(create_resp.get("experiment_id", "")).strip()
-                      except Exception:
-                          # Resolve RESOURCE_ALREADY_EXISTS race/drift by re-searching.
-                          experiment_id = find_experiment_id(mlflow_experiment_path)
+                      except urllib.error.HTTPError as exc:
+                          if exc.code == 404:
+                              exp_resp = {}
+                          else:
+                              raise
+                      experiment = exp_resp.get("experiment")
+                      if isinstance(experiment, dict):
+                          local_experiment_id = str(experiment.get("experiment_id", "")).strip()
+                      if not local_experiment_id:
+                          local_experiment_id = find_experiment_id(exp_path)
+                      if not local_experiment_id:
+                          try:
+                              create_resp = dbx_mlflow_json(
+                                  base_url=workspace_url,
+                                  token=dbx_token,
+                                  method="POST",
+                                  path="/api/2.0/mlflow/experiments/create",
+                                  payload={"name": exp_path},
+                              )
+                              local_experiment_id = str(create_resp.get("experiment_id", "")).strip()
+                          except Exception:
+                              local_experiment_id = find_experiment_id(exp_path)
+                      if local_experiment_id:
+                          experiment_id = local_experiment_id
+                          selected_experiment_path = exp_path
+                          break
                   if not experiment_id:
                       raise RuntimeError("experiment_id_missing")
+                  if selected_experiment_path and selected_experiment_path != mlflow_experiment_path:
+                      notes.append(
+                          "MLFLOW_EXPERIMENT_PATH primary was not creatable/resolvable; "
+                          f"using fallback experiment path {selected_experiment_path}"
+                      )
 
                   run_name = f"{platform_run_id}:{exec_id}"
                   create_run = dbx_mlflow_json(
@@ -1278,6 +1293,7 @@ jobs:
                               {"key": "m10g_fingerprint_ref", "value": m10g_fingerprint_ref},
                               {"key": "leakage_provenance_ref", "value": f"s3://{bucket}/{leakage_prov_key}"},
                               {"key": "mf_model_name", "value": mlflow_model_name},
+                              {"key": "mlflow_experiment_path", "value": selected_experiment_path or mlflow_experiment_path},
                           ],
                       },
                   )
@@ -1396,6 +1412,7 @@ jobs:
               "mlflow": {
                   "tracking_uri": str(tracking_uri).strip(),
                   "workspace_url": str(workspace_url).strip(),
+                  "experiment_path": selected_experiment_path or mlflow_experiment_path,
                   "experiment_id": experiment_id,
                   "run_id": run_id,
                   "run_status": run_status,
