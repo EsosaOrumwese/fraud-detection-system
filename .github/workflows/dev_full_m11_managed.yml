@@ -305,7 +305,8 @@ jobs:
               tjob=job(f'{train_prefix}-{suf}'); xjob=job(f'{batch_prefix}-{suf}'); model=job(f'{train_prefix}-model-{suf}')
               tr_uri=f"s3://{bkt}/{ktr.rsplit('/',1)[0]}/"
               va_uri=f"s3://{bkt}/{kva.rsplit('/',1)[0]}/"
-              te_uri=f"s3://{bkt}/{kte.rsplit('/',1)[0]}/"
+              # Use object-specific S3 URI so transform does not ingest sibling JSON labels.
+              te_uri=f"s3://{bkt}/{kte}"
               out_train=f's3://{bkt}/evidence/runs/{pr}/learning/mf/train_output/{exec_id}/'
               out_xf=f's3://{bkt}/evidence/runs/{pr}/learning/mf/transform_output/{exec_id}/'
               try:
