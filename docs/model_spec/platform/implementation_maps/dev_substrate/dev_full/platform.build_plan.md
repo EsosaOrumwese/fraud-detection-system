@@ -1731,12 +1731,12 @@ M13 blocker families (fail-closed):
 - `M13-B12` non-gate acceptance failure.
 
 DoD anchors:
-- [ ] final verdict bundle committed and readable at run-scoped truth surface.
-- [ ] six-proof matrix complete for all required lanes.
-- [ ] teardown residual scan clean or accepted with explicit waiver.
-- [ ] post-teardown evidence readability closure is pass.
-- [ ] M13 phase budget + cost-outcome artifacts are committed and blocker-free.
-- [ ] `m13_execution_summary.json` + `m13_blocker_register.json` are parity-verified.
+- [x] final verdict bundle committed and readable at run-scoped truth surface.
+- [x] six-proof matrix complete for all required lanes.
+- [x] teardown residual scan clean or accepted with explicit waiver.
+- [x] post-teardown evidence readability closure is pass.
+- [x] M13 phase budget + cost-outcome artifacts are committed and blocker-free.
+- [x] `m13_execution_summary.json` + `m13_blocker_register.json` are parity-verified.
 
 Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M13.build_plan.md`
@@ -1784,4 +1784,33 @@ For every active phase (`M1..M13`):
   - run: `22508650494`, execution `m13f_teardown_execution_20260228T000326Z`,
   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M13_G`, `next_gate=M13.G_READY`,
   - evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13f_teardown_execution_20260228T000326Z/`.
-- Next: expand and execute `M13.G` on `dev-full-m13-managed`.
+- `M13.G` mode was materialized in managed workflow and executed green:
+  - run: `22508840465`, execution `m13g_residual_readability_20260228T001208Z`,
+  - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M13_H`, `next_gate=M13.H_READY`,
+  - residual closure: `residual_item_count=0`, `residual_scan_published=true`,
+  - evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13g_residual_readability_20260228T001208Z/`.
+- `M13.H` mode was materialized in managed workflow and executed green:
+  - run: `22508967026`, execution `m13h_cost_guardrail_20260228T001807Z`,
+  - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M13_I`, `next_gate=M13.I_READY`,
+  - guardrail posture: `idle_safe=true`, `residual_item_count=0`, `run_scoped_snapshot_published=true`,
+  - run-scoped teardown cost snapshot:
+    - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/teardown/cost_guardrail_snapshot.json`,
+  - evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13h_cost_guardrail_20260228T001807Z/`.
+- `M13.I` first attempt failed closed:
+  - run: `22509104250`, execution `m13i_phase_cost_outcome_20260228T002428Z`,
+  - blocker: `M13-B10` (`One or more budget threshold handles missing/invalid`),
+  - root cause: M13.I numeric budget pins were parsed via a string-only helper in workflow logic.
+- `M13.I` remediation + green rerun:
+  - workflow helper `get_handle_float()` updated to parse raw numeric handles directly (bool still rejected),
+  - workflow-only commit: `8c8757068` (`ci: fix M13.I budget handle parsing for numeric pins`),
+  - green run: `22509198947`, execution `m13i_phase_cost_outcome_20260228T002906Z`,
+  - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M13_J`, `next_gate=M13.J_READY`,
+  - evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13i_phase_cost_outcome_20260228T002906Z/`.
+- `M13.J` mode materialized + executed green:
+  - workflow-only commit: `eece2ee16` (`ci: add managed M13.J final closure sync mode`),
+  - green run: `22509404836`, execution `m13j_closure_sync_20260228T003853Z`,
+  - `overall_pass=true`, `blocker_count=0`, `verdict=M13_COMPLETE_GREEN`, `next_gate=DEV_FULL_TRACK_COMPLETE`,
+  - source matrix parity pass across `M13.A..M13.I`,
+  - non-gate acceptance pass (final verdict readability + post-teardown guardrail continuity + phase cost-outcome continuity),
+  - evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13j_closure_sync_20260228T003853Z/`.
+- M13 is fully closed green on managed lane.

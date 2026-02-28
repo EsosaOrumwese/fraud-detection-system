@@ -17215,3 +17215,266 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 6. Gate decision:
    - M13.F is closed green.
    - Next gate: `M13.G`.
+
+## Entry: 2026-02-28 00:08:40 +00:00 - M13.G pre-implementation decision lock
+1. Blocker carry-over check from last gate:
+   - upstream `M13.F` summary (`m13f_teardown_execution_20260228T000326Z`) is pass (`overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M13_G`, `next_gate=M13.G_READY`).
+2. Gap identified:
+   - managed M13 workflow currently supports execution modes through `teardown_execution_closure` only (`M13.F`), with no explicit `M13.G` mode.
+3. Decision:
+   - add dedicated managed mode `residual_readability_closure` bound to `m13_subphase=G`.
+4. Execution contract for this mode:
+   - enforce upstream `M13.F` pass summary,
+   - load `M13.F` snapshot and build residual-risk matrix from post-state surfaces,
+   - load linked `M13.E` plan for run-scope refs and residual policy flag,
+   - publish run-scoped residual-scan object and verify readback,
+   - perform post-teardown readability checks for retained surfaces + full verdict + required upstream artifacts.
+5. Fail-closed posture:
+   - `M13-B7` for residual risk,
+   - `M13-B8` for unreadable evidence.
+
+## Entry: 2026-02-28 00:12:10 +00:00 - M13.G managed workflow mode materialization
+1. Implemented `M13.G` managed execution lane in `.github/workflows/dev_full_m13_managed.yml`.
+2. Additions made:
+   - new workflow mode: `residual_readability_closure`,
+   - subphase guard: mode valid only for `m13_subphase=G`,
+   - new input/env binding: `upstream_m13f_execution` / `UPSTREAM_M13F_EXEC`.
+3. Runtime logic added for `M13.G`:
+   - enforce upstream `M13.F` pass contract (`ADVANCE_TO_M13_G`, `M13.G_READY`),
+   - consume `M13.F` teardown execution snapshot + linked `M13.E` teardown plan,
+   - compute residual matrix from post-state surfaces (EKS/ECS/EMR/SageMaker),
+   - enforce fail-closed `M13-B7` when residual risk remains under block policy,
+   - publish run-scoped residual scan ref from `M13.E` rendered outputs and verify readback,
+   - enforce fail-closed `M13-B8` for unreadable retained/full-verdict/upstream evidence surfaces,
+   - emit `m13g_post_teardown_readability_snapshot.json`, blocker register, and execution summary.
+4. Release action required for managed execution:
+   - workflow-only commit pushed to `origin/migrate-dev`:
+     - commit `9c44ee7e8`
+     - message `ci: add managed M13.G residual/readability closure mode`.
+
+## Entry: 2026-02-28 00:13:10 +00:00 - M13.G executed and closed green
+1. Managed dispatch:
+   - workflow: `dev_full_m13_managed.yml`,
+   - run id: `22508840465`,
+   - execution mode: `residual_readability_closure`,
+   - subphase: `G`,
+   - upstream: `m13f_teardown_execution_20260228T000326Z`.
+2. Authoritative result:
+   - execution id: `m13g_residual_readability_20260228T001208Z`,
+   - `overall_pass=true`, `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M13_H`, `next_gate=M13.H_READY`.
+3. Closure evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13g_residual_readability_20260228T001208Z/m13g_post_teardown_readability_snapshot.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13g_residual_readability_20260228T001208Z/m13g_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13g_residual_readability_20260228T001208Z/m13g_execution_summary.json`.
+4. Snapshot highlights:
+   - `residual_item_count=0`,
+   - `residual_scan_published=true`,
+   - readability checks present and pass.
+5. Gate decision:
+   - `M13.G` is closed green.
+   - Next gate is `M13.H`.
+
+## Entry: 2026-02-28 00:15:40 +00:00 - M13.H pre-implementation decision lock
+1. Upstream carry-over check:
+   - `M13.G` is pass (`m13g_residual_readability_20260228T001208Z`) with `blocker_count=0`, `verdict=ADVANCE_TO_M13_H`, `next_gate=M13.H_READY`.
+2. Gap found:
+   - managed M13 workflow has no dedicated `M13.H` execution mode yet.
+3. Decision:
+   - add `post_teardown_cost_guardrail_closure` mode bound to `m13_subphase=H`.
+4. Planned execution contract:
+   - enforce upstream `M13.G` pass summary,
+   - load linked `M13.E` plan and `M13.G` snapshot,
+   - verify residual closure posture (`residual_item_count==0`, residual scan published),
+   - re-check idle runtime posture from AWS control-plane surfaces (EKS/ECS/EMR/SageMaker),
+   - publish deterministic run-scoped teardown cost snapshot and verify readback,
+   - emit `m13h_cost_guardrail_snapshot.json` + blocker register + summary.
+5. Fail-closed blockers:
+   - `M13-B9` for residual/idle posture failure or cost snapshot publication failure.
+
+## Entry: 2026-02-28 00:17:05 +00:00 - M13.H managed lane implementation
+1. Workflow extension applied in `.github/workflows/dev_full_m13_managed.yml`:
+   - new mode `post_teardown_cost_guardrail_closure` bound to `m13_subphase=H`,
+   - new input `upstream_m13g_execution` and runtime env binding.
+2. Mode semantics implemented:
+   - upstream `M13.G` pass check (`ADVANCE_TO_M13_H`, `M13.H_READY`),
+   - load `M13.G` snapshot and linked `M13.E` plan,
+   - enforce residual continuity (`residual_item_count`, `residual_scan_published`),
+   - re-check idle posture (EKS/ECS/EMR/SageMaker),
+   - publish run-scoped teardown cost snapshot (`teardown_cost_snapshot_ref`) with readback verification,
+   - emit `m13h_cost_guardrail_snapshot.json`, blocker register, and summary.
+3. Fail-closed posture:
+   - blocker family `M13-B9` used for upstream/readability/idle/cost publication failures.
+4. Release step required for managed execution:
+   - workflow-only commit `98be002fb` pushed to `origin/migrate-dev`.
+
+## Entry: 2026-02-28 00:18:20 +00:00 - M13.H executed and closed green
+1. Managed run:
+   - workflow: `dev_full_m13_managed.yml`,
+   - run id: `22508967026`,
+   - mode: `post_teardown_cost_guardrail_closure`,
+   - subphase: `H`,
+   - upstream execution: `m13g_residual_readability_20260228T001208Z`.
+2. Authoritative result:
+   - execution id: `m13h_cost_guardrail_20260228T001807Z`,
+   - `overall_pass=true`, `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M13_I`, `next_gate=M13.I_READY`.
+3. Guardrail snapshot posture:
+   - `idle_safe=true`,
+   - `residual_item_count=0`,
+   - `run_scoped_snapshot_published=true`,
+   - run-scoped snapshot ref:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/teardown/cost_guardrail_snapshot.json`.
+4. Durable run-control evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13h_cost_guardrail_20260228T001807Z/m13h_cost_guardrail_snapshot.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13h_cost_guardrail_20260228T001807Z/m13h_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13h_cost_guardrail_20260228T001807Z/m13h_execution_summary.json`.
+5. Gate decision:
+   - `M13.H` is closed green.
+   - next gate: `M13.I`.
+
+## Entry: 2026-02-28 00:21:10 +00:00 - M13.I pre-implementation decision lock
+1. Upstream blocker carry-over check:
+   - `M13.H` execution `m13h_cost_guardrail_20260228T001807Z` is pass with `blocker_count=0`, `verdict=ADVANCE_TO_M13_I`, `next_gate=M13.I_READY`.
+2. Gap identified:
+   - managed workflow currently has no dedicated `M13.I` execution mode.
+3. Decision:
+   - add managed mode `phase_cost_outcome_closure` bound to `m13_subphase=I`.
+4. Closure contract for M13.I mode:
+   - enforce upstream `M13.H` summary pass,
+   - load `M13.H` snapshot and verify guardrail continuity (`idle_safe=true`, `residual_item_count=0`, run-scoped snapshot published),
+   - resolve and validate M13 phase-budget/cost handles from registry,
+   - publish deterministic `m13_phase_budget_envelope.json` and `m13_phase_cost_outcome_receipt.json`,
+   - publish/readback rendered phase-pattern refs (`PHASE_*_PATH_PATTERN`) and fail closed on any mismatch/unreadable surface.
+5. Blocker posture:
+   - `M13-B10` for handle/contract/publish/readback failures.
+
+## Entry: 2026-02-28 00:26:40 +00:00 - M13.I first execution failed closed, root cause isolated
+1. Managed run executed:
+   - workflow `dev_full_m13_managed.yml`,
+   - run id `22509104250`,
+   - execution id `m13i_phase_cost_outcome_20260228T002428Z`,
+   - mode `phase_cost_outcome_closure`, subphase `I`.
+2. Failure posture:
+   - `overall_pass=false`,
+   - `blocker_count=1`,
+   - blocker: `M13-B10` (`One or more budget threshold handles missing/invalid.`).
+3. Root-cause analysis:
+   - `m13i_phase_cost_outcome_snapshot.json` showed all numeric budget values as null (`monthly_limit/alert_1/alert_2/alert_3`),
+   - workflow helper `get_handle_float()` was reading through `get_handle_string()`, which only accepts quoted-string handles,
+   - registry numeric budget pins are unquoted numeric values by contract, so parse path returned empty and failed closed.
+4. Decision:
+   - patch only workflow helper logic to parse raw numeric handles directly and preserve fail-closed behavior for bool/invalid values.
+
+## Entry: 2026-02-28 00:27:35 +00:00 - M13.I remediation materialized
+1. Applied workflow patch in `.github/workflows/dev_full_m13_managed.yml`:
+   - updated `get_handle_float()` to:
+     - read raw handle value from parsed registry map,
+     - parse scalar token directly,
+     - reject bool-typed values,
+     - parse numeric text into float with fail-closed `None` on invalid parse.
+2. Release action:
+   - workflow-only commit `8c8757068`,
+   - message: `ci: fix M13.I budget handle parsing for numeric pins`,
+   - pushed to `origin/migrate-dev`.
+
+## Entry: 2026-02-28 00:29:20 +00:00 - M13.I rerun closed green
+1. Managed rerun:
+   - workflow `dev_full_m13_managed.yml`,
+   - run id `22509198947`,
+   - execution id `m13i_phase_cost_outcome_20260228T002906Z`,
+   - mode `phase_cost_outcome_closure`, subphase `I`.
+2. Authoritative result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M13_J`,
+   - `next_gate=M13.J_READY`.
+3. Evidence posture:
+   - run-control prefix:
+     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13i_phase_cost_outcome_20260228T002906Z/`,
+   - summary:
+     - `.../m13i_execution_summary.json`,
+   - blocker register:
+     - `.../m13i_blocker_register.json`.
+4. Numeric budget pin verification in snapshot:
+   - `monthly_limit=300.0`,
+   - `alert_1=120.0`,
+   - `alert_2=210.0`,
+   - `alert_3=270.0`.
+
+## Entry: 2026-02-28 00:33:10 +00:00 - M13.J planning expansion and execution contract
+1. Upstream blocker carry-over check:
+   - `M13.I` execution `m13i_phase_cost_outcome_20260228T002906Z` is pass with `blocker_count=0`, `verdict=ADVANCE_TO_M13_J`, `next_gate=M13.J_READY`.
+2. Gap identified:
+   - managed workflow has no dedicated execution mode for `M13.J`; current mode list ends at `phase_cost_outcome_closure` (`M13.I`).
+3. Decision:
+   - add `M13.J` managed mode as `final_closure_sync` bound to `m13_subphase=J`.
+4. M13.J closure contract:
+   - enforce upstream `M13.I` summary pass (`ADVANCE_TO_M13_J`, `M13.J_READY`),
+   - enforce `M13.A..M13.I` transition chain parity and summary pass posture,
+   - enforce non-gate acceptance closure:
+     - full verdict readability (`M13.D` output),
+     - post-teardown guardrail continuity (`M13.H`),
+     - phase cost-outcome continuity (`M13.I`),
+   - enforce run-scope continuity across `M13.D/H/I`,
+   - emit and publish:
+     - `m13_closure_sync_snapshot.json`,
+     - `m13_blocker_register.json`,
+     - `m13_execution_summary.json`.
+5. Terminal pass contract:
+   - `verdict=M13_COMPLETE_GREEN`,
+   - `next_gate=DEV_FULL_TRACK_COMPLETE`.
+6. Blocker posture:
+   - `M13-B11` for summary/evidence parity failures,
+   - `M13-B12` for non-gate acceptance failures.
+
+## Entry: 2026-02-28 00:37:20 +00:00 - M13.J managed lane materialization
+1. Workflow materialization completed in `.github/workflows/dev_full_m13_managed.yml`:
+   - added mode: `final_closure_sync`,
+   - added input: `upstream_m13i_execution`,
+   - added validation guard: mode allowed only for `m13_subphase=J`,
+   - added execute-step lane routing for `final_closure_sync`.
+2. `final_closure_sync` runtime behavior pinned:
+   - validates upstream summaries for `M13.A..M13.I` (`overall_pass=true`, `blocker_count=0`, verdict/next-gate parity),
+   - validates non-gate acceptance surfaces:
+     - `M13.D` full verdict readability,
+     - `M13.H` idle/residual/run-scoped guardrail posture,
+     - `M13.I` phase cost-outcome posture,
+   - validates run-scope continuity (`platform_run_id/scenario_run_id`) across `M13.D/H/I`,
+   - emits closure artifacts:
+     - `m13_closure_sync_snapshot.json`,
+     - `m13_blocker_register.json`,
+     - `m13_execution_summary.json`.
+3. Terminal closure contract pinned in lane:
+   - pass verdict: `M13_COMPLETE_GREEN`,
+   - pass next gate: `DEV_FULL_TRACK_COMPLETE`.
+4. Static validation:
+   - embedded Python block compile check passed (`PY_COMPILE_OK`).
+
+## Entry: 2026-02-28 00:39:20 +00:00 - M13.J executed and closed green
+1. Managed run:
+   - workflow `dev_full_m13_managed.yml`,
+   - run id `22509404836`,
+   - execution id `m13j_closure_sync_20260228T003853Z`,
+   - mode `final_closure_sync`, subphase `J`.
+2. Authoritative result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=M13_COMPLETE_GREEN`,
+   - `next_gate=DEV_FULL_TRACK_COMPLETE`.
+3. Closure proof highlights from snapshot:
+   - source matrix rows (`M13.A..M13.I`) all pass with expected verdict/next-gate chain,
+   - non-gate acceptance all pass:
+     - `full_verdict_readable=true`,
+     - `h_idle_safe=true`,
+     - `h_residual_zero=true`,
+     - `h_run_scoped_snapshot_published=true`,
+     - `i_phase_outcome_pass=true`,
+     - `i_cost_within_envelope=true`,
+     - `run_scope_consistent=true`.
+4. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13j_closure_sync_20260228T003853Z/m13_execution_summary.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13j_closure_sync_20260228T003853Z/m13_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13j_closure_sync_20260228T003853Z/m13_closure_sync_snapshot.json`.
+5. Phase closure decision:
+   - M13 is complete and green on managed lane.
