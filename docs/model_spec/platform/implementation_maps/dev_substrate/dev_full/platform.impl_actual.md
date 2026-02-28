@@ -17525,3 +17525,22 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 4. Closure policy:
    - no runtime architecture expansion in this debt-closure slice,
    - all debt items require explicit owner, source-of-truth path, and closure condition before staging signoff.
+
+## Entry: 2026-02-28 01:00:25 +00:00 - Certification planning separated from build-phase ladder
+1. User direction:
+   - remove `M14/M15` framing from build plan and keep build plan focused on debt closure.
+   - create separate certification planning docs aligned to production truth anchor.
+2. Build plan update:
+   - removed explicit `M14/M15` deferred-track wording from `platform.build_plan.md`,
+   - retained post-green debt register (`DD-1..DD-7`),
+   - added explicit pointers to separate certification plan docs.
+3. New certification plan surfaces created:
+   - runtime certification:
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.runtime_cert.plan.md`
+   - operations/governance certification:
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.ops_gov_cert.plan.md`
+4. Design posture in both plans:
+   - mapped to Tier 0..2 claims from `platform-production-standard.md`,
+   - fail-closed blocker taxonomies added,
+   - deterministic rollup/summary outputs required,
+   - scoped to current dev_full stack and current maturity state (best-effort Tier 1/2).

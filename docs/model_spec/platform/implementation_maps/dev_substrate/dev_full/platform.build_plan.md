@@ -1818,7 +1818,7 @@ For every active phase (`M1..M13`):
 ## 12) Post-Green Documentation Debt Closure (Pre-Staging)
 Intent:
 - close audit/documentation drifts before dev_full staging deployment.
-- defer `M14` (operational certification) and `M15` (production-readiness gate) as separate future tracks.
+- keep certification tracks separate from the implementation build-plan phase ladder.
 
 Scope:
 1. documentation and contract hardening only (no new runtime architecture).
@@ -1849,6 +1849,8 @@ DoD anchors for documentation debt closure:
 - [ ] all temporary waivers include explicit expiry trigger and remediation path.
 - [ ] staging-readiness addendum published with zero unresolved documentation blockers.
 
-Deferred tracks (intentional):
-1. `M14` operational certification (steady/burst/soak + drill scorecard) is deferred by user decision.
-2. `M15` production-readiness gate is deferred by user decision.
+Separate certification planning surfaces (authoritative for next stage):
+1. runtime certification plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.runtime_cert.plan.md`
+2. operations/governance certification plan:
+   - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.ops_gov_cert.plan.md`
