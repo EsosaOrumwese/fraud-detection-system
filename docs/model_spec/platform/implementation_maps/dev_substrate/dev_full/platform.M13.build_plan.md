@@ -692,3 +692,34 @@ DoD:
    - non-gate acceptance closure: pass (`final verdict readability`, `guardrail continuity`, `phase cost-outcome continuity`),
    - run-control evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13j_closure_sync_20260228T003853Z/`.
 29. M13 is now fully closed green on managed lane.
+
+## 10) DD-6/DD-7 Closure Contracts (Legacy Debt Expiry + Teardown IAM)
+Debt items:
+1. `DD-6` legacy closure debt expiry (`legacy_pre_run_scope` rows in source matrix).
+2. `DD-7` teardown IAM capability contract.
+
+Closure decisions:
+1. `legacy_pre_run_scope` is now an explicit, owned closure debt with hard expiry trigger:
+   - owner must eliminate legacy rows by recertifying `M1..M3` with run-scope-carrying evidence,
+   - expiry date: `2026-03-31T23:59:59Z`.
+2. teardown IAM minimum capability surface is now pinned and governed as contract, not ad-hoc remediation.
+
+Owner:
+1. Platform closure owner (`M13` lane owner) for `DD-6`.
+2. Platform ops/IAM owner (`M13 + ops terraform owner`) for `DD-7`.
+
+Source-of-truth paths:
+1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+   - `TEARDOWN_IAM_MIN_ACTIONS`
+   - `TEARDOWN_IAM_POLICY_SOURCE`
+   - `TEARDOWN_IAM_DRIFT_POLICY`
+2. `infra/terraform/dev_full/ops/main.tf` (`GitHubActionsM6FRemoteDevFull` policy surface).
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M13.build_plan.md` (this section + `M13.B` legacy handling context).
+
+Closure condition (met):
+1. legacy source-matrix usage is no longer implicit; it has explicit owner + expiry + remediation path.
+2. teardown IAM minimum action contract is explicit and can be drift-checked fail-closed.
+
+Expiry/remediation path:
+1. `DD-6` closes permanently only after M1..M3 recert artifacts replace all `legacy_pre_run_scope` rows in M13 source matrix.
+2. any missing teardown min-action in IAM policy reopens M13 as fail-closed blocker.

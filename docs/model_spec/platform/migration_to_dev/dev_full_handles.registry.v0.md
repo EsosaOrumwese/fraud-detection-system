@@ -511,7 +511,16 @@ Allowed tokens in pattern handles:
 * `RTDL_CORE_CONSUMER_GROUP_ID = "fraud-platform-dev-full-rtdl-core-v0"`
 * `RTDL_CORE_OFFSET_COMMIT_POLICY = "commit_after_durable_write"`
 * `RTDL_CAUGHT_UP_LAG_MAX = 10`
-* `REPORTER_LOCK_BACKEND = "aurora_advisory_lock"`
+* `P6_ADMISSION_PROOF_MODE = "bridge_equivalent"`
+* `P6_ADMISSION_PROOF_MODE_EXPIRY_TRIGGER = "private_runtime_to_ig_edge_direct_path_materialized_and_certified"`
+* `P6_ADMISSION_PROOF_MODE_RECHECK_GATE = "runtime_cert_rc3"`
+* `P6_ADMISSION_PROOF_REQUIRED_ARTIFACT = "evidence/dev_full/run_control/{phase_execution_id}/m6f_streaming_active_snapshot.json"`
+* `REPORTER_LOCK_BACKEND = "db_advisory_lock"`
+* `REPORTER_LOCK_BACKEND_LEGACY_ALIAS = "aurora_advisory_lock"`
+* `REPORTER_LOCK_ALIAS_DEPRECATION_DATE_UTC = "2026-03-31T23:59:59Z"`
+* `REPORTER_SCHEMA_MIGRATION_MODE = "versioned_idempotent_v1"`
+* `REPORTER_SCHEMA_MIGRATION_SURFACE = "scripts/dev_substrate/m8e_reporter_one_shot.py::M8E_REPORTER_SCHEMA_MIGRATION_V1"`
+* `REPORTER_SCHEMA_MIGRATION_ROLLBACK_POLICY = "additive_no_drop_v0"`
 * `REPORTER_LOCK_KEY_PATTERN = "reporter:{platform_run_id}"`
 * `LIVE_RUNTIME_ALLOWED_ORACLE_OUTPUT_IDS = "s3_event_stream_with_fraud_6B,arrival_events_5B,s1_arrival_entities_6B,s3_flow_anchor_with_fraud_6B"`
 * `LIVE_RUNTIME_FORBIDDEN_TRUTH_OUTPUT_IDS = "s4_event_labels_6B,s4_flow_truth_labels_6B,s4_flow_bank_view_6B,s4_case_timeline_6B"`
@@ -591,12 +600,21 @@ Allowed tokens in pattern handles:
 * `OFS_ICEBERG_WAREHOUSE_PREFIX_PATTERN = "learning/ofs/iceberg/warehouse/"`
 * `MF_FEATURE_TABLE_PREFIX = "mf_feature_"`
 * `LEARNING_REPLAY_BASIS_MODE = "origin_offset_ranges"`
+* `LEARNING_ORIGIN_OFFSET_SEMANTICS = "mode_aware:IG_ADMISSION_INDEX_PROXY_epoch_seconds_when_IG_EDGE_MODE=apigw_lambda_ddb;KAFKA_TOPIC_PARTITION_OFFSETS_when_IG_EDGE_MODE=kafka_direct"`
 * `LEARNING_FEATURE_ASOF_REQUIRED = true`
 * `LEARNING_LABEL_ASOF_REQUIRED = true`
 * `LEARNING_LABEL_MATURITY_DAYS_DEFAULT = 30`
 * `LEARNING_FUTURE_TIMESTAMP_POLICY = "fail_closed"`
 * `LEARNING_TIMESTAMP_FIELDS = "event_ts_utc,label_observed_ts,feature_asof_utc,label_asof_utc"`
 * `DATASET_FINGERPRINT_REQUIRED_FIELDS = "replay_basis,feature_asof_utc,label_asof_utc,label_maturity_days,feature_def_set,join_scope,cohort_filters,ofs_code_release_id,mf_code_release_id"`
+
+### 9.6 MPR rollback bounded-objective handles
+
+* `MPR_ROLLBACK_RTO_TARGET_SECONDS = 900`
+* `MPR_ROLLBACK_RTO_HARD_MAX_SECONDS = 1200`
+* `MPR_ROLLBACK_RPO_TARGET_EVENTS = 0`
+* `MPR_ROLLBACK_OBJECTIVE_ENFORCEMENT = "fail_closed"`
+* `MPR_ROLLBACK_OBJECTIVE_REQUIRED_FIELDS = "restore_elapsed_seconds,rollback_status,rto_target_seconds,rto_hard_max_seconds,rpo_target_events"`
 
 ---
 
@@ -679,6 +697,12 @@ Allowed tokens in pattern handles:
 * `SECRETS_BACKEND = "ssm_and_secrets_manager"`
 * `SECRETS_PLAINTEXT_OUTPUT_ALLOWED = false`
 * `KMS_KEY_ALIAS_PLATFORM = "alias/fraud-platform-dev-full"`
+
+### 11.5 Teardown IAM capability contract
+
+* `TEARDOWN_IAM_MIN_ACTIONS = "eks:ListNodegroups,eks:UpdateNodegroupConfig,eks:DescribeUpdate,sagemaker:ListEndpoints,sagemaker:DescribeEndpoint,sagemaker:DeleteEndpoint,ecs:UpdateService,ecs:DescribeServices,emr-containers:ListJobRuns,emr-containers:CancelJobRun"`
+* `TEARDOWN_IAM_POLICY_SOURCE = "infra/terraform/dev_full/ops/main.tf::GitHubActionsM6FRemoteDevFull"`
+* `TEARDOWN_IAM_DRIFT_POLICY = "fail_closed_on_missing_min_action"`
 
 ---
 

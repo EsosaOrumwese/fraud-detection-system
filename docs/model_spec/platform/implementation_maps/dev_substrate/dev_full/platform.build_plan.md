@@ -1,6 +1,6 @@
 # Dev Substrate Build Plan (dev_full)
 _Track: dev_min certified baseline -> dev_full full-platform managed substrate_
-_Last updated: 2026-02-26_
+_Last updated: 2026-02-28_
 
 ## 0) Purpose
 This is the active execution plan for building `dev_full` from the certified `dev_min` baseline into a full-platform managed stack with:
@@ -96,11 +96,11 @@ Canonical lifecycle key: `phase_id=P#` from dev_full runbook.
 | M6 | P5-P7 | Control + Ingress closure | DONE |
 | M7 | P8-P10 | RTDL + Case/Labels closure | DONE |
 | M8 | P11 | Spine obs/gov closure + non-regression pack | DONE |
-| M9 | P12 | Learning input readiness | ACTIVE |
-| M10 | P13 | OFS dataset closure | NOT_STARTED |
-| M11 | P14 | MF train/eval closure | ACTIVE |
-| M12 | P15 | MPR promotion/rollback closure | NOT_STARTED |
-| M13 | P16-P17 | Full-platform verdict + teardown/idle-safe closure | IN_PROGRESS |
+| M9 | P12 | Learning input readiness | DONE |
+| M10 | P13 | OFS dataset closure | DONE |
+| M11 | P14 | MF train/eval closure | DONE |
+| M12 | P15 | MPR promotion/rollback closure | DONE |
+| M13 | P16-P17 | Full-platform verdict + teardown/idle-safe closure | DONE |
 
 ---
 
@@ -686,6 +686,10 @@ M6 planning posture:
   - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M7`, `next_gate=M7_READY`,
   - local artifact root: `runs/dev_substrate/dev_full/m6/_gh_run_22413131251/m6j-closure-sync-20260225T194703Z/`,
   - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6j_m6_closure_sync_20260225T194637Z/`.
+- `DD-1` is closed in M6 scope:
+  - semantics pin: `P6_ADMISSION_PROOF_MODE=bridge_equivalent` (bounded temporary waiver),
+  - expiry trigger + fail-closed blocker are pinned in authority docs (`DFULL-RUN-B6.3`),
+  - deep-plan closure contract: `platform.M6.build_plan.md` section `12`.
 
 M6 sub-phase progress:
 - [x] `M6.A` authority + handle closure (`P5..P7` + evidence-overhead lanes).
@@ -706,7 +710,7 @@ Deep plan:
 - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.P7.build_plan.md`
 
 ## M7 - RTDL and Case/Labels Closure
-Status: `ACTIVE`
+Status: `DONE`
 
 Objective:
 - close `P8-P10` for RTDL, decision chain, and case/label append lanes with component-level verification (no bundled closure claims), then close `M7.K` non-waived throughput certification.
@@ -969,6 +973,10 @@ M8 execution status (2026-02-26):
    - contract parity: required `14/14` M8 artifacts present (`11/11` upstream + `3/3` M8.J outputs),
    - cost closure: `m8_phase_budget_envelope.json` + `m8_phase_cost_outcome_receipt.json` emitted (AWS MTD `89.2979244404 USD`),
    - durable run-control evidence: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m8j_p11_closure_sync_20260226T065141Z/`.
+11. `DD-2` and `DD-3` are closed in M8 scope:
+   - reporter migration contract is now pinned as versioned/idempotent with additive rollback policy,
+   - canonical lock backend is `db_advisory_lock`; `aurora_advisory_lock` alias is bounded and dated for deprecation,
+   - deep-plan closure contract: `platform.M8.build_plan.md` section `10`.
 
 ## M9 - Learning Input Readiness
 Status: `DONE`
@@ -1119,6 +1127,12 @@ M9 execution status:
      - required M9.J outputs `1`, published `1`,
    - durable run-control evidence:
      - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m9j_closure_sync_20260226T083701Z/`.
+11. `DD-4` is closed in M9 scope:
+   - `origin_offset_ranges` semantics are explicitly mode-aware:
+     - `IG_ADMISSION_INDEX_PROXY` -> event-time epoch-seconds,
+     - `KAFKA_TOPIC_PARTITION_OFFSETS` -> broker offsets,
+   - authoritative pins are now in handles + run-process docs,
+   - deep-plan closure contract: `platform.M9.build_plan.md` section `10`.
 
 DoD anchors:
 - [x] replay basis is committed as offset ranges with deterministic receipt.
@@ -1512,7 +1526,7 @@ M11 progression snapshot:
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m11j_closure_sync_20260227T104756Z/m11_execution_summary.json`.
 
 ## M12 - MPR Promotion/Rollback Closure
-Status: `ACTIVE`
+Status: `DONE`
 
 Objective:
 - close `P15` promotion corridor with compatibility-safe activation and non-optional rollback drill proof.
@@ -1683,9 +1697,13 @@ M12 progression snapshot:
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12j_closure_sync_20260227T184452Z/m12_execution_summary.json`,
     - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m12j_closure_sync_20260227T184452Z/m12_blocker_register.json`.
 - M12 is now closed `DONE`; next actionable phase is `M13`.
+- `DD-5` is closed in M12 scope:
+  - rollback bounded objective is now numerically pinned (`RTO target/hard max`, `RPO target`) and fail-closed,
+  - M12.E drill evidence contract now requires bounded-objective fields,
+  - deep-plan closure contract: `platform.M12.build_plan.md` section `10`.
 
 ## M13 - Final Verdict and Teardown Closure
-Status: `IN_PROGRESS`
+Status: `DONE`
 
 Objective:
 - close `P16-P17` with full-platform verdict and idle-safe cost closure.
@@ -1756,7 +1774,7 @@ For every active phase (`M1..M13`):
 - No cross-branch execution improvisation.
 - No destructive git commands.
 
-## 11) Next Action
+## 11) M13 Closure Snapshot
 - `M13.A` is closed green (`run_id=22506814523`, `verdict=ADVANCE_TO_M13_B`, `next_gate=M13.B_READY`).
 - `M13.B` is closed green after one fail-closed remediation cycle:
   - failed run: `22507181947` (`M13-B2` legacy-source readability + M11 continuity extraction),
@@ -1814,6 +1832,10 @@ For every active phase (`M1..M13`):
   - non-gate acceptance pass (final verdict readability + post-teardown guardrail continuity + phase cost-outcome continuity),
   - evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13j_closure_sync_20260228T003853Z/`.
 - M13 is fully closed green on managed lane.
+- `DD-6` and `DD-7` are closed in M13 scope:
+  - `legacy_pre_run_scope` is now explicit closure debt with owner + expiry + remediation path,
+  - teardown IAM minimum-action surface is pinned as governed interface,
+  - deep-plan closure contract: `platform.M13.build_plan.md` section `10`.
 
 ## 12) Post-Green Documentation Debt Closure (Pre-Staging)
 Intent:
@@ -1825,29 +1847,62 @@ Scope:
 2. all items fail-closed for staging readiness signoff.
 
 Debt register:
-1. `DD-1` (M6 semantics clarity):
-   - pin whether current P6 admission proof is lane-direct or bridge-equivalent.
-   - if bridge-equivalent, record explicit temporary waiver posture and expiry trigger.
-2. `DD-2` (M8 reporter migration surface):
-   - convert reporter bootstrap DDL note into versioned/idempotent migration contract.
-   - identify authoritative migration surface and rollback behavior.
-3. `DD-3` (M8 advisory lock contract drift):
-   - converge handle/runtime naming (`aurora_advisory_lock` vs `db_advisory_lock`) to one truth.
-   - remove compatibility shim posture or record bounded deprecation window.
-4. `DD-4` (M9 replay-offset semantics pin):
-   - pin `origin_offset` semantics explicitly (`epoch_seconds` vs broker offsets) in plan + evidence contract.
-5. `DD-5` (M12 rollback bounded objective):
-   - pin numeric bounded-restore targets/observed metrics in drill evidence contract.
-6. `DD-6` (M13 legacy closure debt expiry):
-   - convert `legacy_pre_run_scope` usage into explicit closure-debt with expiry condition and owner.
-7. `DD-7` (teardown IAM capability contract):
-   - pin minimal teardown policy surface as governed interface to prevent future drift regressions.
+1. `DD-1` (M6 semantics clarity) - `CLOSED`:
+   - owner: platform runtime owner (`M6/M7`).
+   - source-of-truth:
+     - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (`P6_ADMISSION_PROOF_*`),
+     - `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md` (`DFULL-RUN-B6.3`),
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md` section `12`.
+   - closure condition: admission proof mode is explicit (`bridge_equivalent`), bounded by expiry trigger, and fail-closed on overrun.
+2. `DD-2` (M8 reporter migration surface) - `CLOSED`:
+   - owner: obs/gov runtime owner (`M8`).
+   - source-of-truth:
+     - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (`REPORTER_SCHEMA_MIGRATION_*`),
+     - `scripts/dev_substrate/m8e_reporter_one_shot.py`,
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M8.build_plan.md` section `10`.
+   - closure condition: migration surface + rollback behavior are versioned and idempotent by contract.
+3. `DD-3` (M8 advisory lock contract drift) - `CLOSED`:
+   - owner: obs/gov runtime owner (`M8`).
+   - source-of-truth:
+     - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (`REPORTER_LOCK_BACKEND`, alias + deprecation),
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M8.build_plan.md` section `10`.
+   - closure condition: canonical naming is single-source (`db_advisory_lock`) with bounded alias deprecation window.
+4. `DD-4` (M9 replay-offset semantics pin) - `CLOSED`:
+   - owner: learning-input owner (`M9`).
+   - source-of-truth:
+     - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (`LEARNING_ORIGIN_OFFSET_SEMANTICS`),
+     - `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md` (`P12`),
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M9.build_plan.md` section `10`.
+   - closure condition: mode-aware origin-offset semantics are explicit and non-ambiguous.
+5. `DD-5` (M12 rollback bounded objective) - `CLOSED`:
+   - owner: learning promotion owner (`M12`).
+   - source-of-truth:
+     - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (`MPR_ROLLBACK_*`),
+     - `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md` (`P15`),
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M12.build_plan.md` section `10`.
+   - closure condition: numeric rollback objective thresholds are pinned and enforced fail-closed in drill contract.
+6. `DD-6` (M13 legacy closure debt expiry) - `CLOSED`:
+   - owner: platform closure owner (`M13`).
+   - source-of-truth:
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M13.build_plan.md` section `10`,
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M13.build_plan.md` (`M13.B` legacy row handling).
+   - closure condition: legacy usage is explicit debt with owner + expiry date + remediation path (no silent carry-forward).
+7. `DD-7` (teardown IAM capability contract) - `CLOSED`:
+   - owner: platform ops/IAM owner (`M13 + ops terraform`).
+   - source-of-truth:
+     - `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (`TEARDOWN_IAM_*`),
+     - `infra/terraform/dev_full/ops/main.tf` (`GitHubActionsM6FRemoteDevFull` policy surface),
+     - `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M13.build_plan.md` section `10`.
+   - closure condition: minimum teardown IAM action set is pinned and any drift is fail-closed.
 
 DoD anchors for documentation debt closure:
-- [ ] all `DD-1..DD-7` are documented with explicit owner, source-of-truth path, and closure condition.
-- [ ] no ambiguous semantics remain for replay offsets, admission proof mode, or lock contract.
-- [ ] all temporary waivers include explicit expiry trigger and remediation path.
-- [ ] staging-readiness addendum published with zero unresolved documentation blockers.
+- [x] all `DD-1..DD-7` are documented with explicit owner, source-of-truth path, and closure condition.
+- [x] no ambiguous semantics remain for replay offsets, admission proof mode, or lock contract.
+- [x] all temporary waivers include explicit expiry trigger and remediation path.
+- [x] staging-readiness addendum published with zero unresolved documentation blockers.
+
+
+
 
 Separate certification planning surfaces (authoritative for next stage):
 1. runtime certification plan:

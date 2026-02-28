@@ -671,3 +671,27 @@ Handoff posture:
    - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M7`, `next_gate=M7_READY`,
    - durable evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m6j_m6_closure_sync_20260225T194637Z/`.
 17. M6 phase is now closed green and unblocks M7 entry.
+
+## 12) DD-1 Closure Contract (M6 Semantics Clarity)
+Debt item:
+1. `DD-1` from main build plan section `12`.
+
+Closure decision:
+1. `P6` admission proof mode is explicitly pinned to `bridge_equivalent` for current dev_full posture.
+2. This is a bounded temporary waiver, not a silent default.
+
+Owner:
+1. Platform runtime lane owner (`M6/M7`).
+
+Source-of-truth paths:
+1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (`P6_ADMISSION_PROOF_MODE`, expiry trigger, required artifact).
+2. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md` (`P6` blocker `DFULL-RUN-B6.3`).
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md` (this section).
+
+Closure condition (met):
+1. `bridge_equivalent` mode is now explicit, evidence-bound, and fail-closed on expiry trigger.
+2. no remaining ambiguity about whether M6/P6 closure was lane-direct or bridge-equivalent.
+
+Expiry trigger and remediation path:
+1. expiry trigger: private-runtime direct reachability to IG edge is materialized and certified.
+2. remediation gate: switch to lane-direct proof and recert at runtime certification (`RC3`) before staging signoff.

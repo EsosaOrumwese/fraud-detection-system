@@ -881,3 +881,24 @@ Execution status:
 11. `M9.J` is closed green with `verdict=ADVANCE_TO_M10` and `next_gate=M10_READY`.
 12. M9 is `DONE`.
 13. Next action is `M10.A` authority + handle closure.
+
+## 10) DD-4 Closure Contract (Replay-Offset Semantics)
+Debt item:
+1. `DD-4` replay-offset semantics pin.
+
+Closure decision:
+1. `origin_offset_ranges` semantics are mode-aware and now pinned explicitly:
+   - when `IG_EDGE_MODE=apigw_lambda_ddb`, origin offsets are event-time epoch-second boundaries from `IG_ADMISSION_INDEX_PROXY`,
+   - when `IG_EDGE_MODE=kafka_direct`, origin offsets are broker topic/partition offsets from `KAFKA_TOPIC_PARTITION_OFFSETS`.
+
+Owner:
+1. Learning-input owner (`M9` lane owner).
+
+Source-of-truth paths:
+1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (`LEARNING_REPLAY_BASIS_MODE`, `LEARNING_ORIGIN_OFFSET_SEMANTICS`).
+2. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md` (`P12` pass-gate semantics).
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M9.build_plan.md` (this section).
+
+Closure condition (met):
+1. no ambiguity remains on whether replay basis references epoch-seconds or broker offsets.
+2. P12 evidence contract now has deterministic interpretation for both edge modes.

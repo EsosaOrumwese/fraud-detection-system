@@ -289,9 +289,12 @@ For every phase below:
 * PASS gate:
   1. Flink-driven stream publication and ingress admission active (runtime path may be `MSF` or `EKS-hosted Flink` under approved `M6P6-B2` fallback),
   2. lag within threshold,
-  3. no unresolved publish ambiguity.
+  3. no unresolved publish ambiguity,
+  4. admission proof mode is explicit and handle-pinned:
+     - lane-direct proof if private runtime has direct reachability to IG edge,
+     - bridge-equivalent proof only when `P6_ADMISSION_PROOF_MODE=bridge_equivalent` and expiry trigger has not fired.
 * Commit evidence: streaming counters snapshot + lag posture evidence.
-* Blockers: `DFULL-RUN-B6` (streaming stall), `DFULL-RUN-B6.1` (publish unknown unresolved), `DFULL-RUN-B6.2` (runtime-path evidence missing or path not authorized for this phase execution).
+* Blockers: `DFULL-RUN-B6` (streaming stall), `DFULL-RUN-B6.1` (publish unknown unresolved), `DFULL-RUN-B6.2` (runtime-path evidence missing or path not authorized for this phase execution), `DFULL-RUN-B6.3` (bridge-equivalent proof used past expiry trigger).
 
 ### P7 INGEST_COMMITTED
 
@@ -349,7 +352,10 @@ For every phase below:
 * PASS gate:
   1. label as-of policy pinned,
   2. anti-leakage checks pass,
-  3. replay basis is pinned as `origin_offset` ranges (time windows, if used, are selectors translated to offsets and recorded),
+  3. replay basis is pinned as `origin_offset` ranges with explicit semantics:
+     - `IG_ADMISSION_INDEX_PROXY` mode -> offset values are event-time epoch-second boundaries,
+     - `KAFKA_TOPIC_PARTITION_OFFSETS` mode -> offset values are broker topic/partition offsets,
+     - time windows, if used, are selectors translated to offsets and recorded,
   4. learning input window/fingerprint basis committed,
   5. all learning rows satisfy `event_ts_utc <= feature_asof_utc` and `label_observed_ts <= label_asof_utc` with maturity policy applied.
 * Commit evidence: learning input readiness snapshot + replay-basis receipt + leakage guardrail report.
@@ -386,10 +392,11 @@ For every phase below:
 * PASS gate:
   1. promotion corridor event committed,
   2. rollback drill executed and recorded,
-  3. active-bundle resolution checks pass,
-  4. compatibility fail-closed checks pass.
+  3. rollback bounded objective is measured and within handle-pinned contract (`MPR_ROLLBACK_RTO_TARGET_SECONDS`, `MPR_ROLLBACK_RTO_HARD_MAX_SECONDS`, `MPR_ROLLBACK_RPO_TARGET_EVENTS`),
+  4. active-bundle resolution checks pass,
+  5. compatibility fail-closed checks pass.
 * Commit evidence: promotion receipt + rollback drill report.
-* Blockers: `DFULL-RUN-B15` (promotion gate failure), `DFULL-RUN-B15.1` (rollback drill missing).
+* Blockers: `DFULL-RUN-B15` (promotion gate failure), `DFULL-RUN-B15.1` (rollback drill missing), `DFULL-RUN-B15.2` (rollback bounded-objective breach or missing metric).
 
 ### P16 FULL_PLATFORM_CLOSED
 

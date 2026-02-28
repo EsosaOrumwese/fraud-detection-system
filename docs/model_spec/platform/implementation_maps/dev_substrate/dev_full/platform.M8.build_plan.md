@@ -1102,3 +1102,33 @@ Execution closure (2026-02-26):
 10. `M8.I` P11 rollup verdict + `m9_handoff_pack` is closed green.
 11. `M8.J` M8 closure sync + cost-outcome receipt validation is closed green.
 12. M8 is fully closed and ready for M9 entry.
+
+## 10) DD-2/DD-3 Closure Contracts (Reporter Migration + Lock Naming)
+Debt items:
+1. `DD-2` reporter migration surface.
+2. `DD-3` advisory lock contract drift.
+
+Closure decisions:
+1. Reporter schema bootstrap is treated as versioned idempotent migration contract (`versioned_idempotent_v1`) with additive/no-drop rollback posture.
+2. Canonical reporter lock backend is `db_advisory_lock`; legacy alias `aurora_advisory_lock` is bounded by deprecation date and explicit expiry gate.
+
+Owner:
+1. Obs/Gov runtime owner (`M8` lane owner).
+
+Source-of-truth paths:
+1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+   - `REPORTER_SCHEMA_MIGRATION_MODE`
+   - `REPORTER_SCHEMA_MIGRATION_SURFACE`
+   - `REPORTER_SCHEMA_MIGRATION_ROLLBACK_POLICY`
+   - `REPORTER_LOCK_BACKEND`
+   - `REPORTER_LOCK_BACKEND_LEGACY_ALIAS`
+   - `REPORTER_LOCK_ALIAS_DEPRECATION_DATE_UTC`
+2. `scripts/dev_substrate/m8e_reporter_one_shot.py` (execution surface for `M8E_REPORTER_SCHEMA_MIGRATION_V1`).
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M8.build_plan.md` (this section).
+
+Closure condition (met):
+1. migration surface and rollback behavior are explicit and versioned.
+2. lock-backend naming ambiguity is removed; canonical key is pinned and alias is bounded.
+
+Expiry/remediation path:
+1. remove alias path from runtime/script after first post-`2026-03-31` M8 recert run passes with canonical backend only.

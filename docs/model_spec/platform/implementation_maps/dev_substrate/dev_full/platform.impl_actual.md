@@ -17585,3 +17585,98 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 1. It keeps the plan split requested by USER (runtime vs ops/gov) while removing most interpretation drift vectors.
 2. It upgrades both plans from narrative guidance to executable certification contracts.
 3. It aligns with fail-closed law and production-standard claim posture by enforcing explicit thresholds, artifact contracts, and deterministic verdict stitching.
+
+## Entry: 2026-02-28 03:02:28 +00:00 - Post-green documentation debt DD-1..DD-7 closure pass
+
+### Trigger
+1. USER requested end-to-end closure of post-green documentation debt (`DD-1..DD-7`) so build posture can be called green with reduced staging ambiguity.
+2. USER also required closure notes to be present in both main build plan and per-phase deep plans.
+
+### Scope and execution posture
+1. This closure pass is documentation-contract hardening only; no runtime substrate change was required to close ambiguity.
+2. Stack bring-up was assessed as unnecessary for debt closure itself (all debt items were semantic/contract drifts), so execution focused on authority docs and build-plan surfaces.
+
+### Debt closure decisions and exact outcomes
+1. DD-1 (`M6` semantics clarity):
+   - pinned `P6` admission proof mode explicitly as `bridge_equivalent` with fail-closed expiry trigger,
+   - added explicit blocker path in run-process authority (`DFULL-RUN-B6.3`) for expired bridge-equivalent usage,
+   - closed in deep plan `platform.M6.build_plan.md` section `12` and mirrored in main build plan `M6` lane + debt register.
+2. DD-2 (`M8` reporter migration surface):
+   - pinned reporter migration contract as `versioned_idempotent_v1` and rollback posture as additive/no-drop,
+   - pinned authoritative migration execution surface (`scripts/dev_substrate/m8e_reporter_one_shot.py` contract handle),
+   - closed in deep plan `platform.M8.build_plan.md` section `10` and mirrored in main build plan `M8` lane + debt register.
+3. DD-3 (`M8` lock contract drift):
+   - converged canonical lock backend handle to `db_advisory_lock`, retained bounded alias (`aurora_advisory_lock`) with deprecation date,
+   - closed ambiguity on canonical vs compatibility alias semantics,
+   - closed in deep plan `platform.M8.build_plan.md` section `10` and mirrored in main build plan.
+4. DD-4 (`M9` replay-offset semantics):
+   - pinned mode-aware meaning of `origin_offset_ranges`:
+     - IG proxy mode => epoch-second boundaries,
+     - kafka-direct mode => broker offsets,
+   - aligned run-process `P12` gate text with handle semantics,
+   - closed in deep plan `platform.M9.build_plan.md` section `10` and mirrored in main build plan.
+5. DD-5 (`M12` rollback bounded objective):
+   - pinned numeric rollback objective handles (`RTO target/hard-max`, `RPO target`) and fail-closed enforcement,
+   - updated M12 rollback section to require numeric objective fields in drill evidence,
+   - attached observed lane runtime (workflow wall-clock) for traceability,
+   - closed in deep plan `platform.M12.build_plan.md` section `10` and mirrored in main build plan.
+6. DD-6 (`M13` legacy closure debt expiry):
+   - converted `legacy_pre_run_scope` from implicit acceptance to explicit debt with owner, expiry, and remediation path,
+   - set expiry boundary and required replacement path (re-cert artifacts replacing legacy rows),
+   - closed in deep plan `platform.M13.build_plan.md` section `10` and mirrored in main build plan.
+7. DD-7 (`M13` teardown IAM capability contract):
+   - pinned teardown IAM minimum action contract and source policy surface,
+   - declared fail-closed drift posture for missing required teardown actions,
+   - closed in deep plan `platform.M13.build_plan.md` section `10` and mirrored in main build plan.
+
+### Files updated in this debt-closure pass
+1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md`
+3. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md`
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M8.build_plan.md`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M9.build_plan.md`
+6. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M12.build_plan.md`
+7. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M13.build_plan.md`
+8. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+
+### Main build-plan consistency updates
+1. Marked roadmap statuses `M9..M13` as `DONE` in the canonical table.
+2. Normalized section-level statuses (`M7`, `M12`, `M13`) to `DONE` where closure evidence already existed.
+3. Rewrote debt register entries to `CLOSED` with explicit owner/source/closure-condition and checked all debt DoD anchors.
+
+### Closure posture
+1. DD register is now explicit and fail-closed.
+2. No remaining silent ambiguity on the specified seven debt surfaces.
+3. Remaining runtime actions are outside debt closure scope (cost posture reporting + teardown verification requested separately by USER).
+
+## Entry: 2026-02-28 03:06:16 +00:00 - Cost posture capture + idle-safe teardown verification
+
+### Cost posture capture
+1. Queried AWS Cost Explorer for current month-to-date (`2026-02-01`..`2026-03-01`, unblended).
+2. Current AWS MTD spend (estimated): `144.8163179505 USD`.
+3. Queried service-level split and identified largest contributors:
+   - Amazon MSK: `68.9051675234 USD`
+   - ECS: `21.6306873872 USD`
+   - EKS (service for Kubernetes): `7.187164444 USD`
+   - S3: `6.4255041305 USD`
+   - EC2 compute: `3.9535244864 USD`
+   - VPC: `8.0299420904 USD`
+   - Tax: `24.14 USD`.
+4. Budget API check:
+   - `fraud-platform-dev-full-monthly` budget object is not currently materialized in AWS Budgets (NotFound).
+   - existing visible budget remains `fraud-platform-dev-min-monthly-cost`.
+
+### Teardown / housekeeping execution
+1. Verified no active ECS clusters/services in region for this project scope.
+2. Verified no active SageMaker endpoints (`[]`).
+3. Verified no active EMR-on-EKS job runs (`PENDING/SUBMITTED/RUNNING = []`).
+4. Enforced EKS worker scale-down for dev_full nodegroup:
+   - cluster: `fraud-platform-dev-full`
+   - nodegroup: `fraud-platform-dev-full-m6f-workers`
+   - target scaling: `min=0, desired=0, max=2`
+   - update id: `f56426f0-ed01-3957-be70-23ec156b355f` -> status `Successful`.
+5. Verified no running project-tagged EC2 instances after scale-down.
+
+### Residual posture statement
+1. Runtime compute is idle-safe (no active workers/jobs/endpoints).
+2. Control-plane/persistent services still exist (for example EKS cluster object, MSK serverless cluster, other provisioned infrastructure) and can continue accruing baseline cost until full destroy is executed.

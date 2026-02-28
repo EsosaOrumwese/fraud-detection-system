@@ -347,7 +347,11 @@ Entry conditions:
 Execution checks:
 1. rollback drill completes.
 2. rollback drill report is written to run-scoped MPR path.
-3. bounded restore objective evidence is emitted.
+3. bounded restore objective evidence is emitted with required numeric fields:
+   - `restore_elapsed_seconds`,
+   - `rto_target_seconds`,
+   - `rto_hard_max_seconds`,
+   - `rpo_target_events`.
 
 Blockers:
 1. `M12-B5` on rollback drill failure or missing restore evidence.
@@ -377,6 +381,12 @@ Closure evidence (2026-02-27):
    - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/learning/mpr/rollback_drill_report.json`
 5. Bounded restore objective:
    - all checks pass, including strict transport proof continuity, promotion receipt readability, candidate hash stability, run-scope match, and OFS rollback-recipe/drill readability.
+   - pinned targets:
+     - `rto_target_seconds=900`,
+     - `rto_hard_max_seconds=1200`,
+     - `rpo_target_events=0`.
+   - observed lane runtime (workflow wall clock, run `22495589600`):
+     - `restore_elapsed_seconds_observed=33`.
 
 ### M12.F - ACTIVE Resolution Checks
 Goal:
@@ -688,3 +698,28 @@ DoD:
 12. `M12.I` phase budget + cost-outcome closure is complete and green (`22499012547`, execution `m12i_phase_cost_outcome_20260227T183804Z`) with `M12-B10` cleared.
 13. `M12.J` closure sync is complete and green (`22499239297`, execution `m12j_closure_sync_20260227T184452Z`) with `M12-B11`/`M12-B12` cleared.
 14. M12 is closed `DONE`; next action is M13 entry.
+
+## 10) DD-5 Closure Contract (Rollback Bounded Objective)
+Debt item:
+1. `DD-5` rollback bounded objective numeric pin.
+
+Closure decision:
+1. MPR rollback bounded-objective thresholds are now pinned in handles:
+   - `MPR_ROLLBACK_RTO_TARGET_SECONDS=900`,
+   - `MPR_ROLLBACK_RTO_HARD_MAX_SECONDS=1200`,
+   - `MPR_ROLLBACK_RPO_TARGET_EVENTS=0`,
+   - `MPR_ROLLBACK_OBJECTIVE_ENFORCEMENT=fail_closed`.
+2. `M12.E` drill evidence contract must include objective fields defined by `MPR_ROLLBACK_OBJECTIVE_REQUIRED_FIELDS`.
+
+Owner:
+1. Learning promotion owner (`M12` lane owner).
+
+Source-of-truth paths:
+1. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md` (`9.6 MPR rollback bounded-objective handles`).
+2. `docs/model_spec/platform/migration_to_dev/dev_full_platform_green_v0_run_process_flow.md` (`P15` bounded-objective gate + blocker).
+3. `runs/dev_substrate/dev_full/m12/_gh_run_22495589600_artifacts/dev-full-m12-E-m12e_rollback_drill_20260227T165747Z/m12e_rollback_drill_snapshot.json` (observed bounded-objective checks).
+4. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M12.build_plan.md` (this section).
+
+Closure condition (met):
+1. bounded objective now has numeric pass/fail contract and fail-closed enforcement path.
+2. M12.E evidence already carries objective check payload; next rerun must continue emitting required fields.
