@@ -2433,3 +2433,64 @@ User freeze directive closure (2026-02-23):
   - `runs/fix-data-engine/segment_5B/reports/segment5b_freeze_handoff_20260223T223504Z.md`
 - effective terminal status for Segment `5B`:
   - `SEG5B_FROZEN_PASS_B` (`certified_class=PASS_B_ROBUST`).
+
+## 11) 2026-02-28 Memory Hardening Reopen Lane (`S1/S2/S4`)
+Goal:
+- reduce memory-spike risk in `5B` heavy states so full-chain reruns do not crash host memory.
+
+Scope:
+- dependency contract gate: `5A.S4 -> 5B.S1` (`channel_group` required by grouping-domain scan).
+- owner state `S1`: grouping-domain derivation (`packages/engine/src/engine/layers/l2/seg_5B/s1_time_grid/runner.py`).
+- owner state `S4`: arrival-event expansion/materialization (`packages/engine/src/engine/layers/l2/seg_5B/s4_arrival_events/runner.py`).
+- secondary watch `S2`: fallback concat path (`packages/engine/src/engine/layers/l2/seg_5B/s2_latent_intensity/runner.py`).
+
+State-by-state execution order:
+1. `M5B.0` (`5A.S4` contract-compatibility gate for `channel_group`).
+2. `M5B.1` (`5B.S1` robust domain-derivation hardening).
+3. `M5B.2` (`5B.S4` eager-load/materialization hardening).
+4. `M5B.4` (`5B.S2` fallback memory hardening).
+5. `M5B.5` integrated witness (`S1 -> S2 -> S4 -> S5`) and closure.
+
+Execution phases:
+
+### M5B.0 - Upstream contract gate (`5A.S4 -> 5B.S1`)
+Definition of done:
+- [x] `merchant_zone_scenario_local_5A` includes `channel_group` on current witness lane.
+- [x] `5B.S1` no longer fails projection on scenario-local parquet scan.
+
+### M5B.1 - S1 domain-derivation hardening
+Definition of done:
+- [x] `S1` handles scenario-local domain extraction fail-closed with explicit compatibility path when `channel_group` is absent upstream.
+- [x] grouping keys remain deterministic and contract-compatible (`merchant_id`, `legal_country_iso`, `tzid`, `channel_group`).
+
+### M5B.2 - S4 eager-load elimination
+Definition of done:
+- [x] replace broad eager parquet loads with projection-scoped lazy/batched ingestion for large upstream tables.
+- [x] preserve deterministic routing/arrival semantics and schema contracts.
+
+### M5B.3 - S4 bounded join/materialization controls
+Definition of done:
+- [x] ensure join domains are bounded per scenario/batch (no unbounded all-domain materialization).
+- [x] maintain existing part-write posture and idempotent publish behavior.
+
+### M5B.4 - S2 fallback memory hardening
+Definition of done:
+- [x] remove or bound `realised_chunks` full concat fallback to prevent large in-memory accumulation.
+- [x] enforce streaming writer path or fail-closed guard if streaming backend unavailable.
+
+### M5B.5 - Witness rerun and closure decision
+Definition of done:
+- [ ] witness lane `S1 -> S2 -> S4 -> S5` completes `PASS` with no native memory crash.
+- [ ] runtime/row-count guardrails remain non-regressed.
+- [ ] decision emitted:
+  - `UNLOCK_M6A` if stable pass,
+  - `HOLD_M5B_REOPEN` otherwise.
+
+Execution evidence (current):
+- `run_id=43312aa79f8772de7dcc9db809b46992`:
+  - `S1=PASS` (projection blocker closed),
+  - `S2=PASS` (streaming-writer guard active),
+  - `S4=FAIL` due upstream data alignment blocker (`site_alias_missing` for non-virtual merchant), not memory/runtime crash.
+- `run_id=c25a2675fbfbacd952b13bb594880e92`:
+  - `S4=PASS` with projection-scoped loads + bounded domain cache (existing output idempotence preserved).
+  - `S5` executes validation checks to completion but ends with publish conflict on immutable authority outputs (`S5_OUTPUT_CONFLICT`), so this lane is evidence-only.

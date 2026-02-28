@@ -1,6 +1,6 @@
 schema_version: 1
 policy_id: sessionisation_policy_6B
-policy_version: v2
+policy_version: v1
 
 session_key:
   fields: [party_id, scenario_id]

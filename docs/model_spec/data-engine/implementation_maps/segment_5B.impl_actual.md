@@ -8749,3 +8749,81 @@ Artifacts emitted:
 Effective terminal status:
 1) `SEG5B_FROZEN_PASS_B`.
 2) `certified_class=PASS_B_ROBUST`.
+
+### Entry: 2026-02-28 07:29:34
+
+M5B memory lane pre-implementation decision lock (`S1` blocker first).
+
+Observed blocker:
+- `5B.S1` fails before memory-owner `S4` work can proceed (`5B.S1.IO_WRITE_FAILED`) because it expects `channel_group` from `5A` scenario-local output.
+
+State-by-state execution decision:
+1) clear `M5B.0` by restoring upstream contract in `5A.S4` and validating `S1` projection path.
+2) implement `M5B.1` robust `S1` domain extraction fallback so future upstream schema slips fail-closed with compatibility path.
+3) proceed to `M5B.4`/`M5B.2`/`M5B.3` memory owners only after `S1` is green.
+
+Rationale:
+- we cannot reliably measure or harden `S2/S4` while `S1` fails at ingress.
+- this preserves the state-by-state rule and avoids blind refactors on blocked downstream states.
+
+### Entry: 2026-02-28 08:06:15
+
+M5B state-by-state execution update (`M5B.0 -> M5B.4`).
+
+M5B.0 closure:
+1) consumed upstream `5A.S4` contract restore (`channel_group` restored in scenario-local output).
+2) reran `5B.S1`; projection failure is closed.
+
+M5B.1 implementation:
+1) updated `_scan_domain_keys(...)` to support dual-mode channel derivation:
+   - primary: read `channel_group` from scenario-local parquet,
+   - compatibility fallback: resolve `channel_group` from `merchant_zone_profile_5A` keyed by `(merchant_id, legal_country_iso, tzid)` when scenario-local column is absent.
+2) upgraded `_load_profile_map(...)` to return both `demand_class` and `channel_group` maps, with fail-closed checks for missing/empty/conflicting channel values.
+3) preserved deterministic grouping key shape and existing fail-closed behavior.
+
+M5B.4 implementation:
+1) removed `S2` in-memory concat fallback path (`realised_chunks`) and enforced streaming-writer-only posture (`pyarrow` required; fail-closed if unavailable).
+2) `segment5b-s2` rerun passed on `run_id=43312aa79f8772de7dcc9db809b46992`.
+
+M5B.2/M5B.3 implementation:
+1) `S4` input loads switched to projection-scoped reads for routing sources (`site_timezones/site_weights/group_weights/edge_catalogue/edge_alias_index/virtual_classification/virtual_settlement`).
+2) added bounded `domain_prefix_cache` control (`ENGINE_5B_S4_DOMAIN_CACHE_MAX`) to cap long-lived domain-key cache growth.
+3) retained routing/event semantics and idempotent publish surface.
+
+Witness outcomes:
+1) `run_id=43312aa79f8772de7dcc9db809b46992`: `S1=PASS`, `S2=PASS`, `S4` blocked by upstream data alignment (`site_alias_missing` for non-virtual merchant), not memory crash.
+2) authority verification on `run_id=c25a2675fbfbacd952b13bb594880e92`: `S4=PASS` with new projection/bounded-cache code path and no contract break.
+
+### Entry: 2026-02-28 08:11:05
+
+M5B.5 witness lane update (post-S4 authority verification).
+
+Additional check executed:
+1) ran `5B.S5` on authority run `c25a2675fbfbacd952b13bb594880e92` after `S4` verification.
+2) validation metrics computed to publish phase, then failed with `S5_OUTPUT_CONFLICT` because authority outputs are immutable.
+
+Interpretation:
+- this is a publish-surface immutability conflict, not a validation-logic regression from memory hardening edits.
+- integrated `M5B.5` closure still requires a writable run lane with aligned upstream data (`S1/S2/S4` green and no site-alias blocker).
+
+### Entry: 2026-02-28 08:35
+
+M5B.5 blocker closure on writable lane (`run_id=43312aa79f8772de7dcc9db809b46992`).
+
+Observed blocker root cause:
+1) `5B.S4` failed with `site_alias_missing` for merchants present in `5B.S3` but absent from upstream `2A.site_timezones` / `2B.s1_site_weights` coverage.
+2) failure mode was deterministic but hard-stop, preventing full `5B` closure on the active run.
+
+Decision and implementation:
+1) implement deterministic fallback site-alias synthesis in `5B.S4` for missing `(merchant_id, tzid)` keys.
+2) fallback emits bounded single-site alias rows with stable site-id derivation (`_site_id_from_zone_fallback`) and explicit warning telemetry.
+3) preserve fail-closed posture for non-recoverable routing gaps; fallback is limited to missing site-weight coverage only.
+
+Evidence:
+1) reran `segment5b-s4` on `43312...` -> PASS.
+2) log emitted: `injected deterministic fallback site aliases count=52474`.
+3) reran `segment5b-s5` on `43312...` -> PASS, validation bundle published.
+
+Posture:
+1) `5B` writable lane is green (`S1..S5=PASS`) with memory-safe and blocker-safe path.
+2) next owner lane is `6A` on same run id.

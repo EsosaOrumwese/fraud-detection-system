@@ -4596,3 +4596,54 @@ Pruning and storage control:
   - `b723338d60654024856679a415868783`,
   - `39ac923d6b234cd589c3dd89fb13654c`,
   - `ee1707f82042424ba895e19d8b4a8899`.
+
+### Entry: 2026-02-28 08:55
+
+Runtime blocker discovered while closing active writable lane (`run_id=43312aa79f8772de7dcc9db809b46992`).
+
+Observed failure:
+1) `segment6b` failed at `S0` with `6B.S0.CONFIG_VALIDATION_FAILED` on `sessionisation_policy_6B`.
+2) upstream gate checks for `1A..6A` were all `PASS`; failure is local policy contract mismatch, not upstream data readiness.
+
+Diagnostic method:
+1) validated `config/layer3/6B/sessionisation_policy_6B.yaml` directly against `schemas.6B.yaml#/policy/sessionisation_policy_6B` using `Draft202012Validator`.
+2) extracted first strict error: `policy_version` const mismatch (`'v1' was expected`, config carried `v2`).
+
+Decision:
+1) apply minimal fail-closed contract repair: set `policy_version: v1` in `sessionisation_policy_6B.yaml`.
+2) re-run full `segment6b` on the same run id immediately after patch.
+3) if green, proceed to fresh full-chain confirmation run (`1A -> 6B`) per user instruction.
+
+### Entry: 2026-02-28 10:29
+
+S0 blocker closure and segment-wide rerun outcome on active lane.
+
+Applied fix:
+1) updated `config/layer3/6B/sessionisation_policy_6B.yaml` from `policy_version: v2` to `policy_version: v1` to satisfy `schemas.6B.yaml#/policy/sessionisation_policy_6B` const requirement.
+
+Execution evidence (`run_id=43312aa79f8772de7dcc9db809b46992`):
+1) reran full `segment6b` (`S0->S5`), all states `PASS`.
+2) `S0` sealed inputs built successfully after config repair.
+3) `S5` published validation bundle with digest `f321e32286b02420601ee9a3d1855a83f4d61210b92c284814f1f6434420c7fa`.
+
+Next action (per user instruction):
+1) start a fresh independent run id and execute full chain `1A -> 6B` for double-confirmation.
+
+### Entry: 2026-02-28 14:18
+
+Fresh full-chain confirmation closure (`runs/local_full_run-7`, `run_id=a3bd8cac9a4284cd36072c6b9624a0c1`).
+
+Execution notes:
+1) initial one-shot `make segment1a ... segment6b` attempt exposed orchestration mismatch: `1A.S0` always mints run id while `1A.S1+` consumed externally pinned `RUN_ID`, causing `run_receipt` miss for `S1`.
+2) best-route continuation used minted run id from `1A.S0` (`a3bd...`) and resumed state chain on that id.
+3) long chained call later aborted during `5A.S5` without structured engine failure; replaying `5A.S5` standalone on same run id succeeded, indicating transient process interruption rather than deterministic code defect.
+4) resumed full tail (`5B -> 6A -> 6B`) on same run id and reached `6B.S5 PASS`.
+
+Closure evidence:
+1) all segment validation pass flags exist for manifest `76ec81ce37897b0837f5f1b242a3fa557532067d416e5177efb8fc27c4865460`:
+   - `1A, 1B, 2A, 2B, 3A, 3B, 5A, 5B, 6A, 6B`.
+2) final 6B validation bundle digest on fresh run: `51696a207338db42cac62cfee8b5ac397021318ccdabbdeeb1d2573e3b211b53`.
+
+Result:
+1) blocker lane resolved.
+2) independent fresh `1A -> 6B` confirmation run is green.

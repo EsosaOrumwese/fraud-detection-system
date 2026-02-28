@@ -362,6 +362,8 @@ def _minhash_sample(
             "legal_country_iso",
             "tzid",
             "local_horizon_bucket_index",
+            "lambda_local_scenario",
+            "overlay_factor_total",
         ]
         if include_channel_group:
             sample_columns.append("channel_group")
@@ -408,6 +410,8 @@ def _minhash_sample(
         "legal_country_iso",
         "tzid",
         "local_horizon_bucket_index",
+        "lambda_local_scenario",
+        "overlay_factor_total",
     ]
     columns = list(base_columns)
     if include_channel_group:
@@ -453,17 +457,27 @@ def _minhash_sample(
     for path in paths:
         if pq is None:
             df = pl.read_parquet(path, columns=columns)
-            for row in df.iter_rows(named=False):
-                merchant_id = row[0]
-                country = row[1]
-                tzid = row[2]
-                horizon_key = int(row[3])
-                channel_group = row[4] if include_channel_group else None
+            for row in df.iter_rows(named=True):
+                merchant_id = row["merchant_id"]
+                country = row["legal_country_iso"]
+                tzid = row["tzid"]
+                horizon_key = int(row["local_horizon_bucket_index"])
+                channel_group = row.get("channel_group") if include_channel_group else None
+                lambda_local_scenario = float(row["lambda_local_scenario"])
+                overlay_factor_total = float(row["overlay_factor_total"])
                 merchant_key, merchant_bytes = _merchant_key_bytes(merchant_id)
                 zone_key, zone_bytes = _zone_key_bytes(country, tzid, channel_group)
                 hash_val = _hash64(prefix, merchant_bytes, zone_bytes, _horizon_bytes(horizon_key))
                 pk = (merchant_key, zone_key, horizon_key)
-                payload = (merchant_id, country, tzid, horizon_key, channel_group)
+                payload = (
+                    merchant_id,
+                    country,
+                    tzid,
+                    horizon_key,
+                    channel_group,
+                    lambda_local_scenario,
+                    overlay_factor_total,
+                )
                 if len(heap) < sample_n:
                     heapq.heappush(heap, (-hash_val, pk, payload))
                 else:
@@ -481,17 +495,29 @@ def _minhash_sample(
             countries = data["legal_country_iso"]
             tzids = data["tzid"]
             horizon_buckets = data["local_horizon_bucket_index"]
+            lambda_values = data["lambda_local_scenario"]
+            overlay_values = data["overlay_factor_total"]
             for idx in range(batch.num_rows):
                 merchant_id = merchant_ids[idx]
                 country = countries[idx]
                 tzid = tzids[idx]
                 horizon_key = int(horizon_buckets[idx])
                 channel_group = channel_groups[idx] if channel_groups is not None else None
+                lambda_local_scenario = float(lambda_values[idx])
+                overlay_factor_total = float(overlay_values[idx])
                 merchant_key, merchant_bytes = _merchant_key_bytes(merchant_id)
                 zone_key, zone_bytes = _zone_key_bytes(country, tzid, channel_group)
                 hash_val = _hash64(prefix, merchant_bytes, zone_bytes, _horizon_bytes(horizon_key))
                 pk = (merchant_key, zone_key, horizon_key)
-                payload = (merchant_id, country, tzid, horizon_key, channel_group)
+                payload = (
+                    merchant_id,
+                    country,
+                    tzid,
+                    horizon_key,
+                    channel_group,
+                    lambda_local_scenario,
+                    overlay_factor_total,
+                )
                 if len(heap) < sample_n:
                     heapq.heappush(heap, (-hash_val, pk, payload))
                 else:
@@ -503,12 +529,14 @@ def _minhash_sample(
     selected = sorted([(-item[0], item[1], item[2]) for item in heap], key=lambda item: (item[0], item[1]))
     rows: list[dict] = []
     for _, _, payload in selected:
-        merchant_id, country, tzid, horizon_key, channel_group = payload
+        merchant_id, country, tzid, horizon_key, channel_group, lambda_local_scenario, overlay_factor_total = payload
         row = {
             "merchant_id": merchant_id,
             "legal_country_iso": country,
             "tzid": tzid,
             "local_horizon_bucket_index": int(horizon_key),
+            "lambda_local_scenario": float(lambda_local_scenario),
+            "overlay_factor_total": float(overlay_factor_total),
         }
         if include_channel_group:
             row["channel_group"] = channel_group
@@ -1909,27 +1937,6 @@ def run_s5(config: EngineConfig, run_id: Optional[str] = None) -> S5Result:
                             ]
                             if include_channel_group:
                                 sample_key_cols.append("channel_group")
-                            if sample_rows:
-                                sample_schema_overrides: dict[str, pl.DataType] = {
-                                    "merchant_id": pl.UInt64,
-                                    "legal_country_iso": pl.Utf8,
-                                    "tzid": pl.Utf8,
-                                    "local_horizon_bucket_index": pl.Int64,
-                                }
-                                if include_channel_group:
-                                    sample_schema_overrides["channel_group"] = pl.Utf8
-                                sampled_keys = pl.DataFrame(
-                                    sample_rows,
-                                    schema_overrides=sample_schema_overrides,
-                                ).lazy()
-                                sampled_inputs = (
-                                    scenario_scan.select(
-                                        sample_key_cols + ["lambda_local_scenario", "overlay_factor_total"]
-                                    )
-                                    .join(sampled_keys, on=sample_key_cols, how="inner")
-                                    .collect()
-                                )
-                                sample_rows = sampled_inputs.iter_rows(named=True)
 
                             sample_with_bucket: list[dict] = []
                             missing_bucket = 0

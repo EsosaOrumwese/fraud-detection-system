@@ -3443,3 +3443,50 @@ Freeze posture:
 Execution law for handoff:
 - 6A is now read-only input for 6B.
 - no 6A owner-state reopen is permitted unless explicitly directed by USER and documented as a new lane.
+
+### Entry: 2026-02-28 08:06:15
+
+M6A memory-hardening implementation pass (`S2/S3/S4`) and witness-lane blockers.
+
+Implemented code changes:
+1) `6A.S2` (`s2_accounts/runner.py`): removed frame-accumulation fallback for parquet emission; writer path is now streaming-only and fail-closed when `pyarrow` is unavailable.
+2) `6A.S3` (`s3_instruments/runner.py`): removed instrument/link in-memory concat fallback; writer path is now streaming-only with explicit fail-closed posture when `pyarrow` is unavailable.
+3) `6A.S4` (`s4_device_graph/runner.py`): replaced multi-part polars concat fallback in `_merge_parquet_parts` with fail-closed error; only single-part replace fallback remains when `pyarrow` is absent.
+
+Reasoning:
+- these were the exact fallback paths identified in `M6A.1-3` as memory-spike surfaces (full-frame concat/read-all merge).
+- preserving deterministic streaming writers takes precedence over permissive fallback behavior on constrained hosts.
+
+Verification attempt outcomes:
+1) `run_id=c25a2675fbfbacd952b13bb594880e92`: `6A.S2` executes through allocation/emit but fails at idempotent output conflict because existing authority output differs (immutable run lane).
+2) `run_id=43312aa79f8772de7dcc9db809b46992`: `6A.S0` fails upstream hashgate (`validation_bundle_5B` missing), so `6A` owner-lane witness cannot start.
+
+Conclusion:
+- code hardening is complete for `M6A.1-3`.
+- `M6A.4` remains pending a fresh staged run-id with writable `layer3/6A` outputs and valid sealed upstream gates.
+
+### Entry: 2026-02-28 08:10:12
+
+M6A witness-unblock attempt via fresh staged run lane.
+
+Action:
+1) created fresh run-id `c921e26ac6b84c58ae77187b559326f5` under `runs/fix-data-engine`.
+2) copied/rewrote run_receipt to new run-id.
+3) linked upstream `data/layer1` and `data/layer2` to authority `c25` run via junctions so `layer3/6A` remains writable.
+
+Outcome:
+- `6A.S0` fails before owner-state execution with `6A.S0.UPSTREAM_HASHGATE_SCHEMA_INVALID` on `validation_bundle_2A`.
+
+Interpretation:
+- this is an upstream hashgate/schema compatibility blocker, not a failure in `M6A.1-3` code changes.
+- cannot proceed to `M6A.4` closure until a clean upstream-compatible staged lane is provided.
+
+### Entry: 2026-02-28 08:12:02
+
+Housekeeping after staged-lane failure.
+
+Action:
+- pruned failed staged run folder `runs/fix-data-engine/c921e26ac6b84c58ae77187b559326f5` after blocker evidence capture.
+
+Reason:
+- prevent failed run-id accumulation and storage growth while retaining full blocker context in build plan/logbook.

@@ -1874,3 +1874,39 @@ P6 execution status (closure authority):
 - prune receipt:
   - superseded run-id folders removed: `189940d0485249d6b3ed29fb496d91f8`, `4bb1ec493e2d41bd8df0effed18c0e4e`, `a16ce8f30a4e4523b21d747cf00de69a`, `2e67c9d6c6774cad81ca35d9e5dbf1e8`, `77500e5440f84b06b9611a4cc483d091`.
   - active keep-set: `08db6e3060674203af415b389d5a9cbd`, `86f38dcfc0084d06b277b7c9c00ffc05`, `2ee75ef0ff4f47948847fb314a59f632`, `b723338d60654024856679a415868783`, `39ac923d6b234cd589c3dd89fb13654c`, `ee1707f82042424ba895e19d8b4a8899`.
+
+## 8) 2026-02-28 Memory Hardening Reopen Lane (`S1` precompute owner)
+Goal:
+- remove memory-spike risk in `6B.S1` precompute stage while preserving existing `S2/S3/S4` batch posture.
+
+Scope:
+- owner state: `S1` (`packages/engine/src/engine/layers/l3/seg_6B/s1_attachment_session/runner.py`).
+- non-owner states (`S2/S3/S4`) remain watch-only unless regression appears.
+
+State-by-state execution order:
+1. `M6B.1` (`S1` eager preload decomposition).
+2. `M6B.2` (`S1` join-domain bounding).
+3. `M6B.3` integrated witness (`S1 -> S2 -> S3 -> S4 -> S5`) and closure.
+
+Current dependency note (2026-02-28):
+- execution of `M6B` remains queued behind `M6A` witness-lane readiness because `6B` consumes `6A` outputs; active blocker is `6A.S0` upstream hashgate/schema incompatibility on staged lane.
+
+Execution phases:
+
+### M6B.1 - S1 eager preload decomposition
+Definition of done:
+- [ ] replace broad eager base-table preloads with projection-scoped batched/lazy precompute tables.
+- [ ] keep session candidate semantics and deterministic bucket/session assignment behavior unchanged.
+
+### M6B.2 - S1 join-domain bounding
+Definition of done:
+- [ ] ensure candidate and vector joins are bounded by active scenario/account/device domains.
+- [ ] avoid all-domain in-memory vectors where not required.
+
+### M6B.3 - Witness rerun and closure decision
+Definition of done:
+- [ ] witness lane `S1 -> S2 -> S3 -> S4 -> S5` executes `PASS` without memory crash.
+- [ ] existing B/B+ realism closure rails remain non-regressed.
+- [ ] decision emitted:
+  - `MEMORY_HARDENING_CLOSED_6B` if stable pass,
+  - `HOLD_M6B_REOPEN` otherwise.

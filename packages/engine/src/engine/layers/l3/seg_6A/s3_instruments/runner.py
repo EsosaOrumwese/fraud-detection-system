@@ -1402,8 +1402,6 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
     tmp_link = tmp_dir / link_path.name
     instrument_writer = None
     link_writer = None
-    instrument_frames: list[pl.DataFrame] = []
-    link_frames: list[pl.DataFrame] = []
 
     emit_tracker = _ProgressTracker(total_instruments, logger, "S3: emit s3_instrument_base_6A")
     alloc_tracker = _ProgressTracker(len(instrument_counts), logger, "S3: allocate instruments to accounts")
@@ -1471,8 +1469,13 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
             instrument_writer.write_table(inst_table)
             link_writer.write_table(link_table)
         else:
-            instrument_frames.append(instrument_frame)
-            link_frames.append(link_frame)
+            _abort(
+                "6A.S3.IO_WRITE_FAILED",
+                "V-10",
+                "pyarrow_required_for_streaming_writer",
+                {"detail": "pyarrow is required to emit S3 instrument/link outputs without in-memory concat fallback"},
+                manifest_fingerprint,
+            )
         emit_chunks += 1
         emit_rows_written += row_count
 
@@ -1761,8 +1764,6 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
     if instrument_writer is not None:
         instrument_writer.close()
-    elif instrument_frames:
-        pl.concat(instrument_frames).write_parquet(tmp_instrument, compression="zstd")
     elif total_instruments == 0:
         empty_frame = pl.DataFrame(
             [],
@@ -1781,8 +1782,6 @@ def run_s3(config: EngineConfig, run_id: Optional[str] = None) -> S3Result:
 
     if link_writer is not None:
         link_writer.close()
-    elif link_frames:
-        pl.concat(link_frames).write_parquet(tmp_link, compression="zstd")
     elif total_instruments == 0:
         empty_link = pl.DataFrame([], schema=["account_id", "instrument_id", "instrument_type", "scheme"])
         empty_link.write_parquet(tmp_link, compression="zstd")

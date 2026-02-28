@@ -1750,3 +1750,49 @@ Closure evidence:
   - seed7: `6c4973df73084bcba92a725de8ba9528`
   - seed101: `efcf57f1ca8f411b888107bf021ce55e`
   - seed202: `4955a5612d5c45b38fe5c4cbdbc50cc9`
+
+## 10) 2026-02-28 Memory Hardening Reopen Lane (`S4` crash owner)
+Goal:
+- remove hard native crash in `5A.S4` under fresh full-run posture while preserving deterministic output contracts.
+
+Scope:
+- owner state: `S4` only (`packages/engine/src/engine/layers/l2/seg_5A/s4_calendar_overlays/runner.py`).
+- no policy threshold/scorer contract changes in this lane.
+
+Execution phases:
+
+### M5A.1 - Baseline crash lock
+Definition of done:
+- [x] repeated crash signature captured on authority run-id (`Error 2816`, same terminal log boundary).
+- [x] exact hot path and memory expansion boundary pinned in implementation notes.
+
+### M5A.2 - Structural refactor to chunked streaming compose
+Definition of done:
+- [x] removed Python scope-key expansion overhead and reduced factor-column residency in overlay aggregation.
+- [x] implemented memory-safe streaming output path (`ENGINE_S4_MEMORY_SAFE_MODE`) with lazy sink for scenario/overlay/utc outputs.
+- [x] retained idempotent publish + schema contract validation (fast sampled mode) under memory-safe posture.
+
+### M5A.3 - Post-compose fairness/validation stabilization
+Definition of done:
+- [x] memory-safe mode avoids full-frame fairness/warn/metric scans; deferred/zeroed fields are explicit and logged.
+- [x] no contract drift in `s4_run_report_5A` required fields.
+
+### M5A.4 - Witness rerun and closure decision
+Definition of done:
+- [x] `segment5a-s4` executes `PASS` on witness run-id `43312aa79f8772de7dcc9db809b46992` (no native termination).
+- [x] downstream `segment5a-s5` executes `PASS`.
+- [x] decision emitted:
+  - `UNLOCK_M5B` (stable pass on witness lane).
+
+### M5A.5 - Downstream contract-compatibility reopen (`channel_group`)
+Definition of done:
+- [x] `merchant_zone_scenario_local_5A` preserves required downstream column `channel_group` under memory-safe mode.
+- [x] `segment5b-s1` on the same witness run-id passes grouping-domain derivation with no schema/projection failure.
+- [x] decision emitted:
+  - `UNLOCK_M5B` if compatibility is restored,
+  - `HOLD_M5A_REOPEN` otherwise.
+
+Closure evidence:
+- witness run-id: `43312aa79f8772de7dcc9db809b46992`.
+- `segment5a-s4`: `PASS` after `channel_group` restoration.
+- `segment5b-s1`: `PASS` with vectorized scenario-local scan (no projection failure).

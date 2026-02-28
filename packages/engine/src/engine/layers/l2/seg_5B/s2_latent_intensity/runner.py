@@ -1890,7 +1890,14 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             realised_tmp_path = realised_tmp_dir / realised_path.name
 
             writer = None
-            realised_chunks: list[pl.DataFrame] = []
+            if not _HAVE_PYARROW:
+                _abort(
+                    "5B.S2.IO_WRITE_FAILED",
+                    "V-08",
+                    "pyarrow_required_for_streaming_writer",
+                    {"detail": "pyarrow is required to stream realised-intensity parquet output without in-memory concat fallback"},
+                    manifest_fingerprint,
+                )
             realised_rows = 0
 
             grouping_lookup = grouping_df.select(
@@ -2109,14 +2116,9 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                     if writer is None:
                         writer = pq.ParquetWriter(realised_tmp_path, table.schema, compression="zstd")
                     writer.write_table(table)
-                else:
-                    realised_chunks.append(output_df)
 
             if writer is not None:
                 writer.close()
-            elif realised_chunks:
-                realised_all = pl.concat(realised_chunks)
-                realised_all.write_parquet(realised_tmp_path, compression="zstd")
 
             if realised_rows == 0:
                 _abort(

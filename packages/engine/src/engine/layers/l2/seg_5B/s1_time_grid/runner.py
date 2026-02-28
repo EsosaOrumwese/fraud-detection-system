@@ -466,28 +466,35 @@ def _scan_domain_keys(
     scenario_id: str,
     logger,
     manifest_fingerprint: str,
+    profile_channel_map: dict[tuple[int, str, str], str] | None = None,
 ) -> tuple[set[tuple[int, str, str, str]], int]:
     source_paths = [str(path) for path in paths]
     if not source_paths:
         return set(), 0
 
-    scan = pl.scan_parquet(source_paths).select(
-        [
-            pl.col("scenario_id"),
-            pl.col("merchant_id"),
-            pl.col("legal_country_iso"),
-            pl.col("tzid"),
-            pl.col("channel_group"),
-        ]
-    )
+    profile_channel_map = profile_channel_map or {}
+    scan_base = pl.scan_parquet(source_paths)
+    schema_names = set(scan_base.collect_schema().names())
+    has_channel_group = "channel_group" in schema_names
+
+    select_cols: list[pl.Expr] = [
+        pl.col("scenario_id"),
+        pl.col("merchant_id"),
+        pl.col("legal_country_iso"),
+        pl.col("tzid"),
+    ]
+    if has_channel_group:
+        select_cols.append(pl.col("channel_group"))
+    scan = scan_base.select(select_cols)
+
     scenario_match = pl.col("scenario_id") == pl.lit(scenario_id)
     invalid_row = (
         pl.col("merchant_id").is_null()
         | pl.col("legal_country_iso").is_null()
         | pl.col("tzid").is_null()
-        | pl.col("channel_group").is_null()
-        | pl.col("channel_group").cast(pl.Utf8).str.strip_chars().eq("")
     )
+    if has_channel_group:
+        invalid_row = invalid_row | pl.col("channel_group").is_null() | pl.col("channel_group").cast(pl.Utf8).str.strip_chars().eq("")
 
     summary = (
         scan.select(
@@ -553,34 +560,74 @@ def _scan_domain_keys(
             manifest_fingerprint,
         )
 
-    keys_df = (
-        scan.filter(scenario_match)
-        .select(
-            [
-                pl.col("merchant_id").cast(pl.UInt64).alias("merchant_id"),
-                pl.col("legal_country_iso").cast(pl.Utf8).alias("legal_country_iso"),
-                pl.col("tzid").cast(pl.Utf8).alias("tzid"),
-                pl.col("channel_group").cast(pl.Utf8).str.strip_chars().alias("channel_group"),
-            ]
+    if has_channel_group:
+        keys_df = (
+            scan.filter(scenario_match)
+            .select(
+                [
+                    pl.col("merchant_id").cast(pl.UInt64).alias("merchant_id"),
+                    pl.col("legal_country_iso").cast(pl.Utf8).alias("legal_country_iso"),
+                    pl.col("tzid").cast(pl.Utf8).alias("tzid"),
+                    pl.col("channel_group").cast(pl.Utf8).str.strip_chars().alias("channel_group"),
+                ]
+            )
+            .unique()
+            .collect()
         )
-        .unique()
-        .collect()
-    )
+    else:
+        keys_df = (
+            scan.filter(scenario_match)
+            .select(
+                [
+                    pl.col("merchant_id").cast(pl.UInt64).alias("merchant_id"),
+                    pl.col("legal_country_iso").cast(pl.Utf8).alias("legal_country_iso"),
+                    pl.col("tzid").cast(pl.Utf8).alias("tzid"),
+                ]
+            )
+            .unique()
+            .collect()
+        )
     keys: set[tuple[int, str, str, str]] = set()
-    for mid, iso, tzid, channel in keys_df.iter_rows():
-        keys.add((int(mid), str(iso), str(tzid), str(channel)))
+    if has_channel_group:
+        for mid, iso, tzid, channel in keys_df.iter_rows():
+            keys.add((int(mid), str(iso), str(tzid), str(channel)))
+    else:
+        missing_channel_count = 0
+        first_missing_key: tuple[int, str, str] | None = None
+        for mid, iso, tzid in keys_df.iter_rows():
+            key = (int(mid), str(iso), str(tzid))
+            channel_text = str(profile_channel_map.get(key) or "").strip()
+            if not channel_text:
+                missing_channel_count += 1
+                if first_missing_key is None:
+                    first_missing_key = key
+                continue
+            keys.add((key[0], key[1], key[2], channel_text))
+        if missing_channel_count:
+            _abort(
+                "5B.S1.GROUP_DOMAIN_DERIVATION_FAILED",
+                "V-07",
+                "channel_group_missing_fallback",
+                {
+                    "scenario_id": scenario_id,
+                    "missing_channel_count": missing_channel_count,
+                    "first_missing_key": list(first_missing_key) if first_missing_key else None,
+                },
+                manifest_fingerprint,
+            )
 
     logger.info(
-        "S1: scan scenario_local keys (scenario_id=%s) rows_seen=%d unique_keys=%d mode=vectorized",
+        "S1: scan scenario_local keys (scenario_id=%s) rows_seen=%d unique_keys=%d mode=vectorized channel_source=%s",
         scenario_id,
         rows_seen,
         len(keys),
+        "scenario_local" if has_channel_group else "profile_fallback",
     )
     return keys, rows_seen
 
-def _load_profile_map(path: Path, logger, manifest_fingerprint: str) -> dict[tuple[int, str, str], str]:
+def _load_profile_map(path: Path, logger, manifest_fingerprint: str) -> tuple[dict[tuple[int, str, str], str], dict[tuple[int, str, str], str]]:
     files = _list_parquet_files(path)
-    df = pl.read_parquet(files, columns=["merchant_id", "legal_country_iso", "tzid", "demand_class"])
+    df = pl.read_parquet(files, columns=["merchant_id", "legal_country_iso", "tzid", "demand_class", "channel_group"])
     if df.is_empty():
         _abort(
             "5B.S1.GROUP_DOMAIN_DERIVATION_FAILED",
@@ -590,21 +637,32 @@ def _load_profile_map(path: Path, logger, manifest_fingerprint: str) -> dict[tup
             manifest_fingerprint,
         )
     profile_map: dict[tuple[int, str, str], str] = {}
+    profile_channel_map: dict[tuple[int, str, str], str] = {}
     for row in df.iter_rows(named=True):
         merchant_id = row.get("merchant_id")
         legal_country_iso = row.get("legal_country_iso")
         tzid = row.get("tzid")
         demand_class = row.get("demand_class")
-        if merchant_id is None or legal_country_iso is None or tzid is None or demand_class is None:
+        channel_group = row.get("channel_group")
+        if merchant_id is None or legal_country_iso is None or tzid is None or demand_class is None or channel_group is None:
             _abort(
                 "5B.S1.GROUP_DOMAIN_DERIVATION_FAILED",
                 "V-07",
                 "profile_row_missing",
-                {"detail": "merchant_id/legal_country_iso/tzid/demand_class missing"},
+                {"detail": "merchant_id/legal_country_iso/tzid/demand_class/channel_group missing"},
                 manifest_fingerprint,
             )
         key = (int(merchant_id), str(legal_country_iso), str(tzid))
         demand_class_text = str(demand_class)
+        channel_group_text = str(channel_group).strip()
+        if not channel_group_text:
+            _abort(
+                "5B.S1.GROUP_DOMAIN_DERIVATION_FAILED",
+                "V-07",
+                "profile_channel_group_empty",
+                {"merchant_id": int(merchant_id), "key": list(key)},
+                manifest_fingerprint,
+            )
         existing = profile_map.get(key)
         if existing and existing != demand_class_text:
             _abort(
@@ -614,9 +672,19 @@ def _load_profile_map(path: Path, logger, manifest_fingerprint: str) -> dict[tup
                 {"merchant_id": int(merchant_id), "key": key},
                 manifest_fingerprint,
             )
+        existing_channel = profile_channel_map.get(key)
+        if existing_channel and existing_channel != channel_group_text:
+            _abort(
+                "5B.S1.GROUP_DOMAIN_DERIVATION_FAILED",
+                "V-07",
+                "profile_channel_group_conflict",
+                {"merchant_id": int(merchant_id), "key": list(key)},
+                manifest_fingerprint,
+            )
         profile_map[key] = demand_class_text
+        profile_channel_map[key] = channel_group_text
     logger.info("S1: merchant_zone_profile_5A loaded (rows=%d unique_keys=%d)", df.height, len(profile_map))
-    return profile_map
+    return profile_map, profile_channel_map
 
 
 def _load_virtual_map(path: Path, logger, manifest_fingerprint: str) -> dict[int, str]:
@@ -1054,7 +1122,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
         current_phase = "domain_maps"
         profile_entry = find_dataset_entry(dictionary_5b, "merchant_zone_profile_5A").entry
         profile_path = _resolve_dataset_path(profile_entry, run_paths, config.external_roots, tokens)
-        profile_map = _load_profile_map(profile_path, logger, manifest_fingerprint)
+        profile_map, profile_channel_map = _load_profile_map(profile_path, logger, manifest_fingerprint)
 
         virtual_entry = find_dataset_entry(dictionary_5b, "virtual_classification_3B").entry
         virtual_path = _resolve_dataset_path(virtual_entry, run_paths, config.external_roots, tokens)
@@ -1298,6 +1366,7 @@ def run_s1(config: EngineConfig, run_id: Optional[str] = None) -> S1Result:
                 str(scenario_id),
                 logger,
                 manifest_fingerprint,
+                profile_channel_map=profile_channel_map,
             )
             if not domain_keys:
                 _abort(

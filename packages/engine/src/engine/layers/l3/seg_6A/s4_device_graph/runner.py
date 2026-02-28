@@ -866,9 +866,10 @@ def _merge_parquet_parts(part_paths: list[Path], output_path: Path, logger, labe
         if len(part_paths) == 1:
             part_paths[0].replace(output_path)
         else:
-            frames = [pl.read_parquet(path) for path in part_paths]
-            pl.concat(frames, how="vertical").write_parquet(output_path, compression="zstd")
-        logger.info("S4: merged %s parts=%s -> %s (polars fallback)", label, len(part_paths), output_path)
+            raise RuntimeError(
+                f"pyarrow is required to merge multi-part parquet outputs for {label} without memory-heavy concat fallback"
+            )
+        logger.info("S4: merged %s parts=%s -> %s (single-part fallback)", label, len(part_paths), output_path)
         return
     schema = pq.read_schema(part_paths[0])
     writer = pq.ParquetWriter(output_path, schema, compression="zstd")

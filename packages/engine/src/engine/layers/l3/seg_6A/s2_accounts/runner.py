@@ -2083,7 +2083,6 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
     account_buffer: list[tuple] = []
     account_buffer_rows = 0
     account_writer = None
-    buffered_frames: list[pl.DataFrame] = []
 
     account_id = 1
     account_tracker = _ProgressTracker(total_accounts, logger, "S2: emit s2_account_base_6A")
@@ -2116,7 +2115,13 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 account_writer = pq.ParquetWriter(tmp_account, table.schema, compression="zstd")
             account_writer.write_table(table)
         else:
-            buffered_frames.append(frame)
+            _abort(
+                "6A.S2.IO_WRITE_FAILED",
+                "V-10",
+                "pyarrow_required_for_streaming_writer",
+                {"detail": "pyarrow is required to emit s2_account_base_6A without in-memory concat fallback"},
+                manifest_fingerprint,
+            )
         account_buffer_rows = 0
         account_buffer.clear()
 
@@ -2152,10 +2157,16 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 account_tracker.update(count)
 
     _flush_account_buffer()
+    if not _HAVE_PYARROW:
+        _abort(
+            "6A.S2.IO_WRITE_FAILED",
+            "V-10",
+            "pyarrow_required_for_streaming_writer",
+            {"detail": "pyarrow is required to emit s2_account_base_6A without in-memory concat fallback"},
+            manifest_fingerprint,
+        )
     if account_writer is not None:
         account_writer.close()
-    elif buffered_frames:
-        pl.concat(buffered_frames).write_parquet(tmp_account, compression="zstd")
 
     _publish_parquet_file_idempotent(
         tmp_account,
@@ -2177,7 +2188,6 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
     holdings_buffer: list[tuple] = []
     holdings_buffer_rows = 0
     holdings_writer = None
-    holdings_frames: list[pl.DataFrame] = []
     step_started = time.monotonic()
 
     holdings_tracker = _ProgressTracker(holdings_rows_total, logger, "S2: emit s2_party_product_holdings_6A")
@@ -2198,7 +2208,13 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
                 holdings_writer = pq.ParquetWriter(tmp_holdings, table.schema, compression="zstd")
             holdings_writer.write_table(table)
         else:
-            holdings_frames.append(frame)
+            _abort(
+                "6A.S2.IO_WRITE_FAILED",
+                "V-10",
+                "pyarrow_required_for_streaming_writer",
+                {"detail": "pyarrow is required to emit s2_party_product_holdings_6A without in-memory concat fallback"},
+                manifest_fingerprint,
+            )
         holdings_buffer_rows = 0
         holdings_buffer.clear()
 
@@ -2211,10 +2227,16 @@ def run_s2(config: EngineConfig, run_id: Optional[str] = None) -> S2Result:
             holdings_tracker.update(1)
 
     _flush_holdings_buffer()
+    if not _HAVE_PYARROW:
+        _abort(
+            "6A.S2.IO_WRITE_FAILED",
+            "V-10",
+            "pyarrow_required_for_streaming_writer",
+            {"detail": "pyarrow is required to emit s2_party_product_holdings_6A without in-memory concat fallback"},
+            manifest_fingerprint,
+        )
     if holdings_writer is not None:
         holdings_writer.close()
-    elif holdings_frames:
-        pl.concat(holdings_frames).write_parquet(tmp_holdings, compression="zstd")
 
     _publish_parquet_file_idempotent(
         tmp_holdings,

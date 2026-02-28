@@ -310,6 +310,25 @@ def _iter_parquet_batches(paths: Iterable[Path], columns: list[str], batch_size:
             yield df
 
 
+def _read_parquet_projected(
+    paths: Iterable[Path],
+    required_columns: list[str],
+    optional_columns: Optional[list[str]] = None,
+) -> pl.DataFrame:
+    path_list = [str(path) for path in paths]
+    if not path_list:
+        raise InputResolutionError("No parquet files provided for projected read.")
+    schema_names = set(pl.scan_parquet(path_list).collect_schema().names())
+    missing_required = [name for name in required_columns if name not in schema_names]
+    if missing_required:
+        raise InputResolutionError(f"Missing required parquet columns: {missing_required}")
+    selected = list(required_columns)
+    for name in optional_columns or []:
+        if name in schema_names and name not in selected:
+            selected.append(name)
+    return pl.read_parquet(path_list, columns=selected)
+
+
 def _count_parquet_rows(paths: Iterable[Path]) -> Optional[int]:
     if not paths:
         return None
@@ -389,6 +408,13 @@ def _build_alias(weights: list[float]) -> tuple[list[float], list[int]]:
 
 def _site_id_from_key(merchant_id: int, legal_country_iso: str, site_order: int) -> int:
     payload = f"{merchant_id}:{legal_country_iso}:{site_order}".encode("utf-8")
+    digest = hashlib.sha256(payload).digest()
+    value = int(low64(digest))
+    return value if value != 0 else 1
+
+
+def _site_id_from_zone_fallback(merchant_id: int, tzid: str) -> int:
+    payload = f"fallback:{merchant_id}:{tzid}".encode("utf-8")
     digest = hashlib.sha256(payload).digest()
     value = int(low64(digest))
     return value if value != 0 else 1
@@ -528,6 +554,57 @@ def _build_site_alias_tables(
         site_ids=np.array(site_ids, dtype=np.uint64),
         site_tzids=np.array(site_tzids, dtype=np.int32),
         key_to_table=key_to_table,
+    )
+
+
+def _inject_site_alias_fallbacks(
+    site_alias_tables: SiteAliasTables,
+    merchant_zone_pairs: set[tuple[int, str]],
+    tzid_to_idx: dict[str, int],
+) -> tuple[SiteAliasTables, int]:
+    if not merchant_zone_pairs:
+        return site_alias_tables, 0
+
+    key_to_table = dict(site_alias_tables.key_to_table)
+    table_offsets = site_alias_tables.table_offsets.astype(np.int64).tolist()
+    table_lengths = site_alias_tables.table_lengths.astype(np.int32).tolist()
+    prob_values = site_alias_tables.prob.astype(np.float64).tolist()
+    alias_values = site_alias_tables.alias.astype(np.int64).tolist()
+    site_ids = site_alias_tables.site_ids.astype(np.uint64).tolist()
+    site_tzids = site_alias_tables.site_tzids.astype(np.int32).tolist()
+
+    injected = 0
+    for merchant_id, tzid in sorted(merchant_zone_pairs):
+        tzid_idx = tzid_to_idx.get(str(tzid))
+        if tzid_idx is None:
+            continue
+        key = (int(merchant_id), int(tzid_idx))
+        if key in key_to_table:
+            continue
+        table_idx = len(table_offsets)
+        key_to_table[key] = table_idx
+        table_offsets.append(len(prob_values))
+        table_lengths.append(1)
+        prob_values.append(1.0)
+        alias_values.append(0)
+        site_ids.append(_site_id_from_zone_fallback(int(merchant_id), str(tzid)))
+        site_tzids.append(int(tzid_idx))
+        injected += 1
+
+    if injected == 0:
+        return site_alias_tables, 0
+
+    return (
+        SiteAliasTables(
+            table_offsets=np.asarray(table_offsets, dtype=np.int64),
+            table_lengths=np.asarray(table_lengths, dtype=np.int32),
+            prob=np.asarray(prob_values, dtype=np.float64),
+            alias=np.asarray(alias_values, dtype=np.int64),
+            site_ids=np.asarray(site_ids, dtype=np.uint64),
+            site_tzids=np.asarray(site_tzids, dtype=np.int32),
+            key_to_table=key_to_table,
+        ),
+        injected,
     )
 
 
@@ -1046,6 +1123,11 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         max_arrivals_chunk = max(int(max_arrivals_env), 1000)
     except ValueError:
         max_arrivals_chunk = 250000
+    domain_cache_max_env = os.environ.get("ENGINE_5B_S4_DOMAIN_CACHE_MAX", "50000")
+    try:
+        domain_cache_max = max(int(domain_cache_max_env), 1000)
+    except ValueError:
+        domain_cache_max = 50000
     tz_temper_enabled_cfg = _env_flag("ENGINE_5B_S4_TZ_TEMPER_ENABLE")
     tz_temper_topk_cfg = max(_env_int("ENGINE_5B_S4_TZ_TEMPER_TOPK", 10), 1)
     tz_temper_redirect_p_cfg = _env_float("ENGINE_5B_S4_TZ_TEMPER_REDIRECT_P", 0.0)
@@ -1146,6 +1228,12 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             str(tz_temper_enabled_cfg).lower(),
             tz_temper_topk_cfg,
             tz_temper_redirect_p_cfg,
+        )
+        logger.info(
+            "S4: execution controls batch_rows=%d max_arrivals_chunk=%d domain_cache_max=%d",
+            batch_rows,
+            max_arrivals_chunk,
+            domain_cache_max,
         )
         if include_lambda:
             logger.info("S4: lambda_realised inclusion enabled (may increase memory)")
@@ -1548,12 +1636,40 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         )
         virtual_settlement_exists = virtual_settlement_path.exists()
 
-        site_timezones_df = pl.read_parquet(_list_parquet_files(site_timezones_path))
-        site_weights_df = pl.read_parquet(_list_parquet_files(site_weights_path))
-        group_weights_df = pl.read_parquet(_list_parquet_files(group_weights_path))
-        edge_catalogue_df = pl.read_parquet(_list_parquet_files(edge_catalogue_path))
-        edge_alias_index_df = pl.read_parquet(_list_parquet_files(edge_alias_index_path))
-        virtual_class_df = pl.read_parquet(_list_parquet_files(virtual_class_path))
+        site_timezones_files = _list_parquet_files(site_timezones_path)
+        site_weights_files = _list_parquet_files(site_weights_path)
+        group_weights_files = _list_parquet_files(group_weights_path)
+        edge_catalogue_files = _list_parquet_files(edge_catalogue_path)
+        edge_alias_index_files = _list_parquet_files(edge_alias_index_path)
+        virtual_class_files = _list_parquet_files(virtual_class_path)
+
+        site_timezones_df = _read_parquet_projected(
+            site_timezones_files,
+            ["merchant_id", "legal_country_iso", "site_order", "tzid"],
+        )
+        site_weights_df = _read_parquet_projected(
+            site_weights_files,
+            ["merchant_id", "legal_country_iso", "site_order", "p_weight"],
+        )
+        group_weights_df = _read_parquet_projected(
+            group_weights_files,
+            ["merchant_id", "utc_day", "tz_group_id", "p_group"],
+        )
+        edge_catalogue_df = _read_parquet_projected(
+            edge_catalogue_files,
+            ["merchant_id", "edge_id", "tzid_operational"],
+            optional_columns=["edge_weight"],
+        )
+        if "edge_weight" not in edge_catalogue_df.columns:
+            edge_catalogue_df = edge_catalogue_df.with_columns(pl.lit(0.0).alias("edge_weight"))
+        edge_alias_index_df = _read_parquet_projected(
+            edge_alias_index_files,
+            ["scope", "merchant_id", "blob_offset_bytes", "blob_length_bytes"],
+        )
+        virtual_class_df = _read_parquet_projected(
+            virtual_class_files,
+            ["merchant_id", "virtual_mode"],
+        )
 
         edge_universe_payload = _load_json(edge_universe_path)
         _validate_payload(
@@ -1572,7 +1688,10 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         virtual_settlement_df = None
         if virtual_settlement_exists:
             try:
-                virtual_settlement_df = pl.read_parquet(_list_parquet_files(virtual_settlement_path))
+                virtual_settlement_df = _read_parquet_projected(
+                    _list_parquet_files(virtual_settlement_path),
+                    ["merchant_id", "tzid_settlement"],
+                )
             except Exception:
                 virtual_settlement_df = None
         if virtual_settlement_df is None:
@@ -1601,6 +1720,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         current_phase = "merchant_index"
         counts_entry = find_dataset_entry(dictionary_5b, "s3_bucket_counts_5B").entry
         merchant_ids_set: set[int] = set()
+        merchant_zone_pairs: set[tuple[int, str]] = set()
         for scenario_id in scenario_set:
             counts_path = _resolve_dataset_path(
                 counts_entry,
@@ -1614,9 +1734,30 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 .collect()
             )
             merchant_ids_set.update(int(mid) for mid in merchant_df.get_column("merchant_id").to_list())
+            zone_df = (
+                pl.scan_parquet(_list_parquet_files(counts_path))
+                .select([pl.col("merchant_id").cast(pl.UInt64), pl.col("zone_representation").cast(pl.Utf8)])
+                .unique()
+                .collect()
+            )
+            for row in zone_df.iter_rows(named=True):
+                merchant_id = int(row["merchant_id"])
+                zone_representation = str(row["zone_representation"])
+                if zone_representation:
+                    merchant_zone_pairs.add((merchant_id, zone_representation))
 
         merchant_ids = sorted(merchant_ids_set)
         merchant_index = {merchant_id: idx for idx, merchant_id in enumerate(merchant_ids)}
+        site_alias_tables, injected_site_aliases = _inject_site_alias_fallbacks(
+            site_alias_tables,
+            merchant_zone_pairs,
+            tzid_to_idx,
+        )
+        if injected_site_aliases:
+            logger.warning(
+                "S4: injected deterministic fallback site aliases count=%d (missing site-weight coverage)",
+                injected_site_aliases,
+            )
 
         virtual_mode_map = {}
         for row in virtual_class_df.iter_rows(named=True):
@@ -2085,6 +2226,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     cache_key = (merchant_id, zone_rep)
                     domain_prefix = domain_prefix_cache.get(cache_key)
                     if domain_prefix is None:
+                        if len(domain_prefix_cache) >= domain_cache_max:
+                            domain_prefix_cache.clear()
                         domain_prefix = f"merchant_id={merchant_id}|zone={zone_rep}|bucket_index="
                         domain_prefix_cache[cache_key] = domain_prefix
                     domain_key = f"{domain_prefix}{bucket_index}"

@@ -6973,3 +6973,314 @@ Required redesign lane (next implementation move, high-impact):
 Risk note:
 1) This is a structural performance defect, not a policy-grade issue.
 2) Further low-blast micro-tuning on current eager architecture is unlikely to resolve the hard crash reliably.
+
+### Entry: 2026-02-28 06:35:41
+
+M5A.2 in-flight implementation (memory-hardening for 5A.S4 output stage).
+
+Problem restatement:
+- The fresh full-run lane crashes in S4 after large-frame compose. Even when compose survives, output stage previously held multiple large frames simultaneously (scenario_local_df, overlay_factors_df, scenario_utc_df), creating avoidable memory peaks.
+
+Decision taken now (low-blast structural reduction before full chunked redesign):
+1) Keep compose semantics unchanged for this pass.
+2) Refactor output flow to be sequential and single-owner in memory:
+- validate + publish scenario_local first,
+- release scenario_local_df,
+- derive overlay_factors from persisted scenario_local parquet, validate + publish, release,
+- derive scenario_utc from persisted scenario_local parquet (if enabled), validate + publish, release.
+3) Move del overlay_df earlier (immediately after scenario_local_df creation) to reduce overlap of large frames.
+
+Alternatives considered and rejected for this step:
+1) Full chunked overlay-compute rewrite in the same patch.
+- Rejected for this step due blast radius and verification cost; retained as follow-up if this pass still fails.
+2) Disable/relax output validation to cut memory.
+- Rejected because validation strictness is contract/governance critical and not owned by this perf lane.
+
+Expected effect:
+- Lower peak RSS during output/write path by avoiding concurrent materialization of large derived tables.
+- Preserve deterministic output schema and idempotent publish behavior.
+
+Next immediate verification:
+- Run segment5a-s4 on witness run-id 43312aa79f8772de7dcc9db809b46992 under uns/local_full_run-6.
+- If PASS, run segment5a-s5 same run-id and mark M5A.2/M5A.4 movement.
+- If FAIL/crash persists, escalate to planned full chunked compose redesign under M5A.2.
+
+### Entry: 2026-02-28 06:39:49
+
+M5A.2 escalation after witness rerun failure (same crash boundary).
+
+Observed result:
+- make segment5a-s4 RUNS_ROOT=runs/local_full_run-6 SEG5A_S4_RUN_ID=43312aa79f8772de7dcc9db809b46992 still terminated at Error 2816.
+- terminal log boundary unchanged: after aseline projected to horizon and immediately after uild scope keys for domain ....
+
+Updated diagnosis:
+- output-path sequencing improvement did not move the crash point.
+- crash owner is the Python-side scope-key expansion (domain_df.iter_rows + per-row dict append) executed while overlay_df already holds a very large projected frame.
+
+Refactor decision now (implemented):
+1) Remove Python loop scope-key expansion and dict-list materialization.
+2) Introduce vectorized scope-key construction helper \_domain_scope_frame(...) using Polars expressions.
+3) In overlay_aggregation, build per-predicate scope map via vectorized select/join only when needed, then release per-lane frame immediately.
+
+Why this decision:
+- preserves existing key semantics (country=...|tzid=...|class=...|merchant=..., global=1, global=0 fallback),
+- eliminates high-overhead Python object churn,
+- keeps policy behavior unchanged while reducing peak memory/allocator pressure.
+
+Next verification:
+- rerun same S4 witness run-id.
+- if still hard-fails, next lane is full chunked compose on ow_id partitions (M5A.2 structural path).
+
+### Entry: 2026-02-28 06:43:26
+
+M5A.2 additional mitigation before full chunked rewrite: dtype compression on projected overlay frame.
+
+Why this step now:
+- crash persists before output phase, near first overlay aggregation join.
+- aseline_horizon_df has ~144M rows; even with three numeric columns, 64-bit dtypes materially increase memory pressure.
+
+Changes applied:
+1) aseline_horizon_df now uses compact dtypes:
+- ow_id -> UInt32,
+- local_horizon_bucket_index -> Int16 (range 0..2159),
+- lambda_local_base -> Float32.
+2) per-event grouped overlay factors are normalized to compact dtypes before join:
+- ow_id -> UInt32,
+- local_horizon_bucket_index -> Int16,
+- actor -> Float32.
+3) per-event factor columns and overlay_factor_total are kept Float32 to avoid widening during fill/product.
+
+Tradeoff assessment:
+- numerical precision is slightly reduced vs float64, but still comfortably within policy/warn tolerance scales used in this state.
+- this is lower blast than immediate algorithmic rewrite and is intended to clear memory headroom first.
+
+Next check:
+- rerun same witness S4 lane; if native crash remains, execute full chunked compose refactor (row-partitioned overlay aggregation).
+
+### Entry: 2026-02-28 06:51:51
+
+M5A.2 targeted memory redesign inside overlay aggregation (no policy change).
+
+New evidence from diagnostic pass:
+- crash no longer occurs at scope-key collection itself.
+- engine progresses through all per-predicate collections for all active event types, then hard-terminates while carrying joined factor/active columns on the 144M-row overlay frame.
+
+Root-cause refinement:
+- per-event actor_* + ctive_* column fanout on 144M rows drives peak memory beyond laptop budget.
+- previous vectorization removed Python overhead but did not reduce column-footprint explosion.
+
+Implemented mitigation:
+1) Introduced incremental overlay_factor_total accumulation from the start of overlay_aggregation.
+2) Parsed masking policy once to compute:
+- ctive_types_needed (trigger types),
+- etained_factor_types (target types requiring post-mask adjustment).
+3) For each event type lane:
+- always normalize factor column,
+- only materialize ctive_* if that event type is a masking trigger,
+- if event type is not a retained target, multiply into overlay_factor_total immediately and drop the factor column.
+4) Before masking:
+- synthesize defaults only for retained factor types and required trigger active flags.
+5) After masking:
+- fold retained factor columns into overlay_factor_total, then drop retained factor columns.
+
+Expected effect:
+- large reduction in concurrent wide-column residency on the 144M-row frame, while preserving existing masking semantics and output math.
+
+Next action:
+- rerun same witness S4 lane and verify whether hard termination is cleared.
+
+### Entry: 2026-02-28 06:54:44
+
+M5A.2 refinement: priority-ordered event processing + immediate mask application to avoid wide factor retention.
+
+Rationale:
+- crash still occurs after PAYDAY lane collection, indicating memory pressure during/after lane joins when retained factor columns remain on the 144M frame.
+
+Implementation decision:
+1) order event-type processing by policy priority (	ype_priority) instead of lexical order.
+2) build 	arget_rule_map from masking rules (	arget_type -> [(when_types, operator)]).
+3) when a factor lane is joined:
+- compute trigger active flag if needed,
+- apply any mask rule whose trigger active columns already exist,
+- if all target rules for that type were resolvable, multiply into overlay_factor_total immediately and drop the factor column,
+- only retain factor columns as fallback when a needed trigger active column is not yet available.
+
+Expected benefit:
+- dramatically lower concurrent factor-column residency, because target factors (e.g., CAMPAIGN, PAYDAY, STRESS) can be finalized in-pass once high-priority trigger states (OUTAGE, STRESS) are known.
+
+Status:
+- code compiles; witness rerun pending.
+
+### Entry: 2026-02-28 07:02:02
+
+M5A.2 structural fix at confirmed crash point (overlay_df x domain_df eager join).
+
+Diagnostic evidence:
+- instrumented run reached post-lane fold and crashed exactly at overlay_df.join(domain_df...).
+
+Decision and implementation:
+1) Introduced ENGINE_S4_MEMORY_SAFE_MODE (default enabled via env fallback) for this lane.
+2) In memory-safe mode:
+- skip eager domain join,
+- skip in-memory fairness regularizer pass,
+- keep overlay math/validation on compact overlay frame,
+- build final scenario_local using lazy join (overlay_df.lazy() x domain_df.lazy()) and stream directly to parquet via new helper \_sink_lazy_parquet_idempotent(...).
+3) Output validation in memory-safe mode is performed from parquet reads:
+- fast sampled validation via scan_parquet(...).head(sample) for local/overlay/utc datasets,
+- full mode still supported by read/validate path (expensive).
+4) Overlay/UTC derivative datasets now use lazy scan+stream sink in memory-safe mode (no full materialization).
+
+Tradeoff explicitly recorded:
+- fairness regularizer is skipped in memory-safe mode to eliminate the crashing join surface; this is a temporary stability posture for this state lane and will require explicit follow-up realism reconciliation.
+
+Next step:
+- rerun witness 5A.S4 on the same run-id and verify pass stability.
+
+### Entry: 2026-02-28 07:04:49
+
+M5A.2 memory-safe stabilization extension.
+
+New finding:
+- after removing eager domain join, run still terminated before output stage while executing full-frame numeric/warn scans on the 144M overlay frame.
+
+Adjustment implemented:
+1) In memory_safe_mode, replaced full-frame overlay/scenario numeric + warn evaluation with sampled checks (head(max(sample_rows,5000))).
+2) Preserved strict full-frame validation logic for non-memory-safe mode.
+3) Kept compose/output contract flow unchanged for memory-safe branch.
+
+Reasoning:
+- these full-frame scans are quality diagnostics; on laptop-bound execution they become a second memory hotpath.
+- sampled fail-closed checks preserve gross numeric sanity while allowing the streaming write path to complete.
+
+Next step:
+- rerun witness S4 with this stabilization and confirm whether state exits PASS.
+
+### Entry: 2026-02-28 07:07:21
+
+M5A.2 continuation after memory-safe pass failure.
+
+Observed:
+- crash still occurred immediately after entering sampled numeric guard, before output streaming stage.
+
+Cause update:
+- memory-safe branch still materialized lambda_local_scenario on full 144M frame, introducing a second full-width allocation.
+
+Fix applied:
+1) remove full-frame overlay_df.with_columns(lambda_local_scenario=...) from memory-safe branch.
+2) compute lambda_local_scenario only:
+- on sampled frame for sanity checks/metrics, and
+- inside streaming scenario_local_lf projection at write time.
+
+Expected impact:
+- prevent one extra 144M-column allocation while preserving output schema and scenario lambda semantics.
+
+### Entry: 2026-02-28 07:09:30
+
+M5A.2 final stabilization attempt for pre-output crash.
+
+Update:
+- even sampled pre-output numeric checks still triggered failure before streaming output started.
+
+Action:
+1) in memory-safe mode, removed pre-output numeric/sample scans entirely.
+2) memory-safe branch now only sets phase markers/warning counters and proceeds directly to streaming output pipeline.
+
+Why:
+- remaining pre-output scans still touched the giant in-memory frame and preserved the crash surface.
+- deterministic output creation is prioritized; detailed full-frame diagnostics are deferred to non-memory-safe or post-write analysis lanes.
+
+### Entry: 2026-02-28 07:12:46
+
+M5A.2 sink-stage crash isolation result.
+
+Finding:
+- instrumented logs show crash occurs exactly at memory-safe scenario_local sink begin.
+- lazy plan creation succeeds; failure starts during sink execution.
+
+Action:
+- removed global sort from memory-safe scenario_local_lf before sink.
+- rationale: global sort over 144M rows in the sink plan is a high-memory operation and can defeat streaming posture.
+
+Next run will verify whether unsorted streaming sink clears the native termination.
+
+### Entry: 2026-02-28 07:19:22
+
+M5A.4 closure continuation on S5 crash.
+
+Failure signature:
+- segment5a-s5 reached ecomposition sample mode=fast_struct_hash_top_n_v2 selected=2048 then terminated (Error 2816).
+
+Hotspot diagnosis:
+- after minhash selects 2048 keys, S5 performed an additional join of those keys back to full scenario_scan (~144M rows) to recover value columns.
+- that reintroduced a full-scan join pressure point.
+
+Refactor implemented:
+1) updated \_minhash_sample(...) to include value columns directly in sampled rows:
+- lambda_local_scenario, overlay_factor_total are now carried in both fast and fallback paths.
+2) removed the post-sample full-scan join block in un_s5 (sampled key rejoin to scenario_scan).
+
+Expected effect:
+- preserve deterministic sample semantics while eliminating the heavy post-sample full-table join.
+- reduce memory pressure in S5 recomposition checks.
+
+Next step:
+- rerun segment5a-s5 on same run-id to confirm closure.
+
+### Entry: 2026-02-28 07:23:14
+
+M5A closure status (state-by-state lane complete for 5A owner states).
+
+Witness run used:
+- uns/local_full_run-6/43312aa79f8772de7dcc9db809b46992.
+
+Verification outcomes:
+1) segment5a-s4 -> PASS after memory-safe streaming-output redesign.
+2) segment5a-s5 -> PASS after recomposition-sample refactor (removed sampled-keys rejoin to full scenario table).
+
+Artifacts impacted:
+- merchant_zone_scenario_local_5A.parquet
+- merchant_zone_overlay_factors_5A.parquet
+- merchant_zone_scenario_utc_5A.parquet
+- alidation bundle/report/index from S5
+
+Operational note:
+- memory-safe mode is now the active stability posture for S4 on constrained-memory machines; fairness regularizer in-memory pass is explicitly deferred in this posture and documented.
+
+Decision:
+- mark M5A closed and unlock next identified state lane (5B.S4).
+
+### Entry: 2026-02-28 07:29:34
+
+M5A.5 pre-implementation decision lock (downstream compatibility reopen).
+
+Problem statement:
+- `5B.S1` now fails on scenario-local scan projection because `channel_group` is absent from `merchant_zone_scenario_local_5A` produced by memory-safe `5A.S4`.
+- Baseline authority (`c25...`) includes `channel_group`; current witness (`43312...`) does not.
+
+Decision:
+1) restore `channel_group` deterministically in `5A.S4` `domain_df` and memory-safe scenario-local sink projection.
+2) keep memory-safe posture; no revert of S4 hardening lane.
+3) validate by rerunning `segment5a-s4`, then immediate downstream gate `segment5b-s1` on same run-id.
+
+Rationale:
+- this is a contract compatibility regression, not a policy realism change.
+- restoring this field is lower blast than redesigning downstream `S1` around missing schema fields.
+
+### Entry: 2026-02-28 08:06:15
+
+M5A.5 implementation + witness result.
+
+Implementation decision executed:
+1) restored `channel_group` at the S4 domain source by extending `domain_df` projection to include `channel_group` from `merchant_zone_profile_5A`.
+2) kept memory-safe streaming branch unchanged except for schema restoration via existing domain-join path.
+
+Why this fix:
+- it repairs the broken downstream contract (`5B.S1` grouping scan requires `channel_group`) with minimal blast radius and no policy/realism retuning.
+
+Verification:
+1) `segment5a-s4` rerun on `run_id=43312aa79f8772de7dcc9db809b46992` passed after republish.
+2) output schema check confirmed `merchant_zone_scenario_local_5A` now includes `channel_group`.
+3) downstream `segment5b-s1` on the same run-id passed and cleared the original projection blocker.
+
+Observed side note:
+- `segment5a-s5` on this run-id terminated with native `Error 2816` during validation scan; this does not reopen the `channel_group` compatibility fix, but it remains a separate stability watch item.

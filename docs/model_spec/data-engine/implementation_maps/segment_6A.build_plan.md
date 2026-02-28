@@ -1420,3 +1420,51 @@ POPT.7 closure evidence:
 - Operational rule:
   - no further 6A policy/code tuning is allowed unless explicitly reopened with a new owner-lane decision.
   - 6A may be consumed read-only by downstream Segment `6B` remediation/testing lanes.
+
+## 9) 2026-02-28 Memory Hardening Reopen Lane (`S2/S3/S4`)
+Goal:
+- harden `6A` large-row emit states against memory spikes during full engine runs.
+
+Scope:
+- `S2` accounts emit path (`packages/engine/src/engine/layers/l3/seg_6A/s2_accounts/runner.py`).
+- `S3` instruments emit path (`packages/engine/src/engine/layers/l3/seg_6A/s3_instruments/runner.py`).
+- `S4` device graph merge/emit path (`packages/engine/src/engine/layers/l3/seg_6A/s4_device_graph/runner.py`).
+
+State-by-state execution order:
+1. `M6A.1` (`S2` fallback hardening + owner-state witness).
+2. `M6A.2` (`S3` fallback hardening + owner-state witness).
+3. `M6A.3` (`S4` fallback/merge hardening + owner-state witness).
+4. `M6A.4` integrated closure witness (`S2 -> S3 -> S4 -> S5`).
+
+Execution phases:
+
+### M6A.1 - S2 emit fallback hardening
+Definition of done:
+- [x] eliminate full-frame concat fallback for account/holdings emits.
+- [ ] preserve writer determinism + idempotent publish semantics.
+
+### M6A.2 - S3 emit fallback hardening
+Definition of done:
+- [x] eliminate full-frame concat fallback for instrument/link emits.
+- [ ] preserve allocation invariants and RNG audit coverage.
+
+### M6A.3 - S4 merge fallback hardening
+Definition of done:
+- [x] replace memory-heavy fallback merge (`read_parquet all + concat`) with batched merge/sink path.
+- [ ] keep part-order determinism and output schema unchanged.
+
+### M6A.4 - Witness rerun and closure decision
+Definition of done:
+- [ ] witness lane `S2 -> S3 -> S4 -> S5` executes `PASS` without memory crash.
+- [ ] row-count/schema/integrity rails are non-regressed.
+- [ ] decision emitted:
+  - `UNLOCK_M6B` if stable pass,
+  - `HOLD_M6A_REOPEN` otherwise.
+
+Execution note (2026-02-28):
+- code hardening for `M6A.1-3` is implemented.
+- witness closure is blocked on lane readiness:
+  - `run_id=43312aa79f8772de7dcc9db809b46992` cannot run `6A` (missing `5B` validation hashgate),
+  - `run_id=c25a2675fbfbacd952b13bb594880e92` conflicts on immutable existing `6A` outputs when rerunning owner states.
+  - staged writable lane `run_id=c921e26ac6b84c58ae77187b559326f5` (linked upstream `layer1/layer2` from `c25`) fails at `6A.S0` due `validation_bundle_2A` schema-invalid hashgate; lane later pruned after evidence capture.
+- next action for `M6A.4`: execute on a fresh staged run-id with writable `layer3/6A` outputs and sealed upstream inputs from authority run.
