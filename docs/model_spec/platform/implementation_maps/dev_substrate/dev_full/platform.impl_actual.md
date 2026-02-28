@@ -17507,3 +17507,21 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
      - `sagemaker_active_endpoints=0`.
 5. Persistence scope:
    - teardown verification does not remove evidence/object-store buckets; it tears down compute/runtime surfaces and validates residual posture.
+
+## Entry: 2026-02-28 00:55:20 +00:00 - Documentation debt closure planning (post-green, pre-staging)
+1. Review intake:
+   - consumed external review feedback on build-plan green posture from `scratch_files/scratch.md`.
+2. Decision:
+   - keep `M14` (operational certification) and `M15` (production-readiness gate) deferred for later, per user direction.
+   - prioritize immediate post-green documentation debt closure for staging readiness.
+3. Planned debt items pinned into `platform.build_plan.md`:
+   - `DD-1` M6 semantics clarity (lane-direct vs bridge-equivalent admission proof),
+   - `DD-2` M8 reporter DDL/bootstrap migration formalization,
+   - `DD-3` M8 advisory-lock naming contract convergence,
+   - `DD-4` M9 replay-offset semantics pin,
+   - `DD-5` M12 rollback bounded objective numeric pin,
+   - `DD-6` M13 legacy closure debt expiry plan,
+   - `DD-7` teardown IAM capability contract pin.
+4. Closure policy:
+   - no runtime architecture expansion in this debt-closure slice,
+   - all debt items require explicit owner, source-of-truth path, and closure condition before staging signoff.

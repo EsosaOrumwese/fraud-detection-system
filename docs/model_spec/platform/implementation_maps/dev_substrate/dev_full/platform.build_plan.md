@@ -1814,3 +1814,41 @@ For every active phase (`M1..M13`):
   - non-gate acceptance pass (final verdict readability + post-teardown guardrail continuity + phase cost-outcome continuity),
   - evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13j_closure_sync_20260228T003853Z/`.
 - M13 is fully closed green on managed lane.
+
+## 12) Post-Green Documentation Debt Closure (Pre-Staging)
+Intent:
+- close audit/documentation drifts before dev_full staging deployment.
+- defer `M14` (operational certification) and `M15` (production-readiness gate) as separate future tracks.
+
+Scope:
+1. documentation and contract hardening only (no new runtime architecture).
+2. all items fail-closed for staging readiness signoff.
+
+Debt register:
+1. `DD-1` (M6 semantics clarity):
+   - pin whether current P6 admission proof is lane-direct or bridge-equivalent.
+   - if bridge-equivalent, record explicit temporary waiver posture and expiry trigger.
+2. `DD-2` (M8 reporter migration surface):
+   - convert reporter bootstrap DDL note into versioned/idempotent migration contract.
+   - identify authoritative migration surface and rollback behavior.
+3. `DD-3` (M8 advisory lock contract drift):
+   - converge handle/runtime naming (`aurora_advisory_lock` vs `db_advisory_lock`) to one truth.
+   - remove compatibility shim posture or record bounded deprecation window.
+4. `DD-4` (M9 replay-offset semantics pin):
+   - pin `origin_offset` semantics explicitly (`epoch_seconds` vs broker offsets) in plan + evidence contract.
+5. `DD-5` (M12 rollback bounded objective):
+   - pin numeric bounded-restore targets/observed metrics in drill evidence contract.
+6. `DD-6` (M13 legacy closure debt expiry):
+   - convert `legacy_pre_run_scope` usage into explicit closure-debt with expiry condition and owner.
+7. `DD-7` (teardown IAM capability contract):
+   - pin minimal teardown policy surface as governed interface to prevent future drift regressions.
+
+DoD anchors for documentation debt closure:
+- [ ] all `DD-1..DD-7` are documented with explicit owner, source-of-truth path, and closure condition.
+- [ ] no ambiguous semantics remain for replay offsets, admission proof mode, or lock contract.
+- [ ] all temporary waivers include explicit expiry trigger and remediation path.
+- [ ] staging-readiness addendum published with zero unresolved documentation blockers.
+
+Deferred tracks (intentional):
+1. `M14` operational certification (steady/burst/soak + drill scorecard) is deferred by user decision.
+2. `M15` production-readiness gate is deferred by user decision.
