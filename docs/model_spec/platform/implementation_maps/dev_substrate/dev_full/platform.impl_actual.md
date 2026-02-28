@@ -17478,3 +17478,32 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
    - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13j_closure_sync_20260228T003853Z/m13_closure_sync_snapshot.json`.
 5. Phase closure decision:
    - M13 is complete and green on managed lane.
+
+## Entry: 2026-02-28 00:49:40 +00:00 - On-demand stack teardown verification (post-build pause)
+1. User request:
+   - teardown stack while planning next steps.
+2. Teardown execution strategy:
+   - used existing managed teardown chain (`M13.F -> M13.G -> M13.H`) because no separate `dev_full` destroy workflow is materialized.
+3. Fresh managed runs executed:
+   - `M13.F` (`teardown_execution_closure`):
+     - run `22509573483`,
+     - execution `m13f_teardown_execution_20260228T004654Z`,
+     - `overall_pass=true`, `blocker_count=0`, `next_gate=M13.G_READY`.
+   - `M13.G` (`residual_readability_closure`):
+     - run `22509594844`,
+     - execution `m13g_residual_readability_20260228T004758Z`,
+     - `overall_pass=true`, `blocker_count=0`, `next_gate=M13.H_READY`.
+   - `M13.H` (`post_teardown_cost_guardrail_closure`):
+     - run `22509614372`,
+     - execution `m13h_cost_guardrail_20260228T004852Z`,
+     - `overall_pass=true`, `blocker_count=0`, `next_gate=M13.I_READY`.
+4. Idle-safe proof (from `m13h_cost_guardrail_snapshot.json`):
+   - `idle_safe=true`,
+   - `residual_item_count=0`,
+   - `idle_posture`:
+     - `eks_nonzero_nodegroups=0`,
+     - `ecs_services_desired_gt_zero=0`,
+     - `emr_active_runs=0`,
+     - `sagemaker_active_endpoints=0`.
+5. Persistence scope:
+   - teardown verification does not remove evidence/object-store buckets; it tears down compute/runtime surfaces and validates residual posture.
