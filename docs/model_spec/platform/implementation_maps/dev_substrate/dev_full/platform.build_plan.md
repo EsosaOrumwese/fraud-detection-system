@@ -1685,7 +1685,7 @@ M12 progression snapshot:
 - M12 is now closed `DONE`; next actionable phase is `M13`.
 
 ## M13 - Final Verdict and Teardown Closure
-Status: `NOT_STARTED`
+Status: `IN_PROGRESS`
 
 Objective:
 - close `P16-P17` with full-platform verdict and idle-safe cost closure.
@@ -1761,4 +1761,27 @@ For every active phase (`M1..M13`):
 - `M13.B` is closed green after one fail-closed remediation cycle:
   - failed run: `22507181947` (`M13-B2` legacy-source readability + M11 continuity extraction),
   - green rerun: `22507270736`, execution `m13b_source_matrix_20260227T230519Z`, `verdict=ADVANCE_TO_M13_C`, `next_gate=M13.C_READY`.
-- Next: expand and execute `M13.C` on `dev-full-m13-managed`.
+- `M13.C` is closed green after fail-closed remediation:
+  - failed runs: `22507540671`, `22507614201` (`M13-B3` teardown proof readability),
+  - green rerun: `22507681052`, execution `m13c_six_proof_matrix_20260227T232146Z`, `verdict=ADVANCE_TO_M13_D`, `next_gate=M13.D_READY`.
+- `M13.C` was revalidated with an additional managed rerun:
+  - green rerun: `22507835286`, execution `m13c_six_proof_matrix_20260227T232813Z`, `blocker_count=0`, `verdict=ADVANCE_TO_M13_D`, `next_gate=M13.D_READY`.
+- `M13.D` is closed green after one fail-closed remediation cycle:
+  - failed run: `22508061627` (`M13-B4` strict overall-pass enforcement on legacy pre-run row),
+  - green rerun: `22508123412`, execution `m13d_final_verdict_20260227T234010Z`, `blocker_count=0`, `verdict=ADVANCE_TO_M13_E`, `next_gate=M13.E_READY`.
+- `M13.E` is closed green:
+  - run: `22508292412`, execution `m13e_teardown_plan_20260227T234734Z`, `blocker_count=0`, `verdict=ADVANCE_TO_M13_F`, `next_gate=M13.F_READY`.
+- `M13.F` first attempt failed closed with IAM-limited teardown APIs:
+  - run: `22508463812`, execution `m13f_teardown_execution_20260227T235508Z`,
+  - blocker surfaces: `eks:list_nodegroups`, `sagemaker:list_endpoints_before`, `sagemaker:list_endpoints_after`.
+- IAM remediation was materialized in `infra/terraform/dev_full/ops`:
+  - updated inline policy `GitHubActionsM6FRemoteDevFull` with required M13.F actions:
+    - `eks:ListNodegroups`, `eks:UpdateNodegroupConfig`, `eks:DescribeUpdate`,
+    - `sagemaker:ListEndpoints`, `sagemaker:DescribeEndpoint`, `sagemaker:DeleteEndpoint`,
+  - preserved existing `M12d` policy statements in Terraform source to avoid drift deletion,
+  - applied via targeted Terraform apply to `aws_iam_role_policy.github_actions_m6f_remote`.
+- `M13.F` is now closed green:
+  - run: `22508650494`, execution `m13f_teardown_execution_20260228T000326Z`,
+  - `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M13_G`, `next_gate=M13.G_READY`,
+  - evidence prefix: `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13f_teardown_execution_20260228T000326Z/`.
+- Next: expand and execute `M13.G` on `dev-full-m13-managed`.

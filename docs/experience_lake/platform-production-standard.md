@@ -4,8 +4,11 @@
 
 ### 1.1 Purpose
 
-This document defines the **end-state truth** (“Point X at the goal”) for a **production fraud ML platform** such that a seasoned Senior **ML Platform Engineer** and Senior **MLOps Engineer** could credibly say:
-“I built and operate this platform in production,” and back that statement with **qualifiable and quantifiable evidence**.
+> This document is the **end-state benchmark** (“Truth Anchor”) for the production fraud ML platform. It defines what must be true at the final goal so that a seasoned Senior ML Platform Engineer / Senior MLOps Engineer could truthfully claim: **“I built and operate this platform in production.”**
+>
+> The benchmark is **evidence-based**: every major capability is expressed as a **supporting claim** that is only “claimable” if it has the required **impact metrics**, **inspectable artifacts**, and **failure-mode drills**.
+>
+> This document is therefore a **definition of done for prod_target maturity** (the destination). It is not a build plan, not an implementation guide, and not a tool list. Any work performed on the platform should be mapped to specific claims in this benchmark and should produce the evidence required to move those claims toward “production-proven.”
 
 It exists to:
 

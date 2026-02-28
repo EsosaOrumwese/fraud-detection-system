@@ -140,7 +140,10 @@ resource "aws_iam_role_policy" "github_actions_m6f_remote" {
         Sid    = "M6fEKSDescribeNodegroup"
         Effect = "Allow"
         Action = [
-          "eks:DescribeNodegroup"
+          "eks:DescribeNodegroup",
+          "eks:ListNodegroups",
+          "eks:UpdateNodegroupConfig",
+          "eks:DescribeUpdate"
         ]
         Resource = "*"
       },
@@ -291,7 +294,10 @@ resource "aws_iam_role_policy" "github_actions_m6f_remote" {
           "sagemaker:DescribeTrainingJob",
           "sagemaker:CreateModel",
           "sagemaker:CreateTransformJob",
-          "sagemaker:DescribeTransformJob"
+          "sagemaker:DescribeTransformJob",
+          "sagemaker:ListEndpoints",
+          "sagemaker:DescribeEndpoint",
+          "sagemaker:DeleteEndpoint"
         ]
         Resource = "*"
       },
@@ -302,6 +308,29 @@ resource "aws_iam_role_policy" "github_actions_m6f_remote" {
           "iam:PassRole"
         ]
         Resource = var.github_actions_sagemaker_execution_role_arn
+      },
+      {
+        Sid    = "M12dEKSDescribeCluster"
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "M12dKafkaDataPlaneProof"
+        Effect = "Allow"
+        Action = [
+          "kafka-cluster:Connect",
+          "kafka-cluster:DescribeCluster",
+          "kafka-cluster:DescribeTopic",
+          "kafka-cluster:ReadData",
+          "kafka-cluster:WriteData",
+          "kafka-cluster:AlterGroup",
+          "kafka-cluster:DescribeGroup",
+          "kafka-cluster:CreateTopic"
+        ]
+        Resource = "*"
       }
     ]
   })

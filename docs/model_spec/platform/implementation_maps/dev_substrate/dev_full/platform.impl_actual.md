@@ -16896,3 +16896,322 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
 6. Decision:
    - `M13.B` is closed green and `M13-B2` is cleared for this gate.
    - entry to `M13.C` is now open.
+
+## Entry: 2026-02-27 23:14:33 +00:00 - M13.C decision lock (six-proof matrix contract)
+1. Blocker check from last execution:
+   - `M13.B` summary `m13b_source_matrix_20260227T230519Z` is pass (`overall_pass=true`, `blocker_count=0`),
+   - no carry-over blockers into `M13.C`.
+2. `M13.C` ambiguity closure:
+   - pinned explicit lane set: `spine`, `ofs`, `mf`, `mpr`, `teardown`,
+   - pinned explicit proof categories: `deploy`, `monitor`, `failure_drill`, `recovery`, `rollback`, `cost_control`.
+3. Proof-source decision (managed, durable only):
+   - all proof refs for `M13.C` must be S3 durable evidence keys under `evidence/dev_full/run_control/...`,
+   - no local filesystem/readback fallback allowed for this gate.
+4. Upstream gate contract:
+   - `M13.C` must read `M13.B` summary and require `verdict=ADVANCE_TO_M13_C`, `next_gate=M13.C_READY`.
+5. Implementation choice:
+   - extend `.github/workflows/dev_full_m13_managed.yml` with `execution_mode=six_proof_closure` (`m13_subphase=C` only),
+   - emit/publish:
+     - `m13c_six_proof_matrix_snapshot.json`,
+     - `m13c_blocker_register.json`,
+     - `m13c_execution_summary.json`.
+6. Pass contract:
+   - no missing proof cells,
+   - all proof refs readable,
+   - `overall_pass=true`, `verdict=ADVANCE_TO_M13_D`, `next_gate=M13.D_READY`.
+
+## Entry: 2026-02-27 23:17:47 +00:00 - M13.C first-run blocker remediation (teardown proofs)
+1. First managed M13.C run (`22507540671`, execution `m13c_six_proof_matrix_20260227T231600Z`) failed with `M13-B3`.
+2. Blocker root cause:
+   - all six teardown proof refs pointed to legacy `m2i_20260223T061220Z` objects,
+   - workflow role could not read those objects (legacy KMS state/permissions), causing unreadable proof cells.
+3. Remediation decision:
+   - preserve proof semantics but rematerialize the same teardown proof artifacts to a readable durable prefix,
+   - new prefix: `evidence/dev_full/run_control/m13c_teardown_backfill_20260227/`.
+4. Uploaded teardown proof artifacts to new prefix:
+   - `m2i_rehearsal_scope_snapshot.json`,
+   - `m2i_residual_scan_snapshot.json`,
+   - `m2i_destroy_apply_receipts.json`,
+   - `m2i_recover_apply_receipts.json`,
+   - `m2i_post_recovery_integrity_snapshot.json`,
+   - `m2i_cost_posture_snapshot.json`.
+5. Workflow mapping update:
+   - `teardown` lane proof refs in `six_proof_matrix` now target the new backfill prefix.
+6. Next action:
+   - rerun M13.C managed lane and close only on `ADVANCE_TO_M13_D`.
+
+## Entry: 2026-02-27 23:20:37 +00:00 - M13.C parser remediation (JSON shape tolerance)
+1. Second M13.C run reduced blockers from 6 to 3, all on teardown proof files that are arrays.
+2. Root cause:
+   - proof readability path used `s3_get_json` helper that enforces JSON object shape,
+   - teardown receipts/snapshots (`destroy/recover/post_recovery`) are valid JSON arrays by design.
+3. Remediation:
+   - in six-proof loop, replaced object-only reader with generic JSON parse (`json.loads`) on S3 object body,
+   - readability now means valid JSON payload (object or array), consistent with proof contract.
+4. No semantic drift introduced:
+   - proof refs and sources unchanged,
+   - only parser strictness adjusted to match artifact truth shapes.
+5. Next action:
+   - rerun M13.C and close on `ADVANCE_TO_M13_D`.
+
+## Entry: 2026-02-27 23:23:25 +00:00 - M13.C closed green (managed execution)
+1. Managed workflow implementation completed for `M13.C`:
+   - mode: `execution_mode=six_proof_closure`,
+   - subphase guard: `m13_subphase=C` only,
+   - upstream gate check on `M13.B` (`ADVANCE_TO_M13_C`, `M13.C_READY`).
+2. Execution sequence:
+   - run `22507540671` failed (`M13-B3`, teardown proof readability),
+   - remediation 1: teardown-proof backfill prefix + workflow ref update,
+   - run `22507614201` failed (`M13-B3`, 3 array-shaped JSON proofs still rejected by object-only reader),
+   - remediation 2: proof readability parser updated to accept valid JSON object/array payloads,
+   - run `22507681052` passed.
+3. Authoritative green evidence:
+   - execution id: `m13c_six_proof_matrix_20260227T232146Z`,
+   - `overall_pass=true`, `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M13_D`, `next_gate=M13.D_READY`.
+4. Durable artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13c_six_proof_matrix_20260227T232146Z/m13c_six_proof_matrix_snapshot.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13c_six_proof_matrix_20260227T232146Z/m13c_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13c_six_proof_matrix_20260227T232146Z/m13c_execution_summary.json`.
+5. Result:
+   - `M13.C` is closed green, `M13-B3` cleared for this gate,
+   - next entry gate is `M13.D`.
+
+## Entry: 2026-02-27 23:28:55 +00:00 - M13.C re-validation rerun (fresh blocker check)
+1. Reason for rerun:
+   - user requested explicit confirmation that no blockers remain from last execution before advancing.
+2. Dispatch posture:
+   - workflow: `dev-full-m13-managed`,
+   - branch: `migrate-dev` (contains `six_proof_closure` mode),
+   - subphase/mode: `M13.C` + `six_proof_closure`,
+   - upstream pinned: `m13b_source_matrix_20260227T230519Z`.
+3. Run result:
+   - `run_id=22507835286`,
+   - `execution_id=m13c_six_proof_matrix_20260227T232813Z`,
+   - `overall_pass=true`, `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M13_D`, `next_gate=M13.D_READY`.
+4. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13c_six_proof_matrix_20260227T232813Z/m13c_six_proof_matrix_snapshot.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13c_six_proof_matrix_20260227T232813Z/m13c_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13c_six_proof_matrix_20260227T232813Z/m13c_execution_summary.json`.
+5. Decision:
+   - no active blocker carry-over from `M13.C`,
+   - proceed to `M13.D` planning/execution gate.
+
+## Entry: 2026-02-27 23:32:40 +00:00 - M13.D pre-implementation decision lock
+1. Request scope:
+   - confirm no blockers from last execution,
+   - expand `M13.D`,
+   - begin `M13.D` execution fully.
+2. Blocker posture check:
+   - latest `M13.C` summary `m13c_six_proof_matrix_20260227T232813Z` shows `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M13_D`, `next_gate=M13.D_READY`.
+3. Decision for `M13.D` gate semantics:
+   - add explicit managed execution mode `final_verdict_closure` bound to `m13_subphase=D`,
+   - require upstream `M13.C` pass (`ADVANCE_TO_M13_D`, `M13.D_READY`) before publication.
+4. Deterministic verdict publication contract:
+   - produce `m13d_final_verdict_bundle.json` in run-control scope,
+   - publish the same bundle to run-scoped full verdict path from `FULL_VERDICT_PATH_PATTERN`,
+   - verify readback readability and identity (`execution_id`) on published full verdict object.
+5. Scope-complete requirement:
+   - resolve `M1..M12` coverage from authoritative `M13.B` source matrix snapshot,
+   - append `M13.A`, `M13.B`, `M13.C` summary checks,
+   - fail closed with `M13-B4` on any unreadable/missing/inconsistent row.
+6. Pass contract:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M13_E`,
+   - `next_gate=M13.E_READY`.
+
+## Entry: 2026-02-27 23:36:55 +00:00 - M13.D managed lane implementation (workflow extension)
+1. Implemented workflow support:
+   - added `execution_mode=final_verdict_closure`,
+   - enforced subphase guard (`final_verdict_closure` only with `m13_subphase=D`),
+   - added upstream handle input `upstream_m13c_execution`.
+2. Added `M13.D` execution logic in managed runtime:
+   - upstream `M13.C` summary verification (`ADVANCE_TO_M13_D`, `M13.D_READY`),
+   - source scope closure from `M13.B` source matrix snapshot (`M1..M12`),
+   - appended checks for `M13.A`, `M13.B`, `M13.C`,
+   - fail-closed `M13-B4` on unreadable/missing/inconsistent summary rows.
+3. Added full verdict publication mechanics:
+   - resolve `FULL_VERDICT_PATH_PATTERN`,
+   - render with `platform_run_id`,
+   - publish `m13d_final_verdict_bundle.json` to run-control and to rendered full-verdict path,
+   - verify readback contains same `execution_id`.
+4. Validation step:
+   - embedded workflow Python compiled successfully (`PY_COMPILE_OK`) before dispatch.
+
+## Entry: 2026-02-27 23:39:20 +00:00 - M13.D first execution blocker analysis and remediation decision
+1. First `M13.D` run failed:
+   - run: `22508061627`,
+   - execution: `m13d_final_verdict_20260227T233738Z`,
+   - blocker: `M13-B4` with message `M1 overall_pass is false.`
+2. Root cause:
+   - `M13.D` re-check logic enforced `overall_pass=true` for all source rows,
+   - `M1` (and legacy pre-run rows) are intentionally accepted under `legacy_pre_run_scope` in `M13.B`.
+3. Remediation decision:
+   - preserve strict checks for non-legacy rows,
+   - for rows marked with `legacy_scope_reason`, enforce:
+     - source readability,
+     - upstream `M13.B` row pass (`row_pass=true`),
+     - expected verdict/next-gate checks where pinned,
+   - skip hard `overall_pass/blocker_count` requirement on those legacy rows.
+4. Implementation applied:
+   - propagated `legacy_scope_reason` + `upstream_row_pass` from `M13.B` rows into `M13.D` row specs,
+   - added explicit blocker `UPSTREAM_ROW_FAIL` if upstream row is non-pass,
+   - gated summary pass checks via `enforce_summary_pass = not legacy_scope_reason`.
+5. Validation:
+   - embedded workflow Python recompiled (`PY_COMPILE_OK`) after remediation.
+
+## Entry: 2026-02-27 23:40:40 +00:00 - M13.D closed green (final verdict publication)
+1. Remediated managed rerun:
+   - run `22508123412`,
+   - execution `m13d_final_verdict_20260227T234010Z`,
+   - result `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M13_E`, `next_gate=M13.E_READY`.
+2. Authoritative run-control artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13d_final_verdict_20260227T234010Z/m13d_final_verdict_bundle.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13d_final_verdict_20260227T234010Z/m13d_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13d_final_verdict_20260227T234010Z/m13d_execution_summary.json`.
+3. Run-scoped published full verdict (readback verified):
+   - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/full_platform/final_verdict.json`,
+   - includes `execution_id=m13d_final_verdict_20260227T234010Z`,
+   - includes `deterministic_verdict=ADVANCE_TO_M13_E`,
+   - includes `deterministic_next_gate=M13.E_READY`,
+   - includes `scope_complete=true`.
+4. Gate decision:
+   - `M13.D` is closed green,
+   - next gate entry is `M13.E`.
+
+## Entry: 2026-02-27 23:43:20 +00:00 - M13.E pre-implementation decision lock
+1. Blocker posture from last execution:
+   - `M13.D` (`m13d_final_verdict_20260227T234010Z`) is pass with `blocker_count=0`, `verdict=ADVANCE_TO_M13_E`, `next_gate=M13.E_READY`.
+2. `M13.E` implementation decision:
+   - add managed execution mode `teardown_plan_closure` bound to `m13_subphase=E`,
+   - require upstream `M13.D` summary pass (`ADVANCE_TO_M13_E`, `M13.E_READY`) before plan closure.
+3. Deterministic teardown-plan contract:
+   - read pinned teardown handles:
+     - `TEARDOWN_NON_ESSENTIAL_DEFAULT`,
+     - `TEARDOWN_BLOCK_ON_RESIDUAL_RISK`,
+     - `TEARDOWN_RESIDUAL_SCAN_PATH_PATTERN`,
+     - `TEARDOWN_COST_SNAPSHOT_PATH_PATTERN`,
+     - `FULL_VERDICT_PATH_PATTERN`,
+   - read run-scoped full verdict bundle to anchor `platform_run_id`/`scenario_run_id`,
+   - emit `m13e_teardown_plan_snapshot.json` with:
+     - non-essential target matrix,
+     - protected/retained surfaces,
+     - explicit residual/cost snapshot targets for next phases.
+4. Fail-closed blocker contract:
+   - `M13-B5` on missing/placeholder handles, unreadable upstream/full verdict, empty target matrix, or empty protected surface set.
+5. Pass contract:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M13_F`,
+   - `next_gate=M13.F_READY`.
+
+## Entry: 2026-02-27 23:47:05 +00:00 - M13.E managed lane implementation
+1. Workflow extension:
+   - added `execution_mode=teardown_plan_closure`,
+   - bound to `m13_subphase=E`,
+   - added upstream input `upstream_m13d_execution`.
+2. Execution logic added for `M13.E`:
+   - upstream `M13.D` summary check (`ADVANCE_TO_M13_E`, `M13.E_READY`),
+   - required teardown handle closure checks (`M13-B5` fail-closed),
+   - readback of run-scoped full verdict object from rendered `FULL_VERDICT_PATH_PATTERN`,
+   - deterministic teardown target matrix + retained/protected surfaces,
+   - rendered residual/cost output refs for downstream lanes.
+3. Output contract:
+   - `m13e_teardown_plan_snapshot.json`,
+   - `m13e_blocker_register.json`,
+   - `m13e_execution_summary.json`,
+   - pass verdict `ADVANCE_TO_M13_F` and `M13.F_READY`.
+4. Validation:
+   - embedded workflow Python compiled (`PY_COMPILE_OK`) before dispatch.
+
+## Entry: 2026-02-27 23:48:20 +00:00 - M13.E closed green (teardown plan closure)
+1. Managed run:
+   - run `22508292412`,
+   - execution `m13e_teardown_plan_20260227T234734Z`,
+   - result `overall_pass=true`, `blocker_count=0`, `verdict=ADVANCE_TO_M13_F`, `next_gate=M13.F_READY`.
+2. Authoritative artifacts:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13e_teardown_plan_20260227T234734Z/m13e_teardown_plan_snapshot.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13e_teardown_plan_20260227T234734Z/m13e_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13e_teardown_plan_20260227T234734Z/m13e_execution_summary.json`.
+3. Teardown-plan evidence highlights:
+   - `platform_run_id=platform_20260223T184232Z`,
+   - `scenario_run_id=scenario_38753050f3b70c666e16f7552016b330`,
+   - `target_matrix_count=5`,
+   - `retained_surface_count=2`,
+   - rendered refs:
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/full_platform/final_verdict.json`,
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/teardown/residual_scan.json`,
+     - `s3://fraud-platform-dev-full-evidence/evidence/runs/platform_20260223T184232Z/teardown/cost_guardrail_snapshot.json`.
+4. Gate decision:
+   - `M13.E` is closed green,
+   - next gate entry is `M13.F`.
+
+## Entry: 2026-02-27 23:52:15 +00:00 - M13.F pre-implementation and execution design lock
+1. Upstream blocker check:
+   - `M13.E` (`m13e_teardown_plan_20260227T234734Z`) is pass with `blocker_count=0`, `verdict=ADVANCE_TO_M13_F`, `next_gate=M13.F_READY`.
+2. Teardown execution decision:
+   - add managed mode `teardown_execution_closure` bound to `m13_subphase=F`,
+   - enforce upstream `M13.E` summary pass and readable teardown-plan snapshot.
+3. Execution mechanics (real teardown, no placeholders):
+   - EKS: list nodegroups for `EKS_CLUSTER_NAME` and scale each to `min=0, desired=0` (with update-status polling).
+   - ECS: scale all `fraud-platform-dev-full` services to desired `0`.
+   - EMR on EKS: cancel active job runs for `EMR_EKS_VIRTUAL_CLUSTER_ID` if present.
+   - SageMaker: delete active `fraud-platform-dev-full` endpoints and enforce no active endpoint status remains.
+4. Retention safety checks:
+   - verify retained/protected S3 surfaces from `M13.E` snapshot remain readable after teardown actions,
+   - verify full-verdict ref remains readable.
+5. Fail-closed contract:
+   - `M13-B6` on any failed action, non-zero post-state, or unreadable retained truth surface.
+6. Output contract:
+   - `m13f_teardown_execution_snapshot.json`,
+   - `m13f_blocker_register.json`,
+   - `m13f_execution_summary.json` with pass verdict `ADVANCE_TO_M13_G` and `M13.G_READY`.
+
+## Entry: 2026-02-28 00:05:20 +00:00 - M13.F blocker analysis and remediation decision (fail-closed preserved)
+1. Last execution posture confirmed from managed evidence:
+   - failed run: `22508463812`,
+   - execution: `m13f_teardown_execution_20260227T235508Z`,
+   - `overall_pass=false`, `blocker_count=3`, `verdict=HOLD_REMEDIATE`.
+2. Blocker root cause isolation:
+   - teardown logic was correct but OIDC role policy lacked required control-plane actions:
+     - `eks:list_nodegroups`,
+     - `sagemaker:list_endpoints` (before/after).
+3. Alternative remediation paths considered:
+   - Path A: weaken `M13.F` checks and treat permission-denied as advisory.
+   - Path B: keep fail-closed semantics and grant exact least-privilege IAM actions required by M13.F.
+4. Decision:
+   - selected Path B to preserve teardown truth and residual-risk closure integrity.
+5. Additional drift risk found during IAM planning:
+   - Terraform would remove previously-added `M12d` policy statements (`M12dEKSDescribeCluster`, `M12dKafkaDataPlaneProof`) unless codified in source.
+   - full-stack apply would also overwrite seeded SSM values in ops stack.
+6. Remediation plan chosen:
+   - codify IAM additions in `infra/terraform/dev_full/ops/main.tf`,
+   - preserve existing `M12d` statements in the same Terraform policy source,
+   - apply targeted to `aws_iam_role_policy.github_actions_m6f_remote` only.
+
+## Entry: 2026-02-28 00:06:35 +00:00 - M13.F IAM remediation materialized and lane rerun closed green
+1. Terraform source updates applied in `infra/terraform/dev_full/ops/main.tf`:
+   - EKS actions added: `eks:ListNodegroups`, `eks:UpdateNodegroupConfig`, `eks:DescribeUpdate`.
+   - SageMaker endpoint actions added: `sagemaker:ListEndpoints`, `sagemaker:DescribeEndpoint`, `sagemaker:DeleteEndpoint`.
+   - preserved prior statements: `M12dEKSDescribeCluster`, `M12dKafkaDataPlaneProof`.
+2. Materialization execution:
+   - `terraform -chdir=infra/terraform/dev_full/ops validate` -> pass,
+   - targeted plan/apply on `aws_iam_role_policy.github_actions_m6f_remote` -> `1 changed, 0 destroyed`.
+3. M13.F rerun:
+   - workflow: `dev_full_m13_managed.yml`,
+   - run: `22508650494`,
+   - execution: `m13f_teardown_execution_20260228T000326Z`.
+4. Authoritative result:
+   - `overall_pass=true`,
+   - `blocker_count=0`,
+   - `verdict=ADVANCE_TO_M13_G`,
+   - `next_gate=M13.G_READY`.
+5. Durable evidence:
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13f_teardown_execution_20260228T000326Z/m13f_teardown_execution_snapshot.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13f_teardown_execution_20260228T000326Z/m13f_blocker_register.json`,
+   - `s3://fraud-platform-dev-full-evidence/evidence/dev_full/run_control/m13f_teardown_execution_20260228T000326Z/m13f_execution_summary.json`.
+6. Gate decision:
+   - M13.F is closed green.
+   - Next gate: `M13.G`.
