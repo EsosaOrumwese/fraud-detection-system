@@ -49,6 +49,7 @@ on:
           - residual_readability_closure
           - post_teardown_cost_guardrail_closure
           - phase_cost_outcome_closure
+          - final_closure_sync
       upstream_m12j_execution:
         description: Upstream M12.J execution id (required for M13 entry check)
         required: true
@@ -98,6 +99,11 @@ on:
         description: Upstream M13.H execution id (required for M13.I phase cost-outcome mode)
         required: false
         default: m13h_cost_guardrail_20260228T001807Z
+        type: string
+      upstream_m13i_execution:
+        description: Upstream M13.I execution id (required for M13.J final closure sync mode)
+        required: false
+        default: m13i_phase_cost_outcome_20260228T002906Z
         type: string
       m13_execution_id:
         description: Optional fixed execution id override
@@ -188,6 +194,12 @@ jobs:
                 exit 1
               fi
               ;;
+            final_closure_sync)
+              if [[ "${{ inputs.m13_subphase }}" != "J" ]]; then
+                echo "final_closure_sync mode is only valid for m13_subphase=J"
+                exit 1
+              fi
+              ;;
             *)
               echo "Unsupported execution_mode='${{ inputs.execution_mode }}'"
               exit 1
@@ -247,7 +259,7 @@ jobs:
           echo "run_dir=runs/dev_substrate/dev_full/m13/${EXEC_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Execute M13 managed lane
-        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' || inputs.execution_mode == 'six_proof_closure' || inputs.execution_mode == 'final_verdict_closure' || inputs.execution_mode == 'teardown_plan_closure' || inputs.execution_mode == 'teardown_execution_closure' || inputs.execution_mode == 'residual_readability_closure' || inputs.execution_mode == 'post_teardown_cost_guardrail_closure' || inputs.execution_mode == 'phase_cost_outcome_closure' }}
+        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' || inputs.execution_mode == 'six_proof_closure' || inputs.execution_mode == 'final_verdict_closure' || inputs.execution_mode == 'teardown_plan_closure' || inputs.execution_mode == 'teardown_execution_closure' || inputs.execution_mode == 'residual_readability_closure' || inputs.execution_mode == 'post_teardown_cost_guardrail_closure' || inputs.execution_mode == 'phase_cost_outcome_closure' || inputs.execution_mode == 'final_closure_sync' }}
         shell: bash
         env:
           EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
@@ -266,6 +278,7 @@ jobs:
           UPSTREAM_M13F_EXEC: ${{ inputs.upstream_m13f_execution }}
           UPSTREAM_M13G_EXEC: ${{ inputs.upstream_m13g_execution }}
           UPSTREAM_M13H_EXEC: ${{ inputs.upstream_m13h_execution }}
+          UPSTREAM_M13I_EXEC: ${{ inputs.upstream_m13i_execution }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -393,6 +406,7 @@ jobs:
           upstream_m13f = os.environ.get("UPSTREAM_M13F_EXEC", "").strip()
           upstream_m13g = os.environ.get("UPSTREAM_M13G_EXEC", "").strip()
           upstream_m13h = os.environ.get("UPSTREAM_M13H_EXEC", "").strip()
+          upstream_m13i = os.environ.get("UPSTREAM_M13I_EXEC", "").strip()
           handles_registry_path = Path(
               "docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"
           )
@@ -414,6 +428,7 @@ jobs:
               "residual_readability_closure",
               "post_teardown_cost_guardrail_closure",
               "phase_cost_outcome_closure",
+              "final_closure_sync",
           ]
           blocker_code_by_mode = {
               "materialization_check": "M13-B0",
@@ -426,6 +441,7 @@ jobs:
               "residual_readability_closure": "M13-B7",
               "post_teardown_cost_guardrail_closure": "M13-B9",
               "phase_cost_outcome_closure": "M13-B10",
+              "final_closure_sync": "M13-B11",
           }
           phase_name_by_mode = {
               "materialization_check": "M13.B0",
@@ -438,6 +454,7 @@ jobs:
               "residual_readability_closure": "M13.G",
               "post_teardown_cost_guardrail_closure": "M13.H",
               "phase_cost_outcome_closure": "M13.I",
+              "final_closure_sync": "M13.J",
           }
           blocker_code = blocker_code_by_mode.get(mode, "M13-B0")
           phase_name = phase_name_by_mode.get(mode, "M13.B0")
@@ -484,6 +501,13 @@ jobs:
                   {
                       "code": "M13-B10",
                       "message": "phase_cost_outcome_closure mode requires m13_subphase=I.",
+                  }
+              )
+          if mode == "final_closure_sync" and subphase != "J":
+              blockers.append(
+                  {
+                      "code": "M13-B11",
+                      "message": "final_closure_sync mode requires m13_subphase=J.",
                   }
               )
 
@@ -2906,6 +2930,298 @@ jobs:
                   "m13i_phase_cost_outcome_snapshot.json": snapshot,
                   "m13_phase_budget_envelope.json": envelope_payload,
                   "m13_phase_cost_outcome_receipt.json": cost_outcome_payload,
+              }
+          elif mode == "final_closure_sync":
+              blocker_register_name = "m13_blocker_register.json"
+              execution_summary_name = "m13_execution_summary.json"
+              verdict_on_pass = "M13_COMPLETE_GREEN"
+              next_gate_on_pass = "DEV_FULL_TRACK_COMPLETE"
+
+              phase_order = ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
+              expected_next_gate = {
+                  "A": "M13.B_READY",
+                  "B": "M13.C_READY",
+                  "C": "M13.D_READY",
+                  "D": "M13.E_READY",
+                  "E": "M13.F_READY",
+                  "F": "M13.G_READY",
+                  "G": "M13.H_READY",
+                  "H": "M13.I_READY",
+                  "I": "M13.J_READY",
+              }
+              expected_verdict = {
+                  "A": "ADVANCE_TO_M13_B",
+                  "B": "ADVANCE_TO_M13_C",
+                  "C": "ADVANCE_TO_M13_D",
+                  "D": "ADVANCE_TO_M13_E",
+                  "E": "ADVANCE_TO_M13_F",
+                  "F": "ADVANCE_TO_M13_G",
+                  "G": "ADVANCE_TO_M13_H",
+                  "H": "ADVANCE_TO_M13_I",
+                  "I": "ADVANCE_TO_M13_J",
+              }
+              upstream_exec = {
+                  "A": upstream_m13a,
+                  "B": upstream_m13b,
+                  "C": upstream_m13c,
+                  "D": upstream_m13d,
+                  "E": upstream_m13e,
+                  "F": upstream_m13f,
+                  "G": upstream_m13g,
+                  "H": upstream_m13h,
+                  "I": upstream_m13i,
+              }
+
+              source_matrix_rows: list[dict[str, Any]] = []
+              phase_summary_keys: dict[str, str] = {}
+              phase_summaries: dict[str, dict[str, Any]] = {}
+
+              for phase in phase_order:
+                  exec_ref = str(upstream_exec.get(phase, "") or "").strip()
+                  summary_name = f"m13{phase.lower()}_execution_summary.json"
+                  summary_key = (
+                      f"evidence/dev_full/run_control/{exec_ref}/{summary_name}" if exec_ref else ""
+                  )
+                  phase_summary_keys[phase] = summary_key
+                  row_blockers: list[str] = []
+                  summary: dict[str, Any] = {}
+
+                  if not exec_ref:
+                      row_blockers.append("MISSING_UPSTREAM_EXECUTION")
+                      blockers.append(
+                          {"code": "M13-B11", "message": f"Missing upstream execution id for M13.{phase}."}
+                      )
+                  else:
+                      try:
+                          summary = s3_get_json(s3, bucket, summary_key)
+                      except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                          read_errors.append({"surface": summary_key, "error": type(exc).__name__})
+                          row_blockers.append("UNREADABLE_SUMMARY")
+                          blockers.append(
+                              {"code": "M13-B11", "message": f"Unreadable M13.{phase} execution summary."}
+                          )
+
+                  if summary:
+                      phase_summaries[phase] = summary
+                      if not bool(summary.get("overall_pass", False)):
+                          row_blockers.append("OVERALL_PASS_FALSE")
+                          blockers.append(
+                              {"code": "M13-B11", "message": f"M13.{phase} summary overall_pass is false."}
+                          )
+                      try:
+                          if int(summary.get("blocker_count", -1)) != 0:
+                              row_blockers.append("BLOCKER_COUNT_NONZERO")
+                              blockers.append(
+                                  {"code": "M13-B11", "message": f"M13.{phase} summary blocker_count is non-zero."}
+                              )
+                      except (TypeError, ValueError):
+                          row_blockers.append("BLOCKER_COUNT_NON_NUMERIC")
+                          blockers.append(
+                              {"code": "M13-B11", "message": f"M13.{phase} summary blocker_count is non-numeric."}
+                          )
+                      actual_next = str(summary.get("next_gate", "")).strip()
+                      if actual_next != expected_next_gate[phase]:
+                          row_blockers.append("NEXT_GATE_MISMATCH")
+                          blockers.append(
+                              {
+                                  "code": "M13-B11",
+                                  "message": f"M13.{phase} next_gate mismatch (expected {expected_next_gate[phase]} got {actual_next}).",
+                              }
+                          )
+                      actual_verdict = str(summary.get("verdict", "")).strip()
+                      if actual_verdict != expected_verdict[phase]:
+                          row_blockers.append("VERDICT_MISMATCH")
+                          blockers.append(
+                              {
+                                  "code": "M13-B11",
+                                  "message": f"M13.{phase} verdict mismatch (expected {expected_verdict[phase]} got {actual_verdict}).",
+                              }
+                          )
+
+                  source_matrix_rows.append(
+                      {
+                          "phase": phase,
+                          "execution_id": exec_ref,
+                          "summary_key": summary_key,
+                          "expected_verdict": expected_verdict[phase],
+                          "expected_next_gate": expected_next_gate[phase],
+                          "actual_verdict": str(summary.get("verdict", "")).strip() if summary else "",
+                          "actual_next_gate": str(summary.get("next_gate", "")).strip() if summary else "",
+                          "row_pass": len(row_blockers) == 0,
+                          "row_blockers": row_blockers,
+                      }
+                  )
+
+              d_bundle_key = (
+                  f"evidence/dev_full/run_control/{upstream_exec['D']}/m13d_final_verdict_bundle.json"
+                  if upstream_exec["D"]
+                  else ""
+              )
+              h_snapshot_key = (
+                  f"evidence/dev_full/run_control/{upstream_exec['H']}/m13h_cost_guardrail_snapshot.json"
+                  if upstream_exec["H"]
+                  else ""
+              )
+              i_snapshot_key = (
+                  f"evidence/dev_full/run_control/{upstream_exec['I']}/m13i_phase_cost_outcome_snapshot.json"
+                  if upstream_exec["I"]
+                  else ""
+              )
+              i_receipt_key = (
+                  f"evidence/dev_full/run_control/{upstream_exec['I']}/m13_phase_cost_outcome_receipt.json"
+                  if upstream_exec["I"]
+                  else ""
+              )
+
+              d_bundle: dict[str, Any] = {}
+              h_snapshot: dict[str, Any] = {}
+              i_snapshot: dict[str, Any] = {}
+              i_receipt: dict[str, Any] = {}
+
+              if d_bundle_key:
+                  try:
+                      d_bundle = s3_get_json(s3, bucket, d_bundle_key)
+                  except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                      read_errors.append({"surface": d_bundle_key, "error": type(exc).__name__})
+                      blockers.append({"code": "M13-B12", "message": "Unreadable M13.D final verdict bundle."})
+              else:
+                  blockers.append({"code": "M13-B12", "message": "Missing M13.D execution id for non-gate acceptance checks."})
+
+              if h_snapshot_key:
+                  try:
+                      h_snapshot = s3_get_json(s3, bucket, h_snapshot_key)
+                  except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                      read_errors.append({"surface": h_snapshot_key, "error": type(exc).__name__})
+                      blockers.append({"code": "M13-B12", "message": "Unreadable M13.H guardrail snapshot."})
+              else:
+                  blockers.append({"code": "M13-B12", "message": "Missing M13.H execution id for non-gate acceptance checks."})
+
+              if i_snapshot_key:
+                  try:
+                      i_snapshot = s3_get_json(s3, bucket, i_snapshot_key)
+                  except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                      read_errors.append({"surface": i_snapshot_key, "error": type(exc).__name__})
+                      blockers.append({"code": "M13-B12", "message": "Unreadable M13.I phase cost-outcome snapshot."})
+              else:
+                  blockers.append({"code": "M13-B12", "message": "Missing M13.I execution id for non-gate acceptance checks."})
+
+              if i_receipt_key:
+                  try:
+                      i_receipt = s3_get_json(s3, bucket, i_receipt_key)
+                  except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                      read_errors.append({"surface": i_receipt_key, "error": type(exc).__name__})
+                      blockers.append({"code": "M13-B12", "message": "Unreadable M13.I phase cost-outcome receipt."})
+              else:
+                  blockers.append({"code": "M13-B12", "message": "Missing M13.I phase cost-outcome receipt."})
+
+              full_verdict_ref = str(d_bundle.get("full_verdict_ref", "") or "").strip()
+              full_verdict_readable = False
+              full_verdict_read_error = ""
+              if full_verdict_ref:
+                  full_verdict_readable, full_verdict_read_error = s3_surface_readable(s3, full_verdict_ref)
+                  if not full_verdict_readable:
+                      blockers.append({"code": "M13-B12", "message": "M13.D full verdict reference unreadable."})
+              else:
+                  blockers.append({"code": "M13-B12", "message": "M13.D full verdict reference missing."})
+
+              h_idle_safe = bool(h_snapshot.get("idle_safe", False))
+              h_residual_count = -1
+              raw_h_residual = h_snapshot.get("residual_item_count", None)
+              if isinstance(raw_h_residual, (int, float, str)):
+                  try:
+                      h_residual_count = int(raw_h_residual)
+                  except (TypeError, ValueError):
+                      h_residual_count = -1
+              h_run_scoped_published = bool(h_snapshot.get("run_scoped_snapshot_published", False))
+              if not h_idle_safe:
+                  blockers.append({"code": "M13-B12", "message": "M13.H idle_safe is false."})
+              if h_residual_count != 0:
+                  blockers.append({"code": "M13-B12", "message": "M13.H residual_item_count is not zero."})
+              if not h_run_scoped_published:
+                  blockers.append({"code": "M13-B12", "message": "M13.H run-scoped snapshot publication is false."})
+
+              i_phase_outcome_pass = bool(i_receipt.get("phase_outcome_pass", False))
+              i_cost_within_envelope = bool(i_receipt.get("cost_within_envelope", False))
+              if not i_phase_outcome_pass:
+                  blockers.append({"code": "M13-B12", "message": "M13.I phase_outcome_pass is false."})
+              if not i_cost_within_envelope:
+                  blockers.append({"code": "M13-B12", "message": "M13.I cost_within_envelope is false."})
+
+              scope_d_platform = str(d_bundle.get("platform_run_id", "") or "").strip()
+              scope_d_scenario = str(d_bundle.get("scenario_run_id", "") or "").strip()
+              scope_h_platform = str(h_snapshot.get("platform_run_id", "") or "").strip()
+              scope_h_scenario = str(h_snapshot.get("scenario_run_id", "") or "").strip()
+              scope_i_platform = str(i_snapshot.get("platform_run_id", "") or "").strip()
+              scope_i_scenario = str(i_snapshot.get("scenario_run_id", "") or "").strip()
+              scope_platform_set = {v for v in [scope_d_platform, scope_h_platform, scope_i_platform] if v}
+              scope_scenario_set = {v for v in [scope_d_scenario, scope_h_scenario, scope_i_scenario] if v}
+              if len(scope_platform_set) != 1:
+                  blockers.append({"code": "M13-B12", "message": "M13 run-scope platform_run_id drift across D/H/I."})
+              if len(scope_scenario_set) != 1:
+                  blockers.append({"code": "M13-B12", "message": "M13 run-scope scenario_run_id drift across D/H/I."})
+
+              platform_run_id = next(iter(scope_platform_set), "")
+              scenario_run_id = next(iter(scope_scenario_set), "")
+
+              source_matrix_pass = all(bool(r.get("row_pass", False)) for r in source_matrix_rows)
+              non_gate_acceptance = {
+                  "full_verdict_readable": full_verdict_readable,
+                  "h_idle_safe": h_idle_safe,
+                  "h_residual_zero": h_residual_count == 0,
+                  "h_run_scoped_snapshot_published": h_run_scoped_published,
+                  "i_phase_outcome_pass": i_phase_outcome_pass,
+                  "i_cost_within_envelope": i_cost_within_envelope,
+                  "run_scope_consistent": len(scope_platform_set) == 1 and len(scope_scenario_set) == 1,
+              }
+              non_gate_acceptance_pass = all(non_gate_acceptance.values())
+              if not source_matrix_pass:
+                  blockers.append({"code": "M13-B11", "message": "M13 source matrix closure check failed."})
+              if not non_gate_acceptance_pass:
+                  blockers.append({"code": "M13-B12", "message": "M13 non-gate acceptance check failed."})
+
+              snapshot = {
+                  "captured_at_utc": now(),
+                  "phase": "M13.J",
+                  "execution_id": exec_id,
+                  "mode": mode,
+                  "requested_subphase": subphase,
+                  "platform_run_id": platform_run_id,
+                  "scenario_run_id": scenario_run_id,
+                  "upstream_refs": {
+                      "m13a_execution_id": upstream_exec["A"],
+                      "m13b_execution_id": upstream_exec["B"],
+                      "m13c_execution_id": upstream_exec["C"],
+                      "m13d_execution_id": upstream_exec["D"],
+                      "m13e_execution_id": upstream_exec["E"],
+                      "m13f_execution_id": upstream_exec["F"],
+                      "m13g_execution_id": upstream_exec["G"],
+                      "m13h_execution_id": upstream_exec["H"],
+                      "m13i_execution_id": upstream_exec["I"],
+                  },
+                  "source_matrix_rows": source_matrix_rows,
+                  "source_matrix_pass": source_matrix_pass,
+                  "non_gate_acceptance": non_gate_acceptance,
+                  "non_gate_acceptance_pass": non_gate_acceptance_pass,
+                  "full_verdict_ref": full_verdict_ref,
+                  "full_verdict_read_error": full_verdict_read_error,
+                  "evidence_index": {
+                      "m13a_execution_summary": phase_summary_keys.get("A", ""),
+                      "m13b_execution_summary": phase_summary_keys.get("B", ""),
+                      "m13c_execution_summary": phase_summary_keys.get("C", ""),
+                      "m13d_execution_summary": phase_summary_keys.get("D", ""),
+                      "m13e_execution_summary": phase_summary_keys.get("E", ""),
+                      "m13f_execution_summary": phase_summary_keys.get("F", ""),
+                      "m13g_execution_summary": phase_summary_keys.get("G", ""),
+                      "m13h_execution_summary": phase_summary_keys.get("H", ""),
+                      "m13i_execution_summary": phase_summary_keys.get("I", ""),
+                      "m13d_final_verdict_bundle": d_bundle_key,
+                      "m13h_cost_guardrail_snapshot": h_snapshot_key,
+                      "m13i_phase_cost_outcome_snapshot": i_snapshot_key,
+                      "m13i_phase_cost_outcome_receipt": i_receipt_key,
+                  },
+              }
+              artifacts = {
+                  "m13_closure_sync_snapshot.json": snapshot,
               }
           else:
               blockers.append({"code": blocker_code, "message": f"Unhandled execution mode '{mode}'."})
