@@ -17544,3 +17544,44 @@ uns/dev_substrate/dev_full/m11/<m11e_execution_id>/...,
    - fail-closed blocker taxonomies added,
    - deterministic rollup/summary outputs required,
    - scoped to current dev_full stack and current maturity state (best-effort Tier 1/2).
+
+## Entry: 2026-02-28 02:49:43 +00:00 - Runtime/Ops certification plans hardened to deterministic claim-cert posture
+
+### Trigger
+1. USER provided external review feedback stating the two cert plans were directionally correct but needed additional pinning to prevent drift and weak closure.
+2. Requested posture: preserve the current split (`runtime` vs `ops/gov`) while making both docs bulletproof for execution and defensible Point-X claims.
+
+### Gap assessment and closure strategy
+1. Gap: load-profile terms (`steady/burst/soak`) were descriptive but not numerically pinned.
+   - Closure: pinned explicit numeric profile envelopes, durations, and minimum sample sizes in runtime RC2.
+2. Gap: Tier-0 claims were mapped but lacked explicit pass/fail thresholds per claim family.
+   - Closure: added threshold blocks for runtime (`T0.2/T0.3/T0.4/T0.6`) and ops/gov (`T0.1/T0.5/T0.6/T0.4`).
+3. Gap: scorecards could be interpreted with weak evidence distributions.
+   - Closure: made `p50/p95/p99` and minimum sample size mandatory DoDs.
+4. Gap: drill families were present, but runtime drill IDs were not explicitly locked to truth-anchor references.
+   - Closure: pinned runtime drill families to `DR-02/03/04/05/07` IDs in RC3 and added explicit governance drill IDs in OC1..OC4.
+5. Gap: T0.4 split boundary between runtime and governance could drift.
+   - Closure: added explicit T0.4 runtime-slice metrics in runtime plan and explicit governance-slice metrics in ops/gov plan.
+6. Gap: artifact expectations were still semi-implicit.
+   - Closure: added deterministic minimum artifact contracts in both plans with required filenames, path roots, and fail-closed rules.
+7. Gap: no explicit stitched Point-X output contract across both certifications.
+   - Closure: added required merged outputs (`dev_full_point_x_summary.md`, `tier0_claimability_table.json`, verdict links) in both plans.
+
+### Files updated
+1. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.runtime_cert.plan.md`
+   - added Tier-0 threshold section,
+   - pinned RC2 profile envelopes + replay window,
+   - tightened RC2 DoDs (distribution + sample size),
+   - pinned RC3 drill IDs,
+   - added deterministic runtime artifact contract,
+   - added joint Point-X contribution section.
+2. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.ops_gov_cert.plan.md`
+   - added Tier-0 governance threshold section,
+   - added governance drill mappings across corridor/audit/incident/cost lanes,
+   - added deterministic ops/gov artifact contract,
+   - added joint Point-X contribution section.
+
+### Why this closure is correct
+1. It keeps the plan split requested by USER (runtime vs ops/gov) while removing most interpretation drift vectors.
+2. It upgrades both plans from narrative guidance to executable certification contracts.
+3. It aligns with fail-closed law and production-standard claim posture by enforcing explicit thresholds, artifact contracts, and deterministic verdict stitching.
