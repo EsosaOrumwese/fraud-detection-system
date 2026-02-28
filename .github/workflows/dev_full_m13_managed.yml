@@ -47,6 +47,7 @@ on:
           - teardown_plan_closure
           - teardown_execution_closure
           - residual_readability_closure
+          - post_teardown_cost_guardrail_closure
       upstream_m12j_execution:
         description: Upstream M12.J execution id (required for M13 entry check)
         required: true
@@ -86,6 +87,11 @@ on:
         description: Upstream M13.F execution id (required for M13.G residual/readability mode)
         required: false
         default: m13f_teardown_execution_20260228T000326Z
+        type: string
+      upstream_m13g_execution:
+        description: Upstream M13.G execution id (required for M13.H post-teardown cost guardrail mode)
+        required: false
+        default: m13g_residual_readability_20260228T001208Z
         type: string
       m13_execution_id:
         description: Optional fixed execution id override
@@ -164,6 +170,12 @@ jobs:
                 exit 1
               fi
               ;;
+            post_teardown_cost_guardrail_closure)
+              if [[ "${{ inputs.m13_subphase }}" != "H" ]]; then
+                echo "post_teardown_cost_guardrail_closure mode is only valid for m13_subphase=H"
+                exit 1
+              fi
+              ;;
             *)
               echo "Unsupported execution_mode='${{ inputs.execution_mode }}'"
               exit 1
@@ -223,7 +235,7 @@ jobs:
           echo "run_dir=runs/dev_substrate/dev_full/m13/${EXEC_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Execute M13 managed lane
-        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' || inputs.execution_mode == 'six_proof_closure' || inputs.execution_mode == 'final_verdict_closure' || inputs.execution_mode == 'teardown_plan_closure' || inputs.execution_mode == 'teardown_execution_closure' || inputs.execution_mode == 'residual_readability_closure' }}
+        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' || inputs.execution_mode == 'six_proof_closure' || inputs.execution_mode == 'final_verdict_closure' || inputs.execution_mode == 'teardown_plan_closure' || inputs.execution_mode == 'teardown_execution_closure' || inputs.execution_mode == 'residual_readability_closure' || inputs.execution_mode == 'post_teardown_cost_guardrail_closure' }}
         shell: bash
         env:
           EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
@@ -240,6 +252,7 @@ jobs:
           UPSTREAM_M13D_EXEC: ${{ inputs.upstream_m13d_execution }}
           UPSTREAM_M13E_EXEC: ${{ inputs.upstream_m13e_execution }}
           UPSTREAM_M13F_EXEC: ${{ inputs.upstream_m13f_execution }}
+          UPSTREAM_M13G_EXEC: ${{ inputs.upstream_m13g_execution }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -365,6 +378,7 @@ jobs:
           upstream_m13d = os.environ.get("UPSTREAM_M13D_EXEC", "").strip()
           upstream_m13e = os.environ.get("UPSTREAM_M13E_EXEC", "").strip()
           upstream_m13f = os.environ.get("UPSTREAM_M13F_EXEC", "").strip()
+          upstream_m13g = os.environ.get("UPSTREAM_M13G_EXEC", "").strip()
           handles_registry_path = Path(
               "docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"
           )
@@ -384,6 +398,7 @@ jobs:
               "teardown_plan_closure",
               "teardown_execution_closure",
               "residual_readability_closure",
+              "post_teardown_cost_guardrail_closure",
           ]
           blocker_code_by_mode = {
               "materialization_check": "M13-B0",
@@ -394,6 +409,7 @@ jobs:
               "teardown_plan_closure": "M13-B5",
               "teardown_execution_closure": "M13-B6",
               "residual_readability_closure": "M13-B7",
+              "post_teardown_cost_guardrail_closure": "M13-B9",
           }
           phase_name_by_mode = {
               "materialization_check": "M13.B0",
@@ -404,6 +420,7 @@ jobs:
               "teardown_plan_closure": "M13.E",
               "teardown_execution_closure": "M13.F",
               "residual_readability_closure": "M13.G",
+              "post_teardown_cost_guardrail_closure": "M13.H",
           }
           blocker_code = blocker_code_by_mode.get(mode, "M13-B0")
           phase_name = phase_name_by_mode.get(mode, "M13.B0")
@@ -437,6 +454,13 @@ jobs:
           if mode == "residual_readability_closure" and subphase != "G":
               blockers.append(
                   {"code": "M13-B7", "message": "residual_readability_closure mode requires m13_subphase=G."}
+              )
+          if mode == "post_teardown_cost_guardrail_closure" and subphase != "H":
+              blockers.append(
+                  {
+                      "code": "M13-B9",
+                      "message": "post_teardown_cost_guardrail_closure mode requires m13_subphase=H.",
+                  }
               )
 
           routing_map = {
@@ -2404,6 +2428,219 @@ jobs:
                   "readability_checks": readability_checks,
               }
               artifacts = {"m13g_post_teardown_readability_snapshot.json": snapshot}
+          elif mode == "post_teardown_cost_guardrail_closure":
+              blocker_register_name = "m13h_blocker_register.json"
+              execution_summary_name = "m13h_execution_summary.json"
+              verdict_on_pass = "ADVANCE_TO_M13_I"
+              next_gate_on_pass = "M13.I_READY"
+
+              upstream_m13g_key = (
+                  f"evidence/dev_full/run_control/{upstream_m13g}/m13g_execution_summary.json"
+              )
+              upstream_m13g_summary: dict[str, Any] = {}
+              try:
+                  upstream_m13g_summary = s3_get_json(s3, bucket, upstream_m13g_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": upstream_m13g_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B9", "message": "Unreadable M13.G upstream summary."})
+
+              if upstream_m13g_summary:
+                  check_summary(
+                      summary=upstream_m13g_summary,
+                      expected_verdict="ADVANCE_TO_M13_H",
+                      expected_next_gate="M13.H_READY",
+                      blocker_code="M13-B9",
+                      label="M13.G upstream",
+                      blockers=blockers,
+                  )
+
+              upstream_m13g_snapshot_key = (
+                  f"evidence/dev_full/run_control/{upstream_m13g}/m13g_post_teardown_readability_snapshot.json"
+              )
+              upstream_m13g_snapshot: dict[str, Any] = {}
+              try:
+                  upstream_m13g_snapshot = s3_get_json(s3, bucket, upstream_m13g_snapshot_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": upstream_m13g_snapshot_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B9", "message": "Unreadable M13.G residual/readability snapshot."})
+
+              residual_item_count = int(upstream_m13g_snapshot.get("residual_item_count", 0)) if isinstance(upstream_m13g_snapshot, dict) else 0
+              residual_scan_published = bool(upstream_m13g_snapshot.get("residual_scan_published", False)) if isinstance(upstream_m13g_snapshot, dict) else False
+              residual_scan_ref = str(upstream_m13g_snapshot.get("residual_scan_ref", "") or "").strip() if isinstance(upstream_m13g_snapshot, dict) else ""
+              if residual_item_count > 0:
+                  blockers.append({"code": "M13-B9", "message": f"Residual item count is non-zero ({residual_item_count})."})
+              if not residual_scan_published:
+                  blockers.append({"code": "M13-B9", "message": "Residual scan was not published in M13.G."})
+              if residual_scan_ref:
+                  ok, err = s3_surface_readable(s3, residual_scan_ref)
+                  if not ok:
+                      blockers.append({"code": "M13-B9", "message": "Residual scan reference unreadable at M13.H."})
+                      read_errors.append({"surface": residual_scan_ref, "error": err})
+
+              upstream_m13e_plan_key = str(upstream_m13g_snapshot.get("upstream_m13e_plan_key", "") or "").strip() if isinstance(upstream_m13g_snapshot, dict) else ""
+              upstream_m13e_plan: dict[str, Any] = {}
+              if not upstream_m13e_plan_key:
+                  blockers.append({"code": "M13-B9", "message": "M13.G snapshot missing linked M13.E plan key."})
+              else:
+                  try:
+                      upstream_m13e_plan = s3_get_json(s3, bucket, upstream_m13e_plan_key)
+                  except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                      read_errors.append({"surface": upstream_m13e_plan_key, "error": type(exc).__name__})
+                      blockers.append({"code": "M13-B9", "message": "Unreadable linked M13.E plan snapshot."})
+
+              handles: dict[str, str] = {}
+              try:
+                  handles = parse_handles_registry(handles_registry_path)
+              except Exception as exc:
+                  read_errors.append({"surface": str(handles_registry_path), "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B9", "message": "Unreadable dev_full handles registry."})
+
+              def get_handle_string(name: str) -> str:
+                  raw = handles.get(name)
+                  if raw is None:
+                      return ""
+                  value, typ = parse_scalar(str(raw).strip())
+                  if typ != "string":
+                      return ""
+                  text = str(value).strip()
+                  if not text or text.upper() in {"TBD", "TODO", "UNSET"}:
+                      return ""
+                  return text
+
+              idle_posture = {
+                  "eks_nonzero_nodegroups": 0,
+                  "ecs_services_desired_gt_zero": 0,
+                  "emr_active_runs": 0,
+                  "sagemaker_active_endpoints": 0,
+              }
+
+              eks_cluster_name = get_handle_string("EKS_CLUSTER_NAME")
+              if eks_cluster_name:
+                  eks = boto3.client("eks", region_name=region)
+                  try:
+                      nodegroups = eks.list_nodegroups(clusterName=eks_cluster_name).get("nodegroups", [])
+                      for nodegroup_name in nodegroups:
+                          ng = eks.describe_nodegroup(
+                              clusterName=eks_cluster_name,
+                              nodegroupName=nodegroup_name,
+                          ).get("nodegroup", {})
+                          sc = ng.get("scalingConfig", {}) if isinstance(ng, dict) else {}
+                          if int(sc.get("minSize", 0)) > 0 or int(sc.get("desiredSize", 0)) > 0:
+                              idle_posture["eks_nonzero_nodegroups"] += 1
+                  except Exception as exc:
+                      blockers.append({"code": "M13-B9", "message": "Failed to read EKS idle posture during M13.H."})
+                      read_errors.append({"surface": f"eks:{eks_cluster_name}:idle_posture", "error": type(exc).__name__})
+              else:
+                  blockers.append({"code": "M13-B9", "message": "Missing/invalid EKS_CLUSTER_NAME handle."})
+
+              ecs = boto3.client("ecs", region_name=region)
+              try:
+                  ecs_clusters = ecs.list_clusters().get("clusterArns", [])
+                  for cluster_arn in ecs_clusters:
+                      if "fraud-platform-dev-full" not in cluster_arn:
+                          continue
+                      service_arns = ecs.list_services(cluster=cluster_arn).get("serviceArns", [])
+                      if not service_arns:
+                          continue
+                      desc = ecs.describe_services(cluster=cluster_arn, services=service_arns).get("services", [])
+                      for svc in desc:
+                          if int(svc.get("desiredCount", 0)) > 0:
+                              idle_posture["ecs_services_desired_gt_zero"] += 1
+              except Exception as exc:
+                  blockers.append({"code": "M13-B9", "message": "Failed to read ECS idle posture during M13.H."})
+                  read_errors.append({"surface": "ecs:idle_posture", "error": type(exc).__name__})
+
+              emr_vc_id = get_handle_string("EMR_EKS_VIRTUAL_CLUSTER_ID")
+              if emr_vc_id:
+                  try:
+                      emr = boto3.client("emr-containers", region_name=region)
+                      active_states = ["PENDING", "SUBMITTED", "RUNNING", "CANCEL_PENDING"]
+                      runs = emr.list_job_runs(
+                          virtualClusterId=emr_vc_id,
+                          states=active_states,
+                          maxResults=100,
+                      ).get("jobRuns", [])
+                      idle_posture["emr_active_runs"] = len(runs)
+                  except Exception as exc:
+                      blockers.append({"code": "M13-B9", "message": "Failed to read EMR-on-EKS idle posture during M13.H."})
+                      read_errors.append({"surface": f"emr-containers:{emr_vc_id}:idle_posture", "error": type(exc).__name__})
+
+              try:
+                  sm = boto3.client("sagemaker", region_name=region)
+                  eps = sm.list_endpoints(MaxResults=100, NameContains="fraud-platform-dev-full").get("Endpoints", [])
+                  active_states = {"Creating", "Updating", "InService", "SystemUpdating", "RollingBack"}
+                  idle_posture["sagemaker_active_endpoints"] = sum(
+                      1 for ep in eps if str(ep.get("EndpointStatus", "")) in active_states
+                  )
+              except Exception as exc:
+                  blockers.append({"code": "M13-B9", "message": "Failed to read SageMaker idle posture during M13.H."})
+                  read_errors.append({"surface": "sagemaker:idle_posture", "error": type(exc).__name__})
+
+              idle_safe = (
+                  idle_posture["eks_nonzero_nodegroups"] == 0
+                  and idle_posture["ecs_services_desired_gt_zero"] == 0
+                  and idle_posture["emr_active_runs"] == 0
+                  and idle_posture["sagemaker_active_endpoints"] == 0
+              )
+              if not idle_safe:
+                  blockers.append({"code": "M13-B9", "message": "Idle-safe runtime posture failed during M13.H."})
+
+              platform_run_id = str(upstream_m13g_snapshot.get("platform_run_id", "") or "").strip() if isinstance(upstream_m13g_snapshot, dict) else ""
+              scenario_run_id = str(upstream_m13g_snapshot.get("scenario_run_id", "") or "").strip() if isinstance(upstream_m13g_snapshot, dict) else ""
+              teardown_cost_snapshot_ref = (
+                  upstream_m13e_plan.get("rendered_output_refs", {}).get("teardown_cost_snapshot_ref", "")
+                  if isinstance(upstream_m13e_plan, dict)
+                  else ""
+              )
+              run_scoped_snapshot_published = False
+              run_scoped_snapshot_publish_error = ""
+              run_scoped_payload = {
+                  "captured_at_utc": now(),
+                  "phase": "M13.H",
+                  "execution_id": exec_id,
+                  "platform_run_id": platform_run_id,
+                  "scenario_run_id": scenario_run_id,
+                  "residual_item_count": residual_item_count,
+                  "residual_scan_ref": residual_scan_ref,
+                  "idle_posture": idle_posture,
+                  "idle_safe": idle_safe,
+                  "guardrail_pass": idle_safe and residual_item_count == 0 and residual_scan_published,
+              }
+              if isinstance(teardown_cost_snapshot_ref, str) and teardown_cost_snapshot_ref.strip():
+                  try:
+                      cs_bucket, cs_key = parse_s3_uri(teardown_cost_snapshot_ref.strip())
+                      s3_put_json(s3, cs_bucket, cs_key, run_scoped_payload)
+                      _ = s3_get_json(s3, cs_bucket, cs_key)
+                      run_scoped_snapshot_published = True
+                  except Exception as exc:
+                      run_scoped_snapshot_publish_error = type(exc).__name__
+                      blockers.append({"code": "M13-B9", "message": "Failed to publish/readback run-scoped teardown cost snapshot."})
+                      read_errors.append({"surface": teardown_cost_snapshot_ref.strip(), "error": type(exc).__name__})
+              else:
+                  blockers.append({"code": "M13-B9", "message": "Missing run-scoped teardown cost snapshot reference."})
+
+              snapshot = {
+                  "captured_at_utc": now(),
+                  "phase": "M13.H",
+                  "execution_id": exec_id,
+                  "mode": mode,
+                  "requested_subphase": subphase,
+                  "upstream_m13g_execution": upstream_m13g,
+                  "upstream_m13g_summary_key": upstream_m13g_key,
+                  "upstream_m13g_snapshot_key": upstream_m13g_snapshot_key,
+                  "upstream_m13e_plan_key": upstream_m13e_plan_key,
+                  "platform_run_id": platform_run_id,
+                  "scenario_run_id": scenario_run_id,
+                  "residual_item_count": residual_item_count,
+                  "residual_scan_published": residual_scan_published,
+                  "residual_scan_ref": residual_scan_ref,
+                  "idle_posture": idle_posture,
+                  "idle_safe": idle_safe,
+                  "teardown_cost_snapshot_ref": str(teardown_cost_snapshot_ref),
+                  "run_scoped_snapshot_published": run_scoped_snapshot_published,
+                  "run_scoped_snapshot_publish_error": run_scoped_snapshot_publish_error,
+              }
+              artifacts = {"m13h_cost_guardrail_snapshot.json": snapshot}
           else:
               blockers.append({"code": blocker_code, "message": f"Unhandled execution mode '{mode}'."})
 
