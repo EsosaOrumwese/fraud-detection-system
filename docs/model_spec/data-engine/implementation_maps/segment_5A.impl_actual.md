@@ -6905,3 +6905,71 @@ Artifacts emitted:
 Prune result (superseded P6 staging only):
 - removed: `9478621ed6e5422aa92f5c717ffe432f`, `e8b2a62fae2946608b32730d85685466`, `bb03bafad8aa4e1fb7642e492b2383f2`, `cdf9a772bffd4e9694293935b5b7e69d`.
 - retained keep-set: `07af961b2ba34a9192e2ba107b33e06b`, `6c4973df73084bcba92a725de8ba9528`, `efcf57f1ca8f411b888107bf021ce55e`, `4955a5612d5c45b38fe5c4cbdbc50cc9`.
+
+---
+
+### Entry: 2026-02-28 06:10
+
+5A.S4 crash incident (fresh full-run lane) - forensic note + redesign decision.
+Summary: a fresh full-run lane (`runs/local_full_run-6/43312aa79f8772de7dcc9db809b46992`) repeatedly crashed at `segment5a-s4` with `make ... Error 2816` (hard native process termination). This is a runtime/memory failure inside the S4 aggregation path, not a validation failure.
+
+Authority and evidence used:
+1) Fresh run lane:
+- `runs/local_full_run-6/43312aa79f8772de7dcc9db809b46992`.
+2) Crash log:
+- `runs/local_full_run-6/43312aa79f8772de7dcc9db809b46992/run_log_43312aa79f8772de7dcc9db809b46992.log`.
+3) Hot-path implementation:
+- `packages/engine/src/engine/layers/l2/seg_5A/s4_calendar_overlays/runner.py`.
+
+Observed failure signature (repeatable):
+1) S4 always reaches:
+- `baseline projected to horizon (rows=144486720, buckets=2160)`,
+- `build scope keys for domain 200676/200676`.
+2) Process then terminates without Python exception; `make` reports `Error 2816`.
+3) This persisted across repeated direct reruns:
+- `make segment5a-s4 RUN_ID=43312aa79f8772de7dcc9db809b46992`.
+
+Root-cause assessment (current best evidence):
+1) `S4` materializes very large in-memory frames (`~144.5M` projected rows), then executes broad overlay join/aggregation on top.
+2) The failure mode is a native memory/engine termination during/after overlay aggregation setup, consistent with pressure in large eager joins/group-bys.
+3) Small runtime knobs (`POLARS_MAX_THREADS`, OOC flags, streaming affinity) are insufficient for this path under laptop memory budget.
+
+Patches attempted in this lane (documented):
+1) Reduced projected-frame width in baseline projection:
+- kept only `row_id`, `local_horizon_bucket_index`, `lambda_local_base` during projection.
+2) Released large intermediates earlier:
+- explicit `del ...` + `gc.collect()` after projection/use.
+3) Reordered overlay aggregation to reduce fanout:
+- moved toward aggregate-before-join and lane-scoped mapping keyed by predicate label.
+4) Deferred domain identity columns until after factor composition.
+5) All patches were applied in:
+- `packages/engine/src/engine/layers/l2/seg_5A/s4_calendar_overlays/runner.py`.
+
+Outcome of attempted patches:
+1) Runtime shifted but did not clear the failure boundary.
+2) Crash still occurs after scope-key build and before completion of overlay aggregation/output write.
+3) Decision: hold full-run continuation; do not claim S4 closure.
+
+Decision (fail-closed):
+1) Treat this as unresolved POPT blocker for 5A S4.
+2) Do not continue `segment5a -> segment6b` chain from this lane until S4 is structurally redesigned.
+3) Keep prior authoritative remediated run-sets as baseline; this incident lane is diagnostic.
+
+Required redesign lane (next implementation move, high-impact):
+1) Replace single huge S4 in-memory compute with chunked streaming execution:
+- partition by bounded domain slices (`row_id` ranges and/or `tzid` groups),
+- compute overlay factors per chunk,
+- write `part-*.parquet` outputs incrementally.
+2) Publish final outputs via scan+sink flow (no giant final collect):
+- merge parts with lazy scan and `sink_parquet` where possible.
+3) Move fairness regularizer to a bounded two-pass scan design:
+- pass-1 compute country-share diagnostics,
+- pass-2 apply bounded adjustments chunk-wise.
+4) Keep contract and determinism invariants unchanged:
+- schema equality,
+- idempotent publish checks,
+- policy clamp/warn semantics preserved.
+
+Risk note:
+1) This is a structural performance defect, not a policy-grade issue.
+2) Further low-blast micro-tuning on current eager architecture is unlikely to resolve the hard crash reliably.

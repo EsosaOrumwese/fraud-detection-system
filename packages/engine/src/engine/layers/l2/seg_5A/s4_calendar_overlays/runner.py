@@ -1725,7 +1725,11 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         )
 
         current_phase = "baseline_projection"
-        baseline_horizon_df = baseline_df.join(horizon_map_df, on=["tzid", "bucket_index"], how="left")
+        baseline_horizon_df = (
+            baseline_df.select(["row_id", "tzid", "bucket_index", "lambda_local_base"])
+            .join(horizon_map_df, on=["tzid", "bucket_index"], how="left")
+            .select(["row_id", "local_horizon_bucket_index", "lambda_local_base"])
+        )
         if baseline_horizon_df.filter(pl.col("local_horizon_bucket_index").is_null()).height:
             _abort(
                 "S4_HORIZON_GRID_INVALID",
@@ -1745,6 +1749,9 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             horizon_map_df.height,
             baseline_horizon_df.height,
         )
+        del baseline_df
+        del horizon_map_df
+        gc.collect()
 
         current_phase = "calendar_validation"
         overlay_event_types = overlay_policy.get("event_types") if isinstance(overlay_policy, dict) else None
@@ -2017,6 +2024,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             scope_key = _scope_key(scope_global, country_iso, tzid, demand_class, merchant_id)
             specificity_rank = _scope_rank(scope_global, country_iso, tzid, demand_class, merchant_id)
             predicate_sets.add(predicate_key)
+            predicate_label = "|".join(predicate_key) if predicate_key else "__global__"
             duration = end_idx - start_idx
             for offset in range(duration):
                 tracker.update(1)
@@ -2030,6 +2038,7 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         "local_horizon_bucket_index": start_idx + offset,
                         "factor": factor,
                         "scope_key": scope_key,
+                        "predicate_label": predicate_label,
                         "specificity_rank": specificity_rank,
                     }
                 )
@@ -2066,30 +2075,20 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             )
 
         current_phase = "overlay_aggregation"
-        overlay_df = baseline_horizon_df.select(
-            [
-                "row_id",
-                "merchant_id",
-                "legal_country_iso",
-                "tzid",
-                "demand_class",
-                "local_horizon_bucket_index",
-                "lambda_local_base",
-                "parameter_hash",
-                "manifest_fingerprint",
-                "scenario_id",
-            ]
-            + ([col for col in ["channel_group"] if col in baseline_horizon_df.columns])
-        )
+        overlay_df = baseline_horizon_df
+        del baseline_horizon_df
+        gc.collect()
 
         if expanded_rows:
             events_expanded_df = pl.DataFrame(expanded_rows)
-            domain_keys_rows: list[dict] = []
             predicate_list = sorted(predicate_sets, key=lambda item: (len(item), item))
             total_keys = domain_df.height * max(len(predicate_list), 1)
             key_tracker = _ProgressTracker(total_keys, logger, "S4: build scope keys for domain")
-            for row in domain_df.iter_rows(named=True):
-                for predicate_key in predicate_list:
+            domain_scope_maps: dict[str, pl.DataFrame] = {}
+            for predicate_key in predicate_list:
+                predicate_label = "|".join(predicate_key) if predicate_key else "__global__"
+                scope_rows: list[dict] = []
+                for row in domain_df.iter_rows(named=True):
                     key_tracker.update(1)
                     if not predicate_key:
                         scope_key = _scope_key(True, None, None, None, None)
@@ -2101,10 +2100,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                             row.get("demand_class") if "demand_class" in predicate_key else None,
                             row.get("merchant_id") if "merchant_id" in predicate_key else None,
                         )
-                    domain_keys_rows.append({"row_id": row["row_id"], "scope_key": scope_key})
-            domain_keys_df = pl.DataFrame(domain_keys_rows)
-
-            joined_df = events_expanded_df.join(domain_keys_df, on="scope_key", how="inner")
+                    scope_rows.append({"row_id": row["row_id"], "scope_key": scope_key})
+                domain_scope_maps[predicate_label] = pl.DataFrame(scope_rows)
             event_types = sorted(event_type_counts.keys())
 
             for event_type in event_types:
@@ -2117,13 +2114,33 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     selection = str(within_policy.get("selection") or selection)
                     mode = str(within_policy.get("mode") or mode)
 
-                type_df = joined_df.filter(pl.col("event_type") == event_type)
-                if type_df.is_empty():
-                    continue
                 agg_expr = pl.col("factor").min() if mode == "MIN" else pl.col("factor").max()
-                grouped = type_df.group_by(
-                    ["row_id", "local_horizon_bucket_index", "specificity_rank"]
-                ).agg(agg_expr.alias("factor"))
+                lane_frames: list[pl.DataFrame] = []
+                for predicate_key in predicate_list:
+                    predicate_label = "|".join(predicate_key) if predicate_key else "__global__"
+                    lane_grouped = (
+                        events_expanded_df.lazy()
+                        .filter(
+                            (pl.col("event_type") == pl.lit(event_type))
+                            & (pl.col("predicate_label") == pl.lit(predicate_label))
+                        )
+                        .group_by(["scope_key", "local_horizon_bucket_index", "specificity_rank"])
+                        .agg(agg_expr.alias("factor"))
+                        .collect(streaming=True)
+                    )
+                    if lane_grouped.is_empty():
+                        continue
+                    lane_rows = lane_grouped.join(domain_scope_maps[predicate_label], on="scope_key", how="inner")
+                    if lane_rows.is_empty():
+                        continue
+                    lane_frames.append(
+                        lane_rows.select(
+                            ["row_id", "local_horizon_bucket_index", "specificity_rank", "factor"]
+                        )
+                    )
+                if not lane_frames:
+                    continue
+                grouped = pl.concat(lane_frames, how="vertical_relaxed")
                 if selection == "MOST_SPECIFIC_ONLY":
                     max_rank = grouped.group_by(["row_id", "local_horizon_bucket_index"]).agg(
                         pl.col("specificity_rank").max().alias("max_rank")
@@ -2131,15 +2148,14 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                     grouped = grouped.join(
                         max_rank, on=["row_id", "local_horizon_bucket_index"], how="inner"
                     ).filter(pl.col("specificity_rank") == pl.col("max_rank"))
+                grouped = grouped.group_by(["row_id", "local_horizon_bucket_index"]).agg(
+                    agg_expr.alias("factor")
+                )
 
                 factor_col = f"factor_{event_type.lower()}"
                 active_col = f"active_{event_type.lower()}"
                 grouped = grouped.select(
-                    [
-                        "row_id",
-                        "local_horizon_bucket_index",
-                        pl.col("factor").alias(factor_col),
-                    ]
+                    ["row_id", "local_horizon_bucket_index", pl.col("factor").alias(factor_col)]
                 )
                 overlay_df = overlay_df.join(grouped, on=["row_id", "local_horizon_bucket_index"], how="left")
                 overlay_df = overlay_df.with_columns(
@@ -2148,6 +2164,11 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                         pl.col(factor_col).fill_null(1.0),
                     ]
                 )
+                del grouped
+                gc.collect()
+            domain_scope_maps.clear()
+            del events_expanded_df
+            gc.collect()
         else:
             logger.info("S4: no scenario events; overlay factors default to 1.0")
         event_types_for_product = sorted(event_type_counts.keys())
@@ -2214,6 +2235,22 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
             overlay_df = overlay_df.with_columns(
                 pl.col("overlay_factor_total").clip(min_factor, max_factor).alias("overlay_factor_total")
             )
+
+        domain_join_cols = ["row_id", "merchant_id", "legal_country_iso", "tzid"]
+        if "channel_group" in domain_df.columns:
+            domain_join_cols.append("channel_group")
+        overlay_df = overlay_df.join(domain_df.select(domain_join_cols), on="row_id", how="left")
+        missing_domain = overlay_df.filter(pl.col("merchant_id").is_null()).height
+        if missing_domain:
+            _abort(
+                "S4_DOMAIN_ALIGNMENT_FAILED",
+                "V-08",
+                "overlay_domain_join_missing",
+                {"missing_rows": missing_domain},
+                manifest_fingerprint,
+            )
+        del domain_df
+        gc.collect()
 
         overlay_df, fairness_diag = _apply_overlay_fairness_regularizer(
             overlay_df,
@@ -2364,6 +2401,23 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
         current_phase = "output_prepare"
         scenario_local_df = overlay_df.select(
             [
+                "merchant_id",
+                "legal_country_iso",
+                "tzid",
+                "local_horizon_bucket_index",
+                "lambda_local_scenario",
+                "overlay_factor_total",
+            ]
+            + ([col for col in ["channel_group"] if col in overlay_df.columns])
+        ).with_columns(
+            [
+                pl.lit(str(manifest_fingerprint)).alias("manifest_fingerprint"),
+                pl.lit(str(parameter_hash)).alias("parameter_hash"),
+                pl.lit(str(scenario_id)).alias("scenario_id"),
+                pl.lit(S4_SPEC_VERSION).alias("s4_spec_version"),
+            ]
+        ).select(
+            [
                 "manifest_fingerprint",
                 "parameter_hash",
                 "scenario_id",
@@ -2375,7 +2429,8 @@ def run_s4(config: EngineConfig, run_id: Optional[str] = None) -> S4Result:
                 "overlay_factor_total",
             ]
             + ([col for col in ["channel_group"] if col in overlay_df.columns])
-        ).with_columns(pl.lit(S4_SPEC_VERSION).alias("s4_spec_version"))
+            + ["s4_spec_version"]
+        )
         scenario_local_df = scenario_local_df.sort(
             ["merchant_id", "legal_country_iso", "tzid", "local_horizon_bucket_index"]
         )
