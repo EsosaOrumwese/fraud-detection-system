@@ -110,6 +110,15 @@ on:
         required: false
         default: ""
         type: string
+      teardown_non_essential_override:
+        description: "Optional teardown action override for M13.E/F; choose scale_to_zero_or_destroy for conservative teardown"
+        required: false
+        default: inherit_from_handles
+        type: choice
+        options:
+          - inherit_from_handles
+          - scale_to_zero_or_destroy
+          - scale_to_zero_then_destroy_idle_window
 
 permissions:
   contents: read
@@ -279,6 +288,7 @@ jobs:
           UPSTREAM_M13G_EXEC: ${{ inputs.upstream_m13g_execution }}
           UPSTREAM_M13H_EXEC: ${{ inputs.upstream_m13h_execution }}
           UPSTREAM_M13I_EXEC: ${{ inputs.upstream_m13i_execution }}
+          TEARDOWN_NON_ESSENTIAL_OVERRIDE: ${{ inputs.teardown_non_essential_override }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -407,6 +417,7 @@ jobs:
           upstream_m13g = os.environ.get("UPSTREAM_M13G_EXEC", "").strip()
           upstream_m13h = os.environ.get("UPSTREAM_M13H_EXEC", "").strip()
           upstream_m13i = os.environ.get("UPSTREAM_M13I_EXEC", "").strip()
+          teardown_override = os.environ.get("TEARDOWN_NON_ESSENTIAL_OVERRIDE", "inherit_from_handles").strip()
           handles_registry_path = Path(
               "docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"
           )
@@ -430,6 +441,11 @@ jobs:
               "phase_cost_outcome_closure",
               "final_closure_sync",
           ]
+          supported_teardown_overrides = {
+              "inherit_from_handles",
+              "scale_to_zero_or_destroy",
+              "scale_to_zero_then_destroy_idle_window",
+          }
           blocker_code_by_mode = {
               "materialization_check": "M13-B0",
               "handle_closure": "M13-B1",
@@ -508,6 +524,16 @@ jobs:
                   {
                       "code": "M13-B11",
                       "message": "final_closure_sync mode requires m13_subphase=J.",
+                  }
+              )
+          if teardown_override not in supported_teardown_overrides:
+              blockers.append(
+                  {
+                      "code": blocker_code,
+                      "message": (
+                          "Unsupported teardown_non_essential_override value "
+                          f"'{teardown_override}'."
+                      ),
                   }
               )
 
@@ -1722,6 +1748,19 @@ jobs:
               teardown_default = str(
                   handle_matrix.get("TEARDOWN_NON_ESSENTIAL_DEFAULT", {}).get("parsed_value", "")
               )
+              teardown_default_from_handles = teardown_default
+              if teardown_override != "inherit_from_handles":
+                  teardown_default = teardown_override
+              if teardown_default not in allowed_defaults:
+                  blockers.append(
+                      {
+                          "code": "M13-B5",
+                          "message": (
+                              "Resolved teardown action is not in allowed set "
+                              f"({teardown_default})."
+                          ),
+                      }
+                  )
               block_on_residual = bool(
                   handle_matrix.get("TEARDOWN_BLOCK_ON_RESIDUAL_RISK", {}).get("parsed_value", False)
               )
@@ -1795,6 +1834,8 @@ jobs:
                   "upstream_m13d_summary_key": upstream_m13d_key,
                   "platform_run_id": platform_run_id,
                   "scenario_run_id": scenario_run_id,
+                  "teardown_non_essential_override": teardown_override,
+                  "teardown_non_essential_from_handles": teardown_default_from_handles,
                   "teardown_non_essential_default": teardown_default,
                   "teardown_block_on_residual_risk": block_on_residual,
                   "rendered_output_refs": {
@@ -2250,6 +2291,7 @@ jobs:
                   "upstream_m13e_execution": upstream_m13e,
                   "upstream_m13e_summary_key": upstream_m13e_key,
                   "upstream_m13e_plan_key": upstream_m13e_plan_key,
+                  "teardown_non_essential_override": teardown_override,
                   "teardown_non_essential_default": str(upstream_m13e_plan.get("teardown_non_essential_default", "")),
                   "teardown_block_on_residual_risk": bool(upstream_m13e_plan.get("teardown_block_on_residual_risk", False)),
                   "action_receipts": action_receipts,
