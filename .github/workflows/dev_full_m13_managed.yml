@@ -2748,7 +2748,13 @@ jobs:
                   return None
 
               def get_handle_float(name: str) -> float | None:
-                  text = get_handle_string(name)
+                  raw = handles.get(name)
+                  if raw is None:
+                      return None
+                  value, typ = parse_scalar(str(raw).strip())
+                  if typ == "bool":
+                      return None
+                  text = str(value).strip()
                   if not text:
                       return None
                   try:
