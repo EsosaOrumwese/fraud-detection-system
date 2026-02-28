@@ -48,6 +48,7 @@ on:
           - teardown_execution_closure
           - residual_readability_closure
           - post_teardown_cost_guardrail_closure
+          - phase_cost_outcome_closure
       upstream_m12j_execution:
         description: Upstream M12.J execution id (required for M13 entry check)
         required: true
@@ -92,6 +93,11 @@ on:
         description: Upstream M13.G execution id (required for M13.H post-teardown cost guardrail mode)
         required: false
         default: m13g_residual_readability_20260228T001208Z
+        type: string
+      upstream_m13h_execution:
+        description: Upstream M13.H execution id (required for M13.I phase cost-outcome mode)
+        required: false
+        default: m13h_cost_guardrail_20260228T001807Z
         type: string
       m13_execution_id:
         description: Optional fixed execution id override
@@ -176,6 +182,12 @@ jobs:
                 exit 1
               fi
               ;;
+            phase_cost_outcome_closure)
+              if [[ "${{ inputs.m13_subphase }}" != "I" ]]; then
+                echo "phase_cost_outcome_closure mode is only valid for m13_subphase=I"
+                exit 1
+              fi
+              ;;
             *)
               echo "Unsupported execution_mode='${{ inputs.execution_mode }}'"
               exit 1
@@ -235,7 +247,7 @@ jobs:
           echo "run_dir=runs/dev_substrate/dev_full/m13/${EXEC_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Execute M13 managed lane
-        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' || inputs.execution_mode == 'six_proof_closure' || inputs.execution_mode == 'final_verdict_closure' || inputs.execution_mode == 'teardown_plan_closure' || inputs.execution_mode == 'teardown_execution_closure' || inputs.execution_mode == 'residual_readability_closure' || inputs.execution_mode == 'post_teardown_cost_guardrail_closure' }}
+        if: ${{ inputs.execution_mode == 'materialization_check' || inputs.execution_mode == 'handle_closure' || inputs.execution_mode == 'source_matrix_closure' || inputs.execution_mode == 'six_proof_closure' || inputs.execution_mode == 'final_verdict_closure' || inputs.execution_mode == 'teardown_plan_closure' || inputs.execution_mode == 'teardown_execution_closure' || inputs.execution_mode == 'residual_readability_closure' || inputs.execution_mode == 'post_teardown_cost_guardrail_closure' || inputs.execution_mode == 'phase_cost_outcome_closure' }}
         shell: bash
         env:
           EXEC_ID: ${{ steps.run_meta.outputs.execution_id }}
@@ -253,6 +265,7 @@ jobs:
           UPSTREAM_M13E_EXEC: ${{ inputs.upstream_m13e_execution }}
           UPSTREAM_M13F_EXEC: ${{ inputs.upstream_m13f_execution }}
           UPSTREAM_M13G_EXEC: ${{ inputs.upstream_m13g_execution }}
+          UPSTREAM_M13H_EXEC: ${{ inputs.upstream_m13h_execution }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -379,6 +392,7 @@ jobs:
           upstream_m13e = os.environ.get("UPSTREAM_M13E_EXEC", "").strip()
           upstream_m13f = os.environ.get("UPSTREAM_M13F_EXEC", "").strip()
           upstream_m13g = os.environ.get("UPSTREAM_M13G_EXEC", "").strip()
+          upstream_m13h = os.environ.get("UPSTREAM_M13H_EXEC", "").strip()
           handles_registry_path = Path(
               "docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md"
           )
@@ -399,6 +413,7 @@ jobs:
               "teardown_execution_closure",
               "residual_readability_closure",
               "post_teardown_cost_guardrail_closure",
+              "phase_cost_outcome_closure",
           ]
           blocker_code_by_mode = {
               "materialization_check": "M13-B0",
@@ -410,6 +425,7 @@ jobs:
               "teardown_execution_closure": "M13-B6",
               "residual_readability_closure": "M13-B7",
               "post_teardown_cost_guardrail_closure": "M13-B9",
+              "phase_cost_outcome_closure": "M13-B10",
           }
           phase_name_by_mode = {
               "materialization_check": "M13.B0",
@@ -421,6 +437,7 @@ jobs:
               "teardown_execution_closure": "M13.F",
               "residual_readability_closure": "M13.G",
               "post_teardown_cost_guardrail_closure": "M13.H",
+              "phase_cost_outcome_closure": "M13.I",
           }
           blocker_code = blocker_code_by_mode.get(mode, "M13-B0")
           phase_name = phase_name_by_mode.get(mode, "M13.B0")
@@ -460,6 +477,13 @@ jobs:
                   {
                       "code": "M13-B9",
                       "message": "post_teardown_cost_guardrail_closure mode requires m13_subphase=H.",
+                  }
+              )
+          if mode == "phase_cost_outcome_closure" and subphase != "I":
+              blockers.append(
+                  {
+                      "code": "M13-B10",
+                      "message": "phase_cost_outcome_closure mode requires m13_subphase=I.",
                   }
               )
 
@@ -2641,6 +2665,242 @@ jobs:
                   "run_scoped_snapshot_publish_error": run_scoped_snapshot_publish_error,
               }
               artifacts = {"m13h_cost_guardrail_snapshot.json": snapshot}
+          elif mode == "phase_cost_outcome_closure":
+              blocker_register_name = "m13i_blocker_register.json"
+              execution_summary_name = "m13i_execution_summary.json"
+              verdict_on_pass = "ADVANCE_TO_M13_J"
+              next_gate_on_pass = "M13.J_READY"
+
+              upstream_m13h_key = (
+                  f"evidence/dev_full/run_control/{upstream_m13h}/m13h_execution_summary.json"
+              )
+              upstream_m13h_summary: dict[str, Any] = {}
+              try:
+                  upstream_m13h_summary = s3_get_json(s3, bucket, upstream_m13h_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": upstream_m13h_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B10", "message": "Unreadable M13.H upstream summary."})
+
+              if upstream_m13h_summary:
+                  check_summary(
+                      summary=upstream_m13h_summary,
+                      expected_verdict="ADVANCE_TO_M13_I",
+                      expected_next_gate="M13.I_READY",
+                      blocker_code="M13-B10",
+                      label="M13.H upstream",
+                      blockers=blockers,
+                  )
+
+              upstream_m13h_snapshot_key = (
+                  f"evidence/dev_full/run_control/{upstream_m13h}/m13h_cost_guardrail_snapshot.json"
+              )
+              upstream_m13h_snapshot: dict[str, Any] = {}
+              try:
+                  upstream_m13h_snapshot = s3_get_json(s3, bucket, upstream_m13h_snapshot_key)
+              except (BotoCoreError, ClientError, ValueError, json.JSONDecodeError) as exc:
+                  read_errors.append({"surface": upstream_m13h_snapshot_key, "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B10", "message": "Unreadable M13.H guardrail snapshot."})
+
+              idle_safe = bool(upstream_m13h_snapshot.get("idle_safe", False)) if isinstance(upstream_m13h_snapshot, dict) else False
+              residual_item_count = int(upstream_m13h_snapshot.get("residual_item_count", 0)) if isinstance(upstream_m13h_snapshot, dict) else 0
+              run_scoped_snapshot_published = bool(upstream_m13h_snapshot.get("run_scoped_snapshot_published", False)) if isinstance(upstream_m13h_snapshot, dict) else False
+              teardown_cost_snapshot_ref = str(upstream_m13h_snapshot.get("teardown_cost_snapshot_ref", "") or "").strip() if isinstance(upstream_m13h_snapshot, dict) else ""
+              if not idle_safe:
+                  blockers.append({"code": "M13-B10", "message": "M13.H idle_safe is false."})
+              if residual_item_count != 0:
+                  blockers.append({"code": "M13-B10", "message": f"M13.H residual_item_count is not zero ({residual_item_count})."})
+              if not run_scoped_snapshot_published:
+                  blockers.append({"code": "M13-B10", "message": "M13.H run_scoped_snapshot_published is false."})
+              if teardown_cost_snapshot_ref:
+                  ok, err = s3_surface_readable(s3, teardown_cost_snapshot_ref)
+                  if not ok:
+                      blockers.append({"code": "M13-B10", "message": "M13.H teardown cost snapshot ref unreadable."})
+                      read_errors.append({"surface": teardown_cost_snapshot_ref, "error": err})
+              else:
+                  blockers.append({"code": "M13-B10", "message": "M13.H teardown cost snapshot reference missing."})
+
+              handles: dict[str, str] = {}
+              try:
+                  handles = parse_handles_registry(handles_registry_path)
+              except Exception as exc:
+                  read_errors.append({"surface": str(handles_registry_path), "error": type(exc).__name__})
+                  blockers.append({"code": "M13-B10", "message": "Unreadable dev_full handles registry."})
+
+              def get_handle_string(name: str) -> str:
+                  raw = handles.get(name)
+                  if raw is None:
+                      return ""
+                  value, typ = parse_scalar(str(raw).strip())
+                  if typ != "string":
+                      return ""
+                  text = str(value).strip()
+                  if not text or text.upper() in {"TBD", "TODO", "UNSET"}:
+                      return ""
+                  return text
+
+              def get_handle_bool(name: str) -> bool | None:
+                  raw = handles.get(name)
+                  if raw is None:
+                      return None
+                  value, typ = parse_scalar(str(raw).strip())
+                  if typ == "bool":
+                      return bool(value)
+                  return None
+
+              def get_handle_float(name: str) -> float | None:
+                  text = get_handle_string(name)
+                  if not text:
+                      return None
+                  try:
+                      return float(text)
+                  except Exception:
+                      return None
+
+              envelope_pattern = get_handle_string("PHASE_BUDGET_ENVELOPE_PATH_PATTERN")
+              receipt_pattern = get_handle_string("PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN")
+              if "{phase_execution_id}" not in envelope_pattern:
+                  blockers.append({"code": "M13-B10", "message": "PHASE_BUDGET_ENVELOPE_PATH_PATTERN missing {phase_execution_id}."})
+              if "{phase_execution_id}" not in receipt_pattern:
+                  blockers.append({"code": "M13-B10", "message": "PHASE_COST_OUTCOME_RECEIPT_PATH_PATTERN missing {phase_execution_id}."})
+
+              phase_envelope_required = get_handle_bool("PHASE_ENVELOPE_REQUIRED")
+              phase_cost_required = get_handle_bool("PHASE_COST_OUTCOME_REQUIRED")
+              if phase_envelope_required is not True:
+                  blockers.append({"code": "M13-B10", "message": "PHASE_ENVELOPE_REQUIRED is not true."})
+              if phase_cost_required is not True:
+                  blockers.append({"code": "M13-B10", "message": "PHASE_COST_OUTCOME_REQUIRED is not true."})
+
+              budget_currency = get_handle_string("BUDGET_CURRENCY")
+              monthly_limit = get_handle_float("DEV_FULL_MONTHLY_BUDGET_LIMIT_USD")
+              alert_1 = get_handle_float("DEV_FULL_BUDGET_ALERT_1_USD")
+              alert_2 = get_handle_float("DEV_FULL_BUDGET_ALERT_2_USD")
+              alert_3 = get_handle_float("DEV_FULL_BUDGET_ALERT_3_USD")
+              if not budget_currency:
+                  blockers.append({"code": "M13-B10", "message": "BUDGET_CURRENCY handle missing/invalid."})
+              if monthly_limit is None or alert_1 is None or alert_2 is None or alert_3 is None:
+                  blockers.append({"code": "M13-B10", "message": "One or more budget threshold handles missing/invalid."})
+              elif not (0 < alert_1 < alert_2 < alert_3 <= monthly_limit):
+                  blockers.append({"code": "M13-B10", "message": "Budget thresholds are not strictly ordered within monthly limit."})
+
+              platform_run_id = str(upstream_m13h_snapshot.get("platform_run_id", "") or "").strip() if isinstance(upstream_m13h_snapshot, dict) else ""
+              scenario_run_id = str(upstream_m13h_snapshot.get("scenario_run_id", "") or "").strip() if isinstance(upstream_m13h_snapshot, dict) else ""
+              if not platform_run_id:
+                  blockers.append({"code": "M13-B10", "message": "platform_run_id missing in upstream M13.H snapshot."})
+              if not scenario_run_id:
+                  blockers.append({"code": "M13-B10", "message": "scenario_run_id missing in upstream M13.H snapshot."})
+
+              envelope_payload = {
+                  "captured_at_utc": now(),
+                  "phase": "M13.I",
+                  "execution_id": exec_id,
+                  "platform_run_id": platform_run_id,
+                  "scenario_run_id": scenario_run_id,
+                  "budget_currency": budget_currency,
+                  "monthly_limit": monthly_limit,
+                  "alert_thresholds": {
+                      "alert_1": alert_1,
+                      "alert_2": alert_2,
+                      "alert_3": alert_3,
+                  },
+                  "phase_envelope_required": bool(phase_envelope_required),
+                  "phase_cost_outcome_required": bool(phase_cost_required),
+                  "source_upstream": {
+                      "m13h_execution": upstream_m13h,
+                      "m13h_summary_key": upstream_m13h_key,
+                      "m13h_snapshot_key": upstream_m13h_snapshot_key,
+                  },
+              }
+
+              cost_outcome_payload = {
+                  "captured_at_utc": now(),
+                  "phase": "M13.I",
+                  "execution_id": exec_id,
+                  "platform_run_id": platform_run_id,
+                  "scenario_run_id": scenario_run_id,
+                  "budget_currency": budget_currency,
+                  "monthly_limit": monthly_limit,
+                  "guardrail_source": {
+                      "m13h_execution": upstream_m13h,
+                      "teardown_cost_snapshot_ref": teardown_cost_snapshot_ref,
+                  },
+                  "idle_safe": idle_safe,
+                  "residual_item_count": residual_item_count,
+                  "run_scoped_snapshot_published": run_scoped_snapshot_published,
+                  "cost_measure_mode": "post_teardown_guardrail_only",
+                  "mtd_cost_amount": None,
+                  "cost_within_envelope": bool(idle_safe and residual_item_count == 0 and run_scoped_snapshot_published),
+                  "phase_outcome_pass": bool(idle_safe and residual_item_count == 0 and run_scoped_snapshot_published),
+              }
+
+              envelope_ref = envelope_pattern.replace("{phase_execution_id}", exec_id) if envelope_pattern else ""
+              receipt_ref = receipt_pattern.replace("{phase_execution_id}", exec_id) if receipt_pattern else ""
+              envelope_published = False
+              envelope_publish_error = ""
+              receipt_published = False
+              receipt_publish_error = ""
+
+              if envelope_ref:
+                  try:
+                      if envelope_ref.startswith("s3://"):
+                          eb, ek = parse_s3_uri(envelope_ref)
+                      else:
+                          eb, ek = bucket, envelope_ref
+                      s3_put_json(s3, eb, ek, envelope_payload)
+                      _ = s3_get_json(s3, eb, ek)
+                      envelope_published = True
+                  except Exception as exc:
+                      envelope_publish_error = type(exc).__name__
+                      blockers.append({"code": "M13-B10", "message": "Failed to publish/readback phase budget envelope."})
+                      read_errors.append({"surface": envelope_ref, "error": type(exc).__name__})
+              else:
+                  blockers.append({"code": "M13-B10", "message": "Rendered phase budget envelope reference is empty."})
+
+              if receipt_ref:
+                  try:
+                      if receipt_ref.startswith("s3://"):
+                          rb, rk = parse_s3_uri(receipt_ref)
+                      else:
+                          rb, rk = bucket, receipt_ref
+                      s3_put_json(s3, rb, rk, cost_outcome_payload)
+                      _ = s3_get_json(s3, rb, rk)
+                      receipt_published = True
+                  except Exception as exc:
+                      receipt_publish_error = type(exc).__name__
+                      blockers.append({"code": "M13-B10", "message": "Failed to publish/readback phase cost-outcome receipt."})
+                      read_errors.append({"surface": receipt_ref, "error": type(exc).__name__})
+              else:
+                  blockers.append({"code": "M13-B10", "message": "Rendered phase cost-outcome receipt reference is empty."})
+
+              snapshot = {
+                  "captured_at_utc": now(),
+                  "phase": "M13.I",
+                  "execution_id": exec_id,
+                  "mode": mode,
+                  "requested_subphase": subphase,
+                  "upstream_m13h_execution": upstream_m13h,
+                  "upstream_m13h_summary_key": upstream_m13h_key,
+                  "upstream_m13h_snapshot_key": upstream_m13h_snapshot_key,
+                  "platform_run_id": platform_run_id,
+                  "scenario_run_id": scenario_run_id,
+                  "budget_currency": budget_currency,
+                  "monthly_limit": monthly_limit,
+                  "alert_thresholds": {"alert_1": alert_1, "alert_2": alert_2, "alert_3": alert_3},
+                  "idle_safe": idle_safe,
+                  "residual_item_count": residual_item_count,
+                  "run_scoped_snapshot_published": run_scoped_snapshot_published,
+                  "teardown_cost_snapshot_ref": teardown_cost_snapshot_ref,
+                  "envelope_ref": envelope_ref,
+                  "receipt_ref": receipt_ref,
+                  "envelope_published": envelope_published,
+                  "envelope_publish_error": envelope_publish_error,
+                  "receipt_published": receipt_published,
+                  "receipt_publish_error": receipt_publish_error,
+              }
+              artifacts = {
+                  "m13i_phase_cost_outcome_snapshot.json": snapshot,
+                  "m13_phase_budget_envelope.json": envelope_payload,
+                  "m13_phase_cost_outcome_receipt.json": cost_outcome_payload,
+              }
           else:
               blockers.append({"code": blocker_code, "message": f"Unhandled execution mode '{mode}'."})
 
