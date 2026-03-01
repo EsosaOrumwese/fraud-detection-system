@@ -3,6 +3,11 @@ _Status source of truth: `platform.build_plan.md`_
 _This document provides orchestration-level deep planning detail for M5._
 _Last updated: 2026-02-28_
 
+## 0.1) v0.2 Repin Note (Authoritative for new execution)
+- Historical M5 lane records include `EMR_ON_EKS_SPARK` references from prior closure windows.
+- Forward execution is repinned to `ORACLE_STREAM_SORT_ENGINE=EMR_SERVERLESS_SPARK` and `ORACLE_STREAM_SORT_RUNTIME_PATH=EMR_SERVERLESS_SPARK`.
+- Historical artifacts remain valid history but are not canonical runtime targets for new M5 refresh/certification runs.
+
 ## 0) Purpose
 M5 closes:
 1. `P3 ORACLE_READY` (oracle source + stream-view contract readiness).
@@ -234,13 +239,13 @@ M5.R1 authoritative closure (full-tree mirror):
 
 #### M5.R2 Execution Expansion (Managed Distributed Stream-Sort)
 Goal:
-1. materialize stream-view outputs from the uploaded raw oracle inputs using managed compute (`EMR_EKS_SPARK`) and publish deterministic closure receipts.
+1. materialize stream-view outputs from the uploaded raw oracle inputs using managed compute (`EMR_SERVERLESS_SPARK`) and publish deterministic closure receipts.
 
 Pinned runtime path for this lane:
 1. `ORACLE_STREAM_SORT_EXECUTION_MODE=managed_distributed`
-2. `ORACLE_STREAM_SORT_ENGINE=EMR_EKS_SPARK`
+2. `ORACLE_STREAM_SORT_ENGINE=EMR_SERVERLESS_SPARK`
 3. `ORACLE_STREAM_SORT_TRIGGER_SURFACE=github_actions_managed` (operator-run managed trigger)
-4. `ORACLE_STREAM_SORT_RUNTIME_PATH=EMR_ON_EKS_SPARK`
+4. `ORACLE_STREAM_SORT_RUNTIME_PATH=EMR_SERVERLESS_SPARK`
 
 Execution steps:
 1. generate `m5r2_execution_id` and local run root under `runs/dev_substrate/dev_full/m5/<m5r2_execution_id>/`.
@@ -250,11 +255,11 @@ Execution steps:
    - `ORACLE_ENGINE_RUN_ID`,
    - `ORACLE_REQUIRED_OUTPUT_IDS`,
    - `ORACLE_SORT_KEY_BY_OUTPUT_ID`,
-   - `EMR_EKS_VIRTUAL_CLUSTER_ID`,
-   - `EMR_EKS_EXECUTION_ROLE_ARN`,
+   - `ORACLE_STREAM_SORT_EMR_SERVERLESS_APP`,
+   - `ORACLE_STREAM_SORT_EXECUTION_ROLE_ARN`,
    - `ORACLE_STREAM_SORT_EMR_RELEASE_LABEL`,
    - `S3_EVIDENCE_BUCKET`.
-3. submit EMR-on-EKS Spark job for stream-sort using pinned virtual cluster + execution role.
+3. submit EMR Serverless Spark job for stream-sort using pinned app + execution role.
 4. poll job state to terminal status; fail-closed on non-`COMPLETED` terminal states.
 5. verify per required output under `S3_STREAM_VIEW_OUTPUT_PREFIX_PATTERN`:
    - parquet object presence (`>0`),

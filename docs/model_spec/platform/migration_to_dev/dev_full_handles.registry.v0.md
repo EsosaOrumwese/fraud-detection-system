@@ -203,7 +203,7 @@ Allowed tokens in pattern handles:
 * `ORACLE_INLET_ASSERTION_REQUIRED = true`
 * `ORACLE_RAW_UPLOAD_REQUIRED = true`
 * `ORACLE_STREAM_SORT_EXECUTION_MODE = "managed_distributed"`
-* `ORACLE_STREAM_SORT_ENGINE = "EMR_EKS_SPARK"`
+* `ORACLE_STREAM_SORT_ENGINE = "EMR_SERVERLESS_SPARK"`
 * `ORACLE_STREAM_SORT_TRIGGER_SURFACE = "github_actions_managed"`
 * `ORACLE_STREAM_SORT_LOCAL_EXECUTION_ALLOWED = false`
 * `ORACLE_STREAM_SORT_REQUIRED_BEFORE_P3B = true`
@@ -413,10 +413,13 @@ Allowed tokens in pattern handles:
 
 ### 7.1 Runtime strategy pins
 
-* `RUNTIME_STRATEGY = "managed_first_hybrid"`
+* `RUNTIME_STRATEGY = "managed_first_serverless_preferred"`
 * `RUNTIME_DEFAULT_STREAM_ENGINE = "msk_flink"`
 * `RUNTIME_DEFAULT_INGRESS_EDGE = "apigw_lambda_ddb"`
-* `RUNTIME_EKS_USE_POLICY = "differentiating_services_only"`
+* `RUNTIME_ECS_USE_POLICY = "default_for_non_k8s_custom_services"`
+* `RUNTIME_EKS_USE_POLICY = "exception_only_with_admission_rule"`
+* `EKS_ADMISSION_RULE = "CAPABILITY_GAP_AND_SLO_GAIN_AND_COST_FIT_AND_ROLLBACK_PATH"`
+* `EKS_ADMISSION_REVIEW_CADENCE_DAYS = 30`
 
 ### 7.2 EKS cluster and namespaces (selective custom-runtime lane)
 
@@ -432,21 +435,26 @@ Allowed tokens in pattern handles:
 ### 7.3 Flink runtime handles (MSK-integrated stream lanes)
 
 * `FLINK_RUNTIME_MODE = "MSK_FLINK_RUNTIME_PATH_SELECT"`
-* `FLINK_RUNTIME_PATH_ALLOWED = "MSF_MANAGED|EKS_EMR_ON_EKS|EKS_FLINK_OPERATOR"`
+* `FLINK_RUNTIME_PATH_ALLOWED = "MSF_MANAGED|EKS_FLINK_OPERATOR"`
 * `FLINK_RUNTIME_PATH_DEFAULT = "MSF_MANAGED"`
 * `FLINK_RUNTIME_PATH_FALLBACK_BLOCKER = "M6P6-B2"`
-* `FLINK_RUNTIME_PATH_ACTIVE = "EKS_EMR_ON_EKS"` (repinned for current `M6P6-B2` unblock window; managed substitution proof required once MSF eligibility clears)
-* `FLINK_APP_WSP_STREAM_V0 = "fraud-platform-dev-full-wsp-stream-v0"` (MSF application name / logical stream lane id)
-* `FLINK_APP_SR_READY_V0 = "fraud-platform-dev-full-sr-ready-v0"` (MSF application name / logical stream lane id)
-* `FLINK_APP_RTDL_IEG_V0 = "fraud-platform-dev-full-rtdl-ieg-v0"` (MSF application name / logical stream lane id)
-* `FLINK_APP_RTDL_OFP_V0 = "fraud-platform-dev-full-rtdl-ofp-v0"` (MSF application name / logical stream lane id)
+* `FLINK_RUNTIME_PATH_ACTIVE = "MSF_MANAGED"` (repinned canonical path)
+* `FLINK_APP_RTDL_IEG_OFP_V0 = "fraud-platform-dev-full-rtdl-ieg-ofp-v0"` (single app, branch-separated metrics/evidence)
+* `FLINK_APP_RTDL_IEG_OFP_SPLIT_POLICY = "split_only_on_evidence_of_contention_or_blast_radius"`
+* `FLINK_APP_RTDL_IEG_OFP_METRIC_NAMESPACES = "ieg_*,ofp_*"`
+* `FLINK_APP_WSP_STREAM_V0 = "legacy_deferred_not_active"`
+* `FLINK_APP_SR_READY_V0 = "legacy_deferred_not_active"`
+* `FLINK_APP_RTDL_IEG_V0 = "legacy_deferred_not_active"`
+* `FLINK_APP_RTDL_OFP_V0 = "legacy_deferred_not_active"`
 * `FLINK_EKS_HOSTING_MODE = "EMR_ON_EKS"`
 * `FLINK_EKS_NAMESPACE = "fraud-platform-rtdl"`
 * `EMR_EKS_VIRTUAL_CLUSTER_NAME = "fraud-platform-dev-full-flink-vc"`
 * `EMR_EKS_VIRTUAL_CLUSTER_ID = "3cfszbpz28ixf1wmmd2roj571"`
 * `EMR_EKS_EXECUTION_ROLE_ARN = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution"`
 * `EMR_EKS_RELEASE_LABEL = "emr-6.15.0-latest"`
-* `ORACLE_STREAM_SORT_RUNTIME_PATH = "EMR_ON_EKS_SPARK"`
+* `ORACLE_STREAM_SORT_RUNTIME_PATH = "EMR_SERVERLESS_SPARK"`
+* `ORACLE_STREAM_SORT_EMR_SERVERLESS_APP = "fraud-platform-dev-full-oracle-stream-sort-v0"`
+* `ORACLE_STREAM_SORT_EXECUTION_ROLE_ARN = "arn:aws:iam::230372904534:role/fraud-platform-dev-full-flink-execution"`
 * `ORACLE_STREAM_SORT_EMR_RELEASE_LABEL = "emr-6.15.0-latest"`
 * `ORACLE_STREAM_SORT_JOB_REF = "fraud-platform-dev-full-oracle-stream-sort-v0"`
 * `FLINK_EKS_WSP_STREAM_REF = "fraud-platform-dev-full-wsp-stream-v0"` (EKS/EMR-on-EKS job or FlinkDeployment reference)
@@ -482,7 +490,7 @@ Allowed tokens in pattern handles:
 * `IG_RATE_LIMIT_RPS = 200`
 * `IG_RATE_LIMIT_BURST = 400`
 
-### 7.5 Runtime service/deployment handles (selective EKS custom lanes only)
+### 7.5 Runtime service/deployment handles (legacy EKS fallback refs only)
 
 * `K8S_DEPLOY_IG = "ig"`
 * `K8S_DEPLOY_IEG = "ieg"`
@@ -496,6 +504,18 @@ Allowed tokens in pattern handles:
 * `K8S_DEPLOY_CM = "cm"`
 * `K8S_DEPLOY_LS = "ls"`
 * `K8S_DEPLOY_ENV_CONFORMANCE = "env-conformance"`
+
+### 7.5.1 Runtime workload placement handles (canonical)
+
+* `RUNTIME_WORKLOAD_DF = "ECS_SERVICE_CONDITIONAL_REVIEW"`
+* `RUNTIME_WORKLOAD_AL = "ECS_FARGATE_SERVICE"`
+* `RUNTIME_WORKLOAD_DLA = "ECS_SERVICE_CUSTOM_SEMANTICS"`
+* `RUNTIME_WORKLOAD_CASE_TRIGGER = "ECS_FARGATE_SERVICE"`
+* `RUNTIME_WORKLOAD_CM = "ECS_FARGATE_SERVICE_PLUS_AURORA"`
+* `RUNTIME_WORKLOAD_LS = "ECS_FARGATE_SERVICE_PLUS_AURORA"`
+* `RUNTIME_WORKLOAD_ARCHIVE = "MANAGED_CONNECTOR_TO_S3"`
+* `RUNTIME_WORKLOAD_ENV_CONFORMANCE = "ECS_FARGATE_JOB"`
+* `RUNTIME_WORKLOAD_IG_EKS_FALLBACK = "DISABLED_BY_DEFAULT"`
 
 ### 7.6 Runtime service/deployment handles (learning)
 
@@ -514,6 +534,13 @@ Allowed tokens in pattern handles:
 * `IG_AUTH_MODE = "api_key"`
 * `IG_AUTH_HEADER_NAME = "X-IG-Api-Key"`
 * `SSM_IG_API_KEY_PATH = "/fraud-platform/dev_full/ig/api_key"`
+
+### 7.7.1 Control-lane runtime placement handles
+
+* `SR_RUNTIME = "STEP_FUNCTIONS_PLUS_LAMBDA_JOB"`
+* `SR_READY_COMPUTE_MODE = "control_plane_orchestration_not_flink"`
+* `WSP_RUNTIME = "ECS_FARGATE_RUNTASK_EPHEMERAL"`
+* `WSP_TRIGGER_MODE = "READY_EVENT_TRIGGERED"`
 
 ### 7.8 Runtime control knobs
 
@@ -632,7 +659,7 @@ Allowed tokens in pattern handles:
 
 ---
 
-## 10. Orchestration Handles (Step Functions + MWAA)
+## 10. Orchestration Handles (Step Functions + optional MWAA)
 
 ### 10.1 Step Functions state machines
 
@@ -654,7 +681,7 @@ Allowed tokens in pattern handles:
 
 ### 10.3 MWAA handles
 
-* `AIRFLOW_MODE = "MWAA"`
+* `AIRFLOW_MODE = "DEFERRED_UNTIL_COMPLEXITY_THRESHOLD"`
 * `MWAA_ENV_NAME = "fraud-platform-dev-full"`
 * `MWAA_DAG_PLATFORM_GUARDRAIL = "dev_full_platform_guardrail_v0"`
 * `MWAA_DAG_OFS_SCHEDULE = "dev_full_ofs_schedule_v0"`

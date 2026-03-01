@@ -3,6 +3,11 @@ _Status source of truth: `platform.build_plan.md`_
 _This document provides orchestration-level deep planning detail for M6._
 _Last updated: 2026-02-25_
 
+## 0.1) v0.2 Repin Note (Authoritative for new execution)
+- Historical M6 closure references include fallback windows on `EKS_FLINK_OPERATOR` / `EKS_EMR_ON_EKS`.
+- Forward execution is repinned to `STREAM_PROCESSING_CANONICAL=MSF_MANAGED`, `SR_RUNTIME=STEP_FUNCTIONS_PLUS_LAMBDA_JOB`, and `WSP_RUNTIME=ECS_FARGATE_RUNTASK_EPHEMERAL`.
+- Historical artifacts remain valid history but are not canonical runtime targets for new M6 re-certification runs.
+
 ## 0) Purpose
 M6 closes:
 1. `P5 READY_PUBLISHED`.
@@ -94,7 +99,7 @@ Goal:
 
 Tasks:
 1. resolve `P5` required handles (`FP_BUS_CONTROL_V1`, `SR_READY_COMMIT_*`, `READY_MESSAGE_FILTER`, `WSP_*`).
-2. resolve `P6` required handles (Flink runtime-path references, EMR-on-EKS control-plane handles when active path is `EKS_EMR_ON_EKS`, lag threshold handles, publish-ambiguity controls).
+2. resolve `P6` required handles (Managed Flink canonical runtime-path references, legacy fallback handles only when exception path is explicitly active, lag threshold handles, publish-ambiguity controls).
 3. resolve `P7` required handles (`RECEIPT_SUMMARY_PATH_PATTERN`, `QUARANTINE_SUMMARY_PATH_PATTERN`, `KAFKA_OFFSETS_SNAPSHOT_PATH_PATTERN`, idempotency handles).
 4. close missing handoff handle gap by pinning:
    - `M6_HANDOFF_PACK_PATH_PATTERN`,

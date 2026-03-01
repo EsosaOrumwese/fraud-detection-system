@@ -17891,3 +17891,48 @@ o nodes available).
 - 2026-03-01 09:01:35 +00:00 checkpoint: 4,887 objects / 36,762,414,991 bytes (~40.0%), process_alive=true for execution m5r1_full_tree_upload_20260301T073206Z.
 - 2026-03-01 09:26:00 +00:00 checkpoint: 6,074 objects / 57,264,739,120 bytes (~61.83%), process_alive=true for execution m5r1_full_tree_upload_20260301T073206Z.
 - 2026-03-01 09:52:12 +00:00 checkpoint: 6,926 objects / 65,978,842,251 bytes (~71.23%), process_alive=true for execution m5r1_full_tree_upload_20260301T073206Z.
+## Entry: 2026-03-01 20:21:31 +00:00 - Dev_full v0.2 runtime-placement repin (managed-first hardening)
+
+### Trigger
+1. USER approved explicit dev_full runtime-placement repin set to reduce EKS overuse and align with production-grade managed-first posture.
+2. Managed Service for Apache Flink authorization is now available, removing prior blocker posture that drove fallback ambiguity.
+
+### Decisions pinned (authoritative)
+1. Oracle boundary remains external S3 read-only for platform runtime.
+2. M5 stream-sort is repinned to `EMR_SERVERLESS_SPARK`.
+3. SR runtime is repinned to `Step Functions + Lambda/job`.
+4. WSP runtime is repinned to `ECS/Fargate` ephemeral task.
+5. RTDL projections (`IEG/OFP`) are repinned to Managed Flink canonical runtime (single app first, branch-separated metrics/evidence).
+6. AL / CaseTrigger / CM / LS are repinned to ECS/Fargate placement.
+7. Archive writer is repinned to managed connector-to-S3 posture.
+8. DF remains custom runtime under conditional review; DLA remains custom unless semantic parity is proven.
+9. MWAA is repinned to deferred status until scheduler complexity threshold is met.
+10. EKS admission is now exception-only under hard rule: capability gap + measurable SLO gain + cost fit + rollback path, with 30-day re-justification cadence.
+
+### Docs aligned in this pass
+1. `docs/model_spec/platform/pre-design_decisions/dev-full_managed-substrate_migration.design-authority.v0.md`
+2. `docs/model_spec/platform/migration_to_dev/dev_full_handles.registry.v0.md`
+3. `docs/design/platform/dev_full/graph/dev_full_platform_planned_v0.mermaid.mmd`
+4. `docs/design/platform/dev_full/graph/dev_full_platform_planned_v0.ascii.txt`
+5. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.build_plan.md`
+6. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M5.build_plan.md`
+7. `docs/model_spec/platform/implementation_maps/dev_substrate/dev_full/platform.M6.build_plan.md`
+
+### Implementation posture notes
+1. Historical evidence from prior fallback windows is retained as historical truth; canonical runtime targets for new execution are now defined by v0.2 repin.
+2. This repin is design/authority alignment only; runtime re-materialization and re-certification runs are not executed in this pass.
+
+## Entry: 2026-03-01 20:25:29 +00:00 - Run-process authority repin alignment (dev_full)
+
+### Trigger
+1. Post-repin drift scan found remaining runtime-placement contradictions in dev_full_platform_green_v0_run_process_flow.md.
+
+### Changes applied
+1. Updated runtime strategy wording to ECS-default + EKS exception-only policy.
+2. Updated orchestration wording to Step Functions primary with MWAA deferred.
+3. Updated fallback rule text to managed-unavailable blocker framing.
+4. Updated phase map rows (P2, P6) to reflect canonical lanes (MSF for IEG/OFP, ECS/Fargate for WSP).
+5. Updated P6 PASS gate text to match canonical stream/publish runtime placements.
+
+### Result
+1. Authority, handles, planned graph, build plan, and run-process narrative are now aligned to the approved v0.2 repin set.

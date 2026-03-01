@@ -9,8 +9,8 @@ with no laptop compute, no ownership drift, and run-scoped evidence closure.
 Active runtime split (current pinned posture)
 ---------------------------------------------
 - Flink host-path truth:
-  - latest green P6 execution evidence used EKS_FLINK_OPERATOR under blocker window M6P6-B2,
-  - handles target remains EKS_EMR_ON_EKS pending substitution proof/repin closure.
+  - canonical runtime for stream lanes is MSF-managed,
+  - EKS Flink Operator is legacy fallback under explicit exception only.
 - IG edge path remains API Gateway + Lambda + DynamoDB as primary.
 - IG service on EKS remains fallback only.
 
@@ -31,7 +31,7 @@ LAYER 0: DELIVERY, ORCHESTRATION, IDENTITY
   - post-teardown cost guardrail snapshot + fail-closed enforcement
 
 [MWAA Airflow]
-  - schedules learning jobs (OFS/MF)
+  - deferred until schedule/DAG complexity threshold is met
 
 [Run identity law]
   - platform_run_id, scenario_run_id, phase_id, event_id, trace_id
@@ -57,7 +57,7 @@ LAYER 2: ORACLE BOUNDARY (EXTERNAL)
   - read-only from platform runtime
   - writer remains Data Engine/upstream producer
 
-[M5 stream-sort lane, EMR on EKS Spark]
+[M5 stream-sort lane, EMR Serverless Spark]
   - reads oracle source tree from Oracle Store S3 zone
   - publishes stream_view materialization surfaces
   - emits stream-sort/parity receipts to run-control evidence
@@ -65,10 +65,10 @@ LAYER 2: ORACLE BOUNDARY (EXTERNAL)
 
 LAYER 3: CONTROL + INGRESS (MANAGED-FIRST)
 ------------------------------------------
-[SR READY lane, Flink compute on EKS host path + Step Functions commit]
+[SR READY lane, Step Functions + Lambda/job commit]
    -> publishes READY to [fp.bus.control.v1]
 
-[WSP stream lane, Flink on EKS host path]
+[WSP stream lane, ECS/Fargate ephemeral task]
    <- consumes READY from control topic
    <- reads required output_ids from Oracle stream_view
    -> pushes envelopes to [API Gateway]
@@ -85,13 +85,13 @@ LAYER 3: CONTROL + INGRESS (MANAGED-FIRST)
 LAYER 4: RTDL + DECISION (HYBRID)
 ---------------------------------
 MSK traffic/context ->
-  [IEG Flink projection on EKS host path] -> Aurora state
-  [OFP Flink projection on EKS host path] -> Redis (low-latency) + Aurora (durable)
+  [IEG Managed Flink projection branch] -> Aurora state
+  [OFP Managed Flink projection branch] -> Redis (low-latency) + Aurora (durable)
 
-MSK traffic -> [Decision Fabric, EKS custom lane]
+MSK traffic -> [Decision Fabric, ECS custom lane (conditional review)]
 Decision Fabric ->
-  [Action Layer, EKS custom lane]
-  [Decision Log and Audit, EKS custom lane]
+  [Action Layer, ECS/Fargate lane]
+  [Decision Log and Audit, custom ECS lane]
 
 Action Layer ->
   decision outcomes back through IG boundary
@@ -101,15 +101,15 @@ Decision Log and Audit ->
   fp.bus.audit.v1
   append-only audit records in S3
 
-[Archive Writer] consumes traffic/context/rtdl/case/labels/audit and writes immutable archive events to S3.
+[Archive Sink Connector] consumes traffic/context/rtdl/case/labels/audit and writes immutable archive events to S3.
 
 
 LAYER 5: CASE + LABEL (HYBRID)
 ------------------------------
-fp.bus.rtdl.v1 -> [Case Trigger] -> fp.bus.case.triggers.v1 -> [Case Management]
-[Case Management] -> case timeline append (Aurora)
-[Case Management] -> label writer boundary -> [Label Store]
-[Label Store] -> label assertion append (Aurora) + fp.bus.labels.events.v1
+fp.bus.rtdl.v1 -> [Case Trigger ECS/Fargate] -> fp.bus.case.triggers.v1 -> [Case Management ECS/Fargate]
+[Case Management ECS/Fargate] -> case timeline append (Aurora)
+[Case Management ECS/Fargate] -> label writer boundary -> [Label Store ECS/Fargate]
+[Label Store ECS/Fargate] -> label assertion append (Aurora) + fp.bus.labels.events.v1
 
 
 LAYER 6: LEARNING + EVOLUTION
@@ -142,7 +142,7 @@ All runtime lanes emit correlated telemetry with run identity headers.
 
 BOUNDARY LAWS REPRESENTED
 -------------------------
-1) Managed-first runtime path is default; selective EKS only for differentiating logic.
+1) Managed-first runtime path is default; ECS/Fargate is default for non-K8s custom services; EKS is exception-only.
 2) SR READY closure authority is Step Functions commit evidence, not compute output alone.
 3) IG owns admission truth; receipts/quarantine are append evidence surfaces.
 4) Append-only and dedupe/provenance laws remain unchanged from dev_min/local parity.

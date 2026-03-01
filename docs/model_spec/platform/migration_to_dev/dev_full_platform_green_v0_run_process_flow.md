@@ -57,7 +57,7 @@
 
 ### 1.3 Substrate and tooling pins
 
-1. Runtime strategy: managed-first with hybrid fallback only for differentiating services (`MSK+Flink`, API Gateway/Lambda/DynamoDB, selective EKS custom services); for `P6` stream lanes, hosting may switch from MSF to EKS-hosted Flink only under blocker `M6P6-B2`.
+1. Runtime strategy: managed-first with ECS/Fargate default for non-K8s custom services (`MSK+Managed Flink`, API Gateway/Lambda/DynamoDB, selective EKS exception-only). Stream-lane hosting is `MSF` canonical with bounded legacy fallback only under explicit blocker adjudication.
 2. Event bus: `AWS MSK Serverless` (`SASL_IAM`, `MSK_REGION=eu-west-2`)
 3. Durable object store/evidence/archive: `S3`
 4. Runtime relational state: `Aurora PostgreSQL Serverless v2 Multi-AZ`
@@ -65,7 +65,7 @@
 6. OFS compute lane: `Databricks` (job clusters only)
 7. MF train/serve lane: `SageMaker` (realtime endpoint + batch transform)
 8. Experiment/registry tracking: `Databricks managed MLflow`
-9. Orchestration split: `Step Functions` (run-state/gates) + `MWAA Airflow` (learning schedules)
+9. Orchestration split: `Step Functions` (run-state/gates and primary scheduler) + optional `MWAA Airflow` (deferred until schedule/DAG complexity threshold).
 10. Delivery/IaC: `Terraform + GitHub Actions`
 11. Telemetry baseline: `OpenTelemetry` + CloudWatch-backed operational signals
 12. Learning tabular format: `Apache Iceberg v2` on S3 with `AWS Glue Data Catalog` (Delta is not default in v0).
@@ -93,7 +93,7 @@ Unchanged from local-parity/dev_min:
 ### 1.6 Runtime-path and correlation laws (pinned)
 
 1. **Single-path per phase/run:** each phase execution must select exactly one active runtime path; in-phase switching is prohibited.
-2. **Fallback activation rule:** fallback path use is fail-closed and requires blocker adjudication, explicit approval, and a new `phase_execution_id`; `P6` Flink hosting fallback is valid only for `M6P6-B2` while preserving unchanged P6 DoDs/evidence.
+2. **Fallback activation rule:** fallback path use is fail-closed and requires blocker adjudication, explicit approval, and a new `phase_execution_id`; stream-lane fallback is valid only under approved managed-unavailable blockers while preserving unchanged phase DoDs/evidence.
 3. **SR commit authority rule:** Flink may compute READY surfaces, but `P5` closure is valid only when Step Functions commits READY and receipt evidence carries the orchestrator execution reference.
 4. **Cross-runtime correlation rule:** required fields `platform_run_id,scenario_run_id,phase_id,event_id,runtime_lane,trace_id` must be preserved across API edge, stream lanes, orchestrator transitions, and evidence emission.
 
@@ -183,11 +183,11 @@ Phase advancement is fail-closed if spend is consumed without material proof out
 | P(-1) | PACKAGING_READY | GH Actions + ECR | immutable image digest + provenance |
 | P0 | SUBSTRATE_READY | Terraform stacks | required handles resolvable |
 | P1 | RUN_PINNED | Step Functions run-state entry | run header + config digest committed |
-| P2 | DAEMONS_READY | managed runtime workloads (Flink/API Gateway/Lambda/EKS selective) | required runtime lanes healthy |
+| P2 | DAEMONS_READY | managed runtime workloads (Managed Flink/API Gateway/Lambda/ECS default, EKS exception-only) | required runtime lanes healthy |
 | P3 | ORACLE_READY | S3 + stream-view validation | oracle + stream-view contract valid |
 | P4 | INGEST_READY | ingress edge + MSK preflight | writer-boundary + bus ready |
 | P5 | READY_PUBLISHED | SR lane + control topic | READY signal + receipt committed |
-| P6 | STREAMING_ACTIVE | Flink stream lanes (MSF or EKS-hosted fallback) + ingress edge + MSK | ingest streaming active + lag bounded |
+| P6 | STREAMING_ACTIVE | managed stream + publish lanes (`IEG/OFP` on MSF, `WSP` on ECS/Fargate) + ingress edge + MSK | ingest streaming active + lag bounded |
 | P7 | INGEST_COMMITTED | IG receipts/quarantine | admit/quarantine/offset evidence complete |
 | P8 | RTDL_CAUGHT_UP | Flink RTDL transforms + Redis/Aurora + hybrid services | inlet/projection closure committed |
 | P9 | DECISION_CHAIN_COMMITTED | hybrid DF/AL/DLA lanes | decision/action/audit closure committed |
@@ -292,7 +292,7 @@ For every phase below:
 
 * Entry gate: WSP source roots pinned for run.
 * PASS gate:
-  1. Flink-driven stream publication and ingress admission active (runtime path may be `MSF` or `EKS-hosted Flink` under approved `M6P6-B2` fallback),
+  1. Stream publication and ingress admission active (`IEG/OFP` on MSF canonical, `WSP` on ECS/Fargate; legacy fallback only when explicitly approved),
   2. lag within threshold,
   3. no unresolved publish ambiguity,
   4. admission proof mode is explicit and handle-pinned:

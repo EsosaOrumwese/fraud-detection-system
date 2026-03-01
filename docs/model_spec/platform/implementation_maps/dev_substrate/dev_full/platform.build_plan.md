@@ -63,6 +63,21 @@ Program is complete only when all are true:
   - event-level evidence must be async and batched (window/count flush) with deterministic replay-safe keys,
   - phase closure must include evidence overhead posture (`latency p95`, `bytes/event`, `write-rate`) and confirm overhead stays within budget target.
 
+## 4.1) v0.2 Runtime Repin Overlay (Approved)
+This overlay is authoritative for forward execution and supersedes older placement defaults in historical execution notes.
+
+- `M5 stream-sort`: `EMR_SERVERLESS_SPARK` canonical.
+- `SR`: `Step Functions + Lambda/job` canonical.
+- `WSP`: `ECS/Fargate` ephemeral task canonical.
+- `RTDL IEG/OFP`: `AWS Managed Service for Apache Flink` canonical (single app, branch-separated evidence).
+- `AL`, `CaseTrigger`, `CM`, `LS`: ECS/Fargate canonical.
+- `Archive writer`: managed connector-to-S3 canonical.
+- `DF`: custom runtime kept under conditional evidence-backed review.
+- `DLA`: custom runtime kept unless full semantic parity proven in managed replacement.
+- `MWAA`: deferred until schedule/DAG complexity threshold.
+- `EKS admission`: exception-only with hard rule (`capability gap + measurable SLO gain + cost fit + rollback path`) and 30-day re-justification cadence.
+- Post-repin certification rule: legacy green artifacts remain historical; deployment claims require re-certification on the repinned runtime placements.
+
 ## 5) Progressive Elaboration Method
 Rules:
 - Only one plan phase may be `ACTIVE` at a time.
@@ -152,7 +167,7 @@ M0 prerequisite lanes (M0.PR*, mandatory):
    - `dev_full_platform_green_v0_run_process_flow.md`
    - `dev_full_handles.registry.v0.md`
 3. `M0.PR2` vocabulary/pin alignment check:
-   - stack pins (managed-first runtime: MSK+Flink, API Gateway/Lambda/DynamoDB, selective EKS, S3/Aurora/Redis/Databricks/SageMaker/MLflow/MWAA/Step Functions),
+   - stack pins (managed-first runtime: MSK+Managed Flink, API Gateway/Lambda/DynamoDB, ECS/Fargate default for non-K8s custom lanes, selective EKS exception-only, S3/Aurora/Redis/Databricks/SageMaker/MLflow/Step Functions, MWAA deferred),
    - canonical phase IDs (`P(-1)..P17`),
    - topic set continuity and owner boundaries,
    - production-pattern adoption law + Oracle Store seating contract.

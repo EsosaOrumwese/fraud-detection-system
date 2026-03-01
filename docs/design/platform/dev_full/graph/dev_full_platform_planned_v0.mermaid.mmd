@@ -6,7 +6,7 @@ flowchart LR
     TF[Terraform Stacks<br/>core, streaming, runtime, data_ml, ops]
     ECR[[ECR Immutable Images<br/>git tag -> digest]]
     SFN[Step Functions<br/>phase gates P-1 to P17<br/>run-state commit authority]
-    MWAA[MWAA Airflow<br/>learning schedules]
+    MWAA[MWAA Airflow<br/>deferred until schedule complexity threshold]
     RUNCTL[[Run Control Evidence<br/>runtime_path, cost envelopes,<br/>phase receipts]]
     TD[Unified Teardown + Cost Guardrail<br/>residual scan + post-teardown posture]
   end
@@ -24,17 +24,17 @@ flowchart LR
     GLUE[(Glue Catalog + Iceberg v2<br/>learning table authority)]
     CW[(CloudWatch<br/>metrics, logs, alerts)]
     SM[(Secrets Manager + SSM + KMS<br/>runtime identity + secret handles)]
-    SPLIT[Active Runtime Path Split<br/>Flink lanes: latest green = EKS_FLINK_OPERATOR (M6P6-B2)<br/>handles target = EKS_EMR_ON_EKS (pending repin)<br/>IG edge: APIGW + Lambda + DDB primary<br/>IG on EKS: fallback only]
+    SPLIT[Active Runtime Path Split<br/>stream lanes canonical = MSF_MANAGED<br/>legacy fallback = EKS_FLINK_OPERATOR (exception only)<br/>IG edge: APIGW + Lambda + DDB primary<br/>IG on EKS: fallback only]
   end
 
   subgraph ORACLE[External Oracle Boundary Read Only]
     ORACLESTORE[[Oracle Store S3 Zone<br/>warm source-of-stream<br/>writer owned by Data Engine/upstream]]
-    M5SORT[M5 Stream-Sort Lane (EMR on EKS Spark)<br/>read source tree + publish stream_view + receipts]
+    M5SORT[M5 Stream-Sort Lane (EMR Serverless Spark)<br/>read source tree + publish stream_view + receipts]
   end
 
   subgraph INGRESS[Control + Ingress Plane Managed First]
-    SR[SR READY Lane<br/>Flink compute on EKS host path + Step Functions commit]
-    WSP[WSP Stream Lane<br/>Flink publication on EKS host path]
+    SR[SR READY Lane<br/>Step Functions + Lambda/job commit]
+    WSP[WSP Stream Lane<br/>ECS/Fargate ephemeral task]
     APIGW[API Gateway<br/>IG public edge primary]
     IGL[IG Lambda Handler<br/>admission boundary + envelope checks primary]
     IGREC[[IG Receipts + Quarantine<br/>append evidence surfaces]]
@@ -48,18 +48,18 @@ flowchart LR
   end
 
   subgraph RTDL[RTDL + Decision Plane Hybrid]
-    IEG[IEG Stream Projection<br/>Flink lane on EKS host path]
-    OFP[OFP Stream Projection<br/>Flink lane on EKS host path]
-    DF[Decision Fabric<br/>custom differentiating logic on EKS]
-    AL[Action Layer<br/>outcome execution on EKS]
-    DLA[Decision Log and Audit<br/>append-only audit truth on EKS]
-    ARCH[Archive Writer<br/>immutable event archive]
+    IEG[IEG Stream Projection<br/>Managed Flink canonical app branch]
+    OFP[OFP Stream Projection<br/>Managed Flink canonical app branch]
+    DF[Decision Fabric<br/>custom runtime, ECS service (conditional review)]
+    AL[Action Layer<br/>ECS/Fargate execution]
+    DLA[Decision Log and Audit<br/>custom ECS service]
+    ARCH[Archive Sink Connector<br/>managed Kafka->S3 sink path]
   end
 
   subgraph CASELBL[Case + Label Plane Hybrid]
-    CT[Case Trigger<br/>consume decision/outcome evidence]
-    CM[Case Management<br/>append case timeline]
-    LS[Label Store<br/>append label assertions]
+    CT[Case Trigger<br/>ECS/Fargate consume decision/outcome evidence]
+    CM[Case Management<br/>ECS/Fargate append case timeline]
+    LS[Label Store<br/>ECS/Fargate append label assertions]
   end
 
   subgraph LEARN[Learning + Evolution Plane]
@@ -99,16 +99,16 @@ flowchart LR
   TD -. teardown receipts .-> S3OBJ
 
   SFN -->|phase evidence| RUNCTL
-  SPLIT -. active host path .-> SR
-  SPLIT -. active host path .-> WSP
+  SPLIT -. canonical runtime selection .-> SR
+  SPLIT -. canonical runtime selection .-> WSP
   SPLIT -. active host path .-> IEG
   SPLIT -. active host path .-> OFP
   SPLIT -. primary edge path .-> APIGW
   SPLIT -. primary edge path .-> IGL
   SFN -->|P5 READY commit authority| SR
   SFN -->|final verdict orchestration| REP
-  MWAA -->|schedule OFS runs| OFS
-  MWAA -->|schedule MF runs| MF
+  MWAA -. deferred scheduler path .-> OFS
+  MWAA -. deferred scheduler path .-> MF
 
   ORACLESTORE -->|source tree read| M5SORT
   M5SORT -->|publish stream_view surfaces| ORACLESTORE

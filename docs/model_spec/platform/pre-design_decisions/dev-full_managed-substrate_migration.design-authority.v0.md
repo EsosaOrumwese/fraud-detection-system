@@ -23,7 +23,7 @@
 * `dev_min` certification remains the baseline truth for Spine Green v0; `dev_full` extends scope and operational posture, it does not rewrite prior semantic laws.
 * **No laptop compute** for platform runtime in `dev_full`.
 * `dev_full` must cover the full platform: Spine + Learning/Evolution (`OFS`, `MF`, `MPR`).
-* Managed stack target for `dev_full` is pinned in Section 5 (AWS MSK + Flink, API Gateway/Lambda/DynamoDB where appropriate, hybrid EKS for differentiating services, S3, Aurora/Redis, Databricks, MLflow, SageMaker, Airflow, Step Functions, OTel, Terraform, GitHub Actions).
+* Managed stack target for `dev_full` is pinned in Section 5 (AWS MSK + Managed Flink where appropriate, API Gateway/Lambda/DynamoDB where appropriate, ECS/Fargate for non-K8s custom services, selective EKS by exception, S3, Aurora/Redis, Databricks, MLflow, SageMaker, Step Functions, OTel, Terraform, GitHub Actions).
 * **Decision evidence law:** no section is considered closed without explicit deploy/monitor/fail/recover/rollback/cost-control proof obligations.
 * Semantic invariants are unchanged across environments (dedupe identity, payload hash anomaly semantics, append-only truths, origin_offset evidence boundaries, fail-closed posture).
 
@@ -182,24 +182,28 @@ Multi-region resilience, tighter compliance, higher SLO rigor, and enterprise go
 
 1. **Runtime strategy:** managed-first and replace-by-default. Custom services are retained only where they carry differentiating business logic or stricter semantic contracts that managed primitives cannot satisfy.
 2. **Event bus:** AWS MSK Serverless is the primary managed streaming substrate.
-3. **Stream processing lane:** MSK-integrated Flink is the primary runtime for stream-native transformations and joins (WSP/SR stream surfaces and RTDL ingress/context lanes); hosting is managed-first (`MSF` preferred) with bounded EKS-hosted fallback when account-level MSF eligibility blocks execution.
+3. **Stream processing lane:** MSK-integrated Flink is the primary runtime for stream-native transformations and joins (`IEG/OFP` lanes); hosting is managed-first with `MSF` canonical and EKS-hosted fallback retained as legacy/exception only.
 4. **Ingress edge:** API Gateway + Lambda + DynamoDB idempotency store is the default IG runtime posture; custom IG service runtime is permitted only if a pinned contract cannot be satisfied otherwise.
 5. **Durable object store:** AWS S3 remains durable truth/evidence/archive substrate.
 6. **Operational relational store:** Aurora PostgreSQL is the managed primary runtime relational store.
 7. **Low-latency join/state cache:** ElastiCache Redis is the managed join-plane cache/state substrate.
-8. **Hybrid custom-runtime allowance:** EKS is reserved for differentiating services that remain custom after managed-first adjudication (for example DF policy logic, CM/LS boundary mechanics, selected governance workers).
+8. **Custom-runtime placement policy:** ECS/Fargate is the default runtime for custom services that do not require Kubernetes-specific capabilities; EKS is reserved for exception lanes only.
 9. **Data/feature processing lane:** Databricks is the primary OFS-scale data processing substrate.
 10. **Training and endpoint lane:** SageMaker is the primary managed ML training/deployment substrate.
 11. **Experiment tracking and model lifecycle metadata:** MLflow is the primary experiment/model tracking surface.
 12. **Workflow orchestration split:**
-   * Step Functions: platform run-state orchestration/gates.
-   * Airflow (MWAA): scheduled learning/data DAG orchestration.
+   * Step Functions: platform run-state orchestration/gates and primary control-plane scheduler.
+   * Airflow (MWAA): deferred until schedule/DAG complexity threshold is explicitly met.
 13. **Observability baseline:** OpenTelemetry-first telemetry with CloudWatch-backed operational signals and dashboarding.
 14. **Delivery and IaC:** Terraform + GitHub Actions are mandatory for reproducible provision/deploy flows.
 15. **Secrets and encryption:** IAM + KMS + Secrets Manager/SSM, no plain-text credentials in repo/runtime manifests.
 16. **Lakehouse table format:** Apache Iceberg (v2) on S3 with AWS Glue Data Catalog is the default tabular format for OFS/MF learning datasets; Delta is not the v0 default.
 17. **Oracle source-of-stream bucket policy:** dev_full must read from a canonical external oracle bucket (shared track allowed), while dev_full object-store remains platform-owned for archive/quarantine/evidence-adjacent platform surfaces; duplicate cross-bucket oracle copies are prohibited by default.
-18. **Flink hosting fallback policy (bounded):** when blocker `M6P6-B2` is active (account-level MSF create/update unsupported), `P6` may run on EKS-hosted Flink (`EMR on EKS` preferred, `Flink Operator on EKS` secondary) with unchanged `MSK+Flink` semantics and unchanged `P6` evidence contract.
+18. **Flink hosting fallback policy (bounded):** `MSF` is canonical for active stream lanes; EKS-hosted Flink (`Flink Operator`) is legacy fallback only under explicit blocker adjudication and must preserve unchanged `MSK+Flink` semantics + evidence contracts.
+19. **M5 stream-sort runtime posture:** stream-sort remains Spark but is repinned to `EMR Serverless Spark` as primary managed batch lane; EKS-adjacent execution is not the default.
+20. **Control-lane runtime posture:** `SR` is repinned to `Step Functions + Lambda/job`; `WSP` is repinned to `ECS/Fargate` ephemeral task.
+21. **Decision/case runtime posture:** `AL`, `CaseTrigger`, `CM`, and `LS` are repinned to ECS/Fargate (with Aurora where required); `DF` remains custom-runtime and is kept only with periodic evidence-backed placement review.
+22. **Audit/archive runtime posture:** `DLA` remains custom-runtime unless full semantic parity is proven elsewhere; `Archive Writer` is repinned to managed sink/connector-to-S3 posture with replay/offset continuity proof.
 
 #### 5.1.1 Sectional pin closure set (2026-02-22)
 
@@ -231,7 +235,7 @@ The following values are now explicitly pinned for v0 execution:
 5. **MLflow hosting mode**
    * `MLFLOW_HOSTING_MODE = "Databricks managed MLflow"`
 6. **Airflow deployment mode**
-   * `AIRFLOW_MODE = "MWAA (managed Airflow)"`
+   * `AIRFLOW_MODE = "DEFERRED_UNTIL_COMPLEXITY_THRESHOLD"`
 7. **Step Functions decomposition and failure taxonomy**
    * State machines:
      - `SFN_PLATFORM_RUN_ORCHESTRATOR_V0`
@@ -246,23 +250,30 @@ The following values are now explicitly pinned for v0 execution:
 8. **Managed-first runtime placement policy**
    * `STREAM_ENGINE_MODE = "MSK_FLINK_DEFAULT"`
    * `STREAM_ENGINE_HOSTING_MODE_DEFAULT = "MSF_MANAGED"`
-   * `STREAM_ENGINE_HOSTING_MODE_ALLOWED = "MSF_MANAGED|EKS_EMR_ON_EKS|EKS_FLINK_OPERATOR"`
-   * `STREAM_ENGINE_HOSTING_FALLBACK_BLOCKER = "M6P6-B2"`
+   * `STREAM_ENGINE_HOSTING_MODE_ALLOWED = "MSF_MANAGED|EKS_FLINK_OPERATOR"`
+   * `STREAM_ENGINE_HOSTING_FALLBACK_BLOCKER = "M6P6-B2_OR_EQUIVALENT_MANAGED_UNAVAILABLE"`
    * `INGRESS_EDGE_MODE = "APIGW_LAMBDA_DDB_DEFAULT"`
-   * `EKS_USE_POLICY = "DIFFERENTIATING_SERVICES_ONLY"`
+   * `SR_RUNTIME_MODE = "SFN_LAMBDA_JOB"`
+   * `WSP_RUNTIME_MODE = "ECS_FARGATE_EPHEMERAL"`
+   * `M5_STREAM_SORT_RUNTIME_MODE = "EMR_SERVERLESS_SPARK"`
+   * `ECS_USE_POLICY = "DEFAULT_FOR_NON_K8S_CUSTOM_SERVICES"`
+   * `EKS_USE_POLICY = "EXCEPTION_ONLY_WITH_ADMISSION_RULE"`
    * Any EKS placement for non-differentiating lanes requires explicit pin and rationale.
-9. **Runtime-path selection policy (single-path law)**
+9. **EKS admission policy (hard gate)**
+   * `EKS_ADMISSION_RULE = "CAPABILITY_GAP_AND_SLO_GAIN_AND_COST_FIT_AND_ROLLBACK_PATH"`
+   * `EKS_ADMISSION_REVIEW_CADENCE_DAYS = 30`
+10. **Runtime-path selection policy (single-path law)**
    * `PHASE_RUNTIME_PATH_MODE = "SINGLE_ACTIVE_PATH_PER_PHASE_RUN"`
    * `PHASE_RUNTIME_PATH_PIN_REQUIRED = true`
    * `RUNTIME_PATH_SWITCH_IN_PHASE_ALLOWED = false`
    * fallback activation requires explicit blocker adjudication and a new `phase_execution_id`.
    * fallback activation must emit runtime-path evidence and preserve phase semantics/DoDs.
-10. **SR READY commit authority**
-   * `SR_READY_COMPUTE_MODE = "FLINK_ALLOWED"`
+11. **SR READY commit authority**
+   * `SR_READY_COMPUTE_MODE = "SFN_LAMBDA_JOB"`
    * `SR_READY_COMMIT_AUTHORITY = "STEP_FUNCTIONS_ONLY"`
    * `SR_READY_RECEIPT_REQUIRES_SFN_EXECUTION_REF = true`
    * no lane may claim `P5` closure from Flink output alone without Step Functions commit evidence.
-11. **Ingress edge operational envelope**
+12. **Ingress edge operational envelope**
    * `IG_MAX_REQUEST_BYTES = 1048576` (1 MiB)
    * `IG_REQUEST_TIMEOUT_SECONDS = 30`
    * `IG_INTERNAL_RETRY_MAX_ATTEMPTS = 3`
@@ -271,17 +282,17 @@ The following values are now explicitly pinned for v0 execution:
    * `IG_DLQ_MODE = "SQS"`
    * `IG_RATE_LIMIT_RPS = 200`
    * `IG_RATE_LIMIT_BURST = 400`
-12. **Cross-runtime correlation contract**
+13. **Cross-runtime correlation contract**
    * `CORRELATION_MODE = "W3C_TRACE_CONTEXT_PLUS_RUN_HEADERS"`
    * required correlation fields: `platform_run_id,scenario_run_id,phase_id,event_id,runtime_lane,trace_id`.
    * correlation headers/fields must survive API edge, Flink lanes, Step Functions transitions, EKS services, and evidence artifact emission.
-13. **Learning table format and catalog**
+14. **Learning table format and catalog**
    * `DATA_TABLE_FORMAT_PRIMARY = "APACHE_ICEBERG_V2"`
    * `DATA_TABLE_CATALOG = "AWS_GLUE_DATA_CATALOG"`
    * `DATA_TABLE_STORAGE = "S3"`
    * `DATA_TABLE_QUERY_ENGINE = "ATHENA_GLUE_ICEBERG"`
    * `DATA_TABLE_DELTA_MODE = "DISABLED_FOR_V0"`
-14. **S3 lifecycle transition posture (cost-safe without losing operator agility)**
+15. **S3 lifecycle transition posture (cost-safe without losing operator agility)**
    * evidence and archive surfaces remain in S3 Standard during active debugging window, then transition by policy.
    * default v0 transition policy:
      - evidence: `STANDARD` -> `STANDARD_IA` at day 30 -> `GLACIER_IR` at day 180 -> expire day 365.
@@ -394,7 +405,7 @@ Every full run MUST emit a durable run bundle containing:
 
 ### 6.6 Meta Layers
 
-* Run/Operate: Step Functions for platform run-state, Airflow for learning schedules, GitHub Actions for CI/CD workflow orchestration.
+* Run/Operate: Step Functions for platform run-state, optional Airflow (deferred until complexity threshold) for learning schedules, GitHub Actions for CI/CD workflow orchestration.
 * Obs/Gov: OTel correlation + run-scoped evidence + governance facts.
 
 ---
@@ -581,7 +592,7 @@ Human operator triggers bounded workflows; all actions are traceable and reprodu
 ### 12.2 Workflow split
 
 * Step Functions orchestrates full-platform run-state gates.
-* Airflow orchestrates recurring OFS/MF schedules.
+* Airflow orchestrates recurring OFS/MF schedules only after deferred-mode exit criteria are met.
 * GitHub Actions executes CI/CD + infra promotions + policy checks.
 
 ### 12.2.1 Runtime-path governance (fail-closed)
@@ -733,7 +744,7 @@ After every full run, perform semantic drift and ownership-boundary audit before
 
 1. `dev_full` targets full-platform scope (Spine + Learning/Evolution).
 2. `dev_full` runtime has zero laptop compute posture.
-3. Primary stack is managed-first: AWS MSK + Flink + API Gateway/Lambda/DynamoDB + S3 + Aurora + Redis + Databricks + MLflow + SageMaker + Airflow + Step Functions + OTel + Terraform + GitHub Actions, with EKS reserved for differentiating custom services.
+3. Primary stack is managed-first: AWS MSK + Flink + API Gateway/Lambda/DynamoDB + S3 + Aurora + Redis + Databricks + MLflow + SageMaker + Step Functions + OTel + Terraform + GitHub Actions, with Airflow deferred by default and EKS reserved for exception-only custom services.
 4. Per-lane proof obligations include deploy/monitor/fail/recover/rollback/cost-control evidence.
 5. Bounded `M6P6-B2` exception is closed: Flink hosting may switch to EKS-hosted Flink for `P6` only when MSF account eligibility is externally blocked; semantic/evidence contracts remain unchanged.
 
@@ -780,7 +791,7 @@ This pass closes the initial open set and repins them as executable defaults:
 | Learning/Evolution | OFS | local job | optional | Databricks jobs | Databricks/Snowflake scale |
 | Learning/Evolution | MF | scripts/local | optional | SageMaker + MLflow | SageMaker advanced MLOps |
 | Learning/Evolution | MPR governance | minimal | minimal | governed promotion/rollback | enterprise policy workflows |
-| Meta | Orchestration | scripts/make | CLI run_operate | Step Functions + Airflow | expanded control plane |
+| Meta | Orchestration | scripts/make | CLI run_operate | Step Functions (Airflow deferred by default) | expanded control plane |
 | Meta | IaC/CI | compose/manual | Terraform + GH Actions | Terraform + GH Actions (multi-stack) | org-scale policy + drift control |
 | Meta | Observability | local logs | minimal CW + S3 evidence | OTel + CW/Grafana + S3 evidence | full SRE-grade stack |
 
