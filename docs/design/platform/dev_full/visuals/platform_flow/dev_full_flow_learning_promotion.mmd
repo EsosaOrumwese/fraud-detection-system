@@ -1,0 +1,66 @@
+flowchart LR
+
+  subgraph INPUTS[Learning inputs from spine]
+    ARCH[(S3 archive)]
+    LABELS[(Label maturity surfaces)]
+    MANIFEST[(Run manifests + replay basis)]
+  end
+
+  subgraph P12[P12 Learning input readiness]
+    LCHK[Leakage + as-of checks]
+    ICHK[Input integrity checks]
+    P12PASS[P12 PASS]
+  end
+
+  subgraph P13[P13 OFS dataset closure]
+    OFS[Databricks OFS dataset build]
+    ICE[(Iceberg tables + Glue catalog)]
+    DSET[(Dataset manifest + fingerprint)]
+    P13PASS[P13 PASS]
+  end
+
+  subgraph P14[P14 MF train/eval closure]
+    MF[SageMaker train and eval]
+    EVAL[(Evaluation report)]
+    MLF[Managed MLflow run + model metadata]
+    CAND[(Candidate bundle)]
+    P14PASS[P14 PASS]
+  end
+
+  subgraph P15[P15 Promotion and rollback closure]
+    GATE[Promotion gates]
+    PROM[Promote candidate]
+    RB[Rollback drill]
+    REG[(Active bundle registry)]
+    P15PASS[P15 PASS]
+  end
+
+  subgraph OUT[Runtime and governance outputs]
+    RUNTIME[Runtime resolves active bundle]
+    REPORT[Evidence and lane receipts]
+    VERDICT[P16 full-platform verdict input]
+  end
+
+  ARCH --> LCHK
+  LABELS --> LCHK
+  MANIFEST --> ICHK
+  LCHK --> P12PASS
+  ICHK --> P12PASS
+
+  P12PASS --> OFS --> ICE
+  OFS --> DSET --> P13PASS
+
+  P13PASS --> MF --> EVAL
+  MF --> MLF
+  EVAL --> CAND
+  MLF --> CAND --> P14PASS
+
+  P14PASS --> GATE --> PROM
+  P14PASS --> RB
+  PROM --> REG
+  RB --> P15PASS
+  REG --> P15PASS
+
+  P15PASS --> RUNTIME
+  P15PASS --> REPORT --> VERDICT
+

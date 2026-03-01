@@ -1,0 +1,64 @@
+flowchart LR
+
+  subgraph CORE_STACK[Stack dev_full/core]
+    CORE_RES[VPC subnets endpoints<br/>S3 KMS IAM baseline]
+    CORE_EXP[Exports<br/>network ids + role refs + bucket refs]
+    TFCORE[[state key dev_full/core]]
+  end
+
+  subgraph STREAM_STACK[Stack dev_full/streaming]
+    STREAM_RES[MSK serverless + topic map<br/>schema registry + bootstrap ref]
+    STREAM_EXP[Exports<br/>MSK handles + schema refs]
+    TFSTREAM[[state key dev_full/streaming]]
+  end
+
+  subgraph RUNTIME_STACK[Stack dev_full/runtime]
+    RT_EDGE[API Gateway + ingress Lambda<br/>DynamoDB idempotency + DLQ]
+    RT_ORCH[Step Functions orchestrator]
+    RT_EKS[EKS cluster + IRSA]
+    RT_STREAM[Flink runtime path<br/>MSF or EKS EMR on EKS]
+    RT_STATE[Runtime stores<br/>Aurora + Redis]
+    RT_OBS[CloudWatch log roots]
+    RT_SECRET[Runtime secret handles]
+    TFRUNTIME[[state key dev_full/runtime]]
+  end
+
+  subgraph DATA_ML_STACK[Stack dev_full/data_ml]
+    DML_RES[Databricks OFS<br/>SageMaker MF<br/>Managed MLflow]
+    DML_EXP[Exports<br/>learning handles]
+    TFDML[[state key dev_full/data_ml]]
+  end
+
+  subgraph OPS_STACK[Stack dev_full/ops]
+    OPS_RES[MWAA environment<br/>ops roles + ops secret handles]
+    OPS_EXP[Exports<br/>ops scheduler + secret refs]
+    TFOPS[[state key dev_full/ops]]
+  end
+
+  CORE_RES --> CORE_EXP
+  STREAM_RES --> STREAM_EXP
+  DML_RES --> DML_EXP
+  OPS_RES --> OPS_EXP
+
+  CORE_EXP -. remote_state .-> STREAM_RES
+  CORE_EXP -. remote_state .-> RT_EDGE
+  CORE_EXP -. remote_state .-> RT_EKS
+  STREAM_EXP -. remote_state .-> RT_EDGE
+  STREAM_EXP -. remote_state .-> RT_STREAM
+  DML_EXP -. handle refs .-> RT_ORCH
+  OPS_EXP -. schedule refs .-> RT_ORCH
+  OPS_EXP -. secret refs .-> RT_SECRET
+
+  RT_EDGE --> RT_STREAM
+  RT_EDGE --> RT_ORCH
+  RT_EKS --> RT_STREAM
+  RT_STREAM --> RT_STATE
+  RT_EKS --> RT_STATE
+  RT_EKS --> RT_OBS
+  RT_ORCH --> RT_OBS
+
+  TFCORE -. writes .-> TFCORE
+  STREAM_RES -. writes .-> TFSTREAM
+  RT_EDGE -. writes .-> TFRUNTIME
+  DML_RES -. writes .-> TFDML
+  OPS_RES -. writes .-> TFOPS

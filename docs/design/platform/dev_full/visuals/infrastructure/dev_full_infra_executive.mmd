@@ -1,0 +1,67 @@
+flowchart TB
+
+  subgraph DELIVERY[Delivery and Control Plane]
+    GHA[GitHub Actions<br/>Build and deploy workflows]
+    TF[Terraform stack set<br/>core streaming runtime data_ml ops]
+    ECR[(ECR immutable images)]
+  end
+
+  subgraph CORE[Core stack persistent surfaces]
+    S3[(S3 object + evidence + artifacts)]
+    DDBCTRL[(DynamoDB control surfaces)]
+    KMS[(KMS encryption root)]
+    CW[(CloudWatch + OTel sink)]
+  end
+
+  subgraph STREAMING[Streaming stack]
+    MSK[(AWS MSK Serverless)]
+    FLINK[Flink runtime path<br/>MSF preferred or EKS fallback]
+    SCHEMA[(Schema registry)]
+  end
+
+  subgraph RUNTIME[Runtime stack]
+    EDGE[API Gateway + Lambda<br/>Ingress edge primary]
+    DDBIG[(DynamoDB idempotency)]
+    EKS[(EKS selective custom services)]
+    AURORA[(Aurora PostgreSQL)]
+    REDIS[(ElastiCache Redis)]
+  end
+
+  subgraph LEARNING[Data and ML stack]
+    DBX[Databricks OFS jobs]
+    SM[SageMaker MF train and eval]
+    MLF[Managed MLflow]
+    MPR[Promotion and rollback corridor]
+  end
+
+  subgraph OPS[Ops stack]
+    SFN[Step Functions<br/>P-1 to P17 gate authority]
+    MWAA[MWAA Airflow<br/>Learning schedules]
+  end
+
+  GHA --> TF
+  GHA --> ECR
+  TF --> CORE
+  TF --> STREAMING
+  TF --> RUNTIME
+  TF --> LEARNING
+  TF --> OPS
+
+  MSK --> FLINK
+  EDGE --> DDBIG
+  EDGE --> MSK
+  FLINK --> EKS
+  EKS --> AURORA
+  EKS --> REDIS
+  EKS --> S3
+  DBX --> S3
+  DBX --> SCHEMA
+  SM --> MLF --> MPR
+  MPR --> EKS
+  SFN --> EDGE
+  SFN --> EKS
+  SFN --> MPR
+  MWAA --> DBX
+  MWAA --> SM
+  DDBCTRL --> SFN
+  CW --> SFN
